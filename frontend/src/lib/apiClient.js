@@ -81,7 +81,9 @@ apiClient.interceptors.request.use(
     // Inject Bearer token from stored user session
     try {
       const stored = localStorage.getItem('raw-surf-user');
-      if (stored) {
+      // `useExplicitAuth`: the caller supplied its own Authorization (the sign-in screen's enrol-only token, which is
+      // never stored); keep it instead of the stored session's.
+      if (stored && !config.useExplicitAuth) {
         const user = JSON.parse(stored);
         if (user?.access_token) {
           config.headers['Authorization'] = `Bearer ${user.access_token}`;

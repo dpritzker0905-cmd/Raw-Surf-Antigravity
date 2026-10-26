@@ -141,7 +141,21 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
         # Validate password length
         if len(data.password) < 8:
             raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
-        
+
+        # GUARDIAN PROGRAM: a child under 13 never self-registers. Answered before ANY query or write, so nothing
+        # about the child is stored. Only the parent-first flow (feature-flagged hook, services/guardian_policy.py)
+        # may create an under-13 profile.
+        if data.birthdate:
+            try:
+                _stated_birthdate = date.fromisoformat(data.birthdate)
+            except ValueError:
+                _stated_birthdate = None  # the Grom branch below reports a malformed date
+            from services.guardian_levels import age_on
+            from services.guardian_policy import under_13_signup_refusal
+            _refusal = under_13_signup_refusal(age_on(_stated_birthdate))
+            if _refusal:
+                raise HTTPException(status_code=403, detail=_refusal)
+
         # Validate email uniqueness
         result = await db.execute(select(Profile).where(Profile.email == data.email))
         existing = result.scalar_one_or_none()
@@ -183,6 +197,7 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
         
         parent_id = None
         guardian_code = None
+        signup_named_guardian = None
         parent_link_approved = True  # Default to approved for non-Groms
         birthdate_parsed = None
         parental_controls = None
@@ -195,54 +210,29 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
                     birthdate_parsed = date.fromisoformat(data.birthdate)
                 except ValueError:
                     raise HTTPException(status_code=400, detail="Invalid birthdate format. Use YYYY-MM-DD")
-            
+            else:
+                # no birthdate = no age band: a Grom account is not created blind
+                raise HTTPException(status_code=400, detail="A birthdate is required to create a Grom account.")
+
             # Require parent/guardian email OR username
             if not data.parent_email and not data.parent_username:
                 raise HTTPException(status_code=400, detail="Parent/Guardian email or username required for Grom accounts")
             
-            # Generate guardian code (6-digit alphanumeric)
-            guardian_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-            
-            # Try to find existing parent by email or username
-            parent = None
+            # A child naming an adult links NOTHING (audit F-01): no `parent_id` is written and the permanent
+            # per-child code is retired. After the profile exists the child gets a one-time code
+            # (services/guardian_links.offer_code_at_signup) and the named adult, if they have an account, is told.
+            # Exact match only: the old substring match on names could hand a stranger a child's code.
             if data.parent_email:
                 parent_result = await db.execute(select(Profile).where(Profile.email == data.parent_email))
-                parent = parent_result.scalar_one_or_none()
+                signup_named_guardian = parent_result.scalar_one_or_none()
             elif data.parent_username:
-                # Search by full_name or email prefix
                 parent_result = await db.execute(
-                    select(Profile).where(
-                        (Profile.full_name.ilike(f"%{data.parent_username}%")) |
-                        (Profile.email.ilike(f"{data.parent_username}%"))
-                    )
+                    select(Profile).where(func.lower(Profile.username) == data.parent_username.lower().strip().lstrip('@'))
                 )
-                parent = parent_result.scalars().first()
-            
-            if parent:
-                # Scenario B: Existing parent - link but require approval
-                parent_id = parent.id
-                parent_link_approved = False  # Requires parent approval
-                
-                # Send in-app notification to parent
-                from models import Notification
-                import json
-                notification = Notification(
-                    user_id=parent.id,
-                    type='grom_link_request',
-                    title='New Grom Account Created',
-                    body=f'A new Grom account was created with your email. Use Guardian Code: {guardian_code} to link and approve.',
-                    data=json.dumps({
-                        'grom_email': data.email,
-                        'guardian_code': guardian_code,
-                        'alert_type': 'grom_link_request'
-                    })
-                )
-                db.add(notification)
-            else:
-                # Scenario A: New parent - send email invitation
-                parent_link_approved = False  # Requires parent to register and approve
-                # Email invitation would be sent here (not implemented - requires email service)
-            
+                signup_named_guardian = parent_result.scalar_one_or_none()
+            parent_link_approved = False  # unconfirmed until the child's code is redeemed / invite confirmed
+            # An emailed invitation to an adult with no account is the email service's job (not built here).
+
             # Set default parental controls based on age
             if birthdate_parsed:
                 today = date.today()
@@ -324,13 +314,17 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
             guardian_code=guardian_code,
             parent_link_approved=parent_link_approved,
             parental_controls=parental_controls,
+            is_private=(role_enum == RoleEnum.GROM),  # a child's profile starts private (public needs the level)
             company_name=data.company_name if role_enum in business_roles else None,
             accepts_donations=role_enum == RoleEnum.HOBBYIST
         )
         
         db.add(profile)
         await db.flush()  # Get profile.id before creating verification request
-        
+        if role_enum == RoleEnum.GROM:
+            from services.guardian_links import offer_code_at_signup
+            await offer_code_at_signup(db, profile, signup_named_guardian)
+
         # ============ AUTO-CREATE VERIFICATION REQUEST FOR PRO ROLES ============
         # When someone signs up as APPROVED_PRO, auto-create a pending verification request
         if role_enum == RoleEnum.APPROVED_PRO:
@@ -382,6 +376,56 @@ async def signup(request: Request, data: SignupRequest, db: AsyncSession = Depen
     except Exception as e:
         await db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
+
+def session_payload(profile: Profile, token: str) -> dict:
+    """The sign-in response: the profile as a flat dict plus the signed token.
+
+    The frontend stores the whole object in localStorage; the token is in the access_token field. Shared by the
+    password login and the second-factor login so both return exactly the same shape.
+    """
+    profile_data = ProfileResponse(
+        id=profile.id,
+        user_id=profile.user_id,
+        email=profile.email,
+        full_name=profile.full_name,
+        username=profile.username,
+        role=profile.role.value,
+        subscription_tier=profile.subscription_tier,
+        is_ad_supported=profile.is_ad_supported if profile.is_ad_supported is not None else True,
+        credit_balance=profile.credit_balance or 0.0,
+        bio=profile.bio,
+        avatar_url=profile.avatar_url,
+        is_verified=profile.is_verified or False,
+        is_live=profile.is_live or False,
+        is_private=profile.is_private or False,
+        is_approved_pro=profile.is_approved_pro or False,
+        is_admin=profile.is_admin or False,
+        location=profile.location,
+        company_name=profile.company_name,
+        portfolio_url=profile.portfolio_url,
+        instagram_url=profile.instagram_url,
+        website_url=profile.website_url,
+        hourly_rate=profile.hourly_rate,
+        session_price=profile.session_price,
+        accepts_donations=profile.accepts_donations or False,
+        skill_level=profile.skill_level,
+        stance=profile.stance,
+        home_break=profile.home_break,
+        surf_mode=profile.surf_mode or 'casual',
+        is_grom_parent=profile.is_grom_parent or (profile.role == RoleEnum.GROM_PARENT),
+        home_latitude=profile.home_latitude,
+        home_longitude=profile.home_longitude,
+        home_location_name=profile.home_location_name,
+        created_at=profile.created_at,
+        parent_id=profile.parent_id,
+        parent_link_approved=profile.parent_link_approved,
+        parental_controls=profile.parental_controls
+    )
+
+    # Return profile data + signed token as a flat dict
+    # Frontend stores the whole object in localStorage; token is in access_token field
+    return {**profile_data.model_dump(), "access_token": token, "token_type": "bearer"}
+
 
 def _login_refusal(profile, retry_after: int = 0) -> HTTPException:
     """The refusal an ordinary wrong guess earns for THIS account, so a throttled caller sees nothing different
@@ -443,50 +487,14 @@ async def login(request: Request, data: LoginRequest, db: AsyncSession = Depends
     if profile.is_suspended:
         raise HTTPException(status_code=403, detail="Account suspended")
 
+    # A second factor is owed (or must be set up) before any session token exists: see routes/auth_pkg/mfa.py.
+    from routes.auth_pkg.mfa import mfa_login_gate
+    gated = await mfa_login_gate(db, profile)
+    if gated is not None:
+        return gated
+
     token = create_access_token({"sub": profile.id, "role": profile.role.value})
-
-    profile_data = ProfileResponse(
-        id=profile.id,
-        user_id=profile.user_id,
-        email=profile.email,
-        full_name=profile.full_name,
-        username=profile.username,
-        role=profile.role.value,
-        subscription_tier=profile.subscription_tier,
-        is_ad_supported=profile.is_ad_supported if profile.is_ad_supported is not None else True,
-        credit_balance=profile.credit_balance or 0.0,
-        bio=profile.bio,
-        avatar_url=profile.avatar_url,
-        is_verified=profile.is_verified or False,
-        is_live=profile.is_live or False,
-        is_private=profile.is_private or False,
-        is_approved_pro=profile.is_approved_pro or False,
-        is_admin=profile.is_admin or False,
-        location=profile.location,
-        company_name=profile.company_name,
-        portfolio_url=profile.portfolio_url,
-        instagram_url=profile.instagram_url,
-        website_url=profile.website_url,
-        hourly_rate=profile.hourly_rate,
-        session_price=profile.session_price,
-        accepts_donations=profile.accepts_donations or False,
-        skill_level=profile.skill_level,
-        stance=profile.stance,
-        home_break=profile.home_break,
-        surf_mode=profile.surf_mode or 'casual',
-        is_grom_parent=profile.is_grom_parent or (profile.role == RoleEnum.GROM_PARENT),
-        home_latitude=profile.home_latitude,
-        home_longitude=profile.home_longitude,
-        home_location_name=profile.home_location_name,
-        created_at=profile.created_at,
-        parent_id=profile.parent_id,
-        parent_link_approved=profile.parent_link_approved,
-        parental_controls=profile.parental_controls
-    )
-
-    # Return profile data + signed token as a flat dict
-    # Frontend stores the whole object in localStorage; token is in access_token field
-    return {**profile_data.model_dump(), "access_token": token, "token_type": "bearer"}
+    return session_payload(profile, token)
 
 
 

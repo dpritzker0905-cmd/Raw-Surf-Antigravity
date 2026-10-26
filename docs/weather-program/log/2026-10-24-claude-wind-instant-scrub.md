@@ -185,3 +185,52 @@ default off, as side-by-side clips for the owner.
   - Per-step chip + line in `clips.json`.
   - Page for the owner (private): https://claude.ai/artifact/64MGZ6RVA5Y2rfTfi2Mtwt
 - **Not decided here.** The owner picks A, B, both or neither. Nothing changes unless a flag is set.
+
+## The click-task split (branch claude/wind-toggle-split)
+
+The lead, after #553: "split that task, not remove a hop": profile the work before setWindData, move what the first wind draw
+does not need after a yield / into a transition, measure first draw and INP over 3 alternating rounds with base in the same pass.
+
+- **Profile (dev base, `profile_toggle.mjs UNTIL=setWindData OWNERS=1`, outermost app frame).**
+  - The click's task before setWindData, z2 / z3.9: MapWebGL's render (with `useSimulationField`) 60.5 / 9.3 ms.
+  - WeatherEngine's primary fetch effect 30.9 / 32.9 ms. This one is needed: it serves the static frame.
+  - `staticUncoveredHours` (series-page planning) 29.3 / 13.6 ms.
+  - `tryStaticWindGrid` + `fetchBackendWindGrid` 9.3 / 10.9 ms (the crop; needed for the sharp view).
+  - The layer truth diff ~3.5 ms. Prefetch and marine warm ~2-4 ms.
+- **What the first draw does not need (checked in the code, not assumed).**
+  - **The simulation field:** RenderPlanDispatcher uploads to the wind or marine engine only with `__ALLOW_FCE_WIND_UPLOAD__` /
+    `__ALLOW_FCE_MARINE_UPLOAD__` (both off by default). Its other readers are the HUD and debug tools. My earlier note that
+    deferring it is an owner A/B was wrong: nothing drawn reads it.
+  - At z2 the whole field is rebuilt on the click because `activeMarineLayer` flips; the memo key includes it.
+  - **Series pages:** a prefetch of later hours.
+  - **The truth diff:** a diagnostic that serialises the style.
+- **Changes (each with a kill switch).**
+  - The sim field is built from ONE `useDeferredValue` of all its inputs (`__RAW_DISABLE_SIM_FIELD_DEFER__`).
+  - Series pages are planned after the next paint (`__RAW_DISABLE_WIND_SERIES_AFTER_PAINT__`).
+  - The truth diff's mount capture runs after the next paint (`__RAW_DISABLE_TRUTH_DIFF_AFTER_PAINT__`).
+  - `afterNextPaint.js` = rAF, then a MessageChannel message (runs after the paint), with a 100 ms hidden-tab floor.
+  - The marine memo idea is moot for the toggle: the field is no longer on the critical path.
+- **A/B (split vs dev base, same pass, 3 alternating rounds, z2 / z3.9 / z6, 18 sessions, all static, mislabel 0).**
+  - setWindData after the click p50 41 vs 77 ms.
+  - The click's long task p50 61 vs 98 ms.
+  - First wind draw p50 81 vs 113 ms, p95 146 vs 193 ms. z3.9 is the cleanest cell: 61-74 vs 112-130 ms.
+  - Click INP p50 120 vs 160 ms, p95 200 vs 192 ms (flat).
+  - Scrub step p50 32 vs 29 ms, p95 55 vs 67 ms.
+  - The p50 is now inside the 100 ms toggle contract; the p95 (146 ms) is not yet.
+- **#564 rebased on #560.** #560's LABEL INSTANT is clip A, default on, so #564 keeps only option B. The clip page now compares
+  B with today's real default (the nearest-frame line).
+
+## 2026-10-26: clip B is now PCHIP on u/v, in the f120+ tail only (#564)
+
+The hold-out (SCOREBOARD S23; the section on #580's branch) picked PCHIP on u/v for the 3-hourly tail. The lead approved
+dropping polar B (2026-10-25). On #564:
+- `windTimeBlend.js` blends u and v by PCHIP: Fritsch-Carlson slopes through the frames t-3, t, t+3 and t+6, one-sided where a
+  neighbour frame or node is missing. These are the hold-out's own formulas (`pchip_slope`, `hermite`), pinned case by case.
+- **The tail only.** The bracket's first frame must be at f120 or later of the index's run. An unknown run fails closed to the
+  nearest frame, which #560 labels. Before f120, #580's hourly frames cover every hour.
+- **Sync draws the same blend or none.** The seam loads the outer neighbours. The sync scrub path now returns nothing (so the
+  async path loads all four) unless every needed frame is local. Otherwise one instant could draw a one-sided curve first and
+  a two-sided one a moment later.
+- The readout chip uses the same bracket rule, so it never names a blend the map does not draw.
+- `scn_wind_clips.js` starts at START_HOUR (default 124) so the clip lands in the tail.
+- It stays opt-in (`__RAW_WIND_TIME_BLEND__`) until the owner sees the clips.

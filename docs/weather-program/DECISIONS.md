@@ -1751,3 +1751,47 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Still open:** ICON keeps the GFS donor for its own masked sea cells (its own values and rim extrapolation come later); EURO/ICON
   world static frames get the fill baked in by the same code (static-frames); the legacy 8-deg fill retires once nothing selects it;
   per-node provenance (`MARINE_FILL_PROVENANCE_NODES`, #502) stays dark.
+
+
+### D-051 · Inside the 19 GFS pilot boxes, zoom 7-9 is the stored NOAA GFS tile: the server serves it first and the client draws its bundles (both ON, 2026-10-25)
+
+- **The owner, 2026-10-23:** "Yes: make the stored NOAA GFS tile the single zoom 7-9 source inside the pilot boxes (server dark flag + client bundles), retire the Open-Meteo lane there, and flip both together after live parity passes." 2026-10-24 ~19:40 EDT: "Lets go with your recommendation if that is the best path forward" (the recommendation: 9 AM, both halves in one watched window).
+- **Server:** Render `MARINE_REGIONAL_TILE_FIRST` 0 -> 1 at 2026-10-25 13:27:03Z (deploy of b736e09b0, which adds only #558 over the
+  running 56deadc33; live 13:30:06Z). A GFS marine viewport that a stored pilot tile FULLY covers (the client's rule: smallest
+  containing tile, snapped box inside the data, margin-0 cover) is served from that tile, never the dynamic Open-Meteo cache or the
+  live series lane (#508).
+- **The gate, live parity (static-frames scn_tile_first_live_read.mjs, ONCE, 13:47:15-13:47:39Z, 15 min after the deploy):** PASS
+  3/3 boxes (florida_east_coast, us_southeast_midatlantic one degree inside the fractional -74.4 edge, uk_ireland). All 18 /grid
+  frames came from the stored tile with the bundle's exact lattice, 0 missing nodes, 0 validity mismatches, |dH| <= 0.0005 m (half
+  the codec step), direction and period exact. All 3 /grid_series pages took 6/6 frames from the tile; this read FAILS with the flag
+  off, so it has teeth (offline controls, 19 boxes, 2026-10-24). Health 0.16 s after.
+- **Client:** #552 merged at 13:52:17Z (fee207ac2): the regional bundles are ON by default (kill
+  `__RAW_DISABLE_REGIONAL_BUNDLES__`). Offline clean store, z8 Florida / z9 Biscay mid-tile: steps p95 9 / 14 ms, 0 mislabel,
+  0 stale frames, 0 backend asks for waves.
+- **Watch (13:55-15:00Z, D-050's triggers):** 13 probes, the in-box Florida z8 /grid from the tile every time in 0.19-0.50 s; app
+  err_5xx 0 on every route; edge 500s within the baseline (at most 9 per 10 min, no two buckets over 8 per 5 min); memory
+  484-766 MB (trigger 1,126); CPU at most 0.063. Weather /grid p95 1.4 s (n=10) after the restart. No trigger fired.
+- **Rollback:** Render `MARINE_REGIONAL_TILE_FIRST=0` (redeploys) and/or the client kill switch; reverting #552 restores the dark
+  default.
+- **Known misses, with owners:** tile EDGES (fractional extents) still wait on /grid and the server mixes regional and viewport
+  products there; the client's snapped-box rule declines those boxes (static-frames: pad the stored extent, draft #563). Model
+  toggles at z7-9 are not from the store yet (instant-scrub).
+
+### D-052 · The published EURO/ICON filled world sets use the box's targeted Gulf fill, and cloud cover draws from our own 0.25-degree GFS frames (both ON, 2026-10-26)
+
+- **The owner, 2026-10-26 ~02:30Z (23:02 EDT 10-25):** "Flip both: the MARINE_GULF_FILL_MID_TARGETED repo variable and cloud 0.25 deg (repo var, then the client key after one publish). Watch one ingest cycle." He had declined the first half at ~18:30Z 10-25 ("not right now"); the lead put it to him once more with the evidence below.
+- **Gulf fill (speed only, no served number):** repo variable `MARINE_GULF_FILL_MID_TARGETED` -> 1 at 01:31:33Z, so the publisher's
+  filled EURO/ICON world sets (#555, preloaded by #571) match Render's D-050 setting. The workflow comment: the two must be EQUAL, a
+  mismatch "costs speed, never a number" (the client serves a filled set only while /capabilities reports the same mode). Offline
+  evidence (world-frames-targeted-fill-2026-10-25): targeted filled sets vs /grid with the box targeted, 7 sets, 2,418,703 nodes,
+  161 comparisons, **0 bad** (max direction error 1.2e-5); positive control, the plain EURO/ICON sets, **3,082 bad** each.
+- **Cloud 0.25 deg (visual, ships ON with a kill switch):** repo variable `FRAME_RASTER_CLOUD_0P25` -> 1 at 01:31:52Z (#574's
+  opt-in pilots step, NCEP's full 1440 x 721 grid); the client's `DEFAULT_ON_LAYERS = ['satellite']` (this PR) draws the cloud
+  layer from `GFS/weather/cloud_cover/global_0p25` with no lever. Kill: `__RAW_DISABLE_RASTER_OWN_SATELLITE__` (or
+  `__RAW_DISABLE_RASTER_OWN_FRAMES__`); a miss falls back to the .om path; EURO/ICON keep the .om path (no cloud set). Measured
+  (#574, paired builds): per frame 0.111 -> 0.397 MB, toggle 290 -> 386 ms, steps p50/p95 unchanged (32/44 ms), GPU 4.2 MB per
+  resident frame, 0 Open-Meteo requests.
+- **Watch:** one pilots ingest (run 40257358504, dispatched 02:05:21Z). Read-back: see the log
+  `2026-10-26-claude-lead-flag-flips.md`.
+- **Rollback:** delete either repo variable (the next publish reverts that half); the cloud kill switch; reverting this PR restores
+  the dark default.

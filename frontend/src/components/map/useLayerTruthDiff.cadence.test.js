@@ -22,9 +22,11 @@ function fixture() {
   return { map, props, hook, emit, advance, overlap };
 }
 
+// These pin the snapshot CADENCE with the mount capture counted in the effect (as written); the mount capture now waits for the
+// next paint by default (2026-10-25), pinned on its own in the describe below, so this one runs with that deferral killed.
 describe('truth snapshots share a render/idle budget and own delayed work', () => {
-  beforeEach(() => { jest.useFakeTimers(); delete window.isScrubbingTimeline; });
-  afterEach(() => { delete window.isScrubbingTimeline; jest.useRealTimers(); });
+  beforeEach(() => { jest.useFakeTimers(); delete window.isScrubbingTimeline; window.__RAW_DISABLE_TRUTH_DIFF_AFTER_PAINT__ = true; });
+  afterEach(() => { delete window.isScrubbingTimeline; delete window.__RAW_DISABLE_TRUTH_DIFF_AFTER_PAINT__; jest.useRealTimers(); });
 
   test('animated custom-layer render/idle pairs stay within four checks per second', () => {
     const f = fixture();
@@ -123,5 +125,39 @@ describe('truth snapshots share a render/idle budget and own delayed work', () =
     f.advance(250); expect(() => f.emit('idle')).not.toThrow();
     f.overlap(); f.advance(250); f.emit('idle');
     expect(f.hook.result.current.issues.some(value => value.type === 'RASTER_OVERLAP')).toBe(true);
+  });
+});
+
+// THE MOUNT CAPTURE WAITS FOR THE NEXT PAINT (2026-10-25, the wind toggle's click task): the initial snapshot serialises the
+// whole style, and it is a diagnostic, so it no longer runs inside the effect (the click's task) but after the next frame.
+describe('the mount capture runs after the next paint, not in the effect', () => {
+  let rafCbs;
+  beforeEach(() => {
+    jest.useFakeTimers(); delete window.isScrubbingTimeline; delete window.__RAW_DISABLE_TRUTH_DIFF_AFTER_PAINT__;
+    rafCbs = [];
+    jest.spyOn(window, 'requestAnimationFrame').mockImplementation((cb) => { rafCbs.push(cb); return rafCbs.length; });
+  });
+  afterEach(() => { jest.useRealTimers(); jest.restoreAllMocks(); });
+
+  test('no getStyle in the effect; one after the paint (here the hidden-tab floor)', () => {
+    const f = fixture();
+    expect(f.map.getStyle).not.toHaveBeenCalled();
+    f.advance(100);
+    expect(f.map.getStyle).toHaveBeenCalledTimes(1);
+  });
+
+  test('unmounted before the paint: never captures (no read of a disposed map)', () => {
+    const f = fixture();
+    f.hook.unmount();
+    f.advance(200);
+    expect(f.map.getStyle).not.toHaveBeenCalled();
+  });
+
+  test('the kill switch captures in the effect, as before', () => {
+    window.__RAW_DISABLE_TRUTH_DIFF_AFTER_PAINT__ = true;
+    try {
+      const f = fixture();
+      expect(f.map.getStyle).toHaveBeenCalledTimes(1);
+    } finally { delete window.__RAW_DISABLE_TRUTH_DIFF_AFTER_PAINT__; }
   });
 });

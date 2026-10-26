@@ -1,15 +1,28 @@
-"""Grom HQ parental — linking, unlinking, competition toggle, parental controls."""
-from fastapi import Depends, HTTPException, APIRouter
+"""Grom HQ parental — two-sided linking, unlinking, competition toggle, parental controls.
+
+A guardian link exists only when the CHILD's account took part (services/guardian_links.py): a child-generated
+code the adult redeems, or an adult's invite the child confirms. `link-grom` proposes; it never links. Every
+guardian route below authorises with `is_confirmed_guardian` (a bare `parent_id` claim carries no authority).
+"""
+from fastapi import Depends, HTTPException, APIRouter, Request
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
+from core.rate_limiter import rate_limit_check
 from database import get_db
 from models import Profile, RoleEnum
-from utils.grom_parent import is_grom_parent_eligible
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_current_user_id, get_user_id_from_jwt_or_query
+from services import guardian_links
+from services.guardian_levels import guardian_level, has_confirmed_link, is_confirmed_guardian
+from services.guardian_policy import unlocked
 
 from .schemas import ToggleCompetitionRequest
 router = APIRouter()
+
+
+async def _profile(db: AsyncSession, profile_id: str):
+    return (await db.execute(select(Profile).where(Profile.id == profile_id))).scalar_one_or_none()
+
 
 @router.post("/toggle-competition/{grom_id}")
 async def toggle_grom_competition(
@@ -23,39 +36,26 @@ async def toggle_grom_competition(
         raise HTTPException(status_code=403, detail="Not authorized to modify competition status")
     """
     Toggle competition mode for a linked Grom.
-    Only the linked parent can change this setting.
+    Only the confirmed guardian can change this setting.
     When enabled, sets elite_tier to 'grom_rising' for competitive features.
     """
-    # Verify parent exists and is a Grom Parent
-    parent_result = await db.execute(
-        select(Profile).where(Profile.id == parent_id)
-    )
-    parent = parent_result.scalar_one_or_none()
-    
+    parent = await _profile(db, parent_id)
     if not parent:
         raise HTTPException(status_code=404, detail="Parent not found")
-    
-    if not is_grom_parent_eligible(parent):
-        raise HTTPException(status_code=403, detail="Only Grom Parents can modify competition status")
-    
-    # Verify Grom exists and is linked to this parent
-    grom_result = await db.execute(
-        select(Profile).where(Profile.id == grom_id)
-    )
-    grom = grom_result.scalar_one_or_none()
-    
+
+    grom = await _profile(db, grom_id)
     if not grom:
         raise HTTPException(status_code=404, detail="Grom not found")
-    
+
     if grom.role != RoleEnum.GROM:
         raise HTTPException(status_code=400, detail="Target user is not a Grom")
-    
-    if grom.parent_id != parent_id:
+
+    if not is_confirmed_guardian(grom, parent_id):
         raise HTTPException(status_code=403, detail="You can only modify your linked Grom's settings")
-    
+
     # Update elite_tier based on competition status
     new_elite_tier = "grom_rising" if data.competes else None
-    
+
     # Use explicit update statement for reliability
     from sqlalchemy import update
     await db.execute(
@@ -64,7 +64,7 @@ async def toggle_grom_competition(
         .values(elite_tier=new_elite_tier)
     )
     await db.commit()
-    
+
     return {
         "success": True,
         "grom_id": grom_id,
@@ -83,35 +83,30 @@ async def get_linked_groms(
     if user_id != parent_id:
         raise HTTPException(status_code=403, detail="Not authorized to view linked Groms")
     """
-    Get all Groms linked to a parent account
-    Returns linked groms, pending requests, and aggregate stats
+    Get all Groms confirmed-linked to a guardian account
+    Returns linked groms, open invites this guardian sent, and aggregate stats
     """
-    # Verify parent exists and is a Grom Parent
-    parent_result = await db.execute(
-        select(Profile).where(Profile.id == parent_id)
-    )
-    parent = parent_result.scalar_one_or_none()
-    
+    parent = await _profile(db, parent_id)
     if not parent:
         raise HTTPException(status_code=404, detail="Parent not found")
-    
-    # Get all Groms linked to this parent
+
+    # Only CONFIRMED links: a bare parent_id claim is not a link.
     groms_result = await db.execute(
         select(Profile)
         .where(Profile.parent_id == parent_id)
+        .where(Profile.parent_link_approved.is_(True))
         .where(Profile.role == RoleEnum.GROM)
     )
     linked_groms = groms_result.scalars().all()
-    
-    # Get pending link requests (Groms who requested to link but not yet approved)
-    # For now, we'll return empty - this would need a separate LinkRequest model
-    pending_requests = []
-    
+
+    # Invites this guardian has sent and the child has not yet answered
+    pending_requests = (await guardian_links.pending_for_user(db, parent))["outgoing"]
+
     # Calculate aggregate stats
     total_earnings = 0
     total_sessions = 0
     total_achievements = 0
-    
+
     groms_data = []
     for grom in linked_groms:
         # Get badges count from profile
@@ -122,7 +117,8 @@ async def get_linked_groms(
                 badges_list = json.loads(grom.badges) if isinstance(grom.badges, str) else grom.badges
             except (json.JSONDecodeError, TypeError):
                 badges_list = []
-        
+
+        standing = await guardian_level(db, grom)
         grom_data = {
             "id": grom.id,
             "full_name": grom.full_name,
@@ -130,13 +126,16 @@ async def get_linked_groms(
             "credits_balance": float(grom.credit_balance) if grom.credit_balance else 0,
             "achievements_count": len(badges_list) if badges_list else 0,
             "total_xp": grom.total_xp if hasattr(grom, 'total_xp') and grom.total_xp else 0,
-            "linked_at": grom.created_at.isoformat() if grom.created_at else None
+            "linked_at": grom.created_at.isoformat() if grom.created_at else None,
+            "guardian_level": standing.level,
+            "age_band": standing.band,
+            "unlocked": unlocked(standing),
         }
         groms_data.append(grom_data)
-        
+
         total_earnings += grom_data["credits_balance"]
         total_achievements += grom_data["achievements_count"]
-    
+
     return {
         "linked_groms": groms_data,
         "pending_requests": pending_requests,
@@ -159,42 +158,20 @@ async def link_grom(
     if user_id != parent_id:
         raise HTTPException(status_code=403, detail="Not authorized to link Groms for this parent")
     """
-    Link a Grom account to a verified parent
+    Propose a link to a Grom. NOTHING is linked until the Grom's own account confirms the invite
+    (48 hours, single use). Before this change this route linked any unlinked Grom outright (audit F-01).
     """
-    # Verify parent exists and is a Grom Parent
-    parent_result = await db.execute(
-        select(Profile).where(Profile.id == parent_id)
-    )
-    parent = parent_result.scalar_one_or_none()
-    
+    parent = await _profile(db, parent_id)
     if not parent:
         raise HTTPException(status_code=404, detail="Parent not found")
-    
-    if not is_grom_parent_eligible(parent):
-        raise HTTPException(status_code=403, detail="Only Grom Parents can link Groms")
-    
-    # Verify grom exists and is a Grom
-    grom_result = await db.execute(
-        select(Profile).where(Profile.id == grom_id)
-    )
-    grom = grom_result.scalar_one_or_none()
-    
-    if not grom:
-        raise HTTPException(status_code=404, detail="Grom not found")
-    
-    if grom.role != RoleEnum.GROM:
-        raise HTTPException(status_code=400, detail="User is not a Grom")
-    
-    if grom.parent_id:
-        raise HTTPException(status_code=400, detail="Grom is already linked to a parent")
-    
-    # Link the grom
-    grom.parent_id = parent_id
-    await db.commit()
-    
+
+    invite = await guardian_links.create_parent_invite(db, parent, grom_id)
     return {
         "success": True,
-        "message": f"Successfully linked {grom.full_name} to your account"
+        "status": "pending_child_confirmation",
+        "invite_id": invite["invite_id"],
+        "expires_at": invite["expires_at"],
+        "message": "Invite sent. The link starts when the child confirms it in their account."
     }
 
 
@@ -214,38 +191,25 @@ async def unlink_grom(
     """
     from passlib.context import CryptContext
 
-
     pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
-    
-    # Verify parent exists
-    parent_result = await db.execute(
-        select(Profile).where(Profile.id == parent_id)
-    )
-    parent = parent_result.scalar_one_or_none()
-    
+
+    parent = await _profile(db, parent_id)
     if not parent:
         raise HTTPException(status_code=404, detail="Parent not found")
-    
+
     # Verify password
-    if not pwd_context.verify(password, parent.password):
+    if not pwd_context.verify(password, parent.password_hash):
         raise HTTPException(status_code=401, detail="Incorrect password")
-    
-    # Verify grom is linked to this parent
-    grom_result = await db.execute(
-        select(Profile).where(Profile.id == grom_id)
-    )
-    grom = grom_result.scalar_one_or_none()
-    
+
+    grom = await _profile(db, grom_id)
     if not grom:
         raise HTTPException(status_code=404, detail="Grom not found")
-    
-    if grom.parent_id != parent_id:
+
+    if not is_confirmed_guardian(grom, parent_id):
         raise HTTPException(status_code=403, detail="This Grom is not linked to your account")
-    
-    # Unlink the grom
-    grom.parent_id = None
-    await db.commit()
-    
+
+    await guardian_links.unlink(db, grom)
+
     return {
         "success": True,
         "message": f"Successfully unlinked {grom.full_name} from your account"
@@ -262,17 +226,14 @@ async def get_grom_status(
     Check if a Grom account is linked to a parent
     Used for the Safety Gate lock screen
     """
-    grom_result = await db.execute(
-        select(Profile).where(Profile.id == grom_id)
-    )
-    grom = grom_result.scalar_one_or_none()
-    
+    grom = await _profile(db, grom_id)
+
     if not grom:
         raise HTTPException(status_code=404, detail="User not found")
-        
-    if user_id != grom_id and grom.parent_id != user_id:
+
+    if user_id != grom_id and not is_confirmed_guardian(grom, user_id):
         raise HTTPException(status_code=403, detail="Not authorized to view this Grom's status")
-    
+
     if grom.role != RoleEnum.GROM:
         return {
             "is_grom": False,
@@ -281,30 +242,32 @@ async def get_grom_status(
             "is_approved": True,
             "parental_controls": None
         }
-    
-    is_linked = grom.parent_id is not None
-    is_approved = grom.parent_link_approved or False
-    
-    # Get parent info if linked
+
+    standing = await guardian_level(db, grom)
+    is_linked = has_confirmed_link(grom)
+
+    # Get parent info only for a confirmed link
     parent_info = None
     if is_linked:
-        parent_result = await db.execute(
-            select(Profile).where(Profile.id == grom.parent_id)
-        )
-        parent = parent_result.scalar_one_or_none()
+        parent = await _profile(db, grom.parent_id)
         if parent:
             parent_info = {
                 "id": parent.id,
                 "full_name": parent.full_name,
                 "avatar_url": parent.avatar_url
             }
-    
+
     return {
         "is_grom": True,
         "requires_parent_link": True,
         "is_linked": is_linked,
-        "is_approved": is_approved,
-        "guardian_code": grom.guardian_code,
+        "is_approved": is_linked,
+        # The permanent per-child code is retired: a code is now generated on request (POST /guardian-code),
+        # single-use and valid 48 hours. The key stays so older clients do not break.
+        "guardian_code": None,
+        "guardian_level": standing.level,
+        "age_band": standing.band,
+        "unlocked": unlocked(standing),
         "parent_info": parent_info,
         "parental_controls": grom.parental_controls or {
             "can_post": False,
@@ -328,20 +291,16 @@ async def update_parental_controls(
         raise HTTPException(status_code=403, detail="Not authorized to update parental controls")
     """
     Update parental controls for a linked Grom
-    Only the linked parent can update these settings
+    Only the confirmed guardian can update these settings
     """
-    # Verify grom exists and is linked to this parent
-    grom_result = await db.execute(
-        select(Profile).where(Profile.id == grom_id)
-    )
-    grom = grom_result.scalar_one_or_none()
-    
+    grom = await _profile(db, grom_id)
+
     if not grom:
         raise HTTPException(status_code=404, detail="Grom not found")
-    
-    if grom.parent_id != parent_id:
+
+    if not is_confirmed_guardian(grom, parent_id):
         raise HTTPException(status_code=403, detail="Not authorized to update this Grom's controls")
-    
+
     # Validate controls
     # `can_message_grom_channel` is the "Grom Zone Chat" switch on the guardian screen; the messaging gate
     # (`check_grom_messaging_permission`) already reads it, but this list dropped it, so the toggle reported
@@ -352,15 +311,15 @@ async def update_parental_controls(
     # Keys this route does not own (spending limits and media ceilings have their own routes; the screen echoes the
     # whole object back) are not stored here. Name them in the reply instead of dropping them silently.
     ignored_keys = sorted(k for k in controls if k not in valid_keys)
-    
+
     # Merge with existing controls
     existing_controls = grom.parental_controls or {}
     existing_controls.update(filtered_controls)
     grom.parental_controls = existing_controls
     flag_modified(grom, 'parental_controls')
-    
+
     await db.commit()
-    
+
     return {
         "success": True,
         "parental_controls": grom.parental_controls,
@@ -379,40 +338,25 @@ async def approve_grom_link(
     if user_id != parent_id:
         raise HTTPException(status_code=403, detail="Not authorized to approve links")
     """
-    Parent approves a Grom link request
+    A guardian can no longer approve their own link: approval is the CHILD's confirmation (invite) or the child's
+    code. Kept so older clients get a clear answer; a link that is already confirmed is reported as such.
     """
-    # Verify parent
-    parent_result = await db.execute(
-        select(Profile).where(Profile.id == parent_id)
-    )
-    parent = parent_result.scalar_one_or_none()
-    
-    if not parent or not is_grom_parent_eligible(parent):
-        raise HTTPException(status_code=403, detail="Only Grom Parents can approve links")
-    
-    # Find and update grom
-    grom_result = await db.execute(
-        select(Profile).where(Profile.id == grom_id)
-    )
-    grom = grom_result.scalar_one_or_none()
-    
+    grom = await _profile(db, grom_id)
     if not grom:
         raise HTTPException(status_code=404, detail="Grom not found")
-    
-    if grom.parent_id != parent_id:
-        raise HTTPException(status_code=403, detail="This Grom is not linked to your account")
-    
-    grom.parent_link_approved = True
-    await db.commit()
-    
-    return {
-        "success": True,
-        "message": f"Successfully approved link with {grom.full_name}"
-    }
+
+    if is_confirmed_guardian(grom, parent_id):
+        return {"success": True, "message": f"Link with {grom.full_name} is already confirmed"}
+
+    raise HTTPException(
+        status_code=403,
+        detail="A link is confirmed by the child's account. Ask the child for a code, or send an invite they confirm.",
+    )
 
 
 @router.post("/link-by-code")
 async def link_grom_by_code(
+    request: Request,
     parent_id: str,
     guardian_code: str,
     user_id: str = Depends(get_user_id_from_jwt_or_query),
@@ -421,38 +365,15 @@ async def link_grom_by_code(
     if user_id != parent_id:
         raise HTTPException(status_code=403, detail="Not authorized to link by code")
     """
-    Link a Grom to parent using guardian code
+    Redeem a code the CHILD's account generated. Single use, bound to that child, valid 48 hours.
     """
-    # Verify parent
-    parent_result = await db.execute(
-        select(Profile).where(Profile.id == parent_id)
-    )
-    parent = parent_result.scalar_one_or_none()
-    
-    if not parent or not is_grom_parent_eligible(parent):
-        raise HTTPException(status_code=403, detail="Only Grom Parents can link Groms")
-    
-    # Find grom by guardian code
-    grom_result = await db.execute(
-        select(Profile).where(Profile.guardian_code == guardian_code.upper())
-    )
-    grom = grom_result.scalar_one_or_none()
-    
-    if not grom:
-        raise HTTPException(status_code=404, detail="Invalid guardian code")
-    
-    if grom.role != RoleEnum.GROM:
-        raise HTTPException(status_code=400, detail="Invalid guardian code")
-    
-    if grom.parent_id and grom.parent_link_approved:
-        raise HTTPException(status_code=400, detail="This Grom is already linked to a parent")
-    
-    # Link and approve
-    grom.parent_id = parent_id
-    grom.parent_link_approved = True
-    
-    await db.commit()
-    
+    rate_limit_check(request, max_requests=8, window_seconds=600, key_prefix=f"guardian_redeem:{user_id}:")
+    parent = await _profile(db, parent_id)
+    if not parent:
+        raise HTTPException(status_code=404, detail="Parent not found")
+
+    grom = await guardian_links.redeem_child_code(db, parent, guardian_code)
+
     return {
         "success": True,
         "message": f"Successfully linked {grom.full_name} to your account",
@@ -464,4 +385,56 @@ async def link_grom_by_code(
     }
 
 
+# ============ CHILD SIDE: "Ask my parent" ============
+# These routes take the actor from the token alone (no id in the path or query): the child is whoever is signed in.
 
+@router.post("/guardian-code")
+async def create_guardian_code(
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """The signed-in child asks for a one-time code to give a parent or guardian. Revokes any earlier open code."""
+    child = await _profile(db, current_user_id)
+    if not child:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return await guardian_links.create_child_code(db, child)
+
+
+@router.get("/guardian-invites")
+async def list_guardian_invites(
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Open invites for the signed-in account: a child sees what adults proposed; an adult sees what they sent."""
+    user = await _profile(db, current_user_id)
+    if not user:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    return await guardian_links.pending_for_user(db, user)
+
+
+@router.post("/guardian-invites/{invite_id}/confirm")
+async def confirm_guardian_invite(
+    invite_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """The child confirms an adult's invite. This is the second side of the link."""
+    child = await _profile(db, current_user_id)
+    if not child:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    guardian = await guardian_links.confirm_parent_invite(db, child, invite_id)
+    return {"success": True, "guardian": {"id": guardian.id, "full_name": guardian.full_name,
+                                          "avatar_url": guardian.avatar_url}}
+
+
+@router.post("/guardian-invites/{invite_id}/decline")
+async def decline_guardian_invite(
+    invite_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    child = await _profile(db, current_user_id)
+    if not child:
+        raise HTTPException(status_code=404, detail="Profile not found")
+    await guardian_links.decline_parent_invite(db, child, invite_id)
+    return {"success": True}
