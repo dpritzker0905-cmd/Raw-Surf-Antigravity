@@ -951,7 +951,9 @@ jobs:
           #   base 3317 (hosted read) + 3 new test(s) = 3320, files 211; floor 3320 - 6 = 3314. This PR must read 3320 passed.
           # ⬆ 3314→3325 on 2026-10-26 (rederive_floor.py, claude/marine-tail-ceiling-margin): dev run 40245738513 read 3320 / 211 files; dev's map 3320;
           #   base 3320 (hosted read) + 11 new test(s) and 1 new file(s) = 3331, files 212; floor 3331 - 6 = 3325. This PR must read 3331 passed.
-          MIN_FILES, MIN_PASSED = 212, 3325
+          # ⬆ 3331→3341 on 2026-10-26 (rederive_floor.py, claude/manifest-object-consistency): dev run 40277485849 read 3331 / 212 files; dev's map 3337;
+          #   base 3337 (dev's map) + 10 new test(s) and 1 new file(s) = 3347, files 213; floor 3347 - 6 = 3341. This PR must read 3347 passed.
+          MIN_FILES, MIN_PASSED = 213, 3341
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

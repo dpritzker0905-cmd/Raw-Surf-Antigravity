@@ -73,6 +73,14 @@ _RATING_FLAGS = {
                                        "coalesced step; an unmerged snapshot is never published over a moved head",
                                   "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (the L2 writers); NOT Render"),
     "INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS": ("0", "Prune registrations without deleting an object still named by a retained registration", "Render env + ingestion/precompute/monitor together"),
+    # One storage object, one manifest registration: a save drops every other entry naming its filename (provider-split twins
+    # let a prune delete the object its surviving twin names: 51-54 EURO estimates a cycle, 2026-10-25). manifest_object_identity.py
+    "MANIFEST_ONE_ENTRY_PER_OBJECT": ("0", "A product save drops every other manifest registration naming the same storage object",
+                                      "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (the manifest writers)"),
+    # A listed product whose object is absent is skipped to the next candidate within the +-3 h window, labelled with its own
+    # valid time, instead of a 404 (resolver_missing_skip.py).
+    "RESOLVER_SKIP_MISSING_OBJECT": ("0", "The grid resolver skips a listed-but-absent product to the next candidate the selection would pick",
+                                     "Render env"),
     "INGEST_REJECT_INVALID_FRAMES": ("0", "Reject empty/all-invalid replacement frames before disk, storage upload and manifest registration", "Render env + ingestion/precompute/monitor together"),
     "NOAA_WAVE_CYCLE_RETRY": ("0", "Bounded transient HEAD retries with actual complete GFS-wave cycle identity", "Render env + ingestion/precompute/monitor together"),
     "PRODUCT_REVISION_REFRESH": ("0", "Validate changed manifest registrations before replacing existing L1 forecast objects", "Render env; staging bytes/concurrency/egress acceptance before activation"),
