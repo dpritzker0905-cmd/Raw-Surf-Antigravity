@@ -13,8 +13,9 @@ const withToken = (setupToken) => (setupToken
 
 export const mfaApi = {
   status: (setupToken) => apiClient.get('/auth/mfa/status', withToken(setupToken)).then((r) => r.data),
-  beginTotp: (password, setupToken) =>
-    apiClient.post('/auth/mfa/totp/begin', { password: password || null }, withToken(setupToken)).then((r) => r.data),
+  // code: a current authenticator / recovery code, required once the account already has a second factor.
+  beginTotp: (password, setupToken, code) =>
+    apiClient.post('/auth/mfa/totp/begin', { password: password || null, ...(code ? { code } : {}) }, withToken(setupToken)).then((r) => r.data),
   confirmTotp: (code, setupToken) =>
     apiClient.post('/auth/mfa/totp/confirm', { code }, withToken(setupToken)).then((r) => r.data),
   disable: (password, code) => apiClient.post('/auth/mfa/disable', { password, code }).then((r) => r.data),

@@ -10,6 +10,7 @@ from database import get_db
 from core.security import get_current_user_id
 from models import Profile, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
+from services.guardian_levels import is_confirmed_guardian
 from .subscriptions import get_tiers_for_role, GROM_SUBSCRIPTION_TIERS
 
 router = APIRouter()
@@ -107,7 +108,7 @@ async def pay_grom_subscription_with_credits(
         raise HTTPException(status_code=400, detail="Target user is not a Grom")
     # The Grom must be linked to the payer for EVERY allowed role. This used to be skipped for Hobbyists, so a
     # Hobbyist could spend credits on any Grom account.
-    if grom.parent_id != parent_id:
+    if not is_confirmed_guardian(grom, parent_id):
         raise HTTPException(status_code=403, detail="Grom is not linked to this parent")
     if data.tier_id not in GROM_SUBSCRIPTION_TIERS:
         raise HTTPException(status_code=400, detail="Invalid Grom tier")

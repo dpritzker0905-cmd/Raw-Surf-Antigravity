@@ -38,8 +38,9 @@ export const passkeyApi = {
 };
 
 /** Add a passkey. Resolves to the server's reply: { passkey, recovery_codes, session? }. */
-export async function registerPasskey({ password, name, setupToken }) {
-  const { data } = await apiClient.post('/auth/passkeys/register/options', { password: password || null }, withToken(setupToken));
+export async function registerPasskey({ password, code, name, setupToken }) {
+  const { data } = await apiClient.post('/auth/passkeys/register/options',
+    { password: password || null, ...(code ? { code } : {}) }, withToken(setupToken));
   const credential = await startRegistration({ optionsJSON: data.options });
   const verified = await apiClient.post('/auth/passkeys/register/verify',
     { ceremony_id: data.ceremony_id, credential, name: name || null }, withToken(setupToken));

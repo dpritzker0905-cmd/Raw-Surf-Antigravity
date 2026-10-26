@@ -102,6 +102,14 @@ async def _check_current_factor(db: AsyncSession, profile: Profile, code: str) -
     return method
 
 
+async def require_current_factor_if_enrolled(db: AsyncSession, profile: Profile, code: Optional[str]) -> None:
+    """Adding a second factor to an account that ALREADY has one needs a CURRENT factor, the same step-up as turning
+    two-step verification off. Otherwise a session plus the password could enrol an authenticator or a passkey of their
+    own, and a passkey signs in without the password or the second step. The first factor needs only the password."""
+    if (await svc.get_factor_state(db, profile.id)).enabled:
+        await _check_current_factor(db, profile, code or "")
+
+
 # ── Sign-in gate (called by POST /auth/login after the password is accepted) ───
 
 async def mfa_login_gate(db: AsyncSession, profile: Profile) -> Optional[dict]:
@@ -201,6 +209,7 @@ async def login_mfa(request: Request, data: MfaLoginRequest, db: AsyncSession = 
 
 class PasswordBody(BaseModel):
     password: Optional[str] = Field(default=None, max_length=256)
+    code: Optional[str] = Field(default=None, max_length=64)  # a current factor, required once one is enrolled
 
 
 class CodeBody(BaseModel):
@@ -242,6 +251,9 @@ async def totp_begin(request: Request, data: PasswordBody, caller: MfaCaller = D
     profile = await _profile(db, caller.user_id)
     if not caller.setup_only:  # the enrol-only token was itself issued for a correct password a moment ago
         _check_password(profile, data.password or "")
+        if (await svc.get_factor_state(db, profile.id)).totp:
+            raise HTTPException(status_code=409, detail="An authenticator app is already set up. Turn it off first.")
+        await require_current_factor_if_enrolled(db, profile, data.code)
     try:
         secret = await svc.start_totp_enrolment(db, profile.id)
     except svc.AlreadyEnrolled:
