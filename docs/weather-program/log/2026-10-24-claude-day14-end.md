@@ -134,3 +134,44 @@ engages. Labels stay honest (`is_estimated`, provider `estimated`). Inside the t
 `global_mid` `euro_persistence_gfs_blend` 181 x 83. Fix options, the owner's call: clamp the EURO consumer to the 14 d it read
 before (one line where the cache is set: `trim_points_to_days(results, forecast_days)`), after which EURO's last hours get the
 2-deg hold like ICON; or keep the longer 10-deg GFS-based EURO estimate.
+
+## Research: the seam past a blend's end (2026-10-26; nothing built or changed)
+
+Owner: "Research our past commits about clamping before making this move, we've had issues with regressions", then "Whats the
+most state of the art way to do this? Ask reflection.ai and check mcp knowledgebases".
+
+**History says no clamp.** Shortening tails is the repo's recurring day-14 regression: `fff3cd90` (06-20, a native-horizon cap
+on ICON reverted; why the 14-day contract is LOCKED), `04b648463` (07-07, a ceiling measured from the wrong anchor blanked the
+slider's last day), `cf0b4b233` (07-10, a prune deleted the estimated tail before its regenerator: a 35-45 min outage per cycle),
+`6d2a56d92` (07-11, the far-edge hold exists because the tail 404'd and blanked the map), `77b712b2c` (07-22, the GFS cache
+handed to EURO is load-bearing: without it the fill 429'd and saved 0 hours). The prune supersedes a whole estimated generation
+by run time (`copernicus_validator.prune_superseded_products_helper`: its docstring names the edge, "a fallback batch of NEW
+estimates that spans less than the old tail still supersedes it"), so a clamp shortens the served tail on the next core cycle
+and the far end rests on the 24 h hold again. The owner's standing rule (2026-10-19): every extension is intended; make them
+fast and honest, never strip them.
+
+**Knowledge bases.** Project memory (`sota-research-2026-10-20`, `reference-sites-delivery-2026-10-19`): leaders precompute
+immutable per-time-step artifacts per run, so the serve box does no work at scrub time. trevec recall needs a Pro licence; the
+memory plugin had nothing on this. Web: Open-Meteo's best match lets the highest-resolution model take precedence and "where it
+runs out of data, the next coarser model fills the gap with a smooth transition"; multi-model post-processing tapers a short
+model's weight linearly over its last hours, or carries its last forecast as a predictor at later leads; Windy caps EURO maps at
+~10 days instead of extending. Reflection (Beam, high): a short taper into the GFS 2-deg frame, with the plain GFS 2-deg fallback
+and a no-blank chain below it; label as a GFS-based estimate; never clamp. Its taper started INSIDE the locked blend and dropped
+the hold's 24 h bound: both conflict with our rules (the blend is locked; the bound keeps real ingest holes visible).
+
+**Measured, real CDN frames (no server load).** At ICON's last 2-deg blend frame (T0 = 2026-11-08T18Z, ICON run 12Z, GFS run
+18Z) the blend differs from GFS by MAE 0.98-1.0 m, p95 3.4 m, max 10.4 m (direction p95 146 deg); mid-tail (11-05T06Z) MAE
+0.79 m. The blend is ICON's anchor plus GFS's TREND, so it carries ICON's departure from GFS to the very end; it is not ~100%
+GFS. GFS's own 3 h step there: MAE 0.096, p95 0.34, max 1.67 m. So a hard switch to GFS (plain fallback) would jump MAE 0.973
+(10x a natural step). An anomaly-decay bridge past T0, H(t) = GFS(t) + w(t) * (Blend(T0) - GFS(T0)), w linear 1 -> 0 over L:
+
+| L | worst per-3 h step MAE / p95 / max |
+|---|---|
+| 12 h | 0.252 / 0.85 / 2.64 m |
+| 24 h | 0.146 / 0.49 / 1.54 m |
+| 36 h | 0.122 / 0.42 / 2.20 m |
+
+It equals the blend exactly at T0, leaves every value up to T0 untouched (the locked blend), converges to the stored GFS 2-deg
+field (to run + 384 h, ~48 h of margin), and is the blend's own method (persistence of the anchor's departure + GFS trend)
+carried past its ceiling with a decaying weight. Scripts: the session scratchpad's `seam.py`, `bridge.py`. EURO's 2-deg tail
+frames are not on the CDN (`FRAME_TAIL_DOWNLOAD` off), so its seam is unmeasured.
