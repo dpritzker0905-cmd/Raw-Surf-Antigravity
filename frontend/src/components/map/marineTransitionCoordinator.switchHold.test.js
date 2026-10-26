@@ -57,28 +57,38 @@ describe('shouldHoldFrameThroughSwitch', () => {
     expect(shouldHoldFrameThroughSwitch(base({ residentRegionalAtGlobalViewport: true }), 1000)).toBe(false);
   });
 
-  it('EXPIRES past the TTL — a stalled switch blanks rather than holding a stale frame forever', () => {
-    expect(shouldHoldFrameThroughSwitch(base(), 1000)).toBe(true);        // clock starts at 1000
-    expect(shouldHoldFrameThroughSwitch(base(), 1000 + 1999)).toBe(true); // just inside 2s
-    expect(shouldHoldFrameThroughSwitch(base(), 1000 + 2001)).toBe(false); // past 2s → clear
+  // HOLD UNTIL REPLACED (2026-10-26): the default bound is 30 s, not 2 s. The research note's T2 control (docs/research/
+  // instant-marine-sota-2026-10-26.md): today's 2 s must fail a 5 s and a 15 s switch; the new default holds both.
+  it('HOLDS a slow switch (5 s, 15 s: an un-framed EURO/ICON tail hour on /grid) where the old 2 s blanked', () => {
+    expect(shouldHoldFrameThroughSwitch(base(), 1000)).toBe(true);
+    expect(shouldHoldFrameThroughSwitch(base(), 1000 + 5000)).toBe(true);
+    expect(shouldHoldFrameThroughSwitch(base(), 1000 + 15000)).toBe(true);
+    window.__RAW_SWITCH_HOLD_TTL_MS__ = 2000;                              // positive control: the old bound blanks the same switch
+    expect(shouldHoldFrameThroughSwitch(base(), 1000 + 5000)).toBe(false);
+  });
+
+  it('EXPIRES past the TTL — a switch that never lands still ends (30 s), rather than holding a stale frame forever', () => {
+    expect(shouldHoldFrameThroughSwitch(base(), 1000)).toBe(true);         // clock starts at 1000
+    expect(shouldHoldFrameThroughSwitch(base(), 1000 + 29999)).toBe(true); // just inside 30 s
+    expect(shouldHoldFrameThroughSwitch(base(), 1000 + 30001)).toBe(false); // past 30 s → clear
     // churn records the expiry
     expect(window.__MARINE_CHURN__.counts.switch_hold_expired).toBe(1);
   });
 
   it('a NEW target restarts the clock (each distinct switch gets a fresh window)', () => {
     expect(shouldHoldFrameThroughSwitch(base({ targetKey: 'EURO|waves' }), 1000)).toBe(true);
-    // ...4s later, still holding EURO would have expired (past the 2s TTL)...
-    expect(shouldHoldFrameThroughSwitch(base({ targetKey: 'EURO|waves' }), 5000)).toBe(false);
+    // ...31 s later, still holding EURO would have expired (past the 30 s TTL)...
+    expect(shouldHoldFrameThroughSwitch(base({ targetKey: 'EURO|waves' }), 32000)).toBe(false);
     // ...but switching to a DIFFERENT target restarts the window even at the same instant
-    expect(shouldHoldFrameThroughSwitch(base({ targetKey: 'ICON|waves' }), 5000)).toBe(true);
+    expect(shouldHoldFrameThroughSwitch(base({ targetKey: 'ICON|waves' }), 32000)).toBe(true);
   });
 
   it('noteMarineRenderableCommit resets the clock — a later same-target hold gets a fresh window', () => {
     expect(shouldHoldFrameThroughSwitch(base({ targetKey: 'EURO|waves' }), 1000)).toBe(true);
     noteMarineRenderableCommit(); // the EURO frame committed
     // a same-target transient much later still gets a fresh window (no inherited stale clock)
-    expect(shouldHoldFrameThroughSwitch(base({ targetKey: 'EURO|waves' }), 20000)).toBe(true);
-    expect(shouldHoldFrameThroughSwitch(base({ targetKey: 'EURO|waves' }), 20000 + 2001)).toBe(false);
+    expect(shouldHoldFrameThroughSwitch(base({ targetKey: 'EURO|waves' }), 60000)).toBe(true);
+    expect(shouldHoldFrameThroughSwitch(base({ targetKey: 'EURO|waves' }), 60000 + 30001)).toBe(false);
   });
 
   it('is fully disabled by the kill switch (restores the legacy blank-on-switch behaviour)', () => {
@@ -103,8 +113,8 @@ describe('shouldHoldFrameThroughSwitch', () => {
     expect(shouldHoldFrameThroughSwitch(base({ modelOrLayerChanged: false }), 1100)).toBe(false); // clears clock
     // a fresh switch after that gets a clean window from 1200, not the old 1000 start
     expect(shouldHoldFrameThroughSwitch(base(), 1200)).toBe(true);
-    expect(shouldHoldFrameThroughSwitch(base(), 1200 + 1999)).toBe(true);
-    expect(shouldHoldFrameThroughSwitch(base(), 1200 + 2001)).toBe(false);
+    expect(shouldHoldFrameThroughSwitch(base(), 1200 + 29999)).toBe(true);
+    expect(shouldHoldFrameThroughSwitch(base(), 1200 + 30001)).toBe(false);
   });
 });
 

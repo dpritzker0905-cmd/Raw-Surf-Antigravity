@@ -126,7 +126,13 @@ export function shouldHoldClearOnDeactivate() {
 // isTransitionGuard owns the hold for the whole fetch). 2s is a conservative bridge for flag latency;
 // on a normal switch the new renderable commit replaces the held frame the instant it lands regardless.
 // Its only real effect is the stalled/no-coverage switch, where it bridges ~2s then blanks honestly.
-const SWITCH_HOLD_TTL_MS_DEFAULT = 2000;
+// ⛔ 2026-10-26: 2 s -> 30 s. HOLD UNTIL REPLACED (the owner: "Heatmap temporarily cleared when switching to Euro"; the lead: "Never
+// a blank frame: keep the old field until the new model's frame is uploaded"). A switch to an un-framed EURO/ICON tail hour waits on
+// /grid for longer than 2 s, so the hold expired and the map blanked mid-wait. The honesty the blank stood for is in the words: while
+// the drawn frame is another model's, the status line says "Loading EURO Waves… still showing ICON Waves" (drawnFrameReadout,
+// 'pending'), and the held frame keeps its own identity for the readouts. 30 s still bounds a switch that never lands (the strand
+// watchdog re-drives one long before). Lever (2000 = the old behaviour): window.__RAW_SWITCH_HOLD_TTL_MS__.
+const SWITCH_HOLD_TTL_MS_DEFAULT = 30000;
 let _switchHoldStartedAt = null;
 let _switchHoldTargetKey = null;
 
