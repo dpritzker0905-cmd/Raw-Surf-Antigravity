@@ -378,6 +378,9 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
       // (CDN bytes, node-for-node equal to /grid) and WHEN it is fetched or built; no table, ramp, ground or rule reads any of them
       '__RAW_DISABLE_WIND_STATIC_FRAMES__', '__RAW_DISABLE_WIND_STATIC_LANE_HOURS__', '__RAW_DISABLE_WIND_STATIC_CROP__', '__RAW_DISABLE_WIND_PREFETCH__',
       '__RAW_DISABLE_WIND_INSTANT_STEP__', '__RAW_DISABLE_WIND_SERIES_STATIC_SKIP__', '__RAW_DISABLE_WIND_STALE_COVERING__', '__RAW_DISABLE_WIND_LANE_REBUILT_INDEX__', '__RAW_DISABLE_WIND_SERIES_TRIM__', '__RAW_DISABLE_WIND_FRAME_HASH_SEED__', '__RAW_DISABLE_WIND_SERIES_AFTER_PAINT__',
+      // which queued grids one delivery run uploads, and that the speed scale is set once after them (the same value the last
+      // grid's own refresh sets): WHAT reaches the engine and WHEN, never a table, ramp or rule (windDeliveryCoalesce.js)
+      '__RAW_DISABLE_WIND_DELIVERY_COALESCE__', '__RAW_DISABLE_WIND_REASK_DEDUPE__',
       // which stored hour a series page asks (the manifest's nearest, hourly when the set is hourly): WHEN, never how it draws
       '__RAW_DISABLE_WIND_SERIES_MANIFEST_SNAP__',
       // WHEN the prefetch plans (after the next paint) and when the truth tag's census is counted: never what is drawn
