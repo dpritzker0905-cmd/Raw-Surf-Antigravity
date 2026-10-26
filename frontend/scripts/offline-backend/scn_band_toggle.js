@@ -10,7 +10,7 @@
 //             commit/settle; plus the console lines "[Abort-Gate] Preserving", "[Release] Releasing active fetch (flavor_toggle_pending)",
 //             "Stranded fetch-pending released" counted from the click;
 //   mislabel   frames whose drawn model differs from the selected model (silent: the status line says nothing) after the click.
-// Scenarios (SCN): rest | scrub (toggle OFF mid-scrub, the scrub's asks delayed) | inflight (toggle OFF while a /grid is held) |
+// Scenarios (SCN): plusday (+1d x DAYS then OFF 150 ms later, MODEL=ICON to switch first; the lead's live repro R5) | rest | scrub (toggle OFF mid-scrub, the scrub's asks delayed) | inflight (toggle OFF while a /grid is held) |
 //   rapid (10 clicks, 150 ms apart, ending OFF) | modelswitch (EURO clicked, then OFF at once) | on (toggle ON from OFF: paint at once if rated else fetch)
 //   AB_BASE=http://127.0.0.1:3110 PORT=4151 CDN_DIR=<cdn> SCN=rest ZOOM=5 THEME=dark VIEW=desktop OUT=<json> node scn_band_toggle.js
 // Env: SCRUB_WAIT (800 ms between the last scrub key and the click), SCN (rest), ZOOM (8), CENTER ("-80.6,28.1"), THEME (dark), VIEW (desktop|phone), HOLD_MS (4000: how long a held ask takes), SETTLE (9000),
@@ -62,7 +62,7 @@ const PROBE = () => {
   const flag = () => (window.__SURF_MODE__ !== undefined ? !!window.__SURF_MODE__ : (localStorage.getItem('__SURF_MODE__') === 'true'));
   P.mark = (n) => { const t = performance.now(); P.marks[n] = t; if (P.t0 === null) P.t0 = t; return t; };
   const origLog = console.log; const origWarn = console.warn;
-  const grab = (a) => { const s = a.map((x) => (typeof x === 'string' ? x : '')).join(' '); if (/Abort-Gate\] Preserving|Releasing active fetch \(flavor_toggle|Stranded fetch-pending|Releasing in-flight fetch/.test(s)) P.console.push({ t: Math.round(performance.now() - (P.t0 || 0)), s: s.slice(0, 150) }); };
+  const grab = (a) => { const s = a.map((x) => (typeof x === 'string' ? x : '')).join(' '); if (/Abort-Gate\]|Releasing active fetch|Stranded fetch-pending|Releasing in-flight fetch|Engine-Clear|model lock|returned early|Marine-Bounds-Clear|Marine\] Fetch/.test(s)) P.console.push({ t: Math.round(performance.now() - (P.t0 || 0)), s: s.slice(0, 150) }); };
   console.log = function (...a) { try { grab(a); } catch (e) { /* ignore */ } return origLog.apply(this, a); };
   console.warn = function (...a) { try { grab(a); } catch (e) { /* ignore */ } return origWarn.apply(this, a); };
   const loop = (t) => {
@@ -72,7 +72,7 @@ const PROBE = () => {
       // painting = the band path is on AND its opacity is above 0 (the instant hide keeps the path on at opacity 0)
       const bm = rf ? +(+rf.bandMult).toFixed(2) : null;
       P.frames.push({ t: Math.round(t - P.t0), flag: flag(), active: rb ? (!!rb.active && (bm === null || bm > 0)) : null, grid: g ? (g.ratingMode ? 'R' : 'H') + g.cols + 'x' + g.rows : null,
-        model: g ? (g.__sourceModel || 'GFS') : null, bandMult: bm, held: rf ? rf.heldBy || null : null });
+        model: g ? (g.__sourceModel || 'GFS') : null, bandMult: bm, wash: (window.__RAW_GPU__ && window.__RAW_GPU__.blendBoth) ? (window.__RAW_GPU__.blendBoth.engaged ? 'W' : 'w') : '?', held: rf ? rf.heldBy || null : null });
       if (P.frames.length > 4000) P.frames.shift();
     }
     requestAnimationFrame(loop);
@@ -145,6 +145,13 @@ async function session() {
       await L.jump(page, CLNG + 0.3, CLAT, ZOOM);                    // a viewport ask goes out and is held
       await sleep(400);
       await clickToggle(page);
+    } else if (SCN === 'plusday') {
+      // The lead's live repro R5 (2026-10-26): band on, +1d x DAYS, OFF 150 ms later; the asks of the day steps take HOLD_MS (a slow fetch is in flight).
+      if (process.env.MODEL) { await page.locator('button').filter({ hasText: new RegExp('^\s*' + process.env.MODEL + '\s*$') }).filter({ visible: true }).first().evaluate((el) => el.click()); await sleep(2500); await page.evaluate(() => window.__BT__.mark('start')); }
+      gateUntil = Date.now() + HOLD_MS + 1500;
+      for (let i = 0; i < +(process.env.DAYS || 5); i++) { await page.locator('button').filter({ hasText: /^\s*\+1d\s*$/ }).filter({ visible: true }).first().evaluate((el) => el.click()); await sleep(100); }
+      await sleep(150);
+      await clickToggle(page);
     } else if (SCN === 'rapid') {
       for (let i = 0; i < 10; i++) { await clickToggle(page); await sleep(150); }
       if (await page.evaluate(() => !!window.__SURF_MODE__)) await clickToggle(page);   // end OFF
@@ -157,7 +164,7 @@ async function session() {
     await sleep(WATCH);
     if (SHOTS) { fs.mkdirSync(SHOTS, { recursive: true }); await page.screenshot({ path: path.join(SHOTS, `${SCN}-z${ZOOM}-${THEME}-${VIEW}-end.png`) }); }
     const rec = await page.evaluate(() => ({ marks: window.__BT__.marks, frames: window.__BT__.frames, console: window.__BT__.console, t0: window.__BT__.t0,
-      ev: ((window.__RAW_FORENSIC__ && window.__RAW_FORENSIC__.events) || []).filter((e) => /surf_toggle|intent_buffered|flavor_cache_fastpath|flavor_fastpath|inflight_skip|stranded|release/i.test(e.type)).slice(-40).map((e) => JSON.stringify(e).slice(0, 200)) }));
+      ev: ((window.__RAW_FORENSIC__ && window.__RAW_FORENSIC__.events) || []).filter((e) => /surf_toggle|intent_buffered|flavor|inflight_skip|stranded|release|clear|commit|reject|abort|detach/i.test(e.type)).slice(-80).map((e) => JSON.stringify(e).slice(0, 200)) }));
     const clicks = [];
     out.console = rec.console;
     out.events = rec.ev;
@@ -165,6 +172,7 @@ async function session() {
     const after = fr.filter((f) => click !== null && f.t >= click);
     const lastFlag = after.length ? after[after.length - 1].flag : null;
     out.finalFlag = lastFlag;
+    out.preClick = fr.filter((f) => click !== null && f.t < click).slice(-1)[0] || null;
     // band gone: the first frame whose `active` is false and stays false for 400 ms
     let offMs = null;
     for (let i = 0; i < after.length; i++) { if (after[i].active === false) { const t0 = after[i].t; if (after.filter((f) => f.t >= t0 && f.t <= t0 + 400).every((f) => f.active === false)) { offMs = t0 - click; break; } } }
@@ -177,7 +185,7 @@ async function session() {
     out.frames = after.length;
     out.timeline = [];
     let prev = '';
-    for (const f of after) { const s = `${f.flag ? 'F' : 'f'}${f.active ? 'B' : 'b'}${f.grid || '-'}|${f.model}|${f.bandMult}|${f.held || ''}`; if (s !== prev) { out.timeline.push([f.t - click, s]); prev = s; } }
+    for (const f of after) { const s = `${f.flag ? 'F' : 'f'}${f.active ? 'B' : 'b'}${f.grid || '-'}|${f.model}|${f.bandMult}|${f.held || ''}|${f.wash}`; if (s !== prev) { out.timeline.push([f.t - click, s]); prev = s; } }
     out.timeline = out.timeline.slice(0, 40);
   } finally { await browser.close(); }
   return out;

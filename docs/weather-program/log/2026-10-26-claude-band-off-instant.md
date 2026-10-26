@@ -69,3 +69,22 @@ Toggle during a model switch: z8 24 ms (dev 2 264 ms). Toggle ON (from OFF): z8 
 - #581 (`scn_rating_band.js`, `scn_rating_band_edge.js`): identical to before (2-deg grid held with the line, 63.5 % coverage held at the edge, fine grids untouched).
 - Full `src/components/map` + `src/tests` Jest: 424 suites / 6 029 tests green. A second member of the load-dependent class surfaced in `marineGridSeries.regional.test.js` ('a failing bundle',
   3 page asks instead of 2 under load: the same 1.2 s page-failure retry); the retry kill is now set in `beforeEach` for the whole file (it is not under test anywhere in it).
+
+## Round 2 (the lead's live repro R5, the owner's bug in Chrome at 60 fps): GFS z5 band on, +1d x5, OFF 150 ms later: the band stayed 6.1 s
+`scn_band_toggle.js` SCN=plusday (+1d x DAYS then OFF 150 ms later, asks delayed 3 s; MODEL=ICON switches first). On dev: z8 band NEVER gone in the 6 s watch
+(33 283 -> 33 742 rating pixels at +60 ms, final band painting on a rating resident). On the fix: band gone in 108 ms (33 167 -> 22), honest grid 442 ms.
+Two findings in my own change, both from that scenario:
+1. REGRESSION (found and fixed). ICON selected (resident still GFS), +1d x12, OFF: 3 of 3 runs on the first version of the fix ended with a BLANK heatmap
+   (final grid none, 6 s); dev: 0 of 3. Cause: I cleared the released fetch's pending stamp at once; for the 150 ms before the replacement ask starts the
+   orchestrator read "a model switch with no fetch pending" and cleared the resident. Now the stamp is LEASED for 300 ms (`leasePendingStampOf`) and cleared
+   only if nothing is fetching when the lease ends (the wedge case: the replacement dropped by the dedupe). ICON x3 after: 0 blank, final honest grid.
+2. NO WASH. With the honest coarse wash not engaged the first version kept the old hold (the band outlived the toggle until the honest grid committed:
+   one z8 plusday run showed the band 460 ms past the flip, and live that is the lead's 6.1 s). Now the band is gone at once whatever the wash, and without a wash
+   the status line says "Loading wave heights for this view…" (`heldBy 'off_loading'`). Exercised with `__RAW_DISABLE_BLEND_BOTH__` (no wash): inflight z8
+   38 521 -> 22, plusday z8 38 732 -> 22.
+Final matrix on the final build (dark/light/beach desktop, dark/light/beach phone, plus ICON x3, GFS plusday z5/z8, no-wash arms): band gone 1-185 ms in every
+run, pixels 33-48k (desktop) / 108-227k (phone) -> 22 / 93, 0 blank. 5 repeats of the in-flight case: 108-179 ms, honest grid 2.6-3.1 s each.
+UNEXPLAINED: one earlier in-flight z8 run (watch 6 s) never saw its honest grid (final rated resident, band hidden); not reproduced in 5 repeats with a 9 s watch.
+Full `src/components/map` + `src/tests`: 424 suites / 6 032 tests green. Floor 520/6853.
+Not covered: the ON direction under a slow cold fetch beyond the status line; the researcher's L1 (the band as a uniform flip so scrubs stay on the store,
+staticFrames.js:494 `if (surf) return false`) is a separate design item.

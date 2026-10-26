@@ -6,7 +6,8 @@
  *       buffered behind it. Kill __RAW_DISABLE_FLAVOR_TOGGLE_PRIORITY__ restores the old gate (asserted below).
  *   F-2 THE WEDGE: a toggle that releases an active fetch used to leave that fetch's __MARINE_FETCH_PENDING__ stamp set (a detached fetch only
  *       clears it when it finishes); with the new ask then dropped by the dedupe (OFF then ON: the resident matches the flag again) that is
- *       pending set, nothing fetching, nothing re-driving until the 18 s watchdog. The stamp is now cleared at release.
+ *       pending set, nothing fetching, nothing re-driving until the 18 s watchdog. The stamp is now LEASED for 300 ms at release (clearing it at
+ *       once blanked the resident: the orchestrator read 'model switch, nothing pending') and cleared when the lease ends with nothing fetching.
  */
 import { renderHook, act } from '@testing-library/react';
 import { useMarineDataFetcherCore } from './useMarineDataFetcherCore';
@@ -154,10 +155,10 @@ describe('F-2: the wedge — a released fetch leaves no stranded pending stamp',
     await tick(400);
     return { calls, p, pendingRightAfterRelease };
   }
-  it('clears the pending stamp when it releases the fetch; nothing is left pending with nothing fetching', async () => {
+  it('leases the pending stamp over the release (no model-switch-with-nothing-pending gap), then clears it: nothing left pending with nothing fetching', async () => {
     const { p, pendingRightAfterRelease } = await offThenOn();
-    expect(pendingRightAfterRelease).toBeNull();
-    expect(window.__MARINE_FETCH_PENDING__).toBeNull();
+    expect(pendingRightAfterRelease).not.toBeNull();                // leased: the orchestrator still sees a fetch pending in the gap
+    expect(window.__MARINE_FETCH_PENDING__).toBeNull();             // the replacement ask was dropped (the dedupe), the lease ended
     expect(p.marineFetchLocksRef.current.isFetching).toBe(false);
   });
   it('the kill switch reproduces the wedge: stamp left set, nothing fetching, nothing re-driving', async () => {

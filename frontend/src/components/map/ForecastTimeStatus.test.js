@@ -79,6 +79,11 @@ describe('the rating band held off (marineRatingBandRes.js): said in words, neve
     expect(screen.getByRole('status')).toHaveTextContent(/surf ratings loading for this view/i);
     delete window.__RAW_BAND_TOGGLE_AT__;
   });
+  it('band OFF with no honest wash to show: "Loading wave heights" in words', () => {
+    window.__RAW_GPU__ = { ratingBandFade: { heldBy: 'off_loading' } };
+    render(<ForecastTimeStatus model="ICON" layer="waves" hour={0} theme="beach" />);
+    expect(screen.getByRole('status')).toHaveTextContent(/loading wave heights for this view/i);
+  });
   it('the instant hide is silent: the band is simply gone', () => {
     window.__RAW_GPU__ = { ratingBandFade: { heldBy: 'off' } };
     render(<ForecastTimeStatus model="ICON" layer="waves" hour={0} theme="dark" />);

@@ -1,4 +1,4 @@
-import { isFlavorToggleSource, releasePendingStampOf, resolveBandOffNow, ratingBandLoadingText, BAND_LOADING_MS } from './marineFlavorToggle';
+import { isFlavorToggleSource, leasePendingStampOf, PENDING_LEASE_MS, resolveBandOffNow, ratingBandLoadingText, BAND_LOADING_MS } from './marineFlavorToggle';
 import { resolveRatingBandFade } from './marineEngineDecisions';
 import { ratingBandHeldText } from './marineRatingBandRes';
 
@@ -14,17 +14,33 @@ describe('isFlavorToggleSource: a user flip of the band, and its replay', () => 
   });
 });
 
-describe('releasePendingStampOf: the released fetch\'s pending stamp is cleared, only if it is still the current one', () => {
-  it('clears its own stamp; leaves a newer stamp alone; no stamp, no controller, or the kill: nothing', () => {
-    const stamp = { model: 'GFS' }; const w = { __MARINE_FETCH_PENDING__: stamp };
-    expect(releasePendingStampOf({ __fetchPendingStamp: stamp }, w)).toBe(true);
+describe('leasePendingStampOf: the pending stamp of a released fetch is leased, then cleared only if nothing took over', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+  const mk = () => { const stamp = { model: 'GFS' }; return { stamp, w: { __MARINE_FETCH_PENDING__: stamp }, ctl: { __fetchPendingStamp: stamp } }; };
+  it('keeps the stamp during the lease (no "model switch with nothing pending" gap), clears it after when nothing is fetching', () => {
+    const { w, ctl } = mk();
+    expect(leasePendingStampOf(ctl, { isFetching: false }, w)).toBe(true);
+    jest.advanceTimersByTime(PENDING_LEASE_MS - 1);
+    expect(w.__MARINE_FETCH_PENDING__).not.toBeNull();
+    jest.advanceTimersByTime(2);
     expect(w.__MARINE_FETCH_PENDING__).toBeNull();
-    const newer = { model: 'EURO' }; w.__MARINE_FETCH_PENDING__ = newer;
-    expect(releasePendingStampOf({ __fetchPendingStamp: stamp }, w)).toBe(false);
-    expect(w.__MARINE_FETCH_PENDING__).toBe(newer);
-    expect(releasePendingStampOf({}, w)).toBe(false);
-    expect(releasePendingStampOf(null, w)).toBe(false);
-    expect(releasePendingStampOf({ __fetchPendingStamp: newer }, { __MARINE_FETCH_PENDING__: newer, __RAW_DISABLE_FLAVOR_TOGGLE_PRIORITY__: true })).toBe(false);
+  });
+  it('a replacement fetch (its own stamp) or an active fetch is left alone', () => {
+    const a = mk(); leasePendingStampOf(a.ctl, { isFetching: false }, a.w);
+    const newer = { model: 'ICON' }; a.w.__MARINE_FETCH_PENDING__ = newer;
+    jest.advanceTimersByTime(PENDING_LEASE_MS + 10);
+    expect(a.w.__MARINE_FETCH_PENDING__).toBe(newer);
+    const b = mk(); leasePendingStampOf(b.ctl, { isFetching: true }, b.w);
+    jest.advanceTimersByTime(PENDING_LEASE_MS + 10);
+    expect(b.w.__MARINE_FETCH_PENDING__).toBe(b.stamp);
+  });
+  it('no stamp, no controller, a stamp that is not current, or the kill: no lease', () => {
+    const { stamp, w } = mk();
+    expect(leasePendingStampOf({}, {}, w)).toBe(false);
+    expect(leasePendingStampOf(null, {}, w)).toBe(false);
+    expect(leasePendingStampOf({ __fetchPendingStamp: { other: 1 } }, {}, w)).toBe(false);
+    expect(leasePendingStampOf({ __fetchPendingStamp: stamp }, {}, { __MARINE_FETCH_PENDING__: stamp, __RAW_DISABLE_FLAVOR_TOGGLE_PRIORITY__: true })).toBe(false);
   });
 });
 
@@ -37,10 +53,10 @@ describe('the instant hide: flag OFF, resident still a rating grid', () => {
     expect(r.fade).toBe(0);
     expect(r.heldBy).toBe('off');
   });
-  it('without a wash a blank heatmap would be worse: the old hold stands (identity here, the engine keeps painting the band)', () => {
+  it('without a wash there is no honest field to show: the band is still gone at once and the status says wave heights are loading (heldBy off_loading)', () => {
     const r = resolveRatingBandFade(4, false, false, {}, COV);
-    expect(r.bandMult).toBe(1);
-    expect(r.heldBy).toBeUndefined();
+    expect(r.bandMult).toBe(0);
+    expect(r.heldBy).toBe('off_loading');
   });
   it('the kill switch restores the old behaviour; a flag-ON band is never touched by it', () => {
     expect(resolveRatingBandFade(4, false, true, { __RAW_DISABLE_BAND_OFF_INSTANT__: true }, COV).bandMult).toBe(1);
@@ -57,5 +73,6 @@ describe('the words while the band is switched ON and its grid is on the way', (
     expect(ratingBandLoadingText(true, undefined, 1500)).toBeNull();
     expect(ratingBandHeldText('loading')).toMatch(/loading for this view/);
     expect(ratingBandHeldText('off')).toBeNull();
+    expect(ratingBandHeldText('off_loading')).toMatch(/wave heights/);
   });
 });

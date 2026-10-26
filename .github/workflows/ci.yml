@@ -172,9 +172,9 @@ jobs:
             // suites. Raised by exactly that; confirm against the hosted receipt.
             // Rating band holds off on coarse / edge-cut grids (2026-10-25): marineRatingBandRes.test.js (+1 suite / +13 tests) and 6 tests in
             // ForecastTimeStatus.test.js. Raised by exactly that from the floor above; confirm against the hosted receipt.
-            // Rating band toggle instant (2026-10-26): marineFlavorToggle.test.js (+1 suite / +6 tests), useMarineDataFetcherCore.flavorToggle.test.js
-            // (+1 suite / +4 tests), ForecastTimeStatus.test.js +2 tests. Raised by exactly that; confirm against the hosted receipt.
-            const MIN_SUITES = 520, MIN_TESTS = 6850;
+            // Rating band toggle instant (2026-10-26): marineFlavorToggle.test.js (+1 suite / +8 tests), useMarineDataFetcherCore.flavorToggle.test.js
+            // (+1 suite / +4 tests), ForecastTimeStatus.test.js +3 tests. Raised by exactly that; confirm against the hosted receipt.
+            const MIN_SUITES = 520, MIN_TESTS = 6853;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }

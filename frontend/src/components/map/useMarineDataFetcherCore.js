@@ -28,7 +28,7 @@ import { getTarget, endTransition, recordChurn } from './marineTransitionCoordin
 import { claimEnqueueSlot } from './marineEnqueueSlot';
 import { marineErrorOwnsDisplay } from './marineSeekIdentity';
 import { keepSwrRetryCount, noteRequestDiet, swrReaskScheduledFor } from './marineRequestDiet';
-import { isFlavorToggleSource, releasePendingStampOf } from './marineFlavorToggle';
+import { isFlavorToggleSource, leasePendingStampOf } from './marineFlavorToggle';
 
 /**
  * Release an abandoned in-flight marine fetch when a newer request supersedes it.
@@ -320,7 +320,7 @@ export function useMarineDataFetcherCore({
         // stale commit; registry caps + unmounts) — but ABORT under active scrubbing so the
         // backend's disconnect-detection can cancel the remaining per-hour upstream work.
         releaseAbandonedFetch(inFlight, abortControllerRef.current, 'updateMarineGrid', activeSource, source);
-        locks.isFetching = false; releasePendingStampOf(abortControllerRef.current);
+        locks.isFetching = false; leasePendingStampOf(abortControllerRef.current, locks);
       }
       if (!isRetry && !isTimelineScrub && consecutiveFailuresRef.current >= 3) return;
       const now = Date.now();
@@ -863,7 +863,7 @@ export function useMarineDataFetcherCore({
       }
       console.log(`[Release] Releasing active fetch (${activeSource}) in enqueueMarineUpdate for new source=${source} (scrub=abort, switch=detach+self-cache)`);
       releaseAbandonedFetch(inFlight, abortControllerRef.current, 'enqueueMarineUpdate', activeSource, source);
-      locks.isFetching = false; releasePendingStampOf(abortControllerRef.current);
+      locks.isFetching = false; leasePendingStampOf(abortControllerRef.current, locks);
       locks.activeSource = null;
       if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
       timeoutIdRef.current = setTimeout(() => {
