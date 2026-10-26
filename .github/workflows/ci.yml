@@ -1026,7 +1026,10 @@ jobs:
   # came to miss 45 of its own files, and how `tests/test_point_*.py` sat outside it for months.
   backend-forecast-chain-guards:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 30 min (2026-10-26, lead): the suite itself runs ~12-19 min, but on a loaded runner the job crossed 20 min AFTER
+    # pytest finished (#580: estate passed 3355 tests, then timed out at 20:00, twice), failing green PRs. A hang still
+    # dies here; pytest's own per-test timeouts remain the first backstop.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - name: Set up Python
@@ -1640,7 +1643,10 @@ jobs:
   # other lanes' files and running everything in one process is pathological. Three lanes, not one.
   backend-estate-coverage:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 30 min (2026-10-26, lead): the suite itself runs ~12-19 min, but on a loaded runner the job crossed 20 min AFTER
+    # pytest finished (#580: estate passed 3355 tests, then timed out at 20:00, twice), failing green PRs. A hang still
+    # dies here; pytest's own per-test timeouts remain the first backstop.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
 
