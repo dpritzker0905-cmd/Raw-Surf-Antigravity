@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import {
   colorAtValue, buildStepLut, opacityAtZoom, PRESSURE_OPACITY_STOPS, PRESSURE_LUT, wrapsLongitude, createOwnRasterLayer, RESIDENT_MAX,
-  TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS, NO_DATA_BELOW_GLSL, FS, CLOUD_LUT, SATELLITE_OPACITY_STOPS, scaleForTheme,
+  TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS, NO_DATA_BELOW_GLSL, FS, downscaleAt, DZ_TILES_MAX, CLOUD_LUT, SATELLITE_OPACITY_STOPS, scaleForTheme,
 } from './ownRasterLayer';
 import { MISSING, NO_DATA_BELOW } from './ownRasterFrames';
 import { BASE_CUSTOM_COLOR_SCALES, CUSTOM_COLOR_SCALES, applyThemePressureScale } from './colorScales';
@@ -11,16 +11,22 @@ import { BASE_CUSTOM_COLOR_SCALES, CUSTOM_COLOR_SCALES, applyThemePressureScale 
 function fakeGl() {
   const calls = [];
   const u2 = [];      // uniform2f arguments: [uniform name, x, y]
+  const u4 = [];      // uniform4f arguments: [uniform name, x, y, z, w]
+  const tex = [];     // texImage2D: [internal format, width, height]
   let n = 0;
   const consts = new Proxy({}, { get: (t, k) => (typeof k === 'string' && /^[A-Z0-9_]+$/.test(k) ? `GL_${k}` : undefined) });
   const gl = new Proxy({}, {
     get(t, k) {
       if (k === '__calls') return calls;
       if (k === '__u2') return u2;
+      if (k === '__u4') return u4;
+      if (k === '__tex') return tex;
       if (typeof k === 'string' && /^[A-Z0-9_]+$/.test(k)) return consts[k];
       return (...args) => {
         calls.push(k);
         if (k === 'uniform2f') u2.push([args[0] && args[0].u, args[1], args[2]]);
+        if (k === 'uniform4f') u4.push([args[0] && args[0].u, args[1], args[2], args[3], args[4]]);
+        if (k === 'texImage2D') tex.push([args[2], args[3], args[4]]);
         if (/^create/.test(k)) { n += 1; return { kind: k, n }; }
         if (k === 'getProgramParameter') return true;
         if (k === 'getUniformLocation') return { u: args[1] };
@@ -264,5 +270,64 @@ describe('cloud cover, the satellite layer (2026-10-24): the library scale per t
     for (const [z, o] of SATELLITE_OPACITY_STOPS) {
       expect(src).toMatch(new RegExp(`\\n\\s*${z}, layerKey === 'satellite' \\? ${o.toFixed(2)} :`));
     }
+  });
+});
+
+
+describe('air temperature elevation downscale (2026-10-25): T + lapse * dz from the static asset', () => {
+  // A 2-tile asset over a 6 x 4 lattice (dlon 60, dlat 60, from 180W / 90S): tile 0 = columns 0-2 + overlap (3), tile 1 =
+  // columns 3-5 + overlap (0, the wrap). Codes: offset 128, 25 m steps.
+  const L = { south: -90, west: -180, dlat: 60, dlon: 60, rows: 4, cols: 6 };
+  const codes = [[128, 132, 136, 140, 144, 148], [130, 134, 138, 142, 146, 150], [128, 128, 128, 128, 128, 128], [160, 160, 160, 160, 160, 160]];
+  const tile = (c0, c1, overlapCol) => ({ col0: c0, cols: c1 - c0 + 1, rows: 4,
+    data: Uint8Array.from(codes.flatMap((r) => [...r.slice(c0, c1), r[overlapCol]])) });
+  const asset = { lattice: L, offset: 128, step: 25, lapse: -0.0065, tiles: [tile(0, 3, 3), tile(3, 6, 0)] };
+
+  test('downscaleAt: exact at nodes, bilinear between, seamless across the tile edge and the antimeridian', () => {
+    expect(downscaleAt(asset, -180, -90)).toBe(0);                          // code 128
+    expect(downscaleAt(asset, -120, -90)).toBe(100);                        // code 132 = +4 steps
+    expect(downscaleAt(asset, 0, -30)).toBe((142 - 128) * 25);              // column 3 (tile 1's first), row 1
+    expect(downscaleAt(asset, -30, -90)).toBeCloseTo(((136 + 140) / 2 - 128) * 25, 9);   // across the tile edge (via the overlap)
+    expect(downscaleAt(asset, 150, -90)).toBeCloseTo(((148 + 128) / 2 - 128) * 25, 9);   // across 180 (the wrap overlap)
+    expect(downscaleAt(asset, -150, -60)).toBeCloseTo(((128 + 132 + 130 + 134) / 4 - 128) * 25, 9);
+  });
+
+  test('the shader adds lapse * dz BEFORE the colour lookup, sampling level 0 of the right tile', () => {
+    const i = FS.indexOf('v = v + u_dzCode.z * (code * 255.0 - u_dzCode.x) * u_dzCode.y;');
+    expect(i).toBeGreaterThan(0);
+    expect(i).toBeLessThan(FS.indexOf('float k = clamp(floor((v - u_lutMap.x)'));
+    expect(FS).toContain('textureLod(u_dz0,');
+    expect(FS).toContain('gx < u_dzLon.w');
+  });
+
+  test('one tile uploads per frame (R8); the downscale switches on only once every tile is resident; context loss re-uploads', () => {
+    const gl = fakeGl(); const map = fakeMap();
+    const Lr = createOwnRasterLayer({ id: 't', lutMap: TEMPERATURE_LUT, opacityStops: TEMPERATURE_OPACITY_STOPS, shaderIsobars: false });
+    Lr.onAdd(map, gl); Lr.setLut(buildStepLut({ breakpoints: [-80], colors: [[1, 2, 3, 1]] }, TEMPERATURE_LUT));
+    Lr.offerField('a', field(5)); Lr.want('a');
+    expect(Lr.setDownscale(asset)).toBe(true);
+    const on = () => gl.__u4.filter((u) => u[0] === 'u_dzLat').map((u) => u[4]);
+    Lr.prerender(gl, args); Lr.render(gl, args);
+    expect(gl.__tex.filter((t) => t[0] === 'GL_R8')).toEqual([['GL_R8', 4, 4]]);
+    expect(on()).toEqual([0]);                                              // one tile of two: drawn as is
+    Lr.prerender(gl, args); Lr.render(gl, args);
+    expect(gl.__tex.filter((t) => t[0] === 'GL_R8').length).toBe(2);
+    expect(on()).toEqual([0, 1]);
+    expect(gl.__u4.filter((u) => u[0] === 'u_dzLon').pop()).toEqual(['u_dzLon', -180, 60, 6, 3]);
+    expect(gl.__u4.filter((u) => u[0] === 'u_dzCode').pop()).toEqual(['u_dzCode', 128, 25, -0.0065, 4]);
+    expect(Lr.downscaleReady()).toBe(true);
+    map.listeners.webglcontextlost({ preventDefault() {} });
+    expect(Lr.downscaleReady()).toBe(false);
+    map.listeners.webglcontextrestored();
+    Lr.prerender(gl, args); Lr.prerender(gl, args);
+    expect(Lr.downscaleReady()).toBe(true);
+  });
+
+  test('more tiles than the shader takes, or none, is refused: the field draws as is', () => {
+    const gl = fakeGl(); const Lr = createOwnRasterLayer({ id: 'x' }); Lr.onAdd(fakeMap(), gl);
+    expect(DZ_TILES_MAX).toBe(2);
+    expect(Lr.setDownscale({ ...asset, tiles: [asset.tiles[0], asset.tiles[1], asset.tiles[0]] })).toBe(false);
+    expect(Lr.setDownscale(null)).toBe(false);
+    expect(Lr.downscaleReady()).toBe(false);
   });
 });

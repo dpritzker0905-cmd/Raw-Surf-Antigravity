@@ -18,6 +18,7 @@ import {
 } from './ownRasterLayer';
 import { getRasterDrawn, publishRasterDrawn, rasterReadoutKilled } from './rasterDrawnFrame';
 import { requestIsobars } from './isobarStore';
+import { loadDownscale, setDownscaled } from './ownRasterDownscale';
 import {
   combinedFrameAt, combinedFrames, emitOwnShown, emitOwnWant, framesOf, getField, lastIndex, noteMiss, noteStep, OWN_RASTER_SETS, ownFramesOn, ownIndex,
   planWindow, setEngaged, setWanted, tel, windowRadius,
@@ -41,6 +42,8 @@ const SCALES = {
 };
 const LUTS = { pressure: PRESSURE_LUT, temperature: TEMPERATURE_LUT, satellite: CLOUD_LUT };
 // Each layer's .om slot ramp ('raster-opacity' over zoom in MapWebGL; pinned by ownRasterLayer.test.js).
+// Layers drawn terrain-adjusted (ownRasterDownscale.js): air temperature only.
+const DOWNSCALED = { temperature: true };
 const OPACITY = { pressure: PRESSURE_OPACITY_STOPS, temperature: TEMPERATURE_OPACITY_STOPS, satellite: SATELLITE_OPACITY_STOPS };
 // Isobar ink per theme (only drawn with window.__RAW_OWN_RASTER_ISOBARS__ set; off by default).
 const ISO_INK = { dark: [1, 1, 1, 0.5], beach: [0.24, 0.18, 0.12, 0.5], light: [0.12, 0.16, 0.24, 0.5] };
@@ -178,6 +181,19 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     if (layer === 'pressure') L.setIsobarColor(ISO_INK[theme] || ISO_INK.dark);
     return () => { alive = false; };
   }, [engaged, layer, theme, gen]);
+
+  // 3b. Air temperature's elevation downscale (ownRasterDownscale.js): T + lapse * dz once its static asset is resident. The
+  // field draws as is until then. Kill: window.__RAW_DISABLE_RASTER_TEMP_DOWNSCALE__ = true.
+  useEffect(() => {
+    const L = ref.current.layerObj;
+    if (!engaged || !L || !DOWNSCALED[layer]) return undefined;
+    let alive = true;
+    loadDownscale().then((asset) => {
+      if (!alive || ref.current.layerObj !== L || !asset) return;
+      if (L.setDownscale(asset)) setDownscaled(layer, true);
+    });
+    return () => { alive = false; setDownscaled(layer, false); };
+  }, [engaged, layer, gen]);
 
   // 4. Each step: the frame for the asked time, the window around it, the hard cut when it is resident.
   useEffect(() => {
