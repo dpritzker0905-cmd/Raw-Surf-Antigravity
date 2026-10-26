@@ -13,6 +13,7 @@ from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 import csv
 import io
+import math
 
 from database import get_db
 from deps.admin_auth import get_current_admin
@@ -21,6 +22,8 @@ from models import (
     RefundRequest, RefundStatusEnum, PayoutBatch, FailedPayment
 )
 from .moderation import log_audit
+from utils.credits import add_credits
+from utils.refund_guard import assert_not_seller
 
 router = APIRouter()
 
@@ -137,26 +140,36 @@ async def process_refund(
         raise HTTPException(status_code=400, detail="Refund already processed")
     
     if request.action == "approve":
-        # In production, this would initiate the actual Stripe refund
-        await db.execute(
+        # A refund pays whoever PAID: never the seller of the booking / transaction it refunds (policy P1).
+        # Checked before anything changes, so a refused approval leaves the request pending.
+        if not math.isfinite(refund.amount) or refund.amount <= 0:
+            raise HTTPException(status_code=400, detail="The refund amount must be a positive number")
+        await assert_not_seller(db, refund.user_id, booking_id=refund.booking_id,
+                                transaction_id=refund.transaction_id)
+
+        # Claim the request first (conditional, so a double approval cannot credit twice) ...
+        claimed = await db.execute(
             update(RefundRequest)
-            .where(RefundRequest.id == refund_id)
+            .where(RefundRequest.id == refund_id, RefundRequest.status == RefundStatusEnum.PENDING)
             .values(
                 status=RefundStatusEnum.COMPLETED,
                 processed_by=admin.id,
                 processed_at=datetime.now(timezone.utc)
             )
         )
-        
-        # Add credits back to user
-        credit_txn = CreditTransaction(
-            user_id=refund.user_id,
-            amount=refund.amount,
-            transaction_type="refund",
-            description=f"Refund: {refund.reason}"
-        )
-        db.add(credit_txn)
-        
+        if claimed.rowcount != 1:
+            raise HTTPException(status_code=400, detail="Refund already processed")
+
+        # ... then credit through the shared helper, which moves the balance AND writes a complete ledger row.
+        # (The old code wrote a row without balance_before/balance_after, which cannot be inserted, and never
+        # changed the balance.) A failed credit raises, which rolls the claim back with it.
+        # In production, this would initiate the actual Stripe refund
+        ok, _balance, error = await add_credits(
+            user_id=refund.user_id, amount=refund.amount, transaction_type="refund", db=db,
+            description=f"Refund: {refund.reason}", reference_type="refund_request", reference_id=refund.id)
+        if not ok:
+            raise HTTPException(status_code=400, detail=error or "Could not credit the refund")
+
     elif request.action == "reject":
         await db.execute(
             update(RefundRequest)

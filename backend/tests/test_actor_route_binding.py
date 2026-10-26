@@ -150,6 +150,9 @@ NAMED_ACTOR = [
     ("GET", "/api/photographer/{photographer_id}/earnings-history", "path", "photographer_id"),
     ("GET", "/api/photo-subscriptions/my-subscriptions/{user_id}", "path", "user_id"),
     ("GET", "/api/photo-subscriptions/my-subscribers/{photographer_id}", "path", "photographer_id"),
+    # Phase 0 (2026-10-26): the dispatch completion and the captain's crew reminder trusted a plain id.
+    ("POST", "/api/dispatch/{dispatch_id}/complete", "query", "photographer_id"),
+    ("POST", "/api/dispatch/{dispatch_id}/remind-crew", "body", "captain_id"),
 ]
 # Login required; ownership is by RESOURCE (the notification, the booking), proved against a real database in
 # tests/test_batch5_resource_ownership.py. The broadcast channel allow-list is in the same file.
