@@ -46,7 +46,7 @@ export const SecuritySettings = () => {
   } else if (!status) {
     body = <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground"><Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />Loading...</p>;
   } else if (view === 'enrol') {
-    body = <TotpEnrolment onCancel={backToOverview}
+    body = <TotpEnrolment needsCode={status.enabled} onCancel={backToOverview}
       onEnrolled={(res) => { if (res.recovery_codes?.length) showCodes(res.recovery_codes); else { toast.success('Authenticator app added'); backToOverview(); } }} />;
   } else if (view === 'codes') {
     body = <RecoveryCodesPanel codes={codes} onDone={() => { toast.success('Two-step verification is on'); backToOverview(); }} />;
@@ -97,7 +97,7 @@ export const SecuritySettings = () => {
             )}
           </section>
         )}
-        {status.passkeys_available && <PasskeyManager onCodes={showCodes} onChanged={load} />}
+        {status.passkeys_available && <PasskeyManager needsCode={status.enabled} onCodes={showCodes} onChanged={load} />}
         {status.enabled && (
           <section aria-labelledby="recovery-title" className="space-y-2">
             <h3 id="recovery-title" className="text-base font-semibold text-foreground">Recovery codes</h3>

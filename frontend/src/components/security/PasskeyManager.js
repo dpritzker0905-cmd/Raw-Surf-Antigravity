@@ -17,12 +17,13 @@ const day = (iso) => {
  * server refuses and its reason is shown). `onCodes(codes)` receives the one-time recovery codes when this passkey is
  * the account's first second factor; `onChanged()` tells the page to refresh its status.
  */
-export const PasskeyManager = ({ onCodes, onChanged }) => {
+export const PasskeyManager = ({ onCodes, onChanged, needsCode = false }) => {
   const tone = useSecurityTone();
   const supported = passkeysSupported();
   const [items, setItems] = useState(null);
   const [mode, setMode] = useState(null); // null | { type: 'add' } | { type: 'rename'|'remove', id }
   const [password, setPassword] = useState('');
+  const [stepUpCode, setStepUpCode] = useState('');
   const [name, setName] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -35,8 +36,8 @@ export const PasskeyManager = ({ onCodes, onChanged }) => {
   useEffect(() => { load(); }, [load]);
   useEffect(() => { if (mode) firstRef.current?.focus(); }, [mode]);
 
-  const open = (next, initialName = '') => { setMode(next); setPassword(''); setName(initialName); setError(''); };
-  const close = () => { setMode(null); setPassword(''); setName(''); setError(''); };
+  const open = (next, initialName = '') => { setMode(next); setPassword(''); setStepUpCode(''); setName(initialName); setError(''); };
+  const close = () => { setMode(null); setPassword(''); setStepUpCode(''); setName(''); setError(''); };
 
   const run = async (action) => {
     setBusy(true); setError('');
@@ -46,7 +47,7 @@ export const PasskeyManager = ({ onCodes, onChanged }) => {
   const add = (event) => {
     event.preventDefault();
     run(async () => {
-      const result = await registerPasskey({ password, name: name.trim() });
+      const result = await registerPasskey({ password, code: needsCode ? stepUpCode.trim() : undefined, name: name.trim() });
       close();
       toast.success('Passkey added');
       await load();
@@ -87,6 +88,13 @@ export const PasskeyManager = ({ onCodes, onChanged }) => {
           <Input id="passkey-password" ref={firstRef} type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
         </div>
       )}
+      {mode.type === 'add' && needsCode && (
+        <div className="space-y-1.5">
+          <label htmlFor="passkey-stepup-code" className="text-sm font-medium text-foreground">Current code or recovery code</label>
+          <Input id="passkey-stepup-code" autoComplete="one-time-code" required value={stepUpCode} onChange={(e) => setStepUpCode(e.target.value)} aria-describedby="passkey-stepup-hint" />
+          <p id="passkey-stepup-hint" className="text-xs text-muted-foreground">A code from your authenticator app, or one of your recovery codes. Adding a passkey needs one, like turning two-step verification off.</p>
+        </div>
+      )}
       {mode.type !== 'remove' && (
         <div className="space-y-1.5">
           <label htmlFor="passkey-name" className="text-sm font-medium text-foreground">{mode.type === 'add' ? 'Name (optional)' : 'New name'}</label>
@@ -95,7 +103,7 @@ export const PasskeyManager = ({ onCodes, onChanged }) => {
       )}
       {errorBox}
       <div className="flex flex-wrap gap-2">
-        <Button type="submit" variant={mode.type === 'remove' ? 'destructive' : 'default'} disabled={busy || (mode.type !== 'rename' && !password) || (mode.type === 'rename' && !name.trim())}>
+        <Button type="submit" variant={mode.type === 'remove' ? 'destructive' : 'default'} disabled={busy || (mode.type !== 'rename' && !password) || (mode.type === 'add' && needsCode && !stepUpCode.trim()) || (mode.type === 'rename' && !name.trim())}>
           {busy && <Loader2 className="animate-spin" aria-hidden="true" />}
           {mode.type === 'add' ? 'Add passkey' : mode.type === 'rename' ? 'Save name' : 'Remove passkey'}
         </Button>
