@@ -14,7 +14,8 @@
  * window of at most +-2 frames (+-1 on handhelds) and a small LRU of decoded Float32 fields. Raster frames do NOT join any
  * idle whole-run fill (egress): only the window is fetched, on demand. ownRasterLayer.js draws; useOwnRasterFrames.js wires.
  *
- * Phase 1 is DARK: window.__RAW_RASTER_OWN_FRAMES__ = true (or localStorage '__RAW_RASTER_OWN_FRAMES__' = 'true') turns it on;
+ * Cloud cover (the 'satellite' layer) is ON by default since D-052 (2026-10-26, DEFAULT_ON_LAYERS). Every other layer is DARK:
+ * window.__RAW_RASTER_OWN_FRAMES__ = true (or localStorage '__RAW_RASTER_OWN_FRAMES__' = 'true') turns it on;
  * window.__RAW_DISABLE_RASTER_OWN_FRAMES__ = true, the static-frames global kill or the per-set kill
  * (__RAW_DISABLE_STATIC_FRAMES_SETS__) turn it off. Any miss (no set published, no index) falls back to the .om path.
  * Telemetry: window.__RAW_OWN_RASTER__.
@@ -67,6 +68,12 @@ const STEPS_KEPT = 400;
 
 const W = () => (typeof window !== 'undefined' ? window : {});
 
+/** Layers whose own frames draw with no lever set; each is its own owner decision (D-052, 2026-10-26, the owner: "Flip both: the
+ *  MARINE_GULF_FILL_MID_TARGETED repo variable and cloud 0.25 deg (repo var, then the client key after one publish)").
+ *  Kill one layer: window.__RAW_DISABLE_RASTER_OWN_<LAYER>__ = true (cloud: __RAW_DISABLE_RASTER_OWN_SATELLITE__); kill all:
+ *  __RAW_DISABLE_RASTER_OWN_FRAMES__. A miss (set not in latest.json, no index) still falls back to the .om path. */
+export const DEFAULT_ON_LAYERS = Object.freeze(['satellite']);
+
 /** Is the own-frames path on for this layer and model? Synchronous, no I/O. A model without its own set (or with its set killed)
  *  stays on the .om path, which draws that model as before (never another model's frames under its label). */
 export function ownFramesOn(layer, model = 'GFS') {
@@ -79,7 +86,8 @@ export function ownFramesOn(layer, model = 'GFS') {
   if (lever === undefined || lever === null || lever === false) {
     try { lever = w.localStorage ? w.localStorage.getItem('__RAW_RASTER_OWN_FRAMES__') : null; } catch (e) { lever = null; }
   }
-  return leverCovers(lever, layer) && staticFramesEnabled() && !!staticFramesBase() && staticSetEnabled(key);
+  const covered = leverCovers(lever, layer) || DEFAULT_ON_LAYERS.includes(layer);
+  return covered && staticFramesEnabled() && !!staticFramesBase() && staticSetEnabled(key);
 }
 
 /** The lever's value covers a layer: true / 'true' = every own layer; a comma list ('pressure,temperature') = those layers.
