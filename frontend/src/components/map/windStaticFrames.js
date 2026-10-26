@@ -29,6 +29,7 @@ import { buildWindVectors, frameMeta, gridJsonFromFrame, parseFrame, pickIndexFr
 import { cropGridJson, cropVectors, gridBboxParam, midClipWindow, parseBboxString } from './staticFrameCrop';
 import { clampViewportBbox, getAvailableTilesFromManifest } from './backendWeatherServiceClientCoverage';
 import { buildTruthTag, seedJsDataHash } from './weatherTruthTracker';
+import { blendBracket, blendWindJson, indexRunMs, windTimeBlendOn } from './windTimeBlend';
 import { BACKEND_URL } from '../../lib/apiClient';
 
 export const WIND_SET_KEY = 'GFS/wind/wind/global_mid';
@@ -344,16 +345,52 @@ function pick(index, askIso, bbox, model) {
   return { kind, frame, stamp: v.stamp };
 }
 
+// THE f120+ TAIL BLEND (windTimeBlend.js; opt-in __RAW_WIND_TIME_BLEND__): the bracketing frames for the selected instant and
+// their outer neighbours (PCHIP reads t-3..t+6), built like any other (same box, same lane check), blended and labelled.
+// `raws` = { r0, r1, rm, rp } (bytes or null; a neighbour without bytes or refused by the lane check is an edge). Null on any gap:
+// the caller then serves the nearest frame exactly as before.
+const _blends = new Map();
+function blendNeeds(index, br, bbox, model) {
+  const side = (f) => { if (!f) return null; const p = pick(index, f.valid_time, bbox, model); return p.refuse ? null : p; };
+  return { p0: pick(index, br.f0.valid_time, bbox, model), p1: pick(index, br.f1.valid_time, bbox, model), pm: side(br.fm), pp: side(br.fp) };
+}
+function blendFrom(index, selectedMs, bbox, model, raws, br) {
+  const { p0, p1, pm, pp } = blendNeeds(index, br, bbox, model);
+  if (p0.refuse || p1.refuse || !raws.r0 || !raws.r1) return null;
+  const qm = pm && raws.rm ? pm : null; const qp = pp && raws.rp ? pp : null;
+  const key = [p0.frame.path, p1.frame.path, qm ? qm.frame.path : '-', qp ? qp.frame.path : '-',
+    p0.kind === 'crop' ? gridBboxParam(bbox) : 'world', selectedMs].join('|');
+  if (_blends.has(key)) return _blends.get(key);
+  const j = (p, raw, f) => build(index, p.frame, raw, p.stamp, { askIso: f.valid_time, bbox, kind: p.kind });
+  const j0 = j(p0, raws.r0, br.f0); const j1 = j(p1, raws.r1, br.f1);
+  const jm = qm ? j(qm, raws.rm, br.fm) : null; const jp = qp ? j(qp, raws.rp, br.fp) : null;
+  const json = blendWindJson(j0, j1, br, selectedMs, jm, jp);
+  if (json) {
+    try { json.truthTag = buildTruthTag(json, 'staticFrameBlend'); } catch (e) { json.truthTag = null; }
+    _blends.set(key, json); while (_blends.size > 8) _blends.delete(_blends.keys().next().value);
+    tel().blends = (tel().blends || 0) + 1;
+  }
+  return json;
+}
+
 /**
  * Seam A: the /grid JSON for a wind request from the pinned static frame, or null (the caller fetches /grid). Async: it may pin
- * the index, read the lane pointer and fetch the frame (CDN only).
+ * the index, read the lane pointer and fetch the frame (CDN only). `selectedMs` (the unsnapped selected instant) is read only
+ * with the clip-B blend switched on.
  */
-export async function tryStaticWindGrid({ model, validTimeStr, clampedBbox, signal }) {
+export async function tryStaticWindGrid({ model, validTimeStr, clampedBbox, signal, selectedMs }) {
   if (!windStaticEnabled()) return null;
   if (!windBoxKind(model, clampedBbox)) return null;
   try {
     const [index] = await Promise.all([windIndex(), readLanePointer(false)]);
     if (!index) return miss('no_index');
+    const br = windTimeBlendOn() ? blendBracket(index.frames, selectedMs, indexRunMs(index)) : null;
+    if (br) {
+      const opt = (f) => (f ? loadRaw(f, signal).catch(() => null) : Promise.resolve(null));
+      const [r0, r1, rm, rp] = await Promise.all([loadRaw(br.f0, signal), loadRaw(br.f1, signal), opt(br.fm), opt(br.fp)]);
+      const bj = blendFrom(index, selectedMs, clampedBbox, model, { r0, r1, rm, rp }, br);
+      if (bj) return bj;
+    }
     const p = pick(index, validTimeStr, clampedBbox, model);
     if (p.refuse) return miss(p.refuse);
     const buffer = await loadRaw(p.frame, signal);
@@ -370,9 +407,21 @@ export async function tryStaticWindGrid({ model, validTimeStr, clampedBbox, sign
  * The same, SYNCHRONOUSLY, from bytes already here (the idle prefetch or an earlier load), or null. No I/O: what the scrub drag
  * path and the warm commits call on every step.
  */
-export function staticWindGridSync({ model, validTimeStr, clampedBbox }) {
+export function staticWindGridSync({ model, validTimeStr, clampedBbox, selectedMs }) {
   if (!windStaticEnabled() || !_s.index) return null;
   try {
+    const br = windTimeBlendOn() ? blendBracket(_s.index.frames, selectedMs, indexRunMs(_s.index)) : null;
+    if (br) {
+      // The same blend the async path draws, or none: a neighbour the lane check allows but whose bytes are not here yet would
+      // make this instant's field differ from the async one, so wait for it (null -> the caller's async load) rather than draw
+      // a one-sided curve now and a two-sided one a moment later.
+      const { pm, pp } = blendNeeds(_s.index, br, clampedBbox, model);
+      const raw = (f) => (f ? _s.raw.get(f.path) || null : null);
+      const raws = { r0: raw(br.f0), r1: raw(br.f1), rm: raw(br.fm), rp: raw(br.fp) };
+      if (!raws.r0 || !raws.r1 || (pm && !raws.rm) || (pp && !raws.rp)) return null;
+      const bj = blendFrom(_s.index, selectedMs, clampedBbox, model, raws, br);
+      if (bj) return bj;
+    }
     const p = pick(_s.index, validTimeStr, clampedBbox, model);
     if (p.refuse) return null;
     const buffer = _s.raw.get(p.frame.path);

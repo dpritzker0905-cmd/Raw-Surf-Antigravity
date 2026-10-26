@@ -7,6 +7,7 @@
  * calls publishMarineDrawn() right after a successful upload; React reads it with useMarineDrawnFrame() in the same frame.
  */
 import { useSyncExternalStore } from 'react';
+import { formatInstant } from './drawnFrameReadout';
 
 let current = null;
 let publishedGrid = null;   // the grid object the record describes (syncDrawnToEngine compares the engine's resident with it)
@@ -86,7 +87,10 @@ export function publishWindDrawn(grid, fallback = {}) {
     validTime: grid.served_valid_time || grid.valid_time || null,
     dataMs: Date.parse(grid.served_valid_time || (grid.__fromSeries ? grid.valid_time : '') || '') || null,
     estimated: !!(grid.is_estimated || grid.isEstimated),
-    basisType: null,
+    basisType: grid.time_blend ? 'wind_time_blend' : null,
+    // Clip B (windTimeBlend.js, opt-in): a blended field names both stored frames it came from.
+    blendText: grid.time_blend
+      ? `interpolated between ${formatInstant(Date.parse(grid.time_blend.from))} and ${formatInstant(Date.parse(grid.time_blend.to))}` : null,
     provider: grid.provider || null,
     ts: Date.now(),
   };

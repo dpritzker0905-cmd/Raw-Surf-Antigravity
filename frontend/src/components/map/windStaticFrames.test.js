@@ -51,6 +51,7 @@ const HELD = { ...BOX, key: LANE.key, cycle: LANE.cycle, horizon: LANE.horizon, 
 let pointer;
 let box;
 const extraJson = {};                                                      // more CDN JSON objects a test serves (path -> body)
+const extraBin = new Map();                                                // more frame paths (-> valid time) served with the real bytes
 function cdn() {
   global.fetch = jest.fn(async (url) => {
     const ok = (body) => ({ ok: true, status: 200, json: async () => body });
@@ -60,6 +61,11 @@ function cdn() {
     if (url === BASE + 'v1/wind_lane.json') return pointer ? ok(pointer) : { ok: false, status: 400, json: async () => ({}) };
     if (url === 'https://backend.test/api/weather/wind_lane') return box ? ok(box) : { ok: false, status: 503, json: async () => ({}) };
     if (url === BASE + FRAME.path) return { ok: true, status: 200, arrayBuffer: async () => rawBuffer() };
+    if (url.startsWith(BASE) && extraBin.has(url.slice(BASE.length))) {
+      const buf = rawBuffer();                                             // the real bytes, re-stamped valid at the entry's time
+      new DataView(buf).setFloat64(56, Date.parse(extraBin.get(url.slice(BASE.length))) / 1000, true);
+      return { ok: true, status: 200, arrayBuffer: async () => buf };
+    }
     return { ok: false, status: 400, json: async () => ({}) };
   });
 }
@@ -292,5 +298,65 @@ describe('static GFS wind frames', () => {
   test('a close-zoom view still needs /grid (the sharpened product); world and mid-zoom views do not', () => {
     expect(windViewportNeedsGrid('GFS', { west: -82, south: 26, east: -77, north: 30 })).toBe(true);
     expect(windViewportNeedsGrid('GFS', { west: -100, south: 10, east: -60, north: 45 })).toBe(false);
+  });
+});
+
+// The f120+ tail blend at the seam (windTimeBlend.js, opt-in): PCHIP reads the bracket AND its outer neighbours. Four tail frames
+// of the fixture run (f120..f129, past the HRRR horizon) all serve the real frame's bytes, so the blended field must equal the
+// frame's own nodes: what this pins is which frames are loaded, the label, and that the sync path draws the SAME blend or none.
+describe('the f120+ tail blend at the seam', () => {
+  const tail = ['2026-10-27T12:00:00Z', '2026-10-27T15:00:00Z', '2026-10-27T18:00:00Z', '2026-10-27T21:00:00Z'].map((vt, i) => ({
+    valid_time: vt, is_estimated: false, path: `v1/x/tail${i}.bin`,
+    meta: { product_id: `gfs_wind_wind_global_mid_tail${i}.json`, valid_time: vt,
+      wind_lane: { ...STAMP, lane: 'gfs', reason: 'beyond_hrrr_horizon', valid_time: vt } } }));
+  const SELECTED = Date.parse('2026-10-27T16:00:00Z');                       // between 15Z and 18Z: neighbours 12Z and 21Z
+  const frameAsks = () => global.fetch.mock.calls.map((c) => c[0]).filter((u) => /tail\d\.bin$/.test(u)).map((u) => u.slice(-9));
+  const blendAsk = () => tryStaticWindGrid({ model: 'GFS', validTimeStr: '2026-10-27T15:00:00Z', clampedBbox: WORLD, selectedMs: SELECTED });
+  const blendSync = () => staticWindGridSync({ model: 'GFS', validTimeStr: '2026-10-27T15:00:00Z', clampedBbox: WORLD, selectedMs: SELECTED });
+  let saved;
+  beforeEach(() => {
+    saved = INDEX.frames;
+    INDEX.frames = [...saved, ...tail];
+    tail.forEach((f) => extraBin.set(f.path, f.valid_time));
+    window.__RAW_WIND_TIME_BLEND__ = true;
+  });
+  afterEach(() => {
+    INDEX.frames = saved;
+    extraBin.clear();
+    delete window.__RAW_WIND_TIME_BLEND__;
+  });
+
+  test('async: the bracket and both neighbours are loaded, and the field is a labelled estimate at the selected instant', async () => {
+    const j = await blendAsk();
+    expect(frameAsks().sort()).toEqual(['tail0.bin', 'tail1.bin', 'tail2.bin', 'tail3.bin']);
+    expect(j.valid_time).toBe('2026-10-27T16:00:00Z');
+    expect(j.is_estimated).toBe(true);
+    expect(j.time_blend).toMatchObject({ from: '2026-10-27T15:00:00Z', to: '2026-10-27T18:00:00Z',
+      neighbours: { before: true, after: true }, method: expect.stringMatching(/^PCHIP on u\/v/) });
+    const plain = await tryStaticWindGrid({ model: 'GFS', validTimeStr: '2026-10-27T15:00:00Z', clampedBbox: WORLD });
+    const pick = (g) => g.grid.vectors.filter((v) => v.is_valid).slice(0, 400).map((v) => [Math.round(v.u * 100), Math.round(v.v * 100)]);
+    expect(pick(j)).toEqual(pick(plain));                                    // four equal frames: the curve is flat
+  });
+
+  test('sync: none before the bytes are here, the SAME blend after (never a one-sided curve first)', async () => {
+    expect(blendSync()).toBe(null);
+    const a = await blendAsk();
+    expect(blendSync()).toBe(a);
+  });
+
+  test('a neighbour that fails to load is an edge for async; sync then waits for it rather than draw a different curve', async () => {
+    extraBin.delete('v1/x/tail3.bin');                                       // the t+6 frame 404s
+    const j = await blendAsk();
+    expect(j.time_blend.neighbours).toEqual({ before: true, after: false });
+    expect(blendSync()).toBe(null);
+  });
+
+  test('before f120 of the run there is no blend: the nearest frame is served as by default', async () => {
+    const early = tail.map((f, i) => ({ ...f, path: `v1/x/early${i}.bin`, valid_time: f.valid_time.replace('10-27', '10-26') }));
+    early.forEach((f) => extraBin.set(f.path, f.valid_time));
+    INDEX.frames = [...saved, ...early];
+    const j = await tryStaticWindGrid({ model: 'GFS', validTimeStr: '2026-10-26T15:00:00Z', clampedBbox: WORLD,
+      selectedMs: Date.parse('2026-10-26T16:00:00Z') });
+    expect(j === null || !j.time_blend).toBe(true);
   });
 });

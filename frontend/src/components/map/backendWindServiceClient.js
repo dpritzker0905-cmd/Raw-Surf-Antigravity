@@ -9,6 +9,7 @@ import {
   GRID_URL,
   POINT_URL,
   getSharedValidTime,
+  getSeriesAnchorMs,
   clampViewportBbox,
   getBackendWindFlag,
   latestTimeDiag,
@@ -514,7 +515,7 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
   // cap) comes from the static frame the CDN holds, the same numbers parity-gated at publish (lane included). Any miss: /grid.
   // Never with the HRRR lane switched off for this session (wind_lane=gfs): the frames carry the lane.
   if (windStaticEnabled() && !windLaneDisabled() && windBoxKind(model, clampedBbox)) {
-    const sj = await tryStaticWindGrid({ model, validTimeStr, clampedBbox, signal });
+    const sj = await tryStaticWindGrid({ model, validTimeStr, clampedBbox, signal, selectedMs: getSeriesAnchorMs() + hourOffset * 3600000 });
     if (sj) return staticWindResult(sj, { clampedBbox, hourOffset, model, actualBounds, actualSource, start, validTimeStr, clampResult });
   }
 
@@ -697,6 +698,7 @@ function mapStaticWind(json, box, hourOffset) {
   shell.hourOffset = hourOffset;
   shell.nonzeroCount = nonzero;
   shell.renderable = vectors.length > 0 && nonzero > 0;
+  if (json.time_blend) { shell.time_blend = json.time_blend; shell.is_estimated = true; }   // clip B: the label rides with the grid
   if (typeof window !== 'undefined' && hourOffset === 0) {
     recordTruthStage('mappedGrid', { model: json.model || 'GFS', domain: 'wind', layer: 'wind', valid_time: json.valid_time,
       run_time: json.run_time, product_id: json.product_id, is_dynamic_viewport_product: false, coverage_scope: json.coverage_scope,
@@ -763,7 +765,7 @@ export function getStaticWindDataSync(model, hourOffset, bounds, { world = false
       const c = clampViewportBbox(bounds, 'wind', m, 'wind');
       if (c && c.isInside && c.clampedBbox && windBoxKind(m, c.clampedBbox) === 'crop') box = c.clampedBbox;
     }
-    const json = staticWindGridSync({ model: m, validTimeStr, clampedBbox: box });
+    const json = staticWindGridSync({ model: m, validTimeStr, clampedBbox: box, selectedMs: getSeriesAnchorMs() + hourOffset * 3600000 });
     if (!json) return null;
     return mappedStatic(json, box, hourOffset, m);
   } catch (e) {

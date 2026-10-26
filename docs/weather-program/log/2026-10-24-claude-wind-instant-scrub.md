@@ -157,6 +157,35 @@ owner window, store-real on 4196 (identity-checked).
   sim-field rebuild on a wind change (memo on the unchanged marine grid, or deferral as an owner A/B) and the crop build ahead of
   the world draw (an owner A/B: coarse then sharp).
 
+## Owner A/B clips: wind hours between 3-hourly frames (branch claude/wind-owner-clips; both opt-in)
+
+The lead's queue (after #553): (A) an honest "showing the 3 AM frame" line, (B) a labelled speed + direction interpolation, both
+default off, as side-by-side clips for the owner.
+
+- **What today does (measured, the off arm).**
+  - The timeline's time chip shows the SNAPPED frame time (forecastReadout, F-07): from 9 AM, +1 h reads "Sun 11 AM", and +3 h
+    still reads "Sun 11 AM".
+  - The wind status line (WindTimeStatus) says nothing at any step. It compares the drawn frame with `getSharedValidTime`, which is
+    already snapped, so the two are always equal.
+  - So the hour wheel moves while the chip jumps ahead or stalls, with no words.
+- **A (`window.__RAW_WIND_NEAREST_WORDS__`).** The status line compares against the selected instant before the snap. The chip is
+  unchanged; the line reads "Showing Sun 11 AM: the nearest stored forecast", and stays silent on a stored hour.
+- **B (`window.__RAW_WIND_TIME_BLEND__`, `windTimeBlend.js`).**
+  - Between two built static frames (gap <= 6 h), the field drawn is a blend: speed linear in time, direction along the shorter
+    arc, u/v rebuilt in the frames' sign.
+  - The field is labelled `is_estimated` + `time_blend` and given a non-product id.
+  - The chip names the blend instant (+1 h reads "Sun 10 AM"). The line reads "Estimated forecast: interpolated between Sun 8 AM
+    and Sun 11 AM", and the screen-reader text says interpolated.
+  - The sync scrub path blends only when both frames' bytes are local; otherwise it draws the nearest frame and the line names it.
+- **Found on the first recording and fixed.** With B on, the chip still read the snapped 8 AM over a field valid at 9 AM: a
+  mislabel. The chip now names the blend instant (`forecastReadout.windBlend.test.js`).
+- **The clips.**
+  - Offline (`scn_wind_clips.js`): real GFS 10-22 12Z + HRRR, Florida z3.9, wind on, then +1 h every 2.5 s, one recording per arm
+    with an on-page arm label.
+  - Per-step chip + line in `clips.json`.
+  - Page for the owner (private): https://claude.ai/artifact/64MGZ6RVA5Y2rfTfi2Mtwt
+- **Not decided here.** The owner picks A, B, both or neither. Nothing changes unless a flag is set.
+
 ## The click-task split (branch claude/wind-toggle-split)
 
 The lead, after #553: "split that task, not remove a hop": profile the work before setWindData, move what the first wind draw
@@ -190,3 +219,18 @@ does not need after a yield / into a transition, measure first draw and INP over
   - The p50 is now inside the 100 ms toggle contract; the p95 (146 ms) is not yet.
 - **#564 rebased on #560.** #560's LABEL INSTANT is clip A, default on, so #564 keeps only option B. The clip page now compares
   B with today's real default (the nearest-frame line).
+
+## 2026-10-26: clip B is now PCHIP on u/v, in the f120+ tail only (#564)
+
+The hold-out (SCOREBOARD S23; the section on #580's branch) picked PCHIP on u/v for the 3-hourly tail. The lead approved
+dropping polar B (2026-10-25). On #564:
+- `windTimeBlend.js` blends u and v by PCHIP: Fritsch-Carlson slopes through the frames t-3, t, t+3 and t+6, one-sided where a
+  neighbour frame or node is missing. These are the hold-out's own formulas (`pchip_slope`, `hermite`), pinned case by case.
+- **The tail only.** The bracket's first frame must be at f120 or later of the index's run. An unknown run fails closed to the
+  nearest frame, which #560 labels. Before f120, #580's hourly frames cover every hour.
+- **Sync draws the same blend or none.** The seam loads the outer neighbours. The sync scrub path now returns nothing (so the
+  async path loads all four) unless every needed frame is local. Otherwise one instant could draw a one-sided curve first and
+  a two-sided one a moment later.
+- The readout chip uses the same bracket rule, so it never names a blend the map does not draw.
+- `scn_wind_clips.js` starts at START_HOUR (default 124) so the clip lands in the tail.
+- It stays opt-in (`__RAW_WIND_TIME_BLEND__`) until the owner sees the clips.
