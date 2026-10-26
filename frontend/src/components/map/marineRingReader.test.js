@@ -49,11 +49,32 @@ describe('C1 cardinality collapse — the telemetry ring at 99% one event', () =
     expect(r.numbers.saturated).toBe(false);
   });
 
-  test('the 50% undercount threshold fires BEFORE outright dominance', () => {
-    const r = checkCardinality({ name: 'x', cap: 500, counts: { a: 60, b: 20, c: 20 } });
-    expect(fails(r)).toBe(true);                          // 0.60 — past UNDERCOUNT, below DOMINANCE
+  test('the 50% undercount threshold fires BEFORE outright dominance, once the ring is FULL', () => {
+    const r = checkCardinality({ name: 'x', cap: 500, counts: { a: 300, b: 100, c: 100 } });
+    expect(fails(r)).toBe(true);                          // 0.60 — past UNDERCOUNT, below DOMINANCE, at the cap
     expect(r.numbers.topShare).toBeGreaterThan(UNDERCOUNT_LIMIT);
     expect(r.numbers.topShare).toBeLessThan(DOMINANCE_LIMIT);
+    expect(r.numbers.saturated).toBe(true);
+  });
+
+  // EVICTION FIRST (2026-10-26): the owner's console, reproduced offline — the C1 failure that was the workload, not eviction.
+  test('a ring below 90% of its cap has evicted nothing: any mix PASSES, and says why (the owner\'s 51.5% of 33)', () => {
+    const r = checkCardinality({ name: 'forensic', cap: 500, counts: { commit: 17, snap: 10, mask_rebuild: 6 } });
+    expect(passes(r)).toBe(true);
+    expect(r.detail).toMatch(/nothing has been evicted/);
+    expect(passes(checkCardinality({ name: 'x', cap: 500, counts: { a: 300, b: 30 } }))).toBe(true);    // 91% one type, 330 of 500
+  });
+
+  test('dominance near the cap still FAILS (positive control: the eviction is coming)', () => {
+    const r = checkCardinality({ name: 'x', cap: 500, counts: { a: 440, b: 20 } });                    // 460 of 500, 96% one type
+    expect(fails(r)).toBe(true);
+    expect(r.detail).toMatch(/near cap/);
+  });
+
+  test('monotonic totals (churn counts) are not judged for eviction: SKIP with the reason', () => {
+    const r = checkCardinality({ name: 'churn', cap: 150, countsAreTotals: true, counts: { detach: 999, attach: 3 } });
+    expect(skips(r)).toBe(true);
+    expect(r.detail).toMatch(/monotonic totals/);
   });
 
   test('REFUSAL: too few samples SKIPS rather than passing', () => {
@@ -229,6 +250,24 @@ describe('captureRings', () => {
     const snap = captureRings({ __MARINE_CHURN__: { counts: { detach: 999 }, log: [{ kind: 'detach' }] } });
     const churn = snap.rings.find((r) => r.name === 'churn');
     expect(churn.counts.detach).toBe(999);      // counts survives eviction; log.length does not
+    expect(churn.countsAreTotals).toBe(true);   // ... and is marked as totals (C1 skips it)
+    const fromLog = captureRings({ __MARINE_CHURN__: { log: [{ kind: 'detach' }] } }).rings.find((r) => r.name === 'churn');
+    expect(fromLog.countsAreTotals).toBe(false); // the log fallback is a sample of an evicting ring
+  });
+
+  test('the uploadCount pair is RETIRED: its two counters stopped counting the same thing (2026-10-26)', () => {
+    const snap = captureRings({ __RAW_GPU__: { textureUploadCount: 87 }, __WEBGL_MARINE_UPLOAD_DIAG__: { uploadCount: 14 } });
+    expect(snap.pairs.find((p) => p.name === 'uploadCount')).toBeUndefined();
+    expect(readRings(snap).summary.failures).not.toContain('C2 cross:uploadCount');   // the owner's console: no more crying wolf
+  });
+
+  test('the owner\'s two failures, replayed through captureRings: none remain', () => {
+    const w = {
+      __RAW_GPU__: { textureUploadCount: 87 }, __WEBGL_MARINE_UPLOAD_DIAG__: { uploadCount: 14 },
+      __RAW_FORENSIC__: { events: [...Array(17).fill({ type: 'commit' }), ...Array(10).fill({ type: 'snap' }), ...Array(6).fill({ type: 'mask_rebuild' })] },
+      __MARINE_CHURN__: { counts: { scrub_commit: 120, detach: 4 } },
+    };
+    expect(readRings(captureRings(w)).summary.failures).toEqual([]);
   });
 });
 
