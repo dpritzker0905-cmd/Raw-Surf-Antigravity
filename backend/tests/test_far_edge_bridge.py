@@ -175,6 +175,31 @@ def test_never_over_a_regional_product_and_never_for_gfs(monkeypatch):
     assert _bridge(_icon_store(), T0 + timedelta(hours=6), model="GFS") is None
 
 
+def test_a_listed_but_absent_input_falls_through_to_the_existing_chain(monkeypatch):
+    """#590's class (manifest lists an object storage no longer holds): the bridge never answers from a missing anchor or GFS
+    frame; it returns None and the hold / Step 3 answer, as today."""
+    monkeypatch.setenv("FAR_EDGE_BRIDGE", "1")
+    s = _icon_store()
+    anchor = next(i.filename for i in s.items if i.model == "ICON" and i.region_id == "global_mid" and i.valid_time_start == T0)
+    del s.files[anchor]
+    assert _bridge(s, T0 + timedelta(hours=6)) is None
+    s = _icon_store()
+    del s.files[next(i.filename for i in s.items if i.model == "GFS" and i.valid_time_start == T0 + timedelta(hours=6))]
+    assert _bridge(s, T0 + timedelta(hours=6)) is None
+
+
+def test_whichever_world_neighbour_step3_chose_the_bridge_decides_the_same(monkeypatch):
+    """Composes with #590's RESOLVER_SKIP_MISSING_OBJECT, which can hand Step 3 a different +-3 h neighbour: the bridge
+    reads only the 2-deg lane and the GFS frames, so any world-span product before it yields the same bridge."""
+    monkeypatch.setenv("FAR_EDGE_BRIDGE", "1")
+    s = _icon_store()
+    a = _bridge(s, T0 + timedelta(hours=6), current=s.files[next(i.filename for i in s.items if i.region_id == "global_coarse")])
+    b = _bridge(s, T0 + timedelta(hours=6), current=None)
+    assert a is not None and b is not None
+    assert [v.speed for v in a.grid.vectors] == [v.speed for v in b.grid.vectors]
+    assert a.estimate_basis == b.estimate_basis
+
+
 def test_the_decay_is_tunable(monkeypatch):
     monkeypatch.setenv("FAR_EDGE_BRIDGE", "1")
     monkeypatch.setenv("FAR_EDGE_BRIDGE_DECAY_H", "12")
