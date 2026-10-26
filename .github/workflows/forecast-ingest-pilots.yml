@@ -212,6 +212,18 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FRAME_RASTER_CLOUD: ${{ vars.FRAME_RASTER_CLOUD }}
         run: python scripts/publish_raster_frames.py --set cloud_cover
+      # Cloud cover at 0.25 deg (the owner, 2026-10-25: "Go with your recommendation if that is state of the art"): the same
+      # instantaneous TCDC on NCEP's full 0.25-degree grid. Off unless FRAME_RASTER_CLOUD_0P25=1; the client is dark either way.
+      - name: Publish raster static frames (cloud cover 0.25 deg; off unless FRAME_RASTER_CLOUD_0P25=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CLOUD_0P25 == '1' }}
+        continue-on-error: true
+        timeout-minutes: 15
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_CLOUD_0P25: ${{ vars.FRAME_RASTER_CLOUD_0P25 }}
+        run: python scripts/publish_raster_frames.py --set cloud_cover_0p25
 
       # PER-MODEL PRESSURE (2026-10-23; the owner, 20:13 EDT: "Yes start it", answering "start the per-model pressure route?"
       # after "We want each models pressure showing"). EURO = ECMWF IFS open data msl (CC BY 4.0, attribution required), the

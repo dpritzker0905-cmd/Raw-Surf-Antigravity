@@ -37,13 +37,28 @@ service registers a second channel there. Nothing in the linking code sends emai
 
 `under_13`, `13_15`, `16_17`, `adult`, `unknown`. A gate that must decide treats `unknown` as `under_13`.
 
-## What each level unlocks (policy; PR 2 enforces it)
+## What each level unlocks (policy; enforced by `services/guardian_policy.py`)
 
 | Band | L0 | L1 | L2 |
 |---|---|---|---|
 | under 13 | view only; **no self-registration**, parent-first only | view only plus what the guardian switches on | public showcase and photos only by separate guardian consent; money via purchase requests |
 | 13-15 | locked down: browse only | messaging and commenting | public profile, photo/likeness features, anything money-related (money also via purchase-request approval) |
 | 16-17 | locked down: browse only | most features, guardian notified | as L1, money still via purchase requests |
+
+### Where the levels are enforced
+
+| Rule | Enforced at |
+|---|---|
+| under 13 never self-registers (nothing is stored); a Grom account needs a birthdate; a child's profile starts private | `signup` (`under_13_signup_refusal`, before any query or write). `PARENT_FIRST_CHILD_CREATION` is the off-by-default hook for the parent-first flow |
+| L0 is browse-only (comment, react, post, stream, message) | `services/parental_controls.refusal_for`, beside the guardian's own switches, so every route that already calls it is covered |
+| messaging and commenting at L1 | the same helper plus `check_grom_messaging_permission` (needs a confirmed link) |
+| photo / likeness | `POST /grom-hq/groms/{id}/media` (before anything is stored), post create, story create |
+| public profile | `PATCH /profiles/{id}` and `PUT /friends/privacy/{id}` when `is_private` goes false |
+| money | `POST /grom-hq/purchase-request/{id}` (a floor; the guardian's approval still decides every purchase) |
+| guardian notice for 16-17 | in-app notice on post, story, and going public (an email channel can register on the same seam as invites) |
+
+Not covered yet (stated, not hidden): photographers tagging a child in a gallery photo; direct credit-spend routes a
+child could call without a purchase request; the avatar upload. Each needs its own gate on this same table.
 
 ## Existing routes by level (all under `/api/grom-hq` unless noted)
 
