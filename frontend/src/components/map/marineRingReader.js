@@ -20,7 +20,8 @@
  *                                ("reduced sample cardinality reflects loss of observability").
  *   C2 cross-instrument       <- `encodeDupCount: 2` beside 500 encode-ish events. Disagreement
  *                                between two counters of the same thing is the highest-yield check;
- *                                it is what actually caught things by hand.
+ *                                it is what actually caught things by hand. Live pair since
+ *                                2026-10-26: frame-store commits vs normal uploads (COMMIT_FOLLOW_UPS).
  *   C3 zero-variance field    <- `coverage: "miss"` on every single response. A field with one
  *                                distinct value over many samples is dead, not informative.
  *   C4 poisoned identity key  <- `... || Date.now()` in a dedup key, with `productId: null`. A key
@@ -52,6 +53,22 @@ export const MIN_SAMPLES_FOR_VARIANCE = 20;
 // FIFO with no per-type quota means the loudest writer deletes the others, so once one type passes
 // half the ring the remaining histogram is a floor, not a total.
 export const UNDERCOUNT_LIMIT = 0.50;
+
+// ⛔ C2's LIVE PAIR (2026-10-26). WebGLMarineLayer runs noteCommitted (marineFrameStoreRuntime) and then
+// __WEBGL_MARINE_UPLOAD_COUNT__++ in the SAME synchronous success block after setWaveData, and every return path of
+// noteCommitted past its on-check counts exactly ONE reason. So while the store is on, its commit reasons sum to the upload
+// count, exactly (offline 2026-10-26: 1, 7, 8, 11, 16, 18 = the same across load, steps, pans, toggles, z8 and zoom-out).
+// Two reasons are written LATER, outside noteCommitted (a pack or a crop resolving after its commit): they are not commits.
+// A source guard in the test fails if a new writer appears outside noteCommitted without joining this list.
+export const COMMIT_FOLLOW_UPS = Object.freeze(['resident_late', 'crop_not_resident']);
+
+/** The commits the frame store counted (one per normal upload while it is on); null when the store is off or absent. */
+export function storeCommitCount(frameStore) {
+  const fs = frameStore || null;
+  if (!fs || fs.on !== true || !fs.commits || typeof fs.commits !== 'object') return null;
+  return Object.entries(fs.commits)
+    .reduce((a, [k, n]) => (COMMIT_FOLLOW_UPS.includes(k) ? a : a + (Number(n) || 0)), 0);
+}
 
 /**
  * ⛔⛔ TWO OPPOSITE INSERTION ORDERS COEXIST IN THIS APP. A consumer that reads "the last N" one way
@@ -312,8 +329,13 @@ export function captureRings(win) {
     // chlorophyll, bathymetry, the mask, the GPU frame store's shows and their aux) with the layer's normal-path setWaveData uploads.
     // They agreed after the 2026-08-03 fix (131 vs 129). Since the frame store and the aux show (2026-10-21) they no longer count the
     // same thing, so the pair failed in EVERY session (offline 87 vs 14; the owner's console twice, 2026-10-25): a premise out of
-    // date, not a data fault. checkCrossInstrument stays for a pair that does describe one quantity.
-    pairs: [],
+    // date, not a data fault. Its replacement counts ONE quantity twice (see COMMIT_FOLLOW_UPS); the store off or absent SKIPS.
+    pairs: [
+      { name: 'commits', a: storeCommitCount(w.__RAW_FRAME_STORE__), b: upload.uploadCount,
+        aLabel: 'frameStore.commits', bLabel: 'uploadDiag.uploadCount', tolerance: 0,
+        note: 'a normal upload skipped noteCommitted, a noteCommitted path returned without a reason, the commit path threw '
+          + 'between the two, or a store kill switch flipped mid-session (reload, then read again)' },
+    ],
     fields: [
       { name: 'snap.dims', values: snaps.map((e) => e.dims) },
       { name: 'snap.zoom', values: snaps.map((e) => e.zoom) },

@@ -14,10 +14,12 @@
  * and the AFTER fixtures are the same quantities post-fix, which must pass. A check that fires on
  * both is worthless, so every BEFORE has its AFTER.
  */
+import fs from 'fs';
+import path from 'path';
 import {
-  DOMINANCE_LIMIT, MIN_SAMPLES_FOR_CARDINALITY, MIN_SAMPLES_FOR_VARIANCE, RING_DIRECTION,
+  COMMIT_FOLLOW_UPS, DOMINANCE_LIMIT, MIN_SAMPLES_FOR_CARDINALITY, MIN_SAMPLES_FOR_VARIANCE, RING_DIRECTION,
   UNDERCOUNT_LIMIT, captureRings, checkCardinality, checkCrossInstrument, checkIdentityKey,
-  checkInvariants, checkVariance, readRings, recentFrom,
+  checkInvariants, checkVariance, readRings, recentFrom, storeCommitCount,
 } from './marineRingReader';
 
 const fails = (r) => r.verdict === 'fail';
@@ -259,6 +261,52 @@ describe('captureRings', () => {
     const snap = captureRings({ __RAW_GPU__: { textureUploadCount: 87 }, __WEBGL_MARINE_UPLOAD_DIAG__: { uploadCount: 14 } });
     expect(snap.pairs.find((p) => p.name === 'uploadCount')).toBeUndefined();
     expect(readRings(snap).summary.failures).not.toContain('C2 cross:uploadCount');   // the owner's console: no more crying wolf
+  });
+
+  // C2's LIVE PAIR: one quantity counted twice. The store's commit reasons vs the layer's normal uploads.
+  const pairOf = (w) => readRings(captureRings(w)).verdicts.find((x) => x.check === 'C2 cross:commits');
+  const STORE = (commits, on = true) => ({ __RAW_FRAME_STORE__: { on, commits } });
+  test('C2 live pair: the store\'s commit reasons sum to the normal uploads (offline 2026-10-26, zoom-out: 18 = 18)', () => {
+    const r = pairOf({ ...STORE({ resident: 11, no_index: 2, resident_crop_regional: 5 }), __WEBGL_MARINE_UPLOAD_DIAG__: { uploadCount: 18 } });
+    expect(passes(r)).toBe(true);
+    expect(r.numbers).toMatchObject({ a: 18, b: 18, delta: 0, tolerance: 0 });
+  });
+  test('follow-ups written after a commit (a pack or a crop resolving late) are not commits', () => {
+    expect(storeCommitCount({ on: true, commits: { resident: 4, not_packed_loading: 2, resident_late: 2, crop_not_resident: 1 } })).toBe(6);
+    const r = pairOf({ ...STORE({ resident: 4, not_packed_loading: 2, resident_late: 2, crop_not_resident: 1 }), __WEBGL_MARINE_UPLOAD_DIAG__: { uploadCount: 6 } });
+    expect(passes(r)).toBe(true);
+  });
+  test('POSITIVE CONTROL: uploads the store never heard of FAIL, and the detail names the suspects', () => {
+    const r = pairOf({ ...STORE({ resident: 14 }), __WEBGL_MARINE_UPLOAD_DIAG__: { uploadCount: 30 } });
+    expect(fails(r)).toBe(true);
+    expect(r.numbers).toMatchObject({ a: 14, b: 30, delta: 16 });
+    expect(r.detail).toMatch(/noteCommitted/);
+    expect(readRings(captureRings({ ...STORE({ resident: 14 }), __WEBGL_MARINE_UPLOAD_DIAG__: { uploadCount: 30 } })).summary.failures)
+      .toContain('C2 cross:commits');
+  });
+  test('POSITIVE CONTROL: one commit more than the uploads FAILS too (tolerance 0: the commit path threw after the store counted)', () => {
+    expect(fails(pairOf({ ...STORE({ resident: 19 }), __WEBGL_MARINE_UPLOAD_DIAG__: { uploadCount: 18 } }))).toBe(true);
+  });
+  test('REFUSAL: the store off, absent, or no upload yet SKIPS — it counts nothing then, so silence is not disagreement', () => {
+    expect(skips(pairOf({ ...STORE({ resident: 3 }, false), __WEBGL_MARINE_UPLOAD_DIAG__: { uploadCount: 30 } }))).toBe(true);
+    expect(skips(pairOf({ __WEBGL_MARINE_UPLOAD_DIAG__: { uploadCount: 30 } }))).toBe(true);
+    expect(skips(pairOf({ ...STORE({}) }))).toBe(true);
+  });
+  // The pair's premise lives in two other files; pin it there, so a refactor breaks a test here instead of the owner's console.
+  test('SOURCE GUARD: every commits writer outside noteCommitted is a declared follow-up; one call, one increment', () => {
+    const dir = __dirname;
+    const stores = fs.readdirSync(dir).filter((f) => /^marineFrameStore.*\.js$/.test(f) && !/\.test\.js$/.test(f));
+    const writers = new Set();
+    for (const f of stores) {
+      const src = fs.readFileSync(path.join(dir, f), 'utf8');
+      for (const m of src.matchAll(/rt\.commits\.([A-Za-z_]+)\s*=/g)) writers.add(m[1]);
+      for (const m of src.matchAll(/rt\.commits\[([^\]]+)\]\s*=/g)) expect(m[1]).toBe('r');   // only noteCommitted's why(r)
+    }
+    expect([...writers].sort()).toEqual([...COMMIT_FOLLOW_UPS].sort());
+    const layer = fs.readFileSync(path.join(dir, 'WebGLMarineLayer.js'), 'utf8');
+    expect(layer.match(/\bnoteCommitted\(grid/g)).toHaveLength(1);
+    expect(layer.match(/__WEBGL_MARINE_UPLOAD_COUNT__\+\+/g)).toHaveLength(1);
+    expect(layer.indexOf('noteCommitted(grid')).toBeLessThan(layer.indexOf('__WEBGL_MARINE_UPLOAD_COUNT__++'));
   });
 
   test('the owner\'s two failures, replayed through captureRings: none remain', () => {
