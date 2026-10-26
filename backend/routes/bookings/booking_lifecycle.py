@@ -9,8 +9,9 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, func
 from sqlalchemy.orm import selectinload
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
+import math
 from datetime import datetime, timezone, timedelta
 import json
 import logging
@@ -42,14 +43,16 @@ logger = logging.getLogger(__name__)
 class CrewMember(BaseModel):
     user_id: str
     name: str
-    share_amount: float
+    share_amount: float = Field(..., ge=0, allow_inf_nan=False)
 
 class CreateUserBookingRequest(BaseModel):
     photographer_id: str
     location: str
     session_date: str  # ISO format
-    duration: int = 60
-    max_participants: int = 1
+    # Minutes. A negative duration gave a negative price, and a negative price turned the credit "debit" into a
+    # credit (mint). Bounds: at least a minute, at most a day.
+    duration: int = Field(60, ge=1, le=1440)
+    max_participants: int = Field(1, ge=1, le=100)
     allow_splitting: bool = False
     split_mode: str = 'friends_only'
     crew_members: Optional[List[CrewMember]] = None
@@ -57,7 +60,7 @@ class CreateUserBookingRequest(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     description: Optional[str] = None
-    apply_credits: Optional[float] = 0
+    apply_credits: Optional[float] = Field(0, ge=0, allow_inf_nan=False)
     impact_zone_type: Optional[str] = None
     impact_zone_preset: Optional[str] = None
 
@@ -165,8 +168,12 @@ async def create_user_booking(
         group_discount_percent = photographer.group_discount_2_plus
 
     discount_amount = (base_price * group_discount_percent) / 100
-    total_price = base_price - discount_amount
-    price_per_person = total_price / data.max_participants if data.max_participants > 0 else total_price
+    total_price = round(base_price - discount_amount, 2)
+    # Whatever the inputs (a photographer's own rate or discount included), a booking must cost a real, positive
+    # amount: a zero or negative price turns every later "debit" into a free session or a credit.
+    if not math.isfinite(total_price) or total_price <= 0:
+        raise HTTPException(status_code=400, detail="This booking has no valid price")
+    price_per_person = round(total_price / data.max_participants, 2)
 
     # Handle credit application
     credits_applied = 0
@@ -387,14 +394,16 @@ async def complete_booking(
                     type='gallery_ready',
                     title='Your Session Photos Are Ready! 📸',
                     body=f'{photographer_name} has completed your booked session. Your gallery is ready!',
-                    action_url=f'/gallery/{gallery_id}',
-                    metadata={
+                    # The Notification model has no action_url / metadata columns (passing them raised TypeError);
+                    # everything rides in the JSON-text `data` the client already reads.
+                    data=json.dumps({
+                        'action_url': f'/gallery/{gallery_id}',
                         'gallery_id': gallery_id,
                         'booking_id': booking_id,
                         'photographer_id': booking.photographer_id,
                         'photographer_name': photographer_name,
                         'session_type': 'booking'
-                    }
+                    })
                 )
                 db.add(notification)
 

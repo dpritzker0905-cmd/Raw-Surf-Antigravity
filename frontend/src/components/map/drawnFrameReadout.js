@@ -24,7 +24,31 @@ export const ESTIMATE_WORDS = {
   icon_persistence_gfs_blend: 'beyond ICON’s native range',
   icon_trend_extrapolation: 'beyond ICON’s native range',
   gfs_estimated_fallback: 'GFS stand-in beyond this model’s range',
+  icon_extended_blend: 'blended from GFS and EURO beyond ICON’s range',
+  far_edge_hold: 'held from the last stored forecast',
 };
+
+/**
+ * HELD: ONE rule for every held frame (2026-10-25/26, the owner's day-14 test: "the ICON data is showing Saturday 13th day on the
+ * Sunday 14th day", with no words; #578 worded the far_edge_hold basis, #587 every source, unified here at the lead's request).
+ * When the frame answering THIS selection (drawn.hour === requested.hour) is an ESTIMATE whose data is further from the selection
+ * than the nearest-frame rule allows, nothing newer is coming: past a model's stored tail the server holds its last frame (its own
+ * basis, or far_edge_hold when it had none), and the client blends held inputs (icon_extended_blend). "Loading" would promise a frame
+ * that never arrives, so the line says what the field IS: "Holding <data time>’s <model> forecast: <why>", the time dated when it is
+ * a day or more from the selection or the selection is six or more days out. An OLDER answer still on screen (another hour) stays
+ * "Loading"; so does a non-estimate (a stale answer the server refreshes). The data time is the served time, else the hold's own
+ * estimate_basis.held_from (marineDrawnFrame heldFromMs), else a client blend's readout time (heldFrameTime.js).
+ * Kill: window.__RAW_DISABLE_DRAWN_HELD_WORDS__ = true, or #578's documented alias window.__RAW_DISABLE_DRAWN_HOLD_WORDS__ = true.
+ */
+const HOLD_WHY = {
+  far_edge_hold: () => 'the 14-day estimate ends there',        // #578's words, as shipped
+  icon_extended_blend: () => 'blended from GFS and EURO beyond ICON’s range',
+  icon_persistence_gfs_blend: () => 'beyond ICON’s native range',
+  icon_trend_extrapolation: () => 'beyond ICON’s native range',
+  gfs_estimated_fallback: (m) => `GFS stand-in beyond ${m}’s range`,
+};
+const heldWordsOn = () => !(typeof window !== 'undefined'
+  && (window.__RAW_DISABLE_DRAWN_HELD_WORDS__ === true || window.__RAW_DISABLE_DRAWN_HOLD_WORDS__ === true));
 
 export function formatForecastHour(hour, nowMs = Date.now()) {
   if (!Number.isFinite(hour)) return '';
@@ -33,10 +57,16 @@ export function formatForecastHour(hour, nowMs = Date.now()) {
   return d.toLocaleString('en-US', { weekday: 'short', hour: 'numeric' });
 }
 
-export function formatInstant(ms) {
+// DATED (2026-10-25): weekday + hour cannot tell two times a week apart, and the timeline spans 14 days ("Loading Sun 11 PM… still
+// showing Sun 11 PM" was two weeks apart). With `dated` the day of the month is added. Kill: window.__RAW_DISABLE_DRAWN_DATED_LABEL__.
+const DAY_MS = 24 * 3600000;
+export function formatInstant(ms, dated = false) {
   if (!Number.isFinite(ms)) return '';
-  return new Date(ms).toLocaleString('en-US', { weekday: 'short', hour: 'numeric' });
+  return new Date(ms).toLocaleString('en-US', dated ? { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric' } : { weekday: 'short', hour: 'numeric' });
 }
+/** Date the words when the two times are a day or more apart, or the selection is six or more days out. */
+const datedPair = (aMs, bMs, nowMs) => !(typeof window !== 'undefined' && window.__RAW_DISABLE_DRAWN_DATED_LABEL__ === true)
+  && Number.isFinite(aMs) && Number.isFinite(bMs) && (Math.abs(aMs - bMs) >= DAY_MS || bMs - nowMs >= 6 * DAY_MS);
 
 function estimateWords(drawn) {
   if (!drawn || !drawn.estimated) return '';
@@ -54,17 +84,36 @@ export function describeDrawnFrame(requested, drawn, { nowMs = Date.now() } = {}
   }
   const est = estimateWords(drawn);
   // Compare by INSTANT when both are known (the #267 rule, marineHourInstant.js: the label names the request, the valid time
-  // names the data): requested.instantMs = what a fetch for the selected hour asks for now (getSharedValidTime), drawn.dataMs =
-  // the frame's served valid time. Else fall back to the hour labels.
-  const byInstant = Number.isFinite(requested.instantMs) && Number.isFinite(drawn.dataMs);
-  const dh = byInstant ? Math.round((drawn.dataMs - requested.instantMs) / 3600000)
+  // names the data): drawn.dataMs = the frame's served valid time, against the SELECTION's own instant, requested.labelMs (the
+  // series anchor + the hour: the clock the app asks on) when the caller passes it, else requested.instantMs (getSharedValidTime:
+  // the ask already snapped to the nearest stored product). Else fall back to the hour labels.
+  // LABEL INSTANT (2026-10-24, the verify matrix's step-to-h2 frame): against the SNAPPED ask, a nearest-stored stand-in reads as
+  // exact whenever the ask was snapped to it (a 3-hourly stored frame under the hour between, or a series frame from the next
+  // hour), so it was drawn with no words; the documented nearest rule labels it. The selection is also WORDED from that same
+  // instant (it was floor(now) + hour while the app asks on round(now) + hour: one hour apart for half of every hour).
+  // Kill: window.__RAW_DISABLE_DRAWN_LABEL_INSTANT__ = true (compare with the snapped ask, word the hour from now).
+  const labelOn = Number.isFinite(requested.labelMs) && !(typeof window !== 'undefined' && window.__RAW_DISABLE_DRAWN_LABEL_INSTANT__ === true);
+  const selectedMs = labelOn ? requested.labelMs : requested.instantMs;
+  // The frame's DATA time: its served time, else a far-edge hold's own held_from (#578: the hold path with no served time).
+  const dataMs = Number.isFinite(drawn.dataMs) ? drawn.dataMs : (Number.isFinite(drawn.heldFromMs) ? drawn.heldFromMs : null);
+  const byInstant = Number.isFinite(selectedMs) && Number.isFinite(dataMs);
+  const dh = byInstant ? Math.round((dataMs - selectedMs) / 3600000)
     : (Number.isFinite(drawn.hour) && Number.isFinite(requested.hour) ? drawn.hour - requested.hour : 0);
-  const drawnLabel = byInstant ? formatInstant(drawn.dataMs) : formatForecastHour(drawn.hour, nowMs);
+  const dated = byInstant && datedPair(dataMs, selectedMs, nowMs);
+  const drawnLabel = byInstant ? formatInstant(dataMs, dated)
+    : (labelOn && Number.isFinite(drawn.hour) && Number.isFinite(requested.hour)   // one clock in one sentence
+      ? formatInstant(requested.labelMs + (drawn.hour - requested.hour) * 3600000) : formatForecastHour(drawn.hour, nowMs));
   if (dh !== 0) {
     if (Math.abs(dh) <= (Number.isFinite(requested.nearestMaxHours) ? requested.nearestMaxHours : NEAREST_MAX_HOURS)) {   // caller may pass its lattice's half-step
       return { state: 'nearest', text: `Showing ${drawnLabel}: the nearest stored forecast${est ? ` (${est})` : ''}` };
     }
-    return { state: 'pending', text: `Loading ${formatForecastHour(requested.hour, nowMs)}… still showing ${drawnLabel}` };
+    if (heldWordsOn() && drawn.estimated && byInstant && Number.isFinite(drawn.hour) && drawn.hour === requested.hour) {
+      const m = model(drawn.model || requested.model);
+      const why = HOLD_WHY[drawn.basisType] ? HOLD_WHY[drawn.basisType](m) : `beyond ${m}’s range`;
+      return { state: 'held', text: `Holding ${drawnLabel}’s ${m} forecast: ${why}` };
+    }
+    const selectedLabel = labelOn ? formatInstant(requested.labelMs, dated) : formatForecastHour(requested.hour, nowMs);
+    return { state: 'pending', text: `Loading ${selectedLabel}… still showing ${drawnLabel}` };
   }
   if (est) return { state: 'estimated', text: `Estimated forecast: ${est}` };
   return null;

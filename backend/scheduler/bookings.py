@@ -23,7 +23,8 @@ async def check_payment_window_expiry_task():
     from sqlalchemy.orm import selectinload
     from models import Booking, BookingParticipant, Notification, Profile
     from routes.notifications.push_payloads import notify_crew_session_confirmed
-    
+    from utils.booking_payout import PayoutError, confirm_and_pay
+
     logger.info("[Scheduler] Checking payment window expiry...")
     
     try:
@@ -75,10 +76,23 @@ async def check_payment_window_expiry_task():
                     
                     logger.info(f"[Scheduler] Notified captain {booking.creator_id} about expired window for booking {booking.id}")
                 else:
-                    # All paid - confirm booking
-                    booking.status = "Confirmed"
+                    # All paid - confirm booking through the same conditional claim every confirm path uses; the
+                    # winner pays the photographer floor(0.80 x funded) (utils/booking_payout.py). Before, this path
+                    # confirmed and credited nothing. A savepoint keeps one booking's refused credit from rolling
+                    # back the rest of the run.
+                    try:
+                        async with db.begin_nested():
+                            confirmed = await confirm_and_pay(
+                                db, booking,
+                                description=f"Booking payment for session at {booking.location}",
+                                counterparty_id=booking.creator_id)
+                    except PayoutError as exc:
+                        logger.error(f"[Scheduler] Booking {booking.id} not confirmed: {exc}")
+                        continue
+                    if not confirmed:
+                        continue
                     booking.crew_payment_required = False
-                    
+
                     # Notify all that session is confirmed
                     for p in booking.participants:
                         try:
@@ -259,9 +273,8 @@ async def send_session_reminders_task():
                     await send_push_notification(
                         user_id=booking.creator_id,
                         title="Session in 2 Hours!",
-                        body=surfer_msg,
-                        data={"booking_id": booking.id, "type": "session_reminder"},
-                        db=db
+                        message=surfer_msg,
+                        data={"booking_id": booking.id, "type": "session_reminder"}
                     )
                     # Create in-app notification
                     notification = Notification(
@@ -282,9 +295,8 @@ async def send_session_reminders_task():
                     await send_push_notification(
                         user_id=booking.photographer_id,
                         title="Session in 2 Hours!",
-                        body=photographer_msg,
-                        data={"booking_id": booking.id, "type": "session_reminder"},
-                        db=db
+                        message=photographer_msg,
+                        data={"booking_id": booking.id, "type": "session_reminder"}
                     )
                     notification = Notification(
                         user_id=booking.photographer_id,
@@ -310,9 +322,8 @@ async def send_session_reminders_task():
                     await send_push_notification(
                         user_id=booking.creator_id,
                         title="Session Starting Soon!",
-                        body=surfer_msg,
-                        data={"booking_id": booking.id, "type": "session_reminder"},
-                        db=db
+                        message=surfer_msg,
+                        data={"booking_id": booking.id, "type": "session_reminder"}
                     )
                     notification = Notification(
                         user_id=booking.creator_id,
@@ -332,9 +343,8 @@ async def send_session_reminders_task():
                     await send_push_notification(
                         user_id=booking.photographer_id,
                         title="Session Starting Soon!",
-                        body=photographer_msg,
-                        data={"booking_id": booking.id, "type": "session_reminder"},
-                        db=db
+                        message=photographer_msg,
+                        data={"booking_id": booking.id, "type": "session_reminder"}
                     )
                     notification = Notification(
                         user_id=booking.photographer_id,

@@ -81,6 +81,9 @@ jobs:
           ECMWF_PERIOD_BANDS: '0'           # DECLARED AT DEFAULT (2026-08-02, audit v5 F8). This lane shares `scripts/ingest_forecast_ci.py` with forecast-ingest.yml and REACHES the ECMWF fetcher (via euro_marine_coarse_ingestion -> ecmwf_wave_service, and marine_mid_res_ingestion for the 0.25 deg regional tiles), so it must carry the same value. Flipped in the core lane only, the global coarse EURO field would carry period bands while every regional tile did not — THE SAME COAST WOULD DECOMPOSE ITS SEA DIFFERENTLY BY ZOOM LEVEL. ⚠️ Verified by import-graph walk, not assumed: precompute.yml reaches NO ecmwf module (57 files walked) and correctly does NOT declare this; this lane reaches it (81 files walked) and does.
           ECMWF_WAVE_LAND_CENTRE_BLOCK: ${{ vars.ECMWF_WAVE_LAND_CENTRE_BLOCK || '0' }}  # DARK (2026-10-23, #480): EURO's own block values at land-centre nodes (dir/period from the height's block). ONE repo variable read by forecast-ingest.yml AND forecast-ingest-pilots.yml (10-deg EURO here, 2-deg global_mid in pilots), so one `gh variable set` flips both lanes together. Flip only on the owner's word (D-001).
           ECMWF_WAVE_LAND_CENTRE_REACH: ${{ vars.ECMWF_WAVE_LAND_CENTRE_REACH || '4' }}  # native cells from the centre to ECMWF sea; 4 = the whole 2-deg block (842 of 868 masked GFS-sea nodes; 2 = 575). Inert while the flag above is '0'. Same repo variable in both lanes.
+          MARINE_EXT_CEILING_MARGIN_H: ${{ vars.MARINE_EXT_CEILING_MARGIN_H || '0' }}  # DARK (2026-10-25): the ICON/EURO marine estimated tails baked this many hours past run + 336 so the 2-deg tier reaches the scrubber's now + 336 between bakes (scheduler_helpers.marine_ext_ceiling_hours). ONE repo variable read by forecast-ingest.yml AND forecast-ingest-pilots.yml. Flip only on the owner's word (D-001).
+          GFS_PILOT_WHOLE_DEGREE_BOUNDS: ${{ vars.GFS_PILOT_WHOLE_DEGREE_BOUNDS || '0' }}  # DARK (2026-10-25): GFS pilot tiles stored out to whole degrees on fractional edges (pilot_regions.whole_degree_regions; tile-edge source mix). ONE repo variable read by forecast-ingest.yml AND forecast-ingest-pilots.yml (both lanes write GFS tiles). Flip only on the owner's word (D-001).
+          GFS_WORLD_FULL_HORIZON: ${{ vars.GFS_WORLD_FULL_HORIZON || '0' }}  # DARK (2026-10-24, the day-14 end): '1' fetches the GFS WORLD tiers (2-deg global_mid here, riding the flagship pass, which then downloads 16 d and trims every regional tile back to its own horizon) NOAA-direct to f384 instead of 14 d. Same repo variable as forecast-ingest.yml (10-deg global_coarse). Moves served numbers: flip only on the owner's word (D-001).
           WORLDWIDE_REGIONS_PER_CYCLE: '3'  # 12 worldwide regions / 3 per fire = 4 fires = 32 h cadence — RAISED 2->3 with the 2026-08-09 four-region expansion; the divisor and the region count move TOGETHER (test_worldwide_count_and_per_cycle_keep_the_32h_cadence)
           # GFS marine pilot horizon: 8d → 3d (2026-07-13) → 5d (2026-08-01).
           #
@@ -121,6 +124,10 @@ jobs:
           # EURO marine 0.25° regional pilot (2026-07-13 — the EURO rating-band resolution fix,
           # free ECMWF wave stream, no CMEMS). No-commit kill: set EURO_MARINE_PILOT_INGEST=0.
           EURO_MARINE_PILOT_INGEST: ${{ vars.EURO_MARINE_PILOT_INGEST || '1' }}
+          # HOURLY GFS wind f000-f120 for the global_mid tier (2026-10-25; DARK: a served-number change, /grid wind between
+          # 3-hourly steps). '1' stores every hour to f120 (wind_mid_res_ingestion.gfs_wind_hourly_until), so the static
+          # wind frames and /grid both carry real hourly wind there. ON: repository variable FRAME_WIND_GFS_HOURLY = '1'.
+          FRAME_WIND_GFS_HOURLY: ${{ vars.FRAME_WIND_GFS_HOURLY || '0' }}
         run: python scripts/ingest_forecast_ci.py
 
       # STATIC FORECAST FRAMES (step 2b, 2026-10-20; client ON since 2026-10-21): every stored product of each world set in
@@ -153,6 +160,16 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # DARK (2026-10-24): '1' downloads the ICON/EURO world estimated tails the core lane bakes (not on this disk) so they
+          # become frames too, parity-gated like every frame; changed ones only, at most FRAME_TAIL_DOWNLOAD_MAX per run, wire
+          # bytes in the step summary (__tail_downloads__). Off: /grid serves those hours, as before. No served number moves.
+          FRAME_TAIL_DOWNLOAD: ${{ vars.FRAME_TAIL_DOWNLOAD || '0' }}
+          FRAME_TAIL_DOWNLOAD_MAX: ${{ vars.FRAME_TAIL_DOWNLOAD_MAX || '240' }}
+          # The EURO/ICON world sets with the targeted Gulf fill baked in (services/frame_set_fill.py) publish only while the mode
+          # read from these two is 'targeted', the way the box reads them. Keep them EQUAL to the Render env (the box's mode): the
+          # client serves a filled set only while /capabilities reports the same mode, so a mismatch costs speed, never a number.
+          MARINE_GULF_FILL_MID: ${{ vars.MARINE_GULF_FILL_MID || '1' }}
+          MARINE_GULF_FILL_MID_TARGETED: ${{ vars.MARINE_GULF_FILL_MID_TARGETED || '0' }}
         run: python scripts/publish_frame_images.py
 
       # RASTER STATIC FRAMES (2026-10-23, free-GRIB raster phase 1, services/frame_set_raster.py): GFS mean-sea-level pressure
@@ -186,6 +203,20 @@ jobs:
           FRAME_RASTER_TEMPERATURE: ${{ vars.FRAME_RASTER_TEMPERATURE }}
         run: python scripts/publish_raster_frames.py --set temperature
 
+      # Air temperature's elevation downscale (the owner, 2026-10-25: "Go with your recommendation if that is state of the art"):
+      # the static elevation-difference asset (NOAA ETOPO 2022 minus GFS terrain, services/raster_downscale.py). Built once; the
+      # script exits at once when the published descriptor is current. Off unless FRAME_RASTER_TEMP_DZ=1 (the client is dark).
+      - name: Publish the temperature downscale asset (off unless FRAME_RASTER_TEMP_DZ=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_TEMP_DZ == '1' }}
+        continue-on-error: true
+        timeout-minutes: 15
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_TEMP_DZ: ${{ vars.FRAME_RASTER_TEMP_DZ }}
+        run: python scripts/publish_temp_downscale.py
+
       - name: Publish raster static frames (cloud cover; off unless FRAME_RASTER_CLOUD=1)
         if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CLOUD == '1' }}
         continue-on-error: true
@@ -196,6 +227,18 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FRAME_RASTER_CLOUD: ${{ vars.FRAME_RASTER_CLOUD }}
         run: python scripts/publish_raster_frames.py --set cloud_cover
+      # Cloud cover at 0.25 deg (the owner, 2026-10-25: "Go with your recommendation if that is state of the art"): the same
+      # instantaneous TCDC on NCEP's full 0.25-degree grid. Off unless FRAME_RASTER_CLOUD_0P25=1; the client is dark either way.
+      - name: Publish raster static frames (cloud cover 0.25 deg; off unless FRAME_RASTER_CLOUD_0P25=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CLOUD_0P25 == '1' }}
+        continue-on-error: true
+        timeout-minutes: 15
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_CLOUD_0P25: ${{ vars.FRAME_RASTER_CLOUD_0P25 }}
+        run: python scripts/publish_raster_frames.py --set cloud_cover_0p25
 
       # PER-MODEL PRESSURE (2026-10-23; the owner, 20:13 EDT: "Yes start it", answering "start the per-model pressure route?"
       # after "We want each models pressure showing"). EURO = ECMWF IFS open data msl (CC BY 4.0, attribution required), the

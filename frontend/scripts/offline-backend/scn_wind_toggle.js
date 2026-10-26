@@ -19,7 +19,8 @@
 //   python frontend/scripts/offline-backend/serve_synthetic.py --dir <store> --models GFS --layers waves,wind --dynamic 1 --port 4100
 //   node frontend/scripts/offline-backend/serve_spa.js <build> 3100
 //   CDN_DIR=<frames dir> PORT=4100 VIEW=owner ZOOMS=2,3.9,4.4,6,9 OUT=wind.json node frontend/scripts/offline-backend/scn_wind_toggle.js
-// Env: ARMS (cur; nowind = window.__RAW_DISABLE_WIND_STATIC_FRAMES__; grid = window.__RAW_DISABLE_STATIC_FRAMES__), ROUNDS (1),
+// Env: ARMS (cur; nowind = window.__RAW_DISABLE_WIND_STATIC_FRAMES__; grid = window.__RAW_DISABLE_STATIC_FRAMES__; prdoff = PR D's
+// two kills), ROUNDS (1),
 // SETTLE (15000), WIN (8000), CENTER (-79.5,28.6), VIEW (desktop | owner | phone), CDN_PORT (4192), CDN_LAT, LAT_SERIES,
 // LAT_SERIES_FRAME, LAT_GRID (ms added per backend response: a stand-in for the live box).
 const fs = require('fs');
@@ -48,6 +49,8 @@ const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
 // Two builds in one run, alternated per session: an arm "old:<flags>" opens OLD_BASE, anything else AB_BASE (the default build).
 const OLD_BASE = process.env.OLD_BASE || null;
 const GESTURE = process.env.GESTURE !== '0';
+const QUICK_STEP_MS = process.env.QUICK_STEP_MS == null ? -1 : +process.env.QUICK_STEP_MS;   // see the toggle block in session()
+let _profileSeq = 0;
 // HELD KEY (the lead's contract: a drag or a held key needs <= 33 ms per step): after the steps, HOLD presses of ArrowRight HOLD_GAP
 // ms apart from hour 0, dispatched in the page; per press, the ms until the wind base holds that hour (null = not within the gap).
 const HOLD = +(process.env.HOLD || 12); const HOLD_GAP = +(process.env.HOLD_GAP || 40);   // after the toggle: zoom +0.5, back, pan 200 px (the owner zoomed while it loaded)
@@ -112,13 +115,50 @@ const PROBE = () => {
   };
   // FIRST PIXEL: the engine's render() runs only once its shader batch is linked (WebGLWindLayer polls it), so the first render
   // whose base is the expected frame is when the correct wind is DRAWN, not just resident.
+  // TRACE (2026-10-24, PR C): the hops from the click to the first draw, as ms after the click: every rAF tick, the engine's
+  // setWindData and render calls, the map's triggerRepaint, and long tasks (>50 ms) with their spans. window.__WT_TRACE__ = true.
+  const tr = (kind, extra) => {
+    const W = P.w;
+    if (!window.__WT_TRACE__ || !W || !W.armed || W.tLast == null || !W.trace) return;
+    const t = Math.round((performance.now() - W.tLast) * 10) / 10;
+    if (t <= 1500 && W.trace.length < 400) W.trace.push(extra == null ? [kind, t] : [kind, t, extra]);
+  };
+  try {
+    new PerformanceObserver((l) => { for (const en of l.getEntries()) {
+      const W = P.w; if (!window.__WT_TRACE__ || !W || !W.trace || W.tLast == null) continue;
+      const s = Math.round((en.startTime - W.tLast) * 10) / 10; if (s > -50 && s <= 1500) W.trace.push(['long', s, Math.round(en.duration)]);
+    } }).observe({ type: 'longtask', buffered: false });
+  } catch (e) { /* no longtask support */ }
+  // INP for the toggle (2026-10-25, the lead's measure for the click-task split): Event Timing entries of the click's own events
+  // (pointerdown / pointerup / click) after the press; `inp` = the longest duration (input -> the next paint), `inpDelay` = how
+  // long its handler waited to start. Recorded for the byClick window only.
+  try {
+    new PerformanceObserver((l) => { for (const en of l.getEntries()) {
+      const W = P.w; if (!W || !W.byClick || W.tLast == null) continue;
+      if (!/^(pointerdown|pointerup|click|mousedown|mouseup)$/.test(en.name) || en.startTime < W.tLast - 5) continue;
+      if (W.inp == null || en.duration > W.inp) { W.inp = Math.round(en.duration); W.inpDelay = Math.round(en.processingStart - en.startTime); W.inpName = en.name; }
+    } }).observe({ type: 'event', durationThreshold: 16, buffered: false });
+  } catch (e) { /* no Event Timing */ }
+  const patchMap = () => {
+    const m = window.map;
+    if (!m || m.__wtPatched || typeof m.triggerRepaint !== 'function') return;
+    const o = m.triggerRepaint; m.triggerRepaint = function (...a) { tr('repaint'); return o.apply(this, a); }; m.__wtPatched = true;
+  };
   const patch = () => {
+    patchMap();
     const e = window.__WIND_ENGINE__;
     if (!e || e.__wtPatched || typeof e.render !== 'function') return;
+    if (typeof e.setWindData === 'function') {
+      const sw = e.setWindData; e.setWindData = function (...a) { tr('setWindData'); return sw.apply(this, a); };
+    }
     const orig = e.render;
     e.render = function (...a) {
       const r = orig.apply(this, a);
       const W = P.w;
+      if (W && W.armed && W.trace && W.trace.filter((x) => x[0] === 'render').length < 3) {
+        const g = this._windData && this._windData.windGrid;
+        tr('render', g ? (dataMs(g) === W.expectedMs ? 'expected' : 'other') : 'none');
+      }
       if (W && W.armed && !W.done && W.tLast != null && W.drawn == null) {
         const g = this._windData && this._windData.windGrid; const f = this._windFine && this._windFine.windGrid;
         if (g && g.cols >= 150 && dataMs(g) === W.expectedMs && (!f || dataMs(f) === W.expectedMs)) W.drawn = performance.now() - W.tLast;
@@ -131,6 +171,7 @@ const PROBE = () => {
     patch();
     const W = P.w;
     if (W && W.armed && !W.done && W.tLast != null && t >= W.tLast) {
+      if (W.trace && W.drawn == null) tr('raf');
       const { base, fine } = P.snap(); const rel = t - W.tLast;
       const bd = dataMs(base); const fd = dataMs(fine);
       const fullBase = !!(base && base.cols >= 150 && (base.source || 'GFS') === (window.__WT_MODEL__ || 'GFS') && span(base.bounds) >= 350);
@@ -153,7 +194,8 @@ const PROBE = () => {
   P.arm = (target, expectedMs, byClick) => {
     const { base, fine } = P.snap();
     P.w = { armed: true, byClick: !!byClick, target, expectedMs, tLast: null, base: null, view: null, viewVia: null, fine: null, drawn: null, regress: 0,
-      mislabel: 0, thin: 0, frames: 0, dims: [], lastDims: null, commits: 0, lastBase: base, lastFine: fine, already: false };
+      mislabel: 0, thin: 0, frames: 0, dims: [], lastDims: null, commits: 0, lastBase: base, lastFine: fine, already: false,
+      trace: (window.__WT_TRACE__ && byClick) ? [] : null };
     const bd = dataMs(base); const fd = dataMs(fine);
     P.w.already = !!(base && base.cols >= 150 && bd === expectedMs && (!fine || fd === expectedMs));
   };
@@ -216,14 +258,17 @@ async function session(arm, zoom) {
   pageRef = page;
   const counts = {}; let counting = false;
   page.on('console', (m) => { if (!counting) return; const t = m.text(); for (const [k, p] of Object.entries(LOG_PATTERNS)) if (t.includes(p)) counts[k] = (counts[k] || 0) + 1; });
-  await page.addInitScript(({ arm, base, model }) => {
+  await page.addInitScript(({ arm, base, model, trace }) => {
     window.__WT_MODEL__ = model;          // the in-page watcher's model (MODEL is a Node variable: never read it in page code)
+    window.__WT_TRACE__ = trace;
     localStorage.removeItem('__RAW_STATIC_FRAMES__');
     window.__RAW_STATIC_FRAMES_BASE__ = base;
     if (arm.endsWith('grid')) window.__RAW_DISABLE_STATIC_FRAMES__ = true;
     if (arm.endsWith('nowind')) window.__RAW_DISABLE_WIND_STATIC_FRAMES__ = true;
     if (arm.endsWith('noprefetch')) window.__RAW_DISABLE_WIND_PREFETCH__ = true;
-  }, { arm, base: `http://127.0.0.1:${arm.endsWith('-alt') ? CDN_PORT2 : CDN_PORT}/`, model: MODEL });
+    // PR D's kills (2026-10-26): the prefetch replan inline and the truth tag's census eager, as before PR D
+    if (arm.endsWith('prdoff')) { window.__RAW_DISABLE_WIND_PREFETCH_REPLAN_AFTER_PAINT__ = true; window.__RAW_DISABLE_TRUTH_TAG_LAZY_CENSUS__ = true; }
+  }, { arm, base: `http://127.0.0.1:${arm.endsWith('-alt') ? CDN_PORT2 : CDN_PORT}/`, model: MODEL, trace: process.env.TRACE === '1' });
   await page.addInitScript(PROBE);
   const out = { arm, zoom, view: VIEW };
   const cdnStart = cdnLog.bytes; const cdnStartN = cdnLog.requests;   // the counters are process-wide: per session = deltas
@@ -234,6 +279,10 @@ async function session(arm, zoom) {
       await page.waitForFunction(() => !!(window.__MAP_INSTANCE__ || window.map), null, { timeout: 90000 });
       await page.waitForTimeout(1500);
     } else await L.openMap(page);
+    // THE INIT SCRIPTS RAN (2026-10-24): twice a page-side ReferenceError (a Node variable read in page code) silently skipped the
+    // rest of the init script, so the static-frames base was never set and a whole A/B measured /grid instead. Refuse that session.
+    const initOk = await page.evaluate(() => !!(window.__WT__ && window.__RAW_STATIC_FRAMES_BASE__ && window.__WT_MODEL__));
+    if (!initOk) throw Error('the init scripts did not run to the end (a page-side error?): refusing this session');
     await L.jump(page, CLNG, CLAT, zoom);
     await clickExact(page, 'Waves');
     if (MODEL !== 'GFS') { await clickExact(page, MODEL); await sleep(3000); }
@@ -260,16 +309,70 @@ async function session(arm, zoom) {
       const q = log.requests.slice(r0); const by = {}; for (const x of q) by[x.path] = (by[x.path] || 0) + 1;
       return { r, by, q };
     };
-    await page.evaluate(({ e }) => window.__WT__.arm(0, e, true), { e: expected[0] });
+    // PLANT_MS (positive control, 2026-10-24): expect the toggle's frame this many ms off the true one. A correctly drawn frame
+    // must then read as a mislabel on every probe frame and `drawnMs` must stay null: proof the detector fires on this build.
+    await page.evaluate(({ e }) => window.__WT__.arm(0, e, true), { e: expected[0] + (+(process.env.PLANT_MS || 0)) });
     counting = true; for (const k of Object.keys(counts)) delete counts[k];
     const r0 = log.requests.length; const t0 = Date.now();
+    // PROFILE=1: a CPU profile of the toggle (Profiler.start right before the click); profile_toggle.mjs maps it to sources.
+    let cdp = null;
+    if (process.env.PROFILE === '1') {
+      cdp = await page.context().newCDPSession(page);
+      await cdp.send('Profiler.enable'); await cdp.send('Profiler.setSamplingInterval', { interval: 250 }); await cdp.send('Profiler.start');
+      // the click's own mark in the profile (Playwright's click takes ~0.6 s before the page sees it): a named 3 ms spin on the
+      // capturing pointerdown, which profile_toggle.mjs finds and starts its window at
+      // (pointerdown OR click, whichever the page sees first: the z2 cell's profile carried neither mark with pointerdown alone)
+      await page.evaluate(() => {
+        let done = false;
+        const mark = function __wt_click_marker() {
+          if (done) return; done = true;
+          const end = performance.now() + 3; while (performance.now() < end) { /* the mark */ }
+        };
+        window.addEventListener('pointerdown', mark, { capture: true });
+        window.addEventListener('click', mark, { capture: true });
+      });
+    }
+    // QUICK_STEP_MS (2026-10-25, the lead's INP question on #570): does work deferred past the toggle's first paint land on the
+    // NEXT interaction? Click Wind, wait QUICK_STEP_MS, click the timeline's "+1h" button (mouse input through the browser's input
+    // queue, like a user), and report that second interaction's Event Timing (worst entry by interactionId: duration = its INP,
+    // input delay, processing). The session ends there: the toggle and step measures assume hour 0.
+    if (QUICK_STEP_MS >= 0) {
+      const plus = page.locator('button').filter({ hasText: /^\s*\+1h\s*$/ }).filter({ visible: true }).first();
+      const bb = await plus.boundingBox();
+      if (!bb) throw Error('QUICK_STEP_MS: no visible "+1h" button');
+      await page.evaluate(() => {
+        window.__WT_EVENTS__ = [];
+        new PerformanceObserver((l) => { for (const en of l.getEntries()) {
+          if (en.interactionId) window.__WT_EVENTS__.push({ id: en.interactionId, name: en.name, t: Math.round(en.startTime), d: Math.round(en.duration),
+            delay: Math.round(en.processingStart - en.startTime), proc: Math.round(en.processingEnd - en.processingStart) });
+        } }).observe({ type: 'event', durationThreshold: 16 });
+      });
+      await clickExact(page, 'Wind');
+      if (QUICK_STEP_MS > 0) await sleep(QUICK_STEP_MS);
+      await page.mouse.click(bb.x + bb.width / 2, bb.y + bb.height / 2);
+      await sleep(2000);
+      const evs = await page.evaluate(() => window.__WT_EVENTS__);
+      const ids = [...new Set(evs.map((e) => e.id))];
+      const worst = (id) => evs.filter((e) => e.id === id).sort((a, b) => b.d - a.d)[0] || null;
+      out.quick = { afterMs: QUICK_STEP_MS, toggle: ids[0] != null ? worst(ids[0]) : null, next: ids[1] != null ? worst(ids[1]) : null, interactions: ids.length };
+      return out;
+    }
     await clickExact(page, 'Wind');
     const tg = await window0(t0, r0);
+    if (cdp) {
+      const { profile } = await cdp.send('Profiler.stop');
+      // one file per session (2026-10-25: p95 vs p50 sessions are compared, so a later round must not overwrite an earlier one)
+      _profileSeq += 1;
+      const f = `${process.env.OUT || 'wind'}.toggle-${arm}-z${zoom}-s${_profileSeq}.cpuprofile`;
+      fs.writeFileSync(f, JSON.stringify(profile));
+      out.profile = f;
+    }
     const gridH0 = tg.q.filter((x) => x.path === '/grid' && x.q && x.q.domain === 'wind').length;
     out.toggle = { baseMs: tg.r.base == null ? null : Math.round(tg.r.base), viewMs: tg.r.view == null ? null : Math.round(tg.r.view), via: tg.r.viewVia,
       drawnMs: tg.r.drawn == null ? null : Math.round(tg.r.drawn),
+      inpMs: tg.r.inp == null ? null : tg.r.inp, inpDelayMs: tg.r.inpDelay == null ? null : tg.r.inpDelay, inpEvent: tg.r.inpName || null,
       fineMs: tg.r.fine == null ? null : Math.round(tg.r.fine), mislabel: tg.r.mislabel, thin: tg.r.thin, regress: tg.r.regress, commits: tg.r.commits,
-      dims: tg.r.dims, reqs: tg.by, gridH0, logs: { ...counts }, end: tg.r.end,
+      dims: tg.r.dims, reqs: tg.by, gridH0, logs: { ...counts }, end: tg.r.end, trace: tg.r.trace || undefined,
       windowMs: Date.now() - t0 };
     if (GESTURE) {
       // The owner zoomed while the toggle settled: moveend / zoomstart / dragstart all re-enter the wind fetch loop at hour 0.
@@ -356,6 +459,11 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
         for (const arm of (i % 2 === 0 ? ARMS : [...ARMS].reverse())) {
           const s = await session(arm, zoom);
           sessions.push(s);
+          if (s.quick) {
+            console.log(`z${zoom} ${arm} quick +${s.quick.afterMs} ms: toggle ${JSON.stringify(s.quick.toggle)} next ${JSON.stringify(s.quick.next)}`);
+            if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify(out, null, 1));
+            continue;
+          }
           console.log(`z${zoom} ${arm} toggle base/view ${s.toggle.baseMs}/${s.toggle.viewMs} via ${s.toggle.via} gridH0 ${s.toggle.gridH0} logs ${JSON.stringify(s.toggle.logs)} gesture ${JSON.stringify(s.gesture || null)}`,
             'steps', JSON.stringify(s.steps.map((x) => [x.target, x.viewMs, x.via, x.mislabel, x.thin, (x.reqs['/grid'] || 0) + (x.reqs['/grid_series'] || 0)])), 'cdn', JSON.stringify(s.cdn));
           if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify(out, null, 1));
@@ -363,6 +471,7 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
       }
     }
     const summary = {};
+    if (QUICK_STEP_MS >= 0) return;   // quick sessions carry no toggle/step measures (the file holds every session's `quick`)
     for (const arm of ARMS) {
       for (const zoom of ZOOMS) {
         const ss = sessions.filter((s) => s.arm === arm && s.zoom === zoom);

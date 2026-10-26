@@ -28,7 +28,7 @@ import {
 import { buildWindVectors, frameMeta, gridJsonFromFrame, parseFrame, pickIndexFrame } from './staticFrameCodec';
 import { cropGridJson, cropVectors, gridBboxParam, midClipWindow, parseBboxString } from './staticFrameCrop';
 import { clampViewportBbox, getAvailableTilesFromManifest } from './backendWeatherServiceClientCoverage';
-import { buildTruthTag } from './weatherTruthTracker';
+import { buildTruthTag, seedJsDataHash } from './weatherTruthTracker';
 import { BACKEND_URL } from '../../lib/apiClient';
 
 export const WIND_SET_KEY = 'GFS/wind/wind/global_mid';
@@ -320,6 +320,11 @@ function build(index, frame, buffer, stamp, { askIso, bbox, kind }) {
     json = cropGridJson(json, win, cropVectors(vectors, grid.cols, win));
     json.wind_lane = cropStamp(stamp, laneW, vectors, grid.cols, win);
     tel().crops += 1;
+  }
+  // The frame is content-addressed: its sha256 (+ the crop window) names these vectors, so the truth tag's data hash takes
+  // that instead of string-hashing every vector (weatherTruthTracker.seedJsDataHash). Kill: __RAW_DISABLE_WIND_FRAME_HASH_SEED__.
+  if (frame.sha256 && W().__RAW_DISABLE_WIND_FRAME_HASH_SEED__ !== true) {
+    seedJsDataHash(json.grid && json.grid.vectors, json.layer, `${frame.sha256}|${kind === 'crop' ? gridBboxParam(bbox) : 'world'}`);
   }
   try { json.truthTag = buildTruthTag(json, 'staticFrame'); } catch (e) { json.truthTag = null; }
   if (t0) { const b = tel().buildMs; b.push(Math.round((performance.now() - t0) * 10) / 10); if (b.length > 64) b.shift(); }

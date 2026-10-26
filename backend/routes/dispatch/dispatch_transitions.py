@@ -15,7 +15,7 @@ import os
 import stripe
 
 from database import get_db
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_user_id_from_jwt_or_query, get_current_user_id
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
     DispatchRequestStatusEnum, Booking, CreditTransaction, Notification,
@@ -34,13 +34,20 @@ router = APIRouter(prefix="/dispatch", tags=["dispatch"])
 async def complete_dispatch_session(
     dispatch_id: str,
     photographer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Complete an On-Demand dispatch session.
     Auto-creates gallery with on-demand pricing via the gallery sync service.
+
+    The caller must BE the assigned photographer: `photographer_id` is only a claim and is checked against the
+    token before any query. (It used to be the only check, and a photographer's id is public.)
     """
     from services.gallery_sync import create_session_gallery, check_gallery_exists_for_session
+
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
 
     result = await db.execute(
         select(DispatchRequest)

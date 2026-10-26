@@ -1,6 +1,6 @@
 import {
   planWindow, toField, ownFramesOn, ownIndex, lastIndex, frameAt, framesOf, setWanted, getField, MAX_IN_FLIGHT, MISSING, OWN_RASTER_SETS,
-  combinedFrames, combinedFrameAt, setKey,
+  combinedFrames, combinedFrameAt, setKey, TEMP_FIELD, CLOUD_FIELD, NO_DATA_BELOW, leverCovers, DEFAULT_ON_LAYERS,
   _resetOwnRasterFramesForTest,
 } from './ownRasterFrames';
 import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
@@ -150,5 +150,83 @@ describe("past a model's range: the GFS stand-in, labelled (the wave layers' ext
     expect(combinedFrameAt(c, at(244)).path).toBe('g243');            // past 240 h: GFS
     expect(combinedFrameAt(c, at(300))).toBeNull();                   // nothing within 3 h either side
     expect(combinedFrameAt(c, at(60))).toBeNull();                    // inside EURO's range, no frame within 3 h: no stand-in
+  });
+});
+
+describe('air temperature (2026-10-24)', () => {
+  afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__; });
+
+  test('the temperature set is GFS only: with EURO or ICON picked the layer stays on the .om path', () => {
+    window.__RAW_RASTER_OWN_FRAMES__ = true;
+    expect(setKey('temperature', 'GFS')).toBe('GFS/weather/temperature/global_0p5');
+    expect(OWN_RASTER_SETS.temperature.field).toBe(TEMP_FIELD);
+    expect(TEMP_FIELD).toBe(7);
+    expect(OWN_RASTER_SETS.temperature.fallback).toBeNull();
+    expect(ownFramesOn('temperature', 'GFS')).toBe(true);
+    expect(ownFramesOn('temperature', 'EURO')).toBe(false);
+    expect(ownFramesOn('temperature', 'ICON')).toBe(false);
+  });
+
+  test('the lever can name its layers; each layer has its own kill', () => {
+    window.__RAW_RASTER_OWN_FRAMES__ = 'pressure';
+    expect(ownFramesOn('pressure')).toBe(true);
+    expect(ownFramesOn('temperature')).toBe(false);
+    window.__RAW_RASTER_OWN_FRAMES__ = 'pressure, temperature';
+    expect(ownFramesOn('temperature')).toBe(true);
+    window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__ = true;
+    expect(ownFramesOn('temperature')).toBe(false);
+    expect(ownFramesOn('pressure')).toBe(true);
+    delete window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__;
+    delete window.__RAW_RASTER_OWN_FRAMES__;
+    window.localStorage.setItem('__RAW_RASTER_OWN_FRAMES__', 'temperature');
+    expect(ownFramesOn('temperature')).toBe(true);
+    expect(ownFramesOn('pressure')).toBe(false);
+    expect(leverCovers(false, 'pressure')).toBe(false);
+    expect(leverCovers('true', 'temperature')).toBe(true);
+    expect(leverCovers('pressures', 'pressure')).toBe(false);
+  });
+
+  test('a below-zero temperature is a value, never no-data', () => {
+    const f = toField({ cols: 2, rows: 1, bounds: {}, validEpoch: 0, runEpoch: 0, fields: { 7: new Float64Array([-41.5, NaN]) } }, 7);
+    expect(f.values[0]).toBeCloseTo(-41.5, 5);
+    expect(f.values[1]).toBe(MISSING);
+    expect(f.min).toBeCloseTo(-41.5, 5);
+    expect(MISSING).toBeLessThan(NO_DATA_BELOW);
+    expect(NO_DATA_BELOW).toBeLessThan(-273.15);
+  });
+});
+
+describe('cloud cover, the satellite layer (2026-10-24)', () => {
+  afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_SATELLITE__; });
+  test('the cloud set is GFS only, field 8; its own kill', () => {
+    window.__RAW_RASTER_OWN_FRAMES__ = 'satellite';
+    expect(setKey('satellite', 'GFS')).toBe('GFS/weather/cloud_cover/global_0p25');
+    expect(OWN_RASTER_SETS.satellite.field).toBe(CLOUD_FIELD);
+    expect(CLOUD_FIELD).toBe(8);
+    expect(ownFramesOn('satellite', 'GFS')).toBe(true);
+    expect(ownFramesOn('satellite', 'EURO')).toBe(false);
+    expect(ownFramesOn('temperature', 'GFS')).toBe(false);
+    window.__RAW_DISABLE_RASTER_OWN_SATELLITE__ = true;
+    expect(ownFramesOn('satellite', 'GFS')).toBe(false);
+  });
+  test('ON by default (D-052): no lever draws cloud from own frames; every other layer stays dark', () => {
+    expect(DEFAULT_ON_LAYERS).toEqual(['satellite']);
+    expect(ownFramesOn('satellite', 'GFS')).toBe(true);
+    expect(ownFramesOn('satellite', 'EURO')).toBe(false); // no EURO cloud set: the .om path draws EURO as before
+    expect(ownFramesOn('pressure', 'GFS')).toBe(false);
+    expect(ownFramesOn('temperature', 'GFS')).toBe(false);
+  });
+  test('the cloud default yields to both kills and to a set that is not published', () => {
+    window.__RAW_DISABLE_RASTER_OWN_SATELLITE__ = true;
+    expect(ownFramesOn('satellite', 'GFS')).toBe(false);
+    delete window.__RAW_DISABLE_RASTER_OWN_SATELLITE__;
+    window.__RAW_DISABLE_RASTER_OWN_FRAMES__ = true;
+    expect(ownFramesOn('satellite', 'GFS')).toBe(false);
+    delete window.__RAW_DISABLE_RASTER_OWN_FRAMES__;
+    staticSetEnabled.mockImplementation((key) => key !== 'GFS/weather/cloud_cover/global_0p25');
+    expect(ownFramesOn('satellite', 'GFS')).toBe(false);
+    staticSetEnabled.mockImplementation(() => true);
+    staticFramesEnabled.mockReturnValue(false);
+    expect(ownFramesOn('satellite', 'GFS')).toBe(false);
   });
 });

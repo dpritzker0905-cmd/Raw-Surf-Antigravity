@@ -38,6 +38,10 @@ TIERS = (("global_mid", WORLD, RES, "gfs_marine_waves_global_mid_"),
 # backend/services/weather_pipeline/pilot_regions.py, read from there so the fixture cannot drift from the ingest). Without them
 # every frame here carried world bounds and the client's land mask was always REUSED, which hid the per-switch 4096 x 2048 mask
 # rebuilds the owner's console showed (`--regions florida_east_coast,us_southeast_midatlantic`, or `flagship` / `all`).
+# `all` = EVERY GFS pilot box (2026-10-24): the 14 of REGIONAL_CONFIGS + WORLDWIDE_COASTAL_REGIONS plus GFS_MARINE_EXTRA_REGIONS and
+# GFS_MARINE_STAGE_B_REGIONS (canaries_madeira_morocco, caribbean_pr_dr, centralamerica_caribbean, srilanka_maldives,
+# us_pacific_northwest) = 19, the same 19 the client's rule fixture (src/tests/fixtures/regional_rule_boxes.json) holds. It knew 14,
+# so a "19-box" parity run silently covered 14 (the 2026-10-24 tile-first parity patched this locally to cover all 19).
 REGIONAL_RES = 0.25
 
 
@@ -46,8 +50,9 @@ def regional_tiers(region_ids):
     if not region_ids:
         return ()
     sys.path.insert(0, str(BACKEND))
-    from services.weather_pipeline.pilot_regions import REGIONAL_CONFIGS, WORLDWIDE_COASTAL_REGIONS
-    known = {**REGIONAL_CONFIGS, **WORLDWIDE_COASTAL_REGIONS}
+    from services.weather_pipeline.pilot_regions import (
+        GFS_MARINE_EXTRA_REGIONS, GFS_MARINE_STAGE_B_REGIONS, REGIONAL_CONFIGS, WORLDWIDE_COASTAL_REGIONS)
+    known = {**REGIONAL_CONFIGS, **WORLDWIDE_COASTAL_REGIONS, **GFS_MARINE_EXTRA_REGIONS, **GFS_MARINE_STAGE_B_REGIONS}
     if region_ids == ("all",):
         region_ids = tuple(known)
     elif region_ids == ("flagship",):
@@ -56,7 +61,10 @@ def regional_tiers(region_ids):
     for rid in region_ids:
         if rid not in known:
             raise SystemExit("unknown region %r (pilot_regions has %s)" % (rid, ", ".join(sorted(known))))
-        cfg = known[rid]
+        # GFS_PILOT_WHOLE_DEGREE_BOUNDS=1 (dark, 2026-10-25): the tile as the GFS pass then stores it, padded to whole degrees on
+        # its fractional edges (pilot_regions.whole_degree_regions), so the offline store matches the flagged ingest.
+        from services.weather_pipeline.pilot_regions import whole_degree_regions
+        cfg = whole_degree_regions({rid: known[rid]})[rid]
         bounds = {k: float(cfg[k]) for k in ("west", "south", "east", "north")}
         out.append((rid, bounds, float(cfg.get("resolution", REGIONAL_RES)), "_%s_" % rid))
     return tuple(out)
@@ -90,8 +98,19 @@ def on_wave_lake(lat, lng, res):
     return WAVE_LAKES and any(lng + h >= w and lng - h <= e and lat + h >= s and lat - h <= n for (w, s, e, n) in WAVE_LAKE_BOXES)
 
 
+# ENCLOSED SEAS (2026-10-24, `--enclosed-seas 1`; the targeted Gulf fill, D-050, and its baked world frames, frame_set_fill.py):
+# EURO's and ICON's own 2-deg grids mask sea that GFS's grid keeps (live: EURO 870 GFS-sea nodes, Gulf 15/59, Med 44/113; ICON
+# 125). The land mask alone masks the SAME nodes in every model, so the targeted fill (GFS sea only) has nothing to do offline.
+# With the flag, these open-water boxes are masked in EURO and ICON 2-deg products only (the 10-deg tier and GFS keep them).
+ENCLOSED_SEAS = False
+ENCLOSED_SEA_BOXES = ((-88.0, 9.0, -76.0, 22.0), (131.0, 33.0, 142.0, 52.0), (-20.0, -30.0, -12.0, -22.0))
+
+
 def lake_land(lat, lng, res, model):
     """None: the wave-lakes fixture has no say; True / False: this node is land / water under it."""
+    if ENCLOSED_SEAS and model in ("EURO", "ICON") and res < 5.0 and any(
+            w <= lng <= e and s <= lat <= n for (w, s, e, n) in ENCLOSED_SEA_BOXES):
+        return True                   # the enclosed-seas fixture: masked by EURO / ICON, sea for GFS (and wins over the lakes)
     if not WAVE_LAKES:
         return None
     if on_wave_lake(lat, lng, res):
@@ -508,18 +527,26 @@ def install_stale_window(app):
     from services.weather_pipeline import grid_resolver
     original = grid_resolver.resolve_grid
 
+    memo = {}   # --stale-fast: one resolve per request while the window is on (production serves its SWR preview from cache)
+
     async def resolve_grid(store, viewport_service, **kw):
         t_in = time.time()
-        product = await original(store, viewport_service, **kw)
         request = kw.get("request")
         path = getattr(getattr(request, "url", None), "path", "") or ""
         if not path.endswith("/weather/grid") or not stale_window_matches(kw.get("model"), kw.get("domain"), kw.get("layer"),
                                                                           kw.get("bbox")):
-            return product
+            return await original(store, viewport_service, **kw)
         if STALE["arm_on_first"]:
             arm_stale_window(STALE["seconds"], STALE["scope"], STALE["model"], STALE["layer"], STALE["stride"], now=t_in)
-        cols = getattr(getattr(product, "grid", None), "cols", None)
         stale = STALE["until"] is not None and t_in < STALE["until"]
+        key = tuple(str(kw.get(k)) for k in ("model", "domain", "layer", "valid_time", "bbox", "surf"))
+        if stale and STALE.get("fast") and key in memo:
+            product = memo[key]
+        else:
+            product = await original(store, viewport_service, **kw)
+            if stale and STALE.get("fast"):
+                memo[key] = product
+        cols = getattr(getattr(product, "grid", None), "cols", None)
         served = coarsen_stale(product, STALE["stride"]) if stale else None
         STALE["log"].append({"t_in_ms": round(t_in * 1000), "t_out_ms": round(time.time() * 1000), "stale": served is not None,
                              "valid_time": kw.get("valid_time"), "bbox": kw.get("bbox"), "fresh_cols": cols,
@@ -803,6 +830,9 @@ def main():
     ap.add_argument("--stale-model", default="", help="only this model (default every model)")
     ap.add_argument("--stale-layer", default="", help="only this layer (default every layer)")
     ap.add_argument("--stale-stride", type=int, default=3, help="the stale grid keeps every Nth latitude and longitude")
+    ap.add_argument("--stale-fast", choices=["0", "1"], default="0",
+                    help="1 = a repeat of the same /grid inside the window is answered from the first resolve (fast, as production's "
+                         "cached SWR preview is); 0 = every stale answer re-runs the resolver (seconds each on a loaded machine)")
     ap.add_argument("--real-frames", default="",
                     help="a local copy of the weather-frames bucket: GFS waves global_mid (and its coarse stand-in) become the real "
                          "published run (see REAL FRAMES above)")
@@ -813,12 +843,15 @@ def main():
                          "carry it; serve-time transforms of masked cells (the EURO/ICON world Gulf fill) then run offline")
     ap.add_argument("--wave-lakes", choices=["0", "1"], default="0",
                     help="EURO carries the Great Lakes, Winnipeg and Victoria (#497); every other model has them as land (WAVE LAKES above)")
+    ap.add_argument("--enclosed-seas", choices=["0", "1"], default="0",
+                    help="EURO and ICON 2-deg products mask open-water boxes GFS keeps (ENCLOSED SEAS above): the targeted fill's work")
     ap.add_argument("--build-only", action="store_true")
     args = ap.parse_args()
-    global VORTEX_PEAK, LAND_MASK, WAVE_LAKES
+    global VORTEX_PEAK, LAND_MASK, WAVE_LAKES, ENCLOSED_SEAS
     VORTEX_PEAK = args.vortex_peak
     LAND_MASK = args.land_mask == "1"
     WAVE_LAKES = args.wave_lakes == "1"
+    ENCLOSED_SEAS = args.enclosed_seas == "1"
 
     # NOT NODE_ENV=test / TESTING=1: grid_resolver skips the mid-res tier in a test environment, and the mid tier is the very
     # path under study. L2 is off because no Supabase variable is set (store._get_supabase_storage returns None without a URL
@@ -883,6 +916,7 @@ def main():
     if args.stale_seconds > 0:
         STALE.update({"seconds": args.stale_seconds, "scope": args.stale_scope, "model": args.stale_model or None,
                       "layer": args.stale_layer or None, "stride": max(2, args.stale_stride), "arm_on_first": True})
+    STALE["fast"] = args.stale_fast == "1"
     # WHO IS ANSWERING (2026-10-24, the lead's rule after a port collision): two sessions on one machine can each start an offline
     # backend, and a scenario pointed at a port another session already holds measures THAT backend's store. GET /__harness/identity
     # names this process's store, port, pid and a per-start nonce; scenarios check it before their first cell (EXPECT_STORE).

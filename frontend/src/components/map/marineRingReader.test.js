@@ -14,10 +14,12 @@
  * and the AFTER fixtures are the same quantities post-fix, which must pass. A check that fires on
  * both is worthless, so every BEFORE has its AFTER.
  */
+import fs from 'fs';
+import path from 'path';
 import {
-  DOMINANCE_LIMIT, MIN_SAMPLES_FOR_CARDINALITY, MIN_SAMPLES_FOR_VARIANCE, RING_DIRECTION,
+  COMMIT_FOLLOW_UPS, DOMINANCE_LIMIT, MIN_SAMPLES_FOR_CARDINALITY, MIN_SAMPLES_FOR_VARIANCE, RING_DIRECTION,
   UNDERCOUNT_LIMIT, captureRings, checkCardinality, checkCrossInstrument, checkIdentityKey,
-  checkInvariants, checkVariance, readRings, recentFrom,
+  checkInvariants, checkVariance, readRings, recentFrom, storeCommitCount,
 } from './marineRingReader';
 
 const fails = (r) => r.verdict === 'fail';
@@ -49,11 +51,32 @@ describe('C1 cardinality collapse — the telemetry ring at 99% one event', () =
     expect(r.numbers.saturated).toBe(false);
   });
 
-  test('the 50% undercount threshold fires BEFORE outright dominance', () => {
-    const r = checkCardinality({ name: 'x', cap: 500, counts: { a: 60, b: 20, c: 20 } });
-    expect(fails(r)).toBe(true);                          // 0.60 — past UNDERCOUNT, below DOMINANCE
+  test('the 50% undercount threshold fires BEFORE outright dominance, once the ring is FULL', () => {
+    const r = checkCardinality({ name: 'x', cap: 500, counts: { a: 300, b: 100, c: 100 } });
+    expect(fails(r)).toBe(true);                          // 0.60 — past UNDERCOUNT, below DOMINANCE, at the cap
     expect(r.numbers.topShare).toBeGreaterThan(UNDERCOUNT_LIMIT);
     expect(r.numbers.topShare).toBeLessThan(DOMINANCE_LIMIT);
+    expect(r.numbers.saturated).toBe(true);
+  });
+
+  // EVICTION FIRST (2026-10-26): the owner's console, reproduced offline — the C1 failure that was the workload, not eviction.
+  test('a ring below 90% of its cap has evicted nothing: any mix PASSES, and says why (the owner\'s 51.5% of 33)', () => {
+    const r = checkCardinality({ name: 'forensic', cap: 500, counts: { commit: 17, snap: 10, mask_rebuild: 6 } });
+    expect(passes(r)).toBe(true);
+    expect(r.detail).toMatch(/nothing has been evicted/);
+    expect(passes(checkCardinality({ name: 'x', cap: 500, counts: { a: 300, b: 30 } }))).toBe(true);    // 91% one type, 330 of 500
+  });
+
+  test('dominance near the cap still FAILS (positive control: the eviction is coming)', () => {
+    const r = checkCardinality({ name: 'x', cap: 500, counts: { a: 440, b: 20 } });                    // 460 of 500, 96% one type
+    expect(fails(r)).toBe(true);
+    expect(r.detail).toMatch(/near cap/);
+  });
+
+  test('monotonic totals (churn counts) are not judged for eviction: SKIP with the reason', () => {
+    const r = checkCardinality({ name: 'churn', cap: 150, countsAreTotals: true, counts: { detach: 999, attach: 3 } });
+    expect(skips(r)).toBe(true);
+    expect(r.detail).toMatch(/monotonic totals/);
   });
 
   test('REFUSAL: too few samples SKIPS rather than passing', () => {
@@ -229,6 +252,70 @@ describe('captureRings', () => {
     const snap = captureRings({ __MARINE_CHURN__: { counts: { detach: 999 }, log: [{ kind: 'detach' }] } });
     const churn = snap.rings.find((r) => r.name === 'churn');
     expect(churn.counts.detach).toBe(999);      // counts survives eviction; log.length does not
+    expect(churn.countsAreTotals).toBe(true);   // ... and is marked as totals (C1 skips it)
+    const fromLog = captureRings({ __MARINE_CHURN__: { log: [{ kind: 'detach' }] } }).rings.find((r) => r.name === 'churn');
+    expect(fromLog.countsAreTotals).toBe(false); // the log fallback is a sample of an evicting ring
+  });
+
+  test('the uploadCount pair is RETIRED: its two counters stopped counting the same thing (2026-10-26)', () => {
+    const snap = captureRings({ __RAW_GPU__: { textureUploadCount: 87 }, __WEBGL_MARINE_UPLOAD_DIAG__: { uploadCount: 14 } });
+    expect(snap.pairs.find((p) => p.name === 'uploadCount')).toBeUndefined();
+    expect(readRings(snap).summary.failures).not.toContain('C2 cross:uploadCount');   // the owner's console: no more crying wolf
+  });
+
+  // C2's LIVE PAIR: one quantity counted twice. The store's commit reasons vs the layer's normal uploads.
+  const pairOf = (w) => readRings(captureRings(w)).verdicts.find((x) => x.check === 'C2 cross:commits');
+  const STORE = (commits, on = true) => ({ __RAW_FRAME_STORE__: { on, commits } });
+  test('C2 live pair: the store\'s commit reasons sum to the normal uploads (offline 2026-10-26, zoom-out: 18 = 18)', () => {
+    const r = pairOf({ ...STORE({ resident: 11, no_index: 2, resident_crop_regional: 5 }), __WEBGL_MARINE_UPLOAD_DIAG__: { uploadCount: 18 } });
+    expect(passes(r)).toBe(true);
+    expect(r.numbers).toMatchObject({ a: 18, b: 18, delta: 0, tolerance: 0 });
+  });
+  test('follow-ups written after a commit (a pack or a crop resolving late) are not commits', () => {
+    expect(storeCommitCount({ on: true, commits: { resident: 4, not_packed_loading: 2, resident_late: 2, crop_not_resident: 1 } })).toBe(6);
+    const r = pairOf({ ...STORE({ resident: 4, not_packed_loading: 2, resident_late: 2, crop_not_resident: 1 }), __WEBGL_MARINE_UPLOAD_DIAG__: { uploadCount: 6 } });
+    expect(passes(r)).toBe(true);
+  });
+  test('POSITIVE CONTROL: uploads the store never heard of FAIL, and the detail names the suspects', () => {
+    const r = pairOf({ ...STORE({ resident: 14 }), __WEBGL_MARINE_UPLOAD_DIAG__: { uploadCount: 30 } });
+    expect(fails(r)).toBe(true);
+    expect(r.numbers).toMatchObject({ a: 14, b: 30, delta: 16 });
+    expect(r.detail).toMatch(/noteCommitted/);
+    expect(readRings(captureRings({ ...STORE({ resident: 14 }), __WEBGL_MARINE_UPLOAD_DIAG__: { uploadCount: 30 } })).summary.failures)
+      .toContain('C2 cross:commits');
+  });
+  test('POSITIVE CONTROL: one commit more than the uploads FAILS too (tolerance 0: the commit path threw after the store counted)', () => {
+    expect(fails(pairOf({ ...STORE({ resident: 19 }), __WEBGL_MARINE_UPLOAD_DIAG__: { uploadCount: 18 } }))).toBe(true);
+  });
+  test('REFUSAL: the store off, absent, or no upload yet SKIPS — it counts nothing then, so silence is not disagreement', () => {
+    expect(skips(pairOf({ ...STORE({ resident: 3 }, false), __WEBGL_MARINE_UPLOAD_DIAG__: { uploadCount: 30 } }))).toBe(true);
+    expect(skips(pairOf({ __WEBGL_MARINE_UPLOAD_DIAG__: { uploadCount: 30 } }))).toBe(true);
+    expect(skips(pairOf({ ...STORE({}) }))).toBe(true);
+  });
+  // The pair's premise lives in two other files; pin it there, so a refactor breaks a test here instead of the owner's console.
+  test('SOURCE GUARD: every commits writer outside noteCommitted is a declared follow-up; one call, one increment', () => {
+    const dir = __dirname;
+    const stores = fs.readdirSync(dir).filter((f) => /^marineFrameStore.*\.js$/.test(f) && !/\.test\.js$/.test(f));
+    const writers = new Set();
+    for (const f of stores) {
+      const src = fs.readFileSync(path.join(dir, f), 'utf8');
+      for (const m of src.matchAll(/rt\.commits\.([A-Za-z_]+)\s*=/g)) writers.add(m[1]);
+      for (const m of src.matchAll(/rt\.commits\[([^\]]+)\]\s*=/g)) expect(m[1]).toBe('r');   // only noteCommitted's why(r)
+    }
+    expect([...writers].sort()).toEqual([...COMMIT_FOLLOW_UPS].sort());
+    const layer = fs.readFileSync(path.join(dir, 'WebGLMarineLayer.js'), 'utf8');
+    expect(layer.match(/\bnoteCommitted\(grid/g)).toHaveLength(1);
+    expect(layer.match(/__WEBGL_MARINE_UPLOAD_COUNT__\+\+/g)).toHaveLength(1);
+    expect(layer.indexOf('noteCommitted(grid')).toBeLessThan(layer.indexOf('__WEBGL_MARINE_UPLOAD_COUNT__++'));
+  });
+
+  test('the owner\'s two failures, replayed through captureRings: none remain', () => {
+    const w = {
+      __RAW_GPU__: { textureUploadCount: 87 }, __WEBGL_MARINE_UPLOAD_DIAG__: { uploadCount: 14 },
+      __RAW_FORENSIC__: { events: [...Array(17).fill({ type: 'commit' }), ...Array(10).fill({ type: 'snap' }), ...Array(6).fill({ type: 'mask_rebuild' })] },
+      __MARINE_CHURN__: { counts: { scrub_commit: 120, detach: 4 } },
+    };
+    expect(readRings(captureRings(w)).summary.failures).toEqual([]);
   });
 });
 

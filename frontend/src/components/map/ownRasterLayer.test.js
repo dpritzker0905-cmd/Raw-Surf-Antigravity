@@ -2,24 +2,39 @@ import fs from 'fs';
 import path from 'path';
 import {
   colorAtValue, buildStepLut, opacityAtZoom, PRESSURE_OPACITY_STOPS, PRESSURE_LUT, wrapsLongitude, createOwnRasterLayer, RESIDENT_MAX,
+  TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS, NO_DATA_BELOW_GLSL, FS, downscaleAt, DZ_TILES_MAX, DZ_FADE_MS, CLOUD_LUT, SATELLITE_OPACITY_STOPS, scaleForTheme,
 } from './ownRasterLayer';
+import { MISSING, NO_DATA_BELOW } from './ownRasterFrames';
 import { BASE_CUSTOM_COLOR_SCALES, CUSTOM_COLOR_SCALES, applyThemePressureScale } from './colorScales';
 
 // A recording WebGL2 stand-in: every call is logged; creators return fresh objects; the link always succeeds.
 function fakeGl() {
   const calls = [];
+  const u2 = [];      // uniform2f arguments: [uniform name, x, y]
+  const u4 = [];      // uniform4f arguments: [uniform name, x, y, z, w]
+  const tex = [];     // texImage2D: [internal format, width, height]
+  const ctl = { maxTex: 16384, failError: false };   // MAX_TEXTURE_SIZE; the next getError reports an error
   let n = 0;
   const consts = new Proxy({}, { get: (t, k) => (typeof k === 'string' && /^[A-Z0-9_]+$/.test(k) ? `GL_${k}` : undefined) });
   const gl = new Proxy({}, {
     get(t, k) {
       if (k === '__calls') return calls;
+      if (k === '__u2') return u2;
+      if (k === '__u4') return u4;
+      if (k === '__tex') return tex;
+      if (k === '__ctl') return ctl;
       if (typeof k === 'string' && /^[A-Z0-9_]+$/.test(k)) return consts[k];
       return (...args) => {
         calls.push(k);
+        if (k === 'uniform2f') u2.push([args[0] && args[0].u, args[1], args[2]]);
+        if (k === 'uniform4f') u4.push([args[0] && args[0].u, args[1], args[2], args[3], args[4]]);
+        if (k === 'texImage2D') tex.push([args[2], args[3], args[4]]);
         if (/^create/.test(k)) { n += 1; return { kind: k, n }; }
         if (k === 'getProgramParameter') return true;
         if (k === 'getUniformLocation') return { u: args[1] };
         if (k === 'isContextLost') return false;
+        if (k === 'getParameter') return args[0] === 'GL_MAX_TEXTURE_SIZE' ? ctl.maxTex : undefined;
+        if (k === 'getError') { const e = ctl.failError ? 'GL_OUT_OF_MEMORY' : 'GL_NO_ERROR'; ctl.failError = false; return e; }
         return undefined;
       };
     },
@@ -164,9 +179,177 @@ test('a device that cannot draw it reports once, so the caller hands the layer b
   expect(L.failed()).toBe(true);
 });
 
+describe('air temperature (2026-10-24): the library scale, its slot ramp, below-zero values', () => {
+  // The .om path colours air temperature with the tile library's own 'temperature' scale through its getColor.
+  const { defaultOmProtocolSettings, getColor } = require('@openmeteo/weather-map-layer');
+  const scale = defaultOmProtocolSettings.colorScales.temperature;
+  test('every breakpoint sits on the LUT step and inside its range (so the step LUT is exact at each boundary)', () => {
+    const { min, step, n } = TEMPERATURE_LUT;
+    for (const b of scale.breakpoints) {
+      expect(Math.abs((b - min) / step - Math.round((b - min) / step))).toBeLessThan(1e-9);
+      expect(b).toBeGreaterThanOrEqual(min);
+      expect(b).toBeLessThanOrEqual(min + (n - 1) * step);
+    }
+  });
+  test("the LUT, read as the shader reads it, is the library's own colour at every 0.05 deg C from -95 to 60", () => {
+    const lut = buildStepLut(scale, TEMPERATURE_LUT);
+    const { min, step, n } = TEMPERATURE_LUT;
+    let checked = 0;
+    for (let i = -1900; i <= 1200; i++) {
+      const v = i / 20;
+      const k = Math.min(n - 1, Math.max(0, Math.floor((v - min) / step + 1e-3)));
+      const lib = getColor(scale, v);
+      expect(colorAtValue(scale, v)).toBe(lib);
+      expect([lut[k * 4], lut[k * 4 + 1], lut[k * 4 + 2], lut[k * 4 + 3]]).toEqual([lib[0], lib[1], lib[2], Math.round(lib[3] * 255)]);
+      checked += 1;
+    }
+    expect(checked).toBe(3101);
+  });
+  test('pinned to the ramp MapWebGL paints the temperature slots with', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'MapWebGL.js'), 'utf8');
+    for (const [z, o] of TEMPERATURE_OPACITY_STOPS) {
+      expect(src).toMatch(new RegExp(`\\n\\s*${z}, layerKey === 'satellite' .* : layerKey === 'temperature' \\? ${o.toFixed(2)} :`));
+    }
+  });
+  test('no data is the MISSING sentinel only: a below-zero value is drawn', () => {
+    expect(Number(NO_DATA_BELOW_GLSL)).toBe(NO_DATA_BELOW);
+    expect(MISSING).toBeLessThan(NO_DATA_BELOW);
+    expect(FS).toContain(`< ${NO_DATA_BELOW_GLSL}) discard`);
+    expect(FS).not.toMatch(/< 0\.0\) discard/);
+  });
+  test("the shader's isoline lever is pressure's only (shaderIsobars: false keeps it off)", () => {
+    window.__RAW_OWN_RASTER_ISOBARS__ = 4;
+    try {
+      const isoOf = (opts) => {
+        const gl = fakeGl(); const L = createOwnRasterLayer({ id: 'x', ...opts });
+        L.onAdd(fakeMap(), gl); L.setLut(buildStepLut({ breakpoints: [0], colors: [[1, 2, 3, 1]] }));
+        L.offerField('a', field(-12)); L.want('a'); L.prerender(gl, args); L.render(gl, args);
+        return gl.__u2.filter((u) => u[0] === 'u_iso').map((u) => u[1]);
+      };
+      expect(isoOf({})).toEqual([4]);
+      expect(isoOf({ lutMap: TEMPERATURE_LUT, opacityStops: TEMPERATURE_OPACITY_STOPS, shaderIsobars: false })).toEqual([0]);
+    } finally { delete window.__RAW_OWN_RASTER_ISOBARS__; }
+  });
+});
+
 test('the antimeridian wrap uses integer columns (a float mod drew a violet stripe at 180, matrix cell 6)', () => {
   const { FS } = require('./ownRasterLayer');
   expect(FS).toMatch(/c0 = int\(x0\) % n; if \(c0 < 0\) c0 \+= n;/);
   expect(FS).toMatch(/c1 = c0 \+ 1; if \(c1 >= n\) c1 = 0;/);
   expect(FS).not.toMatch(/int\(mod\(x0 \+ 1\.0, u_size\.x\)\)/);
+});
+
+describe('cloud cover, the satellite layer (2026-10-24): the library scale per theme, its slot ramp', () => {
+  const { defaultOmProtocolSettings, getColor, resolveColorScale } = require('@openmeteo/weather-map-layer');
+  const scale = defaultOmProtocolSettings.colorScales.cloud_cover;
+  test('every breakpoint sits on the LUT step and inside its range', () => {
+    const { min, step, n } = CLOUD_LUT;
+    for (const b of scale.breakpoints) {
+      expect(Math.abs((b - min) / step - Math.round((b - min) / step))).toBeLessThan(1e-9);
+      expect(b).toBeLessThanOrEqual(min + (n - 1) * step);
+    }
+  });
+  test.each([['dark', true], ['beach', true], ['light', false]])(
+    "%s: the LUT, read as the shader reads it, is the library's own colour (dark=%p) at every 0.05 %% from 0 to 100", (theme, dark) => {
+      const lib = resolveColorScale(scale, dark);
+      const lut = buildStepLut(scaleForTheme(scale, theme), CLOUD_LUT);
+      const { min, step, n } = CLOUD_LUT;
+      for (let i = 0; i <= 2000; i++) {
+        const v = i / 20;
+        const k = Math.min(n - 1, Math.max(0, Math.floor((v - min) / step + 1e-3)));
+        const c = getColor(lib, v);
+        expect([lut[k * 4], lut[k * 4 + 1], lut[k * 4 + 2], lut[k * 4 + 3]]).toEqual([c[0], c[1], c[2], Math.round(c[3] * 255)]);
+      }
+    });
+  test("dark AND beach take the dark colours: the same rule as the .om URL's dark=true", () => {
+    const src = fs.readFileSync(path.join(__dirname, 'useOpenMeteoTileUrls.js'), 'utf8');
+    expect(src).toContain("const darkParam = (theme === 'dark' || theme === 'beach') ? '&dark=true' : '';");
+    expect(scaleForTheme(scale, 'beach').colors).toBe(scale.colors.dark);
+    expect(scaleForTheme(scale, 'light').colors).toBe(scale.colors.light);
+    const plain = { breakpoints: [0], colors: [[1, 2, 3, 1]] };
+    expect(scaleForTheme(plain, 'dark')).toBe(plain);
+  });
+  test('pinned to the ramp MapWebGL paints the satellite slots with', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'MapWebGL.js'), 'utf8');
+    for (const [z, o] of SATELLITE_OPACITY_STOPS) {
+      expect(src).toMatch(new RegExp(`\\n\\s*${z}, layerKey === 'satellite' \\? ${o.toFixed(2)} :`));
+    }
+  });
+});
+
+
+describe('air temperature elevation downscale (2026-10-25): T + lapse * dz from the static asset', () => {
+  // A 2-tile asset over a 6 x 4 lattice (dlon 60, dlat 60, from 180W / 90S): tile 0 = columns 0-2 + overlap (3), tile 1 =
+  // columns 3-5 + overlap (0, the wrap). Codes: offset 128, 25 m steps.
+  const L = { south: -90, west: -180, dlat: 60, dlon: 60, rows: 4, cols: 6 };
+  const codes = [[128, 132, 136, 140, 144, 148], [130, 134, 138, 142, 146, 150], [128, 128, 128, 128, 128, 128], [160, 160, 160, 160, 160, 160]];
+  const tile = (c0, c1, overlapCol) => ({ col0: c0, cols: c1 - c0 + 1, rows: 4,
+    data: Uint8Array.from(codes.flatMap((r) => [...r.slice(c0, c1), r[overlapCol]])) });
+  const asset = { lattice: L, offset: 128, step: 25, lapse: -0.0065, tiles: [tile(0, 3, 3), tile(3, 6, 0)] };
+
+  test('downscaleAt: exact at nodes, bilinear between, seamless across the tile edge and the antimeridian', () => {
+    expect(downscaleAt(asset, -180, -90)).toBe(0);                          // code 128
+    expect(downscaleAt(asset, -120, -90)).toBe(100);                        // code 132 = +4 steps
+    expect(downscaleAt(asset, 0, -30)).toBe((142 - 128) * 25);              // column 3 (tile 1's first), row 1
+    expect(downscaleAt(asset, -30, -90)).toBeCloseTo(((136 + 140) / 2 - 128) * 25, 9);   // across the tile edge (via the overlap)
+    expect(downscaleAt(asset, 150, -90)).toBeCloseTo(((148 + 128) / 2 - 128) * 25, 9);   // across 180 (the wrap overlap)
+    expect(downscaleAt(asset, -150, -60)).toBeCloseTo(((128 + 132 + 130 + 134) / 4 - 128) * 25, 9);
+  });
+
+  test('the shader adds lapse * dz BEFORE the colour lookup, sampling level 0 of the right tile', () => {
+    const i = FS.indexOf('v = v + u_dzLat.w * u_dzCode.z * (code * 255.0 - u_dzCode.x) * u_dzCode.y;');
+    expect(i).toBeGreaterThan(0);
+    expect(i).toBeLessThan(FS.indexOf('float k = clamp(floor((v - u_lutMap.x)'));
+    expect(FS).toContain('if (u_dzLat.w > 0.0) {');
+    expect(FS).toContain('textureLod(u_dz0,');
+    expect(FS).toContain('gx < u_dzLon.w');
+  });
+
+  test('one tile uploads per frame (R8); never half a downscale; the correction fades in over DZ_FADE_MS; context loss re-uploads', () => {
+    const gl = fakeGl(); const map = fakeMap();
+    let clock = 1000;
+    const Lr = createOwnRasterLayer({ id: 't', lutMap: TEMPERATURE_LUT, opacityStops: TEMPERATURE_OPACITY_STOPS, shaderIsobars: false, now: () => clock });
+    Lr.onAdd(map, gl); Lr.setLut(buildStepLut({ breakpoints: [-80], colors: [[1, 2, 3, 1]] }, TEMPERATURE_LUT));
+    Lr.offerField('a', field(5)); Lr.want('a');
+    expect(Lr.setDownscale(asset)).toBe(true);
+    const on = () => gl.__u4.filter((u) => u[0] === 'u_dzLat').map((u) => u[4]);
+    Lr.prerender(gl, args); Lr.render(gl, args);
+    expect(gl.__tex.filter((t) => t[0] === 'GL_R8')).toEqual([['GL_R8', 4, 4]]);
+    expect(on()).toEqual([0]);                                              // one tile of two: drawn as is
+    Lr.prerender(gl, args); Lr.render(gl, args);
+    expect(gl.__tex.filter((t) => t[0] === 'GL_R8').length).toBe(2);
+    expect(on()).toEqual([0, 0]);                                           // every tile resident: the fade starts at 0
+    clock += DZ_FADE_MS / 2; Lr.render(gl, args);
+    clock += DZ_FADE_MS; Lr.render(gl, args);
+    expect(on()).toEqual([0, 0, 0.5, 1]);
+    expect(gl.__u4.filter((u) => u[0] === 'u_dzLon').pop()).toEqual(['u_dzLon', -180, 60, 6, 3]);
+    expect(gl.__u4.filter((u) => u[0] === 'u_dzCode').pop()).toEqual(['u_dzCode', 128, 25, -0.0065, 4]);
+    expect(Lr.downscaleReady()).toBe(true);
+    map.listeners.webglcontextlost({ preventDefault() {} });
+    expect(Lr.downscaleReady()).toBe(false);
+    map.listeners.webglcontextrestored();
+    Lr.prerender(gl, args); Lr.prerender(gl, args);
+    expect(Lr.downscaleReady()).toBe(true);
+  });
+
+  test('tiles this GPU cannot hold, or a GL error on upload, drop the asset ONCE and ask for the 1/8 fallback', () => {
+    for (const [setup, why] of [[(gl) => { gl.__ctl.maxTex = 3; }, 'too_large'], [(gl) => { gl.__ctl.failError = true; }, 'gl_error']]) {
+      const gl = fakeGl(); const fails = [];
+      const Lr = createOwnRasterLayer({ id: 'f', onDownscaleFail: (w) => fails.push(w) });
+      Lr.onAdd(fakeMap(), gl); Lr.setLut(buildStepLut({ breakpoints: [0], colors: [[1, 2, 3, 1]] }));
+      setup(gl);
+      Lr.setDownscale(asset);
+      Lr.prerender(gl, args); Lr.prerender(gl, args); Lr.prerender(gl, args);
+      expect(fails).toEqual([why]);
+      expect(Lr.downscaleReady()).toBe(false);
+    }
+  });
+
+  test('more tiles than the shader takes, or none, is refused: the field draws as is', () => {
+    const gl = fakeGl(); const Lr = createOwnRasterLayer({ id: 'x' }); Lr.onAdd(fakeMap(), gl);
+    expect(DZ_TILES_MAX).toBe(2);
+    expect(Lr.setDownscale({ ...asset, tiles: [asset.tiles[0], asset.tiles[1], asset.tiles[0]] })).toBe(false);
+    expect(Lr.setDownscale(null)).toBe(false);
+    expect(Lr.downscaleReady()).toBe(false);
+  });
 });

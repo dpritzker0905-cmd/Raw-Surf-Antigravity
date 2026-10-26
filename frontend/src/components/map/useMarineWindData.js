@@ -159,6 +159,10 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       // The STORED product a series frame came from (marineSeriesFrame: __servedProductId), carried under its own name for the frame
       // store's regional show (marineFrameStoreRegional.findRegionalFrame); nothing else reads it (2026-10-24).
       __storedProductId: marineData.grid.__servedProductId || marineData.served_product_id || null,
+      // The frame's served time for the STATUS LINE only (marineDrawnFrame: the drawn record's data instant). Not served_valid_time:
+      // that name drives the commit rules' instant (#444 keeps it dark through this conform); nothing else reads this one (2026-10-24).
+      // A grid the CLIENT built (the ICON extended blend) carries its own readout time: its oldest input's served time (heldFrameTime.js).
+      __readoutServedTime: marineData.grid.served_valid_time || marineData.served_valid_time || marineData.grid.__readoutServedTime || null,
       is_dynamic_viewport_product: marineData.grid.is_dynamic_viewport_product || false,
       coverage_scope: marineData.grid.coverage_scope || null,
       // Rating-mode flag (2026-07-12): this conform is an EXPLICIT field list — the known

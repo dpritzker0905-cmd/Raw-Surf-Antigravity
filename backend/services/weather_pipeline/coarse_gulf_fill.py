@@ -144,6 +144,25 @@ def _is_mid_tier(product, grid):
         return False
 
 
+def donor_time(product):
+    """The instant the GFS donor is looked up at (both the 10-deg and the targeted 2-deg fill).
+
+    The fill runs in the route, AFTER resolve_grid has overwritten `valid_time` with the ASK (the echo contract) and recorded the
+    frame's own instant in `served_valid_time` (stamp_frame_honesty). Reading `valid_time` first therefore looks the donor up at
+    the asked hour, not the frame's. Measured offline 2026-10-25 on real CDN fields (log/2026-10-25-claude-day14-evidence.md):
+    with FAR_EDGE_HOLD_PREFER_MID the ICON frame of 11-08T18Z held for an ask at 11-09T02Z was filled from GFS 03Z, 9 h apart, in
+    131 cells. Since GFS_WORLD_FULL_HORIZON (live 2026-10-25) GFS has a frame at almost every asked hour, so every hold and every
+    nearest-frame substitution mixes two instants in one map. The static filled frames take their donor at the frame's own hour
+    (frame_set_fill), so the two paths also disagree.
+    MARINE_GULF_FILL_DONOR_SERVED_TIME=1 (DARK, registered in _RATING_FLAGS; it moves the filled cells' served values): the
+    served time first, else the ask. '0' (default) keeps today's order exactly."""
+    asked = getattr(product, "valid_time", None)
+    served = getattr(product, "served_valid_time", None)
+    if served and os.environ.get("MARINE_GULF_FILL_DONOR_SERVED_TIME", "0") == "1":
+        return served
+    return asked or served
+
+
 async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain, layer):
     """If `product` is a EURO/ICON 10° global-coarse marine `waves` grid with masked enclosed-sea
     cells, fill them from the SERVED GFS global-coarse `waves` product (valid Gulf). Returns a NEW
@@ -181,8 +200,8 @@ async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain
         if mid_mode == "targeted":
             return await _targeted_mid_fill(product, grid, store, model, layer_l, masked)
 
-        # Load the SERVED GFS global-coarse waves product at this product's valid_time.
-        vt = getattr(product, "valid_time", None) or getattr(product, "served_valid_time", None)
+        # Load the SERVED GFS global-coarse waves product at this product's valid_time (donor_time: the ask by default).
+        vt = donor_time(product)
         # ⛔ THE DONOR MUST BE THE SAME LAYER. Filling a `swell_1` hole from a `waves` donor would
         # substitute the TOTAL significant height for a single train's height — two different
         # quantities in the same units, which is exactly the class `5ae2d267` closed at the infobox
@@ -585,7 +604,7 @@ async def _targeted_mid_fill(product, grid, store, model, layer_l, masked):
     """MARINE_GULF_FILL_MID_TARGETED=1 on the 2-deg global_mid: the same-layer GFS global_mid at the same valid time (within 3 h,
     as the coarse donor) is the donor, node for node, through the compact LRU donor. A missing or unreadable donor, or a lattice
     mismatch, serves the grid as stored WITH a stamp and a log line (_no_fill)."""
-    vt = getattr(product, "valid_time", None) or getattr(product, "served_valid_time", None)
+    vt = donor_time(product)
     errors = []
     item = _find_gfs_item(store, vt, layer_l, "global_mid", errors)
     if item is None:

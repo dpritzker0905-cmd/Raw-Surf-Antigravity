@@ -1,6 +1,7 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { getRemainingCooldown } from '../components/map/marineController';
-import { SWR_LEGACY_MAX_RETRIES, noteRequestDiet, planSwrRevalidation } from '../components/map/marineRequestDiet';
+import { SWR_LEGACY_MAX_RETRIES, noteRequestDiet, noteSwrKeyStale, planSwrRevalidation, swrKeyAttempt,
+  swrKeyLadderOn } from '../components/map/marineRequestDiet';
 
 /**
  * useMarineRevalidation - Custom hook for managing weather simulation retry timers,
@@ -23,7 +24,9 @@ export function useMarineRevalidation() {
     }
   }, []);
 
-  const scheduleSWRRevalidation = useCallback((data, updateFn) => {
+  // askKey: the ask this answer is for (the fetcher's viewport hash). SWR_KEY_LADDER keeps the ladder's count per ask and names the
+  // pending re-ask on the timer ref (swrTimerRef.askKey), so a re-drive of the same ask can wait for it (marineRequestDiet.js).
+  const scheduleSWRRevalidation = useCallback((data, updateFn, askKey = null) => {
     const grid = data?.grid;
     const isStale = !!(data?.stale || grid?.stale);
     // An HTTP-200 grid with zero vectors (non-renderable) is usually a *transient*
@@ -65,18 +68,22 @@ export function useMarineRevalidation() {
         ? Math.floor(Number(_w.__RAW_MARINE_SWR_MAX_RETRIES__)) : null;
       const _staleLadder = (_w && Array.isArray(_w.__RAW_MARINE_SWR_STALE_DELAYS__) && _w.__RAW_MARINE_SWR_STALE_DELAYS__.length)
         ? _w.__RAW_MARINE_SWR_STALE_DELAYS__ : null;
+      const keyed = !!askKey && swrKeyLadderOn();
+      const attempt = keyed ? swrKeyAttempt(askKey) : swrRetryCountRef.current;
+      if (keyed) noteSwrKeyStale(askKey);   // every stale answer to this ask moves its ladder one rung, whoever asked
       const { delayMs: delay, stop } = planSwrRevalidation({
-        attempt: swrRetryCountRef.current, empty: isEmptyTransient, staleDelays: _staleLadder, maxRetries: _maxRetries,
+        attempt, empty: isEmptyTransient, staleDelays: _staleLadder, maxRetries: _maxRetries,
       });
       if (!stop) {
-        noteRequestDiet('swr_redrive_scheduled', { attempt: swrRetryCountRef.current, delayMs: delay, empty: isEmptyTransient });
-        console.log(`[SWR] ${isEmptyTransient ? 'Empty/non-renderable grid (likely cold ingestion of a fresh run)' : 'Committed stale/coarse grid'}. Scheduling SWR revalidation retry #${swrRetryCountRef.current + 1} in ${delay}ms`);
+        noteRequestDiet('swr_redrive_scheduled', { attempt, delayMs: delay, empty: isEmptyTransient, keyed });
+        console.log(`[SWR] ${isEmptyTransient ? 'Empty/non-renderable grid (likely cold ingestion of a fresh run)' : 'Committed stale/coarse grid'}. Scheduling SWR revalidation retry #${attempt + 1} in ${delay}ms`);
         if (swrTimerRef.current) {
           clearTimeout(swrTimerRef.current);
         }
+        swrTimerRef.askKey = keyed ? askKey : null;
         swrTimerRef.current = setTimeout(() => {
           swrTimerRef.current = null;
-          swrRetryCountRef.current += 1;
+          if (!keyed) swrRetryCountRef.current += 1;
           updateFn('swr_revalidation');
         }, delay);
       } else {

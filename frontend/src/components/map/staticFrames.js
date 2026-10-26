@@ -35,7 +35,7 @@ import { cropGridJson, cropSeriesFrame, cropVectors, gridBboxParam, midCropFor, 
 import { _resetRegionalForTest, bundleBackingOff, isRegionalSetKey, noteRegionalMiss, normalizeBundleIndex, pickRegionalTile, regionalBundlesOn, regionalClipWindow, regionalFrameBytes,
   regionalGridJson, regionalTelemetry } from './staticRegional';   // regional bundles at z7-9 (2026-10-23)
 import { registerLatestProbes, setIsEmpty, setIsListed } from './regionalLatestSets';
-import { serveTimeFillAtWorld } from './staticWorldFillGuard';
+import { filledStoreAccepts, filledStoreOn, filledWorldPossible, filledWorldSetKey, preloadFilledIndexes, serveTimeFillAtWorld } from './staticWorldFillGuard';
 export { serveTimeFillAtWorld };   // moved to staticWorldFillGuard.js (the 800-line cap); the callers import it from here
 
 export const FRAME_BUCKET = 'weather-frames';
@@ -224,6 +224,14 @@ export const STATIC_SETS = [
   // Per-model pressure (2026-10-24): EURO from ECMWF open data, ICON from DWD (frame_set_raster_sources). Raster sets: the marine
   // frame store never takes them (not waves).
   'EURO/weather/pressure/global_0p5', 'ICON/weather/pressure/global_0p5',
+  // GFS 2 m air temperature (2026-10-24, #515's set): read only by ownRasterFrames.js, behind the same lever (default off).
+  'GFS/weather/temperature/global_0p5',
+  // GFS total cloud cover (2026-10-24, the 'satellite' layer; #515's set): read only by ownRasterFrames.js, same lever.
+  'GFS/weather/cloud_cover/global_0p25',
+  // EURO / ICON world frames with /grid's TARGETED Gulf fill baked in (2026-10-24, frame_set_fill.py): read only for WORLD boxes,
+  // only while the server and the set agree on the mode (staticWorldFillGuard.filledWorldSetKey); crops read the plain sets.
+  'ICON/marine/waves/global_mid_filled', 'EURO/marine/waves/global_mid_filled', 'ICON/marine/swell_1/global_mid_filled',
+  'ICON/marine/wind_waves/global_mid_filled',
 ];
 
 /** Per-set kill: window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = ['ICON/marine/waves/global_mid', ...] (or '*'), or
@@ -254,7 +262,7 @@ async function readLatest(force) {
   if (!force && _state.latestAt && now - _state.latestAt < ttl) return _state.latest;
   if (_state.latestLoad) return _state.latestLoad;
   _state.latestLoad = loadJson(base + LATEST_PATH, true)
-    .then((j) => { _state.latest = j; _state.latestAt = Date.now(); _state.latestFails = 0; return j; })
+    .then((j) => { _state.latest = j; _state.latestAt = Date.now(); _state.latestFails = 0; preloadFilledIndexes(j, loadIndex, staticSetEnabled); return j; })
     .catch(() => { _state.latestAt = Date.now(); _state.latestFails += 1; return _state.latest; })
     .finally(() => { _state.latestLoad = null; });
   return _state.latestLoad;
@@ -350,12 +358,16 @@ export function onStaticFrameParsed(fn) {
  *  nothing (a whole run is ~6.3 MB). No I/O. */
 export function getPinnedIndexSync(key) {
   const pin = _state.pins.get(key);
-  const [model, , layer] = String(key || '').split('/');
+  const [model, , layer, tier] = String(key || '').split('/');
   if (isRegionalSetKey(key)) return null;            // regional bundles (phase 1): the GPU frame store keeps to world sets
-  // EURO / ICON: the store cannot tell a world view (where /grid's serve-time Gulf fill makes the served grid differ from the
-  // stored frame; serveTimeFillAtWorld) from a crop at this door, so it takes none of their frames for now.
-  return pin && !pin.stale && staticSetEnabled(key) && layer === 'waves' && !serveTimeFillAtWorld(model, layer) ? pin.index : null;
+  if (!pin || pin.stale || !staticSetEnabled(key) || layer !== 'waves') return null;
+  // EURO / ICON: a plain set never (/grid's serve-time Gulf fill makes a world grid differ from its stored frame; serveTimeFillAtWorld);
+  // their FILLED world set only while the server, the record and the index agree on the mode (staticWorldFillGuard.filledStoreAccepts).
+  if (tier === 'global_mid_filled') return filledStoreAccepts(model, layer, key, pin.index, _state.latest) ? pin.index : null;
+  return !serveTimeFillAtWorld(model, layer) ? pin.index : null;
 }
+/** The world set the GPU frame store reads: a guarded EURO/ICON set's filled world set while it is servable, else the plain set. */
+export const storeSetKeyFor = (model, layer) => (filledStoreOn() && filledWorldSetKey(model, layer, _state.latest)) || setKeyFor(model, layer);
 
 // The frame store's regional crop show (2026-10-24): the pinned REGIONAL waves index of a set key (null unless pinned, fresh, enabled; so only while the bundles' gate is open), and the pinned regional keys of a model x layer. No I/O.
 export const getPinnedRegionalIndexSync = (key) => { const pin = _state.pins.get(key); return isRegionalSetKey(key) && key.split('/')[2] === 'waves' && pin && !pin.stale && staticSetEnabled(key) ? pin.index : null; };
@@ -472,6 +484,9 @@ export async function loadFrameVectors(key, frame, signal, { priority } = {}) {
 }
 
 const spanOf = (b) => (b ? ((b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west) : 0);
+/** The set a box reads its global_mid frames from: a WORLD box of a guarded EURO/ICON set reads the filled world set while it is
+ *  servable (filledWorldSetKey), every other box (and that box otherwise) the plain set. Synchronous, no I/O. */
+const midSetKeyFor = (model, layer, bbox) => (spanOf(bbox) >= WORLD_MIN_SPAN && filledWorldSetKey(model, layer, _state.latest)) || setKeyFor(model, layer);
 
 /** Does this request get a static frame at all? (Cheap; no I/O.) */
 export function staticEligible({ model, layer, bbox, surf }) {
@@ -482,7 +497,17 @@ export function staticEligible({ model, layer, bbox, surf }) {
   if (!staticSetEnabled(setKeyFor(model, layer))) return false;
   // A world box, or a viewport box the resolver answers from global_mid (the mid-zoom crop, #459): every world set's tier is
   // global_mid, so the crop rules (model-aware snap, regional refusal) apply to all of them.
-  if (spanOf(bbox) >= WORLD_MIN_SPAN) return !serveTimeFillAtWorld(model, layer);
+  if (spanOf(bbox) >= WORLD_MIN_SPAN) {
+    if (!serveTimeFillAtWorld(model, layer)) return true;
+    // A guarded set's world box: only its filled set, if servable. Its record is in latest.json, which nothing may have read yet
+    // when the session opens on EURO/ICON: start that read (once per TTL, no wait, only when it could help) so the next ask is served.
+    if (!_state.latest && filledWorldPossible(model, layer)) readLatest(false).catch(() => {});
+    const filled = filledWorldSetKey(model, layer, _state.latest);
+    const ok = !!filled && staticSetEnabled(filled);
+    // Telemetry (window.__RAW_STATIC_FRAMES__.filledWorld): the last guarded world decision, so a declined filled set says why.
+    telemetry().filledWorld = { model, layer, possible: filledWorldPossible(model, layer), latestRead: !!_state.latest, key: filled, ok };
+    return ok;
+  }
   return isMidCropBox({ model, layer, bbox });
 }
 
@@ -495,7 +520,7 @@ function regionalTileFor({ model, layer, bbox, surf, param }) {
 /** The set a box reads: its regional bundle set inside a pilot box, else the world set. Synchronous, no I/O. */
 export function staticSetKeyForBox({ model, layer, bbox, surf }) {
   const tile = regionalTileFor({ model, layer, bbox, surf, param: gridBboxParam });
-  return tile ? tile.key : setKeyFor(model, layer);
+  return tile ? tile.key : midSetKeyFor(model, layer, bbox);       // a guarded world box: its filled world set (midSetKeyFor)
 }
 
 /** The set is listed in the latest.json already read (synchronous; false before the first read). */
@@ -609,7 +634,7 @@ export async function tryStaticWorldGrid({ model, layer, validTimeStr, clampedBb
   if (tile) {
     try { return await tryStaticRegionalGrid({ tile, model, validTimeStr, clampedBbox, signal }); } catch (e) { noteRegionalMiss('error'); return null; }
   }
-  const key = setKeyFor(model, layer);
+  const key = midSetKeyFor(model, layer, clampedBbox);
   try {
     const index = await getPinnedIndex(key);
     if (!index) { noteMiss('no_index'); return null; }
@@ -648,7 +673,7 @@ export async function staticSeriesFrames({ model, layer, bbox, surf, hours, anch
   if (!staticSeriesEligible({ model, layer, bbox, surf })) return null;
   const tile = regionalTileFor({ model, layer, bbox, surf, param: seriesBboxParam });
   if (tile) return staticRegionalSeriesFrames({ tile, model, bbox, hours, anchorMs, focusHour, signal, onFrames, priority });
-  const key = setKeyFor(model, layer);
+  const key = midSetKeyFor(model, layer, bbox);
   const index = await getPinnedIndex(key).catch(() => null);
   if (!index) { noteMiss('no_index'); return null; }
   const focus = Number.isFinite(focusHour) ? focusHour : hours[0];
@@ -746,6 +771,7 @@ export function prewarmStaticFrames({ model = 'GFS', layer = 'waves' } = {}) {
   const idle = (fn) => (typeof window.requestIdleCallback === 'function' ? window.requestIdleCallback(fn, { timeout: 1500 }) : setTimeout(fn, 0));
   _prewarm = getPinnedIndex(key).then((index) => {
     rec.indexMs = ms();
+    preloadFilledIndexes(_state.latest, loadIndex, staticSetEnabled);   // again once /capabilities has likely loaded (the guard reads it)
     if (!index) { rec.skipped = 'no_index'; return null; }
     const base = window.__MOCK_DATE_NOW__ || Date.now();
     const frame = pickIndexFrame(index, Math.round(base / 3600000) * 3600000);   // the app's hour 0 (getSeriesAnchorMs)

@@ -8,6 +8,7 @@ const mockSF = { enabled: true, index: null, hooks: new Set(), loads: [] };
 jest.mock('./staticFrames', () => ({
   staticFramesEnabled: () => mockSF.enabled,
   setKeyFor: (m, l) => `${String(m).toUpperCase()}/marine/${String(l).toLowerCase()}/global_mid`,
+  storeSetKeyFor: (m, l) => `${String(m).toUpperCase()}/marine/${String(l).toLowerCase()}/global_mid`,   // the plain set (no filled set in these mocks)
   getPinnedIndexSync: () => mockSF.index,
   getPinnedIndex: async () => mockSF.index,
   staticEligible: ({ model }) => String(model).toUpperCase() === 'GFS',   // one published set: no warm frames of other models

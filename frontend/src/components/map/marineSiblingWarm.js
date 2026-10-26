@@ -21,12 +21,20 @@
  * hidden layers' surf minis and pages came on top; static frames and bundles are swell only, so nothing static can answer them.
  * Kill: window.__RAW_DISABLE_SIBLING_SURF_GATE__ = true (surf mode warms as swell does).
  * Kill: window.__RAW_DISABLE_SIBLING_IDLE_PAGES__ = true -> each sibling's mini and page at once, its frame cached after the page.
- * Telemetry: window.__RAW_SIBLING_WARM__ = { static, minis, miniFrames, pages, dropped, surfGated, waitMs: [last 8] }.
+ * ASKED ONCE (2026-10-24, SIBLING_ASK_ONCE). The warm runs after every network /grid of the visible layer (marineController), and a
+ * sibling whose answer gave no frame to cache (no drawable cell in the box for this model, a coarse world frame, a frame for another
+ * hour) stayed "not ready", so each /grid re-asked its mini and re-queued its page. The mid-zoom session's z8 Lake Michigan replay
+ * (swell, GFS <-> EURO x3 and a PageUp, dev f6433615a): GFS swell_1 / swell_2 / wind_waves minis 13 / 13 / 12 times at the opening
+ * hour and 12 / 11 / 12 at the next day, their pages 5 / 4 / 3 times. Now a sibling's mini (per hour) and page (per page) for one
+ * model, layer, flavour and snapped request box are asked once per SIBLING_ASK_TTL_MS (the series TTL), answered or not; an aborted
+ * ask (the view moved on) does not count. Kill: window.__RAW_DISABLE_SIBLING_ASK_ONCE__ = true.
+ * Telemetry: window.__RAW_SIBLING_WARM__ = { static, minis, miniFrames, pages, dropped, surfGated, askedOnce, waitMs: [last 8] }.
  */
-import { ensureMarineSeries, ensureMarineSeriesHour0, isMarineSeriesPageWarm } from './marineGridSeries';
+import { ensureMarineSeries, ensureMarineSeriesHour0, isMarineSeriesPageWarm, marineSeriesPageForHour } from './marineGridSeries';
 import { _seriesLimiterState } from './marineSeriesLimiter';
 import { staticOwnsWorldPage } from './marineSeriesStatic';
 import { normalizeRequestBbox, padRegionalBbox } from './marineBboxGeometry';
+import { seriesIdentityBounds } from './marineSeriesPanGuard';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
 
 export const SIBLING_PAGE_POLL_MS = 400;        // re-check a closed gate this often
@@ -34,7 +42,30 @@ export const SIBLING_PAGE_MAX_WAIT_MS = 8000;   // the visible page is 2.5-5 s c
 // The lanes must stay quiet this long first: the visible layer's adjacent pages are queued ~1.5 s AFTER its page lands
 // (marineGridSeries.scheduleIdlePrefetch), so a sibling page started in that gap would run ahead of the visible layer's own scrub.
 export const SIBLING_QUIET_MS = 2000;
+export const SIBLING_ASK_TTL_MS = 5 * 60 * 1000;   // marineGridSeries' SERIES_TTL_MS: a page or mini answered this recently is not re-asked
 const IDLE_TIMEOUT_MS = 2500;
+const _asked = new Map();         // ask key (siblingAskKey) -> when its answer landed
+
+/** One sibling ask: a 'mini' (per hour) or a 'page' (per page) of one model, layer, flavour and snapped request box. */
+export function siblingAskKey(kind, { model, layer, bounds, hourOffset }) {
+  const b = seriesIdentityBounds(bounds) || bounds;
+  const f = (v) => Number(v).toFixed(2);
+  const page = typeof marineSeriesPageForHour === 'function' ? marineSeriesPageForHour(hourOffset, model) : null;   // (a stubbed module: per hour)
+  const which = kind === 'page' && Number.isFinite(page) ? `p${page}` : `h${hourOffset}`;
+  return `${kind}|${model}|${layer}|${getSurfModeFlag() ? 'surf' : 'swell'}|${which}|${f(b.west)},${f(b.south)},${f(b.east)},${f(b.north)}`;
+}
+
+/** This sibling ask was answered within SIBLING_ASK_TTL_MS (and the kill switch is off): do not ask it again. */
+export function siblingAskedRecently(key, now = Date.now()) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_SIBLING_ASK_ONCE__ === true) return false;
+  const t = _asked.get(key);
+  return t != null && now - t < SIBLING_ASK_TTL_MS;
+}
+
+function noteAsked(key) {
+  _asked.delete(key); _asked.set(key, Date.now());
+  if (_asked.size > 128) _asked.delete(_asked.keys().next().value);
+}
 
 const _queue = [];                // sibling pages: [{ model, layer, bounds, hourOffset, signal, visibleLayer, cache, queuedAt }]
 const _inFlight = new Set();      // `${model}_${hourOffset}_${layer}`: a mini (or, killed, a whole warm) in flight
@@ -114,7 +145,7 @@ function tick() {
   const gen = _gen;
   Promise.resolve()
     .then(() => ensureMarineSeries(entry.model, entry.layer, entry.bounds, entry.hourOffset, entry.signal, true /* current page */, false, true /* background */))
-    .then(() => { if (!aborted(entry.signal)) { entry.cache(); _awaitingPage.delete(`${entry.model}_${entry.layer}`); } })
+    .then(() => { if (!aborted(entry.signal)) { noteAsked(siblingAskKey('page', entry)); entry.cache(); _awaitingPage.delete(`${entry.model}_${entry.layer}`); } })
     .catch(() => { /* best effort: the toggle still works per layer */ })
     .finally(() => { if (gen !== _gen) return; _running = false; _quietSince = null; schedule(); });   // each page waits its own quiet window
 }
@@ -152,16 +183,19 @@ export function warmSiblingLayer({ model, layer, bounds, hourOffset, signal, vis
   if (!frameReady && siblingStaticOwned(model, layer, bounds)) { note('static'); warmNow(job); return; }
   if (!frameReady) {
     const key = `${model}_${hourOffset}_${layer}`;
-    if (!_inFlight.has(key)) {
+    const miniKey = siblingAskKey('mini', job);
+    // answered already: no second mini (ASKED ONCE); its frame, if it had one, is re-cached from the series cache (no request)
+    if (siblingAskedRecently(miniKey)) { note('askedOnce'); cache(); }
+    else if (!_inFlight.has(key)) {
       _inFlight.add(key); note('minis');
       Promise.resolve()
         .then(() => ensureMarineSeriesHour0(model, layer, bounds, hourOffset, signal, true /* background */))
-        .then(() => { if (!aborted(signal) && cache() && !pageWarm) { note('miniFrames'); _awaitingPage.add(`${model}_${layer}`); } })
+        .then(() => { if (aborted(signal)) return; noteAsked(miniKey); if (cache() && !pageWarm) { note('miniFrames'); _awaitingPage.add(`${model}_${layer}`); } })
         .catch(() => { /* best effort: the page below still brings the frame */ })
         .finally(() => { _inFlight.delete(key); });
     }
   }
-  if (!pageWarm) enqueuePage({ ...job, queuedAt: Date.now() });
+  if (!pageWarm && !siblingAskedRecently(siblingAskKey('page', job))) enqueuePage({ ...job, queuedAt: Date.now() });
 }
 
 /** Test/diagnostic view. */
@@ -177,6 +211,6 @@ export function _resetSiblingWarmForTest() {
   _timing = { poll: SIBLING_PAGE_POLL_MS, quiet: SIBLING_QUIET_MS, maxWait: SIBLING_PAGE_MAX_WAIT_MS };
   if (_timer !== null) clearTimeout(_timer);
   _timer = null; _running = false; _quietSince = null;
-  _queue.length = 0; _inFlight.clear(); _awaitingPage.clear();
+  _queue.length = 0; _inFlight.clear(); _awaitingPage.clear(); _asked.clear();
   if (typeof window !== 'undefined') delete window.__RAW_SIBLING_WARM__;
 }

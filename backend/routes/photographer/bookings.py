@@ -281,7 +281,26 @@ async def update_booking_status(
     valid_statuses = ['Pending', 'Confirmed', 'Completed', 'Cancelled']
     if data.status not in valid_statuses:
         raise HTTPException(status_code=400, detail=f"Invalid status. Must be one of: {valid_statuses}")
-    
+
+    # This route only moves a status label; it moves no money. So it may not be the way into a state that has
+    # money consequences. Before, either party could set ANY of the four on any booking: Cancelled left paid
+    # members unrefunded with the escrow still held, Completed started the escrow release clock, and the
+    # creator could mark their own unpaid booking Confirmed.
+    if data.status == 'Cancelled':
+        # the one cancel path, with its refund tiers and escrow handling (authorises creator or photographer itself)
+        from routes.bookings.booking_cancellation import cancel_booking, CancelBookingRequest
+        outcome = await cancel_booking(booking_id, CancelBookingRequest(reason=None), current_user_id, db) or {}
+        return {**{k: v for k, v in outcome.items() if k not in ("message", "status")},
+                "message": "Booking cancelled", "status": "Cancelled"}
+    if data.status == 'Confirmed':
+        # accepting a request is the photographer's call, and only for a request still waiting for it
+        if current_user_id != booking.photographer_id:
+            raise HTTPException(status_code=403, detail="Only the photographer can confirm a booking")
+        if booking.status not in ('Pending', 'Pending Acceptance'):
+            raise HTTPException(status_code=400, detail=f"A {booking.status} booking cannot be confirmed here")
+    else:
+        raise HTTPException(status_code=400, detail=f"Use the dedicated endpoint to set a booking {data.status}")
+
     booking.status = data.status
     booking.updated_at = datetime.now(timezone.utc)
     
