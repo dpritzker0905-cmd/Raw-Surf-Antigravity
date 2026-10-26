@@ -5,6 +5,7 @@ import { describeDrawnFrame, latticeNearestMaxHours } from './drawnFrameReadout'
 import { getSeriesAnchorMs, getSharedValidTime } from './backendWeatherServiceClient';
 import { HOLD_INDICATOR_MS, holdNoDimKilled } from './marineStaleHour';
 import { useRasterDrawnFrame, describeRasterFrame, RASTER_STATUS_LAYERS, PENDING_QUIET_MS } from './rasterDrawnFrame';
+import { ratingBandHeldText } from './marineRatingBandRes';
 
 // What the map DRAWS against what the user SELECTED, in words, in the same frame (W-1, scrub audit 2026-10-18): the
 // drawn-frame record is published by WebGLMarineLayer at the upload (marineDrawnFrame.js), so this line no longer waits
@@ -50,6 +51,10 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
     return evaluateMarineTimelineCoverage(timeline, readMarineTimelineRenderEvidence(model, layer), hour).temporalStatus;
   }, [model, layer, hour]);
   const [status, setStatus] = useState(readStatus);
+  // The rating band HOLDS OFF on a grid coarser than the regional one or one that ends in view (marineRatingBandRes.js): the words, so the
+  // state is never colour alone. The engine publishes heldBy with its band-fade telemetry; polled with the coverage check below.
+  const readHeldBy = () => (typeof window !== 'undefined' && window.__RAW_GPU__ && window.__RAW_GPU__.ratingBandFade && window.__RAW_GPU__.ratingBandFade.heldBy) || null;
+  const [heldBy, setHeldBy] = useState(readHeldBy);
   const pendingKey = readout && readout.state === 'pending' ? readout.text : null;
   const [longPending, setLongPending] = useState(false);
   useEffect(() => {
@@ -60,31 +65,43 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
   }, [pendingKey]);
   useEffect(() => {
     setStatus(readStatus());
-    const timer = setInterval(() => setStatus(readStatus()), 500);
+    const timer = setInterval(() => { setStatus(readStatus()); setHeldBy(readHeldBy()); }, 500);
     return () => clearInterval(timer);
   }, [readStatus]);
 
   const tone = theme === 'light' ? 'text-amber-800' : 'text-amber-200';
   const quiet = theme === 'light' ? 'text-slate-600' : 'text-slate-300';
+  // FIRST in the block: the phone's expanded sheet ends under the bottom nav, so a line after the time readout was off screen (measured 2026-10-26).
+  const heldText = !isRaster ? ratingBandHeldText(heldBy) : null;
+  const heldLine = heldText ? (
+    <div role="status" aria-live="polite" data-rating-band-held={heldBy}
+      className={`mt-1 text-xs ${tone}`}>{heldText}</div>
+  ) : null;
   if (readout) {
     return (
+      <>
+      {heldLine}
       <div role="status" aria-live="polite" data-drawn-state={readout.state} aria-busy={readout.state === 'pending' ? true : undefined}
         data-hold-indicator={longPending ? 'on' : undefined}
-        className={`mt-1 text-xs ${readout.state === 'pending' ? tone : quiet}`}>
+        className={`mt-1 text-xs ${readout.state === 'pending' || readout.state === 'held' ? tone : quiet}`}>
         {longPending && (
           <span aria-hidden="true" data-testid="hold-indicator"
             className="inline-block w-1.5 h-1.5 mr-1.5 align-middle rounded-full bg-current animate-pulse motion-reduce:animate-none" />
         )}
         {readout.text}
       </div>
+      </>
     );
   }
   if (isRaster) return null;   // the marine coverage check does not speak for raster layers
   const mismatch = status === 'response_time_mismatch' || status === 'render_time_mismatch';
-  if (!mismatch && status !== 'render_time_unverified') return null;
+  if (!mismatch && status !== 'render_time_unverified') return heldLine;
   return (
-    <div role="status" aria-live="polite" className={`mt-1 text-xs ${tone}`}>
-      {mismatch ? 'Forecast time does not match this selection.' : 'Verifying displayed forecast time.'}
-    </div>
+    <>
+      {heldLine}
+      <div role="status" aria-live="polite" className={`mt-1 text-xs ${tone}`}>
+        {mismatch ? 'Forecast time does not match this selection.' : 'Verifying displayed forecast time.'}
+      </div>
+    </>
   );
 }

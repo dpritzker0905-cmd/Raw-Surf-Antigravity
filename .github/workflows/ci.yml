@@ -170,7 +170,9 @@ jobs:
             // against the hosted receipt.
             // Load-dependent regional tests (2026-10-25): marineFrameStoreRegional.test.js's chained 'ends it' test becomes three, +2 tests / +0
             // suites. Raised by exactly that; confirm against the hosted receipt.
-            const MIN_SUITES = 517, MIN_TESTS = 6819;
+            // Rating band holds off on coarse / edge-cut grids (2026-10-25): marineRatingBandRes.test.js (+1 suite / +13 tests) and 6 tests in
+            // ForecastTimeStatus.test.js. Raised by exactly that from the floor above; confirm against the hosted receipt.
+            const MIN_SUITES = 518, MIN_TESTS = 6838;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -951,7 +953,11 @@ jobs:
           #   base 3317 (hosted read) + 3 new test(s) = 3320, files 211; floor 3320 - 6 = 3314. This PR must read 3320 passed.
           # ⬆ 3314→3325 on 2026-10-26 (rederive_floor.py, claude/marine-tail-ceiling-margin): dev run 40245738513 read 3320 / 211 files; dev's map 3320;
           #   base 3320 (hosted read) + 11 new test(s) and 1 new file(s) = 3331, files 212; floor 3331 - 6 = 3325. This PR must read 3331 passed.
-          MIN_FILES, MIN_PASSED = 212, 3325
+          # ⬆ 3325→3331 on 2026-10-26 (rederive_floor.py, claude/fill-donor-served-time): dev run 40274472907 read 3331 / 212 files; dev's map 3331;
+          #   base 3331 (hosted read) + 6 new test(s) and 0 new file(s) = 3337, files 212; floor 3337 - 6 = 3331. This PR must read 3337 passed.
+          # ⬆ 3331→3335 on 2026-10-26 (rederive_floor.py, claude/wind-gfs-hourly): dev run 40277485849 read 3331 / 212 files; dev's map 3337;
+          #   base 3337 (dev's map) + 4 new test(s) and 0 new file(s) = 3341, files 212; floor 3341 - 6 = 3335. This PR must read 3341 passed.
+          MIN_FILES, MIN_PASSED = 212, 3335
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1020,7 +1026,10 @@ jobs:
   # came to miss 45 of its own files, and how `tests/test_point_*.py` sat outside it for months.
   backend-forecast-chain-guards:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 30 min (2026-10-26, lead): the suite itself runs ~12-19 min, but on a loaded runner the job crossed 20 min AFTER
+    # pytest finished (#580: estate passed 3355 tests, then timed out at 20:00, twice), failing green PRs. A hang still
+    # dies here; pytest's own per-test timeouts remain the first backstop.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
       - name: Set up Python
@@ -1634,7 +1643,10 @@ jobs:
   # other lanes' files and running everything in one process is pathological. Three lanes, not one.
   backend-estate-coverage:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    # 30 min (2026-10-26, lead): the suite itself runs ~12-19 min, but on a loaded runner the job crossed 20 min AFTER
+    # pytest finished (#580: estate passed 3355 tests, then timed out at 20:00, twice), failing green PRs. A hang still
+    # dies here; pytest's own per-test timeouts remain the first backstop.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
 
@@ -2095,7 +2107,9 @@ jobs:
           #   base 3276 (dev's map) + 42 new test(s) = 3318; floor 3318 - 2 = 3316. This PR must read 3318 passed.
           # ⬆ 3316→3325 on 2026-10-26 (rederive_floor.py, claude/raster-temp-downscale): dev run 40270844413 read 3318; dev's map 3318;
           #   base 3318 (hosted read) + 9 new test(s) = 3327; floor 3327 - 2 = 3325. This PR must read 3327 passed.
-          MIN_PASSED = 3325
+          # ⬆ 3325→3353 on 2026-10-26 (rederive_floor.py, claude/phase0-integrity): dev run 40277485849 read 3327; dev's map 3327;
+          #   base 3327 (hosted read) + 28 new test(s) = 3355; floor 3355 - 2 = 3353. This PR must read 3355 passed.
+          MIN_PASSED = 3353
 
           try:
               root = ET.parse('estate.xml').getroot()

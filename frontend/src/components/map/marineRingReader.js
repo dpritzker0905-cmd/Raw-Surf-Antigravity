@@ -20,7 +20,8 @@
  *                                ("reduced sample cardinality reflects loss of observability").
  *   C2 cross-instrument       <- `encodeDupCount: 2` beside 500 encode-ish events. Disagreement
  *                                between two counters of the same thing is the highest-yield check;
- *                                it is what actually caught things by hand.
+ *                                it is what actually caught things by hand. Live pair since
+ *                                2026-10-26: frame-store commits vs normal uploads (COMMIT_FOLLOW_UPS).
  *   C3 zero-variance field    <- `coverage: "miss"` on every single response. A field with one
  *                                distinct value over many samples is dead, not informative.
  *   C4 poisoned identity key  <- `... || Date.now()` in a dedup key, with `productId: null`. A key
@@ -52,6 +53,22 @@ export const MIN_SAMPLES_FOR_VARIANCE = 20;
 // FIFO with no per-type quota means the loudest writer deletes the others, so once one type passes
 // half the ring the remaining histogram is a floor, not a total.
 export const UNDERCOUNT_LIMIT = 0.50;
+
+// ⛔ C2's LIVE PAIR (2026-10-26). WebGLMarineLayer runs noteCommitted (marineFrameStoreRuntime) and then
+// __WEBGL_MARINE_UPLOAD_COUNT__++ in the SAME synchronous success block after setWaveData, and every return path of
+// noteCommitted past its on-check counts exactly ONE reason. So while the store is on, its commit reasons sum to the upload
+// count, exactly (offline 2026-10-26: 1, 7, 8, 11, 16, 18 = the same across load, steps, pans, toggles, z8 and zoom-out).
+// Two reasons are written LATER, outside noteCommitted (a pack or a crop resolving after its commit): they are not commits.
+// A source guard in the test fails if a new writer appears outside noteCommitted without joining this list.
+export const COMMIT_FOLLOW_UPS = Object.freeze(['resident_late', 'crop_not_resident']);
+
+/** The commits the frame store counted (one per normal upload while it is on); null when the store is off or absent. */
+export function storeCommitCount(frameStore) {
+  const fs = frameStore || null;
+  if (!fs || fs.on !== true || !fs.commits || typeof fs.commits !== 'object') return null;
+  return Object.entries(fs.commits)
+    .reduce((a, [k, n]) => (COMMIT_FOLLOW_UPS.includes(k) ? a : a + (Number(n) || 0)), 0);
+}
 
 /**
  * ⛔⛔ TWO OPPOSITE INSERTION ORDERS COEXIST IN THIS APP. A consumer that reads "the last N" one way
@@ -91,12 +108,24 @@ function shareOfTop(counts) {
 
 /** C1 — a capped ring whose event-type mix has collapsed onto one type. */
 export function checkCardinality(ring) {
-  const { name, counts, cap } = ring || {};
+  const { name, counts, cap, countsAreTotals } = ring || {};
   const s = shareOfTop(counts || {});
   if (s.total < MIN_SAMPLES_FOR_CARDINALITY) {
     return v(`C1 cardinality:${name}`, SKIP,
       `only ${s.total} samples (< ${MIN_SAMPLES_FOR_CARDINALITY}) — refusing to judge a mix this small`,
       { total: s.total });
+  }
+  // EVICTION FIRST (2026-10-26, the owner's console: "[RingReader] 2 check(s) FAILED", reproduced offline). Both verdicts below are
+  // about EVICTION: a loud type deleting the others from a FIFO at its cap. They fired where nothing could have been evicted, which
+  // trains people to ignore the reader:
+  //  - `__MARINE_CHURN__.counts` are monotonic totals kept apart from its evictable log, so no type can be evicted from them;
+  //  - a ring below 90% of its cap has evicted nothing ("'commit' is 51.5% of 33" on a 500-entry ring): its counts are totals, and a
+  //    dominant type is the session's workload (a scrub commits a lot), not lost observability.
+  // So: totals SKIP; below 90% of the cap PASS; dominance FAILS near the cap; the undercount FAILS only once the ring is full.
+  if (countsAreTotals) {
+    return v(`C1 cardinality:${name}`, SKIP,
+      'these counts are monotonic totals (kept apart from the evictable log), so nothing can be evicted from them — '
+      + 'an eviction check does not apply', { total: s.total, top: s.top, topShare: +s.share.toFixed(4) });
   }
   // AT CAP, THESE COUNTS ARE A FLOOR, NOT A TOTAL. `__RAW_FORENSIC__.summary()` computes counts by
   // LOOPING THE RING and has no monotonic counter, so at saturation its numbers silently become
@@ -107,6 +136,11 @@ export function checkCardinality(ring) {
   const numbers = { total: s.total, cap: cap || null, types: s.types, top: s.top,
                     topCount: s.topCount, topShare: +s.share.toFixed(4),
                     saturated, countsAreFloor: saturated };
+  if (cap && !nearCap) {
+    return v(`C1 cardinality:${name}`, PASS,
+      `${s.types} types, top '${s.top}' at ${(100 * s.share).toFixed(1)}% — the ring holds ${s.total} of ${cap}, so nothing has been `
+      + 'evicted and these counts are totals', numbers);
+  }
   if (s.share >= DOMINANCE_LIMIT) {
     return v(`C1 cardinality:${name}`, FAIL,
       `'${s.top}' is ${(100 * s.share).toFixed(1)}% of ${s.total} entries` +
@@ -115,7 +149,7 @@ export function checkCardinality(ring) {
                  : nearCap ? ` and the ring is near cap (${cap})` : '') +
       ` — only ${s.types} type(s) survive`, numbers);
   }
-  if (s.share >= UNDERCOUNT_LIMIT) {
+  if (s.share >= UNDERCOUNT_LIMIT && (saturated || !cap)) {   // a floor only once the ring is full (or its cap is unknown)
     return v(`C1 cardinality:${name}`, FAIL,
       `'${s.top}' is ${(100 * s.share).toFixed(1)}% of ${s.total} — past ${100 * UNDERCOUNT_LIMIT}% ` +
       'every OTHER type in this ring is an undercount, so any figure read from it is a floor',
@@ -274,7 +308,6 @@ export function captureRings(win) {
     const k = f(x); if (k !== undefined && k !== null) a[k] = (a[k] || 0) + 1; return a; }, {});
   const tel = ((w.__WEATHER_TELEMETRY__ || {}).logs) || [];
   const forensic = ((w.__RAW_FORENSIC__ || {}).events) || [];
-  const gpu = w.__RAW_GPU__ || {};
   const upload = w.__WEBGL_MARINE_UPLOAD_DIAG__ || {};
   const src = w.__MARINE_RENDER_SOURCE_DIAG__ || {};
   const layer = w.__WebGLMarineLayer_DIAG__ || {};
@@ -287,13 +320,21 @@ export function captureRings(win) {
       { name: 'forensic', counts: countBy(forensic, (e) => e.type), cap: 500 },
       // `__MARINE_CHURN__` increments counts BEFORE pushing and never decrements on eviction, so
       // `counts` is the TRUE total while `log` is only a sample of it. Quote counts, never log.length.
+      // Monotonic `counts` are TOTALS (C1 does not judge them for eviction); only the log fallback is a sample of an evicting ring.
       { name: 'churn', counts: (w.__MARINE_CHURN__ || {}).counts
-          || countBy(((w.__MARINE_CHURN__ || {}).log) || [], (e) => e.kind), cap: 150 },
+          || countBy(((w.__MARINE_CHURN__ || {}).log) || [], (e) => e.kind), cap: 150,
+        countsAreTotals: !!(w.__MARINE_CHURN__ || {}).counts },
     ],
+    // RETIRED 2026-10-26: the `uploadCount` pair compared __RAW_GPU__.textureUploadCount (EVERY texture upload: the wave texture,
+    // chlorophyll, bathymetry, the mask, the GPU frame store's shows and their aux) with the layer's normal-path setWaveData uploads.
+    // They agreed after the 2026-08-03 fix (131 vs 129). Since the frame store and the aux show (2026-10-21) they no longer count the
+    // same thing, so the pair failed in EVERY session (offline 87 vs 14; the owner's console twice, 2026-10-25): a premise out of
+    // date, not a data fault. Its replacement counts ONE quantity twice (see COMMIT_FOLLOW_UPS); the store off or absent SKIPS.
     pairs: [
-      { name: 'uploadCount', a: gpu.textureUploadCount, b: upload.uploadCount,
-        aLabel: '__RAW_GPU__.textureUploadCount', bLabel: 'uploadDiag.uploadCount',
-        tolerance: 8, note: 'both count marine texture uploads' },
+      { name: 'commits', a: storeCommitCount(w.__RAW_FRAME_STORE__), b: upload.uploadCount,
+        aLabel: 'frameStore.commits', bLabel: 'uploadDiag.uploadCount', tolerance: 0,
+        note: 'a normal upload skipped noteCommitted, a noteCommitted path returned without a reason, the commit path threw '
+          + 'between the two, or a store kill switch flipped mid-session (reload, then read again)' },
     ],
     fields: [
       { name: 'snap.dims', values: snaps.map((e) => e.dims) },

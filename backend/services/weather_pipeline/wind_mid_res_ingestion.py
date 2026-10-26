@@ -36,6 +36,21 @@ logger = logging.getLogger(__name__)
 
 _GLOBAL_REGION = {"west": -180.0, "south": -80.0, "east": 180.0, "north": 85.0}
 
+# HOURLY GFS WIND f000-f120 (2026-10-25, the owner's state-of-the-art ask; DARK). GFS pgrb2.0p25 is published hourly
+# to f120 and 3-hourly beyond, but this tier stored 3-hourly, so 2 of every 3 hours drew the nearest frame. With
+# FRAME_WIND_GFS_HOURLY=1 the NOAA-direct global_mid fetch also takes every hour to f120; the products save at step 1
+# as before, so the static frames (frame_set_wind) and /grid (nearest product) both serve them. THAT IS A SERVED-NUMBER
+# CHANGE (/grid wind between 3-hourly steps), so it is off by default and flips on the owner's word (D-001). Offline
+# hold-out (3 GFS runs, 2026-10-25): the best interpolation still leaves 0.89 m/s vector RMSE vs the real hour.
+# Cost: +80 steps x ~1.16 MB byte-range GRIB per run; +80 frames x ~51 KB on the CDN. The open-meteo fallback stays
+# 3-hourly. Read per call (os.environ).
+GFS_WIND_HOURLY_UNTIL_H = 120
+
+
+def gfs_wind_hourly_until():
+    """120 when FRAME_WIND_GFS_HOURLY=1, else None (3-hourly, today)."""
+    return GFS_WIND_HOURLY_UNTIL_H if os.environ.get("FRAME_WIND_GFS_HOURLY", "0") == "1" else None
+
 
 async def ingest_gfs_wind_global_mid_impl(scheduler) -> bool:
     """MID-RES (~2°) global GFS wind — NOAA-direct primary (quota-free NOMADS: this tier can
@@ -56,7 +71,8 @@ async def ingest_gfs_wind_global_mid_impl(scheduler) -> bool:
     if noaa_direct:
         try:
             from services.noaa_wind_service import fetch_gfs_wind_global_coarse
-            results = await fetch_gfs_wind_global_coarse(_GLOBAL_REGION, resolution, forecast_days)
+            results = await fetch_gfs_wind_global_coarse(_GLOBAL_REGION, resolution, forecast_days,
+                                                         hourly_until=gfs_wind_hourly_until())
             if results:
                 from_noaa = True
                 logger.info(f"[Pipeline Scheduler] GFS wind mid-res NOAA-direct OK: {len(results)} points.")

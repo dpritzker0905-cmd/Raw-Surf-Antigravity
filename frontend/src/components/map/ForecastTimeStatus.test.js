@@ -45,3 +45,36 @@ it('does not claim an unverified render diagnostic proves a stale field', () => 
   expect(screen.getByRole('status')).toHaveTextContent(/verifying.*displayed forecast time/i);
   expect(screen.getByRole('status')).not.toHaveTextContent(/does not match/i);
 });
+
+describe('the rating band held off (marineRatingBandRes.js): said in words, never colour alone', () => {
+  afterEach(() => { delete window.__RAW_GPU__; });
+  it.each(['light', 'dark', 'beach'])('a coarse rating grid: the band pause is a polite status line in %s theme', (theme) => {
+    window.__RAW_GPU__ = { ratingBandFade: { heldBy: 'resolution' } };
+    render(<ForecastTimeStatus model="ICON" layer="waves" hour={0} theme={theme} />);
+    const el = screen.getByRole('status');
+    expect(el).toHaveTextContent(/surf ratings paused.*detailed rating grid.*still loading/i);
+    expect(el).toHaveAttribute('aria-live', 'polite');
+    expect(el).toHaveAttribute('data-rating-band-held', 'resolution');
+  });
+  it('a rating grid that ends in view says so, and the line clears when the engine stops holding', () => {
+    window.__RAW_GPU__ = { ratingBandFade: { heldBy: 'edge' } };
+    render(<ForecastTimeStatus model="ICON" layer="waves" hour={0} theme="dark" />);
+    expect(screen.getByRole('status')).toHaveTextContent(/does not cover this whole view/i);
+    window.__RAW_GPU__.ratingBandFade.heldBy = null;
+    act(() => { jest.advanceTimersByTime(600); });
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+  it('it sits beside the time-mismatch line instead of replacing it, and no line without a hold', () => {
+    window.__RAW_GPU__ = { ratingBandFade: { heldBy: 'resolution' } };
+    render(<ForecastTimeStatus model="GFS" layer="waves" hour={0} theme="dark" />);
+    const lines = screen.getAllByRole('status');
+    expect(lines).toHaveLength(2);
+    expect(lines[0]).toHaveAttribute('data-rating-band-held', 'resolution');   // FIRST: the phone sheet's last line sits under the bottom nav
+    expect(lines[1]).toHaveTextContent(/forecast time.*does not match/i);
+  });
+  it('no hold, no line (the usual case)', () => {
+    window.__RAW_GPU__ = { ratingBandFade: { heldBy: null } };
+    render(<ForecastTimeStatus model="ICON" layer="waves" hour={0} theme="dark" />);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+});

@@ -381,6 +381,8 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
       // which queued grids one delivery run uploads, and that the speed scale is set once after them (the same value the last
       // grid's own refresh sets): WHAT reaches the engine and WHEN, never a table, ramp or rule (windDeliveryCoalesce.js)
       '__RAW_DISABLE_WIND_DELIVERY_COALESCE__', '__RAW_DISABLE_WIND_REASK_DEDUPE__',
+      // which stored hour a series page asks (the manifest's nearest, hourly when the set is hourly): WHEN, never how it draws
+      '__RAW_DISABLE_WIND_SERIES_MANIFEST_SNAP__',
       // and the static-frame kills shared with marine (staticFrames.js), which the wind seam also honours
       '__RAW_DISABLE_STATIC_FRAMES__', '__RAW_DISABLE_STATIC_FRAMES_SETS__', '__RAW_DISABLE_STATIC_MID_CROP__',
       // the final hour of a wheel drag is settled at scrub end (scrub audit 2026-10-18, T-02): WHEN a grid is fetched, never how it is drawn
