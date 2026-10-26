@@ -72,6 +72,18 @@ describe('the rating band held off (marineRatingBandRes.js): said in words, neve
     expect(lines[0]).toHaveAttribute('data-rating-band-held', 'resolution');   // FIRST: the phone sheet's last line sits under the bottom nav
     expect(lines[1]).toHaveTextContent(/forecast time.*does not match/i);
   });
+  it('just switched ON and the rating grid still on its way: "loading" in words; the instant hide (off) says nothing', () => {
+    window.__RAW_BAND_TOGGLE_AT__ = Date.now();
+    window.__RAW_GPU__ = { ratingBand: { forcedOff: true }, ratingBandFade: { heldBy: null } };
+    render(<ForecastTimeStatus model="ICON" layer="waves" hour={0} theme="light" />);
+    expect(screen.getByRole('status')).toHaveTextContent(/surf ratings loading for this view/i);
+    delete window.__RAW_BAND_TOGGLE_AT__;
+  });
+  it('the instant hide is silent: the band is simply gone', () => {
+    window.__RAW_GPU__ = { ratingBandFade: { heldBy: 'off' } };
+    render(<ForecastTimeStatus model="ICON" layer="waves" hour={0} theme="dark" />);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
   it('no hold, no line (the usual case)', () => {
     window.__RAW_GPU__ = { ratingBandFade: { heldBy: null } };
     render(<ForecastTimeStatus model="ICON" layer="waves" hour={0} theme="dark" />);

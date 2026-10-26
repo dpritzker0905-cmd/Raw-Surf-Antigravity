@@ -28,6 +28,7 @@ import { getTarget, endTransition, recordChurn } from './marineTransitionCoordin
 import { claimEnqueueSlot } from './marineEnqueueSlot';
 import { marineErrorOwnsDisplay } from './marineSeekIdentity';
 import { keepSwrRetryCount, noteRequestDiet, swrReaskScheduledFor } from './marineRequestDiet';
+import { isFlavorToggleSource, releasePendingStampOf } from './marineFlavorToggle';
 
 /**
  * Release an abandoned in-flight marine fetch when a newer request supersedes it.
@@ -57,7 +58,6 @@ function releaseAbandonedFetch(inFlight, controller, site, activeSource, source)
 // real safety against aborting a live request — this just bounds how long a blank persists before
 // the watchdog acts. Kept short for fast recovery; govIdle prevents false positives.
 export const MARINE_FETCH_LEASE_MS = 4000;
-
 // HARD lease: a lock held this long is treated as dead UNLESS the in-flight registry proves otherwise. The
 // govIdle guard below trusts the governor to flag a live fetch, but a stranded fetch can leave the governor's
 // in-flight counters set TOO (its decrement skipped alongside locks.isFetching), so govIdle stays false forever
@@ -310,7 +310,7 @@ export function useMarineDataFetcherCore({
         // the ring reader's call site - see marineRingReader.js header -- rationale moved to docs/runbooks/RATIONALE-2026-08-04-moved-for-the-loc-ratchet.md
         try { ringReaderTick(typeof window !== 'undefined' ? window : null); } catch (e) { /* never fatal */ }
         const activeSource = locks.activeSource || 'unknown';
-        const isHighPriority = (src) => src === 'manual' || src.includes('timeline') || src.includes('scrub');
+        const isHighPriority = (src) => src === 'manual' || src.includes('timeline') || src.includes('scrub') || isFlavorToggleSource(src);
         if (isHighPriority(activeSource) && !isHighPriority(source)) {
           console.log(`[Abort-Gate] Preserving high-priority fetch (${activeSource}) against low-priority update request (${source})`);
           return;
@@ -320,7 +320,7 @@ export function useMarineDataFetcherCore({
         // stale commit; registry caps + unmounts) — but ABORT under active scrubbing so the
         // backend's disconnect-detection can cancel the remaining per-hour upstream work.
         releaseAbandonedFetch(inFlight, abortControllerRef.current, 'updateMarineGrid', activeSource, source);
-        locks.isFetching = false;
+        locks.isFetching = false; releasePendingStampOf(abortControllerRef.current);
       }
       if (!isRetry && !isTimelineScrub && consecutiveFailuresRef.current >= 3) return;
       const now = Date.now();
@@ -856,14 +856,14 @@ export function useMarineDataFetcherCore({
       pendingMarineIntentRef.current = { source, model: activeModelRef.current, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current, timestamp: Date.now() };
       logPipelineEventHelper('intent_buffered', pendingMarineIntentRef.current);
       const activeSource = locks.activeSource || 'unknown';
-      const isHighPriority = (src) => src === 'manual' || src.startsWith('manual') || src.includes('timeline') || src.includes('scrub');
+      const isHighPriority = (src) => src === 'manual' || src.startsWith('manual') || src.includes('timeline') || src.includes('scrub') || isFlavorToggleSource(src);
       if (isHighPriority(activeSource) && !isHighPriority(source)) {
         console.log(`[Abort-Gate] Preserving high-priority fetch (${activeSource}) against low-priority request (${source})`);
         return;
       }
       console.log(`[Release] Releasing active fetch (${activeSource}) in enqueueMarineUpdate for new source=${source} (scrub=abort, switch=detach+self-cache)`);
       releaseAbandonedFetch(inFlight, abortControllerRef.current, 'enqueueMarineUpdate', activeSource, source);
-      locks.isFetching = false;
+      locks.isFetching = false; releasePendingStampOf(abortControllerRef.current);
       locks.activeSource = null;
       if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
       timeoutIdRef.current = setTimeout(() => {

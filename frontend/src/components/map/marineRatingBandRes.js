@@ -57,5 +57,6 @@ export function resolveBandResolutionEdge(win, cov) {
 export function ratingBandHeldText(heldBy) {
   if (heldBy === 'resolution') return 'Surf ratings paused: the detailed rating grid for this view is still loading.';
   if (heldBy === 'edge') return 'Surf ratings paused: the rating grid does not cover this whole view yet.';
+  if (heldBy === 'loading') return 'Surf ratings loading for this view…';
   return null;
 }
