@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 import json
 import logging
@@ -109,7 +109,7 @@ async def get_crew_payment_details(
 
 class CrewPayRequest(BaseModel):
     participant_id: str
-    amount: float
+    amount: float = Field(..., ge=0, allow_inf_nan=False)
     payment_method: str = "credits"  # 'credits' or 'stripe'
 
 
