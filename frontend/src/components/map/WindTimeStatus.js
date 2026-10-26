@@ -24,7 +24,7 @@ export default function WindTimeStatus({ model, hour, theme, active }) {
   if (typeof window !== 'undefined' && active) window.__RAW_SELECTED_WIND__ = { model, hour };
   const readout = active ? windReadout({ model, hour }, drawn) : null;
   if (!readout) return null;
-  const tone = readout.state === 'pending'
+  const tone = readout.state === 'pending' || readout.state === 'held'   // a hold is a caveat, worded like a load
     ? (theme === 'light' ? 'text-amber-800' : 'text-amber-200')
     : (theme === 'light' ? 'text-slate-600' : theme === 'beach' ? 'text-cyan-100' : 'text-slate-300');
   return (

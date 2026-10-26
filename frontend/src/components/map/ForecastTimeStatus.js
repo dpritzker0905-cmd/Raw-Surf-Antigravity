@@ -70,7 +70,7 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
     return (
       <div role="status" aria-live="polite" data-drawn-state={readout.state} aria-busy={readout.state === 'pending' ? true : undefined}
         data-hold-indicator={longPending ? 'on' : undefined}
-        className={`mt-1 text-xs ${readout.state === 'pending' ? tone : quiet}`}>
+        className={`mt-1 text-xs ${readout.state === 'pending' || readout.state === 'held' ? tone : quiet}`}>
         {longPending && (
           <span aria-hidden="true" data-testid="hold-indicator"
             className="inline-block w-1.5 h-1.5 mr-1.5 align-middle rounded-full bg-current animate-pulse motion-reduce:animate-none" />
