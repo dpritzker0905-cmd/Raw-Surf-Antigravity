@@ -108,3 +108,29 @@ flagship pass, which stayed ONE pass (3 regions: the flagship boxes + global_mid
 
 Still owed from commitment 1944: ICON / EURO past their run + 336 h ceilings serve the 10-deg coarse hold until
 `FAR_EDGE_HOLD_PREFER_MID` (Render) is flipped; `FRAME_TAIL_DOWNLOAD` not flipped.
+
+## FAR_EDGE_HOLD_PREFER_MID flip, 2026-10-26
+
+Owner, 2026-10-25: "Yes: set FAR_EDGE_HOLD_PREFER_MID=1 on Render, log it, and read back ICON and EURO at now+336 h."
+Set 01:13:06Z in merge mode. The env update deploys the dev tip; the box already ran that tip (4e706abfd, which contains #548),
+so the deploy (live 01:16:34Z) shipped no other commit. Ledger `claude--day14-flip.jsonl:3`.
+
+| /grid world at now + 336 h (2026-11-09T01Z) | before, 01:02Z | after, 01:27Z |
+|---|---|---|
+| ICON waves | far_edge_hold +4.0 h, global_coarse **37 x 17 = 629** | far_edge_hold +4.0 h, **global_mid 181 x 83 = 15,023** |
+| ICON swell_1 | same, 37 x 17 coarse | same, **181 x 83 mid** |
+| EURO waves | global_coarse 37 x 17, a stored frame at 00Z (not a hold) | unchanged |
+
+`/api/health` healthy before and after each reading. **ICON: PASS.**
+
+**EURO, and a correction of #548's claim** (ledger `:4`, `:5`). #548 said the ICON/EURO tails keep their run + 336 h ceilings
+under `GFS_WORLD_FULL_HORIZON`. True for ICON and for the EURO 2-deg blend, false for the EURO 10-deg GFS-ext fill:
+`euro_marine_coarse_ingestion.py:122-141, 216-225` takes the cached GFS world fetch (`scheduler._gfs_coarse_marine_cache`,
+the only consumer, set at `scheduler.py:353`) and saves every hour after EURO's native data as a `gfs_estimated_fallback`
+EURO estimate, with no ceiling. The cache now runs 16 d, so EURO coarse estimated reaches 2026-11-10T06Z (storage: 30 files
+from 2026-11-04T03Z) while the EURO 2-deg blend ends 2026-11-08T21Z (37 files). Past 21Z + 3 h the resolver's stored tiers
+serve that 10-deg frame at the asked hour, and the hold, which refuses whenever any stored frame lies beyond the target, never
+engages. Labels stay honest (`is_estimated`, provider `estimated`). Inside the tail EURO is fine: 2026-11-07T12Z world =
+`global_mid` `euro_persistence_gfs_blend` 181 x 83. Fix options, the owner's call: clamp the EURO consumer to the 14 d it read
+before (one line where the cache is set: `trim_points_to_days(results, forecast_days)`), after which EURO's last hours get the
+2-deg hold like ICON; or keep the longer 10-deg GFS-based EURO estimate.
