@@ -1036,7 +1036,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       _ratingBandFade = resolveRatingBandFade(
         _vpSpanForFade, isRating && _surfFlagOn, blendEngaged,
         (typeof window !== 'undefined') ? window : undefined,
-        { coverFrac: (_residentCoverFrac === null) ? undefined : _residentCoverFrac, zoom: z, cellDeg: gridCellDeg(_gridForBlend) || undefined, uncoveredMs: edgeUncoveredMs(_residentCoverFrac) });
+        { coverFrac: (_residentCoverFrac === null) ? undefined : _residentCoverFrac, zoom: z, cellDeg: gridCellDeg(_gridForBlend) || undefined, uncoveredMs: edgeUncoveredMs(_residentCoverFrac), bandOff: !_surfFlagOn && isRating });
       if (typeof window !== 'undefined' && window.__RAW_GPU__) {
         window.__RAW_GPU__.ratingBandFade = {
           span: _vpSpanForFade, washEngaged: blendEngaged,
