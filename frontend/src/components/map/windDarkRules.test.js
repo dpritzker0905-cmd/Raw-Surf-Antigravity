@@ -378,6 +378,8 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
       // (CDN bytes, node-for-node equal to /grid) and WHEN it is fetched or built; no table, ramp, ground or rule reads any of them
       '__RAW_DISABLE_WIND_STATIC_FRAMES__', '__RAW_DISABLE_WIND_STATIC_LANE_HOURS__', '__RAW_DISABLE_WIND_STATIC_CROP__', '__RAW_DISABLE_WIND_PREFETCH__',
       '__RAW_DISABLE_WIND_INSTANT_STEP__', '__RAW_DISABLE_WIND_SERIES_STATIC_SKIP__', '__RAW_DISABLE_WIND_STALE_COVERING__', '__RAW_DISABLE_WIND_LANE_REBUILT_INDEX__', '__RAW_DISABLE_WIND_SERIES_TRIM__', '__RAW_DISABLE_WIND_FRAME_HASH_SEED__', '__RAW_DISABLE_WIND_SERIES_AFTER_PAINT__',
+      // WHEN the prefetch plans (after the next paint) and when the truth tag's census is counted: never what is drawn
+      '__RAW_DISABLE_WIND_PREFETCH_REPLAN_AFTER_PAINT__', '__RAW_DISABLE_TRUTH_TAG_LAZY_CENSUS__',
       // and the static-frame kills shared with marine (staticFrames.js), which the wind seam also honours
       '__RAW_DISABLE_STATIC_FRAMES__', '__RAW_DISABLE_STATIC_FRAMES_SETS__', '__RAW_DISABLE_STATIC_MID_CROP__',
       // the final hour of a wheel drag is settled at scrub end (scrub audit 2026-10-18, T-02): WHEN a grid is fetched, never how it is drawn
