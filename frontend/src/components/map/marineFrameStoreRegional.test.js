@@ -19,6 +19,7 @@ jest.mock('./staticFrames', () => ({
   staticFramesEnabled: () => mockSF.enabled,
   setKeyFor: (m, l) => `${String(m).toUpperCase()}/marine/${String(l).toLowerCase()}/global_mid`,
   storeSetKeyFor: (m, l) => `${String(m).toUpperCase()}/marine/${String(l).toLowerCase()}/global_mid`,   // the plain set (no filled set in these mocks)
+  storeCropSetKeyFor: () => null,   // one set per model in these mocks: no separate mid-zoom crop set (2026-10-26)
   getPinnedIndexSync: (k) => (/global_mid$/.test(k) ? mockSF.world : null),            // as the real one: regional keys stay out
   getPinnedRegionalIndexSync: (k) => mockSF.regional[k] || null,
   pinnedRegionalKeys: () => Object.keys(mockSF.regional),
