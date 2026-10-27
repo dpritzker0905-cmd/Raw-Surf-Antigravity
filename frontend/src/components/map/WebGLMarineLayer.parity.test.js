@@ -507,9 +507,12 @@ describe('the badge after a clear and a good frame (a consumer that memoizes bef
     delete window.__RAW_DISABLE_CLEAR_HOLD__;
     delete window.__RAW_DISABLE_SWITCH_HOLD__;
     window.__RAW_SWITCH_HOLD_TTL_MS__ = 0; // an EXPIRED switch hold: the clear really happens
+    window.__RAW_SWITCH_HOLD_BLANK_ON_EXPIRY__ = true;   // ... with the old blank at the bound (since 2026-10-26 the default holds)
   });
   afterEach(() => {
     delete window.__RAW_SWITCH_HOLD_TTL_MS__;
+    delete window.__RAW_SWITCH_HOLD_BLANK_ON_EXPIRY__;
+    delete window.__MARINE_SWITCH_STALLED__;
     delete window.__MARINE_HEATMAP_STATUS__;
   });
 
