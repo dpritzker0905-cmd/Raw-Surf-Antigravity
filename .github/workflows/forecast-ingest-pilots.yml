@@ -155,6 +155,7 @@ jobs:
       # Can never fail the ingest cycle (continue-on-error).
       # ON: repository variable FRAME_IMAGES_PUBLISH = '1' (Settings > Secrets and variables > Actions > Variables).
       - name: Publish static forecast frames (dark)
+        id: frames_publish
         if: ${{ success() && vars.FRAME_IMAGES_PUBLISH == '1' }}
         continue-on-error: true
         # 22 (was 15, 2026-10-26): the tails add ~464 frames (232 plain + 232 filled at 0.24-0.38 s each, measured offline) and
@@ -181,6 +182,13 @@ jobs:
           MARINE_GULF_FILL_MID: ${{ vars.MARINE_GULF_FILL_MID || '1' }}
           MARINE_GULF_FILL_MID_TARGETED: ${{ vars.MARINE_GULF_FILL_MID_TARGETED || '0' }}
         run: python scripts/publish_frame_images.py
+
+      # 2026-10-27 (the lead): the step above exits 1 on a refused set or a crash, and continue-on-error turns that green: the
+      # regional sets went 11 h unpublished (a 429 on the latest.json read, then the coverage gate) with every run green.
+      # This only annotates the run; the ingest cycle still never fails on the frames step.
+      - name: Warn when the static frames publish failed
+        if: ${{ !cancelled() && steps.frames_publish.outcome == 'failure' }}
+        run: echo "::warning title=Static frames publish failed::publish_frame_images.py exited non-zero; the published indexes stay. See the step log and the Static frames summary."
 
       # RASTER STATIC FRAMES (2026-10-23, free-GRIB raster phase 1, services/frame_set_raster.py): GFS mean-sea-level pressure
       # (NOAA pgrb2.0p25 PRMSL by .idx byte range from AWS Open Data, every second point = 720 x 361 at 0.5 deg, f000-f336 every

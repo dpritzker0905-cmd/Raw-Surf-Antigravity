@@ -5,7 +5,7 @@
  * The rule (CLAUDE.md accessibility + the audit's central invariant): never show an older or different field as the
  * selection without saying so in the same frame, in words (never colour alone).
  *   pending   — the drawn layer/model differs (a switch is loading), or the drawn hour is far from the selection
- *   nearest   — the drawn hour is the nearest stored forecast (all marine data is 3-hourly; EURO waves 6-hourly past 144 h)
+ *   nearest   — the drawn hour is the nearest stored forecast (all marine data is 3-hourly; EURO 6-hourly past model step 144)
  *   estimated — the frame is an estimate / blend (ICON swell 2, the extended tails that reach 14 days)
  * Returns null when the drawn frame IS the selection and is not an estimate.
  */
@@ -16,8 +16,20 @@ const MODEL_NAMES = { GFS: 'GFS', ICON: 'ICON', EURO: 'EURO' };
 // the nearest stored forecast, anything further is still loading.
 const NEAREST_MAX_HOURS = 3;
 /** Half the stored lattice step at this hour: 3-hourly frames are never more than 1 h from a selection; EURO past 144 h is
- *  6-hourly (3 h). One rule for the marine line, the wind line and the point card's badge (review 2026-10-19). */
-export function latticeNearestMaxHours(model, hour) { return model === 'EURO' && hour > 144 ? 3 : 1; }
+ *  6-hourly (3 h). One rule for the marine line, the wind line and the point card's badge (review 2026-10-19).
+ *  BY MODEL STEP (2026-10-27, the lead's live read on dev dcc514bf3): EURO goes 6-hourly past model STEP 144 (valid time minus the
+ *  run's cycle), and the timeline counts from now: with an 18 h-old run the 6-hourly range starts at timeline hour 126, so hours
+ *  126-144 read "Loading <selected>… still showing <the nearest stored frame>" for good (the server serves the authoritative frame
+ *  within 3 h before an estimate, grid_resolver_selection.find_candidates + mid_res_tier.pick_mid_item). The step comes from the
+ *  selection's instant and the DRAWN frame's verified cycle (marineDrawnFrame runMs); an unknown cycle keeps the timeline hour.
+ *  Kill: window.__RAW_DISABLE_LATTICE_MODEL_STEP__ = true (the timeline hour decides again). */
+export const EURO_SIX_HOURLY_AFTER_STEP = 144;
+export function latticeNearestMaxHours(model, hour, { selectedMs, runMs } = {}) {
+  if (model !== 'EURO') return 1;
+  const byStep = !(typeof window !== 'undefined' && window.__RAW_DISABLE_LATTICE_MODEL_STEP__ === true)
+    && Number.isFinite(selectedMs) && Number.isFinite(runMs) && selectedMs >= runMs;
+  return (byStep ? (selectedMs - runMs) / 3600000 : hour) > EURO_SIX_HOURLY_AFTER_STEP ? 3 : 1;
+}
 
 export const ESTIMATE_WORDS = {
   icon_swell_2_gfs_euro_blend: 'blended from GFS and EURO',
@@ -79,8 +91,14 @@ export function describeDrawnFrame(requested, drawn, { nowMs = Date.now() } = {}
   const model = (m) => MODEL_NAMES[m] || m || '';
   if ((drawn.model && requested.model && drawn.model !== requested.model)
       || (drawn.layer && requested.layer && drawn.layer !== requested.layer)) {
-    return { state: 'pending',
-      text: `Loading ${model(requested.model)} ${layer(requested.layer)}… still showing ${model(drawn.model)} ${layer(drawn.layer)}` };
+    // A SWITCH IN PROGRESS (2026-10-26, hold until replaced): the drawn frame is named by its own model, layer and time, and once
+    // the hold's ceiling passes (marineTransitionCoordinator: __MARINE_SWITCH_STALLED__) the words say the new one is not arriving.
+    const when = Number.isFinite(drawn.dataMs) && !(typeof window !== 'undefined' && window.__RAW_DISABLE_DRAWN_LABEL_INSTANT__ === true)
+      ? `, ${formatInstant(drawn.dataMs, datedPair(drawn.dataMs, requested.labelMs, nowMs))}` : '';
+    const stall = typeof window !== 'undefined' ? window.__MARINE_SWITCH_STALLED__ : null;
+    const stalled = !!(stall && stall.targetKey === `${requested.model || 'GFS'}|${requested.layer || 'waves'}`);
+    const want = `${model(requested.model)} ${layer(requested.layer)}`; const have = `${model(drawn.model)} ${layer(drawn.layer)}${when}`;
+    return { state: 'pending', text: stalled ? `${want} is not arriving… still showing ${have}` : `Loading ${want}… still showing ${have}` };
   }
   const est = estimateWords(drawn);
   // Compare by INSTANT when both are known (the #267 rule, marineHourInstant.js: the label names the request, the valid time
