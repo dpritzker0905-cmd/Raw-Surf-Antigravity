@@ -45,8 +45,9 @@
  * Lever: window.__RAW_FRAME_WARM_REST_MS__ (500): how long the wheel must rest before the other models' warm frames follow it.
  * Telemetry: window.__RAW_FRAME_STORE__ (store, prefetch, GPU, shows and misses by reason).
  */
-import { staticFramesEnabled, onStaticFrameParsed, getPinnedIndexSync, getPinnedIndex, loadFrameParsed, storeSetKeyFor, staticEligible } from './staticFrames';
+import { staticFramesEnabled, onStaticFrameParsed, getPinnedIndexSync, getPinnedIndex, loadFrameParsed, storeSetKeyFor, storeCropSetKeyFor, staticEligible } from './staticFrames';
 import { pickIndexFrame, frameMeta } from './staticFrameCodec';
+import { plainClipServable } from './staticFrameCrop';   // the plain EURO/ICON crop's parity gate (2026-10-26)
 import { packStaticFrame, packSignature, validityDiff } from './marineFramePack';
 import { createFrameStore, resolveTier, setKeyOf } from './marineFrameStore';
 import { createIntent, createPrefetcher, idleSlice, planWant } from './marineFramePrefetch';
@@ -71,6 +72,18 @@ const WARM_MODELS = ['GFS', 'ICON', 'EURO'];
 const WORLD_BBOX = { west: -180, east: 180, south: -80, north: 80 };
 const W = () => (typeof window !== 'undefined' ? window : {});
 export const frameStoreOn = () => staticFramesEnabled() && W().__RAW_DISABLE_FRAME_STORE__ !== true;
+// EURO/ICON keep TWO sets here (2026-10-26): the FILLED world set for a world-sized resident, the PLAIN set for a mid-zoom window (a
+// viewport /grid is never Gulf-filled: staticWorldFillGuard.plainCropsOn). Which one a call means follows what the engine holds (or
+// what was just committed): a viewport clip reads the plain set. A plain guarded set is a CROP source only, never a world resident.
+const spanOfB = (b) => ((b.east < b.west) ? b.east + 360 - b.west : b.east - b.west);
+const isClip = (g) => !!(g && g.bounds) && spanOfB(g.bounds) < 340;
+const engineClip = () => { const e = rt.target && rt.target.getEngine ? rt.target.getEngine() : null; return isClip(e && e._waveData && e._waveData.waveGrid); };
+const keyFor = (model, layer, clip) => (clip && storeCropSetKeyFor(model, layer)) || storeSetKeyFor(model, layer);
+const cropOnly = (info) => { const [m, , l] = info.staticKey.split('/'); return !info.filled && storeCropSetKeyFor(m, l) === info.staticKey; };
+// PARITY GATE for the plain EURO/ICON crop (staticFrameCrop.plainClipServable): the request the clip was cut for is wider than 15 deg
+// (the resolver then keeps only global candidates, product_selection) and no regional tile of the set covers 70% of it (the only way
+// one comes back, prefer_overlapping_marine_region); under 15 deg a covering regional tile (an estimated tail) may win.
+const servableClip = (model, layer, b) => !!b && plainClipServable({ model, layer, bounds: b });
 
 const freshFill = () => ({ key: null, planned: false, armed: false, startedMs: null, doneMs: null, blocked: null });
 const freshAux = () => ({ aux: new Map(), auxPending: new Set(), auxSyncAt: -Infinity, warmPinAt: new Map(), lastPressAt: -Infinity, lastWarm: [], warmTimer: null,
@@ -289,10 +302,11 @@ function warmPlan(info, layer, requestedValidTime) {
   }
   const askMs = Date.parse(requestedValidTime);
   const out = [];
+  const clip = engineClip();                      // at mid zoom the other models' warm frames are their crop sources
   for (const m of WARM_MODELS) {
-    const k = storeSetKeyFor(m, layer);
+    const k = keyFor(m, layer, clip);
     if (k === info.staticKey || !staticEligible({ model: m, layer, bbox: WORLD_BBOX, surf: false })) continue;
-    const idx = getPinnedIndexSync(k);
+    const idx = getPinnedIndexSync(k, { crop: clip });
     if (!idx) { pinWarm(k); continue; }
     const wi = setFor(k, idx);
     const f = pickIndexFrame(idx, askMs);
@@ -355,7 +369,7 @@ function packInto(info, validTime, parsed, buffer) {
 // Frames #422's own loads parsed (seam A / seam B): pack them, unless the prefetcher owns the request (it packs its own).
 function onParsed({ key, frame, parsed, buffer }) {
   if (!frameStoreOn() || !frame || !frame.valid_time) return;
-  const index = getPinnedIndexSync(key);
+  const index = getPinnedIndexSync(key, { crop: true });              // a plain EURO/ICON frame too: a crop source (never shown world-sized)
   if (!index) { CS.regionalParsed(key, frame, parsed); return; }     // a pilot tile's frame (z7-9): its window pack only (not a store set)
   const info = setFor(key, index);
   CS.cropFromParsed(info, frame.valid_time, parsed);                 // a resident crop window: this frame's crop pack too
@@ -407,9 +421,15 @@ export function noteCommitted(grid, { hour, model, layer } = {}) {
   const why = (r) => { rt.commits[r] = (rt.commits[r] || 0) + 1; };
   if (!frameStoreOn() || !grid) return;
   if (CS.noteRegionalCommitted(grid, model || grid.__sourceModel, layer || grid.__componentLayer)) { publishTelemetry(); return why('resident_crop_regional'); }   // a pilot tile's window (z7-9)
-  const key = storeSetKeyFor(model || grid.__sourceModel, layer || grid.__componentLayer);
-  const index = getPinnedIndexSync(key);
-  if (!index) { CS.noteForeignCommit(grid, model || grid.__sourceModel, layer || grid.__componentLayer); return why('no_index'); }
+  const clip = isClip(grid);
+  const key = keyFor(model || grid.__sourceModel, layer || grid.__componentLayer, clip);
+  const index = getPinnedIndexSync(key, { crop: clip });
+  if (!index) {
+    // Nothing else reads a plain EURO/ICON set at mid zoom (the static seam's crop rule refuses those boxes), so the store pins it
+    // itself: the next commit of this clip finds it (pinWarm, one index read per set a minute; this commit stays foreign).
+    if (clip && key === storeCropSetKeyFor(model || grid.__sourceModel, layer || grid.__componentLayer)) pinWarm(key);
+    CS.noteForeignCommit(grid, model || grid.__sourceModel, layer || grid.__componentLayer); return why('no_index');
+  }
   if (grid.ratingMode) return why('rating');
   const info = setFor(key, index);
   // Which stored frame is it? Its served time when it carries one; else its product id through the run index (the
@@ -426,7 +446,9 @@ export function noteCommitted(grid, { hour, model, layer } = {}) {
   // 181 x 81 while the committed grid says 181 x 83; the pack is trimmed the same way.
   const engine = rt.target && rt.target.getEngine ? rt.target.getEngine() : null;
   if (!e) return why('not_indexed');
+  if (cropOnly(info) && !servableClip(model || grid.__sourceModel, layer || grid.__componentLayer, grid.bounds)) { CS.noteForeignCommit(grid, model || grid.__sourceModel, layer || grid.__componentLayer); return why('crop_only_narrow'); }
   if (CS.noteCropCommitted(info, vt, grid)) return why('resident_crop');   // a window of this frame (marineFrameStoreCrop)
+  if (cropOnly(info)) return why('crop_only_set');                         // a plain EURO/ICON set is never a world resident
   if (!e.pack) {
     // Committed before its own pack landed (the prefetch or the idle pack is still out): resolve when it lands.
     if (engine) rt.pendingResident = { setKey: info.key, validTime: vt, cols: engine._texWidth, rows: engine._texHeight };
@@ -441,8 +463,9 @@ export function noteCommitted(grid, { hour, model, layer } = {}) {
 export function noteStep({ model, layer, requestedValidTime, commit = false } = {}) {
   if (!frameStoreOn() || W().__RAW_DISABLE_FRAME_PREFETCH__ === true || !rt.target) return;
   ensureInit();
-  const key = storeSetKeyFor(model, layer);
-  const index = getPinnedIndexSync(key);
+  const clip = engineClip();
+  const key = keyFor(model, layer, clip);
+  const index = getPinnedIndexSync(key, { crop: clip });
   if (!index) return;
   const info = setFor(key, index);
   const frame = pickIndexFrame(index, Date.parse(requestedValidTime));
@@ -529,8 +552,9 @@ function showStored({ model, layer, hourOffset, requestedValidTime }, switching)
     // ICON past 168 h is drawn from a client-side blend (backendWeatherServiceClient -> fetchBackendMarineGridIconExtended), never
     // its stored frame, unless the build reads the stored tail: the store never shows a frame the normal path will not draw.
     if (model === 'ICON' && hourOffset > 168 && process.env.REACT_APP_ICON_STORED_TAIL !== 'true') return miss('icon_blend_hour');
-    const key = storeSetKeyFor(model, layer);
-    const index = getPinnedIndexSync(key);
+    const clip = engineClip();
+    const key = keyFor(model, layer, clip);
+    const index = getPinnedIndexSync(key, { crop: clip });
     if (!index) return miss('no_index');
     const frame = pickIndexFrame(index, Date.parse(requestedValidTime));
     if (!frame) return miss('no_frame_in_window');
@@ -540,7 +564,11 @@ function showStored({ model, layer, hourOffset, requestedValidTime }, switching)
     if (lakePlan === 'decline') return miss('lake_mask');
     if (lakePlan === 'swap' && (CS.cropResidentFor(info) || (switching && CS.cropResidentOther(info)))) return miss('lake_mask_crop');
     if (CS.cropResidentFor(info)) return CS.showCropFrame(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0);
-    if (switching && CS.cropResidentOther(info)) return CS.showCropSwitch(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0);
+    if (switching && CS.cropResidentOther(info)) {
+      if (cropOnly(info) && !servableClip(model, layer, CS.crop.resident.bounds)) return miss('crop_only_narrow');   // the parity gate
+      return CS.showCropSwitch(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0);
+    }
+    if (cropOnly(info)) return miss('crop_only_set');      // a plain EURO/ICON set shows windows only (a world /grid is Gulf-filled)
     const e = store().lookup(info.key, frame.valid_time);
     if (!e || !e.pack) {
       rt.want = { args: { model, layer, hourOffset, requestedValidTime }, switching, setKey: info.key, validTime: frame.valid_time, at: Date.now() };

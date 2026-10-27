@@ -18,6 +18,7 @@ jest.mock('./staticFrames', () => ({
   staticFramesEnabled: () => true,
   setKeyFor: (m, l) => `${String(m).toUpperCase()}/marine/${String(l).toLowerCase()}/global_mid`,
   storeSetKeyFor: (m, l) => `${String(m).toUpperCase()}/marine/${String(l).toLowerCase()}/global_mid`,   // the plain set (no filled set in these mocks)
+  storeCropSetKeyFor: () => null,   // one set per model in these mocks: no separate mid-zoom crop set (2026-10-26)
   getPinnedIndexSync: (k) => mockSF.byKey[k] || null,
   getPinnedIndex: async (k) => mockSF.byKey[k] || null,
   staticEligible: ({ model }) => String(model).toUpperCase() === 'GFS',

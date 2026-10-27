@@ -8,7 +8,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { _resetStaticFramesForTest, getPinnedIndex, getPinnedIndexSync, staticEligible, storeSetKeyFor } from './staticFrames';
+import { _resetStaticFramesForTest, getPinnedIndex, getPinnedIndexSync, staticEligible, storeCropSetKeyFor, storeSetKeyFor } from './staticFrames';
 import { filledStoreAccepts } from './staticWorldFillGuard';
 
 const BASE = 'https://cdn.test/weather-frames/';
@@ -37,7 +37,7 @@ function cdn(filledIndex) {
   });
 }
 const flush = () => new Promise((r) => setTimeout(r, 0));
-const KILLS = ['__RAW_DISABLE_FILLED_WORLD_STORE__', '__WEATHER_CAPABILITIES__', '__RAW_DISABLE_STATIC_FILLED_WORLD__'];
+const KILLS = ['__RAW_DISABLE_FILLED_WORLD_STORE__', '__WEATHER_CAPABILITIES__', '__RAW_DISABLE_STATIC_FILLED_WORLD__', '__RAW_DISABLE_PLAIN_SET_CROPS__'];
 
 describe('the frame store and the filled EURO/ICON world set', () => {
   const realFetch = global.fetch;
@@ -106,10 +106,34 @@ describe('the frame store and the filled EURO/ICON world set', () => {
     expect(getPinnedIndexSync(FILLED)).toBe(null);
   });
 
-  test('wiring: the store reads storeSetKeyFor, keeps a filled set in its own domain, and builds no crop from one', () => {
+  // MID-ZOOM CROPS FROM THE PLAIN SET (2026-10-26): a viewport /grid is never Gulf-filled (coarse_gulf_fill: span < 350), so the plain
+  // EURO/ICON index is served to the store as a CROP source (getPinnedIndexSync(key, { crop: true })), never as a world frame.
+  test('the plain EURO set is a crop source only: { crop: true } serves it, a world read never does; the kill and a lifted guard end it', async () => {
+    window.__WEATHER_CAPABILITIES__ = caps('targeted');
+    cdn(indexFor('filled', { mode: 'targeted' }));
+    staticEligible({ model: 'EURO', layer: 'waves', bbox: WORLD });
+    await flush();
+    expect(await getPinnedIndex(PLAIN)).not.toBe(null);
+    expect(getPinnedIndexSync(PLAIN)).toBe(null);                                        // a world read: refused, as before
+    expect(getPinnedIndexSync(PLAIN, { crop: true })).toEqual(expect.objectContaining({ path: 'v1/idx/plain.json' }));
+    expect(storeCropSetKeyFor('EURO', 'waves')).toBe(PLAIN);
+    expect(storeCropSetKeyFor('GFS', 'waves')).toBe(null);                              // GFS has one set for both: nothing to choose
+    window.__RAW_DISABLE_PLAIN_SET_CROPS__ = true;                                       // the kill: today's behaviour
+    expect(getPinnedIndexSync(PLAIN, { crop: true })).toBe(null);
+    expect(storeCropSetKeyFor('EURO', 'waves')).toBe(null);
+    delete window.__RAW_DISABLE_PLAIN_SET_CROPS__;
+    window.__WEATHER_CAPABILITIES__ = caps('off');                                       // the server fills no world grid: the plain set IS the world set
+    expect(storeCropSetKeyFor('EURO', 'waves')).toBe(null);
+    expect(getPinnedIndexSync(PLAIN)).not.toBe(null);
+  });
+
+  test('wiring: the store picks its set through keyFor (filled for a world resident, plain for a clip), keeps a filled set in its own domain, and builds no crop from one', () => {
     const src = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8');
     const rt = src('marineFrameStoreRuntime.js');
-    expect(rt.match(/storeSetKeyFor\(/g)).toHaveLength(4);             // warm plan, noteCommitted, noteStep, the show
+    expect(rt.match(/storeSetKeyFor\(/g)).toHaveLength(1);             // inside keyFor only
+    expect(rt.match(/\bkeyFor\(/g)).toHaveLength(4);                   // warm plan, noteCommitted, noteStep, the show
+    expect(rt.match(/getPinnedIndexSync\(k(ey)?, \{ crop: clip \}\)/g)).toHaveLength(4);   // each read says whether it is for a clip
+    expect(rt.match(/if \(cropOnly\(info\)\) return (why|miss)\('crop_only_set'\)/g)).toHaveLength(2);   // never a world resident, never a world show
     expect(rt).not.toMatch(/[^e]setKeyFor\(/);                          // no lookup left on the plain key
     expect(rt).toMatch(/domain: filled \? 'world_filled' : 'world'/);
     const cs = src('marineFrameStoreCropShow.js');
