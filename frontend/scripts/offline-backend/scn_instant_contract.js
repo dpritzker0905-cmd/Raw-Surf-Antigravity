@@ -20,7 +20,7 @@
 // controls are not opened yet (VIEW=phone fails at the layer chip).
 // PLAN tokens: R = one ArrowRight; PU / PD = PageUp / PageDown; J:<h> = a far jump to hour h as a fast key run (PageUp/PageDown, then
 // arrows, 40 ms apart: what a wheel drag sends); D:<n> = a held key, n ArrowRight presses DRAG_GAP ms apart; M = switch to the next
-// model in MODELS (a click on its chip mid-scrub); H = Home.
+// model in MODELS (a click on its chip mid-scrub); H = Home; B = the Surf Rating band toggled.
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
@@ -101,6 +101,8 @@ const PROBE = () => {
     if (W && !W.done && W.t0 != null && t >= W.t0) {
       const s = P.snap(); const rel = t - W.t0;
       W.frames += 1;
+      if (W.lastT != null) W.maxGap = Math.max(W.maxGap || 0, t - W.lastT);   // the longest frame in the window (jank)
+      W.lastT = t;
       if (P.layerOn && !s.has) { W.blank += 1; if (W.blankAt == null) W.blankAt = Math.round(rel); }
       // MISLABEL: a frame labelled (target model, hour h) whose OWN data time is more than 1.5 h from h (the nearest 3-hourly stored
       // frame is at most 1.5 h off by design), or whose product is another model's. Silent when the status line does not say so.
@@ -116,6 +118,12 @@ const PROBE = () => {
           if (silent && !W.silentEx) W.silentEx = ex;
         }
       }
+      // REGRESS (the lead's R8: an ICON +1d burst to h312 showed "still showing Tue 2 PM", h24): on a forward action, a frame whose own
+      // data time is more than 3 h OLDER than the frame drawn when the action began.
+      if (s.has && W.target > W.from && W.startMs != null) {
+        const dm2 = dataMs(s, W);
+        if (dm2 != null && dm2 < W.startMs - 3 * 3600000) { W.regress = (W.regress || 0) + 1; if (!W.regressEx) W.regressEx = { rel: Math.round(rel), hour: s.hour, model: s.model, pid: s.pid && s.pid.slice(-56), served: s.served, series: s.series, store: s.store, dims: `${s.cols}x${s.rows}`, status: status() }; }
+      }
       if (W.exact == null && isExact(s, W, W.target, W.model)) { W.exact = rel; W.via = s.store ? 'store' : (s.series ? 'series' : 'grid'); W.end = `${s.cols}x${s.rows}`; }
       // Drag presses: each one shown (exact) before the next press, or skipped.
       for (const p of W.presses || []) {
@@ -129,7 +137,7 @@ const PROBE = () => {
   };
   requestAnimationFrame(loop);
   P.arm = (w) => { P.w = { ...w, t0: null, frames: 0, blank: 0, blankAt: null, mislabel: 0, mislabelSilent: 0, exact: null, via: null, dims: [], lastDims: '', presses: [] }; };
-  P.go = () => { P.w.t0 = performance.now(); P.w.tGo = P.w.t0; };
+  P.go = () => { P.w.t0 = performance.now(); P.w.tGo = P.w.t0; const s = P.snap(); P.w.startMs = s.has ? dataMs(s, P.w) : null; };
   P.press = (hour) => { const W = P.w; const now = performance.now(); for (const p of W.presses) if (p.shown == null) p.skipped = true; W.presses.push({ hour, t: now, shown: null, skipped: false }); };
   P.read = () => { const { presses, ...w } = P.w; const t0 = w.tGo || 0;
     return { ...w, clears: P.clears.filter((c) => c.t >= t0).map((c) => ({ ...c, t: Math.round(c.t - t0) })), presses: presses.map((p) => ({ hour: p.hour, shown: p.shown == null ? null : Math.round(p.shown), skipped: p.skipped })) }; };
@@ -215,13 +223,18 @@ async function session({ model0, layer, zoom, theme, arm }) {
       else if (tok.startsWith('J:')) { target = +tok.slice(2); keys = keyRun(from, target); }
       else if (tok.startsWith('D:')) { const n = +tok.slice(2); target = Math.min(336, from + n); keys = Array(target - from).fill('ArrowRight'); drag = true; }
       else if (tok === 'M') { if (!others.length) continue; to = others[next++ % others.length]; if (to === model) to = model0; }
+      else if (tok === 'B') { target = from; }   // the Surf Rating band toggled (the owner's band/flavour sequence before a switch)
       const hours = drag ? Array.from({ length: target - from + 1 }, (_, i) => from + i) : [...new Set([from, target])];
       const expected = await expectedFor(to, hours);
-      await page.evaluate((w) => window.__IC__.arm(w), { model: to, layer, target, anchor, expected });
+      await page.evaluate((w) => window.__IC__.arm(w), { model: to, layer, target, from, anchor, expected });
       const ring0 = await page.evaluate(() => Date.now());
       const t0 = Date.now();
       if (tok === 'M') {
         await page.evaluate(() => window.__IC__.go()); await clickExact(page, to); model = to;
+      } else if (tok === 'B') {
+        await page.evaluate(() => window.__IC__.go());
+        const band = page.locator('button').filter({ hasText: /^\s*Surf Rating: (ON|OFF)\s*$/ }).filter({ visible: true }).first();
+        if (await band.count()) await band.evaluate((el) => el.click());
       } else {
         await focusWheel(page);
         await page.evaluate(() => window.__IC__.go());
@@ -241,9 +254,12 @@ async function session({ model0, layer, zoom, theme, arm }) {
       r = await page.evaluate(() => { const x = window.__IC__.read(); window.__IC__.w.done = true; return x; });
       const ring = await page.evaluate((t0) => { const f = window.__RAW_FORENSIC__; const d = f && f.dump ? f.dump() : null;
         return d ? d.events.filter((e) => e.t >= t0 && /clear|commit|reject/.test(e.type)).slice(0, 30).map((e) => { const o = { dt: e.t - t0, type: e.type }; for (const k of ['reason', 'model', 'hour', 'dims', 'lane', 'hadResident', 'residentDims']) if (e[k] !== undefined) o[k] = e[k]; return o; }) : null; }, ring0);
+      const maskRebuilds = await page.evaluate((t0) => { const f = window.__RAW_FORENSIC__; const d = f && f.dump ? f.dump() : null;
+        return d ? d.events.filter((e) => e.t >= t0 && e.type === 'mask_rebuild').map((e) => e.dims) : null; }, ring0);
       const status = await page.evaluate(() => [...document.querySelectorAll('[role="status"]')].filter((x) => x.offsetParent !== null).map((x) => x.textContent.trim()).join(' | ').slice(0, 160));
       const shown = (r.presses || []).filter((p) => p.shown != null).map((p) => p.shown);
       actions.push({ tok, model: to, from, target, exactMs: r.exact == null ? null : Math.round(r.exact), via: r.via, end: r.end, blank: r.blank, blankAt: r.blankAt,
+        regress: r.regress || 0, regressEx: r.regressEx || null, maxFrameMs: r.maxGap == null ? null : Math.round(r.maxGap), maskRebuilds,
         mislabel: r.mislabel, mislabelSilent: r.mislabelSilent, maxOffH: +(r.maxOffH || 0).toFixed(2), mislabelEx: r.mislabelEx || null, silentEx: r.silentEx || null,
         clears: r.clears && r.clears.length ? r.clears : undefined, frames: r.frames, dims: r.dims.slice(0, 12), status,
         ...(drag ? { drag: { presses: r.presses.length, shown: shown.length, skipped: r.presses.filter((p) => p.skipped).length, late: shown.filter((x) => x > 33).length, maxShown: shown.length ? Math.max(...shown) : null } } : {}),
@@ -270,7 +286,7 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
       const steps = s.actions.filter((a) => !a.drag);
       const ex = steps.map((a) => a.exactMs);
       console.log(`${arm.name} ${theme} ${layer} z${zoom} ${model0} [${s.bundle || '?'} idle ${s.idleTwoRafMedian}]: p95=${pct(ex, 0.95)} missed=${ex.filter((x) => x == null).length}/${ex.length} blank=${s.actions.reduce((a, x) => a + x.blank, 0)} mislabel=${s.actions.reduce((a, x) => a + x.mislabel, 0)}`,
-        JSON.stringify(s.actions.map((a) => [a.tok, a.model, a.target, a.exactMs, a.via, a.blank || undefined, a.mislabel || undefined, a.drag ? `${a.drag.shown}/${a.drag.presses} late${a.drag.late}` : undefined])), s.error || '');
+        JSON.stringify(s.actions.map((a) => [a.tok, a.model, a.target, a.exactMs, a.via, a.blank || undefined, a.mislabel || undefined, a.drag ? `${a.drag.shown}/${a.drag.presses} late${a.drag.late}` : undefined, a.regress ? `regress${a.regress}` : undefined])), s.error || '');
       if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify(out, null, 1));
     }
     const summary = {};
@@ -279,7 +295,7 @@ const pct = (a, p) => { const s = a.filter((x) => x != null).sort((x, y) => x - 
       const steps = s.actions.filter((a) => !a.drag); const drags = s.actions.filter((a) => a.drag);
       const ex = steps.map((a) => a.exactMs);
       summary[k] = { step_p50: pct(ex, 0.5), step_p95: pct(ex, 0.95), missed: ex.filter((x) => x == null).length, steps: ex.length,
-        blank: s.actions.reduce((a, x) => a + x.blank, 0), mislabel: s.actions.reduce((a, x) => a + x.mislabel, 0), mislabelSilent: s.actions.reduce((a, x) => a + x.mislabelSilent, 0),
+        blank: s.actions.reduce((a, x) => a + x.blank, 0), regress: s.actions.reduce((a, x) => a + (x.regress || 0), 0), mislabel: s.actions.reduce((a, x) => a + x.mislabel, 0), mislabelSilent: s.actions.reduce((a, x) => a + x.mislabelSilent, 0),
         drag_late: drags.reduce((a, x) => a + x.drag.late, 0), drag_shown: drags.reduce((a, x) => a + x.drag.shown, 0), drag_presses: drags.reduce((a, x) => a + x.drag.presses, 0),
         via: steps.reduce((a, x) => { a[x.via || 'none'] = (a[x.via || 'none'] || 0) + 1; return a; }, {}), idle: s.idleTwoRafMedian, error: s.error };
       summary[k].pass = !s.error && summary[k].step_p95 != null && summary[k].step_p95 <= 100 && !summary[k].missed && !summary[k].blank && !summary[k].mislabel && !summary[k].drag_late;

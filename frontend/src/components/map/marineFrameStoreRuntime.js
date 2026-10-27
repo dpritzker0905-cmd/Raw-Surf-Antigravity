@@ -47,6 +47,7 @@
  */
 import { staticFramesEnabled, onStaticFrameParsed, getPinnedIndexSync, getPinnedIndex, loadFrameParsed, storeSetKeyFor, storeCropSetKeyFor, staticEligible } from './staticFrames';
 import { pickIndexFrame, frameMeta } from './staticFrameCodec';
+import { plainClipServable } from './staticFrameCrop';   // the plain EURO/ICON crop's parity gate (2026-10-26)
 import { packStaticFrame, packSignature, validityDiff } from './marineFramePack';
 import { createFrameStore, resolveTier, setKeyOf } from './marineFrameStore';
 import { createIntent, createPrefetcher, idleSlice, planWant } from './marineFramePrefetch';
@@ -79,11 +80,10 @@ const isClip = (g) => !!(g && g.bounds) && spanOfB(g.bounds) < 340;
 const engineClip = () => { const e = rt.target && rt.target.getEngine ? rt.target.getEngine() : null; return isClip(e && e._waveData && e._waveData.waveGrid); };
 const keyFor = (model, layer, clip) => (clip && storeCropSetKeyFor(model, layer)) || storeSetKeyFor(model, layer);
 const cropOnly = (info) => { const [m, , l] = info.staticKey.split('/'); return !info.filled && storeCropSetKeyFor(m, l) === info.staticKey; };
-// PARITY GATE for the plain EURO/ICON crop: the resolver keeps only GLOBAL candidates for a box wider than 15 deg whenever a global
-// one exists within +-3 h (product_selection: lon or lat span > 15), so /grid answers such a box with the global_mid clip; under
-// 15 deg a covering regional tile (an estimated florida_east_coast tail, say) may win. The clip the server cuts is padded by
-// min(12, max(2, span / 2)) each side, so a request wider than 15 deg is a clip wider than 30 deg.
-const wideClip = (g) => !!(g && g.bounds) && Math.max(spanOfB(g.bounds), g.bounds.north - g.bounds.south) > 30;
+// PARITY GATE for the plain EURO/ICON crop (staticFrameCrop.plainClipServable): the request the clip was cut for is wider than 15 deg
+// (the resolver then keeps only global candidates, product_selection) and no regional tile of the set covers 70% of it (the only way
+// one comes back, prefer_overlapping_marine_region); under 15 deg a covering regional tile (an estimated tail) may win.
+const servableClip = (model, layer, b) => !!b && plainClipServable({ model, layer, bounds: b });
 
 const freshFill = () => ({ key: null, planned: false, armed: false, startedMs: null, doneMs: null, blocked: null });
 const freshAux = () => ({ aux: new Map(), auxPending: new Set(), auxSyncAt: -Infinity, warmPinAt: new Map(), lastPressAt: -Infinity, lastWarm: [], warmTimer: null,
@@ -446,7 +446,7 @@ export function noteCommitted(grid, { hour, model, layer } = {}) {
   // 181 x 81 while the committed grid says 181 x 83; the pack is trimmed the same way.
   const engine = rt.target && rt.target.getEngine ? rt.target.getEngine() : null;
   if (!e) return why('not_indexed');
-  if (cropOnly(info) && !wideClip(grid)) { CS.noteForeignCommit(grid, model || grid.__sourceModel, layer || grid.__componentLayer); return why('crop_only_narrow'); }
+  if (cropOnly(info) && !servableClip(model || grid.__sourceModel, layer || grid.__componentLayer, grid.bounds)) { CS.noteForeignCommit(grid, model || grid.__sourceModel, layer || grid.__componentLayer); return why('crop_only_narrow'); }
   if (CS.noteCropCommitted(info, vt, grid)) return why('resident_crop');   // a window of this frame (marineFrameStoreCrop)
   if (cropOnly(info)) return why('crop_only_set');                         // a plain EURO/ICON set is never a world resident
   if (!e.pack) {
@@ -565,7 +565,7 @@ function showStored({ model, layer, hourOffset, requestedValidTime }, switching)
     if (lakePlan === 'swap' && (CS.cropResidentFor(info) || (switching && CS.cropResidentOther(info)))) return miss('lake_mask_crop');
     if (CS.cropResidentFor(info)) return CS.showCropFrame(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0);
     if (switching && CS.cropResidentOther(info)) {
-      if (cropOnly(info) && !wideClip(CS.crop.resident)) return miss('crop_only_narrow');   // the parity gate (wideClip)
+      if (cropOnly(info) && !servableClip(model, layer, CS.crop.resident.bounds)) return miss('crop_only_narrow');   // the parity gate
       return CS.showCropSwitch(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0);
     }
     if (cropOnly(info)) return miss('crop_only_set');      // a plain EURO/ICON set shows windows only (a world /grid is Gulf-filled)

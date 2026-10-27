@@ -13,7 +13,11 @@ import { REAL_GFS_FRAME_GZ_BASE64 } from './marineFramePack.realFrame.fixture';
 import { parseFrame } from './staticFrameCodec';
 import { midClipWindow } from './staticFrameCrop';
 import { frameWindowOf, packWindow } from './marineFrameStoreCrop';
+import { setCachedManifest } from './backendWeatherServiceClientCoverage';
 
+// The products manifest the parity gate reads (staticFrameCrop.plainClipServable): EURO's world tiers only, unless a test adds a tile.
+const prod = (region_id, coverage) => ({ model: 'EURO', domain: 'marine', layer: 'waves', region_id, coverage, valid_time_start: '2026-10-20T00:00:00Z', valid_time_end: '2026-10-21T00:00:00Z' });
+const WORLD_ONLY = { products: [prod('global_mid', { west: -180, south: -80, east: 180, north: 85 }), prod('global_coarse', { west: -180, south: -80, east: 180, north: 85 })] };
 const mockSF = { enabled: true, byKey: {}, pinned: new Set(), pinAsks: [], hooks: new Set(), loads: [] };
 const killed = () => window.__RAW_DISABLE_PLAIN_SET_CROPS__ === true;
 jest.mock('./staticFrames', () => ({
@@ -55,7 +59,7 @@ const indexFor = (model, tag) => ({ path: `v1/idx/${tag}.json`, run: 'r', grid: 
   frames: Array.from({ length: 8 }, (_, k) => ({ valid_time: vt(k), path: `v1/${tag}/${k}.bin`, meta: { product_id: `${tag}${k}` } })) });
 
 function setup({ model = 'GFS' } = {}) {
-  RT._resetFrameStoreRuntimeForTest(); mockSF.hooks.clear(); mockSF.loads = []; mockSF.enabled = true;
+  RT._resetFrameStoreRuntimeForTest(); mockSF.hooks.clear(); mockSF.loads = []; mockSF.enabled = true; setCachedManifest(WORLD_ONLY);
   mockSF.byKey = { [GFS]: indexFor('GFS', 'gfs'), [EURO]: indexFor('EURO', 'euro'), [EURO_FILLED]: indexFor('EURO', 'eurofilled') };
   mockSF.pinned = new Set(Object.keys(mockSF.byKey)); mockSF.pinAsks = [];
   const calls = []; let bound = null;
@@ -77,7 +81,7 @@ const landAll = async (pick = () => true) => {
 const parse = async (key, k, parsed) => { for (const fn of mockSF.hooks) fn({ key, frame: mockSF.byKey[key].frames[k], parsed, buffer: null }); await flush(); };
 const euroStep = (k) => RT.tryShowStoredFrame({ model: 'EURO', layer: 'waves', hourOffset: k * 3, requestedValidTime: vt(k) });
 const snap = () => window.__RAW_FRAME_STORE__;
-afterEach(() => ['__RAW_DISABLE_PLAIN_SET_CROPS__', '__MARINE_DRAWN__'].forEach((k) => delete window[k]));
+afterEach(() => { ['__RAW_DISABLE_PLAIN_SET_CROPS__', '__MARINE_DRAWN__'].forEach((k) => delete window[k]); setCachedManifest(null); });
 
 describe('EURO/ICON mid-zoom clips come from the PLAIN set (a viewport /grid is never Gulf-filled)', () => {
   it('a EURO clip commit is the crop resident of the plain set, and a wheel step shows EURO\'s own window bytes from the store', async () => {
@@ -160,6 +164,16 @@ describe('EURO/ICON mid-zoom clips come from the PLAIN set (a viewport /grid is 
     await parse(EURO, 2, EURO_PARSED);
     expect(RT.tryShowStoredFrameForSwitch({ model: 'EURO', layer: 'waves', hourOffset: 6, requestedValidTime: vt(2) })).toBe(false);
     expect(snap().shows.misses.crop_only_narrow).toBe(1);
+  });
+
+  it('PARITY GATE: a regional EURO tile covering 70% of the request refuses even a wide clip; without a manifest, closed', async () => {
+    setup({ model: 'EURO' });
+    setCachedManifest({ products: [...WORLD_ONLY.products, prod('big_pilot', { west: -110, south: 10, east: -50, north: 45 })] });
+    RT.noteCommitted(CLIP('EURO', 0), { hour: 0, model: 'EURO', layer: 'waves' });
+    expect(snap().commits).toEqual({ crop_only_narrow: 1 });
+    setCachedManifest(null);
+    RT.noteCommitted(CLIP('EURO', 1), { hour: 3, model: 'EURO', layer: 'waves' });
+    expect(snap().commits).toEqual({ crop_only_narrow: 2 });
   });
 
   it('KILL: __RAW_DISABLE_PLAIN_SET_CROPS__ is today\'s behaviour (the EURO clip is foreign, a step is the normal path)', async () => {

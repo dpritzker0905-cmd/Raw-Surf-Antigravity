@@ -93,3 +93,45 @@ of steps per build (dev's z8 GFS "10 ms" includes a world-sized frame left from 
 - **Phone:** not measured. The scenario could not open the phone layout's controls (the "Waves" chip stayed hidden). Open item.
 - **Unit:** `marineFrameStorePlainCrops.test.js` (6 tests, on a real GFS frame). `filledWorldStore.test.js` gains the crop-read
   rules and the updated wiring pin (each read says whether it is for a clip; `crop_only_set` at the commit and at the show).
+
+## Update (same day, evening): the exact EURO/ICON crop rule (the lead's second root)
+
+- **The lead, 2026-10-26:** "EURO/ICON crops refuse ANY overlap with a regional product, because the estimated regional tails are
+  served at any width. That's why ICON/EURO mid-zoom falls to /grid_series. Make the rule exact: refuse only where a regional product
+  is actually finer AND authoritative for that hour."
+- **The server, read:**
+  - Above a 15-deg request (lon OR lat), `select_best_candidate` keeps only GLOBAL candidates whenever one exists
+    (`product_selection.py:133-161`).
+  - A regional tile then comes back only through `prefer_overlapping_marine_region`: it must be finer, and cover at least
+    `MARINE_REGIONAL_MIN_COVERAGE_FRACTION` (0.70) of the request area (`grid_resolver_selection.py:61-106`).
+  - An estimated one is then served at any width (`decide_manifest_product`).
+- **The rule** (`staticFrameCrop.otherModelTileMayWin`). For ICON/EURO:
+  - above 15 deg, only an overlapping tile covering 70% of the request refuses;
+  - at 15 deg and under, any overlap still refuses.
+  - It stays conservative where the hour is unknowable here: any hour, and the raw request (the server's snapped box is larger, so
+    its share is smaller).
+  - GFS is unchanged.
+  - Kill: `window.__RAW_DISABLE_EXACT_REGIONAL_RULE__ = true`.
+- **Where it applies:**
+  - The JSON seam (series and `/grid` crops) now serves EURO/ICON mid-zoom crops wherever that rule allows.
+  - The store's gate (`plainClipServable`) uses the same rule on the request it re-derives from the clip (`requestFromClip`, the
+    inverse of the server's pad). It replaces this morning's "wider than 30 deg" gate and adds the 70% refusal.
+- **Tests:**
+  - `staticFrameCrop.test.js`: a 30 x 15 ICON box over the FL tile (9%) crops; 14 x 12 over it refuses; a tile covering 80%
+    refuses (positive control); the kill restores the old rule.
+  - `plainClipServable` closes without a manifest.
+  - `staticFrames.crop.test.js`: a 30 x 20 EURO view over SoCal (13%) now crops; a 14 x 12 one refuses; the kill refuses both.
+  - `marineFrameStorePlainCrops.test.js`: a covering EURO tile refuses a wide clip.
+
+## Update: the lead's chaos paths, replayed offline (dev 4b8563851 build vs #601 + #602)
+
+| Path | dev | #601 + #602 |
+|---|---|---|
+| R8: ICON +1d bursts h192-288, z5.2 | 189-275 ms per step (`/grid`) | 0-11 ms (store) |
+| R8: the regression to h24 | not reproduced (0 regress frames) | 0 |
+| R12: band toggles at h328, then a model switch | 0 blank | 0 blank |
+| L3: GFS -> ICON at z6.9 Florida | 30 blank frames (`non_renderable_terminal` at 37 ms) | 0 |
+
+- **Caveat on the ICON tail:** offline the CDN holds ICON's tail frames. Live it needs the tail published (static-frames).
+- **The switches at h328 still went to `/grid`.** The band was ON at that point (three toggles), and band ON takes every scrub off
+  the store (`staticFrames.js:494`). Answered to the band owner: rating frames as their own CDN sets.
