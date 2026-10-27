@@ -1809,3 +1809,36 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   - Health before and after: err_5xx 0.
 - **Context:** `FAR_EDGE_HOLD_PREFER_MID` has been ON since 01:13:06Z (#576, the owner via the slice-2 session), so the donor defect was live on held ICON frames until 12:16Z.
 - **Rollback:** Render `MARINE_GULF_FILL_DONOR_SERVED_TIME=0`; delete the repo variable (the next bakes return to run + 336).
+
+### D-054 · The 19 GFS pilot tiles are stored on whole-degree bounds, so the edge bands of a pilot box come from the stored NOAA tile, not a dynamic fetch (ON, 2026-10-27)
+
+- **The owner, 2026-10-26 21:08Z (17:08 EDT):** "Do the GFS_PILOT_WHOLE_DEGREE_BOUNDS flip now per the runbook, with the full watch." The original approval was on 2026-10-25 at 13:18 EDT: "yes if that is state of the art thinking".
+- **Code (#563):** with the flag on, the GFS pilot ingest pads each tile's request box out to whole degrees. Before, 16 of the 75 regional sets had fractional bounds (for example Azores north 40.0 instead of 41.0, US Northeast west -76.1 instead of -77.0), so a viewport at a box edge got part tile and part on-demand fetch.
+- **Flip:**
+  - Repo variable `GFS_PILOT_WHOLE_DEGREE_BOUNDS=1` at 2026-10-26 21:19:59Z; dispatched pilots 40403486736 and core 40403510531.
+  - Pilots 40403486736 published nothing: its frames step hit an HTTP 429 reading `latest.json`. Scheduled pilots 40419270962 (created 23:22:09Z) published the padded sets at 00:28:53Z.
+  - CDN check (`verify_padded_tiles.py --after 23:22:09Z`): 75 sets, 16 fractional now padded, 0 bad, 0 refused.
+  - Render `GFS_PILOT_WHOLE_DEGREE_BOUNDS=1` at 01:06:54Z; deploy live 01:10:19Z.
+- **Read-back (01:49Z, one live scenario, health-gated):** 4 edge boxes, all from the stored tile, padded, 0 missing nodes. Before the flip, offline, Azores north and US Northeast west were mixed, part stored tile and part dynamic fetch. Per-hour cold 0.13-1.05 s, warm 0.12-0.16 s; series 3/3 from the tile.
+- **Watch (01:10-02:54Z):** no trigger. CPU 0.002-0.065, memory 460-709 MB (trigger 1,126 MB), 0 5xx, health 200.
+- **Found on the way:** the regional static frames had been unpublished from 13:31Z to 00:28Z behind green runs (a 429 read, and a coverage gate counting older-run past hours). The fix is #603.
+- **Served numbers:** values at a pilot box's edge band move from a dynamic upstream fetch to the stored GFS tile of the same model and cycle.
+- **Rollback:** Render `GFS_PILOT_WHOLE_DEGREE_BOUNDS=0`, repo variable 0, then re-dispatch both ingest lanes.
+
+### D-055 · The ICON/EURO estimated tails publish as CDN frames, so scrubbing past ICON's native range and EURO's 240 h draws from the frame store (ON, 2026-10-27)
+
+- **The owner, 2026-10-26:** "Make sure we're flipping everything on that we need to fix the issues. Merging. Fixing conflicts. And pushing." This follows his live bug report the same day: ICON showed "nearest stored forecast beyond native range" and instant scrubbing did not work there, and EURO had delays scrubbing.
+- **Code:** #548 builds the frames; #597 makes the publish budget (600 -> 960 s) and the download cap (320) follow the flag; the readiness harness compared 664 asks with 0 disagreements and 0 bad nodes of 5.0 M. Speed only: the frames are the products `/grid` already serves for those hours.
+- **Flip:** repo variable `FRAME_TAIL_DOWNLOAD=1` at 2026-10-27 03:32:39Z, after #603 landed so the publish it rides on is not refused. Dispatched pilots 40444767755 (one flag in the run).
+- **Read-back (`tail_census.py`, same instrument as the 03:30Z baseline), latest.json written 05:26:51Z:**
+  - EURO waves estimated tail 2/41 -> **53/53** built (filled set too).
+  - ICON swell_1 and wind_waves 0/63 -> **63/63**; ICON waves 58/63 -> **63/63** (plain and filled).
+  - Last built valid time 2026-11-10T09Z on all 8 sets (it was 11-02T12Z for ICON swell_1/wind_waves, 11-09T18Z for the rest). Authoritative counts unchanged.
+  - Publish step green, its warn step skipped, 5,160 parity-ok lines, 0 parity failures, 0 refusals; 88 of 90 sets rewritten.
+- **Live read (06:03-06:19Z, one scenario on dev--rawsurf at dcc514bf3, z4.6, health 0 5xx before and after):**
+  - ICON past h168 now draws from the store: h200 8 ms, h252 13 ms, h300 0 ms, h336 4 ms, labelled "beyond ICON's native range". A first visit to a far hour that is not prefetched costs one CDN fetch (ICON h168 372 ms; EURO h300 340 ms, h336 414 ms on the first pass, about 10 ms on revisits).
+  - Model switches at mid zoom: 0 blank frames (EURO 3 ms, ICON 33 ms; #602). 0 blank and 0 silently mislabelled frames across every action.
+  - Surf Rating band: OFF 66 ms with 0 rating frames after it (#598). ON took 4.4 s through `/grid`; rating frames have no CDN set yet.
+  - **Found:** from EURO's 144 h step to 240 h (timeline hour 126 onward with an 18 h-old run) the status line reads "Loading X… still showing Y" for good on every in-between hour, with no request in flight. The drawn frame is the server's nearest stored 6-hourly product. `latticeNearestMaxHours` (drawnFrameReadout.js) keys EURO's 6-hourly half-step off the timeline hour (`hour > 144`), not the model step (valid time minus run). Handed to the frame-store session.
+- **Served numbers:** none move. The same products now come from the CDN.
+- **Rollback:** `gh variable set FRAME_TAIL_DOWNLOAD --body 0`; the next publish lists the tails unbuilt and `/grid` serves them, as before.

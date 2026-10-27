@@ -12,6 +12,8 @@ bcrypt==4.1.3
 aiohttp==3.9.5
 httpx==0.27.2
 requests==2.31.0
+# Render advisory 2026-10-26 (emudhra): CA bundle must be >= 2026.10.19. A deliberate floor, not a pin: a newer bundle is always wanted.
+certifi>=2026.10.19
 stripe==8.11.0
 boto3==1.34.69
 supabase==2.17.0

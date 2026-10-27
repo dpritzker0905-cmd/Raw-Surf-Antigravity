@@ -66,6 +66,16 @@ export function preloadFilledIndexes(latest, load, enabled = () => true) {
  * Kill (the store takes no EURO/ICON frame again): window.__RAW_DISABLE_FILLED_WORLD_STORE__ = true.
  */
 export const filledStoreOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_FILLED_WORLD_STORE__ === true);
+
+/**
+ * THE PLAIN SET FEEDS MID-ZOOM CROPS (2026-10-26, the owner's live test at z4.6-5.3: ICON and EURO scrubbed from /grid_series pages and
+ * waited on /grid for far jumps, while GFS scrubbed from the store). The server Gulf-fills only a WORLD-span grid: coarse_gulf_fill
+ * returns any product whose span is under 350 deg as stored, in every mode (legacy, targeted, off). So a viewport crop of a guarded
+ * EURO/ICON set IS the plain stored product, windowed, and the GPU frame store may crop the plain set exactly as it crops GFS's. A WORLD
+ * box still never reads the plain set (serveTimeFillAtWorld, filledWorldSetKey), and the store never shows it world-sized.
+ * Kill (EURO/ICON at mid zoom back to the normal path): window.__RAW_DISABLE_PLAIN_SET_CROPS__ = true.
+ */
+export const plainCropsOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_PLAIN_SET_CROPS__ === true);
 export function filledStoreAccepts(model, layer, key, index, latest) {
   if (!filledStoreOn() || String(layer || '').toLowerCase() !== 'waves' || filledWorldSetKey(model, layer, latest) !== key) return false;
   const mode = serverFillModeOf(String(model || '').toUpperCase());

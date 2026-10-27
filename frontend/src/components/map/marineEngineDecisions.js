@@ -28,6 +28,7 @@ import { marineFrameInstant, sameMarineFrameInstant, sameMarineLabelledHour } fr
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { CLIP_FULL_COVER, clipNeedsFullCover } from './marineZoomOutRelease';
 import { resolveBandResolutionEdge } from './marineRatingBandRes';
+import { resolveBandOffNow } from './marineFlavorToggle';
 export { edgeUncoveredMs } from './marineRatingBandRes';
 
 export function latToMercatorY(lat) {
@@ -111,6 +112,7 @@ export function heatmapZoomOpacity(z, win) {
 // (coverage leg only). Telemetry: __RAW_GPU__.ratingBandFade.
 export function resolveRatingBandFade(viewportLonSpan, isRatingPainting, washEngaged, win, cov) {
   const ident = { bandMult: 1.0, washStrength: null, fade: 1.0, spanFade: 1.0, covFade: 1.0 };
+  if (cov && cov.bandOff) { const off = resolveBandOffNow(win, washEngaged); if (off) return off; }   // flag OFF, resident still rated: the band is gone NOW (marineFlavorToggle.js)
   if (!isRatingPainting) return ident;
   const w = win || (typeof window !== 'undefined' ? window : {});
   if (w.__RAW_RATING_ZOOM_FADE_DISABLED__ === true) return ident;
