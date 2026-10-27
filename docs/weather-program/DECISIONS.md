@@ -1809,3 +1809,18 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   - Health before and after: err_5xx 0.
 - **Context:** `FAR_EDGE_HOLD_PREFER_MID` has been ON since 01:13:06Z (#576, the owner via the slice-2 session), so the donor defect was live on held ICON frames until 12:16Z.
 - **Rollback:** Render `MARINE_GULF_FILL_DONOR_SERVED_TIME=0`; delete the repo variable (the next bakes return to run + 336).
+
+### D-054 · The 19 GFS pilot tiles are stored on whole-degree bounds, so the edge bands of a pilot box come from the stored NOAA tile, not a dynamic fetch (ON, 2026-10-27)
+
+- **The owner, 2026-10-26 21:08Z (17:08 EDT):** "Do the GFS_PILOT_WHOLE_DEGREE_BOUNDS flip now per the runbook, with the full watch." The original approval was on 2026-10-25 at 13:18 EDT: "yes if that is state of the art thinking".
+- **Code (#563):** with the flag on, the GFS pilot ingest pads each tile's request box out to whole degrees. Before, 16 of the 75 regional sets had fractional bounds (for example Azores north 40.0 instead of 41.0, US Northeast west -76.1 instead of -77.0), so a viewport at a box edge got part tile and part on-demand fetch.
+- **Flip:**
+  - Repo variable `GFS_PILOT_WHOLE_DEGREE_BOUNDS=1` at 2026-10-26 21:19:59Z; dispatched pilots 40403486736 and core 40403510531.
+  - Pilots 40403486736 published nothing: its frames step hit an HTTP 429 reading `latest.json`. Scheduled pilots 40419270962 (created 23:22:09Z) published the padded sets at 00:28:53Z.
+  - CDN check (`verify_padded_tiles.py --after 23:22:09Z`): 75 sets, 16 fractional now padded, 0 bad, 0 refused.
+  - Render `GFS_PILOT_WHOLE_DEGREE_BOUNDS=1` at 01:06:54Z; deploy live 01:10:19Z.
+- **Read-back (01:49Z, one live scenario, health-gated):** 4 edge boxes, all from the stored tile, padded, 0 missing nodes. Before the flip, offline, Azores north and US Northeast west were mixed, part stored tile and part dynamic fetch. Per-hour cold 0.13-1.05 s, warm 0.12-0.16 s; series 3/3 from the tile.
+- **Watch (01:10-02:54Z):** no trigger. CPU 0.002-0.065, memory 460-709 MB (trigger 1,126 MB), 0 5xx, health 200.
+- **Found on the way:** the regional static frames had been unpublished from 13:31Z to 00:28Z behind green runs (a 429 read, and a coverage gate counting older-run past hours). The fix is #603.
+- **Served numbers:** values at a pilot box's edge band move from a dynamic upstream fetch to the stored GFS tile of the same model and cycle.
+- **Rollback:** Render `GFS_PILOT_WHOLE_DEGREE_BOUNDS=0`, repo variable 0, then re-dispatch both ingest lanes.

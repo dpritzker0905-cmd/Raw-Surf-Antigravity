@@ -53,7 +53,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [24.21.0]
+        node-version: [24.22.1]
 
     steps:
       - uses: actions/checkout@v5
@@ -223,10 +223,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 24.21.0
+      - name: Use Node.js 24.22.1
         uses: actions/setup-node@v5
         with:
-          node-version: '24.21.0'   # matches frontend/.node-version
+          node-version: '24.22.1'   # matches frontend/.node-version
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -263,10 +263,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 24.21.0
+      - name: Use Node.js 24.22.1
         uses: actions/setup-node@v5
         with:
-          node-version: '24.21.0'   # matches frontend/.node-version
+          node-version: '24.22.1'   # matches frontend/.node-version
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -2115,7 +2115,9 @@ jobs:
           #   base 3327 (hosted read) + 28 new test(s) = 3355; floor 3355 - 2 = 3353. This PR must read 3355 passed.
           # ⬆ 3353→3370 on 2026-10-26 (rederive_floor.py, claude/lineup-socket-auth): dev run 40298598402 read 3355; dev's map 3355;
           #   base 3355 (hosted read) + 17 new test(s) = 3372; floor 3372 - 2 = 3370. This PR must read 3372 passed.
-          MIN_PASSED = 3370
+          # ⬆ 3370→3374 on 2026-10-27 (rederive_floor.py, claude/publisher-read-retry-coverage): dev run 40405333333 read 3372; dev's map 3372;
+          #   base 3372 (hosted read) + 4 new test(s) = 3376; floor 3376 - 2 = 3374. This PR must read 3376 passed.
+          MIN_PASSED = 3374
 
           try:
               root = ET.parse('estate.xml').getroot()

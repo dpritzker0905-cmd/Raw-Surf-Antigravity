@@ -79,8 +79,14 @@ export function describeDrawnFrame(requested, drawn, { nowMs = Date.now() } = {}
   const model = (m) => MODEL_NAMES[m] || m || '';
   if ((drawn.model && requested.model && drawn.model !== requested.model)
       || (drawn.layer && requested.layer && drawn.layer !== requested.layer)) {
-    return { state: 'pending',
-      text: `Loading ${model(requested.model)} ${layer(requested.layer)}… still showing ${model(drawn.model)} ${layer(drawn.layer)}` };
+    // A SWITCH IN PROGRESS (2026-10-26, hold until replaced): the drawn frame is named by its own model, layer and time, and once
+    // the hold's ceiling passes (marineTransitionCoordinator: __MARINE_SWITCH_STALLED__) the words say the new one is not arriving.
+    const when = Number.isFinite(drawn.dataMs) && !(typeof window !== 'undefined' && window.__RAW_DISABLE_DRAWN_LABEL_INSTANT__ === true)
+      ? `, ${formatInstant(drawn.dataMs, datedPair(drawn.dataMs, requested.labelMs, nowMs))}` : '';
+    const stall = typeof window !== 'undefined' ? window.__MARINE_SWITCH_STALLED__ : null;
+    const stalled = !!(stall && stall.targetKey === `${requested.model || 'GFS'}|${requested.layer || 'waves'}`);
+    const want = `${model(requested.model)} ${layer(requested.layer)}`; const have = `${model(drawn.model)} ${layer(drawn.layer)}${when}`;
+    return { state: 'pending', text: stalled ? `${want} is not arriving… still showing ${have}` : `Loading ${want}… still showing ${have}` };
   }
   const est = estimateWords(drawn);
   // Compare by INSTANT when both are known (the #267 rule, marineHourInstant.js: the label names the request, the valid time

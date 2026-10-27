@@ -5,7 +5,7 @@
  */
 import {
   clampAndNormalize, cropGridJson, cropSeriesFrame, cropVectors, gridBboxParam, midClipWindow, midCropFor, midCropRulesPass,
-  MIN_CROP_SPAN, seriesBboxParam, wrapLongitude,
+  MIN_CROP_SPAN, plainClipServable, requestFromClip, seriesBboxParam, wrapLongitude,
 } from './staticFrameCrop';
 import { setCachedManifest } from './backendWeatherServiceClientCoverage';
 
@@ -114,14 +114,38 @@ describe('midCropRulesPass: only where the resolver answers from global_mid', ()
     expect(pass({ west: -100, south: 9.96, east: -80, north: 25.04 })).toBe(true);               // 15.08 tall: wider, the mid clip
   });
 
-  test('another model refuses on ANY overlapping regional tile (an estimated item wins whatever the width; ICON/EURO have them)', () => {
+  // THE EXACT RULE (2026-10-26): above a 15-deg request only globals are candidates (product_selection.py:133-161), and a regional
+  // tile comes back only by covering 70% of the request (prefer_overlapping_marine_region); an estimated one is then served at any
+  // width. So for ICON / EURO: any overlap refuses at 15 deg and under, a 70% cover above. Kill: __RAW_DISABLE_EXACT_REGIONAL_RULE__.
+  test('another model: an overlapping tile refuses at 15 deg and under; above, only a tile covering 70% of the request does', () => {
     const icon = (b) => midCropRulesPass({ model: 'ICON', layer: 'waves', bboxStr: gridBboxParam(b) });
     setCachedManifest({ products: [...MANIFEST.products.map((p) => ({ ...p, model: 'ICON' }))] });
-    expect(icon({ west: -90, south: 20, east: -60, north: 35 })).toBe(false);          // over the FL tile, though 30 deg wider than it
+    expect(icon({ west: -90, south: 20, east: -60, north: 35 })).toBe(true);           // 30 x 15 over the FL tile: 42 of 450 deg2 (9%)
+    expect(icon({ west: -88, south: 22, east: -74, north: 34 })).toBe(false);          // 14 x 12: not wide, the overlap refuses
     expect(icon({ west: 10, south: 20, east: 30, north: 30 })).toBe(true);             // no tile there
+    // POSITIVE CONTROL: a tile covering 70% of a wide request refuses (an estimated tail could be served instead of the mid clip)
+    setCachedManifest({ products: [...MANIFEST.products.map((p) => ({ ...p, model: 'ICON' })), product('big_pilot', { west: -100, south: 10, east: -80, north: 25 }, 'waves', 'ICON')] });
+    expect(icon({ west: -101, south: 9, east: -79, north: 26 })).toBe(false);          // 22 x 17: the 20 x 15 tile covers 80%
+    expect(icon({ west: -110, south: 0, east: -75, north: 30 })).toBe(true);           // 35 x 30: it covers 29%
+    window.__RAW_DISABLE_EXACT_REGIONAL_RULE__ = true;                                  // the kill: any overlap refuses again
+    expect(icon({ west: -110, south: 0, east: -75, north: 30 })).toBe(false);
+    delete window.__RAW_DISABLE_EXACT_REGIONAL_RULE__;
     expect(pass({ west: -90, south: 20, east: -60, north: 35 })).toBe(false);          // GFS: the manifest has no GFS product now
     setCachedManifest(MANIFEST);
-    expect(pass({ west: -90, south: 20, east: -60, north: 35 })).toBe(true);           // GFS: wider than the tile is enough
+    expect(pass({ west: -90, south: 20, east: -60, north: 35 })).toBe(true);           // GFS: wider than the tile is enough (unchanged)
+  });
+
+  test('plainClipServable (the frame store\'s plain EURO/ICON crop): the request the clip was cut for, by the same rule', () => {
+    const asIcon = { products: MANIFEST.products.map((p) => ({ ...p, model: 'ICON' })) };
+    setCachedManifest(asIcon);
+    const clipOf = (req) => midClipWindow(req, WORLD_GRID, 'ICON').bounds;
+    expect(requestFromClip(clipOf('-95,20,-65,35'))).toEqual(expect.objectContaining({ west: expect.any(Number) }));
+    expect(plainClipServable({ model: 'ICON', layer: 'waves', bounds: clipOf('-95,20,-65,35') })).toBe(true);    // 30 x 15: wide, 9% FL
+    expect(plainClipServable({ model: 'ICON', layer: 'waves', bounds: clipOf('-82,25,-74,31') })).toBe(false);   // 8 deg: not wide
+    setCachedManifest({ products: [...asIcon.products, product('big_pilot', { west: -100, south: 10, east: -60, north: 40 }, 'waves', 'ICON')] });
+    expect(plainClipServable({ model: 'ICON', layer: 'waves', bounds: clipOf('-95,20,-65,35') })).toBe(false);   // a tile covers it all
+    setCachedManifest(null);
+    expect(plainClipServable({ model: 'ICON', layer: 'waves', bounds: clipOf('-95,20,-65,35') })).toBe(false);   // no manifest: closed
   });
 
   test('fails closed: no manifest, an unreadable tile, the kill switch', () => {
