@@ -188,3 +188,15 @@ def test_flag_is_read_at_call_time_and_can_be_rolled_back(runtime, monkeypatch):
     arrange(runtime, 'duplicate')
     prune(store, 'duplicate')
     assert 'shared.json' not in storage and deleted == ['shared.json']
+
+
+def test_the_four_lanes_read_one_repo_variable_default_off():
+    """2026-10-26: the flag was read only from os.environ and NO workflow passed it, so it could not be flipped where the prunes
+    run. One repo variable, default '0', in the four lanes the registry names (core and pilots run the prunes)."""
+    import re
+    from pathlib import Path
+    workflows = Path(__file__).resolve().parents[2] / ".github" / "workflows"
+    line = re.compile(r"^\s+INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS: \$\{\{ vars\.INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS \|\| '0' \}\}\s*$",
+                      re.M)
+    for lane in ("forecast-ingest.yml", "forecast-ingest-pilots.yml", "precompute.yml", "sim-parity-monitor.yml"):
+        assert len(line.findall((workflows / lane).read_text(encoding="utf-8"))) == 1, lane
