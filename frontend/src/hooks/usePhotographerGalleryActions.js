@@ -6,7 +6,7 @@
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 const usePhotographerGalleryActions = ({
   user, gallery, selectedItems, editData, navigate, galleryId, setAiTagSuggestions,
@@ -336,6 +336,15 @@ const usePhotographerGalleryActions = ({
   };
 
   // AI Tagging Functions
+  const [aiPhotoAnalysis, setAiPhotoAnalysis] = useState(null);
+  const scanRequest = useRef(0);
+  useEffect(() => {
+    scanRequest.current += 1;
+    setAiPhotoAnalysis(null);
+    setAnalyzingPhoto(false);
+    return () => { scanRequest.current += 1; };
+  }, [selectedItem?.id, setAnalyzingPhoto]);
+
   const handleOpenTagging = async (item) => {
     setSelectedItem(item);
     setSelectedTags([]);
@@ -346,6 +355,8 @@ const usePhotographerGalleryActions = ({
   const handleAnalyzePhoto = async () => {
     if (!selectedItem) return;
     
+    const requestId = ++scanRequest.current;
+    setAiPhotoAnalysis(null);
     setAnalyzingPhoto(true);
     try {
       const response = await apiClient.post(`/ai/suggest-tags`, {
@@ -353,18 +364,18 @@ const usePhotographerGalleryActions = ({
         gallery_item_id: selectedItem.id
       });
       
+      if (requestId !== scanRequest.current) return;
       if (response.data.success) {
-        setAiTagSuggestions(response.data.suggested_tags || []);
-        if (response.data.suggested_tags?.length === 0) {
-          toast.info(`Detected ${response.data.people_detected || 0} people but no registered surfers matched`);
-        } else {
-          toast.success(`Found ${response.data.suggested_tags.length} potential tag suggestions`);
-        }
+        setAiTagSuggestions([]);
+        setAiPhotoAnalysis(response.data.analysis);
+        toast.success('Photo analyzed. Review the description and select participants manually.');
       }
     } catch (error) {
-      toast.error('Failed to analyze photo');
+      if (requestId === scanRequest.current) {
+        toast.error(error.response?.data?.detail || 'Failed to analyze photo. Try again.');
+      }
     } finally {
-      setAnalyzingPhoto(false);
+      if (requestId === scanRequest.current) setAnalyzingPhoto(false);
     }
   };
 
@@ -519,6 +530,7 @@ const usePhotographerGalleryActions = ({
   };
 
   return {
+    aiPhotoAnalysis,
     fetchGallery,
     fetchConditionsStatus,
     handlePushToSpotHub,

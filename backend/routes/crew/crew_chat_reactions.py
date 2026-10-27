@@ -12,7 +12,7 @@ import json
 import logging
 
 from database import get_db
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_current_user_id, get_user_id_from_jwt_or_query
 from models import Profile, Booking, CrewChatMessage, Notification
 
 logger = logging.getLogger(__name__)
@@ -197,7 +197,7 @@ async def get_reaction_emojis():
 async def get_message_reactions(
     booking_id: str,
     message_id: str,
-    user_id: str,
+    user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Get detailed reactions for a message"""
@@ -253,6 +253,12 @@ async def crew_chat_websocket(
     Clients connect per booking and receive messages in real-time.
     """
     from database import async_session_maker
+    from routes.live.websocket import verify_websocket_auth
+
+    # LA-SEC-02: the URL names the user; only a token for that user may use the name. Without this anyone who
+    # knew a member's id could read the booking's messages and presence, and type as them.
+    if not await verify_websocket_auth(websocket, user_id):
+        return
 
     async with async_session_maker() as db:
         booking, role = await verify_chat_access(booking_id, user_id, db)

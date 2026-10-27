@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import logger from '../utils/logger';
+import { BACKEND_URL } from '../lib/apiClient';
 import { isInCooldown } from '../components/map/marineControllerUtils';
 import { governMarineRequest as governProxyRequest } from '../components/map/marineRequestGovernor';
 
@@ -148,19 +149,11 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
 
       setIsLoading(true);
 
-      const getBackendUrl = () => {
-        if (typeof window !== 'undefined') {
-          if (window.__BACKEND_URL__) return window.__BACKEND_URL__;
-          if (window.localStorage.getItem('__BACKEND_URL__')) return window.localStorage.getItem('__BACKEND_URL__');
-          const hostname = window.location.hostname;
-          if (hostname === 'localhost' || hostname === '127.0.0.1') {
-            return 'http://localhost:8000';
-          }
-        }
-        return (typeof process !== 'undefined' && process.env && process.env.REACT_APP_BACKEND_URL) || 'https://raw-surf-antigravity.onrender.com';
-      };
+      // The app's one backend-URL resolution (window/localStorage override, then REACT_APP_BACKEND_URL):
+      // the former local copy guarded on `typeof process`, false in a browser, so it always fell back to
+      // the production origin (and sent localhost to :8000).
 
-      const POINT_URL = `${getBackendUrl()}/api/weather/point`;
+      const POINT_URL = `${BACKEND_URL}/api/weather/point`;
 
       const baseTime = (typeof window !== 'undefined' && window.__MOCK_DATE_NOW__) || Date.now();
       const roundedNow = Math.round(baseTime / 3600000) * 3600000;

@@ -306,7 +306,7 @@ async def join_session(
         # ============ PUSH NOTIFICATION: Alert photographer ============
         # Send real-time push notification so photographer sees it immediately
         try:
-            from routes.notifications.push import notify_session_join
+            from routes.notifications.push_payloads import notify_session_join
             await notify_session_join(
                 photographer_id=data.photographer_id,
                 surfer_name=surfer.full_name,

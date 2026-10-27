@@ -15,6 +15,7 @@ import re
 import logging
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import Profile, SurfSpot, Post, Hashtag, PostHashtag
 
 router = APIRouter()
@@ -357,7 +358,8 @@ async def process_post_hashtags(db: AsyncSession, post_id: str, caption: str):
 
 @router.post("/hashtags/reindex")
 async def reindex_hashtags(
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    _admin=Depends(get_current_admin),
 ):
     """
     Admin endpoint to reindex all hashtags from existing posts.

@@ -1,0 +1,64 @@
+{
+ "what": "A desktop whose browser reads 3g fills the run (owner decision 2026-10-22)",
+ "method": "scn_instant_second_pass.js arm ect3g (navigator.connection overridden to effectiveType 3g, saveData false), the 113 REAL published frames, 340 ms per CDN object, 10 fixed + 20 seeded random steps, one production build per arm",
+ "before_dev_213ff3217": {
+  "steps": 30,
+  "missed": 0,
+  "exact_ms_p50": 6,
+  "exact_ms_p95": 456,
+  "exact_ms_max": 458,
+  "dimmed": 0,
+  "silent_stale": 0,
+  "tier": "constrained",
+  "fill": {
+   "key": null,
+   "planned": false,
+   "armed": false,
+   "startedMs": null,
+   "doneMs": null,
+   "blocked": "tier",
+   "blockedNow": "tier",
+   "sinceOpenMs": 70644
+  },
+  "sets": [
+   {
+    "frames": 113,
+    "packed": 0,
+    "resident": 56,
+    "absent": 57,
+    "unbuilt": 0
+   }
+  ],
+  "backend": {}
+ },
+ "after_this_branch": {
+  "steps": 30,
+  "missed": 0,
+  "exact_ms_p50": 2,
+  "exact_ms_p95": 16,
+  "exact_ms_max": 17,
+  "dimmed": 0,
+  "silent_stale": 0,
+  "tier": "desktop",
+  "fill": {
+   "key": "GFS/waves/world/2026-10-21T18:00:00Z/h10|dil1|conf0.75|trim1|wrap1|f16",
+   "planned": true,
+   "armed": false,
+   "startedMs": 1149,
+   "doneMs": 7510,
+   "blocked": null,
+   "blockedNow": null,
+   "sinceOpenMs": 30735
+  },
+  "sets": [
+   {
+    "frames": 113,
+    "packed": 0,
+    "resident": 113,
+    "absent": 0,
+    "unbuilt": 0
+   }
+  ],
+  "backend": {}
+ }
+}

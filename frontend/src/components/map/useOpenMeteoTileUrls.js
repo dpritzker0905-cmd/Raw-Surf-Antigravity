@@ -29,6 +29,7 @@ import {
 import { validateModelAccess } from './LayerAccessResolver';
 import { WeatherTelemetry } from './WeatherTelemetry';
 import { useModelTransition, resolveVariable } from './useModelTransition';
+import { neighbourIndex, slotIndexOf, slotReady, retainedActiveSlot, planFlip } from './rasterFrameSwap'; import { useRasterDrawnPublisher } from './rasterDrawnFrame';
 
 // Global transition registry for deduplication (Request 1)
 let lastTransitionKey = null;
@@ -162,18 +163,9 @@ export function useOpenMeteoTileUrls({
       const targetUrl = urls[`${layerKey}-slot-${targetSlot}`];
 
       const isTransparent = targetUrl === 'om://transparent-tile';
-      let isLoaded = false;
-      try {
-        if (mapInstance.getSource(sourceId)) {
-          const mapSource = mapInstance.getSource(sourceId);
-          const urlsMatch = mapSource && mapSource.url === targetUrl;
-          if (urlsMatch && mapInstance.isSourceLoaded(sourceId) === true) {
-            isLoaded = true;
-          }
-        }
-      } catch (e) {
-        // Safe fallback
-      }
+      // Loaded = this URL with every in-view tile loaded, and tiles in view (rasterFrameSwap.slotReady: a source no visible
+      // layer uses reads "loaded" with no tiles).
+      const isLoaded = slotReady(mapInstance, sourceId, targetUrl);
       // Audit #31 flash #2 (2026-07-11): a 2s force-flip lands on a slot whose cold .om decode
       // is still running → the active raster goes transparent until decode (the second flash on
       // model switch; the slot-advance ping-pong in the user's satellite log was these forced
@@ -430,6 +422,7 @@ export function useOpenMeteoTileUrls({
 
   // URL resolution logic
   const loggedFallbacks = useRef(new Set());
+  const neighbourDirs = useRef({}); const keptHidden = useRef({});   // rasterFrameSwap: scrub direction, layers kept while off
   const rafRef = useRef(null);
   const pendingResolve = useRef(null);
 
@@ -563,9 +556,11 @@ export function useOpenMeteoTileUrls({
         }
 
         const newUrls = {};
-        const newActiveSlots = {};
+        const newActiveSlots = {}; const slotFlips = {};
         for (const { layerKey, variable, entry, isActive } of tasks) {
           if (!isActive) {
+            const kept = retainedActiveSlot(omTileUrlsRef.current, layerKey, activeSlotsRef.current[layerKey]);
+            if (kept !== null) { newActiveSlots[layerKey] = kept; keptHidden.current[layerKey] = true; continue; }
             newActiveSlots[layerKey] = 0;
             newUrls[`${layerKey}-slot-0`] = 'om://transparent-tile';
             newUrls[`${layerKey}-slot-1`] = 'om://transparent-tile';
@@ -620,7 +615,7 @@ export function useOpenMeteoTileUrls({
               targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'webgl_fallback=true';
             }
             const currentUrls = omTileUrlsRef.current || {};
-            const currentActiveSlot = activeSlotsRef.current[layerKey];
+            const shownSlot = activeSlotsRef.current[layerKey]; const currentActiveSlot = shownSlot === -1 ? undefined : shownSlot;   // -1: re-toggled, hidden
 
             let targetSlot = -1;
             for (let s = 0; s < 3; s++) {
@@ -636,6 +631,8 @@ export function useOpenMeteoTileUrls({
 
             newActiveSlots[layerKey] = targetSlot;
             newUrls[`${layerKey}-slot-${targetSlot}`] = targetUrl;
+            const flip = planFlip({ map: mapInstance, layerKey, targetSlot, targetUrl, currentActiveSlot, currentUrls, reactivated: !!keptHidden.current[layerKey] });
+            delete keptHidden.current[layerKey]; if (flip !== null) slotFlips[layerKey] = flip;
 
             if (currentActiveSlot !== undefined && currentActiveSlot !== targetSlot) {
               newUrls[`${layerKey}-slot-${currentActiveSlot}`] = currentUrls[`${layerKey}-slot-${currentActiveSlot}`] || 'om://transparent-tile';
@@ -643,21 +640,17 @@ export function useOpenMeteoTileUrls({
               if (isScrubbingRef.current) {
                 newUrls[`${layerKey}-slot-${thirdSlot}`] = currentUrls[`${layerKey}-slot-${thirdSlot}`] || 'om://transparent-tile';
               } else {
-                const slotPrevIdx = closestIdx - 1;
-                const slotNextIdx = closestIdx + 1;
                 const totalLen = Array.isArray(validTimes) ? validTimes.length : 0;
-                const preloadIdx = (closestIdx % 2 === 0)
-                  ? (slotNextIdx < totalLen ? slotNextIdx : slotPrevIdx)
-                  : (slotPrevIdx >= 0 ? slotPrevIdx : slotNextIdx);
+                // One step in the scrub's direction (rasterFrameSwap.neighbourIndex; was the parity of the index).
+                const preloadIdx = neighbourIndex(closestIdx, totalLen, slotIndexOf(currentUrls[`${layerKey}-slot-${currentActiveSlot}`]), neighbourDirs.current, layerKey);
                 if (preloadIdx >= 0 && preloadIdx < totalLen) {
                   newUrls[`${layerKey}-slot-${thirdSlot}`] = trace(layerKey, 'resolve_raster', 'MapWebGL', getUrlForIndex(layerModel, resolvedVar, preloadIdx));
                 } else {
                   newUrls[`${layerKey}-slot-${thirdSlot}`] = 'om://transparent-tile';
                 }
               }
-            } else if (currentActiveSlot === undefined) {
-              newUrls[`${layerKey}-slot-1`] = 'om://transparent-tile';
-              newUrls[`${layerKey}-slot-2`] = 'om://transparent-tile';
+            } else if (currentActiveSlot === undefined && shownSlot !== -1) {   // cold start; a hidden re-toggled layer keeps its slots
+              [1, 2].forEach((s) => { if (s !== targetSlot) newUrls[`${layerKey}-slot-${s}`] = 'om://transparent-tile'; });
             }
           }
         }
@@ -684,6 +677,7 @@ export function useOpenMeteoTileUrls({
                 changed = true;
               }
             });
+            Object.keys(slotFlips).forEach(k => { if (next[k] !== slotFlips[k]) { next[k] = slotFlips[k]; changed = true; } });
             return changed ? next : prev;
           });
 
@@ -712,6 +706,7 @@ export function useOpenMeteoTileUrls({
     };
   }, [activeModel, theme, debouncedTimeOffsetHours, activeLayers, fetchMetadata, metadataRevision, userTier, webglMarineFailed]);
 
+  useRasterDrawnPublisher(activeLayers, activeSlots, omTileUrls, targetSlotsRef);   // the status line's shown/wanted pair
   // NOTE: Imperative opacity/fade override removed. All raster paint properties
   // (raster-opacity, raster-fade-duration) are controlled EXCLUSIVELY via
   // declarative JSX paint props in MapWebGL.js. Any imperative setPaintProperty

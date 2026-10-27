@@ -15,7 +15,8 @@ import {
   createTexture
 } from './WebGLMarineTextureEncoder';
 import { recordChurn } from './marineTransitionCoordinator';
-import { createProgramBatch } from './WebGLProgramBatch';
+import { startProgramBatch, pollEngineBatch, publishBatch, BATCH } from './WebGLProgramBatch';
+import { freeMaskStash } from './maskTextureStash';
 
 // --- Particle Texture Init Helper ---
 export function initParticleTexture(gl, resolution) {
@@ -103,12 +104,16 @@ export function reseedParticleStateInPlace(engine, gl) {
 export function initEngine(engine, gl) {
   if (engine._initialized) return;
 
-  const programs = createProgramBatch(gl, [[ADVECT_VS, ADVECT_FS], [DRAW_VS, DRAW_FS], [HEATMAP_VS, HEATMAP_FS]]);
-  if (!programs) {
+  // ASYNC SHADER COMPILE (WebGLProgramBatch.js): with KHR_parallel_shader_compile the batch may still be compiling when
+  // this returns. Buffers, textures and the framebuffer are allocated now; the vertex arrays (getAttribLocation would
+  // block until the link finishes) wait for pollPrograms to report the batch ready, and render() draws nothing until then.
+  const batch = startProgramBatch(gl, [[ADVECT_VS, ADVECT_FS], [DRAW_VS, DRAW_FS], [HEATMAP_VS, HEATMAP_FS]]);
+  if (!batch) {
     console.error('[WebGLMarine] Failed to compile or link shaders');
     return;
   }
-  [engine.advectProgram, engine.drawProgram, engine.heatmapProgram] = programs;
+  [engine.advectProgram, engine.drawProgram, engine.heatmapProgram] = batch.programs;
+  engine._shaderBatchName = 'marine';
 
   engine.quadBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, engine.quadBuffer);
@@ -173,6 +178,17 @@ export function initEngine(engine, gl) {
     window.__RAW_GPU__.framebufferCount++;
   }
 
+  if (batch.state === BATCH.READY) { publishBatch(engine, batch); initVertexArrays(engine, gl); }
+  else engine._programBatch = batch;
+
+  engine._initialized = true;
+  console.log('[WebGLMarine] Initialized engine with ' + numParticles + ' wave crests + 96x96 grid');
+  recordChurn('engine_init', { particles: numParticles });
+}
+
+// The program-dependent part of init: attribute locations are program queries, so on the async path they wait for the
+// batch (pollPrograms); on the synchronous paths they run inside initEngine, where they always did.
+function initVertexArrays(engine, gl) {
   if (gl.createVertexArray) {
     engine.heatmapVAO = gl.createVertexArray();
     gl.bindVertexArray(engine.heatmapVAO);
@@ -204,10 +220,19 @@ export function initEngine(engine, gl) {
 
     gl.bindVertexArray(null);
   }
+}
 
-  engine._initialized = true;
-  console.log('[WebGLMarine] Initialized engine with ' + numParticles + ' wave crests + 96x96 grid');
-  recordChurn('engine_init', { particles: numParticles });
+// Advance a pending shader batch one frame (the custom layer calls this before every draw; WebGLMarineEngine.pollPrograms).
+// 'pending' while compiling; 'failed' once, after the batch released its programs and shaders, with everything else the
+// init allocated released here too (disposeEngine, plus the coarse-base LRU that only dispose() frees), so the engine is
+// left exactly as a failed init leaves it; 'ready' otherwise.
+export function pollPrograms(engine, gl) {
+  return pollEngineBatch(engine, () => initVertexArrays(engine, gl), () => {
+    engine.advectProgram = engine.drawProgram = engine.heatmapProgram = null;   // released by the batch
+    console.error('[WebGLMarine] Failed to compile or link shaders');
+    if (typeof engine._freeCoarseBase === 'function') engine._freeCoarseBase(gl);   // dispose()'s order: LRU first
+    disposeEngine(engine, gl);
+  });
 }
 
 var deleteAttachedShaders = function(gl, prog) {
@@ -262,6 +287,7 @@ export function disposeEngine(engine, gl) {
   // per dispose cycle in rating mode, and a stale handle survived into the next context.
   safeDeleteTexture(gl, engine._residentScoreTex, null);
   safeDeleteTexture(gl, engine._cachedMaskTex, null);
+  freeMaskStash(gl, engine); // the second mask-cache entry (maskTextureStash.js)
   safeDeleteTexture(gl, engine._overlayMaskTex, null);
 
   engine._residentWaveTex = null;
@@ -282,6 +308,7 @@ export function disposeEngine(engine, gl) {
   engine._cachedMaskGeoJSON = null;
   engine._lastPatchedMask = null;
   engine._landGeoJSON = null;
+  engine._programBatch = null;   // a batch still compiling: its programs were deleted above with the rest
   engine._initialized = false;
   console.log('[WebGLMarine] Engine Disposed');
   recordChurn('engine_dispose');

@@ -1,0 +1,183 @@
+{
+  "observedAtUtc": "2026-10-18T14:42:31.647485+00:00",
+  "reviewedHead": "e4dbb47192bc034257334d15b8fe8c220cad5440",
+  "findings": [
+    {
+      "severity": "P2",
+      "issue": "Unrepresentable UTC conversion in nested contributor date aborts health report",
+      "fix": "Catch conversion OverflowError; retain unverified warning or guard refusal."
+    },
+    {
+      "severity": "P2",
+      "issue": "Matching absent/blank provider or whitespace dataset establishes false verified identity",
+      "fix": "Require nonblank string provider and dataset in health and trend-pair guard."
+    }
+  ],
+  "regressions": {
+    "added": 40,
+    "reviewedHeadFailed": 38,
+    "reviewedHeadAlreadyPassed": 2,
+    "patchedPassed": 40,
+    "focusedAffectedPassed": 395,
+    "network": "External DNS/connect denied; scoped asyncio loopback permitted",
+    "harnessLimit": "Initial helper setup stalled in sandbox and was stopped; corrected local run completed. Collection-error attempts are not RED or product evidence."
+  },
+  "independentReview": {
+    "initialFocusedPassed": 158,
+    "patchedFocusedPassed": 219,
+    "additionalProbesPassed": 12,
+    "remainingMaterialFindings": 0,
+    "limitation": "Local declared-dependency parity reports two absent packages; hosted CI remains required."
+  },
+  "reflection": {
+    "model": "Beam-1.0-501B-A23B",
+    "completedInitialChallenge": "No actionable finding.",
+    "completedPatchChallenge": "No actionable finding.",
+    "initialAttempt": "No final answer; retried with lower reasoning effort, then received final answer."
+  },
+  "offlineProof": {
+    "baselineHead": "e4dbb47192bc034257334d15b8fe8c220cad5440",
+    "seed": 20261018,
+    "completeDefaultOffPayloadComparisons": 200,
+    "payloadMismatches": 0,
+    "network": "DNS and connects denied",
+    "capturedHealthUnchanged": true,
+    "manifestUnchanged": true,
+    "manifestSerializationSha256": "0bda702f1531353052f2e874aa101af18c1fe9e0f98a127a13ff7ae389b537bf",
+    "replay": {
+      "ICON": {
+        "verdict": "warn",
+        "unverified": [
+          "conflicting"
+        ],
+        "reasons": [
+          "GFS/ncep_gfswave025 contributor cycle 19.5h old (> 18.0h)",
+          "model cycle unverified: conflicting"
+        ]
+      },
+      "EURO": {
+        "verdict": "warn",
+        "unverified": [],
+        "reasons": [
+          "GFS/ncep_gfswave025 contributor cycle 19.5h old (> 18.0h)"
+        ]
+      }
+    }
+  },
+  "ciProjection": {
+    "guards": {
+      "files": 207,
+      "passed": 3218,
+      "skipped": 67,
+      "floor": 3212
+    },
+    "chain": {
+      "files": 166,
+      "passed": 2733,
+      "floor": 2727
+    },
+    "estatePassed": 2257,
+    "hostedRevisionStatus": "pending"
+  },
+  "holds": {
+    "merged": false,
+    "guardEnabled": false,
+    "runtimeWrites": false,
+    "mainChanged": false,
+    "productionChanged": false
+  },
+  "availabilityLimit": "Exact region identity is conservative; legacy global aliases can be refused if mixed within a pair. Not observed availability acceptance; any activation needs controlled ingest qualification.",
+  "forecastNumberChange": false,
+  "finalQualification": {
+    "observedAtUtc": "2026-10-18T14:56:27.035511+00:00",
+    "head": "79758e79745609e0fb294838059e549056aa1de6",
+    "ciRunId": 39137245809,
+    "url": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/39137245809",
+    "conclusion": "success",
+    "jobsPassed": 12,
+    "guards": {
+      "collected": 3285,
+      "files": 207,
+      "passed": 3218,
+      "skipped": 67,
+      "failed": 0,
+      "errors": 0
+    },
+    "chain": {
+      "collected": 2733,
+      "files": 166,
+      "passed": 2733,
+      "skipped": 0,
+      "failed": 0,
+      "errors": 0
+    },
+    "estate": {
+      "selectedFiles": 322,
+      "resultFiles": 320,
+      "passed": 2257,
+      "silentFiles": 0
+    },
+    "frontend": {
+      "suitesPassed": 438,
+      "testsPassed": 5766,
+      "build": "success"
+    },
+    "lighthouseRunId": 39137245806,
+    "lighthouseConclusion": "success",
+    "ledgerRunId": 39137245942,
+    "governanceRunId": 39137245816,
+    "reviewChecks": {
+      "success": 16,
+      "neutral": 3,
+      "failed": 0,
+      "pending": 0
+    },
+    "pr": {
+      "isDraft": false,
+      "state": "OPEN",
+      "mergeable": "MERGEABLE",
+      "mergedAt": null,
+      "base": "dev"
+    },
+    "readOnlyPublicHoldReadback": {
+      "observedAtUtc": "2026-10-18T14:50:34.269155+00:00",
+      "dev": {
+        "http": 200,
+        "build": "698ecf62"
+      },
+      "production": {
+        "http": 200,
+        "build": "fc140024"
+      },
+      "health": {
+        "http": 200,
+        "status": "healthy",
+        "version": "2.0.0-stage-6f-v1-62021d59ff78815536391002a5d510a810cfff9e",
+        "checks": [
+          {
+            "name": "database",
+            "status": "pass"
+          },
+          {
+            "name": "scheduler",
+            "status": "pass"
+          }
+        ]
+      },
+      "dataHealth": {
+        "http": 200,
+        "status": "warn",
+        "alerts": [
+          "ICON/marine: model cycle unverified: conflicting",
+          "EURO/marine: model cycle unverified: conflicting"
+        ]
+      }
+    },
+    "remoteRefs": {
+      "dev": "698ecf6272344af568d31fbb91eadbf689bfc63e",
+      "main": "261db85a9508bf5a03ddd70dd21271493d5858a8"
+    },
+    "receiptBranch": "codex/pr378-independent-review-record",
+    "meaning": "Supersedes the initial pending hosted projection. Exact source qualified for review; no merge, deployment, activation, live warning clearance or forecast-skill acceptance."
+  }
+}

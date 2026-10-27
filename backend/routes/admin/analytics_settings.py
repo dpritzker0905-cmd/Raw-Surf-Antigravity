@@ -2,13 +2,16 @@
 admin/analytics_settings.py — Platform settings, site access, and feed lineups.
 Extracted from analytics.py (v93 audit) for LOC compliance.
 """
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timezone
+from core.rate_limiter import (
+    failure_throttle_check, failure_throttle_clear, failure_throttle_record, get_client_ip,
+)
 from database import get_db
 from deps.admin_auth import get_current_admin
 from models import Profile, Booking
@@ -47,10 +50,18 @@ async def check_site_access(db: AsyncSession = Depends(get_db)):
 class VerifyAccessCode(BaseModel):
     code: str
 
+# Wrong codes allowed per address. Only failures count: the client re-checks a stored VALID code on every page
+# load, so a request limiter would lock out real visitors behind one shared address.
+ACCESS_CODE_MAX_FAILURES = 10
+ACCESS_CODE_WINDOW_SECONDS = 600
+
+
 @router.post("/site-access/verify")
-async def verify_access_code(data: VerifyAccessCode, db: AsyncSession = Depends(get_db)):
+async def verify_access_code(request: Request, data: VerifyAccessCode, db: AsyncSession = Depends(get_db)):
     """Public endpoint to verify an access code (no auth needed)"""
     from models import PlatformSettings
+    throttle_key = f"access_code_fail:{get_client_ip(request)}"
+    failure_throttle_check(throttle_key, ACCESS_CODE_MAX_FAILURES, ACCESS_CODE_WINDOW_SECONDS)
     try:
         result = await db.execute(select(PlatformSettings).limit(1))
         settings = result.scalar_one_or_none()
@@ -58,8 +69,10 @@ async def verify_access_code(data: VerifyAccessCode, db: AsyncSession = Depends(
             return {"valid": True, "message": "Access code not required"}
         stored_code = settings.access_code if hasattr(settings, 'access_code') else 'SURF2024'
         if data.code.upper().strip() == stored_code.upper().strip():
+            failure_throttle_clear(throttle_key)
             return {"valid": True, "message": "Access granted"}
         else:
+            failure_throttle_record(throttle_key)
             return {"valid": False, "message": "Invalid access code"}
     except Exception:
         return {"valid": False, "message": "Error verifying code"}

@@ -64,6 +64,9 @@
  *     to 63 kn (`fieldTo`). The streak row and the legend bar are NOT moved;
  *   - under the land step's kill (the land at the sea's depth, PR #320's) the line over the LAND is still short as drawn (4.94, under 5.0
  *     at 68 of 281 maxima; 4.85 and 123 before): a kill's picture, read and not solved for.
+ * "AS DRAWN" HERE IS THE TEXTURE AND THE GPU'S LOOKUP. The screen rounds each pixel to 8 bits once more, and no instrument here models that.
+ * A crude model of it (the independent review of this change: one flat ground colour, each tinted pixel rounded to a byte) moves a pair by
+ * several times this margin and reads the sea's 3-6 kn pair under 5.0 at some maxima before the margin and with it (153 and 80 of 281).
  * There is no second kill: the path's own kill below restores light before the path, as it did. The path's rows as PR #318 merged them
  * are scripts/wind-color/light-path-318.json (the solver's reference, and the tests' control).
  *

@@ -10,6 +10,7 @@ from database import get_db
 from core.security import get_current_user_id
 from models import Profile, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
+from services.guardian_levels import is_confirmed_guardian
 from .subscriptions import get_tiers_for_role, GROM_SUBSCRIPTION_TIERS
 
 router = APIRouter()
@@ -86,9 +87,12 @@ async def pay_subscription_with_credits(
 
 @router.post("/subscriptions/grom-pay-with-credits/{parent_id}")
 async def pay_grom_subscription_with_credits(
-    parent_id: str, data: GromCreditSubscriptionRequest, db: AsyncSession = Depends(get_db)
+    parent_id: str, data: GromCreditSubscriptionRequest,
+    current_user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)
 ):
     """Parent pays for Grom's subscription using Stoked Credits."""
+    if parent_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     parent_result = await db.execute(select(Profile).where(Profile.id == parent_id))
     parent = parent_result.scalar_one_or_none()
     if not parent:
@@ -102,7 +106,9 @@ async def pay_grom_subscription_with_credits(
         raise HTTPException(status_code=404, detail="Grom not found")
     if grom.role != RoleEnum.GROM:
         raise HTTPException(status_code=400, detail="Target user is not a Grom")
-    if is_grom_parent_eligible(parent) and grom.parent_id != parent_id:
+    # The Grom must be linked to the payer for EVERY allowed role. This used to be skipped for Hobbyists, so a
+    # Hobbyist could spend credits on any Grom account.
+    if not is_confirmed_guardian(grom, parent_id):
         raise HTTPException(status_code=403, detail="Grom is not linked to this parent")
     if data.tier_id not in GROM_SUBSCRIPTION_TIERS:
         raise HTTPException(status_code=400, detail="Invalid Grom tier")

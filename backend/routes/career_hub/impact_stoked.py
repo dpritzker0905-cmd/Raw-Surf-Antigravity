@@ -4,6 +4,7 @@ Extracted from impact.py (v92 audit) for LOC compliance.
 """
 
 from fastapi import APIRouter, HTTPException, Depends, Query
+from core.security import get_user_id_from_jwt_or_query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
@@ -135,8 +136,8 @@ async def get_instant_shakas(
 @router.post("/impact/instant-shakas/{shaka_id}/view")
 async def mark_instant_shaka_viewed(
     shaka_id: str,
-    user_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Mark an instant shaka video as viewed"""
     result = await db.execute(

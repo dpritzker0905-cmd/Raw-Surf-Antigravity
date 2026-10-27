@@ -13,7 +13,10 @@ function makeGl(failShader = -1, failProgram = -1) {
     getShaderParameter: jest.fn(s => s.id !== failShader), getShaderInfoLog: () => 'synthetic compile failure',
     deleteShader: jest.fn(s => deletedShaders.push(s)),
     createProgram: jest.fn(() => { const p = { id: programs.length }; programs.push(p); return p; }),
-    attachShader: jest.fn(), linkProgram: jest.fn(), getProgramParameter: jest.fn(p => p.id !== failProgram),
+    // GL spec: a link FAILS when any attached shader failed to compile (the deferred batch relies on it and reads
+    // compile status only after a failed link), so the mock links false for such programs too.
+    attachShader: jest.fn((p, s) => { (p.attached = p.attached || []).push(s); }), linkProgram: jest.fn(),
+    getProgramParameter: jest.fn(p => p.id !== failProgram && (p.attached || []).every(s => s.id !== failShader)),
     getProgramInfoLog: () => 'synthetic link failure', deleteProgram: jest.fn(p => deletedPrograms.push(p)),
     createBuffer: jest.fn(() => { throw new Error('allocation reached after failed init'); }),
   };
@@ -21,16 +24,22 @@ function makeGl(failShader = -1, failProgram = -1) {
 }
 
 beforeEach(() => { jest.spyOn(console, 'error').mockImplementation(() => {}); });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => { jest.restoreAllMocks(); delete window.__RAW_DISABLE_DEFERRED_SHADER_STATUS__; });
 
+// Both batch modes (WebGLProgramBatch.js): deferred (default) and serial (kill switch).
+describe.each([['deferred', false], ['serial', true]])('%s shader status', (mode, serial) => {
+beforeEach(() => { if (serial) window.__RAW_DISABLE_DEFERRED_SHADER_STATUS__ = true; });
 describe.each([['marine', initMarine, 6, 3], ['wind', initWind, 10, 5]])('%s failed initialization', (name, init, shaderCount, programCount) => {
   test.each(Array.from({ length: shaderCount }, (_, i) => i))('shader failure at position %i deletes every allocated shader', index => {
-    const { gl, shaders, programs, deletedShaders } = makeGl(index);
+    const { gl, shaders, programs, deletedShaders, deletedPrograms } = makeGl(index);
     const engine = { _initialized: false };
     expect(() => init(engine, gl)).not.toThrow();
     expect(new Set(deletedShaders)).toEqual(new Set(shaders));
     expect(deletedShaders).toHaveLength(shaders.length);
-    expect(programs).toHaveLength(0);
+    // serial stops before any program exists; deferred links the whole batch first, then releases all of it
+    if (serial) expect(programs).toHaveLength(0);
+    expect(new Set(deletedPrograms)).toEqual(new Set(programs));
+    expect(deletedPrograms).toHaveLength(programs.length);
     expect(gl.createBuffer).not.toHaveBeenCalled();
     expect(engine._initialized).toBe(false);
   });
@@ -47,6 +56,7 @@ describe.each([['marine', initMarine, 6, 3], ['wind', initWind, 10, 5]])('%s fai
     expect(engine._initialized).toBe(false);
     expect(engine.advectProgram).toBeFalsy();
   });
+});
 });
 
 test.each([WebGLMarineEngine, WebGLWindEngine])('public engine initialization reports failure to the layer caller', Engine => {

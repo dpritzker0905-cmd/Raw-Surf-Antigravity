@@ -12,6 +12,8 @@ bcrypt==4.1.3
 aiohttp==3.9.5
 httpx==0.27.2
 requests==2.31.0
+# Render advisory 2026-10-26 (emudhra): CA bundle must be >= 2026.10.19. A deliberate floor, not a pin: a newer bundle is always wanted.
+certifi>=2026.10.19
 stripe==8.11.0
 boto3==1.34.69
 supabase==2.17.0
@@ -25,6 +27,9 @@ Mako==1.3.3
 livekit-api==0.7.1
 psutil==5.9.8
 cryptography==42.0.5
+# Passkeys (WebAuthn). 2.2.0 is the newest py_webauthn that installs next to the pinned cryptography above: 2.3.0 and
+# later (and 3.x) require a newer cryptography. Raise both together, never one alone.
+webauthn==2.2.0
 httptools==0.6.1
 uvloop==0.19.0
 wsproto==1.2.0
@@ -72,3 +77,6 @@ pygrib==2.1.8
 # ECMWF Open Data direct (EURO wind + pressure off open-meteo) — free IFS 0.25° GRIB (10u/10v/msl).
 # Pure-Python client (resolves the latest cycle + byte-range .index downloads); pygrib decodes the GRIB.
 ecmwf-opendata==0.3.34
+pydantic-ai-slim[anthropic]==1.60.0
+logfire[fastapi,system-metrics]==5.2.0
+anthropic==0.78.0

@@ -6,6 +6,8 @@ from fastapi import Depends, File, Form, HTTPException, UploadFile, APIRouter
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
+from .identity import uploader_id, photographer_uploader_id
+from core.security import get_current_user_id
 from datetime import datetime
 from typing import Optional
 import uuid
@@ -19,9 +21,11 @@ from .core import (
     UPLOAD_DIR, ALLOWED_IMAGE_TYPES, ALLOWED_VIDEO_TYPES,
     MAX_FILE_SIZE, MAX_IMAGE_SIZE,
     SUPABASE_STORAGE_AVAILABLE,
-    upload_to_supabase_storage, get_file_extension, add_watermark,
+    upload_to_supabase_storage, get_file_extension, add_watermark, WatermarkError,
+    require_previewable_image,
     _cached_file_response, _SHORT_CACHE,
 )
+from .storage import unlinked_media_names
 from utils.video_processor import (
     process_video_upload, generate_video_thumbnail
 )
@@ -35,7 +39,7 @@ logger = logging.getLogger(__name__)
 @router.post("/upload/user-gallery")
 async def upload_user_gallery_media(
     file: UploadFile = File(...),
-    user_id: str = Form(...),
+    user_id: str = Depends(uploader_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Upload media to user's personal gallery. Videos transcoded to 1080p."""
@@ -92,7 +96,7 @@ async def upload_user_gallery_media(
 
 @router.post("/upload/photographer-gallery")
 async def upload_photographer_gallery_media(
-    file: UploadFile = File(...), user_id: str = Form(...),
+    file: UploadFile = File(...), user_id: str = Depends(uploader_id),
     add_watermark_preview: bool = Form(True), db: AsyncSession = Depends(get_db)
 ):
     """Upload media for photographer's gallery. Paid photographers can upload 4K videos."""
@@ -111,6 +115,8 @@ async def upload_photographer_gallery_media(
     is_image = file.content_type in ALLOWED_IMAGE_TYPES
     if not is_video and not is_image:
         raise HTTPException(status_code=400, detail="Invalid file type. Allowed: JPEG, PNG, WebP, GIF, MP4, MOV, WebM")
+    if is_image:
+        require_previewable_image(file.content_type)
     content = await file.read()
     max_size = MAX_FILE_SIZE if is_video else MAX_IMAGE_SIZE
     if len(content) > max_size:
@@ -175,8 +181,8 @@ async def upload_photographer_gallery_media(
         import gc
         ext = get_file_extension(file.content_type)
         base_filename = str(uuid.uuid4())
-        original_filename = f"{base_filename}_original{ext}"
-        preview_filename = f"{base_filename}_preview{ext}"
+        # The original's name must not be derivable from the public preview's (LA-GAL-02).
+        original_filename, preview_filename = unlinked_media_names(ext)
         original_path = gallery_dir / original_filename
         preview_path = gallery_dir / preview_filename
         content_size = len(content)
@@ -220,7 +226,11 @@ async def upload_photographer_gallery_media(
             gc.collect()
         watermark_time_ms = 0
         if add_watermark_preview:
-            _, watermark_time_ms = add_watermark(str(original_path), str(preview_path))
+            try:
+                _, watermark_time_ms = add_watermark(str(original_path), str(preview_path))
+            except WatermarkError:
+                original_path.unlink(missing_ok=True)
+                raise HTTPException(status_code=500, detail="Could not create a preview for this photo")
             gc.collect()
         else:
             shutil.copy(original_path, preview_path)
@@ -244,7 +254,7 @@ async def upload_photographer_gallery_media(
 
 
 @router.post("/uploads/test-watermark")
-async def test_watermark_performance(file: UploadFile = File(...)):
+async def test_watermark_performance(file: UploadFile = File(...), current_user_id: str = Depends(get_current_user_id)):
     """Test watermarking performance. Target: <2 seconds for 5MB image."""
     import time
     import tempfile
@@ -257,13 +267,21 @@ async def test_watermark_performance(file: UploadFile = File(...)):
         input_file.write(content)
         input_path = input_file.name
     output_path = input_path.replace(".jpg", "_watermarked.jpg")
-    _, watermark_time_ms = add_watermark(input_path, output_path)
-    total_time_ms = (time.time() - start_time) * 1000
-    with open(output_path, "rb") as f:
-        watermarked_content = f.read()
+    try:
+        _, watermark_time_ms = add_watermark(input_path, output_path)
+        total_time_ms = (time.time() - start_time) * 1000
+        with open(output_path, "rb") as f:
+            watermarked_content = f.read()
+    except WatermarkError:
+        raise HTTPException(status_code=400, detail="Could not watermark this image")
+    finally:
+        # Both temp files go on every path; a failed watermark used to leave the input behind.
+        for leftover in (input_path, output_path):
+            try:
+                os.unlink(leftover)
+            except FileNotFoundError:
+                pass
     output_size_mb = len(watermarked_content) / (1024 * 1024)
-    os.unlink(input_path)
-    os.unlink(output_path)
     return {
         "input_size_mb": round(file_size_mb, 2), "output_size_mb": round(output_size_mb, 2),
         "watermark_time_ms": round(watermark_time_ms, 0), "total_time_ms": round(total_time_ms, 0),
@@ -273,7 +291,7 @@ async def test_watermark_performance(file: UploadFile = File(...)):
 
 @router.post("/photos/upload")
 async def upload_session_photo(
-    file: UploadFile = File(...), photographer_id: str = Form(...),
+    file: UploadFile = File(...), photographer_id: str = Depends(photographer_uploader_id),
     gallery_id: Optional[str] = Form(None), session_id: Optional[str] = Form(None),
     tagged_surfer_ids: Optional[str] = Form(None), price: Optional[float] = Form(None),
     is_session_photo: bool = Form(False), media_type: Optional[str] = Form(None),
@@ -293,6 +311,8 @@ async def upload_session_photo(
     is_image = file.content_type in ALLOWED_IMAGE_TYPES
     if not is_video and not is_image:
         raise HTTPException(status_code=400, detail="Invalid file type. Supported: images and videos")
+    if is_image:
+        require_previewable_image(file.content_type)
     content = await file.read()
     max_size = MAX_FILE_SIZE if is_video else MAX_IMAGE_SIZE
     if len(content) > max_size:
@@ -301,14 +321,14 @@ async def upload_session_photo(
     gallery_dir.mkdir(parents=True, exist_ok=True)
     ext = file.filename.rsplit('.', 1)[-1].lower() if file.filename else ('mp4' if is_video else 'jpg')
     timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
-    filename = f"session_{timestamp}_{str(uuid.uuid4())[:8]}.{ext}"
+    # The original's name must not be derivable from the public preview's or thumbnail's (LA-GAL-02).
+    filename, preview_filename = unlinked_media_names(f".{ext}", prefix=f"session_{timestamp}_")
     file_path = gallery_dir / filename
     with open(file_path, 'wb') as f:
         f.write(content)
     original_url = f"/api/uploads/gallery/{photographer_id}/{filename}"
     preview_url = original_url
     if is_image:
-        preview_filename = f"preview_{filename}"
         preview_path = gallery_dir / preview_filename
         try:
             img = Image.open(io.BytesIO(content))
@@ -341,10 +361,14 @@ async def upload_session_photo(
             img.save(preview_path, quality=85)
             preview_url = f"/api/uploads/gallery/{photographer_id}/{preview_filename}"
         except Exception as e:
+            # The fallback here was preview_url = original_url: a failed watermark published the
+            # paid original as its own free preview. Refuse the upload instead (LA-GAL-02).
             logger.error(f"Watermark error: {e}")
+            file_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=500, detail="Could not create a preview for this photo")
     elif is_video:
         try:
-            thumbnail_filename = f"thumb_{filename.rsplit('.', 1)[0]}.jpg"
+            thumbnail_filename = f"thumb_{uuid.uuid4()}.jpg"
             thumbnail_path = gallery_dir / thumbnail_filename
             from utils.video_processor import generate_video_thumbnail as gen_thumb
             thumbnail_success = await gen_thumb(str(file_path), str(thumbnail_path))

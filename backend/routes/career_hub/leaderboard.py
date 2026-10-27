@@ -515,6 +515,7 @@ async def get_parent_grom_elite_rankings(
     groms_result = await db.execute(
         select(Profile).where(
             Profile.parent_id == parent_id,
+            Profile.parent_link_approved.is_(True),
             Profile.role == RoleEnum.GROM
         )
     )

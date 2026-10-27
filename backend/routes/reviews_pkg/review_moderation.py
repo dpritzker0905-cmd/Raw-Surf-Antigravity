@@ -12,6 +12,7 @@ from typing import Optional
 from datetime import datetime, timezone
 
 from deps.admin_auth import get_current_admin
+from core.security import get_current_user_id
 from database import get_db
 from models import Profile, Review
 from services.ai_moderation import moderate_review_content
@@ -30,9 +31,13 @@ class ReportReviewRequest(BaseModel):
 async def report_review(
     review_id: str,
     request: ReportReviewRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Report a review for moderation."""
+    if request.reporter_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
+
     reporter_result = await db.execute(select(Profile).where(Profile.id == request.reporter_id))
     reporter = reporter_result.scalar_one_or_none()
     if not reporter:

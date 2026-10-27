@@ -10,6 +10,7 @@ request that reaches the handler.
 import datetime
 import enum
 import inspect
+import re
 import typing
 from unittest.mock import AsyncMock, MagicMock
 
@@ -51,6 +52,30 @@ TOKEN_IDENTITY = [
     ("POST", "/api/photographer-request"),
     ("POST", "/api/photographer-requests/{request_id}/respond"),
     ("POST", "/api/photographer-requests/{request_id}/cancel"),
+    # Batch 3 (LA-SEC-03, 2026-10-17):
+    ("POST", "/api/promo-codes/validate"),
+    ("POST", "/api/support/tickets"),
+    ("PATCH", "/api/bookings/{booking_id}"),
+    ("POST", "/api/gamification/award-xp"),
+    ("POST", "/api/impact/instant-shakas/{shaka_id}/view"),
+    ("POST", "/api/ads/impression"),
+    ("POST", "/api/ads/click"),
+    ("PUT", "/api/crew/{crew_hash}/settings"),
+    ("POST", "/api/crews/saved"),
+    ("PUT", "/api/crews/saved/{crew_id}"),
+    ("DELETE", "/api/crews/saved/{crew_id}"),
+    ("POST", "/api/crews/saved/{crew_id}/use"),
+    ("POST", "/api/crews/saved/{crew_id}/set-default"),
+    ("POST", "/api/messages/typing/{conversation_id}"),
+    ("PATCH", "/api/posts/{post_id}/settings"),
+    ("PATCH", "/api/posts/{post_id}"),
+    ("DELETE", "/api/posts/{post_id}"),
+    ("POST", "/api/posts/{post_id}/save"),
+    ("DELETE", "/api/posts/{post_id}/save"),
+    ("POST", "/api/sessions/pricing"),
+    ("POST", "/api/friends/accept/{friend_request_id}"),
+    ("POST", "/api/friends/decline/{friend_request_id}"),
+    ("DELETE", "/api/friends/{friend_id}"),
 ]
 # The client names the actor (where, which field); it must equal the token's subject.
 NAMED_ACTOR = [
@@ -76,8 +101,70 @@ NAMED_ACTOR = [
     ("POST", "/api/profiles/{profile_id}/pro-onboarding", "path", "profile_id"),
     ("POST", "/api/verification/pro-surfer/submit", "body", "user_id"),
     ("POST", "/api/verification/pro-photographer/submit", "body", "user_id"),
+    # Batch 4 (LA-SEC-03, 2026-10-18): credits, tiers, block, privacy, photographer money settings.
+    ("POST", "/api/subscriptions/grom-pay-with-credits/{parent_id}", "path", "parent_id"),
+    ("POST", "/api/subscriptions/grom-tier/{parent_id}", "path", "parent_id"),
+    ("POST", "/api/users/block", "body", "blocker_id"),
+    ("POST", "/api/users/unblock", "body", "blocker_id"),
+    ("PUT", "/api/friends/privacy/{user_id}", "path", "user_id"),
+    ("PUT", "/api/photographer/{photographer_id}/watermark-settings", "path", "photographer_id"),
+    ("PUT", "/api/photographer/{photographer_id}/pricing", "path", "photographer_id"),
+    ("PUT", "/api/photographer/{photographer_id}/gallery-pricing", "path", "photographer_id"),
+    ("POST", "/api/photo-subscriptions/plans", "query", "photographer_id"),
+    ("PATCH", "/api/photo-subscriptions/plans/{plan_id}", "query", "photographer_id"),
+    ("DELETE", "/api/photo-subscriptions/plans/{plan_id}", "query", "photographer_id"),
+    ("POST", "/api/gallery/migrate-titles", "query", "photographer_id"),
+    ("POST", "/api/gallery/clean-all-item-titles", "query", "photographer_id"),
+    # Batch 6 (LA-SEC-03, 2026-10-23): notifications, reports and disputes, social, reviews, photographer tools.
+    ("POST", "/api/notifications/{user_id}/read-all", "path", "user_id"),
+    ("POST", "/api/notifications/photographer-alerts", "body", "user_id"),
+    ("DELETE", "/api/notifications/photographer-alerts/{photographer_id}", "query", "user_id"),
+    ("PUT", "/api/notifications/preferences/{user_id}", "path", "user_id"),
+    ("PATCH", "/api/bookings/{booking_id}/participant-selfie", "body", "participant_id"),
+    ("POST", "/api/admin/reports", "body", "reporter_id"),
+    ("POST", "/api/reports/submit", "body", "reporter_id"),
+    ("POST", "/api/disputes/submit", "body", "complainant_id"),
+    ("POST", "/api/content/flag", "body", "reporter_id"),
+    ("POST", "/api/posts/{post_id}/report", "body", "reporter_id"),
+    ("POST", "/api/follow/{user_id}", "query", "follower_id"),
+    ("DELETE", "/api/follow/{user_id}", "query", "follower_id"),
+    ("POST", "/api/friends/request", "query", "requester_id"),
+    ("POST", "/api/friends/location/{user_id}", "path", "user_id"),
+    ("POST", "/api/reviews", "query", "reviewer_id"),
+    ("PUT", "/api/photographer/{photographer_id}/availability-windows", "path", "photographer_id"),
+    ("POST", "/api/photographer/{photographer_id}/block-date", "path", "photographer_id"),
+    ("POST", "/api/photographer/{photographer_id}/unblock-date", "path", "photographer_id"),
+    ("POST", "/api/photographer/{photographer_id}/availability", "path", "photographer_id"),
+    ("DELETE", "/api/photographer/{photographer_id}/availability/{availability_id}", "path", "photographer_id"),
+    ("POST", "/api/photographer/{photographer_id}/on-demand-toggle", "path", "photographer_id"),
+    ("POST", "/api/photographer/{photographer_id}/on-demand-settings", "path", "photographer_id"),
+    ("PATCH", "/api/photographer/{photographer_id}/participant/{participant_id}/notes", "path", "photographer_id"),
+    ("POST", "/api/photographer/{photographer_id}/go-live", "path", "photographer_id"),
+    ("POST", "/api/photographer/{photographer_id}/end-session", "path", "photographer_id"),
+    # Batch 5: reads that return one user's personal data are the user's own to read.
+    ("GET", "/api/subscriptions/account-billing/{user_id}", "path", "user_id"),
+    ("GET", "/api/compliance/violations/user/{user_id}", "path", "user_id"),
+    ("GET", "/api/compliance/tos-status/{user_id}", "path", "user_id"),
+    ("GET", "/api/compliance/acceptance-history/{user_id}", "path", "user_id"),
+    ("GET", "/api/photographer/{photographer_id}/earnings-breakdown", "path", "photographer_id"),
+    ("GET", "/api/photographer/{photographer_id}/earnings-history", "path", "photographer_id"),
+    ("GET", "/api/photo-subscriptions/my-subscriptions/{user_id}", "path", "user_id"),
+    ("GET", "/api/photo-subscriptions/my-subscribers/{photographer_id}", "path", "photographer_id"),
+    # Phase 0 (2026-10-26): the dispatch completion and the captain's crew reminder trusted a plain id.
+    ("POST", "/api/dispatch/{dispatch_id}/complete", "query", "photographer_id"),
+    ("POST", "/api/dispatch/{dispatch_id}/remind-crew", "body", "captain_id"),
 ]
-LOGIN_ONLY = [("POST", "/api/notifications")]
+# Login required; ownership is by RESOURCE (the notification, the booking), proved against a real database in
+# tests/test_batch5_resource_ownership.py. The broadcast channel allow-list is in the same file.
+LOGIN_ONLY = [
+    ("POST", "/api/notifications"),
+    ("POST", "/api/realtime/broadcast"),
+    ("POST", "/api/notifications/{notification_id}/read"),
+    ("POST", "/api/bookings/{booking_id}/nudge"),
+    ("POST", "/api/bookings/{booking_id}/nudge-all"),
+    ("POST", "/api/bookings/{booking_id}/update-splits"),
+    ("POST", "/api/bookings/{booking_id}/crew-hub/handle-expiry"),
+]
 ALL = TOKEN_IDENTITY + [(m, p) for m, p, _w, _f in NAMED_ACTOR] + LOGIN_ONLY
 
 
@@ -119,8 +206,18 @@ def _dummy(annotation):
     return "x"
 
 
+def _field_value(field):
+    """A dummy for one required field; a string constrained to `^(a|b)$` gets its first alternative."""
+    for meta in field.metadata:
+        pattern = getattr(meta, "pattern", None)
+        match = re.match(r"^\^\(([^|)]+)", pattern or "")
+        if match:
+            return match.group(1)
+    return _dummy(field.annotation)
+
+
 def _minimal(model):
-    return {name: _dummy(f.annotation) for name, f in model.model_fields.items() if f.is_required()}
+    return {name: _field_value(f) for name, f in model.model_fields.items() if f.is_required()}
 
 
 def _request(method, path, actor=None, where=None, field=None):
@@ -135,7 +232,8 @@ def _request(method, path, actor=None, where=None, field=None):
         if where == "query" and q.name == field:
             params[q.name] = actor
         elif q.required:
-            params[q.name] = "true" if q.field_info.annotation is bool else "x"
+            ann = q.field_info.annotation
+            params[q.name] = "true" if ann is bool else "1" if ann in (int, float) else "x"
     body = None
     if route.dependant.body_params:
         b = route.dependant.body_params[0]
@@ -147,7 +245,10 @@ def _request(method, path, actor=None, where=None, field=None):
 
 
 @pytest.fixture
-def stub_db():
+def stub_db(monkeypatch):
+    # /realtime/broadcast would call Supabase if these were set on the machine running the tests.
+    monkeypatch.delenv("SUPABASE_URL", raising=False)
+    monkeypatch.delenv("SUPABASE_SERVICE_KEY", raising=False)
     result = MagicMock()
     result.scalar_one_or_none.return_value = None
     result.scalar.return_value = None
@@ -201,6 +302,7 @@ def test_identity_comes_from_the_token(method, path):
 def test_owner_passes_the_binding(stub_db, method, path, where, field):
     url, params, body = _request(method, path, actor="caller", where=where, field=field)
     response = _call(method, url, params, body, subject="caller")
-    detail = response.json().get("detail") if response.headers.get("content-type", "").startswith("application/json") else None
+    payload = response.json() if response.headers.get("content-type", "").startswith("application/json") else None
+    detail = payload.get("detail") if isinstance(payload, dict) else None
     assert response.status_code not in (401, 422), (response.status_code, detail)
     assert detail != DENIED

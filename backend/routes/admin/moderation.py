@@ -9,9 +9,13 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 import json
+import math
 
 from database import get_db
 from deps.admin_auth import get_current_admin
+from core.security import get_current_user_id
+from utils.credits import add_credits
+from utils.refund_guard import assert_not_seller
 from models import (
     Profile, Dispute, DisputeMessage, UserReport, PayoutHold, AuditLog,
     CreditTransaction, Booking, LiveSession, RoleEnum
@@ -302,24 +306,33 @@ async def update_dispute(
             dispute.resolved_at = datetime.now(timezone.utc)
             dispute.resolved_by = admin.id
             
+            # NaN fails every comparison, so it would sail past the `> 0` test below and be silently ignored
+            if data.amount_refunded is not None and not math.isfinite(data.amount_refunded):
+                raise HTTPException(status_code=400, detail="The refund amount must be a positive number")
+
             # If refunding to account credit
             if data.amount_refunded and data.amount_refunded > 0:
                 dispute.amount_refunded = data.amount_refunded
-                
+
                 # Add credit to complainant's account
                 complainant = dispute.complainant
                 if complainant:
-                    complainant.credit_balance = (complainant.credit_balance or 0) + data.amount_refunded
-                    
-                    # Create credit transaction
-                    credit_txn = CreditTransaction(
-                        profile_id=complainant.id,
-                        amount=data.amount_refunded,
-                        transaction_type='dispute_refund',
-                        description=f"Dispute resolution refund - {dispute.subject[:50]}",
-                        reference_id=dispute.id
-                    )
-                    db.add(credit_txn)
+                    # A refund pays whoever PAID, never the other side of the dispute or the seller of what is
+                    # disputed (admin-created disputes can name any pair of users).
+                    await assert_not_seller(
+                        db, complainant.id, booking_id=dispute.booking_id,
+                        live_session_id=dispute.live_session_id, gallery_item_id=dispute.gallery_item_id,
+                        transaction_id=dispute.transaction_id, respondent_id=dispute.respondent_id)
+
+                    # Credit through the shared helper: it moves the balance and writes a COMPLETE ledger row.
+                    # (The old row was built with `profile_id=`, which is not a column, so resolving any dispute
+                    # with a refund raised TypeError and refunded nobody.)
+                    ok, _balance, error = await add_credits(
+                        user_id=complainant.id, amount=data.amount_refunded, transaction_type='dispute_refund',
+                        db=db, description=f"Dispute resolution refund - {dispute.subject[:50]}",
+                        reference_type='dispute', reference_id=dispute.id)
+                    if not ok:
+                        raise HTTPException(status_code=400, detail=error or "Could not credit the refund")
     
     if data.priority:
         dispute.priority = data.priority
@@ -499,9 +512,12 @@ async def get_reports(
 @router.post("/admin/reports")
 async def create_report(
     data: CreateReportRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Create a new user report (can be called by users or admins)"""
+    """Create a new user report (can be called by users or admins; the reporter is always the caller)"""
+    if data.reporter_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     report = UserReport(
         reporter_id=data.reporter_id,
         report_type=data.report_type,

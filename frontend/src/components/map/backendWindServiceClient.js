@@ -19,11 +19,48 @@ import {
 import { pointRequestIdentityEnabled, createPointRequestContext } from './pointRequestIdentity';
 import { BoundedPointCache } from './BoundedPointCache';
 import { recordTruthStage } from './weatherTruthTracker';
-import { windLaneParam } from './windLane';
+import { windLaneParam, windLaneDisabled } from './windLane';
+// STATIC WIND FRAMES (2026-10-22, the wind instant scrub): world and mid-zoom boxes from the CDN (windStaticFrames.js).
+import { tryStaticWindGrid, staticWindGridSync, windBoxKind, windStaticEnabled } from './windStaticFrames';
 
 export const windPointCache = new BoundedPointCache(50, 30000);
 
 const inFlightWindRequests = new Map();
+
+// THE SAME WIND /grid ASK IS ANSWERED ONCE (2026-10-24, the wind pan diet; the worldwide matrix's cell 7): the in-flight dedupe
+// above lives only while a request is pending, so every zoom / pan re-entry of the hour-0 fetch after it completed re-asked the
+// identical close-zoom sharpen (measured offline at Norway z5: one box and hour asked 3x, ~5 s apart, ~3 s of the box each). A
+// completed, non-stale answer is kept 2 min (windController's own TTL) under its full URL (model, valid_time, bbox, lane switch),
+// 16 entries. A stale answer is never kept (the SWR re-ask owns it). Kill: window.__RAW_DISABLE_WIND_GRID_RESPONSE_CACHE__.
+const WIND_GRID_RESPONSE_TTL_MS = 120000;
+const WIND_GRID_RESPONSE_MAX = 16;
+const windGridResponses = new Map();   // url -> { result, at }
+function windGridResponseCacheOn() {
+  return !(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_GRID_RESPONSE_CACHE__ === true);
+}
+function windGridResponseCacheGet(url) {
+  if (!windGridResponseCacheOn()) return null;
+  const e = windGridResponses.get(url);
+  if (!e) return null;
+  if (Date.now() - e.at > WIND_GRID_RESPONSE_TTL_MS) { windGridResponses.delete(url); return null; }
+  if (typeof window !== 'undefined') {
+    const d = (window.__RAW_WIND_GRID_CACHE__ = window.__RAW_WIND_GRID_CACHE__ || { hits: 0, puts: 0 });
+    d.hits += 1;
+  }
+  return e.result;
+}
+function windGridResponseCachePut(url, result) {
+  if (!windGridResponseCacheOn() || !result || result.stale || !result.renderable) return;
+  windGridResponses.delete(url);
+  windGridResponses.set(url, { result, at: Date.now() });
+  while (windGridResponses.size > WIND_GRID_RESPONSE_MAX) windGridResponses.delete(windGridResponses.keys().next().value);
+  if (typeof window !== 'undefined') {
+    const d = (window.__RAW_WIND_GRID_CACHE__ = window.__RAW_WIND_GRID_CACHE__ || { hits: 0, puts: 0 });
+    d.puts += 1;
+  }
+}
+/** Tests only. */
+export function _resetWindGridResponseCacheForTest() { windGridResponses.clear(); }
 const inFlightWindPointRequests = new Map();
 
 /**
@@ -473,6 +510,17 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
   const bboxParam = `${clampedBbox.west},${clampedBbox.south},${clampedBbox.east},${clampedBbox.north}`;
   const url = `${GRID_URL}?model=${model}&domain=wind&layer=wind&valid_time=${validTimeStr}&bbox=${bboxParam}${windLaneParam()}`;
 
+  // SEAM A (2026-10-22): a box /grid answers from the GFS wind world field (the world, or a mid-zoom clip over the 20-deg sharpen
+  // cap) comes from the static frame the CDN holds, the same numbers parity-gated at publish (lane included). Any miss: /grid.
+  // Never with the HRRR lane switched off for this session (wind_lane=gfs): the frames carry the lane.
+  if (windStaticEnabled() && !windLaneDisabled() && windBoxKind(model, clampedBbox)) {
+    const sj = await tryStaticWindGrid({ model, validTimeStr, clampedBbox, signal });
+    if (sj) return staticWindResult(sj, { clampedBbox, hourOffset, model, actualBounds, actualSource, start, validTimeStr, clampResult });
+  }
+
+  const _hit = windGridResponseCacheGet(url);
+  if (_hit) return { ..._hit, hourOffset };   // the same ask answered < 2 min ago (an hour can share a frame: its own label)
+
   const _inFlight = inFlightWindRequests.get(url);
   if (_inFlight) {
     // STRANDED-DEDUP GUARD (2026-07-20 — the marine stranded fetch-lock lesson, wind edition;
@@ -582,6 +630,7 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
         coverage_scope: json.coverage_scope || null
       });
 
+      windGridResponseCachePut(url, result);
       return result;
     } catch (err) {
       const errorDetails = {
@@ -632,6 +681,109 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
   _entry = { promise, signal };
   inFlightWindRequests.set(url, _entry);
   return promise;
+}
+
+// A static grid's vectors are already in the mapped shape ({lat, lng, speed, direction, u, v}, plus is_valid: staticFrameCodec.
+// buildWindVectors), so the result reuses them instead of copying 15k objects again; mapNormalizedWindGridToWebGL still builds
+// every other field (one mapper, so the two paths cannot drift).
+function mapStaticWind(json, box, hourOffset) {
+  const vectors = json.grid.vectors;
+  // The shell is mapped as hour -1 so the mapper's hour-0 truth stage never records the one-vector stand-in; the real grid is
+  // recorded below instead.
+  const shell = mapNormalizedWindGridToWebGL({ ...json, grid: { ...json.grid, vectors: [{ lat: 0, lng: 0, speed: 1 }] } }, box, -1);
+  let nonzero = 0;
+  for (let i = 0; i < vectors.length; i++) if (vectors[i].speed > 0) nonzero += 1;
+  shell.vectors = vectors;
+  shell.hourOffset = hourOffset;
+  shell.nonzeroCount = nonzero;
+  shell.renderable = vectors.length > 0 && nonzero > 0;
+  if (typeof window !== 'undefined' && hourOffset === 0) {
+    recordTruthStage('mappedGrid', { model: json.model || 'GFS', domain: 'wind', layer: 'wind', valid_time: json.valid_time,
+      run_time: json.run_time, product_id: json.product_id, is_dynamic_viewport_product: false, coverage_scope: json.coverage_scope,
+      requested_bbox: json.requested_bbox, served_bbox: json.served_bbox, grid: json.grid, truthTag: json.truthTag },
+    'backendWindServiceClient.js', 'mapStaticWind');
+  }
+  return shell;
+}
+
+function staticWindResult(json, { clampedBbox, hourOffset, model, actualBounds, actualSource, start, validTimeStr, clampResult }) {
+  const result = mapStaticWind(json, clampedBbox, hourOffset);
+  result.source = model;
+  result.__staticWind = true;
+  updateWindDiagnostics('grid', {
+    url: 'static', status: 200, validTime: validTimeStr, elapsedMs: Date.now() - start, error: null,
+    requestedBbox: actualBounds, clampedBbox, hourOffset, gridVectorCount: result.vectors.length,
+    nonzeroCount: result.nonzeroCount, renderable: result.renderable, coverageInside: true, boundsSource: actualSource,
+    productId: json.product_id || null, is_dynamic_viewport_product: false, coverage_scope: json.coverage_scope || null,
+    requested_bbox: json.requested_bbox || null, served_bbox: json.served_bbox || null, model,
+  });
+  if (clampResult) {
+    updateProjectionDiag('wind', {
+      activeModel: model, activeLayer: 'wind', requestedViewportBounds: actualBounds, backendRequestBbox: 'static',
+      responseGridBounds: json.grid && json.grid.bounds, coverageBounds: clampResult.coverageBounds, cols: result.cols,
+      rows: result.rows, vectorCount: result.vectors.length, nonzeroCount: result.nonzeroCount, timeOffsetHours: hourOffset,
+      requestedValidTime: validTimeStr, validTime: validTimeStr, productId: json.product_id, provider: json.provider,
+      renderable: result.renderable, clampedBbox, selectedTileId: clampResult.selectedTileId, regionId: json.region_id,
+      tileId: json.tile_id, coverage_scope: json.coverage_scope || null,
+    });
+  }
+  return result;
+}
+
+const WORLD_WIND_BOX = { west: -180, south: -80, east: 180, north: 85 };
+// The mapped grid per static JSON (built once, ~15k objects) and per hour offset, so a step that lands on a frame already built
+// (the idle pre-build below) costs no allocation at all, and the same hour commits the same object.
+const _mappedByJson = new WeakMap();
+function mappedStatic(json, box, hourOffset, model) {
+  let byHour = _mappedByJson.get(json);
+  if (!byHour) { byHour = new Map(); _mappedByJson.set(json, byHour); }
+  let r = byHour.get(hourOffset);
+  if (!r) {
+    const first = byHour.values().next().value;
+    r = first ? { ...first, hourOffset } : mapStaticWind(json, box, hourOffset);
+    r.source = model;
+    r.__staticWind = true;
+    byHour.set(hourOffset, r);
+  }
+  return r;
+}
+
+/**
+ * The wind grid for `hourOffset` from static bytes ALREADY HERE (the idle prefetch or an earlier load), synchronously, or null.
+ * `bounds` = the viewport: its /grid box (clampViewportBbox) when that box is a mid-zoom clip, else the WORLD frame (the base the
+ * engine keeps under any fine overlay). No I/O; what the scrub drag path, the settle path and the warm commits call per step.
+ */
+export function getStaticWindDataSync(model, hourOffset, bounds, { world = false } = {}) {
+  try {
+    if (!windStaticEnabled() || windLaneDisabled()) return null;
+    const m = model || 'GFS';
+    const validTimeStr = getSharedValidTime(hourOffset, 'wind', m, { readOnly: true });
+    let box = WORLD_WIND_BOX;
+    if (!world && bounds) {
+      const c = clampViewportBbox(bounds, 'wind', m, 'wind');
+      if (c && c.isInside && c.clampedBbox && windBoxKind(m, c.clampedBbox) === 'crop') box = c.clampedBbox;
+    }
+    const json = staticWindGridSync({ model: m, validTimeStr, clampedBbox: box });
+    if (!json) return null;
+    return mappedStatic(json, box, hourOffset, m);
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
+ * Build the world grids of the hours a next step most likely lands on (+-1, +-3, +-24 h) in idle time, so the step itself only
+ * commits. From bytes already here; nothing is fetched. Kill: window.__RAW_DISABLE_WIND_PREBUILD__ = true.
+ */
+export function prebuildStaticWindAround(model, hourOffset) {
+  if (typeof window === 'undefined' || window.__RAW_DISABLE_WIND_PREBUILD__ === true || !windStaticEnabled()) return;
+  const hours = [1, -1, 3, -3, 24, -24].map((d) => hourOffset + d).filter((h) => h >= 0);
+  const run = (i) => {
+    if (i >= hours.length) return;
+    const go = () => { getStaticWindDataSync(model, hours[i], null, { world: true }); run(i + 1); };
+    if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(go, { timeout: 500 }); else setTimeout(go, 16);
+  };
+  run(0);
 }
 
 if (typeof window !== 'undefined') {

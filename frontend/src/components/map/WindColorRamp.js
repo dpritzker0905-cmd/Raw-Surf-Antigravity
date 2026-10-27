@@ -342,7 +342,7 @@ export var FIELD_RAMPS = { light: LIGHT_FIELD_RAMP, beach: BEACH_FIELD_RAMP };
 // LIGHT'S LOOK, AN A/B (2026-10-10; owner: "We really just need to replicate dark mode, but with proper setup for the colors for each
 // modes schema", "we need to replicate our science from dark mode"). The LEVER is default off. SINCE 2026-10-11 (D-021, the white
 // streak) the 'deep' tables below ARE light's default: dark's rules draw them with dark's own white ring (darkRulesTables), so a
-// change to LIGHT_LOOK_FIELD.deep or LIGHT_LOOK_MARKS.deep changes what light draws with no lever set (windWhiteStreak.test.js pins the bytes). SINCE 2026-10-12 (D-024) rows 1 to 32 kn of both are windLightPath.js's wherever light's path draws (windLightPath.test.js pins those bytes).
+// change to LIGHT_LOOK_FIELD.deep or LIGHT_LOOK_MARKS.deep changes what light draws with no lever set (windWhiteStreak.test.js pins the bytes). SINCE 2026-10-12 (D-024) the streak row's 1 to 32 kn rows, and since the margin (D-031) the field's 1 to 63 kn rows, are windLightPath.js's wherever light's path draws (windLightPath.test.js pins those bytes): there a change to those rows of the deep tables moves only the path's kill's picture.
 // Dark's look, measured (log 2026-10-10-dark-style-light-beach): every streak pixel is a brighter shade of the colour under it (+9.5 to
 // +14.5 L* at the median, chroma kept), and the colour under it is DARK (a dark map under a vivid veil). Dark's streak method moved onto
 // light washed out (D-019, amended): light's ground under the streaks is L* 74-88, and a mark that can only lighten has no room there.
@@ -499,7 +499,7 @@ export function windLightPathOn(theme, win) {
 var SOLVED = {};
 function darkRulesTables(theme, w) {
   // Light under the white streak: the deeper field of its A/B and that field's own streak row, over land and sea alike; on light's path,
-  // those two tables with their 1 to 32 kn rows replaced by the path's (windLightPath.js builds them once).
+  // the field's 1 to 63 kn rows and the streak row's 1 to 32 kn rows replaced by the path's (windLightPath.js builds them once).
   if (theme === 'light' && windWhiteStreakOn(theme, w)) return lightTables(windLightPathOn(theme, w), LIGHT_LOOK_FIELD.deep, LIGHT_LOOK_MARKS.deep);
   // The solver reads a colour between two stops on the straight sRGB line, and light's 10-16 kn straight line is GREY (D-019, HUE PATH):
   // it is given the field's own path, whatever older kill is set, as a light look's tables are.

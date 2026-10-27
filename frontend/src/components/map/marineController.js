@@ -37,12 +37,13 @@ import {
   recordTerminalNoCoverage,
   hasTimeCoverage,
   isContainedInMarineCache,
-  recordSelectorLookup
+  recordSelectorLookup,
+  aliasMarineHourByInstant
 } from './marineControllerCache';
 
 import { extractMarineAtOffset } from './marineControllerExtractor';
 
-import { ensureMarineSeries, getMarineSeriesFrame, runBackgroundWarm } from './marineGridSeries';
+import { getMarineSeriesFrame, runBackgroundWarm } from './marineGridSeries'; import { warmSiblingLayer } from './marineSiblingWarm';
 import { publishServeDiag } from './marineServeDiag';
 import { prewarmGlobalMarineGrid, _rewarmWashBaseIfStale, registerPrewarmDeps } from './marineGlobalPrewarm';
 
@@ -85,8 +86,8 @@ export {
 // Sibling-layer SERIES prewarm -- rationale relocated 2026-08-11 to keep marineController under the 800
 // LOC ratchet (it was 853). NOTHING WAS DELETED: the full reasoning, verbatim, is in
 // docs/research/FINDING-2026-08-11-marineController-rationale.md#sibling-prewarm
-const _siblingPrewarmInFlight = new Set();
-
+// 2026-10-23: the warm itself is marineSiblingWarm.js (static source first; else the mini now, the 48-frame page in idle time,
+// one layer at a time, after the visible layer's page). This keeps the gates and the frame bridge.
 function isMarineSiblingPrewarmEnabled() {
   if (typeof window === 'undefined') return false;
   // Kill switch (explicit opt-OUT): a window flag or localStorage value of false disables prewarm.
@@ -97,44 +98,34 @@ function isMarineSiblingPrewarmEnabled() {
   return true; // DEFAULT ON (2026-06-26) — zoom-out clamp blocker resolved; see comment above.
 }
 
+const _gridWidth = (b) => (b ? ((b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west) : 999);
+
+// Cache a sibling's current-hour SERIES frame for the instant toggle; never a coarse-global frame at a regional viewport.
+function cacheSiblingFrame(model, lyr, bounds, hourOffset) {
+  const frame = getMarineSeriesFrame(model, lyr, bounds, hourOffset);
+  const fg = frame && frame.grid;
+  if (!fg || !Array.isArray(fg.vectors) || fg.vectors.length === 0 || _gridWidth(fg.bounds) >= 340) return false;
+  _cacheMarineResult(model, hourOffset, frame, lyr, true /* silent: no truth-stage pollution */);
+  return true;
+}
+
 export function prewarmSiblingMarineSeries(model, hourOffset, bounds, activeLayer, signal) {
   try {
     if (!isMarineSiblingPrewarmEnabled()) return;
     if (typeof window !== 'undefined' && window.isScrubbingTimeline) return; // don't compete with scrub
     if (!bounds || bounds.east === undefined || bounds.north === undefined) return;
     // Regional viewport only (series frames are regional). Mirrors the switch instant-commit gate.
-    const vw = (bounds.east < bounds.west) ? (bounds.east + 360) - bounds.west : bounds.east - bounds.west;
-    const vh = Math.abs(bounds.north - bounds.south);
-    if (vw > 15 || vh > 15) return;
+    if (_gridWidth(bounds) > 15 || Math.abs(bounds.north - bounds.south) > 15) return;
     const siblings = (model === 'ICON')
       ? ['waves', 'swell_1', 'wind_waves']               // ICON has no native secondary swell
       : ['waves', 'swell_1', 'swell_2', 'wind_waves'];
     for (const lyr of siblings) {
       if (lyr === activeLayer) continue;
-      const key = `${model}_${hourOffset}_${lyr}`;
-      if (_siblingPrewarmInFlight.has(key)) continue;
-      // Already warm REGIONAL client-side? Don't refetch the series.
+      // Already warm REGIONAL client-side? The frame is ready (the warm then only owes a queued page, if any).
       const cached = getModelSafeMarine(model, hourOffset, lyr, bounds);
-      if (cached && cached.grid && cached.grid.__renderable !== false && !cached.__staleHour) {
-        const cb = cached.grid.bounds;
-        const cw = cb ? ((cb.east < cb.west) ? (cb.east + 360) - cb.west : cb.east - cb.west) : 999;
-        if (cw < 340) continue;
-      }
-      _siblingPrewarmInFlight.add(key);
-      Promise.resolve()
-        .then(() => ensureMarineSeries(model, lyr, bounds, hourOffset, signal, true /* currentPageOnly */, false, true /* background (A15-11) */))
-        .then(() => {
-          if (signal && signal.aborted) return;
-          const frame = getMarineSeriesFrame(model, lyr, bounds, hourOffset);
-          const fg = frame && frame.grid;
-          if (!fg || !Array.isArray(fg.vectors) || fg.vectors.length === 0) return;
-          const fb = fg.bounds;
-          const fw = fb ? ((fb.east < fb.west) ? (fb.east + 360) - fb.west : fb.east - fb.west) : 999;
-          if (fw >= 340) return; // never cache a coarse-global frame at a regional viewport
-          _cacheMarineResult(model, hourOffset, frame, lyr, true /* silent: no truth-stage pollution */);
-        })
-        .catch(() => { /* best-effort: miss/abort is fine, the toggle still works per-layer */ })
-        .finally(() => { _siblingPrewarmInFlight.delete(key); });
+      const frameReady = !!(cached && cached.grid && cached.grid.__renderable !== false && !cached.__staleHour && _gridWidth(cached.grid.bounds) < 340);
+      warmSiblingLayer({ model, layer: lyr, bounds, hourOffset, signal, visibleLayer: activeLayer, frameReady,
+        cache: () => cacheSiblingFrame(model, lyr, bounds, hourOffset) });
     }
   } catch (e) { /* never let prewarm break the active fetch */ }
 }
@@ -208,6 +199,7 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
   if (bounds) {
     const clampRes = clampViewportBbox(bounds, wantedLayer, wanted, 'marine');
     const tileId = clampRes.selectedTileId || 'outside';
+    if (isBackendActive) aliasMarineHourByInstant(wanted, wantedLayer, tileId, wantedHour);   // GRID_INSTANT_KEY (marineControllerCache.js)
     exact = _perModelHourCache.get(`${wanted}_${layerPart}_${tileId}_${wantedHour}`);
     if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
       const sig = exact.signature;
@@ -524,6 +516,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     // Mode-keyed like getModelSafeMarine (surf/plain frames must never cross-hit).
     const layerPart = (_isAllVarModel(model) ? 'all' : activeLayer) + (getSurfModeFlag() ? '~surf' : '');
     const tileId = clampRes.selectedTileId || 'outside';
+    aliasMarineHourByInstant(model, activeLayer, tileId, hourOffset);   // GRID_INSTANT_KEY (marineControllerCache.js): no refetch of a held instant
     const exact = _perModelHourCache.get(`${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`);
     if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
       if (exact.data?.stale || exact.data?.grid?.stale) {

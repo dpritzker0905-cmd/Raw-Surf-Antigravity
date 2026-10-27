@@ -6,8 +6,9 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  Users, UserPlus, Search, Crown, X, Loader2, Plus, Percent, Award
+  Users, UserPlus, Search, Crown, X, Loader2, Plus, Percent, Award, MapPin
 } from 'lucide-react';
+import SavedCrewSelector from '../SavedCrewSelector';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
 import { Switch } from './ui/switch';

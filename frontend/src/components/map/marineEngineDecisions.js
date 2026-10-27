@@ -26,6 +26,10 @@ import { readMarineSurfMode } from './marineSurfMode';
 import { forecastStateIdentityEnabled } from './forecastStateIdentity';
 import { marineFrameInstant, sameMarineFrameInstant, sameMarineLabelledHour } from './marineFrameInstant';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+import { CLIP_FULL_COVER, clipNeedsFullCover } from './marineZoomOutRelease';
+import { resolveBandResolutionEdge } from './marineRatingBandRes';
+import { resolveBandOffNow } from './marineFlavorToggle';
+export { edgeUncoveredMs } from './marineRatingBandRes';
 
 export function latToMercatorY(lat) {
   const latClamped = Math.max(-85.051129, Math.min(85.051129, lat));
@@ -108,6 +112,7 @@ export function heatmapZoomOpacity(z, win) {
 // (coverage leg only). Telemetry: __RAW_GPU__.ratingBandFade.
 export function resolveRatingBandFade(viewportLonSpan, isRatingPainting, washEngaged, win, cov) {
   const ident = { bandMult: 1.0, washStrength: null, fade: 1.0, spanFade: 1.0, covFade: 1.0 };
+  if (cov && cov.bandOff) { const off = resolveBandOffNow(win, washEngaged); if (off) return off; }   // flag OFF, resident still rated: the band is gone NOW (marineFlavorToggle.js)
   if (!isRatingPainting) return ident;
   const w = win || (typeof window !== 'undefined' ? window : {});
   if (w.__RAW_RATING_ZOOM_FADE_DISABLED__ === true) return ident;
@@ -130,11 +135,12 @@ export function resolveRatingBandFade(viewportLonSpan, isRatingPainting, washEng
     const cRamp = cT * cT * (3.0 - 2.0 * cT);      // 1 while covering → 0 at the release lever
     covFade = 1.0 - zProx * (1.0 - cRamp);
   }
-  const fade = Math.min(spanFade, covFade);
+  const re = resolveBandResolutionEdge(w, cov);   // marineRatingBandRes.js: hold off on a grid coarser than the regional one / one that ends in view
+  const fade = Math.min(spanFade, covFade, re.fade);
   const bandMult = washEngaged ? fade : Math.max(0.3, fade);
   const base = (typeof w.__RAW_BLEND_BASE_WASH__ === 'number') ? w.__RAW_BLEND_BASE_WASH__ : 0.72;
   const washStrength = base + (1.0 - base) * (1.0 - fade);   // dimmed under a full band → full when the band is gone
-  return { bandMult, washStrength, fade, spanFade, covFade };
+  return { bandMult, washStrength, fade, spanFade, covFade, resFade: re.resFade, edgeFade: re.edgeFade, heldBy: re.heldBy };
 }
 
 // === COASTAL-RIBBON taper resolution (pure; exported for tests) ===
@@ -329,6 +335,7 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
     // Live lever unchanged: __RAW_DOWNGRADE_COVER_FRAC__.
     const minFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.6;
     covers = frac >= minFrac;
+    if (covers && clipNeedsFullCover(resident, incoming)) covers = frac >= CLIP_FULL_COVER;   // a clip of the world frame's own field: whole view (marineZoomOutRelease.js)
   }
   // RATING-INTERLUDE GRACE (2026-07-14, round-12 §4f — "heatmap + animations clear between zooms
   // with the rating band ON"): the coverage release below is CORRECT data-wise (the rated clip is

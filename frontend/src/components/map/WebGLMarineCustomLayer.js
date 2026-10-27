@@ -7,6 +7,8 @@ import { resolveRejectedOpacity, isGateWideView } from './marineZoomOutGate';
 import { createStaleHourTracker } from './marineStaleHour';
 import { staleWorldDimMult } from './marineStaleHourLayer';
 import { timeMarineCpuPhase } from './marineCpuPhaseTiming';
+import { BATCH } from './WebGLProgramBatch';
+import { syncDrawnToEngine } from './marineDrawnFrame';
 
 export const LAYER_ID = 'webgl-marine-particles';
 
@@ -81,6 +83,14 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
   let lastErrorTime = 0;
   // WRONG-HOUR WORLD FRAME (2026-10-01, audit F-21; marineStaleHour.js): how long the selected hour has held still.
   const _staleHour = createStaleHourTracker();
+  // The hard-error fallback for a failed init: from onAdd, or from render when the async shader batch fails to link later.
+  const initFailed = (e) => {
+    console.error('[WebGLMarine] Init failed:', e.message);
+    // WHY THE SESSION FELL BACK (2026-09-26): the continuity gate attaches the churn log, and a
+    // fallback with no recorded cause is how a 22-30 s marine blank stayed unexplained.
+    recordChurn('marine_webgl_fallback', { cause: 'init_failed', message: String((e && e.message) || e).slice(0, 160) });
+    if (onErrorRef.current) onErrorRef.current();
+  };
   const layer = {
     id: LAYER_ID,
     type: 'custom',
@@ -112,11 +122,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
           }
         }
       } catch (e) {
-        console.error('[WebGLMarine] Init failed:', e.message);
-        // WHY THE SESSION FELL BACK (2026-09-26): the continuity gate attaches the churn log, and a
-        // fallback with no recorded cause is how a 22-30 s marine blank stayed unexplained.
-        recordChurn('marine_webgl_fallback', { cause: 'init_failed', message: String((e && e.message) || e).slice(0, 160) });
-        if (onErrorRef.current) onErrorRef.current();
+        initFailed(e);
       }
     },
 
@@ -196,6 +202,15 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       if (engine) engine.__coarseBridgeGrace = null;
       const map = mapRef.current;
       if (!map) { stampSkip(_stamp, SKIP.NO_MAP); return; }
+      // ASYNC SHADER COMPILE (WebGLProgramBatch.js): poll the engine's shader batch once per frame; draw nothing until it
+      // is ready, but ask for the next frame so the poll advances on an idle map. A link failure found now is a failed
+      // init: the engine is already released and the same fallback fires (once: the engine holds no batch after).
+      const _programs = engine && engine.pollPrograms ? engine.pollPrograms(_gl) : BATCH.READY;
+      if (_programs === BATCH.FAILED) {
+        initFailed(new Error('WebGL Marine initialization failed (shader batch link)'));
+        stampSkip(_stamp, SKIP.PROGRAMS_FAILED); return;
+      }
+      if (_programs === BATCH.PENDING) { stampSkip(_stamp, SKIP.PROGRAMS_PENDING); map.triggerRepaint(); return; }
 
       let viewportBounds = null;
       let opacityMultiplier = 1.0;
@@ -366,6 +381,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       try {
         const canvas = map.getCanvas();
         const zoom = map.getZoom();
+        engine._mapGLContext = (map.painter && map.painter.context) || null;   // the GL state shadow the capture reads
         // The engine also exits before any GL work without a projection. Preserve repaint,
         // but do not let these callbacks count as slow GPU drawing in the fallback guard.
         if (!_matrix || !_matrix.length) stampSkip(_stamp, SKIP.ENGINE_NO_MATRIX);
@@ -376,6 +392,9 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
           activeLayersRef ? activeLayersRef.current : null, activeModelRef ? activeModelRef.current : 'GFS');
         if (!engine._initialized || !engine._waveData) stampSkip(_stamp, SKIP.ENGINE_NO_DATA);
         engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, viewportBounds, opacityMultiplier);
+        // DRAWN TRUTH: a swap inside the engine this frame (the stash's self-heal accept, the zoom-out bridge) is what the status line
+        // must describe; one identity compare per frame (marineDrawnFrame.syncDrawnToEngine).
+        syncDrawnToEngine(engine, { hour: timeOffsetHoursRef ? timeOffsetHoursRef.current : null, model: activeModelRef ? activeModelRef.current : null });
       } catch (e) {
         errorCount++;
         lastErrorTime = Date.now();

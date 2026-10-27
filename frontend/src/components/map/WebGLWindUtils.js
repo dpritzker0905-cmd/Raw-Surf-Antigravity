@@ -290,6 +290,9 @@ export function safeDeleteTexture(gl, tex, engine) {
       console.warn('[WebGLState] Safeguarded particle state texture from accidental deletion!');
       return;
     }
+    // The stashed land mask (maskTextureStash.js) is still owned: an old frame that bound it must not free it.
+    if (engine._maskStash && tex === engine._maskStash.tex) return;
+    if (engine._maskStash2 && tex === engine._maskStash2.tex) return;   // the lake-variant slot (maskTextureStash.js)
   }
   gl.deleteTexture(tex);
   // Account for it HERE, once, for every caller. Guarded so a texture this module never saw
@@ -670,3 +673,4 @@ export function windBoundsContain(a, b) {
 export function bindWindPointReg(gl, prog, baseGrid, fineGrid, win) {
   return [setGridPointRegUniform(gl, prog, 'u_base_reg', baseGrid, win), setGridPointRegUniform(gl, prog, 'u_fine_reg', fineGrid, win)];
 }
+export { resolveWindSpeedRef } from './windSpeedRef'; // the advection's fixed speed reference (Jacobian lens, 2026-10-19)

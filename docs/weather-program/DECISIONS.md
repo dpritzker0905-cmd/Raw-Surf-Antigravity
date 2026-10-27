@@ -1196,3 +1196,616 @@ D-016 implementation note (2026-10-04 01:08Z): Netlify rejects dev as a reserved
 - **Evidence:** `log/2026-10-12-wind-light-path.md` (2026-10-12 21:39Z to 22:13Z, the solves; 2026-10-13, the default);
   `windLightPath.test.js` (the as-drawn block; 5 of 5 mutations red); `scripts/wind-color/light-margin-solve.mjs --audit`;
   an independent review of the diff; LESSONS L-V85, L-V86.
+
+### D-032 · ICON far-hour recovery uses an existing anchored estimate, never a bare-GFS substitution
+- **Decided:** owner in the D1 Codex chat, 2026-10-18 UTC: "I dont want GFS as fallback"; "We were supposed to be using scientific estimations to help us have extended horizon data. Look deep at this"; then "whatever the most scientific route may be, lets go". Original authorization: fix both D1 paths, prove held-hour/upload-hash behavior offline, open a draft against dev, do not merge.
+- **Rule:** preserve the existing ICON-anchored extension calculations. When the legacy browser ICON anchor fails, recover the already-built stored ICON estimate only with its native ICON anchor, model/layer/time and estimated/non-authoritative provenance intact. Do not rename or deliver a raw GFS grid as ICON. Missing valid estimation inputs must not manufacture a forecast.
+- **Scope:** client delivery repair D1. This authorizes bounded stored-estimate recovery after anchor failure, not general promotion of D-016's stored-tail flag, a new blend formula, changes to D-003, a served-number flag flip or a merge. D1 remains a blocker for the next production promotion until merged and read back under the owner's release instruction.
+- **Evidence:** `log/2026-10-18-codex-d1-icon-render.md`; real client-builder/gate tests, backend extension tests and offline production-context browser checks. Day-8–14 skill remains unverified; the current skill ledger grades 24/48/72 h.
+- **Rollback:** `window.__RAW_DISABLE_ICON_FAR_HOUR_RENDER__ = true` restores the prior rejected delivery paths; revert the D1 code commit for a source rollback while preserving this record and the action ledger.
+
+### D-033 · Light and beach wave-height palettes: lightness falls with height; light ships candidate A, beach candidate B; ON by default
+Superseded for beach by D-035 (2026-10-20); light stands.
+- **Decided:** owner, 2026-10-20 12:46Z, on the A/B of PR #411 (side-by-side sheets and clips in the real engine, the checker's
+  numbers and the Jacobian read): "Ship light A and beach B: remove light B and beach A and the B lever, keep the V2 kill, and
+  mark #411 ready." (the reply button the owner chose after asking "What is more state of the art? A or B? Use jacobian lens to
+  help us decide"). The lead session had settled the domain before: cap at the GPU's real 10 m ceiling with an explicit above-cap
+  state and a legend arrow; widening the height encoding to ~16 m is its own PR and A/B.
+- **Rule:** the light and beach wave-height wash is `WAVE_PALETTES.v2` in `marineWavePalette.js`: lightness falls at every step
+  as height grows (on the table and as composited over each theme's water at world, regional and coastal alpha), never through
+  grey, hue as the second cue; anchors on the legend's ticks (0 2 4 8 12 20 33 ft); a cell at or above 10 m draws its own colour
+  (light: a red flag after indigo; beach: a violet flag after brick, darker than the cap as drawn: B's blue drew lighter
+  than its cap over beach's water and was re-solved before merge, 2026-10-20 13:15Z), with an arrow on the legend. The legend gives each anchor an
+  equal share of the bar, so it agrees exactly with the GLSL. Dark, the surf-quality mode, the crest colours and every served
+  number are untouched.
+- **Evidence:** `log/2026-10-20-claude-wave-palette-v2.md`; `evidence/wave-palette-v2-ab-2026-10-20.json` and
+  `evidence/wave-palette-v2-jacobian-2026-10-20.json`; `frontend/scripts/wind-color/wave-check.mjs` (light: weakest neighbours
+  7.2/7.8/8.6 dE00 world/regional/coastal against v1's 4.3, crests 27.8; beach: 6.5/6.9/7.4 against v1's 11.6 bought with a
+  lightness reversal, crests 8.8 against 16.2; land vs sea 7 -> 20 in both). The 10 dE00 neighbour target is not met; the beach
+  crest contrast at 1.5-4 m is the known cost (its own follow-up).
+- **Rollback:** `window.__RAW_DISABLE_WAVE_PALETTE_V2__ = true` before load restores v1 exactly (GLSL, samples and legend hashed
+  in `marineWavePalette.test.js`); `window.__RAW_DISABLE_MARINE_WAVE_PALETTE__ = true` restores the shader's own ramp.
+- **Reopen if:** the owner says so, or the beach crest follow-up or the 16 m encoding changes what this table is judged against.
+
+### D-034 · The GPU reads wave heights to 16 m for the light and beach wash; v2 gains a 16 m stop; ON by default
+Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands.
+- **Decided:** owner, 2026-10-20 16:17Z, on the A/B of PR #415 (the storm's eye side by side at 10 m and 16 m in each theme,
+  sheets and moving clips from the real engine offline, the texture-byte, crest and precision measurements): "Owner verdict on #415: ship the 16 m encoding on by default. Record it in the log and ledger and mark the PR ready."
+- **Rule:** the main wave texture's height byte carries its scale per upload (`marineHeightEncoding.js`): 16 m where v2 draws the
+  light/beach wash, packed ROUNDED; 10 m (floored, as before) for dark, rating grids and the score texture. Every program that
+  decodes a wave texture reads `u_heightScale` (10.0 when unset). D-033's v2 table gains one stop at 16 m (light deep violet,
+  beach rose-plum) and its above-cap flag moves to 16 m; every stop under 10 m is D-033's. Dark, the surf-quality band and every
+  served number are untouched.
+- **Evidence:** `log/2026-10-20-claude-wave-height-16m.md`; `evidence/wave-height-16m-ab-2026-10-20.json`; owner page
+  https://claude.ai/artifact/YQMsfBLgjnm9h9kZ4UtHeU. Dark's texture bytes identical in every browser run; crests below 10 m within
+  run-to-run noise; per-texel colour error at calm water under dev's (`wave-quant.mjs`: light worst 11.6 / mean 0.17 dE00 against
+  15.3 / 0.22); `wave-check.mjs` no new RED. Known costs: the eye is a gentle deepening instead of a loud block; light's weakest
+  normal-vision pair is the new 10-16 m step (9.3 dE00); beach's 16 m stop turns its hue back toward 6.1 m's rose.
+- **Rollback:** `window.__RAW_DISABLE_WAVE_HEIGHT_16M__ = true` before load restores the 10 m encoding and D-033's table exactly
+  (shader strings, texture bytes, GLSL, samples and legend hashed in `marineHeightEncoding.test.js` and `marineWavePalette.test.js`).
+- **Reopen if:** the owner says so; the float height texture follow-up (R16F, its own A/B, it changes dark too) lands; or a real
+  storm above 16 m makes the flag the common case.
+
+### D-035 · Beach keeps the v1 wave-height palette; light keeps v2; beach's colours are locked
+- **Decided:** owner, 2026-10-20 16:20Z, after #411 (D-033) put beach on candidate B and #415 (D-034) took it to 16 m: "I really like v1 color scheme heatmap for
+  Beach mode. How do we stick with that? We have many chats working on this".
+- **Rule:** beach draws `WAVE_PALETTES.v1` exactly as before #411 (dev `6021c2cc1`): its table, its value-linear legend on each
+  scale's axis, its clamp at 10 m, no above-cap state, and the 10 m height byte (v1 has no 16 m row, so `marineWaveHeightScale`
+  keeps beach's uploads at 10). Light draws v2 at 16 m (D-033, D-034). `marineWavePalette.test.js` pins beach's samples,
+  legend CSS and shader branch to that module by sha256 ("D-035" block): any change to beach's wave colours fails CI and needs a
+  new owner decision, whatever another session's palette work (the 16 m encoding, crest colours, checkers) proposes. Work on the
+  wave palette applies to light only unless the owner says otherwise.
+- **Known (from the checker, for the record, not a reason to reopen):** beach v1's lightness turns back twice (its 5 m maroon is
+  darker than its 10 m cream), its 1-2 m coral sits 7 dE00 from the sand land, and a storm above 10 m draws as 10 m.
+- **Rollback:** `window.__RAW_DISABLE_WAVE_BEACH_V1__ = true` draws beach on v2 exactly as #411 merged it (shader hash pinned);
+  `window.__RAW_DISABLE_WAVE_PALETTE_V2__ = true` draws v1 in both themes.
+- **Reopen if:** the owner says so.
+
+### D-036 · Light's wave crests are warm polarity: deep umber below 3.05 m, cream above, gold storms; ON by default
+- **Decided:** owner, 2026-10-20 ~22:50Z, on the A/B of PR #421 (today | V2 | V2 with self-contrast everywhere: model strips,
+  contrast by height, engine stills and moving clips at world, regional and coastal zoom, the paired engine numbers, the warm-family
+  and cased-crest comparisons): "Ship light crest V2 (#421): umber / cream / gold warm polarity, on by default with the kill switch.
+  Record the pick and mark #421 ready once hosted CI is green." Before it, the owner's rule for every theme (relayed by the beach crest
+  session, 15:57Z / 16:02Z): warm polarity, "if they have specific logic in place that is better ... go with that ... Whatever is state
+  of the art", judged by APCA |Lc| first and colour-blind dE00 second.
+- **Rule:** light's crests (DRAW_FS's light branch: calm, active, storm and `foamHighlight`) come from `LIGHT_CRESTS.v2` in
+  `marineCrestPalette.js`: a deep umber (0.27, 0.10, 0.00) below 3.05 m, cream (1.00, 1.00, 0.82) from 3.05 m, a gold storm
+  (1.00, 0.96, 0.00), and the foam umber-black (0.05, 0.02, 0.00) below the switch and white above. The switch sits where light's v2
+  wash passes APCA Y 0.352 (2.6-3.3 m by zoom and swell lighting), so a crest never meets its wash's luminance (direction of motion
+  is lost at isoluminance, Lindsey & Teller 1990). V2 stands down wherever light's wash is not v2. Dark's and beach's crests are
+  untouched (beach: D-035).
+- **Evidence:** `log/2026-10-20-claude-light-crest-v2.md`; `evidence/light-crest-v2-2026-10-20.json`; owner page
+  https://claude.ai/artifact/F4TCg9jZAGAdjfZW19bNqe. Checker over v2 and v2@16: today 16.8 dE00 / colour-blind 13.4 / |Lc| 0, V2
+  32.7 / 24.3 / 40.0 (40.9 on a whitecap's front); coloraide 14.0 -> 25.6. Engine, offline, paired exact wash, p99 |Lc|: world
+  22.3 -> 34.3, regional 17.6 -> 40.1, coastal 24.2 -> 76.1. Light's navy kept below the switch (37.2), beach #416's warm inks on
+  light (35.0, their oxblood 1.5 dE00 from light's red flag) and warm-window solves (36.8-38.7) all measured lower on |Lc|.
+- **Known costs:** the calm crests turn from navy to deep umber; a visible contour where the sea crosses 3.05 m; whitecaps below the
+  switch deepen the crest instead of whitening it; the storm gold is loud (a warmer gold costs |Lc| on the 3-6 m path).
+- **Rollback:** `window.__RAW_DISABLE_LIGHT_CREST_V2__ = true` before load draws dev's DRAW_FS byte for byte (sha256 pinned in
+  `marineCrestPaletteLight.test.js`); either wave-palette kill also stands V2 down.
+- **Next, not decided:** the cased crest (dark edge round a light core; model |Lc| 42.9, colour-blind 36.4) needs new DRAW_FS
+  geometry and its own A/B. After #420 (float wash) lands, re-run the paired engine read for light.
+- **Reopen if:** the owner says so, or #420's float wash moves light's crossing out of 2.6-3.3 m.
+
+### D-037 · Light's wave-height wash is the seven-band spectrum (mint, blue, violet, magenta, crimson, umber; 0-14 m); dark and beach unchanged; ON by default
+- **Decided:** owner, 2026-10-21, on the comparison page https://claude.ai/artifact/KSm5QY1qj2yjhtb5b6ozjR (today | proposed, per
+  theme): "I like the proposed light mode"; dark "Today's dark (left)", beach "Today's beach v1 (left)"; then "Build the proposed
+  light spectrum here as one PR with a kill switch back to v2, record the decision, re-check light's crests, and leave dark and beach
+  as they are." and "just to make sure we have the best and widest spectrum of color on this scheme".
+- **Rule:** light draws `WAVE_PALETTES.spectrum` (`marineWavePalette.js`): bands on the WMO / Douglas sea-state breaks 0.5 / 1.25 /
+  2.5 / 4 / 6 / 9 / 14 m (1.6 / 4 / 8 / 13 / 20 / 30 / 46 ft): mint (0, 202, 144) to 0.5 m, cyan-blue (0, 156, 222), blue
+  (80, 109, 246), violet (128, 60, 235), magenta (181, 0, 118), crimson (164, 0, 26), umber (90, 20, 0) at 14 m; 4.5 / 5 / 5.5 m are
+  blend anchors on the OKLab line (no lightness climb); cap 14 m, light's upload scale 14. Light's deep-ocean floor blend is off and
+  its opacity is `(u_opacity + (1 - u_opacity) x 0.4286 x t) x smoothstep(0, 0.5, h)`, t = log(h / 0.5) / log 12 clamped: calm
+  water below 0.5 m fades to the map, heavier seas draw more opaque (world 0.65 -> 0.80 from 6 m). Legend: an equal-band ruler,
+  ft 0 / 1.6 / 4 / 8 / 13 / 20 / 30 / 46+. Light's crests keep D-036's colours with the switch at 1.55 m (`LIGHT_CRESTS.v2s`), where
+  the spectrum crosses mid-lightness. Dark and beach draw exactly what dev `448deb35c` draws (beach: D-035). "Widest": the
+  colours are solved for the largest weakest step between neighbouring bands at maximum displayable chroma while lightness falls
+  (`spectrum-solve.mjs`, `spectrum-tune.mjs`); yellow and orange cannot follow blue without lightness climbing, so the path runs
+  through violet and magenta to crimson and umber.
+- **Evidence:** `log/2026-10-21-claude-wave-light-spectrum.md`; `evidence/wave-light-spectrum-2026-10-21.json`. Checker (light, as
+  composited): weakest neighbouring band, normal vision 9.3 -> 15.3 dE00; lightness falls at every 0.02 m step; legend's weakest
+  stop on its panel APCA 15.3 -> 41.1; crest core vs wash |Lc| 40.0 -> 42.7, colour-blind 24.3 -> 26.3 (at today's 3.05 m switch
+  the spectrum would leave 28.8). Engine offline (production build, synthetic backend): light's wash moved over 96-99% of the sea
+  interior (mean dE00 13-27); beach 0 px and dark 0-9 px, inside the null runs' noise; crest p99 |Lc| world 35.0 -> 23.9, regional
+  42.3 -> 53.5, coastal 78.6 -> 77.4.
+- **Known costs:** the weakest neighbouring band for any colour vision drops 7.2 -> 5.3 dE00 (tritan, 6-9 m; deutan 6.0 at 2.5-4 m):
+  hue carries steps that lightness no longer can (L range 0.74 -> 0.31, v2 0.90 -> 0.30); the neighbour line stays RED (it was RED
+  for v2). At world zoom the crests are fainter (the open ocean's 1.5-3 m is now a mid-lightness blue; partial-opacity crests have
+  little room on it in either polarity). Calm water below 0.5 m shows the map's own water. Above 14 m draws as 14 m. The crest
+  polarity contour now sits at 1.55 m, a common height.
+- **Rollback:** `window.__RAW_DISABLE_WAVE_SPECTRUM__ = true` before load draws v2 at 16 m exactly (HEATMAP_FS, DRAW_FS, palette
+  GLSL, legends and samples sha256-pinned to dev `448deb35c` in `marineWaveSpectrum.test.js`); `__RAW_DISABLE_WAVE_HEIGHT_16M__` also
+  returns light to v2; `__RAW_DISABLE_WAVE_PALETTE_V2__` returns both themes to v1.
+- **Next, not decided:** the world-zoom crest finding (the cased crest, D-036's next, or a far-zoom crest opacity lift for light),
+  each its own A/B. The crest critique (log) finds beach's and dark's crests isoluminant over part of their range (beach
+  1.5-9 m: #416 is the drafted answer; dark 6 m up: #419 covers 8 m up, 6-8 m stays open). #420 (float wash, light) merges after or before this: whichever lands second
+  re-pins the other's kill hashes.
+- **Reopen if:** the owner says so.
+- **Update 2026-10-21 (owner: "Make sure the crest zooms are still visible, ship and test"):** light's crests over the spectrum get a
+  far-zoom opacity lift (DRAW_VS's zoom factor x mix(0.80 / 0.45, 1, smoothstep(3, 9, zoom)), light over the spectrum only; kill
+  `__RAW_DISABLE_SPECTRUM_CREST_LIFT__`, DRAW_VS = dev). Engine zoom ladder, p99 |Lc| today -> shipped: z 2.2 37.1 -> 41.4, z 3.8
+  26.0 -> 49.1, z 4.6 27.5 -> 40.9, z 6 36.5 -> 31.9, z 9 52.9 -> 38.0 (`evidence/wave-light-spectrum-crest-lift-2026-10-21.json`).
+  Close-in the gap is the wash's (a mid-lightness blue), not the crest's opacity; the cased crest stays the next step.
+- **Update 2026-10-21 (owner: "I'm not sold on light modes blue water, it seems too close to the same color as dark modes water";
+  then "Resolve it so light improves but isnt too much like dark"):** the spectrum is re-solved apart from dark. Light's composite stays
+  at least as far from dark's (CIEDE2000, per height) as live light is from 1.2 to 6 m: soft green -> aqua -> teal -> steel blue ->
+  indigo -> maroon -> dark red (0.8-3 m mean 23.9 from dark, live light 24.0, the first spectrum 15.0; 4 / 6 m 29.9 / 24.3, first 13.7 /
+  11.3). Neighbour steps: normal-vision weakest 12.0 (live 9.3). Crest switch moves to 2.35 m. Shown to the owner before shipping;
+  `evidence/wave-light-spectrum-apart-from-dark-2026-10-21.json`.
+- **Update 2026-10-21 (after D-041):** over the spectrum light draws the ORIGINAL crests by default, as on every light wash; V2 (`v2s`,
+  2.35 m) and the far-zoom lift only on request. The original crests read |Lc| 0 from about 2-2.5 m up on live light and on the spectrum
+  alike (engine p99, open sea: z 2.2 22.1 -> 17.5, z 4.6 14.7 -> 11.5, z 9 28.5 -> 22.2), and no light wash keeps them visible at every
+  height (solver: infeasible down to |Lc| 10). Their remedy is the crest (D-040), not the wash. `evidence/wave-light-spectrum-original-crests-2026-10-21.json`.
+- **Shipped 2026-10-21 23:52Z (owner: "Ship #431: the lead merges it when hosted CI is green."):** as re-solved, original crests by default.
+
+### D-038 · Light and beach hold the calm-sea wash at close zoom: BLEND BOTH's height fade is for dark only; ON by default
+- **Decided:** owner, 2026-10-21 ~11:40Z, on the A/B of PR #430 (today | hold, light and beach, as drawn and crest-free, at a calm
+  coast at z 10 and z 7.4, calm and moderate open sea, and the storm; with each frame's fitted alpha and the legend's calm end):
+  "Hold: ship the calm wash hold on #430 (calm-water fade for dark only). Record the pick and mark #430 ready once hosted CI is green."
+- **Rule:** with a regional tile resident over a retained coarse base (BLEND BOTH), the regional pass's height fade
+  (`u_heightAlphaEnabled`, smoothstep 0.05-1.4 m) runs only in dark. Light and beach draw calm regional cells at the zoom opacity over
+  the same coarse base, so every height composes to 1 - (1 - a_zoom)(1 - washEff): 0.877 at z 7.4, 0.815 at z 10. Rating-band frames
+  keep the fade in every theme. One owner: `marineCalmWashHold.js` `blendHeightAlpha`.
+- **Evidence:** `log/2026-10-21-claude-calm-wash-hold.md`; `evidence/calm-wash-hold-2026-10-21.json`; owner page
+  https://claude.ai/artifact/82nAECDYzRBGAMgRcRgjrm; the finding in PR #425. Offline, real engine: a 0.5 m sea at z 10 drawn at alpha
+  0.31-0.40 today, 0.79-0.83 held (per-pixel vs blend-off 0.335 -> 0.816 beach); dark pixel-identical at four views; storms unchanged.
+  Legend 0 vs 0.6 m at z 10 (wave-lib composite): light colour-blind 0.7 -> 10.5 dE00, beach 1.3 -> 18.8 (APCA 0 -> 23.6).
+- **Known costs:** calm water in a blended view is a little stronger (0.82-0.88) than at regional zoom without a regional tile (0.70),
+  the step storms already take; nearshore cells near 0 m draw the palette's 0 m colour at the zoom opacity instead of fading.
+- **Rollback:** `window.__RAW_DISABLE_CALM_WASH_HOLD__ = true` restores today's uniform in every theme (pinned in
+  `marineCalmWashHold.test.js`).
+- **Next, not decided:** the colour checker (`wave-lib.mjs` ALPHAS) models the held state: blend states as constants
+  1 - (1 - main)(1 - base) for light and beach (0.851 z 5.5 zoomed out, 0.877 z 7.4, 0.815 z 10), world 0.65 and regional 0.70 kept
+  (ledger commitment 1566, after #416 settles). The compositing law is palette-independent (#425: v1 = v2), so #431's light palette
+  (D-037 on its branch) does not reopen this.
+- **Reopen if:** the owner says so, or a basemap or palette change makes calm light/beach water read as land at close zoom.
+
+### D-039 · Dark's 8 m+ storm crests are cased: today's orange with the crest self-contrast, no colour switch; ON by default
+- **Decided:** owner, 2026-10-21 ~15:30Z, on the A/B of PR #419 (owner page https://claude.ai/artifact/A5aYRLqNXoKAboPmsUWtJg v3:
+  keep dark as it is | electric blue from 8 m | cased orange from 8 m, moving at the storm eye, regional and coastal views): "Ship the
+  cased orange from 8 m for dark's storm crests instead of electric blue." Earlier the same day he scoped the fix ("We can fix that
+  one weak point only on the extreme 8m"), turned down the dark inks ("I dont like the darker middle crests in the storm animations,
+  improve those") and, asked directly, kept the A/B to 8 m+ ("Keep 8 m+ only") over whole-field casing options.
+- **Rule:** dark's storm crest keeps its fiery orange at every height. From 8 m (the crest's own `v_wave_height`), dark only
+  (`u_theme < 0.5`), DRAW_FS turns on the engine's crest self-contrast (`crestContrastEff`): a rim at 0.55-0.64 x the colour round a
+  core at 1.30 x plus a little white, the treatment every crest already gets at z 3.5-4.4. One generated line from
+  `marineCrestPalette.js` `DARK_STORM_CRESTS.v2`; no added shader lines. Below 8 m, light and beach: byte-identical.
+- **Evidence:** `log/2026-10-20-claude-dark-storm-crest.md`; `evidence/dark-storm-crest-2026-10-20.json` (`cased`). Model
+  (`dark-storm-crest.mjs`): today's orange core |Lc| 0 at 8-10 m+; cased |Lc| 20.4-38.0 from 8 m (the rim), colour-blind 19.7 (today
+  15.5). Offline real engine, p90 |Lc| 8-10 m today -> cased: eye 11-27 -> 20-35, coastal 11-13 -> 26-37, regional 11-23 -> 14-28;
+  Leonardo (wcag3) per band at the eye 8 / 18 / 21 / 29 -> 20 / 22 / 30 / 43.
+- **Known costs:** about half of electric blue's contrast (eye 40-59) and no colour-blind gain at the eye (p90 14-26, as today); the
+  5.5-8 m band, where the orange also sits at the wash's brightness, is out of scope and unchanged.
+- **Rollback:** `window.__RAW_DISABLE_DARK_STORM_CREST__ = true` draws today's lines exactly (DRAW_FS hash-pinned in
+  `marineDarkStormCrest.test.js`).
+- **Turned down:** ember-black / ember red from 8 m (read as soot on the white eye); electric blue from 8 m (a colour switch mid-field,
+  the kind the owner rejected in light); whole-field amber or warm-white cores with a black casing (out of his 8 m+ scope).
+- **Reopen if:** the owner says so, or the dark wash's 8-10 m colours change.
+### D-041 · Light's wave crests are the original again (deep navy, amber-gold, crimson red); light crest V2 only on request; ON by default
+- **Decided:** owner, 2026-10-21 08:02 EDT, on the live dev site (relayed by the lead): "visually, in the live dev server we're on
+  now, I do not like the animation colors of light mode, with dark animations mixed with yellow ones, its not pleasing to the eye as
+  a good representation of waves moving. The original was better." Supersedes D-036 as the default (V2 stays reachable for an A/B).
+- **Rule:** `resolveLightCrest` draws V2 only when asked for, set before page load: `window.__RAW_LIGHT_CREST_V2__ = true`, or the
+  restore's kill `window.__RAW_DISABLE_LIGHT_CREST_RESTORE__ = true`; `window.__RAW_DISABLE_LIGHT_CREST_V2__ = true` still forces the
+  original. One owner: `marineCrestPalette.js`. Standing rule from the same feedback: one colour family per theme for crests that
+  move together; never switch crest hue at a height.
+- **Evidence:** `log/2026-10-20-claude-light-crest-v2.md` (2026-10-21 20:00Z); `evidence/light-crest-restore-2026-10-21.json`. The
+  default DRAW_FS is dev's with light's four lines as before V2 (sha256 e2438586..., 8872); with #419's dark kill as well it is
+  f6b80f724's byte for byte (a9e8e102..., 8811). V2 on request and the restore's kill compile dev's DRAW_FS (5057bc10..., 9110).
+  Jest pins, and the shaders the GPU compiled in light, beach and dark, read back offline; DRAW_VS unchanged. Dark and beach share
+  the one DRAW_FS and their lines are dev's.
+- **Known costs:** over light's current wash the original crests share the wash's luminance from 2.3 m up (APCA |Lc| 0; lead's
+  research), and over #431's spectrum from 1.7 to 14 m (crimson on the crimson storm band from 6 m); at isoluminance motion
+  direction weakens (Lindsey & Teller 1990). The original looked better on the wash it was made for, which has since changed.
+- **Rollback:** `window.__RAW_DISABLE_LIGHT_CREST_RESTORE__ = true` before load restores D-036's V2 default (dev's DRAW_FS, pinned).
+- **Next, not decided:** the owner's "It still needs to adjust for areas in the colour for heatmaps that blend too much with the
+  animation colors": one A/B, the original vs the original plus a luminance-only two-tone (beach #433's idea, no hue change), moving.
+- **Reopen if:** the owner says so, or the A/B's pick changes light's crests again.
+### D-042 · Big-surf crests thin at mid-to-close zoom by theme, as the eye sees it (light z5, beach z6, dark z8); ON by default
+- **Decided:** owner, 2026-10-21, on #428's A/B (today | the cut as asked | the cut as the eye sees it, three themes, coastal and close
+  zoom over the synthetic storm): "Ship #428's density cut as the eye sees it (coverage-calibrated), fitted per theme. Also switch
+  light's storm to the warm gold in its own PR." The ask (2026-10-20): light 15-20% less dense from where state names show in full,
+  beach 10-15% from where city names show, dark the same from two zooms closer than beach, only where the surf is big.
+- **Rule:** where the sea is 2 m and up (full from 4 m: a crest's size saturates there), a share of the crests DRAW_VS keeps is
+  removed so they cover the owner's share less of the screen: light 17.5% from z5, beach 12.5% from z6, dark 12.5% from z8 (label
+  zooms read off navigation-day-v1 / outdoors-v11 / navigation-night-v1 by `scn_label_zoom.js`), each ramping in over the half zoom
+  before. Crests overlap, so the share removed is fitted per theme and zoom (`CREST_DENSITY_SEED_CUT`): light .28 / .29 / .45 / .37 at
+  z5 / 7.4 / 9 / 10.5, beach .22 / .23 / .32 / .26 at z6 / 7.4 / 9 / 10.5, dark .26 / .27 / .33 / .28 at z8 / 8.25 / 9 / 10.5. WHICH
+  crests go is a hash of its own (`crestCutHash`, hash without sine over the particle's texel), not a lower density threshold:
+  `particleHash` collapses onto a few hundred float32 values, so a lowered threshold removes crests in steps (ledger finding 1601).
+  One owner: `marineCrestDensity.js`.
+- **Evidence:** `log/2026-10-20-claude-light-crest-v2.md` (2026-10-21 00:30Z and 15:30Z); `evidence/crest-density-2026-10-21.json`;
+  owner page https://claude.ai/artifact/7UVhRYh3kRVwgjm2jTop3r. Offline real engine, shipped rows, one bracketed session per theme:
+  crest coverage light -15.6 / -19.4 / -17.7% (z7.4 / z9 / z10.5), beach -14.3 / -11.7 / -13.0%, dark -12.4 / -12.1 / -12.1%
+  (z8.25 / z9 / z10.5); repeat steps within 1.5 pts, sessions ~2 pts apart.
+- **Known costs:** the rows are fitted over one synthetic storm at one place (a real coast's mix of heights and land differs); light
+  at z9 removes 45% of big-surf crests to show 17.5% less, the most of any point; the cut's hash adds a one-line function to DRAW_VS.
+- **Rollback:** `window.__RAW_DISABLE_CREST_DENSITY_ZOOM__ = true` before load draws dev's DRAW_VS byte for byte (sha256 pinned in
+  `marineCrestDensity.test.js`); `window.__RAW_CREST_DENSITY_SEED_CUT__ = <share>` overrides the rows live, for measurement.
+- **Next, not decided:** the constant-screen-density cull (`u_densityBase` against `particleHash`) has the same staircase; giving it
+  a well-spread hash would move today's density at every zoom, so it is its own change with its own A/B.
+- **Reopen if:** the owner says so, or a crest-size or seed-count change moves the coverage the rows were fitted on.
+
+### D-0XX (numbered at merge) · Static forecast frames ON by default for the world GFS waves view; kill switch restores /grid
+- **Decided:** owner, 2026-10-21 20:09 EDT, in the lead session (relayed to the static-frames session): "turn on static frames".
+  #422 (merged 2026-10-21 18:25Z as 2a47fd5d8) built the path dark; this flips the client default.
+- **Rule:** the client reads world GFS waves frames (every viewport wider than 15 deg, not surf) from the public bucket
+  `weather-frames` by default: seam A answers the world /grid, seam B fills world series pages around the viewed hour. Every miss
+  (no index, an unbuilt entry, a fetch or decode error, no frame within 3 h) falls back to /grid or /grid_series exactly as before.
+  The publisher runs in forecast-ingest-pilots.yml with FRAME_IMAGES_PUBLISH=1. No served number moves: each frame is decoded and
+  compared node by node with its source before upload, and /grid serves the same stored product. What changes on screen is that a
+  scrub draws the full 2-deg frame at once where the series path drew the thinned 46 x 21 world frame first.
+- **Evidence:** log/2026-10-20-claude-static-frames.md; evidence/static-frames-2026-10-20.json.
+  - Offline, interleaved, 3 sessions per arm, steps that need a different product: exact-correct frame p50 2,286 -> 238 ms,
+    0 backend requests on the static path.
+  - Parity: 3,470,313 synthetic nodes and 45,069 real live nodes, 0 bad.
+  - Live publisher read-back: the first two post-merge pilots runs (39670557729, 39688997158) held all 113 products on disk
+    (not_local 0) but refused every frame, because a stored product's grid.bounds is the request box (north 85) and not the cell
+    centres (84). latest.json was never written (CDN 400). The same PR fixes the encoder to take the lattice from the cells; on the
+    real world frame the header now reads -80..84, with Python and JS parity 0 bad.
+- **Known costs:**
+  - Until the first publish with the bounds fix, the flip is inert (every request falls back).
+  - The live in-browser parity read (ledger commitment 1585, part 3) was not taken before this flip.
+  - Each decoded world frame is ~15k vector objects (LRU 12, series window 9).
+  - The localStorage override works in production builds by design.
+- **Rollback:** `window.__RAW_DISABLE_STATIC_FRAMES__ = true` restores the /grid path exactly (synchronous, nothing awaits);
+  `localStorage.__RAW_STATIC_FRAMES__ = 'false'` turns it off in one browser; a build with REACT_APP_STATIC_FRAMES=false turns the
+  default off; repo variable FRAME_IMAGES_PUBLISH != '1' stops publishing.
+- **Reopen if:** the owner says so, live parity vs /grid finds a bad node, or the first publish after the fix covers less than
+  90% of the set.
+
+### D-043 · Light's crests carry the two-tone (dark rim, light centre line) by default; ON by default
+- **Decided:** owner, 2026-10-22 02:33Z (22:33 EDT), after the moving A/B re-shot on light's live spectrum
+  (https://claude.ai/artifact/QJNb3RK7ugDy7Vqpjhb9md): "Turn the light two-tone on by default (the one-line flip), with its kill switch,
+  and record the pick." The lever came in with #442 (off); this turns it on.
+- **Rule:** wherever light draws its ORIGINAL crest colours (D-041), each crest keeps its colour and gains a dark rim (the colour x 0.15)
+  and a light centre line (85% toward white), the ribbon opaque to 0.80 of its radius, crest alpha x 3 far out tapering to x 1 by z 9.
+  V2 on request (`__RAW_LIGHT_CREST_V2__`, the restore's kill) draws as before, without it; `__RAW_LIGHT_CREST_STYLE__ = 'twotone'`
+  asks for it over any colours. Every shader piece is gated on the light theme. One owner: `marineLightCrestStyle.js`.
+- **Evidence:** `log/2026-10-20-claude-light-crest-v2.md` (2026-10-21 22:45Z and 2026-10-22 02:40Z); `evidence/light-crest-twotone-2026-10-21.json`.
+  Offline real engine on the live spectrum (dev 28be37d3f), p99 APCA |Lc| off the paired wash, original -> two-tone: world 17.7 -> 56.4,
+  regional 21.2 -> 46.3, coastal 23.9 -> 50.2. Checker (`light-crest-style.mjs`), worst over every 0.1 m to 14 m, zoom and lighting: the
+  original 0 from 2 m on the spectrum; the two-tone >= 41.1 (v2 >= 40.2), colour-blind >= 32.4 dE00, centre vs rim >= 62.
+- **Known costs:** crests read bolder: open sea left uncovered 56 -> 47% (world), 59 -> 54% (regional), 30 -> 25% (coastal); the
+  original's look in calm far-zoom water gains dark outlines.
+- **Rollback:** `window.__RAW_DISABLE_LIGHT_CREST_STYLE__ = true` before load draws dev's DRAW_FS from before the flip byte for byte
+  (sha256 e2438586..., pinned in `marineLightCrestStyle.test.js`).
+- **Reopen if:** the owner says so, or light's wash or crest colours change (re-run the checker and the A/B).
+
+### D-044 · Light's crests drop the two-tone again: the original crests without it; the two-tone stays an opt-in lever; supersedes D-043
+- **Decided:** owner, 2026-10-22, seeing #445 (D-043) deployed on dev 67021e936: "The light mode animations that just deployed look
+  strange to me. Make a note of the new changes I don't like in light mode." (23:41 EDT, relayed by the lead), then, asked whether to
+  turn #445's crest edge back off so light shows his original crests without it: "yes" (23:57 EDT). Supersedes D-043.
+- **Rule:** light draws its original crest colours (D-041) without the two-tone by default. `window.__RAW_LIGHT_CREST_STYLE__ =
+  'twotone'` stays as an opt-in lever (for A/Bs), and `window.__RAW_DISABLE_LIGHT_CREST_STYLE__` stays. One owner:
+  `marineLightCrestStyle.js`.
+- **Evidence:** `log/2026-10-20-claude-light-crest-v2.md` (2026-10-22 04:30Z). Light's default DRAW_FS is dev 28be37d3f's byte for
+  byte (sha256 e2438586..., 8872), pinned in `marineLightCrestStyle.test.js` and read back from the shader the GPU compiled in light,
+  beach and dark. The pinpoint page (https://claude.ai/artifact/Sjk76DT4kGx2A9LqBgbCWq) showed each recent light change undone.
+- **Known costs:** the original crests share the spectrum wash's brightness from about 2 m up (APCA |Lc| 0; D-043's measurement),
+  which is what the two-tone was for; the owner prefers that to the two-tone's look.
+- **Rollback:** set `window.__RAW_LIGHT_CREST_STYLE__ = 'twotone'` before load to see the two-tone, or revert this PR.
+- **Reopen if:** the owner says so. A subtler crest change for light and beach is being built as a separate draft by the beach session.
+### D-0XX (numbered at merge) · Beach's crests stay as they are: no two-tone; the beach crest style code is removed
+- **Decided:** owner, 2026-10-22 00:04 EDT, to the beach crest session, after light's two-tone went live (#445, D-043) and before
+  beach's flip shipped: "No two-tone, they don't look like real waves in my opinion"; then, 00:10 EDT: "Remove the unused beach
+  two-tone code from dev (keep today's beach crests exactly)." Closes the beach A/B (#433, levers off by default) with no style
+  picked; light's two-tone went back off in its own PR (#448, D-044).
+- **Rule:** beach draws today's crests (orchid-pink, electric turquoise, sunset magenta, white foam, the engine's own self-contrast
+  where it runs) with no luminance structure inside them. `marineBeachCrestStyle.js`, its test, its shader hooks, its harness
+  variants and `wind-color/beach-crest-style.mjs` are removed. The standing rule from D-041's feedback holds (one colour family per
+  theme, no hue switch at a height); the two-tone's dark rim and light centre line are rejected as unlike real waves.
+- **Evidence:** `log/2026-10-21-claude-beach-crest-style.md` (2026-10-22 section). DRAW_FS and DRAW_VS on the branch hash exactly as
+  on dev 9b49111e8 under the default, light's two-tone lever, light V2 on request and dark's storm kill (sha256
+  e2438586... 8872, ed381124... 9233, 40aa1ea7... 9110, a9e8e102... 8811); the shader file is pre-#433 dev's apart from one JS comment word.
+- **Known costs:** beach's original complaint stands: today's crests share the v1 sea's brightness on the sand (1-2 m) and grey-mauve
+  (4.4-6.8 m) bands (APCA |Lc| 0; `evidence/beach-crest-style-2026-10-21.json`), so crests there read by hue alone. No fix is open.
+- **Rollback:** revert the PR to get the levers back (off by default); the model script and its numbers are in git history (#433).
+- **Reopen if:** the owner asks again about crests blending into beach's heatmap.
+### D-046 · Light's crests are cross x1: the original's navy in small seas, lightening to warm gold and coral where the surf is big
+- **Decided:** owner, 2026-10-22 09:41 EDT, after the moving A/B (https://claude.ai/artifact/CH83LAqf8h5qHVEtBPsxPD) and draft #451's
+  Netlify preview over live weather: "Ship x1, the cross in the preview (pane 2)." His ask, 00:29 EDT: "Light mode I if we acn do a
+  cross between no two-tone and v2 , would maybe be best?" Builds on D-041 (the original colours) and D-044 (no two-tone).
+- **Rule:** light draws `LIGHT_CRESTS.x1` by default over its spectrum and v2 washes: deep navy calm; amber-gold ramping to light gold
+  over 2.0-2.9 m of the crest's own height (DRAW_FS `smoothstep`, never a step); light coral storms; whitecap foam navy ramping to
+  white over the same heights; #431's far-zoom crest lift (0.80, ending at z 9). One colour family, no switch at a height, no
+  two-tone. One owner: `marineCrestPalette.js` (`LIGHT_CREST_CROSS`). x2 and x3 stay as levers (`window.__RAW_LIGHT_CREST_CROSS__`).
+- **Evidence:** `log/2026-10-20-claude-light-crest-v2.md` (2026-10-22 08:10Z and 13:50Z sections), `evidence/light-crest-cross-2026-10-22.json`.
+  Real engine, one storm hour, every pane on the same wave texture: p99 APCA |Lc| of crests against the sea, world 17.1 -> 35.5,
+  coastal 22.8 -> 62.3 (null control <= 0.5). Checker (every 0.1 m to 14 m, every zoom, lighting and whitecap): crests share the
+  sea's brightness only at 2.3-2.7 m (the original: 1.2-14 m); colour-blind floor 6.8 -> 22.5 dE00; largest 0.1 m colour step 5.6
+  dE00 (V2's switch: 80). Default DRAW_FS d75b2bbf... (9063) and DRAW_VS 5bd171fb... (29558), pinned in `marineCrestCross.test.js`
+  and read back from the shader the GPU compiled in light, beach and dark.
+- **Known costs:** any crest that is dark on the calm sea and light on the storm has to match the sea's brightness once; x1 does so
+  between 2.3 and 2.7 m, where crests read by hue alone. Big-surf crests are lighter and less saturated than the original's red.
+- **Rollback:** `window.__RAW_DISABLE_LIGHT_CREST_CROSS__ = true` before load draws D-044's crests byte for byte (DRAW_FS
+  e2438586..., 8872; DRAW_VS b1569be9...); or revert the PR.
+- **Reopen if:** the owner says so, or a later light wash moves the 2.3-2.7 m crossing into a band he watches.
+
+### D-047 · Beach's crests get a subtle lift where they vanish: a little deeper on the sand band, a little whiter on grey-mauve; today's colours; ON by default
+- **Decided:** owner, 2026-10-22 09:40 EDT, to the beach crest session, after the live deploy preview of draft #450
+  (https://deploy-preview-450--rawsurf.netlify.app) and the moving A/B (today | subtle | more,
+  https://claude.ai/artifact/LebieAg312hzjyruotS9KN): "Ship the subtle beach crest lift from #450 (the default there), with its
+  kill switch." Context: "No two-tone, they don't look like real waves in my opinion" (D-045's entry above); "It needs to be a
+  subtle improvement" (00:10 EDT, relayed by the lead).
+- **Rule:** beach's crests keep their colours (orchid-pink, electric turquoise incl. the blue big-wave crests, sunset magenta, white
+  foam) and draw exactly as before except in two sea-height bands, where each crest moves its brightness away from the v1 sea under
+  it: the sand band (1-2 m, ramps 0.7-1.0 and 2.0-2.3 m) a little deeper (colour x 0.70, a wave face in shadow), the grey-mauve band
+  (4.4-6.8 m, ramps 4.0-4.4 and 6.8-7.2 m) a little whiter (35% toward white, a little more foam); inside the bands the crest alpha is
+  x1.5 far out, back to x1 by z7, before DRAW_FS's 0.85 cap. No rim, outline, centre line or hue swap. One owner:
+  `marineBeachCrestLift.js`. `window.__RAW_BEACH_CREST_LIFT__ = 'more'` (x0.55 / 50%) stays as an opt-in for A/Bs.
+- **Evidence:** `log/2026-10-21-claude-beach-crest-style.md` (2026-10-22 sections); model `frontend/scripts/wind-color/beach-crest-lift.mjs`
+  (reads the module): worst APCA |Lc| inside the bands from ~0 to 8-13 (sand) and 9-37 (grey-mauve) by zoom; band-core typical at the
+  coast 18-26 / 30-32; look change mean dE00 8-11 inside the bands, 0 outside the ramps. Engine, offline, paired exact wash, p99 |Lc|
+  today -> subtle: world 0.3 -> 16.9, coast 35.7 -> 48.6 (crest pixels at |Lc| >= 15 at the coast 17.5% -> 28.7%), null <= 2.9. GPU:
+  the DRAW program linked in light, dark and beach, with and without the lift. DRAW_FS: kill = the pre-lift default (sha256
+  e2438586..., 8872), subtle ce8b5a6e... (9323), more 06ffcc97... (9323); DRAW_VS unchanged; pinned in `marineBeachCrestLift.test.js`.
+- **Known costs:** subtle does not make every crest in the bands clear: the bar of |Lc| 30 is met only on grey-mauve at regional zoom;
+  the worst cases sit at the bands' top edges (2 m, 6.8 m), where the sea's brightness comes back toward the crest's. Reaching 30
+  everywhere would take ~0.6 in both bands (dE 15-25), not subtle. Beach's crests stay faint at many heights outside the bands, mostly
+  far out (left unchanged by the brief). A white lift was tried on the sand band and rejected: the sand is lighter than the crests.
+- **Rollback:** `window.__RAW_DISABLE_BEACH_CREST_LIFT__ = true` before load draws the pre-lift crest exactly (hash-pinned), or revert.
+- **Reopen if:** the owner says so, or beach's sea or crest colours change (re-run the checker).
+
+### D-048 · A desktop whose browser reads "3g" still preloads the whole run; Save-Data, 2g and phones stay on demand
+- **Decided:** owner, 2026-10-22 09:39 EDT, in the GPU-frames session. Asked whether desktops whose Chrome reads a "3g" connection
+  should still fill the run in idle time: "Yes: let desktops whose Chrome reads 3g still fill the run in idle time (keep Save-Data,
+  2g and phones on demand)."
+- **Rule:** `marineFrameStore.resolveTier` constrains a `3g` reading only on a handheld or weak device; a desktop keeps the desktop
+  tier. `marineFrameStoreRuntime.idleFillBlocker` blocks the idle fill on `2g` and `slow-2g` only (plus Save-Data, coarse pointer,
+  hidden tab and non-desktop tiers, as before).
+- **Why:** Chrome reports `3g` from round-trip time alone (270-1400 ms), which a far CDN edge produces on a good desktop link. The
+  live frame fetches measured p50 502 ms.
+- **Evidence:** `log/2026-10-22-claude-fill-on-3g.md`.
+  - Offline with the 113 real published frames, 340 ms per CDN object, the connection overridden to 3g.
+  - Before: constrained tier, fill blocked, 56/113 frames resident, steps p95 456 / max 458 ms.
+  - After: desktop tier, fill 1.15-7.5 s, 113/113 resident, steps p50 2 / p95 16 / max 17 ms, 0 backend requests.
+- **Known costs:** a 3g desktop now downloads the whole active run, about 6.4 MB for GFS waves, the same as a 4g desktop. On a
+  genuinely slow link the fill takes longer, but it never blocks a step: the window nearest the cursor still goes first.
+- **Rollback:** `window.__RAW_DISABLE_FRAME_IDLE_FILL__ = true` turns the fill off everywhere; or revert the PR.
+- **Reopen if:** egress per open needs a cap (an open question, raised to the lead: fill only the first viewed set) or 3g desktops
+  report slow scrubbing.
+
+### D-049 · Static frames for eight world sets, each ON behind its own kill
+- **Decided:** owner, 2026-10-22 00:22 EDT, relayed by the lead session: "Have the static-frames session publish more layers
+  and models". The lead's scope: every set gets its own kill and is ON once its parity is proven; no SCOREBOARD row (no served
+  number moves: every frame is checked node by node against the stored product /grid serves).
+- **Rule:** the publisher (forecast-ingest-pilots.yml) publishes each world set in `frame_set.SETS`, in this order: GFS waves,
+  swell_1, swell_2, wind_waves; ICON waves; EURO waves; ICON swell_1, wind_waves (all global_mid, 2 deg). The client's
+  `STATIC_SETS` lists the same eight; a set missing from latest.json is a `no_index` miss and /grid serves it. The 90% coverage gate
+  counts AUTHORITATIVE entries: the ICON/EURO estimated 14-day tails are written by the core lane, so in this lane they are listed
+  unbuilt (path null), and every ask that picks one falls back to /grid, whose resolver picks the same product. Once
+  `FRAME_PUBLISH_BUDGET_S` (600 s, inside the step's 15-min timeout) has elapsed, no further set starts; a skipped set keeps its
+  published index (the stagger).
+- **Lanes:** seam A (the exact per-hour grid: the /grid JSON, is_valid included) serves all eight sets. Seam B (the series lane)
+  and the #437 frame store take the three WAVES sets only: the series conform drops top-level `is_valid` and the encoder recovers
+  land from `v.waves` alone, so a swell / wind-wave series frame's land cells (4,850 of 15,023 in a real world frame) would encode
+  as ocean. Before static frames that lane drew only the thinned preview and the exact /grid frame replaced it; a full-resolution
+  static series frame would be the settled one (seen offline: 4 of 10 swell steps). Since #456 (merged 2026-10-22) the conform
+  carries `is_valid` for every layer, so the series gate lifts in its own PR with the land-cell parity on real swell frames; the
+  frame-store gate lifts when its packer handles non-waves layers.
+- **Mid-zoom crops (#459):** every one of the eight sets' tier is global_mid, so #459's crop rules (model-aware snap, proportional
+  pad, regional refusal) serve all eight through seam A at viewport boxes the resolver answers from global_mid. Series crop pages
+  follow the series gate (waves sets only).
+- **Not included:** EURO swell_1, swell_2 and wind_waves (stored at global_coarse only, and /grid fills the Gulf at serve time,
+  so a frame of the stored product would not equal what /grid serves); ICON swell_2 (a client-side blend; its GFS swell_2 input
+  is served from frames through the same seam).
+- **Kills:** global `window.__RAW_DISABLE_STATIC_FRAMES__ = true` (restores /grid exactly); per set
+  `window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = ['ICON/marine/waves/global_mid', ...]` (or `'*'`), or for one browser
+  localStorage `__RAW_STATIC_FRAMES_SETS_OFF__` (a comma list). A per-set kill also hides that set's pin from the GPU frame store
+  (#437), which reaches sets only through `getPinnedIndexSync`. Publisher side: `FRAME_SETS` (comma list of set keys) narrows a run.
+- **Evidence:** log/2026-10-20-claude-static-frames.md (2026-10-22 section); evidence/static-frames-more-sets-2026-10-22.json.
+  - Parity, offline, the app's own codec vs the real backend over a synthetic store of all eight sets: 1,832 comparisons,
+    27,522,136 nodes, 0 bad, 0 provenance mismatches. Production-shaped (estimated tails absent): 1,408 comparisons, 21,152,384
+    nodes, 0 bad; 424 asks land on unbuilt tail entries, and every one falls back to the product /grid names. Positive control:
+    one flipped byte in one frame read 2 bad rows (16 mm) and exit 1.
+  - Offline scrub on the shipped default (static frames + the #437 frame store), exact-correct frame p50 / p95 per step: EURO
+    waves 66 / 2,979 -> 3 / 18 ms with 0 backend requests; ICON waves 35 / 5,413 -> 6 / 1,045 ms, the one /grid ask being the
+    168 h+ tail entry, which falls back by design; GFS swell_1 (seam A only) 2,058 / 3,479 -> 1,605 / 1,676 ms, backend requests
+    during the steps 9 -> 0, backend CPU 8.9 -> 0.05 s. EURO needed seam A in `backendCopernicusServiceClient` (its own client).
+  - Live (world GFS waves, pilots run 39722114072): 113 built, 0 refused, 6,296,904 B in 29.0 s; latest.json 200 (no-cache),
+    frames immutable with no Content-Encoding, CDN MISS then HIT.
+- **Known costs:** CDN egress grows with the sets a visitor views: about 0.7 MB for a glance, and on desktop the #437 idle fill
+  loads the whole run of the viewed WAVES set (GFS waves about 6.4 MB, ICON waves 3.2 MB and EURO waves 3.7 MB, native hours
+  only); a swell / wind-wave set is fetched on demand only, about 56 KB a frame as the scrub asks for it. Within Supabase Pro's
+  250 GB cached egress that is about 39,000 desktop opens a month on GFS waves alone, fewer for visitors who toggle between
+  waves models (the instant-scrub session is proposing a per-open cap).
+  Storage is about 78 MB steady state (current and previous run). Swell and wind-wave sets get no instant scrub yet (seam A
+  only: the exact frame lands after the per-hour settle, ~1.6 s offline), and their series pages still come from /grid_series.
+  A cold whole-run fill hits the Supabase origin once per frame; the live read saw 3 x 429 at 6 in flight (recovered).
+- **Rollback:** the per-set kill (one browser or window list), the global kill, or revert the PR (the publisher goes back to GFS
+  waves only, and the client's other sets become `no_index` misses).
+- **Reopen if:** a set's live parity read fails, cached egress nears 250 GB a month, or the publish step nears its 15-min timeout.
+- **Correction 2026-10-22 (after merge): ICON / EURO WORLD boxes ask /grid.** The route runs
+  `coarse_gulf_fill.fill_coarse_enclosed_sea_from_gfs_served` on EURO and ICON marine grids whose served span is 350 deg or more,
+  which includes the whole global_mid clip a world request gets (and every world /grid_series frame). It rewrites every masked cell
+  (land too) that has a valid GFS coarse cell within 8 deg with GFS values, so a world frame of the stored product is NOT what /grid
+  serves. Offline, the real function on a EURO global_mid with simulated land rewrote 1,757 of 2,066 masked cells at world span and
+  0 on a 50-deg crop. The parity above missed it: the synthetic store has no masked cells. Rule now: a world box of ICON/EURO asks
+  /grid; their viewport crops (no fill below 350 deg) stay static; the GPU frame store takes no ICON/EURO set (it cannot tell world
+  from crop at its door). Kill (the pre-fix behaviour): `window.__RAW_DISABLE_STATIC_WORLD_FILL_GUARD__ = true`. It lifts when the
+  publisher mirrors the fill for world frames. No ICON/EURO frame had been published (the first post-#453 pilots run had not run).
+  Measured live 2026-10-22 21:55Z (one world /grid each, health probed): EURO waves `coarse_fill.cells_filled` 2,465 of 4,689
+  masked cells, ICON 1,708 of 3,788. (The offline 1,757-of-2,066 figure above used an all-valid GFS donor; with a land-masked
+  synthetic donor the control store now reads 1,173 of 2,714, and its parity sees the gap: `scn_static_parity.mjs` over
+  `serve_synthetic.py --land-mask 1`, ICON/EURO world frames bad > 0, crops 0 bad. LESSONS L-S22.)
+- **Update 2026-10-22 (the series gate lifts, #460):** since #456 the conform carries `is_valid` for every layer,
+  so seam B (the series lane, and #459's crop pages) takes all eight sets, not only the waves sets. The waves-only rule comes
+  back by itself whenever #456's fix is killed (`window.__RAW_DISABLE_CONFORM_IS_VALID__`) and on its own kill
+  (`window.__RAW_DISABLE_STATIC_SERIES_ALL_SETS__`). The GPU frame store stays waves-only until its packer handles the other
+  layers. Evidence: #456's lane parity on a real frame (swell_1 texels that differ between the /grid and series lanes 4,657 -> 0;
+  swell_2 and wind_waves 0); offline GFS swell_1 scrub on the shipped default, exact-correct frame p50 / p95 1,605 / 1,676 ms
+  (seam A only) -> 43 / 237 ms with 0 backend requests (the /grid path: 53 / 2,877 ms, 7 requests); the series lane now fills
+  the 1-h steps, and day jumps land in ~0.22 s instead of the ~1.6 s per-hour settle.
+
+
+### D-0XX (owner's call, NOT taken) · Scope the serve-time Gulf fill to the 10-deg tier it was built for (MARINE_GULF_FILL_MID=0)
+- **The question:** /grid runs `coarse_gulf_fill` on EURO/ICON marine grids of served span >= 350 deg. It was built for the
+  10-deg `global_coarse` tier (EURO's coarse grid masks the Gulf and other enclosed seas). Since the mid tier answers world
+  requests (MARINE_MID_RES_MAX_SPAN=400, 2026-07-23) it also runs on the 2-deg `global_mid` world clip, where it has no
+  enclosed-sea job (EURO's global_mid Gulf is valid, ICON has no holes) and its 8-deg reach, sized for 10-deg cells, pastes GFS
+  10-deg values onto coast, inland and sea-ice cells under a EURO/ICON label. The module's own docstring names the inland
+  reach (Texas, Mississippi, Georgia) as the owner's call. Live 2026-10-22: EURO 2,465 of 4,689 masked cells, ICON 1,708 of 3,788.
+- **What flips:** Render env `MARINE_GULF_FILL_MID='0'` (built DARK, default '1' = today). The 10-deg tier keeps its fill.
+  /capabilities reports the state (`gulf_fill_mid` on EURO/ICON marine rows) and the client then serves ICON/EURO world views from
+  the CDN (exact, instant scrub and toggles at world view, #458), lifting the #461 guard by itself.
+- **What changes on screen:** EURO/ICON world view only. The cells the fill paints today show as masked (no colour) instead; the
+  rest of the field is unchanged. Viewport zooms (span < 350 deg) and GFS are unchanged.
+- **Evidence for the call (owner pack, built from published data with no box load):** an A/B on real data of EURO/ICON world
+  coastlines and the Antarctic ice edge, fill on vs off; the served-cell diff (how many, where, by how much); the inland
+  Texas/Mississippi/Georgia cells shown. Verified so far: tests/test_coarse_gulf_fill_mid.py (both values, the coarse tier, the
+  capability), the offline masked-cell control (flag off: 0 bad over 8 sets), the live counts above.
+- **Rollback:** `MARINE_GULF_FILL_MID='1'`. A browser that loaded /capabilities while it was '0' keeps serving static world frames
+  until it reloads.
+- **CORRECTED 2026-10-23 (superseded; not a candidate):** the premise "EURO's global_mid Gulf is valid" was never measured and
+  is FALSE. The lead measured the published frames (valid 2026-10-25T00Z): EURO's 2-deg grid masks 870 of 10,168 GFS-sea nodes
+  (Gulf of Mexico 15/59, Caribbean 15/102, Mediterranean 44/113, Red Sea 14/25, Persian Gulf 6/12, Baltic 26/45, Black Sea 2/2,
+  Hudson Bay 13/47, Gulf of California 8/20, Sea of Japan 16/52); ICON 125. So `MARINE_GULF_FILL_MID='0'` would blank real sea.
+  The owner chose the targeted fill instead (next entry). LESSONS L-S23.
+
+### D-0XX (owner decided 2026-10-23 09:56 EDT to BUILD it dark; the flip is still his call) · The targeted 2-deg Gulf fill
+- **The owner's words:** "Yes: build the targeted fill dark (only fill EURO/ICON 2-deg cells where GFS 2-deg is sea, stop painting
+  land/ice), then show me the before/after before switching it on. Also look into EURO's own values at ingest as the root fix."
+- **What it does (flag `MARINE_GULF_FILL_MID_TARGETED`, default '0' = today):** on the 2-deg `global_mid` world clip only, a masked
+  EURO/ICON cell takes the SAME-LAYER GFS `global_mid` value at the SAME node (the three share the 181 x 83 lattice), and only where
+  that GFS node is valid. The 10-deg tier keeps today's fill. `MARINE_GULF_FILL_MID='0'` still wins. /capabilities reports
+  `gulf_fill_mid_mode`; the client's #461 guard stays on (the targeted fill still substitutes GFS values at sea).
+- **Before/after on real data** (valid 2026-10-23T00Z; the live world /grid as today, the published stored frames as fill-off,
+  the published GFS frame as the donor): EURO today paints 2,465 cells, targeted fills 868 (kept as sea) and leaves 1,716
+  masked (land, coast, ice: 352 south of 60S, 413 north of 60N); ICON today 1,708, targeted 124, 1,597 no longer painted.
+  Inland Texas/Mississippi/Georgia: 13/4/3 -> 0/0/1 for EURO (the one is 32N 82W, which GFS's own 2-deg grid calls sea and the
+  GFS map already shows); 13/4/2 -> 0/0/0 for ICON. Evidence: side-session notes gulf-fill-targeted-evidence-2026-10-23/.
+- **What flips:** Render env `MARINE_GULF_FILL_MID_TARGETED='1'`, on the owner's word after the before/after. Rollback: '0'.
+- **The root fix (proposal, not built):** EURO's own values. ECMWF's native 0.25-deg wave cell AT the node is land in all 868 cells,
+  but 847 of them (97.6%) hold valid ECMWF sea cells inside their own 2-deg block (median 22 of 81). The fetcher already
+  block-means the height (ECMWF_WAVE_SCALAR_BLOCKMEAN, default on); direction and period are still point-sampled at the land
+  centre, and the normalizer drops a vector whose direction is missing. Sampling direction (circular, energy-weighted) and
+  period from the same block when the centre is land would give EURO its own values there and retire the GFS donor for EURO.
+- **Recommendation (static-frames session):** flip, unless the A/B shows something the owner wants kept. At 2 deg the fill repairs
+  nothing, it labels another model's 10-deg values as EURO/ICON (the provenance class this repo records as its recurring defect),
+  and the flip makes ICON/EURO world views instant.
+
+
+### D-0XX (numbered at merge) · Per-PR ledger fragments, folded into ACTIONS.jsonl in merge order by one fold PR
+- **The owner, 2026-10-22 23:11 EDT (03:11Z on 10-23):** "Yes: build the per-PR ledger fragments (ledger.d/<pr>.jsonl folded
+  into ACTIONS.jsonl in merge order) so PRs stop colliding and auto-merge runs unattended. Keep the hash chain intact."
+- **What it is:** a PR records its ledger lines in `docs/weather-program/ledger.d/<branch-slug>.jsonl` (`action_ledger.py append`;
+  no seq/prev/at) and never edits ACTIONS.jsonl or the STATE anchor. The lead's `action_ledger.py fold-pr` appends every merged
+  fragment to ACTIONS.jsonl in merge order with the normal hash chain, moves the anchor and deletes the folded files, in one PR.
+  `check-pr` (Weather Program Ledger workflow) fails direct edits unless the PR is that fold (recomputed from dev, line for line)
+  or was opened before the fragments landed. Design approved by the lead 2026-10-23 (all nine points; check-pr advisory first,
+  then a step in an existing required ci.yml job once it has run clean for a few days).
+- **Reopen if:** a fold PR cannot keep pace with merges, or the guard blocks a correct PR.
+- **Rollback:** revert the PR; `append --direct` is the old writer and still works.
+
+### D-0XX (owner queued 2026-10-23 10:43 EDT; the FLIP is his call) · EURO's own wave values at land-centre nodes (ECMWF_WAVE_LAND_CENTRE_BLOCK)
+- **The owner's words:** "Also queue the EURO own-values fix (block-sampled direction/period) dark."
+- **The defect, measured:** EURO's 2-deg (and 10-deg) wave height is block-meaned from ECMWF's native 0.25-deg field, but direction
+  and period were point-sampled at the node's own native cell, and the normalizer drops a vector with no direction. Where that cell
+  is land the node went MASKED although its block holds ECMWF sea, and /grid then showed a GFS donor value there (coarse_gulf_fill).
+  ECMWF open data, cycle 2026-10-23 00Z step 0: all 868 EURO-masked GFS-sea 2-deg nodes have a land centre cell.
+- **What the flag does (default '0'; rules from the lead's regression review):** at block resolutions only (2 deg, 10 deg; never
+  the native 0.25-deg regional tiles), a node whose centre cell is land takes direction (`energy_mean_direction_block`, E = H^2
+  circular mean) and period (`energy_mean_scalar_block` of pp1d, the PEAK; mwp, a MEAN, only when the WHOLE block has no pp1d,
+  counted, never mixed, #412) from the fetcher's OWN height slice (8x8 at 2 deg, one native cell NW of centre). It is validated
+  only when a direction AND a period exist (never period=0.0 on a valid vector, 0b5182436) and an ECMWF sea cell lies within
+  `ECMWF_WAVE_LAND_CENTRE_REACH` native cells of the centre (default 2 = 0.5 deg), so the rule reaches the coast, not the block's
+  1-deg edge inland. Memory: only the 8x8 blocks of land-centre nodes with a finite cell, per valid time. Provenance:
+  `grid.diagnostics.landCentreBlockNodes`. Period choice: the E-weighted mean of pp1d, the reduction GFS/ICON use; a dominant-cell
+  pick jumps whole seconds when the dominant cell changes between hours.
+- **Before/after on the real cycle** (ECMWF open data 2026-10-23 00Z step 0, the fetcher's reductions, vs the published EURO / GFS
+  frames). Newly valid nodes by reach, classed against GFS's 2-deg mask (sea / land / ice-polar): reach 1: 345 / 23 / 7;
+  **reach 2 (default): 575 / 30 / 15**; reach 4 (the whole block): 842 / 62 / 46. ("GFS-land" includes enclosed sea GFS's coarser
+  mask drops, e.g. Black Sea.) At reach 2: Mediterranean 25, Baltic 17, Sea of Japan 13, Caribbean 12, Gulf of Mexico 11, Hudson
+  Bay 11, Red Sea 7, Gulf of California 6, Persian Gulf 5; inland Texas/Mississippi/Georgia 0/0/0. EURO's own height vs the GFS
+  donor: median +0.06 m (p10 -0.14, p90 +0.35). Cells beyond the reach keep today's path (the targeted fill gives them GFS's value).
+- **Downstream:** the consensus shadow (equal mean, where a member's mid answers) moves at ~600 nodes, median +0.004 m (p10 -0.07,
+  p90 +0.09); the EURO 240-336 h estimated tail (core lane) re-anchors one cycle after the pilots lane (a one-cycle mixed state);
+  lattice_fill reads the same products. ICON still needs the GFS donor for its ~124 cells, so the client's world-frame guard stays.
+- **What flips:** repo env `ECMWF_WAVE_LAND_CENTRE_BLOCK='1'` in forecast-ingest-pilots.yml (EURO marine global_mid) AND
+  forecast-ingest.yml (EURO marine global, 10 deg), together; products change from the next ingest. With it on, the targeted fill
+  finds almost nothing left to fill for EURO, and the GFS donor retires for EURO at 2 deg. Rollback: '0' (the next ingest).
+
+
+### D-050 · EURO shows its own values at land-centre nodes, and the Gulf fill only fills from a GFS sea value at the same node (both ON, 2026-10-24)
+
+- **The owner, 2026-10-23 17:33 EDT:** "Yes: at 9 AM EDT tomorrow switch on EURO's own values first (verify on the next ingest), then the targeted fill to stop the land painting, with the baseline, Reflection's rollback triggers and a scoreboard row." Lakes, 17:47 EDT: "actually yes, lakes should show as lakes. Do what is best to
+  be state of the art" (all ECMWF lake nodes are kept, with no sea-fraction gate; the lakes render client-side through #521 and #528).
+- **Step A, EURO's own values (the evidence is in the D-0XX entry above, "EURO's own wave values at land-centre nodes", #480/#497; the targeted fill's is in "The targeted 2-deg Gulf fill", #476):** the repo variable `ECMWF_WAVE_LAND_CENTRE_BLOCK` went
+  0 -> 1 at 2026-10-24 13:01:39Z (REACH default 4, the whole 2-deg block). It is read by both ingest lanes. Verified on pilots run
+  40096388879 (its job started 13:33Z with the variable at 1; published 14:26:57Z): valid nodes 10,334 -> 11,284, newly valid
+  **950 = 842 sea / 62 land-lake-coast / 46 ice** (the cycle measurement exactly), 0 went masked, inland Texas 0 and Mississippi 0
+  (Georgia 1 = a node GFS's own 2-deg grid calls sea). On the served world /grid at 14:04Z: `landCentreBlockNodes` 948, and the
+  legacy fill dropped from 2,465 to 1,674 filled cells (masked 4,689 -> 3,739).
+- **Step B, the targeted fill:** Render `MARINE_GULF_FILL_MID_TARGETED` went 0 -> 1 at 15:14:13Z (deploy of 749080841, nothing else;
+  live 15:17:48Z). On the 2-deg EURO/ICON world clip, a masked cell is filled only from the same-layer GFS 2-deg value at the same
+  node, and only where that GFS node is sea. The served world EURO waves frame then filled **25 cells of 3,739 masked** (was 1,674):
+  about 1,650 painted coast/land/ice cells stopped. Inland TX/MS 0/0. Donor cache: one build, 53 ms.
+- **Watch (Reflection's triggers, operationalised in side-session-notes gulf-switch-on-2026-10-24/):** baseline memory peak 901 MB
+  (trigger 1,126 MB of a 2,048 MB limit), CPU 1-27% outside ingest-end bursts, edge 5xx 0-5 per 5 min with no app error. After the
+  flip (window opened 15:42Z, 15 min after an unrelated deploy, #525 at 15:27Z): weather-route err_5xx 0, edge 500s 0-4 per 5 min,
+  memory 650-706 MB, CPU at most 0.26, probe health 0.5-0.8 s and world grid 0.85-1.5 s. No trigger fired.
+- **Rollback:** Render `MARINE_GULF_FILL_MID_TARGETED=0` (redeploys; the legacy fill returns), and/or the repo variable
+  `ECMWF_WAVE_LAND_CENTRE_BLOCK=0` then re-dispatch forecast-ingest-pilots.yml (the next ingest writes the old products).
+- **Still open:** ICON keeps the GFS donor for its own masked sea cells (its own values and rim extrapolation come later); EURO/ICON
+  world static frames get the fill baked in by the same code (static-frames); the legacy 8-deg fill retires once nothing selects it;
+  per-node provenance (`MARINE_FILL_PROVENANCE_NODES`, #502) stays dark.
+
+
+### D-051 · Inside the 19 GFS pilot boxes, zoom 7-9 is the stored NOAA GFS tile: the server serves it first and the client draws its bundles (both ON, 2026-10-25)
+
+- **The owner, 2026-10-23:** "Yes: make the stored NOAA GFS tile the single zoom 7-9 source inside the pilot boxes (server dark flag + client bundles), retire the Open-Meteo lane there, and flip both together after live parity passes." 2026-10-24 ~19:40 EDT: "Lets go with your recommendation if that is the best path forward" (the recommendation: 9 AM, both halves in one watched window).
+- **Server:** Render `MARINE_REGIONAL_TILE_FIRST` 0 -> 1 at 2026-10-25 13:27:03Z (deploy of b736e09b0, which adds only #558 over the
+  running 56deadc33; live 13:30:06Z). A GFS marine viewport that a stored pilot tile FULLY covers (the client's rule: smallest
+  containing tile, snapped box inside the data, margin-0 cover) is served from that tile, never the dynamic Open-Meteo cache or the
+  live series lane (#508).
+- **The gate, live parity (static-frames scn_tile_first_live_read.mjs, ONCE, 13:47:15-13:47:39Z, 15 min after the deploy):** PASS
+  3/3 boxes (florida_east_coast, us_southeast_midatlantic one degree inside the fractional -74.4 edge, uk_ireland). All 18 /grid
+  frames came from the stored tile with the bundle's exact lattice, 0 missing nodes, 0 validity mismatches, |dH| <= 0.0005 m (half
+  the codec step), direction and period exact. All 3 /grid_series pages took 6/6 frames from the tile; this read FAILS with the flag
+  off, so it has teeth (offline controls, 19 boxes, 2026-10-24). Health 0.16 s after.
+- **Client:** #552 merged at 13:52:17Z (fee207ac2): the regional bundles are ON by default (kill
+  `__RAW_DISABLE_REGIONAL_BUNDLES__`). Offline clean store, z8 Florida / z9 Biscay mid-tile: steps p95 9 / 14 ms, 0 mislabel,
+  0 stale frames, 0 backend asks for waves.
+- **Watch (13:55-15:00Z, D-050's triggers):** 13 probes, the in-box Florida z8 /grid from the tile every time in 0.19-0.50 s; app
+  err_5xx 0 on every route; edge 500s within the baseline (at most 9 per 10 min, no two buckets over 8 per 5 min); memory
+  484-766 MB (trigger 1,126); CPU at most 0.063. Weather /grid p95 1.4 s (n=10) after the restart. No trigger fired.
+- **Rollback:** Render `MARINE_REGIONAL_TILE_FIRST=0` (redeploys) and/or the client kill switch; reverting #552 restores the dark
+  default.
+- **Known misses, with owners:** tile EDGES (fractional extents) still wait on /grid and the server mixes regional and viewport
+  products there; the client's snapped-box rule declines those boxes (static-frames: pad the stored extent, draft #563). Model
+  toggles at z7-9 are not from the store yet (instant-scrub).
+
+### D-052 · The published EURO/ICON filled world sets use the box's targeted Gulf fill, and cloud cover draws from our own 0.25-degree GFS frames (both ON, 2026-10-26)
+
+- **The owner, 2026-10-26 ~02:30Z (23:02 EDT 10-25):** "Flip both: the MARINE_GULF_FILL_MID_TARGETED repo variable and cloud 0.25 deg (repo var, then the client key after one publish). Watch one ingest cycle." He had declined the first half at ~18:30Z 10-25 ("not right now"); the lead put it to him once more with the evidence below.
+- **Gulf fill (speed only, no served number):** repo variable `MARINE_GULF_FILL_MID_TARGETED` -> 1 at 01:31:33Z, so the publisher's
+  filled EURO/ICON world sets (#555, preloaded by #571) match Render's D-050 setting. The workflow comment: the two must be EQUAL, a
+  mismatch "costs speed, never a number" (the client serves a filled set only while /capabilities reports the same mode). Offline
+  evidence (world-frames-targeted-fill-2026-10-25): targeted filled sets vs /grid with the box targeted, 7 sets, 2,418,703 nodes,
+  161 comparisons, **0 bad** (max direction error 1.2e-5); positive control, the plain EURO/ICON sets, **3,082 bad** each.
+- **Cloud 0.25 deg (visual, ships ON with a kill switch):** repo variable `FRAME_RASTER_CLOUD_0P25` -> 1 at 01:31:52Z (#574's
+  opt-in pilots step, NCEP's full 1440 x 721 grid); the client's `DEFAULT_ON_LAYERS = ['satellite']` (this PR) draws the cloud
+  layer from `GFS/weather/cloud_cover/global_0p25` with no lever. Kill: `__RAW_DISABLE_RASTER_OWN_SATELLITE__` (or
+  `__RAW_DISABLE_RASTER_OWN_FRAMES__`); a miss falls back to the .om path; EURO/ICON keep the .om path (no cloud set). Measured
+  (#574, paired builds): per frame 0.111 -> 0.397 MB, toggle 290 -> 386 ms, steps p50/p95 unchanged (32/44 ms), GPU 4.2 MB per
+  resident frame, 0 Open-Meteo requests.
+- **Watch:** one pilots ingest (run 40257358504, dispatched 02:05:21Z). Read-back: see the log
+  `2026-10-26-claude-lead-flag-flips.md`.
+- **Rollback:** delete either repo variable (the next publish reverts that half); the cloud kill switch; reverting this PR restores
+  the dark default.
+
+### D-053 · The Gulf fill takes its GFS donor at the served frame's hour, and the ICON/EURO tails bake 12 h past run + 336 so the 2-deg tier reaches the scrubber's day-14 end (both ON, 2026-10-26)
+
+- **The owner, 2026-10-26 12:04Z (08:04 EDT):** "Flip both: set MARINE_GULF_FILL_DONOR_SERVED_TIME=1 on Render (read back one held ICON /grid past the tail: donor = the served hour's GFS), then MARINE_EXT_CEILING_MARGIN_H=12 as a repo variable, dispatch both ingest lanes and read back the 2-deg tails at now+336. Watch one cycle."
+- **Donor (#588):** Render `MARINE_GULF_FILL_DONOR_SERVED_TIME` 0 -> 1 at 12:12:22Z. That triggered a deploy of dev 4e0044461, which had no backend diff against the running 7d059314e; live 12:16:24Z.
+  - Paired live read, ICON world asked at 2026-11-09T12Z, served the 09Z frame (offset -3) both times. The donor went from GFS 12Z (the asked hour) to GFS 09Z (the served hour).
+  - Of 15,023 nodes, height changed at 124 (max 0.42 m) and direction at 132: only the fill's footprint.
+  - Note: an ask inside the tail (08Z, served 09Z) can't discriminate, because the nearest GFS is the served hour.
+- **Margin (#577):** repo variable `MARINE_EXT_CEILING_MARGIN_H` 0 -> 12 at 12:23:06Z. Core 40322129759 and pilots 40322134819 were dispatched at 12:23Z; both succeeded (13:58Z / 13:41Z).
+  - Read-back at now+336 (2026-11-09T14Z): ICON serves `icon_marine_waves_global_mid_20261109T150000Z_estimated`, EURO serves `euro_marine_waves_global_mid_20261109T150000Z_estimated`. Both are 2-deg global_mid at their own 3-h step (offset +1), not a hold, with the Gulf filled from GFS 15Z.
+  - EURO's last hours were the 10-deg GFS-ext estimate before (#576).
+  - Health before and after: err_5xx 0.
+- **Context:** `FAR_EDGE_HOLD_PREFER_MID` has been ON since 01:13:06Z (#576, the owner via the slice-2 session), so the donor defect was live on held ICON frames until 12:16Z.
+- **Rollback:** Render `MARINE_GULF_FILL_DONOR_SERVED_TIME=0`; delete the repo variable (the next bakes return to run + 336).

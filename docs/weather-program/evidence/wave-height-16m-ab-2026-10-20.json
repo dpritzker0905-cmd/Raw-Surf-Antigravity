@@ -1,0 +1,1797 @@
+{
+ "what": "16 m wave-height encoding for the light and beach wash (marineHeightEncoding.js): offline A/B, one production build, kill window.__RAW_DISABLE_WAVE_HEIGHT_16M__ = v2@10 (dev today, #411)",
+ "at": "2026-10-20",
+ "store": "serve_synthetic.py --dynamic 1 --vortex-peak 14 (eye peaks at 14.945 m; GFS 2-deg global_mid 181x83)",
+ "instruments": [
+  "frontend/scripts/offline-backend/scn_wave_palette_ab.js",
+  "frontend/scripts/offline-backend/wave_crest_stats.py",
+  "frontend/scripts/wind-color/wave-check.mjs"
+ ],
+ "owner_page": "https://claude.ai/artifact/YQMsfBLgjnm9h9kZ4UtHeU (private to the owner)",
+ "uploads": {
+  "full_run": [
+   {
+    "theme": "light",
+    "variant": "v2@10",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10",
+    "view": "coastal",
+    "cols": 6,
+    "rows": 5,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 6,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "8d2d4859"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "light",
+    "variant": "v2",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "d08c8dda"
+   },
+   {
+    "theme": "light",
+    "variant": "v2",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "d08c8dda"
+   },
+   {
+    "theme": "light",
+    "variant": "v2",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "7dbdf8fd"
+   },
+   {
+    "theme": "light",
+    "variant": "v2",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "a2834731"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10b",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10b",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10b",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10b",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "d08c8dda"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "d08c8dda"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "7dbdf8fd"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "a2834731"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10b",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10b",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10b",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10b",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10b",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10b",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10b",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10b",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   }
+  ],
+  "dark_two_runs_per_setting": [
+   {
+    "theme": "dark",
+    "variant": "v2@10",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10b",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2@10b",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2b",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "dark",
+    "variant": "v2b",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "valid": "2026-10-20T15:00:00Z",
+    "model": "GFS",
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   }
+  ]
+ },
+ "wash_pixels_full_run": {
+  "light": {
+   "wash_v2@10_vs_v2": {
+    "coastal": {
+     "pixels": 1024000,
+     "differ": 829367,
+     "differ_gt_tol": 582093,
+     "max": 246
+    },
+    "regional": {
+     "pixels": 1024000,
+     "differ": 509009,
+     "differ_gt_tol": 60628,
+     "max": 157
+    },
+    "world": {
+     "pixels": 1024000,
+     "differ": 482238,
+     "differ_gt_tol": 22533,
+     "max": 165
+    }
+   },
+   "wash_v2@10_vs_v2@10b": {
+    "coastal": {
+     "pixels": 1024000,
+     "differ": 810375,
+     "differ_gt_tol": 626766,
+     "max": 246
+    },
+    "regional": {
+     "pixels": 1024000,
+     "differ": 99843,
+     "differ_gt_tol": 1540,
+     "max": 41
+    },
+    "world": {
+     "pixels": 1024000,
+     "differ": 118047,
+     "differ_gt_tol": 2603,
+     "max": 44
+    }
+   }
+  },
+  "beach": {
+   "wash_v2@10_vs_v2": {
+    "coastal": {
+     "pixels": 1024000,
+     "differ": 366400,
+     "differ_gt_tol": 78375,
+     "max": 154
+    },
+    "regional": {
+     "pixels": 1024000,
+     "differ": 583578,
+     "differ_gt_tol": 52240,
+     "max": 145
+    },
+    "world": {
+     "pixels": 1024000,
+     "differ": 536564,
+     "differ_gt_tol": 15734,
+     "max": 146
+    }
+   },
+   "wash_v2@10_vs_v2@10b": {
+    "coastal": {
+     "pixels": 1024000,
+     "differ": 42844,
+     "differ_gt_tol": 52,
+     "max": 13
+    },
+    "regional": {
+     "pixels": 1024000,
+     "differ": 119908,
+     "differ_gt_tol": 378,
+     "max": 48
+    },
+    "world": {
+     "pixels": 1024000,
+     "differ": 10087,
+     "differ_gt_tol": 0,
+     "max": 4
+    }
+   }
+  },
+  "dark": {
+   "wash_v2@10_vs_v2": {
+    "coastal": {
+     "pixels": 1024000,
+     "differ": 5116,
+     "differ_gt_tol": 1019,
+     "max": 48
+    },
+    "regional": {
+     "pixels": 1024000,
+     "differ": 88352,
+     "differ_gt_tol": 1996,
+     "max": 104
+    },
+    "world": {
+     "pixels": 1024000,
+     "differ": 14764,
+     "differ_gt_tol": 5174,
+     "max": 117
+    }
+   },
+   "wash_v2@10_vs_v2@10b": {
+    "coastal": {
+     "pixels": 1024000,
+     "differ": 1108,
+     "differ_gt_tol": 260,
+     "max": 51
+    },
+    "regional": {
+     "pixels": 1024000,
+     "differ": 86562,
+     "differ_gt_tol": 392,
+     "max": 48
+    },
+    "world": {
+     "pixels": 1024000,
+     "differ": 2486,
+     "differ_gt_tol": 204,
+     "max": 21
+    }
+   }
+  }
+ },
+ "dark_pairwise_regional_and_world": {
+  "world": [
+   {
+    "a": "v2@10",
+    "b": "v2@10b",
+    "same_setting": true,
+    "px_gt4": 458,
+    "max": 61
+   },
+   {
+    "a": "v2@10",
+    "b": "v2",
+    "same_setting": false,
+    "px_gt4": 52,
+    "max": 7
+   },
+   {
+    "a": "v2@10",
+    "b": "v2b",
+    "same_setting": false,
+    "px_gt4": 276,
+    "max": 17
+   },
+   {
+    "a": "v2@10b",
+    "b": "v2",
+    "same_setting": false,
+    "px_gt4": 510,
+    "max": 61
+   },
+   {
+    "a": "v2@10b",
+    "b": "v2b",
+    "same_setting": false,
+    "px_gt4": 674,
+    "max": 61
+   },
+   {
+    "a": "v2",
+    "b": "v2b",
+    "same_setting": true,
+    "px_gt4": 580,
+    "max": 24
+   }
+  ],
+  "regional": [
+   {
+    "a": "v2@10",
+    "b": "v2@10b",
+    "same_setting": true,
+    "px_gt4": 458,
+    "max": 61
+   },
+   {
+    "a": "v2@10",
+    "b": "v2",
+    "same_setting": false,
+    "px_gt4": 0,
+    "max": 2
+   },
+   {
+    "a": "v2@10",
+    "b": "v2b",
+    "same_setting": false,
+    "px_gt4": 32,
+    "max": 5
+   },
+   {
+    "a": "v2@10b",
+    "b": "v2",
+    "same_setting": false,
+    "px_gt4": 458,
+    "max": 61
+   },
+   {
+    "a": "v2@10b",
+    "b": "v2b",
+    "same_setting": false,
+    "px_gt4": 510,
+    "max": 61
+   },
+   {
+    "a": "v2",
+    "b": "v2b",
+    "same_setting": true,
+    "px_gt4": 32,
+    "max": 5
+   }
+  ]
+ },
+ "crests_90_frames_per_run": {
+  "light": {
+   "wash_v2@10_vs_v2": {},
+   "wash_v2@10_vs_v2@10b": {},
+   "below10_mask_px": 961539,
+   "eye_mask_px": 60365,
+   "noisy_px": 2096,
+   "crests/v2@10": {
+    "below10": {
+     "coverage_mean": 0.07204869831939562,
+     "coverage_sd": 0.005071598178703105,
+     "colour_mean": [
+      126.8,
+      154.1,
+      177.2
+     ],
+     "frames": 90,
+     "mask_px": 961539
+    },
+    "eye": {
+     "coverage_mean": 0.19106491068223863,
+     "coverage_sd": 0.015528396027063952,
+     "colour_mean": [
+      147.0,
+      103.2,
+      131.6
+     ],
+     "frames": 90,
+     "mask_px": 60365
+    }
+   },
+   "crests/v2@10b": {
+    "below10": {
+     "coverage_mean": 0.07139920712755511,
+     "coverage_sd": 0.005676936706901994,
+     "colour_mean": [
+      126.5,
+      153.7,
+      176.7
+     ],
+     "frames": 90,
+     "mask_px": 961539
+    },
+    "eye": {
+     "coverage_mean": 0.18367689150261834,
+     "coverage_sd": 0.01101374161353155,
+     "colour_mean": [
+      147.0,
+      102.8,
+      130.7
+     ],
+     "frames": 90,
+     "mask_px": 60365
+    }
+   },
+   "crests/v2": {
+    "below10": {
+     "coverage_mean": 0.0714545813187678,
+     "coverage_sd": 0.007303165360214498,
+     "colour_mean": [
+      126.5,
+      153.8,
+      176.8
+     ],
+     "frames": 90,
+     "mask_px": 961539
+    },
+    "eye": {
+     "coverage_mean": 0.19865981943178995,
+     "coverage_sd": 0.0067655043392957845,
+     "colour_mean": [
+      141.5,
+      101.5,
+      135.4
+     ],
+     "frames": 90,
+     "mask_px": 60365
+    }
+   },
+   "crests/v2b": {
+    "below10": {
+     "coverage_mean": 0.07111465173135058,
+     "coverage_sd": 0.0055922339895566435,
+     "colour_mean": [
+      126.4,
+      153.3,
+      176.6
+     ],
+     "frames": 90,
+     "mask_px": 961539
+    },
+    "eye": {
+     "coverage_mean": 0.20602887986968166,
+     "coverage_sd": 0.006435886751022506,
+     "colour_mean": [
+      142.2,
+      100.5,
+      135.0
+     ],
+     "frames": 90,
+     "mask_px": 60365
+    }
+   },
+   "coverage_between_encodings": 0.00043933619841618476,
+   "coverage_within_lever": 0.0006494911918405039
+  },
+  "beach": {
+   "wash_v2@10_vs_v2": {},
+   "wash_v2@10_vs_v2@10b": {},
+   "below10_mask_px": 971958,
+   "eye_mask_px": 51990,
+   "noisy_px": 52,
+   "crests/v2@10": {
+    "below10": {
+     "coverage_mean": 0.039478797780699716,
+     "coverage_sd": 0.001049143450535453,
+     "colour_mean": [
+      135.1,
+      163.0,
+      222.2
+     ],
+     "frames": 90,
+     "mask_px": 971958
+    },
+    "eye": {
+     "coverage_mean": 0.15209249642025174,
+     "coverage_sd": 0.013039520366706128,
+     "colour_mean": [
+      173.2,
+      118.0,
+      207.2
+     ],
+     "frames": 90,
+     "mask_px": 51990
+    }
+   },
+   "crests/v2@10b": {
+    "below10": {
+     "coverage_mean": 0.03969535949312854,
+     "coverage_sd": 0.0014287570992738026,
+     "colour_mean": [
+      135.0,
+      163.0,
+      222.1
+     ],
+     "frames": 90,
+     "mask_px": 971958
+    },
+    "eye": {
+     "coverage_mean": 0.1577549101322904,
+     "coverage_sd": 0.011575112957447993,
+     "colour_mean": [
+      173.5,
+      117.8,
+      207.0
+     ],
+     "frames": 90,
+     "mask_px": 51990
+    }
+   },
+   "crests/v2": {
+    "below10": {
+     "coverage_mean": 0.039353803810909985,
+     "coverage_sd": 0.0012567498481758372,
+     "colour_mean": [
+      135.6,
+      162.5,
+      221.9
+     ],
+     "frames": 90,
+     "mask_px": 971958
+    },
+    "eye": {
+     "coverage_mean": 0.1648932487016734,
+     "coverage_sd": 0.006800469587510568,
+     "colour_mean": [
+      175.6,
+      120.6,
+      192.7
+     ],
+     "frames": 90,
+     "mask_px": 51990
+    }
+   },
+   "crests/v2b": {
+    "below10": {
+     "coverage_mean": 0.03949005798375833,
+     "coverage_sd": 0.0012728722765066873,
+     "colour_mean": [
+      134.2,
+      163.2,
+      222.0
+     ],
+     "frames": 90,
+     "mask_px": 971958
+    },
+    "eye": {
+     "coverage_mean": 0.16301810177170825,
+     "coverage_sd": 0.0058114424854272,
+     "colour_mean": [
+      175.8,
+      119.8,
+      192.0
+     ],
+     "frames": 90,
+     "mask_px": 51990
+    }
+   },
+   "coverage_between_encodings": 0.0001651477395799711,
+   "coverage_within_lever": 0.00021656171242882133
+  }
+ },
+ "palette_check": {
+  "light_v2@16": {
+   "step_10_16_dE00": 8.3,
+   "flag_off_16_dE00": 12.2,
+   "flag_darker_as_drawn_L": -0.035,
+   "weakest_all_models": 7.2,
+   "weakest_normal": "9.3 (10-16 m)"
+  },
+  "beach_v2@16": {
+   "step_10_16_dE00": 7.9,
+   "flag_off_16_dE00": 10.8,
+   "flag_darker_as_drawn_L": -0.046,
+   "flag_off_water_vs_cap_dE00": 4.6,
+   "weakest_all_models": 6.5,
+   "weakest_normal": "7.2 (0-0.61 m)",
+   "legend_arrow_apca": -14.8
+  }
+ },
+ "superseded_note": "full_run, wash_pixels_full_run and crests_90_frames_per_run were taken on the FLOORED /16 byte (d5278278f); rounded_byte_rerun is the code as shipped (ea296d7a6). Dark is unaffected by the change (the /10 path is untouched).",
+ "rounded_byte_rerun": {
+  "uploads": [
+   {
+    "theme": "light",
+    "variant": "v2@10",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "light",
+    "variant": "v2",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "ab9df202"
+   },
+   {
+    "theme": "light",
+    "variant": "v2",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "ab9df202"
+   },
+   {
+    "theme": "light",
+    "variant": "v2",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "fafafff6"
+   },
+   {
+    "theme": "light",
+    "variant": "v2",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "6700b93d"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10b",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10b",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10b",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "light",
+    "variant": "v2@10b",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "light",
+    "variant": "v2b",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "ab9df202"
+   },
+   {
+    "theme": "light",
+    "variant": "v2b",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "ab9df202"
+   },
+   {
+    "theme": "light",
+    "variant": "v2b",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "fafafff6"
+   },
+   {
+    "theme": "light",
+    "variant": "v2b",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "6700b93d"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "ab9df202"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "ab9df202"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "fafafff6"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "6700b93d"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10b",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10b",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "7fbac580"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10b",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "60428f4b"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2@10b",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 10,
+    "baseScale": 10,
+    "waveTexHash": "20a946df"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2b",
+    "view": "world",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "ab9df202"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2b",
+    "view": "regional",
+    "cols": 181,
+    "rows": 83,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "ab9df202"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2b",
+    "view": "coastal",
+    "cols": 13,
+    "rows": 11,
+    "hMax": 13.838,
+    "cellsAt10m": 28,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "fafafff6"
+   },
+   {
+    "theme": "beach",
+    "variant": "v2b",
+    "view": "crest-burst",
+    "cols": 29,
+    "rows": 24,
+    "hMax": 14.945,
+    "cellsAt10m": 8,
+    "heightScale": 16,
+    "baseScale": 16,
+    "waveTexHash": "6700b93d"
+   }
+  ],
+  "stats": {
+   "light": {
+    "wash_v2@10_vs_v2": {
+     "coastal": {
+      "pixels": 1024000,
+      "differ": 444175,
+      "differ_gt_tol": 87623,
+      "max": 158
+     },
+     "regional": {
+      "pixels": 1024000,
+      "differ": 527422,
+      "differ_gt_tol": 44012,
+      "max": 157
+     },
+     "world": {
+      "pixels": 1024000,
+      "differ": 541428,
+      "differ_gt_tol": 32815,
+      "max": 165
+     }
+    },
+    "wash_v2@10_vs_v2@10b": {
+     "coastal": {
+      "pixels": 1024000,
+      "differ": 90082,
+      "differ_gt_tol": 68,
+      "max": 42
+     },
+     "regional": {
+      "pixels": 1024000,
+      "differ": 69433,
+      "differ_gt_tol": 524,
+      "max": 16
+     },
+     "world": {
+      "pixels": 1024000,
+      "differ": 62623,
+      "differ_gt_tol": 0,
+      "max": 2
+     }
+    },
+    "below10_mask_px": 973052,
+    "eye_mask_px": 50592,
+    "noisy_px": 356,
+    "crests/v2@10": {
+     "below10": {
+      "coverage_mean": 0.06806354302407955,
+      "coverage_sd": 0.002194640159880376,
+      "colour_mean": [
+       115.2,
+       146.2,
+       171.1
+      ],
+      "frames": 90,
+      "mask_px": 973052
+     },
+     "eye": {
+      "coverage_mean": 0.22108545927331502,
+      "coverage_sd": 0.013299368817429432,
+      "colour_mean": [
+       147.5,
+       81.5,
+       114.5
+      ],
+      "frames": 90,
+      "mask_px": 50592
+     }
+    },
+    "crests/v2@10b": {
+     "below10": {
+      "coverage_mean": 0.06832519399442852,
+      "coverage_sd": 0.002923157952609353,
+      "colour_mean": [
+       116.0,
+       145.6,
+       170.5
+      ],
+      "frames": 90,
+      "mask_px": 973052
+     },
+     "eye": {
+      "coverage_mean": 0.23176347599971894,
+      "coverage_sd": 0.016362581328410144,
+      "colour_mean": [
+       148.1,
+       81.7,
+       114.6
+      ],
+      "frames": 90,
+      "mask_px": 50592
+     }
+    },
+    "crests/v2": {
+     "below10": {
+      "coverage_mean": 0.06764956491990606,
+      "coverage_sd": 0.0021686423504095192,
+      "colour_mean": [
+       116.0,
+       145.8,
+       170.5
+      ],
+      "frames": 90,
+      "mask_px": 973052
+     },
+     "eye": {
+      "coverage_mean": 0.24019717654086722,
+      "coverage_sd": 0.018115468268416375,
+      "colour_mean": [
+       140.7,
+       79.3,
+       120.0
+      ],
+      "frames": 90,
+      "mask_px": 50592
+     }
+    },
+    "crests/v2b": {
+     "below10": {
+      "coverage_mean": 0.06780009929810764,
+      "coverage_sd": 0.0018463125089416372,
+      "colour_mean": [
+       116.6,
+       145.3,
+       170.3
+      ],
+      "frames": 90,
+      "mask_px": 973052
+     },
+     "eye": {
+      "coverage_mean": 0.25547758978143226,
+      "coverage_sd": 0.012733700066051472,
+      "colour_mean": [
+       141.2,
+       78.7,
+       119.2
+      ],
+      "frames": 90,
+      "mask_px": 50592
+     }
+    },
+    "coverage_between_encodings": 0.0004695364002471891,
+    "coverage_within_lever": 0.00026165097034897
+   },
+   "beach": {
+    "wash_v2@10_vs_v2": {
+     "coastal": {
+      "pixels": 1024000,
+      "differ": 412893,
+      "differ_gt_tol": 78540,
+      "max": 154
+     },
+     "regional": {
+      "pixels": 1024000,
+      "differ": 604221,
+      "differ_gt_tol": 39244,
+      "max": 145
+     },
+     "world": {
+      "pixels": 1024000,
+      "differ": 585305,
+      "differ_gt_tol": 23661,
+      "max": 146
+     }
+    },
+    "wash_v2@10_vs_v2@10b": {
+     "coastal": {
+      "pixels": 1024000,
+      "differ": 129901,
+      "differ_gt_tol": 1032,
+      "max": 81
+     },
+     "regional": {
+      "pixels": 1024000,
+      "differ": 149044,
+      "differ_gt_tol": 33331,
+      "max": 58
+     },
+     "world": {
+      "pixels": 1024000,
+      "differ": 149944,
+      "differ_gt_tol": 4575,
+      "max": 77
+     }
+    },
+    "below10_mask_px": 975286,
+    "eye_mask_px": 46266,
+    "noisy_px": 2448,
+    "crests/v2@10": {
+     "below10": {
+      "coverage_mean": 0.046056826179990046,
+      "coverage_sd": 0.002861022113405795,
+      "colour_mean": [
+       124.9,
+       156.8,
+       214.3
+      ],
+      "frames": 90,
+      "mask_px": 975286
+     },
+     "eye": {
+      "coverage_mean": 0.21564743968452954,
+      "coverage_sd": 0.019912839911712082,
+      "colour_mean": [
+       183.6,
+       99.3,
+       185.2
+      ],
+      "frames": 90,
+      "mask_px": 46266
+     }
+    },
+    "crests/v2@10b": {
+     "below10": {
+      "coverage_mean": 0.046123792291583074,
+      "coverage_sd": 0.001953234030309132,
+      "colour_mean": [
+       127.8,
+       157.8,
+       218.2
+      ],
+      "frames": 90,
+      "mask_px": 975286
+     },
+     "eye": {
+      "coverage_mean": 0.21401677257597368,
+      "coverage_sd": 0.008012673862726844,
+      "colour_mean": [
+       183.5,
+       99.3,
+       183.9
+      ],
+      "frames": 90,
+      "mask_px": 46266
+     }
+    },
+    "crests/v2": {
+     "below10": {
+      "coverage_mean": 0.04660848202475991,
+      "coverage_sd": 0.0020544667023465694,
+      "colour_mean": [
+       126.9,
+       156.7,
+       215.4
+      ],
+      "frames": 90,
+      "mask_px": 975286
+     },
+     "eye": {
+      "coverage_mean": 0.23763406773392506,
+      "coverage_sd": 0.012443049505287811,
+      "colour_mean": [
+       182.0,
+       100.0,
+       167.5
+      ],
+      "frames": 90,
+      "mask_px": 46266
+     }
+    },
+    "crests/v2b": {
+     "below10": {
+      "coverage_mean": 0.04553451785197139,
+      "coverage_sd": 0.002487232513017806,
+      "colour_mean": [
+       127.2,
+       157.0,
+       216.5
+      ],
+      "frames": 90,
+      "mask_px": 975286
+     },
+     "eye": {
+      "coverage_mean": 0.25262948073219116,
+      "coverage_sd": 0.012170455700468359,
+      "colour_mean": [
+       182.4,
+       100.7,
+       169.4
+      ],
+      "frames": 90,
+      "mask_px": 46266
+     }
+    },
+    "coverage_between_encodings": 1.880929742090892e-05,
+    "coverage_within_lever": 0.0010739641727885163
+   }
+  }
+ },
+ "quantization_wave_quant_mjs": {
+  "light": {
+   "u8_10_floor": [
+    15.32,
+    0.216
+   ],
+   "u8_16_floor": [
+    23.51,
+    0.347
+   ],
+   "u8_16_round": [
+    11.63,
+    0.172
+   ],
+   "R16F": [
+    0.01,
+    0.004
+   ]
+  },
+  "beach": {
+   "u8_10_floor": [
+    12.07,
+    0.198
+   ],
+   "u8_16_floor": [
+    17.38,
+    0.318
+   ],
+   "u8_16_round": [
+    9.69,
+    0.157
+   ],
+   "R16F": [
+    0.02,
+    0.004
+   ]
+  },
+  "units": "[worst texel dE00, mean dE00], 0-10 m every 1 mm, world alpha"
+ }
+}

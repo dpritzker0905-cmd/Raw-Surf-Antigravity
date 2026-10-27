@@ -2,8 +2,9 @@
  * E2E: Weather Simulation & Map Controls
  * Tests surfer lockout, admin sandbox, diagnostics telemetry, and map controls.
  */
-const { test, expect } = require('@playwright/test');
-const { stubSeededMessageBadge } = require('./seededMessageBadge');
+// test/expect carry the in-runner weather backend route (offlineWeather.js): no weather request reaches the live box.
+const { test, expect } = require('./offlineWeather');
+const { stubSeededUiBadges } = require('./seededUiBadges');
 
 const standardUser = {
   id: 'test-surfer-id',
@@ -107,7 +108,10 @@ test.beforeEach(async ({ page }) => {
       url.startsWith('data:') ||
       url.startsWith('blob:')
     ) {
-      route.continue();
+      // fallback(), NOT continue(): continue() sends straight to the network and skips the context route
+      // that answers /api/weather/* from the in-runner backend (offlineWeather.js). With no later handler,
+      // fallback() reaches the network exactly as continue() did.
+      route.fallback();
     } else if (['.js', '.mjs', '.cjs'].includes(extOf(url))
                || route.request().resourceType() === 'script') {
       route.fulfill({
@@ -128,8 +132,8 @@ test.beforeEach(async ({ page }) => {
       });
     }
   });
-  // Registered after the external-resource router so the exact badge fixture wins.
-  await stubSeededMessageBadge(page, [standardUser.id, adminUser.id]);
+  // Registered after the external-resource router so the exact badge fixtures win.
+  await stubSeededUiBadges(page, [standardUser.id, adminUser.id]);
 });
 
 test.describe('Surfer Lockout Redirection', () => {

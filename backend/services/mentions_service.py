@@ -9,6 +9,7 @@ from sqlalchemy import select, or_, and_
 from sqlalchemy.orm import selectinload
 import logging
 import json
+from fastapi import HTTPException
 
 from models import Profile, Notification, Follow
 
@@ -26,6 +27,31 @@ class MentionsService:
     Centralized service for handling @mentions across the app.
     Works with Crew Chat, DMs, Comments, etc.
     """
+
+    @staticmethod
+    async def _dm_priority_users(current_user_id: str, context_id: Optional[str], db: AsyncSession) -> set[str]:
+        """Authorize the private context before any participant or generic discovery."""
+        from models import Conversation, ConversationParticipant
+
+        if not context_id or not context_id.strip():
+            raise HTTPException(status_code=400, detail="DM mentions require a conversation")
+        result = await db.execute(select(Conversation).where(Conversation.id == context_id))
+        conversation = result.scalar_one_or_none()
+        if conversation is None:
+            raise HTTPException(status_code=403, detail="You don't have access to this conversation")
+        result = await db.execute(select(ConversationParticipant).where(
+            ConversationParticipant.conversation_id == context_id
+        ))
+        participants = result.scalars().all()
+        if participants:
+            # A roster is authoritative, including explicit departures and missing actor rows.
+            active_ids = {participant.user_id for participant in participants if participant.left_at is None}
+        else:
+            # Older two-party conversations have no participant roster.
+            active_ids = {conversation.participant_one_id, conversation.participant_two_id}
+        if current_user_id not in active_ids:
+            raise HTTPException(status_code=403, detail="You don't have access to this conversation")
+        return active_ids
     
     @staticmethod
     async def search_mentionable_users(
@@ -69,17 +95,8 @@ class MentionsService:
                 for p in booking.participants or []:
                     priority_user_ids.add(p.participant_id)
         
-        elif context == 'dm' and context_id:
-            # Get conversation participants
-            from models import Conversation, ConversationParticipant
-            conv_result = await db.execute(
-                select(ConversationParticipant).where(
-                    ConversationParticipant.conversation_id == context_id
-                )
-            )
-            participants = conv_result.scalars().all()
-            for p in participants:
-                priority_user_ids.add(p.user_id)
+        elif context == 'dm':
+            priority_user_ids = await MentionsService._dm_priority_users(current_user_id, context_id, db)
         
         # Remove current user from priority
         priority_user_ids.discard(current_user_id)

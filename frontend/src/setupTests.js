@@ -12,6 +12,10 @@ if (typeof window !== 'undefined' && window.URL) {
   window.URL.revokeObjectURL = window.URL.revokeObjectURL || (() => {});
 }
 
+// STATIC FRAMES are ON by default in the app (staticFrames.js, owner 2026-10-21). Suites that are not about them keep the
+// /grid + /grid_series path they were written against (the kill switch restores it exactly); staticFrames.test.js clears it.
+if (typeof window !== 'undefined') window.__RAW_DISABLE_STATIC_FRAMES__ = true;
+
 // Silence React 18 act() deprecation warnings since the project still uses CRA
 const originalError = console.error;
 beforeAll(() => {

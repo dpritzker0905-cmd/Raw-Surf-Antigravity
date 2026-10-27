@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 import json
 import logging
@@ -17,6 +17,7 @@ from models import (
     Profile, Booking, BookingParticipant, Notification
 )
 from utils.credits import deduct_credits, add_credits
+from utils.booking_payout import CLAIMABLE_STATUSES, PayoutError, confirm_and_pay
 from websocket_manager import broadcast_earnings_update
 
 router = APIRouter()
@@ -108,7 +109,7 @@ async def get_crew_payment_details(
 
 class CrewPayRequest(BaseModel):
     participant_id: str
-    amount: float
+    amount: float = Field(..., ge=0, allow_inf_nan=False)
     payment_method: str = "credits"  # 'credits' or 'stripe'
 
 
@@ -118,13 +119,19 @@ class CrewPayRequest(BaseModel):
 async def crew_member_pay(
     booking_id: str,
     data: CrewPayRequest,
+    user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Crew member pays their share of the booking
     Deducts from credits and updates payment status
+
+    LA-PAY-08: acts only as the token's subject, and only for the share the booking records for them.
     """
-    from routes.notifications.push import notify_crew_payment_received
+    if data.participant_id != user_id:
+        raise HTTPException(status_code=403, detail="You can only pay your own share")
+
+    from routes.notifications.push_payloads import notify_crew_payment_received
     
     # Get booking with participants
     result = await db.execute(
@@ -142,7 +149,12 @@ async def crew_member_pay(
     
     if booking.payment_window_expired:
         raise HTTPException(status_code=400, detail="Payment window has expired")
-    
+
+    # Money only goes into a booking that is still waiting for it: a cancelled (or already confirmed) booking
+    # would take the payment and never refund or credit it.
+    if booking.status not in CLAIMABLE_STATUSES:
+        raise HTTPException(status_code=400, detail="This booking is not awaiting payment")
+
     # Find participant record
     participant = None
     for p in booking.participants or []:
@@ -155,6 +167,11 @@ async def crew_member_pay(
     
     if participant.payment_status == 'Paid':
         raise HTTPException(status_code=400, detail="Already paid")
+
+    recorded_share = participant.share_amount if participant.share_amount > 0 else (
+        booking.total_price / max(len(booking.participants or []), 1))
+    if abs(data.amount - recorded_share) > 0.01:
+        raise HTTPException(status_code=400, detail="Amount does not match your share")
     
     # Get payer profile
     payer_result = await db.execute(select(Profile).where(Profile.id == data.participant_id))
@@ -194,31 +211,27 @@ async def crew_member_pay(
     )
     
     if all_paid:
-        # Session fully paid - confirm booking
-        booking.status = "Confirmed"
-        booking.crew_payment_required = False
-        
-        # Credit photographer (80% after platform fee)
-        await add_credits(
-            user_id=booking.photographer_id,
-            amount=booking.total_price * 0.80,
-            transaction_type='booking_earning',
-            db=db,
-            description=f"Booking payment for session at {booking.location}",
-            reference_type='booking',
-            reference_id=booking_id,
-            counterparty_id=booking.creator_id
-        )
-        
-        # Notify photographer
-        notification = Notification(
-            user_id=booking.photographer_id,
-            type='booking_confirmed',
-            title='Booking Confirmed!',
-            body=f'Session at {booking.location} is fully paid and confirmed!',
-            data=json.dumps({"booking_id": booking_id})
-        )
-        db.add(notification)
+        # Session fully paid: ONE conditional claim confirms it, and whoever wins it pays the photographer
+        # floor(0.80 x what was actually funded) (utils/booking_payout.py), never 0.80 x the configured price.
+        try:
+            confirmed = await confirm_and_pay(
+                db, booking, description=f"Booking payment for session at {booking.location}",
+                counterparty_id=booking.creator_id)
+        except PayoutError as exc:
+            raise HTTPException(status_code=500, detail="Could not credit the photographer; nothing was charged") from exc
+
+        if confirmed:
+            booking.crew_payment_required = False
+
+            # Notify photographer
+            notification = Notification(
+                user_id=booking.photographer_id,
+                type='booking_confirmed',
+                title='Booking Confirmed!',
+                body=f'Session at {booking.location} is fully paid and confirmed!',
+                data=json.dumps({"booking_id": booking_id})
+            )
+            db.add(notification)
     
     # Notify captain of payment
     try:
@@ -257,12 +270,16 @@ class UpdateParticipantSelfieRequest(BaseModel):
 async def update_participant_selfie(
     booking_id: str,
     data: UpdateParticipantSelfieRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Update a booking participant's selfie for photographer identification.
     This helps photographers identify surfers in their photos.
+    A participant sets their OWN selfie; the (booking, participant) lookup below then refuses non-members.
     """
+    if data.participant_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     # Find participant record
     result = await db.execute(
         select(BookingParticipant)

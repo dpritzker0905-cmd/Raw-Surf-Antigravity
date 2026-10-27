@@ -2,11 +2,16 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache, getModelSafeWind, getBackendWindFlag, prewarmSiblingModelWind, isRenderableWindData } from './marineController';
 import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
 import { clampViewportBbox } from './backendWeatherServiceClientCoverage';
-import { windGridsCompatible } from './WebGLWindEngine'; import { keepResidentFine } from './windOverlayKeep';
+import { windGridsCompatible } from './WebGLWindEngine'; import { keepResidentFine } from './windOverlayKeep'; import { queueWindDelivery } from './windDeliveryCoalesce';
 import { recordTruthStage } from './weatherTruthTracker';
 import { getWindSeriesFrame, prewarmWindSeries } from './windGridSeries';
 import { startWindSeriesWarm } from './windSeriesWarm';
 import { isTerminalNoCoverage } from './marineControllerCache';
+import { shouldResettleWindAfterDrag } from './windScrubEndSettle';
+import { createLatestOnlyGate } from './latestOnlyGate';
+import { windGridCovers } from './windCoverage';
+// Static wind frames (2026-10-22): the hour's world field from CDN bytes already here, before the series or any fetch.
+import { staticWindBase, instantWindStep, useWindStaticPrefetch, staleCoveringUpgrade as staleCoveringFor } from './windStaticEngine';
 
 // Module-level scrub log throttle (max once per 2s)
 let _lastScrubLogTime = 0;
@@ -42,9 +47,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
   const setWindData = (d) => {
     if (typeof window !== 'undefined') {
       if (window.__RAW_DISABLE_WIND_DELIVERY_QUEUE__ !== true) {
-        const q = windDeliveryQueueRef.current;
-        q.push(d);
-        if (q.length > 16) q.splice(0, q.length - 16); // bounded — never accumulate unboundedly while inactive
+        queueWindDelivery(windDeliveryQueueRef.current, d); // bounded 16; a cache hit's repeat of the queued grid is not re-queued
       }
       const _c = (window.__WIND_STATE_COMMITS__ = window.__WIND_STATE_COMMITS__ || []);
       const b = d && d.bounds;
@@ -109,7 +112,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             if (baseFirstOn && span < 350.0 && windWorldBaseRef.current !== bfKey && getBackendWindFlag()) {
               windWorldBaseRef.current = bfKey; // one probe per model|hour, hit or miss
               const world = getModelSafeWind(bfModel, data.hourOffset || 0,
-                { west: -179.0, south: -75.0, east: 179.0, north: 80.0 });
+                { west: -179.0, south: -75.0, east: 179.0, north: 80.0 }) || staticWindBase(bfModel, data.hourOffset || 0);
               const wSpan = world && world.bounds
                 ? (world.bounds.west > world.bounds.east
                   ? (world.bounds.east + 360.0) - world.bounds.west : world.bounds.east - world.bounds.west)
@@ -172,7 +175,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             if (baseFirstOn && windWorldBaseRef.current !== bfKey && getBackendWindFlag()) {
               windWorldBaseRef.current = bfKey;
               const world = getModelSafeWind(bfModel, data.hourOffset || 0,
-                { west: -179.0, south: -75.0, east: 179.0, north: 80.0 });
+                { west: -179.0, south: -75.0, east: 179.0, north: 80.0 }) || staticWindBase(bfModel, data.hourOffset || 0);
               const wSpan = world && world.bounds
                 ? (world.bounds.west > world.bounds.east
                   ? (world.bounds.east + 360.0) - world.bounds.west : world.bounds.east - world.bounds.west)
@@ -300,19 +303,13 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     // Superseded requests are aborted at the source; the covers-now gate below is the belt.
     let windFetchController = null;
     let windFetchGen = 0; // supersession token — see attemptFetch's mutual-abort livelock note
+    let windInflightKey = null, windInflightAt = 0; // model|hour|tile of the fetch in flight + its start: a SAME-target re-entry joins it for up to 15 s (2026-10-19)
     // COVERAGE-AWARE COMMIT STATE (2026-07-19). What is on screen — held in a REF (see its
     // declaration) so effect re-runs cannot blind the gates. The stale-commit policy pivots on
     // VIEWPORT COVERAGE, not just freshness: a retained fine box that no longer covers the
     // viewport is a CLAMP, strictly worse than a covering stale global.
     // Ordering: fresh-covering > stale-covering > fresh-partial > blank.
-    const gridCovers = (gb, vp) => {
-      if (!gb || !vp) return false;
-      const span = gb.west > gb.east ? (gb.east + 360.0) - gb.west : gb.east - gb.west;
-      if (span >= 350.0) return true; // world grid covers every viewport
-      const eps = 0.05;
-      return gb.west <= vp.west + eps && gb.east >= vp.east - eps &&
-             gb.south <= vp.south + eps && gb.north >= vp.north - eps;
-    };
+    const gridCovers = windGridCovers; // windCoverage.js
     const MAX_RETRIES = 5;
     // First empty-retry is fast (3s) so wind recovers quickly when its initial fetch returns
     // empty because the 1-CPU backend was momentarily storm-loaded (e.g. right after rapidly
@@ -382,6 +379,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       // the "wind reloads slowly after toggling around / scrubbing marine" delay on warm toggles.
       try {
         let warm = getBackendWindFlag() ? getModelSafeWind(activeModel, timeOffsetRef.current, bounds) : null;
+        if (!warm || !(warm.vectors?.length > 0)) warm = staticWindBase(activeModel, timeOffsetRef.current) || warm;
         if (!warm || !(warm.vectors?.length > 0)) {
           const sf = getWindSeriesFrame(activeModel, bounds, timeOffsetRef.current);
           if (sf && sf.vectors?.length > 0) warm = sf;
@@ -517,15 +515,17 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       // aborts the next attempt in turn: the livelock behind "attempt 9/5" + "signal is aborted
       // without reason" storms while the backend was healthy. A superseded attempt must die
       // SILENTLY: no commit, no reschedule — the newer attempt owns the loop now.
+      const wantKey = `${activeModel}|${timeOffsetRef.current}|${clampResult.selectedTileId || ''}`; // moveend/drag/zoom kicks re-enter for the same target: join, never abort it (kill __RAW_DISABLE_WIND_SAME_TARGET_JOIN__)
+      if (windFetchController && windInflightKey === wantKey && !windFetchController.signal.aborted && Date.now() - windInflightAt < 15000 && !(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SAME_TARGET_JOIN__ === true)) { console.log(`[FETCH] [WeatherEngine] Joined the in-flight wind fetch for ${wantKey} (no abort)`); return; }
       const myGen = ++windFetchGen;
       try {
         if (windFetchController) { try { windFetchController.abort(); } catch (e) { /* already done */ } }
-        windFetchController = new AbortController();
+        windFetchController = new AbortController(); windInflightKey = wantKey; windInflightAt = Date.now(); var myCtl = windFetchController; // this generation's controller (F1: own abort vs foreign)
         // Snapshot the requested hour at fetch-start so the stale-hour guard below compares against the
         // SAME value the fetch used (timeOffsetRef.current is live and can move during the await).
         const reqHour = timeOffsetRef.current;
         const data = await fetchWindData(bounds, windFetchController.signal, reqHour, false, forecastDays, activeModel);
-
+        if (myGen === windFetchGen) windInflightKey = null;
         if (cancelled) return;
         if (myGen !== windFetchGen) return; // superseded mid-flight — the newer attempt owns the loop
         // STALE-HOUR GUARD (2026-07-22, hunt): this PRIMARY attemptFetch effect's deps EXCLUDE timeOffsetHours
@@ -613,7 +613,8 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           }
         }
       } catch (e) {
-        if (e.name === 'AbortError' || cancelled) return;
+        if (myGen === windFetchGen) windInflightKey = null;
+        if (cancelled || (e.name === 'AbortError' && (!myCtl || myCtl.signal.aborted))) return;   // OUR abort; a foreign one retries below (F1)
         if (myGen !== windFetchGen) return; // superseded — no retry from a dead generation
         retryCount++;
         if (retryCount < MAX_RETRIES) {
@@ -735,10 +736,34 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     return () => { try { controller.abort(); } catch (e) { /* ignore */ } };
   }, [activeModel, mapInstance, isWindActive]);
 
+  useWindStaticPrefetch({ mapInstance, isWindActive, activeModel, timeOffsetHours });   // the wind run, fetched in idle time
+
+  // T-02 (scrub audit 2026-10-18): the drag path below is cache-only, and the wheel DEDUPS its release commit when the final
+  // hour was already committed mid-drag, so no new timeOffsetHours arrives and the settle path never ran for that hour: the
+  // particles stayed on the pre-drag hour until a pan. Remember an in-drag MISS; at scrub end, re-run this effect once for it.
+  const windDragMissRef = useRef(null);
+  const [windScrubEndTick, setWindScrubEndTick] = useState(0);
+  useEffect(() => {
+    if (!isWindActive) return undefined;
+    const onScrubEnd = () => {
+      if (shouldResettleWindAfterDrag(windDragMissRef.current, timeOffsetRef.current)) setWindScrubEndTick((n) => n + 1);
+      windDragMissRef.current = null;
+    };
+    window.addEventListener('timeline_scrub_end', onScrubEnd);
+    return () => window.removeEventListener('timeline_scrub_end', onScrubEnd);
+  }, [isWindActive]);
+
   // ===== TIMELINE SCRUB (local cache re-index, with FETCH ON CACHE MISS) =====
   const prevOffsetRef = useRef(timeOffsetHours);
+  // T-04: one wind scrub fetch in flight, the newest hour waiting (latestOnlyGate.js). Kill:
+  // window.__RAW_DISABLE_WIND_SCRUB_GATE__ = true restores one uncancellable fetch per paused hour.
+  const windScrubGateRef = useRef(null);
+  if (!windScrubGateRef.current) windScrubGateRef.current = createLatestOnlyGate();
+  const prevScrubEndTickRef = useRef(windScrubEndTick);
   useEffect(() => {
-    if (prevOffsetRef.current === timeOffsetHours) return;
+    const scrubEndRedrive = prevScrubEndTickRef.current !== windScrubEndTick;
+    prevScrubEndTickRef.current = windScrubEndTick;
+    if (prevOffsetRef.current === timeOffsetHours && !scrubEndRedrive) return;
     prevOffsetRef.current = timeOffsetHours;
     if (!mapInstance || !isWindActive) return;
 
@@ -754,7 +779,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           north: Math.min(85, b.getNorth())
         };
         if (getBackendWindFlag()) {
-          targetData = getModelSafeWind(activeModel, timeOffsetHours, bounds);
+          targetData = getModelSafeWind(activeModel, timeOffsetHours, bounds) || staticWindBase(activeModel, timeOffsetHours);
         } else {
           const cache = getWindHourlyCache();
           if (cache?.results?.length && cache.model === activeModel) {
@@ -775,10 +800,17 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       if (targetData && targetData.vectors?.length > 0) {
         windRevision.current += 1;
         commitWindData(targetData);
+        windDragMissRef.current = null;
+      } else {
+        windDragMissRef.current = timeOffsetHours;   // T-02: settle this hour at scrub end
       }
       return;
     }
 
+    // INSTANT STEP (2026-10-22): a grid already here (cache, static frame) is committed on the press (windStaticEngine.js).
+    if (getBackendWindFlag() && instantWindStep({ mapInstance, model: activeModel, hour: timeOffsetHours, getModelSafeWind,
+      commit: (g) => { windRevision.current += 1; commitWindData(g); lastCommittedWindRef.current = { bounds: g.bounds || null, stale: !!g.stale }; },
+      backfill: (g) => backfillScrubWorldBase(g, timeOffsetHours) }) === 'done') return undefined;
     const t = setTimeout(async () => {
       let cacheMiss = false;
       let targetData = null;
@@ -850,58 +882,64 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
 
       if (cacheMiss) {
         console.log(`[CACHE] [WeatherEngine] Cache miss for wind at hour +${timeOffsetHours}h. Fetching immediately...`);
-        try {
-          const b = mapInstance.getBounds();
-          const bounds = {
-            west: b.getWest(),
-            south: Math.max(-85, b.getSouth()),
-            east: b.getEast(),
-            north: Math.min(85, b.getNorth())
-          };
+        const windScrubFetch = async () => {
+          // Queued behind an older fetch and the user has moved on: the newer effect run owns the display.
+          if (timeOffsetRef.current !== timeOffsetHours || activeModelRef.current !== activeModel) return;
+          try {
+            const b = mapInstance.getBounds();
+            const bounds = {
+              west: b.getWest(),
+              south: Math.max(-85, b.getSouth()),
+              east: b.getEast(),
+              north: Math.min(85, b.getNorth())
+            };
 
-          const clampResult = clampViewportBbox(bounds, 'wind', activeModel, 'wind');
-          if (!clampResult.isInside) {
-            console.log(`[WeatherEngine] Scrub target +${timeOffsetHours}h is outside wind coverage. Clearing visual.`);
-            commitWindData(null);
-            windRevision.current += 1;
-            return;
-          }
+            const clampResult = clampViewportBbox(bounds, 'wind', activeModel, 'wind');
+            if (!clampResult.isInside) {
+              console.log(`[WeatherEngine] Scrub target +${timeOffsetHours}h is outside wind coverage. Clearing visual.`);
+              commitWindData(null);
+              windRevision.current += 1;
+              return;
+            }
 
-          // F3: revalidate via the cache-aware path (was forceFetch=true). The WeatherEngine
-          // caches already missed above, but fetchWindData's own WIND_CACHE may still hold this
-          // exact tile/hour — let it reuse that (TTL-gated) instead of forcing a duplicate network
-          // fetch, and join any in-flight request for the same target.
-          const data = await fetchWindData(bounds, null, timeOffsetHours, false, forecastDays, activeModel);
-          // Request-intent parity: if the user scrubbed or switched model during the async fetch,
-          // this result is stale — discard it (the newer effect run owns the display) (F3).
-          if (timeOffsetRef.current !== timeOffsetHours || activeModelRef.current !== activeModel) {
-            console.log(`[SCRUB] [WeatherEngine] Discarding stale wind fetch (req +${timeOffsetHours}h/${activeModel}; now +${timeOffsetRef.current}h/${activeModelRef.current}).`);
-            return;
+            // F3: revalidate via the cache-aware path (was forceFetch=true). The WeatherEngine
+            // caches already missed above, but fetchWindData's own WIND_CACHE may still hold this
+            // exact tile/hour — let it reuse that (TTL-gated) instead of forcing a duplicate network
+            // fetch, and join any in-flight request for the same target.
+            const data = await fetchWindData(bounds, null, timeOffsetHours, false, forecastDays, activeModel);
+            // Request-intent parity: if the user scrubbed or switched model during the async fetch,
+            // this result is stale — discard it (the newer effect run owns the display) (F3).
+            if (timeOffsetRef.current !== timeOffsetHours || activeModelRef.current !== activeModel) {
+              console.log(`[SCRUB] [WeatherEngine] Discarding stale wind fetch (req +${timeOffsetHours}h/${activeModel}; now +${timeOffsetRef.current}h/${activeModelRef.current}).`);
+              return;
+            }
+            if (isRenderableWindData(data)) {
+              console.log(`[SCRUB] [WeatherEngine] Fetch wind grid success for hour +${timeOffsetHours}h: ${data.vectors.length} vectors`);
+              windRevision.current += 1;
+              commitWindData(data);
+              backfillScrubWorldBase(data, timeOffsetHours); // world base for the scrubbed hour (no clip-primary)
+            } else if (typeof window !== 'undefined' && window.__RAW_WIND_HOLD_LAST_FRAME_DISABLED__ === true) {
+              // Kill switch: restore the old clear-on-no-coverage behavior exactly.
+              console.log(`[WeatherEngine] No wind forecast coverage at offset +${timeOffsetHours}h. Clearing visual.`);
+              commitWindData(null);
+              windRevision.current += 1;
+            } else {
+              // HOLD-LAST-FRAME (2026-07-10, audit queue #2 — wind analog of marine d38a693b): a
+              // no-coverage or safe-zero result must not blank the wind layer mid-scrub; keep the
+              // last-good frame displaying. The 1-vector safe-zero grid used to pass the old
+              // vectors.length>0 guard and commit (= the "wind clears at 14 days" blank); the
+              // renderable guard above now rejects it, and the terminal record in windController
+              // stops the settle re-driving this hour for 15 min.
+              console.log(`[WeatherEngine] No renderable wind at +${timeOffsetHours}h (${(data && data.__failureReason) || 'empty'}) — holding last frame.`);
+            }
+          } catch (err) {
+            // F3: preserve the previous same-model frame on a fetch error — do NOT clear the visual
+            // merely because a (far-hour) fetch failed/aborted. A transient error shouldn't blank wind.
+            console.error('[WeatherEngine] Wind scrub fetch failed (preserving previous frame):', err.message);
           }
-          if (isRenderableWindData(data)) {
-            console.log(`[SCRUB] [WeatherEngine] Fetch wind grid success for hour +${timeOffsetHours}h: ${data.vectors.length} vectors`);
-            windRevision.current += 1;
-            commitWindData(data);
-            backfillScrubWorldBase(data, timeOffsetHours); // world base for the scrubbed hour (no clip-primary)
-          } else if (typeof window !== 'undefined' && window.__RAW_WIND_HOLD_LAST_FRAME_DISABLED__ === true) {
-            // Kill switch: restore the old clear-on-no-coverage behavior exactly.
-            console.log(`[WeatherEngine] No wind forecast coverage at offset +${timeOffsetHours}h. Clearing visual.`);
-            commitWindData(null);
-            windRevision.current += 1;
-          } else {
-            // HOLD-LAST-FRAME (2026-07-10, audit queue #2 — wind analog of marine d38a693b): a
-            // no-coverage or safe-zero result must not blank the wind layer mid-scrub; keep the
-            // last-good frame displaying. The 1-vector safe-zero grid used to pass the old
-            // vectors.length>0 guard and commit (= the "wind clears at 14 days" blank); the
-            // renderable guard above now rejects it, and the terminal record in windController
-            // stops the settle re-driving this hour for 15 min.
-            console.log(`[WeatherEngine] No renderable wind at +${timeOffsetHours}h (${(data && data.__failureReason) || 'empty'}) — holding last frame.`);
-          }
-        } catch (err) {
-          // F3: preserve the previous same-model frame on a fetch error — do NOT clear the visual
-          // merely because a (far-hour) fetch failed/aborted. A transient error shouldn't blank wind.
-          console.error('[WeatherEngine] Wind scrub fetch failed (preserving previous frame):', err.message);
-        }
+        };
+        if (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SCRUB_GATE__ === true) await windScrubFetch();
+        else windScrubGateRef.current.run(windScrubFetch);
       } else if (targetData && targetData.vectors?.length > 0) {
         const _now = Date.now();
         if (_now - _lastScrubLogTime > 2000) {
@@ -914,7 +952,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       }
     }, 150);
     return () => clearTimeout(t);
-  }, [timeOffsetHours, mapInstance, activeModel, isWindActive, forecastDays]);
+  }, [timeOffsetHours, mapInstance, activeModel, isWindActive, forecastDays, windScrubEndTick]);
 
   // ===== VIEWPORT CHANGE REFETCH =====
   useEffect(() => {
@@ -1007,48 +1045,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             // covering fine overlay is resident. Safe-zero/empty fallbacks stay held (they carry
             // __failureReason / renderable:false / <4 vectors). World-span stale never upgrades
             // (the global manifest lane owns that). Kill: __RAW_DISABLE_WIND_STALE_COVERING__.
-            const staleCoveringUpgrade = (() => {
-              try {
-                if (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_STALE_COVERING__ === true) return false;
-                if (!data || data.stale !== true || data.renderable === false) return false;
-                if (data.__failureReason) return false;
-                if (!Array.isArray(data.vectors) || data.vectors.length < 4) return false;
-                const db = data.bounds;
-                if (!db) return false;
-                const dSpan = db.east >= db.west ? db.east - db.west : (db.east + 360.0) - db.west;
-                if (dSpan >= 350.0) return false;
-                const eps = 0.05;
-                const vpS = Math.max(-85, bounds.south), vpN = Math.min(85, bounds.north);
-                const covers = db.west <= bounds.west + eps && db.east >= bounds.east - eps
-                  && db.south <= vpS + eps && db.north >= vpN - eps;
-                if (!covers) return false;
-                const f = typeof window !== 'undefined' ? window.__WIND_FINE_OVERLAY__ : null;
-                const fineCovers = !!(f && f.active && f.bounds
-                  && f.bounds.west <= bounds.west + eps && f.bounds.east >= bounds.east - eps
-                  && f.bounds.south <= vpS + eps && f.bounds.north >= vpN - eps);
-                if (fineCovers) return false;
-                // RESOLUTION GUARD (2026-07-20 regression study #1, refined same day): a stale
-                // coarse covering product must never REPLACE a finer resident box over the
-                // viewport centre — that trade erased a live tropical system (the 0.5-deg box
-                // resolved its rotation; the 2-deg replacement cannot). BUT the guard only
-                // holds while the sharp box still covers MOST of the view (>= 70% area):
-                // below that, the un-covered remainder is depleted 10-deg base ("animations
-                // missing for the top part of the low") and coverage outranks sharpness.
-                if (f && f.active && f.bounds && f.cols > 0) {
-                  const fCell = (f.bounds.east - f.bounds.west) / Math.max(1, f.cols - 1);
-                  const dCell = (db.east - db.west) / Math.max(1, (data.cols || 2) - 1);
-                  const cx = (bounds.west + bounds.east) / 2, cy = (vpS + vpN) / 2;
-                  const centerInFine = f.bounds.west <= cx && f.bounds.east >= cx
-                    && f.bounds.south <= cy && f.bounds.north >= cy;
-                  const ovW = Math.max(0, Math.min(f.bounds.east, bounds.east) - Math.max(f.bounds.west, bounds.west));
-                  const ovH = Math.max(0, Math.min(f.bounds.north, vpN) - Math.max(f.bounds.south, vpS));
-                  const vpArea = Math.max(1e-6, (bounds.east - bounds.west) * (vpN - vpS));
-                  const fineCoverFrac = (ovW * ovH) / vpArea;
-                  if (centerInFine && dCell > fCell * 1.5 && fineCoverFrac >= 0.7) return false;
-                }
-                return true;
-              } catch (e) { return false; }
-            })();
+            const staleCoveringUpgrade = staleCoveringFor(data, bounds);   // rule + rationale: windStaticEngine.js
             if (isRenderableWindData(data) || staleCoveringUpgrade || (_holdDisabled && data && data.vectors?.length > 0)) {
               console.log(`[FETCH] [WeatherEngine] Viewport wind fetch success: ${data.vectors.length} vectors${staleCoveringUpgrade && !isRenderableWindData(data) ? ' (STALE-COVERING upgrade — covering beats holding)' : ''}`);
               windRevision.current += 1;
@@ -1056,7 +1053,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             } else if (data) {
               console.log(`[WeatherEngine] Viewport refetch unrenderable (${data.__failureReason || 'empty'}) — holding last frame.`);
             }
-          } catch (e) { /* ignore */ }
+          } catch (e) { console.warn(`[WeatherEngine] Viewport wind refetch failed (${e && e.message}) — holding last frame.`); }
         }, delay);
       } catch (e) { /* ignore bounds error on init */ }
     };

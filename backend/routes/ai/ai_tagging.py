@@ -1,36 +1,39 @@
 """
-AI-powered photo tagging routes for detecting and identifying surfers in photos
-Uses GPT-4o Vision API for analysis (vision helpers in ai_vision.py)
+Authenticated photo tagging and relationship-based photo lookup.
+Image analysis uses OpenAI; people are tagged only through explicit user selection.
 """
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.orm import selectinload
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime, timezone
 import json
 
 from database import get_db
-from core.security import get_current_user_id
+from core.security import get_current_user_id, get_user_id_from_jwt_or_query
 from models import Profile, GalleryItem, Notification, RoleEnum
 from models import AnalyticsEvent, Booking, BookingParticipant, LiveSession, LiveSessionParticipant, PhotoTag
 
 # Vision helpers extracted to ai_vision.py (v94 audit)
-from .ai_vision import analyze_image_with_vision, compare_faces
+from .ai_vision import analyze_image_with_vision, analyze_surfboard_with_vision, MAX_ENCODED_LENGTH
+from .ai_vision import analyze_board_clue_photo
+from .board_clues import load_board_candidates, compare_saved_boards, MAX_CLUES
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 class AnalyzePhotoRequest(BaseModel):
-    image_url: Optional[str] = None
-    image_base64: Optional[str] = None
+    image_url: Optional[str] = Field(default=None, max_length=8192)
+    image_base64: Optional[str] = Field(default=None, max_length=MAX_ENCODED_LENGTH)
 
 
 class SuggestTagRequest(BaseModel):
-    image_url: str
+    image_url: str = Field(max_length=8192)
     gallery_item_id: Optional[str] = None
+    include_board_clues: bool = False
 
 
 class ConfirmTagRequest(BaseModel):
@@ -42,6 +45,7 @@ class ConfirmTagRequest(BaseModel):
 @router.post("/ai/analyze-photo")
 async def analyze_photo(
     data: AnalyzePhotoRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -65,79 +69,44 @@ async def analyze_photo(
 @router.post("/ai/suggest-tags")
 async def suggest_surfer_tags(
     data: SuggestTagRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Analyze a photo and suggest which registered surfers might be in it.
-    Uses AI vision to compare with profile photos.
-    """
-    # Analyze the main photo first
-    analysis = await analyze_image_with_vision(data.image_url, is_base64=False)
-    
-    if analysis.get("people_count", 0) == 0:
-        return {
-            "success": True,
-            "analysis": analysis,
-            "suggested_tags": [],
-            "message": "No people detected in the photo"
-        }
-    
-    # Get all surfers with profile photos
-    surfer_roles = [RoleEnum.GROM, RoleEnum.SURFER, RoleEnum.COMP_SURFER, RoleEnum.PRO]
-    result = await db.execute(
-        select(Profile)
-        .where(Profile.role.in_(surfer_roles))
-        .where(Profile.avatar_url.isnot(None))
-        .limit(50)  # Limit to prevent too many comparisons
-    )
-    surfers = result.scalars().all()
-    
-    profile_photos = [
-        {"id": s.id, "name": s.full_name, "avatar_url": s.avatar_url}
-        for s in surfers if s.avatar_url
-    ]
-    
-    # Fetch registered surfboard data for board-based identification
-    from models import Surfboard
-    surfer_ids = [p["id"] for p in profile_photos]
-    board_result = await db.execute(
-        select(Surfboard).where(Surfboard.user_id.in_(surfer_ids))
-    )
-    boards = board_result.scalars().all()
-    surfboard_data = [
-        {
-            "user_id": b.user_id,
-            "brand": b.brand,
-            "model": b.model,
-            "board_type": b.board_type,
-            "length_feet": b.length_feet,
-            "length_inches": b.length_inches,
-        }
-        for b in boards
-    ]
-    
-    # Compare faces + surfboard context
-    matches = await compare_faces(data.image_url, profile_photos, surfboard_data)
-    
-    # Enrich matches with profile data
-    suggested_tags = []
-    for match in matches:
-        profile = next((p for p in profile_photos if p["id"] == match.get("profile_id")), None)
-        if profile:
-            suggested_tags.append({
-                "profile_id": profile["id"],
-                "name": profile["name"],
-                "avatar_url": profile["avatar_url"],
-                "confidence": match.get("confidence", "low"),
-                "reasoning": match.get("reasoning", ""),
-                "board_match": match.get("board_match", False)
-            })
-    
+    """Describe an owned photo for manual tagging; never identify people from pixels."""
+    image_url = data.image_url
+    context = None
+    if data.include_board_clues and not data.gallery_item_id:
+        raise HTTPException(400, "Choose an owned gallery photo for board clues")
+    if data.gallery_item_id:
+        item_result = await db.execute(
+            select(GalleryItem).where(GalleryItem.id == data.gallery_item_id,
+                                      GalleryItem.photographer_id == current_user_id)
+        )
+        item = item_result.scalar_one_or_none()
+        if item is None:
+            raise HTTPException(404, "Gallery item not found or not owned by you")
+        if item.media_type == "video":
+            raise HTTPException(400, "Choose a photo for image analysis")
+        # The owned item's media is authoritative; never analyze a substituted request URL.
+        image_url = item.preview_url or item.original_url
+        if data.include_board_clues:
+            context = await load_board_candidates(db, item, current_user_id)
+    if context and context["candidates"]:
+        # Only the photo goes to the provider. Profile/quiver comparison remains local.
+        analysis = await analyze_board_clue_photo(image_url)
+    else:
+        analysis = await analyze_image_with_vision(image_url)
+    clues = compare_saved_boards(analysis.get("board_observations", []), context["candidates"]) if context else []
     return {
         "success": True,
         "analysis": analysis,
-        "suggested_tags": suggested_tags,
-        "people_detected": analysis.get("people_count", 0)
+        "visual_tags": analysis["visual_tags"],
+        "suggested_tags": [],  # Legacy person-match contract; no biometric identity inference.
+        "people_detected": analysis["people_count"],
+        "board_clues": clues[:MAX_CLUES],
+        "board_clue_status": context["status"] if context else "not_requested",
+        "board_clues_truncated": bool(context and context["truncated"]) or len(clues) > MAX_CLUES,
+        "message": "Review the visual tags and select known session participants manually.",
     }
 
 
@@ -145,6 +114,7 @@ async def suggest_surfer_tags(
 async def confirm_surfer_tags(
     photographer_id: str,
     data: ConfirmTagRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -155,6 +125,9 @@ async def confirm_surfer_tags(
     - Tracks analytics
     """
     from models import PhotoTag, AnalyticsEvent, LiveSession, LiveSessionParticipant, Gallery
+
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     
     # Verify photographer owns the gallery item
     item_result = await db.execute(
@@ -277,7 +250,7 @@ async def confirm_surfer_tags(
 
 @router.get("/ai/my-tagged-photos")
 async def get_my_tagged_photos(
-    user_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     limit: int = Query(default=20, le=100),
     db: AsyncSession = Depends(get_db)
 ):
@@ -328,8 +301,8 @@ async def get_my_tagged_photos(
 
 @router.post("/ai/mark-photo-viewed")
 async def mark_photo_viewed(
-    user_id: str,
     tag_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -485,6 +458,7 @@ class FaceMatchRequest(BaseModel):
 @router.post("/ai/face-match")
 async def ai_face_match(
     data: FaceMatchRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -504,6 +478,9 @@ async def ai_face_match(
         LiveSession, LiveSessionParticipant
     )
     
+    if current_user_id not in (data.photographer_id, data.surfer_id):
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
+
     # Get the surfer profile for their selfie/profile photo
     surfer_result = await db.execute(
         select(Profile).where(Profile.id == data.surfer_id)
@@ -599,78 +576,37 @@ async def ai_face_match(
 # ===================== AI Surfboard Scanner =====================
 
 class ScanSurfboardRequest(BaseModel):
-    image_url: Optional[str] = None
-    image_base64: Optional[str] = None
+    image_url: Optional[str] = Field(default=None, max_length=8192)
+    image_base64: Optional[str] = Field(default=None, max_length=MAX_ENCODED_LENGTH)
     surfboard_id: Optional[str] = None  # Link analysis to a specific board
 
 
 @router.post("/ai/scan-surfboard")
 async def scan_surfboard_image(
     data: ScanSurfboardRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Scan a surfboard photo using the registered 'cloudinary-mcp' auto_tag_photo tool
-    to extract identifying features.
-    """
+    """Return observed board attributes for review, after validating optional board ownership."""
     if not data.image_url and not data.image_base64:
-        raise HTTPException(
-            status_code=400,
-            detail="Provide either image_url or image_base64"
-        )
+        raise HTTPException(status_code=400, detail="Provide either image_url or image_base64")
 
-    try:
-        import cloudinary_mcp_server
-        
-        if data.image_base64:
-            filename = "uploaded_surfboard_base64.jpg"
-            desc = "surfboard scan"
-        else:
-            filename = data.image_url.split('/')[-1] if '/' in data.image_url else data.image_url
-            desc = "surfboard scan"
-            
-        # Call 'auto_tag_photo' tool on 'cloudinary-mcp'
-        mcp_res = cloudinary_mcp_server.classify_and_tag_surf_photo(filename, desc)
-        
-        category = mcp_res.get("category", "Equipment / Board")
-        auto_tags = mcp_res.get("auto_tags", [])
-        
-        # Build structure matching legacy return schema
-        analysis = {
-            "brand": "Channel Islands" if "channel" in filename.lower() else "Unknown Shaper",
-            "model": "Happy Everyday" if "happy" in filename.lower() else "Surf Model",
-            "board_type": "shortboard" if category == "Equipment / Board" else "funboard",
-            "estimated_length": "6'0\"",
-            "color_scheme": [t for t in auto_tags if t not in ("raw-surf", "gallery-upload", "gear", "surfboard", "shaping")],
-            "fin_setup": "thruster",
-            "tail_shape": "squash",
-            "distinctive_features": auto_tags,
-            "condition_notes": "excellent condition, scanned via Cloudinary MCP",
-            "confidence": "high"
-        }
+    if data.surfboard_id:
+        from models import Surfboard
+        board_result = await db.execute(select(Surfboard).where(Surfboard.id == data.surfboard_id))
+        board = board_result.scalar_one_or_none()
+        if board is None:
+            raise HTTPException(status_code=404, detail="Surfboard not found")
+        if board.user_id != current_user_id:
+            raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
 
-        # If surfboard_id provided, update the board record with AI insights
-        if data.surfboard_id:
-            from models import Surfboard
-            board_result = await db.execute(
-                select(Surfboard).where(Surfboard.id == data.surfboard_id)
-            )
-            board = board_result.scalar_one_or_none()
-            if board:
-                # Update fields the AI detected that were previously empty
-                for field in ["brand", "model", "board_type", "fin_setup", "tail_shape"]:
-                    if not getattr(board, field, None) and analysis.get(field):
-                        setattr(board, field, analysis[field])
-                await db.commit()
-                analysis["board_updated"] = True
-            else:
-                analysis["board_updated"] = False
-
-        return {"success": True, "analysis": analysis}
-
-    except Exception as e:
-        logger.error(f"Surfboard scan failed via MCP: {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"Surfboard analysis failed: {str(e)}"
-        )
+    analysis = await analyze_surfboard_with_vision(
+        data.image_base64 or data.image_url, is_base64=bool(data.image_base64)
+    )
+    return {
+        "success": True,
+        "analysis": analysis,
+        "surfboard_id": data.surfboard_id,
+        "saved": False,
+        "message": "Review detected attributes before saving them to your surfboard.",
+    }

@@ -354,6 +354,8 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
     // Anything else is listed below with its family. An unlisted kill fails here, so the question is asked when the kill is written (L-V36).
     const ORTHOGONAL = [
       '__RAW_DISABLE_WIND_DARK_RULES__',                                                                       // this change's own kill
+      '__RAW_DISABLE_WIND_FIXED_SPEED_REF__',                                                                  // the advection gamma's speed reference (windSpeedRef.js, 2026-10-19): MOTION per knot only; no table, ramp, field or ground reads it
+      '__RAW_DISABLE_WIND_ABORT_REJECTS__',                                                                    // a superseded wind fetch rejects instead of resolving a safe-zero grid (windController.js, 2026-10-19): request flow only, no drawing
       '__RAW_DISABLE_WIND_WHITE_STREAK__',                                                                     // the white streak's (D-021): it picks which of dark's rules' tables and ring draw, and stands down with them
       '__RAW_DISABLE_WIND_DARK_WHITE__',                                                                       // dark's white (D-022): how strongly the white streak is laid over the sea; D-022 moved no table. Since beach's path, windBeachPathOn reads it: under it beach's field is PR #313's again
       '__RAW_DISABLE_WIND_LAND_DEPTH__',                                                                       // the land at the sea's depth (D-026): SET, the land is the ground these rules were solved on; no table reads it
@@ -372,6 +374,21 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
       '__RAW_DISABLE_HOUR0_FIRST__', '__RAW_DISABLE_WIND_BASE_OVERLAY__', '__RAW_DISABLE_WIND_CLIP_KEEP_FINE__', '__RAW_DISABLE_WIND_COARSE_OVERLAY_GUARD__', '__RAW_DISABLE_WIND_COMMIT_NOOP__',
       '__RAW_DISABLE_WIND_DELIVERY_QUEUE__', '__RAW_DISABLE_WIND_FINE_CONTAIN_GUARD__', '__RAW_DISABLE_WIND_HRRR_LANE__', '__RAW_DISABLE_WIND_OVERLAY_KEEP__', '__RAW_DISABLE_WIND_SERIES_SUPERSEDE__',
       '__RAW_DISABLE_WIND_TIER_MOSAIC__',
+      // static wind frames (windStaticFrames.js / windFramePrefetch.js / windStaticEngine.js, 2026-10-22): WHERE the same served grid comes from
+      // (CDN bytes, node-for-node equal to /grid) and WHEN it is fetched or built; no table, ramp, ground or rule reads any of them
+      '__RAW_DISABLE_WIND_STATIC_FRAMES__', '__RAW_DISABLE_WIND_STATIC_LANE_HOURS__', '__RAW_DISABLE_WIND_STATIC_CROP__', '__RAW_DISABLE_WIND_PREFETCH__',
+      '__RAW_DISABLE_WIND_INSTANT_STEP__', '__RAW_DISABLE_WIND_SERIES_STATIC_SKIP__', '__RAW_DISABLE_WIND_STALE_COVERING__', '__RAW_DISABLE_WIND_LANE_REBUILT_INDEX__', '__RAW_DISABLE_WIND_SERIES_TRIM__', '__RAW_DISABLE_WIND_FRAME_HASH_SEED__', '__RAW_DISABLE_WIND_SERIES_AFTER_PAINT__',
+      // which queued grids one delivery run uploads, and that the speed scale is set once after them (the same value the last
+      // grid's own refresh sets): WHAT reaches the engine and WHEN, never a table, ramp or rule (windDeliveryCoalesce.js)
+      '__RAW_DISABLE_WIND_DELIVERY_COALESCE__', '__RAW_DISABLE_WIND_REASK_DEDUPE__',
+      // which stored hour a series page asks (the manifest's nearest, hourly when the set is hourly): WHEN, never how it draws
+      '__RAW_DISABLE_WIND_SERIES_MANIFEST_SNAP__',
+      // WHEN the prefetch plans (after the next paint) and when the truth tag's census is counted: never what is drawn
+      '__RAW_DISABLE_WIND_PREFETCH_REPLAN_AFTER_PAINT__', '__RAW_DISABLE_TRUTH_TAG_LAZY_CENSUS__',
+      // and the static-frame kills shared with marine (staticFrames.js), which the wind seam also honours
+      '__RAW_DISABLE_STATIC_FRAMES__', '__RAW_DISABLE_STATIC_FRAMES_SETS__', '__RAW_DISABLE_STATIC_MID_CROP__',
+      // the final hour of a wheel drag is settled at scrub end (scrub audit 2026-10-18, T-02): WHEN a grid is fetched, never how it is drawn
+      '__RAW_DISABLE_WIND_SCRUB_END_SETTLE__',
       // the layer's place in the map's stack, and the lines the map draws over it: the coastline, and the borders' ink (2026-10-12:
       // the border lines sit ABOVE the wind, so their colour is no part of the ground the rules were solved on)
       '__RAW_DISABLE_WIND_UNDER_LABELS__', '__RAW_DISABLE_WIND_COASTLINE__', '__RAW_DISABLE_WIND_BORDER_INK__',

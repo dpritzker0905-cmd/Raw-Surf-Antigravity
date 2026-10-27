@@ -45,8 +45,14 @@ class ParentSurferModeRequest(BaseModel):
 
 
 @router.get("/subscriptions/account-billing/{user_id}")
-async def get_account_billing_status(user_id: str, db: AsyncSession = Depends(get_db)):
+async def get_account_billing_status(
+    user_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
     """Get user's current subscription and status for the Account & Billing hub"""
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = result.scalar_one_or_none()
     if not user:
@@ -60,7 +66,8 @@ async def get_account_billing_status(user_id: str, db: AsyncSession = Depends(ge
     current_tier = tier_map.get(user.subscription_tier, "tier_1")
     linked_groms = []
     if user.role.value == "Grom Parent":
-        groms_result = await db.execute(select(Profile).where(Profile.parent_id == user_id))
+        groms_result = await db.execute(select(Profile).where(
+            Profile.parent_id == user_id, Profile.parent_link_approved.is_(True)))
         for grom in groms_result.scalars().all():
             grom_tier = tier_map.get(grom.subscription_tier, "tier_1")
             linked_groms.append({"id": grom.id, "full_name": grom.full_name,
@@ -154,15 +161,21 @@ async def upgrade_subscription_tier(
 
 
 @router.post("/subscriptions/grom-tier/{parent_id}")
-async def update_grom_subscription(parent_id: str, data: GromSubscriptionRequest, db: AsyncSession = Depends(get_db)):
+async def update_grom_subscription(
+    parent_id: str, data: GromSubscriptionRequest,
+    current_user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db),
+):
     """Parent updates linked Grom's subscription tier"""
+    if parent_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     parent_result = await db.execute(select(Profile).where(Profile.id == parent_id))
     parent = parent_result.scalar_one_or_none()
     if not parent:
         raise HTTPException(status_code=404, detail="Parent not found")
     if not is_grom_parent_eligible(parent):
         raise HTTPException(status_code=403, detail="Only Grom Parents can manage Grom subscriptions")
-    grom_result = await db.execute(select(Profile).where(Profile.id == data.grom_id, Profile.parent_id == parent_id))
+    grom_result = await db.execute(select(Profile).where(
+        Profile.id == data.grom_id, Profile.parent_id == parent_id, Profile.parent_link_approved.is_(True)))
     grom = grom_result.scalar_one_or_none()
     if not grom:
         raise HTTPException(status_code=403, detail="Grom is not linked to this parent")

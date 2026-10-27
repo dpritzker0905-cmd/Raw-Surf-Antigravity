@@ -1,0 +1,1212 @@
+{
+ "what": "D-037 follow-up, owner 2026-10-21: 'Make sure the crest zooms are still visible, ship and test'. Light's crests over the spectrum on an engine zoom ladder: open sea at 12N 125W (about 2 m), z 1.6 / 2.2 / 3.0 / 3.8 / 4.6 / 6.0 / 7.4 / 9.0, plus the storm at regional zoom (z 4.6). Production build of claude/wave-light-spectrum with the lift and its levers; offline synthetic backend (never the live one).",
+ "method": "scn_wave_palette_ab.js CLIP=1 PAIRED=1 CLIP_FRAMES=12 (each frame paired with the same instant crest-free: the exact wash); crest_contrast.py p99 over sea pixels of each pixel against its wash (APCA |Lc|, CIEDE2000 per vision kind), share of sea at >= 15; null = first vs second half of a variant's frames.",
+ "mechanism": "DRAW_VS: v_alpha x mix(0.45, 1.0, smoothstep(3, 9, zoom)); world-zoom crests draw at about half opacity, and the spectrum's 1.5-3 m blue (OKLCH L 0.66-0.59) leaves a half-opaque crest little room in either polarity. Lift (light over the spectrum only): x mix(far / 0.45, 1, smoothstep(3, end, zoom)).",
+ "levers": {
+  "sp@v2": "today: window.__RAW_DISABLE_WAVE_SPECTRUM__ (v2, crests at 3.05 m, dev exactly)",
+  "nolift": "spectrum, lift killed (__RAW_DISABLE_SPECTRUM_CREST_LIFT__)",
+  "lift60": "far 0.60, end 5",
+  "lift70": "far 0.70, end 5",
+  "lift80": "far 0.80, end 5",
+  "lift70e7": "far 0.70, end 7",
+  "lift70e9": "far 0.70, end 9",
+  "lift80e9": "far 0.80, end 9 (SHIPPED default)"
+ },
+ "reads": {
+  "z16/sp@v2": {
+   "frames": 12,
+   "sea_untouched": 0.439,
+   "p99": {
+    "normal": 29.3,
+    "protan": 30.1,
+    "deutan": 29.8,
+    "tritan": 26.6,
+    "lc": 37.7
+   },
+   "share_ge15": {
+    "normal": 0.0796,
+    "tritan": 0.0727,
+    "lc": 0.1871
+   },
+   "null_half_vs_half_p99_lc": 0.6
+  },
+  "z16/nolift": {
+   "frames": 12,
+   "sea_untouched": 0.48,
+   "p99": {
+    "normal": 23.1,
+    "protan": 23.6,
+    "deutan": 23.2,
+    "tritan": 20.5,
+    "lc": 27.3
+   },
+   "share_ge15": {
+    "normal": 0.0358,
+    "tritan": 0.0302,
+    "lc": 0.072
+   },
+   "null_half_vs_half_p99_lc": 2.2
+  },
+  "z16/lift60": {
+   "frames": 12,
+   "sea_untouched": 0.45,
+   "p99": {
+    "normal": 31.3,
+    "protan": 32.2,
+    "deutan": 31.3,
+    "tritan": 26.7,
+    "lc": 35.1
+   },
+   "share_ge15": {
+    "normal": 0.0796,
+    "tritan": 0.0692,
+    "lc": 0.1341
+   },
+   "null_half_vs_half_p99_lc": 1.8
+  },
+  "z16/lift70": {
+   "frames": 12,
+   "sea_untouched": 0.428,
+   "p99": {
+    "normal": 38.2,
+    "protan": 39.7,
+    "deutan": 38.1,
+    "tritan": 30.6,
+    "lc": 40.7
+   },
+   "share_ge15": {
+    "normal": 0.1184,
+    "tritan": 0.1022,
+    "lc": 0.1795
+   },
+   "null_half_vs_half_p99_lc": 2.8
+  },
+  "z16/lift80": {
+   "frames": 12,
+   "sea_untouched": 0.432,
+   "p99": {
+    "normal": 43.3,
+    "protan": 45.0,
+    "deutan": 43.7,
+    "tritan": 34.3,
+    "lc": 44.5
+   },
+   "share_ge15": {
+    "normal": 0.1513,
+    "tritan": 0.1308,
+    "lc": 0.2083
+   },
+   "null_half_vs_half_p99_lc": 2.8
+  },
+  "z16/lift70e7": {
+   "frames": 12,
+   "sea_untouched": 0.43,
+   "p99": {
+    "normal": 39.0,
+    "protan": 40.6,
+    "deutan": 39.0,
+    "tritan": 31.7,
+    "lc": 41.1
+   },
+   "share_ge15": {
+    "normal": 0.1199,
+    "tritan": 0.1042,
+    "lc": 0.1798
+   },
+   "null_half_vs_half_p99_lc": 0.3
+  },
+  "z22/sp@v2": {
+   "frames": 12,
+   "sea_untouched": 0.53,
+   "p99": {
+    "normal": 28.5,
+    "protan": 29.2,
+    "deutan": 28.8,
+    "tritan": 25.6,
+    "lc": 37.1
+   },
+   "share_ge15": {
+    "normal": 0.0589,
+    "tritan": 0.0549,
+    "lc": 0.1474
+   },
+   "null_half_vs_half_p99_lc": 0.0
+  },
+  "z22/nolift": {
+   "frames": 12,
+   "sea_untouched": 0.573,
+   "p99": {
+    "normal": 20.3,
+    "protan": 21.1,
+    "deutan": 20.7,
+    "tritan": 18.8,
+    "lc": 24.8
+   },
+   "share_ge15": {
+    "normal": 0.0254,
+    "tritan": 0.0211,
+    "lc": 0.0533
+   },
+   "null_half_vs_half_p99_lc": 0.8
+  },
+  "z22/lift60": {
+   "frames": 12,
+   "sea_untouched": 0.522,
+   "p99": {
+    "normal": 30.3,
+    "protan": 31.6,
+    "deutan": 30.6,
+    "tritan": 26.2,
+    "lc": 33.3
+   },
+   "share_ge15": {
+    "normal": 0.0648,
+    "tritan": 0.0544,
+    "lc": 0.1089
+   },
+   "null_half_vs_half_p99_lc": 1.2
+  },
+  "z22/lift70": {
+   "frames": 12,
+   "sea_untouched": 0.531,
+   "p99": {
+    "normal": 34.2,
+    "protan": 35.6,
+    "deutan": 34.5,
+    "tritan": 29.5,
+    "lc": 37.5
+   },
+   "share_ge15": {
+    "normal": 0.088,
+    "tritan": 0.0745,
+    "lc": 0.136
+   },
+   "null_half_vs_half_p99_lc": 1.6
+  },
+  "z22/lift80": {
+   "frames": 12,
+   "sea_untouched": 0.516,
+   "p99": {
+    "normal": 37.8,
+    "protan": 39.5,
+    "deutan": 37.9,
+    "tritan": 32.3,
+    "lc": 40.4
+   },
+   "share_ge15": {
+    "normal": 0.1134,
+    "tritan": 0.0953,
+    "lc": 0.1604
+   },
+   "null_half_vs_half_p99_lc": 1.9
+  },
+  "z22/lift70e7": {
+   "frames": 12,
+   "sea_untouched": 0.532,
+   "p99": {
+    "normal": 33.8,
+    "protan": 35.3,
+    "deutan": 34.3,
+    "tritan": 29.6,
+    "lc": 37.1
+   },
+   "share_ge15": {
+    "normal": 0.0866,
+    "tritan": 0.073,
+    "lc": 0.1332
+   },
+   "null_half_vs_half_p99_lc": 1.0
+  },
+  "z30/sp@v2": {
+   "frames": 12,
+   "sea_untouched": 0.771,
+   "p99": {
+    "normal": 29.6,
+    "protan": 30.7,
+    "deutan": 30.5,
+    "tritan": 23.1,
+    "lc": 32.2
+   },
+   "share_ge15": {
+    "normal": 0.032,
+    "tritan": 0.028,
+    "lc": 0.0668
+   },
+   "null_half_vs_half_p99_lc": 1.1
+  },
+  "z30/nolift": {
+   "frames": 12,
+   "sea_untouched": 0.79,
+   "p99": {
+    "normal": 17.8,
+    "protan": 18.5,
+    "deutan": 18.0,
+    "tritan": 14.0,
+    "lc": 19.5
+   },
+   "share_ge15": {
+    "normal": 0.0131,
+    "tritan": 0.0085,
+    "lc": 0.0186
+   },
+   "null_half_vs_half_p99_lc": 0.1
+  },
+  "z30/lift60": {
+   "frames": 12,
+   "sea_untouched": 0.759,
+   "p99": {
+    "normal": 26.5,
+    "protan": 27.7,
+    "deutan": 26.8,
+    "tritan": 19.7,
+    "lc": 28.1
+   },
+   "share_ge15": {
+    "normal": 0.0275,
+    "tritan": 0.0198,
+    "lc": 0.0422
+   },
+   "null_half_vs_half_p99_lc": 1.9
+  },
+  "z30/lift70": {
+   "frames": 12,
+   "sea_untouched": 0.769,
+   "p99": {
+    "normal": 29.4,
+    "protan": 31.0,
+    "deutan": 28.9,
+    "tritan": 22.2,
+    "lc": 31.2
+   },
+   "share_ge15": {
+    "normal": 0.0336,
+    "tritan": 0.0233,
+    "lc": 0.0524
+   },
+   "null_half_vs_half_p99_lc": 0.2
+  },
+  "z30/lift80": {
+   "frames": 12,
+   "sea_untouched": 0.754,
+   "p99": {
+    "normal": 33.9,
+    "protan": 36.3,
+    "deutan": 33.6,
+    "tritan": 24.3,
+    "lc": 34.7
+   },
+   "share_ge15": {
+    "normal": 0.0444,
+    "tritan": 0.0308,
+    "lc": 0.0649
+   },
+   "null_half_vs_half_p99_lc": 0.1
+  },
+  "z30/lift70e7": {
+   "frames": 12,
+   "sea_untouched": 0.756,
+   "p99": {
+    "normal": 28.3,
+    "protan": 29.4,
+    "deutan": 28.1,
+    "tritan": 21.4,
+    "lc": 30.6
+   },
+   "share_ge15": {
+    "normal": 0.0331,
+    "tritan": 0.0231,
+    "lc": 0.0537
+   },
+   "null_half_vs_half_p99_lc": 3.0
+  },
+  "z38/sp@v2": {
+   "frames": 12,
+   "sea_untouched": 0.8,
+   "p99": {
+    "normal": 17.7,
+    "protan": 18.1,
+    "deutan": 17.8,
+    "tritan": 16.6,
+    "lc": 26.0
+   },
+   "share_ge15": {
+    "normal": 0.0176,
+    "tritan": 0.0151,
+    "lc": 0.0463
+   },
+   "null_half_vs_half_p99_lc": 0.2
+  },
+  "z38/nolift": {
+   "frames": 12,
+   "sea_untouched": 0.847,
+   "p99": {
+    "normal": 17.5,
+    "protan": 18.0,
+    "deutan": 18.6,
+    "tritan": 14.8,
+    "lc": 27.0
+   },
+   "share_ge15": {
+    "normal": 0.0139,
+    "tritan": 0.0096,
+    "lc": 0.0255
+   },
+   "null_half_vs_half_p99_lc": 0.5
+  },
+  "z38/lift60": {
+   "frames": 12,
+   "sea_untouched": 0.838,
+   "p99": {
+    "normal": 23.3,
+    "protan": 23.4,
+    "deutan": 23.5,
+    "tritan": 18.6,
+    "lc": 34.6
+   },
+   "share_ge15": {
+    "normal": 0.0216,
+    "tritan": 0.0169,
+    "lc": 0.0322
+   },
+   "null_half_vs_half_p99_lc": 2.8
+  },
+  "z38/lift70": {
+   "frames": 12,
+   "sea_untouched": 0.835,
+   "p99": {
+    "normal": 24.7,
+    "protan": 25.0,
+    "deutan": 25.1,
+    "tritan": 19.6,
+    "lc": 37.9
+   },
+   "share_ge15": {
+    "normal": 0.0245,
+    "tritan": 0.0193,
+    "lc": 0.0349
+   },
+   "null_half_vs_half_p99_lc": 0.2
+  },
+  "z38/lift80": {
+   "frames": 12,
+   "sea_untouched": 0.829,
+   "p99": {
+    "normal": 28.5,
+    "protan": 28.4,
+    "deutan": 28.8,
+    "tritan": 22.1,
+    "lc": 43.7
+   },
+   "share_ge15": {
+    "normal": 0.03,
+    "tritan": 0.0238,
+    "lc": 0.0391
+   },
+   "null_half_vs_half_p99_lc": 3.3
+  },
+  "z38/lift70e7": {
+   "frames": 12,
+   "sea_untouched": 0.835,
+   "p99": {
+    "normal": 27.7,
+    "protan": 27.7,
+    "deutan": 27.9,
+    "tritan": 21.3,
+    "lc": 41.4
+   },
+   "share_ge15": {
+    "normal": 0.0279,
+    "tritan": 0.0219,
+    "lc": 0.0363
+   },
+   "null_half_vs_half_p99_lc": 1.7
+  },
+  "z46/sp@v2": {
+   "frames": 12,
+   "sea_untouched": 0.752,
+   "p99": {
+    "normal": 18.0,
+    "protan": 18.4,
+    "deutan": 18.1,
+    "tritan": 17.8,
+    "lc": 27.5
+   },
+   "share_ge15": {
+    "normal": 0.024,
+    "tritan": 0.023,
+    "lc": 0.0636
+   },
+   "null_half_vs_half_p99_lc": 0.3
+  },
+  "z46/nolift": {
+   "frames": 12,
+   "sea_untouched": 0.799,
+   "p99": {
+    "normal": 14.7,
+    "protan": 14.8,
+    "deutan": 15.4,
+    "tritan": 13.4,
+    "lc": 23.4
+   },
+   "share_ge15": {
+    "normal": 0.0092,
+    "tritan": 0.0062,
+    "lc": 0.0274
+   },
+   "null_half_vs_half_p99_lc": 0.5
+  },
+  "z46/lift60": {
+   "frames": 12,
+   "sea_untouched": 0.814,
+   "p99": {
+    "normal": 14.5,
+    "protan": 14.7,
+    "deutan": 15.3,
+    "tritan": 13.4,
+    "lc": 23.2
+   },
+   "share_ge15": {
+    "normal": 0.0089,
+    "tritan": 0.0062,
+    "lc": 0.0251
+   },
+   "null_half_vs_half_p99_lc": 0.4
+  },
+  "z46/lift70": {
+   "frames": 12,
+   "sea_untouched": 0.802,
+   "p99": {
+    "normal": 15.3,
+    "protan": 15.5,
+    "deutan": 16.1,
+    "tritan": 14.0,
+    "lc": 24.6
+   },
+   "share_ge15": {
+    "normal": 0.0109,
+    "tritan": 0.0077,
+    "lc": 0.0286
+   },
+   "null_half_vs_half_p99_lc": 0.1
+  },
+  "z46/lift80": {
+   "frames": 12,
+   "sea_untouched": 0.788,
+   "p99": {
+    "normal": 15.8,
+    "protan": 16.0,
+    "deutan": 16.6,
+    "tritan": 14.5,
+    "lc": 25.7
+   },
+   "share_ge15": {
+    "normal": 0.0122,
+    "tritan": 0.0087,
+    "lc": 0.0316
+   },
+   "null_half_vs_half_p99_lc": 0.1
+  },
+  "z46/lift70e7": {
+   "frames": 12,
+   "sea_untouched": 0.782,
+   "p99": {
+    "normal": 20.2,
+    "protan": 20.3,
+    "deutan": 21.0,
+    "tritan": 18.0,
+    "lc": 33.3
+   },
+   "share_ge15": {
+    "normal": 0.0249,
+    "tritan": 0.0188,
+    "lc": 0.0427
+   },
+   "null_half_vs_half_p99_lc": 0.4
+  },
+  "z60/sp@v2": {
+   "frames": 12,
+   "sea_untouched": 0.743,
+   "p99": {
+    "normal": 25.7,
+    "protan": 26.2,
+    "deutan": 25.8,
+    "tritan": 25.4,
+    "lc": 36.5
+   },
+   "share_ge15": {
+    "normal": 0.0537,
+    "tritan": 0.0533,
+    "lc": 0.0848
+   },
+   "null_half_vs_half_p99_lc": 0.8
+  },
+  "z60/nolift": {
+   "frames": 12,
+   "sea_untouched": 0.747,
+   "p99": {
+    "normal": 16.4,
+    "protan": 16.8,
+    "deutan": 17.3,
+    "tritan": 14.2,
+    "lc": 22.3
+   },
+   "share_ge15": {
+    "normal": 0.0156,
+    "tritan": 0.0071,
+    "lc": 0.043
+   },
+   "null_half_vs_half_p99_lc": 0.3
+  },
+  "z60/lift60": {
+   "frames": 12,
+   "sea_untouched": 0.758,
+   "p99": {
+    "normal": 16.4,
+    "protan": 16.8,
+    "deutan": 17.3,
+    "tritan": 14.2,
+    "lc": 22.2
+   },
+   "share_ge15": {
+    "normal": 0.0155,
+    "tritan": 0.0074,
+    "lc": 0.0418
+   },
+   "null_half_vs_half_p99_lc": 0.1
+  },
+  "z60/lift70": {
+   "frames": 12,
+   "sea_untouched": 0.746,
+   "p99": {
+    "normal": 16.2,
+    "protan": 16.6,
+    "deutan": 17.1,
+    "tritan": 14.1,
+    "lc": 22.0
+   },
+   "share_ge15": {
+    "normal": 0.0152,
+    "tritan": 0.0068,
+    "lc": 0.0427
+   },
+   "null_half_vs_half_p99_lc": 0.2
+  },
+  "z60/lift80": {
+   "frames": 12,
+   "sea_untouched": 0.755,
+   "p99": {
+    "normal": 16.1,
+    "protan": 16.5,
+    "deutan": 17.0,
+    "tritan": 13.9,
+    "lc": 21.8
+   },
+   "share_ge15": {
+    "normal": 0.0146,
+    "tritan": 0.0067,
+    "lc": 0.0399
+   },
+   "null_half_vs_half_p99_lc": 0.5
+  },
+  "z60/lift70e7": {
+   "frames": 12,
+   "sea_untouched": 0.747,
+   "p99": {
+    "normal": 17.9,
+    "protan": 18.2,
+    "deutan": 18.8,
+    "tritan": 15.3,
+    "lc": 24.3
+   },
+   "share_ge15": {
+    "normal": 0.0228,
+    "tritan": 0.0114,
+    "lc": 0.0483
+   },
+   "null_half_vs_half_p99_lc": 0.2
+  },
+  "z74/sp@v2": {
+   "frames": 12,
+   "sea_untouched": 0.661,
+   "p99": {
+    "normal": 36.6,
+    "protan": 37.3,
+    "deutan": 36.6,
+    "tritan": 36.1,
+    "lc": 46.6
+   },
+   "share_ge15": {
+    "normal": 0.0926,
+    "tritan": 0.0925,
+    "lc": 0.1315
+   },
+   "null_half_vs_half_p99_lc": 1.4
+  },
+  "z74/nolift": {
+   "frames": 12,
+   "sea_untouched": 0.679,
+   "p99": {
+    "normal": 23.7,
+    "protan": 23.4,
+    "deutan": 24.1,
+    "tritan": 19.3,
+    "lc": 31.4
+   },
+   "share_ge15": {
+    "normal": 0.0555,
+    "tritan": 0.0351,
+    "lc": 0.083
+   },
+   "null_half_vs_half_p99_lc": 0.5
+  },
+  "z74/lift60": {
+   "frames": 12,
+   "sea_untouched": 0.669,
+   "p99": {
+    "normal": 24.2,
+    "protan": 23.8,
+    "deutan": 24.5,
+    "tritan": 19.5,
+    "lc": 31.9
+   },
+   "share_ge15": {
+    "normal": 0.0591,
+    "tritan": 0.0376,
+    "lc": 0.0878
+   },
+   "null_half_vs_half_p99_lc": 0.1
+  },
+  "z74/lift70": {
+   "frames": 12,
+   "sea_untouched": 0.666,
+   "p99": {
+    "normal": 23.3,
+    "protan": 23.1,
+    "deutan": 23.7,
+    "tritan": 19.0,
+    "lc": 31.0
+   },
+   "share_ge15": {
+    "normal": 0.0549,
+    "tritan": 0.0343,
+    "lc": 0.0827
+   },
+   "null_half_vs_half_p99_lc": 0.6
+  },
+  "z74/lift80": {
+   "frames": 12,
+   "sea_untouched": 0.676,
+   "p99": {
+    "normal": 23.4,
+    "protan": 23.1,
+    "deutan": 23.8,
+    "tritan": 19.0,
+    "lc": 31.0
+   },
+   "share_ge15": {
+    "normal": 0.0548,
+    "tritan": 0.0343,
+    "lc": 0.0824
+   },
+   "null_half_vs_half_p99_lc": 0.3
+  },
+  "z74/lift70e7": {
+   "frames": 12,
+   "sea_untouched": 0.662,
+   "p99": {
+    "normal": 23.7,
+    "protan": 23.4,
+    "deutan": 24.1,
+    "tritan": 19.2,
+    "lc": 31.3
+   },
+   "share_ge15": {
+    "normal": 0.057,
+    "tritan": 0.0359,
+    "lc": 0.0857
+   },
+   "null_half_vs_half_p99_lc": 0.3
+  },
+  "z90/sp@v2": {
+   "frames": 12,
+   "sea_untouched": 0.579,
+   "p99": {
+    "normal": 45.6,
+    "protan": 46.2,
+    "deutan": 45.9,
+    "tritan": 44.8,
+    "lc": 52.9
+   },
+   "share_ge15": {
+    "normal": 0.1392,
+    "tritan": 0.138,
+    "lc": 0.1906
+   },
+   "null_half_vs_half_p99_lc": 0.8
+  },
+  "z90/nolift": {
+   "frames": 12,
+   "sea_untouched": 0.61,
+   "p99": {
+    "normal": 29.7,
+    "protan": 28.9,
+    "deutan": 29.5,
+    "tritan": 22.8,
+    "lc": 37.9
+   },
+   "share_ge15": {
+    "normal": 0.0912,
+    "tritan": 0.0663,
+    "lc": 0.122
+   },
+   "null_half_vs_half_p99_lc": 0.2
+  },
+  "z90/lift60": {
+   "frames": 12,
+   "sea_untouched": 0.583,
+   "p99": {
+    "normal": 29.9,
+    "protan": 29.2,
+    "deutan": 29.8,
+    "tritan": 23.0,
+    "lc": 38.3
+   },
+   "share_ge15": {
+    "normal": 0.0987,
+    "tritan": 0.0714,
+    "lc": 0.1321
+   },
+   "null_half_vs_half_p99_lc": 0.6
+  },
+  "z90/lift70": {
+   "frames": 12,
+   "sea_untouched": 0.586,
+   "p99": {
+    "normal": 29.7,
+    "protan": 29.0,
+    "deutan": 29.6,
+    "tritan": 22.8,
+    "lc": 38.0
+   },
+   "share_ge15": {
+    "normal": 0.0944,
+    "tritan": 0.0671,
+    "lc": 0.1275
+   },
+   "null_half_vs_half_p99_lc": 0.6
+  },
+  "z90/lift80": {
+   "frames": 12,
+   "sea_untouched": 0.604,
+   "p99": {
+    "normal": 29.1,
+    "protan": 28.4,
+    "deutan": 29.0,
+    "tritan": 22.4,
+    "lc": 37.2
+   },
+   "share_ge15": {
+    "normal": 0.0909,
+    "tritan": 0.0644,
+    "lc": 0.1236
+   },
+   "null_half_vs_half_p99_lc": 0.7
+  },
+  "z90/lift70e7": {
+   "frames": 12,
+   "sea_untouched": 0.601,
+   "p99": {
+    "normal": 29.2,
+    "protan": 28.5,
+    "deutan": 29.1,
+    "tritan": 22.5,
+    "lc": 37.4
+   },
+   "share_ge15": {
+    "normal": 0.0893,
+    "tritan": 0.0645,
+    "lc": 0.1199
+   },
+   "null_half_vs_half_p99_lc": 1.0
+  },
+  "regional/sp@v2": {
+   "frames": 12,
+   "sea_untouched": 0.777,
+   "p99": {
+    "normal": 25.7,
+    "protan": 26.5,
+    "deutan": 26.7,
+    "tritan": 16.2,
+    "lc": 23.0
+   },
+   "share_ge15": {
+    "normal": 0.0493,
+    "tritan": 0.0358,
+    "lc": 0.0507
+   },
+   "null_half_vs_half_p99_lc": 32.6
+  },
+  "regional/nolift": {
+   "frames": 12,
+   "sea_untouched": 0.583,
+   "p99": {
+    "normal": 61.4,
+    "protan": 63.8,
+    "deutan": 52.1,
+    "tritan": 43.9,
+    "lc": 60.5
+   },
+   "share_ge15": {
+    "normal": 0.1382,
+    "tritan": 0.1106,
+    "lc": 0.1148
+   },
+   "null_half_vs_half_p99_lc": 0.3
+  },
+  "regional/lift60": {
+   "frames": 12,
+   "sea_untouched": 0.574,
+   "p99": {
+    "normal": 62.8,
+    "protan": 65.0,
+    "deutan": 53.3,
+    "tritan": 44.5,
+    "lc": 62.7
+   },
+   "share_ge15": {
+    "normal": 0.1449,
+    "tritan": 0.1169,
+    "lc": 0.1221
+   },
+   "null_half_vs_half_p99_lc": 0.0
+  },
+  "regional/lift70": {
+   "frames": 12,
+   "sea_untouched": 0.575,
+   "p99": {
+    "normal": 64.7,
+    "protan": 66.3,
+    "deutan": 55.1,
+    "tritan": 45.3,
+    "lc": 64.6
+   },
+   "share_ge15": {
+    "normal": 0.1515,
+    "tritan": 0.122,
+    "lc": 0.1263
+   },
+   "null_half_vs_half_p99_lc": 2.1
+  },
+  "regional/lift80": {
+   "frames": 12,
+   "sea_untouched": 0.569,
+   "p99": {
+    "normal": 65.5,
+    "protan": 66.0,
+    "deutan": 54.0,
+    "tritan": 47.6,
+    "lc": 66.9
+   },
+   "share_ge15": {
+    "normal": 0.149,
+    "tritan": 0.1213,
+    "lc": 0.1266
+   },
+   "null_half_vs_half_p99_lc": 0.4
+  },
+  "regional/lift70e7": {
+   "frames": 12,
+   "sea_untouched": 0.576,
+   "p99": {
+    "normal": 74.3,
+    "protan": 72.6,
+    "deutan": 61.1,
+    "tritan": 51.7,
+    "lc": 78.6
+   },
+   "share_ge15": {
+    "normal": 0.1743,
+    "tritan": 0.1433,
+    "lc": 0.147
+   },
+   "null_half_vs_half_p99_lc": 0.6
+  },
+  "z16/lift70e9": {
+   "frames": 12,
+   "sea_untouched": 0.428,
+   "p99": {
+    "normal": 36.6,
+    "protan": 38.0,
+    "deutan": 36.9,
+    "tritan": 30.4,
+    "lc": 40.0
+   },
+   "share_ge15": {
+    "normal": 0.1154,
+    "tritan": 0.0994,
+    "lc": 0.1763
+   },
+   "null_half_vs_half_p99_lc": 3.3
+  },
+  "z16/lift80e9": {
+   "frames": 12,
+   "sea_untouched": 0.437,
+   "p99": {
+    "normal": 44.2,
+    "protan": 45.9,
+    "deutan": 44.0,
+    "tritan": 33.9,
+    "lc": 45.2
+   },
+   "share_ge15": {
+    "normal": 0.1446,
+    "tritan": 0.1235,
+    "lc": 0.2019
+   },
+   "null_half_vs_half_p99_lc": 2.8
+  },
+  "z22/lift70e9": {
+   "frames": 12,
+   "sea_untouched": 0.514,
+   "p99": {
+    "normal": 33.9,
+    "protan": 35.3,
+    "deutan": 34.0,
+    "tritan": 28.9,
+    "lc": 37.1
+   },
+   "share_ge15": {
+    "normal": 0.092,
+    "tritan": 0.0775,
+    "lc": 0.1423
+   },
+   "null_half_vs_half_p99_lc": 2.0
+  },
+  "z22/lift80e9": {
+   "frames": 12,
+   "sea_untouched": 0.519,
+   "p99": {
+    "normal": 39.0,
+    "protan": 40.7,
+    "deutan": 38.8,
+    "tritan": 33.0,
+    "lc": 41.4
+   },
+   "share_ge15": {
+    "normal": 0.1141,
+    "tritan": 0.0962,
+    "lc": 0.1592
+   },
+   "null_half_vs_half_p99_lc": 0.2
+  },
+  "z30/lift70e9": {
+   "frames": 12,
+   "sea_untouched": 0.759,
+   "p99": {
+    "normal": 29.4,
+    "protan": 30.9,
+    "deutan": 29.1,
+    "tritan": 21.7,
+    "lc": 31.2
+   },
+   "share_ge15": {
+    "normal": 0.0341,
+    "tritan": 0.0234,
+    "lc": 0.0535
+   },
+   "null_half_vs_half_p99_lc": 4.2
+  },
+  "z30/lift80e9": {
+   "frames": 12,
+   "sea_untouched": 0.757,
+   "p99": {
+    "normal": 38.3,
+    "protan": 41.0,
+    "deutan": 37.4,
+    "tritan": 26.0,
+    "lc": 37.2
+   },
+   "share_ge15": {
+    "normal": 0.0482,
+    "tritan": 0.0337,
+    "lc": 0.0685
+   },
+   "null_half_vs_half_p99_lc": 1.5
+  },
+  "z38/lift70e9": {
+   "frames": 12,
+   "sea_untouched": 0.827,
+   "p99": {
+    "normal": 28.2,
+    "protan": 28.2,
+    "deutan": 28.4,
+    "tritan": 21.9,
+    "lc": 42.7
+   },
+   "share_ge15": {
+    "normal": 0.0288,
+    "tritan": 0.0231,
+    "lc": 0.038
+   },
+   "null_half_vs_half_p99_lc": 0.0
+  },
+  "z38/lift80e9": {
+   "frames": 12,
+   "sea_untouched": 0.821,
+   "p99": {
+    "normal": 30.5,
+    "protan": 30.2,
+    "deutan": 31.7,
+    "tritan": 24.8,
+    "lc": 49.1
+   },
+   "share_ge15": {
+    "normal": 0.0364,
+    "tritan": 0.0289,
+    "lc": 0.0433
+   },
+   "null_half_vs_half_p99_lc": 2.4
+  },
+  "z46/lift70e9": {
+   "frames": 12,
+   "sea_untouched": 0.789,
+   "p99": {
+    "normal": 20.9,
+    "protan": 20.9,
+    "deutan": 21.7,
+    "tritan": 18.3,
+    "lc": 34.9
+   },
+   "share_ge15": {
+    "normal": 0.0259,
+    "tritan": 0.0193,
+    "lc": 0.0423
+   },
+   "null_half_vs_half_p99_lc": 0.7
+  },
+  "z46/lift80e9": {
+   "frames": 12,
+   "sea_untouched": 0.772,
+   "p99": {
+    "normal": 24.7,
+    "protan": 24.4,
+    "deutan": 25.1,
+    "tritan": 20.9,
+    "lc": 40.9
+   },
+   "share_ge15": {
+    "normal": 0.0369,
+    "tritan": 0.0277,
+    "lc": 0.0517
+   },
+   "null_half_vs_half_p99_lc": 1.5
+  },
+  "z60/lift70e9": {
+   "frames": 12,
+   "sea_untouched": 0.755,
+   "p99": {
+    "normal": 21.8,
+    "protan": 21.7,
+    "deutan": 22.4,
+    "tritan": 18.0,
+    "lc": 29.1
+   },
+   "share_ge15": {
+    "normal": 0.0396,
+    "tritan": 0.0249,
+    "lc": 0.0586
+   },
+   "null_half_vs_half_p99_lc": 0.1
+  },
+  "z60/lift80e9": {
+   "frames": 12,
+   "sea_untouched": 0.74,
+   "p99": {
+    "normal": 24.2,
+    "protan": 23.9,
+    "deutan": 24.6,
+    "tritan": 19.5,
+    "lc": 31.9
+   },
+   "share_ge15": {
+    "normal": 0.0481,
+    "tritan": 0.0348,
+    "lc": 0.0672
+   },
+   "null_half_vs_half_p99_lc": 0.9
+  },
+  "z74/lift70e9": {
+   "frames": 12,
+   "sea_untouched": 0.666,
+   "p99": {
+    "normal": 27.1,
+    "protan": 26.4,
+    "deutan": 27.1,
+    "tritan": 21.4,
+    "lc": 35.2
+   },
+   "share_ge15": {
+    "normal": 0.0691,
+    "tritan": 0.0515,
+    "lc": 0.0951
+   },
+   "null_half_vs_half_p99_lc": 0.0
+  },
+  "z74/lift80e9": {
+   "frames": 12,
+   "sea_untouched": 0.666,
+   "p99": {
+    "normal": 28.3,
+    "protan": 27.5,
+    "deutan": 28.2,
+    "tritan": 22.1,
+    "lc": 36.5
+   },
+   "share_ge15": {
+    "normal": 0.072,
+    "tritan": 0.0555,
+    "lc": 0.0969
+   },
+   "null_half_vs_half_p99_lc": 0.2
+  },
+  "z90/lift70e9": {
+   "frames": 12,
+   "sea_untouched": 0.602,
+   "p99": {
+    "normal": 29.6,
+    "protan": 28.8,
+    "deutan": 29.4,
+    "tritan": 22.7,
+    "lc": 37.8
+   },
+   "share_ge15": {
+    "normal": 0.0925,
+    "tritan": 0.0668,
+    "lc": 0.1246
+   },
+   "null_half_vs_half_p99_lc": 0.5
+  },
+  "z90/lift80e9": {
+   "frames": 12,
+   "sea_untouched": 0.599,
+   "p99": {
+    "normal": 29.7,
+    "protan": 28.9,
+    "deutan": 29.6,
+    "tritan": 22.8,
+    "lc": 38.0
+   },
+   "share_ge15": {
+    "normal": 0.0959,
+    "tritan": 0.0692,
+    "lc": 0.1285
+   },
+   "null_half_vs_half_p99_lc": 0.8
+  }
+ },
+ "shipped": {
+  "far": 0.8,
+  "end": 9.0,
+  "kill": "window.__RAW_DISABLE_SPECTRUM_CREST_LIFT__ = true (DRAW_VS = dev a1683763...)"
+ }
+}

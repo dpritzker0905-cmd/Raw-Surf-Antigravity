@@ -1,0 +1,224 @@
+{
+  "baseDev": "1dbb0bbd475738a1e764be6dd380dff55090846a",
+  "baseSeq": 1179,
+  "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+  "sourceRange": [
+    1177,
+    1201
+  ],
+  "mapping": [
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1177,
+      "canonicalSeq": 1181,
+      "sourceAt": "2026-10-14T22:51:57Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1178,
+      "canonicalSeq": 1182,
+      "sourceAt": "2026-10-14T22:57:07Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1179,
+      "canonicalSeq": 1183,
+      "sourceAt": "2026-10-14T22:57:07Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1180,
+      "canonicalSeq": 1184,
+      "sourceAt": "2026-10-14T23:09:57Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1181,
+      "canonicalSeq": 1185,
+      "sourceAt": "2026-10-14T23:19:37Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1182,
+      "canonicalSeq": 1186,
+      "sourceAt": "2026-10-14T23:22:37Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1183,
+      "canonicalSeq": 1187,
+      "sourceAt": "2026-10-14T23:24:11Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1184,
+      "canonicalSeq": 1188,
+      "sourceAt": "2026-10-14T23:35:28Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1185,
+      "canonicalSeq": 1189,
+      "sourceAt": "2026-10-14T23:35:28Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1186,
+      "canonicalSeq": 1190,
+      "sourceAt": "2026-10-14T23:35:28Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1187,
+      "canonicalSeq": 1191,
+      "sourceAt": "2026-10-14T23:43:31Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1188,
+      "canonicalSeq": 1192,
+      "sourceAt": "2026-10-14T23:43:32Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1189,
+      "canonicalSeq": 1193,
+      "sourceAt": "2026-10-15T00:01:18Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1190,
+      "canonicalSeq": 1194,
+      "sourceAt": "2026-10-15T00:42:50Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1191,
+      "canonicalSeq": 1195,
+      "sourceAt": "2026-10-15T00:43:20Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1192,
+      "canonicalSeq": 1196,
+      "sourceAt": "2026-10-15T00:49:48Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1193,
+      "canonicalSeq": 1197,
+      "sourceAt": "2026-10-15T01:15:36Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1194,
+      "canonicalSeq": 1198,
+      "sourceAt": "2026-10-15T01:15:36Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1195,
+      "canonicalSeq": 1199,
+      "sourceAt": "2026-10-15T01:34:48Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1196,
+      "canonicalSeq": 1200,
+      "sourceAt": "2026-10-15T01:34:49Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1197,
+      "canonicalSeq": 1201,
+      "sourceAt": "2026-10-15T02:28:29Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1198,
+      "canonicalSeq": 1202,
+      "sourceAt": "2026-10-15T02:28:29Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1199,
+      "canonicalSeq": 1203,
+      "sourceAt": "2026-10-15T03:08:48Z",
+      "originalCorrects": 1198,
+      "canonicalCorrects": 1202
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1200,
+      "canonicalSeq": 1204,
+      "sourceAt": "2026-10-15T03:08:48Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "sourceRef": "b43384a9359ec1c19c6c790a8dba10c57d37b238",
+      "sourceSeq": 1201,
+      "canonicalSeq": 1205,
+      "sourceAt": "2026-10-15T03:08:49Z",
+      "originalCorrects": null,
+      "canonicalCorrects": null
+    },
+    {
+      "waveProposal": 1,
+      "canonicalSeq": 1206,
+      "deduplication": "No semantic match in verified DEV/root chain; append original acted time through CLI, no copied seq/prev/at"
+    },
+    {
+      "waveProposal": 2,
+      "canonicalSeq": 1207,
+      "deduplication": "No semantic match in verified DEV/root chain; append original acted time through CLI, no copied seq/prev/at"
+    }
+  ],
+  "sourceHistoryPreservedAtSourceRef": true,
+  "basePrefixPreserved": true,
+  "method": "CLI append at actual write time with reconstructed acted_at; remap internal correction/fulfilment references; never rewrite/rechain or concatenate ledger"
+}

@@ -223,8 +223,20 @@ async def resolve_grid(
     product = None
     _dropped_dyn_cache = None   # root-A guard: a coarse dynamic hit set aside for a finer regional
 
+    # MARINE_REGIONAL_TILE_FIRST (regional_tile_first.py, dark; the owner 2026-10-23 18:13 EDT): inside a GFS pilot box a viewport
+    # the stored tile FULLY covers (the client's staticRegional rule) is served from that tile: Steps 1-2 (the dynamic cache) are
+    # skipped and Step 3 serves it unchanged. Partial covers, other models/layers and surf keep today's path.
+    from services.weather_pipeline import regional_tile_first as _tf
+    _tile_first_item = None
+    if bbox and req_w is not None and _tf.tile_first_enabled():
+        _tile_first_item = await asyncio.to_thread(_tf.decide, store, model, domain, layer, surf, bbox,
+                                                   authoritative_candidates, estimated_candidates)
+        if _tile_first_item is not None:
+            matching_manifest_item, use_manifest_product, manifest_preview_item = _tile_first_item, True, None
+            regional_span_lng = _tf._span(_tile_first_item.coverage)
+
     # Step 1 & 2: Exact/fresh or stale dynamic cache hit for snapped viewport
-    if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt):
+    if bbox and _tile_first_item is None and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt):
         # background_tasks: a stale (>30 min) hit refreshes through reval_queue like every other site, so
         # a series frame starts nothing and the viewed hour's /grid keeps its slot (2026-10-09).
         product = await viewport_service.get_cached_dynamic_product(
@@ -238,6 +250,13 @@ async def resolve_grid(
                 filename, product = replacement
                 product.product_id = filename
                 product.is_dynamic_viewport_product = False
+            elif domain.lower() == "marine" and (getattr(product, "is_dynamic_viewport_product", False)
+                                                 or getattr(product, "coverage_mode", None) == "viewport"):
+                # FAR_EDGE_HOLD_BEFORE_UPSTREAM (dark) covers a CACHED upstream fetch too: measured offline 2026-10-24, the
+                # 19x9 world fetch one process cached was served here, ahead of Step 4's hold. Same rails (past the tail only).
+                from services.weather_pipeline.far_edge_hold import hold_before_upstream
+                product = await hold_before_upstream(store, model, domain, layer, target_dt,
+                                                     req_w, req_s, req_e, req_n) or product
 
         # RESOLUTION-ADEQUACY GUARD (2026-07-15, root A — the "ICON coarse / wave-direction wrong when
         # the rating band is on" report): a STALE COARSE dynamic-viewport product (e.g. a 0.44°/cell
@@ -268,6 +287,11 @@ async def resolve_grid(
                 )
                 _dropped_dyn_cache = product
                 product = None
+        # While MARINE_REGIONAL_TILE_FIRST is dark: a sampled, capped log of this dynamic answer vs the covering tile (cheap no-op
+        # unless the box is a tile-first candidate and the sample says yes).
+        if product is not None and _tf.eligible(model, domain, layer, surf, bbox):
+            await asyncio.to_thread(_tf.maybe_log_diff, store, model, domain, layer, surf, bbox,
+                                    authoritative_candidates, estimated_candidates, product)
 
     # Step 3: Durable manifest full coverage
     if not product:
@@ -393,6 +417,13 @@ async def resolve_grid(
         )
         if _mid_product is not None:
             product = _mid_product
+
+    # DAY-14 END (dark, FAR_EDGE_HOLD_BEFORE_UPSTREAM): past the stored tail, a held 2-deg frame beats both the 10-deg preview
+    # below (measured offline: the tail's coarse frame from 10 h earlier, labelled authoritative) and an upstream fetch coarser
+    # than it (a world box fetched 19x9 points). far_edge_hold.hold_before_upstream keeps the hold's rails.
+    if not product and bbox and domain.lower() == "marine":
+        from services.weather_pipeline.far_edge_hold import hold_before_upstream
+        product = await hold_before_upstream(store, model, domain, layer, target_dt, req_w, req_s, req_e, req_n)
 
     # Step 3.7: Instant coarse preview for marine (SWR). On a cold viewport (Step 1&2 cache
     # miss) the response would otherwise BLOCK on the slow upstream fetch — notably EURO's

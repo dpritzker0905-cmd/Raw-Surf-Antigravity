@@ -13,9 +13,11 @@ import {
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import { Progress } from '../ui/progress';
+import { useThemeName } from '../../contexts/ThemeContext';
 
 export const PostSessionSummary = ({
   gallery,
+  heading = 'Session Complete',
   participants = [],
   onDistributeAll,
   onOpenTagAssign,
@@ -25,6 +27,10 @@ export const PostSessionSummary = ({
   isAiTagging = false,
 }) => {
   const [collapsed, setCollapsed] = useState(false);
+  const isLight = useThemeName() === 'light';
+  const secondaryText = isLight ? 'text-muted-foreground' : 'text-zinc-400';
+  const statClass = `text-center p-3 rounded-lg ${isLight ? 'bg-muted' : 'bg-zinc-800/50'}`;
+  const valueClass = `text-xl font-bold ${isLight ? 'text-foreground' : 'text-white'}`;
 
   // Don't show if gallery is older than 48 hours
   const isRecent = useMemo(() => {
@@ -51,19 +57,19 @@ export const PostSessionSummary = ({
     : 0;
 
   return (
-    <div className="mb-6 overflow-hidden rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-900/20 via-zinc-900/80 to-cyan-900/20">
+    <div className={`mb-6 overflow-hidden rounded-xl border border-emerald-500/30 bg-gradient-to-r ${isLight ? 'from-emerald-50 via-white to-cyan-50' : 'from-emerald-900/20 via-zinc-900/80 to-cyan-900/20'}`}>
       {/* Header */}
       <button
-        aria-expanded={collapsed} onClick={() => setCollapsed(!collapsed)}
+        aria-expanded={!collapsed} onClick={() => setCollapsed(!collapsed)}
         className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
       >
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+        <div className="flex items-center gap-3 min-w-0 flex-1">
+          <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
             <Camera className="w-5 h-5 text-emerald-400" />
           </div>
-          <div className="text-left">
-            <h3 className="text-white font-semibold flex items-center gap-2">
-              Session Complete
+          <div className="text-left min-w-0 flex-1">
+            <h3 className={`${isLight ? 'text-foreground' : 'text-white'} font-semibold flex flex-wrap items-center gap-2`}>
+              {heading}
               {stats.needsTagging && (
                 <Badge className="bg-amber-500/20 text-amber-400 text-[10px]">
                   <AlertTriangle className="w-3 h-3 mr-1" />
@@ -77,7 +83,7 @@ export const PostSessionSummary = ({
                 </Badge>
               )}
             </h3>
-            <p className="text-zinc-400 text-sm flex items-center gap-2">
+            <p className={`${secondaryText} text-sm flex flex-wrap items-center gap-2 break-words`}>
               {gallery.title || 'Session'} 
               {gallery.spot_name && (
                 <span className="flex items-center gap-1">
@@ -89,9 +95,9 @@ export const PostSessionSummary = ({
           </div>
         </div>
         {collapsed ? (
-          <ChevronDown className="w-5 h-5 text-zinc-400" />
+          <ChevronDown className="w-5 h-5 text-zinc-400 shrink-0" />
         ) : (
-          <ChevronUp className="w-5 h-5 text-zinc-400" />
+          <ChevronUp className="w-5 h-5 text-zinc-400 shrink-0" />
         )}
       </button>
 
@@ -99,26 +105,26 @@ export const PostSessionSummary = ({
       {!collapsed && (
         <div className="px-4 pb-4 space-y-4">
           {/* Stats row */}
-          <div className="grid grid-cols-4 gap-3">
-            <div className="text-center p-3 rounded-lg bg-zinc-800/50">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className={statClass}>
               <ImageIcon className="w-5 h-5 text-cyan-400 mx-auto mb-1" />
-              <p className="text-xl font-bold text-white">{stats.totalItems}</p>
-              <p className="text-[10px] text-zinc-400">Photos</p>
+              <p className={valueClass}>{stats.totalItems}</p>
+              <p className={`text-[10px] ${secondaryText}`}>Photos</p>
             </div>
-            <div className="text-center p-3 rounded-lg bg-zinc-800/50">
+            <div className={statClass}>
               <Users className="w-5 h-5 text-purple-400 mx-auto mb-1" />
-              <p className="text-xl font-bold text-white">{stats.totalSurfers}</p>
-              <p className="text-[10px] text-zinc-400">Surfers</p>
+              <p className={valueClass}>{stats.totalSurfers}</p>
+              <p className={`text-[10px] ${secondaryText}`}>Surfers</p>
             </div>
-            <div className="text-center p-3 rounded-lg bg-zinc-800/50">
+            <div className={statClass}>
               <Sparkles className="w-5 h-5 text-emerald-400 mx-auto mb-1" />
-              <p className="text-xl font-bold text-white">{stats.aiMatched}</p>
-              <p className="text-[10px] text-zinc-400">AI Matched</p>
+              <p className={valueClass}>{stats.aiMatched}</p>
+              <p className={`text-[10px] ${secondaryText}`}>With deliveries</p>
             </div>
-            <div className="text-center p-3 rounded-lg bg-zinc-800/50">
+            <div className={statClass}>
               <Send className="w-5 h-5 text-amber-400 mx-auto mb-1" />
-              <p className="text-xl font-bold text-white">{stats.totalDistributed}</p>
-              <p className="text-[10px] text-zinc-400">Delivered</p>
+              <p className={valueClass}>{stats.totalDistributed}</p>
+              <p className={`text-[10px] ${secondaryText}`}>Delivered</p>
             </div>
           </div>
 
@@ -140,10 +146,10 @@ export const PostSessionSummary = ({
 
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2">
-            <Button aria-label="Loader2"
+            <Button aria-label="Distribute All to Lockers"
               onClick={onDistributeAll}
               disabled={isDistributing || stats.totalSurfers === 0}
-              className="flex-1 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white font-semibold"
+              className="flex-1 min-w-full sm:min-w-0 bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-600 hover:to-cyan-600 text-white font-semibold"
             >
               {isDistributing ? (
                 <>
@@ -158,7 +164,7 @@ export const PostSessionSummary = ({
               )}
             </Button>
 
-            <Button aria-label="Loader2"
+            <Button aria-label="AI Tag"
               onClick={onAiAutoTag}
               disabled={isAiTagging}
               variant="outline"
@@ -172,10 +178,10 @@ export const PostSessionSummary = ({
               AI Tag
             </Button>
 
-            <Button aria-label="Users"
+            <Button aria-label="Manual Tag"
               onClick={onOpenTagAssign}
               variant="outline"
-              className="border-zinc-600 text-zinc-300 hover:bg-zinc-800"
+              className={isLight ? 'border-border text-foreground hover:bg-muted' : 'border-zinc-600 text-zinc-300 hover:bg-zinc-800'}
             >
               <Users className="w-4 h-4 mr-1" />
               Manual Tag

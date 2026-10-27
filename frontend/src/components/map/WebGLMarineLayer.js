@@ -7,21 +7,25 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import WebGLMarineEngine from './WebGLMarineEngine';
 import { registerMarineEngine, unregisterMarineEngine, updateMarineTruthTrace } from '../../engine/RenderPlanDispatcher';
-import { isInCooldown, findClosestHourIndex } from './marineControllerUtils';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { shouldHoldScrubDowngrade } from './marineScrubHold';
 import { getMarineParticleRes } from './deviceTier';
-import { getMarineHourlyCache, getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getModelSafeMarine, prewarmZoomOutMarineGrid } from './marineController';
+import { prewarmZoomOutMarineGrid } from './marineController';
 import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from './mapUtils';
 import { recordClear, shouldHoldClearOnDeactivate, noteMarineActive, shouldHoldFrameThroughSwitch, noteMarineRenderableCommit } from './marineTransitionCoordinator';
 import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
+import { engineHoldsGrid, publishMarineDrawn } from './marineDrawnFrame';
 import { recordResolutionSample } from './marineResolutionWatch';
 import { markMaskViewportSettled } from './marineMaskShelter';
 import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
 import { measureMarineMaskRefresh, createMarineMaskSourceRedrive } from './marineMaskRefreshAttribution';
 import { desiredMaskRes, HIRES_MASK_EXIT_ZOOM } from './maskSmoothing';
 import { createCustomLayer, LAYER_ID, marineRefeedCovers, marineViewportBounds } from './WebGLMarineCustomLayer';
-import { uploadedGridServesHour } from './marineHourInstant';
+import { publishRenderParity, republishRenderParityAfterUpload } from './marineRenderParity';
+import { marineGridRejection } from './marineGridValidation';
+import { registerFrameStoreTarget, noteCommitted } from './marineFrameStoreRuntime'; // GPU-resident frames (behind static frames)
+import { layerUploadIsStale } from './marineZoomOutRelease';
+import { loadWaveLakes } from './waveLakes';   // lakes a wave model carries (waveLakes.js)
 
 // createCustomLayer and getLongitudinalOverlap helper functions are imported from WebGLMarineCustomLayer.js
 
@@ -60,6 +64,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     renderedDataHour: null
   });
   const scrubUploadTimeoutRef = useRef(null);
+  // Re-judge the parity record against the frame an upload/clear just left in lastUploadedGridRef (marineRenderParity.js).
+  const republishParity = () => republishRenderParityAfterUpload({ timeOffsetHoursRef, activeRef, activeModelRef, mapRef, activeLayersRef, lastUploadedGridRef });
 
   // POST-BRIDGE RESIDENCY RE-STAMP (2026-07-16, the stuck-coarse-at-coastal-zoom leg the watchdog
   // trapped): a zoom-out bridge promotion swaps the ENGINE resident to the coarse-global, but
@@ -90,6 +96,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
   // High-zoom land-mask refinement state: which mask resolution the engine currently reflects
   // ('standard' = 50m default, 'hires' = 10m), and a stable handle to the evaluator.
   const maskResRef = useRef('standard');
+  // GPU-resident frames: the store reaches this engine, GL context and map through refs read at call time.
+  useEffect(() => { registerFrameStoreTarget({ getEngine: () => engineRef.current, getGl: () => glRef.current, getMap: () => mapRef.current }); return () => registerFrameStoreTarget(null); }, []);
   const evaluateMaskRef = useRef(null);
 
   useEffect(() => {
@@ -105,100 +113,9 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     timeOffsetHoursRef.current = timeOffsetHours;
   }, [active, mapInstance, onAddedChange, onError, data, theme, beforeId, activeLayers, activeModel, timeOffsetHours]);
 
+  // Render-hour parity record (window.__MARINE_RENDER_HOUR_PARITY__ / __MARINE_HEATMAP_STATUS__): marineRenderParity.js.
   useEffect(() => {
-    if (typeof window === 'undefined') return;
-    const requestedHour = timeOffsetHours;
-    const lastSig = lastUploadedGridRef.current;
-    
-    const renderedDataHour = lastSig.vectorsLength > 0 ? lastSig.renderedDataHour : null;
-    // A frame labelled 15 IS offset 16's 12Z product at 3-hourly range: no "Stale Hour Retained" for it (marineHourInstant.js).
-    const parity = active && renderedDataHour !== null &&
-      (requestedHour === renderedDataHour || uploadedGridServesHour(lastSig, requestedHour, activeModel));
-    
-    let reason = 'parity_match';
-    if (!active) {
-      reason = 'layer_inactive';
-    } else if (renderedDataHour === null) {
-      reason = 'no_data_rendered';
-    } else if (!parity) {
-      let coverageMissing = false;
-      const isGfsBackend = getBackendWeatherFlag() && (activeModel === 'GFS' || !activeModel);
-      const isIconBackend = getBackendIconMarineFlag() && activeModel === 'ICON';
-      const isCopernicusBackend = getBackendCopernicusFlag() && activeModel === 'EURO';
-      const isBackendActive = isGfsBackend || isIconBackend || isCopernicusBackend;
-
-      if (isBackendActive) {
-        const curLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
-        let vpBounds = null;
-        if (mapInstance) {
-          try {
-            const b = mapInstance.getBounds();
-            vpBounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
-          } catch (e) {
-            vpBounds = null;
-          }
-        }
-        const cached = getModelSafeMarine(activeModel, requestedHour, curLayer, vpBounds);
-        if (!cached || cached.__staleHour || cached.__failureReason || cached.grid?.__failureReason) {
-          coverageMissing = true;
-        }
-      } else {
-        const cache = getMarineHourlyCache ? getMarineHourlyCache() : null;
-        if (cache?.results?.length) {
-          const timeArray = cache.results[0]?.hourly?.time;
-          const targetMs = Date.now() + requestedHour * 3600000;
-          const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
-          if (timeArray?.[idx]) {
-            const cachedMs = new Date(timeArray[idx].endsWith('Z') ? timeArray[idx] : timeArray[idx] + 'Z').getTime();
-            if (Math.abs(cachedMs - targetMs) > 3 * 3600000) {
-              coverageMissing = true;
-            }
-          } else {
-            coverageMissing = true;
-          }
-        } else {
-          coverageMissing = true;
-        }
-      }
-
-      if (coverageMissing) {
-        reason = 'coverageMissing';
-      } else if (isInCooldown('marine')) {
-        reason = 'cooldownActive';
-      } else {
-        reason = 'retained_previous';
-      }
-    }
-    
-    window.__MARINE_RENDER_HOUR_PARITY__ = {
-      requestedHour,
-      renderedDataHour,
-      parity,
-      reason
-    };
-
-    if (active && !parity) {
-      let statusValue = 'retained_previous_hour';
-      if (reason === 'cooldownActive') {
-        statusValue = 'rate_limited_cached';
-      } else if (reason === 'coverageMissing') {
-        statusValue = activeModel === 'EURO' ? 'no_copernicus_coverage' : 'no_backend_coverage';
-      }
-      window.__MARINE_HEATMAP_STATUS__ = {
-        status: statusValue,
-        model: activeModel,
-        layer: activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves',
-        hour: requestedHour,
-        renderedHour: renderedDataHour,
-        retainedPrevious: true
-      };
-    } else if (active && parity) {
-      if (window.__MARINE_HEATMAP_STATUS__?.status === 'retained_previous_hour' ||
-          window.__MARINE_HEATMAP_STATUS__?.status === 'no_copernicus_coverage' ||
-          window.__MARINE_HEATMAP_STATUS__?.status === 'no_backend_coverage') {
-        window.__MARINE_HEATMAP_STATUS__ = null;
-      }
-    }
+    publishRenderParity({ requestedHour: timeOffsetHours, active, activeModel, mapInstance, activeLayers: activeLayersRef.current, lastSig: lastUploadedGridRef.current });
   }, [timeOffsetHours, revision, active, activeModel]);
 
   const runDiagnosticsUpdate = (rejectionOrClearReason = null) => {
@@ -231,6 +148,10 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
     const gridProvider = grid.grid?.__gridProvider || grid.__gridProvider || 'none';
     const componentLayer = grid.grid?.__componentLayer || grid.__componentLayer || 'none';
+    // Reactivation and viewport re-feeds share this upload boundary with normal commits.
+    // They must honor the same source/layer gate and the ICON delivery kill switch.
+    const rejection = marineGridRejection(grid, activeModelRef.current, activeMarineLayer);
+    if (rejection) { runDiagnosticsUpdate(`render_blocked: ${rejection}`); return; }
     const actualBounds = grid.grid?.bounds || grid.bounds;
     const boundsStr = actualBounds ? `${actualBounds.west.toFixed(2)}:${actualBounds.south.toFixed(2)}:${actualBounds.east.toFixed(2)}:${actualBounds.north.toFixed(2)}` : 'none';
 
@@ -238,7 +159,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     const geojsonSig = geojson ? `land_${geojson.features?.length || 0}` : 'no_land';
     const themeSig = themeRef.current || 'default_style';
     const uploadSigResidency = `${gridModel}_${componentLayer}_${gridProvider}_${grid.vectors.length}_geo_${geojsonSig}_thm_${themeSig}`;
-    const alreadyResident = !!engine._waveData;
+    // A frame-store show wrote the engine directly, so the last upload below no longer describes it: nothing is a duplicate of it.
+    const alreadyResident = !!engine._waveData && !layerUploadIsStale(engine);
 
     const requestedHour = timeOffsetHoursRef.current;
     const renderedDataHour = grid.hourOffset !== undefined ? grid.hourOffset : (grid.grid?.hourOffset !== undefined ? grid.grid.hourOffset : null);
@@ -367,6 +289,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     // A renderable frame just committed — end any switch-hold window (the new target's data has landed,
     // so a subsequent same-target transient can never inherit a stale hold clock). See shouldHoldFrameThroughSwitch.
     noteMarineRenderableCommit();
+    if (engineHoldsGrid(engine, grid)) publishMarineDrawn(grid, { hour: timeOffsetHoursRef.current, layer: activeMarineLayer, model: gridModel }); // W-1: only what the engine TOOK
+    noteCommitted(grid, { hour: timeOffsetHoursRef.current, model: gridModel, layer: activeMarineLayer }); // which stored frame is resident
 
     updateMarineTruthTrace('upload', grid, activeModelRef.current, activeMarineLayer, timeOffsetHoursRef.current, 'forecast_direct', null, true);
 
@@ -390,6 +314,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       uploadSig: uploadSigResidency,
       samples: diffResult.currSamples
     };
+    republishParity();
 
     if (!window.__WEBGL_MARINE_UPLOAD_COUNT__) window.__WEBGL_MARINE_UPLOAD_COUNT__ = 0;
     window.__WEBGL_MARINE_UPLOAD_COUNT__++;
@@ -523,6 +448,12 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
   useEffect(() => {
     let activeFetch = true;
     landGeoJSONFailedRef.current = false;
+    // The lake outlines (~95 KB) load beside the land; when they land, the current data re-uploads once so a carried lake shows.
+    const lakesLoad = loadWaveLakes();
+    if (lakesLoad) lakesLoad.then((a) => {
+      const gl = glRef.current || mapInstance?.painter?.context?.gl;
+      if (a && activeFetch && gl && dataRef.current?.vectors?.length && safeUploadRef.current) safeUploadRef.current('wave_lakes_ready', gl, dataRef.current, landGeoJSONRef.current);
+    });
 
     getSharedLandGeoJSON()
       .then(geojson => {
@@ -933,6 +864,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
           boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
           sampleSum: 0, timestamp: 0, timeOffsetHours: 0, renderedDataHour: null
         };
+        republishParity();
         if (mapInstance) mapInstance.triggerRepaint();
       }
       return;
@@ -954,6 +886,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
             boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
             sampleSum: 0, timestamp: 0, timeOffsetHours: 0, renderedDataHour: null
           };
+          republishParity();
           if (mapInstance) mapInstance.triggerRepaint();
         }
         runDiagnosticsUpdate('unsupported_layer');
@@ -1064,6 +997,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
           boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
           sampleSum: 0, timestamp: 0, timeOffsetHours: 0, renderedDataHour: null
         };
+        republishParity();
 
         if (!window.__WEBGL_MARINE_CLEAR_COUNT__) window.__WEBGL_MARINE_CLEAR_COUNT__ = 0;
         window.__WEBGL_MARINE_CLEAR_COUNT__++;
@@ -1090,48 +1024,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     const gridProvider = currentData.grid?.__gridProvider || currentData.__gridProvider || 'none';
     const componentLayer = currentData.grid?.__componentLayer || currentData.__componentLayer || 'none';
 
-    const isEuro = activeModelRef.current === 'EURO';
-    const isGfsOrIcon = activeModelRef.current === 'GFS' || activeModelRef.current === 'ICON';
-    const isWaves = activeMarineLayer === 'waves';
-
-    let isValid = true;
-    let invalidReason = null;
-    if (gridModel !== activeModelRef.current) { isValid = false; invalidReason = 'model_mismatch'; }
-    if (isValid) {
-      if (isGfsOrIcon) {
-        // 'gfs_euro_blend' is the ICON synthesized-layer provider: swell_2 (no native gwam
-        // secondary swell) and the >240h extended-range grids are built as a GFS/EURO weighted
-        // blend in backendWeatherServiceClient*.js. It was missing from this whitelist, so the
-        // blended grid failed validation and was silently dropped (return below) — leaving the
-        // engine showing the PREVIOUS layer's texture. That is the "ICON swell_2 just renders a
-        // copy of swell_1" bug: verified live — engine._waveData.waveGrid.__componentLayer was
-        // 'swell_1' (629 vec, max 7.12) while the render gate held the swell_2 blend (171 vec,
-        // max 3.15). The componentLayer===activeMarineLayer guard below keeps it truth-safe.
-        if (gridProvider !== 'open-meteo' && gridProvider !== 'backend-weather-service' && gridProvider !== 'estimated' && gridProvider !== 'test-fixture' && gridProvider !== 'gfs_euro_blend') {
-          isValid = false; invalidReason = 'provider_not_whitelisted';
-        } else if ((gridProvider === 'backend-weather-service' || gridProvider === 'estimated' || gridProvider === 'test-fixture' || gridProvider === 'gfs_euro_blend') && componentLayer !== activeMarineLayer) {
-          isValid = false; invalidReason = 'component_layer_mismatch';
-        }
-      } else if (isEuro) {
-        const isFallbackProvider = ['gfs_estimated_fallback', 'gfs_estimated_backdrop', 'open-meteo', 'estimated', 'test-fixture'].includes(gridProvider);
-        if (isWaves) {
-          if (gridProvider !== 'copernicus' && gridProvider !== 'backend-weather-service' && !isFallbackProvider) {
-            isValid = false; invalidReason = 'provider_not_whitelisted';
-          } else if (componentLayer !== activeMarineLayer) {
-            isValid = false; invalidReason = 'component_layer_mismatch';
-          }
-        } else {
-          const validEuroComponentProviders = ['copernicus', 'backend-weather-service', 'gfs_estimated_fallback', 'gfs_estimated_backdrop', 'open-meteo', 'estimated', 'test-fixture'];
-          if (!validEuroComponentProviders.includes(gridProvider)) {
-            isValid = false; invalidReason = 'provider_not_whitelisted';
-          } else if (componentLayer !== activeMarineLayer) {
-            isValid = false; invalidReason = 'component_layer_mismatch';
-          }
-        }
-      }
-    }
-
-    if (!isValid) {
+    const invalidReason = marineGridRejection(currentData, activeModelRef.current, activeMarineLayer, activeModel);
+    if (invalidReason) {
       // FORENSIC PROBE (swell_2 intermittent-load investigation): the drop below is otherwise SILENT,
       // so the heatmap "won't load / shows the wrong layer" with zero console trace. Stash the
       // discriminating fields (and console.warn for the swell_2 case) so a live repro on a VISIBLE

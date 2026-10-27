@@ -1263,3 +1263,204 @@ A stored estimate can be estimated again in a browser branch with different sour
   solves with no cap put 0.4 to 0.5 dE00 on one row; capped, the total was lower too. **Do:** name the bar where it is drawn
   (L-V69); budget rounding per pair, not per table; print every bar with every candidate, because under the lowest cap the
   solve reached the floor only by leaving a bar.
+
+- **L-P36 · Before telling the owner how a blocked merge can be released, read the WHOLE protection rule, not the one line
+  that blocks.** A promotion to `main` was blocked by a required check that no longer exists. The owner was told twice, and
+  the PR body said, that they could either fix the rule or "merge it yourself with your admin override". The rule also had
+  `enforce_admins` on: there was no override, for anyone. One API call (`branches/main/protection`) had returned the required
+  list and was read for that list only; the same answer held `enforce_admins`, twelve hours before it was looked at. Nothing
+  was lost (the owner chose to fix the rule), but an option that does not exist was offered as a way out. And a rule the owner
+  "does not see" is a classic branch protection rule being looked for under Rulesets: give the direct address
+  (`settings/branch_protection_rules/<id>`, the id from GraphQL `branchProtectionRules`). **Do:** (1) when a merge is blocked,
+  read required checks, strict, linear history, admin enforcement and rulesets together, and say which merge METHODS and which
+  BYPASSES exist before proposing one; (2) name the setting's exact address; (3) a session never edits branch protection: it
+  is the owner's security setting.
+
+- **L-P37 · Before merging a lane's PR, read the lane's own branch against the PR's head; and a close-out ends with a sweep of
+  every local branch against its upstream.** #327 was merged ten minutes after the colours lane committed its follow-up to
+  the independent review (comments made true, a guard in its solver), and that commit was never pushed. The PR's checks were
+  green, on the older head; "the review is answered" was true in the lane's worktree and not on GitHub. The lead read
+  `gh pr view` before the merge, and that shows only what GitHub has. Nothing a user sees changed; two comments and a
+  README line gave the wrong range on dev for fifteen hours, until a sweep asked for by the owner ("make sure everything is also
+  pushed") found one branch `[ahead 1]`. **Do:** (1) before merging a lane's PR, compare `git rev-parse <lane branch>` with
+  the PR's `headRefOid`, and read `git status --porcelain` in the lane's worktree (a read, not a write): a difference is a
+  question to the lane, not a merge; (2) a lane's hand-back names the SHA it PUSHED, and the lead checks it is the PR's head;
+  (3) at the end of a program run `git for-each-ref refs/heads --format='%(refname:short) %(upstream:track)'`: every
+  `[ahead N]` on a branch that had a PR is landed or explained, and every branch with no upstream is named as left local on
+  purpose.
+
+### 2026-10-15 — Durable intent precedes every external checkout side effect
+
+- The recoverable purchase is not the response URL. Commit identity, frozen provider parameters and any purchaser credit reservation before the SDK; commit the attempt checkpoint before calling it. Response loss and commit-ack loss must reuse one purchase, not create a new request identity. Never store API credentials with frozen parameters.
+- A binding can be lost by a later rollback. Commit verified session identity before entering fulfillment that may deliberately roll back into a reconciliation case. Refresh terminal transaction state when an older open snapshot returns; recheck current availability after provider I/O before returning its URL.
+- Preserve the existing payment-method contract during a recovery repair. Removing card-only parameters silently adds delayed-payment lifecycle requirements. A guard placed in a similarly named method broke a neighboring deposit route; independent review plus an actual neighboring-route regression found it.
+- Unknown outcomes do not justify a fresh idempotency key, new deadline or automatic refund. Respect provider retention and creation-deadline limits; expose explicit owner/operator recovery and keep terminal case evidence. A pending credit reservation is not a photographer time-slot reservation.
+- Compare inherited failures with immutable parent source. The same two old rollback expectations failed before/after; record them as a remaining red gate rather than weaken the tests or claim a fully green regression run. Local provider creation proof and real database contention do not certify hosted deployment, full UI or exact runtime parity.
+- Isolation includes old test artifacts. The previous local database config failed its disposable-name guard, so this session created and stopped its own new cluster. Shared wind work, frozen candidate refs and current master adoption sequencing were preserved. Evidence: `docs/audits/2026-10-15-orphan-checkout-repair.md`, code46a1d1b8.
+
+
+### 2026-10-15 — Publication, DEV adoption and rollout are separate facts
+
+- Read the target and current rollout ownership before integration. An older branch can carry valid payment code and a diverged weather-memory ledger; publish the source without merging that history over newer wind work. Adopt confirmed records on the latest DEV and append new actions onto its exact ledger prefix.
+- Provider deployment skips suppress this push, not later rollouts. Render supports `[skip render]`; Netlify supports `[skip netlify]` and explicitly deploys deferred changes on the next unskipped commit. Do not place unqualified schema-dependent code in DEV merely because this one push can skip deployment.
+- Match a result to its boundary: fresh bounded152 passed, prior actual PG74 passed, inherited wider-suite2 failures remain open. Remote SHA read-back proves branch publication; it does not prove hosted CI, deployed schema, paid frontend acceptance or weather readiness. Evidence: `docs/audits/2026-10-15-orphan-checkout-repair.md`.
+
+
+### 2026-10-17 — A gauge that reads zero is a defect until the population it counts is shown
+
+- The one-step manifest lane's retention gauge read `0 unique manifest copies standing, 0 deleted` on 318 of 318 lines while Storage held 353 of them. The listing was 100 rows, oldest first, and 2,665 differently named
+  legacy files sorted ahead of every copy the lane made. Seven independent reviews and 396 passing tests missed it because every test seeded only the lane's own names. A bounded, sorted listing is only as good as the
+  population in the bucket it will meet: seed the production's pre-existing objects (read their names from `storage.objects` before writing the test), and read a zero from a gauge as "this cannot see its subject" until a
+  second instrument (here a metadata select) shows the subject is really absent.
+- A "first scheduled run" watch must include the storage and cost criteria, not only "no errors": the lane published correctly and quietly filled the bucket. The commitment that named "storage growth bounded" caught it on
+  the first read, which is the reason to name the criteria before enabling.
+- A logged count can be right and still describe the wrong thing: the gauge's own text said "listing capped at 100: there may be more". When a gauge states its blind spot, that sentence is the first thing to test.
+
+
+### 2026-10-22 — L-S22 · A parity fixture is only as good as the population it holds: seed masked cells, and compare with what the route SERVES
+
+- #453 shipped eight static world sets on an offline parity of 27.5 M nodes, 0 bad, over a synthetic store with NO masked cells.
+  /grid runs `coarse_gulf_fill` on EURO/ICON grids of served span >= 350 deg (every world request) and rewrites masked cells with
+  GFS coarse values. Over an all-ocean store that step is a no-op, so the parity could not see it. Live, one world /grid read
+  2026-10-22 21:55Z: EURO 2,465 of 4,689 masked cells rewritten, ICON 1,708 of 3,788. Caught on review before any ICON/EURO frame
+  was published; guard #461.
+- Second trap, same day: the first synthetic land mask also masked the 10-deg GFS donor over whole continents, so no masked 2-deg
+  cell had a donor within the fill's bucket reach and the fill still did nothing; my first offline number (1,757 of 2,066) had come
+  from an all-valid donor. A fixture must reproduce the PRODUCTION shape of every input a transform reads (here: coarse cells valid
+  wherever they hold ocean), not just the input under test.
+- Rule: a parity that claims "static == /grid" runs over a store that carries the cells every serve-time step touches (masked
+  cells, enclosed seas, estimated tails), compares against the route's full output (resolve_grid, then every post-resolve step in
+  routes/weather.py: coarse_gulf_fill, wind_lane), and carries a POSITIVE CONTROL that is seen to fail (`serve_synthetic.py
+  --land-mask 1` + `scn_static_parity.mjs` reads ICON/EURO world frames bad > 0; GUARD=1 reads 0). When the live product holds a
+  population the fixture lacks, measure one live response's stamp (here `coarse_fill.cells_filled`) before trusting the fixture.
+
+
+### 2026-10-23 — L-P38 · A shared append-only file with a global sequence serialises every writer: give each writer its own file and one folder
+
+- Every PR appended to ACTIONS.jsonl and moved STATE's anchor, so any two open PRs claimed the same seq; the second to merge
+  conflicted and was re-chained by hand, then waited ~25 min for CI again (about 15 merges on 2026-10-22, most re-chained).
+  Auto-merge could never run unattended. Re-chaining also looked like tampering to a permission classifier ("stripping
+  ledger lines"), because from outside a re-chain and a rewrite are the same diff.
+- Fix (D-0XX): per-PR fragments (`ledger.d/<branch-slug>.jsonl`, no seq/prev/at) and one writer of the chain (the lead's
+  `fold-pr`), which folds in MERGE ORDER, verifies, content-matches every line and only then deletes the fragments. The guard
+  recomputes the fold from dev and requires equality, so a fold is checkable, not trusted.
+- Rule: when N writers share an ordered log, separate WRITING (one file each, no shared counter) from ORDERING (one writer, after
+  the merge, from an order git already records). A reference to a line that has no number yet needs a name of its own
+  (`@frag:<name>:N`), and the folded line keeps that name (`fragment`) so the reference still resolves after the file is gone.
+
+
+### 2026-10-23 — L-P39 · Git conflicts on ADJACENT lines: give each independent writer its own block, and re-derive a same-block collision
+
+- Once the ledger fragments ended the ACTIONS.jsonl collisions, the next hotspot was `_FLOOR_SET_FROM` in
+  `backend/tests/test_ci_floor_staleness.py`: `{"guards": ..., "chain": ..., "estate": ...}` on ONE line, so any two PRs
+  that moved floors in DIFFERENT lanes conflicted (#470 estate vs #467 chain, #474 guards vs #467 chain, #475 estate).
+- "One key per line" alone does not fix it. Measured in a throwaway repo: two branches that change ADJACENT lines conflict;
+  one blank line between them merges clean (`test_rederive_floor.py` pins both, on the real block). The map is now one
+  block per lane (its provenance comment line + its key) with a blank line between lanes, and a PR REPLACES its lane's
+  provenance line instead of appending history next to the map (appending at the same spot is a conflict of its own).
+- A same-lane collision still conflicts, and should: the right answer is neither side. Re-derive it. Take dev's side of
+  both files, then `python backend/scripts/rederive_floor.py --lane <lane> --add <N> [--add-files <M>]` (or `--add auto`
+  mid-conflict: the PR's own change, read as its HEAD minus its merge base with dev, which also works for a PR still on
+  the old one-line map). It works out:
+  - base = max(dev's last GREEN hosted read, dev's `_FLOOR_SET_FROM`), because the map can be ahead of the last
+    green run when a PR merged after it;
+  - set-from = base + N;
+  - floor = set-from - the lane's budget (guards/chain 6, estate 2);
+  - files = max(hosted, dev's MIN_FILES) + M.
+
+  It writes ci.yml and the map together, and the PR must then read set-from passed.
+- Rule: before calling two writers "independent", check what separates their edits in the file. If nothing does
+  (same line, or adjacent lines), they are one writer to git.
+- ⬆ Correction, 2026-10-24: "`--add auto` ... read as its HEAD minus its merge base" was wrong for any branch whose
+  floor the helper had already set. The helper bases its value on dev's map, which can be NEWER than the branch's
+  merge base, so the difference also counts other PRs' tests (#513 read +43 for its own +17). `--add auto` now reads
+  the branch's own tagged note (`+ N new test(s)`, and `M new file(s)` from 2026-10-24); the difference is only the
+  fallback for a branch the helper never ran on. A value derived from a later read is not a delta against the base.
+
+
+### 2026-10-23 — L-S23 · "Valid" for a masked field is a per-region count from the data, never a sentence
+- What happened: #463 and its DECISIONS draft said the 2-deg Gulf fill "has no enclosed-sea job (EURO's global_mid Gulf is
+  valid, ICON has no holes)". Nobody had counted. The lead counted on the published frames: EURO masks 870 of 10,168 GFS-sea
+  nodes, 44 of 113 in the Mediterranean and 15 of 59 in the Gulf of Mexico. Had the owner flipped the fill off on that sentence,
+  real sea would have gone blank. The evidence pack's own diff showed the problem too (2,465 painted cells include sea), but
+  it was read as "land painted" because the categories were land vs. not-land, never sea vs. not-sea.
+- Root cause of the mask, found by measuring the source: ECMWF's native cell at each such node is land, the height is block-
+  meaned but direction and period are point-sampled, and the normalizer drops a node with no direction.
+- Rule: before a claim that a masked field is (in)valid somewhere, count it per named region against an independent
+  reference mask (here GFS's), and put the table in the claim. An evidence pack categorises against sea AND land, not one.
+
+
+### 2026-10-23 — L-P40 · A snapshot's cut-off is when it READ, not when it landed
+
+- The audit's fold point was the fold PR's MERGE time. `fold-pr --record-merges` records the merges that exist when it
+  reads dev, so a PR that merged between the fold PR's open and its merge (#494 at 21:30Z before fold #495; #498 at
+  22:03Z before fold #499) fell older than the fold point unrecorded: the audit FAILed it, every open PR's verify went
+  red, and the fix-up fold could race again.
+- Fix: the fold point is the fold's own `at`, taken before its fetch (so every older merge was in its base), less 5
+  minutes of clock slack, read from the folded lines in ACTIONS.jsonl, not from a squash commit's message, which a
+  repo setting can strip. On dev, #498 went from FAIL to WARN.
+- Rule: anything that "covers everything up to now" must carry its own "now" (the moment it read its input), and
+  everything downstream judges against that moment, never against when the snapshot happened to be merged or deployed.
+
+
+### 2026-10-23 — L-S24 · Parity is checked against the path the user gets, not the path the test server has
+
+- What happened: #491's regional bundles passed offline parity against /grid_series (598,464 nodes, 0 bad) and failed it
+  live (lattice mismatch; 465 of 585 sub-box nodes bad). Live, the resolver answers in-tile z7-9 GFS waves from the dynamic
+  lane (Open-Meteo "ncep_gfswave025" resampled to an 11x13 viewport lattice) because Steps 1-2 (the dynamic cache on the
+  1-deg snapped key) run before the stored tile. The offline serve_synthetic has no dynamic lane, so it could only ever
+  agree. One live session mixed the two products (first frame from the dynamic mini, scrub frames from the bundle).
+- Rule: a parity gate names every lane the live route can take for the box and runs against the one users actually get
+  (a health-gated live read, or a test server that includes that lane). An offline pass is necessary, never sufficient.
+  The owner chose one source (the stored tile, 2026-10-23 18:13 EDT); #500 keeps the client dark until it passes live.
+
+### 2026-10-23 — L-P41 · A change to request or reload behaviour is armed only after every mode arm is measured
+
+- What happened: #501 (pan snap, reuse, supersede, debounce, settle reload guard) was armed on its surf-mode replay alone
+  and merged before the swell arm ran. The swell arm showed the "never reload when a covering frame exists" guard
+  suppressed the interim-to-fine upgrade (swell GFS z8 /grid 11 -> 19, pages 6 -> 8). Fixed by #505's per-view budget.
+- Rule: before arming, measure surf AND swell, for every affected model, to the point the client stops asking; a guard
+  that only removes requests can still remove the one that upgrades the picture.
+
+### 2026-10-23 — L-P42 · A conflicting PR runs no CI
+
+- What happened: #476's checks read "1 pass, 3 skipping" for an hour while its session waited for CI; GitHub does not run
+  pull_request workflows on a conflicting PR. Two more PRs sat the same way after neighbours merged.
+- Rule: a watcher reads `mergeable` before it reads checks; CONFLICTING means merge dev (floor map by lane, append-only
+  logs and fragments dev-first, SCOREBOARD rows by time), push, and re-arm.
+
+### 2026-10-23 — L-O6 · A red E2E during a saturated box is the box until shown otherwise
+
+- What happened: E2E on #476's dev push failed 3 and flaked 2 (admin panel, /auth redirect, explore cards). Every failure
+  sat in 19:47-19:5xZ, when the live box was at 100% CPU (15 s axios timeouts); the same tests had passed minutes earlier,
+  and the next dev run was green (67 passed). E2E mocks weather but its other routes call the LIVE backend.
+- Rule: before blaming code for a red E2E, read /api/health and Render CPU at the failure timestamps.
+
+### 2026-10-23 — L-O7 · A live timing read needs an unthrottled window
+
+- What happened: the lead's #491 live read logged a 5.7 s first frame and 1-2 s steps; an idle two-rAF in that window took
+  1,725 ms while visible and focused (CPU 15-25%). The timings measured the automation window's throttling, not the app.
+- Rule: measure an idle two-rAF first; above about 40 ms the window is throttled, so report request counts only.
+
+### 2026-10-23 — L-O8 · One session can saturate the box when four small multipliers line up
+
+- What happened: from 19:44Z one session with Surf Rating ON, panning ICON/EURO at z7-9, held the 1-CPU box at 100% CPU
+  for 20 minutes (health 11-25 s): an unsnapped request box per pan (a new 16-hour surf page, 10-25 s of CPU each), a mini
+  per pan, sibling surf prefetch of hidden layers, and a settle tick force-reloading a product that could never sharpen.
+  Fixes: #492 (no sibling warm in surf mode), #501 (snap, reuse, supersede, debounce, low priority), #505 (reload budget).
+- Rule: every client request that a gesture can repeat is snapped, reused, superseded and bounded; replay the owner's real
+  gesture pattern (mode, model, zoom, pan count) to the point the client stops asking, with the box's cost modelled.
+
+
+### 2026-10-23 — L-S25 · Read which check refused before tuning a tolerance; a rebuilt quantity's error scales with its inputs
+
+- The pilots publish (run 40019869501) refused 5 ICON world frames. The visible near-miss in the log was dir_confidence
+  0.001967, so the brief was to tune that tolerance. But 0.001967 is inside its own (half of its 1/254 step, 0.0019685),
+  and four of the five frames read 0.0 there. All five failed the u/v rebuild instead: 0.0012-0.0016 against a FIXED 0.0012.
+- The stored u/v come from the unrounded height and direction; the frame rebuilds them from the 0.01-deg direction, so the
+  error carries h * radians(0.005): measured with the real codec over 400,000 nodes, it crosses 0.0012 at 10-12 m seas.
+  Wind's u/v tolerance already scaled with speed; marine's did not.
+- Rule: before changing a tolerance, find the check that actually failed (the field whose error exceeds ITS tolerance,
+  not the largest-looking number). Derive every tolerance from the encoding's steps, and when a check compares a quantity
+  rebuilt from quantised inputs, carry each input's error through the formula (here, a term that grows with height).
+  Loosen only what the measurement says; keep the old value as a floor until accepted frames' errors can be measured too.

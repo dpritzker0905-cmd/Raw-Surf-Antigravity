@@ -32,6 +32,15 @@ const DEFAULTS = {
   persistFrames: 6,     // ≥6 consecutive frames = persistent
   transientFrames: 3,   // 3..5 consecutive frames = transient flash
   maxSettledStep: 16,   // |ΔL| between same-zoom consecutive frames (content-swap variance ~11-14)
+  // TIME-WINDOWED SETTLED STEP (2026-10-19, owner): the threshold above was calibrated on the CI runner, which captures a frame
+  // every ~1.25 s (staircase_full: 355 frames in 453 s, run 39297393276). A desktop captures every ~0.27 s, so the same change
+  // spread over time showed as ~4.6x smaller per-frame steps there: CI failed (33) while the same build passed locally (max
+  // 9.9). Steps are now measured over a fixed time window: each settled frame is compared with the next same-zoom frame at least
+  // settledWindowMs later (the anchor then moves to it). On CI almost every gap already exceeds the window, so its pairs are the
+  // consecutive ones as before; a faster machine is decimated to the same cadence, so frame-to-frame shimmer is not amplified
+  // (scaling the per-frame |ΔL| by the gap was tried and rejected: it multiplied shimmer, 46-61 false steps per local run).
+  // Traces without frame times keep the per-frame rule. Old rule: { settledWindowMs: 0 } or --per-frame.
+  settledWindowMs: 1000,
   // LAND EXCLUSION (2026-07-18 EVE-2): with trace.water (zoomlab's probeMaskGPU column ground
   // truth), a band whose columns average below landWaterMin water fraction is LAND — never a
   // marine dead-band finding. The Florida peninsula parked under cols 4-13 at the mid-zoom
@@ -117,13 +126,27 @@ function analyzeTrace(trace, opts = {}) {
   }
 
   // --- settled luminance steps + mult0 ---
+  let anchor = null;   // the earlier frame of the current time-window comparison (same zoom)
   for (let i = 1; i < all.length; i++) {
     const a = all[i - 1], b = all[i];
     if (typeof a.L !== 'number' || typeof b.L !== 'number') continue;
     if (b.mult === 0) findings.push({ type: 'MULT0_FRAME', t: b.t });
-    if (Math.abs((b.z ?? 0) - (a.z ?? 0)) < 0.01 && Math.abs(b.L - a.L) > cfg.maxSettledStep) {
-      findings.push({ type: 'SETTLED_STEP', t: b.t, z: b.z, dL: +(b.L - a.L).toFixed(1) });
+    const timed = cfg.settledWindowMs > 0 && Number.isFinite(a.t) && Number.isFinite(b.t);
+    if (!timed) {
+      if (Math.abs((b.z ?? 0) - (a.z ?? 0)) < 0.01 && Math.abs(b.L - a.L) > cfg.maxSettledStep) {
+        findings.push({ type: 'SETTLED_STEP', t: b.t, z: b.z, dL: +(b.L - a.L).toFixed(1) });
+      }
+      continue;
     }
+    if (!anchor || Math.abs((b.z ?? 0) - (anchor.z ?? 0)) >= 0.01 || typeof anchor.L !== 'number') {
+      anchor = Math.abs((b.z ?? 0) - (a.z ?? 0)) < 0.01 ? a : b;   // a new settled run starts at its first same-zoom frame
+      if (anchor === b) continue;
+    }
+    if (b.t - anchor.t < cfg.settledWindowMs) continue;
+    if (Math.abs(b.L - anchor.L) > cfg.maxSettledStep) {
+      findings.push({ type: 'SETTLED_STEP', t: b.t, z: b.z, dL: +(b.L - anchor.L).toFixed(1), windowMs: b.t - anchor.t });
+    }
+    anchor = b;
   }
 
   // --- console errors ride along, CLASSIFIED (2026-08-09) ---
@@ -201,7 +224,7 @@ if (require.main === module) {
   if (scenarioIndex >= 0 && (!process.argv[scenarioIndex + 1] || process.argv[scenarioIndex + 1].startsWith('--'))) {
     console.error('--scenario requires a scenario name'); process.exit(2);
   }
-  const verdict = analyzeTrace(trace, scenarioIndex >= 0 ? { expectedScenario: process.argv[scenarioIndex + 1] } : {});
+  const verdict = analyzeTrace(trace, { ...(scenarioIndex >= 0 ? { expectedScenario: process.argv[scenarioIndex + 1] } : {}), ...(process.argv.includes('--per-frame') ? { settledWindowMs: 0 } : {}) });
   if (process.argv.includes('--json')) console.log(JSON.stringify(verdict, null, 1));
   else {
     console.log(`[verdict] ${verdict.verdict} — ${verdict.renderFindings.length} render finding(s), `

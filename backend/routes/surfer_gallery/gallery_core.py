@@ -474,9 +474,10 @@ async def request_edit(
         user_id=gi.photographer_id,
         type="edit_request",
         title="Edit Request",
-        message=f"{surfer.full_name if surfer else 'A surfer'} requested edits: {message}",
-        related_entity_id=str(gi.id),
-        related_entity_type="gallery_item"
+        # `message` / `related_entity_*` are not Notification columns (TypeError, so no edit request ever reached
+        # the photographer): the text is `body`, the link target rides in the JSON-text `data`.
+        body=f"{surfer.full_name if surfer else 'A surfer'} requested edits: {message}",
+        data=json.dumps({"gallery_item_id": str(gi.id), "entity_type": "gallery_item"})
     )
     db.add(notification)
     await db.commit()

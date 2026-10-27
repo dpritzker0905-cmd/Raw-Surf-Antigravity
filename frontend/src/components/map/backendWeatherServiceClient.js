@@ -11,11 +11,16 @@ import { BACKEND_URL } from '../../lib/apiClient';
 import { BoundedPointCache } from './BoundedPointCache';
 import { readMarineSurfMode } from './marineSurfMode';
 import { clampViewportBbox, getCachedManifest, setCachedManifest } from './backendWeatherServiceClientCoverage';
+import { getManifestTimeIndex, manifestGroupKey, manifestTimeIndexEnabled, nearestValidTime } from './manifestTimeIndex';
 import { latestTimeDiag, updateDiagnostics, updateProjectionDiag } from './backendWeatherServiceClientDiag';
 import { recordTruthStage } from './weatherTruthTracker';
 import { fetchBackendMarineGridIconExtended, mapNormalizedGridToWebGL } from './backendWeatherServiceClientHelpers';
 import { arrayMax, arrayMin } from './marineControllerUtils';
-import { blendSubVector } from './marineDirectionBlend';
+import { blendIconSwell2 } from './iconSwell2Blend';
+import { requireStoredIconEstimate } from './iconEstimateDelivery';
+import { noteRequestDiet, planManifestFetch, requestDietOn } from './marineRequestDiet';
+import { staticEligible, tryStaticWorldGrid } from './staticFrames';
+import { noteBackendAnswer } from './staticRegional';
 
 
 export { BoundedPointCache };
@@ -34,16 +39,26 @@ import './backendWeatherServiceClientTrace';
  * Forces refetch if cachedManifest is empty to support dynamic ingestion updates.
  */
 let manifestFetchPromise = null;
+let lastBackgroundManifestStartMs = null;
 
-export async function fetchProductsManifest(forceRefresh = false) {
+// PRODUCTS_SHARE (request diet 2026-10-20, marineRequestDiet.js): `background` marks the fire-and-forget refresh getSharedValidTime
+// starts while the manifest is not loaded (or empty). Before, every such call skipped the in-flight promise and started its own
+// 10.75 MB download (9-13 per map open in the live access logs, ~1.8 s of server event loop each); now a forced call shares the
+// running download and background refreshes are spaced MANIFEST_BACKGROUND_REFRESH_MIN_MS apart. Kill: __RAW_DISABLE_PRODUCTS_SHARE__.
+export async function fetchProductsManifest(forceRefresh = false, { background = false } = {}) {
   const cached = getCachedManifest();
   const isEmpty = cached && Array.isArray(cached.products) && cached.products.length === 0;
   if (cached && !forceRefresh && !isEmpty) return cached;
-  if (manifestFetchPromise && !forceRefresh) return manifestFetchPromise;
+  const plan = planManifestFetch({ inFlight: !!manifestFetchPromise, force: forceRefresh, background,
+    lastBackgroundStartMs: lastBackgroundManifestStartMs, nowMs: Date.now() });
+  if (plan === 'share') { if (forceRefresh) noteRequestDiet('products_shared'); return manifestFetchPromise; }
+  if (plan === 'skip') { noteRequestDiet('products_refresh_spaced'); return cached || null; }
+  if (background) lastBackgroundManifestStartMs = Date.now();
 
-  manifestFetchPromise = (async () => {
+  const p = (async () => {
     try {
-      const res = await fetch(STATUS_URL.replace('/status', '/products'));
+      // PRODUCTS_COMPACT (#423): only the seven fields the client reads; an older backend ignores the parameter (full list).
+      const res = await fetch(STATUS_URL.replace('/status', '/products') + (requestDietOn('PRODUCTS_COMPACT') ? '?fields=compact' : ''));
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       setCachedManifest(data);
@@ -52,11 +67,19 @@ export async function fetchProductsManifest(forceRefresh = false) {
       console.warn("[Backend Weather Service] Failed to fetch products manifest:", err.message);
       return null;
     } finally {
-      manifestFetchPromise = null;
+      // Identity-safe: a download superseded under the kill switch must not clear the newer one's slot.
+      if (manifestFetchPromise === p || !requestDietOn('PRODUCTS_SHARE')) manifestFetchPromise = null;
     }
   })();
+  manifestFetchPromise = p;
 
   return manifestFetchPromise;
+}
+
+/** Test seam: forget the in-flight download and the background spacing clock. */
+export function _resetProductsManifestFetchForTest() {
+  manifestFetchPromise = null;
+  lastBackgroundManifestStartMs = null;
 }
 
 /**
@@ -230,14 +253,27 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName =
   const hasEmptyProducts = manifest && Array.isArray(manifest.products) && manifest.products.length === 0;
 
   if (manifest && Array.isArray(manifest.products) && !hasEmptyProducts) {
-    const matchingProducts = manifest.products.filter(p => 
-      p.model.toUpperCase() === filterModel &&
-      p.domain.toLowerCase() === filterDomain &&
-      p.layer.toLowerCase() === filterLayer
-    );
-
-    if (matchingProducts.length > 0) {
-      let minDiffMs = Infinity;
+    // The nearest product's time, from the per-manifest index (manifestTimeIndex.js: built once, binary-searched, the same
+    // answer as the scan below, ties included) or, with its kill switch or a malformed manifest, from the original scan.
+    let matchCount = 0;
+    let minDiffMs = Infinity;
+    let bestMs = null;
+    const timeIndex = manifestTimeIndexEnabled() ? getManifestTimeIndex(manifest.products) : null;
+    if (timeIndex) {
+      const group = timeIndex.get(manifestGroupKey(filterModel, filterDomain, filterLayer));
+      if (group) {
+        matchCount = group.count;
+        const near = nearestValidTime(group, targetDt.getTime());
+        minDiffMs = near.diffMs;
+        bestMs = near.ms;
+      }
+    } else {
+      const matchingProducts = manifest.products.filter(p => 
+        p.model.toUpperCase() === filterModel &&
+        p.domain.toLowerCase() === filterDomain &&
+        p.layer.toLowerCase() === filterLayer
+      );
+      matchCount = matchingProducts.length;
       let bestProduct = null;
 
       for (const p of matchingProducts) {
@@ -248,10 +284,13 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName =
           bestProduct = p;
         }
       }
+      if (bestProduct) bestMs = new Date(bestProduct.valid_time_start).getTime();
+    }
 
+    if (matchCount > 0) {
       // Snapped to products within a max 3h delta window
-      if (minDiffMs <= 3 * 3600000 && bestProduct) {
-        selectedManifestValidTime = new Date(bestProduct.valid_time_start).toISOString();
+      if (minDiffMs <= 3 * 3600000 && bestMs !== null) {
+        selectedManifestValidTime = new Date(bestMs).toISOString();
         manifestDeltaHours = minDiffMs / 3600000;
       } else {
         fallbackReason = `No ${filterModel} ${filterLayer} product within 3 hours delta limit (${(minDiffMs / 3600000).toFixed(1)}h delta)`;
@@ -262,7 +301,7 @@ export function getSharedValidTime(timeOffsetHours, layer = 'waves', modelName =
   } else {
     fallbackReason = "Manifest is not yet loaded, empty, or invalid; using snapped target valid time as fallback";
     // Prefetch or refresh manifest in background
-    if (!readOnly) fetchProductsManifest(true).catch(() => {});
+    if (!readOnly) fetchProductsManifest(true, { background: true }).catch(() => {});
   }
 
   const cacheDiagKey = `${filterModel}_${filterLayer}`;
@@ -291,14 +330,14 @@ export { fetchBackendExactPoint } from './backendWeatherServiceClientPoint';
 /**
  * Fetches marine conformed forecast grid from backend weather service.
  */
-export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer = 'waves', model = 'GFS') {
+export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer = 'waves', model = 'GFS', options = {}) {
   await fetchProductsManifest().catch(() => null);
 
   // D-001: changing displayed forecasts stays dark until the owner authorizes a flip.
   // When enabled, use the backend's stored estimate and its product/run/served-time identity.
   // Secondary swell retains its separately disclosed legacy estimate (D-003).
   const storedIconTail = process.env.REACT_APP_ICON_STORED_TAIL === 'true';
-  if (model === 'ICON' && hourOffset > 168 && (!storedIconTail || layer === 'swell_2')) {
+  if (model === 'ICON' && hourOffset > 168 && !options.storedIconRecovery && (!storedIconTail || layer === 'swell_2')) {
     if (hourOffset <= 240 && layer === 'swell_2') {
       // Fall through to existing swell_2 blender below
     } else {
@@ -327,119 +366,8 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
 
       const gfsGrid = gfsResult.status === 'fulfilled' ? gfsResult.value : null;
       const euroGrid = euroResult.status === 'fulfilled' ? euroResult.value : null;
-      const gfsVectors = gfsGrid?.grid?.vectors || [];
-      const euroVectors = euroGrid?.grid?.vectors || [];
-
-      // Anchor the blend on the grid with MORE vectors (the finer/fuller resolution). FIX: GFS swell_2 can
-      // come back as a coarse fallback (e.g. 60 vectors) while EURO returns a rich dynamic grid (629 vectors,
-      // 348 nonzero in the Gulf) — anchoring on GFS + an exact (lat*100)|0 key DROPPED EURO's real secondary
-      // swell, leaving the "Gulf/Antarctica square of no swell_2". Anchor on the fuller grid so that coverage
-      // is preserved; then per-cell use whichever source actually has secondary swell.
-      const gfsIsPrimary = gfsVectors.length >= euroVectors.length;
-      const primaryVectors = gfsIsPrimary ? gfsVectors : euroVectors;
-      const secondaryVectors = gfsIsPrimary ? euroVectors : gfsVectors;
-      const primaryGrid = gfsIsPrimary ? gfsGrid?.grid : euroGrid?.grid;
-
-      if (!primaryVectors.length) {
-        // Both models failed — return unsupported
-        return {
-          type: 'FeatureCollection', features: [], hourOffset,
-          grid: {
-            vectors: [], bounds: snappedBounds || { west: -180, south: -80, east: 180, north: 85 },
-            cols: 0, rows: 0, timestamp: Date.now(),
-            __sourceModel: 'ICON', __provider: 'none', __gridProvider: 'none',
-            __componentLayer: 'swell_2', __gridSupportsLayer: false,
-            __activeLayerNonzeroCount: 0, __activeLayerMax: 0, __oceanMaskCount: 0,
-            __renderable: false, __unsupportedLayer: true,
-            provider: 'none', hourOffset, nonzeroCount: 0, maxSpeed: 0,
-            renderable: false, status: 'unsupported'
-          },
-          __renderable: false, __unsupportedLayer: true, status: 'unsupported'
-        };
-      }
-
-      // TOLERANT secondary lookup keyed at ~0.5° so a primary cell still matches a slightly-offset or
-      // coarser secondary cell (the old exact 0.01° key missed whenever the two grids' centres/resolutions
-      // differed — the root of the dropped-EURO bug). Keep the strongest secondary in each 0.5° bucket so a
-      // zero never overwrites real swell.
-      const skey = (lat, lng) => `${Math.round(lat * 2)},${Math.round(lng * 2)}`;
-      let secondaryLookup = null;
-      if (secondaryVectors.length > 0) {
-        secondaryLookup = new Map();
-        for (let i = 0; i < secondaryVectors.length; i++) {
-          const sv = secondaryVectors[i];
-          const key = skey(sv.lat, sv.lng);
-          const ex = secondaryLookup.get(key);
-          if (!ex || (sv.speed || 0) > (ex.speed || 0)) secondaryLookup.set(key, sv);
-        }
-      }
-
-      // Source weights (GFS 0.6 / EURO 0.4) applied by ORIGIN regardless of which grid is the anchor.
-      const bothPresent = gfsVectors.length > 0 && euroVectors.length > 0;
-      const GFS_WEIGHT = bothPresent ? 0.6 : (gfsVectors.length > 0 ? 1.0 : 0.0);
-      const EURO_WEIGHT = 1.0 - GFS_WEIGHT;
-      const primaryW = gfsIsPrimary ? GFS_WEIGHT : EURO_WEIGHT;
-      const secondaryW = gfsIsPrimary ? EURO_WEIGHT : GFS_WEIGHT;
-      let maxSpeed = 0, nonzeroCount = 0;
-
-      const blendedVectors = primaryVectors.map(pv => {
-        const sv = secondaryLookup ? secondaryLookup.get(skey(pv.lat, pv.lng)) : null;
-        const pAvailable = pv.isOcean !== false && pv.is_valid !== false;
-        const sAvailable = sv && sv.isOcean !== false && sv.is_valid !== false;
-        // Keep full-strength single-source ocean coverage, but never synthesize a bearing
-        // from cancelling directions or include a masked secondary source.
-        const blended = pAvailable && sAvailable && pv.speed > 0 && sv.speed > 0
-          ? blendSubVector(pv, sv, primaryW, secondaryW)
-          : blendSubVector(sAvailable && sv.speed > 0 ? sv : (pAvailable ? pv : null), null, 1, 0);
-        if (blended.speed > maxSpeed) maxSpeed = blended.speed;
-        if (blended.speed > 0) nonzeroCount++;
-        return { lat: pv.lat, lng: pv.lng, ...blended };
-      });
-
-      const blendedGrid = {
-        vectors: blendedVectors,
-        bounds: primaryGrid.bounds || snappedBounds || { west: -180, south: -80, east: 180, north: 85 },
-        cols: primaryGrid.cols || 0,
-        rows: primaryGrid.rows || 0,
-        timestamp: Date.now(),
-        __sourceModel: 'ICON',
-        __provider: 'estimated',
-        __gridProvider: 'gfs_euro_blend',
-        __componentLayer: 'swell_2',
-        __gridSupportsLayer: true,
-        __activeLayerNonzeroCount: nonzeroCount,
-        __activeLayerMax: maxSpeed,
-        __oceanMaskCount: primaryGrid.__oceanMaskCount || 0,
-        __renderable: blendedVectors.length > 0,
-        provider: 'estimated',
-        source_dataset: 'estimated_blend',
-        hourOffset,
-        nonzeroCount,
-        maxSpeed,
-        renderable: blendedVectors.length > 0,
-        is_estimated: true,
-        isEstimated: true,
-        estimate_basis: {
-          type: 'icon_swell_2_gfs_euro_blend',
-          method: 'weighted_average',
-          gfs_weight: GFS_WEIGHT,
-          euro_weight: EURO_WEIGHT,
-          gfs_vectors: gfsVectors.length,
-          euro_vectors: euroVectors.length,
-          source_model: `${gfsGrid?.grid?.__sourceDataset || 'ncep_gfswave025'}+${euroGrid?.grid?.__sourceDataset || 'cmems_mod_glo_wav_anfc_0.083deg_PT3H-i'}` // A15-01: EURO swell_2 is CMEMS, not WAM
-        }
-      };
-
-      console.log(`[Backend] ICON swell_2 blend: ${blendedVectors.length} vectors (GFS:${gfsVectors.length} EURO:${euroVectors.length}), max:${maxSpeed.toFixed(2)}, nz:${nonzeroCount}`);
-
-      return {
-        type: 'FeatureCollection',
-        features: [],
-        hourOffset,
-        grid: blendedGrid,
-        __renderable: blendedGrid.__renderable,
-        status: 'ok'
-      };
+      // The blend math lives in iconSwell2Blend.js, shared with the series path (no-network scrub frames).
+      return blendIconSwell2(gfsGrid?.grid || null, euroGrid?.grid || null, hourOffset, snappedBounds);
     } catch (blendErr) {
       console.error('[Backend] ICON swell_2 blend failed:', blendErr);
       return {
@@ -518,20 +446,33 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
   const url = `${GRID_URL}?model=${model}&domain=marine&layer=${layer}&valid_time=${validTimeStr}&bbox=${bboxParam}${getSurfModeFlag() ? '&surf=1' : ''}`;
 
   try {
-    const res = await fetch(url, { signal });
-    if (!res.ok) {
-      let reason = `Backend grid returned HTTP ${res.status}`;
-      try {
-        const errorJson = await res.json();
-        if (errorJson && errorJson.reason) {
-          reason = errorJson.reason;
-        } else if (errorJson && errorJson.detail) {
-          reason = errorJson.detail;
-        }
-      } catch (e) {}
-      throw new Error(reason);
+    // STATIC FRAMES (step 2b, DARK: staticFrames.js): a WORLD box is answered from the pinned CDN frame when one
+    // covers this valid time; any miss or error returns null and /grid is fetched exactly as before.
+    const surfNow = getSurfModeFlag();
+    const staticJson = staticEligible({ model, layer, bbox: clampedBbox, surf: surfNow })
+      ? await tryStaticWorldGrid({ model, layer, validTimeStr, clampedBbox, surf: surfNow, signal })
+      : null;
+    let res = null;
+    let json = staticJson;
+    if (!json) {
+      res = await fetch(url, { signal });
+      if (!res.ok) {
+        let reason = `Backend grid returned HTTP ${res.status}`;
+        try {
+          const errorJson = await res.json();
+          if (errorJson && errorJson.reason) {
+            reason = errorJson.reason;
+          } else if (errorJson && errorJson.detail) {
+            reason = errorJson.detail;
+          }
+        } catch (e) {}
+        throw new Error(reason);
+      }
+      json = await res.json();
+      noteBackendAnswer({ model, layer, bboxStr: bboxParam, json });   // a dynamic answer on a box a regional bundle covers (expected 0)
     }
-    const json = await res.json();
+
+    if (options.storedIconRecovery) requireStoredIconEstimate(json, layer, validTimeStr);
 
     if (typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && hourOffset === 0) {
       recordTruthStage('backendResponse', {
@@ -583,8 +524,8 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
     const result = mapNormalizedGridToWebGL(json, clampedBbox, hourOffset, layer, model);
 
     updateDiagnostics('grid', {
-      url,
-      status: res.status,
+      url: staticJson ? `static:${staticJson.static_frame.path}` : url,
+      status: res ? res.status : 200,
       validTime: validTimeStr,
       valueKind: json.value_kind || (layer === 'swell_1' ? 'swell_wave_height' : 'wave_height'),
       valueUnit: json.value_unit || 'm',

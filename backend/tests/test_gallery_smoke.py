@@ -33,12 +33,13 @@ class TestGalleryRouteRegistration:
 
     @pytest.mark.asyncio
     async def test_distribution_status_requires_auth(self, client):
-        """GET /gallery/{id}/distribution-status should require photographer_id."""
+        """GET /gallery/{id}/distribution-status requires a token (2026-10-17: the photographer_id
+        query parameter alone used to be enough to read another photographer's distribution)."""
         response = await client.get(
             "/api/gallery/nonexistent/distribution-status",
             params={"photographer_id": "test"}
         )
-        assert response.status_code in (404, 422)
+        assert response.status_code == 401
 
     @pytest.mark.asyncio
     async def test_public_galleries_endpoint(self, client):

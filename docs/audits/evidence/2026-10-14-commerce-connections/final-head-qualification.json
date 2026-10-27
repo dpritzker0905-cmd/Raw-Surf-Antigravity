@@ -1,0 +1,107 @@
+{
+  "at": "2026-10-14T23:43:31.730880+00:00",
+  "scope": "Published final-head qualification; no whole-app acceptance or DEV integration",
+  "publishedHead": "b220a2e89fad9224b89974724446d975348cf05c",
+  "applicationSource": "0f650146908dafbe6013dc45dd6d5a7e0003d621",
+  "pr": {
+    "number": 331,
+    "state": "OPEN",
+    "draft": true,
+    "target": "dev",
+    "mergeable": "MERGEABLE"
+  },
+  "hostedChecks": {
+    "success": 18,
+    "informationalNeutral": 1,
+    "pending": 0,
+    "failed": 0,
+    "ciRun": 38653885368,
+    "ciURL": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/38653885368",
+    "frontendSuites": 425,
+    "frontendTests": 5530,
+    "frontendFailures": 0,
+    "build": "passed with existing warnings"
+  },
+  "focused": {
+    "tests": 33,
+    "offlineChromeCases": 18,
+    "screenshots": 6,
+    "sourceFingerprintsMatch": true,
+    "publishedImages": [
+      {
+        "path": "docs/audits/evidence/2026-10-14-commerce-connections/drawer-beach-pending.png",
+        "sha256": "7083170d42bad11efbcb6e854be999eabd5e5cfb1aeb44696baf55c2fef18c6e",
+        "bytes": 27905
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-14-commerce-connections/drawer-dark-pending.png",
+        "sha256": "6291e01b11463e2b318528fa641dc84b68b3854ba4499f8177db28738b152808",
+        "bytes": 28169
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-14-commerce-connections/drawer-light-pending.png",
+        "sha256": "43fa0e1498bae6108fb99c52600097243c11825774327788f70dd40aacbbee42",
+        "bytes": 28100
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-14-commerce-connections/hub-beach-pending.png",
+        "sha256": "7083170d42bad11efbcb6e854be999eabd5e5cfb1aeb44696baf55c2fef18c6e",
+        "bytes": 27905
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-14-commerce-connections/hub-dark-pending.png",
+        "sha256": "6291e01b11463e2b318528fa641dc84b68b3854ba4499f8177db28738b152808",
+        "bytes": 28169
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-14-commerce-connections/hub-light-pending.png",
+        "sha256": "43fa0e1498bae6108fb99c52600097243c11825774327788f70dd40aacbbee42",
+        "bytes": 28100
+      }
+    ]
+  },
+  "preview": {
+    "id": "6ad00f2e8b7a1fd46e581cc9",
+    "state": "ready",
+    "commit_ref": "b220a2e89fad9224b89974724446d975348cf05c",
+    "context": "deploy-preview",
+    "url": "https://deploy-preview-331--rawsurf.netlify.app",
+    "duration_seconds": 64
+  },
+  "dev": {
+    "source": "131d5d9e434124d9bf510edb9eed2e8238723313",
+    "merged": false
+  },
+  "render": {
+    "deploy": "dep-db6pepijnfac73e7ed50",
+    "source": "f9320c27dc0863db727e674a6f38cd6a4a1d1438",
+    "status": "live",
+    "finishedAt": "2026-10-13T02:32:47.721431Z",
+    "backend_diff_to_dev": "empty",
+    "backend_diff_repair": "empty",
+    "schema_flags": "not independently read; no changes in this lane"
+  },
+  "coordination": {
+    "threadId": "01a13844-4175-7843-b37f-aa559359e6d6",
+    "title": "Repair WebSocket auth and forecast",
+    "supportedMessageCalls": "both succeeded; both messages visible in active turn",
+    "visibleMessageIds": [
+      "fco_01a13cb9-914f-7242-94af-8542bc2b4a3d",
+      "fco_01a13cbf-2591-76d2-be24-3762474aa82f"
+    ],
+    "ownerReply": "No safe rollout timing acknowledgement observed",
+    "sharedDependency": "Render autoDeploy on dev includes frontend edits; configured build/migration/restart and Netlify frontend/serviceworker replacement can affect active weather traces"
+  },
+  "unaccepted": [
+    "all12whole-launchgates",
+    "providerPGsandbox",
+    "fullReactcreate-return-cancel-pending-refund",
+    "PAY-ORPHAN",
+    "PAY-RECOVERY",
+    "operatorrecoveryUI-scan-refund-notification",
+    "privateoriginaldelivery",
+    "physicalphone-Safari",
+    "wholeapprolejourneys"
+  ],
+  "g09": "dated monitor38646212317 failure remains open; missingforecast_skill_ops and30.2h scoredtargetage"
+}

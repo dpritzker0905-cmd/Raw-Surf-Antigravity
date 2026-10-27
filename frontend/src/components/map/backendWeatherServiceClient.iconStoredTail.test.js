@@ -88,3 +88,60 @@ test.each([undefined, 'false', '1', 'TRUE'])('default/invalid flag %s leaves ser
   expect(result.grid.vectors[0].speed).toBe(2);
   expect(result.grid.estimate_basis.type).toBe('icon_trend_extrapolation');
 });
+
+test.each(['waves', 'swell_1', 'wind_waves'])('missing native anchor recovers the existing stored %s estimate', async layer => {
+  process.env.REACT_APP_ICON_STORED_TAIL = 'false';
+  const originalFetch = global.fetch;
+  global.fetch = jest.fn(async url => {
+    const parsed = new URL(url);
+    const model = parsed.searchParams.get('model');
+    const hour = (Date.parse(parsed.searchParams.get('valid_time')) - BASE) / 3600000;
+    if (model === 'ICON' && hour === 168) return {ok: false, status: 503, json: async () => ({})};
+    if (model === 'ICON' && hour === 179) {
+      requests.push({model, layer, hour});
+      const data = frame(model, layer, hour);
+      data.is_forecast_authoritative = false;
+      data.estimate_basis = {type: 'icon_persistence_gfs_blend',
+        persistence_anchor_product_id: 'ICON-native-168', persistence_anchor_valid_time: new Date(BASE + 168 * 3600000).toISOString(),
+        target_valid_time: data.valid_time};
+      return {ok: true, status: 200, json: async () => data};
+    }
+    return originalFetch(url);
+  });
+  const result = await client.fetchBackendMarineGrid(bounds, 179, undefined, bounds, layer, 'ICON');
+  expect(result.grid.__sourceModel).toBe('ICON');
+  expect(result.grid.__gridProvider).toBe('estimated');
+  expect(result.grid.estimate_basis.persistence_anchor_product_id).toBe('ICON-native-168');
+  expect(result.grid.productId).toBe('ICON_' + layer + '_fixture_179');
+  expect(result.grid.vectors[0].speed).toBe(4); // stored estimate; GFS target in this fixture is 3
+  expect(requests.at(-1)).toEqual({model: 'ICON', layer, hour: 179});
+});
+
+test.each(['model', 'layer', 'anchor', 'anchor_time', 'target', 'served_time', 'authoritative', 'estimated', 'vectors', 'invalid_vectors'])(
+  'stored recovery refuses invalid %s provenance instead of substituting GFS', async defect => {
+    const data = frame('ICON', 'waves', 179);
+    data.is_forecast_authoritative = false;
+    data.estimate_basis = {type: 'icon_persistence_gfs_blend', persistence_anchor_product_id: 'ICON-native',
+      persistence_anchor_valid_time: new Date(BASE + 168 * 3600000).toISOString(), target_valid_time: data.valid_time};
+    if (defect === 'model') data.model = 'GFS';
+    if (defect === 'layer') data.layer = 'swell_1';
+    if (defect === 'anchor') delete data.estimate_basis.persistence_anchor_product_id;
+    if (defect === 'anchor_time') data.estimate_basis.persistence_anchor_valid_time = 'unknown';
+    if (defect === 'target') data.estimate_basis.target_valid_time = new Date(BASE).toISOString();
+    if (defect === 'served_time') data.served_valid_time = new Date(BASE).toISOString();
+    if (defect === 'authoritative') data.is_forecast_authoritative = true;
+    if (defect === 'estimated') data.is_estimated = false;
+    if (defect === 'vectors') data.grid.vectors = [];
+    if (defect === 'invalid_vectors') data.grid.vectors[0].is_valid = false;
+    global.fetch = jest.fn(async () => ({ok: true, status: 200, json: async () => data}));
+    await expect(client.fetchBackendMarineGrid(bounds, 179, undefined, bounds, 'waves', 'ICON',
+      {storedIconRecovery: true})).rejects.toThrow('refusing model substitution');
+  });
+
+test('failed stored recovery is single-shot even with the normal stored-tail flag off', async () => {
+  process.env.REACT_APP_ICON_STORED_TAIL = 'false';
+  mode = 'error503';
+  await expect(client.fetchBackendMarineGrid(bounds, 179, undefined, bounds, 'waves', 'ICON',
+    {storedIconRecovery: true})).rejects.toThrow('stored_product_unavailable');
+  expect(requests).toEqual([{model: 'ICON', layer: 'waves', hour: 179}]);
+});

@@ -17,7 +17,8 @@ scored. So every calibration run:
 The dedupe key keeps the EARLIEST forecast per (source, buoy, target, lead-bucket) — the honest
 lead. Summary: per source x lead MAE/bias with n and n_buoys, so "are we near?" is a number, not
 an impression. Kill switch FORECAST_SKILL=0; every failure is swallowed (the calibration loop is
-never at risk). Rows are ~120 B; pending is capped, scored history is monthly-segmented.
+never at risk). Rows are ~120 B; pending is capped, scored history is segmented by month to September and by
+UTC day from October (skill_scored_archive.py: the monthly object hit Storage's 50 MiB limit).
 """
 import json
 import logging
@@ -27,10 +28,12 @@ import urllib.request
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional
 
+from services.weather_pipeline import skill_scored_archive as archive_keys
+
 logger = logging.getLogger(__name__)
 
 SKILL_PENDING_L2_KEY = "calibration/skill/pending.json"
-SKILL_SCORED_PREFIX = "calibration/skill/scored-"
+SKILL_SCORED_PREFIX = archive_keys.SCORED_PREFIX    # where scored rows live: see skill_scored_archive.py
 LEADS_H = (24, 48, 72)
 SCORE_JOIN_TOLERANCE_S = 90 * 60      # obs within 1.5h of the target hour scores it
 PENDING_EXPIRY_H = 96                  # unmatched past-target rows drop (buoy gap)
@@ -667,16 +670,25 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
     score_stats: Dict[str, int] = {}
     still, scored = score_pending(pending, report, now=now, stats=score_stats)
     archives = []
+    reads: Dict[str, tuple] = {}
+
+    def load(key):                       # one read per object per pass: the frozen month is ~50 MB
+        if key not in reads:
+            reads[key] = load_calibration_rows_l2(key)
+        return reads[key]
+
     if scored:
-        month_groups: Dict[str, List[dict]] = {}
+        groups: Dict[str, List[dict]] = {}
         for r in scored:
-            t = _parse_iso(r.get("target_time"))
-            month_groups.setdefault(t.strftime("%Y-%m"), []).append(r)
-        for month, rows in month_groups.items():
-            key = f"{SKILL_SCORED_PREFIX}{month}.json"
-            existing, exists = load_calibration_rows_l2(key)
+            groups.setdefault(archive_keys.key_for_target(_parse_iso(r.get("target_time"))), []).append(r)
+        for key, rows in groups.items():
+            existing, exists = load(key)
             seen = {dedupe_key(r) for r in existing}
             fresh = [r for r in rows if dedupe_key(r) not in seen]
+            frozen = archive_keys.month_object_of(key)       # a day's rows also dedupe against the frozen month
+            if fresh and frozen:
+                seen = {dedupe_key(r) for r in load(frozen)[0]}
+                fresh = [r for r in fresh if dedupe_key(r) not in seen]
             if fresh:
                 archives.append((key, existing + fresh, exists))
     # Preflight every touched month before any write. A partial archive write is
@@ -701,7 +713,7 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
         try:
             from services.weather_pipeline.skill_attribution import same_model_attribution
             from services.weather_pipeline.skill_mos import shadow_report
-            history = mos_history_rows(now, archives, load_calibration_rows_l2)
+            history = mos_history_rows(now, archives, load)
             mos = shadow_report(history, now)
             # WHERE the paired same-model gap comes from (tier / frame snap / cycle age). Same history,
             # same guard: a failure costs these two blocks and nothing else.
@@ -727,13 +739,13 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
 
 def mos_history_rows(now: datetime, archives, load_rows) -> List[dict]:
     """The scored rows of this month and the previous one: the shadow MOS's training and held-out
-    window. A month this run just wrote is taken from `archives` rather than read back."""
+    window. An object this run just wrote is taken from `archives` rather than read back."""
     prev = now.replace(day=1) - timedelta(days=1)
     written = {key: rows for key, rows, _ in archives}
+    through = (now.astimezone(timezone.utc) + timedelta(days=1)).date()     # tolerance lets a row sit past `now`
     rows: List[dict] = []
     for month in (prev, now):
-        key = f"{SKILL_SCORED_PREFIX}{month:%Y-%m}.json"
-        rows.extend(written[key] if key in written else load_rows(key)[0])
+        rows.extend(archive_keys.read_month(f"{month:%Y-%m}", through, load_rows, override=written)[0])
     return rows
 
 

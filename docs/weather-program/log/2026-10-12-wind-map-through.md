@@ -459,3 +459,147 @@ map's CSS size, by default the 897 x 914 pane every scored column assumes (the c
 **#317 brought up to dev by this session** (the streak-rows measurement of 2026-10-12, docs only, opened by the session that
 measured it and left for last): dev merged into it; its two ledger lines (seq 1063 and 1064 on its branch) re-appended after
 dev's head word for word with a note (now seq 1160 and 1161); this session's records after them.
+
+## 02:28-14:27Z (2026-10-13) · #327 merged; dev promoted to main (#328); production did not change
+
+**#327 (light's colour-blind margin, D-031, the colours lane's) merged** at 2026-10-13T02:28:52Z as `f9320c27` (squash), by
+this session on the owner's word of 01:19Z: "And the small colour-blind tweak to lights colors". Read before: OPEN, MERGEABLE,
+CLEAN, head `810ad447`, 18 checks passed and 1 neutral; dev `e1c0f28c` an ancestor; dev's ledger a byte prefix (seq 1166 to
+1171 its own, 1166 the `pr_merge #317`); its independent review back with no must-fix. Re-read here from the lane's tree
+before the merge (`check.mjs --as-uploaded 10-80:0.25`): the sea 4.93 with 32 of 281 maxima under 5.0 to 5.03 with none; the
+land 5.18 to 5.20; the composited field moves 0.11 dE00 at most, at 10 kn (a plain CIEDE2000 of the two trees' `--json`
+dumps). The dev site, read statically at 02:32:21Z: `BUILD_VERSION` `f9320c27`.
+
+**Main.** The owner, 01:13Z: "push it to main and also merge anything left". The section-22 question was asked at 01:17Z
+with what a push carries. The owner, 01:54Z: "yes push to main after the color tweaks are in".
+
+- **#328 opened** at 02:29:54Z: the branch `promote/dev-to-main-2026-10-13` is `origin/dev` `f9320c27` plus ONE merge commit
+  made with the `ours` strategy (`18f99577`: parents dev and main; its tree is dev's, byte for byte). `main` held three squash
+  "promote" commits (#9, #12, #13) that dev's history lacks; a content merge showed 25 conflicts, each dev's side.
+- **Its checks:** 16 passed, 3 neutral (Netlify), 1 failed: `backend-floor-staleness`, which REFUSES on any PR into `main`
+  ("the newest successful ci.yml run on 'main' ... is 57 days old", 2026-08-16): it reads the base branch's last green run
+  and takes an old one for a stale API answer. Not a required check on `main`; not about the code.
+- **It was blocked by main's own rule,** which required a check named `lint-and-build (18.x)`; since Node 24.21.0
+  (2026-10-09) the job is `lint-and-build (24.21.0)`. This session did not change the rule and did not bypass it.
+- **This session told the owner something wrong, twice** (02:35Z, 02:56Z, and in #328's body): "or merge it yourself with your
+  admin override". The rule has `enforce_admins` on ("do not allow bypassing"), read at 14:11Z, so no override existed.
+  Corrected to the owner at 14:11Z. The lesson is L-P36.
+- **The owner changed the rule** at about 14:15Z ("saved, merge 328, push to main", 14:16Z), after asking where it was ("I
+  don't see the rule": it is a classic branch protection rule, id 81316321, not a ruleset). Read back by API at 14:16:12Z:
+  required `lint-and-build (24.21.0)`, the `18.x` entry gone, linear history and admin enforcement unchanged.
+- **#328 merged** at 2026-10-13T14:16:40Z as `261db85a` (squash; `main` requires linear history). After: `origin/main` at
+  `261db85a`, its tree equal to `origin/dev`'s (an empty diff).
+
+**Production did not change.** `rawsurf.netlify.app` read `BUILD_VERSION` `fc140024` at 01:57Z, at 14:16:25Z and at every
+45 s from 14:17:01Z to 14:23:51Z, and at 14:26:07Z: the frozen build of the 2026-09-29 note. Netlify posted no status on
+`261db85a`. The dev site stayed at `f9320c27`; the backend stayed healthy on dev's code with its uptime unbroken (11 h 44 m
+before, 11 h 53 m after): it follows dev. The owner was told that publishing to users is a step in Netlify, which this
+session cannot reach, and that the main build should be looked at on its preview link first.
+
+Main's own CI on `261db85a`: Lighthouse, Encoding Guard and LOC Governance passed; the long `CI` run was in progress when
+this was written.
+
+## 14:27-18:05Z (2026-10-13) · #329 merged; the close-out sweep: one commit that never reached GitHub, the Jacobian tool committed (#330)
+
+**#329 merged** at 2026-10-13T17:55:44Z as `131d5d9e` (squash), on the owner's word of 17:54Z: "merge 329, finish anything
+leftover from this work and make sure everything is also pushed". Read before: OPEN, MERGEABLE, CLEAN, head `836ef34c`, 16
+checks passed and 1 skipped; dev `f9320c27` an ancestor of the head; dev's ledger (1,171 lines) a byte prefix of the PR's
+(1,176); `action_ledger.py verify` OK. Read at 18:02:47Z: the dev site's `BUILD_VERSION` `131d5d9e`; production still
+`fc140024`; one `/api/health` probe: 200 in 0.51 s, healthy, on `f9320c27`, uptime 15 h 30 m (the backend did not restart).
+
+**How the rest of the instruction was read.**
+
+- **"finish anything leftover":** a sweep (below). What it found is in PR #330, which this session merges on this word once
+  its checks are green. The owner names the PRs to merge as a rule; #330 did not exist when they wrote, and it holds only
+  what the instruction asks for. No pixel the app draws changes in it.
+- **"make sure everything is also pushed":** read as "on GitHub, in dev". NOT read as a push to `main`: `main` holds dev as of
+  `f9320c27` (#328), BRAIN_RULES section 22 asks for the explicit instruction and the confirmation question, and the owner
+  is asked, with what a promotion would carry (records, comments and tools; no drawn pixel).
+
+**The sweep.** Every local branch against its upstream (`git for-each-ref refs/heads --format='%(refname:short)
+%(upstream:track)'`), each wind lane's worktree by `git status --porcelain` (read, not written), the six lane sessions.
+
+1. **One commit never reached GitHub.** The colours lane committed its follow-up to the independent review of #327 at
+   02:18:16Z on 2026-10-13 (`b5c96053`, on `claude/wind-light-path-margin`) and did not push it. The branch on GitHub stayed at
+   `810ad447`, and #327 was merged from that head at 02:28:52Z, ten minutes later. This session read `gh pr view` before the
+   merge (green, on the older head) and did not read the lane's branch. What the commit holds: two comments in
+   `WindColorRamp.js` and one in `windLightPath.js` made true (light's field owns 1 to 63 kn since the margin; "as drawn" is
+   the texture and the GPU's lookup, not the screen's last rounding), the checker README's same facts and the solve's full
+   command, `light-margin-solve.mjs` (`--dump-merged` refuses to overwrite `light-path-318.json`; one printed label), and the
+   lane's own log section. Brought into #330 by `git cherry-pick -x`, unchanged (`656d9641`); after it,
+   `git diff HEAD claude/wind-light-path-margin -- frontend` is empty. In `frontend/src` the change is 7 lines and every one
+   is a comment (checked line by line by a script). What users saw in between: nothing different. What was wrong in between:
+   two comments and a README line on dev said light's field owns 1 to 32 kn (it owns 1 to 63), and `--dump-merged` could have
+   replaced the solver's reference with the moved rows. LESSONS L-P37. Not done: the lane was not asked why the push did not happen.
+2. **One tool was still untracked:** `scripts/wind-color/mirror-jacobian.mjs` (the owner, 2026-10-12: "use the jacobian lens
+   to help see everything as a whole"; `log/2026-10-11-wind-dark-white.md` said it would be committed as its own change, and
+   this log called it "untracked, mine"). Before committing it was run on dev's tables and found STALE in one
+   input: it asked for the white strength with an empty window, so over land it read 1.00, the picture before the land step.
+   It now reads what the app lays (`mirror-model.mjs` `winOf`, exported for it: 0.75 over land, 0.55 over the sea; under
+   `--before-step` the land reads the sea's 0.55 at the sea's depth). Its header named a section it never had ("MODEL AGAINST
+   THE BENCH") and a lesson by the wrong number (L-V60, not L-V51): both corrected. It now refuses to run if its ground for
+   light or beach is not the mirror model's own (`tintOver`), to 1e-12. README section added. What it says on today's tables,
+   as a model of ONE piled-up trail and not the bench's picture: over land at 0.75 a streak's step is 0.75 to 0.77 of dark's
+   at 6 to 8 kn in light and 0.82 to 0.89 in beach, and passes dark's by 63 kn (1.13, 1.01); over the sea at 0.55 it is 0.90
+   to 0.96 of dark's at 6 to 10 kn in light. The bench stays the authority for the level (it has the veil, the trail's
+   profile and near-calm air; this model has none of them).
+3. **No lane has uncommitted work:** the worktrees of the borders, colours, trails, simplify, beach-margin and white-streak
+   lanes and `mirror-integ` all read clean. The six lane sessions are idle and their PRs are merged (#313, #316, #317, #318
+   and #327, #319 and #322, #324).
+4. **Left on this machine on purpose, NOT pushed (17 branches):** claude/preview-all, claude/preview-veil, claude/mirror-integ-2, claude/mirror-integ-3, claude/mirror-integ-preview, claude/wind-calm-air-build (previews of the combined build); claude/proto-tail-cut, claude/wind-dark-path-wip, claude/serene-wiles-d3574d (prototypes and parked notes); claude/wind-light-path-margin-lever, claude/wind-beach-lightness, claude/wind-beach-path-alt-b, claude/wind-beach-path-deep-land, claude/wind-beach-path-margin-capped (variants: the result merged in another PR, or the owner did not take it); scratch/light-path-trial, scratch/light-path-trial2, scratch/beach-path-trial (trial merges).
+   Classified by their commit subjects (PROTOTYPE, PREVIEW ONLY, TRIAL, scratch, wip) and by what merged; none has an open
+   PR. `claude/wind-beach-path-margin-capped` was marked "never push" when the owner did not take the capped variants.
+
+**Local gates on #330's code:** Jest on the wind suites and `src/tests`: 72 suites, 1,572 tests passed. `scripts/loc_ratchet.py`:
+0 new, 0 regressed (`WindColorRamp.js` 796 lines). `check.mjs`: exit 0, 0 red colour-blind lines. `light-margin-solve.mjs
+--audit` runs (light's line over land as drawn 5.204 at 45.75 kn, under 5.0 at 0 of 281 maxima); `--dump-merged` refuses.
+`check_eslint.js` was not run locally (comments only in `src`): hosted CI is its authority here.
+
+**Still open, and not this session's to close alone:** the live read-backs of commitments 1069 to 1171 (the owner's signed-in
+browser, only on their ask; due 2026-10-19 and 20); a real phone (the owner has looked on a desktop); production (frozen
+`fc140024`; publishing is the owner's step in Netlify); `pr_merge #330`, owed by the next PR against dev.
+
+## 18:05-18:22Z (2026-10-13) · #330 after its independent review: dark's land in the Jacobian was the bench's offline land; the ratios over land above are withdrawn
+
+An independent review of #330's code (a fresh agent, read-only; asked six yes/no questions with evidence) reported back at
+18:18Z. **What it confirmed:** in `frontend/src` only comments differ from dev (the code tokens of `WindColorRamp.js` and
+`windLightPath.js` compared with a parser: 7,288 and 1,170, identical); the solver's new guard sits wholly inside
+`--dump-merged` and the other modes run; `winOf` gives the white the app lays (0.75 over land, 0.55 over the sea; 0.55 and
+1.00 over land under `--before-step` and `--before-depth`); dark's law in the tool is the engine's, to 0 over 0 to 75 kn; the
+load-time check fires when the law is wrong.
+
+**What it found, and what was done before the merge:**
+
+1. **Dark's map colours.** The tool laid dark over `mirror-model.mjs`'s land, `[18, 20, 26]`: the wind bench's OFFLINE land
+   (L\* 6), not the basemap's. Checked against the bench reads this session already held (`ground-run.js --strips 12` on a
+   speed ramp, zoom 6, the field alone): the model's dark land was 11.4 L\* too dark on average under the wind (worst 14.5,
+   3 to 29 kn) and its dark sea was right (mean -0.08, worst -0.86). A ground that dark overstates dark's step, so every
+   `/dark`, `w*` and `G*` over LAND was biased toward "light and beach fall short". **Fixed:** the tool lays dark over the real
+   land the bench read at zoom 6, `[58, 71, 79]` (L\* 29); the model's dark land is then within 1.07 L\* of the bench (mean
+   -0.19). **The ratios over land in item 2 of the section above are WITHDRAWN** (0.75 to 0.77 and 0.82 to 0.89 at 6 to 8 kn;
+   1.13 and 1.01 at 63 kn): with dark's real land, at the 0.75 the app lays, light's step is 0.89 to 0.95 of dark's from 6 to
+   10 kn and 1.01 to 1.31 from 13 kn up; beach's is 0.96 at 6 kn, 1.05 to 1.36 from 8 to 21 kn, 0.92 to 1.00 from 27 to 40 kn.
+   The sea's numbers stand (0.90 to 0.96 at 6 to 10 kn in light). This is LESSONS L-V60 again, rule 2 (read a model against
+   the GPU before a number is taken from it): the tool was first committed in this PR without that read. It now CARRIES
+   the read: its last table prints its own ground against the bench's, per theme and ground, from constants dated in the file.
+2. **Light's and beach's grounds, by the same read:** 1.3 (sea) and 2.8 (land) L\* too dark in the model for light, 2.3 and
+   4.1 for beach, from 10 to 22 kn (dev `f6310516`, the land step on). The model's light and beach map colours are the
+   checker's, not quite the real maps' (the bench's own land for light reads `[247, 249, 244]`, the model holds
+   `[236, 236, 232]`). NOT changed: those colours are what the colour-blind lines and their pins are solved on. Printed by the
+   tool and said in the README, so the tables are read with it in hand.
+3. **A 10% turn that was 5%:** under `--before-depth` the land's white is 1.00, the upper point of the central difference
+   clamped, and the white's column printed half its value (1.77 for 3.54 at 8 kn over light's land). Fixed: where the white
+   is full the turn is read from 0.90 up to it. The default and `--before-step` were never affected.
+4. **Comments and the header made true:** the map's column is one-sided and now a true 10% darker (4.19, was 4.16 by a 5%
+   step doubled); dark's own white is 0.505 at zooms 4 to 9 and 0.48 outside; `step` is `mirror-run.js`'s column; below
+   5.5 kn the app also dims the mark (D-030), so `w` at 3 kn is not all that is laid; the usage names the `--before` levers;
+   `--json` followed by another flag no longer writes a file named after the flag.
+
+**Left as found (minor, each its own change):** dark's law is written in the tool as well as in `windDarkRules.js` (L-V60
+rule 1 asks for one place; moving it moves the checker's dark lines and pins); `light-margin-solve.mjs --dump-merged` with
+its reference file deleted would write today's rows under a note that names #318 (reachable only by deleting a tracked
+file); `windDarkRules.js` holds a third pair of dark map colours (`[28, 37, 48]`, `[11, 29, 46]`), neither the bench's.
+
+### Re-chain note (2026-10-17, when PR 330 was brought up to date with dev)
+
+The five ledger lines this close-out section cites as seq 1177 to 1181 (and the commit messages of this PR cite as 'ledger 1177' to 'ledger 1181') were written on a chain that dev has since moved past: dev's own 1177 to 1181 are different lines. The PR's lines were re-appended onto dev's chain verbatim (the original action times kept as acted_at, each marked reconstructed and carrying the old number in its evidence): 1177 is now 1367 (pr_merge #329), 1178 is 1368 (the owner's instruction of 2026-10-13 17:54Z), 1179 is 1369 (the finding about #327's unpushed commit), 1180 is 1370 (pr_open #330), 1181 is 1371 (the correction about the Jacobian's land step). Read every 'ledger 11xx' in this PR's records through that map.

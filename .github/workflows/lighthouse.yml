@@ -12,6 +12,12 @@ on:
   pull_request:
     branches: [dev, main]
 
+# A newer push or PR update makes the older audit obsolete; cancelling it frees the runner. (No paths filter:
+# see the trigger note above. This lane sends nothing to the live backend, so a filter would buy that box nothing.)
+concurrency:
+  group: lighthouse-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   lighthouse:
     runs-on: ubuntu-latest
@@ -21,7 +27,7 @@ jobs:
       - name: Use Node.js 18.x
         uses: actions/setup-node@v5
         with:
-          node-version: '24.21.0'
+          node-version: '24.22.1'
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -33,7 +39,12 @@ jobs:
         working-directory: frontend
         env:
           CI: false
-          REACT_APP_BACKEND_URL: https://raw-surf-antigravity.onrender.com
+          # ⛔ NEVER THE LIVE BACKEND (2026-10-21, owner: "move the CI load off the live server"). The audited pages
+          # (lighthouserc.json: /, /explore -> /auth, /auth; anonymous, and the access gate's dev-bypass covers
+          # localhost) were measured offline on a production build to send ZERO backend requests, weather or other.
+          # A loopback origin nobody listens on keeps it that way by construction: if a page ever starts calling the
+          # API, the audit shows a refused request instead of quietly adding load to the 1-CPU box.
+          REACT_APP_BACKEND_URL: http://127.0.0.1:9
         run: npm run build
 
       - name: Run Lighthouse CI

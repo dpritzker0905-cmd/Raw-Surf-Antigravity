@@ -5,7 +5,7 @@
  * Extracted from UnifiedSpotDrawer.js for maintainability.
  */
 import React from 'react';
-import { Star, Sparkles } from 'lucide-react';
+import { Star, Sparkles, Trophy } from 'lucide-react';
 import { Badge } from '../ui/badge';
 import { getFullUrl } from '../../utils/media';
 const SpotOfTheDayBadge = ({ spotOfTheDay, onClick }) => {

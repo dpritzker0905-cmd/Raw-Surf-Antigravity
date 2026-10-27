@@ -1,0 +1,3869 @@
+{
+ "what": "Hidden-layer series work and the sibling layer toggle at the map's opening view (z9, Florida east coast; 844 x 390 dpr 2), offline (frontend/scripts/offline-backend/scn_sibling_toggle.js), one fresh browser per row. Builds: A = claude/sibling-prewarm-idle at a94991ef0 (dev 58b55f8f1 merged in, so #488 is in): no static source covers a z9 box, today's live case. B = A + the regional-bundles client branch at its committed head 701e88bba, merged locally and never pushed: a regional bundle covers z9 Florida for all four GFS layers (published from the same store with dev's publisher). A_pre488 = the branch at 76391512f, before dev (with #488's mask-paint fix) was merged in and before the series trigger existed. Arms: cur (this PR); before (__RAW_DISABLE_SIBLING_IDLE_PAGES__ + __RAW_DISABLE_SIBLING_WARM_ON_SERIES__; in A_pre488 only the first, the second did not exist); noregional (__RAW_DISABLE_REGIONAL_BUNDLES__). hiddenFrameReadyMs: when each hidden layer's toggle frame could be cached (cur: its mini's end; before: its page's end), ms after the Waves click.",
+ "box_model": "The synthetic backend answers at once, so every weather ask went through a 1-CPU processor-sharing model (48-frame page 4000 ms of CPU pro rata, 1-hour mini 300 ms, /grid 400 ms; N asks in flight each get 1/N). The TIMES are modelled; the requests, their kinds and their order are the app's own.",
+ "env": {
+  "A": {
+   "ZOOM": 9,
+   "CLNG": -80.62,
+   "CLAT": 28.05,
+   "VIEW": "owner",
+   "BOX": true,
+   "COST": {
+    "page": 4000,
+    "mini": 300,
+    "grid": 400
+   },
+   "WATCH": 48000,
+   "CDN": true
+  },
+  "B": {
+   "ZOOM": 9,
+   "CLNG": -80.62,
+   "CLAT": 28.05,
+   "VIEW": "owner",
+   "BOX": true,
+   "COST": {
+    "page": 4000,
+    "mini": 300,
+    "grid": 400
+   },
+   "WATCH": 48000,
+   "CDN": true
+  },
+  "A_pre488": {
+   "ZOOM": 9,
+   "CLNG": -80.62,
+   "CLAT": 28.05,
+   "VIEW": "owner",
+   "BOX": true,
+   "COST": {
+    "page": 4000,
+    "mini": 300,
+    "grid": 400
+   },
+   "WATCH": 48000,
+   "CDN": true
+  },
+  "A_surf": {
+   "ZOOM": 8,
+   "CLNG": -79.95,
+   "CLAT": 26.5,
+   "VIEW": "owner",
+   "BOX": true,
+   "COST": {
+    "page": 4000,
+    "mini": 300,
+    "grid": 400,
+    "surfPage": 15000,
+    "surfMini": 1000,
+    "surfGrid": 1000
+   },
+   "WATCH": 120000,
+   "CDN": true,
+   "SURF": true,
+   "MODEL": "ICON",
+   "PAN_GAP": 1200
+  }
+ },
+ "rows": [
+  {
+   "build": "A",
+   "case": "load",
+   "arm": "cur",
+   "flags": [],
+   "error": null,
+   "firstWavesMs": 649,
+   "gridSeries": {
+    "total": 10,
+    "pages": 6,
+    "minis": 4,
+    "hiddenPages": 3,
+    "hiddenMinis": 3
+   },
+   "boxModel": {
+    "hiddenCpuMs": 12900,
+    "busyMs": 23090,
+    "wavesPagesDoneMs": 12940,
+    "firstHiddenPageMs": 15447
+   },
+   "hiddenFrameReadyMs": {
+    "swell_1": 5740,
+    "swell_2": 6101,
+    "wind_waves": 6430
+   },
+   "toggle": null,
+   "warm": {
+    "static": 0,
+    "minis": 3,
+    "miniFrames": 3,
+    "pages": 3,
+    "dropped": 0,
+    "waitMs": [
+     14780,
+     21786,
+     28827
+    ]
+   },
+   "regional": null,
+   "timeline": [
+    [
+     "page",
+     "waves",
+     48,
+     35,
+     4745
+    ],
+    [
+     "mini",
+     "waves",
+     1,
+     671,
+     1273
+    ],
+    [
+     "grid",
+     "waves",
+     1,
+     1490,
+     2288
+    ],
+    [
+     "mini",
+     "swell_1",
+     1,
+     5428,
+     5740
+    ],
+    [
+     "mini",
+     "swell_2",
+     1,
+     5789,
+     6101
+    ],
+    [
+     "mini",
+     "wind_waves",
+     1,
+     6127,
+     6430
+    ],
+    [
+     "page",
+     "waves",
+     48,
+     6477,
+     10491
+    ],
+    [
+     "page",
+     "waves",
+     17,
+     11523,
+     12940
+    ],
+    [
+     "page",
+     "swell_1",
+     48,
+     15447,
+     19448
+    ],
+    [
+     "page",
+     "swell_2",
+     48,
+     22453,
+     26463
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     29495,
+     33506
+    ]
+   ]
+  },
+  {
+   "build": "A",
+   "case": "load",
+   "arm": "before",
+   "flags": [
+    "__RAW_DISABLE_SIBLING_IDLE_PAGES__",
+    "__RAW_DISABLE_SIBLING_WARM_ON_SERIES__"
+   ],
+   "error": null,
+   "firstWavesMs": 644,
+   "gridSeries": {
+    "total": 10,
+    "pages": 6,
+    "minis": 4,
+    "hiddenPages": 3,
+    "hiddenMinis": 3
+   },
+   "boxModel": {
+    "hiddenCpuMs": 12900,
+    "busyMs": 23090,
+    "wavesPagesDoneMs": 12653,
+    "firstHiddenPageMs": 13691
+   },
+   "hiddenFrameReadyMs": {
+    "swell_1": 17698,
+    "swell_2": 22381,
+    "wind_waves": 27128
+   },
+   "toggle": null,
+   "warm": null,
+   "regional": null,
+   "timeline": [
+    [
+     "page",
+     "waves",
+     48,
+     29,
+     4735
+    ],
+    [
+     "mini",
+     "waves",
+     1,
+     676,
+     1277
+    ],
+    [
+     "grid",
+     "waves",
+     1,
+     1475,
+     2274
+    ],
+    [
+     "mini",
+     "swell_1",
+     1,
+     5258,
+     5562
+    ],
+    [
+     "mini",
+     "swell_2",
+     1,
+     5594,
+     5905
+    ],
+    [
+     "mini",
+     "wind_waves",
+     1,
+     5935,
+     6247
+    ],
+    [
+     "page",
+     "waves",
+     48,
+     6297,
+     10301
+    ],
+    [
+     "page",
+     "waves",
+     17,
+     11224,
+     12653
+    ],
+    [
+     "page",
+     "swell_1",
+     48,
+     13691,
+     17698
+    ],
+    [
+     "page",
+     "swell_2",
+     48,
+     18373,
+     22381
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     23117,
+     27128
+    ]
+   ]
+  },
+  {
+   "build": "A",
+   "case": "toggle@3000:wind_waves",
+   "arm": "cur",
+   "flags": [],
+   "error": null,
+   "firstWavesMs": 664,
+   "gridSeries": {
+    "total": 10,
+    "pages": 6,
+    "minis": 4,
+    "hiddenPages": 2,
+    "hiddenMinis": 2
+   },
+   "boxModel": {
+    "hiddenCpuMs": 8600,
+    "busyMs": 23486,
+    "wavesPagesDoneMs": 6374,
+    "firstHiddenPageMs": 19031
+   },
+   "hiddenFrameReadyMs": null,
+   "toggle": {
+    "layer": "wind_waves",
+    "atMs": 3000,
+    "toGpuMs": 739,
+    "instantCommit": false,
+    "commitMs": null,
+    "setWaveData": [
+     [
+      523,
+      203,
+      null
+     ]
+    ],
+    "fpsBefore": 37
+   },
+   "warm": {
+    "static": 0,
+    "minis": 5,
+    "miniFrames": 2,
+    "pages": 2,
+    "dropped": 0,
+    "waitMs": [
+     18337,
+     25993
+    ]
+   },
+   "regional": null,
+   "timeline": [
+    [
+     "page",
+     "waves",
+     48,
+     49,
+     6374
+    ],
+    [
+     "mini",
+     "waves",
+     1,
+     700,
+     1303
+    ],
+    [
+     "grid",
+     "waves",
+     1,
+     1557,
+     2360
+    ],
+    [
+     "mini",
+     "wind_waves",
+     1,
+     3857,
+     4769
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     3858,
+     9472
+    ],
+    [
+     "grid",
+     "wind_waves",
+     1,
+     4867,
+     6077
+    ],
+    [
+     "mini",
+     "swell_1",
+     1,
+     9880,
+     10191
+    ],
+    [
+     "mini",
+     "swell_2",
+     1,
+     10223,
+     10534
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     10566,
+     14576
+    ],
+    [
+     "page",
+     "wind_waves",
+     17,
+     15134,
+     16552
+    ],
+    [
+     "page",
+     "swell_1",
+     48,
+     19031,
+     23033
+    ],
+    [
+     "page",
+     "swell_2",
+     48,
+     26688,
+     30699
+    ]
+   ]
+  },
+  {
+   "build": "A",
+   "case": "toggle@3000:wind_waves",
+   "arm": "before",
+   "flags": [
+    "__RAW_DISABLE_SIBLING_IDLE_PAGES__",
+    "__RAW_DISABLE_SIBLING_WARM_ON_SERIES__"
+   ],
+   "error": null,
+   "firstWavesMs": 803,
+   "gridSeries": {
+    "total": 10,
+    "pages": 6,
+    "minis": 4,
+    "hiddenPages": 2,
+    "hiddenMinis": 2
+   },
+   "boxModel": {
+    "hiddenCpuMs": 8600,
+    "busyMs": 23499,
+    "wavesPagesDoneMs": 6468,
+    "firstHiddenPageMs": 11453
+   },
+   "hiddenFrameReadyMs": null,
+   "toggle": {
+    "layer": "wind_waves",
+    "atMs": 3004,
+    "toGpuMs": 832,
+    "instantCommit": false,
+    "commitMs": null,
+    "setWaveData": [
+     [
+      522,
+      291,
+      null
+     ]
+    ],
+    "fpsBefore": 35
+   },
+   "warm": null,
+   "regional": null,
+   "timeline": [
+    [
+     "page",
+     "waves",
+     48,
+     31,
+     6468
+    ],
+    [
+     "mini",
+     "waves",
+     1,
+     817,
+     1426
+    ],
+    [
+     "grid",
+     "waves",
+     1,
+     1656,
+     2451
+    ],
+    [
+     "mini",
+     "swell_1",
+     1,
+     3026,
+     3629
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     4040,
+     9460
+    ],
+    [
+     "grid",
+     "wind_waves",
+     1,
+     4122,
+     5327
+    ],
+    [
+     "mini",
+     "swell_2",
+     1,
+     10775,
+     11087
+    ],
+    [
+     "mini",
+     "wind_waves",
+     1,
+     11120,
+     11427
+    ],
+    [
+     "page",
+     "swell_1",
+     48,
+     11453,
+     15463
+    ],
+    [
+     "page",
+     "swell_2",
+     48,
+     16065,
+     20072
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     20648,
+     24650
+    ],
+    [
+     "page",
+     "wind_waves",
+     17,
+     25787,
+     27219
+    ]
+   ]
+  },
+  {
+   "build": "A",
+   "case": "toggle@12000:wind_waves",
+   "arm": "cur",
+   "flags": [],
+   "error": null,
+   "firstWavesMs": 762,
+   "gridSeries": {
+    "total": 11,
+    "pages": 7,
+    "minis": 4,
+    "hiddenPages": 2,
+    "hiddenMinis": 2
+   },
+   "boxModel": {
+    "hiddenCpuMs": 8600,
+    "busyMs": 27107,
+    "wavesPagesDoneMs": 10652,
+    "firstHiddenPageMs": 26272
+   },
+   "hiddenFrameReadyMs": null,
+   "toggle": {
+    "layer": "wind_waves",
+    "atMs": 12002,
+    "toGpuMs": 30,
+    "instantCommit": true,
+    "commitMs": 10,
+    "setWaveData": [
+     [
+      22,
+      1,
+      null
+     ]
+    ],
+    "fpsBefore": 60
+   },
+   "warm": {
+    "static": 0,
+    "minis": 3,
+    "miniFrames": 3,
+    "pages": 2,
+    "dropped": 0,
+    "waitMs": [
+     25496,
+     34918
+    ]
+   },
+   "regional": null,
+   "timeline": [
+    [
+     "page",
+     "waves",
+     48,
+     29,
+     4739
+    ],
+    [
+     "mini",
+     "waves",
+     1,
+     776,
+     1376
+    ],
+    [
+     "grid",
+     "waves",
+     1,
+     1691,
+     2483
+    ],
+    [
+     "mini",
+     "swell_1",
+     1,
+     5561,
+     5873
+    ],
+    [
+     "mini",
+     "swell_2",
+     1,
+     5921,
+     6230
+    ],
+    [
+     "mini",
+     "wind_waves",
+     1,
+     6290,
+     6604
+    ],
+    [
+     "page",
+     "waves",
+     48,
+     6642,
+     10652
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     12638,
+     16641
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     17300,
+     21307
+    ],
+    [
+     "page",
+     "wind_waves",
+     17,
+     22130,
+     23557
+    ],
+    [
+     "page",
+     "swell_1",
+     48,
+     26272,
+     30285
+    ],
+    [
+     "page",
+     "swell_2",
+     48,
+     35695,
+     39698
+    ]
+   ]
+  },
+  {
+   "build": "A",
+   "case": "toggle@12000:wind_waves",
+   "arm": "before",
+   "flags": [
+    "__RAW_DISABLE_SIBLING_IDLE_PAGES__",
+    "__RAW_DISABLE_SIBLING_WARM_ON_SERIES__"
+   ],
+   "error": null,
+   "firstWavesMs": 837,
+   "gridSeries": {
+    "total": 11,
+    "pages": 7,
+    "minis": 4,
+    "hiddenPages": 2,
+    "hiddenMinis": 2
+   },
+   "boxModel": {
+    "hiddenCpuMs": 8600,
+    "busyMs": 27511,
+    "wavesPagesDoneMs": 10625,
+    "firstHiddenPageMs": 12039
+   },
+   "hiddenFrameReadyMs": null,
+   "toggle": {
+    "layer": "wind_waves",
+    "atMs": 12009,
+    "toGpuMs": 813,
+    "instantCommit": false,
+    "commitMs": null,
+    "setWaveData": [
+     [
+      530,
+      263,
+      null
+     ]
+    ],
+    "fpsBefore": 59.5
+   },
+   "warm": null,
+   "regional": null,
+   "timeline": [
+    [
+     "page",
+     "waves",
+     48,
+     43,
+     4763
+    ],
+    [
+     "mini",
+     "waves",
+     1,
+     861,
+     1462
+    ],
+    [
+     "grid",
+     "waves",
+     1,
+     1840,
+     2642
+    ],
+    [
+     "mini",
+     "swell_1",
+     1,
+     5566,
+     5872
+    ],
+    [
+     "mini",
+     "swell_2",
+     1,
+     5912,
+     6218
+    ],
+    [
+     "mini",
+     "wind_waves",
+     1,
+     6256,
+     6561
+    ],
+    [
+     "page",
+     "waves",
+     48,
+     6612,
+     10625
+    ],
+    [
+     "page",
+     "swell_1",
+     48,
+     12039,
+     19499
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     12990,
+     20454
+    ],
+    [
+     "grid",
+     "wind_waves",
+     1,
+     15013,
+     16214
+    ],
+    [
+     "page",
+     "swell_2",
+     48,
+     21343,
+     25354
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     27304,
+     31314
+    ],
+    [
+     "page",
+     "wind_waves",
+     17,
+     31969,
+     33395
+    ]
+   ]
+  },
+  {
+   "build": "A",
+   "case": "toggle@40000:wind_waves",
+   "arm": "cur",
+   "flags": [],
+   "error": null,
+   "firstWavesMs": 1212,
+   "gridSeries": {
+    "total": 12,
+    "pages": 8,
+    "minis": 4,
+    "hiddenPages": 2,
+    "hiddenMinis": 2
+   },
+   "boxModel": {
+    "hiddenCpuMs": 8600,
+    "busyMs": 28531,
+    "wavesPagesDoneMs": 13541,
+    "firstHiddenPageMs": 16210
+   },
+   "hiddenFrameReadyMs": null,
+   "toggle": {
+    "layer": "wind_waves",
+    "atMs": 40005,
+    "toGpuMs": 58,
+    "instantCommit": true,
+    "commitMs": 15,
+    "setWaveData": [
+     [
+      46,
+      1,
+      null
+     ]
+    ],
+    "fpsBefore": 59.5
+   },
+   "warm": {
+    "static": 0,
+    "minis": 3,
+    "miniFrames": 3,
+    "pages": 3,
+    "dropped": 0,
+    "waitMs": [
+     15524,
+     22835,
+     31491
+    ]
+   },
+   "regional": null,
+   "timeline": [
+    [
+     "page",
+     "waves",
+     48,
+     48,
+     4762
+    ],
+    [
+     "mini",
+     "waves",
+     1,
+     686,
+     1289
+    ],
+    [
+     "grid",
+     "waves",
+     1,
+     1473,
+     2266
+    ],
+    [
+     "mini",
+     "swell_1",
+     1,
+     6176,
+     6491
+    ],
+    [
+     "mini",
+     "swell_2",
+     1,
+     6526,
+     6838
+    ],
+    [
+     "mini",
+     "wind_waves",
+     1,
+     6880,
+     7181
+    ],
+    [
+     "page",
+     "waves",
+     48,
+     7223,
+     11228
+    ],
+    [
+     "page",
+     "waves",
+     17,
+     12115,
+     13541
+    ],
+    [
+     "page",
+     "swell_1",
+     48,
+     16210,
+     20225
+    ],
+    [
+     "page",
+     "swell_2",
+     48,
+     23522,
+     27532
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     32177,
+     36186
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     40635,
+     44636
+    ],
+    [
+     "page",
+     "wind_waves",
+     17,
+     45609,
+     47033
+    ]
+   ]
+  },
+  {
+   "build": "A",
+   "case": "toggle@40000:wind_waves",
+   "arm": "before",
+   "flags": [
+    "__RAW_DISABLE_SIBLING_IDLE_PAGES__",
+    "__RAW_DISABLE_SIBLING_WARM_ON_SERIES__"
+   ],
+   "error": null,
+   "firstWavesMs": 980,
+   "gridSeries": {
+    "total": 12,
+    "pages": 8,
+    "minis": 4,
+    "hiddenPages": 2,
+    "hiddenMinis": 2
+   },
+   "boxModel": {
+    "hiddenCpuMs": 8600,
+    "busyMs": 28528,
+    "wavesPagesDoneMs": 13156,
+    "firstHiddenPageMs": 13517
+   },
+   "hiddenFrameReadyMs": null,
+   "toggle": {
+    "layer": "wind_waves",
+    "atMs": 40007,
+    "toGpuMs": 46,
+    "instantCommit": true,
+    "commitMs": 13,
+    "setWaveData": [
+     [
+      36,
+      2,
+      null
+     ]
+    ],
+    "fpsBefore": 60
+   },
+   "warm": null,
+   "regional": null,
+   "timeline": [
+    [
+     "page",
+     "waves",
+     48,
+     70,
+     4776
+    ],
+    [
+     "mini",
+     "waves",
+     1,
+     673,
+     1275
+    ],
+    [
+     "grid",
+     "waves",
+     1,
+     1414,
+     2218
+    ],
+    [
+     "mini",
+     "swell_1",
+     1,
+     5760,
+     6074
+    ],
+    [
+     "mini",
+     "swell_2",
+     1,
+     6112,
+     6417
+    ],
+    [
+     "mini",
+     "wind_waves",
+     1,
+     6458,
+     6759
+    ],
+    [
+     "page",
+     "waves",
+     48,
+     6811,
+     10822
+    ],
+    [
+     "page",
+     "waves",
+     17,
+     11725,
+     13156
+    ],
+    [
+     "page",
+     "swell_1",
+     48,
+     13517,
+     17519
+    ],
+    [
+     "page",
+     "swell_2",
+     48,
+     19285,
+     23300
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     24519,
+     28520
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     40629,
+     44644
+    ],
+    [
+     "page",
+     "wind_waves",
+     17,
+     46326,
+     47754
+    ]
+   ]
+  },
+  {
+   "build": "B",
+   "case": "load",
+   "arm": "cur",
+   "flags": [],
+   "error": null,
+   "firstWavesMs": 1054,
+   "gridSeries": {
+    "total": 0,
+    "pages": 0,
+    "minis": 0,
+    "hiddenPages": 0,
+    "hiddenMinis": 0
+   },
+   "boxModel": {
+    "hiddenCpuMs": 0,
+    "busyMs": 0,
+    "wavesPagesDoneMs": 0,
+    "firstHiddenPageMs": null
+   },
+   "hiddenFrameReadyMs": {
+    "swell_1": null,
+    "swell_2": null,
+    "wind_waves": null
+   },
+   "toggle": null,
+   "warm": {
+    "static": 6,
+    "minis": 0,
+    "miniFrames": 0,
+    "pages": 0,
+    "dropped": 0,
+    "waitMs": []
+   },
+   "regional": {
+    "bundles": 4,
+    "bundleBytes": 340350,
+    "slices": 256,
+    "hits": 1,
+    "series": 257,
+    "misses": {},
+    "dynamicOnCovered": 0
+   },
+   "timeline": []
+  },
+  {
+   "build": "B",
+   "case": "load",
+   "arm": "before",
+   "flags": [
+    "__RAW_DISABLE_SIBLING_IDLE_PAGES__",
+    "__RAW_DISABLE_SIBLING_WARM_ON_SERIES__"
+   ],
+   "error": null,
+   "firstWavesMs": 668,
+   "gridSeries": {
+    "total": 0,
+    "pages": 0,
+    "minis": 0,
+    "hiddenPages": 0,
+    "hiddenMinis": 0
+   },
+   "boxModel": {
+    "hiddenCpuMs": 0,
+    "busyMs": 0,
+    "wavesPagesDoneMs": 0,
+    "firstHiddenPageMs": null
+   },
+   "hiddenFrameReadyMs": {
+    "swell_1": null,
+    "swell_2": null,
+    "wind_waves": null
+   },
+   "toggle": null,
+   "warm": null,
+   "regional": {
+    "bundles": 1,
+    "bundleBytes": 120401,
+    "slices": 112,
+    "hits": 0,
+    "series": 113,
+    "misses": {},
+    "dynamicOnCovered": 0
+   },
+   "timeline": []
+  },
+  {
+   "build": "B",
+   "case": "load",
+   "arm": "noregional",
+   "flags": [
+    "__RAW_DISABLE_REGIONAL_BUNDLES__"
+   ],
+   "error": null,
+   "firstWavesMs": 837,
+   "gridSeries": {
+    "total": 10,
+    "pages": 6,
+    "minis": 4,
+    "hiddenPages": 3,
+    "hiddenMinis": 3
+   },
+   "boxModel": {
+    "hiddenCpuMs": 12900,
+    "busyMs": 23079,
+    "wavesPagesDoneMs": 14195,
+    "firstHiddenPageMs": 16758
+   },
+   "hiddenFrameReadyMs": {
+    "swell_1": 6478,
+    "swell_2": 6836,
+    "wind_waves": 7194
+   },
+   "toggle": null,
+   "warm": {
+    "static": 0,
+    "minis": 3,
+    "miniFrames": 3,
+    "pages": 3,
+    "dropped": 0,
+    "waitMs": [
+     15887,
+     23362,
+     30900
+    ]
+   },
+   "regional": null,
+   "timeline": [
+    [
+     "page",
+     "waves",
+     48,
+     39,
+     4753
+    ],
+    [
+     "mini",
+     "waves",
+     1,
+     871,
+     1466
+    ],
+    [
+     "grid",
+     "waves",
+     1,
+     1778,
+     2577
+    ],
+    [
+     "mini",
+     "swell_1",
+     1,
+     6177,
+     6478
+    ],
+    [
+     "mini",
+     "swell_2",
+     1,
+     6532,
+     6836
+    ],
+    [
+     "mini",
+     "wind_waves",
+     1,
+     6880,
+     7194
+    ],
+    [
+     "page",
+     "waves",
+     48,
+     7241,
+     11243
+    ],
+    [
+     "page",
+     "waves",
+     17,
+     12776,
+     14195
+    ],
+    [
+     "page",
+     "swell_1",
+     48,
+     16758,
+     20768
+    ],
+    [
+     "page",
+     "swell_2",
+     48,
+     24233,
+     28236
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     31770,
+     35783
+    ]
+   ]
+  },
+  {
+   "build": "B",
+   "case": "load",
+   "arm": "cur",
+   "flags": [],
+   "error": null,
+   "firstWavesMs": 701,
+   "gridSeries": {
+    "total": 0,
+    "pages": 0,
+    "minis": 0,
+    "hiddenPages": 0,
+    "hiddenMinis": 0
+   },
+   "boxModel": {
+    "hiddenCpuMs": 0,
+    "busyMs": 0,
+    "wavesPagesDoneMs": 0,
+    "firstHiddenPageMs": null
+   },
+   "hiddenFrameReadyMs": {
+    "swell_1": null,
+    "swell_2": null,
+    "wind_waves": null
+   },
+   "toggle": null,
+   "warm": {
+    "static": 6,
+    "minis": 0,
+    "miniFrames": 0,
+    "pages": 0,
+    "dropped": 0,
+    "waitMs": []
+   },
+   "regional": {
+    "bundles": 4,
+    "bundleBytes": 340350,
+    "slices": 257,
+    "hits": 1,
+    "series": 257,
+    "misses": {},
+    "dynamicOnCovered": 0
+   },
+   "timeline": []
+  },
+  {
+   "build": "B",
+   "case": "load",
+   "arm": "before",
+   "flags": [
+    "__RAW_DISABLE_SIBLING_IDLE_PAGES__",
+    "__RAW_DISABLE_SIBLING_WARM_ON_SERIES__"
+   ],
+   "error": null,
+   "firstWavesMs": 2218,
+   "gridSeries": {
+    "total": 0,
+    "pages": 0,
+    "minis": 0,
+    "hiddenPages": 0,
+    "hiddenMinis": 0
+   },
+   "boxModel": {
+    "hiddenCpuMs": 0,
+    "busyMs": 0,
+    "wavesPagesDoneMs": 0,
+    "firstHiddenPageMs": null
+   },
+   "hiddenFrameReadyMs": {
+    "swell_1": null,
+    "swell_2": null,
+    "wind_waves": null
+   },
+   "toggle": null,
+   "warm": null,
+   "regional": {
+    "bundles": 4,
+    "bundleBytes": 340350,
+    "slices": 256,
+    "hits": 1,
+    "series": 257,
+    "misses": {},
+    "dynamicOnCovered": 0
+   },
+   "timeline": []
+  },
+  {
+   "build": "B",
+   "case": "load",
+   "arm": "noregional",
+   "flags": [
+    "__RAW_DISABLE_REGIONAL_BUNDLES__"
+   ],
+   "error": null,
+   "firstWavesMs": 674,
+   "gridSeries": {
+    "total": 10,
+    "pages": 6,
+    "minis": 4,
+    "hiddenPages": 3,
+    "hiddenMinis": 3
+   },
+   "boxModel": {
+    "hiddenCpuMs": 12900,
+    "busyMs": 23099,
+    "wavesPagesDoneMs": 12809,
+    "firstHiddenPageMs": 16158
+   },
+   "hiddenFrameReadyMs": {
+    "swell_1": 5800,
+    "swell_2": 6157,
+    "wind_waves": 6520
+   },
+   "toggle": null,
+   "warm": {
+    "static": 0,
+    "minis": 3,
+    "miniFrames": 3,
+    "pages": 3,
+    "dropped": 0,
+    "waitMs": [
+     15469,
+     23344,
+     30801
+    ]
+   },
+   "regional": null,
+   "timeline": [
+    [
+     "page",
+     "waves",
+     48,
+     30,
+     4736
+    ],
+    [
+     "mini",
+     "waves",
+     1,
+     689,
+     1291
+    ],
+    [
+     "grid",
+     "waves",
+     1,
+     1501,
+     2292
+    ],
+    [
+     "mini",
+     "swell_1",
+     1,
+     5494,
+     5800
+    ],
+    [
+     "mini",
+     "swell_2",
+     1,
+     5842,
+     6157
+    ],
+    [
+     "mini",
+     "wind_waves",
+     1,
+     6204,
+     6520
+    ],
+    [
+     "page",
+     "waves",
+     48,
+     6559,
+     10569
+    ],
+    [
+     "page",
+     "waves",
+     17,
+     11385,
+     12809
+    ],
+    [
+     "page",
+     "swell_1",
+     48,
+     16158,
+     20169
+    ],
+    [
+     "page",
+     "swell_2",
+     48,
+     24033,
+     28040
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     31492,
+     35496
+    ]
+   ]
+  },
+  {
+   "build": "B",
+   "case": "toggle@12000:wind_waves",
+   "arm": "cur",
+   "flags": [],
+   "error": null,
+   "firstWavesMs": 620,
+   "gridSeries": {
+    "total": 0,
+    "pages": 0,
+    "minis": 0,
+    "hiddenPages": 0,
+    "hiddenMinis": 0
+   },
+   "boxModel": {
+    "hiddenCpuMs": 0,
+    "busyMs": 0,
+    "wavesPagesDoneMs": 0,
+    "firstHiddenPageMs": null
+   },
+   "hiddenFrameReadyMs": null,
+   "toggle": {
+    "layer": "wind_waves",
+    "atMs": 12014,
+    "toGpuMs": 48,
+    "instantCommit": true,
+    "commitMs": 12,
+    "setWaveData": [
+     [
+      37,
+      1,
+      null
+     ]
+    ],
+    "fpsBefore": 60
+   },
+   "warm": {
+    "static": 4,
+    "minis": 0,
+    "miniFrames": 0,
+    "pages": 0,
+    "dropped": 0,
+    "waitMs": []
+   },
+   "regional": {
+    "bundles": 4,
+    "bundleBytes": 340350,
+    "slices": 320,
+    "hits": 0,
+    "series": 322,
+    "misses": {},
+    "dynamicOnCovered": 0
+   },
+   "timeline": []
+  },
+  {
+   "build": "B",
+   "case": "toggle@12000:wind_waves",
+   "arm": "before",
+   "flags": [
+    "__RAW_DISABLE_SIBLING_IDLE_PAGES__",
+    "__RAW_DISABLE_SIBLING_WARM_ON_SERIES__"
+   ],
+   "error": null,
+   "firstWavesMs": 682,
+   "gridSeries": {
+    "total": 0,
+    "pages": 0,
+    "minis": 0,
+    "hiddenPages": 0,
+    "hiddenMinis": 0
+   },
+   "boxModel": {
+    "hiddenCpuMs": 0,
+    "busyMs": 0,
+    "wavesPagesDoneMs": 0,
+    "firstHiddenPageMs": null
+   },
+   "hiddenFrameReadyMs": null,
+   "toggle": {
+    "layer": "wind_waves",
+    "atMs": 12002,
+    "toGpuMs": 41,
+    "instantCommit": true,
+    "commitMs": 9,
+    "setWaveData": [
+     [
+      25,
+      2,
+      null
+     ]
+    ],
+    "fpsBefore": 60
+   },
+   "warm": null,
+   "regional": {
+    "bundles": 4,
+    "bundleBytes": 340350,
+    "slices": 321,
+    "hits": 1,
+    "series": 322,
+    "misses": {},
+    "dynamicOnCovered": 0
+   },
+   "timeline": []
+  },
+  {
+   "build": "B",
+   "case": "toggle@12000:wind_waves",
+   "arm": "noregional",
+   "flags": [
+    "__RAW_DISABLE_REGIONAL_BUNDLES__"
+   ],
+   "error": null,
+   "firstWavesMs": 604,
+   "gridSeries": {
+    "total": 12,
+    "pages": 8,
+    "minis": 4,
+    "hiddenPages": 2,
+    "hiddenMinis": 2
+   },
+   "boxModel": {
+    "hiddenCpuMs": 8600,
+    "busyMs": 28526,
+    "wavesPagesDoneMs": 12741,
+    "firstHiddenPageMs": 27193
+   },
+   "hiddenFrameReadyMs": null,
+   "toggle": {
+    "layer": "wind_waves",
+    "atMs": 12011,
+    "toGpuMs": 40,
+    "instantCommit": true,
+    "commitMs": 13,
+    "setWaveData": [
+     [
+      33,
+      1,
+      null
+     ]
+    ],
+    "fpsBefore": 60
+   },
+   "warm": {
+    "static": 0,
+    "minis": 3,
+    "miniFrames": 3,
+    "pages": 2,
+    "dropped": 0,
+    "waitMs": [
+     26563,
+     34370
+    ]
+   },
+   "regional": null,
+   "timeline": [
+    [
+     "page",
+     "waves",
+     48,
+     31,
+     4739
+    ],
+    [
+     "mini",
+     "waves",
+     1,
+     631,
+     1224
+    ],
+    [
+     "grid",
+     "waves",
+     1,
+     1509,
+     2304
+    ],
+    [
+     "mini",
+     "swell_1",
+     1,
+     5418,
+     5719
+    ],
+    [
+     "mini",
+     "swell_2",
+     1,
+     5764,
+     6077
+    ],
+    [
+     "mini",
+     "wind_waves",
+     1,
+     6123,
+     6437
+    ],
+    [
+     "page",
+     "waves",
+     48,
+     6472,
+     10478
+    ],
+    [
+     "page",
+     "waves",
+     17,
+     11265,
+     12741
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     12636,
+     16700
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     18282,
+     22294
+    ],
+    [
+     "page",
+     "wind_waves",
+     17,
+     22949,
+     24380
+    ],
+    [
+     "page",
+     "swell_1",
+     48,
+     27193,
+     31194
+    ],
+    [
+     "page",
+     "swell_2",
+     48,
+     35001,
+     39006
+    ]
+   ]
+  },
+  {
+   "build": "A_pre488",
+   "case": "load",
+   "arm": "cur",
+   "flags": [],
+   "error": null,
+   "firstWavesMs": 1012,
+   "gridSeries": {
+    "total": 10,
+    "pages": 6,
+    "minis": 4,
+    "hiddenPages": 3,
+    "hiddenMinis": 3
+   },
+   "boxModel": {
+    "hiddenCpuMs": 12900,
+    "busyMs": 23116,
+    "wavesPagesDoneMs": 14628,
+    "firstHiddenPageMs": 17681
+   },
+   "hiddenFrameReadyMs": {
+    "swell_1": 6110,
+    "swell_2": 6469,
+    "wind_waves": 6826
+   },
+   "toggle": null,
+   "warm": {
+    "static": 0,
+    "minis": 3,
+    "miniFrames": 3,
+    "pages": 3,
+    "dropped": 0,
+    "waitMs": [
+     14939,
+     22730,
+     30653
+    ]
+   },
+   "regional": null,
+   "timeline": [
+    [
+     "page",
+     "waves",
+     48,
+     81,
+     4798
+    ],
+    [
+     "mini",
+     "waves",
+     1,
+     698,
+     1306
+    ],
+    [
+     "grid",
+     "waves",
+     1,
+     1853,
+     2648
+    ],
+    [
+     "mini",
+     "swell_1",
+     1,
+     5800,
+     6110
+    ],
+    [
+     "mini",
+     "swell_2",
+     1,
+     6158,
+     6469
+    ],
+    [
+     "mini",
+     "wind_waves",
+     1,
+     6512,
+     6826
+    ],
+    [
+     "page",
+     "waves",
+     48,
+     6888,
+     10901
+    ],
+    [
+     "page",
+     "waves",
+     17,
+     13203,
+     14628
+    ],
+    [
+     "page",
+     "swell_1",
+     48,
+     17681,
+     21690
+    ],
+    [
+     "page",
+     "swell_2",
+     48,
+     25471,
+     29475
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     33396,
+     37411
+    ]
+   ]
+  },
+  {
+   "build": "A_pre488",
+   "case": "load",
+   "arm": "before",
+   "flags": [
+    "__RAW_DISABLE_SIBLING_IDLE_PAGES__"
+   ],
+   "error": null,
+   "firstWavesMs": 961,
+   "gridSeries": {
+    "total": 10,
+    "pages": 6,
+    "minis": 4,
+    "hiddenPages": 3,
+    "hiddenMinis": 3
+   },
+   "boxModel": {
+    "hiddenCpuMs": 12900,
+    "busyMs": 23092,
+    "wavesPagesDoneMs": 13318,
+    "firstHiddenPageMs": 14247
+   },
+   "hiddenFrameReadyMs": {
+    "swell_1": 18256,
+    "swell_2": 23365,
+    "wind_waves": 28813
+   },
+   "toggle": null,
+   "warm": null,
+   "regional": null,
+   "timeline": [
+    [
+     "page",
+     "waves",
+     48,
+     48,
+     4764
+    ],
+    [
+     "mini",
+     "waves",
+     1,
+     971,
+     1577
+    ],
+    [
+     "grid",
+     "waves",
+     1,
+     1979,
+     2770
+    ],
+    [
+     "mini",
+     "swell_1",
+     1,
+     5870,
+     6170
+    ],
+    [
+     "mini",
+     "swell_2",
+     1,
+     6212,
+     6512
+    ],
+    [
+     "mini",
+     "wind_waves",
+     1,
+     6558,
+     6872
+    ],
+    [
+     "page",
+     "waves",
+     48,
+     6908,
+     10921
+    ],
+    [
+     "page",
+     "waves",
+     17,
+     11890,
+     13318
+    ],
+    [
+     "page",
+     "swell_1",
+     48,
+     14247,
+     18256
+    ],
+    [
+     "page",
+     "swell_2",
+     48,
+     19360,
+     23365
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     24804,
+     28813
+    ]
+   ]
+  },
+  {
+   "build": "A_pre488",
+   "case": "toggle@3000:wind_waves",
+   "arm": "cur",
+   "flags": [],
+   "error": null,
+   "firstWavesMs": 875,
+   "gridSeries": {
+    "total": 10,
+    "pages": 6,
+    "minis": 4,
+    "hiddenPages": 2,
+    "hiddenMinis": 2
+   },
+   "boxModel": {
+    "hiddenCpuMs": 8600,
+    "busyMs": 23473,
+    "wavesPagesDoneMs": 6465,
+    "firstHiddenPageMs": 20122
+   },
+   "hiddenFrameReadyMs": null,
+   "toggle": {
+    "layer": "wind_waves",
+    "atMs": 3013,
+    "toGpuMs": 777,
+    "instantCommit": false,
+    "commitMs": null,
+    "setWaveData": [
+     [
+      525,
+      235,
+      null
+     ]
+    ],
+    "fpsBefore": 21.5
+   },
+   "warm": {
+    "static": 0,
+    "minis": 3,
+    "miniFrames": 3,
+    "pages": 2,
+    "dropped": 0,
+    "waitMs": [
+     17359,
+     25532
+    ]
+   },
+   "regional": null,
+   "timeline": [
+    [
+     "page",
+     "waves",
+     48,
+     41,
+     6465
+    ],
+    [
+     "mini",
+     "waves",
+     1,
+     907,
+     1518
+    ],
+    [
+     "grid",
+     "waves",
+     1,
+     1878,
+     2674
+    ],
+    [
+     "mini",
+     "swell_1",
+     1,
+     3156,
+     3750
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     4051,
+     9456
+    ],
+    [
+     "grid",
+     "wind_waves",
+     1,
+     4136,
+     5332
+    ],
+    [
+     "mini",
+     "swell_2",
+     1,
+     10176,
+     10485
+    ],
+    [
+     "mini",
+     "wind_waves",
+     1,
+     10535,
+     10843
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     10878,
+     14881
+    ],
+    [
+     "page",
+     "wind_waves",
+     17,
+     15947,
+     17377
+    ],
+    [
+     "page",
+     "swell_1",
+     48,
+     20122,
+     24124
+    ],
+    [
+     "page",
+     "swell_2",
+     48,
+     28295,
+     32301
+    ]
+   ]
+  },
+  {
+   "build": "A_pre488",
+   "case": "toggle@3000:wind_waves",
+   "arm": "before",
+   "flags": [
+    "__RAW_DISABLE_SIBLING_IDLE_PAGES__"
+   ],
+   "error": null,
+   "firstWavesMs": 781,
+   "gridSeries": {
+    "total": 10,
+    "pages": 6,
+    "minis": 4,
+    "hiddenPages": 2,
+    "hiddenMinis": 2
+   },
+   "boxModel": {
+    "hiddenCpuMs": 8600,
+    "busyMs": 23474,
+    "wavesPagesDoneMs": 6649,
+    "firstHiddenPageMs": 12093
+   },
+   "hiddenFrameReadyMs": null,
+   "toggle": {
+    "layer": "wind_waves",
+    "atMs": 3005,
+    "toGpuMs": 747,
+    "instantCommit": false,
+    "commitMs": null,
+    "setWaveData": [
+     [
+      505,
+      227,
+      null
+     ]
+    ],
+    "fpsBefore": 21
+   },
+   "warm": null,
+   "regional": null,
+   "timeline": [
+    [
+     "page",
+     "waves",
+     48,
+     48,
+     6649
+    ],
+    [
+     "mini",
+     "waves",
+     1,
+     805,
+     1405
+    ],
+    [
+     "grid",
+     "waves",
+     1,
+     1809,
+     2607
+    ],
+    [
+     "mini",
+     "swell_1",
+     1,
+     3133,
+     3728
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     3877,
+     9461
+    ],
+    [
+     "grid",
+     "wind_waves",
+     1,
+     4124,
+     5328
+    ],
+    [
+     "mini",
+     "swell_2",
+     1,
+     11385,
+     11699
+    ],
+    [
+     "mini",
+     "wind_waves",
+     1,
+     11743,
+     12055
+    ],
+    [
+     "page",
+     "swell_1",
+     48,
+     12093,
+     16106
+    ],
+    [
+     "page",
+     "swell_2",
+     48,
+     17263,
+     21263
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     22832,
+     26833
+    ],
+    [
+     "page",
+     "wind_waves",
+     17,
+     29283,
+     30704
+    ]
+   ]
+  },
+  {
+   "build": "A_pre488",
+   "case": "toggle@12000:wind_waves",
+   "arm": "cur",
+   "flags": [],
+   "error": null,
+   "firstWavesMs": 827,
+   "gridSeries": {
+    "total": 11,
+    "pages": 7,
+    "minis": 4,
+    "hiddenPages": 2,
+    "hiddenMinis": 2
+   },
+   "boxModel": {
+    "hiddenCpuMs": 8600,
+    "busyMs": 27138,
+    "wavesPagesDoneMs": 11260,
+    "firstHiddenPageMs": 27565
+   },
+   "hiddenFrameReadyMs": null,
+   "toggle": {
+    "layer": "wind_waves",
+    "atMs": 12008,
+    "toGpuMs": 221,
+    "instantCommit": true,
+    "commitMs": 8,
+    "setWaveData": [
+     [
+      26,
+      47,
+      null
+     ]
+    ],
+    "fpsBefore": 60
+   },
+   "warm": {
+    "static": 0,
+    "minis": 3,
+    "miniFrames": 3,
+    "pages": 2,
+    "dropped": 0,
+    "waitMs": [
+     24677,
+     33771
+    ]
+   },
+   "regional": null,
+   "timeline": [
+    [
+     "page",
+     "waves",
+     48,
+     34,
+     4758
+    ],
+    [
+     "mini",
+     "waves",
+     1,
+     855,
+     1463
+    ],
+    [
+     "grid",
+     "waves",
+     1,
+     1895,
+     2704
+    ],
+    [
+     "mini",
+     "swell_1",
+     1,
+     6111,
+     6423
+    ],
+    [
+     "mini",
+     "swell_2",
+     1,
+     6497,
+     6811
+    ],
+    [
+     "mini",
+     "wind_waves",
+     1,
+     6886,
+     7202
+    ],
+    [
+     "page",
+     "waves",
+     48,
+     7248,
+     11260
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     12632,
+     16639
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     17868,
+     21876
+    ],
+    [
+     "page",
+     "wind_waves",
+     17,
+     23283,
+     24711
+    ],
+    [
+     "page",
+     "swell_1",
+     48,
+     27565,
+     31580
+    ],
+    [
+     "page",
+     "swell_2",
+     48,
+     36662,
+     40666
+    ]
+   ]
+  },
+  {
+   "build": "A_pre488",
+   "case": "toggle@12000:wind_waves",
+   "arm": "before",
+   "flags": [
+    "__RAW_DISABLE_SIBLING_IDLE_PAGES__"
+   ],
+   "error": null,
+   "firstWavesMs": 1142,
+   "gridSeries": {
+    "total": 11,
+    "pages": 7,
+    "minis": 4,
+    "hiddenPages": 2,
+    "hiddenMinis": 2
+   },
+   "boxModel": {
+    "hiddenCpuMs": 8600,
+    "busyMs": 27507,
+    "wavesPagesDoneMs": 11987,
+    "firstHiddenPageMs": 12046
+   },
+   "hiddenFrameReadyMs": null,
+   "toggle": {
+    "layer": "wind_waves",
+    "atMs": 12002,
+    "toGpuMs": 853,
+    "instantCommit": false,
+    "commitMs": null,
+    "setWaveData": [
+     [
+      572,
+      268,
+      null
+     ]
+    ],
+    "fpsBefore": 60
+   },
+   "warm": null,
+   "regional": null,
+   "timeline": [
+    [
+     "page",
+     "waves",
+     48,
+     68,
+     4787
+    ],
+    [
+     "mini",
+     "waves",
+     1,
+     785,
+     1385
+    ],
+    [
+     "grid",
+     "waves",
+     1,
+     1562,
+     2364
+    ],
+    [
+     "mini",
+     "swell_1",
+     1,
+     6814,
+     7128
+    ],
+    [
+     "mini",
+     "swell_2",
+     1,
+     7209,
+     7517
+    ],
+    [
+     "mini",
+     "wind_waves",
+     1,
+     7589,
+     7890
+    ],
+    [
+     "page",
+     "waves",
+     48,
+     7977,
+     11987
+    ],
+    [
+     "page",
+     "swell_1",
+     48,
+     12046,
+     19615
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     12893,
+     20456
+    ],
+    [
+     "grid",
+     "wind_waves",
+     1,
+     15098,
+     16304
+    ],
+    [
+     "page",
+     "swell_2",
+     48,
+     23319,
+     27322
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     30163,
+     34177
+    ],
+    [
+     "page",
+     "wind_waves",
+     17,
+     35842,
+     37271
+    ]
+   ]
+  },
+  {
+   "build": "A_pre488",
+   "case": "toggle@40000:wind_waves",
+   "arm": "cur",
+   "flags": [],
+   "error": null,
+   "firstWavesMs": 847,
+   "gridSeries": {
+    "total": 12,
+    "pages": 8,
+    "minis": 4,
+    "hiddenPages": 2,
+    "hiddenMinis": 2
+   },
+   "boxModel": {
+    "hiddenCpuMs": 8600,
+    "busyMs": 28531,
+    "wavesPagesDoneMs": 14772,
+    "firstHiddenPageMs": 17824
+   },
+   "hiddenFrameReadyMs": null,
+   "toggle": {
+    "layer": "wind_waves",
+    "atMs": 40014,
+    "toGpuMs": 229,
+    "instantCommit": true,
+    "commitMs": 16,
+    "setWaveData": [
+     [
+      42,
+      44,
+      null
+     ]
+    ],
+    "fpsBefore": 59.5
+   },
+   "warm": {
+    "static": 0,
+    "minis": 3,
+    "miniFrames": 3,
+    "pages": 3,
+    "dropped": 0,
+    "waitMs": [
+     14990,
+     23131,
+     31339
+    ]
+   },
+   "regional": null,
+   "timeline": [
+    [
+     "page",
+     "waves",
+     48,
+     43,
+     4752
+    ],
+    [
+     "mini",
+     "waves",
+     1,
+     875,
+     1470
+    ],
+    [
+     "grid",
+     "waves",
+     1,
+     1921,
+     2724
+    ],
+    [
+     "mini",
+     "swell_1",
+     1,
+     7050,
+     7355
+    ],
+    [
+     "mini",
+     "swell_2",
+     1,
+     7405,
+     7710
+    ],
+    [
+     "mini",
+     "wind_waves",
+     1,
+     7755,
+     8069
+    ],
+    [
+     "page",
+     "waves",
+     48,
+     8115,
+     12127
+    ],
+    [
+     "page",
+     "waves",
+     17,
+     13342,
+     14772
+    ],
+    [
+     "page",
+     "swell_1",
+     48,
+     17824,
+     21828
+    ],
+    [
+     "page",
+     "swell_2",
+     48,
+     25964,
+     29975
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     34172,
+     38185
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     40649,
+     44649
+    ],
+    [
+     "page",
+     "wind_waves",
+     17,
+     46297,
+     47726
+    ]
+   ]
+  },
+  {
+   "build": "A_pre488",
+   "case": "toggle@40000:wind_waves",
+   "arm": "before",
+   "flags": [
+    "__RAW_DISABLE_SIBLING_IDLE_PAGES__"
+   ],
+   "error": null,
+   "firstWavesMs": 1165,
+   "gridSeries": {
+    "total": 12,
+    "pages": 8,
+    "minis": 4,
+    "hiddenPages": 2,
+    "hiddenMinis": 2
+   },
+   "boxModel": {
+    "hiddenCpuMs": 8600,
+    "busyMs": 28500,
+    "wavesPagesDoneMs": 14127,
+    "firstHiddenPageMs": 14581
+   },
+   "hiddenFrameReadyMs": null,
+   "toggle": {
+    "layer": "wind_waves",
+    "atMs": 40011,
+    "toGpuMs": 212,
+    "instantCommit": true,
+    "commitMs": 11,
+    "setWaveData": [
+     [
+      31,
+      49,
+      null
+     ]
+    ],
+    "fpsBefore": 60
+   },
+   "warm": null,
+   "regional": null,
+   "timeline": [
+    [
+     "page",
+     "waves",
+     48,
+     73,
+     4780
+    ],
+    [
+     "mini",
+     "waves",
+     1,
+     668,
+     1276
+    ],
+    [
+     "grid",
+     "waves",
+     1,
+     1442,
+     2237
+    ],
+    [
+     "mini",
+     "swell_1",
+     1,
+     6344,
+     6647
+    ],
+    [
+     "mini",
+     "swell_2",
+     1,
+     6740,
+     7053
+    ],
+    [
+     "mini",
+     "wind_waves",
+     1,
+     7098,
+     7413
+    ],
+    [
+     "page",
+     "waves",
+     48,
+     7470,
+     11473
+    ],
+    [
+     "page",
+     "waves",
+     17,
+     12708,
+     14127
+    ],
+    [
+     "page",
+     "swell_1",
+     48,
+     14581,
+     18589
+    ],
+    [
+     "page",
+     "swell_2",
+     48,
+     20678,
+     24682
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     25879,
+     29882
+    ],
+    [
+     "page",
+     "wind_waves",
+     48,
+     40638,
+     44639
+    ],
+    [
+     "page",
+     "wind_waves",
+     17,
+     46075,
+     47499
+    ]
+   ]
+  },
+  {
+   "build": "A_surf",
+   "case": "load",
+   "arm": "cur",
+   "flags": [],
+   "error": null,
+   "firstWavesMs": 6861,
+   "modelMs": 13417,
+   "pans": [
+    null,
+    null
+   ],
+   "gridSeries": {
+    "total": 12,
+    "pages": 9,
+    "minis": 3,
+    "byModelLayerKind": {
+     "GFS:waves:page": 1,
+     "GFS:waves:mini": 1,
+     "ICON:waves:page": 8,
+     "ICON:waves:mini": 2
+    },
+    "visiblePageBoxes": 1
+   },
+   "modelledSeriesCpuAskedMs": 138000,
+   "gridAsks": 3,
+   "warm": {
+    "static": 0,
+    "minis": 0,
+    "miniFrames": 0,
+    "pages": 0,
+    "dropped": 0,
+    "waitMs": [],
+    "surfGated": 7
+   },
+   "timeline": [
+    [
+     "page",
+     "GFS",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     85,
+     30189
+    ],
+    [
+     "mini",
+     "GFS",
+     "waves",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     919,
+     3919
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     true,
+     "-180,-80,180,85",
+     933,
+     3931
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     7013,
+     35115
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-180,-80,180,85",
+     7419,
+     11366
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     7622,
+     11556
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-82.75,24.25,-78.75,28.75",
+     15026,
+     18028
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-180.0000,-80.0000,180.0000,85.0000",
+     37544,
+     39484
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     37614,
+     53560
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     54424,
+     84365
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     54487,
+     84426
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     86816,
+     116762
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     86887,
+     116825
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     119817,
+     null
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     119888,
+     null
+    ]
+   ]
+  },
+  {
+   "build": "A_surf",
+   "case": "load",
+   "arm": "dev",
+   "flags": [
+    "__RAW_DISABLE_SIBLING_SURF_GATE__",
+    "__RAW_DISABLE_SIBLING_IDLE_PAGES__",
+    "__RAW_DISABLE_SIBLING_WARM_ON_SERIES__"
+   ],
+   "error": null,
+   "firstWavesMs": 5168,
+   "modelMs": 10059,
+   "pans": [
+    null,
+    null
+   ],
+   "gridSeries": {
+    "total": 12,
+    "pages": 7,
+    "minis": 5,
+    "byModelLayerKind": {
+     "GFS:waves:page": 1,
+     "GFS:waves:mini": 1,
+     "ICON:waves:page": 6,
+     "ICON:waves:mini": 2,
+     "ICON:swell_1:mini": 1,
+     "ICON:wind_waves:mini": 1
+    },
+    "visiblePageBoxes": 1
+   },
+   "modelledSeriesCpuAskedMs": 110000,
+   "gridAsks": 3,
+   "warm": null,
+   "timeline": [
+    [
+     "page",
+     "GFS",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     44,
+     31875
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     true,
+     "-180,-80,180,85",
+     432,
+     3345
+    ],
+    [
+     "mini",
+     "GFS",
+     "waves",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     630,
+     3533
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     5241,
+     35069
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-180,-80,180,85",
+     5636,
+     9568
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     5862,
+     9787
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-82.75,24.25,-78.75,28.75",
+     10736,
+     13740
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-180.0000,-80.0000,180.0000,85.0000",
+     36774,
+     38717
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     36835,
+     52787
+    ],
+    [
+     "mini",
+     "ICON",
+     "swell_1",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     54758,
+     56691
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     54833,
+     70766
+    ],
+    [
+     "mini",
+     "ICON",
+     "wind_waves",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     72526,
+     74478
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     72593,
+     88546
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     90423,
+     null
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     90489,
+     null
+    ]
+   ]
+  },
+  {
+   "build": "A_surf",
+   "case": "pans@20",
+   "arm": "cur",
+   "flags": [],
+   "error": null,
+   "firstWavesMs": 4520,
+   "modelMs": 9193,
+   "pans": [
+    10695,
+    35644
+   ],
+   "gridSeries": {
+    "total": 25,
+    "pages": 7,
+    "minis": 18,
+    "byModelLayerKind": {
+     "GFS:waves:page": 1,
+     "GFS:waves:mini": 1,
+     "ICON:waves:page": 6,
+     "ICON:waves:mini": 17
+    },
+    "visiblePageBoxes": 6
+   },
+   "modelledSeriesCpuAskedMs": 123000,
+   "gridAsks": 6,
+   "warm": {
+    "static": 0,
+    "minis": 0,
+    "miniFrames": 0,
+    "pages": 0,
+    "dropped": 0,
+    "waitMs": [],
+    "surfGated": 67
+   },
+   "timeline": [
+    [
+     "page",
+     "GFS",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     41,
+     68863
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     true,
+     "-180,-80,180,85",
+     375,
+     3259
+    ],
+    [
+     "mini",
+     "GFS",
+     "waves",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     641,
+     3526
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     4579,
+     78942
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-180,-80,180,85",
+     4966,
+     8891
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     5189,
+     9119
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-82.75,24.25,-78.75,28.75",
+     9268,
+     13105
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-81.2192,25.4704,-78.0769,27.4294",
+     11015,
+     16487
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.2192,25.4704,-78.0769,27.4294",
+     11015,
+     84725
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-80.7796,25.3715,-77.6373,27.3313",
+     13719,
+     20698
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-82,24,-76,30",
+     13803,
+     20837
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-80.6972,25.2232,-77.5549,27.1842",
+     14937,
+     22319
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-80.2853,25.0004,-77.1430,26.9633",
+     17416,
+     26026
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.9559,25.0745,-76.8135,27.0368",
+     18526,
+     27755
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.8732,24.9259,-76.7309,26.8894",
+     19869,
+     29520
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.5711,24.8762,-76.4288,26.8401",
+     21006,
+     30957
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.4613,24.7026,-76.3190,26.6679",
+     22340,
+     32813
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-82,22,-74,28",
+     22427,
+     32937
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.1321,24.7768,-75.9898,26.7415",
+     23474,
+     34139
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.0493,24.6279,-75.9069,26.5938",
+     24997,
+     35811
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-78.7472,24.5781,-75.6049,26.5444",
+     26248,
+     36980
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-78.3077,24.4785,-75.1653,26.4456",
+     28594,
+     38962
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-78.2254,24.3292,-75.0830,26.2975",
+     29767,
+     39837
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-77.9233,24.2792,-74.7810,26.2479",
+     31229,
+     40789
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-77.8133,24.1045,-74.6710,26.0746",
+     32333,
+     41396
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-77.5143,24.1724,-74.3720,26.1420",
+     33839,
+     42095
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-80,22,-72,28",
+     33872,
+     42110
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-80.7796,25.3715,-77.6373,27.3313",
+     49585,
+     98928
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-80.6972,25.2232,-77.5549,27.1842",
+     56022,
+     102693
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-80.2853,25.0004,-77.1430,26.9633",
+     94595,
+     null
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-79.9559,25.0745,-76.8135,27.0368",
+     101036,
+     null
+    ]
+   ]
+  },
+  {
+   "build": "A_surf",
+   "case": "pans@20",
+   "arm": "dev",
+   "flags": [
+    "__RAW_DISABLE_SIBLING_SURF_GATE__",
+    "__RAW_DISABLE_SIBLING_IDLE_PAGES__",
+    "__RAW_DISABLE_SIBLING_WARM_ON_SERIES__"
+   ],
+   "error": null,
+   "firstWavesMs": 5283,
+   "modelMs": 11208,
+   "pans": [
+    12711,
+    38037
+   ],
+   "gridSeries": {
+    "total": 25,
+    "pages": 7,
+    "minis": 18,
+    "byModelLayerKind": {
+     "GFS:waves:page": 1,
+     "GFS:waves:mini": 1,
+     "ICON:waves:page": 6,
+     "ICON:waves:mini": 17
+    },
+    "visiblePageBoxes": 6
+   },
+   "modelledSeriesCpuAskedMs": 123000,
+   "gridAsks": 5,
+   "warm": null,
+   "timeline": [
+    [
+     "page",
+     "GFS",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     40,
+     62223
+    ],
+    [
+     "grid",
+     "GFS",
+     "waves",
+     1,
+     true,
+     "-180,-80,180,85",
+     372,
+     3251
+    ],
+    [
+     "mini",
+     "GFS",
+     "waves",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     631,
+     3513
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     5361,
+     75485
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-180,-80,180,85",
+     5735,
+     9677
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-81.5212,25.5197,-78.3788,27.4783",
+     5964,
+     9894
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-81.2196,25.4704,-78.0773,27.4294",
+     13035,
+     18716
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-81.2196,25.4704,-78.0773,27.4294",
+     13035,
+     83967
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-82.5,24.25,-78.5,28.75",
+     13118,
+     18840
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-80.7801,25.3714,-77.6377,27.3312",
+     15851,
+     22270
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-80.6973,25.2234,-77.5550,27.1845",
+     16847,
+     23573
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-80.3508,25.1039,-77.2085,27.0659",
+     20360,
+     29272
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-82,22,-76,30",
+     20399,
+     29341
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.9559,25.0745,-76.8136,27.0368",
+     20784,
+     29881
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.8732,24.9259,-76.7309,26.8894",
+     22431,
+     31957
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.5716,24.8763,-76.4293,26.8402",
+     23310,
+     33161
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.4617,24.7031,-76.3193,26.6684",
+     24841,
+     35249
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.1317,24.7769,-75.9894,26.7416",
+     26059,
+     36792
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-79.0493,24.6278,-75.9069,26.5937",
+     27308,
+     38179
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-78.7475,24.5781,-75.6052,26.5444",
+     28486,
+     39244
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-78.3077,24.4785,-75.1654,26.4456",
+     30884,
+     41386
+    ],
+    [
+     "grid",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-80,22,-74,28",
+     30979,
+     41448
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-78.2253,24.3291,-75.0829,26.2974",
+     32047,
+     42151
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-77.9234,24.2792,-74.7811,26.2479",
+     33472,
+     42943
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-77.8133,24.1045,-74.6709,26.0746",
+     34596,
+     43454
+    ],
+    [
+     "mini",
+     "ICON",
+     "waves",
+     1,
+     true,
+     "-77.4841,24.1793,-74.3418,26.1488",
+     35995,
+     43952
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-80.7801,25.3714,-77.6377,27.3312",
+     50368,
+     96582
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-80.6973,25.2234,-77.5550,27.1845",
+     58031,
+     100415
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-80.3508,25.1039,-77.2085,27.0659",
+     95380,
+     null
+    ],
+    [
+     "page",
+     "ICON",
+     "waves",
+     16,
+     true,
+     "-79.9559,25.0745,-76.8136,27.0368",
+     100957,
+     null
+    ]
+   ]
+  }
+ ],
+ "surf_replay": "The lead's 19:44Z pattern (Render logs: surf ON, ICON, z7-9 Florida, every small pan a new surf page; hidden-layer ICON surf minis and pages at 19:54 while the box sat at 100%), replayed offline on build A at c4f68d5eb (the surf gate in) over a GFS+ICON store: ZOOM 8 at (-79.95, 26.5), surf mode, the ICON chip, 'load' (no input, 120 s) and 'pans@20' (a drift of 30-120 px pans 1.2 s apart). Surf asks cost the box model 15 s per 16-frame page (pro rata), 1 s per mini, 1 s per /grid. Arms: cur; dev = the three new kill switches (surf gate, idle pages, series trigger) = today's dev sibling warm."
+}

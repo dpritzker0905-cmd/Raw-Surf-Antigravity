@@ -163,7 +163,7 @@ async def dispatch_payment_success(
 async def process_dispatch_notifications(dispatch_id: str):
     """Background task to notify photographers in stages"""
     from database import async_session_maker
-    from routes.notifications.push import notify_dispatch_alert
+    from routes.notifications.push_payloads import notify_dispatch_alert
     
     async with async_session_maker() as db:
         result = await db.execute(

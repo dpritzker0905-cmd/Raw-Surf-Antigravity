@@ -50,6 +50,10 @@ AUTH_MARKERS = {
     "get_user_id_from_jwt_or_query",
     "get_optional_user_id_from_jwt_or_query",
     "get_optional_user_id",
+    # routes/uploads/identity.py: each takes the token's subject and refuses a legacy form field that names
+    # someone else (tests/test_upl01_upload_identity.py pins every upload route).
+    "uploader_id",
+    "photographer_uploader_id",
 }
 
 # Argument names that say WHO is acting, paying, being charged or credited. A route that takes

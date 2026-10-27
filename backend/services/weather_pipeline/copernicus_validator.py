@@ -1,6 +1,7 @@
 import os
 import json
 import logging
+import math
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List, Tuple
 from services.weather_pipeline.schemas import (
@@ -9,6 +10,51 @@ from services.weather_pipeline.schemas import (
 
 from services.weather_pipeline.prune_object_protection import retained_prune_references, delete_pruned_object
 logger = logging.getLogger(__name__)
+
+
+def _validate_lattice_basis(store, product, manifest):
+    """Accept only bounded interpolation backed by two real, matching native frames."""
+    basis = product.estimate_basis
+    try:
+        if not isinstance(basis, dict) or basis.get("type") != "native_time_interpolation":
+            raise ValueError("missing native interpolation basis")
+        if product.is_forecast_authoritative or product.provider != "estimated":
+            raise ValueError("interpolation must be non-authoritative and estimated")
+        ta, tb = (datetime.fromisoformat(basis[key].replace("Z", "+00:00"))
+                  for key in ("bracket_a_valid_time", "bracket_b_valid_time"))
+        slot = product.valid_time
+        weight = float(basis["weight"])
+        if not all(t.tzinfo is not None for t in (ta, tb, slot)):
+            raise ValueError("unqualified bracket time")
+        if not (ta < slot < tb and (tb-ta).total_seconds() <= 21600):
+            raise ValueError("invalid or wider than six-hour brackets")
+        if not math.isfinite(weight) or not 0 < weight < 1 or abs(weight-(slot-ta)/(tb-ta)) > 0.0001:
+            raise ValueError("interpolation weight disagrees with times")
+        manifest = manifest or store.get_manifest()
+        parents = []
+        from services.weather_pipeline.lattice_fill import _grids_compatible
+        for key, time in (("bracket_a_product_id", ta), ("bracket_b_product_id", tb)):
+            ref = basis.get(key)
+            row = next((p for p in manifest.products if ref and ref in (p.product_id, p.filename)), None)
+            if row is None:
+                raise ValueError("bracket absent from manifest")
+            parent = store.load_product(row.filename)
+            if (parent is None or parent.is_test_fixture or parent.provider == "test-fixture"
+                    or parent.is_estimated or not parent.is_forecast_authoritative
+                    or parent.valid_time != time
+                    or any(getattr(parent, k) != getattr(product, k)
+                           for k in ("model", "domain", "layer", "region_id"))
+                    or not _grids_compatible(parent, product)):
+                raise ValueError("bracket is not a matching native frame")
+            parents.append(parent)
+        if (any(p.model_run_time_status != "known" or p.model_run_time is None for p in parents)
+                or parents[0].model_run_time != parents[1].model_run_time
+                or product.model_run_time_status != "known"
+                or product.model_run_time != parents[0].model_run_time):
+            raise ValueError("bracket model cycles disagree or are unknown")
+    except (ValueError, TypeError, KeyError, AttributeError) as exc:
+        return False, f"Invalid lattice interpolation: {exc}"
+    return True, "Valid bounded native interpolation"
 
 def is_test_environment() -> bool:
     import sys
@@ -49,6 +95,12 @@ def validate_copernicus_product_helper(
 
     # 1. Estimate/mock products
     if product.is_estimated and not is_tf:
+        lattice = (os.environ.get("EURO_MARINE_LATTICE_VALIDATION", "0") == "1"
+                   and product.source_dataset == "estimated_interpolation")
+        if lattice:
+            valid, reason = _validate_lattice_basis(store, product, manifest)
+            if not valid:
+                return valid, reason
         # Enforce 14 strict rules
         if product.model.upper() != "EURO":
             return False, f"Estimated product model must be EURO, got {product.model}"
@@ -67,7 +119,7 @@ def validate_copernicus_product_helper(
             "ecmwf_wam025", "ncep_gfswave025", "dwd_gwam", "gfs_seamless", "dwd_icon", "ecmwf_ifs",
             "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i"
         )
-        if product.source_dataset not in allowed_datasets:
+        if product.source_dataset not in allowed_datasets and not lattice:
             return False, f"Estimated product source_dataset must be in {allowed_datasets}, got {product.source_dataset}"
         
         basis = getattr(product, "estimate_basis", None)
@@ -79,10 +131,10 @@ def validate_copernicus_product_helper(
             "euro_persistence_gfs_icon_blend", "euro_persistence_gfs_blend",
             "open_meteo_fallback", "gfs_estimated_fallback",
             "ecmwf_ifs_derived_fallback", "gfs_derived_fallback"
-        ):
+        ) and not lattice:
             return False, f"Estimated product estimate_basis type must be allowed, got {basis_type}"
         
-        if basis_type not in ("open_meteo_fallback", "gfs_estimated_fallback", "ecmwf_ifs_derived_fallback", "gfs_derived_fallback"):
+        if not lattice and basis_type not in ("open_meteo_fallback", "gfs_estimated_fallback", "ecmwf_ifs_derived_fallback", "gfs_derived_fallback"):
             if not manifest:
                 manifest = store.get_manifest()
                 
@@ -165,6 +217,10 @@ def validate_copernicus_product_helper(
         fallback_vars = {"swell_wave_height", "swell_wave_direction", "swell_wave_period"}
     
     actual_vars = set(product.source_variables or [])
+    # COPERNICUS_PEAK_PERIOD stores the total period from VTPK (cmems_period_map); either period variable is a valid
+    # waves product, so products written before and after a flip both validate.
+    if layer == "waves" and "VTPK" in actual_vars:
+        expected_vars = (expected_vars - {"VTM10"}) | {"VTPK"}
     if not expected_vars.issubset(actual_vars) and not fallback_vars.issubset(actual_vars):
         return False, f"Missing required CMEMS variables. Expected subset {expected_vars} or {fallback_vars}, got {actual_vars}"
 
@@ -270,11 +326,9 @@ def quarantine_invalid_copernicus_products_helper(store):
 
 def prune_old_products_helper(store, before_time: datetime):
     """Cleans up old JSON product files that fall before the cutoff date."""
-    from services.weather_pipeline.store import (
-        _manifest_executor, dump_manifest_for_l2,
-        reconcile_manifest_products_for_upload,
-    )
+    from services.weather_pipeline.manifest_publish_step import absorb_published_head, submit_manifest_publish
     manifest = store.get_manifest()
+    absorb_published_head(manifest)
     manifest.last_manifest_update = datetime.now(timezone.utc)
 
     remaining_products = [p for p in manifest.products if not p.valid_time_start < before_time]
@@ -292,9 +346,7 @@ def prune_old_products_helper(store, before_time: datetime):
     try:
         # exclude_keys: the entries just deleted are still in the remote manifest — folding them
         # back would resurrect dangling references to L2 objects we just destroyed (audit #28).
-        reconcile_manifest_products_for_upload(manifest, exclude_keys=pruned_keys)
-        manifest_json = dump_manifest_for_l2(manifest)
-        _manifest_executor.submit(store._upload_to_supabase, "manifest.json", manifest_json)
+        submit_manifest_publish(store, manifest, exclude_keys=pruned_keys)
     except Exception as e:
         logger.warning(f"[Product Store] Manifest L2 upload submit after prune failed: {e}")
 
@@ -314,11 +366,9 @@ def prune_duplicate_valid_times_helper(store) -> int:
     if os.environ.get('INGEST_PRUNE_VERIFIED_CYCLES', '0') == '1':
         from services.weather_pipeline.prune_verified_cycles import prune_verified_cycles
         return prune_verified_cycles(store)
-    from services.weather_pipeline.store import (
-        _manifest_executor, dump_manifest_for_l2,
-        reconcile_manifest_products_for_upload,
-    )
+    from services.weather_pipeline.manifest_publish_step import absorb_published_head, submit_manifest_publish
     manifest = store.get_manifest()
+    absorb_published_head(manifest)
 
     # PROVENANCE-AWARE ranking (2026-07-06, the EURO waves lane wipe — run 28786800982): a failed
     # CMEMS fetch made the native job save ESTIMATED fallbacks with a newer run_time; a pure
@@ -360,9 +410,7 @@ def prune_duplicate_valid_times_helper(store) -> int:
         manifest.last_manifest_update = datetime.now(timezone.utc)
         store._save_manifest(manifest)
         try:
-            reconcile_manifest_products_for_upload(manifest, exclude_keys=pruned_keys)
-            manifest_json = dump_manifest_for_l2(manifest)
-            _manifest_executor.submit(store._upload_to_supabase, "manifest.json", manifest_json)
+            submit_manifest_publish(store, manifest, exclude_keys=pruned_keys)
         except Exception as e:
             logger.warning(f"[Product Store] Manifest L2 upload submit after duplicate sweep failed: {e}")
         logger.info(f"[Product Store] Duplicate-valid_time sweep pruned {pruned} superseded products.")
@@ -407,11 +455,9 @@ def prune_superseded_products_helper(
                          or (region_id and product.region_id is None and product.coverage_mode == 'global_tile')))
 
         return prune_verified_cycles(store, lane)
-    from services.weather_pipeline.store import (
-        _manifest_executor, dump_manifest_for_l2,
-        reconcile_manifest_products_for_upload,
-    )
+    from services.weather_pipeline.manifest_publish_step import absorb_published_head, submit_manifest_publish
     manifest = store.get_manifest()
+    absorb_published_head(manifest)
     manifest.last_manifest_update = datetime.now(timezone.utc)
 
     def _lane_match(p):
@@ -465,9 +511,7 @@ def prune_superseded_products_helper(
         manifest.products = remaining_products
         store._save_manifest(manifest)
         try:
-            reconcile_manifest_products_for_upload(manifest, exclude_keys=pruned_keys)
-            manifest_json = dump_manifest_for_l2(manifest)
-            _manifest_executor.submit(store._upload_to_supabase, "manifest.json", manifest_json)
+            submit_manifest_publish(store, manifest, exclude_keys=pruned_keys)
             logger.info(f"[Product Store] Manifest L2 uploaded submit after pruning {pruned_count} superseded products.")
         except Exception as e:
             logger.warning(f"[Product Store] Manifest L2 upload submit after prune failed: {e}")

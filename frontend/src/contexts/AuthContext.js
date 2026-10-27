@@ -1,6 +1,8 @@
 import React, { createContext, useState, useContext, useEffect, useCallback, useMemo } from 'react';
 import apiClient from '../lib/apiClient';
 import { clearSessionRejected, wasSessionRejected } from '../lib/sessionRejection';
+import { forgetThisDeviceForAccount } from '../hooks/usePushNotifications';
+import { purgeUserScopedStorage } from '../lib/userScopedStorage';
 
 const AuthContext = createContext();
 
@@ -114,18 +116,32 @@ export const AuthProvider = ({ children }) => {
     return userData;
   }, []);
 
-  const login = useCallback(async (email, password) => {
-    const response = await apiClient.post('/auth/login', {
-      email,
-      password
-    });
-    const userData = response.data;
+  // Make a signed-in session the current one (the response of a finished sign-in).
+  const startSession = useCallback((userData) => {
     setUser(userData);
     localStorage.setItem('raw-surf-user', JSON.stringify(userData));
     clearSessionRejected();
     document.documentElement.classList.remove('no-god-mode');
     return userData;
   }, []);
+
+  // A password sign-in has three outcomes. A session (stored, returned as before), or one of two steps that carry NO
+  // session and are returned untouched for the sign-in screen to finish: `mfa_required` (answer the second factor)
+  // and `mfa_setup_required` (this role must set up two-step verification first).
+  const login = useCallback(async (email, password) => {
+    const response = await apiClient.post('/auth/login', {
+      email,
+      password
+    });
+    const data = response.data;
+    if (data?.mfa_required || data?.mfa_setup_required) return data;
+    return startSession(data);
+  }, [startSession]);
+
+  const completeMfaLogin = useCallback(async (challengeToken, code) => {
+    const response = await apiClient.post('/auth/login/mfa', { challenge_token: challengeToken, code });
+    return startSession(response.data);
+  }, [startSession]);
 
   const endImpersonation = useCallback(async () => {
     if (!impersonation || !originalUser) return;
@@ -146,6 +162,11 @@ export const AuthProvider = ({ children }) => {
   }, [impersonation, originalUser]);
 
   const logout = useCallback(() => {
+    // The leaving account's push stops on this device (a shared browser keeps its endpoint for the next account).
+    // Its token is read now: the stored session is cleared below, before the async request goes out.
+    let leavingToken = null;
+    try { leavingToken = JSON.parse(localStorage.getItem('raw-surf-user') || 'null')?.access_token || null; } catch (e) { /* malformed */ }
+    if (leavingToken) forgetThisDeviceForAccount(leavingToken);
     if (impersonation) {
       endImpersonation();
     }
@@ -158,6 +179,8 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('isPersonaBarActive');
     localStorage.removeItem('activePersona');
     localStorage.removeItem('impersonation_session');
+    // A shared device: the next account must not inherit this one's cached feed, offline queue, favourites, searches.
+    purgeUserScopedStorage();
     document.documentElement.classList.add('no-god-mode');
   }, [impersonation, endImpersonation]);
 
@@ -240,6 +263,8 @@ export const AuthProvider = ({ children }) => {
     user,
     signup,
     login,
+    completeMfaLogin,
+    startSession,
     logout,
     updateUser,
     refreshUser,
@@ -259,6 +284,8 @@ export const AuthProvider = ({ children }) => {
     user,
     signup,
     login,
+    completeMfaLogin,
+    startSession,
     logout,
     updateUser,
     refreshUser,

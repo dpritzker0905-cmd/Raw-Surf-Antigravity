@@ -12,7 +12,7 @@ import {
 import {
   initParticleTexture
 } from './WebGLWindUtils';
-import { createProgramBatch } from './WebGLProgramBatch';
+import { startProgramBatch, pollEngineBatch, publishBatch, BATCH } from './WebGLProgramBatch';
 
 export function reinitParticles(engine, gl, opts) {
   if (!gl || !engine._initialized) return;
@@ -37,12 +37,15 @@ export function reinitParticles(engine, gl, opts) {
 
 export function initEngine(engine, gl) {
   if (engine._initialized) return;
-  const programs = createProgramBatch(gl, [[ADVECT_VS, ADVECT_FS], [DRAW_VS, DRAW_FS],
+  // ASYNC SHADER COMPILE (WebGLProgramBatch.js): the batch may still be compiling when this returns; buffers and textures
+  // are allocated now, the vertex arrays (getAttribLocation blocks until the link finishes) wait for pollPrograms.
+  const batch = startProgramBatch(gl, [[ADVECT_VS, ADVECT_FS], [DRAW_VS, DRAW_FS],
     [SCREEN_VS, SCREEN_FS], [SCREEN_VS, FADE_FS], [HEATMAP_VS, HEATMAP_FS]]);
-  if (!programs) {
+  if (!batch) {
     console.error('[WebGLWind] Failed to compile or link shaders'); return;
   }
-  [engine.advectProgram, engine.drawProgram, engine.screenProgram, engine.fadeProgram, engine.heatmapProgram] = programs;
+  [engine.advectProgram, engine.drawProgram, engine.screenProgram, engine.fadeProgram, engine.heatmapProgram] = batch.programs;
+  engine._shaderBatchName = 'wind';
   engine.quadBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, engine.quadBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
@@ -88,6 +91,18 @@ export function initEngine(engine, gl) {
   engine.particleStateB = initParticleTexture(gl, engine.particleRes);
   engine.advFBO = gl.createFramebuffer();
 
+  if (batch.state === BATCH.READY) { publishBatch(engine, batch); initVertexArrays(engine, gl); }
+  else engine._programBatch = batch;
+
+  engine._colorRamp = null; engine._fieldRamp = null;
+  engine._currentTheme = null;
+  engine._initialized = true;
+  console.log('[WebGLWind] Initialized: ' + (engine.particleRes * engine.particleRes) + ' particles');
+}
+
+// The program-dependent part of init (attribute locations are program queries): on the async path it waits for the
+// batch (pollPrograms); on the synchronous paths it runs inside initEngine, where it always did.
+function initVertexArrays(engine, gl) {
   // Create Vertex Array Objects (VAOs) for VAO isolation under WebGL 2
   if (gl.createVertexArray) {
     engine.heatmapVAO = gl.createVertexArray();
@@ -138,11 +153,17 @@ export function initEngine(engine, gl) {
 
     gl.bindVertexArray(null);
   }
+}
 
-  engine._colorRamp = null; engine._fieldRamp = null;
-  engine._currentTheme = null;
-  engine._initialized = true;
-  console.log('[WebGLWind] Initialized: ' + (engine.particleRes * engine.particleRes) + ' particles');
+// Advance a pending shader batch one frame (WebGLWindLayer calls this before every draw): 'pending' while compiling;
+// 'failed' once, with the batch's programs and shaders released by the batch and everything else here, exactly the
+// state a failed init leaves; 'ready' otherwise.
+export function pollPrograms(engine, gl) {
+  return pollEngineBatch(engine, () => initVertexArrays(engine, gl), () => {
+    engine.advectProgram = engine.drawProgram = engine.screenProgram = engine.fadeProgram = engine.heatmapProgram = null;
+    console.error('[WebGLWind] Failed to compile or link shaders');
+    disposeEngine(engine, gl);
+  });
 }
 
 var deleteAttachedShaders = function(gl, prog) {
@@ -202,6 +223,7 @@ export function disposeEngine(engine, gl) {
   engine._colorRamp = null; engine._fieldRamp = null;
   engine.screenA = null;
   engine.screenB = null;
+  engine._programBatch = null;   // a batch still compiling: its programs were deleted above with the rest
   engine._initialized = false;
   console.log('[WebGLWind] Disposed');
 }

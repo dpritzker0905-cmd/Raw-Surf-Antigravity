@@ -64,7 +64,8 @@ const r3 = (v) => Math.round(v * 1000) / 1000;
 // windLightPath.test.js). BUILT is what the checkout draws now.
 const BUILT = R.resolveDrawnField('light', {}).map((r) => r.slice());
 const MERGED_FILE = path.join(HERE, 'light-path-318.json');
-if (args.includes('--dump-merged')) { fs.writeFileSync(MERGED_FILE, JSON.stringify({ note: 'light\u2019s wind field as PR #318 merged it (dev f6310516, before the margin): rows of [kn, r, g, b, a]', field: BUILT }) + '\n'); console.log('written: ' + MERGED_FILE); process.exit(0); }
+if (args.includes('--dump-merged')) { if (fs.existsSync(MERGED_FILE)) { console.error('refused: ' + MERGED_FILE + ' exists. It holds the field PR #318 merged; this checkout draws the margin, so writing it now would replace the reference with the rows moved from it.'); process.exit(1); }
+  fs.writeFileSync(MERGED_FILE, JSON.stringify({ note: 'light\u2019s wind field as PR #318 merged it (dev f6310516, before the margin): rows of [kn, r, g, b, a]', field: BUILT }) + '\n'); console.log('written: ' + MERGED_FILE); process.exit(0); }
 const BASE = JSON.parse(fs.readFileSync(MERGED_FILE, 'utf8')).field;
 const tableOf = (rows) => { const T = R.huePathStops(rows, {}); return (kn) => R.sampleRamp(T, kn); };
 /** As the GPU draws it at `max`: the 8-bit texture generateRampData fills, looked up at 256 t - 0.5 (lut-lookup-gpu.cjs read the law back). */
@@ -173,7 +174,7 @@ function solve() {
 
 const show = (rows, title) => { const au = audit(rows), mv = moved(rows);
   console.log(`\n=== ${title}`);
-  for (const surface of GROUNDS) { console.log(` over the ${surface === 'water' ? 'sea' : 'deeper land'}:   pair      table   as drawn (least; at which maximum; under 5.0 at n maxima)`);
+  for (const surface of GROUNDS) { console.log(` over the ${surface === 'water' ? 'sea' : 'land (as the checkout draws it, or --land-l)'}:   pair      table   as drawn (least; at which maximum; under 5.0 at n maxima)`);
     for (const p of au[surface]) console.log(`    ${p.pair.padEnd(6)} kn  ${p.table.toFixed(3)}   ${p.drawn.toFixed(3)}  at ${String(p.at).padStart(5)} kn   ${String(p.under).padStart(3)} of ${p.n}`); }
   const n = underAt(rows, 5), lt = { land: lineOf(au, 'land', 'table'), water: lineOf(au, 'water', 'table') }, ld = { land: lineOf(au, 'land', 'drawn'), water: lineOf(au, 'water', 'drawn') }, at50 = audit50(rows);
   console.log(` THE LINE   land: table ${lt.land.table.toFixed(3)} (${lt.land.pair}), as drawn ${ld.land.drawn.toFixed(3)} (${ld.land.pair} at ${ld.land.at} kn), at a 50 kn maximum ${at50.land.toFixed(3)}; under 5.0 at ${n.land} of ${MAXIMA.length} maxima`);

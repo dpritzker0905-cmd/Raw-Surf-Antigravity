@@ -4,13 +4,62 @@ import { getBackendCopernicusFlag, getBackendWeatherFlag, getBackendIconMarineFl
 import { findClosestHourIndex } from './marineControllerUtils';
 import { computeGridContentHash } from './marineGridHash';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
-import { getMarineSeriesFrame } from './marineGridSeries';
+import { ensureMarineSeries, getMarineSeriesFrame } from './marineGridSeries';
+import { noteRequestDiet, requestDietOn } from './marineRequestDiet';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { publishMarineTimelineRequest, publishMarineTimelineFrame } from './marineTimelineCoverage';
 import { DISPLAY_ICON_MAX_HOURS, DISPLAY_EURO_WAVES_MAX_HOURS, DISPLAY_EURO_COMPONENT_MAX_HOURS } from './useMarineDataFetcherHelpers';
+import { tryShowStoredFrame, tryShowStoredFrameForSwitch, noteStep } from './marineFrameStoreRuntime';
+import { resolveMarineFetchModel } from './marineSeekIdentity';
 
 let _lastMarineScrubLogTime = 0;
+
+/**
+ * STEP_PAGE (request diet 2026-10-20, marineRequestDiet.js). An hour step that misses every cache (no exact grid, no series frame)
+ * fetched ONE exact /grid for that hour and never asked for the 48-frame page holding it: the scrub prewarm runs only when a DRAG
+ * starts (timeline_scrub_start), so button and keyboard steps past the first page paid a /grid per hour, every hour, and EURO (never
+ * prewarmed: its pages are per-hour Copernicus work) did so on every page. Ask for the page as well: ensureMarineSeries races the
+ * step's own hour as a one-frame "mini" ahead of the page while the page is cold (the nearest frame first), loads the CURRENT page
+ * only (no neighbour fan-out), is TTL'd and deduped, and promotes a page the background prewarm still has queued. The /grid still
+ * goes out (at world zoom the series frame is the thinned placeholder the exact frame replaces). Not while dragging: the drag's own
+ * prewarm owns that, and a mini per dragged hour would be a storm.
+ * SHIPS OFF: the offline A/B measured no gain (the activation/moveend warm already queues these pages) and up to 2.3 extra series
+ * requests per erratic session (marineRequestDiet.REQUEST_DIET_OPT_IN). Opt in: window.__RAW_STEP_PAGE__ = true.
+ */
+export function requestStepPage(model, layer, bounds, hourOffset) {
+  try {
+    if (!requestDietOn('STEP_PAGE') || !bounds || (typeof window !== 'undefined' && window.isScrubbingTimeline)) return false;
+    ensureMarineSeries(model, layer, bounds, hourOffset, undefined, true /* currentPageOnly */);
+    noteRequestDiet('step_page_requested', { model, layer, hour: hourOffset });
+    return true;
+  } catch (e) {
+    return false;                      // best effort: the /grid for the step is already on its way
+  }
+}
+
+/**
+ * INSTANT MODEL TOGGLE (Stage A of the GPU-resident frames, 2026-10-22). At a model switch, before the coalesced fetch, put the new
+ * model's stored world frame for the current hour on screen (marineFrameStoreRuntime.tryShowStoredFrameForSwitch: a warm frame
+ * the prefetch keeps for the other published waves sets, with its own chl/bath). The model is the one the fetch will ask for
+ * (resolveMarineFetchModel: past a model's horizon the fetcher draws GFS) and only on a backend lane, the same gates as the scrub
+ * step above. The coalesced fetch still runs and commits the same frame; on any miss nothing changes. Then the prefetch follows
+ * the new model. Kill: window.__RAW_DISABLE_FRAME_MODEL_TOGGLE__ = true.
+ */
+export function showStoredFrameOnModelSwitch({ model, layer, hour }) {
+  try {
+    const lyr = layer || 'waves';
+    const m = resolveMarineFetchModel(model || 'GFS', lyr, hour, getBackendIconMarineFlag());
+    const backend = (m === 'GFS' && getBackendWeatherFlag()) || (m === 'ICON' && getBackendIconMarineFlag()) || (m === 'EURO' && getBackendCopernicusFlag());
+    if (!backend) return false;
+    const requestedValidTime = getSharedValidTime(hour, lyr, m, { readOnly: true });
+    const shown = tryShowStoredFrameForSwitch({ model: m, layer: lyr, hourOffset: hour, requestedValidTime });
+    noteStep({ model: m, layer: lyr, requestedValidTime });
+    return shown;
+  } catch (e) {
+    return false;                      // best effort: the coalesced fetch serves the switch
+  }
+}
 
 export function useMarineOrchestratorScrubCache({
   timeOffsetHours,
@@ -75,6 +124,12 @@ export function useMarineOrchestratorScrubCache({
 
     if (isBackendActive) {
       const requestedValidTime = getSharedValidTime(timeOffsetHours, curLayer, curModel, { readOnly: true });
+      // GPU-RESIDENT FRAMES (static frames on; spec docs/architecture/gpu-resident-forecast-frames.md): the stored frame goes on
+      // screen NOW (a layer copy into the resident wave texture); the normal commit below still follows and writes the same
+      // bytes. Refuses (normal path only) unless the resident is this set's frame at the same size and validity. Then keep the
+      // prefetch on the cursor. Kill: window.__RAW_DISABLE_FRAME_STORE__ = true.
+      tryShowStoredFrame({ model: curModel, layer: curLayer, hourOffset: timeOffsetHours, requestedValidTime });
+      noteStep({ model: curModel, layer: curLayer, requestedValidTime });
       let cachedBackendData = getModelSafeMarine(curModel, timeOffsetHours, curLayer, vpBounds);
       // The series frame is the EXACT scrubbed hour (±1.5h snap). getModelSafeMarine can return a
       // NEAREST/stale-hour fallback (flagged __staleHour) which the commit below intentionally
@@ -225,6 +280,7 @@ export function useMarineOrchestratorScrubCache({
         marineFetchLocksRef.current.lastHash = null;
         if (!window.isScrubbingTimeline) {
           enqueueMarineUpdate('timeline_scrub_deferred');
+          requestStepPage(curModel, curLayer, vpBounds, timeOffsetHours);
         }
         return;
       }

@@ -5,6 +5,7 @@ Admin Support Ticketing System
 - Response time metrics and CSAT tracking
 """
 from fastapi import APIRouter, Depends, HTTPException
+from core.security import get_user_id_from_jwt_or_query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_, desc, update
 from pydantic import BaseModel
@@ -401,8 +402,8 @@ async def get_support_metrics(
 @router.post("/support/tickets")
 async def create_ticket(
     request: CreateTicketRequest,
-    user_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Create a new support ticket (user-facing)"""
     ticket_number = await generate_ticket_number(db)

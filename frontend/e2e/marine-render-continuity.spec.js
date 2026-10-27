@@ -51,8 +51,9 @@
  * the basemap ocean covered it. That needs the pixel oracle, and this is deliberately NOT sold as
  * a replacement for it. It catches the DISCONTINUITY class, which is what was reported.
  */
-const { test, expect } = require('@playwright/test');
-const { stubSeededMessageBadge } = require('./seededMessageBadge');
+// test/expect carry the in-runner weather backend route (offlineWeather.js): no weather request reaches the live box.
+const { test, expect } = require('./offlineWeather');
+const { stubSeededUiBadges } = require('./seededUiBadges');
 // Extracted so it can be unit-tested against known answers — see continuityOracle.test.js.
 const { longestStall, stallAnatomy, isAppStall } = require('./continuityOracle');
 // A measured stall must not be retried away — see stallLedger.js.
@@ -131,7 +132,7 @@ test.use({ serviceWorkers: 'block' });
 let ipLookups = 0;
 
 async function openMapAsSurfer(page) {
-  await stubSeededMessageBadge(page, [E2E_USER.id]);
+  await stubSeededUiBadges(page, [E2E_USER.id]);
   ipLookups = 0;
   await page.route('**/api/location/ip-geolocation**', (route) => {
     ipLookups += 1;

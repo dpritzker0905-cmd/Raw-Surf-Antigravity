@@ -313,7 +313,7 @@ async def complete_session_payment(
 
         # Notify photographer via real-time push (non-blocking / outside nested transaction)
         try:
-            from routes.notifications.push import notify_session_join
+            from routes.notifications.push_payloads import notify_session_join
 
             await notify_session_join(
                 photographer_id=photographer_id,

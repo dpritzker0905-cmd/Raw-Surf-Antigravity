@@ -17,6 +17,7 @@
 import axios from 'axios';
 import { toast } from 'sonner';
 import { markSessionRejected, sessionRejectedRecently } from './sessionRejection';
+import { purgeUserScopedStorage } from './userScopedStorage';
 
 const DEFAULT_BACKEND_URL = 'https://raw-surf-antigravity.onrender.com';
 
@@ -80,7 +81,9 @@ apiClient.interceptors.request.use(
     // Inject Bearer token from stored user session
     try {
       const stored = localStorage.getItem('raw-surf-user');
-      if (stored) {
+      // `useExplicitAuth`: the caller supplied its own Authorization (the sign-in screen's enrol-only token, which is
+      // never stored); keep it instead of the stored session's.
+      if (stored && !config.useExplicitAuth) {
         const user = JSON.parse(stored);
         if (user?.access_token) {
           config.headers['Authorization'] = `Bearer ${user.access_token}`;
@@ -127,7 +130,11 @@ const SESSION_KEYS = ['raw-surf-user', 'raw-surf-user-original', 'impersonation_
   'isGodMode', 'isPersonaBarActive', 'activePersona',
   'godModeMinimized', 'godModeDesktopMinimized'];
 
-const clearStoredSession = () => SESSION_KEYS.forEach((k) => localStorage.removeItem(k));
+const clearStoredSession = () => {
+  SESSION_KEYS.forEach((k) => localStorage.removeItem(k));
+  // A refused session ends this account on this device just as a logout does.
+  purgeUserScopedStorage();
+};
 
 function handleRefusedSession() {
   const currentPath = window.location.pathname;
