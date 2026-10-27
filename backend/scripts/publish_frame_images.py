@@ -313,13 +313,25 @@ class SupabaseSink:
             raise RuntimeError(f"create bucket {FRAME_BUCKET}: HTTP {resp.status_code}: {resp.text[:200]}")
 
     def read(self, path):
-        resp = self.requests.get(f"{self.base}/storage/v1/object/{FRAME_BUCKET}/{path}?cb={int(time.time() * 1000)}",
-                                 headers=self.auth, timeout=60)
-        if resp.status_code in (400, 404):
-            return None                    # Supabase answers a missing object with 400 or 404
-        if resp.status_code != 200:
-            raise RuntimeError(f"read {FRAME_BUCKET}/{path}: HTTP {resp.status_code}")
-        return resp.content
+        """One object's bytes, or None when it is missing; retried with backoff on 429 / 5xx / a dropped connection like
+        write(). 2026-10-27 (the lead): ONE 429 on v1/latest.json at 23:15:38Z failed run 40403486736's whole publish behind
+        a green continue-on-error step; reads are idempotent, so a retry is always safe."""
+        url = f"{self.base}/storage/v1/object/{FRAME_BUCKET}/{path}"
+        for attempt, wait in enumerate(UPLOAD_BACKOFF_S + (None,)):
+            try:
+                resp = self.requests.get(f"{url}?cb={int(time.time() * 1000)}", headers=self.auth, timeout=60)
+            except (self.requests.ConnectionError, self.requests.Timeout) as e:
+                if wait is None:
+                    raise RuntimeError(f"read {FRAME_BUCKET}/{path}: {type(e).__name__} after {attempt + 1} attempts")
+                _sleep(wait)
+                continue
+            if resp.status_code in (400, 404):
+                return None                # Supabase answers a missing object with 400 or 404
+            if resp.status_code == 200:
+                return resp.content
+            if resp.status_code not in RETRY_STATUS or wait is None:
+                raise RuntimeError(f"read {FRAME_BUCKET}/{path}: HTTP {resp.status_code}")
+            _sleep(wait)
 
     def write(self, path, data, content_type, cache_control):
         """One upload, retried with backoff on 429 / 5xx / a dropped connection (Supabase answered cold-cache bursts with

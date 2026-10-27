@@ -352,6 +352,15 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
     # THE GATE counts AUTHORITATIVE entries: an estimated tail baked by another lane (ICON/EURO 168-336 h, the core lane)
     # is listed unbuilt and served by /grid, which is also what the resolver picks there (authoritative first).
     auth = [f for f in frames if not f["is_estimated"]]
+    # ⬇ 2026-10-27 (the lead): an OLDER run's past hours that this runner never downloaded are not this lane's to build.
+    # The manifest keeps them until retention prunes them; at 6 per 41-hour regional set (41/47 = 0.872) the gate refused
+    # every regional set from 13:31Z to 00:28Z on 2026-10-26 (runs 40370598765, 40396075942). They stay listed with path
+    # null (/grid serves them) and out of the gate; the newest run's own hours must still clear the floor.
+    newest = max((f["source"].get("model_run_time") or "" for f in auth), default="")
+    older = [f for f in auth if not f.get("path") and f.get("unbuilt") == "not_local"
+             and (f["source"].get("model_run_time") or "") < newest]
+    stats["not_local_older_run"] = len(older)
+    auth = [f for f in auth if not any(f is o for o in older)]
     stats["coverage_authoritative"] = round(sum(1 for f in auth if f.get("path")) / len(auth), 4) if auth else 0.0
     if not built:
         return None, stats
