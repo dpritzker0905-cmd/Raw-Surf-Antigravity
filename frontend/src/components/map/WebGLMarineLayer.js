@@ -7,7 +7,7 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import WebGLMarineEngine from './WebGLMarineEngine';
 import { registerMarineEngine, unregisterMarineEngine, updateMarineTruthTrace } from '../../engine/RenderPlanDispatcher';
-import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+import { residentRegionalAtGlobalViewport } from './marineClampGuard';   // the zoom-out clamp guard (moved out 2026-10-26)
 import { shouldHoldScrubDowngrade } from './marineScrubHold';
 import { getMarineParticleRes } from './deviceTier';
 import { prewarmZoomOutMarineGrid } from './marineController';
@@ -938,23 +938,9 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       // (non-regional) resident — so this trips ONLY on an actual regional->global zoom-out, never
       // on the same-target scrub/toggle/abort holds those cases depend on (all-zero is a full-shape
       // global grid; cross-model switch is modelOrLayerChanged and clears already). Mirrors the
-      // gate's zoomed-out math for parity.
-      let isResidentRegionalAtGlobalViewport = false;
-      try {
-        const residentBounds = engine._waveData?.waveGrid?.bounds;
-        if (residentBounds && mapInstance && typeof mapInstance.getZoom === 'function') {
-          const rWidth = (residentBounds.east < residentBounds.west)
-            ? (residentBounds.east + 360) - residentBounds.west
-            : residentBounds.east - residentBounds.west;
-          const residentRegional = rWidth < 340.0;
-          const vb = mapInstance.getBounds();
-          const ew = vb.getWest(), ee = vb.getEast();
-          const vWidth = (ee < ew) ? (ee + 360) - ew : ee - ew;
-          const vHeight = vb.getNorth() - vb.getSouth();
-          const viewportZoomedOut = (mapInstance.getZoom() <= MARINE_ZOOMED_OUT_MAX_ZOOM) || (vWidth > 15.0 || vHeight > 15.0);
-          isResidentRegionalAtGlobalViewport = residentRegional && viewportZoomedOut;
-        }
-      } catch (e) { /* getBounds/getZoom can throw mid-style-load — fall back to holding */ }
+      // gate's zoomed-out math for parity. A resident that COVERS the view (the mid-zoom clip of global_mid, #459) is not one, as the
+      // display gate already says (marineClampGuard, 2026-10-26: switches at z4.6 blanked 84-130 frames on that clip).
+      const isResidentRegionalAtGlobalViewport = residentRegionalAtGlobalViewport(engine._waveData?.waveGrid?.bounds, mapInstance);
 
       // SWITCH-HOLD (see shouldHoldFrameThroughSwitch): a model/LAYER switch races the transition flag —
       // isTransitionGuard is often still false when this non-renderable interlude arrives (live-proven:
