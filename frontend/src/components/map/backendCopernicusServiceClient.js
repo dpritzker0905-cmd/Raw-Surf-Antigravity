@@ -22,6 +22,7 @@ import { pointRequestIdentityEnabled, createPointRequestContext } from './pointR
 import { marineValueValidityEnabled, marinePointValues } from './marinePointValues';
 import { arrayMax } from './marineControllerUtils';
 import { staticEligible, tryStaticWorldGrid } from './staticFrames';
+import { readMarineFrameReceipt } from './marineFrameReceipt';
 
 export const copernicusPointCache = new BoundedPointCache(50, 30000);
 
@@ -122,6 +123,9 @@ export function mapNormalizedCopernicusGridToWebGL(json, snappedBounds, hourOffs
       validTime: json.valid_time || null,
       valid_time: json.valid_time || null,
       run_time: json.run_time || null,
+      // The diagnostic envelope, as the GFS/ICON mapper builds it (2026-10-27): its verified cycle is the status line's model step
+      // (marineDrawnFrame.readoutModelRun); the legacy frame-selection/run identity fields above are unchanged.
+      frameReceipt: readMarineFrameReceipt(json),
       // §0c SERVING HONESTY: the frame actually served (valid_time echoes the ask) — mirrors
       // the GFS/ICON mapper; surfaced in FORENSIC-SNAP.
       served_valid_time: json.served_valid_time || null,

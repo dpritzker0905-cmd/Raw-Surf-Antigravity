@@ -18,7 +18,7 @@ import {
   hasCacheForModel
 } from './forecastSamplers';
 import { isLayerSupportedByModel, isGridLayerSupported, isInCooldown } from './marineControllerUtils';
-import { getSurfModeFlag, getSharedValidTime } from './backendWeatherServiceClient';
+import { getSurfModeFlag, getSharedValidTime, getSeriesAnchorMs } from './backendWeatherServiceClient';
 import { compileForecastCards, STATUS_RENDERS } from './forecastCardCompiler';
 import { modelDisplayName } from './modelDisplayName';
 import { sampleDecodedOmValue } from './decodedOmSampler';
@@ -598,7 +598,7 @@ export const MapForecastOverlay = ({
   // `timeOffsetHours` dep added 2026-08-09: computeHeatmapStatus reads MUTABLE GLOBALS no dep can track, and the producer (publishRenderParity in marineRenderParity.js, called from WebGLMarineLayer.js) keys on [timeOffsetHours, revision, active, activeModel] — so an HOUR SCRUB, the exact action that produces a retained-stale hour, re-ran the producer and NOT this consumer.
   const drawnFrame = useMarineDrawnFrame(); // T-05: re-decide the stale badge the frame the engine uploads, not a render late
   const heatmapStatus = useMemo(() => reconcileStaleBadge(computeHeatmapStatus({ activeModel, activeLayer, renderMarineData }),
-    { model: activeModel, layer: activeLayer, hour: Number(timeOffsetHours), nearestMaxHours: latticeNearestMaxHours(activeModel, Number(timeOffsetHours)), instantMs: (() => { try { return Date.parse(getSharedValidTime(Number(timeOffsetHours), activeLayer, activeModel, { readOnly: true })); } catch (e) { return null; } })() }, drawnFrame),
+    { model: activeModel, layer: activeLayer, hour: Number(timeOffsetHours), nearestMaxHours: latticeNearestMaxHours(activeModel, Number(timeOffsetHours), { selectedMs: getSeriesAnchorMs() + Number(timeOffsetHours) * 3600000, runMs: drawnFrame && drawnFrame.runMs }), instantMs: (() => { try { return Date.parse(getSharedValidTime(Number(timeOffsetHours), activeLayer, activeModel, { readOnly: true })); } catch (e) { return null; } })() }, drawnFrame),
   [renderMarineData, activeModel, activeLayer, timeOffsetHours, drawnFrame]);
 
   if (cards.length === 0 && !isLoading) {
