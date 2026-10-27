@@ -75,7 +75,9 @@ before to avoid regressions." The lead's four steps:
      0 late frames, no stranded fetch (#598).
    - `euro_240`: FAILs on both tips via `/grid` (1.8-2.9 s a step). PASSes from the store (0-11 ms) once every tail set is built
      (`FRAME_TAIL_DOWNLOAD=1`).
-   - `euro_switch`: FAILs on every build: 7/7 on the tip, 6 of 7 on the new tip, 180-466 blank frames; with the tails built, 28-31.
+   - `euro_switch`: FAILs on `4b8563851` (8/8, 219-437 blank frames) and `654a44c2c` (6 of 7). PASSes on dev `dcc514bf3`
+     (#602): 7/7 with 0 blank frames, while the same-window `4b8563851` control blanked 269 frames.
+   - On `dcc514bf3` with every tail set built, all four cases pass (exit 0).
    - `icon_far` does not reproduce offline once timed from the last key. Jumps inside the stored tail take 1-42 ms, also with a
      340 ms CDN. The owner's slow jumps ("→ 336") land in the day-14 hold region, about 2.1 s via `/grid` when the last stored
      frame is not resident.

@@ -10,8 +10,8 @@ regressions."
   live box. Browser-pane tabs of a production build were left open idle twice, about 80 min in all; the log has the details.
 - **Results:** the log is `log/2026-10-26-claude-regression-sweep.md`. The raw outputs are named per row and live in the session
   scratch (`r523/sw/out/`), not in git.
-- **Dev moved during the sweep:** it is now `654a44c2c`, which adds #596-#599. Section 3 runs the owner scenarios on that
-  tip, because #598 is the band-off fix.
+- **Dev moved during the sweep:** it is now `dcc514bf3`, which adds #596-#605. Section 3 runs the owner scenarios on
+  `654a44c2c` (#598, the band-off fix) and `dcc514bf3` (#601, #602).
 
 ## Verdict
 
@@ -31,11 +31,12 @@ regressions."
   - #492's hidden-layer minis with a bundle. The recorded 0 does not reproduce at #492's own merge commit.
   - The 429s under the 4-slot CDN limit. The same on the #575 build.
   - ICON far hours on the new tip. A build flag, not code.
-- **The owner's four failures** are new scenarios in `scn_owner_1026.js`. All four FAIL on `4b8563851` as required (section 3).
-  - `band_off` passes on the new tip, the #598 fix.
-  - `euro_240` passes once every tail set is built (`FRAME_TAIL_DOWNLOAD=1`).
-  - `euro_switch` still blanks on every build (180-466 blank frames).
-  - `icon_far` does not reproduce offline inside the stored tail. The owner's slow jumps were into the day-14 hold region.
+- **The owner's four failures** are new scenarios in `scn_owner_1026.js` (section 3). They fail on `4b8563851`. On dev
+  `dcc514bf3` with every tail set built, all four pass:
+  - `band_off` by #598;
+  - `euro_switch` by #602;
+  - `euro_240` by the built tails (`FRAME_TAIL_DOWNLOAD=1`, not yet flipped live);
+  - `icon_far` does not reproduce offline inside the stored tail. The owner's slow jumps went into the day-14 hold region.
 - **Live parity with the box's flags.** Since 10-26 12:20Z the live box also runs the #588 donor flag and margin = 12 (D-053).
   Store M kept the flags of 01:31Z; the day-14 rows exercise the donor flag both ways.
 - **Rows that cannot run offline** are marked NOT-RUNNABLE-OFFLINE: live reads, real NOAA wind, and Open-Meteo raster
@@ -179,25 +180,28 @@ New scenario: `frontend/scripts/offline-backend/scn_owner_1026.js`.
 - `CASES=band_off,icon_far,euro_switch,euro_240`.
 - Each case prints PASS/FAIL, and the run exits 1 if any case fails.
 
-| case | the owner saw | criterion (final scenario) | dev `4b8563851` (live-shaped CDN) | new tip `654a44c2c` (live-shaped CDN) | new tip, tails built (`cdn` = `FRAME_TAIL_DOWNLOAD=1`) |
-|---|---|---|---|---|---|
-| `band_off` | band on for seconds after OFF (one 18 s wedge) | band stops painting ≤ 100 ms after OFF and paints no frame after that; no stranded-fetch release | **FAIL**: first frame off at 4 ms (the scrub's own hold), then **1,189 painting frames** after 100 ms; earlier `active`-only probe: 1,493-1,499 frames, about 25 s | **PASS**: off at 14 ms, **0 painting frames** after, no stranded fetch, 0 abort-gate lines (#598) | **PASS**: off at 2 ms, 0 painting frames |
-| `icon_far` | ICON z5 far jumps not instant | every far jump exact ≤ 100 ms after its last key (store or series); hours past run+336 h are the hold region | **PASS offline** (not reproduced): inside the stored tail 4-42 ms (store/series), also with a 340 ms CDN and a 1.5 s settle. The hold region (328): 3-8 ms when the last stored frame is resident, **2.1 s via `/grid`** with a 340 ms CDN, labelled "Holding Mon, Nov 9, 7 AM’s ICON forecast: beyond ICON’s native range" | same: 1-16 ms; hold 2.1 s via `/grid` with the 340 ms CDN | 2-16 ms |
-| `euro_switch` | the map blanks before EURO draws | 0 blank frames between the EURO click and the first EURO frame (world GFS h0 control) | **FAIL 7/7** (`SWITCH_AT=run+330` and `run+340`, ICON z5.21): **219-437 blank frames**, EURO at 3.7-7.4 s, 2-3 engine clears; control 0 blank | **FAIL 6 of 7** (one run at run+330 had 0 blank, EURO at 6.7 s): **180-466 blank frames**, EURO at 3.0-7.9 s | **FAIL 2/2**: 28-31 blank frames, EURO at 0.49-0.62 s |
-| `euro_240` | EURO past ~240 h waits on `/grid` | every EURO step past 240 h and inside the stored tail exact ≤ 100 ms from the store | **FAIL**: via `/grid`, **1.8-2.9 s** per step at z3 and z5 | **FAIL**: via `/grid`, 1.8-2.7 s | **PASS**: from the store, **0-11 ms** at z3 and z5 (the hold-region 336 step at z5: 2.1 s via `/grid`, not judged) |
+| case | the owner saw | criterion (final scenario) | dev `4b8563851` (live-shaped CDN) | `654a44c2c` (+#598) | dev `dcc514bf3` (+#601, #602) | `dcc514bf3`, tails built (`cdn` = `FRAME_TAIL_DOWNLOAD=1`) |
+|---|---|---|---|---|---|---|
+| `band_off` | band on for seconds after OFF (one 18 s wedge) | band stops painting ≤ 100 ms after OFF and paints no frame after that; no stranded-fetch release | **FAIL**: first frame off at 4 ms (the scrub's own hold), then **1,189 painting frames** after 100 ms; the earlier `active`-only probe saw 1,493-1,499 frames, about 25 s | **PASS**: off at 14 ms, 0 frames after, no stranded fetch, 0 abort-gate lines | **PASS**: off at 6 ms, 0 frames | **PASS**: 14 ms, 0 frames |
+| `icon_far` | ICON z5 far jumps not instant | every far jump exact ≤ 100 ms after its last key (store or series); hours past run+336 h are the hold region | **PASS offline** (not reproduced): 4-42 ms, also with a 340 ms CDN and a 1.5 s settle. The hold region (328): 3-8 ms when the last stored frame is resident; **2.1 s via `/grid`** with the 340 ms CDN, labelled "Holding Mon, Nov 9, 7 AM’s ICON forecast: beyond ICON’s native range" | PASS: 1-16 ms (hold 2.1 s via `/grid` with the 340 ms CDN) | PASS: 2-45 ms, every step from the store | PASS: 1-61 ms |
+| `euro_switch` | the map blanks before EURO draws | 0 blank frames between the EURO click and the first EURO frame (world GFS h0 control) | **FAIL 8/8** (`SWITCH_AT=run+330` and `run+340`, ICON z5.21): **219-437 blank frames**, EURO at 3.7-7.4 s; control 0 blank | **FAIL 6 of 7**: 180-466 blank frames | **PASS 7/7**: **0 blank frames** (EURO at 4.3-6.0 s); the same-window `4b8563851` control: 269 blank | **PASS**: 0 blank, EURO at 4 ms |
+| `euro_240` | EURO past ~240 h waits on `/grid` | every EURO step past 240 h and inside the stored tail exact ≤ 100 ms from the store | **FAIL**: via `/grid`, **1.8-2.9 s** per step at z3 and z5 | **FAIL**: 1.8-2.7 s | **FAIL**: 1.8-2.4 s via `/grid` | **PASS**: from the store, **1-17 ms** at z3 and z5 |
 
-- **Fails now, passes after the fix:**
-  - `band_off`: the fix is #598, merged.
-  - `euro_240`: the fix is publishing the core lane's tails (`FRAME_TAIL_DOWNLOAD=1`; #597 fixed its budget, the flag is not flipped).
-- **Still failing on every build:** `euro_switch`. No fix has landed.
-- **`icon_far` does not reproduce offline** once a step is timed from its last key. The slow jumps the owner saw ("137 → 336",
-  "242 → 336") land past the stored tail, the day-14 hold region, where the answer is a `/grid` round trip unless the last
-  stored frame is resident. D-053's 12 h margin moves that edge out live.
-- **WATCH:** in the scenario's rapid 250 → 328 step, the resident read right after the exact frame had hour 23, 0 or −1 (a series
-  frame) on both builds. A paced sequence showed the held frame with the right words, so this may be a transient wrong-hour
-  frame at the wheel's top. It needs a frame-by-frame trace; not done here.
+- **All four fail on the measured tip** (or, for `icon_far`, would fail in the live condition).
+- **On dev `dcc514bf3` with every tail set built, all four pass** (exit 0):
+  - `band_off` by #598;
+  - `euro_switch` by #602 (mid-zoom model switch never blanks);
+  - `euro_240` by the built tails (`FRAME_TAIL_DOWNLOAD=1`; #597 fixed its budget). The flag is not flipped on the live
+    CDN, so the live-shaped arm still fails.
+- **`icon_far` does not reproduce offline** inside the stored tail. The owner's slow jumps ("137 → 336", "242 → 336") land in the
+  day-14 hold region. That is a `/grid` round trip unless the last stored frame is resident. On `dcc514bf3` (#601) every step,
+  hold region included, came from the store.
+- **WATCH:** in the scenario's rapid 250 → 328 step on `4b8563851`/`654a44c2c`, the resident read right after the exact frame had
+  hour 23, 0 or −1 (a series frame). A paced sequence showed the held frame with the right words, so this may be a transient
+  wrong-hour frame at the wheel's top. On `dcc514bf3` the step ends on the store frame.
 - **Every number above** comes from the final scenario: band painting = `active` and `bandMult` ≠ 0, steps timed from the last
-  key, `SWITCH_AT=run+340` unless named, store M, owner window 844×390, dark. Runs at 03:50-04:15Z.
+  key, `SWITCH_AT=run+340` unless named, store M, owner window 844×390, dark, builds with the dev deploy's ICON flag. Runs at
+  03:30-04:57Z.
 
 ## 4. The matrix
 
