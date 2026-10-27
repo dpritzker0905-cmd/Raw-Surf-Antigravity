@@ -37,6 +37,7 @@ if (process.env.AB_LIVE === '1') throw Error('scn_owner_1026 is offline only');
 const PORT = +(process.env.PORT || 4192);
 const CDN_DIR = process.env.CDN_DIR;
 const CDN_PORT = +(process.env.CDN_PORT || 4372);
+const CDN_LAT = +(process.env.CDN_LAT || 0);   // ms added to every CDN answer (the live CDN's round trip is ~300-400 ms)
 const CASES = (process.env.CASES || 'band_off,icon_far,euro_switch,euro_240').split(',');
 const VIEWS = { desktop: { width: 1280, height: 800, dpr: 1 }, owner: { width: 844, height: 390, dpr: 2 }, phone: { width: 390, height: 844, dpr: 3 } };
 const VIEW = process.env.VIEW || 'owner';
@@ -52,7 +53,8 @@ const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 if (!CDN_DIR) throw Error('CDN_DIR=<a local copy of the weather-frames bucket> is required');
 
-const cdn = http.createServer((req, res) => {
+const cdn = http.createServer(async (req, res) => {
+  if (CDN_LAT) await sleep(CDN_LAT);
   const rel = decodeURIComponent(new URL(req.url, 'http://x').pathname).replace(/^\/+/, '');
   const file = path.join(CDN_DIR, rel);
   if (!file.startsWith(path.resolve(CDN_DIR)) || !fs.existsSync(file) || !fs.statSync(file).isFile()) {
@@ -75,9 +77,13 @@ const PROBE = () => {
     const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; const g = d && d.waveGrid;
     const pid = (g && g.__fromFrameStore && g.__servedProductId) || (g ? (g.__servedProductId || g.productId || null) : null);
     const rb = window.__RAW_GPU__ && window.__RAW_GPU__.ratingBand;
+    // The band PAINTS when the engine's rating band is active AND its fade multiplier is not 0: #598 hides it locally (bandMult 0,
+    // heldBy 'off') while the resident is still a rating grid, so `active` alone reads a hidden band as painting.
+    const rf = window.__RAW_GPU__ && window.__RAW_GPU__.ratingBandFade;
+    const band = rb ? (!!rb.active && !(rf && rf.bandMult === 0)) : null;
     return { blank: !g, hour: g ? g.hourOffset : null, layer: g ? g.__componentLayer : null, model: g ? (g.__sourceModel || 'GFS') : null,
       stride: g ? (g.__decimatedStride || 0) : null, series: !!(g && g.__fromSeries), store: !!(g && g.__fromFrameStore), pid,
-      served: g ? (g.served_valid_time || null) : null, band: rb ? !!rb.active : null, grid: g || null };
+      served: g ? (g.served_valid_time || null) : null, band, bandActive: rb ? !!rb.active : null, grid: g || null };
   };
   const dataMs = (s, W) => (s.pid ? stampMs(s.pid) : (s.served ? Date.parse(s.served) : (s.series && s.hour != null ? W.anchor + s.hour * 3600000 : null)));
   const loop = (t) => {
@@ -87,7 +93,7 @@ const PROBE = () => {
       W.frames += 1;
       if (s.blank) { W.blank += 1; if (W.firstBlank == null) W.firstBlank = Math.round(rel); }
       if (W.bandOff == null && s.band === false) W.bandOff = Math.round(rel);
-      if (s.band === true) W.bandOnFrames += 1;
+      if (s.band === true) { W.bandOnFrames += 1; if (rel > W.bandMaxMs) W.bandLateFrames += 1; }
       if (W.expectedMs != null) {
         const ok = !s.blank && dataMs(s, W) === W.expectedMs && s.layer === 'waves' && s.model === W.model && s.stride === 0;
         if (W.exact == null && ok) { W.exact = Math.round(rel); W.via = s.store ? 'store' : (s.series ? 'series' : 'grid'); W.pid = s.pid; }
@@ -97,9 +103,9 @@ const PROBE = () => {
     requestAnimationFrame(loop);
   };
   requestAnimationFrame(loop);
-  window.addEventListener('keydown', (e) => { if (P.w && P.w.t0 == null) P.w.t0 = e.timeStamp; }, true);
+  window.addEventListener('keydown', (e) => { if (P.w && !P.w.done && P.w.exact == null) P.w.t0 = e.timeStamp; }, true);   // the LAST key of a step
   window.addEventListener('click', (e) => { if (P.w && P.w.t0 == null && P.w.onClick) P.w.t0 = e.timeStamp; }, true);
-  P.arm = (o) => { P.w = { t0: null, frames: 0, blank: 0, firstBlank: null, bandOff: null, bandOnFrames: 0, exact: null, via: null, pid: null,
+  P.arm = (o) => { P.w = { t0: null, frames: 0, blank: 0, firstBlank: null, bandOff: null, bandOnFrames: 0, bandLateFrames: 0, bandMaxMs: o.bandMaxMs || 100, exact: null, via: null, pid: null,
     modelAt: null, expectedMs: o.expected ? stampMs(o.expected) : null, anchor: o.anchor, model: o.model, wantModel: o.wantModel || null, onClick: !!o.onClick }; };
   P.read = () => { const s = P.snap(); delete s.grid; return { ...P.w, end: s }; };
 };
@@ -184,7 +190,7 @@ async function bandOff() {
     await gotoHour(s.page, 0, 72);                                     // a scrub fetch in flight (LAT_SERIES / LAT_GRID)
     await sleep(300);
     const hits0 = s.consoleHits.length;
-    await s.page.evaluate(() => { window.__OW__.arm({ onClick: true }); });
+    await s.page.evaluate((ms) => { window.__OW__.arm({ onClick: true, bandMaxMs: ms }); }, BAND_MAX_MS);
     await clickExact(s.page, 'Surf Rating: ON');
     const toggled = await s.page.locator('button').filter({ hasText: /^\s*Surf Rating: OFF\s*$/ }).filter({ visible: true }).count() > 0;
     const t0 = Date.now(); let r;
@@ -193,9 +199,12 @@ async function bandOff() {
     r = await s.page.evaluate(() => window.__OW__.read());
     const after = s.consoleHits.slice(hits0);
     const stranded = after.filter((h) => /Stranded fetch-pending released/.test(h.text));
-    const pass = bandOn && toggled && r.bandOff != null && r.bandOff <= BAND_MAX_MS && stranded.length === 0;
-    return { case: 'band_off', pass, bandWasOn: bandOn, buttonReadsOff: toggled, flagAfter: await s.page.evaluate(() => window.__SURF_MODE__), bandOffMs: r.bandOff, bandOnFramesAfterClick: r.bandOnFrames, stranded: stranded.map((h) => h.text),
-      abortGate: after.filter((h) => /Abort-Gate/.test(h.text)).length, criterion: `band stops painting <= ${BAND_MAX_MS} ms after OFF; no stranded-fetch release` };
+    // Painting = the engine's band active AND its fade multiplier not 0 (#598 hides it through bandMult). A scrub's own edge/resolution
+    // hold can zero the band for a frame right after the click and then let it paint again, so the case also asks that NO frame paints
+    // it after BAND_MAX_MS (the measured tip 4b8563851: off at 3 ms by that hold, then 1,194 painting frames).
+    const pass = bandOn && toggled && r.bandOff != null && r.bandOff <= BAND_MAX_MS && r.bandLateFrames === 0 && stranded.length === 0;
+    return { case: 'band_off', pass, bandWasOn: bandOn, buttonReadsOff: toggled, flagAfter: await s.page.evaluate(() => window.__SURF_MODE__), bandOffMs: r.bandOff, bandOnFramesAfterClick: r.bandOnFrames, bandLateFrames: r.bandLateFrames, stranded: stranded.map((h) => h.text),
+      abortGate: after.filter((h) => /Abort-Gate/.test(h.text)).length, criterion: `band stops painting <= ${BAND_MAX_MS} ms after OFF and paints no frame after that; no stranded-fetch release` };
   } finally { await s.browser.close(); }
 }
 
@@ -207,18 +216,50 @@ async function iconFar() {
     // The owner's console: "rendered hour=29, requested hour=250", "137 -> 336", "242 -> 336": far jumps out and back.
     let at = 0;
     for (const t of [250, 328, 0, 240, 264, 320]) { steps.push(await stepTo(s.page, at, t, 'ICON', anchor)); at = t; }   // 336 is the wheel's clamp edge
-    const fails = steps.filter((x) => x.exactMs == null || x.exactMs > STEP_MAX_MS || x.via !== 'store');
-    return { case: 'icon_far', pass: fails.length === 0, steps, criterion: `every far ICON jump at z5 exact from the store within ${STEP_MAX_MS} ms` };
+    // Every jump is judged, each tagged with its region: 'tail' (inside the stored run + 336 h: frame store / series) or 'hold' (past
+    // it: the server's far-edge hold, the day-14 end). The owner's slow jumps ("137 -> 336", "242 -> 336") land in the hold region;
+    // offline every 'tail' jump is instant (2026-10-27: 2-42 ms, also with a 340 ms CDN), every 'hold' jump waits on /grid (~2.1 s).
+    const tail = tailHour(anchor);
+    steps.forEach((x) => { x.region = x.target <= tail ? 'tail' : 'hold'; });
+    const fails = steps.filter((x) => x.exactMs == null || x.exactMs > STEP_MAX_MS);
+    return { case: 'icon_far', pass: fails.length === 0, tailHour: tail, failRegions: [...new Set(fails.map((x) => x.region))], steps,
+      criterion: `every far ICON jump at z5 exact within ${STEP_MAX_MS} ms of its last key (store or series; hours past ${tail} are the hold region)` };
   } finally { await s.browser.close(); }
 }
 
 // The owner's switch (console-0840): ICON at hour 328 (past EURO's native 240 h, whose tail the live CDN does not carry), z5.21, to EURO.
 // The hour-0 GFS -> EURO switch is the CONTROL: EURO's native frame is in the store there, so it must pass on any build.
+// SWITCH_AT (default 328, the owner's hour) is a wheel hour, or `run+N`: the hour whose valid time is the store's run + N h (the store's
+// earliest non-estimated EURO waves global_mid product, read from EXPECT_STORE), clamped to 1..336. The fixed hour drifts against a
+// synthetic store as the clock runs (328 was run+340 h at 17:55Z and run+348 h at 01:32Z on 2026-10-26/27, and the blank reproduced only
+// in the first), so `run+N` pins the case to the same place in the run on any day.
+function storeRunMs() {
+  const dir = process.env.EXPECT_STORE;
+  if (!dir) throw Error('SWITCH_AT=run+N needs EXPECT_STORE (the store directory)');
+  const stamps = fs.readdirSync(dir).map((f) => /^euro_marine_waves_global_mid_(\d{8}T\d{6}Z)\.json$/.exec(f)).filter(Boolean)
+    .map((m) => Date.parse(m[1].replace(/(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/, '$1-$2-$3T$4:$5:$6Z'))).sort((a, b) => a - b);
+  if (!stamps.length) throw Error(`no EURO waves global_mid product in ${dir}`);
+  return stamps[0];
+}
+async function switchHour(page) {
+  const spec = process.env.SWITCH_AT || '328';
+  const m = /^run\+(\d+)$/.exec(spec);
+  if (!m) return +spec;
+  const anchor = await appAnchor(page);
+  return Math.max(1, Math.min(336, Math.round((storeRunMs() + (+m[1]) * 3600000 - anchor) / 3600000)));
+}
+
+// The last wheel hour inside the store's stored tail (run + TAIL_H, 336: every ICON/EURO lane ends there; beyond it the server HOLDS the
+// last frame, the day-14 end, a separate issue). A step past it is recorded, not judged.
+const TAIL_H = +(process.env.TAIL_H || 336);
+function tailHour(anchor) { return Math.floor((storeRunMs() + TAIL_H * 3600000 - anchor) / 3600000); }
+
 async function euroSwitch() {
   const out = [];
-  for (const v of [{ zoom: 5.21, from: 'ICON', hour: 328 }, { zoom: 3.0, from: 'GFS', hour: 0, control: true }]) {
+  for (const v of [{ zoom: 5.21, from: 'ICON', hour: 'switch' }, { zoom: 3.0, from: 'GFS', hour: 0, control: true }]) {
     const s = await open('euro_switch', { zoom: v.zoom, model: v.from });
     try {
+      if (v.hour === 'switch') { v.hour = await switchHour(s.page); v.at = process.env.SWITCH_AT || '328'; }
       if (v.hour) { await gotoHour(s.page, 0, v.hour); await sleep(SETTLE); }
       await s.page.evaluate(() => { window.__OW__.arm({ onClick: true, wantModel: 'EURO' }); });
       const hits0 = s.consoleHits.length;
@@ -243,12 +284,12 @@ async function euro240() {
       const steps = [];
       let at = 0;
       for (const t of [240, 264, 288, 312, 322, 323, 336]) { steps.push(await stepTo(s.page, at, t, 'EURO', anchor)); at = t; }
-      out.push({ zoom, steps });
+      out.push({ zoom, tailHour: tailHour(anchor), steps });
     } finally { await s.browser.close(); }
   }
-  const past = out.flatMap((z) => z.steps.filter((x) => x.target > 240));
+  const past = out.flatMap((z) => z.steps.filter((x) => x.target > 240 && x.target <= z.tailHour));
   const fails = past.filter((x) => x.exactMs == null || x.exactMs > STEP_MAX_MS || x.via !== 'store');
-  return { case: 'euro_240', pass: fails.length === 0, zooms: out, criterion: `every EURO step past 240 h exact from the store within ${STEP_MAX_MS} ms` };
+  return { case: 'euro_240', pass: fails.length === 0, zooms: out, criterion: `every EURO step past 240 h and inside the stored tail exact from the store within ${STEP_MAX_MS} ms of its last key` };
 }
 
 (async () => {

@@ -372,10 +372,12 @@ def _record(store_dir, manifest_by_file, model, hour, asked, resp):
                  "filled_in_gulf": (served_gulf["valid"] - stored_gulf["valid"]) if stored_gulf else None},
     }
     # The status line's inputs (marineDrawnFrame.publishMarineDrawn): the client tags the drawn grid with the ASKED model
-    # (backendWeatherServiceClientHelpers: __sourceModel = model), the served time is the data instant.
+    # (backendWeatherServiceClientHelpers: __sourceModel = model), the served time is the data instant, and the drawn record's hour is
+    # the grid's hourOffset, the hour it was asked for (#587's held rule fires only when the drawn hour IS the selection; without it
+    # every held row read "Loading ... still showing", regression sweep 2026-10-26).
     rec["label_inputs"] = {
         "requested": {"model": model, "layer": "waves", "labelMs": int(asked.timestamp() * 1000), "hour": hour},
-        "drawn": {"model": model, "layer": "waves",
+        "drawn": {"model": model, "layer": "waves", "hour": hour,
                   "dataMs": int(parse(p["served_valid_time"]).timestamp() * 1000) if p.get("served_valid_time") else None,
                   "estimated": bool(p.get("is_estimated")), "basisType": basis.get("type")},
     }
