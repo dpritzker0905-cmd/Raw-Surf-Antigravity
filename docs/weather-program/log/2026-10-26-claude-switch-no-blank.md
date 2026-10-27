@@ -70,3 +70,27 @@ reason-log entry, the transition flags and a stack.
   fail a 5 s and a 15 s switch). It is the smaller of the two changes, and the lever restores 2 s.
 - **Silent mislabels:** 0 in every session of both builds. The held frame keeps its own identity (the truth-safety pin in
   `switchHold.test.js`), and the status line words the switch.
+
+## Update (same day, evening): the ceiling never blanks; the words name the drawn frame
+
+- **The lead, 2026-10-26:** "State of the art: hold until replaced (no TTL blank), with the label from the DRAWN slot ("Loading
+  EURO... still showing ICON Sun 7 AM") and words after 300 ms. Keep a hard ceiling only for a truly dead fetch, with an error state,
+  never a blank."
+- **The ceiling (`marineTransitionCoordinator.shouldHoldFrameThroughSwitch`).** Past the 30 s bound the frame stays, and the switch
+  is marked stalled (`window.__MARINE_SWITCH_STALLED__ = { targetKey, sinceMs }`). A renderable commit, or the end of the switch,
+  clears the mark.
+  - Kill (the old blank at the bound): `window.__RAW_SWITCH_HOLD_BLANK_ON_EXPIRY__ = true`.
+  - The old 2 s behaviour is that kill plus `__RAW_SWITCH_HOLD_TTL_MS__ = 2000`.
+- **The words (`drawnFrameReadout`).** A switch in progress names the drawn frame by its own time: "Loading EURO Waves… still
+  showing ICON Waves, Sun, Nov 8, 7 AM".
+  - Once stalled: "EURO Waves is not arriving… still showing ICON Waves, …".
+  - The time follows the label-instant kill (`__RAW_DISABLE_DRAWN_LABEL_INSTANT__`).
+- **Not done:** the "words after 300 ms" delay (a status-line timing change). Today the words appear with the first frame of the
+  switch.
+- **Tests:**
+  - switchHold: past 30 s the frame is held and the switch marked stalled; a commit and the end of the switch clear it; the kill
+    restores the blank. The clock pins keep their meaning behind the kill.
+  - `drawnFrameReadout.test.js`: the drawn time, the stalled words, another target's stall ignored.
+  - `WebGLMarineLayer.parity.test.js`: the forced-clear fixture sets the kill.
+- **Replay (offline, the lead's L3):** GFS -> ICON at z6.9 Florida drew 30 blank frames on dev (`non_renderable_terminal` at
+  37 ms) and 0 with this branch + #601.

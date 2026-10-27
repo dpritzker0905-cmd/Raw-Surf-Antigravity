@@ -22,6 +22,21 @@ describe('describeDrawnFrame: the selection against the drawn frame, in words', 
     const r = describeDrawnFrame(req(24, 'waves', 'ICON'), drawn(24), { nowMs: NOW });
     expect(r).toMatchObject({ state: 'pending', text: 'Loading ICON Waves… still showing GFS Waves' });
   });
+  // A SWITCH IN PROGRESS (2026-10-26, the hold until replaced): the drawn frame is named by its own time, and past the hold's ceiling
+  // (marineTransitionCoordinator: window.__MARINE_SWITCH_STALLED__) the words say the new model is not arriving.
+  test('a switch names the drawn frame\'s own time, and says when the new model is not arriving', () => {
+    const T = NOW + 300 * 3600000;
+    const r2 = { model: 'EURO', layer: 'waves', hour: 300, labelMs: T };
+    const d2 = { model: 'ICON', layer: 'waves', hour: 300, dataMs: T };
+    const when = new Date(T).toLocaleString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric' });
+    expect(describeDrawnFrame(r2, d2, { nowMs: NOW }).text).toBe(`Loading EURO Waves… still showing ICON Waves, ${when}`);
+    try {
+      window.__MARINE_SWITCH_STALLED__ = { targetKey: 'EURO|waves', sinceMs: 1 };
+      expect(describeDrawnFrame(r2, d2, { nowMs: NOW }).text).toBe(`EURO Waves is not arriving… still showing ICON Waves, ${when}`);
+      window.__MARINE_SWITCH_STALLED__ = { targetKey: 'GFS|waves', sinceMs: 1 };              // another target's stall: not this one
+      expect(describeDrawnFrame(r2, d2, { nowMs: NOW }).text).toMatch(/^Loading EURO Waves/);
+    } finally { delete window.__MARINE_SWITCH_STALLED__; }
+  });
   test.each([1, 2, 3, -1, -3])('a drawn hour within the 3-h lattice is the nearest stored forecast (offset %i)', (off) => {
     const r = describeDrawnFrame(req(24), drawn(24 + off), { nowMs: NOW });
     expect(r.state).toBe('nearest');

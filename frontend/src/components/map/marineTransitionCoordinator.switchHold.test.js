@@ -25,9 +25,13 @@ const base = (over = {}) => ({
 });
 
 describe('shouldHoldFrameThroughSwitch', () => {
-  beforeEach(() => { __resetForTests(); });
+  // The CLOCK pins below read "false past the bound": that is the expiry with its old blank, now only behind the kill
+  // __RAW_SWITCH_HOLD_BLANK_ON_EXPIRY__ (the default holds and marks the switch stalled: the 'never a blank' describe below).
+  beforeEach(() => { __resetForTests(); window.__RAW_SWITCH_HOLD_BLANK_ON_EXPIRY__ = true; });
   afterEach(() => {
     __resetForTests();
+    delete window.__RAW_SWITCH_HOLD_BLANK_ON_EXPIRY__;
+    delete window.__MARINE_SWITCH_STALLED__;
     delete window.__RAW_DISABLE_SWITCH_HOLD__;
     delete window.__RAW_SWITCH_HOLD_TTL_MS__;
     delete window.__MARINE_SWITCH_HOLD_COUNT__;
@@ -115,6 +119,36 @@ describe('shouldHoldFrameThroughSwitch', () => {
     expect(shouldHoldFrameThroughSwitch(base(), 1200)).toBe(true);
     expect(shouldHoldFrameThroughSwitch(base(), 1200 + 29999)).toBe(true);
     expect(shouldHoldFrameThroughSwitch(base(), 1200 + 30001)).toBe(false);
+  });
+});
+
+// NEVER A BLANK, EVEN AT THE CEILING (2026-10-26, the lead: "Keep a hard ceiling only for a truly dead fetch, with an error state,
+// never a blank"): past the bound the frame stays, the switch is marked stalled (the status line words it), a commit clears the mark.
+describe('the hold ceiling: stalled words, never a blank', () => {
+  beforeEach(() => { __resetForTests(); });
+  afterEach(() => { __resetForTests(); delete window.__MARINE_SWITCH_STALLED__; delete window.__RAW_SWITCH_HOLD_BLANK_ON_EXPIRY__; delete window.__MARINE_CHURN__; delete window.__MARINE_CHURN_RESET__; });
+
+  it('past 30 s the frame is still held and the switch is marked stalled for that target; a renderable commit clears it', () => {
+    expect(shouldHoldFrameThroughSwitch(base({ targetKey: 'EURO|waves' }), 1000)).toBe(true);
+    expect(window.__MARINE_SWITCH_STALLED__ || null).toBeNull();
+    expect(shouldHoldFrameThroughSwitch(base({ targetKey: 'EURO|waves' }), 1000 + 30001)).toBe(true);   // held, not cleared
+    expect(window.__MARINE_SWITCH_STALLED__).toEqual({ targetKey: 'EURO|waves', sinceMs: 31001 });
+    expect(window.__MARINE_CHURN__.counts.switch_hold_expired).toBe(1);
+    noteMarineRenderableCommit();                                                                     // EURO landed
+    expect(window.__MARINE_SWITCH_STALLED__).toBeNull();
+  });
+  it('the end of the switch (no longer a model/layer change) clears the mark too', () => {
+    shouldHoldFrameThroughSwitch(base({ targetKey: 'EURO|waves' }), 1000);
+    shouldHoldFrameThroughSwitch(base({ targetKey: 'EURO|waves' }), 40000);
+    expect(window.__MARINE_SWITCH_STALLED__).toBeTruthy();
+    shouldHoldFrameThroughSwitch(base({ modelOrLayerChanged: false }), 40100);
+    expect(window.__MARINE_SWITCH_STALLED__).toBeNull();
+  });
+  it('POSITIVE CONTROL: the kill __RAW_SWITCH_HOLD_BLANK_ON_EXPIRY__ restores the blank at the bound', () => {
+    window.__RAW_SWITCH_HOLD_BLANK_ON_EXPIRY__ = true;
+    shouldHoldFrameThroughSwitch(base(), 1000);
+    expect(shouldHoldFrameThroughSwitch(base(), 1000 + 30001)).toBe(false);
+    expect(window.__MARINE_SWITCH_STALLED__ || null).toBeNull();
   });
 });
 

@@ -145,7 +145,7 @@ export function shouldHoldFrameThroughSwitch(opts, nowMs, win) {
   // resident at a global viewport must NOT be held (it renders as a clamped rectangle — the zoom-out
   // bridge owns that case). Any of these ⇒ drop the clock and let the normal path run.
   if (!modelOrLayerChanged || !hasRenderableResident || residentRegionalAtGlobalViewport) {
-    _switchHoldStartedAt = null; _switchHoldTargetKey = null; return false;
+    _switchHoldStartedAt = null; _switchHoldTargetKey = null; clearSwitchStall(w); return false;
   }
   const now = (typeof nowMs === 'number') ? nowMs : Date.now();
   const ttl = (typeof w.__RAW_SWITCH_HOLD_TTL_MS__ === 'number') ? Math.max(0, w.__RAW_SWITCH_HOLD_TTL_MS__) : SWITCH_HOLD_TTL_MS_DEFAULT;
@@ -157,10 +157,19 @@ export function shouldHoldFrameThroughSwitch(opts, nowMs, win) {
     w.__MARINE_SWITCH_HOLD_COUNT__ = (w.__MARINE_SWITCH_HOLD_COUNT__ || 0) + 1;
     return true;
   }
-  // TTL expired — a genuinely stalled switch. Allow the clear (blank) rather than hold a stale frame forever.
+  // TTL expired — a genuinely stalled switch.
   if (typeof recordChurn === 'function') recordChurn('switch_hold_expired', { targetKey, heldMs: now - _switchHoldStartedAt });
-  return false;
+  // ⛔ NEVER A BLANK, EVEN THEN (2026-10-26, the lead: "Keep a hard ceiling only for a truly dead fetch, with an error state, never a
+  // blank"). Past the bound the switch is marked STALLED (window.__MARINE_SWITCH_STALLED__) and the frame stays: the status line then
+  // says the new model is not arriving (drawnFrameReadout), and the held frame keeps its own identity for the readouts. A renderable
+  // commit, or the end of the switch, clears the mark. Kill (the old blank at the bound): window.__RAW_SWITCH_HOLD_BLANK_ON_EXPIRY__.
+  if (w.__RAW_SWITCH_HOLD_BLANK_ON_EXPIRY__ === true) return false;
+  if (!w.__MARINE_SWITCH_STALLED__ || w.__MARINE_SWITCH_STALLED__.targetKey !== targetKey) {
+    w.__MARINE_SWITCH_STALLED__ = { targetKey, sinceMs: now };
+  }
+  return true;
 }
+function clearSwitchStall(w) { if (w && w.__MARINE_SWITCH_STALLED__) w.__MARINE_SWITCH_STALLED__ = null; }
 
 // Reset the switch-hold clock when a renderable frame commits (belt-and-suspenders: the target-keying
 // already self-resets per switch, but an explicit reset on a successful commit guarantees a subsequent
@@ -168,6 +177,7 @@ export function shouldHoldFrameThroughSwitch(opts, nowMs, win) {
 export function noteMarineRenderableCommit() {
   _switchHoldStartedAt = null;
   _switchHoldTargetKey = null;
+  clearSwitchStall(typeof window !== 'undefined' ? window : null);
 }
 
 // STRAND WATCHDOG DECISION (2026-07-22, hunt "model-switch strands at the coarse tier"): a model/layer
