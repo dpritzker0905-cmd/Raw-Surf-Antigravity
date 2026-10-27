@@ -3,6 +3,7 @@ import { isGridLayerSupported } from './marineControllerUtils';
 import { markDisplayed } from './marineTransitionCoordinator';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
 import { alignedCoverFrac } from './marineZoomThresholds';
+import { readoutModelRun } from './marineDrawnFrame';
 
 function getLongitudinalOverlap(w1, e1, w2, e2) {
   const vpWidth = (e1 < w1) ? (e1 + 360) - w1 : e1 - w1;
@@ -163,6 +164,9 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       // that name drives the commit rules' instant (#444 keeps it dark through this conform); nothing else reads this one (2026-10-24).
       // A grid the CLIENT built (the ICON extended blend) carries its own readout time: its oldest input's served time (heldFrameTime.js).
       __readoutServedTime: marineData.grid.served_valid_time || marineData.served_valid_time || marineData.grid.__readoutServedTime || null,
+      // The frame's VERIFIED model cycle, for the status line's lattice rule only (2026-10-27, drawnFrameReadout.latticeNearestMaxHours: EURO
+      // goes 6-hourly by model step). A series frame names it on the grid or its wrapper, a /grid frame in its receipt; never `run_time`.
+      __readoutModelRun: readoutModelRun(marineData),
       is_dynamic_viewport_product: marineData.grid.is_dynamic_viewport_product || false,
       coverage_scope: marineData.grid.coverage_scope || null,
       // Rating-mode flag (2026-07-12): this conform is an EXPLICIT field list — the known

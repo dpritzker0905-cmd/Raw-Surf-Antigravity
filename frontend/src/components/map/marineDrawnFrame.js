@@ -23,6 +23,20 @@ const listeners = new Set();
 //    self-heal accept, the zoom-out bridge) published nothing, so the line kept saying "Loading" over the selected hour. The record
 //    now follows what the engine HOLDS. Kill: window.__RAW_DISABLE_DRAWN_ENGINE_TRUTH__ = true.
 const killed = (name) => typeof window !== 'undefined' && window[`__RAW_DISABLE_${name}__`] === true;
+// The frame's MODEL RUN, its verified cycle (2026-10-27): the status line's lattice rule reads the model step from it
+// (drawnFrameReadout.latticeNearestMaxHours). A grid naming a 'known' cycle gives it; a store show's comes from its frame-set index
+// (verified cycles only, backend frame_set.py), never from the resident it was spread over; a /grid or series frame's through the
+// conform under a readout-only name (useMarineWindData: __readoutModelRun). Null when none is named: the rule keeps the timeline hour.
+const runMsOf = (g) => Date.parse((g.model_run_time_status === 'known' || g.__fromFrameStore ? g.model_run_time : null)
+  || (g.__fromFrameStore ? null : g.__readoutModelRun) || '') || null;
+/** The conform's readout-only cycle: a series frame names its verified cycle on the grid or its wrapper, a /grid frame in its
+ *  receipt (marineFrameReceipt.modelRunTime); never the ingest clock `run_time`. Null when no cycle is known. */
+export function readoutModelRun(marineData) {
+  const g = (marineData && marineData.grid) || {};
+  const known = (x) => (x && x.model_run_time_status === 'known' && x.model_run_time) || null;
+  const r = g.frameReceipt;
+  return known(g) || known(marineData) || (r && r.modelRunTimeStatus === 'known' && r.modelRunTime) || null;
+}
 
 /** Called by WebGLMarineLayer after engine.setWaveData took `grid` (and by the frame store's shows). */
 export function publishMarineDrawn(grid, fallback = {}) {
@@ -41,6 +55,7 @@ export function publishMarineDrawn(grid, fallback = {}) {
     basisType: basis && basis.type ? basis.type : null,
     // A far-edge hold's held frame time (estimate_basis.held_from): the status line names it even when no served time arrived.
     heldFromMs: basis && basis.held_from ? (Date.parse(basis.held_from) || null) : null,
+    runMs: runMsOf(grid),
     provider: grid.__gridProvider || grid.provider || null,
     store: !!grid.__fromFrameStore,   // the GPU frame store put it there (field telemetry's hit/miss)
     ts: Date.now(),
@@ -89,6 +104,7 @@ export function publishWindDrawn(grid, fallback = {}) {
     dataMs: Date.parse(grid.served_valid_time || (grid.__fromSeries ? grid.valid_time : '') || '') || null,
     estimated: !!(grid.is_estimated || grid.isEstimated),
     basisType: null,
+    runMs: Date.parse((grid.model_run_time_status === 'known' && grid.model_run_time) || '') || null,   // its verified cycle (runMsOf)
     provider: grid.provider || null,
     ts: Date.now(),
   };
