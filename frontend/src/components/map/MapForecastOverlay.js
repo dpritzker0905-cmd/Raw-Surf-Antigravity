@@ -32,6 +32,8 @@ import { getBackendPressureFlag } from './backendPressureServiceClient';
 import { useExactPointFetch } from '../../hooks/useExactPointFetch';
 import { useMarineDrawnFrame } from './marineDrawnFrame';
 import { reconcileStaleBadge, latticeNearestMaxHours } from './drawnFrameReadout';
+import { forecastHourMs, infoboxFrameView, ratingFrameNote } from './infoboxFrameTime';
+import { InfoboxFrameWords } from './InfoboxFrameWords';
 
 
 export const MapForecastOverlay = ({
@@ -176,6 +178,12 @@ export const MapForecastOverlay = ({
   const staleTightenOff = typeof window !== 'undefined' && window.__RAW_INFOBOX_STALE_TIGHTEN_DISABLED__ === true;
   const preferGridOverStale = isExactPointStale && gridParityOk && !staleTightenOff;
   const useExactPoint = (isExactPointValid && !preferGridOverStale) ? effectiveExactPoint : null;
+
+  const drawnFrame = useMarineDrawnFrame(); // T-05: re-decide the stale badge the frame the engine uploads, not a render late
+  // WHICH HOUR, WHICH FRAME (audit 2026-10-27): an answer for another hour is HELD (kept, dimmed, worded); the words, header
+  // time and Rating note come from infoboxFrameTime.js, in the heatmap's own sentences. Pressure/rain snap their own ask.
+  const frameView = infoboxFrameView({ point: useExactPoint, model: activeModel, layer: activeLayer, hour: timeOffsetHours,
+    checkAsk: isMarineLayer, runMs: drawnFrame && drawnFrame.runMs, theme });
 
   const allExactValuesNull = !!useExactPoint &&
     useExactPoint.wave_height === null && useExactPoint.swell_wave_height === null &&
@@ -510,7 +518,9 @@ export const MapForecastOverlay = ({
     degToCompass,
     getClampedValue,
     getBiasAdjustedLocal,
-    isLoading
+    isLoading,
+    isHeldExactPoint: frameView.held,
+    ratingNote: ratingFrameNote(surfRating, frameView.refMs)
   });
 
   // v6.6: Console forensic log on activation / load
@@ -596,7 +606,6 @@ export const MapForecastOverlay = ({
   }
 
   // `timeOffsetHours` dep added 2026-08-09: computeHeatmapStatus reads MUTABLE GLOBALS no dep can track, and the producer (publishRenderParity in marineRenderParity.js, called from WebGLMarineLayer.js) keys on [timeOffsetHours, revision, active, activeModel] — so an HOUR SCRUB, the exact action that produces a retained-stale hour, re-ran the producer and NOT this consumer.
-  const drawnFrame = useMarineDrawnFrame(); // T-05: re-decide the stale badge the frame the engine uploads, not a render late
   const heatmapStatus = useMemo(() => reconcileStaleBadge(computeHeatmapStatus({ activeModel, activeLayer, renderMarineData }),
     { model: activeModel, layer: activeLayer, hour: Number(timeOffsetHours), nearestMaxHours: latticeNearestMaxHours(activeModel, Number(timeOffsetHours), { selectedMs: getSeriesAnchorMs() + Number(timeOffsetHours) * 3600000, runMs: drawnFrame && drawnFrame.runMs }), instantMs: (() => { try { return Date.parse(getSharedValidTime(Number(timeOffsetHours), activeLayer, activeModel, { readOnly: true })); } catch (e) { return null; } })() }, drawnFrame),
   [renderMarineData, activeModel, activeLayer, timeOffsetHours, drawnFrame]);
@@ -618,13 +627,14 @@ export const MapForecastOverlay = ({
     }
     if (isLive) return 'Live Conditions';
     const offset = isNaN(Number(timeOffsetHours)) ? 0 : Number(timeOffsetHours);
-    const d = new Date();
-    d.setHours(d.getHours() + offset);
-    return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric' });
+    // The heatmap's clock (anchor + offset, UTC), not local `setHours(getHours() + offset)`: an hour off past DST.
+    return new Date(forecastHourMs(offset)).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric' });
   })();
 
   // v163: Show pin icon when displaying spot or long-press location
   const showPinIcon = !!(selectedSpot || longPressLocation);
+  // P1-C: a selected spot/pin header had NO time; it now names the instant of the numbers below it.
+  const headerTimeLabel = showPinIcon ? frameView.timeLabel : '';
 
   // v7.1: Don't render the infobox at all when no location is selected.
   // It will appear only after a user selects a surf spot, places a marker, or taps GPS.
@@ -658,6 +668,8 @@ export const MapForecastOverlay = ({
           <div className={`text-[10px] font-semibold ${textClass} truncate max-w-[160px]`}>
             {forecastTimeLabel}
           </div>
+          {headerTimeLabel && <div className={`text-[9px] font-medium ${frameView.timeClass} truncate max-w-[160px]`}
+            data-testid="forecast-overlay-time">{headerTimeLabel}</div>}
         </div>
         <ChevronDown aria-hidden="true" className={`w-4 h-4 ml-3 ${textMuted} transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} />
       </button>
@@ -702,12 +714,13 @@ export const MapForecastOverlay = ({
                     {card.badgeColor ? (
                       // Rating is conveyed by COLOR + TEXT, never colour alone (mandate): the pill's
                       // text is the level name, and the row's aria-label repeats it.
-                      <span aria-hidden="true" className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: card.badgeColor, color: '#fff' }}>{card.value}</span>
+                      <span aria-hidden="true" className={`text-[11px] font-bold px-2 py-0.5 rounded-full${card.provisional ? ' opacity-60' : ''}`} style={{ backgroundColor: card.badgeColor, color: '#fff' }}>{card.value}</span>
                     ) : (
                       // Provisional (grid-sampled) values render dimmed alongside their '…' text
                       // marker until the exact-point authority lands; works in all three themes.
                       <span aria-hidden="true" className={`text-xs font-bold ${textClass} transition-opacity duration-300${card.provisional ? ' opacity-60' : ''}`}>{card.value}</span>
                     )}
+                    {card.note && <span aria-hidden="true" className={`text-[9px] ${frameView.timeClass} truncate`}>{card.note}</span>}
                   </div>
                 );
               })}
@@ -733,6 +746,7 @@ export const MapForecastOverlay = ({
                   </button>
                 </div>
               )}
+              <InfoboxFrameWords view={frameView} />
               {!modelSubstitution && staleHour && (
                 <div
                   className={`pt-1.5 mt-1.5 border-t text-[9px] font-semibold flex items-center gap-1.5 ${

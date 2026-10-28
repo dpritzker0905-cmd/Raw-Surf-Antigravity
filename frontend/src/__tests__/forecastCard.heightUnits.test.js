@@ -107,7 +107,8 @@ describe('the accessible name follows it too', () => {
     const cluster = { name: 'Sebastian Inlet' };
     const rating = { label: 'Fair', surfHeightM: 1.0, periodS: 12 };
     expect(spotGlyphAriaLabel(cluster, rating, null, 'ft')).toContain('3.3 ft');
-    expect(spotGlyphAriaLabel(cluster, rating, null, 'm')).toContain('1 m');
+    // '1.0 m' since 2026-10-28 (infobox audit P2): a readout keeps its tenth below 10, so no '1 m' beside '1.2 m'.
+    expect(spotGlyphAriaLabel(cluster, rating, null, 'm')).toContain('1.0 m');
     // Unthreaded callers keep feet — no silent unit switch for a surface not yet updated.
     expect(spotGlyphAriaLabel(cluster, rating, null)).toContain('3.3 ft');
   });

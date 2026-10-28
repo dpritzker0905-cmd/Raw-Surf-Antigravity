@@ -719,7 +719,12 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       // the same contract as the GFS/ICON builder. EURO users see the same infobox; a field mapped
       // on one client path and not another is a divergence that only some of the audience sees,
       // which is harder to notice than one everybody sees.
-      reference_size_m: (json.reference_size_m ?? null)
+      reference_size_m: (json.reference_size_m ?? null),
+      // WHICH FRAME ANSWERED (audit 2026-10-27, P1-C) — the GFS/ICON point builder's fields, same contract: the ask is
+      // `hourly.time`, these name the stored frame the server read. (The grid mapper above already carried them.)
+      served_valid_time: (json.served_valid_time ?? null),
+      frame_substituted: (json.frame_substituted ?? null),
+      frame_offset_hours: (json.frame_offset_hours ?? null)
     };
 
     const details = {

@@ -15,6 +15,8 @@ test('synthetic navigation receives both declared empty badge contracts', async 
   for (const [path, body] of [
     ['/api/messages/unread-counts/test-surfer-id', { total: 0, primary: 0, requests: 0, grom_zone: 0 }],
     ['/api/surfer-gallery/claim-queue-count/test-surfer-id', { pending_count: 0 }],
+    ['/api/compliance/violations/user/test-surfer-id', { user_id: 'test-surfer-id', total_strikes: 0,
+      is_suspended: false, is_banned: false, suspension_until: null, violations: [] }],
   ]) {
     const route = page.routes.find(r => r.matches(new URL(origin + path)));
     assert.ok(route, `Missing synthetic badge: ${path}`);
@@ -24,7 +26,7 @@ test('synthetic navigation receives both declared empty badge contracts', async 
     assert.deepEqual(response.json, body);
     assert.match(response.headers['x-rawsurf-e2e-fixture'], /^synthetic-/);
   }
-  assert.equal(count(), 2);
+  assert.equal(count(), 3);
 });
 
 test('real identities, auth, mutations, weather and other origins stay outside the fixture', async () => {
@@ -33,6 +35,7 @@ test('real identities, auth, mutations, weather and other origins stay outside t
   for (const url of [
     origin + '/api/surfer-gallery/claim-queue-count/real-account',
     origin + '/api/messages/unread-counts/real-account',
+    origin + '/api/compliance/violations/user/real-account',
     origin + '/api/surfer-gallery/claim-queue/test-surfer-id/action',
     origin + '/api/auth/login', origin + '/api/weather/grid',
     origin + '/api/explore/spot-details/test-surfer-id',

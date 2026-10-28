@@ -9,6 +9,7 @@ import {
 } from '../components/map/forecastSamplers';
 import { isInCooldown, clearCooldown } from '../components/map/marineControllerUtils';
 import { residentFrameDiagnosticsEnabled } from '../components/map/marineFrameReceipt';
+import { forecastHourMs } from '../components/map/infoboxFrameTime';
 
 // EXACT-POINT FETCH BUDGET (2026-07-06): the shared 12s abort guaranteed a first-look "Timeout"
 // on EURO — a COLD native CMEMS point measured 17s live (GFS 0.9s / ICON 2.5s), so every first
@@ -289,7 +290,7 @@ export function useExactPointFetch({
     }
 
     if (selected) {
-      const targetTs = Date.now() + (timeOffsetHours || 0) * 3600000;
+      const targetTs = forecastHourMs(timeOffsetHours || 0);   // the heatmap's clock (infoboxFrameTime.js)
       const targetTimestamp = new Date(targetTs).toISOString();
       const selectedTimestamp = selected.time;
       const selectedHourIndex = selected.hourIndex;
