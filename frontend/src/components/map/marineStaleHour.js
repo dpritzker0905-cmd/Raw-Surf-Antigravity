@@ -305,7 +305,7 @@ export function washMatchesResident(base, resident, win) {
     const cb = Date.parse(cycleOf(base) || ''), cr = Date.parse(cycleOf(resident) || '');
     v = Number.isFinite(cb) && Number.isFinite(cr) && cb !== cr ? { ok: false, why: 'other_run', offH: +((cb - cr) / HOUR_MS).toFixed(2) } : { ok: true, why: 'same' };
   }
-  if (t) { if (!v.ok) t.refused++; else if (v.why === 'unknown_time') t.unknown++; t.last = v; }
+  if (t) { if (!v.ok) t.refused++; else if (v.why === 'unknown_time') t.unknown++; t.last = v; t.lastAt = Date.now(); }
   return v;
 }
 

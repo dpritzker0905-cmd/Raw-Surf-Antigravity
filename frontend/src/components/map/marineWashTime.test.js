@@ -140,6 +140,41 @@ describe('washWorldOnCdn + the prewarm: a CDN-built world frame skips the backgr
     expect(window.__MARINE_ENGINE__._pendingCoarseBaseGrid).toBeTruthy();
   });
 
+  it('a refused wash asks for the selected hour\'s world grid: once per hour and flavor per gap, never mid-scrub, never without a refusal', async () => {
+    const vp = { west: -81.2, south: 27.5, east: -79.7, north: 28.2 };
+    const t0 = 1_000_000;
+    prewarm._resetWashAsksForTest();
+    expect(prewarm.askWashOnRefusal({ model: 'GFS', layer: 'waves', hour: 48, bounds: vp, nowMs: t0 })).toBe(false);   // nothing refused yet
+    window.__MARINE_WASH_TIME__ = { refused: 1, last: { ok: false, why: 'other_time' }, lastAt: t0 };
+    expect(prewarm.askWashOnRefusal({ model: 'GFS', layer: 'waves', hour: 48, bounds: vp, nowMs: t0 + 10 })).toBe(true);
+    await flush(); await flush();
+    expect(fetchBackendMarineGrid).toHaveBeenCalledTimes(1);                                   // the band-OFF case: the CDN frame at once
+    expect(window.__MARINE_WASH_TIME__.asked).toBe(1);
+    window.__MARINE_WASH_TIME__.lastAt = t0 + 500;
+    expect(prewarm.askWashOnRefusal({ model: 'GFS', layer: 'waves', hour: 48, bounds: vp, nowMs: t0 + 600 })).toBe(false);   // same key, inside the gap
+    expect(prewarm.askWashOnRefusal({ model: 'GFS', layer: 'waves', hour: 51, bounds: vp, nowMs: t0 + 600 })).toBe(true);    // another hour
+    window.__MARINE_WASH_TIME__.lastAt = t0;                                                   // the refusal is from an older frame
+    expect(prewarm.askWashOnRefusal({ model: 'GFS', layer: 'waves', hour: 54, bounds: vp, nowMs: t0 + 600 })).toBe(false);
+    window.__MARINE_WASH_TIME__.lastAt = t0 + 3500;
+    window.isScrubbingTimeline = true;                                                         // the prewarm's own gate declines a scrub
+    prewarm.askWashOnRefusal({ model: 'GFS', layer: 'waves', hour: 48, bounds: vp, nowMs: t0 + 3600 });
+    await flush();
+    expect(window.__MARINE_GLOBAL_PREWARM__.last).toMatchObject({ reason: 'declined', why: 'scrubbing' });
+    delete window.isScrubbingTimeline;
+    window.__RAW_DISABLE_WASH_REFUSAL_WARM__ = true;
+    expect(prewarm.askWashOnRefusal({ model: 'GFS', layer: 'waves', hour: 60, bounds: vp, nowMs: t0 + 3600 })).toBe(false);
+    delete window.__RAW_DISABLE_WASH_REFUSAL_WARM__;
+  });
+
+  it('the custom layer asks after each rendered frame (call site, in source)', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'WebGLMarineCustomLayer.js'), 'utf8');
+    expect(src).toMatch(/import \{ askWashOnRefusal \} from '\.\/marineGlobalPrewarm';/);
+    const at = src.indexOf('engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, viewportBounds, opacityMultiplier);');
+    expect(at).toBeGreaterThan(0);
+    expect(src.indexOf('askWashOnRefusal({', at)).toBeGreaterThan(at);
+    expect(src.indexOf('askWashOnRefusal({', at)).toBeLessThan(src.indexOf('} catch (e) {', at));
+  });
+
   it('a backend world grid keeps the lane (no CDN frame), and so does the kill', async () => {
     getPinnedIndexSync.mockReturnValue(null);
     prewarm.prewarmGlobalMarineGrid('GFS', 48, { west: -81.2, south: 27.5, east: -79.7, north: 28.2 }, 'waves');

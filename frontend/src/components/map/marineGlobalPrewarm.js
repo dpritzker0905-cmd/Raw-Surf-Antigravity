@@ -177,6 +177,34 @@ export function _rewarmWashBaseIfStale(m, hourOffset, bounds, activeLayer) {
   } catch (e) { /* best-effort */ }
 }
 
+/**
+ * A REFUSED WASH ASKS FOR THE RIGHT ONE (D1, 2026-10-28). The time rule (marineStaleHour.washMatchesResident) stops drawing a wash of
+ * another hour; on its own that leaves the sea around and under the frame empty until a world grid for the selected hour happens to
+ * arrive, and the hour world warm only runs after a COMMIT holds still (marineWorldWarmOnSettle). The fuzzer's band-OFF hide waited up to
+ * 30 s for the honest grid with nothing under it. So the layer calls this after each rendered frame: when the engine refused the wash in
+ * that frame, the prewarm is asked for the selected hour's world grid (its own gates: never mid-scrub, in-flight and valid-time dedupe,
+ * a cached grid staged at zero network, a CDN-built frame at once, else the background lane), once per model | layer | hour | flavor per
+ * WASH_ASK_GAP_MS. Kill: window.__RAW_DISABLE_WASH_REFUSAL_WARM__ = true. Telemetry: window.__MARINE_WASH_TIME__.asked.
+ */
+export const WASH_ASK_GAP_MS = 3000;
+const _washAsks = new Map();
+export function askWashOnRefusal({ model, layer, hour, bounds, nowMs = Date.now(), win } = {}) {
+  try {
+    const w = win || (typeof window !== 'undefined' ? window : null);
+    const t = w && w.__MARINE_WASH_TIME__;
+    if (!t || !t.last || t.last.ok !== false || !(nowMs - (t.lastAt || 0) < 250)) return false;   // refused in the frame just drawn
+    if (w.__RAW_DISABLE_WASH_REFUSAL_WARM__ === true || !Number.isFinite(hour) || !bounds) return false;
+    const key = `${model || 'GFS'}|${layer || 'waves'}|${hour}|${readMarineSurfMode(w) ? 'r1' : 'r0'}`;
+    if (nowMs - (_washAsks.get(key) || -Infinity) < WASH_ASK_GAP_MS) return false;
+    _washAsks.set(key, nowMs);
+    if (_washAsks.size > 64) _washAsks.delete(_washAsks.keys().next().value);
+    t.asked = (t.asked || 0) + 1;
+    prewarmGlobalMarineGrid(model || 'GFS', hour, bounds, layer || 'waves', { gridFirst: true, band: true });
+    return true;
+  } catch (e) { return false; }   // a warm never breaks the frame that asked
+}
+export function _resetWashAsksForTest() { _washAsks.clear(); }
+
 // `opts.gridFirst` (2026-10-01, audit F-21, marineStaleHour.js), optional and opt-in: the world warm (marineWorldWarmOnSettle.js) passes it,
 // every other caller keeps the old order. The exact world grid goes out BEFORE the world series half, which holds the background lane's
 // single slot while it loads. The series half then starts when the grid settles, or at once if there is nothing to fetch.
