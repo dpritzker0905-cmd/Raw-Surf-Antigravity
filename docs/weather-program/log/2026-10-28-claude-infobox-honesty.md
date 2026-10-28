@@ -88,3 +88,53 @@ switch. One backend change, words only (an `estimate_basis.type` label; see P2).
   on the local wall clock; only a tick within an hour of local midnight on a DST day can show the wrong weekday.
 - `method: wave_component_ratio_estimation` on the EURO waves direct read is still untrue words; it gates partitions
   (a served number), so changing it is the owner's decision.
+
+## Part 2 (same session, 10:50Z): three status-line word defects, branch `claude/status-line-words` (stacked on #622)
+
+**Ask, the lead (after #622 went green, chain 3008 / 183 files exactly as projected):** three status-line word defects from the
+10-27 live round, a separate PR, client words only, ON with kill switches, offline proof:
+1. "Estimated forecast: estimated" for ~1.9 s after band OFF on a transient estimated frame at a native EURO hour (z9 Florida).
+2. A tab idle ~10 h: the wheel's +156 moved with the clock to 11-03T08Z, the drawn frame stayed at 11-03T03Z, and the words said
+   "beyond EURO’s range".
+3. EURO swell_1 at z9 drawn from a 10.313-degree grid (the HUD's "COARSE 10.313° GRID"), with no user-facing words.
+
+**Read in the code:**
+- (1) The backend's surf transform stamps every rating grid `is_estimated=True` with no basis (`grid_resolver_surf.py:185`),
+  and after band OFF the rating resident lingers until the next commit (the lead's R5: 6.1-8.3 s; here ~1.9 s). The words
+  fallback `ESTIMATE_WORDS[type] || 'estimated'` then printed "Estimated forecast: estimated". Missing bases too:
+  `euro_persistence_gfs_blend` / `_icon_blend` (the lead's R9, EURO h294-h336), `icon_extended_estimate`,
+  `icon_loop_extrapolation`, `coarser_grid_fallback`, `gfs_derived_fallback`, `ecmwf_ifs_derived_fallback`,
+  `open_meteo_fallback`.
+- (2) The held branch keys on `drawn.hour === requested.hour`; the record keeps its hour label while the series anchor moves
+  with the clock, so after an idle the "Holding" words fired with the range fallback for a frame drawn under an older clock.
+- (3) The HUD derives node spacing from the served bounds and cols/rows (`deriveResolutionDeg`); the drawn record never
+  carried it.
+
+**Changed (client words only, no served number, no fetch or commit rule):**
+- `marineDrawnFrame.publishMarineDrawn`: a rating frame whose only estimate is the surf model (`ratingMode`, no basis) is not
+  an estimated forecast; the record carries `anchorMs` (the clock the hour was drawn on) and `resolutionDeg` (the HUD's rule).
+  Both fail soft to null (an upload must never throw over a readout field). `latestKnownRunMs(model, layer)`: the newest
+  VERIFIED cycle (`model_run_time_status: known`) the cached manifest names.
+- `drawnFrameReadout`: words for every basis above; an unnamed basis reads "Estimated forecast" (never doubled). Kill for both
+  (and the rating rule): `window.__RAW_DISABLE_DRAWN_ESTIMATE_WORDS__`. Held reason: anchor rolled -> "Holding X’s M forecast:
+  drawn N h ago[ from an older run], and the selected time has moved on" (estimate or not; keeps the point card's
+  retained-hour badge); an older verified run alone replaces only the generic range words ("from an older M run"); a basis
+  with its own reason keeps it. Kill: `__RAW_DISABLE_DRAWN_HOLD_REASON__`. `describeCoarseGrid`: a drawn grid of the selected
+  model/layer 5 degrees or coarser -> "Coarse grid: EURO Swell points are 10.3° apart". Kill: `__RAW_DISABLE_COARSE_GRID_WORDS__`.
+- `ForecastTimeStatus`: passes the newest run; the coarse line is a `role="status"` line before the time readout (the phone
+  sheet), `quiet` colour on all three themes (the beach panel is black/90). One component serves the desktop panel and both
+  mobile layouts (`MapWeatherControls.renderTimeline`, lines 786 / 840 / 948).
+
+**Offline proof** (`statusLineWords.test.js`, 14 tests through the real record, words and line; the kill switches print the
+live readings):
+- band OFF at a native EURO hour, rating resident for 1.9 s in 100 ms steps then the plain frame: **no word in all 21 reads**;
+  under the kill: "Estimated forecast: estimated" (the live R6 reading at GFS hour 0).
+- EURO tail: "Estimated forecast: beyond EURO’s range, blended with GFS" (was "…: estimated").
+- the idle replay (drawn at anchor 10-27T10Z, read at 20Z, data 11-03T03Z, selection 11-03T08Z): "Holding Tue, Nov 3, 3 AM’s EURO
+  forecast: drawn 10 h ago, and the selected time has moved on" (kill: "…: beyond EURO’s range"); with a newer verified run in
+  the manifest, "…drawn 10 h ago from an older run, …".
+- EURO swell_1 global_coarse 33 x 17 over 330 x 165 degrees: spacing **10.313** (the HUD's number), words "Coarse grid: EURO
+  Swell points are 10.3° apart", rendered in light, dark and beach as a polite status line ahead of the time readout; quiet for
+  the 2-degree tier, a 0.25-degree tile and a layer switch.
+- One wiring pin moved (`drawnFrameTruth.test.js`: the marine line now passes `latestRunMs`). `WebGLMarineLayer.parity.test.js`
+  mocks the client without `getSeriesAnchorMs`, which found the throw-at-upload risk the soft fields now close.
