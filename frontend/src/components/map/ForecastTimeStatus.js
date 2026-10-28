@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { evaluateMarineTimelineCoverage, readMarineTimelineRenderEvidence, reconcileMarineTimelineCoverage } from './marineTimelineCoverage';
-import { useMarineDrawnFrame, latestKnownRunMs } from './marineDrawnFrame';
+import { drawnFallbackTruthKilled, useMarineDrawnFrame, latestKnownRunMs } from './marineDrawnFrame';
+import { useMarineFallbackState } from './marineFallbackNotice';
 import { describeDrawnFrame, describeCoarseGrid, latticeNearestMaxHours } from './drawnFrameReadout';
 import { getSeriesAnchorMs, getSharedValidTime } from './backendWeatherServiceClient';
 import { HOLD_INDICATOR_MS, holdNoDimKilled } from './marineStaleHour';
@@ -19,8 +20,14 @@ import { ratingBandLoadingText } from './marineFlavorToggle';
 // not pulse under prefers-reduced-motion). Kill: window.__RAW_DISABLE_HOLD_NO_DIM__ = true (the dim returns, no dot).
 // RASTER layers (2026-10-22, rasterDrawnFrame.js): the same words from the raster layer's own shown/wanted pair, never the marine
 // record; a pending line appears only after PENDING_QUIET_MS. `radarMs` = the radar frame asked for.
+// THE SIMPLIFIED FALLBACK (2026-10-27, the lead's z9 EURO live read: "Loading <hour>… still showing Mon, Nov 2, 4 AM" for 15 hours):
+// while MapWebGL has swapped the WebGL marine layer for the simplified one (webglMarineFailed), no frame of ours is drawn, so the line
+// says so instead of describing the last one. Kill: window.__RAW_DISABLE_DRAWN_FALLBACK_TRUTH__ = true (marineDrawnFrame.js).
+const MARINE_LAYERS = new Set(['waves', 'swell_1', 'swell_2', 'wind_waves']);
+export const MARINE_FALLBACK_WORDS = 'Simplified wave layer (reduced graphics mode): this app’s forecast frames are off';
 export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs }) {
   const drawn = useMarineDrawnFrame();
+  const marineFallback = useMarineFallbackState();
   const rasterRec = useRasterDrawnFrame();
   const isRaster = RASTER_STATUS_LAYERS.has(layer);
   const rasterReadout = isRaster ? describeRasterFrame(rasterRec, layer, layer === 'radar' ? radarMs : Date.now() + hour * 3600000) : null;
@@ -81,6 +88,9 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
 
   const tone = theme === 'light' ? 'text-amber-800' : 'text-amber-200';
   const quiet = theme === 'light' ? 'text-slate-600' : 'text-slate-300';
+  if (marineFallback && MARINE_LAYERS.has(layer) && !drawnFallbackTruthKilled()) {   // the simplified layer: no frame of ours, no band
+    return <div role="status" aria-live="polite" data-drawn-state="fallback" className={`mt-1 text-xs ${tone}`}>{MARINE_FALLBACK_WORDS}</div>;
+  }
   // FIRST in the block: the phone's expanded sheet ends under the bottom nav, so a line after the time readout was off screen (measured 2026-10-26).
   const heldText = !isRaster ? ratingBandHeldText(heldBy) : null;
   const bandLine = heldText ? (

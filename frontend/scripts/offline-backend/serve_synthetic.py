@@ -275,6 +275,44 @@ def estimate_basis(valid_time, region_id, run_time):
     }
 
 
+# EURO'S REGIONAL ESTIMATED TAIL (2026-10-27, `--euro-regional-estimated-after H`; the z9 h141-155 stall). Live read 17:08Z: a z9
+# EURO waves ask over Florida is served the florida_east_coast REGIONAL tile, an estimate past the regional native anchor
+# (`euro_persistence_gfs_blend`, provider "estimated", model_run_time null / "conflicting"), on a 3-hourly lattice straight through
+# the global tier's 6-hourly WAM band. With the flag, EURO waves regional tiles past H hours of lead carry those fields, every 3 h.
+EURO_REGIONAL_ESTIMATED_AFTER = None
+
+
+def euro_regional_estimate_basis(valid_time, region_id, run_time, anchor_lead):
+    stamp = valid_time.strftime("%Y%m%dT%H%M%SZ")
+    anchor = run_time + timedelta(hours=anchor_lead)
+    a_stamp = anchor.strftime("%Y%m%dT%H%M%SZ")
+    return {
+        "type": "euro_persistence_gfs_blend", "target_valid_time": valid_time.isoformat(), "layer": "waves",
+        "region_id": region_id, "tile_id": region_id, "native_limit_hours": EURO_NATIVE_HOURS,
+        "euro_anchor_product_id": f"euro_marine_waves_{region_id}_{a_stamp}.json",
+        "gfs_anchor_product_id": f"gfs_marine_waves_{region_id}_{a_stamp}.json",
+        "gfs_target_product_id": f"gfs_marine_waves_{region_id}_{stamp}.json",
+        "icon_anchor_product_id": None, "icon_target_product_id": None,
+        "weights": {"persistence": 0.025, "gfs": 0.975, "icon": 0.0}, "confidence": 0.28,
+        "euro_anchor_valid_time": anchor.isoformat(), "gfs_anchor_valid_time": anchor.isoformat(),
+        "gfs_target_valid_time": valid_time.isoformat(), "anchor_delta_hours": 0.0, "target_delta_hours": 0.0,
+        "cycle_semantics": "shared_contributor_cycle", "cycle_sources": [],
+    }
+
+
+def euro_regional_estimated_dict(run_time, valid_time, h, filename, region_id, bounds, res):
+    """A EURO waves regional tile as production stores its estimated tail (fields read live, 2026-10-27 17:08Z)."""
+    body = product_dict(run_time, valid_time, h, filename, region_id, bounds, res, "EURO", False, "waves")
+    iso = lambda d: d.strftime("%Y-%m-%dT%H:%M:%SZ")  # noqa: E731
+    body.update({
+        "run_time": iso(run_time + timedelta(hours=6, minutes=29)), "model_run_time": None, "model_run_time_status": "conflicting",
+        "ingested_at": None, "is_forecast_authoritative": False, "is_estimated": True, "freshness_sec": 1800,
+        "estimate_basis": euro_regional_estimate_basis(valid_time, region_id, run_time, EURO_REGIONAL_ESTIMATED_AFTER),
+        "provider": "estimated", "upstream_provider": None, "source_dataset": "estimated_blend",
+    })
+    return body
+
+
 def product_dict(run_time, valid_time, h, filename, region_id="global_mid", bounds=WORLD, res=RES, model="GFS", estimated=False,
                  layer="waves"):
     rows = int(round((bounds["north"] - bounds["south"]) / res)) + 1
@@ -743,10 +781,20 @@ def build_store(directory, horizon_hours, step_hours, now=None, models=("GFS", "
                     (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
                     entries.append(manifest_entry(body, filename, res))
             for layer in (x for x in layers if x != "wind"):
-                if (model == "EURO" and layer == "waves" and not estimated
-                        and lead > timedelta(hours=EURO_WAVES_6H_AFTER) and (lead.total_seconds() / 3600) % 6):
-                    continue      # the 6-hourly WAM band: no stored frame at this 3-h slot (production fills it server-side)
+                six_hourly_gap = (model == "EURO" and layer == "waves" and not estimated
+                                  and lead > timedelta(hours=EURO_WAVES_6H_AFTER) and (lead.total_seconds() / 3600) % 6)
+                euro_reg_est = (model == "EURO" and layer == "waves" and EURO_REGIONAL_ESTIMATED_AFTER is not None
+                                and lead > timedelta(hours=EURO_REGIONAL_ESTIMATED_AFTER))
                 for region_id, bounds, res, _stem in tiers_for(model, layer, regions):
+                    regional = region_id not in ("global_mid", "global_coarse")
+                    if six_hourly_gap and not (regional and euro_reg_est):
+                        continue  # the 6-hourly WAM band: no stored frame at this 3-h slot (the regional estimated tail has one)
+                    if regional and euro_reg_est:
+                        filename = f"{model.lower()}_marine_{layer}_{region_id}_{stamp}_estimated.json"
+                        body = euro_regional_estimated_dict(run_time, vt, i * step_hours, filename, region_id, bounds, res)
+                        (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
+                        entries.append(manifest_entry(body, filename, res))
+                        continue
                     suffix = "_estimated" if estimated else ""
                     filename = f"{model.lower()}_marine_{layer}_{region_id}_{stamp}{suffix}.json"
                     body = product_dict(run_time, vt, i * step_hours, filename, region_id, bounds, res, model, estimated, layer)
@@ -845,10 +893,14 @@ def main():
                     help="EURO carries the Great Lakes, Winnipeg and Victoria (#497); every other model has them as land (WAVE LAKES above)")
     ap.add_argument("--enclosed-seas", choices=["0", "1"], default="0",
                     help="EURO and ICON 2-deg products mask open-water boxes GFS keeps (ENCLOSED SEAS above): the targeted fill's work")
+    ap.add_argument("--euro-regional-estimated-after", type=float, default=None,
+                    help="EURO waves regional tiles past this lead (h) are production's 3-hourly euro_persistence_gfs_blend "
+                         "estimate (EURO'S REGIONAL ESTIMATED TAIL above); default: native like the global tiers")
     ap.add_argument("--build-only", action="store_true")
     args = ap.parse_args()
-    global VORTEX_PEAK, LAND_MASK, WAVE_LAKES, ENCLOSED_SEAS
+    global VORTEX_PEAK, LAND_MASK, WAVE_LAKES, ENCLOSED_SEAS, EURO_REGIONAL_ESTIMATED_AFTER
     VORTEX_PEAK = args.vortex_peak
+    EURO_REGIONAL_ESTIMATED_AFTER = args.euro_regional_estimated_after
     LAND_MASK = args.land_mask == "1"
     WAVE_LAKES = args.wave_lakes == "1"
     ENCLOSED_SEAS = args.enclosed_seas == "1"

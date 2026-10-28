@@ -66,6 +66,8 @@ jobs:
         env:
           # DARK (2026-10-26): '1' = a prune that removes a manifest registration never deletes a storage object a RETAINED registration still names (prune_object_protection.py, WI-04). Off, the cycle-end duplicate sweep deletes the object its surviving twin names: 51-54 EURO global_coarse estimates per cycle listed but absent (#590 log, storage logs 2026-10-25). ONE repo variable read by forecast-ingest, forecast-ingest-pilots, precompute and sim-parity-monitor; Render env set together. Owner's word.
           INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS: ${{ vars.INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS || '0' }}
+          # DARK (2026-10-28 wiring): '1' = a product save drops every other manifest registration naming the same storage object (manifest_object_identity.py, #590), so a save or prune never deletes the file a twin registration still names. Storage logs 2026-10-27: 56 EURO global_coarse estimates deleted ~5 s after the first writer's upload, absent 10-30 min a cycle. ONE repo variable read by the three manifest writers (forecast-ingest, forecast-ingest-pilots, precompute); Render never writes. Owner's word 2026-10-28.
+          MANIFEST_ONE_ENTRY_PER_OBJECT: ${{ vars.MANIFEST_ONE_ENTRY_PER_OBJECT || '0' }}
           NODE_ENV: production
           RENDER: 'true'
           MANIFEST_IMMUTABLE_PUBLICATION: '0' # Dark: same publication contract as core writer
