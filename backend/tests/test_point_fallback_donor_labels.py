@@ -30,7 +30,8 @@ def test_euro_fallback_labels_follow_actual_requested_donor(monkeypatch, layer, 
     assert result.upstream_model == expected_source
     assert result.provider == result.upstream_provider == ('open-meteo' if layer == 'waves' else 'gfs_estimated_fallback')
     assert result.estimate_basis == {
-        'type': 'ecmwf_ifs_derived_fallback' if layer == 'waves' else 'gfs_derived_fallback',
+        # The waves donor is a direct ECMWF WAM read (audit 2026-10-27: words only; method/flags/numbers unchanged).
+        'type': 'ecmwf_wam_direct_read' if layer == 'waves' else 'gfs_derived_fallback',
         'method': 'wave_component_ratio_estimation', 'source_method': 'direct_point_api', 'source_model': expected_source}
     assert result.model == 'EURO' and result.is_estimated and not result.is_forecast_authoritative
     assert result.fallback_reason == 'copernicus_missing_fallback'

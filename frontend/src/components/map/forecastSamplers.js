@@ -15,6 +15,7 @@ import {
 } from './backendWeatherServiceClient';
 
 import { updateDeprecationDiag } from './forecastDeprecationDiag';
+import { forecastHourMs } from './infoboxFrameTime';
 // F5: single source of truth for display horizons. Import from useMarineDataFetcherHelpers (the
 // one definition) instead of redefining locally — this duplication is what let EURO drift to a
 // stale 240h. These are display/no-coverage serve maxima; the authoritative scrubber max is the
@@ -337,10 +338,11 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
   }
 
   const bestIdx = findHourIndex(times, offset);
-  const targetTime = new Date();
-  targetTime.setHours(targetTime.getHours() + (offset || 0));
+  // UTC anchor + offset (the heatmap's clock, infoboxFrameTime.js). The unrounded local `now + offset` made "(latest)"
+  // flip with the clock minute on the same frame (a 3 h snap read 3h20 at :40 and 2h40 at :20) and slipped an hour past DST.
+  const targetMs = forecastHourMs(offset || 0);
   const timeStr = times[bestIdx];
-  const minDiff = Math.abs(new Date(timeStr.endsWith('Z') ? timeStr : timeStr + 'Z').getTime() - targetTime.getTime());
+  const minDiff = Math.abs(new Date(timeStr.endsWith('Z') ? timeStr : timeStr + 'Z').getTime() - targetMs);
 
   let status = 'exact_success';
   if (minDiff > 3 * 3600000) {
@@ -477,7 +479,13 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     // backendCopernicusServiceClient): a field added to one and not the others is dropped on
     // whichever client path the user happens to be on — the exact way shore_normal_deg was
     // permanently undefined until 2026-07-26.
-    reference_size_m: cachedResponse.reference_size_m ?? null
+    reference_size_m: cachedResponse.reference_size_m ?? null,
+    // WHICH FRAME ANSWERED (audit 2026-10-27, P1-C): `time` above is the instant the point ASKED for; these say which
+    // stored frame the server read (grid_resolver.stamp_frame_honesty). Until now they reached only a diagnostic receipt,
+    // so the infobox could not say "the nearest stored forecast" the way the heatmap does. Mapped in all three whitelists.
+    served_valid_time: cachedResponse.served_valid_time ?? null,
+    frame_substituted: cachedResponse.frame_substituted ?? null,
+    frame_offset_hours: cachedResponse.frame_offset_hours ?? null
   };
 }
 

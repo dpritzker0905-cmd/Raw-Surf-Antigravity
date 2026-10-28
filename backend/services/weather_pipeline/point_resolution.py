@@ -616,8 +616,13 @@ class PointResolutionService:
                         if is_fallback_active:
                             fallback_provider = "open-meteo" if fallback_model == "EURO" else "gfs_estimated_fallback"
                             est_basis = {
-                                "type": "ecmwf_ifs_derived_fallback" if fallback_model == "EURO" else "gfs_derived_fallback",
-                                # Preserve the existing partition eligibility classification.
+                                # WORDS ONLY (audit 2026-10-27, P2): the EURO waves donor is ECMWF's own wave model read
+                                # straight at the hour, not derived, so its type says so (was "ecmwf_ifs_derived_fallback").
+                                # No reader of `type` decides a number; is_estimated and `method` below are unchanged.
+                                "type": "ecmwf_wam_direct_read" if fallback_model == "EURO" else "gfs_derived_fallback",
+                                # Preserve the existing partition eligibility classification. NOTE: `method` is read as a
+                                # served-number switch (partitions, spot_conditions, nearshore_validation); it stays as it
+                                # is, though no ratio estimation runs for the waves donor. Owner decision, not a label.
                                 "method": "wave_component_ratio_estimation",
                                 "source_method": "direct_point_api",
                                 "source_model": upstream_model

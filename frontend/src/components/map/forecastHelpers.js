@@ -6,6 +6,7 @@
 import { isGridLayerSupported } from './marineControllerUtils';
 import { wrapLngRelative, getCenterLng } from './mapUtils';
 import { M_TO_FT } from './heightUnits';
+import { forecastHourMs } from './infoboxFrameTime';
 
 // ⚠️ This lane is DELIBERATELY unit-fixed: the diagnostics panel (forecastDiagnostics.js) reports
 // feet regardless of the user's display preference. The DISPLAY lane is heightUnits.js —
@@ -24,9 +25,9 @@ export var degToCompass = (deg) => {
 export function findHourIndex(timeArray, timeOffsetHours) {
   if (!timeArray) return 0;
   const offset = isNaN(Number(timeOffsetHours)) ? 0 : Number(timeOffsetHours);
-  const targetTime = new Date();
-  targetTime.setHours(targetTime.getHours() + offset);
-  const targetTs = targetTime.getTime();
+  // The heatmap's clock: anchor + offset * 1 h in UTC. Local `setHours(getHours() + offset)` was an hour off past a DST
+  // change inside the wheel (hour 147 picked 148 on US Eastern after 2026-11-01). infoboxFrameTime.js, kill switch there.
+  const targetTs = forecastHourMs(offset);
 
   let closest = 0;
   let minDiff = Infinity;

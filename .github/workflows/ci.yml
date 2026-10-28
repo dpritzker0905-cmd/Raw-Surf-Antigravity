@@ -174,7 +174,9 @@ jobs:
             // ForecastTimeStatus.test.js. Raised by exactly that from the floor above; confirm against the hosted receipt.
             // Rating band toggle instant (2026-10-26): marineFlavorToggle.test.js (+1 suite / +8 tests), useMarineDataFetcherCore.flavorToggle.test.js
             // (+1 suite / +4 tests), ForecastTimeStatus.test.js +3 tests. Raised by exactly that; confirm against the hosted receipt.
-            const MIN_SUITES = 520, MIN_TESTS = 6853;
+            // Infobox honesty (2026-10-28, #622): infoboxFrameTime.test.js (+1 suite / +19 tests) and the audit's
+            // infobox-heatmap-agreement.audit.test.js (+1 suite / +7 tests). Raised by exactly that; confirm against the hosted receipt.
+            const MIN_SUITES = 522, MIN_TESTS = 6879;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -1586,7 +1588,9 @@ jobs:
           #   base 2973 (hosted read) + 2 new test(s) and 0 new file(s) = 2975, files 182; floor 2975 - 6 = 2969. This PR must read 2975 passed.
           # ⬆ 2969→2970 on 2026-10-26 (rederive_floor.py, claude/prune-protect-wiring): dev run 40403312401 read 2973 / 182 files; dev's map 2975;
           #   base 2975 (dev's map) + 1 new test(s) and 0 new file(s) = 2976, files 182; floor 2976 - 6 = 2970. This PR must read 2976 passed.
-          MIN_FILES, MIN_PASSED = 182, 2970
+          # ⬆ 2970→3002 on 2026-10-28 (rederive_floor.py, claude/infobox-honesty-5efceb): dev run 40633534401 read 2976 / 182 files; dev's map 2976;
+          #   base 2976 (hosted read) + 32 new test(s) and 1 new file(s) = 3008, files 183; floor 3008 - 6 = 3002. This PR must read 3008 passed.
+          MIN_FILES, MIN_PASSED = 183, 3002
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
