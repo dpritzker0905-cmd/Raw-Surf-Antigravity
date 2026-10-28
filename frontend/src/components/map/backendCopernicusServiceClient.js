@@ -530,20 +530,14 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
 export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, signal, layer = 'swell_1', gridProductIdParam = null, gridBboxParam = null, requestContext = null) {
   requestContext = pointRequestIdentityEnabled()
     ? requestContext || createPointRequestContext('EURO', layer, hourOffset, false, gridProductIdParam, gridBboxParam) : null;
-  // D4 (pointProductHint.js): a hint naming another model's or layer's product is dropped with its box, and the projection
-  // diag lends one only when it describes EURO and this layer (the GFS/ICON client's rule; this fallback read any diag).
+  // D4 (pointProductHint.js): a foreign hint is dropped with its box; the diag lends one only when it is EURO's and this layer's.
   const foreignHint = hintIsForeign(gridProductIdParam, 'EURO', layer);
   const projDiag = typeof window !== 'undefined' ? window.__MARINE_PROJECTION_DIAG__ : null;
   const diagIsOurs = !!projDiag && (!pointModelGuardOn() || (projDiag.activeModel === 'EURO' && projDiag.activeLayer === layer));
   let gridProductId = foreignHint ? null : gridProductIdParam;
-  if (!gridProductId && diagIsOurs) {
-    gridProductId = productHintFor(projDiag.productId || projDiag.gridProductId || null, 'EURO', layer);
-  }
-
+  if (!gridProductId && diagIsOurs) gridProductId = productHintFor(projDiag.productId || projDiag.gridProductId || null, 'EURO', layer);
   let gridBbox = foreignHint ? null : gridBboxParam;
-  if (!gridBbox && diagIsOurs) {
-    gridBbox = projDiag.requested_bbox || projDiag.backendRequestBbox || null;
-  }
+  if (!gridBbox && diagIsOurs) gridBbox = projDiag.requested_bbox || projDiag.backendRequestBbox || null;
 
   const start = Date.now();
   if (requestContext) {
