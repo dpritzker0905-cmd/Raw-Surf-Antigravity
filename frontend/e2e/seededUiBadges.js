@@ -26,6 +26,11 @@ async function stubSeededUiBadges(page, userIds) {
         json: { total: 0, primary: 0, requests: 0, grom_zone: 0 } },
       { path: `/api/surfer-gallery/claim-queue-count/${id}`, name: 'claim-count',
         json: { pending_count: 0 } },
+      // AppLayout's ViolationBanner asks on every page. Since #496 (b171ba51c) the route needs the caller's
+      // token, so the token-less seeded session got a 401 -> "Session expired" -> /auth?tab=login 2 s later.
+      { path: `/api/compliance/violations/user/${id}`, name: 'violations',
+        json: { user_id: id, total_strikes: 0, is_suspended: false, is_banned: false,
+          suspension_until: null, violations: [] } },
     ];
     for (const badge of badges) {
       await page.route(url => url.origin === origin && url.pathname === badge.path, route => {
