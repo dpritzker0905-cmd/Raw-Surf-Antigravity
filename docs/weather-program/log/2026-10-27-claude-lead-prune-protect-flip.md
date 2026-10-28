@@ -142,3 +142,38 @@ INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS per #600's runbook and read #610 back on
   - `One entry per object` lines in the run log;
   - `Listed product(s) absent ... serving` on the box where a 404 followed before;
   - 0 5xx.
+
+## Forensics at dev 4bd90d0d9 (subagent, read-only, reported 2026-10-28 ~08:30Z)
+- **No fix since #387 has been undone by a later merge.** It checked the 133 marine commits since #387:
+  - Every kill switch they added is still read in source. The four exceptions are intended: LIGHT_CREST_V2 (D-041),
+    SWR_RETRY_CAP (superseded by #441), BEACH_CREST_STYLE (removed by D-045), SETTLE_RELOAD_GUARD (moved by #505).
+  - Every pin test still exists; none is skipped or has fewer cases or asserts than at its merge. All 112 pins named in
+    REGRESSION-MATRIX §4 are present.
+  - #596-#610 extend earlier fixes rather than reverse them (read line by line).
+  - origin/dev has since moved to 890623110; the three new commits are docs, ledger and CI only.
+- **Weak spots (not regressions), each worth a guard:**
+  - Six kill switches that no test exercises: BLEND_BOTH and CALM_WASH_HOLD (#430), WIND_SCRUB_GATE (#388),
+    WIND_SAME_TARGET_JOIN (#393), WIND_PREBUILD (#468), RASTER_OWN_PREWARM (#511).
+  - Three "kills" that tests clear but no source reads: COARSE_BASE_TIME_KEY, BEACH_CREST_V2, BAND_HOLD_LEGS.
+  - `test_flag_lane_parity.py` checks lane drift only for names starting RATING_, SURF_, MARINE_, SPOT_RATINGS_,
+    SHORE_NORMAL_ or ECMWF_. Drift in FRAME_*, GFS_*, INGEST_*, MANIFEST_* or RESOLVER_* goes unseen.
+  - SAMPLER_SCALAR_HEIGHT and FRAME_WIND_GFS_HOURLY change served numbers but are not in `_RATING_FLAGS`.
+  - `REACT_APP_ICON_STORED_TAIL` is set only for dev branch deploys (`netlify.toml`), so D-055's ICON tail frames help
+    dev only until production gets it.
+  - GRID_SERIES_PAGE_MEMO behaves as on live but has no flip record (commitment 1459 is overdue).
+  - REGRESSION-MATRIX said FRAME_TAIL_DOWNLOAD was "not yet flipped". That was true when the matrix ran; both lines now
+    carry the D-055 flip time (this PR).
+- **Cells still on the slow `/grid` path (code at 4bd90d0d9), ranked by effect on what the owner reported:**
+  1. Band ON: every scrub leaves the frame store (`staticFrames.js` refuses surf, `marineFramePack.js` refuses rating
+     mode). Live: band ON 4.4 s, and band ON plus a switch took the box to 1,056 MB.
+  2. EURO and ICON at z7 and closer (span 12 degrees or less): regional bundles are GFS only (`REGIONAL_MODELS`), and
+     crops need at least 12 degrees. Live z8 switches: ICON 894 ms, GFS 491 ms.
+  3. Swell and wind-wave layers never become GPU-resident (`marineFramePack.js` refuses non-waves): 0.2-0.8 s per step.
+  4. EURO swell_1, swell_2 and wind_waves have no 2-degree product, so they have no frame set.
+  5. GFS regional past h116 in 16 of 19 pilot boxes (the pilots publish 5 days).
+- **Unverified candidate, to test offline before blaming it:** #610 taught EURO's 6-hourly steps to the readouts only.
+  Three gates still use 1.5 h: the series nearest-frame tolerance (`marineGridSeries.js`), `SAME_STEP_TOL_MS`
+  (`marineStaleHour.js`) and `EXACT_UPGRADE_HOUR_TOLERANCE` (`marineExactUpgrade.js`). The 10-27 z9 stall was the
+  guardrail (correction above), so this is a separate question.
+- A read-only live script (S1-S11, about 30 owed read-backs) was written but not run: it is longer than the one short
+  live scenario the rules allow.
