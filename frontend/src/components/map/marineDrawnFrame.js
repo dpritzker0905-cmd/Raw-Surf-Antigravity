@@ -66,6 +66,20 @@ export function publishMarineDrawn(grid, fallback = {}) {
 
 export function getMarineDrawn() { return current; }
 
+// THE LAYER'S END (2026-10-27, the lead's live read on dev 89a494aca: EURO waves at z9, timeline hours 141-155 read "Loading <hour>…
+// still showing Mon, Nov 2, 4 AM" at all 15 hours, every /grid 200, and the frame store counted 18 `no_target` misses). MapWebGL swaps
+// WebGLMarineLayer for the simplified fallback (webglMarineFailed: useWebGLGuardrail's 12 s under 20 fps, or the render-error path);
+// the layer unmounts and nothing publishes until it is back, so this record went on describing a frame no longer on screen. The layer
+// retires it as it unmounts. Kill: window.__RAW_DISABLE_DRAWN_FALLBACK_TRUTH__ = true (the record outlives the layer, as before).
+export const drawnFallbackTruthKilled = () => killed('DRAWN_FALLBACK_TRUTH');
+export function retireMarineDrawn(reason = 'layer_unmounted') {
+  if (drawnFallbackTruthKilled() || (!current && !publishedGrid)) return;
+  current = null;
+  publishedGrid = null;
+  if (typeof window !== 'undefined') { window.__MARINE_DRAWN__ = null; window.__MARINE_DRAWN_RETIRED__ = { reason, at: Date.now() }; }
+  listeners.forEach((fn) => { try { fn(); } catch (e) { /* a broken listener must not break the unmount */ } });
+}
+
 /** Did the engine take `grid`? (false when setWaveData stashed it as a refused downgrade or dropped it as a degenerate encode) */
 export function engineHoldsGrid(engine, grid) {
   if (killed('DRAWN_ENGINE_TRUTH')) return true;
