@@ -18,7 +18,7 @@ jobs:
           echo "requirements pin: $floor"
           python -m pip install -q "$floor" requests httpx
           python -c "import certifi;print('certifi',certifi.__version__)"
-      - name: Probe (expect: google accepted, both emudhra chains rejected)
+      - name: "Probe - google accepted, both emudhra chains rejected"
         run: |
           python - <<'PY'
           import sys, requests, httpx
