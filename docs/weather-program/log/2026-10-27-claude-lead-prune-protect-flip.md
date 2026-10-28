@@ -58,3 +58,71 @@ INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS per #600's runbook and read #610 back on
   - The case #610 targets (native 6-hourly frames, model step past 144) did not arise here. Past h120, the z9 frames are
     estimated, with `runMs` null, so the rule used its timeline-hour fallback.
   - The stall above is a different defect, in EURO's z9 data path.
+
+## INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS read-back (fulfils ledger line 11)
+- First core run with the variable set: 40522297562 (scheduled, created 14:33:49Z, success 16:42:47Z; env line `INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS: 1`).
+  - **0** "Pruned unreferenced product file" lines (baseline 52).
+  - **56** "Retained referenced object during prune" at 16:07:34Z. The sweep line reads "pruned 56 superseded products": manifest entries were dropped and the objects kept.
+  - So the cycle-end sweep no longer deletes a listed EURO coarse estimate, as #600's runbook says.
+- Render logs 13:40Z-20:05Z: no `Dynamic L2 download failed` / `Stored product path not found` for any EURO object.
+  - This is weak evidence: the box served about 2 requests per 5 min.
+  - Eight such lines name GFS regional and `global_mid` objects for 10-27T00Z/03Z at 15:27Z. Those are past hours, another family.
+- Health: 0 5xx (reads at 20:19Z and 23:37Z).
+- **The storage clause of the check fails, on a second path that predates the flip.** Supabase edge logs, 13:35Z to 10-28 00:00Z: 56 EURO coarse estimated objects had a DELETE within 10 min after an upload of the same object.
+  - Two sampled objects show the cycle: POST 15:33:40 (first writer) -> DELETE 15:33:45 -> POST 16:03:15 (second writer); again POST 17:42:05 -> DELETE 17:42:11 -> POST 17:53:02.
+  - The pre-flip run has the same shape: POST 09:37:44 -> DELETE 09:37:46 -> POST 09:47:19.
+  - These slots now miss for 10-30 min per cycle instead of ~3.5 h.
+  - 7 objects were deleted with no later upload in the window. Whether the manifest still lists them was not readable (private bucket, no key).
+  - The fix for this shape is #590's `MANIFEST_ONE_ENTRY_PER_OBJECT`: one object, one registrant, so a save never deletes a twin's file. Its serve-side net is `RESOLVER_SKIP_MISSING_OBJECT`. Both are merged dark and wait on the owner's word.
+- Verdict: keep the flag ON; it removed the ~3.5 h gap. The remaining 10-30 min gap goes to the owner with #590's flags.
+
+## Correction: the "z9 EURO h141-h155 never draw" finding (ledger line 10)
+- The live tab's churn log shows the FPS guardrail tripped at **13:58:14Z** (`marine_webgl_fallback`, cause `fps_guardrail`, fps 1). That is 5 s before the probe's steps (13:58:19-13:59:01Z).
+  - It recovered at 14:04:04Z. It also tripped at 13:52:28Z and 14:04:57Z.
+- While tripped, `useWebGLGuardrail` swaps the WebGL marine layer for raster tiles, so nothing updates `__MARINE_DRAWN__`. The status reads "Loading X... still showing Y", which is exactly the observed stall.
+- An rAF probe in the same tab at 20:28Z read **1.1 frames/s, maxDelta 1,015 ms, with `visibilityState` visible and `hasFocus()` true**.
+  - Chrome was throttling the window. The guardrail reads that as a slow device, since 1 s deltas pass its 2,000 ms suspend gate.
+- The z9 data-path diagnosis went to session `z9-euro-scrub-stalls-h14`, which was told the premise is now in doubt and to reproduce offline first.
+
+## Test round 2026-10-27 (owner 16:40Z: "the most tests you've ever done ... erratic actions ... log everything")
+- **Helpers:**
+  - researcher session `researcher-instant-2`;
+  - subagents: offline regression re-run on the tip, seeded erratic fuzzer, infobox-vs-heatmap audit, forensics/flags/Jacobian, E2E diagnosis.
+- **Reviews:**
+  - Reflection (Beam) reviewed the plan. Its five gaps went into the agents' briefs: real CDN path, real-browser timings, failure injection, golden values, rendered pixels.
+  - Context7 (MapLibre docs): a frame counts as drawn on the next `render` after the commit, not on `idle`.
+- **Hosted CI on dev 4bd90d0d9:**
+  - frontend Jest: 562 suites, 7,245 tests;
+  - marine composition guards: 144;
+  - chain 2,976; guards 3,351 (67 skipped); estate 3,376;
+  - lint/build green.
+- **E2E has been red on every dev push since 2026-10-24.** The cause is a test fixture bug, not the app.
+  - The seeded session has no token.
+  - #496 bound `/api/compliance/violations/user/{id}`, and `ViolationBanner` asks for it on every page.
+  - The 401 signs the session out two seconds later.
+  - So hosted E2E has not exercised the map since 10-24. Fix: PR #617 (test-only).
+- **Live scenario** (23:35Z SCOREBOARD row; one session, health-gated). The PC was loaded, so timings are pessimistic. Findings that do not depend on load:
+  - **Request amplification:** 40 `/grid_series` + 11 `/grid` in about 10 actions.
+    - Logfire server spans, last day: `/grid_series` n 151, p50 2.6 s, p95 24.5 s, max 29.4 s; `/grid` n 97, p50 0.9 s, p95 7.6 s, max 21.3 s.
+    - This session's slowest series span took 22.96 s server-side (23:11:20Z).
+  - **EURO/ICON at z9 go to `/grid`, not the store.** ICON waves ON took 4.6 s; the ICON->EURO switch took 5.3 s, with honest hold words.
+  - **EURO swell_1 at z9 is drawn from a 10.313 deg coarse grid** (HUD "COARSE 10.313° GRID", CMEMS source). No user-facing words say so.
+  - **"Estimated forecast: estimated"** showed for ~1.9 s after band OFF, on a transient estimated frame at a native EURO hour.
+  - **The guardrail tripped 3 times** under main-thread load (tasks up to 7.0 s). After the third trip, EURO swell showed a **blank sea** under "Simplified wave layer - reduced graphics mode".
+  - **Stale idle tab** (open since 13:41Z): the wheel label moved with the clock (+156 = 11-03T08Z) while the drawn frame stayed at 11-03T03Z. Its words gave a wrong reason: "beyond EURO's range".
+- **Infobox audit** (subagent, offline at 4bd90d0d9; tests on local branch `claude/infobox-audit-1027`).
+  - Verified: surf height and rating come from the one chain, and offshore height is never shown as surf.
+  - **P1, client words/time** (fix session `infobox-honesty` started):
+    - P1-C: no hour in the header, and the served frame is dropped.
+    - P1-D: during a scrub the last settled hour shows unlabelled.
+    - P1-E: hour math uses local wall-clock time. US DST ends 11-01, so values are one hour off past it.
+  - **P1, served numbers (owner's call):**
+    - P1-A: at EURO/ICON boundary hours (147, 153, ..., 243; ICON 171) the point serves the estimate while the heatmap serves the authoritative frame 3 h away (`MID_RES_EXACT_TIME_ESTIMATE` is dark).
+    - P1-B: for ICON past wheel 168 the infobox blends in the browser, while the heatmap draws the stored D-055 estimate.
+    - P1-F: size without quality by default (the rating toggle is off by owner decision, 2026-07-05).
+  - **P2:**
+    - EURO/ICON between nodes: the box reads up to 26% lower than the paint (vector-averaged direction; `SAMPLER_SCALAR_HEIGHT` is GFS-only).
+    - Dark-theme height is floored to a byte and capped at 10 m.
+    - The rating can come from an older run.
+    - A client 0.96/0.97 bias factor acts as a second forecast path.
+    - Decimals are inconsistent.
