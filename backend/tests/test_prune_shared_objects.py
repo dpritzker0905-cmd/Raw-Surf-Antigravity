@@ -200,3 +200,9 @@ def test_the_four_lanes_read_one_repo_variable_default_off():
                       re.M)
     for lane in ("forecast-ingest.yml", "forecast-ingest-pilots.yml", "precompute.yml", "sim-parity-monitor.yml"):
         assert len(line.findall((workflows / lane).read_text(encoding="utf-8"))) == 1, lane
+    # 2026-10-28: its sibling MANIFEST_ONE_ENTRY_PER_OBJECT (#590) closes the save-time twin delete the prune flag cannot reach. One
+    # repo variable, default '0', in the three MANIFEST WRITERS the registry names (Render never writes, the monitor never saves).
+    writer = re.compile(r"^\s+MANIFEST_ONE_ENTRY_PER_OBJECT: \$\{\{ vars\.MANIFEST_ONE_ENTRY_PER_OBJECT \|\| '0' \}\}\s*$", re.M)
+    for lane in ("forecast-ingest.yml", "forecast-ingest-pilots.yml", "precompute.yml"):
+        assert len(writer.findall((workflows / lane).read_text(encoding="utf-8"))) == 1, lane
+    assert not writer.findall((workflows / "sim-parity-monitor.yml").read_text(encoding="utf-8")), "the monitor is not a manifest writer"
