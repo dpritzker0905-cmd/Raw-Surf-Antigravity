@@ -166,3 +166,34 @@ infobox_icon_lattice.json`: h3 selected 13Z, point 12Z; h6 selected 16Z, point 1
   ft". GFS reads the same before and after (it never had the gate). A 6-hour series still returns `no_coverage` past its end.
   With #622's words, the fixed h3 reads "Showing <12Z>: the nearest stored forecast".
 - Not re-run in the browser harness (the lead's `scn_infobox.js` on `claude/regress-1027`).
+
+## Part 4 (19:30Z): D4, the infobox showed another model's numbers under the selected model's name
+
+**Ask, the lead (the offline erratic fuzzer, 2026-10-27, evidence `rs-fuzz-1027 … fuzz-2026-10-27/repro/min-infobox-model.json`,
+seed 980, 4 of 4):** GFS Waves at the Atlantic z3, `/grid` slowed to 1.5 s, click EURO, right-click the sea 150 ms later. The app
+asked `/point?model=EURO&grid_product_id=gfs_marine_waves_global_mid_…`, the backend answered `model: GFS` 1.1309 m, and the card
+said "EURO Forecast … 3.7 ft"; EURO's own value is 1.1987 m (3.9 ft). Seen unprompted three more times (once a GFS SoCal swell_2
+id). Client first, ON with a kill switch; a backend refusal only behind a dark flag.
+
+**Read in the code** (four leak paths, not two):
+- `useExactPointFetch` sent `marineData.grid`'s id and box; mid-switch that grid is still the previous model's.
+- `backendCopernicusServiceClient` (EURO point) borrowed `__MARINE_PROJECTION_DIAG__`'s id and box with no model or layer check
+  (the GFS/ICON client already checked).
+- `useOpenMeteoForecast` took whichever projection diag was set and put its id on all three asks (wind, pressure, rain).
+- `fetchBackendExactPoint`'s ICON past-168 children forwarded ICON's id to their GFS asks.
+
+**Changed (client only):** `pointProductHint.js` reads a product's model and layer from the store's id form
+(`[viewport_]{model}_{domain}_{layer}_…`) and a grid's own identity fields. A hint naming another model or layer is dropped with
+its box (the backend then resolves the point from the selected model's own products); a reply whose `model` differs from the ask
+is refused by throwing (the callers' existing fallback runs; nothing is cached). Wired into the hook, both marine point clients,
+`createPointRequestContext` and `useOpenMeteoForecast` (the wind id on the wind ask only, from this model's wind diag; pressure
+and rain get none, as `pointRequestIdentity` already rules). Counters: `window.__RAW_POINT_MODEL_GUARD__` (`hint_dropped`,
+`reply_refused`, `last`). Kill: `window.__RAW_DISABLE_POINT_MODEL_GUARD__`. No backend change (a dark `/point` refusal of a
+foreign `grid_product_id` is a follow-up the client no longer needs).
+
+**Offline proof** (`pointProductHint.test.js`, 9 tests; the real EURO and GFS/ICON point clients against a stub that answers as
+the fuzzer's backend did, sampling whatever product the ask names): the EURO ask with the GFS grid's id now goes out without it
+and maps **3.9 ft** (EURO's 1.1987 m); under the kill switch the id goes out and the card maps **3.7 ft** (GFS's 1.1309 m), the
+fuzzer's reading. A stale GFS projection diag is not borrowed; a backend still answering GFS to EURO or ICON is refused twice,
+never cached; GFS asks keep their own id. One source pin moved (`marineCommittedIdentity.test.js`: the id read now lives in
+`gridHintsFor`). Not re-run in the fuzzer itself.
