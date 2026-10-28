@@ -191,3 +191,7 @@ not hold the point is not sent, nor the wind product drawn for it (`pointProduct
 on Temperature asks **3** times, for the hour the wheel stopped on; under the kill switch **210** (3 per step), the fuzzer's
 reading. Superseded steps log no error. A Hawaii view box is not sent with a Mexico point; a view holding the point is (kill: the
 Hawaii pairing).
+
+**Correction (22:06Z):** the Part 6 header above reads "22:30Z" but was written at 22:03Z: an estimate, not a clock reading
+(LESSONS L-P10; memory_audit caught it after the commit). The D10 SCOREBOARD row dated 22:30Z was written at the same moment.
+Ledger: the `correction` line in `ledger.d/claude--forecast-point-debounce.jsonl`.
