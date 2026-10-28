@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { evaluateMarineTimelineCoverage, readMarineTimelineRenderEvidence, reconcileMarineTimelineCoverage } from './marineTimelineCoverage';
-import { drawnFallbackTruthKilled, useMarineDrawnFrame } from './marineDrawnFrame';
+import { drawnFallbackTruthKilled, useMarineDrawnFrame, NOTHING_DRAWN_REASONS } from './marineDrawnFrame';
 import { useMarineFallbackState } from './marineFallbackNotice';
-import { describeDrawnFrame, latticeNearestMaxHours } from './drawnFrameReadout';
+import { describeDrawnFrame, describeNothingDrawn, latticeNearestMaxHours } from './drawnFrameReadout';
 import { getSeriesAnchorMs, getSharedValidTime } from './backendWeatherServiceClient';
 import { HOLD_INDICATOR_MS, holdNoDimKilled } from './marineStaleHour';
 import { useRasterDrawnFrame, describeRasterFrame, RASTER_STATUS_LAYERS, PENDING_QUIET_MS } from './rasterDrawnFrame';
@@ -24,6 +24,9 @@ import { ratingBandLoadingText } from './marineFlavorToggle';
 // while MapWebGL has swapped the WebGL marine layer for the simplified one (webglMarineFailed), no frame of ours is drawn, so the line
 // says so instead of describing the last one. Kill: window.__RAW_DISABLE_DRAWN_FALLBACK_TRUTH__ = true (marineDrawnFrame.js).
 const MARINE_LAYERS = new Set(['waves', 'swell_1', 'swell_2', 'wind_waves']);
+/** The drawn record was retired because nothing of ours is on screen (marineDrawnFrame.NOTHING_DRAWN_REASONS), for a marine layer. */
+const nothingDrawnNow = (layer) => typeof window !== 'undefined' && MARINE_LAYERS.has(layer)
+  && !!window.__MARINE_DRAWN_RETIRED__ && NOTHING_DRAWN_REASONS.includes(window.__MARINE_DRAWN_RETIRED__.reason);
 export const MARINE_FALLBACK_WORDS = 'Simplified wave layer (reduced graphics mode): this app’s forecast frames are off';
 export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs }) {
   const drawn = useMarineDrawnFrame();
@@ -48,7 +51,8 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
   // further off is an exact upgrade still owed, so it reads "Loading", never "nearest" (same rule as WindTimeStatus, 2026-10-19).
   const nearestMaxHours = latticeNearestMaxHours(model, hour, { selectedMs: labelMs, runMs: drawn && drawn.runMs });
   const readout = isRaster ? (rasterReadout && (rasterReadout.state !== 'pending' || rasterShowPending) ? rasterReadout : null)
-    : (readoutOff ? null : describeDrawnFrame({ model, layer, hour, instantMs, labelMs, nearestMaxHours }, drawn));
+    : (readoutOff ? null : (drawn ? describeDrawnFrame({ model, layer, hour, instantMs, labelMs, nearestMaxHours }, drawn)
+      : (nothingDrawnNow(layer) ? describeNothingDrawn({ hour, labelMs }) : null)));   // D2: nothing of ours on screen: only the load
   if (typeof window !== 'undefined') window.__RAW_SELECTED_FRAME__ = { model, layer, hour, instantMs, labelMs };   // instruments compare by instant
 
   const readStatus = useCallback(() => {

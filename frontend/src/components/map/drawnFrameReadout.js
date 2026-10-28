@@ -87,6 +87,14 @@ function estimateWords(drawn) {
   return ESTIMATE_WORDS[drawn.basisType] || 'estimated';
 }
 
+/** Nothing of ours is on screen for this selection (the drawn record retired, marineDrawnFrame.NOTHING_DRAWN_REASONS): only the load. */
+export function describeNothingDrawn(requested, { nowMs = Date.now() } = {}) {
+  if (!requested) return null;
+  const at = Number.isFinite(requested.labelMs) ? formatInstant(requested.labelMs, datedPair(requested.labelMs, nowMs, nowMs))
+    : formatForecastHour(requested.hour, nowMs);
+  return { state: 'pending', text: `Loading ${at}…` };
+}
+
 export function describeDrawnFrame(requested, drawn, { nowMs = Date.now() } = {}) {
   if (!requested || !drawn) return null;
   const layer = (l) => LAYER_NAMES[l] || l || '';

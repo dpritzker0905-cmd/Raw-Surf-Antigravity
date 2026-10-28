@@ -188,17 +188,22 @@ export function _rewarmWashBaseIfStale(m, hourOffset, bounds, activeLayer) {
  */
 export const WASH_ASK_GAP_MS = 3000;
 const _washAsks = new Map();
-export function askWashOnRefusal({ model, layer, hour, bounds, nowMs = Date.now(), win } = {}) {
+// `rejected` (D2, 2026-10-28): the layer drew NOTHING this frame (its resident is off screen and no wash bridges it: the fuzzer's blank
+// sea after a camera move plus a time step, 5-21 s). The same ask, without a refusal: the world grid for the selected hour lands as the
+// engine's base, and the bridge promotes it (shouldBridgeToCoarseGlobal: a 2-degree base for the selected hour). Kill:
+// window.__RAW_DISABLE_REJECT_WORLD_ASK__ = true.
+export function askWashOnRefusal({ model, layer, hour, bounds, nowMs = Date.now(), win, rejected = false } = {}) {
   try {
     const w = win || (typeof window !== 'undefined' ? window : null);
-    const t = w && w.__MARINE_WASH_TIME__;
-    if (!t || !t.last || t.last.ok !== false || !(nowMs - (t.lastAt || 0) < 250)) return false;   // refused in the frame just drawn
+    const t = w && (w.__MARINE_WASH_TIME__ = w.__MARINE_WASH_TIME__ || { refused: 0, unknown: 0, last: null });
+    if (rejected ? w.__RAW_DISABLE_REJECT_WORLD_ASK__ === true
+      : (!t || !t.last || t.last.ok !== false || !(nowMs - (t.lastAt || 0) < 250))) return false;   // refused in the frame just drawn
     if (w.__RAW_DISABLE_WASH_REFUSAL_WARM__ === true || !Number.isFinite(hour) || !bounds) return false;
     const key = `${model || 'GFS'}|${layer || 'waves'}|${hour}|${readMarineSurfMode(w) ? 'r1' : 'r0'}`;
     if (nowMs - (_washAsks.get(key) || -Infinity) < WASH_ASK_GAP_MS) return false;
     _washAsks.set(key, nowMs);
     if (_washAsks.size > 64) _washAsks.delete(_washAsks.keys().next().value);
-    t.asked = (t.asked || 0) + 1;
+    t.asked = (t.asked || 0) + 1; if (rejected) t.askedRejected = (t.askedRejected || 0) + 1;
     prewarmGlobalMarineGrid(model || 'GFS', hour, bounds, layer || 'waves', { gridFirst: true, band: true });
     return true;
   } catch (e) { return false; }   // a warm never breaks the frame that asked

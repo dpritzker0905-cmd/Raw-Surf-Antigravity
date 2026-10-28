@@ -86,11 +86,20 @@ export function engineHoldsGrid(engine, grid) {
   return !!(engine && engine._waveData && engine._waveData.waveGrid === grid);
 }
 
-/** Per rendered frame: publish what the engine HOLDS when it is not what the record describes (a swap inside the engine). */
-export function syncDrawnToEngine(engine, fallback = {}) {
+/**
+ * Per rendered frame: publish what the engine HOLDS when it is not what the record describes (a swap inside the engine).
+ * NOTHING DRAWN (D2, 2026-10-28; the lead's offline erratic fuzzer: after a camera move off the resident regional frame plus a time
+ * step, the engine was cleared and the sea stayed blank 5-21 s while the line said "Loading X… still showing Y"): when the engine holds
+ * nothing, or the layer drew nothing of what it holds this frame (`drawn: false`: the frame is off screen and no wash bridges it), the
+ * record is retired, so the line says only that the selected hour is loading. The next drawn frame publishes again.
+ * Kill: window.__RAW_DISABLE_DRAWN_NOTHING_TRUTH__ = true (the record keeps describing the last frame, as before).
+ */
+export const NOTHING_DRAWN_REASONS = ['engine_empty', 'off_screen'];
+export function syncDrawnToEngine(engine, fallback = {}, { drawn = true } = {}) {
   if (killed('DRAWN_ENGINE_TRUTH')) return;
   const g = engine && engine._waveData && engine._waveData.waveGrid;
-  if (g && g !== publishedGrid) publishMarineDrawn(g, fallback);
+  if (g && drawn) { if (g !== publishedGrid) publishMarineDrawn(g, fallback); return; }
+  if (!killed('DRAWN_NOTHING_TRUTH') && (current || publishedGrid)) retireMarineDrawn(g ? 'off_screen' : 'engine_empty');
 }
 
 export function subscribeMarineDrawn(fn) {
