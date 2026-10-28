@@ -38,6 +38,8 @@ export const ESTIMATE_WORDS = {
   gfs_estimated_fallback: 'GFS stand-in beyond this model’s range',
   icon_extended_blend: 'blended from GFS and EURO beyond ICON’s range',
   far_edge_hold: 'held from the last stored forecast',
+  // lattice_fill.py's 3-hourly EURO frames between the 6-hourly ones past model step 144 (was the generic 'estimated').
+  native_time_interpolation: 'interpolated between stored forecasts',
 };
 
 /**

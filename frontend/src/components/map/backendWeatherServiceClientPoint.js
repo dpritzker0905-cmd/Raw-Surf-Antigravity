@@ -628,7 +628,13 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       // backend response, add it HERE in the same change or the render layer never sees it.
       // NB `coverage_scope` and `resolution` are NOT usable substitutes: both live on the
       // diagnostics object, and both measured null in all 84 cells of the card-matrix capture.
-      coverage_status: (json.coverage_status ?? null)
+      coverage_status: (json.coverage_status ?? null),
+      // WHICH FRAME ANSWERED (audit 2026-10-27, P1-C). `hourly.time` is the ASK; the server stamps the frame it read
+      // (grid_resolver.stamp_frame_honesty). They reached only the diagnostic receipt above, so the infobox could not say
+      // "the nearest stored forecast" beside a heatmap that does. All three whitelists, same change.
+      served_valid_time: (json.served_valid_time ?? null),
+      frame_substituted: (json.frame_substituted ?? null),
+      frame_offset_hours: (json.frame_offset_hours ?? null)
     };
 
     const details = {
