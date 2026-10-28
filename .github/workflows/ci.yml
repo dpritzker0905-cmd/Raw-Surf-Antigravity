@@ -178,7 +178,8 @@ jobs:
             // infobox-heatmap-agreement.audit.test.js (+1 suite / +7 tests). Raised by exactly that; confirm against the hosted receipt.
             // Status-line words (2026-10-28, stacked on #622): statusLineWords.test.js (+1 suite / +14 tests). Raised by exactly that.
             // Point model guard (2026-10-28, D4): pointProductHint.test.js (+1 suite / +9 tests). Raised by exactly that.
-            const MIN_SUITES = 524, MIN_TESTS = 6902;
+            // ICON one-instant range (2026-10-28, stacked on #623): iconOneInstantRange.test.js (+1 suite / +5 tests). Raised by exactly that.
+            const MIN_SUITES = 525, MIN_TESTS = 6907;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }

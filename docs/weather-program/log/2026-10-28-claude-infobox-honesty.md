@@ -139,6 +139,34 @@ live readings):
 - One wiring pin moved (`drawnFrameTruth.test.js`: the marine line now passes `latestRunMs`). `WebGLMarineLayer.parity.test.js`
   mocks the client without `getSeriesAnchorMs`, which found the throw-at-upload risk the soft fields now close.
 
+## Part 3 (16:00Z): merges for the owner's "merge what needs merging", and the ICON blank card
+
+**Merges.** dev gained #621, #615 and #617. #622: dev 395a927bc merged in. SCOREBOARD resolved append-only with the rows in date
+order (dev's 01:35Z / 03:20Z / 06:10Z, then 08:10Z). memory_audit 0 FAIL; `check-pr --base origin/dev` 0 problems. Hosted
+CI 19/19 at **6397f26e6**; chain "collected 3008 tests across 183 files -> 3008 passed", the projection exactly.
+`gh pr ready 622` was refused by this session's permission classifier, so the PR is still a draft for the user to mark ready.
+#623: #622's branch merged in. #615 conflicts in `ForecastTimeStatus.js` (imports) and `marineDrawnFrame.js`
+(`latestKnownRunMs` beside #615's `retireMarineDrawn`) resolved by keeping both sides. #615's `drawnFrameFallback.test.js` pinned
+"(estimated)" for a `euro_persistence_gfs_blend` frame, the very missing words #623 adds; the pin now reads the blend's words.
+Whole `src/` tree 567 of 568 suites, the one failure being the known Git Bash timeout. Pushed **cacd38caa**.
+`test_ledger_fragments.py::test_fold_pr_dry_run_then_push_then_replace` failed locally with "Filename too long": my long temp
+path hit Windows' path limit. With a short `--basetemp` it passes (1 passed), so it was the machine, not the branch.
+
+**The ICON blank card** (the lead's offline regression re-run at 4bd90d0d9; present at 4b8563851 and at the tip, so not new;
+since 4309cc7a2 / 4117cfc90, 2026-06-08). ICON Waves at (30, -70), z4.6, hour 0 = 10Z. Hours 3 and 6 read "Offshore swell
+height --" with status `no_coverage`, 0 `/point` asks and no recovery (evidence `rs-regress-1027 ... runs-2026-10-27/
+infobox_icon_lattice.json`: h3 selected 13Z, point 12Z; h6 selected 16Z, point 15Z). GFS and EURO were fine at the same hours.
+- **Cause:** `selectExactPointHour` takes "how far this response reaches" from its LAST time. A one-instant `/point` answer's
+  only time is its own ask, snapped to the stored lattice. At 10:07Z the 12Z answer reads as a 2 h range, so 3 > 2 returns
+  `no_coverage` with nulls, and the snapped request key hits the cache, so nothing refetches.
+- **Fix (client only, ON):** a one-instant answer keeps the display caps (336 h) and never shrinks the limit (ICON, and the EURO
+  legacy gate the same way). A multi-hour response still ends at its last time. Kill: `window.__RAW_DISABLE_ONE_INSTANT_RANGE__`.
+- **Proof** (`iconOneInstantRange.test.js`, 5 tests, the run's own eight rows, 10:07:15Z): under the kill switch, hours **3 and
+  6** blank, exactly as recorded ("Offshore swell height --"); after the fix, **8 of 8** hours read "Offshore swell height 3.0
+  ft". GFS reads the same before and after (it never had the gate). A 6-hour series still returns `no_coverage` past its end.
+  With #622's words, the fixed h3 reads "Showing <12Z>: the nearest stored forecast".
+- Not re-run in the browser harness (the lead's `scn_infobox.js` on `claude/regress-1027`).
+
 ## Part 4 (19:30Z): D4, the infobox showed another model's numbers under the selected model's name
 
 **Ask, the lead (the offline erratic fuzzer, 2026-10-27, evidence `rs-fuzz-1027 … fuzz-2026-10-27/repro/min-infobox-model.json`,
