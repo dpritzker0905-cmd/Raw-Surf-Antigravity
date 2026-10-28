@@ -177,7 +177,8 @@ jobs:
             // Infobox honesty (2026-10-28, #622): infoboxFrameTime.test.js (+1 suite / +19 tests) and the audit's
             // infobox-heatmap-agreement.audit.test.js (+1 suite / +7 tests). Raised by exactly that; confirm against the hosted receipt.
             // Status-line words (2026-10-28, stacked on #622): statusLineWords.test.js (+1 suite / +14 tests). Raised by exactly that.
-            const MIN_SUITES = 523, MIN_TESTS = 6893;
+            // Nearest by stored lattice (2026-10-28, D8): storedLattice.test.js (+1 suite / +7 tests). Raised by exactly that.
+            const MIN_SUITES = 524, MIN_TESTS = 6900;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }

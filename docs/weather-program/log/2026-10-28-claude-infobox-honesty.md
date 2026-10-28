@@ -138,3 +138,31 @@ live readings):
   the 2-degree tier, a 0.25-degree tile and a layer switch.
 - One wiring pin moved (`drawnFrameTruth.test.js`: the marine line now passes `latestRunMs`). `WebGLMarineLayer.parity.test.js`
   mocks the client without `getSeriesAnchorMs`, which found the throw-at-upload risk the soft fields now close.
+
+## Part 5 (21:00Z): D8, EURO's "nearest" rule follows the layer and the stored lattice
+
+**Ask, the lead (the offline erratic fuzzer, `inv2_nearest_claim_overbroad`, 92 times, once held 22.5 s):** EURO's half-step was
+3 h for every layer past model step 144 (`latticeNearestMaxHours` keyed on the model only), so a frame 2-3 h off was "the
+nearest stored forecast" where a frame 1 h off is stored. The fuzzer's instances: swell_2 h287 (the GFS stand-in tail),
+wind_waves h181 drawing h184, waves h314 drawing h312 (all 3-hourly lattices).
+
+**Changed (client words only, no served number):** `storedLattice.js` rebuilds, from the cached manifest, the frame the server
+answers a selection with (grid_resolver_selection + pick_mid_item, and the frame store's pickIndexFrame: the nearest
+AUTHORITATIVE frame within 3 h, else the nearest estimate, the earlier on a tie). Its distance is the half-step
+(`latticeNearestMaxHours(..., { layer })`; all four callers pass their layer). Without a manifest only EURO waves and wind (ECMWF's
+6-hourly streams) keep 3 h, from step 144 to 240. Where the server draws the authoritative frame over a closer interpolated
+estimate (EURO waves between its 6-hourly steps) the words are "the nearest full forecast; an estimate lies closer", not "the
+nearest stored forecast". A drawn estimate is "held" only when no other stored frame answers the selection, else it is owed
+("Loading"). Kill: `window.__RAW_DISABLE_LATTICE_BY_LAYER__`.
+
+**Offline proof** (`storedLattice.test.js`, 7 tests, manifests shaped like each stored lattice; the kill switch prints the live
+reading): wind_waves h181 drawing h184 -> "Loading" (was "the nearest stored forecast"); swell_2 h287 2 h off -> owed, 1 h off ->
+nearest; waves h314 drawing h312 -> owed (kill: nearest); EURO waves step 146 drawing the authoritative 144 over the 147 estimate ->
+"the nearest full forecast; an estimate lies closer"; the no-manifest fallback by layer; and the real status line in light, dark
+and beach. Two source/behaviour pins moved (`drawnFrameModelStep.test.js`: the overlay passes its layer; EURO wind keeps 3 h).
+Whole `src/` tree green but the known Git Bash timeout.
+
+**D7** needs no new PR: #623 (merged b164bbd58) already stops calling a rating grid "estimated" when its basis does not say so
+(`marineDrawnFrame` `surfOnlyEstimate`; `statusLineWords.test.js` pins the hour-0 case, and the "(estimated)" nearest suffix
+goes with it). The surf HEIGHT band is served only under the `SURF_RATING=0` rollback. The backend field (`grid_resolver_surf.py`
+stamping `is_estimated=True` on every surf grid) is left as is; changing it would ship dark behind a `_RATING_FLAGS` flag.
