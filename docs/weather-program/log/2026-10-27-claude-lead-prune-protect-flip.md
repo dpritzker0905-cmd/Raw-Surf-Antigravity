@@ -206,3 +206,85 @@ INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS per #600's runbook and read #610 back on
   "not arriving"; `scn_static_parity` gained a `SETS_RE` filter. Still open: euro_240's relabel criterion, series-frame
   dating on a 3-hourly hour 0, `__MARINE_SOURCE_PARITY__` UNSAMPLED on every row, and the offline store missing the live
   GFS `SAMPLER_SCALAR_HEIGHT=1`.
+
+## #590 flags read back on the first core run after #621 (fulfils wiring fragment line 4)
+- **Merges, on the owner's word:**
+  - 13:10Z message: #621 (f54e9e7cb, 13:16Z), #615 (4d870741e, 13:25Z), #617 (072fdc78d, 13:32Z).
+  - 15:54Z message: #613 (f6bc565f3), #625 (431a3bcc1), #622 (e44b93fd4) and #612 (ea9608095).
+  - Each was squash-merged pinned to its tested head.
+- **Dev E2E is green again:** run 40697429549 on 072fdc78d passed 67 tests with 9 skipped, the first green dev E2E
+  since 10-24.
+- **The run:** forecast-ingest 40712941855 was created 15:08:36Z on dev 395a927bc (after #621) and finished with
+  success. The run that started 12:57Z began before the merge and does not count.
+- **Every clause of the check passes:**
+  1. The run's env line reads `MANIFEST_ONE_ENTRY_PER_OBJECT: 1`.
+  2. At 16:28:01Z the run logged `One entry per object: dropped 56 older registration(s) of objects just rewritten`.
+     56 is the twin count the 05:39Z baseline measured.
+  3. 0 EURO coarse estimates were deleted within 10 min after an upload of the same object (baseline 56). Instrument:
+     Supabase `storage_logs` lifecycle events, `ObjectRemoved:Delete` joined to `ObjectCreated:*` on `objectPath`,
+     15:08Z-17:20Z. Example: `euro_marine_waves_global_coarse_20261107T030000Z_estimated.json` was rewritten at
+     16:05:50 and only its overwrite cleanup followed. It was not deleted.
+  4. The box logged 0 `Listed product(s) absent` lines and 0 `Stored product path not found` lines from 05:42Z to
+     18:15Z (Render logs). The baseline was 39 not-found lines in the 24 h before. Traffic was light, so the serve-side
+     net never had to fire.
+  5. Health at about 18:10Z: 0 5xx of 3,218 requests since the 16:25Z restart (backend e44b93fd4).
+- **A separate, older gap, not this flag's shape:**
+  - EURO coarse ingestion's save prunes superseded products: 42 waves and 27 each of swell_1, swell_2 and wind_waves
+    (`Manifest L2 uploaded submit after pruning N superseded products`, 16:05:44-16:05:56Z). It deletes the previous
+    run's estimated tail files.
+  - 112 objects were removed at 16:05:52-16:06:32Z, created at 13:54Z by the pre-merge run.
+  - The estimates stage re-creates them 22 min later (POST, 16:28:19Z onward).
+  - These entries leave the manifest with their files, so nothing listed went missing (0 `absent` lines).
+  - For about 22 min each cycle, EURO tail hours past the new run's GFS extension have no estimated product on the
+    `/grid` path. The CDN tail frames (D-055) are separate objects and unaffected.
+  - Candidate fix, not built: prune superseded estimates only after the estimates stage writes their replacements.
+
+## Offline erratic fuzzer at dev 4bd90d0d9 (subagent, 2026-10-27 to 10-28)
+- **Run size:** 126 seeded sequences × 60 actions (63 phone, 63 desktop; 8 profiles); 1,649,580 rendered frames checked
+  against 8 invariants, plus run-rollover scenarios and about 40 repro/shrink replays.
+  - The live box was never touched: 28,465 onrender asks were answered by a local proxy and 1,719 sockets closed.
+  - Each worker had its own offline backend, and those still answered `/grid` at p50 2-11 s. So `/grid`-path timings
+    are not client claims.
+- **inv8 timing, last input to first exact rendered frame:**
+  - GPU frame store: p50 9 ms, p95 44 ms, 0 over 500 ms.
+  - Series: p95 8.4 s. `/grid`: p95 11.4 s.
+  - Only 9% of settled steps came from the store. Layer toggles went to `/grid` 106 of 123 times.
+- **Distinct defects (minimal repros 3/3 unless noted):**
+  - **D1 Silent mislabel: the background wash comes from another hour or run** than the frame drawn over it, in 75 of
+    84 sequences. Offset p50 42 h, max 327 h; lasts p50 6.3 s, max 81 s; once it mixed the 00Z wash under a 06Z
+    tile.
+    - Example: GFS Florida z8, PageUp ×2 → the h48 regional tile over the h0 world wash, worded "the nearest stored
+      forecast".
+    - Likely cause: the coarse-base LRU key has no hour or run (`WebGLMarineEngine.js` `coarseBaseLruKey`,
+      `pickCoarseBaseLruKey`), and blend-both engages on model and layer alone.
+  - **D2 Blank sea for 5-21 s** after a camera move plus a time step, while the status says "Loading X… still showing
+    Y". The engine clears its frame, and `__MARINE_DRAWN__` has no clear path for marine.
+    - Repro: phone, ICON Florida z5.2 → h191 → ease to SoCal z6.1 → Home.
+    - The ICON world frame was resident on the CDN but not used as a fallback.
+  - **D3 Cold veil:** the heatmap is fully transparent for about 3.9 s after the first frame arrives (219 episodes),
+    under "Showing …" (`resolveColdVeil` 4 s grace). By design, but it is not instant and is not worded.
+  - **D4 The infobox shows another model's numbers under the selected model's name** (4/4 with a slowed `/grid`).
+    - `/point?model=EURO` was sent with a GFS `grid_product_id`, and the backend answered GFS 1.1309 m under a "EURO
+      Forecast" header. EURO's own value was 1.1987 m.
+    - `useExactPointFetch.js` and `useOpenMeteoForecast.js` pass the grid's product id without checking its model and
+      layer, and the backend accepts it.
+  - **D5 Surf Rating OFF race** (about 1 in 10, not reproduced 0/10): a late rating grid committed after OFF, then
+    "Loading wave heights…" stayed with nothing in flight for about 30 s. The fetch intent carries no Surf Rating
+    flag.
+  - **D6** After a phone rotation, the now-visible desktop panel's Surf Rating button reads OFF while the band is ON.
+    Each panel keeps its own `useState`.
+  - **D7 Surf Rating grids are labelled estimated:** `/grid?surf=1` returns `is_estimated: true` with no basis
+    (`grid_resolver_surf.py`), so an hour-0 frame reads "Estimated forecast: estimated".
+  - **D8** EURO's "nearest" rule is 3 h for every layer past step 144 (`latticeNearestMaxHours` keys on the model
+    only): 92 episodes, one held 22.5 s.
+  - **D9** 118 bursts of the same successful ask ×3 or more within 30 s. Owner not pinned.
+  - **D10** A `/point` flood while scrubbing a non-marine layer (`useOpenMeteoForecast`: no debounce, 1-3 asks per
+    wheel hour). It also pairs the user's location with the view's `grid_bbox`.
+  - **D11** After a WebGL context restore: one blank frame plus one frame at opacity 0 (142-324 ms).
+  - **D12** Intentional aborts are logged with `console.error` (over 100 per batch). One page error: `getLayer` of
+    null in an `OceanMask.js` deactivation timer, after Wind on plus context loss.
+- **Rendered pixels** match the legend colour in 393 windows (error ≤ 12/255; the positive control reads 40-80).
+- The harness (`scn_erratic_fuzz.js` and its probe, pixels, report and selector-loop backend) is on local branch
+  `claude/erratic-fuzz-1027` (fc033f5c1), not pushed.
+- **Routing:** D1, D2, D3, D5, D6, D11 and D12 went to the z9/guardrail session (engine and drawn-frame context).
+  D4, D7, D8 and D10 went to the infobox-honesty session (point and words context). D9 is open.
