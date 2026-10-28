@@ -18,6 +18,9 @@ import { fetchBackendCopernicusGrid } from './backendCopernicusServiceClient';
 import { coarseBaseOutdatedBy } from './marineStaleHour';
 import { bridgeCeilDeg } from './marineZoomOutGate';
 import { exactGfsPlaybackEnabled, isExactPlaybackFrame } from './marinePlaybackPolicy';
+import { staticEligible, getPinnedIndexSync, storeSetKeyFor } from './staticFrames';
+import { pickIndexFrame } from './staticFrameCodec';
+import { readMarineSurfMode } from './marineSurfMode';
 
 let _prewarmDeps = null;
 
@@ -45,6 +48,25 @@ export function registerPrewarmDeps({ getModelSafeMarine, cacheMarineResult, isS
 // otherwise cancel it (the global is location-independent, so a stray completion is harmless).
 const _globalGridPrewarmInFlight = new Set();
 const _GLOBAL_BOUNDS = { west: -180, south: -80, east: 180, north: 85 };
+
+/**
+ * THE WASH FROM THE CDN FIRST (D1, 2026-10-28; the lead's erratic fuzzer). The right-hour world grid behind the BLEND BOTH wash waited in
+ * the series limiter's background lane, which starts only while nothing visible loads and serves sibling minis first: offline (GFS Waves,
+ * Florida z8, PageUp x2) the h48 warm was queued and had not started 33 s later, so the h0 wash stayed under the h48 tile. When the pinned
+ * static world set holds a built frame for the asked valid time, the fetch is a CDN frame (tryStaticWorldGrid: no backend work), so it
+ * goes at once instead. Anything else (a swell layer, the band, an unpinned or unbuilt frame: a backend world /grid) keeps the lane.
+ * Kill: window.__RAW_DISABLE_WASH_CDN_FIRST__ = true.
+ */
+export function washWorldOnCdn(model, layer, validTimeStr, win) {
+  try {
+    const w = win || (typeof window !== 'undefined' ? window : null);
+    if ((w && w.__RAW_DISABLE_WASH_CDN_FIRST__ === true) || !validTimeStr) return false;
+    if (!staticEligible({ model, layer, bbox: _GLOBAL_BOUNDS, surf: readMarineSurfMode(w) })) return false;
+    const index = getPinnedIndexSync(storeSetKeyFor(model, layer));
+    const frame = index && pickIndexFrame(index, Date.parse(validTimeStr));
+    return !!(frame && frame.path);
+  } catch (e) { return false; }   // unknown: the lane, as before
+}
 
 // F-03 (audit 14.0) — THE GUARD KEYED ON THE WRONG QUANTITY.
 // Both the in-flight key and the controller result cache were keyed by `hourOffset`, but the thing
@@ -282,7 +304,8 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer, 
     }
     _globalGridPrewarmInFlight.add(key);
     _deferSeries = gridFirst;      // the series half waits for this grid (finally below)
-    const _gridT = { hour: hourOffset, vt: _vt, gridFirst, band: _bandView, queuedAt: Date.now() };
+    const _cdnFirst = washWorldOnCdn(m, activeLayer, _vt);
+    const _gridT = { hour: hourOffset, vt: _vt, gridFirst, band: _bandView, queuedAt: Date.now(), cdnFirst: _cdnFirst };
     _note('fetch', hourOffset, { vt: _vt, gridFirst, band: _bandView });
     if (typeof window !== 'undefined' && window.__MARINE_GLOBAL_PREWARM__) window.__MARINE_GLOBAL_PREWARM__.grid = _gridT;
     // No abort signal: this is a background best-effort warm that must survive the pan/zoom which
@@ -291,7 +314,7 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer, 
     // A15-11: under the series limiter's BACKGROUND lane (one slot, after anything on screen) instead of
     // beside it — this world /grid used to bypass the cap entirely at every activation.
     Promise.resolve()
-      .then(() => runBackgroundWarm(() => (_gridT.startedAt = Date.now(), m === 'ICON')
+      .then(() => (_cdnFirst ? (fn) => fn() : runBackgroundWarm)(() => (_gridT.startedAt = Date.now(), m === 'ICON')
         ? fetchBackendMarineGrid(_GLOBAL_BOUNDS, hourOffset, undefined, _GLOBAL_BOUNDS, activeLayer, 'ICON')
         : (m === 'EURO')
           // EURO world-coarse is a manifest product like the others (decoupled era) but routes
