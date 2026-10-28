@@ -208,11 +208,20 @@ def _gh(args, what, timeout=180):
 
 
 def history_branch(explicit=None):
-    """PRs compare against their base; pushes against their own branch, never an unrelated dev."""
-    branch = explicit or os.environ.get('GITHUB_BASE_REF') or os.environ.get('GITHUB_REF_NAME')
+    """PRs compare against their base; pushes against their own branch, never an unrelated dev.
+
+    EXCEPT main (2026-10-28). main is not an integration branch: it is dev promoted by squash, so its tree
+    equals dev's and the floors in it were measured on dev. Its own ci.yml has been red on every push since
+    2026-08-16 because THIS check refused (no green main run in the window), and a red main can never produce
+    the green run the check wants: a deadlock. So an Actions-derived `main` reads dev's history, the branch
+    that actually observes the lanes. An EXPLICIT --branch is never remapped, and every other refusal stays.
+    """
+    if explicit:
+        return explicit
+    branch = os.environ.get('GITHUB_BASE_REF') or os.environ.get('GITHUB_REF_NAME')
     if not branch:
         raise Refusal('No branch context; pass --branch explicitly outside GitHub Actions.')
-    return branch
+    return 'dev' if branch == 'main' else branch
 
 
 # THE NEWEST OF SEVERAL, NOT THE FIRST OF ONE (2026-09-28). `--limit=1` trusted the API's ordering, and on

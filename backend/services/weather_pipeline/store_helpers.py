@@ -189,6 +189,8 @@ def save_product_helper(store, product: NormalizedProduct, resolution: float = 0
     manifest.last_manifest_update = datetime.now(timezone.utc)
 
     # Eliminate any existing duplicate registration for the exact same slice
+    from services.weather_pipeline.manifest_object_identity import enabled as _one_entry_enabled
+    one_entry = _one_entry_enabled()
     updated_products = [
         p for p in manifest.products
         if not (
@@ -199,6 +201,7 @@ def save_product_helper(store, product: NormalizedProduct, resolution: float = 0
             and p.valid_time_start == product.valid_time  # single frame slice
             and p.region_id == product.region_id  # distinguish by region to avoid collisions!
         )
+        and not (one_entry and p.filename == filename)   # MANIFEST_ONE_ENTRY_PER_OBJECT: the object holds this write only
     ]
     updated_products.append(_build_manifest_item(product, filename, resolution, is_tf))
     manifest.products = updated_products
@@ -242,6 +245,9 @@ def save_products_batch_helper(store, products_to_save: List[Tuple[NormalizedPro
             p.region_id
         )
         dict_by_slice[key] = p
+    from services.weather_pipeline import manifest_object_identity as _identity
+    by_file = _identity.filename_index(dict_by_slice) if _identity.enabled() else None
+    dropped = 0
 
     success_count = 0
     failed_count = 0
@@ -297,7 +303,11 @@ def save_products_batch_helper(store, products_to_save: List[Tuple[NormalizedPro
                 product.valid_time,
                 product.region_id
             )
-            dict_by_slice[slice_key] = _build_manifest_item(product, filename, resolution, is_tf)
+            item = _build_manifest_item(product, filename, resolution, is_tf)
+            if by_file is None:
+                dict_by_slice[slice_key] = item
+            else:
+                dropped += _identity.register(dict_by_slice, by_file, slice_key, item)
             success_count += 1
         except Exception as e:
             failed_count += 1
@@ -312,6 +322,7 @@ def save_products_batch_helper(store, products_to_save: List[Tuple[NormalizedPro
             f"{success_count} saved and registered."
         )
 
+    _identity.log_dropped(dropped)
     manifest.products = list(dict_by_slice.values())
     store._save_manifest(manifest)
 

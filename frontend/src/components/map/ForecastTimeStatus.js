@@ -37,9 +37,9 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
   try { instantMs = Date.parse(getSharedValidTime(hour, layer, model, { readOnly: true })); } catch (e) { instantMs = null; }
   // The SELECTION's own instant: the series anchor (the clock every ask is made on) + the hour, before any snap to a stored product.
   const labelMs = Number.isFinite(hour) ? getSeriesAnchorMs() + hour * 3600000 : null;
-  // Half the stored marine lattice step (3-hourly; EURO WAM 6-hourly past 144 h): a frame further off is an exact upgrade
-  // still owed, so it reads "Loading", never "nearest" (same rule as WindTimeStatus, 2026-10-19).
-  const nearestMaxHours = latticeNearestMaxHours(model, hour);
+  // Half the stored marine lattice step (3-hourly; EURO 6-hourly past model step 144, read from the drawn frame's run): a frame
+  // further off is an exact upgrade still owed, so it reads "Loading", never "nearest" (same rule as WindTimeStatus, 2026-10-19).
+  const nearestMaxHours = latticeNearestMaxHours(model, hour, { selectedMs: labelMs, runMs: drawn && drawn.runMs });
   const readout = isRaster ? (rasterReadout && (rasterReadout.state !== 'pending' || rasterShowPending) ? rasterReadout : null)
     : (readoutOff ? null : describeDrawnFrame({ model, layer, hour, instantMs, labelMs, nearestMaxHours }, drawn));
   if (typeof window !== 'undefined') window.__RAW_SELECTED_FRAME__ = { model, layer, hour, instantMs, labelMs };   // instruments compare by instant
