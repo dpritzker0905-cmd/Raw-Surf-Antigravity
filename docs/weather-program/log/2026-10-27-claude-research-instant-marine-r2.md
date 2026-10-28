@@ -3,7 +3,8 @@
 **2026-10-27, 17:00-23:30Z.** The owner (16:40Z, relayed by the lead) asked for one standing researcher in this subtree, "using skills
 to research animations, science, math, and any other logic that can help us make this work instantly and to state of the art".
 
-- **Deliverable:** `docs/research/instant-marine-sota-2026-10-27.md`.
+- **Deliverable:** `docs/research/instant-marine-sota-2026-10-27.md`, PR #613 (draft, base `dev`).
+- **Ledger:** `ledger.d/claude--research-instant-marine-r2.jsonl:1` (pr_open #613).
 - **No served number changes.** Docs only: no product code, no flag, no SCOREBOARD row, and no request to the Render box or the
   dev site.
 
