@@ -2,7 +2,8 @@
 
 Branch `claude/euro-z9-fallback-truth` from dev 4bd90d0d9. Client words + the drawn-frame record + harness only: no served number,
 no fetch, no commit rule changes. Kill: `window.__RAW_DISABLE_DRAWN_FALLBACK_TRUTH__ = true` (the record outlives the layer and the line
-describes it, as before).
+describes it, as before). Round 2 (below) adds the guardrail's throttle-cadence rule, ON, kill
+`window.__RAW_DISABLE_GUARDRAIL_THROTTLE_CADENCE__ = true`: the live trip was Chrome's 1 Hz throttle, not a slow device.
 
 ## Ask
 
@@ -55,7 +56,8 @@ describes it, as before).
 - **The drawn record is a module singleton** (`marineDrawnFrame.js`) that only the layer and the frame store publish to. Nothing
   cleared it when the layer went away, so `ForecastTimeStatus` compared every new selection with the last WebGL frame:
   "Loading <hour>… still showing Mon, Nov 2, 4 AM" (09Z EST), for good, while the map showed the simplified layer.
-- **Why the fallback engaged:** not established. Consistent with the guardrail:
+- **Why the fallback engaged:** not established in round 1 (ESTABLISHED in round 2 below, from the lead's own tab: the guardrail
+  tripped on Chrome's 1 Hz throttle). What round 1 had was consistent with the guardrail:
   - the redraw came "later" at h156, after a pause, which fits its 60 s retry (the error path would have retried in 4 s);
   - keyboard steps on the wheel never set `window.lastScrubTime`, so a stepping session gets no guardrail bypass;
   - an automation tab's frame rate is the obvious suspect for the 20 fps floor.
@@ -138,3 +140,75 @@ record, not what is fetched or drawn.
 
 Evidence (outside the repo, this session's scratchpad): `live_read_z9_euro.json`, `band_dev_6_trip.json`, `band_fix_trip.json`,
 `realcdn/` (the probe-time EURO index).
+
+## Round 2 (2026-10-28 03:20Z): the cause was Chrome's throttle, which the guardrail counted as a slow device
+
+### The lead's correction (its own tab, read after round 1)
+
+- **The tab's churn log:**
+  - `marine_webgl_fallback` (cause `fps_guardrail`, fps 1) at **13:58:14Z**, 5 s before the probe's steps (13:58:19-13:59:01Z);
+  - `marine_webgl_recover` (attempt 2) only at **14:04:04Z**.
+- **The same tab, measured afterwards:** `requestAnimationFrame` at **1.1/s**, largest interval **1015 ms**, with
+  `visibilityState` 'visible' and `hasFocus()` true. Chrome was throttling the window, and the guardrail read each 1 s window as 1 fps.
+- **The lead asked for two things:**
+  - confirm the stall does not reproduce offline at a normal frame rate. Done in round 1: four runs without a trip draw every hour,
+    so the live symptom was the guardrail;
+  - if so, fix the guardrail, ON with a kill switch, plus a Jest pin.
+
+### The rule (`useWebGLGuardrail.js`, THROTTLE CADENCE)
+
+A low-FPS window is the browser pausing us, not evidence, when BOTH hold:
+- every frame interval in it sits on the throttle cadence: `THROTTLE_CADENCE_MIN_MS` = 900 ms up to the existing 2000 ms suspend gate;
+- its marine render calls were measured and cheap: calls were recorded in the engine's own `frameTimeHistogram` since the previous
+  render event, and none was 33.3 ms or more.
+
+Such a window breaks a streak, as the suspend gate does, and counts into `window.__RAW_GUARDRAIL_THROTTLED__ { windows, lastAt, lastFps }`.
+
+Unchanged:
+- a slow marine call at the same cadence (SwiftShader's 1 fps, the hook's founding case);
+- any shorter interval (a GPU-bound device at 5 fps);
+- a cost the hook cannot read (no histogram, no recorded call, a throwing getter).
+
+Kill: `window.__RAW_DISABLE_GUARDRAIL_THROTTLE_CADENCE__ = true`.
+
+### Tests
+
+- **New: `useWebGLGuardrail.throttle.test.js` (7 tests).**
+  - The live tab: 990/1015/1002 ms, cheap calls, 70 s: no trip, 12+ throttled windows.
+  - Controls that must still trip:
+    - SwiftShader: the 1 s cadence with every call ≥ 66 ms;
+    - a GPU-bound device at 5 fps;
+    - a throttled minute, then 14 s of real slow frames;
+    - a cost the hook cannot read;
+    - an interval just under the floor.
+  - The kill, which trips the live tab again.
+- **Red first:** dev fails 3 of 7; the 4 controls pass on dev.
+- **Mutations:**
+  - dropping the cost condition fails 2 (SwiftShader among them);
+  - dropping the cadence condition fails 2.
+- **The four existing guardrail suites pass unchanged** (63 tests in 5 files).
+  - The evidence suite's fixture is a 1 fps cadence whose histogram never moves. That is an unmeasured cost, so it still trips;
+    this is why the rule needs recorded calls, not just "no slow call".
+- **Full map + tests run:** 428 of 429 suites, 6,086 of 6,089 tests.
+  - The 3 failures were 5 s timeouts in `marineFrameStoreCrop.test.js` while three harness servers ran (the suite took 92 s).
+  - Alone it passed 31/31 on the second re-run.
+- **Lint:** `check_eslint.js` exit 0.
+
+### Offline A/B through the real app
+
+- **Setup:** the same `scn_euro_z9_band.js` probe on a non-local host. `THROTTLE_AT=131 THROTTLE_MS=20000` holds `requestAnimationFrame`
+  to the next whole second for 20 s with no input, as the live tab did, with cheap frames.
+
+| arm | under the 1 Hz throttle | after it, h131-h144 |
+|---|---|---|
+| dev 4bd90d0d9 (main.4a7d43f8) | **fallback engaged**, fps 1 | 14 of 14 steps simplified layer, `no_target` 1 -> 14, "Loading… still showing" the h130 frame |
+| both fixes (main.ba97586d) | **no fallback**, fps 1, `__RAW_GUARDRAIL_THROTTLED__.windows` 12 | `no_target` 0; every step draws its nearest regional estimate |
+| both fixes, control `TRIP_AT=131` (real ~12 fps frames, 70 ms each) | fallback engaged | 6 of 6 simplified layer, line "Simplified wave layer (reduced graphics mode)…" |
+
+### Not measured / follow-ups (round 2)
+
+- **The live tab with the fix.** Next live read: `__RAW_GUARDRAIL_THROTTLED__` should count windows and `marine_webgl_fallback`
+  should not appear when the window is throttled.
+- **Chrome's throttle in other shapes:** budget-based timer throttling, or intervals near 2 s. These are only covered up to the
+  existing 2000 ms gate.
+- **A real device whose GPU alone takes about 1 s a frame with cheap CPU calls** is now exempt. That shape is unseen.

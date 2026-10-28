@@ -85,6 +85,11 @@ const wheelNow = (page) => page.evaluate((sel) => { const w = [...document.query
 // LAT_SERIES (ms): every EURO /grid_series answer is held back this long (the live box builds a 16-frame EURO page in seconds, the
 // offline backend in well under one); LAT_GRID the same for EURO /grid.
 const TRIP_AT = process.env.TRIP_AT ? +process.env.TRIP_AT : null;
+// THROTTLE_AT=<hour>: before that step requestAnimationFrame is held to the next whole second for THROTTLE_MS with no input: what
+// Chrome does to a window it is not painting (the lead's live tab: rAF 1.1/s, largest interval 1015 ms, visible and focused), with
+// cheap frames. The wrapper is installed before the app loads and is off until then.
+const THROTTLE_AT = process.env.THROTTLE_AT ? +process.env.THROTTLE_AT : null;
+const THROTTLE_MS = +(process.env.THROTTLE_MS || 20000);
 const TRIP_RATE = +(process.env.TRIP_RATE || 20);
 const TRIP_HOLD_MS = +(process.env.TRIP_HOLD_MS || 16000);
 const TRIP_MODE = process.env.TRIP_MODE || 'busy';            // busy (a rAF-paced main-thread load) | cpu (CDP CPU throttling)
@@ -99,6 +104,15 @@ const hooks = { beforeWeather: async (url) => {
 
 async function session(arm) {
   const { browser, page, log } = await L.launch({ port: PORT, hooks });
+  await page.addInitScript(() => {
+    const raw = window.requestAnimationFrame.bind(window); const rawCancel = window.cancelAnimationFrame.bind(window);
+    window.requestAnimationFrame = (cb) => {
+      if (!window.__AB_RAF_THROTTLE__) return raw(cb);
+      const id = setTimeout(() => raw(cb), 1000 - (performance.now() % 1000));
+      return -id;
+    };
+    window.cancelAnimationFrame = (id) => (id < 0 ? clearTimeout(-id) : rawCancel(id));
+  });
   await page.addInitScript(({ base, flags }) => {
     localStorage.removeItem('__RAW_STATIC_FRAMES__'); window.__RAW_STATIC_FRAMES_BASE__ = base;
     localStorage.setItem('raw-surf-theme', 'dark');
@@ -133,6 +147,12 @@ async function session(arm) {
           await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
         }
         console.log(`${arm.name} trip at h${h}: fallback=${(await page.evaluate(READ)).fallback}`);
+      }
+      if (THROTTLE_AT != null && h === THROTTLE_AT) {
+        await page.evaluate(() => { window.__AB_RAF_THROTTLE__ = true; });
+        await sleep(THROTTLE_MS);
+        const th = await page.evaluate(() => { window.__AB_RAF_THROTTLE__ = false; return { fb: !!(window.__WEBGL_GUARDRAIL_FALLBACK__ && window.__WEBGL_GUARDRAIL_FALLBACK__.webglMarineFailed), fps: window.__MAP_RENDER_FPS__, throttled: window.__RAW_GUARDRAIL_THROTTLED__ || null }; });
+        console.log(`${arm.name} throttled ${THROTTLE_MS} ms at h${h}: ${JSON.stringify(th)}`);
       }
       if (h > FROM) await page.keyboard.press('ArrowRight');
       const t0 = Date.now(); const nReq0 = log.requests.length;
