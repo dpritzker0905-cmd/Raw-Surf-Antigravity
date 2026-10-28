@@ -35,7 +35,7 @@ regressions."
   `dcc514bf3` with every tail set built, all four pass:
   - `band_off` by #598;
   - `euro_switch` by #602;
-  - `euro_240` by the built tails (`FRAME_TAIL_DOWNLOAD=1`, not yet flipped live);
+  - `euro_240` by the built tails (`FRAME_TAIL_DOWNLOAD=1`; not flipped live when this ran, flipped 2026-10-27 03:32:39Z and read back PASS, D-055);
   - `icon_far` does not reproduce offline inside the stored tail. The owner's slow jumps went into the day-14 hold region.
 - **Live parity with the box's flags.** Since 10-26 12:20Z the live box also runs the #588 donor flag and margin = 12 (D-053).
   Store M kept the flags of 01:31Z; the day-14 rows exercise the donor flag both ways.
@@ -191,8 +191,8 @@ New scenario: `frontend/scripts/offline-backend/scn_owner_1026.js`.
 - **On dev `dcc514bf3` with every tail set built, all four pass** (exit 0):
   - `band_off` by #598;
   - `euro_switch` by #602 (mid-zoom model switch never blanks);
-  - `euro_240` by the built tails (`FRAME_TAIL_DOWNLOAD=1`; #597 fixed its budget). The flag is not flipped on the live
-    CDN, so the live-shaped arm still fails.
+  - `euro_240` by the built tails (`FRAME_TAIL_DOWNLOAD=1`; #597 fixed its budget). When this ran the flag was not flipped on
+    the live CDN, so the live-shaped arm failed. It was flipped 2026-10-27 03:32:39Z and read back PASS (D-055).
 - **`icon_far` does not reproduce offline** inside the stored tail. The owner's slow jumps ("137 → 336", "242 → 336") land in the
   day-14 hold region. That is a `/grid` round trip unless the last stored frame is resident. On `dcc514bf3` (#601) every step,
   hold region included, came from the store.
