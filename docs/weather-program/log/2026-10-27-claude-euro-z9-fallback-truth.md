@@ -313,3 +313,59 @@ Kill: `window.__RAW_DISABLE_GUARDRAIL_THROTTLE_CADENCE__ = true`.
 - **A selection change to an undrawable layer while the fallback is engaged.** MapWebGL already resets the flag on any model or layer
   change, so it does not stay blank. Not replayed.
 - The live tab with these rules.
+
+## Round 4 (2026-10-28 10:20Z): the 1.5 h gates do not stall EURO at z9 (offline, guardrail off); no fix
+
+### The lead's question
+
+- A forensics pass named a candidate cause separate from #615. #610 taught EURO's 6-hourly steps (past model step 144) only to the
+  readouts. Three gates still use a 1.5 h window, so at a 6-hourly hour the nearest stored frame can sit 3 h away:
+  - `marineGridSeries.getMarineSeriesFrame`'s `bestDiff > 1.5`;
+  - `marineStaleHour.SAME_STEP_TOL_MS`;
+  - `marineExactUpgrade.EXACT_UPGRADE_HOUR_TOLERANCE`.
+- Ask: reproduce it offline at z9 Florida, EURO, Home then PgUp to h144, stepping h141-h155, with the FPS guardrail out of the picture.
+
+### Setup
+
+- Dev's client: `build-dev` (main.4a7d43f8). dev 890623110 has no `frontend/src` change since its base 4bd90d0d9.
+- The SPA ran on 127.0.0.1, where `useWebGLGuardrail` is off; `fb=false` at every step.
+- `scn_euro_z9_band.js VIA=home PGUP_TO=144 FROM=141 TO=155`: Home, PageUp x6 to h144, ArrowLeft x3 to h141, then one ArrowRight per step.
+  - New harness options: `VIA=home` (the lead's key path) and `PASS_TOL_H` (the data-time window a step must reach).
+- Two fresh stores, both run 10-28T00Z, GFS + EURO waves, the Florida tile, `--dynamic 1`:
+  - **live-like:** `--euro-regional-estimated-after 42`, so the regional tile is a 3-hourly estimate through the band, as live served it
+    on 10-27 (round 1, Q1);
+  - **6-hourly only:** no estimated tail, so past model step 144 (timeline h134 here) the regional and global tiers both hold only
+    6-hourly frames. This is the case the 1.5 h gates could bite: in h141-h155 the stored frames are h140, h146, h152 and h158, so
+    h143, h149 and h155 sit 3 h from both neighbours.
+
+### Result: neither store stalls
+
+| store | steps committed for their hour | "Loading" | "nearest" | exact | farthest drawn frame | per-step time |
+|---|---|---|---|---|---|---|
+| live-like, 4 s wait | 14 in the window + h154 at 4.9 s | 0 | 10 | 5 | 2 h | 17-82 ms; 2.2-3.9 s on the steps that fetched |
+| 6-hourly only, 8 s wait | 15 of 15 | 0 | 13 | 2 | 3 h (h143, h149, h155) | 22-113 ms; 3.2 s at h150, the one `/grid` fetch |
+
+- **The live-like miss is offline latency, not a gate.** h154's ask (20Z) went out as `/grid@21Z` and the offline backend answered in
+  4,919 ms, past the 4 s step wait; it committed in h155's window.
+- **The 6-hourly store commits every hour.** Each step draws the nearest stored frame, and the line reads "Showing <time>: the nearest
+  stored forecast" (#610's EURO 3 h window).
+- **The instrument does see a stall.** The same scenario counted 16 of 18 stuck steps when the fallback engaged (round 1).
+
+### Why the three gates do not stall z9 (code reading)
+
+- **`getMarineSeriesFrame`'s 1.5 h** decides only whether the series cache answers. A miss returns null, and the caller takes the
+  per-hour path, where `/grid` serves the nearest stored frame within 3 h (`regional_tile_first.find_candidates`). It costs at most one
+  fetch: h150 in the 6-hourly run.
+- **`SAME_STEP_TOL_MS`** judges WORLD-width frames only: the zoom-out base sync, the F-22 bridge's promotion, and the stale dim (which
+  starts at 3.5 h). A z9 resident is a regional tile.
+- **`EXACT_UPGRADE_HOUR_TOLERANCE`** applies only to a thinned WORLD frame at a wide view (`not_wide_view` at z9). It compares the hour
+  LABEL (the ask's echo), which a 6-hourly lattice does not move.
+
+### Not measured
+
+- **Far zoom in the 6-hourly band**, where `SAME_STEP_TOL_MS` does run. A world base 3 h from the selection counts as "another step",
+  so the F-22 bridge will not promote it on a zoom-out and the older rule draws instead. By reading that is a hold, not a stall; it was
+  not replayed.
+- **The live box:** no live load, per the lead.
+
+Evidence (this session's scratchpad): `gates_live_like_dev.json`, `gates_6h_dev.json`.

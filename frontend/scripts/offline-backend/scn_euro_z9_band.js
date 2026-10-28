@@ -97,6 +97,11 @@ const SLOW_DRAW_AT = process.env.SLOW_DRAW_AT ? +process.env.SLOW_DRAW_AT : null
 const SLOW_DRAW_MS = +(process.env.SLOW_DRAW_MS || 16000);
 const SLOW_DRAW_COST = +(process.env.SLOW_DRAW_COST || 70);
 const LAYER_CHIP = process.env.LAYER_CHIP || 'Waves';
+// VIA=home: the lead's key path (2026-10-28) - Home, PageUp to PGUP_TO (default 144), a settle, then ArrowLeft/Right to FROM.
+const VIA = process.env.VIA || 'jump';
+const PGUP_TO = +(process.env.PGUP_TO || 144);
+// PASS_TOL_H: the data-time window a step must reach (1.5 = the 3-hourly half step; 3 = EURO's 6-hourly half step past model step 144).
+const PASS_TOL_H = +(process.env.PASS_TOL_H || 1.5);
 const TRIP_RATE = +(process.env.TRIP_RATE || 20);
 const TRIP_HOLD_MS = +(process.env.TRIP_HOLD_MS || 16000);
 const TRIP_MODE = process.env.TRIP_MODE || 'busy';            // busy (a rAF-paced main-thread load) | cpu (CDP CPU throttling)
@@ -136,8 +141,17 @@ async function session(arm) {
     await page.locator(WHEEL).filter({ visible: true }).first().focus();
     // The jump: whole days, then hours (what a wheel drag sends), then a settle so the band starts from a drawn frame.
     const from0 = await wheelNow(page);
-    for (let i = 0; i < Math.floor((FROM - from0) / 24); i++) { await page.keyboard.press('PageUp'); await sleep(60); }
-    for (let i = 0; i < (FROM - from0) % 24; i++) { await page.keyboard.press('ArrowRight'); await sleep(60); }
+    if (VIA === 'home') {
+      await page.keyboard.press('Home'); await sleep(SETTLE);
+      for (let i = 0; i < Math.floor(PGUP_TO / 24); i++) { await page.keyboard.press('PageUp'); await sleep(60); }
+      await sleep(SETTLE);
+      const at = await wheelNow(page);
+      for (let i = 0; i < Math.abs(FROM - at); i++) { await page.keyboard.press(FROM < at ? 'ArrowLeft' : 'ArrowRight'); await sleep(60); }
+      console.log(`${arm.name} via Home + PageUp x${Math.floor(PGUP_TO / 24)} -> h${at}, then -> h${await wheelNow(page)}`);
+    } else {
+      for (let i = 0; i < Math.floor((FROM - from0) / 24); i++) { await page.keyboard.press('PageUp'); await sleep(60); }
+      for (let i = 0; i < (FROM - from0) % 24; i++) { await page.keyboard.press('ArrowRight'); await sleep(60); }
+    }
     await sleep(SETTLE);
     for (let h = FROM; h <= TO; h++) {
       // TRIP_AT=<hour>: before that step the page's CPU is throttled TRIP_RATE x for TRIP_HOLD_MS with no input, so the render rate
@@ -190,7 +204,7 @@ async function session(arm) {
       while (Date.now() - t0 < STEP_WAIT) {
         r = await page.evaluate(READ);
         const dm = r.drawn && r.drawn.dataMs;
-        if (okAt == null && r.engine && r.engine.model === 'EURO' && dm && Math.abs(dm - selMs) <= 1.5 * 3600000 && r.engine.hour === h) okAt = Date.now() - t0;
+        if (okAt == null && r.engine && r.engine.model === 'EURO' && dm && Math.abs(dm - selMs) <= PASS_TOL_H * 3600000 && r.engine.hour === h) okAt = Date.now() - t0;
         if (okAt != null && Date.now() - t0 > okAt + 300) break;
         await sleep(50);
       }
