@@ -90,6 +90,13 @@ const TRIP_AT = process.env.TRIP_AT ? +process.env.TRIP_AT : null;
 // cheap frames. The wrapper is installed before the app loads and is off until then.
 const THROTTLE_AT = process.env.THROTTLE_AT ? +process.env.THROTTLE_AT : null;
 const THROTTLE_MS = +(process.env.THROTTLE_MS || 20000);
+// SLOW_DRAW_AT=<hour>: for SLOW_DRAW_MS before that step every marine draw takes SLOW_DRAW_COST ms more and is recorded in the engine's
+// histogram as slow (>= 66.6 ms): the renderer itself is the cost (a slow GPU or driver), so the guardrail SHOULD act unless its
+// fallback has nothing to draw. LAYER_CHIP (Waves): the marine layer chip to turn on (Swell = swell_1).
+const SLOW_DRAW_AT = process.env.SLOW_DRAW_AT ? +process.env.SLOW_DRAW_AT : null;
+const SLOW_DRAW_MS = +(process.env.SLOW_DRAW_MS || 16000);
+const SLOW_DRAW_COST = +(process.env.SLOW_DRAW_COST || 70);
+const LAYER_CHIP = process.env.LAYER_CHIP || 'Waves';
 const TRIP_RATE = +(process.env.TRIP_RATE || 20);
 const TRIP_HOLD_MS = +(process.env.TRIP_HOLD_MS || 16000);
 const TRIP_MODE = process.env.TRIP_MODE || 'busy';            // busy (a rAF-paced main-thread load) | cpu (CDP CPU throttling)
@@ -122,7 +129,7 @@ async function session(arm) {
   try {
     await L.openMap(page); await L.jump(page, CLNG, CLAT, ZOOM);
     bundle = await page.evaluate(() => { const s = [...document.scripts].map((x) => x.src).find((x) => /\/main\.[0-9a-f]+\.js/.test(x)); return s ? s.split('/').pop() : null; });
-    await clickExact(page, 'Waves');
+    await clickExact(page, LAYER_CHIP);
     await page.waitForFunction(() => { const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; return d && d.waveGrid; }, null, { timeout: 60000 });
     await clickExact(page, 'EURO');
     await sleep(SETTLE);
@@ -146,13 +153,33 @@ async function session(arm) {
           await sleep(TRIP_HOLD_MS);
           await cdp.send('Emulation.setCPUThrottlingRate', { rate: 1 });
         }
-        console.log(`${arm.name} trip at h${h}: fallback=${(await page.evaluate(READ)).fallback}`);
+        console.log(`${arm.name} trip at h${h}: ${JSON.stringify(await page.evaluate(() => ({ fb: !!(window.__WEBGL_GUARDRAIL_FALLBACK__ && window.__WEBGL_GUARDRAIL_FALLBACK__.webglMarineFailed), fps: window.__MAP_RENDER_FPS__, mainThread: window.__RAW_GUARDRAIL_MAIN_THREAD__ || null, throttled: window.__RAW_GUARDRAIL_THROTTLED__ || null })))}`);
       }
       if (THROTTLE_AT != null && h === THROTTLE_AT) {
         await page.evaluate(() => { window.__AB_RAF_THROTTLE__ = true; });
         await sleep(THROTTLE_MS);
         const th = await page.evaluate(() => { window.__AB_RAF_THROTTLE__ = false; return { fb: !!(window.__WEBGL_GUARDRAIL_FALLBACK__ && window.__WEBGL_GUARDRAIL_FALLBACK__.webglMarineFailed), fps: window.__MAP_RENDER_FPS__, throttled: window.__RAW_GUARDRAIL_THROTTLED__ || null }; });
         console.log(`${arm.name} throttled ${THROTTLE_MS} ms at h${h}: ${JSON.stringify(th)}`);
+      }
+      if (SLOW_DRAW_AT != null && h === SLOW_DRAW_AT) {
+        await page.evaluate(({ cost }) => {
+          const e = window.__MARINE_ENGINE__;
+          const wrap = (name) => { const orig = e[name]; e[`__ab_${name}`] = orig; e[name] = function slowDraw(...a) {
+            const t = performance.now(); while (performance.now() - t < cost) { /* the draw's own cost */ }
+            const h = window.__RAW_GPU__ && window.__RAW_GPU__.frameTimeHistogram; const before = h ? h.slice() : null;
+            const out = orig.apply(this, a);
+            if (h && before) { const i = h.findIndex((v, k) => v > before[k]); if (i >= 0 && i !== 4) { h[i] -= 1; h[4] += 1; } }
+            return out;
+          }; };
+          ['render', 'renderHeatmapAndParticles'].forEach(wrap);
+        }, { cost: SLOW_DRAW_COST });
+        await sleep(SLOW_DRAW_MS);
+        const sd = await page.evaluate(() => {
+          const e = window.__MARINE_ENGINE__; if (e) ['render', 'renderHeatmapAndParticles'].forEach((n) => { if (e[`__ab_${n}`]) e[n] = e[`__ab_${n}`]; });
+          return { fb: !!(window.__WEBGL_GUARDRAIL_FALLBACK__ && window.__WEBGL_GUARDRAIL_FALLBACK__.webglMarineFailed), fps: window.__MAP_RENDER_FPS__,
+            noFallback: window.__RAW_GUARDRAIL_NO_FALLBACK__ || null, mainThread: window.__RAW_GUARDRAIL_MAIN_THREAD__ || null, hist: window.__RAW_GPU__ && window.__RAW_GPU__.frameTimeHistogram };
+        });
+        console.log(`${arm.name} slow draws ${SLOW_DRAW_MS} ms at h${h}: ${JSON.stringify(sd)}`);
       }
       if (h > FROM) await page.keyboard.press('ArrowRight');
       const t0 = Date.now(); const nReq0 = log.requests.length;

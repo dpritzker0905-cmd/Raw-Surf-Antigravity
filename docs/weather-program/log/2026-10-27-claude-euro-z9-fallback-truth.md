@@ -212,3 +212,104 @@ Kill: `window.__RAW_DISABLE_GUARDRAIL_THROTTLE_CADENCE__ = true`.
 - **Chrome's throttle in other shapes:** budget-based timer throttling, or intervals near 2 s. These are only covered up to the
   existing 2000 ms gate.
 - **A real device whose GPU alone takes about 1 s a frame with cheap CPU calls** is now exempt. That shape is unseen.
+
+## Round 3 (2026-10-28 06:10Z): no blank-sea fallback, and main-thread load is not a renderer problem
+
+### The lead's second live session (built-in browser pane, 22:41-23:35Z on 10-27, dev 4bd90d0d9; this PC loaded by four agents)
+
+- **Blank sea.** The third trip (23:23:42Z, fps 4) came with EURO + Swell selected. The ocean went blank under "Simplified wave layer -
+  reduced graphics mode".
+- **Main-thread load.** The trips came with 3,522 long tasks in 54 min (28 over 500 ms, max 7,003 ms). The frame gaps were irregular
+  (300-7,000 ms), not the throttle rhythm.
+- Evidence: the lead's `live-1027/live_session_summary.md`.
+
+### What the fallback can draw (read from the code)
+
+- The fallback is Open-Meteo raster tiles. `useOpenMeteoTileUrls` draws a transparent tile when the raster model lacks the layer's
+  variable ("no cross-model fallback").
+- The variable lists are `MODEL_METADATA_CACHE`'s: the bootstrap lists until live metadata replaces them.
+  - `ecmwf_wam025` carries wave height only.
+  - `dwd_gwam` has no secondary swell.
+  - Past 240 h (EURO) and 168 h (ICON) the raster is GFS Wave, which has all four layers.
+
+| model | Waves | Swell | Swell 2 | Wind Waves |
+|---|---|---|---|---|
+| GFS | yes | yes | yes | yes |
+| ICON (to 168 h) | yes | yes | **blank** | yes |
+| EURO (to 240 h) | yes | **blank** | **blank** | **blank** |
+
+### The rules (`marineGuardrailRules.js`, used by `useWebGLGuardrail.js`)
+
+- **BLANK GUARD.** At the 12th low-FPS window, the hook checks the selected model, layer and hour (`window.activeModel`,
+  `activeTimeOffsetHours`).
+  - If the fallback has no raster for them, the hook does not engage it: the WebGL layer keeps drawing.
+  - It records `window.__RAW_GUARDRAIL_NO_FALLBACK__ { model, layer, hour, rasterModel, variable, fps, at }` and the churn event
+    `marine_webgl_fallback_refused`.
+  - Live metadata decides when it is there.
+  - Kill: `__RAW_DISABLE_GUARDRAIL_BLANK_GUARD__`.
+- **MAIN-THREAD LOAD.** A low-FPS window is not evidence when its marine draws were measured and cheap AND long tasks (PerformanceObserver
+  'longtask') cover at least half of it. Such a window counts into `__RAW_GUARDRAIL_MAIN_THREAD__`.
+  - The long-task observer runs only through an episode of cheap low-FPS windows. The first such window starts it and still counts as
+    evidence, so no observer runs while the renderer is healthy or its cost is unmeasured.
+  - Kill: `__RAW_DISABLE_GUARDRAIL_MAIN_THREAD__`.
+- **Still evidence:**
+  - slow draws (the renderer is the cost);
+  - cheap draws on a quiet main thread (a GPU-bound device: the CPU-call histogram cannot see GPU completion, and the evidence receipt
+    itself says `gpuCompletionMeasured: false`);
+  - long tasks under half the window;
+  - no Long Tasks API (Safari keeps today's rule).
+
+### Why not "trip only on slow draws" (the lead's alternative)
+
+- It would stop protecting a device whose GPU, not its CPU calls, is the cost. On such a device WebGL calls return fast and the frames
+  are slow.
+- The two false-trip shapes measured live are a throttled tab and a busy main thread. Both are excluded by name, and each has its own
+  kill switch.
+
+### Tests
+
+- **New: `useWebGLGuardrail.blankAndLoad.test.js` (12 tests).**
+  - The drawable matrix, including the cutover hours.
+  - EURO + Swell with slow draws: no trip, and the refusal recorded.
+  - ICON Swell 2: no trip; past 168 h it trips.
+  - Controls: EURO Waves and GFS Swell trip.
+  - Live metadata that carries swell makes EURO Swell drawable.
+  - The blank-guard kill.
+  - The live gaps (300-800 ms) with cheap draws and long tasks over 70% of each: no trip, 12+ main-thread windows.
+  - Controls that trip: the same load with slow draws; cheap draws on a quiet thread; long tasks at 30%; no Long Tasks API; the
+    main-thread kill.
+- **Red first:** the round-2 hook fails 3 of 12; the controls pass.
+- **Mutations:** removing the blank guard fails 2; not starting the meter fails 1.
+- **All six guardrail suites pass:** 75 tests.
+  - The existing `mainThread` suite's single-observer-per-streak pins hold because the meter is episodic.
+- **Full map + tests run:** 429 of 430 suites, 6,100 of 6,101 tests.
+  - The one failure was a 5 s timeout in `marineFrameStoreCrop.test.js`, which does not call the guardrail.
+  - Alone it passed 31/31.
+- **Lint:** `check_eslint.js` exit 0.
+
+### Offline A/B through the real app
+
+- **Setup:**
+  - `scn_euro_z9_band.js` on a non-local host.
+  - The store has GFS + EURO with waves and swell_1, the Florida tile and `--euro-regional-estimated-after 42`.
+  - `SLOW_DRAW_AT`: every marine draw takes 70 ms more and is recorded as slow, so the renderer is the cost.
+  - `TRIP_AT`: 70 ms of main-thread work per frame, with cheap draws.
+
+| case | dev 4bd90d0d9 (main.4a7d43f8) | the fix (main.295dccc2) |
+|---|---|---|
+| EURO Swell, slow draws 16 s | **fallback engaged** (the blank-sea configuration: `ecmwf_wam025` lacks `swell_wave_height`); `no_target` 1 -> 5, "Loading… still showing" | **refused**: `__RAW_GUARDRAIL_NO_FALLBACK__` {EURO, swell_1, ecmwf_wam025, swell_wave_height}; WebGL keeps drawing, `no_target` 0 |
+| EURO Waves, main-thread load 16 s | **tripped** (fps 13); the fallback for 3 of 3 later steps | **not tripped**: 12 windows in `__RAW_GUARDRAIL_MAIN_THREAD__`, WebGL keeps drawing |
+| EURO Waves, slow draws 30 s (control) | tripped (fps 14) | tripped (fps 13) |
+
+- A first 16 s slow-draw control on the fix had not reached 12 consecutive windows when it was read. The same case at 30 s trips on
+  both bundles.
+
+### Not measured / follow-ups (round 3)
+
+- **The render-error fallback** (`useMarineWebglRecovery`: three render errors in 10 s) does not consult the blank guard. A hard error
+  on EURO Swell still shows a blank sea for its 4 s retry.
+- **The blank guard reads `window.activeModel` / `activeTimeOffsetHours`**, which the orchestrator publishes. MapWebGL.js is over the
+  line-count ratchet, so no prop was added.
+- **A selection change to an undrawable layer while the fallback is engaged.** MapWebGL already resets the flag on any model or layer
+  change, so it does not stay blank. Not replayed.
+- The live tab with these rules.

@@ -4,6 +4,7 @@ import { cancelTruthChains } from './weatherTruthTracker';
 import { recordChurn } from './marineTransitionCoordinator';
 import { sampleMarineFallback, marineFallbackReceipt } from './marineFallbackEvidence';
 import { beginMarineMainThreadTiming } from './marineMainThreadTiming';
+import { THROTTLE_CADENCE_MIN_MS, readMarineCallCost, createLongTaskMeter, lowFpsExemption, marineFallbackDrawable, ruleKilled } from './marineGuardrailRules';
 
 /**
  * useWebGLGuardrail hook monitors the map's render loop frame rate.
@@ -34,29 +35,11 @@ export const GRACE_MS = 10000;
  */
 export const RECOVERY_BACKOFFS_MS = [60000, 300000];
 
-/**
- * A THROTTLED TAB IS NOT A SLOW DEVICE (2026-10-27, the lead's live read of dev 89a494aca, EURO waves z9: the tab's churn log has
- * `marine_webgl_fallback` cause fps_guardrail fps 1 at 13:58:14Z; afterwards the same tab ran requestAnimationFrame at 1.1/s, largest
- * interval 1015 ms, with visibilityState 'visible' and hasFocus() true). Chrome throttles a window it is not painting to about one
- * frame a second without saying so, and every such 1 s window read 1 fps here, so the hook swapped this app's forecast for
- * third-party raster tiles (timeline hours 141-155 "never drew"; the retry came 6 min later). A low-FPS window whose every frame
- * interval sits on that cadence (>= THROTTLE_CADENCE_MIN_MS; 2000 ms and over is already the suspend gate) AND whose marine render
- * calls were measured and all cheap (calls recorded, none >= 33.3 ms: the engine's own `frameTimeHistogram`) is the browser
- * pausing us: it is not evidence and it breaks a streak, as a suspend does. A slow marine call keeps the window as evidence
- * (SwiftShader's 1 fps, this hook's founding case), so does any window with a shorter interval (a GPU-bound device at 5 fps), and so
- * does every window when the cost cannot be read (today's rule). Telemetry: window.__RAW_GUARDRAIL_THROTTLED__ { windows, lastAt }.
- * Kill: window.__RAW_DISABLE_GUARDRAIL_THROTTLE_CADENCE__ = true.
- */
-export const THROTTLE_CADENCE_MIN_MS = 900;
-/** { calls, slow }: the engine's marine render calls so far, and those >= 33.3 ms; null when they cannot be read. Never throws. */
-function readMarineCallCost(win) {
-  try {
-    const h = win && win.__RAW_GPU__ && win.__RAW_GPU__.frameTimeHistogram;   // [<8, <16.6, <33.3, <66.6, >=66.6] ms
-    if (!Array.isArray(h) || h.length !== 5) return null;
-    const calls = h[0] + h[1] + h[2] + h[3] + h[4]; const slow = h[3] + h[4];
-    return Number.isFinite(calls) && Number.isFinite(slow) && slow >= 0 && calls >= slow ? { calls, slow } : null;
-  } catch (e) { return null; }   // a diagnostic must never break the guard
-}
+// WHAT COUNTS, AND WHEN THE FALLBACK HAS ANYTHING TO DRAW (2026-10-27/28, the lead's live reads): marineGuardrailRules.js. A throttled
+// tab (rAF ~1/s, cheap draws) and a busy main thread (long tasks >= half the window, cheap draws) are not a slow marine renderer; and a
+// fallback whose raster model lacks the selected layer (EURO swell / wind waves, ICON swell 2) would show a blank sea, so it is not
+// engaged. Telemetry: window.__RAW_GUARDRAIL_THROTTLED__, __RAW_GUARDRAIL_MAIN_THREAD__, __RAW_GUARDRAIL_NO_FALLBACK__.
+export { THROTTLE_CADENCE_MIN_MS };
 
 /** True when the fallback was forced by a human (debug hook / persisted preference) rather than by
  *  this hook. Those must never be auto-recovered — the user asked for the fallback. */
@@ -124,6 +107,10 @@ export function useWebGLGuardrail({
     let lastMarineCall = null;
     // THROTTLE CADENCE (above): the marine call cost at the previous render event, and the open window's two facts.
     let prevCost = null;
+    // The long-task meter runs only through an episode of low-FPS windows with cheap marine draws (the first such window starts it
+    // and counts as evidence; the next ones are judged), so no observer runs while the renderer is healthy or its cost unmeasured.
+    let longTasks = null;
+    const stopLongTasks = () => { if (longTasks) { longTasks.dispose(); longTasks = null; } };
     let winCadence = false;
     let winCheap = false;
     // Recovery state. `guardrailOwned` is the consent check: only a trip this hook caused may be
@@ -237,6 +224,7 @@ export function useWebGLGuardrail({
       // Calculate FPS every second
       if (elapsed >= 1000) {
         const fps = Math.round((frameCount * 1000) / elapsed);
+        const windowStart = lastTime;
         frameCount = 0;
         lastTime = now;
 
@@ -244,11 +232,16 @@ export function useWebGLGuardrail({
           window.__MAP_RENDER_FPS__ = fps;
         }
 
-        if (fps < 20 && winCadence && winCheap && typeof window !== 'undefined'
-            && window.__RAW_DISABLE_GUARDRAIL_THROTTLE_CADENCE__ !== true) {
-          const t = window.__RAW_GUARDRAIL_THROTTLED__ || (window.__RAW_GUARDRAIL_THROTTLED__ = { windows: 0, lastAt: null, lastFps: null });
+        const cheapLow = fps < 20 && winCheap && typeof window !== 'undefined';
+        const exempt = cheapLow
+          ? lowFpsExemption({ cadence: winCadence, cheap: true, busyFraction: longTasks ? longTasks.busyFraction(windowStart, now) : null }) : null;
+        if (!cheapLow) stopLongTasks();
+        else if (!longTasks && !ruleKilled('MAIN_THREAD')) longTasks = createLongTaskMeter(window.PerformanceObserver);
+        if (exempt) {   // the browser paused us, or the main thread is the load: not evidence, and it breaks a streak (marineGuardrailRules.js)
+          const key = exempt === 'throttle' ? '__RAW_GUARDRAIL_THROTTLED__' : '__RAW_GUARDRAIL_MAIN_THREAD__';
+          const t = window[key] || (window[key] = { windows: 0, lastAt: null, lastFps: null });
           t.windows += 1; t.lastAt = Date.now(); t.lastFps = fps;
-          resetLowFps();   // the browser paused us (THROTTLE CADENCE above): not evidence, and it breaks a streak
+          resetLowFps();
           return;
         }
 
@@ -287,6 +280,17 @@ export function useWebGLGuardrail({
           if (lowFpsCount >= 12) {
             console.error(`[WebGLGuardrail] Frame rate consistently below 20 FPS (${fps} FPS) for 12 consecutive seconds. Triggering local rendering fallback overrides.`);
             
+            // BLANK GUARD (marineGuardrailRules.js): a fallback with no raster for the selected model, layer and hour is a blank sea.
+            const sel = { model: (typeof window !== 'undefined' && window.activeModel) || 'GFS',
+              layer: active.find((l) => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves',
+              hour: typeof window !== 'undefined' ? Number(window.activeTimeOffsetHours) || 0 : 0 };
+            const canDraw = hasMarine ? marineFallbackDrawable(sel) : null;
+            if (hasMarine && canDraw && canDraw.drawable === false && !ruleKilled('BLANK_GUARD')) {
+              window.__RAW_GUARDRAIL_NO_FALLBACK__ = { ...sel, rasterModel: canDraw.rasterModel, variable: canDraw.variable, fps, at: Date.now() };
+              recordChurn('marine_webgl_fallback_refused', { cause: 'no_raster_for_layer', ...sel, rasterModel: canDraw.rasterModel, fps });
+              resetLowFps();
+              return;
+            }
             if (hasMarine) {
               console.warn('[WebGLGuardrail] Triggering fallback override for WebGL Marine layer');
               // Stamp the trip as OURS and when it happened — recovery only ever undoes a
@@ -329,6 +333,7 @@ export function useWebGLGuardrail({
 
     const handleReset = () => {
       // Reset all frame rate tracking variables when tab/window focus or visibility changes
+      stopLongTasks();
       frameCount = 0;
       const now = performance.now();
       lastTime = now;
@@ -378,6 +383,7 @@ export function useWebGLGuardrail({
     return () => {
       clearInterval(recoveryTimer);
       resetLowFps();
+      stopLongTasks();
       try {
         if (mapInstance) {
           mapInstance.off('render', onRender);
