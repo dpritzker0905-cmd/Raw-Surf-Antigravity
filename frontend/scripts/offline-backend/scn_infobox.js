@@ -84,8 +84,9 @@ function keyRun(from, to) {
   return keys;
 }
 
-async function gridNear(model, validMs, pt) {
-  const bbox = [Math.floor(pt.lng - 4), Math.floor(pt.lat - 4), Math.ceil(pt.lng + 4), Math.ceil(pt.lat + 4)].join(',');
+async function gridNear(model, validMs, pt, gridBbox) {
+  // the SAME box the app's point request carried (grid_bbox), so /grid answers with the product the point sampled; else the world box
+  const bbox = gridBbox || '-180,-80,180,85';
   try {
     const j = await (await fetch(`http://127.0.0.1:${PORT}/api/weather/grid?model=${model}&domain=marine&layer=waves&valid_time=${encodeURIComponent(new Date(validMs).toISOString())}&bbox=${bbox}`)).json();
     const vs = (j.grid && j.grid.vectors) || [];
@@ -148,12 +149,13 @@ async function session(model, pt) {
       const sel = (s.anchor || 0) + h * 3600000;
       // the point product the CARD shows is the app's own record (diag.pointPid); the wire answer gives its value when it is this hour's
       const pointPid = (s.diag && s.diag.pointPid) || null;
-      const used = points.slice(p0).filter((x) => x.body && (x.body.product_id === pointPid || x.body.served_valid_time)).pop() || null;
+      const used = points.slice(p0).filter((x) => x.body && x.q && String(x.q.model || '').toUpperCase() === model && (x.body.product_id === pointPid || x.body.served_valid_time)).pop() || null;
       const pb = used && used.body;
       const pointMs = stampMs(pointPid) || (pb && pb.served_valid_time ? Date.parse(pb.served_valid_time) : null);
       const pointM = pb ? ((pb.point && pb.point.speed) ?? (pb.hourly && pb.hourly.wave_height && pb.hourly.wave_height[0]) ?? null) : null;
       const drawnMs = s.drawn ? s.drawn.dataMs || stampMs(s.engine && s.engine.pid) : null;
-      const grid = await gridNear(model, sel, pt);
+      const vpBox = /_(-?\d+\.\d+)_(-?\d+\.\d+)_(-?\d+\.\d+)_(-?\d+\.\d+)\.json$/.exec(pointPid || '');   // a viewport point product names its box
+      const grid = await gridNear(model, sel, pt, used && used.q && used.q.grid_bbox ? used.q.grid_bbox.split(',').map((x) => +(+x).toFixed(4)).join(',') : (vpBox ? vpBox.slice(1, 5).join(',') : null));
       const shownM = s.diag && s.diag.shownFt != null ? +(s.diag.shownFt / 3.28084).toFixed(3) : null;
       const valueRef = s.diag && s.diag.exactM != null ? s.diag.exactM : pointM;
       const row = { hour: h, settleMs: settled, keys: keys.length, selIso: new Date(sel).toISOString(), card: s.rows, status: s.status,
