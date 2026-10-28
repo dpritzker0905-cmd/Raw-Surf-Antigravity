@@ -191,13 +191,22 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
 
   const times = cachedResponse.hourly.time;
   const h = cachedResponse.hourly;
+  // ONE INSTANT IS NOT A RANGE (2026-10-28, the lead's offline regression re-run at 4bd90d0d9, present since 4309cc7a2/4117cfc90
+  // on 2026-06-08). The limits below read "how far this response reaches" from its LAST time, which is right for a multi-hour
+  // response (Open-Meteo legacy) and wrong for a one-instant backend answer: its only time is its own ask, snapped to the stored
+  // lattice. ICON hour 3 at 10Z asks 13Z, snaps to the stored 12Z, reads a 2 h "range", and 3 > 2 returned no_coverage with null
+  // values: "Offshore swell height --", 0 /point asks (the snapped key hits the cache), no recovery. GFS has no such gate, so it
+  // was fine at the same hours. A one-instant answer keeps the display caps only; the backend says no_coverage itself when it has
+  // none. Kill: window.__RAW_DISABLE_ONE_INSTANT_RANGE__ = true (the last time is a range end again).
+  const oneInstantAnswer = times.length === 1
+    && !(typeof window !== 'undefined' && window.__RAW_DISABLE_ONE_INSTANT_RANGE__ === true);
 
   const isEuro = cachedResponse.requestedModel === 'EURO';
   const hasCombinedWaves = cachedResponse.hourly.wave_height !== undefined;
   const hardNativeLimit = hasCombinedWaves ? DISPLAY_EURO_WAVES_MAX_HOURS : DISPLAY_EURO_COMPONENT_MAX_HOURS;
 
   let nativeLimit = hardNativeLimit;
-  if (cachedResponse.hourly?.time?.length) {
+  if (cachedResponse.hourly?.time?.length && !oneInstantAnswer) {
     const lastTimeStr = cachedResponse.hourly.time[cachedResponse.hourly.time.length - 1];
     const lastTimeMs = new Date(lastTimeStr.endsWith('Z') ? lastTimeStr : lastTimeStr + 'Z').getTime();
     const hoursFromNow = Math.max(0, Math.round((lastTimeMs - Date.now()) / 3600000));
@@ -248,7 +257,7 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
 
   const isIcon = cachedResponse.requestedModel === 'ICON';
   let iconLimit = DISPLAY_ICON_MAX_HOURS;
-  if (isIcon && cachedResponse.hourly?.time?.length) {
+  if (isIcon && cachedResponse.hourly?.time?.length && !oneInstantAnswer) {
     const lastTimeStr = cachedResponse.hourly.time[cachedResponse.hourly.time.length - 1];
     const lastTimeMs = new Date(lastTimeStr.endsWith('Z') ? lastTimeStr : lastTimeStr + 'Z').getTime();
     const hoursFromNow = Math.max(0, Math.round((lastTimeMs - Date.now()) / 3600000));

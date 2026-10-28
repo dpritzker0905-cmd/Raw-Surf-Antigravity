@@ -113,7 +113,7 @@ export function infoboxFrameView({ point, model, layer, hour, checkAsk = true, r
   if (checkAsk) {
     try { askIso = getSharedValidTime(h, layer, model, { readOnly: true }); } catch (e) { askIso = null; }
   }
-  const nearestMaxHours = latticeNearestMaxHours(model, h, { selectedMs: getSeriesAnchorMs() + h * HOUR_MS, runMs });
+  const nearestMaxHours = latticeNearestMaxHours(model, h, { selectedMs: getSeriesAnchorMs() + h * HOUR_MS, runMs, layer });
   const words = describeInfoboxFrame({ point, model, layer, hour: h, askIso, nearestMaxHours, ...(nowMs != null ? { nowMs } : {}) });
   const dataMs = pointDataMs(point);
   const refMs = dataMs ?? forecastHourMs(h);

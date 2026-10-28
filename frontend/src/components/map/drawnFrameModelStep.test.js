@@ -184,6 +184,7 @@ describe('the three callers read the drawn frame\'s run', () => {
     expect(reconcileStaleBadge('retained_stale_warning', req(RUN), drawn)).toBeNull();
     expect(reconcileStaleBadge(null, req(null), drawn)).toBe('retained_stale_warning');
     const src = fs.readFileSync(path.join(__dirname, 'MapForecastOverlay.js'), 'utf8');
-    expect(src).toMatch(/latticeNearestMaxHours\(activeModel, Number\(timeOffsetHours\), \{ selectedMs: getSeriesAnchorMs\(\) \+ Number\(timeOffsetHours\) \* 3600000, runMs: drawnFrame && drawnFrame\.runMs \}\)/);
+    // 2026-10-28 (D8, storedLattice.test.js): the overlay also passes its layer, so the rule follows that layer's stored lattice.
+    expect(src).toMatch(/latticeNearestMaxHours\(activeModel, Number\(timeOffsetHours\), \{ selectedMs: getSeriesAnchorMs\(\) \+ Number\(timeOffsetHours\) \* 3600000, runMs: drawnFrame && drawnFrame\.runMs, layer: activeLayer \}\)/);
   });
 });
