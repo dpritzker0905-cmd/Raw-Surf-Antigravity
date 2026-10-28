@@ -14,7 +14,7 @@ import { prewarmZoomOutMarineGrid } from './marineController';
 import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from './mapUtils';
 import { recordClear, shouldHoldClearOnDeactivate, noteMarineActive, shouldHoldFrameThroughSwitch, noteMarineRenderableCommit } from './marineTransitionCoordinator';
 import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
-import { engineHoldsGrid, publishMarineDrawn } from './marineDrawnFrame';
+import { engineHoldsGrid, publishMarineDrawn, retireMarineDrawn } from './marineDrawnFrame';
 import { recordResolutionSample } from './marineResolutionWatch';
 import { markMaskViewportSettled } from './marineMaskShelter';
 import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
@@ -97,7 +97,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
   // ('standard' = 50m default, 'hires' = 10m), and a stable handle to the evaluator.
   const maskResRef = useRef('standard');
   // GPU-resident frames: the store reaches this engine, GL context and map through refs read at call time.
-  useEffect(() => { registerFrameStoreTarget({ getEngine: () => engineRef.current, getGl: () => glRef.current, getMap: () => mapRef.current }); return () => registerFrameStoreTarget(null); }, []);
+  useEffect(() => { registerFrameStoreTarget({ getEngine: () => engineRef.current, getGl: () => glRef.current, getMap: () => mapRef.current }); return () => { registerFrameStoreTarget(null); retireMarineDrawn('layer_unmounted'); }; }, []);   // unmounted = the fallback swap: nothing of ours is drawn (marineDrawnFrame.retireMarineDrawn)
   const evaluateMaskRef = useRef(null);
 
   useEffect(() => {
