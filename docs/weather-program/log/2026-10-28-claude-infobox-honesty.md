@@ -139,6 +139,65 @@ live readings):
 - One wiring pin moved (`drawnFrameTruth.test.js`: the marine line now passes `latestRunMs`). `WebGLMarineLayer.parity.test.js`
   mocks the client without `getSeriesAnchorMs`, which found the throw-at-upload risk the soft fields now close.
 
+## Part 3 (16:00Z): merges for the owner's "merge what needs merging", and the ICON blank card
+
+**Merges.** dev gained #621, #615 and #617. #622: dev 395a927bc merged in. SCOREBOARD resolved append-only with the rows in date
+order (dev's 01:35Z / 03:20Z / 06:10Z, then 08:10Z). memory_audit 0 FAIL; `check-pr --base origin/dev` 0 problems. Hosted
+CI 19/19 at **6397f26e6**; chain "collected 3008 tests across 183 files -> 3008 passed", the projection exactly.
+`gh pr ready 622` was refused by this session's permission classifier, so the PR is still a draft for the user to mark ready.
+#623: #622's branch merged in. #615 conflicts in `ForecastTimeStatus.js` (imports) and `marineDrawnFrame.js`
+(`latestKnownRunMs` beside #615's `retireMarineDrawn`) resolved by keeping both sides. #615's `drawnFrameFallback.test.js` pinned
+"(estimated)" for a `euro_persistence_gfs_blend` frame, the very missing words #623 adds; the pin now reads the blend's words.
+Whole `src/` tree 567 of 568 suites, the one failure being the known Git Bash timeout. Pushed **cacd38caa**.
+`test_ledger_fragments.py::test_fold_pr_dry_run_then_push_then_replace` failed locally with "Filename too long": my long temp
+path hit Windows' path limit. With a short `--basetemp` it passes (1 passed), so it was the machine, not the branch.
+
+**The ICON blank card** (the lead's offline regression re-run at 4bd90d0d9; present at 4b8563851 and at the tip, so not new;
+since 4309cc7a2 / 4117cfc90, 2026-06-08). ICON Waves at (30, -70), z4.6, hour 0 = 10Z. Hours 3 and 6 read "Offshore swell
+height --" with status `no_coverage`, 0 `/point` asks and no recovery (evidence `rs-regress-1027 ... runs-2026-10-27/
+infobox_icon_lattice.json`: h3 selected 13Z, point 12Z; h6 selected 16Z, point 15Z). GFS and EURO were fine at the same hours.
+- **Cause:** `selectExactPointHour` takes "how far this response reaches" from its LAST time. A one-instant `/point` answer's
+  only time is its own ask, snapped to the stored lattice. At 10:07Z the 12Z answer reads as a 2 h range, so 3 > 2 returns
+  `no_coverage` with nulls, and the snapped request key hits the cache, so nothing refetches.
+- **Fix (client only, ON):** a one-instant answer keeps the display caps (336 h) and never shrinks the limit (ICON, and the EURO
+  legacy gate the same way). A multi-hour response still ends at its last time. Kill: `window.__RAW_DISABLE_ONE_INSTANT_RANGE__`.
+- **Proof** (`iconOneInstantRange.test.js`, 5 tests, the run's own eight rows, 10:07:15Z): under the kill switch, hours **3 and
+  6** blank, exactly as recorded ("Offshore swell height --"); after the fix, **8 of 8** hours read "Offshore swell height 3.0
+  ft". GFS reads the same before and after (it never had the gate). A 6-hour series still returns `no_coverage` past its end.
+  With #622's words, the fixed h3 reads "Showing <12Z>: the nearest stored forecast".
+- Not re-run in the browser harness (the lead's `scn_infobox.js` on `claude/regress-1027`).
+
+## Part 4 (19:30Z): D4, the infobox showed another model's numbers under the selected model's name
+
+**Ask, the lead (the offline erratic fuzzer, 2026-10-27, evidence `rs-fuzz-1027 … fuzz-2026-10-27/repro/min-infobox-model.json`,
+seed 980, 4 of 4):** GFS Waves at the Atlantic z3, `/grid` slowed to 1.5 s, click EURO, right-click the sea 150 ms later. The app
+asked `/point?model=EURO&grid_product_id=gfs_marine_waves_global_mid_…`, the backend answered `model: GFS` 1.1309 m, and the card
+said "EURO Forecast … 3.7 ft"; EURO's own value is 1.1987 m (3.9 ft). Seen unprompted three more times (once a GFS SoCal swell_2
+id). Client first, ON with a kill switch; a backend refusal only behind a dark flag.
+
+**Read in the code** (four leak paths, not two):
+- `useExactPointFetch` sent `marineData.grid`'s id and box; mid-switch that grid is still the previous model's.
+- `backendCopernicusServiceClient` (EURO point) borrowed `__MARINE_PROJECTION_DIAG__`'s id and box with no model or layer check
+  (the GFS/ICON client already checked).
+- `useOpenMeteoForecast` took whichever projection diag was set and put its id on all three asks (wind, pressure, rain).
+- `fetchBackendExactPoint`'s ICON past-168 children forwarded ICON's id to their GFS asks.
+
+**Changed (client only):** `pointProductHint.js` reads a product's model and layer from the store's id form
+(`[viewport_]{model}_{domain}_{layer}_…`) and a grid's own identity fields. A hint naming another model or layer is dropped with
+its box (the backend then resolves the point from the selected model's own products); a reply whose `model` differs from the ask
+is refused by throwing (the callers' existing fallback runs; nothing is cached). Wired into the hook, both marine point clients,
+`createPointRequestContext` and `useOpenMeteoForecast` (the wind id on the wind ask only, from this model's wind diag; pressure
+and rain get none, as `pointRequestIdentity` already rules). Counters: `window.__RAW_POINT_MODEL_GUARD__` (`hint_dropped`,
+`reply_refused`, `last`). Kill: `window.__RAW_DISABLE_POINT_MODEL_GUARD__`. No backend change (a dark `/point` refusal of a
+foreign `grid_product_id` is a follow-up the client no longer needs).
+
+**Offline proof** (`pointProductHint.test.js`, 9 tests; the real EURO and GFS/ICON point clients against a stub that answers as
+the fuzzer's backend did, sampling whatever product the ask names): the EURO ask with the GFS grid's id now goes out without it
+and maps **3.9 ft** (EURO's 1.1987 m); under the kill switch the id goes out and the card maps **3.7 ft** (GFS's 1.1309 m), the
+fuzzer's reading. A stale GFS projection diag is not borrowed; a backend still answering GFS to EURO or ICON is refused twice,
+never cached; GFS asks keep their own id. One source pin moved (`marineCommittedIdentity.test.js`: the id read now lives in
+`gridHintsFor`). Not re-run in the fuzzer itself.
+
 ## Part 5 (21:00Z): D8, EURO's "nearest" rule follows the layer and the stored lattice
 
 **Ask, the lead (the offline erratic fuzzer, `inv2_nearest_claim_overbroad`, 92 times, once held 22.5 s):** EURO's half-step was

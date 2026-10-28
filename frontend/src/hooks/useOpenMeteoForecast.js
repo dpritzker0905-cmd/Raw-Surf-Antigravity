@@ -3,6 +3,7 @@ import logger from '../utils/logger';
 import { BACKEND_URL } from '../lib/apiClient';
 import { isInCooldown } from '../components/map/marineControllerUtils';
 import { governMarineRequest as governProxyRequest } from '../components/map/marineRequestGovernor';
+import { pointModelGuardOn, productHintFor } from '../components/map/pointProductHint';
 
 /**
  * Open-Meteo Weather + Marine forecast hook (v3.12.5).
@@ -167,10 +168,17 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
 
           let gridProductId = null;
           let gridBbox = null;
+          // D4 (2026-10-28, pointProductHint.js): the id named whichever diag was set (a marine product on a pressure ask, the
+          // last model's after a switch) and went on all three asks. It now goes on the WIND ask only, from the wind diag of THIS
+          // model; pressure and rain products are not those (pointRequestIdentity drops weather hints the same way).
+          let windProductId = null;
           if (typeof window !== 'undefined') {
-            const diag = window.__WIND_PROJECTION_DIAG__ || window.__MARINE_PROJECTION_DIAG__;
-            if (diag) {
-              gridProductId = diag.productId || diag.gridProductId || null;
+            const guard = pointModelGuardOn();
+            const windDiag = window.__WIND_PROJECTION_DIAG__;
+            const diag = guard ? windDiag : (windDiag || window.__MARINE_PROJECTION_DIAG__);
+            if (diag && (!guard || diag.activeModel === activeModel)) {
+              gridProductId = guard ? null : (diag.productId || diag.gridProductId || null);
+              windProductId = guard ? productHintFor(diag.productId || diag.gridProductId || null, activeModel, 'wind') : gridProductId;
               gridBbox = diag.requested_bbox || diag.backendRequestBbox || null;
             }
           }
@@ -183,9 +191,9 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
             }
           }
 
-          if (gridProductId) {
+          if (windProductId) windUrl += `&grid_product_id=${encodeURIComponent(windProductId)}`;
+          if (gridProductId) {   // kill switch only: the old id on every ask
             const pId = encodeURIComponent(gridProductId);
-            windUrl += `&grid_product_id=${pId}`;
             pressureUrl += `&grid_product_id=${pId}`;
             precipUrl += `&grid_product_id=${pId}`;
           }
