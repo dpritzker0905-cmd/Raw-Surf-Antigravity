@@ -70,6 +70,21 @@ export function refuseForeignReply(json, model, layer) {
   throw err;
 }
 
+/**
+ * Does `bbox` ("west,south,east,north", degrees; west > east crosses the antimeridian) contain the point? A box that does not
+ * is not the point's box (D10: a Hawaii view box was sent with a Mexico point). Unparseable box: false.
+ */
+export function bboxContains(bbox, lat, lng) {
+  const p = String(bbox || '').split(',').map(Number);
+  if (p.length !== 4 || !p.every(Number.isFinite) || !Number.isFinite(lat) || !Number.isFinite(lng)) return false;
+  const [w, s, e, n] = p;
+  if (lat < Math.min(s, n) || lat > Math.max(s, n)) return false;
+  if (Math.abs(e - w) >= 360) return true;
+  const wrap = (x) => ((((x + 180) % 360) + 360) % 360) - 180;
+  const W = wrap(w); const E = wrap(e); const L = wrap(lng);
+  return W <= E ? (L >= W && L <= E) : (L >= W || L <= E);
+}
+
 /** Instruments (the fuzzer, TruthOverlay) count what the guard did: window.__RAW_POINT_MODEL_GUARD__. */
 export function notePointModelGuard(kind, detail) {
   if (typeof window === 'undefined') return;
