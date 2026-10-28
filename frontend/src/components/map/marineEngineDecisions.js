@@ -660,9 +660,11 @@ export function resolveColdVeil(veil, opts, nowMs, win) {
   const span = +opts.viewportSpanDeg;
   const inadequate = opts.residentCoarseGlobal === true && span > 0 && span < 15 && opts.isRating !== true;
   if (!veil.liftT0) {
-    if (inadequate && (nowMs - veil.t0) < grace) return { mult: 0.0, veil };
-    // Lift: adequate resident (regional swap / wide viewport / rating) or grace expiry.
-    if (!inadequate && (nowMs - veil.t0) < 50) return { mult: 1.0, veil: null }; // never engaged ⇒ no ramp
+    if (inadequate && (nowMs - veil.t0) < grace) { veil.hid = true; return { mult: 0.0, veil }; }
+    // Lift: adequate resident (regional swap / wide viewport / rating) or grace expiry. A veil that never hid a frame lifts with no
+    // ramp (D11: the first frame after a WebGL context restore came > 50 ms after its cold commit and was ramped up from 0; kill
+    // __RAW_DISABLE_VEIL_NEVER_HID__ restores the 50 ms timing rule alone).
+    if (!inadequate && ((nowMs - veil.t0) < 50 || (!veil.hid && w.__RAW_DISABLE_VEIL_NEVER_HID__ !== true))) return { mult: 1.0, veil: null };
     veil.liftT0 = nowMs;
     veil.reason = inadequate ? 'grace' : 'adequate';
   }
