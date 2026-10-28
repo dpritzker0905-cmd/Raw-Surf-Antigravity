@@ -23,6 +23,7 @@ import { marineValueValidityEnabled, marinePointValues } from './marinePointValu
 import { arrayMax } from './marineControllerUtils';
 import { staticEligible, tryStaticWorldGrid } from './staticFrames';
 import { readMarineFrameReceipt } from './marineFrameReceipt';
+import { hintIsForeign, pointModelGuardOn, productHintFor, refuseForeignReply } from './pointProductHint';
 
 export const copernicusPointCache = new BoundedPointCache(50, 30000);
 
@@ -529,15 +530,14 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
 export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, signal, layer = 'swell_1', gridProductIdParam = null, gridBboxParam = null, requestContext = null) {
   requestContext = pointRequestIdentityEnabled()
     ? requestContext || createPointRequestContext('EURO', layer, hourOffset, false, gridProductIdParam, gridBboxParam) : null;
-  let gridProductId = gridProductIdParam;
-  if (!gridProductId && typeof window !== 'undefined' && window.__MARINE_PROJECTION_DIAG__) {
-    gridProductId = window.__MARINE_PROJECTION_DIAG__.productId || window.__MARINE_PROJECTION_DIAG__.gridProductId || null;
-  }
-
-  let gridBbox = gridBboxParam;
-  if (!gridBbox && typeof window !== 'undefined' && window.__MARINE_PROJECTION_DIAG__) {
-    gridBbox = window.__MARINE_PROJECTION_DIAG__.requested_bbox || window.__MARINE_PROJECTION_DIAG__.backendRequestBbox || null;
-  }
+  // D4 (pointProductHint.js): a foreign hint is dropped with its box; the diag lends one only when it is EURO's and this layer's.
+  const foreignHint = hintIsForeign(gridProductIdParam, 'EURO', layer);
+  const projDiag = typeof window !== 'undefined' ? window.__MARINE_PROJECTION_DIAG__ : null;
+  const diagIsOurs = !!projDiag && (!pointModelGuardOn() || (projDiag.activeModel === 'EURO' && projDiag.activeLayer === layer));
+  let gridProductId = foreignHint ? null : gridProductIdParam;
+  if (!gridProductId && diagIsOurs) gridProductId = productHintFor(projDiag.productId || projDiag.gridProductId || null, 'EURO', layer);
+  let gridBbox = foreignHint ? null : gridBboxParam;
+  if (!gridBbox && diagIsOurs) gridBbox = projDiag.requested_bbox || projDiag.backendRequestBbox || null;
 
   const start = Date.now();
   if (requestContext) {
@@ -620,6 +620,7 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       };
     }
     const json = await res.json();
+    refuseForeignReply(json, 'EURO', layer);   // D4: a GFS answer is never shown as "EURO Forecast"
     
     // Structure conformed hourly response compatible with forecastSamplers.js expectations.
     const mockTime = validTimeStr.replace(/\.\d+Z$/, 'Z');
