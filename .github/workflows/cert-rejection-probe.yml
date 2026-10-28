@@ -1,0 +1,42 @@
+name: Cert rejection probe (one-off, do not merge)
+on:
+  pull_request:
+    paths: ['.github/workflows/cert-rejection-probe.yml']
+permissions:
+  contents: read
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install the pinned certifi floor plus requests and httpx
+        run: |
+          floor=$(grep -iE '^certifi' backend/requirements.txt | head -1)
+          echo "requirements pin: $floor"
+          python -m pip install -q "$floor" requests httpx
+          python -c "import certifi;print('certifi',certifi.__version__)"
+      - name: Probe (expect: google accepted, both emudhra chains rejected)
+        run: |
+          python - <<'PY'
+          import sys, requests, httpx
+          cases = [("https://www.google.com/", True),
+                   ("https://dv-g3b-emudhra.we-have-a-problem.com/", False),
+                   ("https://dv-g3b-aaa-emudhra.we-have-a-problem.com/", False)]
+          bad = 0
+          for url, should_pass in cases:
+              for name, call in (("requests", lambda u: requests.get(u, timeout=20)),
+                                 ("httpx", lambda u: httpx.get(u, timeout=20))):
+                  try:
+                      r = call(url); outcome = f"ACCEPTED {r.status_code}"; ok = should_pass
+                  except Exception as e:
+                      msg = str(e)
+                      verify = "CERTIFICATE_VERIFY_FAILED" in msg or "certificate verify failed" in msg.lower()
+                      outcome = ("REJECTED (verify failed)" if verify else f"ERROR {type(e).__name__}: {msg[:120]}")
+                      ok = (not should_pass) and verify
+                  print(f"{'PASS' if ok else 'FAIL'} {name:8} {url} -> {outcome}")
+                  bad += (not ok)
+          sys.exit(1 if bad else 0)
+          PY
