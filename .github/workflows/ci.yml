@@ -174,7 +174,9 @@ jobs:
             // ForecastTimeStatus.test.js. Raised by exactly that from the floor above; confirm against the hosted receipt.
             // Rating band toggle instant (2026-10-26): marineFlavorToggle.test.js (+1 suite / +8 tests), useMarineDataFetcherCore.flavorToggle.test.js
             // (+1 suite / +4 tests), ForecastTimeStatus.test.js +3 tests. Raised by exactly that; confirm against the hosted receipt.
-            const MIN_SUITES = 520, MIN_TESTS = 6853;
+            // Infobox honesty (2026-10-28, #622): infoboxFrameTime.test.js (+1 suite / +19 tests) and the audit's
+            // infobox-heatmap-agreement.audit.test.js (+1 suite / +7 tests). Raised by exactly that; confirm against the hosted receipt.
+            const MIN_SUITES = 522, MIN_TESTS = 6879;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }

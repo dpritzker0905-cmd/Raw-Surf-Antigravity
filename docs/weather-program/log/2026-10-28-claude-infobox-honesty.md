@@ -66,6 +66,15 @@ switch. One backend change, words only (an `estimate_basis.type` label; see P2).
   2976 / 182 files): this PR must read **3008** passed, floor 3002, files 183.
 - Not checked in a browser (no offline-harness run: /point over synthetic data plus a full build). The words row and the
   header line are pinned by render tests in all three theme classes, not by a screenshot.
+- **Correction, 08:25Z.** The first hosted run (CI 40655401611 / 40655818899, lint-and-build) failed 3 tests in
+  `src/__tests__/` — a third test tree CLAUDE.md's command does not name, which I had not run: `forecastCard.provisional`
+  ("3 ft…" -> "3.0 ft…", "2 ft…" -> "2.0 ft…") and `forecastCard.heightUnits` (the spot glyph's accessible name "1 m" ->
+  "1.0 m"). All three are the intended one-decimal readout rule, pinned as the old reading; updated. The whole `src/`
+  tree is 564 suites / 7,271 tests (hosted). Locally two other suites timed out under the full parallel run
+  (`netlifyIconStoredTailScope`: bash spawn ETIMEDOUT; `marineFrameStoreCrop`: a 5 s test timeout); both pass on hosted
+  CI. In isolation `marineFrameStoreCrop` passes here; `netlifyIconStoredTailScope` still times out spawning Git Bash on
+  this Windows machine (12 tests; it touches no file this PR changes). Frontend floor raised by this PR's own +2 suites / +26 tests: 520/6853 -> 522/6879.
+  LESSON: run `--testMatch "**/src/**/*.test.js" "**/src/**/__tests__/**/*.js"`, not the two named trees.
 
 ## Follow-ups (not done here)
 
