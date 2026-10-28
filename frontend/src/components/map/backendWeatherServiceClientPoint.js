@@ -1,4 +1,5 @@
 import { getSharedValidTime, pointCache, POINT_URL, blendDirection, blendPeriod } from './backendWeatherServiceClient';
+import { logFetchFailure } from './marineQuietFailures';
 import { iconExtendedContinuityDecay, iconExtendedContinuityOffset } from './backendWeatherServiceClientHelpers';
 import { requireMarineDirection } from './marineDirectionBlend';
 import { recordTruthStage } from './weatherTruthTracker';
@@ -260,7 +261,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
           };
         }
       } catch (err) {
-        console.error('[Backend Weather Client Point] ICON extended point emulation failed:', err);
+        logFetchFailure(err, '[Backend Weather Client Point] ICON extended point emulation failed:', err);   // D12: an abort is not an error
         throw err;
       }
     }
