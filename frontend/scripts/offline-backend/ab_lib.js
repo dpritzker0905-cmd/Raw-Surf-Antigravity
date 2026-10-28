@@ -66,6 +66,9 @@ async function launch({ port, width = 1280, height = 800, dpr = 1, gpu = true, h
   if (!port && !live) throw new Error('launch({ port }) needs the synthetic backend port');
   const args = ['--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--enable-unsafe-swiftshader'];
   if (gpu) args.push('--use-angle=d3d11');
+  // AB_CHROME_ARGS ('|'-separated, 2026-10-27): extra Chrome switches, e.g. `--host-resolver-rules=MAP rawsurf.test 127.0.0.1` so the
+  // SPA runs on a non-local host name (the WebGL guardrail is switched off on localhost / 127.0.0.1, useWebGLGuardrail.js).
+  for (const a of String(process.env.AB_CHROME_ARGS || '').split('|').filter(Boolean)) args.push(a);
   const browser = await chromium.launch({ channel: 'chrome', headless: true, args });
   const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: dpr, serviceWorkers: 'block',
     ...(video ? { recordVideo: { dir: video, size: { width, height } } } : {}), ...contextOptions });
