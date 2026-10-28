@@ -177,3 +177,32 @@ INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS per #600's runbook and read #610 back on
   guardrail (correction above), so this is a separate question.
 - A read-only live script (S1-S11, about 30 owed read-backs) was written but not run: it is longer than the one short
   live scenario the rules allow.
+
+## Offline regression re-run at dev 4bd90d0d9 (subagent, 2026-10-27 20:10Z to 10-28 14:55Z)
+- **No matrix row regressed.** Where timing was in doubt, a same-window control build at 4b8563851 agreed with the tip.
+  - Run size: 148 driver runs and 321 browser sessions. 0 requests reached the live backend: 17,894 onrender.com asks
+    were answered locally. Jest 7,233/7,245 (one environmental timeout); pytest 253 passed.
+  - New rows pass against their controls:
+    - #601: EURO/ICON mid-zoom drags 12/12 vs 1/12.
+    - #602: 0 blank frames vs 387 at a held switch.
+    - #610: 96/96 EURO 6-hourly band hours, p95 41 ms, 0 stuck vs 6 stuck.
+  - All four owner cases pass on the tip: band_off 27 ms, icon_far 2-17 ms, euro_switch 0 blank, euro_240 every step
+    exact in 41 ms or less. euro_240's scenario exit is an instrument criterion.
+- **Infobox vs heat map: three problems, all present in both builds (not regressions):**
+  1. **ICON card goes blank** ("Offshore swell height --", `no_coverage`, no `/point` ask, no recovery) whenever the
+     nearest stored ICON frame is earlier than the selected hour. Likely cause: the `iconLimit` gate in
+     `forecastSamplers.js`, introduced 2026-06-08. Routed to the infobox-honesty session as a separate PR.
+  2. **EURO and ICON cards under-read** where wave directions diverge. `/point` reports the height as |bilinear(u, v)|
+     while the heat map shows the scalar height. At 15.5 N, 108.5 W the card read EURO 4.00 m vs map 7.85 m and ICON
+     3.47 vs 6.82. `SAMPLER_SCALAR_HEIGHT` covers GFS only (on since 10-17), so this is live for EURO/ICON. It is an
+     owner decision.
+  3. **Past ICON's native range** the card blends anchor fetches in the browser while the heat map draws the stored
+     D-055 tail: +23% at h250 and +11% at h300 at 21.5 N, 118 W (infobox P1-B, owner decision).
+- **z9 open ocean (EURO and GFS alike), hours 141-155:** offline steps take 3.8-8.3 s, with honest
+  "Loading ... still showing" words, because each waits on the dynamic viewport `/grid`. It is neither EURO-specific
+  nor new (the control matches). Florida z9 draws from the store in 1-20 ms. Same root as the forensics slow-path
+  cell "outside any pilot tile at z7+".
+- **Instrument faults found and fixed on the harness branch (not pushed):** silent-word regexes lacked "Holding" and
+  "not arriving"; `scn_static_parity` gained a `SETS_RE` filter. Still open: euro_240's relabel criterion, series-frame
+  dating on a 3-hourly hour 0, `__MARINE_SOURCE_PARITY__` UNSAMPLED on every row, and the offline store missing the live
+  GFS `SAMPLER_SCALAR_HEIGHT=1`.
