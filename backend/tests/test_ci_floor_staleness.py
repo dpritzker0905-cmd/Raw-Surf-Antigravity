@@ -39,8 +39,9 @@ def test_test_fixtures_leave_platform_metadata_usable():
 
 @pytest.mark.parametrize('environment,expected', [
     ({'GITHUB_REF_NAME': 'dev'}, 'dev'),
-    ({'GITHUB_REF_NAME': 'main'}, 'main'),
-    ({'GITHUB_REF_NAME': '13/merge', 'GITHUB_BASE_REF': 'main'}, 'main'),
+    # main is dev promoted by squash and its own ci.yml is red because of this check: it reads dev's runs.
+    ({'GITHUB_REF_NAME': 'main'}, 'dev'),
+    ({'GITHUB_REF_NAME': '13/merge', 'GITHUB_BASE_REF': 'main'}, 'dev'),
 ])
 def test_history_branch_follows_the_tested_branch(monkeypatch, environment, expected):
     monkeypatch.delenv('GITHUB_REF_NAME', raising=False)
