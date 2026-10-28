@@ -39,8 +39,9 @@ def test_test_fixtures_leave_platform_metadata_usable():
 
 @pytest.mark.parametrize('environment,expected', [
     ({'GITHUB_REF_NAME': 'dev'}, 'dev'),
-    ({'GITHUB_REF_NAME': 'main'}, 'main'),
-    ({'GITHUB_REF_NAME': '13/merge', 'GITHUB_BASE_REF': 'main'}, 'main'),
+    # main is dev promoted by squash and its own ci.yml is red because of this check: it reads dev's runs.
+    ({'GITHUB_REF_NAME': 'main'}, 'dev'),
+    ({'GITHUB_REF_NAME': '13/merge', 'GITHUB_BASE_REF': 'main'}, 'dev'),
 ])
 def test_history_branch_follows_the_tested_branch(monkeypatch, environment, expected):
     monkeypatch.delenv('GITHUB_REF_NAME', raising=False)
@@ -488,11 +489,11 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # conflicts, by design: take dev's side, then `python backend/scripts/rederive_floor.py --lane <lane> --add <this
 # PR's new tests>` re-derives both this value and ci.yml's floor from dev (LESSONS L-P39).
 _FLOOR_SET_FROM = {
-    # guards: set from 3341 = max(dev run 40277485849 read 3331, dev's map 3337) + 4 (claude/wind-gfs-hourly, 2026-10-26); floor 3335, margin 6.
-    "guards": 3341,
+    # guards: set from 3351 = max(dev run 40398047789 read 3341, dev's map 3341) + 10 (claude/manifest-object-consistency, 2026-10-26); floor 3345, margin 6.
+    "guards": 3351,
 
-    # chain: set from 2975 = max(dev run 40368017005 read 2973, dev's map 2973) + 2 (claude/tail-frames-ask-parity, 2026-10-26); floor 2969, margin 6.
-    "chain": 2975,
+    # chain: set from 2976 = max(dev run 40403312401 read 2973, dev's map 2975) + 1 (claude/prune-protect-wiring, 2026-10-26); floor 2970, margin 6.
+    "chain": 2976,
 
     # estate: set from 3376 = max(dev run 40405333333 read 3372, dev's map 3372) + 4 (claude/publisher-read-retry-coverage, 2026-10-27); floor 3374, margin 2.
     "estate": 3376,

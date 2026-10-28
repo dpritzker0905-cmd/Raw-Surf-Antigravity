@@ -959,7 +959,9 @@ jobs:
           #   base 3331 (hosted read) + 6 new test(s) and 0 new file(s) = 3337, files 212; floor 3337 - 6 = 3331. This PR must read 3337 passed.
           # ⬆ 3331→3335 on 2026-10-26 (rederive_floor.py, claude/wind-gfs-hourly): dev run 40277485849 read 3331 / 212 files; dev's map 3337;
           #   base 3337 (dev's map) + 4 new test(s) and 0 new file(s) = 3341, files 212; floor 3341 - 6 = 3335. This PR must read 3341 passed.
-          MIN_FILES, MIN_PASSED = 212, 3335
+          # ⬆ 3335→3345 on 2026-10-26 (rederive_floor.py, claude/manifest-object-consistency): dev run 40398047789 read 3341 / 212 files; dev's map 3341;
+          #   base 3341 (hosted read) + 10 new test(s) and 1 new file(s) = 3351, files 213; floor 3351 - 6 = 3345. This PR must read 3351 passed.
+          MIN_FILES, MIN_PASSED = 213, 3345
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1582,7 +1584,9 @@ jobs:
           #   base 2972 (hosted read) + 1 new test(s) and 0 new file(s) = 2973, files 182; floor 2973 - 6 = 2967. This PR must read 2973 passed.
           # ⬆ 2967→2969 on 2026-10-26 (rederive_floor.py, claude/tail-frames-ask-parity): dev run 40368017005 read 2973 / 182 files; dev's map 2973;
           #   base 2973 (hosted read) + 2 new test(s) and 0 new file(s) = 2975, files 182; floor 2975 - 6 = 2969. This PR must read 2975 passed.
-          MIN_FILES, MIN_PASSED = 182, 2969
+          # ⬆ 2969→2970 on 2026-10-26 (rederive_floor.py, claude/prune-protect-wiring): dev run 40403312401 read 2973 / 182 files; dev's map 2975;
+          #   base 2975 (dev's map) + 1 new test(s) and 0 new file(s) = 2976, files 182; floor 2976 - 6 = 2970. This PR must read 2976 passed.
+          MIN_FILES, MIN_PASSED = 182, 2970
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

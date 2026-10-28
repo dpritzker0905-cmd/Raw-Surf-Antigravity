@@ -294,6 +294,11 @@ async def resolve_grid(
                                     authoritative_candidates, estimated_candidates, product)
 
     # Step 3: Durable manifest full coverage
+    if not product and use_manifest_product and matching_manifest_item:   # RESOLVER_SKIP_MISSING_OBJECT (dark): resolver_missing_skip.py
+        from services.weather_pipeline.resolver_missing_skip import skip_missing
+        matching_manifest_item, manifest_preview_item, use_manifest_product, regional_span_lng = await skip_missing(
+            store, (matching_manifest_item, manifest_preview_item, use_manifest_product, regional_span_lng),
+            authoritative_candidates, estimated_candidates, _mid_auth + _mid_est, domain, model, target_dt, req_w, req_s, req_e, req_n)
     if not product:
         if use_manifest_product and matching_manifest_item:
             candidate_product = await asyncio.to_thread(store.load_product, matching_manifest_item.filename, **_load_kw(series_stride))

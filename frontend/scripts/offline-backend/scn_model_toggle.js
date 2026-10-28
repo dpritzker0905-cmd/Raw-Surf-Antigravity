@@ -206,12 +206,12 @@ async function expectedBox(page, log, zoomedIn) {
   return [Math.floor(b[0]), Math.floor(b[1]), Math.ceil(b[2]), Math.ceil(b[3])].join(',');
 }
 
-// Hour 0 of the APP (2026-10-24): the resident grid's own asked valid time minus its hour offset. The old rounded clock disagreed with the
-// app's anchor by an hour whenever the run fell in the second half of an hour, which made a correct frame read as a mislabel (the Biscay
-// north-edge cell, 1,821 'silent' frames). Falls back to the rounded clock when the grid carries neither field.
+// Hour 0 of the APP, read from the app itself (2026-10-26): labelMs - hour of `__RAW_SELECTED_FRAME__` (= getSeriesAnchorMs()), else the
+// rounded clock (the same rule). The 2026-10-24 rule (resident valid_time minus hour offset) read the snapped product time and was 1-2 h off
+// whenever hour 0 sat off the 3-hourly cadence (see scn_zoom_scrub.js).
 async function appAnchor(page) {
-  const a = await page.evaluate(() => { const e = window.__MARINE_ENGINE__; const g = e && e._waveData && e._waveData.waveGrid;
-    const t = g && Date.parse(g.valid_time || g.validTime || ''); return g && Number.isFinite(t) && Number.isFinite(g.hourOffset) ? t - g.hourOffset * 3600000 : null; });
+  const a = await page.evaluate(() => { const f = window.__RAW_SELECTED_FRAME__;
+    return f && Number.isFinite(f.labelMs) && Number.isFinite(f.hour) ? f.labelMs - f.hour * 3600000 : null; });
   return a != null ? a : Math.round(Date.now() / 3600000) * 3600000;
 }
 
