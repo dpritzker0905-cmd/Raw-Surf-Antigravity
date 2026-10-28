@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { evaluateMarineTimelineCoverage, readMarineTimelineRenderEvidence, reconcileMarineTimelineCoverage } from './marineTimelineCoverage';
-import { drawnFallbackTruthKilled, useMarineDrawnFrame } from './marineDrawnFrame';
+import { drawnFallbackTruthKilled, useMarineDrawnFrame, latestKnownRunMs } from './marineDrawnFrame';
 import { useMarineFallbackState } from './marineFallbackNotice';
-import { describeDrawnFrame, latticeNearestMaxHours } from './drawnFrameReadout';
+import { describeDrawnFrame, describeCoarseGrid, latticeNearestMaxHours } from './drawnFrameReadout';
 import { getSeriesAnchorMs, getSharedValidTime } from './backendWeatherServiceClient';
 import { HOLD_INDICATOR_MS, holdNoDimKilled } from './marineStaleHour';
 import { useRasterDrawnFrame, describeRasterFrame, RASTER_STATUS_LAYERS, PENDING_QUIET_MS } from './rasterDrawnFrame';
@@ -47,8 +47,12 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
   // Half the stored marine lattice step (3-hourly; EURO 6-hourly past model step 144, read from the drawn frame's run): a frame
   // further off is an exact upgrade still owed, so it reads "Loading", never "nearest" (same rule as WindTimeStatus, 2026-10-19).
   const nearestMaxHours = latticeNearestMaxHours(model, hour, { selectedMs: labelMs, runMs: drawn && drawn.runMs });
+  // The newest verified cycle the manifest names, so a held frame can say "from an older run" (drawnFrameReadout holdReason).
+  const latestRunMs = isRaster || readoutOff ? null : latestKnownRunMs(model, layer);
   const readout = isRaster ? (rasterReadout && (rasterReadout.state !== 'pending' || rasterShowPending) ? rasterReadout : null)
-    : (readoutOff ? null : describeDrawnFrame({ model, layer, hour, instantMs, labelMs, nearestMaxHours }, drawn));
+    : (readoutOff ? null : describeDrawnFrame({ model, layer, hour, instantMs, labelMs, nearestMaxHours, latestRunMs }, drawn));
+  // A drawn grid this coarse is said in words (EURO swells are a 10.3-degree grid at every zoom): one quiet line, all themes.
+  const coarse = isRaster || readoutOff ? null : describeCoarseGrid({ model, layer }, drawn);
   if (typeof window !== 'undefined') window.__RAW_SELECTED_FRAME__ = { model, layer, hour, instantMs, labelMs };   // instruments compare by instant
 
   const readStatus = useCallback(() => {
@@ -89,10 +93,16 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
   }
   // FIRST in the block: the phone's expanded sheet ends under the bottom nav, so a line after the time readout was off screen (measured 2026-10-26).
   const heldText = !isRaster ? ratingBandHeldText(heldBy) : null;
-  const heldLine = heldText ? (
+  const bandLine = heldText ? (
     <div role="status" aria-live="polite" data-rating-band-held={heldBy}
       className={`mt-1 text-xs ${tone}`}>{heldText}</div>
   ) : null;
+  // Before the time readout for the same reason as the band line (the phone's sheet). Text, never colour alone; the beach panel is
+  // black/90 (MapWeatherControls), so `quiet` reads on all three themes.
+  const coarseLine = coarse ? (
+    <div role="status" aria-live="polite" data-coarse-grid={coarse.deg} className={`mt-1 text-xs ${quiet}`}>{coarse.text}</div>
+  ) : null;
+  const heldLine = bandLine || coarseLine ? <>{bandLine}{coarseLine}</> : null;
   if (readout) {
     return (
       <>

@@ -7,6 +7,9 @@
  * calls publishMarineDrawn() right after a successful upload; React reads it with useMarineDrawnFrame() in the same frame.
  */
 import { useSyncExternalStore } from 'react';
+import { getSeriesAnchorMs } from './backendWeatherServiceClient';
+import { deriveResolutionDeg } from './backendWeatherServiceClientDiag';
+import { getCachedManifest } from './backendWeatherServiceClientCoverage';
 
 let current = null;
 let publishedGrid = null;   // the grid object the record describes (syncDrawnToEngine compares the engine's resident with it)
@@ -38,12 +41,20 @@ export function readoutModelRun(marineData) {
   return known(g) || known(marineData) || (r && r.modelRunTimeStatus === 'known' && r.modelRunTime) || null;
 }
 
+// A readout-only field must never break the upload that publishes it: on any throw it is simply unknown (null).
+const softly = (fn) => { try { const v = fn(); return Number.isFinite(v) ? v : null; } catch (e) { return null; } };
+
 /** Called by WebGLMarineLayer after engine.setWaveData took `grid` (and by the frame store's shows). */
 export function publishMarineDrawn(grid, fallback = {}) {
   if (!grid) return;
   publishedGrid = grid;
   const basis = grid.estimate_basis || null;
   const served = grid.served_valid_time || (killed('DRAWN_SERVED_TIME') ? '' : grid.__readoutServedTime) || '';
+  // A RATING frame's estimate is the surf model, not the forecast (2026-10-28, the lead's 10-26/10-27 live rounds): the surf
+  // transform stamps every rating grid is_estimated=True whatever the hour (backend grid_resolver_surf.py), so the line read
+  // "Estimated forecast: estimated" over GFS hour 0, and for ~1.9 s after band OFF over a native EURO hour. With no basis of its
+  // own the forecast under it is native. Kill: window.__RAW_DISABLE_DRAWN_ESTIMATE_WORDS__ = true (the flag is read as served).
+  const surfOnlyEstimate = !!grid.ratingMode && !(basis && basis.type) && !killed('DRAWN_ESTIMATE_WORDS');
   current = {
     hour: Number.isFinite(grid.hourOffset) ? grid.hourOffset : (Number.isFinite(fallback.hour) ? fallback.hour : null),
     layer: grid.__componentLayer || fallback.layer || null,
@@ -51,11 +62,17 @@ export function publishMarineDrawn(grid, fallback = {}) {
     validTime: served || grid.valid_time || null,
     // The DATA instant: the served time is the truth; a /grid valid_time only echoes the request (C-12), a series frame's is its own.
     dataMs: Date.parse(served || (grid.__fromSeries ? grid.valid_time : '') || '') || null,
-    estimated: !!(grid.is_estimated || grid.isEstimated),
+    estimated: !!(grid.is_estimated || grid.isEstimated) && !surfOnlyEstimate,
     basisType: basis && basis.type ? basis.type : null,
     // A far-edge hold's held frame time (estimate_basis.held_from): the status line names it even when no served time arrived.
     heldFromMs: basis && basis.held_from ? (Date.parse(basis.held_from) || null) : null,
     runMs: runMsOf(grid),
+    // The clock the hour was drawn on (2026-10-28): after a long idle the selection's anchor moves on while the record keeps its
+    // hour label; the line then names that, not "beyond <model>’s range" (drawnFrameReadout: holdReason).
+    anchorMs: softly(() => getSeriesAnchorMs()),
+    // The drawn grid's node spacing by the TruthOverlay HUD's own rule (deriveResolutionDeg, the coarser axis): EURO swells at z9
+    // are a 10.313-degree grid and only the HUD said so (drawnFrameReadout.describeCoarseGrid).
+    resolutionDeg: softly(() => deriveResolutionDeg(grid.bounds || null, grid.cols, grid.rows)),
     provider: grid.__gridProvider || grid.provider || null,
     store: !!grid.__fromFrameStore,   // the GPU frame store put it there (field telemetry's hit/miss)
     ts: Date.now(),
@@ -65,6 +82,30 @@ export function publishMarineDrawn(grid, fallback = {}) {
 }
 
 export function getMarineDrawn() { return current; }
+
+/**
+ * The newest VERIFIED model cycle the cached manifest names for {model, layer} (marine), or null (2026-10-28). The status line
+ * compares the drawn frame's cycle with it to say "from an older <model> run". Verified cycles only (model_run_time_status
+ * 'known'), never the ingest clock. One scan per manifest object and key.
+ */
+const _latestRun = new WeakMap();
+export function latestKnownRunMs(model, layer) {
+  const manifest = getCachedManifest();
+  if (!manifest || !Array.isArray(manifest.products) || !model || !layer) return null;
+  let byKey = _latestRun.get(manifest);
+  if (!byKey) { byKey = new Map(); _latestRun.set(manifest, byKey); }
+  const key = `${String(model).toUpperCase()}|${layer}`;
+  if (byKey.has(key)) return byKey.get(key);
+  let best = null;
+  for (const p of manifest.products) {
+    if (!p || String(p.model || '').toUpperCase() !== key.split('|')[0] || p.layer !== layer) continue;
+    if ((p.domain || 'marine') !== 'marine' || p.model_run_time_status !== 'known') continue;
+    const ms = Date.parse(p.model_run_time || '');
+    if (Number.isFinite(ms) && (best == null || ms > best)) best = ms;
+  }
+  byKey.set(key, best);
+  return best;
+}
 
 // THE LAYER'S END (2026-10-27, the lead's live read on dev 89a494aca: EURO waves at z9, timeline hours 141-155 read "Loading <hour>…
 // still showing Mon, Nov 2, 4 AM" at all 15 hours, every /grid 200, and the frame store counted 18 `no_target` misses). MapWebGL swaps
