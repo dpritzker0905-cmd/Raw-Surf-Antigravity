@@ -111,7 +111,7 @@ const PROBE = () => {
         const offH = dm == null ? 0 : Math.abs(W.anchor + s.hour * 3600000 - dm) / 3600000;
         if (offH > 1.5 || (pm && pm !== W.model)) {
           W.mislabel += 1; W.maxOffH = Math.max(W.maxOffH || 0, offH);
-          const st = status(); const silent = !/Loading|Verifying|does not match|pending|nearest|estimated|Holding/i.test(st);
+          const st = status(); const silent = !/Loading|Verifying|does not match|pending|nearest|estimated|Holding|not arriving/i.test(st);
           if (silent) W.mislabelSilent += 1;
           const ex = { rel: Math.round(rel), hour: s.hour, offH: +offH.toFixed(2), pid: s.pid && s.pid.slice(-56), served: s.served, series: s.series, store: s.store, status: st };
           if (!W.mislabelEx) W.mislabelEx = ex;
