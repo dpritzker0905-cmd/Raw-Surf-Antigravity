@@ -126,3 +126,19 @@ INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS per #600's runbook and read #610 back on
     - The rating can come from an older run.
     - A client 0.96/0.97 bias factor acts as a second forecast path.
     - Decimals are inconsistent.
+
+## #590's flags flipped (owner 2026-10-28 05:15Z / 01:15 EDT)
+- Owner's word: "Flip MANIFEST_ONE_ENTRY_PER_OBJECT and RESOLVER_SKIP_MISSING_OBJECT per #590's runbook, then read them back on the next core run."
+- Where each flag goes, per the registry in `backend/routes/admin/surf_forecast.py`:
+  - `MANIFEST_ONE_ENTRY_PER_OBJECT`: the three manifest writers (forecast-ingest, forecast-ingest-pilots, precompute); "Render never writes".
+  - `RESOLVER_SKIP_MISSING_OBJECT`: Render env.
+- Done (ledger `claude--manifest-flags-wiring.jsonl` 1-4):
+  - 05:39:12Z, Render env `RESOLVER_SKIP_MISSING_OBJECT=1`, plus `MANIFEST_ONE_ENTRY_PER_OBJECT=1`, which is inert on Render. Deploy dep-dbgol049v7es73b16j9g of dev 890623110 went live 05:42:17Z. Health after: healthy, 0 5xx.
+  - 05:43:12Z, repo variable `MANIFEST_ONE_ENTRY_PER_OBJECT=1`, read back. **It is inert until PR #621 merges**: no workflow passed the flag, the same gap #600 closed for the prune flag.
+  - The `RESOLVER_SKIP_MISSING_OBJECT` repo variable was set at 05:43:26Z, then deleted, because no workflow reads it (Render only).
+- Baseline: the SCOREBOARD 05:39Z row.
+- Read-back owed (commitment line 4, due 10-29 06:00Z), on the first core run created after #621 merges:
+  - 0 save-time twin deletes;
+  - `One entry per object` lines in the run log;
+  - `Listed product(s) absent ... serving` on the box where a 404 followed before;
+  - 0 5xx.
