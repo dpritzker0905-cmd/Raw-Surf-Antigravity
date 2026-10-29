@@ -14,7 +14,7 @@
  * 5. Either: endCall() G cleanup
  */
 
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback, useEffect, useLayoutEffect } from 'react';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import { unlockAudioNow } from '../utils/audioUnlock';
@@ -83,13 +83,26 @@ export function useWebRTCCall(userId, userInfo = {}) {
   const callRetryRef = useRef(null);
   const callRetryCountRef = useRef(0);
   const pendingOfferRef = useRef(null);
-  const earlyIceCandidatesRef = useRef([]);
+  const sessionRef = useRef(null);
+  const mountedRef = useRef(true);
+  const currentUserIdRef = useRef(userId);
 
   // State refs to avoid stale closures
   const callStateRef = useRef(callState);
-  useEffect(() => { callStateRef.current = callState; }, [callState]);
   const remoteUserInfoRef = useRef(remoteUserInfo);
-  useEffect(() => { remoteUserInfoRef.current = remoteUserInfo; }, [remoteUserInfo]);
+
+  const isCurrentSession = useCallback((session, pc) => Boolean(
+    session && mountedRef.current && sessionRef.current === session &&
+    currentUserIdRef.current === session.userId && (!pc || peerConnection.current === pc)
+  ), []);
+
+  const applyBufferedCandidates = useCallback(async (session, pc) => {
+    const candidates = session.candidates.splice(0);
+    for (const candidate of candidates) {
+      if (!isCurrentSession(session, pc)) return;
+      try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch { /* ignore */ }
+    }
+  }, [isCurrentSession]);
 
  // --- Sub-Hooks ---
   const { sendSignaling, wsRef, connectSignaling } = useWebRTCSignaling(userId, handleSignalingMessage);
@@ -134,6 +147,9 @@ export function useWebRTCCall(userId, userInfo = {}) {
 
  // --- Cleanup ---
   const cleanup = useCallback(() => {
+    const session = sessionRef.current;
+    sessionRef.current = null;
+    session?.cancelWait?.();
     localStreamRef.current?.getTracks().forEach(track => track.stop());
     localStreamRef.current = null;
     remoteStreamRef.current = null;
@@ -158,7 +174,6 @@ export function useWebRTCCall(userId, userInfo = {}) {
     if (callRetryRef.current) { clearTimeout(callRetryRef.current); callRetryRef.current = null; }
     pendingOfferRef.current = null;
     callRetryCountRef.current = 0;
-    earlyIceCandidatesRef.current = [];
     pendingCandidatesRef.current = [];
 
     callStateRef.current = CALL_STATE.IDLE;
@@ -174,7 +189,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
   }, [resetMediaState]);
 
  // --- Create Peer Connection ---
-  const createPeerConnection = useCallback((isVideo = false) => {
+  const createPeerConnection = useCallback((session) => {
     const pc = new RTCPeerConnection({
       iceServers: ICE_SERVERS,
       sdpSemantics: 'unified-plan',
@@ -182,7 +197,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
     });
 
     pc.onicecandidate = (event) => {
-      if (peerConnection.current !== pc) return;
+      if (!isCurrentSession(session, pc)) return;
       if (event.candidate) {
         sendSignaling({
           type: 'ice_candidate',
@@ -193,7 +208,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
     };
 
     pc.onconnectionstatechange = () => {
-      if (peerConnection.current !== pc) return;
+      if (!isCurrentSession(session, pc)) return;
       console.debug('[WebRTC] Connection state:', pc.connectionState);
       switch (pc.connectionState) {
         case 'connected':
@@ -222,7 +237,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
 
  // iOS Safari fallback -- it doesn't always fire onconnectionstatechange
     pc.oniceconnectionstatechange = () => {
-      if (peerConnection.current !== pc) return;
+      if (!isCurrentSession(session, pc)) return;
       console.debug('[WebRTC] ICE connection state:', pc.iceConnectionState);
       if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
         if (callStateRef.current !== CALL_STATE.IN_CALL) {
@@ -243,7 +258,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
 
     // Handle incoming remote tracks
     pc.ontrack = (event) => {
-      if (peerConnection.current !== pc) return;
+      if (!isCurrentSession(session, pc)) return;
       console.debug('[WebRTC] Remote track received:', event.track.kind);
       const incomingStream = event.streams[0] || new MediaStream([event.track]);
 
@@ -258,17 +273,22 @@ export function useWebRTCCall(userId, userInfo = {}) {
     };
 
     return pc;
-  }, [sendSignaling, cleanup]);
+  }, [sendSignaling, cleanup, isCurrentSession]);
 
  // --- Signaling Message Handler ---
   function handleSignalingMessage(data) {
+    if (!mountedRef.current || currentUserIdRef.current !== userId || !userId) return;
     switch (data.type) {
       case 'call_offer': {
-        if (callStateRef.current !== CALL_STATE.IDLE) {
+        if (sessionRef.current || callStateRef.current !== CALL_STATE.IDLE) {
           sendSignaling({ type: 'call_busy', target_user_id: data.caller_id });
           break;
         }
         console.debug('[WebRTC] Incoming call from:', data.caller_id);
+        sessionRef.current = {
+          userId, direction: 'incoming', type: data.call_type || 'audio',
+          offer: data.sdp, recipient: data.caller_id, candidates: [], setupStarted: false, answerSent: false,
+        };
         remoteUserInfoRef.current = { id: data.caller_id, name: data.caller_name || 'Unknown', avatar: data.caller_avatar };
         callStateRef.current = CALL_STATE.INCOMING;
         setRemoteUserInfo({
@@ -279,11 +299,15 @@ export function useWebRTCCall(userId, userInfo = {}) {
         setCallType(data.call_type || 'audio');
         setCallState(CALL_STATE.INCOMING);
         peerConnection.current = { _pendingOffer: data.sdp };
-        earlyIceCandidatesRef.current = [];
         break;
       }
 
       case 'call_answer': {
+        const session = sessionRef.current;
+        const pc = peerConnection.current;
+        if (!isCurrentSession(session, pc) || session.direction !== 'outgoing' ||
+            callStateRef.current !== CALL_STATE.OUTGOING || !pc?.setRemoteDescription || session.answerPending) break;
+        session.answerPending = true;
         clearTimeout(outgoingTimeoutRef.current);
         outgoingTimeoutRef.current = null;
         clearTimeout(callRetryRef.current);
@@ -293,36 +317,33 @@ export function useWebRTCCall(userId, userInfo = {}) {
         setCallState(CALL_STATE.CONNECTING);
         (async () => {
           try {
-            const pc = peerConnection.current;
-            if (pc && pc.setRemoteDescription) {
-              await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
-              if (earlyIceCandidatesRef.current.length > 0) {
-                for (const candidate of earlyIceCandidatesRef.current) {
-                  try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (e) { /* ignore */ }
-                }
-                earlyIceCandidatesRef.current = [];
-              }
-            }
-          } catch (e) { console.error('[WebRTC] Failed to set remote description:', e); }
+            await pc.setRemoteDescription(new RTCSessionDescription(data.sdp));
+            if (!isCurrentSession(session, pc)) return;
+            await applyBufferedCandidates(session, pc);
+          } catch (e) {
+            if (isCurrentSession(session, pc)) console.error('[WebRTC] Failed to set remote description:', e);
+          }
         })();
         break;
       }
 
       case 'ice_candidate': {
+        const session = sessionRef.current;
+        const pc = peerConnection.current;
+        if (!isCurrentSession(session) || !data.candidate) break;
         (async () => {
           try {
-            const pc = peerConnection.current;
-            if (pc && pc.addIceCandidate && data.candidate) {
+            if (pc?.addIceCandidate) {
               if (pc.remoteDescription && pc.remoteDescription.type) {
                 await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
               } else {
-                earlyIceCandidatesRef.current.push(data.candidate);
+                session.candidates.push(data.candidate);
               }
-            } else if (data.candidate) {
-              earlyIceCandidatesRef.current.push(data.candidate);
+            } else {
+              session.candidates.push(data.candidate);
             }
           } catch (e) {
-            if (data.candidate) earlyIceCandidatesRef.current.push(data.candidate);
+            if (isCurrentSession(session, pc)) session.candidates.push(data.candidate);
           }
         })();
         break;
@@ -344,11 +365,9 @@ export function useWebRTCCall(userId, userInfo = {}) {
         break;
 
       case 'call_accepted_elsewhere':
-        if (callStateRef.current === CALL_STATE.INCOMING) {
+        if (isCurrentSession(sessionRef.current) && sessionRef.current.direction === 'incoming' && !sessionRef.current.answerSent) {
           toast('Call answered on another device', { icon: '\u{1F4F1}' });
-          setCallState(CALL_STATE.IDLE);
-          setCallType(null);
-          setRemoteUserInfo(null);
+          cleanup();
         }
         break;
 
@@ -379,10 +398,18 @@ export function useWebRTCCall(userId, userInfo = {}) {
 
  // --- Start Call ---
   const startCall = useCallback(async (targetUserId, type = 'audio', targetUserInfo = {}) => {
-    if (callState !== CALL_STATE.IDLE) {
+    if (!mountedRef.current || currentUserIdRef.current !== userId || !userId) return;
+    if (sessionRef.current || callStateRef.current !== CALL_STATE.IDLE) {
       toast.error('Already in a call');
       return;
     }
+    const session = { userId, direction: 'outgoing', candidates: [] };
+    sessionRef.current = session;
+    remoteUserInfoRef.current = { id: targetUserId, name: targetUserInfo.name || 'User', avatar: targetUserInfo.avatar };
+    callStateRef.current = CALL_STATE.OUTGOING;
+    setRemoteUserInfo(remoteUserInfoRef.current);
+    setCallType(type);
+    setCallState(CALL_STATE.OUTGOING);
 
     try {
       // Pre-check: ensure signaling WebSocket is connected
@@ -392,46 +419,51 @@ export function useWebRTCCall(userId, userInfo = {}) {
         connectSignaling();
         await new Promise((resolve) => {
           let elapsed = 0;
+          const finish = () => {
+            clearInterval(check);
+            session.cancelWait = null;
+            resolve();
+          };
           const check = setInterval(() => {
             elapsed += 200;
             if (wsRef.current?.readyState === WebSocket.OPEN || elapsed >= 3000) {
-              clearInterval(check);
-              resolve();
+              finish();
             }
           }, 200);
+          session.cancelWait = finish;
         });
+        if (!isCurrentSession(session)) return;
         if (!wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) {
           toast.error('Connection issue \u{2014} please try again');
+          cleanup();
           return;
         }
       }
 
       unlockAudioNow();
       const stream = await getMediaStream(type, facingMode);
+      if (!isCurrentSession(session)) {
+        stream.getTracks().forEach(track => track.stop());
+        return;
+      }
       localStreamRef.current = stream;
       setLocalStream(stream);
 
       // Grom Permission Check
       try {
         const permRes = await apiClient.get(`/grom-hq/call-permission/${userId}/${targetUserId}`);
+        if (!isCurrentSession(session)) return;
         if (!permRes.data.allowed) {
           toast.error(permRes.data.reason || 'Call not allowed');
-          stream.getTracks().forEach(t => t.stop());
-          localStreamRef.current = null;
-          setLocalStream(null);
+          cleanup();
           return;
         }
       } catch (permErr) {
+        if (!isCurrentSession(session)) return;
         console.debug('[WebRTC] Permission check skipped:', permErr.message);
       }
 
-      setCallType(type);
-      remoteUserInfoRef.current = { id: targetUserId, name: targetUserInfo.name || 'User', avatar: targetUserInfo.avatar };
-      callStateRef.current = CALL_STATE.OUTGOING;
-      setRemoteUserInfo({ id: targetUserId, name: targetUserInfo.name || 'User', avatar: targetUserInfo.avatar });
-      setCallState(CALL_STATE.OUTGOING);
-
-      const pc = createPeerConnection(type === 'video');
+      const pc = createPeerConnection(session);
       peerConnection.current = pc;
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
@@ -439,7 +471,9 @@ export function useWebRTCCall(userId, userInfo = {}) {
         offerToReceiveAudio: true,
         offerToReceiveVideo: type === 'video',
       });
+      if (!isCurrentSession(session, pc)) return;
       await pc.setLocalDescription(offer);
+      if (!isCurrentSession(session, pc)) return;
 
       const offerMsg = {
         type: 'call_offer',
@@ -450,21 +484,24 @@ export function useWebRTCCall(userId, userInfo = {}) {
         call_type: type,
         sdp: offer,
       };
-      sendSignaling(offerMsg);
       pendingOfferRef.current = offerMsg;
       callRetryCountRef.current = 0;
+      session.offerSent = true;
+      sendSignaling(offerMsg);
+      if (!isCurrentSession(session, pc)) return;
 
       // Timeout: auto-end if no answer in 30 seconds
       clearTimeout(outgoingTimeoutRef.current);
       outgoingTimeoutRef.current = setTimeout(() => {
         outgoingTimeoutRef.current = null;
-        if (peerConnection.current === pc && callStateRef.current === CALL_STATE.OUTGOING) {
+        if (isCurrentSession(session, pc) && callStateRef.current === CALL_STATE.OUTGOING) {
           toast('No answer', { icon: '\u{1F4F5}' });
           endCall();
         }
       }, 30000);
 
     } catch (err) {
+      if (!isCurrentSession(session)) return;
       console.error('[WebRTC] Failed to start call:', err);
       if (err.name === 'NotAllowedError') {
         setPermissionDenied(true);
@@ -475,52 +512,62 @@ export function useWebRTCCall(userId, userInfo = {}) {
       }
       cleanup();
     }
-  }, [callState, userId, userInfo, facingMode, createPeerConnection, sendSignaling, wsRef, connectSignaling, cleanup]);
+  }, [userId, userInfo, facingMode, createPeerConnection, sendSignaling, wsRef, connectSignaling, cleanup, isCurrentSession]);
 
  // --- Answer Call ---
   const answerCall = useCallback(async () => {
-    if (callState !== CALL_STATE.INCOMING) return;
+    if (currentUserIdRef.current !== userId) return;
+    const session = sessionRef.current;
+    if (!isCurrentSession(session) || session.direction !== 'incoming' || session.setupStarted ||
+        callStateRef.current !== CALL_STATE.INCOMING) return;
+    session.setupStarted = true;
+    callStateRef.current = CALL_STATE.CONNECTING;
+    setCallState(CALL_STATE.CONNECTING);
 
     try {
       unlockAudioNow();
-      const stream = await getMediaStream(callType, facingMode);
+      const stream = await getMediaStream(session.type, facingMode);
+      if (!isCurrentSession(session)) {
+        stream.getTracks().forEach(track => track.stop());
+        return;
+      }
       localStreamRef.current = stream;
       setLocalStream(stream);
-      setCallState(CALL_STATE.CONNECTING);
 
-      const pendingOffer = peerConnection.current?._pendingOffer;
+      const pendingOffer = session.offer;
       if (!pendingOffer) {
         toast.error('Call data lost. Try again.');
-        stream.getTracks().forEach(t => t.stop());
         cleanup();
         return;
       }
 
-      const pc = createPeerConnection(callType === 'video');
+      const pc = createPeerConnection(session);
       peerConnection.current = pc;
       stream.getTracks().forEach(track => pc.addTrack(track, stream));
 
       await pc.setRemoteDescription(new RTCSessionDescription(pendingOffer));
+      if (!isCurrentSession(session, pc)) return;
       const answer = await pc.createAnswer();
+      if (!isCurrentSession(session, pc)) return;
       await pc.setLocalDescription(answer);
+      if (!isCurrentSession(session, pc)) return;
 
+      session.answerSent = true;
       sendSignaling({
         type: 'call_answer',
-        target_user_id: remoteUserInfo?.id,
+        target_user_id: session.recipient,
         sdp: answer,
       });
 
       // Apply buffered ICE candidates
-      if (earlyIceCandidatesRef.current.length > 0) {
-        for (const candidate of earlyIceCandidatesRef.current) {
-          try { await pc.addIceCandidate(new RTCIceCandidate(candidate)); } catch (e) { /* ignore */ }
-        }
-        earlyIceCandidatesRef.current = [];
-      }
+      if (!isCurrentSession(session, pc)) return;
+      await applyBufferedCandidates(session, pc);
+      if (!isCurrentSession(session, pc)) return;
 
       sendSignaling({ type: 'call_accepted_elsewhere', target_user_id: userId });
 
     } catch (err) {
+      if (!isCurrentSession(session)) return;
       console.error('[WebRTC] Failed to answer call:', err);
       if (err.name === 'NotAllowedError') {
         setPermissionDenied(true);
@@ -531,30 +578,35 @@ export function useWebRTCCall(userId, userInfo = {}) {
       }
       cleanup();
     }
-  }, [callState, callType, facingMode, remoteUserInfo, userId, createPeerConnection, sendSignaling, cleanup]);
+  }, [facingMode, userId, createPeerConnection, sendSignaling, cleanup, isCurrentSession, applyBufferedCandidates]);
 
  // --- Decline Call ---
   const declineCall = useCallback(() => {
-    if (callStateRef.current !== CALL_STATE.INCOMING) {
-      setCallState(CALL_STATE.IDLE);
-      setCallType(null);
-      setRemoteUserInfo(null);
-      return;
-    }
+    const session = sessionRef.current;
+    if (!isCurrentSession(session) || session.direction !== 'incoming' || session.answerSent) return;
     sendSignaling({ type: 'call_decline', target_user_id: remoteUserInfoRef.current?.id });
-    setCallState(CALL_STATE.IDLE);
-    setCallType(null);
-    setRemoteUserInfo(null);
-  }, [sendSignaling]);
+    cleanup();
+  }, [sendSignaling, cleanup, isCurrentSession]);
 
  // --- End Call ---
   const endCall = useCallback(() => {
-    sendSignaling({ type: 'call_end', target_user_id: remoteUserInfoRef.current?.id });
+    const session = sessionRef.current;
+    if (isCurrentSession(session) && (session.direction === 'incoming' || session.offerSent)) {
+      sendSignaling({ type: 'call_end', target_user_id: remoteUserInfoRef.current?.id });
+    }
     cleanup();
-  }, [sendSignaling, cleanup]);
+  }, [sendSignaling, cleanup, isCurrentSession]);
 
-  // Cleanup on unmount
-  useEffect(() => { return cleanup; }, [cleanup]);
+  // Pending work belongs to this mounted account, including StrictMode remounts.
+  useLayoutEffect(() => {
+    currentUserIdRef.current = userId;
+    mountedRef.current = true;
+    setPermissionDenied(false);
+    return () => {
+      mountedRef.current = false;
+      cleanup();
+    };
+  }, [userId, cleanup]);
 
   // Listen for custom events from MessagesPage call buttons
   useEffect(() => {

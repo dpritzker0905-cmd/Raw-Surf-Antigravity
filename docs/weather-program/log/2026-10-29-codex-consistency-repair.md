@@ -177,3 +177,53 @@ turn. App accepted the follow-up with native persistence/readback, rollback/idem
 scheduler-registration/UTC checks, preservation of ranking and earlier repairs, and explicit weather/
 provider/release boundaries. No restart or duplicate source work requested. Completion remains pending
 in the owning audit chat; this companion lane only records delegation and active ownership.
+
+## Fresh continuation: selected existing WebRTC setup-cancellation repair
+
+Fresh coordination continuation resumes existing unblocked local repairs only, with no new commits,
+push/integration/migration/provider/security/weather actions. Reconciled shared plans and current
+booking/admin lane status. Both current changed-file inventories have no useWebRTCCall.js delta.
+Selected only the earlier queued media/SDP cancellation item in our owned hook; source/test writer,
+read-only reviewer and separate browser-fixture writer have disjoint responsibility. Parent owns docs
+and this ledger. Fail-first held-promise tests cover stale setup success/error, replacement, terminal
+paths, duplicate starts/answers, account/unmount, timers and buffered ICE. No real media/signaling.
+
+Credit newer booking readiness: final ordered-chain native PostgreSQL receipt reports9/9 on BOTH
+candidate schemas, stopped/noOSlisteners. Target-specific PG and actual-checkout patch applicability
+receipts supersede earlier local rehearsal gaps. These do not establish shared schema/version,
+hostedCI or Claude acknowledgement. Preserve parent_link_approved and scheduler/stats schema boundaries.
+
+## WebRTC setup cancellation final local result
+
+Source froze at808a5a1eec5c55ab8127e5b398222f28c8f4ce1e0f888f98f53bc0560fdc0186,636lines.
+Actualhook firstbaseline35failed/6positive controls. Review reproduced5intermediate failures plus1
+abandoned-render failure before correction. Final55new+8unchanged cases=63pass; independent63pass.
+Combined previous103+55=158pass/12suites. Browser14pass versus baseline2positivecontrols/12failures;
+no pageerrors/externalrequests; timerszero and browser/serverclosed. Full lint ratchet1590files passes
+with retained86errors907warnings. All12earlier applicationhashes, old8-case test and actual ICE block
+match entry. An initial overly broad prefix assertion included the intentionally changed React import;
+corrected exact ICE-block preservation check passes and is the relevant evidence.
+
+Production frontend compilation exit0 by23:18UTC on unchanged source. Private worktree output/cache,
+source maps off and duplicate build-time ESLint plugin off; separate full lint ratchet passed.
+No backend/source-schema change or backend/PGrerun for this hook-only continuation. No paid/security
+tools, realmedia/provider operation, weather application change, staging or commit. Source/test/evidence
+remain localworkingdiff on originalHEAD1a3e51875. Report and combinedhandoff include precise residuals
+and package boundaries. Other lane's latest ordered nativePG9/9 BOTHcandidate receipts credited without
+claiming sharedschema readiness or actualClaude acknowledgement. Finalgovernance/ledger follows.
+
+Final continuation readback: source/test/fixture fingerprints match; reportlinks resolve; HEADunchanged
+and stagingempty. Canonical2074entries verifies; fragment0problems; docs audit0FAIL64WARN12NOTE.
+Established memory extension note updated with local completion,158non-additive tests,uncommitted
+status and residual owners. This selected existingqueue item is complete; no additionalrepair started.
+Sharedschema/version and release steps remain with integration/databaseowners; actualClaude ack and
+hostedCI remain pending. Code/test/evidence/doc working changes preserved for authorized review.
+
+## Focused WebRTC local packaging preparation
+
+Fresh direction explicitly permits one focused allowlisted local commit of the completed cancellation
+slice. Previous no-commit testing state remains historical. Entryindexempty; all five tested code/test/
+fixture fingerprints match; source remains808a5a1e. Existing158frontend/63independenthook/14Chrome and
+productionbuild/fullLint receipts reused, not rerun or promoted to hostedCI. Approved12paths are listed
+in the structured summary and tool readback. Seven earlier commits preserved; mandatory hook inspected
+and unchanged (redacted localstagedsecret check +PythonLOC). No blanket staging or unrelated source.

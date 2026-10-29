@@ -7,6 +7,10 @@ with integration, hosted CI and deployed acceptance still open. A subsequent com
 at the end of this handoff records the audit lane's Saved Crew and weekly-challenge repairs; the
 weekly-date/count candidate listed historically below is now repaired in that separate worktree.
 
+Latest companion continuation: [WebRTC setup cancellation](2026-10-29-call-cancellation.md) is repaired
+and verified locally in the working tree, **not yet staged or committed**. The historical pending
+cancellation paragraph below is superseded by the dated receipt at the end of this handoff.
+
 ## Start here: avoid duplicate work
 
 Branch: `codex/audit-repair-20261029`. Base: `72b4652d5753423cce18b9ad1d1de95f0afcb7e7`.
@@ -180,3 +184,43 @@ and UTC timing. Weather application source, jobs and runtime remain outside the 
 
 Completion is pending. Continue to treat trophy storage and scheduler wiring as open until the owning
 audit chat publishes its final evidence and documentation receipts. Do not duplicate this active repair.
+
+## WebRTC setup-cancellation continuation completed locally — October 29, 2026
+
+Fresh continuation selected only the existing pending item in this lane's useWebRTCCall.js. This
+working-tree repair now guards held media, permission and SDP success/error, owns ICE queues per
+attempt, settles cancelled signaling waits, invalidates pending incoming answers on terminal actions,
+prevents same-tick competing starts/answers, and stops late streams. Committed account identity guards
+avoid an abandoned React render invalidating the live call. Pre-offer cancellation emits no hangup.
+
+Evidence: docs/audits/2026-10-29-call-cancellation.md and its evidence directory. Initial actual-hook
+baseline35fail/6controls; final55new cancellation cases plus8unchanged lifecycle cases pass63/63,
+independently repeated. Combined prior103+55new=158tests/12suites. Browser baseline2/14 -> final14/14,
+with no pageerrors/externalrequests and all owned timers/browser/server cleaned up. Full lint ratchet
+passes1590files with existing86errors907warnings; production compilation exit0. Finalhook636lines,
+SHA256808a5a1eec5c55ab8127e5b398222f28c8f4ce1e0f888f98f53bc0560fdc0186. All12first-batch source
+fingerprints, original8-case lifecycle test and ICE configuration remain unchanged.
+
+This repair and its new tests/evidence are UNSTAGED/UNCOMMITTED on codex/audit-repair-20261029 at
+HEAD1a3e51875a90553d97fc637b4640bf02b3be656e. Do not assume that commit contains this continuation.
+No source was copied into another worktree. No integration/migration/push/merge/deploy or weather
+application change occurred. Preserve the companion parent_link_approved predicate and all other lanes.
+
+Residuals: protocol call IDs, underlying signaling reconnect, async camera flip/toggle cancellation,
+active remote-SDP failure recovery, and real-device/provider/hosted acceptance remain separate.
+No additional repair scope is created by recording them. Shared schema/version, hosted CI and actual
+Claude acknowledgement remain with the integration/release owners. The booking lane's finalized
+candidate PostgreSQL, real-checkout patch-check, Alembic graph and ordered migration-function receipts
+supersede earlier local rehearsal gaps; final ordered nativePG receipt is9/9 on BOTH candidates,
+stopped/noOSlisteners. Those disposable receipts do not establish shared schema/version readiness.
+
+## Focused local packaging authorised after verification
+
+The owner's new local-commit instruction supersedes the earlier no-commit hold for this completed
+WebRTC cancellation delta only. Historical unstaged/uncommitted statements above describe the testing
+checkpoint at1a3e51875. The verified code/test/fixture fingerprints are unchanged; the existing158/63/14
+and build/lint receipts are reused. Exact12-path allowlist is in the cancellation verification-summary.
+Current delivery must be established by Git history/readback. The seven earlier commits remain intact.
+Mandatory redacted staged-secret and PythonLOC gates stay enabled; no active/network security probe.
+Publication/integration/sharedschema/weather authority is unchanged. No support consumer or auth/router
+source is included in this package.
