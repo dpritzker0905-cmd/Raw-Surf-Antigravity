@@ -168,3 +168,12 @@ Companion handoff now supersedes its historical unrepaired weekly candidate with
 completion. Source remains in the audit worktree; no overlay/integration/push/merge/deploy occurred.
 Nonempty trophy storage still fails and rolls back; passing finalization proves empty-challenge date
 selection/status. Scheduler, concurrency, hosted/integration/deployed acceptance remain open.
+
+## Authorized trophy-storage and scheduler follow-up delivered
+
+The owner explicitly asked the other audit chat to repair trophy storage, verify scheduler wiring,
+fully test and update memory/audit without weather work. Fresh chat read confirms an active matching
+turn. App accepted the follow-up with native persistence/readback, rollback/idempotency and isolated
+scheduler-registration/UTC checks, preservation of ranking and earlier repairs, and explicit weather/
+provider/release boundaries. No restart or duplicate source work requested. Completion remains pending
+in the owning audit chat; this companion lane only records delegation and active ownership.

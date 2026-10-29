@@ -168,3 +168,15 @@ For current status and detailed evidence, read the audit lane's
 `docs/audits/evidence/2026-10-29-weekly-challenge-boundaries/final_governance.json`.
 The audit lane is the owner of these changes and their continued verification. Do not implement
 another weekly-date/count repair from the historical candidate paragraph above.
+
+## Trophy storage and scheduler follow-up — authorized and in progress
+
+The owner subsequently directed Audit each app feature to fix the retained trophy-storage failure,
+verify scheduler wiring, fully test and update memory/audit without touching weather. The app accepted
+that direction; the recipient's active turn already follows this scope. Acceptance includes native
+badge persistence/readback, preservation of existing badges/ranking policy, nonempty finalization,
+rollback and repeat-run behavior, and isolated verification of actual scheduler registration/callback
+and UTC timing. Weather application source, jobs and runtime remain outside the work.
+
+Completion is pending. Continue to treat trophy storage and scheduler wiring as open until the owning
+audit chat publishes its final evidence and documentation receipts. Do not duplicate this active repair.
