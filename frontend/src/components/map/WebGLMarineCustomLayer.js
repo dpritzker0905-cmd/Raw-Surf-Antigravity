@@ -9,6 +9,7 @@ import { staleWorldDimMult } from './marineStaleHourLayer';
 import { timeMarineCpuPhase } from './marineCpuPhaseTiming';
 import { BATCH } from './WebGLProgramBatch';
 import { syncDrawnToEngine } from './marineDrawnFrame';
+import { askWashOnRefusal } from './marineGlobalPrewarm';   // D1: a refused wash asks for the selected hour's world grid
 
 export const LAYER_ID = 'webgl-marine-particles';
 
@@ -395,6 +396,9 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
         // DRAWN TRUTH: a swap inside the engine this frame (the stash's self-heal accept, the zoom-out bridge) is what the status line
         // must describe; one identity compare per frame (marineDrawnFrame.syncDrawnToEngine).
         syncDrawnToEngine(engine, { hour: timeOffsetHoursRef ? timeOffsetHoursRef.current : null, model: activeModelRef ? activeModelRef.current : null });
+        if (viewportBounds) askWashOnRefusal({ model: activeModelRef ? activeModelRef.current : 'GFS', hour: timeOffsetHoursRef ? timeOffsetHoursRef.current : null,
+          layer: (activeLayersRef.current || []).find((l) => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves',
+          bounds: { west: viewportBounds[0], south: viewportBounds[1], east: viewportBounds[2], north: viewportBounds[3] } });
       } catch (e) {
         errorCount++;
         lastErrorTime = Date.now();

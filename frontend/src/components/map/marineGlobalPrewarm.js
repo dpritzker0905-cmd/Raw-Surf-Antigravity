@@ -18,6 +18,9 @@ import { fetchBackendCopernicusGrid } from './backendCopernicusServiceClient';
 import { coarseBaseOutdatedBy } from './marineStaleHour';
 import { bridgeCeilDeg } from './marineZoomOutGate';
 import { exactGfsPlaybackEnabled, isExactPlaybackFrame } from './marinePlaybackPolicy';
+import { staticEligible, getPinnedIndexSync, storeSetKeyFor } from './staticFrames';
+import { pickIndexFrame } from './staticFrameCodec';
+import { readMarineSurfMode } from './marineSurfMode';
 
 let _prewarmDeps = null;
 
@@ -45,6 +48,25 @@ export function registerPrewarmDeps({ getModelSafeMarine, cacheMarineResult, isS
 // otherwise cancel it (the global is location-independent, so a stray completion is harmless).
 const _globalGridPrewarmInFlight = new Set();
 const _GLOBAL_BOUNDS = { west: -180, south: -80, east: 180, north: 85 };
+
+/**
+ * THE WASH FROM THE CDN FIRST (D1, 2026-10-28; the lead's erratic fuzzer). The right-hour world grid behind the BLEND BOTH wash waited in
+ * the series limiter's background lane, which starts only while nothing visible loads and serves sibling minis first: offline (GFS Waves,
+ * Florida z8, PageUp x2) the h48 warm was queued and had not started 33 s later, so the h0 wash stayed under the h48 tile. When the pinned
+ * static world set holds a built frame for the asked valid time, the fetch is a CDN frame (tryStaticWorldGrid: no backend work), so it
+ * goes at once instead. Anything else (a swell layer, the band, an unpinned or unbuilt frame: a backend world /grid) keeps the lane.
+ * Kill: window.__RAW_DISABLE_WASH_CDN_FIRST__ = true.
+ */
+export function washWorldOnCdn(model, layer, validTimeStr, win) {
+  try {
+    const w = win || (typeof window !== 'undefined' ? window : null);
+    if ((w && w.__RAW_DISABLE_WASH_CDN_FIRST__ === true) || !validTimeStr) return false;
+    if (!staticEligible({ model, layer, bbox: _GLOBAL_BOUNDS, surf: readMarineSurfMode(w) })) return false;
+    const index = getPinnedIndexSync(storeSetKeyFor(model, layer));
+    const frame = index && pickIndexFrame(index, Date.parse(validTimeStr));
+    return !!(frame && frame.path);
+  } catch (e) { return false; }   // unknown: the lane, as before
+}
 
 // F-03 (audit 14.0) — THE GUARD KEYED ON THE WRONG QUANTITY.
 // Both the in-flight key and the controller result cache were keyed by `hourOffset`, but the thing
@@ -154,6 +176,34 @@ export function _rewarmWashBaseIfStale(m, hourOffset, bounds, activeLayer) {
     prewarmGlobalMarineGrid(m, hourOffset, bounds, activeLayer);
   } catch (e) { /* best-effort */ }
 }
+
+/**
+ * A REFUSED WASH ASKS FOR THE RIGHT ONE (D1, 2026-10-28). The time rule (marineStaleHour.washMatchesResident) stops drawing a wash of
+ * another hour; on its own that leaves the sea around and under the frame empty until a world grid for the selected hour happens to
+ * arrive, and the hour world warm only runs after a COMMIT holds still (marineWorldWarmOnSettle). The fuzzer's band-OFF hide waited up to
+ * 30 s for the honest grid with nothing under it. So the layer calls this after each rendered frame: when the engine refused the wash in
+ * that frame, the prewarm is asked for the selected hour's world grid (its own gates: never mid-scrub, in-flight and valid-time dedupe,
+ * a cached grid staged at zero network, a CDN-built frame at once, else the background lane), once per model | layer | hour | flavor per
+ * WASH_ASK_GAP_MS. Kill: window.__RAW_DISABLE_WASH_REFUSAL_WARM__ = true. Telemetry: window.__MARINE_WASH_TIME__.asked.
+ */
+export const WASH_ASK_GAP_MS = 3000;
+const _washAsks = new Map();
+export function askWashOnRefusal({ model, layer, hour, bounds, nowMs = Date.now(), win } = {}) {
+  try {
+    const w = win || (typeof window !== 'undefined' ? window : null);
+    const t = w && w.__MARINE_WASH_TIME__;
+    if (!t || !t.last || t.last.ok !== false || !(nowMs - (t.lastAt || 0) < 250)) return false;   // refused in the frame just drawn
+    if (w.__RAW_DISABLE_WASH_REFUSAL_WARM__ === true || !Number.isFinite(hour) || !bounds) return false;
+    const key = `${model || 'GFS'}|${layer || 'waves'}|${hour}|${readMarineSurfMode(w) ? 'r1' : 'r0'}`;
+    if (nowMs - (_washAsks.get(key) || -Infinity) < WASH_ASK_GAP_MS) return false;
+    _washAsks.set(key, nowMs);
+    if (_washAsks.size > 64) _washAsks.delete(_washAsks.keys().next().value);
+    t.asked = (t.asked || 0) + 1;
+    prewarmGlobalMarineGrid(model || 'GFS', hour, bounds, layer || 'waves', { gridFirst: true, band: true });
+    return true;
+  } catch (e) { return false; }   // a warm never breaks the frame that asked
+}
+export function _resetWashAsksForTest() { _washAsks.clear(); }
 
 // `opts.gridFirst` (2026-10-01, audit F-21, marineStaleHour.js), optional and opt-in: the world warm (marineWorldWarmOnSettle.js) passes it,
 // every other caller keeps the old order. The exact world grid goes out BEFORE the world series half, which holds the background lane's
@@ -282,7 +332,8 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer, 
     }
     _globalGridPrewarmInFlight.add(key);
     _deferSeries = gridFirst;      // the series half waits for this grid (finally below)
-    const _gridT = { hour: hourOffset, vt: _vt, gridFirst, band: _bandView, queuedAt: Date.now() };
+    const _cdnFirst = washWorldOnCdn(m, activeLayer, _vt);
+    const _gridT = { hour: hourOffset, vt: _vt, gridFirst, band: _bandView, queuedAt: Date.now(), cdnFirst: _cdnFirst };
     _note('fetch', hourOffset, { vt: _vt, gridFirst, band: _bandView });
     if (typeof window !== 'undefined' && window.__MARINE_GLOBAL_PREWARM__) window.__MARINE_GLOBAL_PREWARM__.grid = _gridT;
     // No abort signal: this is a background best-effort warm that must survive the pan/zoom which
@@ -291,7 +342,7 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer, 
     // A15-11: under the series limiter's BACKGROUND lane (one slot, after anything on screen) instead of
     // beside it — this world /grid used to bypass the cap entirely at every activation.
     Promise.resolve()
-      .then(() => runBackgroundWarm(() => (_gridT.startedAt = Date.now(), m === 'ICON')
+      .then(() => (_cdnFirst ? (fn) => fn() : runBackgroundWarm)(() => (_gridT.startedAt = Date.now(), m === 'ICON')
         ? fetchBackendMarineGrid(_GLOBAL_BOUNDS, hourOffset, undefined, _GLOBAL_BOUNDS, activeLayer, 'ICON')
         : (m === 'EURO')
           // EURO world-coarse is a manifest product like the others (decoupled era) but routes
