@@ -77,6 +77,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
   const remoteStreamRef = useRef(null);
   const callTimerRef = useRef(null);
   const statsIntervalRef = useRef(null);
+  const outgoingTimeoutRef = useRef(null);
   const pendingCandidatesRef = useRef([]);
   const callStartTimeRef = useRef(null);
   const callRetryRef = useRef(null);
@@ -101,6 +102,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
 
  // --- Call Timer ---
   const startCallTimer = () => {
+    if (callTimerRef.current !== null) return;
     callStartTimeRef.current = Date.now();
     setCallDuration(0);
     callTimerRef.current = setInterval(() => {
@@ -110,9 +112,12 @@ export function useWebRTCCall(userId, userInfo = {}) {
 
  // --- Connection Quality Monitor ---
   const startStatsMonitor = (pc) => {
+    if (statsIntervalRef.current !== null) return;
     statsIntervalRef.current = setInterval(async () => {
       try {
+        if (peerConnection.current !== pc) return;
         const stats = await pc.getStats();
+        if (peerConnection.current !== pc) return;
         stats.forEach(report => {
           if (report.type === 'candidate-pair' && report.state === 'succeeded') {
             const rtt = report.currentRoundTripTime;
@@ -133,18 +138,31 @@ export function useWebRTCCall(userId, userInfo = {}) {
     localStreamRef.current = null;
     remoteStreamRef.current = null;
 
-    if (peerConnection.current?.close) {
-      peerConnection.current.close();
-    }
+    const pc = peerConnection.current;
     peerConnection.current = null;
+    if (pc?.close) {
+      pc.onconnectionstatechange = null;
+      pc.oniceconnectionstatechange = null;
+      pc.onicecandidate = null;
+      pc.ontrack = null;
+      pc.close();
+    }
 
     clearInterval(callTimerRef.current);
     clearInterval(statsIntervalRef.current);
+    clearTimeout(outgoingTimeoutRef.current);
+    callTimerRef.current = null;
+    statsIntervalRef.current = null;
+    outgoingTimeoutRef.current = null;
+    callStartTimeRef.current = null;
     if (callRetryRef.current) { clearTimeout(callRetryRef.current); callRetryRef.current = null; }
     pendingOfferRef.current = null;
     callRetryCountRef.current = 0;
     earlyIceCandidatesRef.current = [];
+    pendingCandidatesRef.current = [];
 
+    callStateRef.current = CALL_STATE.IDLE;
+    remoteUserInfoRef.current = null;
     setCallState(CALL_STATE.IDLE);
     setCallType(null);
     setLocalStream(null);
@@ -164,6 +182,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
     });
 
     pc.onicecandidate = (event) => {
+      if (peerConnection.current !== pc) return;
       if (event.candidate) {
         sendSignaling({
           type: 'ice_candidate',
@@ -174,9 +193,13 @@ export function useWebRTCCall(userId, userInfo = {}) {
     };
 
     pc.onconnectionstatechange = () => {
+      if (peerConnection.current !== pc) return;
       console.debug('[WebRTC] Connection state:', pc.connectionState);
       switch (pc.connectionState) {
         case 'connected':
+          clearTimeout(outgoingTimeoutRef.current);
+          outgoingTimeoutRef.current = null;
+          callStateRef.current = CALL_STATE.IN_CALL;
           setCallState(CALL_STATE.IN_CALL);
           startCallTimer();
           startStatsMonitor(pc);
@@ -199,9 +222,13 @@ export function useWebRTCCall(userId, userInfo = {}) {
 
  // iOS Safari fallback -- it doesn't always fire onconnectionstatechange
     pc.oniceconnectionstatechange = () => {
+      if (peerConnection.current !== pc) return;
       console.debug('[WebRTC] ICE connection state:', pc.iceConnectionState);
       if (pc.iceConnectionState === 'connected' || pc.iceConnectionState === 'completed') {
         if (callStateRef.current !== CALL_STATE.IN_CALL) {
+          clearTimeout(outgoingTimeoutRef.current);
+          outgoingTimeoutRef.current = null;
+          callStateRef.current = CALL_STATE.IN_CALL;
           logger.debug('[WebRTC] \u{2705} ICE connected \u{2014} forcing IN_CALL state (iOS Safari fix)');
           setCallState(CALL_STATE.IN_CALL);
           startCallTimer();
@@ -216,6 +243,7 @@ export function useWebRTCCall(userId, userInfo = {}) {
 
     // Handle incoming remote tracks
     pc.ontrack = (event) => {
+      if (peerConnection.current !== pc) return;
       console.debug('[WebRTC] Remote track received:', event.track.kind);
       const incomingStream = event.streams[0] || new MediaStream([event.track]);
 
@@ -241,6 +269,8 @@ export function useWebRTCCall(userId, userInfo = {}) {
           break;
         }
         console.debug('[WebRTC] Incoming call from:', data.caller_id);
+        remoteUserInfoRef.current = { id: data.caller_id, name: data.caller_name || 'Unknown', avatar: data.caller_avatar };
+        callStateRef.current = CALL_STATE.INCOMING;
         setRemoteUserInfo({
           id: data.caller_id,
           name: data.caller_name || 'Unknown',
@@ -254,6 +284,11 @@ export function useWebRTCCall(userId, userInfo = {}) {
       }
 
       case 'call_answer': {
+        clearTimeout(outgoingTimeoutRef.current);
+        outgoingTimeoutRef.current = null;
+        clearTimeout(callRetryRef.current);
+        callRetryRef.current = null;
+        callStateRef.current = CALL_STATE.CONNECTING;
         console.debug('[WebRTC] Call answered');
         setCallState(CALL_STATE.CONNECTING);
         (async () => {
@@ -322,9 +357,12 @@ export function useWebRTCCall(userId, userInfo = {}) {
         const MAX_RETRIES = 12;
         if (retryCount < MAX_RETRIES && callStateRef.current === CALL_STATE.OUTGOING && pendingOfferRef.current) {
           callRetryCountRef.current = retryCount + 1;
+          clearTimeout(callRetryRef.current);
+          const offer = pendingOfferRef.current;
           callRetryRef.current = setTimeout(() => {
-            if (callStateRef.current === CALL_STATE.OUTGOING && pendingOfferRef.current) {
-              sendSignaling(pendingOfferRef.current);
+            callRetryRef.current = null;
+            if (callStateRef.current === CALL_STATE.OUTGOING && pendingOfferRef.current === offer) {
+              sendSignaling(offer);
             }
           }, 2000);
         } else if (retryCount >= MAX_RETRIES) {
@@ -388,6 +426,8 @@ export function useWebRTCCall(userId, userInfo = {}) {
       }
 
       setCallType(type);
+      remoteUserInfoRef.current = { id: targetUserId, name: targetUserInfo.name || 'User', avatar: targetUserInfo.avatar };
+      callStateRef.current = CALL_STATE.OUTGOING;
       setRemoteUserInfo({ id: targetUserId, name: targetUserInfo.name || 'User', avatar: targetUserInfo.avatar });
       setCallState(CALL_STATE.OUTGOING);
 
@@ -415,8 +455,10 @@ export function useWebRTCCall(userId, userInfo = {}) {
       callRetryCountRef.current = 0;
 
       // Timeout: auto-end if no answer in 30 seconds
-      setTimeout(() => {
-        if (callStateRef.current === CALL_STATE.OUTGOING) {
+      clearTimeout(outgoingTimeoutRef.current);
+      outgoingTimeoutRef.current = setTimeout(() => {
+        outgoingTimeoutRef.current = null;
+        if (peerConnection.current === pc && callStateRef.current === CALL_STATE.OUTGOING) {
           toast('No answer', { icon: '\u{1F4F5}' });
           endCall();
         }
@@ -507,9 +549,9 @@ export function useWebRTCCall(userId, userInfo = {}) {
 
  // --- End Call ---
   const endCall = useCallback(() => {
-    sendSignaling({ type: 'call_end', target_user_id: remoteUserInfo?.id });
+    sendSignaling({ type: 'call_end', target_user_id: remoteUserInfoRef.current?.id });
     cleanup();
-  }, [remoteUserInfo, sendSignaling, cleanup]);
+  }, [sendSignaling, cleanup]);
 
   // Cleanup on unmount
   useEffect(() => { return cleanup; }, [cleanup]);

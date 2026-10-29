@@ -92,3 +92,23 @@ Post-commit fragment check0problems and canonical2074entries intact. Docs-only a
 the extra warning versus63pre-commit is existing PR638 awaiting the lead-owned fold, not an introduced
 repair defect. Two trailing JSX spaces were removed during commit whitespace checking (recorded in
 the source manifest); no syntax or behavior changed. This documentation closeout records the receipt.
+
+## Additional owner-requested call lifecycle repair
+
+18:27 UTC: owner requested another complex audit repair before18:30. Fresh other-chat inspection
+confirmed SavedCrew request lifecycle; WebRTC hook absent from its59changedfiles. Only
+frontend/src/hooks/useWebRTCCall.js changed as application source. Retained/cancelled call timeout,
+recipient ref, idempotent duration/stats monitors, retired-peer/late-stats guards, detached teardown,
+and offer-owned/coalesced retry fix. No served weather number changes.
+
+Actual Chrome baseline reproduces A timeout ending B; same finalhook passes4checks with no external
+requests/pageerrors. Final103React tests across11suites pass, including8newhookcases; five independently
+repeated. Full lint ratchet passes1589files with retained86errors907warnings; targeted finaltestlint
+passes. Source hash c30722c811c63b2db765237d0174131fd59b7cf5c9d5b6e3e0896ba3526fc3da stable.
+InitialJestRED was invalid mock-reset setup and is not productevidence. Memoryaudit0FAIL64WARN12NOTE.
+Productionbuildpending. Asyncmedia/SDPcancellation and protocolcallID support remain separate known
+limitations; no provider/device/deployed/full-call qualification. Report audits/2026-10-29-call-lifecycle-repair.md.
+
+18:28 UTC closeout: production frontend compilation exit0 on unchanged source. Source maps and duplicate
+build-time ESLint plugin disabled as before; separately executed full lint gate passed. Earlier build
+pending entry is resolved. All owned browser/server resources stopped; local commit follows.
