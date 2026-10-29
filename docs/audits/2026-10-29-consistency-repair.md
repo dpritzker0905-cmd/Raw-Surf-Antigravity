@@ -90,7 +90,10 @@ off and the duplicate build-time ESLint plugin disabled to avoid writing through
 junction. The separately run repository-wide lint ratchet passed. All 12 source fingerprints remained
 unchanged through the final tests, browser replay and compilation.
 
-Canonical ledger verification: 2,074 entries, intact. Final docs-only memory audit: 0 failures,
-63 warnings, 12 notes; the warning/note shift includes existing commitments becoming overdue at
-18:00 UTC. Those commitments remain with their existing owners. The selected repairs are ready
+Source repair commit: `65380d9d3`. The commit secret scan passed and the worktree read back clean.
+Canonical ledger verification: 2,074 entries, intact; branch-fragment check: zero problems.
+Post-commit docs-only memory audit: 0 failures, 64 warnings, 12 notes. The pre-commit audit had
+63 warnings; the additional warning is the existing PR638 merge awaiting the lead-owned ledger
+fold. Other warning/note shifts include existing commitments becoming overdue at 18:00 UTC.
+Those commitments and the ledger fold remain with their existing owners. The selected repairs are ready
 for review and hosted CI on this local branch. No push, merge, deployment or live acceptance is claimed.

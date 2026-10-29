@@ -84,3 +84,11 @@ Final95 frontend,51 backend,19 PostgreSQL and6 browser scenarios pass. All12 sou
 Canonical ledger2074entries verifies; docs-only memory audit0FAIL/63WARN/12NOTE. The shift from entry
 warnings reflects existing commitments crossing18:00, not new repair commitments.
 No published branch, merge, deployment, shared data write or live acceptance. Local commit follows.
+
+## Commit read-back
+
+Source commit65380d9d3 saved locally; staged secret scan passed; worktree clean at read-back.
+Post-commit fragment check0problems and canonical2074entries intact. Docs-only audit0FAIL/64WARN/12NOTE;
+the extra warning versus63pre-commit is existing PR638 awaiting the lead-owned fold, not an introduced
+repair defect. Two trailing JSX spaces were removed during commit whitespace checking (recorded in
+the source manifest); no syntax or behavior changed. This documentation closeout records the receipt.

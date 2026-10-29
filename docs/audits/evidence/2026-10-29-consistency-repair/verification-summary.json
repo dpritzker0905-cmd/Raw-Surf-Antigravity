@@ -38,10 +38,13 @@
     "estate_floor": 3389,
     "memory_audit": {
       "fail": 0,
-      "warn": 63,
+      "warn": 64,
       "note": 12
     },
-    "ledger_entries_verified": 2074
+    "ledger_entries_verified": 2074,
+    "post_commit_additional_warning": "Existing PR638 awaits lead-owned ledger fold",
+    "staged_secret_scan": "passed",
+    "fragment_check_problems": 0
   },
   "build": "passed",
   "published": false,
@@ -58,5 +61,6 @@
     "output_and_cache": "private worktree .cache"
   },
   "build_exit": 0,
-  "verified_at_utc": "2026-10-29T18:07:18.935994+00:00"
+  "verified_at_utc": "2026-10-29T18:07:18.935994+00:00",
+  "source_commit": "65380d9d3"
 }
