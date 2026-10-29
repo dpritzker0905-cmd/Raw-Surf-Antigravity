@@ -109,7 +109,8 @@ describe('wiring', () => {
     // 2026-10-25 (drawnFrameHeld.test.js): a client-built blend adds its own readout time as the last source.
     expect(src('useMarineWindData.js')).toMatch(/__readoutServedTime: marineData\.grid\.served_valid_time \|\| marineData\.served_valid_time \|\| marineData\.grid\.__readoutServedTime \|\| null,/);
     expect(src('ForecastTimeStatus.js')).toMatch(/const labelMs = Number\.isFinite\(hour\) \? getSeriesAnchorMs\(\) \+ hour \* 3600000 : null;/);
-    expect(src('ForecastTimeStatus.js')).toMatch(/describeDrawnFrame\(\{ model, layer, hour, instantMs, labelMs, nearestMaxHours \}, drawn\)/);
+    // 2026-10-28 (statusLineWords.test.js): the marine line also passes the manifest's newest verified cycle (the held reason).
+    expect(src('ForecastTimeStatus.js')).toMatch(/describeDrawnFrame\(\{ model, layer, hour, instantMs, labelMs, nearestMaxHours, latestRunMs \}, drawn\)/);
     expect(src('WindTimeStatus.js')).toMatch(/describeDrawnFrame\(\{ model: laneModel, layer: 'wind', hour, instantMs, labelMs, nearestMaxHours \}, drawn\)/);
   });
 });

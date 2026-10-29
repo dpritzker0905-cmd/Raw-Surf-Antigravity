@@ -129,7 +129,8 @@ describe('the live band: the simplified fallback engaged at h140 and the line sp
     act(() => { setFallback(false); drawnModule.publishMarineDrawn(regionalEstimate(156, SERVED_H156)); });
     view.rerender(<ForecastTimeStatus model="EURO" layer="waves" hour={156} theme="dark" />);
     expect(line()).toHaveAttribute('data-drawn-state', 'nearest');
-    expect(line()).toHaveTextContent(`Showing ${formatInstant(SERVED_H156, dated(156))}: the nearest stored forecast (estimated)`);
+    // The estimate's own words since 2026-10-28 (statusLineWords.test.js: every marine basis is worded; was "(estimated)").
+    expect(line()).toHaveTextContent(`Showing ${formatInstant(SERVED_H156, dated(156))}: the nearest stored forecast (beyond EURO’s range, blended with GFS)`);
   });
 
   it('the fallback line in every theme: a polite status, words not colour', () => {

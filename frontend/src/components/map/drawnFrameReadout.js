@@ -9,6 +9,8 @@
  *   estimated — the frame is an estimate / blend (ICON swell 2, the extended tails that reach 14 days)
  * Returns null when the drawn frame IS the selection and is not an estimate.
  */
+import { latticeByLayerOn, servedPick, servedPickHalfStep } from './storedLattice';
+
 const LAYER_NAMES = { waves: 'Waves', swell_1: 'Swell', swell_2: 'Swell 2', wind_waves: 'Wind Waves', wind: 'Wind' };
 const MARINE_LAYERS = new Set(['waves', 'swell_1', 'swell_2', 'wind_waves']);
 const MODEL_NAMES = { GFS: 'GFS', ICON: 'ICON', EURO: 'EURO' };
@@ -24,11 +26,27 @@ const NEAREST_MAX_HOURS = 3;
  *  selection's instant and the DRAWN frame's verified cycle (marineDrawnFrame runMs); an unknown cycle keeps the timeline hour.
  *  Kill: window.__RAW_DISABLE_LATTICE_MODEL_STEP__ = true (the timeline hour decides again). */
 export const EURO_SIX_HOURLY_AFTER_STEP = 144;
-export function latticeNearestMaxHours(model, hour, { selectedMs, runMs } = {}) {
+// BY LAYER AND STORED LATTICE (2026-10-28, D8: the lead's offline fuzzer, 92 overbroad "nearest" claims): with `layer`, the
+// half-step is the distance to the frame the server itself answers this selection with (storedLattice.servedPick: authoritative
+// within 3 h first, else the nearest estimate). Without a manifest, only EURO WAVES keeps the 6-hourly 3 h (ECMWF's stream is
+// 6-hourly from step 144 to 240); its swells and wind waves (CMEMS) and every 14-day tail are 3-hourly. Kill:
+// window.__RAW_DISABLE_LATTICE_BY_LAYER__ = true (the model-only rule above).
+export const EURO_SIX_HOURLY_UNTIL_STEP = 240;
+// ECMWF's own streams go 6-hourly past step 144: the wave stream (EURO waves) and IFS (EURO wind). CMEMS swells are 3-hourly.
+const EURO_SIX_HOURLY_LAYERS = new Set(['waves', 'wind']);
+export function latticeNearestMaxHours(model, hour, { selectedMs, runMs, layer } = {}) {
+  const byLayer = !!layer && latticeByLayerOn();
+  if (byLayer) {
+    const half = servedPickHalfStep(model, layer, selectedMs);
+    if (half !== null) return half;
+  }
   if (model !== 'EURO') return 1;
+  if (byLayer && !EURO_SIX_HOURLY_LAYERS.has(layer)) return 1;
   const byStep = !(typeof window !== 'undefined' && window.__RAW_DISABLE_LATTICE_MODEL_STEP__ === true)
     && Number.isFinite(selectedMs) && Number.isFinite(runMs) && selectedMs >= runMs;
-  return (byStep ? (selectedMs - runMs) / 3600000 : hour) > EURO_SIX_HOURLY_AFTER_STEP ? 3 : 1;
+  const step = byStep ? (selectedMs - runMs) / 3600000 : hour;
+  if (byLayer && byStep && step > EURO_SIX_HOURLY_UNTIL_STEP) return 1;
+  return step > EURO_SIX_HOURLY_AFTER_STEP ? 3 : 1;
 }
 
 export const ESTIMATE_WORDS = {
@@ -40,7 +58,23 @@ export const ESTIMATE_WORDS = {
   far_edge_hold: 'held from the last stored forecast',
   // lattice_fill.py's 3-hourly EURO frames between the 6-hourly ones past model step 144 (was the generic 'estimated').
   native_time_interpolation: 'interpolated between stored forecasts',
+  // EVERY BASIS A MARINE FRAME CAN CARRY (2026-10-28, the lead's 10-26/10-27 rounds): an unnamed one read "Estimated forecast:
+  // estimated", EURO's tail at h294-h336 among them (backend estimator.py, empty_frame_recovery.py, normalizer.py).
+  euro_persistence_gfs_icon_blend: 'beyond EURO’s range, blended with GFS and ICON',
+  euro_persistence_gfs_blend: 'beyond EURO’s range, blended with GFS',
+  icon_extended_estimate: 'beyond ICON’s native range',
+  icon_loop_extrapolation: 'beyond ICON’s native range',
+  coarser_grid_fallback: 'from a coarser stored grid',
+  gfs_derived_fallback: 'GFS stand-in',
+  ecmwf_ifs_derived_fallback: 'ECMWF stand-in',
+  open_meteo_fallback: 'Open-Meteo stand-in',
 };
+// A basis with no words of its own reads "Estimated forecast", never "Estimated forecast: estimated" (the doubled word).
+// Kill: window.__RAW_DISABLE_DRAWN_ESTIMATE_WORDS__ = true (the words above and the rating-frame rule in marineDrawnFrame).
+const GENERIC_ESTIMATE = 'estimated';
+const estimateWordsOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_DRAWN_ESTIMATE_WORDS__ === true);
+const NEW_ESTIMATE_KEYS = new Set(['euro_persistence_gfs_icon_blend', 'euro_persistence_gfs_blend', 'icon_extended_estimate',
+  'icon_loop_extrapolation', 'coarser_grid_fallback', 'gfs_derived_fallback', 'ecmwf_ifs_derived_fallback', 'open_meteo_fallback']);
 
 /**
  * HELD: ONE rule for every held frame (2026-10-25/26, the owner's day-14 test: "the ICON data is showing Saturday 13th day on the
@@ -84,7 +118,27 @@ const datedPair = (aMs, bMs, nowMs) => !(typeof window !== 'undefined' && window
 
 function estimateWords(drawn) {
   if (!drawn || !drawn.estimated) return '';
-  return ESTIMATE_WORDS[drawn.basisType] || 'estimated';
+  if (!estimateWordsOn() && NEW_ESTIMATE_KEYS.has(drawn.basisType)) return GENERIC_ESTIMATE;
+  return ESTIMATE_WORDS[drawn.basisType] || GENERIC_ESTIMATE;
+}
+
+/**
+ * WHY A FRAME IS HELD, when it is not range (2026-10-28, the lead's 10-27 live round: a tab idle ~10 h, the wheel's +156 had moved
+ * with the clock to 11-03T08Z while the drawn frame stayed at 11-03T03Z, and the line said "beyond EURO’s range"). Two reasons the
+ * client can MEASURE: the series anchor rolled since the frame was drawn under this same hour label (drawn.anchorMs), and the frame's
+ * verified cycle is older than the newest one the manifest names (requested.latestRunMs). Null when neither holds.
+ * Kill: window.__RAW_DISABLE_DRAWN_HOLD_REASON__ = true (range words again).
+ */
+const HOUR_MS = 3600000;
+function holdReason(requested, drawn, m) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_DRAWN_HOLD_REASON__ === true) return null;
+  const anchorNow = Number.isFinite(requested.labelMs) && Number.isFinite(requested.hour) ? requested.labelMs - requested.hour * HOUR_MS : null;
+  const rolledH = Number.isFinite(anchorNow) && Number.isFinite(drawn.anchorMs) ? Math.round((anchorNow - drawn.anchorMs) / HOUR_MS) : 0;
+  const olderRun = Number.isFinite(drawn.runMs) && Number.isFinite(requested.latestRunMs) && requested.latestRunMs > drawn.runMs;
+  if (rolledH >= 1) {
+    return { rolled: true, why: `drawn ${rolledH} h ago${olderRun ? ' from an older run' : ''}, and the selected time has moved on` };
+  }
+  return olderRun ? { rolled: false, why: `from an older ${m} run` } : null;
 }
 
 /** Nothing of ours is on screen for this selection (the drawn record retired, marineDrawnFrame.NOTHING_DRAWN_REASONS): only the load. */
@@ -132,18 +186,32 @@ export function describeDrawnFrame(requested, drawn, { nowMs = Date.now() } = {}
     : (labelOn && Number.isFinite(drawn.hour) && Number.isFinite(requested.hour)   // one clock in one sentence
       ? formatInstant(requested.labelMs + (drawn.hour - requested.hour) * 3600000) : formatForecastHour(drawn.hour, nowMs));
   if (dh !== 0) {
+    // D8: the frame the server answers this selection with (storedLattice.servedPick), when the manifest says.
+    const pick = byInstant && latticeByLayerOn() && requested.layer ? servedPick(requested.model, requested.layer, selectedMs) : null;
+    const pickIsDrawn = !!pick && Math.abs(pick.pickMs - dataMs) < 1800000;
     if (Math.abs(dh) <= (Number.isFinite(requested.nearestMaxHours) ? requested.nearestMaxHours : NEAREST_MAX_HOURS)) {   // caller may pass its lattice's half-step
+      // The server answers with the nearest AUTHORITATIVE frame within 3 h before a closer estimate (EURO waves between its
+      // 6-hourly steps); it is then not "the nearest stored forecast", so the words say what it is.
+      const full = !!(pickIsDrawn && pick.nearerEstimate && !drawn.estimated);
+      if (full) return { state: 'nearest', text: `Showing ${drawnLabel}: the nearest full forecast; an estimate lies closer` };
       return { state: 'nearest', text: `Showing ${drawnLabel}: the nearest stored forecast${est ? ` (${est})` : ''}` };
     }
-    if (heldWordsOn() && drawn.estimated && byInstant && Number.isFinite(drawn.hour) && drawn.hour === requested.hour) {
-      const m = model(drawn.model || requested.model);
-      const why = HOLD_WHY[drawn.basisType] ? HOLD_WHY[drawn.basisType](m) : `beyond ${m}’s range`;
+    const sameHour = byInstant && Number.isFinite(drawn.hour) && drawn.hour === requested.hour;
+    const m = model(drawn.model || requested.model);
+    const reason = heldWordsOn() && sameHour ? holdReason(requested, drawn, m) : null;
+    // The clock moved under a frame drawn for this hour label: name that, estimate or not ("Loading" promised nothing here).
+    // `stale` keeps the point card's retained-hour badge (reconcileStaleBadge) for it.
+    if (reason && reason.rolled) return { state: 'held', stale: true, text: `Holding ${drawnLabel}’s ${m} forecast: ${reason.why}` };
+    // A drawn estimate is HELD only when nothing nearer answers this selection: when the stored lattice names another frame (the
+    // server's pick, e.g. the GFS stand-in tail's next 3-hourly step), that frame is owed, so the line reads "Loading" (D8).
+    if (heldWordsOn() && drawn.estimated && sameHour && !(pick && !pickIsDrawn)) {
+      const why = HOLD_WHY[drawn.basisType] ? HOLD_WHY[drawn.basisType](m) : (reason ? reason.why : `beyond ${m}’s range`);
       return { state: 'held', text: `Holding ${drawnLabel}’s ${m} forecast: ${why}` };
     }
     const selectedLabel = labelOn ? formatInstant(requested.labelMs, dated) : formatForecastHour(requested.hour, nowMs);
     return { state: 'pending', text: `Loading ${selectedLabel}… still showing ${drawnLabel}` };
   }
-  if (est) return { state: 'estimated', text: `Estimated forecast: ${est}` };
+  if (est) return { state: 'estimated', text: est === GENERIC_ESTIMATE && estimateWordsOn() ? 'Estimated forecast' : `Estimated forecast: ${est}` };
   return null;
 }
 
@@ -157,6 +225,24 @@ export function reconcileStaleBadge(status, requested, drawn) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_DRAWN_STALE_BADGE__ === true) return status;
   if (!requested || !drawn || !MARINE_LAYERS.has(requested.layer)) return status;
   const r = describeDrawnFrame(requested, drawn);
-  if (r && r.state === 'pending') return 'retained_stale_warning';
+  if (r && (r.state === 'pending' || r.stale)) return 'retained_stale_warning';
   return status === 'retained_stale_warning' ? null : status;
+}
+
+/**
+ * COARSE GRID (2026-10-28, the lead's 10-27 live round): EURO swell_1 at z9 is drawn from a 10.313-degree grid (CMEMS at
+ * global_coarse; the TruthOverlay HUD says "COARSE 10.313° GRID") and no user-facing words said so. A drawn grid of the selected
+ * model and layer whose nodes are COARSE_WORDS_MIN_DEG or more apart gets one short line; the 2-degree world tier stays quiet.
+ * Kill: window.__RAW_DISABLE_COARSE_GRID_WORDS__ = true.
+ */
+export const COARSE_WORDS_MIN_DEG = 5;
+export function describeCoarseGrid(requested, drawn) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_COARSE_GRID_WORDS__ === true) return null;
+  if (!requested || !drawn || !MARINE_LAYERS.has(requested.layer)) return null;
+  if ((drawn.model && requested.model && drawn.model !== requested.model)
+      || (drawn.layer && requested.layer && drawn.layer !== requested.layer)) return null;   // a switch: the switch words speak
+  const deg = drawn.resolutionDeg;
+  if (!Number.isFinite(deg) || deg < COARSE_WORDS_MIN_DEG) return null;
+  const name = `${MODEL_NAMES[requested.model] || requested.model || ''} ${LAYER_NAMES[requested.layer] || requested.layer}`.trim();
+  return { state: 'coarse', deg, text: `Coarse grid: ${name} points are ${Math.round(deg * 10) / 10}° apart` };
 }
