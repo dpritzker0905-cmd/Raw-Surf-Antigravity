@@ -4,11 +4,14 @@ Local follow-up to the consistency repair, authorized by the owner to use the re
 18:30 UTC (2:30 p.m. America/New_York). Source base: `3f3ebeed8` on
 `codex/audit-repair-20261029`.
 
+Saved repair commit: `1056b4f7b`. The [combined two-batch handoff](2026-10-29-consistency-call-handoff.md)
+records completed work, exact ownership, evidence limits and the next unrepaired issues.
+
 ## Audit and ownership
 
 The October 26 continuation audit, sections “Direct messages: outgoing-call timeout ownership”
 and “Calls: connection timer and quality monitoring,” identifies stale outgoing-call timeouts and
-duplicate duration/quality monitors. Current source retains both defects.
+duplicate duration/quality monitors. The pre-repair source retained both defects.
 
 The other chat, “Audit each app feature,” was freshly inspected at 18:19 UTC: its current work is
 Saved Crew request lifecycle. A read-only Git comparison lists 59 changed files in its checkout;
@@ -59,7 +62,8 @@ It is not evidence of a product failure. The corrected fixture passed against th
 The independent Chrome fixture against the pre-repair Git source then reproduced the actual defect:
 after A ended and B started, crossing A's original deadline left B idle instead of outgoing. The same
 fixture passes all four checks on the repaired source. Sanitized evidence and replay scripts are in
-`evidence/2026-10-29-call-lifecycle/`; `verify_browser.cjs --baseline` selects the pre-repair source.
+`evidence/2026-10-29-call-lifecycle/`. The verifier's `--baseline` reads Git HEAD; it selected the
+pre-repair source when this evidence was recorded, but current HEAD now includes the repair.
 
 The docs-only memory audit reports 0 failures, 64 warnings and 12 notes (unchanged from the prior
 closeout). Production frontend compilation completed successfully (exit 0) by 18:28 UTC on the

@@ -112,3 +112,32 @@ limitations; no provider/device/deployed/full-call qualification. Report audits/
 18:28 UTC closeout: production frontend compilation exit0 on unchanged source. Source maps and duplicate
 build-time ESLint plugin disabled as before; separately executed full lint gate passed. Earlier build
 pending entry is resolved. All owned browser/server resources stopped; local commit follows.
+
+## Owner-requested memory and audit handoff after repair deadline
+
+The owner explicitly requested memory/audit updates for both batches and a continuation handoff.
+Application source remains unchanged from 1056b4f7b; all 13 fingerprints were checked. New canonical
+handoff: docs/audits/2026-10-29-consistency-call-handoff.md; machine-readable evidence manifest:
+docs/audits/evidence/2026-10-29-repair-handoff.json. Both individual reports link to the handoff.
+
+Original October28 audit worklist and October26 status index/continuation received append-only
+receipts and a local handoff entrypoint. Previous bytes were verified intact. A new memory extension
+note was saved under memories_v2/extensions/ad_hoc/notes/2026-10-29-raw-surf-consistency-call-repair-handoff.md;
+no generated memory file was edited. Fresh other-chat snapshot at18:31UTC remains SavedCrew overlapping
+requests, and the59-file delta still has zero overlap with our13applicationfiles. No direct message or
+acknowledgement is claimed. Source, log and ledger ownership are preserved.
+
+The handoff distinguishes final103React cases from previous95+8, separate51backend/19PostgreSQL and
+6+4Chrome checks, hosted/live/device limits, and valid versus invalid baseline evidence. It retains
+pendingmedia/SDP cancellation, protocolcallIDs/reconnect, notificationdelivery/continuoussync, integration
+and CI-floor reconciliation. WeeklychallengeISO/count is an unrepaired candidate; tie policy undecided.
+Calling --baseline currently reads HEAD; historical replay must use3f3ebeed8. This documentation update
+adds no repair, deployment, provider write, shared runtime change or served weather number.
+
+Handoff review correction: cleanup wording now precisely states the transient PostgreSQL password
+file was removed, not all database authentication state. The known pre-existing hardcoded TURN
+credentials in the calling hook are an open provider-remediation item; no values are reproduced,
+no rotation/configuration change was performed, and the browser fixture strips ICE configuration.
+This residual is recorded in the canonical handoff, memory note and original-audit entrypoint.
+Documentation validation: all13applicationhashes unchanged,15localreportlinks resolve, ledger2074OK,
+fragmentcheck0problems. No application tests rerun for this documentation-only update.

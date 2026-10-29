@@ -4,6 +4,10 @@ Local repair branch: `codex/audit-repair-20261029`, based on freshly fetched dev
 `72b4652d5753423cce18b9ad1d1de95f0afcb7e7`. Work began at 17:31 UTC under the owner's
 one-hour request and 18:30 UTC deadline. This report records local verification, not deployment.
 
+For both completed batches, exact file ownership, current evidence and remaining work, start with the
+[combined handoff](2026-10-29-consistency-call-handoff.md). This report preserves batch 1's historical
+95-test result; the later combined total is 103 (95 plus eight calling tests), not an additional 103.
+
 ## Selection and ownership
 
 The October 28 prioritized audit worklist and October 26 continuation audit were read from
