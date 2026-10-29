@@ -14,12 +14,13 @@ import apiClient from '../lib/apiClient';
 // --- Read / fetch ---
 
 /**
- * Fetch all notifications for a user.
+ * Fetch a page of notifications for a user (latest 50 by default).
  * @param {string} userId
+ * @param {{ limit?: number, before_created_at?: string, before_id?: string }} [params]
  * @returns {Promise<import('axios').AxiosResponse>}
  */
-export const getNotifications = (userId) =>
-  apiClient.get(`/notifications/${userId}`);
+export const getNotifications = (userId, params) =>
+  params ? apiClient.get(`/notifications/${userId}`, { params }) : apiClient.get(`/notifications/${userId}`);
 
 /**
  * Fetch unread notification count for a user.

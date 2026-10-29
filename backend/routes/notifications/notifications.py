@@ -2,9 +2,9 @@ import json
 import os
 import re
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, update
+from sqlalchemy import select, update, and_, or_
 from pydantic import BaseModel
 from typing import List
 from datetime import datetime
@@ -26,13 +26,24 @@ class NotificationResponse(BaseModel):
     created_at: datetime
 
 @router.get("/notifications/{user_id}", response_model=List[NotificationResponse])
-async def get_notifications(user_id: str, limit: int = 50, db: AsyncSession = Depends(get_db)):
-    result = await db.execute(
-        select(Notification)
-        .where(Notification.user_id == user_id)
-        .order_by(Notification.created_at.desc())
-        .limit(limit)
-    )
+async def get_notifications(
+    user_id: str,
+    limit: int = Query(50, ge=1, le=100),
+    before_created_at: datetime | None = None,
+    before_id: str | None = Query(None, min_length=1, max_length=36),
+    db: AsyncSession = Depends(get_db),
+):
+    if (before_created_at is None) != (before_id is None):
+        raise HTTPException(status_code=400, detail="Both notification cursor fields are required")
+    query = select(Notification).where(Notification.user_id == user_id)
+    if before_created_at is not None:
+        query = query.where(or_(
+            Notification.created_at < before_created_at,
+            and_(Notification.created_at == before_created_at, Notification.id < before_id),
+        ))
+    # The id tie-breaker gives equal-time notifications a stable position. Keyset
+    # paging remains stable when newer notifications arrive between page reads.
+    result = await db.execute(query.order_by(Notification.created_at.desc(), Notification.id.desc()).limit(limit))
     notifications = result.scalars().all()
     
     return [NotificationResponse(

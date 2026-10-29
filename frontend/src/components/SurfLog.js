@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   BookOpen, Plus, Waves, Clock, MapPin, Star, Trash2, Edit3,
@@ -31,6 +31,20 @@ const CROWD_LEVELS = ['Empty', 'Light', 'Moderate', 'Crowded', 'Packed'];
 const TIDE_OPTIONS = ['Low', 'Rising', 'High', 'Falling'];
 const WIND_OPTIONS = ['Offshore', 'Cross-offshore', 'Cross-shore', 'Cross-onshore', 'Onshore', 'Calm'];
 const TIME_OPTIONS = ['Dawn Patrol', 'Morning', 'Midday', 'Afternoon', 'Sunset', 'Night'];
+
+const localSessionDate = () => {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+};
+
+const emptyEntryForm = () => ({
+  session_date: localSessionDate(),
+  session_time: '', duration_minutes: '', spot_name: '',
+  wave_height: '', wind_direction: '', tide_status: '', water_temp: '', crowd_level: '',
+  board_model: '', wetsuit: '', fin_setup: '',
+  notes: '', mood: '', personal_rating: 0, conditions_rating: 0,
+  latitude: '', longitude: ''
+});
 
 /* --- Stats Banner -------------------------------------------- */
 const StatsBanner = ({ stats, isLight }) => {
@@ -83,7 +97,7 @@ const EntryCard = ({ entry, isLight, onEdit, onDelete }) => {
           )}
         </div>
         <div className="flex items-center gap-1">
-          <button aria-label="Edit3" onClick={() => onEdit(entry)} className={`p-1.5 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-700'}`}><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
+          <button aria-label="Edit session" onClick={() => onEdit(entry)} className={`p-1.5 rounded-lg ${isLight ? 'hover:bg-gray-100' : 'hover:bg-zinc-700'}`}><Edit3 className="w-3.5 h-3.5 text-gray-400" /></button>
           <button aria-label="Delete" onClick={() => onDelete(entry.id)} className={`p-1.5 rounded-lg ${isLight ? 'hover:bg-red-50' : 'hover:bg-red-500/10'}`}><Trash2 className="w-3.5 h-3.5 text-red-400" /></button>
         </div>
       </div>
@@ -123,21 +137,25 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, p
   const bg = isLight ? 'bg-white' : 'bg-zinc-900';
   const inputCls = `w-full px-3 py-2 rounded-lg border text-sm ${isLight ? 'bg-white border-gray-300 text-gray-900' : 'bg-zinc-800 border-zinc-700 text-white'}`;
 
-  const [form, setForm] = useState({
-    session_date: new Date().toISOString().split('T')[0],
-    session_time: '', duration_minutes: '', spot_name: '',
-    wave_height: '', wind_direction: '', tide_status: '', water_temp: '', crowd_level: '',
-    board_model: '', wetsuit: '', fin_setup: '',
-    notes: '', mood: '', personal_rating: 0, conditions_rating: 0,
-    latitude: '', longitude: ''
-  });
+  const [form, setForm] = useState(emptyEntryForm);
   const [saving, setSaving] = useState(false);
   const [locationPickerOpen, setLocationPickerOpen] = useState(false);
+  const formGeneration = useRef(0);
+  const locationRequest = useRef({ generation: 0, controller: null });
+
+  const cancelLocationRequest = useCallback(() => {
+    locationRequest.current.generation += 1;
+    locationRequest.current.controller?.abort();
+    locationRequest.current.controller = null;
+  }, []);
 
   useEffect(() => {
+    formGeneration.current += 1;
+    setSaving(false);
+    cancelLocationRequest();
     if (entry) {
       setForm({
-        session_date: entry.session_date || new Date().toISOString().split('T')[0],
+        session_date: entry.session_date || localSessionDate(),
         session_time: entry.session_time || '', duration_minutes: entry.duration_minutes || '',
         spot_name: entry.spot_name || '', wave_height: entry.wave_height || '',
         wind_direction: entry.wind_direction || '', tide_status: entry.tide_status || '',
@@ -145,56 +163,85 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, p
         board_model: entry.board_model || '', wetsuit: entry.wetsuit || '', fin_setup: entry.fin_setup || '',
         notes: entry.notes || '', mood: entry.mood || '',
         personal_rating: entry.personal_rating || 0, conditions_rating: entry.conditions_rating || 0,
-        latitude: entry.latitude || '', longitude: entry.longitude || ''
+        latitude: entry.latitude ?? '', longitude: entry.longitude ?? ''
       });
     } else {
-      setForm(f => ({ 
-        ...f, 
-        session_date: new Date().toISOString().split('T')[0],
+      setForm({
+        ...emptyEntryForm(),
         duration_minutes: prefillMetrics ? Math.floor(prefillMetrics.duration_minutes || 0) : '',
         board_model: prefillGear || '',
         spot_name: prefillLocation?.name || '',
-        latitude: prefillLocation?.lat || '',
-        longitude: prefillLocation?.lng || '',
+        latitude: prefillLocation?.lat ?? '',
+        longitude: prefillLocation?.lng ?? '',
         notes: prefillMetrics ? `Distance: ${(prefillMetrics.distance / 1000).toFixed(2)}km | Waves: ${prefillMetrics.waveCount} | Top Speed: ${(prefillMetrics.topSpeed * 3.6).toFixed(1)}km/h` : ''
-      }));
+      });
     }
-  }, [entry, isOpen, prefillMetrics, prefillGear, prefillLocation]);
+    if (!isOpen) setLocationPickerOpen(false);
+    return () => {
+      formGeneration.current += 1;
+      cancelLocationRequest();
+    };
+  }, [entry, isOpen, userId, prefillMetrics, prefillGear, prefillLocation, cancelLocationRequest]);
 
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const set = (k, v) => {
+    if (k === 'spot_name') cancelLocationRequest();
+    setForm(f => ({ ...f, [k]: v }));
+  };
 
   const handleSave = async () => {
     if (!form.session_date) { toast.error('Session date is required'); return; }
+    const generation = formGeneration.current;
     setSaving(true);
     try {
-      const payload = { ...form, duration_minutes: form.duration_minutes ? parseInt(form.duration_minutes, 10) : null };
+      const payload = {
+        ...form,
+        duration_minutes: form.duration_minutes ? parseInt(form.duration_minutes, 10) : null,
+        latitude: form.latitude === '' ? null : form.latitude,
+        longitude: form.longitude === '' ? null : form.longitude,
+      };
       if (entry?.id) {
         await apiClient.patch(`/surf-log/${userId}/${entry.id}`, payload);
-        toast.success('Entry updated');
       } else {
         await apiClient.post(`/surf-log/${userId}`, payload);
-        toast.success('Session logged!');
       }
+      // The page owns account/unmount checks for readback. A completed write still
+      // refreshes its account after this modal closes, without disturbing a new draft.
       onSaved();
+      // Only this save's form may show a toast or close itself.
+      if (generation !== formGeneration.current) return;
+      toast.success(entry?.id ? 'Entry updated' : 'Session logged!');
       onClose();
     } catch (err) {
+      if (generation !== formGeneration.current) return;
       logger.error('Save surf log entry failed:', err);
       toast.error(err.response?.data?.detail || 'Failed to save entry');
-    } finally { setSaving(false); }
+    } finally {
+      if (generation === formGeneration.current) setSaving(false);
+    }
   };
 
   const handleLocationSelected = async (loc) => {
-    set('latitude', loc.lat);
-    set('longitude', loc.lng);
+    cancelLocationRequest();
+    const generation = locationRequest.current.generation;
+    const controller = new AbortController();
+    locationRequest.current.controller = controller;
+    // A name belongs to its coordinates; never carry the previous name into a new selection.
+    setForm(f => ({ ...f, latitude: loc.lat, longitude: loc.lng, spot_name: '' }));
     try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.lat}&lon=${loc.lng}`);
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.lat}&lon=${loc.lng}`, { signal: controller.signal });
+      if (!res.ok) return;
       const data = await res.json();
-      if (data && data.address) {
-        const spotName = data.address.beach || data.address.suburb || data.address.town || data.address.city || data.display_name.split(',')[0];
-        set('spot_name', spotName);
+      if (controller.signal.aborted || generation !== locationRequest.current.generation) return;
+      if (data?.address) {
+        const spotName = data.address.beach || data.address.suburb || data.address.town || data.address.city || data.display_name?.split(',')[0] || '';
+        setForm(f => ({ ...f, spot_name: spotName }));
       }
     } catch (e) {
-      console.warn("Reverse geocode failed", e);
+      if (!controller.signal.aborted && generation === locationRequest.current.generation) {
+        logger.error('Reverse geocode failed:', e);
+      }
+    } finally {
+      if (generation === locationRequest.current.generation) locationRequest.current.controller = null;
     }
   };
 
@@ -225,7 +272,7 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, p
         <div className="space-y-4">
           {/* Date & Time */}
           <div className="grid grid-cols-2 gap-3">
-            <div><label className={`text-xs font-medium ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>Date *</label><input type="date" value={form.session_date} onChange={e => set('session_date', e.target.value)} className={inputCls} /></div>
+            <div><label htmlFor="surf-log-session-date" className={`text-xs font-medium ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>Date *</label><input id="surf-log-session-date" type="date" value={form.session_date} onChange={e => set('session_date', e.target.value)} className={inputCls} /></div>
             <div>
               <label className={`text-xs font-medium ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>Time of Day</label>
               <select value={form.session_time} onChange={e => set('session_time', e.target.value)} className={inputCls}>
@@ -239,10 +286,10 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, p
           <div className="grid grid-cols-2 gap-3">
             <div><label className={`text-xs font-medium ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>Duration (min)</label><input type="number" value={form.duration_minutes} onChange={e => set('duration_minutes', e.target.value)} placeholder="90" className={inputCls} /></div>
             <div>
-              <label className={`text-xs font-medium ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>Spot Name</label>
+              <label htmlFor="surf-log-spot-name" className={`text-xs font-medium ${isLight ? 'text-gray-700' : 'text-gray-300'}`}>Spot Name</label>
               <div className="flex gap-2">
-                <input type="text" value={form.spot_name} onChange={e => set('spot_name', e.target.value)} placeholder="Pipeline" className={inputCls} />
-                <button type="button" onClick={() => setLocationPickerOpen(true)} className="px-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white flex-shrink-0" title="Pick on map">
+                <input id="surf-log-spot-name" type="text" value={form.spot_name} onChange={e => set('spot_name', e.target.value)} placeholder="Pipeline" className={inputCls} />
+                <button type="button" onClick={() => setLocationPickerOpen(true)} className="px-3 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white flex-shrink-0" title="Pick on map" aria-label="Pick session location on map">
                   <MapPin className="w-4 h-4" />
                 </button>
               </div>
@@ -300,7 +347,7 @@ const EntryModal = ({ isOpen, onClose, entry, userId, onSaved, prefillMetrics, p
               className={`${inputCls} mt-1`} maxLength={1000} />
           </div>
 
-          <Button aria-label="Loader2" onClick={handleSave} disabled={saving} className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold py-3">
+          <Button onClick={handleSave} disabled={saving} className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 hover:from-cyan-600 hover:to-blue-600 text-white font-bold py-3">
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
             {entry ? 'Update Session' : 'Log Session'}
           </Button>
@@ -335,23 +382,73 @@ const SurfLog = () => {
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [trackingMetrics, setTrackingMetrics] = useState(null);
   const [gpxModalOpen, setGpxModalOpen] = useState(false);
+  const currentUserId = useRef(user?.id);
+  currentUserId.current = user?.id;
+  const dataOwner = useRef(user?.id);
+  const readContext = useRef({ mounted: false, sequence: 0, controller: null });
 
   const fetchData = useCallback(async () => {
-    if (!user?.id) return;
+    const userId = user?.id;
+    const context = readContext.current;
+    // This callback may belong to a completed save from an earlier page/account.
+    if (!userId || !context.mounted || currentUserId.current !== userId) return;
+    context.controller?.abort();
+    const controller = new AbortController();
+    context.controller = controller;
+    const sequence = ++context.sequence;
+    const isCurrent = () => context.mounted && currentUserId.current === userId
+      && context.sequence === sequence && !controller.signal.aborted;
     setLoading(true);
     try {
       const [entriesRes, statsRes] = await Promise.allSettled([
-        apiClient.get(`/surf-log/${user.id}?limit=100`),
-        apiClient.get(`/surf-log/${user.id}/stats`),
+        apiClient.get(`/surf-log/${userId}?limit=100`, { signal: controller.signal }),
+        apiClient.get(`/surf-log/${userId}/stats`, { signal: controller.signal }),
       ]);
+      if (!isCurrent()) return;
       if (entriesRes.status === 'fulfilled') setEntries(entriesRes.value.data.entries || []);
       if (statsRes.status === 'fulfilled') setStats(statsRes.value.data);
     } catch (err) {
-      logger.error('Failed to fetch surf log:', err);
-    } finally { setLoading(false); }
+      if (isCurrent()) logger.error('Failed to fetch surf log:', err);
+    } finally {
+      if (isCurrent()) {
+        context.controller = null;
+        setLoading(false);
+      }
+    }
   }, [user?.id]);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  useEffect(() => {
+    const context = readContext.current;
+    context.mounted = true;
+    if (dataOwner.current !== user?.id) {
+      // Drafts and tracking/setup surfaces belong to the account that opened them.
+      setModalOpen(false);
+      setEditEntry(null);
+      setConfigModalOpen(false);
+      setGpxModalOpen(false);
+      setIsLiveTracking(false);
+      setSelectedGear('');
+      setSelectedLocation(null);
+      setTrackingMetrics(null);
+    }
+    dataOwner.current = user?.id;
+    setEntries([]);
+    setStats(null);
+    setLoading(Boolean(user?.id));
+    fetchData();
+    return () => {
+      context.mounted = false;
+      context.sequence += 1;
+      context.controller?.abort();
+      context.controller = null;
+    };
+  }, [fetchData, user?.id]);
+
+  // Do not paint another account's rows during the render before effect cleanup.
+  const ownsData = dataOwner.current === user?.id;
+  const visibleEntries = ownsData ? entries : [];
+  const visibleStats = ownsData ? stats : null;
+  const visibleLoading = Boolean(user?.id) && (!ownsData || loading);
 
   // Handle Strava OAuth Callback
   useEffect(() => {
@@ -395,7 +492,7 @@ const SurfLog = () => {
   const handleEdit = (entry) => { setEditEntry(entry); setModalOpen(true); };
   const handleCreate = () => { setEditEntry(null); setConfigModalOpen(true); };
 
-  if (isLiveTracking) {
+  if (isLiveTracking && ownsData) {
     return (
       <LiveSessionDashboard 
         userId={user?.id}
@@ -442,7 +539,7 @@ const SurfLog = () => {
         </div>
       </div>
 
-      {loading ? (
+      {visibleLoading ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
           <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
           <p className={`text-sm ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>Loading your sessions...</p>
@@ -450,10 +547,10 @@ const SurfLog = () => {
       ) : (
         <>
           <div className="mt-4">
-            <StatsBanner stats={stats} isLight={isLight} />
+            <StatsBanner stats={visibleStats} isLight={isLight} />
           </div>
 
-          {entries.length === 0 ? (
+          {visibleEntries.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-500/20 flex items-center justify-center mb-5 animate-pulse">
                 <BookOpen className="w-10 h-10 text-cyan-400" />
@@ -467,7 +564,7 @@ const SurfLog = () => {
           ) : (
             <div className="mt-2 px-4 md:px-0">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {entries.map(e => <EntryCard key={e.id} entry={e} isLight={isLight} onEdit={handleEdit} onDelete={handleDelete} />)}
+                {visibleEntries.map(e => <EntryCard key={e.id} entry={e} isLight={isLight} onEdit={handleEdit} onDelete={handleDelete} />)}
               </div>
             </div>
           )}
@@ -475,7 +572,7 @@ const SurfLog = () => {
       )}
 
       <PreSessionConfigModal 
-        isOpen={configModalOpen} 
+        isOpen={configModalOpen && ownsData}
         onClose={() => setConfigModalOpen(false)}
         onStartLive={(board, location) => {
           setSelectedGear(board);
@@ -497,7 +594,7 @@ const SurfLog = () => {
       />
 
       <GpxUploadModal
-        isOpen={gpxModalOpen}
+        isOpen={gpxModalOpen && ownsData}
         onClose={() => setGpxModalOpen(false)}
         onParsed={(metrics) => {
           setGpxModalOpen(false);
@@ -508,7 +605,7 @@ const SurfLog = () => {
       />
 
       <EntryModal 
-        isOpen={modalOpen} 
+        isOpen={modalOpen && ownsData}
         onClose={() => { setModalOpen(false); setEditEntry(null); setTrackingMetrics(null); setSelectedLocation(null); }} 
         entry={editEntry} 
         userId={user?.id} 
@@ -518,7 +615,7 @@ const SurfLog = () => {
         prefillLocation={selectedLocation}
       />
       
-      {!loading && (
+      {!visibleLoading && (
         <button 
           onClick={() => setConfigModalOpen(true)}
           className="fixed bottom-20 right-6 z-50 w-14 h-14 bg-cyan-500 hover:bg-cyan-600 text-white rounded-full shadow-lg shadow-cyan-500/30 flex items-center justify-center transition-transform hover:scale-110"

@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { getNotifications, markRead, markAllRead } from '../services/notificationService';
+import React, { useState, useMemo, useCallback } from 'react';
+import useNotificationInbox from '../hooks/useNotificationInbox';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
@@ -11,7 +11,6 @@ import {
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from './ui/sheet';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
-import logger from '../utils/logger';
 import { formatTimeAgo } from '../utils/formatTime';
 import { getNotificationDeepLink } from '../utils/notificationDeepLinks';
 
@@ -177,25 +176,9 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
   const navigate = useNavigate();
   const colors = useMemo(() => getThemeColors(theme), [theme]);
 
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { items: notifications, unread: totalUnread, loading, hasMore, error, mutating,
+    reload, read, readAll } = useNotificationInbox(user?.id, isOpen);
   const [activeTab, setActiveTab] = useState('all');
-
-  useEffect(() => {
-    if (isOpen && user?.id) fetchNotifications();
-  }, [isOpen, user?.id]);
-
-  const fetchNotifications = async () => {
-    try {
-      setLoading(true);
-      const response = await getNotifications(user.id);
-      setNotifications(response.data);
-    } catch (error) {
-      logger.error('Failed to fetch notifications:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const filteredNotifications = useMemo(() => {
     if (activeTab === 'all') return notifications;
@@ -214,21 +197,18 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
         if (counts[config.category] !== undefined) counts[config.category]++;
       }
     });
+    counts.all = totalUnread ?? 0;
     return counts;
-  }, [notifications]);
+  }, [notifications, totalUnread]);
 
   const handleMarkAllRead = async () => {
     try {
-      await markAllRead(user.id);
-      setNotifications(notifications.map(n => ({ ...n, is_read: true })));
-      toast.success('All marked as read');
-      if (onCountUpdate) onCountUpdate();
-    } catch {
-      toast.error('Failed to mark all as read');
-    }
+      if (await readAll()) {
+        toast.success('All marked as read');
+        if (onCountUpdate) onCountUpdate();
+      }
+    } catch { toast.error('Failed to mark all as read'); }
   };
-
-
 
   const handleViewAll = () => {
     onClose();
@@ -237,15 +217,9 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
 
   const handleNotificationClick = useCallback(async (notification) => {
     if (!notification.is_read) {
-      try {
-        await markRead(notification.id);
-        setNotifications(prev => prev.map(n =>
-          n.id === notification.id ? { ...n, is_read: true } : n
-        ));
-        if (onCountUpdate) onCountUpdate();
-      } catch (error) {
-        logger.error('Failed to mark as read:', error);
-      }
+      try { if (!await read(notification.id)) return; }
+      catch { toast.error('Failed to mark notification as read'); return; }
+      if (onCountUpdate) onCountUpdate();
     }
     const deepLink = getNotificationDeepLink(notification);
     if (deepLink) {
@@ -253,7 +227,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
       if (deepLink.state) navigate(deepLink.route, { state: deepLink.state });
       else navigate(deepLink.route);
     }
-  }, [navigate, onClose, onCountUpdate]);
+  }, [navigate, onClose, onCountUpdate, read]);
 
   // -- Notification Item -----------------------------------------------------
   const NotificationItem = ({ notification }) => {
@@ -262,9 +236,10 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
     const isClickable = !!getNotificationDeepLink(notification);
 
     return (
-      <div data-testid="notifications-drawer"
+      <button type="button" disabled={mutating} data-testid="notifications-drawer"
         onClick={() => handleNotificationClick(notification)}
-        className={`flex items-start gap-3 p-3 rounded-xl transition-all ${
+        aria-label={`${notification.title}${notification.is_read ? "" : ", unread"}`}
+        className={`w-full text-left flex items-start gap-3 p-3 rounded-xl transition-all ${
           isClickable ? 'cursor-pointer' : 'cursor-default'
         } ${notification.is_read ? colors.itemRead : colors.itemUnread}`}
       >
@@ -290,7 +265,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
             <ChevronRight className={`w-4 h-4 ${colors.chevron}`} />
           )}
         </div>
-      </div>
+      </button>
     );
   };
 
@@ -331,7 +306,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
             </div>
             <div className="flex items-center gap-1">
               {unreadCounts.all > 0 && (
-                <Button aria-label="Check Check"
+                <Button aria-label="Mark all read" disabled={mutating}
                   onClick={handleMarkAllRead}
                   variant="ghost"
                   size="sm"
@@ -354,7 +329,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
             const isActive = activeTab === tab.id;
             const count = unreadCounts[tab.id];
             return (
-              <button aria-label="Icon"
+              <button aria-pressed={isActive} aria-label={tab.label}
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all ${
@@ -383,11 +358,16 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
             <div className="flex items-center justify-center py-12">
               <div className={`animate-spin rounded-full h-6 w-6 border-b-2 ${colors.iconColor.replace('text-', 'border-')}`} />
             </div>
+          ) : error ? (
+            <div role="alert" className={`py-8 text-center ${colors.subtext}`}>
+              <p>Could not load notifications. Please try again.</p>
+              <Button onClick={reload} aria-label="Retry notifications">Retry</Button>
+            </div>
           ) : filteredNotifications.length === 0 ? (
             <div className="text-center py-12">
               <Bell className={`w-10 h-10 ${colors.emptyIcon} mx-auto mb-3`} />
               <p className={`${colors.emptyText} text-sm font-medium`}>
-                {activeTab === 'all' ? 'No notifications yet' : `No ${activeTab} notifications`}
+                {activeTab === 'all' ? 'No notifications yet' : `No ${activeTab} notifications${hasMore ? ' in recent history' : ''}`}
               </p>
               <p className={`${colors.subtext} text-xs mt-1`}>We'll let you know when something happens</p>
             </div>
@@ -408,7 +388,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
                   }`}
                 >
                   <Bell className="w-4 h-4" />
-                  See all {filteredNotifications.length - 10} more notifications
+                  View all notifications
                   <ChevronRight className="w-4 h-4" />
                 </button>
               )}
@@ -418,7 +398,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
 
         {/* -- Footer -- */}
         <div className={`border-t ${colors.footerBorder} p-3 shrink-0 ${colors.footer}`}>
-          <Button aria-label="External Link"
+          <Button aria-label="View All Notifications"
             onClick={handleViewAll}
             variant="outline"
             className={`w-full ${colors.footerBtn}`}

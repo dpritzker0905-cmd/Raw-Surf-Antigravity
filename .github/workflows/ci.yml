@@ -2130,7 +2130,9 @@ jobs:
           #   base 3355 (hosted read) + 17 new test(s) = 3372; floor 3372 - 2 = 3370. This PR must read 3372 passed.
           # ⬆ 3370→3374 on 2026-10-27 (rederive_floor.py, claude/publisher-read-retry-coverage): dev run 40405333333 read 3372; dev's map 3372;
           #   base 3372 (hosted read) + 4 new test(s) = 3376; floor 3376 - 2 = 3374. This PR must read 3376 passed.
-          MIN_PASSED = 3374
+          # ⬆ 3374→3389 on 2026-10-29 (rederive_floor.py, codex/audit-repair-20261029): dev run 40807961067 read 3376; dev's map 3376;
+          #   base 3376 (hosted read) + 15 new test(s) = 3391; floor 3391 - 2 = 3389. This PR must read 3391 passed.
+          MIN_PASSED = 3389
 
           try:
               root = ET.parse('estate.xml').getroot()

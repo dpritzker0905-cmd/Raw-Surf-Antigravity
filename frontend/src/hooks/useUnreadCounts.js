@@ -24,12 +24,18 @@ let currentUser = null;
 let intervalId = null;
 let lastFetchAt = 0;
 let inFlight = null;
+let generation = 0;
 const subscribers = new Set();
 
 const isHidden = () => typeof document !== 'undefined' && document.visibilityState === 'hidden';
 
-const fetchCounts = (userId) => {
+const fetchCounts = (userId, force = false) => {
+  if (force) {
+    generation += 1;
+    inFlight = null;
+  }
   if (inFlight) return inFlight;
+  const requestGeneration = generation;
   lastFetchAt = Date.now();
   const read = (request, pick, what) => request
     .then((response) => pick(response.data || {}) || 0)
@@ -38,7 +44,7 @@ const fetchCounts = (userId) => {
     read(getUnreadCount(userId), (d) => d.unread_count, 'notification'),
     read(apiClient.get(`/messages/unread-counts/${userId}`), (d) => d.total, 'message'),
   ]).then(([notifications, messages]) => {
-    if (userId !== currentUser) return;   // the user changed while this was in flight
+    if (userId !== currentUser || requestGeneration !== generation) return;
     counts = {
       notifications: notifications === null ? counts.notifications : notifications,
       messages: messages === null ? counts.messages : messages,
@@ -69,7 +75,7 @@ const stopPolling = () => {
   document.removeEventListener('visibilitychange', onVisibilityChange);
 };
 
-export const refreshUnreadCounts = () => (currentUser ? fetchCounts(currentUser) : Promise.resolve());
+export const refreshUnreadCounts = ({ force = false } = {}) => (currentUser ? fetchCounts(currentUser, force) : Promise.resolve());
 
 export function useUnreadCounts(userId) {
   const [state, setState] = useState(userId && userId === currentUser ? counts : ZERO);
@@ -84,18 +90,25 @@ export function useUnreadCounts(userId) {
       currentUser = userId;
       counts = ZERO;
       inFlight = null;
+      generation += 1;
     }
     subscribers.add(setState);
     startPolling(userId);
     setState(counts);
     return () => {
       subscribers.delete(setState);
-      if (subscribers.size === 0) stopPolling();
+      if (subscribers.size === 0) {
+        stopPolling();
+        generation += 1;
+        inFlight = null;
+        currentUser = null;
+        counts = ZERO;
+      }
     };
   }, [userId]);
 
   const refresh = useCallback(() => refreshUnreadCounts(), []);
-  return { ...state, refresh };
+  return { ...(userId && userId === currentUser ? state : ZERO), refresh };
 }
 
 export default useUnreadCounts;

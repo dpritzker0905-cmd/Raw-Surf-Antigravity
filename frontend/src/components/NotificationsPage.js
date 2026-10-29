@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
-import { getNotifications, markRead, markAllRead } from '../services/notificationService';
+import useNotificationInbox from '../hooks/useNotificationInbox';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useNavigate } from 'react-router-dom';
@@ -10,7 +10,6 @@ import {
 } from 'lucide-react';
 import { Button } from './ui/button';
 import { toast } from 'sonner';
-import logger from '../utils/logger';
 import { formatTimeAgo } from '../utils/formatTime';
 import { getNotificationDeepLink } from '../utils/notificationDeepLinks';
 
@@ -186,8 +185,8 @@ export const NotificationsPage = () => {
   const navigate = useNavigate();
   const colors = useMemo(() => getThemeColors(theme), [theme]);
 
-  const [notifications, setNotifications] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { items: notifications, unread: totalUnread, loading, loadingMore, hasMore, error, mutating,
+    reload, loadOlder, read, readAll } = useNotificationInbox(user?.id);
   const [activeTab, setActiveTab] = useState('all');
 
   const isAdmin = user?.is_admin || user?.role === 'admin' || user?.role === 'Admin';
@@ -222,19 +221,6 @@ export const NotificationsPage = () => {
     setTimeout(updateArrowVisibility, 350);
   };
 
-  useEffect(() => { if (user?.id) fetchNotifications(); }, [user?.id]);
-
-  const fetchNotifications = async () => {
-    try {
-      const response = await getNotifications(user.id);
-      setNotifications(response.data);
-    } catch (error) {
-      logger.error('Failed to fetch notifications:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const filteredNotifications = useMemo(() => {
     if (activeTab === 'all') return notifications;
     return notifications.filter(n => {
@@ -242,6 +228,12 @@ export const NotificationsPage = () => {
       return config.category === activeTab;
     });
   }, [notifications, activeTab]);
+
+  const [calendarDay, setCalendarDay] = useState(() => new Date().toDateString());
+  useEffect(() => {
+    const tick = setInterval(() => setCalendarDay(new Date().toDateString()), 60000);
+    return () => clearInterval(tick);
+  }, []);
 
   const groupedNotifications = useMemo(() => {
     const groups = { today: [], yesterday: [], thisWeek: [], older: [] };
@@ -257,7 +249,7 @@ export const NotificationsPage = () => {
       else                     groups.older.push(n);
     });
     return groups;
-  }, [filteredNotifications]);
+  }, [filteredNotifications, calendarDay]);
 
   const unreadCounts = useMemo(() => {
     const counts = { all: 0, alerts: 0, sessions: 0, payments: 0, photos: 0, social: 0, admin: 0 };
@@ -268,38 +260,26 @@ export const NotificationsPage = () => {
         if (counts[config.category] !== undefined) counts[config.category]++;
       }
     });
+    counts.all = totalUnread ?? 0;
     return counts;
-  }, [notifications]);
+  }, [notifications, totalUnread]);
 
   const handleNotificationClick = useCallback(async (notification) => {
     if (!notification.is_read) {
-      try {
-        await markRead(notification.id);
-        setNotifications(prev => prev.map(n =>
-          n.id === notification.id ? { ...n, is_read: true } : n
-        ));
-      } catch (error) {
-        logger.error('Failed to mark as read:', error);
-      }
+      try { if (!await read(notification.id)) return; }
+      catch { toast.error('Failed to mark notification as read'); return; }
     }
     const deepLink = getNotificationDeepLink(notification);
     if (deepLink) {
       if (deepLink.state) navigate(deepLink.route, { state: deepLink.state });
       else navigate(deepLink.route);
     }
-  }, [navigate]);
+  }, [navigate, read]);
 
   const handleMarkAllRead = async () => {
-    try {
-      await markAllRead(user.id);
-      setNotifications(notifications.map(n => ({ ...n, is_read: true })));
-      toast.success('All notifications marked as read');
-    } catch {
-      toast.error('Failed to mark all as read');
-    }
+    try { if (await readAll()) toast.success('All notifications marked as read'); }
+    catch { toast.error('Failed to mark all as read'); }
   };
-
-
 
   // -- Sub-components ----------------------------------------------------------
   const NotificationItem = ({ notification }) => {
@@ -308,9 +288,10 @@ export const NotificationsPage = () => {
     const isClickable = !!getNotificationDeepLink(notification);
 
     return (
-      <div
+      <button type="button" disabled={mutating}
         onClick={() => handleNotificationClick(notification)}
-        className={`flex items-start gap-3 p-4 rounded-xl transition-all group ${
+        aria-label={`${notification.title}${notification.is_read ? "" : ", unread"}`}
+        className={`w-full text-left flex items-start gap-3 p-4 rounded-xl transition-all group ${
           isClickable ? 'cursor-pointer' : 'cursor-default'
         } ${notification.is_read ? colors.itemRead : colors.itemUnread}`}
       >
@@ -336,7 +317,7 @@ export const NotificationsPage = () => {
         {isClickable && (
           <ChevronRight className={`w-4 h-4 ${colors.chevron} transition-colors flex-shrink-0 mt-1`} />
         )}
-      </div>
+      </button>
     );
   };
 
@@ -405,7 +386,7 @@ export const NotificationsPage = () => {
             </div>
             <div className="flex items-center gap-2">
               {unreadCounts.all > 0 && (
-                <Button aria-label="Check Check" onClick={handleMarkAllRead} variant="ghost" size="sm" className={colors.markReadBtn}>
+                <Button aria-label="Mark all read" disabled={mutating} onClick={handleMarkAllRead} variant="ghost" size="sm" className={colors.markReadBtn}>
                   <CheckCheck className="w-4 h-4 mr-1" />
                   <span className="hidden sm:inline">Mark all read</span>
                 </Button>
@@ -424,7 +405,7 @@ export const NotificationsPage = () => {
 
           {/* -- Tabs with Arrow Navigation -- */}
           <div className="relative flex items-center">
-            <button aria-label="Previous"
+            <button
               onClick={() => scrollTabs('left')}
               className={`flex-shrink-0 w-8 h-8 rounded-full ${colors.arrowBtn} border shadow-lg flex items-center justify-center transition-all mr-2 ${
                 showLeftArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'
@@ -444,7 +425,7 @@ export const NotificationsPage = () => {
                 const isActive = activeTab === tab.id;
                 const count = unreadCounts[tab.id];
                 return (
-                  <button aria-label="Icon"
+                  <button aria-pressed={isActive} aria-label={tab.label}
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
                     className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all flex-shrink-0 ${
@@ -466,7 +447,7 @@ export const NotificationsPage = () => {
               })}
             </div>
 
-            <button aria-label="Next"
+            <button
               onClick={() => scrollTabs('right')}
               className={`flex-shrink-0 w-8 h-8 rounded-full ${colors.arrowBtn} border shadow-lg flex items-center justify-center transition-all ml-2 ${
                 showRightArrow ? 'opacity-100' : 'opacity-0 pointer-events-none'
@@ -482,7 +463,13 @@ export const NotificationsPage = () => {
 
       {/* -- Content -- */}
       <div className="px-4 py-4 max-w-2xl mx-auto">
-        {filteredNotifications.length === 0 ? (
+        {error && (
+          <div role="alert" className={`mb-4 ${colors.subtext}`}>
+            <p>Could not load notifications. Please try again.</p>
+            <Button onClick={error === 'older' ? loadOlder : reload} aria-label="Retry notifications">Retry</Button>
+          </div>
+        )}
+        {!error && filteredNotifications.length === 0 ? (
           <EmptyState />
         ) : (
           <>
@@ -491,6 +478,14 @@ export const NotificationsPage = () => {
             <NotificationGroup title="This Week" notifications={groupedNotifications.thisWeek} />
             <NotificationGroup title="Older"     notifications={groupedNotifications.older} />
           </>
+        )}
+        {hasMore && (
+          <div className={`text-center ${colors.subtext}`}>
+            <p className="text-xs mb-2">Category counts cover loaded notifications. Older history is available.</p>
+            <Button onClick={loadOlder} disabled={loadingMore || mutating} aria-label="Load older notifications">
+              {loadingMore ? 'Loading older notifications...' : 'Load older notifications'}
+            </Button>
+          </div>
         )}
       </div>
     </div>

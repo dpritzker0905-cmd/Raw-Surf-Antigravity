@@ -1,0 +1,93 @@
+{
+  "started": true,
+  "server_stopped": true,
+  "port_closed": true,
+  "worker_exit": 0,
+  "postgresql_version": "PostgreSQL 17.11 on x86_64-windows",
+  "verified_owned_loopback_database": true,
+  "passed": 19,
+  "total": 19,
+  "checks": [
+    {
+      "case": "notification_first_page_50_read_but_2_unread_total",
+      "passed": true
+    },
+    {
+      "case": "notification_tied_timestamp_order",
+      "passed": true
+    },
+    {
+      "case": "notification_older_unread_reachable",
+      "passed": true
+    },
+    {
+      "case": "notification_new_inserts_do_not_shift_older_page",
+      "passed": true
+    },
+    {
+      "case": "notification_no_duplicate_or_skipped_snapshot_rows",
+      "passed": true
+    },
+    {
+      "case": "notification_refresh_sees_new_inserts",
+      "passed": true
+    },
+    {
+      "case": "notification_offset_timezone_cursor_same_instant",
+      "passed": true
+    },
+    {
+      "case": "notification_end_of_history",
+      "passed": true
+    },
+    {
+      "case": "notification_deleted_cursor_still_pages",
+      "passed": true
+    },
+    {
+      "case": "notification_mark_all_covers_older_and_new_rows",
+      "passed": true
+    },
+    {
+      "case": "surf_log_unfiltered",
+      "passed": true
+    },
+    {
+      "case": "surf_log_mood",
+      "passed": true
+    },
+    {
+      "case": "surf_log_year",
+      "passed": true
+    },
+    {
+      "case": "surf_log_month",
+      "passed": true
+    },
+    {
+      "case": "surf_log_spot",
+      "passed": true
+    },
+    {
+      "case": "surf_log_combined",
+      "passed": true
+    },
+    {
+      "case": "surf_log_empty",
+      "passed": true
+    },
+    {
+      "case": "surf_log_paginated",
+      "passed": true
+    },
+    {
+      "case": "surf_log_past-end",
+      "passed": true
+    }
+  ],
+  "limits": "Actual PostgreSQL target tables and route functions; no foreign-key, ASGI/auth, provider, deployed or full-app qualification.",
+  "port_check_code": 10035,
+  "listener_table_read": true,
+  "owned_listener_count_after_stop": 0,
+  "temporary_credential_file_removed": true
+}
