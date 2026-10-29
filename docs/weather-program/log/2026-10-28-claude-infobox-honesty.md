@@ -225,3 +225,29 @@ Whole `src/` tree green but the known Git Bash timeout.
 (`marineDrawnFrame` `surfOnlyEstimate`; `statusLineWords.test.js` pins the hour-0 case, and the "(estimated)" nearest suffix
 goes with it). The surf HEIGHT band is served only under the `SURF_RATING=0` rollback. The backend field (`grid_resolver_surf.py`
 stamping `is_estimated=True` on every surf grid) is left as is; changing it would ship dark behind a `_RATING_FLAGS` flag.
+
+## Part 6 (22:30Z): D10, the forecast point asks while scrubbing a non-marine layer
+
+**Ask, the lead (the offline erratic fuzzer):** `useOpenMeteoForecast` sent 1-3 `/point` asks per wheel hour with no debounce
+while a point was selected on a non-marine layer (about 70 x 3 in 2 s), logged an error per step, and paired the user's location
+with the view's `grid_bbox` (a Hawaii box with a Mexico point).
+
+**Read in the code:** with a spot or pin selected (`isExplicit`) the hook re-asked 50 ms after ANY dependency change, the wheel
+hour included. Each new ask aborted the last; the aborted fetches resolved `ok: false`, so the batch threw "Backend point API
+fetch failed …" (not an AbortError) and was logged per step. The box came from the projection diag or the map view, never
+checked against the point.
+
+**Changed (client only, stacked on #630, which rewrote the same hint block):** an HOUR step at the same point, model and layer
+now waits `FORECAST_HOUR_SETTLE_MS` (400 ms) after the last wheel step; a new point, model or layer still asks at once (kill
+`window.__RAW_DISABLE_FORECAST_POINT_SETTLE__`). A superseded batch throws an AbortError, so it is not logged. A box that does
+not hold the point is not sent, nor the wind product drawn for it (`pointProductHint.bboxContains`, antimeridian-aware; kill
+`window.__RAW_DISABLE_POINT_BBOX_CONTAINS__`).
+
+**Offline proof** (`useOpenMeteoForecast.d10.test.js`, 5 tests, the real hook with fetch stubbed): a 70-hour scrub with a pin
+on Temperature asks **3** times, for the hour the wheel stopped on; under the kill switch **210** (3 per step), the fuzzer's
+reading. Superseded steps log no error. A Hawaii view box is not sent with a Mexico point; a view holding the point is (kill: the
+Hawaii pairing).
+
+**Correction (22:06Z):** the Part 6 header above reads "22:30Z" but was written at 22:03Z: an estimate, not a clock reading
+(LESSONS L-P10; memory_audit caught it after the commit). The D10 SCOREBOARD row dated 22:30Z was written at the same moment.
+Ledger: the `correction` line in `ledger.d/claude--forecast-point-debounce.jsonl`.

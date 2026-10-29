@@ -3,7 +3,7 @@ import logger from '../utils/logger';
 import { BACKEND_URL } from '../lib/apiClient';
 import { isInCooldown } from '../components/map/marineControllerUtils';
 import { governMarineRequest as governProxyRequest } from '../components/map/marineRequestGovernor';
-import { pointModelGuardOn, productHintFor } from '../components/map/pointProductHint';
+import { bboxContains, pointModelGuardOn, productHintFor } from '../components/map/pointProductHint';
 
 /**
  * Open-Meteo Weather + Marine forecast hook (v3.12.5).
@@ -63,6 +63,8 @@ const MIN_FETCH_INTERVAL = 2_000;
 const forecastCache = new Map();
 const inFlightRequests = new Map();
 const CACHE_TTL = 120_000; // 2 minutes
+// D10: the quiet time after the last wheel step before a selected point's forecast is asked for that hour.
+export const FORECAST_HOUR_SETTLE_MS = 400;
 
 export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', enabled = true, isExplicit = false, timeOffsetHours = 0, activeLayer = 'waves' }) => {
   const [forecastData, setForecastData] = useState(null);
@@ -191,6 +193,14 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
             }
           }
 
+          // D10 (2026-10-28): the point is the user's location or a spot, the box the VIEW's; a box that does not hold the point
+          // (a Hawaii view with a Mexico point) is not this point's, nor is the product drawn for it. Kill:
+          // window.__RAW_DISABLE_POINT_BBOX_CONTAINS__ = true.
+          if (gridBbox && !(typeof window !== 'undefined' && window.__RAW_DISABLE_POINT_BBOX_CONTAINS__ === true)
+              && !bboxContains(gridBbox, latitude, longitude)) {
+            gridBbox = null;
+            windProductId = null;
+          }
           if (windProductId) windUrl += `&grid_product_id=${encodeURIComponent(windProductId)}`;
           if (gridProductId) {   // kill switch only: the old id on every ask
             const pId = encodeURIComponent(gridProductId);
@@ -237,6 +247,8 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
           }
 
           await Promise.all(fetchQueue);
+          // D10: an aborted batch (the next hour superseded it) is not a failure: say so, so it is not logged as an error.
+          if (controller.signal.aborted) { const e = new Error('superseded'); e.name = 'AbortError'; throw e; }
 
           const isAtLeastOneOk = (activeLayer === 'wind' && windRes.ok) ||
                                  (activeLayer === 'pressure' && pressRes.ok) ||
@@ -605,18 +617,26 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
   const prevModelRef = useRef(activeModel);
   const prevCoordsRef = useRef({ latitude, longitude });
   const prevLayerRef = useRef(activeLayer);
+  const prevHourRef = useRef(timeOffsetHours);
 
   useEffect(() => {
     clearTimeout(debounceRef.current);
     const isModelSwitch = prevModelRef.current !== activeModel;
     const isLayerSwitch = prevLayerRef.current !== activeLayer;
-    
+    const samePoint = prevCoordsRef.current.latitude === latitude && prevCoordsRef.current.longitude === longitude;
+    const isHourStep = prevHourRef.current !== timeOffsetHours && samePoint && !isModelSwitch && !isLayerSwitch;
+
     prevModelRef.current = activeModel;
     prevCoordsRef.current = { latitude, longitude };
     prevLayerRef.current = activeLayer;
+    prevHourRef.current = timeOffsetHours;
 
+    // D10 (2026-10-28, the lead's offline fuzzer): with a spot or pin selected every wheel hour re-asked after 50 ms, 1-3 /point
+    // asks per step (~70 x 3 in 2 s while scrubbing a non-marine layer). An hour step now waits for the wheel to SETTLE; a new
+    // point, model or layer still answers at once. Kill: window.__RAW_DISABLE_FORECAST_POINT_SETTLE__ = true.
+    const settle = isHourStep && !(typeof window !== 'undefined' && window.__RAW_DISABLE_FORECAST_POINT_SETTLE__ === true);
     const useFastDebounce = isExplicit || isModelSwitch || isLayerSwitch;
-    const debounceDuration = useFastDebounce ? 50 : 2500;
+    const debounceDuration = settle ? Math.max(FORECAST_HOUR_SETTLE_MS, useFastDebounce ? 0 : 2500) : (useFastDebounce ? 50 : 2500);
 
     debounceRef.current = setTimeout(() => {
       fetchForecast();
