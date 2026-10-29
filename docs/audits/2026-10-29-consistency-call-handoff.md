@@ -25,8 +25,11 @@ list contains 59 files; none intersects the 13 application source files below. I
 booking, financial, gallery, account and crew repair lane. Weather/map/science remains with its existing
 owner. Recheck current ownership before extending either lane; this snapshot is not a permanent lock.
 
-No direct message or acknowledgement from that chat is claimed. The shared audit worklist/index and
-continuation carry a pointer to this handoff, so their reader can discover the completed work.
+At the documentation closeout, the shared audit worklist/index and continuation carried a pointer
+to this handoff, and no direct message had been sent. The owner subsequently explicitly requested
+delivery to the other audit chat. The app accepted that message for **Audit each app feature**,
+including completed repairs, evidence, remaining tests and continuation guidance. Recipient readback
+or acknowledgement has not been verified.
 
 ## Completed behavior and exact source ownership
 

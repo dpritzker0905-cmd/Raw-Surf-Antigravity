@@ -141,3 +141,13 @@ no rotation/configuration change was performed, and the browser fixture strips I
 This residual is recorded in the canonical handoff, memory note and original-audit entrypoint.
 Documentation validation: all13applicationhashes unchanged,15localreportlinks resolve, ledger2074OK,
 fragmentcheck0problems. No application tests rerun for this documentation-only update.
+
+## Explicit handoff delivery
+
+The owner asked: Send the handoff to the other audit chat so it knows what is already repaired,
+what still needs testing, and where to continue without duplicating our work. The app accepted a
+message for Audit each app feature containing the canonical handoff and manifest paths, four saved
+commit IDs, completed repairs,13-file ownership boundary,103=95+8 test accounting, separate backend/
+PostgreSQL/browser evidence, baseline caveat, remaining issues and the weekly-challenge candidate.
+Its current SavedCrew dialog label/description work was checked before sending. Recipient read or
+acknowledgement has not been verified. No new application work or release was requested.
