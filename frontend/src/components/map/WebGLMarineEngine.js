@@ -11,7 +11,7 @@ import { measureMarineCpuPhase, instrumentMarineEngineCpuPhases } from './marine
 import { forecastStateIdentityEnabled } from './forecastStateIdentity'; import { applyWaveSetUniforms } from './waveSetScreenBound';
 import { readMarineSurfMode } from './marineSurfMode'; import { crestDensityCut } from './marineCrestDensity';
 import { recordMarineEvent } from './marineForensics'; import { keepMaskPatch, stampMaskPatch } from './maskPatchKeep'; import { uniformLoc } from './glUniformCache'; import { seedConsumeAllowed } from './marineQuietFrames'; import { coarseMaskReuse, noteCoarseMaskUse, releaseCoarseMaskCache } from './marineCoarseMaskCache';   // __RAW_FORENSIC__ ring; 2026-10-23 jank
-import { arbiterDecide } from './marineCommitArbiter';   // ARBITER PHASE B: shadow verdicts at the commit choke
+import { arbiterDecide } from './marineCommitArbiter'; import { washMatchesResident } from './marineStaleHour';   // ARBITER PHASE B: shadow verdicts at the commit choke; D1 wash time
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { cachedFramebufferStatus, advTeardownNeeded } from './advFboSync';
 import './maskFloodProbe';   // installs window.__MASK_PROBE__ (dev mask-flood diagnostic)
 import './haloDebugOverlay'; // installs window.__HALO_DEBUG__ (toggleable coastal land-bleed overlay; Ctrl+Alt+H)
@@ -993,7 +993,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       if (blendEnabled && (!isRating || ratingWashOk) && cg && cg.u_waveTexture &&
           isRegionalBounds(this._waveData.bounds) &&
           cg.__sourceModel === curModel && cg.__componentLayer === curLayer &&
-          window.__WEATHER_DEBUG_ISOLATE_OVERLAY__ !== true) {
+          window.__WEATHER_DEBUG_ISOLATE_OVERLAY__ !== true && washMatchesResident(cg, _gridForBlend).ok) {   // D1: the wash's time and run too
         blendEngaged = true;
       }
       if (typeof window !== 'undefined' && window.__RAW_GPU__) {

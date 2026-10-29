@@ -1,5 +1,5 @@
 /* eslint-disable no-empty */
-import { memo, useEffect, useRef, useState, useCallback } from 'react';
+import { memo, useEffect, useRef, useState, useCallback } from 'react'; import { maskMapGone } from './marineQuietFailures';
 import { findMarineInsertionLayer, getSharedLandGeoJSON, getSharedLandGeoJSONHiRes } from './mapUtils';
 import { findMaskInsertionPoint, planMaskFamilyOrder, resolveCoastBufferOn } from './waterTempAnchor';
 
@@ -768,7 +768,7 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
       const _debounceMs = (typeof window !== 'undefined' && Number(window.__RAW_MASK_DEACTIVATE_DEBOUNCE_MS__) > 0)
         ? Number(window.__RAW_MASK_DEACTIVATE_DEBOUNCE_MS__) : 1200;
       deactivateTimerRef.current = setTimeout(() => {
-        deactivateTimerRef.current = null;
+        deactivateTimerRef.current = null; if (maskMapGone(mapInstance)) return;   // D12: the map was removed while this waited
         console.log('[OceanMask] Deactivating: hiding layers');
         // HIDE instead of remove: keep the layers + the ~2.7MB land source resident so a later
         // reactivation (marine<->wind<->marine) just flips visibility back on (handled by the
@@ -869,7 +869,7 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
       rafId = requestAnimationFrame(() => {
         rafId = null;
         const { active } = stateRef.current;
-        if (!active || !mapInstance.getLayer(MASK_BUFFER)) return;
+        if (!active || maskMapGone(mapInstance) || !mapInstance.getLayer(MASK_BUFFER)) return;
         safeMoveLayersBatch(mapInstance, marineRasterLayers, MASK_BUFFER);
       });
     };
