@@ -151,3 +151,20 @@ commit IDs, completed repairs,13-file ownership boundary,103=95+8 test accountin
 PostgreSQL/browser evidence, baseline caveat, remaining issues and the weekly-challenge candidate.
 Its current SavedCrew dialog label/description work was checked before sending. Recipient read or
 acknowledgement has not been verified. No new application work or release was requested.
+
+## Audit continuation direction and completed receipt
+
+The owner explicitly directed the other audit chat to finish Saved Crew, then repair/test weekly
+challenge ISO dates and participant totals and update memory/audit without touching weather. The
+app accepted that direction. The audit chat was already executing the same sequence; no restart or
+source duplication was requested. Its completed final turn and governance/report receipts were read.
+SavedCrew27shared-Radix/7preservation/81retainedUI/API4 and3Chrome workflows pass. Weekly nativePG
+baseline12of25 -> final25of25;8preservation; independentJan4 oracle835weekintervals+5UTCkeys pass.
+These counts are qualified in its report and are not added to our103frontend tests. BothPGclusters
+stopped/noOSlisteners. All86observedhashes match including80protectedprior sources; docs audit
+0FAIL69WARN12NOTE; memory/plans/audit/sharedhandoffs updated by their owner. Weather untouched.
+
+Companion handoff now supersedes its historical unrepaired weekly candidate with this separate-lane
+completion. Source remains in the audit worktree; no overlay/integration/push/merge/deploy occurred.
+Nonempty trophy storage still fails and rolls back; passing finalization proves empty-challenge date
+selection/status. Scheduler, concurrency, hosted/integration/deployed acceptance remain open.

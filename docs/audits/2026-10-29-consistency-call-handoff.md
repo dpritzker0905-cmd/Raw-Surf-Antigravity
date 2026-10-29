@@ -3,7 +3,9 @@
 Updated October 29, 2026, after the owner's 2:30 p.m. America/New_York repair deadline.
 Both code batches finished before that deadline; this subsequent update is documentation-only,
 explicitly requested by the owner. Treat the status below as **repaired and verified locally**,
-with integration, hosted CI and deployed acceptance still open.
+with integration, hosted CI and deployed acceptance still open. A subsequent completion receipt
+at the end of this handoff records the audit lane's Saved Crew and weekly-challenge repairs; the
+weekly-date/count candidate listed historically below is now repaired in that separate worktree.
 
 ## Start here: avoid duplicate work
 
@@ -134,3 +136,35 @@ The ordinary final replay remains usable from the current branch with a private 
 
 These are evidence-backed local repair receipts. They do not close the audit's whole feature areas,
 scientific accuracy, security coverage, authenticated full-app behavior or deployed acceptance.
+
+
+## Subsequent audit-lane completion — October 29, 2026
+
+At the owner's explicit request, the audit chat completed the Saved Crew dialog slice, then the
+weekly-challenge ISO date and participant-total slice. Its final turn and final governance receipt
+were read back after completion. These application changes remain in its isolated
+`codex/booking-availability-repairs` worktree; no source was copied into this companion branch.
+
+- Saved Crew: 27 shared-Radix cases, seven preservation checks, 81 retained UI cases and four API
+  checks, plus three Chrome workflows. The prior request-order and load-recovery fixes were retained.
+- Weekly challenges: 25/25 native PostgreSQL cases against a retained 12/25 baseline; matching
+  explicitly adapted SQLite results; eight preservation checks; independent January-4 oracle
+  835/835 valid week intervals and five UTC boundary keys. The oracle assertions supplement the
+  25-case matrix and must not be added as separate API tests.
+- Dates now use matching ISO year/week, ISO Monday starts, and correct previous-week selection
+  across 52/53-week years. Totals count all rows for the current challenge while preserving the top20
+  display, existing ranking and trophy policy. Counts0/1/20/21/47 exclude seven other-challenge rows.
+- Final governance: all86 observed source fingerprints match, including80 protected prior sources;
+  ledger2074OK; documentation audit0FAIL/69WARN/12NOTE. Both disposable PostgreSQL clusters stopped
+  with no owned OS listeners. Memory, plans and the audit lane's shared handoffs were updated.
+- The existing nonempty trophy-finalization Text/list storage failure remains open and rolls back.
+  Passing finalization cases prove date selection/status with empty challenges. Scheduler wiring,
+  concurrent auto-creation, hosted CI, integration and deployment acceptance remain open. Weather
+  application source and runtime were not touched.
+
+For current status and detailed evidence, read the audit lane's
+`docs/audits/2026-10-29-saved-crew-dialog-labels.md`,
+`docs/audits/2026-10-29-weekly-challenge-boundaries.md` and
+`docs/audits/evidence/2026-10-29-weekly-challenge-boundaries/final_governance.json`.
+The audit lane is the owner of these changes and their continued verification. Do not implement
+another weekly-date/count repair from the historical candidate paragraph above.
