@@ -142,6 +142,16 @@ async function main() {
       const sheetBounds = await sheet.boundingBox();
       const sheetWithinViewport = sheetBounds.x >= -1 && sheetBounds.y >= -1 &&
         sheetBounds.x + sheetBounds.width <= viewport.width + 1 && sheetBounds.y + sheetBounds.height <= viewport.height + 1;
+      const desktopEdges = device !== 'desktop' ? null : await sheet.evaluate(node => {
+        const r = node.getBoundingClientRect();
+        return [[r.left + 12, r.top + 48], [r.right - 12, r.top + 48],
+          [r.left + 12, r.bottom - 48], [r.right - 12, r.bottom - 48]].map(([x, y]) => {
+          const hit = document.elementFromPoint(x, y);
+          return { x, y, visible: Boolean(hit && (hit === node || node.contains(hit))),
+            interceptedBy: hit?.closest('[data-testid]')?.getAttribute('data-testid') || hit?.tagName || null };
+        });
+      });
+      if (desktopEdges) console.log('DESKTOP EDGES', theme, JSON.stringify(desktopEdges));
       const footerHit = await sheet.getByRole('button', { name: 'View All Notifications', exact: true }).evaluate(node => {
         const rect = node.getBoundingClientRect();
         const top = document.elementFromPoint(rect.x + rect.width / 2, rect.y + rect.height / 2);
@@ -163,6 +173,19 @@ async function main() {
         await page.screenshot({ path: path.join(out, `${theme}-desktop-controlled-open.png`), animations: 'disabled' });
         const opened = await sheet.boundingBox();
         record('controlled desktop opening remains within viewport', opened.x >= 0 && opened.x + opened.width <= viewport.width && opened.y >= 0 && opened.y + opened.height <= viewport.height);
+        for (const width of [768, 1024, 1440]) {
+          await page.setViewportSize({ width, height: viewport.height });
+          await page.screenshot({ path: path.join(out, `${theme}-desktop-${width}.png`), animations: 'disabled' });
+          const visible = await sheet.evaluate(node => {
+            const r = node.getBoundingClientRect();
+            const points = [[r.left + 12, r.top + 48], [r.right - 12, r.top + 48],
+              [r.left + 12, r.bottom - 48], [r.right - 12, r.bottom - 48]];
+            return r.left >= 0 && r.right <= innerWidth && r.top >= 0 && r.bottom <= innerHeight &&
+              points.every(([x, y]) => { const hit = document.elementFromPoint(x, y); return hit && (hit === node || node.contains(hit)); });
+          });
+          record(`desktop ${width}px drawer edges visible above navigation`, visible);
+          record(`desktop ${width}px no horizontal overflow`, !await page.evaluate(() => document.documentElement.scrollWidth > innerWidth));
+        }
         await sheet.getByRole('button', { name: 'Close', exact: true }).click();
         await expect(sheet).toHaveCount(0); await expect(desktopTarget).toBeFocused();
         record('ordinary desktop close restores visible desktop fallback', true);
@@ -216,8 +239,8 @@ async function main() {
       assert.equal(await page.evaluate(() => document.documentElement.scrollWidth > innerWidth), false);
       assert.deepEqual(errors, []); assert.deepEqual(external, []);
       const requests = await page.evaluate(() => window.shellFixture.requests.map(r => ({ method: r.method, url: r.url })));
-      results.push({ theme, device, passed: focusRestored && sheetWithinViewport && extraChecks.every(row => row.passed), focusRestored, focusAfterEscape,
-        sheetWithinViewport, sheetBounds, footerHit, extraChecks,
+      results.push({ theme, device, passed: focusRestored && sheetWithinViewport && (!desktopEdges || desktopEdges.every(point => point.visible)) && extraChecks.every(row => row.passed), focusRestored, focusAfterEscape,
+        sheetWithinViewport, sheetBounds, footerHit, desktopEdges, extraChecks,
         screenshot: `.run/${theme}-${device}-sheet.png`, requests,
         externalRequests: 0, pageErrors: 0, horizontalOverflow: false, cases: ['actual App routes', 'sign-in return across category/tab',
           'real ToS confirmation/focus/cache', 'unlinked Grom support', 'real shell', 'real nonmodal Radix Sheet portal/six Tab steps/Escape/focus return',

@@ -1,7 +1,7 @@
 {
   "passed": 6,
   "total": 6,
-  "candidateParent": "1bbe21ea9f1575fe9cbd9af0ba3228cd24ada715",
+  "candidateParent": "8f9ab113184350eaddf24793aa477a0a39e60da6",
   "browserVersion": "156.0.8078.48",
   "node": "v24.22.1",
   "source": {
@@ -26,8 +26,8 @@
       "sha256": "85cabb7ff36e5f2b71bd0d828f29d73dd901f04243f4c09d3f7505883c366cf9"
     },
     "components/support/SupportInbox.js": {
-      "gitBlob": "46d4156151af7b160d7af4a60b65a93d7ea6cf79",
-      "sha256": "000bf4a64dd3b02d8568d28a4688623dec7947c393409c4d29fa82a5e61b985b"
+      "gitBlob": "99ee96993aac57ae7228a5ae25a30a15eefb2114",
+      "sha256": "048b8e193966cf5f9ac2d06192ec6d8d023ae7430699f6889df5a2ad0f344fe6"
     },
     "components/Auth.js": {
       "gitBlob": "dba64198a722d08353e6470a6a11c4a95791afa9",
@@ -50,8 +50,8 @@
       "sha256": "d35e3ed6a849052faf3818adf387793a9e60a1fa559000aff998849d046ae0a9"
     },
     "components/NotificationsDrawer.js": {
-      "gitBlob": "5b569086e45af34564ccb78b4f7825eff7aa5161",
-      "sha256": "1a7667a224544d849ef059651e68b0d8723fe12cf9b45208117fb999d37181ed"
+      "gitBlob": "efa0ad2eed2f18a05493961541376307f440bae8",
+      "sha256": "46743b7a55757f27c6802b91fd342fce29955da0b62129aa1b542b24a4132469"
     },
     "components/NotificationsPage.js": {
       "gitBlob": "bb00ad653f0c8804ccf460e7d7a7b0f2ed2790ee",
@@ -91,19 +91,45 @@
       },
       "sheetWithinViewport": true,
       "sheetBounds": {
-        "x": 16,
+        "x": 464,
         "y": 621,
         "width": 512,
         "height": 363
       },
       "footerHit": {
         "reachable": true,
-        "x": 44,
+        "x": 492,
         "y": 920,
         "width": 456,
         "height": 36,
         "interceptedBy": "BUTTON"
       },
+      "desktopEdges": [
+        {
+          "x": 476,
+          "y": 669,
+          "visible": true,
+          "interceptedBy": "DIV"
+        },
+        {
+          "x": 964,
+          "y": 669,
+          "visible": true,
+          "interceptedBy": "DIV"
+        },
+        {
+          "x": 476,
+          "y": 936,
+          "visible": true,
+          "interceptedBy": "DIV"
+        },
+        {
+          "x": 964,
+          "y": 936,
+          "visible": true,
+          "interceptedBy": "DIV"
+        }
+      ],
       "extraChecks": [
         {
           "name": "Escape after mobile-to-desktop resize focuses visible connected desktop notification link",
@@ -111,6 +137,30 @@
         },
         {
           "name": "controlled desktop opening remains within viewport",
+          "passed": true
+        },
+        {
+          "name": "desktop 768px drawer edges visible above navigation",
+          "passed": true
+        },
+        {
+          "name": "desktop 768px no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "desktop 1024px drawer edges visible above navigation",
+          "passed": true
+        },
+        {
+          "name": "desktop 1024px no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "desktop 1440px drawer edges visible above navigation",
+          "passed": true
+        },
+        {
+          "name": "desktop 1440px no horizontal overflow",
           "passed": true
         },
         {
@@ -247,6 +297,7 @@
         "height": 36,
         "interceptedBy": "bottomnav-create"
       },
+      "desktopEdges": null,
       "extraChecks": [
         {
           "name": "reopened bell reports expanded dialog",
@@ -349,19 +400,45 @@
       },
       "sheetWithinViewport": true,
       "sheetBounds": {
-        "x": 16,
+        "x": 464,
         "y": 621,
         "width": 512,
         "height": 363
       },
       "footerHit": {
         "reachable": true,
-        "x": 44,
+        "x": 492,
         "y": 920,
         "width": 456,
         "height": 36,
         "interceptedBy": "BUTTON"
       },
+      "desktopEdges": [
+        {
+          "x": 476,
+          "y": 669,
+          "visible": true,
+          "interceptedBy": "DIV"
+        },
+        {
+          "x": 964,
+          "y": 669,
+          "visible": true,
+          "interceptedBy": "DIV"
+        },
+        {
+          "x": 476,
+          "y": 936,
+          "visible": true,
+          "interceptedBy": "DIV"
+        },
+        {
+          "x": 964,
+          "y": 936,
+          "visible": true,
+          "interceptedBy": "DIV"
+        }
+      ],
       "extraChecks": [
         {
           "name": "Escape after mobile-to-desktop resize focuses visible connected desktop notification link",
@@ -369,6 +446,30 @@
         },
         {
           "name": "controlled desktop opening remains within viewport",
+          "passed": true
+        },
+        {
+          "name": "desktop 768px drawer edges visible above navigation",
+          "passed": true
+        },
+        {
+          "name": "desktop 768px no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "desktop 1024px drawer edges visible above navigation",
+          "passed": true
+        },
+        {
+          "name": "desktop 1024px no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "desktop 1440px drawer edges visible above navigation",
+          "passed": true
+        },
+        {
+          "name": "desktop 1440px no horizontal overflow",
           "passed": true
         },
         {
@@ -505,6 +606,7 @@
         "height": 36,
         "interceptedBy": "bottomnav-create"
       },
+      "desktopEdges": null,
       "extraChecks": [
         {
           "name": "reopened bell reports expanded dialog",
@@ -607,19 +709,45 @@
       },
       "sheetWithinViewport": true,
       "sheetBounds": {
-        "x": 16,
+        "x": 464,
         "y": 621,
         "width": 512,
         "height": 363
       },
       "footerHit": {
         "reachable": true,
-        "x": 44,
+        "x": 492,
         "y": 920,
         "width": 456,
         "height": 36,
         "interceptedBy": "BUTTON"
       },
+      "desktopEdges": [
+        {
+          "x": 476,
+          "y": 669,
+          "visible": true,
+          "interceptedBy": "DIV"
+        },
+        {
+          "x": 964,
+          "y": 669,
+          "visible": true,
+          "interceptedBy": "DIV"
+        },
+        {
+          "x": 476,
+          "y": 936,
+          "visible": true,
+          "interceptedBy": "DIV"
+        },
+        {
+          "x": 964,
+          "y": 936,
+          "visible": true,
+          "interceptedBy": "DIV"
+        }
+      ],
       "extraChecks": [
         {
           "name": "Escape after mobile-to-desktop resize focuses visible connected desktop notification link",
@@ -627,6 +755,30 @@
         },
         {
           "name": "controlled desktop opening remains within viewport",
+          "passed": true
+        },
+        {
+          "name": "desktop 768px drawer edges visible above navigation",
+          "passed": true
+        },
+        {
+          "name": "desktop 768px no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "desktop 1024px drawer edges visible above navigation",
+          "passed": true
+        },
+        {
+          "name": "desktop 1024px no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "desktop 1440px drawer edges visible above navigation",
+          "passed": true
+        },
+        {
+          "name": "desktop 1440px no horizontal overflow",
           "passed": true
         },
         {
@@ -763,6 +915,7 @@
         "height": 36,
         "interceptedBy": "bottomnav-create"
       },
+      "desktopEdges": null,
       "extraChecks": [
         {
           "name": "reopened bell reports expanded dialog",

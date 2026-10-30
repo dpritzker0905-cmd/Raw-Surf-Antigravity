@@ -296,7 +296,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate, onReturnFo
           /* fallback for browsers without dvh */
           max-h-[92vh]
           /* desktop: float slightly above bottom edge */
-          md:!bottom-4 md:!left-4 md:!right-4 md:!translate-x-0 md:rounded-2xl md:max-h-[78vh]
+          md:!bottom-4 md:w-[calc(100vw-2rem)] md:rounded-2xl md:max-h-[78vh]
         `}
       >
         {/* -- Handle bar (mobile drag indicator) -- */}
