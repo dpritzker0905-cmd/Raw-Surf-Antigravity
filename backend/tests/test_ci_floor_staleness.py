@@ -495,10 +495,8 @@ _FLOOR_SET_FROM = {
     # chain: set from 3008 = max(dev run 40633534401 read 2976, dev's map 2976) + 32 (claude/infobox-honesty-5efceb, 2026-10-28); floor 3002, margin 6.
     "chain": 3008,
 
-    # estate: projected 3399 = max(dev run 40807961067 read 3376, dev's map 3376) + 23;
-    # hosted base 72b4652 UI reverified 2026-10-30; complete combined package:
-    # companion 15 + delivery wrapper 1 + email 5 + recipient/case wrappers 2. Floor 3397, margin 2.
-    "estate": 3399,
+    # estate: projected 3401 = run 41066412936 actual 3391 passed + 8 failed + 2 new rejection cases; floor 3399, margin 2 (2026-10-30).
+    "estate": 3401,
 }
 # Completeness sees squash merges, re-derived after #470 (+5, hosted 2397 / 331 files, run 39979894860): +14 estate tests
 # in a new file (tests/test_ledger_merges.py) = 2411 / 332; floor 2409, margin 2.

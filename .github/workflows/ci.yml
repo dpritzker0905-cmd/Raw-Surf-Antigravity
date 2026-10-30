@@ -2132,11 +2132,10 @@ jobs:
           #   base 3372 (hosted read) + 4 new test(s) = 3376; floor 3376 - 2 = 3374. This PR must read 3376 passed.
           # ⬆ 3374→3389 on 2026-10-29 (rederive_floor.py, codex/audit-repair-20261029): dev run 40807961067 read 3376; dev's map 3376;
           #   base 3376 (hosted read) + 15 new test(s) = 3391; floor 3391 - 2 = 3389. This PR must read 3391 passed.
-          # Reconciled complete combined package, 2026-10-30: latest green dev run 40807961067
-          # at 72b4652 read 3376 passed (UI reverified); dev map 3376. Added 23 cases:
-          # notification/history + SurfLog 15, delivery wrapper 1, email changes 5,
-          # recipient wrapper 1, case-variant wrapper 1. Projected 3399; margin 2.
-          MIN_PASSED = 3397
+          # Complete package at a8bcc34: run 41066412936 executed 3399 cases (3391 passed + 8 failed).
+          # Reconcile stale contract fixtures without skipping cases; add paid-overlap and missing-debit
+          # rejection regressions (+2). Projected 3401; floor 3399, preserving margin 2.
+          MIN_PASSED = 3399
 
           try:
               root = ET.parse('estate.xml').getroot()
