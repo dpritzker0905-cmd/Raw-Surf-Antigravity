@@ -25,8 +25,15 @@ samples = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(samples)
 p = samples.prior
 p.Profile.avatar_url = sa.Column(sa.String(255))
+
+
+async def allocator_mail_disabled(_db, _ticket_id, _user_id):
+    """Allocation-only fixture has no notification preferences; full mail path is tested separately."""
+    return "opted_out"
+
+
 p.scope.update(BaseModel=BaseModel, List=List, HTTPException=HTTPException, get_user_id_from_jwt_or_query=None,
-               pg_insert=pg_insert, sqlite_insert=sqlite_insert)
+               pg_insert=pg_insert, sqlite_insert=sqlite_insert, queue_support_creation_notice=allocator_mail_disabled)
 p.load_nodes("backend/routes/admin/support.py", {"CreateTicketRequest", "create_ticket", "generate_ticket_number", "get_ticket_detail"}, p.scope)
 tree = ast.parse((p.ROOT / "backend/routes/admin/support.py").read_text(encoding="utf-8"))
 helper = next(node for node in tree.body if isinstance(node, ast.FunctionDef) and node.name == "calculate_sla_due")

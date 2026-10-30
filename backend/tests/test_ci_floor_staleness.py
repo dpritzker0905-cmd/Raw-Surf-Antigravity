@@ -496,7 +496,8 @@ _FLOOR_SET_FROM = {
     "chain": 3008,
 
     # estate: projected 3401 = run 41066412936 actual 3391 passed + 8 failed + 2 new rejection cases; floor 3399, margin 2 (2026-10-30).
-    "estate": 3401,
+    # Support creation receipt: main-target run 41090754079 read 3401 + four template cases = 3405; margin 2.
+    "estate": 3405,
 }
 # Completeness sees squash merges, re-derived after #470 (+5, hosted 2397 / 331 files, run 39979894860): +14 estate tests
 # in a new file (tests/test_ledger_merges.py) = 2411 / 332; floor 2409, margin 2.
