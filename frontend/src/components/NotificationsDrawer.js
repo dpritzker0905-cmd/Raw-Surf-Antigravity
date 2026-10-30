@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, useRef } from 'react';
 import useNotificationInbox from '../hooks/useNotificationInbox';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -171,7 +171,8 @@ const TABS = [
   { id: 'social',   label: 'Social',   icon: Users },
 ];
 
-export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
+export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate, onReturnFocus }) => {
+  const restoreCloseFocus = useRef(true);
   const { user } = useAuth();
   const { theme } = useTheme();
   const navigate = useNavigate();
@@ -212,6 +213,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
   };
 
   const handleViewAll = () => {
+    restoreCloseFocus.current = false;
     onClose();
     navigate('/notifications');
   };
@@ -223,6 +225,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
       await activate(notification, () => {
         if (!notification.is_read && onCountUpdate) onCountUpdate();
         if (deepLink) {
+          restoreCloseFocus.current = false;
           onClose();
           if (deepLink.state) navigate(deepLink.route, { state: deepLink.state });
           else navigate(deepLink.route);
@@ -278,6 +281,13 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
       <SheetContent
         side="bottom"
         hideCloseButton
+        onOpenAutoFocus={() => { restoreCloseFocus.current = true; }}
+        onInteractOutside={() => { restoreCloseFocus.current = false; }}
+        onEscapeKeyDown={() => { restoreCloseFocus.current = true; }}
+        onCloseAutoFocus={event => {
+          // Outside interactions and route activation retain their intended focus.
+          if (restoreCloseFocus.current && onReturnFocus?.()) event.preventDefault();
+        }}
         className={`
           ${colors.bg} ${colors.border} border-t
           rounded-t-3xl overflow-hidden flex flex-col
@@ -286,7 +296,7 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate }) => {
           /* fallback for browsers without dvh */
           max-h-[92vh]
           /* desktop: float slightly above bottom edge */
-          md:!bottom-4 md:!left-4 md:!right-4 md:rounded-2xl md:max-h-[78vh]
+          md:!bottom-4 md:!left-4 md:!right-4 md:!translate-x-0 md:rounded-2xl md:max-h-[78vh]
         `}
       >
         {/* -- Handle bar (mobile drag indicator) -- */}
