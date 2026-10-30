@@ -16,3 +16,13 @@ def test_owner_support_delivery_and_original_origin_sla(tmp_path):
     evidence = json.loads((tmp_path / "delivery-results.json").read_text())
     assert evidence["passed"] == evidence["total"] >= 36
     assert evidence["mountedFixtureApi"] and evidence["sender"] == "in-memory fake only"
+    # Same isolated pytest item: inner API cases do not change the estate test count/floor.
+    retry_script = root / "docs/audits/evidence/2026-10-30-support-create-retry/verify-create-retry.py"
+    retry_out = tmp_path / "creation-retry"
+    env = dict(env, RAW_SUPPORT_FIXTURE_OUTPUT_DIR=str(retry_out))
+    run = subprocess.run([sys.executable, "-B", str(retry_script)], cwd=root, env=env,
+                         capture_output=True, text=True, encoding="utf-8", timeout=90)
+    assert run.returncode == 0, run.stdout + run.stderr
+    evidence = json.loads((retry_out / "creation-retry-results.json").read_text())
+    assert evidence["passed"] == evidence["total"] >= 40
+    assert evidence["mountedFixtureApi"] and evidence["provider_calls"] == 0

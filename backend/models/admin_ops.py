@@ -211,6 +211,9 @@ class SupportTicket(Base):
     csat_rating = Column(Integer, nullable=True)  # 1-5
     csat_feedback = Column(Text, nullable=True)
     
+    # Immutable original intent for keyed creates; never returned in ticket responses.
+    creation_request_fingerprint = Column(String(64), nullable=True)
+
     # Tags for filtering
     tags = Column(JSON, default=list)  # ["refund", "urgent", etc.]
     

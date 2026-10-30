@@ -1,0 +1,22 @@
+{
+  "loopback_only": true,
+  "owned_new_cluster": true,
+  "cases": [
+    {
+      "name": "creation-retry",
+      "exit_code": 0,
+      "passed": 40,
+      "total": 40
+    },
+    {
+      "name": "retained-delivery",
+      "exit_code": 0,
+      "passed": 43,
+      "total": 43
+    }
+  ],
+  "version": "postgres (PostgreSQL) 17.11",
+  "tests_passed": true,
+  "pg_status_stopped": true,
+  "os_listener_absent": true
+}
