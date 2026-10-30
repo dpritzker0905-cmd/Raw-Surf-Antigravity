@@ -326,8 +326,10 @@ async def update_surfboard(
     
     # Update fields
     update_data = data.dict(exclude_unset=True)
+    # An explicit null clears an optional dimension; omitted fields stay unchanged.
+    nullable_dimensions = {'length_feet', 'length_inches', 'width_inches', 'thickness_inches', 'volume_liters'}
     for key, value in update_data.items():
-        if value is not None:
+        if value is not None or key in nullable_dimensions:
             setattr(board, key, value)
     
     board.updated_at = datetime.now(timezone.utc)
