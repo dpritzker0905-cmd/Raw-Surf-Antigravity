@@ -165,6 +165,7 @@ const NOTIFICATION_CONFIG = {
   user_reported:                   { icon: Bell,          color: 'text-red-400',     bgColor: 'bg-red-500/20',     category: 'admin' },
   content_flagged:                 { icon: Bell,          color: 'text-amber-400',   bgColor: 'bg-amber-500/20',   category: 'admin' },
   support_ticket:                  { icon: MessageCircle, color: 'text-cyan-400',    bgColor: 'bg-cyan-500/20',    category: 'admin' },
+  support_reply:                   { icon: MessageCircle, color: 'text-cyan-400',    bgColor: 'bg-cyan-500/20',    category: 'social' },
   system_alert:                    { icon: Bell,          color: 'text-red-400',     bgColor: 'bg-red-500/20',     category: 'admin' },
   default:                         { icon: Bell,          color: 'text-gray-400',    bgColor: 'bg-gray-500/20',    category: 'social' },
 };
@@ -186,7 +187,7 @@ export const NotificationsPage = () => {
   const colors = useMemo(() => getThemeColors(theme), [theme]);
 
   const { items: notifications, unread: totalUnread, loading, loadingMore, hasMore, error, mutating,
-    reload, loadOlder, read, readAll } = useNotificationInbox(user?.id);
+    reload, loadOlder, activate, readAll } = useNotificationInbox(user?.id);
   const [activeTab, setActiveTab] = useState('all');
 
   const isAdmin = user?.is_admin || user?.role === 'admin' || user?.role === 'Admin';
@@ -265,16 +266,19 @@ export const NotificationsPage = () => {
   }, [notifications, totalUnread]);
 
   const handleNotificationClick = useCallback(async (notification) => {
-    if (!notification.is_read) {
-      try { if (!await read(notification.id)) return; }
-      catch { toast.error('Failed to mark notification as read'); return; }
+    const deepLink = getNotificationDeepLink(notification, user?.id);
+    if (notification.type === 'support_reply' && !deepLink) return;
+    try {
+      await activate(notification, () => {
+        if (deepLink) {
+          if (deepLink.state) navigate(deepLink.route, { state: deepLink.state });
+          else navigate(deepLink.route);
+        }
+      }, { requireFresh: notification.type === 'support_reply' });
+    } catch {
+      toast.error('Failed to mark notification as read');
     }
-    const deepLink = getNotificationDeepLink(notification);
-    if (deepLink) {
-      if (deepLink.state) navigate(deepLink.route, { state: deepLink.state });
-      else navigate(deepLink.route);
-    }
-  }, [navigate, read]);
+  }, [navigate, activate, user?.id]);
 
   const handleMarkAllRead = async () => {
     try { if (await readAll()) toast.success('All notifications marked as read'); }
@@ -285,7 +289,7 @@ export const NotificationsPage = () => {
   const NotificationItem = ({ notification }) => {
     const config = NOTIFICATION_CONFIG[notification.type] || NOTIFICATION_CONFIG.default;
     const Icon = config.icon;
-    const isClickable = !!getNotificationDeepLink(notification);
+    const isClickable = !!getNotificationDeepLink(notification, user?.id);
 
     return (
       <button type="button" disabled={mutating}

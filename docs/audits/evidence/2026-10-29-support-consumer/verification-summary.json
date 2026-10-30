@@ -1,0 +1,111 @@
+{
+  "verified_at_utc": "2026-10-30T00:54:50.830197+00:00",
+  "base_commit": "0890cd877f586736751c46fecbd9ba59078f6f03",
+  "branch": "codex/audit-repair-20261029",
+  "status": "implemented and verified locally; focused local consumer commit authorized, publication and integration pending",
+  "contract": "support_reply v1 exact ticket_id/message_id/recipient_id UUIDs; authenticated recipient binding; local canonical ticket route only",
+  "source_sha256": {
+    "frontend/src/utils/notificationDeepLinks.js": "165ac678741ec0c506040e4b07adc55e50629b0bae2bbc9a46e7b4577069cb78",
+    "frontend/src/hooks/useNotificationInbox.js": "82b296404ed2ec02195094981e513b964957c09716ea083f309475197ae170ae",
+    "frontend/src/components/NotificationsPage.js": "54071253ea715dc4cf42433d19cde651bf3242eaa6dd9b7135ab8ed93605c8f1",
+    "frontend/src/components/NotificationsDrawer.js": "e118ef87d09b232589511bab549cffc9e161bfb13a6ae2170e8cedf81569ace3",
+    "frontend/src/utils/notificationDeepLinks.supportReply.test.js": "8558bc77e459b05218a15041da19680bfabfa6d20acd22f4a1040afe655180f8",
+    "frontend/src/hooks/useNotificationInbox.activation.test.js": "101ffc81cdc26348ec86c477cb8533e15f7e82a37555c9573ae1bea2db554d48",
+    "frontend/src/components/Notifications.supportReply.test.js": "46f34cb38e31eb66b00c2537a0796603ad61bbbe41cbbbcf0b90d1235d566c08",
+    "docs/audits/evidence/2026-10-29-support-consumer/browser-entry.jsx": "149bbda31177c7d4028513155b22108cb1fd76ecfa0eabdbee733499666f6528",
+    "docs/audits/evidence/2026-10-29-support-consumer/browser-stubs.js": "68c8f88c9398e6dc0ef2961b6f400b5c470832d55a2185668955a5b3737f922a",
+    "docs/audits/evidence/2026-10-29-support-consumer/verify_browser.cjs": "276057b7819320a68b708ce52162076a86cdcb9e142365d036bccdbdc91cd89e"
+  },
+  "baseline_runtime_sha256": {
+    "frontend/src/utils/notificationDeepLinks.js": "9be97f01459eca6a72fca5a39c83a69947cc3f104cb3c21a71a5842addc7ebc4",
+    "frontend/src/hooks/useNotificationInbox.js": "98c66d750fe661576856de4e8f4caa49b7585f20871092a2fd1559c545ebb235",
+    "frontend/src/components/NotificationsPage.js": "c34bdcf81f1579b36360c47fe6f2f892dc0a0a5654b02cb96e42b706b621e082",
+    "frontend/src/components/NotificationsDrawer.js": "a926cdbb56e228d6fc7d065c97184e3859c6f76e22cd231a5f44b77fb779b232"
+  },
+  "final": {
+    "jest_passed": 253,
+    "jest_total": 253,
+    "jest_suites": 9,
+    "new_tests": 214,
+    "retained_tests": 39,
+    "new_test_breakdown": {
+      "resolver": 84,
+      "hook_activation": 40,
+      "components": 90
+    },
+    "browser_passed": 39,
+    "browser_total": 39,
+    "browser_baseline_passed": 9,
+    "browser_baseline_total": 39,
+    "browser_baseline_same_case_matrix": true,
+    "browser_page_errors": 0,
+    "browser_external_requests": 0,
+    "browser_closed": true,
+    "fixture_server_closed": true
+  },
+  "governance": {
+    "full_lint_ratchet": "passed",
+    "files_linted": 1593,
+    "existing_errors": 86,
+    "existing_warnings": 907,
+    "all_source_under_800_lines": true,
+    "prior_WebRTC_five_fingerprints_unchanged": true,
+    "runtime_review": "no concrete blocking defect found; independent read-only review",
+    "docs_audit": {
+      "fail": 0,
+      "warn": 64,
+      "note": 12,
+      "mode": "docs-only"
+    },
+    "ledger_check": {
+      "canonical_entries": 2074,
+      "canonical_verified": true,
+      "fragment": "ledger.d/codex--audit-repair-20261029.jsonl",
+      "fragment_line": 19,
+      "check_pr_problems": 0
+    }
+  },
+  "production_build": {
+    "exit_code": 0,
+    "source_maps": false,
+    "duplicate_build_eslint_disabled": true,
+    "separate_full_lint_ratchet": "passed",
+    "prebuild_SW_update_not_run": true,
+    "output_and_webpack_cache": "worktree .cache/support-consumer"
+  },
+  "qualification": "Actual Page, Drawer, shared inbox hook, deep-link resolver, BrowserRouter, button and keyboard behavior in local Chrome. Synthetic account/theme/API/unread-count boundaries, Sheet frame, and ticket/legacy route destinations. No production CSS, portal/focus-trap, real auth, inbox backend, email, provider, deployment or physical-device acceptance.",
+  "remaining": [
+    "ce30 producer/inbox/delivery/Auth integration",
+    "App.js ticket-route mounting by its owner",
+    "final combined-head CI and authenticated end-to-end ticket return/read flow",
+    "real Sheet portal/focus and full CSS/device/provider qualification",
+    "separate publication/merge/shared-schema/deployment approvals"
+  ],
+  "local_commit_authorized": true,
+  "mandatory_hooks": "normal redacted staged Gitleaks and file-size gates remain enabled",
+  "approved_commit_paths": [
+    "frontend/src/utils/notificationDeepLinks.js",
+    "frontend/src/hooks/useNotificationInbox.js",
+    "frontend/src/components/NotificationsPage.js",
+    "frontend/src/components/NotificationsDrawer.js",
+    "frontend/src/utils/notificationDeepLinks.supportReply.test.js",
+    "frontend/src/hooks/useNotificationInbox.activation.test.js",
+    "frontend/src/components/Notifications.supportReply.test.js",
+    "docs/audits/2026-10-29-support-notification-consumer.md",
+    "docs/audits/evidence/2026-10-29-support-consumer/browser-entry.jsx",
+    "docs/audits/evidence/2026-10-29-support-consumer/browser-stubs.js",
+    "docs/audits/evidence/2026-10-29-support-consumer/verify_browser.cjs",
+    "docs/audits/evidence/2026-10-29-support-consumer/browser-results.json",
+    "docs/audits/evidence/2026-10-29-support-consumer/browser-baseline-results.json",
+    "docs/audits/evidence/2026-10-29-support-consumer/test-results.json",
+    "docs/audits/evidence/2026-10-29-support-consumer/baseline-tests.json",
+    "docs/audits/evidence/2026-10-29-support-consumer/verification-summary.json",
+    "docs/audits/2026-10-29-consistency-call-handoff.md",
+    "docs/weather-program/log/2026-10-29-codex-consistency-repair.md",
+    "docs/weather-program/ledger.d/codex--audit-repair-20261029.jsonl"
+  ],
+  "post_commit_receipt_policy": "Record actual commit SHA, tested-content readback and final dirty state in Git/tool/chat output only; no bookkeeping commit loop",
+  "pushed": false,
+  "weather_source_or_runtime_change": false,
+  "shared_migration": false
+}

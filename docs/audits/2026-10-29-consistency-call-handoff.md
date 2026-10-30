@@ -300,3 +300,16 @@ Application/test/fixture fingerprints are unchanged from the tested and committe
 No app tests or production build were rerun for documentation-only content. Normal redacted staged
 secret and file-size hooks remain enabled. No support contract retry, alternative relay, consumer
 implementation, publication, integration, shared migration or weather action is part of closeout.
+
+
+## Support consumer v1 implemented and verified locally
+
+Fresh written action-specific owner approval authorizes implementation, testing and one focused LOCAL consumer commit. The accepted v1 exchange and explicit ce30 ownership acknowledgement supersede the historical pending-contract hold above. No denied transmission was retried through another route.
+
+2866 completed only notificationDeepLinks.js, NotificationsPage.js, NotificationsDrawer.js and bounded useNotificationInbox.js changes, with three focused Jest files. Exact three UUID support metadata fields and current-recipient validation precede every activation effect; invalid read/unread replies cannot fall through to generic destinations. A committed account/open-cycle token and one pending lock prevent old callbacks, duplicate activation and stale completion. Suspense/StrictMode and A-to-B-to-A/open/unmount cases are covered. New support activation requires a successful authoritative refresh; existing non-support and bulk-read behavior is retained.
+
+Final parent Jest253/253 across9suites (214new+39retained), nativeChrome9/39baseline to39/39 on identical frozen fixtures, fullLintRatchet1593files pass with existing86errors/907warnings, productioncompileexit0. Ten source/test/fixture fingerprints match; all five prior WebRTC fingerprints unchanged. Zero browser page errors/external requests; browsers/servers closed. Fixtures use synthetic account/API/unread/Sheet/ticket destinations; no fullCSS, actualauth/backend/email/provider/device qualification. See [consumer report](2026-10-29-support-notification-consumer.md) and its structured evidence.
+
+Ce30 retains producer, inbox, delivery and bounded Auth. App.js mounting remains with its owner; ProtectedRoute/apiClient and all other-worktree source remain untouched. Next integration gate: combine producer/inbox/Auth plus this consumer, mount the accepted owner ticket route, then qualify authenticated return and ticket read/reply on the final combined head with CI. No source overlay, shared migration, push/PR/merge/deploy, paid/provider or weather runtime action.
+
+Expected local parent0890cd877f586736751c46fecbd9ba59078f6f03; focused subject fix(notifications): validate and scope support reply activation. Actual SHA/committed names/final status are recorded by Git/tool/chat readback, without a post-commit tracked receipt loop.
