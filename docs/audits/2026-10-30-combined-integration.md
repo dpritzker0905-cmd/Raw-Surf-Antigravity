@@ -1,0 +1,119 @@
+# Combined local integration qualification
+
+Current completed local checkpoint: runtime commit3cfda2c1b99d9c9168ae0f0ee52cdd952a00104c, tree8e20ae76772c1e19632973a5c287cf154e957572. Both latest repairs are qualified on the same frozen source: footer6/6 with36footer states and36live-open resizes; actual expired-session client/Auth browser12/12; persisted actual-App27/27. All104 changed production files match their tested raw bytes and committed Git blobs. Hosted schema/CI/release acceptance remains separate. Earlier sections below are historical snapshots; the final completion section supersedes their resolved holds.
+
+Verified2026-10-30 UTC. Result: route mounting qualified locally; broader release acceptance remains PARTIAL. David approved the separate local integration candidate, bounded App.js support mounting and synthetic/disposable tests. No broader production repair is included.
+
+## Candidate and preserved originals
+
+Worktree: C:/Users/David/.codex/worktrees/repair-integration-20261030/raw-surf. Branch: codex/repair-integration-20261030. Live remote dev was read with git ls-remote and matched72b4652d5753423cce18b9ad1d1de95f0afcb7e7. No fetch or shared-branch change was required. All16 owned feature/admin/companion commits applied cleanly, without inherited weather history. Exact original-to-candidate patch identities are in evidence assembly-map.json.
+
+Runtime-qualified source commit:1bbe21ea9f1575fe9cbd9af0ba3228cd24ada715; tree07ec5f01f431686d4225eb1c246f6b4187d60e9d. Its only new production patch is App.js3 additions: prepared SupportRoute lazy import, /support and /support/tickets/:ticketId. Existing crew-card, career, sign-in, ToS/Grom and layout behavior is retained. Adapter supplies protection/layout, without duplicate route wrappers. Normal approved staged-secret and file-size hooks passed; no bypass.
+
+Original feature HEAD75b211926 and companion HEAD5b2e06d82, exact status/diff/untracked-name fingerprints unchanged; feature2 dirty governance files and651 untracked files preserved. Admin HEAD1076ce594 and runtime source unchanged; ce30 independently added its own authorized verification docs/log/fragment, explaining its status differences. This lane made no edits in original source worktrees.
+
+## Fresh qualification
+
+Evidence root: docs/audits/evidence/2026-10-30-combined-integration/. Counts below have different scopes and must not be added into one end-to-end total.
+
+| Check | Result | Evidence / limitation |
+|---|---|---|
+| Pinned runtime | Node24.22.1, official archive checksum matched; Python3.12.10 | runtime.json |
+| Feature direct drivers |63/64 exit0 | feature-results.json; remaining driver passes4 migration behavior checks but expects historical bonus head, superseded by monthly head |
+| Current migration lineage |9/9 SQLite and9/9 nativePostgreSQL | ordered-sqlite.json / ordered-postgres.json; upgrade functions and graph only |
+| Native monthly replay |18/18 | logs/monthly-replay-pg-fresh.log; includes real server concurrent claim waits |
+| Native monthly migration |11/11 | logs/monthly-migration-pg-fresh.log; guarded downgrade/exclusive lock |
+| Admin/Auth |95/95 across8 suites | logs/admin-jest.log |
+| Companion consumer/WebRTC/search/reviews/SurfLog UI |348/348 across12 suites | logs/consumer-jest.log |
+| Fake mailer |140/140 | logs/mailer.log |
+| Mounted support API |37/37 each SQLite/PostgreSQL | admin-results.json / broad-results.json and private logs |
+| Existing backend/offline CI-floor tests |52/52 | backend-junit.xml |
+| Retained consumer Chrome fixture |39/39 | broad-results.json / retained consumer result; substituted ticket destination |
+| Actual-App persisted combined flow |25/27 | app-browser-results.json;2 explicit holds below |
+| Signup and path variants |7/7 observations/checks | auth-variants-results.json; signup identity stub, no real registration |
+| Production compilation |0 errors,0 warnings | build-results.json; actual CRA production webpack config plus unchanged craco configure, caches disabled; no service-worker stamping |
+| Full frontend lint ratchet |pass |1606 files; existing86 errors904 warnings within baseline, not zero-debt certification |
+| Independent real shell |6 scenarios completed;0 unconditional passes | ce30 report and qualification below; holds retained |
+
+Actual-App fixture uses unchanged App.js route table, ProtectedRoute, Auth, actual MFA component, SupportRoute/Inbox, NotificationsPage, inbox hook/service/deep-links, support and notification handlers, real SQLite persistence and rendered outbox email through a fake sender. It replaces session identity, HTTP transport, unrelated lazy pages/providers, AppLayout and ToS at explicit fixture boundaries. It verifies staff public reply -> persisted notification -> actual consumer -> owner conversation/reply at390/1280 widths, internal-note exclusion, account switching, keyboard reply, password/MFA return and generic email link without support content. External browser traffic was blocked.
+
+Independent ce30 shell verification uses the same frozen source plus actual AppLayout/nav, ToS modal, NotificationsDrawer and Radix Sheet with synthetic Auth/API. All18 tested runtime source blobs were independently matched to the mount commit in independent-shell-binding.json. Six light/dark/beach mobile/desktop scenarios exercise login, unlinked-Grom support, ToS trap/keyboard-confirm/cache, Sheet keyboard interactions, notification activation, drafts/reload/account replacement. Sheet is nonmodal: Tab observations are not modal-focus-trap certification.
+
+Independent report: C:/Users/David/.codex/worktrees/ce30/raw-surf/docs/audits/2026-10-30-support-combined-verification.md. Exact scenarios/results: its evidence/2026-10-30-support-shell/results.json and qualification.json.
+
+## Findings and smallest next owner scopes
+
+| Priority / finding | Evidence and implication | Proposed owner / minimal scope; no patch authorized here |
+|---|---|---|
+| P1 notification recipient enforcement | Actual synthetic list/count handlers return200 anonymously and for another fixture identity. Source functions omit get_current_user_id; API router and server registration supply no router-level auth dependency. Full normal app was deliberately not started; deployed exposure remains untested. | Companion/backend owner: backend/routes/notifications/notifications.py get_notifications and get_unread_notification_count only; bind authenticated identity to normalized path recipient, preserve pagination/count contracts, add disposable rejection tests. |
+| P2 uppercase ticket UUID | Actual App uppercase UUID path reaches ticket404 although canonical form exists. Route contract accepts UUID case; backend String-id comparison is exact. Lowercase/encoded/query direct paths tested separately. | ce30: backend/routes/admin/support.py owner ticket GET/message path lookup; canonicalize UUID before comparison while preserving owner-before-disclosure and request dedupe. Matching frontend normalizer only if contract review needs it. |
+| P2 drawer focus restoration | All6 independent scenarios leave activeElement BODY after Escape, even after1.5s close cleanup, rather than visible notifications bell. | Companion UI with AppLayout/TopNav owner: NotificationsDrawer.js close-focus handling and narrowly scoped trigger ref/callback plumbing. Preserve nonmodal Sheet contract. |
+| P2 drawer resize clipping | All3 themes after mobile->desktop resize show x=-240,width512 at1440 viewport. Existing ui/sheet.jsx bottom variant applies md:-translate-x-1/2 while Drawer overrides left/right. | Companion UI: NotificationsDrawer.js scoped desktop class reset first; shared ui/sheet.jsx only if owner-approved and all other consumers qualified. |
+| P2 mobile footer interception | All3 themes: View All Notifications center(195,798) is hit by bottomnav-create. BottomNav z100 covers Sheetz50. | Companion UI with BottomNav/AppLayout owner: scoped drawer footprint/footer clearance or approved stacking; preserve nav and other Sheet consumers. |
+| P2 refused-session return | Read-only apiClient source uses fixed /auth?tab=login and drops the current support destination on401. Existing refusal-loop regressions pass; actual refused-session provider flow not run. | Auth/apiClient owner: bounded support return preservation in frontend/src/lib/apiClient.js; preserve rejection-loop guard. |
+| Contract hold Auth return consistency | Auth auto-forward validates supportReturnPath; finishSignIn/signup still navigate raw redirectPath. Noncanonical query return falls back to feed when already signed in; direct query route works. No external redirect test/probe performed. | ce30/Auth owner: agree existing generic redirect compatibility and one support return contract before changing Auth.js/supportRoutes.js. |
+
+The focused route mount remains the only new production patch. No broader Auth/API/UUID/drawer repairs, owner transfer or Claude integration acknowledgement is inferred. ce30 coordination and independent readback occurred under David's explicit coordination authorization.
+
+## Migration and release gates
+
+Selected lineage is a107b7db4f12 -> e1a0c5f2b7d4 -> bonus_spend_only_001 -> monthly_archive_replay_001. Separate avatar_url_text_001 and6b8bb9b66da7 heads remain intact. Ordered upgrade functions preserved cash totals, introduced zero promo defaults/provenance index, email tables and archive composite key. These checks do not execute Alembic env/version stamping or establish the actual shared database schema. Hosted schema/outbox/preferences/unique-index inventory and unmarked legacy archive handling remain approval-dependent. Do not drop completion markers to force rollback. Historical data is synthetic, not actual customer liability.
+
+Initial PG migration attempt reused a replay database and failed DuplicateTableError. Fresh rerun used a separate newly created database per case and passed11/11. Original owned-cluster server error retained in logs/monthly-migration-replay-contamination-server.log; initial-failure JSON distinguishes it from fresh logs. Initial child stdout was overwritten before preservation; this limitation is explicit. Earlier browser setup failures were fixture-only: omitted TSX substitution, frontend/API path collision, incomplete theme provider and input/consent synchronization. None required a production change.
+
+Outstanding release gates: approve exact owner repairs above, rerun affected combined flows and real-shell acceptance, derive final combined CI projections/floors with hosted authority, and separately authorize publication/shared migrations/release. Existing companion estate floor3389/map3391 is not fresh combined hosted-count proof. No CI floor edits were made.
+
+## Cleanup and records
+
+Original source fingerprints, candidate assembly mapping, mount hook receipt, exact test results and source/independent-shell bindings are retained in the evidence root. Generated tracked fixture output was preserved separately before restoring only the candidate's generated consumer JSON. Runtime source remains frozen at the mount commit. Candidate evidence/report/log/own fragment are distinct from source and may remain uncommitted pending review. No blanket staging.
+
+Both owned PostgreSQL clusters stopped with status3/no listener checks. Browser runners close contexts/browsers and their loopback servers; final narrow owned-process inventory is service-cleanup.json. No live app, real account, payment/email provider, weather scheduler, flags, paid resources, push/PR/merge/deployment or shared migration. Memory updated by a new ad-hoc note only. Own ledger: ledger.d/codex--repair-integration-20261030.jsonl:1. No canonical ACTIONS/STATE/scoreboard rewrite.
+
+## Newly authorized follow-on: drawer focus and geometry
+
+David separately authorized the App/integration owner to repair Escape focus return and desktop clipping, with real-shell synthetic qualification across all three themes. This supersedes only those two repair holds. Plan: reproduce6 cases from the independent actual AppLayout/ToS/Sheet fixture, capture baseline; restore an appropriate visible invoker or connected desktop fallback without changing nonmodal policy; reset only this drawer desktop centering transform; expand native opening/resize/reopening/keyboard/close/navigation assertions; verify source and memory. Footer occlusion and other Auth/API/UUID/migration/release issues stay separate. ce30 owns the separately authorized backend recipient-binding seam; this candidate does not edit it while their patch is prepared.
+
+## Superseding focus/desktop completion, 2026-10-30 UTC
+
+The initial focus/geometry commit8f9ab1131 passed its recorded6/6/33 checks but did not prove the drawer was unobscured by the desktop sidebar. Visual forensics found its x16 panel under navigation. Preserve that limited result; the new edge-hit baseline in occlusion-before-centering.json is3/6 (all desktop cases fail).
+
+Commitabb5a114559390d9bb473661a6b0047d942a4917 supersedes that geometry limitation. It restores the shared Sheet bottom variant's centering and adds only this drawer's constrained desktop width; shared Sheet source is unchanged. Final actual AppLayout/BottomNav/Sidebar/ToS/Radix fixture passes6/6 across light/dark/beach mobile/desktop and51 additional assertions: every desktop edge hit belongs to the drawer, widths768/1024/1440, both resize directions, Escape to visible mobile invoker or desktop notification link, disconnected-invoker fallback, ordinary close/reopen, intentional outside-focus retention, preserved desktop page navigation and support activation. At1440 panel x464,width512; all four visible-edge probes pass all3themes. Screenshots visually checked.
+
+Tested frontend18-blob manifest is retained in evidence/2026-10-30-drawer-focus-geometry/results.json. App/TopNav/Drawer qualified source is committed; ce30's3 uppercase-support hunks were independently authorized and are frozen/uncommitted inputs captured by that manifest pending owner packaging, not silently called HEAD source. Recipient guard committedfa165f9a4 and verified34/34 with actual offline JWT/SQLite. Normal hooks passed for focused source commits. Candidate original lanes remain separate.
+
+Mobile footer occlusion remains separate: center(195,798) intercepted by bottomnav-create in all3themes. David has now explicitly authorized that next repair, AFTER this record/memory closeout. Plan: record measured stacking/clearance baseline, make only a drawer footprint/stacking repair, verify native footer activation, scrolling, short-height/portrait and bidirectional resizing with real shell/Sheet/CSS and synthetic transports. No nonmodal-policy, BottomNav normal behavior or other Sheet change is intended. Other Auth/session-return/schema/CI/release holds remain.
+
+## Footer batch completion
+
+
+Distinct authorized batch, after prior focus/desktop audit/memory/log/ledger closeout. Source commit34eea1c94f4635fcfe8b7d9ec499e6f86b0adaa5. Only NotificationsDrawer.js footprint/spacing changed: reuse existing --safe-bottom, viewport height minus navigation/TopNav clearance, remove redundant mobile outer padding/gaps so the fixed controls fit short screens, preserve centered desktop spacing/height with md overrides. BottomNav, global CSS variables and shared Sheet source/policy unchanged.
+
+Failure-before:6 scenarios0 passes,30 of36 native footer clicks blocked by bottomnav-create. Measured navheight76, safe clearance95, old footercenter(195,798). Saved baseline-results.json.
+
+Final same-source actual AppLayout/BottomNav/Sidebar/ToS/Radix Sheet/CSS fixture:6/6 light/dark/beach x mobile/desktop;36/36 footer states;36/36 live-open bidirectional resize checks; click/Enter/Space each exercised. Viewports390x844,390x480,320x480,667x375 and1440x1000. Long synthetic list scrolls in positive-height region; no horizontal overflow. At390x844 footerbutton y701,height36, drawerbottom749 while nav starts768; at667x375 listclientheight37 remains scrollable and native footer navigation succeeds. Normal BottomNav Create navigation, nonmodal outside-focus behavior, Escape visible/disconnected fallback, reopen/ordinary close, desktop visible edges and support activation retained. 51 core focus/geometry assertions also retained. Screenshots visually inspected including short landscape.
+
+Exact20frontend runtime fingerprints in results.json, plus all104 changed-production freeze in ../2026-10-30-combined-integration/final-combined-source-freeze.json. All104 raw bytes matched after tests. Session-return apiClient patch is reconciled/frozen with43/43 actualclient/Auth units; its owner12-case real-interceptor browser result remains pending at this footer closeout. The separately owned actual-App persisted fixture passes27/27 after recipient/uppercase repairs. Final production build0errors0warnings and lint ratchet pass.
+
+These are synthetic desktop Chrome viewport tests, not physical-device or real-provider qualification. Browsers/loopback servers close in finally; no weather, original checkout, live provider, paid resource, shared migration or publication action. Local repair authority does not clear hosted CI/schema/release gates.
+
+## Final same-source completion and residual gates
+
+Runtime-qualified commits in this candidate: route mount1bbe21ea9; recipient bindingfa165f9a4; focus initial8f9ab1131; fully visible desktop centeringabb5a1145; canonical owner-ticket identityd6539e137; mobile footer34eea1c94; expired-session return3cfda2c1b. Original16 reviewed commits retain exact patch identities in assembly-map.json. No inherited weather history was reapplied. Remote dev re-read at final closeout still72b4652d5753423cce18b9ad1d1de95f0afcb7e7.
+
+Expired-session source changes are ONLY the reviewed apiClient import of existing supportReturnPath, capture of current pathname before delay, and use of the resulting canonical local sign-in URL in first401 timer and repeated-refusal toast. Existing delay/dedupe/rejection/clearing/exclusions/non-support behavior retained. Query/hash are not copied. Ownerce30 supplied bounded hunks; this lane applied them after identical-base check, never whole-file overlay.
+
+Failure-first7 cases improved unit15/22 ->22/22, combined actual-client/Auth/support regressions43/43. Independent actual-Axios401/realAuth/realMfaChallengeStep/ProtectedRoute/SupportInbox browser12/12: first/repeated refusal across3themes and1440/390, password and MFA in each mode/theme, one hard Auth load, tabs/signup/category/back retention, stale restored session does not forward, successful login clears mark, account replacement removes prior conversation. Synthetic session/AuthProvider and Axios adapter; AppLayout/ToS/router frames are bounded fixtures. No real backend/provider/physical-device acceptance is claimed from those cases. All9 observed source hashes match final source. Setup-only failures (missing CRA env DefinePlugin and overbroad alert selector) were corrected in fixtures, not production.
+
+Footer qualification uses actual AppLayout/BottomNav/Sidebar/ToS/nonmodal Radix Sheet and real compiled CSS with synthetic Auth/API:6/6 scenarios,51 retained focus/geometry assertions,36footer states and36live-open resizes, native click/Enter/Space, long-list scrolling, no overflow, normal BottomNav Create navigation, short portrait320/390x480 and landscape667x375. Desktop four-edge hit tests clear navigation at768/1024/1440, Escape visible/disconnected fallback/normal close/reopen/outside focus and support activation retained. Source fingerprint set20 includes actual apiClient/supportRoutes identities, explicitly substituted in this shell fixture but exercised by the separate client/Auth tests on the same bytes. Initial viewport-only acceptance limitation and all failure-before artifacts remain preserved.
+
+Final affected regressions: admin/Auth95; consumer/WebRTC/search/reviews348; uppercase/support/Auth21; actual-client/Auth43; canonical owner API21 and retained delivery/SLA37; actual recipientJWT34. They overlap and are not one additive total. Actual-App persisted fixture27/27 verifies staff reply -> stored notice -> real consumer -> canonical owner ticket/reply, wrong-owner and account replacement, password/MFA, generic fake email link, no page errors/external traffic. Production compile0errors0warnings on pinned Node24.22.1; final full lint including new session tests passes debt ratchet. Native monthly replay18/migration11, ordered migrations9 each engine and original feature63/64 historic-head qualification remain as previously scoped (models/migration code unchanged).
+
+Exact same-source proof: evidence/2026-10-30-combined-integration/final-combined-source-freeze.json and final-qualified-source.json. All104 raw bytes and committed source blobs match; source worktree clean. Existing AppLayout, BottomNav, global indexCSS and shared ui/sheet source blobs unchanged from the route-mount checkpoint. ce30 independently rechecked104/104 and9browser files. Tests ran on frozen working bytes before focused source commits; post-commit identity binds those same bytes, rather than claiming a new test execution after each metadata commit.
+
+Original feature and companion HEAD/status/tracked-diff/untracked-name fingerprints exactly match the initial readback; feature651 untracked files and2 dirty governance paths preserved. ce30 HEAD1076ce594 unchanged; its5 runtime diffs and54 untracked records belong to its independently authorized recipient/uppercase/session repair work, not changes by this integration lane. Exact final comparisons are final-original-preservation.json. Candidate evidence/records/private caches remain separate from committed application source; no blanket staging.
+
+Own synthetic browsers/servers closed; final candidate-owned service inventory empty. Disposable PG clusters stopped with status3/no listener, databases retained locally for evidence. No paid resources, live account/email/payment/provider actions, shared migration, flags, weather code/runtime, push/PR/merge/deploy.
+
+Resolved locally: route mounting, notification recipient binding, uppercase owner-ticket identity, Escape focus/fallback, unobscured desktop drawer geometry, mobile footer obstruction, expired canonical support return. Residual gates: actual approved shared schema/Alembic/outbox/index inventory; unmarked legacy archive review; dependency-complete durable backend CI launcher/floor packaging and final hosted CI projection/run; broader Auth raw-versus-validated non-support redirect contract if separately requested; provider/real-device qualification and explicit publication/release authority. No broader audit or deployment completion claim.
+
+Independent owner reports remain in ce30/docs/audits/2026-10-30-{notification-recipient-binding,support-uppercase-ticket-ids,support-expired-session-return}.md. Canonical evidence roots: combined-integration, drawer-focus-geometry, drawer-footer, support-uppercase, support-session-return under docs/audits/evidence/. Final documentation-only closeout may follow; its Git readback must leave all runtime subtrees identical to3cfda2c1b.
