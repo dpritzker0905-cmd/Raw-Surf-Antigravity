@@ -2135,7 +2135,9 @@ jobs:
           # Complete package at a8bcc34: run 41066412936 executed 3399 cases (3391 passed + 8 failed).
           # Reconcile stale contract fixtures without skipping cases; add paid-overlap and missing-debit
           # rejection regressions (+2). Projected 3401; floor 3399, preserving margin 2.
-          MIN_PASSED = 3399
+          # Main-target run 41090754079 passed 3401. The support_created template expands
+          # four existing rendering cases: projected 3405, floor 3403, preserving margin 2.
+          MIN_PASSED = 3403
 
           try:
               root = ET.parse('estate.xml').getroot()

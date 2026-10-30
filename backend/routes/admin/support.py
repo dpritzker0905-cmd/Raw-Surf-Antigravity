@@ -22,7 +22,7 @@ from models import (
     Profile, SupportTicket, TicketMessage, 
     TicketCategoryEnum, TicketPriorityEnum, TicketStatusEnum
 )
-from services.support_delivery import save_support_message, queue_support_reply_notice, support_request_id
+from services.support_delivery import save_support_message, queue_support_reply_notice, queue_support_creation_notice, support_request_id
 
 
 
@@ -466,6 +466,7 @@ async def create_ticket(
         result = await db.execute(statement.returning(SupportTicket.id))
         ticket_id = result.scalar_one_or_none()
         if ticket_id is not None:
+            await queue_support_creation_notice(db, ticket_id, user_id)
             await db.commit()
             return {"success": True, "ticket_number": ticket_number, "ticket_id": ticket_id}
         if request_id:

@@ -512,7 +512,7 @@ def test_templates_are_classed_security_or_low():
         assert priority_of(name) == "security", name
     assert priority_of("dispute_opened") == "low" and priority_of("notice_digest") == "low"
     assert priority_of("support_reply") == "low" and TEMPLATES["support_reply"].summary is None
-    assert all(spec.summary for name, spec in TEMPLATES.items() if spec.priority == "low" and name not in {"notice_digest", "support_reply"})
+    assert all(spec.summary for name, spec in TEMPLATES.items() if spec.priority == "low" and name not in {"notice_digest", "support_reply", "support_created"})
 
 
 async def test_a_low_priority_notice_waits_for_the_digest_window_but_security_does_not(factory):
@@ -763,3 +763,10 @@ async def test_support_notice_is_generic_links_to_ticket_and_omits_reply_to(fact
     assert "/support/tickets/" + ticket_id in body["text"]
     assert "token=" not in body["text"] and "?" not in body["text"]
     assert "Replies to this notification email are not added to your ticket" in body["text"]
+    queued = await _enqueue(factory, sender, key="support_created:fixture", template="support_created", params={"ticket_id": ticket_id})
+    assert await deliver_outbox_entry(queued.outbox_id, sender=sender, session_factory=factory) == "sent"
+    receipt = provider.bodies()[1]
+    assert receipt["subject"] == "We received your Raw Surf support ticket"
+    assert set(receipt) == {"from", "to", "subject", "html", "text"}
+    assert "/support/tickets/" + ticket_id in receipt["text"]
+    assert "Reply inside the app" in receipt["text"] and "token=" not in receipt["text"]

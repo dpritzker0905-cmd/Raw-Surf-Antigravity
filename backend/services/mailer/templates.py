@@ -209,6 +209,16 @@ def _password_reset(p: dict) -> _Body:
     )
 
 
+def _support_created(p: dict) -> _Body:
+    ticket_id = str(uuid.UUID(p["ticket_id"]))
+    return _Body(
+        subject="We received your Raw Surf support ticket", heading="Your support ticket was received",
+        paragraphs=("Sign in to your Raw Surf account to view your ticket and communicate with support.",),
+        cta_label="Open your ticket", cta_url=build_link("/support/tickets/" + ticket_id),
+        footnote="Reply inside the app. Replies to this notification email are not added to your ticket.",
+    )
+
+
 def _support_reply(p: dict) -> _Body:
     ticket_id = str(uuid.UUID(p["ticket_id"]))
     return _Body(
@@ -261,6 +271,7 @@ TEMPLATES: Dict[str, TemplateSpec] = {
         summary=lambda p: f"A dispute (reference {clean(p['reference'], 40)}) was opened on your account."),
     "notice_digest": TemplateSpec(("items",), _notice_digest, priority=LOW),
     "support_reply": TemplateSpec(("ticket_id",), _support_reply, priority=LOW),
+    "support_created": TemplateSpec(("ticket_id",), _support_created, priority=LOW),
 }
 
 

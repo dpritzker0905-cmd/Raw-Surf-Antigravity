@@ -97,7 +97,7 @@ async def get_db():
 scope = dict(p.scope)
 scope.update(get_current_user_id=identity, get_user_id_from_jwt_or_query=identity, get_current_admin=admin, get_db=get_db,
              save_support_message=support_delivery.save_support_message, queue_support_reply_notice=support_delivery.queue_support_reply_notice,
-             support_request_id=support_delivery.support_request_id)
+             support_request_id=support_delivery.support_request_id, queue_support_creation_notice=support_delivery.queue_support_creation_notice)
 tree = ast.parse((ROOT / "backend/routes/admin/support.py").read_text(encoding="utf-8"))
 tree.body = [node for node in tree.body if not isinstance(node, ast.ImportFrom) or node.module not in ["core.security", "database", "deps.admin_auth", "models", "services.support_delivery"]]
 exec(compile(tree, "backend/routes/admin/support.py", "exec"), scope)
@@ -222,6 +222,41 @@ async def main():
             repeat = await client.post("/support/tickets", headers=headers, json=create_body)
             changed = await client.post("/support/tickets", headers=headers, json={**create_body, "description": "Different"})
             check("ticket creation request retry returns original and conflicting reuse409", first.status_code == repeat.status_code == 200 and first.json() == repeat.json() and changed.status_code == 409)
+            created_id = first.json()["ticket_id"]
+            created_mail = (await snapshot())["email_outbox"]
+            check("creation commits one owner-bound generic confirmation despite duplicate retries",
+                  len(created_mail) == 1 and created_mail[0]["template"] == "support_created" and
+                  created_mail[0]["recipient_address"] == "1@example.invalid" and
+                  created_mail[0]["payload"] == {"ticket_id": created_id} and
+                  created_mail[0]["idempotency_key"] == "support_created:" + created_id)
+            await seed(email=False)
+            opted_out = await client.post("/support/tickets", headers=headers, json={**create_body, "client_request_id": str(uuid.uuid4())})
+            check("creation preserves explicit email opt-out", opted_out.status_code == 200 and not (await snapshot())["email_outbox"])
+            await seed()
+            async with factory() as db:
+                await db.execute(sa.delete(p.scope["NotificationPreferences"]))
+                await db.commit()
+            missing_prefs = await client.post("/support/tickets", headers=headers, json={**create_body, "client_request_id": str(uuid.uuid4())})
+            check("creation without preferences remains email opted out", missing_prefs.status_code == 200 and not (await snapshot())["email_outbox"])
+            await seed()
+            sender.configured = False
+            disabled = await client.post("/support/tickets", headers=headers, json={**create_body, "client_request_id": str(uuid.uuid4())})
+            check("unconfigured creation still saves ticket without pretending mail sent", disabled.status_code == 200 and not (await snapshot())["email_outbox"])
+            sender.configured = True
+            await seed()
+            support_delivery.enqueue_email = failing_enqueue
+            before = await snapshot()
+            try:
+                await client.post("/support/tickets", headers=headers, json={**create_body, "client_request_id": str(uuid.uuid4())})
+            except RuntimeError:
+                check("creation enqueue failure rolls ticket and outbox back together", before == await snapshot())
+            finally:
+                support_delivery.enqueue_email = original
+            await seed()
+            concurrent_body = {**create_body, "client_request_id": str(uuid.uuid4())}
+            outcomes = await asyncio.gather(*[client.post("/support/tickets", headers=headers, json=concurrent_body) for _ in range(2)])
+            check("concurrent same-key creation commits one ticket receipt", all(r.status_code == 200 for r in outcomes) and
+                  outcomes[0].json() == outcomes[1].json() and len((await snapshot())["email_outbox"]) == 1)
             await seed()
             history = await snapshot()
             original_ticket = history["support_tickets"][0]

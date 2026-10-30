@@ -53,13 +53,23 @@ async def queue_support_reply_notice(db, ticket, message_id):
             body="Open your support ticket to read the reply.",
             data=json.dumps({"ticket_id": ticket.id, "message_id": message_id, "recipient_id": ticket.user_id}),
         ))
+    return await _queue_owner_email(db, ticket.user_id, ticket.id, prefs, "support_reply", "support_reply:" + message_id)
+
+
+async def queue_support_creation_notice(db, ticket_id, user_id):
+    """Queue one generic receipt in the new ticket's transaction, preserving email opt-in."""
+    prefs = (await db.execute(select(NotificationPreferences).where(
+        NotificationPreferences.user_id == user_id))).scalar_one_or_none()
+    return await _queue_owner_email(db, user_id, ticket_id, prefs, "support_created", "support_created:" + ticket_id)
+
+
+async def _queue_owner_email(db, user_id, ticket_id, prefs, template, key):
     if prefs is None or not prefs.email_messages:
         return "opted_out"
-    owner = (await db.execute(select(Profile).where(Profile.id == ticket.user_id))).scalar_one_or_none()
+    owner = (await db.execute(select(Profile).where(Profile.id == user_id))).scalar_one_or_none()
     if owner is None or not owner.email:
         return "unavailable"
-    queued = await enqueue_email(db, "support_reply", owner.email, {"ticket_id": ticket.id},
-                                 idempotency_key="support_reply:" + message_id)
+    queued = await enqueue_email(db, template, owner.email, {"ticket_id": ticket_id}, idempotency_key=key)
     if queued.status == "duplicate" and not queued.outbox_id:
         raise RuntimeError("Support email enqueue failed")
     return queued.status

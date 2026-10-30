@@ -26,6 +26,7 @@ TOKEN = "tok_" + "x" * 32  # obviously fake and low entropy, so secret scanners 
 BASE = "https://app.example.test"
 
 SAMPLE = {
+    "support_created": {"ticket_id": "44444444-4444-4444-8444-444444444444"},
     "support_reply": {"ticket_id": "44444444-4444-4444-8444-444444444444"},
     "guardian_invite": {"child_display_name": "Kai", "token": TOKEN},
     "guardian_confirmed": {"child_display_name": "Kai"},
