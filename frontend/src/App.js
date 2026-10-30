@@ -82,6 +82,7 @@ const SessionRecapPage            = React.lazy(() => import('./pages/SessionReca
 const PhotographerSubscriptionSettings = React.lazy(() => import('./components/PhotographerSubscriptionSettings'));
 const PhotographerSubscribePage = React.lazy(() => import('./components/PhotographerSubscribePage'));
 const CareerPage = React.lazy(() => import('./components/CareerPage'));
+const SupportRoute = React.lazy(() => import('./components/support/SupportRoute'));
 
 import './App.css';
 
@@ -149,6 +150,8 @@ function App() {
             <Route path="/setup-username" element={<SubscriptionRoute><Lazy><UsernameSetup skipAllowed={true} /></Lazy></SubscriptionRoute>} />
 
  {/* GG Protected App Routes GG */}
+            <Route path="/support" element={<Lazy><SupportRoute /></Lazy>} />
+            <Route path="/support/tickets/:ticketId" element={<Lazy><SupportRoute /></Lazy>} />
             <Route path="/feed" element={<ProtectedRoute><AppLayout><Lazy><Feed /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/explore" element={<ProtectedRoute><AppLayout><Lazy><Explore /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/search" element={<ProtectedRoute><AppLayout hideTopNav={true}><Lazy><SearchPage /></Lazy></AppLayout></ProtectedRoute>} />
