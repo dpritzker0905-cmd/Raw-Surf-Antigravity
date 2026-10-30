@@ -31,8 +31,11 @@ async def get_notifications(
     limit: int = Query(50, ge=1, le=100),
     before_created_at: datetime | None = None,
     before_id: str | None = Query(None, min_length=1, max_length=36),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db),
 ):
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot read another user's notifications")
     if (before_created_at is None) != (before_id is None):
         raise HTTPException(status_code=400, detail="Both notification cursor fields are required")
     query = select(Notification).where(Notification.user_id == user_id)
@@ -57,7 +60,13 @@ async def get_notifications(
     ) for n in notifications]
 
 @router.get("/notifications/{user_id}/unread-count")
-async def get_unread_notification_count(user_id: str, db: AsyncSession = Depends(get_db)):
+async def get_unread_notification_count(
+    user_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot read another user's notifications")
     from sqlalchemy import func
     result = await db.execute(
         select(func.count(Notification.id))
