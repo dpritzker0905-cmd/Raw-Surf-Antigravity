@@ -8,8 +8,9 @@ at the end of this handoff records the audit lane's Saved Crew and weekly-challe
 weekly-date/count candidate listed historically below is now repaired in that separate worktree.
 
 Latest companion continuation: [WebRTC setup cancellation](2026-10-29-call-cancellation.md) is repaired
-and verified locally in the working tree, **not yet staged or committed**. The historical pending
-cancellation paragraph below is superseded by the dated receipt at the end of this handoff.
+and verified, now saved in focused local commit `b3b2b75d685411da4288bd1374264edd363a4161`. Publication
+and integration remain pending. Historical uncommitted testing descriptions below are superseded
+for delivery status by the dated commit receipt at the end of this handoff.
 
 ## Start here: avoid duplicate work
 
@@ -224,3 +225,78 @@ Current delivery must be established by Git history/readback. The seven earlier 
 Mandatory redacted staged-secret and PythonLOC gates stay enabled; no active/network security probe.
 Publication/integration/sharedschema/weather authority is unchanged. No support consumer or auth/router
 source is included in this package.
+
+
+## Focused WebRTC commit readback and support-contract hold
+
+Focused local commit `b3b2b75d685411da4288bd1374264edd363a4161` has parent
+`1a3e51875a90553d97fc637b4640bf02b3be656e`, preserving all seven earlier commits. Exactly the 12
+approved source/test/evidence/doc paths were staged and committed. The unchanged mandatory hook's
+redacted local staged-secret check and Python LOC guard passed. Working source/test/fixture raw
+fingerprints still equal the tested manifest; commit blobs equal those tested files under configured
+LF normalization. Existing 158 frontend, independent 63-hook, 14 Chrome, build and lint receipts were
+reused; no new test/build run is claimed. Immediately after commit, index and worktree were clean.
+This subsequent delivery/coordination receipt is documentation only and remains unstaged.
+
+The product decision authorizes an in-app support conversation plus a minimal email notice linking
+after sign-in. ce30 remains producer/dashboard/new-inbox/backend owner; 2866's bounded potential slice
+is notification consumer/deep-link behavior. No support consumer source has changed. Exact event,
+ticket/recipient fields, route/auth-return and new helper-file reservation are still unconfirmed.
+Coordination reported automatic approval review rejected ce30's contract transmission; its rejection
+reason was not provided to this lane. No retry or alternate transmission was attempted after that
+restriction. Direct cross-thread messaging is currently held by the latest direction.
+
+Permitted read-only findings/test design, without choosing a new contract:
+
+- NotificationResponse omits envelope user_id; agreed recipient binding is needed. Generic
+  data.user_id currently falls through to a profile route. Validate a new event before read effects.
+- Already-read clicks bypass mutation serialization; both surfaces need the agreed owner/cycle and
+  duplicate-activation acceptance cases, including delayed reads and A-to-B-to-A.
+- ProtectedRoute uses pathname+query in redirect and defaults to signup. Actual Auth tab/category/back
+  changes drop that redirect; an already-authenticated Auth effect goes to feed. Auth/router/gate
+  fixes remain outside this consumer slice and need the lead's ownership resolution.
+- A new protected inbox route inherits the Grom gate unless explicitly handled; the ToS overlay mounts
+  children. Test actual Auth/ProtectedRoute with BrowserRouter and fictional auth/API state once the
+  lead contract is agreed. No provider messages, speculative route or auth-rule change was made.
+
+## New app approvals and support contract retry outcome
+
+The subsequent explicit app approvals permit normal redacted staged-file Gitleaks/LOC hooks, approved
+support contract/ownership coordination between ce30 and2866, and SLA recalculation from original
+created_at using the new priority's existing duration. SLA implementation remains ce30-owned. The
+already completed WebRTC commitb3b2b75d685411da4288bd1374264edd363a4161 and its fingerprints are preserved;
+no duplicate commit or test/build rerun was needed.
+
+2866 requested the now-authorised contract retry, read the lead's actual local proposal and sent a
+conditional agreement pending explicit consumer/helper reservation and invalid-payload/role/auth-return
+confirmation. The lead's supported task state then confirms that its one permitted retry was again
+rejected by automatic approval review: approval appeared in delegation context, whereas the reviewer
+requires direct user authorization in the lead chat. The contract was not delivered by that retry.
+No further retry, alternate transmission or consumer implementation was attempted after this outcome.
+
+Consumer source remains unchanged. Event/payload/recipient/ticket/route/auth-return ownership agreement
+is not complete. Shared router mounting remains with its current owner; ce30 owns producer/inbox/backend
+and bounded auth work. No speculative helper, router/Auth/apiClient, SLA or other-worktree edit occurred.
+Read-only test design is ready: actual notification surfaces/hook, UUID/recipient validation before read,
+already-read/unread duplicate activation, delayed read/account/open-cycle changes, legacy destinations,
+and actual BrowserRouter/Auth/ProtectedRoute with fake auth/API after agreement. Real providers, email,
+weather, publication and shared migrations remain outside this lane.
+
+
+## Three-file delivery receipt closeout
+
+The owner authorised one focused docs-only local commit of this handoff, the existing own session
+log and the existing branch ledger fragment. These three files form the complete receipt unit for
+commit `b3b2b75d685411da4288bd1374264edd363a4161` and the already recorded support-contract hold.
+Historical descriptions of these receipts as unstaged refer to their state before this closeout.
+
+Expected parent is `b3b2b75d685411da4288bd1374264edd363a4161`; the delivery commit subject is
+`docs(audit): close WebRTC delivery receipts and support hold`. Git history and final tool/chat
+readback identify the actual new SHA and final status. No further tracked receipt edit will be made
+solely to record this docs commit's self-referential SHA. The ledger entry records the allowlisted
+unit and verified preconditions; the final readback remains in this conversation.
+
+Application/test/fixture fingerprints are unchanged from the tested and committed WebRTC repair.
+No app tests or production build were rerun for documentation-only content. Normal redacted staged
+secret and file-size hooks remain enabled. No support contract retry, alternative relay, consumer
+implementation, publication, integration, shared migration or weather action is part of closeout.
