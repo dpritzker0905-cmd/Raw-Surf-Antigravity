@@ -5,7 +5,7 @@ import apiClient from '../../lib/apiClient';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
-import { newSupportRequestId } from './supportRoutes';
+import { canonicalSupportTicketId, newSupportRequestId } from './supportRoutes';
 
 export const SupportInbox = () => {
   const { user, loading } = useAuth();
@@ -15,7 +15,8 @@ export const SupportInbox = () => {
 };
 
 const SupportSession = () => {
-  const { ticketId } = useParams();
+  const { ticketId: pathTicketId } = useParams();
+  const ticketId = canonicalSupportTicketId(pathTicketId);
   const navigate = useNavigate();
   const [offset, setOffset] = useState(0);
   const [refresh, setRefresh] = useState(0);

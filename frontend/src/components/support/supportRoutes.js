@@ -1,7 +1,9 @@
 const UUID = '[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}';
 const SUPPORT_RETURN = new RegExp(`^/support(?:/tickets/${UUID})?$`, 'i');
+const TICKET_UUID = new RegExp(`^${UUID}$`, 'i');
 
-export const supportReturnPath = value => typeof value === 'string' && SUPPORT_RETURN.test(value) ? value : null;
+export const canonicalSupportTicketId = value => typeof value === 'string' && TICKET_UUID.test(value) ? value.toLowerCase() : value;
+export const supportReturnPath = value => typeof value === 'string' && SUPPORT_RETURN.test(value) ? value.toLowerCase() : null;
 export const supportAuthParams = (current, next) => {
   const redirect = supportReturnPath(current.get('redirect'));
   return redirect ? { ...next, redirect } : next;

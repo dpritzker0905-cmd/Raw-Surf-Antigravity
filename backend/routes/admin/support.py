@@ -14,6 +14,7 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 import secrets
+import re
 
 from database import get_db
 from deps.admin_auth import get_current_admin
@@ -486,6 +487,8 @@ def public_ticket(ticket):
 
 
 async def owned_ticket(db, ticket_id, user_id, lock=False):
+    if re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", ticket_id, re.IGNORECASE):
+        ticket_id = ticket_id.lower()
     query = select(SupportTicket).where(SupportTicket.id == ticket_id, SupportTicket.user_id == user_id)
     if lock:
         query = query.with_for_update()
@@ -531,8 +534,8 @@ async def reply_to_my_support_ticket(
     text = request.message.strip()
     if not text or len(text) > 10000:
         raise HTTPException(status_code=422, detail="Reply must contain 1 to 10000 characters")
-    message_id, created = await save_support_message(db, ticket_id, user_id, text, False, request.client_message_id)
+    message_id, created = await save_support_message(db, ticket.id, user_id, text, False, request.client_message_id)
     if created:
-        await db.execute(update(SupportTicket).where(SupportTicket.id == ticket_id).values(updated_at=datetime.now(timezone.utc)))
+        await db.execute(update(SupportTicket).where(SupportTicket.id == ticket.id).values(updated_at=datetime.now(timezone.utc)))
         await db.commit()
     return {"success": True, "message_id": message_id, "duplicate": not created}
