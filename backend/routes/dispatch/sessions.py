@@ -18,6 +18,8 @@ import stripe
 from utils.geo import haversine_distance
 
 from database import get_db
+from utils.credits import consume_spend_only_for_debit
+from utils.dispatch_checkout_recovery import persist_dispatch_checkout
 from core.security import get_current_user_id
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
@@ -426,11 +428,13 @@ async def confirm_payment(
         # 2. Deduct credits (only if captain_amount > 0)
         if captain_amount > 0:
             payer.credit_balance -= captain_amount
+            promo_spent = consume_spend_only_for_debit(payer, captain_amount)
             
             # 3. Create credit transaction record
             tx = CreditTransaction(
                 user_id=payer_id,
                 amount=-captain_amount,
+                spend_only_amount=-promo_spent,
                 balance_before=old_balance,
                 balance_after=payer.credit_balance,
                 transaction_type='dispatch_deposit',
@@ -577,35 +581,27 @@ async def create_dispatch_checkout(
             }
         )
         
-        # Store the checkout session ID on the dispatch
-        dispatch.stripe_checkout_session_id = checkout_session.id
-        
-        # Store payment transaction record
-        transaction = PaymentTransaction(
-            user_id=data.payer_id,
-            session_id=checkout_session.id,
-            amount=amount,
-            currency="usd",
-            payment_status="Pending",
-            status="Pending",
-            transaction_metadata=json.dumps({
-                'dispatch_id': data.dispatch_id,
-                'type': 'on_demand_dispatch'
-            })
-        )
-        db.add(transaction)
-        await db.commit()
-        
-        return {
-            "checkout_url": checkout_session.url,
-            "session_id": checkout_session.id,
-            "dispatch_id": data.dispatch_id,
-            "amount": amount
-        }
-        
     except stripe.error.StripeError as e:
         raise HTTPException(status_code=500, detail=f"Stripe error: {str(e)}")
 
+    await persist_dispatch_checkout(db, dispatch, checkout_session.id, lambda: PaymentTransaction(
+        user_id=data.payer_id,
+        session_id=checkout_session.id,
+        amount=amount,
+        currency="usd",
+        payment_status="Pending",
+        status="Pending",
+        transaction_metadata=json.dumps({
+            'dispatch_id': data.dispatch_id,
+            'type': 'on_demand_dispatch'
+        })
+    ))
+    return {
+        "checkout_url": checkout_session.url,
+        "session_id": checkout_session.id,
+        "dispatch_id": data.dispatch_id,
+        "amount": amount
+    }
 
 
 # Re-exported from dispatch_matching.py (v90)

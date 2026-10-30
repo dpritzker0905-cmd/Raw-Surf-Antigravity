@@ -10,6 +10,7 @@ import {
 import { isInCooldown, clearCooldown } from '../components/map/marineControllerUtils';
 import { residentFrameDiagnosticsEnabled } from '../components/map/marineFrameReceipt';
 import { forecastHourMs } from '../components/map/infoboxFrameTime';
+import { gridHintsFor } from '../components/map/pointProductHint';
 
 // EXACT-POINT FETCH BUDGET (2026-07-06): the shared 12s abort guaranteed a first-look "Timeout"
 // on EURO — a COLD native CMEMS point measured 17s live (GFS 0.9s / ICON 2.5s), so every first
@@ -206,12 +207,9 @@ export function useExactPointFetch({
       // A15-09: a series-committed grid carries the STORED product it came from; without it the
       // point client fell back to a projection diag that went stale on the series path, and the
       // infobox sampled a different product from the one on screen.
-      const gridProductId = grid?.productId || grid?.product_id || grid?.__servedProductId || null;
-      let gridBbox = null;
-      if (grid?.bounds) {
-        const b = grid.bounds;
-        gridBbox = `${b.west},${b.south},${b.east},${b.north}`;
-      }
+      // D4 (2026-10-28): mid-switch this is still the PREVIOUS model's grid; its id made the backend answer EURO asks
+      // with a GFS product. Only this selection's grid lends its id and box (pointProductHint.js).
+      const { productId: gridProductId, bbox: gridBbox } = gridHintsFor(grid, activeModel, activeLayer);
 
       // On a retryable failure, keep the infobox "Loading…" and force one fresh fetch shortly instead of
       // wedging on a terminal status — this is the core fix for the rapid-switch / cold-backend hang.

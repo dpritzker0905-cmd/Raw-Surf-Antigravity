@@ -79,7 +79,7 @@ from .surf_alerts import (  # noqa: F401
 from .gamification import (  # noqa: F401
     AnalyticsEvent, AdminLog, GearCatalog, GearPurchase,
     SponsorshipTransaction, ShakaMessage, VerifiedCause, InstantShakaVideo,
-    ImpactLedger, LeaderboardSnapshot, WeeklyChallenge, ChallengeParticipant,
+    ImpactLedger, LeaderboardSnapshot, MonthlyLeaderboardArchive, WeeklyChallenge, ChallengeParticipant,
     Badge, XPTransaction, CompetitionResult, Sponsorship, GoldPassBooking,
     Surfboard, SurfPassportCheckIn, SurfPassportStats, SurfLogEntry,
 )

@@ -126,7 +126,7 @@ export const TopNavDrawerTray = ({ isOpen }) => {
   const rightItems = [
     {
       id: 'settings', icon: Settings, label: 'Settings',
-      color: 'text-gray-300',
+      color: 'text-foreground',
       action: () => navigate('/settings')
     }
   ];

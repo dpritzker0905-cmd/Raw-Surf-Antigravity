@@ -377,6 +377,7 @@ export const Sidebar = () => {
         {/* Settings - User preferences, notifications, billing */}
         <NavLink
           to="/settings"
+          aria-label="Settings"
           className={({ isActive }) =>
             `w-full flex items-center ${isHovered ? 'justify-start' : 'justify-center xl:justify-start'} gap-3 px-4 py-2 rounded-lg mb-0.5 transition-all text-sm ${
               isActive

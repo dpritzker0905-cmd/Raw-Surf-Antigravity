@@ -1,0 +1,16 @@
+.......................................                                  [100%]
+============================== warnings summary ===============================
+..\..\..\..\..\..\..\..\..\..\..\App\raw-surf\backend\.venv\Lib\site-packages\_pytest\config\__init__.py:1434
+  C:\Users\David\App\raw-surf\backend\.venv\Lib\site-packages\_pytest\config\__init__.py:1434: PytestConfigWarning: Unknown config option: asyncio_default_fixture_loop_scope
+
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+..\..\..\..\..\..\..\..\..\..\..\App\raw-surf\backend\.venv\Lib\site-packages\_pytest\config\__init__.py:1434
+  C:\Users\David\App\raw-surf\backend\.venv\Lib\site-packages\_pytest\config\__init__.py:1434: PytestConfigWarning: Unknown config option: asyncio_mode
+
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+ENVIRONMENT IS NOT THE DECLARED ONE: 4 declared packages absent
+  => a result from this interpreter is evidence about THIS environment, not about CI or production. Detail: python scripts/check_env_parity.py --verbose
+39 passed, 2 warnings in 12.66s

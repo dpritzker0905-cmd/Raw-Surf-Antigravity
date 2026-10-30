@@ -15,6 +15,7 @@ import logger from '../utils/logger';
 
 import { DAYS, FULL_DAYS, TIME_SLOTS, getDaysInMonth, getFirstDayOfMonth } from './calendar/constants';
 import { DayCell } from './calendar/DayCell';
+import { localDateKey, localTimeValue } from './calendar/dateUtils';
 import { AvailabilityWindowEditor } from './calendar/AvailabilityWindowEditor';
 
 
@@ -96,21 +97,33 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
   
   // Fetch bookings
   useEffect(() => {
+    let active = true;
     const fetchData = async () => {
-      if (!targetId) return;
+      if (!targetId) {
+        setBookings([]);
+        setBlockedDates([]);
+        setLoading(false);
+        return;
+      }
       
       setLoading(true);
+      setBookings([]);
+      setBlockedDates([]);
       try {
-        const startDate = new Date(year, month, 1).toISOString();
-        const endDate = new Date(year, month + 1, 0).toISOString();
+        const startDate = calendarDays[0].date.toISOString();
+        const lastDay = calendarDays[calendarDays.length - 1].date;
+        // The API end is inclusive, so include the entire last visible local day.
+        const endDate = new Date(lastDay.getFullYear(), lastDay.getMonth(), lastDay.getDate() + 1).getTime() - 1;
         
         const res = await apiClient.get(
-          `/photographer/${targetId}/bookings-calendar?start=${startDate}&end=${endDate}`
+          `/photographer/${targetId}/bookings-calendar?start=${startDate}&end=${new Date(endDate).toISOString()}`
         );
         
+        if (!active) return;
         const transformed = (res.data.bookings || []).map(b => ({
           id: b.id,
-          date: b.session_date?.split('T')[0],
+          date: b.session_date ? localDateKey(new Date(b.session_date)) : '',
+          timeValue: b.session_date ? localTimeValue(new Date(b.session_date)) : '',
           time: b.session_date ? new Date(b.session_date).toLocaleTimeString('en-US', { 
             hour: 'numeric', 
             minute: '2-digit' 
@@ -129,14 +142,15 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
         }
         
       } catch (error) {
-        logger.error('Failed to fetch calendar data:', error);
+        if (active) logger.error('Failed to fetch calendar data:', error);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
     
     fetchData();
-  }, [targetId, year, month]);
+    return () => { active = false; };
+  }, [targetId, calendarDays]);
   
   const goToPrevMonth = () => {
     setCurrentDate(new Date(year, month - 1, 1));
@@ -191,7 +205,7 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
   const handleDrop = useCallback((targetDate) => {
     if (!draggedBooking) return;
     
-    const targetDateStr = targetDate.toISOString().split('T')[0];
+    const targetDateStr = localDateKey(targetDate);
     const originalDateStr = draggedBooking.date;
     
     if (targetDateStr === originalDateStr) {
@@ -211,7 +225,7 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
       booking: draggedBooking,
       originalDate: originalDateStr,
       newDate: targetDateStr,
-      newTime: draggedBooking.time // Default to same time
+      newTime: draggedBooking.timeValue // Keep the local clock, separate from its display label
     });
     setShowRescheduleModal(true);
     setDraggedBooking(null);
@@ -222,9 +236,7 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
     
     setRescheduling(true);
     try {
-      const [hours, minutes] = rescheduleData.newTime.split(':').map(Number);
-      const newDateTime = new Date(rescheduleData.newDate);
-      newDateTime.setHours(hours, minutes, 0, 0);
+      const newDateTime = new Date(`${rescheduleData.newDate}T${rescheduleData.newTime}:00`);
       
       await apiClient.patch(`/photographer/bookings/${rescheduleData.booking.id}`, {
         session_date: newDateTime.toISOString()
@@ -237,6 +249,7 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
           ? {
               ...b,
               date: rescheduleData.newDate,
+              timeValue: localTimeValue(newDateTime),
               time: new Date(newDateTime).toLocaleTimeString('en-US', { 
                 hour: 'numeric', 
                 minute: '2-digit' 
@@ -256,10 +269,10 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
   };
   
   const selectedDateBookings = selectedDate 
-    ? bookings.filter(b => b.date === selectedDate.toISOString().split('T')[0])
+    ? bookings.filter(b => b.date === localDateKey(selectedDate))
     : [];
   
-  const selectedDateStr = selectedDate?.toISOString().split('T')[0] || '';
+  const selectedDateStr = selectedDate ? localDateKey(selectedDate) : '';
   const isSelectedDateBlocked = blockedDates.includes(selectedDateStr);
   
   return (
@@ -358,7 +371,7 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
               isDragEnabled={isDragEnabled} onDragStart={handleDragStart}
               onDragEnd={handleDragEnd} onDrop={handleDrop}
               draggedBooking={draggedBooking}
-              isDropTarget={dropTargetDate === day.date.toISOString().split('T')[0]}
+              isDropTarget={dropTargetDate === localDateKey(day.date)}
             />
           ))}
         </div>
@@ -516,7 +529,7 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
                   <p className={`text-xs ${textSecondary} mb-1`}>From</p>
                   <div className={`p-2 rounded ${isLight ? 'bg-red-50' : 'bg-red-500/10'}`}>
                     <p className="text-red-400 font-medium text-sm">
-                      {new Date(rescheduleData.originalDate).toLocaleDateString('en-US', {
+                      {new Date(`${rescheduleData.originalDate}T00:00:00`).toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric'
                       })}
@@ -530,7 +543,7 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
                   <p className={`text-xs ${textSecondary} mb-1`}>To</p>
                   <div className={`p-2 rounded ${isLight ? 'bg-green-50' : 'bg-green-500/10'}`}>
                     <p className="text-green-400 font-medium text-sm">
-                      {new Date(rescheduleData.newDate).toLocaleDateString('en-US', {
+                      {new Date(`${rescheduleData.newDate}T00:00:00`).toLocaleDateString('en-US', {
                         month: 'short',
                         day: 'numeric'
                       })}
@@ -547,9 +560,10 @@ export const PhotographerAvailabilityCalendar = ({ photographerId }) => {
                   className={`w-full mt-2 p-2 rounded border ${
                     isLight ? 'bg-white border-gray-300' : 'bg-zinc-900 border-zinc-700'
                   } ${textPrimary}`}
+                  aria-label="Session time"
                   data-testid="reschedule-time-picker"
                 >
-                  {TIME_SLOTS.map(t => (
+                  {[...new Set([rescheduleData.newTime, ...TIME_SLOTS].filter(Boolean))].sort().map(t => (
                     <option key={t} value={t}>
                       {new Date(`2000-01-01T${t}`).toLocaleTimeString('en-US', {
                         hour: 'numeric',

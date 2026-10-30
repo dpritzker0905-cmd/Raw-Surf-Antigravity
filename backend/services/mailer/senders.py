@@ -73,7 +73,7 @@ class ResendSender(EmailSender):
             "html": message.html,
             "text": message.text,
         }
-        if self._reply_to:
+        if self._reply_to and message.template != "support_reply":
             body["reply_to"] = self._reply_to
         headers = {
             "Authorization": f"Bearer {self._api_key}",

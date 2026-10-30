@@ -217,12 +217,13 @@ async def get_surf_log(
     if mood:
         query = query.where(SurfLogEntry.mood == mood)
 
+    # Count the same filtered relation before pagination, including an empty page past the end.
+    count_query = select(func.count()).select_from(query.order_by(None).subquery())
     query = query.offset(offset).limit(limit)
     result = await db.execute(query)
     entries = result.scalars().all()
 
     # Also get total count (for pagination)
-    count_query = select(func.count(SurfLogEntry.id)).where(SurfLogEntry.user_id == user_id)
     total_result = await db.execute(count_query)
     total = total_result.scalar() or 0
 

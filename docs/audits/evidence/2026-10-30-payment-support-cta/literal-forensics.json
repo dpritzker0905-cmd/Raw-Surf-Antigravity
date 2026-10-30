@@ -1,0 +1,10 @@
+[
+  {
+    "path": "frontend/src/components/BookingPaymentSuccess.js",
+    "only_one_navigation_literal_changed": true
+  },
+  {
+    "path": "frontend/src/components/DispatchPaymentSuccess.js",
+    "only_one_navigation_literal_changed": true
+  }
+]

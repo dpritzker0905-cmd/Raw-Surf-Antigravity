@@ -1,0 +1,17 @@
+{
+  "published_head": "a8bcc34212aceb0dde287dc4857209db891f66fd",
+  "project": "jnfbxcvcbtndtsvscppt",
+  "database_host": "aws-1-us-east-2.pooler.supabase.com",
+  "project_identity_source": "SQLAlchemy make_url username suffix, independently matching SUPABASE_URL host",
+  "stdlib_urlsplit_result_superseded": true,
+  "migration_sha256": {
+    "bonus_spend_only_001": "3da717e70baafa90c6ae01e10a54d87e339aa4d70b86f84850a13af96644d0c0",
+    "monthly_archive_replay_001": "0cf0b19301bbd8744cbab5e55324320506a9873de42b24442e3d4ec3e4000774",
+    "prepared_sql": "24fe03580da0bc4212302c675a9cfc4d3c2b77f8b913076ff3fba37718d55477"
+  },
+  "live_ddl_executed": false,
+  "approval_required": true,
+  "runtime_backend_dotenv_exists": false,
+  "exact_sql_rehearsal_passed": 12,
+  "exact_sql_rehearsal_total": 12
+}

@@ -1,0 +1,158 @@
+{
+  "passed": 37,
+  "total": 37,
+  "cases": [
+    {
+      "name": "missing auth rejected",
+      "passed": true
+    },
+    {
+      "name": "list bound to authenticated owner despite query user_id",
+      "passed": true
+    },
+    {
+      "name": "wrong owner404 before any message query",
+      "passed": true
+    },
+    {
+      "name": "owner reads public conversation without internal note or staff metadata",
+      "passed": true
+    },
+    {
+      "name": "wrong-owner write and owner note-mode injection fail without writes",
+      "passed": true
+    },
+    {
+      "name": "owner reply idempotent and conflicting reuse409",
+      "passed": true
+    },
+    {
+      "name": "owner reply creates no staff-reply notices and retains original lifecycle",
+      "passed": true
+    },
+    {
+      "name": "staff public reply committed once with one notice and outbox",
+      "passed": true
+    },
+    {
+      "name": "generic owner-bound notification has resource identifiers only",
+      "passed": true
+    },
+    {
+      "name": "email outbox payload contains ticket id only",
+      "passed": true
+    },
+    {
+      "name": "internal note produces no owner notice or email",
+      "passed": true
+    },
+    {
+      "name": "fake sender retry uses same idempotency key and terminal redrive does not send",
+      "passed": true
+    },
+    {
+      "name": "email generic authenticated link has no reply subject text token or attachments",
+      "passed": true
+    },
+    {
+      "name": "existing message preferences opt out notices without discarding reply",
+      "passed": true
+    },
+    {
+      "name": "unconfigured email leaves public reply and in-app notice without external send",
+      "passed": true
+    },
+    {
+      "name": "queue failure rolls back message notice and lifecycle together",
+      "passed": true
+    },
+    {
+      "name": "ticket creation request retry returns original and conflicting reuse409",
+      "passed": true
+    },
+    {
+      "name": "priority original-origin deadline and history: urgent:17",
+      "passed": true
+    },
+    {
+      "name": "priority original-origin deadline and history: high:18",
+      "passed": true
+    },
+    {
+      "name": "priority original-origin deadline and history: medium:19",
+      "passed": true
+    },
+    {
+      "name": "priority original-origin deadline and history: low:20",
+      "passed": true
+    },
+    {
+      "name": "priority original-origin deadline and history: urgent:21",
+      "passed": true
+    },
+    {
+      "name": "existing SLA duration boundaries remain exact and no current-time origin is used",
+      "passed": true
+    },
+    {
+      "name": "priority commit failure preserves every row and history",
+      "passed": true
+    },
+    {
+      "name": "reply commit failure rolls back message notice outbox and lifecycle",
+      "passed": true
+    },
+    {
+      "name": "missing original creation time holds priority update for review without fresh clock",
+      "passed": true
+    },
+    {
+      "name": "lost commit acknowledgement retry returns existing reply with one notice/outbox",
+      "passed": true
+    },
+    {
+      "name": "concurrent same-key replies persist once with one notice/outbox",
+      "passed": true
+    },
+    {
+      "name": "low-priority support email keeps its own ticket link and excludes digest mates",
+      "passed": true
+    },
+    {
+      "name": "retained reopen lifecycle resolved to open",
+      "passed": true
+    },
+    {
+      "name": "retained reopen lifecycle resolved to in_progress",
+      "passed": true
+    },
+    {
+      "name": "retained reopen lifecycle resolved to waiting_user",
+      "passed": true
+    },
+    {
+      "name": "retained reopen lifecycle resolved to waiting_internal",
+      "passed": true
+    },
+    {
+      "name": "retained reopen lifecycle closed to open",
+      "passed": true
+    },
+    {
+      "name": "retained reopen lifecycle closed to in_progress",
+      "passed": true
+    },
+    {
+      "name": "retained reopen lifecycle closed to waiting_user",
+      "passed": true
+    },
+    {
+      "name": "retained reopen lifecycle closed to waiting_internal",
+      "passed": true
+    }
+  ],
+  "mountedFixtureApi": true,
+  "database": "owned disposable PostgreSQL",
+  "sender": "in-memory fake only",
+  "limits": "Fixture identity dependencies replace JWT verification; actual owner SQL/routes and public/internal boundary. No live auth/provider/app/weather startup."
+}

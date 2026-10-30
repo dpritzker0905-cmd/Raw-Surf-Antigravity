@@ -15,7 +15,7 @@ import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
-import { getCommissionRate, ProgressRing, RevenueBarChart } from './earnings/EarningsHelpers';
+import { ProgressRing, RevenueBarChart } from './earnings/EarningsHelpers';
 import { SplitPocketModal, GearGoalModal } from './earnings/EarningsModals';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
@@ -28,6 +28,11 @@ export const EarningsDashboard = () => {
   const [loading, setLoading] = useState(true);
   const [earnings, setEarnings] = useState(null);
   const [timeRange, setTimeRange] = useState(30);
+  const [refreshVersion, setRefreshVersion] = useState(0);
+  const [loadedKey, setLoadedKey] = useState(null);
+  const [earningsError, setEarningsError] = useState(null);
+  const [historyError, setHistoryError] = useState(null);
+  const requestKey = `${user?.id || ''}:${timeRange}`;
   const [showSplitPocketModal, setShowSplitPocketModal] = useState(false);
   const [showGearGoalModal, setShowGearGoalModal] = useState(false);
   const [earningsHistory, setEarningsHistory] = useState({ history: [], summary: {} });
@@ -41,11 +46,10 @@ export const EarningsDashboard = () => {
   
   const [gearGoal, setGearGoal] = useState(() => {
     const saved = localStorage.getItem(`gearGoal_${user?.id}`);
-    return saved ? JSON.parse(saved) : null;
+    try { return saved ? JSON.parse(saved) : null; } catch { return null; }
   });
   
-  // Platform credits balance (simulated - would come from wallet)
-  const [platformCredits, setPlatformCredits] = useState(0);
+  const platformCredits = earnings?.wallet_balance ?? 0;
   
   // WebSocket: Real-time earnings updates
   const handleEarningsUpdate = useCallback((update) => {
@@ -58,29 +62,29 @@ export const EarningsDashboard = () => {
           description: details.item_title ? `"${details.item_title}" purchased by ${details.buyer_name}` : undefined,
           duration: 5000 
         });
-        setLoading(true);
+        setRefreshVersion(value => value + 1);
         break;
       case 'booking_paid':
         toast.success(`Booking payment: +$${amount}`, {
           description: `${details.buyer_name} joined your session at ${details.booking_location}`,
           duration: 5000
         });
-        setLoading(true);
+        setRefreshVersion(value => value + 1);
         break;
       case 'tip_received':
         toast.success(`Tip received: +$${amount}`, {
           description: `From ${details.donor_name}`,
           duration: 5000
         });
-        setLoading(true);
+        setRefreshVersion(value => value + 1);
         break;
       case 'payout_complete':
         toast.success(`Payout complete: $${amount} transferred`, { duration: 4000 });
-        setLoading(true);
+        setRefreshVersion(value => value + 1);
         break;
       default:
         toast.info(`Earnings update: +$${amount}`, { duration: 3000 });
-        setLoading(true);
+        setRefreshVersion(value => value + 1);
     }
   }, []);
   
@@ -119,59 +123,62 @@ export const EarningsDashboard = () => {
   }, [platformCredits, gearGoal]);
   
   useEffect(() => {
-    if (user?.id) {
-      fetchEarnings();
-      fetchWalletBalance();
-      fetchEarningsHistory();
-    }
-  }, [user?.id, timeRange]);
-
-  const fetchEarningsHistory = async () => {
-    try {
-      const response = await apiClient.get(`/photographer/${user?.id}/earnings-history?months=12`);
-      setEarningsHistory(response.data);
-    } catch (error) {
-      logger.error('Error fetching earnings history:', error);
-      setEarningsHistory({ history: [], summary: {} });
-    }
-  };
-
-  const fetchEarnings = async () => {
+    if (!user?.id) return;
+    let active = true;
+    const key = `${user.id}:${timeRange}`;
     setLoading(true);
-    try {
-      const response = await apiClient.get(`/photographer/${user?.id}/earnings-breakdown?days=${timeRange}`);
-      setEarnings(response.data);
-    } catch (error) {
-      logger.error('Error fetching earnings:', error);
-      // Set default empty data
-      setEarnings({
-        live_sessions: 0,
-        request_pro: 0,
-        regular_bookings: 0,
-        gallery_sales: 0,
-        total: 0,
-        split_bookings: []
-      });
-    } finally {
+    setEarnings(null);
+    setEarningsHistory({ history: [], summary: {} });
+    setEarningsError(null);
+    setHistoryError(null);
+    const load = async () => {
+      const [current, history] = await Promise.allSettled([
+        apiClient.get(`/photographer/${user.id}/earnings-breakdown?days=${timeRange}`),
+        apiClient.get(`/photographer/${user.id}/earnings-history?months=12`)
+      ]);
+      if (!active) return;
+      const payload = current.status === 'fulfilled' ? current.value.data : null;
+      const data = payload && { ...payload,
+        photo_subscriptions: payload.photo_subscriptions === undefined ? 0 : payload.photo_subscriptions };
+      const numericKeys = ['total', 'live_sessions', 'request_pro', 'regular_bookings',
+        'gallery_sales', 'photo_subscriptions', 'wallet_balance', 'cash_available'];
+      if (data && numericKeys.every(key => Number.isFinite(data[key]))) {
+        setEarnings(data);
+      } else {
+        logger.error('Earnings data is unavailable');
+        setEarningsError('Earnings are unavailable. Please retry.');
+      }
+      const historical = history.status === 'fulfilled' ? history.value.data : null;
+      if (historical && Array.isArray(historical.history) && historical.summary &&
+          historical.history.every(row => row && (row.photo_subscriptions === undefined ||
+            Number.isFinite(row.photo_subscriptions)))) {
+        setEarningsHistory({ ...historical, history: historical.history.map(row => ({ ...row,
+          photo_subscriptions: row.photo_subscriptions === undefined ? 0 : row.photo_subscriptions })) });
+      } else {
+        logger.error('Earnings history is unavailable');
+        setHistoryError('Earnings history is unavailable. Please retry.');
+      }
+      setLoadedKey(key);
       setLoading(false);
-    }
-  };
-  
-  const fetchWalletBalance = async () => {
+    };
+    load();
+    return () => { active = false; };
+  }, [user?.id, timeRange, refreshVersion]);
+
+  useEffect(() => {
     try {
-      const response = await apiClient.get(`/credits/${user?.id}/balance`);
-      // For now, use total balance as platform credits
-      // In production, this would be a separate "platform_credits" field
-      setPlatformCredits(response.data.balance || 0);
-    } catch (error) {
-      logger.error('Error fetching wallet:', error);
+      setSplitPercentage(Number(localStorage.getItem(`splitPocket_${user?.id}`)) || 0);
+      setGearGoal(JSON.parse(localStorage.getItem(`gearGoal_${user?.id}`) || 'null'));
+    } catch {
+      setSplitPercentage(0);
+      setGearGoal(null);
     }
-  };
-  
+  }, [user?.id]);
+
   const handleSaveSplitPocket = (percentage) => {
     setSplitPercentage(percentage);
     localStorage.setItem(`splitPocket_${user?.id}`, percentage.toString());
-    toast.success(`Split-Pocket updated: ${percentage}% to Platform Credits`);
+    toast.success(`Planning estimate saved: ${percentage}% for Platform Credits`);
   };
   
   const handleSaveGearGoal = (goal) => {
@@ -180,58 +187,23 @@ export const EarningsDashboard = () => {
     toast.success(`Goal set: ${goal.name} ($${goal.amount})`);
   };
   
-  // Get dynamic commission rate based on user's subscription tier
-  // Also fetch fresh subscription_tier if needed
-  const [freshSubscriptionTier, setFreshSubscriptionTier] = useState(user?.subscription_tier);
-  
-  useEffect(() => {
-    // Fetch fresh subscription tier from server to ensure it's up to date
-    const fetchFreshTier = async () => {
-      if (user?.id) {
-        try {
-          const response = await apiClient.get(`/profiles/${user.id}`);
-          if (response.data?.subscription_tier && response.data.subscription_tier !== user?.subscription_tier) {
-            setFreshSubscriptionTier(response.data.subscription_tier);
-            // Also update the user context
-            const storedUser = localStorage.getItem('raw-surf-user');
-            if (storedUser) {
-              const parsed = JSON.parse(storedUser);
-              parsed.subscription_tier = response.data.subscription_tier;
-              localStorage.setItem('raw-surf-user', JSON.stringify(parsed));
-            }
-          }
-        } catch (e) {
-          // Keep using existing tier
-        }
-      }
-    };
-    fetchFreshTier();
-  }, [user?.id, user?.subscription_tier]);
-  
-  const commissionRate = useMemo(() => {
-    const tier = freshSubscriptionTier || user?.subscription_tier;
-    return getCommissionRate(tier);
-  }, [freshSubscriptionTier, user?.subscription_tier]);
-  
-  const commissionPercent = Math.round(commissionRate * 100);
-  
-  // Calculate gross/net with dynamic commission
-  const grossEarnings = earnings?.total || 0;
-  const platformFee = grossEarnings * commissionRate;
-  const netEarnings = grossEarnings - platformFee;
-  const creditsAllocated = netEarnings * (splitPercentage / 100);
-  const cashAvailable = netEarnings - creditsAllocated;
-  
+  // Ledger earnings are already after fees. A saved split is planning only;
+  // current cash comes from the server wallet, independently of these estimates.
+  const recordedEarnings = earnings?.total ?? 0;
+  const creditsAllocated = recordedEarnings * (splitPercentage / 100);
+  const cashAvailable = earnings?.cash_available ?? 0;
+
   // Max value for chart scaling
   const maxStreamValue = earnings ? Math.max(
     earnings.live_sessions,
     earnings.request_pro,
     earnings.regular_bookings,
     earnings.gallery_sales,
+    earnings.photo_subscriptions,
     1 // Prevent division by zero
   ) : 1;
   
-  if (loading) {
+  if (loading || loadedKey !== requestKey) {
     return (
       <div className={`flex items-center justify-center min-h-screen ${mainBgClass}`}>
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
@@ -239,6 +211,17 @@ export const EarningsDashboard = () => {
     );
   }
   
+  if (earningsError) {
+    return (
+      <div className={`min-h-screen p-4 ${mainBgClass} ${textPrimaryClass}`}>
+        <div role="alert" className={`max-w-4xl mx-auto p-4 rounded-lg ${cardBgClass}`}>
+          <p>{earningsError}</p>
+          <Button onClick={() => setRefreshVersion(value => value + 1)}>Retry earnings</Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={`pb-20 min-h-screen ${mainBgClass} transition-colors duration-300`} data-testid="earnings-dashboard">
       <div className="max-w-4xl mx-auto p-4">
@@ -277,31 +260,31 @@ export const EarningsDashboard = () => {
           </div>
         </div>
         
-        {/* PRO VIEW: Gross/Net + Split-Pocket */}
+        {/* PRO VIEW: Recorded earnings, wallet cash and local planning */}
         {isPro && (
           <>
             {/* Summary Cards */}
             <div className="grid grid-cols-3 gap-4 mb-6">
-              {/* Gross Earnings */}
+              {/* Recorded seller credits */}
               <Card className={cardBgClass}>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <DollarSign className="w-5 h-5 text-green-400" />
-                    <span className={`text-sm ${textSecondaryClass}`}>Gross Earnings</span>
+                    <span className={`text-sm ${textSecondaryClass}`}>Recorded Earnings</span>
                   </div>
-                  <p className="text-3xl font-bold text-green-400">${grossEarnings.toFixed(2)}</p>
+                  <p className="text-3xl font-bold text-green-400">${recordedEarnings.toFixed(2)}</p>
                 </CardContent>
               </Card>
               
-              {/* Net Earnings */}
+              {/* Local savings estimate */}
               <Card className={cardBgClass}>
                 <CardContent className="p-4">
                   <div className="flex items-center gap-2 mb-2">
                     <TrendingUp className="w-5 h-5 text-cyan-400" />
-                    <span className={`text-sm ${textSecondaryClass}`}>Net Earnings</span>
+                    <span className={`text-sm ${textSecondaryClass}`}>Planned Credits</span>
                   </div>
-                  <p className="text-3xl font-bold text-cyan-400">${netEarnings.toFixed(2)}</p>
-                  <p className={`text-xs ${textSecondaryClass}`}>After {commissionPercent}% platform fee</p>
+                  <p className="text-3xl font-bold text-cyan-400">${creditsAllocated.toFixed(2)}</p>
+                  <p className={`text-xs ${textSecondaryClass}`}>Planning estimate; no funds moved</p>
                 </CardContent>
               </Card>
               
@@ -313,8 +296,9 @@ export const EarningsDashboard = () => {
                     <span className={`text-sm ${textSecondaryClass}`}>Cash Available</span>
                   </div>
                   <p className="text-3xl font-bold text-amber-400">${cashAvailable.toFixed(2)}</p>
+                  <p className={`text-xs ${textSecondaryClass}`}>Current wallet cash; excludes bonus credits</p>
                   {splitPercentage > 0 && (
-                    <p className={`text-xs ${textSecondaryClass}`}>${creditsAllocated.toFixed(2)} to credits</p>
+                    <p className={`text-xs ${textSecondaryClass}`}>${creditsAllocated.toFixed(2)} planned for credits</p>
                   )}
                 </CardContent>
               </Card>
@@ -326,7 +310,7 @@ export const EarningsDashboard = () => {
                 <div className="flex items-center justify-between">
                   <CardTitle className={`${textPrimaryClass} flex items-center gap-2`}>
                     <Wallet className="w-5 h-5 text-cyan-400" />
-                    Split-Pocket Settings
+                    Split-Pocket Planning
                   </CardTitle>
                   <Button aria-label="Settings"
                     variant="outline"
@@ -344,14 +328,14 @@ export const EarningsDashboard = () => {
                   <div>
                     <p className={textPrimaryClass}>
                       {splitPercentage > 0 
-                        ? `${splitPercentage}% of earnings go to Platform Credits`
-                        : 'All earnings available for cash withdrawal'
+                        ? `Planning estimate: ${splitPercentage}% of recorded earnings for Platform Credits`
+                        : 'No credit allocation planned'
                       }
                     </p>
                     <p className={`text-sm ${textSecondaryClass}`}>
                       {splitPercentage > 0 
-                        ? 'Use credits for gear, travel, sessions & donations'
-                        : 'Enable auto-allocation to save for gear and travel'
+                        ? 'Planning only; this setting does not transfer wallet funds'
+                        : 'Estimate savings for gear and travel; no wallet funds are moved'
                       }
                     </p>
                   </div>
@@ -390,7 +374,7 @@ export const EarningsDashboard = () => {
               </CardHeader>
               <CardContent>
                 <div className="flex items-center gap-6">
-                  <ProgressRing progress={gearFundProgress} color="amber" />
+                  <ProgressRing progress={gearFundProgress} color="amber" isLight={isLight} />
                   <div className="flex-1">
                     {gearGoal ? (
                       <>
@@ -465,7 +449,7 @@ export const EarningsDashboard = () => {
           </CardHeader>
           <CardContent>
             {earnings && (
-              <RevenueBarChart data={earnings} maxValue={maxStreamValue} />
+              <RevenueBarChart data={earnings} maxValue={maxStreamValue} isLight={isLight} />
             )}
             
             {earnings?.total === 0 && (
@@ -509,7 +493,7 @@ export const EarningsDashboard = () => {
                 {/* Summary Stats */}
                 <div className="grid grid-cols-4 gap-4 mb-6">
                   <div className={`p-3 rounded-lg ${isLight ? 'bg-gray-100' : 'bg-zinc-800/50'}`}>
-                    <p className={`text-xs ${textSecondaryClass}`}>Total Earned</p>
+                    <p className={`text-xs ${textSecondaryClass}`}>Recorded Earnings</p>
                     <p className="text-xl font-bold text-green-400">${earningsHistory.summary?.total_earnings?.toFixed(2) || '0.00'}</p>
                   </div>
                   <div className={`p-3 rounded-lg ${isLight ? 'bg-gray-100' : 'bg-zinc-800/50'}`}>
@@ -540,6 +524,10 @@ export const EarningsDashboard = () => {
                           <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
                           <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                         </linearGradient>
+                        <linearGradient id="colorPhotoSubscriptions" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#f43f5e" stopOpacity={0}/>
+                        </linearGradient>
                       </defs>
                       <CartesianGrid strokeDasharray="3 3" stroke={isLight ? '#e5e7eb' : '#374151'} />
                       <XAxis 
@@ -561,27 +549,41 @@ export const EarningsDashboard = () => {
                           borderRadius: '8px'
                         }}
                         labelStyle={{ color: isLight ? '#111827' : '#fff' }}
-                        formatter={(value, name) => [`$${value?.toFixed(2)}`, name === 'total' ? 'Total' : name === 'gallery_sales' ? 'Gallery' : name === 'live_sessions' ? 'Live' : name]}
+                        formatter={(value, name) => [`$${value?.toFixed(2)}`, name === 'total' ? 'Total' : name === 'gallery_sales' ? 'Gallery' : name === 'photo_subscriptions' ? 'Photo subscriptions' : name === 'live_sessions' ? 'Live' : name]}
                       />
                       <Area type="monotone" dataKey="total" stroke="#06b6d4" fill="url(#colorTotal)" strokeWidth={2} />
                       <Area type="monotone" dataKey="gallery_sales" stroke="#10b981" fill="url(#colorGallery)" strokeWidth={1} />
+                      <Area type="monotone" dataKey="photo_subscriptions" stroke="#f43f5e" fill="url(#colorPhotoSubscriptions)" strokeWidth={1} />
                     </AreaChart>
                   </ResponsiveContainer>
                 </div>
                 
                 {/* Legend */}
-                <div className="flex items-center justify-center gap-6 mt-4">
+                <div className="flex flex-wrap items-center justify-center gap-6 mt-4">
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-cyan-400" />
-                    <span className={`text-xs ${textSecondaryClass}`}>Total Earnings</span>
+                    <span className={`text-xs ${textSecondaryClass}`}>Recorded Earnings</span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="w-3 h-3 rounded-full bg-emerald-400" />
                     <span className={`text-xs ${textSecondaryClass}`}>Gallery Sales</span>
                   </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded-full bg-rose-400" />
+                    <span className={`text-xs ${textSecondaryClass}`}>Photo subscriptions</span>
+                  </div>
                 </div>
               </CardContent>
             )}
+          </Card>
+        )}
+
+        {historyError && (
+          <Card className={`mb-6 ${cardBgClass}`}>
+            <CardContent className={`p-4 ${textPrimaryClass}`}>
+              <p role="alert">{historyError}</p>
+              <Button onClick={() => setRefreshVersion(value => value + 1)}>Retry history</Button>
+            </CardContent>
           </Card>
         )}
 
@@ -688,14 +690,14 @@ export const EarningsDashboard = () => {
               <div>
                 <p className={`text-sm ${textSecondaryClass} mb-1`}>Your Impact Score</p>
                 <p className="text-3xl font-bold text-yellow-400">
-                  {Math.round((grossEarnings + platformCredits) / 10)}
+                  {Math.round((recordedEarnings + platformCredits) / 10)}
                   <span className="text-lg ml-1">XP</span>
                 </p>
               </div>
               <div className="text-right">
                 <Badge className="bg-gradient-to-r from-yellow-400 to-amber-500 text-black font-bold">
                   <Award className="w-4 h-4 mr-1" />
-                  {grossEarnings >= 1000 ? 'Gold' : grossEarnings >= 500 ? 'Silver' : 'Bronze'} Contributor
+                  {recordedEarnings >= 1000 ? 'Gold' : recordedEarnings >= 500 ? 'Silver' : 'Bronze'} Contributor
                 </Badge>
               </div>
             </div>

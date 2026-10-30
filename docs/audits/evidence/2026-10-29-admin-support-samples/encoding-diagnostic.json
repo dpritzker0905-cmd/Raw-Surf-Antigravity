@@ -1,0 +1,7 @@
+{
+  "theme": "light",
+  "device": "desktop",
+  "characterSet": "windows-1252",
+  "metricsText": "Open Tickets\n\n13\n\nResolved / closed\n\n4\n\nTickets created in last 30 days\n\nAvg Response\n\nâ€”\n\nNo response measurements\n\nAvg Resolution\n\nâ€”\n\nNo resolution measurements\n\nSLA Breached\n\n2",
+  "message": "expect(locator).toHaveCount(expected) failed\n\nLocator:  getByRole('region', { name: 'Support metrics' }).getByText('—', { exact: true })\nExpected: 2\nReceived: 0\nTimeout:  5000ms\n\nCall log:\n  - Expect \"to.have.count\" with timeout 5000ms\n  - waiting for getByRole('region', { name: 'Support metrics' }).getByText('—', { exact: true })\n    14 × locator resolved to 0 elements\n       - unexpected value \"0\"\n"
+}

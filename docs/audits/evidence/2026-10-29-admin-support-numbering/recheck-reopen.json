@@ -1,0 +1,478 @@
+{
+  "actualHandlersAndTicketModels": true,
+  "fixedClock": "2026-10-29T12:00:00+00:00",
+  "database": "disposable in-memory SQLite",
+  "cases": [
+    {
+      "name": "resolved to open clears resolution",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "open",
+        "resolved_at": null
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 1,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 1,
+      "expectedResolutionAt": null,
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "99b69c5b7f82690b30eb33c59569a2c4ad399bde605dea4798db6cf9fd9f8057",
+      "afterSha256": "e0c5fd4a61381ec5f2fc5d885370fe138d0cc74838b8f15308d252f30d7c6f90"
+    },
+    {
+      "name": "resolved to in_progress clears resolution",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "in_progress",
+        "resolved_at": null
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 1,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 1,
+      "expectedResolutionAt": null,
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "99b69c5b7f82690b30eb33c59569a2c4ad399bde605dea4798db6cf9fd9f8057",
+      "afterSha256": "c1ce843fb5dba3f5879756a28bc8f076cacc4384160a62c112e4bc28c85fa16d"
+    },
+    {
+      "name": "resolved to waiting_user clears resolution",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "waiting_user",
+        "resolved_at": null
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 1,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 1,
+      "expectedResolutionAt": null,
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "99b69c5b7f82690b30eb33c59569a2c4ad399bde605dea4798db6cf9fd9f8057",
+      "afterSha256": "5dee426389632e15b3cecbc698d4c72858270e3253368003da9437b17070ed6c"
+    },
+    {
+      "name": "resolved to waiting_internal clears resolution",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "waiting_internal",
+        "resolved_at": null
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 1,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 1,
+      "expectedResolutionAt": null,
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "99b69c5b7f82690b30eb33c59569a2c4ad399bde605dea4798db6cf9fd9f8057",
+      "afterSha256": "98c3182097bf0f49d73e97d6918b2732d57cdfe2ad74217b374c73eff3ed7260"
+    },
+    {
+      "name": "closed to open clears resolution",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "open",
+        "resolved_at": null
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 1,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 1,
+      "expectedResolutionAt": null,
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "8236b554b1b1bca4ea712c8cfbf98538ebf61b0b706c716834f609f2876c62e9",
+      "afterSha256": "a99183c32d13da3f0f8e9b4be40c4b825342938d3cf047f9f7c17e48860bf14f"
+    },
+    {
+      "name": "closed to in_progress clears resolution",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "in_progress",
+        "resolved_at": null
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 1,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 1,
+      "expectedResolutionAt": null,
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "8236b554b1b1bca4ea712c8cfbf98538ebf61b0b706c716834f609f2876c62e9",
+      "afterSha256": "36e5ba775b5ac3e460515339372770ef7cc9074aedeb89d8d344c32aaca1367d"
+    },
+    {
+      "name": "closed to waiting_user clears resolution",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "waiting_user",
+        "resolved_at": null
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 1,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 1,
+      "expectedResolutionAt": null,
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "8236b554b1b1bca4ea712c8cfbf98538ebf61b0b706c716834f609f2876c62e9",
+      "afterSha256": "c38461983a306db1579ed4f5b76034834ef314dd0cd388580d074b11938f40e1"
+    },
+    {
+      "name": "closed to waiting_internal clears resolution",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "waiting_internal",
+        "resolved_at": null
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 1,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 1,
+      "expectedResolutionAt": null,
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "8236b554b1b1bca4ea712c8cfbf98538ebf61b0b706c716834f609f2876c62e9",
+      "afterSha256": "b585f2cee045701925b38b757a3d60029cbdbb4fa4d8f593ebfae909a76a52df"
+    },
+    {
+      "name": "explicit open clears an existing stale timestamp",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "open",
+        "resolved_at": null
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 1,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 1,
+      "expectedResolutionAt": null,
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "9c8f46d10868683c7d1af309c3e3835a2ec1decf7719c4d9e6c57c81d9a0cc8f",
+      "afterSha256": "7728ab8bf2ea9c77468ec851db94a4aeb6a5c1fee42f395838c4a3334ed9b488"
+    },
+    {
+      "name": "explicit in_progress clears an existing stale timestamp",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "in_progress",
+        "resolved_at": null
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 1,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 1,
+      "expectedResolutionAt": null,
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "8392609a8aa070bf3947ff59c19fae18d6074ca514c0990b58162c58f898ea4a",
+      "afterSha256": "851a680eb4ba017437bfec0a0bfdaa980910134dcba0e874b8018c334e4902e5"
+    },
+    {
+      "name": "explicit waiting_user clears an existing stale timestamp",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "waiting_user",
+        "resolved_at": null
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 1,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 1,
+      "expectedResolutionAt": null,
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "0774d1c8af4fdf6f93b094561c2fc71061a97f68c4da27396c60906e57033187",
+      "afterSha256": "7259ee366402525ad8f56b2cf88af3cfaed6a45cc98023641ca579b9426bbcf2"
+    },
+    {
+      "name": "explicit waiting_internal clears an existing stale timestamp",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "waiting_internal",
+        "resolved_at": null
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 1,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 1,
+      "expectedResolutionAt": null,
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "ad21b9cdebe9b2bd5f9cf58fb274e7245bfed95aefdf5d5397647a0458f3af53",
+      "afterSha256": "f1657ab989c6549438b657c6bcbc7bd3eb415cf14983f480140911fc90598432"
+    },
+    {
+      "name": "resolved to closed retains existing terminal behavior",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "closed",
+        "resolved_at": "2026-10-26T16:00:00"
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 2,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 2,
+      "expectedResolutionAt": "2026-10-26T16:00:00",
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "99b69c5b7f82690b30eb33c59569a2c4ad399bde605dea4798db6cf9fd9f8057",
+      "afterSha256": "eacfaf3db37725fdce047f7f36dbc049eb59143e2ad20bee1ed1c03452340d7b"
+    },
+    {
+      "name": "closed to closed retains existing terminal behavior",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "closed",
+        "resolved_at": "2026-10-26T16:00:00"
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 2,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 2,
+      "expectedResolutionAt": "2026-10-26T16:00:00",
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "8236b554b1b1bca4ea712c8cfbf98538ebf61b0b706c716834f609f2876c62e9",
+      "afterSha256": "628aad831f7d1e82fcf4251e45451b665c3682d56ad6d53316db8fb1e91c799c"
+    },
+    {
+      "name": "resolved to resolved retains existing terminal behavior",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "resolved",
+        "resolved_at": "2026-10-29T12:00:00"
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 2,
+      "averageResolutionHoursAfter": 38.0,
+      "expectedResolutionSamples": 2,
+      "expectedResolutionAt": "2026-10-29T12:00:00",
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "99b69c5b7f82690b30eb33c59569a2c4ad399bde605dea4798db6cf9fd9f8057",
+      "afterSha256": "cb31fc153d96c9aa7e60a866e4b18305a36f875b74780a9f1aeb0e018ea68da3"
+    },
+    {
+      "name": "open to resolved retains existing terminal behavior",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "resolved",
+        "resolved_at": "2026-10-29T12:00:00"
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 2,
+      "averageResolutionHoursAfter": 38.0,
+      "expectedResolutionSamples": 2,
+      "expectedResolutionAt": "2026-10-29T12:00:00",
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "9c8f46d10868683c7d1af309c3e3835a2ec1decf7719c4d9e6c57c81d9a0cc8f",
+      "afterSha256": "83b7cd5a6ebc34f3529a5c2ba4715548d5caee0979e251a741baa23ce7e8c952"
+    },
+    {
+      "name": "reopen then re-resolve replaces old observation",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "resolved",
+        "resolved_at": "2026-10-29T12:00:00"
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 2,
+      "averageResolutionHoursAfter": 38.0,
+      "expectedResolutionSamples": 2,
+      "expectedResolutionAt": "2026-10-29T12:00:00",
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "99b69c5b7f82690b30eb33c59569a2c4ad399bde605dea4798db6cf9fd9f8057",
+      "afterSha256": "cb31fc153d96c9aa7e60a866e4b18305a36f875b74780a9f1aeb0e018ea68da3"
+    },
+    {
+      "name": "metadata-only update preserves resolution",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "resolved",
+        "resolved_at": "2026-10-26T16:00:00"
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 2,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 2,
+      "expectedResolutionAt": "2026-10-26T16:00:00",
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "99b69c5b7f82690b30eb33c59569a2c4ad399bde605dea4798db6cf9fd9f8057",
+      "afterSha256": "cba9faea964ba255452dfcf92988d4860c5f5fb14472e42e3443e1132e826989"
+    },
+    {
+      "name": "priority-only update preserves existing resolution and deadline behavior",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "resolved",
+        "resolved_at": "2026-10-26T16:00:00"
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 2,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 2,
+      "expectedResolutionAt": "2026-10-26T16:00:00",
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "99b69c5b7f82690b30eb33c59569a2c4ad399bde605dea4798db6cf9fd9f8057",
+      "afterSha256": "a6bc7ef9b5d2a912539b9ecc4e045c8687b134315062bd25dd6ad5b2e115e360"
+    },
+    {
+      "name": "first public reply on resolved clears resolution with active transition",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "in_progress",
+        "resolved_at": null
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 1,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 1,
+      "expectedResolutionAt": null,
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "7f5f0eb762a8d0610a70fe16751fe62670c64754d1f5c11a3b24ee28a810a795",
+      "afterSha256": "c3fb3d77b001a5dfbcec1d7d25f744f3b6ccea699a8d856298b483c08314072b"
+    },
+    {
+      "name": "first public reply on closed clears resolution with active transition",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "in_progress",
+        "resolved_at": null
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 1,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 1,
+      "expectedResolutionAt": null,
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "17aa003df860c606e7aa76b20da58c92e4dd7ec7539abae3d762c21323e19ea5",
+      "afterSha256": "2a6bbd7413ed4ddfd9c2cf51965c68baa9fe00939edbe5604ff38aa9052d4563"
+    },
+    {
+      "name": "first public reply on open clears resolution with active transition",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "in_progress",
+        "resolved_at": null
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 1,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 1,
+      "expectedResolutionAt": null,
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "03a6303815f67ae9c22599a4dc0f57f5d381eff930e6f567d40d66c49679bb84",
+      "afterSha256": "a1edd5ab56ddc43342ec1bd93032167cac11ec68422e834e4d005c2ec26dfcbe"
+    },
+    {
+      "name": "internal note does not reopen or clear resolution",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "resolved",
+        "resolved_at": "2026-10-26T16:00:00"
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 2,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 2,
+      "expectedResolutionAt": "2026-10-26T16:00:00",
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "7f5f0eb762a8d0610a70fe16751fe62670c64754d1f5c11a3b24ee28a810a795",
+      "afterSha256": "0d1532d38ebd436ebd7871e752c229a96c8b2f5c3ab22c4b591e8afa5f1311a4"
+    },
+    {
+      "name": "later public reply retains existing terminal behavior",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "resolved",
+        "resolved_at": "2026-10-26T16:00:00"
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 2,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 2,
+      "expectedResolutionAt": "2026-10-26T16:00:00",
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "99b69c5b7f82690b30eb33c59569a2c4ad399bde605dea4798db6cf9fd9f8057",
+      "afterSha256": "2f15df3806e83f19c2e5461af45928fca8be31b911d0672b61cce1954a66cd78"
+    },
+    {
+      "name": "failed reopen commit rolls back timestamp and status",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "resolved",
+        "resolved_at": "2026-10-26T16:00:00"
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 2,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 2,
+      "expectedResolutionAt": "2026-10-26T16:00:00",
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "99b69c5b7f82690b30eb33c59569a2c4ad399bde605dea4798db6cf9fd9f8057",
+      "afterSha256": "99b69c5b7f82690b30eb33c59569a2c4ad399bde605dea4798db6cf9fd9f8057"
+    },
+    {
+      "name": "failed first reply commit rolls back message and lifecycle together",
+      "passed": true,
+      "freshSessionDetail": {
+        "status": "resolved",
+        "resolved_at": "2026-10-26T16:00:00"
+      },
+      "resolutionSamplesBefore": 2,
+      "resolutionSamplesAfter": 2,
+      "averageResolutionHoursAfter": 4.0,
+      "expectedResolutionSamples": 2,
+      "expectedResolutionAt": "2026-10-26T16:00:00",
+      "allUnrelatedColumnsAndRowsPreserved": true,
+      "messagePersistenceCorrect": true,
+      "extraChecksPassed": true,
+      "beforeSha256": "7f5f0eb762a8d0610a70fe16751fe62670c64754d1f5c11a3b24ee28a810a795",
+      "afterSha256": "7f5f0eb762a8d0610a70fe16751fe62670c64754d1f5c11a3b24ee28a810a795"
+    }
+  ],
+  "passed": 26,
+  "total": 26,
+  "limits": "Positive function/model/SQL/fresh-session checks; no mounted auth, PostgreSQL, concurrent requests, live data or app/weather startup. Existing metric eligibility of untouched historical rows remains unchanged."
+}

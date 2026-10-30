@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
@@ -11,58 +11,104 @@ import logger from '../utils/logger';
 export const SubscriptionSuccess = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { _user, updateUser } = useAuth();
-  const [status, setStatus] = useState('checking'); // checking, success, error
+  const { user, loading: authLoading, updateUser } = useAuth();
+  const userId = user?.id;
+  const sessionId = searchParams.get('session_id');
+  const [status, setStatus] = useState('checking');
   const [tier, setTier] = useState(null);
+  const [purchasedTier, setPurchasedTier] = useState(null);
+  const [gromReturn, setGromReturn] = useState(false);
+  const identity = useRef(null);
+  const updateAccount = useRef(updateUser);
+  const retryRefresh = useRef(null);
+  identity.current = { userId, sessionId, authLoading };
+  updateAccount.current = updateUser;
 
   useEffect(() => {
-    const sessionId = searchParams.get('session_id');
-    const tierParam = searchParams.get('tier');
-    
-    if (sessionId) {
-      checkPaymentStatus(sessionId, tierParam);
-    } else {
-      setStatus('error');
-    }
-  }, [searchParams]);
-
-  const checkPaymentStatus = async (sessionId, tierParam) => {
+    let cancelled = false;
+    let timer;
     let attempts = 0;
-    const maxAttempts = 10;
+    let refreshing = false;
+    let confirmedGrom = null;
+    const isCurrent = () => !cancelled && identity.current.userId === userId &&
+      identity.current.sessionId === sessionId && !identity.current.authLoading;
+    const knownTier = value => ['free', 'basic', 'premium'].includes(value);
+    setTier(null);
+    setPurchasedTier(null);
+    setGromReturn(false);
+    setStatus('checking');
+    retryRefresh.current = null;
+    if (!userId || authLoading) return () => { cancelled = true; };
+    if (!sessionId) { setStatus('error'); return () => { cancelled = true; }; }
 
-    const poll = async () => {
-      if (attempts >= maxAttempts) {
+    const refreshAccount = async () => {
+      if (!isCurrent() || refreshing) return;
+      refreshing = true;
+      setStatus('checking');
+      try {
+        const response = await apiClient.get(`/profiles/${encodeURIComponent(userId)}`);
+        if (!isCurrent()) return;
+        const profile = response.data;
+        if (profile?.id !== userId || (!confirmedGrom && !knownTier(profile.subscription_tier))) {
+          throw new Error('Current account plan could not be confirmed');
+        }
+        // A receipt describes a checkout, not the account's current entitlement.
+        updateAccount.current(profile);
+        setTier(confirmedGrom ? confirmedGrom.currentTier : profile.subscription_tier);
+        setStatus('success');
+        toast.success(confirmedGrom ? 'Grom subscription confirmed.' : 'Current subscription confirmed.');
+      } catch (error) {
+        if (isCurrent()) {
+          logger.error('Account refresh failed:', error);
+          setStatus('refresh');
+        }
+      } finally { refreshing = false; }
+    };
+    retryRefresh.current = refreshAccount;
+    const schedule = poll => {
+      if (!isCurrent()) return;
+      if (attempts >= 10) {
         setStatus('error');
-        toast.error('Payment verification timeout. Please contact support.');
         return;
       }
-
+      timer = setTimeout(poll, 2000);
+    };
+    const poll = async () => {
+      attempts += 1;
       try {
-        const response = await apiClient.get(`/subscriptions/status/${sessionId}`);
-        
+        const response = await apiClient.get(`/subscriptions/status/${encodeURIComponent(sessionId)}`);
+        if (!isCurrent()) return;
         if (response.data.status === 'completed') {
-          setStatus('success');
-          setTier(response.data.tier || tierParam);
-          updateUser({ subscription_tier: response.data.tier || tierParam });
-          toast.success('Subscription activated!');
-        } else if (response.data.status === 'paid') {
-          setStatus('success');
-          setTier(tierParam);
-          updateUser({ subscription_tier: tierParam });
-          toast.success('Subscription activated!');
+          if (response.data.subscription_type === 'grom_subscription') {
+            if (typeof response.data.grom_id !== 'string' || !response.data.grom_id ||
+                !knownTier(response.data.current_tier)) {
+              throw new Error('Current Grom plan could not be confirmed');
+            }
+            confirmedGrom = { currentTier: response.data.current_tier };
+            setGromReturn(true);
+          }
+          setPurchasedTier(knownTier(response.data.tier) ? response.data.tier : null);
+          await refreshAccount();
+        } else if (['expired', 'refunded', 'partially_refunded'].includes(response.data.status)) {
+          setStatus('error');
         } else {
-          attempts++;
-          setTimeout(poll, 2000);
+          // Provider-paid alone does not prove that local activation completed.
+          schedule(poll);
         }
       } catch (error) {
-        logger.error('Error checking status:', error);
-        attempts++;
-        setTimeout(poll, 2000);
+        if (isCurrent()) {
+          logger.error('Error checking status:', error);
+          schedule(poll);
+        }
       }
     };
-
     poll();
-  };
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      retryRefresh.current = null;
+    };
+  }, [sessionId, userId, authLoading]);
 
   const getTierDisplay = () => {
     if (!tier) return 'your subscription';
@@ -72,35 +118,47 @@ export const SubscriptionSuccess = () => {
 
   if (status === 'checking') {
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
         <Loader2 className="w-16 h-16 text-yellow-400 animate-spin mb-6" />
-        <h1 className="text-2xl font-bold text-white mb-2 font-oswald" >
+        <h1 className="text-2xl font-bold text-foreground mb-2 font-oswald" >
           Verifying Payment
         </h1>
-        <p className="text-gray-400 text-center">
+        <p className="text-muted-foreground text-center">
           Please wait while we confirm your subscription...
         </p>
       </div>
     );
   }
 
+  if (status === 'refresh') {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
+        <h1 className="text-2xl font-bold text-foreground mb-2">Payment verification completed</h1>
+        <p role="alert" className="text-muted-foreground text-center mb-6 max-w-md">
+          We could not refresh your current account plan. Retry the account refresh before checking your benefits.
+        </p>
+        <Button onClick={() => retryRefresh.current?.()}>Retry account refresh</Button>
+      </div>
+    );
+  }
+
   if (status === 'error') {
     return (
-      <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
         <div className="w-20 h-20 rounded-full bg-red-500/20 flex items-center justify-center mb-6">
           <XCircle className="w-10 h-10 text-red-400" />
         </div>
-        <h1 className="text-3xl font-bold text-white mb-2 font-oswald" >
+        <h1 className="text-3xl font-bold text-foreground mb-2 font-oswald" >
           Something Went Wrong
         </h1>
-        <p className="text-gray-400 text-center mb-8 max-w-md">
-          We couldn't verify your payment. Please try again or contact support if the issue persists.
+        <p className="text-muted-foreground text-center mb-8 max-w-md">
+          We couldn't confirm your subscription status. Check Account & Billing or contact support before starting another checkout.
         </p>
         <div className="flex gap-4">
           <Button
             onClick={() => navigate(-1)}
             variant="outline"
-            className="border-zinc-600 text-white hover:bg-zinc-800"
+            className="border-border text-foreground hover:bg-muted"
           >
             Go Back
           </Button>
@@ -116,7 +174,7 @@ export const SubscriptionSuccess = () => {
   }
 
   return (
-    <div className="min-h-screen bg-black flex flex-col items-center justify-center p-4">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
       <div className="max-w-md w-full text-center">
         {/* Success Animation */}
         <div className="w-24 h-24 rounded-full bg-emerald-500/20 flex items-center justify-center mx-auto mb-6 animate-pulse">
@@ -124,81 +182,34 @@ export const SubscriptionSuccess = () => {
         </div>
 
         {/* Title */}
-        <h1 className="text-4xl font-bold text-white mb-3 font-oswald" >
-          Welcome Aboard!
+        <h1 className="text-4xl font-bold text-foreground mb-3 font-oswald" >
+          {gromReturn ? 'Grom Subscription Status Confirmed' : 'Subscription Status Confirmed'}
         </h1>
         
-        <p className="text-gray-400 text-lg mb-8">
-          Your {getTierDisplay()} is now active. Let's get you in the water!
+        <p className="text-muted-foreground text-lg mb-8">
+          {gromReturn ? "The linked Grom's current plan is " : 'Your current account plan is '}{getTierDisplay()}.
         </p>
+
+        {purchasedTier && purchasedTier !== tier && (
+          <p className="text-muted-foreground mb-6">
+            This checkout was for {purchasedTier.charAt(0).toUpperCase() + purchasedTier.slice(1)}.
+            {' '}{gromReturn ? "The linked Grom's current plan is shown above." : 'Your current account plan is shown above.'}
+          </p>
+        )}
 
         {/* Tier Badge */}
         {tier && (
           <div className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-emerald-400/20 via-yellow-400/20 to-orange-400/20 border border-yellow-400/30 rounded-full mb-8">
-            <span className="text-white font-bold text-lg capitalize">{tier}</span>
-            <span className="text-gray-400">Plan Active</span>
+            <span className="text-foreground font-bold text-lg capitalize">{tier}</span>
+            <span className="text-muted-foreground">{gromReturn ? 'Current Grom Plan' : 'Current Plan'}</span>
           </div>
         )}
 
-        {/* Features Unlocked */}
-        <div className="bg-zinc-900 rounded-xl p-6 mb-8 border border-zinc-800 text-left">
-          <h3 className="text-sm text-gray-400 uppercase tracking-wider mb-4">What you've unlocked:</h3>
-          <ul className="space-y-3">
-            {tier === 'premium' ? (
-              <>
-                <li className="flex items-center gap-3 text-emerald-400">
-                  <CheckCircle className="w-5 h-5" />
-                  <span>Track photographers worldwide</span>
-                </li>
-                <li className="flex items-center gap-3 text-emerald-400">
-                  <CheckCircle className="w-5 h-5" />
-                  <span>20% discount on all sessions</span>
-                </li>
-                <li className="flex items-center gap-3 text-emerald-400">
-                  <CheckCircle className="w-5 h-5" />
-                  <span>Priority notifications & support</span>
-                </li>
-                <li className="flex items-center gap-3 text-emerald-400">
-                  <CheckCircle className="w-5 h-5" />
-                  <span>Verified badge eligibility</span>
-                </li>
-              </>
-            ) : tier === 'basic' ? (
-              <>
-                <li className="flex items-center gap-3 text-emerald-400">
-                  <CheckCircle className="w-5 h-5" />
-                  <span>Track photographers within 5 miles</span>
-                </li>
-                <li className="flex items-center gap-3 text-emerald-400">
-                  <CheckCircle className="w-5 h-5" />
-                  <span>10% discount on sessions</span>
-                </li>
-                <li className="flex items-center gap-3 text-emerald-400">
-                  <CheckCircle className="w-5 h-5" />
-                  <span>Ad-free experience</span>
-                </li>
-                <li className="flex items-center gap-3 text-emerald-400">
-                  <CheckCircle className="w-5 h-5" />
-                  <span>Session notifications</span>
-                </li>
-              </>
-            ) : (
-              <>
-                <li className="flex items-center gap-3 text-emerald-400">
-                  <CheckCircle className="w-5 h-5" />
-                  <span>Full platform access</span>
-                </li>
-                <li className="flex items-center gap-3 text-emerald-400">
-                  <CheckCircle className="w-5 h-5" />
-                  <span>Book photo sessions</span>
-                </li>
-                <li className="flex items-center gap-3 text-emerald-400">
-                  <CheckCircle className="w-5 h-5" />
-                  <span>Connect with photographers</span>
-                </li>
-              </>
-            )}
-          </ul>
+        <div className="bg-card rounded-xl p-6 mb-8 border border-border text-left">
+          <p className="text-muted-foreground">
+            {gromReturn ? "View Account & Billing for your linked Grom's current plan details." :
+              'View Account & Billing for your current plan details and available benefits.'}
+          </p>
         </div>
 
         {/* CTA */}

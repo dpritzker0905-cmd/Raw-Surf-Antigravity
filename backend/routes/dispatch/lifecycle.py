@@ -19,6 +19,7 @@ import stripe
 from utils.geo import haversine_distance
 
 from database import get_db
+from utils.credits import refund_credits
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
     DispatchNotification, DispatchRequestStatusEnum, SurfSpot,
@@ -253,19 +254,11 @@ async def decline_dispatch(
             )
             payer = payer_result.scalar_one_or_none()
             if payer:
-                old_balance = payer.credit_balance or 0
-                payer.credit_balance = old_balance + refund
-
-                refund_tx = CreditTransaction(
-                    user_id=dispatch.requester_id,
-                    amount=refund,
-                    balance_before=old_balance,
-                    balance_after=payer.credit_balance,
-                    transaction_type='dispatch_refund',
-                    reference_type='dispatch_request',
-                    reference_id=dispatch_id
-                )
-                db.add(refund_tx)
+                success, _, error = await refund_credits(
+                    dispatch.requester_id, refund, db, reference_type='dispatch_request',
+                    reference_id=dispatch_id, transaction_type='dispatch_refund')
+                if not success:
+                    raise HTTPException(status_code=409, detail=error)
     
     await db.commit()
     

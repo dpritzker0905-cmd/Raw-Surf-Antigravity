@@ -20,12 +20,9 @@ SCAN_DIRS = ("routes", "scheduler", "services", "utils")
 LEDGER_REQUIRED = {"user_id", "amount", "balance_before", "balance_after", "transaction_type"}
 
 # "file:Model:kind" leftovers found by this scan that are NOT fixed in this PR. Shrink only: delete a line when fixed.
-# dispatch cover-remaining builds its ledger row without balance_before, so it fails at flush and moves no money
-# today. Fixing the row would TURN THE FEATURE ON (it debits the captain and marks the whole crew paid on a
-# client-set share), which is a money-flow decision, not a Phase 0 integrity fix.
-KNOWN = {
-    "routes/dispatch/progress.py:CreditTransaction:missing balance_before",
-}
+# The reviewed crew fulfillment repair now supplies balance_before. No known constructor leftovers remain;
+# financial behavior is qualified separately by the crew checkout/fulfillment fixtures.
+KNOWN = set()
 
 
 def _columns(model):

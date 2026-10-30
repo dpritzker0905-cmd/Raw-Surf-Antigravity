@@ -17,7 +17,7 @@ import { Switch } from '../ui/switch';
 import { Slider } from '../ui/slider';
 import { toast } from 'sonner';
 
-// Split-Pocket Setup Modal
+// Split-Pocket Planning Modal
 export const SplitPocketModal = ({ isOpen, onClose, currentSplit, onSave, isLight }) => {
   const [splitPercentage, setSplitPercentage] = useState(currentSplit || 0);
   const [gearFundEnabled, setGearFundEnabled] = useState(splitPercentage > 0);
@@ -37,13 +37,13 @@ export const SplitPocketModal = ({ isOpen, onClose, currentSplit, onSave, isLigh
         <DialogHeader>
           <DialogTitle className={`${textPrimaryClass} flex items-center gap-2`}>
             <Wallet className="w-5 h-5 text-cyan-400" />
-            Split-Pocket Setup
+            Split-Pocket Planning
           </DialogTitle>
         </DialogHeader>
         
         <div className="py-4 space-y-6">
           <p className={`text-sm ${textSecondaryClass}`}>
-            Choose how to split your earnings between cash withdrawal and platform credits for gear, travel, and donations.
+            Estimate a split of recorded earnings for your own planning. Saving this preference does not move funds or change cash available.
           </p>
           
           {/* Enable Toggle */}
@@ -51,8 +51,8 @@ export const SplitPocketModal = ({ isOpen, onClose, currentSplit, onSave, isLigh
             <div className="flex items-center gap-3">
               <ShoppingBag className="w-5 h-5 text-amber-400" />
               <div>
-                <p className={`font-medium ${textPrimaryClass}`}>Auto-allocate to Credits</p>
-                <p className={`text-xs ${textSecondaryClass}`}>For gear, travel & donations</p>
+                <p className={`font-medium ${textPrimaryClass}`}>Plan Credits Allocation</p>
+                <p className={`text-xs ${textSecondaryClass}`}>Local planning preference</p>
               </div>
             </div>
             <Switch 
@@ -80,17 +80,17 @@ export const SplitPocketModal = ({ isOpen, onClose, currentSplit, onSave, isLigh
               
               {/* Preview */}
               <div className={`p-4 rounded-xl ${isLight ? 'bg-gray-100' : 'bg-zinc-800/50'}`}>
-                <p className={`text-sm ${textSecondaryClass} mb-3`}>For every $100 earned:</p>
+                <p className={`text-sm ${textSecondaryClass} mb-3`}>Planning example for every $100 of recorded earnings:</p>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="text-center">
                     <DollarSign className="w-6 h-6 mx-auto mb-1 text-green-400" />
                     <p className="text-green-400 text-xl font-bold">${100 - splitPercentage}</p>
-                    <p className={`text-xs ${textSecondaryClass}`}>Cash Available</p>
+                    <p className={`text-xs ${textSecondaryClass}`}>Planned Cash</p>
                   </div>
                   <div className="text-center">
                     <ShoppingBag className="w-6 h-6 mx-auto mb-1 text-amber-400" />
                     <p className="text-amber-400 text-xl font-bold">${splitPercentage}</p>
-                    <p className={`text-xs ${textSecondaryClass}`}>Platform Credits</p>
+                    <p className={`text-xs ${textSecondaryClass}`}>Planned Credits</p>
                   </div>
                 </div>
               </div>
@@ -129,7 +129,7 @@ export const SplitPocketModal = ({ isOpen, onClose, currentSplit, onSave, isLigh
             onClick={handleSave}
             className="bg-gradient-to-r from-cyan-400 to-blue-500 text-black font-medium"
           >
-            Save Settings
+            Save Planning Preference
           </Button>
         </DialogFooter>
       </DialogContent>
