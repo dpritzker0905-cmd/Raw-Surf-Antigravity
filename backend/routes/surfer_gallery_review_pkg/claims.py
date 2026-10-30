@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import logging
 
 from database import get_db
+from utils.credits import deduct_credits
 from models import Profile, SurferGalleryItem, SurferGalleryClaimQueue
 from core.security import get_user_id_from_jwt_or_query
 from .schemas import ClaimMatchRequest, ClaimBatchRequest, ConfirmIdentityRequest, _parse_match_reasons
@@ -155,7 +156,11 @@ async def claim_single_match(
         if not user or user.credit_balance < entitlements["price_per_clip"]:
             raise HTTPException(status_code=402, detail="Insufficient balance")
 
-        user.credit_balance -= entitlements["price_per_clip"]
+        success, _, error = await deduct_credits(
+            user_id, entitlements["price_per_clip"], 'gallery_claim', db,
+            reference_type='gallery_item', reference_id=queue_item.gallery_item_id)
+        if not success:
+            raise HTTPException(status_code=402, detail=error)
         access_type = "purchased"
         payment_method = "credits"
 
@@ -261,7 +266,12 @@ async def claim_matches_batch(
                 logger.warning(f"Insufficient balance for user {user_id}, skipping remaining items")
                 break
 
-            user.credit_balance -= price_per_clip
+            success, _, error = await deduct_credits(
+                user_id, price_per_clip, 'gallery_claim', db,
+                reference_type='gallery_item', reference_id=queue_item.gallery_item_id)
+            if not success:
+                logger.warning("Credit payment failed for user %s: %s", user_id, error)
+                break
             total_cost += price_per_clip
             access_type = "purchased"
             payment_method = "credits"

@@ -17,6 +17,7 @@ import logging
 gallery_logger = logging.getLogger("routes.gallery")
 
 from database import get_db
+from utils.credits import consume_spend_only_for_debit
 from core.security import get_current_user_id
 from models import (
     Profile, SurfSpot, GalleryItem, GalleryPurchase, Notification,
@@ -369,7 +370,7 @@ async def bulk_purchase_items(
             .where(
                 GalleryPurchase.gallery_item_id == item.id,
                 GalleryPurchase.buyer_id == data.buyer_id
-            )
+            ).limit(1)
         )
         if existing.scalar_one_or_none():
             raise HTTPException(
@@ -428,6 +429,7 @@ async def bulk_purchase_items(
         # Deduct buyer credits
         buyer_balance_before = buyer.credit_balance or 0
         buyer.credit_balance = buyer_balance_before - final_total
+        promo_spent = consume_spend_only_for_debit(buyer, final_total)
         
         # Create purchases and credit photographers
         purchases = []
@@ -502,6 +504,7 @@ async def bulk_purchase_items(
         buyer_tx = CreditTransaction(
             user_id=data.buyer_id,
             amount=-final_total,
+            spend_only_amount=-promo_spent,
             balance_before=buyer_balance_before,
             transaction_type='bulk_purchase',
             description=f"Bulk purchase: {len(items)} items ({discount_rate * 100:.0f}% discount)",

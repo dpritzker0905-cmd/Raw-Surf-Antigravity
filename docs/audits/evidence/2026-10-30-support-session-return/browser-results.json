@@ -1,0 +1,641 @@
+{
+  "passed": 12,
+  "total": 12,
+  "source": {
+    "lib/apiClient.js": {
+      "sha256": "d11a49f3909804d897514d114727d56d51a0b97505f3d236ad690cfbbdf43b19"
+    },
+    "lib/sessionRejection.js": {
+      "sha256": "c5efad38c7d511b3c9e4b2fa00d525ebc86835a14069a43098c60745817de7b6"
+    },
+    "lib/userScopedStorage.js": {
+      "sha256": "2fca8bd82b5059a960041b3f507998fe3a15f752235cdd9dc0bad3d6f462f027"
+    },
+    "components/Auth.js": {
+      "sha256": "d998cd9c936c59e26064cf83667137e4aed1b7bb002c7de6276af65eac99c3d8"
+    },
+    "components/security/MfaSignInSteps.js": {
+      "sha256": "3b7d0e90b26b00291117e173cd1dfc2443ff60ff1d50d6610cd572d7c118715e"
+    },
+    "components/support/supportRoutes.js": {
+      "sha256": "92bf2567bf482b1975af84cf28592ee7fcadebddfaa430ebd366ad8d464bdc19"
+    },
+    "components/support/SupportInbox.js": {
+      "sha256": "048b8e193966cf5f9ac2d06192ec6d8d023ae7430699f6889df5a2ad0f344fe6"
+    },
+    "components/support/SupportRoute.js": {
+      "sha256": "85cabb7ff36e5f2b71bd0d828f29d73dd901f04243f4c09d3f7505883c366cf9"
+    },
+    "components/routing/ProtectedRoute.js": {
+      "sha256": "0bd2959c56cc455fe02ac50215b9683c57a6f391a602faa9f2aab030c725c3d7"
+    }
+  },
+  "node": "v24.22.1",
+  "browser": "156.0.8078.48",
+  "results": [
+    {
+      "theme": "light",
+      "device": "desktop",
+      "mode": "automatic",
+      "login": "password",
+      "passed": true,
+      "authDocumentLoads": 1,
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "calls": [
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/auth/login",
+          "method": "post",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 200
+        }
+      ],
+      "cases": [
+        "real Axios 401 handler",
+        "canonical return without query/hash",
+        "actual Auth tab/category/back return",
+        "real session guard and account-cache purge",
+        "actual password/MFA Auth completion",
+        "one hard sign-in load",
+        "wrong-account content removed without auth navigation"
+      ]
+    },
+    {
+      "theme": "light",
+      "device": "desktop",
+      "mode": "repeat-refusal",
+      "login": "actual MFA challenge UI, synthetic verifier",
+      "passed": true,
+      "authDocumentLoads": 1,
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "calls": [
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/auth/login",
+          "method": "post",
+          "status": 200
+        },
+        {
+          "url": "/auth/login/mfa",
+          "method": "post",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 200
+        }
+      ],
+      "cases": [
+        "real Axios 401 handler",
+        "canonical return without query/hash",
+        "actual Auth tab/category/back return",
+        "real session guard and account-cache purge",
+        "actual password/MFA Auth completion",
+        "one hard sign-in load",
+        "restored refused session cannot auto-forward",
+        "wrong-account content removed without auth navigation"
+      ]
+    },
+    {
+      "theme": "light",
+      "device": "mobile",
+      "mode": "automatic",
+      "login": "actual MFA challenge UI, synthetic verifier",
+      "passed": true,
+      "authDocumentLoads": 1,
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "calls": [
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/auth/login",
+          "method": "post",
+          "status": 200
+        },
+        {
+          "url": "/auth/login/mfa",
+          "method": "post",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 200
+        }
+      ],
+      "cases": [
+        "real Axios 401 handler",
+        "canonical return without query/hash",
+        "actual Auth tab/category/back return",
+        "real session guard and account-cache purge",
+        "actual password/MFA Auth completion",
+        "one hard sign-in load",
+        "wrong-account content removed without auth navigation"
+      ]
+    },
+    {
+      "theme": "light",
+      "device": "mobile",
+      "mode": "repeat-refusal",
+      "login": "password",
+      "passed": true,
+      "authDocumentLoads": 1,
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "calls": [
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/auth/login",
+          "method": "post",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 200
+        }
+      ],
+      "cases": [
+        "real Axios 401 handler",
+        "canonical return without query/hash",
+        "actual Auth tab/category/back return",
+        "real session guard and account-cache purge",
+        "actual password/MFA Auth completion",
+        "one hard sign-in load",
+        "restored refused session cannot auto-forward",
+        "wrong-account content removed without auth navigation"
+      ]
+    },
+    {
+      "theme": "dark",
+      "device": "desktop",
+      "mode": "automatic",
+      "login": "password",
+      "passed": true,
+      "authDocumentLoads": 1,
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "calls": [
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/auth/login",
+          "method": "post",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 200
+        }
+      ],
+      "cases": [
+        "real Axios 401 handler",
+        "canonical return without query/hash",
+        "actual Auth tab/category/back return",
+        "real session guard and account-cache purge",
+        "actual password/MFA Auth completion",
+        "one hard sign-in load",
+        "wrong-account content removed without auth navigation"
+      ]
+    },
+    {
+      "theme": "dark",
+      "device": "desktop",
+      "mode": "repeat-refusal",
+      "login": "actual MFA challenge UI, synthetic verifier",
+      "passed": true,
+      "authDocumentLoads": 1,
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "calls": [
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/auth/login",
+          "method": "post",
+          "status": 200
+        },
+        {
+          "url": "/auth/login/mfa",
+          "method": "post",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 200
+        }
+      ],
+      "cases": [
+        "real Axios 401 handler",
+        "canonical return without query/hash",
+        "actual Auth tab/category/back return",
+        "real session guard and account-cache purge",
+        "actual password/MFA Auth completion",
+        "one hard sign-in load",
+        "restored refused session cannot auto-forward",
+        "wrong-account content removed without auth navigation"
+      ]
+    },
+    {
+      "theme": "dark",
+      "device": "mobile",
+      "mode": "automatic",
+      "login": "actual MFA challenge UI, synthetic verifier",
+      "passed": true,
+      "authDocumentLoads": 1,
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "calls": [
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/auth/login",
+          "method": "post",
+          "status": 200
+        },
+        {
+          "url": "/auth/login/mfa",
+          "method": "post",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 200
+        }
+      ],
+      "cases": [
+        "real Axios 401 handler",
+        "canonical return without query/hash",
+        "actual Auth tab/category/back return",
+        "real session guard and account-cache purge",
+        "actual password/MFA Auth completion",
+        "one hard sign-in load",
+        "wrong-account content removed without auth navigation"
+      ]
+    },
+    {
+      "theme": "dark",
+      "device": "mobile",
+      "mode": "repeat-refusal",
+      "login": "password",
+      "passed": true,
+      "authDocumentLoads": 1,
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "calls": [
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/auth/login",
+          "method": "post",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 200
+        }
+      ],
+      "cases": [
+        "real Axios 401 handler",
+        "canonical return without query/hash",
+        "actual Auth tab/category/back return",
+        "real session guard and account-cache purge",
+        "actual password/MFA Auth completion",
+        "one hard sign-in load",
+        "restored refused session cannot auto-forward",
+        "wrong-account content removed without auth navigation"
+      ]
+    },
+    {
+      "theme": "beach",
+      "device": "desktop",
+      "mode": "automatic",
+      "login": "password",
+      "passed": true,
+      "authDocumentLoads": 1,
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "calls": [
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/auth/login",
+          "method": "post",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 200
+        }
+      ],
+      "cases": [
+        "real Axios 401 handler",
+        "canonical return without query/hash",
+        "actual Auth tab/category/back return",
+        "real session guard and account-cache purge",
+        "actual password/MFA Auth completion",
+        "one hard sign-in load",
+        "wrong-account content removed without auth navigation"
+      ]
+    },
+    {
+      "theme": "beach",
+      "device": "desktop",
+      "mode": "repeat-refusal",
+      "login": "actual MFA challenge UI, synthetic verifier",
+      "passed": true,
+      "authDocumentLoads": 1,
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "calls": [
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/auth/login",
+          "method": "post",
+          "status": 200
+        },
+        {
+          "url": "/auth/login/mfa",
+          "method": "post",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 200
+        }
+      ],
+      "cases": [
+        "real Axios 401 handler",
+        "canonical return without query/hash",
+        "actual Auth tab/category/back return",
+        "real session guard and account-cache purge",
+        "actual password/MFA Auth completion",
+        "one hard sign-in load",
+        "restored refused session cannot auto-forward",
+        "wrong-account content removed without auth navigation"
+      ]
+    },
+    {
+      "theme": "beach",
+      "device": "mobile",
+      "mode": "automatic",
+      "login": "actual MFA challenge UI, synthetic verifier",
+      "passed": true,
+      "authDocumentLoads": 1,
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "calls": [
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/auth/login",
+          "method": "post",
+          "status": 200
+        },
+        {
+          "url": "/auth/login/mfa",
+          "method": "post",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 200
+        }
+      ],
+      "cases": [
+        "real Axios 401 handler",
+        "canonical return without query/hash",
+        "actual Auth tab/category/back return",
+        "real session guard and account-cache purge",
+        "actual password/MFA Auth completion",
+        "one hard sign-in load",
+        "wrong-account content removed without auth navigation"
+      ]
+    },
+    {
+      "theme": "beach",
+      "device": "mobile",
+      "mode": "repeat-refusal",
+      "login": "password",
+      "passed": true,
+      "authDocumentLoads": 1,
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "calls": [
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 401
+        },
+        {
+          "url": "/auth/login",
+          "method": "post",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets?limit=50&offset=0",
+          "method": "get",
+          "status": 200
+        },
+        {
+          "url": "/support/tickets/abcdef01-2345-4789-abcd-ef0123456789",
+          "method": "get",
+          "status": 200
+        }
+      ],
+      "cases": [
+        "real Axios 401 handler",
+        "canonical return without query/hash",
+        "actual Auth tab/category/back return",
+        "real session guard and account-cache purge",
+        "actual password/MFA Auth completion",
+        "one hard sign-in load",
+        "restored refused session cannot auto-forward",
+        "wrong-account content removed without auth navigation"
+      ]
+    }
+  ],
+  "seams": [
+    "real Axios interceptors, Auth/MFA/ProtectedRoute/SupportInbox/session guards/router/Theme/CSS",
+    "synthetic session provider and Axios adapter; AppLayout/ToS frames substituted; separate route table; no backend/provider/device/full-shell claim"
+  ]
+}

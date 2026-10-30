@@ -1,0 +1,204 @@
+{
+  "engine": "Chromium",
+  "browserVersion": "156.0.8078.48",
+  "results": [
+    {
+      "theme": "light",
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "expectedBackground": "0 0% 100%",
+      "passed": true,
+      "screenshot": "light-desktop.png",
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "scenarios": [
+        "out-of-order selection",
+        "per-ticket text/note mode",
+        "delayed reply completion",
+        "detail failure/retry",
+        "keyboard Space selection",
+        "delayed update completion",
+        "exact reply contract",
+        "all 123 tickets reachable",
+        "keyboard page activation",
+        "last page and previous navigation",
+        "filters reset offset",
+        "filtered second page",
+        "search submit and clear",
+        "stale page versus filter ordering",
+        "failed page GET-only retry",
+        "shrinking total clamps offset",
+        "detail and draft retained across pages"
+      ]
+    },
+    {
+      "theme": "light",
+      "device": "mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "expectedBackground": "0 0% 100%",
+      "passed": true,
+      "screenshot": "light-mobile.png",
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "scenarios": [
+        "out-of-order selection",
+        "per-ticket text/note mode",
+        "delayed reply completion",
+        "detail failure/retry",
+        "keyboard Space selection",
+        "delayed update completion",
+        "exact reply contract",
+        "all 123 tickets reachable",
+        "keyboard page activation",
+        "last page and previous navigation",
+        "filters reset offset",
+        "filtered second page",
+        "search submit and clear",
+        "stale page versus filter ordering",
+        "failed page GET-only retry",
+        "shrinking total clamps offset",
+        "detail and draft retained across pages"
+      ]
+    },
+    {
+      "theme": "dark",
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "expectedBackground": "0 0% 8%",
+      "passed": true,
+      "screenshot": "dark-desktop.png",
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "scenarios": [
+        "out-of-order selection",
+        "per-ticket text/note mode",
+        "delayed reply completion",
+        "detail failure/retry",
+        "keyboard Space selection",
+        "delayed update completion",
+        "exact reply contract",
+        "all 123 tickets reachable",
+        "keyboard page activation",
+        "last page and previous navigation",
+        "filters reset offset",
+        "filtered second page",
+        "search submit and clear",
+        "stale page versus filter ordering",
+        "failed page GET-only retry",
+        "shrinking total clamps offset",
+        "detail and draft retained across pages"
+      ]
+    },
+    {
+      "theme": "dark",
+      "device": "mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "expectedBackground": "0 0% 8%",
+      "passed": true,
+      "screenshot": "dark-mobile.png",
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "scenarios": [
+        "out-of-order selection",
+        "per-ticket text/note mode",
+        "delayed reply completion",
+        "detail failure/retry",
+        "keyboard Space selection",
+        "delayed update completion",
+        "exact reply contract",
+        "all 123 tickets reachable",
+        "keyboard page activation",
+        "last page and previous navigation",
+        "filters reset offset",
+        "filtered second page",
+        "search submit and clear",
+        "stale page versus filter ordering",
+        "failed page GET-only retry",
+        "shrinking total clamps offset",
+        "detail and draft retained across pages"
+      ]
+    },
+    {
+      "theme": "beach",
+      "device": "desktop",
+      "viewport": {
+        "width": 1440,
+        "height": 1000
+      },
+      "expectedBackground": "0 0% 0%",
+      "passed": true,
+      "screenshot": "beach-desktop.png",
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "scenarios": [
+        "out-of-order selection",
+        "per-ticket text/note mode",
+        "delayed reply completion",
+        "detail failure/retry",
+        "keyboard Space selection",
+        "delayed update completion",
+        "exact reply contract",
+        "all 123 tickets reachable",
+        "keyboard page activation",
+        "last page and previous navigation",
+        "filters reset offset",
+        "filtered second page",
+        "search submit and clear",
+        "stale page versus filter ordering",
+        "failed page GET-only retry",
+        "shrinking total clamps offset",
+        "detail and draft retained across pages"
+      ]
+    },
+    {
+      "theme": "beach",
+      "device": "mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      },
+      "expectedBackground": "0 0% 0%",
+      "passed": true,
+      "screenshot": "beach-mobile.png",
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "scenarios": [
+        "out-of-order selection",
+        "per-ticket text/note mode",
+        "delayed reply completion",
+        "detail failure/retry",
+        "keyboard Space selection",
+        "delayed update completion",
+        "exact reply contract",
+        "all 123 tickets reachable",
+        "keyboard page activation",
+        "last page and previous navigation",
+        "filters reset offset",
+        "filtered second page",
+        "search submit and clear",
+        "stale page versus filter ordering",
+        "failed page GET-only retry",
+        "shrinking total clamps offset",
+        "detail and draft retained across pages"
+      ]
+    }
+  ]
+}

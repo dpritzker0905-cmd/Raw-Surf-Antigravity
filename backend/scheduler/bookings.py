@@ -530,7 +530,8 @@ async def cleanup_expired_booking_payments_task():
     from sqlalchemy import select, and_
     from sqlalchemy.orm import selectinload
     from models import Booking, BookingParticipant, Notification, Profile
-    from utils.credits import add_credits
+    from utils.credits import refund_credits
+    from routes.bookings.stripe_checkout import reconcile_expired_booking_checkout
 
     logger.info("[Scheduler] Checking for expired Stripe checkout bookings...")
 
@@ -555,7 +556,20 @@ async def cleanup_expired_booking_payments_task():
 
             logger.info(f"[Scheduler] Found {len(expired_bookings)} expired 'Pending Payment' bookings")
 
-            for booking in expired_bookings:
+            # Snapshot IDs before any helper rollback can expire ORM instances.
+            expired_ids = [booking.id for booking in expired_bookings]
+            for expired_id in expired_ids:
+                current = await db.execute(select(Booking).where(
+                    Booking.id == expired_id,
+                    Booking.status == 'Pending Payment',
+                    Booking.pending_payment_expires_at <= now
+                ).options(selectinload(Booking.participants).selectinload(BookingParticipant.participant)))
+                booking = current.scalar_one_or_none()
+                if booking is None:
+                    continue
+                # Close or settle the provider session before refunding reserved credits.
+                if not await reconcile_expired_booking_checkout(booking, db):
+                    continue
                 # Cancel/Decline the booking
                 booking.status = 'Cancelled'
                 booking.cancellation_reason = 'Stripe checkout payment session expired'
@@ -568,7 +582,7 @@ async def cleanup_expired_booking_payments_task():
                         if p.paid_amount > 0:
                             # Refund the pre-applied credits
                             logger.info(f"[Scheduler] Refunding pre-applied credits of {p.paid_amount} for booking {booking.id} to user {p.participant_id}")
-                            await add_credits(
+                            success, _, error = await refund_credits(
                                 user_id=p.participant_id,
                                 amount=p.paid_amount,
                                 transaction_type='booking_refund',
@@ -578,6 +592,9 @@ async def cleanup_expired_booking_payments_task():
                                 reference_id=booking.id,
                                 counterparty_id=booking.photographer_id
                             )
+                            if not success:
+                                await db.rollback()
+                                raise RuntimeError(error)
                         break
 
                 # Create in-app notification for the captain
@@ -592,9 +609,10 @@ async def cleanup_expired_booking_payments_task():
                     })
                 )
                 db.add(notification)
+                # A later provider failure must not roll back an earlier cancellation.
+                await db.commit()
 
             if expired_bookings:
-                await db.commit()
                 logger.info(f"[Scheduler] Successfully cleaned up {len(expired_bookings)} expired pending payment bookings")
 
     except Exception as e:

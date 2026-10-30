@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
@@ -34,6 +34,23 @@ export const TopNav = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationButtonRef = useRef(null);
+  const restoreNotificationsFocus = useCallback(() => {
+    // The mobile invoker can become hidden while its portalled drawer stays open.
+    const candidates = [notificationButtonRef.current,
+      document.querySelector('nav[aria-label="Main navigation"] a[href="/notifications"]')];
+    for (const target of candidates) {
+      if (!target?.isConnected || target.matches(':disabled')) continue;
+      const rect = target.getBoundingClientRect();
+      const style = window.getComputedStyle(target);
+      if (!rect.width || !rect.height || rect.right <= 0 || rect.bottom <= 0 ||
+          rect.left >= window.innerWidth || rect.top >= window.innerHeight ||
+          style.visibility === 'hidden' || style.display === 'none') continue;
+      target.focus({ preventScroll: true });
+      if (document.activeElement === target) return true;
+    }
+    return false;
+  }, []);
   const [logoSpinning, setLogoSpinning] = useState(false);
 
   // Pull-down drawer gesture hook
@@ -139,6 +156,9 @@ export const TopNav = () => {
 
  {/* Notifications Bell -- always visible */}
             <button
+              ref={notificationButtonRef}
+              aria-expanded={notificationsOpen}
+              aria-haspopup="dialog"
               onClick={() => setNotificationsOpen(!notificationsOpen)}
               className={`transition-colors relative p-1 ${
                 notificationsOpen ? 'text-yellow-400' : 'text-gray-400 hover:text-white'
@@ -243,6 +263,7 @@ export const TopNav = () => {
       <NotificationsDrawer
         isOpen={notificationsOpen}
         onClose={() => setNotificationsOpen(false)}
+        onReturnFocus={restoreNotificationsFocus}
         onCountUpdate={fetchUnreadCount}
       />
     </>

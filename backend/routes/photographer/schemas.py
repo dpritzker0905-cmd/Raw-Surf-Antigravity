@@ -2,7 +2,7 @@
 Photographer package — Pydantic schemas and shared helpers.
 """
 from pydantic import BaseModel
-from typing import List, Optional
+from typing import List, Optional, Union
 from datetime import datetime
 import secrets
 import string
@@ -267,7 +267,10 @@ class EarningsBreakdownResponse(BaseModel):
     request_pro: float = 0.0
     regular_bookings: float = 0.0
     gallery_sales: float = 0.0
+    photo_subscriptions: float = 0.0
     total: float = 0.0
+    wallet_balance: float = 0.0
+    cash_available: float = 0.0
     # Split booking details
     split_bookings: List[dict] = []
 
@@ -369,7 +372,7 @@ class PhotographerStatsResponse(BaseModel):
     galleryPhotos: int = 0
     xp: int = 0
     streak: int = 0
-    badges: List[str] = []
+    badges: List[Union[str, dict]] = []
     hotStreakMultiplier: float = 1.0
 
 

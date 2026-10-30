@@ -3,7 +3,7 @@
  * Extracted data fetching handlers from Explore.js
  * Covers: trending, hashtags, waves, posts, search, leaderboard/sponsors
  */
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
@@ -16,12 +16,14 @@ const useExploreData = ({
   setTrendingWaves, setRecentWaves, setWavesLoading,
   setSelectedWaveHashtag, setWaveHashtagResults,
   setExplorePosts, setPostsLoading,
-  setSearchResults, setIsSearching, setRecentSearches,
+  setSearchResults, setIsSearching, setRecentSearches, setSearchQuery,
   setLeaderboard, setLeaderboardLoading,
   setSponsorDetails, setSelectedSponsor,
 }) => {
   const navigate = useNavigate();
   const [trendingError, setTrendingError] = useState(false);
+  const recentSearchesRef = useRef(recentSearches);
+  recentSearchesRef.current = recentSearches;
 
   // Fetch batch conditions for popular spots
   const fetchSpotConditions = useCallback(async (spotIds) => {
@@ -159,30 +161,33 @@ const useExploreData = ({
   }, [navigate]);
 
   // Search
-  const performSearch = useCallback(async () => {
+  const performSearch = useCallback(async (signal) => {
+    const query = searchQuery.trim();
+    if (signal.aborted || query.length < 2) return;
     setIsSearching(true);
     try {
       const response = await apiClient.get(`/explore/search`, {
-        params: { q: searchQuery, type: activeTab }
+        params: { q: query, type: activeTab }, signal
       });
+      if (signal.aborted) return;
       setSearchResults(response.data);
       // Save to recent searches
-      const query = searchQuery.trim();
-      if (query.length >= 2) {
-        const updated = [query, ...recentSearches.filter(s => s !== query)].slice(0, 5);
-        setRecentSearches(updated);
-        localStorage.setItem('rs-recent-searches', JSON.stringify(updated));
-      }
+      const updated = [query, ...recentSearchesRef.current.filter(s => s !== query)].slice(0, 5);
+      recentSearchesRef.current = updated;
+      setRecentSearches(updated);
+      localStorage.setItem('rs-recent-searches', JSON.stringify(updated));
     } catch (error) {
-      logger.error('Error searching:', error);
+      if (!signal.aborted) logger.error('Error searching:', error);
     } finally {
-      setIsSearching(false);
+      if (!signal.aborted) setIsSearching(false);
     }
-  }, [searchQuery, activeTab, recentSearches, setSearchResults, setIsSearching, setRecentSearches]);
+  }, [searchQuery, activeTab, setSearchResults, setIsSearching, setRecentSearches]);
 
   const clearSearch = useCallback(() => {
+    setSearchQuery('');
     setSearchResults({ users: [], spots: [], posts: [] });
-  }, [setSearchResults]);
+    setIsSearching(false);
+  }, [setSearchQuery, setSearchResults, setIsSearching]);
 
   // Leaderboard / Sponsors
   const fetchLeaderboard = useCallback(async () => {

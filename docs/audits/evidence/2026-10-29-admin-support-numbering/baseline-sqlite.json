@@ -1,0 +1,38 @@
+{
+  "database": "owned disposable file SQLite",
+  "actualHandlersAndModels": true,
+  "cases": [
+    {
+      "name": "concurrent creation preserves both requests",
+      "passed": false,
+      "storedTickets": 1,
+      "distinctNumbers": 1,
+      "returned": [
+        {
+          "success": true,
+          "ticket_number": "TKT-00001",
+          "ticket_id": "be689d9b-858f-4e06-8371-f5580e87cc5b"
+        },
+        {
+          "error_class": "IntegrityError"
+        }
+      ],
+      "generationCalls": 2
+    },
+    {
+      "name": "deleted-row gap does not reuse legacy number",
+      "passed": false,
+      "error_class": "IntegrityError",
+      "error_status": null,
+      "generationCalls": 0,
+      "ticketsBefore": 2,
+      "ticketsAfter": 2,
+      "existingRowsPreserved": true,
+      "allRowsUnchanged": true,
+      "noCountQuery": false
+    }
+  ],
+  "passed": 0,
+  "total": 2,
+  "limits": "Positive function/model/SQL and independent session persistence/concurrency, injected local collision/failure seams; no mounted auth, live data or weather/app startup."
+}

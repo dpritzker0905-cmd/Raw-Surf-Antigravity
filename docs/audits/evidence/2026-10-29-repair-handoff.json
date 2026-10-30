@@ -1,0 +1,82 @@
+{
+  "verified_at_utc": "2026-10-29T18:39:16.831629+00:00",
+  "branch": "codex/audit-repair-20261029",
+  "base_commit": "72b4652d5753423cce18b9ad1d1de95f0afcb7e7",
+  "commits": [
+    "65380d9d3",
+    "3f3ebeed8",
+    "1056b4f7b"
+  ],
+  "source_sha256": {
+    "backend/routes/notifications/notifications.py": "237601282ace439fc067a910cf3c850e62e7dfe24965281a9683180763edb47f",
+    "backend/routes/surf_data/surf_log.py": "83e879d5b1666ee5c74ce4bf9405e0c38be47e1fd6674673c3ead82e81f70358",
+    "frontend/src/components/Explore.js": "5cc7ecb276734369d7796999943e0dc9cd7171c2ae033e5bbe0040c9ff2c8078",
+    "frontend/src/components/GlobalSearchBar.js": "145cf3750ab961325cc8f4fb8911786f27e27f618177063ae8744f38a92a8acd",
+    "frontend/src/components/NotificationsDrawer.js": "9914a919078a1eb7871b5e45cf7595853abd6089c1936b5a6c893869b6ad38ad",
+    "frontend/src/components/NotificationsPage.js": "e9202548d6d66d82cfab633021f62e7a79cfdaa77387a5ce0cb79bf2c5c36ab2",
+    "frontend/src/components/ProfileReviewsSection.js": "46f08802532a96e93c5c606fea25519be5f53d0f10bc3ac2d194e99cd80a11be",
+    "frontend/src/components/SurfLog.js": "e5d4f32c343e3107171c5a2799f008516e285a36a3f723474538cf2ac9431555",
+    "frontend/src/hooks/useExploreData.js": "40a89cc274563c0f32efa69eadac3c3f499cab6cfcd42b7f2a164819a3ab9735",
+    "frontend/src/hooks/useNotificationInbox.js": "98c66d750fe661576856de4e8f4caa49b7585f20871092a2fd1559c545ebb235",
+    "frontend/src/hooks/useUnreadCounts.js": "584763a172c0f161369b2fb88d35c1d03be978bb96ab09eb8862e5f97c954ac7",
+    "frontend/src/services/notificationService.js": "15cacfc350eac98394cefd0f4f955d9bb98c62fd04ab716179be905eff3a256b",
+    "frontend/src/hooks/useWebRTCCall.js": "c30722c811c63b2db765237d0174131fd59b7cf5c9d5b6e3e0896ba3526fc3da"
+  },
+  "other_chat": "Audit each app feature",
+  "other_branch": "codex/booking-availability-repairs",
+  "other_active_scope": "SavedCrewSelector overlapping list request ownership",
+  "ownership": {
+    "other_changed_files": 59,
+    "application_source_files_this_lane": 13,
+    "application_source_overlap": [],
+    "shared_document_reconciliation": [
+      "docs/weather-program/SCOREBOARD.md"
+    ],
+    "fresh_check_utc": "2026-10-29T18:31:26Z"
+  },
+  "evidence": {
+    "frontend_final": 103,
+    "frontend_final_suites": 11,
+    "frontend_first_batch": 95,
+    "new_call_cases": 8,
+    "counts_non_additive": true,
+    "backend_first_batch": 51,
+    "backend_new": 15,
+    "postgres_first_batch": 19,
+    "browser_first_batch": 6,
+    "browser_call_batch": 4,
+    "full_build": "passed both batches",
+    "lint_ratchet": "passed",
+    "memory_audit": {
+      "fail": 0,
+      "warn": 64,
+      "note": 12
+    },
+    "hosted_ci_for_branch": "not run",
+    "deployed_acceptance": "unverified"
+  },
+  "test_pattern": "useWebRTCCall.lifecycle|NotificationsInbox.consistency|useNotificationInbox.lifecycle|useUnreadCounts|notificationService|ProfileReviewsSection.requests|SurfLog.integrity|Explore.searchOwnership|GlobalSearchBar.requestOwnership|exploreRequestRecovery|exploreQuality",
+  "baseline_caveat": "Calling verifier --baseline reads HEAD. Reproduce historical RED using source at3f3ebeed8, not current HEAD. Initial Jest baseline invalid due reset mock.",
+  "remaining": [
+    "integration and hosted CI",
+    "calling pending media/SDP cancellation",
+    "per-call signaling identity and reconnect lifecycle",
+    "real device/provider acceptance",
+    "notification push/digest/quiet hours and continuous list sync",
+    "full authenticated app navigation",
+    "weekly challenge ISO year/week boundaries, finalization and top20 total unrepaired; tie policy unresolved",
+    "pre-existing hardcoded TURN credentials: provider rotation and removing public configuration not performed"
+  ],
+  "published": false,
+  "documentation_update": {
+    "application_source_changed": false,
+    "memory_extension_note_created": true,
+    "original_audit_files_appended": [
+      "raw-surf-prioritized-audit-worklist-2026-10-28.md",
+      "raw-surf-feature-status-index-2026-10-26.md",
+      "raw-surf-audit-continuation-2026-10-26.md"
+    ],
+    "audit_handoff_entrypoint": "raw-surf-two-batch-repair-handoff-2026-10-29.md",
+    "direct_other_chat_message_sent": false
+  }
+}

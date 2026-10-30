@@ -12,6 +12,7 @@ from sqlalchemy import select, update
 
 from models import PaymentTransaction, Profile
 from utils.credits import add_credits
+from utils.credit_packages import package_credit_amount, validate_credit_package_receipt
 from utils.revenue_routing import is_hobbyist_creator, is_pro_creator
 
 
@@ -25,8 +26,10 @@ def wallet_credit_amount(transaction):
     if not isinstance(metadata, dict):
         raise ValueError('Invalid payment metadata')
     kind = metadata.get('type')
-    if kind in ('subscription', 'photo_subscription'):
-        return None  # Dedicated subscription handlers own these entitlements.
+    if kind in ('subscription', 'photo_subscription', 'grom_subscription', 'crew_share'):
+        return None  # Dedicated handlers own these entitlements.
+    if kind == 'wallet_credit_pack':
+        return package_credit_amount(metadata, transaction.amount)
     value = metadata.get('credits')
     if kind == 'request_a_pro_deposit':
         value = transaction.amount
@@ -45,6 +48,7 @@ def wallet_credit_amount(transaction):
 async def fulfill_wallet_payment(db, transaction):
     """Return (credited amount, balance), without committing the caller's transaction."""
     amount = wallet_credit_amount(transaction)
+    package = await validate_credit_package_receipt(db, transaction)
     if amount is None:
         return 0.0, None
     claimed = await db.execute(
@@ -59,17 +63,27 @@ async def fulfill_wallet_payment(db, transaction):
         result = await db.execute(select(Profile).where(Profile.id == transaction.user_id))
         user = result.scalar_one_or_none()
         return 0.0, user.credit_balance if user else None
+    bonus = package['bonus_credits'] if package else 0.0
+    base = amount - bonus
     success, balance, error = await add_credits(
-        transaction.user_id, amount, 'stripe_topup', db,
+        transaction.user_id, base, 'stripe_topup', db,
         description='Stripe wallet funding', reference_type='payment_transaction', reference_id=transaction.id,
     )
     if not success:
         raise RuntimeError(error)
+    if bonus:
+        success, balance, error = await add_credits(
+            transaction.user_id, bonus, 'wallet_bonus', db, spend_only_amount=bonus,
+            description='Spend-only wallet package bonus',
+            reference_type='payment_transaction', reference_id=transaction.id,
+        )
+        if not success:
+            raise RuntimeError(error)
     result = await db.execute(select(Profile).where(Profile.id == transaction.user_id))
     user = result.scalar_one()
     if is_pro_creator(user.role):
-        user.withdrawable_credits = balance
+        user.withdrawable_credits = max(0.0, balance - (user.spend_only_credits or 0))
     elif is_hobbyist_creator(user.role):
-        user.gear_only_credits = balance
+        user.gear_only_credits = max(0.0, balance - (user.spend_only_credits or 0))
     await db.refresh(transaction)
     return amount, balance

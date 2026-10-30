@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
-import { LogOut, User, Bell, Shield, DollarSign, ChevronRight, ChevronDown, MapPin, Loader2, Sun, Moon, Waves, Check, Zap, CreditCard, Megaphone, WifiOff, Download, Trash2, HardDrive, Image, Wallet } from 'lucide-react';
+import { LogOut, User, Bell, Shield, DollarSign, ChevronRight, ChevronDown, MapPin, Loader2, Sun, Moon, Waves, Check, Zap, CreditCard, Megaphone, WifiOff, Download, Trash2, HardDrive, Image, Wallet, HelpCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
 
@@ -226,6 +226,18 @@ export const Settings = () => {
         <h1 className={`text-3xl font-bold mb-6 ${textPrimaryClass} font-oswald`}  data-testid="settings-title">
           Settings
         </h1>
+
+        <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="settings-support-entry">
+          <CardContent className="p-2">
+            <SettingsMenuItem
+              icon={HelpCircle}
+              label="Customer Support"
+              description="View your tickets or contact support"
+              onClick={() => navigate('/support')}
+              color="text-foreground"
+            />
+          </CardContent>
+        </Card>
 
         {/* Photographer Tools - MOVED TO PHOTO HUB (Tab 2) */}
         {/* All photographer-specific tools are now accessible via the Photo Hub drawer */}

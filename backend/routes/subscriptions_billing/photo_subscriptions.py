@@ -6,7 +6,7 @@ Minimum pricing: $5/week enforced server-side.
 """
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_, update
+from sqlalchemy import select, and_, update, func
 from pydantic import BaseModel, Field
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
@@ -16,10 +16,21 @@ import json
 import logging
 
 from database import get_db
+from utils.checkout_recovery import persist_pending_checkout
+from .photo_activation import (
+    _lock_subscription_parties, _valid_plan_terms, _freeze_plan_terms,
+    _activation_review_response, _hold_paid_activation, _read_completed_activation,
+    _recorded_refund_response,
+)
+from utils.credits import deduct_credits, add_credits, clean_amount
+from .photo_sub_helpers import (
+    subscription_utc, subscription_has_access, subscription_access_filters,
+    select_access_subscription,
+)
 from core.security import get_current_user_id
 from models import (
     Profile, PhotographerSubscriptionPlan, SurferPhotoSubscription,
-    PaymentTransaction
+    PaymentTransaction, RoleEnum
 )
 
 router = APIRouter()
@@ -38,6 +49,46 @@ def _require_caller(surfer_id: str, current_user_id: str) -> None:
     """A surfer's subscriptions and quota are read and spent only by that surfer's own token."""
     if surfer_id != current_user_id:
         raise HTTPException(status_code=403, detail="Cannot act on another user's subscriptions")
+
+async def _subscription_seller(db, seller_id):
+    """Lock and validate the seller before staging a subscription or earning."""
+    result = await db.execute(select(Profile).where(Profile.id == seller_id)
+                              .with_for_update().execution_options(populate_existing=True))
+    seller = result.scalar_one_or_none()
+    if seller is None or seller.role not in (RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO):
+        raise HTTPException(status_code=409, detail="Subscription seller requires reconciliation")
+    amounts = [clean_amount(round(value or 0, 2)) for value in (
+        seller.credit_balance, seller.spend_only_credits, seller.withdrawable_credits)]
+    if any(value is None for value in amounts):
+        raise HTTPException(status_code=409, detail="Seller wallet requires reconciliation")
+    total, promo, cash = [int(round(value * 100)) for value in amounts]
+    if not 0 <= promo <= total or not 0 <= cash <= total - promo:
+        # add_credits synchronizes pockets to total-minus-promo. Do not let that
+        # clamp unsupported legacy cash away or silently backfill historical total.
+        raise HTTPException(status_code=409, detail="Seller wallet requires reconciliation")
+    return seller
+
+
+async def _settle_subscription_seller(db, seller, gross, subscription_id, buyer_id):
+    """Credit the already-locked, validated seller without historical backfill."""
+    gross = clean_amount(gross)
+    if gross is None:
+        raise HTTPException(status_code=409, detail="Payment amount requires reconciliation")
+    # Preserve this product's existing standard/Premium fee, independently of
+    # other products' tier aliases or admin-configured commission policies.
+    share = round(gross * (0.85 if seller.subscription_tier == 'premium' else 0.80), 2)
+    ok, _balance, error = await add_credits(
+        seller.id, share, 'photo_subscription_earning', db,
+        description='Photo subscription earnings', reference_type='photo_subscription',
+        reference_id=subscription_id, counterparty_id=buyer_id)
+    if not ok:
+        raise HTTPException(status_code=409, detail=error or "Could not credit subscription seller")
+    return share
+
+
+async def _completed_activation(tx, metadata, db):
+    return await _read_completed_activation(tx, metadata, db, _sub_to_dict)
+
 
 # ── Pydantic schemas ─────────────────────────────────────────
 
@@ -114,8 +165,9 @@ def _sub_to_dict(sub: SurferPhotoSubscription):
         "plan_interval": sub.plan_interval,
         "plan_price": sub.plan_price,
         "status": sub.status,
-        "started_at": sub.started_at.isoformat() if sub.started_at else None,
-        "expires_at": sub.expires_at.isoformat() if sub.expires_at else None,
+        "started_at": subscription_utc(sub.started_at).isoformat() if sub.started_at else None,
+        "expires_at": subscription_utc(sub.expires_at).isoformat() if sub.expires_at else None,
+        "access_active": subscription_has_access(sub),
         "photos_remaining": sub.photos_remaining,
         "videos_remaining": sub.videos_remaining,
         "live_session_buyins_remaining": sub.live_session_buyins_remaining,
@@ -149,7 +201,7 @@ async def get_plans(photographer_id: str, db: AsyncSession = Depends(get_db)):
             select(SurferPhotoSubscription)
             .where(and_(
                 SurferPhotoSubscription.plan_id == plan.id,
-                SurferPhotoSubscription.status == 'active'
+                *subscription_access_filters()
             ))
         )
         count = len(count_q.scalars().all())
@@ -289,29 +341,18 @@ async def subscribe_to_plan(
     if not plan:
         raise HTTPException(status_code=404, detail="Plan not found or inactive")
 
-    # Load surfer
-    surfer_result = await db.execute(select(Profile).where(Profile.id == surfer_id))
-    surfer = surfer_result.scalar_one_or_none()
-    if not surfer:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    # Prevent subscribing to own plans
+    # Prevent subscribing to own plans before locking the two distinct parties.
     if surfer_id == plan.photographer_id:
         raise HTTPException(status_code=400, detail="Cannot subscribe to your own plan")
+    surfer = await _lock_subscription_parties(db, surfer_id, plan.photographer_id)
 
-    # Check for existing active sub with this photographer
-    existing = await db.execute(
-        select(SurferPhotoSubscription).where(and_(
-            SurferPhotoSubscription.surfer_id == surfer_id,
-            SurferPhotoSubscription.photographer_id == plan.photographer_id,
-            SurferPhotoSubscription.status == 'active',
-        ))
-    )
-    active_sub = existing.scalar_one_or_none()
+    # Paid-through cancelled subscriptions still block a duplicate purchase.
+    active_sub = await select_access_subscription(db, surfer_id, plan.photographer_id)
     if active_sub:
+        await db.rollback()
         raise HTTPException(
             status_code=400,
-            detail="You already have an active subscription with this photographer. Wait for it to expire or cancel first."
+            detail="You already have paid-through access with this photographer. Wait for it to expire before subscribing again."
         )
 
     # Calculate expiry
@@ -321,57 +362,66 @@ async def subscribe_to_plan(
     else:
         expires_at = now + timedelta(days=30)
 
-    price = plan.price
+    price = clean_amount(plan.price)
+    if price is None:
+        raise HTTPException(status_code=409, detail="Plan price requires reconciliation")
 
     # ── Credit payment ──────────────────────────────────────
     if data.payment_method == 'credits':
         if (surfer.credit_balance or 0) < price:
             raise HTTPException(status_code=400, detail=f"Insufficient credits. Need ${price:.2f}")
 
-        surfer.credit_balance = (surfer.credit_balance or 0) - price
+        try:
+            success, _, error = await deduct_credits(
+                surfer_id, price, 'photo_subscription_payment', db,
+                reference_type='photo_subscription_plan', reference_id=plan.id)
+            if not success:
+                raise HTTPException(status_code=400, detail=error)
 
-        # Platform commission to photographer (same rate as other services)
-        photographer_result = await db.execute(
-            select(Profile).where(Profile.id == plan.photographer_id)
-        )
-        photographer = photographer_result.scalar_one_or_none()
-        if photographer:
-            commission = 0.20 if (photographer.subscription_tier or 'free') != 'premium' else 0.15
-            photographer_share = price * (1 - commission)
-            photographer.withdrawable_credits = (photographer.withdrawable_credits or 0) + photographer_share
+            seller = await _subscription_seller(db, plan.photographer_id)
+            sub = SurferPhotoSubscription(
+                surfer_id=surfer_id,
+                photographer_id=plan.photographer_id,
+                plan_id=plan.id,
+                plan_name=plan.name,
+                plan_interval=plan.interval,
+                plan_price=price,
+                expires_at=expires_at,
+                photos_remaining=plan.photos_included,
+                videos_remaining=plan.videos_included,
+                live_session_buyins_remaining=plan.live_session_buyins,
+                sessions_remaining=plan.sessions_included,
+                booking_discount_pct=plan.booking_discount_pct,
+                on_demand_discount_pct=plan.on_demand_discount_pct,
+                amount_paid=price,
+                payment_method='credits',
+            )
+            db.add(sub)
+            await db.flush()
+            await _settle_subscription_seller(db, seller, price, sub.id, surfer_id)
+            await db.commit()
+            await db.refresh(sub)
 
-        sub = SurferPhotoSubscription(
-            surfer_id=surfer_id,
-            photographer_id=plan.photographer_id,
-            plan_id=plan.id,
-            plan_name=plan.name,
-            plan_interval=plan.interval,
-            plan_price=plan.price,
-            expires_at=expires_at,
-            photos_remaining=plan.photos_included,
-            videos_remaining=plan.videos_included,
-            live_session_buyins_remaining=plan.live_session_buyins,
-            sessions_remaining=plan.sessions_included,
-            booking_discount_pct=plan.booking_discount_pct,
-            on_demand_discount_pct=plan.on_demand_discount_pct,
-            amount_paid=price,
-            payment_method='credits',
-        )
-        db.add(sub)
-        await db.commit()
-        await db.refresh(sub)
+            return {
+                "success": True,
+                "subscription": _sub_to_dict(sub),
+                "remaining_credits": surfer.credit_balance,
+                "message": f"Subscribed to {plan.name}!"
+            }
 
-        return {
-            "success": True,
-            "subscription": _sub_to_dict(sub),
-            "remaining_credits": surfer.credit_balance,
-            "message": f"Subscribed to {plan.name}!"
-        }
+        except Exception:
+            await db.rollback()
+            raise
 
     # ── Card payment (Stripe) ───────────────────────────────
     elif data.payment_method == 'card':
         if not STRIPE_API_KEY:
+            await db.rollback()
             raise HTTPException(status_code=500, detail="Stripe not configured")
+        terms = _freeze_plan_terms(plan, int(round(price * 100)))
+        if terms is None:
+            await db.rollback()
+            raise HTTPException(status_code=409, detail="Plan terms require reconciliation")
 
         origin = data.origin_url or 'https://raw-surf.netlify.app'
         try:
@@ -380,7 +430,7 @@ async def subscribe_to_plan(
                 line_items=[{
                     'price_data': {
                         'currency': 'usd',
-                        'unit_amount': int(price * 100),
+                        'unit_amount': int(round(price * 100)),
                         'product_data': {
                             'name': f"{plan.name} Subscription",
                             'description': f"{plan.interval.capitalize()} plan • {plan.photos_included} photos, {plan.videos_included} videos",
@@ -399,11 +449,12 @@ async def subscribe_to_plan(
                 },
             )
         except Exception as e:
+            await db.rollback()
             logger.error(f"Stripe error: {e}")
             raise HTTPException(status_code=500, detail=f"Payment error: {str(e)}")
 
         # Store pending transaction
-        tx = PaymentTransaction(
+        await persist_pending_checkout(db, checkout.id, lambda: PaymentTransaction(
             user_id=surfer_id,
             session_id=checkout.id,
             amount=price,
@@ -414,10 +465,9 @@ async def subscribe_to_plan(
                 "type": "photo_subscription",
                 "plan_id": plan.id,
                 "photographer_id": plan.photographer_id,
+                "plan_terms": terms,
             })
-        )
-        db.add(tx)
-        await db.commit()
+        ))
 
         return {
             "success": True,
@@ -435,98 +485,112 @@ async def complete_card_subscription(
     current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Complete subscription after successful Stripe card payment."""
-    tx_result = await db.execute(
-        select(PaymentTransaction).where(PaymentTransaction.session_id == checkout_session_id)
-    )
+    """Activate one paid checkout, or retain a terminal paid review outcome."""
+    tx_result = await db.execute(select(PaymentTransaction).where(
+        PaymentTransaction.session_id == checkout_session_id))
     tx = tx_result.scalar_one_or_none()
     if not tx:
         raise HTTPException(status_code=404, detail="Transaction not found")
     _require_caller(tx.user_id, current_user_id)
-    if tx.payment_status == 'completed':
-        return {"success": True, "message": "Already activated"}
-
-    meta = json.loads(tx.transaction_metadata) if tx.transaction_metadata else {}
+    meta = json.loads(tx.transaction_metadata or '{}')
     if meta.get('type') != 'photo_subscription':
         raise HTTPException(status_code=400, detail="Not a subscription payment")
-    plan_id = meta.get('plan_id')
-    surfer_id = tx.user_id
-    photographer_id = meta.get('photographer_id')
+    surfer_id, plan_id, photographer_id = tx.user_id, meta.get('plan_id'), meta.get('photographer_id')
+    if not isinstance(photographer_id, str) or not photographer_id:
+        raise HTTPException(status_code=409, detail="Payment seller requires reconciliation")
 
-    # Activate only a checkout Stripe reports as paid, for this surfer, plan and amount.
-    if not STRIPE_API_KEY:
-        raise HTTPException(status_code=500, detail="Stripe not configured")
     try:
-        checkout = stripe.checkout.Session.retrieve(checkout_session_id)
-    except stripe.error.StripeError as e:
-        logger.error(f"Stripe verification error: {e}")
-        raise HTTPException(status_code=502, detail="Could not verify the payment")
-    if checkout.payment_status != 'paid':
-        raise HTTPException(status_code=400, detail="Payment not completed")
-    paid_meta = checkout.metadata or {}
-    if (
-        paid_meta.get('type') != 'photo_subscription'
-        or paid_meta.get('surfer_id') != surfer_id
-        or paid_meta.get('plan_id') != plan_id
-        or not isinstance(checkout.amount_total, int)
-        or abs(checkout.amount_total - (tx.amount or 0) * 100) >= 1
-    ):
-        raise HTTPException(status_code=400, detail="Payment does not match this subscription")
+        await _lock_subscription_parties(db, surfer_id, photographer_id)
+        # A waiting completion must observe the preceding activation/review commit.
+        locked = await db.execute(select(PaymentTransaction).where(
+            PaymentTransaction.id == tx.id).with_for_update().execution_options(populate_existing=True))
+        tx = locked.scalar_one()
+        refunded = _recorded_refund_response(tx)
+        if refunded is not None:
+            return refunded
+        meta = json.loads(tx.transaction_metadata or '{}')
+        if tx.status == 'review_required':
+            return _activation_review_response(meta.get('activation_review_code', 'paid_overlap'))
+        if tx.payment_status == 'completed':
+            return await _completed_activation(tx, meta, db)
 
-    # Claim the transaction once, so concurrent completions cannot activate or credit twice.
-    claimed = await db.execute(
-        update(PaymentTransaction)
-        .where(PaymentTransaction.id == tx.id, PaymentTransaction.payment_status != 'completed')
-        .values(payment_status='completed', status='completed')
-        .execution_options(synchronize_session=False)
-    )
-    if claimed.rowcount != 1:
-        return {"success": True, "message": "Already activated"}
+        if not STRIPE_API_KEY:
+            raise HTTPException(status_code=500, detail="Stripe not configured")
+        try:
+            checkout = stripe.checkout.Session.retrieve(checkout_session_id)
+        except stripe.error.StripeError as error:
+            logger.error("Stripe verification error: %s", error)
+            raise HTTPException(status_code=502, detail="Could not verify the payment")
+        if checkout.payment_status != 'paid':
+            raise HTTPException(status_code=400, detail="Payment not completed")
+        paid_meta = checkout.metadata or {}
+        if (paid_meta.get('type') != 'photo_subscription'
+                or paid_meta.get('surfer_id') != surfer_id
+                or paid_meta.get('plan_id') != plan_id
+                or not isinstance(checkout.amount_total, int)
+                or abs(checkout.amount_total - (tx.amount or 0) * 100) >= 1):
+            raise HTTPException(status_code=400, detail="Payment does not match this subscription")
 
-    # Load plan
-    plan_result = await db.execute(
-        select(PhotographerSubscriptionPlan).where(PhotographerSubscriptionPlan.id == plan_id)
-    )
-    plan = plan_result.scalar_one_or_none()
-    if not plan:
-        raise HTTPException(status_code=404, detail="Plan no longer exists")
+        if await select_access_subscription(db, surfer_id, photographer_id):
+            return await _hold_paid_activation(tx, meta, db, 'paid_overlap')
 
-    now = datetime.now(timezone.utc)
-    expires_at = now + (timedelta(weeks=1) if plan.interval == 'weekly' else timedelta(days=30))
+        plan_result = await db.execute(select(PhotographerSubscriptionPlan).where(
+            PhotographerSubscriptionPlan.id == plan_id))
+        plan = plan_result.scalar_one_or_none()
+        if 'plan_terms' in meta:
+            terms = meta['plan_terms']
+            if not _valid_plan_terms(terms, plan_id, photographer_id, checkout.amount_total):
+                return await _hold_paid_activation(tx, meta, db, 'plan_terms_unavailable')
+        else:
+            # Legacy checkouts retain their current-plan fallback, without frozen historical benefits.
+            terms = _freeze_plan_terms(plan, checkout.amount_total) if plan else None
+            if terms is None:
+                return await _hold_paid_activation(tx, meta, db, 'plan_terms_unavailable')
 
-    sub = SurferPhotoSubscription(
-        surfer_id=surfer_id,
-        photographer_id=photographer_id,
-        plan_id=plan.id,
-        plan_name=plan.name,
-        plan_interval=plan.interval,
-        plan_price=plan.price,
-        expires_at=expires_at,
-        photos_remaining=plan.photos_included,
-        videos_remaining=plan.videos_included,
-        live_session_buyins_remaining=plan.live_session_buyins,
-        sessions_remaining=plan.sessions_included,
-        booking_discount_pct=plan.booking_discount_pct,
-        on_demand_discount_pct=plan.on_demand_discount_pct,
-        amount_paid=tx.amount,
-        payment_method='card',
-        stripe_session_id=checkout_session_id,
-    )
-    db.add(sub)
+        claimed = await db.execute(update(PaymentTransaction).where(
+            PaymentTransaction.id == tx.id, PaymentTransaction.payment_status != 'completed',
+            PaymentTransaction.status != 'review_required',
+            func.lower(func.trim(PaymentTransaction.payment_status)).notin_(('refunded', 'partially_refunded')),
+            func.lower(func.trim(PaymentTransaction.status)).notin_(('refunded', 'partially_refunded')),
+        ).values(payment_status='completed', status='completed')
+          .execution_options(synchronize_session=False))
+        if claimed.rowcount != 1:
+            await db.refresh(tx)
+            refunded = _recorded_refund_response(tx)
+            if refunded is not None:
+                return refunded
+            if tx.status == 'review_required':
+                return _activation_review_response(meta.get('activation_review_code', 'paid_overlap'))
+            if tx.payment_status == 'completed':
+                return await _completed_activation(tx, meta, db)
+            raise HTTPException(status_code=409, detail="Payment activation changed; please retry")
 
-    # Credit photographer
-    phot_result = await db.execute(select(Profile).where(Profile.id == photographer_id))
-    photographer = phot_result.scalar_one_or_none()
-    if photographer:
-        commission = 0.20 if (photographer.subscription_tier or 'free') != 'premium' else 0.15
-        photographer.withdrawable_credits = (photographer.withdrawable_credits or 0) + tx.amount * (1 - commission)
-
-    tx.payment_status = 'completed'
-    tx.status = 'completed'
-    await db.commit()
-    await db.refresh(sub)
-
-    return {"success": True, "subscription": _sub_to_dict(sub)}
+        paid_amount = checkout.amount_total / 100
+        now = datetime.now(timezone.utc)
+        expires_at = now + (timedelta(weeks=1) if terms['interval'] == 'weekly' else timedelta(days=30))
+        seller = await _subscription_seller(db, photographer_id)
+        sub = SurferPhotoSubscription(
+            surfer_id=surfer_id, photographer_id=photographer_id,
+            plan_id=plan.id if plan else None, plan_name=terms['name'],
+            plan_interval=terms['interval'], plan_price=paid_amount, expires_at=expires_at,
+            photos_remaining=terms['photos_included'], videos_remaining=terms['videos_included'],
+            live_session_buyins_remaining=terms['live_session_buyins'],
+            sessions_remaining=terms['sessions_included'],
+            booking_discount_pct=terms['booking_discount_pct'],
+            on_demand_discount_pct=terms['on_demand_discount_pct'],
+            amount_paid=paid_amount, payment_method='card', stripe_session_id=checkout_session_id,
+        )
+        db.add(sub)
+        await db.flush()
+        await _settle_subscription_seller(db, seller, paid_amount, sub.id, surfer_id)
+        tx.payment_status = 'completed'
+        tx.status = 'completed'
+        await db.commit()
+        await db.refresh(sub)
+        return {'success': True, 'subscription': _sub_to_dict(sub), 'already_completed': False}
+    except Exception:
+        await db.rollback()
+        raise
 
 
 # ══════════════════════════════════════════════════════════════
@@ -548,7 +612,7 @@ async def get_my_subscriptions(
         select(SurferPhotoSubscription).where(and_(
             SurferPhotoSubscription.surfer_id == user_id,
             SurferPhotoSubscription.status == 'active',
-            SurferPhotoSubscription.expires_at < now,
+            SurferPhotoSubscription.expires_at <= now,
         ))
     )
     for sub in overdue.scalars().all():
@@ -599,7 +663,7 @@ async def cancel_subscription(
     sub = result.scalar_one_or_none()
     if not sub:
         raise HTTPException(status_code=404, detail="Subscription not found")
-    if sub.status != 'active':
+    if sub.status != 'active' or not subscription_has_access(sub):
         raise HTTPException(status_code=400, detail="Subscription is already inactive")
 
     sub.status = 'cancelled'
@@ -624,7 +688,7 @@ async def get_my_subscribers(
         select(SurferPhotoSubscription)
         .where(and_(
             SurferPhotoSubscription.photographer_id == photographer_id,
-            SurferPhotoSubscription.status == 'active',
+            *subscription_access_filters(),
         ))
         .order_by(SurferPhotoSubscription.created_at.desc())
     )
@@ -657,16 +721,7 @@ async def check_quota(
 ):
     """Check if surfer has remaining quota for a service from this photographer."""
     _require_caller(surfer_id, current_user_id)
-    now = datetime.now(timezone.utc)
-    result = await db.execute(
-        select(SurferPhotoSubscription).where(and_(
-            SurferPhotoSubscription.surfer_id == surfer_id,
-            SurferPhotoSubscription.photographer_id == photographer_id,
-            SurferPhotoSubscription.status == 'active',
-            SurferPhotoSubscription.expires_at > now,
-        ))
-    )
-    sub = result.scalar_one_or_none()
+    sub = await select_access_subscription(db, surfer_id, photographer_id)
     if not sub:
         return {"has_quota": False, "remaining": 0, "subscription_active": False}
 
@@ -702,16 +757,7 @@ async def use_quota(
 ):
     """Decrement a surfer's subscription quota (called internally on delivery)."""
     _require_caller(surfer_id, current_user_id)
-    now = datetime.now(timezone.utc)
-    result = await db.execute(
-        select(SurferPhotoSubscription).where(and_(
-            SurferPhotoSubscription.surfer_id == surfer_id,
-            SurferPhotoSubscription.photographer_id == photographer_id,
-            SurferPhotoSubscription.status == 'active',
-            SurferPhotoSubscription.expires_at > now,
-        ))
-    )
-    sub = result.scalar_one_or_none()
+    sub = await select_access_subscription(db, surfer_id, photographer_id)
     if not sub:
         raise HTTPException(status_code=404, detail="No active subscription found")
 

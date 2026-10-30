@@ -19,6 +19,8 @@ class LiveSessionParticipant(Base):
     - They CANNOT create sessions (that's handled in go_live permission check)
     """
     __tablename__ = 'live_session_participants'
+
+    payment_credit_transaction_id = Column(String(36), nullable=True)
     
     id = Column(String(36), primary_key=True, default=generate_uuid)
     photographer_id = Column(String(36), ForeignKey('profiles.id', ondelete='CASCADE'), nullable=False, index=True)

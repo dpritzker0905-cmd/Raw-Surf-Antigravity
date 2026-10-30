@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useId } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import apiClient from '../lib/apiClient';
@@ -9,7 +9,7 @@ import {
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { Input } from './ui/input';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from './ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from './ui/dialog';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
 
@@ -28,9 +28,13 @@ export const SavedCrewSelector = ({
   const { user } = useAuth();
   const { theme } = useTheme();
   const isLight = theme === 'light';
+  const crewNameId = useId();
+  const setDefaultId = useId();
   
   const [savedCrews, setSavedCrews] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const savedCrewsRequestId = useRef(0);
   const [showDropdown, setShowDropdown] = useState(false);
   const [showSaveDialog, setShowSaveDialog] = useState(false);
   const [savingCrew, setSavingCrew] = useState(false);
@@ -44,13 +48,19 @@ export const SavedCrewSelector = ({
   }, [user?.id]);
 
   const fetchSavedCrews = async () => {
+    const requestId = ++savedCrewsRequestId.current;
+    setLoading(true);
+    setLoadError(false);
     try {
-      const response = await apiClient.get(`/crews/saved`);
-      setSavedCrews(response.data.crews || []);
+      const response = await apiClient.get(`/crews/saved`, { params: { user_id: user.id } });
+      if (requestId === savedCrewsRequestId.current) {
+        setSavedCrews(response.data.crews || []);
+      }
     } catch (error) {
       logger.error('Failed to fetch saved crews:', error);
+      if (requestId === savedCrewsRequestId.current) setLoadError(true);
     } finally {
-      setLoading(false);
+      if (requestId === savedCrewsRequestId.current) setLoading(false);
     }
   };
 
@@ -143,7 +153,7 @@ export const SavedCrewSelector = ({
   if (compact) {
     return (
       <div className="relative" data-testid="saved-crew-selector-compact">
-        <Button aria-label="Users"
+        <Button type="button" aria-label="Saved Crews"
           variant="outline"
           size="sm"
           aria-expanded={showDropdown} onClick={() => setShowDropdown(!showDropdown)}
@@ -159,8 +169,17 @@ export const SavedCrewSelector = ({
             isLight ? 'bg-white border border-gray-200' : 'bg-zinc-900 border border-zinc-700'
           }`}>
             {loading ? (
-              <div className="p-4 flex justify-center">
+              <div className="p-4 flex justify-center" role="status" aria-label="Loading saved crews">
                 <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
+              </div>
+            ) : loadError ? (
+              <div className="p-4 text-center" role="alert">
+                <p className={`text-sm ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
+                  Unable to load saved crews.
+                </p>
+                <Button type="button" variant="outline" size="sm" onClick={fetchSavedCrews} className="mt-2">
+                  Retry loading saved crews
+                </Button>
               </div>
             ) : savedCrews.length === 0 ? (
               <div className="p-4 text-center">
@@ -168,7 +187,7 @@ export const SavedCrewSelector = ({
                   No saved crews yet
                 </p>
                 {currentMembers.length > 0 && (
-                  <Button aria-label="Save"
+                  <Button type="button" aria-label="Save"
                     size="sm"
                     onClick={() => { setShowDropdown(false); setShowSaveDialog(true); }}
                     className="mt-2 bg-cyan-500 hover:bg-cyan-400 text-black"
@@ -181,40 +200,46 @@ export const SavedCrewSelector = ({
             ) : (
               <div className="max-h-64 overflow-y-auto">
                 {savedCrews.map((crew) => (
-                  <button aria-label="Favorite"
+                  <div
                     key={crew.id}
-                    onClick={() => handleSelectCrew(crew)}
-                    className={`w-full p-3 flex items-center justify-between hover:${isLight ? 'bg-gray-50' : 'bg-zinc-800'} transition-colors ${
+                    className={`w-full flex items-center justify-between hover:${isLight ? 'bg-gray-50' : 'bg-zinc-800'} transition-colors ${
                       selectedCrew?.id === crew.id ? (isLight ? 'bg-cyan-50' : 'bg-cyan-500/10') : ''
                     }`}
                   >
-                    <div className="flex items-center gap-2">
-                      {crew.is_default && <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />}
-                      <div className="text-left">
-                        <p className={`text-sm font-medium ${isLight ? 'text-gray-900' : 'text-white'}`}>
-                          {crew.name}
-                        </p>
-                        <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
-                          {crew.member_count} member{crew.member_count !== 1 ? 's' : ''}
-                        </p>
+                    <button
+                      type="button"
+                      aria-label={`Select ${crew.name}`}
+                      onClick={() => handleSelectCrew(crew)}
+                      className="flex-1 min-w-0 p-3 flex items-center justify-between text-left"
+                    >
+                      <div className="flex items-center gap-2">
+                        {crew.is_default && <Star className="w-4 h-4 text-yellow-400 fill-yellow-400" />}
+                        <div className="text-left">
+                          <p className={`text-sm font-medium ${isLight ? 'text-gray-900' : 'text-white'}`}>
+                            {crew.name}
+                          </p>
+                          <p className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+                            {crew.member_count} member{crew.member_count !== 1 ? 's' : ''}
+                          </p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-1">
                       {selectedCrew?.id === crew.id && (
                         <Check className="w-4 h-4 text-cyan-400" />
                       )}
-                      <button aria-label="Delete"
-                        onClick={(e) => handleDeleteCrew(crew.id, e)}
-                        className="p-1 hover:bg-red-500/20 rounded"
-                      >
-                        <Trash2 className="w-3 h-3 text-gray-400 hover:text-red-400" />
-                      </button>
-                    </div>
-                  </button>
+                    </button>
+                    <button
+                      type="button"
+                      aria-label={`Delete ${crew.name}`}
+                      onClick={(e) => handleDeleteCrew(crew.id, e)}
+                      className="p-1 mr-2 hover:bg-red-500/20 rounded"
+                    >
+                      <Trash2 className="w-3 h-3 text-gray-400 hover:text-red-400" />
+                    </button>
+                  </div>
                 ))}
                 
                 {currentMembers.length > 0 && (
-                  <button aria-label="Add"
+                  <button type="button" aria-label="Add"
                     onClick={() => { setShowDropdown(false); setShowSaveDialog(true); }}
                     className={`w-full p-3 flex items-center gap-2 ${isLight ? 'border-t border-gray-100 text-cyan-600' : 'border-t border-zinc-700 text-cyan-400'} hover:${isLight ? 'bg-gray-50' : 'bg-zinc-800'}`}
                   >
@@ -234,14 +259,18 @@ export const SavedCrewSelector = ({
               <DialogTitle className={isLight ? 'text-gray-900' : 'text-white'}>
                 Save Crew Preset
               </DialogTitle>
+              <DialogDescription className={isLight ? 'text-gray-600' : 'text-gray-400'}>
+                Name this crew preset to quickly reuse these members.
+              </DialogDescription>
             </DialogHeader>
             
             <div className="space-y-4 py-4">
               <div>
-                <label className={`text-sm ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
+                <label htmlFor={crewNameId} className={`text-sm ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
                   Crew Name
                 </label>
                 <Input
+                  id={crewNameId}
                   value={newCrewName}
                   onChange={(e) => setNewCrewName(e.target.value)}
                   placeholder="e.g., Dawn Patrol Crew"
@@ -250,14 +279,14 @@ export const SavedCrewSelector = ({
               </div>
               
               <div className="flex items-center gap-2">
-                <input aria-label="Checkbox"
+                <input
                   type="checkbox"
-                  id="setDefault"
+                  id={setDefaultId}
                   checked={setAsDefault}
                   onChange={(e) => setSetAsDefault(e.target.checked)}
                   className="rounded"
                 />
-                <label htmlFor="setDefault" className={`text-sm ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
+                <label htmlFor={setDefaultId} className={`text-sm ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
                   Set as default for On-Demand sessions
                 </label>
               </div>
@@ -277,10 +306,10 @@ export const SavedCrewSelector = ({
             </div>
             
             <DialogFooter>
-              <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
+              <Button type="button" variant="outline" onClick={() => setShowSaveDialog(false)}>
                 Cancel
               </Button>
-              <Button aria-label="Loader2" 
+              <Button type="button"
                 onClick={handleSaveCurrentCrew}
                 disabled={savingCrew}
                 className="bg-cyan-500 hover:bg-cyan-400 text-black"
@@ -304,7 +333,7 @@ export const SavedCrewSelector = ({
           Saved Crews
         </h4>
         {currentMembers.length > 0 && (
-          <Button aria-label="Add"
+          <Button type="button" aria-label="Add"
             size="sm"
             variant="ghost"
             onClick={() => setShowSaveDialog(true)}
@@ -317,8 +346,17 @@ export const SavedCrewSelector = ({
       </div>
       
       {loading ? (
-        <div className="flex justify-center py-4">
+        <div className="flex justify-center py-4" role="status" aria-label="Loading saved crews">
           <Loader2 className="w-5 h-5 animate-spin text-cyan-400" />
+        </div>
+      ) : loadError ? (
+        <div className="text-center py-4" role="alert">
+          <p className={`text-sm ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
+            Unable to load saved crews.
+          </p>
+          <Button type="button" variant="outline" size="sm" onClick={fetchSavedCrews} className="mt-2">
+            Retry loading saved crews
+          </Button>
         </div>
       ) : savedCrews.length === 0 ? (
         <p className={`text-sm text-center py-4 ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
@@ -327,7 +365,7 @@ export const SavedCrewSelector = ({
       ) : (
         <div className="grid grid-cols-2 gap-2">
           {savedCrews.map((crew) => (
-            <button aria-label="Favorite"
+            <button type="button" aria-label={`Select ${crew.name}`}
               key={crew.id}
               onClick={() => handleSelectCrew(crew)}
               className={`p-3 rounded-lg text-left transition-all hover:scale-[1.02] ${
@@ -364,14 +402,18 @@ export const SavedCrewSelector = ({
             <DialogTitle className={isLight ? 'text-gray-900' : 'text-white'}>
               Save Crew Preset
             </DialogTitle>
+            <DialogDescription className={isLight ? 'text-gray-600' : 'text-gray-400'}>
+              Name this crew preset to quickly reuse these members.
+            </DialogDescription>
           </DialogHeader>
           
           <div className="space-y-4 py-4">
             <div>
-              <label className={`text-sm ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
+              <label htmlFor={crewNameId} className={`text-sm ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
                 Crew Name
               </label>
               <Input
+                id={crewNameId}
                 value={newCrewName}
                 onChange={(e) => setNewCrewName(e.target.value)}
                 placeholder="e.g., Dawn Patrol Crew"
@@ -380,24 +422,24 @@ export const SavedCrewSelector = ({
             </div>
             
             <div className="flex items-center gap-2">
-              <input aria-label="Checkbox"
+              <input
                 type="checkbox"
-                id="setDefaultFull"
+                id={setDefaultId}
                 checked={setAsDefault}
                 onChange={(e) => setSetAsDefault(e.target.checked)}
                 className="rounded"
               />
-              <label htmlFor="setDefaultFull" className={`text-sm ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
+              <label htmlFor={setDefaultId} className={`text-sm ${isLight ? 'text-gray-600' : 'text-gray-400'}`}>
                 Set as default for On-Demand sessions
               </label>
             </div>
           </div>
           
           <DialogFooter>
-            <Button variant="outline" onClick={() => setShowSaveDialog(false)}>
+            <Button type="button" variant="outline" onClick={() => setShowSaveDialog(false)}>
               Cancel
             </Button>
-            <Button aria-label="Loader2" 
+            <Button type="button"
               onClick={handleSaveCurrentCrew}
               disabled={savingCrew}
               className="bg-cyan-500 hover:bg-cyan-400 text-black"

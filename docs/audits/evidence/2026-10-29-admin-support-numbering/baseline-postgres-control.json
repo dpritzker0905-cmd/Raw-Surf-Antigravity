@@ -1,0 +1,13 @@
+{
+  "ownedNewCluster": true,
+  "loopbackOnly": true,
+  "database": "support_numbering_fixture",
+  "label": "baseline",
+  "version": "postgres (PostgreSQL) 17.11",
+  "fixtureExitCode": 1,
+  "passed": 0,
+  "total": 2,
+  "expectationsMet": true,
+  "pgStatusStopped": true,
+  "osListenerAbsent": true
+}

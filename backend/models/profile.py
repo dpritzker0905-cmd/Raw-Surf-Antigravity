@@ -37,6 +37,8 @@ class Profile(Base):
     
     # PRO CREDITS: Can be withdrawn to bank/Stripe (Photographers & Approved Pros)
     withdrawable_credits = Column(Float, default=0.0, nullable=False)
+    # Included in credit_balance; promotional credits cannot be withdrawn.
+    spend_only_credits = Column(Float, default=0.0, server_default="0", nullable=False)
     
     # HOBBYIST CREDITS: Can only be used for gear purchases (Grom Parents & Hobbyists)
     gear_only_credits = Column(Float, default=0.0, nullable=False)

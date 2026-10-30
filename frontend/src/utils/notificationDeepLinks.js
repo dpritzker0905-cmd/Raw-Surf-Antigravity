@@ -8,12 +8,17 @@
 
 import logger from './logger';
 
+const SUPPORT_REPLY_KEYS = ['ticket_id', 'message_id', 'recipient_id'];
+const isUuid = value => typeof value === 'string' && value.length === 36 &&
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+
 /**
  * Get the deep link route for a notification based on its type and data
  * @param {Object} notification - The notification object with type and data fields
+ * @param {string} [currentUserId] - Authenticated recipient required for support replies
  * @returns {Object|null} - { route: string, state?: object } or null if no deep link
  */
-export const getNotificationDeepLink = (notification) => {
+export const getNotificationDeepLink = (notification, currentUserId) => {
   const { type, data: dataStr } = notification;
   let data = {};
   
@@ -27,6 +32,16 @@ export const getNotificationDeepLink = (notification) => {
   
   // Map notification types to routes
   switch (type) {
+    case 'support_reply':
+      // Support metadata is an exact recipient-bound contract, never a generic link.
+      if (!data || typeof data !== 'object' || Array.isArray(data) ||
+          Reflect.ownKeys(data).length !== SUPPORT_REPLY_KEYS.length ||
+          !SUPPORT_REPLY_KEYS.every(key => Object.prototype.hasOwnProperty.call(data, key) && isUuid(data[key])) ||
+          !isUuid(currentUserId) || data.recipient_id.toLowerCase() !== currentUserId.toLowerCase()) {
+        return null;
+      }
+      return { route: `/support/tickets/${data.ticket_id.toLowerCase()}` };
+
     // ========== BOOKING & SESSION NOTIFICATIONS ==========
     case 'booking_request':
     case 'booking_confirmed':

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Crew management -- invites, decline, crew pay, crew checkout, tracking.
 
 Part of the dispatch package -- extracted from dispatch.py monolith.
@@ -18,6 +18,9 @@ import stripe
 from utils.geo import haversine_distance
 
 from database import get_db
+from utils.credits import consume_spend_only_for_debit
+from utils.checkout_recovery import persist_pending_checkout
+from utils.crew_card_fulfillment import CLOSED_STATES, crew_share_cents, fulfill_crew_card_payment, is_crew_card_payment
 from core.security import get_current_user_id, get_user_id_from_jwt_or_query
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
@@ -131,13 +134,19 @@ async def decline_crew_invite(
     if participant.participant_id != user_id:
         raise HTTPException(status_code=403, detail="You can only decline your own invites")
 
-    if participant.status == 'paid':
+    # A concurrent card completion and a decline share the same lock order.
+    locked = await db.execute(select(DispatchRequest).where(DispatchRequest.id == participant.dispatch_request_id)
+                              .with_for_update().execution_options(populate_existing=True))
+    dispatch = locked.scalar_one_or_none()
+    locked = await db.execute(select(DispatchRequestParticipant).where(DispatchRequestParticipant.id == participant_id)
+                              .with_for_update().execution_options(populate_existing=True))
+    participant = locked.scalar_one()
+    if participant.paid or participant.status == 'paid':
         raise HTTPException(status_code=400, detail="Cannot decline — you've already paid")
 
     if participant.status == 'declined':
         return {"success": True, "message": "Already declined"}
 
-    dispatch = participant.dispatch_request
     if dispatch and dispatch.status in [
         DispatchRequestStatusEnum.ARRIVED,
         DispatchRequestStatusEnum.COMPLETED,
@@ -219,10 +228,16 @@ async def pay_crew_share(
     if participant.participant_id != payer_id:
         raise HTTPException(status_code=403, detail="You can only pay for your own share")
     
-    if participant.status == 'paid':
+    # Serialize credit and card fulfillment on the same dispatch before the share.
+    locked = await db.execute(select(DispatchRequest).where(DispatchRequest.id == participant.dispatch_request_id)
+                              .with_for_update().execution_options(populate_existing=True))
+    dispatch = locked.scalar_one()
+    locked = await db.execute(select(DispatchRequestParticipant).where(DispatchRequestParticipant.id == participant_id)
+                              .with_for_update().execution_options(populate_existing=True))
+    participant = locked.scalar_one()
+    if participant.paid or participant.status == 'paid':
         raise HTTPException(status_code=400, detail="Already paid")
     
-    dispatch = participant.dispatch_request
     if dispatch.status in [
         DispatchRequestStatusEnum.ARRIVED,
         DispatchRequestStatusEnum.COMPLETED,
@@ -231,7 +246,7 @@ async def pay_crew_share(
         raise HTTPException(status_code=400, detail="Session state is locked (arrived, completed, or cancelled)")
     
     # Get payer's profile - REQUIRED for metadata injection
-    payer_result = await db.execute(select(Profile).where(Profile.id == payer_id))
+    payer_result = await db.execute(select(Profile).where(Profile.id == payer_id).with_for_update().execution_options(populate_existing=True))
     payer = payer_result.scalar_one_or_none()
     
     if not payer:
@@ -265,11 +280,13 @@ async def pay_crew_share(
         # 1. Deduct credits
         old_balance = payer.credit_balance
         payer.credit_balance -= participant.share_amount
+        promo_spent = consume_spend_only_for_debit(payer, participant.share_amount)
         
         # 2. Record transaction
         tx = CreditTransaction(
             user_id=payer_id,
             amount=-participant.share_amount,
+            spend_only_amount=-promo_spent,
             balance_before=old_balance,
             balance_after=payer.credit_balance,
             transaction_type='crew_session_payment',
@@ -387,15 +404,11 @@ async def crew_invite_checkout(
         raise HTTPException(status_code=404, detail="Invite not found")
     if participant.participant_id != payer_id:
         raise HTTPException(status_code=403, detail="You can only pay for your own share")
-    if participant.status == 'paid':
+    if participant.paid or participant.status == 'paid':
         raise HTTPException(status_code=400, detail="Already paid")
 
     dispatch = participant.dispatch_request
-    if dispatch.status in [
-        DispatchRequestStatusEnum.ARRIVED,
-        DispatchRequestStatusEnum.COMPLETED,
-        DispatchRequestStatusEnum.CANCELLED
-    ]:
+    if dispatch.status in CLOSED_STATES or participant.status not in ('invited', 'pending', 'confirmed'):
         raise HTTPException(status_code=400, detail="Session state is locked (arrived, completed, or cancelled)")
 
     # Get payer profile for metadata
@@ -403,11 +416,6 @@ async def crew_invite_checkout(
     payer = payer_result.scalar_one_or_none()
     if not payer:
         raise HTTPException(status_code=404, detail="User not found")
-
-    # Store selfie if supplied before redirect
-    if checkout_data.selfie_url and not participant.selfie_url:
-        participant.selfie_url = checkout_data.selfie_url
-        await db.commit()
 
     # Create Stripe Checkout session
     stripe_key = (
@@ -423,7 +431,16 @@ async def crew_invite_checkout(
 
     _stripe.api_key = stripe_key
 
-    amount_cents = int(participant.share_amount * 100)
+    amount_cents = crew_share_cents(participant.share_amount)
+    receipt = {
+        'type': 'crew_share', 'version': 1, 'participant_id': participant_id,
+        'dispatch_id': dispatch.id, 'payer_id': payer_id, 'amount_cents': amount_cents, 'currency': 'usd',
+        'selfie_url': checkout_data.selfie_url or participant.selfie_url,
+        'payer_name': payer.full_name or '', 'payer_username': payer.username or '',
+        'payer_avatar_url': payer.avatar_url or '',
+    }
+    provider_metadata = {key: str(receipt[key]) for key in
+                         ('type', 'version', 'participant_id', 'dispatch_id', 'payer_id', 'amount_cents', 'currency')}
     origin = checkout_data.origin_url.rstrip("/")
 
     try:
@@ -444,23 +461,40 @@ async def crew_invite_checkout(
                 "quantity": 1,
             }],
             mode="payment",
-            success_url=f"{origin}/bookings?tab=scheduled&crew_paid=1&participant={participant_id}",
+            success_url=f"{origin}/dispatch/crew-payment/success?session_id={{CHECKOUT_SESSION_ID}}",
             cancel_url=f"{origin}/bookings?tab=scheduled&crew_cancelled=1",
-            metadata={
-                "type": "crew_share",
-                "participant_id": participant_id,
-                "dispatch_id": dispatch.id,
-                "payer_id": payer_id,
-                "payer_name": payer.full_name or "",
-                "payer_username": payer.username or "",
-                "payer_avatar_url": payer.avatar_url or "",
-                "share_amount": str(participant.share_amount),
-            },
+            metadata=provider_metadata,
             customer_email=payer.email if hasattr(payer, "email") else None,
         )
     except Exception as e:
         logger.error(f"[CrewCheckout] Stripe error: {e}")
         raise HTTPException(status_code=500, detail=f"Payment session failed: {str(e)}")
 
+    await persist_pending_checkout(db, session.id, lambda: PaymentTransaction(
+        user_id=payer_id, session_id=session.id, amount=amount_cents / 100, currency='usd',
+        payment_status='pending', status='pending', transaction_metadata=json.dumps(receipt),
+    ))
     return {"checkout_url": session.url, "session_id": session.id}
 
+
+@router.get('/crew-payment/{session_id}')
+async def get_crew_card_payment(
+    session_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(PaymentTransaction).where(PaymentTransaction.session_id == session_id))
+    transaction = result.scalar_one_or_none()
+    if transaction is None or transaction.user_id != current_user_id or not is_crew_card_payment(transaction):
+        raise HTTPException(status_code=404, detail='Crew payment not found')
+    try:
+        outcome = await fulfill_crew_card_payment(db, transaction)
+        await db.commit()
+        return outcome
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception:
+        await db.rollback()
+        logger.exception('Crew card completion could not be confirmed')
+        raise HTTPException(status_code=503, detail='Crew payment confirmation is temporarily unavailable. Refresh to retry.') from None
