@@ -3,7 +3,8 @@
 Design rules (each pinned by a test):
   * No tracking pixels, no remote images, no remote fonts, no click-tracking redirects: every link is a
     plain https URL built from FRONTEND_URL.
-  * A link carries ONLY an opaque single-use token (`?token=`), never an address, a name or an id.
+  * Authentication links carry only opaque single-use tokens. Support links carry a resource UUID and
+    require a signed-in owner; no link embeds an address, support text or authentication credential.
   * Every caller-supplied value is escaped for HTML, stripped of control characters (so a subject can never
     carry a header injection) and length-capped.
   * Accessible: lang attribute, one h1, 16px+ body text, >= 4.5:1 contrast in both schemes, the CTA is a real
@@ -14,6 +15,7 @@ Design rules (each pinned by a test):
 """
 import html
 import re
+import uuid
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Tuple
 
@@ -207,6 +209,16 @@ def _password_reset(p: dict) -> _Body:
     )
 
 
+def _support_reply(p: dict) -> _Body:
+    ticket_id = str(uuid.UUID(p["ticket_id"]))
+    return _Body(
+        subject="New reply from Raw Surf support", heading="You have a new support reply",
+        paragraphs=("Sign in to your Raw Surf account to read the reply in your support ticket.",),
+        cta_label="Open your ticket", cta_url=build_link("/support/tickets/" + ticket_id),
+        footnote="Reply inside the app. Replies to this notification email are not added to your ticket.",
+    )
+
+
 MAX_DIGEST_ITEMS = 20
 
 
@@ -248,6 +260,7 @@ TEMPLATES: Dict[str, TemplateSpec] = {
         ("reference",), _dispute_opened, priority=LOW,
         summary=lambda p: f"A dispute (reference {clean(p['reference'], 40)}) was opened on your account."),
     "notice_digest": TemplateSpec(("items",), _notice_digest, priority=LOW),
+    "support_reply": TemplateSpec(("ticket_id",), _support_reply, priority=LOW),
 }
 
 

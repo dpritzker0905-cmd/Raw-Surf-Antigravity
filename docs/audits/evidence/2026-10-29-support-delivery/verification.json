@@ -1,0 +1,635 @@
+{
+  "verifiedAt": "2026-10-30T00:41:27.298615+00:00",
+  "headBeforeLocalCommit": "72b4652d5753423cce18b9ad1d1de95f0afcb7e7",
+  "branch": "codex/admin-support-selection-20261029",
+  "priorEntryFiles": 83,
+  "protectedPriorFiles": 77,
+  "metadataOriginalBytesReconstruct": [],
+  "readersOriginalBytesReconstruct": [
+    "docs/audits/evidence/2026-10-29-admin-support-reopen/collect-evidence.cjs",
+    "docs/audits/evidence/2026-10-29-admin-support-numbering/collect-evidence.py"
+  ],
+  "typedFingerprintMetadata": {
+    "files": 4,
+    "allOriginalBytesReconstruct": true,
+    "readerAdapters": 3,
+    "hookBypass": false
+  },
+  "intentionalPriorChanges": [
+    "backend/routes/admin/support.py",
+    "frontend/src/components/admin/AdminSupportDashboard.js",
+    "frontend/src/components/admin/AdminSupportDashboard.metrics.test.js",
+    "frontend/src/components/admin/AdminSupportDashboard.test.js"
+  ],
+  "sharedBoundariesUnchanged": [
+    "App.js",
+    "ProtectedRoute.js",
+    "apiClient.js",
+    "notification consumers"
+  ],
+  "ui": {
+    "passed": 95,
+    "suites": [
+      {
+        "file": "AdminSupportDashboard.pagination.test.js",
+        "passed": 21
+      },
+      {
+        "file": "AdminSupportDashboard.test.js",
+        "passed": 22
+      },
+      {
+        "file": "AdminSupportDashboard.status.test.js",
+        "passed": 8
+      },
+      {
+        "file": "AdminSupportDashboard.metrics.test.js",
+        "passed": 18
+      },
+      {
+        "file": "authRedirectLoop.test.js",
+        "passed": 5
+      },
+      {
+        "file": "AdminSupportDashboard.samples.test.js",
+        "passed": 10
+      },
+      {
+        "file": "SupportInbox.test.js",
+        "passed": 8
+      },
+      {
+        "file": "SupportAuth.test.js",
+        "passed": 3
+      }
+    ]
+  },
+  "api": {
+    "sqlite": 37,
+    "postgresql": 37,
+    "fakeIdentityDependency": true,
+    "cases": [
+      {
+        "name": "missing auth rejected",
+        "passed": true
+      },
+      {
+        "name": "list bound to authenticated owner despite query user_id",
+        "passed": true
+      },
+      {
+        "name": "wrong owner404 before any message query",
+        "passed": true
+      },
+      {
+        "name": "owner reads public conversation without internal note or staff metadata",
+        "passed": true
+      },
+      {
+        "name": "wrong-owner write and owner note-mode injection fail without writes",
+        "passed": true
+      },
+      {
+        "name": "owner reply idempotent and conflicting reuse409",
+        "passed": true
+      },
+      {
+        "name": "owner reply creates no staff-reply notices and retains original lifecycle",
+        "passed": true
+      },
+      {
+        "name": "staff public reply committed once with one notice and outbox",
+        "passed": true
+      },
+      {
+        "name": "generic owner-bound notification has resource identifiers only",
+        "passed": true
+      },
+      {
+        "name": "email outbox payload contains ticket id only",
+        "passed": true
+      },
+      {
+        "name": "internal note produces no owner notice or email",
+        "passed": true
+      },
+      {
+        "name": "fake sender retry uses same idempotency key and terminal redrive does not send",
+        "passed": true
+      },
+      {
+        "name": "email generic authenticated link has no reply subject text token or attachments",
+        "passed": true
+      },
+      {
+        "name": "existing message preferences opt out notices without discarding reply",
+        "passed": true
+      },
+      {
+        "name": "unconfigured email leaves public reply and in-app notice without external send",
+        "passed": true
+      },
+      {
+        "name": "queue failure rolls back message notice and lifecycle together",
+        "passed": true
+      },
+      {
+        "name": "ticket creation request retry returns original and conflicting reuse409",
+        "passed": true
+      },
+      {
+        "name": "priority original-origin deadline and history: urgent:17",
+        "passed": true
+      },
+      {
+        "name": "priority original-origin deadline and history: high:18",
+        "passed": true
+      },
+      {
+        "name": "priority original-origin deadline and history: medium:19",
+        "passed": true
+      },
+      {
+        "name": "priority original-origin deadline and history: low:20",
+        "passed": true
+      },
+      {
+        "name": "priority original-origin deadline and history: urgent:21",
+        "passed": true
+      },
+      {
+        "name": "existing SLA duration boundaries remain exact and no current-time origin is used",
+        "passed": true
+      },
+      {
+        "name": "priority commit failure preserves every row and history",
+        "passed": true
+      },
+      {
+        "name": "reply commit failure rolls back message notice outbox and lifecycle",
+        "passed": true
+      },
+      {
+        "name": "missing original creation time holds priority update for review without fresh clock",
+        "passed": true
+      },
+      {
+        "name": "lost commit acknowledgement retry returns existing reply with one notice/outbox",
+        "passed": true
+      },
+      {
+        "name": "concurrent same-key replies persist once with one notice/outbox",
+        "passed": true
+      },
+      {
+        "name": "low-priority support email keeps its own ticket link and excludes digest mates",
+        "passed": true
+      },
+      {
+        "name": "retained reopen lifecycle resolved to open",
+        "passed": true
+      },
+      {
+        "name": "retained reopen lifecycle resolved to in_progress",
+        "passed": true
+      },
+      {
+        "name": "retained reopen lifecycle resolved to waiting_user",
+        "passed": true
+      },
+      {
+        "name": "retained reopen lifecycle resolved to waiting_internal",
+        "passed": true
+      },
+      {
+        "name": "retained reopen lifecycle closed to open",
+        "passed": true
+      },
+      {
+        "name": "retained reopen lifecycle closed to in_progress",
+        "passed": true
+      },
+      {
+        "name": "retained reopen lifecycle closed to waiting_user",
+        "passed": true
+      },
+      {
+        "name": "retained reopen lifecycle closed to waiting_internal",
+        "passed": true
+      }
+    ]
+  },
+  "allocationRegression": {
+    "sqlite": 17,
+    "postgresql": 17
+  },
+  "mailer": {
+    "passed": 140,
+    "fakeTransportsOnly": true,
+    "cases": [
+      "test_disabled_by_default_reports_not_configured_and_stores_nothing",
+      "test_disabled_sender_never_claims_success",
+      "test_resend_with_incomplete_config_is_disabled[env0]",
+      "test_resend_with_incomplete_config_is_disabled[env1]",
+      "test_resend_with_incomplete_config_is_disabled[env2]",
+      "test_resend_with_full_config_and_console_selection",
+      "test_worker_does_nothing_while_unconfigured",
+      "test_same_idempotency_key_twice_queues_and_sends_once",
+      "test_unique_race_is_reported_as_duplicate_not_an_exception",
+      "test_delivering_twice_sends_once",
+      "test_a_row_claimed_by_another_worker_is_left_alone",
+      "test_unknown_outbox_id_is_reported_missing",
+      "test_provider_receives_the_idempotency_key_and_auth",
+      "test_transient_failure_retries_with_backoff_then_sends",
+      "test_retries_are_bounded_and_backoff_is_exponential",
+      "test_max_attempts_comes_from_the_environment",
+      "test_a_client_error_is_not_retried[400]",
+      "test_a_client_error_is_not_retried[401]",
+      "test_a_client_error_is_not_retried[403]",
+      "test_a_client_error_is_not_retried[422]",
+      "test_rate_limit_and_timeout_are_retried[429-http_429]",
+      "test_rate_limit_and_timeout_are_retried[outcome1-timeout]",
+      "test_network_error_message_is_not_stored",
+      "test_backoff_doubles_and_is_capped",
+      "test_sweep_redrives_stuck_queued_rows",
+      "test_address_and_token_are_cleared_once_sent_but_the_hash_stays",
+      "test_address_and_token_are_cleared_when_delivery_fails",
+      "test_a_suppressed_address_is_never_sent_to",
+      "test_suppression_matches_regardless_of_case_and_whitespace",
+      "test_suppression_added_after_enqueue_stops_the_worker",
+      "test_suppressing_cancels_messages_still_queued_and_is_idempotent",
+      "test_per_recipient_rate_limit",
+      "test_global_rate_limit",
+      "test_a_repeated_key_is_a_duplicate_even_when_the_limit_is_hit",
+      "test_rows_older_than_an_hour_do_not_count",
+      "test_invalid_recipients_are_refused_without_a_row[]",
+      "test_invalid_recipients_are_refused_without_a_row[no-at-sign]",
+      "test_invalid_recipients_are_refused_without_a_row[a@b]",
+      "test_invalid_recipients_are_refused_without_a_row[a b@example.test]",
+      "test_invalid_recipients_are_refused_without_a_row[x@example.test,y@example.test]",
+      "test_invalid_recipients_are_refused_without_a_row[Name <x@example.test>]",
+      "test_invalid_recipients_are_refused_without_a_row[x@example.test\\nBcc: y@example.test]",
+      "test_invalid_recipients_are_refused_without_a_row[@example.test]",
+      "test_bad_idempotency_keys_are_refused[]",
+      "test_bad_idempotency_keys_are_refused[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]",
+      "test_bad_template_input_is_refused_up_front[nope-params0-unknown_template]",
+      "test_bad_template_input_is_refused_up_front[guardian_invite-params1-missing_param:token]",
+      "test_bad_template_input_is_refused_up_front[guardian_invite-params2-token_not_opaque]",
+      "test_an_unset_frontend_url_is_refused_not_sent_with_a_broken_link",
+      "test_console_sender_records_in_memory_and_can_write_a_dev_file",
+      "test_no_address_or_token_in_logs_on_any_path",
+      "test_reply_to_is_sent_only_when_configured",
+      "test_newline_cannot_hide_behind_the_address_regex_end_anchor",
+      "test_templates_are_classed_security_or_low",
+      "test_a_low_priority_notice_waits_for_the_digest_window_but_security_does_not",
+      "test_a_waiting_notice_is_not_sent_early_and_goes_alone_when_it_has_no_company",
+      "test_the_digest_window_comes_from_the_environment",
+      "test_waiting_notices_for_one_recipient_go_out_as_one_email",
+      "test_a_message_is_never_built_from_rows_of_different_recipients",
+      "test_each_digest_has_its_own_provider_idempotency_key",
+      "test_delivering_a_row_that_was_already_merged_sends_nothing_more",
+      "test_the_daily_budget_counts_emails_not_rows",
+      "test_low_priority_is_held_to_the_next_utc_day_once_80_percent_of_the_cap_is_used",
+      "test_low_priority_still_sends_below_80_percent",
+      "test_security_mail_is_never_held_by_the_daily_budget",
+      "test_the_80_percent_warning_is_logged_once_per_day",
+      "test_a_held_notice_goes_out_after_the_quota_day_rolls_over",
+      "test_rate_limits_are_counted_per_priority_so_notices_cannot_starve_security_mail",
+      "test_the_global_limit_is_counted_per_priority_too",
+      "test_the_sweep_sends_security_mail_before_notices",
+      "test_the_sweep_leaves_notices_that_are_still_waiting",
+      "test_sweeper_only_sweeps_when_a_provider_is_configured_and_survives_a_bad_pass",
+      "test_the_sweeper_is_started_by_the_app_only_outside_tests",
+      "test_support_notice_is_generic_links_to_ticket_and_omits_reply_to",
+      "test_every_template_has_sample_params_here",
+      "test_template_renders_html_and_plain_text[account_lockout_notice]",
+      "test_template_renders_html_and_plain_text[dispute_opened]",
+      "test_template_renders_html_and_plain_text[guardian_confirmed]",
+      "test_template_renders_html_and_plain_text[guardian_invite]",
+      "test_template_renders_html_and_plain_text[login_new_device]",
+      "test_template_renders_html_and_plain_text[notice_digest]",
+      "test_template_renders_html_and_plain_text[password_reset]",
+      "test_template_renders_html_and_plain_text[support_reply]",
+      "test_no_tracking_or_remote_resources[account_lockout_notice]",
+      "test_no_tracking_or_remote_resources[dispute_opened]",
+      "test_no_tracking_or_remote_resources[guardian_confirmed]",
+      "test_no_tracking_or_remote_resources[guardian_invite]",
+      "test_no_tracking_or_remote_resources[login_new_device]",
+      "test_no_tracking_or_remote_resources[notice_digest]",
+      "test_no_tracking_or_remote_resources[password_reset]",
+      "test_no_tracking_or_remote_resources[support_reply]",
+      "test_links_use_frontend_url_and_carry_only_an_opaque_token[account_lockout_notice]",
+      "test_links_use_frontend_url_and_carry_only_an_opaque_token[dispute_opened]",
+      "test_links_use_frontend_url_and_carry_only_an_opaque_token[guardian_confirmed]",
+      "test_links_use_frontend_url_and_carry_only_an_opaque_token[guardian_invite]",
+      "test_links_use_frontend_url_and_carry_only_an_opaque_token[login_new_device]",
+      "test_links_use_frontend_url_and_carry_only_an_opaque_token[notice_digest]",
+      "test_links_use_frontend_url_and_carry_only_an_opaque_token[password_reset]",
+      "test_links_use_frontend_url_and_carry_only_an_opaque_token[support_reply]",
+      "test_template_is_accessible_and_scheme_aware[account_lockout_notice]",
+      "test_template_is_accessible_and_scheme_aware[dispute_opened]",
+      "test_template_is_accessible_and_scheme_aware[guardian_confirmed]",
+      "test_template_is_accessible_and_scheme_aware[guardian_invite]",
+      "test_template_is_accessible_and_scheme_aware[login_new_device]",
+      "test_template_is_accessible_and_scheme_aware[notice_digest]",
+      "test_template_is_accessible_and_scheme_aware[password_reset]",
+      "test_template_is_accessible_and_scheme_aware[support_reply]",
+      "test_guardian_invite_states_the_48_hour_expiry_and_single_use",
+      "test_caller_text_is_escaped_in_html_and_cannot_inject_headers",
+      "test_only_an_opaque_token_can_ride_in_a_link[]",
+      "test_only_an_opaque_token_can_ride_in_a_link[short]",
+      "test_only_an_opaque_token_can_ride_in_a_link[has space 0123456789abcdef]",
+      "test_only_an_opaque_token_can_ride_in_a_link[a@b.example.test-0123456789]",
+      "test_only_an_opaque_token_can_ride_in_a_link[xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx]",
+      "test_only_an_opaque_token_can_ride_in_a_link[tok/../../etc/0123456789]",
+      "test_only_an_opaque_token_can_ride_in_a_link[tok?x=1&y=2_0123456789]",
+      "test_link_base_must_be_configured_and_https",
+      "test_missing_and_unknown_inputs_are_template_errors",
+      "test_password_reset_uses_the_existing_reset_link_shape",
+      "test_the_digest_lists_every_item_escaped_and_is_capped",
+      "test_the_expiry_constant_matches_the_policy",
+      "test_signature_roundtrip_and_tamper_detection",
+      "test_stale_future_and_garbage_timestamps_are_rejected",
+      "test_empty_secret_or_headers_never_verify",
+      "test_a_rotated_secret_sends_two_signatures_and_either_may_match",
+      "test_webhook_is_closed_while_the_secret_is_unset",
+      "test_webhook_rejects_missing_wrong_and_stale_signatures",
+      "test_a_signed_permanent_bounce_suppresses_the_address",
+      "test_a_complaint_suppresses_and_cancels_queued_mail",
+      "test_a_transient_bounce_and_unrelated_events_do_not_suppress",
+      "test_a_signed_but_malformed_payload_is_a_400_not_a_crash",
+      "test_webhook_logs_a_hash_reference_never_the_address",
+      "test_a_plain_non_whsec_secret_also_verifies",
+      "test_the_package_cannot_shadow_the_standard_library_email_module",
+      "test_the_existing_email_service_module_is_not_shadowed",
+      "test_these_tests_stay_out_of_the_forecast_chain_ci_lane",
+      "test_the_webhook_is_listed_as_a_public_write_with_a_reason",
+      "test_the_alembic_revision_matches_the_models",
+      "test_the_outbox_enforces_idempotency_in_the_schema",
+      "test_models_are_registered_for_the_startup_self_heal"
+    ]
+  },
+  "browser": {
+    "passed": 6,
+    "version": "156.0.8078.48",
+    "realAuthProtectedRouteAndAdapter": true,
+    "fakeApiIdentityShellAndTos": true,
+    "externalRequests": 0,
+    "pageErrors": 0,
+    "horizontalOverflow": false
+  },
+  "postgresControl": {
+    "final-postgres-control.json": {
+      "ownedNewCluster": true,
+      "loopbackOnly": true,
+      "database": "support_numbering_fixture",
+      "label": "final",
+      "version": "postgres (PostgreSQL) 17.11",
+      "fixtureExitCode": 0,
+      "passed": 37,
+      "total": 37,
+      "expectationsMet": true,
+      "pgStatusStopped": true,
+      "osListenerAbsent": true
+    },
+    "allocation-final-postgres-control.json": {
+      "ownedNewCluster": true,
+      "loopbackOnly": true,
+      "database": "support_numbering_fixture",
+      "label": "final",
+      "version": "postgres (PostgreSQL) 17.11",
+      "fixtureExitCode": 0,
+      "passed": 17,
+      "total": 17,
+      "expectationsMet": true,
+      "pgStatusStopped": true,
+      "osListenerAbsent": true
+    }
+  },
+  "scopedLint": {
+    "errors": 0,
+    "warnings": 0
+  },
+  "pythonSyntaxAndSize": "pass",
+  "whitespace": "pass",
+  "files": [
+    {
+      "path": "backend/routes/admin/support.py",
+      "sha256": "043e94ada0d445d10be4510b180f1453503d2393ea39a31e1290e1c05de40b91",
+      "canonicalLfSha256": "043e94ada0d445d10be4510b180f1453503d2393ea39a31e1290e1c05de40b91",
+      "gitBlob": "69e7e796a682623ef3c42f62c68dd003e68600cd"
+    },
+    {
+      "path": "backend/services/support_delivery.py",
+      "sha256": "a2628c99a9c65e1f51131d9f97fe4d2d84b9010f960e02a590e21b718936aa9b",
+      "canonicalLfSha256": "a2628c99a9c65e1f51131d9f97fe4d2d84b9010f960e02a590e21b718936aa9b",
+      "gitBlob": "d7dd05b8206414f21bb67f8607dd7d2dfcb82514"
+    },
+    {
+      "path": "backend/services/mailer/outbox.py",
+      "sha256": "7dac0baa0ddb6c939876bbae8634366f6a827b6cf60052cb7808ad17fe5a0e0f",
+      "canonicalLfSha256": "7dac0baa0ddb6c939876bbae8634366f6a827b6cf60052cb7808ad17fe5a0e0f",
+      "gitBlob": "7a93672e9078219437ed979fe611d50a4ff061b2"
+    },
+    {
+      "path": "backend/services/mailer/senders.py",
+      "sha256": "bff21a6fed6426b6a860f54208c476810903956aaf8a3a3e73bec34f81a8e5d2",
+      "canonicalLfSha256": "bff21a6fed6426b6a860f54208c476810903956aaf8a3a3e73bec34f81a8e5d2",
+      "gitBlob": "06f83f1c83a110f6f9329338c8dc825b73e96668"
+    },
+    {
+      "path": "backend/services/mailer/templates.py",
+      "sha256": "eed4016ef1245cf2093b082375538ba3bf1dd0d01d080a8ae5dee11484c11e12",
+      "canonicalLfSha256": "eed4016ef1245cf2093b082375538ba3bf1dd0d01d080a8ae5dee11484c11e12",
+      "gitBlob": "b55076903b10c5369de3d353eb4263672b6fac54"
+    },
+    {
+      "path": "backend/tests/test_email_service.py",
+      "sha256": "fa88805874d4b6e5d55236068a1875ad4597018428e8203afab8ed37d2dbb339",
+      "canonicalLfSha256": "8d06b6391024d8c5be87515714e7c9cdcd876f6be939a09e09ae666470c78dbc",
+      "gitBlob": "03c5ada6764cd2eac2e91db5df0dfa03e103124d"
+    },
+    {
+      "path": "backend/tests/test_email_templates_and_webhook.py",
+      "sha256": "ed9554e54408326bb7b6285e91f9f46af32dde256db7a017434b8b871b1709c6",
+      "canonicalLfSha256": "90dddfa3834bee023a7efdbab78a6808b12bec54239bb51e59d48b4584f3e5f3",
+      "gitBlob": "8f5e12207c2607e57d24f8f0b14fe047cf5df628"
+    },
+    {
+      "path": "backend/tests/test_support_delivery_fixture.py",
+      "sha256": "8afdfc55272b96f265b51396c785bb9a9507161023e0519f76d014d38c3b93f8",
+      "canonicalLfSha256": "8afdfc55272b96f265b51396c785bb9a9507161023e0519f76d014d38c3b93f8",
+      "gitBlob": "25f4f79cdcddc306d297d85c2c4b1509a7a5549c"
+    },
+    {
+      "path": "frontend/src/components/Auth.js",
+      "sha256": "d998cd9c936c59e26064cf83667137e4aed1b7bb002c7de6276af65eac99c3d8",
+      "canonicalLfSha256": "d998cd9c936c59e26064cf83667137e4aed1b7bb002c7de6276af65eac99c3d8",
+      "gitBlob": "dba64198a722d08353e6470a6a11c4a95791afa9"
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.js",
+      "sha256": "8f720b4df6ce8f07cbceb86c3bf0231a20176b9c46dcd28000597b71670f4a95",
+      "canonicalLfSha256": "8f720b4df6ce8f07cbceb86c3bf0231a20176b9c46dcd28000597b71670f4a95",
+      "gitBlob": "9bb7cdc0af49dd67fa8e25c6b81b380f475ba6fc"
+    },
+    {
+      "path": "frontend/src/components/support/SupportAuth.test.js",
+      "sha256": "f4b07558e139aa098ad0919f49495737fdc51e5f07ecbef58efef3951e6cbc4f",
+      "canonicalLfSha256": "35824a446c7a14c2ae2838aecac2196ebeee56b7921bb1e07c85476736ea0857",
+      "gitBlob": "a997cae97ab2efe3de86b03207932c1787b85bbd"
+    },
+    {
+      "path": "frontend/src/components/support/SupportInbox.js",
+      "sha256": "000bf4a64dd3b02d8568d28a4688623dec7947c393409c4d29fa82a5e61b985b",
+      "canonicalLfSha256": "000bf4a64dd3b02d8568d28a4688623dec7947c393409c4d29fa82a5e61b985b",
+      "gitBlob": "46d4156151af7b160d7af4a60b65a93d7ea6cf79"
+    },
+    {
+      "path": "frontend/src/components/support/SupportInbox.test.js",
+      "sha256": "33ad75569f7c045e01a36234a6970006328ec86e0d53f3db0b756c93f21c4d90",
+      "canonicalLfSha256": "6d608ebc863a7abfcaf7f968b29b4e9cb021330f3d65b10f8c9f12f7e9c754c6",
+      "gitBlob": "89e7ce2992e52415043c03e8494387088ef97694"
+    },
+    {
+      "path": "frontend/src/components/support/SupportRoute.js",
+      "sha256": "85cabb7ff36e5f2b71bd0d828f29d73dd901f04243f4c09d3f7505883c366cf9",
+      "canonicalLfSha256": "85cabb7ff36e5f2b71bd0d828f29d73dd901f04243f4c09d3f7505883c366cf9",
+      "gitBlob": "bf35c66ca00242184d542dec10db485d33d8019a"
+    },
+    {
+      "path": "frontend/src/components/support/supportRoutes.js",
+      "sha256": "3d7092a3b481954dbfbb0f588dde34dc143c7ff9c0a7e5be64e1029ad34035f6",
+      "canonicalLfSha256": "3d7092a3b481954dbfbb0f588dde34dc143c7ff9c0a7e5be64e1029ad34035f6",
+      "gitBlob": "1cff0b83ab3d21c38d7eb781648747c968956157"
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.metrics.test.js",
+      "sha256": "e5a259f0f1e80981232191b092899939bff56969a574f503db191d1f07cad7fb",
+      "canonicalLfSha256": "dfa6b8d1a464a6d05e319e089248e25dd28c6831d32783f821a94c0be5483d00",
+      "gitBlob": "63d59f885f074e69974b752bffc5b34be9733edd"
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.pagination.test.js",
+      "sha256": "0f576bcab6c1189e1fb8019f0371d86f629e3dd3467a6d613dd635af2a063aac",
+      "canonicalLfSha256": "0f576bcab6c1189e1fb8019f0371d86f629e3dd3467a6d613dd635af2a063aac",
+      "gitBlob": "a482e80db5afc281877b418d9784b2b5b2d48f81"
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.samples.test.js",
+      "sha256": "f9002e75870c303561819a0be57791ccc671f07c1a496a02c0e4acaeb5498d91",
+      "canonicalLfSha256": "f9002e75870c303561819a0be57791ccc671f07c1a496a02c0e4acaeb5498d91",
+      "gitBlob": "0f5bdd15c3dad235347e6e2bdba463c18d3d42d0"
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.status.test.js",
+      "sha256": "461de2a9b9ad04611c68057f29d4f7a54aca925e4193980a9902be6a9897c481",
+      "canonicalLfSha256": "461de2a9b9ad04611c68057f29d4f7a54aca925e4193980a9902be6a9897c481",
+      "gitBlob": "63e3461330515903ee78562f1b2ee875cd1c8015"
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.test.js",
+      "sha256": "12c34658a89b1e8e02e16279b14db8e740cc3bc0f666c2e62304be464a09e450",
+      "canonicalLfSha256": "45328aa731481d8549e97186537523fe989d9d7a749a4ce8b1edd904ca10d2c2",
+      "gitBlob": "7d3a18ecfa860da6812abb07a4608add78c480b5"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-support-delivery/browser-auth.jsx",
+      "sha256": "07654290f0344bd84c71d5149f84153fdfc8bed0f6725fcf3ca14783066cc759",
+      "canonicalLfSha256": "55187011fada24e0ffd5cdbdd545e1f37587f9fb8813719f38c87530ad744f21",
+      "gitBlob": "0767785584aef58dcd67e15fc04b33e02ce24833"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-support-delivery/browser-fixture.jsx",
+      "sha256": "49b8213345206e7ec1e99323dfd04fa3d9c246853cf929a0d544d32c4b8fc3e9",
+      "canonicalLfSha256": "49b8213345206e7ec1e99323dfd04fa3d9c246853cf929a0d544d32c4b8fc3e9",
+      "gitBlob": "e029d279aa36d26384572f8d9533f38ee7d7026e"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-support-delivery/browser-mfa.jsx",
+      "sha256": "35910b174b901d438c4559191dde972b624c6126bc1860453db7819732e1c28f",
+      "canonicalLfSha256": "35910b174b901d438c4559191dde972b624c6126bc1860453db7819732e1c28f",
+      "gitBlob": "7c60b56cf7047f5e7f4c29432cfb567a173f5f50"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-support-delivery/browser-shell.jsx",
+      "sha256": "36388196d8c68d866b91f3a7f079abce13ad832e60bed5cf56374c8cd57587c9",
+      "canonicalLfSha256": "36388196d8c68d866b91f3a7f079abce13ad832e60bed5cf56374c8cd57587c9",
+      "gitBlob": "e59ddb41709ed6208ecc42c53919ab6dc398ae5f"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-support-delivery/browser-transport.js",
+      "sha256": "e328fcc7eb4268f9c620ca46926adaf575d6cefbb9207c23c956adb1248a299f",
+      "canonicalLfSha256": "e328fcc7eb4268f9c620ca46926adaf575d6cefbb9207c23c956adb1248a299f",
+      "gitBlob": "0177a9ad880dce341c95d5beaca7eaec34ab6935"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-support-delivery/collect-evidence.py",
+      "sha256": "eb04fa8a822fd127885c4e13cad40ba46a47d51034ef5da2c3b0dae60f563f1c",
+      "canonicalLfSha256": "7f83b7df726528dc9265f074b7d557dce1a3c258b4f3d80ff359b79f0d8f3e27",
+      "gitBlob": "ec04792bfa01d6bac12efcc3f483721718314ee8"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-support-delivery/reformat-fingerprints.py",
+      "sha256": "06d0166032a81b4618b2ad6c98fa58ff6a8a79b63bfab56e96156ae666a8f2ee",
+      "canonicalLfSha256": "06d0166032a81b4618b2ad6c98fa58ff6a8a79b63bfab56e96156ae666a8f2ee",
+      "gitBlob": "12fd34ae46969a43cf6e02474283d99bc6e78e75"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-support-delivery/run-browser.cjs",
+      "sha256": "0fa08fd867b6605c38bc39c4fbd806628dd690914cc8d1f9f2a833d9d316654f",
+      "canonicalLfSha256": "9fa436f6863edbf005a8d26bd30c6e8fd4751c5aeb691a7a37b73b7b37e87611",
+      "gitBlob": "c78a5f461abffdf5ca2dcb33e29c84a1bd3c99c0"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-support-delivery/run-lint.cjs",
+      "sha256": "610d0634f90a31b3f3ad521645eeccd4f38e02cc9c0a213ceef319e8e409a823",
+      "canonicalLfSha256": "4f54b88ba43fa99ceab77ec2aae840bd984f3c24064aab03bbe1f18cb3a74372",
+      "gitBlob": "164c7b7291d365a26dbd65c109c2b67f26e5e11d"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-support-delivery/run-mailer-tests.py",
+      "sha256": "00a6fe69cc3861387f370d7484be1578e8338ac5a0e2447535d0d4b4e55eb472",
+      "canonicalLfSha256": "8175875e8455f20d3a8f24f2c74ead129f58396ce7d196a27a4aa3e6307eee06",
+      "gitBlob": "3161338e43edbf541651bf8665200d402cfa456e"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-support-delivery/run-numbering-postgres.py",
+      "sha256": "7481ab60b12ce6372a90fb12bd1d1bd259fe89f840f70cb1bd1b724ae14a8db9",
+      "canonicalLfSha256": "06dd6bcd51ff1004a44c62cc82efc2471c2179207b6d1db0903585a8380f35ac",
+      "gitBlob": "10f9cd3702d5e1b7c75e4446202b9d2099578eee"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-support-delivery/run-postgres.py",
+      "sha256": "1cd5bf733ba343bb8a1bf33954969ad0a431fcf5f8c5d75a8ba7146eee7eb99d",
+      "canonicalLfSha256": "e415b9d1b753c19e05f7c12d6ad512fcf21085b5c1867238c52b583d07a95e99",
+      "gitBlob": "0e024b7d5d73a71152c18bbab8070b5a4cfc33ea"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-support-delivery/run-tests.cjs",
+      "sha256": "536878bb8b452a30e2c7e5612f92646a34a673cc87d033dda15b52c536de6ffa",
+      "canonicalLfSha256": "56b6f044f245ec53fb8da4b75b6f410318f20e70ff78549c425a91eb70db3366",
+      "gitBlob": "2b6945b606403265b3fdfa6313dfd348b28dc4b7"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-support-delivery/verify-delivery.py",
+      "sha256": "39658f997e07020e6e2d1a1a913d2352ac2b25c75bd221bca57e08ad5e71aea2",
+      "canonicalLfSha256": "39658f997e07020e6e2d1a1a913d2352ac2b25c75bd221bca57e08ad5e71aea2",
+      "gitBlob": "02fd5aae7739d226b2cf14e3a37aeabd8751f608"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-support-delivery/verify-numbering.py",
+      "sha256": "506ddd25925a051faf730a37fede9149b6320a94fe153c9d4974e5cb03ce4dae",
+      "canonicalLfSha256": "506ddd25925a051faf730a37fede9149b6320a94fe153c9d4974e5cb03ce4dae",
+      "gitBlob": "d84b7dd1be447210dd1ee054fc55f18d909f6043"
+    }
+  ],
+  "limits": [
+    "App.js mounting belongs to booking owner and is not integrated; notification-consumer implementation not integrated; contract/reservations acknowledged",
+    "Two cross-chat sends were rejected by approval review; no further attempt or alternate transfer",
+    "ASGI fixture substitutes identity dependencies; not actual JWT cryptography or live accounts",
+    "Email is opt-in and subject to existing low-priority delay/rate/suppression/budget; no provider/network effects",
+    "No full-app/hosted schema/hosted CI/device/cross-browser acceptance or merge/deployment authorization",
+    "Working-tree checks before any local commit; canonical fingerprints bind later committed bytes but do not imply post-commit execution"
+  ]
+}

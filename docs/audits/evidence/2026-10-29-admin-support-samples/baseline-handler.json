@@ -1,0 +1,263 @@
+{
+  "actualHandlerAndTicketModel": true,
+  "database": "disposable in-memory SQLite",
+  "fixedClock": "2026-10-29T12:00:00+00:00",
+  "cases": [
+    {
+      "name": "empty cohort",
+      "passed": false,
+      "legacyAverageValuesPreserved": true,
+      "sampleCountsCorrect": false,
+      "readOnlyNineQueries": true,
+      "expected": {
+        "first_response_sample_count": 0,
+        "resolution_sample_count": 0,
+        "avg_first_response_hours": 0,
+        "avg_resolution_hours": 0
+      },
+      "actual": {
+        "first_response_sample_count": null,
+        "resolution_sample_count": null,
+        "avg_first_response_hours": 0.0,
+        "avg_resolution_hours": 0.0
+      },
+      "beforeSha256": "76d312a297923c24ec9c674ac79525a4fe4e02c1be676358bd5878f156a2319a",
+      "afterSha256": "76d312a297923c24ec9c674ac79525a4fe4e02c1be676358bd5878f156a2319a"
+    },
+    {
+      "name": "unanswered unresolved tickets",
+      "passed": false,
+      "legacyAverageValuesPreserved": true,
+      "sampleCountsCorrect": false,
+      "readOnlyNineQueries": true,
+      "expected": {
+        "first_response_sample_count": 0,
+        "resolution_sample_count": 0,
+        "avg_first_response_hours": 0,
+        "avg_resolution_hours": 0
+      },
+      "actual": {
+        "first_response_sample_count": null,
+        "resolution_sample_count": null,
+        "avg_first_response_hours": 0.0,
+        "avg_resolution_hours": 0.0
+      },
+      "beforeSha256": "dd0ea107408f45b8d419739abd60ff47c0bc6ec9ea46c67b4b104060449a7234",
+      "afterSha256": "dd0ea107408f45b8d419739abd60ff47c0bc6ec9ea46c67b4b104060449a7234"
+    },
+    {
+      "name": "measured zero durations",
+      "passed": false,
+      "legacyAverageValuesPreserved": true,
+      "sampleCountsCorrect": false,
+      "readOnlyNineQueries": true,
+      "expected": {
+        "first_response_sample_count": 1,
+        "resolution_sample_count": 1,
+        "avg_first_response_hours": 0,
+        "avg_resolution_hours": 0
+      },
+      "actual": {
+        "first_response_sample_count": null,
+        "resolution_sample_count": null,
+        "avg_first_response_hours": 0.0,
+        "avg_resolution_hours": 0.0
+      },
+      "beforeSha256": "e34599de42912d9e6b758e322abaf7fcb35e9e337da9773d2a8e6ed56725b8d5",
+      "afterSha256": "e34599de42912d9e6b758e322abaf7fcb35e9e337da9773d2a8e6ed56725b8d5"
+    },
+    {
+      "name": "single observed duration",
+      "passed": false,
+      "legacyAverageValuesPreserved": true,
+      "sampleCountsCorrect": false,
+      "readOnlyNineQueries": true,
+      "expected": {
+        "first_response_sample_count": 1,
+        "resolution_sample_count": 1,
+        "avg_first_response_hours": 1.5,
+        "avg_resolution_hours": 4
+      },
+      "actual": {
+        "first_response_sample_count": null,
+        "resolution_sample_count": null,
+        "avg_first_response_hours": 1.5,
+        "avg_resolution_hours": 4.0
+      },
+      "beforeSha256": "dd91f5ca1943a352aa31dedd4173c9a27c54a4c73322aa6e0d2959a00f3928ca",
+      "afterSha256": "dd91f5ca1943a352aa31dedd4173c9a27c54a4c73322aa6e0d2959a00f3928ca"
+    },
+    {
+      "name": "independent missing measurements",
+      "passed": false,
+      "legacyAverageValuesPreserved": true,
+      "sampleCountsCorrect": false,
+      "readOnlyNineQueries": true,
+      "expected": {
+        "first_response_sample_count": 2,
+        "resolution_sample_count": 1,
+        "avg_first_response_hours": 2,
+        "avg_resolution_hours": 4
+      },
+      "actual": {
+        "first_response_sample_count": null,
+        "resolution_sample_count": null,
+        "avg_first_response_hours": 2.0,
+        "avg_resolution_hours": 4.0
+      },
+      "beforeSha256": "b80d68d09d4eae8fd84d9cbd15c0b6692ea0c0f1b124d8c447cf00a03397658e",
+      "afterSha256": "b80d68d09d4eae8fd84d9cbd15c0b6692ea0c0f1b124d8c447cf00a03397658e"
+    },
+    {
+      "name": "only resolution observed",
+      "passed": false,
+      "legacyAverageValuesPreserved": true,
+      "sampleCountsCorrect": false,
+      "readOnlyNineQueries": true,
+      "expected": {
+        "first_response_sample_count": 0,
+        "resolution_sample_count": 1,
+        "avg_first_response_hours": 0,
+        "avg_resolution_hours": 2
+      },
+      "actual": {
+        "first_response_sample_count": null,
+        "resolution_sample_count": null,
+        "avg_first_response_hours": 0.0,
+        "avg_resolution_hours": 2.0
+      },
+      "beforeSha256": "f526579025194a7cca3e4efa140584d7034d1fd228407c1f73aeafbf59e7a4a1",
+      "afterSha256": "f526579025194a7cca3e4efa140584d7034d1fd228407c1f73aeafbf59e7a4a1"
+    },
+    {
+      "name": "only response observed",
+      "passed": false,
+      "legacyAverageValuesPreserved": true,
+      "sampleCountsCorrect": false,
+      "readOnlyNineQueries": true,
+      "expected": {
+        "first_response_sample_count": 1,
+        "resolution_sample_count": 0,
+        "avg_first_response_hours": 2,
+        "avg_resolution_hours": 0
+      },
+      "actual": {
+        "first_response_sample_count": null,
+        "resolution_sample_count": null,
+        "avg_first_response_hours": 2.0,
+        "avg_resolution_hours": 0.0
+      },
+      "beforeSha256": "afed663dd79fc89767d1a1201e9abde118f3d320cb5b358075d3ed6e92d8f30e",
+      "afterSha256": "afed663dd79fc89767d1a1201e9abde118f3d320cb5b358075d3ed6e92d8f30e"
+    },
+    {
+      "name": "old created-at cohort remains excluded",
+      "passed": false,
+      "legacyAverageValuesPreserved": true,
+      "sampleCountsCorrect": false,
+      "readOnlyNineQueries": true,
+      "expected": {
+        "first_response_sample_count": 0,
+        "resolution_sample_count": 0,
+        "avg_first_response_hours": 0,
+        "avg_resolution_hours": 0
+      },
+      "actual": {
+        "first_response_sample_count": null,
+        "resolution_sample_count": null,
+        "avg_first_response_hours": 0.0,
+        "avg_resolution_hours": 0.0
+      },
+      "beforeSha256": "8ba97f53136080464dba6350522b7aff6820a0a746fd4eba7310c1bb515eec86",
+      "afterSha256": "8ba97f53136080464dba6350522b7aff6820a0a746fd4eba7310c1bb515eec86"
+    },
+    {
+      "name": "exact 30-day boundary remains included",
+      "passed": false,
+      "legacyAverageValuesPreserved": true,
+      "sampleCountsCorrect": false,
+      "readOnlyNineQueries": true,
+      "expected": {
+        "first_response_sample_count": 1,
+        "resolution_sample_count": 1,
+        "avg_first_response_hours": 1,
+        "avg_resolution_hours": 2
+      },
+      "actual": {
+        "first_response_sample_count": null,
+        "resolution_sample_count": null,
+        "avg_first_response_hours": 1.0,
+        "avg_resolution_hours": 2.0
+      },
+      "beforeSha256": "17bca27c1d3ef768ce79c7d8006274ddfa1baf25913f5868a29b8de2b8ff6cd4",
+      "afterSha256": "17bca27c1d3ef768ce79c7d8006274ddfa1baf25913f5868a29b8de2b8ff6cd4"
+    },
+    {
+      "name": "one second outside creation boundary excluded",
+      "passed": false,
+      "legacyAverageValuesPreserved": true,
+      "sampleCountsCorrect": false,
+      "readOnlyNineQueries": true,
+      "expected": {
+        "first_response_sample_count": 0,
+        "resolution_sample_count": 0,
+        "avg_first_response_hours": 0,
+        "avg_resolution_hours": 0
+      },
+      "actual": {
+        "first_response_sample_count": null,
+        "resolution_sample_count": null,
+        "avg_first_response_hours": 0.0,
+        "avg_resolution_hours": 0.0
+      },
+      "beforeSha256": "bd7a21847d32ee603bf492921629bf7b3cf6b2f3f27f9c15e84ad01fc92c6fe7",
+      "afterSha256": "bd7a21847d32ee603bf492921629bf7b3cf6b2f3f27f9c15e84ad01fc92c6fe7"
+    },
+    {
+      "name": "custom seven-day cohort",
+      "passed": false,
+      "legacyAverageValuesPreserved": true,
+      "sampleCountsCorrect": false,
+      "readOnlyNineQueries": true,
+      "expected": {
+        "first_response_sample_count": 1,
+        "resolution_sample_count": 0,
+        "avg_first_response_hours": 2,
+        "avg_resolution_hours": 0
+      },
+      "actual": {
+        "first_response_sample_count": null,
+        "resolution_sample_count": null,
+        "avg_first_response_hours": 2.0,
+        "avg_resolution_hours": 0.0
+      },
+      "beforeSha256": "e349b6c306251479b8f0a5d0a63c4633a73ae236207569f4075ef309a8e49381",
+      "afterSha256": "e349b6c306251479b8f0a5d0a63c4633a73ae236207569f4075ef309a8e49381"
+    },
+    {
+      "name": "existing timestamp eligibility retained for reopened row",
+      "passed": false,
+      "legacyAverageValuesPreserved": true,
+      "sampleCountsCorrect": false,
+      "readOnlyNineQueries": true,
+      "expected": {
+        "first_response_sample_count": 1,
+        "resolution_sample_count": 1,
+        "avg_first_response_hours": 1,
+        "avg_resolution_hours": 3
+      },
+      "actual": {
+        "first_response_sample_count": null,
+        "resolution_sample_count": null,
+        "avg_first_response_hours": 1.0,
+        "avg_resolution_hours": 3.0
+      },
+      "beforeSha256": "fece7ba11af0ddb45417b28514ee7cd45760f8c38dddad943bdced4d51f5e730",
+      "afterSha256": "fece7ba11af0ddb45417b28514ee7cd45760f8c38dddad943bdced4d51f5e730"
+    }
+  ],
+  "passed": 0,
+  "total": 12,
+  "legacyAveragesPreserved": true,
+  "limits": "Offline function/query/model execution; no route authentication, real tickets, PostgreSQL or provider acceptance. Existing cohort/status policy retained."
+}

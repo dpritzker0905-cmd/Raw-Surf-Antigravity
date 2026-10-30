@@ -511,7 +511,8 @@ def test_templates_are_classed_security_or_low():
                  "password_reset"):
         assert priority_of(name) == "security", name
     assert priority_of("dispute_opened") == "low" and priority_of("notice_digest") == "low"
-    assert all(spec.summary for spec in TEMPLATES.values() if spec.priority == "low" and spec.required != ("items",))
+    assert priority_of("support_reply") == "low" and TEMPLATES["support_reply"].summary is None
+    assert all(spec.summary for name, spec in TEMPLATES.items() if spec.priority == "low" and name not in {"notice_digest", "support_reply"})
 
 
 async def test_a_low_priority_notice_waits_for_the_digest_window_but_security_does_not(factory):
@@ -747,3 +748,18 @@ def test_the_sweeper_is_started_by_the_app_only_outside_tests():
     source = (Path(__file__).resolve().parent.parent / "server.py").read_text(encoding="utf-8")
     gate, hook = source.index("if not is_testing:\n        asyncio.create_task(run_startup_tasks())"), source.index("start_sweeper()")
     assert gate < hook and "email_sweeper.cancel()" in source
+
+
+async def test_support_notice_is_generic_links_to_ticket_and_omits_reply_to(factory, monkeypatch):
+    monkeypatch.setenv("EMAIL_DIGEST_WINDOW_MINUTES", "0")
+    provider = FakeProvider(200)
+    sender = provider.sender(reply_to="reply@example.test")
+    ticket_id = "44444444-4444-4444-8444-444444444444"
+    queued = await _enqueue(factory, sender, key="support_reply:fixture", template="support_reply", params={"ticket_id": ticket_id})
+    assert await deliver_outbox_entry(queued.outbox_id, sender=sender, session_factory=factory) == "sent"
+    body = provider.bodies()[0]
+    assert body["subject"] == "New reply from Raw Surf support"
+    assert set(body) == {"from", "to", "subject", "html", "text"}
+    assert "/support/tickets/" + ticket_id in body["text"]
+    assert "token=" not in body["text"] and "?" not in body["text"]
+    assert "Replies to this notification email are not added to your ticket" in body["text"]

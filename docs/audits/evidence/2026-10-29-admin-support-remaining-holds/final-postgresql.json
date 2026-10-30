@@ -1,0 +1,203 @@
+{
+  "database": "owned disposable PostgreSQL",
+  "actualHandlersAndModels": true,
+  "cases": [
+    {
+      "name": "concurrent creation preserves both requests",
+      "passed": true,
+      "storedTickets": 2,
+      "distinctNumbers": 2,
+      "returned": [
+        {
+          "success": true,
+          "ticket_number": "TKT-AAAAAAAAAAAAAAAA",
+          "ticket_id": "cd92fb3e-1664-4810-929b-25323fcb2f16"
+        },
+        {
+          "success": true,
+          "ticket_number": "TKT-BBBBBBBBBBBBBBBB",
+          "ticket_id": "e0c1b79f-280f-4249-a530-357be33fd3db"
+        }
+      ],
+      "generationCalls": 2
+    },
+    {
+      "name": "deleted-row gap does not reuse legacy number",
+      "passed": true,
+      "error_class": null,
+      "error_status": null,
+      "generationCalls": 1,
+      "ticketsBefore": 2,
+      "ticketsAfter": 3,
+      "existingRowsPreserved": true,
+      "allRowsUnchanged": false,
+      "noCountQuery": true
+    },
+    {
+      "name": "concurrent same-candidate inserts retry through unique index",
+      "passed": true,
+      "storedTickets": 2,
+      "distinctNumbers": 2,
+      "returned": [
+        {
+          "success": true,
+          "ticket_number": "TKT-BBBBBBBBBBBBBBBB",
+          "ticket_id": "64c67156-ffc2-457c-98fa-3bcb77def909"
+        },
+        {
+          "success": true,
+          "ticket_number": "TKT-AAAAAAAAAAAAAAAA",
+          "ticket_id": "6e16f25d-20ae-4dcd-a8d1-65704477265b"
+        }
+      ],
+      "generationCalls": 3
+    },
+    {
+      "name": "first insert commits and is searchable",
+      "passed": true,
+      "error_class": null,
+      "error_status": null,
+      "generationCalls": 1,
+      "ticketsBefore": 0,
+      "ticketsAfter": 1,
+      "existingRowsPreserved": true,
+      "allRowsUnchanged": false,
+      "noCountQuery": true
+    },
+    {
+      "name": "one number collision retries without changing existing ticket",
+      "passed": true,
+      "error_class": null,
+      "error_status": null,
+      "generationCalls": 2,
+      "ticketsBefore": 1,
+      "ticketsAfter": 2,
+      "existingRowsPreserved": true,
+      "allRowsUnchanged": false,
+      "noCountQuery": true
+    },
+    {
+      "name": "two number collisions retry to third candidate",
+      "passed": true,
+      "error_class": null,
+      "error_status": null,
+      "generationCalls": 3,
+      "ticketsBefore": 1,
+      "ticketsAfter": 2,
+      "existingRowsPreserved": true,
+      "allRowsUnchanged": false,
+      "noCountQuery": true
+    },
+    {
+      "name": "bounded collision exhaustion leaves database unchanged",
+      "passed": true,
+      "error_class": "HTTPException",
+      "error_status": 503,
+      "generationCalls": 3,
+      "ticketsBefore": 1,
+      "ticketsAfter": 1,
+      "existingRowsPreserved": true,
+      "allRowsUnchanged": true,
+      "noCountQuery": true
+    },
+    {
+      "name": "payload and priority retained: low",
+      "passed": true,
+      "error_class": null,
+      "error_status": null,
+      "generationCalls": 1,
+      "ticketsBefore": 0,
+      "ticketsAfter": 1,
+      "existingRowsPreserved": true,
+      "allRowsUnchanged": false,
+      "noCountQuery": true
+    },
+    {
+      "name": "payload and priority retained: medium",
+      "passed": true,
+      "error_class": null,
+      "error_status": null,
+      "generationCalls": 1,
+      "ticketsBefore": 0,
+      "ticketsAfter": 1,
+      "existingRowsPreserved": true,
+      "allRowsUnchanged": false,
+      "noCountQuery": true
+    },
+    {
+      "name": "payload and priority retained: high",
+      "passed": true,
+      "error_class": null,
+      "error_status": null,
+      "generationCalls": 1,
+      "ticketsBefore": 0,
+      "ticketsAfter": 1,
+      "existingRowsPreserved": true,
+      "allRowsUnchanged": false,
+      "noCountQuery": true
+    },
+    {
+      "name": "payload and priority retained: urgent",
+      "passed": true,
+      "error_class": null,
+      "error_status": null,
+      "generationCalls": 1,
+      "ticketsBefore": 0,
+      "ticketsAfter": 1,
+      "existingRowsPreserved": true,
+      "allRowsUnchanged": false,
+      "noCountQuery": true
+    },
+    {
+      "name": "nullable defaults retain existing medium/other behavior",
+      "passed": true,
+      "error_class": null,
+      "error_status": null,
+      "generationCalls": 1,
+      "ticketsBefore": 0,
+      "ticketsAfter": 1,
+      "existingRowsPreserved": true,
+      "allRowsUnchanged": false,
+      "noCountQuery": true
+    },
+    {
+      "name": "commit failure propagates without automatic retry or row",
+      "passed": true,
+      "error_class": "RuntimeError",
+      "error_status": null,
+      "generationCalls": 1,
+      "ticketsBefore": 0,
+      "ticketsAfter": 0,
+      "existingRowsPreserved": true,
+      "allRowsUnchanged": true,
+      "noCountQuery": true
+    },
+    {
+      "name": "lost commit acknowledgement propagates with one durable row and no automatic retry",
+      "passed": true
+    },
+    {
+      "name": "non-number not-null failure is not suppressed or retried",
+      "passed": true,
+      "error_class": "IntegrityError",
+      "error_status": null,
+      "generationCalls": 1,
+      "ticketsBefore": 1,
+      "ticketsAfter": 1,
+      "existingRowsPreserved": true,
+      "allRowsUnchanged": true,
+      "noCountQuery": true
+    },
+    {
+      "name": "actual random generator emits128 distinct twenty-character references",
+      "passed": true
+    },
+    {
+      "name": "generator performs no database query",
+      "passed": true
+    }
+  ],
+  "passed": 17,
+  "total": 17,
+  "limits": "Positive function/model/SQL and independent session persistence/concurrency, injected local collision/failure seams; no mounted auth, live data or weather/app startup."
+}
