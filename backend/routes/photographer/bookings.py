@@ -24,6 +24,7 @@ from .schemas import (
     generate_invite_code, is_photographer_role,
 )
 from datetime import date
+from routes.bookings.crud import check_time_slot_conflict
 
 router = APIRouter()
 
@@ -189,6 +190,13 @@ async def create_booking(
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format")
     
+    conflict = await check_time_slot_conflict(
+        db=db, photographer_id=photographer_id,
+        session_date=session_date, duration=data.duration
+    )
+    if conflict:
+        raise HTTPException(status_code=409, detail=conflict["message"])
+
     # Calculate total price
     total_price = data.price_per_person * data.max_participants
     

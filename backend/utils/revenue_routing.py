@@ -146,13 +146,14 @@ async def process_creator_earnings(
     donation_dest_type = session_destination_type or creator.donation_destination_type
     donation_dest_id = session_destination_id or creator.donation_destination_id
     
-    # Track balance before
+    # Promotional credits remain a subset of total, never creator cash income.
+    promo_balance = creator.spend_only_credits or 0
+    cash_balance = max(0.0, (creator.credit_balance or 0) - promo_balance)
     if is_pro:
-        balance_before = creator.withdrawable_credits
+        creator.withdrawable_credits = cash_balance
     elif is_hobbyist:
-        balance_before = creator.gear_only_credits
-    else:
-        balance_before = creator.credit_balance or 0
+        creator.gear_only_credits = cash_balance
+    balance_before = creator.credit_balance or 0
     
     # Default fee rate — Pros use the admin-configured commission rate for their subscription tier
     if is_pro:
@@ -215,8 +216,8 @@ async def process_creator_earnings(
             })
         
         # Also update legacy credit_balance for backwards compat
-        creator.credit_balance = creator.withdrawable_credits
-        balance_after = creator.withdrawable_credits
+        creator.credit_balance = creator.withdrawable_credits + promo_balance
+        balance_after = creator.credit_balance
         
     elif is_hobbyist:
         # HOBBYIST: 100% to one destination (no split)
@@ -227,7 +228,7 @@ async def process_creator_earnings(
             net_amount = gross_amount - platform_fee
             
             creator.gear_only_credits += net_amount
-            creator.credit_balance = creator.gear_only_credits
+            creator.credit_balance = creator.gear_only_credits + promo_balance
             
             result_data["platform_fee"] = platform_fee
             result_data["net_amount"] = net_amount
@@ -236,7 +237,7 @@ async def process_creator_earnings(
                 "target_gear_id": donation_dest_id,
                 "amount": net_amount
             })
-            balance_after = creator.gear_only_credits
+            balance_after = creator.credit_balance
             
         elif donation_dest_type and donation_dest_id and donation_dest_type != 'gear':
             # Hobbyist donating to grom/cause/surfer
@@ -275,16 +276,16 @@ async def process_creator_earnings(
                     "recipient_id": donation_dest_id,
                     "amount": net_amount
                 })
-            balance_after = creator.gear_only_credits
+            balance_after = creator.credit_balance
         else:
             # No donation configured - goes to gear credits
             creator.gear_only_credits += net_amount
-            creator.credit_balance = creator.gear_only_credits  # Backwards compat
+            creator.credit_balance = creator.gear_only_credits + promo_balance  # Backwards compat
             result_data["distributions"].append({
                 "type": "gear_only_credits",
                 "amount": net_amount
             })
-            balance_after = creator.gear_only_credits
+            balance_after = creator.credit_balance
     else:
         # Other roles (surfers, etc.) - regular credit handling
         creator.credit_balance = (creator.credit_balance or 0) + net_amount
@@ -465,7 +466,7 @@ async def migrate_user_credits(user_id: str, db: AsyncSession) -> dict:
     if not user:
         return {"success": False, "error": "User not found"}
     
-    current_balance = user.credit_balance or 0
+    current_balance = max(0.0, (user.credit_balance or 0) - (user.spend_only_credits or 0))
     
     if is_pro_creator(user.role):
         user.withdrawable_credits = current_balance
@@ -493,27 +494,20 @@ async def migrate_user_credits(user_id: str, db: AsyncSession) -> dict:
 
 
 def get_available_credits(user: Profile) -> dict:
-    """
-    Get available credits for a user based on their role.
-    """
-    if is_pro_creator(user.role):
-        return {
-            "total": user.withdrawable_credits + user.gear_only_credits,
-            "withdrawable": user.withdrawable_credits,
-            "gear_only": user.gear_only_credits,
-            "can_withdraw": True
-        }
-    elif is_hobbyist_creator(user.role):
-        return {
-            "total": user.gear_only_credits,
-            "withdrawable": 0,
-            "gear_only": user.gear_only_credits,
-            "can_withdraw": False
-        }
-    else:
-        return {
-            "total": user.credit_balance,
-            "withdrawable": 0,
-            "gear_only": 0,
-            "can_withdraw": False
-        }
+    """Expose total spendable balance while keeping promo out of cash pockets."""
+    total = user.credit_balance or 0
+    promo = user.spend_only_credits or 0
+    cash = max(0.0, total - promo)
+    is_pro = is_pro_creator(user.role)
+    is_hobbyist = is_hobbyist_creator(user.role)
+    withdrawable = min(user.withdrawable_credits or 0, cash) if is_pro else 0
+    # Pro gear savings are a separate legacy pocket, not part of the cash wallet.
+    gear = (user.gear_only_credits or 0) if is_pro else min(user.gear_only_credits or 0, cash) if is_hobbyist else 0
+    available_total = withdrawable + gear + promo if is_pro else gear + promo if is_hobbyist else total
+    return {
+        "total": available_total,
+        "withdrawable": withdrawable,
+        "gear_only": gear,
+        "spend_only": promo,
+        "can_withdraw": is_pro,
+    }

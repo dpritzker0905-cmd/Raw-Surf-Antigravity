@@ -6,10 +6,42 @@ These are non-endpoint helper functions called by other services
 (gallery, bookings, etc.) to check/use subscription quota.
 """
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, and_
+from sqlalchemy import select, case
 from datetime import datetime, timezone
 
 from models import SurferPhotoSubscription
+
+
+def subscription_utc(value):
+    """Legacy naive database timestamps represent UTC, like aware timestamps."""
+    if value is None:
+        return None
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value.astimezone(timezone.utc)
+
+
+def subscription_has_access(sub, now=None):
+    expiry = subscription_utc(sub.expires_at)
+    return sub.status in ('active', 'cancelled') and expiry is not None and expiry > (now or datetime.now(timezone.utc))
+
+
+def subscription_access_filters(now=None):
+    """Cancelled status does not remove already-paid benefits."""
+    return (SurferPhotoSubscription.status.in_(('active', 'cancelled')),
+            SurferPhotoSubscription.expires_at > (now or datetime.now(timezone.utc)))
+
+
+async def select_access_subscription(db, surfer_id, photographer_id):
+    # Historical overlaps are not settled here. Preserve active access first,
+    # then choose the newest record consistently; never aggregate its quotas.
+    result = await db.execute(select(SurferPhotoSubscription).where(
+        SurferPhotoSubscription.surfer_id == surfer_id,
+        SurferPhotoSubscription.photographer_id == photographer_id,
+        *subscription_access_filters()
+    ).order_by(
+        case((SurferPhotoSubscription.status == 'active', 0), else_=1),
+        SurferPhotoSubscription.started_at.desc(), SurferPhotoSubscription.id.desc()
+    ).limit(1))
+    return result.scalar_one_or_none()
 
 
 async def try_use_subscription_quota(
@@ -31,16 +63,7 @@ async def try_use_subscription_quota(
         if result["used"]:
             # Photo is free for subscriber — skip credit deduction
     """
-    now = datetime.now(timezone.utc)
-    result = await db.execute(
-        select(SurferPhotoSubscription).where(and_(
-            SurferPhotoSubscription.surfer_id == surfer_id,
-            SurferPhotoSubscription.photographer_id == photographer_id,
-            SurferPhotoSubscription.status == 'active',
-            SurferPhotoSubscription.expires_at > now,
-        ))
-    )
-    sub = result.scalar_one_or_none()
+    sub = await select_access_subscription(db, surfer_id, photographer_id)
     if not sub:
         return {"used": False, "subscription_active": False}
 
@@ -79,16 +102,7 @@ async def get_subscription_discount(
     Get the active subscription discount percentage for a surfer-photographer pair.
     Returns 0.0 if no active subscription or no discount configured.
     """
-    now = datetime.now(timezone.utc)
-    result = await db.execute(
-        select(SurferPhotoSubscription).where(and_(
-            SurferPhotoSubscription.surfer_id == surfer_id,
-            SurferPhotoSubscription.photographer_id == photographer_id,
-            SurferPhotoSubscription.status == 'active',
-            SurferPhotoSubscription.expires_at > now,
-        ))
-    )
-    sub = result.scalar_one_or_none()
+    sub = await select_access_subscription(db, surfer_id, photographer_id)
     if not sub:
         return 0.0
     if service_type == 'on_demand':
@@ -106,16 +120,7 @@ async def check_quota_inline(
     Read-only subscription quota check (does NOT decrement).
     Used by pricing endpoints to hint subscription coverage to the frontend.
     """
-    now = datetime.now(timezone.utc)
-    result = await db.execute(
-        select(SurferPhotoSubscription).where(and_(
-            SurferPhotoSubscription.surfer_id == surfer_id,
-            SurferPhotoSubscription.photographer_id == photographer_id,
-            SurferPhotoSubscription.status == 'active',
-            SurferPhotoSubscription.expires_at > now,
-        ))
-    )
-    sub = result.scalar_one_or_none()
+    sub = await select_access_subscription(db, surfer_id, photographer_id)
     if not sub:
         return {
             "has_quota": False,

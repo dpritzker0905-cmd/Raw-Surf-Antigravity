@@ -15,6 +15,7 @@ import os
 import stripe
 
 from database import get_db
+from utils.credits import refund_credits
 from core.security import get_user_id_from_jwt_or_query, get_current_user_id
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
@@ -269,17 +270,11 @@ async def cancel_dispatch(
         requester = requester_result.scalar_one_or_none()
 
         if requester:
-            tx = CreditTransaction(
-                user_id=dispatch.requester_id,
-                amount=refund_amount,
-                balance_before=requester.credit_balance,
-                balance_after=requester.credit_balance + refund_amount,
-                transaction_type='dispatch_refund',
-                reference_type='dispatch_request',
-                reference_id=dispatch_id
-            )
-            db.add(tx)
-            requester.credit_balance += refund_amount
+            success, _, error = await refund_credits(
+                dispatch.requester_id, refund_amount, db, reference_type='dispatch_request',
+                reference_id=dispatch_id, transaction_type='dispatch_refund')
+            if not success:
+                raise HTTPException(status_code=409, detail=error)
 
     # ============ NOTIFICATION: Alert the other party about cancellation ============
     # Determine who to notify (the party that didn't cancel)
