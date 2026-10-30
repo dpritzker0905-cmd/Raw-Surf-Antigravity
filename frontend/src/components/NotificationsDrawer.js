@@ -291,12 +291,13 @@ export const NotificationsDrawer = ({ isOpen, onClose, onCountUpdate, onReturnFo
         className={`
           ${colors.bg} ${colors.border} border-t
           rounded-t-3xl overflow-hidden flex flex-col
-          /* -- FIX 1: clamp height so it never bleeds above viewport on mobile -- */
-          max-h-[92dvh]
-          /* fallback for browsers without dvh */
-          max-h-[92vh]
-          /* desktop: float slightly above bottom edge */
-          md:!bottom-4 md:w-[calc(100vw-2rem)] md:rounded-2xl md:max-h-[78vh]
+          /* Keep the footer above BottomNav and its protruding Create control. */
+          !bottom-[var(--safe-bottom)] !gap-0 !p-0
+          max-h-[calc(100vh-var(--safe-bottom)-56px-env(safe-area-inset-top,0px))]
+          supports-[height:100dvh]:max-h-[calc(100dvh-var(--safe-bottom)-56px-env(safe-area-inset-top,0px))]
+          /* Preserve the centered desktop footprint and spacing. */
+          md:!bottom-4 md:!gap-4 md:!p-4 md:!pt-7
+          md:w-[calc(100vw-2rem)] md:rounded-2xl md:!max-h-[78vh]
         `}
       >
         {/* -- Handle bar (mobile drag indicator) -- */}
