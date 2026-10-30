@@ -259,6 +259,16 @@ class ImpactLedger(Base):
 
 
 
+class MonthlyLeaderboardArchive(Base):
+    """Durable completion record; committed atomically with a month's awards."""
+    __tablename__ = 'monthly_leaderboard_archives'
+
+    year = Column(Integer, primary_key=True)
+    month = Column(Integer, primary_key=True)
+    archived_count = Column(Integer, nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=False, default=lambda: datetime.now(timezone.utc))
+
+
 class LeaderboardSnapshot(Base):
     """Monthly archives of leaderboard data"""
     __tablename__ = 'leaderboard_snapshots'

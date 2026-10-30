@@ -13,7 +13,7 @@ from .base import scheduler, send_push_notification, tracked  # noqa: F401
 # Import all task functions from domain modules
 from .surf_alerts import check_surf_alerts_task
 from .stories import cleanup_expired_stories_task
-from .gamification import monthly_leaderboard_reset_task
+from .gamification import monthly_leaderboard_reset_task, weekly_challenge_finalize_task
 from .grom import weekly_grom_report_task
 from .bookings import (
     check_payment_window_expiry_task,
@@ -61,6 +61,14 @@ def start_scheduler():
         CronTrigger(day=1, hour=0, minute=5),
         id='monthly_leaderboard_reset', name='Monthly leaderboard reset and archive',
         replace_existing=True
+    )
+
+    # Finalize the prior ISO week after its UTC Sunday boundary.
+    scheduler.add_job(
+        tracked('weekly_challenge_finalize', 'Finalize weekly challenge trophies', 'Weekly (Mon 00:05 UTC)', weekly_challenge_finalize_task),
+        CronTrigger(day_of_week='mon', hour=0, minute=5, timezone=timezone.utc),
+        id='weekly_challenge_finalize', name='Finalize weekly challenge trophies',
+        replace_existing=True, max_instances=1, coalesce=True
     )
 
     # Weekly Grom report — Sunday 9am EST (14:00 UTC)
