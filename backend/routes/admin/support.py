@@ -5,12 +5,16 @@ Admin Support Ticketing System
 - Response time metrics and CSAT tracking
 """
 from fastapi import APIRouter, Depends, HTTPException
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_current_user_id, get_user_id_from_jwt_or_query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_, desc, update
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
+import secrets
+import re
 
 from database import get_db
 from deps.admin_auth import get_current_admin
@@ -18,6 +22,7 @@ from models import (
     Profile, SupportTicket, TicketMessage, 
     TicketCategoryEnum, TicketPriorityEnum, TicketStatusEnum
 )
+from services.support_delivery import save_support_message, queue_support_reply_notice, support_request_id
 
 
 
@@ -32,10 +37,19 @@ class CreateTicketRequest(BaseModel):
     priority: Optional[str] = "medium"
     related_booking_id: Optional[str] = None
     tags: Optional[List[str]] = []
+    client_request_id: Optional[str] = None
 
 class TicketMessageRequest(BaseModel):
     message: str
     is_internal_note: Optional[bool] = False
+    client_message_id: Optional[str] = None
+
+
+class OwnerMessageRequest(BaseModel):
+    message: str
+    client_message_id: str
+
+    model_config = {"extra": "forbid"}
 
 class UpdateTicketRequest(BaseModel):
     status: Optional[str] = None
@@ -46,19 +60,17 @@ class UpdateTicketRequest(BaseModel):
 
 # --- Helper Functions ---
 async def generate_ticket_number(db: AsyncSession) -> str:
-    result = await db.execute(select(func.count(SupportTicket.id)))
-    count = result.scalar() or 0
-    return f"TKT-{str(count + 1).zfill(5)}"
+    return f"TKT-{secrets.token_hex(8).upper()}"
 
-def calculate_sla_due(priority: TicketPriorityEnum) -> datetime:
-    now = datetime.now(timezone.utc)
+def calculate_sla_due(priority: TicketPriorityEnum, origin=None) -> datetime:
+    origin = origin if origin is not None else datetime.now(timezone.utc)
     hours = {
         TicketPriorityEnum.URGENT: 1,
         TicketPriorityEnum.HIGH: 4,
         TicketPriorityEnum.MEDIUM: 24,
         TicketPriorityEnum.LOW: 72
     }
-    return now + timedelta(hours=hours.get(priority, 24))
+    return origin + timedelta(hours=hours.get(priority, 24))
 
 
 # --- Endpoints ---
@@ -76,7 +88,7 @@ async def get_support_tickets(
 ):
     """Get all support tickets with filters"""
     
-    query = select(SupportTicket).order_by(desc(SupportTicket.created_at))
+    query = select(SupportTicket).order_by(desc(SupportTicket.created_at), desc(SupportTicket.id))
     
     if status and status != 'all':
         query = query.where(SupportTicket.status == TicketStatusEnum(status))
@@ -228,10 +240,14 @@ async def update_ticket(
         updates["status"] = TicketStatusEnum(request.status)
         if request.status == "resolved":
             updates["resolved_at"] = datetime.now(timezone.utc)
+        elif request.status != "closed":
+            updates["resolved_at"] = None
     
     if request.priority:
+        if ticket.created_at is None:
+            raise HTTPException(status_code=409, detail="Ticket creation time unavailable; SLA requires review")
         updates["priority"] = TicketPriorityEnum(request.priority)
-        updates["sla_due_at"] = calculate_sla_due(TicketPriorityEnum(request.priority))
+        updates["sla_due_at"] = calculate_sla_due(TicketPriorityEnum(request.priority), ticket.created_at)
     
     if request.assigned_to is not None:
         updates["assigned_to"] = request.assigned_to if request.assigned_to else None
@@ -254,36 +270,36 @@ async def reply_to_ticket(
 ):
     """Add a reply or internal note to a ticket"""
     
-    result = await db.execute(select(SupportTicket).where(SupportTicket.id == ticket_id))
+    result = await db.execute(select(SupportTicket).where(SupportTicket.id == ticket_id).with_for_update())
     ticket = result.scalar_one_or_none()
     
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
     
-    # Create message
-    message = TicketMessage(
-        ticket_id=ticket_id,
-        sender_id=admin.id,
-        message=request.message,
-        is_internal_note=request.is_internal_note
-    )
-    db.add(message)
+    message_id, created = await save_support_message(
+        db, ticket_id, admin.id, request.message, request.is_internal_note, request.client_message_id)
+    if not created:
+        return {"success": True, "message_id": message_id, "duplicate": True}
     
     # Update first response time if this is first admin reply
     if not ticket.first_response_at and not request.is_internal_note:
         await db.execute(
             update(SupportTicket)
-            .where(SupportTicket.id == ticket_id)
+            .where(SupportTicket.id == ticket_id, SupportTicket.first_response_at.is_(None))
             .values(
                 first_response_at=datetime.now(timezone.utc),
                 status=TicketStatusEnum.IN_PROGRESS,
+                resolved_at=None,
                 updated_at=datetime.now(timezone.utc)
             )
         )
     
+    email_notice = "internal_note"
+    if not request.is_internal_note:
+        email_notice = await queue_support_reply_notice(db, ticket, message_id)
     await db.commit()
     
-    return {"success": True, "message_id": message.id}
+    return {"success": True, "message_id": message_id, "email_notice": email_notice}
 
 
 @router.get("/admin/support/metrics")
@@ -321,30 +337,34 @@ async def get_support_metrics(
     resolved_count = resolved.scalar() or 0
     
     # Avg first response time (in hours)
+    response_seconds = (
+        func.extract('epoch', SupportTicket.first_response_at) -
+        func.extract('epoch', SupportTicket.created_at)
+    )
     avg_response = await db.execute(
-        select(func.avg(
-            func.extract('epoch', SupportTicket.first_response_at) - 
-            func.extract('epoch', SupportTicket.created_at)
-        ) / 3600)
+        select(func.avg(response_seconds) / 3600, func.count(response_seconds))
         .where(and_(
             SupportTicket.created_at >= start_date,
             SupportTicket.first_response_at.isnot(None)
         ))
     )
-    avg_response_hours = avg_response.scalar() or 0
+    avg_response_hours, response_sample_count = avg_response.one()
+    avg_response_hours = avg_response_hours or 0
     
     # Avg resolution time (in hours)
+    resolution_seconds = (
+        func.extract('epoch', SupportTicket.resolved_at) -
+        func.extract('epoch', SupportTicket.created_at)
+    )
     avg_resolution = await db.execute(
-        select(func.avg(
-            func.extract('epoch', SupportTicket.resolved_at) - 
-            func.extract('epoch', SupportTicket.created_at)
-        ) / 3600)
+        select(func.avg(resolution_seconds) / 3600, func.count(resolution_seconds))
         .where(and_(
             SupportTicket.created_at >= start_date,
             SupportTicket.resolved_at.isnot(None)
         ))
     )
-    avg_resolution_hours = avg_resolution.scalar() or 0
+    avg_resolution_hours, resolution_sample_count = avg_resolution.one()
+    avg_resolution_hours = avg_resolution_hours or 0
     
     # CSAT average
     csat = await db.execute(
@@ -391,6 +411,8 @@ async def get_support_metrics(
         "resolution_rate": round((resolved_count / total_tickets * 100) if total_tickets > 0 else 0, 1),
         "avg_first_response_hours": round(float(avg_response_hours), 1),
         "avg_resolution_hours": round(float(avg_resolution_hours), 1),
+        "first_response_sample_count": int(response_sample_count),
+        "resolution_sample_count": int(resolution_sample_count),
         "avg_csat": round(float(avg_csat), 1),
         "sla_breached_count": sla_breached_count,
         "by_category": category_breakdown,
@@ -406,22 +428,114 @@ async def create_ticket(
     user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Create a new support ticket (user-facing)"""
-    ticket_number = await generate_ticket_number(db)
     priority = TicketPriorityEnum(request.priority) if request.priority else TicketPriorityEnum.MEDIUM
-    
-    ticket = SupportTicket(
-        ticket_number=ticket_number,
-        user_id=user_id,
-        subject=request.subject,
-        description=request.description,
-        category=TicketCategoryEnum(request.category) if request.category else TicketCategoryEnum.OTHER,
-        priority=priority,
-        sla_due_at=calculate_sla_due(priority),
-        tags=request.tags or [],
-        related_booking_id=request.related_booking_id
-    )
-    
-    db.add(ticket)
-    await db.commit()
-    
-    return {"success": True, "ticket_number": ticket_number, "ticket_id": ticket.id}
+    category = TicketCategoryEnum(request.category) if request.category else TicketCategoryEnum.OTHER
+    insert_ticket = {"postgresql": pg_insert, "sqlite": sqlite_insert}[db.get_bind().dialect.name]
+    request_id = support_request_id("create", user_id, request.client_request_id) if request.client_request_id else None
+
+    async def existing_request():
+        existing = (await db.execute(select(SupportTicket).where(SupportTicket.id == request_id))).scalar_one_or_none()
+        if existing is None:
+            return None
+        if (existing.user_id, existing.subject, existing.description, existing.category, existing.priority,
+                existing.tags, existing.related_booking_id) != (
+                user_id, request.subject, request.description, category, priority, request.tags or [], request.related_booking_id):
+            raise HTTPException(status_code=409, detail="Ticket request ID already used for different content")
+        return {"success": True, "ticket_number": existing.ticket_number, "ticket_id": existing.id}
+
+    if request_id:
+        original = await existing_request()
+        if original:
+            return original
+
+    for _ in range(3):
+        ticket_number = await generate_ticket_number(db)
+        statement = insert_ticket(SupportTicket).values(
+                ticket_number=ticket_number,
+                user_id=user_id,
+                subject=request.subject,
+                description=request.description,
+                category=category,
+                priority=priority,
+                sla_due_at=calculate_sla_due(priority),
+                tags=request.tags or [],
+                related_booking_id=request.related_booking_id,
+                **({"id": request_id} if request_id else {})
+            )
+        statement = statement.on_conflict_do_nothing() if request_id else statement.on_conflict_do_nothing(index_elements=[SupportTicket.ticket_number])
+        result = await db.execute(statement.returning(SupportTicket.id))
+        ticket_id = result.scalar_one_or_none()
+        if ticket_id is not None:
+            await db.commit()
+            return {"success": True, "ticket_number": ticket_number, "ticket_id": ticket_id}
+        if request_id:
+            original = await existing_request()
+            if original:
+                return original
+
+    raise HTTPException(status_code=503, detail="Unable to allocate a ticket number. Please retry.")
+
+
+def public_ticket(ticket):
+    return {
+        "id": ticket.id, "ticket_number": ticket.ticket_number, "subject": ticket.subject,
+        "status": ticket.status.value if ticket.status else None,
+        "priority": ticket.priority.value if ticket.priority else None,
+        "created_at": ticket.created_at.isoformat() if ticket.created_at else None,
+        "updated_at": ticket.updated_at.isoformat() if ticket.updated_at else None,
+    }
+
+
+async def owned_ticket(db, ticket_id, user_id, lock=False):
+    if re.fullmatch(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}", ticket_id, re.IGNORECASE):
+        ticket_id = ticket_id.lower()
+    query = select(SupportTicket).where(SupportTicket.id == ticket_id, SupportTicket.user_id == user_id)
+    if lock:
+        query = query.with_for_update()
+    ticket = (await db.execute(query)).scalar_one_or_none()
+    if ticket is None:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+    return ticket
+
+
+@router.get("/support/tickets")
+async def get_my_support_tickets(
+    limit: int = 50, offset: int = 0,
+    user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)
+):
+    limit, offset = max(1, min(limit, 50)), max(0, offset)
+    owner = SupportTicket.user_id == user_id
+    total = (await db.execute(select(func.count(SupportTicket.id)).where(owner))).scalar_one()
+    rows = (await db.execute(select(SupportTicket).where(owner).order_by(
+        desc(SupportTicket.created_at), desc(SupportTicket.id)).offset(offset).limit(limit))).scalars().all()
+    return {"tickets": [public_ticket(ticket) for ticket in rows], "total": total, "limit": limit, "offset": offset}
+
+
+@router.get("/support/tickets/{ticket_id}")
+async def get_my_support_ticket(
+    ticket_id: str, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)
+):
+    ticket = await owned_ticket(db, ticket_id, user_id)
+    rows = (await db.execute(select(TicketMessage).where(
+        TicketMessage.ticket_id == ticket.id, TicketMessage.is_internal_note.is_(False)
+    ).order_by(TicketMessage.created_at, TicketMessage.id))).scalars().all()
+    return {**public_ticket(ticket), "description": ticket.description, "messages": [
+        {"id": message.id, "message": message.message, "from_support": message.sender_id != ticket.user_id,
+         "created_at": message.created_at.isoformat() if message.created_at else None} for message in rows
+    ]}
+
+
+@router.post("/support/tickets/{ticket_id}/messages")
+async def reply_to_my_support_ticket(
+    ticket_id: str, request: OwnerMessageRequest,
+    user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)
+):
+    ticket = await owned_ticket(db, ticket_id, user_id, lock=True)
+    text = request.message.strip()
+    if not text or len(text) > 10000:
+        raise HTTPException(status_code=422, detail="Reply must contain 1 to 10000 characters")
+    message_id, created = await save_support_message(db, ticket.id, user_id, text, False, request.client_message_id)
+    if created:
+        await db.execute(update(SupportTicket).where(SupportTicket.id == ticket.id).values(updated_at=datetime.now(timezone.utc)))
+        await db.commit()
+    return {"success": True, "message_id": message_id, "duplicate": not created}

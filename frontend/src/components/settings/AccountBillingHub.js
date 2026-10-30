@@ -8,10 +8,10 @@
  * - Grom Management for Parents
  * - Parent-Surfer Hybrid toggle
  * 
- * IMPORTANT: Uses centralized subscriptionPlans.config.js as SINGLE SOURCE OF TRUTH
- * This ensures plan parity between Signup and Settings
+ * Presentation/features use subscriptionPlans.config.js.
+ * Account prices come from the configured server available_tiers quote.
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import apiClient from '../../lib/apiClient';
 import { 
@@ -60,6 +60,9 @@ const getPlansForRole = (role) => {
 export const AccountBillingHub = () => {
   const { user, refreshUser } = useAuth();
   const [loading, setLoading] = useState(true);
+  const billingRequest = useRef(0);
+  const billingUser = useRef(user?.id);
+  billingUser.current = user?.id;
   const [accountData, setAccountData] = useState(null);
   const [toggling, setToggling] = useState(false);
   const [upgrading, setUpgrading] = useState(null);
@@ -68,20 +71,26 @@ export const AccountBillingHub = () => {
   const [_creditPaymentInfo, setCreditPaymentInfo] = useState(null);
 
   useEffect(() => {
-    if (user?.id) {
-      fetchAccountBilling();
-    }
+    setAccountData(null);
+    setLoading(true);
+    if (user?.id) fetchAccountBilling();
+    else setLoading(false);
+    return () => { billingRequest.current += 1; };
   }, [user?.id]);
 
   const fetchAccountBilling = async () => {
+    if (user?.id !== billingUser.current) return;
+    const request = ++billingRequest.current;
     try {
       const response = await apiClient.get(`/subscriptions/account-billing/${user.id}`);
-      setAccountData(response.data);
+      if (request === billingRequest.current) setAccountData(response.data);
     } catch (error) {
+      if (request !== billingRequest.current) return;
+      setAccountData(null);
       logger.error('Failed to fetch account billing:', error);
       toast.error('Failed to load account settings');
     } finally {
-      setLoading(false);
+      if (request === billingRequest.current) setLoading(false);
     }
   };
 
@@ -102,6 +111,11 @@ export const AccountBillingHub = () => {
   };
 
   const handleTierUpgrade = async (tierId, useCredits = false) => {
+    const price = accountData?.available_tiers?.[tierId]?.price;
+    if (accountData?.user_id !== user?.id || typeof price !== 'number' || !Number.isFinite(price) || price < 0) {
+      toast.error('Subscription price unavailable. Please reload account settings.');
+      return;
+    }
     // If using credits, first check if user can afford it
     if (useCredits) {
       setUpgrading(tierId);
@@ -111,6 +125,7 @@ export const AccountBillingHub = () => {
           use_credits: true
         });
         
+        if (user.id !== billingUser.current) return;
         if (response.data.insufficient_credits) {
           // Show insufficient credits dialog
           setCreditPaymentInfo(response.data);
@@ -137,6 +152,7 @@ export const AccountBillingHub = () => {
         origin_url: window.location.origin
       });
       
+      if (user.id !== billingUser.current) return;
       if (response.data.checkout_url) {
         window.location.href = response.data.checkout_url;
       } else {
@@ -238,7 +254,7 @@ export const AccountBillingHub = () => {
     );
   }
 
-  if (!accountData) {
+  if (!accountData || accountData.user_id !== user?.id) {
     return (
       <div className="text-center py-8 text-gray-400">
         <AlertCircle className="w-12 h-12 mx-auto mb-4" />
@@ -251,6 +267,12 @@ export const AccountBillingHub = () => {
   const isGromParent = accountData.role === ROLES.GROM_PARENT;
   const isPhotographer = ['Photographer', 'Hobbyist', 'Approved Pro'].includes(accountData.role);
   const isCompetitive = accountData.current_status === 'competitive';
+  const configuredPlans = getPlansForRole(accountData.role).map(plan => {
+    const configured = accountData.available_tiers?.[plan.tier_id];
+    const priceAvailable = typeof configured?.price === 'number' &&
+      Number.isFinite(configured.price) && configured.price >= 0;
+    return { ...plan, price: priceAvailable ? configured.price : null, priceAvailable };
+  });
 
   return (
     <div className="space-y-4" data-testid="account-billing-hub">
@@ -406,11 +428,11 @@ export const AccountBillingHub = () => {
 
           {/* Tier Options - from centralized config (mirrors Signup exactly) */}
           <div className="grid gap-3 w-full">
-            {getPlansForRole(accountData.role).map((plan) => {
+            {configuredPlans.map((plan) => {
               const currentTierId = subscriptionTierToTierId(accountData.subscription_tier);
               const isCurrentTier = plan.tier_id === currentTierId;
               const TierIcon = plan.icon || CreditCard;
-              const creditsRequired = Math.ceil(plan.price); // 1:1 ratio - 1 credit = $1
+              const creditsRequired = Math.round(plan.price * 100) / 100; // 1:1 ratio - 1 credit = $1
               const canAffordWithCredits = (user?.credit_balance || 0) >= creditsRequired;
               
               return (
@@ -445,7 +467,9 @@ export const AccountBillingHub = () => {
                       </div>
                     </div>
                     <div className="text-right flex-shrink-0 whitespace-nowrap">
-                      {plan.price === 0 ? (
+                      {!plan.priceAvailable ? (
+                        <span role="alert" className="text-muted-foreground text-sm">Price unavailable</span>
+                      ) : plan.price === 0 ? (
                         <span className="text-green-400 font-bold text-sm">Free</span>
                       ) : (
                         <>
@@ -457,7 +481,7 @@ export const AccountBillingHub = () => {
                   </div>
                   
                   {/* Payment Options - only for non-current paid tiers */}
-                  {!isCurrentTier && plan.price > 0 && (
+                  {!isCurrentTier && plan.priceAvailable && plan.price > 0 && (
                     <div className="mt-2 pt-2 border-t border-border flex gap-2 w-full">
                       <Button aria-label="Loader2"
                         onClick={() => handleTierUpgrade(plan.tier_id, false)}
@@ -492,7 +516,7 @@ export const AccountBillingHub = () => {
                   )}
 
                   {/* Free tier - instant switch */}
-                  {!isCurrentTier && plan.price === 0 && (
+                  {!isCurrentTier && plan.priceAvailable && plan.price === 0 && (
                     <div className="mt-2 pt-2 border-t border-border">
                       <Button aria-label="Loader2"
                         onClick={() => handleTierUpgrade(plan.tier_id, false)}
@@ -503,7 +527,7 @@ export const AccountBillingHub = () => {
                         {upgrading === plan.tier_id ? (
                           <Loader2 className="w-3 h-3 animate-spin" />
                         ) : (
-                          'Switch to Free'
+                          plan.tier_id === 'tier_1' ? 'Switch to Free' : `Activate ${plan.name}`
                         )}
                       </Button>
                     </div>

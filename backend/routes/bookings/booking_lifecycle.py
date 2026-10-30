@@ -17,6 +17,7 @@ import json
 import logging
 
 from database import get_db
+from utils.credits import refund_credits
 from core.security import get_current_user_id
 from models import (
     Profile, Booking, BookingParticipant,
@@ -577,15 +578,14 @@ async def leave_live_session(
                 select(Profile).where(Profile.id == user_id).with_for_update()
             )).scalar_one_or_none()
             if surfer:
-                before = surfer.credit_balance or 0
-                surfer.credit_balance = before + refund_amount
-                db.add(CreditTransaction(
-                    user_id=user_id, amount=refund_amount, balance_before=before,
-                    balance_after=surfer.credit_balance, transaction_type='live_session_refund',
+                success, _, error = await refund_credits(
+                    user_id, refund_amount, db, reference_type='live_session', reference_id=participant.id,
                     description='Left a live session within the refund window',
-                    reference_type='live_session', reference_id=participant.id,
-                    counterparty_id=participant.photographer_id,
-                ))
+                    original_transaction_id=participant.payment_credit_transaction_id,
+                    transaction_type='live_session_refund',
+                    allow_legacy_cash_refund=participant.payment_credit_transaction_id is None)
+                if not success:
+                    raise HTTPException(status_code=409, detail=error)
                 refund_applied = True
 
     participant.status = 'left'

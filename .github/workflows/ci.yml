@@ -177,7 +177,11 @@ jobs:
             // Infobox honesty (2026-10-28, #622): infoboxFrameTime.test.js (+1 suite / +19 tests) and the audit's
             // infobox-heatmap-agreement.audit.test.js (+1 suite / +7 tests). Raised by exactly that; confirm against the hosted receipt.
             // Status-line words (2026-10-28, stacked on #622): statusLineWords.test.js (+1 suite / +14 tests). Raised by exactly that.
-            const MIN_SUITES = 523, MIN_TESTS = 6893;
+            // Point model guard (2026-10-28, D4): pointProductHint.test.js (+1 suite / +9 tests). Raised by exactly that.
+            // ICON one-instant range (2026-10-28, stacked on #623): iconOneInstantRange.test.js (+1 suite / +5 tests). Raised by exactly that.
+            // Nearest by stored lattice (2026-10-28, D8): storedLattice.test.js (+1 suite / +7 tests). Raised by exactly that.
+            // Forecast point settle (2026-10-28, D10): useOpenMeteoForecast.d10.test.js (+1 suite / +5 tests). Raised by exactly that.
+            const MIN_SUITES = 527, MIN_TESTS = 6919;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -2126,7 +2130,12 @@ jobs:
           #   base 3355 (hosted read) + 17 new test(s) = 3372; floor 3372 - 2 = 3370. This PR must read 3372 passed.
           # ⬆ 3370→3374 on 2026-10-27 (rederive_floor.py, claude/publisher-read-retry-coverage): dev run 40405333333 read 3372; dev's map 3372;
           #   base 3372 (hosted read) + 4 new test(s) = 3376; floor 3376 - 2 = 3374. This PR must read 3376 passed.
-          MIN_PASSED = 3374
+          # ⬆ 3374→3389 on 2026-10-29 (rederive_floor.py, codex/audit-repair-20261029): dev run 40807961067 read 3376; dev's map 3376;
+          #   base 3376 (hosted read) + 15 new test(s) = 3391; floor 3391 - 2 = 3389. This PR must read 3391 passed.
+          # Complete package at a8bcc34: run 41066412936 executed 3399 cases (3391 passed + 8 failed).
+          # Reconcile stale contract fixtures without skipping cases; add paid-overlap and missing-debit
+          # rejection regressions (+2). Projected 3401; floor 3399, preserving margin 2.
+          MIN_PASSED = 3399
 
           try:
               root = ET.parse('estate.xml').getroot()

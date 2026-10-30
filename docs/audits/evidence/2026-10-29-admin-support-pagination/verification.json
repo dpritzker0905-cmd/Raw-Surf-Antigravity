@@ -1,0 +1,636 @@
+{
+  "verifiedAt": "2026-10-29T18:37:33.807Z",
+  "branch": "codex/admin-support-selection-20261029",
+  "entryHead": "72b4652d5753423cce18b9ad1d1de95f0afcb7e7",
+  "entryHashCheck": {
+    "files": 17,
+    "allMatchedBeforeEdits": true,
+    "priorCheckpointReadback": [
+      {
+        "path": "frontend/src/components/admin/AdminSupportDashboard.js",
+        "entrySha256": "69cf1dafbf88dd0a142a161450d55ec367227a87c4a0970650251dbe3471a17c",
+        "finalSha256": "1f9f82d66254b8a55aa0bc3a0073e193cf40b77c2d4f3a5d8bf960c3f2a945ed",
+        "changed": true,
+        "intendedRuntimeChange": true
+      },
+      {
+        "path": "frontend/src/components/admin/AdminSupportDashboard.test.js",
+        "entrySha256": "c55c2ff4d961f95dfdb9176b7e3e4103c4d57f3e53677f51f6d931433f188f45",
+        "finalSha256": "c55c2ff4d961f95dfdb9176b7e3e4103c4d57f3e53677f51f6d931433f188f45",
+        "changed": false,
+        "intendedRuntimeChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-selection/browser-auth.js",
+        "entrySha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802",
+        "finalSha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802",
+        "changed": false,
+        "intendedRuntimeChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-selection/browser-fixture.jsx",
+        "entrySha256": "5b4f4d85ffcbe2c4600dccb197b667477b14b5f85fd5041fafe06252ee6b94bb",
+        "finalSha256": "5b4f4d85ffcbe2c4600dccb197b667477b14b5f85fd5041fafe06252ee6b94bb",
+        "changed": false,
+        "intendedRuntimeChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-selection/browser-transport.js",
+        "entrySha256": "7ae9e62494e78f1986f251748f55708bafef13df266b6b4bad2156d65a9c8b65",
+        "finalSha256": "7ae9e62494e78f1986f251748f55708bafef13df266b6b4bad2156d65a9c8b65",
+        "changed": false,
+        "intendedRuntimeChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-selection/collect-evidence.cjs",
+        "entrySha256": "8a3de22ce3252ebfb0c803c354d58b9fc11d3ec376c9d84a910f1fb9b46464a8",
+        "finalSha256": "8a3de22ce3252ebfb0c803c354d58b9fc11d3ec376c9d84a910f1fb9b46464a8",
+        "changed": false,
+        "intendedRuntimeChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-selection/run-browser.cjs",
+        "entrySha256": "ac6b5ceb91827f9b4d9391de3b0953b7d663dfce0bf139b61c7f4a51b9e27315",
+        "finalSha256": "ac6b5ceb91827f9b4d9391de3b0953b7d663dfce0bf139b61c7f4a51b9e27315",
+        "changed": false,
+        "intendedRuntimeChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-selection/run-tests.cjs",
+        "entrySha256": "939373f9c4988b809d24c8ea4d64b870e2dc9557bf136fb814d5cfd04dda09ab",
+        "finalSha256": "939373f9c4988b809d24c8ea4d64b870e2dc9557bf136fb814d5cfd04dda09ab",
+        "changed": false,
+        "intendedRuntimeChange": false
+      },
+      {
+        "path": "backend/routes/admin/support.py",
+        "entrySha256": "808e971d464430fcfa81adaa5e4fa569969cf1f34e1a5f9b4ea6f80e336ea19a",
+        "finalSha256": "788700f32b441e38282e1f35668bed50e817bdbefeba382a1cd843648b6fe522",
+        "changed": true,
+        "intendedRuntimeChange": true
+      },
+      {
+        "path": "frontend/src/lib/apiClient.js",
+        "entrySha256": "2713370a30a4bbf2a3e3402e57becb9c95ddd2a64744a35bffa12f90dcc35ce9",
+        "finalSha256": "2713370a30a4bbf2a3e3402e57becb9c95ddd2a64744a35bffa12f90dcc35ce9",
+        "changed": false,
+        "intendedRuntimeChange": false
+      },
+      {
+        "path": "frontend/src/contexts/AuthContext.js",
+        "entrySha256": "1544d5b91248f5a6f21f289ab5c6c7ab87d0c5f381c057a3f6372553c06005c3",
+        "finalSha256": "1544d5b91248f5a6f21f289ab5c6c7ab87d0c5f381c057a3f6372553c06005c3",
+        "changed": false,
+        "intendedRuntimeChange": false
+      },
+      {
+        "path": "frontend/src/contexts/ThemeContext.js",
+        "entrySha256": "c019cd4fe10f38230bb92d44276901e77347fb3d5327c882e56899b8f28fd497",
+        "finalSha256": "c019cd4fe10f38230bb92d44276901e77347fb3d5327c882e56899b8f28fd497",
+        "changed": false,
+        "intendedRuntimeChange": false
+      },
+      {
+        "path": "frontend/src/components/ui/button.jsx",
+        "entrySha256": "642edb7d647d92aa517e37a71ff1d6b8b0e758be2d30f67ff5daa1b36c0b4cd1",
+        "finalSha256": "642edb7d647d92aa517e37a71ff1d6b8b0e758be2d30f67ff5daa1b36c0b4cd1",
+        "changed": false,
+        "intendedRuntimeChange": false
+      },
+      {
+        "path": "frontend/src/components/ui/select.jsx",
+        "entrySha256": "684b1759596b026ebdecbd3f1264335f6813049ed2e591c821bff9d0c81da5f6",
+        "finalSha256": "684b1759596b026ebdecbd3f1264335f6813049ed2e591c821bff9d0c81da5f6",
+        "changed": false,
+        "intendedRuntimeChange": false
+      },
+      {
+        "path": "docs/weather-program/STATE.md",
+        "entrySha256": "4605ce8565818debd10e2fa02607b9fc625f64197f99af5ecb293fb08fc28a82",
+        "finalSha256": "4605ce8565818debd10e2fa02607b9fc625f64197f99af5ecb293fb08fc28a82",
+        "changed": false,
+        "intendedRuntimeChange": false
+      },
+      {
+        "path": "docs/weather-program/ACTIONS.jsonl",
+        "entrySha256": "377d035f123b8c12a3ea0ba8a4279bde7345d4cee4afec31b55724901af46dc6",
+        "finalSha256": "377d035f123b8c12a3ea0ba8a4279bde7345d4cee4afec31b55724901af46dc6",
+        "changed": false,
+        "intendedRuntimeChange": false
+      },
+      {
+        "path": "docs/weather-program/SCOREBOARD.md",
+        "entrySha256": "b04bad3590af172ab62c9bfe5c5d59bee4b1330c2e060878e5f1a02c62575469",
+        "finalSha256": "b04bad3590af172ab62c9bfe5c5d59bee4b1330c2e060878e5f1a02c62575469",
+        "changed": false,
+        "intendedRuntimeChange": false
+      }
+    ]
+  },
+  "priorRepairRecheck": {
+    "regression": {
+      "startedAt": "2026-10-29T18:21:06.972Z",
+      "passed": 21,
+      "failed": 0,
+      "total": 21,
+      "suites": [
+        {
+          "file": "AdminSupportDashboard.test.js",
+          "cases": [
+            {
+              "name": "selection clears the previous editor while the next ticket is loading",
+              "status": "passed"
+            },
+            {
+              "name": "late older selection cannot replace the latest detail",
+              "status": "passed"
+            },
+            {
+              "name": "A to B to A ignores the first request for the same ticket",
+              "status": "passed"
+            },
+            {
+              "name": "failed selection shows no previous editor and retry loads only that selection",
+              "status": "passed"
+            },
+            {
+              "name": "stale detail failure cannot replace a newer success or show its error",
+              "status": "passed"
+            },
+            {
+              "name": "stale completion cannot stop the current loading indicator",
+              "status": "passed"
+            },
+            {
+              "name": "light keeps text and note mode with each ticket",
+              "status": "passed"
+            },
+            {
+              "name": "dark keeps text and note mode with each ticket",
+              "status": "passed"
+            },
+            {
+              "name": "beach keeps text and note mode with each ticket",
+              "status": "passed"
+            },
+            {
+              "name": "reply completion for A cannot erase B draft or replace B detail",
+              "status": "passed"
+            },
+            {
+              "name": "failed reply preserves the original draft and other ticket state",
+              "status": "passed"
+            },
+            {
+              "name": "same-ticket reply refresh retains selection and clears only the sent draft",
+              "status": "passed"
+            },
+            {
+              "name": "an update started on A cannot reload A over newly selected B",
+              "status": "passed"
+            },
+            {
+              "name": "ticket buttons support keyboard selection and name reply actions meaningfully",
+              "status": "passed"
+            },
+            {
+              "name": "rapid repeated send activation creates one request",
+              "status": "passed"
+            },
+            {
+              "name": "unmount discards a late detail error",
+              "status": "passed"
+            },
+            {
+              "name": "a mismatched detail response is unavailable rather than an actionable wrong ticket",
+              "status": "passed"
+            },
+            {
+              "name": "changing admin clears drafts and ignores a previous-account detail callback",
+              "status": "passed"
+            },
+            {
+              "name": "changing admin ignores the previous-account reply completion",
+              "status": "passed"
+            },
+            {
+              "name": "late reply failure after unmount has no stale notification",
+              "status": "passed"
+            },
+            {
+              "name": "post-update refresh supersedes a detail read already in flight",
+              "status": "passed"
+            }
+          ]
+        }
+      ]
+    },
+    "browserPassed": 6
+  },
+  "paginationBaseline": {
+    "startedAt": "2026-10-29T18:25:23.832Z",
+    "passed": 0,
+    "failed": 21,
+    "total": 21,
+    "suites": [
+      {
+        "file": "AdminSupportDashboard.pagination.test.js",
+        "cases": [
+          {
+            "name": "first page shows total and correct bounds for 0 tickets",
+            "status": "failed",
+            "failure": "Error: Unable to find an element with the text: Showing 0–0 of 0 tickets. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.\n\nIgnored nodes: comments, script, style\n<body>\n  <div>\n    <d"
+          },
+          {
+            "name": "first page shows total and correct bounds for 1 tickets",
+            "status": "failed",
+            "failure": "Error: Unable to find an element with the text: Showing 1–1 of 1 tickets. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.\n\nIgnored nodes: comments, script, style\n<body>\n  <div>\n    <d"
+          },
+          {
+            "name": "first page shows total and correct bounds for 50 tickets",
+            "status": "failed",
+            "failure": "Error: Unable to find an element with the text: Showing 1–50 of 50 tickets. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.\n\nIgnored nodes: comments, script, style\n<body>\n  <div>\n    "
+          },
+          {
+            "name": "first page shows total and correct bounds for 51 tickets",
+            "status": "failed",
+            "failure": "Error: Unable to find an element with the text: Showing 1–50 of 51 tickets. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.\n\nIgnored nodes: comments, script, style\n<body>\n  <div>\n    "
+          },
+          {
+            "name": "first page shows total and correct bounds for 100 tickets",
+            "status": "failed",
+            "failure": "Error: Unable to find an element with the text: Showing 1–50 of 100 tickets. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.\n\nIgnored nodes: comments, script, style\n<body>\n  <div>\n   "
+          },
+          {
+            "name": "first page shows total and correct bounds for 101 tickets",
+            "status": "failed",
+            "failure": "Error: Unable to find an element with the text: Showing 1–50 of 101 tickets. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.\n\nIgnored nodes: comments, script, style\n<body>\n  <div>\n   "
+          },
+          {
+            "name": "first page shows total and correct bounds for 123 tickets",
+            "status": "failed",
+            "failure": "Error: Unable to find an element with the text: Showing 1–50 of 123 tickets. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.\n\nIgnored nodes: comments, script, style\n<body>\n  <div>\n   "
+          },
+          {
+            "name": "all 123 tickets are reachable and previous returns to the correct page",
+            "status": "failed",
+            "failure": "TestingLibraryElementError: Unable to find an accessible element with the role \"button\" and name \"Next ticket page\"\n\nHere are the accessible roles:\n\n  textbox:\n\n  Name \"Search tickets...\":\n  <input\n    aria-label=\"Search tickets...\"\n    class=\"flex h-9 w-full rounded-md border px-3 py-1 text-base sh"
+          },
+          {
+            "name": "status and priority filters reset page and remain applied while paging",
+            "status": "failed",
+            "failure": "TestingLibraryElementError: Unable to find an accessible element with the role \"button\" and name \"Next ticket page\"\n\nHere are the accessible roles:\n\n  textbox:\n\n  Name \"Search tickets...\":\n  <input\n    aria-label=\"Search tickets...\"\n    class=\"flex h-9 w-full rounded-md border px-3 py-1 text-base sh"
+          },
+          {
+            "name": "submitted search resets offset and encodes the complete query",
+            "status": "failed",
+            "failure": "TestingLibraryElementError: Unable to find an accessible element with the role \"button\" and name \"Next ticket page\"\n\nHere are the accessible roles:\n\n  textbox:\n\n  Name \"Search tickets...\":\n  <input\n    aria-label=\"Search tickets...\"\n    class=\"flex h-9 w-full rounded-md border px-3 py-1 text-base sh"
+          },
+          {
+            "name": "unsubmitted search text does not alter page or refresh query",
+            "status": "failed",
+            "failure": "TestingLibraryElementError: Unable to find an accessible element with the role \"button\" and name \"Next ticket page\"\n\nHere are the accessible roles:\n\n  textbox:\n\n  Name \"Search tickets...\":\n  <input\n    aria-label=\"Search tickets...\"\n    class=\"flex h-9 w-full rounded-md border px-3 py-1 text-base sh"
+          },
+          {
+            "name": "stale old page cannot overwrite a newer filter result",
+            "status": "failed",
+            "failure": "TestingLibraryElementError: Unable to find an accessible element with the role \"button\" and name \"Next ticket page\"\n\nHere are the accessible roles:\n\n  textbox:\n\n  Name \"Search tickets...\":\n  <input\n    aria-label=\"Search tickets...\"\n    class=\"flex h-9 w-full rounded-md border px-3 py-1 text-base sh"
+          },
+          {
+            "name": "stale old failure cannot replace a newer filter result with an error",
+            "status": "failed",
+            "failure": "TestingLibraryElementError: Unable to find an accessible element with the role \"button\" and name \"Next ticket page\"\n\nHere are the accessible roles:\n\n  textbox:\n\n  Name \"Search tickets...\":\n  <input\n    aria-label=\"Search tickets...\"\n    class=\"flex h-9 w-full rounded-md border px-3 py-1 text-base sh"
+          },
+          {
+            "name": "failed page is unavailable and retry repeats its offset without mutation",
+            "status": "failed",
+            "failure": "TestingLibraryElementError: Unable to find an accessible element with the role \"button\" and name \"Next ticket page\"\n\nHere are the accessible roles:\n\n  textbox:\n\n  Name \"Search tickets...\":\n  <input\n    aria-label=\"Search tickets...\"\n    class=\"flex h-9 w-full rounded-md border px-3 py-1 text-base sh"
+          },
+          {
+            "name": "refresh clamps an invalid last page after the matching total shrinks",
+            "status": "failed",
+            "failure": "TestingLibraryElementError: Unable to find an accessible element with the role \"button\" and name \"Next ticket page\"\n\nHere are the accessible roles:\n\n  textbox:\n\n  Name \"Search tickets...\":\n  <input\n    aria-label=\"Search tickets...\"\n    class=\"flex h-9 w-full rounded-md border px-3 py-1 text-base sh"
+          },
+          {
+            "name": "refresh returns an emptied later page to the empty first page",
+            "status": "failed",
+            "failure": "TestingLibraryElementError: Unable to find an accessible element with the role \"button\" and name \"Next ticket page\"\n\nHere are the accessible roles:\n\n  textbox:\n\n  Name \"Search tickets...\":\n  <input\n    aria-label=\"Search tickets...\"\n    class=\"flex h-9 w-full rounded-md border px-3 py-1 text-base sh"
+          },
+          {
+            "name": "detail and per-ticket drafts remain attached across pages",
+            "status": "failed",
+            "failure": "TestingLibraryElementError: Unable to find an accessible element with the role \"button\" and name \"Next ticket page\"\n\nHere are the accessible roles:\n\n  textbox:\n\n  Name \"Search tickets...\":\n  <input\n    aria-label=\"Search tickets...\"\n    class=\"flex h-9 w-full rounded-md border px-3 py-1 text-base sh"
+          },
+          {
+            "name": "late ticket update refreshes the current page with the current filters",
+            "status": "failed",
+            "failure": "TestingLibraryElementError: Unable to find an accessible element with the role \"combobox\" and name \"Filter ticket status\"\n\nHere are the accessible roles:\n\n  textbox:\n\n  Name \"Search tickets...\":\n  <input\n    aria-label=\"Search tickets...\"\n    class=\"flex h-9 w-full rounded-md border px-3 py-1 text-b"
+          },
+          {
+            "name": "repeated next activation while pending cannot skip a page",
+            "status": "failed",
+            "failure": "TestingLibraryElementError: Unable to find an accessible element with the role \"button\" and name \"Next ticket page\"\n\nHere are the accessible roles:\n\n  textbox:\n\n  Name \"Search tickets...\":\n  <input\n    aria-label=\"Search tickets...\"\n    class=\"flex h-9 w-full rounded-md border px-3 py-1 text-base sh"
+          },
+          {
+            "name": "account changes invalidate an older page response",
+            "status": "failed",
+            "failure": "TestingLibraryElementError: Unable to find an accessible element with the role \"button\" and name \"Next ticket page\"\n\nHere are the accessible roles:\n\n  textbox:\n\n  Name \"Search tickets...\":\n  <input\n    aria-label=\"Search tickets...\"\n    class=\"flex h-9 w-full rounded-md border px-3 py-1 text-base sh"
+          },
+          {
+            "name": "a malformed page cannot claim a successful empty list",
+            "status": "failed",
+            "failure": "TestingLibraryElementError: Unable to find an accessible element with the role \"alert\"\n\nHere are the accessible roles:\n\n  textbox:\n\n  Name \"Search tickets...\":\n  <input\n    aria-label=\"Search tickets...\"\n    class=\"flex h-9 w-full rounded-md border px-3 py-1 text-base shadow-sm transition-colors fil"
+          }
+        ]
+      }
+    ]
+  },
+  "finalRegression": {
+    "startedAt": "2026-10-29T18:34:30.855Z",
+    "passed": 42,
+    "failed": 0,
+    "total": 42,
+    "suites": [
+      {
+        "file": "AdminSupportDashboard.pagination.test.js",
+        "cases": [
+          {
+            "name": "first page shows total and correct bounds for 0 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "first page shows total and correct bounds for 1 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "first page shows total and correct bounds for 50 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "first page shows total and correct bounds for 51 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "first page shows total and correct bounds for 100 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "first page shows total and correct bounds for 101 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "first page shows total and correct bounds for 123 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "all 123 tickets are reachable and previous returns to the correct page",
+            "status": "passed"
+          },
+          {
+            "name": "status and priority filters reset page and remain applied while paging",
+            "status": "passed"
+          },
+          {
+            "name": "submitted search resets offset and encodes the complete query",
+            "status": "passed"
+          },
+          {
+            "name": "unsubmitted search text does not alter page or refresh query",
+            "status": "passed"
+          },
+          {
+            "name": "stale old page cannot overwrite a newer filter result",
+            "status": "passed"
+          },
+          {
+            "name": "stale old failure cannot replace a newer filter result with an error",
+            "status": "passed"
+          },
+          {
+            "name": "failed page is unavailable and retry repeats its offset without mutation",
+            "status": "passed"
+          },
+          {
+            "name": "refresh clamps an invalid last page after the matching total shrinks",
+            "status": "passed"
+          },
+          {
+            "name": "refresh returns an emptied later page to the empty first page",
+            "status": "passed"
+          },
+          {
+            "name": "detail and per-ticket drafts remain attached across pages",
+            "status": "passed"
+          },
+          {
+            "name": "late ticket update refreshes the current page with the current filters",
+            "status": "passed"
+          },
+          {
+            "name": "repeated next activation while pending cannot skip a page",
+            "status": "passed"
+          },
+          {
+            "name": "account changes invalidate an older page response",
+            "status": "passed"
+          },
+          {
+            "name": "a malformed page cannot claim a successful empty list",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "AdminSupportDashboard.test.js",
+        "cases": [
+          {
+            "name": "selection clears the previous editor while the next ticket is loading",
+            "status": "passed"
+          },
+          {
+            "name": "late older selection cannot replace the latest detail",
+            "status": "passed"
+          },
+          {
+            "name": "A to B to A ignores the first request for the same ticket",
+            "status": "passed"
+          },
+          {
+            "name": "failed selection shows no previous editor and retry loads only that selection",
+            "status": "passed"
+          },
+          {
+            "name": "stale detail failure cannot replace a newer success or show its error",
+            "status": "passed"
+          },
+          {
+            "name": "stale completion cannot stop the current loading indicator",
+            "status": "passed"
+          },
+          {
+            "name": "light keeps text and note mode with each ticket",
+            "status": "passed"
+          },
+          {
+            "name": "dark keeps text and note mode with each ticket",
+            "status": "passed"
+          },
+          {
+            "name": "beach keeps text and note mode with each ticket",
+            "status": "passed"
+          },
+          {
+            "name": "reply completion for A cannot erase B draft or replace B detail",
+            "status": "passed"
+          },
+          {
+            "name": "failed reply preserves the original draft and other ticket state",
+            "status": "passed"
+          },
+          {
+            "name": "same-ticket reply refresh retains selection and clears only the sent draft",
+            "status": "passed"
+          },
+          {
+            "name": "an update started on A cannot reload A over newly selected B",
+            "status": "passed"
+          },
+          {
+            "name": "ticket buttons support keyboard selection and name reply actions meaningfully",
+            "status": "passed"
+          },
+          {
+            "name": "rapid repeated send activation creates one request",
+            "status": "passed"
+          },
+          {
+            "name": "unmount discards a late detail error",
+            "status": "passed"
+          },
+          {
+            "name": "a mismatched detail response is unavailable rather than an actionable wrong ticket",
+            "status": "passed"
+          },
+          {
+            "name": "changing admin clears drafts and ignores a previous-account detail callback",
+            "status": "passed"
+          },
+          {
+            "name": "changing admin ignores the previous-account reply completion",
+            "status": "passed"
+          },
+          {
+            "name": "late reply failure after unmount has no stale notification",
+            "status": "passed"
+          },
+          {
+            "name": "post-update refresh supersedes a detail read already in flight",
+            "status": "passed"
+          }
+        ]
+      }
+    ]
+  },
+  "handler": {
+    "baselinePassed": 4,
+    "baselineTotal": 10,
+    "finalPassed": 10,
+    "finalTotal": 10,
+    "fixtureDataUnchanged": {
+      "name": "all list reads preserve every fixture row",
+      "passed": true,
+      "beforeSha256": "6af9bdd0302ed68d8ab238e6a9b4ea5713fd4b46422d849aa1db8b9dd4311cc4",
+      "afterSha256": "6af9bdd0302ed68d8ab238e6a9b4ea5713fd4b46422d849aa1db8b9dd4311cc4"
+    }
+  },
+  "browser": {
+    "engine": "Chromium",
+    "version": "156.0.8078.48",
+    "passed": 6,
+    "themes": [
+      "light",
+      "dark",
+      "beach"
+    ],
+    "viewports": [
+      "1440x1000",
+      "390x844"
+    ],
+    "themeCssVerified": true,
+    "externalRequests": 0
+  },
+  "lint": [
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.js",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.pagination.test.js",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.test.js",
+      "errors": 0,
+      "warnings": 0
+    }
+  ],
+  "runtimeChanges": [
+    "backend/routes/admin/support.py",
+    "frontend/src/components/admin/AdminSupportDashboard.js"
+  ],
+  "files": [
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.js",
+      "sha256": "1f9f82d66254b8a55aa0bc3a0073e193cf40b77c2d4f3a5d8bf960c3f2a945ed"
+    },
+    {
+      "path": "backend/routes/admin/support.py",
+      "sha256": "788700f32b441e38282e1f35668bed50e817bdbefeba382a1cd843648b6fe522"
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.test.js",
+      "sha256": "c55c2ff4d961f95dfdb9176b7e3e4103c4d57f3e53677f51f6d931433f188f45"
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.pagination.test.js",
+      "sha256": "0f576bcab6c1189e1fb8019f0371d86f629e3dd3467a6d613dd635af2a063aac"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/browser-auth.js",
+      "sha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/browser-fixture.jsx",
+      "sha256": "8f937569bf870fcd572dc7abdcd268f22b07782a72a35e0c8fab91c8f1835df5"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/browser-transport.js",
+      "sha256": "b4d73d64d4ef4466ecab669613be95120efe349b6fece1eb80f2c93f233f9aab"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/collect-evidence.cjs",
+      "sha256": "d9dadbfecc1f7a9a11d2c0d9dfcca27f12aabad0a13eeb7aeea5fd8bd0a34ff8"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/run-browser.cjs",
+      "sha256": "be1b1899c1de2b2d8ed1dda4267f47f3743b52d8f57e7bbbac81f59f4a2d2d7c"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/run-tests.cjs",
+      "sha256": "bdfd54c9eb243928815865f8f5c7293d95985a1b04f5247b52bc9c2bc914430b"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/verify-list-handler.py",
+      "sha256": "b2f000a5f55683e41328b724d513ef958ed8b638d8c45a9b35df97194d7dd82c"
+    }
+  ],
+  "limits": [
+    "SQLite function-level route/model execution with offline dependency seams; not mounted API, PostgreSQL or provider qualification",
+    "Browser fixture uses fictional transport and actual React/UI/theme code; not full-app authentication or real tickets",
+    "Viewport emulation is not physical-device/cross-browser/assistive-technology acceptance",
+    "Offset pages can shift as the dataset changes; no cursor or transaction-snapshot contract is introduced",
+    "No weather runtime, deployment, provider call, shared migration, live data change, commit, push or merge"
+  ]
+}

@@ -7,7 +7,7 @@ Admin Financial Operations
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, update, desc
+from sqlalchemy import select, func, and_, update, desc, case
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
@@ -18,11 +18,11 @@ import math
 from database import get_db
 from deps.admin_auth import get_current_admin
 from models import (
-    Profile, CreditTransaction, PaymentTransaction, Booking,
+    Profile, CreditTransaction, PaymentTransaction, Booking, RoleEnum,
     RefundRequest, RefundStatusEnum, PayoutBatch, FailedPayment
 )
 from .moderation import log_audit
-from utils.credits import add_credits
+from utils.credits import refund_credits
 from utils.refund_guard import assert_not_seller
 
 router = APIRouter()
@@ -164,9 +164,12 @@ async def process_refund(
         # (The old code wrote a row without balance_before/balance_after, which cannot be inserted, and never
         # changed the balance.) A failed credit raises, which rolls the claim back with it.
         # In production, this would initiate the actual Stripe refund
-        ok, _balance, error = await add_credits(
-            user_id=refund.user_id, amount=refund.amount, transaction_type="refund", db=db,
-            description=f"Refund: {refund.reason}", reference_type="refund_request", reference_id=refund.id)
+        ok, _balance, error = await refund_credits(
+            user_id=refund.user_id, amount=refund.amount, db=db,
+            description=f"Refund: {refund.reason}",
+            reference_type="booking" if refund.booking_id else "refund_request",
+            reference_id=refund.booking_id or refund.id,
+            original_transaction_id=refund.transaction_id)
         if not ok:
             raise HTTPException(status_code=400, detail=error or "Could not credit the refund")
 
@@ -188,6 +191,36 @@ async def process_refund(
     await db.commit()
     
     return {"success": True, "status": request.action + "d"}
+
+
+async def _eligible_payouts(db, user_ids=None):
+    """Cap ledger cash eligibility by the remaining non-promotional wallet.
+
+    Legacy earning paths do not always update the split cash pocket, so their
+    signed ledger cash and stored cash pockets can each be incomplete. Use
+    either source only up to the current total-minus-promo cap.
+    """
+    ledger_cash = select(
+        CreditTransaction.user_id.label('user_id'),
+        func.sum(CreditTransaction.amount - func.coalesce(CreditTransaction.spend_only_amount, 0)).label('cash')
+    ).group_by(CreditTransaction.user_id).subquery()
+    total = func.coalesce(Profile.credit_balance, 0)
+    promo = func.coalesce(Profile.spend_only_credits, 0)
+    cash = case((total > promo, total - promo), else_=0)
+    # Legacy wallets can have a populated pocket but incomplete cash ledger,
+    # or a valid cash ledger with a stale pocket. Neither may erase the other.
+    recorded = func.coalesce(ledger_cash.c.cash, 0)
+    stored = func.coalesce(Profile.withdrawable_credits, 0)
+    pocket = case((recorded > stored, recorded), else_=stored)
+    eligible = case((pocket < cash, pocket), else_=cash)
+    query = select(Profile.id, Profile.full_name, Profile.email, eligible.label('balance')).outerjoin(
+        ledger_cash, ledger_cash.c.user_id == Profile.id).where(
+        Profile.role.in_([RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO]), eligible > 0).order_by(desc('balance'))
+    if user_ids:
+        query = query.where(Profile.id.in_(user_ids))
+    result = await db.execute(query)
+    return [{'user_id': row[0], 'name': row[1], 'email': row[2],
+             'balance': round(float(row[3]), 2)} for row in result.fetchall()]
 
 
 # --- PAYOUT BATCH MANAGEMENT ---
@@ -231,28 +264,8 @@ async def get_pending_payouts(
 ):
     """Get photographers with pending payouts"""
     
-    # Get photographers with positive credit balance
-    result = await db.execute(
-        select(
-            Profile.id,
-            Profile.full_name,
-            Profile.email,
-            func.sum(CreditTransaction.amount).label('balance')
-        )
-        .join(CreditTransaction, CreditTransaction.user_id == Profile.id)
-        .where(Profile.role.in_(['Photographer', 'Approved Pro']))
-        .group_by(Profile.id, Profile.full_name, Profile.email)
-        .having(func.sum(CreditTransaction.amount) > 0)
-        .order_by(desc('balance'))
-    )
-    
-    pending = [{
-        "user_id": row[0],
-        "name": row[1],
-        "email": row[2],
-        "balance": round(float(row[3]), 2)
-    } for row in result.fetchall()]
-    
+    pending = await _eligible_payouts(db)
+
     total_pending = sum(p['balance'] for p in pending)
     
     return {
@@ -275,22 +288,14 @@ async def create_payout_batch(
     batch_count = count.scalar() or 0
     batch_number = f"PAY-{datetime.now().year}-{str(batch_count + 1).zfill(3)}"
     
-    # Calculate totals
-    query = select(
-        func.count(distinct(CreditTransaction.user_id)),
-        func.sum(CreditTransaction.amount)
-    ).where(CreditTransaction.amount > 0)
-    
-    if request.user_ids:
-        query = query.where(CreditTransaction.user_id.in_(request.user_ids))
-    
-    result = await db.execute(query)
-    totals = result.fetchone()
-    
+    # Reuse cash-eligible wallet balances, not positive historical credits.
+    recipients = await _eligible_payouts(db, request.user_ids)
+    total_amount = round(sum(row['balance'] for row in recipients), 2)
+
     batch = PayoutBatch(
         batch_number=batch_number,
-        total_amount=float(totals[1] or 0),
-        total_recipients=totals[0] or 0,
+        total_amount=total_amount,
+        total_recipients=len(recipients),
         status="pending",
         initiated_by=admin.id
     )

@@ -1,0 +1,85 @@
+{
+  "verifiedAt": "2026-10-29T23:06:45.934177+00:00",
+  "head": "72b4652d5753423cce18b9ad1d1de95f0afcb7e7",
+  "priorFilesPreserved": 83,
+  "productionChangesThisTurn": [],
+  "freshChecks": {
+    "sqliteAllocation": {
+      "passed": 17,
+      "total": 17
+    },
+    "postgresAllocation": {
+      "passed": 17,
+      "total": 17
+    },
+    "reopen": {
+      "passed": 26,
+      "total": 26
+    }
+  },
+  "postgresControl": {
+    "ownedNewCluster": true,
+    "loopbackOnly": true,
+    "database": "support_numbering_fixture",
+    "label": "final",
+    "version": "postgres (PostgreSQL) 17.11",
+    "fixtureExitCode": 0,
+    "passed": 17,
+    "total": 17,
+    "expectationsMet": true,
+    "pgStatusStopped": true,
+    "osListenerAbsent": true
+  },
+  "retainedEarlierEvidenceNotRerun": {
+    "uiTests": 78,
+    "chromeThemeViewportScenarios": 6
+  },
+  "remainingAuditFindings": [
+    {
+      "ids": [
+        175,
+        176,
+        464
+      ],
+      "state": "delivery workflow and user entry/read surface require product decision; notification consumers reserved by companion"
+    },
+    {
+      "ids": [
+        179
+      ],
+      "state": "remaining priority-to-SLA reset semantics require product policy"
+    }
+  ],
+  "sourceObservations": [
+    {
+      "path": "backend/routes/admin/support.py",
+      "sha256": "a8e04541a08c7b9367e9d5e98bcfbe6df501ba34bde4be6fd04272dd10e37ec5"
+    },
+    {
+      "path": "backend/models/social.py",
+      "sha256": "4f46edff0414389c56b26fec8a7804df4b0e29f6e66030da8d72b3deb2733103"
+    },
+    {
+      "path": "frontend/src/utils/notificationDeepLinks.js",
+      "sha256": "9be97f01459eca6a72fca5a39c83a69947cc3f104cb3c21a71a5842addc7ebc4"
+    },
+    {
+      "path": "frontend/src/components/NotificationsPage.js",
+      "sha256": "9e2a165546a164ef644028eb2d7681108d3664f32a1ac15adfcf764db0060406"
+    },
+    {
+      "path": "frontend/src/components/BookingPaymentSuccess.js",
+      "sha256": "0b9a77fe90a4d8809124a73eadc6d02e80bc59e4d1c8ba840b678ffbc459d8a5"
+    },
+    {
+      "path": "frontend/src/components/DispatchPaymentSuccess.js",
+      "sha256": "66374b85648bfb11f9b2bd871a3b23b301fa917dea19601bcf4157ed978d84e1"
+    }
+  ],
+  "limits": [
+    "Targeted source searches; alternate clients/entry points not excluded",
+    "No mounted auth/API, provider/live ticket delivery or hosted qualification",
+    "No source edits, shared integration/migration, flags, paid resource, security probe, commit/push/merge/deploy or weather runtime actions",
+    "No direct Claude messaging or app/internal-folder inspection; shared repository plans read only"
+  ]
+}

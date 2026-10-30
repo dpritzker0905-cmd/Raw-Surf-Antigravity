@@ -178,7 +178,7 @@ async def test_an_approved_refund_moves_the_balance_and_writes_a_complete_ledger
     async with world.maker() as db:
         row = (await db.execute(select(CreditTransaction))).scalar_one()
     assert (row.transaction_type, row.amount, row.balance_before, row.balance_after) == ("refund", 25.0, 100.0, 125.0)
-    assert (row.reference_type, row.reference_id) == ("refund_request", rid)
+    assert (row.reference_type, row.reference_id) == ("booking", "bk")
 
 
 async def test_a_refund_cannot_be_approved_twice(world):
@@ -258,18 +258,38 @@ async def resolve(world, dispute_id, amount):
 
 
 async def test_resolving_a_dispute_with_a_refund_credits_the_complainant_and_writes_a_complete_row(world):
+    async with world.maker() as db:
+        debit = CreditTransaction(user_id="buyer", amount=-100.0, balance_before=200.0, balance_after=100.0,
+                                  transaction_type="booking_payment", counterparty_id="photog",
+                                  reference_type="booking", reference_id="bk", spend_only_amount=0)
+        db.add(debit)
+        await db.commit()
+        debit_id = debit.id
     did = await make_dispute(world, booking_id="bk")
     r = await resolve(world, did, 20.0)
     assert r.status_code == 200, r.text
     done = await world.snap()
-    assert done.balances["buyer"] == 120.0 and done.ledger == 1
+    assert done.balances["buyer"] == 120.0 and done.ledger == 2
     async with world.maker() as db:
-        row = (await db.execute(select(CreditTransaction))).scalar_one()
+        row = (await db.execute(select(CreditTransaction).where(
+            CreditTransaction.transaction_type == "dispute_refund"))).scalar_one()
         dispute = (await db.execute(select(Dispute))).scalar_one()
     assert (row.transaction_type, row.amount, row.balance_before, row.balance_after) == ("dispute_refund", 20.0,
                                                                                          100.0, 120.0)
-    assert (row.reference_type, row.reference_id) == ("dispute", did)
+    assert (row.reference_type, row.reference_id) == ("booking", "bk")
+    assert row.refund_of_transaction_id == debit_id and row.spend_only_amount == 0
     assert dispute.amount_refunded == 20.0 and dispute.status == "resolved_refund"
+
+
+async def test_linked_dispute_refund_requires_an_original_debit(world):
+    did = await make_dispute(world, booking_id="bk")
+    before = await world.snap()
+    response = await resolve(world, did, 20.0)
+    assert response.status_code == 409 and "Original debit required" in response.json()["detail"]
+    assert (await world.snap()).__dict__ == before.__dict__
+    async with world.maker() as db:
+        dispute = await db.get(Dispute, did)
+        assert dispute.status == "open" and (dispute.amount_refunded or 0) == 0
 
 
 async def test_a_dispute_refund_cannot_go_to_the_seller_or_the_other_side(world):

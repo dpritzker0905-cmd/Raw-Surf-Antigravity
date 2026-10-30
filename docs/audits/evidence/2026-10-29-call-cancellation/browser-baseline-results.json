@@ -1,0 +1,590 @@
+{
+  "baseline": true,
+  "baseline_revision": "1a3e51875a90553d97fc637b4640bf02b3be656e",
+  "source_sha256": "c30722c811c63b2db765237d0174131fd59b7cf5c9d5b6e3e0896ba3526fc3da",
+  "source_unchanged": true,
+  "passed": 2,
+  "total": 14,
+  "checks": [
+    {
+      "name": "outbound_cancelled_media_stops_late_stream_without_offer",
+      "passed": false,
+      "error_type": "AssertionError",
+      "observed": {
+        "state": "outgoing",
+        "remote": "fixture-a",
+        "local": "stream-1",
+        "permissionDenied": false,
+        "signals": [
+          {
+            "type": "call_end",
+            "target": null,
+            "caller": null
+          },
+          {
+            "type": "call_offer",
+            "target": "fixture-a",
+            "caller": "fixture-owner"
+          }
+        ],
+        "peers": [
+          {
+            "id": 0,
+            "closed": false
+          }
+        ],
+        "streams": [
+          {
+            "id": "stream-1",
+            "stopped": 0
+          }
+        ],
+        "answerTimers": 1,
+        "intervals": 0,
+        "notices": []
+      },
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "old_offer_cannot_emit_or_replace_new_call_timeout",
+      "passed": false,
+      "error_type": "AssertionError",
+      "observed": {
+        "state": "outgoing",
+        "remote": "fixture-b",
+        "local": "stream-2",
+        "permissionDenied": false,
+        "signals": [
+          {
+            "type": "call_end",
+            "target": "fixture-a",
+            "caller": null
+          },
+          {
+            "type": "call_offer",
+            "target": "fixture-b",
+            "caller": "fixture-owner"
+          },
+          {
+            "type": "call_offer",
+            "target": "fixture-a",
+            "caller": "fixture-owner"
+          }
+        ],
+        "peers": [
+          {
+            "id": 0,
+            "closed": true
+          },
+          {
+            "id": 1,
+            "closed": false
+          }
+        ],
+        "streams": [
+          {
+            "id": "stream-1",
+            "stopped": 1
+          },
+          {
+            "id": "stream-2",
+            "stopped": 0
+          }
+        ],
+        "answerTimers": 0,
+        "intervals": 0,
+        "notices": []
+      },
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "old_local_sdp_cannot_emit_or_arm_new_timeout",
+      "passed": false,
+      "error_type": "AssertionError",
+      "observed": {
+        "state": "outgoing",
+        "remote": "fixture-b",
+        "local": "stream-2",
+        "permissionDenied": false,
+        "signals": [
+          {
+            "type": "call_end",
+            "target": "fixture-a",
+            "caller": null
+          },
+          {
+            "type": "call_offer",
+            "target": "fixture-b",
+            "caller": "fixture-owner"
+          },
+          {
+            "type": "call_offer",
+            "target": "fixture-a",
+            "caller": "fixture-owner"
+          }
+        ],
+        "peers": [
+          {
+            "id": 0,
+            "closed": true
+          },
+          {
+            "id": 1,
+            "closed": false
+          }
+        ],
+        "streams": [
+          {
+            "id": "stream-1",
+            "stopped": 1
+          },
+          {
+            "id": "stream-2",
+            "stopped": 0
+          }
+        ],
+        "answerTimers": 1,
+        "intervals": 0,
+        "notices": []
+      },
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "incoming_cancelled_media_cannot_clean_up_new_call",
+      "passed": false,
+      "error_type": "AssertionError",
+      "observed": {
+        "state": "idle",
+        "remote": null,
+        "local": null,
+        "permissionDenied": false,
+        "signals": [
+          {
+            "type": "call_end",
+            "target": "fixture-a",
+            "caller": null
+          },
+          {
+            "type": "call_offer",
+            "target": "fixture-b",
+            "caller": "fixture-owner"
+          }
+        ],
+        "peers": [
+          {
+            "id": 0,
+            "closed": true
+          }
+        ],
+        "streams": [
+          {
+            "id": "stream-1",
+            "stopped": 2
+          },
+          {
+            "id": "stream-2",
+            "stopped": 0
+          }
+        ],
+        "answerTimers": 0,
+        "intervals": 0,
+        "notices": [
+          "notice"
+        ]
+      },
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "declining_incoming_call_retires_pending_media",
+      "passed": false,
+      "error_type": "AssertionError",
+      "observed": {
+        "state": "idle",
+        "remote": null,
+        "local": null,
+        "permissionDenied": false,
+        "signals": [
+          {
+            "type": "call_decline",
+            "target": "fixture-a",
+            "caller": null
+          },
+          {
+            "type": "call_offer",
+            "target": "fixture-b",
+            "caller": "fixture-owner"
+          }
+        ],
+        "peers": [
+          {
+            "id": 0,
+            "closed": true
+          }
+        ],
+        "streams": [
+          {
+            "id": "stream-1",
+            "stopped": 2
+          },
+          {
+            "id": "stream-2",
+            "stopped": 0
+          }
+        ],
+        "answerTimers": 0,
+        "intervals": 0,
+        "notices": [
+          "notice"
+        ]
+      },
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "accepted_elsewhere_retires_pending_incoming_media",
+      "passed": false,
+      "error_type": "AssertionError",
+      "observed": {
+        "state": "idle",
+        "remote": null,
+        "local": null,
+        "permissionDenied": false,
+        "signals": [
+          {
+            "type": "call_offer",
+            "target": "fixture-b",
+            "caller": "fixture-owner"
+          }
+        ],
+        "peers": [
+          {
+            "id": 0,
+            "closed": true
+          }
+        ],
+        "streams": [
+          {
+            "id": "stream-1",
+            "stopped": 2
+          },
+          {
+            "id": "stream-2",
+            "stopped": 0
+          }
+        ],
+        "answerTimers": 0,
+        "intervals": 0,
+        "notices": [
+          "notice",
+          "notice"
+        ]
+      },
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "incoming_cancelled_answer_sdp_cannot_signal",
+      "passed": false,
+      "error_type": "AssertionError",
+      "observed": {
+        "state": "outgoing",
+        "remote": "fixture-b",
+        "local": "stream-2",
+        "permissionDenied": false,
+        "signals": [
+          {
+            "type": "call_end",
+            "target": "fixture-a",
+            "caller": null
+          },
+          {
+            "type": "call_offer",
+            "target": "fixture-b",
+            "caller": "fixture-owner"
+          },
+          {
+            "type": "call_answer",
+            "target": "fixture-a",
+            "caller": null
+          },
+          {
+            "type": "call_accepted_elsewhere",
+            "target": "fixture-owner",
+            "caller": null
+          }
+        ],
+        "peers": [
+          {
+            "id": 0,
+            "closed": true
+          },
+          {
+            "id": 1,
+            "closed": false
+          }
+        ],
+        "streams": [
+          {
+            "id": "stream-1",
+            "stopped": 1
+          },
+          {
+            "id": "stream-2",
+            "stopped": 0
+          }
+        ],
+        "answerTimers": 1,
+        "intervals": 0,
+        "notices": []
+      },
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "incoming_cancelled_remote_sdp_cannot_continue_setup",
+      "passed": false,
+      "error_type": "AssertionError",
+      "observed": {
+        "state": "outgoing",
+        "remote": "fixture-b",
+        "local": "stream-2",
+        "permissionDenied": false,
+        "signals": [
+          {
+            "type": "call_end",
+            "target": "fixture-a",
+            "caller": null
+          },
+          {
+            "type": "call_offer",
+            "target": "fixture-b",
+            "caller": "fixture-owner"
+          },
+          {
+            "type": "call_answer",
+            "target": "fixture-a",
+            "caller": null
+          },
+          {
+            "type": "call_accepted_elsewhere",
+            "target": "fixture-owner",
+            "caller": null
+          }
+        ],
+        "peers": [
+          {
+            "id": 0,
+            "closed": true
+          },
+          {
+            "id": 1,
+            "closed": false
+          }
+        ],
+        "streams": [
+          {
+            "id": "stream-1",
+            "stopped": 1
+          },
+          {
+            "id": "stream-2",
+            "stopped": 0
+          }
+        ],
+        "answerTimers": 1,
+        "intervals": 0,
+        "notices": []
+      },
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "unmount_cancels_pending_media_and_stops_late_stream",
+      "passed": false,
+      "error_type": "AssertionError",
+      "observed": {
+        "state": "idle",
+        "remote": null,
+        "local": null,
+        "permissionDenied": false,
+        "signals": [
+          {
+            "type": "call_offer",
+            "target": "fixture-a",
+            "caller": "fixture-owner"
+          }
+        ],
+        "peers": [
+          {
+            "id": 0,
+            "closed": false
+          }
+        ],
+        "streams": [
+          {
+            "id": "stream-1",
+            "stopped": 0
+          }
+        ],
+        "answerTimers": 1,
+        "intervals": 0,
+        "notices": []
+      },
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "account_switch_retires_pending_old_account_media",
+      "passed": false,
+      "error_type": "AssertionError",
+      "observed": {
+        "state": "outgoing",
+        "remote": "fixture-a",
+        "local": "stream-1",
+        "permissionDenied": false,
+        "signals": [
+          {
+            "type": "call_offer",
+            "target": "fixture-a",
+            "caller": "fixture-owner"
+          }
+        ],
+        "peers": [
+          {
+            "id": 0,
+            "closed": false
+          }
+        ],
+        "streams": [
+          {
+            "id": "stream-1",
+            "stopped": 0
+          }
+        ],
+        "answerTimers": 1,
+        "intervals": 0,
+        "notices": []
+      },
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "stale_media_rejection_cannot_reset_new_call_or_permission_ui",
+      "passed": false,
+      "error_type": "AssertionError",
+      "observed": {
+        "state": "idle",
+        "remote": null,
+        "local": null,
+        "permissionDenied": true,
+        "signals": [
+          {
+            "type": "call_end",
+            "target": null,
+            "caller": null
+          },
+          {
+            "type": "call_offer",
+            "target": "fixture-b",
+            "caller": "fixture-owner"
+          }
+        ],
+        "peers": [
+          {
+            "id": 0,
+            "closed": true
+          }
+        ],
+        "streams": [
+          {
+            "id": "stream-1",
+            "stopped": 0
+          },
+          {
+            "id": "stream-2",
+            "stopped": 1
+          }
+        ],
+        "answerTimers": 0,
+        "intervals": 0,
+        "notices": []
+      },
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "cancelled_permission_read_cannot_restart_old_call",
+      "passed": false,
+      "error_type": "AssertionError",
+      "observed": {
+        "state": "outgoing",
+        "remote": "fixture-a",
+        "local": "stream-2",
+        "permissionDenied": false,
+        "signals": [
+          {
+            "type": "call_end",
+            "target": null,
+            "caller": null
+          },
+          {
+            "type": "call_offer",
+            "target": "fixture-b",
+            "caller": "fixture-owner"
+          },
+          {
+            "type": "call_offer",
+            "target": "fixture-a",
+            "caller": "fixture-owner"
+          }
+        ],
+        "peers": [
+          {
+            "id": 0,
+            "closed": false
+          },
+          {
+            "id": 1,
+            "closed": false
+          }
+        ],
+        "streams": [
+          {
+            "id": "stream-1",
+            "stopped": 1
+          },
+          {
+            "id": "stream-2",
+            "stopped": 0
+          }
+        ],
+        "answerTimers": 1,
+        "intervals": 0,
+        "notices": []
+      },
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "positive_outbound_setup_still_offers_and_times_out",
+      "passed": true,
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "positive_incoming_setup_still_answers_current_caller",
+      "passed": true,
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    }
+  ],
+  "page_errors": 0,
+  "external_requests": 0,
+  "browser_closed": true,
+  "fixture_server_closed": true,
+  "evidence": "Actual React hook in Chrome, held synthetic promises and controlled clock; ICE configuration stripped before bundling; no real media, signaling, provider or deployed acceptance."
+}

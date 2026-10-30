@@ -607,7 +607,7 @@ export const MapForecastOverlay = ({
 
   // `timeOffsetHours` dep added 2026-08-09: computeHeatmapStatus reads MUTABLE GLOBALS no dep can track, and the producer (publishRenderParity in marineRenderParity.js, called from WebGLMarineLayer.js) keys on [timeOffsetHours, revision, active, activeModel] — so an HOUR SCRUB, the exact action that produces a retained-stale hour, re-ran the producer and NOT this consumer.
   const heatmapStatus = useMemo(() => reconcileStaleBadge(computeHeatmapStatus({ activeModel, activeLayer, renderMarineData }),
-    { model: activeModel, layer: activeLayer, hour: Number(timeOffsetHours), nearestMaxHours: latticeNearestMaxHours(activeModel, Number(timeOffsetHours), { selectedMs: getSeriesAnchorMs() + Number(timeOffsetHours) * 3600000, runMs: drawnFrame && drawnFrame.runMs }), instantMs: (() => { try { return Date.parse(getSharedValidTime(Number(timeOffsetHours), activeLayer, activeModel, { readOnly: true })); } catch (e) { return null; } })() }, drawnFrame),
+    { model: activeModel, layer: activeLayer, hour: Number(timeOffsetHours), nearestMaxHours: latticeNearestMaxHours(activeModel, Number(timeOffsetHours), { selectedMs: getSeriesAnchorMs() + Number(timeOffsetHours) * 3600000, runMs: drawnFrame && drawnFrame.runMs, layer: activeLayer }), instantMs: (() => { try { return Date.parse(getSharedValidTime(Number(timeOffsetHours), activeLayer, activeModel, { readOnly: true })); } catch (e) { return null; } })() }, drawnFrame),
   [renderMarineData, activeModel, activeLayer, timeOffsetHours, drawnFrame]);
 
   if (cards.length === 0 && !isLoading) {

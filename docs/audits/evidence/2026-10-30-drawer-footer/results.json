@@ -1,0 +1,3491 @@
+{
+  "passed": 6,
+  "total": 6,
+  "candidateParent": "d6539e13714ce2522c6f91e4de5991c282e4e0d3",
+  "browserVersion": "156.0.8078.48",
+  "node": "v24.22.1",
+  "source": {
+    "lib/apiClient.js": {
+      "gitBlob": "3d0c13c73406f30a7187e77e28a5b600841b1b13",
+      "sha256": "d11a49f3909804d897514d114727d56d51a0b97505f3d236ad690cfbbdf43b19"
+    },
+    "components/support/supportRoutes.js": {
+      "gitBlob": "015e12a5108f58e2ddb5132f00b812f4b58e3652",
+      "sha256": "92bf2567bf482b1975af84cf28592ee7fcadebddfaa430ebd366ad8d464bdc19"
+    },
+    "App.js": {
+      "gitBlob": "f447c8732a7fd09fe8ac69b91b61384459ef3427",
+      "sha256": "4645278903792d16b84ed6fda9b74fd50f69d2d43918b8b5b50ff4eb4ae989b3"
+    },
+    "components/routing/AppLayout.js": {
+      "gitBlob": "711254d46a3b24884b93d4e308d4242fc3eb2822",
+      "sha256": "db69023271b2730292387f0a696fc822081ca51914bf5808ff3a9b3109ba20ee"
+    },
+    "components/routing/ProtectedRoute.js": {
+      "gitBlob": "9612ae5843e0bc4790ebd7b8721217a4bcbecb9a",
+      "sha256": "0bd2959c56cc455fe02ac50215b9683c57a6f391a602faa9f2aab030c725c3d7"
+    },
+    "components/routing/TosReacceptanceGate.js": {
+      "gitBlob": "7cd824e6226e30a8b3f976a26ac5031f4f718bbe",
+      "sha256": "e8f330c4a7e90e6c21cff5ca47660d844b4dff80fe5e70601ff9b5eb50ad7766"
+    },
+    "components/support/SupportRoute.js": {
+      "gitBlob": "bf35c66ca00242184d542dec10db485d33d8019a",
+      "sha256": "85cabb7ff36e5f2b71bd0d828f29d73dd901f04243f4c09d3f7505883c366cf9"
+    },
+    "components/support/SupportInbox.js": {
+      "gitBlob": "99ee96993aac57ae7228a5ae25a30a15eefb2114",
+      "sha256": "048b8e193966cf5f9ac2d06192ec6d8d023ae7430699f6889df5a2ad0f344fe6"
+    },
+    "components/Auth.js": {
+      "gitBlob": "dba64198a722d08353e6470a6a11c4a95791afa9",
+      "sha256": "d998cd9c936c59e26064cf83667137e4aed1b7bb002c7de6276af65eac99c3d8"
+    },
+    "components/TopNav.js": {
+      "gitBlob": "a430ca06e880569f44ef0fb2fdff3c0651f24e89",
+      "sha256": "842a4a48bccc82bc9b59dea405ddf29b64272bf61515a8d9e869f515f9b7acdc"
+    },
+    "components/Sidebar.js": {
+      "gitBlob": "339ac354aa522155a5a0022c2562eca2a4965a71",
+      "sha256": "9f0785af4190652bf2de9a346362cdb487c40ab72975c5e70a725ca4ef83c1c4"
+    },
+    "components/BottomNav.js": {
+      "gitBlob": "76fc5adafe032288c0d3f4ff1a884312951eb91a",
+      "sha256": "00991acbb465d782a19e8ada3defed36ec68a1bf4add1baa0eb614c534c143d6"
+    },
+    "components/RightSidebar.js": {
+      "gitBlob": "e64a94106c616ba559e075b34c04fae40a30ae02",
+      "sha256": "d35e3ed6a849052faf3818adf387793a9e60a1fa559000aff998849d046ae0a9"
+    },
+    "components/NotificationsDrawer.js": {
+      "gitBlob": "2f4fb1d0fd98b362c9e19862b05e93e52cae408f",
+      "sha256": "7093973026f3f78d49f898dc0434317db52c64c6723f977870d2f33e2e5d6dae"
+    },
+    "components/NotificationsPage.js": {
+      "gitBlob": "bb00ad653f0c8804ccf460e7d7a7b0f2ed2790ee",
+      "sha256": "c2fffb4e7a6edb9b7ac84e57f65df1cb880a39abfd995094bb65ef041d7ab039"
+    },
+    "components/ui/sheet.jsx": {
+      "gitBlob": "929ff3ec1eb5004dd3e602aec0604dd0cb948359",
+      "sha256": "10aee034003d8b18b74451fdba03372fb075bffd07ae45722b8e229407e24389"
+    },
+    "hooks/useNotificationInbox.js": {
+      "gitBlob": "c7c8e7cfd529306c7fddcb2f060da2af0d1a1ac5",
+      "sha256": "82b296404ed2ec02195094981e513b964957c09716ea083f309475197ae170ae"
+    },
+    "hooks/useUnreadCounts.js": {
+      "gitBlob": "9d244fa48ce3aced9088b867a6339b347cecbfc9",
+      "sha256": "584763a172c0f161369b2fb88d35c1d03be978bb96ab09eb8862e5f97c954ac7"
+    },
+    "services/notificationService.js": {
+      "gitBlob": "ef0da41aa32d4c0f1bbf765daa2933c80edb1108",
+      "sha256": "15cacfc350eac98394cefd0f4f955d9bb98c62fd04ab716179be905eff3a256b"
+    },
+    "utils/notificationDeepLinks.js": {
+      "gitBlob": "ed1509ef1ac707435cbd47404097521eb907c44a",
+      "sha256": "165ac678741ec0c506040e4b07adc55e50629b0bae2bbc9a46e7b4577069cb78"
+    }
+  },
+  "results": [
+    {
+      "theme": "light",
+      "device": "desktop",
+      "passed": true,
+      "focusRestored": true,
+      "focusAfterEscape": {
+        "tag": "BUTTON",
+        "testId": "topnav-notifications",
+        "label": "Notifications"
+      },
+      "sheetWithinViewport": true,
+      "sheetBounds": {
+        "x": 464,
+        "y": 621,
+        "width": 512,
+        "height": 363
+      },
+      "footerHit": {
+        "reachable": true,
+        "x": 492,
+        "y": 920,
+        "width": 456,
+        "height": 36,
+        "interceptedBy": "BUTTON"
+      },
+      "desktopEdges": [
+        {
+          "x": 476,
+          "y": 669,
+          "visible": true,
+          "interceptedBy": "DIV"
+        },
+        {
+          "x": 964,
+          "y": 669,
+          "visible": true,
+          "interceptedBy": "DIV"
+        },
+        {
+          "x": 476,
+          "y": 936,
+          "visible": true,
+          "interceptedBy": "DIV"
+        },
+        {
+          "x": 964,
+          "y": 936,
+          "visible": true,
+          "interceptedBy": "DIV"
+        }
+      ],
+      "extraChecks": [
+        {
+          "name": "Escape after mobile-to-desktop resize focuses visible connected desktop notification link",
+          "passed": true
+        },
+        {
+          "name": "controlled desktop opening remains within viewport",
+          "passed": true
+        },
+        {
+          "name": "desktop 768px drawer edges visible above navigation",
+          "passed": true
+        },
+        {
+          "name": "desktop 768px no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "desktop 1024px drawer edges visible above navigation",
+          "passed": true
+        },
+        {
+          "name": "desktop 1024px no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "desktop 1440px drawer edges visible above navigation",
+          "passed": true
+        },
+        {
+          "name": "desktop 1440px no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "ordinary desktop close restores visible desktop fallback",
+          "passed": true
+        },
+        {
+          "name": "nonmodal outside interaction keeps intentional editor focus",
+          "passed": true
+        },
+        {
+          "name": "open desktop-to-mobile reflow stays within viewport",
+          "passed": true
+        },
+        {
+          "name": "reopened bell reports expanded dialog",
+          "passed": true
+        },
+        {
+          "name": "ordinary mobile close restores invoker and collapsed state",
+          "passed": true
+        },
+        {
+          "name": "disconnected mobile invoker falls back to connected visible desktop link",
+          "passed": true
+        },
+        {
+          "name": "native desktop notification entry retains full-page navigation",
+          "passed": true
+        }
+      ],
+      "footerChecks": [
+        {
+          "size": {
+            "width": 390,
+            "height": 844
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 390,
+              "height": 693,
+              "bottom": 749
+            },
+            "footer": {
+              "x": 12,
+              "y": 701,
+              "width": 366,
+              "height": 36
+            },
+            "nav": {
+              "y": 768,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 506,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 506
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "click",
+          "resizeChecks": [
+            {
+              "size": {
+                "width": 1440,
+                "height": 1000
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 390,
+                "height": 844
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 1440,
+                "height": 1000
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 390,
+                "height": 844
+              },
+              "passed": true
+            }
+          ],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 390,
+            "height": 480
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 390,
+              "height": 329,
+              "bottom": 385
+            },
+            "footer": {
+              "x": 12,
+              "y": 337,
+              "width": 366,
+              "height": 36
+            },
+            "nav": {
+              "y": 404,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 142,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 142
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Enter",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 320,
+            "height": 480
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 320,
+              "height": 329,
+              "bottom": 385
+            },
+            "footer": {
+              "x": 12,
+              "y": 337,
+              "width": 296,
+              "height": 36
+            },
+            "nav": {
+              "y": 404,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 867,
+            "clientHeight": 142,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 142
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Space",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 667,
+            "height": 375
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 667,
+              "height": 224,
+              "bottom": 280
+            },
+            "footer": {
+              "x": 12,
+              "y": 232,
+              "width": 643,
+              "height": 36
+            },
+            "nav": {
+              "y": 299,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 37,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 37
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "click",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 1440,
+            "height": 1000
+          },
+          "metrics": {
+            "drawer": {
+              "x": 464,
+              "y": 204,
+              "width": 512,
+              "height": 780,
+              "bottom": 984
+            },
+            "footer": {
+              "x": 492,
+              "y": 920,
+              "width": 456,
+              "height": 36
+            },
+            "nav": {
+              "y": 0,
+              "height": 0
+            },
+            "safe": "0px",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 485,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 485
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Enter",
+          "resizeChecks": [
+            {
+              "size": {
+                "width": 390,
+                "height": 844
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 1440,
+                "height": 1000
+              },
+              "passed": true
+            }
+          ],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 390,
+            "height": 844
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 390,
+              "height": 693,
+              "bottom": 749
+            },
+            "footer": {
+              "x": 12,
+              "y": 701,
+              "width": 366,
+              "height": 36
+            },
+            "nav": {
+              "y": 768,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 506,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 506
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Space",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        }
+      ],
+      "screenshot": ".run/light-desktop-sheet.png",
+      "requests": [
+        {
+          "method": "get",
+          "url": "/photographer/11111111-1111-4111-8111-111111111111/active-session"
+        },
+        {
+          "method": "get",
+          "url": "/hashtags/trending?limit=5"
+        },
+        {
+          "method": "get",
+          "url": "/notifications/11111111-1111-4111-8111-111111111111/unread-count"
+        },
+        {
+          "method": "get",
+          "url": "/messages/unread-counts/11111111-1111-4111-8111-111111111111"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets?limit=50&offset=0"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets/44444444-4444-4444-8444-444444444444"
+        },
+        {
+          "method": "get",
+          "url": "/profiles/11111111-1111-4111-8111-111111111111"
+        },
+        {
+          "method": "get",
+          "url": "/notifications/22222222-2222-4222-8222-222222222222/unread-count"
+        },
+        {
+          "method": "get",
+          "url": "/messages/unread-counts/22222222-2222-4222-8222-222222222222"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets?limit=50&offset=0"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets/44444444-4444-4444-8444-444444444444"
+        },
+        {
+          "method": "get",
+          "url": "/profiles/22222222-2222-4222-8222-222222222222"
+        },
+        {
+          "method": "get",
+          "url": "/compliance/tos-status/22222222-2222-4222-8222-222222222222?current_version=1.0"
+        },
+        {
+          "method": "get",
+          "url": "/photographer/22222222-2222-4222-8222-222222222222/active-session"
+        },
+        {
+          "method": "get",
+          "url": "/compliance/tos-content/current?doc_type=tos"
+        }
+      ],
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "cases": [
+        "actual App routes",
+        "sign-in return across category/tab",
+        "real ToS confirmation/focus/cache",
+        "unlinked Grom support",
+        "real shell",
+        "real nonmodal Radix Sheet portal/six Tab steps/Escape/focus return",
+        "native Enter/Space activation and one read",
+        "desktop drawer reflow",
+        "draft retained across drawer",
+        "refresh",
+        "wrong-account content removal"
+      ]
+    },
+    {
+      "theme": "light",
+      "device": "mobile",
+      "passed": true,
+      "focusRestored": true,
+      "focusAfterEscape": {
+        "tag": "BUTTON",
+        "testId": "topnav-notifications",
+        "label": "Notifications"
+      },
+      "sheetWithinViewport": true,
+      "sheetBounds": {
+        "x": 0,
+        "y": 494,
+        "width": 390,
+        "height": 255
+      },
+      "footerHit": {
+        "reachable": true,
+        "x": 12,
+        "y": 701,
+        "width": 366,
+        "height": 36,
+        "interceptedBy": "BUTTON"
+      },
+      "desktopEdges": null,
+      "extraChecks": [
+        {
+          "name": "reopened bell reports expanded dialog",
+          "passed": true
+        },
+        {
+          "name": "ordinary mobile close restores invoker and collapsed state",
+          "passed": true
+        }
+      ],
+      "footerChecks": [
+        {
+          "size": {
+            "width": 390,
+            "height": 844
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 390,
+              "height": 693,
+              "bottom": 749
+            },
+            "footer": {
+              "x": 12,
+              "y": 701,
+              "width": 366,
+              "height": 36
+            },
+            "nav": {
+              "y": 768,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 506,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 506
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "click",
+          "resizeChecks": [
+            {
+              "size": {
+                "width": 1440,
+                "height": 1000
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 390,
+                "height": 844
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 1440,
+                "height": 1000
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 390,
+                "height": 844
+              },
+              "passed": true
+            }
+          ],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 390,
+            "height": 480
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 390,
+              "height": 329,
+              "bottom": 385
+            },
+            "footer": {
+              "x": 12,
+              "y": 337,
+              "width": 366,
+              "height": 36
+            },
+            "nav": {
+              "y": 404,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 142,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 142
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Enter",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 320,
+            "height": 480
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 320,
+              "height": 329,
+              "bottom": 385
+            },
+            "footer": {
+              "x": 12,
+              "y": 337,
+              "width": 296,
+              "height": 36
+            },
+            "nav": {
+              "y": 404,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 867,
+            "clientHeight": 142,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 142
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Space",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 667,
+            "height": 375
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 667,
+              "height": 224,
+              "bottom": 280
+            },
+            "footer": {
+              "x": 12,
+              "y": 232,
+              "width": 643,
+              "height": 36
+            },
+            "nav": {
+              "y": 299,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 37,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 37
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "click",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 1440,
+            "height": 1000
+          },
+          "metrics": {
+            "drawer": {
+              "x": 464,
+              "y": 204,
+              "width": 512,
+              "height": 780,
+              "bottom": 984
+            },
+            "footer": {
+              "x": 492,
+              "y": 920,
+              "width": 456,
+              "height": 36
+            },
+            "nav": {
+              "y": 0,
+              "height": 0
+            },
+            "safe": "0px",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 485,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 485
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Enter",
+          "resizeChecks": [
+            {
+              "size": {
+                "width": 390,
+                "height": 844
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 1440,
+                "height": 1000
+              },
+              "passed": true
+            }
+          ],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 390,
+            "height": 844
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 390,
+              "height": 693,
+              "bottom": 749
+            },
+            "footer": {
+              "x": 12,
+              "y": 701,
+              "width": 366,
+              "height": 36
+            },
+            "nav": {
+              "y": 768,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 506,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 506
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Space",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        }
+      ],
+      "screenshot": ".run/light-mobile-sheet.png",
+      "requests": [
+        {
+          "method": "get",
+          "url": "/photographer/11111111-1111-4111-8111-111111111111/active-session"
+        },
+        {
+          "method": "get",
+          "url": "/hashtags/trending?limit=5"
+        },
+        {
+          "method": "get",
+          "url": "/notifications/11111111-1111-4111-8111-111111111111/unread-count"
+        },
+        {
+          "method": "get",
+          "url": "/messages/unread-counts/11111111-1111-4111-8111-111111111111"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets?limit=50&offset=0"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets/44444444-4444-4444-8444-444444444444"
+        },
+        {
+          "method": "get",
+          "url": "/profiles/11111111-1111-4111-8111-111111111111"
+        },
+        {
+          "method": "get",
+          "url": "/notifications/22222222-2222-4222-8222-222222222222/unread-count"
+        },
+        {
+          "method": "get",
+          "url": "/messages/unread-counts/22222222-2222-4222-8222-222222222222"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets?limit=50&offset=0"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets/44444444-4444-4444-8444-444444444444"
+        },
+        {
+          "method": "get",
+          "url": "/profiles/22222222-2222-4222-8222-222222222222"
+        },
+        {
+          "method": "get",
+          "url": "/compliance/tos-status/22222222-2222-4222-8222-222222222222?current_version=1.0"
+        },
+        {
+          "method": "get",
+          "url": "/photographer/22222222-2222-4222-8222-222222222222/active-session"
+        },
+        {
+          "method": "get",
+          "url": "/compliance/tos-content/current?doc_type=tos"
+        }
+      ],
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "cases": [
+        "actual App routes",
+        "sign-in return across category/tab",
+        "real ToS confirmation/focus/cache",
+        "unlinked Grom support",
+        "real shell",
+        "real nonmodal Radix Sheet portal/six Tab steps/Escape/focus return",
+        "native Enter/Space activation and one read",
+        "desktop drawer reflow",
+        "draft retained across drawer",
+        "refresh",
+        "wrong-account content removal"
+      ]
+    },
+    {
+      "theme": "dark",
+      "device": "desktop",
+      "passed": true,
+      "focusRestored": true,
+      "focusAfterEscape": {
+        "tag": "BUTTON",
+        "testId": "topnav-notifications",
+        "label": "Notifications"
+      },
+      "sheetWithinViewport": true,
+      "sheetBounds": {
+        "x": 464,
+        "y": 621,
+        "width": 512,
+        "height": 363
+      },
+      "footerHit": {
+        "reachable": true,
+        "x": 492,
+        "y": 920,
+        "width": 456,
+        "height": 36,
+        "interceptedBy": "BUTTON"
+      },
+      "desktopEdges": [
+        {
+          "x": 476,
+          "y": 669,
+          "visible": true,
+          "interceptedBy": "DIV"
+        },
+        {
+          "x": 964,
+          "y": 669,
+          "visible": true,
+          "interceptedBy": "DIV"
+        },
+        {
+          "x": 476,
+          "y": 936,
+          "visible": true,
+          "interceptedBy": "DIV"
+        },
+        {
+          "x": 964,
+          "y": 936,
+          "visible": true,
+          "interceptedBy": "DIV"
+        }
+      ],
+      "extraChecks": [
+        {
+          "name": "Escape after mobile-to-desktop resize focuses visible connected desktop notification link",
+          "passed": true
+        },
+        {
+          "name": "controlled desktop opening remains within viewport",
+          "passed": true
+        },
+        {
+          "name": "desktop 768px drawer edges visible above navigation",
+          "passed": true
+        },
+        {
+          "name": "desktop 768px no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "desktop 1024px drawer edges visible above navigation",
+          "passed": true
+        },
+        {
+          "name": "desktop 1024px no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "desktop 1440px drawer edges visible above navigation",
+          "passed": true
+        },
+        {
+          "name": "desktop 1440px no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "ordinary desktop close restores visible desktop fallback",
+          "passed": true
+        },
+        {
+          "name": "nonmodal outside interaction keeps intentional editor focus",
+          "passed": true
+        },
+        {
+          "name": "open desktop-to-mobile reflow stays within viewport",
+          "passed": true
+        },
+        {
+          "name": "reopened bell reports expanded dialog",
+          "passed": true
+        },
+        {
+          "name": "ordinary mobile close restores invoker and collapsed state",
+          "passed": true
+        },
+        {
+          "name": "disconnected mobile invoker falls back to connected visible desktop link",
+          "passed": true
+        },
+        {
+          "name": "native desktop notification entry retains full-page navigation",
+          "passed": true
+        }
+      ],
+      "footerChecks": [
+        {
+          "size": {
+            "width": 390,
+            "height": 844
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 390,
+              "height": 693,
+              "bottom": 749
+            },
+            "footer": {
+              "x": 12,
+              "y": 701,
+              "width": 366,
+              "height": 36
+            },
+            "nav": {
+              "y": 768,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 506,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 506
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "click",
+          "resizeChecks": [
+            {
+              "size": {
+                "width": 1440,
+                "height": 1000
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 390,
+                "height": 844
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 1440,
+                "height": 1000
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 390,
+                "height": 844
+              },
+              "passed": true
+            }
+          ],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 390,
+            "height": 480
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 390,
+              "height": 329,
+              "bottom": 385
+            },
+            "footer": {
+              "x": 12,
+              "y": 337,
+              "width": 366,
+              "height": 36
+            },
+            "nav": {
+              "y": 404,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 142,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 142
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Enter",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 320,
+            "height": 480
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 320,
+              "height": 329,
+              "bottom": 385
+            },
+            "footer": {
+              "x": 12,
+              "y": 337,
+              "width": 296,
+              "height": 36
+            },
+            "nav": {
+              "y": 404,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 867,
+            "clientHeight": 142,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 142
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Space",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 667,
+            "height": 375
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 667,
+              "height": 224,
+              "bottom": 280
+            },
+            "footer": {
+              "x": 12,
+              "y": 232,
+              "width": 643,
+              "height": 36
+            },
+            "nav": {
+              "y": 299,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 37,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 37
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "click",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 1440,
+            "height": 1000
+          },
+          "metrics": {
+            "drawer": {
+              "x": 464,
+              "y": 204,
+              "width": 512,
+              "height": 780,
+              "bottom": 984
+            },
+            "footer": {
+              "x": 492,
+              "y": 920,
+              "width": 456,
+              "height": 36
+            },
+            "nav": {
+              "y": 0,
+              "height": 0
+            },
+            "safe": "0px",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 485,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 485
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Enter",
+          "resizeChecks": [
+            {
+              "size": {
+                "width": 390,
+                "height": 844
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 1440,
+                "height": 1000
+              },
+              "passed": true
+            }
+          ],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 390,
+            "height": 844
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 390,
+              "height": 693,
+              "bottom": 749
+            },
+            "footer": {
+              "x": 12,
+              "y": 701,
+              "width": 366,
+              "height": 36
+            },
+            "nav": {
+              "y": 768,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 506,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 506
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Space",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        }
+      ],
+      "screenshot": ".run/dark-desktop-sheet.png",
+      "requests": [
+        {
+          "method": "get",
+          "url": "/photographer/11111111-1111-4111-8111-111111111111/active-session"
+        },
+        {
+          "method": "get",
+          "url": "/hashtags/trending?limit=5"
+        },
+        {
+          "method": "get",
+          "url": "/notifications/11111111-1111-4111-8111-111111111111/unread-count"
+        },
+        {
+          "method": "get",
+          "url": "/messages/unread-counts/11111111-1111-4111-8111-111111111111"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets?limit=50&offset=0"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets/44444444-4444-4444-8444-444444444444"
+        },
+        {
+          "method": "get",
+          "url": "/profiles/11111111-1111-4111-8111-111111111111"
+        },
+        {
+          "method": "get",
+          "url": "/notifications/22222222-2222-4222-8222-222222222222/unread-count"
+        },
+        {
+          "method": "get",
+          "url": "/messages/unread-counts/22222222-2222-4222-8222-222222222222"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets?limit=50&offset=0"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets/44444444-4444-4444-8444-444444444444"
+        },
+        {
+          "method": "get",
+          "url": "/profiles/22222222-2222-4222-8222-222222222222"
+        },
+        {
+          "method": "get",
+          "url": "/compliance/tos-status/22222222-2222-4222-8222-222222222222?current_version=1.0"
+        },
+        {
+          "method": "get",
+          "url": "/photographer/22222222-2222-4222-8222-222222222222/active-session"
+        },
+        {
+          "method": "get",
+          "url": "/compliance/tos-content/current?doc_type=tos"
+        }
+      ],
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "cases": [
+        "actual App routes",
+        "sign-in return across category/tab",
+        "real ToS confirmation/focus/cache",
+        "unlinked Grom support",
+        "real shell",
+        "real nonmodal Radix Sheet portal/six Tab steps/Escape/focus return",
+        "native Enter/Space activation and one read",
+        "desktop drawer reflow",
+        "draft retained across drawer",
+        "refresh",
+        "wrong-account content removal"
+      ]
+    },
+    {
+      "theme": "dark",
+      "device": "mobile",
+      "passed": true,
+      "focusRestored": true,
+      "focusAfterEscape": {
+        "tag": "BUTTON",
+        "testId": "topnav-notifications",
+        "label": "Notifications"
+      },
+      "sheetWithinViewport": true,
+      "sheetBounds": {
+        "x": 0,
+        "y": 494,
+        "width": 390,
+        "height": 255
+      },
+      "footerHit": {
+        "reachable": true,
+        "x": 12,
+        "y": 701,
+        "width": 366,
+        "height": 36,
+        "interceptedBy": "BUTTON"
+      },
+      "desktopEdges": null,
+      "extraChecks": [
+        {
+          "name": "reopened bell reports expanded dialog",
+          "passed": true
+        },
+        {
+          "name": "ordinary mobile close restores invoker and collapsed state",
+          "passed": true
+        }
+      ],
+      "footerChecks": [
+        {
+          "size": {
+            "width": 390,
+            "height": 844
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 390,
+              "height": 693,
+              "bottom": 749
+            },
+            "footer": {
+              "x": 12,
+              "y": 701,
+              "width": 366,
+              "height": 36
+            },
+            "nav": {
+              "y": 768,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 506,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 506
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "click",
+          "resizeChecks": [
+            {
+              "size": {
+                "width": 1440,
+                "height": 1000
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 390,
+                "height": 844
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 1440,
+                "height": 1000
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 390,
+                "height": 844
+              },
+              "passed": true
+            }
+          ],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 390,
+            "height": 480
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 390,
+              "height": 329,
+              "bottom": 385
+            },
+            "footer": {
+              "x": 12,
+              "y": 337,
+              "width": 366,
+              "height": 36
+            },
+            "nav": {
+              "y": 404,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 142,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 142
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Enter",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 320,
+            "height": 480
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 320,
+              "height": 329,
+              "bottom": 385
+            },
+            "footer": {
+              "x": 12,
+              "y": 337,
+              "width": 296,
+              "height": 36
+            },
+            "nav": {
+              "y": 404,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 867,
+            "clientHeight": 142,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 142
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Space",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 667,
+            "height": 375
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 667,
+              "height": 224,
+              "bottom": 280
+            },
+            "footer": {
+              "x": 12,
+              "y": 232,
+              "width": 643,
+              "height": 36
+            },
+            "nav": {
+              "y": 299,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 37,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 37
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "click",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 1440,
+            "height": 1000
+          },
+          "metrics": {
+            "drawer": {
+              "x": 464,
+              "y": 204,
+              "width": 512,
+              "height": 780,
+              "bottom": 984
+            },
+            "footer": {
+              "x": 492,
+              "y": 920,
+              "width": 456,
+              "height": 36
+            },
+            "nav": {
+              "y": 0,
+              "height": 0
+            },
+            "safe": "0px",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 485,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 485
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Enter",
+          "resizeChecks": [
+            {
+              "size": {
+                "width": 390,
+                "height": 844
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 1440,
+                "height": 1000
+              },
+              "passed": true
+            }
+          ],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 390,
+            "height": 844
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 390,
+              "height": 693,
+              "bottom": 749
+            },
+            "footer": {
+              "x": 12,
+              "y": 701,
+              "width": 366,
+              "height": 36
+            },
+            "nav": {
+              "y": 768,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 506,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 506
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Space",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        }
+      ],
+      "screenshot": ".run/dark-mobile-sheet.png",
+      "requests": [
+        {
+          "method": "get",
+          "url": "/photographer/11111111-1111-4111-8111-111111111111/active-session"
+        },
+        {
+          "method": "get",
+          "url": "/hashtags/trending?limit=5"
+        },
+        {
+          "method": "get",
+          "url": "/notifications/11111111-1111-4111-8111-111111111111/unread-count"
+        },
+        {
+          "method": "get",
+          "url": "/messages/unread-counts/11111111-1111-4111-8111-111111111111"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets?limit=50&offset=0"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets/44444444-4444-4444-8444-444444444444"
+        },
+        {
+          "method": "get",
+          "url": "/profiles/11111111-1111-4111-8111-111111111111"
+        },
+        {
+          "method": "get",
+          "url": "/notifications/22222222-2222-4222-8222-222222222222/unread-count"
+        },
+        {
+          "method": "get",
+          "url": "/messages/unread-counts/22222222-2222-4222-8222-222222222222"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets?limit=50&offset=0"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets/44444444-4444-4444-8444-444444444444"
+        },
+        {
+          "method": "get",
+          "url": "/profiles/22222222-2222-4222-8222-222222222222"
+        },
+        {
+          "method": "get",
+          "url": "/compliance/tos-status/22222222-2222-4222-8222-222222222222?current_version=1.0"
+        },
+        {
+          "method": "get",
+          "url": "/photographer/22222222-2222-4222-8222-222222222222/active-session"
+        },
+        {
+          "method": "get",
+          "url": "/compliance/tos-content/current?doc_type=tos"
+        }
+      ],
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "cases": [
+        "actual App routes",
+        "sign-in return across category/tab",
+        "real ToS confirmation/focus/cache",
+        "unlinked Grom support",
+        "real shell",
+        "real nonmodal Radix Sheet portal/six Tab steps/Escape/focus return",
+        "native Enter/Space activation and one read",
+        "desktop drawer reflow",
+        "draft retained across drawer",
+        "refresh",
+        "wrong-account content removal"
+      ]
+    },
+    {
+      "theme": "beach",
+      "device": "desktop",
+      "passed": true,
+      "focusRestored": true,
+      "focusAfterEscape": {
+        "tag": "BUTTON",
+        "testId": "topnav-notifications",
+        "label": "Notifications"
+      },
+      "sheetWithinViewport": true,
+      "sheetBounds": {
+        "x": 464,
+        "y": 621,
+        "width": 512,
+        "height": 363
+      },
+      "footerHit": {
+        "reachable": true,
+        "x": 492,
+        "y": 920,
+        "width": 456,
+        "height": 36,
+        "interceptedBy": "BUTTON"
+      },
+      "desktopEdges": [
+        {
+          "x": 476,
+          "y": 669,
+          "visible": true,
+          "interceptedBy": "DIV"
+        },
+        {
+          "x": 964,
+          "y": 669,
+          "visible": true,
+          "interceptedBy": "DIV"
+        },
+        {
+          "x": 476,
+          "y": 936,
+          "visible": true,
+          "interceptedBy": "DIV"
+        },
+        {
+          "x": 964,
+          "y": 936,
+          "visible": true,
+          "interceptedBy": "DIV"
+        }
+      ],
+      "extraChecks": [
+        {
+          "name": "Escape after mobile-to-desktop resize focuses visible connected desktop notification link",
+          "passed": true
+        },
+        {
+          "name": "controlled desktop opening remains within viewport",
+          "passed": true
+        },
+        {
+          "name": "desktop 768px drawer edges visible above navigation",
+          "passed": true
+        },
+        {
+          "name": "desktop 768px no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "desktop 1024px drawer edges visible above navigation",
+          "passed": true
+        },
+        {
+          "name": "desktop 1024px no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "desktop 1440px drawer edges visible above navigation",
+          "passed": true
+        },
+        {
+          "name": "desktop 1440px no horizontal overflow",
+          "passed": true
+        },
+        {
+          "name": "ordinary desktop close restores visible desktop fallback",
+          "passed": true
+        },
+        {
+          "name": "nonmodal outside interaction keeps intentional editor focus",
+          "passed": true
+        },
+        {
+          "name": "open desktop-to-mobile reflow stays within viewport",
+          "passed": true
+        },
+        {
+          "name": "reopened bell reports expanded dialog",
+          "passed": true
+        },
+        {
+          "name": "ordinary mobile close restores invoker and collapsed state",
+          "passed": true
+        },
+        {
+          "name": "disconnected mobile invoker falls back to connected visible desktop link",
+          "passed": true
+        },
+        {
+          "name": "native desktop notification entry retains full-page navigation",
+          "passed": true
+        }
+      ],
+      "footerChecks": [
+        {
+          "size": {
+            "width": 390,
+            "height": 844
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 390,
+              "height": 693,
+              "bottom": 749
+            },
+            "footer": {
+              "x": 12,
+              "y": 701,
+              "width": 366,
+              "height": 36
+            },
+            "nav": {
+              "y": 768,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 506,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 506
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "click",
+          "resizeChecks": [
+            {
+              "size": {
+                "width": 1440,
+                "height": 1000
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 390,
+                "height": 844
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 1440,
+                "height": 1000
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 390,
+                "height": 844
+              },
+              "passed": true
+            }
+          ],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 390,
+            "height": 480
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 390,
+              "height": 329,
+              "bottom": 385
+            },
+            "footer": {
+              "x": 12,
+              "y": 337,
+              "width": 366,
+              "height": 36
+            },
+            "nav": {
+              "y": 404,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 142,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 142
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Enter",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 320,
+            "height": 480
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 320,
+              "height": 329,
+              "bottom": 385
+            },
+            "footer": {
+              "x": 12,
+              "y": 337,
+              "width": 296,
+              "height": 36
+            },
+            "nav": {
+              "y": 404,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 867,
+            "clientHeight": 142,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 142
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Space",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 667,
+            "height": 375
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 667,
+              "height": 224,
+              "bottom": 280
+            },
+            "footer": {
+              "x": 12,
+              "y": 232,
+              "width": 643,
+              "height": 36
+            },
+            "nav": {
+              "y": 299,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 37,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 37
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "click",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 1440,
+            "height": 1000
+          },
+          "metrics": {
+            "drawer": {
+              "x": 464,
+              "y": 204,
+              "width": 512,
+              "height": 780,
+              "bottom": 984
+            },
+            "footer": {
+              "x": 492,
+              "y": 920,
+              "width": 456,
+              "height": 36
+            },
+            "nav": {
+              "y": 0,
+              "height": 0
+            },
+            "safe": "0px",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 485,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 485
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Enter",
+          "resizeChecks": [
+            {
+              "size": {
+                "width": 390,
+                "height": 844
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 1440,
+                "height": 1000
+              },
+              "passed": true
+            }
+          ],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 390,
+            "height": 844
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 390,
+              "height": 693,
+              "bottom": 749
+            },
+            "footer": {
+              "x": 12,
+              "y": 701,
+              "width": 366,
+              "height": 36
+            },
+            "nav": {
+              "y": 768,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 506,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 506
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Space",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        }
+      ],
+      "screenshot": ".run/beach-desktop-sheet.png",
+      "requests": [
+        {
+          "method": "get",
+          "url": "/photographer/11111111-1111-4111-8111-111111111111/active-session"
+        },
+        {
+          "method": "get",
+          "url": "/hashtags/trending?limit=5"
+        },
+        {
+          "method": "get",
+          "url": "/notifications/11111111-1111-4111-8111-111111111111/unread-count"
+        },
+        {
+          "method": "get",
+          "url": "/messages/unread-counts/11111111-1111-4111-8111-111111111111"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets?limit=50&offset=0"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets/44444444-4444-4444-8444-444444444444"
+        },
+        {
+          "method": "get",
+          "url": "/profiles/11111111-1111-4111-8111-111111111111"
+        },
+        {
+          "method": "get",
+          "url": "/notifications/22222222-2222-4222-8222-222222222222/unread-count"
+        },
+        {
+          "method": "get",
+          "url": "/messages/unread-counts/22222222-2222-4222-8222-222222222222"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets?limit=50&offset=0"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets/44444444-4444-4444-8444-444444444444"
+        },
+        {
+          "method": "get",
+          "url": "/profiles/22222222-2222-4222-8222-222222222222"
+        },
+        {
+          "method": "get",
+          "url": "/compliance/tos-status/22222222-2222-4222-8222-222222222222?current_version=1.0"
+        },
+        {
+          "method": "get",
+          "url": "/photographer/22222222-2222-4222-8222-222222222222/active-session"
+        },
+        {
+          "method": "get",
+          "url": "/compliance/tos-content/current?doc_type=tos"
+        }
+      ],
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "cases": [
+        "actual App routes",
+        "sign-in return across category/tab",
+        "real ToS confirmation/focus/cache",
+        "unlinked Grom support",
+        "real shell",
+        "real nonmodal Radix Sheet portal/six Tab steps/Escape/focus return",
+        "native Enter/Space activation and one read",
+        "desktop drawer reflow",
+        "draft retained across drawer",
+        "refresh",
+        "wrong-account content removal"
+      ]
+    },
+    {
+      "theme": "beach",
+      "device": "mobile",
+      "passed": true,
+      "focusRestored": true,
+      "focusAfterEscape": {
+        "tag": "BUTTON",
+        "testId": "topnav-notifications",
+        "label": "Notifications"
+      },
+      "sheetWithinViewport": true,
+      "sheetBounds": {
+        "x": 0,
+        "y": 494,
+        "width": 390,
+        "height": 255
+      },
+      "footerHit": {
+        "reachable": true,
+        "x": 12,
+        "y": 701,
+        "width": 366,
+        "height": 36,
+        "interceptedBy": "BUTTON"
+      },
+      "desktopEdges": null,
+      "extraChecks": [
+        {
+          "name": "reopened bell reports expanded dialog",
+          "passed": true
+        },
+        {
+          "name": "ordinary mobile close restores invoker and collapsed state",
+          "passed": true
+        }
+      ],
+      "footerChecks": [
+        {
+          "size": {
+            "width": 390,
+            "height": 844
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 390,
+              "height": 693,
+              "bottom": 749
+            },
+            "footer": {
+              "x": 12,
+              "y": 701,
+              "width": 366,
+              "height": 36
+            },
+            "nav": {
+              "y": 768,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 506,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 506
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "click",
+          "resizeChecks": [
+            {
+              "size": {
+                "width": 1440,
+                "height": 1000
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 390,
+                "height": 844
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 1440,
+                "height": 1000
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 390,
+                "height": 844
+              },
+              "passed": true
+            }
+          ],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 390,
+            "height": 480
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 390,
+              "height": 329,
+              "bottom": 385
+            },
+            "footer": {
+              "x": 12,
+              "y": 337,
+              "width": 366,
+              "height": 36
+            },
+            "nav": {
+              "y": 404,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 142,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 142
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Enter",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 320,
+            "height": 480
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 320,
+              "height": 329,
+              "bottom": 385
+            },
+            "footer": {
+              "x": 12,
+              "y": 337,
+              "width": 296,
+              "height": 36
+            },
+            "nav": {
+              "y": 404,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 867,
+            "clientHeight": 142,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 142
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Space",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 667,
+            "height": 375
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 667,
+              "height": 224,
+              "bottom": 280
+            },
+            "footer": {
+              "x": 12,
+              "y": 232,
+              "width": 643,
+              "height": 36
+            },
+            "nav": {
+              "y": 299,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 37,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 37
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "click",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 1440,
+            "height": 1000
+          },
+          "metrics": {
+            "drawer": {
+              "x": 464,
+              "y": 204,
+              "width": 512,
+              "height": 780,
+              "bottom": 984
+            },
+            "footer": {
+              "x": 492,
+              "y": 920,
+              "width": 456,
+              "height": 36
+            },
+            "nav": {
+              "y": 0,
+              "height": 0
+            },
+            "safe": "0px",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 485,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 485
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Enter",
+          "resizeChecks": [
+            {
+              "size": {
+                "width": 390,
+                "height": 844
+              },
+              "passed": true
+            },
+            {
+              "size": {
+                "width": 1440,
+                "height": 1000
+              },
+              "passed": true
+            }
+          ],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        },
+        {
+          "size": {
+            "width": 390,
+            "height": 844
+          },
+          "metrics": {
+            "drawer": {
+              "x": 0,
+              "y": 56,
+              "width": 390,
+              "height": 693,
+              "bottom": 749
+            },
+            "footer": {
+              "x": 12,
+              "y": 701,
+              "width": 366,
+              "height": 36
+            },
+            "nav": {
+              "y": 768,
+              "height": 76
+            },
+            "safe": "calc(75px + 20px + 0px)",
+            "footerHit": true,
+            "interceptor": "BUTTON",
+            "scrollable": true,
+            "scrollHeight": 712,
+            "clientHeight": 506,
+            "children": [
+              {
+                "tag": "DIV",
+                "h": 20
+              },
+              {
+                "tag": "DIV",
+                "h": 53
+              },
+              {
+                "tag": "DIV",
+                "h": 52
+              },
+              {
+                "tag": "DIV",
+                "h": 506
+              },
+              {
+                "tag": "DIV",
+                "h": 61
+              }
+            ]
+          },
+          "activationMode": "Space",
+          "resizeChecks": [],
+          "nativeActivation": true,
+          "noOverflow": true,
+          "passed": true
+        }
+      ],
+      "screenshot": ".run/beach-mobile-sheet.png",
+      "requests": [
+        {
+          "method": "get",
+          "url": "/photographer/11111111-1111-4111-8111-111111111111/active-session"
+        },
+        {
+          "method": "get",
+          "url": "/hashtags/trending?limit=5"
+        },
+        {
+          "method": "get",
+          "url": "/notifications/11111111-1111-4111-8111-111111111111/unread-count"
+        },
+        {
+          "method": "get",
+          "url": "/messages/unread-counts/11111111-1111-4111-8111-111111111111"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets?limit=50&offset=0"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets/44444444-4444-4444-8444-444444444444"
+        },
+        {
+          "method": "get",
+          "url": "/profiles/11111111-1111-4111-8111-111111111111"
+        },
+        {
+          "method": "get",
+          "url": "/notifications/22222222-2222-4222-8222-222222222222/unread-count"
+        },
+        {
+          "method": "get",
+          "url": "/messages/unread-counts/22222222-2222-4222-8222-222222222222"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets?limit=50&offset=0"
+        },
+        {
+          "method": "get",
+          "url": "/support/tickets/44444444-4444-4444-8444-444444444444"
+        },
+        {
+          "method": "get",
+          "url": "/profiles/22222222-2222-4222-8222-222222222222"
+        },
+        {
+          "method": "get",
+          "url": "/compliance/tos-status/22222222-2222-4222-8222-222222222222?current_version=1.0"
+        },
+        {
+          "method": "get",
+          "url": "/photographer/22222222-2222-4222-8222-222222222222/active-session"
+        },
+        {
+          "method": "get",
+          "url": "/compliance/tos-content/current?doc_type=tos"
+        }
+      ],
+      "externalRequests": 0,
+      "pageErrors": 0,
+      "horizontalOverflow": false,
+      "cases": [
+        "actual App routes",
+        "sign-in return across category/tab",
+        "real ToS confirmation/focus/cache",
+        "unlinked Grom support",
+        "real shell",
+        "real nonmodal Radix Sheet portal/six Tab steps/Escape/focus return",
+        "native Enter/Space activation and one read",
+        "desktop drawer reflow",
+        "draft retained across drawer",
+        "refresh",
+        "wrong-account content removal"
+      ]
+    }
+  ],
+  "boundaries": {
+    "auth": "synthetic provider; random ephemeral local marker, no JWT verification",
+    "api": "in-memory transport",
+    "actual": [
+      "lib/apiClient.js",
+      "components/support/supportRoutes.js",
+      "App.js",
+      "components/routing/AppLayout.js",
+      "components/routing/ProtectedRoute.js",
+      "components/routing/TosReacceptanceGate.js",
+      "components/support/SupportRoute.js",
+      "components/support/SupportInbox.js",
+      "components/Auth.js",
+      "components/TopNav.js",
+      "components/Sidebar.js",
+      "components/BottomNav.js",
+      "components/RightSidebar.js",
+      "components/NotificationsDrawer.js",
+      "components/NotificationsPage.js",
+      "components/ui/sheet.jsx",
+      "hooks/useNotificationInbox.js",
+      "hooks/useUnreadCounts.js",
+      "services/notificationService.js",
+      "utils/notificationDeepLinks.js"
+    ],
+    "disabled": [
+      "contexts\\AuthContext",
+      "lib\\apiClient",
+      "hooks\\useWebRTCCall",
+      "hooks\\usePushNotifications",
+      "hooks\\useActiveSession",
+      "utils\\audioUnlock",
+      "hooks\\useRoutePreloader",
+      "components\\Home",
+      "components\\PasswordReset",
+      "components\\PushNotificationPrompt",
+      "components\\SurfPassport",
+      "components\\DutyStationDrawer",
+      "components\\TopNavDrawerTray",
+      "components\\ViolationBanner",
+      "components\\ImpersonationBanner",
+      "components\\PersonaMaskBanner",
+      "components\\security\\MfaSignInSteps",
+      "components\\messages\\IncomingCallModal",
+      "components\\messages\\OutgoingCallModal",
+      "components\\messages\\InCallView",
+      "components\\messages\\PermissionDeniedModal",
+      "components\\Feed",
+      "components\\Profile",
+      "components\\Settings",
+      "components\\security\\SecuritySettings",
+      "components\\MessagesPage",
+      "components\\MapPage",
+      "components\\GalleryPage",
+      "components\\UnifiedAdminConsole",
+      "admin\\AdminApp",
+      "components\\PhotographerBookingsManager",
+      "components\\PhotographerSessionsManager",
+      "components\\OnDemandSessionManager",
+      "components\\ScheduledBookingDrawer",
+      "components\\SurferSubscription",
+      "components\\PhotographerSubscription",
+      "components\\SubscriptionSuccess",
+      "components\\ProOnboarding",
+      "components\\Bookings",
+      "components\\Explore",
+      "components\\SurfAlerts",
+      "components\\Credits",
+      "components\\CreditWallet",
+      "components\\GearHub",
+      "components\\ImpactDashboard",
+      "components\\EarningsDashboard",
+      "components\\PhotographerGalleryManager",
+      "components\\SinglePost",
+      "components\\PaymentSuccess",
+      "components\\BookingPaymentSuccess",
+      "components\\DispatchPaymentSuccess",
+      "components\\CrewCardPaymentSuccess",
+      "components\\XPLeaderboard",
+      "components\\ThePeakHub",
+      "components\\TheInsideHub",
+      "components\\ImpactZoneHub",
+      "components\\StokeSponsorDashboard",
+      "components\\StokeSponsorLeaderboard",
+      "components\\StokedDashboard",
+      "components\\StokedLockedPage",
+      "components\\GromHQ",
+      "components\\GromManage",
+      "components\\OnDemandSettingsPage",
+      "components\\SpotHub",
+      "components\\CrewPaymentPage",
+      "components\\CrewChat",
+      "components\\SurferGallery",
+      "components\\PublicPhotographerGallery",
+      "components\\GalleryStorefront",
+      "components\\UsernameSetup",
+      "components\\ThemePage",
+      "pages\\SearchPage",
+      "components\\SurfLog",
+      "components\\CreatePost",
+      "components\\DispatchLobby",
+      "pages\\SessionRecapPage",
+      "components\\PhotographerSubscriptionSettings",
+      "components\\PhotographerSubscribePage",
+      "components\\CareerPage"
+    ],
+    "css": "actual Tailwind/index/App/wraparound; remote font imports removed",
+    "backend": "separately owned by integration chat; this fixture does not send requests"
+  }
+}

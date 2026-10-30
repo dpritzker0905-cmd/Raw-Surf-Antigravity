@@ -15,7 +15,7 @@ export function windReadout({ model, hour }, drawn) {
   // Half the stored wind lattice step: 3-hourly series frames are never more than 1 h from the selection (EURO's 6-hourly
   // tail past model step 144: 3 h). Further away is a fetch still owed, so it reads "Loading", never "nearest" (lab run B2, 2026-10-19).
   const labelMs = Number.isFinite(hour) ? getSeriesAnchorMs() + hour * 3600000 : null;   // the selection's own instant (drawnFrameReadout)
-  const nearestMaxHours = latticeNearestMaxHours(model, hour, { selectedMs: labelMs, runMs: drawn.runMs });   // the drawn frame's run
+  const nearestMaxHours = latticeNearestMaxHours(model, hour, { selectedMs: labelMs, runMs: drawn.runMs, layer: 'wind' });   // the drawn frame's run
   return describeDrawnFrame({ model: laneModel, layer: 'wind', hour, instantMs, labelMs, nearestMaxHours }, drawn);
 }
 

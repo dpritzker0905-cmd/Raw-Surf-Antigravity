@@ -1,0 +1,20 @@
+{
+  "passed": 4,
+  "checks": [
+    "old_timeout_does_not_end_new_call",
+    "own_timeout_targets_current_recipient",
+    "duplicate_events_preserve_duration_and_single_stats_monitor",
+    "end_and_unmount_clear_owned_intervals"
+  ],
+  "page_errors": 0,
+  "external_requests": 0,
+  "source_sha256": "c30722c811c63b2db765237d0174131fd59b7cf5c9d5b6e3e0896ba3526fc3da",
+  "evidence": "Actual React hook in Chrome with controlled media, RTC, signaling, API and clock; no real call or deployed acceptance.",
+  "baseline_reproduction": {
+    "source": "HEAD before this repair",
+    "scenario": "end A; begin B; cross A original 30-second deadline",
+    "expected": "outgoing",
+    "actual": "idle",
+    "fixture_exit": 1
+  }
+}

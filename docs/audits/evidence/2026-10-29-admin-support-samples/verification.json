@@ -1,0 +1,966 @@
+{
+  "verifiedAt": "2026-10-29T21:21:36.344Z",
+  "branch": "codex/admin-support-selection-20261029",
+  "entryHead": "72b4652d5753423cce18b9ad1d1de95f0afcb7e7",
+  "entryHashCheck": {
+    "at": "2026-10-29T21:12:36.689Z",
+    "matchedBeforeEdits": 32,
+    "checkpoint": [
+      {
+        "path": "frontend/src/components/admin/AdminSupportDashboard.js",
+        "sha256": "b2c21befcba4608b5316e01338758e2621ae1194670677a4abbe3bbebd11bf2c",
+        "finalSha256": "c3d8679762cadc82ab3b2f250877b9983d938a3a2bc7a4f6bc15f4251a6c3d0c",
+        "intendedChange": true
+      },
+      {
+        "path": "frontend/src/components/admin/AdminSupportDashboard.test.js",
+        "sha256": "c55c2ff4d961f95dfdb9176b7e3e4103c4d57f3e53677f51f6d931433f188f45",
+        "finalSha256": "c55c2ff4d961f95dfdb9176b7e3e4103c4d57f3e53677f51f6d931433f188f45",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-selection/browser-auth.js",
+        "sha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802",
+        "finalSha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-selection/browser-fixture.jsx",
+        "sha256": "5b4f4d85ffcbe2c4600dccb197b667477b14b5f85fd5041fafe06252ee6b94bb",
+        "finalSha256": "5b4f4d85ffcbe2c4600dccb197b667477b14b5f85fd5041fafe06252ee6b94bb",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-selection/browser-transport.js",
+        "sha256": "7ae9e62494e78f1986f251748f55708bafef13df266b6b4bad2156d65a9c8b65",
+        "finalSha256": "7ae9e62494e78f1986f251748f55708bafef13df266b6b4bad2156d65a9c8b65",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-selection/collect-evidence.cjs",
+        "sha256": "8a3de22ce3252ebfb0c803c354d58b9fc11d3ec376c9d84a910f1fb9b46464a8",
+        "finalSha256": "8a3de22ce3252ebfb0c803c354d58b9fc11d3ec376c9d84a910f1fb9b46464a8",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-selection/run-browser.cjs",
+        "sha256": "ac6b5ceb91827f9b4d9391de3b0953b7d663dfce0bf139b61c7f4a51b9e27315",
+        "finalSha256": "ac6b5ceb91827f9b4d9391de3b0953b7d663dfce0bf139b61c7f4a51b9e27315",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-selection/run-tests.cjs",
+        "sha256": "939373f9c4988b809d24c8ea4d64b870e2dc9557bf136fb814d5cfd04dda09ab",
+        "finalSha256": "939373f9c4988b809d24c8ea4d64b870e2dc9557bf136fb814d5cfd04dda09ab",
+        "intendedChange": false
+      },
+      {
+        "path": "backend/routes/admin/support.py",
+        "sha256": "788700f32b441e38282e1f35668bed50e817bdbefeba382a1cd843648b6fe522",
+        "finalSha256": "cac830adcef6aa74b186d5a7f572bed94e9fa1fd4ac1f74a3ca5e1ad63acdad1",
+        "intendedChange": true
+      },
+      {
+        "path": "frontend/src/lib/apiClient.js",
+        "sha256": "2713370a30a4bbf2a3e3402e57becb9c95ddd2a64744a35bffa12f90dcc35ce9",
+        "finalSha256": "2713370a30a4bbf2a3e3402e57becb9c95ddd2a64744a35bffa12f90dcc35ce9",
+        "intendedChange": false
+      },
+      {
+        "path": "frontend/src/contexts/AuthContext.js",
+        "sha256": "1544d5b91248f5a6f21f289ab5c6c7ab87d0c5f381c057a3f6372553c06005c3",
+        "finalSha256": "1544d5b91248f5a6f21f289ab5c6c7ab87d0c5f381c057a3f6372553c06005c3",
+        "intendedChange": false
+      },
+      {
+        "path": "frontend/src/contexts/ThemeContext.js",
+        "sha256": "c019cd4fe10f38230bb92d44276901e77347fb3d5327c882e56899b8f28fd497",
+        "finalSha256": "c019cd4fe10f38230bb92d44276901e77347fb3d5327c882e56899b8f28fd497",
+        "intendedChange": false
+      },
+      {
+        "path": "frontend/src/components/ui/button.jsx",
+        "sha256": "642edb7d647d92aa517e37a71ff1d6b8b0e758be2d30f67ff5daa1b36c0b4cd1",
+        "finalSha256": "642edb7d647d92aa517e37a71ff1d6b8b0e758be2d30f67ff5daa1b36c0b4cd1",
+        "intendedChange": false
+      },
+      {
+        "path": "frontend/src/components/ui/select.jsx",
+        "sha256": "684b1759596b026ebdecbd3f1264335f6813049ed2e591c821bff9d0c81da5f6",
+        "finalSha256": "684b1759596b026ebdecbd3f1264335f6813049ed2e591c821bff9d0c81da5f6",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/weather-program/STATE.md",
+        "sha256": "4605ce8565818debd10e2fa02607b9fc625f64197f99af5ecb293fb08fc28a82",
+        "finalSha256": "4605ce8565818debd10e2fa02607b9fc625f64197f99af5ecb293fb08fc28a82",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/weather-program/ACTIONS.jsonl",
+        "sha256": "377d035f123b8c12a3ea0ba8a4279bde7345d4cee4afec31b55724901af46dc6",
+        "finalSha256": "377d035f123b8c12a3ea0ba8a4279bde7345d4cee4afec31b55724901af46dc6",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/weather-program/SCOREBOARD.md",
+        "sha256": "b04bad3590af172ab62c9bfe5c5d59bee4b1330c2e060878e5f1a02c62575469",
+        "finalSha256": "b04bad3590af172ab62c9bfe5c5d59bee4b1330c2e060878e5f1a02c62575469",
+        "intendedChange": false
+      },
+      {
+        "path": "frontend/src/components/admin/AdminSupportDashboard.pagination.test.js",
+        "sha256": "0f576bcab6c1189e1fb8019f0371d86f629e3dd3467a6d613dd635af2a063aac",
+        "finalSha256": "0f576bcab6c1189e1fb8019f0371d86f629e3dd3467a6d613dd635af2a063aac",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/browser-auth.js",
+        "sha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802",
+        "finalSha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/browser-fixture.jsx",
+        "sha256": "8f937569bf870fcd572dc7abdcd268f22b07782a72a35e0c8fab91c8f1835df5",
+        "finalSha256": "8f937569bf870fcd572dc7abdcd268f22b07782a72a35e0c8fab91c8f1835df5",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/browser-transport.js",
+        "sha256": "b4d73d64d4ef4466ecab669613be95120efe349b6fece1eb80f2c93f233f9aab",
+        "finalSha256": "b4d73d64d4ef4466ecab669613be95120efe349b6fece1eb80f2c93f233f9aab",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/collect-evidence.cjs",
+        "sha256": "d9dadbfecc1f7a9a11d2c0d9dfcca27f12aabad0a13eeb7aeea5fd8bd0a34ff8",
+        "finalSha256": "d9dadbfecc1f7a9a11d2c0d9dfcca27f12aabad0a13eeb7aeea5fd8bd0a34ff8",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/run-browser.cjs",
+        "sha256": "be1b1899c1de2b2d8ed1dda4267f47f3743b52d8f57e7bbbac81f59f4a2d2d7c",
+        "finalSha256": "be1b1899c1de2b2d8ed1dda4267f47f3743b52d8f57e7bbbac81f59f4a2d2d7c",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/run-tests.cjs",
+        "sha256": "bdfd54c9eb243928815865f8f5c7293d95985a1b04f5247b52bc9c2bc914430b",
+        "finalSha256": "bdfd54c9eb243928815865f8f5c7293d95985a1b04f5247b52bc9c2bc914430b",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/verify-list-handler.py",
+        "sha256": "b2f000a5f55683e41328b724d513ef958ed8b638d8c45a9b35df97194d7dd82c",
+        "finalSha256": "b2f000a5f55683e41328b724d513ef958ed8b638d8c45a9b35df97194d7dd82c",
+        "intendedChange": false
+      },
+      {
+        "path": "frontend/src/components/admin/AdminSupportDashboard.metrics.test.js",
+        "sha256": "ea46cc7006629000d94114f46a01850103861ce0a917017425ef2e3f21ad0429",
+        "finalSha256": "ea46cc7006629000d94114f46a01850103861ce0a917017425ef2e3f21ad0429",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-metrics/browser-auth.js",
+        "sha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802",
+        "finalSha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-metrics/browser-fixture.jsx",
+        "sha256": "1f2c47b2aa98db3fa46880476ec501ef0c107cdf0acc5f3650f87abbaacf60ef",
+        "finalSha256": "1f2c47b2aa98db3fa46880476ec501ef0c107cdf0acc5f3650f87abbaacf60ef",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-metrics/browser-transport.js",
+        "sha256": "e73f97ef9ffd5bcf31e7c8449571aa4a6b418b9f2fff1486c18fbed12a831bfc",
+        "finalSha256": "e73f97ef9ffd5bcf31e7c8449571aa4a6b418b9f2fff1486c18fbed12a831bfc",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-metrics/collect-evidence.cjs",
+        "sha256": "9303704d19c4ab65526511aaf1b7793dc583da58c8f504e88e4c164b949465b0",
+        "finalSha256": "9303704d19c4ab65526511aaf1b7793dc583da58c8f504e88e4c164b949465b0",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-metrics/run-browser.cjs",
+        "sha256": "a9c18573b4ee07317786a1dd15926a30af8e1fcdf05fa7881ea46c785c018fc3",
+        "finalSha256": "a9c18573b4ee07317786a1dd15926a30af8e1fcdf05fa7881ea46c785c018fc3",
+        "intendedChange": false
+      },
+      {
+        "path": "docs/audits/evidence/2026-10-29-admin-support-metrics/run-tests.cjs",
+        "sha256": "03d380e4e2058ede347747f45d56361359f22e837465519394eb9122214e7007",
+        "finalSha256": "03d380e4e2058ede347747f45d56361359f22e837465519394eb9122214e7007",
+        "intendedChange": false
+      }
+    ]
+  },
+  "priorUiRecheck": {
+    "startedAt": "2026-10-29T21:12:38.325Z",
+    "passed": 60,
+    "failed": 0,
+    "total": 60,
+    "suites": [
+      {
+        "file": "AdminSupportDashboard.pagination.test.js",
+        "cases": [
+          {
+            "name": "first page shows total and correct bounds for 0 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "first page shows total and correct bounds for 1 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "first page shows total and correct bounds for 50 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "first page shows total and correct bounds for 51 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "first page shows total and correct bounds for 100 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "first page shows total and correct bounds for 101 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "first page shows total and correct bounds for 123 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "all 123 tickets are reachable and previous returns to the correct page",
+            "status": "passed"
+          },
+          {
+            "name": "status and priority filters reset page and remain applied while paging",
+            "status": "passed"
+          },
+          {
+            "name": "submitted search resets offset and encodes the complete query",
+            "status": "passed"
+          },
+          {
+            "name": "unsubmitted search text does not alter page or refresh query",
+            "status": "passed"
+          },
+          {
+            "name": "stale old page cannot overwrite a newer filter result",
+            "status": "passed"
+          },
+          {
+            "name": "stale old failure cannot replace a newer filter result with an error",
+            "status": "passed"
+          },
+          {
+            "name": "failed page is unavailable and retry repeats its offset without mutation",
+            "status": "passed"
+          },
+          {
+            "name": "refresh clamps an invalid last page after the matching total shrinks",
+            "status": "passed"
+          },
+          {
+            "name": "refresh returns an emptied later page to the empty first page",
+            "status": "passed"
+          },
+          {
+            "name": "detail and per-ticket drafts remain attached across pages",
+            "status": "passed"
+          },
+          {
+            "name": "late ticket update refreshes the current page with the current filters",
+            "status": "passed"
+          },
+          {
+            "name": "repeated next activation while pending cannot skip a page",
+            "status": "passed"
+          },
+          {
+            "name": "account changes invalidate an older page response",
+            "status": "passed"
+          },
+          {
+            "name": "a malformed page cannot claim a successful empty list",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "AdminSupportDashboard.metrics.test.js",
+        "cases": [
+          {
+            "name": "successful metrics retain real numeric values",
+            "status": "passed"
+          },
+          {
+            "name": "zero-valued successful metrics are not treated as a failed read",
+            "status": "passed"
+          },
+          {
+            "name": "initial metrics loading is explicit and independent of available tickets",
+            "status": "passed"
+          },
+          {
+            "name": "initial failure has metrics-only retry with no mutation or ticket reload",
+            "status": "passed"
+          },
+          {
+            "name": "manual Refresh hides old metrics while reloading and publishes new values",
+            "status": "passed"
+          },
+          {
+            "name": "failed refresh cannot leave old healthy-looking cards visible",
+            "status": "passed"
+          },
+          {
+            "name": "older refresh success cannot overwrite newer metrics",
+            "status": "passed"
+          },
+          {
+            "name": "older failure cannot conceal a newer successful refresh",
+            "status": "passed"
+          },
+          {
+            "name": "an old completion cannot stop the latest metrics loading state",
+            "status": "passed"
+          },
+          {
+            "name": "successful reply refreshes metrics without changing the reply payload",
+            "status": "passed"
+          },
+          {
+            "name": "successful status or priority update refreshes metrics",
+            "status": "passed"
+          },
+          {
+            "name": "failed reply leaves metrics and retryable draft unchanged",
+            "status": "passed"
+          },
+          {
+            "name": "failed ticket update does not pretend metrics were refreshed",
+            "status": "passed"
+          },
+          {
+            "name": "account change clears previous metrics and ignores their late callback",
+            "status": "passed"
+          },
+          {
+            "name": "unmount ignores a late metrics failure",
+            "status": "passed"
+          },
+          {
+            "name": "metrics refresh after A reply cannot erase B draft",
+            "status": "passed"
+          },
+          {
+            "name": "metrics retry retains selected ticket, its draft and note mode",
+            "status": "passed"
+          },
+          {
+            "name": "resolved label discloses the existing ticket creation cohort",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "AdminSupportDashboard.test.js",
+        "cases": [
+          {
+            "name": "selection clears the previous editor while the next ticket is loading",
+            "status": "passed"
+          },
+          {
+            "name": "late older selection cannot replace the latest detail",
+            "status": "passed"
+          },
+          {
+            "name": "A to B to A ignores the first request for the same ticket",
+            "status": "passed"
+          },
+          {
+            "name": "failed selection shows no previous editor and retry loads only that selection",
+            "status": "passed"
+          },
+          {
+            "name": "stale detail failure cannot replace a newer success or show its error",
+            "status": "passed"
+          },
+          {
+            "name": "stale completion cannot stop the current loading indicator",
+            "status": "passed"
+          },
+          {
+            "name": "light keeps text and note mode with each ticket",
+            "status": "passed"
+          },
+          {
+            "name": "dark keeps text and note mode with each ticket",
+            "status": "passed"
+          },
+          {
+            "name": "beach keeps text and note mode with each ticket",
+            "status": "passed"
+          },
+          {
+            "name": "reply completion for A cannot erase B draft or replace B detail",
+            "status": "passed"
+          },
+          {
+            "name": "failed reply preserves the original draft and other ticket state",
+            "status": "passed"
+          },
+          {
+            "name": "same-ticket reply refresh retains selection and clears only the sent draft",
+            "status": "passed"
+          },
+          {
+            "name": "an update started on A cannot reload A over newly selected B",
+            "status": "passed"
+          },
+          {
+            "name": "ticket buttons support keyboard selection and name reply actions meaningfully",
+            "status": "passed"
+          },
+          {
+            "name": "rapid repeated send activation creates one request",
+            "status": "passed"
+          },
+          {
+            "name": "unmount discards a late detail error",
+            "status": "passed"
+          },
+          {
+            "name": "a mismatched detail response is unavailable rather than an actionable wrong ticket",
+            "status": "passed"
+          },
+          {
+            "name": "changing admin clears drafts and ignores a previous-account detail callback",
+            "status": "passed"
+          },
+          {
+            "name": "changing admin ignores the previous-account reply completion",
+            "status": "passed"
+          },
+          {
+            "name": "late reply failure after unmount has no stale notification",
+            "status": "passed"
+          },
+          {
+            "name": "post-update refresh supersedes a detail read already in flight",
+            "status": "passed"
+          }
+        ]
+      }
+    ]
+  },
+  "priorListRecheck": {
+    "entryPassed": 10,
+    "finalPassed": 10,
+    "total": 10
+  },
+  "baselineUi": {
+    "startedAt": "2026-10-29T21:14:06.361Z",
+    "passed": 4,
+    "failed": 6,
+    "total": 10,
+    "suites": [
+      {
+        "file": "AdminSupportDashboard.samples.test.js",
+        "cases": [
+          {
+            "name": "no observations are unavailable rather than an instant response or resolution",
+            "status": "failed",
+            "failure": "TestingLibraryElementError: Unable to find an element with the text: —. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.\n\nIgnored nodes: comments, script, style\n<div\n  class=\"p-3\"\n>\n  "
+          },
+          {
+            "name": "a genuine measured zero remains zero hours",
+            "status": "passed"
+          },
+          {
+            "name": "singular sample labels disclose one measurement",
+            "status": "failed",
+            "failure": "TestingLibraryElementError: Unable to find an element with the text: 1 response measurement. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.\n\nIgnored nodes: comments, script, style\n<d"
+          },
+          {
+            "name": "positive averages disclose independent sample sizes",
+            "status": "failed",
+            "failure": "TestingLibraryElementError: Unable to find an element with the text: 3 response measurements. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.\n\nIgnored nodes: comments, script, style\n<"
+          },
+          {
+            "name": "response data can be absent while resolution data is present",
+            "status": "failed",
+            "failure": "TestingLibraryElementError: Unable to find an element with the text: —. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.\n\nIgnored nodes: comments, script, style\n<div\n  class=\"p-3\"\n>\n  "
+          },
+          {
+            "name": "resolution data can be absent while response data is present",
+            "status": "failed",
+            "failure": "TestingLibraryElementError: Unable to find an element with the text: —. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.\n\nIgnored nodes: comments, script, style\n<div\n  class=\"p-3\"\n>\n  "
+          },
+          {
+            "name": "older backend responses retain their numeric display without an invented sample count",
+            "status": "passed"
+          },
+          {
+            "name": "refresh transitions from measurements to absent observations and back",
+            "status": "failed",
+            "failure": "Error: Unable to find an element with the text: No response measurements. This could be because the text is broken up by multiple elements. In this case, you can provide a function for your text matcher to make your matcher more flexible.\n\nIgnored nodes: comments, script, style\n<body>\n  <div>\n    <d"
+          },
+          {
+            "name": "a failed metrics read cannot be presented as a zero-sample success",
+            "status": "passed"
+          },
+          {
+            "name": "late zero-sample data cannot replace newer measured data",
+            "status": "passed"
+          }
+        ]
+      }
+    ]
+  },
+  "finalUi": {
+    "startedAt": "2026-10-29T21:14:43.704Z",
+    "passed": 70,
+    "failed": 0,
+    "total": 70,
+    "suites": [
+      {
+        "file": "AdminSupportDashboard.samples.test.js",
+        "cases": [
+          {
+            "name": "no observations are unavailable rather than an instant response or resolution",
+            "status": "passed"
+          },
+          {
+            "name": "a genuine measured zero remains zero hours",
+            "status": "passed"
+          },
+          {
+            "name": "singular sample labels disclose one measurement",
+            "status": "passed"
+          },
+          {
+            "name": "positive averages disclose independent sample sizes",
+            "status": "passed"
+          },
+          {
+            "name": "response data can be absent while resolution data is present",
+            "status": "passed"
+          },
+          {
+            "name": "resolution data can be absent while response data is present",
+            "status": "passed"
+          },
+          {
+            "name": "older backend responses retain their numeric display without an invented sample count",
+            "status": "passed"
+          },
+          {
+            "name": "refresh transitions from measurements to absent observations and back",
+            "status": "passed"
+          },
+          {
+            "name": "a failed metrics read cannot be presented as a zero-sample success",
+            "status": "passed"
+          },
+          {
+            "name": "late zero-sample data cannot replace newer measured data",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "AdminSupportDashboard.test.js",
+        "cases": [
+          {
+            "name": "selection clears the previous editor while the next ticket is loading",
+            "status": "passed"
+          },
+          {
+            "name": "late older selection cannot replace the latest detail",
+            "status": "passed"
+          },
+          {
+            "name": "A to B to A ignores the first request for the same ticket",
+            "status": "passed"
+          },
+          {
+            "name": "failed selection shows no previous editor and retry loads only that selection",
+            "status": "passed"
+          },
+          {
+            "name": "stale detail failure cannot replace a newer success or show its error",
+            "status": "passed"
+          },
+          {
+            "name": "stale completion cannot stop the current loading indicator",
+            "status": "passed"
+          },
+          {
+            "name": "light keeps text and note mode with each ticket",
+            "status": "passed"
+          },
+          {
+            "name": "dark keeps text and note mode with each ticket",
+            "status": "passed"
+          },
+          {
+            "name": "beach keeps text and note mode with each ticket",
+            "status": "passed"
+          },
+          {
+            "name": "reply completion for A cannot erase B draft or replace B detail",
+            "status": "passed"
+          },
+          {
+            "name": "failed reply preserves the original draft and other ticket state",
+            "status": "passed"
+          },
+          {
+            "name": "same-ticket reply refresh retains selection and clears only the sent draft",
+            "status": "passed"
+          },
+          {
+            "name": "an update started on A cannot reload A over newly selected B",
+            "status": "passed"
+          },
+          {
+            "name": "ticket buttons support keyboard selection and name reply actions meaningfully",
+            "status": "passed"
+          },
+          {
+            "name": "rapid repeated send activation creates one request",
+            "status": "passed"
+          },
+          {
+            "name": "unmount discards a late detail error",
+            "status": "passed"
+          },
+          {
+            "name": "a mismatched detail response is unavailable rather than an actionable wrong ticket",
+            "status": "passed"
+          },
+          {
+            "name": "changing admin clears drafts and ignores a previous-account detail callback",
+            "status": "passed"
+          },
+          {
+            "name": "changing admin ignores the previous-account reply completion",
+            "status": "passed"
+          },
+          {
+            "name": "late reply failure after unmount has no stale notification",
+            "status": "passed"
+          },
+          {
+            "name": "post-update refresh supersedes a detail read already in flight",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "AdminSupportDashboard.pagination.test.js",
+        "cases": [
+          {
+            "name": "first page shows total and correct bounds for 0 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "first page shows total and correct bounds for 1 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "first page shows total and correct bounds for 50 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "first page shows total and correct bounds for 51 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "first page shows total and correct bounds for 100 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "first page shows total and correct bounds for 101 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "first page shows total and correct bounds for 123 tickets",
+            "status": "passed"
+          },
+          {
+            "name": "all 123 tickets are reachable and previous returns to the correct page",
+            "status": "passed"
+          },
+          {
+            "name": "status and priority filters reset page and remain applied while paging",
+            "status": "passed"
+          },
+          {
+            "name": "submitted search resets offset and encodes the complete query",
+            "status": "passed"
+          },
+          {
+            "name": "unsubmitted search text does not alter page or refresh query",
+            "status": "passed"
+          },
+          {
+            "name": "stale old page cannot overwrite a newer filter result",
+            "status": "passed"
+          },
+          {
+            "name": "stale old failure cannot replace a newer filter result with an error",
+            "status": "passed"
+          },
+          {
+            "name": "failed page is unavailable and retry repeats its offset without mutation",
+            "status": "passed"
+          },
+          {
+            "name": "refresh clamps an invalid last page after the matching total shrinks",
+            "status": "passed"
+          },
+          {
+            "name": "refresh returns an emptied later page to the empty first page",
+            "status": "passed"
+          },
+          {
+            "name": "detail and per-ticket drafts remain attached across pages",
+            "status": "passed"
+          },
+          {
+            "name": "late ticket update refreshes the current page with the current filters",
+            "status": "passed"
+          },
+          {
+            "name": "repeated next activation while pending cannot skip a page",
+            "status": "passed"
+          },
+          {
+            "name": "account changes invalidate an older page response",
+            "status": "passed"
+          },
+          {
+            "name": "a malformed page cannot claim a successful empty list",
+            "status": "passed"
+          }
+        ]
+      },
+      {
+        "file": "AdminSupportDashboard.metrics.test.js",
+        "cases": [
+          {
+            "name": "successful metrics retain real numeric values",
+            "status": "passed"
+          },
+          {
+            "name": "zero-valued successful metrics are not treated as a failed read",
+            "status": "passed"
+          },
+          {
+            "name": "initial metrics loading is explicit and independent of available tickets",
+            "status": "passed"
+          },
+          {
+            "name": "initial failure has metrics-only retry with no mutation or ticket reload",
+            "status": "passed"
+          },
+          {
+            "name": "manual Refresh hides old metrics while reloading and publishes new values",
+            "status": "passed"
+          },
+          {
+            "name": "failed refresh cannot leave old healthy-looking cards visible",
+            "status": "passed"
+          },
+          {
+            "name": "older refresh success cannot overwrite newer metrics",
+            "status": "passed"
+          },
+          {
+            "name": "older failure cannot conceal a newer successful refresh",
+            "status": "passed"
+          },
+          {
+            "name": "an old completion cannot stop the latest metrics loading state",
+            "status": "passed"
+          },
+          {
+            "name": "successful reply refreshes metrics without changing the reply payload",
+            "status": "passed"
+          },
+          {
+            "name": "successful status or priority update refreshes metrics",
+            "status": "passed"
+          },
+          {
+            "name": "failed reply leaves metrics and retryable draft unchanged",
+            "status": "passed"
+          },
+          {
+            "name": "failed ticket update does not pretend metrics were refreshed",
+            "status": "passed"
+          },
+          {
+            "name": "account change clears previous metrics and ignores their late callback",
+            "status": "passed"
+          },
+          {
+            "name": "unmount ignores a late metrics failure",
+            "status": "passed"
+          },
+          {
+            "name": "metrics refresh after A reply cannot erase B draft",
+            "status": "passed"
+          },
+          {
+            "name": "metrics retry retains selected ticket, its draft and note mode",
+            "status": "passed"
+          },
+          {
+            "name": "resolved label discloses the existing ticket creation cohort",
+            "status": "passed"
+          }
+        ]
+      }
+    ]
+  },
+  "backend": {
+    "baselinePassed": 0,
+    "total": 12,
+    "finalPassed": 12,
+    "legacyAveragesPreservedBeforeAndAfter": true,
+    "queryCount": 9,
+    "allQueriesReadOnly": true
+  },
+  "browser": {
+    "engine": "Chromium",
+    "version": "156.0.8078.48",
+    "passed": 6,
+    "characterSet": "UTF-8",
+    "themes": [
+      "light",
+      "dark",
+      "beach"
+    ],
+    "viewports": [
+      "1440x1000",
+      "390x844"
+    ],
+    "externalRequests": 0
+  },
+  "lint": [
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.js",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.metrics.test.js",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.pagination.test.js",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.samples.test.js",
+      "errors": 0,
+      "warnings": 0
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.test.js",
+      "errors": 0,
+      "warnings": 0
+    }
+  ],
+  "runtimeChanges": [
+    "backend/routes/admin/support.py",
+    "frontend/src/components/admin/AdminSupportDashboard.js"
+  ],
+  "files": [
+    {
+      "path": "backend/routes/admin/support.py",
+      "sha256": "cac830adcef6aa74b186d5a7f572bed94e9fa1fd4ac1f74a3ca5e1ad63acdad1"
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.js",
+      "sha256": "c3d8679762cadc82ab3b2f250877b9983d938a3a2bc7a4f6bc15f4251a6c3d0c"
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.test.js",
+      "sha256": "c55c2ff4d961f95dfdb9176b7e3e4103c4d57f3e53677f51f6d931433f188f45"
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.pagination.test.js",
+      "sha256": "0f576bcab6c1189e1fb8019f0371d86f629e3dd3467a6d613dd635af2a063aac"
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.metrics.test.js",
+      "sha256": "ea46cc7006629000d94114f46a01850103861ce0a917017425ef2e3f21ad0429"
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.samples.test.js",
+      "sha256": "f9002e75870c303561819a0be57791ccc671f07c1a496a02c0e4acaeb5498d91"
+    },
+    {
+      "path": "backend/models/admin_ops.py",
+      "sha256": "93c8bfd066ebe9f51a13da94217865e76cf4e52a8c6fff1c8b642cfba8a2423e"
+    },
+    {
+      "path": "backend/models/enums.py",
+      "sha256": "072afcd05cbf5aaa6d74dbfc43096adf153e5580f242440d9ab538f0cb60dd81"
+    },
+    {
+      "path": "frontend/public/index.html",
+      "sha256": "d1932bba4f67185ee31eaf39e227e9cce88bd551c8993f92e78787899a7d65d7"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-samples/browser-auth.js",
+      "sha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-samples/browser-fixture.jsx",
+      "sha256": "4feb9e220eac03d49af74a24c10cc741e56b343ec9d8cbe1dc2132c8fab79273"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-samples/browser-transport.js",
+      "sha256": "07e44a8390f3e592e2cb5673655a55abdc6832f421c5241b33be5cbd7a38f2c2"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-samples/collect-evidence.cjs",
+      "sha256": "258d87414eac784a6ebcf97db9b3fe2c6e16c46fa1be1d46bdf76d8599c252ad"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-samples/run-browser.cjs",
+      "sha256": "979135dfada5e51f4422fcff04dcb2aff012cab4dd4b58c072959107780a22fc"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-samples/run-tests.cjs",
+      "sha256": "18a5a0f0a6f8421e2753e305dc7602f2897705081c0a4fbebe33051d16f19530"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-samples/verify-metric-samples.py",
+      "sha256": "32239e45f9bd775a10ae4c6a8db258fb755fdec7cca9121c1e1c56cc16fdefd9"
+    }
+  ],
+  "limits": [
+    "SQLite function/query/model qualification; not mounted authentication/API, PostgreSQL or live support data",
+    "Existing created-at cohort, timestamp eligibility, status, SLA and legacy numeric fields remain unchanged",
+    "Older backend responses without counts retain their old numeric display; accurate absence display requires the additive fields",
+    "Fictional browser transport with actual React/primitives/theme CSS; viewport emulation is not physical/cross-browser/AT qualification",
+    "No normal app/weather runtime, provider/security/shared-migration/live-data/commit/push/merge/deployment actions"
+  ]
+}

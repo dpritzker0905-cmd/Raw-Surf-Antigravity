@@ -1,0 +1,99 @@
+{
+  "baseline": false,
+  "baseline_revision": null,
+  "source_sha256": "808a5a1eec5c55ab8127e5b398222f28c8f4ce1e0f888f98f53bc0560fdc0186",
+  "source_unchanged": true,
+  "passed": 14,
+  "total": 14,
+  "checks": [
+    {
+      "name": "outbound_cancelled_media_stops_late_stream_without_offer",
+      "passed": true,
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "old_offer_cannot_emit_or_replace_new_call_timeout",
+      "passed": true,
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "old_local_sdp_cannot_emit_or_arm_new_timeout",
+      "passed": true,
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "incoming_cancelled_media_cannot_clean_up_new_call",
+      "passed": true,
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "declining_incoming_call_retires_pending_media",
+      "passed": true,
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "accepted_elsewhere_retires_pending_incoming_media",
+      "passed": true,
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "incoming_cancelled_answer_sdp_cannot_signal",
+      "passed": true,
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "incoming_cancelled_remote_sdp_cannot_continue_setup",
+      "passed": true,
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "unmount_cancels_pending_media_and_stops_late_stream",
+      "passed": true,
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "account_switch_retires_pending_old_account_media",
+      "passed": true,
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "stale_media_rejection_cannot_reset_new_call_or_permission_ui",
+      "passed": true,
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "cancelled_permission_read_cannot_restart_old_call",
+      "passed": true,
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "positive_outbound_setup_still_offers_and_times_out",
+      "passed": true,
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    },
+    {
+      "name": "positive_incoming_setup_still_answers_current_caller",
+      "passed": true,
+      "cleanup_intervals": 0,
+      "cleanup_answer_timers": 0
+    }
+  ],
+  "page_errors": 0,
+  "external_requests": 0,
+  "browser_closed": true,
+  "fixture_server_closed": true,
+  "evidence": "Actual React hook in Chrome, held synthetic promises and controlled clock; ICE configuration stripped before bundling; no real media, signaling, provider or deployed acceptance."
+}
