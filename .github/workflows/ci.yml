@@ -195,6 +195,7 @@ jobs:
             'src/components/GromHQ.competition.test.js', 'src/components/GromHQ.activity.test.js',
             'src/components/GromHQ.recovery.test.js', 'src/components/grom/PurchaseRequestsPanel.recovery.test.js',
             'src/components/grom/PurchaseRequestsPanel.actions.test.js', 'src/components/grom/guardianPanels.test.js',
+            'src/components/grom/AskMyParentPanel.recovery.test.js',
           ];
           const results = Array.isArray(r.testResults) ? r.testResults : [];
           let guardianPassed = 0;
