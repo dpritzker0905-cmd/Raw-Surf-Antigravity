@@ -190,6 +190,25 @@ jobs:
           if (r.numTotalTestSuites < MIN_SUITES) { console.error(`✗ suites ${r.numTotalTestSuites} < floor ${MIN_SUITES} — the suite NARROWED`); bad = true; }
           if (r.numPassedTests < MIN_TESTS) { console.error(`✗ passed ${r.numPassedTests} < floor ${MIN_TESTS} — coverage SHRANK`); bad = true; }
           if (r.numFailedTests > 0) { console.error(`✗ ${r.numFailedTests} failed`); bad = true; }
+          const guardianSuites = [
+            'src/components/GromManage.recovery.test.js', 'src/components/GromManage.labels.test.js',
+            'src/components/GromHQ.competition.test.js', 'src/components/GromHQ.activity.test.js',
+            'src/components/GromHQ.recovery.test.js', 'src/components/grom/PurchaseRequestsPanel.recovery.test.js',
+            'src/components/grom/PurchaseRequestsPanel.actions.test.js', 'src/components/grom/guardianPanels.test.js',
+          ];
+          const results = Array.isArray(r.testResults) ? r.testResults : [];
+          let guardianPassed = 0;
+          for (const file of guardianSuites) {
+            const matches = results.filter(result => typeof result.name === 'string' && result.name.replace(/\\/g, '/').endsWith(`/${file}`));
+            if (matches.length !== 1 || matches[0].status !== 'passed' || !Array.isArray(matches[0].assertionResults) ||
+                matches[0].assertionResults.length === 0 || matches[0].assertionResults.some(test => test.status !== 'passed')) {
+              console.error(`✗ required guardian suite ${file} must occur once with passing, nonempty, unskipped cases`);
+              bad = true;
+            } else {
+              guardianPassed += matches[0].assertionResults.length;
+            }
+          }
+          console.log(`guardian: ${guardianSuites.length} required suites, ${guardianPassed} passing cases`);
           process.exit(bad ? 1 : 0);
           JS
 
@@ -2137,7 +2156,9 @@ jobs:
           # rejection regressions (+2). Projected 3401; floor 3399, preserving margin 2.
           # Main-target run 41090754079 passed 3401. The support_created template expands
           # four existing rendering cases: projected 3405, floor 3403, preserving margin 2.
-          MIN_PASSED = 3403
+          # ⬆ 3403→3404 on 2026-10-31 (rederive_floor.py, codex/guardian-purchase-integration-20261030): dev run 41148501823 read 3405; dev's map 3405;
+          #   base 3405 (hosted read) + 1 new test(s) = 3406; floor 3406 - 2 = 3404. This PR must read 3406 passed.
+          MIN_PASSED = 3404
 
           try:
               root = ET.parse('estate.xml').getroot()

@@ -495,8 +495,8 @@ _FLOOR_SET_FROM = {
     # chain: set from 3008 = max(dev run 40633534401 read 2976, dev's map 2976) + 32 (claude/infobox-honesty-5efceb, 2026-10-28); floor 3002, margin 6.
     "chain": 3008,
 
-    # estate: run 41090754079 read 3401 + four support receipt template cases = 3405; floor 3403, margin 2 (2026-10-30).
-    "estate": 3405,
+    # estate: set from 3406 = max(dev run 41148501823 read 3405, dev's map 3405) + 1 (codex/guardian-purchase-integration-20261030, 2026-10-31); floor 3404, margin 2.
+    "estate": 3406,
 }
 # Completeness sees squash merges, re-derived after #470 (+5, hosted 2397 / 331 files, run 39979894860): +14 estate tests
 # in a new file (tests/test_ledger_merges.py) = 2411 / 332; floor 2409, margin 2.
