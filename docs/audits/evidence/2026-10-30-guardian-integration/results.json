@@ -1,0 +1,52 @@
+{
+  "owner_manifest_sha256": "bdf2e80e9ebb2e1ce0e4c499290e999527b2f8288de21c69bd3cce9add822ca8",
+  "owner_all_25_hashes_unchanged": true,
+  "preserved_transferred_files": 20,
+  "action": {
+    "baseline_source_sha256": "e0d0009328009a475dfc216436d28698311c2109cc2842156d97ef8b85937282",
+    "final_source_sha256": "0801daefc61c7ac35ad9ac0abd35bcf94668c36077a447b078b55116835a6478",
+    "final_test_sha256": "42b9458b799844bae5964404f96b8bbf7b933c632dba96cb1235325270eafca1",
+    "same_final_test_used_for_red_and_green": true,
+    "read_recovery_and_generation_guard_byte_equal": true,
+    "status_badge_function_byte_equal": true,
+    "baseline": {
+      "passed": 4,
+      "failed": 10,
+      "total": 14
+    },
+    "final": {
+      "passed": 14,
+      "failed": 0,
+      "total": 14
+    },
+    "decision_endpoints_and_encoded_reasons_pinned_by_tests": true,
+    "real_api_calls": 0
+  },
+  "frontend": {
+    "passed": 80,
+    "total": 80,
+    "suites": 8
+  },
+  "backend": {
+    "pytest_items_passed": 37,
+    "positive_readback_checks": 8,
+    "isolated_startup": true
+  },
+  "browser": {
+    "passed": 6,
+    "total": 6,
+    "real_financial_actions": 0
+  },
+  "ci_floor": {
+    "base_commit": "e36c019b1edc2aa59d3814ea189236a487aeb945",
+    "run": 41148501823,
+    "old_floor": 3403,
+    "new_floor": 3404,
+    "old_reference": 3405,
+    "new_reference": 3406,
+    "new_pytest_items": 1,
+    "margin": 2
+  },
+  "ci_gate_synthetic_checks": 21,
+  "hosted_acceptance": "pending exact-head CI and deployment verification"
+}

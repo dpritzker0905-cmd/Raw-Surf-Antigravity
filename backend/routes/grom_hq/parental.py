@@ -123,6 +123,7 @@ async def get_linked_groms(
             "id": grom.id,
             "full_name": grom.full_name,
             "avatar_url": grom.avatar_url,
+            "elite_tier": grom.elite_tier,
             "credits_balance": float(grom.credit_balance) if grom.credit_balance else 0,
             "achievements_count": len(badges_list) if badges_list else 0,
             "total_xp": grom.total_xp if hasattr(grom, 'total_xp') and grom.total_xp else 0,
