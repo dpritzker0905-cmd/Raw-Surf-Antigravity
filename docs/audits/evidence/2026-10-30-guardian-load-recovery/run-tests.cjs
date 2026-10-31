@@ -14,6 +14,7 @@ const config = {
     '<rootDir>/src/components/GromHQ.recovery.test.js',
     '<rootDir>/src/components/grom/PurchaseRequestsPanel.recovery.test.js',
     '<rootDir>/src/components/grom/PurchaseRequestsPanel.actions.test.js',
+    '<rootDir>/src/components/grom/AskMyParentPanel.recovery.test.js',
     '<rootDir>/src/components/grom/guardianPanels.test.js'],
   moduleDirectories: ['node_modules', deps],
   moduleNameMapper: { '^@/(.*)$': '<rootDir>/src/$1' },
