@@ -1,0 +1,62 @@
+{
+  "source": "fb2d2e5def5ec8bcea1b2a39918f7740ba034a90",
+  "database": "disposable in-memory SQLite",
+  "actual_create_and_update_functions": true,
+  "auth": "function dependency seam; no JWT/live-account claim",
+  "provider": "queue boundary substituted; no provider I/O",
+  "no_application_or_env_startup": true,
+  "cases": [
+    {
+      "name": "unchanged keyed retry",
+      "expected_status": 200,
+      "actual_status": 200,
+      "same_result": true,
+      "ticket_count": 1,
+      "creation_queue_calls": 1,
+      "staff_edits_preserved": true,
+      "passed": true
+    },
+    {
+      "name": "identical create retry after public staff status edit",
+      "expected_status": 200,
+      "actual_status": 200,
+      "same_result": true,
+      "ticket_count": 1,
+      "creation_queue_calls": 1,
+      "staff_edits_preserved": true,
+      "passed": true
+    },
+    {
+      "name": "identical create retry after staff priority edit",
+      "expected_status": 200,
+      "actual_status": 409,
+      "same_result": false,
+      "ticket_count": 1,
+      "creation_queue_calls": 1,
+      "staff_edits_preserved": true,
+      "passed": false
+    },
+    {
+      "name": "identical create retry after staff tags edit",
+      "expected_status": 200,
+      "actual_status": 409,
+      "same_result": false,
+      "ticket_count": 1,
+      "creation_queue_calls": 1,
+      "staff_edits_preserved": true,
+      "passed": false
+    },
+    {
+      "name": "different creation content remains conflict",
+      "expected_status": 409,
+      "actual_status": 409,
+      "same_result": false,
+      "ticket_count": 1,
+      "creation_queue_calls": 1,
+      "staff_edits_preserved": true,
+      "passed": true
+    }
+  ],
+  "passed": 3,
+  "total": 5
+}

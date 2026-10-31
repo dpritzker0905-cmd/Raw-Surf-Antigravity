@@ -1,0 +1,170 @@
+{
+  "mountedFixtureApi": true,
+  "database": "disposable SQLite",
+  "provider_calls": 0,
+  "app_or_env_startup": false,
+  "cases": [
+    {
+      "name": "additive nullable 64-character field preserves a legacy row without backfill",
+      "passed": true
+    },
+    {
+      "name": "migration extends existing monthly head without merging unrelated branches",
+      "passed": true
+    },
+    {
+      "name": "downgrade refuses to discard stored creation intent",
+      "passed": true
+    },
+    {
+      "name": "legacy-only downgrade preserves the legacy row",
+      "passed": true
+    },
+    {
+      "name": "unchanged: original keyed retry returns original ticket",
+      "passed": true
+    },
+    {
+      "name": "unchanged: retry makes no writes or additional receipt",
+      "passed": true
+    },
+    {
+      "name": "unchanged: original fingerprint persists independently of staff edits",
+      "passed": true
+    },
+    {
+      "name": "unchanged: fingerprint remains private",
+      "passed": true
+    },
+    {
+      "name": "staff priority edit: original keyed retry returns original ticket",
+      "passed": true
+    },
+    {
+      "name": "staff priority edit: retry makes no writes or additional receipt",
+      "passed": true
+    },
+    {
+      "name": "staff priority edit: original fingerprint persists independently of staff edits",
+      "passed": true
+    },
+    {
+      "name": "staff priority edit: fingerprint remains private",
+      "passed": true
+    },
+    {
+      "name": "staff tags edit: original keyed retry returns original ticket",
+      "passed": true
+    },
+    {
+      "name": "staff tags edit: retry makes no writes or additional receipt",
+      "passed": true
+    },
+    {
+      "name": "staff tags edit: original fingerprint persists independently of staff edits",
+      "passed": true
+    },
+    {
+      "name": "staff tags edit: fingerprint remains private",
+      "passed": true
+    },
+    {
+      "name": "staff priority and tags: original keyed retry returns original ticket",
+      "passed": true
+    },
+    {
+      "name": "staff priority and tags: retry makes no writes or additional receipt",
+      "passed": true
+    },
+    {
+      "name": "staff priority and tags: original fingerprint persists independently of staff edits",
+      "passed": true
+    },
+    {
+      "name": "staff priority and tags: fingerprint remains private",
+      "passed": true
+    },
+    {
+      "name": "staff status and assignment: original keyed retry returns original ticket",
+      "passed": true
+    },
+    {
+      "name": "staff status and assignment: retry makes no writes or additional receipt",
+      "passed": true
+    },
+    {
+      "name": "staff status and assignment: original fingerprint persists independently of staff edits",
+      "passed": true
+    },
+    {
+      "name": "staff status and assignment: fingerprint remains private",
+      "passed": true
+    },
+    {
+      "name": "changed original subject conflicts even after staff edits",
+      "passed": true
+    },
+    {
+      "name": "changed original description conflicts even after staff edits",
+      "passed": true
+    },
+    {
+      "name": "changed original category conflicts even after staff edits",
+      "passed": true
+    },
+    {
+      "name": "changed original priority conflicts even after staff edits",
+      "passed": true
+    },
+    {
+      "name": "changed original tags conflicts even after staff edits",
+      "passed": true
+    },
+    {
+      "name": "changed original related_booking_id conflicts even after staff edits",
+      "passed": true
+    },
+    {
+      "name": "conflicting retries preserve staff edits and the one original receipt",
+      "passed": true
+    },
+    {
+      "name": "equivalent default fields and UUID casing preserve existing retry behavior",
+      "passed": true
+    },
+    {
+      "name": "legacy keyed row replays conservatively without inventing a fingerprint",
+      "passed": true
+    },
+    {
+      "name": "legacy changed-content conflict retained",
+      "passed": true
+    },
+    {
+      "name": "ambiguous legacy original intent remains conflict and is never backfilled",
+      "passed": true
+    },
+    {
+      "name": "unkeyed calls keep existing independent creation behavior",
+      "passed": true
+    },
+    {
+      "name": "queue failure rolls back ticket and original intent together",
+      "passed": true
+    },
+    {
+      "name": "concurrent identical keyed creates arbitrate once",
+      "passed": true
+    },
+    {
+      "name": "concurrent conflicting keyed creates arbitrate once",
+      "passed": true
+    },
+    {
+      "name": "no provider delivery is invoked",
+      "passed": true
+    }
+  ],
+  "passed": 40,
+  "total": 40
+}

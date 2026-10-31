@@ -15,6 +15,8 @@ from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 import secrets
 import re
+import hashlib
+import json
 
 from database import get_db
 from deps.admin_auth import get_current_admin
@@ -71,6 +73,14 @@ def calculate_sla_due(priority: TicketPriorityEnum, origin=None) -> datetime:
         TicketPriorityEnum.LOW: 72
     }
     return origin + timedelta(hours=hours.get(priority, 24))
+
+
+def creation_request_fingerprint(user_id, request, category, priority):
+    """Version-one exact creation intent, independent of later staff edits."""
+    intent = [1, user_id, request.subject, request.description, category.value, priority.value,
+              request.tags or [], request.related_booking_id]
+    encoded = json.dumps(intent, ensure_ascii=True, separators=(",", ":")).encode("utf-8")
+    return hashlib.sha256(encoded).hexdigest()
 
 
 # --- Endpoints ---
@@ -432,14 +442,20 @@ async def create_ticket(
     category = TicketCategoryEnum(request.category) if request.category else TicketCategoryEnum.OTHER
     insert_ticket = {"postgresql": pg_insert, "sqlite": sqlite_insert}[db.get_bind().dialect.name]
     request_id = support_request_id("create", user_id, request.client_request_id) if request.client_request_id else None
+    fingerprint = creation_request_fingerprint(user_id, request, category, priority) if request_id else None
 
     async def existing_request():
         existing = (await db.execute(select(SupportTicket).where(SupportTicket.id == request_id))).scalar_one_or_none()
         if existing is None:
             return None
-        if (existing.user_id, existing.subject, existing.description, existing.category, existing.priority,
-                existing.tags, existing.related_booking_id) != (
-                user_id, request.subject, request.description, category, priority, request.tags or [], request.related_booking_id):
+        if existing.creation_request_fingerprint is not None:
+            same_intent = existing.user_id == user_id and existing.creation_request_fingerprint == fingerprint
+        else:
+            # Legacy rows have no recoverable original priority/tags; retain their conservative comparison.
+            same_intent = (existing.user_id, existing.subject, existing.description, existing.category, existing.priority,
+                           existing.tags, existing.related_booking_id) == (
+                           user_id, request.subject, request.description, category, priority, request.tags or [], request.related_booking_id)
+        if not same_intent:
             raise HTTPException(status_code=409, detail="Ticket request ID already used for different content")
         return {"success": True, "ticket_number": existing.ticket_number, "ticket_id": existing.id}
 
@@ -460,7 +476,7 @@ async def create_ticket(
                 sla_due_at=calculate_sla_due(priority),
                 tags=request.tags or [],
                 related_booking_id=request.related_booking_id,
-                **({"id": request_id} if request_id else {})
+                **({"id": request_id, "creation_request_fingerprint": fingerprint} if request_id else {})
             )
         statement = statement.on_conflict_do_nothing() if request_id else statement.on_conflict_do_nothing(index_elements=[SupportTicket.ticket_number])
         result = await db.execute(statement.returning(SupportTicket.id))

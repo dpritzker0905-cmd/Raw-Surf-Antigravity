@@ -1,0 +1,91 @@
+{
+  "base_commit": "fb2d2e5def5ec8bcea1b2a39918f7740ba034a90",
+  "state": "uncommitted isolated working tree",
+  "pytest": {
+    "passed": 1,
+    "warnings": 2,
+    "new_pytest_items": 0,
+    "projected_estate_delta": 0
+  },
+  "retained_sqlite": {
+    "passed": 43,
+    "total": 43
+  },
+  "baseline": {
+    "passed": 3,
+    "total": 5
+  },
+  "same_five_cases_final": {
+    "passed": 5,
+    "total": 5
+  },
+  "new_sqlite": {
+    "passed": 40,
+    "total": 40
+  },
+  "new_postgres": {
+    "passed": 40,
+    "total": 40
+  },
+  "retained_postgres": {
+    "passed": 43,
+    "total": 43
+  },
+  "retained_allocator_sqlite": {
+    "passed": 17,
+    "total": 17
+  },
+  "retained_uppercase_api": {
+    "passed": 21,
+    "total": 21
+  },
+  "file_owner_review": {
+    "source": "no blocking defect",
+    "independent_test_rerun": false
+  },
+  "fatal_lint_exit": 0,
+  "whitespace_exit": 0,
+  "live_schema_provider_restart_deploy_weather_actions": 0,
+  "legacy": "NULL fingerprints retain prior conservative comparison; no invented backfill",
+  "release_gate": "apply additive migration before new ORM deployment; no live DDL executed",
+  "sources": [
+    {
+      "path": "backend/routes/admin/support.py",
+      "sha256": "742e6d36cefd1300e59e988ef2a6dc2016f5191726efcce5f47bf6e83a05c38c"
+    },
+    {
+      "path": "backend/models/admin_ops.py",
+      "sha256": "ab57b3b538c1e8ba5216486182f812fb9d4265212c3103cd9601154bda32af46"
+    },
+    {
+      "path": "backend/alembic/versions/support_create_intent_001.py",
+      "sha256": "204c2e0818745ea5c805c1c30766b9e631c5e66a8f6af27c35ed3c2871292cf2"
+    },
+    {
+      "path": "backend/tests/test_support_delivery_fixture.py",
+      "sha256": "55dde4ac8c871906c49e36bc9cf437e07e496ef4fabcffdc5a40b7fdbf794ead"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-30-support-create-retry/verify-create-retry.py",
+      "sha256": "97c39fe55031ef8fc48295eff918798fe486ed1fea7e277b66b56d4c08d74594"
+    }
+  ],
+  "protected_observers": [
+    {
+      "path": "backend/services/support_delivery.py",
+      "sha256": "bba5f55a3afb579b27d4aa2d9ecda4b8227fdc1213ec8f0b33856d6ad7abee9e"
+    },
+    {
+      "path": "backend/services/mailer/templates.py",
+      "sha256": "c25fda62caf7b03a597af9ae9ab0087deab463f8be0de94497ffe6aeaf572c31"
+    },
+    {
+      "path": "backend/services/mailer/senders.py",
+      "sha256": "0dc74f595caba041f125c27d1060f4ec6eeec92cd28d5c27cd273b000ed9b3dd"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-support-delivery/verify-delivery.py",
+      "sha256": "2b2bcc5c304b478de671cf778054e193577c709451b943588daf1316e6453836"
+    }
+  ]
+}
