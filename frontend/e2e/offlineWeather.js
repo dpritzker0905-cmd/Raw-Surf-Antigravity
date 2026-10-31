@@ -19,6 +19,7 @@
  */
 const fs = require('node:fs');
 const base = require('@playwright/test');
+const { installSeededUiIsolation } = require('./seededUiIsolation');
 const {
   weatherRouteConfig, routeWeatherToLocal, watchLiveWeatherLeaks, stubOtherLiveBackend,
 } = require('../scripts/offline-backend/weather_route');
@@ -26,11 +27,18 @@ const {
 const cfg = weatherRouteConfig(process.env, 'E2E_WEATHER_BACKEND');
 const STUB_OTHER = process.env.E2E_STUB_OTHER_BACKEND === '1';
 const LEDGER = process.env.E2E_WEATHER_LEDGER || '';
+const UI_LEDGER = process.env.E2E_UI_ISOLATION_LEDGER || '';
 
 const test = base.test.extend({
   offlineWeather: [async ({ context }, use, testInfo) => {
     if (!cfg.local) { await use(null); return; }
     const stats = await routeWeatherToLocal(context, cfg);
+    // Install the exact UI/RUM fence last so its local diagnostics response wins over
+    // the general weather route. All handlers are ready before any page is created.
+    const isolation = await installSeededUiIsolation(context, {
+      liveOrigin: cfg.liveOrigin,
+      siteOrigin: new URL(process.env.E2E_BASE_URL || 'https://dev--rawsurf.netlify.app').origin,
+    });
     const leaks = watchLiveWeatherLeaks(context, cfg.liveOrigin);
     if (STUB_OTHER) await stubOtherLiveBackend(context, cfg.liveOrigin);
     await use(stats);
@@ -43,6 +51,11 @@ const test = base.test.extend({
     };
     console.log(`[OFFLINE WEATHER] ${JSON.stringify(row)}`);
     if (LEDGER) fs.appendFileSync(LEDGER, `${JSON.stringify(row)}\n`);
+    const uiRow = { project: testInfo.project.name, test: testInfo.titlePath.slice(1).join(' > '),
+      retry: testInfo.retry, ...isolation.stats, violations: isolation.violations };
+    console.log(`[SEEDED UI ISOLATION] ${JSON.stringify(uiRow)}`);
+    if (UI_LEDGER) fs.appendFileSync(UI_LEDGER, `${JSON.stringify(uiRow)}\n`);
+    isolation.assertNoViolations();
     base.expect(leaked, `weather responses that reached the LIVE backend instead of the in-runner one: ${examples.join(', ')}`)
       .toBe(0);
   }, { auto: true }],

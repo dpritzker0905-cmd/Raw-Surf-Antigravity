@@ -198,6 +198,7 @@ jobs:
           # Every /api/weather/* request goes here, not to the live backend (e2e/offlineWeather.js).
           E2E_WEATHER_BACKEND: http://127.0.0.1:4100
           E2E_WEATHER_LEDGER: /tmp/e2e-weather-routing.jsonl
+          E2E_UI_ISOLATION_LEDGER: /tmp/e2e-ui-isolation.jsonl
           E2E_BASE_URL: ${{ github.event.inputs.base_url || 'https://dev--rawsurf.netlify.app' }}
           E2E_TEST_GREP: ${{ github.event.inputs.test_grep || '' }}
           E2E_PROJECT: ${{ github.event.inputs.project || '' }}
@@ -223,7 +224,7 @@ jobs:
           # Arguments are quoted array entries, never interpolated shell source.
           # Push acceptance keeps the full suite and existing retries; filters are dispatch-only.
           # Credential-bearing browser contexts must stay untraced, including diagnostics.
-          node --test scripts/seededUiBadges.test.cjs
+          node --test scripts/seededUiBadges.test.cjs scripts/seededUiIsolation.test.cjs
           node --test scripts/offlineWeatherRoute.test.cjs
           args=(--reporter=list,html --trace=off)
           if [ -n "$E2E_TEST_GREP" ]; then args+=(--grep "$E2E_TEST_GREP"); fi
@@ -255,6 +256,36 @@ jobs:
           console.log(lines.join('\n'));
           if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
           JS
+
+      - name: Seeded UI isolation receipt
+        if: always()
+        run: |
+          node - <<'JS'
+          const fs = require('fs');
+          const path = '/tmp/e2e-ui-isolation.jsonl';
+          const rows = fs.existsSync(path) ? fs.readFileSync(path, 'utf8').split('\n').filter(Boolean).map(JSON.parse) : [];
+          const sum = key => rows.reduce((total, row) => total + (row[key] || 0), 0);
+          const violations = rows.reduce((total, row) => total + (row.violations || []).length, 0);
+          const lines = ['### Seeded UI request isolation', '',
+            `- test attempts recorded: ${rows.length}`,
+            `- fictional admin reads: ${sum('adminReads')} · diagnostic reads: ${sum('diagnosticsReads')}`,
+            `- sockets isolated before server connection: admin ${sum('adminSockets')} · call ${sum('callSockets')} · realtime ${sum('realtimeSockets')}`,
+            `- RUM requests answered locally: ${sum('rumAnswered')} · unmarked RUM responses: ${sum('rumLeaks')}`,
+            `- unexpected protected requests blocked: ${sum('blocked')} · isolation violations: ${violations}`];
+          console.log(lines.join('\n'));
+          if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
+          if (!rows.length || sum('rumLeaks') || sum('blocked') || violations) process.exitCode = 1;
+          JS
+
+      - name: Upload request isolation receipts
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: e2e-request-isolation
+          path: |
+            /tmp/e2e-weather-routing.jsonl
+            /tmp/e2e-ui-isolation.jsonl
+          retention-days: 14
 
       - name: Upload test results
         if: always()

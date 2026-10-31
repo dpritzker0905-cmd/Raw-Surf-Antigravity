@@ -68,6 +68,9 @@ module.exports = defineConfig({
   reporter: 'html',
   use: {
     baseURL: BASE_URL,
+    // Runner-owned request isolation must see every fetch, including incidental admin/RUM calls.
+    // Keep the default outside the loopback-weather qualification lane.
+    serviceWorkers: process.env.E2E_WEATHER_BACKEND ? 'block' : undefined,
     // Undefined when E2E_ACCESS_CODE is unset -- see the gate note above. Playwright treats an
     // undefined storageState as "no seeding", which is the loud-failure path, not a silent pass.
     storageState: gateStorageState,

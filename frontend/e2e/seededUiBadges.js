@@ -24,6 +24,8 @@ async function stubSeededUiBadges(page, userIds) {
     const badges = [
       { path: `/api/messages/unread-counts/${id}`, name: 'message',
         json: { total: 0, primary: 0, requests: 0, grom_zone: 0 } },
+      { path: `/api/notifications/${id}/unread-count`, name: 'notification',
+        json: { unread_count: 0 } },
       { path: `/api/surfer-gallery/claim-queue-count/${id}`, name: 'claim-count',
         json: { pending_count: 0 } },
       // AppLayout's ViolationBanner asks on every page. Since #496 (b171ba51c) the route needs the caller's
