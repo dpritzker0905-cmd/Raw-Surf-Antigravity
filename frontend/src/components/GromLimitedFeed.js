@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
@@ -7,6 +7,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent } from './ui/card';
 import { Badge } from './ui/badge';
+import { Button } from './ui/button';
 import apiClient from '../lib/apiClient';
 import AskMyParentPanel from './grom/AskMyParentPanel';
 import GuardianLevelBadge from './grom/GuardianLevelBadge';
@@ -25,6 +26,8 @@ const GromLimitedFeed = ({ gromStatus }) => {
   
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const previewReadGeneration = useRef(0);
 
   const cardBg = isLight ? 'bg-white' : 'bg-zinc-900';
   const textPrimary = isLight ? 'text-gray-900' : 'text-white';
@@ -33,18 +36,24 @@ const GromLimitedFeed = ({ gromStatus }) => {
 
   useEffect(() => {
     fetchGromPosts();
+    return () => { previewReadGeneration.current += 1; };
   }, []);
 
   const fetchGromPosts = async () => {
+    const generation = ++previewReadGeneration.current;
+    setLoading(true);
+    setLoadError(false);
     try {
       // Fetch posts from other Groms only, limited to 3
       const response = await apiClient.get(`/posts/grom-preview?limit=3`);
+      if (generation !== previewReadGeneration.current) return;
       setPosts(response.data || []);
     } catch (error) {
+      if (generation !== previewReadGeneration.current) return;
       logger.error('Failed to fetch grom posts:', error);
-      setPosts([]);
+      setLoadError(true);
     } finally {
-      setLoading(false);
+      if (generation === previewReadGeneration.current) setLoading(false);
     }
   };
 
@@ -81,9 +90,9 @@ const GromLimitedFeed = ({ gromStatus }) => {
         <div className="flex items-center gap-2">
           <Users className="w-4 h-4 text-cyan-500" />
           <h2 className={`font-semibold ${textPrimary}`}>Grom Community Preview</h2>
-          <Badge className="bg-cyan-500/20 text-cyan-500 border-0 text-xs ml-auto">
-            3 POSTS
-          </Badge>
+          {!loading && !loadError && <Badge className="bg-cyan-500/20 text-cyan-500 border-0 text-xs ml-auto">
+            {posts.length} {posts.length === 1 ? 'POST' : 'POSTS'}
+          </Badge>}
         </div>
         <p className={`text-xs ${textSecondary} mt-1`}>
           Connect with your parent to see the full feed and post your own sessions
@@ -93,8 +102,13 @@ const GromLimitedFeed = ({ gromStatus }) => {
       {/* Limited Posts */}
       <div className="px-4 space-y-4">
         {loading ? (
-          <div className="flex items-center justify-center py-12">
+          <div role="status" aria-label="Loading community preview" className="flex items-center justify-center py-12">
             <Loader2 className="w-8 h-8 text-cyan-500 animate-spin" />
+          </div>
+        ) : loadError ? (
+          <div role="alert" className="rounded-xl border border-border bg-card p-4 text-foreground space-y-3">
+            <p className="text-sm">Community preview could not be loaded. Try again to see recent posts.</p>
+            <Button type="button" variant="outline" onClick={fetchGromPosts}>Retry community preview</Button>
           </div>
         ) : posts.length > 0 ? (
           <>
