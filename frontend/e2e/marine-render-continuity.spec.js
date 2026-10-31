@@ -60,7 +60,8 @@ const { longestStall, stallAnatomy, isAppStall } = require('./continuityOracle')
 const { runKey, ledgerFile, readEarlierStalls, recordStall } = require('./stallLedger');
 // What each gesture asks the 1-CPU backend for (A15-11) — see requestRecorder.js. Observation only.
 const { recordWeatherRequests, summarizeRequests } = require('./requestRecorder');
-const { startIdleDrawDiagnostics, attachIdleDrawDiagnostics } = require('./idleDrawDiagnostics');
+const { installIdleDrawDiagnostics, startIdleDrawDiagnostics, readIdleDrawCounter,
+  attachIdleDrawDiagnostics } = require('./idleDrawDiagnostics');
 
 /** Stalls earlier attempts of THIS test recorded in THIS run; records this attempt's if over budget. */
 function reconcileStalls(worst, anatomy) {
@@ -261,7 +262,11 @@ async function clickLayer(page, name) {
 
 test.describe('Marine render continuity across real gestures', () => {
   test.beforeEach(async ({ page }) => {
+    await installIdleDrawDiagnostics(page);
     await openMapAsSurfer(page);
+  });
+  test.afterEach(async ({ page }, info) => {
+    await attachIdleDrawDiagnostics(page, info, info.status !== info.expectedStatus);
   });
 
   test('the marine field keeps drawing while toggling layers, models, zoom and pan', async ({ page }) => {
@@ -302,9 +307,9 @@ test.describe('Marine render continuity across real gestures', () => {
     await startIdleDrawDiagnostics(page);
     let idleFailure;
     try {
-      const n0 = await page.evaluate(() => window.__RAW_GPU__.opacity.n);
+      const n0 = await readIdleDrawCounter(page, 'n0');
       await page.waitForTimeout(1500);
-      const n1 = await page.evaluate(() => window.__RAW_GPU__.opacity.n);
+      const n1 = await readIdleDrawCounter(page, 'n1');
       expect(n1, 'the engine must be drawing at rest before gesture continuity means anything')
         .toBeGreaterThan(n0);
     } catch (error) {
