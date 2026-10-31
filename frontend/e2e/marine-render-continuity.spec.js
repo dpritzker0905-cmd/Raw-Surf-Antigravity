@@ -60,6 +60,7 @@ const { longestStall, stallAnatomy, isAppStall } = require('./continuityOracle')
 const { runKey, ledgerFile, readEarlierStalls, recordStall } = require('./stallLedger');
 // What each gesture asks the 1-CPU backend for (A15-11) — see requestRecorder.js. Observation only.
 const { recordWeatherRequests, summarizeRequests } = require('./requestRecorder');
+const { startIdleDrawDiagnostics, attachIdleDrawDiagnostics } = require('./idleDrawDiagnostics');
 
 /** Stalls earlier attempts of THIS test recorded in THIS run; records this attempt's if over budget. */
 function reconcileStalls(worst, anatomy) {
@@ -298,11 +299,21 @@ test.describe('Marine render continuity across real gestures', () => {
     // POSITIVE CONTROL, before any gesture: the counter must advance while the map sits still. If
     // it does not, every stall measured below would be meaningless — the engine simply is not
     // running, and this test must say THAT rather than blaming the gestures.
-    const n0 = await page.evaluate(() => window.__RAW_GPU__.opacity.n);
-    await page.waitForTimeout(1500);
-    const n1 = await page.evaluate(() => window.__RAW_GPU__.opacity.n);
-    expect(n1, 'the engine must be drawing at rest before gesture continuity means anything')
-      .toBeGreaterThan(n0);
+    await startIdleDrawDiagnostics(page);
+    let idleFailure;
+    try {
+      const n0 = await page.evaluate(() => window.__RAW_GPU__.opacity.n);
+      await page.waitForTimeout(1500);
+      const n1 = await page.evaluate(() => window.__RAW_GPU__.opacity.n);
+      expect(n1, 'the engine must be drawing at rest before gesture continuity means anything')
+        .toBeGreaterThan(n0);
+    } catch (error) {
+      idleFailure = error;
+      throw error;
+    } finally {
+      // A red idle prerequisite happens BEFORE startSampler: preserve its evidence too.
+      await attachIdleDrawDiagnostics(page, test.info(), idleFailure);
+    }
 
     await startSampler(page);
 
