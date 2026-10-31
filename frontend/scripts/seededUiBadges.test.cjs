@@ -9,25 +9,28 @@ const fixturePage = () => ({
   async route(matches, handle) { this.routes.push({ matches, handle }); },
 });
 
-test('synthetic navigation receives both declared empty badge contracts', async () => {
-  const page = fixturePage();
-  const count = await stubSeededUiBadges(page, ['test-surfer-id']);
-  for (const [path, body] of [
-    ['/api/messages/unread-counts/test-surfer-id', { total: 0, primary: 0, requests: 0, grom_zone: 0 }],
-    ['/api/surfer-gallery/claim-queue-count/test-surfer-id', { pending_count: 0 }],
-    ['/api/compliance/violations/user/test-surfer-id', { user_id: 'test-surfer-id', total_strikes: 0,
-      is_suspended: false, is_banned: false, suspension_until: null, violations: [] }],
-  ]) {
-    const route = page.routes.find(r => r.matches(new URL(origin + path)));
-    assert.ok(route, `Missing synthetic badge: ${path}`);
-    let response;
-    await route.handle({ request: () => ({ method: () => 'GET' }),
-      fulfill: async value => { response = value; }, fallback: () => assert.fail('GET fell through') });
-    assert.deepEqual(response.json, body);
-    assert.match(response.headers['x-rawsurf-e2e-fixture'], /^synthetic-/);
-  }
-  assert.equal(count(), 3);
-});
+for (const id of ['test-surfer-id', 'admin-user-id']) {
+  test(`synthetic navigation receives declared empty badge contracts for ${id}`, async () => {
+    const page = fixturePage();
+    const count = await stubSeededUiBadges(page, [id]);
+    for (const [path, body] of [
+      [`/api/messages/unread-counts/${id}`, { total: 0, primary: 0, requests: 0, grom_zone: 0 }],
+      [`/api/notifications/${id}/unread-count`, { unread_count: 0 }],
+      [`/api/surfer-gallery/claim-queue-count/${id}`, { pending_count: 0 }],
+      [`/api/compliance/violations/user/${id}`, { user_id: id, total_strikes: 0,
+        is_suspended: false, is_banned: false, suspension_until: null, violations: [] }],
+    ]) {
+      const route = page.routes.find(r => r.matches(new URL(origin + path)));
+      assert.ok(route, `Missing synthetic badge: ${path}`);
+      let response;
+      await route.handle({ request: () => ({ method: () => 'GET' }),
+        fulfill: async value => { response = value; }, fallback: () => assert.fail('GET fell through') });
+      assert.deepEqual(response.json, body);
+      assert.match(response.headers['x-rawsurf-e2e-fixture'], /^synthetic-/);
+    }
+    assert.equal(count(), 4);
+  });
+}
 
 test('real identities, auth, mutations, weather and other origins stay outside the fixture', async () => {
   const page = fixturePage();
@@ -35,11 +38,15 @@ test('real identities, auth, mutations, weather and other origins stay outside t
   for (const url of [
     origin + '/api/surfer-gallery/claim-queue-count/real-account',
     origin + '/api/messages/unread-counts/real-account',
+    origin + '/api/notifications/real-account/unread-count',
+    origin + '/api/notifications/test-surfer-id',
+    origin + '/api/notifications/test-surfer-id/unread-count-extra',
     origin + '/api/compliance/violations/user/real-account',
     origin + '/api/surfer-gallery/claim-queue/test-surfer-id/action',
     origin + '/api/auth/login', origin + '/api/weather/grid',
     origin + '/api/explore/spot-details/test-surfer-id',
     'https://different.invalid/api/surfer-gallery/claim-queue-count/test-surfer-id',
+    'https://different.invalid/api/notifications/test-surfer-id/unread-count',
   ]) assert.equal(page.routes.some(r => r.matches(new URL(url))), false, url);
   for (const route of page.routes) {
     let fellThrough = false;
