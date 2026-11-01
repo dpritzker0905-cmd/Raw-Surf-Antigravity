@@ -492,8 +492,8 @@ _FLOOR_SET_FROM = {
     # guards: set from 3351 = max(dev run 40398047789 read 3341, dev's map 3341) + 10 (claude/manifest-object-consistency, 2026-10-26); floor 3345, margin 6.
     "guards": 3351,
 
-    # chain: set from 3008 = max(dev run 40633534401 read 2976, dev's map 2976) + 32 (claude/infobox-honesty-5efceb, 2026-10-28); floor 3002, margin 6.
-    "chain": 3008,
+    # chain: set from 3024 = max(dev run 41350294961 read 3008, dev's map 3008) + 16 (claude/far-edge-bridge, 2026-11-01); floor 3018, margin 6.
+    "chain": 3024,
 
     # estate: set from 3406 = max(dev run 41148501823 read 3405, dev's map 3405) + 1 (codex/guardian-purchase-integration-20261030, 2026-10-31); floor 3404, margin 2.
     "estate": 3406,
