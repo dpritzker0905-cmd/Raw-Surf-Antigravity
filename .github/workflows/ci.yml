@@ -1616,9 +1616,11 @@ jobs:
           #   base 2975 (dev's map) + 1 new test(s) and 0 new file(s) = 2976, files 182; floor 2976 - 6 = 2970. This PR must read 2976 passed.
           # ⬆ 2970→3002 on 2026-10-28 (rederive_floor.py, claude/infobox-honesty-5efceb): dev run 40633534401 read 2976 / 182 files; dev's map 2976;
           #   base 2976 (hosted read) + 32 new test(s) and 1 new file(s) = 3008, files 183; floor 3008 - 6 = 3002. This PR must read 3008 passed.
-          # ⬆ 3002→3003 on 2026-11-01 (rederive_floor.py, claude/socal-swell2-dark): dev run 41350294961 read 3008 / 183 files; dev's map 3008;
-          #   base 3008 (hosted read) + 1 new test(s) and 0 new file(s) = 3009, files 183; floor 3009 - 6 = 3003. This PR must read 3009 passed.
-          MIN_FILES, MIN_PASSED = 183, 3003
+          # ⬆ 3002→3018 on 2026-11-01 (rederive_floor.py, claude/far-edge-bridge): dev run 41350294961 read 3008 / 183 files; dev's map 3008;
+          #   base 3008 (hosted read) + 16 new test(s) and 1 new file(s) = 3024, files 184; floor 3024 - 6 = 3018. This PR must read 3024 passed.
+          # ⬆ 3018→3019 on 2026-11-01 (rederive_floor.py, claude/socal-swell2-dark): dev run 41354746522 read 3008 / 183 files; dev's map 3024;
+          #   base 3024 (dev's map) + 1 new test(s) and 0 new file(s) = 3025, files 184; floor 3025 - 6 = 3019. This PR must read 3025 passed.
+          MIN_FILES, MIN_PASSED = 184, 3019
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

@@ -1,0 +1,39 @@
+NEARSHORE VALIDATION HARNESS - RESULTS SUMMARY (2026-10-23, offline, no served change)
+
+DATA: NDBC 41009 (offshore, 28.508N 80.185W, ~40 m) 51,255 records 2023-01..2026-10; CDIP 143 (= NDBC 41113, Cape
+Canaveral nearshore, 28.398N 80.535W, ~10-16 m, south of the cape) 63,945 records; CDIP 134 (= 41114, Fort Pierce, open
+coast, 27.549N 80.227W) 55,600 records. Spectra rebuilt identically (Lygre-Krogstad maximum entropy from a1,b1,a2,b2),
+partitioned with wavespectra 'steepness' (library default scut 0.025, untuned; wind sea detected in only 2-33% of
+records, so 'swell' ~ total). Pairs: nearshore record vs offshore record 30 min earlier within 20 min.
+Explore years 2023-2024, hold-out 2025-2026.
+
+CONTROLS (all pass): CDIP moment convention vs CDIP waveDp 0.0 deg median; NDBC rebuilt peak dir vs NDBC MWD 0.0 deg;
+2-D energy vs 1-D Hs within 0.7% (41009), 2.3% (143), 1.6% (134); partitions conserve Hs exactly; rebuilt mean dir vs
+moments 1.0-1.5 deg; transfer null control (offshore vs itself) = 1.000; positive control (x0.5) = 0.500.
+Two bugs found and fixed by the controls during the build: NDBC HISTORY stores r1/r2 x100 (realtime 0-1), which turned
+73 deg into 192 deg; NDBC realtime uses 999.00 as missing.
+
+MEASURED TRANSFER (nearshore total Hs / offshore total Hs, p50, by offshore swell direction; explore | hold-out):
+  Cape 143:   N 0.51|0.52  NNE 0.56|0.54  NE 0.57|0.58  ENE 0.63|0.65  E 0.74|0.75  ESE 0.79|0.78  SE 0.78|0.75
+              SSE 0.72|0.66  NNW 0.47|0.48   (hold-out n per bin 369-3253 for N..SSE)
+  FtPierce 134: N 0.85|0.86  NNE 0.84|0.82  NE 0.84|0.84  ENE 0.86|0.87  E 0.88|0.85  ESE 0.88|0.85  SE 0.80|0.76
+              SSE 0.69|0.64  NNW 0.78|0.75
+  Cape relative to Fort Pierce (hold-out): N 0.60 NNE 0.66 NE 0.69 ENE 0.75 E 0.88 ESE 0.93 SE 0.99.
+  Direction turn offshore->Cape: N +59, NNE +46, NE +32, ENE +24, E +15 deg (bent around the cape).
+  Lag 0/30/60/90 min: Cape 0.649/0.648/0.647/0.646 (insensitive).
+
+CHAIN (real repo code at defaults) direction factor = _height_exposure_factor(dir, shore normal) x REFRACTION_KR 0.873,
+compared with the measured ratio (NOTE: measured is Hs at a 10-16 m buoy, chain factor multiplies a breaking height):
+  Jetty Park (normal 110.7):  N 0.52 vs meas 0.52 | NNE 0.53 vs 0.54 | NE 0.67 vs 0.58 | ENE 0.78 vs 0.65 | E 0.85 vs 0.75
+  Cocoa Pier (normal 99.1):   N 0.52 vs 0.52 | NNE 0.60 vs 0.54 | NE 0.73 vs 0.58 | ENE 0.82 vs 0.65 | E 0.87 vs 0.75
+  N Hutchinson (normal 83.7, open coast vs Fort Pierce): N 0.56 vs 0.86 | NNE 0.69 vs 0.82 | NE 0.80 vs 0.84 |
+              ENE 0.86 vs 0.87 | E 0.87 vs 0.85 | SE 0.74 vs 0.76
+  Reading: at the cape the chain's shape matches only because a jetty-local normal (110.7) mimics the shadow; it is
+  0.09-0.17 too generous in the NE-ENE window. On the open coast it UNDER-reads oblique N/NNE swell by 0.13-0.30
+  (refraction turns that swell toward shore, +16 deg measured; the cosine rule does not).
+
+BREAKING STEP (hold-out, median of ~1,500 pairs per beach): Jetty Park chain from offshore partitions 3.8 ft, chain fed
+the NEARSHORE buoy spectrum 3.0 ft; Cocoa 3.9 / 3.1; N Hutchinson 4.2 / 3.8.
+OBSERVATION LOG n = 1: 2026-10-23 ~21Z Jetty Park, owner, 2-3 ft FACE. Chain: offshore input 4.8 ft, nearshore-buoy
+input 5.3 ft (nearshore Hs 0.9 m). The nearshore arm reads HIGHER because the turned swell is near the 110.7 normal and
+the chain applies exposure again (double counts refraction). n = 1: recorded, not a calibration basis.
