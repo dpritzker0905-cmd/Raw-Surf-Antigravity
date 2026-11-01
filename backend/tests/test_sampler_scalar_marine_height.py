@@ -292,15 +292,15 @@ def test_master_dark_no_model_reads_the_scalar_whatever_the_list_says(monkeypatc
     assert (four, masked) == (base_four, base_masked)
 
 
-def test_flag_on_with_the_default_list_gfs_reads_the_scalar_and_euro_and_icon_stay_the_vector(monkeypatch):
+def test_flag_on_with_the_default_list_gfs_and_euro_read_the_scalar_and_icon_stays_the_vector(monkeypatch):
     base_four, base_masked = _vector_baseline(monkeypatch)
     monkeypatch.setenv(MASTER, "1")
-    four, masked = _both_call_sites("GFS")
-    assert four.speed == pytest.approx(SCALAR_M, abs=1e-4)
-    assert masked.speed == pytest.approx(_masked_scalar_expected(), abs=1e-4)
-    for model in ("EURO", "ICON"):
-        # the WHOLE point, not just the height: EURO and ICON are identical to the dark answer
-        assert _both_call_sites(model) == (base_four, base_masked), model
+    for model in ("GFS", "EURO"):                                  # EURO joined 2026-11-01 (D-057)
+        four, masked = _both_call_sites(model)
+        assert four.speed == pytest.approx(SCALAR_M, abs=1e-4), model
+        assert masked.speed == pytest.approx(_masked_scalar_expected(), abs=1e-4), model
+    # the WHOLE point, not just the height: ICON is identical to the dark answer until its own lane grades
+    assert _both_call_sites("ICON") == (base_four, base_masked)
 
 
 def test_star_applies_the_scalar_to_every_model_at_both_call_sites(monkeypatch):
@@ -325,7 +325,7 @@ def test_a_list_that_names_icon_alone_moves_icon_only(monkeypatch):
 def test_the_products_model_is_matched_without_regard_to_case_or_padding(monkeypatch):
     monkeypatch.setenv(MASTER, "1")
     assert _both_call_sites("gfs")[0].speed == pytest.approx(SCALAR_M, abs=1e-4)
-    assert _both_call_sites("euro")[0].speed == pytest.approx(VECTOR_M, abs=1e-4)      # not listed, whatever its case
+    assert _both_call_sites("icon")[0].speed == pytest.approx(VECTOR_M, abs=1e-4)      # not listed, whatever its case
     monkeypatch.setenv(LIST, "euro")
     assert _both_call_sites("EURO")[0].speed == pytest.approx(SCALAR_M, abs=1e-4)
     assert _both_call_sites(" Euro ")[0].speed == pytest.approx(SCALAR_M, abs=1e-4)
@@ -427,7 +427,7 @@ def test_every_lane_declares_the_model_list_equal_and_at_the_code_default():
     """The master switch is pinned equal across the three lanes for a reason: a flip in one alone serves two
     interpolations of the same sea. The model list has the same hazard, so it is declared in the same three places."""
     from services.weather_pipeline.sampler import SCALAR_HEIGHT_MODELS_DEFAULT
-    assert SCALAR_HEIGHT_MODELS_DEFAULT == "GFS"                  # GFS first; ICON/EURO join after their own lanes grade
+    assert SCALAR_HEIGHT_MODELS_DEFAULT == "GFS,EURO"             # GFS 10-17, EURO 11-01 (D-057); ICON after its lane grades
     values = {}
     for wf in ("forecast-ingest.yml", "forecast-ingest-pilots.yml", "precompute.yml"):
         d = yaml.safe_load((BACKEND.parent / ".github" / "workflows" / wf).read_text(encoding="utf-8"))

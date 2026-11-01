@@ -54,7 +54,10 @@ def resolution_or_none(grid):
 # SAMPLER_SCALAR_HEIGHT_MODELS: which models the master switch applies to once it is flipped. GFS first: its scalar
 # lane (raw_surf:GFS_SCALAR) is the only one graded. EURO and ICON have none, and the scalar is one-sided upward
 # while ICON already leans high, so each joins only after its own shadow lane has been read.
-SCALAR_HEIGHT_MODELS_DEFAULT = "GFS"
+# EURO JOINED 2026-11-01 (owner: "flip euro"; D-057). Paired evidence: the scalar equals the heat map's own value in
+# 100% of 14,104 EURO samples, while the vector read > 5% below it in 22%; NDBC on the 0.25-deg tier (59% of spots)
+# MAE 0.169 -> 0.158 m; the 2-deg tier at coastal buoys +0.004 m (n=100). ICON waits for raw_surf:ICON_SCALAR (#662).
+SCALAR_HEIGHT_MODELS_DEFAULT = "GFS,EURO"
 
 
 def scalar_marine_height_enabled(domain: str, model: Optional[str] = None) -> bool:
