@@ -432,3 +432,109 @@ test('valid tokenless socket owners retain counters, no rejection receipt, one r
     f.result.assertNoViolations();
   }
 });
+
+
+test('socket observations classify only the existing read and never retain raw errors', async () => {
+  for (const [message, outcome] of [
+    ['page.evaluate: Test ended. private-fixture-value', 'evaluate-test-ended'],
+    ['Target page, context or browser has been closed private-fixture-value', 'evaluate-context-closed'],
+    ['other private-fixture-value', 'evaluate-other-error'],
+  ]) {
+    const owner = page(); let reads = 0;
+    owner.evaluate = async () => { reads += 1; throw new Error(message); };
+    const f = await fixture([owner]);
+    const calls = await socket(f, '/api/ws/call/test-surfer-id');
+    const receipt = f.result.violations[0];
+    assert.equal(reads, 1); assert.equal(calls.closed[0].code, 1008);
+    assert.equal(receipt.socketObservation.outcome, outcome);
+    assert.equal(receipt.socketObservation.handlerId, 1);
+    assert.ok(receipt.socketObservation.handlerEntrySequence < receipt.socketObservation.readStartSequence);
+    assert.ok(receipt.socketObservation.readStartSequence < receipt.socketObservation.readSettlementSequence);
+    assert.deepEqual(receipt.socketObservation.phaseAtReadStart,
+      { fixtureUseReturned: false, contextCloseObserved: false, finalReceiptStarted: false });
+    assert.deepEqual(receipt.socketObservation.phaseAtReadSettlement, receipt.socketObservation.phaseAtReadStart);
+    assert.equal(JSON.stringify(receipt).includes('private-fixture-value'), false);
+    assert.equal(receipt.socket.sessionObserved, false);
+    assert.deepEqual(await f.result.lifecycle.drain(), { complete: true, pending: 0, handlerErrors: 0 });
+  }
+});
+
+test('unreadable error metadata cannot change socket refusal or draining', async () => {
+  const owner = page(); let reads = 0;
+  owner.evaluate = async () => { reads += 1; throw Object.defineProperty({}, 'message', {
+    get() { throw new Error('diagnostic getter failure'); },
+  }); };
+  const f = await fixture([owner]);
+  assert.equal((await socket(f, '/api/ws/call/test-surfer-id')).closed[0].code, 1008);
+  assert.equal(reads, 1);
+  assert.equal(f.result.violations[0].socketObservation.outcome, 'evaluate-other-error');
+  assert.deepEqual(await f.result.lifecycle.drain(), { complete: true, pending: 0, handlerErrors: 0 });
+});
+
+test('ambiguous ownership keeps no-read sentinels; pre-evaluation loss is distinct', async () => {
+  for (const owners of [[], [page(), page()]]) {
+    const f = await fixture(owners);
+    await socket(f, '/api/ws/call/test-surfer-id');
+    const o = f.result.violations[0].socketObservation;
+    assert.equal(o.outcome, 'no-unique-owner');
+    for (const key of ['readStartSequence', 'readSettlementSequence', 'phaseAtReadStart', 'phaseAtReadSettlement']) {
+      assert.equal(o[key], null);
+    }
+    assert.ok(owners.every(owner => owner.evaluations.length === 0));
+  }
+  const owner = page(); let checks = 0;
+  owner.isClosed = () => ++checks > 1;
+  const f = await fixture([owner]); await socket(f, '/api/ws/call/test-surfer-id');
+  assert.equal(f.result.violations[0].socketObservation.outcome, 'unavailable-before-evaluation');
+  assert.equal(owner.evaluations.length, 0);
+});
+
+test('lifecycle observations are bounded, idempotent, copied and policy-neutral', async () => {
+  const f = await fixture();
+  f.result.observeFixtureUseReturned(); f.result.observeFixtureUseReturned();
+  f.result.observeContextClose(); f.result.observeContextClose();
+  f.result.observeFinalReceiptStart(); f.result.observeFinalReceiptStart();
+  const first = f.result.socketLifecycleSnapshot();
+  assert.equal(first.events.length, 3);
+  assert.deepEqual(first.events.map(event => event.phase), ['fixtureUseReturned', 'contextCloseObserved', 'finalReceiptStarted']);
+  first.phase.fixtureUseReturned = false; first.events[0].sequence = -1;
+  assert.equal(f.result.socketLifecycleSnapshot().phase.fixtureUseReturned, true);
+  assert.ok(f.result.socketLifecycleSnapshot().events[0].sequence > 0);
+  await socket(f, '/api/ws/call/test-surfer-id');
+  assert.equal(f.result.stats.callSockets, 1); assert.equal(f.result.stats.blocked, 0);
+  f.pages[0].user = { id: 'test-surfer-id', access_token: 'fictional-token' };
+  await socket(f, '/api/ws/call/test-surfer-id');
+  assert.equal(f.result.stats.blocked, 1);
+  assert.equal(f.result.violations[0].socketObservation.outcome, 'evaluated');
+  assert.equal(f.result.violations[0].socket.storedTokenPresent, true);
+  assert.equal(JSON.stringify(f.result.violations).includes('fictional-token'), false);
+});
+
+test('concurrent reads keep handler attribution when settlement order reverses', async () => {
+  const owner = page(), pending = [];
+  let started; const bothStarted = new Promise(resolve => { started = resolve; });
+  owner.evaluate = () => new Promise((resolve, reject) => {
+    pending.push({ resolve, reject }); if (pending.length === 2) started();
+  });
+  const f = await fixture([owner]);
+  const first = socket(f, '/api/ws/call/test-surfer-id');
+  const second = socket(f, '/realtime/v1/websocket?token=fictional-query', 'wss://realtime.invalid');
+  await bothStarted;
+  assert.equal(pending.length, 2);
+  f.result.observeFixtureUseReturned();
+  pending[1].resolve({ id: 'test-surfer-id', hasToken: false }); await second;
+  const settledSecond = JSON.parse(JSON.stringify(f.result.violations[0]));
+  f.result.observeContextClose(); f.result.observeFinalReceiptStart();
+  pending[0].reject(new Error('page.evaluate: Test ended.')); await first;
+  const [b, a] = f.result.violations.map(v => v.socketObservation);
+  assert.equal(a.handlerId, 1); assert.equal(b.handlerId, 2);
+  assert.ok(a.handlerEntrySequence < b.handlerEntrySequence);
+  assert.ok(b.readSettlementSequence < a.readSettlementSequence);
+  assert.equal(a.outcome, 'evaluate-test-ended'); assert.equal(b.outcome, 'evaluated');
+  assert.deepEqual(a.phaseAtReadStart, { fixtureUseReturned: false, contextCloseObserved: false, finalReceiptStarted: false });
+  assert.deepEqual(a.phaseAtReadSettlement, { fixtureUseReturned: true, contextCloseObserved: true, finalReceiptStarted: true });
+  assert.deepEqual(b.phaseAtReadSettlement, { fixtureUseReturned: true, contextCloseObserved: false, finalReceiptStarted: false });
+  assert.deepEqual(f.result.violations[0], settledSecond);
+  assert.equal(JSON.stringify(f.result.violations).includes('fictional-query'), false);
+  assert.deepEqual(await f.result.lifecycle.drain(), { complete: true, pending: 0, handlerErrors: 0 });
+});

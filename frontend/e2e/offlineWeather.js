@@ -57,8 +57,9 @@ const test = base.test.extend({
     const leaks = watchLiveWeatherLeaks(context, cfg.liveOrigin);
     if (STUB_OTHER) await stubOtherLiveBackend(context, cfg.liveOrigin);
     let contextClosed = false;
-    context.on('close', () => { contextClosed = true; });
+    context.on('close', () => { contextClosed = true; isolation.observeContextClose(); });
     syntheticFinalReceipt(async () => {
+      isolation.observeFinalReceiptStart();
       const [weatherCleanup, uiCleanup] = await Promise.all([
         stats.lifecycle.drain(), isolation.lifecycle.drain(),
       ]);
@@ -74,7 +75,8 @@ const test = base.test.extend({
       console.log(`[OFFLINE WEATHER] ${JSON.stringify(row)}`);
       if (LEDGER) fs.appendFileSync(LEDGER, `${JSON.stringify(row)}\n`);
       const uiRow = { cleanup, project: testInfo.project.name, test: testInfo.titlePath.slice(1).join(' > '),
-        retry: testInfo.retry, ...isolation.stats, violations: isolation.violations };
+        retry: testInfo.retry, ...isolation.stats, violations: isolation.violations,
+        socketLifecycle: isolation.socketLifecycleSnapshot() };
       console.log(`[SEEDED UI ISOLATION] ${JSON.stringify(uiRow)}`);
       if (UI_LEDGER) fs.appendFileSync(UI_LEDGER, `${JSON.stringify(uiRow)}\n`);
       base.expect(cleanup.complete, `synthetic cleanup incomplete: ${JSON.stringify(cleanup)}`).toBe(true);
@@ -83,6 +85,7 @@ const test = base.test.extend({
         .toBe(0);
     });
     await use(stats);
+    isolation.observeFixtureUseReturned();
   }, { auto: true }],
 });
 

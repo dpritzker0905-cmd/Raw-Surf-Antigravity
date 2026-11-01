@@ -56,11 +56,33 @@ function socketKind(url, cfg) {
   return 'unexpected-protected';
 }
 
-async function sessionFor(page, cfg) {
+// Observation failures must never change session policy or route cleanup.
+function observeSafely(observe, event) {
+  try { observe?.(event); } catch { /* diagnostic only */ }
+}
+
+function evaluationOutcome(error) {
   try {
-    if (!page || page.isClosed() || new URL(page.url()).origin !== cfg.siteOrigin) return null;
+    const message = error?.message;
+    if (typeof message === 'string') {
+      if (message.includes('Test ended.')) return 'evaluate-test-ended';
+      if (message.includes('Target page, context or browser has been closed')) return 'evaluate-context-closed';
+    }
+  } catch { /* unknown metadata remains unknown */ }
+  return 'evaluate-other-error';
+}
+
+async function sessionFor(page, cfg, observe) {
+  let evaluating = false;
+  observeSafely(observe, 'read-start');
+  try {
+    if (!page || page.isClosed() || new URL(page.url()).origin !== cfg.siteOrigin) {
+      observeSafely(observe, 'unavailable-before-evaluation');
+      return null;
+    }
+    evaluating = true;
     // Return only identity and token presence, never the stored session or token.
-    return await page.evaluate(() => {
+    const session = await page.evaluate(() => {
       try {
         const user = JSON.parse(globalThis.localStorage.getItem('raw-surf-user') || 'null');
         return { id: typeof user?.id === 'string' ? user.id : null, hasToken: !!user?.access_token };
@@ -68,9 +90,46 @@ async function sessionFor(page, cfg) {
         return { id: null, hasToken: false };
       }
     });
-  } catch {
+    observeSafely(observe, 'evaluated');
+    return session;
+  } catch (error) {
+    if (observe) observeSafely(observe, evaluating ? evaluationOutcome(error) : 'unavailable-before-evaluation');
     return null;
   }
+}
+
+// Context-local logical order, not a native clock. False means unobserved.
+// Keep only three phase markers and per-rejection observations; no handler event log.
+function socketObservations() {
+  let sequence = 0, handlerId = 0;
+  const phase = { fixtureUseReturned: false, contextCloseObserved: false, finalReceiptStarted: false };
+  const events = [];
+  const mark = name => {
+    if (phase[name]) return;
+    phase[name] = true;
+    events.push({ phase: name, sequence: ++sequence });
+  };
+  return {
+    observeFixtureUseReturned: () => mark('fixtureUseReturned'),
+    observeContextClose: () => mark('contextCloseObserved'),
+    observeFinalReceiptStart: () => mark('finalReceiptStarted'),
+    socketLifecycleSnapshot: () => ({ phase: { ...phase }, events: events.map(event => ({ ...event })), lastSequence: sequence }),
+    handler() {
+      const data = { handlerId: ++handlerId, handlerEntrySequence: ++sequence,
+        readStartSequence: null, readSettlementSequence: null,
+        phaseAtReadStart: null, phaseAtReadSettlement: null, outcome: 'no-unique-owner' };
+      return { data, observe(event) {
+        if (event === 'read-start') {
+          data.readStartSequence = ++sequence;
+          data.phaseAtReadStart = { ...phase };
+        } else {
+          data.readSettlementSequence = ++sequence;
+          data.phaseAtReadSettlement = { ...phase };
+          data.outcome = event;
+        }
+      } };
+    },
+  };
 }
 
 const synthetic = session => !!session && IDS.has(session.id) && session.hasToken === false;
@@ -81,9 +140,11 @@ async function installSeededUiIsolation(context, config) {
     adminSockets: 0, callSockets: 0, realtimeSockets: 0, blocked: 0 };
   const violations = [];
   const lifecycle = createRouteLifecycle();
-  const record = (kind, method, path, socket) => {
+  const observations = socketObservations();
+  const record = (kind, method, path, socket, socketObservation) => {
     stats.blocked += 1;
-    violations.push({ kind, method, path, ...(socket ? { socket } : {}) });
+    violations.push({ kind, method, path, ...(socket ? { socket } : {}),
+      ...(socketObservation ? { socketObservation } : {}) });
   };
   const reject = async (route, kind, method, path) => {
     record(kind, method, path);
@@ -149,6 +210,8 @@ async function installSeededUiIsolation(context, config) {
   }));
 
   await context.routeWebSocket(url => !!socketKind(url, cfg), lifecycle.wrap(async socket => {
+    let observation;
+    try { observation = observations.handler(); } catch { /* diagnostic only */ }
     const url = new URL(socket.url());
     const kind = socketKind(url, cfg);
     const path = kind === 'unexpected-protected' ? '/api/ws/[unexpected]'
@@ -157,7 +220,7 @@ async function installSeededUiIsolation(context, config) {
     const pages = context.pages().filter(page => {
       try { return !page.isClosed() && new URL(page.url()).origin === cfg.siteOrigin; } catch { return false; }
     });
-    const session = pages.length === 1 ? await sessionFor(pages[0], cfg) : null;
+    const session = pages.length === 1 ? await sessionFor(pages[0], cfg, observation?.observe) : null;
     const mismatch = kind === 'call' && url.pathname !== `/api/ws/call/${session?.id}`;
     if (kind.startsWith('unexpected') || !synthetic(session) || mismatch || url.searchParams.has('token')) {
       // Snapshot existing observations only; never retain URL credentials or session values.
@@ -166,7 +229,7 @@ async function installSeededUiIsolation(context, config) {
         sessionObserved: session !== null, syntheticIdMatch: !!session && IDS.has(session.id),
         storedTokenPresent: session?.hasToken ?? null,
         callMismatch: mismatch, tokenQueryPresent: url.searchParams.has('token'),
-      });
+      }, observation?.data);
     } else {
       stats[`${kind}Sockets`] += 1;
     }
@@ -184,7 +247,12 @@ async function installSeededUiIsolation(context, config) {
     record(`unmarked-${kind}-response`, method, path);
   });
 
-  return { stats, violations, lifecycle, assertNoViolations() {
+  return { stats, violations, lifecycle,
+    observeFixtureUseReturned: () => observeSafely(observations.observeFixtureUseReturned),
+    observeContextClose: () => observeSafely(observations.observeContextClose),
+    observeFinalReceiptStart: () => observeSafely(observations.observeFinalReceiptStart),
+    socketLifecycleSnapshot: observations.socketLifecycleSnapshot,
+    assertNoViolations() {
     if (violations.length) throw new Error(`Seeded UI isolation recorded ${violations.length} violation(s)`);
   } };
 }
