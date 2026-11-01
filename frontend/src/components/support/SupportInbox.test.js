@@ -11,7 +11,7 @@ let mockRerender;
 const mockNavigate = jest.fn();
 jest.mock('react-router-dom', () => ({
   useParams: () => ({ ticketId: mockTicket }),
-  useNavigate: () => path => { mockNavigate(path); mockTicket = path.split('/').pop(); mockRerender?.(); },
+  useNavigate: () => path => { mockNavigate(path); mockTicket = path.startsWith('/support/tickets/') ? path.split('/').pop() : undefined; mockRerender?.(); },
 }), { virtual: true });
 jest.mock('../../contexts/AuthContext', () => ({ useAuth: () => ({ user: mockUser, loading: false }) }));
 jest.mock('../../lib/apiClient', () => ({ __esModule: true, default: { get: jest.fn(), post: jest.fn() } }));
@@ -31,8 +31,63 @@ const mount = (path = '/support') => {
 const open = async id => { fireEvent.click(await screen.findByRole('button', { name: new RegExp(rows.find(row => row.id === id).subject) })); await screen.findByText(`Description ${id}`); };
 beforeEach(() => {
   jest.clearAllMocks(); mockUser = { id: 'fixture-owner' }; mockTicket = undefined; mockRerender = null;
+  window.innerWidth = 1024;
+  Element.prototype.scrollIntoView = jest.fn();
   apiClient.get.mockImplementation(url => Promise.resolve({ data: url.includes('?') ? { tickets: rows, total: 2 } : detail(url.split('/').pop()) }));
   apiClient.post.mockResolvedValue({ data: { success: true, ticket_id: A } });
+});
+
+test('direct links have deterministic Settings and inbox returns without history', async () => {
+  mount(`/support/tickets/${A}`);
+  await screen.findByText(`Description ${A}`);
+  fireEvent.click(screen.getByRole('button', { name: 'Back to inbox' }));
+  expect(mockNavigate).toHaveBeenLastCalledWith('/support');
+  await waitFor(() => expect(screen.getByRole('heading', { name: 'Your tickets' })).toHaveFocus());
+  fireEvent.click(screen.getByRole('button', { name: 'Back to Settings' }));
+  expect(mockNavigate).toHaveBeenLastCalledWith('/settings');
+});
+
+test('mobile selection and repeated selection reveal the conversation, refresh does not steal focus', async () => {
+  window.innerWidth = 390;
+  mount();
+  await open(A);
+  const conversation = screen.getByRole('region', { name: 'Support conversation' });
+  await waitFor(() => expect(conversation).toHaveFocus());
+  expect(conversation.scrollIntoView).toHaveBeenCalledWith({ block: 'start' });
+  const refreshButton = screen.getByRole('button', { name: 'Refresh tickets' });
+  refreshButton.focus();
+  fireEvent.click(refreshButton);
+  await screen.findByText(`Description ${A}`);
+  expect(refreshButton).toHaveFocus();
+  await open(A);
+  await waitFor(() => expect(conversation).toHaveFocus());
+});
+
+test('interrupted mobile loading only reveals the last selected conversation', async () => {
+  window.innerWidth = 390;
+  const old = pending();
+  apiClient.get.mockImplementation(url => url === `/support/tickets/${A}` ? old.promise : Promise.resolve({
+    data: url.includes('?') ? { tickets: rows, total: 51 } : detail(B),
+  }));
+  mount();
+  fireEvent.click(await screen.findByRole('button', { name: /Request 0/ }));
+  await open(B);
+  const conversation = screen.getByRole('region', { name: 'Support conversation' });
+  await waitFor(() => expect(conversation).toHaveFocus());
+  screen.getByLabelText('Your reply').focus();
+  await act(async () => old.resolve({ data: detail(A) }));
+  expect(screen.getByLabelText('Your reply')).toHaveFocus();
+  expect(screen.queryByText(`Description ${A}`)).not.toBeInTheDocument();
+});
+
+test.each([768, 1440])('selection preserves the two-column focus behavior at %s px', async width => {
+  window.innerWidth = width;
+  mount();
+  const selected = await screen.findByRole('button', { name: /Request 0/ });
+  selected.focus();
+  await open(A);
+  expect(selected).toHaveFocus();
+  expect(Element.prototype.scrollIntoView).not.toHaveBeenCalled();
 });
 test('owner reads route conversation and sends only a public keyed message', async () => {
   mount(`/support/tickets/${A}`); await screen.findByText('Public staff reply');

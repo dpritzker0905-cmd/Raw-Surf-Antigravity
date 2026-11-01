@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
@@ -19,13 +19,64 @@ import { ROLES } from '../constants/roles';
  *
  * Staggered reveal: Row 1 appears first, Row 2 follows 80ms later.
  */
-export const TopNavDrawerTray = ({ isOpen }) => {
+export const TopNavDrawerTray = ({ isOpen, onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
   const { getEffectiveRole } = usePersona();
   const [backpackOpen, setBackpackOpen] = useState(false);
   const [photoToolsOpen, setPhotoToolsOpen] = useState(false);
+  const trayRef = useRef(null);
+  const focusWasInside = useRef(false);
+
+  useEffect(() => {
+    const rememberFocus = event => {
+      // A breakpoint can hide the header and send focus to BODY before resize
+      // closes the tray. Keep that history, but respect focus moved elsewhere.
+      if (event.target !== document.body) focusWasInside.current = !!trayRef.current?.contains(event.target);
+    };
+    document.addEventListener('focusin', rememberFocus);
+    return () => document.removeEventListener('focusin', rememberFocus);
+  }, []);
+
+  useLayoutEffect(() => {
+    const tray = trayRef.current;
+    if (!tray) return;
+    if (!isOpen && (tray.contains(document.activeElement) ||
+        (focusWasInside.current && document.activeElement === document.body))) {
+      const candidates = [tray.closest('header')?.querySelector('[data-testid="topnav-pull-handle"]'),
+        document.querySelector('[data-testid="nav-settings"]')];
+      for (const target of candidates) {
+        if (!target?.getClientRects().length) continue;
+        target.focus({ preventScroll: true });
+        if (document.activeElement === target) break;
+      }
+    }
+    if (!isOpen) focusWasInside.current = false;
+    // Move focus out before hiding the controls from assistive technology.
+    tray.inert = !isOpen;
+    if (isOpen) tray.removeAttribute('aria-hidden');
+    else tray.setAttribute('aria-hidden', 'true');
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (!isOpen || !onClose) return undefined;
+    const closeOnEscape = event => {
+      if (event.key !== 'Escape' || event.defaultPrevented || backpackOpen || photoToolsOpen) return;
+      // Portalled dialogs own their Escape key; the tray is not a modal.
+      if (document.querySelector('[role="dialog"][data-state="open"]')) return;
+      event.preventDefault(); onClose();
+    };
+    const closeHiddenTray = () => {
+      if (trayRef.current?.closest('header')?.getClientRects().length === 0) onClose();
+    };
+    document.addEventListener('keydown', closeOnEscape);
+    window.addEventListener('resize', closeHiddenTray);
+    return () => {
+      document.removeEventListener('keydown', closeOnEscape);
+      window.removeEventListener('resize', closeHiddenTray);
+    };
+  }, [isOpen, onClose, backpackOpen, photoToolsOpen]);
   
   // Close sub-drawers on route change
   useEffect(() => {
@@ -180,6 +231,7 @@ export const TopNavDrawerTray = ({ isOpen }) => {
     <>
  {/* Drawer Tray -- slides in with staggered animation */}
       <div
+        ref={trayRef}
         className="overflow-hidden transition-all duration-300 ease-out"
         style={{
           maxHeight: isOpen ? '100px' : '0px',
