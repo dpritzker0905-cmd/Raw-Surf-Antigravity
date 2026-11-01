@@ -18,6 +18,8 @@
  *   to the live box, which would silently put the load back.
  * Every other request (auth, explore, spot hub, sockets, basemap tiles) is untouched.
  */
+const { createRouteLifecycle } = require('./route_lifecycle');
+
 const LIVE_DEFAULT = 'https://raw-surf-antigravity.onrender.com';
 const MARKER = 'x-rawsurf-offline-weather';
 const WEATHER_PREFIX = '/api/weather/';
@@ -87,7 +89,9 @@ function forwardHeaders(responseHeaders, cors) {
  */
 async function routeWeatherToLocal(target, { liveOrigin, local, timeoutMs = 120000 }) {
   const stats = { local: 0, answered: 0, failed: 0, cancelled: 0, byEndpoint: {}, failedExamples: [] };
-  await target.route((url) => isLiveWeather(url, liveOrigin), async (route) => {
+  const lifecycle = createRouteLifecycle();
+  Object.defineProperty(stats, 'lifecycle', { value: lifecycle });
+  await target.route((url) => isLiveWeather(url, liveOrigin), lifecycle.wrap(async (route) => {
     const request = route.request();
     const method = request.method();
     const url = new URL(request.url());
@@ -116,7 +120,7 @@ async function routeWeatherToLocal(target, { liveOrigin, local, timeoutMs = 1200
     stats.byEndpoint[ep] = (stats.byEndpoint[ep] || 0) + 1;
     return route.fulfill({ response, headers: forwardHeaders(response.headers(), cors) })
       .catch(() => { stats.cancelled += 1; });
-  });
+  }));
   return stats;
 }
 
@@ -148,7 +152,7 @@ function watchLiveWeatherLeaks(target, liveOrigin) {
       if (response.headers()[MARKER] === 'local') return;
       leaked += 1;
       if (examples.length < 5) examples.push(endpointOf(url));
-    } catch (e) { /* unparseable URL: not ours */ }
+    } catch { /* unparseable URL: not ours */ }
   });
   return () => ({ leaked, examples });
 }
