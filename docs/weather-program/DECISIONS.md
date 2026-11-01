@@ -1842,3 +1842,10 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   - **Found:** from EURO's 144 h step to 240 h (timeline hour 126 onward with an 18 h-old run) the status line reads "Loading X… still showing Y" for good on every in-between hour, with no request in flight. The drawn frame is the server's nearest stored 6-hourly product. `latticeNearestMaxHours` (drawnFrameReadout.js) keys EURO's 6-hourly half-step off the timeline hour (`hour > 144`), not the model step (valid time minus run). Handed to the frame-store session.
 - **Served numbers:** none move. The same products now come from the CDN.
 - **Rollback:** `gh variable set FRAME_TAIL_DOWNLOAD --body 0`; the next publish lists the tails unbuilt and `/grid` serves them, as before.
+
+### D-056 · The stored ICON tail ships in production builds too (ON with the next promote, 2026-11-01)
+- **Decided:** owner chat, 2026-11-01 16:03 EST, answering brief item 4 ("Turn on ICON tail frames for production"): "We can promote dev to main when we merge. So yes. Approve".
+- **Scope:** `REACT_APP_ICON_STORED_TAIL=true` for Netlify `CONTEXT=production` as well as dev branch deploys (D-016). Deploy previews and other branches keep the default-off path. It takes effect on production only after the next dev -> main promote (BRAIN_RULES §22 handshake).
+- **What moves:** past ICON hour 168, production's infobox and heatmap read the stored estimated tail (the D-055 CDN frames), as dev has done since 2026-10-04, instead of the browser's own anchor blend. The evidence is dev's history under the flag: D-016's replay controls, and every regression and SCOREBOARD row since 10-27, which were built with the flag on.
+- **Measure after:** on the production bundle, ICON scrubbed to h192/h250/h300 draws from the frame store (`__MARINE_DRAWN__` source), with no browser blend asks; plus a SCOREBOARD row.
+- **Rollback:** drop the `production` clause from the `netlify.toml` build command and rebuild main.

@@ -1,7 +1,8 @@
 [build]
   base = "frontend"
-  # Owner approved ICON stored tail on dev only; context.dev means local Netlify Dev.
-  command = "if [ \"$CONTEXT\" = \"branch-deploy\" ] && [ \"$BRANCH\" = \"dev\" ]; then export REACT_APP_ICON_STORED_TAIL=true; fi; node update-sw-version.js && npm install --legacy-peer-deps && CI=false npm run build"
+  # ICON stored tail: dev branch deploys since D-016 (2026-10-04), production too since D-056 (owner, 2026-11-01).
+  # Deploy previews keep the default-off path. context.dev means local Netlify Dev.
+  command = "if [ \"$CONTEXT\" = \"production\" ] || { [ \"$CONTEXT\" = \"branch-deploy\" ] && [ \"$BRANCH\" = \"dev\" ]; }; then export REACT_APP_ICON_STORED_TAIL=true; fi; node update-sw-version.js && npm install --legacy-peer-deps && CI=false npm run build"
   publish = "build"
 
 [build.environment]
