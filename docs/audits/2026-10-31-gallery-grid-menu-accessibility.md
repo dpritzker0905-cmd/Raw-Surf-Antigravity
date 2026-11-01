@@ -31,3 +31,7 @@ This is browser viewport/component qualification, not physical-device, hosted/fu
 ## Production-build setting
 
 The first local production build used CI=true and exited 1 because inherited lint warnings were promoted to errors. Current DEV .github/workflows/ci.yml lines 217-222 explicitly set CI=false for Build frontend; the normal CI-compatible rerun is recorded in candidate-build-standard.log. No tracked lint/build configuration or warning baseline was changed.
+
+## Current-DEV integration checkpoint
+
+The standard production build (CI=false, matching the repository workflow) exited 0 on pinned Node 24.22.1, with inherited warnings retained. Normal commit hooks passed for source checkpoint 84b0860c117032bfc7a60095818e3c00e7bc2e3b. Fresh remote DEV readback remains 2de2c729549a5661974491a1bd2f2a9bc15bb9d5. Source identities still match the frozen 21-test and six-browser-case receipts. Draft PR/hosted checks and any preview acceptance are separate pending release gates; no merge or deployment is claimed.
