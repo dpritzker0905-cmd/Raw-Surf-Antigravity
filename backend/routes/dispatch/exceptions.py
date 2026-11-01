@@ -18,6 +18,7 @@ import stripe
 from utils.geo import haversine_distance
 
 from database import get_db
+from utils.credits import refund_credits
 from core.security import get_user_id_from_jwt_or_query
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
@@ -179,17 +180,11 @@ async def resolve_cancellation_exception(
             )
             requester = requester_result.scalar_one_or_none()
             if requester:
-                tx = CreditTransaction(
-                    user_id=exception_req.requester_id,
-                    amount=refund,
-                    balance_before=requester.credit_balance,
-                    balance_after=requester.credit_balance + refund,
-                    transaction_type='exception_refund',
-                    reference_type='dispatch_request',
-                    reference_id=dispatch_id
-                )
-                db.add(tx)
-                requester.credit_balance += refund
+                success, _, error = await refund_credits(
+                    exception_req.requester_id, refund, db, reference_type='dispatch_request',
+                    reference_id=dispatch_id, transaction_type='exception_refund')
+                if not success:
+                    raise HTTPException(status_code=409, detail=error)
         
         # Notify surfer
         notif = Notification(

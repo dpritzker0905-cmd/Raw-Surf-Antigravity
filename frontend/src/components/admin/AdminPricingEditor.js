@@ -22,6 +22,7 @@ import { toast } from 'sonner';
 import logger from '../../utils/logger';
 import PlatformCommissionRatesSection from './pricing/PlatformCommissionRatesSection';
 import SurferSubscriptionDiscountRatesSection from './pricing/SurferSubscriptionDiscountRatesSection';
+import CreditPackageBonusesSection from './pricing/CreditPackageBonusesSection';
 
 
 // Role display config - matches all RoleEnum values
@@ -81,6 +82,8 @@ export const AdminPricingEditor = () => {
   });
   const [originalSurferDiscountRates, setOriginalSurferDiscountRates] = useState(null);
   const [surferDiscountHasChanges, setSurferDiscountHasChanges] = useState(false);
+  const [creditPackageBonuses, setCreditPackageBonuses] = useState(null);
+  const [originalCreditPackageBonuses, setOriginalCreditPackageBonuses] = useState(null);
 
   const fetchPricing = useCallback(async () => {
     try {
@@ -101,6 +104,8 @@ export const AdminPricingEditor = () => {
       setSurferDiscountRates(fetchedSurferDiscountRates);
       setOriginalSurferDiscountRates(fetchedSurferDiscountRates);
       setSurferDiscountHasChanges(false);
+      setCreditPackageBonuses(response.data.credit_package_bonuses ?? null);
+      setOriginalCreditPackageBonuses(response.data.credit_package_bonuses ?? null);
     } catch (error) {
       logger.error('Failed to fetch pricing:', error);
       toast.error('Failed to load pricing configuration');
@@ -214,6 +219,12 @@ export const AdminPricingEditor = () => {
     setHasChanges(true);
   };
   
+  const handleCreditBonusChange = (packageAmount, value) => {
+    const bonus = Math.max(0, Math.floor(Number(value) || 0));
+    setCreditPackageBonuses(previous => ({ ...previous, [packageAmount]: bonus }));
+    setHasChanges(true);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     try {
@@ -222,7 +233,8 @@ export const AdminPricingEditor = () => {
         {
           ...pricing,
           commission_rates: commissionRates,
-          surfer_discount_rates: surferDiscountRates
+          surfer_discount_rates: surferDiscountRates,
+          credit_package_bonuses: creditPackageBonuses
         }
       );
 
@@ -241,6 +253,8 @@ export const AdminPricingEditor = () => {
       setOriginalSurferDiscountRates(response.data.surfer_discount_rates);
       setSurferDiscountHasChanges(false);
 
+      setCreditPackageBonuses(response.data.credit_package_bonuses ?? null);
+      setOriginalCreditPackageBonuses(response.data.credit_package_bonuses ?? null);
       toast.success(`Pricing saved (v${response.data.version})`);
     } catch (error) {
       logger.error('Failed to save pricing:', error);
@@ -251,7 +265,7 @@ export const AdminPricingEditor = () => {
   };
 
   const handleReset = async () => {
-    if (!window.confirm('Reset all pricing to default values? This cannot be undone.')) {
+    if (!window.confirm('Reset all pricing and credit package bonuses to default values? Existing checkout offers keep their terms.')) {
       return;
     }
     
@@ -266,6 +280,14 @@ export const AdminPricingEditor = () => {
       setIsFromDb(true);
       setHasChanges(false);
       
+      setCommissionRates(response.data.commission_rates);
+      setOriginalCommissionRates(response.data.commission_rates);
+      setCommissionHasChanges(false);
+      setSurferDiscountRates(response.data.surfer_discount_rates);
+      setOriginalSurferDiscountRates(response.data.surfer_discount_rates);
+      setSurferDiscountHasChanges(false);
+      setCreditPackageBonuses(response.data.credit_package_bonuses ?? null);
+      setOriginalCreditPackageBonuses(response.data.credit_package_bonuses ?? null);
       toast.success('Pricing reset to defaults');
     } catch (error) {
       logger.error('Failed to reset pricing:', error);
@@ -287,6 +309,7 @@ export const AdminPricingEditor = () => {
       setSurferDiscountRates({ ...originalSurferDiscountRates });
       setSurferDiscountHasChanges(false);
     }
+    setCreditPackageBonuses(originalCreditPackageBonuses ? { ...originalCreditPackageBonuses } : null);
     toast.info('Changes discarded');
   };
 
@@ -308,7 +331,7 @@ export const AdminPricingEditor = () => {
             Pricing Configuration
           </h2>
           <p className="text-muted-foreground text-sm mt-1">
-            Edit subscription prices in real-time. Changes apply immediately.
+            Edit subscription prices and spend-only credit bonuses. Saved offers apply to new checkouts.
           </p>
         </div>
         
@@ -342,10 +365,10 @@ export const AdminPricingEditor = () => {
               <X className="w-4 h-4 mr-1" />
               Discard
             </Button>
-            <Button aria-label="Loader2"
+            <Button aria-label={saving ? "Saving pricing" : "Save pricing changes"}
               size="sm"
               onClick={handleSave}
-              disabled={saving}
+              disabled={saving || !creditPackageBonuses}
               className="bg-green-500 hover:bg-green-600 text-black"
             >
               {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
@@ -376,6 +399,12 @@ export const AdminPricingEditor = () => {
         surferDiscountRates={surferDiscountRates}
         handleSurferDiscountChange={handleSurferDiscountChange}
         surferDiscountHasChanges={surferDiscountHasChanges}
+      />
+
+      <CreditPackageBonusesSection
+        bonuses={creditPackageBonuses}
+        onChange={handleCreditBonusChange}
+        disabled={saving}
       />
 
       {/* Pricing Grid */}
@@ -522,9 +551,9 @@ export const AdminPricingEditor = () => {
 
       {/* Actions */}
       <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t border-border">
-        <Button aria-label="Loader2"
+        <Button aria-label={saving ? "Saving pricing" : "Save pricing changes"}
           onClick={handleSave}
-          disabled={saving || !hasChanges}
+          disabled={saving || !hasChanges || !creditPackageBonuses}
           className="bg-green-500 hover:bg-green-600 text-black flex-1 sm:flex-none"
           data-testid="save-pricing-btn"
         >
@@ -544,9 +573,9 @@ export const AdminPricingEditor = () => {
           History
         </Button>
         
-        <Button aria-label="Refresh"
+        <Button aria-label="Reset pricing and bonuses to defaults"
           onClick={handleReset}
-          disabled={saving}
+          disabled={saving || !creditPackageBonuses}
           variant="outline"
           className="border-red-500/50 text-red-400 hover:bg-red-500/10"
         >

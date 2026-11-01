@@ -467,11 +467,17 @@ async def lifespan(app: FastAPI):
             logger.error(f"[lifespan] Background cache population failed: {pop_err}")
 
     is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "1" or os.environ.get("TESTING") == "True"
+    email_sweeper = None
     if not is_testing:
         asyncio.create_task(run_startup_tasks())
+        # Re-drives due queued email; a no-op while EMAIL_PROVIDER is unset (docs/runbooks/EMAIL-SETUP.md).
+        from services.mailer.sweeper import start_sweeper
+        email_sweeper = start_sweeper()
 
     yield
     logger.info("Shutting down Raw Surf OS API...")
+    if email_sweeper:
+        email_sweeper.cancel()
     # Stop background scheduler
     stop_scheduler()
     await engine.dispose()

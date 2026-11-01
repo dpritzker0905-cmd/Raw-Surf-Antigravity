@@ -73,6 +73,14 @@ _RATING_FLAGS = {
                                        "coalesced step; an unmerged snapshot is never published over a moved head",
                                   "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (the L2 writers); NOT Render"),
     "INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS": ("0", "Prune registrations without deleting an object still named by a retained registration", "Render env + ingestion/precompute/monitor together"),
+    # One storage object, one manifest registration: a save drops every other entry naming its filename (provider-split twins
+    # let a prune delete the object its surviving twin names: 51-54 EURO estimates a cycle, 2026-10-25). manifest_object_identity.py
+    "MANIFEST_ONE_ENTRY_PER_OBJECT": ("0", "A product save drops every other manifest registration naming the same storage object",
+                                      "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (the manifest writers)"),
+    # A listed product whose object is absent is skipped to the next candidate within the +-3 h window, labelled with its own
+    # valid time, instead of a 404 (resolver_missing_skip.py).
+    "RESOLVER_SKIP_MISSING_OBJECT": ("0", "The grid resolver skips a listed-but-absent product to the next candidate the selection would pick",
+                                     "Render env"),
     "INGEST_REJECT_INVALID_FRAMES": ("0", "Reject empty/all-invalid replacement frames before disk, storage upload and manifest registration", "Render env + ingestion/precompute/monitor together"),
     "NOAA_WAVE_CYCLE_RETRY": ("0", "Bounded transient HEAD retries with actual complete GFS-wave cycle identity", "Render env + ingestion/precompute/monitor together"),
     "PRODUCT_REVISION_REFRESH": ("0", "Validate changed manifest registrations before replacing existing L1 forecast objects", "Render env; staging bytes/concurrency/egress acceptance before activation"),
@@ -109,6 +117,14 @@ _RATING_FLAGS = {
                                            "today's fill (8-deg reach from the GFS 10-deg tier, which also paints coast/land/ice). "
                                            "MARINE_GULF_FILL_MID=0 wins (no 2-deg fill); the 10-deg tier is unchanged either way",
                                       "Render env"),
+    # The fill's DONOR TIME (2026-10-26, dark; log/2026-10-25-claude-day14-evidence.md): the route-level fill runs after resolve_grid
+    # set valid_time to the ask, so a held or nearest-substituted frame was filled from GFS at the ASKED hour (live-shaped offline:
+    # ICON 18Z filled from GFS 03Z, 9 h apart, 131 cells).
+    "MARINE_GULF_FILL_DONOR_SERVED_TIME": ("0", "both EURO/ICON world Gulf fills (10-deg and the targeted 2-deg) look the GFS donor "
+                                                "up at the frame's own instant (served_valid_time) instead of the asked hour; 0 = "
+                                                "today's order (the ask, else the served time). Matches the static filled frames, "
+                                                "which use the frame's own hour (frame_set_fill)",
+                                           "Render env"),
     # Per-node provenance of that fill (2026-10-23, dark): WHICH cells came from GFS, so a client can mark them (series frames too).
     "MARINE_FILL_PROVENANCE_NODES": ("0", "add filled_idx (indices into the response's own grid.vectors, at most "
                                           "MARINE_FILL_PROVENANCE_MAX, default 4096) to the Gulf fill's coarse_fill stamp, and carry "
@@ -322,6 +338,23 @@ _RATING_FLAGS = {
                                          "EURO-masked GFS-sea nodes, cycle 2026-10-23 00Z)",
                                      "repo variable ECMWF_WAVE_LAND_CENTRE_REACH, read by forecast-ingest-pilots.yml AND "
                                      "forecast-ingest.yml env (one variable, both lanes together)"),
+    # SERVED NUMBER, DARK (2026-10-25; the lead, mid-zoom's tile-edge finding): the GFS pilot tiles stored out to whole degrees on
+    # their fractional edges (pilot_regions.whole_degree_regions), so a z7-9 snapped box inside the padded tile is served from the
+    # tile instead of alternating between the dynamic cache and the tile. Cells in the padded band change source. Both ingest lanes
+    # write GFS tiles (one repo variable); the box reads it for regional_tile_first.inside_pilot_box (the series lane skip).
+    "GFS_PILOT_WHOLE_DEGREE_BOUNDS": ("0", "GFS pilot tiles fetched and stored out to the next whole degree on every fractional edge "
+                                          "(us_southeast_midatlantic E, azores W/N, us_northeast W/N, france_biscay S/N; never into another "
+                                          "box), so a 1-deg snapped z7-9 box inside the padded tile is covered: one source at the edge",
+                                      "repo variable GFS_PILOT_WHOLE_DEGREE_BOUNDS, read by forecast-ingest-pilots.yml AND "
+                                      "forecast-ingest.yml env (one variable, both lanes together), and Render env (the series lane skip)"),
+    # SERVED NUMBER, DARK (2026-10-25; the owner's manual test, ICON day 14 "showing Saturday on Sunday with holes in Gulf data"):
+    # the ICON / EURO marine estimated tails baked this many hours past run + 336, so the 2-deg tier reaches now + 336 between
+    # bakes instead of falling to the 10-deg tail and the far-edge hold (scheduler_helpers.marine_ext_ceiling_hours).
+    "MARINE_EXT_CEILING_MARGIN_H": ("0", "Hours (0..48) the ICON and EURO marine estimated tails are baked past the anchor's run + 336 h, so the "
+                                        "2-deg tail still covers the scrubber's now + 336 h until the next bake (same blend, labelled estimated; "
+                                        "GFS targets past f336 need GFS_WORLD_FULL_HORIZON=1)",
+                                    "repo variable MARINE_EXT_CEILING_MARGIN_H, read by forecast-ingest.yml AND forecast-ingest-pilots.yml env "
+                                    "(both lanes bake tails: the 10-deg in core, the 2-deg ICON in pilots)"),
     "RATING_TIDE":                 ("0", "Tide-fit factor in spot ratings",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
     # 2026-07-30: partitions now reach the RATING at all three surfaces, so a lane split on this

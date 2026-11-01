@@ -1,0 +1,20 @@
+{
+  "base_commit": "0890cd877f586736751c46fecbd9ba59078f6f03",
+  "utility": {
+    "test_file": "frontend/src/utils/notificationDeepLinks.supportReply.test.js",
+    "tested_final_file_sha256": "8558bc77e459b05218a15041da19680bfabfa6d20acd22f4a1040afe655180f8",
+    "passed": 75,
+    "failed": 9,
+    "total": 84
+  },
+  "initial_hook": {
+    "passed": 1,
+    "failed": 26,
+    "total": 27,
+    "existing_behavior_failures": 4,
+    "missing_new_activate_api_failures": 22,
+    "later_expanded_final_hook_tests": 40,
+    "classification": "Initial27-case fixture predates final40-case expansion. Do not present its count as a final40-case baseline."
+  },
+  "intermediate_assembly_failures": "Excluded from regression baseline: component/hook integration was incomplete; later three keyboard history-observer effect waits and one test-only multiline lint error were fixed without changing frozen application source."
+}

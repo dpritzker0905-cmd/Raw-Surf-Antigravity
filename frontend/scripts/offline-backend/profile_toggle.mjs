@@ -43,10 +43,20 @@ const inStack = (id, name) => { const seen = new Set(); for (let cur = id; cur !
 const markIdx = prof.samples.findIndex((id) => inStack(id, '__wt_click_marker'));
 const t0 = markIdx >= 0 ? times[markIdx] : 0;
 console.log(markIdx >= 0 ? `click mark at +${t0.toFixed(0)} ms into the profile` : 'no click mark: window from the profile start');
+// UNTIL=<function name>: end the window at the first sample (after the click) whose stack holds that function, e.g.
+// UNTIL=setWindData for the part of the click's task that runs before the wind data reaches the engine.
+let untilIdx = Infinity;
+if (process.env.UNTIL) {
+  for (let i = Math.max(0, markIdx); i < prof.samples.length; i++) {
+    if (await (async () => { for (let cur = prof.samples[i], n = 0; cur != null && n < 400; cur = parent.get(cur), n++) {
+      if ((await label(byId.get(cur))).split(' @ ')[0].endsWith(process.env.UNTIL)) return true; } return false; })()) { untilIdx = i; break; }
+  }
+  console.log(untilIdx === Infinity ? `UNTIL ${process.env.UNTIL}: not reached in the profile` : `UNTIL ${process.env.UNTIL} at +${(times[untilIdx] - (markIdx >= 0 ? times[markIdx] : 0)).toFixed(0)} ms`);
+}
 const self = new Map(); const incl = new Map();
 for (let i = Math.max(0, markIdx); i < prof.samples.length; i++) {
   const t = times[i] - t0;
-  if (t > WINDOW_MS) break;
+  if (t > WINDOW_MS || i >= untilIdx) break;
   const dt = ((prof.timeDeltas[i + 1] || 0) / 1000) || 0.25;
   const id = prof.samples[i];
   self.set(id, (self.get(id) || 0) + dt);
@@ -65,6 +75,26 @@ console.log('--- self time (ms)');
 for (const [k, ms] of selfRows.slice(0, 25)) console.log(ms.toFixed(1).padStart(7), k);
 console.log('--- inclusive time (ms), app sources only');
 for (const [k, ms] of inclRows.filter(([k]) => k.includes('src/')).slice(0, 30)) console.log(ms.toFixed(1).padStart(7), k);
+
+// OWNERS=1: each sample's time charged to its nearest owning React component or hook (the closest app frame named like
+// `Component` or `useThing`), the "which state update / component costs what" view; idle and (program) are left out.
+if (process.env.OWNERS) {
+  const owners = new Map(); let charged = 0;
+  for (const [id, ms] of self) {
+    const leaf = await label(byId.get(id));
+    if (leaf.startsWith('(idle)') || leaf.startsWith('(program)') || leaf.startsWith('(garbage')) continue;
+    // The OUTERMOST app frame on the stack: the entry React, the scheduler or MapLibre called into (an effect body, a render,
+    // an event handler, an rAF callback), named by its file and line. Stacks with no app frame are MapLibre / React / browser.
+    let owner = '(no app frame: maplibre / react / browser)';
+    for (let cur = id; cur != null; cur = parent.get(cur)) {
+      const l = await label(byId.get(cur));
+      if (l.includes(' @ ') && !l.includes(' @ nm/') && !l.includes(' @ src/')) owner = l;
+    }
+    owners.set(owner, (owners.get(owner) || 0) + ms); charged += ms;
+  }
+  console.log(`--- owners (self time charged to the nearest component / hook; ${charged.toFixed(0)} ms of CPU)`);
+  for (const [k, ms] of [...owners.entries()].sort((a, b) => b[1] - a[1]).slice(0, 25)) console.log(ms.toFixed(1).padStart(7), k);
+}
 
 // TIMELINE=1: the window in 4 ms slices, each named by the app frame (outermost first, 2 deep) most of its samples sat in;
 // runs of the same name collapse to one line. Idle and (program) slices show where the toggle waits on a frame or a timer.

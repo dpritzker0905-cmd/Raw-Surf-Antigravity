@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { Loader2, ChevronDown, Check, Eye, EyeOff, Shield, Lock, KeyRound, AlertCircle } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
+import { SettingsDisclosureHeader } from './SettingsDisclosureHeader';
+import { Link } from 'react-router-dom';
+import { Loader2, ChevronDown, ChevronRight, Check, Eye, EyeOff, Shield, ShieldCheck, Lock, KeyRound, AlertCircle } from 'lucide-react';
+import { Card, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { toast } from 'sonner';
@@ -60,18 +62,24 @@ export const PasswordSecurityCard = ({ textPrimaryClass, textSecondaryClass, bor
 
   return (
     <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="password-security-card">
-      <CardHeader className="cursor-pointer" onClick={() => toggleSection('security')}>
+      <SettingsDisclosureHeader section="security" expanded={expandedSections.security} onToggle={() => toggleSection('security')}>
         <div className="flex items-center justify-between">
           <CardTitle className={`${textPrimaryClass} flex items-center gap-2`}>
             <Lock className="w-5 h-5 text-amber-400" />Password & Security
           </CardTitle>
           <ChevronDown className={`w-5 h-5 ${textSecondaryClass} transition-transform ${expandedSections.security ? 'rotate-180' : ''}`} />
         </div>
-      </CardHeader>
-      {expandedSections.security && (
+      </SettingsDisclosureHeader>
+      <div id="settings-security-content" hidden={!expandedSections.security}>
+        {expandedSections.security && (
         <CardContent className="space-y-4">
           {success && (<div className="p-3 rounded-xl bg-green-500/10 border border-green-500/30 flex items-center gap-2"><Check className="w-5 h-5 text-green-400 flex-shrink-0" /><div><p className="text-green-400 font-medium text-sm">Password Updated</p><p className={`text-xs ${textSecondaryClass}`}>Your password has been changed successfully.</p></div></div>)}
           {error && (<div className="p-3 rounded-xl bg-red-500/10 border border-red-500/30 flex items-center gap-2"><AlertCircle className="w-4 h-4 text-red-400 flex-shrink-0" /><p className="text-red-400 text-sm">{error}</p></div>)}
+
+          <Link to="/settings/security" className={`flex items-center justify-between gap-3 rounded-xl border ${borderClass} p-3 hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring`} data-testid="two-step-link">
+            <span className="flex items-center gap-2"><ShieldCheck className="w-4 h-4 text-amber-400" aria-hidden="true" /><span><span className={`block text-sm font-medium ${textPrimaryClass}`}>Two-step verification</span><span className={`block text-xs ${textSecondaryClass}`}>Protect your account with an authenticator app</span></span></span>
+            <ChevronRight className={`w-4 h-4 ${textSecondaryClass}`} aria-hidden="true" />
+          </Link>
 
           <div className="flex items-center gap-2 pb-2"><KeyRound className="w-4 h-4 text-amber-400" /><p className={`text-sm font-medium ${textPrimaryClass}`}>Change Password</p></div>
           <p className={`text-xs ${textSecondaryClass} -mt-2`}>Enter your current password as verification, then choose a new password.</p>
@@ -138,6 +146,7 @@ export const PasswordSecurityCard = ({ textPrimaryClass, textSecondaryClass, bor
           </div>
         </CardContent>
       )}
+      </div>
     </Card>
   );
 };

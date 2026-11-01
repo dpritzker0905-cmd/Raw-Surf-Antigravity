@@ -32,3 +32,8 @@ targeted fill to stop the land painting, with the baseline, Reflection's rollbac
 ## Evidence
 side-session-notes gulf-switch-on-2026-10-24/ (BASELINE-and-timeline.md, probe.jsonl, health baselines) and
 euro-own-values-flip-2026-10-24/ (verify and post-flip JSON). Ledger: ledger.d/claude--gulf-switch-on-2026-10-24.jsonl.
+
+## Correction (lead, 2026-10-24 19:40Z)
+- Static-frames' post-flip read ran at **16:14:45-16:15:56Z**, not 16:31Z (that is when the result file was written). It made 4 GETs
+  (2 health at 0.45 / 0.21 s, 2 world /grid). It also found ICON's 123 filled cells include 1 Mediterranean and 1 Baltic node, with
+  0 own values masked by the fill. Corrected in a new SCOREBOARD row; the ledger correction is in this branch's fragment.

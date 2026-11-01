@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import apiClient from '../lib/apiClient';
 import { DollarSign, CreditCard, CheckCircle, Coins, Loader2 } from 'lucide-react';
@@ -13,6 +14,14 @@ import { submitPurchaseRequest } from '../utils/gromPurchase';
 
 export const Credits = () => {
   const { user, updateUser } = useAuth();
+  const { theme } = useTheme();
+  const offerTextClass = theme === 'light' ? 'text-gray-600' : theme === 'beach' ? 'text-gray-300' : 'text-gray-400';
+  const offerRetryClass = theme === 'light'
+    ? 'border border-gray-300 bg-white text-gray-900 hover:bg-gray-100'
+    : theme === 'beach'
+      ? 'border border-zinc-700 bg-black text-white hover:bg-zinc-900'
+      : 'border border-zinc-600 bg-zinc-800 text-white hover:bg-zinc-700';
+
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
@@ -21,6 +30,26 @@ export const Credits = () => {
   const [checkingStatus, setCheckingStatus] = useState(false);
   const [purchaseSuccess, setPurchaseSuccess] = useState(false);
   const [creditsAdded, setCreditsAdded] = useState(0);
+  const [creditOffer, setCreditOffer] = useState(null);
+  const [offersLoading, setOffersLoading] = useState(true);
+  const [offersError, setOffersError] = useState(false);
+  const loadCreditOffers = useCallback(async () => {
+    setOffersLoading(true);
+    setOffersError(false);
+    setCreditOffer(null);
+    try {
+      const response = await apiClient.get('/credits/packages');
+      if (!response.data?.offer_id || !Array.isArray(response.data.packages)) throw new Error('Invalid credit offer');
+      setCreditOffer(response.data);
+    } catch (error) {
+      logger.error('Failed to load credit offers:', error);
+      setOffersError(true);
+    } finally {
+      setOffersLoading(false);
+    }
+  }, []);
+  useEffect(() => { loadCreditOffers(); }, [loadCreditOffers]);
+
   
   // Get return info from location state or localStorage
   const returnTo = location.state?.returnTo || localStorage.getItem('credits_return_to');
@@ -88,6 +117,10 @@ export const Credits = () => {
   };
 
   const handlePurchase = async () => {
+    if (!creditOffer || offersLoading) {
+      toast.error('Please load current credit offers before purchasing');
+      return;
+    }
     if (!user) {
       toast.error('Please log in to purchase credits');
       return;
@@ -113,6 +146,7 @@ export const Credits = () => {
       const originUrl = window.location.origin;
       const response = await apiClient.post(`/credits/purchase`, {
         amount: parseFloat(amount),
+        offer_id: creditOffer.offer_id,
         origin_url: originUrl
       });
 
@@ -120,6 +154,7 @@ export const Credits = () => {
     } catch (error) {
       logger.error('Error creating checkout:', error);
       toast.error(error.response?.data?.detail || 'Failed to create checkout session');
+      if (error.response?.status === 409) await loadCreditOffers();
       setLoading(false);
     }
   };
@@ -192,12 +227,8 @@ export const Credits = () => {
     );
   }
 
-  const packages = [
-    { amount: 10, bonus: 0 },
-    { amount: 25, bonus: 0 },
-    { amount: 50, bonus: 5 },
-    { amount: 100, bonus: 15 },
-  ];
+  const packages = creditOffer?.packages || [];
+  const creditsToPurchase = amount + (packages.find(pkg => pkg.amount === amount)?.bonus || 0);
 
   return (
     <div className="p-4 md:p-8 max-w-2xl mx-auto" data-testid="credits-page">
@@ -224,6 +255,14 @@ export const Credits = () => {
           </div>
         </div>
       </div>
+
+      {offersLoading && <p role="status" className={`mb-4 ${offerTextClass}`}>Loading current credit offers...</p>}
+      {offersError && (
+        <div role="alert" className="mb-4">
+          <p className={offerTextClass}>Credit offers are unavailable. Please retry before purchasing.</p>
+          <Button onClick={loadCreditOffers} disabled={offersLoading} className={offerRetryClass}>Retry credit offers</Button>
+        </div>
+      )}
 
       {/* Quick Packages */}
       <div className="mb-6">
@@ -264,6 +303,7 @@ export const Credits = () => {
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
             <Input aria-label="Numeric input"
               type="number"
+              disabled={!creditOffer || offersLoading || loading}
               min="1"
               step="1"
               value={amount}
@@ -276,9 +316,9 @@ export const Credits = () => {
       </div>
 
       {/* Purchase Button */}
-      <Button aria-label="Loader2"
+      <Button aria-label={loading ? 'Creating credit checkout' : `Purchase ${creditsToPurchase} Credits for $${amount}`}
         onClick={handlePurchase}
-        disabled={loading || amount < 1}
+        disabled={loading || amount < 1 || !creditOffer || offersLoading}
         className="w-full h-14 text-lg bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 hover:from-emerald-500 hover:via-yellow-500 hover:to-orange-500 text-black font-bold"
         data-testid="purchase-credits-button"
       >
@@ -287,7 +327,7 @@ export const Credits = () => {
         ) : (
           <>
             <CreditCard className="w-5 h-5 mr-2" />
-            Purchase {amount} Credits for ${amount}
+            {creditOffer ? `Purchase ${creditsToPurchase} Credits for $${amount}` : 'Load current offers to purchase'}
           </>
         )}
       </Button>

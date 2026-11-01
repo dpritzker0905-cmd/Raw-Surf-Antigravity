@@ -16,7 +16,7 @@ import { REAL_GFS_FRAME_GZ_BASE64 } from './marineFramePack.realFrame.fixture';
 import {
   BUNDLE_BACKOFF_MS, BUNDLE_DEAD_MS, BUNDLE_TIMEOUT_MS, PILOT_BOXES, _setRegionalCodecForTest, bundleTimeoutMs, insidePilotBox,
   isRegionalSetKey, noteBackendAnswer, regionalCapable,
-  normalizeBundleIndex, pickRegionalTile, regionalClipWindow, regionalFrameBytes, regionalManifestPending, regionalSetKey,
+  normalizeBundleIndex, pickRegionalTile, regionalBundlesOn, regionalClipWindow, regionalFrameBytes, regionalManifestPending, regionalSetKey,
   REGIONAL_BUNDLES_DEFAULT_ON,
 } from './staticRegional';
 import {
@@ -92,7 +92,6 @@ beforeEach(() => {
   _setRegionalCodecForTest({ sha12: async (b) => sha12(b), gunzip: async (b) => Uint8Array.from(zlib.gunzipSync(Buffer.from(b))).buffer });
   window.localStorage.setItem('__RAW_STATIC_FRAMES__', 'true');
   window.__RAW_STATIC_FRAMES_BASE__ = BASE;
-  window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true;              // dark by default since 2026-10-23 evening: these tests opt in
   setCachedManifest(MANIFEST);
   jest.spyOn(Date, 'now').mockImplementation(() => Date.parse(VT));
   cdn();
@@ -110,17 +109,31 @@ afterEach(() => {
   jest.restoreAllMocks();
 });
 
-describe('dark by default (the live parity failed, 2026-10-23 evening)', () => {
-  it('without the opt-in no box is regional: no pick, no wait, the world / crop rules as before #491', () => {
+describe('on by default, with a kill switch (2026-10-24)', () => {
+  const BOX = { model: 'GFS', layer: 'waves', bboxStr: '-90,20,-80,30' };
+  it('default arm: no flag set at all -> the regional rule is live (pick, set key, manifest wait)', () => {
     delete window.__RAW_ENABLE_REGIONAL_BUNDLES__;
-    expect(REGIONAL_BUNDLES_DEFAULT_ON).toBe(false);
-    expect(pickRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: '-90,20,-80,30' })).toBeNull();
+    delete window.__RAW_DISABLE_REGIONAL_BUNDLES__;
+    expect(REGIONAL_BUNDLES_DEFAULT_ON).toBe(true);
+    expect(regionalBundlesOn()).toBe(true);
+    expect(pickRegionalTile(BOX).id).toBe('test_big');
+    expect(staticSetKeyForBox({ model: 'GFS', layer: 'waves', bbox: { west: -90, south: 20, east: -80, north: 30 } })).toBe('GFS/marine/waves/test_big');
+    setCachedManifest(null);
+    expect(regionalManifestPending({ model: 'GFS', layer: 'waves', bbox: { west: -83, south: 26, east: -80, north: 28.5 } })).toBe(true);
+  });
+  it('kill arm: __RAW_DISABLE_REGIONAL_BUNDLES__ = true -> no box is regional, no wait, the world / crop rules as before #491', () => {
+    window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true;
+    expect(regionalBundlesOn()).toBe(false);
+    expect(pickRegionalTile(BOX)).toBeNull();
     expect(staticSetKeyForBox({ model: 'GFS', layer: 'waves', bbox: { west: -90, south: 20, east: -80, north: 30 } })).toBe('GFS/marine/waves/global_mid');
     setCachedManifest(null);
     expect(regionalManifestPending({ model: 'GFS', layer: 'waves', bbox: { west: -83, south: 26, east: -80, north: 28.5 } })).toBe(false);
+  });
+  it('the old opt-in cannot undo the kill (the kill always wins)', () => {
     window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true;
-    window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true;                                          // the kill wins over the opt-in
-    expect(pickRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: '-90,20,-80,30' })).toBeNull();
+    window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true;
+    expect(regionalBundlesOn()).toBe(false);
+    expect(pickRegionalTile(BOX)).toBeNull();
   });
 });
 

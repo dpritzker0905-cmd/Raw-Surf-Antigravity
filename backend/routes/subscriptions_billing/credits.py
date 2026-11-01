@@ -9,10 +9,12 @@ import json
 import logging
 
 from database import get_db
+from utils.checkout_recovery import persist_pending_checkout
 from core.security import get_current_user_id
 from models import Profile, PaymentTransaction, CreditTransaction
 from utils.credits import get_balance, get_transaction_history, add_credits
 from utils.payment_fulfillment import fulfill_wallet_payment, wallet_credit_amount
+from utils.credit_packages import credit_package_metadata, get_credit_package_offer, public_credit_package_offer
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -24,6 +26,12 @@ if STRIPE_API_KEY:
 class CreditPurchaseRequest(BaseModel):
     amount: float
     origin_url: str
+    offer_id: Optional[str] = None
+
+@router.get("/credits/packages")
+async def get_credit_packages(db: AsyncSession = Depends(get_db)):
+    return public_credit_package_offer(await get_credit_package_offer(db))
+
 
 @router.post("/credits/purchase")
 async def purchase_credits(data: CreditPurchaseRequest, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
@@ -32,6 +40,12 @@ async def purchase_credits(data: CreditPurchaseRequest, user_id: str = Depends(g
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
     
+    offer = await get_credit_package_offer(db)
+    if data.offer_id != offer["offer_id"]:
+        raise HTTPException(status_code=409, detail="Credit offers changed. Refresh before purchasing.")
+    package = credit_package_metadata(data.amount, version=2, offer=offer)
+    total_credits = package["credits"]
+
     success_url = f"{data.origin_url}/credits/success?session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{data.origin_url}/credits/cancel"
     
@@ -43,8 +57,8 @@ async def purchase_credits(data: CreditPurchaseRequest, user_id: str = Depends(g
                     'currency': 'usd',
                     'unit_amount': int(data.amount * 100),
                     'product_data': {
-                        'name': f"{int(data.amount)} Raw Surf Credits",
-                        'description': f"Add {int(data.amount)} credits to your Raw Surf account",
+                        'name': f"{total_credits} Raw Surf Credits",
+                        'description': f"Add {total_credits} credits to your Raw Surf account",
                     },
                 },
                 'quantity': 1,
@@ -52,24 +66,21 @@ async def purchase_credits(data: CreditPurchaseRequest, user_id: str = Depends(g
             mode='payment',
             success_url=success_url,
             cancel_url=cancel_url,
-            metadata={"user_id": user_id, "credits": str(int(data.amount))}
+            metadata={"user_id": user_id, **{key: str(value) for key, value in package.items()}}
         )
     except stripe.error.StripeError as e:
         logger.error(f"Stripe error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Payment error: {str(e)}")
     
-    transaction = PaymentTransaction(
+    await persist_pending_checkout(db, checkout_session.id, lambda: PaymentTransaction(
         user_id=user_id,
         session_id=checkout_session.id,
         amount=data.amount,
         currency="usd",
         payment_status="Pending",
         status="Pending",
-        transaction_metadata=json.dumps({"credits": int(data.amount)})
-    )
-    
-    db.add(transaction)
-    await db.commit()
+        transaction_metadata=json.dumps(package)
+    ))
     
     return {"checkout_url": checkout_session.url, "session_id": checkout_session.id}
 

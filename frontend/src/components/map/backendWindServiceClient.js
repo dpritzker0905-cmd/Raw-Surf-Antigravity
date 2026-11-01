@@ -5,6 +5,7 @@
  */
 
 
+import { logFetchFailure } from './marineQuietFailures';
 import {
   GRID_URL,
   POINT_URL,
@@ -667,7 +668,7 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
         validTime: validTimeStr
       });
 
-      console.error(`[Backend Weather Service] Wind grid fetch error: ${err.message}. Falling back cleanly.`);
+      logFetchFailure(err, `[Backend Weather Service] Wind grid fetch error: ${err.message}. Falling back cleanly.`);   // D12: an abort is not an error
       throw err;
     } finally {
       // delete only OUR entry — an aborted predecessor's late finally must not evict a

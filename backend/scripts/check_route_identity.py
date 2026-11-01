@@ -59,6 +59,10 @@ ENFORCING = frozenset({
     # routes/uploads/identity.py: each takes the token's subject (tests/test_upl01_upload_identity.py).
     ("routes.uploads.identity", "uploader_id"),
     ("routes.uploads.identity", "photographer_uploader_id"),
+    # routes/auth_pkg/mfa.py: take the token's subject; also accept the enrol-only token that every other route refuses
+    # (tests/test_mfa_login.py).
+    ("routes.auth_pkg.mfa", "mfa_caller"),
+    ("routes.auth_pkg.mfa", "full_session_caller"),
 })
 
 # Write routes that are public BY DESIGN. Every entry needs a reason; the test refuses an entry that no longer
@@ -69,8 +73,15 @@ PUBLIC_WRITES = {
     ("POST", "/api/auth/forgot-password"): "password reset request: the caller cannot sign in",
     ("POST", "/api/auth/reset-password"): "authorised by the emailed reset token in the body",
     ("POST", "/api/auth/verify-reset-token"): "checks the emailed reset token in the body",
+    ("POST", "/api/auth/login/mfa"): "second step of sign-in: authorised by the single-use challenge from a correct password",
+    ("POST", "/api/auth/login/passkey/options"): "starts a passkey sign-in: the caller has no token yet; issues only a random challenge",
+    ("POST", "/api/auth/login/passkey/verify"): "passkey sign-in: authorised by a signed assertion over a single-use challenge",
+    ("POST", "/api/auth/login/mfa/passkey/options"): "passkey as the second step: needs the live single-use sign-in challenge",
+    ("POST", "/api/auth/login/mfa/passkey/verify"): "passkey as the second step: a signed assertion plus the live single-use sign-in challenge",
     ("POST", "/api/site-access/verify"): "pre-login access-code check",
     ("POST", "/api/webhook/stripe"): "authorised by the Stripe signature; fails closed without STRIPE_WEBHOOK_SECRET",
+    ("POST", "/api/email/webhook"):
+        "authorised by the provider (Svix) signature; fails closed (503) without EMAIL_WEBHOOK_SECRET",
     ("POST", "/api/internal/events/broadcast"):
         "server-to-server: authorised by the X-Internal-Token shared secret; closed while INTERNAL_BROADCAST_TOKEN is unset",
 }

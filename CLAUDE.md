@@ -5,7 +5,7 @@ explicit-instruction + confirmation handshake (BRAIN_RULES §22).
 
 - `backend/`: FastAPI (`server.py`; Render runs `uvicorn server:app`), Python 3.12. ONE 1-CPU Render box serves
   production AND dev, so anything heavy pointed at it degrades the live site.
-- `frontend/`: React (CRA via craco) + MapLibre GL, Node 24.21.0 (`frontend/.node-version`; Netlify and CI match),
+- `frontend/`: React (CRA via craco) + MapLibre GL, Node 24.22.1 (`frontend/.node-version`; Netlify and CI match),
   deployed on Netlify.
 - Supabase: Postgres + Storage (weather products live in the `weather-products` bucket).
 - **History, not current architecture:** the root-level `*HANDOFF*`, `*AUDIT*` and `*FINDINGS*` files and

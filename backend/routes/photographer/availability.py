@@ -72,7 +72,7 @@ async def get_photographer_bookings_calendar(
     # Transform bookings for calendar
     calendar_bookings = []
     for b in bookings:
-        confirmed_count = 0
+        active_count = 0
         if b.participants:
             # Count all participants (pending + confirmed) as spots filled
             active_count = len([p for p in b.participants if p.status in ['pending', 'confirmed']])

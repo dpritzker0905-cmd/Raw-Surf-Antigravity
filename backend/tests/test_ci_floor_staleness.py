@@ -39,8 +39,9 @@ def test_test_fixtures_leave_platform_metadata_usable():
 
 @pytest.mark.parametrize('environment,expected', [
     ({'GITHUB_REF_NAME': 'dev'}, 'dev'),
-    ({'GITHUB_REF_NAME': 'main'}, 'main'),
-    ({'GITHUB_REF_NAME': '13/merge', 'GITHUB_BASE_REF': 'main'}, 'main'),
+    # main is dev promoted by squash and its own ci.yml is red because of this check: it reads dev's runs.
+    ({'GITHUB_REF_NAME': 'main'}, 'dev'),
+    ({'GITHUB_REF_NAME': '13/merge', 'GITHUB_BASE_REF': 'main'}, 'dev'),
 ])
 def test_history_branch_follows_the_tested_branch(monkeypatch, environment, expected):
     monkeypatch.delenv('GITHUB_REF_NAME', raising=False)
@@ -488,14 +489,14 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # conflicts, by design: take dev's side, then `python backend/scripts/rederive_floor.py --lane <lane> --add <this
 # PR's new tests>` re-derives both this value and ci.yml's floor from dev (LESSONS L-P39).
 _FLOOR_SET_FROM = {
-    # guards: set from 3320 = max(dev run 40024668374 read 3317, dev's map 3317) + 3 (claude/euro-own-values-wire, 2026-10-23); floor 3314, margin 6.
-    "guards": 3320,
+    # guards: set from 3351 = max(dev run 40398047789 read 3341, dev's map 3341) + 10 (claude/manifest-object-consistency, 2026-10-26); floor 3345, margin 6.
+    "guards": 3351,
 
-    # chain: set from 2956 = max(dev run 40178049431 read 2955, dev's map 2955) + 1 (claude/socal-swell2-dark, 2026-10-25); floor 2950, margin 6.
-    "chain": 2956,
+    # chain: set from 3009 = max(dev run 41350294961 read 3008, dev's map 3008) + 1 (claude/socal-swell2-dark, 2026-11-01); floor 3003, margin 6.
+    "chain": 3009,
 
-    # estate: set from 2852 = max(dev run 40171438269 read 2811, dev's map 2811) + 41 (fix/audit-10-18-backend-defects, 2026-10-25); floor 2850, margin 2.
-    "estate": 2852,
+    # estate: set from 3406 = max(dev run 41148501823 read 3405, dev's map 3405) + 1 (codex/guardian-purchase-integration-20261030, 2026-10-31); floor 3404, margin 2.
+    "estate": 3406,
 }
 # Completeness sees squash merges, re-derived after #470 (+5, hosted 2397 / 331 files, run 39979894860): +14 estate tests
 # in a new file (tests/test_ledger_merges.py) = 2411 / 332; floor 2409, margin 2.

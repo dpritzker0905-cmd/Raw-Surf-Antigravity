@@ -154,6 +154,8 @@ async def checkin_at_spot(
     if not stats:
         stats = SurfPassportStats(user_id=current_user.id)
         db.add(stats)
+        # Apply insert defaults before reading counters and streak values below.
+        await db.flush()
     
     # Check for new country/region
     countries_data = json.loads(stats.countries_breakdown) if stats.countries_breakdown else {}

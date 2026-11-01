@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
+import { SettingsDisclosureHeader } from './SettingsDisclosureHeader';
 import { FileText, Clock, Check, Loader2, Shield, ChevronDown, AlertTriangle, Scale } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
+import { Card, CardTitle, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import apiClient from '../../lib/apiClient';
 import { CURRENT_TOS_VERSION } from '../../constants/tos';
@@ -58,7 +59,7 @@ export const LegalSection = ({
 
   return (
     <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="legal-settings-card">
-      <CardHeader className="cursor-pointer" onClick={() => toggleSection('legal')}>
+      <SettingsDisclosureHeader section="legal" expanded={expandedSections.legal} onToggle={() => toggleSection('legal')}>
         <div className="flex items-center justify-between">
           <CardTitle className={`${textPrimaryClass} flex items-center gap-2`}>
             <Scale className="w-5 h-5 text-cyan-400" />
@@ -66,8 +67,9 @@ export const LegalSection = ({
           </CardTitle>
           <ChevronDown className={`w-5 h-5 ${textSecondaryClass} transition-transform ${expandedSections.legal ? 'rotate-180' : ''}`} />
         </div>
-      </CardHeader>
-      {expandedSections.legal && (
+      </SettingsDisclosureHeader>
+      <div id="settings-legal-content" hidden={!expandedSections.legal}>
+        {expandedSections.legal && (
         <CardContent className="space-y-4">
           {/* ToS Acceptance Status */}
           <div className={`flex items-center justify-between py-2 border-b ${borderClass}`}>
@@ -268,6 +270,7 @@ export const LegalSection = ({
           <DeleteAccountSection />
         </CardContent>
       )}
+      </div>
     </Card>
   );
 };

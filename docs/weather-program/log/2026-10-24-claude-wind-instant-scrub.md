@@ -156,3 +156,77 @@ owner window, store-real on 4196 (identity-checked).
 - **What first draw needs next (not PR C).** The click's one long task does ~70 ms before `setWindData`; the levers in it are the
   sim-field rebuild on a wind change (memo on the unchanged marine grid, or deferral as an owner A/B) and the crop build ahead of
   the world draw (an owner A/B: coarse then sharp).
+
+## The click-task split (branch claude/wind-toggle-split)
+
+The lead, after #553: "split that task, not remove a hop": profile the work before setWindData, move what the first wind draw
+does not need after a yield / into a transition, measure first draw and INP over 3 alternating rounds with base in the same pass.
+
+- **Profile (dev base, `profile_toggle.mjs UNTIL=setWindData OWNERS=1`, outermost app frame).**
+  - The click's task before setWindData, z2 / z3.9: MapWebGL's render (with `useSimulationField`) 60.5 / 9.3 ms.
+  - WeatherEngine's primary fetch effect 30.9 / 32.9 ms. This one is needed: it serves the static frame.
+  - `staticUncoveredHours` (series-page planning) 29.3 / 13.6 ms.
+  - `tryStaticWindGrid` + `fetchBackendWindGrid` 9.3 / 10.9 ms (the crop; needed for the sharp view).
+  - The layer truth diff ~3.5 ms. Prefetch and marine warm ~2-4 ms.
+- **What the first draw does not need (checked in the code, not assumed).**
+  - **The simulation field:** RenderPlanDispatcher uploads to the wind or marine engine only with `__ALLOW_FCE_WIND_UPLOAD__` /
+    `__ALLOW_FCE_MARINE_UPLOAD__` (both off by default). Its other readers are the HUD and debug tools. My earlier note that
+    deferring it is an owner A/B was wrong: nothing drawn reads it.
+  - At z2 the whole field is rebuilt on the click because `activeMarineLayer` flips; the memo key includes it.
+  - **Series pages:** a prefetch of later hours.
+  - **The truth diff:** a diagnostic that serialises the style.
+- **Changes (each with a kill switch).**
+  - The sim field is built from ONE `useDeferredValue` of all its inputs (`__RAW_DISABLE_SIM_FIELD_DEFER__`).
+  - Series pages are planned after the next paint (`__RAW_DISABLE_WIND_SERIES_AFTER_PAINT__`).
+  - The truth diff's mount capture runs after the next paint (`__RAW_DISABLE_TRUTH_DIFF_AFTER_PAINT__`).
+  - `afterNextPaint.js` = rAF, then a MessageChannel message (runs after the paint), with a 100 ms hidden-tab floor.
+  - The marine memo idea is moot for the toggle: the field is no longer on the critical path.
+- **A/B (split vs dev base, same pass, 3 alternating rounds, z2 / z3.9 / z6, 18 sessions, all static, mislabel 0).**
+  - setWindData after the click p50 41 vs 77 ms.
+  - The click's long task p50 61 vs 98 ms.
+  - First wind draw p50 81 vs 113 ms, p95 146 vs 193 ms. z3.9 is the cleanest cell: 61-74 vs 112-130 ms.
+  - Click INP p50 120 vs 160 ms, p95 200 vs 192 ms (flat).
+  - Scrub step p50 32 vs 29 ms, p95 55 vs 67 ms.
+  - The p50 is now inside the 100 ms toggle contract; the p95 (146 ms) is not yet.
+- **#564 rebased on #560.** #560's LABEL INSTANT is clip A, default on, so #564 keeps only option B. The clip page now compares
+  B with today's real default (the nearest-frame line).
+
+## 2026-10-25 evening: hourly GFS wind f000-f120 (dark) and the interpolation hold-out
+
+The lead (2026-10-25), at the owner's request for the state-of-the-art data path: build hourly GFS wind world frames
+f000-f120 dark behind a repo variable, and pick the f120+ tail method by a hold-out first.
+
+- **The hold-out (owner said yes to downloading 3 real runs).**
+  - Runs: 20261015_00, 20261019_12, 20261023_06. Real NOAA hourly 10 m u/v, pgrb2.0p25, byte ranges.
+  - Decoding: no pygrib or eccodes wheel on Windows, so I wrote a numpy decoder for GRIB2 template 5.3. It is checked
+    against our own stored products: max |du|, |dv| 0.00014 kn over 629 points.
+  - Method: hide every non-frame hour (f001-f119 not on the 3 h grid) and rebuild it from the 3-hourly frames. Score on a
+    1 degree grid, area-weighted.
+  - Results for f073-119, the mean of the 3 runs. Columns: vector RMSE / speed MAE (**m/s**; x1.944 for knots) / direction
+    MAE (deg) / 12 h trajectory mean / p95 (km, pooled over the runs).
+    - nearest: 1.187 / 0.420 / 5.44 / 5.33 / 15.73
+    - linear u/v: 0.897 / 0.317 / 3.90 / 5.66 / 17.12
+    - polar (#564 option B): 0.950 / 0.311 / 4.10 / 6.86 / 20.70
+    - PCHIP u/v: 0.886 / 0.307 / 3.83 / 5.16 / 15.38
+    - Catmull-Rom u/v: 0.890 / 0.308 / 3.82 / 5.10 / 15.19
+  - The order holds in each run separately.
+  - **Pick: PCHIP on u/v for the f120+ tail.** It is about as good as Catmull-Rom and cannot overshoot.
+  - Polar B carries a trajectory too far: 6.86 vs 5.16 km mean. So #564 swaps B for PCHIP (f120+ only, labelled, default off).
+  - Scripts and per-run tables are in the session notes folder, `wind-holdout-2026-10-25/`.
+- **The hourly path (dark).**
+  - The fetcher's `forecast_hours(max_f, hourly_until)` adds every hour up to min(hourly_until, 120, max_f).
+  - `fetch_gfs_wind_global_coarse(..., hourly_until=)` passes it in the subprocess payload.
+  - The global_mid ingest asks for 120 only when `FRAME_WIND_GFS_HOURLY=1`. The pilots workflow reads repo var `FRAME_WIND_GFS_HOURLY`, default '0'.
+  - The frame publisher needs no change: one entry per stored product.
+  - **Client:** the wind series page asks the manifest's nearest stored hour (`windSeriesSnapHour`). On a 3-hourly manifest
+    that equals the old fixed snap for every hour 0-200 (pinned). Kill: `__RAW_DISABLE_WIND_SERIES_MANIFEST_SNAP__`.
+- **Cost, per run, when flipped.**
+  - CDN: +80 frames, ~51 KB each, about +4.1 MB. The index grows from 113 to 193 entries (~190 KB).
+  - Ingest: +80 steps of ~1.16 MB of byte-range GRIB, about +93 MB downloaded on the pilots runner.
+  - Client: a full hourly scrub fetches 6.2 vs 2.1 MB.
+- **Not measured offline:**
+  - whether the pilots run still fits FRAME_PUBLISH_BUDGET_S (600 s; the wind set publishes last);
+  - how long the HRRR-lane rebuild takes for 193 frames;
+  - the rating effect of hourly global_mid wind.
+
+  Those need one dispatched pilots run with the variable set, before any flip (D-001: the owner's word, with evidence).

@@ -12,15 +12,32 @@ import os
 import logging
 
 from database import get_db
+from utils.checkout_recovery import persist_pending_checkout
 from core.security import get_current_user_id
 from models import Profile, PaymentTransaction
 from utils.payment_fulfillment import fulfill_wallet_payment
+from utils.crew_card_fulfillment import is_crew_card_payment, fulfill_crew_card_payment
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
 
 import stripe
 import json
+
+async def _complete_crew_card(db, transaction):
+    """Route verified crew receipts through their own atomic fulfillment."""
+    try:
+        result = await fulfill_crew_card_payment(db, transaction)
+        await db.commit()
+        return result
+    except HTTPException:
+        await db.rollback()
+        raise
+    except Exception as error:
+        await db.rollback()
+        logger.error('Crew card fulfillment unavailable; error_type=%s', type(error).__name__)
+        raise HTTPException(status_code=503, detail='Crew payment confirmation is temporarily unavailable. Please refresh.') from None
+
 
 class CheckoutSessionRequest:
     def __init__(self, amount, currency, success_url, cancel_url, metadata):
@@ -187,6 +204,9 @@ async def create_checkout_session(
     if photographer:
         description = f"{duration_hours}hr session with {photographer.full_name}"
     
+    # Rollback during checkout recovery can expire ORM profiles. Keep the response primitive.
+    photographer_name = photographer.full_name if photographer else None
+
     # Build URLs from frontend origin
     success_url = f"{data.origin_url}/payment/success?session_id={{CHECKOUT_SESSION_ID}}"
     cancel_url = f"{data.origin_url}/map"
@@ -229,7 +249,7 @@ async def create_checkout_session(
         session: CheckoutSessionResponse = await stripe_checkout.create_checkout_session(checkout_request)
         
         # Create payment transaction record (PENDING status)
-        transaction = PaymentTransaction(
+        await persist_pending_checkout(db, session.session_id, lambda: PaymentTransaction(
             user_id=user_id,
             session_id=session.session_id,
             amount=deposit_amount,
@@ -237,9 +257,7 @@ async def create_checkout_session(
             status="Pending",
             payment_status="Pending",
             transaction_metadata=str(metadata)
-        )
-        db.add(transaction)
-        await db.commit()
+        ))
         
         logger.info(f"Checkout session created: {session.session_id} for user {user_id}")
         
@@ -251,9 +269,11 @@ async def create_checkout_session(
             "hourly_rate": hourly_rate,
             "duration_hours": duration_hours,
             "description": description,
-            "photographer_name": photographer.full_name if photographer else None
+            "photographer_name": photographer_name
         }
     
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error creating checkout session: {e}")
         raise HTTPException(status_code=500, detail=f"Failed to create checkout: {str(e)}")
@@ -277,6 +297,8 @@ async def get_checkout_status(
     transaction = result.scalar_one_or_none()
     if not transaction or transaction.user_id != user_id:
         raise HTTPException(status_code=404, detail="Checkout session not found")
+    if is_crew_card_payment(transaction):
+        return await _complete_crew_card(db, transaction)
     host_url = str(request.base_url).rstrip('/')
     webhook_url = f"{host_url}/api/webhook/stripe"
     
@@ -413,9 +435,12 @@ async def stripe_webhook(
             
             if transaction:
                 if webhook_response.payment_status == "paid":
-                    await fulfill_wallet_payment(db, transaction)
-                    await db.commit()
-                    logger.info(f"Webhook: Payment completed for {webhook_response.session_id}")
+                    if is_crew_card_payment(transaction):
+                        await _complete_crew_card(db, transaction)
+                    else:
+                        await fulfill_wallet_payment(db, transaction)
+                        await db.commit()
+                    logger.info(f"Webhook: Payment event handled for {webhook_response.session_id}")
         
         return {"status": "received"}
     

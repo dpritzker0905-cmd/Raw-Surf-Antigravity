@@ -79,6 +79,10 @@ beforeEach(() => {
   window.localStorage.setItem('__RAW_STATIC_FRAMES__', 'true');
   window.__RAW_STATIC_FRAMES_BASE__ = BASE;
   window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true;              // dark by default since 2026-10-23 evening: this suite opts in
+  // The mock backend answers 500, so every page here that falls to /grid_series schedules the page-failure retry (scheduleFailRetry): a REAL timer of
+  // >= 1200 ms that fires inside the test under any 1.2 s event-loop stall (a loaded full-tree run) and adds an ask nobody expects. Retries are not
+  // under test anywhere in this file; the app's own kill takes them out for the whole file (2026-10-26: 'a failing bundle' counted 3 page asks, not 2).
+  window.__RAW_SERIES_RETRY_DISABLED__ = true;
   _resetStaticFramesForTest(); _resetMarineSeriesForTest();
   _setRegionalCodecForTest({ sha12: async (b) => sha12(b), gunzip: async (b) => Uint8Array.from(zlib.gunzipSync(Buffer.from(b))).buffer });
   setCachedManifest(MANIFEST);
@@ -94,6 +98,8 @@ afterEach(() => {
   global.fetch = realFetch;
   delete global.__manifestFetch;
   delete global.__surf;
+  delete window.__RAW_SERIES_RETRY_DISABLED__;
+  _resetMarineSeriesForTest();      // deferred retries / prefetches of this test must not fire inside the next one
 });
 
 test('an ALL-MISS page (every hour outside the run) is the backend\'s: it asks /grid_series instead of claiming nothing', async () => {

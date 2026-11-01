@@ -1,0 +1,158 @@
+{
+  "results": [
+    {
+      "path": "general",
+      "mode": "success",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "path": "general",
+      "mode": "definite_fail",
+      "passed": true,
+      "status": 503
+    },
+    {
+      "path": "general",
+      "mode": "ack_lost",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "path": "general",
+      "mode": "unknown_commit",
+      "passed": true,
+      "status": 409
+    },
+    {
+      "path": "account",
+      "mode": "success",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "path": "account",
+      "mode": "definite_fail",
+      "passed": true,
+      "status": 503
+    },
+    {
+      "path": "account",
+      "mode": "ack_lost",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "path": "account",
+      "mode": "unknown_commit",
+      "passed": true,
+      "status": 409
+    },
+    {
+      "path": "grom",
+      "mode": "success",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "path": "grom",
+      "mode": "definite_fail",
+      "passed": true,
+      "status": 503
+    },
+    {
+      "path": "grom",
+      "mode": "ack_lost",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "path": "grom",
+      "mode": "unknown_commit",
+      "passed": true,
+      "status": 409
+    },
+    {
+      "path": "photo",
+      "mode": "success",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "path": "photo",
+      "mode": "definite_fail",
+      "passed": true,
+      "status": 503
+    },
+    {
+      "path": "photo",
+      "mode": "ack_lost",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "path": "photo",
+      "mode": "unknown_commit",
+      "passed": true,
+      "status": 409
+    },
+    {
+      "path": "credits",
+      "mode": "success",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "path": "credits",
+      "mode": "definite_fail",
+      "passed": true,
+      "status": 503
+    },
+    {
+      "path": "credits",
+      "mode": "ack_lost",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "path": "credits",
+      "mode": "unknown_commit",
+      "passed": true,
+      "status": 409
+    },
+    {
+      "path": "deposit",
+      "mode": "success",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "path": "deposit",
+      "mode": "definite_fail",
+      "passed": true,
+      "status": 503
+    },
+    {
+      "path": "deposit",
+      "mode": "ack_lost",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "path": "deposit",
+      "mode": "unknown_commit",
+      "passed": true,
+      "status": 409
+    }
+  ],
+  "passed": 24,
+  "total": 24,
+  "signed_creator_requests": 24,
+  "actual_jwt_dependency": true,
+  "actual_async_session": true,
+  "photographer_selected_deposit": true,
+  "external_calls": false,
+  "provider": "in-memory Checkout double",
+  "normal_app_startup": false,
+  "database_disposed": true
+}

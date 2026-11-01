@@ -8,6 +8,7 @@ from database import get_db
 from typing import Optional
 from models import CreditTransaction, Notification, Post, Profile
 from core.security import get_user_id_from_jwt_or_query
+from services.guardian_levels import has_confirmed_link, is_confirmed_guardian
 
 router = APIRouter()
 
@@ -38,7 +39,7 @@ async def get_grom_activity(
     if not grom:
         raise HTTPException(status_code=404, detail="Grom not found")
     
-    if grom.parent_id != parent_id:
+    if not is_confirmed_guardian(grom, parent_id):
         raise HTTPException(status_code=403, detail="Not authorized to view this Grom's activity")
     
     # Get posts count
@@ -122,9 +123,9 @@ async def get_spending_summary(
     )
     grom = grom_result.scalar_one_or_none()
     
-    if not grom or grom.parent_id != parent_id:
+    if not is_confirmed_guardian(grom, parent_id):
         raise HTTPException(status_code=403, detail="Not authorized")
-    
+
     # Get spending by type
     spending_result = await db.execute(
         select(
@@ -201,9 +202,9 @@ async def update_spending_controls(
     )
     grom = grom_result.scalar_one_or_none()
     
-    if not grom or grom.parent_id != parent_id:
+    if not is_confirmed_guardian(grom, parent_id):
         raise HTTPException(status_code=403, detail="Not authorized")
-    
+
     # Update parental controls
     current_controls = grom.parental_controls or {}
     
@@ -255,7 +256,7 @@ async def send_parental_spending_alert(
     )
     grom = grom_result.scalar_one_or_none()
     
-    if not grom or not grom.parent_id:
+    if not grom or not has_confirmed_link(grom):
         return False
     
     # Check if there's an approval threshold set

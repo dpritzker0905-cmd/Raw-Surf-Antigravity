@@ -73,7 +73,7 @@ const LAYER = process.env.LAYER || 'pressure';
       const said = await page.evaluate(() => [...document.querySelectorAll('[role="status"]')].filter((el) => el.offsetParent !== null).map((el) => el.textContent.trim()).filter(Boolean).join(' | '));
       steps.push({ h, ms, said });
     }
-    const tel = await page.evaluate(() => { const t = window.__RAW_OWN_RASTER__ || {}; return { loads: t.loads, bytes: t.bytes, misses: t.misses, decodeMs: t.decodeMs, pin: t.pin && { run: t.pin.run, frames: t.pin.frames } }; });
+    const tel = await page.evaluate(() => { const t = window.__RAW_OWN_RASTER__ || {}; return { loads: t.loads, bytes: t.bytes, misses: t.misses, decodeMs: t.decodeMs, pin: t.pin && { run: t.pin.run, frames: t.pin.frames }, downscale: t.downscale || null }; });
     const layers = await page.evaluate((ly) => window.__MAP_INSTANCE__.getStyle().layers.filter((x) => x.id.includes(ly) || /isobar/.test(x.id)).map((x) => `${x.id}:${x.type}:${(x.layout || {}).visibility || 'visible'}`), LAYER);
     rows.push({ theme, on: ON, firstMs, steps, credit, openMeteoRequests: om.length, tel, layers, errors });
     console.log(JSON.stringify(rows[rows.length - 1]));

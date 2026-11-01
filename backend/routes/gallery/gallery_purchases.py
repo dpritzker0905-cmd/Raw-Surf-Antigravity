@@ -28,6 +28,8 @@ from websocket_manager import broadcast_earnings_update
 from services.watermark import generate_watermarked_preview
 
 from .schemas import PurchaseRequest, get_quality_price
+from .pricing_resolver import resolve_item_pricing, wallet_price
+from utils.revenue_routing import get_commission_rate_for_tier, is_pro_creator
 
 router = APIRouter()
 
@@ -52,6 +54,7 @@ async def purchase_gallery_item(
         select(GalleryItem)
         .where(GalleryItem.id == item_id)
         .options(selectinload(GalleryItem.photographer))
+        .options(selectinload(GalleryItem.gallery))
     )
     item = item_result.scalar_one_or_none()
     
@@ -93,14 +96,25 @@ async def purchase_gallery_item(
     
     # Get price for quality tier
     price, download_url = get_quality_price(item, photographer, data.quality_tier)
+    if item.media_type != 'video':
+        resolved = await resolve_item_pricing(item, photographer, db, buyer_id)
+        price = next(tier["price"] for tier in resolved["pricing"]["tiers"]
+                     if tier["tier"] == data.quality_tier)
     
+    # Photo and video charges share the wallet's established cent precision.
+    price = wallet_price(price)
+
     # Check if subscription quota covers this purchase (photo or video)
     from routes.subscriptions_billing.photo_sub_helpers import try_use_subscription_quota
     quota_type = 'video' if item.media_type == 'video' else 'photo'
-    sub_quota_result = await try_use_subscription_quota(
-        db, buyer_id, item.photographer_id, quota_type
-    )
+    # A session-included photo is already free; preserve paid subscription quota.
+    sub_quota_result = {"used": False}
+    if price != 0:
+        sub_quota_result = await try_use_subscription_quota(
+            db, buyer_id, item.photographer_id, quota_type
+        )
     subscription_covered = sub_quota_result.get("used", False)
+    photographer_cut = 0.0
     
     if subscription_covered:
         # Subscription covers this — no charge
@@ -122,8 +136,11 @@ async def purchase_gallery_item(
         if not success:
             raise HTTPException(status_code=400, detail=error)
         
-        # Credit photographer (80% cut)
-        photographer_cut = price * 0.80
+        # Pro creators use the active admin commission; preserve other sellers' share.
+        commission_rate = 0.20
+        if price and is_pro_creator(photographer.role):
+            commission_rate = await get_commission_rate_for_tier(photographer.subscription_tier, db)
+        photographer_cut = round(price * (1 - commission_rate), 2)
         await add_credits(
             user_id=item.photographer_id,
             amount=photographer_cut,
@@ -154,7 +171,7 @@ async def purchase_gallery_item(
         user_id=item.photographer_id,
         type='photo_purchased',
         title=f"{buyer.full_name} purchased your {'video' if item.media_type == 'video' else 'photo'}!",
-        body=f"Quality: {data.quality_tier.upper()} \u2022 You earned ${price * 0.80:.2f} credits",
+        body=f"Quality: {data.quality_tier.upper()} \u2022 You earned ${photographer_cut:.2f} credits",
         data=json.dumps({
             "gallery_item_id": item_id,
             "buyer_id": buyer_id,
@@ -193,8 +210,7 @@ async def purchase_gallery_item(
     
     await db.commit()
     
-    # Broadcast earnings update to photographer via WebSocket
-    photographer_cut = price * 0.80
+    # Broadcast the same rounded earnings credited to the photographer.
     await broadcast_earnings_update(
         user_id=item.photographer_id,
         update_type='new_sale',
@@ -321,7 +337,7 @@ async def download_gallery_item(
             select(GalleryPurchase)
             .where(GalleryPurchase.gallery_item_id == item_id)
             .where(GalleryPurchase.buyer_id == buyer_id)
-            .order_by(GalleryPurchase.amount_paid.desc())
+            .order_by(GalleryPurchase.amount_paid.desc()).limit(1)
         )
     
     purchase = purchase_result.scalar_one_or_none()
@@ -393,7 +409,7 @@ async def get_watermarked_preview(
             select(GalleryPurchase).where(
                 GalleryPurchase.gallery_item_id == item_id,
                 GalleryPurchase.buyer_id == viewer_id
-            )
+            ).limit(1)
         )
         is_purchased = purchase_result.scalar_one_or_none() is not None
     

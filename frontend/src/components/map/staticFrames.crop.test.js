@@ -60,6 +60,7 @@ afterEach(() => {
   delete window.__RAW_STATIC_FRAMES_BASE__;
   delete window.__RAW_DISABLE_STATIC_MID_CROP__;
   delete window.__RAW_ENABLE_REGIONAL_BUNDLES__;
+  delete window.__RAW_DISABLE_REGIONAL_BUNDLES__;
   setCachedManifest(null);
   if (killBefore === undefined) delete window.__RAW_DISABLE_STATIC_FRAMES__; else window.__RAW_DISABLE_STATIC_FRAMES__ = killBefore;
   global.fetch = realFetch;
@@ -73,14 +74,11 @@ test('a viewport box the mid tier answers is eligible; a world box still is; a n
   // mid-zoom crop; with the regional kill, or in a browser that cannot check and inflate slices, it is not static at all.
   const TILE_BOX = { west: -84, south: 25, east: -80, north: 30 };
   _setRegionalCodecForTest({ sha12: async () => 'x', gunzip: async () => new ArrayBuffer(0) });   // a capable browser
-  window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true;                                                   // dark by default: opt in
-  expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: TILE_BOX })).toBe(true);
+  expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: TILE_BOX })).toBe(true);            // on by default (2026-10-24): no flag set
   window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true;
-  expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: TILE_BOX })).toBe(false);
+  expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: TILE_BOX })).toBe(false);          // the kill: not static at all
   delete window.__RAW_DISABLE_REGIONAL_BUNDLES__;
-  delete window.__RAW_ENABLE_REGIONAL_BUNDLES__;
-  expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: TILE_BOX })).toBe(false);          // dark by default: not static
-  window.__RAW_ENABLE_REGIONAL_BUNDLES__ = true;
+  expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: TILE_BOX })).toBe(true);
   _setRegionalCodecForTest();
   if (typeof DecompressionStream === 'undefined' || !(global.crypto && global.crypto.subtle)) {
     expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: TILE_BOX })).toBe(false);          // this jsdom: not capable
@@ -163,9 +161,15 @@ test('every world set takes the crop rules (#453 eight sets + #459): per model a
   // ICON waves: no ICON regional tile overlaps the view -> the resolver answers from global_mid -> a crop
   expect(staticEligible({ model: 'ICON', layer: 'waves', bbox: VIEW })).toBe(true);
   expect(staticEligible({ model: 'ICON', layer: 'waves', bbox: WORLD })).toBe(false);   // world span: /grid's Gulf fill, so /grid
-  // EURO waves: its SoCal tile is far from this view, so it crops here; a view over SoCal refuses (estimated regional tails)
+  // EURO waves: its SoCal tile is far from this view, so it crops here. Over SoCal (estimated regional tails), the exact rule of
+  // 2026-10-26 (staticFrameCrop.otherModelTileMayWin): a 30 x 20 view keeps only globals at the resolver and the tile covers 13% of
+  // it, so it crops; a 14 x 12 view over the tile refuses (at 15 deg and under the tile may be served); the kill refuses both.
   expect(staticEligible({ model: 'EURO', layer: 'waves', bbox: VIEW })).toBe(true);
+  expect(staticEligible({ model: 'EURO', layer: 'waves', bbox: { west: -135, south: 25, east: -105, north: 45 } })).toBe(true);
+  expect(staticEligible({ model: 'EURO', layer: 'waves', bbox: { west: -127, south: 28, east: -113, north: 40 } })).toBe(false);
+  window.__RAW_DISABLE_EXACT_REGIONAL_RULE__ = true;
   expect(staticEligible({ model: 'EURO', layer: 'waves', bbox: { west: -135, south: 25, east: -105, north: 45 } })).toBe(false);
+  delete window.__RAW_DISABLE_EXACT_REGIONAL_RULE__;
   // not one of the eight sets (EURO swells are global_coarse + serve-time Gulf fill): never, at any box
   expect(staticEligible({ model: 'EURO', layer: 'swell_1', bbox: VIEW })).toBe(false);
   // GFS swell_1: cropped on both seams since #456 (its series page gets its crop key); this gate's kill keeps the old key

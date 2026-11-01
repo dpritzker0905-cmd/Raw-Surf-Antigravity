@@ -1,4 +1,4 @@
-"""
+﻿"""
 Crew payment progress -- cover remaining, remind crew.
 
 Part of the dispatch package -- extracted from dispatch.py monolith.
@@ -18,6 +18,7 @@ import stripe
 from utils.geo import haversine_distance
 
 from database import get_db
+from utils.credits import consume_spend_only_for_debit
 from core.security import get_current_user_id
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
@@ -71,6 +72,7 @@ async def captain_cover_remaining(
     result = await db.execute(
         select(DispatchRequest)
         .where(DispatchRequest.id == dispatch_id)
+        .with_for_update()
         .options(selectinload(DispatchRequest.requester))
     )
     dispatch = result.scalar_one_or_none()
@@ -81,6 +83,11 @@ async def captain_cover_remaining(
     # Verify captain
     if dispatch.requester_id != data.captain_id:
         raise HTTPException(status_code=403, detail="Only the captain can cover remaining shares")
+
+    # Unsuccessful terminal requests cannot collect a new crew coverage payment.
+    if dispatch.status in (DispatchRequestStatusEnum.CANCELLED, DispatchRequestStatusEnum.REFUNDED,
+                           DispatchRequestStatusEnum.NO_PRO_FOUND):
+        raise HTTPException(status_code=409, detail='This dispatch no longer accepts coverage; no new crew payment was taken.')
     
     # Get unpaid crew members
     crew_result = await db.execute(
@@ -120,6 +127,7 @@ async def captain_cover_remaining(
     try:
         # Deduct from captain's balance
         captain.credit_balance = (captain.credit_balance or 0) - total_unpaid
+        promo_spent = consume_spend_only_for_debit(captain, total_unpaid)
         
         # Mark all unpaid crew as paid
         for cp in unpaid_crew:
@@ -138,6 +146,8 @@ async def captain_cover_remaining(
         credit_tx = CreditTransaction(
             user_id=data.captain_id,
             amount=-total_unpaid,
+            spend_only_amount=-promo_spent,
+            balance_before=(captain.credit_balance or 0) + total_unpaid,
             transaction_type='crew_cover',
             description=f"Covered ${total_unpaid:.2f} for {len(unpaid_crew)} crew members",
             reference_type='dispatch',
@@ -165,12 +175,16 @@ async def send_crew_reminder(
     dispatch_id: str,
     data: RemindCrewRequest,
     background_tasks: BackgroundTasks,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Send a payment reminder push notification to an unpaid crew member.
-    Only the captain can send reminders.
+    Only the captain can send reminders, and the caller must BE that captain (the body's captain_id is a
+    claim, checked against the token before any query; it used to be the only check).
     """
+    if data.captain_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     # Get dispatch
     result = await db.execute(
         select(DispatchRequest)
@@ -231,12 +245,13 @@ async def send_crew_reminder(
         user_id=data.member_id,
         type='crew_payment_reminder',
         title='Payment Reminder',
-        message=f"{captain_name} is waiting for your payment of ${crew_member.share_amount:.2f}",
-        data={
+        # the Notification model has `body` and a JSON-text `data`; `message=` and a dict raised TypeError
+        body=f"{captain_name} is waiting for your payment of ${crew_member.share_amount:.2f}",
+        data=json.dumps({
             "dispatch_id": dispatch_id,
             "amount": crew_member.share_amount,
             "captain_id": data.captain_id
-        }
+        })
     )
     db.add(notification)
     await db.commit()

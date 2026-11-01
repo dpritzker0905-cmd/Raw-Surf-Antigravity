@@ -1,4 +1,5 @@
 import React, { useRef, useState, useMemo, useEffect, useCallback } from 'react';
+import { useDeferredSimField } from './useDeferredSimField';
 import Map, { Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import { getMapStyle, mapboxTransformRequest, ensureMapLibreInit, trace, findMarineInsertionLayer, configureWaterTransparency } from './mapUtils';
@@ -317,15 +318,17 @@ const MapWebGL = ({
     () => (surfMode ? computeClusterRatings(spotClusters, spotRatings, supercluster) : {}),
     [surfMode, spotClusters, spotRatings, supercluster]
   );
-  // FCE: Field Composition Engine — Single Source of Truth
+  // FCE: Field Composition Engine — Single Source of Truth. Built from DEFERRED inputs (useDeferredSimField.js: nothing drawn
+  // reads it by default, so it rebuilds after the wind commits; kill __RAW_DISABLE_SIM_FIELD_DEFER__).
+  const simIn = useDeferredSimField({ windData, marineData, activeModel, timeOffsetHours, activeMarineLayer });
   const { field: simulationField, diagnostics: fieldDiagnostics } = useSimulationField({
-    windData,
-    marineData,
+    windData: simIn.windData,
+    marineData: simIn.marineData,
     pressureData: null,
-    activeModel,
-    timeOffsetHours: timeOffsetHours,
+    activeModel: simIn.activeModel,
+    timeOffsetHours: simIn.timeOffsetHours,
     enableLogging: typeof window !== 'undefined' && localStorage.getItem('debug-fce') === 'true',
-    activeMarineLayer,
+    activeMarineLayer: simIn.activeMarineLayer,
   });
 
   // Live simulation bridge — drives RK4 physics independently of React

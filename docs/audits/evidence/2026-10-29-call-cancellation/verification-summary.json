@@ -1,0 +1,106 @@
+{
+  "verified_at_utc": "2026-10-29T23:19:24.931174+00:00",
+  "base_commit": "1a3e51875a90553d97fc637b4640bf02b3be656e",
+  "branch": "codex/audit-repair-20261029",
+  "status": "verified locally; focused local packaging authorized; publication and integration pending",
+  "source_sha256": {
+    "frontend/src/hooks/useWebRTCCall.js": "808a5a1eec5c55ab8127e5b398222f28c8f4ce1e0f888f98f53bc0560fdc0186",
+    "frontend/src/hooks/useWebRTCCall.cancellation.test.js": "8498c5ab7e13ebfde11e57ef999a63b8546a2d5ca0c8e0b8f5ab7db63e3d068e",
+    "docs/audits/evidence/2026-10-29-call-cancellation/browser-entry.jsx": "32a1cbc15346fb9d924cb97a72812dea99b01312977bb823ec800ed6ef2429b5",
+    "docs/audits/evidence/2026-10-29-call-cancellation/browser-stubs.js": "e7badebde08bca6fc3e1588a0c2debe2167f49354309b2da0ec52af1eb3ae4c4",
+    "docs/audits/evidence/2026-10-29-call-cancellation/verify_browser.cjs": "ebfe3ef45e7954dc6d98fb01b44bdd48d70833c036cc1ce0f282e4d88e18e5bc"
+  },
+  "baseline": {
+    "initial_hook_cases": 41,
+    "failed": 35,
+    "passed_controls": 6,
+    "browser_cases": 14,
+    "browser_passed_controls": 2,
+    "browser_failed": 12,
+    "review_candidate_failures": 5,
+    "abandoned_render_failure": 1,
+    "configuration_errors_excluded": true
+  },
+  "final": {
+    "new_cancellation_tests": 55,
+    "retained_lifecycle_tests": 8,
+    "focused_total": 63,
+    "independent_focused_passed": 63,
+    "combined_frontend_tests": 158,
+    "combined_frontend_suites": 12,
+    "previous_frontend_tests_included": 103,
+    "browser_passed": 14,
+    "browser_total": 14,
+    "browser_page_errors": 0,
+    "browser_external_requests": 0,
+    "owned_browser_server_closed": true,
+    "all_case_timer_cleanup": true
+  },
+  "governance": {
+    "targeted_lint": "passed",
+    "full_lint_ratchet": "passed",
+    "files_linted": 1590,
+    "existing_errors": 86,
+    "existing_warnings": 907,
+    "whitespace": "passed",
+    "hook_lines": 636,
+    "ICE_configuration_unchanged": true,
+    "prior_lifecycle_test_unchanged": true,
+    "all12_prior_source_hashes_match": true,
+    "entry_docs_audit": {
+      "fail": 0,
+      "warn": 64,
+      "note": 12
+    },
+    "final_docs_audit": {
+      "fail": 0,
+      "warn": 64,
+      "note": 12
+    },
+    "canonical_ledger_entries": 2074,
+    "fragment_check_problems": 0,
+    "local_links_resolve": true
+  },
+  "production_build": {
+    "exit_code": 0,
+    "source_hash_unchanged": true,
+    "source_maps": false,
+    "duplicate_build_eslint_disabled": true,
+    "separate_full_lint_gate": "passed",
+    "output_and_cache": "worktree .cache"
+  },
+  "backend_tests_repeated": false,
+  "pushed": false,
+  "shared_integration": false,
+  "weather_application_change": false,
+  "remaining": [
+    "network signaling lacks call IDs",
+    "separate signaling reconnect lifecycle",
+    "media flip/toggle cancellation",
+    "active remote SDP failure recovery",
+    "physical-device/provider/hosted acceptance",
+    "shared schema/version and integration release decisions"
+  ],
+  "memory_extension_note_updated": true,
+  "additional_unblocked_existing_queue_items_selected": false,
+  "staged_at_verification": false,
+  "new_commit_at_verification": false,
+  "verification_phase_paid_or_security_tools_used": false,
+  "local_commit_authorized": true,
+  "mandatory_local_commit_gates": "unchanged hook: redacted staged-secret check and Python LOC guard; no bypass",
+  "validation_reuse": "Existing 158 frontend/63 independent hook/14 Chrome/build/lint receipts reused; source, test and fixture hashes unchanged. No fresh tests/build executed for documentation-only packaging.",
+  "approved_commit_paths": [
+    "frontend/src/hooks/useWebRTCCall.js",
+    "frontend/src/hooks/useWebRTCCall.cancellation.test.js",
+    "docs/audits/2026-10-29-call-cancellation.md",
+    "docs/audits/2026-10-29-consistency-call-handoff.md",
+    "docs/audits/evidence/2026-10-29-call-cancellation/browser-baseline-results.json",
+    "docs/audits/evidence/2026-10-29-call-cancellation/browser-entry.jsx",
+    "docs/audits/evidence/2026-10-29-call-cancellation/browser-results.json",
+    "docs/audits/evidence/2026-10-29-call-cancellation/browser-stubs.js",
+    "docs/audits/evidence/2026-10-29-call-cancellation/verification-summary.json",
+    "docs/audits/evidence/2026-10-29-call-cancellation/verify_browser.cjs",
+    "docs/weather-program/ledger.d/codex--audit-repair-20261029.jsonl",
+    "docs/weather-program/log/2026-10-29-codex-consistency-repair.md"
+  ]
+}

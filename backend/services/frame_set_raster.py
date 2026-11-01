@@ -43,6 +43,17 @@ PREFIX = fs.set_prefix(TARGET)
 F_HOURS = tuple(range(0, 337, 3))
 COLS, ROWS = 720, 361
 BOUNDS = (-180.0, -90.0, 179.5, 90.0)          # west, south, east, north: the outer cell centres
+# The lattices a set can be published on (a spec's `grid`, default '0p5'). '0p25' is NCEP's own 0.25-degree grid, every point
+# (stride 1): cloud cover's edges are near 0 / 100 % per cell, so at 0.5 degrees they draw as one-cell steps (the owner's
+# resolution call, 2026-10-25). Same orientation for both: row 0 = SOUTH, column 0 = 180W, no wrap column.
+GRIDS = {
+    "0p5": {"cols": 720, "rows": 361, "bounds": BOUNDS, "stride": 2},
+    "0p25": {"cols": 1440, "rows": 721, "bounds": (-180.0, -90.0, 179.75, 90.0), "stride": 1},
+}
+
+
+def grid_of(spec):
+    return GRIDS[(spec or {}).get("grid", "0p5")]
 VALID_HPA = (800.0, 1100.0)                    # noaa_gfs_pressure_fetcher._sanitize_pressure_hpa's physical range
 S3_BASE = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
 GRID_FILE = "pgrb2.0p25"
@@ -79,6 +90,18 @@ SPECS = {
         "valid": (-0.5, 100.5), "clip": (0.0, 100.0), "env": "FRAME_RASTER_CLOUD", "default_on": False,
         "value_kind": "cloud_cover", "value_unit": "%",
         "source_dataset": "gfs.pgrb2.0p25 TCDC entire atmosphere (instantaneous, not the 0-N h mean), every second point",
+        "hours": F_HOURS, "source": "gfs", "upstream_provider": "noaa", "credit": CREDIT, "license": LICENSE,
+        "source_url": SOURCE_URL,
+    },
+    # CLOUD COVER AT 0.25 DEG (the owner, 2026-10-25: "Go with your recommendation if that is state of the art"): the SAME
+    # instantaneous TCDC, every point of NCEP's 0.25-degree grid (1440 x 721), so cloud edges are not one-cell 0.5-degree steps
+    # (side-session-notes raster-resolution-2026-10-24). The 0.5-degree set stays publishable (FRAME_RASTER_CLOUD).
+    "cloud_cover_0p25": {
+        "target": {"model": "GFS", "domain": "weather", "layer": "cloud_cover", "region_id": "global_0p25"},
+        "field": fb.CLOUD_PCT, "idx": ("TCDC", "entire atmosphere"), "convert": lambda a: a, "grid": "0p25",
+        "valid": (-0.5, 100.5), "clip": (0.0, 100.0), "env": "FRAME_RASTER_CLOUD_0P25", "default_on": False,
+        "value_kind": "cloud_cover", "value_unit": "%",
+        "source_dataset": "gfs.pgrb2.0p25 TCDC entire atmosphere (instantaneous, not the 0-N h mean), every point",
         "hours": F_HOURS, "source": "gfs", "upstream_provider": "noaa", "credit": CREDIT, "license": LICENSE,
         "source_url": SOURCE_URL,
     },
@@ -142,15 +165,17 @@ def iso(dt):
     return dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
-def to_frame_plane(a25, valid=VALID_HPA, clip=None):
-    """(721, 1440) values, row 0 = 90N, column 0 = 0E (GRIB order) -> (361, 720), row 0 = 90S, column 0 = 180W, every second
-    point; values outside the physical range `valid` become NaN (no data); `clip` then bounds the rest."""
+def to_frame_plane(a25, valid=VALID_HPA, clip=None, stride=2):
+    """(721, 1440) values, row 0 = 90N, column 0 = 0E (GRIB order) -> row 0 = 90S, column 0 = 180W, every `stride`-th point
+    ((361, 720) at the default 2; (721, 1440) at 1); values outside the physical range `valid` become NaN (no data); `clip`
+    then bounds the rest."""
     import numpy as np
     a = np.asarray(a25, dtype=float)
     if a.shape != (721, 1440):
         raise ValueError(f"expected a 0.25-deg world grid (721, 1440), got {a.shape}")
-    half = a[::2, ::2][::-1]                                   # (361, 720), south row first
-    half = np.concatenate([half[:, 360:], half[:, :360]], axis=1)   # column 0 = 180W
+    half = a[::stride, ::stride][::-1]                          # south row first
+    n = half.shape[1] // 2
+    half = np.concatenate([half[:, n:], half[:, :n]], axis=1)   # column 0 = 180W
     out = np.where((half >= valid[0]) & (half <= valid[1]), half, np.nan)
     return np.clip(out, clip[0], clip[1]) if clip else out
 
@@ -242,10 +267,10 @@ class GfsPrmslSource(GfsGribSource):
         super().__init__(SPECS["pressure"], session)
 
 
-def build_frame(plane, valid, run, fid=fb.PRESSURE_HPA):
-    """(raw frame, gzip, parity dict) for one (361, 720) plane; parity decodes the frame and compares every node."""
+def build_frame(plane, valid, run, fid=fb.PRESSURE_HPA, bounds=BOUNDS):
+    """(raw frame, gzip, parity dict) for one plane (361 x 720 by default); parity decodes the frame and compares every node."""
     import numpy as np
-    raw = fb.encode_plane(plane, BOUNDS, iso(valid), iso(run), fid)
+    raw = fb.encode_plane(plane, bounds, iso(valid), iso(run), fid)
     gz = fb.gzip_frame(raw)
     _head, fields = fb.decode_plane(gz)
     got = fields[fid]
@@ -281,8 +306,8 @@ def build_set(source, cycle, log=print, workers=6, deadline=None, clock=time.mon
                 got = np.where((got >= sp["valid"][0]) & (got <= sp["valid"][1]), got, np.nan)
                 plane = np.clip(got, *sp["clip"]) if sp["clip"] else got
             else:
-                plane = to_frame_plane(got, sp["valid"], sp["clip"])
-            raw, gz, check = build_frame(plane, valid, cycle, sp["field"])
+                plane = to_frame_plane(got, sp["valid"], sp["clip"], grid_of(sp)["stride"])
+            raw, gz, check = build_frame(plane, valid, cycle, sp["field"], grid_of(sp)["bounds"])
         except Exception as e:
             log(f"[raster] f{f:03d}: {type(e).__name__}: {e}")
             return dict(entry, path=None, unbuilt="failed"), None
@@ -318,7 +343,8 @@ def make_index(cycle, frames, stats, spec=None):
     index = {
         "version": fs.INDEX_VERSION, "encoding_version": fb.ENCODING_VERSION, "transform_version": fb.TRANSFORM_VERSION,
         "set": fs.set_key(sp["target"]), **sp["target"], "run": iso(cycle), "cycle": iso(cycle), "runs": [iso(cycle)], "run_time": iso(cycle),
-        "grid": {"cols": COLS, "rows": ROWS, "bounds": dict(zip(("west", "south", "east", "north"), BOUNDS)),
+        "grid": {"cols": grid_of(sp)["cols"], "rows": grid_of(sp)["rows"],
+                 "bounds": dict(zip(("west", "south", "east", "north"), grid_of(sp)["bounds"])),
                  "row0": "south", "col0": "west", "wrap_column": False},
         "coverage": round(len(built) / len(frames), 4) if frames else 0.0,
         "coverage_authoritative": round(len(built) / len(frames), 4) if frames else 0.0,

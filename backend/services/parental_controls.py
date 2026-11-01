@@ -7,6 +7,8 @@ controls with a server check). Every Grom write that one of these switches is me
 
 Rules, decided once:
   * Only accounts with role GROM are ever restricted. Every other role gets exactly the behaviour it had.
+  * Guardian level L0 (no confirmed guardian) is browse-only: every write below is refused before the guardian's
+    own switches are read (services/guardian_policy.py holds the level table).
   * `view_only` is a master switch: when it is true the Grom may not WRITE anything (comment, react, post, go
     live, message).
   * Each action also has its own switch. A missing switch falls back to the same default the guardian screen
@@ -25,6 +27,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from models import Profile, RoleEnum
+from services.guardian_levels import ADULT, age_band, has_confirmed_link
+from services.guardian_policy import NEEDS_L1_DETAIL
 
 # action -> (control key that must not be False, default when the key was never stored)
 ACTION_CONTROLS = {
@@ -46,6 +50,10 @@ def refusal_for(profile: Optional[Profile], action: str) -> Optional[str]:
     """Return the 403 detail when ``profile`` (a Grom) may not perform ``action``; ``None`` when it may."""
     if profile is None or profile.role != RoleEnum.GROM:
         return None
+    # Level L0 (guardian program): a child with no confirmed guardian can browse and nothing else, whatever their
+    # age band says. A Grom who is 18 or older has no guardian gate.
+    if age_band(profile.birthdate) != ADULT and not has_confirmed_link(profile):
+        return NEEDS_L1_DETAIL
     controls = profile.parental_controls or {}
     if controls.get("view_only"):
         return VIEW_ONLY_DETAIL

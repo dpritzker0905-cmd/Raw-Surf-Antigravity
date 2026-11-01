@@ -500,6 +500,22 @@ def _coerce_utc(dt):
     return dt.astimezone(timezone.utc)
 
 
+# THE DAY-14 END (2026-10-25, the owner's manual test: "the ICON data is showing Saturday 13th day on the Sunday 14th day with holes
+# in Gulf data"). The ICON and EURO marine tails are baked to the anchor's run_time + 336 h, but the scrubber offers now + 336 h.
+# Between two bakes the last (now - run_time) hours have no 2-deg frame, so /grid falls to the 10-deg coarse tail (37 x 17; one
+# node in the Gulf), then the far-edge hold, then 404. Measured live 2026-10-25 21Z: ICON 2-deg tail ended now+320.5 h (anchor
+# run_time 8.5 h old), 10-deg now+332.5 h; EURO 2-deg now+320.5 h. MARINE_EXT_CEILING_MARGIN_H (DARK, default 0; 0..48) bakes
+# both tails that many hours past run + 336, so the 2-deg tier still reaches now + 336 until the next bake. Same blend, same
+# label (is_estimated); the GFS targets past f336 exist only with GFS_WORLD_FULL_HORIZON=1 (on since 2026-10-25T18:09Z).
+def marine_ext_ceiling_hours(base=336.0):
+    """The ICON / EURO marine tail ceiling past the anchor's run_time: 336 h plus MARINE_EXT_CEILING_MARGIN_H (clamped 0..48)."""
+    try:
+        margin = float(os.environ.get("MARINE_EXT_CEILING_MARGIN_H", "0"))
+    except (TypeError, ValueError):
+        margin = 0.0
+    return base + min(48.0, max(0.0, margin))
+
+
 def euro_estimate_within_ceiling(target_time, run_time, anchor_time, native_limit, ceiling_hours=336.0):
     """True if an estimate valid at ``target_time`` is within the published EURO horizon (run + ceiling).
 
@@ -637,7 +653,8 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
 
                 # gfs_targets is sorted chronologically, so the first target past the run+336h ceiling
                 # ends the run rather than generating unbounded estimates.
-                if not euro_estimate_within_ceiling(target_time, euro_run_time, anchor_time, native_limit):
+                if not euro_estimate_within_ceiling(target_time, euro_run_time, anchor_time, native_limit,
+                                                    ceiling_hours=marine_ext_ceiling_hours()):
                     break
 
                 # Load GFS target product

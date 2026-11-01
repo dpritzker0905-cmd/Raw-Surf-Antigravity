@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import logging
 
 from database import get_db
+from utils.credits import refund_credits
 from core.security import get_user_id_from_jwt_or_query
 from deps.admin_auth import get_current_admin
 from models import Profile, CreditTransaction, Notification
@@ -77,12 +78,11 @@ async def cancel_ad_submission(ad_id: str, user_id: str = Depends(get_user_id_fr
     user = result.scalar_one_or_none()
     refund_amount = ad.get("budget_credits", 0)
     if user and refund_amount > 0:
-        user.credit_balance = (user.credit_balance or 0) + refund_amount
-        db.add(CreditTransaction(user_id=user_id, amount=refund_amount,
-            balance_before=(user.credit_balance or 0) - refund_amount,
-            balance_after=user.credit_balance, transaction_type="ad_refund",
-            description=f"Ad cancelled: {ad.get('headline', '')[:30]}...",
-            reference_type="ad_cancellation", reference_id=ad_id))
+        success, _, error = await refund_credits(
+            user_id, refund_amount, db, reference_type='ad_submission', reference_id=ad_id,
+            description=f"Ad cancelled: {ad.get('headline', '')[:30]}...", transaction_type='ad_refund')
+        if not success:
+            raise HTTPException(status_code=409, detail=error)
     variants.pop(ad_index)
     config["variants"] = variants
     await _save_cfg(config, user_id, db)
@@ -153,12 +153,11 @@ async def reject_ad(ad_id: str, admin: Profile = Depends(get_current_admin),
         sub_result = await db.execute(select(Profile).where(Profile.id == submitter_id))
         submitter = sub_result.scalar_one_or_none()
         if submitter:
-            submitter.credit_balance = (submitter.credit_balance or 0) + refund_amount
-            db.add(CreditTransaction(user_id=submitter_id, amount=refund_amount,
-                balance_before=(submitter.credit_balance or 0) - refund_amount,
-                balance_after=submitter.credit_balance, transaction_type="ad_refund",
-                description=f"Ad rejected: {reason or 'Policy violation'}",
-                reference_type="ad_rejection", reference_id=ad_id))
+            success, _, error = await refund_credits(
+                submitter_id, refund_amount, db, reference_type='ad_submission', reference_id=ad_id,
+                description=f"Ad rejected: {reason or 'Policy violation'}", transaction_type='ad_refund')
+            if not success:
+                raise HTTPException(status_code=409, detail=error)
     config["variants"] = variants
     await _save_cfg(config, admin.id, db)
     if submitter_id:

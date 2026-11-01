@@ -46,6 +46,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from services import frame_set as fs  # noqa: E402
 from services import frame_set_bundle as fsb  # noqa: E402
+from services import frame_set_fill as fsf  # noqa: E402
 from services.frame_image import encode_png, parity  # noqa: E402
 
 FRAME_BUCKET = "weather-frames"
@@ -124,12 +125,13 @@ class TailDownloads:
     that is not on disk is downloaded from the private products bucket, the same stored product /grid serves, and then goes
     through publish_set unchanged: the run check (a copy of another run than the manifest names is `stale_local`) and the
     node-by-node parity gate. Nothing authoritative is ever downloaded, a frame already published for the same product is
-    carried without a download, and at most `cap` products (FRAME_TAIL_DOWNLOAD_MAX, default 240) are fetched per run.
+    carried without a download, and at most `cap` products (FRAME_TAIL_DOWNLOAD_MAX, default 320: every core cycle re-bakes the
+    whole tail, 232 products at run + 348 h, D-053) are fetched per run.
     COST, measured not assumed: a tail product is 2.2 MB of JSON and Supabase serves JSON brotli-compressed (an index here: 199,705
     bytes as 10,028 on the wire), so ~170 tail products per publish cost about 10-20 MB; `stats` reports the wire bytes.
     `fetch(filename) -> (bytes or None, wire_bytes)`; offline, a second ProductStore dir stands in for the bucket."""
 
-    def __init__(self, local, fetch, cap=240, log=print):
+    def __init__(self, local, fetch, cap=320, log=print):
         self.local, self.fetch, self.cap, self.log = local, fetch, int(cap), log
         self._got = {}
         self.stats = {"downloaded": 0, "download_failed": 0, "download_capped": 0, "wire_bytes": 0, "bytes": 0}
@@ -153,11 +155,18 @@ class TailDownloads:
         carried = {(f.get("valid_time"), bool(f.get("is_estimated"))): f.get("source")
                    for f in (previous_index or {}).get("frames", []) if f.get("path")}
         todo = []
-        for e in fs.select_entries(self.manifest().get("products"), target):
+        products = self.manifest().get("products")
+        # A FILLED world set (frame_set_fill) reads the same tails as its plain set: a tail the plain set already fetched this run is
+        # never fetched again, and its frame identity carries the GFS donor, as publish_set builds it.
+        fill_store = fsf._ManifestStore(products) if fsf.is_filled(target) else None
+        for e in fs.select_entries(products, target):
             if not e.get("is_estimated"):
                 continue
             vt = fs.iso(e.get("valid_time_start") or e.get("valid_time"))
-            if carried.get((vt, True)) == fs.source_identity(e) or self.local.product_bytes(e["filename"]) is not None:
+            ident = fs.source_identity(e)
+            if fill_store is not None:
+                ident["fill_donor"] = fsf.donor_identity(fsf.donor_entry(products, vt, target["layer"], store=fill_store))
+            if carried.get((vt, True)) == ident or e["filename"] in self._got or self.local.product_bytes(e["filename"]) is not None:
                 continue
             todo.append(e["filename"])
         room = max(0, self.cap - self.stats["downloaded"])
@@ -192,9 +201,9 @@ def tail_downloads_enabled():
 
 def tail_cap():
     try:
-        return max(0, int(os.environ.get("FRAME_TAIL_DOWNLOAD_MAX", "240")))
+        return max(0, int(os.environ.get("FRAME_TAIL_DOWNLOAD_MAX", "320")))
     except ValueError:
-        return 240
+        return 320
 
 
 def supabase_product_fetcher():
@@ -304,13 +313,25 @@ class SupabaseSink:
             raise RuntimeError(f"create bucket {FRAME_BUCKET}: HTTP {resp.status_code}: {resp.text[:200]}")
 
     def read(self, path):
-        resp = self.requests.get(f"{self.base}/storage/v1/object/{FRAME_BUCKET}/{path}?cb={int(time.time() * 1000)}",
-                                 headers=self.auth, timeout=60)
-        if resp.status_code in (400, 404):
-            return None                    # Supabase answers a missing object with 400 or 404
-        if resp.status_code != 200:
-            raise RuntimeError(f"read {FRAME_BUCKET}/{path}: HTTP {resp.status_code}")
-        return resp.content
+        """One object's bytes, or None when it is missing; retried with backoff on 429 / 5xx / a dropped connection like
+        write(). 2026-10-27 (the lead): ONE 429 on v1/latest.json at 23:15:38Z failed run 40403486736's whole publish behind
+        a green continue-on-error step; reads are idempotent, so a retry is always safe."""
+        url = f"{self.base}/storage/v1/object/{FRAME_BUCKET}/{path}"
+        for attempt, wait in enumerate(UPLOAD_BACKOFF_S + (None,)):
+            try:
+                resp = self.requests.get(f"{url}?cb={int(time.time() * 1000)}", headers=self.auth, timeout=60)
+            except (self.requests.ConnectionError, self.requests.Timeout) as e:
+                if wait is None:
+                    raise RuntimeError(f"read {FRAME_BUCKET}/{path}: {type(e).__name__} after {attempt + 1} attempts")
+                _sleep(wait)
+                continue
+            if resp.status_code in (400, 404):
+                return None                # Supabase answers a missing object with 400 or 404
+            if resp.status_code == 200:
+                return resp.content
+            if resp.status_code not in RETRY_STATUS or wait is None:
+                raise RuntimeError(f"read {FRAME_BUCKET}/{path}: HTTP {resp.status_code}")
+            _sleep(wait)
 
     def write(self, path, data, content_type, cache_control):
         """One upload, retried with backoff on 429 / 5xx / a dropped connection (Supabase answered cold-cache bursts with
@@ -485,6 +506,12 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
                 elif rec is not entry:
                     pending_empty[key] = rec    # written WITH the next real pointer move: a run that publishes nothing writes nothing
                 stats["empty"] = rec is not None
+        # A FILLED world set (frame_set_fill) outside the targeted mode: its record is retired (no index, no fill_mode), written with
+        # the next real pointer move like the explicit empties, so no client pairs an old filled index with a box in another mode.
+        if index is None and stats.get("skipped_fill_mode"):
+            rec = fs.fill_mode_off_record(entry, stats["fill_mode"], now, _writer())
+            if rec is not None:
+                pending_empty[key] = rec
         stats["seconds"] = round(time.perf_counter() - t0, 1)
         stats["index"] = index["path"] if index else (entry or {}).get("index")
         stats["deleted"] = 0
@@ -492,7 +519,7 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
     if changed:
         for key, rec in pending_empty.items():
             latest.setdefault("sets", {})[key] = rec
-            log(f"[frames] {key}: no stored product for this layer in this box; written as explicit empty")
+            log(f"[frames] {key}: written as explicit empty ({rec.get('reason') or 'no stored product for this layer in this box'})")
         latest.update(version=1, written_at=now, writer=_writer())
         sink.write(fs.LATEST, json.dumps(latest, indent=1, sort_keys=True).encode("utf-8"), fs.JSON_TYPE, REVALIDATE)
     if wind_lane is not None:

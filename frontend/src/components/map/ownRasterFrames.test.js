@@ -1,6 +1,6 @@
 import {
   planWindow, toField, ownFramesOn, ownIndex, lastIndex, frameAt, framesOf, setWanted, getField, MAX_IN_FLIGHT, MISSING, OWN_RASTER_SETS,
-  combinedFrames, combinedFrameAt, setKey, TEMP_FIELD, CLOUD_FIELD, NO_DATA_BELOW, leverCovers,
+  combinedFrames, combinedFrameAt, setKey, TEMP_FIELD, CLOUD_FIELD, NO_DATA_BELOW, leverCovers, DEFAULT_ON_LAYERS,
   _resetOwnRasterFramesForTest,
 } from './ownRasterFrames';
 import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
@@ -200,13 +200,33 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
   afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_SATELLITE__; });
   test('the cloud set is GFS only, field 8; its own kill', () => {
     window.__RAW_RASTER_OWN_FRAMES__ = 'satellite';
-    expect(setKey('satellite', 'GFS')).toBe('GFS/weather/cloud_cover/global_0p5');
+    expect(setKey('satellite', 'GFS')).toBe('GFS/weather/cloud_cover/global_0p25');
     expect(OWN_RASTER_SETS.satellite.field).toBe(CLOUD_FIELD);
     expect(CLOUD_FIELD).toBe(8);
     expect(ownFramesOn('satellite', 'GFS')).toBe(true);
     expect(ownFramesOn('satellite', 'EURO')).toBe(false);
     expect(ownFramesOn('temperature', 'GFS')).toBe(false);
     window.__RAW_DISABLE_RASTER_OWN_SATELLITE__ = true;
+    expect(ownFramesOn('satellite', 'GFS')).toBe(false);
+  });
+  test('ON by default (D-052): no lever draws cloud from own frames; every other layer stays dark', () => {
+    expect(DEFAULT_ON_LAYERS).toEqual(['satellite']);
+    expect(ownFramesOn('satellite', 'GFS')).toBe(true);
+    expect(ownFramesOn('satellite', 'EURO')).toBe(false); // no EURO cloud set: the .om path draws EURO as before
+    expect(ownFramesOn('pressure', 'GFS')).toBe(false);
+    expect(ownFramesOn('temperature', 'GFS')).toBe(false);
+  });
+  test('the cloud default yields to both kills and to a set that is not published', () => {
+    window.__RAW_DISABLE_RASTER_OWN_SATELLITE__ = true;
+    expect(ownFramesOn('satellite', 'GFS')).toBe(false);
+    delete window.__RAW_DISABLE_RASTER_OWN_SATELLITE__;
+    window.__RAW_DISABLE_RASTER_OWN_FRAMES__ = true;
+    expect(ownFramesOn('satellite', 'GFS')).toBe(false);
+    delete window.__RAW_DISABLE_RASTER_OWN_FRAMES__;
+    staticSetEnabled.mockImplementation((key) => key !== 'GFS/weather/cloud_cover/global_0p25');
+    expect(ownFramesOn('satellite', 'GFS')).toBe(false);
+    staticSetEnabled.mockImplementation(() => true);
+    staticFramesEnabled.mockReturnValue(false);
     expect(ownFramesOn('satellite', 'GFS')).toBe(false);
   });
 });

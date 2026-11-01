@@ -1,4 +1,5 @@
 import { getSharedValidTime, pointCache, POINT_URL, blendDirection, blendPeriod } from './backendWeatherServiceClient';
+import { logFetchFailure } from './marineQuietFailures';
 import { iconExtendedContinuityDecay, iconExtendedContinuityOffset } from './backendWeatherServiceClientHelpers';
 import { requireMarineDirection } from './marineDirectionBlend';
 import { recordTruthStage } from './weatherTruthTracker';
@@ -6,6 +7,7 @@ import { updateDiagnostics } from './backendWeatherServiceClientDiag';
 import { pointRequestIdentityEnabled, createPointRequestContext, childPointRequestContext } from './pointRequestIdentity';
 import { marineValueValidityEnabled, marinePointValues } from './marinePointValues';
 import { readMarineFrameReceipt } from './marineFrameReceipt';
+import { hintIsForeign, refuseForeignReply } from './pointProductHint';
 
 export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer = 'waves', model = 'GFS', gridProductIdParam = null, gridBboxParam = null, requestContext = null) {
   requestContext = pointRequestIdentityEnabled()
@@ -260,7 +262,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
           };
         }
       } catch (err) {
-        console.error('[Backend Weather Client Point] ICON extended point emulation failed:', err);
+        logFetchFailure(err, '[Backend Weather Client Point] ICON extended point emulation failed:', err);   // D12: an abort is not an error
         throw err;
       }
     }
@@ -357,7 +359,11 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
     };
   }
 
-  let gridProductId = gridProductIdParam;
+  // D4: a hint naming another model's or layer's product is dropped with its box (pointProductHint.js). This also stops the
+  // ICON past-168 children forwarding ICON's id to their GFS asks.
+  const foreignHint = hintIsForeign(gridProductIdParam, model, layer);
+  let gridProductId = foreignHint ? null : gridProductIdParam;
+  if (foreignHint) gridBboxParam = null;
   if (!gridProductId && typeof window !== 'undefined') {
     const diag = window.__MARINE_PROJECTION_DIAG__;
     if (diag && diag.activeLayer === layer && diag.activeModel === model) {
@@ -492,6 +498,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       throw new Error(reason);
     }
     const json = await res.json();
+    refuseForeignReply(json, model, layer);   // D4: never map another model's answer under this model's name
     if (model === 'GFS' && layer === 'waves' && hourOffset === 0) {
       recordTruthStage('pointResponse', {
         model,
@@ -628,7 +635,13 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       // backend response, add it HERE in the same change or the render layer never sees it.
       // NB `coverage_scope` and `resolution` are NOT usable substitutes: both live on the
       // diagnostics object, and both measured null in all 84 cells of the card-matrix capture.
-      coverage_status: (json.coverage_status ?? null)
+      coverage_status: (json.coverage_status ?? null),
+      // WHICH FRAME ANSWERED (audit 2026-10-27, P1-C). `hourly.time` is the ASK; the server stamps the frame it read
+      // (grid_resolver.stamp_frame_honesty). They reached only the diagnostic receipt above, so the infobox could not say
+      // "the nearest stored forecast" beside a heatmap that does. All three whitelists, same change.
+      served_valid_time: (json.served_valid_time ?? null),
+      frame_substituted: (json.frame_substituted ?? null),
+      frame_offset_hours: (json.frame_offset_hours ?? null)
     };
 
     const details = {

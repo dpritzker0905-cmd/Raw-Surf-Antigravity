@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 
 from database import get_db
 from services.blocks import assert_not_blocked
+from services.guardian_policy import assert_level_allows, notify_guardian_of_teen_activity
 from models import (
     Profile, Friend, FriendshipStatusEnum, PrivacySetting
 )
@@ -326,8 +327,14 @@ async def update_privacy_settings(
         )
         profile = profile_result.scalar_one_or_none()
         if profile:
+            if settings_data.is_private is False:
+                # GUARDIAN LEVEL: a child's profile goes public only at the public-profile level for their age band.
+                standing = await assert_level_allows(db, profile, 'public_profile')
+                await notify_guardian_of_teen_activity(
+                    db, profile, standing, "Your 16-17 year old made their profile public",
+                    f"{profile.full_name or 'Your child'} switched their profile to public.")
             profile.is_private = settings_data.is_private
-    
+
     if hasattr(settings_data, 'accepting_lineup_invites') and settings_data.accepting_lineup_invites is not None:
         profile_result = await db.execute(
             select(Profile).where(Profile.id == user_id)

@@ -83,3 +83,12 @@ Results, in points of percentage:
 - Not decided here (the lead's recommendation, to test): keep the INSTANT for the satellite layer, because it shows the cloud at
   the labelled valid time, as a satellite image would; name it so in the legend and credit; and judge skill against
   observations (a satellite cloud product), not against .om.
+
+## The layer says what it is (2026-10-25, the lead: "so nobody compares it with an hourly mean unawares")
+While the satellite layer is drawn from our own frames, its credit reads "NOAA GFS · instantaneous". The credit sits beside the
+legend title in every layout (desktop panel, mobile collapsed float, mobile expanded sheet). Its tooltip (`title`) and its
+accessible name begin "Cloud cover at the valid time, instantaneous (not an hourly mean)."
+- The .om path keeps its own credit, unchanged: its field is the hourly mean, and the credit names its source.
+- Other own layers carry no note.
+- Dark, with the layer itself.
+The a/b/c rows are on the SCOREBOARD as instrument S22.

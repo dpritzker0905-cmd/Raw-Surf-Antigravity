@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useId, useCallback } from 'react';
 import { Edit3, Trash2, Check, Loader2, Play, Image, MoreVertical, X, Plus } from 'lucide-react';
 import { getFullUrl, getOptimizedMediaUrl } from '../utils/media';
 
@@ -27,6 +27,27 @@ export const GalleryGridItem = ({
   const [imgError, setImgError] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const videoRef = useRef(null);
+  const triggerRef = useRef(null);
+  const menuRef = useRef(null);
+  const menuId = useId();
+  const closeMenu = useCallback(() => {
+    setShowMenu(false);
+    triggerRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    if (!showMenu) return;
+    (menuRef.current?.querySelector('button:not(:disabled)') || triggerRef.current)?.focus();
+    const dismiss = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        closeMenu();
+      }
+    };
+    document.addEventListener('keydown', dismiss);
+    return () => document.removeEventListener('keydown', dismiss);
+  }, [showMenu, closeMenu]);
 
   const imgSrc = getOptimizedMediaUrl(
     isVideo
@@ -75,11 +96,15 @@ export const GalleryGridItem = ({
       {/* 3-dot menu button (always visible on mobile, shown on hover for desktop) */}
       {!bulkSelectMode && (onEdit || onDelete) && (
         <button
+          type="button"
+          ref={triggerRef}
           onClick={handleMenuToggle}
-          className="absolute top-2 right-2 z-20 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white opacity-80 md:opacity-0 md:group-hover:opacity-100 transition-opacity active:scale-90"
+          className="absolute top-2 right-2 z-30 w-8 h-8 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center text-white opacity-80 md:opacity-0 md:group-hover:opacity-100 md:focus-visible:opacity-100 transition-opacity active:scale-90"
           aria-label="Item actions"
+          aria-expanded={showMenu}
+          aria-controls={showMenu ? menuId : undefined}
         >
-          {showMenu ? <X className="w-4 h-4" /> : <MoreVertical className="w-4 h-4" />}
+          {showMenu ? <X aria-hidden="true" className="w-4 h-4" /> : <MoreVertical aria-hidden="true" className="w-4 h-4" />}
         </button>
       )}
 
@@ -87,27 +112,27 @@ export const GalleryGridItem = ({
       {showMenu && (
         <>
           {/* Invisible overlay to close menu on tap outside */}
-          <div className="fixed inset-0 z-20" onClick={(e) => { e.stopPropagation(); setShowMenu(false); }} />
-          <div className="absolute top-12 right-2 z-30 bg-card border border-border rounded-lg shadow-xl overflow-hidden min-w-[140px] animate-in fade-in slide-in-from-top-2 duration-150">
+          <div className="fixed inset-0 z-20" onClick={(e) => { e.stopPropagation(); closeMenu(); }} />
+          <div ref={menuRef} id={menuId} className="absolute top-12 right-2 z-30 bg-card border border-border rounded-lg shadow-xl overflow-hidden min-w-[140px] animate-in fade-in slide-in-from-top-2 duration-150">
             {onEdit && (
-              <button aria-label="Edit3"
-                onClick={(e) => { e.stopPropagation(); setShowMenu(false); onEdit(item); }}
+              <button type="button"
+                onClick={(e) => { e.stopPropagation(); closeMenu(); onEdit(item); }}
                 className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-foreground hover:bg-muted/80 transition-colors"
               >
-                <Edit3 className="w-4 h-4 text-cyan-400" />
+                <Edit3 aria-hidden="true" className="w-4 h-4 text-cyan-400" />
                 Edit
               </button>
             )}
             {onDelete && (
-              <button aria-label="Loader2"
-                onClick={(e) => { e.stopPropagation(); setShowMenu(false); onDelete(item.id); }}
+              <button type="button"
+                onClick={(e) => { e.stopPropagation(); closeMenu(); onDelete(item.id); }}
                 disabled={isDeleting}
                 className="w-full flex items-center gap-2.5 px-4 py-3 text-sm text-red-400 hover:bg-red-500/10 transition-colors disabled:opacity-50"
               >
                 {isDeleting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <Loader2 aria-hidden="true" className="w-4 h-4 animate-spin" />
                 ) : (
-                  <Trash2 className="w-4 h-4" />
+                  <Trash2 aria-hidden="true" className="w-4 h-4" />
                 )}
                 Delete
               </button>

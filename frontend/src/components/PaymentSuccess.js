@@ -17,45 +17,49 @@ const PaymentSuccess = () => {
   
   const [status, setStatus] = useState('checking');
   const [paymentData, setPaymentData] = useState(null);
-  const [pollAttempts, setPollAttempts] = useState(0);
-  const maxAttempts = 5;
-
   useEffect(() => {
+    let cancelled = false;
+    let retryTimer;
+    let attempts = 0;
+    const maxAttempts = 6; // Initial request plus five retries.
+
+    setPaymentData(null);
+    setStatus('checking');
     if (!sessionId) {
       setStatus('error');
       return;
     }
 
     const pollPaymentStatus = async () => {
+      attempts += 1;
       try {
         const response = await apiClient.get(`/payments/checkout/status/${sessionId}`);
+        if (cancelled) return;
         const data = response.data;
-        
         setPaymentData(data);
-        
+
         if (data.payment_status === 'paid') {
           setStatus('success');
-          return;
         } else if (data.status === 'expired') {
           setStatus('expired');
-          return;
-        }
-        
-        // Continue polling if not yet paid
-        if (pollAttempts < maxAttempts) {
-          setPollAttempts(prev => prev + 1);
-          setTimeout(pollPaymentStatus, 2000);
+        } else if (attempts < maxAttempts) {
+          retryTimer = setTimeout(pollPaymentStatus, 2000);
         } else {
           setStatus('timeout');
         }
       } catch (error) {
+        if (cancelled) return;
         logger.error('Payment status check error:', error);
         setStatus('error');
       }
     };
 
     pollPaymentStatus();
-  }, [sessionId, pollAttempts]);
+    return () => {
+      cancelled = true;
+      clearTimeout(retryTimer);
+    };
+  }, [sessionId]);
 
   const renderContent = () => {
     switch (status) {

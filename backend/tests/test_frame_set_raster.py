@@ -305,3 +305,32 @@ def test_real_f003_idx_lines_pick_the_instantaneous_tcdc_not_the_mean():
     real = ("636:447842631:d=2026102318:TCDC:entire atmosphere:3 hour fcst:\n"
             "637:448681869:d=2026102318:TCDC:entire atmosphere:0-3 hour ave fcst:\n")
     assert fsr.select_message(fsr.idx_rows(real), ("TCDC", "entire atmosphere")) == (447842631, 448681868)
+
+
+def test_cloud_0p25_set_is_every_point_of_the_0p25_grid_south_first_from_180w_and_off_by_default(tmp_path, monkeypatch):
+    # The owner, 2026-10-25: "Go with your recommendation if that is state of the art" (cloud at 0.25 deg).
+    sp = fsr.SPECS["cloud_cover_0p25"]
+    g = fsr.grid_of(sp)
+    assert (g["cols"], g["rows"], g["stride"]) == (1440, 721, 1) and g["bounds"] == (-180.0, -90.0, 179.75, 90.0)
+    assert fsr.grid_of(fsr.SPECS["cloud_cover"]) == fsr.GRIDS["0p5"] and fsr.grid_of(None)["cols"] == 720
+    src = _CloudSource().fetch(CYCLE, 0)
+    plane = fsr.to_frame_plane(src, sp["valid"], sp["clip"], g["stride"])
+    assert plane.shape == (721, 1440)
+    for r, c in ((0, 0), (720, 1439), (360, 720), (101, 37), (500, 1000)):
+        lat, lon = -90.0 + 0.25 * r, -180.0 + 0.25 * c
+        want = src[int(round((90.0 - lat) / 0.25)), int(round((lon % 360.0) / 0.25))]
+        assert (np.isnan(plane[r, c]) and want > 100.5) or plane[r, c] == pytest.approx(min(max(want, 0.0), 100.0))
+    raw, _gz, check = fsr.build_frame(plane, CYCLE, CYCLE, sp["field"], g["bounds"])
+    assert check["bad"] == 0 and len(raw) == 72 + 24 + 1440 * 721                          # one byte per node
+    head, _fields = fb.decode_plane(raw)
+    assert (head["cols"], head["rows"]) == (1440, 721)
+    report, _sink = _publish(tmp_path / "c25", source=_CloudSource(), spec=sp)
+    assert report["status"] == "published"
+    sets = _latest(tmp_path / "c25")["sets"]
+    assert "GFS/weather/cloud_cover/global_0p25" in sets
+    index = json.loads((tmp_path / "c25" / sets["GFS/weather/cloud_cover/global_0p25"]["index"]).read_text())
+    assert index["grid"]["cols"] == 1440 and index["grid"]["rows"] == 721 and index["grid"]["bounds"]["east"] == 179.75
+    monkeypatch.delenv("FRAME_RASTER_CLOUD_0P25", raising=False)
+    assert not fsr.enabled("cloud_cover_0p25")
+    monkeypatch.setenv("FRAME_RASTER_CLOUD_0P25", "1")
+    assert fsr.enabled("cloud_cover_0p25")

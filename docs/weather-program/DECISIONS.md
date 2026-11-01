@@ -1751,3 +1751,94 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Still open:** ICON keeps the GFS donor for its own masked sea cells (its own values and rim extrapolation come later); EURO/ICON
   world static frames get the fill baked in by the same code (static-frames); the legacy 8-deg fill retires once nothing selects it;
   per-node provenance (`MARINE_FILL_PROVENANCE_NODES`, #502) stays dark.
+
+
+### D-051 · Inside the 19 GFS pilot boxes, zoom 7-9 is the stored NOAA GFS tile: the server serves it first and the client draws its bundles (both ON, 2026-10-25)
+
+- **The owner, 2026-10-23:** "Yes: make the stored NOAA GFS tile the single zoom 7-9 source inside the pilot boxes (server dark flag + client bundles), retire the Open-Meteo lane there, and flip both together after live parity passes." 2026-10-24 ~19:40 EDT: "Lets go with your recommendation if that is the best path forward" (the recommendation: 9 AM, both halves in one watched window).
+- **Server:** Render `MARINE_REGIONAL_TILE_FIRST` 0 -> 1 at 2026-10-25 13:27:03Z (deploy of b736e09b0, which adds only #558 over the
+  running 56deadc33; live 13:30:06Z). A GFS marine viewport that a stored pilot tile FULLY covers (the client's rule: smallest
+  containing tile, snapped box inside the data, margin-0 cover) is served from that tile, never the dynamic Open-Meteo cache or the
+  live series lane (#508).
+- **The gate, live parity (static-frames scn_tile_first_live_read.mjs, ONCE, 13:47:15-13:47:39Z, 15 min after the deploy):** PASS
+  3/3 boxes (florida_east_coast, us_southeast_midatlantic one degree inside the fractional -74.4 edge, uk_ireland). All 18 /grid
+  frames came from the stored tile with the bundle's exact lattice, 0 missing nodes, 0 validity mismatches, |dH| <= 0.0005 m (half
+  the codec step), direction and period exact. All 3 /grid_series pages took 6/6 frames from the tile; this read FAILS with the flag
+  off, so it has teeth (offline controls, 19 boxes, 2026-10-24). Health 0.16 s after.
+- **Client:** #552 merged at 13:52:17Z (fee207ac2): the regional bundles are ON by default (kill
+  `__RAW_DISABLE_REGIONAL_BUNDLES__`). Offline clean store, z8 Florida / z9 Biscay mid-tile: steps p95 9 / 14 ms, 0 mislabel,
+  0 stale frames, 0 backend asks for waves.
+- **Watch (13:55-15:00Z, D-050's triggers):** 13 probes, the in-box Florida z8 /grid from the tile every time in 0.19-0.50 s; app
+  err_5xx 0 on every route; edge 500s within the baseline (at most 9 per 10 min, no two buckets over 8 per 5 min); memory
+  484-766 MB (trigger 1,126); CPU at most 0.063. Weather /grid p95 1.4 s (n=10) after the restart. No trigger fired.
+- **Rollback:** Render `MARINE_REGIONAL_TILE_FIRST=0` (redeploys) and/or the client kill switch; reverting #552 restores the dark
+  default.
+- **Known misses, with owners:** tile EDGES (fractional extents) still wait on /grid and the server mixes regional and viewport
+  products there; the client's snapped-box rule declines those boxes (static-frames: pad the stored extent, draft #563). Model
+  toggles at z7-9 are not from the store yet (instant-scrub).
+
+### D-052 · The published EURO/ICON filled world sets use the box's targeted Gulf fill, and cloud cover draws from our own 0.25-degree GFS frames (both ON, 2026-10-26)
+
+- **The owner, 2026-10-26 ~02:30Z (23:02 EDT 10-25):** "Flip both: the MARINE_GULF_FILL_MID_TARGETED repo variable and cloud 0.25 deg (repo var, then the client key after one publish). Watch one ingest cycle." He had declined the first half at ~18:30Z 10-25 ("not right now"); the lead put it to him once more with the evidence below.
+- **Gulf fill (speed only, no served number):** repo variable `MARINE_GULF_FILL_MID_TARGETED` -> 1 at 01:31:33Z, so the publisher's
+  filled EURO/ICON world sets (#555, preloaded by #571) match Render's D-050 setting. The workflow comment: the two must be EQUAL, a
+  mismatch "costs speed, never a number" (the client serves a filled set only while /capabilities reports the same mode). Offline
+  evidence (world-frames-targeted-fill-2026-10-25): targeted filled sets vs /grid with the box targeted, 7 sets, 2,418,703 nodes,
+  161 comparisons, **0 bad** (max direction error 1.2e-5); positive control, the plain EURO/ICON sets, **3,082 bad** each.
+- **Cloud 0.25 deg (visual, ships ON with a kill switch):** repo variable `FRAME_RASTER_CLOUD_0P25` -> 1 at 01:31:52Z (#574's
+  opt-in pilots step, NCEP's full 1440 x 721 grid); the client's `DEFAULT_ON_LAYERS = ['satellite']` (this PR) draws the cloud
+  layer from `GFS/weather/cloud_cover/global_0p25` with no lever. Kill: `__RAW_DISABLE_RASTER_OWN_SATELLITE__` (or
+  `__RAW_DISABLE_RASTER_OWN_FRAMES__`); a miss falls back to the .om path; EURO/ICON keep the .om path (no cloud set). Measured
+  (#574, paired builds): per frame 0.111 -> 0.397 MB, toggle 290 -> 386 ms, steps p50/p95 unchanged (32/44 ms), GPU 4.2 MB per
+  resident frame, 0 Open-Meteo requests.
+- **Watch:** one pilots ingest (run 40257358504, dispatched 02:05:21Z). Read-back: see the log
+  `2026-10-26-claude-lead-flag-flips.md`.
+- **Rollback:** delete either repo variable (the next publish reverts that half); the cloud kill switch; reverting this PR restores
+  the dark default.
+
+### D-053 · The Gulf fill takes its GFS donor at the served frame's hour, and the ICON/EURO tails bake 12 h past run + 336 so the 2-deg tier reaches the scrubber's day-14 end (both ON, 2026-10-26)
+
+- **The owner, 2026-10-26 12:04Z (08:04 EDT):** "Flip both: set MARINE_GULF_FILL_DONOR_SERVED_TIME=1 on Render (read back one held ICON /grid past the tail: donor = the served hour's GFS), then MARINE_EXT_CEILING_MARGIN_H=12 as a repo variable, dispatch both ingest lanes and read back the 2-deg tails at now+336. Watch one cycle."
+- **Donor (#588):** Render `MARINE_GULF_FILL_DONOR_SERVED_TIME` 0 -> 1 at 12:12:22Z. That triggered a deploy of dev 4e0044461, which had no backend diff against the running 7d059314e; live 12:16:24Z.
+  - Paired live read, ICON world asked at 2026-11-09T12Z, served the 09Z frame (offset -3) both times. The donor went from GFS 12Z (the asked hour) to GFS 09Z (the served hour).
+  - Of 15,023 nodes, height changed at 124 (max 0.42 m) and direction at 132: only the fill's footprint.
+  - Note: an ask inside the tail (08Z, served 09Z) can't discriminate, because the nearest GFS is the served hour.
+- **Margin (#577):** repo variable `MARINE_EXT_CEILING_MARGIN_H` 0 -> 12 at 12:23:06Z. Core 40322129759 and pilots 40322134819 were dispatched at 12:23Z; both succeeded (13:58Z / 13:41Z).
+  - Read-back at now+336 (2026-11-09T14Z): ICON serves `icon_marine_waves_global_mid_20261109T150000Z_estimated`, EURO serves `euro_marine_waves_global_mid_20261109T150000Z_estimated`. Both are 2-deg global_mid at their own 3-h step (offset +1), not a hold, with the Gulf filled from GFS 15Z.
+  - EURO's last hours were the 10-deg GFS-ext estimate before (#576).
+  - Health before and after: err_5xx 0.
+- **Context:** `FAR_EDGE_HOLD_PREFER_MID` has been ON since 01:13:06Z (#576, the owner via the slice-2 session), so the donor defect was live on held ICON frames until 12:16Z.
+- **Rollback:** Render `MARINE_GULF_FILL_DONOR_SERVED_TIME=0`; delete the repo variable (the next bakes return to run + 336).
+
+### D-054 · The 19 GFS pilot tiles are stored on whole-degree bounds, so the edge bands of a pilot box come from the stored NOAA tile, not a dynamic fetch (ON, 2026-10-27)
+
+- **The owner, 2026-10-26 21:08Z (17:08 EDT):** "Do the GFS_PILOT_WHOLE_DEGREE_BOUNDS flip now per the runbook, with the full watch." The original approval was on 2026-10-25 at 13:18 EDT: "yes if that is state of the art thinking".
+- **Code (#563):** with the flag on, the GFS pilot ingest pads each tile's request box out to whole degrees. Before, 16 of the 75 regional sets had fractional bounds (for example Azores north 40.0 instead of 41.0, US Northeast west -76.1 instead of -77.0), so a viewport at a box edge got part tile and part on-demand fetch.
+- **Flip:**
+  - Repo variable `GFS_PILOT_WHOLE_DEGREE_BOUNDS=1` at 2026-10-26 21:19:59Z; dispatched pilots 40403486736 and core 40403510531.
+  - Pilots 40403486736 published nothing: its frames step hit an HTTP 429 reading `latest.json`. Scheduled pilots 40419270962 (created 23:22:09Z) published the padded sets at 00:28:53Z.
+  - CDN check (`verify_padded_tiles.py --after 23:22:09Z`): 75 sets, 16 fractional now padded, 0 bad, 0 refused.
+  - Render `GFS_PILOT_WHOLE_DEGREE_BOUNDS=1` at 01:06:54Z; deploy live 01:10:19Z.
+- **Read-back (01:49Z, one live scenario, health-gated):** 4 edge boxes, all from the stored tile, padded, 0 missing nodes. Before the flip, offline, Azores north and US Northeast west were mixed, part stored tile and part dynamic fetch. Per-hour cold 0.13-1.05 s, warm 0.12-0.16 s; series 3/3 from the tile.
+- **Watch (01:10-02:54Z):** no trigger. CPU 0.002-0.065, memory 460-709 MB (trigger 1,126 MB), 0 5xx, health 200.
+- **Found on the way:** the regional static frames had been unpublished from 13:31Z to 00:28Z behind green runs (a 429 read, and a coverage gate counting older-run past hours). The fix is #603.
+- **Served numbers:** values at a pilot box's edge band move from a dynamic upstream fetch to the stored GFS tile of the same model and cycle.
+- **Rollback:** Render `GFS_PILOT_WHOLE_DEGREE_BOUNDS=0`, repo variable 0, then re-dispatch both ingest lanes.
+
+### D-055 · The ICON/EURO estimated tails publish as CDN frames, so scrubbing past ICON's native range and EURO's 240 h draws from the frame store (ON, 2026-10-27)
+
+- **The owner, 2026-10-26:** "Make sure we're flipping everything on that we need to fix the issues. Merging. Fixing conflicts. And pushing." This follows his live bug report the same day: ICON showed "nearest stored forecast beyond native range" and instant scrubbing did not work there, and EURO had delays scrubbing.
+- **Code:** #548 builds the frames; #597 makes the publish budget (600 -> 960 s) and the download cap (320) follow the flag; the readiness harness compared 664 asks with 0 disagreements and 0 bad nodes of 5.0 M. Speed only: the frames are the products `/grid` already serves for those hours.
+- **Flip:** repo variable `FRAME_TAIL_DOWNLOAD=1` at 2026-10-27 03:32:39Z, after #603 landed so the publish it rides on is not refused. Dispatched pilots 40444767755 (one flag in the run).
+- **Read-back (`tail_census.py`, same instrument as the 03:30Z baseline), latest.json written 05:26:51Z:**
+  - EURO waves estimated tail 2/41 -> **53/53** built (filled set too).
+  - ICON swell_1 and wind_waves 0/63 -> **63/63**; ICON waves 58/63 -> **63/63** (plain and filled).
+  - Last built valid time 2026-11-10T09Z on all 8 sets (it was 11-02T12Z for ICON swell_1/wind_waves, 11-09T18Z for the rest). Authoritative counts unchanged.
+  - Publish step green, its warn step skipped, 5,160 parity-ok lines, 0 parity failures, 0 refusals; 88 of 90 sets rewritten.
+- **Live read (06:03-06:19Z, one scenario on dev--rawsurf at dcc514bf3, z4.6, health 0 5xx before and after):**
+  - ICON past h168 now draws from the store: h200 8 ms, h252 13 ms, h300 0 ms, h336 4 ms, labelled "beyond ICON's native range". A first visit to a far hour that is not prefetched costs one CDN fetch (ICON h168 372 ms; EURO h300 340 ms, h336 414 ms on the first pass, about 10 ms on revisits).
+  - Model switches at mid zoom: 0 blank frames (EURO 3 ms, ICON 33 ms; #602). 0 blank and 0 silently mislabelled frames across every action.
+  - Surf Rating band: OFF 66 ms with 0 rating frames after it (#598). ON took 4.4 s through `/grid`; rating frames have no CDN set yet.
+  - **Found:** from EURO's 144 h step to 240 h (timeline hour 126 onward with an 18 h-old run) the status line reads "Loading X… still showing Y" for good on every in-between hour, with no request in flight. The drawn frame is the server's nearest stored 6-hourly product. `latticeNearestMaxHours` (drawnFrameReadout.js) keys EURO's 6-hourly half-step off the timeline hour (`hour > 144`), not the model step (valid time minus run). Handed to the frame-store session.
+- **Served numbers:** none move. The same products now come from the CDN.
+- **Rollback:** `gh variable set FRAME_TAIL_DOWNLOAD --body 0`; the next publish lists the tails unbuilt and `/grid` serves them, as before.
