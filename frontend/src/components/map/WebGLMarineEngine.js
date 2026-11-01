@@ -61,9 +61,10 @@ import {
   // 2026-08-01 commit-gate move, so this file only RE-EXPORTS it now (see the export below, which
   // needs no local binding). Importing it as well is an unused-import warning, not a no-op.
   shouldRejectMaskShrink, shouldKeepResidentOnNullEncode, isMagnifiedCoarseField,
-  trimDeadEdges, applySharpenOpacityEase, resolveColdVeil, resolveCoarseCrestControls,
+  trimDeadEdges, applySharpenOpacityEase, resolveCoarseCrestControls,
   resolveAnimValue, coarseBaseKey, edgeUncoveredMs,
 } from './marineEngineDecisions';
+import { applyColdVeil, clearColdVeil } from './marineColdVeil';   // the veil per frame + its status-line phase (D3)
 import { setHeatmapGateUniforms, resolveWashOverlayMode, resolveOverlayTruthUv, setOverlayTruthUniforms } from './marineCoverageContract';
 
 export {
@@ -1780,23 +1781,12 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // COLD-ACTIVATION COARSE VEIL apply (see resolveColdVeil + the setWaveData stamp): final
     // multiplier over the fully-composed opacity — the ease/coarseFade/band machinery above is
     // untouched. Engages only while the cold window's resident is the coarse-global at a coastal
-    // viewport; regional sharpen (or grace/zoom-out/rating) lifts it with a 350 ms ramp.
+    // viewport; regional sharpen (or grace/zoom-out/rating) lifts it with a 350 ms ramp. marineColdVeil.js also tells the
+    // status line while it hides the field (D3: "Loading the detailed forecast…", never "Showing …" over an empty sea).
     {
-      const _cvNow = (typeof performance !== 'undefined') ? performance.now() : Date.now();
-      const _cvSpan = (vb[2] < vb[0]) ? (vb[2] + 360 - vb[0]) : (vb[2] - vb[0]);
-      const _cv = resolveColdVeil(this._coldVeil, {
-        residentCoarseGlobal: _residentCoarseGlobal,
-        viewportSpanDeg: _cvSpan,
-        isRating: !!(this._waveData.waveGrid && this._waveData.waveGrid.ratingMode),
-        debugIsolate: window.__WEATHER_DEBUG_ISOLATE_OVERLAY__ === true,
-      }, _cvNow, typeof window !== 'undefined' ? window : undefined);
-      this._coldVeil = _cv.veil;
-      if (_cv.mult < 1.0) heatmapOpacity *= _cv.mult;
-      if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-        window.__RAW_GPU__.coldVeil = _cv.veil
-          ? { mult: +_cv.mult.toFixed(3), lifted: !!_cv.veil.liftT0, reason: _cv.veil.reason || null }
-          : null;
-      }
+      const _cvMult = applyColdVeil(this, { residentCoarseGlobal: _residentCoarseGlobal, vb, grid: this._waveData.waveGrid,
+        isRating: !!(this._waveData.waveGrid && this._waveData.waveGrid.ratingMode), debugIsolate: window.__WEATHER_DEBUG_ISOLATE_OVERLAY__ === true });
+      if (_cvMult < 1.0) heatmapOpacity *= _cvMult;
     }
 
     // TINY-TILE VIVIDNESS PARITY (2026-07-19, the user's "strange clamping" caught by the
@@ -3185,6 +3175,7 @@ WebGLMarineEngine.prototype.clearBuffers = function(gl) {
     }
     this._waveData = null;
   }
+  clearColdVeil();   // nothing resident: no veil words (D3)
 };
 WebGLMarineEngine.prototype.dispose = function(gl) {
   // §2d: clearBuffers (called inside disposeEngine) retains the coarse-base LRU across layer
