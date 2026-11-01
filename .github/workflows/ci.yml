@@ -181,7 +181,8 @@ jobs:
             // ICON one-instant range (2026-10-28, stacked on #623): iconOneInstantRange.test.js (+1 suite / +5 tests). Raised by exactly that.
             // Nearest by stored lattice (2026-10-28, D8): storedLattice.test.js (+1 suite / +7 tests). Raised by exactly that.
             // Forecast point settle (2026-10-28, D10): useOpenMeteoForecast.d10.test.js (+1 suite / +5 tests). Raised by exactly that.
-            const MIN_SUITES = 527, MIN_TESTS = 6919;
+            // ICON point stored tail (2026-11-01, P1-B, dark): iconPointStoredTail.test.js (+1 suite / +4 tests). Raised by exactly that.
+            const MIN_SUITES = 528, MIN_TESTS = 6923;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
