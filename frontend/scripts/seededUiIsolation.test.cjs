@@ -374,3 +374,61 @@ test('invalid origin configuration fails before any fixture is installed and nev
     });
   }
 });
+
+
+test('socket rejection receipts explain observed state without a second session read or private URL values', async () => {
+  const cases = [
+    { name: 'no owner', owners: [], count: 0, observed: false, match: false, stored: null },
+    { name: 'ambiguous owner', owners: [page(), page()], count: 2, observed: false, match: false, stored: null },
+    { name: 'unknown identity', owners: [page({ id: 'fictional-private-identity' })], count: 1, observed: true, match: false, stored: false },
+    { name: 'stored token', owners: [page({ id: IDS[0], access_token: 'fictional-stored-secret' })], count: 1, observed: true, match: true, stored: true },
+    { name: 'query name', owners: [page()], count: 1, observed: true, match: true, stored: false, query: true },
+    { name: 'empty query name', owners: [page()], count: 1, observed: true, match: true, stored: false, query: true, empty: true },
+    { name: 'unavailable evaluation', owners: [page()], count: 1, observed: false, match: false, stored: null, unavailable: true },
+    { name: 'closed owner', owners: [Object.assign(page(), { closed: true })], count: 0, observed: false, match: false, stored: null },
+    { name: 'foreign owner', owners: [page(undefined, 'https://other.invalid')], count: 0, observed: false, match: false, stored: null },
+    { name: 'call mismatch', owners: [page({ id: IDS[1] })], count: 1, observed: true, match: true, stored: false, mismatch: true },
+  ];
+  for (const c of cases) {
+    let reads = 0;
+    for (const owner of c.owners) {
+      const evaluate = owner.evaluate.bind(owner);
+      owner.evaluate = async fn => { reads += 1; if (c.unavailable) throw new Error('Fictional evaluation unavailable'); return evaluate(fn); };
+    }
+    const f = await fixture(c.owners);
+    const path = c.mismatch ? `/api/ws/call/${IDS[0]}` : '/realtime/v1/websocket';
+    const origin = c.mismatch ? WS : 'wss://fictional-user:fictional-password@custom-realtime.invalid:8443';
+    const suffix = c.query ? `?token=${c.empty ? '' : 'fictional-query-secret'}&unused=fictional-unrelated-secret#fictional-fragment` : '?unused=fictional-unrelated-secret#fictional-fragment';
+    const calls = await socket(f, path + suffix, origin);
+    assert.deepEqual(calls.closed, [{ code: 1008, reason: 'Synthetic UI fixture: no server connection' }], c.name);
+    assert.equal(calls.serverConnections, 0, c.name);
+    assert.equal(reads, c.count === 1 ? 1 : 0, c.name);
+    assert.equal(f.result.stats.blocked, 1, c.name);
+    assert.equal(f.result.stats.callSockets + f.result.stats.realtimeSockets, 0, c.name);
+    const violation = f.result.violations[0];
+    assert.equal(violation.kind, 'unexpected-socket-session', c.name);
+    assert.deepEqual(violation.socket, {
+      origin: c.mismatch ? WS : 'wss://custom-realtime.invalid:8443',
+      kind: c.mismatch ? 'call' : 'realtime', matchingPageCount: c.count,
+      sessionObserved: c.observed, syntheticIdMatch: c.match,
+      storedTokenPresent: c.stored, callMismatch: !!c.mismatch, tokenQueryPresent: !!c.query,
+    }, c.name);
+    assert.doesNotMatch(JSON.stringify(f.result), /fictional-(?:user|password|private-identity|stored-secret|query-secret|unrelated-secret|fragment)/);
+    assert.throws(() => f.result.assertNoViolations(), /violation/);
+  }
+});
+
+test('valid tokenless socket owners retain counters, no rejection receipt, one read and no server transport', async () => {
+  for (const id of IDS) for (const path of ['/realtime/v1/websocket', `/api/ws/call/${id}`]) {
+    const owner = page({ id });
+    const f = await fixture([owner]);
+    const calls = await socket(f, path);
+    assert.equal(calls.closed[0].code, 1008);
+    assert.equal(calls.serverConnections, 0);
+    assert.equal(owner.evaluations.length, 1);
+    assert.equal(f.result.stats.callSockets + f.result.stats.realtimeSockets, 1);
+    assert.equal(f.result.stats.blocked, 0);
+    assert.deepEqual(f.result.violations, []);
+    f.result.assertNoViolations();
+  }
+});
