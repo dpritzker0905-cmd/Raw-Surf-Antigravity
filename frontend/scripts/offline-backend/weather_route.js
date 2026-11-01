@@ -111,7 +111,7 @@ async function routeWeatherToLocal(target, { liveOrigin, local, timeoutMs = 1200
     let response;
     try {
       const options = { url: localUrlFor(url, local), timeout: timeoutMs };
-      if (trace) options.headers = { ...await request.allHeaders(), [HEADER]: trace.id };
+      if (trace) options.headers = { ...request.headers(), [HEADER]: trace.id };
       response = await route.fetch(options);
       if (trace) {
         const backendId = response.headers()[HEADER];
