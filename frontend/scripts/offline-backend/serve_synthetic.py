@@ -38,6 +38,10 @@ TIERS = (("global_mid", WORLD, RES, "gfs_marine_waves_global_mid_"),
 # backend/services/weather_pipeline/pilot_regions.py, read from there so the fixture cannot drift from the ingest). Without them
 # every frame here carried world bounds and the client's land mask was always REUSED, which hid the per-switch 4096 x 2048 mask
 # rebuilds the owner's console showed (`--regions florida_east_coast,us_southeast_midatlantic`, or `flagship` / `all`).
+# `all` = EVERY GFS pilot box (2026-10-24): the 14 of REGIONAL_CONFIGS + WORLDWIDE_COASTAL_REGIONS plus GFS_MARINE_EXTRA_REGIONS and
+# GFS_MARINE_STAGE_B_REGIONS (canaries_madeira_morocco, caribbean_pr_dr, centralamerica_caribbean, srilanka_maldives,
+# us_pacific_northwest) = 19, the same 19 the client's rule fixture (src/tests/fixtures/regional_rule_boxes.json) holds. It knew 14,
+# so a "19-box" parity run silently covered 14 (the 2026-10-24 tile-first parity patched this locally to cover all 19).
 REGIONAL_RES = 0.25
 
 
@@ -46,8 +50,9 @@ def regional_tiers(region_ids):
     if not region_ids:
         return ()
     sys.path.insert(0, str(BACKEND))
-    from services.weather_pipeline.pilot_regions import REGIONAL_CONFIGS, WORLDWIDE_COASTAL_REGIONS
-    known = {**REGIONAL_CONFIGS, **WORLDWIDE_COASTAL_REGIONS}
+    from services.weather_pipeline.pilot_regions import (
+        GFS_MARINE_EXTRA_REGIONS, GFS_MARINE_STAGE_B_REGIONS, REGIONAL_CONFIGS, WORLDWIDE_COASTAL_REGIONS)
+    known = {**REGIONAL_CONFIGS, **WORLDWIDE_COASTAL_REGIONS, **GFS_MARINE_EXTRA_REGIONS, **GFS_MARINE_STAGE_B_REGIONS}
     if region_ids == ("all",):
         region_ids = tuple(known)
     elif region_ids == ("flagship",):
@@ -56,7 +61,10 @@ def regional_tiers(region_ids):
     for rid in region_ids:
         if rid not in known:
             raise SystemExit("unknown region %r (pilot_regions has %s)" % (rid, ", ".join(sorted(known))))
-        cfg = known[rid]
+        # GFS_PILOT_WHOLE_DEGREE_BOUNDS=1 (dark, 2026-10-25): the tile as the GFS pass then stores it, padded to whole degrees on
+        # its fractional edges (pilot_regions.whole_degree_regions), so the offline store matches the flagged ingest.
+        from services.weather_pipeline.pilot_regions import whole_degree_regions
+        cfg = whole_degree_regions({rid: known[rid]})[rid]
         bounds = {k: float(cfg[k]) for k in ("west", "south", "east", "north")}
         out.append((rid, bounds, float(cfg.get("resolution", REGIONAL_RES)), "_%s_" % rid))
     return tuple(out)
@@ -74,6 +82,42 @@ VORTEX_PEAK = 6.5
 LAND_MASK = False
 LAND_BOXES = ((-125.0, 25.0, -70.0, 60.0), (-75.0, -50.0, -40.0, 5.0), (-10.0, 0.0, 40.0, 60.0), (60.0, 20.0, 130.0, 60.0),
               (115.0, -35.0, 150.0, -20.0))
+
+
+# WAVE LAKES (2026-10-23, `--wave-lakes 1`; the client's waveLakes.js): #497 makes EURO (ECMWF WAM) carry its own values on the
+# Great Lakes, Winnipeg and Victoria while GFS and ICON have none there. With the flag, a node whose cell touches one of these lake
+# boxes is LAND (is_valid false) for every model but EURO, and VALID for EURO; Victoria's region (outside the Africa box) is land too.
+WAVE_LAKES = False
+WAVE_LAKE_BOXES = ((-92.2, 46.4, -84.3, 49.0), (-88.1, 41.6, -84.7, 46.1), (-84.8, 43.0, -79.7, 46.4), (-83.5, 41.4, -78.8, 42.9),
+                   (-79.9, 43.2, -76.0, 44.3), (-99.3, 50.3, -96.2, 53.9), (31.5, -3.1, 34.9, 0.5))
+WAVE_LAKE_LAND = ((28.0, -12.0, 42.0, 0.0),)   # East Africa around Victoria (the Africa land box stops at the equator)
+
+
+def on_wave_lake(lat, lng, res):
+    h = res / 2.0
+    return WAVE_LAKES and any(lng + h >= w and lng - h <= e and lat + h >= s and lat - h <= n for (w, s, e, n) in WAVE_LAKE_BOXES)
+
+
+# ENCLOSED SEAS (2026-10-24, `--enclosed-seas 1`; the targeted Gulf fill, D-050, and its baked world frames, frame_set_fill.py):
+# EURO's and ICON's own 2-deg grids mask sea that GFS's grid keeps (live: EURO 870 GFS-sea nodes, Gulf 15/59, Med 44/113; ICON
+# 125). The land mask alone masks the SAME nodes in every model, so the targeted fill (GFS sea only) has nothing to do offline.
+# With the flag, these open-water boxes are masked in EURO and ICON 2-deg products only (the 10-deg tier and GFS keep them).
+ENCLOSED_SEAS = False
+ENCLOSED_SEA_BOXES = ((-88.0, 9.0, -76.0, 22.0), (131.0, 33.0, 142.0, 52.0), (-20.0, -30.0, -12.0, -22.0))
+
+
+def lake_land(lat, lng, res, model):
+    """None: the wave-lakes fixture has no say; True / False: this node is land / water under it."""
+    if ENCLOSED_SEAS and model in ("EURO", "ICON") and res < 5.0 and any(
+            w <= lng <= e and s <= lat <= n for (w, s, e, n) in ENCLOSED_SEA_BOXES):
+        return True                   # the enclosed-seas fixture: masked by EURO / ICON, sea for GFS (and wins over the lakes)
+    if not WAVE_LAKES:
+        return None
+    if on_wave_lake(lat, lng, res):
+        return model != "EURO"
+    if any(w <= lng <= e and s <= lat <= n for (w, s, e, n) in WAVE_LAKE_LAND):
+        return True
+    return None
 
 
 def is_land(lat, lng, res=2.0):
@@ -231,6 +275,44 @@ def estimate_basis(valid_time, region_id, run_time):
     }
 
 
+# EURO'S REGIONAL ESTIMATED TAIL (2026-10-27, `--euro-regional-estimated-after H`; the z9 h141-155 stall). Live read 17:08Z: a z9
+# EURO waves ask over Florida is served the florida_east_coast REGIONAL tile, an estimate past the regional native anchor
+# (`euro_persistence_gfs_blend`, provider "estimated", model_run_time null / "conflicting"), on a 3-hourly lattice straight through
+# the global tier's 6-hourly WAM band. With the flag, EURO waves regional tiles past H hours of lead carry those fields, every 3 h.
+EURO_REGIONAL_ESTIMATED_AFTER = None
+
+
+def euro_regional_estimate_basis(valid_time, region_id, run_time, anchor_lead):
+    stamp = valid_time.strftime("%Y%m%dT%H%M%SZ")
+    anchor = run_time + timedelta(hours=anchor_lead)
+    a_stamp = anchor.strftime("%Y%m%dT%H%M%SZ")
+    return {
+        "type": "euro_persistence_gfs_blend", "target_valid_time": valid_time.isoformat(), "layer": "waves",
+        "region_id": region_id, "tile_id": region_id, "native_limit_hours": EURO_NATIVE_HOURS,
+        "euro_anchor_product_id": f"euro_marine_waves_{region_id}_{a_stamp}.json",
+        "gfs_anchor_product_id": f"gfs_marine_waves_{region_id}_{a_stamp}.json",
+        "gfs_target_product_id": f"gfs_marine_waves_{region_id}_{stamp}.json",
+        "icon_anchor_product_id": None, "icon_target_product_id": None,
+        "weights": {"persistence": 0.025, "gfs": 0.975, "icon": 0.0}, "confidence": 0.28,
+        "euro_anchor_valid_time": anchor.isoformat(), "gfs_anchor_valid_time": anchor.isoformat(),
+        "gfs_target_valid_time": valid_time.isoformat(), "anchor_delta_hours": 0.0, "target_delta_hours": 0.0,
+        "cycle_semantics": "shared_contributor_cycle", "cycle_sources": [],
+    }
+
+
+def euro_regional_estimated_dict(run_time, valid_time, h, filename, region_id, bounds, res):
+    """A EURO waves regional tile as production stores its estimated tail (fields read live, 2026-10-27 17:08Z)."""
+    body = product_dict(run_time, valid_time, h, filename, region_id, bounds, res, "EURO", False, "waves")
+    iso = lambda d: d.strftime("%Y-%m-%dT%H:%M:%SZ")  # noqa: E731
+    body.update({
+        "run_time": iso(run_time + timedelta(hours=6, minutes=29)), "model_run_time": None, "model_run_time_status": "conflicting",
+        "ingested_at": None, "is_forecast_authoritative": False, "is_estimated": True, "freshness_sec": 1800,
+        "estimate_basis": euro_regional_estimate_basis(valid_time, region_id, run_time, EURO_REGIONAL_ESTIMATED_AFTER),
+        "provider": "estimated", "upstream_provider": None, "source_dataset": "estimated_blend",
+    })
+    return body
+
+
 def product_dict(run_time, valid_time, h, filename, region_id="global_mid", bounds=WORLD, res=RES, model="GFS", estimated=False,
                  layer="waves"):
     rows = int(round((bounds["north"] - bounds["south"]) / res)) + 1
@@ -245,7 +327,8 @@ def product_dict(run_time, valid_time, h, filename, region_id="global_mid", boun
             hs, direction, period = layer_field(layer, hs, direction, period, lat, lng, h)
             hs = round(max(0.1, hs * scale), 3)
             rad = math.radians(direction)
-            if is_land(lat, lng, res):
+            ll = lake_land(lat, lng, res, model)
+            if ll is True or (ll is None and is_land(lat, lng, res)):
                 vectors.append({"lat": lat, "lng": lng, "speed": 0.0, "direction": 0.0, "u": 0.0, "v": 0.0, "period": None,
                                 "is_valid": False})
                 continue
@@ -482,18 +565,26 @@ def install_stale_window(app):
     from services.weather_pipeline import grid_resolver
     original = grid_resolver.resolve_grid
 
+    memo = {}   # --stale-fast: one resolve per request while the window is on (production serves its SWR preview from cache)
+
     async def resolve_grid(store, viewport_service, **kw):
         t_in = time.time()
-        product = await original(store, viewport_service, **kw)
         request = kw.get("request")
         path = getattr(getattr(request, "url", None), "path", "") or ""
         if not path.endswith("/weather/grid") or not stale_window_matches(kw.get("model"), kw.get("domain"), kw.get("layer"),
                                                                           kw.get("bbox")):
-            return product
+            return await original(store, viewport_service, **kw)
         if STALE["arm_on_first"]:
             arm_stale_window(STALE["seconds"], STALE["scope"], STALE["model"], STALE["layer"], STALE["stride"], now=t_in)
-        cols = getattr(getattr(product, "grid", None), "cols", None)
         stale = STALE["until"] is not None and t_in < STALE["until"]
+        key = tuple(str(kw.get(k)) for k in ("model", "domain", "layer", "valid_time", "bbox", "surf"))
+        if stale and STALE.get("fast") and key in memo:
+            product = memo[key]
+        else:
+            product = await original(store, viewport_service, **kw)
+            if stale and STALE.get("fast"):
+                memo[key] = product
+        cols = getattr(getattr(product, "grid", None), "cols", None)
         served = coarsen_stale(product, STALE["stride"]) if stale else None
         STALE["log"].append({"t_in_ms": round(t_in * 1000), "t_out_ms": round(time.time() * 1000), "stale": served is not None,
                              "valid_time": kw.get("valid_time"), "bbox": kw.get("bbox"), "fresh_cols": cols,
@@ -522,6 +613,82 @@ def install_stale_window(app):
 # direction and period 2 dp, confidence 4 dp, u = -h sin d and v = -h cos d at 4 dp for uv convention 0). The 10-deg
 # global_coarse is every 5th node of the same field (a lab stand-in, not production's block mean; diagnostics say so).
 # Models and layers other than GFS waves stay synthetic.
+def _real_vectors(dec, stride=1, north_cap=None):
+    """The client codec's node values (staticFrameCodec.buildVectors) for a decoded RSWF frame, every `stride`-th node."""
+    cols, rows = dec["cols"], dec["rows"]
+    west, south, east, north = dec["bounds"]
+    sign = 1.0 if dec["uv_convention"] == 1 else -1.0
+    H, D, P, C = (dec["fields"].get(k) for k in (0, 1, 2, 3))
+    r2, r4 = (lambda x: round(x + 0.0, 2)), (lambda x: round(x + 0.0, 4))
+    vectors = []
+    for r in range(0, rows, stride):
+        lat = round(south + r * (north - south) / (rows - 1), 6)
+        if north_cap is not None and lat > north_cap:
+            continue
+        for c in range(0, cols, stride):
+            i = r * cols + c
+            lng = round(west + c * (east - west) / (cols - 1), 6)
+            h = H[i]
+            d = r2(D[i]) if D and D[i] is not None else 0.0
+            p = r2(P[i]) if P and P[i] is not None else None
+            q = r4(C[i]) if C and C[i] is not None else None
+            if h is None:
+                vectors.append({"lat": lat, "lng": lng, "speed": 0.0, "direction": d, "u": 0.0, "v": 0.0, "period": p,
+                                "is_valid": False, "dir_confidence": q})
+                continue
+            s = r4(h)
+            rad = math.radians(d)
+            vectors.append({"lat": lat, "lng": lng, "speed": s, "direction": d, "u": r4(sign * s * math.sin(rad)),
+                            "v": r4(sign * s * math.cos(rad)), "period": p, "is_valid": True, "dir_confidence": q})
+    return vectors
+
+
+def real_regional_products(frames_dir, region_ids):
+    """[(region_id, filename, body, resolution)] for every GFS waves REGIONAL set in `frames_dir`'s latest.json whose bundle is on disk
+    and whose region is in `region_ids` (2026-10-24, the regional z7-9 instant scrub): each frame is the REAL stored tile, sliced from
+    the published bundle (a gzip member, byte for byte the per-frame object) and written as the product the resolver's Step 3 clips,
+    so a bundle frame cropped in the browser can be compared node by node with the resolver's own tile clip."""
+    sys.path.insert(0, str(BACKEND))
+    from services.frame_binary import decode_frame
+    root = Path(frames_dir)
+    latest = json.loads((root / "v1" / "latest.json").read_text(encoding="utf-8"))
+    out = []
+    for key, entry in sorted(latest.get("sets", {}).items()):
+        parts = key.split("/")
+        if len(parts) != 4 or parts[:3] != ["GFS", "marine", "waves"] or parts[3].startswith("global_") or parts[3] not in region_ids:
+            continue
+        if not entry.get("bundle") or not (root / entry["bundle"]["path"]).exists() or not (root / entry["index"]).exists():
+            continue
+        index = json.loads((root / entry["index"]).read_text(encoding="utf-8"))
+        bundle = (root / entry["bundle"]["path"]).read_bytes()
+        common = index.get("common_meta") or {}
+        cov = index["grid"]["bounds"]
+        for fr in index["frames"]:
+            if fr.get("offset") is None:
+                continue
+            dec = decode_frame(bundle[fr["offset"]:fr["offset"] + fr["length"]])
+            meta = {**common, **(fr.get("meta") or {})}
+            vectors = _real_vectors(dec)
+            lats = sorted({v["lat"] for v in vectors}); lngs = sorted({v["lng"] for v in vectors})
+            filename = meta["product_id"]
+            body = {
+                "model": "GFS", "domain": "marine", "layer": "waves", "run_time": meta.get("run_time"),
+                "model_run_time": meta.get("model_run_time"), "model_run_time_status": meta.get("model_run_time_status") or "known",
+                "ingested_at": meta.get("ingested_at"), "valid_time": fr["valid_time"],
+                "is_forecast_authoritative": bool(meta.get("is_forecast_authoritative", True)), "is_estimated": bool(fr.get("is_estimated")),
+                "estimate_basis": meta.get("estimate_basis"), "coverage": dict(cov),
+                "grid": {"bounds": {"west": lngs[0], "south": lats[0], "east": lngs[-1], "north": lats[-1]}, "cols": len(lngs),
+                         "rows": len(lats), "vectors": vectors, "diagnostics": {"source": "stored"}},
+                "value_kind": "wave_height", "value_unit": "m", "display_unit_hint": "ft", "product_id": filename,
+                "source_variables": meta.get("source_variables") or ["wave_height"], "freshness_sec": meta.get("freshness_sec") or 3600,
+                "region_id": parts[3], "resolution": None, "coverage_mode": "regional_tile",
+                "provider": meta.get("provider") or "open-meteo", "upstream_provider": meta.get("upstream_provider") or "noaa",
+                "source_dataset": meta.get("source_dataset") or "ncep_gfswave025",
+            }
+            out.append((parts[3], filename, body, REGIONAL_RES))
+    return out
+
+
 def real_frame_products(frames_dir):
     """[(filename, body, resolution)] for the GFS waves global_mid run in `frames_dir` and its derived global_coarse."""
     sys.path.insert(0, str(BACKEND))
@@ -614,10 +781,20 @@ def build_store(directory, horizon_hours, step_hours, now=None, models=("GFS", "
                     (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
                     entries.append(manifest_entry(body, filename, res))
             for layer in (x for x in layers if x != "wind"):
-                if (model == "EURO" and layer == "waves" and not estimated
-                        and lead > timedelta(hours=EURO_WAVES_6H_AFTER) and (lead.total_seconds() / 3600) % 6):
-                    continue      # the 6-hourly WAM band: no stored frame at this 3-h slot (production fills it server-side)
+                six_hourly_gap = (model == "EURO" and layer == "waves" and not estimated
+                                  and lead > timedelta(hours=EURO_WAVES_6H_AFTER) and (lead.total_seconds() / 3600) % 6)
+                euro_reg_est = (model == "EURO" and layer == "waves" and EURO_REGIONAL_ESTIMATED_AFTER is not None
+                                and lead > timedelta(hours=EURO_REGIONAL_ESTIMATED_AFTER))
                 for region_id, bounds, res, _stem in tiers_for(model, layer, regions):
+                    regional = region_id not in ("global_mid", "global_coarse")
+                    if six_hourly_gap and not (regional and euro_reg_est):
+                        continue  # the 6-hourly WAM band: no stored frame at this 3-h slot (the regional estimated tail has one)
+                    if regional and euro_reg_est:
+                        filename = f"{model.lower()}_marine_{layer}_{region_id}_{stamp}_estimated.json"
+                        body = euro_regional_estimated_dict(run_time, vt, i * step_hours, filename, region_id, bounds, res)
+                        (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
+                        entries.append(manifest_entry(body, filename, res))
+                        continue
                     suffix = "_estimated" if estimated else ""
                     filename = f"{model.lower()}_marine_{layer}_{region_id}_{stamp}{suffix}.json"
                     body = product_dict(run_time, vt, i * step_hours, filename, region_id, bounds, res, model, estimated, layer)
@@ -635,6 +812,17 @@ def build_store(directory, horizon_hours, step_hours, now=None, models=("GFS", "
             (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
             entries.append(manifest_entry(body, filename, res))
         real = {"index": index.get("path"), "run": index.get("run"), "frames": sum(1 for f in index["frames"] if f.get("path"))}
+        # The REAL stored tiles of the regional sets the copy carries a bundle for (only regions the store was asked for: --regions).
+        asked = {r[0] for r in regions}
+        reg = real_regional_products(real_frames, asked)
+        for rid in sorted({r[0] for r in reg}):
+            for e in [e for e in entries if e["model"] == "GFS" and e["layer"] == "waves" and e["region_id"] == rid]:
+                entries.remove(e)
+                (directory / e["filename"]).unlink(missing_ok=True)
+        for rid, filename, body, res in reg:
+            (directory / filename).write_text(json.dumps(body, separators=(",", ":")), encoding="utf-8")
+            entries.append(manifest_entry(body, filename, res))
+        real["regional"] = sorted({r[0] for r in reg})
     if real_wind:
         # The real GFS wind run REPLACES the synthetic GFS wind world tiers (the other models stay synthetic).
         drop = [e for e in entries if e["model"] == "GFS" and e["domain"] == "wind" and e["region_id"] in ("global_mid", "global_coarse")]
@@ -690,6 +878,9 @@ def main():
     ap.add_argument("--stale-model", default="", help="only this model (default every model)")
     ap.add_argument("--stale-layer", default="", help="only this layer (default every layer)")
     ap.add_argument("--stale-stride", type=int, default=3, help="the stale grid keeps every Nth latitude and longitude")
+    ap.add_argument("--stale-fast", choices=["0", "1"], default="0",
+                    help="1 = a repeat of the same /grid inside the window is answered from the first resolve (fast, as production's "
+                         "cached SWR preview is); 0 = every stale answer re-runs the resolver (seconds each on a loaded machine)")
     ap.add_argument("--real-frames", default="",
                     help="a local copy of the weather-frames bucket: GFS waves global_mid (and its coarse stand-in) become the real "
                          "published run (see REAL FRAMES above)")
@@ -698,11 +889,23 @@ def main():
     ap.add_argument("--land-mask", choices=["0", "1"], default="0",
                     help="mark continent boxes as land (is_valid false, speed 0) in every marine product, as real stored products "
                          "carry it; serve-time transforms of masked cells (the EURO/ICON world Gulf fill) then run offline")
+    ap.add_argument("--wave-lakes", choices=["0", "1"], default="0",
+                    help="EURO carries the Great Lakes, Winnipeg and Victoria (#497); every other model has them as land (WAVE LAKES above)")
+    ap.add_argument("--enclosed-seas", choices=["0", "1"], default="0",
+                    help="EURO and ICON 2-deg products mask open-water boxes GFS keeps (ENCLOSED SEAS above): the targeted fill's work")
+    ap.add_argument("--euro-regional-estimated-after", type=float, default=None,
+                    help="EURO waves regional tiles past this lead (h) are production's 3-hourly euro_persistence_gfs_blend "
+                         "estimate (EURO'S REGIONAL ESTIMATED TAIL above); default: native like the global tiers")
+    ap.add_argument("--series-diagnostics", action="store_true",
+                    help="emit correlated synthetic series observations (off for ordinary benchmarks)")
     ap.add_argument("--build-only", action="store_true")
     args = ap.parse_args()
-    global VORTEX_PEAK, LAND_MASK
+    global VORTEX_PEAK, LAND_MASK, WAVE_LAKES, ENCLOSED_SEAS, EURO_REGIONAL_ESTIMATED_AFTER
     VORTEX_PEAK = args.vortex_peak
+    EURO_REGIONAL_ESTIMATED_AFTER = args.euro_regional_estimated_after
     LAND_MASK = args.land_mask == "1"
+    WAVE_LAKES = args.wave_lakes == "1"
+    ENCLOSED_SEAS = args.enclosed_seas == "1"
 
     # NOT NODE_ENV=test / TESTING=1: grid_resolver skips the mid-res tier in a test environment, and the mid tier is the very
     # path under study. L2 is off because no Supabase variable is set (store._get_supabase_storage returns None without a URL
@@ -767,8 +970,25 @@ def main():
     if args.stale_seconds > 0:
         STALE.update({"seconds": args.stale_seconds, "scope": args.stale_scope, "model": args.stale_model or None,
                       "layer": args.stale_layer or None, "stride": max(2, args.stale_stride), "arm_on_first": True})
+    STALE["fast"] = args.stale_fast == "1"
+    # WHO IS ANSWERING (2026-10-24, the lead's rule after a port collision): two sessions on one machine can each start an offline
+    # backend, and a scenario pointed at a port another session already holds measures THAT backend's store. GET /__harness/identity
+    # names this process's store, port, pid and a per-start nonce; scenarios check it before their first cell (EXPECT_STORE).
+    import secrets                                           # noqa: E402
+    identity = {"store": str(Path(args.dir).resolve()), "port": args.port, "pid": os.getpid(), "nonce": secrets.token_hex(8),
+                "models": args.models, "layers": args.layers}
+    app.add_api_route("/__harness/identity", lambda: identity, methods=["GET"])
+    print(json.dumps({"harness_identity": identity}), flush=True)
     import uvicorn                                           # noqa: E402
-    uvicorn.run(app, host="127.0.0.1", port=args.port, lifespan="off", log_level="warning")
+    observed_app = app
+    if args.series_diagnostics:
+        from series_diagnostics import SeriesDiagnostics        # noqa: E402
+        observed_app = SeriesDiagnostics(app)
+    try:
+        uvicorn.run(observed_app, host="127.0.0.1", port=args.port, lifespan="off", log_level="warning")
+    finally:
+        if args.series_diagnostics:
+            observed_app.close()
 
 
 if __name__ == "__main__":

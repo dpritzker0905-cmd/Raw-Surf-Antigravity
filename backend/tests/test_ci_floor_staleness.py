@@ -39,8 +39,9 @@ def test_test_fixtures_leave_platform_metadata_usable():
 
 @pytest.mark.parametrize('environment,expected', [
     ({'GITHUB_REF_NAME': 'dev'}, 'dev'),
-    ({'GITHUB_REF_NAME': 'main'}, 'main'),
-    ({'GITHUB_REF_NAME': '13/merge', 'GITHUB_BASE_REF': 'main'}, 'main'),
+    # main is dev promoted by squash and its own ci.yml is red because of this check: it reads dev's runs.
+    ({'GITHUB_REF_NAME': 'main'}, 'dev'),
+    ({'GITHUB_REF_NAME': '13/merge', 'GITHUB_BASE_REF': 'main'}, 'dev'),
 ])
 def test_history_branch_follows_the_tested_branch(monkeypatch, environment, expected):
     monkeypatch.delenv('GITHUB_REF_NAME', raising=False)
@@ -488,14 +489,14 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # conflicts, by design: take dev's side, then `python backend/scripts/rederive_floor.py --lane <lane> --add <this
 # PR's new tests>` re-derives both this value and ci.yml's floor from dev (LESSONS L-P39).
 _FLOOR_SET_FROM = {
-    # guards: set from 3317 = max(dev run 39994928838 read 3297, dev's map 3297) + 20 (rm-gulf-fill-targeted, 2026-10-23); floor 3311, margin 6.
-    "guards": 3317,
+    # guards: set from 3351 = max(dev run 40398047789 read 3341, dev's map 3341) + 10 (claude/manifest-object-consistency, 2026-10-26); floor 3345, margin 6.
+    "guards": 3351,
 
-    # chain: set from 2891 = max(dev run 40005013863 read 2873, dev's map 2882) + 9 (rm480, 2026-10-23); floor 2885, margin 6.
-    "chain": 2891,
+    # chain: set from 3008 = max(dev run 40633534401 read 2976, dev's map 2976) + 32 (claude/infobox-honesty-5efceb, 2026-10-28); floor 3002, margin 6.
+    "chain": 3008,
 
-    # estate: set from 2505 = max(dev run 40019272331 read 2431, dev's map 2431) + 74 (HEAD, 2026-10-23); floor 2503, margin 2.
-    "estate": 2505,
+    # estate: set from 3406 = max(dev run 41148501823 read 3405, dev's map 3405) + 1 (codex/guardian-purchase-integration-20261030, 2026-10-31); floor 3404, margin 2.
+    "estate": 3406,
 }
 # Completeness sees squash merges, re-derived after #470 (+5, hosted 2397 / 331 files, run 39979894860): +14 estate tests
 # in a new file (tests/test_ledger_merges.py) = 2411 / 332; floor 2409, margin 2.

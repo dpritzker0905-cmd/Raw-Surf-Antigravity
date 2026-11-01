@@ -195,7 +195,7 @@ const BookingPaymentSuccess = () => {
               </Button>
               <Button
                 variant="outline"
-                onClick={() => navigate('/messages')}
+                onClick={() => navigate('/support')}
                 className="border-zinc-700"
               >
                 Contact Support

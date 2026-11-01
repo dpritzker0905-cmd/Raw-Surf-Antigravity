@@ -50,6 +50,8 @@ u, v follow from speed and direction by uv_convention 0, as the wind normalizer 
 RASTER frames (2026-10-23, frame_set_raster.py: GFS mean-sea-level pressure from NOAA GRIB) carry ONE scalar field and are
 encoded from a numpy plane (encode_plane / decode_plane), not from product vectors:
   6 pressure_hpa    u16  code 0 = no data, else round((hPa - 800) / 0.1) + 1 (descriptor offset 799.9)   error <= 0.05 hPa
+  7 temp_c          u16  code 0 = no data, else round((degC + 100) / 0.05) + 1 (offset -100.05)          error <= 0.025 degC
+  8 cloud_pct       u8   code 0 = no data, else round(%) + 1 (offset -1), 0-100 %                        error <= 0.5 %
 
 Node positions are not stored: lat = south + r * (north - south) / (rows - 1), lng likewise, where the bounds are the
 OUTER CELL CENTRES (cell_bounds; what /grid serves). `encode_frame` refuses a product whose lat/lng are not that regular
@@ -72,8 +74,10 @@ NO_MISSING = 0xFFFFFFFF
 GZIP_MAGIC = b"\x1f\x8b"
 
 HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE, SPEED, LANE_WEIGHT, PRESSURE_HPA = 0, 1, 2, 3, 4, 5, 6
+TEMP_C, CLOUD_PCT = 7, 8
 FIELD_NAMES = {HEIGHT: "height_m", DIRECTION: "direction_deg", PERIOD: "period_s", DIR_CONFIDENCE: "dir_confidence",
-               SPEED: "speed", LANE_WEIGHT: "lane_weight", PRESSURE_HPA: "pressure_hpa"}
+               SPEED: "speed", LANE_WEIGHT: "lane_weight", PRESSURE_HPA: "pressure_hpa", TEMP_C: "temp_c",
+               CLOUD_PCT: "cloud_pct"}
 
 # (dtype bytes, layout, missing code, scale, offset). Height's offset -scale makes code 1 = 0 m and leaves 0 for no data;
 # speed (knots, the wind products' unit; the index meta carries value_unit) does the same at 0.01.
@@ -85,19 +89,98 @@ FIELD_SPECS = {
     SPEED: (2, 1, 0, 0.01, -0.01),
     LANE_WEIGHT: (2, 1, NO_MISSING, 0.0001, 0.0),
     PRESSURE_HPA: (2, 1, 0, 0.1, 799.9),      # raster frames (frame_set_raster.py): code 1 = 800.0 hPa, 0 = no data
+    TEMP_C: (2, 1, 0, 0.05, -100.05),         # raster: code 1 = -100.00 degC, 0 = no data (0.05: 17% smaller than 0.01)
+    CLOUD_PCT: (1, 0, 0, 1.0, -1.0),          # raster: code 1 = 0 %, 101 = 100 %, 0 = no data
 }
 DEFAULT_FIELDS = (HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE)
 WIND_FIELDS = (DIRECTION, SPEED)
 
-# What the decoded value may differ from the source by, per field (half a step, plus float slack).
-TOLERANCE = {HEIGHT: 0.0005 + 1e-9, DIRECTION: 0.005 + 1e-9, PERIOD: 0.005 + 1e-9, DIR_CONFIDENCE: 0.5 / 254 + 1e-9,
-             SPEED: 0.005 + 1e-9, LANE_WEIGHT: 0.0001 + 1e-9, PRESSURE_HPA: 0.05 + 1e-9}
+FLOAT_SLACK = 1e-9
+
+
+def _half_step(fid):
+    """Half of a field's encoding step, plus float slack: the most round(value / step) can move a value. PURE."""
+    return FIELD_SPECS[fid][3] / 2.0 + FLOAT_SLACK
+
+
+# What the decoded value may differ from the source by, per field: each is HALF ITS OWN ENCODING STEP (FIELD_SPECS
+# scale), never a guess (test_frame_parity_tolerance.py pins every one to its step). The one exception is the HRRR lane
+# weight, a whole step: max(1, round(w * 10000)) lifts a touched node's code to at least 1.
+TOLERANCE = {
+    HEIGHT: _half_step(HEIGHT),                  # 1 mm step       -> 0.0005 m
+    DIRECTION: _half_step(DIRECTION),            # 0.01 deg step   -> 0.005 deg
+    PERIOD: _half_step(PERIOD),                  # 0.01 s step     -> 0.005 s
+    DIR_CONFIDENCE: _half_step(DIR_CONFIDENCE),  # 1/254 step      -> 0.0019685 (measured max 0.0019685 over 400k nodes)
+    SPEED: _half_step(SPEED),                    # 0.01 kn step    -> 0.005 kn
+    LANE_WEIGHT: FIELD_SPECS[LANE_WEIGHT][3] + FLOAT_SLACK,
+    PRESSURE_HPA: _half_step(PRESSURE_HPA),      # 0.1 hPa step    -> 0.05 hPa
+    TEMP_C: _half_step(TEMP_C),                  # 0.05 degC step  -> 0.025 degC
+    CLOUD_PCT: _half_step(CLOUD_PCT),            # 1 % step        -> 0.5 %
+}
 POSITION_TOL_DEG = 1e-6
-UV_TOL = 0.0012  # u, v rebuilt from the decoded height and direction: 1 mm height step plus 4-dp rounding
+# Marine u, v rebuilt from the decoded height and direction, against the stored u, v the normalizer computed from the
+# UNROUNDED height and direction (normalizer.py: speed 4 dp, direction 2 dp, u and v 4 dp). Per node the error is at most
+#   height     half the 1 mm step + the stored speed's 4-dp rounding     0.0005 + 0.00005
+#   rounding   the rebuilt and the stored u/v, 4 dp each                  2 * 0.00005
+#   direction  half the 0.01-deg step turns (u, v) by that angle          h * radians(0.005)
+# ⬇ 2026-10-23: this was a FIXED 0.0012, which dropped the height term. Measured with the real codec over 400,000 nodes
+#   (heights 0-20 m, the normalizer's rounding): the error crosses 0.0012 at 10-12 m seas and stays under this bound at
+#   every height. The pilots publish of run 40019869501 refused 5 ICON world frames on it (uv 0.0012-0.0016, one node
+#   each, big seas), which went unpublished; their dir_confidence (0.001967) was inside its own tolerance.
+MARINE_UV_TOL_BASE = 0.0005 + 0.00005 + 2 * 0.00005 + 1e-6
+MARINE_UV_TOL_PER_M = math.radians(0.005) + FLOAT_SLACK
+# The old fixed tolerance stays as a FLOOR: this change only stops wrongful refusals. Below about 6 m the derived bound is
+# tighter than 0.0012, and a stored product whose u/v come from somewhere this budget does not model (a blend) would
+# start being refused; only refused frames log their u/v error, so that cannot be measured from a publish log today.
+MARINE_UV_TOL_FLOOR = 0.0012 + FLOAT_SLACK   # with float slack, like every tolerance: a 4-dp difference of exactly
+#                                             0.0012 can be 0.0012000000000000001 in binary (run 40019869501's first
+#                                             refused ICON frame printed uv_max_err 0.0012)
+WHY_MAX = 3   # parity() names the failing check for this many bad nodes
+UV_BAND_M = 2  # parity() reports the worst marine u/v error per height band this wide (the publish report sums them up)
+
+
+def uv_band(height):
+    """The height band key a marine node's u/v error is reported under: '0-2', '2-4', ... PURE."""
+    lo = int(max(0.0, height) // UV_BAND_M) * UV_BAND_M
+    return f"{lo}-{lo + UV_BAND_M}"
+
+
+# ⬇ 2026-10-24 (the lead, the worldwide verify matrix): parity() also reports its errors per REGION of the world frame,
+# so a matrix data row can cite the frame's own error where it is drawn: cell 6 (Fiji, 179.5 E) is the antimeridian band,
+# cell 7 (Norway 70 N; the Southern Ocean 62 S, the ice edge) the polar caps. The bands overlap (the Bering Strait is in
+# the antimeridian band AND the north polar cap, and is counted in both); "elsewhere" is a node in none of them.
+ANTIMERIDIAN_BAND_DEG = 10.0   # a node within this many degrees of longitude of 180
+POLAR_CAP_LAT_DEG = 60.0       # a node at or poleward of this latitude
+REGIONS = ("antimeridian", "polar_north", "polar_south", "elsewhere")   # report order
+
+
+def frame_regions(lat, lng):
+    """The REGIONS a node at (lat, lng) is reported under; any longitude convention (-180..180 or 0..360). PURE."""
+    try:
+        lat, lng = float(lat), float(lng)
+    except (TypeError, ValueError):
+        return ("elsewhere",)
+    out = []
+    if abs((lng + 180.0) % 360.0 - 180.0) >= 180.0 - ANTIMERIDIAN_BAND_DEG:
+        out.append("antimeridian")
+    if lat >= POLAR_CAP_LAT_DEG:
+        out.append("polar_north")
+    elif lat <= -POLAR_CAP_LAT_DEG:
+        out.append("polar_south")
+    return tuple(out) or ("elsewhere",)
+
+
 # Wind: u, v rebuilt from the 0.01 kn speed and the 2-dp direction, against stored u, v that the normalizer computed from the
 # UNROUNDED speed and direction (and rounded to 4 dp): 0.005 kn + 0.005 deg of the speed + both 4-dp roundings, with slack.
 WIND_UV_TOL_BASE = 0.006
 WIND_UV_TOL_PER_KN = 0.0001
+
+
+def uv_tolerance(mag, magnitude):
+    """How far u, v rebuilt from one decoded node may differ from the stored u, v: marine by height, wind by speed. PURE."""
+    if mag == HEIGHT:
+        return max(MARINE_UV_TOL_FLOOR, MARINE_UV_TOL_BASE + MARINE_UV_TOL_PER_M * abs(magnitude))
+    return WIND_UV_TOL_BASE + WIND_UV_TOL_PER_KN * abs(magnitude)
 
 
 def magnitude_field(field_ids):
@@ -244,21 +327,22 @@ def encode_plane(values, bounds, valid_time, model_run_time, fid):
     arr = np.asarray(values, dtype=float)
     rows, cols = arr.shape
     nb, layout, missing, scale, offset = FIELD_SPECS[fid]
-    if nb != 2 or missing != 0:
-        raise ValueError(f"encode_plane handles u16 fields with code 0 = no data, not field {fid}")
+    if nb not in (1, 2) or missing != 0:
+        raise ValueError(f"encode_plane handles u8/u16 fields with code 0 = no data, not field {fid}")
+    top = 0xFF if nb == 1 else 0xFFFF
     ok = np.isfinite(arr)
     codes = np.zeros(arr.shape, dtype=np.int64)
     codes[ok] = np.rint((arr[ok] - offset) / scale).astype(np.int64)
-    if ok.any() and (codes[ok].min() < 1 or codes[ok].max() > 0xFFFF):
-        raise ValueError(f"field {fid}: values outside the u16 range of its quantisation")
+    if ok.any() and (codes[ok].min() < 1 or codes[ok].max() > top):
+        raise ValueError(f"field {fid}: values outside the u{8 * nb} range of its quantisation")
     header_bytes = HEADER_FIXED + DESCRIPTOR.size
     head = bytearray(MAGIC)
     head += struct.pack("<HHHHIBBBBI", ENCODING_VERSION, TRANSFORM_VERSION, cols, rows, 1 << fid, 0, 0, 1, 0, header_bytes)
     head += struct.pack("<4d", *bounds)
     head += struct.pack("<2d", _epoch(valid_time), _epoch(model_run_time))
     head += DESCRIPTOR.pack(fid, nb, layout, 0, missing, scale, offset)
-    raw = codes.astype("<u2").tobytes()
-    plane = raw[0::2] + raw[1::2] if layout == 1 else raw
+    raw = codes.astype("<u2" if nb == 2 else "u1").tobytes()
+    plane = raw[0::2] + raw[1::2] if (layout == 1 and nb == 2) else raw
     return bytes(head) + plane
 
 
@@ -339,9 +423,11 @@ def decode_frame(data):
 def parity(product, decoded):
     """Compare a decoded frame with its source product, node by node.
 
-    Returns {nodes, bad, missing_mismatch, max_abs_err: {field: err}, uv_max_err}. A node is bad when validity differs,
+    Returns {nodes, bad, missing_mismatch, max_abs_err: {field: err}, uv_max_err, by_region: {region: {nodes, bad,
+    max_abs_err, uv_max_err}}} (+ uv_by_height_m for marine, why for bad nodes). A node is bad when validity differs,
     a field differs by more than its TOLERANCE, or u/v rebuilt from the decoded height and direction (the client does
-    the same) differ from the stored u/v by more than UV_TOL. Positions were checked by encode_frame (check_regular).
+    the same) differ from the stored u/v by more than uv_tolerance (marine: by height; wind: by speed). Positions were
+    checked by encode_frame (check_regular).
     """
     cols, rows, vectors, _bounds = _grid_of(product)
     if (decoded["cols"], decoded["rows"]) != (cols, rows):
@@ -352,16 +438,39 @@ def parity(product, decoded):
     bad = missing_mismatch = 0
     errs = {FIELD_NAMES[k]: 0.0 for k in f}
     uv_err = 0.0
+    uv_bands = {}   # ⬇ 2026-10-24 (the lead): the worst marine u/v error per height band, for EVERY frame, so whether the
+    #                 tolerance can be tightened below 6 m can be read from real products (only refusals logged u/v)
+    why = []   # ⬇ 2026-10-23: WHICH check failed, for the first WHY_MAX bad nodes. A refusal used to print only the
+    #            frame's max errors, and run 40019869501's showed dir_confidence 0.001967 (inside its tolerance) while
+    #            the u/v check had refused the node; a None-vs-value mismatch printed no number at all.
+
+    regions = {}   # ⬇ 2026-10-24 (the lead): the same report per world-frame region (frame_regions), for the verify matrix
+
+    def explain(i, vec, fails):
+        if len(why) < WHY_MAX:
+            why.append({"node": i, "lat": vec.get("lat"), "lng": vec.get("lng"), "height": _finite(vec.get("speed")),
+                        "fails": fails})
+
+    def region(name):
+        return regions.setdefault(name, {"nodes": 0, "bad": 0, "errs": {FIELD_NAMES[k]: 0.0 for k in f}, "uv": 0.0})
+
     for i, vec in enumerate(vectors):
-        node_bad = False
+        fails, node_errs, node_uv = [], {}, None
+        here = [region(r) for r in frame_regions(vec.get("lat"), vec.get("lng"))]
+        for reg in here:
+            reg["nodes"] += 1
         valid = _valid(vec)
         got_h = f[mag][i] if mag in f else None
         if valid != (got_h is not None):
             missing_mismatch += 1
             bad += 1
+            for reg in here:
+                reg["bad"] += 1
+            explain(i, vec, [f"validity: source {'data' if valid else 'no data'}, frame "
+                             f"{'data' if got_h is not None else 'no data'}"])
             continue
         for fid, values in f.items():
-            got = values[i]
+            got, name = values[i], FIELD_NAMES[fid]
             if fid in (HEIGHT, SPEED):
                 want = float(vec["speed"]) if valid else None
             elif fid == LANE_WEIGHT:
@@ -371,30 +480,56 @@ def parity(product, decoded):
                 if got is not None and want is not None:
                     d = abs(got - want) % 360.0
                     err = min(d, 360.0 - d)
-                    errs[FIELD_NAMES[fid]] = max(errs[FIELD_NAMES[fid]], err)
-                    node_bad |= err > TOLERANCE[fid]
+                    node_errs[name] = err
+                    if err > TOLERANCE[fid]:
+                        fails.append(f"{name}: err {err:.7f} > {TOLERANCE[fid]:.7f}")
                     continue
             elif fid == PERIOD:
                 want = _finite(vec.get("period"))
             else:
                 want = _finite(vec.get("dir_confidence"))
             if (want is None) != (got is None):
-                node_bad = True
+                fails.append(f"{name}: source {want!r}, frame {got!r}")
                 continue
             if want is not None:
                 err = abs(got - want)
-                errs[FIELD_NAMES[fid]] = max(errs[FIELD_NAMES[fid]], err)
-                node_bad |= err > TOLERANCE[fid]
+                node_errs[name] = err
+                if err > TOLERANCE[fid]:
+                    fails.append(f"{name}: err {err:.7f} > {TOLERANCE[fid]:.7f}")
         if valid and mag in f and DIRECTION in f:
             rad = math.radians(f[DIRECTION][i])
             sign = 1.0 if decoded.get("uv_convention") == 1 else -1.0
             u, v = round(sign * f[mag][i] * math.sin(rad), 4), round(sign * f[mag][i] * math.cos(rad), 4)
             su, sv = _finite(vec.get("u")) or 0.0, _finite(vec.get("v")) or 0.0
-            tol = UV_TOL if mag == HEIGHT else WIND_UV_TOL_BASE + WIND_UV_TOL_PER_KN * abs(f[mag][i])
+            tol = uv_tolerance(mag, f[mag][i])
             if su or sv:  # stored 0/0 means "derive from direction", which the renderer does the same way
-                e = max(abs(u - su), abs(v - sv))
-                uv_err = max(uv_err, e)
-                node_bad |= e > tol
-        bad += node_bad
-    return {"nodes": len(vectors), "bad": bad, "missing_mismatch": missing_mismatch,
-            "max_abs_err": {k: round(v, 6) for k, v in errs.items()}, "uv_max_err": round(uv_err, 6)}
+                node_uv = max(abs(u - su), abs(v - sv))
+                if mag == HEIGHT:
+                    band = uv_band(f[mag][i])
+                    uv_bands[band] = max(uv_bands.get(band, 0.0), node_uv)
+                if node_uv > tol:
+                    fails.append(f"uv: err {node_uv:.7f} > {tol:.7f} at {FIELD_NAMES[mag]} {f[mag][i]}")
+        for name, err in node_errs.items():   # the frame's maxima...
+            errs[name] = max(errs[name], err)
+        if node_uv is not None:
+            uv_err = max(uv_err, node_uv)
+        for reg in here:                      # ...and those of each region the node is in
+            for name, err in node_errs.items():
+                reg["errs"][name] = max(reg["errs"][name], err)
+            if node_uv is not None:
+                reg["uv"] = max(reg["uv"], node_uv)
+            if fails:
+                reg["bad"] += 1
+        if fails:
+            bad += 1
+            explain(i, vec, fails)
+    out = {"nodes": len(vectors), "bad": bad, "missing_mismatch": missing_mismatch,
+           "max_abs_err": {k: round(v, 6) for k, v in errs.items()}, "uv_max_err": round(uv_err, 6)}
+    if uv_bands:
+        out["uv_by_height_m"] = {k: round(v, 6) for k, v in sorted(uv_bands.items(), key=lambda kv: int(kv[0].split("-")[0]))}
+    out["by_region"] = {name: {"nodes": r["nodes"], "bad": r["bad"],
+                               "max_abs_err": {k: round(v, 6) for k, v in r["errs"].items()}, "uv_max_err": round(r["uv"], 6)}
+                        for name in REGIONS if (r := regions.get(name))}
+    if why:
+        out["why"] = why
+    return out

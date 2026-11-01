@@ -3,7 +3,7 @@ Posts management — settings, edit, delete, and reporting.
 """
 import logging
 from fastapi import APIRouter, Depends, HTTPException, Query
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_user_id_from_jwt_or_query, get_current_user_id
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
@@ -147,9 +147,12 @@ class PostReport(BaseModel):
 async def report_post(
     post_id: str,
     report: PostReport,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Report a post for policy violation"""
+    if report.reporter_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     from models import Profile, PostReport as PostReportModel, ContentModerationItem, ContentModerationStatusEnum
     import uuid
     

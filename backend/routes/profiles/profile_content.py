@@ -8,7 +8,8 @@ Profile Content Routes - for Instagram-style profile tabs
 """
 
 from fastapi import APIRouter, Depends, HTTPException
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_optional_user_id, get_user_id_from_jwt_or_query
+from services.blocks import assert_visible_to
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
 from sqlalchemy.orm import selectinload
@@ -36,10 +37,13 @@ async def get_user_posts(
     viewer_id: Optional[str] = None,
     limit: int = 30,
     offset: int = 0,
+    auth_viewer_id: Optional[str] = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Get user's own posts for their profile grid"""
     from models import PostReaction, PostLike
+    # BLOCKS (audit F-09): a viewer this profile's owner blocked gets 404, not an empty grid.
+    await assert_visible_to(db, user_id, auth_viewer_id)
     result = await db.execute(
         select(Post)
         .options(

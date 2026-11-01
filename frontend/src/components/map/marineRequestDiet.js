@@ -23,6 +23,9 @@
  *                               keeps the attempt count (useMarineDataFetcherCore.js reset it on every run); a fresh commit or any
  *                               other ask starts it again (planSwrRevalidation, useMarineRevalidation).
  *                               Supersedes #426's opt-in SWR_RETRY_CAP (a hard stop at 3): see the note above planSwrRevalidation
+ *   SWR_KEY_LADDER              (2026-10-24) the ladder's attempt count is kept PER ASK (model, layer, hour, box, flavour), and a
+ *                               re-drive of an ask whose stale answer is on screen and whose re-ask is already scheduled waits for
+ *                               it instead of asking again (swrReaskScheduledFor): see the note above it
  *   PRODUCTS_COMPACT            /products is asked for with ?fields=compact (#423): the seven fields the client reads (model, domain,
  *                               layer, valid_time_start, valid_time_end, coverage, region_id), byte-identical values; a backend
  *                               without #423 ignores the parameter and returns the full list (backendWeatherServiceClient)
@@ -36,7 +39,7 @@
 
 export const REQUEST_DIET_PARTS = Object.freeze([
   'PRODUCTS_SHARE', 'GRID_INSTANT_KEY', 'EXACT_UPGRADE_SKIP', 'SERIES_PAINT_WHILE_PENDING', 'STEP_PAGE', 'SWR_BACKOFF',
-  'PRODUCTS_COMPACT',
+  'PRODUCTS_COMPACT', 'SWR_KEY_LADDER',
 ]);
 
 /**
@@ -130,6 +133,52 @@ export function planSwrRevalidation({ attempt, empty, staleDelays, maxRetries })
   const rung = Math.min(SWR_BACKOFF_HOLD_MS, first * 2 ** Math.min(Math.max(0, n - (SWR_BACKOFF_FAST_ASKS - 1)), 16));
   return { delayMs: empty ? rung : listed(rung), stop: !!maxRetries && n >= maxRetries };
 }
+
+/**
+ * SWR_KEY_LADDER (2026-10-24). WHY: the mid-zoom session's z8 Lake Michigan replay (GFS <-> EURO x3, one PageUp, dev f6433615a)
+ * asked one /grid key 31 times at a median 2.06 s and the next 24 times (EURO 17 and 12): 225 asks over 33 distinct keys. Replayed
+ * here with the asks' answers and the client's own lines (scn_model_toggle.js CONLOG=1, the backend stale for 150 s as a saturated
+ * box is): 25 of 30 repeats followed "[SWR] ... retry #N", the rest a render-backstop re-drive, and the retry numbers restarted at
+ * #1 22 times. The ladder above is ONE count for the whole fetcher, zeroed by every run that is not its own re-ask: each toggle,
+ * each wheel step and each backstop re-drive restarted it, so an ask that stays stale was re-asked at the 1.5 s rung for as long as
+ * it stayed on screen, and a backstop re-drive between rungs asked it once more.
+ * WHAT: the ladder climbs per ask (the fetcher's viewport hash: box, model, layer, hour and flavour): EVERY stale answer to that ask
+ * moves it one rung, whoever asked (the first build counted only its own timer, which the other re-drives kept cancelling, so it read
+ * #1 every time), and an ask not answered stale for SWR_KEY_FORGET_MS starts at the bottom again (a new run's preview is re-asked
+ * fast). While the re-ask of an ask is scheduled, any other re-drive of that SAME ask waits for it; a different ask (another hour,
+ * model, layer, flavour or box) is never held, and leaving the view clears the timer, so a return asks at once and climbs on.
+ * Kill: window.__RAW_DISABLE_SWR_KEY_LADDER__ = true (one count, reset by every run, as before).
+ */
+export const SWR_KEY_FORGET_MS = 2 * SWR_BACKOFF_HOLD_MS;
+const _swrKeys = new Map();   // ask key -> { n: stale answers so far, at: when the last one landed }
+
+export function swrKeyLadderOn() {
+  return requestDietOn('SWR_BACKOFF') && requestDietOn('SWR_KEY_LADDER');
+}
+
+/** Stale answers this ask has had (its rung; 0 before the first, or once forgotten). */
+export function swrKeyAttempt(key, now = Date.now()) {
+  const e = key ? _swrKeys.get(key) : null;
+  return e && now - e.at <= SWR_KEY_FORGET_MS ? e.n : 0;
+}
+
+/** This ask was answered stale (again): one rung up. */
+export function noteSwrKeyStale(key, now = Date.now()) {
+  if (!key) return;
+  const n = swrKeyAttempt(key, now) + 1;
+  _swrKeys.delete(key); _swrKeys.set(key, { n, at: now });
+  if (_swrKeys.size > 64) _swrKeys.delete(_swrKeys.keys().next().value);
+}
+
+/**
+ * Should this updateMarineGrid run wait for the ladder's scheduled re-ask instead of asking? Only when it is not that re-ask and the
+ * re-ask is pending for this very ask (`timerKey` === `key`).
+ */
+export function swrReaskScheduledFor({ source, key, timerKey, timerPending }) {
+  return swrKeyLadderOn() && source !== 'swr_revalidation' && !!key && !!timerPending && timerKey === key;
+}
+
+export function _resetSwrKeysForTest() { _swrKeys.clear(); }
 
 /** The minimum spacing of BACKGROUND /products refreshes (a manifest not loaded yet, or empty): one 10.75 MB download per 30 s. */
 export const MANIFEST_BACKGROUND_REFRESH_MIN_MS = 30000;

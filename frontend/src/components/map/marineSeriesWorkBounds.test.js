@@ -53,7 +53,8 @@ describe('actual transport work and latest viewport ownership', () => {
     expect(previous.aborted).toBe(false);
     // Only the useful latest mini may wait behind the retained global mini.
     expect(_seriesLimiterState()).toMatchObject({ queuedVisible: 0, queuedVisibleMini: 1 });
-    expect(requests.filter(r => !r.done).every(r => r.url.includes('bbox=-180') || r.url.includes('bbox=-148'))).toBe(true);
+    // box(11) = -148..-147, padded -148.5..-146.5, asked as the 1-deg snapped -149..-146 (marineSeriesPanGuard.snapRequestBox)
+    expect(requests.filter(r => !r.done).every(r => r.url.includes('bbox=-180') || r.url.includes('bbox=-149'))).toBe(true);
   });
   it('an abort after mini grant returns its slot before transport starts', async () => {
     const c = new AbortController(); controllers.push(c); call(box(0), c.signal); c.abort(); await flush();
@@ -119,7 +120,7 @@ describe('actual transport work and latest viewport ownership', () => {
     const latest = intent.signalFor(key(box(0))); call(box(0), latest); await flush();
     const current = requests.filter(r => !r.done);
     expect(current).toHaveLength(2);
-    expect(current.every(r => r.url.includes('bbox=-170'))).toBe(true);
+    expect(current.every(r => r.url.includes('bbox=-171'))).toBe(true);   // box(0), padded and snapped outward to 1 deg
     call(box(0), latest); await flush();
     expect(requests.filter(r => !r.done)).toHaveLength(2);
   });

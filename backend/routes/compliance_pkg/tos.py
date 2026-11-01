@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from database import get_db
 from deps.admin_auth import get_current_admin
 from models import Profile, TosAcknowledgement, TosContent
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_user_id_from_jwt_or_query, get_current_user_id
 
 router = APIRouter(prefix="/compliance", tags=["compliance"])
 
@@ -105,9 +105,12 @@ async def acknowledge_tos(
 async def get_tos_status(
     user_id: str,
     current_version: str = Query("2.0"),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Check if user has acknowledged the current ToS version"""
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(
         select(TosAcknowledgement)
         .where(TosAcknowledgement.user_id == user_id)
@@ -126,9 +129,12 @@ async def get_tos_status(
 @router.get("/acceptance-history/{user_id}")
 async def get_acceptance_history(
     user_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Return all ToS acceptance records for a user (for Settings > Legal)"""
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(
         select(TosAcknowledgement)
         .where(TosAcknowledgement.user_id == user_id)

@@ -40,7 +40,7 @@ async def check_and_send_spending_alert(
     grom = grom_result.scalar_one_or_none()
     
     # Only proceed if this is a Grom with a linked parent
-    if not grom or not grom.parent_id:
+    if not grom or not (grom.parent_id and grom.parent_link_approved is True):
         return False
     
     # Check if there's an approval threshold set

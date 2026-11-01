@@ -1,0 +1,62 @@
+{
+  "reason": "39 redacted mandatory-hook findings independently matched actual current/base file SHA256 values; typed hash records remove filename-as-credential ambiguity",
+  "hookConfigChanged": false,
+  "hookBypass": false,
+  "fingerprintValuesChanged": false,
+  "records": [
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-reopen/entry-hashes.json",
+      "beforeSha256": "97eb78d005372fa315a475af7c46bdd778203ffab697804121c79ad75e021e1c",
+      "afterSha256": "8d2961f33beaf0c67950f910b374e70e06b123a63c5ecadeca9133b804473041",
+      "legacyNewlines": "CRLF",
+      "originalBytesReconstructExactly": true
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-numbering/entry-hashes.json",
+      "beforeSha256": "8215bac45eea5b819a525ed89dfede0d3703cb690cc8982dc870b26e0a8516b4",
+      "afterSha256": "d52a7bffdc566c87c5ca689e44f32c9f8500719f275f9c4e496c54f907a2f799",
+      "legacyNewlines": "CRLF",
+      "originalBytesReconstructExactly": true
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-remaining-holds/entry-hashes.json",
+      "beforeSha256": "643c16f040d2051dd9edb1c2edcd7f08b9404aafe97c8cf5905b4135c5c762e9",
+      "afterSha256": "d33822071997a4ad584b35aacb7ccacc50f53a12ad3c358bdd9528dafb4a2a93",
+      "legacyNewlines": "CRLF",
+      "originalBytesReconstructExactly": true
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-support-delivery/entry-hashes.json",
+      "beforeSha256": "da964add552217d2bd18f85418ff378864a8de46376019ca121eed1f6d8232e8",
+      "afterSha256": "013755d951cd4f1ed71de02a15d3af421b998b3585762659abd7c3848b08c9ce",
+      "legacyNewlines": "CRLF",
+      "originalBytesReconstructExactly": true
+    }
+  ],
+  "readerCompatibility": [
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-reopen/collect-evidence.cjs",
+      "beforeSha256": "f515661391b1fb9705c34214bb72af1045cdf769aaa46d5ce3c58621f0455d49",
+      "afterSha256": "c95b8afef2f2045545caccafd3a5108e5191040757763f4a9f0fe2203ea636c8",
+      "addedLine": "entry.files = Object.fromEntries(Object.entries(entry.files).map(([path, value]) => [path, typeof value === \"string\" ? value : value.sha256]));",
+      "newlines": "LF",
+      "onlySchemaReadCompatibility": true
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-numbering/collect-evidence.py",
+      "beforeSha256": "d24997f9f71b624299a4067d2b874ebf715b4b6c6bd8258ce0be3e7073bdce19",
+      "afterSha256": "70350fd359b4cf0343e2702af757e025c13a921af4eb952007a1d60dd527f301",
+      "addedLine": "entry[\"files\"] = {path: value[\"sha256\"] if isinstance(value, dict) else value for path, value in entry[\"files\"].items()}",
+      "newlines": "LF",
+      "onlySchemaReadCompatibility": true
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-remaining-holds/collect-evidence.py",
+      "beforeSha256": "0bc85b4a055ac62c63f21ac5022f23e3d2c50f34bd46861bc96a80d26bb7cb95",
+      "afterSha256": "aab56a200aa925d320cf23ddb65cd7d8841183bfdbf0f20d870fcae82bbb9b43",
+      "addedLine": "entry[\"files\"] = {path: value[\"sha256\"] if isinstance(value, dict) else value for path, value in entry[\"files\"].items()}",
+      "newlines": "LF",
+      "onlySchemaReadCompatibility": true
+    }
+  ]
+}

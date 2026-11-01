@@ -17,6 +17,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 import { MODEL_METADATA_CACHE } from './LayerRegistry';
 import { getEngaged } from './ownRasterFrames';
+import { ESTIMATE_WORDS } from './drawnFrameReadout';
 
 const W = () => (typeof window !== 'undefined' ? window : {});
 export const PENDING_QUIET_MS = 300;
@@ -90,6 +91,8 @@ export function describeRasterFrame(rec, layer, requestedMs) {
       ? `Loading ${want.model} ${name}… still showing ${shown.model} ${name}`
       : `Loading ${fmt(want.dataMs)}… still showing ${fmt(shown.dataMs)}` };
   }
+  // A stand-in past the picked model's range (own frames: GFS beyond EURO's 240 h / ICON's 180 h): the wave layers' words.
+  if (shown.estimated) return { state: 'estimated', text: `Estimated forecast: ${ESTIMATE_WORDS[shown.estimated] || 'estimated'}` };
   if (layer !== 'radar' && Number.isFinite(requestedMs)) {
     const dh = Math.round((shown.dataMs - requestedMs) / 3600000);
     if (dh !== 0 && Math.abs(dh) <= (shown.nearestMaxHours || 0)) return { state: 'nearest', text: `Showing ${fmt(shown.dataMs)}: the nearest stored forecast` };

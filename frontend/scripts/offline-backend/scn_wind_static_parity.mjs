@@ -79,6 +79,7 @@ globalThis.fetch = ((orig) => async (url, opts) => {
   return orig(url, opts);
 })(globalThis.fetch);
 globalThis.window = globalThis.window || {};   // the module's telemetry (window.__RAW_WIND_STATIC__) and kill switches
+for (const k of (process.env.KILLS || '').split(',').filter(Boolean)) globalThis.window[k] = true;   // KILLS=__RAW_DISABLE_...__,...
 const WS = await import(pathToFileURL(path.join(tmp, 'windStaticFrames.mjs')).href);
 // The box's lane constants, as the app reads them (LayerAccessResolver -> window.__WEATHER_CAPABILITIES__; windStaticFrames.boxLane).
 globalThis.window.__WEATHER_CAPABILITIES__ = await (await fetch(`${API}/capabilities`)).json();

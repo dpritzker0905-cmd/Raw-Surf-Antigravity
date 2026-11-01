@@ -1,6 +1,6 @@
 import { renderHook } from '@testing-library/react';
 import { useMarineRevalidation } from './useMarineRevalidation';
-import { SWR_BACKOFF_FAST_ASKS } from '../components/map/marineRequestDiet';
+import { SWR_BACKOFF_FAST_ASKS, SWR_KEY_FORGET_MS, _resetSwrKeysForTest, swrKeyAttempt } from '../components/map/marineRequestDiet';
 
 const FAST = Array(SWR_BACKOFF_FAST_ASKS).fill(1500);          // the first asks keep the old cadence
 const FAST_EMPTY = Array(SWR_BACKOFF_FAST_ASKS).fill(2500);
@@ -91,6 +91,67 @@ describe('useMarineRevalidation.scheduleSWRRevalidation — SWR_BACKOFF ladder (
     result.current.scheduleSWRRevalidation(STALE, updateFn);
     jest.advanceTimersByTime(600000);
     expect(updateFn).toHaveBeenCalledTimes(3);
+  });
+
+  // SWR_KEY_LADDER (2026-10-24): the z8 Lake Michigan replay asked one /grid key 31 times at ~2 s: the one count was zeroed by every
+  // other run (toggles, wheel steps, backstop re-drives), so the ladder read #1 again and again. It now climbs per ask.
+  describe('SWR_KEY_LADDER: the ladder climbs per ask, whoever asked', () => {
+    beforeEach(() => { _resetSwrKeysForTest(); delete window.__RAW_DISABLE_SWR_KEY_LADDER__; });
+    afterEach(() => { delete window.__RAW_DISABLE_SWR_KEY_LADDER__; });
+    const delayOf = (result, key, data = STALE) => {
+      const fn = jest.fn();
+      result.current.scheduleSWRRevalidation(data, fn, key);
+      let ms = 0;
+      while (!fn.mock.calls.length && ms < 600000) { jest.advanceTimersByTime(500); ms += 500; }
+      return ms;
+    };
+
+    test('every stale answer to an ask moves its ladder, even when another run cancels the timer before it fires (the loop)', () => {
+      const { result } = renderHook(() => useMarineRevalidation());
+      for (let i = 0; i < SWR_BACKOFF_FAST_ASKS; i++) {
+        result.current.scheduleSWRRevalidation(STALE, jest.fn(), 'A');
+        clearTimeout(result.current.swrTimerRef.current); result.current.swrTimerRef.current = null;   // a backstop re-drive's run
+        result.current.resetRetryCounts();                                                              // ... and its reset
+      }
+      expect(swrKeyAttempt('A')).toBe(SWR_BACKOFF_FAST_ASKS);
+      expect(delayOf(result, 'A')).toBe(3000);                       // the 11th stale answer: the next rung, not #1 at 1.5 s
+      expect(delayOf(result, 'A')).toBe(6000);
+    });
+
+    test('another ask has its own ladder; the pending re-ask is named on the timer ref', () => {
+      const { result } = renderHook(() => useMarineRevalidation());
+      for (let i = 0; i < SWR_BACKOFF_FAST_ASKS; i++) delayOf(result, 'A');
+      expect(delayOf(result, 'B')).toBe(1500);
+      const fn = jest.fn();
+      result.current.scheduleSWRRevalidation(STALE, fn, 'A');
+      expect(result.current.swrTimerRef.askKey).toBe('A');
+      jest.advanceTimersByTime(12000);
+      expect(fn).toHaveBeenCalledWith('swr_revalidation');
+    });
+
+    test('a fresh answer cancels the pending re-ask but does not restart the ladder; it is forgotten after SWR_KEY_FORGET_MS', () => {
+      const { result } = renderHook(() => useMarineRevalidation());
+      for (let i = 0; i < SWR_BACKOFF_FAST_ASKS; i++) delayOf(result, 'A');
+      const fn = jest.fn();
+      result.current.scheduleSWRRevalidation(STALE, fn, 'A');
+      result.current.scheduleSWRRevalidation(GOOD, fn, 'A');
+      jest.advanceTimersByTime(60000);
+      expect(fn).not.toHaveBeenCalled();
+      expect(delayOf(result, 'A')).toBe(6000);                       // a return to the ask climbs on (its 12th stale answer)
+      jest.advanceTimersByTime(SWR_KEY_FORGET_MS + 1);
+      expect(delayOf(result, 'A')).toBe(1500);                       // a new run's preview is re-asked fast again
+    });
+
+    test('positive control: killed, one count for the fetcher, zeroed by every other run (as before)', () => {
+      window.__RAW_DISABLE_SWR_KEY_LADDER__ = true;
+      const { result } = renderHook(() => useMarineRevalidation());
+      for (let i = 0; i < SWR_BACKOFF_FAST_ASKS; i++) {
+        result.current.scheduleSWRRevalidation(STALE, jest.fn(), 'A');
+        result.current.resetRetryCounts();
+      }
+      expect(delayOf(result, 'A')).toBe(1500);
+      expect(result.current.swrTimerRef.askKey).toBe(null);
+    });
   });
 
   describe('kill switch window.__RAW_DISABLE_SWR_BACKOFF__ (and the umbrella): the old rule, byte-identical', () => {

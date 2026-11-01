@@ -1,0 +1,10 @@
+{
+  "source": "Observed local Chrome run before support-specific collision overrides",
+  "theme": "light",
+  "viewport": { "width": 390, "height": 844 },
+  "action": "Select Resolved from the selected ticket status control after loading a 50-ticket page",
+  "observed": "Playwright option click timed out; its trace repeatedly reported element is outside of the viewport after scrolling into view.",
+  "sourceFinding": "The shared SelectContent sets avoidCollisions=false. Support dropdowns previously supplied no override.",
+  "captureLimit": "A second diagnostic run reproduced the click failure but the diagnostic's accessible-role lookup could not find the aria-hidden background trigger, masking the original error. No pre-fix screenshot/bounds are claimed.",
+  "repairScope": "Enable collision handling only on the four support-panel SelectContent usages; leave shared select.jsx unchanged."
+}

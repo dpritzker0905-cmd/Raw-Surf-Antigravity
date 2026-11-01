@@ -81,13 +81,44 @@ def test_git_merges_sees_squash_merges_newest_first_without_head(repo):
     assert LM.git_merges(repo.path, "HEAD", include_tip=True)[0] == (7, "2026-10-21T02:00:00Z")
 
 
-def test_the_last_fold_point_is_the_landing_then_each_fold(repo):
+def test_the_last_fold_point_is_the_landing_then_when_each_fold_read_dev(repo):
     assert LM.last_fold_point(repo.path, "dev") == LANDED
     merge(repo, "a", frag({"kind": "finding"}))
     assert LM.last_fold_point(repo.path, "dev") == LANDED
-    F.fold(repo.path, "dev")
-    repo.commit("fold", date="2026-10-22T18:00:00Z")
-    assert LM.last_fold_point(repo.path, "dev") == "2026-10-22T18:00:00Z"
+    F.fold(repo.path, "dev", at="2026-10-22T18:00:00Z")           # the fold READ dev at 18:00 ...
+    repo.commit("fold", date="2026-10-22T18:45:00Z")              # ... and its PR merged 45 minutes later
+    assert LM.last_fold_point(repo.path, "dev") == "2026-10-22T17:55:00Z"   # its `at`, less the 5-minute clock slack
+
+
+def test_a_merge_between_a_folds_open_and_its_merge_waits_for_the_next_fold(repo, tmp_path):
+    """2026-10-23, twice: #494 merged at 21:30Z after fold #495 was opened and before it merged (and #498 before #499).
+    With the fold point at the fold's MERGE time, #494 fell older than it, the audit FAILed it, and every open PR's
+    verify went red until another fold. The fold point is now when the fold read dev, so it only WARNs."""
+    remote = tmp_path / "remote.git"
+    subprocess.run(["git", "init", "-q", "--bare", "-b", "dev", str(remote)], check=True)
+    repo.git("remote", "add", "origin", str(remote))
+    merge(repo, "a", frag({"kind": "finding"}))
+    squash(repo, 8, "2026-10-22T14:00:00Z")
+    repo.git("push", "-q", "origin", "dev")
+    s = F.fold_pr(repo.path, open_pr=False, record_actor="claude", gh=FakeGh(), at="2026-10-22T18:00:00Z",
+                  out=lambda *_: None)
+    assert s["recorded"] == [8]
+    squash(repo, 9, "2026-10-22T18:10:00Z")                       # merges while the fold PR is open
+    repo.git("fetch", "-q", "origin")
+    repo.git("merge", "-q", "--squash", f"origin/{s['branch']}")
+    repo.commit("chore(ledger): fold (#10)", date="2026-10-22T18:20:00Z")   # the fold PR squash-merges
+    squash(repo, 11, "2026-10-22T18:30:00Z")                      # later merges, so #9 is not the newest
+    repo.write("other.txt", "head\n")
+    repo.commit("an unrelated HEAD", date="2026-10-22T18:40:00Z")
+    lines = LM.ledger_as_it_will_be(repo.path)
+    entries = [__import__("json").loads(x) for x in lines]
+    merges = LM.git_merges(repo.path, "HEAD")
+    assert [n for n, _ in merges] == [11, 10, 9, 8]
+    got = M.check_completeness(entries, merges, LM.last_fold_point(repo.path, "HEAD"))
+    assert [lv for lv, _ in got] == ["WARN", "WARN", "WARN"] and all("#8 " not in m for _, m in got), got
+    # The control: the old fold point (the fold PR's merge time) FAILs #9, as it did #494 and #498.
+    old = M.check_completeness(entries, merges, "2026-10-22T18:20:00Z")
+    assert any(lv == "FAIL" and "PR #9 " in m for lv, m in old)
 
 
 # ── the widened check ────────────────────────────────────────────────────────────────────────────────────────────

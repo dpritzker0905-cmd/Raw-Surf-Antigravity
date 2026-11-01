@@ -1,0 +1,11 @@
+# Drawer focus and desktop geometry closeout
+
+## Superseding focus/desktop completion, 2026-10-30 UTC
+
+The initial focus/geometry commit8f9ab1131 passed its recorded6/6/33 checks but did not prove the drawer was unobscured by the desktop sidebar. Visual forensics found its x16 panel under navigation. Preserve that limited result; the new edge-hit baseline in occlusion-before-centering.json is3/6 (all desktop cases fail).
+
+Commitabb5a114559390d9bb473661a6b0047d942a4917 supersedes that geometry limitation. It restores the shared Sheet bottom variant's centering and adds only this drawer's constrained desktop width; shared Sheet source is unchanged. Final actual AppLayout/BottomNav/Sidebar/ToS/Radix fixture passes6/6 across light/dark/beach mobile/desktop and51 additional assertions: every desktop edge hit belongs to the drawer, widths768/1024/1440, both resize directions, Escape to visible mobile invoker or desktop notification link, disconnected-invoker fallback, ordinary close/reopen, intentional outside-focus retention, preserved desktop page navigation and support activation. At1440 panel x464,width512; all four visible-edge probes pass all3themes. Screenshots visually checked.
+
+Tested frontend18-blob manifest is retained in evidence/2026-10-30-drawer-focus-geometry/results.json. App/TopNav/Drawer qualified source is committed; ce30's3 uppercase-support hunks were independently authorized and are frozen/uncommitted inputs captured by that manifest pending owner packaging, not silently called HEAD source. Recipient guard committedfa165f9a4 and verified34/34 with actual offline JWT/SQLite. Normal hooks passed for focused source commits. Candidate original lanes remain separate.
+
+Mobile footer occlusion remains separate: center(195,798) intercepted by bottomnav-create in all3themes. David has now explicitly authorized that next repair, AFTER this record/memory closeout. Plan: record measured stacking/clearance baseline, make only a drawer footprint/stacking repair, verify native footer activation, scrolling, short-height/portrait and bidirectional resizing with real shell/Sheet/CSS and synthetic transports. No nonmodal-policy, BottomNav normal behavior or other Sheet change is intended. Other Auth/session-return/schema/CI/release holds remain.

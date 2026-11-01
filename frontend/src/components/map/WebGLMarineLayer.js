@@ -7,14 +7,14 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import WebGLMarineEngine from './WebGLMarineEngine';
 import { registerMarineEngine, unregisterMarineEngine, updateMarineTruthTrace } from '../../engine/RenderPlanDispatcher';
-import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+import { residentRegionalAtGlobalViewport } from './marineClampGuard';   // the zoom-out clamp guard (moved out 2026-10-26)
 import { shouldHoldScrubDowngrade } from './marineScrubHold';
 import { getMarineParticleRes } from './deviceTier';
 import { prewarmZoomOutMarineGrid } from './marineController';
 import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from './mapUtils';
 import { recordClear, shouldHoldClearOnDeactivate, noteMarineActive, shouldHoldFrameThroughSwitch, noteMarineRenderableCommit } from './marineTransitionCoordinator';
 import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
-import { publishMarineDrawn } from './marineDrawnFrame';
+import { engineHoldsGrid, publishMarineDrawn, retireMarineDrawn } from './marineDrawnFrame';
 import { recordResolutionSample } from './marineResolutionWatch';
 import { markMaskViewportSettled } from './marineMaskShelter';
 import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
@@ -25,6 +25,7 @@ import { publishRenderParity, republishRenderParityAfterUpload } from './marineR
 import { marineGridRejection } from './marineGridValidation';
 import { registerFrameStoreTarget, noteCommitted } from './marineFrameStoreRuntime'; // GPU-resident frames (behind static frames)
 import { layerUploadIsStale } from './marineZoomOutRelease';
+import { loadWaveLakes } from './waveLakes';   // lakes a wave model carries (waveLakes.js)
 
 // createCustomLayer and getLongitudinalOverlap helper functions are imported from WebGLMarineCustomLayer.js
 
@@ -96,7 +97,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
   // ('standard' = 50m default, 'hires' = 10m), and a stable handle to the evaluator.
   const maskResRef = useRef('standard');
   // GPU-resident frames: the store reaches this engine, GL context and map through refs read at call time.
-  useEffect(() => { registerFrameStoreTarget({ getEngine: () => engineRef.current, getGl: () => glRef.current, getMap: () => mapRef.current }); return () => registerFrameStoreTarget(null); }, []);
+  useEffect(() => { registerFrameStoreTarget({ getEngine: () => engineRef.current, getGl: () => glRef.current, getMap: () => mapRef.current }); return () => { registerFrameStoreTarget(null); retireMarineDrawn('layer_unmounted'); }; }, []);   // unmounted = the fallback swap: nothing of ours is drawn (marineDrawnFrame.retireMarineDrawn)
   const evaluateMaskRef = useRef(null);
 
   useEffect(() => {
@@ -288,7 +289,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     // A renderable frame just committed — end any switch-hold window (the new target's data has landed,
     // so a subsequent same-target transient can never inherit a stale hold clock). See shouldHoldFrameThroughSwitch.
     noteMarineRenderableCommit();
-    publishMarineDrawn(grid, { hour: timeOffsetHoursRef.current, layer: activeMarineLayer, model: gridModel }); // W-1: what is on screen
+    if (engineHoldsGrid(engine, grid)) publishMarineDrawn(grid, { hour: timeOffsetHoursRef.current, layer: activeMarineLayer, model: gridModel }); // W-1: only what the engine TOOK
     noteCommitted(grid, { hour: timeOffsetHoursRef.current, model: gridModel, layer: activeMarineLayer }); // which stored frame is resident
 
     updateMarineTruthTrace('upload', grid, activeModelRef.current, activeMarineLayer, timeOffsetHoursRef.current, 'forecast_direct', null, true);
@@ -447,6 +448,12 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
   useEffect(() => {
     let activeFetch = true;
     landGeoJSONFailedRef.current = false;
+    // The lake outlines (~95 KB) load beside the land; when they land, the current data re-uploads once so a carried lake shows.
+    const lakesLoad = loadWaveLakes();
+    if (lakesLoad) lakesLoad.then((a) => {
+      const gl = glRef.current || mapInstance?.painter?.context?.gl;
+      if (a && activeFetch && gl && dataRef.current?.vectors?.length && safeUploadRef.current) safeUploadRef.current('wave_lakes_ready', gl, dataRef.current, landGeoJSONRef.current);
+    });
 
     getSharedLandGeoJSON()
       .then(geojson => {
@@ -931,23 +938,9 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       // (non-regional) resident — so this trips ONLY on an actual regional->global zoom-out, never
       // on the same-target scrub/toggle/abort holds those cases depend on (all-zero is a full-shape
       // global grid; cross-model switch is modelOrLayerChanged and clears already). Mirrors the
-      // gate's zoomed-out math for parity.
-      let isResidentRegionalAtGlobalViewport = false;
-      try {
-        const residentBounds = engine._waveData?.waveGrid?.bounds;
-        if (residentBounds && mapInstance && typeof mapInstance.getZoom === 'function') {
-          const rWidth = (residentBounds.east < residentBounds.west)
-            ? (residentBounds.east + 360) - residentBounds.west
-            : residentBounds.east - residentBounds.west;
-          const residentRegional = rWidth < 340.0;
-          const vb = mapInstance.getBounds();
-          const ew = vb.getWest(), ee = vb.getEast();
-          const vWidth = (ee < ew) ? (ee + 360) - ew : ee - ew;
-          const vHeight = vb.getNorth() - vb.getSouth();
-          const viewportZoomedOut = (mapInstance.getZoom() <= MARINE_ZOOMED_OUT_MAX_ZOOM) || (vWidth > 15.0 || vHeight > 15.0);
-          isResidentRegionalAtGlobalViewport = residentRegional && viewportZoomedOut;
-        }
-      } catch (e) { /* getBounds/getZoom can throw mid-style-load — fall back to holding */ }
+      // gate's zoomed-out math for parity. A resident that COVERS the view (the mid-zoom clip of global_mid, #459) is not one, as the
+      // display gate already says (marineClampGuard, 2026-10-26: switches at z4.6 blanked 84-130 frames on that clip).
+      const isResidentRegionalAtGlobalViewport = residentRegionalAtGlobalViewport(engine._waveData?.waveGrid?.bounds, mapInstance);
 
       // SWITCH-HOLD (see shouldHoldFrameThroughSwitch): a model/LAYER switch races the transition flag —
       // isTransitionGuard is often still false when this non-renderable interlude arrives (live-proven:

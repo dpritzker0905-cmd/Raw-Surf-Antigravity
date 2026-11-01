@@ -32,9 +32,12 @@ const TosReacceptanceGate = ({ children }) => {
   // localStorage key for caching TOS acceptance per user + version
   const getTosKey = (userId) => `tos-accepted-${userId}-${CURRENT_TOS_VERSION}`;
 
+  // The server keys acceptance to the token subject, which is the profile id (`user.id`). `user.user_id` is a
+  // different, legacy identifier: asking about it never matched what acknowledge-tos stored, and tos-status now
+  // answers 403 for any id but the caller's own.
   useEffect(() => {
-    if (!user?.user_id && !user?.id) return;
-    const tosUserId = user.user_id || user.id;
+    if (!user?.id) return;
+    const tosUserId = user.id;
 
     // 1. Check localStorage cache first (instant, no API call)
     if (localStorage.getItem(getTosKey(tosUserId))) {
@@ -69,11 +72,11 @@ const TosReacceptanceGate = ({ children }) => {
         // If check fails, don't block the user - fail open
         setStatus('accepted');
       });
-  }, [user?.id, user?.user_id]);
+  }, [user?.id]);
 
   const handleAccept = useCallback(async () => {
-    if (!user?.user_id && !user?.id) return;
-    const tosUserId = user.user_id || user.id;
+    if (!user?.id) return;
+    const tosUserId = user.id;
     setSubmitting(true);
     try {
       // Cache acceptance in localStorage immediately (survives remounts)
@@ -101,7 +104,7 @@ const TosReacceptanceGate = ({ children }) => {
     } finally {
       setSubmitting(false);
     }
-  }, [user?.id, user?.user_id]);
+  }, [user?.id]);
 
   // Loading state - show nothing extra while checking
   if (status === 'loading') {

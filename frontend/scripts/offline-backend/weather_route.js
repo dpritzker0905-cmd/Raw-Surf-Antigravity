@@ -18,6 +18,9 @@
  *   to the live box, which would silently put the load back.
  * Every other request (auth, explore, spot hub, sockets, basemap tiles) is untouched.
  */
+const { createRouteLifecycle } = require('./route_lifecycle');
+const { HEADER, validId, errorKind, createSeriesDiagnostics } = require('./series_diagnostics.cjs');
+
 const LIVE_DEFAULT = 'https://raw-surf-antigravity.onrender.com';
 const MARKER = 'x-rawsurf-offline-weather';
 const WEATHER_PREFIX = '/api/weather/';
@@ -85,9 +88,15 @@ function forwardHeaders(responseHeaders, cors) {
  *   failed     requests the local backend did not answer (each got a 502 here; failedExamples names a few),
  *   cancelled  answered locally, but the page had already dropped the request (a superseded fetch, a closing page).
  */
-async function routeWeatherToLocal(target, { liveOrigin, local, timeoutMs = 120000 }) {
+async function routeWeatherToLocal(target, { liveOrigin, local, timeoutMs = 120000, seriesDiagnostics, diagnosticSink }) {
+  if (seriesDiagnostics && !['127.0.0.1', 'localhost', '[::1]'].includes(new URL(local).hostname)) {
+    throw new Error('Synthetic series correlation requires a loopback backend');
+  }
+  const diagnostics = seriesDiagnostics ? createSeriesDiagnostics(seriesDiagnostics, diagnosticSink) : null;
   const stats = { local: 0, answered: 0, failed: 0, cancelled: 0, byEndpoint: {}, failedExamples: [] };
-  await target.route((url) => isLiveWeather(url, liveOrigin), async (route) => {
+  const lifecycle = createRouteLifecycle();
+  Object.defineProperty(stats, 'lifecycle', { value: lifecycle });
+  await target.route((url) => isLiveWeather(url, liveOrigin), lifecycle.wrap(async (route) => {
     const request = route.request();
     const method = request.method();
     const url = new URL(request.url());
@@ -98,10 +107,19 @@ async function routeWeatherToLocal(target, { liveOrigin, local, timeoutMs = 1200
       return route.fulfill({ status: 204, headers: cors }).catch(() => {});
     }
     const ep = endpointOf(url);
+    const trace = ep === 'grid_series' ? diagnostics?.begin(request, url) : null;
     let response;
     try {
-      response = await route.fetch({ url: localUrlFor(url, local), timeout: timeoutMs });
+      const options = { url: localUrlFor(url, local), timeout: timeoutMs };
+      if (trace) options.headers = { ...request.headers(), [HEADER]: trace.id };
+      response = await route.fetch(options);
+      if (trace) {
+        const backendId = response.headers()[HEADER];
+        trace.event('fetch_response', { status: response.status(),
+          backend_request_id: validId(backendId) ? backendId : null, backend_id_match: backendId === trace.id });
+      }
     } catch (error) {
+      trace?.event('fetch_error', { error_kind: errorKind(error) });
       const message = String(error && error.message).split('\n')[0];
       // The page, context or browser closed under an in-flight request (a test ending): not a backend failure.
       if (/has been closed|Target closed|disposed/i.test(message)) { stats.cancelled += 1; return route.abort().catch(() => {}); }
@@ -115,8 +133,9 @@ async function routeWeatherToLocal(target, { liveOrigin, local, timeoutMs = 1200
     stats.local += 1;
     stats.byEndpoint[ep] = (stats.byEndpoint[ep] || 0) + 1;
     return route.fulfill({ response, headers: forwardHeaders(response.headers(), cors) })
-      .catch(() => { stats.cancelled += 1; });
-  });
+      .then(() => { trace?.event('fulfilled'); })
+      .catch(error => { stats.cancelled += 1; trace?.event('fulfill_error', { error_kind: errorKind(error) }); });
+  }));
   return stats;
 }
 
@@ -148,7 +167,7 @@ function watchLiveWeatherLeaks(target, liveOrigin) {
       if (response.headers()[MARKER] === 'local') return;
       leaked += 1;
       if (examples.length < 5) examples.push(endpointOf(url));
-    } catch (e) { /* unparseable URL: not ours */ }
+    } catch { /* unparseable URL: not ours */ }
   });
   return () => ({ leaked, examples });
 }

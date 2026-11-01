@@ -12,6 +12,8 @@ from datetime import datetime
 
 from database import get_db
 from models import Profile, Post, PostLike, PostReaction
+from core.security import get_optional_user_id
+from services.blocks import excluded_user_ids, not_in_ids
 from pydantic import BaseModel
 
 router = APIRouter()
@@ -306,6 +308,7 @@ async def get_post_reactions_detail(
 async def search_users_for_mention(
     q: str = Query(..., min_length=1),
     limit: int = Query(10, le=20),
+    auth_viewer_id: Optional[str] = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -313,11 +316,14 @@ async def search_users_for_mention(
     Prioritizes username matches, then full_name.
     """
     search_term = q.lower()
+    # BLOCKS (audit F-09): a blocked pair cannot @mention each other.
+    hidden_ids = await excluded_user_ids(db, auth_viewer_id)
     
     # First search by username (prefix match)
     username_result = await db.execute(
         select(Profile)
         .where(Profile.username.isnot(None))
+        .where(not_in_ids(Profile.id, hidden_ids))
         .where(func.lower(Profile.username).like(f"{search_term}%"))
         .order_by(Profile.username)
         .limit(limit)
@@ -339,6 +345,7 @@ async def search_users_for_mention(
                 )
             )
             .where(Profile.id.notin_(matched_ids) if matched_ids else True)
+            .where(not_in_ids(Profile.id, hidden_ids))
             .order_by(Profile.full_name)
             .limit(remaining)
         )

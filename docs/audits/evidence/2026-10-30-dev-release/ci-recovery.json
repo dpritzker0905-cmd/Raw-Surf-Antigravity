@@ -1,0 +1,43 @@
+{
+  "utc": "2026-10-30T14:24:37.788979+00:00",
+  "recovery_commit": "4029119ffe757a75d7807128d7f6eeaf90d2ce62",
+  "production_source_count": 110,
+  "production_git_blob_mismatches": [],
+  "affected_export_files_sha256": {
+    ".github/workflows/ci.yml": "4042db81e55ffd66075fe89f3c64f3316966549a7196128eec3de6b70e2b05bb",
+    "backend/tests/test_credit_guards.py": "8ed4c4be9cb1fc70613e427702ba990b2b3aa1350039092bea7521e0bda3d80c",
+    "backend/tests/test_grom_credit_link.py": "ff8e98af95ebff5f811b15ddefa9d297426a804d6b4f67465b476dc63a914e35",
+    "backend/tests/test_model_constructor_guard.py": "1f8313e9838d5e5305316929585f6078ad43b73e24e9f9a5338ed314c3e5910c",
+    "backend/tests/test_payment_route_caller_binding.py": "1bb7ec45b16cf4df4dee6d6a539219e9f604bbe77251fcfb110b5e5473701901",
+    "backend/tests/test_phase0_integrity.py": "9f17552df4cc2809ee35fe93ba68e727f6983fa61ee3affacd9bd7531673789c",
+    "backend/tests/test_rederive_floor.py": "8c98504bb40b1a6cd306945f92b4a8da039501449eb999e41ef6d946a4cee8ac",
+    "backend/tests/test_ci_floor_staleness.py": "301c98c978b537854beb3b5a454c8c9502f652bad4d40cc712cd143bee26147c"
+  },
+  "local_result": {
+    "passed": 189,
+    "failed": 0,
+    "seconds": 209.03,
+    "warnings": 150,
+    "declared_packages_absent": 4,
+    "scope": "offline disposable export, actual financial routes mounted without full app/weather lifespan"
+  },
+  "fatal_lint_exit": 0,
+  "normal_hooks_passed": true,
+  "hosted_baseline": {
+    "head": "a8bcc34212aceb0dde287dc4857209db891f66fd",
+    "run": 41066412936,
+    "estate_job": 124098868349,
+    "passed": 3391,
+    "failed": 8,
+    "checks": "18 successful, one failed estate, one neutral including provider statuses"
+  },
+  "new_rejection_cases": 2,
+  "removed_test_functions": 0,
+  "projected_estate_total": 3401,
+  "estate_floor": 3399,
+  "new_hosted_ci_verified": false,
+  "local_baseline": "incomplete 180-second run, exit124 at68%; hosted baseline is authoritative",
+  "new_weather_writes": false,
+  "live_ddl": false,
+  "merge_or_deploy": false
+}

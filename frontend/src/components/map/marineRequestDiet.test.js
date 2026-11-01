@@ -2,10 +2,12 @@
  * marineRequestDiet.test.js — the client request diet (2026-10-20, marineRequestDiet.js): each amplifier is pinned with its kill
  * switch as the control arm, so a test that passes under the kill would prove nothing about the fix.
  */
+import fs from 'fs';
+import path from 'path';
 import { renderHook } from '@testing-library/react';
 import {
-  MANIFEST_BACKGROUND_REFRESH_MIN_MS, REQUEST_DIET_OPT_IN, REQUEST_DIET_PARTS, keepSwrRetryCount, planManifestFetch, planSwrRevalidation,
-  requestDietOn,
+  MANIFEST_BACKGROUND_REFRESH_MIN_MS, REQUEST_DIET_OPT_IN, REQUEST_DIET_PARTS, SWR_KEY_FORGET_MS, _resetSwrKeysForTest, keepSwrRetryCount,
+  noteSwrKeyStale, planManifestFetch, planSwrRevalidation, requestDietOn, swrKeyAttempt, swrKeyLadderOn, swrReaskScheduledFor,
 } from './marineRequestDiet';
 import { _resetProductsManifestFetchForTest, fetchProductsManifest, getSharedValidTime, setCachedManifest } from './backendWeatherServiceClient';
 import { _cacheMarineResult, aliasMarineHourByInstant, getPerModelHourCache, isContainedInMarineCache } from './marineControllerCache';
@@ -307,5 +309,52 @@ describe('planSwrRevalidation (pure)', () => {
     expect(planSwrRevalidation({ attempt: 3 }).stop).toBe(true);
     expect(planSwrRevalidation({ attempt: 3, maxRetries: 5 }).stop).toBe(false);
     expect(planSwrRevalidation({ attempt: 1, staleDelays: [700, 1200] }).delayMs).toBe(1200);
+  });
+});
+
+describe('SWR_KEY_LADDER (pure): a same-ask re-drive waits for the scheduled re-ask; nothing else is held', () => {
+  beforeEach(() => _resetSwrKeysForTest());
+  const ask = { source: 'clamp_resharpen', key: 'bbox:GFS:waves:0:swell', timerKey: 'bbox:GFS:waves:0:swell', timerPending: true };
+
+  test('held: the same ask while its re-ask is pending (a backstop / clamp re-drive, a toggle back inside the rung)', () => {
+    expect(swrReaskScheduledFor(ask)).toBe(true);
+    expect(swrReaskScheduledFor({ ...ask, source: 'detached_wake_fallback' })).toBe(true);
+  });
+
+  test('not held: the re-ask itself, another ask (hour, model, flavour, box), no pending re-ask, no key', () => {
+    expect(swrReaskScheduledFor({ ...ask, source: 'swr_revalidation' })).toBe(false);
+    expect(swrReaskScheduledFor({ ...ask, key: 'bbox:GFS:waves:1:swell' })).toBe(false);
+    expect(swrReaskScheduledFor({ ...ask, key: 'bbox:EURO:waves:0:swell' })).toBe(false);
+    expect(swrReaskScheduledFor({ ...ask, key: 'bbox:GFS:waves:0:surf' })).toBe(false);
+    expect(swrReaskScheduledFor({ ...ask, timerPending: false })).toBe(false);
+    expect(swrReaskScheduledFor({ ...ask, key: null, timerKey: null })).toBe(false);
+  });
+
+  test('the per-ask rung: every stale answer counts; forgotten after SWR_KEY_FORGET_MS', () => {
+    noteSwrKeyStale('A', 0); noteSwrKeyStale('A', 1000);
+    expect(swrKeyAttempt('A', 1000)).toBe(2);
+    expect(swrKeyAttempt('B', 1000)).toBe(0);
+    expect(swrKeyAttempt('A', 1000 + SWR_KEY_FORGET_MS)).toBe(2);
+    expect(swrKeyAttempt('A', 1001 + SWR_KEY_FORGET_MS)).toBe(0);
+  });
+
+  test('wiring: the fetcher asks with its viewport hash and the named timer BEFORE a new ask clears the pending re-ask', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'useMarineDataFetcherCore.js'), 'utf8');
+    const m = src.match(/\n\s+if \(swrReaskScheduledFor\(\{ source, key: viewportHash, timerKey: swrTimerRef\.askKey, timerPending: !!swrTimerRef\.current \}\)\) \{\n\s+noteRequestDiet\('swr_key_hold', \{ source \}\);[^\n]*return; \}/);
+    expect(m).not.toBeNull();
+    const clear = src.indexOf("if (source !== 'swr_revalidation') {");
+    expect(clear).toBeGreaterThan(m.index);
+    const helpers = fs.readFileSync(path.join(__dirname, 'useMarineDataFetcherHelpers.js'), 'utf8');
+    expect(helpers).toMatch(/\}, getViewportHash\(\)\);\s+\/\/ the ask this answer is for/);
+  });
+
+  test('kill switches: its own and SWR_BACKOFF\'s (and the umbrella) hold nothing', () => {
+    for (const kill of ['__RAW_DISABLE_SWR_KEY_LADDER__', '__RAW_DISABLE_SWR_BACKOFF__', '__RAW_DISABLE_REQUEST_DIET__']) {
+      window[kill] = true;
+      expect(swrKeyLadderOn()).toBe(false);
+      expect(swrReaskScheduledFor(ask)).toBe(false);
+      delete window[kill];
+    }
+    expect(swrKeyLadderOn()).toBe(true);
   });
 });

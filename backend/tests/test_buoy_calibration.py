@@ -389,10 +389,13 @@ def test_a_model_zero_is_a_coverage_hole_and_is_not_archived():
 def test_rerunning_within_the_same_buoy_hour_is_not_new_evidence():
     """CI runs more often than NDBC reports (~hourly). The same observation seen twice must not
     count twice, or the series inflates without gaining information."""
-    a = _report([("41113", "2026-07-28T01:00:00+00:00", 0.3, 0.54)])
+    # Times are RELATIVE TO NOW: merge_residual_archive prunes by age (RESIDUAL_ARCHIVE_MAX_AGE_DAYS = 90), and the
+    # fixed 2026-07-28 this test used aged out on 2026-10-26, turning it red on every run from then on.
+    hour = (datetime.now(timezone.utc) - timedelta(days=1)).replace(minute=0, second=0, microsecond=0)
+    a = _report([("41113", hour.isoformat(), 0.3, 0.54)])
     merged = merge_residual_archive(archive_rows_from_report(a), archive_rows_from_report(a))
     assert len(merged) == 1
-    later = _report([("41113", "2026-07-28T02:00:00+00:00", 0.4, 0.55)])
+    later = _report([("41113", (hour + timedelta(hours=1)).isoformat(), 0.4, 0.55)])
     merged = merge_residual_archive(merged, archive_rows_from_report(later))
     assert len(merged) == 2          # a NEW observation time is new evidence
 

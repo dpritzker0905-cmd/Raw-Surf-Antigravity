@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { toast } from 'sonner';
@@ -17,44 +18,51 @@ const SURFER_TIERS_ANNUAL = SURFER_PLANS.annual;
 
 export const SurferSubscription = () => {
   const navigate = useNavigate();
+  const { theme } = useTheme();
   const { user, updateUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedTier, setSelectedTier] = useState(null);
   const [billingPeriod, setBillingPeriod] = useState('monthly'); // 'monthly' or 'annual'
 
-  const SURFER_TIERS = billingPeriod === 'monthly' ? SURFER_TIERS_MONTHLY : SURFER_TIERS_ANNUAL;
+  const [configuredPlans, setConfiguredPlans] = useState(null);
+  const [pricingError, setPricingError] = useState(false);
+  useEffect(() => {
+    let active = true;
+    apiClient.get('/subscriptions/plans').then(({ data }) => {
+      if (active) setConfiguredPlans(data);
+    }).catch(() => { if (active) setPricingError(true); });
+    return () => { active = false; };
+  }, []);
+
+
+  const presentationPlans = billingPeriod === 'monthly' ? SURFER_TIERS_MONTHLY : SURFER_TIERS_ANNUAL;
+  const pricedPlans = configuredPlans?.surfer?.[billingPeriod] || [];
+  const SURFER_TIERS = presentationPlans.flatMap(tier => {
+    const priced = pricedPlans.find(plan => plan.tier_id === tier.tier_id);
+    return priced ? [{ ...tier, id: priced.id, price: priced.price, subscriptionTier: priced.tier_name,
+      monthlyEquiv: priced.monthly_equiv, originalMonthly: priced.original_monthly,
+      savings: priced.savings ? `$${priced.savings}` : undefined }] : [];
+  });
 
   const handleSelectTier = async (tier) => {
     setSelectedTier(tier.id);
     setLoading(true);
 
     try {
-      if (tier.price === 0) {
-        // Free tier - direct update via API
-        const _response = await apiClient.post(
-          `/subscriptions/checkout`,
-          {
-            tier_id: tier.id,
-            origin_url: window.location.origin
-          }
-        );
-        
-        // Update local user state
-        updateUser({ subscription_tier: 'free' });
-        toast.success('Welcome to Raw Surf!');
+      const response = await apiClient.post('/subscriptions/checkout', {
+        tier_id: tier.id,
+        origin_url: window.location.origin
+      });
+      // The admin price can change after this card was loaded. Follow the
+      // actual checkout result instead of treating a displayed zero as paid.
+      if (response.data.session_id === 'free') {
+        updateUser({ subscription_tier: response.data.tier || tier.subscriptionTier });
+        toast.success(`${tier.name} plan activated!`);
         navigate('/feed');
-      } else {
-        // Paid tier - redirect to Stripe checkout
-        const response = await apiClient.post(
-          `/subscriptions/checkout`,
-          {
-            tier_id: tier.id,
-            origin_url: window.location.origin
-          }
-        );
-        
-        // Redirect to Stripe
+      } else if (response.data.checkout_url) {
         window.location.href = response.data.checkout_url;
+      } else {
+        throw new Error('Checkout did not return a payment or activation result');
       }
     } catch (error) {
       logger.error('Subscription error:', error);
@@ -66,6 +74,10 @@ export const SurferSubscription = () => {
   return (
     <div className="min-h-screen bg-black p-4 py-8">
       <div className="max-w-5xl mx-auto">
+        {!configuredPlans && <p role={pricingError ? 'alert' : 'status'} className={`text-center rounded-lg p-3 ${theme === 'light' ? 'bg-white text-gray-700' : theme === 'beach' ? 'bg-slate-800 text-slate-100' : 'bg-zinc-900 text-gray-300'}`}>
+          {pricingError ? 'Could not load subscription prices. Please reload to try again.' : 'Loading subscription prices...'}
+        </p>}
+
         {/* Header */}
         <div className="text-center mb-8">
           <img loading="lazy" decoding="async"
@@ -181,7 +193,7 @@ export const SurferSubscription = () => {
 
                 <Button
                   onClick={() => handleSelectTier(tier)}
-                  disabled={loading && selectedTier === tier.id}
+                  disabled={loading || !configuredPlans}
                   className={`w-full min-h-[48px] font-bold ${
                     tier.popular
                       ? 'bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 hover:from-emerald-500 hover:via-yellow-500 hover:to-orange-500 text-black'

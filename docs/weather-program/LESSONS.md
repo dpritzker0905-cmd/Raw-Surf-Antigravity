@@ -1371,6 +1371,11 @@ A stored estimate can be estimated again in a browser branch with different sour
   It writes ci.yml and the map together, and the PR must then read set-from passed.
 - Rule: before calling two writers "independent", check what separates their edits in the file. If nothing does
   (same line, or adjacent lines), they are one writer to git.
+- ⬆ Correction, 2026-10-24: "`--add auto` ... read as its HEAD minus its merge base" was wrong for any branch whose
+  floor the helper had already set. The helper bases its value on dev's map, which can be NEWER than the branch's
+  merge base, so the difference also counts other PRs' tests (#513 read +43 for its own +17). `--add auto` now reads
+  the branch's own tagged note (`+ N new test(s)`, and `M new file(s)` from 2026-10-24); the difference is only the
+  fallback for a branch the helper never ran on. A value derived from a later read is not a delta against the base.
 
 
 ### 2026-10-23 — L-S23 · "Valid" for a masked field is a per-region count from the data, never a sentence
@@ -1383,3 +1388,79 @@ A stored estimate can be estimated again in a browser branch with different sour
   meaned but direction and period are point-sampled, and the normalizer drops a node with no direction.
 - Rule: before a claim that a masked field is (in)valid somewhere, count it per named region against an independent
   reference mask (here GFS's), and put the table in the claim. An evidence pack categorises against sea AND land, not one.
+
+
+### 2026-10-23 — L-P40 · A snapshot's cut-off is when it READ, not when it landed
+
+- The audit's fold point was the fold PR's MERGE time. `fold-pr --record-merges` records the merges that exist when it
+  reads dev, so a PR that merged between the fold PR's open and its merge (#494 at 21:30Z before fold #495; #498 at
+  22:03Z before fold #499) fell older than the fold point unrecorded: the audit FAILed it, every open PR's verify went
+  red, and the fix-up fold could race again.
+- Fix: the fold point is the fold's own `at`, taken before its fetch (so every older merge was in its base), less 5
+  minutes of clock slack, read from the folded lines in ACTIONS.jsonl, not from a squash commit's message, which a
+  repo setting can strip. On dev, #498 went from FAIL to WARN.
+- Rule: anything that "covers everything up to now" must carry its own "now" (the moment it read its input), and
+  everything downstream judges against that moment, never against when the snapshot happened to be merged or deployed.
+
+
+### 2026-10-23 — L-S24 · Parity is checked against the path the user gets, not the path the test server has
+
+- What happened: #491's regional bundles passed offline parity against /grid_series (598,464 nodes, 0 bad) and failed it
+  live (lattice mismatch; 465 of 585 sub-box nodes bad). Live, the resolver answers in-tile z7-9 GFS waves from the dynamic
+  lane (Open-Meteo "ncep_gfswave025" resampled to an 11x13 viewport lattice) because Steps 1-2 (the dynamic cache on the
+  1-deg snapped key) run before the stored tile. The offline serve_synthetic has no dynamic lane, so it could only ever
+  agree. One live session mixed the two products (first frame from the dynamic mini, scrub frames from the bundle).
+- Rule: a parity gate names every lane the live route can take for the box and runs against the one users actually get
+  (a health-gated live read, or a test server that includes that lane). An offline pass is necessary, never sufficient.
+  The owner chose one source (the stored tile, 2026-10-23 18:13 EDT); #500 keeps the client dark until it passes live.
+
+### 2026-10-23 — L-P41 · A change to request or reload behaviour is armed only after every mode arm is measured
+
+- What happened: #501 (pan snap, reuse, supersede, debounce, settle reload guard) was armed on its surf-mode replay alone
+  and merged before the swell arm ran. The swell arm showed the "never reload when a covering frame exists" guard
+  suppressed the interim-to-fine upgrade (swell GFS z8 /grid 11 -> 19, pages 6 -> 8). Fixed by #505's per-view budget.
+- Rule: before arming, measure surf AND swell, for every affected model, to the point the client stops asking; a guard
+  that only removes requests can still remove the one that upgrades the picture.
+
+### 2026-10-23 — L-P42 · A conflicting PR runs no CI
+
+- What happened: #476's checks read "1 pass, 3 skipping" for an hour while its session waited for CI; GitHub does not run
+  pull_request workflows on a conflicting PR. Two more PRs sat the same way after neighbours merged.
+- Rule: a watcher reads `mergeable` before it reads checks; CONFLICTING means merge dev (floor map by lane, append-only
+  logs and fragments dev-first, SCOREBOARD rows by time), push, and re-arm.
+
+### 2026-10-23 — L-O6 · A red E2E during a saturated box is the box until shown otherwise
+
+- What happened: E2E on #476's dev push failed 3 and flaked 2 (admin panel, /auth redirect, explore cards). Every failure
+  sat in 19:47-19:5xZ, when the live box was at 100% CPU (15 s axios timeouts); the same tests had passed minutes earlier,
+  and the next dev run was green (67 passed). E2E mocks weather but its other routes call the LIVE backend.
+- Rule: before blaming code for a red E2E, read /api/health and Render CPU at the failure timestamps.
+
+### 2026-10-23 — L-O7 · A live timing read needs an unthrottled window
+
+- What happened: the lead's #491 live read logged a 5.7 s first frame and 1-2 s steps; an idle two-rAF in that window took
+  1,725 ms while visible and focused (CPU 15-25%). The timings measured the automation window's throttling, not the app.
+- Rule: measure an idle two-rAF first; above about 40 ms the window is throttled, so report request counts only.
+
+### 2026-10-23 — L-O8 · One session can saturate the box when four small multipliers line up
+
+- What happened: from 19:44Z one session with Surf Rating ON, panning ICON/EURO at z7-9, held the 1-CPU box at 100% CPU
+  for 20 minutes (health 11-25 s): an unsnapped request box per pan (a new 16-hour surf page, 10-25 s of CPU each), a mini
+  per pan, sibling surf prefetch of hidden layers, and a settle tick force-reloading a product that could never sharpen.
+  Fixes: #492 (no sibling warm in surf mode), #501 (snap, reuse, supersede, debounce, low priority), #505 (reload budget).
+- Rule: every client request that a gesture can repeat is snapped, reused, superseded and bounded; replay the owner's real
+  gesture pattern (mode, model, zoom, pan count) to the point the client stops asking, with the box's cost modelled.
+
+
+### 2026-10-23 — L-S25 · Read which check refused before tuning a tolerance; a rebuilt quantity's error scales with its inputs
+
+- The pilots publish (run 40019869501) refused 5 ICON world frames. The visible near-miss in the log was dir_confidence
+  0.001967, so the brief was to tune that tolerance. But 0.001967 is inside its own (half of its 1/254 step, 0.0019685),
+  and four of the five frames read 0.0 there. All five failed the u/v rebuild instead: 0.0012-0.0016 against a FIXED 0.0012.
+- The stored u/v come from the unrounded height and direction; the frame rebuilds them from the 0.01-deg direction, so the
+  error carries h * radians(0.005): measured with the real codec over 400,000 nodes, it crosses 0.0012 at 10-12 m seas.
+  Wind's u/v tolerance already scaled with speed; marine's did not.
+- Rule: before changing a tolerance, find the check that actually failed (the field whose error exceeds ITS tolerance,
+  not the largest-looking number). Derive every tolerance from the encoding's steps, and when a check compares a quantity
+  rebuilt from quantised inputs, carry each input's error through the formula (here, a term that grows with height).
+  Loosen only what the measurement says; keep the old value as a floor until accepted frames' errors can be measured too.

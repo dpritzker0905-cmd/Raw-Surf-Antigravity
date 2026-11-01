@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card';
@@ -26,9 +26,12 @@ export const PurchaseRequestsPanel = () => {
 
   const [requests, setRequests] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
+  const readGeneration = useRef(0);
   const [filter, setFilter] = useState('pending'); // pending | approved | denied | all
-  const [processingId, setProcessingId] = useState(null);
-  const [denyReason, setDenyReason] = useState('');
+  const inFlightDecisions = useRef(new Set());
+  const [processingIds, setProcessingIds] = useState(() => new Set());
+  const [denyReasons, setDenyReasons] = useState({});
   const [showDenyInput, setShowDenyInput] = useState(null);
   const [pendingCount, setPendingCount] = useState(0);
 
@@ -52,23 +55,51 @@ export const PurchaseRequestsPanel = () => {
 
   const fetchRequests = useCallback(async () => {
     if (!user?.id) return;
+    const generation = ++readGeneration.current;
     setLoading(true);
+    setLoadError(false);
     try {
       const res = await apiClient.get(`/grom-hq/purchase-requests/${user.id}?status=${filter}`);
+      if (generation !== readGeneration.current) return;
       setRequests(res.data.requests || []);
       setPendingCount(res.data.pending_count || 0);
     } catch (err) {
+      if (generation !== readGeneration.current) return;
       logger.error('Failed to fetch purchase requests:', err);
-      setRequests([]);
+      setLoadError(true);
     } finally {
-      setLoading(false);
+      if (generation === readGeneration.current) setLoading(false);
     }
   }, [user?.id, filter]);
 
-  useEffect(() => { fetchRequests(); }, [fetchRequests]);
+  useEffect(() => {
+    fetchRequests();
+    return () => { readGeneration.current += 1; };
+  }, [fetchRequests]);
+
+  const beginDecision = (requestId) => {
+    if (inFlightDecisions.current.has(requestId)) return false;
+    inFlightDecisions.current.add(requestId);
+    setProcessingIds(new Set(inFlightDecisions.current));
+    return true;
+  };
+
+  const finishDecision = (requestId) => {
+    inFlightDecisions.current.delete(requestId);
+    setProcessingIds(new Set(inFlightDecisions.current));
+  };
+
+  const clearDenyDraft = (requestId) => {
+    setShowDenyInput(current => current === requestId ? null : current);
+    setDenyReasons(prev => {
+      const next = { ...prev };
+      delete next[requestId];
+      return next;
+    });
+  };
 
   const handleApprove = async (requestId) => {
-    setProcessingId(requestId);
+    if (!beginDecision(requestId)) return;
     try {
       const res = await apiClient.post(
         `/grom-hq/purchase-requests/${requestId}/approve?parent_id=${user.id}`
@@ -80,25 +111,24 @@ export const PurchaseRequestsPanel = () => {
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to approve');
     } finally {
-      setProcessingId(null);
+      finishDecision(requestId);
     }
   };
 
   const handleDeny = async (requestId) => {
-    setProcessingId(requestId);
+    if (!beginDecision(requestId)) return;
     try {
       const res = await apiClient.post(
-        `/grom-hq/purchase-requests/${requestId}/deny?parent_id=${user.id}&reason=${encodeURIComponent(denyReason)}`
+        `/grom-hq/purchase-requests/${requestId}/deny?parent_id=${user.id}&reason=${encodeURIComponent(denyReasons[requestId] || '')}`
       );
       toast.success(res.data.message || 'Denied');
       setRequests(prev => prev.filter(r => r.id !== requestId));
       setPendingCount(prev => Math.max(0, prev - 1));
-      setShowDenyInput(null);
-      setDenyReason('');
+      clearDenyDraft(requestId);
     } catch (err) {
       toast.error(err.response?.data?.detail || 'Failed to deny');
     } finally {
-      setProcessingId(null);
+      finishDecision(requestId);
     }
   };
 
@@ -122,7 +152,7 @@ export const PurchaseRequestsPanel = () => {
           <CardTitle className={`${textPrimary} flex items-center gap-2 text-base`}>
             <ShoppingCart className="w-5 h-5 text-amber-400" />
             Purchase Requests
-            {pendingCount > 0 && (
+            {!loading && !loadError && pendingCount > 0 && (
               <Badge className="ml-2 bg-amber-500/20 text-amber-400 border-0 animate-pulse">
                 {pendingCount} PENDING
               </Badge>
@@ -130,6 +160,9 @@ export const PurchaseRequestsPanel = () => {
           </CardTitle>
           <div className="flex items-center gap-2">
             <Button
+              type="button"
+              aria-label="Refresh purchase requests"
+              disabled={loading}
               variant="ghost"
               size="sm"
               onClick={fetchRequests}
@@ -139,6 +172,7 @@ export const PurchaseRequestsPanel = () => {
             </Button>
             {/* Filter dropdown */}
             <select
+              aria-label="Purchase request status"
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
               className={`text-xs rounded-md px-2 py-1 ${isLight ? 'bg-gray-100 text-gray-700' : 'bg-zinc-800 text-zinc-300'} border ${borderColor}`}
@@ -153,8 +187,13 @@ export const PurchaseRequestsPanel = () => {
       </CardHeader>
       <CardContent className="space-y-3">
         {loading ? (
-          <div className="flex items-center justify-center py-8">
+          <div role="status" aria-label="Loading purchase requests" className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 text-amber-400 animate-spin" />
+          </div>
+        ) : loadError ? (
+          <div role="alert" className="rounded-lg border border-border bg-muted p-4 text-foreground">
+            <p className="text-sm">Purchase requests could not be loaded. Try again to check the selected status.</p>
+            <Button type="button" variant="outline" className="mt-3" onClick={fetchRequests}>Retry purchase requests</Button>
           </div>
         ) : requests.length === 0 ? (
           <div className="text-center py-8">
@@ -170,7 +209,8 @@ export const PurchaseRequestsPanel = () => {
           requests.map((req) => {
             const Icon = ITEM_TYPE_ICONS[req.item_type] || Package;
             const typeLabel = ITEM_TYPE_LABELS[req.item_type] || req.item_type;
-            const isProcessing = processingId === req.id;
+            const isProcessing = processingIds.has(req.id);
+            const decisionLabel = `${req.item_name || 'purchase request'} for ${req.grom_name || 'your Grom'}`;
 
             return (
               <div
@@ -228,14 +268,16 @@ export const PurchaseRequestsPanel = () => {
                   <>
                     {showDenyInput === req.id ? (
                       <div className="space-y-2">
-                        <Input aria-label="Reason (optional)..."
+                        <Input aria-label={`Reason (optional) for denying ${decisionLabel}`}
                           placeholder="Reason (optional)..."
-                          value={denyReason}
-                          onChange={(e) => setDenyReason(e.target.value)}
+                          value={denyReasons[req.id] || ''}
+                          onChange={(e) => setDenyReasons(prev => ({ ...prev, [req.id]: e.target.value }))}
+                          disabled={isProcessing}
                           className={`${isLight ? 'bg-white' : 'bg-zinc-800'} ${borderColor} text-sm`}
                         />
                         <div className="flex gap-2">
-                          <Button aria-label="Loader2"
+                          <Button type="button" aria-label={`Confirm Deny ${decisionLabel}`}
+                            aria-busy={isProcessing}
                             size="sm"
                             className="flex-1 bg-red-500 hover:bg-red-600 text-white"
                             onClick={() => handleDeny(req.id)}
@@ -244,10 +286,13 @@ export const PurchaseRequestsPanel = () => {
                             {isProcessing ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Confirm Deny'}
                           </Button>
                           <Button
+                            type="button"
+                            aria-label={`Cancel denial of ${decisionLabel}`}
                             size="sm"
                             variant="outline"
                             className={`${borderColor} ${textSecondary}`}
-                            onClick={() => { setShowDenyInput(null); setDenyReason(''); }}
+                            onClick={() => clearDenyDraft(req.id)}
+                            disabled={isProcessing}
                           >
                             Cancel
                           </Button>
@@ -255,7 +300,8 @@ export const PurchaseRequestsPanel = () => {
                       </div>
                     ) : (
                       <div className="flex gap-2">
-                        <Button aria-label="Loader2"
+                        <Button type="button" aria-label={`Approve ${decisionLabel}`}
+                          aria-busy={isProcessing}
                           size="sm"
                           className="flex-1 bg-emerald-500 hover:bg-emerald-600 text-white"
                           onClick={() => handleApprove(req.id)}
@@ -269,7 +315,7 @@ export const PurchaseRequestsPanel = () => {
                           )}
                           Approve
                         </Button>
-                        <Button aria-label="Cancel"
+                        <Button type="button" aria-label={`Deny ${decisionLabel}`}
                           size="sm"
                           variant="outline"
                           className="flex-1 border-red-500/50 text-red-400 hover:bg-red-500/10"

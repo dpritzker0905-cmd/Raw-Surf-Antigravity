@@ -11,6 +11,8 @@ import uuid
 from database import get_db
 from core.security import get_current_user_id, get_optional_user_id
 from deps.admin_auth import get_current_admin
+from services.blocks import assert_visible_to, excluded_user_ids, not_in_ids
+from services.guardian_policy import assert_level_allows, notify_guardian_of_teen_activity
 from models import Profile, RoleEnum
 from models import Booking, BookingParticipant, Gallery, GalleryItem, LiveSession, Post
 
@@ -91,7 +93,9 @@ class ProfileUpdate(BaseModel):
     stance: Optional[str] = None
     home_break: Optional[str] = None
     surf_mode: Optional[str] = None  # casual, competitive, pro
-    is_grom_parent: Optional[bool] = None  # toggle Grom Parent privileges for surfers
+    # Retired (audit F-01): parent status comes from a confirmed link with a child, never from a self-set flag.
+    # The field is still parsed so update_profile can answer a stale client with a clear 403.
+    is_grom_parent: Optional[bool] = None
     # Surfer identification fields (for photographers)
     wetsuit_color: Optional[str] = None
     rash_guard_color: Optional[str] = None
@@ -164,18 +168,22 @@ async def search_profiles(
     q: str,
     limit: int = 20,
     user_id: str = None,
+    auth_viewer_id: Optional[str] = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Search profiles by name - for compose modal with priority sorting and follow status"""
     from models import Friend, FriendshipStatusEnum
     
     search_term = f"%{q}%"
+    # BLOCKS (audit F-09): people on either side of a block with the (token-authenticated) caller are not listed.
+    hidden_ids = await excluded_user_ids(db, auth_viewer_id)
     
     result = await db.execute(
         select(Profile)
         .where(
             Profile.full_name.ilike(search_term)
         )
+        .where(not_in_ids(Profile.id, hidden_ids))
         .limit(50)  # Get more to sort properly
     )
     profiles = result.scalars().all()
@@ -252,6 +260,8 @@ async def get_profile_by_username(
     profile = result.scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="No user found with that username")
+    # BLOCKS (audit F-09): a viewer this user blocked gets the same 404 as an unknown username.
+    await assert_visible_to(db, profile.id, viewer_id, "No user found with that username")
     return profile_for_viewer(profile, viewer_id)
 
 
@@ -330,6 +340,8 @@ async def get_profile(
     profile = result.scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
+    # BLOCKS (audit F-09): a viewer this user blocked gets the same 404 as an unknown profile.
+    await assert_visible_to(db, profile.id, viewer_id, "Profile not found")
     return profile_for_viewer(profile, viewer_id)
 
 
@@ -458,7 +470,12 @@ async def update_profile(
         raise HTTPException(status_code=404, detail="Profile not found")
     
     update_data = data.model_dump(exclude_unset=True)
-    
+    if 'is_grom_parent' in update_data:
+        raise HTTPException(
+            status_code=403,
+            detail="Parent status can't be set on a profile. It starts when a child confirms the link with you.",
+        )
+
     # Handle base64 avatar - store directly in DB as data URL 
     # (Render's ephemeral filesystem is wiped on every deploy, so we cannot use disk storage)
     if 'avatar_url' in update_data and update_data['avatar_url']:
@@ -476,9 +493,18 @@ async def update_profile(
             except Exception as e:
                 raise HTTPException(status_code=400, detail=f"Invalid image data: {str(e)}")
     
+    grom_standing = None
+    if update_data.get('is_private') is False:
+        # GUARDIAN LEVEL: a child's profile goes public only at the public-profile level for their age band.
+        grom_standing = await assert_level_allows(db, profile, 'public_profile')
+
     for field, value in update_data.items():
         setattr(profile, field, value)
-    
+    if grom_standing is not None:
+        await notify_guardian_of_teen_activity(
+            db, profile, grom_standing, "Your 16-17 year old made their profile public",
+            f"{profile.full_name or 'Your child'} switched their profile to public.")
+
     await db.commit()
     await db.refresh(profile)
     return profile_to_response(profile)
@@ -570,6 +596,7 @@ async def get_live_photographers(
 async def search_users(
     query: str,
     limit: int = 10,
+    auth_viewer_id: Optional[str] = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Search users by name, username, or email"""
@@ -579,6 +606,8 @@ async def search_users(
         return {"users": []}
     
     search_pattern = f"%{query}%"
+    # BLOCKS (audit F-09): people on either side of a block with the (token-authenticated) caller are not listed.
+    hidden_ids = await excluded_user_ids(db, auth_viewer_id)
     
     result = await db.execute(
         select(Profile)
@@ -589,6 +618,7 @@ async def search_users(
                 Profile.email.ilike(search_pattern)
             )
         )
+        .where(not_in_ids(Profile.id, hidden_ids))
         .limit(limit)
     )
     

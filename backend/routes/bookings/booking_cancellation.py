@@ -14,7 +14,7 @@ from sqlalchemy.orm import selectinload
 from core.security import get_current_user_id
 from database import get_db
 from models import Booking, Notification
-from utils.credits import add_credits
+from utils.credits import add_credits, refund_credits
 
 
 router = APIRouter()
@@ -53,6 +53,11 @@ async def cancel_booking(
         raise HTTPException(status_code=403, detail="Not authorized to cancel this booking")
     if booking.status in ['Cancelled', 'Completed']:
         raise HTTPException(status_code=400, detail=f"Booking already {booking.status.lower()}")
+
+    if booking.status in ('Pending Payment', 'PendingPayment'):
+        from routes.bookings.stripe_checkout import reconcile_expired_booking_checkout
+        if not await reconcile_expired_booking_checkout(booking, db):
+            raise HTTPException(status_code=409, detail="Payment reconciliation required; retry after payment status updates")
 
     now = datetime.now(timezone.utc)
     session_time = booking.session_date
@@ -145,7 +150,7 @@ async def cancel_booking(
         for participant in booking.participants:
             if participant.paid_amount and participant.paid_amount > 0:
                 participant_refund = (participant.paid_amount * refund_percentage) / 100
-                await add_credits(
+                success, _, error = await refund_credits(
                     user_id=participant.participant_id,
                     amount=participant_refund,
                     transaction_type='booking_refund',
@@ -155,6 +160,9 @@ async def cancel_booking(
                     reference_id=booking_id,
                     counterparty_id=booking.photographer_id
                 )
+                if not success:
+                    await db.rollback()
+                    raise HTTPException(status_code=409, detail=error)
                 participant.payment_status = 'Refunded'
 
     photographer_name = booking.photographer.full_name if booking.photographer else "Photographer"

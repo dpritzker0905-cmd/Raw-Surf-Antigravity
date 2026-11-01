@@ -108,8 +108,10 @@ describe('windGridSeries — flag-gated wind time-series client', () => {
 
     prewarmWindSeries('GFS', bounds);
     // Concurrency-capped (1-CPU backend): pages load ~2 at a time, not all synchronously — but
-    // all 3 still complete as the queue drains.
-    for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 0));
+    // all 3 still complete as the queue drains. A page is planned after the next paint (#570: up to the
+    // 100 ms hidden-tab floor where jsdom has no frames), so wait for the pages to land (bounded) instead of a
+    // fixed number of ticks: otherwise they land during the NEXT test, on its fetch mock (CI, 2026-10-25).
+    for (let i = 0; i < 100 && pageUrls().length < 3; i++) await new Promise((r) => setTimeout(r, 10));
     expect(pageUrls()).toHaveLength(3);
     const urls = pageUrls();
     expect(urls.some((u) => u.includes('hours=0,'))).toBe(true);

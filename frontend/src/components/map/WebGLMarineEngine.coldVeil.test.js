@@ -35,6 +35,22 @@ describe('resolveColdVeil', () => {
     expect(v.liftT0).toBeUndefined();
   });
 
+  it('NEVER HID A FRAME (D11, 2026-10-28): the first render after a WebGL context restore, > 50 ms after its cold commit, is not ramped up from 0', () => {
+    // The lead's fuzzer (min-gl, 3/3): GFS z4.6 world frame, context lost and restored 800 ms later; the re-mounted layer's first
+    // frame drew at opacity 0 (__RAW_GPU__.coldVeil { mult: 0, lifted: true, reason: 'adequate' }) and then faded in over 350 ms.
+    const wide = { residentCoarseGlobal: true, viewportSpanDeg: 40, isRating: false };
+    expect(resolveColdVeil(veil(1000), wide, 1200, WIN)).toEqual({ mult: 1.0, veil: null });
+    expect(resolveColdVeil(veil(1000), { residentCoarseGlobal: false, viewportSpanDeg: 2, isRating: false }, 1324, WIN)).toEqual({ mult: 1.0, veil: null });
+    // A veil that DID hide frames still reveals with its ramp (the designed regional sharpen swap).
+    const v = veil(1000);
+    expect(resolveColdVeil(v, COASTAL_COARSE, 1100, WIN).mult).toBe(0.0);
+    const lift = resolveColdVeil(v, { ...COASTAL_COARSE, residentCoarseGlobal: false }, 2000, WIN);
+    expect(lift.mult).toBe(0); expect(lift.veil.reason).toBe('adequate');
+    // Kill: __RAW_DISABLE_VEIL_NEVER_HID__ restores the 50 ms timing rule alone (the ramp from 0 again).
+    const k = resolveColdVeil(veil(1000), wide, 1200, { __RAW_DISABLE_VEIL_NEVER_HID__: true });
+    expect(k.mult).toBe(0); expect(k.veil.liftT0).toBe(1200);
+  });
+
   it('NEVER-ENGAGED fast path: adequate within 50 ms of the stamp ends with no ramp (wide zoom stays identical)', () => {
     const r = resolveColdVeil(veil(1000), { residentCoarseGlobal: true, viewportSpanDeg: 40, isRating: false }, 1010, WIN);
     expect(r).toEqual({ mult: 1.0, veil: null });

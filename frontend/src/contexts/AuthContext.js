@@ -116,18 +116,32 @@ export const AuthProvider = ({ children }) => {
     return userData;
   }, []);
 
-  const login = useCallback(async (email, password) => {
-    const response = await apiClient.post('/auth/login', {
-      email,
-      password
-    });
-    const userData = response.data;
+  // Make a signed-in session the current one (the response of a finished sign-in).
+  const startSession = useCallback((userData) => {
     setUser(userData);
     localStorage.setItem('raw-surf-user', JSON.stringify(userData));
     clearSessionRejected();
     document.documentElement.classList.remove('no-god-mode');
     return userData;
   }, []);
+
+  // A password sign-in has three outcomes. A session (stored, returned as before), or one of two steps that carry NO
+  // session and are returned untouched for the sign-in screen to finish: `mfa_required` (answer the second factor)
+  // and `mfa_setup_required` (this role must set up two-step verification first).
+  const login = useCallback(async (email, password) => {
+    const response = await apiClient.post('/auth/login', {
+      email,
+      password
+    });
+    const data = response.data;
+    if (data?.mfa_required || data?.mfa_setup_required) return data;
+    return startSession(data);
+  }, [startSession]);
+
+  const completeMfaLogin = useCallback(async (challengeToken, code) => {
+    const response = await apiClient.post('/auth/login/mfa', { challenge_token: challengeToken, code });
+    return startSession(response.data);
+  }, [startSession]);
 
   const endImpersonation = useCallback(async () => {
     if (!impersonation || !originalUser) return;
@@ -249,6 +263,8 @@ export const AuthProvider = ({ children }) => {
     user,
     signup,
     login,
+    completeMfaLogin,
+    startSession,
     logout,
     updateUser,
     refreshUser,
@@ -268,6 +284,8 @@ export const AuthProvider = ({ children }) => {
     user,
     signup,
     login,
+    completeMfaLogin,
+    startSession,
     logout,
     updateUser,
     refreshUser,

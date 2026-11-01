@@ -9,12 +9,16 @@ from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
 import json
+import math
 
 from database import get_db
 from deps.admin_auth import get_current_admin
+from core.security import get_current_user_id
+from utils.credits import add_credits, refund_credits
+from utils.refund_guard import assert_not_seller
 from models import (
     Profile, Dispute, DisputeMessage, UserReport, PayoutHold, AuditLog,
-    CreditTransaction, Booking, LiveSession, RoleEnum
+    CreditTransaction, Booking, LiveSession, LiveSessionParticipant, RoleEnum
 )
 
 router = APIRouter()
@@ -272,6 +276,48 @@ async def create_dispute(
     return {"id": dispute.id, "status": "created"}
 
 
+async def _credit_dispute_resolution(dispute, amount, db):
+    """Restore linked payments; retain separate, unlinked admin compensation."""
+    user_id = dispute.complainant_id
+    description = f"Dispute resolution refund - {dispute.subject[:50]}"
+    original_id = dispute.transaction_id
+    reference_type, reference_id = 'dispute', dispute.id
+    if original_id:
+        original = (await db.execute(select(CreditTransaction).where(
+            CreditTransaction.id == original_id, CreditTransaction.user_id == user_id,
+            CreditTransaction.amount < 0))).scalar_one_or_none()
+        if original is None:
+            return False, 0, "Original debit required for dispute refund"
+    elif dispute.booking_id or dispute.gallery_item_id:
+        reference_type = 'booking' if dispute.booking_id else 'gallery_item'
+        reference_id = dispute.booking_id or dispute.gallery_item_id
+        original = (await db.execute(select(CreditTransaction.id).where(
+            CreditTransaction.user_id == user_id, CreditTransaction.amount < 0,
+            CreditTransaction.reference_type == reference_type,
+            CreditTransaction.reference_id == reference_id).limit(1))).scalar_one_or_none()
+        if original is None:
+            return False, 0, "Original debit required for dispute refund"
+    elif dispute.live_session_id:
+        payment_ids = (await db.execute(select(LiveSessionParticipant.payment_credit_transaction_id).where(
+            LiveSessionParticipant.live_session_id == dispute.live_session_id,
+            LiveSessionParticipant.surfer_id == user_id))).scalars().all()
+        # Older live payments used a photographer-wide reference. Require the
+        # participant's exact debit instead of refunding an unrelated session.
+        if len(payment_ids) != 1 or not payment_ids[0]:
+            return False, 0, "Original live payment requires reconciliation before refund"
+        original_id = payment_ids[0]
+    else:
+        # A dispute without any payment link is an explicit admin compensation
+        # grant. Its existing policy is distinct from reversing a customer debit.
+        return await add_credits(user_id, amount, 'dispute_refund', db,
+                                 description=description, reference_type=reference_type,
+                                 reference_id=reference_id)
+    return await refund_credits(user_id, amount, db, reference_type=reference_type,
+                                reference_id=reference_id, description=description,
+                                original_transaction_id=original_id,
+                                transaction_type='dispute_refund')
+
+
 @router.put("/admin/disputes/{dispute_id}")
 async def update_dispute(
     dispute_id: str,
@@ -302,24 +348,29 @@ async def update_dispute(
             dispute.resolved_at = datetime.now(timezone.utc)
             dispute.resolved_by = admin.id
             
+            # NaN fails every comparison, so it would sail past the `> 0` test below and be silently ignored
+            if data.amount_refunded is not None and not math.isfinite(data.amount_refunded):
+                raise HTTPException(status_code=400, detail="The refund amount must be a positive number")
+
             # If refunding to account credit
             if data.amount_refunded and data.amount_refunded > 0:
                 dispute.amount_refunded = data.amount_refunded
-                
+
                 # Add credit to complainant's account
                 complainant = dispute.complainant
                 if complainant:
-                    complainant.credit_balance = (complainant.credit_balance or 0) + data.amount_refunded
-                    
-                    # Create credit transaction
-                    credit_txn = CreditTransaction(
-                        profile_id=complainant.id,
-                        amount=data.amount_refunded,
-                        transaction_type='dispute_refund',
-                        description=f"Dispute resolution refund - {dispute.subject[:50]}",
-                        reference_id=dispute.id
-                    )
-                    db.add(credit_txn)
+                    # A refund pays whoever PAID, never the other side of the dispute or the seller of what is
+                    # disputed (admin-created disputes can name any pair of users).
+                    await assert_not_seller(
+                        db, complainant.id, booking_id=dispute.booking_id,
+                        live_session_id=dispute.live_session_id, gallery_item_id=dispute.gallery_item_id,
+                        transaction_id=dispute.transaction_id, respondent_id=dispute.respondent_id)
+
+                    ok, _balance, error = await _credit_dispute_resolution(
+                        dispute, data.amount_refunded, db)
+                    if not ok:
+                        await db.rollback()
+                        raise HTTPException(status_code=409, detail=error or "Could not credit the refund")
     
     if data.priority:
         dispute.priority = data.priority
@@ -499,9 +550,12 @@ async def get_reports(
 @router.post("/admin/reports")
 async def create_report(
     data: CreateReportRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Create a new user report (can be called by users or admins)"""
+    """Create a new user report (can be called by users or admins; the reporter is always the caller)"""
+    if data.reporter_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     report = UserReport(
         reporter_id=data.reporter_id,
         report_type=data.report_type,

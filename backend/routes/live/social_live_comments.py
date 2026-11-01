@@ -18,6 +18,7 @@ import os
 from database import get_db
 from models import SocialLiveStream
 from core.security import get_user_id_from_jwt_or_query, get_current_user_id
+from services.parental_controls import assert_grom_may
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -114,6 +115,8 @@ async def post_live_comment(
     """Post a comment to a live stream"""
     if data.user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Forbidden: user_id does not match the authenticated user.")
+    # PARENTAL CONTROLS (audit F-09): live chat is commenting.
+    await assert_grom_may(db, current_user_id, "comment")
     import uuid
 
     # Verify stream exists and is live

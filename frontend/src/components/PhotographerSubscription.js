@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { Button } from './ui/button';
 import { Card, CardContent } from './ui/card';
 import { toast } from 'sonner';
@@ -15,11 +16,22 @@ import { ROLES } from '../constants/roles';
 
 export const PhotographerSubscription = () => {
   const navigate = useNavigate();
+  const { theme } = useTheme();
   const location = useLocation();
-  const { user, _updateUser } = useAuth();
+  const { user, updateUser } = useAuth();
   const [loading, setLoading] = useState(false);
   const [selectedTier, setSelectedTier] = useState(null);
   const [billingPeriod, setBillingPeriod] = useState('monthly');
+  const [configuredPlans, setConfiguredPlans] = useState(null);
+  const [pricingError, setPricingError] = useState(false);
+  useEffect(() => {
+    let active = true;
+    apiClient.get('/subscriptions/plans').then(({ data }) => {
+      if (active) setConfiguredPlans(data);
+    }).catch(() => { if (active) setPricingError(true); });
+    return () => { active = false; };
+  }, []);
+
   const [showHobbyistFunnel, setShowHobbyistFunnel] = useState(false);
   
   // Determine if this is a Verified Pro user based on location state or user role
@@ -29,24 +41,36 @@ export const PhotographerSubscription = () => {
   
   // Use appropriate plans based on user type
   const PLANS = isVerifiedPro ? VERIFIED_PRO_PLANS : PHOTOGRAPHER_PLANS;
-  const PHOTOGRAPHER_TIERS = billingPeriod === 'monthly' ? PLANS.monthly : PLANS.annual;
+  const presentationPlans = billingPeriod === 'monthly' ? PLANS.monthly : PLANS.annual;
+  const roleKey = isVerifiedPro ? 'approved_pro_photographer' : 'photographer';
+  const pricedPlans = configuredPlans?.[roleKey]?.[billingPeriod] || [];
+  const PHOTOGRAPHER_TIERS = presentationPlans.flatMap(tier => {
+    const priced = pricedPlans.find(plan => plan.tier_id === tier.tier_id);
+    return priced ? [{ ...tier, id: priced.id, price: priced.price, subscriptionTier: priced.tier_name,
+      monthlyEquiv: priced.monthly_equiv, originalMonthly: priced.original_monthly,
+      savings: priced.savings ? `$${priced.savings}` : undefined }] : [];
+  });
 
   const handleSelectTier = async (tier) => {
     setSelectedTier(tier.id);
     setLoading(true);
 
     try {
-      // Redirect to Stripe checkout
-      const response = await apiClient.post(
-        `/subscriptions/checkout`,
-        {
-          tier_id: tier.id,
-          origin_url: window.location.origin
-        }
-      );
-      
-      // Redirect to Stripe
-      window.location.href = response.data.checkout_url;
+      const response = await apiClient.post('/subscriptions/checkout', {
+        tier_id: tier.id,
+        origin_url: window.location.origin
+      });
+      // The admin price can change after this card was loaded. Follow the
+      // actual checkout result instead of treating a displayed zero as paid.
+      if (response.data.session_id === 'free') {
+        updateUser({ subscription_tier: response.data.tier || tier.subscriptionTier });
+        toast.success(`${tier.name} plan activated!`);
+        navigate('/feed');
+      } else if (response.data.checkout_url) {
+        window.location.href = response.data.checkout_url;
+      } else {
+        throw new Error('Checkout did not return a payment or activation result');
+      }
     } catch (error) {
       logger.error('Subscription error:', error);
       toast.error(error.response?.data?.detail || 'Failed to process subscription');
@@ -71,6 +95,10 @@ export const PhotographerSubscription = () => {
   return (
     <div className="min-h-screen bg-black p-4 py-8">
       <div className="max-w-4xl mx-auto">
+        {!configuredPlans && <p role={pricingError ? 'alert' : 'status'} className={`text-center rounded-lg p-3 ${theme === 'light' ? 'bg-white text-gray-700' : theme === 'beach' ? 'bg-slate-800 text-slate-100' : 'bg-zinc-900 text-gray-300'}`}>
+          {pricingError ? 'Could not load subscription prices. Please reload to try again.' : 'Loading subscription prices...'}
+        </p>}
+
         {/* Header */}
         <div className="text-center mb-12">
           <img loading="lazy" decoding="async"
@@ -204,7 +232,7 @@ export const PhotographerSubscription = () => {
 
                 <Button
                   onClick={() => handleSelectTier(tier)}
-                  disabled={loading && selectedTier === tier.id}
+                  disabled={loading || !configuredPlans}
                   className={`w-full min-h-[48px] font-bold ${
                     tier.popular
                       ? 'bg-gradient-to-r from-emerald-400 via-yellow-400 to-orange-400 hover:from-emerald-500 hover:via-yellow-500 hover:to-orange-500 text-black'

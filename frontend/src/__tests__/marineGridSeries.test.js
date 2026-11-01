@@ -264,12 +264,23 @@ describe('marineGridSeries — flag-gated time-series client', () => {
     expect(getMarineSeriesFrame('GFS', 'waves', bounds, 0).grid.ratingMode).toBe(false);
   });
 
-  it('requests a PADDED bbox so the served tile contains the viewport', async () => {
+  it('requests a PADDED bbox, snapped OUTWARD to 1 deg, so the served tile contains the viewport and small pans ask the same box', async () => {
     window.__MARINE_SERIES__ = true;
     global.fetch.mockResolvedValue({ ok: true, json: async () => mockSeriesResponse() });
     await ensureMarineSeries('GFS', 'waves', bounds, 0, undefined, true);
     const url = global.fetch.mock.calls[0][0];
-    // bounds = {west:-81.7, south:27.8, east:-79.6, north:28.8}; padded by 0.5 → -82.2,27.3,-79.1,29.3
+    // bounds = {west:-81.7, south:27.8, east:-79.6, north:28.8}; padded by 0.5 → -82.2,27.3,-79.1,29.3; snapped → -83,27,-79,30
+    // (marineSeriesPanGuard.snapRequestBox, 2026-10-23: live, every small pan asked an unsnapped box of its own)
+    expect(url).toContain('bbox=-83.0000,27.0000,-79.0000,30.0000');
+  });
+
+  it('positive control: with the snap killed the request is the padded box exactly', async () => {
+    window.__MARINE_SERIES__ = true;
+    window.__RAW_DISABLE_SERIES_REQUEST_SNAP__ = true;
+    global.fetch.mockResolvedValue({ ok: true, json: async () => mockSeriesResponse() });
+    await ensureMarineSeries('GFS', 'waves', bounds, 0, undefined, true);
+    const url = global.fetch.mock.calls[0][0];
+    delete window.__RAW_DISABLE_SERIES_REQUEST_SNAP__;
     expect(url).toContain(`bbox=${(bounds.west - 0.5).toFixed(4)},${(bounds.south - 0.5).toFixed(4)},${(bounds.east + 0.5).toFixed(4)},${(bounds.north + 0.5).toFixed(4)}`);
   });
 });

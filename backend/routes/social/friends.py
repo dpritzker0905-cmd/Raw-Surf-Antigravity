@@ -13,6 +13,8 @@ from typing import Optional, List
 from datetime import datetime, timezone
 
 from database import get_db
+from services.blocks import assert_not_blocked
+from services.guardian_policy import assert_level_allows, notify_guardian_of_teen_activity
 from models import (
     Profile, Friend, FriendshipStatusEnum, PrivacySetting
 )
@@ -47,11 +49,17 @@ class UpdateGPSLocation(BaseModel):
 async def send_friend_request(
     request_data: SendFriendRequest,
     requester_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Send a friend request"""
+    if requester_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     if requester_id == request_data.addressee_id:
         raise HTTPException(status_code=400, detail="Cannot send friend request to yourself")
+
+    # BLOCKS (audit F-09): a block in either direction refuses the request.
+    await assert_not_blocked(db, requester_id, request_data.addressee_id)
     
     # Check if request already exists
     result = await db.execute(
@@ -319,8 +327,14 @@ async def update_privacy_settings(
         )
         profile = profile_result.scalar_one_or_none()
         if profile:
+            if settings_data.is_private is False:
+                # GUARDIAN LEVEL: a child's profile goes public only at the public-profile level for their age band.
+                standing = await assert_level_allows(db, profile, 'public_profile')
+                await notify_guardian_of_teen_activity(
+                    db, profile, standing, "Your 16-17 year old made their profile public",
+                    f"{profile.full_name or 'Your child'} switched their profile to public.")
             profile.is_private = settings_data.is_private
-    
+
     if hasattr(settings_data, 'accepting_lineup_invites') and settings_data.accepting_lineup_invites is not None:
         profile_result = await db.execute(
             select(Profile).where(Profile.id == user_id)
@@ -340,9 +354,12 @@ async def update_privacy_settings(
 async def update_gps_location(
     user_id: str,
     location: UpdateGPSLocation,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Update user's GPS location for friend finder"""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(
         select(PrivacySetting).where(PrivacySetting.user_id == user_id)
     )

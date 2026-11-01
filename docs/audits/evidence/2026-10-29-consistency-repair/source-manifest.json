@@ -1,0 +1,18 @@
+{
+  "base_commit": "72b4652d5753423cce18b9ad1d1de95f0afcb7e7",
+  "source_sha256": {
+    "backend/routes/notifications/notifications.py": "237601282ace439fc067a910cf3c850e62e7dfe24965281a9683180763edb47f",
+    "backend/routes/surf_data/surf_log.py": "83e879d5b1666ee5c74ce4bf9405e0c38be47e1fd6674673c3ead82e81f70358",
+    "frontend/src/components/Explore.js": "5cc7ecb276734369d7796999943e0dc9cd7171c2ae033e5bbe0040c9ff2c8078",
+    "frontend/src/components/GlobalSearchBar.js": "145cf3750ab961325cc8f4fb8911786f27e27f618177063ae8744f38a92a8acd",
+    "frontend/src/components/NotificationsDrawer.js": "9914a919078a1eb7871b5e45cf7595853abd6089c1936b5a6c893869b6ad38ad",
+    "frontend/src/components/NotificationsPage.js": "e9202548d6d66d82cfab633021f62e7a79cfdaa77387a5ce0cb79bf2c5c36ab2",
+    "frontend/src/components/ProfileReviewsSection.js": "46f08802532a96e93c5c606fea25519be5f53d0f10bc3ac2d194e99cd80a11be",
+    "frontend/src/components/SurfLog.js": "e5d4f32c343e3107171c5a2799f008516e285a36a3f723474538cf2ac9431555",
+    "frontend/src/hooks/useExploreData.js": "40a89cc274563c0f32efa69eadac3c3f499cab6cfcd42b7f2a164819a3ab9735",
+    "frontend/src/hooks/useNotificationInbox.js": "98c66d750fe661576856de4e8f4caa49b7585f20871092a2fd1559c545ebb235",
+    "frontend/src/hooks/useUnreadCounts.js": "584763a172c0f161369b2fb88d35c1d03be978bb96ab09eb8862e5f97c954ac7",
+    "frontend/src/services/notificationService.js": "15cacfc350eac98394cefd0f4f955d9bb98c62fd04ab716179be905eff3a256b"
+  },
+  "post_verification_formatting": "Removed trailing spaces from two JSX attribute lines; no syntax or behavior change."
+}

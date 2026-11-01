@@ -129,3 +129,12 @@ Checks: whole Jest tree 501/502 suites (the one failure, `netlifyIconStoredTailS
 passes alone 12/12); ESLint ratchet and LOC ratchet pass; backend push + floor tests 61 passed; flake8 gate clean.
 Visual (offline build, Playwright, `/settings`): the row in light / dark / beach at 1280x800 and 390x844: 0 page
 errors, no horizontal scroll; on 127.0.0.1 push is unsupported, so the shots show the disabled state.
+
+## Addendum 2026-10-23T23:58Z: the TOS id fix is already in dev (#496)
+The follow-up named above ("TOS id keying ... not fixed here") was prepared after #470 on a local branch
+(`claude/tos-id-keying`, 908e810a6) and never opened: #496 (b171ba51c, "bind eight personal-data reads to the caller
+and fix the ToS gate id") landed first and covers it. The gate asks and caches by `user.id` (the JWT subject that
+`/acknowledge-tos` records under), Settings > Legal already used `user.id`, and `/tos-status` and
+`/acceptance-history` answer 403 for any id but the caller's. The local branch differed only by ignoring the path id
+instead of refusing it, so nothing remains. Recorded as ledger.d/claude--tos-keying-covered-by-496.jsonl:1.
+Changes no served number: no SCOREBOARD row.

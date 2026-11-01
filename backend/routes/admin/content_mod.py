@@ -13,6 +13,7 @@ from datetime import datetime, timezone, timedelta
 
 from database import get_db
 from deps.admin_auth import get_current_admin
+from core.security import get_current_user_id
 from models import (
     Profile, ContentModerationItem, ContentModerationStatusEnum,
     GalleryItem, Post, ConditionReport
@@ -323,14 +324,19 @@ class FlagContentRequest(BaseModel):
 @router.post("/content/flag")
 async def flag_content_for_moderation(
     request: FlagContentRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Flag content for moderation review"""
+    """Flag content for moderation review (a signed-in user's report; it is never an AI verdict)"""
+    if request.reporter_id and request.reporter_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     content_type = request.content_type
     content_id = request.content_id
-    flagged_by = request.flagged_by or "user_report"
-    ai_categories = request.ai_categories
-    ai_confidence = request.ai_confidence
+    # The only caller is a user pressing "report". A client-chosen flagged_by="auto" plus ai_* fields would
+    # forge an AI detection in the admin queue, so those fields are not taken from the request.
+    flagged_by = "user_report"
+    ai_categories = None
+    ai_confidence = None
 
     # Check if already in queue
     existing = await db.execute(

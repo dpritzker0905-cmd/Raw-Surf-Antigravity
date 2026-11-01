@@ -30,7 +30,7 @@ LATS = np.round(np.arange(40.0, 29.99, -0.25), 2)      # GRIB order: north to so
 LONS = np.round(np.arange(0.0, 10.01, 0.25), 2)
 T0 = datetime(2026, 10, 23, 0, 0, 0)
 ISLET = (34.0, 4.0)         # land centre, nearest sea 2 native cells away: inside the default reach
-BIG_ISLAND = (32.0, 8.0)    # land centre, nearest sea 4 cells away (the block's edge): outside the default reach
+BIG_ISLAND = (32.0, 8.0)    # land centre, nearest sea 4 cells away (the block's edge): inside the default reach 4, outside 2
 ALL_LAND = (38.0, 8.0)      # a node whose whole block is land
 OPEN_SEA = (32.0, 2.0)
 
@@ -136,11 +136,11 @@ def test_flag_on_a_coastal_land_centre_node_takes_direction_and_pp1d_from_the_he
     assert by[ISLET]["__land_centre_block"] == [0]
 
 
-def test_the_reach_keeps_nodes_whose_nearest_sea_is_at_the_block_edge_masked(monkeypatch):
-    by, _ = _fetch(monkeypatch, on=True)                                     # default reach 2 cells (0.5 deg)
-    assert by[BIG_ISLAND]["hourly"]["wave_direction"][0] is None
-    by, fields = _fetch(monkeypatch, on=True, reach=4)                       # the whole block
+def test_the_default_reach_is_the_whole_block_and_a_narrower_reach_keeps_the_block_edge_masked(monkeypatch):
+    by, fields = _fetch(monkeypatch, on=True)                                # default reach 4 cells: the whole block (2026-10-23)
     assert by[BIG_ISLAND]["hourly"]["wave_direction"][0] == pytest.approx(round(_want(fields, BIG_ISLAND)[0], 2), abs=0.01)
+    by, _ = _fetch(monkeypatch, on=True, reach=2)                            # 0.5 deg: the nearest sea 4 cells out is beyond it
+    assert by[BIG_ISLAND]["hourly"]["wave_direction"][0] is None
 
 
 def test_mwp_only_when_the_whole_block_has_no_pp1d_and_no_period_means_no_validation(monkeypatch):
@@ -184,3 +184,13 @@ def test_block_slice_is_the_heights_own_window():
     a = np.arange(41 * 41, dtype=float).reshape(41, 41)
     blk, centre = f.block_slice(a, 20, 20, 4)
     assert blk.shape == (8, 8) and centre == (4, 4) and blk[0, 0] == a[16, 16] and blk[7, 7] == a[23, 23]   # NW-offset 8x8
+
+
+@pytest.mark.parametrize("raw, want", [(None, 4), ("2", 2), ("0", 1), ("whole block", 4), ("", 4)])
+def test_the_reach_reads_its_env_with_the_whole_block_as_the_fallback(monkeypatch, raw, want):
+    """The repo variable lands here verbatim; anything unreadable means the documented default (the whole block), never 0."""
+    if raw is None:
+        monkeypatch.delenv("ECMWF_WAVE_LAND_CENTRE_REACH", raising=False)
+    else:
+        monkeypatch.setenv("ECMWF_WAVE_LAND_CENTRE_REACH", raw)
+    assert f.land_centre_reach() == want

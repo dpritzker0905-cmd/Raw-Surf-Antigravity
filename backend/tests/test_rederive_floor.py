@@ -232,6 +232,63 @@ def test_add_auto_re_lays_an_old_one_line_prs_own_lane_change_into_the_block_lay
     assert S.read_floors(ci)["chain"] == {"files": files + 1, "passed": vals["chain"] + 13 - 6}
 
 
+def test_add_auto_reads_the_branchs_own_note_not_devs_later_merges(isolated_git, tmp_path, monkeypatch):
+    """2026-10-24, #513: `--add auto` read +43 for a PR that added 17. The helper had set the branch's estate value from
+    a NEWER dev (map +26 since the branch was cut), so HEAD minus the merge base also counted those 26. The branch's own
+    note says `+ 17 new test(s)`; that is the number to use."""
+    repo = tmp_path / "r"
+    os.makedirs(repo)
+
+    def git(*args):
+        return subprocess.run(["git", *args], cwd=repo, capture_output=True, text=True)
+
+    def put(rel, text):
+        p = repo.joinpath(*rel.split("/"))
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_bytes(text.encode())
+
+    def read(rel):
+        return repo.joinpath(*rel.split("/")).read_text(encoding="utf-8")
+
+    def dev_moves_estate(by, msg):
+        git("switch", "-q", "dev")
+        e = R.parse_map(read(R.MAP_REL))["estate"] + by
+        put(R.MAP_REL, R.set_map(read(R.MAP_REL), "estate", e, msg))
+        put(R.CI_REL, R.set_ci_floor(read(R.CI_REL), "estate", None, e - 2, [f"# {msg}", "#  x"], "other"))
+        git("commit", "-qam", msg)
+    e0 = R.parse_map(MAP_TEXT)["estate"]
+    git("init", "-q", "-b", "dev")
+    put(R.MAP_REL, MAP_TEXT)
+    put(R.CI_REL, CI_TEXT)
+    git("add", "-A")
+    git("commit", "-qm", "base")
+    git("branch", "pr")                                             # the PR is cut here
+    dev_moves_estate(26, "other PRs: +26")
+    monkeypatch.setattr(R, "REPO", str(repo))
+    monkeypatch.setattr(S, "last_green_run", lambda branch, now=None: (7, "sha", "2026-10-24T00:00:00Z"))
+    monkeypatch.setattr(S, "observed", lambda run, lane: (None, e0))
+    git("switch", "-q", "pr")
+    assert R.main(["--lane", "estate", "--add", "17", "--base", "dev"]) == 0     # set from the NEWER dev: e0 + 26 + 17
+    assert R.parse_map(read(R.MAP_REL))["estate"] == e0 + 43
+    git("commit", "-qam", "pr: its floor, set by the helper")
+    dev_moves_estate(5, "another PR: +5")
+    git("switch", "-q", "pr")
+    assert git("merge", "--no-edit", "dev").returncode != 0
+    git("checkout", "--theirs", "--", R.MAP_REL, R.CI_REL)
+    assert R.own_delta("estate", "dev") == (17, 0), "the difference alone reads 43: 26 of it is other PRs' tests"
+    assert R.main(["--lane", "estate", "--add", "auto", "--base", "dev"]) == 0
+    assert R.parse_map(read(R.MAP_REL))["estate"] == e0 + 26 + 5 + 17
+    assert S.read_floors(str(repo.joinpath(*R.CI_REL.split("/"))))["estate"]["passed"] == e0 + 26 + 5 + 17 - 2
+
+
+def test_the_note_carries_the_files_and_an_old_note_without_them_still_reads():
+    old = "      # ⬆ 1→2 on 2026-10-23 (rederive_floor.py, b): dev run 1 read 1; dev's map 1;\n" \
+          "      #   base 1 (hosted read) + 9 new test(s) = 10, files 5; floor 10 - 6 = 4. This PR must read 10 passed.\n"
+    new = old.replace("+ 9 new test(s) = 10", "+ 9 new test(s) and 1 new file(s) = 10")
+    assert R.NOTE_TESTS_RE.search(old).group(1) == "9" and not R.NOTE_FILES_RE.search(old)
+    assert R.NOTE_FILES_RE.search(new).group(1) == "1"
+
+
 def test_a_bad_add_is_refused(checkout):
     assert R.main(["--lane", "estate", "--add", "lots"]) == 1
     assert R.main(["--lane", "chain", "--add", "3", "--add-files", "x"]) == 1

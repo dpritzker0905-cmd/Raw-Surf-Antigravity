@@ -13,6 +13,8 @@ from typing import List
 from datetime import datetime, timezone, timedelta
 import json
 import logging
+import math
+from uuid import uuid4
 import os
 import stripe
 import stripe_mcp_server
@@ -21,11 +23,13 @@ import sqlite3
 from database import get_db
 from models import (
     Profile, Booking, BookingParticipant,
-    Notification, PaymentTransaction
+    Notification, PaymentTransaction, CreditTransaction
 )
 from utils.credits import deduct_credits, add_credits
+from utils.booking_checkout_recovery import booking_checkout_snapshot, recover_booking_checkout
 from core.security import get_current_user_id
 
+from .split_lock import check_splits, enforce_paid_shares, locked_share
 from .crud import (
     CreateBookingWithStripeRequest,
     check_time_slot_conflict,
@@ -49,6 +53,10 @@ class UpdateSplitsRequest(BaseModel):
     splits: List[UpdateSplitRequest]
 
 
+class NudgeRequest(BaseModel):
+    participant_id: str
+
+
 # ═══ STRIPE CHECKOUT ROUTES ════════════════════════════════════════════════
 
 @router.post("/bookings/create-with-stripe")
@@ -58,58 +66,58 @@ async def create_booking_with_stripe(
     db: AsyncSession = Depends(get_db)
 ):
     """Create a booking with Stripe payment for remaining balance after credits"""
-    from routes.notifications.push_payloads import notify_booking
-    
+    if not STRIPE_API_KEY:
+        raise HTTPException(status_code=503, detail="Payment processing not configured")
+
     user_result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = user_result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    
+
     photographer_result = await db.execute(
         select(Profile).where(Profile.id == data.photographer_id)
     )
     photographer = photographer_result.scalar_one_or_none()
     if not photographer:
         raise HTTPException(status_code=404, detail="Photographer not found")
-    
+
     try:
         session_date = datetime.fromisoformat(data.session_date.replace('Z', '+00:00'))
     except ValueError:
         raise HTTPException(status_code=400, detail="Invalid date format")
-    
+
     conflict = await check_time_slot_conflict(
         db=db, photographer_id=data.photographer_id,
         session_date=session_date, duration=data.duration
     )
     if conflict:
         raise HTTPException(status_code=409, detail=conflict["message"])
-    
+
     hourly_rate = photographer.booking_hourly_rate or photographer.hourly_rate or photographer.session_price or 75.0
     duration_multipliers = {60: 1, 120: 1.8, 180: 2.5, 240: 3, 480: 5}
     multiplier = duration_multipliers.get(data.duration, data.duration / 60)
-    total_price = hourly_rate * multiplier
-    
+    total_price = round(hourly_rate * multiplier, 2)
+    if not math.isfinite(total_price) or total_price <= 0:
+        raise HTTPException(status_code=400, detail="This booking has no valid price")
+
     credits_applied = 0
     remaining_credits = user.credit_balance or 0
-    
+
     if data.apply_credits and data.apply_credits > 0:
         apply_credits_rounded = round(data.apply_credits, 2)
         total_price_rounded = round(total_price, 2)
         user_balance_rounded = round(user.credit_balance or 0, 2)
-        
+
         if apply_credits_rounded > user_balance_rounded:
             raise HTTPException(status_code=400, detail="Insufficient credit balance")
         credits_applied = min(apply_credits_rounded, total_price_rounded)
-    
+
     amount_to_charge = round(total_price - credits_applied, 2)
     if amount_to_charge < 0:
         amount_to_charge = 0
     if amount_to_charge <= 0:
         raise HTTPException(status_code=400, detail="No amount to charge. Use regular booking endpoint.")
-    
-    import secrets
-    import string
-    
+
     booking = Booking(
         photographer_id=data.photographer_id, creator_id=user_id,
         location=data.location, latitude=data.latitude, longitude=data.longitude,
@@ -121,87 +129,91 @@ async def create_booking_with_stripe(
     )
     db.add(booking)
     await db.flush()
-    
+
     success_url = f"{data.origin_url}/bookings/success?session_id={{CHECKOUT_SESSION_ID}}&booking_id={booking.id}"
     cancel_url = f"{data.origin_url}/bookings/cancel?booking_id={booking.id}"
     session_time_str = session_date.strftime('%b %d at %I:%M %p')
-    
-    # Get or create stripe customer ID mapping in stripe-mcp cache
-    customer_id = None
-    try:
-        conn = sqlite3.connect(stripe_mcp_server.DB_PATH, timeout=10.0)
-        cursor = conn.cursor()
-        cursor.execute("SELECT customer_id FROM stripe_customers WHERE supabase_user_id = ?", (user_id,))
-        row = cursor.fetchone()
-        if row:
-            customer_id = row[0]
-        else:
-            import uuid
-            customer_id = f"cus_test_{uuid.uuid4().hex[:12]}"
-            cursor.execute(
-                "INSERT INTO stripe_customers (customer_id, email, name, supabase_user_id, subscription_status, created_at) VALUES (?, ?, ?, ?, 'inactive', datetime('now'))",
-                (customer_id, user.email, user.full_name, user_id)
-            )
-            conn.commit()
-        conn.close()
-    except Exception as e:
-        logger.error(f"Failed to lookup/create stripe customer mapping: {e}")
-        customer_id = f"cus_test_fallback_{user_id[:8]}"
 
     try:
-        # Route checkout session creation through stripe-mcp server tool function
-        checkout_session = stripe_mcp_server.stripe_create_checkout_session(
-            customer_id=customer_id,
-            amount=amount_to_charge,
-            currency="usd",
+        checkout_session = stripe.checkout.Session.create(
+            payment_method_types=['card'],
+            mode='payment',
+            customer_email=user.email,
+            line_items=[{
+                'price_data': {
+                    'currency': 'usd',
+                    'unit_amount': int(round(amount_to_charge * 100)),
+                    'product_data': {
+                        'name': f"Photo session with {photographer.full_name}",
+                        'description': f"{data.location} on {session_time_str}",
+                    },
+                },
+                'quantity': 1,
+            }],
             success_url=success_url,
             cancel_url=cancel_url,
-            metadata_dict={
+            metadata={
                 'user_id': user_id,
                 'booking_id': str(booking.id),
                 'photographer_id': data.photographer_id,
                 'credits_applied': str(credits_applied),
-                'type': 'scheduled_booking'
-            }
+                'type': 'scheduled_booking',
+            },
+            idempotency_key=f"scheduled_booking_{booking.id}",
         )
-    except Exception as e:
-        logger.error(f"Stripe MCP error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Payment error: {str(e)}")
-    
-    transaction = PaymentTransaction(
-        user_id=user_id, session_id=checkout_session["checkout_session_id"],
-        amount=amount_to_charge, currency="usd",
-        payment_status="Pending", status="Pending",
-        transaction_metadata=json.dumps({
-            'booking_id': booking.id, 'credits_applied': credits_applied,
-            'photographer_id': data.photographer_id
-        })
-    )
-    db.add(transaction)
-    
-    participant = BookingParticipant(
-        booking_id=booking.id, participant_id=user_id,
-        invite_type='direct', paid_amount=credits_applied,
-        payment_status='Pending', payment_method='stripe', status='pending'
-    )
-    db.add(participant)
-    
-    if credits_applied > 0:
-        success, remaining_credits, error = await deduct_credits(
-            user_id=user_id, amount=credits_applied,
-            transaction_type='booking_payment', db=db,
-            description=f"Scheduled session with {photographer.full_name} (partial)",
-            reference_type='booking', reference_id=booking.id,
-            counterparty_id=data.photographer_id
+    except Exception:
+        await db.rollback()
+        logger.exception("Scheduled booking checkout creation failed")
+        raise HTTPException(status_code=500, detail="Payment checkout could not be created")
+
+    # Preserve primitive identity/receipt values before rollback expires ORM rows.
+    booking_id = booking.id
+    commit_attempted, expected = False, None
+    debit_id = str(uuid4()) if credits_applied > 0 else None
+    try:
+        transaction = PaymentTransaction(
+            user_id=user_id, session_id=checkout_session.id,
+            amount=amount_to_charge, currency="usd",
+            payment_status="Pending", status="Pending",
+            transaction_metadata=json.dumps({
+                'booking_id': booking.id, 'credits_applied': credits_applied,
+                'photographer_id': data.photographer_id, 'checkout_provider': 'stripe'
+            })
         )
-        if not success:
-            raise HTTPException(status_code=400, detail=error or "Failed to apply credits")
-    
-    await db.commit()
-    
+        db.add(transaction)
+
+        participant = BookingParticipant(
+            booking_id=booking.id, participant_id=user_id,
+            invite_type='direct', paid_amount=credits_applied,
+            payment_status='Pending', payment_method='stripe', status='pending'
+        )
+        db.add(participant)
+
+        if credits_applied > 0:
+            success, remaining_credits, error = await deduct_credits(
+                user_id=user_id, amount=credits_applied,
+                transaction_type='booking_payment', db=db,
+                description=f"Scheduled session with {photographer.full_name} (partial)",
+                reference_type='booking', reference_id=booking.id,
+                counterparty_id=data.photographer_id, transaction_id=debit_id
+            )
+            if not success:
+                raise HTTPException(status_code=400, detail=error or "Failed to apply credits")
+
+        await db.flush()
+        rows = [booking, transaction, participant]
+        if debit_id:
+            debit_result = await db.execute(select(CreditTransaction).where(CreditTransaction.id == debit_id))
+            rows.append(debit_result.scalar_one())
+        expected = booking_checkout_snapshot(*rows)
+        commit_attempted = True
+        await db.commit()
+    except Exception as error:
+        await recover_booking_checkout(db, checkout_session.id, error, commit_attempted, expected)
+
     return {
-        "checkout_url": checkout_session["url"], "session_id": checkout_session["checkout_session_id"],
-        "booking_id": booking.id, "amount_to_charge": amount_to_charge,
+        "checkout_url": checkout_session.url, "session_id": checkout_session.id,
+        "booking_id": booking_id, "amount_to_charge": amount_to_charge,
         "credits_applied": credits_applied, "remaining_credits": remaining_credits
     }
 
@@ -245,7 +257,8 @@ async def booking_payment_success(
     if transaction.user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Cannot confirm another user's payment")
     try:
-        recorded_booking_id = json.loads(transaction.transaction_metadata or "{}").get("booking_id")
+        transaction_metadata = json.loads(transaction.transaction_metadata or "{}")
+        recorded_booking_id = transaction_metadata.get("booking_id")
     except (TypeError, ValueError, AttributeError):
         recorded_booking_id = None
     if recorded_booking_id is None or str(recorded_booking_id) != str(booking_id):
@@ -270,7 +283,8 @@ async def booking_payment_success(
     if booking.status not in ('Pending Payment', 'PendingPayment'):
         raise HTTPException(status_code=409, detail="This booking is not awaiting payment")
 
-    if session_id.startswith("cs_test_") and checkout_emulation_allowed():
+    if (session_id.startswith("cs_test_") and checkout_emulation_allowed()
+            and transaction_metadata.get("checkout_provider") != "stripe"):
         # Emulate checkout retrieve through mock stripe-mcp server tool path
         payment_status = 'paid'
         try:
@@ -317,13 +331,17 @@ async def booking_payment_success(
                 description=f'Payment for booking with {booking.photographer.full_name}',
                 reference_type='booking', reference_id=booking.id
             )
-            await deduct_credits(
+            success, _, error = await deduct_credits(
                 user_id=booking.creator_id, amount=transaction.amount,
                 transaction_type='booking_payment', db=db,
                 description=f'Scheduled session with {booking.photographer.full_name}',
                 reference_type='booking', reference_id=booking.id,
-                counterparty_id=booking.photographer_id
+                counterparty_id=booking.photographer_id,
+                consume_spend_only=False,
             )
+            if not success:
+                await db.rollback()
+                raise HTTPException(status_code=500, detail=error or "Payment settlement failed")
     
     booking.status = 'Confirmed'
     booking.escrow_amount = booking.total_price * 0.80
@@ -381,6 +399,70 @@ async def booking_payment_success(
     return {"success": True, "message": "Booking confirmed!", "booking_id": booking.id, "status": "Confirmed"}
 
 
+async def reconcile_expired_booking_checkout(booking, db: AsyncSession) -> bool:
+    """Allow a local expiry refund only after its provider checkout is expired/unpaid.
+
+    A paid checkout is settled through the normal callback instead. Unknown provider
+    state or an ambiguous local payment link leaves the booking pending for retry.
+    """
+    result = await db.execute(
+        select(PaymentTransaction).where(
+            PaymentTransaction.user_id == booking.creator_id,
+            PaymentTransaction.payment_status.in_(['Pending', 'pending']),
+        ).with_for_update()
+    )
+    linked = []
+    for transaction in result.scalars().all():
+        try:
+            metadata = json.loads(transaction.transaction_metadata or '{}')
+        except (TypeError, ValueError):
+            continue
+        if isinstance(metadata, dict) and str(metadata.get('booking_id')) == str(booking.id):
+            linked.append(transaction)
+    if len(linked) != 1 or not linked[0].session_id:
+        logger.warning("Pending booking expiry has no unique checkout link: %s", booking.id)
+        return False
+    transaction = linked[0]
+
+    async def classify(checkout):
+        if not _booking_session_matches(
+            checkout, str(booking.id), booking.creator_id, transaction.amount
+        ):
+            return False
+        if getattr(checkout, 'payment_status', None) == 'paid':
+            await booking_payment_success(
+                session_id=transaction.session_id, booking_id=str(booking.id),
+                current_user_id=booking.creator_id, db=db,
+            )
+            return False
+        return (getattr(checkout, 'status', None) == 'expired'
+                and getattr(checkout, 'payment_status', None) == 'unpaid')
+
+    try:
+        checkout = stripe.checkout.Session.retrieve(transaction.session_id)
+        if getattr(checkout, 'payment_status', None) == 'paid':
+            return await classify(checkout)
+        if getattr(checkout, 'status', None) == 'expired':
+            return await classify(checkout)
+        if (getattr(checkout, 'status', None) != 'open'
+                or getattr(checkout, 'payment_status', None) != 'unpaid'
+                or not _booking_session_matches(
+                    checkout, str(booking.id), booking.creator_id, transaction.amount
+                )):
+            return False
+        try:
+            checkout = stripe.checkout.Session.expire(transaction.session_id)
+        except Exception:
+            # Expiry may lose a race to successful payment. Retrieve again and
+            # settle that payment rather than refunding its reserved credits.
+            checkout = stripe.checkout.Session.retrieve(transaction.session_id)
+        return await classify(checkout)
+    except Exception:
+        await db.rollback()
+        logger.exception("Could not reconcile pending booking checkout expiry")
+        return False
+
+
 # ═══ CREW PAYMENT MANAGEMENT ═══════════════════════════════════════════════
 
 @router.get("/bookings/{booking_id}/crew-status")
@@ -405,7 +487,10 @@ async def get_crew_status(booking_id: str, db: AsyncSession = Depends(get_db)):
             "avatar_url": profile.avatar_url if profile else None,
             "payment_status": p.payment_status or "Pending",
             "amount_paid": p.amount_paid or 0,
-            "share_amount": p.share_amount or (booking.total_price / max(booking.max_participants, 1)),
+            # a member who has paid shows the share they are locked at (the editor refuses to change it)
+            "share_amount": (locked_share(p) if locked_share(p) is not None
+                             else p.share_amount or (booking.total_price / max(booking.max_participants, 1))),
+            "share_locked": locked_share(p) is not None,
             "joined_at": p.joined_at.isoformat() if p.joined_at else None
         })
     
@@ -417,32 +502,55 @@ async def get_crew_status(booking_id: str, db: AsyncSession = Depends(get_db)):
     }
 
 
+def _require_captain(booking, current_user_id: str) -> None:
+    """Crew money tools belong to the session captain (the booking's creator) and nobody else."""
+    if booking.creator_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Only the session captain can do this")
+
+
+def _payment_reminder(user_id: str, booking, amount_due: float) -> Notification:
+    return Notification(
+        user_id=user_id, type="payment_reminder", title="Payment Reminder",
+        body=f"Your crew payment for the session at {booking.location} is pending. Please complete payment to confirm your spot!",
+        data=json.dumps({"booking_id": booking.id, "amount_due": amount_due})
+    )
+
+
 @router.post("/bookings/{booking_id}/nudge")
-async def nudge_crew_member(booking_id: str, participant_id: str, db: AsyncSession = Depends(get_db)):
-    """Send payment reminder to a specific crew member"""
-    result = await db.execute(select(Booking).where(Booking.id == booking_id))
+async def nudge_crew_member(
+    booking_id: str,
+    data: NudgeRequest,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Send payment reminder to a specific crew member (captain only, and only to a member of this booking)"""
+    result = await db.execute(
+        select(Booking).where(Booking.id == booking_id)
+        .options(selectinload(Booking.participants))
+    )
     booking = result.scalar_one_or_none()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    
-    profile_result = await db.execute(select(Profile).where(Profile.id == participant_id))
-    profile = profile_result.scalar_one_or_none()
-    if not profile:
+    _require_captain(booking, current_user_id)
+
+    member = next((p for p in booking.participants or [] if str(p.participant_id) == data.participant_id), None)
+    if member is None:
         raise HTTPException(status_code=404, detail="Crew member not found")
-    
-    notification = Notification(
-        user_id=participant_id, type="payment_reminder", title="Payment Reminder",
-        message=f"Your crew payment for the session at {booking.location} is pending. Please complete payment to confirm your spot!",
-        data={"booking_id": booking_id, "amount_due": booking.total_price / max(booking.max_participants, 1)}
-    )
-    db.add(notification)
+
+    db.add(_payment_reminder(
+        data.participant_id, booking,
+        member.share_amount or (booking.total_price / max(booking.max_participants, 1))))
     await db.commit()
     return {"success": True, "message": "Reminder sent"}
 
 
 @router.post("/bookings/{booking_id}/nudge-all")
-async def nudge_all_pending(booking_id: str, db: AsyncSession = Depends(get_db)):
-    """Send payment reminders to all pending crew members"""
+async def nudge_all_pending(
+    booking_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Send payment reminders to all pending crew members (captain only)"""
     result = await db.execute(
         select(Booking).where(Booking.id == booking_id)
         .options(selectinload(Booking.participants))
@@ -450,25 +558,28 @@ async def nudge_all_pending(booking_id: str, db: AsyncSession = Depends(get_db))
     booking = result.scalar_one_or_none()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    
+    _require_captain(booking, current_user_id)
+
     pending_count = 0
     for p in booking.participants or []:
         if p.payment_status != "Paid":
-            notification = Notification(
-                user_id=str(p.participant_id), type="payment_reminder", title="Payment Reminder",
-                message=f"Your crew payment for the session at {booking.location} is pending. Please complete payment to confirm your spot!",
-                data={"booking_id": booking_id, "amount_due": p.share_amount or (booking.total_price / max(booking.max_participants, 1))}
-            )
-            db.add(notification)
+            db.add(_payment_reminder(
+                str(p.participant_id), booking,
+                p.share_amount or (booking.total_price / max(booking.max_participants, 1))))
             pending_count += 1
-    
+
     await db.commit()
     return {"success": True, "reminders_sent": pending_count}
 
 
 @router.post("/bookings/{booking_id}/update-splits")
-async def update_payment_splits(booking_id: str, data: UpdateSplitsRequest, db: AsyncSession = Depends(get_db)):
-    """Update custom payment split amounts for crew members"""
+async def update_payment_splits(
+    booking_id: str,
+    data: UpdateSplitsRequest,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Update custom payment split amounts for crew members (captain only; the total is preserved)"""
     result = await db.execute(
         select(Booking).where(Booking.id == booking_id)
         .options(selectinload(Booking.participants))
@@ -476,19 +587,18 @@ async def update_payment_splits(booking_id: str, data: UpdateSplitsRequest, db: 
     booking = result.scalar_one_or_none()
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
-    
-    total_splits = sum(s.share_amount for s in data.splits)
-    if abs(total_splits - booking.total_price) > 0.01:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Split total (${total_splits:.2f}) must equal booking price (${booking.total_price:.2f})"
-        )
-    
+    _require_captain(booking, current_user_id)
+
+    # Booking still awaiting payment; every figure a real non-negative amount for a distinct member of THIS booking
+    # (a NaN used to pass the old total check, a stranger's id was ignored while its amount still counted); every
+    # member named, so none keeps a stale share; the total equal to the price in whole cents (split_lock.py).
+    members = {str(p.participant_id): p for p in booking.participants or []}
+    check_splits(booking, members, data.splits, required=set(members))
+
+    enforce_paid_shares(members, data.splits)
+
     for split in data.splits:
-        for p in booking.participants or []:
-            if str(p.participant_id) == split.participant_id:
-                p.share_amount = split.share_amount
-                break
-    
+        members[split.participant_id].share_amount = split.share_amount
+
     await db.commit()
     return {"success": True, "message": "Payment splits updated"}

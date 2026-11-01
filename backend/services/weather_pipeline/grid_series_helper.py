@@ -148,7 +148,14 @@ def _apply_build_stride(product, stride: int, mode: str = "stride") -> bool:
         out = decimate_vectors(g.vectors, g.cols, g.rows, stride, mode=mode)
         if out is None:
             return False
+        old_vectors = g.vectors
         g.vectors, g.cols, g.rows = out
+        # The Gulf fill's per-node provenance (MARINE_FILL_PROVENANCE_NODES) indexes the undecimated grid: re-point it at the
+        # same nodes in the decimated one (a new dict on the product; the cached product's stamp is never written to).
+        _cf = getattr(product, "coarse_fill", None)
+        if isinstance(_cf, dict) and "filled_idx" in _cf:
+            from services.weather_pipeline.coarse_gulf_fill import remap_filled_idx
+            product.coarse_fill = remap_filled_idx(_cf, old_vectors, g.vectors, mode)
         if thin_node_bounds_enabled() and getattr(g, "bounds", None) is not None:
             g.bounds = node_extent_bounds(g.vectors, g.bounds)      # rebinds a new object: never mutates a shared one
         return True
@@ -381,8 +388,10 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     # The fetch is SHIELDED (a timeout still warms the provider's 5-min cache), so await only a short
     # first-paint budget and let the client's reval pick up the warmed cache. Revert: ..._WAIT_SEC=30.
     # T-01 (audit 14.1): skip the live lane when stored cycle-identified products cover every hour exactly.
+    from services.weather_pipeline.regional_tile_first import skips_live_series
     live_series = (os.environ.get("GFS_ICON_SERIES_FASTPATH") == "1"
             and viewport_service is not None
+            and not skips_live_series(model, domain, layer, surf, bbox)   # MARINE_REGIONAL_TILE_FIRST: the tile, not Open-Meteo
             and model.upper() in ("GFS", "ICON")
             and domain.lower() == "marine"
             and not surf
@@ -532,6 +541,8 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     shared_bounds = None
     shared_cols = shared_rows = 0
     frames = []
+    from services.weather_pipeline.coarse_gulf_fill import fill_provenance_nodes_enabled
+    _fill_nodes_on = fill_provenance_nodes_enabled()
     for h, product in results:
         if not product or not getattr(product, "grid", None) or not product.grid.vectors:
             continue
@@ -563,6 +574,9 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
             "frame_substituted": getattr(product, "frame_substituted", False),
             **_frame_provenance(product),
             **{k: getattr(product, k, None) for k in ("product_id", "region_id", "upstream_model", "wind_lane")},  # STORED id (A15-09); lane (D-017)
+            # The Gulf fill's stamp, which /grid always carried and series frames dropped: with MARINE_FILL_PROVENANCE_NODES=1 a
+            # series frame says that (and, via filled_idx, WHERE) its cells came from GFS. Off: the frame is byte-identical.
+            **({"coarse_fill": product.coarse_fill} if _fill_nodes_on and getattr(product, "coarse_fill", None) else {}),
         })
 
     # Merge the EURO native fast-path frames (<=240h) with the per-hour-built estimated frames

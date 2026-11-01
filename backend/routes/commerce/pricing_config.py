@@ -5,14 +5,16 @@ God Mode - Real-time pricing editor
 from fastapi import APIRouter, Depends, HTTPException, Body
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from pydantic import BaseModel
+from pydantic import BaseModel, StrictInt
 from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 import logging
+from copy import deepcopy
 
 from database import get_db
 from deps.admin_auth import get_current_admin
 from models import Profile, GlobalPricingConfig
+from utils.credit_packages import DEFAULT_CREDIT_PACKAGE_BONUSES, validate_credit_package_bonuses
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -323,6 +325,12 @@ class PricingConfigUpdate(BaseModel):
     destination: Optional[PricingRoleUpdate] = None
     commission_rates: Optional[Dict[str, int]] = None
     surfer_discount_rates: Optional[Dict[str, int]] = None
+    credit_package_bonuses: Optional[Dict[str, StrictInt]] = None
+
+
+def _credit_package_bonuses(config):
+    stored = getattr(config, "credit_package_bonuses", None) if config else None
+    return deepcopy(DEFAULT_CREDIT_PACKAGE_BONUSES if stored is None else stored)
 
 
 async def get_active_pricing_config(db: AsyncSession) -> Dict[str, Any]:
@@ -380,7 +388,8 @@ async def admin_get_pricing_config(
             "updated_by": config.updated_by,
             "is_from_db": True,
             "commission_rates": config.commission_rates or DEFAULT_COMMISSION_RATES,
-            "surfer_discount_rates": config.surfer_discount_rates or DEFAULT_SURFER_DISCOUNT_RATES
+            "surfer_discount_rates": config.surfer_discount_rates or DEFAULT_SURFER_DISCOUNT_RATES,
+            "credit_package_bonuses": _credit_package_bonuses(config)
         }
 
     return {
@@ -390,7 +399,8 @@ async def admin_get_pricing_config(
         "updated_by": None,
         "is_from_db": False,
         "commission_rates": DEFAULT_COMMISSION_RATES,
-        "surfer_discount_rates": DEFAULT_SURFER_DISCOUNT_RATES
+        "surfer_discount_rates": DEFAULT_SURFER_DISCOUNT_RATES,
+        "credit_package_bonuses": _credit_package_bonuses(None)
     }
 
 
@@ -417,8 +427,8 @@ async def admin_update_pricing_config(
     current_surfer_discount_rates = (active_config.surfer_discount_rates if active_config else None) or DEFAULT_SURFER_DISCOUNT_RATES
 
     # Deep merge updates
-    updated_pricing = current_pricing.copy()
-    update_dict = data.dict(exclude_none=True, exclude={"commission_rates", "surfer_discount_rates"})
+    updated_pricing = deepcopy(current_pricing)
+    update_dict = data.dict(exclude_none=True, exclude={"commission_rates", "surfer_discount_rates", "credit_package_bonuses"})
 
     for role_key, role_updates in update_dict.items():
         if role_key not in updated_pricing:
@@ -437,6 +447,13 @@ async def admin_update_pricing_config(
 
     updated_commission_rates = {**current_commission_rates, **(data.commission_rates or {})}
     updated_surfer_discount_rates = {**current_surfer_discount_rates, **(data.surfer_discount_rates or {})}
+
+    updated_credit_bonuses = _credit_package_bonuses(active_config)
+    updated_credit_bonuses.update(data.credit_package_bonuses or {})
+    try:
+        updated_credit_bonuses = validate_credit_package_bonuses(updated_credit_bonuses)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     # Deactivate old configs
     old_configs = await db.execute(
@@ -460,7 +477,8 @@ async def admin_update_pricing_config(
         updated_at=datetime.now(timezone.utc),
         is_active=True,
         commission_rates=updated_commission_rates,
-        surfer_discount_rates=updated_surfer_discount_rates
+        surfer_discount_rates=updated_surfer_discount_rates,
+        credit_package_bonuses=updated_credit_bonuses
     )
     db.add(new_config)
     await db.commit()
@@ -473,7 +491,8 @@ async def admin_update_pricing_config(
         "version": new_version,
         "pricing": updated_pricing,
         "commission_rates": updated_commission_rates,
-        "surfer_discount_rates": updated_surfer_discount_rates
+        "surfer_discount_rates": updated_surfer_discount_rates,
+        "credit_package_bonuses": updated_credit_bonuses
     }
 
 
@@ -499,13 +518,14 @@ async def admin_reset_pricing_config(
     
     # Create new config with defaults
     new_config = GlobalPricingConfig(
-        pricing_data=DEFAULT_PRICING_DATA,
+        pricing_data=deepcopy(DEFAULT_PRICING_DATA),
         version=new_version,
         updated_by=admin.id,
         updated_at=datetime.now(timezone.utc),
         is_active=True,
-        commission_rates=DEFAULT_COMMISSION_RATES,
-        surfer_discount_rates=DEFAULT_SURFER_DISCOUNT_RATES
+        commission_rates=deepcopy(DEFAULT_COMMISSION_RATES),
+        surfer_discount_rates=deepcopy(DEFAULT_SURFER_DISCOUNT_RATES),
+        credit_package_bonuses=_credit_package_bonuses(None)
     )
     db.add(new_config)
     await db.commit()
@@ -518,7 +538,8 @@ async def admin_reset_pricing_config(
         "version": new_version,
         "pricing": DEFAULT_PRICING_DATA,
         "commission_rates": DEFAULT_COMMISSION_RATES,
-        "surfer_discount_rates": DEFAULT_SURFER_DISCOUNT_RATES
+        "surfer_discount_rates": DEFAULT_SURFER_DISCOUNT_RATES,
+        "credit_package_bonuses": _credit_package_bonuses(None)
     }
 
 
@@ -542,7 +563,8 @@ async def admin_get_pricing_history(
             "version": config.version,
             "updated_at": config.updated_at.isoformat() if config.updated_at else None,
             "updated_by": config.updated_by,
-            "is_active": config.is_active
+            "is_active": config.is_active,
+            "credit_package_bonuses": _credit_package_bonuses(config)
         })
     
     return {"history": history}
@@ -594,6 +616,17 @@ async def get_pricing_audit_log(
         if i < len(configs) - 1:
             prev_config = configs[i + 1]
             changes = detect_pricing_changes(prev_config.pricing_data, config.pricing_data)
+            previous_bonuses = _credit_package_bonuses(prev_config)
+            current_bonuses = _credit_package_bonuses(config)
+            bonus_changes = [
+                {"type": "credit_bonus_change", "package_amount": amount,
+                 "old_bonus": previous_bonuses.get(amount), "new_bonus": bonus,
+                 "description": f"${amount} credit package bonus: {previous_bonuses.get(amount, 0)} -> {bonus}"}
+                for amount, bonus in current_bonuses.items()
+                if previous_bonuses.get(amount) != bonus
+            ]
+            if bonus_changes:
+                changes = [change for change in changes if change["type"] != "no_change"] + bonus_changes
             entry["changes"] = changes
         else:
             # First version - mark as initial

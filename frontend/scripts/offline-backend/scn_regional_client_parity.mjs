@@ -46,6 +46,8 @@ const regSrc = fs.readFileSync(path.join(mapDir, 'staticRegional.js'), 'utf8').r
 if (!cropSrc.includes('__TILES') || !regSrc.includes('__TILES') || !regSrc.includes("'./staticFrameCrop.mjs'")) throw Error('an import line changed: update this script');
 fs.writeFileSync(path.join(tmpDir, 'staticFrameCrop.mjs'), cropSrc);
 fs.writeFileSync(path.join(tmpDir, 'staticRegional.mjs'), regSrc);
+// The regional client is DARK by default (2026-10-23 evening): this script measures it opted in.
+globalThis.window = { ...(globalThis.window || {}), __RAW_ENABLE_REGIONAL_BUNDLES__: true };
 const C = await import(pathToFileURL(path.join(tmpDir, 'staticFrameCodec.mjs')).href);
 const X = await import(pathToFileURL(path.join(tmpDir, 'staticFrameCrop.mjs')).href);
 const R = await import(pathToFileURL(path.join(tmpDir, 'staticRegional.mjs')).href);

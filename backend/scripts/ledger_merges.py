@@ -71,14 +71,32 @@ def git_merges(root: str, ref: str = "HEAD", include_tip: bool = False):
         return None
 
 
+FOLD_CLOCK_SLACK_S = 300   # GitHub's merge clock vs the clock of the machine that ran fold-pr
+
+
+def fold_at(lines: list):
+    """When the newest fold READ dev: the `at` of the newest line a fold wrote (one carrying `fragment`); None before
+    any fold. PURE."""
+    for x in reversed(lines):
+        e = json.loads(x)
+        if isinstance(e.get("fragment"), str):
+            return e.get("at")
+    return None
+
+
 def last_fold_point(root: str, ref: str = "HEAD"):
-    """When the last fold landed on `ref` (the newest first-parent commit that deleted a fragment), else when the
-    fragment protocol landed; None before it landed."""
-    # --name-only: --diff-merges=first-parent implies a patch in git >= 2.4x, and the first line is the time.
-    out = F.git(root, "log", "--first-parent", "--diff-merges=first-parent", "--diff-filter=D", "-1", "--name-only",
-                "--format=%cI", ref, "--", f"{F.FRAG_DIR_REL}/*.jsonl").strip()
-    if out:
-        return _iso(out.splitlines()[0])
+    """The audit's fold point on `ref`: merges at or after it may still wait for the next `fold-pr --record-merges`
+    (WARN); older ones FAIL. It is when the last fold READ dev (its `at`, taken before its fetch, so every older merge
+    was in its base), less FOLD_CLOCK_SLACK_S for clock skew; before any fold, when the fragment protocol landed.
+    ⬇ 2026-10-23 (the lead): it was the fold PR's MERGE time. A PR that merged after the fold PR was opened and before
+    it merged (#494 at 21:30Z before fold #495; #498 at 22:03Z before fold #499) then fell older than the fold point,
+    the audit FAILed it, every open PR's verify went red, and each fix-up fold could race again. The time is read from
+    the folded lines in ACTIONS.jsonl, so it does not depend on how GitHub writes a squash commit's message."""
+    text = F.show(root, ref, F.LEDGER_REL)
+    at = fold_at(F.split_lines(text)) if text else None
+    if at:
+        t = datetime.fromisoformat(at.replace("Z", "+00:00")).timestamp() - FOLD_CLOCK_SLACK_S
+        return datetime.fromtimestamp(t, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     landed = F.landing_time(root, ref)
     return _iso(landed) if landed else None
 

@@ -49,7 +49,8 @@ describe('renderMaskToCanvas readOnly', () => {
 
   it('wiring: the coarse-base (standalone) mask is the read-only caller, and only it', () => {
     const src = fs.readFileSync(path.join(__dirname, 'WebGLMarineTextureEncoder.js'), 'utf8');
-    expect((src.match(/renderMaskToCanvas\([^)]*readOnly: true/g) || []).length).toBe(1);
-    expect(src).toMatch(/const maskCanvas = renderMaskToCanvas\(landGeoJSON, bounds, \{ readOnly: true \}\);/);
+    // One level of nested call allowed: since 2026-10-23 the land passes through waveLakes.withWaveLakes (the carried lakes cut in).
+    expect((src.match(/renderMaskToCanvas\((?:[^()]|\([^()]*\))*readOnly: true/g) || []).length).toBe(1);
+    expect(src).toMatch(/const maskCanvas = renderMaskToCanvas\(withWaveLakes\(landGeoJSON, waveGrid, bounds\), bounds, \{ readOnly: true \}\);/);
   });
 });

@@ -20,6 +20,7 @@ from core.security import get_current_user_id, get_optional_user_id
 from database import get_db
 from models import Follow, Post, Profile, RoleEnum, Story
 from services.grom_media_policy import is_verified_guardian
+from services.guardian_policy import assert_level_allows
 from services.private_media import (
     parse_private_media_ref,
     signed_private_media_url,
@@ -111,7 +112,9 @@ async def upload_grom_media(
     """Persist a Grom upload in the private bucket under the authenticated Grom."""
     if current_user_id != grom_id:
         raise HTTPException(status_code=403, detail='Grom media uploads must use the Grom account')
-    await _grom_or_404(db, grom_id)
+    grom = await _grom_or_404(db, grom_id)
+    # GUARDIAN LEVEL: no photo or video of a child is accepted below the photo level for their age band.
+    await assert_level_allows(db, grom, 'photo')
     content_type = (file.content_type or '').lower()
     if content_type not in ALLOWED_MEDIA_TYPES:
         raise HTTPException(status_code=400, detail='Unsupported Grom media type')

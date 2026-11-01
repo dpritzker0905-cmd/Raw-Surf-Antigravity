@@ -31,6 +31,25 @@ test('a world page static frames cover is not asked for; the mini and the page b
   expect(window.__WIND_SERIES_DIAG__.staticSkips).toBeGreaterThan(0);
 });
 
+test('the tail page asks only the hours the static frames cannot serve; the trim kill asks the whole page', async () => {
+  const { getSeriesAnchorMs } = require('./backendWeatherServiceClient');
+  const hourOf = (iso) => Math.round((Date.parse(iso) - getSeriesAnchorMs()) / 3600000);
+  ws.staticWindCovers.mockImplementation((asks) => asks.every((a) => hourOf(a) < 330));   // the run's frames end ~+330 h
+  // the PAGE asks (the 1-hour mini for the hour in view is its own, separate ask)
+  const asked = () => global.fetch.mock.calls.map(([u]) => new URL(u, 'http://x').searchParams.get('hours')).filter((h) => h && h.includes(','));
+  await ensureWindSeries('GFS', WORLD_VIEW, 300);                        // page 2: hours 288-384
+  expect(asked()).toEqual(['330,333,336,339,342,345,348,351,354,357,360,363,366,369,372,375,378,381,384']);
+  expect(window.__WIND_SERIES_DIAG__.staticTrims).toBeGreaterThan(0);
+  _resetWindSeriesForTest(); global.fetch.mockClear();
+  window.__RAW_DISABLE_WIND_SERIES_TRIM__ = true;
+  try {
+    await ensureWindSeries('GFS', WORLD_VIEW, 300);
+    expect(asked()[0].split(',')).toHaveLength(33);                      // the whole page, as before
+  } finally {
+    delete window.__RAW_DISABLE_WIND_SERIES_TRIM__;
+  }
+});
+
 test('a regional page, another model, an uncovered hour, the lane kill or the skip kill all keep the series request', async () => {
   expect(await staticOwnsWindPage('GFS', REGIONAL_VIEW, 0)).toBe(false);
   expect(await staticOwnsWindPage('ICON', WORLD_VIEW, 0)).toBe(false);

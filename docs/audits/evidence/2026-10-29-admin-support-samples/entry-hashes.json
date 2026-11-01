@@ -1,0 +1,133 @@
+{
+  "verifiedAt": "2026-10-29T21:12:36.689Z",
+  "files": [
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.js",
+      "sha256": "b2c21befcba4608b5316e01338758e2621ae1194670677a4abbe3bbebd11bf2c"
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.test.js",
+      "sha256": "c55c2ff4d961f95dfdb9176b7e3e4103c4d57f3e53677f51f6d931433f188f45"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-selection/browser-auth.js",
+      "sha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-selection/browser-fixture.jsx",
+      "sha256": "5b4f4d85ffcbe2c4600dccb197b667477b14b5f85fd5041fafe06252ee6b94bb"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-selection/browser-transport.js",
+      "sha256": "7ae9e62494e78f1986f251748f55708bafef13df266b6b4bad2156d65a9c8b65"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-selection/collect-evidence.cjs",
+      "sha256": "8a3de22ce3252ebfb0c803c354d58b9fc11d3ec376c9d84a910f1fb9b46464a8"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-selection/run-browser.cjs",
+      "sha256": "ac6b5ceb91827f9b4d9391de3b0953b7d663dfce0bf139b61c7f4a51b9e27315"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-selection/run-tests.cjs",
+      "sha256": "939373f9c4988b809d24c8ea4d64b870e2dc9557bf136fb814d5cfd04dda09ab"
+    },
+    {
+      "path": "backend/routes/admin/support.py",
+      "sha256": "788700f32b441e38282e1f35668bed50e817bdbefeba382a1cd843648b6fe522"
+    },
+    {
+      "path": "frontend/src/lib/apiClient.js",
+      "sha256": "2713370a30a4bbf2a3e3402e57becb9c95ddd2a64744a35bffa12f90dcc35ce9"
+    },
+    {
+      "path": "frontend/src/contexts/AuthContext.js",
+      "sha256": "1544d5b91248f5a6f21f289ab5c6c7ab87d0c5f381c057a3f6372553c06005c3"
+    },
+    {
+      "path": "frontend/src/contexts/ThemeContext.js",
+      "sha256": "c019cd4fe10f38230bb92d44276901e77347fb3d5327c882e56899b8f28fd497"
+    },
+    {
+      "path": "frontend/src/components/ui/button.jsx",
+      "sha256": "642edb7d647d92aa517e37a71ff1d6b8b0e758be2d30f67ff5daa1b36c0b4cd1"
+    },
+    {
+      "path": "frontend/src/components/ui/select.jsx",
+      "sha256": "684b1759596b026ebdecbd3f1264335f6813049ed2e591c821bff9d0c81da5f6"
+    },
+    {
+      "path": "docs/weather-program/STATE.md",
+      "sha256": "4605ce8565818debd10e2fa02607b9fc625f64197f99af5ecb293fb08fc28a82"
+    },
+    {
+      "path": "docs/weather-program/ACTIONS.jsonl",
+      "sha256": "377d035f123b8c12a3ea0ba8a4279bde7345d4cee4afec31b55724901af46dc6"
+    },
+    {
+      "path": "docs/weather-program/SCOREBOARD.md",
+      "sha256": "b04bad3590af172ab62c9bfe5c5d59bee4b1330c2e060878e5f1a02c62575469"
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.pagination.test.js",
+      "sha256": "0f576bcab6c1189e1fb8019f0371d86f629e3dd3467a6d613dd635af2a063aac"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/browser-auth.js",
+      "sha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/browser-fixture.jsx",
+      "sha256": "8f937569bf870fcd572dc7abdcd268f22b07782a72a35e0c8fab91c8f1835df5"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/browser-transport.js",
+      "sha256": "b4d73d64d4ef4466ecab669613be95120efe349b6fece1eb80f2c93f233f9aab"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/collect-evidence.cjs",
+      "sha256": "d9dadbfecc1f7a9a11d2c0d9dfcca27f12aabad0a13eeb7aeea5fd8bd0a34ff8"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/run-browser.cjs",
+      "sha256": "be1b1899c1de2b2d8ed1dda4267f47f3743b52d8f57e7bbbac81f59f4a2d2d7c"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/run-tests.cjs",
+      "sha256": "bdfd54c9eb243928815865f8f5c7293d95985a1b04f5247b52bc9c2bc914430b"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-pagination/verify-list-handler.py",
+      "sha256": "b2f000a5f55683e41328b724d513ef958ed8b638d8c45a9b35df97194d7dd82c"
+    },
+    {
+      "path": "frontend/src/components/admin/AdminSupportDashboard.metrics.test.js",
+      "sha256": "ea46cc7006629000d94114f46a01850103861ce0a917017425ef2e3f21ad0429"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-metrics/browser-auth.js",
+      "sha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-metrics/browser-fixture.jsx",
+      "sha256": "1f2c47b2aa98db3fa46880476ec501ef0c107cdf0acc5f3650f87abbaacf60ef"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-metrics/browser-transport.js",
+      "sha256": "e73f97ef9ffd5bcf31e7c8449571aa4a6b418b9f2fff1486c18fbed12a831bfc"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-metrics/collect-evidence.cjs",
+      "sha256": "9303704d19c4ab65526511aaf1b7793dc583da58c8f504e88e4c164b949465b0"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-metrics/run-browser.cjs",
+      "sha256": "a9c18573b4ee07317786a1dd15926a30af8e1fcdf05fa7881ea46c785c018fc3"
+    },
+    {
+      "path": "docs/audits/evidence/2026-10-29-admin-support-metrics/run-tests.cjs",
+      "sha256": "03d380e4e2058ede347747f45d56361359f22e837465519394eb9122214e7007"
+    }
+  ]
+}

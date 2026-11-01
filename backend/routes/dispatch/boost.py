@@ -18,6 +18,7 @@ import stripe
 from utils.geo import haversine_distance
 
 from database import get_db
+from utils.credits import deduct_credits
 from core.security import get_user_id_from_jwt_or_query
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
@@ -97,7 +98,10 @@ async def boost_dispatch_request(
         )
     
     # Deduct credits
-    user_profile.credit_balance = (user_profile.credit_balance or 0) - cost
+    success, _, error = await deduct_credits(
+        user_id, cost, 'dispatch_boost', db, reference_type='dispatch_request', reference_id=request_id)
+    if not success:
+        raise HTTPException(status_code=402, detail=error)
     
     # Apply boost
     dispatch.boost_priority = 10  # Max priority for boosted requests
@@ -232,33 +236,47 @@ async def get_photographer_session_history(
     photographer_id: str,
     limit: int = 20,
     offset: int = 0,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Get on-demand session history for a photographer.
+    Get on-demand session history for a photographer (their own history only: it lists the surfers they shot).
     """
+    if user_id != photographer_id:
+        raise HTTPException(status_code=403, detail="You can only view your own session history")
+
     result = await db.execute(
         select(DispatchRequest)
         .where(
             DispatchRequest.photographer_id == photographer_id,
             DispatchRequest.status == DispatchRequestStatusEnum.COMPLETED
         )
-        .options(
-            selectinload(DispatchRequest.requester),
-            selectinload(DispatchRequest.participants).selectinload(DispatchRequestParticipant.participant_profile)
-        )
+        .options(selectinload(DispatchRequest.requester))
         .order_by(DispatchRequest.completed_at.desc())
         .offset(offset)
         .limit(limit)
     )
     dispatches = result.scalars().all()
-    
+
+    # DispatchRequest declares no `participants` relationship (loading it 500ed every call), so the roster is read
+    # from the participant table in one query for the whole page.
+    roster = {}
+    if dispatches:
+        participant_rows = await db.execute(
+            select(DispatchRequestParticipant)
+            .where(DispatchRequestParticipant.dispatch_request_id.in_([d.id for d in dispatches]))
+            .options(selectinload(DispatchRequestParticipant.participant))
+            .order_by(DispatchRequestParticipant.created_at)
+        )
+        for row in participant_rows.scalars().all():
+            roster.setdefault(row.dispatch_request_id, []).append(row)
+
     history = []
     for d in dispatches:
         # Build participant roster
         participants = []
-        for p in (d.participants or []):
-            profile = p.participant_profile if hasattr(p, 'participant_profile') else None
+        for p in roster.get(d.id, []):
+            profile = p.participant
             participants.append({
                 "id": p.participant_id,
                 "full_name": p.payer_name or (profile.full_name if profile else "Surfer"),

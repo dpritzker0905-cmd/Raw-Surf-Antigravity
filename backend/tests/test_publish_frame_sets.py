@@ -196,14 +196,23 @@ def test_a_lane_holding_most_of_the_set_off_disk_publishes_nothing(tmp_path):
 
 def test_the_publisher_runs_only_in_the_pilots_lane_after_its_ingest():
     """The GFS world products are pilot jobs; the step must run in forecast-ingest-pilots.yml after the ingest step, and
-    nowhere else (two publishers' retention could delete each other's frames)."""
+    nowhere else (two publishers' retention could delete each other's frames). The ONE exception (2026-10-24, PR B): the core
+    lane's `--wind-lane-rebuild`, which deletes nothing and never writes latest.json (tests/test_frame_set_wind_rebuild.py),
+    after the core ingest that publishes the HRRR lane."""
     wf = Path(__file__).resolve().parents[2] / ".github" / "workflows"
     pilots = (wf / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
     assert pilots.index("scripts/ingest_forecast_ci.py") < pilots.index("scripts/publish_frame_images.py")
     assert "vars.FRAME_IMAGES_PUBLISH == '1'" in pilots
-    others = [f.name for f in wf.glob("*.yml") if f.name != "forecast-ingest-pilots.yml"
-              and "publish_frame_images.py" in f.read_text(encoding="utf-8")]
-    assert others == []
+    others = {}
+    for f in wf.glob("*.yml"):
+        if f.name == "forecast-ingest-pilots.yml":
+            continue
+        runs = [ln.strip() for ln in f.read_text(encoding="utf-8").splitlines() if "publish_frame_images.py" in ln and "run:" in ln]
+        if runs:
+            others[f.name] = runs
+    assert others == {"forecast-ingest.yml": ["run: python scripts/publish_frame_images.py --wind-lane-rebuild"]}
+    core = (wf / "forecast-ingest.yml").read_text(encoding="utf-8")
+    assert core.index("scripts/ingest_forecast_ci.py") < core.index("scripts/publish_frame_images.py --wind-lane-rebuild")
 
 
 def test_retention_deletes_nothing_when_the_previous_index_cannot_be_read(tmp_path):
@@ -287,8 +296,10 @@ def test_the_world_sets_are_the_pilots_lane_ones():
     assert keys[0] == "GFS/marine/waves/global_mid"                      # the most-used set publishes first
     assert set(keys) == {f"{m}/marine/{l}/global_mid" for m, l in (
         ("GFS", "waves"), ("GFS", "swell_1"), ("GFS", "swell_2"), ("GFS", "wind_waves"),
-        ("ICON", "waves"), ("ICON", "swell_1"), ("ICON", "wind_waves"), ("EURO", "waves"))} | {"GFS/wind/wind/global_mid"}
-    assert keys[-1] == "GFS/wind/wind/global_mid"                         # wind last: the stagger drops it first
+        ("ICON", "waves"), ("ICON", "swell_1"), ("ICON", "wind_waves"), ("EURO", "waves"))} | {"GFS/wind/wind/global_mid"} | {
+        f"{m}/marine/{l}/global_mid_filled" for m, l in (("ICON", "waves"), ("EURO", "waves"), ("ICON", "swell_1"), ("ICON", "wind_waves"))}
+    # wind, then the filled world sets (frame_set_fill, 2026-10-24) last: the stagger drops them first
+    assert keys.index("GFS/wind/wind/global_mid") == len(keys) - 5 and all(k.endswith("_filled") for k in keys[-4:])
     assert "EURO/marine/swell_1/global_mid" not in keys and "ICON/marine/swell_2/global_mid" not in keys
 
 
@@ -321,3 +332,81 @@ def test_a_run_past_its_time_budget_stops_starting_sets_and_keeps_their_index(tm
     assert report["GFS/marine/swell_1/global_mid"] == {"skipped_budget": True, "index": first}
     assert report[fs.set_key(TARGET)]["built"] == 3                  # the first set still ran
     assert _latest(out)["sets"]["GFS/marine/swell_1/global_mid"]["index"] == first
+
+
+def test_an_older_runs_past_hours_not_on_this_disk_do_not_refuse_the_set(tmp_path):
+    """2026-10-27 (the lead): the manifest kept 6 older-run past hours per regional set that the pilots runner never
+    downloads; 41/47 = 0.872 < 0.9 refused every regional set for 11 h. Those hours are listed unbuilt (/grid serves
+    them) and left out of the gate; the newest run's own hours still decide it."""
+    store, out = tmp_path / "store", tmp_path / "out"
+    old_valids = TEN[:2]
+    old_names = _write_set(store, "GFS", "swell_1", old_valids, run="2026-10-20T00:00:00Z")
+    for n in old_names:
+        (store / n).unlink()                                          # the older run: not on this runner's disk
+    _write_set(store, "GFS", "swell_1", TEN[2:], run="2026-10-20T06:00:00Z")
+    report, _sink = _publish(store, out)
+    stats = report["GFS/marine/swell_1/global_mid"]
+    assert (stats["built"], stats["not_local"], stats["not_local_older_run"]) == (8, 2, 2)
+    assert stats["coverage_refused"] is False and stats["coverage_authoritative"] == 1.0 and stats["coverage"] == 0.8
+    index = json.loads((out / _latest(out)["sets"]["GFS/marine/swell_1/global_mid"]["index"]).read_text())
+    assert [(f["valid_time"], f["path"] is None) for f in index["frames"][:3]] == [
+        (TEN[0], True), (TEN[1], True), (TEN[2], False)]
+    assert index["frames"][0]["unbuilt"] == "not_local"
+
+
+def test_the_newest_runs_own_missing_hours_still_refuse_the_set(tmp_path):
+    """Negative control for the older-run exclusion: the same two holes in the NEWEST run keep the gate shut."""
+    store, out = tmp_path / "store", tmp_path / "out"
+    names = _write_set(store, "GFS", "swell_1", TEN, run="2026-10-20T06:00:00Z")
+    for n in names[:2]:
+        (store / n).unlink()
+    report, _sink = _publish(store, out)
+    stats = report["GFS/marine/swell_1/global_mid"]
+    assert (stats["built"], stats["not_local"], stats["not_local_older_run"]) == (8, 2, 0)
+    assert stats["coverage_refused"] is True and stats["coverage_authoritative"] == 0.8 and stats["uploaded"] == 0
+    assert not (out / fs.LATEST).exists()                             # nothing published, so no pointer either
+
+
+def _sink_with_get_statuses(monkeypatch, statuses):
+    """A SupabaseSink whose GETs answer `statuses` in order (an exception class is raised instead of answered)."""
+    calls, waits = [], []
+
+    class _Resp:
+        def __init__(self, code):
+            self.status_code, self.content, self.text = code, b'{"sets": {}}', ""
+
+    class _Requests:
+        ConnectionError, Timeout = ConnectionError, TimeoutError
+
+        def get(self, url, headers=None, timeout=None):
+            calls.append(url)
+            s = statuses[len(calls) - 1]
+            if isinstance(s, type):
+                raise s("dropped")
+            return _Resp(s)
+    monkeypatch.setenv("SUPABASE_URL", "https://example.invalid")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-not-a-key")
+    monkeypatch.setattr(pub, "_sleep", waits.append)
+    sink = pub.SupabaseSink()
+    sink.requests = _Requests()
+    return sink, calls, waits
+
+
+def test_a_rate_limited_read_retries_with_the_upload_backoff(monkeypatch):
+    """Run 40403486736: one 429 on latest.json failed the whole publish; a read now retries like a write."""
+    sink, calls, waits = _sink_with_get_statuses(monkeypatch, [429, ConnectionError, 503, 200])
+    assert sink.read(fs.LATEST) == b'{"sets": {}}'
+    assert len(calls) == 4 and waits == list(pub.UPLOAD_BACKOFF_S)
+
+
+def test_a_read_still_fails_after_the_last_retry_and_a_missing_object_never_retries(monkeypatch):
+    sink, calls, waits = _sink_with_get_statuses(monkeypatch, [429, 429, 429, 429])
+    with pytest.raises(RuntimeError, match="HTTP 429"):
+        sink.read(fs.LATEST)
+    assert len(calls) == 4 and waits == list(pub.UPLOAD_BACKOFF_S)
+    sink, calls, waits = _sink_with_get_statuses(monkeypatch, [404])
+    assert sink.read(fs.LATEST) is None and len(calls) == 1 and waits == []
+    sink, calls, waits = _sink_with_get_statuses(monkeypatch, [403])
+    with pytest.raises(RuntimeError, match="HTTP 403"):
+        sink.read(fs.LATEST)                                          # not a retry status: fails at once
+    assert len(calls) == 1 and waits == []

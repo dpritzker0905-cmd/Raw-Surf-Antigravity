@@ -17,6 +17,8 @@ its ingest step, writes two things:
 EGRESS RULE: everything is built from product files already on this runner's disk (the ProductStore cache the ingest
 step just wrote, and its local manifest.json). Nothing is downloaded from the private `weather-products` bucket:
 re-reading every product from storage would cost about 490 GB a month against the plan's 250 GB of egress.
+ONE bounded exception, dark (FRAME_TAIL_DOWNLOAD=1, see TailDownloads): the ICON/EURO world estimated tails the core lane
+bakes, which this disk never holds; only changed ones, at most FRAME_TAIL_DOWNLOAD_MAX per run, with their wire bytes reported.
 
 SERVES NOTHING BY DEFAULT: the client reads the frames only when built with REACT_APP_STATIC_FRAMES=true (dark), and
 the proof only with its own opt-in. Writes go ONLY to `weather-frames`; the pipeline manifest and products are never
@@ -44,6 +46,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from services import frame_set as fs  # noqa: E402
 from services import frame_set_bundle as fsb  # noqa: E402
+from services import frame_set_fill as fsf  # noqa: E402
 from services.frame_image import encode_png, parity  # noqa: E402
 
 FRAME_BUCKET = "weather-frames"
@@ -108,6 +111,155 @@ class LocalCache:
         return path.read_bytes()
 
 
+PRODUCTS_BUCKET = "weather-products"
+TAIL_MODELS = ("ICON", "EURO")
+TAIL_WORKERS = 4
+
+
+class TailDownloads:
+    """The ONE exception to the egress rule (2026-10-24, FRAME_TAIL_DOWNLOAD, dark): the ICON/EURO world ESTIMATED tails.
+
+    The core lane bakes the ICON swell_1 / wind_waves and EURO waves 14-day tails (168-336 h / 240-336 h), so this runner's disk
+    never holds them and their index entries were `not_local` (/grid served those hours; measured on the CDN 2026-10-24: ICON
+    swell_1 61 of 117 built, wind_waves 60, EURO waves 69). With the flag on, a tail entry of an ICON/EURO `global_mid` set
+    that is not on disk is downloaded from the private products bucket, the same stored product /grid serves, and then goes
+    through publish_set unchanged: the run check (a copy of another run than the manifest names is `stale_local`) and the
+    node-by-node parity gate. Nothing authoritative is ever downloaded, a frame already published for the same product is
+    carried without a download, and at most `cap` products (FRAME_TAIL_DOWNLOAD_MAX, default 320: every core cycle re-bakes the
+    whole tail, 232 products at run + 348 h, D-053) are fetched per run.
+    COST, measured not assumed: a tail product is 2.2 MB of JSON and Supabase serves JSON brotli-compressed (an index here: 199,705
+    bytes as 10,028 on the wire), so ~170 tail products per publish cost about 10-20 MB; `stats` reports the wire bytes.
+    `fetch(filename) -> (bytes or None, wire_bytes)`; offline, a second ProductStore dir stands in for the bucket."""
+
+    def __init__(self, local, fetch, cap=320, log=print):
+        self.local, self.fetch, self.cap, self.log = local, fetch, int(cap), log
+        self._got = {}
+        self.stats = {"downloaded": 0, "download_failed": 0, "download_capped": 0, "wire_bytes": 0, "bytes": 0}
+
+    def manifest(self):
+        return self.local.manifest()
+
+    def product_bytes(self, filename):
+        raw = self.local.product_bytes(filename)
+        return raw if raw is not None else self._got.get(filename)
+
+    @staticmethod
+    def wants(target):
+        return target.get("model") in TAIL_MODELS and target.get("domain") == "marine" and target.get("region_id") == "global_mid"
+
+    def prefetch(self, target, previous_index=None):
+        """Download, TAIL_WORKERS at a time, the tail entries of `target` that are neither on disk nor carried from
+        `previous_index` (same source identity). Returns the number downloaded for this set."""
+        if not self.wants(target):
+            return 0
+        carried = {(f.get("valid_time"), bool(f.get("is_estimated"))): f.get("source")
+                   for f in (previous_index or {}).get("frames", []) if f.get("path")}
+        todo = []
+        products = self.manifest().get("products")
+        # A FILLED world set (frame_set_fill) reads the same tails as its plain set: a tail the plain set already fetched this run is
+        # never fetched again, and its frame identity carries the GFS donor, as publish_set builds it.
+        fill_store = fsf._ManifestStore(products) if fsf.is_filled(target) else None
+        for e in fs.select_entries(products, target):
+            if not e.get("is_estimated"):
+                continue
+            vt = fs.iso(e.get("valid_time_start") or e.get("valid_time"))
+            ident = fs.source_identity(e)
+            if fill_store is not None:
+                ident["fill_donor"] = fsf.donor_identity(fsf.donor_entry(products, vt, target["layer"], store=fill_store))
+            if carried.get((vt, True)) == ident or e["filename"] in self._got or self.local.product_bytes(e["filename"]) is not None:
+                continue
+            todo.append(e["filename"])
+        room = max(0, self.cap - self.stats["downloaded"])
+        if len(todo) > room:
+            self.stats["download_capped"] += len(todo) - room
+            todo = todo[:room]
+
+        def one(name):
+            try:
+                return name, self.fetch(name)
+            except Exception as e:  # a failed download leaves the entry not_local: /grid serves it, as before
+                self.log(f"[frames] tail download {name} failed ({type(e).__name__}: {e})")
+                return name, (None, 0)
+        with ThreadPoolExecutor(max_workers=TAIL_WORKERS) as pool:
+            got = list(pool.map(one, todo))
+        n = 0
+        for name, (data, wire) in got:
+            if data is None:
+                self.stats["download_failed"] += 1
+                continue
+            self._got[name] = data
+            self.stats["downloaded"] += 1
+            self.stats["bytes"] += len(data)
+            self.stats["wire_bytes"] += int(wire or 0)
+            n += 1
+        return n
+
+
+def tail_downloads_enabled():
+    return os.environ.get("FRAME_TAIL_DOWNLOAD", "0") == "1"
+
+
+def tail_cap():
+    try:
+        return max(0, int(os.environ.get("FRAME_TAIL_DOWNLOAD_MAX", "320")))
+    except ValueError:
+        return 320
+
+
+def supabase_product_fetcher():
+    """(filename) -> (bytes or None, wire bytes) from the private products bucket, retried like an upload. Credentials by NAME."""
+    import requests
+    base = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+    if not base or not key:
+        raise SystemExit("SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set")
+    auth = {"Authorization": f"Bearer {key}", "apikey": key, "Accept-Encoding": "gzip, deflate"}
+
+    def fetch(filename):
+        # the object endpoint with a cache-buster, never a CDN copy (as frame_set_wind_rebuild.l2_product_fetch reads L2)
+        url = f"{base}/storage/v1/object/{PRODUCTS_BUCKET}/{filename}?cb={int(time.time() * 1000)}"
+        for wait in UPLOAD_BACKOFF_S + (None,):
+            try:
+                resp = requests.get(url, headers=auth, timeout=60, stream=True)
+                wire = 0
+                chunks = []
+                for chunk in resp.raw.stream(65536, decode_content=False):
+                    wire += len(chunk)
+                    chunks.append(chunk)
+                raw = b"".join(chunks)
+                enc = (resp.headers.get("Content-Encoding") or "").lower()
+                if resp.status_code == 200:
+                    if enc == "gzip":
+                        import gzip
+                        raw = gzip.decompress(raw)
+                    elif enc == "deflate":
+                        import zlib
+                        raw = zlib.decompress(raw)
+                    elif enc not in ("", "identity"):
+                        raise RuntimeError(f"unexpected Content-Encoding {enc!r}")
+                    return raw, wire
+                if resp.status_code in (400, 404):
+                    return None, wire       # gone since the manifest was written: the entry stays not_local
+                if resp.status_code not in RETRY_STATUS or wait is None:
+                    raise RuntimeError(f"HTTP {resp.status_code}")
+            except (requests.ConnectionError, requests.Timeout):
+                if wait is None:
+                    raise
+            _sleep(wait)
+        return None, 0
+    return fetch
+
+
+def local_product_fetcher(store_dir):
+    """Offline twin of supabase_product_fetcher: a ProductStore dir standing in for the private bucket."""
+    other = LocalCache(store_dir)
+
+    def fetch(filename):
+        data = other.product_bytes(filename)
+        return data, (len(data) if data is not None else 0)
+    return fetch
+
+
 class LocalSink:
     """Writes the public objects under out_dir and records each one's headers (the offline twin of SupabaseSink)."""
 
@@ -161,13 +313,25 @@ class SupabaseSink:
             raise RuntimeError(f"create bucket {FRAME_BUCKET}: HTTP {resp.status_code}: {resp.text[:200]}")
 
     def read(self, path):
-        resp = self.requests.get(f"{self.base}/storage/v1/object/{FRAME_BUCKET}/{path}?cb={int(time.time() * 1000)}",
-                                 headers=self.auth, timeout=60)
-        if resp.status_code in (400, 404):
-            return None                    # Supabase answers a missing object with 400 or 404
-        if resp.status_code != 200:
-            raise RuntimeError(f"read {FRAME_BUCKET}/{path}: HTTP {resp.status_code}")
-        return resp.content
+        """One object's bytes, or None when it is missing; retried with backoff on 429 / 5xx / a dropped connection like
+        write(). 2026-10-27 (the lead): ONE 429 on v1/latest.json at 23:15:38Z failed run 40403486736's whole publish behind
+        a green continue-on-error step; reads are idempotent, so a retry is always safe."""
+        url = f"{self.base}/storage/v1/object/{FRAME_BUCKET}/{path}"
+        for attempt, wait in enumerate(UPLOAD_BACKOFF_S + (None,)):
+            try:
+                resp = self.requests.get(f"{url}?cb={int(time.time() * 1000)}", headers=self.auth, timeout=60)
+            except (self.requests.ConnectionError, self.requests.Timeout) as e:
+                if wait is None:
+                    raise RuntimeError(f"read {FRAME_BUCKET}/{path}: {type(e).__name__} after {attempt + 1} attempts")
+                _sleep(wait)
+                continue
+            if resp.status_code in (400, 404):
+                return None                # Supabase answers a missing object with 400 or 404
+            if resp.status_code == 200:
+                return resp.content
+            if resp.status_code not in RETRY_STATUS or wait is None:
+                raise RuntimeError(f"read {FRAME_BUCKET}/{path}: HTTP {resp.status_code}")
+            _sleep(wait)
 
     def write(self, path, data, content_type, cache_control):
         """One upload, retried with backoff on 429 / 5xx / a dropped connection (Supabase answered cold-cache bursts with
@@ -289,6 +453,7 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
     upload = _uploader(sink)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     report, changed, keep_by_set = {}, False, {}
+    pending_empty = {}   # explicit-empty records (frame_set_bundle.empty_record), applied only when latest.json is written anyway
     started = clock()
     # The HRRR lane the serve box blends into GFS wind (frame_set_wind.py): read once, applied to every wind frame.
     from services import frame_set_wind as fsw
@@ -312,7 +477,10 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
                 report[key] = {"error": f"{type(e).__name__}: {e}"[:300], "index": (entry or {}).get("index")}
                 continue
         else:
+            fetched = source.prefetch(target, prev_index) if isinstance(source, TailDownloads) else 0
             index, stats = fs.publish_set(source, sink, target, prev_index, upload, log=log, wind_lane=wind_lane)
+            if isinstance(source, TailDownloads):
+                stats["tail_downloaded"] = fetched
         if index is not None:
             sink.write(index["path"], fs.index_bytes(index), fs.JSON_TYPE, IMMUTABLE)
             latest.setdefault("sets", {})[key] = (fsb.latest_record if bundled else fs.latest_record)(index, entry, now, _writer())
@@ -322,13 +490,36 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
             # pinned to. The first publish has nothing to delete anyway.
             if entry and entry.get("index") and prev_index is not None:
                 keep_by_set[key] = (target, fs.referenced_paths(index) | fs.referenced_paths(prev_index))
+                if fsw.is_wind(target):          # and the lane-window rebuild the lane pointer names (frame_set_wind_rebuild)
+                    from services import frame_set_wind_rebuild as fswr
+                    keep_by_set[key] = (target, keep_by_set[key][1] | fswr.pointer_keep_paths(sink))
             elif entry and entry.get("index"):
                 log(f"[frames] {key}: previous index {entry['index']} unreadable; retention skipped this run")
+        # EXPLICIT EMPTY (frame_set_bundle.empty_record): a regional set the manifest lists NO product for, while the manifest does
+        # carry that model/domain/layer elsewhere, is written as {"empty": true}; never over a published index.
+        if index is None and bundled and stats.get("entries") == 0:
+            products = (source.manifest() or {}).get("products") or []
+            if fsb.layer_present(products, target):
+                rec = fsb.empty_record(entry, now, _writer())
+                if rec is None:
+                    log(f"[frames] {key}: the manifest lists no product, but a published index exists; it stays")
+                elif rec is not entry:
+                    pending_empty[key] = rec    # written WITH the next real pointer move: a run that publishes nothing writes nothing
+                stats["empty"] = rec is not None
+        # A FILLED world set (frame_set_fill) outside the targeted mode: its record is retired (no index, no fill_mode), written with
+        # the next real pointer move like the explicit empties, so no client pairs an old filled index with a box in another mode.
+        if index is None and stats.get("skipped_fill_mode"):
+            rec = fs.fill_mode_off_record(entry, stats["fill_mode"], now, _writer())
+            if rec is not None:
+                pending_empty[key] = rec
         stats["seconds"] = round(time.perf_counter() - t0, 1)
         stats["index"] = index["path"] if index else (entry or {}).get("index")
         stats["deleted"] = 0
         report[key] = stats
     if changed:
+        for key, rec in pending_empty.items():
+            latest.setdefault("sets", {})[key] = rec
+            log(f"[frames] {key}: written as explicit empty ({rec.get('reason') or 'no stored product for this layer in this box'})")
         latest.update(version=1, written_at=now, writer=_writer())
         sink.write(fs.LATEST, json.dumps(latest, indent=1, sort_keys=True).encode("utf-8"), fs.JSON_TYPE, REVALIDATE)
     if wind_lane is not None:
@@ -365,11 +556,40 @@ def _wind_lane_pointer(sink, wind_lane, log):
         fsw.write_lane_pointer(held, log)
 
 
+def _wind_lane_rebuild(source, sink, log=print):
+    """--wind-lane-rebuild: the lane L2 holds now, the published wind set rebuilt for it where it can change. Offline (LocalSink)
+    the products come from --store-dir and the pointer is first moved to the lane, as the core lane's ingest does."""
+    from services import frame_set_wind as fsw
+    from services import frame_set_wind_rebuild as fswr
+    lane = fsw.load_publish_lane(log)
+    fetch = fswr.l2_product_fetch
+    if isinstance(sink, LocalSink):
+        fetch = source.product_bytes
+        if lane is not None:
+            ident = lane.identity()
+            rec = fsw.pointer_record({"key": ident["key"], "cycle": ident["cycle"], "horizon": ident["horizon"],
+                                      "hours": len(getattr(lane.lane, "hours", {}) or {})}, None, "offline-harness")
+            rec["written_at"] = datetime.fromtimestamp(time.time() - 3600, timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            sink.write(fsw.LANE_POINTER, json.dumps(rec, indent=1).encode("utf-8"), fs.JSON_TYPE, REVALIDATE)
+    report = fswr.rebuild_for_lane(sink, lane, _uploader(sink), fetch=fetch, log=log)
+    print(json.dumps({"wind_lane_rebuild": report}))
+    summary = os.environ.get("GITHUB_STEP_SUMMARY")
+    if summary:
+        with open(summary, "a", encoding="utf-8") as fh:
+            fh.write("### Wind lane-window frames\n```\n" + json.dumps(report, indent=1) + "\n```\n")
+    return 1 if report.get("status") in ("error", "not_published") else 0
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--store-dir", help="offline: a ProductStore dir (manifest.json + products) instead of the runner's")
     ap.add_argument("--out-dir", help="offline: write the public objects here (required with --store-dir)")
     ap.add_argument("--only", choices=("frames", "png"), help="run one half only (default: both)")
+    ap.add_argument("--tail-store-dir", help="offline, with FRAME_TAIL_DOWNLOAD=1: a ProductStore dir standing in for the "
+                                             "private products bucket the ICON/EURO tails are downloaded from")
+    ap.add_argument("--wind-lane-rebuild", action="store_true",
+                    help="the core lane, after a new HRRR lane: rebuild only the lane-window GFS wind frames and name them in "
+                         "the lane pointer (frame_set_wind_rebuild.py); latest.json is not written")
     args = ap.parse_args(argv)
     if bool(args.store_dir) != bool(args.out_dir):
         ap.error("--store-dir and --out-dir go together")
@@ -378,10 +598,19 @@ def main(argv=None):
     else:
         from services.weather_pipeline.store import ProductStore
         source, sink = LocalCache(ProductStore().cache_dir), SupabaseSink()
+    if tail_downloads_enabled() and not args.wind_lane_rebuild:
+        fetch = local_product_fetcher(args.tail_store_dir) if args.tail_store_dir else (
+            None if args.store_dir else supabase_product_fetcher())
+        if fetch is not None:
+            source = TailDownloads(source, fetch, cap=tail_cap())
     sink.ensure_bucket()
+    if args.wind_lane_rebuild:
+        return _wind_lane_rebuild(source, sink)
     status = 0
     if args.only in (None, "frames"):
         report = publish_frame_sets(source, sink)
+        if isinstance(source, TailDownloads):
+            report["__tail_downloads__"] = dict(source.stats)
         print(json.dumps({"frame_sets": report}))
         summary = os.environ.get("GITHUB_STEP_SUMMARY")
         if summary:

@@ -36,3 +36,8 @@ the water-temp land fill). Replay only. Run a positive control (a lever that rea
 beside every parity claim.
 
 Terms: record new RainViewer frames sparingly (100 requests/IP/min, personal/educational use); replay is free.
+
+Owner clips (2026-10-23/24): `clip_own_vs_om.js` records what the map shows while the wheel steps (`ARM`, `THEME`, `VIEW`,
+`STEPS`, `KEY_MS`; `MODEL=GFS|EURO|ICON` picks the model selector first and writes to `<ARM>-<MODEL>-<THEME>`), and
+`compose_clip.py <cap> --theme dark --arms om,own-EURO,own-ICON` lays any number of captured arms side by side on one
+clock (labels name each model's source; three or more panes default to `--scale 0.42`).

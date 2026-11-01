@@ -607,7 +607,7 @@ export function commitMarineData({
 
   scheduleSWRRevalidation(data, (src) => {
     updateMarineGrid(src);
-  });
+  }, getViewportHash());   // the ask this answer is for: SWR_KEY_LADDER keeps the ladder per ask (marineRequestDiet.js)
 }
 
 

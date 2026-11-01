@@ -46,7 +46,7 @@ describe('describeRasterFrame', () => {
     expect(r.state).toBe('nearest');
     expect(describeRasterFrame({ layer: 'rain', shown: e, want: e }, 'rain', e.dataMs + 30 * 60000)).toBeNull();
   });
-  test('another layer\'s record, or the kill: null', () => {
+  test("another layer's record, or the kill: null", () => {
     const e = end('ncep_gfs013', 1);
     expect(describeRasterFrame({ layer: 'fog', shown: e, want: end('ncep_gfs013', 2) }, 'rain', 0)).toBeNull();
     window.__RAW_DISABLE_RASTER_DRAWN_READOUT__ = true;
@@ -98,7 +98,7 @@ describe('a layer drawn from our own frames (useOwnRasterFrames)', () => {
   const { useRasterDrawnPublisher } = require('./rasterDrawnFrame');
   function Pub({ layers }) { useRasterDrawnPublisher(layers, {}, {}, { current: {} }); return null; }
   afterEach(() => _resetOwnRasterFramesForTest());
-  test('the .om publisher never clears its record; another layer\'s record it does', () => {
+  test("the .om publisher never clears its record; another layer's record it does", () => {
     const end = (h) => ({ url: `f${h}`, dataMs: Date.UTC(2026, 9, 23, h), model: 'GFS', nearestMaxHours: 1 });
     setEngaged('pressure', true);
     publishRasterDrawn({ layer: 'pressure', shown: end(15), want: end(15) });
@@ -113,4 +113,14 @@ describe('a layer drawn from our own frames (useOwnRasterFrames)', () => {
     const d = describeRasterFrame({ layer: 'pressure', shown, want: shown }, 'pressure', Date.UTC(2026, 9, 23, 16));
     expect(d.state).toBe('nearest');
   });
+});
+
+
+test("a GFS stand-in past the picked model's range is said as an estimate, in the wave layers' words", () => {
+  const shown = { url: 'g243', dataMs: Date.UTC(2026, 9, 24, 3), model: 'GFS', estimated: 'gfs_estimated_fallback', nearestMaxHours: 1 };
+  expect(describeRasterFrame({ layer: 'pressure', shown, want: shown }, 'pressure', Date.UTC(2026, 9, 24, 3)))
+    .toEqual({ state: 'estimated', text: 'Estimated forecast: GFS stand-in beyond this model’s range' });
+  const euro = { url: 'e3', dataMs: Date.UTC(2026, 9, 24, 3), model: 'EURO', estimated: null, nearestMaxHours: 1 };
+  expect(describeRasterFrame({ layer: 'pressure', shown: shown, want: euro }, 'pressure', Date.UTC(2026, 9, 24, 3)).text)
+    .toBe('Loading EURO Pressure… still showing GFS Pressure');
 });

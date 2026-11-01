@@ -69,9 +69,17 @@ const reports = [];
 const GUARD = process.env.GUARD === '1';
 const FILL_WORLD = (m, l) => ['EURO', 'ICON'].includes(m) && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l);
 const guarded = [];
+// SETS_RE (2026-10-27): only the set keys matching this regex (e.g. 'global_mid' for the world sets). A regional set reads as
+// unbuilt here (this script cannot read regional bundles; scn_regional_client_parity.mjs is their parity) and costs ~2 min of gap
+// asks for nothing, which pushed a full run past the regression driver's 40-min timeout.
+const SETS_RE = process.env.SETS_RE ? new RegExp(process.env.SETS_RE) : null;
 for (const [setKey, entry] of Object.entries(latest.sets)) {   // EVERY published set (one model x layer each)
-  const [MODEL, , LAYER] = setKey.split('/');
-  if (GUARD && FILL_WORLD(MODEL, LAYER)) { guarded.push(setKey); continue; }   // world asks of this set go to /grid
+  if (SETS_RE && !SETS_RE.test(setKey)) continue;
+  const [MODEL, , LAYER, REGION] = setKey.split('/');
+  if (!entry.index) continue;                                   // an explicit-empty / retired record: nothing to compare
+  // A FILLED world set (2026-10-24, frame_set_fill.py: <model>/marine/<layer>/global_mid_filled) carries /grid's own targeted fill,
+  // so it is compared, never guarded; it needs the backend in the same mode (MARINE_GULF_FILL_MID_TARGETED=1).
+  if (GUARD && FILL_WORLD(MODEL, LAYER) && REGION !== 'global_mid_filled') { guarded.push(setKey); continue; }   // world asks go to /grid
   const index = JSON.parse(fs.readFileSync(path.join(cdnDir, entry.index), 'utf8'));
   index.path = index.path || entry.index;
   const rows = [];

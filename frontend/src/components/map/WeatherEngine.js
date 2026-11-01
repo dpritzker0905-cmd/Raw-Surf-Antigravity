@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache, getModelSafeWind, getBackendWindFlag, prewarmSiblingModelWind, isRenderableWindData } from './marineController';
 import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
 import { clampViewportBbox } from './backendWeatherServiceClientCoverage';
-import { windGridsCompatible } from './WebGLWindEngine'; import { keepResidentFine } from './windOverlayKeep';
+import { windGridsCompatible } from './WebGLWindEngine'; import { keepResidentFine } from './windOverlayKeep'; import { queueWindDelivery } from './windDeliveryCoalesce';
 import { recordTruthStage } from './weatherTruthTracker';
 import { getWindSeriesFrame, prewarmWindSeries } from './windGridSeries';
 import { startWindSeriesWarm } from './windSeriesWarm';
@@ -47,9 +47,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
   const setWindData = (d) => {
     if (typeof window !== 'undefined') {
       if (window.__RAW_DISABLE_WIND_DELIVERY_QUEUE__ !== true) {
-        const q = windDeliveryQueueRef.current;
-        q.push(d);
-        if (q.length > 16) q.splice(0, q.length - 16); // bounded — never accumulate unboundedly while inactive
+        queueWindDelivery(windDeliveryQueueRef.current, d); // bounded 16; a cache hit's repeat of the queued grid is not re-queued
       }
       const _c = (window.__WIND_STATE_COMMITS__ = window.__WIND_STATE_COMMITS__ || []);
       const b = d && d.bounds;

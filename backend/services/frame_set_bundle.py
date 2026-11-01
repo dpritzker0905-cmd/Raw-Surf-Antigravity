@@ -119,3 +119,29 @@ def latest_record(index, previous_entry, written_at, writer):
     rec["frames"] = sum(1 for f in index["frames"] if f.get("offset") is not None)
     rec["bundle"] = index["bundle"]
     return rec
+
+
+# ── EXPLICIT EMPTY (2026-10-23, the lead's item 4) ─────────────────────────────────────────────────────────────────────────────
+# A regional set whose box has NO stored product for its layer (today GFS swell_2 us_west_coast_socal: the pilot ingest never
+# requests it) used to be simply absent from latest.json, so the client could not tell "never stored" from "not published yet"
+# and treated it as a miss each time. It is now written as {"empty": true, "reason": ...}: the client's "no tile, don't wait"
+# answer, with no served number changed (a box with no stored product has no tile to serve either way). Guards:
+#   - only when the manifest holds this model/domain/layer SOMEWHERE (a broken or empty manifest must never mark every set empty);
+#   - never over a published index: a set that had frames keeps its pointer (one bad manifest read must not unpublish it).
+EMPTY_REASON = "no stored product for this layer in this box"
+
+
+def layer_present(products, target):
+    """True when the manifest carries at least one product of the set's model, domain and layer (any region)."""
+    m, d, l = target["model"].upper(), target["domain"].lower(), target["layer"].lower()
+    return any(str(p.get("model", "")).upper() == m and str(p.get("domain", "")).lower() == d
+               and str(p.get("layer", "")).lower() == l for p in products or ())
+
+
+def empty_record(previous_entry, written_at, writer):
+    """The explicit-empty latest.json record, or None when the previous entry has a published index (never downgraded)."""
+    if (previous_entry or {}).get("index"):
+        return None
+    if (previous_entry or {}).get("empty"):
+        return previous_entry                     # unchanged: keep its written_at, so latest.json does not churn
+    return {"empty": True, "reason": EMPTY_REASON, "written_at": written_at, "writer": writer}

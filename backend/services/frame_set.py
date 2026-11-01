@@ -15,7 +15,9 @@ the frames they name; everything else under the set's prefix is deleted.
 SOURCE RULE (egress): frames are built only from product files already on the ingest runner's disk (the products
 the ingest step just wrote). Nothing here downloads a product. A frame whose source identity (filename, model run,
 run time, ingested_at) matches the previous index is carried over without reading anything; a changed product that
-is not on disk is listed with `path: null`, and the client falls back to /grid for that hour. The GFS world products
+is not on disk is listed with `path: null`, and the client falls back to /grid for that hour (the one exception, dark:
+publish_frame_images.TailDownloads may hand this module the ICON/EURO estimated tails from storage; they pass the same run
+check and parity gate). The GFS world products
 are written by the PILOTS lane (scheduler/forecast.py pilot_jobs), so the step runs in forecast-ingest-pilots.yml; a
 lane whose disk holds less than FRAME_MIN_COVERAGE of a set's AUTHORITATIVE entries publishes nothing for it.
 
@@ -30,6 +32,7 @@ import os
 from datetime import datetime, timezone
 
 from services import frame_binary as fb
+from services import frame_set_fill as fsf
 from services import frame_set_wind as fsw
 
 LATEST = "v1/latest.json"
@@ -43,7 +46,9 @@ MIN_COVERAGE_DEFAULT = 0.9   # a set publishes a new index only when this share 
 
 # The WORLD tier (global_mid, 2 deg): every set the pilots lane writes natively (forecast-ingest-pilots.yml; storage reads
 # 2026-10-22: GFS 4 layers x 113 frames; ICON 3 layers x 57 native (0-168 h); EURO waves x 65 native). The ICON/EURO
-# estimated 14-day tails are baked by the CORE lane, so in this lane they are listed unbuilt and fall back to /grid.
+# estimated 14-day tails are baked by the CORE lane, so in this lane they are listed unbuilt and fall back to /grid (measured
+# 2026-10-24: ICON waves' tail IS on this disk, 114 of 117 built; ICON swell_1 61, wind_waves 60, EURO waves 69 are not), unless
+# FRAME_TAIL_DOWNLOAD=1 (publish_frame_images.TailDownloads, dark) fetches those tails from storage first.
 # Not here yet: EURO swell layers (global_coarse only, where /grid applies coarse_gulf_fill at serve time) and ICON
 # swell_2 (a client-side GFS/EURO blend, iconSwell2Blend.js). Order = publish order (a run over its time budget stops
 # starting sets, so the most-used set comes first).
@@ -54,6 +59,10 @@ SETS = tuple({"model": m, "domain": "marine", "layer": l, "region_id": "global_m
     # WIND (2026-10-22, the wind instant scrub): GFS 10 m wind, 2 deg, written by the same pilots lane. Each frame is the stored
     # product with the HRRR lane applied as /grid serves it (frame_set_wind.py). Last: the stagger drops it first.
     dict(fsw.WIND_TARGET),
+) + (
+    # EURO / ICON world frames with the TARGETED Gulf fill baked in (2026-10-24, frame_set_fill.py): key
+    # <model>/marine/<layer>/global_mid_filled, published only while the targeted mode is on. Last: new, and the stagger drops it first.
+    *(dict(t) for t in fsf.FILLED_SETS),
 )
 
 # Product fields the client needs to rebuild the /grid response (backendWeatherServiceClient + mapNormalizedGridToWebGL).
@@ -67,12 +76,17 @@ PRODUCT_META = (
 DIAGNOSTICS_KEPT = ("gridMode", "animChannel", "mid_res_tier")
 
 
+def _region_segment(target):
+    """region_id, plus `_<variant>` for a variant set (frame_set_fill: global_mid_filled)."""
+    return target["region_id"] + (f"_{target['variant']}" if target.get("variant") else "")
+
+
 def set_key(target):
-    return "/".join(target[k] for k in ("model", "domain", "layer", "region_id"))
+    return "/".join([target["model"], target["domain"], target["layer"], _region_segment(target)])
 
 
 def set_prefix(target):
-    return "v1/" + "/".join(target[k].lower() for k in ("model", "domain", "layer", "region_id"))
+    return "v1/" + "/".join(x.lower() for x in (target["model"], target["domain"], target["layer"], _region_segment(target)))
 
 
 def stamp(ts):
@@ -95,8 +109,9 @@ def select_entries(products, target):
     """The set's manifest entries, one per (valid time, estimated?) — the first in manifest order, as the resolver's
     `min` keeps the first of equal time differences. Sorted by valid time."""
     seen, out = set(), []
+    match = {k: v for k, v in target.items() if k != "variant"}   # a variant set reads the same products as its base set
     for p in products or []:
-        if any(p.get(k) != v for k, v in target.items()) or not p.get("filename"):
+        if any(p.get(k) != v for k, v in match.items()) or not p.get("filename"):
             continue
         vt = iso(p.get("valid_time_start") or p.get("valid_time"))
         if not vt:
@@ -148,6 +163,41 @@ def fields_for(target, lane_touched=False):
     return fb.DEFAULT_FIELDS
 
 
+def note_parity(stats, check):
+    """Fold one checked frame's parity report into the set's stats: the max error per field and of u/v, the marine u/v
+    error per height band, and both per world-frame region. PURE but for `stats`."""
+    errs = stats["parity_max_abs_err"]
+    for k, v in (check.get("max_abs_err") or {}).items():
+        errs[k] = max(errs.get(k, 0.0), v)
+    if check.get("uv_max_err") is not None:
+        errs["uv"] = max(errs.get("uv", 0.0), check["uv_max_err"])
+    bands = stats["uv_max_err_by_height_m"]
+    for k, v in (check.get("uv_by_height_m") or {}).items():
+        bands[k] = max(bands.get(k, 0.0), v)
+    stats["uv_max_err_by_height_m"] = dict(sorted(bands.items(), key=lambda kv: int(kv[0].split("-")[0])))
+    # ⬇ 2026-10-24 (the lead, the worldwide verify matrix): the same per world-frame region (fb.frame_regions), with the
+    # frames, nodes and bad nodes behind each maximum, so a matrix row can cite e.g. "antimeridian: 0 bad of N nodes".
+    by_region = stats.setdefault("parity_by_region", {})
+    for name, r in (check.get("by_region") or {}).items():
+        acc = by_region.setdefault(name, {"frames": 0, "nodes": 0, "bad": 0, "max_abs_err": {}})
+        acc["frames"] += 1
+        acc["nodes"] += r["nodes"]
+        acc["bad"] += r["bad"]
+        for k, v in r["max_abs_err"].items():
+            acc["max_abs_err"][k] = max(acc["max_abs_err"].get(k, 0.0), v)
+        if r.get("uv_max_err") is not None:
+            acc["max_abs_err"]["uv"] = max(acc["max_abs_err"].get("uv", 0.0), r["uv_max_err"])
+    stats["parity_by_region"] = {k: by_region[k] for k in fb.REGIONS if k in by_region}
+
+
+def parity_line(check):
+    """One frame's max errors, compact, for the publish log: 'height_m 0.0005 ... uv 0.0011'. PURE."""
+    parts = [f"{k} {v:g}" for k, v in (check.get("max_abs_err") or {}).items()]
+    if check.get("uv_max_err") is not None:
+        parts.append(f"uv {check['uv_max_err']:g}")
+    return " ".join(parts)
+
+
 def build_frame(product, entry, fields=fb.DEFAULT_FIELDS):
     """(raw frame bytes, parity report) for one product; raises ValueError when it cannot be encoded."""
     raw = fb.encode_frame(product, fields)
@@ -184,6 +234,7 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
     lane key is part of each frame's source identity.
     """
     wind = fsw.is_wind(target)
+    filled = fsf.is_filled(target)
     lane_key = (wind_lane.key if wind_lane is not None else None) if wind else None
     prefix = set_prefix(target)
     floor = min_coverage() if coverage_floor is None else coverage_floor
@@ -196,10 +247,24 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
         prev_frames[(f["valid_time"], bool(f.get("is_estimated")))] = f
     stats = {"entries": 0, "built": 0, "carried": 0, "unchanged": 0, "uploaded": 0, "not_local": 0, "stale_local": 0,
              "refused": 0, "bytes_uploaded": 0, "parity_bad": 0, "coverage": 0.0, "coverage_authoritative": 0.0,
-             "coverage_refused": False}
+             "coverage_refused": False,
+             # ⬇ 2026-10-24 (the lead): every CHECKED frame's errors, refused or built, so the publish report shows how
+             # close accepted frames run to each tolerance (before, only refusals printed u/v): per field plus u/v, and
+             # the marine u/v error per height band, the reading that says whether u/v can be tightened below 6 m.
+             "parity_max_abs_err": {}, "uv_max_err_by_height_m": {}, "parity_by_region": {}}
     frames, uploads, grid, max_err = [], [], (previous_index or {}).get("grid"), {}
-    entries = select_entries(source.manifest().get("products"), target)
+    if filled:
+        # Only the targeted mode is baked (frame_set_fill): in any other mode this set publishes nothing, and the caller retires
+        # its latest.json record (fill_mode_off_record) so no client pairs an old filled index with a box in another mode.
+        stats.update(fill_mode=fsf.publish_mode(), fill_donor_missing=0, fill_refused=0, cells_filled=0)
+        if stats["fill_mode"] != "targeted":
+            stats["skipped_fill_mode"] = True
+            log(f"[frames] {set_key(target)}: fill mode {stats['fill_mode']!r} is not 'targeted'; nothing baked")
+            return None, stats
+    products = source.manifest().get("products")
+    entries = select_entries(products, target)
     stats["entries"] = len(entries)
+    fill_store = fsf._ManifestStore(products) if filled else None
 
     def unbuilt(vt, est, ident, reason):
         stats[reason] += 1
@@ -210,6 +275,10 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
         ident = source_identity(entry)
         if wind:
             ident["wind_lane"] = lane_key      # a new HRRR lane rebuilds the frame (its bytes change only where HRRR blends)
+        donor = None
+        if filled:                             # a new GFS donor run rebuilds the frame (its bytes change only at filled nodes)
+            donor = fsf.donor_entry(products, vt, target["layer"], store=fill_store)
+            ident["fill_donor"] = fsf.donor_identity(donor)
         prev = prev_frames.get((vt, est))
         if prev and prev.get("path") and prev.get("source") == ident:
             frames.append(prev)
@@ -223,6 +292,18 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
         if iso(product.get("model_run_time")) != ident["model_run_time"] or iso(product.get("run_time")) != ident["run_time"]:
             unbuilt(vt, est, ident, "stale_local")   # the disk copy is not the run the manifest names: never mix runs
             continue
+        if filled:
+            if donor is None:
+                log(f"[frames] {entry['filename']}: no same-layer GFS global_mid within 3 h; /grid serves this hour")
+                unbuilt(vt, est, ident, "fill_donor_missing")
+                continue
+            try:
+                product, n_filled = fsf.apply_fill(product, donor, source.product_bytes(donor["filename"]), target["layer"])
+            except ValueError as e:            # never publish a frame /grid would not serve: this hour goes to /grid
+                log(f"[frames] {entry['filename']}: fill refused ({e})")
+                unbuilt(vt, est, ident, "fill_refused")
+                continue
+            stats["cells_filled"] += n_filled
         lane_stamp, touched = None, 0
         if wind:
             try:
@@ -237,11 +318,13 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
             log(f"[frames] {entry['filename']}: refused ({e})")
             unbuilt(vt, est, ident, "refused")
             continue
+        note_parity(stats, check)
         if check["bad"]:
             stats["parity_bad"] += check["bad"]
             log(f"[frames] {entry['filename']}: parity refused, nothing uploaded: {check}")
             unbuilt(vt, est, ident, "refused")
             continue
+        log(f"[frames] {entry['filename']}: parity ok: {parity_line(check)}")
         for k, v in check["max_abs_err"].items():
             max_err[k] = max(max_err.get(k, 0.0), v)
         stats["built"] += 1
@@ -269,6 +352,15 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
     # THE GATE counts AUTHORITATIVE entries: an estimated tail baked by another lane (ICON/EURO 168-336 h, the core lane)
     # is listed unbuilt and served by /grid, which is also what the resolver picks there (authoritative first).
     auth = [f for f in frames if not f["is_estimated"]]
+    # ⬇ 2026-10-27 (the lead): an OLDER run's past hours that this runner never downloaded are not this lane's to build.
+    # The manifest keeps them until retention prunes them; at 6 per 41-hour regional set (41/47 = 0.872) the gate refused
+    # every regional set from 13:31Z to 00:28Z on 2026-10-26 (runs 40370598765, 40396075942). They stay listed with path
+    # null (/grid serves them) and out of the gate; the newest run's own hours must still clear the floor.
+    newest = max((f["source"].get("model_run_time") or "" for f in auth), default="")
+    older = [f for f in auth if not f.get("path") and f.get("unbuilt") == "not_local"
+             and (f["source"].get("model_run_time") or "") < newest]
+    stats["not_local_older_run"] = len(older)
+    auth = [f for f in auth if not any(f is o for o in older)]
     stats["coverage_authoritative"] = round(sum(1 for f in auth if f.get("path")) / len(auth), 4) if auth else 0.0
     if not built:
         return None, stats
@@ -307,6 +399,9 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
     }
     if wind:
         index["wind_lane"] = wind_lane.identity() if wind_lane is not None else None
+    if filled:
+        index["fill"] = {"mode": "targeted", "code": "coarse_gulf_fill.targeted_fill_vectors", "donor_region": "global_mid",
+                         "applies_to": "world boxes only (served span >= 350 deg); crops read the unfilled global_mid set"}
     body = json.dumps(index, sort_keys=True, separators=(",", ":")).encode("utf-8")
     index["path"] = f"{prefix}/index/{stamp(index['run'])}-{fb.sha256_hex(body)[:12]}.json"
     return index, stats
@@ -334,6 +429,20 @@ def retention_deletes(existing_paths, target, keep):
 
 
 def latest_record(index, previous_entry, written_at, writer):
-    return {"index": index["path"], "run": index["run"], "run_time": index.get("run_time"), "coverage": index.get("coverage"),
-            "frames": sum(1 for f in index["frames"] if f.get("path")), "entries": len(index["frames"]),
-            "previous_index": (previous_entry or {}).get("index"), "written_at": written_at, "writer": writer}
+    rec = {"index": index["path"], "run": index["run"], "run_time": index.get("run_time"), "coverage": index.get("coverage"),
+           "frames": sum(1 for f in index["frames"] if f.get("path")), "entries": len(index["frames"]),
+           "previous_index": (previous_entry or {}).get("index"), "written_at": written_at, "writer": writer}
+    if index.get("fill"):                  # the client serves a filled set only while /capabilities reports this mode
+        rec["fill_mode"] = index["fill"]["mode"]
+    return rec
+
+
+def fill_mode_off_record(previous_entry, mode, written_at, writer):
+    """The latest.json record of a filled set whose mode is no longer 'targeted' (frame_set_fill): no index and no fill_mode, so no
+    client serves an old filled index against a box in another mode. None when there is nothing to retire (no record, or one
+    already retired for this mode)."""
+    if not previous_entry or (previous_entry.get("empty") and previous_entry.get("fill_mode_off") == mode):
+        return None
+    return {"empty": True, "reason": f"fill mode {mode}: no filled frames", "fill_mode_off": mode,
+            "previous_index": previous_entry.get("index") or previous_entry.get("previous_index"),
+            "written_at": written_at, "writer": writer}

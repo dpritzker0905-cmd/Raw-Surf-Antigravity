@@ -1,7 +1,7 @@
 import { renderMaskToCanvas, maskDensityPxPerDeg, incomingMaskDensityPxPerDeg } from './WebGLMarineMaskRenderer';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer
 import { applyPatchCarry } from './maskSmoothing';
-import { maskCoversWorldFrame } from './maskCoverReuse';
+import { maskCoversWorldFrame } from './maskCoverReuse'; import { withWaveLakes } from './waveLakes';   // lakes a model carries (waveLakes.js)
 import { takeMaskStash, stashResidentMask, installStashedMask, releaseSwappedMask } from './maskTextureStash';
 import { writeCoastDistanceField } from './maskCoastSDF'; // signed dist-to-coast → mask .b (opt-in, best-in-class crisp coast)
 import {
@@ -521,7 +521,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
         standaloneMaskDims = opts.reuseMaskDims || null;
       } else if (landGeoJSON) {
         try {
-          const maskCanvas = renderMaskToCanvas(landGeoJSON, bounds, { readOnly: true });   // uploaded as is, never painted on
+          const maskCanvas = renderMaskToCanvas(withWaveLakes(landGeoJSON, waveGrid, bounds), bounds, { readOnly: true });   // uploaded as is, never painted on
           // Recorded on the returned set (2026-07-16 staircase forensics): the damp sites need to
           // know whether the base's OWN mask is the dense tier (island halos bounded) or the
           // legacy 1024×512 (the damps' original rationale).
@@ -568,6 +568,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
           effectiveGeoJSON = _hires;
         }
       } catch (e) { /* keep the caller's geojson */ }
+      effectiveGeoJSON = withWaveLakes(effectiveGeoJSON, waveGrid, bounds, engine);   // carried lakes cut in: ONE object per lake set (waveLakes.js)
 
       // A cached WORLD mask whose bounds cover this world frame is reused (maskCoverReuse.js): a thinned series frame keeps the
       // bounds of its kept cells (north 80) while the exact frame keeps north 84, and rebuilding the 4096 x 2048 mask on every swap
