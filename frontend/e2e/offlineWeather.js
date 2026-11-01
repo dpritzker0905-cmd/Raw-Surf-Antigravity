@@ -20,6 +20,7 @@
 const fs = require('node:fs');
 const base = require('@playwright/test');
 const { installSeededUiIsolation } = require('./seededUiIsolation');
+const { coordinateContextClose } = require('../scripts/offline-backend/route_lifecycle');
 const {
   weatherRouteConfig, routeWeatherToLocal, watchLiveWeatherLeaks, stubOtherLiveBackend,
 } = require('../scripts/offline-backend/weather_route');
@@ -54,16 +55,30 @@ const test = base.test.extend({
       liveOrigin: cfg.liveOrigin,
       siteOrigin: new URL(process.env.E2E_BASE_URL || 'https://dev--rawsurf.netlify.app').origin,
     });
+    // Wait only for owned socket callbacks before native close invalidates their page reads.
+    const socketClose = coordinateContextClose(context, async () => {
+      const deadline = Date.now() + 5000;
+      const app = await isolation.shutdownApps(5000);
+      const drained = await isolation.socketHandlers.drain(Math.max(0, deadline - Date.now()));
+      return { ...drained, complete: app.complete && drained.complete };
+    });
     const leaks = watchLiveWeatherLeaks(context, cfg.liveOrigin);
     if (STUB_OTHER) await stubOtherLiveBackend(context, cfg.liveOrigin);
     let contextClosed = false;
-    context.on('close', () => { contextClosed = true; });
+    context.on('close', () => { contextClosed = true; isolation.observeContextClose(); });
     syntheticFinalReceipt(async () => {
-      const [weatherCleanup, uiCleanup] = await Promise.all([
-        stats.lifecycle.drain(), isolation.lifecycle.drain(),
-      ]);
-      const cleanup = { complete: contextClosed && weatherCleanup.complete && uiCleanup.complete,
-        contextClosed, weather: weatherCleanup, ui: uiCleanup };
+      isolation.observeFinalReceiptStart();
+      let weatherCleanup, uiCleanup;
+      try {
+        [weatherCleanup, uiCleanup] = await Promise.all([
+          stats.lifecycle.drain(), isolation.lifecycle.drain(),
+        ]);
+      } finally { socketClose.restore(); }
+      const closeCoordination = socketClose.snapshot();
+      const cleanup = { complete: contextClosed && weatherCleanup.complete && uiCleanup.complete
+          && (!closeCoordination.requested || (closeCoordination.drain?.complete === true
+            && isolation.appShutdownSnapshot().complete)),
+        contextClosed, weather: weatherCleanup, ui: uiCleanup, socketClose: closeCoordination, appShutdown: isolation.appShutdownSnapshot() };
       const { leaked, examples } = leaks();
       const row = {
         cleanup, project: testInfo.project.name, test: testInfo.titlePath.slice(1).join(' > '), retry: testInfo.retry,
@@ -74,7 +89,8 @@ const test = base.test.extend({
       console.log(`[OFFLINE WEATHER] ${JSON.stringify(row)}`);
       if (LEDGER) fs.appendFileSync(LEDGER, `${JSON.stringify(row)}\n`);
       const uiRow = { cleanup, project: testInfo.project.name, test: testInfo.titlePath.slice(1).join(' > '),
-        retry: testInfo.retry, ...isolation.stats, violations: isolation.violations };
+        retry: testInfo.retry, ...isolation.stats, violations: isolation.violations,
+        socketLifecycle: isolation.socketLifecycleSnapshot() };
       console.log(`[SEEDED UI ISOLATION] ${JSON.stringify(uiRow)}`);
       if (UI_LEDGER) fs.appendFileSync(UI_LEDGER, `${JSON.stringify(uiRow)}\n`);
       base.expect(cleanup.complete, `synthetic cleanup incomplete: ${JSON.stringify(cleanup)}`).toBe(true);
@@ -83,6 +99,7 @@ const test = base.test.extend({
         .toBe(0);
     });
     await use(stats);
+    isolation.observeFixtureUseReturned();
   }, { auto: true }],
 });
 

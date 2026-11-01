@@ -3,6 +3,7 @@ import React, { Suspense } from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
 import App from "./App";
+import { registerSyntheticAppLifecycle } from "./testSupport/syntheticAppLifecycle";
 
 // Initialize i18n before rendering
 import './i18n';
@@ -310,6 +311,10 @@ root.render(
       <App />
     </Suspense>
 );
+
+// Explicit runner opt-in; ordinary sessions have no lifecycle marker or shutdown hook.
+registerSyntheticAppLifecycle(globalThis, () => root.unmount(),
+  () => import('./lib/supabase').then(module => module.supabase));
 
 // --- Service Worker Registration ---
 // Enables offline caching, push notifications, and PWA installability.
