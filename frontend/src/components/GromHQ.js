@@ -582,10 +582,10 @@ export const GromHQ = () => {
                       >
                         <Unlink className="w-4 h-4" />
                       </Button>
-                      <ChevronRight 
-                        className={`w-5 h-5 ${textSecondary} cursor-pointer`}
-                        onClick={() => navigate(`/grom-hq/manage/${grom.id}`)}
-                      />
+                      <Button type="button" size="icon" variant="ghost" aria-label={`Manage ${grom.full_name || 'Grom'}`}
+                        className={`shrink-0 ${textSecondary}`} onClick={() => navigate(`/grom-hq/manage/${grom.id}`)}>
+                        <ChevronRight aria-hidden="true" className="w-5 h-5" />
+                      </Button>
                     </div>
                   </div>
                   
@@ -658,7 +658,7 @@ export const GromHQ = () => {
           <CardContent className="space-y-3">
             {[
               { icon: <UserPlus className="w-5 h-5 text-cyan-400" />, color: 'bg-cyan-500/20', arrow: 'text-cyan-400', title: 'Invite a Grom', desc: 'Send a link request to your child', onClick: () => toast.info('Have your Grom sign up with a Grom account, then use the link request from the "Linked Groms" section above.') },
-              { icon: <CreditCard className="w-5 h-5 text-emerald-400" />, color: 'bg-emerald-500/20', arrow: 'text-emerald-400', title: 'Spending Controls', desc: 'Set limits and approve purchases', onClick: () => { if (linkedGroms.length > 0) { navigate(`/grom-hq/manage/${linkedGroms[0].id}`); } else { toast.info('Link a Grom first to manage spending controls.'); } } },
+              { icon: <CreditCard className="w-5 h-5 text-emerald-400" />, color: 'bg-emerald-500/20', arrow: 'text-emerald-400', title: 'Spending Controls', desc: 'Set limits and approve purchases', onClick: () => { if (linkedGroms.length > 0) { navigate(`/grom-hq/manage/${linkedGroms[0].id}?tab=spending`); } else { toast.info('Link a Grom first to manage spending controls.'); } } },
               { icon: <Activity className="w-5 h-5 text-yellow-400" />, color: 'bg-yellow-500/20', arrow: 'text-yellow-400', title: 'Activity Monitor', desc: 'View screen time and session history', onClick: () => { setShowActivityFeed(true); toast.success('Scroll up to see the Family Activity feed'); } },
               { icon: <ShieldAlert className="w-5 h-5 text-red-400" />, color: 'bg-red-500/20', arrow: 'text-red-400', title: 'Safety Settings', desc: 'Manage privacy and content filters', onClick: () => navigate('/settings') },
               { icon: <ShoppingBag className="w-5 h-5 text-purple-400" />, color: 'bg-purple-500/20', arrow: 'text-purple-400', title: 'Gear Hub', desc: 'Buy gear for your Grom', onClick: () => navigate('/gear-hub') },
