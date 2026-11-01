@@ -1,10 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { evaluateMarineTimelineCoverage, readMarineTimelineRenderEvidence, reconcileMarineTimelineCoverage } from './marineTimelineCoverage';
-import { useMarineDrawnFrame } from './marineDrawnFrame';
-import { describeDrawnFrame, latticeNearestMaxHours } from './drawnFrameReadout';
+import { drawnFallbackTruthKilled, useMarineDrawnFrame, latestKnownRunMs, NOTHING_DRAWN_REASONS } from './marineDrawnFrame';
+import { useMarineFallbackState } from './marineFallbackNotice';
+import { describeDrawnFrame, describeCoarseGrid, describeNothingDrawn, latticeNearestMaxHours } from './drawnFrameReadout';
 import { getSeriesAnchorMs, getSharedValidTime } from './backendWeatherServiceClient';
 import { HOLD_INDICATOR_MS, holdNoDimKilled } from './marineStaleHour';
 import { useRasterDrawnFrame, describeRasterFrame, RASTER_STATUS_LAYERS, PENDING_QUIET_MS } from './rasterDrawnFrame';
+import { ratingBandHeldText } from './marineRatingBandRes';
+import { ratingBandLoadingText } from './marineFlavorToggle';
 
 // What the map DRAWS against what the user SELECTED, in words, in the same frame (W-1, scrub audit 2026-10-18): the
 // drawn-frame record is published by WebGLMarineLayer at the upload (marineDrawnFrame.js), so this line no longer waits
@@ -17,8 +20,17 @@ import { useRasterDrawnFrame, describeRasterFrame, RASTER_STATUS_LAYERS, PENDING
 // not pulse under prefers-reduced-motion). Kill: window.__RAW_DISABLE_HOLD_NO_DIM__ = true (the dim returns, no dot).
 // RASTER layers (2026-10-22, rasterDrawnFrame.js): the same words from the raster layer's own shown/wanted pair, never the marine
 // record; a pending line appears only after PENDING_QUIET_MS. `radarMs` = the radar frame asked for.
+// THE SIMPLIFIED FALLBACK (2026-10-27, the lead's z9 EURO live read: "Loading <hour>… still showing Mon, Nov 2, 4 AM" for 15 hours):
+// while MapWebGL has swapped the WebGL marine layer for the simplified one (webglMarineFailed), no frame of ours is drawn, so the line
+// says so instead of describing the last one. Kill: window.__RAW_DISABLE_DRAWN_FALLBACK_TRUTH__ = true (marineDrawnFrame.js).
+const MARINE_LAYERS = new Set(['waves', 'swell_1', 'swell_2', 'wind_waves']);
+/** The drawn record was retired because nothing of ours is on screen (marineDrawnFrame.NOTHING_DRAWN_REASONS), for a marine layer. */
+const nothingDrawnNow = (layer) => typeof window !== 'undefined' && MARINE_LAYERS.has(layer)
+  && !!window.__MARINE_DRAWN_RETIRED__ && NOTHING_DRAWN_REASONS.includes(window.__MARINE_DRAWN_RETIRED__.reason);
+export const MARINE_FALLBACK_WORDS = 'Simplified wave layer (reduced graphics mode): this app’s forecast frames are off';
 export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs }) {
   const drawn = useMarineDrawnFrame();
+  const marineFallback = useMarineFallbackState();
   const rasterRec = useRasterDrawnFrame();
   const isRaster = RASTER_STATUS_LAYERS.has(layer);
   const rasterReadout = isRaster ? describeRasterFrame(rasterRec, layer, layer === 'radar' ? radarMs : Date.now() + hour * 3600000) : null;
@@ -35,11 +47,16 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
   try { instantMs = Date.parse(getSharedValidTime(hour, layer, model, { readOnly: true })); } catch (e) { instantMs = null; }
   // The SELECTION's own instant: the series anchor (the clock every ask is made on) + the hour, before any snap to a stored product.
   const labelMs = Number.isFinite(hour) ? getSeriesAnchorMs() + hour * 3600000 : null;
-  // Half the stored marine lattice step (3-hourly; EURO WAM 6-hourly past 144 h): a frame further off is an exact upgrade
-  // still owed, so it reads "Loading", never "nearest" (same rule as WindTimeStatus, 2026-10-19).
-  const nearestMaxHours = latticeNearestMaxHours(model, hour);
+  // Half the stored marine lattice step (3-hourly; EURO 6-hourly past model step 144, read from the drawn frame's run): a frame
+  // further off is an exact upgrade still owed, so it reads "Loading", never "nearest" (same rule as WindTimeStatus, 2026-10-19).
+  const nearestMaxHours = latticeNearestMaxHours(model, hour, { selectedMs: labelMs, runMs: drawn && drawn.runMs, layer });
+  // The newest verified cycle the manifest names, so a held frame can say "from an older run" (drawnFrameReadout holdReason).
+  const latestRunMs = isRaster || readoutOff ? null : latestKnownRunMs(model, layer);
   const readout = isRaster ? (rasterReadout && (rasterReadout.state !== 'pending' || rasterShowPending) ? rasterReadout : null)
-    : (readoutOff ? null : describeDrawnFrame({ model, layer, hour, instantMs, labelMs, nearestMaxHours }, drawn));
+    : (readoutOff ? null : (drawn ? describeDrawnFrame({ model, layer, hour, instantMs, labelMs, nearestMaxHours, latestRunMs }, drawn)
+      : (nothingDrawnNow(layer) ? describeNothingDrawn({ hour, labelMs }) : null)));   // D2: nothing of ours on screen: only the load
+  // A drawn grid this coarse is said in words (EURO swells are a 10.3-degree grid at every zoom): one quiet line, all themes.
+  const coarse = isRaster || readoutOff ? null : describeCoarseGrid({ model, layer }, drawn);
   if (typeof window !== 'undefined') window.__RAW_SELECTED_FRAME__ = { model, layer, hour, instantMs, labelMs };   // instruments compare by instant
 
   const readStatus = useCallback(() => {
@@ -50,6 +67,15 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
     return evaluateMarineTimelineCoverage(timeline, readMarineTimelineRenderEvidence(model, layer), hour).temporalStatus;
   }, [model, layer, hour]);
   const [status, setStatus] = useState(readStatus);
+  // The rating band HOLDS OFF on a grid coarser than the regional one or one that ends in view (marineRatingBandRes.js): the words, so the
+  // state is never colour alone. The engine publishes heldBy with its band-fade telemetry; polled with the coverage check below.
+  const readHeldBy = () => {
+    if (typeof window === 'undefined' || !window.__RAW_GPU__) return null;
+    const rf = window.__RAW_GPU__.ratingBandFade; const rb = window.__RAW_GPU__.ratingBand;
+    if (rf && rf.heldBy && rf.heldBy !== 'off') return rf.heldBy;   // 'off' (the instant hide) is silent: the band is simply gone
+    return ratingBandLoadingText(rb && rb.forcedOff, window.__RAW_BAND_TOGGLE_AT__) ? 'loading' : null;   // just switched ON, the rating grid still on its way
+  };
+  const [heldBy, setHeldBy] = useState(readHeldBy);
   const pendingKey = readout && readout.state === 'pending' ? readout.text : null;
   const [longPending, setLongPending] = useState(false);
   useEffect(() => {
@@ -60,31 +86,52 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
   }, [pendingKey]);
   useEffect(() => {
     setStatus(readStatus());
-    const timer = setInterval(() => setStatus(readStatus()), 500);
+    const timer = setInterval(() => { setStatus(readStatus()); setHeldBy(readHeldBy()); }, 500);
     return () => clearInterval(timer);
   }, [readStatus]);
 
   const tone = theme === 'light' ? 'text-amber-800' : 'text-amber-200';
   const quiet = theme === 'light' ? 'text-slate-600' : 'text-slate-300';
+  if (marineFallback && MARINE_LAYERS.has(layer) && !drawnFallbackTruthKilled()) {   // the simplified layer: no frame of ours, no band
+    return <div role="status" aria-live="polite" data-drawn-state="fallback" className={`mt-1 text-xs ${tone}`}>{MARINE_FALLBACK_WORDS}</div>;
+  }
+  // FIRST in the block: the phone's expanded sheet ends under the bottom nav, so a line after the time readout was off screen (measured 2026-10-26).
+  const heldText = !isRaster ? ratingBandHeldText(heldBy) : null;
+  const bandLine = heldText ? (
+    <div role="status" aria-live="polite" data-rating-band-held={heldBy}
+      className={`mt-1 text-xs ${tone}`}>{heldText}</div>
+  ) : null;
+  // Before the time readout for the same reason as the band line (the phone's sheet). Text, never colour alone; the beach panel is
+  // black/90 (MapWeatherControls), so `quiet` reads on all three themes.
+  const coarseLine = coarse ? (
+    <div role="status" aria-live="polite" data-coarse-grid={coarse.deg} className={`mt-1 text-xs ${quiet}`}>{coarse.text}</div>
+  ) : null;
+  const heldLine = bandLine || coarseLine ? <>{bandLine}{coarseLine}</> : null;
   if (readout) {
     return (
+      <>
+      {heldLine}
       <div role="status" aria-live="polite" data-drawn-state={readout.state} aria-busy={readout.state === 'pending' ? true : undefined}
         data-hold-indicator={longPending ? 'on' : undefined}
-        className={`mt-1 text-xs ${readout.state === 'pending' ? tone : quiet}`}>
+        className={`mt-1 text-xs ${readout.state === 'pending' || readout.state === 'held' ? tone : quiet}`}>
         {longPending && (
           <span aria-hidden="true" data-testid="hold-indicator"
             className="inline-block w-1.5 h-1.5 mr-1.5 align-middle rounded-full bg-current animate-pulse motion-reduce:animate-none" />
         )}
         {readout.text}
       </div>
+      </>
     );
   }
   if (isRaster) return null;   // the marine coverage check does not speak for raster layers
   const mismatch = status === 'response_time_mismatch' || status === 'render_time_mismatch';
-  if (!mismatch && status !== 'render_time_unverified') return null;
+  if (!mismatch && status !== 'render_time_unverified') return heldLine;
   return (
-    <div role="status" aria-live="polite" className={`mt-1 text-xs ${tone}`}>
-      {mismatch ? 'Forecast time does not match this selection.' : 'Verifying displayed forecast time.'}
-    </div>
+    <>
+      {heldLine}
+      <div role="status" aria-live="polite" className={`mt-1 text-xs ${tone}`}>
+        {mismatch ? 'Forecast time does not match this selection.' : 'Verifying displayed forecast time.'}
+      </div>
+    </>
   );
 }

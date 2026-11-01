@@ -24,7 +24,7 @@ import {
   disposeEngine,
   reinitParticles, pollPrograms
 } from './WebGLWindEngineInit';
-import { recordTruthStage } from './weatherTruthTracker';
+import { recordTruthStage } from './weatherTruthTracker'; import { refreshWindSpeedScale } from './windDeliveryCoalesce';
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { advTeardownNeeded } from './advFboSync';
 
 function latToMercatorY(lat) {
@@ -291,23 +291,9 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
     }
   }
 
-  // v3.16: Update _maxWindSpeed from actual data, with sane bounds — across BOTH textures so the
-  // shared colour ramp covers whichever grid carries the storm.
-  // Floor of 10kn prevents all-calm grids from blowing up the ramp
-  // Ceiling of 80kn keeps hurricane-force winds from washing out variation
-  if (this._windData || this._windFine) {
-    var dataMaxSpeed = Math.max(this._windData?.maxSpeed || 0, this._windFine?.maxSpeed || 0) || 50;
-    var newMaxSpeed = Math.max(10, Math.min(dataMaxSpeed, 80));
-    if (newMaxSpeed !== this._maxWindSpeed) {
-      console.log('[WebGLWind] maxWindSpeed updated: ' + this._maxWindSpeed + ' -> ' + newMaxSpeed + ' kn (data max: ' + dataMaxSpeed + ')');
-      this._maxWindSpeed = newMaxSpeed;
-      // Force color ramp regeneration on next render by clearing cached ramp
-      if (this._colorRamp) {
-        gl.deleteTexture(this._colorRamp);
-        this._colorRamp = null;
-      }
-    }
-  }
+  // v3.16 speed scale across BOTH textures, clamped [10, 80] kn (windDeliveryCoalesce.refreshWindSpeedScale). While the layer
+  // delivers a batch it sets `_deferSpeedScale` and sets the scale ONCE after the last grid (owner test 2026-10-25: it flapped).
+  if (!this._deferSpeedScale) refreshWindSpeedScale(this, gl);
 
   const model = windGrid.truthTag?.model || 'GFS';
   const layer = windGrid.truthTag?.layer || 'wind';

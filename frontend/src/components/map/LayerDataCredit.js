@@ -1,5 +1,6 @@
 import React, { useSyncExternalStore } from 'react';
 import { getEngaged, subscribeEngaged } from './ownRasterFrames';
+import { getDownscaled, subscribeDownscaled } from './ownRasterDownscale';
 
 // The data credit beside a raster layer's legend (2026-10-22). The map's attribution control is off (MapWebGL
 // attributionControl={false}), so nothing on screen credited the raster layers' sources:
@@ -30,12 +31,16 @@ const OWN_SOURCE = { GFS: 'noaa', EURO: 'ecmwf', ICON: 'dwd' };
 const OWN_NOTE = {
   satellite: { text: ' · instantaneous', label: 'Cloud cover at the valid time, instantaneous (not an hourly mean).' },
 };
+// While air temperature is drawn terrain-adjusted (ownRasterDownscale.js): the elevation source is credited too.
+const DOWNSCALE_NOTE = {
+  temperature: { text: ' · terrain-adjusted', label: 'Adjusted to the real terrain height with NOAA ETOPO 2022 elevation (public domain), 6.5 C per km.' },
+};
 
-export function creditFor(layer, engaged = getEngaged()) {
+export function creditFor(layer, engaged = getEngaged(), downscaled = getDownscaled()) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_LAYER_DATA_CREDIT__ === true) return null;
   if (engaged && engaged[layer]) {
     const s = SOURCES[OWN_SOURCE[engaged[layer]] || 'noaa'];   // the model of the frame on screen
-    const n = OWN_NOTE[layer];
+    const n = OWN_NOTE[layer] || (downscaled && downscaled[layer] ? DOWNSCALE_NOTE[layer] : null);
     return n ? { ...s, text: s.text + n.text, label: `${n.label} ${s.label}`, title: n.label } : s;
   }
   return SOURCES[LAYER_CREDITS[layer]] || null;
@@ -43,7 +48,8 @@ export function creditFor(layer, engaged = getEngaged()) {
 
 export default function LayerDataCredit({ layer }) {
   const engaged = useSyncExternalStore(subscribeEngaged, getEngaged, getEngaged);
-  const c = creditFor(layer, engaged);
+  const downscaled = useSyncExternalStore(subscribeDownscaled, getDownscaled, getDownscaled);
+  const c = creditFor(layer, engaged, downscaled);
   if (!c) return null;
   return (
     <a href={c.href} target="_blank" rel="noopener noreferrer" aria-label={c.label} title={c.title} data-testid="layer-data-credit"

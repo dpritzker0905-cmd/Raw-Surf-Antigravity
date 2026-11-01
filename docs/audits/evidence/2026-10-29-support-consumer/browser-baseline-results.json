@@ -1,0 +1,1750 @@
+{
+  "baseline": true,
+  "baseline_revision": "0890cd877f586736751c46fecbd9ba59078f6f03",
+  "browser": "Chrome",
+  "browser_version": "156.0.8078.48",
+  "passed": 9,
+  "total": 39,
+  "checks": [
+    {
+      "surface": "page",
+      "name": "valid_unread_route",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 0,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "page",
+      "name": "invalid_unread_no_effects",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "AssertionError",
+      "error_summary": "Expected values to be strictly equal:",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 0,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "page",
+      "name": "duplicate_unread_activation",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 0,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "page",
+      "name": "valid_read_route",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 0,
+        "badgeRefreshes": 0,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "page",
+      "name": "invalid_read_no_effects",
+      "theme": "dark",
+      "width": 390,
+      "passed": true,
+      "page_errors": 0
+    },
+    {
+      "surface": "page",
+      "name": "duplicate_read_activation",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 0,
+        "badgeRefreshes": 0,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "page",
+      "name": "held_read_account_A_B_A",
+      "theme": "dark",
+      "width": 390,
+      "passed": true,
+      "page_errors": 0
+    },
+    {
+      "surface": "page",
+      "name": "held_read_unmount",
+      "theme": "dark",
+      "width": 390,
+      "passed": true,
+      "page_errors": 0
+    },
+    {
+      "surface": "page",
+      "name": "read_failure_then_retry",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 0,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": true
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "page",
+      "name": "refresh_failure_then_retry",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 0,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": true
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "page",
+      "name": "legacy_refresh_failure_still_routes",
+      "theme": "dark",
+      "width": 390,
+      "passed": true,
+      "page_errors": 0
+    },
+    {
+      "surface": "page",
+      "name": "native_keyboard_Enter",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 0,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "page",
+      "name": "native_keyboard_Space",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 0,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "page",
+      "name": "theme_viewport_activation",
+      "theme": "light",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 0,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "page",
+      "name": "theme_viewport_activation",
+      "theme": "light",
+      "width": 1440,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 0,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "page",
+      "name": "theme_viewport_activation",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 0,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "page",
+      "name": "theme_viewport_activation",
+      "theme": "dark",
+      "width": 1440,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 0,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "page",
+      "name": "theme_viewport_activation",
+      "theme": "beach",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 0,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "page",
+      "name": "theme_viewport_activation",
+      "theme": "beach",
+      "width": 1440,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 0,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "valid_unread_route",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 1,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "invalid_unread_no_effects",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "AssertionError",
+      "error_summary": "Expected values to be strictly equal:",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 1,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "duplicate_unread_activation",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 1,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "valid_read_route",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 0,
+        "badgeRefreshes": 0,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "invalid_read_no_effects",
+      "theme": "dark",
+      "width": 390,
+      "passed": true,
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "duplicate_read_activation",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 0,
+        "badgeRefreshes": 0,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "held_read_account_A_B_A",
+      "theme": "dark",
+      "width": 390,
+      "passed": true,
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "held_read_unmount",
+      "theme": "dark",
+      "width": 390,
+      "passed": true,
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "read_failure_then_retry",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 1,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": true
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "refresh_failure_then_retry",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 1,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": true
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "legacy_refresh_failure_still_routes",
+      "theme": "dark",
+      "width": 390,
+      "passed": true,
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "native_keyboard_Enter",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 1,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "native_keyboard_Space",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 1,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "theme_viewport_activation",
+      "theme": "light",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 1,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "theme_viewport_activation",
+      "theme": "light",
+      "width": 1440,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 1,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "theme_viewport_activation",
+      "theme": "dark",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 1,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "theme_viewport_activation",
+      "theme": "dark",
+      "width": 1440,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 1,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "theme_viewport_activation",
+      "theme": "beach",
+      "width": 390,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 1,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "theme_viewport_activation",
+      "theme": "beach",
+      "width": 1440,
+      "passed": false,
+      "error_type": "TimeoutError",
+      "error_summary": "page.waitForFunction: Timeout 2500ms exceeded.",
+      "observed": {
+        "owner": "fedcba98-7654-3210-fedc-ba9876543210",
+        "open": true,
+        "mounted": true,
+        "closes": 0,
+        "countUpdates": 1,
+        "badgeRefreshes": 1,
+        "navigations": [
+          {
+            "pathname": "/notifications",
+            "key": "default"
+          }
+        ],
+        "requests": [
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "markRead",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getNotifications",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          },
+          {
+            "operation": "getUnreadCount",
+            "user": "fedcba98-7654-3210-fedc-ba9876543210",
+            "settled": true,
+            "failed": false
+          }
+        ]
+      },
+      "page_errors": 0
+    },
+    {
+      "surface": "drawer",
+      "name": "held_read_close_reopen",
+      "theme": "dark",
+      "width": 390,
+      "passed": true,
+      "page_errors": 0
+    }
+  ],
+  "fingerprints": {
+    "frontend/src/utils/notificationDeepLinks.js": "165ac678741ec0c506040e4b07adc55e50629b0bae2bbc9a46e7b4577069cb78",
+    "frontend/src/hooks/useNotificationInbox.js": "82b296404ed2ec02195094981e513b964957c09716ea083f309475197ae170ae",
+    "frontend/src/components/NotificationsPage.js": "54071253ea715dc4cf42433d19cde651bf3242eaa6dd9b7135ab8ed93605c8f1",
+    "frontend/src/components/NotificationsDrawer.js": "e118ef87d09b232589511bab549cffc9e161bfb13a6ae2170e8cedf81569ace3",
+    "frontend/src/utils/notificationDeepLinks.supportReply.test.js": "8558bc77e459b05218a15041da19680bfabfa6d20acd22f4a1040afe655180f8",
+    "frontend/src/hooks/useNotificationInbox.activation.test.js": "101ffc81cdc26348ec86c477cb8533e15f7e82a37555c9573ae1bea2db554d48",
+    "frontend/src/components/Notifications.supportReply.test.js": "46f34cb38e31eb66b00c2537a0796603ad61bbbe41cbbbcf0b90d1235d566c08",
+    "docs/audits/evidence/2026-10-29-support-consumer/browser-entry.jsx": "149bbda31177c7d4028513155b22108cb1fd76ecfa0eabdbee733499666f6528",
+    "docs/audits/evidence/2026-10-29-support-consumer/browser-stubs.js": "68c8f88c9398e6dc0ef2961b6f400b5c470832d55a2185668955a5b3737f922a",
+    "docs/audits/evidence/2026-10-29-support-consumer/verify_browser.cjs": "276057b7819320a68b708ce52162076a86cdcb9e142365d036bccdbdc91cd89e"
+  },
+  "source_and_fixture_unchanged": true,
+  "baseline_runtime_fingerprints": {
+    "frontend/src/utils/notificationDeepLinks.js": "9be97f01459eca6a72fca5a39c83a69947cc3f104cb3c21a71a5842addc7ebc4",
+    "frontend/src/hooks/useNotificationInbox.js": "98c66d750fe661576856de4e8f4caa49b7585f20871092a2fd1559c545ebb235",
+    "frontend/src/components/NotificationsPage.js": "c34bdcf81f1579b36360c47fe6f2f892dc0a0a5654b02cb96e42b706b621e082",
+    "frontend/src/components/NotificationsDrawer.js": "a926cdbb56e228d6fc7d065c97184e3859c6f76e22cd231a5f44b77fb779b232"
+  },
+  "page_errors": 0,
+  "external_requests": 0,
+  "browser_closed": true,
+  "fixture_server_closed": true,
+  "qualification": "Actual Page, Drawer, shared inbox hook, deep-link resolver, BrowserRouter, button and keyboard behavior in local Chrome. Synthetic account/theme/API/unread-count boundaries, Sheet frame, and ticket/legacy route destinations. No production CSS, portal/focus-trap, real auth, inbox backend, email, provider, deployment or physical-device acceptance."
+}

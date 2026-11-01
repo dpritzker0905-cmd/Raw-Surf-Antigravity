@@ -398,167 +398,111 @@ async def update_gallery_pricing(
 
 # ============ UNIFIED EARNINGS DASHBOARD ============
 
+# Seller credits are already net of the platform fee. Customer payments, wallet
+# funding, refunds, sponsorship support and unknown movements are not revenue.
+EARNING_STREAMS = {
+    'live_session_earning': 'live_sessions',
+    'photographer_earning': 'live_sessions',  # Historical seller earnings.
+    'dispatch_earning': 'request_pro',
+    'request_pro_earning': 'request_pro',
+    'booking_earning': 'regular_bookings',
+    'gallery_sale': 'gallery_sales',
+    'bulk_gallery_sale': 'gallery_sales',
+    'photo_subscription_earning': 'photo_subscriptions',
+}
+STREAM_KEYS = ('live_sessions', 'request_pro', 'regular_bookings', 'gallery_sales', 'photo_subscriptions')
+
+
+async def _recorded_earnings(photographer_id, cutoff, db):
+    result = await db.execute(select(CreditTransaction).where(
+        CreditTransaction.user_id == photographer_id,
+        CreditTransaction.amount > 0,
+        CreditTransaction.transaction_type.in_(EARNING_STREAMS),
+        CreditTransaction.created_at >= cutoff))
+    return result.scalars().all()
+
+
+def _stream_totals(transactions):
+    totals = dict.fromkeys(STREAM_KEYS, 0.0)
+    for transaction in transactions:
+        totals[EARNING_STREAMS[transaction.transaction_type]] += transaction.amount
+    totals = {key: round(value, 2) for key, value in totals.items()}
+    return {**totals, 'total': round(sum(totals.values()), 2)}
+
+
+async def _earnings_profile(photographer_id, current_user_id, db):
+    if current_user_id != photographer_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
+    result = await db.execute(select(Profile).where(Profile.id == photographer_id))
+    photographer = result.scalar_one_or_none()
+    if not photographer:
+        raise HTTPException(status_code=404, detail="Photographer not found")
+    if not is_photographer_role(photographer.role):
+        raise HTTPException(status_code=403, detail="User is not a photographer")
+    return photographer
+
+
 @router.get("/photographer/{photographer_id}/earnings-breakdown", response_model=EarningsBreakdownResponse)
 async def get_earnings_breakdown(
     photographer_id: str,
-    days: int = Query(default=30, le=365),
+    days: int = Query(default=30, ge=1, le=365),
     current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get photographer's earnings breakdown by revenue stream for the Unified Earnings Dashboard"""
-    if current_user_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
+    """Recorded seller credits after fees, with current wallet cash separately."""
     from datetime import timedelta
-    from sqlalchemy import text
-    
-    # Verify photographer
-    result = await db.execute(select(Profile).where(Profile.id == photographer_id))
-    photographer = result.scalar_one_or_none()
-    
-    if not photographer:
-        raise HTTPException(status_code=404, detail="Photographer not found")
-    
-    if not is_photographer_role(photographer.role):
-        raise HTTPException(status_code=403, detail="User is not a photographer")
-    
-    # Calculate date range
-    cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
-    
-    # Use raw SQL to fetch only base columns (works without new schema columns)
-    # This ensures backward compatibility with existing databases
-    raw_query = text("""
-        SELECT id, user_id, amount, transaction_type, counterparty_id, created_at
-        FROM credit_transactions 
-        WHERE user_id = :photographer_id 
-        AND amount > 0 
-        AND created_at >= :cutoff_date
-    """)
-    
-    transactions_result = await db.execute(
-        raw_query,
-        {"photographer_id": photographer_id, "cutoff_date": cutoff_date}
-    )
-    transactions = transactions_result.fetchall()
-    
-    # Initialize breakdown
-    breakdown = {
-        'live_sessions': 0.0,
-        'request_pro': 0.0,
-        'regular_bookings': 0.0,
-        'gallery_sales': 0.0,
-        'split_bookings': []
-    }
-    
-    for tx in transactions:
-        # Infer revenue stream from transaction_type (backward compatible)
-        tx_type = tx.transaction_type
-        if tx_type in ['live_session_buyin', 'live_session_earning', 'live_photo_purchase', 'photographer_earning']:
-            breakdown['live_sessions'] += tx.amount
-        elif tx_type in ['dispatch_earning', 'request_pro_earning']:
-            breakdown['request_pro'] += tx.amount
-        elif tx_type in ['booking_earning', 'booking_payment']:
-            breakdown['regular_bookings'] += tx.amount
-        elif tx_type in ['gallery_sale', 'gallery_purchase']:
-            breakdown['gallery_sales'] += tx.amount
-        else:
-            # Default unclassified earnings to live_sessions
-            breakdown['live_sessions'] += tx.amount
-    
+    photographer = await _earnings_profile(photographer_id, current_user_id, db)
+    transactions = await _recorded_earnings(
+        photographer_id, datetime.now(timezone.utc) - timedelta(days=days), db)
+    balance = max(0.0, photographer.credit_balance or 0)
+    cash_cap = max(0.0, balance - (photographer.spend_only_credits or 0))
+    cash_available = max(0.0, min(photographer.withdrawable_credits or 0, cash_cap))
     return EarningsBreakdownResponse(
-        live_sessions=breakdown['live_sessions'],
-        request_pro=breakdown['request_pro'],
-        regular_bookings=breakdown['regular_bookings'],
-        gallery_sales=breakdown['gallery_sales'],
-        total=breakdown['live_sessions'] + breakdown['request_pro'] + breakdown['regular_bookings'] + breakdown['gallery_sales'],
-        split_bookings=breakdown['split_bookings']
-    )
+        **_stream_totals(transactions), wallet_balance=round(balance, 2),
+        cash_available=round(cash_available, 2), split_bookings=[])
 
 
 @router.get("/photographer/{photographer_id}/earnings-history")
 async def get_earnings_history(
     photographer_id: str,
-    months: int = Query(default=12, le=24),
+    months: int = Query(default=12, ge=1, le=24),
     current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Get photographer's earnings history by month for trend analysis.
-    Returns monthly totals for the last N months.
-    """
-    if current_user_id != photographer_id:
-        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
-    from datetime import timedelta
-    from sqlalchemy import text, extract
-    
-    # Verify photographer
-    result = await db.execute(select(Profile).where(Profile.id == photographer_id))
-    photographer = result.scalar_one_or_none()
-    
-    if not photographer:
-        raise HTTPException(status_code=404, detail="Photographer not found")
-    
-    if not is_photographer_role(photographer.role):
-        raise HTTPException(status_code=403, detail="User is not a photographer")
-    
-    # Calculate date range
-    end_date = datetime.now(timezone.utc)
-    start_date = end_date - timedelta(days=months * 31)  # Approximate
-    
-    # Fetch monthly aggregates
-    raw_query = text("""
-        SELECT 
-            EXTRACT(YEAR FROM created_at) as year,
-            EXTRACT(MONTH FROM created_at) as month,
-            SUM(CASE WHEN transaction_type IN ('live_session_buyin', 'live_session_earning', 'live_photo_purchase', 'photographer_earning') THEN amount ELSE 0 END) as live_sessions,
-            SUM(CASE WHEN transaction_type IN ('dispatch_earning', 'request_pro_earning') THEN amount ELSE 0 END) as request_pro,
-            SUM(CASE WHEN transaction_type IN ('booking_earning', 'booking_payment') THEN amount ELSE 0 END) as regular_bookings,
-            SUM(CASE WHEN transaction_type IN ('gallery_sale', 'gallery_purchase') THEN amount ELSE 0 END) as gallery_sales,
-            SUM(amount) as total
-        FROM credit_transactions 
-        WHERE user_id = :photographer_id 
-        AND amount > 0 
-        AND created_at >= :start_date
-        GROUP BY EXTRACT(YEAR FROM created_at), EXTRACT(MONTH FROM created_at)
-        ORDER BY year DESC, month DESC
-    """)
-    
-    result = await db.execute(
-        raw_query,
-        {"photographer_id": photographer_id, "start_date": start_date}
-    )
-    rows = result.fetchall()
-    
-    # Format response
-    history = []
-    for row in rows:
-        history.append({
-            "year": int(row.year),
-            "month": int(row.month),
-            "month_name": datetime(int(row.year), int(row.month), 1).strftime("%b %Y"),
-            "live_sessions": float(row.live_sessions or 0),
-            "request_pro": float(row.request_pro or 0),
-            "regular_bookings": float(row.regular_bookings or 0),
-            "gallery_sales": float(row.gallery_sales or 0),
-            "total": float(row.total or 0)
-        })
-    
-    # Calculate trends
-    total_all_time = sum(h["total"] for h in history)
-    avg_monthly = total_all_time / len(history) if history else 0
-    
-    # Current month vs previous month
-    current_month_total = history[0]["total"] if history else 0
-    prev_month_total = history[1]["total"] if len(history) > 1 else 0
-    month_over_month_change = ((current_month_total - prev_month_total) / prev_month_total * 100) if prev_month_total > 0 else 0
-    
+    """Calendar-month history of the same recorded net seller credits."""
+    await _earnings_profile(photographer_id, current_user_id, db)
+    now = datetime.now(timezone.utc)
+    month_index = now.year * 12 + now.month - 1
+    buckets = []
+    for offset in range(months):
+        year, month_zero = divmod(month_index - offset, 12)
+        buckets.append((year, month_zero + 1))
+    first_year, first_month = buckets[-1]
+    transactions = await _recorded_earnings(
+        photographer_id, datetime(first_year, first_month, 1, tzinfo=timezone.utc), db)
+    grouped = {key: [] for key in buckets}
+    for transaction in transactions:
+        created = transaction.created_at
+        if created.tzinfo is not None:
+            created = created.astimezone(timezone.utc)
+        key = (created.year, created.month)
+        if key in grouped:
+            grouped[key].append(transaction)
+    history = [{
+        'year': year, 'month': month,
+        'month_name': datetime(year, month, 1).strftime('%b %Y'),
+        **_stream_totals(grouped[(year, month)]),
+    } for year, month in buckets]
+    total = round(sum(row['total'] for row in history), 2)
+    current = history[0]['total']
+    previous = history[1]['total'] if len(history) > 1 else 0
+    change = (current - previous) / previous * 100 if previous > 0 else 0
     return {
-        "history": history,
-        "summary": {
-            "total_earnings": total_all_time,
-            "avg_monthly": avg_monthly,
-            "current_month": current_month_total,
-            "previous_month": prev_month_total,
-            "month_over_month_change": round(month_over_month_change, 1),
-            "best_month": max(history, key=lambda x: x["total"]) if history else None
-        }
+        'history': history,
+        'summary': {
+            'total_earnings': total, 'avg_monthly': round(total / months, 2),
+            'current_month': current, 'previous_month': previous,
+            'month_over_month_change': round(change, 1),
+            'best_month': max(history, key=lambda row: row['total']),
+        },
     }

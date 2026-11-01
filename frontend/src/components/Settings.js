@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
+import { SettingsDisclosureHeader } from './settings/SettingsDisclosureHeader';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
-import { LogOut, User, Bell, Shield, DollarSign, ChevronRight, ChevronDown, MapPin, Loader2, Sun, Moon, Waves, Check, Zap, CreditCard, Megaphone, WifiOff, Download, Trash2, HardDrive, Image, Wallet } from 'lucide-react';
+import { LogOut, User, Bell, Shield, DollarSign, ChevronRight, ChevronDown, MapPin, Loader2, Sun, Moon, Waves, Check, Zap, CreditCard, Megaphone, WifiOff, Download, Trash2, HardDrive, Image, Wallet, HelpCircle } from 'lucide-react';
 import { Card, CardHeader, CardTitle, CardContent } from './ui/card';
 import { Button } from './ui/button';
 
@@ -227,6 +228,18 @@ export const Settings = () => {
           Settings
         </h1>
 
+        <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="settings-support-entry">
+          <CardContent className="p-2">
+            <SettingsMenuItem
+              icon={HelpCircle}
+              label="Customer Support"
+              description="View your tickets or contact support"
+              onClick={() => navigate('/support')}
+              color="text-foreground"
+            />
+          </CardContent>
+        </Card>
+
         {/* Photographer Tools - MOVED TO PHOTO HUB (Tab 2) */}
         {/* All photographer-specific tools are now accessible via the Photo Hub drawer */}
         {/* This includes: My Gallery, Bookings Manager, Live Sessions, Earnings, On-Demand Settings */}
@@ -307,7 +320,7 @@ export const Settings = () => {
 
         {/* Account Section */}
         <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="account-settings-card">
-          <CardHeader className="cursor-pointer" onClick={() => toggleSection('account')}>
+          <SettingsDisclosureHeader section="account" expanded={expandedSections.account} onToggle={() => toggleSection('account')}>
             <div className="flex items-center justify-between">
               <CardTitle className={`${textPrimaryClass} flex items-center gap-2`}>
                 <User className="w-5 h-5" />
@@ -315,8 +328,9 @@ export const Settings = () => {
               </CardTitle>
               <ChevronDown className={`w-5 h-5 ${textSecondaryClass} transition-transform ${expandedSections.account ? 'rotate-180' : ''}`} />
             </div>
-          </CardHeader>
-          {expandedSections.account && (
+          </SettingsDisclosureHeader>
+          <div id="settings-account-content" hidden={!expandedSections.account}>
+            {expandedSections.account && (
             <CardContent className="space-y-3">
               <div className={`flex items-center justify-between py-2 border-b ${borderClass}`}>
                 <span className={textSecondaryClass}>Email</span>
@@ -341,6 +355,7 @@ export const Settings = () => {
               />
             </CardContent>
           )}
+          </div>
         </Card>
 
         {/* Password & Security */}
@@ -355,7 +370,7 @@ export const Settings = () => {
 
         {/* Account & Billing Hub - NEW */}
         <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="account-billing-card">
-          <CardHeader className="cursor-pointer" onClick={() => toggleSection('billing')}>
+          <SettingsDisclosureHeader section="billing" expanded={expandedSections.billing} onToggle={() => toggleSection('billing')}>
             <div className="flex items-center justify-between">
               <CardTitle className={`${textPrimaryClass} flex items-center gap-2`}>
                 <CreditCard className="w-5 h-5 text-green-400" />
@@ -363,17 +378,19 @@ export const Settings = () => {
               </CardTitle>
               <ChevronDown className={`w-5 h-5 ${textSecondaryClass} transition-transform ${expandedSections.billing ? 'rotate-180' : ''}`} />
             </div>
-          </CardHeader>
-          {expandedSections.billing && (
+          </SettingsDisclosureHeader>
+          <div id="settings-billing-content" hidden={!expandedSections.billing}>
+            {expandedSections.billing && (
             <CardContent>
               <AccountBillingHub />
             </CardContent>
           )}
+          </div>
         </Card>
 
         {/* Ad Center - Self-Serve Advertising */}
         <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="ad-center-card">
-          <CardHeader className="cursor-pointer" onClick={() => toggleSection('adCenter')}>
+          <SettingsDisclosureHeader section="adCenter" expanded={expandedSections.adCenter} onToggle={() => toggleSection('adCenter')}>
             <div className="flex items-center justify-between">
               <CardTitle className={`${textPrimaryClass} flex items-center gap-2`}>
                 <Megaphone className="w-5 h-5 text-purple-400" />
@@ -381,17 +398,19 @@ export const Settings = () => {
               </CardTitle>
               <ChevronDown className={`w-5 h-5 ${textSecondaryClass} transition-transform ${expandedSections.adCenter ? 'rotate-180' : ''}`} />
             </div>
-          </CardHeader>
-          {expandedSections.adCenter && (
+          </SettingsDisclosureHeader>
+          <div id="settings-adCenter-content" hidden={!expandedSections.adCenter}>
+            {expandedSections.adCenter && (
             <CardContent>
               <AdCenterPanel />
             </CardContent>
           )}
+          </div>
         </Card>
 
         {/* Offline Mode - Spot Data Caching */}
         <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="offline-mode-card">
-          <CardHeader className="cursor-pointer" onClick={() => toggleSection('offline')}>
+          <SettingsDisclosureHeader section="offline" expanded={expandedSections.offline} onToggle={() => toggleSection('offline')}>
             <div className="flex items-center justify-between">
               <CardTitle className={`${textPrimaryClass} flex items-center gap-2`}>
                 <WifiOff className="w-5 h-5 text-blue-400" />
@@ -404,8 +423,9 @@ export const Settings = () => {
               </CardTitle>
               <ChevronDown className={`w-5 h-5 ${textSecondaryClass} transition-transform ${expandedSections.offline ? 'rotate-180' : ''}`} />
             </div>
-          </CardHeader>
-          {expandedSections.offline && (
+          </SettingsDisclosureHeader>
+          <div id="settings-offline-content" hidden={!expandedSections.offline}>
+            {expandedSections.offline && (
             <CardContent className="space-y-4">
             {/* Connection Status */}
             <div className={`flex items-center justify-between py-2 border-b ${borderClass}`}>
@@ -535,6 +555,7 @@ export const Settings = () => {
             )}
           </CardContent>
           )}
+          </div>
         </Card>
 
         {/* Social Connections - Facebook/Instagram */}
@@ -548,7 +569,7 @@ export const Settings = () => {
 
         {/* Privacy & Safety Section */}
         <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="privacy-settings-card">
-          <CardHeader className="cursor-pointer" onClick={() => toggleSection('privacy')}>
+          <SettingsDisclosureHeader section="privacy" expanded={expandedSections.privacy} onToggle={() => toggleSection('privacy')}>
             <div className="flex items-center justify-between">
               <CardTitle className={`${textPrimaryClass} flex items-center gap-2`}>
                 <Shield className="w-5 h-5 text-cyan-400" />
@@ -556,8 +577,9 @@ export const Settings = () => {
               </CardTitle>
               <ChevronDown className={`w-5 h-5 ${textSecondaryClass} transition-transform ${expandedSections.privacy ? 'rotate-180' : ''}`} />
             </div>
-          </CardHeader>
-          {expandedSections.privacy && (
+          </SettingsDisclosureHeader>
+          <div id="settings-privacy-content" hidden={!expandedSections.privacy}>
+            {expandedSections.privacy && (
             <CardContent className="space-y-4">
               <PrivacySection
                 privacy={privacy}
@@ -569,11 +591,12 @@ export const Settings = () => {
               />
             </CardContent>
           )}
+          </div>
         </Card>
 
         {/* Notification Preferences Section */}
         <Card className={`${cardBgClass} mb-4 transition-colors duration-300`} data-testid="notification-settings-card">
-          <CardHeader className="cursor-pointer" onClick={() => toggleSection('notifications')}>
+          <SettingsDisclosureHeader section="notifications" expanded={expandedSections.notifications} onToggle={() => toggleSection('notifications')}>
             <div className="flex items-center justify-between">
               <CardTitle className={`${textPrimaryClass} flex items-center gap-2`}>
                 <Bell className="w-5 h-5 text-yellow-400" />
@@ -581,8 +604,9 @@ export const Settings = () => {
               </CardTitle>
               <ChevronDown className={`w-5 h-5 ${textSecondaryClass} transition-transform ${expandedSections.notifications ? 'rotate-180' : ''}`} />
             </div>
-          </CardHeader>
-          {expandedSections.notifications && (
+          </SettingsDisclosureHeader>
+          <div id="settings-notifications-content" hidden={!expandedSections.notifications}>
+            {expandedSections.notifications && (
             <CardContent className="space-y-4">
               <NotificationSection
                 notifPrefs={notifPrefs}
@@ -596,6 +620,7 @@ export const Settings = () => {
               />
             </CardContent>
           )}
+          </div>
         </Card>
 
  {/* Legal / Terms of Service -- Self-contained component */}

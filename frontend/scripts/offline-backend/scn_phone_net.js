@@ -73,7 +73,7 @@ const PROBE = () => {
     fc++; { status = [...document.querySelectorAll('[role="status"]')].filter((x) => x.offsetParent !== null).map((x) => x.textContent.trim()).join(' | ').slice(0, 160); }   // every frame: a status refreshed every 2nd frame made the frame after a chip click look silent (the toggle probe's old artifact)
     const e = window.__MARINE_ENGINE__; const g = e && e._waveData && e._waveData.waveGrid; const m = g ? (g.__sourceModel || 'GFS') : null; const c = chip();
     if (m) P.drawn[m] = (P.drawn[m] || 0) + 1;
-    if (m && c && m !== c && P.armed) { if (!/Loading|Verifying|does not match|pending|nearest|estimated/i.test(status)) P.silent += 1; }
+    if (m && c && m !== c && P.armed) { if (!/Loading|Verifying|does not match|pending|nearest|estimated|Holding|not arriving/i.test(status)) P.silent += 1; }
     if (status) P.statuses[status] = (P.statuses[status] || 0) + 1;
     requestAnimationFrame(loop);
   };

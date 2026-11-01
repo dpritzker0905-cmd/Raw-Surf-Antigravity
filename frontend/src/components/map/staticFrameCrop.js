@@ -159,6 +159,69 @@ export function latticeWindow(west, south, east, north, grid) {
 const lngSpanOf = (w, e) => (w <= e ? e - w : (180.0 - w) + (e + 180.0));
 
 /**
+ * THE RESOLVER'S REGIONAL CHOICE FOR ICON / EURO, EXACTLY (2026-10-26, traced through grid_resolver, product_selection and
+ * grid_resolver_selection for the lead's live chaos run). Above a 15-deg request (lon OR lat), select_best_candidate keeps only
+ * GLOBAL candidates whenever one exists (product_selection.py:133-161), so a regional tile can come back only through
+ * prefer_overlapping_marine_region: a finer tile covering at least MARINE_REGIONAL_MIN_COVERAGE_FRACTION (0.70) of the REQUEST area
+ * (grid_resolver_selection.py:61-106). An estimated one is then served whatever the width (decide_manifest_product), and ICON / EURO
+ * carry estimated regional tails, so for them such a tile refuses; a smaller overlap does not. At 15 deg and under every overlap still
+ * refuses for them (the server's covered-or-not tests there). Conservative where the server is not knowable here: any hour (the tile
+ * may be estimated at some), and the raw request (the server's snapped box is larger, so its share is smaller).
+ * Kill (the old any-overlap rule): window.__RAW_DISABLE_EXACT_REGIONAL_RULE__ = true.
+ */
+export const WIDE_REQUEST_DEG = 15;
+export const REGIONAL_MIN_COVER = 0.70;
+const exactRegionalRuleOn = () => W().__RAW_DISABLE_EXACT_REGIONAL_RULE__ !== true;
+function coverOfRequest(c, w, s, e, n) {
+  const lng = Math.min(e, c.east) - Math.max(w, c.west); const lat = Math.min(n, c.north) - Math.max(s, c.south);
+  const area = (e - w) * (n - s);
+  return lng > 0 && lat > 0 && area > 0 ? (lng * lat) / area : 0;
+}
+/** May this overlapping tile be served instead of the mid clip for a non-GFS request? (The rule above.) */
+function otherModelTileMayWin(c, wraps, w, s, e, n) {
+  if (wraps || !exactRegionalRuleOn()) return true;
+  if (!(e - w > WIDE_REQUEST_DEG || n - s > WIDE_REQUEST_DEG)) return true;
+  return coverOfRequest(c, w, s, e, n) >= REGIONAL_MIN_COVER;
+}
+
+/**
+ * The request a mid-zoom CLIP was cut for (the inverse of the server's pad: min(12, max(2, span / 2)) each side of the larger span):
+ * { west, south, east, north } (approximate to the 1-2 deg snap), or null. For the GPU frame store, which sees the clip, not the ask.
+ */
+export function requestFromClip(b) {
+  if (!b || !(b.east > b.west) || !(b.north > b.south)) return null;
+  const cm = Math.max(b.east - b.west, b.north - b.south);
+  const span = cm <= 8 ? cm - 4 : (cm <= 48 ? cm / 2 : cm - 24);
+  const pad = Math.min(PAD_MAX, Math.max(PAD_MIN, PAD_FRAC * span));
+  return { west: b.west + pad, south: b.south + pad, east: b.east - pad, north: b.north - pad };
+}
+
+/**
+ * Is a clip of a plain ICON / EURO global_mid frame what /grid serves for the request it was cut for, at any hour? The request is
+ * wider than 15 deg (only globals are candidates, product_selection) and no regional tile of that set may win (the rule above). Needs
+ * the products manifest; without it, false. For the frame store's plain EURO/ICON crops (marineFrameStoreRuntime).
+ */
+export function plainClipServable({ model, layer, bounds }) {
+  try {
+    const r = requestFromClip(bounds);
+    if (!r || !(r.east - r.west > WIDE_REQUEST_DEG || r.north - r.south > WIDE_REQUEST_DEG)) return false;
+    const { tiles, fallbackReason } = getAvailableTilesFromManifest(model, 'marine', layer);
+    if (fallbackReason || !Array.isArray(tiles)) return false;
+    for (const tile of tiles) {
+      const c = tile && tile.bounds;
+      if (!c || ![c.west, c.south, c.east, c.north].every(Number.isFinite)) return false;
+      if (lngSpanOf(c.west, c.east) >= 350.0) continue;
+      const wraps = c.west > c.east;
+      const overlaps = wraps || (Math.min(r.east, c.east) > Math.max(r.west, c.west) && Math.min(r.north, c.north) > Math.max(r.south, c.south));
+      if (overlaps && otherModelTileMayWin(c, wraps, r.west, r.south, r.east, r.north)) return false;
+    }
+    return true;
+  } catch (e) {
+    return false;
+  }
+}
+
+/**
  * Does the resolver answer this request from global_mid, by the rules above (no frame needed)? `bboxStr` is the string the seam
  * sends. Never throws. Returns false or true.
  */
@@ -184,8 +247,9 @@ export function midCropRulesPass({ model, layer, bboxStr }) {
       const overlaps = wraps || (Math.min(e, c.east) > Math.max(w, c.west) && Math.min(n, c.north) > Math.max(s, c.south));
       if (!overlaps) continue;
       // An ESTIMATED item is served whatever the request's width (decide_manifest_product: `is_estimated` -> use it), and ICON /
-      // EURO carry estimated regional tails; GFS has none inside the 14-day horizon. So another model refuses on any overlap.
-      if (!gfs) return false;
+      // EURO carry estimated regional tails; GFS has none inside the 14-day horizon. So another model refuses where such a tile
+      // can be chosen at all: any overlap at 15 deg and under, a 70%-of-the-request cover above (otherModelTileMayWin, 2026-10-26).
+      if (!gfs) { if (otherModelTileMayWin(c, wraps, w, s, e, n)) return false; continue; }
       if (!(lng > tLng + WIDER_EPS || lat > tLat + WIDER_EPS)) return false;   // the server may serve this regional tile
     }
     return true;

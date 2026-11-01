@@ -1,0 +1,38 @@
+{
+  "database": "owned disposable PostgreSQL",
+  "actualHandlersAndModels": true,
+  "cases": [
+    {
+      "name": "concurrent creation preserves both requests",
+      "passed": false,
+      "storedTickets": 1,
+      "distinctNumbers": 1,
+      "returned": [
+        {
+          "success": true,
+          "ticket_number": "TKT-00001",
+          "ticket_id": "00370882-86e7-4da0-b8f4-096b656457f4"
+        },
+        {
+          "error_class": "IntegrityError"
+        }
+      ],
+      "generationCalls": 2
+    },
+    {
+      "name": "deleted-row gap does not reuse legacy number",
+      "passed": false,
+      "error_class": "IntegrityError",
+      "error_status": null,
+      "generationCalls": 0,
+      "ticketsBefore": 2,
+      "ticketsAfter": 2,
+      "existingRowsPreserved": true,
+      "allRowsUnchanged": true,
+      "noCountQuery": false
+    }
+  ],
+  "passed": 0,
+  "total": 2,
+  "limits": "Positive function/model/SQL and independent session persistence/concurrency, injected local collision/failure seams; no mounted auth, live data or weather/app startup."
+}

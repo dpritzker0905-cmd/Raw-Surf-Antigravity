@@ -1,0 +1,7 @@
+9:45AM INF 0 commits scanned.
+9:45AM INF scanned ~2408 bytes (2.41 KB) in 132ms
+9:45AM INF no leaks found
+[codex/repair-integration-20261030 e1a7817db] test(ci): cover combined support fixtures and reconcile estate floor
+ 4 files changed, 45 insertions(+), 3 deletions(-)
+ create mode 100644 backend/tests/test_notification_recipient_fixture.py
+ create mode 100644 backend/tests/test_support_ticket_case_fixture.py

@@ -301,7 +301,9 @@ async def deliver_outbox_entry(
                 await _release(db, [row])
                 logger.info("[email] low-priority held by the daily budget outbox=%s", outbox_id)
                 return "queued"
-            group += await _gather_digest_mates(db, row)
+            # Templates without a digest summary keep their own authenticated destination.
+            if row.template in TEMPLATES and TEMPLATES[row.template].summary:
+                group += await _gather_digest_mates(db, row)
 
         while True:
             if await is_suppressed(db, row.recipient_hash):

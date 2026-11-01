@@ -73,7 +73,7 @@ export const GlobalSearchBar = ({
     }
   };
   
-  const performSearch = useCallback(async (searchQuery) => {
+  const performSearch = useCallback(async (searchQuery, signal) => {
     if (!searchQuery || searchQuery.length < 2) {
       setResults({ users: [], spots: [], posts: [], hashtags: [] });
       return;
@@ -82,40 +82,48 @@ export const GlobalSearchBar = ({
     setIsSearching(true);
     try {
       const response = await apiClient.get(`/search/global`, {
-        params: { q: searchQuery, limit: 5 }
+        params: { q: searchQuery, limit: 5 }, signal
       });
-      setResults(response.data);
+      if (!signal.aborted) setResults(response.data);
     } catch (error) {
+      if (signal.aborted) return;
       logger.error('Search error:', error);
       // Fallback to explore search
       try {
         const fallbackResponse = await apiClient.get(`/explore/search`, {
-          params: { q: searchQuery, type: 'all', limit: 5 }
+          params: { q: searchQuery, type: 'all', limit: 5 }, signal
         });
-        setResults({
+        if (!signal.aborted) setResults({
           ...fallbackResponse.data,
           hashtags: []
         });
       } catch (e) {
-        setResults({ users: [], spots: [], posts: [], hashtags: [] });
+        if (!signal.aborted) setResults({ users: [], spots: [], posts: [], hashtags: [] });
       }
     } finally {
-      setIsSearching(false);
+      if (!signal.aborted) setIsSearching(false);
     }
   }, []);
   
   // Debounced search
   useEffect(() => {
+    const controller = new AbortController();
+    const searchQuery = query.trim();
+    // Clear the old query immediately, including during the next debounce window.
+    setResults({ users: [], spots: [], posts: [], hashtags: [] });
+    setIsSearching(searchQuery.length >= 2);
+    if (searchQuery.length < 2) setShowDropdown(false);
     const debounce = setTimeout(() => {
-      if (query.trim().length >= 2) {
-        performSearch(query.trim());
+      if (searchQuery.length >= 2) {
+        performSearch(searchQuery, controller.signal);
         setShowDropdown(true);
-      } else if (query.trim().length === 0) {
-        setShowDropdown(false);
       }
     }, 300);
     
-    return () => clearTimeout(debounce);
+    return () => {
+      clearTimeout(debounce);
+      controller.abort();
+    };
   }, [query, performSearch]);
   
   // Notify parent of search state changes
@@ -161,6 +169,7 @@ export const GlobalSearchBar = ({
     e.preventDefault();
     if (query.trim()) {
       navigate(`/explore?q=${encodeURIComponent(query.trim())}`);
+      setQuery('');
       setShowDropdown(false);
       if (onClose) onClose();
     }
@@ -195,18 +204,18 @@ export const GlobalSearchBar = ({
       <form onSubmit={handleSubmit}>
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input aria-label="Text input"
+          <Input aria-label="Search people, spots and posts"
             ref={inputRef}
             type="text"
             placeholder={variant === 'desktop' ? 'Search' : 'Search people, spots, posts...'}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            onFocus={() => query.length >= 2 && setShowDropdown(true)}
+            onFocus={() => query.trim().length >= 2 && setShowDropdown(true)}
             className="pl-9 pr-8 h-9 bg-background border-border text-foreground placeholder:text-muted-foreground text-sm focus:ring-1 focus:ring-ring"
             data-testid="global-search-input"
           />
           {query && (
-            <button aria-label="Loader2"
+            <button aria-label="Clear search"
               type="button"
               onClick={clearSearch}
               className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
@@ -222,7 +231,7 @@ export const GlobalSearchBar = ({
       </form>
       
       {/* Search Results Dropdown */}
-      {showDropdown && (
+      {showDropdown && query.trim().length >= 2 && (
         <div 
           className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-xl z-50 max-h-[400px] overflow-y-auto"
           data-testid="search-results-dropdown"

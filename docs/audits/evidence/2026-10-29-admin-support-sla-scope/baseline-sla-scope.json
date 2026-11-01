@@ -1,0 +1,10 @@
+{
+  "theme": "light",
+  "device": "desktop",
+  "case": "Older unresolved overdue ticket has an all-age list flag while the cohort card is zero",
+  "createdAt": "2026-09-28T12:00:00Z",
+  "cardText": "SLA Breached\n\n0",
+  "listBadgeVisible": true,
+  "missingScopeText": true,
+  "message": "expect(locator).toBeVisible() failed\n\nLocator: getByRole('region', { name: 'Support metrics' }).getByText('SLA Breached', { exact: true }).locator('..').getByText('Unresolved tickets created in last 30 days', { exact: true })\nExpected: visible\nTimeout: 5000ms\nError: element(s) not found\n\nCall log:\n  - Expect \"to.be.visible\" with timeout 5000ms\n  - waiting for getByRole('region', { name: 'Support metrics' }).getByText('SLA Breached', { exact: true }).locator('..').getByText('Unresolved tickets created in last 30 days', { exact: true })\n"
+}

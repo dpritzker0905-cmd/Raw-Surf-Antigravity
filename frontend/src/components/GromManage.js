@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useId } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -25,6 +25,11 @@ const CONTROL_DEFAULTS = { can_message_grom_channel: true, can_comment: true };
 export const GromManage = () => {
   const { gromId } = useParams();
   const { user } = useAuth();
+  return <GromManageSession key={`${user?.id || ''}:${gromId || ''}`} gromId={gromId} parentId={user?.id} />;
+};
+
+const GromManageSession = ({ gromId, parentId }) => {
+  const formId = useId();
   const { theme } = useTheme();
   const navigate = useNavigate();
   
@@ -43,6 +48,8 @@ export const GromManage = () => {
   const [spendingLimit, setSpendingLimit] = useState('');
   const [approvalThreshold, setApprovalThreshold] = useState('');
   const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
 
   const isLight = theme === 'light';
   const cardBg = isLight ? 'bg-white' : 'bg-zinc-900';
@@ -51,45 +58,50 @@ export const GromManage = () => {
   const borderColor = isLight ? 'border-gray-200' : 'border-zinc-800';
 
   useEffect(() => {
-    if (gromId && user?.id) {
-      fetchData();
-    }
-  }, [gromId, user?.id]);
-
-  const fetchData = async () => {
+    let active = true;
     setLoading(true);
-    try {
-      const [activityRes, spendingRes] = await Promise.all([
-        apiClient.get(`/grom-hq/activity/${gromId}?parent_id=${user.id}`),
-        apiClient.get(`/grom-hq/spending-summary/${gromId}?parent_id=${user.id}`)
-      ]);
-      
-      setActivityData(activityRes.data);
-      setSpendingData(spendingRes.data);
-      
-      // Set controls from response
-      if (activityRes.data.parental_controls) {
-        setControls(activityRes.data.parental_controls);
-        if (activityRes.data.parental_controls.spending_limit) {
-          setSpendingLimit(activityRes.data.parental_controls.spending_limit.toString());
-        }
-        if (activityRes.data.parental_controls.require_approval_above) {
-          setApprovalThreshold(activityRes.data.parental_controls.require_approval_above.toString());
-        }
+    setLoadError(false);
+    const fetchData = async () => {
+      if (!gromId || !parentId) {
+        setLoadError(true);
+        setLoading(false);
+        return;
       }
-    } catch (error) {
-      logger.error('Failed to fetch Grom data:', error);
-      toast.error('Failed to load Grom data');
-    } finally {
-      setLoading(false);
-    }
-  };
+      try {
+        const [activityRes, spendingRes] = await Promise.all([
+          apiClient.get(`/grom-hq/activity/${gromId}?parent_id=${parentId}`),
+          apiClient.get(`/grom-hq/spending-summary/${gromId}?parent_id=${parentId}`)
+        ]);
+        if (!active) return;
+
+        setActivityData(activityRes.data);
+        setSpendingData(spendingRes.data);
+
+        // Set controls from response
+        if (activityRes.data.parental_controls) {
+          setControls(activityRes.data.parental_controls);
+          setSpendingLimit((activityRes.data.parental_controls.spending_limit ?? '').toString());
+          setApprovalThreshold((activityRes.data.parental_controls.require_approval_above ?? '').toString());
+        }
+      } catch (error) {
+        if (!active) return;
+        setLoadError(true);
+        logger.error('Failed to fetch Grom data:', error);
+        toast.error('Failed to load Grom data');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    fetchData();
+    return () => { active = false; };
+  }, [gromId, parentId, loadAttempt]);
 
   const saveControls = async () => {
+    if (loading || loadError || saving) return;
     setSaving(true);
     try {
       const res = await apiClient.post(
-        `/grom-hq/update-parental-controls/${gromId}?parent_id=${user.id}`,
+        `/grom-hq/update-parental-controls/${gromId}?parent_id=${parentId}`,
         controls
       );
       // Show what the server actually stored, and name any switch it did not save.
@@ -108,10 +120,11 @@ export const GromManage = () => {
   };
 
   const saveSpendingControls = async () => {
+    if (loading || loadError || saving) return;
     setSaving(true);
     try {
       await apiClient.post(
-        `/grom-hq/spending-controls/${gromId}?parent_id=${user.id}`,
+        `/grom-hq/spending-controls/${gromId}?parent_id=${parentId}`,
         {
           monthly_limit: spendingLimit ? parseFloat(spendingLimit) : null,
           require_approval_above: approvalThreshold ? parseFloat(approvalThreshold) : null
@@ -138,10 +151,24 @@ export const GromManage = () => {
 
   if (loading) {
     return (
-      <div data-testid="grom-manage" className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 text-cyan-400 animate-spin" />
+      <div data-testid="grom-manage" role="status" className="flex items-center justify-center gap-2 min-h-screen">
+        <Loader2 aria-hidden="true" className="w-8 h-8 text-cyan-400 animate-spin" />
+        <span>Loading Grom settings…</span>
       </div>
     );
+  }
+
+  if (loadError) {
+    return <div className="min-h-screen bg-background text-foreground p-6">
+      <div role="alert" className="mx-auto max-w-xl rounded-xl border border-border bg-card p-4 space-y-3">
+        <h1 className="text-xl font-semibold">Grom settings could not be loaded</h1>
+        <p>Your saved controls have not been changed. Retry to load them before editing.</p>
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" onClick={() => setLoadAttempt(value => value + 1)}>Retry loading settings</Button>
+          <Button type="button" variant="outline" onClick={() => navigate('/grom-hq')}>Back to Grom HQ</Button>
+        </div>
+      </div>
+    </div>;
   }
 
   const gromName = activityData?.grom_name || 'Grom';
@@ -360,10 +387,11 @@ export const GromManage = () => {
               </CardHeader>
               <CardContent className="space-y-4">
                 <div>
-                  <label className={`text-sm ${textSecondary} block mb-2`}>
+                  <label htmlFor={`${formId}-monthly-limit`} className={`text-sm ${textSecondary} block mb-2`}>
                     Monthly Spending Limit ($)
                   </label>
                   <Input
+                    id={`${formId}-monthly-limit`}
                     type="number"
                     placeholder="No limit"
                     value={spendingLimit}
@@ -373,10 +401,11 @@ export const GromManage = () => {
                 </div>
                 
                 <div>
-                  <label className={`text-sm ${textSecondary} block mb-2`}>
+                  <label htmlFor={`${formId}-approval-threshold`} className={`text-sm ${textSecondary} block mb-2`}>
                     Require Approval Above ($)
                   </label>
                   <Input
+                    id={`${formId}-approval-threshold`}
                     type="number"
                     placeholder="No threshold"
                     value={approvalThreshold}
@@ -385,7 +414,7 @@ export const GromManage = () => {
                   />
                 </div>
                 
-                <Button aria-label="Loader2" 
+                <Button type="button"
                   onClick={saveSpendingControls}
                   disabled={saving}
                   className="w-full bg-gradient-to-r from-yellow-500 to-orange-500 text-black"
@@ -451,7 +480,7 @@ export const GromManage = () => {
                 </div>
               ))}
               
-              <Button aria-label="Loader2" 
+              <Button type="button"
                 onClick={saveControls}
                 disabled={saving}
                 className="w-full bg-gradient-to-r from-cyan-500 to-blue-500 text-white mt-4"

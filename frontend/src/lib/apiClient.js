@@ -18,6 +18,7 @@ import axios from 'axios';
 import { toast } from 'sonner';
 import { markSessionRejected, sessionRejectedRecently } from './sessionRejection';
 import { purgeUserScopedStorage } from './userScopedStorage';
+import { supportReturnPath } from '../components/support/supportRoutes';
 
 const DEFAULT_BACKEND_URL = 'https://raw-surf-antigravity.onrender.com';
 
@@ -141,6 +142,8 @@ function handleRefusedSession() {
   // Not from the auth page itself, nor from the admin console (it handles its own auth errors).
   if (currentPath.startsWith('/auth') || currentPath.startsWith('/admin')) return;
   if (_redirectPending) return;
+  const returnPath = supportReturnPath(currentPath);
+  const signInPath = returnPath ? `${SIGN_IN_PATH}&redirect=${encodeURIComponent(returnPath)}` : SIGN_IN_PATH;
 
   if (sessionRejectedRecently()) {
     // A 401 redirect landed in this tab moments ago and the session is refused AGAIN: something
@@ -152,7 +155,7 @@ function handleRefusedSession() {
       toast.error('Your session was not accepted -- please sign in.', {
         id: SESSION_TOAST_ID,
         duration: Infinity,
-        action: { label: 'Sign in', onClick: () => { window.location.href = SIGN_IN_PATH; } },
+        action: { label: 'Sign in', onClick: () => { window.location.href = signInPath; } },
       });
     }
     return;
@@ -163,7 +166,7 @@ function handleRefusedSession() {
   toast.error('Session expired -- please sign in again.', { id: SESSION_TOAST_ID, duration: 4000 });
   setTimeout(() => {
     clearStoredSession();
-    window.location.href = SIGN_IN_PATH;
+    window.location.href = signInPath;
   }, 2000);
 }
 

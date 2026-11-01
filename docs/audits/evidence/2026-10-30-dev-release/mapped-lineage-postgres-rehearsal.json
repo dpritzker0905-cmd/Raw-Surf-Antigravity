@@ -1,0 +1,22 @@
+{
+  "source_head": "a8bcc34212aceb0dde287dc4857209db891f66fd",
+  "mapped_project": "jnfbxcvcbtndtsvscppt",
+  "scope": "synthetic minimal affected tables and observed version lineage in disposable loopback PostgreSQL; not a complete hosted schema clone or live migration",
+  "checks": {
+    "ordered_actual_functions_and_version_transition": true,
+    "cash_zero_defaults_index_archive_pk_preserved": true,
+    "rollback_restores_three_original_heads": true,
+    "rollback_removes_table_and_columns": true,
+    "committed_fixture_has_three_expected_heads": true,
+    "rerun_preflight_refuses_already_applied": true,
+    "exact_prepared_sql_commits_expected_heads": true,
+    "exact_prepared_sql_preserves_cash_and_zero_default": true,
+    "exact_prepared_sql_index_and_pk": true,
+    "exact_prepared_sql_refuses_repeat": true,
+    "prepared_sql_hash_matches_reviewed": true,
+    "disposable_server_stopped": true
+  },
+  "passed": 12,
+  "total": 12,
+  "hosted_writes": false
+}

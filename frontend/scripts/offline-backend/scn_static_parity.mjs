@@ -69,7 +69,12 @@ const reports = [];
 const GUARD = process.env.GUARD === '1';
 const FILL_WORLD = (m, l) => ['EURO', 'ICON'].includes(m) && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l);
 const guarded = [];
+// SETS_RE (2026-10-27): only the set keys matching this regex (e.g. 'global_mid' for the world sets). A regional set reads as
+// unbuilt here (this script cannot read regional bundles; scn_regional_client_parity.mjs is their parity) and costs ~2 min of gap
+// asks for nothing, which pushed a full run past the regression driver's 40-min timeout.
+const SETS_RE = process.env.SETS_RE ? new RegExp(process.env.SETS_RE) : null;
 for (const [setKey, entry] of Object.entries(latest.sets)) {   // EVERY published set (one model x layer each)
+  if (SETS_RE && !SETS_RE.test(setKey)) continue;
   const [MODEL, , LAYER, REGION] = setKey.split('/');
   if (!entry.index) continue;                                   // an explicit-empty / retired record: nothing to compare
   // A FILLED world set (2026-10-24, frame_set_fill.py: <model>/marine/<layer>/global_mid_filled) carries /grid's own targeted fill,

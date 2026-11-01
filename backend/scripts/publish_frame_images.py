@@ -125,12 +125,13 @@ class TailDownloads:
     that is not on disk is downloaded from the private products bucket, the same stored product /grid serves, and then goes
     through publish_set unchanged: the run check (a copy of another run than the manifest names is `stale_local`) and the
     node-by-node parity gate. Nothing authoritative is ever downloaded, a frame already published for the same product is
-    carried without a download, and at most `cap` products (FRAME_TAIL_DOWNLOAD_MAX, default 240) are fetched per run.
+    carried without a download, and at most `cap` products (FRAME_TAIL_DOWNLOAD_MAX, default 320: every core cycle re-bakes the
+    whole tail, 232 products at run + 348 h, D-053) are fetched per run.
     COST, measured not assumed: a tail product is 2.2 MB of JSON and Supabase serves JSON brotli-compressed (an index here: 199,705
     bytes as 10,028 on the wire), so ~170 tail products per publish cost about 10-20 MB; `stats` reports the wire bytes.
     `fetch(filename) -> (bytes or None, wire_bytes)`; offline, a second ProductStore dir stands in for the bucket."""
 
-    def __init__(self, local, fetch, cap=240, log=print):
+    def __init__(self, local, fetch, cap=320, log=print):
         self.local, self.fetch, self.cap, self.log = local, fetch, int(cap), log
         self._got = {}
         self.stats = {"downloaded": 0, "download_failed": 0, "download_capped": 0, "wire_bytes": 0, "bytes": 0}
@@ -200,9 +201,9 @@ def tail_downloads_enabled():
 
 def tail_cap():
     try:
-        return max(0, int(os.environ.get("FRAME_TAIL_DOWNLOAD_MAX", "240")))
+        return max(0, int(os.environ.get("FRAME_TAIL_DOWNLOAD_MAX", "320")))
     except ValueError:
-        return 240
+        return 320
 
 
 def supabase_product_fetcher():
@@ -312,13 +313,25 @@ class SupabaseSink:
             raise RuntimeError(f"create bucket {FRAME_BUCKET}: HTTP {resp.status_code}: {resp.text[:200]}")
 
     def read(self, path):
-        resp = self.requests.get(f"{self.base}/storage/v1/object/{FRAME_BUCKET}/{path}?cb={int(time.time() * 1000)}",
-                                 headers=self.auth, timeout=60)
-        if resp.status_code in (400, 404):
-            return None                    # Supabase answers a missing object with 400 or 404
-        if resp.status_code != 200:
-            raise RuntimeError(f"read {FRAME_BUCKET}/{path}: HTTP {resp.status_code}")
-        return resp.content
+        """One object's bytes, or None when it is missing; retried with backoff on 429 / 5xx / a dropped connection like
+        write(). 2026-10-27 (the lead): ONE 429 on v1/latest.json at 23:15:38Z failed run 40403486736's whole publish behind
+        a green continue-on-error step; reads are idempotent, so a retry is always safe."""
+        url = f"{self.base}/storage/v1/object/{FRAME_BUCKET}/{path}"
+        for attempt, wait in enumerate(UPLOAD_BACKOFF_S + (None,)):
+            try:
+                resp = self.requests.get(f"{url}?cb={int(time.time() * 1000)}", headers=self.auth, timeout=60)
+            except (self.requests.ConnectionError, self.requests.Timeout) as e:
+                if wait is None:
+                    raise RuntimeError(f"read {FRAME_BUCKET}/{path}: {type(e).__name__} after {attempt + 1} attempts")
+                _sleep(wait)
+                continue
+            if resp.status_code in (400, 404):
+                return None                # Supabase answers a missing object with 400 or 404
+            if resp.status_code == 200:
+                return resp.content
+            if resp.status_code not in RETRY_STATUS or wait is None:
+                raise RuntimeError(f"read {FRAME_BUCKET}/{path}: HTTP {resp.status_code}")
+            _sleep(wait)
 
     def write(self, path, data, content_type, cache_control):
         """One upload, retried with backoff on 429 / 5xx / a dropped connection (Supabase answered cold-cache bursts with

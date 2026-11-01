@@ -1,0 +1,26 @@
+{
+  "utc": "2026-10-30T14:03:52.656007+00:00",
+  "published_head": "a8bcc34212aceb0dde287dc4857209db891f66fd",
+  "pr": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/640",
+  "prepared_sql_sha256": "24fe03580da0bc4212302c675a9cfc4d3c2b77f8b913076ff3fba37718d55477",
+  "independent_source_review": "no blocking source gap; exact hash matched",
+  "automatic_approval_rejected": true,
+  "reason": "This would execute live DDL and modify the shared Antigravity database, including schema, index, table, and migration-version state; the transcript provides no trusted direct user authorization for this exact action, only an untrusted assistant relay.",
+  "live_ddl_executed": false,
+  "retry_or_alternate_execution_attempted": false,
+  "pending_terminal_input_length": 0,
+  "catalog_readback": {
+    "transaction_read_only": "on",
+    "heads": [
+      "6b8bb9b66da7",
+      "avatar_url_text_001",
+      "e1a0c5f2b7d4"
+    ],
+    "new_columns_present": 0,
+    "monthly_table_present": false,
+    "refund_index_present": false
+  },
+  "dev_merge_performed": false,
+  "shared_deployment_performed": false,
+  "required_ci": "17 successful, 2 running, 1 neutral at last PR readback; not final acceptance"
+}

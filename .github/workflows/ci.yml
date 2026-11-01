@@ -53,7 +53,7 @@ jobs:
 
     strategy:
       matrix:
-        node-version: [24.21.0]
+        node-version: [24.22.1]
 
     steps:
       - uses: actions/checkout@v5
@@ -172,7 +172,16 @@ jobs:
             // suites. Raised by exactly that; confirm against the hosted receipt.
             // Rating band holds off on coarse / edge-cut grids (2026-10-25): marineRatingBandRes.test.js (+1 suite / +13 tests) and 6 tests in
             // ForecastTimeStatus.test.js. Raised by exactly that from the floor above; confirm against the hosted receipt.
-            const MIN_SUITES = 518, MIN_TESTS = 6838;
+            // Rating band toggle instant (2026-10-26): marineFlavorToggle.test.js (+1 suite / +8 tests), useMarineDataFetcherCore.flavorToggle.test.js
+            // (+1 suite / +4 tests), ForecastTimeStatus.test.js +3 tests. Raised by exactly that; confirm against the hosted receipt.
+            // Infobox honesty (2026-10-28, #622): infoboxFrameTime.test.js (+1 suite / +19 tests) and the audit's
+            // infobox-heatmap-agreement.audit.test.js (+1 suite / +7 tests). Raised by exactly that; confirm against the hosted receipt.
+            // Status-line words (2026-10-28, stacked on #622): statusLineWords.test.js (+1 suite / +14 tests). Raised by exactly that.
+            // Point model guard (2026-10-28, D4): pointProductHint.test.js (+1 suite / +9 tests). Raised by exactly that.
+            // ICON one-instant range (2026-10-28, stacked on #623): iconOneInstantRange.test.js (+1 suite / +5 tests). Raised by exactly that.
+            // Nearest by stored lattice (2026-10-28, D8): storedLattice.test.js (+1 suite / +7 tests). Raised by exactly that.
+            // Forecast point settle (2026-10-28, D10): useOpenMeteoForecast.d10.test.js (+1 suite / +5 tests). Raised by exactly that.
+            const MIN_SUITES = 527, MIN_TESTS = 6919;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -181,6 +190,27 @@ jobs:
           if (r.numTotalTestSuites < MIN_SUITES) { console.error(`✗ suites ${r.numTotalTestSuites} < floor ${MIN_SUITES} — the suite NARROWED`); bad = true; }
           if (r.numPassedTests < MIN_TESTS) { console.error(`✗ passed ${r.numPassedTests} < floor ${MIN_TESTS} — coverage SHRANK`); bad = true; }
           if (r.numFailedTests > 0) { console.error(`✗ ${r.numFailedTests} failed`); bad = true; }
+          const guardianSuites = [
+            'src/components/GromManage.recovery.test.js', 'src/components/GromManage.labels.test.js',
+            'src/components/GromHQ.competition.test.js', 'src/components/GromHQ.activity.test.js',
+            'src/components/GromHQ.recovery.test.js', 'src/components/grom/PurchaseRequestsPanel.recovery.test.js',
+            'src/components/grom/PurchaseRequestsPanel.actions.test.js', 'src/components/grom/guardianPanels.test.js',
+            'src/components/grom/AskMyParentPanel.recovery.test.js',
+            'src/components/GromLimitedFeed.recovery.test.js',
+          ];
+          const results = Array.isArray(r.testResults) ? r.testResults : [];
+          let guardianPassed = 0;
+          for (const file of guardianSuites) {
+            const matches = results.filter(result => typeof result.name === 'string' && result.name.replace(/\\/g, '/').endsWith(`/${file}`));
+            if (matches.length !== 1 || matches[0].status !== 'passed' || !Array.isArray(matches[0].assertionResults) ||
+                matches[0].assertionResults.length === 0 || matches[0].assertionResults.some(test => test.status !== 'passed')) {
+              console.error(`✗ required guardian suite ${file} must occur once with passing, nonempty, unskipped cases`);
+              bad = true;
+            } else {
+              guardianPassed += matches[0].assertionResults.length;
+            }
+          }
+          console.log(`guardian: ${guardianSuites.length} required suites, ${guardianPassed} passing cases`);
           process.exit(bad ? 1 : 0);
           JS
 
@@ -221,10 +251,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 24.21.0
+      - name: Use Node.js 24.22.1
         uses: actions/setup-node@v5
         with:
-          node-version: '24.21.0'   # matches frontend/.node-version
+          node-version: '24.22.1'   # matches frontend/.node-version
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -261,10 +291,10 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Use Node.js 24.21.0
+      - name: Use Node.js 24.22.1
         uses: actions/setup-node@v5
         with:
-          node-version: '24.21.0'   # matches frontend/.node-version
+          node-version: '24.22.1'   # matches frontend/.node-version
           cache: 'npm'
           cache-dependency-path: frontend/package-lock.json
 
@@ -957,7 +987,9 @@ jobs:
           #   base 3331 (hosted read) + 6 new test(s) and 0 new file(s) = 3337, files 212; floor 3337 - 6 = 3331. This PR must read 3337 passed.
           # ⬆ 3331→3335 on 2026-10-26 (rederive_floor.py, claude/wind-gfs-hourly): dev run 40277485849 read 3331 / 212 files; dev's map 3337;
           #   base 3337 (dev's map) + 4 new test(s) and 0 new file(s) = 3341, files 212; floor 3341 - 6 = 3335. This PR must read 3341 passed.
-          MIN_FILES, MIN_PASSED = 212, 3335
+          # ⬆ 3335→3345 on 2026-10-26 (rederive_floor.py, claude/manifest-object-consistency): dev run 40398047789 read 3341 / 212 files; dev's map 3341;
+          #   base 3341 (hosted read) + 10 new test(s) and 1 new file(s) = 3351, files 213; floor 3351 - 6 = 3345. This PR must read 3351 passed.
+          MIN_FILES, MIN_PASSED = 213, 3345
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1578,9 +1610,15 @@ jobs:
           #   base 2967 (dev's map) + 5 new test(s) and 1 new file(s) = 2972, files 182; floor 2972 - 6 = 2966. This PR must read 2972 passed.
           # ⬆ 2966→2967 on 2026-10-25 (rederive_floor.py, claude/raster-cloud-0p25): dev run 40230182184 read 2972 / 182 files; dev's map 2972;
           #   base 2972 (hosted read) + 1 new test(s) and 0 new file(s) = 2973, files 182; floor 2973 - 6 = 2967. This PR must read 2973 passed.
-          # ⬆ 2967→2983 on 2026-10-26 (rederive_floor.py, claude/far-edge-bridge): dev run 40292915093 read 2973 / 182 files; dev's map 2973;
-          #   base 2973 (hosted read) + 16 new test(s) and 1 new file(s) = 2989, files 183; floor 2989 - 6 = 2983. This PR must read 2989 passed.
-          MIN_FILES, MIN_PASSED = 183, 2983
+          # ⬆ 2967→2969 on 2026-10-26 (rederive_floor.py, claude/tail-frames-ask-parity): dev run 40368017005 read 2973 / 182 files; dev's map 2973;
+          #   base 2973 (hosted read) + 2 new test(s) and 0 new file(s) = 2975, files 182; floor 2975 - 6 = 2969. This PR must read 2975 passed.
+          # ⬆ 2969→2970 on 2026-10-26 (rederive_floor.py, claude/prune-protect-wiring): dev run 40403312401 read 2973 / 182 files; dev's map 2975;
+          #   base 2975 (dev's map) + 1 new test(s) and 0 new file(s) = 2976, files 182; floor 2976 - 6 = 2970. This PR must read 2976 passed.
+          # ⬆ 2970→3002 on 2026-10-28 (rederive_floor.py, claude/infobox-honesty-5efceb): dev run 40633534401 read 2976 / 182 files; dev's map 2976;
+          #   base 2976 (hosted read) + 32 new test(s) and 1 new file(s) = 3008, files 183; floor 3008 - 6 = 3002. This PR must read 3008 passed.
+          # ⬆ 3002→3018 on 2026-11-01 (rederive_floor.py, claude/far-edge-bridge): dev run 41350294961 read 3008 / 183 files; dev's map 3008;
+          #   base 3008 (hosted read) + 16 new test(s) and 1 new file(s) = 3024, files 184; floor 3024 - 6 = 3018. This PR must read 3024 passed.
+          MIN_FILES, MIN_PASSED = 184, 3018
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -2111,7 +2149,20 @@ jobs:
           #   base 3318 (hosted read) + 9 new test(s) = 3327; floor 3327 - 2 = 3325. This PR must read 3327 passed.
           # ⬆ 3325→3353 on 2026-10-26 (rederive_floor.py, claude/phase0-integrity): dev run 40277485849 read 3327; dev's map 3327;
           #   base 3327 (hosted read) + 28 new test(s) = 3355; floor 3355 - 2 = 3353. This PR must read 3355 passed.
-          MIN_PASSED = 3353
+          # ⬆ 3353→3370 on 2026-10-26 (rederive_floor.py, claude/lineup-socket-auth): dev run 40298598402 read 3355; dev's map 3355;
+          #   base 3355 (hosted read) + 17 new test(s) = 3372; floor 3372 - 2 = 3370. This PR must read 3372 passed.
+          # ⬆ 3370→3374 on 2026-10-27 (rederive_floor.py, claude/publisher-read-retry-coverage): dev run 40405333333 read 3372; dev's map 3372;
+          #   base 3372 (hosted read) + 4 new test(s) = 3376; floor 3376 - 2 = 3374. This PR must read 3376 passed.
+          # ⬆ 3374→3389 on 2026-10-29 (rederive_floor.py, codex/audit-repair-20261029): dev run 40807961067 read 3376; dev's map 3376;
+          #   base 3376 (hosted read) + 15 new test(s) = 3391; floor 3391 - 2 = 3389. This PR must read 3391 passed.
+          # Complete package at a8bcc34: run 41066412936 executed 3399 cases (3391 passed + 8 failed).
+          # Reconcile stale contract fixtures without skipping cases; add paid-overlap and missing-debit
+          # rejection regressions (+2). Projected 3401; floor 3399, preserving margin 2.
+          # Main-target run 41090754079 passed 3401. The support_created template expands
+          # four existing rendering cases: projected 3405, floor 3403, preserving margin 2.
+          # ⬆ 3403→3404 on 2026-10-31 (rederive_floor.py, codex/guardian-purchase-integration-20261030): dev run 41148501823 read 3405; dev's map 3405;
+          #   base 3405 (hosted read) + 1 new test(s) = 3406; floor 3406 - 2 = 3404. This PR must read 3406 passed.
+          MIN_PASSED = 3404
 
           try:
               root = ET.parse('estate.xml').getroot()

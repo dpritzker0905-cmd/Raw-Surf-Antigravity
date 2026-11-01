@@ -1,0 +1,106 @@
+{
+  "passed": 21,
+  "total": 21,
+  "cases": [
+    {
+      "name": "lowercase owner read remains valid",
+      "passed": true
+    },
+    {
+      "name": "case variant reads identical public conversation ABCDEF01",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "case variant reads identical public conversation aBcDeF01",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "case-variant GETs make no storage changes",
+      "passed": true
+    },
+    {
+      "name": "wrong owner uppercase remains404 before message query",
+      "passed": true,
+      "status": 404
+    },
+    {
+      "name": "anonymous uppercase read remains401",
+      "passed": true
+    },
+    {
+      "name": "unsupported or missing ID stays404 not-a-uuid",
+      "passed": true
+    },
+    {
+      "name": "unsupported or missing ID stays404 abcdef012345",
+      "passed": true
+    },
+    {
+      "name": "unsupported or missing ID stays404 {abcdef01-23",
+      "passed": true
+    },
+    {
+      "name": "unsupported or missing ID stays404 urn:uuid:abc",
+      "passed": true
+    },
+    {
+      "name": "unsupported or missing ID stays404 abcdef01-234",
+      "passed": true
+    },
+    {
+      "name": "uppercase reply succeeds with enforced foreign keys",
+      "passed": true,
+      "status": 200
+    },
+    {
+      "name": "lowercase retry finds original uppercase request",
+      "passed": true
+    },
+    {
+      "name": "uppercase retry also retains one message",
+      "passed": true
+    },
+    {
+      "name": "case variant does not bypass same-key content conflict",
+      "passed": true
+    },
+    {
+      "name": "wrong owner uppercase reply remains404",
+      "passed": true
+    },
+    {
+      "name": "one canonical FK/message across variants",
+      "passed": true
+    },
+    {
+      "name": "reply visible in uppercase public conversation with internal note excluded",
+      "passed": true
+    },
+    {
+      "name": "canonical ticket updated_at advances on uppercase reply",
+      "passed": true
+    },
+    {
+      "name": "reply preserves original lifecycle and SLA origin",
+      "passed": true
+    },
+    {
+      "name": "owner reply creates no owner notification or email",
+      "passed": true
+    }
+  ],
+  "database": "disposable SQLite, foreign_keys ON",
+  "authentication": "fictional header identity, actual owner SQL",
+  "external": 0,
+  "sender": "in-memory fake only",
+  "source": {
+    "backend/routes/admin/support.py": {
+      "sha256": "742e6d36cefd1300e59e988ef2a6dc2016f5191726efcce5f47bf6e83a05c38c"
+    },
+    "backend/services/support_delivery.py": {
+      "sha256": "bba5f55a3afb579b27d4aa2d9ecda4b8227fdc1213ec8f0b33856d6ad7abee9e"
+    }
+  }
+}

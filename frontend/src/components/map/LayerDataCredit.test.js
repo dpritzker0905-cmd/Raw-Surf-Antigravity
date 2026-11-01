@@ -77,3 +77,19 @@ test('our cloud cover says it is the instant at the valid time (Open-Meteo\'s is
   expect(creditFor('satellite').text).toBe('© Open-Meteo · CC BY 4.0');   // the .om path: its own credit, unchanged
   expect(getByTestId('layer-data-credit').getAttribute('title')).toBeNull();
 });
+
+test('air temperature drawn terrain-adjusted credits the elevation source, only while it is', () => {
+  const { setEngaged } = require('./ownRasterFrames');
+  const { setDownscaled, _resetDownscaleForTest } = require('./ownRasterDownscale');
+  setEngaged('temperature', 'GFS');
+  expect(creditFor('temperature').text).toBe('NOAA GFS');                 // the frames, not yet adjusted
+  const { getByTestId } = render(<LayerDataCredit layer="temperature" />);
+  act(() => setDownscaled('temperature', true));
+  const a = getByTestId('layer-data-credit');
+  expect(a.textContent).toBe('NOAA GFS · terrain-adjusted');
+  expect(a.getAttribute('title')).toMatch(/NOAA ETOPO 2022 elevation \(public domain\), 6\.5 C per km/);
+  expect(a.getAttribute('aria-label')).toMatch(/^Adjusted to the real terrain height .* Data source: NOAA/);
+  act(() => { setDownscaled('temperature', false); setEngaged('temperature', false); });
+  expect(getByTestId('layer-data-credit').textContent).toBe('© Open-Meteo · CC BY 4.0');
+  _resetDownscaleForTest();
+});

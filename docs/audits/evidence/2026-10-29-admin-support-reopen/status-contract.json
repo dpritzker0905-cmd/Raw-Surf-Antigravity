@@ -1,0 +1,57 @@
+{
+  "actualHandlersAndTicketModel": true,
+  "database": "disposable in-memory SQLite",
+  "existingStatuses": [
+    "open",
+    "in_progress",
+    "waiting_user",
+    "waiting_internal",
+    "resolved",
+    "closed"
+  ],
+  "cases": [
+    {
+      "name": "existing enum has Waiting Internal and six statuses",
+      "passed": true
+    },
+    {
+      "name": "existing filter isolates internal ticket",
+      "passed": true
+    },
+    {
+      "name": "detail exposes existing internal status",
+      "passed": true
+    },
+    {
+      "name": "Open to Waiting Internal persists in a separate session",
+      "passed": true
+    },
+    {
+      "name": "filtered total increases to include changed ticket",
+      "passed": true
+    },
+    {
+      "name": "only intended ticket status and update timestamp change",
+      "passed": true
+    },
+    {
+      "name": "Waiting Internal to Open persists",
+      "passed": true
+    },
+    {
+      "name": "filtered total returns to one",
+      "passed": true
+    },
+    {
+      "name": "All includes every existing status and no row is created",
+      "passed": true
+    },
+    {
+      "name": "status changes do not add reply messages",
+      "passed": true
+    }
+  ],
+  "passed": 10,
+  "total": 10,
+  "limits": "Positive function/query/model contract only, fresh-session persistence; no mounted authentication, live tickets or PostgreSQL acceptance"
+}

@@ -7,11 +7,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 from database import get_db
+from utils.credits import consume_spend_only_for_debit
 from core.security import get_current_user_id
 from models import Profile, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
 from services.guardian_levels import is_confirmed_guardian
-from .subscriptions import get_tiers_for_role, GROM_SUBSCRIPTION_TIERS
+from .subscriptions import get_configured_tiers_for_role, GROM_SUBSCRIPTION_TIERS, TIER_NAMES
 
 router = APIRouter()
 CREDIT_TO_USD_RATE = 1  # 1 credit = $1
@@ -40,19 +41,20 @@ async def pay_subscription_with_credits(
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    available_tiers = get_tiers_for_role(user.role.value)
+    available_tiers = await get_configured_tiers_for_role(user.role.value, db)
     if data.tier_id not in available_tiers:
         raise HTTPException(status_code=400, detail="Invalid tier for your role")
     tier = available_tiers[data.tier_id]
     if tier["price"] == 0:
-        user.subscription_tier = "free"
-        user.is_ad_supported = True
+        user.subscription_tier = TIER_NAMES[data.tier_id]
+        user.is_ad_supported = tier.get("is_ad_supported", data.tier_id == "tier_1")
         await db.commit()
-        return {"success": True, "tier_id": data.tier_id, "message": "Switched to free tier", "credits_used": 0}
-    credits_required = int(tier["price"] * CREDIT_TO_USD_RATE)
+        return {"success": True, "tier_id": data.tier_id, "new_tier": user.subscription_tier,
+                "message": f"Activated {tier['name']} plan", "credits_used": 0}
+    credits_required = round(tier["price"] * CREDIT_TO_USD_RATE, 2)
     current_balance = user.credit_balance or 0
     if current_balance < credits_required:
-        credits_needed = credits_required - current_balance
+        credits_needed = round(credits_required - current_balance, 2)
         dollars_needed = credits_needed / CREDIT_TO_USD_RATE
         return {
             "success": False, "insufficient_credits": True,
@@ -60,7 +62,8 @@ async def pay_subscription_with_credits(
             "credits_needed": credits_needed, "dollars_needed": round(dollars_needed, 2),
             "message": f"Insufficient credits. You need {credits_needed} more credits (${dollars_needed:.2f}) to upgrade."
         }
-    user.credit_balance -= credits_required
+    user.credit_balance = round(current_balance - credits_required, 2)
+    promo_spent = consume_spend_only_for_debit(user, credits_required)
     tier_to_subscription = {"tier_1": "free", "tier_2": "basic", "tier_3": "premium"}
     user.subscription_tier = tier_to_subscription.get(data.tier_id, "free")
     if tier["price"] > 0:
@@ -70,7 +73,7 @@ async def pay_subscription_with_credits(
     from models import CreditTransaction
     balance_before = (user.credit_balance or 0) + credits_required
     credit_tx = CreditTransaction(
-        user_id=user_id, amount=-credits_required,
+        user_id=user_id, amount=-credits_required, spend_only_amount=-promo_spent,
         balance_before=balance_before, balance_after=user.credit_balance,
         transaction_type="subscription_payment",
         description=f"Subscription upgrade to {tier['name']}",
@@ -130,6 +133,7 @@ async def pay_grom_subscription_with_credits(
             "message": f"Insufficient credits. You need {credits_needed} more credits (${dollars_needed:.2f}) to upgrade {grom.full_name}'s plan."
         }
     parent.credit_balance -= credits_required
+    promo_spent = consume_spend_only_for_debit(parent, credits_required)
     tier_to_subscription = {"tier_1": "free", "tier_2": "basic", "tier_3": "premium"}
     grom.subscription_tier = tier_to_subscription.get(data.tier_id, "free")
     if tier["price"] > 0:
@@ -139,7 +143,7 @@ async def pay_grom_subscription_with_credits(
     from models import CreditTransaction
     balance_before = (parent.credit_balance or 0) + credits_required
     credit_tx = CreditTransaction(
-        user_id=parent_id, amount=-credits_required,
+        user_id=parent_id, amount=-credits_required, spend_only_amount=-promo_spent,
         balance_before=balance_before, balance_after=parent.credit_balance,
         transaction_type="grom_subscription_payment",
         description=f"Subscription upgrade for {grom.full_name} to {tier['name']}",
@@ -162,16 +166,16 @@ async def get_credit_payment_info(user_id: str, tier_id: str, db: AsyncSession =
     user = result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
-    available_tiers = get_tiers_for_role(user.role.value)
+    available_tiers = await get_configured_tiers_for_role(user.role.value, db)
     if tier_id not in available_tiers:
         raise HTTPException(status_code=400, detail="Invalid tier")
     tier = available_tiers[tier_id]
-    credits_required = int(tier["price"] * CREDIT_TO_USD_RATE)
+    credits_required = round(tier["price"] * CREDIT_TO_USD_RATE, 2)
     current_balance = user.credit_balance or 0
     return {
         "tier_id": tier_id, "tier_name": tier["name"], "price_usd": tier["price"],
         "credits_required": credits_required, "current_balance": current_balance,
         "can_afford": current_balance >= credits_required,
-        "credits_needed": max(0, credits_required - current_balance),
+        "credits_needed": max(0, round(credits_required - current_balance, 2)),
         "conversion_rate": f"{CREDIT_TO_USD_RATE} credits = $1.00"
     }

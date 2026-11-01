@@ -332,3 +332,81 @@ def test_a_run_past_its_time_budget_stops_starting_sets_and_keeps_their_index(tm
     assert report["GFS/marine/swell_1/global_mid"] == {"skipped_budget": True, "index": first}
     assert report[fs.set_key(TARGET)]["built"] == 3                  # the first set still ran
     assert _latest(out)["sets"]["GFS/marine/swell_1/global_mid"]["index"] == first
+
+
+def test_an_older_runs_past_hours_not_on_this_disk_do_not_refuse_the_set(tmp_path):
+    """2026-10-27 (the lead): the manifest kept 6 older-run past hours per regional set that the pilots runner never
+    downloads; 41/47 = 0.872 < 0.9 refused every regional set for 11 h. Those hours are listed unbuilt (/grid serves
+    them) and left out of the gate; the newest run's own hours still decide it."""
+    store, out = tmp_path / "store", tmp_path / "out"
+    old_valids = TEN[:2]
+    old_names = _write_set(store, "GFS", "swell_1", old_valids, run="2026-10-20T00:00:00Z")
+    for n in old_names:
+        (store / n).unlink()                                          # the older run: not on this runner's disk
+    _write_set(store, "GFS", "swell_1", TEN[2:], run="2026-10-20T06:00:00Z")
+    report, _sink = _publish(store, out)
+    stats = report["GFS/marine/swell_1/global_mid"]
+    assert (stats["built"], stats["not_local"], stats["not_local_older_run"]) == (8, 2, 2)
+    assert stats["coverage_refused"] is False and stats["coverage_authoritative"] == 1.0 and stats["coverage"] == 0.8
+    index = json.loads((out / _latest(out)["sets"]["GFS/marine/swell_1/global_mid"]["index"]).read_text())
+    assert [(f["valid_time"], f["path"] is None) for f in index["frames"][:3]] == [
+        (TEN[0], True), (TEN[1], True), (TEN[2], False)]
+    assert index["frames"][0]["unbuilt"] == "not_local"
+
+
+def test_the_newest_runs_own_missing_hours_still_refuse_the_set(tmp_path):
+    """Negative control for the older-run exclusion: the same two holes in the NEWEST run keep the gate shut."""
+    store, out = tmp_path / "store", tmp_path / "out"
+    names = _write_set(store, "GFS", "swell_1", TEN, run="2026-10-20T06:00:00Z")
+    for n in names[:2]:
+        (store / n).unlink()
+    report, _sink = _publish(store, out)
+    stats = report["GFS/marine/swell_1/global_mid"]
+    assert (stats["built"], stats["not_local"], stats["not_local_older_run"]) == (8, 2, 0)
+    assert stats["coverage_refused"] is True and stats["coverage_authoritative"] == 0.8 and stats["uploaded"] == 0
+    assert not (out / fs.LATEST).exists()                             # nothing published, so no pointer either
+
+
+def _sink_with_get_statuses(monkeypatch, statuses):
+    """A SupabaseSink whose GETs answer `statuses` in order (an exception class is raised instead of answered)."""
+    calls, waits = [], []
+
+    class _Resp:
+        def __init__(self, code):
+            self.status_code, self.content, self.text = code, b'{"sets": {}}', ""
+
+    class _Requests:
+        ConnectionError, Timeout = ConnectionError, TimeoutError
+
+        def get(self, url, headers=None, timeout=None):
+            calls.append(url)
+            s = statuses[len(calls) - 1]
+            if isinstance(s, type):
+                raise s("dropped")
+            return _Resp(s)
+    monkeypatch.setenv("SUPABASE_URL", "https://example.invalid")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-not-a-key")
+    monkeypatch.setattr(pub, "_sleep", waits.append)
+    sink = pub.SupabaseSink()
+    sink.requests = _Requests()
+    return sink, calls, waits
+
+
+def test_a_rate_limited_read_retries_with_the_upload_backoff(monkeypatch):
+    """Run 40403486736: one 429 on latest.json failed the whole publish; a read now retries like a write."""
+    sink, calls, waits = _sink_with_get_statuses(monkeypatch, [429, ConnectionError, 503, 200])
+    assert sink.read(fs.LATEST) == b'{"sets": {}}'
+    assert len(calls) == 4 and waits == list(pub.UPLOAD_BACKOFF_S)
+
+
+def test_a_read_still_fails_after_the_last_retry_and_a_missing_object_never_retries(monkeypatch):
+    sink, calls, waits = _sink_with_get_statuses(monkeypatch, [429, 429, 429, 429])
+    with pytest.raises(RuntimeError, match="HTTP 429"):
+        sink.read(fs.LATEST)
+    assert len(calls) == 4 and waits == list(pub.UPLOAD_BACKOFF_S)
+    sink, calls, waits = _sink_with_get_statuses(monkeypatch, [404])
+    assert sink.read(fs.LATEST) is None and len(calls) == 1 and waits == []
+    sink, calls, waits = _sink_with_get_statuses(monkeypatch, [403])
+    with pytest.raises(RuntimeError, match="HTTP 403"):
+        sink.read(fs.LATEST)                                          # not a retry status: fails at once
+    assert len(calls) == 1 and waits == []

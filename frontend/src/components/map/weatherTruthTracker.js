@@ -114,6 +114,35 @@ export function resetTruthTracker(reason) {
   }
 }
 
+/** One pass over the vectors: nonzero count, validity census, min and max speed. Shape-agnostic: raw backend vectors carry
+ * is_valid (snake_case), mapper-rebuilt vectors carry isOcean ONLY — a probe that checks is_valid on mapper vectors reads every
+ * land cell as "valid + speed 0.00" (the misleading 134-valid-zero signature). */
+export function vectorCensus(vecs) {
+  let nonzeroCount = 0, invalidCount = 0, validZeroCount = 0, minS = Infinity, maxS = -Infinity;
+  for (let i = 0; i < vecs.length; i++) {
+    const v = vecs[i];
+    const s = v?.speed || 0;
+    if (s > 0) nonzeroCount++;
+    if (s < minS) minS = s;
+    if (s > maxS) maxS = s;
+    if (!v) continue;
+    if (v.is_valid === false || v.isOcean === false) invalidCount++;
+    else if (s === 0) validZeroCount++;
+  }
+  return { nonzeroCount, invalidCount, validZeroCount, minSpeed: minS === Infinity ? 0 : minS, maxSpeed: maxS === -Infinity ? 0 : maxS };
+}
+
+const CENSUS_KEYS = ['nonzeroCount', 'invalidCount', 'validZeroCount', 'minSpeed', 'maxSpeed'];
+/** Put the census on `tag`: eager values with the kill set, else enumerable getters that compute it ONCE on first read (a spread
+ * or JSON.stringify of the tag reads them then). Returns the tag. */
+export function attachCensus(tag, vecs) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_TRUTH_TAG_LAZY_CENSUS__ === true) return Object.assign(tag, vectorCensus(vecs));
+  let census = null;
+  const c = () => census || (census = vectorCensus(vecs));
+  for (const k of CENSUS_KEYS) Object.defineProperty(tag, k, { enumerable: true, configurable: true, get: () => c()[k] });
+  return tag;
+}
+
 // Build a truthTag from a grid-commit-shaped payload. Exported so series-frame MINT sites can
 // stamp lineage ONCE (audit #18/A3): recordTruthStage PRESERVES an existing data.truthTag, so a
 // tag minted at frame construction keeps product_id + traceId identical across commit → webglUpload
@@ -142,7 +171,7 @@ export function buildTruthTag(data, stageName) {
       }
     } catch (e) {}
     
-    return {
+    return attachCensus({
       ...verifiedCycleTime(data),
       traceId,
       model,
@@ -169,54 +198,18 @@ export function buildTruthTag(data, stageName) {
       cols: data.grid.cols,
       rows: data.grid.rows,
       vectorCount: data.grid.vectors.length,
-      nonzeroCount: (() => {
-        let nz = 0;
-        const len = data.grid.vectors.length;
-        for (let i = 0; i < len; i++) {
-          if ((data.grid.vectors[i]?.speed || 0) > 0) nz++;
-        }
-        return nz;
-      })(),
-      // Validity census (zoom-in cleared-rect forensics, 2026-07-05). Shape-agnostic: raw backend
-      // vectors carry is_valid (snake_case), mapper-rebuilt vectors carry isOcean ONLY — a probe
-      // that checks is_valid on mapper vectors reads every land cell as "valid + speed 0.00"
-      // (the misleading 134-valid-zero signature). These counts make the committed grid's real
-      // validity readable at every stage without knowing which vector shape it holds.
-      ...(() => {
-        let invalid = 0, validZero = 0;
-        const vecs = data.grid.vectors;
-        for (let i = 0; i < vecs.length; i++) {
-          const v = vecs[i];
-          if (!v) continue;
-          if (v.is_valid === false || v.isOcean === false) invalid++;
-          else if ((v.speed || 0) === 0) validZero++;
-        }
-        return { invalidCount: invalid, validZeroCount: validZero };
-      })(),
-      minSpeed: (() => {
-        let minS = Infinity;
-        const len = data.grid.vectors.length;
-        for (let i = 0; i < len; i++) {
-          const s = data.grid.vectors[i]?.speed || 0;
-          if (s < minS) minS = s;
-        }
-        return minS === Infinity ? 0 : minS;
-      })(),
-      maxSpeed: (() => {
-        let maxS = -Infinity;
-        const len = data.grid.vectors.length;
-        for (let i = 0; i < len; i++) {
-          const s = data.grid.vectors[i]?.speed || 0;
-          if (s > maxS) maxS = s;
-        }
-        return maxS === -Infinity ? 0 : maxS;
-      })(),
+      // The vector census (nonzero / validity / min / max speed), for people reading the trace: no code compares it (the HUD
+      // compares dataHash, boundsHash, product and chain). It is computed in ONE pass on first read and cached, so building a tag
+      // on the click no longer walks every vector four times (PR D, 2026-10-26: 3.6-3.9 ms of a world wind frame's build).
+      // Validity census (zoom-in cleared-rect forensics, 2026-07-05): shape-agnostic, see vectorCensus.
+      // Kill: window.__RAW_DISABLE_TRUTH_TAG_LAZY_CENSUS__ = true (computed eagerly, as before). Attached below with
+      // attachCensus: an object spread here would call the getters at once.
       dataHash,
       boundsHash,
       createdAt: timestamp,
       sourceStage: stageName,
       build: BUILD_VERSION
-    };
+    }, data.grid.vectors);
   }
 }
 

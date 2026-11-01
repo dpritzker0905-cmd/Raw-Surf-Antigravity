@@ -1,0 +1,1 @@
+import React from 'react';export const CallManager=()=>null;export const PushNotificationInit=()=>null;export const BackButtonHandler=()=>null;export default function Layout({children}){return <div data-fixture-layout>{children}</div>}
