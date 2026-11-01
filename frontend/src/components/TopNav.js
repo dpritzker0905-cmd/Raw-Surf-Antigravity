@@ -247,7 +247,7 @@ export const TopNav = () => {
         </button>
 
         {/* Pull-Down Drawer Tray (2 rows: universal + role-specific) */}
-        <TopNavDrawerTray isOpen={drawerOpen} />
+        <TopNavDrawerTray isOpen={drawerOpen} onClose={closeDrawer} />
       </header>
 
       {/* Backdrop when drawer is open */}

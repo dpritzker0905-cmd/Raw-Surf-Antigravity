@@ -1,4 +1,5 @@
 import React from 'react';
+import userEvent from '@testing-library/user-event';
 import { fireEvent, render, screen } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { MemoryRouter, useLocation } from 'react-router-dom';
@@ -33,6 +34,25 @@ jest.mock('../SurferSessionHub', () => ({ SurferSessionHub: ({ children }) => ch
 
 const Location = () => <output data-testid="destination">{useLocation().pathname + useLocation().search + useLocation().hash}</output>;
 const mount = (component, initial = '/settings?unrelated=synthetic#section') => render(<MemoryRouter initialEntries={[initial]}>{component}<Location /></MemoryRouter>);
+
+test.each(['Account', 'Account & Billing', 'Ad Center', 'Offline Mode', 'Privacy & Safety', 'Notifications'])(
+  '%s disclosure supports native Enter and Space with an associated panel', async name => {
+    mockUser = { id: 'synthetic-settings-owner', role: 'Surfer' };
+    mount(<Settings />, '/settings');
+    const keyboard = userEvent.setup();
+    const header = screen.getByRole('button', { name, exact: true });
+    const initial = header.getAttribute('aria-expanded') === 'true';
+    const panel = document.getElementById(header.getAttribute('aria-controls'));
+    expect(panel).toBeInTheDocument();
+    header.focus();
+    await keyboard.keyboard('{Enter}');
+    expect(header).toHaveAttribute('aria-expanded', String(!initial));
+    expect(panel.hidden).toBe(initial);
+    await keyboard.keyboard(' ');
+    expect(header).toHaveAttribute('aria-expanded', String(initial));
+    expect(panel.hidden).toBe(!initial);
+    expect(header).toHaveFocus();
+  });
 
 
 jest.mock('../../hooks/useOfflineMode',()=>({__esModule:true,default:()=>({isOnline:true,getCacheSize:()=>0,formatCacheTime:()=>''})}));

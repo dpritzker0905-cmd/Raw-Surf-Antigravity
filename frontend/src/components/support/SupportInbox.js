@@ -28,6 +28,12 @@ const SupportSession = () => {
   const [failure, setFailure] = useState(null);
   const alive = useRef(true);
   const mutation = useRef(false);
+  const conversationRef = useRef(null);
+  const ticketsHeadingRef = useRef(null);
+  const revealTicket = useRef(ticketId);
+  const previousTicket = useRef(ticketId);
+  const returnToInbox = useRef(false);
+  const [selection, setSelection] = useState(0);
   useEffect(() => { alive.current = true; return () => { alive.current = false; }; }, []);
 
   useEffect(() => {
@@ -52,6 +58,24 @@ const SupportSession = () => {
 
   const draft = drafts[ticketId] || { text: '', requestId: null };
   const current = detail?.ticketId === ticketId ? detail : null;
+  useEffect(() => {
+    if (previousTicket.current !== ticketId) {
+      previousTicket.current = ticketId;
+      revealTicket.current = ticketId;
+    }
+    // Wait for both columns: a late list response can move the mobile conversation.
+    if (list.pending) return;
+    if (!ticketId && returnToInbox.current) {
+      returnToInbox.current = false;
+      ticketsHeadingRef.current?.focus();
+    }
+    if (!ticketId || revealTicket.current !== ticketId || !current || current.pending) return;
+    revealTicket.current = null;
+    // Only a new route or deliberate selection may move focus, never a refresh.
+    if (window.innerWidth >= 768) return;
+    conversationRef.current?.focus({ preventScroll: true });
+    conversationRef.current?.scrollIntoView({ block: 'start' });
+  }, [ticketId, current, list.pending, selection]);
   const sendReply = async event => {
     event.preventDefault();
     if (mutation.current || !draft.text.trim() || !current?.data) return;
@@ -91,18 +115,25 @@ const SupportSession = () => {
   return <main className="mx-auto max-w-5xl p-4 text-foreground space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <h1 className="text-2xl font-semibold">Support inbox</h1>
-      <Button variant="outline" onClick={() => setRefresh(value => value + 1)}>Refresh tickets</Button>
+      <div className="flex flex-wrap gap-2">
+        <Button variant="outline" onClick={() => navigate('/settings')}>Back to Settings</Button>
+        <Button variant="outline" onClick={() => setRefresh(value => value + 1)}>Refresh tickets</Button>
+      </div>
     </div>
     <p className="text-sm text-muted-foreground">Your conversation stays here. Email notices contain a sign-in link, never the reply.</p>
     <div className="grid gap-4 md:grid-cols-2">
       <section aria-label="Your support tickets" className="rounded-xl border border-border bg-card p-4 space-y-3">
-        <h2 className="font-semibold">Your tickets</h2>
+        <h2 ref={ticketsHeadingRef} tabIndex={-1} className="font-semibold focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">Your tickets</h2>
         {list.pending && <p role="status">Loading tickets…</p>}
         {list.error && <div role="alert">{list.error}<Button variant="outline" onClick={() => setRefresh(value => value + 1)}>Retry tickets</Button></div>}
         {list.data && <>
           {!list.data.tickets.length && <p>No support tickets yet.</p>}
           {list.data.tickets.map(ticket => <button key={ticket.id} type="button" aria-pressed={ticketId === ticket.id}
-            onClick={() => navigate(`/support/tickets/${encodeURIComponent(ticket.id)}`)}
+            onClick={() => {
+              revealTicket.current = ticket.id;
+              setSelection(value => value + 1);
+              navigate(`/support/tickets/${encodeURIComponent(ticket.id)}`);
+            }}
             className="block w-full rounded-lg border border-border p-3 text-left focus-visible:ring-2 focus-visible:ring-ring">
             <span className="block break-all text-xs text-muted-foreground">{ticket.ticket_number}</span>
             <span className="block break-words font-medium">{ticket.subject}</span>
@@ -115,7 +146,10 @@ const SupportSession = () => {
           </div>
         </>}
       </section>
-      <section aria-label="Support conversation" className="rounded-xl border border-border bg-card p-4 space-y-3 min-w-0">
+      <section ref={conversationRef} tabIndex={-1} aria-label="Support conversation" className="rounded-xl border border-border bg-card p-4 space-y-3 min-w-0 scroll-mt-24 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        {ticketId && <Button variant="outline" onClick={() => {
+          returnToInbox.current = true; navigate('/support');
+        }}>Back to inbox</Button>}
         {!ticketId && <p>Select a ticket to read its conversation.</p>}
         {ticketId && (!current || current.pending) && <p role="status">Loading conversation…</p>}
         {current?.error && <div role="alert">{current.error}<Button variant="outline" onClick={() => setRefresh(value => value + 1)}>Retry conversation</Button></div>}
