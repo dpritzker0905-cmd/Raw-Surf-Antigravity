@@ -73,7 +73,29 @@ async function launch({ port, width = 1280, height = 800, dpr = 1, gpu = true, h
   const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: dpr, serviceWorkers: 'block',
     ...(video ? { recordVideo: { dir: video, size: { width, height } } } : {}), ...contextOptions });
   const page = await ctx.newPage();
-  const log = { requests: [], console: [], errors: [], t0: Date.now(), stubbed: 0, aborted: 0, blockedWs: [], hosts: {} };
+  const log = { requests: [], console: [], errors: [], t0: Date.now(), stubbed: 0, aborted: 0, blockedWs: [], hosts: {},
+    ctxHosts: {}, intercepted: {}, leftMachine: {} };
+  // HOST AUDIT (2026-10-27, regression re-run): every request the CONTEXT saw (pages and their workers), every live-host request the
+  // route answered locally or aborted, and every request let through to a non-local host (basemap tiles and fonts). A live host
+  // (onrender, supabase) seen by the context more often than intercepted is a LEAK. Written on browser.close: one JSON line per
+  // session to $HOST_AUDIT (if set) and a one-line verdict on stdout.
+  ctx.on('request', (r) => { try { const h = new URL(r.url()).hostname; log.ctxHosts[h] = (log.ctxHosts[h] || 0) + 1; } catch (e) { /* data: urls */ } });
+  const closeBrowser = browser.close.bind(browser);
+  browser.close = async (...a) => {
+    try {
+      const live = (h) => API_HOST.test(h) || /supabase\.(co|in)$/.test(h);
+      const leaks = Object.keys(log.ctxHosts).filter((h) => live(h) && (log.ctxHosts[h] || 0) > (log.intercepted[h] || 0))
+        .map((h) => ({ host: h, seen: log.ctxHosts[h], intercepted: log.intercepted[h] || 0 }));
+      const leftLive = Object.keys(log.leftMachine).filter(live);
+      const audit = { t: new Date().toISOString(), script: path.basename(process.argv[1] || ''), base: BASE, port, live,
+        hosts: log.hosts, ctxHosts: log.ctxHosts, intercepted: log.intercepted, leftMachine: log.leftMachine,
+        blockedWs: [...new Set(log.blockedWs)], blockedWsCount: log.blockedWs.length, stubbed: log.stubbed, aborted: log.aborted,
+        weatherAsks: log.requests.length, leaks, leftLive, verdict: (leaks.length || leftLive.length) && !live ? 'LEAK' : 'ok' };
+      if (process.env.HOST_AUDIT) require('fs').appendFileSync(process.env.HOST_AUDIT, JSON.stringify(audit) + '\n');
+      console.log(`[host-audit] ${audit.verdict} script=${audit.script} base=${BASE} weatherAsks=${audit.weatherAsks} liveIntercepted=${JSON.stringify(log.intercepted)} leftMachine=${JSON.stringify(Object.keys(log.leftMachine))} blockedWs=${audit.blockedWsCount}`);
+    } catch (e) { console.log('[host-audit] error ' + String(e).slice(0, 120)); }
+    return closeBrowser(...a);
+  };
   // page.route does NOT see WebSockets: the app opens wss://<api host>/api/ws/... (calls, realtime) and an unrouted socket
   // would reach the real backend. Every non-local socket is closed in the browser before it connects (first harness run
   // 2026-10-16 leaked a handful of rejected handshakes this way; this is the fix).
@@ -90,6 +112,7 @@ async function launch({ port, width = 1280, height = 800, dpr = 1, gpu = true, h
     const url = new URL(req.url());
     const method = req.method();
     if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') return route.continue();
+    if (API_HOST.test(url.hostname) || /supabase\.(co|in)$/.test(url.hostname)) log.intercepted[url.hostname] = (log.intercepted[url.hostname] || 0) + 1;
     if (API_HOST.test(url.hostname)) {
       if (method === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
       if (url.pathname.startsWith('/api/weather/client-diagnostics')) return route.fulfill({ status: 204, headers: CORS });
@@ -115,6 +138,7 @@ async function launch({ port, width = 1280, height = 800, dpr = 1, gpu = true, h
     }
     if (/supabase\.(co|in)|onesignal|stripe|sentry|posthog|google-analytics|googletagmanager|rainviewer/.test(url.hostname)) { log.aborted += 1; return route.abort(); }
     if (url.hostname === 'unpkg.com') return route.fulfill({ status: 200, contentType: 'application/javascript', body: '' });
+    log.leftMachine[url.hostname] = (log.leftMachine[url.hostname] || 0) + 1;
     return route.continue();
   });
 

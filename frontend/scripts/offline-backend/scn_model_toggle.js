@@ -142,7 +142,7 @@ const PROBE = ({ bytesCheck, minCols, clip, clipMax }) => {
       if (litNow) W.litLake += 1;
       if (drew) {
         W.frames += 1;
-        const admitted = /Loading|Verifying|does not match|pending|nearest|estimated/i.test(s.status);
+        const admitted = /Loading|Verifying|does not match|pending|nearest|estimated|Holding|not arriving/i.test(s.status);
         if (s.model && s.model !== W.model) {
           if (admitted) W.wrongAdmitted++;
           else {

@@ -111,7 +111,7 @@ const PROBE = () => {
         const offH = dm == null ? 0 : Math.abs(W.anchor + s.hour * 3600000 - dm) / 3600000;
         if (offH > 1.5 || (pm && pm !== W.model)) {
           W.mislabel += 1; W.maxOffH = Math.max(W.maxOffH || 0, offH);
-          const st = status(); const silent = !/Loading|Verifying|does not match|pending|nearest|estimated|Holding/i.test(st);
+          const st = status(); const silent = !/Loading|Verifying|does not match|pending|nearest|estimated|Holding|not arriving/i.test(st);
           if (silent) W.mislabelSilent += 1;
           const ex = { rel: Math.round(rel), hour: s.hour, offH: +offH.toFixed(2), pid: s.pid && s.pid.slice(-56), served: s.served, series: s.series, store: s.store, status: st };
           if (!W.mislabelEx) W.mislabelEx = ex;
@@ -228,7 +228,7 @@ async function session({ model0, layer, zoom, theme, arm }) {
       const expected = await expectedFor(to, hours);
       await page.evaluate((w) => window.__IC__.arm(w), { model: to, layer, target, from, anchor, expected });
       const ring0 = await page.evaluate(() => Date.now());
-      const t0 = Date.now();
+      const t0 = Date.now(); const req0 = log.requests.length;
       if (tok === 'M') {
         await page.evaluate(() => window.__IC__.go()); await clickExact(page, to); model = to;
       } else if (tok === 'B') {
@@ -262,8 +262,10 @@ async function session({ model0, layer, zoom, theme, arm }) {
         regress: r.regress || 0, regressEx: r.regressEx || null, maxFrameMs: r.maxGap == null ? null : Math.round(r.maxGap), maskRebuilds,
         mislabel: r.mislabel, mislabelSilent: r.mislabelSilent, maxOffH: +(r.maxOffH || 0).toFixed(2), mislabelEx: r.mislabelEx || null, silentEx: r.silentEx || null,
         clears: r.clears && r.clears.length ? r.clears : undefined, frames: r.frames, dims: r.dims.slice(0, 12), status,
+        // the backend asks made during this action (2026-10-27 regression re-run: which path answered, and how long it took)
+        asks: log.requests.slice(req0).map((q) => `${q.path} ${(q.q && q.q.model) || ''} ${(q.q && q.q.layer) || ''} ${(q.q && q.q.valid_time) || ''} ${q.status || q.error || ''} ${q.ms}ms @${q.t - (t0 - log.t0)}`.replace(/\s+/g, ' ')),
         ...(drag ? { drag: { presses: r.presses.length, shown: shown.length, skipped: r.presses.filter((p) => p.skipped).length, late: shown.filter((x) => x > 33).length, maxShown: shown.length ? Math.max(...shown) : null } } : {}),
-        ...(tok === 'M' || r.blank ? { ring } : {}) });
+        ...(tok === 'M' || r.blank || process.env.RING === '1' ? { ring } : {}) });
       await sleep(300);
     }
     const counters = await page.evaluate(() => { const f = window.__RAW_FRAME_STORE__; const sf = window.__RAW_STATIC_FRAMES__;

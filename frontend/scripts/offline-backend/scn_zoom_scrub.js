@@ -121,7 +121,7 @@ const PROBE = () => {
         if (Math.abs(lag) > 1.5) {
           W.stale = (W.stale || 0) + 1; W.maxStaleH = Math.max(W.maxStaleH || 0, Math.abs(lag));
           const st2 = [...document.querySelectorAll('[role="status"]')].filter((x) => x.offsetParent !== null).map((x) => x.textContent.trim()).join(' | ').slice(0, 160);
-          if (!/Loading|Verifying|does not match|pending|nearest|estimated/i.test(st2)) { W.staleSilent = (W.staleSilent || 0) + 1; if (!W.staleEx) W.staleEx = { rel: Math.round(rel), hour: s.hour, lagH: +lag.toFixed(2), pid: (s.pid || '').slice(-44), status: st2 }; }
+          if (!/Loading|Verifying|does not match|pending|nearest|estimated|Holding|not arriving/i.test(st2)) { W.staleSilent = (W.staleSilent || 0) + 1; if (!W.staleEx) W.staleEx = { rel: Math.round(rel), hour: s.hour, lagH: +lag.toFixed(2), pid: (s.pid || '').slice(-44), status: st2 }; }
         }
       }
       if (s.hour === W.target && dm != null && dm !== W.expectedMs && s.layer === 'waves') {
@@ -129,7 +129,7 @@ const PROBE = () => {
         // Does the status line SAY the field is not yet this hour (loading / nearest / estimated)? A mislabel with no such word is the
         // silent kind (matrix class 1); read per frame, the line's text is the only honesty the user has.
         const st = [...document.querySelectorAll('[role="status"]')].filter((x) => x.offsetParent !== null).map((x) => x.textContent.trim()).join(' | ').slice(0, 160);
-        if (!/Loading|Verifying|does not match|pending|nearest|estimated/i.test(st)) W.mislabelSilent = (W.mislabelSilent || 0) + 1;
+        if (!/Loading|Verifying|does not match|pending|nearest|estimated|Holding|not arriving/i.test(st)) W.mislabelSilent = (W.mislabelSilent || 0) + 1;
         if (!W.mid) W.mid = { rel: Math.round(rel), pid: s.pid, served: s.served, store: s.store, series: s.series, dataIso: P.dataIso(s, W), status: st };
       }
       const dims = `${s.cols}x${s.rows}`;
