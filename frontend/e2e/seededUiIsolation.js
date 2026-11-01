@@ -81,9 +81,9 @@ async function installSeededUiIsolation(context, config) {
     adminSockets: 0, callSockets: 0, realtimeSockets: 0, blocked: 0 };
   const violations = [];
   const lifecycle = createRouteLifecycle();
-  const record = (kind, method, path) => {
+  const record = (kind, method, path, socket) => {
     stats.blocked += 1;
-    violations.push({ kind, method, path });
+    violations.push({ kind, method, path, ...(socket ? { socket } : {}) });
   };
   const reject = async (route, kind, method, path) => {
     record(kind, method, path);
@@ -160,7 +160,13 @@ async function installSeededUiIsolation(context, config) {
     const session = pages.length === 1 ? await sessionFor(pages[0], cfg) : null;
     const mismatch = kind === 'call' && url.pathname !== `/api/ws/call/${session?.id}`;
     if (kind.startsWith('unexpected') || !synthetic(session) || mismatch || url.searchParams.has('token')) {
-      record(kind.startsWith('unexpected') ? kind : 'unexpected-socket-session', 'WS', path);
+      // Snapshot existing observations only; never retain URL credentials or session values.
+      record(kind.startsWith('unexpected') ? kind : 'unexpected-socket-session', 'WS', path, {
+        origin: url.origin, kind, matchingPageCount: pages.length,
+        sessionObserved: session !== null, syntheticIdMatch: !!session && IDS.has(session.id),
+        storedTokenPresent: session?.hasToken ?? null,
+        callMismatch: mismatch, tokenQueryPresent: url.searchParams.has('token'),
+      });
     } else {
       stats[`${kind}Sockets`] += 1;
     }

@@ -117,3 +117,26 @@ test('actual CLI selects Chrome for the exact correlated logging file set', () =
   assert.equal(result.calls.length, 2);
   assert.equal(result.writes[0].text, 'project=Desktop Chrome\nscope=harness-chromium\n');
 });
+
+
+const socketDiagnosticHarness = ['frontend/e2e/seededUiIsolation.js',
+  'frontend/scripts/seededUiIsolation.test.cjs',
+  'frontend/scripts/e2eHarnessScope.cjs', 'frontend/scripts/e2eHarnessScope.test.cjs'];
+
+test('exact socket-diagnostic integration selects Chrome in selector and CLI; normal coverage stays unchanged', () => {
+  assert.deepEqual(selectScope({ ...marked, files: socketDiagnosticHarness }),
+    { project: 'Desktop Chrome', scope: 'harness-chromium' });
+  const cli = runCli({ before: 'a'.repeat(40), head_commit: { message: marked.message } },
+    { files: socketDiagnosticHarness });
+  assert.equal(cli.writes[0].text, 'project=Desktop Chrome\nscope=harness-chromium\n');
+  assert.deepEqual(selectScope({ eventName: 'push', message: 'normal socket diagnostics', files: socketDiagnosticHarness }),
+    { project: '', scope: 'normal-regression' });
+});
+
+test('socket-diagnostic opt-in refuses test-path lookalikes and mixed production paths', () => {
+  for (const path of ['frontend/scripts/seededUiIsolation.test.cjs.extra',
+    'frontend/scripts/seededUiIsolation.test.js', 'frontend/src/App.js',
+    'backend/services/weather_pipeline/grid_series_helper.py', 'docs/weather-program/STATE.md']) {
+    assert.throws(() => selectScope({ ...marked, files: [...socketDiagnosticHarness, path] }), /refusing browser execution/);
+  }
+});
