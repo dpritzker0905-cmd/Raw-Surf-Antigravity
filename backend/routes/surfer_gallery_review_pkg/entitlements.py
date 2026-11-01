@@ -10,6 +10,7 @@ import logging
 import math
 
 from database import get_db
+from utils.credits import deduct_credits
 from models import (
     Profile, SurferGalleryItem, GalleryItem,
     Booking, LiveSession, BookingParticipant, LiveSessionParticipant
@@ -217,7 +218,11 @@ async def upgrade_resolution(
     if not user or user.credit_balance < upsell["upgrade_price"]:
         raise HTTPException(status_code=402, detail="Insufficient balance")
 
-    user.credit_balance -= upsell["upgrade_price"]
+    success, _, error = await deduct_credits(
+        user_id, upsell["upgrade_price"], 'gallery_upgrade', db,
+        reference_type='gallery_item', reference_id=gallery_item_id)
+    if not success:
+        raise HTTPException(status_code=402, detail=error)
 
     result = await db.execute(
         select(SurferGalleryItem).where(

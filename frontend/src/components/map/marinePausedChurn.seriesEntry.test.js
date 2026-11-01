@@ -43,7 +43,9 @@ const pageOf = (grid, hours) => ({ ok: true, status: 200,
 async function seed(requestBounds, grid, { hours = [15, 18], surf = false, model = 'GFS', layer = 'waves' } = {}) {
   window.__SURF_MODE__ = surf;
   global.fetch = jest.fn(async () => pageOf(grid, hours));
-  await ensureMarineSeries(model, layer, requestBounds, 16, undefined, true);
+  // force: the scene's entries were stored by FORCE loads (runScrubSettleCheck's clamp load). An unforced load of a view a cached
+  // tile already contains is answered by that tile and asks nothing (marineSeriesPanGuard.seriesBoxContained, 2026-10-23).
+  await ensureMarineSeries(model, layer, requestBounds, 16, undefined, true, true);
   for (let i = 0; i < 12; i++) await Promise.resolve();
   expect(global.fetch).toHaveBeenCalledTimes(1);       // the seed really loaded (not deduped against an earlier one)
 }

@@ -51,6 +51,8 @@ from datetime import date, datetime, timedelta, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import action_ledger  # noqa: E402
+import ledger_fragments  # noqa: E402
+import ledger_merges  # noqa: E402
 
 ROOT = action_ledger.ROOT
 DOCS = os.path.join(ROOT, "docs", "weather-program")
@@ -192,8 +194,16 @@ def scoreboard_dates_ordered(cells: list) -> bool:
     return True
 
 
-def audit_docs(docs_dir: str = DOCS, state_path: str = None, ledger_path: str = None) -> list:
-    """[(level, message)] for the git record. PURE given the folder."""
+def fragments_in_order(docs_dir: str, order=None):
+    """([(name, text)] of docs_dir/ledger.d in fold order, [problems]): `order` first (the merge order git knows),
+    then the rest by name. PURE given the folder."""
+    texts, problems = ledger_fragments.read_dir_fragments(docs_dir)
+    first = [n for n in (order or []) if n in texts]
+    return [(n, texts[n]) for n in first + sorted(set(texts) - set(first))], problems
+
+
+def audit_docs(docs_dir: str = DOCS, state_path: str = None, ledger_path: str = None, fragment_order=None) -> list:
+    """[(level, message)] for the git record. PURE given the folder (and `fragment_order`, the merge order)."""
     res = []
     for f in REQUIRED_DOCS:
         if not os.path.exists(os.path.join(docs_dir, f)):
@@ -208,6 +218,11 @@ def audit_docs(docs_dir: str = DOCS, state_path: str = None, ledger_path: str = 
     if anchor is None:
         errs.append("STATE.md has no ledger anchor")
     res += [("FAIL", f"ACTIONS.jsonl: {e}") for e in errs]
+    # FRAGMENTS (D-0XX): every unfolded line must chain cleanly onto the ledger, as the next fold would chain it.
+    frags, problems = fragments_in_order(docs_dir, fragment_order)
+    res += [("FAIL", p) for p in problems]
+    if not errs:
+        res += [("FAIL", f"fragment {e}") for e in ledger_fragments.virtual_ledger(lines, frags)[2]]
     state = _read(state_path or os.path.join(docs_dir, "STATE.md"))
     m = re.search(r"\*\*Updated (\d{4}-\d{2}-\d{2})", state)
     logs = sorted(f for f in os.listdir(os.path.join(docs_dir, "log")) if re.match(r"\d{4}-\d{2}-\d{2}-.+\.md$", f)) \
@@ -237,9 +252,13 @@ def audit_docs(docs_dir: str = DOCS, state_path: str = None, ledger_path: str = 
 
 
 # ── completeness, commitments, clock, seq references ─────────────────────────────────────────────────────────────
-def check_completeness(entries: list, merges: list) -> list:
+def check_completeness(entries: list, merges: list, pending_from: str = None) -> list:
     """`merges`: [(pr_number, commit_time_iso)] on this history, NEWEST FIRST, excluding HEAD itself. Every merge at
-    or after the ledger's first line needs a `pr_merge #N` line; the newest may be pending (WARN). PURE."""
+    or after the ledger's first line needs a `pr_merge #N` line; the newest may be pending (WARN). PURE.
+    ⬇ `pending_from` (2026-10-23, the lead's option A): the last FOLD POINT. Under unattended auto-merge a merge's line
+    is written by the next `fold-pr --record-merges`, so every merge at or after the last fold only WARNs; an older
+    one FAILs. (Merges now include squash subjects `(#N)`: before this the check read only `Merge pull request #N`
+    commits and had seen no merge since #380.)"""
     if not entries:
         return []
     genesis = entries[0]["at"]
@@ -248,21 +267,25 @@ def check_completeness(entries: list, merges: list) -> list:
     for i, (n, t) in enumerate(merges):
         if t < genesis or f"#{n}" in ledgered:
             continue
-        res.append(("WARN" if i == 0 else "FAIL",
+        after_fold = bool(pending_from) and t >= pending_from
+        res.append(("WARN" if i == 0 or after_fold else "FAIL",
                     f"PR #{n} (merged {t}) has no `pr_merge #{n}` ledger line"
-                    + (" yet: the next PR records it" if i == 0 else "")))
+                    + (f" yet: merged after the last fold ({pending_from}); the next `fold-pr --record-merges` "
+                       f"records it" if after_fold else " yet: the next PR records it" if i == 0 else "")))
     return res
 
 
-def check_commitments(entries_lines: list, now: str) -> list:
-    """OVERDUE commitments WARN; open ones are NOTEs. PURE."""
-    res = []
+def check_commitments(entries_lines: list, now: str, labels=None) -> list:
+    """OVERDUE commitments WARN; open ones are NOTEs. `labels` names the unfolded ones by their fragment line
+    ({virtual seq: 'ledger.d/x.jsonl:N'}), since their seq does not exist yet. PURE."""
+    res, labels = [], labels or {}
     for c in action_ledger.commitments(entries_lines, now):
+        where = labels.get(c["seq"], f"seq {c['seq']}")
         if c["status"] == "overdue":
-            res.append(("WARN", f"OVERDUE commitment seq {c['seq']} (due {c['due_at']}): {c['target']}"
+            res.append(("WARN", f"OVERDUE commitment {where} (due {c['due_at']}): {c['target']}"
                                 f" -- {c['check']}"))
         elif c["status"] == "open":
-            res.append(("NOTE", f"open commitment seq {c['seq']} (due {c['due_at']}): {c['target']}"))
+            res.append(("NOTE", f"open commitment {where} (due {c['due_at']}): {c['target']}"))
     return res
 
 
@@ -409,20 +432,10 @@ def lines_written_at(rel_path: str, text: str):
 
 def git_merges():
     """[(pr_number, commit_time)] newest first, excluding HEAD itself (a dev push's HEAD is the merge being made);
-    None when git cannot see the history (not a repo, or a shallow clone)."""
-    if (_git("rev-parse", "--is-shallow-repository") or "").strip() != "false":
-        return None
-    headsha = (_git("rev-parse", "HEAD") or "").strip()
-    out = _git("log", "--merges", "--format=%H|%cI|%s", "HEAD")
-    if out is None:
-        return None
-    merges = []
-    for line in out.splitlines():
-        sha, t, subject = line.split("|", 2)
-        m = MERGE_RE.match(subject)
-        if m and sha != headsha:
-            merges.append((int(m.group(1)), _utc(t).strftime("%Y-%m-%dT%H:%M:%SZ")))
-    return merges
+    None when git cannot see the history (not a repo, or a shallow clone).
+    ⬇ 2026-10-23: `Merge pull request #N` commits AND first-parent squash subjects ending `(#N)` (ledger_merges);
+    the first form alone had seen no merge since #380, when dev began squash-merging."""
+    return ledger_merges.git_merges(ROOT, "HEAD")
 
 
 def written_at(rel_path: str) -> str:
@@ -435,11 +448,33 @@ def written_at(rel_path: str) -> str:
     return _utc(t).strftime("%Y-%m-%dT%H:%M:%SZ") if t else now
 
 
+def fragment_order(docs_dir: str = DOCS):
+    """The fragments' merge order as git knows it on HEAD (empty without history or git)."""
+    texts, _ = ledger_fragments.read_dir_fragments(docs_dir)
+    return ledger_fragments.working_order(ROOT, list(texts))
+
+
 def audit_completeness_and_clock(docs_dir: str = DOCS, require_history: bool = False) -> list:
-    lines = action_ledger.read_lines(os.path.join(docs_dir, "ACTIONS.jsonl"))
+    folded = action_ledger.read_lines(os.path.join(docs_dir, "ACTIONS.jsonl"))
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    # The VIRTUAL fold (D-0XX): a fragment's pr_merge, commitment, fulfils and corrections count before the lead
+    # folds it; otherwise a session's own correction could not excuse its own log header until the next fold.
+    frags, _ = fragments_in_order(docs_dir, fragment_order(docs_dir))
+    lines, labels, _ = ledger_fragments.virtual_ledger(folded, frags, now)
     entries = [json.loads(x) for x in lines]
     res = []
+    try:
+        adds = [n for n, _ in ledger_fragments.fragment_adds(ROOT, "HEAD")]
+        reused = sorted({n for n in adds if adds.count(n) > 1})
+        if reused:
+            res.append(("FAIL", f"ledger.d: fragment name(s) added more than once on this history: {reused}"))
+    except ledger_fragments.LedgerError as ex:
+        res.append(("FAIL" if require_history else "WARN", f"ledger.d: cannot read the fragments' merge order ({ex})"))
     merges = git_merges()
+    try:
+        pending_from = ledger_merges.last_fold_point(ROOT, "HEAD")
+    except ledger_fragments.LedgerError:
+        pending_from = None
     if merges is None:
         # ⛔ In CI a blind check must FAIL, not warn: the first CI run of this check WARNed and passed because a
         # later `git fetch --depth=1` had re-shallowed the clone (2026-09-29).
@@ -447,9 +482,8 @@ def audit_completeness_and_clock(docs_dir: str = DOCS, require_history: bool = F
                     "cannot check ledger completeness: no full git history here "
                     "(fetch-depth: 0, and no later --depth fetch)"))
     else:
-        res += check_completeness(entries, merges)
-    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-    res += check_commitments(lines, now)
+        res += check_completeness(entries, merges, pending_from)
+    res += check_commitments(lines, now, labels)
     rel = os.path.relpath(docs_dir, ROOT).replace("\\", "/")
     blind = []
 
@@ -478,7 +512,7 @@ def audit_completeness_and_clock(docs_dir: str = DOCS, require_history: bool = F
         for f in fs:
             if f.endswith(".md"):
                 texts[os.path.relpath(os.path.join(dirpath, f), docs_dir)] = _read(os.path.join(dirpath, f))
-    res += check_seq_refs(texts, len(lines))
+    res += check_seq_refs(texts, len(folded))   # a cited seq must be FOLDED: a fragment line has none yet
     return res
 
 
@@ -494,6 +528,12 @@ def selftest() -> list:
                      f"the ledger); got {got}")
     if check_completeness(ents, [(5, "2026-09-29T10:30:00Z")]):
         fails.append("completeness: a fully ledgered history was flagged")
+    # The fold window (2026-10-23): a merge after the last fold point waits for fold-pr --record-merges (WARN).
+    got = check_completeness(ents, [(7, "2026-09-29T12:00:00Z"), (6, "2026-09-29T11:30:00Z")], "2026-09-29T11:00:00Z")
+    if [lv for lv, _ in got] != ["WARN", "WARN"] or "record-merges" not in got[1][1]:
+        fails.append(f"completeness: #6, merged after the last fold point, should WARN; got {got}")
+    if ledger_merges.parse_merges("", "s|2026-09-29T12:00:00Z|feat: x (#8)\n", "") != [(8, "2026-09-29T12:00:00Z")]:
+        fails.append("completeness: a squash subject '(#8)' was not read as a merge")
     st = ("**Updated 2026-09-29 19:00Z** (log...)")
     if not any(lv == "FAIL" for lv, _ in check_clock(st, "2026-09-29T18:54:00Z", {})):
         fails.append("clock: STATE dated 19:00Z but written 18:54Z was not caught (the L-P10 case)")
@@ -562,6 +602,20 @@ def selftest() -> list:
         levels = [lv for lv, _ in check_commitments(action_ledger.read_lines(pth), "2026-09-29T07:00:00Z")]
         if levels != ["WARN"]:
             fails.append(f"commitments: an overdue commitment gave {levels}, not one WARN")
+        # FRAGMENTS (D-0XX): an unfolded commitment is listed by its fragment line, and an unfolded fulfil closes it.
+        frag = "".join(action_ledger.canonical({**base, "acted_at": "2026-09-29T02:00:00Z", **e}) + "\n" for e in (
+            {"kind": "commitment", "due_at": "2026-09-30T06:00:00Z", "check": "c"}, {"kind": "finding"}))
+        vl, lab, errs = ledger_fragments.virtual_ledger(action_ledger.read_lines(pth), [("x", frag)],
+                                                        "2026-09-29T07:00:00Z")
+        got = [m for lv, m in check_commitments(vl, "2026-09-29T07:00:00Z", lab) if lv == "NOTE"]
+        if errs or len(got) != 1 or "ledger.d/x.jsonl:1" not in got[0]:
+            fails.append(f"fragments: an unfolded commitment was not listed by its fragment line: {got} {errs}")
+        closed = frag + action_ledger.canonical({**base, "acted_at": "2026-09-29T02:00:00Z", "kind": "finding",
+                                                 "fulfills": "@frag:1"}) + "\n"
+        vl, lab, errs = ledger_fragments.virtual_ledger(action_ledger.read_lines(pth), [("x", closed)],
+                                                        "2026-09-29T07:00:00Z")
+        if errs or any("x.jsonl:1" in m for _, m in check_commitments(vl, "2026-09-29T07:00:00Z", lab)):
+            fails.append(f"fragments: a commitment fulfilled by '@frag:1' was still listed ({errs})")
         md = os.path.join(d, "mem")
         os.mkdir(md)
         fm = ("---\nname: {n}\ndescription: d\nmetadata:\n  type: project\n  verified: 2026-09-29\n---\n")
@@ -592,7 +646,7 @@ def main(argv=None) -> int:
             print(f"SELFTEST FAIL: {f}")
         print("memory audit selftest: every check fires" if not fails else f"selftest: {len(fails)} failure(s)")
         return 1 if fails else 0
-    results = audit_docs()
+    results = audit_docs(fragment_order=fragment_order())
     if not any(level == "FAIL" for level, _ in results):
         results += audit_completeness_and_clock(require_history=args.require_history)
     if not args.docs_only:

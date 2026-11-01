@@ -125,6 +125,13 @@ LANE_EXCEPTIONS: dict = {
     "ECMWF_PERIOD_BANDS": "ingest-only: precompute_ci.py imports no ecmwf module (57 files walked), "
                           "so the flag is unreadable there; forecast-ingest.yml and "
                           "forecast-ingest-pilots.yml both carry it",
+    # ★ The same measured fact (2026-10-23): ecmwf_opendata_fetcher is reached from ingest_forecast_ci.py only, so EURO's
+    # land-centre block rule and its reach are unreadable in precompute. Both ECMWF lanes read them from ONE repo variable each
+    # (test_the_euro_land_centre_flags_come_from_one_repo_variable_in_both_ecmwf_lanes below pins that).
+    "ECMWF_WAVE_LAND_CENTRE_BLOCK": "ingest-only: precompute_ci.py imports no ecmwf module; forecast-ingest.yml and "
+                                    "forecast-ingest-pilots.yml read the same repo variable",
+    "ECMWF_WAVE_LAND_CENTRE_REACH": "ingest-only: precompute_ci.py imports no ecmwf module; forecast-ingest.yml and "
+                                    "forecast-ingest-pilots.yml read the same repo variable",
 }
 
 
@@ -151,6 +158,11 @@ def _load_registry():
 # opposite direction, and it is the repo's recorded "a duplicated constant only diverges on a
 # boundary" class: two lists agree until someone edits one. There is now one list.
 _COLLECT_RE = r"\s+((?:" + "|".join(DRIFT_PREFIXES) + r")[A-Z0-9_]+):\s*'([^']*)'"
+# ⬇ 2026-10-23: a flag can also come from a REPO VARIABLE, `FLAG: ${{ vars.VAR || 'default' }}` (one setting both lanes read, flipped
+# without a commit). The literal regex above cannot see that form, so a lane that declared it was invisible to every drift test
+# here. Collected as its DEFAULT (the value the lane runs with while the variable is unset); the variable's own name is pinned by
+# the repo-variable tests below, since a value set in GitHub's settings is not in git.
+_VARS_RE = (r"\s+((?:" + "|".join(DRIFT_PREFIXES) + r")[A-Z0-9_]+):\s*\$\{\{\s*vars\.([A-Za-z0-9_]+)\s*\|\|\s*'([^']*)'\s*\}\}")
 
 
 def _workflow_flags(filename):
@@ -165,6 +177,24 @@ def _workflow_flags(filename):
             m = re.match(_COLLECT_RE, line)
             if m:
                 out[m.group(1)] = m.group(2)
+                continue
+            m = re.match(_VARS_RE, line)
+            if m:
+                out[m.group(1)] = m.group(3)
+    return out
+
+
+def _workflow_var_flags(filename):
+    """Flags a workflow reads from a repo variable, as {FLAG: (variable, default)}."""
+    path = os.path.join(WORKFLOWS, filename)
+    if not os.path.exists(path):
+        return {}
+    out = {}
+    with open(path, encoding="utf-8") as fh:
+        for line in fh:
+            m = re.match(_VARS_RE, line)
+            if m:
+                out[m.group(1)] = (m.group(2), m.group(3))
     return out
 
 
@@ -619,3 +649,37 @@ def test_the_41_percent_figure_never_appears_without_its_predicate():
             f"line {i+1} states 41.0% with no mention of the band condition within 12 lines. "
             "A conditional number copied without its condition becomes a different claim -- "
             "carry the predicate with the number, or carry neither.")
+
+
+# ── FLAGS READ FROM A REPO VARIABLE (2026-10-23) ────────────────────────────────────────────────
+# A repo variable is ONE setting every lane that names it reads, so it makes a two-lane flip atomic, which is why EURO's
+# land-centre rule uses one: its 10-deg product is a core-lane job and its 2-deg global_mid a pilots-lane job, and a flip in one
+# lane only would serve EURO's own values at one zoom and GFS substitutes at the other. Two ways that guarantee breaks, both
+# pinned here: a lane reading a variable of ANOTHER name (two settings again), and the two lanes falling back to different
+# defaults (an unset variable then splits them). The value set in GitHub is not in git; these keep the git-visible half honest.
+_ECMWF_LANES = ("forecast-ingest.yml", PILOT_LANE)
+_FETCHER_SRC = os.path.join(REPO, "backend", "services", "ecmwf_opendata_fetcher.py")
+
+
+def test_every_repo_variable_flag_reads_a_variable_of_its_own_name():
+    wrong = []
+    for lane in sorted(GUARDED_LANES):
+        for flag, (var, _default) in _workflow_var_flags(lane).items():
+            if var != flag:
+                wrong.append(f"{lane}: {flag} reads vars.{var}")
+    assert not wrong, "a flag read from a differently named repo variable is a second switch:\n  " + "\n  ".join(wrong)
+
+
+@pytest.mark.parametrize("flag", ["ECMWF_WAVE_LAND_CENTRE_BLOCK", "ECMWF_WAVE_LAND_CENTRE_REACH"])
+def test_the_euro_land_centre_flags_come_from_one_repo_variable_in_both_ecmwf_lanes(flag):
+    """Both ECMWF lanes declare the flag from the SAME repo variable with the SAME default, and that default is the fetcher's own
+    code default (so an unset variable means exactly what the fetcher would do with no env at all) and the registry's."""
+    seen = {lane: _workflow_var_flags(lane).get(flag) for lane in _ECMWF_LANES}
+    assert all(seen.values()), f"{flag} is not read from a repo variable in every ECMWF lane: {seen}"
+    assert len(set(seen.values())) == 1, f"the ECMWF lanes read {flag} differently: {seen}"
+    var, default = next(iter(seen.values()))
+    src = open(_FETCHER_SRC, encoding="utf-8").read()
+    code = re.findall(r'os\.environ\.get\("' + flag + r'",\s*"([^"]*)"\)', src)
+    assert code == [default], f"{flag}: the lanes fall back to {default!r}, the fetcher reads {code}"
+    assert REGISTRY[flag][0] == default, f"{flag}: registry default {REGISTRY[flag][0]!r} vs lanes {default!r}"
+    assert flag not in ALL_LANE_FLAGS["precompute.yml"], f"{flag} declared in precompute.yml, which reaches no ecmwf module"

@@ -27,7 +27,8 @@ describe('WebGLMarineEngine seed consume', () => {
   });
 
   it('consumes the seed in the render loop, right after reading the held base (the order the rule relies on)', () => {
-    const at = src.indexOf('if (this._pendingCoarseBaseGrid) {');
+    // 2026-10-23: the consume waits for a quiet frame (marineQuietFrames.js); the order inside the block is unchanged.
+    const at = src.indexOf('if (seedConsumeAllowed(zoom) && this._pendingCoarseBaseGrid) {');
     expect(at).toBeGreaterThan(0);
     const block = src.slice(at, at + 600);
     expect(block.indexOf('const _seed = this._pendingCoarseBaseGrid;')).toBeGreaterThan(-1);

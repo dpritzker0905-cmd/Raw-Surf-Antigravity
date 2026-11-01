@@ -19,6 +19,7 @@ import json
 import os
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import (
     Profile, RoleEnum, SponsorshipTransaction, SponsorshipType,
     VerifiedCause, InstantShakaVideo, Notification
@@ -114,7 +115,7 @@ PREDEFINED_CAUSES = [
 
 
 @router.post("/impact/seed-causes")
-async def seed_verified_causes(db: AsyncSession = Depends(get_db)):
+async def seed_verified_causes(db: AsyncSession = Depends(get_db), _admin=Depends(get_current_admin)):
     """Seed the database with predefined verified causes"""
     created = 0
     for cause_data in PREDEFINED_CAUSES:

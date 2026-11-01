@@ -6,8 +6,9 @@
  */
 import React, { useState, useEffect } from 'react';
 import {
-  Camera, MapPin, Star, Loader2, Users, Calendar
+  Camera, MapPin, Star, Loader2, Users, Calendar, ArrowLeft
 } from 'lucide-react';
+import { StarRating, ReviewsCarousel } from './SpotUIComponents';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
 import apiClient from '../../lib/apiClient';

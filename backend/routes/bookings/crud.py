@@ -5,7 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, and_, or_, func
 from sqlalchemy.orm import selectinload
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 import json
@@ -54,8 +54,11 @@ async def check_time_slot_conflict(
     
     Only checks scheduled bookings (not on_demand) and non-cancelled statuses.
     """
-    # Calculate the end time of the requested session
-    session_end = session_date + timedelta(minutes=duration)
+    # Legacy naive dates represent UTC. Compare instants consistently with
+    # timezone-aware database timestamps and offset-bearing requests.
+    requested_start = (session_date.replace(tzinfo=timezone.utc) if session_date.tzinfo is None
+                       else session_date.astimezone(timezone.utc))
+    session_end = requested_start + timedelta(minutes=duration)
     
     # Build query for existing bookings
     query = select(Booking).where(
@@ -82,7 +85,10 @@ async def check_time_slot_conflict(
         existing_end = existing_start + timedelta(minutes=booking.duration)
         
         # Check for overlap: new session overlaps if it starts before existing ends AND ends after existing starts
-        if session_date < existing_end and session_end > existing_start:
+        existing_start_utc = (existing_start.replace(tzinfo=timezone.utc) if existing_start.tzinfo is None
+                              else existing_start.astimezone(timezone.utc))
+        existing_end_utc = existing_start_utc + timedelta(minutes=booking.duration)
+        if requested_start < existing_end_utc and session_end > existing_start_utc:
             return {
                 "conflict": True,
                 "existing_booking_id": booking.id,
@@ -104,14 +110,14 @@ async def check_time_slot_conflict(
 class CrewMember(BaseModel):
     user_id: str
     name: str
-    share_amount: float
+    share_amount: float = Field(..., ge=0, allow_inf_nan=False)
 
 class CreateBookingWithStripeRequest(BaseModel):
     photographer_id: str
     location: str
     session_date: str  # ISO format
-    duration: int = 60
-    max_participants: int = 1
+    duration: int = Field(60, ge=1, le=1440)  # minutes; same bounds as the credit-booking request
+    max_participants: int = Field(1, ge=1, le=100)
     allow_splitting: bool = False
     split_mode: str = 'friends_only'
     crew_members: Optional[List[CrewMember]] = None
@@ -119,7 +125,7 @@ class CreateBookingWithStripeRequest(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     description: Optional[str] = None
-    apply_credits: Optional[float] = 0
+    apply_credits: Optional[float] = Field(0, ge=0, allow_inf_nan=False)
     impact_zone_type: Optional[str] = None
     impact_zone_preset: Optional[str] = None
     origin_url: str  # For Stripe redirect URLs
@@ -357,9 +363,9 @@ class BookingSettingsUpdate(BaseModel):
 @router.patch("/bookings/{booking_id}")
 async def update_booking_settings(
     booking_id: str,
-    user_id: str,
     data: BookingSettingsUpdate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Update booking settings (split mode, auto-confirm, etc.)"""
     # Get booking

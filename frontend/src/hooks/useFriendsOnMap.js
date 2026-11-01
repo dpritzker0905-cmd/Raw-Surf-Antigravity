@@ -51,8 +51,10 @@ export const useFriendsOnMap = ({ user, _mapInstanceRef }) => {
     if (user?.id) {
       fetchFriendsOnMap();
       
-      // Refresh every 30 seconds
-      const interval = setInterval(fetchFriendsOnMap, 30000);
+      // Refresh every 30 seconds while the tab is visible
+      const interval = setInterval(() => {
+        if (document.visibilityState !== 'hidden') fetchFriendsOnMap();
+      }, 30000);
       return () => clearInterval(interval);
     }
   }, [user?.id, fetchFriendsOnMap]);

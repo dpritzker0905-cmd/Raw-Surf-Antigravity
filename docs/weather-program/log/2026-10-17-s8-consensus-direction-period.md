@@ -64,3 +64,11 @@ Hypothesis, not a result: the members' period biases have opposite signs (GFS +0
 
 1393 finding (the live readout). 1394 doc_write (this log, the SCOREBOARD row, STATE's head). 1395 commitment (read the `consensus` block after merge).
 1396 push (branch at 2b9e8bb63, read back with `git ls-remote`). 1397 pr_open (#375, DRAFT, base dev, `gh pr view` read back: OPEN, draft, MERGEABLE). Both were written after the actions happened.
+
+## 6. Re-filed under the fragment protocol (2026-11-01, lead's triage)
+
+The five lines above were never merged, and seqs 1393-1397 on dev are now other actions. When dev was merged in, they
+were re-filed field for field (same `acted_at`) as `ledger.d/claude--s8-consensus-direction-period.jsonl:1-5`:
+1393 -> `:1` (finding), 1394 -> `:2` (doc_write), 1395 -> `:3` (commitment, due 2026-10-24, now overdue), 1396 -> `:4`
+(push), 1397 -> `:5` (pr_open). Cite those until the fold assigns seqs. STATE's `Ledger head` edit (1394's target) was
+dropped: under the fragment protocol a PR does not move the anchor; dev's STATE.md is kept as is.

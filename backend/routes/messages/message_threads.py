@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 import json
 from models import Conversation, Message, Notification, Profile, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
+from services.blocks import assert_not_blocked
 
 from .schemas import (
     check_grom_messaging_permission,
@@ -252,7 +253,10 @@ async def start_conversation(
     
     if sender_id == recipient_id:
         raise HTTPException(status_code=400, detail="Cannot message yourself")
-    
+
+    # BLOCKS (audit F-09): a conversation cannot be opened across a block, either way.
+    await assert_not_blocked(db, sender_id, recipient_id)
+
     # Get or create conversation
     conversation, is_new = await get_or_create_conversation(sender_id, recipient_id, db)
     

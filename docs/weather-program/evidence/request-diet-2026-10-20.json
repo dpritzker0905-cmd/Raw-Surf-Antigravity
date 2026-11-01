@@ -1,0 +1,2729 @@
+{
+ "what": "Client request diet (marineRequestDiet.js): offline A/B on one bundle. A = window.__RAW_DISABLE_REQUEST_DIET__ = true (the old client), B = all parts on, C = all parts but STEP_PAGE (what ships: STEP_PAGE is opt-in).",
+ "when": "2026-10-20T22:53Z..2026-10-21T01:15Z",
+ "where": "offline only: backend/... serve_synthetic.py on :4195 (--thin-bounds 1 --dynamic 1 --models GFS,ICON,EURO --layers waves,swell_1,swell_2,wind_waves,wind --regions flagship), bundle (craco build, REACT_APP_ICON_STORED_TAIL=true) on :3196 via serve_spa.js; never the live backend",
+ "how": "frontend/scripts/visual-lab/lab.js, AB_DIAG=1, LAT_SERIES=2500 LAT_GRID=1500 LAT_PRODUCTS=1500 (6000 for the cold-box load), runs interleaved A1 B1 A2 B2 A3 B3 (C1 B1 ... for STEP_PAGE). Requests counted at START by kind; exactMs = input to the first frame with the selected instant at full detail. Machine shared with other sessions (469 node processes): step times carry that noise; medianMarineGridMs is the load reference.",
+ "mapOpen": {
+  "surfModeOn_products_1500ms": {
+   "A": {
+    "runs": 3,
+    "products": [
+     3,
+     3,
+     3
+    ],
+    "firstDraw": [
+     34324,
+     10590,
+     12395
+    ],
+    "gridStartAfterProducts": [
+     8318,
+     1400,
+     2162
+    ],
+    "started": [
+     {
+      "/capabilities": 1,
+      "/products": 3,
+      "/spot-ratings": 3,
+      "/grid_series": 2,
+      "/grid": 2
+     },
+     {
+      "/capabilities": 1,
+      "/products": 3,
+      "/spot-ratings": 5,
+      "/grid_series": 3,
+      "/grid": 1
+     },
+     {
+      "/capabilities": 1,
+      "/products": 3,
+      "/spot-ratings": 5,
+      "/grid_series": 3,
+      "/grid": 1
+     }
+    ],
+    "diet": [
+     null,
+     null,
+     null
+    ]
+   },
+   "B": {
+    "runs": 3,
+    "products": [
+     1,
+     1,
+     1
+    ],
+    "firstDraw": [
+     12359,
+     10808,
+     14247
+    ],
+    "gridStartAfterProducts": [
+     103,
+     95,
+     95
+    ],
+    "started": [
+     {
+      "/capabilities": 1,
+      "/products": 1,
+      "/spot-ratings": 4,
+      "/grid_series": 2,
+      "/grid": 1
+     },
+     {
+      "/capabilities": 1,
+      "/products": 1,
+      "/spot-ratings": 4,
+      "/grid_series": 3,
+      "/grid": 1
+     },
+     {
+      "/capabilities": 1,
+      "/products": 1,
+      "/spot-ratings": 3,
+      "/grid_series": 2,
+      "/grid": 1
+     }
+    ],
+    "diet": [
+     {
+      "products_shared": 2,
+      "series_painted_while_pending": 1
+     },
+     {
+      "products_shared": 2,
+      "series_painted_while_pending": 1
+     },
+     {
+      "products_shared": 2,
+      "series_painted_while_pending": 1
+     }
+    ]
+   }
+  },
+  "coldBox_products_6000ms": {
+   "A": {
+    "runs": 3,
+    "products": [
+     1,
+     1,
+     1
+    ],
+    "firstDraw": [
+     13316,
+     13598,
+     14203
+    ],
+    "gridStartAfterProducts": [
+     78,
+     77,
+     106
+    ],
+    "started": [
+     {
+      "/capabilities": 1,
+      "/grid_series": 3,
+      "/products": 1,
+      "/grid": 1
+     },
+     {
+      "/capabilities": 1,
+      "/grid_series": 3,
+      "/products": 1,
+      "/grid": 1
+     },
+     {
+      "/capabilities": 1,
+      "/grid_series": 3,
+      "/products": 1,
+      "/grid": 1
+     }
+    ],
+    "diet": [
+     null,
+     null,
+     null
+    ]
+   },
+   "B": {
+    "runs": 3,
+    "products": [
+     1,
+     1,
+     1
+    ],
+    "firstDraw": [
+     7551,
+     9457,
+     8073
+    ],
+    "gridStartAfterProducts": [
+     72,
+     98,
+     99
+    ],
+    "started": [
+     {
+      "/capabilities": 1,
+      "/grid_series": 3,
+      "/products": 1,
+      "/grid": 1
+     },
+     {
+      "/capabilities": 1,
+      "/grid_series": 3,
+      "/products": 1,
+      "/grid": 1
+     },
+     {
+      "/capabilities": 1,
+      "/grid_series": 3,
+      "/products": 1,
+      "/grid": 1
+     }
+    ],
+    "diet": [
+     {
+      "series_painted_while_pending": 1
+     },
+     {
+      "series_painted_while_pending": 1
+     },
+     {
+      "series_painted_while_pending": 1
+     }
+    ]
+   }
+  }
+ },
+ "targetedSteps": {
+  "A_vs_B": {
+   "hour_steps": {
+    "A": {
+     "runs": 3,
+     "requestsStartedPerFlow": {
+      "/capabilities": 1,
+      "/grid_series": 4,
+      "/products": 1,
+      "/grid": 7
+     },
+     "totalRequestsPerFlow": 13,
+     "medianMarineGridMs": 2306,
+     "sumOfPerStepMedianExactMs": 25002,
+     "perRunSumExactMs": [
+      26991,
+      23726,
+      25165
+     ],
+     "stepsNeverExact": 3,
+     "stepsNeverCorrect": 3,
+     "exactMsPerStep": {
+      "+1h": [
+       null,
+       null,
+       null
+      ],
+      "+2h": [
+       4913,
+       4891,
+       4984
+      ],
+      "+3h": [
+       6009,
+       4055,
+       3840
+      ],
+      "+4h": [
+       4372,
+       3128,
+       4749
+      ],
+      "+5h": [
+       3691,
+       3919,
+       3940
+      ],
+      "+6h": [
+       4313,
+       3963,
+       3804
+      ],
+      "+7h": [
+       3679,
+       3766,
+       3834
+      ],
+      "back +3h": [
+       14,
+       4,
+       14
+      ]
+     },
+     "gridRequestsPerStep": {
+      "+1h": [
+       0,
+       0,
+       0
+      ],
+      "+2h": [
+       1,
+       1,
+       1
+      ],
+      "+3h": [
+       1,
+       1,
+       1
+      ],
+      "+4h": [
+       1,
+       1,
+       1
+      ],
+      "+5h": [
+       1,
+       1,
+       1
+      ],
+      "+6h": [
+       1,
+       1,
+       1
+      ],
+      "+7h": [
+       1,
+       1,
+       1
+      ],
+      "back +3h": [
+       0,
+       0,
+       0
+      ]
+     },
+     "dietCounts": [
+      null,
+      null,
+      null
+     ]
+    },
+    "B": {
+     "runs": 3,
+     "requestsStartedPerFlow": {
+      "/capabilities": 1,
+      "/grid_series": 4,
+      "/products": 1,
+      "/grid": 3
+     },
+     "totalRequestsPerFlow": 9,
+     "medianMarineGridMs": 3744,
+     "sumOfPerStepMedianExactMs": 9851,
+     "perRunSumExactMs": [
+      8947,
+      9477,
+      13580
+     ],
+     "stepsNeverExact": 0,
+     "stepsNeverCorrect": 0,
+     "exactMsPerStep": {
+      "+1h": [
+       7,
+       16,
+       3
+      ],
+      "+2h": [
+       4928,
+       4554,
+       6272
+      ],
+      "+3h": [
+       39,
+       32,
+       52
+      ],
+      "+4h": [
+       48,
+       32,
+       34
+      ],
+      "+5h": [
+       3841,
+       4766,
+       7132
+      ],
+      "+6h": [
+       48,
+       34,
+       34
+      ],
+      "+7h": [
+       32,
+       38,
+       39
+      ],
+      "back +3h": [
+       4,
+       5,
+       14
+      ]
+     },
+     "gridRequestsPerStep": {
+      "+1h": [
+       0,
+       0,
+       0
+      ],
+      "+2h": [
+       1,
+       1,
+       1
+      ],
+      "+3h": [
+       0,
+       0,
+       0
+      ],
+      "+4h": [
+       0,
+       0,
+       0
+      ],
+      "+5h": [
+       1,
+       1,
+       1
+      ],
+      "+6h": [
+       0,
+       0,
+       0
+      ],
+      "+7h": [
+       0,
+       0,
+       0
+      ],
+      "back +3h": [
+       0,
+       0,
+       0
+      ]
+     },
+     "dietCounts": [
+      {
+       "series_painted_while_pending": 1,
+       "grid_instant_alias": 5
+      },
+      {
+       "series_painted_while_pending": 2,
+       "grid_instant_alias": 5,
+       "step_page_requested": 1
+      },
+      {
+       "series_painted_while_pending": 2,
+       "grid_instant_alias": 5,
+       "step_page_requested": 1
+      }
+     ]
+    }
+   },
+   "euro_steps": {
+    "A": {
+     "runs": 3,
+     "requestsStartedPerFlow": {
+      "/capabilities": 1,
+      "/grid_series": 4,
+      "/products": 1,
+      "/grid": 13
+     },
+     "totalRequestsPerFlow": 19,
+     "medianMarineGridMs": 2030,
+     "sumOfPerStepMedianExactMs": 38888,
+     "perRunSumExactMs": [
+      37590,
+      38697,
+      42893
+     ],
+     "stepsNeverExact": 0,
+     "stepsNeverCorrect": 0,
+     "exactMsPerStep": {
+      "+45h": [
+       3722,
+       5875,
+       7011
+      ],
+      "+46h": [
+       3788,
+       3697,
+       6489
+      ],
+      "+47h": [
+       3523,
+       3569,
+       3562
+      ],
+      "+48h": [
+       3628,
+       3770,
+       3648
+      ],
+      "+49h": [
+       3569,
+       3641,
+       3675
+      ],
+      "+50h": [
+       3634,
+       3795,
+       3756
+      ],
+      "+51h": [
+       3520,
+       3573,
+       3627
+      ],
+      "+52h": [
+       3765,
+       3554,
+       3596
+      ],
+      "+53h": [
+       4907,
+       3656,
+       3882
+      ],
+      "+54h": [
+       3534,
+       3567,
+       3647
+      ]
+     },
+     "gridRequestsPerStep": {
+      "+45h": [
+       1,
+       1,
+       1
+      ],
+      "+46h": [
+       1,
+       1,
+       1
+      ],
+      "+47h": [
+       1,
+       1,
+       1
+      ],
+      "+48h": [
+       1,
+       1,
+       1
+      ],
+      "+49h": [
+       1,
+       1,
+       1
+      ],
+      "+50h": [
+       1,
+       1,
+       1
+      ],
+      "+51h": [
+       1,
+       1,
+       1
+      ],
+      "+52h": [
+       1,
+       1,
+       1
+      ],
+      "+53h": [
+       1,
+       1,
+       1
+      ],
+      "+54h": [
+       1,
+       1,
+       1
+      ]
+     },
+     "dietCounts": [
+      null,
+      null,
+      null
+     ]
+    },
+    "B": {
+     "runs": 3,
+     "requestsStartedPerFlow": {
+      "/capabilities": 1,
+      "/grid_series": 4.7,
+      "/products": 1,
+      "/grid": 6.3
+     },
+     "totalRequestsPerFlow": 13,
+     "medianMarineGridMs": 2702,
+     "sumOfPerStepMedianExactMs": 11081,
+     "perRunSumExactMs": [
+      12561,
+      14212,
+      9562
+     ],
+     "stepsNeverExact": 0,
+     "stepsNeverCorrect": 0,
+     "exactMsPerStep": {
+      "+45h": [
+       34,
+       3125,
+       47
+      ],
+      "+46h": [
+       31,
+       62,
+       44
+      ],
+      "+47h": [
+       4208,
+       3255,
+       3114
+      ],
+      "+48h": [
+       34,
+       52,
+       37
+      ],
+      "+49h": [
+       26,
+       36,
+       31
+      ],
+      "+50h": [
+       3823,
+       3758,
+       2426
+      ],
+      "+51h": [
+       35,
+       34,
+       37
+      ],
+      "+52h": [
+       41,
+       28,
+       46
+      ],
+      "+53h": [
+       4294,
+       3798,
+       3748
+      ],
+      "+54h": [
+       35,
+       64,
+       32
+      ]
+     },
+     "gridRequestsPerStep": {
+      "+45h": [
+       0,
+       2,
+       0
+      ],
+      "+46h": [
+       0,
+       0,
+       0
+      ],
+      "+47h": [
+       1,
+       1,
+       1
+      ],
+      "+48h": [
+       0,
+       0,
+       0
+      ],
+      "+49h": [
+       0,
+       0,
+       0
+      ],
+      "+50h": [
+       1,
+       1,
+       1
+      ],
+      "+51h": [
+       0,
+       0,
+       0
+      ],
+      "+52h": [
+       0,
+       0,
+       0
+      ],
+      "+53h": [
+       1,
+       1,
+       1
+      ],
+      "+54h": [
+       0,
+       0,
+       0
+      ]
+     },
+     "dietCounts": [
+      {
+       "series_painted_while_pending": 3,
+       "step_page_requested": 22,
+       "grid_instant_alias": 7
+      },
+      {
+       "series_painted_while_pending": 2,
+       "step_page_requested": 23,
+       "grid_instant_alias": 6
+      },
+      {
+       "series_painted_while_pending": 2,
+       "step_page_requested": 23,
+       "grid_instant_alias": 7
+      }
+     ]
+    }
+   },
+   "regional_page_steps": {
+    "A": {
+     "runs": 3,
+     "requestsStartedPerFlow": {
+      "/capabilities": 1,
+      "/grid_series": 7.7,
+      "/products": 1,
+      "/grid": 13.3
+     },
+     "totalRequestsPerFlow": 23,
+     "medianMarineGridMs": 3083,
+     "sumOfPerStepMedianExactMs": 29128,
+     "perRunSumExactMs": [
+      36787,
+      32685,
+      26437
+     ],
+     "stepsNeverExact": 0,
+     "stepsNeverCorrect": 0,
+     "exactMsPerStep": {
+      "+141h": [
+       3646,
+       3555,
+       2908
+      ],
+      "+142h": [
+       2385,
+       2524,
+       2179
+      ],
+      "+143h": [
+       8186,
+       2975,
+       3061
+      ],
+      "+144h": [
+       2937,
+       3605,
+       2788
+      ],
+      "+145h": [
+       3274,
+       2981,
+       2979
+      ],
+      "+146h": [
+       7999,
+       2647,
+       3512
+      ],
+      "+147h": [
+       39,
+       2346,
+       2266
+      ],
+      "+148h": [
+       31,
+       3527,
+       40
+      ],
+      "+149h": [
+       8243,
+       4972,
+       3285
+      ],
+      "+150h": [
+       47,
+       3553,
+       3419
+      ]
+     },
+     "gridRequestsPerStep": {
+      "+141h": [
+       2,
+       1,
+       1
+      ],
+      "+142h": [
+       1,
+       1,
+       1
+      ],
+      "+143h": [
+       2,
+       1,
+       1
+      ],
+      "+144h": [
+       1,
+       1,
+       1
+      ],
+      "+145h": [
+       1,
+       1,
+       1
+      ],
+      "+146h": [
+       2,
+       1,
+       1
+      ],
+      "+147h": [
+       1,
+       1,
+       1
+      ],
+      "+148h": [
+       1,
+       1,
+       1
+      ],
+      "+149h": [
+       2,
+       1,
+       1
+      ],
+      "+150h": [
+       1,
+       1,
+       1
+      ]
+     },
+     "dietCounts": [
+      null,
+      null,
+      null
+     ]
+    },
+    "B": {
+     "runs": 3,
+     "requestsStartedPerFlow": {
+      "/capabilities": 1,
+      "/grid_series": 6.3,
+      "/products": 1,
+      "/grid": 5.7
+     },
+     "totalRequestsPerFlow": 14,
+     "medianMarineGridMs": 3464,
+     "sumOfPerStepMedianExactMs": 11553,
+     "perRunSumExactMs": [
+      10518,
+      11778,
+      12326
+     ],
+     "stepsNeverExact": 0,
+     "stepsNeverCorrect": 0,
+     "exactMsPerStep": {
+      "+141h": [
+       49,
+       44,
+       31
+      ],
+      "+142h": [
+       35,
+       38,
+       40
+      ],
+      "+143h": [
+       2471,
+       3268,
+       3214
+      ],
+      "+144h": [
+       34,
+       37,
+       31
+      ],
+      "+145h": [
+       27,
+       43,
+       27
+      ],
+      "+146h": [
+       4432,
+       4004,
+       5225
+      ],
+      "+147h": [
+       33,
+       41,
+       35
+      ],
+      "+148h": [
+       27,
+       42,
+       33
+      ],
+      "+149h": [
+       3354,
+       4220,
+       3655
+      ],
+      "+150h": [
+       56,
+       41,
+       35
+      ]
+     },
+     "gridRequestsPerStep": {
+      "+141h": [
+       0,
+       0,
+       0
+      ],
+      "+142h": [
+       0,
+       0,
+       0
+      ],
+      "+143h": [
+       1,
+       1,
+       1
+      ],
+      "+144h": [
+       0,
+       0,
+       0
+      ],
+      "+145h": [
+       0,
+       0,
+       0
+      ],
+      "+146h": [
+       1,
+       1,
+       1
+      ],
+      "+147h": [
+       0,
+       0,
+       0
+      ],
+      "+148h": [
+       0,
+       0,
+       0
+      ],
+      "+149h": [
+       1,
+       1,
+       1
+      ],
+      "+150h": [
+       0,
+       0,
+       0
+      ]
+     },
+     "dietCounts": [
+      {
+       "series_painted_while_pending": 1,
+       "step_page_requested": 28,
+       "grid_instant_alias": 7
+      },
+      {
+       "series_painted_while_pending": 1,
+       "step_page_requested": 28,
+       "grid_instant_alias": 7
+      },
+      {
+       "series_painted_while_pending": 1,
+       "step_page_requested": 28,
+       "grid_instant_alias": 7
+      }
+     ]
+    }
+   }
+  },
+  "stepPageAlone_C_vs_B": {
+   "note": "arm \"A\" here is C (all on but STEP_PAGE)",
+   "regional_page_steps": {
+    "A": {
+     "runs": 3,
+     "requestsStartedPerFlow": {
+      "/capabilities": 1,
+      "/grid_series": 7,
+      "/products": 1,
+      "/grid": 5.3
+     },
+     "totalRequestsPerFlow": 14.3,
+     "medianMarineGridMs": 2431,
+     "sumOfPerStepMedianExactMs": 8143,
+     "perRunSumExactMs": [
+      8122,
+      7261,
+      9813
+     ],
+     "stepsNeverExact": 0,
+     "stepsNeverCorrect": 0,
+     "exactMsPerStep": {
+      "+141h": [
+       31,
+       34,
+       30
+      ],
+      "+142h": [
+       27,
+       32,
+       31
+      ],
+      "+143h": [
+       2280,
+       2172,
+       3097
+      ],
+      "+144h": [
+       26,
+       37,
+       44
+      ],
+      "+145h": [
+       36,
+       33,
+       33
+      ],
+      "+146h": [
+       3005,
+       2411,
+       3542
+      ],
+      "+147h": [
+       30,
+       43,
+       51
+      ],
+      "+148h": [
+       37,
+       23,
+       37
+      ],
+      "+149h": [
+       2608,
+       2438,
+       2917
+      ],
+      "+150h": [
+       42,
+       38,
+       31
+      ]
+     },
+     "gridRequestsPerStep": {
+      "+141h": [
+       0,
+       0,
+       0
+      ],
+      "+142h": [
+       0,
+       0,
+       0
+      ],
+      "+143h": [
+       1,
+       1,
+       1
+      ],
+      "+144h": [
+       0,
+       0,
+       0
+      ],
+      "+145h": [
+       0,
+       0,
+       0
+      ],
+      "+146h": [
+       1,
+       1,
+       1
+      ],
+      "+147h": [
+       0,
+       0,
+       0
+      ],
+      "+148h": [
+       0,
+       0,
+       0
+      ],
+      "+149h": [
+       1,
+       1,
+       1
+      ],
+      "+150h": [
+       0,
+       0,
+       0
+      ]
+     },
+     "dietCounts": [
+      {
+       "series_painted_while_pending": 1,
+       "grid_instant_alias": 7
+      },
+      {
+       "series_painted_while_pending": 1,
+       "grid_instant_alias": 7
+      },
+      {
+       "series_painted_while_pending": 1,
+       "grid_instant_alias": 7
+      }
+     ]
+    },
+    "B": {
+     "runs": 3,
+     "requestsStartedPerFlow": {
+      "/capabilities": 1,
+      "/grid_series": 7,
+      "/products": 1,
+      "/grid": 5.3
+     },
+     "totalRequestsPerFlow": 14.3,
+     "medianMarineGridMs": 2892,
+     "sumOfPerStepMedianExactMs": 8761,
+     "perRunSumExactMs": [
+      8854,
+      9350,
+      8372
+     ],
+     "stepsNeverExact": 0,
+     "stepsNeverCorrect": 0,
+     "exactMsPerStep": {
+      "+141h": [
+       42,
+       36,
+       48
+      ],
+      "+142h": [
+       35,
+       35,
+       27
+      ],
+      "+143h": [
+       3164,
+       2342,
+       1950
+      ],
+      "+144h": [
+       33,
+       30,
+       27
+      ],
+      "+145h": [
+       42,
+       31,
+       31
+      ],
+      "+146h": [
+       2513,
+       3606,
+       3080
+      ],
+      "+147h": [
+       40,
+       31,
+       39
+      ],
+      "+148h": [
+       34,
+       37,
+       44
+      ],
+      "+149h": [
+       2923,
+       3164,
+       3087
+      ],
+      "+150h": [
+       28,
+       38,
+       39
+      ]
+     },
+     "gridRequestsPerStep": {
+      "+141h": [
+       0,
+       0,
+       0
+      ],
+      "+142h": [
+       0,
+       0,
+       0
+      ],
+      "+143h": [
+       1,
+       1,
+       1
+      ],
+      "+144h": [
+       0,
+       0,
+       0
+      ],
+      "+145h": [
+       0,
+       0,
+       0
+      ],
+      "+146h": [
+       1,
+       1,
+       1
+      ],
+      "+147h": [
+       0,
+       0,
+       0
+      ],
+      "+148h": [
+       0,
+       0,
+       0
+      ],
+      "+149h": [
+       1,
+       1,
+       1
+      ],
+      "+150h": [
+       0,
+       0,
+       0
+      ]
+     },
+     "dietCounts": [
+      {
+       "series_painted_while_pending": 1,
+       "step_page_requested": 28,
+       "grid_instant_alias": 7
+      },
+      {
+       "series_painted_while_pending": 1,
+       "step_page_requested": 28,
+       "grid_instant_alias": 7
+      },
+      {
+       "series_painted_while_pending": 1,
+       "step_page_requested": 28,
+       "grid_instant_alias": 7
+      }
+     ]
+    }
+   },
+   "euro_steps": {
+    "A": {
+     "runs": 3,
+     "requestsStartedPerFlow": {
+      "/capabilities": 1,
+      "/grid_series": 4,
+      "/products": 1,
+      "/grid": 6
+     },
+     "totalRequestsPerFlow": 12,
+     "medianMarineGridMs": 2404,
+     "sumOfPerStepMedianExactMs": 10939,
+     "perRunSumExactMs": [
+      16026,
+      11801,
+      10546
+     ],
+     "stepsNeverExact": 0,
+     "stepsNeverCorrect": 0,
+     "exactMsPerStep": {
+      "+45h": [
+       4475,
+       35,
+       35
+      ],
+      "+46h": [
+       49,
+       26,
+       33
+      ],
+      "+47h": [
+       2926,
+       3427,
+       2877
+      ],
+      "+48h": [
+       45,
+       37,
+       35
+      ],
+      "+49h": [
+       41,
+       33,
+       42
+      ],
+      "+50h": [
+       3725,
+       4104,
+       3665
+      ],
+      "+51h": [
+       35,
+       37,
+       34
+      ],
+      "+52h": [
+       62,
+       40,
+       45
+      ],
+      "+53h": [
+       4626,
+       4020,
+       3733
+      ],
+      "+54h": [
+       42,
+       42,
+       47
+      ]
+     },
+     "gridRequestsPerStep": {
+      "+45h": [
+       1,
+       0,
+       0
+      ],
+      "+46h": [
+       0,
+       0,
+       0
+      ],
+      "+47h": [
+       1,
+       1,
+       1
+      ],
+      "+48h": [
+       0,
+       0,
+       0
+      ],
+      "+49h": [
+       0,
+       0,
+       0
+      ],
+      "+50h": [
+       1,
+       1,
+       1
+      ],
+      "+51h": [
+       0,
+       0,
+       0
+      ],
+      "+52h": [
+       0,
+       0,
+       0
+      ],
+      "+53h": [
+       1,
+       1,
+       1
+      ],
+      "+54h": [
+       0,
+       0,
+       0
+      ]
+     },
+     "dietCounts": [
+      {
+       "series_painted_while_pending": 3,
+       "grid_instant_alias": 7
+      },
+      {
+       "series_painted_while_pending": 1,
+       "grid_instant_alias": 7
+      },
+      {
+       "series_painted_while_pending": 2,
+       "grid_instant_alias": 7
+      }
+     ]
+    },
+    "B": {
+     "runs": 3,
+     "requestsStartedPerFlow": {
+      "/capabilities": 1,
+      "/grid_series": 4.3,
+      "/products": 1,
+      "/grid": 6
+     },
+     "totalRequestsPerFlow": 12.3,
+     "medianMarineGridMs": 2557,
+     "sumOfPerStepMedianExactMs": 12295,
+     "perRunSumExactMs": [
+      12069,
+      11208,
+      14833
+     ],
+     "stepsNeverExact": 0,
+     "stepsNeverCorrect": 0,
+     "exactMsPerStep": {
+      "+45h": [
+       51,
+       40,
+       47
+      ],
+      "+46h": [
+       66,
+       27,
+       48
+      ],
+      "+47h": [
+       4185,
+       3641,
+       4897
+      ],
+      "+48h": [
+       41,
+       36,
+       50
+      ],
+      "+49h": [
+       37,
+       40,
+       47
+      ],
+      "+50h": [
+       4155,
+       3645,
+       5764
+      ],
+      "+51h": [
+       36,
+       36,
+       43
+      ],
+      "+52h": [
+       36,
+       28,
+       49
+      ],
+      "+53h": [
+       3429,
+       3674,
+       3855
+      ],
+      "+54h": [
+       33,
+       41,
+       33
+      ]
+     },
+     "gridRequestsPerStep": {
+      "+45h": [
+       0,
+       0,
+       0
+      ],
+      "+46h": [
+       0,
+       0,
+       0
+      ],
+      "+47h": [
+       1,
+       1,
+       1
+      ],
+      "+48h": [
+       0,
+       0,
+       0
+      ],
+      "+49h": [
+       0,
+       0,
+       0
+      ],
+      "+50h": [
+       1,
+       1,
+       1
+      ],
+      "+51h": [
+       0,
+       0,
+       0
+      ],
+      "+52h": [
+       0,
+       0,
+       0
+      ],
+      "+53h": [
+       1,
+       1,
+       1
+      ],
+      "+54h": [
+       0,
+       0,
+       0
+      ]
+     },
+     "dietCounts": [
+      {
+       "series_painted_while_pending": 3,
+       "step_page_requested": 22,
+       "grid_instant_alias": 7
+      },
+      {
+       "series_painted_while_pending": 3,
+       "step_page_requested": 22,
+       "grid_instant_alias": 7
+      },
+      {
+       "series_painted_while_pending": 2,
+       "step_page_requested": 23,
+       "grid_instant_alias": 7
+      }
+     ]
+    }
+   }
+  }
+ },
+ "broadFlows_A_vs_B": {
+  "icon_waves_scrub": {
+   "A": {
+    "runs": 3,
+    "requestsStartedPerFlow": {
+     "/capabilities": 1,
+     "/grid_series": 5,
+     "/products": 1,
+     "/grid": 9.3
+    },
+    "totalRequestsPerFlow": 16.3,
+    "medianMarineGridMs": 4706,
+    "sumOfPerStepMedianExactMs": 33782,
+    "perRunSumExactMs": [
+     31282,
+     27927,
+     33612
+    ],
+    "stepsNeverExact": 3,
+    "stepsNeverCorrect": 3,
+    "exactMsPerStep": {
+     "+3h": [
+      4221,
+      null,
+      4593
+     ],
+     "+6h": [
+      5203,
+      7322,
+      4467
+     ],
+     "+18h": [
+      2433,
+      null,
+      5563
+     ],
+     "+26h": [
+      6122,
+      5388,
+      5803
+     ],
+     "+42h": [
+      3426,
+      6783,
+      4472
+     ],
+     "+82h": [
+      6079,
+      8373,
+      4875
+     ],
+     "+115h": [
+      3742,
+      null,
+      3786
+     ],
+     "Home": [
+      56,
+      61,
+      53
+     ]
+    },
+    "gridRequestsPerStep": {
+     "+3h": [
+      1,
+      2,
+      2
+     ],
+     "+6h": [
+      1,
+      2,
+      1
+     ],
+     "+18h": [
+      1,
+      0,
+      1
+     ],
+     "+26h": [
+      1,
+      2,
+      1
+     ],
+     "+42h": [
+      1,
+      1,
+      1
+     ],
+     "+82h": [
+      1,
+      1,
+      1
+     ],
+     "+115h": [
+      1,
+      1,
+      1
+     ],
+     "Home": [
+      0,
+      0,
+      0
+     ]
+    },
+    "dietCounts": [
+     null,
+     null,
+     null
+    ]
+   },
+   "B": {
+    "runs": 3,
+    "requestsStartedPerFlow": {
+     "/capabilities": 1,
+     "/grid_series": 5.3,
+     "/products": 1,
+     "/grid": 9.3
+    },
+    "totalRequestsPerFlow": 16.7,
+    "medianMarineGridMs": 5472,
+    "sumOfPerStepMedianExactMs": 37882,
+    "perRunSumExactMs": [
+     34060,
+     40149,
+     32096
+    ],
+    "stepsNeverExact": 2,
+    "stepsNeverCorrect": 2,
+    "exactMsPerStep": {
+     "+3h": [
+      null,
+      4728,
+      4085
+     ],
+     "+6h": [
+      null,
+      3905,
+      4574
+     ],
+     "+18h": [
+      5413,
+      6562,
+      5756
+     ],
+     "+26h": [
+      7329,
+      6430,
+      5881
+     ],
+     "+42h": [
+      7144,
+      7544,
+      5239
+     ],
+     "+82h": [
+      6198,
+      7359,
+      2854
+     ],
+     "+115h": [
+      7910,
+      3571,
+      3651
+     ],
+     "Home": [
+      66,
+      50,
+      56
+     ]
+    },
+    "gridRequestsPerStep": {
+     "+3h": [
+      3,
+      2,
+      2
+     ],
+     "+6h": [
+      0,
+      1,
+      1
+     ],
+     "+18h": [
+      2,
+      1,
+      1
+     ],
+     "+26h": [
+      1,
+      1,
+      1
+     ],
+     "+42h": [
+      1,
+      1,
+      1
+     ],
+     "+82h": [
+      1,
+      1,
+      1
+     ],
+     "+115h": [
+      1,
+      1,
+      1
+     ],
+     "Home": [
+      0,
+      0,
+      0
+     ]
+    },
+    "dietCounts": [
+     {
+      "step_page_requested": 65,
+      "series_paint_miss": 5,
+      "grid_instant_alias": 4
+     },
+     {
+      "series_painted_while_pending": 2,
+      "grid_instant_alias": 8,
+      "step_page_requested": 22
+     },
+     {
+      "series_painted_while_pending": 2,
+      "grid_instant_alias": 8,
+      "step_page_requested": 24,
+      "series_paint_miss": 2
+     }
+    ]
+   }
+  },
+  "layer_switch_future": {
+   "A": {
+    "runs": 3,
+    "requestsStartedPerFlow": {
+     "/capabilities": 1,
+     "/grid_series": 12,
+     "/products": 1,
+     "/grid": 9.7
+    },
+    "totalRequestsPerFlow": 23.7,
+    "medianMarineGridMs": 4554,
+    "sumOfPerStepMedianExactMs": 25639,
+    "perRunSumExactMs": [
+     22125,
+     20876,
+     27536
+    ],
+    "stepsNeverExact": 2,
+    "stepsNeverCorrect": 2,
+    "exactMsPerStep": {
+     "Swell": [
+      5153,
+      null,
+      4870
+     ],
+     "Swell 2": [
+      4712,
+      5693,
+      7762
+     ],
+     "+3h on Swell 2": [
+      4637,
+      null,
+      4577
+     ],
+     "Wind Waves": [
+      3852,
+      7554,
+      5414
+     ],
+     "Waves": [
+      3771,
+      7629,
+      4913
+     ]
+    },
+    "gridRequestsPerStep": {
+     "Swell": [
+      2,
+      1,
+      1
+     ],
+     "Swell 2": [
+      2,
+      3,
+      2
+     ],
+     "+3h on Swell 2": [
+      2,
+      2,
+      2
+     ],
+     "Wind Waves": [
+      1,
+      1,
+      1
+     ],
+     "Waves": [
+      1,
+      1,
+      1
+     ]
+    },
+    "dietCounts": [
+     null,
+     null,
+     null
+    ]
+   },
+   "B": {
+    "runs": 3,
+    "requestsStartedPerFlow": {
+     "/capabilities": 1,
+     "/grid_series": 12,
+     "/products": 1,
+     "/grid": 10
+    },
+    "totalRequestsPerFlow": 24,
+    "medianMarineGridMs": 4658,
+    "sumOfPerStepMedianExactMs": 25602,
+    "perRunSumExactMs": [
+     26979,
+     22936,
+     23202
+    ],
+    "stepsNeverExact": 1,
+    "stepsNeverCorrect": 1,
+    "exactMsPerStep": {
+     "Swell": [
+      null,
+      4562,
+      6547
+     ],
+     "Swell 2": [
+      7116,
+      5150,
+      3039
+     ],
+     "+3h on Swell 2": [
+      6195,
+      5610,
+      4622
+     ],
+     "Wind Waves": [
+      6835,
+      4082,
+      3789
+     ],
+     "Waves": [
+      6833,
+      3532,
+      5205
+     ]
+    },
+    "gridRequestsPerStep": {
+     "Swell": [
+      1,
+      1,
+      1
+     ],
+     "Swell 2": [
+      3,
+      2,
+      2
+     ],
+     "+3h on Swell 2": [
+      2,
+      2,
+      2
+     ],
+     "Wind Waves": [
+      1,
+      1,
+      1
+     ],
+     "Waves": [
+      1,
+      1,
+      1
+     ]
+    },
+    "dietCounts": [
+     {
+      "step_page_requested": 6,
+      "series_paint_miss": 3
+     },
+     {
+      "series_painted_while_pending": 1,
+      "step_page_requested": 6,
+      "series_paint_miss": 3
+     },
+     {
+      "series_painted_while_pending": 1,
+      "step_page_requested": 6,
+      "series_paint_miss": 3
+     }
+    ]
+   }
+  },
+  "model_switch_future": {
+   "A": {
+    "runs": 3,
+    "requestsStartedPerFlow": {
+     "/capabilities": 1,
+     "/grid_series": 7.3,
+     "/products": 1,
+     "/grid": 4
+    },
+    "totalRequestsPerFlow": 13.3,
+    "medianMarineGridMs": 3667,
+    "sumOfPerStepMedianExactMs": 8665,
+    "perRunSumExactMs": [
+     6994,
+     12754,
+     8667
+    ],
+    "stepsNeverExact": 0,
+    "stepsNeverCorrect": 0,
+    "exactMsPerStep": {
+     "ICON": [
+      3048,
+      6513,
+      3654
+     ],
+     "EURO": [
+      3552,
+      5842,
+      4612
+     ],
+     "GFS": [
+      394,
+      399,
+      401
+     ]
+    },
+    "gridRequestsPerStep": {
+     "ICON": [
+      1,
+      1,
+      1
+     ],
+     "EURO": [
+      1,
+      1,
+      1
+     ],
+     "GFS": [
+      0,
+      0,
+      0
+     ]
+    },
+    "dietCounts": [
+     null,
+     null,
+     null
+    ]
+   },
+   "B": {
+    "runs": 3,
+    "requestsStartedPerFlow": {
+     "/capabilities": 1,
+     "/grid_series": 7,
+     "/products": 1,
+     "/grid": 4
+    },
+    "totalRequestsPerFlow": 13,
+    "medianMarineGridMs": 4549,
+    "sumOfPerStepMedianExactMs": 10983,
+    "perRunSumExactMs": [
+     12081,
+     11582,
+     6857
+    ],
+    "stepsNeverExact": 0,
+    "stepsNeverCorrect": 0,
+    "exactMsPerStep": {
+     "ICON": [
+      5135,
+      4049,
+      3090
+     ],
+     "EURO": [
+      6536,
+      7135,
+      3378
+     ],
+     "GFS": [
+      410,
+      398,
+      389
+     ]
+    },
+    "gridRequestsPerStep": {
+     "ICON": [
+      2,
+      1,
+      1
+     ],
+     "EURO": [
+      1,
+      1,
+      1
+     ],
+     "GFS": [
+      0,
+      0,
+      0
+     ]
+    },
+    "dietCounts": [
+     {
+      "step_page_requested": 2,
+      "series_paint_miss": 1
+     },
+     {
+      "series_painted_while_pending": 1,
+      "step_page_requested": 2
+     },
+     {
+      "series_painted_while_pending": 1,
+      "step_page_requested": 2
+     }
+    ]
+   }
+  },
+  "erratic": {
+   "A": {
+    "runs": 3,
+    "requestsStartedPerFlow": {
+     "/capabilities": 1,
+     "/grid_series": 30.7,
+     "/products": 1,
+     "/grid": 18.3
+    },
+    "totalRequestsPerFlow": 51,
+    "medianMarineGridMs": 4214,
+    "sumOfPerStepMedianExactMs": 54765,
+    "perRunSumExactMs": [
+     34658,
+     69806,
+     50227
+    ],
+    "stepsNeverExact": 10,
+    "stepsNeverCorrect": 4,
+    "exactMsPerStep": {
+     "+5h": [
+      3450,
+      7341,
+      4407
+     ],
+     "+45h": [
+      2739,
+      5372,
+      3987
+     ],
+     "+131h": [
+      5910,
+      3850,
+      3491
+     ],
+     "EURO": [
+      3153,
+      8496,
+      3331
+     ],
+     "Wind Waves": [
+      null,
+      null,
+      null
+     ],
+     "+153h": [
+      null,
+      null,
+      null
+     ],
+     "ICON": [
+      2553,
+      5131,
+      3882
+     ],
+     "Swell 2": [
+      4824,
+      5460,
+      4475
+     ],
+     "+165h": [
+      3660,
+      7709,
+      6077
+     ],
+     "zoom 8": [
+      20,
+      8,
+      4
+     ],
+     "pan": [
+      9,
+      8,
+      12
+     ],
+     "zoom out 3": [
+      3,
+      14,
+      19
+     ],
+     "Waves": [
+      null,
+      5858,
+      5324
+     ],
+     "GFS": [
+      null,
+      5782,
+      4866
+     ],
+     "+12h": [
+      null,
+      8260,
+      5620
+     ],
+     "Swell": [
+      8337,
+      6501,
+      4709
+     ],
+     "Waves again": [
+      null,
+      16,
+      23
+     ]
+    },
+    "gridRequestsPerStep": {
+     "+5h": [
+      1,
+      2,
+      1
+     ],
+     "+45h": [
+      1,
+      1,
+      1
+     ],
+     "+131h": [
+      1,
+      1,
+      1
+     ],
+     "EURO": [
+      1,
+      1,
+      1
+     ],
+     "Wind Waves": [
+      1,
+      1,
+      1
+     ],
+     "+153h": [
+      1,
+      1,
+      1
+     ],
+     "ICON": [
+      1,
+      1,
+      1
+     ],
+     "Swell 2": [
+      2,
+      2,
+      2
+     ],
+     "+165h": [
+      2,
+      2,
+      2
+     ],
+     "zoom 8": [
+      0,
+      0,
+      0
+     ],
+     "pan": [
+      0,
+      0,
+      1
+     ],
+     "zoom out 3": [
+      2,
+      2,
+      0
+     ],
+     "Waves": [
+      0,
+      1,
+      1
+     ],
+     "GFS": [
+      1,
+      1,
+      1
+     ],
+     "+12h": [
+      1,
+      1,
+      1
+     ],
+     "Swell": [
+      2,
+      1,
+      1
+     ],
+     "Waves again": [
+      0,
+      0,
+      0
+     ]
+    },
+    "dietCounts": [
+     null,
+     null,
+     null
+    ]
+   },
+   "B": {
+    "runs": 3,
+    "requestsStartedPerFlow": {
+     "/capabilities": 1,
+     "/grid_series": 33,
+     "/products": 1,
+     "/grid": 18
+    },
+    "totalRequestsPerFlow": 53,
+    "medianMarineGridMs": 4379,
+    "sumOfPerStepMedianExactMs": 57719,
+    "perRunSumExactMs": [
+     69913,
+     48196,
+     36348
+    ],
+    "stepsNeverExact": 10,
+    "stepsNeverCorrect": 4,
+    "exactMsPerStep": {
+     "+5h": [
+      8741,
+      3276,
+      3074
+     ],
+     "+45h": [
+      6556,
+      3351,
+      4239
+     ],
+     "+131h": [
+      6864,
+      null,
+      5904
+     ],
+     "EURO": [
+      5858,
+      4110,
+      2675
+     ],
+     "Wind Waves": [
+      null,
+      null,
+      null
+     ],
+     "+153h": [
+      null,
+      null,
+      null
+     ],
+     "ICON": [
+      4255,
+      3589,
+      3076
+     ],
+     "Swell 2": [
+      4296,
+      4725,
+      5427
+     ],
+     "+165h": [
+      6299,
+      5719,
+      4669
+     ],
+     "zoom 8": [
+      15,
+      11,
+      9
+     ],
+     "pan": [
+      15,
+      13,
+      14
+     ],
+     "zoom out 3": [
+      4,
+      13,
+      1
+     ],
+     "Waves": [
+      5902,
+      5174,
+      null
+     ],
+     "GFS": [
+      7118,
+      6421,
+      null
+     ],
+     "+12h": [
+      6186,
+      5295,
+      7231
+     ],
+     "Swell": [
+      7781,
+      6480,
+      null
+     ],
+     "Waves again": [
+      23,
+      19,
+      29
+     ]
+    },
+    "gridRequestsPerStep": {
+     "+5h": [
+      2,
+      2,
+      1
+     ],
+     "+45h": [
+      1,
+      1,
+      1
+     ],
+     "+131h": [
+      1,
+      0,
+      1
+     ],
+     "EURO": [
+      1,
+      2,
+      1
+     ],
+     "Wind Waves": [
+      1,
+      1,
+      1
+     ],
+     "+153h": [
+      1,
+      1,
+      1
+     ],
+     "ICON": [
+      1,
+      1,
+      1
+     ],
+     "Swell 2": [
+      2,
+      2,
+      2
+     ],
+     "+165h": [
+      2,
+      2,
+      2
+     ],
+     "zoom 8": [
+      0,
+      0,
+      0
+     ],
+     "pan": [
+      0,
+      2,
+      2
+     ],
+     "zoom out 3": [
+      0,
+      0,
+      0
+     ],
+     "Waves": [
+      1,
+      1,
+      1
+     ],
+     "GFS": [
+      1,
+      1,
+      1
+     ],
+     "+12h": [
+      1,
+      1,
+      1
+     ],
+     "Swell": [
+      1,
+      1,
+      1
+     ],
+     "Waves again": [
+      0,
+      0,
+      0
+     ]
+    },
+    "dietCounts": [
+     {
+      "step_page_requested": 77,
+      "series_paint_miss": 3
+     },
+     {
+      "series_painted_while_pending": 1,
+      "step_page_requested": 74,
+      "series_paint_miss": 2
+     },
+     {
+      "series_painted_while_pending": 3,
+      "grid_instant_alias": 2,
+      "step_page_requested": 46,
+      "series_paint_miss": 2
+     }
+    ]
+   }
+  },
+  "pan_zoom_future": {
+   "A": {
+    "runs": 3,
+    "requestsStartedPerFlow": {
+     "/capabilities": 1,
+     "/grid_series": 8,
+     "/products": 1,
+     "/grid": 5
+    },
+    "totalRequestsPerFlow": 15,
+    "medianMarineGridMs": 5373,
+    "sumOfPerStepMedianExactMs": 6070,
+    "perRunSumExactMs": [
+     1240,
+     5588,
+     5463
+    ],
+    "stepsNeverExact": 1,
+    "stepsNeverCorrect": 1,
+    "exactMsPerStep": {
+     "zoom 6": [
+      1217,
+      6,
+      1097
+     ],
+     "zoom 8": [
+      13,
+      16,
+      17
+     ],
+     "pan east": [
+      2,
+      2,
+      5
+     ],
+     "zoom out 4": [
+      8,
+      6,
+      5
+     ],
+     "+3h after zoom": [
+      null,
+      5558,
+      4339
+     ]
+    },
+    "gridRequestsPerStep": {
+     "zoom 6": [
+      1,
+      0,
+      1
+     ],
+     "zoom 8": [
+      0,
+      1,
+      0
+     ],
+     "pan east": [
+      0,
+      0,
+      1
+     ],
+     "zoom out 4": [
+      1,
+      0,
+      0
+     ],
+     "+3h after zoom": [
+      1,
+      1,
+      1
+     ]
+    },
+    "dietCounts": [
+     null,
+     null,
+     null
+    ]
+   },
+   "B": {
+    "runs": 3,
+    "requestsStartedPerFlow": {
+     "/capabilities": 1,
+     "/grid_series": 8.3,
+     "/products": 1,
+     "/grid": 5.3
+    },
+    "totalRequestsPerFlow": 15.7,
+    "medianMarineGridMs": 6899,
+    "sumOfPerStepMedianExactMs": 10134,
+    "perRunSumExactMs": [
+     14286,
+     7949,
+     10409
+    ],
+    "stepsNeverExact": 0,
+    "stepsNeverCorrect": 1,
+    "exactMsPerStep": {
+     "zoom 6": [
+      3443,
+      5,
+      2193
+     ],
+     "zoom 8": [
+      5336,
+      12,
+      6
+     ],
+     "pan east": [
+      3,
+      8,
+      11
+     ],
+     "zoom out 4": [
+      4,
+      10,
+      7
+     ],
+     "+3h after zoom": [
+      5500,
+      7914,
+      8192
+     ]
+    },
+    "gridRequestsPerStep": {
+     "zoom 6": [
+      2,
+      0,
+      1
+     ],
+     "zoom 8": [
+      1,
+      0,
+      0
+     ],
+     "pan east": [
+      0,
+      1,
+      0
+     ],
+     "zoom out 4": [
+      0,
+      0,
+      0
+     ],
+     "+3h after zoom": [
+      2,
+      1,
+      2
+     ]
+    },
+    "dietCounts": [
+     {
+      "series_painted_while_pending": 2,
+      "step_page_requested": 2,
+      "series_paint_miss": 6,
+      "grid_instant_alias": 2
+     },
+     {
+      "series_painted_while_pending": 2,
+      "step_page_requested": 2,
+      "grid_instant_alias": 2
+     },
+     {
+      "series_painted_while_pending": 2,
+      "step_page_requested": 3,
+      "series_paint_miss": 5,
+      "grid_instant_alias": 1
+     }
+    ]
+   }
+  }
+ },
+ "finalBundle_onePerArm": {
+  "A": {
+   "note": "after merging dev 5fe62b5f2, STEP_PAGE off; one run per arm",
+   "flows": {
+    "hour_steps": {
+     "/capabilities": 1,
+     "/grid_series": 4,
+     "/products": 1,
+     "/grid": 8
+    },
+    "euro_steps": {
+     "/capabilities": 1,
+     "/grid_series": 4,
+     "/products": 1,
+     "/grid": 13
+    },
+    "regional_page_steps": {
+     "/capabilities": 1,
+     "/grid_series": 10,
+     "/products": 1,
+     "/grid": 15
+    },
+    "erratic": {
+     "/capabilities": 1,
+     "/grid_series": 32,
+     "/products": 1,
+     "/grid": 18
+    }
+   },
+   "openWithRatingOverlay": {
+    "/capabilities": 1,
+    "/products": 3,
+    "/spot-ratings": 4,
+    "/grid_series": 2,
+    "/grid": 2
+   }
+  },
+  "B": {
+   "note": "after merging dev 5fe62b5f2, STEP_PAGE off; one run per arm",
+   "flows": {
+    "hour_steps": {
+     "/capabilities": 1,
+     "/grid_series": 3,
+     "/products": 1,
+     "/grid": 4
+    },
+    "euro_steps": {
+     "/capabilities": 1,
+     "/grid_series": 4,
+     "/products": 1,
+     "/grid": 9
+    },
+    "regional_page_steps": {
+     "/capabilities": 1,
+     "/grid_series": 6,
+     "/products": 1,
+     "/grid": 6
+    },
+    "erratic": {
+     "/capabilities": 1,
+     "/grid_series": 33,
+     "/products": 1,
+     "/grid": 18
+    }
+   },
+   "openWithRatingOverlay": {
+    "/capabilities": 1,
+    "/products": 1,
+    "/spot-ratings": 4,
+    "/grid_series": 3,
+    "/grid": 1
+   }
+  }
+ },
+ "caveats": [
+  "synthetic data, injected latency, a shared machine: a lead for the real app until read on it (one owner map load after deploy)",
+  "SWR_RETRY_CAP is pinned by a unit test only: the synthetic backend never answers stale",
+  "phone layout not replayed: the lab cannot drive the mobile controls (harness limit); no UI, CSS, theme or layout code changed"
+ ]
+}

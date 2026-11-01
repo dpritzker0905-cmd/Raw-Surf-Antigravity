@@ -183,6 +183,7 @@ class WeatherNormalizer:
         except ValueError:
             swell_min_frac = 0.35
         swell_stamped_count = 0
+        land_centre_nodes = 0   # vectors valid by EURO land-centre block sampling (ecmwf_opendata_fetcher `__land_centre_block`)
         # §5i AVAILABILITY-COHERENCE (2026-07-17 Driver-B stitching audit): upstream partition
         # AVAILABILITY can end mid-product at an internal upstream-model edge; per-cell stamping then
         # flips the anim channel exactly at that edge (the photographed offshore seam-line class —
@@ -430,6 +431,9 @@ class WeatherNormalizer:
                     dir_confidence=round(dir_confidence, 4) if dir_confidence is not None else None,
                     speed_spread=round(speed_spread, 4) if speed_spread is not None else None
                 )
+                lcb = pt.get("__land_centre_block")
+                if lcb and time_idx in lcb:
+                    land_centre_nodes += 1
             
             grid_data[(lat, lng)] = vector
         
@@ -524,6 +528,7 @@ class WeatherNormalizer:
                 "missingCellCount": missing_cell_count,
                 "nonzeroCount": nonzero_count,
                 "gridMode": "rectangular",
+                **({"landCentreBlockNodes": land_centre_nodes} if land_centre_nodes else {}),
                 **({
                     "animChannel": "dominant_swell",
                     "swellStampedCount": swell_stamped_count,
@@ -580,11 +585,13 @@ class WeatherNormalizer:
             source_dataset = "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i"
             up_provider = "copernicus"
             up_model = "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i"
-            # Map standard variables to CMEMS variable names
+            # Map standard variables to CMEMS variable names (the total period's variable follows
+            # COPERNICUS_PEAK_PERIOD, so the product's provenance names what was actually fetched).
+            from services.cmems_period_map import peak_period_enabled as _cmems_peak
             om_to_cop_map = {
                 "wave_height": "VHM0",
                 "wave_direction": "VMDR",
-                "wave_period": "VTM10",
+                "wave_period": "VTPK" if _cmems_peak() else "VTM10",
                 "swell_wave_height": "VHM0_SW1",
                 "swell_wave_direction": "VMDR_SW1",
                 "swell_wave_period": "VTM01_SW1",

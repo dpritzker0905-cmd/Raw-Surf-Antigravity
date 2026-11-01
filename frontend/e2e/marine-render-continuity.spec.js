@@ -51,7 +51,8 @@
  * the basemap ocean covered it. That needs the pixel oracle, and this is deliberately NOT sold as
  * a replacement for it. It catches the DISCONTINUITY class, which is what was reported.
  */
-const { test, expect } = require('@playwright/test');
+// test/expect carry the in-runner weather backend route (offlineWeather.js): no weather request reaches the live box.
+const { test, expect } = require('./offlineWeather');
 const { stubSeededUiBadges } = require('./seededUiBadges');
 // Extracted so it can be unit-tested against known answers — see continuityOracle.test.js.
 const { longestStall, stallAnatomy, isAppStall } = require('./continuityOracle');

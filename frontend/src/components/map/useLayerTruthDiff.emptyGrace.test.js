@@ -25,8 +25,11 @@ describe('useLayerTruthDiff + marineEmptyGrace (W-32)', () => {
     delete window.__MARINE_FETCH_PENDING__;
     delete window.__MARINE_FETCH_DEBOUNCING__;
     delete window.__RAW_DISABLE_MARINE_EMPTY_GRACE__;
+    // The grace verdict is read off the mount capture, which waits for the next paint by default (2026-10-25; pinned in
+    // useLayerTruthDiff.cadence.test.js): these keep the capture in the effect, as they were written.
+    window.__RAW_DISABLE_TRUTH_DIFF_AFTER_PAINT__ = true;
   });
-  afterEach(() => { jest.useRealTimers(); });
+  afterEach(() => { delete window.__RAW_DISABLE_TRUTH_DIFF_AFTER_PAINT__; jest.useRealTimers(); });
 
   function mountEmptyWaves(map) {
     // Past the hook's own 3 s bootstrap suppression, so only the grace decides.

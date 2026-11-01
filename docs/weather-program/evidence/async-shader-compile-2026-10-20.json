@@ -1,0 +1,647 @@
+{
+ "what": "Async shader compile (KHR_parallel_shader_compile) A/B, same bundle, kill switch __RAW_DISABLE_ASYNC_SHADER_COMPILE__",
+ "when": "2026-10-20",
+ "where": "offline: serve_synthetic.py --thin-bounds 1 --models GFS,ICON,EURO --layers waves,swell_1,swell_2,wind_waves,wind; serve_spa.js; headless Chrome (ab_lib, --use-angle=d3d11, real GPU)",
+ "how": "AB_DIAG=1 LAB_TRACE=1 FLOWS=model_switch_future node frontend/scripts/visual-lab/lab.js, then FOCUS=WebGLProgramBatch node frontend/scripts/visual-lab/stall_profile.js trace.json build 50; arms alternated async,kill x3; load = before the first LABSTEP marker",
+ "bundles": {
+  "ab": "this change on dev 6021c2cc1 (before #404/#405/#409)",
+  "confirmation": "this change on dev edced5395 (542a72fdf, before #409)",
+  "prHead": "01cac12b5 on dev 998e9e919 (#409): Jest 338/5032 green, not re-measured"
+ },
+ "caveats": [
+  "other sessions ran harnesses on the same machine (noise; arms alternated)",
+  "engine batch ms counts samples under any WebGLProgramBatch.js frame; in the async arm that includes the vertex-array setup run from the poll",
+  "first heatmap draw is data-bound in this flow: the marine batch was ready at its first poll in every async run"
+ ],
+ "runs": [
+  {
+   "run": "async-1",
+   "arm": "async (default)",
+   "worstLoadStallMs": 498,
+   "worstLoadStallOwners": [
+    "MapLibre (tiles, style, draw) 383ms",
+    "GC 76ms",
+    "other app code 9ms"
+   ],
+   "loadStallsMsTotal": 1744,
+   "loadStalls": 10,
+   "engineBatchMainThreadMs": 3,
+   "engineBatchByFunction": [
+    {
+     "fn": "components/map/WebGLProgramBatch.js:issueBatch",
+     "ms": 2
+    },
+    {
+     "fn": "components/map/WebGLProgramBatch.js:pollEngineBatch",
+     "ms": 0.6
+    }
+   ],
+   "shaderCompileStageInLoadStallsMs": 344,
+   "maplibreProgramCompileMs": 342,
+   "marineBatch": {
+    "t": 3843,
+    "frame": 86,
+    "layerCalls": 30,
+    "mode": "async",
+    "state": "ready",
+    "polls": 1,
+    "timedOut": false,
+    "ms": 1491
+   },
+   "windBatch": null,
+   "firstLayerCall": {
+    "t": 1987,
+    "frame": 19,
+    "layerCalls": 1
+   },
+   "firstHeatmapDraw": {
+    "t": 7027,
+    "frame": 247,
+    "layerCalls": 191
+   },
+   "rafFramesFirstLayerCallToFirstDraw": 228
+  },
+  {
+   "run": "kill-1",
+   "arm": "kill switch (#403 deferred)",
+   "worstLoadStallMs": 665,
+   "worstLoadStallOwners": [
+    "shader compile (createProgram / MapLibre program) 594ms",
+    "marine engine draw 19ms",
+    "wind engine 14ms"
+   ],
+   "loadStallsMsTotal": 2538,
+   "loadStalls": 13,
+   "engineBatchMainThreadMs": 594,
+   "engineBatchByFunction": [
+    {
+     "fn": "components/map/WebGLProgramBatch.js:settleLinks",
+     "ms": 590.9
+    },
+    {
+     "fn": "components/map/WebGLProgramBatch.js:issueBatch",
+     "ms": 1.8
+    },
+    {
+     "fn": "components/map/WebGLProgramBatch.js:createProgramBatch",
+     "ms": 0.7
+    },
+    {
+     "fn": "components/map/WebGLProgramBatch.js:?",
+     "ms": 0.4
+    }
+   ],
+   "shaderCompileStageInLoadStallsMs": 947,
+   "maplibreProgramCompileMs": 353,
+   "marineBatch": {
+    "t": 2624,
+    "frame": 14,
+    "layerCalls": 0,
+    "mode": "deferred",
+    "state": "ready",
+    "polls": 0,
+    "timedOut": false,
+    "ms": 477
+   },
+   "windBatch": {
+    "t": 2624,
+    "frame": 14,
+    "layerCalls": 0,
+    "mode": "deferred",
+    "state": "ready",
+    "polls": 0,
+    "timedOut": false,
+    "ms": 137
+   },
+   "firstLayerCall": {
+    "t": 2682,
+    "frame": 15,
+    "layerCalls": 1
+   },
+   "firstHeatmapDraw": {
+    "t": 7063,
+    "frame": 207,
+    "layerCalls": 188
+   },
+   "rafFramesFirstLayerCallToFirstDraw": 192
+  },
+  {
+   "run": "async-2",
+   "arm": "async (default)",
+   "worstLoadStallMs": 356,
+   "worstLoadStallOwners": [
+    "MapLibre (tiles, style, draw) 273ms",
+    "GC 51ms",
+    "browser/native (program) 6ms"
+   ],
+   "loadStallsMsTotal": 1530,
+   "loadStalls": 11,
+   "engineBatchMainThreadMs": 3,
+   "engineBatchByFunction": [
+    {
+     "fn": "components/map/WebGLProgramBatch.js:issueBatch",
+     "ms": 2.1
+    },
+    {
+     "fn": "components/map/WebGLProgramBatch.js:pollEngineBatch",
+     "ms": 0.6
+    }
+   ],
+   "shaderCompileStageInLoadStallsMs": 326,
+   "maplibreProgramCompileMs": 323,
+   "marineBatch": {
+    "t": 3526,
+    "frame": 92,
+    "layerCalls": 30,
+    "mode": "async",
+    "state": "ready",
+    "polls": 1,
+    "timedOut": false,
+    "ms": 1616
+   },
+   "windBatch": null,
+   "firstLayerCall": {
+    "t": 1780,
+    "frame": 15,
+    "layerCalls": 1
+   },
+   "firstHeatmapDraw": {
+    "t": 6574,
+    "frame": 255,
+    "layerCalls": 193
+   },
+   "rafFramesFirstLayerCallToFirstDraw": 240
+  },
+  {
+   "run": "kill-2",
+   "arm": "kill switch (#403 deferred)",
+   "worstLoadStallMs": 457,
+   "worstLoadStallOwners": [
+    "shader compile (createProgram / MapLibre program) 415ms",
+    "wind engine 15ms",
+    "marine engine draw 12ms"
+   ],
+   "loadStallsMsTotal": 1960,
+   "loadStalls": 11,
+   "engineBatchMainThreadMs": 415,
+   "engineBatchByFunction": [
+    {
+     "fn": "components/map/WebGLProgramBatch.js:settleLinks",
+     "ms": 412.5
+    },
+    {
+     "fn": "components/map/WebGLProgramBatch.js:issueBatch",
+     "ms": 1.8
+    },
+    {
+     "fn": "components/map/WebGLProgramBatch.js:now",
+     "ms": 0.6
+    }
+   ],
+   "shaderCompileStageInLoadStallsMs": 767,
+   "maplibreProgramCompileMs": 352,
+   "marineBatch": {
+    "t": 1984,
+    "frame": 16,
+    "layerCalls": 0,
+    "mode": "deferred",
+    "state": "ready",
+    "polls": 0,
+    "timedOut": false,
+    "ms": 308
+   },
+   "windBatch": {
+    "t": 1984,
+    "frame": 16,
+    "layerCalls": 0,
+    "mode": "deferred",
+    "state": "ready",
+    "polls": 0,
+    "timedOut": false,
+    "ms": 107
+   },
+   "firstLayerCall": {
+    "t": 2170,
+    "frame": 17,
+    "layerCalls": 1
+   },
+   "firstHeatmapDraw": {
+    "t": 7047,
+    "frame": 257,
+    "layerCalls": 221
+   },
+   "rafFramesFirstLayerCallToFirstDraw": 240
+  },
+  {
+   "run": "async-3",
+   "arm": "async (default)",
+   "worstLoadStallMs": 388,
+   "worstLoadStallOwners": [
+    "MapLibre (tiles, style, draw) 258ms",
+    "GC 98ms",
+    "browser/native (program) 8ms"
+   ],
+   "loadStallsMsTotal": 1679,
+   "loadStalls": 14,
+   "engineBatchMainThreadMs": 4,
+   "engineBatchByFunction": [
+    {
+     "fn": "components/map/WebGLProgramBatch.js:issueBatch",
+     "ms": 2.4
+    },
+    {
+     "fn": "components/map/WebGLProgramBatch.js:?",
+     "ms": 0.7
+    },
+    {
+     "fn": "components/map/WebGLProgramBatch.js:pollEngineBatch",
+     "ms": 0.5
+    }
+   ],
+   "shaderCompileStageInLoadStallsMs": 370,
+   "maplibreProgramCompileMs": 367,
+   "marineBatch": {
+    "t": 3600,
+    "frame": 92,
+    "layerCalls": 31,
+    "mode": "async",
+    "state": "ready",
+    "polls": 1,
+    "timedOut": false,
+    "ms": 1629
+   },
+   "windBatch": null,
+   "firstLayerCall": {
+    "t": 1827,
+    "frame": 17,
+    "layerCalls": 1
+   },
+   "firstHeatmapDraw": {
+    "t": 6670,
+    "frame": 256,
+    "layerCalls": 195
+   },
+   "rafFramesFirstLayerCallToFirstDraw": 239
+  },
+  {
+   "run": "kill-3",
+   "arm": "kill switch (#403 deferred)",
+   "worstLoadStallMs": 520,
+   "worstLoadStallOwners": [
+    "shader compile (createProgram / MapLibre program) 455ms",
+    "marine engine draw 17ms",
+    "wind engine 14ms"
+   ],
+   "loadStallsMsTotal": 2213,
+   "loadStalls": 11,
+   "engineBatchMainThreadMs": 455,
+   "engineBatchByFunction": [
+    {
+     "fn": "components/map/WebGLProgramBatch.js:settleLinks",
+     "ms": 452.8
+    },
+    {
+     "fn": "components/map/WebGLProgramBatch.js:issueBatch",
+     "ms": 1.2
+    },
+    {
+     "fn": "components/map/WebGLProgramBatch.js:?",
+     "ms": 0.6
+    },
+    {
+     "fn": "components/map/WebGLProgramBatch.js:deferredShaderStatusEnabled",
+     "ms": 0.6
+    }
+   ],
+   "shaderCompileStageInLoadStallsMs": 778,
+   "maplibreProgramCompileMs": 323,
+   "marineBatch": {
+    "t": 2410,
+    "frame": 15,
+    "layerCalls": 0,
+    "mode": "deferred",
+    "state": "ready",
+    "polls": 0,
+    "timedOut": false,
+    "ms": 378
+   },
+   "windBatch": {
+    "t": 2410,
+    "frame": 15,
+    "layerCalls": 0,
+    "mode": "deferred",
+    "state": "ready",
+    "polls": 0,
+    "timedOut": false,
+    "ms": 96
+   },
+   "firstLayerCall": {
+    "t": 2463,
+    "frame": 16,
+    "layerCalls": 1
+   },
+   "firstHeatmapDraw": {
+    "t": 6784,
+    "frame": 206,
+    "layerCalls": 177
+   },
+   "rafFramesFirstLayerCallToFirstDraw": 190
+  }
+ ],
+ "confirmation": [
+  {
+   "run": "async-head",
+   "arm": "async (default)",
+   "worstLoadStallMs": 374,
+   "worstLoadStallOwners": [
+    "MapLibre (tiles, style, draw) 262ms",
+    "GC 80ms",
+    "other app code 8ms"
+   ],
+   "loadStallsMsTotal": 1406,
+   "loadStalls": 10,
+   "engineBatchMainThreadMs": 2,
+   "engineBatchByFunction": [
+    {
+     "fn": "components/map/WebGLProgramBatch.js:issueBatch",
+     "ms": 0.9
+    },
+    {
+     "fn": "components/map/WebGLProgramBatch.js:pollEngineBatch",
+     "ms": 0.8
+    }
+   ],
+   "shaderCompileStageInLoadStallsMs": 349,
+   "maplibreProgramCompileMs": 348,
+   "marineBatch": {
+    "t": 3445,
+    "frame": 91,
+    "layerCalls": 29,
+    "mode": "async",
+    "state": "ready",
+    "polls": 1,
+    "timedOut": false,
+    "ms": 1414
+   },
+   "windBatch": null,
+   "firstLayerCall": {
+    "t": 1728,
+    "frame": 17,
+    "layerCalls": 1
+   },
+   "firstHeatmapDraw": {
+    "t": 6594,
+    "frame": 262,
+    "layerCalls": 200
+   },
+   "rafFramesFirstLayerCallToFirstDraw": 245
+  },
+  {
+   "run": "kill-head",
+   "arm": "kill switch (#403 deferred)",
+   "worstLoadStallMs": 787,
+   "worstLoadStallOwners": [
+    "shader compile (createProgram / MapLibre program) 675ms",
+    "other app code 16ms",
+    "marine engine draw 15ms"
+   ],
+   "loadStallsMsTotal": 2086,
+   "loadStalls": 12,
+   "engineBatchMainThreadMs": 675,
+   "engineBatchByFunction": [
+    {
+     "fn": "components/map/WebGLProgramBatch.js:settleLinks",
+     "ms": 671.8
+    },
+    {
+     "fn": "components/map/WebGLProgramBatch.js:issueBatch",
+     "ms": 3.1
+    }
+   ],
+   "shaderCompileStageInLoadStallsMs": 726,
+   "maplibreProgramCompileMs": 78,
+   "marineBatch": {
+    "t": 1874,
+    "frame": 10,
+    "layerCalls": 0,
+    "mode": "deferred",
+    "state": "ready",
+    "polls": 0,
+    "timedOut": false,
+    "ms": 625
+   },
+   "windBatch": {
+    "t": 1874,
+    "frame": 10,
+    "layerCalls": 0,
+    "mode": "deferred",
+    "state": "ready",
+    "polls": 0,
+    "timedOut": false,
+    "ms": 91
+   },
+   "firstLayerCall": {
+    "t": 1981,
+    "frame": 11,
+    "layerCalls": 1
+   },
+   "firstHeatmapDraw": {
+    "t": 6854,
+    "frame": 239,
+    "layerCalls": 176
+   },
+   "rafFramesFirstLayerCallToFirstDraw": 228
+  }
+ ],
+ "mutations": [
+  {
+   "mutation": "M1 poll asks every program every frame (no filter)",
+   "red": true,
+   "failedTests": 1,
+   "of": 133,
+   "examples": [
+    "async batch polling polls COMPLETION_STATUS_KHR only on programs still compiling, one query each per frame"
+   ]
+  },
+  {
+   "mutation": "M2 LINK_STATUS read on the first poll (no completion wait)",
+   "red": true,
+   "failedTests": 11,
+   "of": 133,
+   "examples": [
+    "async batch polling polls COMPLETION_STATUS_KHR only on programs still compiling, one query each per frame",
+    "async batch polling LINK_STATUS is not read until every program completes, then once per program"
+   ]
+  },
+  {
+   "mutation": "M3 async failure does not release the batch",
+   "red": true,
+   "failedTests": 14,
+   "of": 133,
+   "examples": [
+    "async batch polling a failed link found by the poll releases the whole batch, logs the shader, and stays failed",
+    "async batch polling a driver exception while polling releases the whole batch"
+   ]
+  },
+  {
+   "mutation": "M4 no poll cap",
+   "red": true,
+   "failedTests": 2,
+   "of": 133,
+   "examples": [
+    "async batch polling the poll cap falls back to the blocking LINK_STATUS read, and nothing blocks before it",
+    "async batch polling the default cap is a bounded number of frames"
+   ]
+  },
+  {
+   "mutation": "M5 missing extension treated as present",
+   "red": true,
+   "failedTests": 30,
+   "of": 133,
+   "examples": [
+    "startProgramBatch mode selection no extension (Firefox): the deferred batch, settled during start, exactly #403",
+    "marine engine, async batch mutation control, no extension (Firefox): init stays synchronous (#403): links read and vertex arrays built inside init"
+   ]
+  },
+  {
+   "mutation": "M6 kill switch ignored",
+   "red": true,
+   "failedTests": 5,
+   "of": 133,
+   "examples": [
+    "startProgramBatch mode selection kill switch: the extension is not even asked for, and the batch is deferred",
+    "marine engine, async batch mutation control, kill switch: init stays synchronous (#403): links read and vertex arrays built inside init"
+   ]
+  },
+  {
+   "mutation": "M7 lost-context guard removed",
+   "red": true,
+   "failedTests": 1,
+   "of": 133,
+   "examples": [
+    "async batch polling a lost context neither counts a poll nor fails the batch (the context-loss path rebuilds the engine)"
+   ]
+  },
+  {
+   "mutation": "M8 marine render gate removed",
+   "red": true,
+   "failedTests": 1,
+   "of": 133,
+   "examples": [
+    "marine engine, async batch render makes no GL call while the batch compiles"
+   ]
+  },
+  {
+   "mutation": "M9 wind render gate removed",
+   "red": true,
+   "failedTests": 1,
+   "of": 133,
+   "examples": [
+    "wind engine, async batch render makes no GL call while the batch compiles"
+   ]
+  },
+  {
+   "mutation": "M10 marine vertex arrays built during init while pending",
+   "red": true,
+   "failedTests": 2,
+   "of": 133,
+   "examples": [
+    "marine engine, async batch init allocates buffers and textures but asks no program anything and builds no vertex array",
+    "marine engine, async batch the poll builds the vertex arrays once, when every program has completed"
+   ]
+  },
+  {
+   "mutation": "M11 wind vertex arrays built during init while pending",
+   "red": true,
+   "failedTests": 2,
+   "of": 133,
+   "examples": [
+    "wind engine, async batch init allocates buffers and textures but asks no program anything and builds no vertex array",
+    "wind engine, async batch the poll builds the vertex arrays once, when every program has completed"
+   ]
+  },
+  {
+   "mutation": "M12 marine failure leaves the rest allocated",
+   "red": true,
+   "failedTests": 5,
+   "of": 133,
+   "examples": [
+    "marine engine, async batch a link failure found by the poll releases everything init allocated, as a failed init leaves the engine",
+    "marine engine, async batch link failure at program 0: the poll releases every handle init created"
+   ]
+  },
+  {
+   "mutation": "M13 wind failure leaves the rest allocated",
+   "red": true,
+   "failedTests": 7,
+   "of": 133,
+   "examples": [
+    "wind engine, async batch a link failure found by the poll releases everything init allocated, as a failed init leaves the engine",
+    "wind engine, async batch link failure at program 0: the poll releases every handle init created"
+   ]
+  },
+  {
+   "mutation": "M14 marine dispose keeps the pending batch",
+   "red": true,
+   "failedTests": 1,
+   "of": 133,
+   "examples": [
+    "marine engine, async batch dispose while compiling deletes the pending programs and drops the batch; a re-init starts a fresh batch"
+   ]
+  },
+  {
+   "mutation": "M15 wind dispose keeps the pending batch",
+   "red": true,
+   "failedTests": 1,
+   "of": 133,
+   "examples": [
+    "wind engine, async batch dispose while compiling deletes the pending programs and drops the batch; a re-init starts a fresh batch"
+   ]
+  },
+  {
+   "mutation": "M16 marine layer ignores a late failure",
+   "red": true,
+   "failedTests": 1,
+   "of": 133,
+   "examples": [
+    "marine layer a link failure found after init reaches the init-failure fallback once, with the engine fully released"
+   ]
+  },
+  {
+   "mutation": "M17 wind layer ignores a late failure",
+   "red": true,
+   "failedTests": 1,
+   "of": 133,
+   "examples": [
+    "wind layer a link failure found after init reaches the init-failure fallback once, with the engine fully released"
+   ]
+  },
+  {
+   "mutation": "M18 marine layer stops asking for frames while pending",
+   "red": true,
+   "failedTests": 1,
+   "of": 133,
+   "examples": [
+    "marine layer while compiling it does not ask the engine to draw, and asks for the next frame"
+   ]
+  },
+  {
+   "mutation": "M19 wind layer stops asking for frames while pending",
+   "red": true,
+   "failedTests": 1,
+   "of": 133,
+   "examples": [
+    "wind layer while compiling it does not ask the engine to draw, and asks for the next frame"
+   ]
+  },
+  {
+   "mutation": "M20 marine layer draws while pending",
+   "red": true,
+   "failedTests": 1,
+   "of": 133,
+   "examples": [
+    "marine layer while compiling it does not ask the engine to draw, and asks for the next frame"
+   ]
+  }
+ ]
+}

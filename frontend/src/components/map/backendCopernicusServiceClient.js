@@ -21,6 +21,9 @@ import { BoundedPointCache } from './BoundedPointCache';
 import { pointRequestIdentityEnabled, createPointRequestContext } from './pointRequestIdentity';
 import { marineValueValidityEnabled, marinePointValues } from './marinePointValues';
 import { arrayMax } from './marineControllerUtils';
+import { staticEligible, tryStaticWorldGrid } from './staticFrames';
+import { readMarineFrameReceipt } from './marineFrameReceipt';
+import { hintIsForeign, pointModelGuardOn, productHintFor, refuseForeignReply } from './pointProductHint';
 
 export const copernicusPointCache = new BoundedPointCache(50, 30000);
 
@@ -121,6 +124,9 @@ export function mapNormalizedCopernicusGridToWebGL(json, snappedBounds, hourOffs
       validTime: json.valid_time || null,
       valid_time: json.valid_time || null,
       run_time: json.run_time || null,
+      // The diagnostic envelope, as the GFS/ICON mapper builds it (2026-10-27): its verified cycle is the status line's model step
+      // (marineDrawnFrame.readoutModelRun); the legacy frame-selection/run identity fields above are unchanged.
+      frameReceipt: readMarineFrameReceipt(json),
       // §0c SERVING HONESTY: the frame actually served (valid_time echoes the ask) — mirrors
       // the GFS/ICON mapper; surfaced in FORENSIC-SNAP.
       served_valid_time: json.served_valid_time || null,
@@ -380,7 +386,12 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
   const url = `${GRID_URL}?model=EURO&domain=marine&layer=${layer}&valid_time=${validTimeStr}&bbox=${bboxParam}${getSurfModeFlag() ? '&surf=1' : ''}`;
 
   try {
-    const res = await fetch(url, { signal });
+    // STATIC FRAMES (seam A, as fetchBackendMarineGrid; 2026-10-22): a world EURO waves box is answered from the pinned CDN
+    // frame (staticFrames.js); any miss or error returns null and /grid is fetched exactly as before.
+    const surfNow = getSurfModeFlag();
+    const staticJson = staticEligible({ model: 'EURO', layer, bbox: clampedBbox, surf: surfNow })
+      ? await tryStaticWorldGrid({ model: 'EURO', layer, validTimeStr, clampedBbox, surf: surfNow, signal }) : null;
+    const res = staticJson ? { ok: true, status: 200 } : await fetch(url, { signal });
     if (!res.ok) {
       let reason = `Backend returned HTTP ${res.status}`;
       try {
@@ -393,7 +404,7 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       } catch (e) {}
       throw new Error(reason);
     }
-    const json = await res.json();
+    const json = staticJson || await res.json();
     const result = mapNormalizedCopernicusGridToWebGL(json, clampedBbox, hourOffset, layer);
 
     updateCopernicusDiagnostics('grid', {
@@ -519,15 +530,14 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
 export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, signal, layer = 'swell_1', gridProductIdParam = null, gridBboxParam = null, requestContext = null) {
   requestContext = pointRequestIdentityEnabled()
     ? requestContext || createPointRequestContext('EURO', layer, hourOffset, false, gridProductIdParam, gridBboxParam) : null;
-  let gridProductId = gridProductIdParam;
-  if (!gridProductId && typeof window !== 'undefined' && window.__MARINE_PROJECTION_DIAG__) {
-    gridProductId = window.__MARINE_PROJECTION_DIAG__.productId || window.__MARINE_PROJECTION_DIAG__.gridProductId || null;
-  }
-
-  let gridBbox = gridBboxParam;
-  if (!gridBbox && typeof window !== 'undefined' && window.__MARINE_PROJECTION_DIAG__) {
-    gridBbox = window.__MARINE_PROJECTION_DIAG__.requested_bbox || window.__MARINE_PROJECTION_DIAG__.backendRequestBbox || null;
-  }
+  // D4 (pointProductHint.js): a foreign hint is dropped with its box; the diag lends one only when it is EURO's and this layer's.
+  const foreignHint = hintIsForeign(gridProductIdParam, 'EURO', layer);
+  const projDiag = typeof window !== 'undefined' ? window.__MARINE_PROJECTION_DIAG__ : null;
+  const diagIsOurs = !!projDiag && (!pointModelGuardOn() || (projDiag.activeModel === 'EURO' && projDiag.activeLayer === layer));
+  let gridProductId = foreignHint ? null : gridProductIdParam;
+  if (!gridProductId && diagIsOurs) gridProductId = productHintFor(projDiag.productId || projDiag.gridProductId || null, 'EURO', layer);
+  let gridBbox = foreignHint ? null : gridBboxParam;
+  if (!gridBbox && diagIsOurs) gridBbox = projDiag.requested_bbox || projDiag.backendRequestBbox || null;
 
   const start = Date.now();
   if (requestContext) {
@@ -610,6 +620,7 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       };
     }
     const json = await res.json();
+    refuseForeignReply(json, 'EURO', layer);   // D4: a GFS answer is never shown as "EURO Forecast"
     
     // Structure conformed hourly response compatible with forecastSamplers.js expectations.
     const mockTime = validTimeStr.replace(/\.\d+Z$/, 'Z');
@@ -709,7 +720,12 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       // the same contract as the GFS/ICON builder. EURO users see the same infobox; a field mapped
       // on one client path and not another is a divergence that only some of the audience sees,
       // which is harder to notice than one everybody sees.
-      reference_size_m: (json.reference_size_m ?? null)
+      reference_size_m: (json.reference_size_m ?? null),
+      // WHICH FRAME ANSWERED (audit 2026-10-27, P1-C) — the GFS/ICON point builder's fields, same contract: the ask is
+      // `hourly.time`, these name the stored frame the server read. (The grid mapper above already carried them.)
+      served_valid_time: (json.served_valid_time ?? null),
+      frame_substituted: (json.frame_substituted ?? null),
+      frame_offset_hours: (json.frame_offset_hours ?? null)
     };
 
     const details = {

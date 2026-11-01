@@ -2,13 +2,61 @@ import { useState, useEffect, useCallback } from 'react';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
+// Which accounts opted in to push ON THIS BROWSER (written only by a successful subscribe, which needs an Enable click).
+// The browser's notification permission is per origin, not per account, and the backend keys subscriptions by
+// (user, endpoint): PushNotificationInit used to subscribe whoever signed in on a browser where anyone had said yes.
+const optInKey = (userId) => `rs-push-optin-${userId}`;
+export const hasPushOptIn = (userId) => {
+  try { return !!userId && localStorage.getItem(optInKey(userId)) === '1'; } catch (e) { return false; }
+};
+export const recordPushOptIn = (userId) => {
+  try { if (userId) localStorage.setItem(optInKey(userId), '1'); } catch (e) { /* storage unavailable */ }
+};
+export const clearPushOptIn = (userId) => {
+  try { if (userId) localStorage.removeItem(optInKey(userId)); } catch (e) { /* storage unavailable */ }
+};
 
-export const usePushNotifications = (userId) => {
+/** This browser's web-push endpoint (the device id the backend keys rows by), or null when it has none. */
+export const getThisDeviceEndpoint = async (registration = null) => {
+  try {
+    const reg = registration
+      || (typeof navigator !== 'undefined' && navigator.serviceWorker && await navigator.serviceWorker.getRegistration());
+    const subscription = reg && reg.pushManager ? await reg.pushManager.getSubscription() : null;
+    return (subscription && subscription.endpoint) || null;
+  } catch (e) {
+    return null;
+  }
+};
+
+/**
+ * Logout: delete the LEAVING account's push row for this device, so its pushes stop arriving here (a shared browser
+ * keeps its endpoint for whoever signs in next). Its token is passed in because logout clears the stored session
+ * before this async call is sent. Its opt-in record stays: signing back in re-syncs it. Never throws.
+ */
+export const forgetThisDeviceForAccount = async (accessToken) => {
+  if (!accessToken) return false;
+  const endpoint = await getThisDeviceEndpoint();
+  if (!endpoint) return false;
+  try {
+    await apiClient.delete(`/push/unsubscribe?endpoint=${encodeURIComponent(endpoint)}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    return true;
+  } catch (e) {
+    logger.debug('[Push] Logout could not remove this device for the account:', e);
+    return false;
+  }
+};
+
+/** `checkServer`: also ask the backend whether this account gets push on this device (Settings' switch). */
+export const usePushNotifications = (userId, { checkServer = false } = {}) => {
   const [isSupported, setIsSupported] = useState(false);
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [permission, setPermission] = useState('default');
   const [registration, setRegistration] = useState(null);
   const [error, setError] = useState(null);
+  const [serverSubscribed, setServerSubscribed] = useState(null);   // null = unknown or not asked
+  const [serverStatusError, setServerStatusError] = useState(false);
 
   // Check if push notifications are supported
   useEffect(() => {
@@ -105,7 +153,9 @@ export const usePushNotifications = (userId) => {
       });
 
       setIsSubscribed(true);
+      setServerSubscribed(true);
       setError(null);
+      recordPushOptIn(userId);
       logger.debug('[Push] Successfully subscribed');
       return true;
     } catch (err) {
@@ -115,22 +165,40 @@ export const usePushNotifications = (userId) => {
     }
   }, [isSupported, registration, userId]);
 
-  // Unsubscribe from push notifications
+  // Ask the backend whether THIS account gets push on this device (only where asked: Settings' switch).
+  const refreshServerStatus = useCallback(async () => {
+    if (!checkServer || !registration || !userId) return null;
+    const endpoint = await getThisDeviceEndpoint(registration);
+    if (!endpoint) { setServerSubscribed(false); setServerStatusError(false); return false; }
+    try {
+      const response = await apiClient.get(`/push/status?endpoint=${encodeURIComponent(endpoint)}`);
+      const subscribed = !!(response.data && response.data.subscribed);
+      setServerSubscribed(subscribed);
+      setServerStatusError(false);
+      return subscribed;
+    } catch (err) {
+      logger.debug('[Push] Status check failed:', err);
+      setServerSubscribed(null);
+      setServerStatusError(true);
+      return null;
+    }
+  }, [checkServer, registration, userId]);
+
+  useEffect(() => { refreshServerStatus(); }, [refreshServerStatus]);
+
+  // Turn push OFF for this account on this device: delete ITS row only. The browser's subscription stays, because
+  // other accounts on a shared browser may still use the same endpoint.
   const unsubscribe = useCallback(async () => {
     if (!registration || !userId) return false;
 
     try {
-      const subscription = await registration.pushManager.getSubscription();
-      
-      if (subscription) {
-        // Unsubscribe from browser
-        await subscription.unsubscribe();
-        
-        // Remove from server
-        await apiClient.delete(`/push/unsubscribe?endpoint=${encodeURIComponent(subscription.endpoint)}`);
+      const endpoint = await getThisDeviceEndpoint(registration);
+      if (endpoint) {
+        await apiClient.delete(`/push/unsubscribe?endpoint=${encodeURIComponent(endpoint)}`);
       }
 
-      setIsSubscribed(false);
+      setServerSubscribed(false);
+      clearPushOptIn(userId);
       logger.debug('[Push] Successfully unsubscribed');
       return true;
     } catch (err) {
@@ -145,8 +213,11 @@ export const usePushNotifications = (userId) => {
     isSubscribed,
     permission,
     error,
+    serverSubscribed,
+    serverStatusError,
     subscribe,
-    unsubscribe
+    unsubscribe,
+    refreshServerStatus
   };
 };
 

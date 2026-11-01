@@ -1,0 +1,1293 @@
+{
+ "written": "2026-10-22T16:55Z",
+ "what": "Mid-zoom instant scrub: static frames serve the resolver's global_mid clip as a crop, and the GPU frame store shows a resident clip's window, packed exactly. Offline only.",
+ "setup": {
+  "frames": "the REAL published GFS waves run v1/gfs/marine/waves/global_mid/index/20261022T060000Z-b786f5dfd135.json (115 frames, every sha256 checked against the index), copied from the public weather-frames bucket",
+  "backend": "frontend/scripts/offline-backend/serve_synthetic.py --models GFS --regions flagship --dynamic 1 --real-frames <bucket copy> (the production FastAPI app over the real run)",
+  "before_bundle": "dev 95ca652a5 (same client code as the owner's 9ecac552 for these paths)",
+  "after_bundle": "branch claude/eloquent-almeida-a2627f at 11ca6cb91",
+  "scenario": "frontend/scripts/offline-backend/scn_zoom_scrub.js: steps ArrowRight x4, PageUp x2, a 5-day burst, PageDown, ArrowLeft, Home; SETTLE 8 s after the first draw; WIN 8 s",
+  "views": {
+   "desktop": "1280 x 800",
+   "owner": "844 x 390 at dpr 2: at z3.5-4.4 its boxes give the owner's console clips (31 x 21 at z3.9, 26 x 19 at z4.4)"
+  },
+  "arms": {
+   "cur": "the bundle as built",
+   "nocropshow": "window.__RAW_DISABLE_FRAME_STORE_CROP__ = true (static crops on, the store's crop show off)"
+  },
+  "clip_steps": "steps whose resident at the end of the step is a clip (cols < 150): the band where the store used to miss"
+ },
+ "crop_parity": {
+  "boxes_x_seams": 475,
+  "cropped": 382,
+  "refused": 93,
+  "refused_but_backend_served_mid": 93,
+  "crop_but_backend_not_mid": 0,
+  "unmirrored": 0,
+  "grid": {
+   "nodes": 173643,
+   "bad": 0,
+   "meta_mismatches": 0,
+   "max_abs_err": {
+    "speed": 0,
+    "direction": 0,
+    "period": 0,
+    "dir_confidence": 0,
+    "uv": 0
+   }
+  },
+  "series": {
+   "nodes": 33217,
+   "bad": 0,
+   "meta_mismatches": 0,
+   "max_abs_err": {
+    "speed": 0,
+    "direction": 0,
+    "period": 0,
+    "dir_confidence": 0,
+    "uv": 0
+   }
+  }
+ },
+ "window_pack_vs_world_cut": {
+  "windows": 295,
+  "texels": 142817,
+  "differing": 9550,
+  "ocean_or_near_ocean_differing_beyond_2_cells_of_the_edge": 0,
+  "note": "a cut of the world texture is NOT the encoded clip (land extrapolation and direction dilation read neighbours); the store packs the window itself, pinned byte-identical to the encoder (marineFrameStoreCrop.test.js, 5 windows x 3 themes x 2 lanes)"
+ },
+ "runs": {
+  "before_owner": {
+   "env": {
+    "PORT": 4120,
+    "CDN_PORT": 4193,
+    "ROUNDS": 1,
+    "WIN": 8000,
+    "SETTLE": 8000,
+    "ZOOMS": [
+     3.5,
+     3.9,
+     4.4,
+     4.8
+    ],
+    "CENTER": [
+     -79.5,
+     28.6
+    ],
+    "VIEW": "owner",
+    "LAT_SERIES": 0,
+    "LAT_GRID": 0,
+    "CDN_LAT": 0,
+    "startedUtc": "2026-10-22T16:23:39.962Z"
+   },
+   "rows": {
+    "cur@z3.5": {
+     "view": "owner",
+     "viewport": {
+      "z": 3.5,
+      "w": -103.74,
+      "s": 17.47,
+      "e": -55.26,
+      "n": 38.67
+     },
+     "steps": 10,
+     "exact_ms_p50": 1,
+     "exact_ms_p95": 16,
+     "exact_missed": 0,
+     "clip_steps": 0,
+     "clip_exact_ms_p50": null,
+     "clip_exact_ms_p95": null,
+     "clip_exact_ms_max": null,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.0,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 1,
+      "series": 2,
+      "store": 7
+     },
+     "resident_dims": [
+      "181x82"
+     ],
+     "store": {
+      "shows": 14,
+      "misses": {},
+      "crop": null
+     },
+     "static": {
+      "hits": 6,
+      "seriesFrames": 9,
+      "crops": 0,
+      "misses": {}
+     }
+    },
+    "cur@z3.9": {
+     "view": "owner",
+     "viewport": {
+      "z": 3.9,
+      "w": -97.87,
+      "s": 20.25,
+      "e": -61.13,
+      "n": 36.34
+     },
+     "steps": 10,
+     "exact_ms_p50": 5,
+     "exact_ms_p95": 306,
+     "exact_missed": 0,
+     "clip_steps": 5,
+     "clip_exact_ms_p50": 275,
+     "clip_exact_ms_p95": 306,
+     "clip_exact_ms_max": 306,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.5,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 4,
+      "series": 3,
+      "store": 3
+     },
+     "resident_dims": [
+      "181x82",
+      "31x21"
+     ],
+     "store": {
+      "shows": 5,
+      "misses": {
+       "resident_not_this_set": 9
+      },
+      "crop": null
+     },
+     "static": {
+      "hits": 1,
+      "seriesFrames": 9,
+      "crops": 0,
+      "misses": {}
+     }
+    },
+    "cur@z4.4": {
+     "view": "owner",
+     "viewport": {
+      "z": 4.4,
+      "w": -92.49,
+      "s": 22.75,
+      "e": -66.51,
+      "n": 34.14
+     },
+     "steps": 10,
+     "exact_ms_p50": 12,
+     "exact_ms_p95": 300,
+     "exact_missed": 0,
+     "clip_steps": 5,
+     "clip_exact_ms_p50": 277,
+     "clip_exact_ms_p95": 300,
+     "clip_exact_ms_max": 300,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.5,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 4,
+      "series": 3,
+      "store": 3
+     },
+     "resident_dims": [
+      "181x82",
+      "26x19"
+     ],
+     "store": {
+      "shows": 5,
+      "misses": {
+       "resident_not_this_set": 9
+      },
+      "crop": null
+     },
+     "static": {
+      "hits": 1,
+      "seriesFrames": 9,
+      "crops": 0,
+      "misses": {}
+     }
+    },
+    "cur@z4.8": {
+     "view": "owner",
+     "viewport": {
+      "z": 4.8,
+      "w": -89.34,
+      "s": 24.19,
+      "e": -69.66,
+      "n": 32.83
+     },
+     "steps": 10,
+     "exact_ms_p50": 17,
+     "exact_ms_p95": 261,
+     "exact_missed": 0,
+     "clip_steps": 5,
+     "clip_exact_ms_p50": 259,
+     "clip_exact_ms_p95": 261,
+     "clip_exact_ms_max": 261,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.5,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 4,
+      "series": 3,
+      "store": 3
+     },
+     "resident_dims": [
+      "181x82",
+      "21x15"
+     ],
+     "store": {
+      "shows": 5,
+      "misses": {
+       "resident_not_this_set": 9
+      },
+      "crop": null
+     },
+     "static": {
+      "hits": 1,
+      "seriesFrames": 9,
+      "crops": 0,
+      "misses": {}
+     }
+    }
+   }
+  },
+  "after_owner": {
+   "env": {
+    "PORT": 4120,
+    "CDN_PORT": 4197,
+    "ROUNDS": 1,
+    "WIN": 8000,
+    "SETTLE": 8000,
+    "ZOOMS": [
+     3.5,
+     3.9,
+     4.4,
+     4.8
+    ],
+    "CENTER": [
+     -79.5,
+     28.6
+    ],
+    "VIEW": "owner",
+    "LAT_SERIES": 0,
+    "LAT_GRID": 0,
+    "CDN_LAT": 0,
+    "startedUtc": "2026-10-22T16:45:01.822Z"
+   },
+   "rows": {
+    "cur@z3.5": {
+     "view": "owner",
+     "viewport": {
+      "z": 3.5,
+      "w": -103.74,
+      "s": 17.47,
+      "e": -55.26,
+      "n": 38.67
+     },
+     "steps": 10,
+     "exact_ms_p50": 1,
+     "exact_ms_p95": 8,
+     "exact_missed": 0,
+     "clip_steps": 0,
+     "clip_exact_ms_p50": null,
+     "clip_exact_ms_p95": null,
+     "clip_exact_ms_max": null,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.0,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 4,
+      "series": 1,
+      "store": 5
+     },
+     "resident_dims": [
+      "181x82"
+     ],
+     "store": {
+      "shows": 14,
+      "misses": {},
+      "crop": {
+       "window": null,
+       "packs": 0,
+       "built": 0,
+       "shows": 0
+      }
+     },
+     "static": {
+      "hits": 5,
+      "seriesFrames": 9,
+      "crops": 0,
+      "misses": {}
+     }
+    },
+    "nocropshow@z3.5": {
+     "view": "owner",
+     "viewport": {
+      "z": 3.5,
+      "w": -103.74,
+      "s": 17.47,
+      "e": -55.26,
+      "n": 38.67
+     },
+     "steps": 10,
+     "exact_ms_p50": 2,
+     "exact_ms_p95": 13,
+     "exact_missed": 0,
+     "clip_steps": 0,
+     "clip_exact_ms_p50": null,
+     "clip_exact_ms_p95": null,
+     "clip_exact_ms_max": null,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.0,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 4,
+      "series": 1,
+      "store": 5
+     },
+     "resident_dims": [
+      "181x82"
+     ],
+     "store": {
+      "shows": 14,
+      "misses": {},
+      "crop": {
+       "window": null,
+       "packs": 0,
+       "built": 0,
+       "shows": 0
+      }
+     },
+     "static": {
+      "hits": 5,
+      "seriesFrames": 9,
+      "crops": 0,
+      "misses": {}
+     }
+    },
+    "cur@z3.9": {
+     "view": "owner",
+     "viewport": {
+      "z": 3.9,
+      "w": -97.87,
+      "s": 20.25,
+      "e": -61.13,
+      "n": 36.34
+     },
+     "steps": 10,
+     "exact_ms_p50": 4,
+     "exact_ms_p95": 26,
+     "exact_missed": 0,
+     "clip_steps": 6,
+     "clip_exact_ms_p50": 7,
+     "clip_exact_ms_p95": 26,
+     "clip_exact_ms_max": 26,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.0,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 1,
+      "series": 2,
+      "store": 7
+     },
+     "resident_dims": [
+      "181x82",
+      "31x21"
+     ],
+     "store": {
+      "shows": 14,
+      "misses": {
+       "crop_not_ready": 2
+      },
+      "crop": {
+       "window": "35,44,31,21",
+       "packs": 115,
+       "built": 115,
+       "shows": 9
+      }
+     },
+     "static": {
+      "hits": 5,
+      "seriesFrames": 9,
+      "crops": 4,
+      "misses": {}
+     }
+    },
+    "nocropshow@z3.9": {
+     "view": "owner",
+     "viewport": {
+      "z": 3.9,
+      "w": -97.87,
+      "s": 20.25,
+      "e": -61.13,
+      "n": 36.34
+     },
+     "steps": 10,
+     "exact_ms_p50": 4,
+     "exact_ms_p95": 195,
+     "exact_missed": 0,
+     "clip_steps": 5,
+     "clip_exact_ms_p50": 191,
+     "clip_exact_ms_p95": 195,
+     "clip_exact_ms_max": 195,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.0,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 4,
+      "series": 3,
+      "store": 3
+     },
+     "resident_dims": [
+      "181x82",
+      "31x21"
+     ],
+     "store": {
+      "shows": 5,
+      "misses": {
+       "resident_not_this_set": 9
+      },
+      "crop": {
+       "window": null,
+       "packs": 0,
+       "built": 0,
+       "shows": 0
+      }
+     },
+     "static": {
+      "hits": 5,
+      "seriesFrames": 9,
+      "crops": 4,
+      "misses": {}
+     }
+    },
+    "cur@z4.4": {
+     "view": "owner",
+     "viewport": {
+      "z": 4.4,
+      "w": -92.49,
+      "s": 22.75,
+      "e": -66.51,
+      "n": 34.14
+     },
+     "steps": 10,
+     "exact_ms_p50": 1,
+     "exact_ms_p95": 49,
+     "exact_missed": 0,
+     "clip_steps": 6,
+     "clip_exact_ms_p50": 5,
+     "clip_exact_ms_p95": 49,
+     "clip_exact_ms_max": 49,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.0,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 1,
+      "series": 2,
+      "store": 7
+     },
+     "resident_dims": [
+      "181x82",
+      "26x19"
+     ],
+     "store": {
+      "shows": 14,
+      "misses": {
+       "crop_not_ready": 2
+      },
+      "crop": {
+       "window": "38,45,26,19",
+       "packs": 115,
+       "built": 115,
+       "shows": 9
+      }
+     },
+     "static": {
+      "hits": 5,
+      "seriesFrames": 9,
+      "crops": 4,
+      "misses": {}
+     }
+    },
+    "nocropshow@z4.4": {
+     "view": "owner",
+     "viewport": {
+      "z": 4.4,
+      "w": -92.49,
+      "s": 22.75,
+      "e": -66.51,
+      "n": 34.14
+     },
+     "steps": 10,
+     "exact_ms_p50": 6,
+     "exact_ms_p95": 201,
+     "exact_missed": 0,
+     "clip_steps": 5,
+     "clip_exact_ms_p50": 184,
+     "clip_exact_ms_p95": 201,
+     "clip_exact_ms_max": 201,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.0,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 4,
+      "series": 3,
+      "store": 3
+     },
+     "resident_dims": [
+      "181x82",
+      "26x19"
+     ],
+     "store": {
+      "shows": 5,
+      "misses": {
+       "resident_not_this_set": 9
+      },
+      "crop": {
+       "window": null,
+       "packs": 0,
+       "built": 0,
+       "shows": 0
+      }
+     },
+     "static": {
+      "hits": 5,
+      "seriesFrames": 9,
+      "crops": 4,
+      "misses": {}
+     }
+    },
+    "cur@z4.8": {
+     "view": "owner",
+     "viewport": {
+      "z": 4.8,
+      "w": -89.34,
+      "s": 24.19,
+      "e": -69.66,
+      "n": 32.83
+     },
+     "steps": 10,
+     "exact_ms_p50": 1,
+     "exact_ms_p95": 28,
+     "exact_missed": 0,
+     "clip_steps": 6,
+     "clip_exact_ms_p50": 2,
+     "clip_exact_ms_p95": 28,
+     "clip_exact_ms_max": 28,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.0,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 1,
+      "series": 2,
+      "store": 7
+     },
+     "resident_dims": [
+      "181x82",
+      "21x15"
+     ],
+     "store": {
+      "shows": 14,
+      "misses": {
+       "crop_not_ready": 2
+      },
+      "crop": {
+       "window": "40,47,21,15",
+       "packs": 115,
+       "built": 115,
+       "shows": 9
+      }
+     },
+     "static": {
+      "hits": 5,
+      "seriesFrames": 9,
+      "crops": 4,
+      "misses": {}
+     }
+    },
+    "nocropshow@z4.8": {
+     "view": "owner",
+     "viewport": {
+      "z": 4.8,
+      "w": -89.34,
+      "s": 24.19,
+      "e": -69.66,
+      "n": 32.83
+     },
+     "steps": 10,
+     "exact_ms_p50": 5,
+     "exact_ms_p95": 199,
+     "exact_missed": 0,
+     "clip_steps": 5,
+     "clip_exact_ms_p50": 190,
+     "clip_exact_ms_p95": 199,
+     "clip_exact_ms_max": 199,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.0,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 4,
+      "series": 3,
+      "store": 3
+     },
+     "resident_dims": [
+      "181x82",
+      "21x15"
+     ],
+     "store": {
+      "shows": 5,
+      "misses": {
+       "resident_not_this_set": 9
+      },
+      "crop": {
+       "window": null,
+       "packs": 0,
+       "built": 0,
+       "shows": 0
+      }
+     },
+     "static": {
+      "hits": 5,
+      "seriesFrames": 9,
+      "crops": 4,
+      "misses": {}
+     }
+    }
+   }
+  },
+  "before_desktop": {
+   "env": {
+    "PORT": 4120,
+    "CDN_PORT": 4191,
+    "ROUNDS": 1,
+    "WIN": 8000,
+    "SETTLE": 8000,
+    "ZOOMS": [
+     2,
+     3,
+     4,
+     5,
+     7,
+     9
+    ],
+    "CENTER": [
+     -79.5,
+     28.6
+    ],
+    "VIEW": "desktop",
+    "LAT_SERIES": 0,
+    "LAT_GRID": 0,
+    "CDN_LAT": 0,
+    "startedUtc": "2026-10-22T15:59:31.801Z"
+   },
+   "rows": {
+    "cur@z2": {
+     "view": "desktop",
+     "viewport": {
+      "z": 2,
+      "w": -174.42,
+      "s": -37.45,
+      "e": 15.42,
+      "n": 70.25
+     },
+     "steps": 10,
+     "exact_ms_p50": 7,
+     "exact_ms_p95": 16,
+     "exact_missed": 0,
+     "clip_steps": 0,
+     "clip_exact_ms_p50": null,
+     "clip_exact_ms_p95": null,
+     "clip_exact_ms_max": null,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.0,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 1,
+      "series": 2,
+      "store": 7
+     },
+     "resident_dims": [
+      "181x82"
+     ],
+     "store": {
+      "shows": 14,
+      "misses": {},
+      "crop": null
+     },
+     "static": {
+      "hits": 6,
+      "seriesFrames": 9,
+      "crops": 0,
+      "misses": {}
+     }
+    },
+    "cur@z3": {
+     "view": "desktop",
+     "viewport": {
+      "z": 3,
+      "w": -126.96,
+      "s": -5.28,
+      "e": -32.04,
+      "n": 54.36
+     },
+     "steps": 10,
+     "exact_ms_p50": 3,
+     "exact_ms_p95": 17,
+     "exact_missed": 0,
+     "clip_steps": 0,
+     "clip_exact_ms_p50": null,
+     "clip_exact_ms_p95": null,
+     "clip_exact_ms_max": null,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.0,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 1,
+      "series": 2,
+      "store": 7
+     },
+     "resident_dims": [
+      "181x82"
+     ],
+     "store": {
+      "shows": 14,
+      "misses": {},
+      "crop": null
+     },
+     "static": {
+      "hits": 6,
+      "seriesFrames": 9,
+      "crops": 0,
+      "misses": {}
+     }
+    },
+    "cur@z4": {
+     "view": "desktop",
+     "viewport": {
+      "z": 4,
+      "w": -103.23,
+      "s": 12.2,
+      "e": -55.77,
+      "n": 42.8
+     },
+     "steps": 10,
+     "exact_ms_p50": 3,
+     "exact_ms_p95": 16,
+     "exact_missed": 0,
+     "clip_steps": 0,
+     "clip_exact_ms_p50": null,
+     "clip_exact_ms_p95": null,
+     "clip_exact_ms_max": null,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.0,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 1,
+      "series": 2,
+      "store": 7
+     },
+     "resident_dims": [
+      "181x82"
+     ],
+     "store": {
+      "shows": 14,
+      "misses": {},
+      "crop": null
+     },
+     "static": {
+      "hits": 6,
+      "seriesFrames": 9,
+      "crops": 0,
+      "misses": {}
+     }
+    },
+    "cur@z5": {
+     "view": "desktop",
+     "viewport": {
+      "z": 5,
+      "w": -91.37,
+      "s": 20.62,
+      "e": -67.63,
+      "n": 36.02
+     },
+     "steps": 10,
+     "exact_ms_p50": 6,
+     "exact_ms_p95": 273,
+     "exact_missed": 0,
+     "clip_steps": 5,
+     "clip_exact_ms_p50": 252,
+     "clip_exact_ms_p95": 273,
+     "clip_exact_ms_max": 273,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.5,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 4,
+      "series": 3,
+      "store": 3
+     },
+     "resident_dims": [
+      "181x82",
+      "25x21"
+     ],
+     "store": {
+      "shows": 5,
+      "misses": {
+       "resident_not_this_set": 9
+      },
+      "crop": null
+     },
+     "static": {
+      "hits": 1,
+      "seriesFrames": 9,
+      "crops": 0,
+      "misses": {}
+     }
+    },
+    "cur@z7": {
+     "view": "desktop",
+     "viewport": {
+      "z": 7,
+      "w": -82.47,
+      "s": 26.65,
+      "e": -76.53,
+      "n": 30.51
+     },
+     "steps": 10,
+     "exact_ms_p50": 519,
+     "exact_ms_p95": 1646,
+     "exact_missed": 0,
+     "clip_steps": 9,
+     "clip_exact_ms_p50": 523,
+     "clip_exact_ms_p95": 1646,
+     "clip_exact_ms_max": 1646,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.7,
+     "series_per_step": 0.3,
+     "via": {
+      "grid": 8,
+      "series": 1,
+      "store": 1
+     },
+     "resident_dims": [
+      "11x10",
+      "15x13",
+      "181x82"
+     ],
+     "store": {
+      "shows": 1,
+      "misses": {
+       "resident_not_this_set": 13
+      },
+      "crop": null
+     },
+     "static": {
+      "hits": 1,
+      "seriesFrames": 0,
+      "crops": 0,
+      "misses": {}
+     }
+    },
+    "cur@z9": {
+     "view": "desktop",
+     "viewport": {
+      "z": 9,
+      "w": -80.24,
+      "s": 28.12,
+      "e": -78.76,
+      "n": 29.08
+     },
+     "steps": 10,
+     "exact_ms_p50": 4477,
+     "exact_ms_p95": 5724,
+     "exact_missed": 8,
+     "clip_steps": 10,
+     "clip_exact_ms_p50": 4477,
+     "clip_exact_ms_p95": 5724,
+     "clip_exact_ms_max": 5724,
+     "mislabel_frames": 0,
+     "grid_per_step": 1.2,
+     "series_per_step": 3.9,
+     "via": {
+      "none": 8,
+      "series": 2
+     },
+     "resident_dims": [
+      "13x13",
+      "9x9"
+     ],
+     "store": {
+      "shows": 0,
+      "misses": {
+       "resident_not_this_set": 14
+      },
+      "crop": null
+     },
+     "static": {
+      "hits": 9,
+      "seriesFrames": 0,
+      "crops": 0,
+      "misses": {}
+     }
+    }
+   }
+  },
+  "after_desktop": {
+   "env": {
+    "PORT": 4120,
+    "CDN_PORT": 4198,
+    "ROUNDS": 1,
+    "WIN": 8000,
+    "SETTLE": 8000,
+    "ZOOMS": [
+     2,
+     3,
+     4,
+     5,
+     6,
+     7,
+     9
+    ],
+    "CENTER": [
+     -79.5,
+     28.6
+    ],
+    "VIEW": "desktop",
+    "LAT_SERIES": 0,
+    "LAT_GRID": 0,
+    "CDN_LAT": 0,
+    "startedUtc": "2026-10-22T16:49:03.611Z"
+   },
+   "rows": {
+    "cur@z2": {
+     "view": "desktop",
+     "viewport": {
+      "z": 2,
+      "w": -174.42,
+      "s": -37.45,
+      "e": 15.42,
+      "n": 70.25
+     },
+     "steps": 10,
+     "exact_ms_p50": 2,
+     "exact_ms_p95": 16,
+     "exact_missed": 0,
+     "clip_steps": 0,
+     "clip_exact_ms_p50": null,
+     "clip_exact_ms_p95": null,
+     "clip_exact_ms_max": null,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.0,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 4,
+      "series": 1,
+      "store": 5
+     },
+     "resident_dims": [
+      "181x82"
+     ],
+     "store": {
+      "shows": 14,
+      "misses": {},
+      "crop": {
+       "window": null,
+       "packs": 0,
+       "built": 0,
+       "shows": 0
+      }
+     },
+     "static": {
+      "hits": 5,
+      "seriesFrames": 9,
+      "crops": 0,
+      "misses": {}
+     }
+    },
+    "cur@z3": {
+     "view": "desktop",
+     "viewport": {
+      "z": 3,
+      "w": -126.96,
+      "s": -5.28,
+      "e": -32.04,
+      "n": 54.36
+     },
+     "steps": 10,
+     "exact_ms_p50": 2,
+     "exact_ms_p95": 16,
+     "exact_missed": 0,
+     "clip_steps": 0,
+     "clip_exact_ms_p50": null,
+     "clip_exact_ms_p95": null,
+     "clip_exact_ms_max": null,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.0,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 4,
+      "series": 1,
+      "store": 5
+     },
+     "resident_dims": [
+      "181x82"
+     ],
+     "store": {
+      "shows": 14,
+      "misses": {},
+      "crop": {
+       "window": null,
+       "packs": 0,
+       "built": 0,
+       "shows": 0
+      }
+     },
+     "static": {
+      "hits": 5,
+      "seriesFrames": 9,
+      "crops": 0,
+      "misses": {}
+     }
+    },
+    "cur@z4": {
+     "view": "desktop",
+     "viewport": {
+      "z": 4,
+      "w": -103.23,
+      "s": 12.2,
+      "e": -55.77,
+      "n": 42.8
+     },
+     "steps": 10,
+     "exact_ms_p50": 0,
+     "exact_ms_p95": 17,
+     "exact_missed": 0,
+     "clip_steps": 0,
+     "clip_exact_ms_p50": null,
+     "clip_exact_ms_p95": null,
+     "clip_exact_ms_max": null,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.0,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 4,
+      "series": 1,
+      "store": 5
+     },
+     "resident_dims": [
+      "181x82"
+     ],
+     "store": {
+      "shows": 14,
+      "misses": {},
+      "crop": {
+       "window": null,
+       "packs": 0,
+       "built": 0,
+       "shows": 0
+      }
+     },
+     "static": {
+      "hits": 5,
+      "seriesFrames": 9,
+      "crops": 0,
+      "misses": {}
+     }
+    },
+    "cur@z5": {
+     "view": "desktop",
+     "viewport": {
+      "z": 5,
+      "w": -91.37,
+      "s": 20.62,
+      "e": -67.63,
+      "n": 36.02
+     },
+     "steps": 10,
+     "exact_ms_p50": 2,
+     "exact_ms_p95": 26,
+     "exact_missed": 0,
+     "clip_steps": 6,
+     "clip_exact_ms_p50": 5,
+     "clip_exact_ms_p95": 26,
+     "clip_exact_ms_max": 26,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.0,
+     "series_per_step": 0.0,
+     "via": {
+      "grid": 1,
+      "series": 2,
+      "store": 7
+     },
+     "resident_dims": [
+      "181x82",
+      "25x21"
+     ],
+     "store": {
+      "shows": 14,
+      "misses": {
+       "crop_not_ready": 2
+      },
+      "crop": {
+       "window": "38,44,25,21",
+       "packs": 115,
+       "built": 115,
+       "shows": 9
+      }
+     },
+     "static": {
+      "hits": 5,
+      "seriesFrames": 9,
+      "crops": 4,
+      "misses": {}
+     }
+    },
+    "cur@z6": {
+     "view": "desktop",
+     "viewport": {
+      "z": 6,
+      "w": -85.43,
+      "s": 24.67,
+      "e": -73.57,
+      "n": 32.39
+     },
+     "steps": 10,
+     "exact_ms_p50": 9,
+     "exact_ms_p95": 212,
+     "exact_missed": 0,
+     "clip_steps": 10,
+     "clip_exact_ms_p50": 9,
+     "clip_exact_ms_p95": 212,
+     "clip_exact_ms_max": 212,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.0,
+     "series_per_step": 0.2,
+     "via": {
+      "grid": 3,
+      "series": 4,
+      "store": 3
+     },
+     "resident_dims": [
+      "14x10",
+      "17x14"
+     ],
+     "store": {
+      "shows": 4,
+      "misses": {
+       "resident_not_this_set": 10
+      },
+      "crop": {
+       "window": "42,48,17,14",
+       "packs": 160,
+       "built": 230,
+       "shows": 4
+      }
+     },
+     "static": {
+      "hits": 7,
+      "seriesFrames": 9,
+      "crops": 15,
+      "misses": {}
+     }
+    },
+    "cur@z7": {
+     "view": "desktop",
+     "viewport": {
+      "z": 7,
+      "w": -82.47,
+      "s": 26.65,
+      "e": -76.53,
+      "n": 30.51
+     },
+     "steps": 10,
+     "exact_ms_p50": 5,
+     "exact_ms_p95": 2437,
+     "exact_missed": 0,
+     "clip_steps": 10,
+     "clip_exact_ms_p50": 5,
+     "clip_exact_ms_p95": 2437,
+     "clip_exact_ms_max": 2437,
+     "mislabel_frames": 0,
+     "grid_per_step": 0.4,
+     "series_per_step": 0.3,
+     "via": {
+      "grid": 5,
+      "series": 3,
+      "store": 2
+     },
+     "resident_dims": [
+      "11x10",
+      "15x13",
+      "7x6"
+     ],
+     "store": {
+      "shows": 7,
+      "misses": {
+       "resident_not_this_set": 7
+      },
+      "crop": {
+       "window": "45,50,11,10",
+       "packs": 135,
+       "built": 135,
+       "shows": 6
+      }
+     },
+     "static": {
+      "hits": 1,
+      "seriesFrames": 0,
+      "crops": 0,
+      "misses": {}
+     }
+    },
+    "cur@z9": {
+     "view": "desktop",
+     "viewport": {
+      "z": 9,
+      "w": -80.24,
+      "s": 28.12,
+      "e": -78.76,
+      "n": 29.08
+     },
+     "steps": 10,
+     "exact_ms_p50": 0,
+     "exact_ms_p95": 30,
+     "exact_missed": 8,
+     "clip_steps": 10,
+     "clip_exact_ms_p50": 0,
+     "clip_exact_ms_p95": 30,
+     "clip_exact_ms_max": 30,
+     "mislabel_frames": 0,
+     "grid_per_step": 1.0,
+     "series_per_step": 1.6,
+     "via": {
+      "none": 8,
+      "series": 2
+     },
+     "resident_dims": [
+      "13x13",
+      "9x9"
+     ],
+     "store": {
+      "shows": 0,
+      "misses": {
+       "resident_not_this_set": 14
+      },
+      "crop": {
+       "window": null,
+       "packs": 0,
+       "built": 0,
+       "shows": 0
+      }
+     },
+     "static": {
+      "hits": 7,
+      "seriesFrames": 0,
+      "crops": 0,
+      "misses": {}
+     }
+    }
+   }
+  }
+ }
+}

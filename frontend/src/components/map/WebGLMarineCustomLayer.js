@@ -7,6 +7,9 @@ import { resolveRejectedOpacity, isGateWideView } from './marineZoomOutGate';
 import { createStaleHourTracker } from './marineStaleHour';
 import { staleWorldDimMult } from './marineStaleHourLayer';
 import { timeMarineCpuPhase } from './marineCpuPhaseTiming';
+import { BATCH } from './WebGLProgramBatch';
+import { syncDrawnToEngine } from './marineDrawnFrame';
+import { askWashOnRefusal } from './marineGlobalPrewarm';   // D1: a refused wash asks for the selected hour's world grid
 
 export const LAYER_ID = 'webgl-marine-particles';
 
@@ -81,6 +84,22 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
   let lastErrorTime = 0;
   // WRONG-HOUR WORLD FRAME (2026-10-01, audit F-21; marineStaleHour.js): how long the selected hour has held still.
   const _staleHour = createStaleHourTracker();
+  // NOTHING DRAWN (D2, 2026-10-28): retire the drawn record (the line then says only "Loading …") and ask for the selected hour's world grid.
+  const askRejectedWorld = (layer, eng, vb, bailed) => {
+    if (bailed) syncDrawnToEngine(eng, {}, { drawn: false });
+    if (!vb) return;
+    askWashOnRefusal({ model: activeModelRef ? activeModelRef.current : 'GFS', hour: timeOffsetHoursRef ? timeOffsetHoursRef.current : null, rejected: true,
+      layer: (activeLayersRef.current || []).find((l) => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves',
+      bounds: { west: vb[0], south: vb[1], east: vb[2], north: vb[3] } });
+  };
+  // The hard-error fallback for a failed init: from onAdd, or from render when the async shader batch fails to link later.
+  const initFailed = (e) => {
+    console.error('[WebGLMarine] Init failed:', e.message);
+    // WHY THE SESSION FELL BACK (2026-09-26): the continuity gate attaches the churn log, and a
+    // fallback with no recorded cause is how a 22-30 s marine blank stayed unexplained.
+    recordChurn('marine_webgl_fallback', { cause: 'init_failed', message: String((e && e.message) || e).slice(0, 160) });
+    if (onErrorRef.current) onErrorRef.current();
+  };
   const layer = {
     id: LAYER_ID,
     type: 'custom',
@@ -112,11 +131,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
           }
         }
       } catch (e) {
-        console.error('[WebGLMarine] Init failed:', e.message);
-        // WHY THE SESSION FELL BACK (2026-09-26): the continuity gate attaches the churn log, and a
-        // fallback with no recorded cause is how a 22-30 s marine blank stayed unexplained.
-        recordChurn('marine_webgl_fallback', { cause: 'init_failed', message: String((e && e.message) || e).slice(0, 160) });
-        if (onErrorRef.current) onErrorRef.current();
+        initFailed(e);
       }
     },
 
@@ -189,6 +204,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       // COARSE-BASE BRIDGE flag — reset every frame; set true only in the regional-rejected-zoomed-out
       // branch below when a retained coarse base exists (bridges the z<7 zoom-out clear).
       if (engine) engine.__coarseBridgeActive = false;
+      this._nothingDrawn = false;   // D2: set below when the resident is rejected and no wash bridges it
       // COARSE-BRIDGE GRACE clock — the SAME per-frame idiom: keep the previous episode in a local
       // and clear the field, so "state present" in the branch below means "the bridge held on the
       // previous frame" EXACTLY. That is what lets the grace carry no wall-clock staleness rule.
@@ -196,6 +212,15 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       if (engine) engine.__coarseBridgeGrace = null;
       const map = mapRef.current;
       if (!map) { stampSkip(_stamp, SKIP.NO_MAP); return; }
+      // ASYNC SHADER COMPILE (WebGLProgramBatch.js): poll the engine's shader batch once per frame; draw nothing until it
+      // is ready, but ask for the next frame so the poll advances on an idle map. A link failure found now is a failed
+      // init: the engine is already released and the same fallback fires (once: the engine holds no batch after).
+      const _programs = engine && engine.pollPrograms ? engine.pollPrograms(_gl) : BATCH.READY;
+      if (_programs === BATCH.FAILED) {
+        initFailed(new Error('WebGL Marine initialization failed (shader batch link)'));
+        stampSkip(_stamp, SKIP.PROGRAMS_FAILED); return;
+      }
+      if (_programs === BATCH.PENDING) { stampSkip(_stamp, SKIP.PROGRAMS_PENDING); map.triggerRepaint(); return; }
 
       let viewportBounds = null;
       let opacityMultiplier = 1.0;
@@ -317,7 +342,11 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
                 isViewportZoomedOut, isGridRegional, hasCoarseBridge, isZoomingOrMoving,
                 currentZoom, overlapRatio,
               });
-              if (_rej.bail) { this._wasActive = false; stampSkip(_stamp, SKIP.REJECTED_BAIL); return; }
+              if (_rej.bail) {
+                this._wasActive = false; stampSkip(_stamp, SKIP.REJECTED_BAIL);
+                askRejectedWorld(this, engine, viewportBounds, true); return;   // D2: say nothing is drawn, ask for the selected hour's world grid
+              }
+              if (!_rej.coarseBridge) this._nothingDrawn = true;
               if (_rej.coarseBridge) {
                 // COARSE-BRIDGE GRACE (2026-08-15) — the bridge above is the only fade-to-zero in
                 // this family with NO time bound, and the nightly measured it holding 18.8 s. See
@@ -366,6 +395,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       try {
         const canvas = map.getCanvas();
         const zoom = map.getZoom();
+        engine._mapGLContext = (map.painter && map.painter.context) || null;   // the GL state shadow the capture reads
         // The engine also exits before any GL work without a projection. Preserve repaint,
         // but do not let these callbacks count as slow GPU drawing in the fallback guard.
         if (!_matrix || !_matrix.length) stampSkip(_stamp, SKIP.ENGINE_NO_MATRIX);
@@ -376,6 +406,13 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
           activeLayersRef ? activeLayersRef.current : null, activeModelRef ? activeModelRef.current : 'GFS');
         if (!engine._initialized || !engine._waveData) stampSkip(_stamp, SKIP.ENGINE_NO_DATA);
         engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, viewportBounds, opacityMultiplier);
+        // DRAWN TRUTH: a swap inside the engine this frame (the stash's self-heal accept, the zoom-out bridge) is what the status line
+        // must describe; one identity compare per frame (marineDrawnFrame.syncDrawnToEngine).
+        syncDrawnToEngine(engine, { hour: timeOffsetHoursRef ? timeOffsetHoursRef.current : null, model: activeModelRef ? activeModelRef.current : null }, { drawn: !(this._nothingDrawn && !(opacityMultiplier > 0)) });
+        if (this._nothingDrawn && !(opacityMultiplier > 0)) askRejectedWorld(this, engine, viewportBounds, false);   // D2: the rejected resident drew at 0, no wash under it
+        if (viewportBounds) askWashOnRefusal({ model: activeModelRef ? activeModelRef.current : 'GFS', hour: timeOffsetHoursRef ? timeOffsetHoursRef.current : null,
+          layer: (activeLayersRef.current || []).find((l) => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves',
+          bounds: { west: viewportBounds[0], south: viewportBounds[1], east: viewportBounds[2], north: viewportBounds[3] } });
       } catch (e) {
         errorCount++;
         lastErrorTime = Date.now();

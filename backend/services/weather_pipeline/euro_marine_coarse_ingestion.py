@@ -61,7 +61,10 @@ async def ingest_euro_marine_global_impl(scheduler) -> bool:
     # memory-safe but ~60 slow tile downloads, deferred.)
     gfs_forecast_days = int(os.environ.get("GFS_GLOBAL_FORECAST_DAYS", "2" if env["is_test_env"] else "14"))
 
-    # ══ PRIMARY: native EURO from Copernicus (REAL ECMWF-WAM swells), 0-10d + cached-GFS 10->14d ══
+    # ══ PRIMARY: native EURO from Copernicus (real MFWAM swells), 0-10d + cached-GFS 10->14d ══
+    # ⚠️ CMEMS global waves is Météo-France's MFWAM (driven by ECMWF IFS winds), NOT ECMWF's own wave
+    # model. This comment and `source_model` below called it "ECMWF-WAM" until 2026-10-20. ECMWF's own
+    # wave model (ECWAM) is the `waves` hybrid further down (ecmwf_wave_service, ECMWF Open Data).
     # Moves EURO marine OFF open-meteo (frees ~1,200 calls/cycle for ICON) and upgrades swell_1/swell_2/
     # wind_waves from GFS-fallback to REAL CMEMS partitions. The Copernicus fetch is slow (~15-30 min)
     # but LOW-STRAIN (background thin-latitude-band subsets, ~0.3 GB, ~36 MB peak — see
@@ -69,7 +72,7 @@ async def ingest_euro_marine_global_impl(scheduler) -> bool:
     # by the cached GFS all_marine (estimated). Copernicus unavailable/failed -> falls through to the
     # existing open-meteo path below (zero regression).
     cop_days = int(os.environ.get("EURO_COPERNICUS_DAYS", "2" if env["is_test_env"] else "10"))
-    _cop_basis = {"type": "copernicus_native_global_coarse", "method": "cmems_thin_band_subset", "source_model": "ecmwf_wam_cmems_glo_0083"}
+    _cop_basis = {"type": "copernicus_native_global_coarse", "method": "cmems_thin_band_subset", "source_model": "mfwam_cmems_glo_0083"}
     _gfs_ext_basis = {"type": "gfs_estimated_fallback", "method": "gfs_wave_fallback", "source_model": "ncep_gfswave025"}
 
     def _parse_iso(s):
@@ -115,8 +118,15 @@ async def ingest_euro_marine_global_impl(scheduler) -> bool:
         # PREFER the NOAA-direct grid ingest_gfs_marine_global stashed (reliable, HAS the Gulf, coarse_axis-
         # aligned) over a 429-prone open-meteo re-fetch that stranded the fill (run 29922098897). Kill: env.
         gfs_ext_src = None
+        gfs_ext_step = 3  # Open-Meteo fallback is hourly.
         if os.environ.get("EURO_MARINE_GFS_REUSE_CACHE", "1") != "0" and scheduler._gfs_coarse_marine_cache:
             gfs_ext_src = scheduler._gfs_coarse_marine_cache
+            if os.environ.get("EURO_MARINE_NATIVE_TAIL_CADENCE", "0") == "1":
+                # The cache can also contain hourly Open-Meteo data after a NOAA failure.
+                cache_times = [_parse_iso(t) for t in gfs_ext_src[0].get("hourly", {}).get("time", [])]
+                if len(cache_times) > 1 and all(t is not None for t in cache_times):
+                    if min((b - a).total_seconds() for a, b in zip(cache_times, cache_times[1:])) >= 10800:
+                        gfs_ext_step = 1  # Preserve every already-three-hourly NOAA entry.
             logger.info(f"[Pipeline Scheduler] EURO coarse reusing cached NOAA GFS coarse grid "
                         f"({len(gfs_ext_src)} pts) for gfs_ext + enclosed-sea/Antarctic GFS-fill (no re-fetch).")
         if not gfs_ext_src:
@@ -203,13 +213,13 @@ async def ingest_euro_marine_global_impl(scheduler) -> bool:
                 estimate_basis=_basis
             )
             e_cnt = 0
-            if _layer_gfs_ext:  # GFS days 10->14 (open-meteo hourly -> step=3)
+            if _layer_gfs_ext:  # Preserve NOAA cadence; sample hourly Open-Meteo at three hours.
                 e_cnt = await normalize_and_save_loop(
                     scheduler.normalizer, scheduler.store, _layer_gfs_ext,
                     model="EURO", provider=_prov, domain="marine", layer=layer,
                     bbox=global_region, resolution=resolution, run_time=run_time,
                     region_id="global_coarse", coverage_mode="global_tile",
-                    is_test_env=env["is_test_env"], step=3,
+                    is_test_env=env["is_test_env"], step=gfs_ext_step,
                     log_prefix=f"[Pipeline Scheduler] EURO {layer} (GFS 10-14d ext) global_coarse",
                     estimated_after_index=0, estimate_basis=_gfs_ext_basis
                 )
@@ -237,12 +247,20 @@ async def ingest_euro_marine_global_impl(scheduler) -> bool:
     )
 
     # 2. GFS swell/wind_waves fallback — reuses the GFS-marine-global fetch via cache (see note above)
-    gfs_results = await scheduler._fetch_or_mock(
-        "GFS", "marine", "all_marine", global_region, resolution, gfs_forecast_days,
-        env["is_test_env"],
-        lambda: generate_mock_marine_results(scheduler.om_provider, global_region, resolution),
-        "global_coarse"
-    )
+    gfs_results = None
+    gfs_save_step = 3  # Open-Meteo hourly source -> three-hour products.
+    if (os.environ.get("EURO_MARINE_FALLBACK_CACHE_REUSE", "0") == "1"
+            and os.environ.get("EURO_MARINE_GFS_REUSE_CACHE", "1") != "0"):
+        gfs_results = scheduler._gfs_coarse_marine_cache
+        if gfs_results:
+            gfs_save_step = 1  # NOAA cache is already three-hourly.
+    if not gfs_results:
+        gfs_results = await scheduler._fetch_or_mock(
+            "GFS", "marine", "all_marine", global_region, resolution, gfs_forecast_days,
+            env["is_test_env"],
+            lambda: generate_mock_marine_results(scheduler.om_provider, global_region, resolution),
+            "global_coarse"
+        )
 
     if not euro_results and not gfs_results:
         logger.error("[Pipeline Scheduler] Both EURO and GFS marine global_coarse fetches failed. Skipping.")
@@ -316,7 +334,8 @@ async def ingest_euro_marine_global_impl(scheduler) -> bool:
                 is_test_env=env["is_test_env"],
                 log_prefix=f"[Pipeline Scheduler] EURO {layer} (GFS fallback) global_coarse",
                 estimated_after_index=0,
-                estimate_basis=gfs_estimate_basis
+                estimate_basis=gfs_estimate_basis,
+                step=gfs_save_step
             )
             logger.info(f"[Pipeline Scheduler] Ingested {count} EURO {layer} (GFS fallback) global coarse grid files.")
             total_saved += count

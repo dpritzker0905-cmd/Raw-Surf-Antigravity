@@ -14,6 +14,7 @@ import logging
 import uuid
 
 from database import get_db
+from core.security import get_current_user_id
 from deps.admin_auth import get_current_admin
 from models import Profile, UserBlock, UserReport, TosViolation, Follow
 
@@ -40,6 +41,7 @@ class UnblockUserRequest(BaseModel):
 @router.post("/users/block")
 async def block_user(
     request: BlockUserRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -49,6 +51,8 @@ async def block_user(
     - Blocked user cannot follow the blocker
     - Any existing follow relationship is removed
     """
+    if request.blocker_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     try:
         # Validate users exist
         blocker_result = await db.execute(select(Profile).where(Profile.id == request.blocker_id))
@@ -153,9 +157,12 @@ async def block_user(
 @router.post("/users/unblock")
 async def unblock_user(
     request: UnblockUserRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Unblock a previously blocked user"""
+    if request.blocker_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     try:
         result = await db.execute(
             select(UserBlock).where(

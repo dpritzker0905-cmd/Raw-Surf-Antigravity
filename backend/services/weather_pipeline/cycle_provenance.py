@@ -33,3 +33,29 @@ def time_provenance(product):
     """Carry provenance at serialization boundaries, including legacy products/doubles."""
     return {key: getattr(product, key, default) for key, default in (
         ('model_run_time', None), ('model_run_time_status', 'missing'), ('ingested_at', None))}
+
+
+def coherent_cycle_pair(anchor, target):
+    """A model trend may subtract two lead times, never two analysis cycles.
+
+    Unknown identity is not proof of coherence. Receipt timestamps cannot repair
+    missing cycle evidence. Native anchors from OTHER models are not compared.
+    """
+    identity = ('model', 'provider', 'domain', 'layer', 'source_dataset', 'region_id', 'tile_id')
+    if (anchor is None or target is None or
+            any(getattr(anchor, key, None) != getattr(target, key, None) for key in identity) or
+            any(not isinstance(value := getattr(anchor, key, None), str) or not value.strip()
+                for key in ('provider', 'source_dataset')) or
+            any(getattr(p, 'is_estimated', False) for p in (anchor, target))):
+        return False
+    dates = []
+    for product in (anchor, target):
+        date = getattr(product, 'model_run_time', None)
+        if (getattr(product, 'model_run_time_status', 'missing') != 'known' or
+                not isinstance(date, datetime) or date.tzinfo is None or date.utcoffset() is None):
+            return False
+        try:
+            dates.append(date.astimezone(timezone.utc))
+        except OverflowError:
+            return False
+    return dates[0] == dates[1]

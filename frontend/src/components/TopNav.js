@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
@@ -6,9 +6,8 @@ import { Bell, Shield, MapPin } from 'lucide-react';
 import { DutyStationIcon } from './DutyStationDrawer';
 import { NotificationsDrawer } from './NotificationsDrawer';
 import { TopNavDrawerTray } from './TopNavDrawerTray';
-import { getUnreadCount } from '../services/notificationService';
 import useTopNavPullDown from '../hooks/useTopNavPullDown';
-import logger from '../utils/logger';
+import useUnreadCounts from '../hooks/useUnreadCounts';
 import { ROLES } from '../constants/roles';
 import { AdaptiveBackground } from './AdaptiveBackground';
 
@@ -34,8 +33,24 @@ export const TopNav = () => {
   const { getEffectiveRole, isGodMode, isPersonaBarActive } = usePersona();
   const navigate = useNavigate();
   const location = useLocation();
-  const [unreadCount, setUnreadCount] = useState(0);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const notificationButtonRef = useRef(null);
+  const restoreNotificationsFocus = useCallback(() => {
+    // The mobile invoker can become hidden while its portalled drawer stays open.
+    const candidates = [notificationButtonRef.current,
+      document.querySelector('nav[aria-label="Main navigation"] a[href="/notifications"]')];
+    for (const target of candidates) {
+      if (!target?.isConnected || target.matches(':disabled')) continue;
+      const rect = target.getBoundingClientRect();
+      const style = window.getComputedStyle(target);
+      if (!rect.width || !rect.height || rect.right <= 0 || rect.bottom <= 0 ||
+          rect.left >= window.innerWidth || rect.top >= window.innerHeight ||
+          style.visibility === 'hidden' || style.display === 'none') continue;
+      target.focus({ preventScroll: true });
+      if (document.activeElement === target) return true;
+    }
+    return false;
+  }, []);
   const [logoSpinning, setLogoSpinning] = useState(false);
 
   // Pull-down drawer gesture hook
@@ -65,24 +80,8 @@ export const TopNav = () => {
     setNotificationsOpen(false);
   }, [location.pathname, closeDrawer]);
 
-  // Notification count polling
-  const fetchUnreadCount = useCallback(async () => {
-    if (!user?.id) return;
-    try {
-      const response = await getUnreadCount(user.id);
-      setUnreadCount(response.data.unread_count || 0);
-    } catch (error) {
-      logger.error('Failed to fetch notification count:', error);
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (user?.id) {
-      fetchUnreadCount();
-      const interval = setInterval(fetchUnreadCount, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [user?.id, fetchUnreadCount]);
+  // Notification count: ONE poller shared with Sidebar and BottomNav (all three are mounted together)
+  const { notifications: unreadCount, refresh: fetchUnreadCount } = useUnreadCounts(user?.id);
 
   // Check if God Mode banner is active
   const _isGodModeBannerVisible = user?.is_admin && isGodMode && isPersonaBarActive;
@@ -157,6 +156,9 @@ export const TopNav = () => {
 
  {/* Notifications Bell -- always visible */}
             <button
+              ref={notificationButtonRef}
+              aria-expanded={notificationsOpen}
+              aria-haspopup="dialog"
               onClick={() => setNotificationsOpen(!notificationsOpen)}
               className={`transition-colors relative p-1 ${
                 notificationsOpen ? 'text-yellow-400' : 'text-gray-400 hover:text-white'
@@ -245,7 +247,7 @@ export const TopNav = () => {
         </button>
 
         {/* Pull-Down Drawer Tray (2 rows: universal + role-specific) */}
-        <TopNavDrawerTray isOpen={drawerOpen} />
+        <TopNavDrawerTray isOpen={drawerOpen} onClose={closeDrawer} />
       </header>
 
       {/* Backdrop when drawer is open */}
@@ -261,6 +263,7 @@ export const TopNav = () => {
       <NotificationsDrawer
         isOpen={notificationsOpen}
         onClose={() => setNotificationsOpen(false)}
+        onReturnFocus={restoreNotificationsFocus}
         onCountUpdate={fetchUnreadCount}
       />
     </>

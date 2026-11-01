@@ -1,0 +1,803 @@
+{
+ "what": "marine main-thread jank on the scrub (2026-10-23); instrument frontend/scripts/offline-backend/scn_main_thread.js",
+ "setup": "offline: synthetic GFS waves run 2026-10-22T06Z (115 frames, 3-hourly) published as CDN frames; owner window 844x390 dpr 2; z3.9 at (-79.5, 28.6); Waves, the run in the store, 10 ArrowRight + PageDown 1.5 s apart, zoom 3.9 -> 1.9 -> 3.9; headless Chrome (ANGLE D3D11); a fresh browser per arm",
+ "runs": {
+  "baseline_dev_timing": {
+   "desc": "dev b88b5ca32, READBACK=0, no seed",
+   "arms": [
+    {
+     "arm": "cur",
+     "flags": [],
+     "idle": {
+      "frames": 359,
+      "mapRenderMsPer6s": 725,
+      "engineRenderMsPer6s": 259,
+      "uniformLookupsPerFrame": 131.0,
+      "loafOver50": []
+     },
+     "keyEventTimingMs": [
+      112,
+      64,
+      104,
+      56,
+      72,
+      88,
+      56,
+      64,
+      104,
+      56,
+      72
+     ],
+     "keyEventTimingP50": 72,
+     "loafOver50": 3,
+     "loafMax": 55,
+     "captureMs": [
+      3,
+      9.6,
+      3,
+      3.5,
+      12.5
+     ],
+     "capturesOver50": 0,
+     "seedCaptures": [],
+     "maskCache": null,
+     "backend": {
+      "/capabilities": 1,
+      "/products": 1
+     }
+    }
+   ]
+  },
+  "readback_dev_frozen": {
+   "desc": "dev b88b5ca32, READBACK=1 (animation frozen), centred on the synthetic storm (-108.6, 15.6)",
+   "arms": [
+    {
+     "arm": "cur",
+     "flags": [],
+     "idle": {
+      "frames": 360,
+      "mapRenderMsPer6s": 622,
+      "engineRenderMsPer6s": 262,
+      "uniformLookupsPerFrame": 131.0,
+      "loafOver50": []
+     },
+     "keyEventTimingMs": [
+      184,
+      88,
+      208,
+      96,
+      88,
+      152,
+      128,
+      216,
+      216,
+      112,
+      176
+     ],
+     "keyEventTimingP50": 152,
+     "loafOver50": 228,
+     "loafMax": 181,
+     "captureMs": [
+      7,
+      3.7,
+      4.2,
+      3.8,
+      1.5,
+      2.3
+     ],
+     "capturesOver50": 0,
+     "seedCaptures": [],
+     "maskCache": null,
+     "backend": {
+      "/capabilities": 1,
+      "/products": 1
+     },
+     "readback": [
+      {
+       "kind": "ArrowRight",
+       "from": 1,
+       "to": 2,
+       "votingPatches": 0,
+       "firstNewMs": null,
+       "oldFramesAfterKey": 0,
+       "lastOldMs": null,
+       "mixed": 0,
+       "parityFalseUntilMs": null
+      },
+      {
+       "kind": "ArrowRight",
+       "from": 2,
+       "to": 3,
+       "votingPatches": 9,
+       "firstNewMs": 171,
+       "oldFramesAfterKey": 0,
+       "lastOldMs": null,
+       "mixed": 0,
+       "parityFalseUntilMs": null
+      },
+      {
+       "kind": "ArrowRight",
+       "from": 3,
+       "to": 4,
+       "votingPatches": 0,
+       "firstNewMs": null,
+       "oldFramesAfterKey": 0,
+       "lastOldMs": null,
+       "mixed": 0,
+       "parityFalseUntilMs": null
+      },
+      {
+       "kind": "ArrowRight",
+       "from": 4,
+       "to": 5,
+       "votingPatches": 0,
+       "firstNewMs": null,
+       "oldFramesAfterKey": 0,
+       "lastOldMs": null,
+       "mixed": 0,
+       "parityFalseUntilMs": null
+      },
+      {
+       "kind": "ArrowRight",
+       "from": 5,
+       "to": 6,
+       "votingPatches": 9,
+       "firstNewMs": 120,
+       "oldFramesAfterKey": 0,
+       "lastOldMs": null,
+       "mixed": 0,
+       "parityFalseUntilMs": null
+      },
+      {
+       "kind": "ArrowRight",
+       "from": 6,
+       "to": 7,
+       "votingPatches": 0,
+       "firstNewMs": null,
+       "oldFramesAfterKey": 0,
+       "lastOldMs": null,
+       "mixed": 0,
+       "parityFalseUntilMs": null
+      },
+      {
+       "kind": "ArrowRight",
+       "from": 7,
+       "to": 8,
+       "votingPatches": 0,
+       "firstNewMs": null,
+       "oldFramesAfterKey": 0,
+       "lastOldMs": null,
+       "mixed": 0,
+       "parityFalseUntilMs": null
+      },
+      {
+       "kind": "ArrowRight",
+       "from": 8,
+       "to": 9,
+       "votingPatches": 10,
+       "firstNewMs": 183,
+       "oldFramesAfterKey": 1,
+       "lastOldMs": 60,
+       "mixed": 0,
+       "parityFalseUntilMs": null
+      },
+      {
+       "kind": "ArrowRight",
+       "from": 9,
+       "to": 10,
+       "votingPatches": 0,
+       "firstNewMs": null,
+       "oldFramesAfterKey": 0,
+       "lastOldMs": null,
+       "mixed": 0,
+       "parityFalseUntilMs": null
+      },
+      {
+       "kind": "PageDown",
+       "from": 10,
+       "to": 0,
+       "votingPatches": 17,
+       "firstNewMs": 142,
+       "oldFramesAfterKey": 0,
+       "lastOldMs": null,
+       "mixed": 0,
+       "parityFalseUntilMs": null
+      }
+     ]
+    }
+   ]
+  },
+  "ab_null_control": {
+   "desc": "this branch, arms on/off/off/on, no seed (nothing should change)",
+   "arms": [
+    {
+     "arm": "on",
+     "flags": [],
+     "idle": {
+      "frames": 360,
+      "mapRenderMsPer6s": 434,
+      "engineRenderMsPer6s": 124,
+      "uniformLookupsPerFrame": 0.0,
+      "loafOver50": []
+     },
+     "keyEventTimingMs": [
+      72,
+      80,
+      72,
+      72,
+      88,
+      64,
+      56,
+      56,
+      64,
+      64,
+      48
+     ],
+     "keyEventTimingP50": 64,
+     "loafOver50": 0,
+     "loafMax": 0,
+     "captureMs": [
+      6.3,
+      1.9,
+      1.9,
+      1.5
+     ],
+     "capturesOver50": 0,
+     "seedCaptures": [],
+     "maskCache": {
+      "hits": 0,
+      "rasters": 1,
+      "evictions": 0,
+      "size": 1
+     },
+     "backend": {
+      "/capabilities": 1,
+      "/products": 1
+     }
+    },
+    {
+     "arm": "off",
+     "flags": [
+      "__RAW_DISABLE_UNIFORM_CACHE__",
+      "__RAW_DISABLE_COARSE_MASK_CACHE__",
+      "__RAW_DISABLE_QUIET_SEED__",
+      "__RAW_DISABLE_MASK_READONLY_CANVAS__"
+     ],
+     "idle": {
+      "frames": 333,
+      "mapRenderMsPer6s": 747,
+      "engineRenderMsPer6s": 289,
+      "uniformLookupsPerFrame": 131.0,
+      "loafOver50": [
+       67,
+       51,
+       81
+      ]
+     },
+     "keyEventTimingMs": [
+      136,
+      144,
+      56,
+      56,
+      128,
+      56,
+      56,
+      104,
+      64,
+      56,
+      88
+     ],
+     "keyEventTimingP50": 64,
+     "loafOver50": 0,
+     "loafMax": 0,
+     "captureMs": [
+      12.3,
+      9.7,
+      6.5,
+      3.9
+     ],
+     "capturesOver50": 0,
+     "seedCaptures": [],
+     "maskCache": null,
+     "backend": {
+      "/capabilities": 1,
+      "/products": 1
+     }
+    },
+    {
+     "arm": "off",
+     "flags": [
+      "__RAW_DISABLE_UNIFORM_CACHE__",
+      "__RAW_DISABLE_COARSE_MASK_CACHE__",
+      "__RAW_DISABLE_QUIET_SEED__",
+      "__RAW_DISABLE_MASK_READONLY_CANVAS__"
+     ],
+     "idle": {
+      "frames": 360,
+      "mapRenderMsPer6s": 577,
+      "engineRenderMsPer6s": 208,
+      "uniformLookupsPerFrame": 131.0,
+      "loafOver50": []
+     },
+     "keyEventTimingMs": [
+      72,
+      72,
+      56,
+      56,
+      96,
+      48,
+      64,
+      120,
+      64,
+      48,
+      64
+     ],
+     "keyEventTimingP50": 64,
+     "loafOver50": 0,
+     "loafMax": 0,
+     "captureMs": [
+      5.4,
+      9.5,
+      3.1,
+      4.6
+     ],
+     "capturesOver50": 0,
+     "seedCaptures": [],
+     "maskCache": null,
+     "backend": {
+      "/capabilities": 1,
+      "/products": 1
+     }
+    },
+    {
+     "arm": "on",
+     "flags": [],
+     "idle": {
+      "frames": 360,
+      "mapRenderMsPer6s": 522,
+      "engineRenderMsPer6s": 155,
+      "uniformLookupsPerFrame": 0.0,
+      "loafOver50": []
+     },
+     "keyEventTimingMs": [
+      88,
+      72,
+      64,
+      64,
+      112,
+      56,
+      56,
+      88,
+      56,
+      56,
+      72
+     ],
+     "keyEventTimingP50": 64,
+     "loafOver50": 1,
+     "loafMax": 85,
+     "captureMs": [
+      6.4,
+      3.8,
+      3,
+      3.2
+     ],
+     "capturesOver50": 0,
+     "seedCaptures": [],
+     "maskCache": {
+      "hits": 0,
+      "rasters": 1,
+      "evictions": 0,
+      "size": 1
+     },
+     "backend": {
+      "/capabilities": 1,
+      "/products": 1
+     }
+    }
+   ]
+  },
+  "ab_seed_control": {
+   "desc": "this branch, arms on/off/off/on, SEED_STEPS=2,5,9 (two world bounds boxes alternate)",
+   "arms": [
+    {
+     "arm": "on",
+     "flags": [],
+     "idle": {
+      "frames": 359,
+      "mapRenderMsPer6s": 657,
+      "engineRenderMsPer6s": 194,
+      "uniformLookupsPerFrame": 0.0,
+      "loafOver50": []
+     },
+     "keyEventTimingMs": [
+      64,
+      104,
+      48,
+      72,
+      104,
+      48,
+      56,
+      72,
+      56,
+      56,
+      96
+     ],
+     "keyEventTimingP50": 64,
+     "loafOver50": 3,
+     "loafMax": 112,
+     "captureMs": [
+      4.3,
+      93.9,
+      8.1,
+      7.5,
+      2.6,
+      2,
+      2.6,
+      4,
+      3.5,
+      3
+     ],
+     "capturesOver50": 1,
+     "seedCaptures": [
+      {
+       "step": "ArrowRight",
+       "msAfterKey": 1005,
+       "ms": 93.9
+      },
+      {
+       "step": "ArrowRight",
+       "msAfterKey": 1004,
+       "ms": 2.6
+      },
+      {
+       "step": "ArrowRight",
+       "msAfterKey": 1010,
+       "ms": 4
+      }
+     ],
+     "maskCache": {
+      "hits": 5,
+      "rasters": 2,
+      "evictions": 0,
+      "size": 2
+     },
+     "backend": {
+      "/capabilities": 1,
+      "/products": 1
+     }
+    },
+    {
+     "arm": "off",
+     "flags": [
+      "__RAW_DISABLE_UNIFORM_CACHE__",
+      "__RAW_DISABLE_COARSE_MASK_CACHE__",
+      "__RAW_DISABLE_QUIET_SEED__",
+      "__RAW_DISABLE_MASK_READONLY_CANVAS__"
+     ],
+     "idle": {
+      "frames": 361,
+      "mapRenderMsPer6s": 702,
+      "engineRenderMsPer6s": 253,
+      "uniformLookupsPerFrame": 131.0,
+      "loafOver50": []
+     },
+     "keyEventTimingMs": [
+      96,
+      104,
+      64,
+      104,
+      128,
+      56,
+      88,
+      104,
+      64,
+      64,
+      176
+     ],
+     "keyEventTimingP50": 96,
+     "loafOver50": 3,
+     "loafMax": 138,
+     "captureMs": [
+      5.6,
+      120.4,
+      38.8,
+      4.7,
+      41.1,
+      46.2,
+      4.6,
+      50.4,
+      46.7,
+      7.6
+     ],
+     "capturesOver50": 2,
+     "seedCaptures": [
+      {
+       "step": "ArrowRight",
+       "msAfterKey": 202,
+       "ms": 120.4
+      },
+      {
+       "step": "ArrowRight",
+       "msAfterKey": 194,
+       "ms": 41.1
+      },
+      {
+       "step": "ArrowRight",
+       "msAfterKey": 212,
+       "ms": 50.4
+      }
+     ],
+     "maskCache": null,
+     "backend": {
+      "/capabilities": 1,
+      "/products": 1
+     }
+    },
+    {
+     "arm": "off",
+     "flags": [
+      "__RAW_DISABLE_UNIFORM_CACHE__",
+      "__RAW_DISABLE_COARSE_MASK_CACHE__",
+      "__RAW_DISABLE_QUIET_SEED__",
+      "__RAW_DISABLE_MASK_READONLY_CANVAS__"
+     ],
+     "idle": {
+      "frames": 360,
+      "mapRenderMsPer6s": 730,
+      "engineRenderMsPer6s": 276,
+      "uniformLookupsPerFrame": 131.0,
+      "loafOver50": []
+     },
+     "keyEventTimingMs": [
+      72,
+      128,
+      48,
+      80,
+      96,
+      56,
+      88,
+      96,
+      56,
+      64,
+      136
+     ],
+     "keyEventTimingP50": 80,
+     "loafOver50": 3,
+     "loafMax": 119,
+     "captureMs": [
+      11.7,
+      100.2,
+      35.7,
+      7,
+      39.6,
+      43.3,
+      6.9,
+      35.8,
+      35.9,
+      3.2
+     ],
+     "capturesOver50": 1,
+     "seedCaptures": [
+      {
+       "step": "ArrowRight",
+       "msAfterKey": 185,
+       "ms": 100.2
+      },
+      {
+       "step": "ArrowRight",
+       "msAfterKey": 194,
+       "ms": 39.6
+      },
+      {
+       "step": "ArrowRight",
+       "msAfterKey": 196,
+       "ms": 35.8
+      }
+     ],
+     "maskCache": null,
+     "backend": {
+      "/capabilities": 1,
+      "/products": 1
+     }
+    },
+    {
+     "arm": "on",
+     "flags": [],
+     "idle": {
+      "frames": 360,
+      "mapRenderMsPer6s": 663,
+      "engineRenderMsPer6s": 232,
+      "uniformLookupsPerFrame": 0.0,
+      "loafOver50": []
+     },
+     "keyEventTimingMs": [
+      96,
+      56,
+      48,
+      56,
+      56,
+      64,
+      56,
+      56,
+      64,
+      72,
+      64
+     ],
+     "keyEventTimingP50": 56,
+     "loafOver50": 4,
+     "loafMax": 106,
+     "captureMs": [
+      89,
+      5.7,
+      11.1,
+      1.8,
+      9.5
+     ],
+     "capturesOver50": 1,
+     "seedCaptures": [
+      {
+       "step": "ArrowRight",
+       "msAfterKey": 1003,
+       "ms": 89
+      },
+      {
+       "step": "ArrowRight",
+       "msAfterKey": 1535,
+       "ms": 5.7
+      },
+      {
+       "step": "ArrowRight",
+       "msAfterKey": 1534,
+       "ms": 11.1
+      },
+      {
+       "step": "ArrowRight",
+       "msAfterKey": 1526,
+       "ms": 1.8
+      },
+      {
+       "step": "PageDown",
+       "msAfterKey": 1538,
+       "ms": 9.5
+      }
+     ],
+     "maskCache": {
+      "hits": 1,
+      "rasters": 2,
+      "evictions": 0,
+      "size": 2
+     },
+     "backend": {
+      "/capabilities": 1,
+      "/products": 1,
+      "/grid_series": 1
+     }
+    }
+   ]
+  },
+  "fast_scrub_seed": {
+   "desc": "this branch, arms on/off, SEED_STEPS=2,5,9, STEP_GAP=400 (a rapid scrub)",
+   "arms": [
+    {
+     "arm": "on",
+     "flags": [],
+     "idle": {
+      "frames": 360,
+      "mapRenderMsPer6s": 706,
+      "engineRenderMsPer6s": 249,
+      "uniformLookupsPerFrame": 0.0,
+      "loafOver50": []
+     },
+     "keyEventTimingMs": [
+      64,
+      120,
+      56,
+      56,
+      104,
+      56,
+      48,
+      120,
+      64,
+      48,
+      88
+     ],
+     "keyEventTimingP50": 64,
+     "loafOver50": 2,
+     "loafMax": 100,
+     "captureMs": [
+      14.7,
+      9.4,
+      3.4,
+      3.7,
+      84.8
+     ],
+     "capturesOver50": 1,
+     "seedCaptures": [
+      {
+       "step": "ZOOM_OUT",
+       "msAfterKey": null,
+       "ms": 84.8
+      }
+     ],
+     "maskCache": {
+      "hits": 0,
+      "rasters": 2,
+      "evictions": 0,
+      "size": 2
+     },
+     "backend": {
+      "/capabilities": 1,
+      "/products": 1
+     }
+    },
+    {
+     "arm": "off",
+     "flags": [
+      "__RAW_DISABLE_UNIFORM_CACHE__",
+      "__RAW_DISABLE_COARSE_MASK_CACHE__",
+      "__RAW_DISABLE_QUIET_SEED__",
+      "__RAW_DISABLE_MASK_READONLY_CANVAS__"
+     ],
+     "idle": {
+      "frames": 361,
+      "mapRenderMsPer6s": 693,
+      "engineRenderMsPer6s": 248,
+      "uniformLookupsPerFrame": 131.0,
+      "loafOver50": []
+     },
+     "keyEventTimingMs": [
+      56,
+      104,
+      64,
+      104,
+      104,
+      56,
+      88,
+      96,
+      48,
+      56,
+      120
+     ],
+     "keyEventTimingP50": 88,
+     "loafOver50": 3,
+     "loafMax": 102,
+     "captureMs": [
+      3.7,
+      85.8,
+      45.2,
+      11.1,
+      37,
+      32.7,
+      3.9,
+      38.2,
+      35.4,
+      2.6
+     ],
+     "capturesOver50": 1,
+     "seedCaptures": [
+      {
+       "step": "ArrowRight",
+       "msAfterKey": 200,
+       "ms": 85.8
+      },
+      {
+       "step": "ArrowRight",
+       "msAfterKey": 188,
+       "ms": 37
+      },
+      {
+       "step": "ArrowRight",
+       "msAfterKey": 189,
+       "ms": 38.2
+      }
+     ],
+     "maskCache": null,
+     "backend": {
+      "/capabilities": 1,
+      "/products": 1
+     }
+    }
+   ]
+  }
+ }
+}

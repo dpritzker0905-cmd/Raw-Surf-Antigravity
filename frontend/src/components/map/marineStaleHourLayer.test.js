@@ -15,6 +15,7 @@ const engineWith = (g) => ({ _waveData: g ? { waveGrid: g } : null });
 const world = (vt, over = {}) => ({ bounds: WORLD, cols: 181, rows: 82, valid_time: vt, ...over });
 
 beforeEach(() => {
+  window.__RAW_DISABLE_HOLD_NO_DIM__ = true;   // these suites pin the stale-hour DIM (the hold's kill-switch path); the hold is pinned in marineStaleHour.test.js
   _resetSelectedMemoForTest();
   window.__MOCK_DATE_NOW__ = ANCHOR;                                   // the forecast anchor: no manifest loaded, so the instant is anchor + hour
   window.__RAW_GPU__ = {};
@@ -23,6 +24,7 @@ beforeEach(() => {
   delete window.__RAW_DISABLE_STALE_RESIDENT_SWAP__;
 });
 afterEach(() => {
+  delete window.__RAW_DISABLE_HOLD_NO_DIM__;
   delete window.__MOCK_DATE_NOW__;
   delete window.__RAW_GPU__;
   jest.restoreAllMocks();

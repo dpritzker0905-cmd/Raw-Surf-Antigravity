@@ -1,14 +1,17 @@
 """
 Copernicus Marine Service — EURO wave data fetcher.
 
-Fetches ECMWF WAM wave analysis & forecast data from the Copernicus Marine
-Service (CMEMS) and returns it in Open-Meteo-compatible JSON shape so the
+Fetches Météo-France MFWAM wave analysis & forecast data from the Copernicus
+Marine Service (CMEMS) and returns it in Open-Meteo-compatible JSON shape so the
 frontend can consume it without any format changes.
 
-Dataset: cmems_mod_glo_wav_anfc_0.083deg_PT3H-i
-  - Global wave analysis & forecast, 0.083° resolution, 3-hourly
-  - Source model: ECMWF WAM (same as EURO in Open-Meteo, but with full
-    swell decomposition that Open-Meteo's ecmwf_wam025 lacks)
+Dataset: cmems_mod_glo_wav_anfc_0.083deg_PT3H-i (product GLOBAL_ANALYSISFORECAST_WAV_001_027)
+  - Global wave analysis & forecast, 1/12° (0.083°) resolution, 3-hourly
+  - Source model: Météo-France MFWAM, driven by ECMWF IFS winds. It is NOT ECMWF's own wave
+    model (ECWAM, which Open-Meteo serves as `ecmwf_wam025` and we fetch direct from ECMWF Open
+    Data in ecmwf_wave_service.py). MFWAM runs on the ECWAM code base, but it is a separate model
+    with its own grid and altimeter assimilation, and it carries the swell partitions that the free
+    ECMWF wave stream lacks. Labels corrected 2026-10-20 (guard: tests/test_cmems_source_labels.py).
 
 Environment variables (required):
   COPERNICUSMARINE_SERVICE_USERNAME
@@ -284,7 +287,7 @@ async def fetch_euro_marine_global_coarse(
     """
     BACKGROUND-ONLY: fetch a coarse (resolution°) GLOBAL EURO marine grid from Copernicus using the
     thin-latitude-band subset fetcher (copernicus_global_fetcher.py). Returns Open-Meteo-shaped point
-    dicts for ALL 4 native layers (waves/swell_1/swell_2/wind_waves incl REAL ECMWF-WAM swells), or
+    dicts for ALL 4 native layers (waves/swell_1/swell_2/wind_waves incl the real MFWAM swell partitions), or
     None on failure. Slow (~15-30 min, ~0.3 GB, ~36 MB peak) — scheduler ingestion ONLY, never a user
     request. CMEMS global waves is a ~10-day product (caller extends 10->14d with cached GFS).
     """
@@ -508,15 +511,14 @@ def _fetch_sync(
             ("VMDR_WW",  "wind_wave_direction",             "°"),
             ("VTM01_WW", "wind_wave_period",                "s"),
         ]
+        # COPERNICUS_PEAK_PERIOD (dark): VTPK as the total period, VTM10 kept as wave_period_tm10
+        # (services/cmems_period_map.py). Flag off -> the map above, unchanged, and the same selection.
+        from services.cmems_period_map import requested_vars, with_peak_period
+        _base_map = VARIABLE_MAP
+        VARIABLE_MAP = with_peak_period(_base_map)
         COPERNICUS_VARS = [v[0] for v in VARIABLE_MAP]
-        
-        OM_TO_COPERNICUS = {v[1]: v[0] for v in VARIABLE_MAP}
         if variables and len(variables) > 0:
-            requested_cop_vars = []
-            for om_var in variables:
-                if om_var in OM_TO_COPERNICUS:
-                    requested_cop_vars.append(OM_TO_COPERNICUS[om_var])
-            fetch_vars = requested_cop_vars if requested_cop_vars else COPERNICUS_VARS
+            fetch_vars = requested_vars(_base_map, variables) or COPERNICUS_VARS
         else:
             fetch_vars = COPERNICUS_VARS
 

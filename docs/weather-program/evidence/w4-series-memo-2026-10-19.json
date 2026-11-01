@@ -1,0 +1,679 @@
+{
+ "what": "W-4 series page memo, offline A/B on the synthetic store (serve_synthetic.py --models GFS,ICON,EURO --layers waves,swell_1,swell_2,wind_waves; 115 three-hourly frames, 1.5 GB). Owner's PC, Python 3.12.10, FastAPI 0.110.1, pydantic 2.11.7 (the deployed pins), NOT the Render box. 48-frame pages (hours 0..141 step 3), one anchor hour.",
+ "stage_split_in_process": {
+  "base_time": "2026-10-19T13:00:00Z",
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "rows": [
+   {
+    "case": "GFS/waves",
+    "bbox": "-180,-80,180,85",
+    "build_cold_ms": 2256.8,
+    "build_warm_ms": 211.1,
+    "frames": 48,
+    "legacy_encode_ms": 805.6,
+    "legacy_gzip9_ms": 252.3,
+    "legacy_gzip9_bytes": 729091,
+    "direct_encode_ms": 189.4,
+    "raw_bytes": 7344442,
+    "decoded_equal_legacy_vs_direct": true,
+    "gzip1_ms": 27.4,
+    "gzip1_bytes": 1006779,
+    "gzip2_ms": 31.0,
+    "gzip2_bytes": 951597,
+    "gzip3_ms": 37.3,
+    "gzip3_bytes": 925676,
+    "gzip4_ms": 46.3,
+    "gzip4_bytes": 854250
+   },
+   {
+    "case": "ICON/swell_1",
+    "bbox": "-180,-80,180,85",
+    "build_cold_ms": 2110.2,
+    "build_warm_ms": 135.8,
+    "frames": 48,
+    "legacy_encode_ms": 792.2,
+    "legacy_gzip9_ms": 264.0,
+    "legacy_gzip9_bytes": 712066,
+    "direct_encode_ms": 243.1,
+    "raw_bytes": 7364844,
+    "decoded_equal_legacy_vs_direct": true,
+    "gzip1_ms": 28.6,
+    "gzip1_bytes": 992299,
+    "gzip2_ms": 35.0,
+    "gzip2_bytes": 934975,
+    "gzip3_ms": 37.9,
+    "gzip3_bytes": 907654,
+    "gzip4_ms": 56.5,
+    "gzip4_bytes": 837552
+   },
+   {
+    "case": "EURO/waves",
+    "bbox": "-180,-80,180,85",
+    "build_cold_ms": 2075.6,
+    "build_warm_ms": 143.3,
+    "frames": 48,
+    "legacy_encode_ms": 815.1,
+    "legacy_gzip9_ms": 256.6,
+    "legacy_gzip9_bytes": 728114,
+    "direct_encode_ms": 208.9,
+    "raw_bytes": 7344824,
+    "decoded_equal_legacy_vs_direct": true,
+    "gzip1_ms": 27.0,
+    "gzip1_bytes": 1007554,
+    "gzip2_ms": 30.8,
+    "gzip2_bytes": 955138,
+    "gzip3_ms": 37.6,
+    "gzip3_bytes": 928017,
+    "gzip4_ms": 44.4,
+    "gzip4_bytes": 858245
+   },
+   {
+    "case": "GFS/wind_waves",
+    "bbox": "-126.0000,25.0000,-113.0000,36.0000",
+    "build_cold_ms": 7361.0,
+    "build_warm_ms": 7293.0,
+    "frames": 48,
+    "legacy_encode_ms": 134.1,
+    "legacy_gzip9_ms": 16.0,
+    "legacy_gzip9_bytes": 34717,
+    "direct_encode_ms": 32.9,
+    "raw_bytes": 1205823,
+    "decoded_equal_legacy_vs_direct": true,
+    "gzip1_ms": 2.9,
+    "gzip1_bytes": 92539,
+    "gzip2_ms": 3.3,
+    "gzip2_bytes": 87587,
+    "gzip3_ms": 4.0,
+    "gzip3_bytes": 77225,
+    "gzip4_ms": 7.4,
+    "gzip4_bytes": 59113
+   },
+   {
+    "case": "EURO/swell_2",
+    "bbox": "-180,-80,180,85",
+    "build_cold_ms": 229.3,
+    "build_warm_ms": 96.4,
+    "frames": 48,
+    "legacy_encode_ms": 540.2,
+    "legacy_gzip9_ms": 69.6,
+    "legacy_gzip9_bytes": 107026,
+    "direct_encode_ms": 152.0,
+    "raw_bytes": 4747311,
+    "decoded_equal_legacy_vs_direct": true,
+    "gzip1_ms": 6.6,
+    "gzip1_bytes": 141921,
+    "gzip2_ms": 7.1,
+    "gzip2_bytes": 143684,
+    "gzip3_ms": 7.2,
+    "gzip3_bytes": 145698,
+    "gzip4_ms": 14.3,
+    "gzip4_bytes": 124454
+   }
+  ]
+ },
+ "http_ab_gzip4": {
+  "base_time": "2026-10-19T13:00:00Z",
+  "gzip_level": "4",
+  "rows": [
+   {
+    "case": "GFS/waves",
+    "bbox": "-180,-80,180,85",
+    "snapped": "-180.0000,-80.0000,180.0000,85.0000",
+    "frames": 48,
+    "decoded_equal": true,
+    "frames_equal": true,
+    "off_cold": {
+     "code": 200,
+     "wall_ms": 4339.2,
+     "wire_bytes": 729091,
+     "raw_bytes": 7344442,
+     "cpu_ms": 4250.0,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "off_repeat": {
+     "code": 200,
+     "wall_ms": 1830.8,
+     "wire_bytes": 729091,
+     "raw_bytes": 7344442,
+     "cpu_ms": 1796.9,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "on_cold": {
+     "code": 200,
+     "wall_ms": 3261.4,
+     "wire_bytes": 854250,
+     "raw_bytes": 7344442,
+     "cpu_ms": 3125.0,
+     "server_timing": "build;dur=2714.7, encode;dur=321.7, gzip;dur=57.9, memo;desc=miss;dur=3213.0",
+     "encoding": "gzip"
+    },
+    "on_jitter": {
+     "code": 200,
+     "wall_ms": 46.2,
+     "wire_bytes": 854250,
+     "raw_bytes": 7344442,
+     "cpu_ms": 0.0,
+     "server_timing": "memo;desc=hit;dur=1.1",
+     "encoding": "gzip"
+    },
+    "on_repeat": {
+     "code": 200,
+     "wall_ms": 56.8,
+     "wire_bytes": 854250,
+     "raw_bytes": 7344442,
+     "cpu_ms": 0.0,
+     "server_timing": "memo;desc=hit;dur=1.1",
+     "encoding": "gzip"
+    },
+    "on_repeat_cpu_pct_of_cold": 0.0,
+    "on_jitter_cpu_pct_of_cold": 0.0
+   },
+   {
+    "case": "ICON/swell_1",
+    "bbox": "-180,-80,180,85",
+    "snapped": "-180.0000,-80.0000,180.0000,85.0000",
+    "frames": 48,
+    "decoded_equal": true,
+    "frames_equal": true,
+    "off_cold": {
+     "code": 200,
+     "wall_ms": 5200.6,
+     "wire_bytes": 712066,
+     "raw_bytes": 7364844,
+     "cpu_ms": 4984.4,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "off_repeat": {
+     "code": 200,
+     "wall_ms": 2844.4,
+     "wire_bytes": 712066,
+     "raw_bytes": 7364844,
+     "cpu_ms": 2609.4,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "on_cold": {
+     "code": 200,
+     "wall_ms": 3774.1,
+     "wire_bytes": 837552,
+     "raw_bytes": 7364844,
+     "cpu_ms": 3625.0,
+     "server_timing": "build;dur=3399.4, encode;dur=271.6, gzip;dur=54.2, memo;desc=miss;dur=3728.3",
+     "encoding": "gzip"
+    },
+    "on_jitter": {
+     "code": 200,
+     "wall_ms": 41.4,
+     "wire_bytes": 837552,
+     "raw_bytes": 7364844,
+     "cpu_ms": 0.0,
+     "server_timing": "memo;desc=hit;dur=1.2",
+     "encoding": "gzip"
+    },
+    "on_repeat": {
+     "code": 200,
+     "wall_ms": 43.2,
+     "wire_bytes": 837552,
+     "raw_bytes": 7364844,
+     "cpu_ms": 15.6,
+     "server_timing": "memo;desc=hit;dur=0.8",
+     "encoding": "gzip"
+    },
+    "on_repeat_cpu_pct_of_cold": 0.4,
+    "on_jitter_cpu_pct_of_cold": 0.0
+   },
+   {
+    "case": "EURO/waves",
+    "bbox": "-180,-80,180,85",
+    "snapped": "-180.0000,-80.0000,180.0000,85.0000",
+    "frames": 48,
+    "decoded_equal": true,
+    "frames_equal": true,
+    "off_cold": {
+     "code": 200,
+     "wall_ms": 3771.5,
+     "wire_bytes": 728114,
+     "raw_bytes": 7344824,
+     "cpu_ms": 3640.6,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "off_repeat": {
+     "code": 200,
+     "wall_ms": 1312.1,
+     "wire_bytes": 728114,
+     "raw_bytes": 7344824,
+     "cpu_ms": 1265.6,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "on_cold": {
+     "code": 200,
+     "wall_ms": 2776.7,
+     "wire_bytes": 858245,
+     "raw_bytes": 7344824,
+     "cpu_ms": 2781.2,
+     "server_timing": "build;dur=2469.0, encode;dur=225.1, gzip;dur=42.4, memo;desc=miss;dur=2739.5",
+     "encoding": "gzip"
+    },
+    "on_jitter": {
+     "code": 200,
+     "wall_ms": 54.4,
+     "wire_bytes": 858245,
+     "raw_bytes": 7344824,
+     "cpu_ms": 0.0,
+     "server_timing": "memo;desc=hit;dur=1.5",
+     "encoding": "gzip"
+    },
+    "on_repeat": {
+     "code": 200,
+     "wall_ms": 37.0,
+     "wire_bytes": 858245,
+     "raw_bytes": 7344824,
+     "cpu_ms": 0.0,
+     "server_timing": "memo;desc=hit;dur=1.2",
+     "encoding": "gzip"
+    },
+    "on_repeat_cpu_pct_of_cold": 0.0,
+    "on_jitter_cpu_pct_of_cold": 0.0
+   },
+   {
+    "case": "GFS/wind_waves",
+    "bbox": "-125.3,25.2,-113.6,35.6",
+    "snapped": "-126.0000,25.0000,-113.0000,36.0000",
+    "frames": 48,
+    "decoded_equal": true,
+    "frames_equal": true,
+    "off_cold": {
+     "code": 200,
+     "wall_ms": 6709.0,
+     "wire_bytes": 34717,
+     "raw_bytes": 1205823,
+     "cpu_ms": 6546.9,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "off_repeat": {
+     "code": 200,
+     "wall_ms": 6701.4,
+     "wire_bytes": 34717,
+     "raw_bytes": 1205823,
+     "cpu_ms": 6531.2,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "on_cold": {
+     "code": 200,
+     "wall_ms": 6779.4,
+     "wire_bytes": 59113,
+     "raw_bytes": 1205823,
+     "cpu_ms": 6593.8,
+     "server_timing": "build;dur=6718.3, encode;dur=30.9, gzip;dur=4.6, memo;desc=miss;dur=6758.9",
+     "encoding": "gzip"
+    },
+    "on_jitter": {
+     "code": 200,
+     "wall_ms": 21.5,
+     "wire_bytes": 59113,
+     "raw_bytes": 1205823,
+     "cpu_ms": 15.6,
+     "server_timing": "memo;desc=hit;dur=1.1",
+     "encoding": "gzip"
+    },
+    "on_repeat": {
+     "code": 200,
+     "wall_ms": 21.1,
+     "wire_bytes": 59113,
+     "raw_bytes": 1205823,
+     "cpu_ms": 0.0,
+     "server_timing": "memo;desc=hit;dur=0.8",
+     "encoding": "gzip"
+    },
+    "on_repeat_cpu_pct_of_cold": 0.0,
+    "on_jitter_cpu_pct_of_cold": 0.2
+   },
+   {
+    "case": "EURO/swell_2",
+    "bbox": "-180,-80,180,85",
+    "snapped": "-180.0000,-80.0000,180.0000,85.0000",
+    "frames": 48,
+    "decoded_equal": true,
+    "frames_equal": true,
+    "off_cold": {
+     "code": 200,
+     "wall_ms": 1436.8,
+     "wire_bytes": 107026,
+     "raw_bytes": 4747311,
+     "cpu_ms": 1406.2,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "off_repeat": {
+     "code": 200,
+     "wall_ms": 723.4,
+     "wire_bytes": 107026,
+     "raw_bytes": 4747311,
+     "cpu_ms": 703.1,
+     "server_timing": null,
+     "encoding": "gzip"
+    },
+    "on_cold": {
+     "code": 200,
+     "wall_ms": 446.1,
+     "wire_bytes": 124454,
+     "raw_bytes": 4747311,
+     "cpu_ms": 437.5,
+     "server_timing": "build;dur=272.8, encode;dur=129.3, gzip;dur=15.1, memo;desc=miss;dur=420.0",
+     "encoding": "gzip"
+    },
+    "on_jitter": {
+     "code": 200,
+     "wall_ms": 24.9,
+     "wire_bytes": 124454,
+     "raw_bytes": 4747311,
+     "cpu_ms": 0.0,
+     "server_timing": "memo;desc=hit;dur=0.9",
+     "encoding": "gzip"
+    },
+    "on_repeat": {
+     "code": 200,
+     "wall_ms": 22.0,
+     "wire_bytes": 124454,
+     "raw_bytes": 4747311,
+     "cpu_ms": 0.0,
+     "server_timing": "memo;desc=hit;dur=0.7",
+     "encoding": "gzip"
+    },
+    "on_repeat_cpu_pct_of_cold": 0.0,
+    "on_jitter_cpu_pct_of_cold": 0.0
+   }
+  ]
+ },
+ "http_ab_gzip1_cpu_unmeasured": {
+  "note": "first run: CPU column read the venv launcher, not the interpreter child (0 ms everywhere); wall, bytes, Server-Timing and decoded equality stand; regional jitter pair crossed a 1-deg grid line",
+  "data": {
+   "base_time": "2026-10-19T13:00:00Z",
+   "gzip_level": "1",
+   "rows": [
+    {
+     "case": "GFS/waves",
+     "bbox": "-180,-80,180,85",
+     "snapped": "-180.0000,-80.0000,180.0000,85.0000",
+     "frames": 48,
+     "decoded_equal": true,
+     "frames_equal": true,
+     "off_cold": {
+      "code": 200,
+      "wall_ms": 5133.7,
+      "wire_bytes": 729091,
+      "raw_bytes": 7344442,
+      "cpu_ms": 0.0,
+      "server_timing": null,
+      "encoding": "gzip"
+     },
+     "off_repeat": {
+      "code": 200,
+      "wall_ms": 2415.7,
+      "wire_bytes": 729091,
+      "raw_bytes": 7344442,
+      "cpu_ms": 0.0,
+      "server_timing": null,
+      "encoding": "gzip"
+     },
+     "on_cold": {
+      "code": 200,
+      "wall_ms": 3758.3,
+      "wire_bytes": 1006779,
+      "raw_bytes": 7344442,
+      "cpu_ms": 0.0,
+      "server_timing": "build;dur=3179.4, encode;dur=381.4, gzip;dur=45.1, memo;desc=miss;dur=3698.5",
+      "encoding": "gzip"
+     },
+     "on_jitter": {
+      "code": 200,
+      "wall_ms": 47.8,
+      "wire_bytes": 1006779,
+      "raw_bytes": 7344442,
+      "cpu_ms": 0.0,
+      "server_timing": "memo;desc=hit;dur=1.1",
+      "encoding": "gzip"
+     },
+     "on_repeat": {
+      "code": 200,
+      "wall_ms": 34.8,
+      "wire_bytes": 1006779,
+      "raw_bytes": 7344442,
+      "cpu_ms": 0.0,
+      "server_timing": "memo;desc=hit;dur=1.3",
+      "encoding": "gzip"
+     },
+     "on_repeat_cpu_pct_of_cold": null,
+     "on_jitter_cpu_pct_of_cold": null
+    },
+    {
+     "case": "ICON/swell_1",
+     "bbox": "-180,-80,180,85",
+     "snapped": "-180.0000,-80.0000,180.0000,85.0000",
+     "frames": 48,
+     "decoded_equal": true,
+     "frames_equal": true,
+     "off_cold": {
+      "code": 200,
+      "wall_ms": 5607.3,
+      "wire_bytes": 712066,
+      "raw_bytes": 7364844,
+      "cpu_ms": 0.0,
+      "server_timing": null,
+      "encoding": "gzip"
+     },
+     "off_repeat": {
+      "code": 200,
+      "wall_ms": 2339.2,
+      "wire_bytes": 712066,
+      "raw_bytes": 7364844,
+      "cpu_ms": 0.0,
+      "server_timing": null,
+      "encoding": "gzip"
+     },
+     "on_cold": {
+      "code": 200,
+      "wall_ms": 2339.5,
+      "wire_bytes": 992299,
+      "raw_bytes": 7364844,
+      "cpu_ms": 0.0,
+      "server_timing": "build;dur=2072.5, encode;dur=191.0, gzip;dur=32.5, memo;desc=miss;dur=2298.6",
+      "encoding": "gzip"
+     },
+     "on_jitter": {
+      "code": 200,
+      "wall_ms": 40.4,
+      "wire_bytes": 992299,
+      "raw_bytes": 7364844,
+      "cpu_ms": 0.0,
+      "server_timing": "memo;desc=hit;dur=0.9",
+      "encoding": "gzip"
+     },
+     "on_repeat": {
+      "code": 200,
+      "wall_ms": 36.5,
+      "wire_bytes": 992299,
+      "raw_bytes": 7364844,
+      "cpu_ms": 0.0,
+      "server_timing": "memo;desc=hit;dur=1.2",
+      "encoding": "gzip"
+     },
+     "on_repeat_cpu_pct_of_cold": null,
+     "on_jitter_cpu_pct_of_cold": null
+    },
+    {
+     "case": "EURO/waves",
+     "bbox": "-180,-80,180,85",
+     "snapped": "-180.0000,-80.0000,180.0000,85.0000",
+     "frames": 48,
+     "decoded_equal": true,
+     "frames_equal": true,
+     "off_cold": {
+      "code": 200,
+      "wall_ms": 4282.1,
+      "wire_bytes": 728114,
+      "raw_bytes": 7344824,
+      "cpu_ms": 0.0,
+      "server_timing": null,
+      "encoding": "gzip"
+     },
+     "off_repeat": {
+      "code": 200,
+      "wall_ms": 1267.6,
+      "wire_bytes": 728114,
+      "raw_bytes": 7344824,
+      "cpu_ms": 0.0,
+      "server_timing": null,
+      "encoding": "gzip"
+     },
+     "on_cold": {
+      "code": 200,
+      "wall_ms": 2785.4,
+      "wire_bytes": 1007554,
+      "raw_bytes": 7344824,
+      "cpu_ms": 0.0,
+      "server_timing": "build;dur=2459.9, encode;dur=245.3, gzip;dur=35.9, memo;desc=miss;dur=2744.0",
+      "encoding": "gzip"
+     },
+     "on_jitter": {
+      "code": 200,
+      "wall_ms": 38.4,
+      "wire_bytes": 1007554,
+      "raw_bytes": 7344824,
+      "cpu_ms": 0.0,
+      "server_timing": "memo;desc=hit;dur=0.9",
+      "encoding": "gzip"
+     },
+     "on_repeat": {
+      "code": 200,
+      "wall_ms": 40.5,
+      "wire_bytes": 1007554,
+      "raw_bytes": 7344824,
+      "cpu_ms": 0.0,
+      "server_timing": "memo;desc=hit;dur=1.0",
+      "encoding": "gzip"
+     },
+     "on_repeat_cpu_pct_of_cold": null,
+     "on_jitter_cpu_pct_of_cold": null
+    },
+    {
+     "case": "GFS/wind_waves",
+     "bbox": "-125.3,25.2,-113.6,36.1",
+     "snapped": "-125.3,25.2,-113.6,36.1",
+     "frames": 48,
+     "decoded_equal": false,
+     "frames_equal": true,
+     "off_cold": {
+      "code": 200,
+      "wall_ms": 7014.8,
+      "wire_bytes": 33550,
+      "raw_bytes": 1115621,
+      "cpu_ms": 0.0,
+      "server_timing": null,
+      "encoding": "gzip"
+     },
+     "off_repeat": {
+      "code": 200,
+      "wall_ms": 6968.7,
+      "wire_bytes": 33550,
+      "raw_bytes": 1115621,
+      "cpu_ms": 0.0,
+      "server_timing": null,
+      "encoding": "gzip"
+     },
+     "on_cold": {
+      "code": 200,
+      "wall_ms": 7556.5,
+      "wire_bytes": 89270,
+      "raw_bytes": 1115621,
+      "cpu_ms": 0.0,
+      "server_timing": "build;dur=7455.7, encode;dur=61.6, gzip;dur=7.0, memo;desc=miss;dur=7534.0",
+      "encoding": "gzip"
+     },
+     "on_jitter": {
+      "code": 200,
+      "wall_ms": 11848.0,
+      "wire_bytes": 84006,
+      "raw_bytes": 1025333,
+      "cpu_ms": 0.0,
+      "server_timing": "build;dur=11676.2, encode;dur=107.1, gzip;dur=15.0, memo;desc=miss;dur=11812.0",
+      "encoding": "gzip"
+     },
+     "on_repeat": {
+      "code": 200,
+      "wall_ms": 31.0,
+      "wire_bytes": 89270,
+      "raw_bytes": 1115621,
+      "cpu_ms": 0.0,
+      "server_timing": "memo;desc=hit;dur=1.4",
+      "encoding": "gzip"
+     },
+     "on_repeat_cpu_pct_of_cold": null,
+     "on_jitter_cpu_pct_of_cold": null
+    },
+    {
+     "case": "EURO/swell_2",
+     "bbox": "-180,-80,180,85",
+     "snapped": "-180.0000,-80.0000,180.0000,85.0000",
+     "frames": 48,
+     "decoded_equal": true,
+     "frames_equal": true,
+     "off_cold": {
+      "code": 200,
+      "wall_ms": 2293.8,
+      "wire_bytes": 107026,
+      "raw_bytes": 4747311,
+      "cpu_ms": 0.0,
+      "server_timing": null,
+      "encoding": "gzip"
+     },
+     "off_repeat": {
+      "code": 200,
+      "wall_ms": 1904.0,
+      "wire_bytes": 107026,
+      "raw_bytes": 4747311,
+      "cpu_ms": 0.0,
+      "server_timing": null,
+      "encoding": "gzip"
+     },
+     "on_cold": {
+      "code": 200,
+      "wall_ms": 1678.7,
+      "wire_bytes": 141921,
+      "raw_bytes": 4747311,
+      "cpu_ms": 0.0,
+      "server_timing": "build;dur=1316.7, encode;dur=284.7, gzip;dur=20.4, memo;desc=miss;dur=1626.5",
+      "encoding": "gzip"
+     },
+     "on_jitter": {
+      "code": 200,
+      "wall_ms": 47.9,
+      "wire_bytes": 141921,
+      "raw_bytes": 4747311,
+      "cpu_ms": 0.0,
+      "server_timing": "memo;desc=hit;dur=1.4",
+      "encoding": "gzip"
+     },
+     "on_repeat": {
+      "code": 200,
+      "wall_ms": 51.1,
+      "wire_bytes": 141921,
+      "raw_bytes": 4747311,
+      "cpu_ms": 0.0,
+      "server_timing": "memo;desc=hit;dur=1.3",
+      "encoding": "gzip"
+     },
+     "on_repeat_cpu_pct_of_cold": null,
+     "on_jitter_cpu_pct_of_cold": null
+    }
+   ]
+  }
+ }
+}

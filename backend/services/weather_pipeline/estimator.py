@@ -1,12 +1,13 @@
 import math
 import logging
+import os
 from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
 from services.weather_pipeline.schemas import (
     NormalizedProduct, NormalizedGrid, GridVector, CoverageBounds,
     NormalizedPointResponse, NormalizedPointDetail
 )
-from services.weather_pipeline.cycle_provenance import cycle_from_points
+from services.weather_pipeline.cycle_provenance import cycle_from_points, coherent_cycle_pair
 from services.weather_pipeline.point_estimate_provenance import point_estimate_provenance
 
 logger = logging.getLogger(__name__)
@@ -520,6 +521,11 @@ def estimate_euro_grid(
                     ("gfs_anchor", gfs_anchor_product), ("gfs_target", gfs_target_product)]
     if icon_contributed:
         contributors.extend([("icon_anchor", icon_anchor_product), ("icon_target", icon_target_product)])
+    if os.environ.get("ESTIMATE_COHERENT_TRENDS", "0") == "1" and (
+            not coherent_cycle_pair(gfs_anchor_product, gfs_target_product) or
+            (icon_contributed and not coherent_cycle_pair(icon_anchor_product, icon_target_product))):
+        logger.warning("[Pipeline Estimator] Refusing estimate: active trend donors lack a verified shared model cycle")
+        return None
     cycle_points = []
     cycle_sources = []
     for role, product in contributors:

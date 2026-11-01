@@ -192,7 +192,7 @@ export function useMarineDataFetcher({
       // restores the legacy 'manual' classification for A/B.
       const _tglSrc = (typeof window !== 'undefined' && window.__RAW_DISABLE_FLAVOR_TOGGLE_VIEWPORT__ === true)
         ? 'manual' : 'flavor_toggle';
-      try {
+      try { window.__RAW_BAND_TOGGLE_AT__ = Date.now();   // when the band was last flipped: the status line's "loading" window (marineFlavorToggle.js)
         const locks = marineFetchLocksRef.current || {};
         const inflight = abortControllerRef.current && abortControllerRef.current.__intent;
         recordMarineEvent('surf_toggle', {

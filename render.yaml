@@ -19,6 +19,12 @@
 # live 17:32:10). ⚠️ `ignoredPaths` ONLY — a `paths` whitelist inverts the failure mode, silently
 # stopping deploys for anything unlisted, and a backend that quietly stops receiving code is far
 # worse than one that deploys too often.
+# ✅ CURRENT (2026-10-19): the live build filter must be EXACTLY
+#     buildFilter = {"ignoredPaths": ["docs/**", "audit/**", "**/*.md", "frontend/**"], "paths": null}
+# `frontend/**` added because every frontend merge restarted the shared 1-CPU box with cold caches (owner stress test 20:52Z
+# ran on a box restarted at 20:50, CPU 0.94). The running backend never reads frontend/ (checked 2026-10-19: only comments,
+# offline scripts that WRITE into frontend/, and CI tests). The E2E backend gate waits for the newest commit outside this list
+# (backend/scripts/e2e_backend_ready.py RENDER_IGNORED_PATHS, pinned to this line by its test). Change both together.
 # ✅ SET ON THE LIVE SERVICE 2026-09-19 VIA THE RENDER API (same reason as the 08-10 note above):
 #     COPERNICUS_ISLAND_INGEST = "0"
 # It was NOT previously present among the service's env vars at all, so it had been taking the code

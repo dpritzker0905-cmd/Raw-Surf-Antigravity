@@ -381,3 +381,52 @@ describe('the status is not written when nothing is drawn (writeStatusWhenNoData
     expect(status()).toBe(before);
   });
 });
+
+// R-5 (scrub audit 2026-10-18, T-06): the hour alone is not the identity of what is drawn. Through a model switch the old
+// model's frame is HELD on the GPU at the same hour; an hour-only test called that parity, so the selected-point card sampled
+// the old model under the new model's button. Kill: __RAW_DISABLE_PARITY_IDENTITY__.
+describe('publishRenderParity: model + layer identity (T-06)', () => {
+  afterEach(() => { delete window.__RAW_DISABLE_PARITY_IDENTITY__; });
+
+  test('the GFS frame held at the same hour under the EURO button is NOT parity (was: parity_match)', () => {
+    publishRenderParity(args({ activeModel: 'EURO', requestedHour: 48, lastSig: sig({ activeModel: 'GFS', renderedDataHour: 48 }) }));
+    expect(parity()).toEqual({ requestedHour: 48, renderedDataHour: 48, parity: false, reason: 'model_layer_mismatch' });
+    // The record only: a status written here would stick on MapForecastOverlay's memoized badge (T-05; the layer test pins it).
+    expect(status()).toBeUndefined();
+  });
+
+  test('a coverage gap for the new model still reads coverageMissing (the more specific reason wins)', () => {
+    getModelSafeMarine.mockImplementation(() => null);
+    publishRenderParity(args({ activeModel: 'EURO', requestedHour: 48, lastSig: sig({ activeModel: 'GFS', renderedDataHour: 48 }) }));
+    expect(parity()).toEqual(expect.objectContaining({ parity: false, reason: 'coverageMissing' }));
+  });
+
+  test('a waves frame held under the swell_1 layer is NOT parity', () => {
+    publishRenderParity(args({ activeLayers: ['swell_1'], lastSig: sig({ componentLayer: 'waves', activeMarineLayer: 'waves' }) }));
+    expect(parity()).toEqual(expect.objectContaining({ parity: false, reason: 'model_layer_mismatch' }));
+  });
+
+  test('the same model and layer still matches (control)', () => {
+    publishRenderParity(args({ activeModel: 'EURO', requestedHour: 48, lastSig: sig({ activeModel: 'EURO', renderedDataHour: 48 }) }));
+    expect(parity()).toEqual({ requestedHour: 48, renderedDataHour: 48, parity: true, reason: 'parity_match' });
+  });
+
+  test('ICON past 168 h with the backend ICON flag off draws GFS on purpose: that is parity, not a mismatch', () => {
+    getBackendIconMarineFlag.mockImplementation(() => false);
+    publishRenderParity(args({ activeModel: 'ICON', requestedHour: 200, lastSig: sig({ activeModel: 'GFS', renderedDataHour: 200 }) }));
+    expect(parity()).toEqual(expect.objectContaining({ parity: true, reason: 'parity_match' }));
+  });
+
+  test('parity returns once the new model lands', () => {
+    publishRenderParity(args({ activeModel: 'EURO', requestedHour: 48, lastSig: sig({ activeModel: 'GFS', renderedDataHour: 48 }) }));
+    expect(parity().parity).toBe(false);
+    publishRenderParity(args({ activeModel: 'EURO', requestedHour: 48, lastSig: sig({ activeModel: 'EURO', renderedDataHour: 48 }) }));
+    expect(parity().parity).toBe(true);
+  });
+
+  test('kill switch __RAW_DISABLE_PARITY_IDENTITY__ restores the hour-only test (the defect: parity_match)', () => {
+    window.__RAW_DISABLE_PARITY_IDENTITY__ = true;
+    publishRenderParity(args({ activeModel: 'EURO', requestedHour: 48, lastSig: sig({ activeModel: 'GFS', renderedDataHour: 48 }) }));
+    expect(parity()).toEqual({ requestedHour: 48, renderedDataHour: 48, parity: true, reason: 'parity_match' });
+  });
+});

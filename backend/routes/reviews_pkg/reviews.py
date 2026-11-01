@@ -17,7 +17,7 @@ import re
 from deps.admin_auth import get_current_admin
 from database import get_db
 from models import Profile, Review, LiveSession, XPTransaction, Badge, LiveSessionParticipant
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_user_id_from_jwt_or_query, get_current_user_id
 from services.ai_moderation import moderate_review_content
 
 # Import badge check function
@@ -131,9 +131,12 @@ async def award_xp(db: AsyncSession, user_id: str, amount: int, reason: str, ref
 async def create_review(
     request: CreateReviewRequest,
     reviewer_id: str = Query(..., description="ID of the user leaving the review"),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new review (surfer→photographer or photographer→surfer) for any session type"""
+    if reviewer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     
     # Get reviewer and reviewee
     reviewer_result = await db.execute(select(Profile).where(Profile.id == reviewer_id))

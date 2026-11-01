@@ -15,7 +15,8 @@ import os
 import stripe
 
 from database import get_db
-from core.security import get_user_id_from_jwt_or_query
+from utils.credits import refund_credits
+from core.security import get_user_id_from_jwt_or_query, get_current_user_id
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
     DispatchRequestStatusEnum, Booking, CreditTransaction, Notification,
@@ -34,13 +35,20 @@ router = APIRouter(prefix="/dispatch", tags=["dispatch"])
 async def complete_dispatch_session(
     dispatch_id: str,
     photographer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
     Complete an On-Demand dispatch session.
     Auto-creates gallery with on-demand pricing via the gallery sync service.
+
+    The caller must BE the assigned photographer: `photographer_id` is only a claim and is checked against the
+    token before any query. (It used to be the only check, and a photographer's id is public.)
     """
     from services.gallery_sync import create_session_gallery, check_gallery_exists_for_session
+
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
 
     result = await db.execute(
         select(DispatchRequest)
@@ -262,17 +270,11 @@ async def cancel_dispatch(
         requester = requester_result.scalar_one_or_none()
 
         if requester:
-            tx = CreditTransaction(
-                user_id=dispatch.requester_id,
-                amount=refund_amount,
-                balance_before=requester.credit_balance,
-                balance_after=requester.credit_balance + refund_amount,
-                transaction_type='dispatch_refund',
-                reference_type='dispatch_request',
-                reference_id=dispatch_id
-            )
-            db.add(tx)
-            requester.credit_balance += refund_amount
+            success, _, error = await refund_credits(
+                dispatch.requester_id, refund_amount, db, reference_type='dispatch_request',
+                reference_id=dispatch_id, transaction_type='dispatch_refund')
+            if not success:
+                raise HTTPException(status_code=409, detail=error)
 
     # ============ NOTIFICATION: Alert the other party about cancellation ============
     # Determine who to notify (the party that didn't cancel)

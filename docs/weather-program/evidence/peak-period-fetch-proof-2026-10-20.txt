@@ -1,0 +1,17 @@
+[dwd_gwam_fetcher.py {'ICON_PEAK_PERIOD': '0'}] rc=0 SUMMARY: regions=1 points=42 steps_ok=9 steps_failed=0 timesteps=9 forecast_end=2026-10-21T00:00:00Z wave_height_nonzero=297 wave_height_max=3.9407 elapsed=24.4s wrote=yes:/tmp/tmp3t00hsoa/out.json
+[dwd_gwam_fetcher.py {'ICON_PEAK_PERIOD': '1'}] rc=0 SUMMARY: regions=1 points=42 steps_ok=9 steps_failed=0 timesteps=9 forecast_end=2026-10-21T00:00:00Z wave_height_nonzero=297 wave_height_max=3.9407 elapsed=25.3s wrote=yes:/tmp/tmpyqjkpyjb/out.json
+PASS GWAM: same points (42)
+PASS GWAM: heights + directions identical off vs on
+PASS GWAM: flag-on wave_period_tm10 == flag-off wave_period (tm10 kept unchanged)
+PASS GWAM: flag-off has no wave_period_tm10
+PASS GWAM: swell period changed at most points (ppts vs mpts): 33/42
+PASS GWAM: flag-on wave_period == derive_total_series(flag-on partitions)
+GWAM blended Tp / tm10: n=297 p10=1.074 p50=1.159 p90=1.275
+[copernicus_global_fetcher.py {'COPERNICUS_PEAK_PERIOD': '0'}] rc=0 SUMMARY: points=42 bands_ok=6 bands_failed=0 timesteps=10 forecast_end=2026-10-21T06:00:00Z wave_height_nonzero=310 wave_height_max=3.9291 run=None (horizon_mismatch:served=2026-10-21T06:00:00+00:00,bulletin=2026-10-29T00:00:00+00:00) elapsed=113.7s wrote=yes:/tmp/tmpjswdtn2d/out.json
+[copernicus_global_fetcher.py {'COPERNICUS_PEAK_PERIOD': '1'}] rc=0 SUMMARY: points=42 bands_ok=6 bands_failed=0 timesteps=10 forecast_end=2026-10-21T06:00:00Z wave_height_nonzero=310 wave_height_max=3.9291 run=None (horizon_mismatch:served=2026-10-21T06:00:00+00:00,bulletin=2026-10-29T00:00:00+00:00) elapsed=117.8s wrote=yes:/tmp/tmps194xhnk/out.json
+PASS CMEMS: same points (42)
+PASS CMEMS: heights, directions and partition periods identical off vs on
+PASS CMEMS: flag-on wave_period_tm10 == flag-off wave_period (VTM10 kept unchanged)
+PASS CMEMS: VTPK/VTM10 median >= 1 (n=310, p50=1.102505573368624)
+CMEMS VTPK / VTM10: p10=1.049 p50=1.103 p90=1.238
+RESULT: PASS

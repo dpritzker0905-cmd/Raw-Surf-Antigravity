@@ -1,0 +1,283 @@
+{
+  "head": "72b4652d5753423cce18b9ad1d1de95f0afcb7e7",
+  "prior_files": {
+    "frontend/src/components/admin/AdminSupportDashboard.js": {
+      "sha256": "28382cdd9847f9a1143c7254007cbb9234669e62636047500f7753713054f879"
+    },
+    "frontend/src/components/admin/AdminSupportDashboard.test.js": {
+      "sha256": "c55c2ff4d961f95dfdb9176b7e3e4103c4d57f3e53677f51f6d931433f188f45"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-selection/browser-auth.js": {
+      "sha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-selection/browser-fixture.jsx": {
+      "sha256": "5b4f4d85ffcbe2c4600dccb197b667477b14b5f85fd5041fafe06252ee6b94bb"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-selection/browser-transport.js": {
+      "sha256": "7ae9e62494e78f1986f251748f55708bafef13df266b6b4bad2156d65a9c8b65"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-selection/collect-evidence.cjs": {
+      "sha256": "8a3de22ce3252ebfb0c803c354d58b9fc11d3ec376c9d84a910f1fb9b46464a8"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-selection/run-browser.cjs": {
+      "sha256": "ac6b5ceb91827f9b4d9391de3b0953b7d663dfce0bf139b61c7f4a51b9e27315"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-selection/run-tests.cjs": {
+      "sha256": "939373f9c4988b809d24c8ea4d64b870e2dc9557bf136fb814d5cfd04dda09ab"
+    },
+    "backend/routes/admin/support.py": {
+      "sha256": "a8e04541a08c7b9367e9d5e98bcfbe6df501ba34bde4be6fd04272dd10e37ec5"
+    },
+    "frontend/src/lib/apiClient.js": {
+      "sha256": "2713370a30a4bbf2a3e3402e57becb9c95ddd2a64744a35bffa12f90dcc35ce9"
+    },
+    "frontend/src/contexts/AuthContext.js": {
+      "sha256": "1544d5b91248f5a6f21f289ab5c6c7ab87d0c5f381c057a3f6372553c06005c3"
+    },
+    "frontend/src/contexts/ThemeContext.js": {
+      "sha256": "c019cd4fe10f38230bb92d44276901e77347fb3d5327c882e56899b8f28fd497"
+    },
+    "frontend/src/components/ui/button.jsx": {
+      "sha256": "642edb7d647d92aa517e37a71ff1d6b8b0e758be2d30f67ff5daa1b36c0b4cd1"
+    },
+    "frontend/src/components/ui/select.jsx": {
+      "sha256": "684b1759596b026ebdecbd3f1264335f6813049ed2e591c821bff9d0c81da5f6"
+    },
+    "docs/weather-program/STATE.md": {
+      "sha256": "4605ce8565818debd10e2fa02607b9fc625f64197f99af5ecb293fb08fc28a82"
+    },
+    "docs/weather-program/ACTIONS.jsonl": {
+      "sha256": "377d035f123b8c12a3ea0ba8a4279bde7345d4cee4afec31b55724901af46dc6"
+    },
+    "docs/weather-program/SCOREBOARD.md": {
+      "sha256": "b04bad3590af172ab62c9bfe5c5d59bee4b1330c2e060878e5f1a02c62575469"
+    },
+    "frontend/src/components/admin/AdminSupportDashboard.pagination.test.js": {
+      "sha256": "0f576bcab6c1189e1fb8019f0371d86f629e3dd3467a6d613dd635af2a063aac"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-pagination/browser-auth.js": {
+      "sha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-pagination/browser-fixture.jsx": {
+      "sha256": "8f937569bf870fcd572dc7abdcd268f22b07782a72a35e0c8fab91c8f1835df5"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-pagination/browser-transport.js": {
+      "sha256": "b4d73d64d4ef4466ecab669613be95120efe349b6fece1eb80f2c93f233f9aab"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-pagination/collect-evidence.cjs": {
+      "sha256": "d9dadbfecc1f7a9a11d2c0d9dfcca27f12aabad0a13eeb7aeea5fd8bd0a34ff8"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-pagination/run-browser.cjs": {
+      "sha256": "be1b1899c1de2b2d8ed1dda4267f47f3743b52d8f57e7bbbac81f59f4a2d2d7c"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-pagination/run-tests.cjs": {
+      "sha256": "bdfd54c9eb243928815865f8f5c7293d95985a1b04f5247b52bc9c2bc914430b"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-pagination/verify-list-handler.py": {
+      "sha256": "b2f000a5f55683e41328b724d513ef958ed8b638d8c45a9b35df97194d7dd82c"
+    },
+    "frontend/src/components/admin/AdminSupportDashboard.metrics.test.js": {
+      "sha256": "ea46cc7006629000d94114f46a01850103861ce0a917017425ef2e3f21ad0429"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-metrics/browser-auth.js": {
+      "sha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-metrics/browser-fixture.jsx": {
+      "sha256": "1f2c47b2aa98db3fa46880476ec501ef0c107cdf0acc5f3650f87abbaacf60ef"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-metrics/browser-transport.js": {
+      "sha256": "e73f97ef9ffd5bcf31e7c8449571aa4a6b418b9f2fff1486c18fbed12a831bfc"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-metrics/collect-evidence.cjs": {
+      "sha256": "9303704d19c4ab65526511aaf1b7793dc583da58c8f504e88e4c164b949465b0"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-metrics/run-browser.cjs": {
+      "sha256": "a9c18573b4ee07317786a1dd15926a30af8e1fcdf05fa7881ea46c785c018fc3"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-metrics/run-tests.cjs": {
+      "sha256": "03d380e4e2058ede347747f45d56361359f22e837465519394eb9122214e7007"
+    },
+    "frontend/src/components/admin/AdminSupportDashboard.samples.test.js": {
+      "sha256": "f9002e75870c303561819a0be57791ccc671f07c1a496a02c0e4acaeb5498d91"
+    },
+    "backend/models/admin_ops.py": {
+      "sha256": "93c8bfd066ebe9f51a13da94217865e76cf4e52a8c6fff1c8b642cfba8a2423e"
+    },
+    "backend/models/enums.py": {
+      "sha256": "072afcd05cbf5aaa6d74dbfc43096adf153e5580f242440d9ab538f0cb60dd81"
+    },
+    "frontend/public/index.html": {
+      "sha256": "d1932bba4f67185ee31eaf39e227e9cce88bd551c8993f92e78787899a7d65d7"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-samples/browser-auth.js": {
+      "sha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-samples/browser-fixture.jsx": {
+      "sha256": "4feb9e220eac03d49af74a24c10cc741e56b343ec9d8cbe1dc2132c8fab79273"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-samples/browser-transport.js": {
+      "sha256": "07e44a8390f3e592e2cb5673655a55abdc6832f421c5241b33be5cbd7a38f2c2"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-samples/collect-evidence.cjs": {
+      "sha256": "258d87414eac784a6ebcf97db9b3fe2c6e16c46fa1be1d46bdf76d8599c252ad"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-samples/run-browser.cjs": {
+      "sha256": "979135dfada5e51f4422fcff04dcb2aff012cab4dd4b58c072959107780a22fc"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-samples/run-tests.cjs": {
+      "sha256": "18a5a0f0a6f8421e2753e305dc7602f2897705081c0a4fbebe33051d16f19530"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-samples/verify-metric-samples.py": {
+      "sha256": "32239e45f9bd775a10ae4c6a8db258fb755fdec7cca9121c1e1c56cc16fdefd9"
+    },
+    "frontend/src/components/admin/AdminSupportDashboard.status.test.js": {
+      "sha256": "461de2a9b9ad04611c68057f29d4f7a54aca925e4193980a9902be6a9897c481"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-status/browser-auth.js": {
+      "sha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-status/browser-fixture.jsx": {
+      "sha256": "029b7a2c17a477a36aa795501bb09cebc0ed5ec493303cd2800f70455085c439"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-status/browser-transport.js": {
+      "sha256": "875acdfc6c2a8b4cfd5a6f7241eddeb68198c9ce3d7ec510c21f35eebef9f430"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-status/collect-evidence.cjs": {
+      "sha256": "1cc887ba5dd170c56aea351973c2845222a2ff1e92c560ed165f0883851cce00"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-status/run-browser.cjs": {
+      "sha256": "46514c46e478b07a874b7e336687ba8db9e2f0125a73b1e1f6c8a63c0f44fc9f"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-status/run-tests.cjs": {
+      "sha256": "5e604f051a60d4a0a7e12d209634d5280a73afbee5a1a4a95f666e3ba697e29b"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-status/verify-status-contract.py": {
+      "sha256": "cb32453b91a20f59f628bb311ef52f5d7ef97ff02183bab326e1d8452151ebec"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-sla-scope/browser-auth.js": {
+      "sha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-sla-scope/browser-fixture.jsx": {
+      "sha256": "030a8403d19cd22f551d4dcf6d9fe882fcaeaeb60c923d6d5ba74907111ebd7c"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-sla-scope/browser-transport.js": {
+      "sha256": "3bccdd827577fc66cd3be7c8d4e956d90948898febc470957797664437782a1a"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-sla-scope/collect-evidence.cjs": {
+      "sha256": "f03b12f97528aa08da92f735727f195f428b0059e190c09e3f8d969523fed382"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-sla-scope/run-browser.cjs": {
+      "sha256": "66b98bcc40dc4ba0b5726b9be109a112b468639cb8935406e0ddc365cfd45843"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-sla-scope/run-tests.cjs": {
+      "sha256": "5e604f051a60d4a0a7e12d209634d5280a73afbee5a1a4a95f666e3ba697e29b"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-sla-scope/verify-sla-scope.py": {
+      "sha256": "4a7b6045d5e6d5286cda0e654341adc88f45785a7b23abf32dd7481320e72563"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-sla-scope/verify-status-recheck.py": {
+      "sha256": "cb32453b91a20f59f628bb311ef52f5d7ef97ff02183bab326e1d8452151ebec"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-sla-scope/verification.json": {
+      "sha256": "98a5e03c226051aa31edccc45294e248405fc206606e145caaf88bf567cc0c87"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-reopen/browser-auth.js": {
+      "sha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-reopen/browser-fixture.jsx": {
+      "sha256": "030a8403d19cd22f551d4dcf6d9fe882fcaeaeb60c923d6d5ba74907111ebd7c"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-reopen/browser-transport.js": {
+      "sha256": "3bccdd827577fc66cd3be7c8d4e956d90948898febc470957797664437782a1a"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-reopen/collect-evidence.cjs": {
+      "sha256": "f515661391b1fb9705c34214bb72af1045cdf769aaa46d5ce3c58621f0455d49"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-reopen/run-browser.cjs": {
+      "sha256": "66b98bcc40dc4ba0b5726b9be109a112b468639cb8935406e0ddc365cfd45843"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-reopen/run-tests.cjs": {
+      "sha256": "5e604f051a60d4a0a7e12d209634d5280a73afbee5a1a4a95f666e3ba697e29b"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-reopen/verify-reopen.py": {
+      "sha256": "b84653f095e43c9ffc0d48a1df821f8ee3e4e50f4513b1f81bae2d368d0b23cc"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-reopen/verify-sla-scope.py": {
+      "sha256": "4a7b6045d5e6d5286cda0e654341adc88f45785a7b23abf32dd7481320e72563"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-reopen/verify-status-recheck.py": {
+      "sha256": "cb32453b91a20f59f628bb311ef52f5d7ef97ff02183bab326e1d8452151ebec"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-reopen/verification.json": {
+      "sha256": "22e0f35dac13ddd821bb9dc372caac0925db107944cce4d0f72cd6df740ce321"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-numbering/browser-auth.js": {
+      "sha256": "ed658c593e113195f3d32f055afdfd67bd153e27cb529a74b2ce65a086f80802"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-numbering/browser-fixture.jsx": {
+      "sha256": "b6dcb059063e12df1e52ebee3ca27d5ef0ae2cc40a04d671964fc6dc9d3e2446"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-numbering/browser-transport.js": {
+      "sha256": "678efd871e5f15ab40c02aadaea86a0e13762e41b53ec915fe0773b33c63c8fa"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-numbering/collect-evidence.py": {
+      "sha256": "d24997f9f71b624299a4067d2b874ebf715b4b6c6bd8258ce0be3e7073bdce19"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-numbering/run-browser.cjs": {
+      "sha256": "9f919ce7f87db62a2470547a3a8be0d7f1c14c29bd0a28f8e1d4990780b84f64"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-numbering/run-postgres.py": {
+      "sha256": "f8301629bb3f9baaedc723f05863b192b271374d9639ea9218fe9cb1937fb094"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-numbering/run-tests.cjs": {
+      "sha256": "5e604f051a60d4a0a7e12d209634d5280a73afbee5a1a4a95f666e3ba697e29b"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-numbering/verify-numbering.py": {
+      "sha256": "506ddd25925a051faf730a37fede9149b6320a94fe153c9d4974e5cb03ce4dae"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-numbering/verify-reopen.py": {
+      "sha256": "b84653f095e43c9ffc0d48a1df821f8ee3e4e50f4513b1f81bae2d368d0b23cc"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-numbering/verify-sla-scope.py": {
+      "sha256": "4a7b6045d5e6d5286cda0e654341adc88f45785a7b23abf32dd7481320e72563"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-numbering/verify-status-recheck.py": {
+      "sha256": "cb32453b91a20f59f628bb311ef52f5d7ef97ff02183bab326e1d8452151ebec"
+    },
+    "docs/audits/evidence/2026-10-29-admin-support-numbering/verification.json": {
+      "sha256": "49c4772f3360782de1d3c83b07e24b0a05e42347de99952133a7838049a564e6"
+    },
+    "docs/audits/2026-10-29-admin-support-numbering.md": {
+      "sha256": "445c93b1345b23b2923e420a58e0d204704817fc3abe91dc9c8de7847c1c7b08"
+    }
+  },
+  "observed": {
+    "backend/routes/admin/support.py": {
+      "sha256": "a8e04541a08c7b9367e9d5e98bcfbe6df501ba34bde4be6fd04272dd10e37ec5"
+    },
+    "frontend/src/components/admin/AdminSupportDashboard.js": {
+      "sha256": "28382cdd9847f9a1143c7254007cbb9234669e62636047500f7753713054f879"
+    },
+    "backend/services/mailer/templates.py": {
+      "sha256": "a7cf6156e4407ad8e46a4df5436429465314555db7adb4baf19e1fb1183743e1"
+    },
+    "backend/services/mailer/outbox.py": {
+      "sha256": "86afefa47f35be8430c2f73cd337cb886f322dd36ef1d20bd68af80ab6451997"
+    },
+    "backend/services/mailer/senders.py": {
+      "sha256": "2dca49ae2c1b4c288b138ccbd14564548b3b0e32e1c90d35baa9e0910542adef"
+    },
+    "frontend/src/components/Auth.js": {
+      "sha256": "7a413fe1221101c0fcfbe5c8fc72bbba65bd105bb259a26b1df00fed9934b714"
+    },
+    "frontend/src/components/routing/ProtectedRoute.js": {
+      "sha256": "0bd2959c56cc455fe02ac50215b9683c57a6f391a602faa9f2aab030c725c3d7"
+    },
+    "frontend/src/App.js": {
+      "sha256": "b413c28569a8381f1742670501777db10ab9c5b99aec9826bf1785d434d74443"
+    },
+    "frontend/src/lib/apiClient.js": {
+      "sha256": "2713370a30a4bbf2a3e3402e57becb9c95ddd2a64744a35bffa12f90dcc35ce9"
+    }
+  }
+}

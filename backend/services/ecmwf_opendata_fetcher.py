@@ -40,13 +40,15 @@ try:
     from _fetch_common import (
         coarse_axis, build_regular_nn, sanitize_speed_ms, sanitize_pressure_hpa,
         sanitize_direction_deg, sanitize_height_m, sanitize_period_s,
-        meteo_wind_dir, make_point_dict, energy_mean_height_block,
+        meteo_wind_dir, make_point_dict, energy_mean_height_block, energy_mean_direction_block,
+        energy_mean_scalar_block,
     )
 except ImportError:  # pragma: no cover - package-context fallback
     from services._fetch_common import (
         coarse_axis, build_regular_nn, sanitize_speed_ms, sanitize_pressure_hpa,
         sanitize_direction_deg, sanitize_height_m, sanitize_period_s,
-        meteo_wind_dir, make_point_dict, energy_mean_height_block,
+        meteo_wind_dir, make_point_dict, energy_mean_height_block, energy_mean_direction_block,
+        energy_mean_scalar_block,
     )
 # Module top, in the script/package idiom: production spawns this file by path for waves, wind AND pressure
 # (hotfix 2026-09-29; see the GFS fetcher's note and tests/test_fetcher_script_imports.py).
@@ -58,6 +60,69 @@ except ImportError:  # pragma: no cover - package-context fallback
 LAYER_PARAMS = {"wind": ["10u", "10v"], "pressure": ["msl"], "waves": ["swh", "mwp", "pp1d", "mwd"]}
 # Wave params live in their own stream ("wave"; the client maps 06/18 cycles to scwv itself).
 LAYER_STREAM = {"wind": "oper", "pressure": "oper", "waves": "wave"}
+
+
+# LAND-CENTRE BLOCK SAMPLING (2026-10-23, DARK; ECMWF_WAVE_LAND_CENTRE_BLOCK, default "0"). The wave HEIGHT is block-meaned at a
+# coarse node (ECMWF_WAVE_SCALAR_BLOCKMEAN), but direction and period were point-sampled at the node's own native cell, and the
+# normalizer drops a vector with no direction, so today that drop IS EURO's coarse land mask. Where the centre cell is land but the
+# block holds ECMWF sea the node went MASKED and /grid showed a GFS donor value there.
+# With the flag on, a land-centre node takes direction and period from the SAME block the height uses (the fetcher's own slice:
+# energy_mean_height_block's rows r-half..r+half-1, cols c-half..c+half-1, i.e. 8x8 at 2 deg, one native cell NW of centre), by
+# the reductions GFS and ICON use: direction = energy_mean_direction_block (E = H^2 circular mean), period = energy_mean_scalar_block
+# of pp1d (PEAK) ONLY; mwp (a MEAN) only when the WHOLE block has no pp1d, counted, never mixed (#412: no constant converts them).
+# A node is validated only when its direction AND a period exist (never period=0.0 on a valid vector, 0b5182436), and only when an
+# ECMWF sea cell lies within ECMWF_WAVE_LAND_CENTRE_REACH native cells (Chebyshev) of the centre. DEFAULT 4 = THE WHOLE BLOCK
+# (2026-10-23, the lead + Reflection: still within-cell regridding, every value is ECMWF's own sea inside the node's own 2-deg
+# cell; the shipped 2 recovered 575 of 868 EURO-masked GFS-sea nodes, 4 recovers 842). Measured on cycle 2026-10-23 00Z step 0 against the published EURO / GFS
+# frames, the newly valid nodes by reach (GFS-sea / GFS-land / ice-polar): 1 cell 345 / 23 / 7, 2 cells 575 / 30 / 15, 4 cells (the
+# whole block) 842 / 62 / 46 ("GFS-land" includes enclosed sea GFS's coarser mask drops, e.g. 8 Black Sea nodes). The 62 at
+# reach 4, by 2-deg distance to the nearest GFS-sea node: 18 adjacent (coast), 10 two nodes out, 34 further, and every one of
+# those 34 lies on a lake ECMWF's wave model carries (Great Lakes 14, Caspian 9, Black Sea 5, Lakes Winnipeg and Victoria 6):
+# none where ECMWF has no water, which holds by construction (a node needs an ECMWF sea cell within the reach). Memory stays
+# bounded: only the 8x8 blocks of land-centre nodes whose block has any finite cell are held, per valid time, until resolved.
+# Block resolutions only: the 0.25-deg native pilot tiles are untouched. It changes served EURO numbers (D-001: dark, owner flips).
+
+
+def land_centre_block_enabled():
+    return os.environ.get("ECMWF_WAVE_LAND_CENTRE_BLOCK", "0") == "1"
+
+
+def land_centre_reach():
+    """How near the centre (native cells, Chebyshev) an ECMWF sea cell must be for a land-centre node to be validated."""
+    try:
+        return max(1, int(os.environ.get("ECMWF_WAVE_LAND_CENTRE_REACH", "4")))
+    except ValueError:
+        return 4
+
+
+def block_slice(a, r, c, half):
+    """(the fetcher's height block of `a` around (r, c), the centre's index inside it): energy_mean_height_block's exact slice
+    (rows r-half..r+half-1 clamped, columns c-half..c+half-1 wrapping)."""
+    import numpy as np
+    r0, r1 = max(0, r - half), min(a.shape[0], r + half)
+    cols = np.arange(c - half, c + half) % a.shape[1]
+    return np.array(a[r0:r1][:, cols], dtype=np.float32), (r - r0, half)
+
+
+def resolve_land_centre(blocks, half, reach):
+    """(direction, period, used_mwp) for one land-centre node from its blocks {"h", "d", "pk", "mp"} (8x8, same slice), or None
+    when it must stay masked: no height, no ECMWF sea within `reach` cells of the centre, no direction, or no period."""
+    import numpy as np
+    h = blocks.get("h")
+    if h is None or not np.isfinite(h).any():
+        return None
+    rc, cc = blocks["_centre"]
+    rr, cols = np.nonzero(np.isfinite(h))
+    if int(np.min(np.maximum(np.abs(rr - rc), np.abs(cols - cc)))) > reach:
+        return None
+    d = energy_mean_direction_block(blocks["d"], h, rc, cc, half, True) if blocks.get("d") is not None else float("nan")
+    pk = energy_mean_scalar_block(blocks["pk"], h, rc, cc, half, True) if blocks.get("pk") is not None else float("nan")
+    used_mwp = False
+    if pk != pk and blocks.get("mp") is not None and not np.isfinite(blocks.get("pk", np.full(1, np.nan))).any():
+        pk, used_mwp = energy_mean_scalar_block(blocks["mp"], h, rc, cc, half, True), True
+    if d != d or pk != pk:
+        return None
+    return d, pk, used_mwp
 
 # ── ECMWF PERIOD BANDS (M4 ingest half) ─────────────────────────────────────────────────────────
 #
@@ -376,6 +441,28 @@ def fetch_global_coarse(payload):
     spread = {}    # rid -> kind -> vt -> (sds, counts); populated only in ensemble mode
     ensemble_on = (layer == "waves") and wave_ensemble_enabled()
     idx_by = None    # rid -> [(r, c), ...]
+    # Land-centre block sampling (land_centre_block_enabled; doc above). lc_blocks[vt][(rid, i)] holds the 8x8 blocks of one
+    # land-centre node (only when its block has a finite cell) until h, d, pk and mp of that valid time arrived; lc_marks[rid][i]
+    # lists the time indices a node was validated at (provenance). Block resolutions only (never the 0.25-deg native tiles).
+    land_centre = layer == "waves" and scalar_blockmean and not is_native(resolution) and land_centre_block_enabled()
+    lc_blocks, lc_seen, lc_vt_marks = {}, {}, {}
+    lc_count = {"validated": 0, "mwp_period": 0, "beyond_reach_or_incomplete": 0}
+    lc_reach = land_centre_reach()
+
+    def _lc_resolve(vt):
+        """Validate the land-centre nodes of one valid time from their held blocks, then drop the blocks."""
+        for (rid, i), blocks in lc_blocks.pop(vt, {}).items():
+            got = resolve_land_centre(blocks, _half, lc_reach)
+            if got is None:
+                lc_count["beyond_reach_or_incomplete"] += 1
+                continue
+            d, per, used_mwp = got
+            for k, x in (("d", d), ("pk", per)):
+                if vt in by[rid][k]:
+                    by[rid][k][vt][i] = x           # the fetcher's own sampled list (built above), in place
+            lc_vt_marks.setdefault(rid, {}).setdefault(i, set()).add(vt)
+            lc_count["validated"] += 1
+            lc_count["mwp_period"] += int(used_mwp)
     # F-05 (audit 14.0/15.0): the client resolves the latest cycle itself and the fetcher used to drop
     # it, so 98.4% of EURO products said model_run_time "missing". Only a complete, consistent set
     # of analysis times on the selected messages can establish the deterministic batch's cycle.
@@ -423,8 +510,30 @@ def fetch_global_coarse(payload):
                 # into `ens` keyed by perturbationNumber — which is what stops them overwriting each
                 # other, and is why no member branch belongs in this loop.
                 by[rid][kind][vt] = vals
+            if land_centre and kind in ("h", "d", "pk", "mp"):
+                nodes = lc_blocks.setdefault(vt, {})
+                for rid, im in idx_by.items():
+                    for i, (r, c) in enumerate(im):
+                        if arr[r, c] == arr[r, c]:
+                            continue                    # a sea centre: point-sampled as before
+                        blk, centre = block_slice(arr, r, c, _half)
+                        slot = nodes.get((rid, i))
+                        if slot is None:
+                            if not np.isfinite(blk).any():
+                                continue                # an all-land block: stays masked, nothing held
+                            slot = nodes[(rid, i)] = {"_centre": centre}
+                        slot[kind] = blk
+                lc_seen.setdefault(vt, set()).add(kind)
+                if lc_seen[vt] >= {"h", "d", "pk", "mp"}:
+                    _lc_resolve(vt)
             del arr
         grbs.close()
+        for _vt in list(lc_blocks):
+            _lc_resolve(_vt)                        # a step missing one param: resolve with what arrived
+        if land_centre:
+            sys.stderr.write(f"[ecmwf_opendata_fetcher] land-centre block sampling (reach {lc_reach}): validated "
+                             f"{lc_count['validated']} node-hours ({lc_count['mwp_period']} with a block-mwp period, no pp1d in "
+                             f"the block), {lc_count['beyond_reach_or_incomplete']} left masked\n")
 
         # ── SECOND FETCH: the members, for SPREAD ONLY ────────────────────────────────────────────
         # A separate request into a separate file, `swh` alone. The deterministic decode above is
@@ -595,6 +704,10 @@ def fetch_global_coarse(payload):
                 pt = make_point_dict(la, lo, "ecmwf", units, hourly_of(pi))
                 if cycle_iso:
                     pt["__model_run_time"] = cycle_iso   # F-05; cycle_from_points reads it
+                marks = lc_vt_marks.get(rid, {}).get(pi) if layer == "waves" else None
+                if marks:
+                    # the time indices this node was validated by land-centre block sampling (normalizer -> landCentreBlockNodes)
+                    pt["__land_centre_block"] = sorted(times_dt.index(v) for v in marks if v in times_dt)
                 points.append(pt)
                 pi += 1
         return points

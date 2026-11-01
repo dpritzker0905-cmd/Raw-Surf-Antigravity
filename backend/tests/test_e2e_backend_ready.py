@@ -78,4 +78,79 @@ def test_the_e2e_workflow_gates_on_the_script():
     gate = next(s for s in steps if "e2e_backend_ready.py" in str(s.get("run", "")))
     tests = next(i for i, s in enumerate(steps) if s.get("name") == "Run E2E tests")
     assert steps.index(gate) < tests, "the gate must run before the tests"
-    assert '"$(git rev-parse HEAD)"' in gate["run"] and gate.get("if") == "github.event_name == 'push'"
+    assert '"$(git rev-parse HEAD)"' in gate["run"] and "--same-backend" in gate["run"]
+    assert gate.get("if") == "github.event_name == 'push'"
+    checkout = next(s for s in steps if str(s.get("uses", "")).startswith("actions/checkout"))
+    assert (checkout.get("with") or {}).get("fetch-depth") == 0, "--same-backend needs history"
+
+
+# ---- which commit the backend should serve (2026-10-19: Render's build filter skips frontend-only commits) ----
+import subprocess  # noqa: E402
+
+
+def _git(repo, *args):
+    return subprocess.run(["git", *args], cwd=repo, check=True, capture_output=True, text=True).stdout.strip()
+
+
+def _commit(repo, files, msg):
+    for name in files:
+        p = repo / name
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(msg + name, encoding="utf-8")
+    _git(repo, "add", "-A")
+    _git(repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "-m", msg)
+    return _git(repo, "rev-parse", "HEAD")
+
+
+@pytest.fixture
+def repo(tmp_path):
+    _git(tmp_path, "init", "-q")
+    return tmp_path
+
+
+def test_frontend_docs_and_markdown_commits_leave_the_backend_on_the_last_backend_commit(repo):
+    mod = _mod()
+    b1 = _commit(repo, ["backend/server.py"], "backend")
+    _commit(repo, ["frontend/src/a.js"], "frontend only")
+    _commit(repo, ["docs/weather-program/log.md", "audit/x.html"], "docs and audit")
+    _commit(repo, ["backend/README.md"], "markdown under backend")
+    assert mod.expected_backend_sha("HEAD", cwd=repo) == b1
+
+
+def test_a_backend_or_mixed_commit_is_the_one_to_wait_for(repo):
+    mod = _mod()
+    _commit(repo, ["backend/server.py"], "backend")
+    _commit(repo, ["frontend/src/a.js"], "frontend only")
+    mixed = _commit(repo, ["frontend/src/b.js", "backend/routes/weather.py"], "frontend and backend")
+    assert mod.expected_backend_sha("HEAD", cwd=repo) == mixed
+    other = _commit(repo, [".github/workflows/ci.yml"], "workflow change")   # not ignored by Render, so it deploys
+    assert mod.expected_backend_sha("HEAD", cwd=repo) == other
+
+
+def test_render_yaml_records_the_same_ignore_list():
+    text = (_ROOT / "render.yaml").read_text(encoding="utf-8")
+    m = __import__("re").search(r'buildFilter = \{"ignoredPaths": (\[[^\]]*\])', text.split("CURRENT (2026-10-19)")[1])
+    assert m, "render.yaml must record the live build filter under 'CURRENT (2026-10-19)'"
+    assert tuple(__import__("json").loads(m.group(1))) == _mod().RENDER_IGNORED_PATHS
+
+
+def test_same_backend_accepts_a_box_on_an_earlier_frontend_only_commit_and_still_waits_for_a_backend_change(repo, monkeypatch):
+    mod = _mod()
+    monkeypatch.chdir(repo)
+    _commit(repo, ["backend/server.py"], "backend")
+    served = _commit(repo, ["frontend/src/a.js"], "frontend only: the box was deployed here (old filter)")
+    head = _commit(repo, ["frontend/src/b.js", "docs/x.md"], "frontend and docs")
+    same = lambda got, want: mod.expected_backend_sha(got) == mod.expected_backend_sha(want)   # noqa: E731
+    assert mod.readiness(_health(sha=served), head, same)[0] is True          # same backend code: ready (the switch-over)
+    assert mod.readiness(_health(sha=served), head)[0] is False               # without the flag: the old strict rule
+    newer = _commit(repo, ["backend/routes/weather.py"], "backend change")
+    assert mod.readiness(_health(sha=served), newer, same)[0] is False        # a backend change waits for its deploy
+    assert mod.readiness(_health(sha=newer), newer, same)[0] is True
+
+
+def test_a_render_skip_marker_is_not_a_deploy(repo):
+    mod = _mod()
+    b1 = _commit(repo, ["backend/server.py"], "backend")
+    _commit(repo, [".github/workflows/ci.yml"], "ci floors [skip netlify] [skip render]")
+    _commit(repo, ["backend/x.py"], "tweak [Render Skip]")
+    assert mod.expected_backend_sha("HEAD", cwd=repo) == b1

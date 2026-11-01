@@ -1,0 +1,714 @@
+{
+ "what": "D-037 re-solve, owner 2026-10-21: \"I'm not sold on light modes blue water, it seems too close to the same color as dark modes water\"; \"Resolve it so light improves but isnt too much like dark\". theme-distance.mjs: light's composite (world opacity, lighting 0.5) against dark's shader ramp over the dark style's sea and beach's v1, CIEDE2000 per height.",
+ "palettes": {
+  "v2@16 (light live)": {
+   "summary": {
+    "min_08_3": 8.6,
+    "mean_08_3": 24,
+    "at4": 32,
+    "at6": 26.8
+   },
+   "rows": [
+    {
+     "h": 0.3,
+     "light": [
+      178,
+      227,
+      196
+     ],
+     "dark": [
+      37,
+      125,
+      116
+     ],
+     "dDark": 32.7,
+     "dBeach": 24.8,
+     "L": 0.873,
+     "C": 0.066,
+     "hue": 157,
+     "darkL": 0.536,
+     "darkHue": 186
+    },
+    {
+     "h": 0.8,
+     "light": [
+      130,
+      225,
+      218
+     ],
+     "dark": [
+      33,
+      183,
+      157
+     ],
+     "dDark": 14.4,
+     "dBeach": 10.3,
+     "L": 0.85,
+     "C": 0.091,
+     "hue": 189,
+     "darkL": 0.7,
+     "darkHue": 177
+    },
+    {
+     "h": 1.25,
+     "light": [
+      71,
+      223,
+      237
+     ],
+     "dark": [
+      36,
+      190,
+      210
+     ],
+     "dDark": 8.6,
+     "dBeach": 30.4,
+     "L": 0.831,
+     "C": 0.125,
+     "hue": 204,
+     "darkL": 0.735,
+     "darkHue": 209
+    },
+    {
+     "h": 1.5,
+     "light": [
+      78,
+      216,
+      235
+     ],
+     "dark": [
+      48,
+      163,
+      210
+     ],
+     "dDark": 16.7,
+     "dBeach": 32.2,
+     "L": 0.816,
+     "C": 0.119,
+     "hue": 208,
+     "darkL": 0.675,
+     "darkHue": 230
+    },
+    {
+     "h": 2,
+     "light": [
+      91,
+      202,
+      232
+     ],
+     "dark": [
+      73,
+      111,
+      210
+     ],
+     "dDark": 31.7,
+     "dBeach": 35.7,
+     "L": 0.786,
+     "C": 0.109,
+     "hue": 218,
+     "darkL": 0.566,
+     "darkHue": 266
+    },
+    {
+     "h": 2.5,
+     "light": [
+      104,
+      188,
+      228
+     ],
+     "dark": [
+      97,
+      69,
+      210
+     ],
+     "dDark": 37.9,
+     "dBeach": 40.6,
+     "L": 0.758,
+     "C": 0.1,
+     "hue": 231,
+     "darkL": 0.507,
+     "darkHue": 286
+    },
+    {
+     "h": 3,
+     "light": [
+      105,
+      174,
+      224
+     ],
+     "dark": [
+      118,
+      68,
+      207
+     ],
+     "dDark": 34.6,
+     "dBeach": 36.3,
+     "L": 0.725,
+     "C": 0.101,
+     "hue": 241,
+     "darkL": 0.522,
+     "darkHue": 295
+    },
+    {
+     "h": 4,
+     "light": [
+      105,
+      152,
+      214
+     ],
+     "dark": [
+      159,
+      65,
+      191
+     ],
+     "dDark": 32,
+     "dBeach": 29.5,
+     "L": 0.671,
+     "C": 0.107,
+     "hue": 256,
+     "darkL": 0.556,
+     "darkHue": 317
+    },
+    {
+     "h": 6,
+     "light": [
+      101,
+      128,
+      199
+     ],
+     "dark": [
+      198,
+      92,
+      183
+     ],
+     "dDark": 26.8,
+     "dBeach": 19,
+     "L": 0.609,
+     "C": 0.113,
+     "hue": 268,
+     "darkL": 0.636,
+     "darkHue": 333
+    },
+    {
+     "h": 9,
+     "light": [
+      97,
+      106,
+      186
+     ],
+     "dark": [
+      198,
+      181,
+      208
+     ],
+     "dDark": 29.7,
+     "dBeach": 31.5,
+     "L": 0.553,
+     "C": 0.124,
+     "hue": 277,
+     "darkL": 0.796,
+     "darkHue": 313
+    },
+    {
+     "h": 13,
+     "light": [
+      98,
+      97,
+      160
+     ],
+     "dark": [
+      198,
+      207,
+      210
+     ],
+     "dDark": 37.1,
+     "dBeach": 42,
+     "L": 0.522,
+     "C": 0.098,
+     "hue": 283,
+     "darkL": 0.848,
+     "darkHue": 222
+    }
+   ]
+  },
+  "first spectrum (rejected)": {
+   "summary": {
+    "min_08_3": 5.6,
+    "mean_08_3": 15,
+    "at4": 13.7,
+    "at6": 11.3
+   },
+   "rows": [
+    {
+     "h": 0.3,
+     "light": [
+      83,
+      214,
+      208
+     ],
+     "dark": [
+      37,
+      125,
+      116
+     ],
+     "dDark": 27,
+     "dBeach": 15.7,
+     "L": 0.804,
+     "C": 0.114,
+     "hue": 191,
+     "darkL": 0.536,
+     "darkHue": 186
+    },
+    {
+     "h": 0.8,
+     "light": [
+      47,
+      197,
+      202
+     ],
+     "dark": [
+      33,
+      183,
+      157
+     ],
+     "dDark": 11.8,
+     "dBeach": 7.9,
+     "L": 0.751,
+     "C": 0.119,
+     "hue": 198,
+     "darkL": 0.7,
+     "darkHue": 177
+    },
+    {
+     "h": 1.25,
+     "light": [
+      43,
+      177,
+      234
+     ],
+     "dark": [
+      36,
+      190,
+      210
+     ],
+     "dDark": 11.9,
+     "dBeach": 39,
+     "L": 0.717,
+     "C": 0.136,
+     "hue": 232,
+     "darkL": 0.735,
+     "darkHue": 209
+    },
+    {
+     "h": 1.5,
+     "light": [
+      54,
+      170,
+      238
+     ],
+     "dark": [
+      48,
+      163,
+      210
+     ],
+     "dDark": 5.6,
+     "dBeach": 39.9,
+     "L": 0.706,
+     "C": 0.141,
+     "hue": 239,
+     "darkL": 0.675,
+     "darkHue": 230
+    },
+    {
+     "h": 2,
+     "light": [
+      76,
+      157,
+      247
+     ],
+     "dark": [
+      73,
+      111,
+      210
+     ],
+     "dDark": 16,
+     "dBeach": 37.2,
+     "L": 0.686,
+     "C": 0.155,
+     "hue": 253,
+     "darkL": 0.566,
+     "darkHue": 266
+    },
+    {
+     "h": 2.5,
+     "light": [
+      99,
+      142,
+      255
+     ],
+     "dark": [
+      97,
+      69,
+      210
+     ],
+     "dDark": 24.7,
+     "dBeach": 36.2,
+     "L": 0.67,
+     "C": 0.173,
+     "hue": 266,
+     "darkL": 0.507,
+     "darkHue": 286
+    },
+    {
+     "h": 3,
+     "light": [
+      111,
+      129,
+      253
+     ],
+     "dark": [
+      118,
+      68,
+      207
+     ],
+     "dDark": 20.1,
+     "dBeach": 33.4,
+     "L": 0.65,
+     "C": 0.183,
+     "hue": 274,
+     "darkL": 0.522,
+     "darkHue": 295
+    },
+    {
+     "h": 4,
+     "light": [
+      135,
+      102,
+      247
+     ],
+     "dark": [
+      159,
+      65,
+      191
+     ],
+     "dDark": 13.7,
+     "dBeach": 28.2,
+     "L": 0.617,
+     "C": 0.208,
+     "hue": 289,
+     "darkL": 0.556,
+     "darkHue": 317
+    },
+    {
+     "h": 6,
+     "light": [
+      177,
+      50,
+      153
+     ],
+     "dark": [
+      198,
+      92,
+      183
+     ],
+     "dDark": 11.3,
+     "dBeach": 22.8,
+     "L": 0.544,
+     "C": 0.196,
+     "hue": 336,
+     "darkL": 0.636,
+     "darkHue": 333
+    },
+    {
+     "h": 9,
+     "light": [
+      163,
+      50,
+      80
+     ],
+     "dark": [
+      198,
+      181,
+      208
+     ],
+     "dDark": 39.5,
+     "dBeach": 48.5,
+     "L": 0.493,
+     "C": 0.15,
+     "hue": 9,
+     "darkL": 0.796,
+     "darkHue": 313
+    },
+    {
+     "h": 13,
+     "light": [
+      116,
+      62,
+      63
+     ],
+     "dark": [
+      198,
+      207,
+      210
+     ],
+     "dDark": 51,
+     "dBeach": 59.7,
+     "L": 0.432,
+     "C": 0.074,
+     "hue": 20,
+     "darkL": 0.848,
+     "darkHue": 222
+    }
+   ]
+  },
+  "spectrum re-solved (this PR)": {
+   "summary": {
+    "min_08_3": 9.6,
+    "mean_08_3": 23.9,
+    "at4": 29.9,
+    "at6": 24.3
+   },
+   "rows": [
+    {
+     "h": 0.3,
+     "light": [
+      142,
+      221,
+      201
+     ],
+     "dark": [
+      37,
+      125,
+      116
+     ],
+     "dDark": 29.5,
+     "dBeach": 19.9,
+     "L": 0.842,
+     "C": 0.083,
+     "hue": 176,
+     "darkL": 0.536,
+     "darkHue": 186
+    },
+    {
+     "h": 0.8,
+     "light": [
+      104,
+      216,
+      182
+     ],
+     "dark": [
+      33,
+      183,
+      157
+     ],
+     "dDark": 9.6,
+     "dBeach": 9.7,
+     "L": 0.806,
+     "C": 0.115,
+     "hue": 171,
+     "darkL": 0.7,
+     "darkHue": 177
+    },
+    {
+     "h": 1.25,
+     "light": [
+      43,
+      208,
+      199
+     ],
+     "dark": [
+      36,
+      190,
+      210
+     ],
+     "dDark": 11.3,
+     "dBeach": 27.8,
+     "L": 0.778,
+     "C": 0.127,
+     "hue": 189,
+     "darkL": 0.735,
+     "darkHue": 209
+    },
+    {
+     "h": 1.5,
+     "light": [
+      42,
+      201,
+      200
+     ],
+     "dark": [
+      48,
+      163,
+      210
+     ],
+     "dDark": 19.2,
+     "dBeach": 30.5,
+     "L": 0.759,
+     "C": 0.122,
+     "hue": 194,
+     "darkL": 0.675,
+     "darkHue": 230
+    },
+    {
+     "h": 2,
+     "light": [
+      40,
+      185,
+      200
+     ],
+     "dark": [
+      73,
+      111,
+      210
+     ],
+     "dDark": 32.6,
+     "dBeach": 35.9,
+     "L": 0.721,
+     "C": 0.116,
+     "hue": 206,
+     "darkL": 0.566,
+     "darkHue": 266
+    },
+    {
+     "h": 2.5,
+     "light": [
+      39,
+      168,
+      201
+     ],
+     "dark": [
+      97,
+      69,
+      210
+     ],
+     "dDark": 36.7,
+     "dBeach": 44.5,
+     "L": 0.68,
+     "C": 0.115,
+     "hue": 220,
+     "darkL": 0.507,
+     "darkHue": 286
+    },
+    {
+     "h": 3,
+     "light": [
+      54,
+      158,
+      203
+     ],
+     "dark": [
+      118,
+      68,
+      207
+     ],
+     "dDark": 33.9,
+     "dBeach": 39.2,
+     "L": 0.659,
+     "C": 0.114,
+     "hue": 231,
+     "darkL": 0.522,
+     "darkHue": 295
+    },
+    {
+     "h": 4,
+     "light": [
+      85,
+      136,
+      205
+     ],
+     "dark": [
+      159,
+      65,
+      191
+     ],
+     "dDark": 29.9,
+     "dBeach": 28.3,
+     "L": 0.621,
+     "C": 0.119,
+     "hue": 257,
+     "darkL": 0.556,
+     "darkHue": 317
+    },
+    {
+     "h": 6,
+     "light": [
+      86,
+      103,
+      219
+     ],
+     "dark": [
+      198,
+      92,
+      183
+     ],
+     "dDark": 24.3,
+     "dBeach": 23.6,
+     "L": 0.563,
+     "C": 0.176,
+     "hue": 273,
+     "darkL": 0.636,
+     "darkHue": 333
+    },
+    {
+     "h": 9,
+     "light": [
+      124,
+      82,
+      104
+     ],
+     "dark": [
+      198,
+      181,
+      208
+     ],
+     "dDark": 33.6,
+     "dBeach": 43.7,
+     "L": 0.491,
+     "C": 0.064,
+     "hue": 347,
+     "darkL": 0.796,
+     "darkHue": 313
+    },
+    {
+     "h": 13,
+     "light": [
+      111,
+      67,
+      68
+     ],
+     "dark": [
+      198,
+      207,
+      210
+     ],
+     "dDark": 49.8,
+     "dBeach": 58.5,
+     "L": 0.435,
+     "C": 0.061,
+     "hue": 18,
+     "darkL": 0.848,
+     "darkHue": 222
+    }
+   ]
+  }
+ },
+ "solver": {
+  "tool": "spectrum-apart.mjs --water-cvd 4 --cmin-common 32 --low 8",
+  "score": 1.104,
+  "note": "score 1 = every neighbour step from 0.5 m meets normal 10 / colour-blind 6.5 / lightness 5 dE in all nine views; the first spectrum scored 0.82 on the same test (colour-blind 5.3 at 6-9 m)",
+  "rejected": {
+   "lime start (--water-cvd 4)": "score 1.01; the 1.25 m band a dusty sage (C* 22.7) seen as a grey-teal open ocean in the engine",
+   "mint start": "score 0.22-0.50 (0.5 to 1.25 m steps collapse)"
+  }
+ },
+ "checker": {
+  "wave-check lightness": "falls at every 0.02 m on the table; the composite climbs < 1e-5 OKLCH L at 0.48-0.50 m (coastal, full lighting): numerically zero",
+  "neighbours": "normal-vision weakest 12.0 (v2 9.3; first spectrum 15.3); colour-blind weakest 4.2 tritan on the calm fade (water to 0.5 m), every other step >= 6.5",
+  "crest_switch": {
+   "v2s": 2.35,
+   "lc": 41.7,
+   "at_305": 33
+  }
+ },
+ "engine": "production build with the re-solved table, offline synthetic backend: light today | light re-solved | dark at world, regional and calm-bowl views plus a crest burst, 18 shots, every GL error 0; DRAW_FS compiled step(2.35) under the default and step(3.05) under the kill"
+}

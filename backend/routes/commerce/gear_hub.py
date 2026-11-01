@@ -237,7 +237,7 @@ async def purchase_gear_with_credits(
     # Deduct credits
     user.gear_only_credits -= item.price_credits
     if is_hobbyist_creator(user.role):
-        user.credit_balance = user.gear_only_credits
+        user.credit_balance = user.gear_only_credits + (user.spend_only_credits or 0)
     
     # Create purchase record
     purchase = GearPurchase(
@@ -249,6 +249,7 @@ async def purchase_gear_with_credits(
         status='clicked'
     )
     db.add(purchase)
+    await db.flush()
     
     # Update item stats
     item.purchase_count += 1
@@ -375,7 +376,7 @@ async def update_gear_item(
 # ============ SEED DATA ENDPOINT ============
 
 @router.post("/gear-hub/seed")
-async def seed_gear_catalog(db: AsyncSession = Depends(get_db)):
+async def seed_gear_catalog(db: AsyncSession = Depends(get_db), _admin=Depends(get_current_admin)):
     """Seed the gear catalog with sample items (for demo purposes)"""
     
     sample_items = [

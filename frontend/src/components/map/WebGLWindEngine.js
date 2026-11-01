@@ -17,15 +17,15 @@ import { baseClipKeepsFine } from './windOverlayKeep'; import { tierMosaic, tier
 import { windTrailFrame, bindTrailUv, TRAIL_IDENTITY } from './windTrailAnchor'; import { windInk, bindInk, clearTrails } from './windInk'; import { blendIntoMap } from './windCanvasAlpha'; import { trailVeilUniform } from './windTrailVeil';
 import {
   createTexture, bindWindPointReg, unbindTexture, createFBO, bindTexture, encodeWindTexture, frameTimeScale, perFrameFade, resolveWindMotionFloor,
-  resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY, v2DensityAt, v2SpeedKeepUniform, windCasingFixedPole, v2TrailFade, v2SpeedPremul, v2FieldTint, windCloseLandFactor, windCloseThinFactor, WIND_CLOSE_THIN
+  resolveWindParticlesV2, v2GlobalBox, v2RespawnBox, v2KeepRate, v2DropRule, V2_BODY, v2DensityAt, v2SpeedKeepUniform, windCasingFixedPole, v2TrailFade, v2SpeedPremul, v2FieldTint, windCloseLandFactor, windCloseThinFactor, WIND_CLOSE_THIN, resolveWindSpeedRef
 } from './WebGLWindUtils';
 import {
   initEngine,
   disposeEngine,
-  reinitParticles
+  reinitParticles, pollPrograms
 } from './WebGLWindEngineInit';
-import { recordTruthStage } from './weatherTruthTracker';
-import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation';
+import { recordTruthStage } from './weatherTruthTracker'; import { refreshWindSpeedScale } from './windDeliveryCoalesce';
+import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { advTeardownNeeded } from './advFboSync';
 
 function latToMercatorY(lat) {
   var latClamped = Math.max(-85.051129, Math.min(85.051129, lat));
@@ -193,7 +193,7 @@ WebGLWindEngine.prototype.init = function(gl) {
   initEngine(this, gl);
   if (!this._initialized) throw new Error('WebGL Wind initialization failed');
 };
-
+WebGLWindEngine.prototype.pollPrograms = function(gl) { return pollPrograms(this, gl); };   // async shader batch: WebGLWindEngineInit.js
 WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
   if (!windGrid?.vectors?.length) return 'skipped';
 
@@ -291,23 +291,9 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
     }
   }
 
-  // v3.16: Update _maxWindSpeed from actual data, with sane bounds — across BOTH textures so the
-  // shared colour ramp covers whichever grid carries the storm.
-  // Floor of 10kn prevents all-calm grids from blowing up the ramp
-  // Ceiling of 80kn keeps hurricane-force winds from washing out variation
-  if (this._windData || this._windFine) {
-    var dataMaxSpeed = Math.max(this._windData?.maxSpeed || 0, this._windFine?.maxSpeed || 0) || 50;
-    var newMaxSpeed = Math.max(10, Math.min(dataMaxSpeed, 80));
-    if (newMaxSpeed !== this._maxWindSpeed) {
-      console.log('[WebGLWind] maxWindSpeed updated: ' + this._maxWindSpeed + ' -> ' + newMaxSpeed + ' kn (data max: ' + dataMaxSpeed + ')');
-      this._maxWindSpeed = newMaxSpeed;
-      // Force color ramp regeneration on next render by clearing cached ramp
-      if (this._colorRamp) {
-        gl.deleteTexture(this._colorRamp);
-        this._colorRamp = null;
-      }
-    }
-  }
+  // v3.16 speed scale across BOTH textures, clamped [10, 80] kn (windDeliveryCoalesce.refreshWindSpeedScale). While the layer
+  // delivers a batch it sets `_deferSpeedScale` and sets the scale ONCE after the last grid (owner test 2026-10-25: it flapped).
+  if (!this._deferSpeedScale) refreshWindSpeedScale(this, gl);
 
   const model = windGrid.truthTag?.model || 'GFS';
   const layer = windGrid.truthTag?.layer || 'wind';
@@ -345,7 +331,7 @@ WebGLWindEngine.prototype.clearWindData = function(gl) {
 };
 
 WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight, zoom, theme, worldOffsets, viewportBounds) {
-  if (!this._initialized || !this._windData) return;
+  if (!this._initialized || this._programBatch || !this._windData) return;   // _programBatch: shaders still compiling
 
   const windGrid = this._windData?.windGrid;
   if (windGrid) {
@@ -418,7 +404,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // TRAILS ANCHORED TO THE MAP: this frame's trail-buffer camera (windTrailAnchor.js). With its kill switch on, the buffer
   // is the screen again and a genuine zoom jump clears it, as before.
   const _trail = windTrailFrame(this, gl, this._trailMatrix || matrix, screenWidth, screenHeight, typeof zoom === 'number' ? zoom : 6);
-  const webglState = captureWebGLState(gl);
+  const webglState = captureWebGLState(gl, this._mapGLContext);   // MapLibre's GL state shadow, set per frame by WebGLWindLayer
   try {
     gl.disable(gl.DEPTH_TEST);
     gl.depthMask(false);
@@ -750,7 +736,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_calm_marks'), _calmMarks);
   var _czDensity = (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_CLOSEZOOM_DENSITY__ === true) ? 0.0 : 1.0;
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_closezoom_density'), _czDensity);
-  const _speedMax = Math.max(1, Math.hypot(this._windData.uMax[0] || 0, this._windData.uMax[1] || 0));
+  const _speedMax = resolveWindSpeedRef(this._windData.uMax); // fixed reference: motion per knot is local-only (windSpeedRef.js)
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_max'), _speedMax);
   // BASE+OVERLAY (queue #9): advect from the fine field where it exists (unit 2).
   gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_wind_fine'), 2);
@@ -772,7 +758,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   }
   unbindTexture(gl, this.particleStateB);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0); this._advAttached = true;
   gl.viewport(0, 0, this.particleRes, this.particleRes);
   bindTexture(gl, this.particleStateA, 0);
   bindTexture(gl, this._windData.texture, 1);
@@ -794,7 +780,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     var advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
     if (advPosLoc !== -1) gl.disableVertexAttribArray(advPosLoc);
   }
-  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+  gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0); this._advAttached = false;
   var tmp = this.particleStateA; this.particleStateA = this.particleStateB; this.particleStateB = tmp;
 
   // Step 2: Fade screen A screen B (RGB fade, alpha=1.0)
@@ -997,11 +983,11 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   }
   } finally {
     if (gl && !gl.isContextLost() && webglState) {
-      if (this.advFBO && gl.isFramebuffer(this.advFBO)) {
+      if (this.advFBO && advTeardownNeeded(this, undefined, 'windAdvTeardown') && gl.isFramebuffer(this.advFBO)) {   // only when left attached (advFboSync.js)
         try {
           gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
           if (gl.getParameter(gl.FRAMEBUFFER_BINDING) === this.advFBO) {
-            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0); this._advAttached = false;
           }
         } catch (e) {}
       }

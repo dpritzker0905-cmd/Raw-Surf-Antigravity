@@ -23,6 +23,7 @@
  * own bounds (true edges) and are NOT corrected. Tests: gridPointRegistration.test.js.
  * Kill: window.__RAW_DISABLE_GRID_POINT_REG__ = true.
  */
+import { uniformLoc } from './glUniformCache';
 
 export const GRID_REG_OFF = Object.freeze([0, 0, 0, 0]);
 
@@ -38,7 +39,7 @@ export function gridPointReg(grid, win) {
 /** Binds `name` (a vec4) on `prog` for `grid`. Returns what was set (tests assert it without GL). */
 export function setGridPointRegUniform(gl, prog, name, grid, win) {
   const r = gridPointReg(grid, win);
-  if (gl && prog) gl.uniform4f(gl.getUniformLocation(prog, name), r[0], r[1], r[2], r[3]);
+  if (gl && prog) gl.uniform4f(uniformLoc(gl, prog, name), r[0], r[1], r[2], r[3]);
   return r;
 }
 

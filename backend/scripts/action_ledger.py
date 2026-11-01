@@ -25,15 +25,25 @@ compaction or a new session lost it. Now it is a `commitment` line with `due_at`
 verified). A later line closes it with `fulfills: <seq>`, which must name an earlier commitment. `open` lists every
 unfulfilled commitment and marks the OVERDUE ones; memory_audit surfaces them at every session start.
 
+FRAGMENTS (owner, 2026-10-22 23:11 EDT; D-0XX; ledger_fragments.py). Two open PRs that both appended here always
+claimed the same seq, so since the protocol landed a PR never writes this file: `append` writes the PR's lines to
+`ledger.d/<branch-slug>.jsonl` (no seq/prev/at), and the lead's `fold-pr` chains every merged fragment onto this
+file in MERGE ORDER, moves the anchor and removes the folded fragments in one commit. `append --direct` is the old
+writer, kept for the fold and for PRs opened before the protocol landed. References: `--fulfills`/`--corrects` take
+a seq already here, `@frag:N` (line N of your fragment) or `@frag:<name>:N` (a fragment already merged to dev).
+
 USAGE (from the repo root; standard library only):
-  python backend/scripts/action_ledger.py append --actor codex --kind pr_merge --target "#163" \
-      --why "..." --authorized-by "owner (chat, 2026-09-29): 'Merge #163 and #164'" \
-      --evidence "CI 14/14 green" --evidence "hosted chain 130/1537" \
-      --outcome "merged as abc12345" --verified "gh pr view 163: MERGED" --rollback "git revert -m 1 abc12345"
+  python backend/scripts/action_ledger.py append --actor codex --kind pr_open --target "#470" \
+      --why "..." --authorized-by "owner (chat, 2026-10-22): '...'" \
+      --evidence "CI 11/11 green" --evidence "hosted estate 2343" \
+      --outcome "opened" --verified "gh pr view 470: OPEN" --rollback "gh pr close 470"
+                                                                   # -> ledger.d/<branch-slug>.jsonl:N
   python backend/scripts/action_ledger.py verify [--base FILE]     # exit 1 on any break
   python backend/scripts/action_ledger.py head                     # the anchor line for STATE.md
-  python backend/scripts/action_ledger.py open                     # unfulfilled commitments (OVERDUE marked)
+  python backend/scripts/action_ledger.py open                     # unfulfilled commitments, fragments included
   python backend/scripts/action_ledger.py selftest                 # proves each tamper is caught
+  python backend/scripts/action_ledger.py fold-pr [--dry-run]      # the lead: fold dev's fragments, open the PR
+  python backend/scripts/action_ledger.py check-pr --base origin/dev   # CI: the PR's ledger changes are legal
 """
 import argparse
 import hashlib
@@ -364,6 +374,55 @@ def selftest() -> list:
     return fails
 
 
+def _check_pr_cli(args) -> int:
+    """check-pr's exit code. The PR's changed files are listed first with plain git: a PR that touches no ledger file
+    passes before any ledger logic runs, so a bug in the checker can never block an unrelated merge. For a PR that
+    does touch the ledger, any exception in the checker FAILS (closed). A failure to list the changed files at all
+    (no base fetched) also fails: it cannot tell the two apart."""
+    F = _fragments()
+    try:
+        _, files, moved = F.touched(ROOT, args.base, args.head)
+    except Exception as ex:  # noqa: BLE001 - the reason is printed; the exit is 1
+        print(f"LEDGER-PR: cannot list this PR's changed files against {args.base} ({ex}); fetch the base first")
+        return 1
+    if not files and not moved:
+        print("check-pr: this PR touches no ledger file and does not move the STATE anchor: nothing to check")
+        return 0
+    try:
+        problems, notes = F.check_pr(ROOT, args.base, args.head, pr_created_at=args.pr_created_at,
+                                     head_ref=args.head_ref)
+    except Exception as ex:  # noqa: BLE001 - fail CLOSED on a PR that touches the ledger
+        problems, notes = [f"the checker failed on a PR that touches the ledger, so the check fails closed: {ex!r}"], []
+    for n in notes:
+        print(f"check-pr: {n}")
+    for p in problems:
+        print(f"LEDGER-PR: {p}")
+    print(f"check-pr: {len(problems)} problem(s) in {len(files)} ledger file(s) changed"
+          + (" (the STATE anchor moved)" if moved else ""))
+    return 1 if problems else 0
+
+
+def _fragments():
+    """ledger_fragments, imported the way this module was (a package in tests, a script directory on the CLI)."""
+    if __package__:
+        from . import ledger_fragments
+    else:
+        import ledger_fragments
+    return ledger_fragments
+
+
+def _ref(value: str, flag: str):
+    """A CLI reference: digits are a seq; '@frag:...' stays as written; anything else is refused (`corrects` also
+    takes a free reference to where a claim was written)."""
+    if value is None:
+        return None
+    if value.isdigit():
+        return int(value)
+    if value.startswith("@frag") or flag == "corrects":
+        return value
+    raise ValueError(f"--{flag} {value!r}: give a seq, '@frag:N' or '@frag:<name>:N'")
+
+
 def main(argv=None) -> int:
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -372,56 +431,124 @@ def main(argv=None) -> int:
     for k in ("actor", "target", "why", "authorized-by", "outcome", "verified", "rollback"):
         a.add_argument(f"--{k}", required=True)
     a.add_argument("--evidence", action="append", required=True)
-    a.add_argument("--corrects", help="an earlier seq, or a reference to where the corrected claim was written")
-    a.add_argument("--at", help="when the line is written (default now); must not precede the last line")
-    a.add_argument("--acted-at", help="when the action happened, if it is recorded late")
+    a.add_argument("--corrects", help="an earlier seq, @frag:N, @frag:<name>:N, or where the claim was written")
+    a.add_argument("--at", help="--direct only: when the line is written (default now)")
+    a.add_argument("--acted-at", help="when the action happened (a fragment line defaults to now)")
     a.add_argument("--reconstructed", action="store_true", help="written after the fact from records")
     a.add_argument("--due-at", help="commitment: when it will be checked (UTC ISO)")
     a.add_argument("--check", help="commitment: how it will be verified")
-    a.add_argument("--fulfills", type=int, help="the seq of the commitment this line closes")
+    a.add_argument("--fulfills", help="the commitment this line closes: a seq, @frag:N or @frag:<name>:N")
+    a.add_argument("--direct", action="store_true",
+                   help="write ACTIONS.jsonl itself (the fold, and PRs opened before the fragment protocol only)")
+    a.add_argument("--fragment", help="the fragment's name (default: the branch's slug)")
+    a.add_argument("--base", default="origin/dev", help="the base ref fragment names and references are read from")
     v = sub.add_parser("verify")
     v.add_argument("--base", help="the base branch's ledger; it must be a prefix of this one")
     sub.add_parser("head")
     sub.add_parser("open")
     sub.add_parser("selftest")
+    fo = sub.add_parser("fold", help="fold the base's fragments into ACTIONS.jsonl in THIS checkout")
+    fo.add_argument("--base", default="origin/dev")
+    fo.add_argument("--at", help="the fold time (default now)")
+    fp = sub.add_parser("fold-pr", help="fold dev's fragments in a temporary worktree and open the fold PR")
+    fp.add_argument("--remote", default="origin")
+    fp.add_argument("--base", default="dev")
+    fp.add_argument("--dry-run", action="store_true")
+    fp.add_argument("--replace", metavar="BRANCH", help="re-fold onto fresh dev and force-push this fold branch")
+    fp.add_argument("--no-pr", action="store_true", help="push the branch but do not open the PR")
+    fp.add_argument("--co-author", action="append", default=[], help="a Co-Authored-By trailer (repeatable)")
+    fp.add_argument("--record-merges", action="store_true",
+                    help="also record a reconstructed pr_merge line for every merge on the base the ledger lacks")
+    fp.add_argument("--actor", help="--record-merges: who writes the reconstructed lines")
+    rm = sub.add_parser("record-merges", help="append a reconstructed pr_merge line to this branch's fragment for "
+                                              "every merge on the base that the ledger (folded + fragments) lacks")
+    rm.add_argument("--actor", required=True)
+    rm.add_argument("--base", default="origin/dev")
+    rm.add_argument("--fragment", help="the fragment's name (default: the branch's slug)")
+    cp = sub.add_parser("check-pr", help="CI: is this PR's change to the ledger legal?")
+    cp.add_argument("--base", required=True, help="the base ref, e.g. origin/dev")
+    cp.add_argument("--head", default="HEAD")
+    cp.add_argument("--pr-created-at", help="the PR's created_at (UTC ISO); before the protocol landed = legacy")
+    cp.add_argument("--head-ref", help="the PR's branch (a ledger-fold/ branch is a fold)")
     args = ap.parse_args(argv)
     if args.cmd == "append":
         fields = {"kind": args.kind, "target": args.target, "why": args.why, "authorized_by": args.authorized_by,
                   "outcome": args.outcome, "verified": args.verified, "rollback": args.rollback,
                   "evidence": args.evidence,
                   "actor": args.actor}
-        if args.corrects is not None:
-            fields["corrects"] = int(args.corrects) if args.corrects.isdigit() else args.corrects
-        if args.at:
-            fields["at"] = args.at
+        for k in ("corrects", "fulfills"):
+            if getattr(args, k) is not None:
+                fields[k] = _ref(getattr(args, k), k)
         if args.acted_at:
             fields["acted_at"] = args.acted_at
         if args.reconstructed:
             fields["reconstructed"] = True
-        for k in ("due_at", "check", "fulfills"):
+        for k in ("due_at", "check"):
             if getattr(args, k) is not None:
                 fields[k] = getattr(args, k)
-        e = append(LEDGER, **fields)
-        print(f"appended seq {e['seq']} ({e['kind']} {e['target']})")
-        print(head(read_lines(LEDGER)))
+        if args.direct:
+            if args.at:
+                fields["at"] = args.at
+            if any(isinstance(fields.get(k), str) and fields[k].startswith("@frag") for k in ("corrects", "fulfills")):
+                raise ValueError("an @frag reference belongs in a fragment, not in a --direct line")
+            e = append(LEDGER, **fields)
+            print(f"appended seq {e['seq']} ({e['kind']} {e['target']})")
+            print(head(read_lines(LEDGER)))
+            return 0
+        if args.at:
+            raise ValueError("--at is the fold's (a fragment line has none); --acted-at says when the action happened")
+        name, n, e = _fragments().append_fragment(ROOT, fields, name=args.fragment, base_ref=args.base)
+        print(f"appended ledger.d/{name}.jsonl:{n} ({e['kind']} {e['target']})")
+        print(f"cite it as ledger.d/{name}.jsonl:{n} (or @frag:{n} from your own fragment) until the fold gives it "
+              f"a seq; commit the fragment with your PR")
         return 0
     if args.cmd == "head":
         print(head(read_lines(LEDGER)))
         return 0
     if args.cmd == "open":
         now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        cs = [c for c in commitments(read_lines(LEDGER), now) if c["status"] != "fulfilled"]
+        F = _fragments()
+        texts, problems = F.read_dir_fragments(os.path.dirname(LEDGER))
+        order = F.working_order(ROOT, list(texts))
+        lines, labels, errs = F.virtual_ledger(read_lines(LEDGER), [(n, texts[n]) for n in order], now)
+        cs = [c for c in commitments(lines, now) if c["status"] != "fulfilled"]
         for c in cs:
-            print(f"{c['status'].upper():8s} seq {c['seq']:>4} due {c['due_at']}  {c['target']}"
-                  f"  -- check: {c['check']}")
+            where = labels.get(c["seq"], f"seq {c['seq']:>4}")
+            print(f"{c['status'].upper():8s} {where} due {c['due_at']}  {c['target']}  -- check: {c['check']}")
+        for p in problems + errs:
+            print(f"FRAGMENT: {p}")
         print(f"commitments: {len(cs)} open ({sum(c['status'] == 'overdue' for c in cs)} overdue)")
         return 0
     if args.cmd == "selftest":
-        fails = selftest()
+        fails = selftest() + [f"fragments: {f}" for f in _fragments().selftest()]
         for f in fails:
             print(f"SELFTEST FAIL: {f}")
         print("selftest: every tamper detected" if not fails else f"selftest: {len(fails)} failure(s)")
         return 1 if fails else 0
+    if args.cmd == "fold":
+        s = _fragments().fold(ROOT, args.base, at=args.at)
+        for n, k, first in s["folded"]:
+            print(f"folded ledger.d/{n}.jsonl: {k} line(s) -> seq {first}-{first + k - 1}")
+        print(s["head"] or "nothing to fold")
+        return 0
+    if args.cmd == "fold-pr":
+        if args.record_merges and not args.actor:
+            raise ValueError("--record-merges needs --actor (who writes the reconstructed lines)")
+        _fragments().fold_pr(ROOT, remote=args.remote, base=args.base, dry_run=args.dry_run, replace=args.replace,
+                             open_pr=not args.no_pr, co_authors=args.co_author,
+                             record_actor=args.actor if args.record_merges else None)
+        return 0
+    if args.cmd == "record-merges":
+        if __package__:
+            from . import ledger_merges as LM
+        else:
+            import ledger_merges as LM
+        done = LM.record_merges(ROOT, args.base, LM.ledger_as_it_will_be(ROOT), args.actor, name=args.fragment)
+        print(f"record-merges: {len(done)} pr_merge line(s) recorded" + (f" ({', '.join(f'#{n}' for n in done)})"
+                                                                           if done else ""))
+        return 0
+    if args.cmd == "check-pr":
+        return _check_pr_cli(args)
     lines = read_lines(LEDGER)
     base = read_lines(args.base) if args.base else None
     anchor = read_anchor()

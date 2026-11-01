@@ -16,6 +16,7 @@ from database import get_db, async_session_maker
 from models import Profile, SocialLiveStream, Follow
 from websocket_manager import broadcast_live_status_change
 from core.security import get_current_user_id
+from services.parental_controls import assert_profile_may
 
 # LiveKit imports
 try:
@@ -267,6 +268,8 @@ async def start_livekit_stream(
     broadcaster = result.scalar_one_or_none()
     if not broadcaster:
         raise HTTPException(status_code=404, detail="User not found")
+    # PARENTAL CONTROLS (audit F-09): a Grom needs the guardian's can_stream, and view-only blocks going live.
+    assert_profile_may(broadcaster, "stream")
     
     # Check for existing active stream
     existing = await db.execute(
@@ -425,6 +428,8 @@ async def start_social_live(
     broadcaster = result.scalar_one_or_none()
     if not broadcaster:
         raise HTTPException(status_code=404, detail="User not found")
+    # PARENTAL CONTROLS (audit F-09): a Grom needs the guardian's can_stream, and view-only blocks going live.
+    assert_profile_may(broadcaster, "stream")
     
     # Check for existing active stream — auto-clear stale/orphaned ones
     existing_result = await db.execute(

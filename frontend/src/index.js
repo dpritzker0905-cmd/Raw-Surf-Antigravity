@@ -3,11 +3,13 @@ import React, { Suspense } from "react";
 import ReactDOM from "react-dom/client";
 import "./index.css";
 import App from "./App";
+import { registerSyntheticAppLifecycle } from "./testSupport/syntheticAppLifecycle";
 
 // Initialize i18n before rendering
 import './i18n';
 import { isOpenMeteoSpatialUrl } from './components/map/openMeteoEndpoints';
 import reportWebVitals, { logWebVitals } from './reportWebVitals';
+import { installInstantTelemetry } from './components/map/instantTelemetry';
 
 // Aggressively suppress ResizeObserver errors - these are benign browser warnings
 // that React's dev overlay incorrectly shows as errors
@@ -310,6 +312,10 @@ root.render(
     </Suspense>
 );
 
+// Explicit runner opt-in; ordinary sessions have no lifecycle marker or shutdown hook.
+registerSyntheticAppLifecycle(globalThis, () => root.unmount(),
+  () => import('./lib/supabase').then(module => module.supabase));
+
 // --- Service Worker Registration ---
 // Enables offline caching, push notifications, and PWA installability.
 if ('serviceWorker' in navigator) {
@@ -346,5 +352,17 @@ if ('serviceWorker' in navigator) {
 }
 
 // --- Core Web Vitals Monitoring ---
-// Reports LCP, FID, CLS, TTFB, INP metrics. Logs in dev, ready for analytics.
+// Reports LCP, CLS, FCP, TTFB, INP metrics to the console in dev.
 reportWebVitals(logWebVitals);
+// Field telemetry for the 'instant' contract (sampled pages only: press-to-frame, long animation frames, INP with attribution).
+installInstantTelemetry();
+
+// One-field proof (2026-10-19, dark): only with window.__RAW_FRAME_PROOF__ or localStorage '__RAW_FRAME_PROOF__'='true'.
+// Fetches the CDN frame image, compares it with /grid, and draws nothing. See components/map/frameImageProof.js.
+try {
+  if (window.__RAW_FRAME_PROOF__ || localStorage.getItem('__RAW_FRAME_PROOF__') === 'true') {
+    Promise.all([import('./components/map/frameImageProof'), import('./components/map/backendWeatherServiceClient')])
+      .then(([proof, client]) => proof.installFrameProof({ gridUrl: client.GRID_URL }))
+      .catch(() => {});
+  }
+} catch (e) { /* storage blocked: proof stays off */ }

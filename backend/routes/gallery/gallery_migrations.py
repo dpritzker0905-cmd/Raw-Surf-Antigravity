@@ -18,6 +18,7 @@ from models import (
     Booking, DispatchRequest
 )
 from deps.admin_auth import get_current_admin
+from core.security import get_current_user_id
 
 gallery_logger = logging.getLogger("routes.gallery")
 
@@ -41,6 +42,7 @@ SESSION_TYPE_LABELS = {
 async def migrate_gallery_titles(
     photographer_id: str = Query(..., description="Photographer ID for authorization"),
     dry_run: bool = Query(False, description="If true, preview changes without saving"),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -51,6 +53,9 @@ async def migrate_gallery_titles(
     Use dry_run=true to preview changes before committing.
     """
     import re
+
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
 
     profile_result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     photographer = profile_result.scalar_one_or_none()
@@ -198,9 +203,12 @@ async def clean_gallery_item_titles(
 async def clean_all_item_titles(
     photographer_id: str = Query(..., description="Photographer ID for authorization"),
     dry_run: bool = Query(False, description="If true, preview changes without saving"),
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Batch: Clean up hash-style item titles across ALL galleries for a photographer."""
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     profile_result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     photographer = profile_result.scalar_one_or_none()
     if not photographer:

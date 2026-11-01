@@ -1,0 +1,97 @@
+{
+  "observedAtUtc": "2026-10-18T14:25:49.777506+00:00",
+  "pr": 378,
+  "base": "dev",
+  "head": "e4dbb47192bc034257334d15b8fe8c220cad5440",
+  "state": "OPEN",
+  "isDraft": false,
+  "mergedAt": null,
+  "mergeable": "MERGEABLE",
+  "ci": {
+    "runId": 39134462812,
+    "conclusion": "success",
+    "jobsPassed": 12,
+    "url": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/39134462812",
+    "guards": {
+      "collected": 3257,
+      "files": 207,
+      "passed": 3190,
+      "skipped": 67,
+      "failed": 0,
+      "errors": 0
+    },
+    "chain": {
+      "files": 166,
+      "passed": 2721,
+      "skipped": 0,
+      "failed": 0,
+      "errors": 0
+    },
+    "estate": {
+      "selectedFiles": 322,
+      "resultFiles": 320,
+      "passed": 2257,
+      "silentFiles": 0
+    },
+    "frontend": {
+      "suitesPassed": 438,
+      "testsPassed": 5766,
+      "build": "success"
+    },
+    "lighthouseRunId": 39134462956,
+    "lighthouseConclusion": "success",
+    "ledgerRunId": 39134462953,
+    "governanceRunId": 39134462962
+  },
+  "reviewChecks": {
+    "success": 16,
+    "neutral": 3,
+    "failed": 0,
+    "pending": 0
+  },
+  "sourceRepairsThisTurn": false,
+  "guardActivation": false,
+  "runtimeWrites": false,
+  "holds": {
+    "observedAtUtc": "2026-10-18T14:18:40.227955+00:00",
+    "dev": {
+      "http": 200,
+      "build": "698ecf62"
+    },
+    "production": {
+      "http": 200,
+      "build": "fc140024"
+    },
+    "health": {
+      "http": 200,
+      "status": "healthy",
+      "version": "2.0.0-stage-6f-v1-62021d59ff78815536391002a5d510a810cfff9e",
+      "checks": [
+        {
+          "name": "database",
+          "status": "pass"
+        },
+        {
+          "name": "scheduler",
+          "status": "pass"
+        }
+      ],
+      "restore": "complete",
+      "restoreErrors": 0
+    },
+    "dataHealth": {
+      "http": 200,
+      "status": "warn",
+      "alerts": [
+        "ICON/marine: model cycle unverified: conflicting",
+        "EURO/marine: model cycle unverified: conflicting"
+      ]
+    }
+  },
+  "remoteRefs": {
+    "dev": "698ecf6272344af568d31fbb91eadbf689bfc63e",
+    "main": "261db85a9508bf5a03ddd70dd21271493d5858a8"
+  },
+  "limitation": "Review readiness only. No merge, guard activation, shared backend deployment, stored-data rewrite or production promotion. Existing marine warnings not cleared.",
+  "receiptBranch": "codex/pr378-review-readiness-record"
+}

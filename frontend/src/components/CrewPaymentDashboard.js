@@ -337,6 +337,8 @@ export const CrewPaymentDashboard = ({ booking, onUpdate }) => {
                     step="0.01"
                     min="0"
                     value={customAmounts[member.participant_id] || ''}
+                    disabled={member.payment_status === 'Paid'}
+                    title={member.payment_status === 'Paid' ? 'Already paid: this share is locked' : undefined}
                     onChange={(e) => setCustomAmounts({
                       ...customAmounts,
                       [member.participant_id]: e.target.value

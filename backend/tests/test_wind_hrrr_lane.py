@@ -15,6 +15,7 @@ import ast
 import asyncio
 import copy
 import math
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -274,6 +275,71 @@ def test_series_frames_carry_the_lane(lane, monkeypatch):
     assert killed["frames"] and all(fr["wind_lane"] is None for fr in killed["frames"])
 
 
+# ───────────────────────────── the box says which lane it holds, and keeps it fresh (2026-10-23) ─────────────────────────────
+def test_the_box_reports_the_lane_it_holds_on_a_cached_route(lane):
+    """Static wind frames carry a lane; the client serves a lane-window hour only when the BOX holds the same one (live
+    2026-10-23: the box kept a 19 h old cycle the pointer no longer named)."""
+    r = asyncio.run(_get("/api/weather/wind_lane", {}))
+    assert r.status_code == 200 and r.headers["cache-control"] == "public, max-age=60"
+    body = r.json()
+    assert body == WL.box_state() and body["key"] == lane.key and body["cycle"] == "2026-10-09T12:00:00Z"
+    assert (body["enabled"], body["feather_km"], body["taper_hours"]) == (True, 200.0, 3)
+    WL.install(None)
+    assert WL.box_state()["key"] is None and WL.box_state()["cycle"] is None      # before a lane loads
+
+
+def test_a_refresh_loads_a_new_cycle_and_says_what_failed(lane, monkeypatch):
+    new_key = "wind_lane/hrrr-2026100918.json"
+    store = {WL.INDEX_KEY: {"key": new_key}, new_key: lane_obj()}
+    monkeypatch.setattr(WL, "_l2_get", lambda key: store.get(key))
+    WL.refresh()
+    assert WL.current_lane().key == new_key and WL.box_state()["refresh_error"] is None
+    store[WL.INDEX_KEY] = None                                                     # L2 index unreadable: keep the lane, say so
+    WL.refresh()
+    assert WL.current_lane().key == new_key and WL.box_state()["refresh_error"] == "IndexUnreadable"
+    store[WL.INDEX_KEY] = {"key": "wind_lane/hrrr-2026100923.json"}                # index names a cycle that is not there
+    WL.refresh()
+    assert WL.current_lane().key == new_key and WL.box_state()["refresh_error"] == "CycleUnreadable"
+    WL._state["error"] = None
+
+
+def test_a_failing_refresh_logs_once_per_change_not_every_tick(lane, monkeypatch, caplog):
+    """The keeper ticks every 300 s on a 1-CPU box: a lasting failure is one warning, and its recovery one line."""
+    WL._state["error"] = None
+    state = {"index": None}
+    monkeypatch.setattr(WL, "_l2_get", lambda key: state["index"] if key == WL.INDEX_KEY else None)
+    with caplog.at_level("INFO", logger=WL.logger.name):
+        for _ in range(5):
+            WL.refresh()                                                           # the same failure, five ticks
+        state["index"] = {"key": lane.key}                                        # L2 readable again, same lane
+        WL.refresh()
+        WL.refresh()
+    msgs = [r.getMessage() for r in caplog.records if r.name == WL.logger.name]
+    assert sum("refresh failed" in m for m in msgs) == 1 and sum("recovered" in m for m in msgs) == 1, msgs
+    assert WL.box_state()["refresh_error"] is None and WL.current_lane().key == lane.key   # the last lane was kept throughout
+
+
+def test_the_keeper_rereads_the_lane_with_no_wind_request_at_all(monkeypatch):
+    """current_lane() refreshes only when a wind request asks; the keeper re-reads on its own, every TTL."""
+    from services import _fetch_common
+    assert WL.start_keeper() is False                                              # never in a test environment
+    calls = []
+    monkeypatch.setattr(_fetch_common, "is_test_environment", lambda: False)
+    monkeypatch.setattr(WL, "_ttl_s", lambda: 0.01)
+    monkeypatch.setattr(WL, "refresh", lambda: calls.append(1))
+    monkeypatch.setenv("WIND_HRRR_LANE_KEEPER", "0")
+    assert WL.start_keeper() is False                                              # the kill
+    monkeypatch.delenv("WIND_HRRR_LANE_KEEPER")
+    try:
+        assert WL.start_keeper() is True and WL.start_keeper() is False            # once per process
+        deadline = time.monotonic() + 5
+        while len(calls) < 2 and time.monotonic() < deadline:
+            time.sleep(0.01)
+        assert len(calls) >= 2
+    finally:
+        WL._keeper["started"] = False                                              # stops the thread
+
+
 # ───────────────────────────── no knock-on: the lane changes the map, never a served number ─────────────────────────────
 BACKEND = Path(__file__).resolve().parents[1]
 
@@ -297,8 +363,27 @@ def test_only_the_grid_route_calls_the_lane():
             continue
         if imports_the_lane(ast.parse(path.read_text(encoding="utf-8-sig", errors="ignore"))):
             callers.append(path.relative_to(BACKEND).as_posix())
-    # the route (apply), server.py (the kill-switch middleware + warm-up) and the ingest (publishes the lane)
-    assert sorted(callers) == ["routes/weather.py", "server.py", "services/weather_pipeline/wind_lane_ingest.py"], callers
+    # the route (apply), server.py (the kill-switch middleware + warm-up), the ingest (publishes the lane) and the
+    # series page memo, which only READS the lane's identity (current_lane().key, request_mode) to key and re-check a
+    # kept GFS wind page (2026-10-20, GRID_SERIES_MEMO_RUN_KEYS); it must never apply the lane itself (asserted below).
+    # The static wind frames' publisher (2026-10-22, services/frame_set_wind.py) applies the lane too, to build the CDN frames that
+    # stand in for /grid's own GFS wind response; it writes frames to the public frames bucket and never a product back (asserted
+    # below: no store write in it). /capabilities (services/weather_pipeline/capabilities.py, 2026-10-22) only READS box_state(),
+    # the blend's constants, so the client can refuse static frames blended with others; it never applies the lane (asserted below).
+    # routes/weather_wind_lane.py (2026-10-23) serves box_state() read-only: the lane the box holds, never applied (asserted below).
+    assert sorted(callers) == ["routes/weather.py", "routes/weather_wind_lane.py", "server.py", "services/frame_set_wind.py",
+                               "services/weather_pipeline/capabilities.py",
+                               "services/weather_pipeline/series_memo_keys.py",
+                               "services/weather_pipeline/wind_lane_ingest.py"], callers
+    for ro in ("services/weather_pipeline/capabilities.py", "routes/weather_wind_lane.py"):
+        tree_ro = ast.parse((BACKEND / ro).read_text(encoding="utf-8"))
+        assert not [n for n in ast.walk(tree_ro) if isinstance(n, ast.Call)
+                    and getattr(n.func, "attr", getattr(n.func, "id", None)) == "apply_wind_lane"], ro
+    fsw_tree = ast.parse((BACKEND / "services/frame_set_wind.py").read_text(encoding="utf-8"))
+    assert not [n for n in ast.walk(fsw_tree) if isinstance(n, ast.Attribute)
+                and n.attr in ("save_product", "_upload_to_supabase", "write_product", "store_product")]
+    memo = ast.parse((BACKEND / "services/weather_pipeline/series_memo_keys.py").read_text(encoding="utf-8"))
+    assert not [n for n in ast.walk(memo) if isinstance(n, ast.Call) and getattr(n.func, "attr", None) == "apply_wind_lane"]
     tree = ast.parse((BACKEND / "routes/weather.py").read_text(encoding="utf-8"))
     calls = [n for n in ast.walk(tree) if isinstance(n, ast.Call) and getattr(n.func, "attr", None) == "apply_wind_lane"]
     assert len(calls) == 1, "the lane runs exactly once per /grid (grid_series calls this route per frame)"

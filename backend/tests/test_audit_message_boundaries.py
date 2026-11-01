@@ -12,7 +12,7 @@ from sqlalchemy import create_engine, select
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from core.security import create_access_token
 from database import get_db
-from models import Conversation, Follow, Message, Profile, RoleEnum
+from models import Conversation, Follow, Message, Profile, RoleEnum, UserBlock
 
 @pytest.fixture
 def messaging(tmp_path, monkeypatch):
@@ -29,7 +29,7 @@ def messaging(tmp_path, monkeypatch):
         modules.append(module)
     dbfile = tmp_path / 'messages.sqlite'
     engine = create_engine(f'sqlite:///{dbfile}')
-    for model in (Profile, Conversation, Message, Follow):
+    for model in (Profile, Conversation, Message, Follow, UserBlock):
         model.__table__.create(engine)
     with engine.begin() as conn:
         conn.execute(Profile.__table__.insert(), [dict(

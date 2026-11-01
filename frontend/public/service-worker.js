@@ -100,6 +100,15 @@ self.addEventListener('fetch', (event) => {
     return; // Malformed URL — let browser handle
   }
   
+  // STATIC FORECAST DATA (skills audit #4, 2026-10-23): the Supabase public buckets that hold forecast frames and products are
+  // CDN objects the browser's HTTP cache already serves (immutable frames and indexes, a no-cache pointer). The SW must never
+  // route them through the gallery cache below. They skipped it only because 'weather-frames' / 'weather-products' happen to
+  // contain '/weather'; a bucket named otherwise (a 'raster-frames') would have gone through caches.match on every frame.
+  // Explicit by host + bucket prefix. (The Blob worker that fetches frames is controlled by this SW too, so this covers it.)
+  if (url.hostname.includes('supabase') && /^\/storage\/v1\/object\/public\/(weather-frames|weather-products|[a-z0-9-]+-frames)\//.test(url.pathname)) {
+    return;
+  }
+
   // Exclude realtime weather, marine physics, and map tile APIs from SW interception
   if (
     url.hostname.includes('open-meteo.com') || 

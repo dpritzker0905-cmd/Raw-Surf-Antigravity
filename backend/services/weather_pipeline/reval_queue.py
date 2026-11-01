@@ -105,6 +105,8 @@ def schedule_revalidation(viewport_service, background_tasks, model, domain, lay
         if len(active) >= limit:
             if prefetch:
                 logger.info(f"[Reval Queue] prefetch sharpen skipped, slot kept for the viewed hour: {reval_key}")
+                from services.weather_pipeline.series_memo_keys import note_build
+                note_build("warm_sharpen_refused")   # a rebuild may get the slot: never a durable memo page
             return False
     active.add(reval_key)
     args = (model, domain, layer, valid_time, target_dt, bbox, reval_key)

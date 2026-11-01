@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import apiClient from '../lib/apiClient';
 import { supabase } from '../lib/supabase';
 import { toast } from 'sonner';
@@ -43,7 +43,12 @@ export default function useStoriesActions({
   const getViewerLocation = useCallback(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => setViewerLocation({ lat: pos.coords.latitude, lon: pos.coords.longitude }),
+        (pos) => {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          // Same position -> same object, so fetchStories (which depends on it) is not re-created.
+          setViewerLocation((prev) => (prev && prev.lat === lat && prev.lon === lon ? prev : { lat, lon }));
+        },
         () => logger.debug('Location access denied')
       );
     }
@@ -66,17 +71,24 @@ export default function useStoriesActions({
       setLoading(false);
     }
   }, [user?.id, viewerLocation]);
+  const fetchStoriesRef = useRef(fetchStories);
+  fetchStoriesRef.current = fetchStories;
 
-  // Initial fetch and location
+  // Fetch on mount, and once more when the location arrives (it decides which story locations are shown).
   useEffect(() => {
-    if (user?.id) {
-      fetchStories();
-      getViewerLocation();
-    }
-  }, [user?.id, fetchStories, getViewerLocation]);
+    if (user?.id) fetchStories();
+  }, [user?.id, fetchStories]);
 
-  // Supabase Realtime subscription for new stories
+  // Ask for the location ONCE per user. It used to run inside the fetch effect: every answer was a new object ->
+  // a new fetchStories -> the effect again -> another request -> ... The 2026-10-23 live trace counted 432
+  // /api/stories/feed in ~2 min from one /feed tab with location allowed (useStoriesActions.feedLoop.test.js).
   useEffect(() => {
+    if (user?.id) getViewerLocation();
+  }, [user?.id, getViewerLocation]);
+
+  // Supabase Realtime subscription for new stories (one channel per user; handlers read the latest fetch via the ref)
+  useEffect(() => {
+    const fetchStories = () => fetchStoriesRef.current();
     if (!user?.id || !supabase) return;
 
     const channel = supabase
@@ -159,7 +171,7 @@ export default function useStoriesActions({
       logger.debug('[Stories Realtime] Cleaning up subscription');
       if (supabase) supabase.removeChannel(channel);
     };
-  }, [user?.id, fetchStories]);
+  }, [user?.id]);
 
   // Compute display stories with sort priority
   const getDisplayStories = useCallback(() => {

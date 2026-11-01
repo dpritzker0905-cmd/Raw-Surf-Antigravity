@@ -218,21 +218,10 @@ async def find_any_cached_product_helper(
     return None
 
 
-async def get_cached_dynamic_product_helper(
-    service,
-    model: str,
-    domain: str,
-    layer: str,
-    target_dt: datetime,
-    bbox_str: str,
-    background_tasks=None,
-) -> Optional[NormalizedProduct]:
-    """
-    Checks dynamic product index for a fresh or stale cache hit.
-
-    `background_tasks` is the caller's (/grid's BackgroundTasks, a grid_series `SeriesFrame`, or None); a
-    stale hit's refresh takes its queue slot through reval_queue with it.
-    """
+def dynamic_lookup_box(model: str, bbox_str: str):
+    """The snapped box the Step 1&2 dynamic-cache lookup keys on: (west, south, east, north, span_lng, span_lat,
+    is_global_view). One function, so the series page memo (series_memo_keys.dynamic_keys) checks the SAME cache
+    keys this lookup reads."""
     req_w, req_s, req_e, req_n = parse_bbox(bbox_str)
     t_sz = 1.0 if model.upper() == "GFS" else 2.0
     west, south, east, north = clamp_and_normalize_bbox(
@@ -249,6 +238,25 @@ async def get_cached_dynamic_product_helper(
         west, south, east, north = -180.0, -80.0, 180.0, 85.0
         span_lng = 360.0
         span_lat = 165.0
+    return west, south, east, north, span_lng, span_lat, is_global_view
+
+
+async def get_cached_dynamic_product_helper(
+    service,
+    model: str,
+    domain: str,
+    layer: str,
+    target_dt: datetime,
+    bbox_str: str,
+    background_tasks=None,
+) -> Optional[NormalizedProduct]:
+    """
+    Checks dynamic product index for a fresh or stale cache hit.
+
+    `background_tasks` is the caller's (/grid's BackgroundTasks, a grid_series `SeriesFrame`, or None); a
+    stale hit's refresh takes its queue slot through reval_queue with it.
+    """
+    west, south, east, north, span_lng, span_lat, is_global_view = dynamic_lookup_box(model, bbox_str)
     coverage_scope = "global_coarse" if is_global_view else "viewport"
 
     resolution = choose_adaptive_resolution(span_lng, span_lat)

@@ -56,10 +56,12 @@ try:
     from _fetch_common import (energy_mean_direction_lonspan, energy_mean_direction_lonspan_conf,
                                energy_mean_height_lonspan)      # script-by-path
     from cmems_run_identity import stamp_run
+    from cmems_period_map import with_peak_period                # COPERNICUS_PEAK_PERIOD (dark)
 except ImportError:
     from services._fetch_common import (energy_mean_direction_lonspan, energy_mean_direction_lonspan_conf,
                                         energy_mean_height_lonspan)  # package context
     from services.cmems_run_identity import stamp_run
+    from services.cmems_period_map import with_peak_period
 
 # HEIGHT vars — block-meaned (longitudinally, like the directions) so an enclosed-sea coarse cell whose
 # exact point-sample column is masked land survives (the Gulf/Med/... dropout fix, 2026-07-22 — parity
@@ -163,6 +165,12 @@ def fetch_global_coarse(payload):
     lats = _coarse_axis(float(bbox["south"]), float(bbox["north"]), resolution)
 
     tmp = Path(tempfile.gettempdir())
+    # COPERNICUS_PEAK_PERIOD (dark): VTPK as the total period, VTM10 kept as wave_period_tm10. Off -> VARIABLE_MAP.
+    var_map = with_peak_period(VARIABLE_MAP)
+    # Every period the map emits is paired with its windowed height (test_cmems_period_window): PERIOD_TO_HEIGHT covers
+    # the default map; the flag's VTM10 diagnostic is a TOTAL-sea period, so it takes the total height's window too.
+    period_to_height = {**PERIOD_TO_HEIGHT, **{om: "wave_height" for _, om, _ in var_map if om == "wave_period_tm10"}}
+    cop_vars = [v[0] for v in var_map]
     # accumulator: lat -> {lon -> {om_var -> [values]}}, plus shared time axis
     points = []
     bands_ok = 0
@@ -174,7 +182,7 @@ def fetch_global_coarse(payload):
         try:
             copernicusmarine.subset(
                 dataset_id=DATASET_ID,
-                variables=COPERNICUS_VARS,
+                variables=cop_vars,
                 minimum_longitude=float(bbox["west"]), maximum_longitude=min(float(bbox["east"]), 179.9),
                 minimum_latitude=lat - band_pad, maximum_latitude=lat + band_pad,
                 start_datetime=start_dt, end_datetime=end_dt,
@@ -199,7 +207,7 @@ def fetch_global_coarse(payload):
             # masked cells to NaN so _sanitize_om drops them (the prior np.asarray + NaN-only check leaked
             # numeric fills -> 10,000-ft waves in the infobox + dead zones in the heatmap).
             arrs = {}
-            for cop, om, _ in VARIABLE_MAP:
+            for cop, om, _ in var_map:
                 arrs[om] = (np.ma.filled(np.ma.asarray(nc.variables[cop][:]).astype(float), np.nan)
                             if cop in nc.variables else None)
             # Longitudinal energy-mean window for direction vars: ±half-block in native columns.
@@ -212,7 +220,7 @@ def fetch_global_coarse(payload):
                 target_lon = (lon % 360.0) if is_360 else lon
                 col = int(np.abs(band_lons - target_lon).argmin())
                 hourly = {"time": times}
-                for cop, om, unit in VARIABLE_MAP:
+                for cop, om, unit in var_map:
                     a = arrs[om]
                     if a is None:
                         hourly[om] = [None] * len(times)
@@ -225,9 +233,9 @@ def fetch_global_coarse(payload):
                         else:
                             vals = energy_mean_direction_lonspan(a, arrs[DIR_TO_HEIGHT[om]], col, half_cols)
                         hourly[om] = [_sanitize_om(om, x) for x in vals]
-                    elif scalar_blockmean and om in PERIOD_TO_HEIGHT and arrs.get(PERIOD_TO_HEIGHT[om]) is not None:
+                    elif scalar_blockmean and om in period_to_height and arrs.get(period_to_height[om]) is not None:
                         # the period of the SAME sea the windowed height describes (see PERIOD_TO_HEIGHT)
-                        vals = energy_mean_period_lonspan(a, arrs[PERIOD_TO_HEIGHT[om]], col, half_cols)
+                        vals = energy_mean_period_lonspan(a, arrs[period_to_height[om]], col, half_cols)
                         hourly[om] = [_sanitize_om(om, x) for x in vals]
                     elif scalar_blockmean and om in HEIGHT_VARS:
                         # longitudinal RMS so an enclosed-sea cell whose exact column is masked land
@@ -245,7 +253,7 @@ def fetch_global_coarse(payload):
                     "generationtime_ms": 0, "utc_offset_seconds": 0,
                     "timezone": "GMT", "timezone_abbreviation": "GMT", "elevation": 0,
                     "__provider": "copernicus",
-                    "hourly_units": {"time": "iso8601", **{om: u for _, om, u in VARIABLE_MAP},
+                    "hourly_units": {"time": "iso8601", **{om: u for _, om, u in var_map},
                                      **({DIR_CONFIDENCE_OM: "fraction"} if export_confidence else {})},
                     "hourly": hourly,
                 })

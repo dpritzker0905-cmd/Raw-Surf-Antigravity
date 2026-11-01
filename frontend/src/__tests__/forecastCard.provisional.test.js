@@ -129,7 +129,7 @@ test('swell_1 provisional first paint is marked like waves', () => {
   // partition layers no longer carry a bare 'Height'. swell_1 is 'Primary Swell' — NOT plain
   // 'Swell', which is the TOTAL on the waves layer (Cocoa: 1.6 ft total vs 0.9 ft primary train).
   const height = cards.find((c) => c.label === 'Primary Swell');
-  expect(height.value).toBe('3 ft…');
+  expect(height.value).toBe('3.0 ft…');   // 2.95 ft: the tenth stays below 10 ft since 2026-10-28 (was '3 ft…')
   expect(height.provisional).toBe(true);
   const period = cards.find((c) => c.label === 'Period');
   expect(period.value).toBe('11.0s…');
@@ -144,7 +144,7 @@ test('wind_waves provisional first paint is marked like waves', () => {
     windWaveDir: 100,
   });
   const height = cards.find((c) => c.label === 'Wind Waves');   // was bare 'Height' — see note above
-  expect(height.value).toBe('2 ft…');
+  expect(height.value).toBe('2.0 ft…');   // 1.97 ft (was '2 ft…' before the 2026-10-28 one-decimal readout rule)
   expect(height.provisional).toBe(true);
 });
 

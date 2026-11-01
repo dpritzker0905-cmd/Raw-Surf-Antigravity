@@ -1,8 +1,8 @@
 /**
- * WebGLMarineParticleShaders.js
- * Ocean GPU v2 — GLSL Shaders for the particle advection and drawing layers.
- * Extracted from WebGLMarineShaders.js for code modularity and LOC compliance.
+ * WebGLMarineParticleShaders.js: Ocean GPU v2 GLSL for the particle advection and drawing layers (from WebGLMarineShaders.js).
  */
+import { WAVE_SET_GLSL } from './waveSetScreenBound'; import { withHeightScale } from './marineHeightEncoding'; import { CREST_DENSITY_GLSL } from './marineCrestDensity';
+import { LIGHT_CREST_GLSL, DARK_STORM_CREST_GLSL, withSpectrumCrestLift } from './marineCrestPalette'; import { LIGHT_CREST_STYLE_GLSL } from './marineLightCrestStyle'; import { BEACH_CREST_LIFT_GLSL } from './marineBeachCrestLift';   // crests + kills (see there); light two-tone style; beach crest lift
 
 export const ADVECT_VS = `
 attribute vec2 a_pos;
@@ -13,7 +13,7 @@ void main() {
 }
 `;
 
-export const ADVECT_FS = `
+export const ADVECT_FS = withHeightScale(`
 precision highp float;
 uniform sampler2D u_particles;
 uniform sampler2D u_waveTexture;
@@ -328,9 +328,9 @@ void main() {
 
   gl_FragColor = encodePos(pos);
 }
-`;
+`, 'useCoarse ? u_heightScale.y : u_heightScale.x');   // THE HEIGHT BYTE: the resident or ring-fill scale (marineHeightEncoding.js)
 
-export const DRAW_VS = `
+export const DRAW_VS = withSpectrumCrestLift(withHeightScale(`
 attribute highp float a_vertex_id;       // 0 to (numParticles*6 - 1), six vertices per particle
 uniform sampler2D u_particles;     // particle position texture (RG=x, BA=y)
 uniform sampler2D u_waveTexture;   // wave vector + height texture (R=u, G=v, B=height, A=period)
@@ -358,7 +358,7 @@ uniform float u_edgeFeatherEnabled;
 uniform float u_motionUnlock;      // §4.2 motion-unlock — see ADVECT_FS; 0 = legacy .r-only land checks
 uniform float u_edgeFeatherWidth;   // CLAMP SOFTENER (matches heatmap): widen the crest edge dissolve for sub-viewport tiles. Default 0.18.
 uniform float u_crestDirJitter;     // radians: per-crest random heading spread (directional spectrum) to break the parallel-crest LATTICE over uniform/coarse fields. 0 = off.
-uniform float u_orbitalPitch;       // CSS px: phase-synced forward/back sway along waveDir so crests PITCH with the wave orbit, not just translate. 0 = off.
+uniform float u_orbitalPitch; ${WAVE_SET_GLSL}       // CSS px: phase-synced forward/back sway along waveDir so crests PITCH with the wave orbit, not just translate. 0 = off.
 uniform float u_dirCoherenceMin;    // coherence floor on the BILINEAR |waveVec| (measured before the nearest override; matches ADVECT_FS) — dims divergent-cell seam strips. 0 = off.
 uniform float u_seamFadeFloor;      // alpha FLOOR of the seam fade (2026-07-03): crests in incoherent-direction zones dim to this, never vanish — a dead ocean at divergence hotspots (Baja) reads as a bug; a dimmed one reads as low confidence.
 uniform float u_farzoomSizeFloor;   // U3: crest size scale at far zoom (0.55 default; 0.4 = legacy). smoothstep(2,12,z) ramps from this floor to 1.
@@ -370,7 +370,7 @@ uniform float u_motion_scale;
 uniform vec2 u_tile_origin;
 uniform float u_tile_width;
 uniform float u_opacity;
-uniform float u_densityBase;   // engine-computed constant-screen-density cull fraction (z>tileZoomMin); <=0 → legacy per-zoom curve
+uniform float u_densityBase;${CREST_DENSITY_GLSL.decl}   // engine-computed constant-screen-density cull fraction (z>tileZoomMin); <=0 → legacy per-zoom curve
 uniform float u_endpointLandFade; // 1 = fade ribbon corners whose along-crest END lies over land (0 = legacy center-only cull)
 uniform float u_crestLandThreshold; // crest-center oceanFlag discard cut (2026-07-07): match the heatmap's 0.5 so crests don't survive on soft/partial-land mask values (thin cays, coastal edges) the wash discards
 // COAST SDF (2026-07-21): when the mask .b carries a signed distance-to-coast, threshold the DISTANCE
@@ -568,7 +568,7 @@ void main() {
   // over 2.4→2.7 so the deliberate z2 globe-thinning floor stays put). Mirror: WebGLMarineEngineDiagnostics.
   float effBase = u_densityBase > 0.0 ? u_densityBase
     : (mix(0.128, 0.90, smoothstep(2.0, 10.0, u_zoom)) + 0.0076 * smoothstep(2.4, 2.7, u_zoom));
-  float densityThreshold = clamp(effBase + heightBoost, 0.02, 0.97);
+  float densityThreshold = clamp(effBase + heightBoost, 0.02, 0.97)${CREST_DENSITY_GLSL.drop};
 
   if (!bypassDiscard && particleHash > densityThreshold) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
@@ -648,7 +648,7 @@ void main() {
   if (u_orbitalPitch > 0.0001) {
     float mp = waveData.a * 20.0;
     float pv = mp > 0.5 ? mp : (6.0 + waveHeight * 2.0);
-    float sf = clamp(800.0 / max(36.0, pv * pv), 3.0, 25.0);
+    float sf = waveSetFreq(pv, (u_viewport.x / dpr) / (512.0 * exp2(u_zoom)));   // same sets as the envelope (waveSetScreenBound.js)
     float ts = (u_time * u_motion_scale) / max(2.0, pv);
     float orbPhase = fract(dot(global_pos, dir) * sf - ts) * 6.28318530718;
     pixel0 += waveDir * sin(orbPhase) * u_orbitalPitch * dpr;
@@ -671,8 +671,8 @@ void main() {
   float periodNorm = smoothstep(4.0, 18.0, periodVal);
   v_period_norm = periodNorm;
 
-  float spatialFreq = 800.0 / max(36.0, periodVal * periodVal);
-  spatialFreq = clamp(spatialFreq, 3.0, 25.0);
+  // 800 / T^2 per world unit times ONE zoom factor for every period: >= 3 sets of the longest period in view (waveSetScreenBound.js)
+  float spatialFreq = waveSetFreq(periodVal, (u_viewport.x / dpr) / (512.0 * exp2(u_zoom)));
 
   // v5.8: COHERENT temporal phase — no per-particle hash jitter on speed.
   // All ribbons in the same wave train advance at the same rate.
@@ -797,7 +797,7 @@ void main() {
     v_whitecap *= 1.0 + shelfProximity * u_shoalFoam;
   }
 }
-`;
+`, 'useCoarse ? u_heightScale.y : u_heightScale.x'));   // THE HEIGHT BYTE: as ADVECT_FS
 
 export const DRAW_FS = `
 precision mediump float;
@@ -808,7 +808,7 @@ varying highp float v_phase;       // wave-train phase for rolling whitewater
 varying highp float v_period_norm; // normalized period [0=short choppy, 1=long swell]
 varying highp float v_whitecap;    // v5.3: whitecap strength (0=ripple only, 1=full whitecap)
 varying highp vec4 v_debug_color;
-uniform float u_theme;
+uniform float u_theme;${LIGHT_CREST_STYLE_GLSL.decl || BEACH_CREST_LIFT_GLSL.decl}
 uniform float u_trochoidal;   // [0..1] warp the symmetric ribbon into an asymmetric TROCHOIDAL crest (sharp leading face, broad trailing back). 0 = legacy symmetric ellipse.
 uniform float u_crestContrast; // [0..1] zoom-band SELF-CONTRAST (2026-07-03): dark skirt + brighter core + slight white lift so crests read on any heatmap hue. Engine ramps it in around z3.65-4.25 where the crest and heatmap palettes collide (dark: mint on teal/cyan; light: navy on azure). 0 = legacy (byte-identical).
 uniform float u_lowHCrestContrast; // [0..1] LOW-HEIGHT self-contrast (2026-07-05): the same palette collision happens at ANY zoom wherever crest height <~0.75 m (island swell shadows: pale dash on pale wash = "animations don't cover the heatmap"). Ramped out by 1.05 m in main(). 0 = legacy.
@@ -859,7 +859,7 @@ void main() {
     acWarp = mix(acrossCrest, warped, clamp(u_trochoidal, 0.0, 1.0));
   }
   float ellipseDist = length(vec2(alongCrest, acWarp));
-  float shape = 1.0 - smoothstep(0.55, 1.0, ellipseDist);
+  float shape = 1.0 - smoothstep(${LIGHT_CREST_STYLE_GLSL.shapeHead}0.55, 1.0, ellipseDist);
 
   // Soften ribbon tips along crest axis
   float tipFade = 1.0 - smoothstep(0.6, 0.95, abs(alongCrest));
@@ -932,15 +932,15 @@ void main() {
     foamHighlight = vec3(0.95, 0.95, 1.00);
   } else if (u_theme > 0.5) {
     // Light Mode
-    calmColor = vec3(0.05, 0.15, 0.45);    // deep navy
-    activeColor = vec3(0.85, 0.50, 0.00);  // amber-gold
-    stormColor = vec3(0.75, 0.10, 0.05);   // crimson red
-    foamHighlight = vec3(1.00, 1.00, 1.00);
+    calmColor = ${LIGHT_CREST_GLSL.calm}
+    activeColor = ${LIGHT_CREST_GLSL.active}
+    stormColor = ${LIGHT_CREST_GLSL.storm}
+    foamHighlight = ${LIGHT_CREST_GLSL.foam}
   } else {
     // Dark Mode
     calmColor = vec3(0.10, 0.95, 0.60);    // mint-green
     activeColor = vec3(1.00, 0.80, 0.10);  // yellow-gold
-    stormColor = vec3(1.00, 0.40, 0.10);   // fiery orange
+    stormColor = ${DARK_STORM_CREST_GLSL.storm}
     foamHighlight = vec3(1.00, 1.00, 1.00);
   }
 
@@ -951,7 +951,7 @@ void main() {
   // === WHITECAP HIGHLIGHT (separate from base ripple) ===
   // Bright white/cyan at the breaking front, proportional to v_whitecap
   float whiteBlend = whitecapRoll * 0.45;
-  vec3 finalColor = mix(baseColor, foamHighlight, whiteBlend);
+  vec3 finalColor = mix(baseColor, foamHighlight, whiteBlend);${LIGHT_CREST_STYLE_GLSL.tone}${BEACH_CREST_LIFT_GLSL.tone}
 
   // === SELF-CONTRAST: zoom band (2026-07-03) + low-height band (2026-07-05) ===
   // In the coarse band the crest palette can land on a same-hue heatmap (mint on teal, navy on
@@ -961,8 +961,8 @@ void main() {
   // don't cover the heatmap". Give each crest an INTERNAL luminance gradient — darkened skirt,
   // boosted + slightly whitened core — so it reads on any background color without changing any
   // theme palette. Gated: both terms 0 → byte-identical legacy output.
-  float crestContrastEff = max(u_crestContrast,
-    u_lowHCrestContrast * (1.0 - smoothstep(0.75, 1.05, v_wave_height)));
+  float crestContrastEff = ${LIGHT_CREST_STYLE_GLSL.contrastHead}max(u_crestContrast,
+    ${DARK_STORM_CREST_GLSL.casing}
   if (crestContrastEff > 0.001) {
     float core = 1.0 - smoothstep(0.15, 0.85, ellipseDist);
     float lum = mix(0.55, 1.30, core);
@@ -971,7 +971,7 @@ void main() {
   }
 
   // Premultiplied alpha output (gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
-  float boostedAlpha = alpha * mix(1.2, 1.8, energy);
+  float boostedAlpha = alpha * ${LIGHT_CREST_STYLE_GLSL.alphaHead}${BEACH_CREST_LIFT_GLSL.alphaHead}mix(1.2, 1.8, energy);
   boostedAlpha = min(boostedAlpha, 0.85);
   gl_FragColor = vec4(finalColor * boostedAlpha, boostedAlpha);
 }

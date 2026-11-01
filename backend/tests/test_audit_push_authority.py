@@ -58,6 +58,7 @@ ONE_SIGNAL = {'user_id': 'owner', 'subscription_id': 'fixture-device'}
     ('/push/subscribe?user_id=owner', 'post', NATIVE),
     ('/push/onesignal/subscribe', 'post', ONE_SIGNAL),
     ('/push/unsubscribe?user_id=owner&endpoint=owner-device', 'delete', None),
+    ('/push/status?endpoint=owner-device', 'get', None),
 ])
 async def test_subscription_writes_require_auth_before_database(harness, headers, path, method, body):
     app, client, _ = harness
@@ -105,6 +106,30 @@ async def test_native_owner_subscribe_repeat_unsubscribe(harness, selector):
     async with maker() as db:
         rows = list((await db.scalars(select(PushSubscription))).all())
         assert len(rows) == 1 and rows[0].id == 'foreign'
+
+
+async def test_status_reports_the_callers_own_device_row(harness):
+    """Settings' on/off switch reads this (2026-10-23): the browser permission is per origin, not per account."""
+    _, client, maker = harness
+    status = lambda: client.get('/api/push/status?endpoint=owner-device', headers=auth())  # noqa: E731
+    assert (await status()).json() == {'subscribed': False}
+    await client.post('/api/push/subscribe', json=NATIVE, headers=auth())
+    assert (await status()).json() == {'subscribed': True}
+    async with maker() as db:
+        row = (await db.scalars(select(PushSubscription).where(PushSubscription.user_id == 'owner'))).one()
+        row.is_active = False   # the scheduler stops sending to an expired (410) endpoint
+        await db.commit()
+    assert (await status()).json() == {'subscribed': False}
+    await client.delete('/api/push/unsubscribe?endpoint=owner-device', headers=auth())
+    assert (await status()).json() == {'subscribed': False}
+
+
+async def test_status_never_reports_another_accounts_device(harness):
+    _, client, _ = harness
+    response = await client.get('/api/push/status?endpoint=foreign-device', headers=auth())
+    assert response.status_code == 200 and response.json() == {'subscribed': False}
+    response = await client.get('/api/push/status?endpoint=foreign-device', headers=auth('other'))
+    assert response.json() == {'subscribed': True}
 
 
 async def test_other_owner_device_is_not_deleted_by_omitting_selector(harness):

@@ -3,6 +3,7 @@ P2 Admin Features: Revenue Dashboards, Promo Codes, Feature Flags, Notification 
 Delta sync with existing analytics infrastructure
 """
 from fastapi import APIRouter, Depends, HTTPException
+from core.security import get_user_id_from_jwt_or_query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_, desc, case, extract
 from sqlalchemy.orm import selectinload
@@ -336,10 +337,10 @@ async def toggle_promo_code(
 @router.post("/promo-codes/validate")
 async def validate_promo_code(
     code: str,
-    user_id: str,
     purchase_amount: Optional[float] = None,
     product_type: Optional[str] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Validate a promo code for a user (user-facing)"""
     result = await db.execute(

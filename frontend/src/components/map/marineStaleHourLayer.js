@@ -55,7 +55,7 @@ export function staleWorldDimMult(engine, tracker, hour, layers, model, win, now
     const r = resolveStaleWorldDim(ctx);
     const swap = judgeStaleWorld(ctx).why === 'stale_world';
     engine.__staleSwapMs = swap ? selectedMs : null;
-    if (w && w.__RAW_GPU__) w.__RAW_GPU__.staleHour = { why: r.why, stale: r.stale, mult: r.mult, heldMs: Math.round(held), swap };
+    if (w && w.__RAW_GPU__) w.__RAW_GPU__.staleHour = { why: r.why, stale: r.stale, mult: r.mult, heldMs: Math.round(held), swap, held: !!r.held };
     return r.mult;
   } catch (e) {
     return 1;

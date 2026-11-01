@@ -12,8 +12,10 @@ from .family import router as family_router
 from .purchases import router as purchases_router
 from .media_privacy import router as media_privacy_router
 from .protected_media import router as protected_media_router
+from .exposure import router as exposure_router
 
 router.include_router(parental_router)
+router.include_router(exposure_router)
 router.include_router(verification_router)
 router.include_router(monitoring_router)
 router.include_router(family_router)

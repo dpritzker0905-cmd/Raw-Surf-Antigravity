@@ -19,6 +19,7 @@ from utils.geo import haversine_distance
 from database import get_db
 from models import Profile, SurfSpot, SocialLiveStream, Story, Follow
 from core.security import get_user_id_from_jwt_or_query, get_current_user_id
+from services.parental_controls import assert_profile_may
 from models import Notification
 
 logger = logging.getLogger(__name__)
@@ -304,6 +305,8 @@ async def start_social_live(
     broadcaster = result.scalar_one_or_none()
     if not broadcaster:
         raise HTTPException(status_code=404, detail="User not found")
+    # PARENTAL CONTROLS (audit F-09): a Grom needs the guardian's can_stream, and view-only blocks going live.
+    assert_profile_may(broadcaster, "stream")
     
     # PRO-ZONE CHECK: Hobbyist and Grom Parent cannot go live within 0.5 miles of active Pro
     user_role = broadcaster.role

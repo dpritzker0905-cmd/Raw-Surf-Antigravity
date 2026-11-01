@@ -20,6 +20,7 @@ import { NearestSpotCard } from './map/NearestSpotCard';
 import MapPageModals from './map/MapPageModals';
 import MapWeatherControls from './map/MapWeatherControls';
 import MapForecastOverlay from './map/MapForecastOverlay';
+import { prewarmStaticFrames } from './map/staticFrames';
 import { RequestProButton } from './map/RequestProButton';
 // isValidLatLng guards the flyTo below (L~478). It was USED but never imported — a live
 // ReferenceError on the map-search spot-click path, invisible until the ESLint config was
@@ -32,6 +33,7 @@ import { useIPGeolocation } from '../hooks/useIPGeolocation';
 import { useMapState } from '../hooks/useMapState';
 import useOpenMeteoForecast from '../hooks/useOpenMeteoForecast';
 import { useWeatherState } from '../hooks/useWeatherState';
+import { noteWeatherAsk } from './map/instantTelemetry';
 import { useSnappedCoordinates } from '../hooks/useSnappedCoordinates';
 import { useMapPhotographerState } from '../hooks/useMapPhotographerState';
 import { useMapInteractions } from '../hooks/useMapInteractions';
@@ -206,6 +208,10 @@ var MapPageContent = () => {
     isTimelineCollapsed, setIsTimelineCollapsed,
   } = useWeatherState({ user });
 
+  // BOOT WARM-UP (skills audit #2): the static frames' worker, latest.json, the model's index and the current hour's frame start
+  // now, while the style and tiles load, not after the first Waves click (staticFrames.prewarmStaticFrames; once per page load).
+  useEffect(() => { prewarmStaticFrames({ model: activeModel }); }, [activeModel]);
+
   useEffect(() => {
     if (typeof window !== 'undefined') {
       window.setActiveModel = setActiveModel;
@@ -252,6 +258,11 @@ var MapPageContent = () => {
       };
     }
   }, [activeModel, activeLayers, timeOffsetHours, memoizedUserLocation, ipLocation, snappedCoordinates]);
+
+  // FIELD TELEMETRY (skills audit #3): what the map is asked to show, for press-to-frame on sampled pages (no-op otherwise).
+  useEffect(() => {
+    noteWeatherAsk({ model: activeModel, layers: activeLayers, hour: timeOffsetHours, playing: isPlayingTimeline });
+  }, [activeModel, activeLayers, timeOffsetHours, isPlayingTimeline]);
 
   const hasWeatherLayer = activeLayers.length > 0;
   const {

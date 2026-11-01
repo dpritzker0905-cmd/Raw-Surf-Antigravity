@@ -85,6 +85,10 @@ test('the infobox sends the stored id of the committed frame', () => {
   // source: a series grid has neither productId nor product_id, only __servedProductId.
   const fs = require('fs');
   const path = require('path');
+  // Since 2026-10-28 (D4, pointProductHint.test.js) the hook reads it through gridHintsFor, which lends the id only when the
+  // grid is the selected model's and layer's; the same three-name read lives there.
   const src = fs.readFileSync(path.join(__dirname, '../../hooks/useExactPointFetch.js'), 'utf8');
-  expect(src).toMatch(/grid\?\.productId \|\| grid\?\.product_id \|\| grid\?\.__servedProductId/);
+  expect(src).toMatch(/gridHintsFor\(grid, activeModel, activeLayer\)/);
+  const hint = fs.readFileSync(path.join(__dirname, 'pointProductHint.js'), 'utf8');
+  expect(hint).toMatch(/grid\.productId \|\| grid\.product_id \|\| grid\.__servedProductId/);
 });

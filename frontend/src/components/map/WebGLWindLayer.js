@@ -11,11 +11,14 @@
  *   - revision: cache-bust revision ID
  */
 import { memo, useEffect, useRef } from 'react';
-import WebGLWindEngine from './WebGLWindEngine';
+import WebGLWindEngine, { windGridsCompatible } from './WebGLWindEngine';
+import { coalesceOn, coalesceWindDeliveries, refreshWindSpeedScale } from './windDeliveryCoalesce';
 import { windLayerBeforeId, windCoastlineLayer, windCoastlineWanted, WIND_COASTLINE } from './WebGLWindUtils';
 import { syncWindBasemapMute, windBasemapMuteStale } from './windBasemapMute';
 import { getWindParticleRes } from './deviceTier';
 import { registerWindEngine, unregisterWindEngine } from '../../engine/RenderPlanDispatcher';
+import { publishWindDrawn, clearWindDrawn } from './marineDrawnFrame';
+import { BATCH } from './WebGLProgramBatch';
 
 var LAYER_ID = 'webgl-wind-particles';
 
@@ -23,9 +26,14 @@ var LAYER_ID = 'webgl-wind-particles';
  * Creates a MapLibre CustomLayerInterface that delegates rendering
  * to the WebGLWindEngine.
  */
-function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRef) {
+export function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRef) {
   let errorCount = 0;
   let lastErrorTime = 0; // v3.15: Track error time for recovery
+  // The hard-error fallback for a failed init: from onAdd, or from render when the async shader batch fails to link later.
+  const initFailed = (e) => {
+    console.error('[WebGLWind] Init failed:', e.message);
+    if (onErrorRef.current) onErrorRef.current();
+  };
   return {
     id: LAYER_ID,
     type: 'custom',
@@ -40,8 +48,7 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRe
         // Register with RenderPlanDispatcher for evolved field data
         registerWindEngine(engine, _gl);
       } catch (e) {
-        console.error('[WebGLWind] Init failed:', e.message);
-        if (onErrorRef.current) onErrorRef.current();
+        initFailed(e);
       }
     },
 
@@ -121,6 +128,11 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRe
       this._wasActive = true;
       const map = mapRef.current;
       if (!map) return;
+      // ASYNC SHADER COMPILE (WebGLProgramBatch.js), mirrored from WebGLMarineCustomLayer: poll once per frame, draw
+      // nothing until ready (but keep frames coming), and a late link failure takes the failed-init fallback.
+      const _programs = engine && engine.pollPrograms ? engine.pollPrograms(_gl) : BATCH.READY;
+      if (_programs === BATCH.FAILED) { initFailed(new Error('WebGL Wind initialization failed (shader batch link)')); return; }
+      if (_programs === BATCH.PENDING) { map.triggerRepaint(); return; }
 
       try {
         const canvas = map.getCanvas();
@@ -171,6 +183,7 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRe
         }
 
         engine._trailMatrix = _matrix64 || _matrix;
+        engine._mapGLContext = (map.painter && map.painter.context) || null;   // the GL state shadow the capture reads
         engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, worldOffsets, viewportBounds);
       } catch (e) {
         errorCount++;
@@ -359,11 +372,13 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
 
     if (!active) {
       if (_dl) _dl.inactive += 1;
+      clearWindDrawn();
       return;
     }
 
     if (!data?.vectors?.length || data.renderable === false) {
       if (_dl) _dl.clear += 1;
+      clearWindDrawn();
       if (gl) {
         // queue #9: clearWindData frees BOTH the base and the fine-overlay textures.
         if (typeof engine.clearWindData === 'function') {
@@ -404,9 +419,10 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
         const q = deliveryQueueRef.current && deliveryQueueRef.current.current;
         let grids;
         if (queueOn && !scrubbing && q && q.length) {
-          // renderable grids in commit order, guaranteed to end with the current `data`
-          grids = q.filter(g => g && g.vectors?.length && g.renderable !== false);
-          if (!grids.length || grids[grids.length - 1] !== data) grids.push(data);
+          // renderable grids in commit order, ending with the current `data`; coalesced (windDeliveryCoalesce.js, owner test
+          // 2026-10-25: "delivering 8 grid(s)") to the newest world + newest clip of `data`'s own air.
+          // Kill: __RAW_DISABLE_WIND_DELIVERY_COALESCE__ (every queued grid, as before).
+          grids = coalesceWindDeliveries(q, data, windGridsCompatible);
         } else {
           // scrub stays single-delivery so frames scrubbed past are never GPU-uploaded
           grids = [data];
@@ -414,6 +430,7 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
         if (q) q.length = 0; // drained (scrub drops intermediates by design)
 
         console.log(`[WebGLWind] setWindData triggered by effect: delivering ${grids.length} grid(s), last ${data.vectors.length} vectors`);
+        publishWindDrawn(data);   // W-1 for wind: what is about to be on screen (marineDrawnFrame.js)
 
         const getLongitudeSpan = (b) => {
           const crosses = b.west > b.east;
@@ -423,6 +440,9 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
         const preBounds = engine._windData?.bounds;
 
         let lastVerdict = 'skipped';
+        // The speed scale (and so the colour ramp) is set ONCE for the batch, from what the engine holds after the last grid.
+        const scaleOnce = grids.length > 1 && coalesceOn();
+        engine._deferSpeedScale = scaleOnce;
         for (let gi = 0; gi < grids.length; gi++) {
           const grid = grids[gi];
           if (!grid || !grid.vectors?.length) continue;
@@ -445,6 +465,8 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
             });
           }
         }
+        engine._deferSpeedScale = false;
+        if (scaleOnce) refreshWindSpeedScale(engine, gl);
         engine.__lastWindSource = data.source || null;
 
         // NET particle reseed (2026-07-19 keepTrails contract, evaluated on the ENGINE's actual

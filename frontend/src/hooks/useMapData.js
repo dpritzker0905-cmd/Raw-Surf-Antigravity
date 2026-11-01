@@ -168,8 +168,9 @@ export const useMapData = (userId = null, userLocation = null) => {
   useEffect(() => {
     loadMapData();
     
-    // Refresh live photographers and surf spots every 30 seconds
+    // Refresh live photographers and surf spots every 30 seconds while the tab is visible
     const interval = setInterval(() => {
+      if (document.visibilityState === 'hidden') return;
       fetchLivePhotographers();
       fetchSurfSpots();
     }, 30000);

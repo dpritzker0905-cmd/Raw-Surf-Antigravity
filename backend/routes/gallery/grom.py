@@ -35,6 +35,7 @@ from services.gallery_sync import (
 from websocket_manager import broadcast_earnings_update
 from services.watermark import watermark_image_from_url, generate_watermarked_preview
 from utils.grom_parent import is_grom_parent_eligible
+from services.guardian_levels import is_confirmed_guardian
 from services.grom_media_policy import is_verified_guardian
 
 from .schemas import (
@@ -83,7 +84,7 @@ async def tag_grom_in_photo(
     if not grom:
         raise HTTPException(status_code=404, detail="Grom profile not found")
     
-    if grom.parent_id != parent_id:
+    if not is_confirmed_guardian(grom, parent_id):
         raise HTTPException(status_code=403, detail="You can only tag your linked Grom")
     
     if grom.role != RoleEnum.GROM:
@@ -222,14 +223,16 @@ async def get_grom_highlights(
     # If specific grom_id provided, use that; otherwise get all linked Groms
     if grom_id:
         # Verify grom is linked to this parent
-        grom_result = await db.execute(select(Profile).where(Profile.id == grom_id, Profile.parent_id == parent_id))
+        grom_result = await db.execute(select(Profile).where(
+            Profile.id == grom_id, Profile.parent_id == parent_id, Profile.parent_link_approved.is_(True)))
         grom = grom_result.scalar_one_or_none()
         if not grom:
             raise HTTPException(status_code=403, detail="Grom is not linked to this parent")
         grom_ids = [grom_id]
     else:
         # Get all linked Groms
-        groms_result = await db.execute(select(Profile).where(Profile.parent_id == parent_id, Profile.role == RoleEnum.GROM))
+        groms_result = await db.execute(select(Profile).where(
+            Profile.parent_id == parent_id, Profile.parent_link_approved.is_(True), Profile.role == RoleEnum.GROM))
         groms = groms_result.scalars().all()
         grom_ids = [g.id for g in groms]
     
@@ -261,7 +264,8 @@ async def get_grom_highlights(
     # Get grom info
     groms_info = []
     if not grom_id:
-        groms_result = await db.execute(select(Profile).where(Profile.parent_id == parent_id, Profile.role == RoleEnum.GROM))
+        groms_result = await db.execute(select(Profile).where(
+            Profile.parent_id == parent_id, Profile.parent_link_approved.is_(True), Profile.role == RoleEnum.GROM))
         groms = groms_result.scalars().all()
         groms_info = [{"id": g.id, "name": g.full_name, "avatar": g.avatar_url} for g in groms]
     
@@ -378,7 +382,7 @@ async def get_linked_groms(
     # Get linked Groms
     result = await db.execute(
         select(Profile)
-        .where(Profile.parent_id == parent_id, Profile.role == RoleEnum.GROM)
+        .where(Profile.parent_id == parent_id, Profile.parent_link_approved.is_(True), Profile.role == RoleEnum.GROM)
         .order_by(Profile.full_name)
     )
     groms = result.scalars().all()

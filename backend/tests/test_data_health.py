@@ -35,6 +35,154 @@ def _all_healthy():
     return [_p(m, d, run_age_h=1.0) for (m, d) in EXPECTED_LANES]
 
 
+def _recorded_blend(model, native_age=2, gfs_age=8, optional_icon=False):
+    # Exercise the actual estimator and manifest serialization, not a health-only fake.
+    from services.weather_pipeline.estimator import estimate_euro_grid
+    from services.weather_pipeline.store_helpers import _build_manifest_item
+    from tests.test_estimator_zero_blend_guard import make_product, grid_2x2
+    donors = []
+    roles = ['native_anchor', 'gfs_anchor', 'gfs_target']
+    if optional_icon:
+        roles += ['icon_anchor', 'icon_target']
+    for role in roles:
+        name = model if role == 'native_anchor' else ('GFS' if role.startswith('gfs') else 'ICON')
+        p = make_product(name, 'open-meteo', NOW + timedelta(hours=78 if role.endswith('target') else 72), grid_2x2())
+        p.product_id = role + '.json'
+        p.source_dataset = {'GFS': 'ncep_gfswave025', 'ICON': 'dwd_gwam', 'EURO': 'ecmwf_wam025'}[name]
+        p.run_time = NOW - timedelta(hours=1)
+        p.model_run_time = NOW - timedelta(hours=gfs_age if name == 'GFS' else native_age)
+        p.model_run_time_status = 'known'
+        donors.append(p)
+    result = estimate_euro_grid(78, 72, 'waves', donors[0], donors[2], donors[1],
+                               donors[4] if optional_icon else None, donors[3] if optional_icon else None)
+    if model == 'ICON':
+        result.model = 'ICON'
+        result.estimate_basis['type'] = 'icon_persistence_gfs_blend'
+        result.estimate_basis['persistence_anchor_product_id'] = result.estimate_basis.pop('euro_anchor_product_id')
+    return _build_manifest_item(result, 'estimate.json', .25, False)
+
+
+@pytest.mark.parametrize('model', ['ICON', 'EURO'])
+def test_verified_cross_model_cycles_do_not_claim_missing_provenance(model):
+    blend = _recorded_blend(model)
+    store = _Store([*_all_healthy(), blend])
+    before = store._m.model_dump_json()
+    lane = compute_data_health(store, now=NOW)['lanes'][f'{model}/marine']
+    assert lane['verdict'] == 'ok'
+    assert lane['model_cycle_status'] == 'verified_contributors'
+    assert lane['model_cycle_unverified'] == []
+    assert {s['model'] for s in lane['model_cycle_contributors']} == {model, 'GFS'}
+    assert blend.model_run_time is None and blend.model_run_time_status == 'conflicting'
+    assert store._m.model_dump_json() == before
+
+
+@pytest.mark.parametrize('model', ['ICON', 'EURO'])
+@pytest.mark.parametrize('native_age,gfs_age,verdict', [(2, 19, 'warn'), (2, 25, 'critical'),
+                                                     (31, 2, 'warn'), (43, 2, 'critical')])
+def test_each_contributor_keeps_its_own_model_cadence(model, native_age, gfs_age, verdict):
+    blend = _recorded_blend(model, native_age, gfs_age)
+    rep = compute_data_health(_Store([*_all_healthy(), blend]), now=NOW)
+    lane = rep['lanes'][f'{model}/marine']
+    assert lane['verdict'] == verdict
+    assert lane['model_cycle_unverified'] == []
+    assert any('cycle' in a and 'old' in a for a in rep['alerts'])
+    if gfs_age > 18:
+        assert any('GFS/ncep_gfswave025 contributor cycle' in a for a in rep['alerts'])
+
+
+@pytest.mark.parametrize('model', ['ICON', 'EURO'])
+def test_shared_utc_cycle_does_not_hide_stale_faster_cadence_donor(model):
+    blend = _recorded_blend(model, 19, 19)
+    assert blend.model_run_time_status == 'known'
+    lane = compute_data_health(_Store([*_all_healthy(), blend]), now=NOW)['lanes'][f'{model}/marine']
+    assert lane['verdict'] == 'warn'
+
+
+@pytest.mark.parametrize('model', ['ICON', 'EURO'])
+@pytest.mark.parametrize('damage', ['missing_role', 'duplicate', 'unknown_role', 'wrong_model',
+    'missing_cycle', 'naive_cycle', 'invalid_cycle', 'unknown_cycle', 'wrong_product',
+    'missing_dataset', 'reported_unknown', 'same_model_conflict', 'different_dataset', 'invalid_sources',
+    'unhashable_role', 'not_a_source', 'top_level_known', 'missing_semantics'])
+def test_bad_contributor_records_cannot_suppress_the_warning(model, damage):
+    # The missing-semantics control must start KNOWN; otherwise legacy fallback
+    # already warns for conflicting and the test would not detect that bypass.
+    blend = _recorded_blend(model, gfs_age=2 if damage == 'missing_semantics' else 8)
+    basis = blend.estimate_basis
+    sources = basis['cycle_sources']
+    if damage == 'missing_role': sources.pop()
+    elif damage == 'duplicate': sources.append(dict(sources[-1]))
+    elif damage == 'unknown_role': sources[-1]['role'] = 'unknown'
+    elif damage == 'wrong_model': sources[-1]['model'] = model
+    elif damage == 'missing_cycle': sources[-1]['model_run_time'] = None
+    elif damage == 'naive_cycle': sources[-1]['model_run_time'] = '2026-07-08T04:00:00'
+    elif damage == 'invalid_cycle': sources[-1]['model_run_time'] = 'not-a-cycle'
+    elif damage == 'unknown_cycle': sources[-1]['model_run_time_status'] = 'missing'
+    elif damage == 'wrong_product': sources[-1]['product_id'] = 'unrelated.json'
+    elif damage == 'missing_dataset': sources[-1]['source_dataset'] = None
+    elif damage == 'reported_unknown': sources[-1]['reported_model_run_time_status'] = 'missing'
+    elif damage == 'same_model_conflict': sources[-1]['model_run_time'] = (NOW - timedelta(hours=14)).isoformat()
+    elif damage == 'different_dataset': sources[-1]['source_dataset'] = 'another_dataset'
+    elif damage == 'unhashable_role': sources[-1]['role'] = {}
+    elif damage == 'not_a_source': sources[-1] = None
+    elif damage == 'top_level_known': blend.model_run_time_status = 'known'
+    elif damage == 'missing_semantics': basis.pop('cycle_semantics')
+    else: basis['cycle_sources'] = {}
+    lane = compute_data_health(_Store([*_all_healthy(), blend]), now=NOW)['lanes'][f'{model}/marine']
+    assert lane['verdict'] == 'warn' and lane['model_cycle_unverified']
+
+
+@pytest.mark.parametrize('damage', ['valid', 'missing', 'conflicting'])
+def test_optional_icon_cycles_are_checked_when_recorded(damage):
+    blend = _recorded_blend('EURO', optional_icon=True)
+    sources = blend.estimate_basis['cycle_sources']
+    if damage == 'missing': sources[-1]['model_run_time'] = None
+    elif damage == 'conflicting': sources[-1]['model_run_time'] = (NOW - timedelta(hours=8)).isoformat()
+    lane = compute_data_health(_Store([*_all_healthy(), blend]), now=NOW)['lanes']['EURO/marine']
+    assert lane['verdict'] == ('ok' if damage == 'valid' else 'warn')
+
+
+@pytest.mark.parametrize('model', ['ICON', 'EURO'])
+def test_future_contributor_cycle_remains_unverified(model):
+    blend = _recorded_blend(model, gfs_age=-1)
+    lane = compute_data_health(_Store([*_all_healthy(), blend]), now=NOW)['lanes'][f'{model}/marine']
+    assert lane['verdict'] == 'warn' and 'future' in lane['model_cycle_unverified']
+
+
+def test_contributor_health_is_independent_of_manifest_order():
+    products = [*_all_healthy(), _recorded_blend('ICON'), _recorded_blend('EURO', gfs_age=19)]
+    a = compute_data_health(_Store(products), now=NOW)
+    b = compute_data_health(_Store(list(reversed(products))), now=NOW)
+    for name in ('ICON/marine', 'EURO/marine'):
+        assert {k: v for k, v in a['lanes'][name].items() if k.startswith('model_cycle_')} == {
+            k: v for k, v in b['lanes'][name].items() if k.startswith('model_cycle_')}
+    assert a['alerts'] == b['alerts']
+
+
+@pytest.mark.parametrize('model', ['ICON', 'EURO'])
+@pytest.mark.parametrize('cycle', ['0001-01-01T00:00:00+01:00', '9999-12-31T23:59:59-01:00'])
+def test_out_of_range_contributor_utc_cycle_warns_without_crashing(model, cycle):
+    blend = _recorded_blend(model)
+    blend.estimate_basis['cycle_sources'][-1]['model_run_time'] = cycle
+    lane = compute_data_health(_Store([*_all_healthy(), blend]), now=NOW)['lanes'][f'{model}/marine']
+    assert lane['verdict'] == 'warn' and lane['model_cycle_unverified']
+
+
+@pytest.mark.parametrize('model', ['ICON', 'EURO'])
+@pytest.mark.parametrize('roles', [('native_anchor',), ('gfs_anchor', 'gfs_target')])
+@pytest.mark.parametrize('field,damage', [('provider', 'missing'), ('provider', None), ('provider', ''),
+                                         ('provider', ' '), ('provider', []), ('source_dataset', ' ')])
+def test_incomplete_contributor_identity_cannot_be_verified(model, roles, field, damage):
+    blend = _recorded_blend(model)
+    for source in blend.estimate_basis['cycle_sources']:
+        if source['role'] in roles:
+            if damage == 'missing':
+                source.pop(field)
+            else:
+                source[field] = damage
+    lane = compute_data_health(_Store([*_all_healthy(), blend]), now=NOW)['lanes'][f'{model}/marine']
+    assert lane['verdict'] == 'warn' and lane['model_cycle_unverified']
+
+
 @pytest.mark.parametrize('age,expected', [(7, 'ok'), (19, 'warn'), (55, 'critical')])
 def test_model_cycle_age_changes_health_independently_of_recent_ingest(age, expected):
     products = _all_healthy()

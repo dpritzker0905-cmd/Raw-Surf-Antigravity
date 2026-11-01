@@ -13,6 +13,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from database import get_db
+from core.security import get_current_user_id
 from models import (
     Profile, LiveSession, LiveSessionParticipant, Notification,
     SurfSpot, ConditionReport, Story, Gallery, GalleryItem,
@@ -82,9 +83,12 @@ async def get_active_session(
 async def go_live(
     photographer_id: str,
     data: GoLiveRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Start a live shooting session"""
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     photographer_result = await db.execute(
         select(Profile).where(Profile.id == photographer_id)
     )
@@ -303,9 +307,12 @@ async def go_live(
 @router.post("/photographer/{photographer_id}/end-session")
 async def end_live_session(
     photographer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """End the current live session, auto-create Gallery via sync service, and route earnings"""
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     from utils.revenue_routing import process_creator_earnings
     from services.gallery_sync import create_session_gallery, check_gallery_exists_for_session
 

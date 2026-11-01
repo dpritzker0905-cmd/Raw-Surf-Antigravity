@@ -18,6 +18,8 @@ import {
 } from './backendWeatherServiceClient';
 import { recordTruthStage } from './weatherTruthTracker';
 import { extractMarineAtOffset } from './marineControllerExtractor';
+import { rollOffsetCache } from './offsetCacheAnchor';
+import { noteRequestDiet, requestDietOn } from './marineRequestDiet';
 
 // --- CACHES ---
 var marineHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0 };
@@ -113,7 +115,68 @@ var _perModelHourCache = new LRUMap(PER_MODEL_HOUR_CACHE_MAX);
 // actually returns, so the two can never drift apart silently again.
 export const GLOBAL_LOOKUP_TILE_ID = 'global_coarse';
 
-export function getPerModelHourCache() { return _perModelHourCache; }
+// W-5/T-09: offset keys name an instant only relative to the anchor; drop the cache when the anchor flips (offsetCacheAnchor.js).
+function rollHourCache() { rollOffsetCache('marineHour', () => { _perModelHourCache.clear(); _perModelHourCache._evicted.clear(); }); }
+export function getPerModelHourCache() { rollHourCache(); return _perModelHourCache; }
+
+// GRID_INSTANT_KEY (request diet 2026-10-20, marineRequestDiet.js). The exact /grid cache is keyed by hour OFFSET, but the request is
+// keyed by INSTANT: getSharedValidTime snaps every offset to the nearest stored product, so on 3-hourly data offsets 2 and 3 send the
+// SAME valid_time, bbox and flavor, and the backend answers both with the same grid. Before this the second offset missed the cache and
+// fetched it again (a world /grid is 2.35 MB, 1.1-3.1 s live). Call this before an hour-keyed lookup: when no entry exists for
+// `hourOffset` but a cached exact /grid of the same model, layer flavor and request tile was ASKED for the same instant, it is stored
+// again under `hourOffset`, labelled as the mapper labels a fresh reply (mapNormalizedGridToWebGL puts the offset only on
+// data.hourOffset and grid.hourOffset), with the original timestamp so the TTL still counts from the real fetch. Only direct /grid
+// replies qualify: series frames (their valid_time is the frame's own, not an echo of a request) and the client-built ICON paths
+// (swell_2 blend, the >168 h extension without the stored tail) never alias. Returns true when it stored an alias.
+// Kill: window.__RAW_DISABLE_GRID_INSTANT_KEY__ = true. Telemetry: __MARINE_REQUEST_DIET__.counts.grid_instant_alias.
+function instantAliasEligible(model, layer, hourOffset) {
+  if (model === 'ICON') return layer !== 'swell_2' && (hourOffset <= 168 || process.env.REACT_APP_ICON_STORED_TAIL === 'true');
+  return model === 'GFS' || model === 'EURO';
+}
+export function aliasMarineHourByInstant(model, layer, tileId, hourOffset) {
+  try {
+    const m = model || 'GFS', l = layer || 'waves';
+    if (!requestDietOn('GRID_INSTANT_KEY') || !tileId || !Number.isFinite(hourOffset) || !instantAliasEligible(m, l, hourOffset)) return false;
+    if (!(m === 'GFS' ? getBackendWeatherFlag() : m === 'ICON' ? getBackendIconMarineFlag() : getBackendCopernicusFlag())) return false;
+    rollHourCache();
+    const modelLayer = `${m}_${(_isAllVarModel(m) ? 'all' : l) + (getSurfModeFlag() ? '~surf' : '')}_`;
+    const prefix = `${modelLayer}${tileId}_`;
+    if (_perModelHourCache.has(prefix + hourOffset)) return false;
+    const now = Date.now();
+    let wantMs;                          // resolved (read-only) only once a candidate exists: an empty cache costs no lookup
+    // NEWEST RUN ONLY (#426 review): inside the TTL after a new model run lands, an offset not yet fetched must not take the PREVIOUS
+    // run's grid for its instant. The newest run_time cached for this model and layer (any tile) is the bar; an entry naming no run
+    // is judged by the instant alone, as before.
+    const runMs = (d) => { const t = Date.parse((d && (d.run_time || (d.grid && d.grid.run_time))) || ''); return Number.isFinite(t) ? t : null; };
+    let newestRun;                       // lazily, with wantMs
+    for (const [key, entry] of _perModelHourCache.entries()) {
+      if (!key.startsWith(prefix)) continue;
+      const rest = key.slice(prefix.length), h = Number(rest);
+      if (rest === '' || String(h) !== rest || h === hourOffset || !instantAliasEligible(m, l, h)) continue;
+      const d = entry && entry.data, g = d && d.grid;
+      if (!g || now - entry.timestamp >= PER_MODEL_HOUR_CACHE_TTL || d.stale || g.stale || d.__fromSeries || g.__fromSeries) continue;
+      if (!(g.vectors && g.vectors.length) || g.renderable === false) continue;
+      if (wantMs === undefined) wantMs = Date.parse(getSharedValidTime(hourOffset, l, m, { readOnly: true }));
+      if (!Number.isFinite(wantMs)) return false;
+      if (Date.parse(d.valid_time || g.valid_time || '') !== wantMs) continue;
+      if (newestRun === undefined) {
+        newestRun = null;
+        for (const [k2, e2] of _perModelHourCache.entries()) {
+          const r = k2.startsWith(modelLayer) ? runMs(e2 && e2.data) : null;
+          if (r !== null && (newestRun === null || r > newestRun)) newestRun = r;
+        }
+      }
+      const cr = runMs(d);
+      if (cr !== null && newestRun !== null && cr < newestRun) continue;
+      const data = { ...d, hourOffset, grid: { ...g, hourOffset } };
+      delete data.__commitRevision; delete data.__commitLane; delete data.__committedSig; delete data.grid.__commitLane;
+      _perModelHourCache.set(prefix + hourOffset, { data, timestamp: entry.timestamp, model: m, signature: entry.signature ? { ...entry.signature, hourOffset } : undefined });
+      noteRequestDiet('grid_instant_alias', { model: m, layer: l, from: h, to: hourOffset, tileId });
+      return true;
+    }
+  } catch (e) { /* best effort: a miss only means the ordinary fetch */ }
+  return false;
+}
 
 // ---------------------------------------------------------------------------
 // Structured cache lookup telemetry (Phase 1.3)
@@ -188,6 +251,7 @@ export function _cacheMarineResult(model, hourOffset, data, layer, silent = fals
   // Mode-keyed (2026-07-03): surf-banded and plain products must never cross-hit (frame mixing).
   const layerPart = (_isAllVarModel(model) ? 'all' : (layer || 'waves')) + (getSurfModeFlag() ? '~surf' : '');
   const tileId = data.tile_id || data.region_id || data.grid?.region_id || 'unknown';
+  rollHourCache();
   const key = `${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`;
   
   const g = data.grid || {};
@@ -423,6 +487,8 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
     const layerPart = (_isAllVarModel(model) ? 'all' : layer) + (getSurfModeFlag() ? '~surf' : '');
     const clampRes = clampViewportBbox(bounds, layer, model, 'marine');
     const tileId = clampRes.selectedTileId || 'outside';
+    rollHourCache();
+    aliasMarineHourByInstant(model, layer, tileId, hourOffset);   // GRID_INSTANT_KEY: same request instant = same grid
     const lookupKey = `${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`;
     const missDetail = { model: model || 'GFS', layer, hourOffset, tileId, lookupKey };
     const exact = _perModelHourCache.get(lookupKey);
@@ -533,6 +599,7 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
  * upstream fetch with the same bbox).
  */
 export function getAnyHourCacheEntry(model, layer, bounds) {
+  rollHourCache();
   const wanted = model || 'GFS';
   const layerPart = _isAllVarModel(wanted) ? 'all' : (layer || 'waves');
   const prefix = `${wanted}_${layerPart}_`;

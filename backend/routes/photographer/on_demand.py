@@ -13,6 +13,7 @@ import logging
 logger = logging.getLogger(__name__)
 
 from database import get_db
+from core.security import get_current_user_id
 from models import (
     Profile, Booking, LiveSession, LiveSessionParticipant,
     CreditTransaction, GalleryItem, SurfSpot, RoleEnum
@@ -149,9 +150,12 @@ async def get_photographer_status(
 async def toggle_on_demand(
     photographer_id: str,
     data: OnDemandToggleRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Toggle On-Demand availability for Pro photographers with spot selection"""
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     profile = result.scalar_one_or_none()
     if not profile:

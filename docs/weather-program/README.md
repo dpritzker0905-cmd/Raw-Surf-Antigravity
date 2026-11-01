@@ -18,7 +18,8 @@ history stays where it is: it is frozen, and new state lives here.
 | `SCOREBOARD.md` | Measured skill over time: the numbers that say whether we are getting closer to state of the art | **Append-only rows.** Every fix adds its measured effect, or a row saying it changes no served number |
 | `LESSONS.md` | Method and process lessons learned the hard way (science, CI, operations) | Append new lessons. Correct a wrong one with a dated note under it; never delete it silently |
 | `log/YYYY-MM-DD-<session>.md` | One running log per session per day: what was measured, merged, found, corrected | **Only the session that owns the file writes to it.** One file per session means no two writers ever share one |
-| `ACTIONS.jsonl` | **The action ledger** (BRAIN_RULES §23): one line per state-changing action or correction, with the authorizing words, evidence, read-back verification and rollback | **Only via `backend/scripts/action_ledger.py append`.** Hash-chained; STATE publishes the head; CI proves the chain and, on a PR, that history was only appended to |
+| `ACTIONS.jsonl` | **The action ledger** (BRAIN_RULES §23): one line per state-changing action or correction, with the authorizing words, evidence, read-back verification and rollback | **Only by the fold** (`action_ledger.py fold-pr`, the lead), since the fragments landed (D-0XX, 2026-10-23). Hash-chained; STATE publishes the head; CI proves the chain and, on a PR, that history was only appended to |
+| `ledger.d/<branch-slug>.jsonl` | **A PR's ledger fragment**: its lines, with every field but `seq`/`prev`/`at` | **Only via `backend/scripts/action_ledger.py append`**, one file per PR, committed with it; immutable once merged. The fold chains it into ACTIONS.jsonl in merge order and deletes it. See `ledger.d/README.md` |
 
 ## Write rules (the anti-overwrite protocol)
 
@@ -39,17 +40,27 @@ history stays where it is: it is frozen, and new state lives here.
 8. **Every action is accountable** (owner, 2026-09-29; BRAIN_RULES §23). Each state-changing action, and each owner
    action a session learns of, gets a ledger line before the turn ends: who, what, the owner's authorizing words,
    evidence, how the result was READ BACK live (or `pending: …`), and the exact rollback. A wrong claim gets a
-   `correction` line and a dated note where it was written. Move STATE's `Ledger head` anchor with each update.
+   `correction` line and a dated note where it was written.
+   **Since 2026-10-23 the line goes in your PR's FRAGMENT** (owner, 2026-10-22 23:11 EDT: "Yes: build the per-PR
+   ledger fragments ... so PRs stop colliding and auto-merge runs unattended. Keep the hash chain intact."; D-0XX).
+   `action_ledger.py append` (no `--direct`) writes `ledger.d/<branch-slug>.jsonl`; you never edit ACTIONS.jsonl or
+   move STATE's `Ledger head` anchor, and the Weather Program Ledger workflow fails a PR that does. Cite an unfolded
+   line as `ledger.d/<name>.jsonl:N`, never a guessed seq; reference one with `@frag:N` (your fragment) or
+   `@frag:<name>:N` (a fragment already merged to dev). The lead's `fold-pr` chains merged fragments into
+   ACTIONS.jsonl in merge order, moves the anchor and deletes them, in one PR. PRs opened before the fragments landed
+   keep the old direct append (and the lead's re-chain) until they merge.
 9. **Facts carry their freshness.** Agent-local memories record `metadata.verified: YYYY-MM-DD`, the day the fact was
    last checked against reality. `backend/scripts/memory_audit.py` flags STALE and UNVERIFIED facts; re-check
    before relying on one.
 10. **Times are UTC**, from `date -u` or the platform's own timestamps; never a local clock read as UTC.
 11. **A promised follow-up is a `commitment` line** (`action_ledger.py append --kind commitment --due-at … --check
     …`), never a sentence that lives only in one session's context. The line that does it carries
-    `--fulfills <seq>`. `action_ledger.py open` lists what is owed; the audit WARNs on every OVERDUE one.
+    `--fulfills <seq>` (or `@frag:N` / `@frag:<name>:N` while the commitment is unfolded). `action_ledger.py open`
+    lists what is owed, unfolded fragments included; the audit WARNs on every OVERDUE one.
 12. **The ledger is complete, and the audit proves it**: every PR merge since the ledger began needs its `pr_merge
-    #N` line (the newest may wait for the next PR). Timestamps in STATE and the log headers may not be later than
-    when they were committed, and every "ledger seq N" cited must exist.
+    #N` line (the newest may wait for the next PR; a line still in a fragment counts). Timestamps in STATE and the
+    log headers may not be later than when they were committed, and every "ledger seq N" cited must exist (a
+    fragment line has no seq until it is folded: cite `ledger.d/<name>.jsonl:N`).
 13. **Read the gate's own exit code.** `memory_audit.py … | tail -1 && git push` gates on `tail` (LESSONS L-P13):
     run the audit on its own line and check `$?` before the next step.
 
@@ -57,7 +68,7 @@ history stays where it is: it is frozen, and new state lives here.
 
 1. Run `python backend/scripts/memory_audit.py --memory-dir <agent memory folder>` (or `--docs-only`); fix or
    re-check what it flags, and do what its OVERDUE / open commitments owe (`action_ledger.py open`) first. Then read `STATE.md`, the newest file in `log/`, the ledger's recent lines
-   (`ACTIONS.jsonl`), and any `DECISIONS.md` entry that touches your task.
+   (`ACTIONS.jsonl`, and the unfolded fragments in `ledger.d/`), and any `DECISIONS.md` entry that touches your task.
 2. Verify STATE's claims live before acting on them (they drift): `git fetch`, `gh pr list --state open`, and the
    backend's `/api/health` and `/api/health/data`.
 3. Open your own log file for the day and append to it as you go; ledger each action as you take it.
@@ -65,6 +76,7 @@ history stays where it is: it is frozen, and new state lives here.
 
 ## Ending a session
 
-1. Every action of the session is in the ledger, and every `verified: pending` has been read back or says why not.
-2. STATE is true, including its `Ledger head` line (`python backend/scripts/action_ledger.py head`).
-3. `python backend/scripts/action_ledger.py verify` and `memory_audit.py` pass.
+1. Every action of the session is in your fragment (or, for the lead's fold, the ledger), and every
+   `verified: pending` has been read back or says why not.
+2. STATE is true. Its `Ledger head` line moves only with a fold (`action_ledger.py fold-pr`); a PR leaves it alone.
+3. `python backend/scripts/action_ledger.py verify` and `memory_audit.py` pass (the audit validates the fragments).

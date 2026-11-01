@@ -2,6 +2,7 @@
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 import { toast } from 'sonner';
+import { recordPushOptIn } from './usePushNotifications';
 
 // Haversine distance formula (km)
 const calculateDistance = (lat1, lon1, lat2, lon2) => {
@@ -98,6 +99,7 @@ export default function useSurfAlertActions({
             auth_key: subJson.keys?.auth || '',
             user_agent: navigator.userAgent
           });
+          recordPushOptIn(user?.id);   // this account's own Enable click: the on-load re-sync may keep it current
         }
       } else {
         toast.error('Please enable notifications in your browser settings');

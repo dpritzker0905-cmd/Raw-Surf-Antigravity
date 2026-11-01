@@ -149,7 +149,7 @@ export const RichText = ({
     
     // Lookup username to get user ID, then navigate
     try {
-      const res = await apiClient.get(`/api/username/lookup/${encodeURIComponent(username)}`);
+      const res = await apiClient.get(`/username/lookup/${encodeURIComponent(username)}`);
       navigate(`/profile/${res.data.id}`);
     } catch {
  // Username not found -- show toast instead of navigating to a dead route

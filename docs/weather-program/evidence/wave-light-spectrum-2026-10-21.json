@@ -1,0 +1,1737 @@
+{
+ "what": "D-037 light wave-height spectrum: offline real-engine A/B (production build of claude/wave-light-spectrum 6a9774bfc, synthetic backend serve_synthetic.py --dynamic 1 --vortex-peak 14 --calm-patch 27,-111,8; never the live backend), 2026-10-21",
+ "levers": {
+  "today_v2": "sp@v2 / sp@v2b = window.__RAW_DISABLE_WAVE_SPECTRUM__ = true (dev 448deb35c exactly)",
+  "spectrum": "v2 / v2b = the default (this PR)"
+ },
+ "wash_crest_free": {
+  "note": "scn_wave_palette_ab.js WASH=1, crest-free shots (the engine's heatmap-only fallback), same grid per pair; interior = sea pixels >= 8 px from land; null = the same lever run twice. Beach and dark must not move.",
+  "views": {
+   "light/world": {
+    "grids": {
+     "sp@v2": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z",
+     "sp@v2b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z",
+     "v2": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z",
+     "v2b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z"
+    },
+    "null_today_v2": {
+     "pixels": 1024000,
+     "moved_gt_tol": 107,
+     "max_channel": 3,
+     "de00_max": 1.19,
+     "de00_p99": 1.14,
+     "de00_mean_moved": 0.92
+    },
+    "null_spectrum": {
+     "pixels": 1024000,
+     "moved_gt_tol": 0,
+     "max_channel": 2,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "pair": [
+     "sp@v2",
+     "v2"
+    ],
+    "today_vs_spectrum_quiet": {
+     "pixels": 1023893,
+     "moved_gt_tol": 611881,
+     "max_channel": 201,
+     "de00_max": 60.28,
+     "de00_p99": 20.26,
+     "de00_mean_moved": 15.25
+    },
+    "noisy_px": 107,
+    "today_vs_spectrum_interior": {
+     "pixels": 505113,
+     "moved_gt_tol": 485881,
+     "max_channel": 116,
+     "de00_max": 32.84,
+     "de00_p99": 20.14,
+     "de00_mean_moved": 16.57
+    },
+    "land_rgb": [
+     255,
+     255,
+     255
+    ],
+    "null_today_v2_interior": {
+     "pixels": 505113,
+     "moved_gt_tol": 0,
+     "max_channel": 0,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "null_spectrum_interior": {
+     "pixels": 505113,
+     "moved_gt_tol": 0,
+     "max_channel": 1,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    }
+   },
+   "light/regional": {
+    "grids": {
+     "sp@v2": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z",
+     "sp@v2b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z",
+     "v2": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z",
+     "v2b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z"
+    },
+    "null_today_v2": {
+     "pixels": 1024000,
+     "moved_gt_tol": 395,
+     "max_channel": 11,
+     "de00_max": 3.54,
+     "de00_p99": 3.11,
+     "de00_mean_moved": 1.45
+    },
+    "null_spectrum": {
+     "pixels": 1024000,
+     "moved_gt_tol": 618,
+     "max_channel": 21,
+     "de00_max": 7.79,
+     "de00_p99": 7.71,
+     "de00_mean_moved": 3.32
+    },
+    "pair": [
+     "sp@v2",
+     "v2"
+    ],
+    "today_vs_spectrum_quiet": {
+     "pixels": 1023382,
+     "moved_gt_tol": 653084,
+     "max_channel": 203,
+     "de00_max": 60.3,
+     "de00_p99": 29.9,
+     "de00_mean_moved": 17.85
+    },
+    "noisy_px": 618,
+    "today_vs_spectrum_interior": {
+     "pixels": 524913,
+     "moved_gt_tol": 511037,
+     "max_channel": 122,
+     "de00_max": 30.97,
+     "de00_p99": 30.0,
+     "de00_mean_moved": 19.53
+    },
+    "land_rgb": [
+     255,
+     255,
+     255
+    ],
+    "null_today_v2_interior": {
+     "pixels": 525479,
+     "moved_gt_tol": 343,
+     "max_channel": 11,
+     "de00_max": 3.54,
+     "de00_p99": 3.22,
+     "de00_mean_moved": 1.48
+    },
+    "null_spectrum_interior": {
+     "pixels": 525479,
+     "moved_gt_tol": 566,
+     "max_channel": 21,
+     "de00_max": 7.79,
+     "de00_p99": 7.71,
+     "de00_mean_moved": 3.52
+    }
+   },
+   "light/coastal": {
+    "grids": {
+     "sp@v2": "6x5 {\"east\": -100, \"north\": 22, \"south\": 14, \"west\": -110} 2026-10-21T06:00:00Z",
+     "sp@v2b": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-21T06:00:00Z",
+     "v2": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-21T06:00:00Z",
+     "v2b": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-21T06:00:00Z"
+    },
+    "null_spectrum": {
+     "pixels": 1024000,
+     "moved_gt_tol": 0,
+     "max_channel": 2,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "pair": [
+     "sp@v2b",
+     "v2"
+    ],
+    "today_vs_spectrum_quiet": {
+     "pixels": 1024000,
+     "moved_gt_tol": 683738,
+     "max_channel": 203,
+     "de00_max": 59.52,
+     "de00_p99": 33.42,
+     "de00_mean_moved": 24.98
+    },
+    "noisy_px": 0,
+    "today_vs_spectrum_interior": {
+     "pixels": 555019,
+     "moved_gt_tol": 549350,
+     "max_channel": 116,
+     "de00_max": 33.7,
+     "de00_p99": 33.47,
+     "de00_mean_moved": 26.91
+    },
+    "land_rgb": [
+     255,
+     255,
+     255
+    ],
+    "null_spectrum_interior": {
+     "pixels": 555019,
+     "moved_gt_tol": 0,
+     "max_channel": 0,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    }
+   },
+   "light/calm": {
+    "grids": {
+     "sp@v2": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-21T06:00:00Z",
+     "sp@v2b": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-21T06:00:00Z",
+     "v2": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-21T06:00:00Z",
+     "v2b": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-21T06:00:00Z"
+    },
+    "null_today_v2": {
+     "pixels": 1024000,
+     "moved_gt_tol": 81,
+     "max_channel": 8,
+     "de00_max": 1.19,
+     "de00_p99": 1.19,
+     "de00_mean_moved": 1.05
+    },
+    "null_spectrum": {
+     "pixels": 1024000,
+     "moved_gt_tol": 60,
+     "max_channel": 8,
+     "de00_max": 1.06,
+     "de00_p99": 1.06,
+     "de00_mean_moved": 0.94
+    },
+    "pair": [
+     "sp@v2",
+     "v2"
+    ],
+    "today_vs_spectrum_quiet": {
+     "pixels": 1023911,
+     "moved_gt_tol": 335790,
+     "max_channel": 204,
+     "de00_max": 59.92,
+     "de00_p99": 16.07,
+     "de00_mean_moved": 12.92
+    },
+    "noisy_px": 89,
+    "today_vs_spectrum_interior": {
+     "pixels": 308036,
+     "moved_gt_tol": 295327,
+     "max_channel": 79,
+     "de00_max": 16.19,
+     "de00_p99": 16.02,
+     "de00_mean_moved": 13.07
+    },
+    "land_rgb": [
+     255,
+     255,
+     255
+    ],
+    "null_today_v2_interior": {
+     "pixels": 308036,
+     "moved_gt_tol": 0,
+     "max_channel": 0,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "null_spectrum_interior": {
+     "pixels": 308036,
+     "moved_gt_tol": 0,
+     "max_channel": 0,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    }
+   },
+   "beach/world": {
+    "grids": {
+     "sp@v2": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z",
+     "sp@v2b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z",
+     "v2": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z",
+     "v2b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z"
+    },
+    "null_today_v2": {
+     "pixels": 1024000,
+     "moved_gt_tol": 0,
+     "max_channel": 2,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "null_spectrum": {
+     "pixels": 1024000,
+     "moved_gt_tol": 4022,
+     "max_channel": 177,
+     "de00_max": 39.29,
+     "de00_p99": 28.9,
+     "de00_mean_moved": 7.5
+    },
+    "pair": [
+     "sp@v2",
+     "v2"
+    ],
+    "today_vs_spectrum_quiet": {
+     "pixels": 1019978,
+     "moved_gt_tol": 0,
+     "max_channel": 2,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "noisy_px": 4022,
+    "today_vs_spectrum_interior": {
+     "pixels": 504552,
+     "moved_gt_tol": 0,
+     "max_channel": 0,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "land_rgb": [
+     237,
+     232,
+     226
+    ],
+    "null_today_v2_interior": {
+     "pixels": 504612,
+     "moved_gt_tol": 0,
+     "max_channel": 1,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "null_spectrum_interior": {
+     "pixels": 504612,
+     "moved_gt_tol": 60,
+     "max_channel": 111,
+     "de00_max": 22.8,
+     "de00_p99": 22.01,
+     "de00_mean_moved": 6.99
+    }
+   },
+   "beach/regional": {
+    "grids": {
+     "sp@v2": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z",
+     "sp@v2b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z",
+     "v2": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z",
+     "v2b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z"
+    },
+    "null_today_v2": {
+     "pixels": 1024000,
+     "moved_gt_tol": 597,
+     "max_channel": 13,
+     "de00_max": 5.08,
+     "de00_p99": 4.9,
+     "de00_mean_moved": 2.25
+    },
+    "null_spectrum": {
+     "pixels": 1024000,
+     "moved_gt_tol": 2329,
+     "max_channel": 182,
+     "de00_max": 37.92,
+     "de00_p99": 25.12,
+     "de00_mean_moved": 7.5
+    },
+    "pair": [
+     "sp@v2",
+     "v2"
+    ],
+    "today_vs_spectrum_quiet": {
+     "pixels": 1021566,
+     "moved_gt_tol": 0,
+     "max_channel": 2,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "noisy_px": 2434,
+    "today_vs_spectrum_interior": {
+     "pixels": 524524,
+     "moved_gt_tol": 0,
+     "max_channel": 1,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "land_rgb": [
+     237,
+     232,
+     226
+    ],
+    "null_today_v2_interior": {
+     "pixels": 525149,
+     "moved_gt_tol": 545,
+     "max_channel": 13,
+     "de00_max": 5.08,
+     "de00_p99": 4.91,
+     "de00_mean_moved": 2.18
+    },
+    "null_spectrum_interior": {
+     "pixels": 525149,
+     "moved_gt_tol": 520,
+     "max_channel": 108,
+     "de00_max": 26.72,
+     "de00_p99": 16.31,
+     "de00_mean_moved": 7.7
+    }
+   },
+   "beach/coastal": {
+    "grids": {
+     "sp@v2": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-21T06:00:00Z",
+     "sp@v2b": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-21T06:00:00Z",
+     "v2": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-21T06:00:00Z",
+     "v2b": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-21T06:00:00Z"
+    },
+    "null_today_v2": {
+     "pixels": 1024000,
+     "moved_gt_tol": 0,
+     "max_channel": 1,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "null_spectrum": {
+     "pixels": 1024000,
+     "moved_gt_tol": 1816,
+     "max_channel": 156,
+     "de00_max": 51.43,
+     "de00_p99": 47.7,
+     "de00_mean_moved": 24.45
+    },
+    "pair": [
+     "sp@v2",
+     "v2"
+    ],
+    "today_vs_spectrum_quiet": {
+     "pixels": 1022184,
+     "moved_gt_tol": 0,
+     "max_channel": 1,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "noisy_px": 1816,
+    "today_vs_spectrum_interior": {
+     "pixels": 540498,
+     "moved_gt_tol": 0,
+     "max_channel": 0,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "land_rgb": [
+     237,
+     232,
+     226
+    ],
+    "null_today_v2_interior": {
+     "pixels": 540519,
+     "moved_gt_tol": 0,
+     "max_channel": 0,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "null_spectrum_interior": {
+     "pixels": 540519,
+     "moved_gt_tol": 21,
+     "max_channel": 4,
+     "de00_max": 1.79,
+     "de00_p99": 1.71,
+     "de00_mean_moved": 0.98
+    }
+   },
+   "beach/calm": {
+    "grids": {
+     "sp@v2": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-21T06:00:00Z",
+     "sp@v2b": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-21T06:00:00Z",
+     "v2": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-21T06:00:00Z",
+     "v2b": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-21T06:00:00Z"
+    },
+    "null_today_v2": {
+     "pixels": 1024000,
+     "moved_gt_tol": 52,
+     "max_channel": 11,
+     "de00_max": 3.24,
+     "de00_p99": 3.24,
+     "de00_mean_moved": 3.09
+    },
+    "null_spectrum": {
+     "pixels": 1024000,
+     "moved_gt_tol": 15861,
+     "max_channel": 160,
+     "de00_max": 33.57,
+     "de00_p99": 24.64,
+     "de00_mean_moved": 11.05
+    },
+    "pair": [
+     "sp@v2",
+     "v2"
+    ],
+    "today_vs_spectrum_quiet": {
+     "pixels": 1008139,
+     "moved_gt_tol": 8,
+     "max_channel": 4,
+     "de00_max": 1.4,
+     "de00_p99": 1.4,
+     "de00_mean_moved": 1.4
+    },
+    "noisy_px": 15861,
+    "today_vs_spectrum_interior": {
+     "pixels": 332144,
+     "moved_gt_tol": 0,
+     "max_channel": 0,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "land_rgb": [
+     237,
+     232,
+     226
+    ],
+    "null_today_v2_interior": {
+     "pixels": 332897,
+     "moved_gt_tol": 0,
+     "max_channel": 0,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "null_spectrum_interior": {
+     "pixels": 332897,
+     "moved_gt_tol": 753,
+     "max_channel": 153,
+     "de00_max": 32.14,
+     "de00_p99": 26.36,
+     "de00_mean_moved": 4.91
+    }
+   },
+   "dark/world": {
+    "grids": {
+     "sp@v2": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z",
+     "sp@v2b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z",
+     "v2": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z",
+     "v2b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z"
+    },
+    "null_today_v2": {
+     "pixels": 1024000,
+     "moved_gt_tol": 2730,
+     "max_channel": 99,
+     "de00_max": 38.59,
+     "de00_p99": 28.21,
+     "de00_mean_moved": 7.34
+    },
+    "null_spectrum": {
+     "pixels": 1024000,
+     "moved_gt_tol": 582,
+     "max_channel": 61,
+     "de00_max": 20.85,
+     "de00_p99": 17.84,
+     "de00_mean_moved": 4.92
+    },
+    "pair": [
+     "sp@v2",
+     "v2"
+    ],
+    "today_vs_spectrum_quiet": {
+     "pixels": 1021218,
+     "moved_gt_tol": 0,
+     "max_channel": 2,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "noisy_px": 2782,
+    "today_vs_spectrum_interior": {
+     "pixels": 506918,
+     "moved_gt_tol": 0,
+     "max_channel": 2,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "land_rgb": [
+     66,
+     77,
+     92
+    ],
+    "null_today_v2_interior": {
+     "pixels": 506975,
+     "moved_gt_tol": 57,
+     "max_channel": 80,
+     "de00_max": 30.46,
+     "de00_p99": 27.05,
+     "de00_mean_moved": 8.82
+    },
+    "null_spectrum_interior": {
+     "pixels": 506975,
+     "moved_gt_tol": 0,
+     "max_channel": 2,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    }
+   },
+   "dark/regional": {
+    "grids": {
+     "sp@v2": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z",
+     "sp@v2b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z",
+     "v2": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z",
+     "v2b": "181x83 {\"east\": 180, \"north\": 84, \"south\": -80, \"west\": -180} 2026-10-21T06:00:00Z"
+    },
+    "null_today_v2": {
+     "pixels": 1024000,
+     "moved_gt_tol": 1832,
+     "max_channel": 103,
+     "de00_max": 20.85,
+     "de00_p99": 16.25,
+     "de00_mean_moved": 4.96
+    },
+    "null_spectrum": {
+     "pixels": 1024000,
+     "moved_gt_tol": 1235,
+     "max_channel": 61,
+     "de00_max": 20.85,
+     "de00_p99": 15.73,
+     "de00_mean_moved": 4.77
+    },
+    "pair": [
+     "sp@v2",
+     "v2"
+    ],
+    "today_vs_spectrum_quiet": {
+     "pixels": 1021888,
+     "moved_gt_tol": 308,
+     "max_channel": 10,
+     "de00_max": 3.88,
+     "de00_p99": 3.75,
+     "de00_mean_moved": 2.14
+    },
+    "noisy_px": 2112,
+    "today_vs_spectrum_interior": {
+     "pixels": 527148,
+     "moved_gt_tol": 9,
+     "max_channel": 10,
+     "de00_max": 3.88,
+     "de00_p99": 3.87,
+     "de00_mean_moved": 3.63
+    },
+    "land_rgb": [
+     66,
+     77,
+     92
+    ],
+    "null_today_v2_interior": {
+     "pixels": 527813,
+     "moved_gt_tol": 445,
+     "max_channel": 99,
+     "de00_max": 18.49,
+     "de00_p99": 12.54,
+     "de00_mean_moved": 2.76
+    },
+    "null_spectrum_interior": {
+     "pixels": 527813,
+     "moved_gt_tol": 645,
+     "max_channel": 32,
+     "de00_max": 8.49,
+     "de00_p99": 8.49,
+     "de00_mean_moved": 4.72
+    }
+   },
+   "dark/coastal": {
+    "grids": {
+     "sp@v2": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-21T06:00:00Z",
+     "sp@v2b": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-21T06:00:00Z",
+     "v2": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-21T06:00:00Z",
+     "v2b": "13x11 {\"east\": -102, \"north\": 21, \"south\": 16, \"west\": -108} 2026-10-21T06:00:00Z"
+    },
+    "null_today_v2": {
+     "pixels": 1024000,
+     "moved_gt_tol": 1685,
+     "max_channel": 172,
+     "de00_max": 37.35,
+     "de00_p99": 31.99,
+     "de00_mean_moved": 18.97
+    },
+    "null_spectrum": {
+     "pixels": 1024000,
+     "moved_gt_tol": 582,
+     "max_channel": 61,
+     "de00_max": 20.85,
+     "de00_p99": 17.84,
+     "de00_mean_moved": 4.81
+    },
+    "pair": [
+     "sp@v2",
+     "v2"
+    ],
+    "today_vs_spectrum_quiet": {
+     "pixels": 1022263,
+     "moved_gt_tol": 0,
+     "max_channel": 2,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "noisy_px": 1737,
+    "today_vs_spectrum_interior": {
+     "pixels": 556338,
+     "moved_gt_tol": 0,
+     "max_channel": 2,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "land_rgb": [
+     66,
+     77,
+     92
+    ],
+    "null_today_v2_interior": {
+     "pixels": 556356,
+     "moved_gt_tol": 18,
+     "max_channel": 132,
+     "de00_max": 30.38,
+     "de00_p99": 30.34,
+     "de00_mean_moved": 7.95
+    },
+    "null_spectrum_interior": {
+     "pixels": 556356,
+     "moved_gt_tol": 0,
+     "max_channel": 0,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    }
+   },
+   "dark/calm": {
+    "grids": {
+     "sp@v2": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-21T06:00:00Z",
+     "sp@v2b": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-21T06:00:00Z",
+     "v2": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-21T06:00:00Z",
+     "v2b": "29x24 {\"east\": -78, \"north\": 38, \"south\": -8, \"west\": -134} 2026-10-21T06:00:00Z"
+    },
+    "null_today_v2": {
+     "pixels": 1024000,
+     "moved_gt_tol": 14808,
+     "max_channel": 61,
+     "de00_max": 20.85,
+     "de00_p99": 15.96,
+     "de00_mean_moved": 9.61
+    },
+    "null_spectrum": {
+     "pixels": 1024000,
+     "moved_gt_tol": 730,
+     "max_channel": 61,
+     "de00_max": 20.85,
+     "de00_p99": 17.31,
+     "de00_mean_moved": 4.49
+    },
+    "pair": [
+     "sp@v2",
+     "v2"
+    ],
+    "today_vs_spectrum_quiet": {
+     "pixels": 1009051,
+     "moved_gt_tol": 5677,
+     "max_channel": 4,
+     "de00_max": 4.35,
+     "de00_p99": 2.96,
+     "de00_mean_moved": 1.63
+    },
+    "noisy_px": 14949,
+    "today_vs_spectrum_interior": {
+     "pixels": 337083,
+     "moved_gt_tol": 0,
+     "max_channel": 2,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    },
+    "land_rgb": [
+     66,
+     77,
+     92
+    ],
+    "null_today_v2_interior": {
+     "pixels": 337675,
+     "moved_gt_tol": 592,
+     "max_channel": 53,
+     "de00_max": 14.69,
+     "de00_p99": 14.69,
+     "de00_mean_moved": 4.78
+    },
+    "null_spectrum_interior": {
+     "pixels": 337675,
+     "moved_gt_tol": 0,
+     "max_channel": 0,
+     "de00_max": 0.0,
+     "de00_p99": 0.0,
+     "de00_mean_moved": 0.0
+    }
+   }
+  }
+ },
+ "upload_scale": {
+  "light_spectrum": 14,
+  "light_kill": 16,
+  "beach": 10,
+  "dark": 10,
+  "gl_errors": 0
+ },
+ "crest_contrast_engine": {
+  "note": "crest_contrast.py over CLIP=1 PAIRED=1 frames (24 per view, the exact crest-free wash under each frame): p99 over sea pixels of each pixel's distance to its wash (CIEDE2000 per vision kind; lc = APCA |Lc|), and the share of sea pixels at >= 15",
+  "reads": {
+   "light/world/today_v2": {
+    "frames": 24,
+    "sea_untouched": 0.541,
+    "p99": {
+     "normal": 26.3,
+     "protan": 26.9,
+     "deutan": 26.5,
+     "tritan": 24.1,
+     "lc": 35.0
+    },
+    "share_ge15": {
+     "normal": 0.0492,
+     "deutan": 0.0496,
+     "tritan": 0.0465,
+     "lc": 0.1365
+    },
+    "null_half_vs_half_p99_lc": 0.7
+   },
+   "light/world/spectrum": {
+    "frames": 24,
+    "sea_untouched": 0.559,
+    "p99": {
+     "normal": 19.4,
+     "protan": 20.1,
+     "deutan": 19.9,
+     "tritan": 17.9,
+     "lc": 23.9
+    },
+    "share_ge15": {
+     "normal": 0.0213,
+     "deutan": 0.0237,
+     "tritan": 0.0175,
+     "lc": 0.0476
+    },
+    "null_half_vs_half_p99_lc": 0.1
+   },
+   "light/regional/today_v2": {
+    "frames": 24,
+    "sea_untouched": 0.59,
+    "p99": {
+     "normal": 47.0,
+     "protan": 48.3,
+     "deutan": 48.4,
+     "tritan": 29.6,
+     "lc": 42.3
+    },
+    "share_ge15": {
+     "normal": 0.0992,
+     "deutan": 0.1016,
+     "tritan": 0.0723,
+     "lc": 0.0906
+    },
+    "null_half_vs_half_p99_lc": 7.0
+   },
+   "light/regional/spectrum": {
+    "frames": 24,
+    "sea_untouched": 0.543,
+    "p99": {
+     "normal": 54.1,
+     "protan": 55.7,
+     "deutan": 47.3,
+     "tritan": 39.1,
+     "lc": 53.5
+    },
+    "share_ge15": {
+     "normal": 0.153,
+     "deutan": 0.1404,
+     "tritan": 0.1175,
+     "lc": 0.1146
+    },
+    "null_half_vs_half_p99_lc": 0.1
+   },
+   "light/coastal/today_v2": {
+    "frames": 24,
+    "sea_untouched": 0.175,
+    "p99": {
+     "normal": 84.7,
+     "protan": 84.8,
+     "deutan": 82.7,
+     "tritan": 53.3,
+     "lc": 78.6
+    },
+    "share_ge15": {
+     "normal": 0.6913,
+     "deutan": 0.6872,
+     "tritan": 0.6647,
+     "lc": 0.559
+    },
+    "null_half_vs_half_p99_lc": 0.2
+   },
+   "light/coastal/spectrum": {
+    "frames": 24,
+    "sea_untouched": 0.182,
+    "p99": {
+     "normal": 80.6,
+     "protan": 78.6,
+     "deutan": 59.6,
+     "tritan": 51.3,
+     "lc": 77.4
+    },
+    "share_ge15": {
+     "normal": 0.6204,
+     "deutan": 0.6274,
+     "tritan": 0.5191,
+     "lc": 0.5153
+    },
+    "null_half_vs_half_p99_lc": 0.5
+   },
+   "beach/world/today": {
+    "frames": 24,
+    "sea_untouched": 0.631,
+    "p99": {
+     "normal": 16.6,
+     "protan": 10.3,
+     "deutan": 11.0,
+     "tritan": 13.5,
+     "lc": 0.0
+    },
+    "share_ge15": {
+     "normal": 0.012,
+     "deutan": 0.0045,
+     "tritan": 0.0084,
+     "lc": 0.0006
+    },
+    "null_half_vs_half_p99_lc": 0.0
+   },
+   "beach/regional/today": {
+    "frames": 24,
+    "sea_untouched": 0.622,
+    "p99": {
+     "normal": 33.4,
+     "protan": 23.4,
+     "deutan": 26.0,
+     "tritan": 31.1,
+     "lc": 20.9
+    },
+    "share_ge15": {
+     "normal": 0.0656,
+     "deutan": 0.0558,
+     "tritan": 0.045,
+     "lc": 0.0213
+    },
+    "null_half_vs_half_p99_lc": 8.4
+   },
+   "beach/coastal/today": {
+    "frames": 24,
+    "sea_untouched": 0.169,
+    "p99": {
+     "normal": 30.2,
+     "protan": 32.7,
+     "deutan": 33.7,
+     "tritan": 20.7,
+     "lc": 24.5
+    },
+    "share_ge15": {
+     "normal": 0.5141,
+     "deutan": 0.5762,
+     "tritan": 0.0705,
+     "lc": 0.0873
+    },
+    "null_half_vs_half_p99_lc": 0.4
+   },
+   "dark/world/today": {
+    "frames": 24,
+    "sea_untouched": 0.534,
+    "p99": {
+     "normal": 27.0,
+     "protan": 26.7,
+     "deutan": 24.2,
+     "tritan": 18.6,
+     "lc": 17.2
+    },
+    "share_ge15": {
+     "normal": 0.0684,
+     "deutan": 0.0373,
+     "tritan": 0.0158,
+     "lc": 0.0156
+    },
+    "null_half_vs_half_p99_lc": 0.0
+   },
+   "dark/regional/today": {
+    "frames": 24,
+    "sea_untouched": 0.628,
+    "p99": {
+     "normal": 32.4,
+     "protan": 35.6,
+     "deutan": 38.5,
+     "tritan": 30.7,
+     "lc": 27.4
+    },
+    "share_ge15": {
+     "normal": 0.0786,
+     "deutan": 0.0919,
+     "tritan": 0.0617,
+     "lc": 0.0395
+    },
+    "null_half_vs_half_p99_lc": 0.1
+   },
+   "dark/coastal/today": {
+    "frames": 24,
+    "sea_untouched": 0.175,
+    "p99": {
+     "normal": 39.2,
+     "protan": 54.6,
+     "deutan": 50.5,
+     "tritan": 28.6,
+     "lc": 30.1
+    },
+    "share_ge15": {
+     "normal": 0.4934,
+     "deutan": 0.6092,
+     "tritan": 0.1537,
+     "lc": 0.1201
+    },
+    "null_half_vs_half_p99_lc": 0.6
+   }
+  }
+ },
+ "crest_model_by_height": {
+  "note": "frontend/scripts/wind-color/crest-critique.mjs: weakest crest core vs the wash under it at each height over world/regional/coastal opacity, swell lighting 0/0.5/1, whitecap off/on; the core includes DRAW_FS's low-height self-contrast; hue relation by OKLCH hue difference",
+  "tables": {
+   "light: spectrum + V2 crests switching at 1.55 m (this PR)": [
+    {
+     "h": 0.3,
+     "lc": 57.4,
+     "cvd": 53.2,
+     "relation": "triadic",
+     "hueDiff": 119,
+     "wash": [
+      72,
+      213,
+      199
+     ],
+     "crest": [
+      89,
+      61,
+      30
+     ]
+    },
+    {
+     "h": 0.8,
+     "lc": 48.9,
+     "cvd": 51.9,
+     "relation": "triadic",
+     "hueDiff": 125,
+     "wash": [
+      30,
+      192,
+      192
+     ],
+     "crest": [
+      81,
+      57,
+      29
+     ]
+    },
+    {
+     "h": 1.5,
+     "lc": 42.7,
+     "cvd": 50.3,
+     "relation": "complementary",
+     "hueDiff": 171,
+     "wash": [
+      40,
+      161,
+      232
+     ],
+     "crest": [
+      65,
+      46,
+      35
+     ]
+    },
+    {
+     "h": 2.5,
+     "lc": 48.4,
+     "cvd": 29.3,
+     "relation": "complementary",
+     "hueDiff": 145,
+     "wash": [
+      101,
+      147,
+      255
+     ],
+     "crest": [
+      232,
+      239,
+      216
+     ]
+    },
+    {
+     "h": 4,
+     "lc": 51,
+     "cvd": 38.3,
+     "relation": "complementary",
+     "hueDiff": 175,
+     "wash": [
+      138,
+      106,
+      255
+     ],
+     "crest": [
+      237,
+      229,
+      130
+     ]
+    },
+    {
+     "h": 6,
+     "lc": 55.6,
+     "cvd": 33.7,
+     "relation": "triadic",
+     "hueDiff": 125,
+     "wash": [
+      180,
+      55,
+      162
+     ],
+     "crest": [
+      244,
+      216,
+      24
+     ]
+    },
+    {
+     "h": 9,
+     "lc": 60.7,
+     "cvd": 39.8,
+     "relation": "triadic",
+     "hueDiff": 95,
+     "wash": [
+      166,
+      55,
+      88
+     ],
+     "crest": [
+      242,
+      216,
+      13
+     ]
+    },
+    {
+     "h": 13,
+     "lc": 66.3,
+     "cvd": 44.7,
+     "relation": "triadic",
+     "hueDiff": 88,
+     "wash": [
+      119,
+      68,
+      71
+     ],
+     "crest": [
+      235,
+      218,
+      11
+     ]
+    }
+   ],
+   "light: v2 + V2 crests switching at 3.05 m (today)": [
+    {
+     "h": 0.3,
+     "lc": 67.4,
+     "cvd": 48.9,
+     "relation": "triadic",
+     "hueDiff": 99,
+     "wash": [
+      178,
+      227,
+      196
+     ],
+     "crest": [
+      105,
+      63,
+      29
+     ]
+    },
+    {
+     "h": 0.8,
+     "lc": 64.7,
+     "cvd": 53.3,
+     "relation": "triadic",
+     "hueDiff": 122,
+     "wash": [
+      128,
+      225,
+      210
+     ],
+     "crest": [
+      96,
+      62,
+      32
+     ]
+    },
+    {
+     "h": 1.5,
+     "lc": 62.3,
+     "cvd": 61.6,
+     "relation": "triadic",
+     "hueDiff": 131,
+     "wash": [
+      64,
+      212,
+      228
+     ],
+     "crest": [
+      68,
+      54,
+      34
+     ]
+    },
+    {
+     "h": 2.5,
+     "lc": 48.6,
+     "cvd": 55.2,
+     "relation": "complementary",
+     "hueDiff": 177,
+     "wash": [
+      93,
+      177,
+      216
+     ],
+     "crest": [
+      73,
+      48,
+      32
+     ]
+    },
+    {
+     "h": 4,
+     "lc": 43,
+     "cvd": 38.3,
+     "relation": "complementary",
+     "hueDiff": 146,
+     "wash": [
+      108,
+      156,
+      221
+     ],
+     "crest": [
+      233,
+      236,
+      125
+     ]
+    },
+    {
+     "h": 6,
+     "lc": 48.1,
+     "cvd": 43,
+     "relation": "complementary",
+     "hueDiff": 159,
+     "wash": [
+      104,
+      132,
+      206
+     ],
+     "crest": [
+      232,
+      228,
+      31
+     ]
+    },
+    {
+     "h": 9,
+     "lc": 54.7,
+     "cvd": 44.7,
+     "relation": "complementary",
+     "hueDiff": 169,
+     "wash": [
+      100,
+      110,
+      192
+     ],
+     "crest": [
+      232,
+      225,
+      29
+     ]
+    },
+    {
+     "h": 13,
+     "lc": 58.1,
+     "cvd": 43.2,
+     "relation": "complementary",
+     "hueDiff": 175,
+     "wash": [
+      100,
+      101,
+      167
+     ],
+     "crest": [
+      232,
+      223,
+      25
+     ]
+    }
+   ],
+   "beach: v1 + its shader crests (today, D-035)": [
+    {
+     "h": 0.3,
+     "lc": 36.1,
+     "cvd": 18.8,
+     "relation": "triadic",
+     "hueDiff": 133,
+     "wash": [
+      47,
+      158,
+      161
+     ],
+     "crest": [
+      255,
+      189,
+      247
+     ]
+    },
+    {
+     "h": 0.8,
+     "lc": 25.2,
+     "cvd": 15.4,
+     "relation": "complementary",
+     "hueDiff": 147,
+     "wash": [
+      101,
+      186,
+      174
+     ],
+     "crest": [
+      255,
+      200,
+      248
+     ]
+    },
+    {
+     "h": 1.5,
+     "lc": 0,
+     "cvd": 5.7,
+     "relation": "triadic",
+     "hueDiff": 110,
+     "wash": [
+      200,
+      179,
+      146
+     ],
+     "crest": [
+      188,
+      168,
+      186
+     ]
+    },
+    {
+     "h": 2.5,
+     "lc": 13.5,
+     "cvd": 17.6,
+     "relation": "complementary",
+     "hueDiff": 159,
+     "wash": [
+      192,
+      140,
+      128
+     ],
+     "crest": [
+      82,
+      195,
+      193
+     ]
+    },
+    {
+     "h": 4,
+     "lc": 8.3,
+     "cvd": 21.4,
+     "relation": "triadic",
+     "hueDiff": 98,
+     "wash": [
+      146,
+      114,
+      123
+     ],
+     "crest": [
+      105,
+      141,
+      208
+     ]
+    },
+    {
+     "h": 6,
+     "lc": 0,
+     "cvd": 18.6,
+     "relation": "analogous",
+     "hueDiff": 0,
+     "wash": [
+      130,
+      117,
+      132
+     ],
+     "crest": [
+      193,
+      61,
+      215
+     ]
+    },
+    {
+     "h": 9,
+     "lc": 12.1,
+     "cvd": 15.5,
+     "relation": "neutral",
+     "hueDiff": null,
+     "wash": [
+      187,
+      202,
+      208
+     ],
+     "crest": [
+      216,
+      147,
+      236
+     ]
+    },
+    {
+     "h": 13,
+     "lc": 25,
+     "cvd": 19,
+     "relation": "triadic",
+     "hueDiff": 110,
+     "wash": [
+      207,
+      230,
+      234
+     ],
+     "crest": [
+      219,
+      151,
+      240
+     ]
+    }
+   ],
+   "dark: shader ramp + its crests (today), style sea 93,117,126": [
+    {
+     "h": 0.3,
+     "lc": 62.6,
+     "cvd": 34,
+     "relation": "analogous",
+     "hueDiff": 5,
+     "wash": [
+      26,
+      126,
+      115
+     ],
+     "crest": [
+      75,
+      255,
+      223
+     ]
+    },
+    {
+     "h": 0.8,
+     "lc": 31.7,
+     "cvd": 13.5,
+     "relation": "analogous",
+     "hueDiff": 2,
+     "wash": [
+      22,
+      196,
+      163
+     ],
+     "crest": [
+      91,
+      255,
+      213
+     ]
+    },
+    {
+     "h": 1.5,
+     "lc": 18.5,
+     "cvd": 10,
+     "relation": "triadic",
+     "hueDiff": 79,
+     "wash": [
+      41,
+      174,
+      225
+     ],
+     "crest": [
+      89,
+      222,
+      130
+     ]
+    },
+    {
+     "h": 2.5,
+     "lc": 41.6,
+     "cvd": 39.4,
+     "relation": "complementary",
+     "hueDiff": 173,
+     "wash": [
+      100,
+      65,
+      225
+     ],
+     "crest": [
+      183,
+      191,
+      82
+     ]
+    },
+    {
+     "h": 4,
+     "lc": 24.3,
+     "cvd": 19.4,
+     "relation": "triadic",
+     "hueDiff": 100,
+     "wash": [
+      175,
+      60,
+      211
+     ],
+     "crest": [
+      243,
+      141,
+      53
+     ]
+    },
+    {
+     "h": 6,
+     "lc": 0,
+     "cvd": 10.6,
+     "relation": "adjacent",
+     "hueDiff": 66,
+     "wash": [
+      198,
+      92,
+      183
+     ],
+     "crest": [
+      246,
+      100,
+      49
+     ]
+    },
+    {
+     "h": 9,
+     "lc": 0,
+     "cvd": 16.8,
+     "relation": "triadic",
+     "hueDiff": 82,
+     "wash": [
+      198,
+      177,
+      202
+     ],
+     "crest": [
+      246,
+      172,
+      140
+     ]
+    },
+    {
+     "h": 13,
+     "lc": 0,
+     "cvd": 19.9,
+     "relation": "neutral",
+     "hueDiff": null,
+     "wash": [
+      198,
+      207,
+      210
+     ],
+     "crest": [
+      246,
+      176,
+      141
+     ]
+    }
+   ],
+   "dark: shader ramp + its crests (today), fallback sea 11,29,46": [
+    {
+     "h": 0.3,
+     "lc": 70.2,
+     "cvd": 41.9,
+     "relation": "analogous",
+     "hueDiff": 7,
+     "wash": [
+      8,
+      106,
+      96
+     ],
+     "crest": [
+      72,
+      255,
+      220
+     ]
+    },
+    {
+     "h": 0.8,
+     "lc": 41.5,
+     "cvd": 18.9,
+     "relation": "analogous",
+     "hueDiff": 3,
+     "wash": [
+      3,
+      176,
+      145
+     ],
+     "crest": [
+      89,
+      255,
+      211
+     ]
+    },
+    {
+     "h": 1.5,
+     "lc": 26.5,
+     "cvd": 14.8,
+     "relation": "triadic",
+     "hueDiff": 82,
+     "wash": [
+      23,
+      154,
+      207
+     ],
+     "crest": [
+      86,
+      219,
+      127
+     ]
+    },
+    {
+     "h": 2.5,
+     "lc": 46.1,
+     "cvd": 46.7,
+     "relation": "complementary",
+     "hueDiff": 170,
+     "wash": [
+      82,
+      45,
+      207
+     ],
+     "crest": [
+      181,
+      188,
+      80
+     ]
+    },
+    {
+     "h": 4,
+     "lc": 29.4,
+     "cvd": 25.1,
+     "relation": "triadic",
+     "hueDiff": 100,
+     "wash": [
+      156,
+      40,
+      192
+     ],
+     "crest": [
+      240,
+      138,
+      51
+     ]
+    },
+    {
+     "h": 6,
+     "lc": 9.9,
+     "cvd": 10.6,
+     "relation": "adjacent",
+     "hueDiff": 65,
+     "wash": [
+      199,
+      71,
+      183
+     ],
+     "crest": [
+      247,
+      97,
+      49
+     ]
+    },
+    {
+     "h": 9,
+     "lc": 0,
+     "cvd": 21.9,
+     "relation": "triadic",
+     "hueDiff": 81,
+     "wash": [
+      170,
+      146,
+      174
+     ],
+     "crest": [
+      242,
+      109,
+      48
+     ]
+    },
+    {
+     "h": 13,
+     "lc": 0,
+     "cvd": 20.9,
+     "relation": "neutral",
+     "hueDiff": null,
+     "wash": [
+      170,
+      176,
+      182
+     ],
+     "crest": [
+      242,
+      172,
+      137
+     ]
+    }
+   ]
+  }
+ },
+ "checker": {
+  "tool": "wave-check.mjs --theme light",
+  "v2@16": {
+   "neighbour_normal": 9.3,
+   "neighbour_any_vision": 7.2,
+   "crest_lc": 40.0,
+   "crest_cvd": 24.3,
+   "legend_weakest_lc": 15.3,
+   "land_vs_sea": 20.0
+  },
+  "spectrum": {
+   "neighbour_normal": 15.3,
+   "neighbour_any_vision": 5.3,
+   "neighbour_deutan": 6.0,
+   "crest_lc": 42.7,
+   "crest_lc_whitecap_front": 43.1,
+   "crest_cvd": 26.3,
+   "legend_weakest_lc": 41.1,
+   "land_vs_sea": 21.0
+  }
+ },
+ "crest_switch": {
+  "tool": "crest-switch.mjs --palette spectrum",
+  "at_3.05_m": 28.8,
+  "at_1.55_m": 42.4
+ }
+}

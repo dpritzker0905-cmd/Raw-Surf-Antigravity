@@ -251,7 +251,9 @@ describe('uploadedGridServesHour (the layer render-hour parity behind "Stale Hou
   const LAYER_SRC = fs.readFileSync(path.join(__dirname, 'WebGLMarineLayer.js'), 'utf8');
   const PARITY_SRC = fs.readFileSync(path.join(__dirname, 'marineRenderParity.js'), 'utf8');
   it('the layer parity reads the instant rule, and the upload record carries the valid time it needs', () => {
-    expect(PARITY_SRC).toMatch(/const parity = active && renderedDataHour !== null &&\s*\(requestedHour === renderedDataHour \|\| uploadedGridServesHour\(lastSig, requestedHour, activeModel\)\)/);
+    // 2026-10-18 (scrub audit T-06): the hour half is `hourParity`; the record's parity also requires the drawn model + layer.
+    expect(PARITY_SRC).toMatch(/const hourParity = active && renderedDataHour !== null &&\s*\(requestedHour === renderedDataHour \|\| uploadedGridServesHour\(lastSig, requestedHour, activeModel\)\)/);
+    expect(PARITY_SRC).toMatch(/const parity = hourParity && identityOk;/);
     expect(LAYER_SRC).toMatch(/publishRenderParity\(\{ requestedHour: timeOffsetHours, active, activeModel, mapInstance,/);
     expect(LAYER_SRC).toMatch(/renderedValidTime: \(grid\.grid && grid\.grid\.valid_time\) \|\| grid\.valid_time \|\| null,/);
     expect(PARITY_SRC).not.toMatch(/const parity = active && renderedDataHour !== null && requestedHour === renderedDataHour;/);   // the old line is gone

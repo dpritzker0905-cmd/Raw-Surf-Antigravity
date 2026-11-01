@@ -25,6 +25,7 @@ afterEach(() => {
   delete window.__RAW_DISABLE_BASE_HOUR_SYNC__;
   delete window.__RAW_DISABLE_STALE_RESIDENT_SWAP__;
   delete window.__RAW_DISABLE_STALE_HOUR_DIM__;
+  delete window.__RAW_DISABLE_HOLD_NO_DIM__;
   delete window.__RAW_STALE_HOUR_DIM__;
   delete window.isScrubbingTimeline;
 });
@@ -101,7 +102,11 @@ describe('isWorldGrid / isStaleWorldGrid', () => {
 
 describe('resolveStaleWorldDim', () => {
   const ctx = (over = {}) => ({ resident: grid(NOW0), selectedMs: ms(WED15), hourHeldMs: STALE_HOLD_MS + 100, ...over });
-  it('a stale world frame, the hour held still: drawn at a fraction of its strength', () => {
+  it('a stale world frame, the hour held still: HELD at full strength (hold without dimming; the status line says Loading)', () => {
+    expect(resolveStaleWorldDim(ctx())).toEqual({ mult: 1, stale: true, why: 'stale_world', held: true });
+  });
+  it('with the hold killed, drawn at a fraction of its strength exactly as before', () => {
+    window.__RAW_DISABLE_HOLD_NO_DIM__ = true;
     expect(resolveStaleWorldDim(ctx())).toEqual({ mult: STALE_WORLD_DIM, stale: true, why: 'stale_world' });
   });
   it.each([
@@ -119,6 +124,7 @@ describe('resolveStaleWorldDim', () => {
     expect(resolveStaleWorldDim(ctx())).toEqual({ mult: 1, stale: true, why: 'scrubbing' });
   });
   it('honours the kill switch and the tuning lever (an out-of-range lever falls back to the default)', () => {
+    window.__RAW_DISABLE_HOLD_NO_DIM__ = true;                                                       // the lever tunes the legacy dim
     window.__RAW_STALE_HOUR_DIM__ = 0.25;
     expect(resolveStaleWorldDim(ctx()).mult).toBe(0.25);
     window.__RAW_STALE_HOUR_DIM__ = 0;

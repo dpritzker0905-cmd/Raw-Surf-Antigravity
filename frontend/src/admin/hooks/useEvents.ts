@@ -38,11 +38,25 @@ export const useEvents = () => {
   useEffect(() => {
     fetchEvents();
 
-    const wsUrl = `${BACKEND_URL.replace(/^http/, 'ws')}/api/ws/admin/events`;
-    
+    // The admin feed is admins-only: the server needs the session token on the handshake (a browser WebSocket
+    // cannot set an Authorization header). Read at connect time so a refreshed session is picked up.
+    const adminSocketUrl = () => {
+      let token = '';
+      try {
+        const stored = localStorage.getItem('raw-surf-user');
+        if (stored) token = JSON.parse(stored)?.access_token || '';
+      } catch (e) {
+        // no readable session: connect without a token and let the server refuse
+      }
+      const base = `${BACKEND_URL.replace(/^http/, 'ws')}/api/ws/admin/events`;
+      return token ? `${base}?token=${encodeURIComponent(token)}` : base;
+    };
+
+    let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+
     const connectWS = () => {
       try {
-        const ws = new WebSocket(wsUrl);
+        const ws = new WebSocket(adminSocketUrl());
         wsRef.current = ws;
 
         ws.onmessage = (event) => {
@@ -59,8 +73,11 @@ export const useEvents = () => {
           }
         };
 
-        ws.onclose = () => {
-          setTimeout(connectWS, 5000);
+        ws.onclose = (closeEvent) => {
+          // 1008 = the server refused our token or our role. Retrying cannot change that, so stop and rely on
+          // the REST fetch and the Supabase subscription below instead of hammering the endpoint.
+          if (closeEvent.code === 1008) return;
+          reconnectTimer = setTimeout(connectWS, 5000);
         };
       } catch (err) {
         console.warn('WS connection failed, falling back to Supabase', err);
@@ -90,6 +107,7 @@ export const useEvents = () => {
     });
 
     return () => {
+      if (reconnectTimer) clearTimeout(reconnectTimer);
       if (wsRef.current) {
         wsRef.current.onclose = null;
         wsRef.current.close();

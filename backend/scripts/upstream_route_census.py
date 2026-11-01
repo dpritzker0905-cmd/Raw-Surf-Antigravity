@@ -16,7 +16,8 @@ WHAT DIRECT LOOKS LIKE, PER MODEL
 ---------------------------------
     GFS   -> `noaa`        NOAA GFS-Wave GRIB2 direct (pygrib)
     ICON  -> `dwd`         DWD GWAM direct
-    EURO  -> `copernicus`  CMEMS MFWAM ~8 km  ... or `ecmwf` ECMWF Open Data IFS ~0.25 deg (~25 km)
+    EURO  -> `copernicus`  CMEMS MFWAM ~8 km (Meteo-France, ECMWF-wind-driven)  ... or
+             `ecmwf`       ECMWF Open Data WAVE stream: ECWAM, ECMWF's own wave model, 0.25 deg (~25 km)
     any   -> `open-meteo`  NOT direct — the aggregator
     any   -> `gfs_estimated_fallback`  a derived estimate, not a fetch
 
@@ -26,10 +27,13 @@ Scored against NDBC buoys with GFS on the SAME sites (2026-08-03, n=70, 100% pai
     EURO/copernicus  MAE 0.159   (3.2x better than GFS on those sites)
     EURO/ecmwf       MAE 0.339   (WORSE than GFS's 0.266 there)
 
-Both are "direct". One is an 8 km wave model; the other is the 0.25 deg IFS product whose stated
-purpose in this repo's requirements is **EURO WIND + PRESSURE** ("free IFS 0.25 deg GRIB
-(10u/10v/msl)"). A coarse atmospheric-lane product answering WAVE requests would explain the number
-exactly — so this census reports the route PER LAYER, not just per model.
+Both are "direct", and both are WAVE models: MFWAM at 1/12 deg with altimeter assimilation, and ECWAM
+output at 0.25 deg from the free ECMWF Open Data wave stream (stream "wave": swh/mwp/pp1d/mwd, no swell
+partitions). CORRECTION 2026-10-20: this note used to call the `ecmwf` route "the 0.25 deg IFS product"
+meant for EURO wind + pressure and guessed that an atmospheric product was answering wave requests. The
+code fetches the wave stream (ecmwf_opendata_fetcher.LAYER_PARAMS["waves"]), so that explanation is
+withdrawn. The measured gap stands as a gap between two wave models, and one day at n=70 cannot rank
+them. The census still reports the route PER LAYER, not just per model.
 
 THE REFUSALS
 ------------
@@ -141,7 +145,7 @@ def main() -> int:
     # The EURO wave-route split is the one with a measured accuracy consequence.
     euro_waves = [r for r in ok if r["model"] == "EURO" and r["domain"] == "marine"]
     if euro_waves:
-        print("\nEURO MARINE ROUTE SPLIT (copernicus = MFWAM ~8 km; ecmwf = IFS ~0.25 deg):")
+        print("\nEURO MARINE ROUTE SPLIT (copernicus = MFWAM ~8 km; ecmwf = ECWAM wave stream ~0.25 deg):")
         print("  ", dict(Counter(r["upstream"] for r in euro_waves).most_common()))
     out = {"valid_time": vt, "rows": rows, "totals": dict(counts)}
     if a.json:

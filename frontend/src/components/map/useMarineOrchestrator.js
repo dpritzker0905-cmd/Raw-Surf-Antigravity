@@ -12,7 +12,7 @@ import { useMarineSeriesWarm } from './useMarineSeriesWarm';
 import { DISPLAY_ICON_MAX_HOURS, DISPLAY_EURO_WAVES_MAX_HOURS, DISPLAY_EURO_COMPONENT_MAX_HOURS } from './useMarineDataFetcherHelpers';
 import { isTerminalNoCoverage } from './marineControllerCache';
 
-import { useMarineOrchestratorScrubCache } from './useMarineOrchestratorScrubCache';
+import { useMarineOrchestratorScrubCache, showStoredFrameOnModelSwitch } from './useMarineOrchestratorScrubCache';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { useMarineScrubSettle } from './useMarineScrubSettle';
 
@@ -482,6 +482,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     // Immediately open an ownership-tracked transition for responsiveness.
     const _switchGen = beginTransition({ model: activeModel, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current, viewportKey: getViewportHash?.() });
     armStrandWatchdog(_switchGen);
+    // INSTANT MODEL TOGGLE: the new model's stored frame on screen now; the coalesced fetch below still commits it.
+    showStoredFrameOnModelSwitch({ model: activeModel, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current });
 
     // Coalesce rapid model switches (e.g. GFS→EURO→ICON in quick succession).
     // Only the final model in the sequence will execute the full reset + fetch logic.

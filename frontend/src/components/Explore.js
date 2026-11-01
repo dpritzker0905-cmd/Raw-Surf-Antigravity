@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import useSwipeNavigation from '../hooks/useSwipeNavigation';
 
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 
 import {
   Search,
@@ -53,6 +53,7 @@ import ExploreSurfSpotsTab from './explore/ExploreSurfSpotsTab';
 
 export const Explore = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -69,7 +70,8 @@ export const Explore = () => {
     breadcrumbText: isLight ? 'text-gray-900' : 'text-white',
   }), [isLight, isBeach]);
   const { dropdownBg, dropdownBorder, dropdownText, dropdownFocus, labelClass, chipBg, breadcrumbText } = themeClasses;
-  const [searchQuery, setSearchQuery] = useState('');
+  const urlSearchQuery = searchParams.get('q') || '';
+  const [searchQuery, setSearchQuery] = useState(urlSearchQuery);
   const [searchResults, setSearchResults] = useState({ users: [], spots: [], posts: [] });
   const [trending, setTrending] = useState({ live_photographers: [], popular_spots: [], trending_posts: [] });
   const [spotConditions, setSpotConditions] = useState({});
@@ -259,6 +261,12 @@ export const Explore = () => {
     }
   }, [searchParams]);
 
+  // Global search and browser navigation can reuse this mounted page.
+  useEffect(() => {
+    setSearchQuery(urlSearchQuery);
+    if (urlSearchQuery) setActiveTab('all');
+  }, [urlSearchQuery, location.key]);
+
   // Update arrow visibility on scroll
   const updateArrowVisibility = useCallback(() => {
     const container = tabsContainerRef.current;
@@ -317,18 +325,6 @@ export const Explore = () => {
     setTimeout(updateArrowVisibility, 350);
   };
 
-  useEffect(() => {
-    const debounce = setTimeout(() => {
-      if (searchQuery.trim().length >= 2) {
-        performSearch();
-      } else {
-        setSearchResults({ users: [], spots: [], posts: [] });
-      }
-    }, 300);
-
-    return () => clearTimeout(debounce);
-  }, [searchQuery, activeTab]);
-
   // Data fetching handlers extracted to hooks/useExploreData.js
   const {
     trendingError, fetchTrending, fetchTrendingHashtags, fetchHashtagPosts, handleHashtagClick,
@@ -342,10 +338,24 @@ export const Explore = () => {
     setTrendingWaves, setRecentWaves, setWavesLoading,
     setSelectedWaveHashtag, setWaveHashtagResults,
     setExplorePosts, setPostsLoading,
-    setSearchResults, setIsSearching, setRecentSearches,
+    setSearchResults, setIsSearching, setRecentSearches, setSearchQuery,
     setLeaderboard, setLeaderboardLoading,
     setSponsorDetails, setSelectedSponsor,
   });
+
+  useEffect(() => {
+    const controller = new AbortController();
+    const hasQuery = searchQuery.trim().length >= 2;
+    setSearchResults({ users: [], spots: [], posts: [] });
+    setIsSearching(hasQuery);
+    const debounce = setTimeout(() => {
+      if (hasQuery) performSearch(controller.signal);
+    }, 300);
+    return () => {
+      clearTimeout(debounce);
+      controller.abort();
+    };
+  }, [searchQuery, performSearch]);
 
 
   // Fetch condition reports for Conditions tab (supports date_filter + location hierarchy)
@@ -471,7 +481,7 @@ export const Explore = () => {
           data-testid="explore-search-input"
         />
         {searchQuery && (
-          <button aria-label="Close"
+          <button aria-label="Clear search"
             onClick={clearSearch}
             className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
           ><X className="w-5 h-5" />

@@ -7,13 +7,14 @@
 import { memo, useEffect, useRef, useState } from 'react';
 import WebGLMarineEngine from './WebGLMarineEngine';
 import { registerMarineEngine, unregisterMarineEngine, updateMarineTruthTrace } from '../../engine/RenderPlanDispatcher';
-import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+import { residentRegionalAtGlobalViewport } from './marineClampGuard';   // the zoom-out clamp guard (moved out 2026-10-26)
 import { shouldHoldScrubDowngrade } from './marineScrubHold';
 import { getMarineParticleRes } from './deviceTier';
 import { prewarmZoomOutMarineGrid } from './marineController';
 import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from './mapUtils';
 import { recordClear, shouldHoldClearOnDeactivate, noteMarineActive, shouldHoldFrameThroughSwitch, noteMarineRenderableCommit } from './marineTransitionCoordinator';
 import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
+import { engineHoldsGrid, publishMarineDrawn, retireMarineDrawn } from './marineDrawnFrame';
 import { recordResolutionSample } from './marineResolutionWatch';
 import { markMaskViewportSettled } from './marineMaskShelter';
 import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
@@ -21,6 +22,10 @@ import { measureMarineMaskRefresh, createMarineMaskSourceRedrive } from './marin
 import { desiredMaskRes, HIRES_MASK_EXIT_ZOOM } from './maskSmoothing';
 import { createCustomLayer, LAYER_ID, marineRefeedCovers, marineViewportBounds } from './WebGLMarineCustomLayer';
 import { publishRenderParity, republishRenderParityAfterUpload } from './marineRenderParity';
+import { marineGridRejection } from './marineGridValidation';
+import { registerFrameStoreTarget, noteCommitted } from './marineFrameStoreRuntime'; // GPU-resident frames (behind static frames)
+import { layerUploadIsStale } from './marineZoomOutRelease';
+import { loadWaveLakes } from './waveLakes';   // lakes a wave model carries (waveLakes.js)
 
 // createCustomLayer and getLongitudinalOverlap helper functions are imported from WebGLMarineCustomLayer.js
 
@@ -91,6 +96,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
   // High-zoom land-mask refinement state: which mask resolution the engine currently reflects
   // ('standard' = 50m default, 'hires' = 10m), and a stable handle to the evaluator.
   const maskResRef = useRef('standard');
+  // GPU-resident frames: the store reaches this engine, GL context and map through refs read at call time.
+  useEffect(() => { registerFrameStoreTarget({ getEngine: () => engineRef.current, getGl: () => glRef.current, getMap: () => mapRef.current }); return () => { registerFrameStoreTarget(null); retireMarineDrawn('layer_unmounted'); }; }, []);   // unmounted = the fallback swap: nothing of ours is drawn (marineDrawnFrame.retireMarineDrawn)
   const evaluateMaskRef = useRef(null);
 
   useEffect(() => {
@@ -141,6 +148,10 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
     const gridProvider = grid.grid?.__gridProvider || grid.__gridProvider || 'none';
     const componentLayer = grid.grid?.__componentLayer || grid.__componentLayer || 'none';
+    // Reactivation and viewport re-feeds share this upload boundary with normal commits.
+    // They must honor the same source/layer gate and the ICON delivery kill switch.
+    const rejection = marineGridRejection(grid, activeModelRef.current, activeMarineLayer);
+    if (rejection) { runDiagnosticsUpdate(`render_blocked: ${rejection}`); return; }
     const actualBounds = grid.grid?.bounds || grid.bounds;
     const boundsStr = actualBounds ? `${actualBounds.west.toFixed(2)}:${actualBounds.south.toFixed(2)}:${actualBounds.east.toFixed(2)}:${actualBounds.north.toFixed(2)}` : 'none';
 
@@ -148,7 +159,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     const geojsonSig = geojson ? `land_${geojson.features?.length || 0}` : 'no_land';
     const themeSig = themeRef.current || 'default_style';
     const uploadSigResidency = `${gridModel}_${componentLayer}_${gridProvider}_${grid.vectors.length}_geo_${geojsonSig}_thm_${themeSig}`;
-    const alreadyResident = !!engine._waveData;
+    // A frame-store show wrote the engine directly, so the last upload below no longer describes it: nothing is a duplicate of it.
+    const alreadyResident = !!engine._waveData && !layerUploadIsStale(engine);
 
     const requestedHour = timeOffsetHoursRef.current;
     const renderedDataHour = grid.hourOffset !== undefined ? grid.hourOffset : (grid.grid?.hourOffset !== undefined ? grid.grid.hourOffset : null);
@@ -277,6 +289,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     // A renderable frame just committed — end any switch-hold window (the new target's data has landed,
     // so a subsequent same-target transient can never inherit a stale hold clock). See shouldHoldFrameThroughSwitch.
     noteMarineRenderableCommit();
+    if (engineHoldsGrid(engine, grid)) publishMarineDrawn(grid, { hour: timeOffsetHoursRef.current, layer: activeMarineLayer, model: gridModel }); // W-1: only what the engine TOOK
+    noteCommitted(grid, { hour: timeOffsetHoursRef.current, model: gridModel, layer: activeMarineLayer }); // which stored frame is resident
 
     updateMarineTruthTrace('upload', grid, activeModelRef.current, activeMarineLayer, timeOffsetHoursRef.current, 'forecast_direct', null, true);
 
@@ -434,6 +448,12 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
   useEffect(() => {
     let activeFetch = true;
     landGeoJSONFailedRef.current = false;
+    // The lake outlines (~95 KB) load beside the land; when they land, the current data re-uploads once so a carried lake shows.
+    const lakesLoad = loadWaveLakes();
+    if (lakesLoad) lakesLoad.then((a) => {
+      const gl = glRef.current || mapInstance?.painter?.context?.gl;
+      if (a && activeFetch && gl && dataRef.current?.vectors?.length && safeUploadRef.current) safeUploadRef.current('wave_lakes_ready', gl, dataRef.current, landGeoJSONRef.current);
+    });
 
     getSharedLandGeoJSON()
       .then(geojson => {
@@ -918,23 +938,9 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       // (non-regional) resident — so this trips ONLY on an actual regional->global zoom-out, never
       // on the same-target scrub/toggle/abort holds those cases depend on (all-zero is a full-shape
       // global grid; cross-model switch is modelOrLayerChanged and clears already). Mirrors the
-      // gate's zoomed-out math for parity.
-      let isResidentRegionalAtGlobalViewport = false;
-      try {
-        const residentBounds = engine._waveData?.waveGrid?.bounds;
-        if (residentBounds && mapInstance && typeof mapInstance.getZoom === 'function') {
-          const rWidth = (residentBounds.east < residentBounds.west)
-            ? (residentBounds.east + 360) - residentBounds.west
-            : residentBounds.east - residentBounds.west;
-          const residentRegional = rWidth < 340.0;
-          const vb = mapInstance.getBounds();
-          const ew = vb.getWest(), ee = vb.getEast();
-          const vWidth = (ee < ew) ? (ee + 360) - ew : ee - ew;
-          const vHeight = vb.getNorth() - vb.getSouth();
-          const viewportZoomedOut = (mapInstance.getZoom() <= MARINE_ZOOMED_OUT_MAX_ZOOM) || (vWidth > 15.0 || vHeight > 15.0);
-          isResidentRegionalAtGlobalViewport = residentRegional && viewportZoomedOut;
-        }
-      } catch (e) { /* getBounds/getZoom can throw mid-style-load — fall back to holding */ }
+      // gate's zoomed-out math for parity. A resident that COVERS the view (the mid-zoom clip of global_mid, #459) is not one, as the
+      // display gate already says (marineClampGuard, 2026-10-26: switches at z4.6 blanked 84-130 frames on that clip).
+      const isResidentRegionalAtGlobalViewport = residentRegionalAtGlobalViewport(engine._waveData?.waveGrid?.bounds, mapInstance);
 
       // SWITCH-HOLD (see shouldHoldFrameThroughSwitch): a model/LAYER switch races the transition flag —
       // isTransitionGuard is often still false when this non-renderable interlude arrives (live-proven:
@@ -1004,48 +1010,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     const gridProvider = currentData.grid?.__gridProvider || currentData.__gridProvider || 'none';
     const componentLayer = currentData.grid?.__componentLayer || currentData.__componentLayer || 'none';
 
-    const isEuro = activeModelRef.current === 'EURO';
-    const isGfsOrIcon = activeModelRef.current === 'GFS' || activeModelRef.current === 'ICON';
-    const isWaves = activeMarineLayer === 'waves';
-
-    let isValid = true;
-    let invalidReason = null;
-    if (gridModel !== activeModelRef.current) { isValid = false; invalidReason = 'model_mismatch'; }
-    if (isValid) {
-      if (isGfsOrIcon) {
-        // 'gfs_euro_blend' is the ICON synthesized-layer provider: swell_2 (no native gwam
-        // secondary swell) and the >240h extended-range grids are built as a GFS/EURO weighted
-        // blend in backendWeatherServiceClient*.js. It was missing from this whitelist, so the
-        // blended grid failed validation and was silently dropped (return below) — leaving the
-        // engine showing the PREVIOUS layer's texture. That is the "ICON swell_2 just renders a
-        // copy of swell_1" bug: verified live — engine._waveData.waveGrid.__componentLayer was
-        // 'swell_1' (629 vec, max 7.12) while the render gate held the swell_2 blend (171 vec,
-        // max 3.15). The componentLayer===activeMarineLayer guard below keeps it truth-safe.
-        if (gridProvider !== 'open-meteo' && gridProvider !== 'backend-weather-service' && gridProvider !== 'estimated' && gridProvider !== 'test-fixture' && gridProvider !== 'gfs_euro_blend') {
-          isValid = false; invalidReason = 'provider_not_whitelisted';
-        } else if ((gridProvider === 'backend-weather-service' || gridProvider === 'estimated' || gridProvider === 'test-fixture' || gridProvider === 'gfs_euro_blend') && componentLayer !== activeMarineLayer) {
-          isValid = false; invalidReason = 'component_layer_mismatch';
-        }
-      } else if (isEuro) {
-        const isFallbackProvider = ['gfs_estimated_fallback', 'gfs_estimated_backdrop', 'open-meteo', 'estimated', 'test-fixture'].includes(gridProvider);
-        if (isWaves) {
-          if (gridProvider !== 'copernicus' && gridProvider !== 'backend-weather-service' && !isFallbackProvider) {
-            isValid = false; invalidReason = 'provider_not_whitelisted';
-          } else if (componentLayer !== activeMarineLayer) {
-            isValid = false; invalidReason = 'component_layer_mismatch';
-          }
-        } else {
-          const validEuroComponentProviders = ['copernicus', 'backend-weather-service', 'gfs_estimated_fallback', 'gfs_estimated_backdrop', 'open-meteo', 'estimated', 'test-fixture'];
-          if (!validEuroComponentProviders.includes(gridProvider)) {
-            isValid = false; invalidReason = 'provider_not_whitelisted';
-          } else if (componentLayer !== activeMarineLayer) {
-            isValid = false; invalidReason = 'component_layer_mismatch';
-          }
-        }
-      }
-    }
-
-    if (!isValid) {
+    const invalidReason = marineGridRejection(currentData, activeModelRef.current, activeMarineLayer, activeModel);
+    if (invalidReason) {
       // FORENSIC PROBE (swell_2 intermittent-load investigation): the drop below is otherwise SILENT,
       // so the heatmap "won't load / shows the wrong layer" with zero console trace. Stash the
       // discriminating fields (and console.warn for the swell_2 case) so a live repro on a VISIBLE

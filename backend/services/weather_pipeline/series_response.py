@@ -58,13 +58,17 @@ def accepts_gzip(request):
     return False
 
 
-def encode_response(payload, compress):
+def encode_json(payload):
+    """The direct serializer: one pass for known JSON types and GridVector, FastAPI's encoder otherwise."""
     if finite_compatible(payload):
-        body = ADAPTER.dump_json(payload)
-    else:
-        # Match FastAPI's existing unsupported-type behavior, including custom models.
-        body = json.dumps(jsonable_encoder(payload), ensure_ascii=False, allow_nan=False,
-                          indent=None, separators=(',', ':')).encode('utf-8')
+        return ADAPTER.dump_json(payload)
+    # Match FastAPI's existing unsupported-type behavior, including custom models.
+    return json.dumps(jsonable_encoder(payload), ensure_ascii=False, allow_nan=False,
+                      indent=None, separators=(',', ':')).encode('utf-8')
+
+
+def encode_response(payload, compress):
+    body = encode_json(payload)
     # Existing outer middleware checks only for the substring 'gzip', ignoring q=0.
     # Explicit identity marks this already-negotiated response and prevents that pass.
     headers = {'Vary': 'Accept-Encoding', 'Content-Encoding': 'identity'}

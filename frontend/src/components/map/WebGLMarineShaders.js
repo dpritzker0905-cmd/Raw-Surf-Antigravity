@@ -4,7 +4,8 @@
  * Extracted from WebGLMarineEngine.js for code modularity and LOC compliance.
  */
 
-import { MARINE_WAVE_PALETTE_GLSL, MARINE_WAVE_PALETTE_CALL_GLSL } from './marineWavePalette';
+import { MARINE_WAVE_PALETTE_GLSL, MARINE_WAVE_PALETTE_CALL_GLSL, withWaveSpectrum } from './marineWavePalette';   // + light's spectrum terms (D-037)
+import { withHeightScale } from './marineHeightEncoding';   // the height byte's per-upload decode (16 m on light/beach v2)
 
 export const HEATMAP_VS = `
 attribute highp vec2 a_grid_uv;
@@ -40,7 +41,7 @@ void main() {
 }
 `;
 
-export const HEATMAP_FS = `
+export const HEATMAP_FS = withHeightScale(withWaveSpectrum(`
 precision mediump float;
 // A15-13 (audit 15.0): GEOGRAPHY AT HIGH PRECISION. mediump's guaranteed minimum is fp16 (10-bit
 // mantissa); many phone GPUs honour exactly that. At fp16 this shader's lng would step 0.0625°
@@ -703,4 +704,4 @@ void main() {
 
   gl_FragColor = vec4(finalColor * alpha, alpha);
 }
-`;
+`), 'u_heightScale.x');   // THE HEIGHT BYTE: the bound wave texture's per-upload scale (marineHeightEncoding.js); light spectrum: marineWavePalette.js

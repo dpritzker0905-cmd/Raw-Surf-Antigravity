@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Compass, Plus, MessageCircle, Waves } from 'lucide-react';
 import { useTheme } from '../contexts/ThemeContext';
@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from './ui/avatar';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 import useRoutePreloader from '../hooks/useRoutePreloader';
+import useUnreadCounts from '../hooks/useUnreadCounts';
 import { AdaptiveBackground } from './AdaptiveBackground';
 
 /**
@@ -126,7 +127,6 @@ export const BottomNav = () => {
   const preload = useRoutePreloader();
   
   // State for unread messages and avatar
-  const [unreadMessages, setUnreadMessages] = useState(0);
   const [freshAvatarUrl, setFreshAvatarUrl] = useState(null);
   
   // Fetch fresh avatar URL from profile API to avoid stale cached data
@@ -168,27 +168,8 @@ export const BottomNav = () => {
   const textActiveClass = isLight ? 'text-gray-900' : 'text-white';
   const textInactiveClass = isLight ? 'text-gray-500' : 'text-zinc-500';
 
-  // Fetch unread messages count
-  const fetchUnreadMessages = useCallback(async () => {
-    if (!user?.id) return;
-    try {
-      const response = await apiClient.get(`/messages/unread-counts/${user.id}`);
-      setUnreadMessages(response.data.total || 0);
-    } catch (error) {
-      logger.error('Failed to fetch message count:', error);
-    }
-  }, [user?.id]);
-
-  useEffect(() => {
-    if (user?.id) {
-      fetchUnreadMessages();
-      // Poll every 30 seconds for new messages
-      const interval = setInterval(() => {
-        fetchUnreadMessages();
-      }, 30000);
-      return () => clearInterval(interval);
-    }
-  }, [user?.id, fetchUnreadMessages]);
+  // Unread messages: ONE poller shared with Sidebar and TopNav (all three are mounted together)
+  const { messages: unreadMessages } = useUnreadCounts(user?.id);
 
   // Dynamically track BottomNav height and expose as --bottomnav-h CSS variable.
   // This drives the safe-bottom clearance system used by all modals and drawers.

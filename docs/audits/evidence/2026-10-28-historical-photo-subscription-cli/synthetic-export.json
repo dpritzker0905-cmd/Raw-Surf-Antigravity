@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "snapshot": {
+    "id": "synthetic-example-only",
+    "exported_at": "2026-10-28T12:00:00Z",
+    "source_label": "disposable-example",
+    "coverage": {
+      "profiles": false,
+      "subscriptions": false,
+      "payment_transactions": false,
+      "credit_transactions": false
+    }
+  },
+  "profiles": [
+    {
+      "id": "synthetic-buyer",
+      "role": "Surfer",
+      "credit_balance": "10.00",
+      "spend_only_credits": "2.00",
+      "withdrawable_credits": "0.00"
+    },
+    {
+      "id": "synthetic-seller",
+      "role": "Photographer",
+      "credit_balance": "40.00",
+      "spend_only_credits": "5.00",
+      "withdrawable_credits": "51.00"
+    }
+  ],
+  "subscriptions": [
+    {
+      "id": "synthetic-subscription",
+      "surfer_id": "synthetic-buyer",
+      "photographer_id": "synthetic-seller",
+      "plan_id": "synthetic-plan",
+      "amount_paid": "20.00",
+      "payment_method": "credits",
+      "stripe_session_id": null,
+      "status": "expired",
+      "created_at": "2026-10-01T12:00:00Z"
+    }
+  ],
+  "payment_transactions": [],
+  "credit_transactions": [
+    {
+      "id": "synthetic-debit",
+      "user_id": "synthetic-buyer",
+      "amount": "-20.00",
+      "spend_only_amount": "0.00",
+      "balance_before": "30.00",
+      "balance_after": "10.00",
+      "transaction_type": "photo_subscription_payment",
+      "reference_type": "photo_subscription_plan",
+      "reference_id": "synthetic-plan",
+      "counterparty_id": null,
+      "created_at": "2026-10-01T12:00:00Z"
+    }
+  ],
+  "payment_links": [],
+  "historical_fee_evidence": [],
+  "payout_evidence": []
+}

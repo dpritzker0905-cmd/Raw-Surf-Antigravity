@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Timer } from 'lucide-react';
 
 const LineupCountdown = ({ closesAt, isLight }) => {
   const [timeLeft, setTimeLeft] = useState('');

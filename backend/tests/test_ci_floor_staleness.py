@@ -39,8 +39,9 @@ def test_test_fixtures_leave_platform_metadata_usable():
 
 @pytest.mark.parametrize('environment,expected', [
     ({'GITHUB_REF_NAME': 'dev'}, 'dev'),
-    ({'GITHUB_REF_NAME': 'main'}, 'main'),
-    ({'GITHUB_REF_NAME': '13/merge', 'GITHUB_BASE_REF': 'main'}, 'main'),
+    # main is dev promoted by squash and its own ci.yml is red because of this check: it reads dev's runs.
+    ({'GITHUB_REF_NAME': 'main'}, 'dev'),
+    ({'GITHUB_REF_NAME': '13/merge', 'GITHUB_BASE_REF': 'main'}, 'dev'),
 ])
 def test_history_branch_follows_the_tested_branch(monkeypatch, environment, expected):
     monkeypatch.delenv('GITHUB_REF_NAME', raising=False)
@@ -477,8 +478,55 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # Model-scoped scalar height switch, on top of it: +43 chain (existing file; floor 2695, files 166).
 # Manifest publication in one step (dark), on top of the monitor check: +384 guards (ten new files, after the split and rounds 4 to 8) on hosted 2747 / 197 files (floor 3125; files 207).
 # Manifest lane enabled in the four writer workflows: +1 guards (existing sites file; floor 3126, files 207).
-# S8 follow-up, consensus swell direction and period (measurement only): +17 chain (one new file; floor 2712, files 167).
-_FLOOR_SET_FROM = {"guards": 3136, "chain": 2718, "estate": 2188}
+# Marine provenance: +54 health guards, +20 default-off trend coherence controls; projected from dev CI39089369337.
+# PR378 final review: +28 health guards and +12 trend-coherence controls, same files and margins.
+# ⬇ 2026-10-23 (the lead): ONE BLOCK PER LANE, A BLANK LINE BETWEEN LANES. With the three lanes on one line, any
+# two PRs that moved floors in DIFFERENT lanes conflicted here (#470 estate vs #467 chain, #474 guards vs #467 chain,
+# #475 estate vs #474 guards). One key per line is NOT enough: git conflicts on changes to ADJACENT lines (measured in a
+# throwaway repo: adjacent keys CONFLICT; one blank line between them merges CLEAN; test_rederive_floor.py pins both).
+# Each lane's provenance is the ONE comment line directly above its key, REPLACED (never appended) by the PR that
+# moves it; the history lines above and below this block are frozen (git log keeps them). A same-lane collision still
+# conflicts, by design: take dev's side, then `python backend/scripts/rederive_floor.py --lane <lane> --add <this
+# PR's new tests>` re-derives both this value and ci.yml's floor from dev (LESSONS L-P39).
+_FLOOR_SET_FROM = {
+    # guards: set from 3351 = max(dev run 40398047789 read 3341, dev's map 3341) + 10 (claude/manifest-object-consistency, 2026-10-26); floor 3345, margin 6.
+    "guards": 3351,
+
+    # chain: set from 3025 = max(dev run 41352900763 read 3008, dev's map 3008) + 17 (claude/s8-consensus-direction-period, 2026-11-01); floor 3019, margin 6.
+    "chain": 3025,
+
+    # estate: set from 3406 = max(dev run 41148501823 read 3405, dev's map 3405) + 1 (codex/guardian-purchase-integration-20261030, 2026-10-31); floor 3404, margin 2.
+    "estate": 3406,
+}
+# Completeness sees squash merges, re-derived after #470 (+5, hosted 2397 / 331 files, run 39979894860): +14 estate tests
+# in a new file (tests/test_ledger_merges.py) = 2411 / 332; floor 2409, margin 2.
+# The wind lane keeper + the box lane read: +4 guards tests in tests/test_wind_hrrr_lane.py on dev CI 39896720617's 3293 / 210 = 3297; floor 3291, margin 6.
+# Per-PR ledger fragments (D-0XX): +49 estate tests in a new file (tests/test_ledger_fragments.py) on dev CI 39896720617's
+# 2343 / 330 files = 2392 / 331; floor 2341 -> 2390, margin 2.
+# Push status for the Settings switch (#470, re-derived after #472: 2392 + 5 = 2397): +5 estate tests in tests/test_audit_push_authority.py (existing file) on dev CI 39894535707's 2343 = 2348; floor 2341 -> 2346, margin 2.
+# Static GFS wind frames: +10 chain tests in a new file (tests/test_frame_set_wind.py) on dev CI 39861554298's 2855/173 = 2865/174; floor 2859, margin 6.
+# Regional static frame bundles: +8 chain tests in a new file (tests/test_frame_set_bundle.py) on dev CI 39896720617's 2865 / 174 = 2873 / 175; floor 2859 -> 2867, margin 6.
+# MARINE_GULF_FILL_MID (dark): +6 guards tests in a new file (tests/test_coarse_gulf_fill_mid.py) on dev CI 39861554298's 3287 / 209 files = 3293 / 210; floor 3281 -> 3287, files 209 -> 210, margin 6.
+# Static frames for more world sets: +3 estate tests in tests/test_publish_frame_sets.py on dev CI 39732086620's 2340 = 2343; floor 2341, margin 2.
+# Logfire setup never stops boot: +5 estate tests (tests/test_logfire_setup.py, one new file) on hosted 2312 (dev CI 39594047204); floor 2315.
+# #422 stacked on #432: +23 estate tests (two new files) on #432's projected 2317 = 2340; floor 2338, margin 2.
+# Series memo run keys (dark) + /products encoded once: +32 guards tests (tests/test_series_memo_run_keys.py) and +12 chain tests
+# (tests/test_products_response.py), both new files: guards 3255 + 32 = 3287 (first hosted run read 3285 with 30), floor
+# 3249 -> 3281, files 208 -> 209; chain 2843 + 12 = 2855, floor 2837 -> 2849, files 172 -> 173; margins 6. The estate file
+# it edits keeps its 2 tests.
+# CMEMS source labels: +3 chain tests in a new file (tests/test_cmems_source_labels.py): dev 11d19ef0 read 2823 + 3 = 2826 projected; floor 2817 -> 2820, files 170 -> 171, margin 6.
+# Peak-period flags (dark): +16 chain tests in a new file (tests/test_peak_period_flags.py), after #407: hosted 2826 + 16 = 2842 projected; floor 2820 -> 2836, files 171 -> 172, margin 6.
+# #412 review fix: +1 chain test (flag-on CMEMS window guard): 2842 -> 2843 projected; floor 2836 -> 2837, margin 6.
+# Gateway moderation: +4 estate tests (floor 2255->2259).
+# PR381: actual dev CI39142012113 at62d94f5f read2262; floor2260 keeps margin2.
+# Default-deny route identity guard: +18 estate tests (2262 -> 2280 projected; floor 2260 -> 2278, margin 2).
+# Admin events socket + internal broadcast secret (stacked): +15 estate tests (2280 -> 2295; floor 2293, margin 2).
+# #398 (--same-backend) added estate tests without moving the floor: dev CI 39331532690 @ 88e762fe read 2305; floor 2298 -> 2303, margin 2.
+# W-4 series page memo (#389): +37 guards tests in a new file (hosted 39259510389 read 3218 + 30; 3255 projected; floor 3212 -> 3249, files 207 -> 208, margin 6).
+# One-field frame-image proof: +7 estate tests in a new file (tests/test_frame_image.py): 2305 + 7 = 2312 projected; floor 2303 -> 2310, margin 2.
+# Model-spread data collector (dark): +14 chain tests in a new file (tests/test_model_spread.py): 2809 + 14 = 2823 projected; floor 2803 -> 2817, files 169 -> 170, margin 6.
+# Static forecast frames (step 2b, dark): +20 estate tests in two new files (tests/test_frame_binary.py, tests/test_publish_frame_sets.py): dev CI 39474436878 @ da40c3c5 read 2312 + 20 = 2332 projected; floor 2310 -> 2330, margin 2.
+# #422 review fixes: +3 estate tests in tests/test_publish_frame_sets.py (23 in the two files): dev CI 39594047204 @ 744775c8 read 2312 + 23 = 2335 projected; floor 2310 -> 2333, margin 2.
 
 
 @pytest.mark.parametrize("lane", sorted(S.LANES))

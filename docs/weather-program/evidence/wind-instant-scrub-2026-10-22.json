@@ -1,0 +1,991 @@
+{
+ "written": "2026-10-23T02:40Z",
+ "what": "Wind instant scrub (claude/wind-static-frames): offline Waves->Wind toggle + 10 steps + 12 held presses at the owner window, real GFS 2026-10-22 12Z wind run + real HRRR 18Z lane; old = dev d1dbeed8b, new = this branch; new-alt = the lane pointer names another lane (mismatch). Instrument: frontend/scripts/offline-backend/scn_wind_toggle.js; parity: scn_wind_static_parity.mjs.",
+ "abRun": {
+  "env": {
+   "PORT": 4196,
+   "CDN_PORT": 4192,
+   "CDN_DIR": "<scratchpad>/cdn2",
+   "ROUNDS": 1,
+   "WIN": 8000,
+   "SETTLE": 15000,
+   "ZOOMS": [
+    2,
+    3.9,
+    4.4,
+    6,
+    9
+   ],
+   "CENTER": [
+    -79.5,
+    28.6
+   ],
+   "VIEW": "owner",
+   "LAT_SERIES": 500,
+   "LAT_SERIES_FRAME": 250,
+   "LAT_GRID": 1500,
+   "CDN_LAT": 150,
+   "base": "http://127.0.0.1:3195",
+   "startedUtc": "2026-10-23T01:41:16.571Z"
+  },
+  "perArmZoom": {
+   "old@z2": {
+    "toggleViewMs": [
+     3327
+    ],
+    "toggleDrawnMs": [
+     3344
+    ],
+    "toggleBackend": [
+     3
+    ],
+    "gestureBackend": [
+     0
+    ],
+    "stepViewP50": 0,
+    "stepViewP95": 6340,
+    "stepDrawnP50": 0,
+    "stepDrawnP95": 6349,
+    "stepMissed": 5,
+    "steps": 10,
+    "stepBackendPer": 0.4,
+    "mislabel": 0,
+    "thin": 2951,
+    "via": {
+     "grid": 4,
+     "series": 1,
+     "none": 5
+    },
+    "holdMs": [],
+    "holdMissed": 12,
+    "holdBlank": 0,
+    "holdBackend": 0,
+    "cdnBeforeToggle": [
+     1159315
+    ],
+    "cdnAfterToggle": [
+     0
+    ]
+   },
+   "new@z2": {
+    "toggleViewMs": [
+     4
+    ],
+    "toggleDrawnMs": [
+     168
+    ],
+    "toggleBackend": [
+     0
+    ],
+    "gestureBackend": [
+     0
+    ],
+    "stepViewP50": 27,
+    "stepViewP95": 70,
+    "stepDrawnP50": 32,
+    "stepDrawnP95": 75,
+    "stepMissed": 0,
+    "steps": 10,
+    "stepBackendPer": 0,
+    "mislabel": 0,
+    "thin": 0,
+    "via": {
+     "static": 10
+    },
+    "holdMs": [
+     38,
+     29,
+     44,
+     40,
+     30,
+     41,
+     29,
+     30,
+     24,
+     29,
+     39
+    ],
+    "holdMissed": 1,
+    "holdBlank": 0,
+    "holdBackend": 0,
+    "cdnBeforeToggle": [
+     6997823
+    ],
+    "cdnAfterToggle": [
+     0
+    ]
+   },
+   "old@z3.9": {
+    "toggleViewMs": [
+     6218
+    ],
+    "toggleDrawnMs": [
+     6232
+    ],
+    "toggleBackend": [
+     3
+    ],
+    "gestureBackend": [
+     0
+    ],
+    "stepViewP50": 0,
+    "stepViewP95": 8094,
+    "stepDrawnP50": 0,
+    "stepDrawnP95": 8097,
+    "stepMissed": 4,
+    "steps": 10,
+    "stepBackendPer": 0.8,
+    "mislabel": 0,
+    "thin": 2511,
+    "via": {
+     "grid": 5,
+     "series": 1,
+     "none": 4
+    },
+    "holdMs": [],
+    "holdMissed": 12,
+    "holdBlank": 0,
+    "holdBackend": 0,
+    "cdnBeforeToggle": [
+     1177174
+    ],
+    "cdnAfterToggle": [
+     0
+    ]
+   },
+   "new@z3.9": {
+    "toggleViewMs": [
+     1
+    ],
+    "toggleDrawnMs": [
+     210
+    ],
+    "toggleBackend": [
+     0
+    ],
+    "gestureBackend": [
+     0
+    ],
+    "stepViewP50": 33,
+    "stepViewP95": 72,
+    "stepDrawnP50": 37,
+    "stepDrawnP95": 91,
+    "stepMissed": 0,
+    "steps": 10,
+    "stepBackendPer": 0,
+    "mislabel": 0,
+    "thin": 0,
+    "via": {
+     "static": 10
+    },
+    "holdMs": [
+     35,
+     30,
+     15,
+     31,
+     14,
+     23,
+     31,
+     29,
+     28,
+     14,
+     23,
+     31
+    ],
+    "holdMissed": 0,
+    "holdBlank": 0,
+    "holdBackend": 0,
+    "cdnBeforeToggle": [
+     7069160
+    ],
+    "cdnAfterToggle": [
+     0
+    ]
+   },
+   "old@z4.4": {
+    "toggleViewMs": [
+     6942
+    ],
+    "toggleDrawnMs": [
+     6957
+    ],
+    "toggleBackend": [
+     3
+    ],
+    "gestureBackend": [
+     1
+    ],
+    "stepViewP50": 0,
+    "stepViewP95": 9283,
+    "stepDrawnP50": 0,
+    "stepDrawnP95": 9294,
+    "stepMissed": 4,
+    "steps": 10,
+    "stepBackendPer": 0.8,
+    "mislabel": 0,
+    "thin": 2532,
+    "via": {
+     "grid": 5,
+     "series": 1,
+     "none": 4
+    },
+    "holdMs": [],
+    "holdMissed": 12,
+    "holdBlank": 0,
+    "holdBackend": 0,
+    "cdnBeforeToggle": [
+     1105837
+    ],
+    "cdnAfterToggle": [
+     0
+    ]
+   },
+   "new@z4.4": {
+    "toggleViewMs": [
+     7
+    ],
+    "toggleDrawnMs": [
+     122
+    ],
+    "toggleBackend": [
+     0
+    ],
+    "gestureBackend": [
+     0
+    ],
+    "stepViewP50": 24,
+    "stepViewP95": 70,
+    "stepDrawnP50": 27,
+    "stepDrawnP95": 75,
+    "stepMissed": 0,
+    "steps": 10,
+    "stepBackendPer": 0,
+    "mislabel": 0,
+    "thin": 0,
+    "via": {
+     "static": 10
+    },
+    "holdMs": [
+     44,
+     45,
+     44,
+     43,
+     41,
+     28,
+     30,
+     30,
+     27
+    ],
+    "holdMissed": 3,
+    "holdBlank": 0,
+    "holdBackend": 0,
+    "cdnBeforeToggle": [
+     6946874
+    ],
+    "cdnAfterToggle": [
+     50949
+    ]
+   },
+   "old@z6": {
+    "toggleViewMs": [
+     null
+    ],
+    "toggleDrawnMs": [
+     null
+    ],
+    "toggleBackend": [
+     2
+    ],
+    "gestureBackend": [
+     4
+    ],
+    "stepViewP50": 17,
+    "stepViewP95": 4625,
+    "stepDrawnP50": 12,
+    "stepDrawnP95": 4634,
+    "stepMissed": 6,
+    "steps": 10,
+    "stepBackendPer": 1.1,
+    "mislabel": 0,
+    "thin": 265,
+    "via": {
+     "grid": 4,
+     "none": 6
+    },
+    "holdMs": [],
+    "holdMissed": 12,
+    "holdBlank": 0,
+    "holdBackend": 1,
+    "cdnBeforeToggle": [
+     1105837
+    ],
+    "cdnAfterToggle": [
+     0
+    ]
+   },
+   "new@z6": {
+    "toggleViewMs": [
+     168
+    ],
+    "toggleDrawnMs": [
+     228
+    ],
+    "toggleBackend": [
+     0
+    ],
+    "gestureBackend": [
+     3
+    ],
+    "stepViewP50": 39,
+    "stepViewP95": 106,
+    "stepDrawnP50": 44,
+    "stepDrawnP95": 112,
+    "stepMissed": 0,
+    "steps": 10,
+    "stepBackendPer": 0,
+    "mislabel": 0,
+    "thin": 0,
+    "via": {
+     "static": 10
+    },
+    "holdMs": [
+     33,
+     29,
+     28,
+     28,
+     23,
+     27,
+     12,
+     23,
+     38,
+     23,
+     13,
+     22
+    ],
+    "holdMissed": 0,
+    "holdBlank": 0,
+    "holdBackend": 0,
+    "cdnBeforeToggle": [
+     6997823
+    ],
+    "cdnAfterToggle": [
+     0
+    ]
+   },
+   "old@z9": {
+    "toggleViewMs": [
+     6081
+    ],
+    "toggleDrawnMs": [
+     6096
+    ],
+    "toggleBackend": [
+     5
+    ],
+    "gestureBackend": [
+     3
+    ],
+    "stepViewP50": 0,
+    "stepViewP95": 9378,
+    "stepDrawnP50": 0,
+    "stepDrawnP95": 9381,
+    "stepMissed": 5,
+    "steps": 10,
+    "stepBackendPer": 1.2,
+    "mislabel": 0,
+    "thin": 0,
+    "via": {
+     "grid": 5,
+     "none": 5
+    },
+    "holdMs": [],
+    "holdMissed": 12,
+    "holdBlank": 0,
+    "holdBackend": 0,
+    "cdnBeforeToggle": [
+     1221727
+    ],
+    "cdnAfterToggle": [
+     0
+    ]
+   },
+   "new@z9": {
+    "toggleViewMs": [
+     73
+    ],
+    "toggleDrawnMs": [
+     104
+    ],
+    "toggleBackend": [
+     0
+    ],
+    "gestureBackend": [
+     5
+    ],
+    "stepViewP50": 31,
+    "stepViewP95": 71,
+    "stepDrawnP50": 34,
+    "stepDrawnP95": 81,
+    "stepMissed": 0,
+    "steps": 10,
+    "stepBackendPer": 0.4,
+    "mislabel": 0,
+    "thin": 0,
+    "via": {
+     "static": 10
+    },
+    "holdMs": [
+     26,
+     27,
+     30,
+     31,
+     33,
+     36,
+     27,
+     30,
+     34,
+     29,
+     29,
+     35
+    ],
+    "holdMissed": 0,
+    "holdBlank": 0,
+    "holdBackend": 0,
+    "cdnBeforeToggle": [
+     6997823
+    ],
+    "cdnAfterToggle": [
+     0
+    ]
+   }
+  }
+ },
+ "confirmRunReviewedBuild": {
+  "env": {
+   "PORT": 4196,
+   "CDN_PORT": 4192,
+   "CDN_DIR": "<scratchpad>/cdn2",
+   "ROUNDS": 1,
+   "WIN": 8000,
+   "SETTLE": 15000,
+   "ZOOMS": [
+    2,
+    3.9,
+    4.4,
+    6,
+    9
+   ],
+   "CENTER": [
+    -79.5,
+    28.6
+   ],
+   "VIEW": "owner",
+   "LAT_SERIES": 500,
+   "LAT_SERIES_FRAME": 250,
+   "LAT_GRID": 1500,
+   "CDN_LAT": 150,
+   "base": "http://127.0.0.1:3195",
+   "startedUtc": "2026-10-23T02:20:09.483Z"
+  },
+  "perArmZoom": {
+   "new@z2": {
+    "toggleViewMs": [
+     3
+    ],
+    "toggleDrawnMs": [
+     169
+    ],
+    "toggleBackend": [
+     0
+    ],
+    "gestureBackend": [
+     0
+    ],
+    "stepViewP50": 36,
+    "stepViewP95": 109,
+    "stepDrawnP50": 39,
+    "stepDrawnP95": 122,
+    "stepMissed": 0,
+    "steps": 10,
+    "stepBackendPer": 0,
+    "mislabel": 0,
+    "thin": 0,
+    "via": {
+     "static": 10
+    },
+    "holdMs": [
+     32,
+     28,
+     30,
+     29,
+     30,
+     30,
+     36,
+     31,
+     34,
+     37,
+     27,
+     23
+    ],
+    "holdMissed": 0,
+    "holdBlank": 0,
+    "holdBackend": 0,
+    "cdnBeforeToggle": [
+     6946874
+    ],
+    "cdnAfterToggle": [
+     50949
+    ]
+   },
+   "new-alt@z2": {
+    "toggleViewMs": [
+     4562
+    ],
+    "toggleDrawnMs": [
+     4604
+    ],
+    "toggleBackend": [
+     3
+    ],
+    "gestureBackend": [
+     0
+    ],
+    "stepViewP50": 0,
+    "stepViewP95": 104,
+    "stepDrawnP50": 0,
+    "stepDrawnP95": 128,
+    "stepMissed": 2,
+    "steps": 10,
+    "stepBackendPer": 0.4,
+    "mislabel": 0,
+    "thin": 657,
+    "via": {
+     "grid": 3,
+     "series": 1,
+     "none": 2,
+     "static": 4
+    },
+    "holdMs": [
+     46,
+     29
+    ],
+    "holdMissed": 10,
+    "holdBlank": 0,
+    "holdBackend": 0,
+    "cdnBeforeToggle": [
+     6014109
+    ],
+    "cdnAfterToggle": [
+     0
+    ]
+   },
+   "new@z3.9": {
+    "toggleViewMs": [
+     5
+    ],
+    "toggleDrawnMs": [
+     128
+    ],
+    "toggleBackend": [
+     0
+    ],
+    "gestureBackend": [
+     0
+    ],
+    "stepViewP50": 34,
+    "stepViewP95": 68,
+    "stepDrawnP50": 41,
+    "stepDrawnP95": 83,
+    "stepMissed": 0,
+    "steps": 10,
+    "stepBackendPer": 0.1,
+    "mislabel": 0,
+    "thin": 0,
+    "via": {
+     "static": 10
+    },
+    "holdMs": [
+     36,
+     29,
+     31,
+     29,
+     23,
+     38,
+     30,
+     28,
+     14,
+     23,
+     14,
+     14
+    ],
+    "holdMissed": 0,
+    "holdBlank": 0,
+    "holdBackend": 0,
+    "cdnBeforeToggle": [
+     7042397
+    ],
+    "cdnAfterToggle": [
+     0
+    ]
+   },
+   "new-alt@z3.9": {
+    "toggleViewMs": [
+     7086
+    ],
+    "toggleDrawnMs": [
+     7101
+    ],
+    "toggleBackend": [
+     3
+    ],
+    "gestureBackend": [
+     0
+    ],
+    "stepViewP50": 41,
+    "stepViewP95": 9195,
+    "stepDrawnP50": 46,
+    "stepDrawnP95": 9205,
+    "stepMissed": 1,
+    "steps": 10,
+    "stepBackendPer": 0.4,
+    "mislabel": 0,
+    "thin": 660,
+    "via": {
+     "grid": 4,
+     "series": 1,
+     "none": 1,
+     "static": 4
+    },
+    "holdMs": [
+     31,
+     31
+    ],
+    "holdMissed": 10,
+    "holdBlank": 0,
+    "holdBackend": 0,
+    "cdnBeforeToggle": [
+     6014109
+    ],
+    "cdnAfterToggle": [
+     0
+    ]
+   },
+   "new@z4.4": {
+    "toggleViewMs": [
+     4
+    ],
+    "toggleDrawnMs": [
+     179
+    ],
+    "toggleBackend": [
+     0
+    ],
+    "gestureBackend": [
+     0
+    ],
+    "stepViewP50": 40,
+    "stepViewP95": 83,
+    "stepDrawnP50": 43,
+    "stepDrawnP95": 93,
+    "stepMissed": 0,
+    "steps": 10,
+    "stepBackendPer": 0,
+    "mislabel": 0,
+    "thin": 0,
+    "via": {
+     "static": 10
+    },
+    "holdMs": [
+     49,
+     30,
+     44,
+     26,
+     46,
+     41,
+     42,
+     49,
+     46
+    ],
+    "holdMissed": 3,
+    "holdBlank": 0,
+    "holdBackend": 0,
+    "cdnBeforeToggle": [
+     6997823
+    ],
+    "cdnAfterToggle": [
+     0
+    ]
+   },
+   "new-alt@z4.4": {
+    "toggleViewMs": [
+     5428
+    ],
+    "toggleDrawnMs": [
+     5432
+    ],
+    "toggleBackend": [
+     3
+    ],
+    "gestureBackend": [
+     1
+    ],
+    "stepViewP50": 40,
+    "stepViewP95": 7210,
+    "stepDrawnP50": 44,
+    "stepDrawnP95": 7212,
+    "stepMissed": 1,
+    "steps": 10,
+    "stepBackendPer": 0.6,
+    "mislabel": 0,
+    "thin": 657,
+    "via": {
+     "grid": 4,
+     "series": 1,
+     "none": 1,
+     "static": 4
+    },
+    "holdMs": [],
+    "holdMissed": 12,
+    "holdBlank": 0,
+    "holdBackend": 0,
+    "cdnBeforeToggle": [
+     6014109
+    ],
+    "cdnAfterToggle": [
+     0
+    ]
+   },
+   "new@z6": {
+    "toggleViewMs": [
+     138
+    ],
+    "toggleDrawnMs": [
+     200
+    ],
+    "toggleBackend": [
+     0
+    ],
+    "gestureBackend": [
+     3
+    ],
+    "stepViewP50": 36,
+    "stepViewP95": 85,
+    "stepDrawnP50": 38,
+    "stepDrawnP95": 92,
+    "stepMissed": 0,
+    "steps": 10,
+    "stepBackendPer": 0.3,
+    "mislabel": 0,
+    "thin": 0,
+    "via": {
+     "static": 10
+    },
+    "holdMs": [
+     32,
+     13,
+     12,
+     29,
+     41,
+     23,
+     43,
+     27,
+     27,
+     33,
+     36
+    ],
+    "holdMissed": 1,
+    "holdBlank": 0,
+    "holdBackend": 0,
+    "cdnBeforeToggle": [
+     6997823
+    ],
+    "cdnAfterToggle": [
+     0
+    ]
+   },
+   "new-alt@z6": {
+    "toggleViewMs": [
+     6593
+    ],
+    "toggleDrawnMs": [
+     6607
+    ],
+    "toggleBackend": [
+     3
+    ],
+    "gestureBackend": [
+     0
+    ],
+    "stepViewP50": 42,
+    "stepViewP95": 7604,
+    "stepDrawnP50": 52,
+    "stepDrawnP95": 7613,
+    "stepMissed": 2,
+    "steps": 10,
+    "stepBackendPer": 0.8,
+    "mislabel": 0,
+    "thin": 0,
+    "via": {
+     "grid": 4,
+     "none": 2,
+     "static": 4
+    },
+    "holdMs": [
+     42,
+     29,
+     27,
+     28
+    ],
+    "holdMissed": 8,
+    "holdBlank": 0,
+    "holdBackend": 0,
+    "cdnBeforeToggle": [
+     6014109
+    ],
+    "cdnAfterToggle": [
+     1170
+    ]
+   },
+   "new@z9": {
+    "toggleViewMs": [
+     125
+    ],
+    "toggleDrawnMs": [
+     193
+    ],
+    "toggleBackend": [
+     0
+    ],
+    "gestureBackend": [
+     4
+    ],
+    "stepViewP50": 53,
+    "stepViewP95": 92,
+    "stepDrawnP50": 61,
+    "stepDrawnP95": 97,
+    "stepMissed": 0,
+    "steps": 10,
+    "stepBackendPer": 0.3,
+    "mislabel": 0,
+    "thin": 0,
+    "via": {
+     "static": 10
+    },
+    "holdMs": [
+     38,
+     28,
+     28,
+     29,
+     42,
+     40,
+     30,
+     46,
+     45,
+     28,
+     24
+    ],
+    "holdMissed": 1,
+    "holdBlank": 0,
+    "holdBackend": 0,
+    "cdnBeforeToggle": [
+     6997823
+    ],
+    "cdnAfterToggle": [
+     0
+    ]
+   },
+   "new-alt@z9": {
+    "toggleViewMs": [
+     8287
+    ],
+    "toggleDrawnMs": [
+     8298
+    ],
+    "toggleBackend": [
+     5
+    ],
+    "gestureBackend": [
+     2
+    ],
+    "stepViewP50": 31,
+    "stepViewP95": 89,
+    "stepDrawnP50": 38,
+    "stepDrawnP95": 96,
+    "stepMissed": 3,
+    "steps": 10,
+    "stepBackendPer": 0.6,
+    "mislabel": 0,
+    "thin": 0,
+    "via": {
+     "grid": 3,
+     "none": 3,
+     "static": 4
+    },
+    "holdMs": [
+     34,
+     31,
+     30
+    ],
+    "holdMissed": 9,
+    "holdBlank": 0,
+    "holdBackend": 0,
+    "cdnBeforeToggle": [
+     6014109
+    ],
+    "cdnAfterToggle": [
+     1170
+    ]
+   }
+  }
+ },
+ "parityFrames0to20": {
+  "comparisons": 1176,
+  "nodes": 3039456,
+  "bad": 0,
+  "fieldBad": 0,
+  "texDiff": "91268/9118368 (1 LSB)",
+  "source": "parity-full.log, frame 20/113 line"
+ },
+ "parityFrames21to109every4": {
+  "run": "2026-10-22T12:00:00Z",
+  "lane": {
+   "cycle": "2026-10-22T18:00:00Z",
+   "feather_km": 200,
+   "horizon": "2026-10-24T18:00:00Z",
+   "key": "wind_lane/hrrr-2026102218.json",
+   "source": "NOAA HRRR CONUS 3 km (AWS Open Data), 0.25-deg area mean, rotated to earth",
+   "taper_hours": 3
+  },
+  "frames": 113,
+  "frameRange": [
+   21,
+   113,
+   4
+  ],
+  "boxes": 69,
+  "offsets": [
+   0,
+   1,
+   2
+  ],
+  "comparisons": 4623,
+  "nodes": 10746405,
+  "bad": 0,
+  "fieldBad": 0,
+  "refused": {
+   "box": 138
+  },
+  "refusedServedMid": 0,
+  "texBytes": 32239215,
+  "texDiff": 348847,
+  "texMaxLsb": 1,
+  "maxErr": {
+   "speed": 0.005000000000002558,
+   "direction": 0,
+   "uv": 0.007600000000010709
+  },
+  "worldServed": 69,
+  "cropServed": 4554,
+  "laneTouched": 0
+ }
+}

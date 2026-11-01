@@ -4,25 +4,36 @@
 #                    ladder-contract.js): tier demotions (the snap-overshoot bug class) and
 #                    fencepost dead-edge regressions fail the run in minutes.
 #   zoomlab-battery — the real-gesture staircase battery + verdict engine against a dev-server
-#                    boot (mock auth, PROD backend data). Fails when findings exceed the
-#                    documented budget below.
-# Both are read-only against prod (a handful of /grid GETs + one browser session).
+#                    boot (mock auth). Fails when findings exceed the documented budget below.
+#                    ⛔ Its WEATHER data comes from the real backend app over synthetic stored
+#                    products started IN THE RUNNER (2026-10-21, owner: "move the CI load off the
+#                    live server"): the 12:13Z run that day was REFUSED for 15 s timeouts while CI
+#                    kept the 1-CPU box saturated. The app's other calls (profile, spots, badges)
+#                    still go to prod; they are light.
+# data-contract stays live ON PURPOSE: its question is prod's own resolver ladder and stored
+# product edges, which a synthetic store cannot answer. It is 12 sequential /grid GETs a day.
 name: Marine Nightly (contract + zoomlab)
 
 on:
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      skip_live_contract:
+        description: 'Skip data-contract (its 12 /grid GETs to prod) and run only the offline zoomlab battery'
+        type: boolean
+        default: false
   schedule:
     - cron: '30 6 * * *'   # 06:30 UTC daily — after the 04:15Z ingest cycle's serve restore
 
 jobs:
   data-contract:
+    if: ${{ !inputs.skip_live_contract }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-node@v5
         with:
-          node-version: '24.21.0'
+          node-version: '24.22.1'
       - name: Resolver ladder + edge contract vs prod
         run: node frontend/scripts/ladder-contract.js
 
@@ -31,9 +42,22 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v5
+      # The in-runner weather backend (frontend/scripts/offline-backend/): started first so its ~3-4 min store build
+      # overlaps the installs below. zoomlab.js routes every /api/weather/* request to it (ZL_WEATHER_BACKEND).
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend dependencies (the in-runner weather backend)
+        working-directory: backend
+        # + aiosqlite at its requirements-dev.txt pin: with no DATABASE_URL, database.py falls back to sqlite+aiosqlite.
+        run: pip install -q -r requirements.txt "$(grep -E '^aiosqlite==' requirements-dev.txt)"
+      - name: Start the in-runner synthetic weather backend
+        run: bash frontend/scripts/offline-backend/ci_weather_backend.sh start
       - uses: actions/setup-node@v5
         with:
-          node-version: '24.21.0'
+          node-version: '24.22.1'
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - name: Install frontend deps
@@ -55,14 +79,12 @@ jobs:
             echo "  gh secret set MAPBOX_PUBLIC_TOKEN --repo dpritzker0905-cmd/Raw-Surf-Antigravity"
             exit 1
           fi
-      # ⚠️ THE BATTERY GRADES THE RENDERER USING **PROD** DATA, so the prod backend being asleep is a
-      # precondition failure, not a rendering finding. Render's free tier cold-starts, and keep-warm
-      # is a GitHub cron — best-effort, measured at 4.9–5.4% of nominal delivery. Warming here is
-      # strictly better than refusing later: it converts most would-be refusals into real
-      # measurements. Control pair 2026-08-09, same commit 13 min apart: the 07:34Z scheduled run
-      # fetched into ERR_FAILED and reported 30 findings; the 07:47Z dispatch, against a woken box,
-      # reported 0 findings and 415 anim frames.
-      - name: Preflight — wake the prod backend (the data under test)
+      # ⚠️ The weather under test now comes from the in-runner backend (2026-10-21), but the app's OTHER
+      # calls (profile, spots, badges) still go to prod, and a timed-out one is a transport error the
+      # verdict REFUSES on. So prod answering is still a precondition, not a rendering finding.
+      # (History, 2026-08-09, when the weather came from prod too: the 07:34Z scheduled run fetched
+      # into ERR_FAILED and reported 30 findings; the 07:47Z dispatch, against a woken box, 0.)
+      - name: Preflight — prod backend answers (the app's non-weather calls go there)
         id: warm
         run: |
           API="https://raw-surf-antigravity.onrender.com/api/health"
@@ -79,7 +101,7 @@ jobs:
                "battery will run against missing data and the verdict will REFUSE rather than grade."
           echo "awake=0" >> "$GITHUB_OUTPUT"
 
-      - name: Boot dev server (mock auth, prod backend data)
+      - name: Boot dev server (mock auth; weather from the in-runner backend)
         working-directory: frontend
         env:
           NODE_OPTIONS: --openssl-legacy-provider
@@ -94,11 +116,32 @@ jobs:
             sleep 5
           done
           echo "dev server never came up"; tail -50 /tmp/devserver.log; exit 1
+      - name: Wait for the in-runner synthetic weather backend
+        run: bash frontend/scripts/offline-backend/ci_weather_backend.sh wait 120
       - name: Run staircase battery
         working-directory: frontend
         env:
           ZL_BASE: http://localhost:3009
+          # Every /api/weather/* request goes here, fail-closed, never to the live backend (scripts/zoomlab.js).
+          ZL_WEATHER_BACKEND: http://127.0.0.1:4100
         run: node scripts/zoomlab.js staircase_full /tmp/zoomlab-out
+      # The receipt, on the run page. A weather response from the live box fails the job: the move is the point.
+      - name: Weather routing receipt
+        if: always()
+        run: |
+          node - <<'JS'
+          const fs = require('fs');
+          const file = '/tmp/zoomlab-out/weather_routing_staircase_full.json';
+          if (!fs.existsSync(file)) { console.log('no routing receipt (the battery did not start)'); process.exit(0); }
+          const r = JSON.parse(fs.readFileSync(file, 'utf8'));
+          const lines = ['### Zoomlab weather traffic: in-runner backend, not the live box', '',
+            `- answered by the in-runner backend: **${r.routedToLocal}** (${JSON.stringify(r.byEndpoint)})`,
+            `- weather responses from the LIVE backend: **${r.sentToLive}**`,
+            `- local backend did not answer: ${r.localFailures} · dropped by the page first: ${r.cancelledByPage}`];
+          console.log(lines.join('\n'));
+          if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
+          if (r.sentToLive > 0) { console.log('::error::weather traffic reached the live backend'); process.exit(1); }
+          JS
       - name: Verdict (budgeted)
         run: |
           set +e

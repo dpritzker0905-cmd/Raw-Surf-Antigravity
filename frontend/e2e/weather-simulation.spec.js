@@ -2,7 +2,8 @@
  * E2E: Weather Simulation & Map Controls
  * Tests surfer lockout, admin sandbox, diagnostics telemetry, and map controls.
  */
-const { test, expect } = require('@playwright/test');
+// test/expect carry the in-runner weather backend route (offlineWeather.js): no weather request reaches the live box.
+const { test, expect } = require('./offlineWeather');
 const { stubSeededUiBadges } = require('./seededUiBadges');
 
 const standardUser = {
@@ -107,7 +108,10 @@ test.beforeEach(async ({ page }) => {
       url.startsWith('data:') ||
       url.startsWith('blob:')
     ) {
-      route.continue();
+      // fallback(), NOT continue(): continue() sends straight to the network and skips the context route
+      // that answers /api/weather/* from the in-runner backend (offlineWeather.js). With no later handler,
+      // fallback() reaches the network exactly as continue() did.
+      route.fallback();
     } else if (['.js', '.mjs', '.cjs'].includes(extOf(url))
                || route.request().resourceType() === 'script') {
       route.fulfill({
@@ -134,11 +138,8 @@ test.beforeEach(async ({ page }) => {
 
 test.describe('Surfer Lockout Redirection', () => {
   test.beforeEach(async ({ page }) => {
-    // 1. Visit auth page to register domain/localStorage context
-    await page.goto('/auth', { waitUntil: 'domcontentloaded' });
-    
-    // 2. Set non-admin credentials and bypass ToS reacceptance gate
-    await page.evaluate(({ user }) => {
+    // Seed before the subject document starts; no transient /auth -> /feed document.
+    await page.addInitScript(({ user }) => {
       localStorage.setItem('raw-surf-user', JSON.stringify(user));
       localStorage.setItem(`tos-accepted-${user.id}-1.0`, Date.now().toString());
       localStorage.setItem('raw-surf-cookie-consent', JSON.stringify({ accepted: true, timestamp: Date.now() }));
@@ -166,23 +167,17 @@ test.describe('Surfer Lockout Redirection', () => {
 
 test.describe('Admin Console Operations', () => {
   test.beforeEach(async ({ page }) => {
-    // Login as admin and bypass cookie / ToS consent
-    await page.goto('/auth', { waitUntil: 'domcontentloaded' });
-    await page.evaluate(({ user }) => {
+    // A URL-only /feed wait can resolve before AppLayout's first unread effect.
+    // Replacing that document then makes WebKit refuse the new XHR before routing,
+    // reporting an access-control error despite the badge fixture. Seed the single
+    // subject document instead; the real access gate still verifies its stored code.
+    await page.addInitScript(({ user }) => {
       localStorage.setItem('raw-surf-user', JSON.stringify(user));
       localStorage.setItem(`tos-accepted-${user.id}-1.0`, Date.now().toString());
       localStorage.setItem('raw-surf-cookie-consent', JSON.stringify({ accepted: true, timestamp: Date.now() }));
       localStorage.setItem('rs-push-prompt-dismissed', Date.now().toString());
     }, { user: adminUser });
 
-    // Seeding the user makes /auth redirect itself to /feed. Let that land HERE, or it is still
-    // in flight when the test calls goto('/admin') and interrupts it — observed on Mobile Safari
-    // 2026-08-06: "Navigation to .../admin is interrupted by another navigation to .../feed".
-    // Only observable once the backend is actually reachable (see the allowlist note above);
-    // while every API call was being 404'd by our own route handler the redirect never fired.
-    // Tolerant by design: if a build stops redirecting there is nothing to await, and the wait
-    // expiring changes nothing about what the test then asserts.
-    await page.waitForURL(/\/(feed|explore)(\/|$|\?)/, { timeout: 10000 }).catch(() => {});
   });
 
   test('admin simulation engine executes weather swell spike scenario', async ({ page }) => {
@@ -255,9 +250,8 @@ test.describe('Admin Console Operations', () => {
 
 test.describe('Standard Surfer Map Controls', () => {
   test.beforeEach(async ({ page }) => {
-    // Login as standard surfer to access /map
-    await page.goto('/auth', { waitUntil: 'domcontentloaded' });
-    await page.evaluate(({ user }) => {
+    // Install the fictional session before /map mounts, without an intermediate feed.
+    await page.addInitScript(({ user }) => {
       localStorage.setItem('raw-surf-user', JSON.stringify(user));
       localStorage.setItem(`tos-accepted-${user.id}-1.0`, Date.now().toString());
       localStorage.setItem('raw-surf-cookie-consent', JSON.stringify({ accepted: true, timestamp: Date.now() }));
@@ -265,9 +259,6 @@ test.describe('Standard Surfer Map Controls', () => {
       localStorage.setItem('force_marine_fallback', 'true');
     }, { user: standardUser });
 
-    // Same /auth -> /feed redirect race as the admin block above; settle it before the test's own
-    // goto('/map') so an in-flight redirect cannot interrupt it.
-    await page.waitForURL(/\/(feed|explore)(\/|$|\?)/, { timeout: 10000 }).catch(() => {});
   });
 
   test('standard surfer map controls model selection, layer toggle, and timeline scrubbing', async ({ page }) => {

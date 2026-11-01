@@ -18,8 +18,8 @@ const START = { lat: 16.0, lng: -108.0 };
 
 // WebGL texture-upload spy, injected before any page script: counts uploads by size so a world-mask rebuild (a >= 512 px
 // raster) can be told apart from data-texture uploads. Entries carry the page clock so they can be bucketed by event.
-const TEX_SPY = () => {
-  const spy = (window.__TEX__ = { n: 0, big: 0, log: [] });
+const TEX_SPY = (hashUploads = false) => {
+  const spy = (window.__TEX__ = { n: 0, big: 0, log: [], uploads: new WeakMap(), uploadSeq: 0 });
   const patch = (proto) => {
     if (!proto || proto.__texSpy) return;
     const orig = proto.texImage2D;
@@ -28,10 +28,30 @@ const TEX_SPY = () => {
       if (a.length >= 9) { w = a[3]; h = a[4]; } else { const s = a[5]; w = s && s.width; h = s && s.height; }
       spy.n += 1;
       if (w >= 512 || h >= 512) { spy.big += 1; if (spy.log.length < 400) spy.log.push([Math.round(performance.now()), w, h]); }
-      return orig.apply(this, a);
+      const result = orig.apply(this, a);
+      record(this, a[8], w, h);
+      return result;
     };
+    if (hashUploads) {
+      const sub = proto.texSubImage2D;
+      proto.texSubImage2D = function (...a) {
+        const result = sub.apply(this, a);
+        record(this, a[8], a[4], a[5]);
+        return result;
+      };
+    }
     proto.__texSpy = true;
   };
+  // Hash the typed bytes sent to a texture, keyed by its WebGLTexture identity.
+  // Reading the engine's resident wave texture excludes mask and particle uploads.
+  function record(gl, pixels, width, height) {
+    if (!hashUploads || !ArrayBuffer.isView(pixels)) return;
+    const bytes = new Uint8Array(pixels.buffer, pixels.byteOffset, pixels.byteLength);
+    let hash = 2166136261;
+    for (let i = 0; i < bytes.length; i++) hash = Math.imul(hash ^ bytes[i], 16777619);
+    const texture = gl.getParameter(gl.TEXTURE_BINDING_2D);
+    if (texture) spy.uploads.set(texture, {hash: (hash >>> 0).toString(16), seq: ++spy.uploadSeq, width, height});
+  }
   patch(window.WebGLRenderingContext && WebGLRenderingContext.prototype);
   patch(window.WebGL2RenderingContext && WebGL2RenderingContext.prototype);
 };
@@ -40,14 +60,42 @@ const TEX_SPY = () => {
 // public routes, nothing is written) so a built client can be looked at against production data. Everything else stays stubbed and every
 // socket stays closed. It is real load on the 1-CPU box (a map load asks for three 48-frame world pages): one run at a time, /api/health
 // probed before and after, never in a loop. `hooks.afterWeather(url, resp)` sees each weather response (resp.body()) before it is delivered.
-async function launch({ port, width = 1280, height = 800, dpr = 1, gpu = true, hooks = {}, live = process.env.AB_LIVE === '1' } = {}) {
+// `video: <dir>` records the page as a .webm there (Playwright recordVideo; the file is written when the context closes).
+// `contextOptions` is spread into the browser context (e.g. { isMobile: true, hasTouch: true, userAgent } for a phone).
+async function launch({ port, width = 1280, height = 800, dpr = 1, gpu = true, hooks = {}, hashTextureUploads = false, live = process.env.AB_LIVE === '1', video = null, contextOptions = {} } = {}) {
   if (!port && !live) throw new Error('launch({ port }) needs the synthetic backend port');
   const args = ['--ignore-gpu-blocklist', '--enable-gpu-rasterization', '--enable-unsafe-swiftshader'];
   if (gpu) args.push('--use-angle=d3d11');
+  // AB_CHROME_ARGS ('|'-separated, 2026-10-27): extra Chrome switches, e.g. `--host-resolver-rules=MAP rawsurf.test 127.0.0.1` so the
+  // SPA runs on a non-local host name (the WebGL guardrail is switched off on localhost / 127.0.0.1, useWebGLGuardrail.js).
+  for (const a of String(process.env.AB_CHROME_ARGS || '').split('|').filter(Boolean)) args.push(a);
   const browser = await chromium.launch({ channel: 'chrome', headless: true, args });
-  const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: dpr, serviceWorkers: 'block' });
+  const ctx = await browser.newContext({ viewport: { width, height }, deviceScaleFactor: dpr, serviceWorkers: 'block',
+    ...(video ? { recordVideo: { dir: video, size: { width, height } } } : {}), ...contextOptions });
   const page = await ctx.newPage();
-  const log = { requests: [], console: [], errors: [], t0: Date.now(), stubbed: 0, aborted: 0, blockedWs: [], hosts: {} };
+  const log = { requests: [], console: [], errors: [], t0: Date.now(), stubbed: 0, aborted: 0, blockedWs: [], hosts: {},
+    ctxHosts: {}, intercepted: {}, leftMachine: {} };
+  // HOST AUDIT (2026-10-27, regression re-run): every request the CONTEXT saw (pages and their workers), every live-host request the
+  // route answered locally or aborted, and every request let through to a non-local host (basemap tiles and fonts). A live host
+  // (onrender, supabase) seen by the context more often than intercepted is a LEAK. Written on browser.close: one JSON line per
+  // session to $HOST_AUDIT (if set) and a one-line verdict on stdout.
+  ctx.on('request', (r) => { try { const h = new URL(r.url()).hostname; log.ctxHosts[h] = (log.ctxHosts[h] || 0) + 1; } catch (e) { /* data: urls */ } });
+  const closeBrowser = browser.close.bind(browser);
+  browser.close = async (...a) => {
+    try {
+      const live = (h) => API_HOST.test(h) || /supabase\.(co|in)$/.test(h);
+      const leaks = Object.keys(log.ctxHosts).filter((h) => live(h) && (log.ctxHosts[h] || 0) > (log.intercepted[h] || 0))
+        .map((h) => ({ host: h, seen: log.ctxHosts[h], intercepted: log.intercepted[h] || 0 }));
+      const leftLive = Object.keys(log.leftMachine).filter(live);
+      const audit = { t: new Date().toISOString(), script: path.basename(process.argv[1] || ''), base: BASE, port, live,
+        hosts: log.hosts, ctxHosts: log.ctxHosts, intercepted: log.intercepted, leftMachine: log.leftMachine,
+        blockedWs: [...new Set(log.blockedWs)], blockedWsCount: log.blockedWs.length, stubbed: log.stubbed, aborted: log.aborted,
+        weatherAsks: log.requests.length, leaks, leftLive, verdict: (leaks.length || leftLive.length) && !live ? 'LEAK' : 'ok' };
+      if (process.env.HOST_AUDIT) require('fs').appendFileSync(process.env.HOST_AUDIT, JSON.stringify(audit) + '\n');
+      console.log(`[host-audit] ${audit.verdict} script=${audit.script} base=${BASE} weatherAsks=${audit.weatherAsks} liveIntercepted=${JSON.stringify(log.intercepted)} leftMachine=${JSON.stringify(Object.keys(log.leftMachine))} blockedWs=${audit.blockedWsCount}`);
+    } catch (e) { console.log('[host-audit] error ' + String(e).slice(0, 120)); }
+    return closeBrowser(...a);
+  };
   // page.route does NOT see WebSockets: the app opens wss://<api host>/api/ws/... (calls, realtime) and an unrouted socket
   // would reach the real backend. Every non-local socket is closed in the browser before it connects (first harness run
   // 2026-10-16 leaked a handful of rejected handshakes this way; this is the fix).
@@ -64,6 +112,7 @@ async function launch({ port, width = 1280, height = 800, dpr = 1, gpu = true, h
     const url = new URL(req.url());
     const method = req.method();
     if (url.hostname === '127.0.0.1' || url.hostname === 'localhost') return route.continue();
+    if (API_HOST.test(url.hostname) || /supabase\.(co|in)$/.test(url.hostname)) log.intercepted[url.hostname] = (log.intercepted[url.hostname] || 0) + 1;
     if (API_HOST.test(url.hostname)) {
       if (method === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
       if (url.pathname.startsWith('/api/weather/client-diagnostics')) return route.fulfill({ status: 204, headers: CORS });
@@ -87,8 +136,9 @@ async function launch({ port, width = 1280, height = 800, dpr = 1, gpu = true, h
       log.stubbed += 1;
       return route.fulfill({ status: 200, headers: { ...CORS, 'content-type': 'application/json' }, body: method === 'GET' ? '[]' : '{}' });
     }
-    if (/supabase\.(co|in)|onesignal|stripe|sentry|posthog|google-analytics|googletagmanager/.test(url.hostname)) { log.aborted += 1; return route.abort(); }
+    if (/supabase\.(co|in)|onesignal|stripe|sentry|posthog|google-analytics|googletagmanager|rainviewer/.test(url.hostname)) { log.aborted += 1; return route.abort(); }
     if (url.hostname === 'unpkg.com') return route.fulfill({ status: 200, contentType: 'application/javascript', body: '' });
+    log.leftMachine[url.hostname] = (log.leftMachine[url.hostname] || 0) + 1;
     return route.continue();
   });
 
@@ -101,7 +151,7 @@ async function launch({ port, width = 1280, height = 800, dpr = 1, gpu = true, h
     localStorage.setItem('__RAW_DIAG__', window.__AB_DIAG__ ? '1' : '0');
     localStorage.setItem('__RAW_TUNER__', '0');
   }, { user: USER });
-  await page.addInitScript(TEX_SPY);
+  await page.addInitScript(TEX_SPY, hashTextureUploads);
 
   page.on('console', (m) => { const t = m.type(); if (t === 'error' || t === 'warning') log.console.push({ t: Date.now() - log.t0, type: t, text: m.text().slice(0, 240) }); });
   page.on('pageerror', (e) => log.errors.push({ t: Date.now() - log.t0, text: String((e && (e.stack || e.message)) || e).slice(0, 400) }));

@@ -1,0 +1,635 @@
+{
+ "at": "2026-10-21",
+ "branch": "claude/light-crest-twotone (stacked on #438, the restore)",
+ "asks": {
+  "owner": [
+   "It still needs to adjust for areas in the colour for heatmaps that blend too much with the animation colors.",
+   "yes or adjust the animation colors, whatever is better"
+  ],
+  "lead_brief": "after the restore, use the #433 idea on the ORIGINAL light crest colours (a luminance-only two-tone, no hue change); one A/B, restored original vs original + two-tone, shown moving; no other candidates"
+ },
+ "style": {
+  "rim": 0.15,
+  "centre": 0.85,
+  "alpha": "3 far out, mix(3, 1, smoothstep(3, 9, zoom))",
+  "shape_edge": 0.8,
+  "lever": "window.__RAW_LIGHT_CREST_STYLE__ = 'twotone'",
+  "kill": "window.__RAW_DISABLE_LIGHT_CREST_STYLE__ = true",
+  "default": "off (owner pick pending)",
+  "gate": "every DRAW_FS piece gated on the light theme; dark and beach compute as before"
+ },
+ "checker": {
+  "tool": "frontend/scripts/wind-color/light-crest-style.mjs (worst over swell lighting 0/0.5/1 and whitecap off/full, every 0.1 m to 14 m)",
+  "washes": "v2 with #425/#430 alpha law; #431 spectrum as its session sent it (stops, opacity law, water, lighting; no blend states)",
+  "results": {
+   "v2": {
+    "today": {
+     "cvd_min_dE00": 8.1,
+     "inner_min_Lc": null,
+     "states": {
+      "world z2.2": {
+       "worst_Lc": 0,
+       "worst_at_m": 2.2,
+       "under15": 125,
+       "under30": 140,
+       "under45": 140,
+       "of": 140
+      },
+      "regional z4.6": {
+       "worst_Lc": 10.7,
+       "worst_at_m": 7.9,
+       "under15": 86,
+       "under30": 140,
+       "under45": 140,
+       "of": 140
+      },
+      "z4.6 tile": {
+       "worst_Lc": 10.7,
+       "worst_at_m": 6.3,
+       "under15": 59,
+       "under30": 140,
+       "under45": 140,
+       "of": 140
+      },
+      "coastal z7.4 tile": {
+       "worst_Lc": 0,
+       "worst_at_m": 2.2,
+       "under15": 120,
+       "under30": 125,
+       "under45": 140,
+       "of": 140
+      },
+      "close z10 tile": {
+       "worst_Lc": 0,
+       "worst_at_m": 2.3,
+       "under15": 120,
+       "under30": 124,
+       "under45": 137,
+       "of": 140
+      }
+     }
+    },
+    "twotone": {
+     "cvd_min_dE00": 33.9,
+     "inner_min_Lc": 62.1,
+     "states": {
+      "world z2.2": {
+       "worst_Lc": 40.2,
+       "worst_at_m": 5.5,
+       "under15": 0,
+       "under30": 0,
+       "under45": 40,
+       "of": 140
+      },
+      "regional z4.6": {
+       "worst_Lc": 40.4,
+       "worst_at_m": 5.1,
+       "under15": 0,
+       "under30": 0,
+       "under45": 34,
+       "of": 140
+      },
+      "z4.6 tile": {
+       "worst_Lc": 42.2,
+       "worst_at_m": 3.3,
+       "under15": 0,
+       "under30": 0,
+       "under45": 18,
+       "of": 140
+      },
+      "coastal z7.4 tile": {
+       "worst_Lc": 42,
+       "worst_at_m": 3.4,
+       "under15": 0,
+       "under30": 0,
+       "under45": 12,
+       "of": 140
+      },
+      "close z10 tile": {
+       "worst_Lc": 41.8,
+       "worst_at_m": 3.6,
+       "under15": 0,
+       "under30": 0,
+       "under45": 20,
+       "of": 140
+      }
+     }
+    }
+   },
+   "spectrum": {
+    "today": {
+     "cvd_min_dE00": 4.1,
+     "inner_min_Lc": null,
+     "states": {
+      "world z2.2": {
+       "worst_Lc": 0,
+       "worst_at_m": 1.7,
+       "under15": 135,
+       "under30": 140,
+       "under45": 140,
+       "of": 140
+      },
+      "regional z4.6": {
+       "worst_Lc": 8.1,
+       "worst_at_m": 1.7,
+       "under15": 50,
+       "under30": 140,
+       "under45": 140,
+       "of": 140
+      },
+      "coastal z7.4": {
+       "worst_Lc": 0,
+       "worst_at_m": 1.9,
+       "under15": 124,
+       "under30": 137,
+       "under45": 140,
+       "of": 140
+      },
+      "close z10": {
+       "worst_Lc": 0,
+       "worst_at_m": 1.9,
+       "under15": 124,
+       "under30": 132,
+       "under45": 140,
+       "of": 140
+      }
+     }
+    },
+    "twotone": {
+     "cvd_min_dE00": 29.0,
+     "inner_min_Lc": 62.8,
+     "states": {
+      "world z2.2": {
+       "worst_Lc": 41.8,
+       "worst_at_m": 2.5,
+       "under15": 0,
+       "under30": 0,
+       "under45": 18,
+       "of": 140
+      },
+      "regional z4.6": {
+       "worst_Lc": 41.4,
+       "worst_at_m": 2.3,
+       "under15": 0,
+       "under30": 0,
+       "under45": 14,
+       "of": 140
+      },
+      "coastal z7.4": {
+       "worst_Lc": 41.1,
+       "worst_at_m": 2.1,
+       "under15": 0,
+       "under30": 0,
+       "under45": 12,
+       "of": 140
+      },
+      "close z10": {
+       "worst_Lc": 41.1,
+       "worst_at_m": 2.1,
+       "under15": 0,
+       "under30": 0,
+       "under45": 15,
+       "of": 140
+      }
+     }
+    }
+   }
+  },
+  "candidates_tried_flat_alpha": {
+   "0.30,0.75,x1": "v2 worst 21.3 (world), spectrum 19.4; cvd 14.2; inner 26.2",
+   "0.30,0.75,x3 (#433 beach values)": "v2 33.9, spectrum 36.2; cvd 30.6; inner 61.5",
+   "0.20,0.80,x3": "v2 37.2, spectrum 38.9; cvd 32.4 / 27.6; inner 67.2",
+   "0.15,0.85,x3 (chosen)": "v2 40.2, spectrum 41.1; cvd 33.9 / 29.0; inner 72.3",
+   "0.10,0.90,x3": "v2 43.3, spectrum 43.6; cvd 34.6 / 30.5; inner 77.5 (near-black outlines round white cores: not offered)"
+  }
+ },
+ "engine": {
+  "how": "offline real engine, production bundle of the branch, synthetic store --vortex-peak 11; scn_wave_palette_ab.js VARIANTS=v2,lt THEMES=light CLIP=1 PAIRED=1 CLIP_VIEWS=world,regional,coastal CLIP_FRAMES=24; crest_contrast.py --pairs v2:lt (p99 off the paired wash)",
+  "tapered_alpha_run": {
+   "world": {
+    "lc": [
+     20.9,
+     64.4
+    ],
+    "normal": [
+     16.3,
+     58.8
+    ],
+    "protan": [
+     15.3,
+     59.3
+    ],
+    "deutan": [
+     15.2,
+     57.1
+    ],
+    "tritan": [
+     15.6,
+     58.9
+    ],
+    "share_ge15_lc": [
+     3.71,
+     33.12
+    ],
+    "sea_untouched_pct": [
+     57,
+     47
+    ]
+   },
+   "regional": {
+    "lc": [
+     18.2,
+     52.3
+    ],
+    "normal": [
+     31.5,
+     49.1
+    ],
+    "protan": [
+     29.6,
+     52.7
+    ],
+    "deutan": [
+     37.7,
+     55.7
+    ],
+    "tritan": [
+     42.1,
+     51.3
+    ],
+    "share_ge15_lc": [
+     1.62,
+     18.34
+    ],
+    "sea_untouched_pct": [
+     59,
+     52
+    ]
+   },
+   "coastal": {
+    "lc": [
+     20.3,
+     50.0
+    ],
+    "normal": [
+     41.4,
+     43.1
+    ],
+    "protan": [
+     49.2,
+     49.5
+    ],
+    "deutan": [
+     57.9,
+     57.1
+    ],
+    "tritan": [
+     48.2,
+     48.2
+    ],
+    "share_ge15_lc": [
+     5.76,
+     30.46
+    ],
+    "sea_untouched_pct": [
+     18,
+     14
+    ]
+   }
+  },
+  "flat_x3_first_run": {
+   "world": {
+    "lc": [
+     21.0,
+     64.2
+    ],
+    "normal": [
+     16.3,
+     58.7
+    ],
+    "protan": [
+     15.6,
+     59.4
+    ],
+    "deutan": [
+     15.3,
+     57.1
+    ],
+    "tritan": [
+     15.4,
+     58.9
+    ],
+    "share_ge15_lc": [
+     3.62,
+     32.51
+    ],
+    "sea_untouched_pct": [
+     56,
+     47
+    ]
+   },
+   "regional": {
+    "lc": [
+     15.6,
+     56.5
+    ],
+    "normal": [
+     29.3,
+     53.3
+    ],
+    "protan": [
+     25.4,
+     55.9
+    ],
+    "deutan": [
+     33.3,
+     55.8
+    ],
+    "tritan": [
+     40.7,
+     54.8
+    ],
+    "share_ge15_lc": [
+     1.14,
+     20.05
+    ],
+    "sea_untouched_pct": [
+     63,
+     53
+    ]
+   },
+   "coastal": {
+    "lc": [
+     21.7,
+     50.8
+    ],
+    "normal": [
+     41.1,
+     45.1
+    ],
+    "protan": [
+     48.6,
+     52.4
+    ],
+    "deutan": [
+     57.6,
+     59.3
+    ],
+    "tritan": [
+     47.3,
+     50.5
+    ],
+    "share_ge15_lc": [
+     7.32,
+     45.65
+    ],
+    "sea_untouched_pct": [
+     17,
+     13
+    ]
+   }
+  },
+  "why_tapered": "the flat x3 turned close-zoom crests into solid blobs that hid the wash (coastal stills); the taper keeps far-zoom lift and close-zoom weight",
+  "readback_per_pane": {
+   "v2/world": {
+    "valid": "2026-10-21T21:00:00Z",
+    "hMin": 0.5,
+    "hMax": 12.228,
+    "lightCrest": [
+     "vec3(0.05, 0.15, 0.45)",
+     "vec3(0.85, 0.50, 0.00)",
+     "vec3(0.75, 0.10, 0.05)",
+     "vec3(1.00, 1.00, 1.00)"
+    ]
+   },
+   "v2/regional": {
+    "valid": "2026-10-21T21:00:00Z",
+    "hMin": 0.5,
+    "hMax": 12.228,
+    "lightCrest": [
+     "vec3(0.05, 0.15, 0.45)",
+     "vec3(0.85, 0.50, 0.00)",
+     "vec3(0.75, 0.10, 0.05)",
+     "vec3(1.00, 1.00, 1.00)"
+    ]
+   },
+   "v2/coastal": {
+    "valid": "2026-10-21T21:00:00Z",
+    "hMin": 1.774,
+    "hMax": 12.228,
+    "lightCrest": [
+     "vec3(0.05, 0.15, 0.45)",
+     "vec3(0.85, 0.50, 0.00)",
+     "vec3(0.75, 0.10, 0.05)",
+     "vec3(1.00, 1.00, 1.00)"
+    ]
+   },
+   "lt/world": {
+    "valid": "2026-10-22T00:00:00Z",
+    "hMin": 0.5,
+    "hMax": 12.174,
+    "lightCrest": [
+     "vec3(0.05, 0.15, 0.45)",
+     "vec3(0.85, 0.50, 0.00)",
+     "vec3(0.75, 0.10, 0.05)",
+     "vec3(1.00, 1.00, 1.00)"
+    ]
+   },
+   "lt/regional": {
+    "valid": "2026-10-22T00:00:00Z",
+    "hMin": 0.5,
+    "hMax": 12.174,
+    "lightCrest": [
+     "vec3(0.05, 0.15, 0.45)",
+     "vec3(0.85, 0.50, 0.00)",
+     "vec3(0.75, 0.10, 0.05)",
+     "vec3(1.00, 1.00, 1.00)"
+    ]
+   },
+   "lt/coastal": {
+    "valid": "2026-10-22T00:00:00Z",
+    "hMin": 1.368,
+    "hMax": 12.174,
+    "lightCrest": [
+     "vec3(0.05, 0.15, 0.45)",
+     "vec3(0.85, 0.50, 0.00)",
+     "vec3(0.75, 0.10, 0.05)",
+     "vec3(1.00, 1.00, 1.00)"
+    ]
+   }
+  }
+ },
+ "checker_on_shipped_spectrum": {
+  "when": "2026-10-22, after #431 merged (dev d84a94f26); the checker now reads both washes from marineWavePalette.js through wave-lib composite",
+  "results": {
+   "spectrum": {
+    "today": {
+     "cvd_min_dE00": 6.8,
+     "inner_min_Lc": null,
+     "states": {
+      "world z2.2": {
+       "worst_Lc": 0,
+       "worst_at_m": 2,
+       "under15": 126,
+       "under30": 140,
+       "under45": 140
+      },
+      "regional z4.6": {
+       "worst_Lc": 9.8,
+       "worst_at_m": 1.9,
+       "under15": 66,
+       "under30": 140,
+       "under45": 140
+      },
+      "z4.6 tile": {
+       "worst_Lc": 9.5,
+       "worst_at_m": 1.9,
+       "under15": 51,
+       "under30": 140,
+       "under45": 140
+      },
+      "coastal z7.4 tile": {
+       "worst_Lc": 0,
+       "worst_at_m": 2,
+       "under15": 122,
+       "under30": 127,
+       "under45": 140
+      },
+      "close z10 tile": {
+       "worst_Lc": 0,
+       "worst_at_m": 2.1,
+       "under15": 122,
+       "under30": 126,
+       "under45": 140
+      }
+     }
+    },
+    "twotone": {
+     "cvd_min_dE00": 32.4,
+     "inner_min_Lc": 65.4,
+     "states": {
+      "world z2.2": {
+       "worst_Lc": 41.8,
+       "worst_at_m": 3.6,
+       "under15": 0,
+       "under30": 0,
+       "under45": 28
+      },
+      "regional z4.6": {
+       "worst_Lc": 41.9,
+       "worst_at_m": 2.8,
+       "under15": 0,
+       "under30": 0,
+       "under45": 26
+      },
+      "z4.6 tile": {
+       "worst_Lc": 41.8,
+       "worst_at_m": 2.5,
+       "under15": 0,
+       "under30": 0,
+       "under45": 13
+      },
+      "coastal z7.4 tile": {
+       "worst_Lc": 41.1,
+       "worst_at_m": 2.4,
+       "under15": 0,
+       "under30": 0,
+       "under45": 11
+      },
+      "close z10 tile": {
+       "worst_Lc": 41.5,
+       "worst_at_m": 2.5,
+       "under15": 0,
+       "under30": 0,
+       "under45": 13
+      }
+     }
+    }
+   },
+   "v2": {
+    "today": {
+     "cvd_min_dE00": 8.1,
+     "inner_min_Lc": null,
+     "states": {
+      "world z2.2": {
+       "worst_Lc": 0,
+       "worst_at_m": 2.2,
+       "under15": 125,
+       "under30": 140,
+       "under45": 140
+      },
+      "regional z4.6": {
+       "worst_Lc": 10.7,
+       "worst_at_m": 7.9,
+       "under15": 86,
+       "under30": 140,
+       "under45": 140
+      },
+      "z4.6 tile": {
+       "worst_Lc": 10.7,
+       "worst_at_m": 6.3,
+       "under15": 59,
+       "under30": 140,
+       "under45": 140
+      },
+      "coastal z7.4 tile": {
+       "worst_Lc": 0,
+       "worst_at_m": 2.2,
+       "under15": 120,
+       "under30": 125,
+       "under45": 140
+      },
+      "close z10 tile": {
+       "worst_Lc": 0,
+       "worst_at_m": 2.3,
+       "under15": 120,
+       "under30": 124,
+       "under45": 137
+      }
+     }
+    },
+    "twotone": {
+     "cvd_min_dE00": 33.9,
+     "inner_min_Lc": 62.1,
+     "states": {
+      "world z2.2": {
+       "worst_Lc": 40.2,
+       "worst_at_m": 5.5,
+       "under15": 0,
+       "under30": 0,
+       "under45": 40
+      },
+      "regional z4.6": {
+       "worst_Lc": 40.4,
+       "worst_at_m": 5.1,
+       "under15": 0,
+       "under30": 0,
+       "under45": 34
+      },
+      "z4.6 tile": {
+       "worst_Lc": 42.2,
+       "worst_at_m": 3.3,
+       "under15": 0,
+       "under30": 0,
+       "under45": 18
+      },
+      "coastal z7.4 tile": {
+       "worst_Lc": 42,
+       "worst_at_m": 3.4,
+       "under15": 0,
+       "under30": 0,
+       "under45": 12
+      },
+      "close z10 tile": {
+       "worst_Lc": 41.8,
+       "worst_at_m": 3.6,
+       "under15": 0,
+       "under30": 0,
+       "under45": 20
+      }
+     }
+    }
+   }
+  }
+ }
+}

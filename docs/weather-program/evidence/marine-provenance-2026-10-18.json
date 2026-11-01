@@ -1,0 +1,312 @@
+{
+  "snapshotSha256": "3aa2f06c0d5a42a5196116a6a7aacfe5703414fb86b599e64e12cee291fa1932",
+  "snapshotProducts": 11339,
+  "replayedAtUtc": "2026-10-18T13:30:00+00:00",
+  "lanes": {
+    "ICON": {
+      "baseline": {
+        "summary": {
+          "model_cycle_age_h": 13.5,
+          "model_cycle_status": "mixed",
+          "model_cycle_unverified": [
+            "conflicting"
+          ],
+          "model_cycle_warn_h": 30.0,
+          "model_cycle_critical_h": 42.0
+        },
+        "verdict": "warn",
+        "reasons": [
+          "model cycle unverified: conflicting"
+        ]
+      },
+      "candidate": {
+        "summary": {
+          "model_cycle_age_h": 13.5,
+          "model_cycle_status": "mixed",
+          "model_cycle_contributors": [
+            {
+              "model": "GFS",
+              "source_dataset": "ncep_gfswave025",
+              "model_run_time": "2026-10-17T18:00:00+00:00",
+              "age_h": 19.5,
+              "warn_h": 18.0,
+              "critical_h": 24.0,
+              "verdict": "warn"
+            },
+            {
+              "model": "GFS",
+              "source_dataset": "ncep_gfswave025",
+              "model_run_time": "2026-10-18T00:00:00+00:00",
+              "age_h": 13.5,
+              "warn_h": 18.0,
+              "critical_h": 24.0,
+              "verdict": "ok"
+            },
+            {
+              "model": "ICON",
+              "source_dataset": "dwd_gwam",
+              "model_run_time": "2026-10-18T00:00:00+00:00",
+              "age_h": 13.5,
+              "warn_h": 30.0,
+              "critical_h": 42.0,
+              "verdict": "ok"
+            }
+          ],
+          "model_cycle_unverified": [
+            "conflicting"
+          ],
+          "model_cycle_warn_h": 30.0,
+          "model_cycle_critical_h": 42.0
+        },
+        "verdict": "warn",
+        "reasons": [
+          "GFS/ncep_gfswave025 contributor cycle 19.5h old (> 18.0h)",
+          "model cycle unverified: conflicting"
+        ]
+      },
+      "verifiedCrossModelRecords": 99,
+      "retainedConflicts": {
+        "conflicting cycles within a contributing model": 63
+      },
+      "manifestUnchanged": true
+    },
+    "EURO": {
+      "baseline": {
+        "summary": {
+          "model_cycle_age_h": 25.5,
+          "model_cycle_status": "mixed",
+          "model_cycle_unverified": [
+            "conflicting"
+          ],
+          "model_cycle_warn_h": 30.0,
+          "model_cycle_critical_h": 42.0
+        },
+        "verdict": "warn",
+        "reasons": [
+          "model cycle unverified: conflicting"
+        ]
+      },
+      "candidate": {
+        "summary": {
+          "model_cycle_age_h": 25.5,
+          "model_cycle_status": "verified_contributors",
+          "model_cycle_contributors": [
+            {
+              "model": "EURO",
+              "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+              "model_run_time": "2026-10-18T00:00:00+00:00",
+              "age_h": 13.5,
+              "warn_h": 30.0,
+              "critical_h": 42.0,
+              "verdict": "ok"
+            },
+            {
+              "model": "EURO",
+              "source_dataset": "ecmwf_wam025",
+              "model_run_time": "2026-10-17T12:00:00+00:00",
+              "age_h": 25.5,
+              "warn_h": 30.0,
+              "critical_h": 42.0,
+              "verdict": "ok"
+            },
+            {
+              "model": "GFS",
+              "source_dataset": "ncep_gfswave025",
+              "model_run_time": "2026-10-17T18:00:00+00:00",
+              "age_h": 19.5,
+              "warn_h": 18.0,
+              "critical_h": 24.0,
+              "verdict": "warn"
+            },
+            {
+              "model": "GFS",
+              "source_dataset": "ncep_gfswave025",
+              "model_run_time": "2026-10-18T00:00:00+00:00",
+              "age_h": 13.5,
+              "warn_h": 18.0,
+              "critical_h": 24.0,
+              "verdict": "ok"
+            }
+          ],
+          "model_cycle_unverified": [],
+          "model_cycle_warn_h": 30.0,
+          "model_cycle_critical_h": 42.0
+        },
+        "verdict": "warn",
+        "reasons": [
+          "GFS/ncep_gfswave025 contributor cycle 19.5h old (> 18.0h)"
+        ]
+      },
+      "verifiedCrossModelRecords": 34,
+      "retainedConflicts": {},
+      "manifestUnchanged": true
+    }
+  },
+  "generatedAtUtc": "2026-10-18T13:44:44.644977+00:00",
+  "baseDev": "698ecf6272344af568d31fbb91eadbf689bfc63e",
+  "scope": "Health metadata and default-off stored-grid trend-cycle refusal; no science formula, source selection, shared data, env or deployment change.",
+  "localVerification": {
+    "affectedTestsPassed": 291,
+    "newHealthControls": 54,
+    "newEstimatorControls": 20,
+    "defaultOffParityCases": 200,
+    "defaultOffParityMismatches": 0,
+    "seed": 376,
+    "network": "External connect and DNS denied; Windows asyncio self-pipe allowed only during socketpair construction"
+  },
+  "independentReview": {
+    "agent": "read-only review",
+    "actionableFindings": 0,
+    "replayedRealConflicts": 63
+  },
+  "reflection": {
+    "consulted": true,
+    "confirmedIssue": "Recognized contributor records with missing semantics could fall through legacy validation; fixed and tested.",
+    "otherAdvisories": "Top-level shared-cycle semantics deliberately preserved; donor-specific GFS cadence is existing policy; actual guard checks getenv default0 exactly equals1, confirmed by parity tests.",
+    "limitation": "First call returned no final answer; second advisory was checked against direct evidence."
+  },
+  "newFlag": {
+    "name": "ESTIMATE_COHERENT_TRENDS",
+    "default": "0",
+    "enabled": false,
+    "effectWhenEnabled": "Refuse new stored-grid estimates whose actually-used GFS/optional ICON trend pair lacks verified coherent model/source cycles. Does not repair old stored estimates or guarantee horizon availability."
+  },
+  "limits": [
+    "Captured-manifest replay is offline proof, not deployed acceptance",
+    "63 incoherent existing ICON estimates are not rewritten",
+    "EURO wind staleness and EURO weather missing cycles are separate open warnings",
+    "No long-range forecast-skill or numerical gain claim",
+    "No main or production promotion; shared backend unchanged"
+  ],
+  "sourceSha256": {
+    "backend/services/weather_pipeline/blend_cycle_health.py": "f3a173cba72bd3e7dae40d26d09d7dd4cf63adb9e10964ac761b0eb1a561865f",
+    "backend/services/weather_pipeline/model_cycle_health.py": "b05301574bc695e5d797eef9be6b3ccc3ad292bead95e8fce60227662e5b28b9",
+    "backend/services/weather_pipeline/cycle_provenance.py": "3a6e65d175b9d17320104c95ae7374a649bec54b0c564facc0c917765654508b",
+    "backend/services/weather_pipeline/estimator.py": "fc332a1f9ea3c401f26a3f2dc3c40ca1617ad115e5c72022673a276d04a0aa27"
+  },
+  "independentWrapperIntegration": {
+    "source_commit": "59711e004222ceab7b2d628989efede0c1ec71b2",
+    "external_network": "blocked; literal loopback only for Windows asyncio self-pipe",
+    "fixture": "test_icon_marine_extended_estimates._scheduler; 1-cell waves/global_coarse",
+    "cases": [
+      {
+        "flag": 0,
+        "saved_target_hours": [
+          171,
+          174
+        ],
+        "saved_models": [
+          "ICON"
+        ],
+        "save_batch_calls": 1,
+        "coherent_cross_model_cycles_verified": true
+      },
+      {
+        "flag": 1,
+        "saved_target_hours": [
+          171
+        ],
+        "saved_models": [
+          "ICON"
+        ],
+        "save_batch_calls": 1,
+        "coherent_cross_model_cycles_verified": true
+      }
+    ],
+    "coherent_payload_identical": true,
+    "tracked_files_changed": false
+  },
+  "semanticsMutationControls": {
+    "ICON": "regression catches removed semantics check",
+    "EURO": "regression catches removed semantics check"
+  },
+  "localMetadataBenchmark": {
+    "baselineIdentity": "698ecf6272344af568d31fbb91eadbf689bfc63e",
+    "iterations": 25,
+    "scope": "both marine cycle summaries, captured metadata only",
+    "baselineMedianMs": 1.413,
+    "candidateMedianMs": 7.813
+  },
+  "sourceQualification": {
+    "head": "5e8ff2212ad025e65527a0d79167356bead31b81",
+    "ciRunId": 39133369722,
+    "url": "https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/39133369722",
+    "conclusion": "success",
+    "jobsPassed": 12,
+    "reviewChecks": {
+      "success": 16,
+      "neutral": 3,
+      "failed": 0
+    },
+    "frontend": {
+      "suitesPassed": 438,
+      "testsPassed": 5766
+    },
+    "guards": {
+      "collected": 3257,
+      "files": 207,
+      "passed": 3190,
+      "skipped": 67,
+      "failed": 0,
+      "errors": 0
+    },
+    "chain": {
+      "passed": 2721,
+      "files": 166,
+      "failed": 0,
+      "errors": 0
+    },
+    "estate": {
+      "selectedFiles": 322,
+      "resultFiles": 320,
+      "passed": 2257,
+      "silentFiles": 0
+    },
+    "lighthouseRunId": 39133369767,
+    "lighthouseConclusion": "success",
+    "canceledSupersededCiRunId": 39133022593,
+    "receipt": "Final publication commit changes only documentation; source/tests/workflow equality checked against this qualified head."
+  },
+  "finalPublicReadback": {
+    "observedAtUtc": "2026-10-18T14:03:38.501986+00:00",
+    "dev": {
+      "http": 200,
+      "build": "698ecf62"
+    },
+    "production": {
+      "http": 200,
+      "build": "fc140024"
+    },
+    "health": {
+      "http": 200,
+      "status": "healthy",
+      "version": "2.0.0-stage-6f-v1-62021d59ff78815536391002a5d510a810cfff9e",
+      "checks": [
+        {
+          "name": "database",
+          "status": "pass"
+        },
+        {
+          "name": "scheduler",
+          "status": "pass"
+        }
+      ],
+      "restoreStatus": "complete",
+      "restoreErrors": 0
+    },
+    "dataHealth": {
+      "http": 200,
+      "status": "warn",
+      "alerts": [
+        "ICON/marine: model cycle unverified: conflicting",
+        "EURO/marine: model cycle unverified: conflicting"
+      ]
+    }
+  },
+  "currentReferenceCoverage": {
+    "counts": {
+      "current_manifest_references_now_coherent": 63
+    },
+    "limitation": "Metadata projection only. IDs can reference overwritten objects; no loaded grid bytes or regeneration were tested. Not live skill/availability acceptance."
+  }
+}

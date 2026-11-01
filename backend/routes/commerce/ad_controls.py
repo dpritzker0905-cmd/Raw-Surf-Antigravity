@@ -6,7 +6,7 @@ Now using PostgreSQL for persistent storage.
 from fastapi import APIRouter, Depends, HTTPException, Body, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime, timezone
 import json
@@ -15,6 +15,7 @@ import logging
 from database import get_db
 from core.security import get_user_id_from_jwt_or_query
 from deps.admin_auth import get_current_admin
+from utils.credits import deduct_credits
 from models import Profile, AdConfig as AdConfigModel, CreditTransaction, Notification
 
 logger = logging.getLogger(__name__)
@@ -96,7 +97,8 @@ class UserAdSubmission(BaseModel):
     video_url: Optional[str] = None
     thumbnail_url: Optional[str] = None
     media_type: Optional[str] = None  # 'image' or 'video'
-    budget_credits: int = 10
+    # A budget is spend: at least 1 credit. A negative one used to "deduct" a negative amount, i.e. mint credits.
+    budget_credits: int = Field(10, ge=1, le=1_000_000)
 
 
 # Default ad configuration
@@ -344,8 +346,8 @@ async def get_ad_analytics(
 @router.post("/ads/impression")
 async def track_ad_impression(
     variant_id: str,
-    user_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Track an ad impression (called from frontend)"""
     try:
@@ -366,8 +368,8 @@ async def track_ad_impression(
 @router.post("/ads/click")
 async def track_ad_click(
     variant_id: str,
-    user_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """Track an ad click (called from frontend)"""
     try:
@@ -436,17 +438,17 @@ async def submit_user_ad(
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     
-    if (user.credit_balance or 0) < data.budget_credits:
-        raise HTTPException(
-            status_code=400, 
-            detail=f"Insufficient credits. You have ${user.credit_balance or 0}, need ${data.budget_credits}"
-        )
-    
-    # Deduct credits
-    user.credit_balance = (user.credit_balance or 0) - data.budget_credits
-    
     ad_id = f"user_ad_{uuid.uuid4().hex[:8]}"
-    
+
+    # Deduct credits through the shared helper: one atomic UPDATE (no stale check, no overdraw under concurrency)
+    # that also writes the ledger row, and refuses non-finite or negative amounts.
+    success, _new_balance, error = await deduct_credits(
+        user_id=user_id, amount=data.budget_credits, transaction_type="ad_purchase", db=db,
+        description=f"Ad submission: {data.headline[:30]}...",
+        reference_type="ad_submission", reference_id=ad_id)
+    if not success:
+        raise HTTPException(status_code=400, detail=error or "Could not deduct credits")
+
     config = await get_ad_config(db)
     variants = config.get("variants", [])
     
@@ -478,19 +480,6 @@ async def submit_user_ad(
     config["variants"] = variants
     
     await save_ad_config(config, user_id, db)
-    
-    # Log credit transaction
-    tx = CreditTransaction(
-        user_id=user_id,
-        amount=-data.budget_credits,
-        balance_before=(user.credit_balance or 0) + data.budget_credits,
-        balance_after=user.credit_balance,
-        transaction_type="ad_purchase",
-        description=f"Ad submission: {data.headline[:30]}...",
-        reference_type="ad_submission",
-        reference_id=ad_id
-    )
-    db.add(tx)
     await db.commit()
     
     return {

@@ -25,6 +25,7 @@ import { API_BASE } from '../../lib/apiClient';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
 import { seriesAnchorTag, seriesAnchorParam, seriesGridPhase, alignToCadenceGrid } from './seriesAnchor';
 import { frameToMarineData } from './marineSeriesFrame';
+import { blendIconSwell2, isIconSwell2Blend } from './iconSwell2Blend';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { exactGfsPlaybackEnabled } from './marinePlaybackPolicy';
 import { isThinnedWorldGrid } from './marineExactUpgrade';
@@ -32,11 +33,13 @@ import { MarineSeriesCache } from './marineSeriesCache';
 import { finestCoveringSeriesFrame, nearestFrameInEntry } from './marineSeriesFinerEntry';
 import { marineSeriesWorkBoundsEnabled } from './marineSeriesWorkPolicy';
 import { deferMarineSeries, marineSeriesCallerAborted, resetMarineSeriesDeferred } from './marineSeriesDeferred';
-import { padRegionalBbox, normalizeRequestBbox, bboxContains } from './marineBboxGeometry';
+import { padRegionalBbox, normalizeRequestBbox, bboxContains } from './marineBboxGeometry'; import { seriesBoxContained, seriesFetchInit, seriesIdentityBounds, snapRequestBox } from './marineSeriesPanGuard';
 import {
   acquireSeriesSlot, releaseSeriesSlot, promoteQueuedWarm, acquireMiniSlot, releaseMiniSlot,
   _resetSeriesLimiterForTest,
 } from './marineSeriesLimiter';
+import { noteStaticFocus, regionalSeriesWait, runStaticPageFlight, staticOwnsWorldPage } from './marineSeriesStatic';
+import { staticCropPageKey, staticSeriesEligible } from './staticFrames';
 
 // pageKey (model_layer_viewportKey_pN) -> { ts, frames: Map<hourOffset, marineData>, hours: number[] }
 const _seriesCache = new MarineSeriesCache();
@@ -202,7 +205,7 @@ function pageKey(model, layer, bounds, page) {
 }
 
 export function marineSeriesViewportIdentity(model, layer, bounds) {
-  return pageKey(model, layer, bounds, 0);
+  return pageKey(model, layer, seriesIdentityBounds(bounds), 0);   // the snapped request box: a pan inside it keeps its work
 }
 
 
@@ -216,13 +219,19 @@ function scheduleIdlePrefetch(fn, signal) {
 // Load ONE page of the series. Idempotent + TTL'd + deduped (keyed by page). Never throws.
 async function loadSeriesPage(model, layer, bounds, page, signal, force = false, background = false) {
   if (marineSeriesCallerAborted(signal) || !isMarineSeriesEnabled() || !bounds || page < 0 || page > lastPageFor(model)) return;
-  const key = pageKey(model, layer, bounds, page);
   // Padded request box (also used for the coverage-aware dedup below). Computed once here.
   // PAD FIRST, THEN NORMALISE (order matters): padding a viewport whose west sits at -179.8 pushes
   // it to -180.3 and would re-introduce the very out-of-range edge normalisation exists to remove.
   const reqBox = normalizeRequestBbox(padRegionalBbox(bounds));
+  // A box a regional bundle could answer waits (bounded) for the products manifest BEFORE the dedup below, so waiters resume
+  // one by one and see each other's flight (marineSeriesStatic.regionalSeriesWait; null = no wait, nothing awaited).
+  const wait = regionalSeriesWait(model, layer, reqBox, getSurfModeFlag());
+  if (wait !== null) { await wait; if (marineSeriesCallerAborted(signal)) return; }
+  // A static CROP page (staticFrames.staticCropPageKey) carries its clip in its key: every viewport over 15 deg shares the key
+  // 'global' with the world page, and the two would overwrite each other. Every other page keeps its key.
+  const key = staticCropPageKey(pageKey(model, layer, bounds, page), { model, layer, reqBox, surf: getSurfModeFlag() });
   const existing = _seriesCache.get(key);
-  if (existing && !force) {
+  if (existing && !force && !existing.staticFrames) {
     // A coarse-preview entry is allowed to RE-FETCH (capped + spaced) so the SWR-revalidated regional
     // grid replaces the cold global frame; otherwise honour the normal TTL dedup. `force` bypasses the
     // TTL dedup entirely — used by the clamp backstop (#8) when the engine is HELD on a stale non-covering
@@ -270,11 +279,18 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
   // frames carry SCOREs + ratingMode:true, and the engine's reverse gate then keeps painting the
   // band while this serve preempts the honest commit that would release it).
   const surfFlavor = getSurfModeFlag();
+  // STATIC FRAMES (step 2b, DARK; marineSeriesStatic.js): a WORLD page fills from the pinned CDN frames around the
+  // viewed hour. Not eligible, or no index -> /grid_series below exactly as before.
+  // The eligibility check is synchronous, so with the flag off nothing here awaits and the timing is unchanged.
+  if (staticSeriesEligible({ model, layer, bbox: reqBox, surf: surfFlavor })
+    && await loadSeriesPageStatic(key, { model, layer, reqBox, surf: surfFlavor, hours, page, signal, background })) return;
+  // A cached or in-flight page whose box contains this view answers it; else ask the SNAPPED box (marineSeriesPanGuard.js).
+  if (!force && seriesBoxContained(_seriesCache, _inFlight, { model, layer, page, bounds, surf: surfFlavor, ttlMs: SERIES_TTL_MS })) return;
   // Request the padded box (computed above) so the served tile contains the viewport (+small pans) —
   // fixes the degree-boundary clamp. Cache key + coarse-preview detection still use the UNPADDED bounds.
-  const url = `${API_BASE}/weather/grid_series?model=${encodeURIComponent(model || 'GFS')}`
+  const urlBox = snapRequestBox(reqBox), url = `${API_BASE}/weather/grid_series?model=${encodeURIComponent(model || 'GFS')}`
     + `&domain=marine&layer=${encodeURIComponent(layer || 'waves')}`
-    + `&bbox=${reqBox.west.toFixed(4)},${reqBox.south.toFixed(4)},${reqBox.east.toFixed(4)},${reqBox.north.toFixed(4)}`
+    + `&bbox=${urlBox.west.toFixed(4)},${urlBox.south.toFixed(4)},${urlBox.east.toFixed(4)},${urlBox.north.toFixed(4)}`
     + `&hours=${hours.join(',')}`
     // F-01 (audit 14.0): transmit the absolute anchor the hour offsets are measured from. Without
     // it the backend floored its own clock while this client rounds its own, so the committed frame
@@ -312,7 +328,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
     }
     timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 45000);
     try {
-      const res = await fetch(url, { signal: localController.signal });
+      const res = await fetch(url, seriesFetchInit(localController.signal, gotSlot));
       if (!res.ok) {
         // §4.3(b): a failed page (deploy-window 500/502) retries bounded instead of
         // silently vanishing until the next gesture. Entries that already hold frames skip it.
@@ -368,11 +384,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
       // strictly improves regional hits (the served tile is ≥ the requested viewport).
       _seriesCache.set(key, { ts: Date.now(), frames, hours: hoursList, bounds: sfb || bounds, model, layer, page, surf: surfFlavor, coarsePreview: isCoarsePreview, revalCount });
       _failRetries.delete(key); // §4.3(b): a successful page resets its failure budget
-      // Bound memory.
-      if (_seriesCache.size > SERIES_MAX) {
-        const oldest = _seriesCache.keys().next().value;
-        if (oldest !== undefined && oldest !== key) _seriesCache.delete(oldest);
-      }
+      boundSeriesCache(key);   // Bound memory.
       // Self-schedule a revalidation re-fetch while still coarse (the backend is building the regional
       // grid in the background). Bounded by COARSE_REVAL_MAX. Aborts with the active signal.
       if (isCoarsePreview && revalCount < COARSE_REVAL_MAX && !localController.signal.aborted) {
@@ -408,11 +420,26 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
       if (signal) { try { signal.removeEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } }
     }
   })();
-  p.seriesSignal = localController.signal;
+  p.seriesSignal = localController.signal; p.reqBox = urlBox;
   _inFlight.set(key, p);
   // Awaiting here makes the load observable to callers that DO await (and tests); the
   // orchestrator calls this fire-and-forget (no await), so it stays a background load.
   await p;
+}
+
+// Bound memory: the oldest page goes once the cache holds more than SERIES_MAX (/grid_series pages and static pages alike).
+function boundSeriesCache(key) {
+  if (_seriesCache.size <= SERIES_MAX) return;
+  const oldest = _seriesCache.keys().next().value;
+  if (oldest !== undefined && oldest !== key) _seriesCache.delete(oldest);
+}
+
+// Seam B of the static frames (marineSeriesStatic.runStaticPageFlight): the fill runs as this page's flight.
+function loadSeriesPageStatic(key, ctx) {
+  const flight = runStaticPageFlight(key, ctx, { seriesCache: _seriesCache, frameToMarineData, finish: (f) => finishFlight(key, f),
+    evict: boundSeriesCache });
+  _inFlight.set(key, flight);
+  return flight;
 }
 
 // === HOUR-0-FIRST PAINT LANE (2026-07-18, the time-to-fine arc's measured fix) ===
@@ -432,6 +459,9 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal, backgro
   if (marineSeriesCallerAborted(signal)) return;
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_HOUR0_FIRST__ === true) return;
   if (!isMarineSeriesEnabled() || !bounds) return;
+  // Static frames: the page fill fetches the viewed hour first, so the mini would only load the box. Never held for the
+  // manifest: this is the first-paint lane (a regional page that cannot be served yet lets it go; regionalPageServableSync).
+  if (staticOwnsWorldPage(model, layer, normalizeRequestBbox(padRegionalBbox(bounds)), getSurfModeFlag())) return;
   const page = marineSeriesPageForHour(hourOffset, model);
   const h0key = `${pageKey(model, layer, bounds, page)}_h0`;
   const existing = _seriesCache.get(h0key);
@@ -441,9 +471,10 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal, backgro
   // it to -180.3 and would re-introduce the very out-of-range edge normalisation exists to remove.
   const reqBox = normalizeRequestBbox(padRegionalBbox(bounds));
   const surfFlavor = getSurfModeFlag();
-  const url = `${API_BASE}/weather/grid_series?model=${encodeURIComponent(model || 'GFS')}`
+  if (seriesBoxContained(_seriesCache, _inFlight, { model, layer, page, bounds, surf: surfFlavor, ttlMs: SERIES_TTL_MS, mini: true })) return;
+  const urlBox = snapRequestBox(reqBox), url = `${API_BASE}/weather/grid_series?model=${encodeURIComponent(model || 'GFS')}`
     + `&domain=marine&layer=${encodeURIComponent(layer || 'waves')}`
-    + `&bbox=${reqBox.west.toFixed(4)},${reqBox.south.toFixed(4)},${reqBox.east.toFixed(4)},${reqBox.north.toFixed(4)}`
+    + `&bbox=${urlBox.west.toFixed(4)},${urlBox.south.toFixed(4)},${urlBox.east.toFixed(4)},${urlBox.north.toFixed(4)}`
     + `&hours=${h}`
     + seriesAnchorParam()   // F-01: same anchor as the paged lane
     + (surfFlavor ? '&surf=1' : '');
@@ -459,7 +490,7 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal, backgro
       lane = await acquireMiniSlot(localController.signal, background);
       if (!lane || localController.signal.aborted || marineSeriesCallerAborted(signal)) return;
       timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 15000);
-      const res = await fetch(url, { signal: localController.signal });
+      const res = await fetch(url, seriesFetchInit(localController.signal, lane));
       if (!res.ok) return;                                   // silent: the full page is coming anyway
       const json = await res.json();
       if (localController.signal.aborted || marineSeriesCallerAborted(signal)) return;
@@ -490,9 +521,39 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal, backgro
       if (signal) { try { signal.removeEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } }
     }
   })();
-  p.seriesSignal = localController.signal;
+  p.seriesSignal = localController.signal; p.reqBox = urlBox;
   _inFlight.set(h0key, p);
   await p;
+}
+
+// ICON SWELL 2 FROM THE SERIES (2026-10-19). ICON has no swell_2 product: the map shows a GFS/EURO blend
+// (iconSwell2Blend.js, owner decision D-003). Before this, that blend existed ONLY on the per-hour path, so every scrub
+// step on ICON Swell 2 waited for two /grid fetches plus a main-thread blend ("one marine layer scrubbed quickly, after
+// switching to the next it stopped", owner 2026-10-19). Now the series path serves the same blend from the GFS and EURO
+// swell_2 series frames already cached: same function, same weights, no network. A step with either input missing still
+// misses here and takes the per-hour blend, exactly as before. Kill: window.__RAW_DISABLE_ICON_SWELL2_SERIES_BLEND__ = true.
+function iconSwell2SeriesBlendOn(model, layer, hourOffset) {
+  return isIconSwell2Blend(model, layer, hourOffset)
+    && !(typeof window !== 'undefined' && window.__RAW_DISABLE_ICON_SWELL2_SERIES_BLEND__ === true);
+}
+const _iconSwell2BlendMemo = new WeakMap();   // gfs grid -> Map(euro grid -> blended marineData)
+function blendIconSwell2Frames(gfsFrame, euroFrame, bounds) {
+  let inner = _iconSwell2BlendMemo.get(gfsFrame.grid);
+  if (!inner) { inner = new Map(); _iconSwell2BlendMemo.set(gfsFrame.grid, inner); }
+  const hit = inner.get(euroFrame.grid);
+  if (hit) return hit;
+  const md = blendIconSwell2(gfsFrame.grid, euroFrame.grid, gfsFrame.hourOffset, bounds, { quiet: true });
+  if (!md || !md.grid || md.grid.renderable === false) return null;
+  md.__fromSeries = true;
+  md.__sourceModel = 'ICON';
+  md.valid_time = gfsFrame.valid_time || null;
+  md.grid.__fromSeries = true;
+  md.grid.valid_time = gfsFrame.grid.valid_time || gfsFrame.valid_time || null;
+  md.grid.__decimatedStride = Math.max(gfsFrame.grid.__decimatedStride || 0, euroFrame.grid.__decimatedStride || 0);
+  md.product_id = `series_ICON_swell_2_h${gfsFrame.hourOffset}`;
+  if (inner.size > 4) inner.clear();
+  inner.set(euroFrame.grid, md);
+  return md;
 }
 
 /**
@@ -502,7 +563,17 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal, backgro
  */
 export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, signal, currentPageOnly = false, force = false, background = false) {
   if (marineSeriesCallerAborted(signal) || !isMarineSeriesEnabled() || !bounds) return;
+  if (iconSwell2SeriesBlendOn(model, layer, hourOffset)) {
+    // The blend's inputs: GFS swell_2 (cheap re-slice, full fan-out) and EURO swell_2 (current page only — EURO
+    // series pages are per-hour Copernicus work on the backend, see prewarmMarineSeries).
+    await Promise.all([
+      ensureMarineSeries('GFS', 'swell_2', bounds, hourOffset, signal, currentPageOnly, force, background),
+      ensureMarineSeries('EURO', 'swell_2', bounds, hourOffset, signal, true, force, background),
+    ]);
+    return;
+  }
   const page = marineSeriesPageForHour(hourOffset, model);
+  if (!background) noteStaticFocus(model, layer, hourOffset);   // static frames (dark): the page fill starts here
   // HOUR-0-FIRST: when the current page is COLD, race a 1-hour mini load ahead of it
   // (fire-and-forget — it must not delay the page load it exists to beat). Fires on EVERY cold
   // ensureMarineSeries call including the sibling prewarm's currentPageOnly path — the REAL
@@ -513,11 +584,7 @@ export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, s
   // (Probe run 2 lesson: do NOT suppress on _inFlight.has(pageKey) — a page already in flight for
   // 2.5-3.3 s cold is EXACTLY the window the mini exists to beat. The mini's own h0-key dedup
   // prevents duplicate minis; the page-warm check below prevents pointless ones.)
-  const _pk = pageKey(model, layer, bounds, page);
-  const _pc = _seriesCache.get(_pk);
-  if (!(_pc && _pc.frames && _pc.frames.size && Date.now() - _pc.ts < SERIES_TTL_MS)) {
-    loadSeriesHour0(model, layer, bounds, hourOffset, signal, background);
-  }
+  if (!isMarineSeriesPageWarm(model, layer, bounds, hourOffset)) loadSeriesHour0(model, layer, bounds, hourOffset, signal, background);
   await loadSeriesPage(model, layer, bounds, page, signal, force, background);
   // currentPageOnly: load just the page containing hourOffset, no adjacent prefetch. Used by the
   // sibling-layer toggle prewarm — a toggle only needs the CURRENT hour, so fanning out to adjacent
@@ -533,6 +600,18 @@ export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, s
   }
 }
 
+/** The page holding `hourOffset` is cached and fresh (the page itself, not its hour-0 mini). */
+export function isMarineSeriesPageWarm(model, layer, bounds, hourOffset = 0) {
+  const pc = bounds ? _seriesCache.get(pageKey(model, layer, bounds, marineSeriesPageForHour(hourOffset, model))) : null;
+  return !!(pc && pc.frames && pc.frames.size && Date.now() - pc.ts < SERIES_TTL_MS);
+}
+
+/** The hour-0 mini ALONE, awaitable (marineSiblingWarm.js: a sibling layer's toggle frame before its page). */
+export async function ensureMarineSeriesHour0(model, layer, bounds, hourOffset = 0, signal, background = true) {
+  if (marineSeriesCallerAborted(signal) || !isMarineSeriesEnabled() || !bounds) return;
+  if (!isMarineSeriesPageWarm(model, layer, bounds, hourOffset)) await loadSeriesHour0(model, layer, bounds, hourOffset, signal, background);
+}
+
 /**
  * Eagerly load EVERY page for the active model/layer/viewport (no idle deferral). Called on
  * scrub START so any hour the user jumps to during a fast drag already has a cached frame —
@@ -541,6 +620,7 @@ export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, s
  */
 export function prewarmMarineSeries(model, layer, bounds, signal) {
   if (marineSeriesCallerAborted(signal) || !isMarineSeriesEnabled() || !bounds) return;
+  if (iconSwell2SeriesBlendOn(model, layer, 0)) { prewarmMarineSeries('GFS', 'swell_2', bounds, signal); return; }
   // Kill: __RAW_DISABLE_SERIES_PREWARM__=true. ⛔ Measured: OFF is a REGRESSION, not a fix (-5 of
   // 63 reqs, moves work INTO the gesture) — docs/research/FINDING-2026-08-09-the-prewarm-is-not-the-cause.md
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_SERIES_PREWARM__ === true) return;
@@ -567,6 +647,14 @@ export function prewarmMarineSeries(model, layer, bounds, signal) {
  */
 export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
   if (!isMarineSeriesEnabled() || !bounds) return null;
+  if (iconSwell2SeriesBlendOn(model, layer, hourOffset)) {
+    const g = getMarineSeriesFrame('GFS', 'swell_2', bounds, hourOffset);
+    const e = g ? getMarineSeriesFrame('EURO', 'swell_2', bounds, hourOffset) : null;
+    // Both inputs at the SAME hour, or no series answer (the per-hour blend then runs, as before).
+    if (!g || !e || g.hourOffset !== e.hourOffset) return null;
+    if (g.valid_time && e.valid_time && Date.parse(g.valid_time) !== Date.parse(e.valid_time)) return null;   // same instant, not just label
+    return blendIconSwell2Frames(g, e, bounds);
+  }
   const page = marineSeriesPageForHour(hourOffset, model);
   const now = Date.now();
   // Width of the requested viewport (deg, antimeridian-safe). A GLOBAL-width cached frame must NEVER be

@@ -53,16 +53,16 @@ const MenuItem = ({
   };
 
   return (
-    <button aria-label="Loader2"
+    <button
       onClick={onClick}
       disabled={disabled || loading}
       className={`w-full flex items-center gap-3 px-4 py-3 text-left ${variants[variant]} transition-colors disabled:opacity-50`}
       data-testid={`menu-item-${label.toLowerCase().replace(/\s+/g, '-')}`}
     >
       {loading ? (
-        <Loader2 className="w-5 h-5 animate-spin" />
+        <Loader2 aria-hidden="true" focusable="false" className="w-5 h-5 animate-spin" />
       ) : (
-        <Icon className="w-5 h-5" />
+        <Icon aria-hidden="true" focusable="false" className="w-5 h-5" />
       )}
       <span className="font-medium">{label}</span>
     </button>

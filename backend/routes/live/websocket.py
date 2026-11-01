@@ -2,6 +2,7 @@
 WebSocket Routes for Real-time Updates
 """
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Header, HTTPException, status
+import hmac
 import logging
 import json
 import asyncio
@@ -13,7 +14,15 @@ from core.security import verify_token, dev_identity_allowed
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["websocket"])
 
-INTERNAL_TOKEN = os.getenv("INTERNAL_BROADCAST_TOKEN", "super_secret_internal_token_123")
+
+def internal_broadcast_token():
+    """The shared secret for /internal/events/broadcast, read at call time; None while it is unset.
+
+    ⛔ There is NO default. This repository is public, so any literal fallback is a credential everyone holds:
+    with the variable unset (the audit could not tell whether production sets it) anyone could post an event
+    into any room, the admin feed included. Unset now means the endpoint is closed.
+    """
+    return os.getenv("INTERNAL_BROADCAST_TOKEN") or None
 
 
 async def reject_websocket(websocket: WebSocket, reason: str) -> None:
@@ -131,11 +140,104 @@ async def websocket_conditions(websocket: WebSocket):
         ws_manager.disconnect(websocket, room="conditions")
 
 
+async def verify_admin_websocket(websocket: WebSocket) -> bool:
+    """
+    Authenticate an admin-only WebSocket handshake: a valid `token` query parameter whose subject is a profile
+    with is_admin set (the same rule as deps.admin_auth.get_current_admin on the HTTP side).
+
+    Returns True when the caller may proceed. Returns False *having already closed the socket* otherwise, so
+    callers `return` immediately. Like verify_websocket_auth it never raises and never accepts first.
+    There is deliberately NO development bypass here (no dev-mock subject, no BYPASS_WS_AUTH): this feed
+    carries the platform's internal event stream.
+    """
+    token = websocket.query_params.get("token")
+    if not token:
+        await reject_websocket(websocket, "Authentication token required")
+        return False
+    try:
+        sub = verify_token(token).get("sub")
+    except Exception as e:  # HTTPException for a bad or expired token; anything else is also a refusal
+        logger.warning(f"Admin WebSocket refused: token rejected ({type(e).__name__})")
+        await reject_websocket(websocket, "Authentication failed")
+        return False
+    if not sub:
+        await reject_websocket(websocket, "Authentication failed")
+        return False
+
+    from database import async_session_maker  # read at call time: tests replace it
+    from models import Profile
+    from sqlalchemy import select
+    try:
+        async with async_session_maker() as db:
+            row = await db.execute(select(Profile.is_admin).where(Profile.id == sub))
+            is_admin = row.scalar_one_or_none()
+    except Exception as e:
+        # Fail closed: if the admin flag cannot be read, nobody is let in.
+        logger.error(f"Admin WebSocket refused: admin lookup failed ({type(e).__name__})")
+        await reject_websocket(websocket, "Authentication failed")
+        return False
+    if is_admin is not True:
+        logger.warning("Admin WebSocket refused: token subject is not an admin")
+        await reject_websocket(websocket, "Access forbidden")
+        return False
+    return True
+
+
+async def verify_lineup_websocket(websocket: WebSocket, lineup_id: str) -> bool:
+    """
+    Authenticate a lineup WebSocket handshake: a valid `token` query parameter whose subject is on this lineup
+    (a lineup is a booking: its creator, its photographer, or one of its participants).
+
+    The room carries who joined or left and when a crew member paid, so it is for the crew, not for whoever
+    knows a lineup id. Returns False *having already closed the socket* (never accepted first); callers `return`.
+    A lineup that does not exist is refused exactly like one the caller is not on, so ids cannot be probed.
+    No development bypass. Fails closed if the membership lookup errors.
+    """
+    token = websocket.query_params.get("token")
+    if not token:
+        await reject_websocket(websocket, "Authentication token required")
+        return False
+    try:
+        sub = verify_token(token).get("sub")
+    except Exception as e:
+        logger.warning(f"Lineup WebSocket refused: token rejected ({type(e).__name__})")
+        await reject_websocket(websocket, "Authentication failed")
+        return False
+    if not sub:
+        await reject_websocket(websocket, "Authentication failed")
+        return False
+
+    from database import async_session_maker  # read at call time: tests replace it
+    from models import Booking, BookingParticipant
+    from sqlalchemy import or_, select
+    try:
+        async with async_session_maker() as db:
+            on_lineup = select(BookingParticipant.booking_id).where(BookingParticipant.participant_id == sub)
+            row = await db.execute(
+                select(Booking.id).where(
+                    Booking.id == lineup_id,
+                    or_(Booking.creator_id == sub, Booking.photographer_id == sub, Booking.id.in_(on_lineup)),
+                )
+            )
+            is_member = row.scalar_one_or_none() is not None
+    except Exception as e:
+        logger.error(f"Lineup WebSocket refused: membership lookup failed ({type(e).__name__})")
+        await reject_websocket(websocket, "Authentication failed")
+        return False
+    if not is_member:
+        logger.warning("Lineup WebSocket refused: token subject is not on this lineup")
+        await reject_websocket(websocket, "Access forbidden")
+        return False
+    return True
+
+
 @router.websocket("/ws/admin/events")
 async def websocket_admin_events(websocket: WebSocket):
     """
-    WebSocket endpoint for real-time admin event updates
+    WebSocket endpoint for real-time admin event updates (admins only; see verify_admin_websocket)
     """
+    if not await verify_admin_websocket(websocket):
+        return
     await ws_manager.connect(websocket, room="admin_events")
     try:
         await ws_manager.send_personal(websocket, {
@@ -240,7 +342,10 @@ async def websocket_lineup(websocket: WebSocket, lineup_id: str):
     - Crew member leaves/drops out
     - Lineup is locked or cancelled
     - Payment is received
+    Crew only: see verify_lineup_websocket.
     """
+    if not await verify_lineup_websocket(websocket, lineup_id):
+        return
     room = f"lineup_{lineup_id}"
     await ws_manager.connect(websocket, room=room)
     
@@ -538,7 +643,11 @@ async def internal_broadcast(payload: dict, x_internal_token: str = Header(None)
     Enables standalone MCP processes to securely forward broadcast events
     to FastAPI's active, in-memory WebSocket connections.
     """
-    if x_internal_token != INTERNAL_TOKEN:
+    expected = internal_broadcast_token()
+    if not expected:
+        logger.warning("Internal broadcast refused: INTERNAL_BROADCAST_TOKEN is not set")
+    if (not expected or not x_internal_token
+            or not hmac.compare_digest(x_internal_token.encode("utf-8"), expected.encode("utf-8"))):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or missing X-Internal-Token header"

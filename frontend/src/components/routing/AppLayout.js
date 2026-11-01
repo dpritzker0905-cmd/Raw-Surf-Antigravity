@@ -21,7 +21,7 @@ import { BottomNav } from '../BottomNav';
 import { ActiveSessionBanner } from '../ActiveSessionBanner';
 import ImpersonationBanner from '../ImpersonationBanner';
 import PersonaMaskBanner from '../PersonaMaskBanner';
-import { usePushNotifications } from '../../hooks/usePushNotifications';
+import { usePushNotifications, hasPushOptIn } from '../../hooks/usePushNotifications';
 import { useWebRTCCall, CALL_STATE } from '../../hooks/useWebRTCCall';
 import IncomingCallModal from '../messages/IncomingCallModal';
 import OutgoingCallModal from '../messages/OutgoingCallModal';
@@ -49,12 +49,16 @@ const PersonaMaskBannerWrapper = () => {
   return <PersonaMaskBanner />;
 };
 
-/** Auto-subscribes to push notifications when user logs in and permission is granted. */
+/**
+ * Re-syncs the push subscription of an account that opted in ON THIS BROWSER (its own Enable click recorded it).
+ * The browser permission alone is not consent for the account signed in now: it is per origin, so it used to
+ * subscribe whoever signed in after anyone had said yes (PushNotificationInit.consent.test.js).
+ */
 export const PushNotificationInit = () => {
   const { user } = useAuth();
   const { isSupported, subscribe } = usePushNotifications(user?.id);
   useEffect(() => {
-    if (user?.id && isSupported && Notification.permission === 'granted') {
+    if (user?.id && isSupported && Notification.permission === 'granted' && hasPushOptIn(user.id)) {
       subscribe();
     }
   }, [user?.id, isSupported, subscribe]);

@@ -26,6 +26,9 @@ import {
 } from './useMarineDataFetcherHelpers';
 import { getTarget, endTransition, recordChurn } from './marineTransitionCoordinator';
 import { claimEnqueueSlot } from './marineEnqueueSlot';
+import { marineErrorOwnsDisplay } from './marineSeekIdentity';
+import { keepSwrRetryCount, noteRequestDiet, swrReaskScheduledFor } from './marineRequestDiet';
+import { isFlavorToggleSource, leasePendingStampOf } from './marineFlavorToggle';
 
 /**
  * Release an abandoned in-flight marine fetch when a newer request supersedes it.
@@ -55,7 +58,6 @@ function releaseAbandonedFetch(inFlight, controller, site, activeSource, source)
 // real safety against aborting a live request — this just bounds how long a blank persists before
 // the watchdog acts. Kept short for fast recovery; govIdle prevents false positives.
 export const MARINE_FETCH_LEASE_MS = 4000;
-
 // HARD lease: a lock held this long is treated as dead UNLESS the in-flight registry proves otherwise. The
 // govIdle guard below trusts the governor to flag a live fetch, but a stranded fetch can leave the governor's
 // in-flight counters set TOO (its decrement skipped alongside locks.isFetching), so govIdle stays false forever
@@ -258,7 +260,7 @@ export function useMarineDataFetcherCore({
         }
         return;
       }
-      resetRetryCounts();
+      if (!keepSwrRetryCount(source)) resetRetryCounts();   // SWR_BACKOFF: its own re-drive keeps the count, so the ladder climbs (marineRequestDiet.js)
       const isRetry = source === 'cooldown_retry' || source === 'delayed_retry' || source === 'swr_revalidation' || source === 'clamp_resharpen';
       const hasValidData = marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length > 0;
       const isCorrectLayer = marineData?.grid?.__componentLayer === layer;
@@ -267,6 +269,9 @@ export function useMarineDataFetcherCore({
       let bypassDedupe = !hasValidData || !isCorrectLayer || _flavorMismatch || !!(marineData?.stale || marineData?.grid?.stale);
 
       if (!isRetry && !isTimelineScrub && !bypassDedupe && locks.lastHash === viewportHash && (Date.now() - locks.lastTime < 5 * 60 * 1000)) return;
+      // SWR_KEY_LADDER (marineRequestDiet.js): the ladder's re-ask of THIS very ask (box, model, layer, hour, flavour) is scheduled - wait for it.
+      if (swrReaskScheduledFor({ source, key: viewportHash, timerKey: swrTimerRef.askKey, timerPending: !!swrTimerRef.current })) {
+        noteRequestDiet('swr_key_hold', { source }); recordMarineEvent('swr_key_hold', { source, hour: timeOffset }); return; }
       if (locks.lastHash !== viewportHash) {
         consecutiveFailuresRef.current = 0;
         resetRetryCounts();
@@ -274,11 +279,8 @@ export function useMarineDataFetcherCore({
         locks.lastTime = 0; // Prevent 1200ms rate-limiter from blocking the fetch on layer/viewport switch
       }
 
-      if (source !== 'swr_revalidation') {
-        if (swrTimerRef.current) {
-          clearTimeout(swrTimerRef.current);
-          swrTimerRef.current = null;
-        }
+      if (source !== 'swr_revalidation') {   // a new ask supersedes a pending re-ask (a re-drive of the same one was held just above)
+        if (swrTimerRef.current) { clearTimeout(swrTimerRef.current); swrTimerRef.current = null; }
         swrRetryCountRef.current = 0;
       }
       updateMarineGridRef.current = updateMarineGrid;
@@ -308,7 +310,7 @@ export function useMarineDataFetcherCore({
         // the ring reader's call site - see marineRingReader.js header -- rationale moved to docs/runbooks/RATIONALE-2026-08-04-moved-for-the-loc-ratchet.md
         try { ringReaderTick(typeof window !== 'undefined' ? window : null); } catch (e) { /* never fatal */ }
         const activeSource = locks.activeSource || 'unknown';
-        const isHighPriority = (src) => src === 'manual' || src.includes('timeline') || src.includes('scrub');
+        const isHighPriority = (src) => src === 'manual' || src.includes('timeline') || src.includes('scrub') || isFlavorToggleSource(src);
         if (isHighPriority(activeSource) && !isHighPriority(source)) {
           console.log(`[Abort-Gate] Preserving high-priority fetch (${activeSource}) against low-priority update request (${source})`);
           return;
@@ -318,7 +320,7 @@ export function useMarineDataFetcherCore({
         // stale commit; registry caps + unmounts) — but ABORT under active scrubbing so the
         // backend's disconnect-detection can cancel the remaining per-hour upstream work.
         releaseAbandonedFetch(inFlight, abortControllerRef.current, 'updateMarineGrid', activeSource, source);
-        locks.isFetching = false;
+        locks.isFetching = false; leasePendingStampOf(abortControllerRef.current, locks);
       }
       if (!isRetry && !isTimelineScrub && consecutiveFailuresRef.current >= 3) return;
       const now = Date.now();
@@ -655,7 +657,9 @@ export function useMarineDataFetcherCore({
         console.error(`[Orchestrator Fatal Exception] phase=${phase} error:`, err.message);
       }
       const isCurrentHour = timeOffset === timeOffsetRef.current;
-      if (!isAbort && !window.isScrubbingTimeline && isCurrentHour) {
+      // T-03 (scrub audit 2026-10-18): only the CURRENT request may mark stale or blank the display (marineSeekIdentity.js).
+      if (!isAbort && marineErrorOwnsDisplay({ requestId, currentRequestId: marineRequestIdRef.current, intent: { model: rawModel, layer, hour: timeOffset },
+        current: { model: activeModelRef.current, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current }, scrubbing: !!window.isScrubbingTimeline })) {
         setMarineData(prev => {
           const hasValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
           const prevModel = prev?.grid?.__sourceModel || prev?.__sourceModel;
@@ -852,14 +856,14 @@ export function useMarineDataFetcherCore({
       pendingMarineIntentRef.current = { source, model: activeModelRef.current, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current, timestamp: Date.now() };
       logPipelineEventHelper('intent_buffered', pendingMarineIntentRef.current);
       const activeSource = locks.activeSource || 'unknown';
-      const isHighPriority = (src) => src === 'manual' || src.startsWith('manual') || src.includes('timeline') || src.includes('scrub');
+      const isHighPriority = (src) => src === 'manual' || src.startsWith('manual') || src.includes('timeline') || src.includes('scrub') || isFlavorToggleSource(src);
       if (isHighPriority(activeSource) && !isHighPriority(source)) {
         console.log(`[Abort-Gate] Preserving high-priority fetch (${activeSource}) against low-priority request (${source})`);
         return;
       }
       console.log(`[Release] Releasing active fetch (${activeSource}) in enqueueMarineUpdate for new source=${source} (scrub=abort, switch=detach+self-cache)`);
       releaseAbandonedFetch(inFlight, abortControllerRef.current, 'enqueueMarineUpdate', activeSource, source);
-      locks.isFetching = false;
+      locks.isFetching = false; leasePendingStampOf(abortControllerRef.current, locks);
       locks.activeSource = null;
       if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
       timeoutIdRef.current = setTimeout(() => {

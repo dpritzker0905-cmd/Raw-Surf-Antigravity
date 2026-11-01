@@ -5,6 +5,8 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
+from uuid import uuid4
+from utils.credits import refund_credits
 from core.security import get_current_user_id
 from datetime import datetime, timedelta, timezone
 import json
@@ -206,6 +208,7 @@ async def join_session(
     
     # ============ CREDIT PAYMENT PROCESSING ============
     payment_processed = False
+    payment_debit_id = str(uuid4())
     new_balance = surfer.credit_balance
 
     if data.payment_method == 'credits':
@@ -217,7 +220,8 @@ async def join_session(
             description=f"Live session buy-in with {photographer.full_name}",
             reference_type='live_session',
             reference_id=photographer.id,
-            counterparty_id=photographer.id
+            counterparty_id=photographer.id,
+            transaction_id=payment_debit_id
         )
         
         if not success:
@@ -266,6 +270,7 @@ async def join_session(
             locked_high = photographer.photo_price_high or photographer.live_photo_price_high or 10.0
         
         participant = LiveSessionParticipant(
+            payment_credit_transaction_id=payment_debit_id if payment_processed else None,
             photographer_id=data.photographer_id,
             surfer_id=surfer_id,
             spot_id=photographer.current_spot_id,
@@ -466,24 +471,15 @@ async def join_session(
                 surfer_for_refund = surfer_refetch.scalar_one_or_none()
                 
                 if surfer_for_refund:
-                    # Refund credits to surfer
-                    surfer_for_refund.credit_balance = (surfer_for_refund.credit_balance or 0) + final_price
-                    surfer_for_refund.withdrawable_credits = (surfer_for_refund.withdrawable_credits or 0) + final_price
-                    
-                    # Log refund transaction
-                    refund_tx = CreditTransaction(
-                        user_id=surfer_id,
-                        amount=final_price,
-                        balance_before=surfer_for_refund.credit_balance - final_price,
-                        balance_after=surfer_for_refund.credit_balance,
-                        transaction_type='session_join_refund',
-                        description=f"Auto-refund: Session join failed with {photographer.full_name}",
-                        reference_type='refund',
-                        reference_id=data.photographer_id,
-                        counterparty_id=data.photographer_id
-                    )
-                    db.add(refund_tx)
-                    
+                    # A rolled-back debit needs no second additive refund. Only a
+                    # persisted, identified debit may restore cash/promo composition.
+                    success, _, error = await refund_credits(
+                        surfer_id, final_price, db, reference_type='refund',
+                        reference_id=data.photographer_id, original_transaction_id=payment_debit_id,
+                        transaction_type='session_join_refund')
+                    if not success:
+                        raise RuntimeError(error)
+
                     # Create notification for the surfer about the refund
                     refund_notification = Notification(
                         user_id=surfer_id,

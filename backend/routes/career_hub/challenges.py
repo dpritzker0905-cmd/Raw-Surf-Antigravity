@@ -15,6 +15,7 @@ from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 import logging
+import json
 
 from database import get_db
 from models import (
@@ -29,21 +30,13 @@ logger = logging.getLogger(__name__)
 def get_current_week():
     """Get current ISO week number and year"""
     now = datetime.now(timezone.utc)
-    return now.isocalendar()[1], now.year
+    iso_year, week, _ = now.isocalendar()
+    return week, iso_year
 
 
 def get_week_dates(week_number: int, year: int):
     """Get start and end dates for a given week"""
-    # First day of the year
-    jan1 = datetime(year, 1, 1, tzinfo=timezone.utc)
-    # Find first Monday
-    days_to_monday = (7 - jan1.weekday()) % 7
-    first_monday = jan1 + timedelta(days=days_to_monday)
-    
-    # Calculate week start (Monday)
-    week_start = first_monday + timedelta(weeks=week_number - 1)
-    if jan1.weekday() <= 3:  # If Jan 1 is Mon-Thu, week 1 includes it
-        week_start = first_monday + timedelta(weeks=week_number - 2)
+    week_start = datetime.fromisocalendar(year, week_number, 1).replace(tzinfo=timezone.utc)
     
     week_end = week_start + timedelta(days=6, hours=23, minutes=59, seconds=59)
     
@@ -78,6 +71,12 @@ async def get_current_challenge(db: AsyncSession = Depends(get_db)):
     )
     participants = participants_result.scalars().all()
     
+    total_result = await db.execute(
+        select(func.count(ChallengeParticipant.id))
+        .where(ChallengeParticipant.challenge_id == challenge.id)
+    )
+    total_participants = total_result.scalar() or 0
+
     leaderboard = []
     for rank, p in enumerate(participants, 1):
         leaderboard.append({
@@ -110,7 +109,7 @@ async def get_current_challenge(db: AsyncSession = Depends(get_db)):
         },
         "leaderboard": leaderboard,
         "time_remaining_seconds": max(0, int(time_remaining)),
-        "total_participants": len(participants)
+        "total_participants": total_participants
     }
 
 
@@ -302,53 +301,63 @@ async def finalize_weekly_challenge(db: AsyncSession):
     Called by scheduler when a challenge ends.
     Sets final ranks and awards trophies.
     """
-    week, year = get_current_week()
-    
-    # Find the challenge that just ended (previous week)
-    prev_week = week - 1 if week > 1 else 52
-    prev_year = year if week > 1 else year - 1
-    
-    challenge_result = await db.execute(
-        select(WeeklyChallenge)
-        .where(WeeklyChallenge.week_number == prev_week)
-        .where(WeeklyChallenge.year == prev_year)
-        .where(WeeklyChallenge.status == 'active')
-    )
-    challenge = challenge_result.scalar_one_or_none()
-    
-    if not challenge:
-        return
-    
-    # Get all participants ranked
-    participants_result = await db.execute(
-        select(ChallengeParticipant)
-        .where(ChallengeParticipant.challenge_id == challenge.id)
-        .order_by(desc(ChallengeParticipant.score))
-    )
-    participants = participants_result.scalars().all()
-    
-    # Set final ranks and award trophies
-    for rank, p in enumerate(participants, 1):
-        p.final_rank = rank
-        if rank <= 3:
-            p.earned_trophy = True
-            
-            # Add trophy badge to profile
-            profile_result = await db.execute(select(Profile).where(Profile.id == p.photographer_id))
-            profile = profile_result.scalar_one_or_none()
-            if profile:
-                badges = profile.badges or []
-                badges.append({
-                    "type": "weekly_champion",
-                    "rank": rank,
-                    "week": prev_week,
-                    "year": prev_year,
-                    "emoji": "🏆" if rank == 1 else ("🥈" if rank == 2 else "🥉")
-                })
-                profile.badges = badges
-    
-    # Mark challenge as completed
-    challenge.status = 'completed'
-    
-    await db.commit()
-    logger.info(f"Finalized challenge for week {prev_week}/{prev_year}, {len(participants)} participants")
+    try:
+        week, year = get_current_week()
+
+        # Find the challenge that just ended (previous week)
+        week_start, _ = get_week_dates(week, year)
+        prev_year, prev_week, _ = (week_start - timedelta(weeks=1)).isocalendar()
+
+        challenge_result = await db.execute(
+            select(WeeklyChallenge)
+            .where(WeeklyChallenge.week_number == prev_week)
+            .where(WeeklyChallenge.year == prev_year)
+            .where(WeeklyChallenge.status == 'active')
+            .with_for_update()
+        )
+        challenge = challenge_result.scalar_one_or_none()
+
+        if not challenge:
+            return
+
+        # Get all participants ranked
+        participants_result = await db.execute(
+            select(ChallengeParticipant)
+            .where(ChallengeParticipant.challenge_id == challenge.id)
+            .order_by(desc(ChallengeParticipant.score))
+        )
+        participants = participants_result.scalars().all()
+
+        # Set final ranks and award trophies
+        for rank, p in enumerate(participants, 1):
+            p.final_rank = rank
+            if rank <= 3:
+                p.earned_trophy = True
+
+                # Add trophy badge to profile
+                profile_result = await db.execute(select(Profile).where(Profile.id == p.photographer_id))
+                profile = profile_result.scalar_one_or_none()
+                if profile:
+                    try:
+                        badges = json.loads(profile.badges or '[]')
+                    except (json.JSONDecodeError, TypeError) as error:
+                        raise ValueError("Profile badges must contain a JSON array") from error
+                    if not isinstance(badges, list):
+                        raise ValueError("Profile badges must contain a JSON array")
+                    badges.append({
+                        "type": "weekly_champion",
+                        "rank": rank,
+                        "week": prev_week,
+                        "year": prev_year,
+                        "emoji": "🏆" if rank == 1 else ("🥈" if rank == 2 else "🥉")
+                    })
+                    profile.badges = json.dumps(badges)
+
+        # Mark challenge as completed
+        challenge.status = 'completed'
+
+        await db.commit()
+        logger.info(f"Finalized challenge for week {prev_week}/{prev_year}, {len(participants)} participants")
+    except Exception:
+        await db.rollback()
+        raise

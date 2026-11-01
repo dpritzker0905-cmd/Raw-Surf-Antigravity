@@ -1,4 +1,5 @@
 import React, { useRef, useState, useMemo, useEffect, useCallback } from 'react';
+import { useDeferredSimField } from './useDeferredSimField';
 import Map, { Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import { getMapStyle, mapboxTransformRequest, ensureMapLibreInit, trace, findMarineInsertionLayer, configureWaterTransparency } from './mapUtils';
@@ -21,6 +22,7 @@ import { getFallbackMapStyle } from './basemapFallback';
 import { useMapErrorSurface } from './useMapErrorSurface';
 import { LAYER_REGISTRY, MODEL_METADATA_CACHE } from './LayerRegistry';
 import { radarForecastTileUrl, rainviewerTileTemplate } from './radarForecastSources';
+import { radarFrameTiming, holdRadarFrame, forgetShownRadarFrame } from './radarFrameHold'; import { slotTiming } from './rasterFrameSwap';
 
 // SPOT GEOFENCE circles. The radius ramp and the layer's zoom floor are ONE contract: below the
 // ramp's first stop Mapbox clamps the radius, so the circles stop shrinking with zoom and ~1900 of
@@ -53,6 +55,8 @@ import { useSpotRatings, computeClusterRatings } from './useSpotRatings';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
 import { useSatelliteBackgroundSync } from './useSatelliteBackgroundSync';
 import { useOpenMeteoTileUrls } from './useOpenMeteoTileUrls';
+import { useOwnRasterFrames } from './useOwnRasterFrames';
+import { usePressureIsobars } from './usePressureIsobars';
 import { useMapObservability } from './useMapObservability';
 import { useMapDebugTools } from './useMapDebugTools';
 import { useWebGLGuardrail } from './useWebGLGuardrail';
@@ -243,8 +247,22 @@ const MapWebGL = ({
 
   const animFrameRef = useRef(null);
   
+  // Own raster frames (2026-10-23, DARK: window.__RAW_RASTER_OWN_FRAMES__): pressure drawn from our CDN frames (free NOAA GRIB);
+  // while engaged the layer is left out of the .om path below, so Open-Meteo is never asked for it (useOwnRasterFrames.js).
+  const ownPressure = useOwnRasterFrames({ mapInstance, layer: 'pressure', model: activeModel, active: (activeLayers || []).includes('pressure'), timeOffsetHours, theme, beforeId: omSlotsBeforeId });
+  usePressureIsobars({ mapInstance, engaged: ownPressure, theme, beforeId: omSlotsBeforeId });   // isobars + H/L over it (same lever)
+  // Air temperature (2026-10-24, dark, GFS only: with EURO or ICON picked it stays on the .om path for that model).
+  const ownTemperature = useOwnRasterFrames({ mapInstance, layer: 'temperature', model: activeModel, active: (activeLayers || []).includes('temperature'), timeOffsetHours, theme, beforeId: omSlotsBeforeId });
+  // Cloud cover, the 'satellite' layer (2026-10-24, dark, GFS only, as air temperature).
+  const ownSatellite = useOwnRasterFrames({ mapInstance, layer: 'satellite', model: activeModel, active: (activeLayers || []).includes('satellite'), timeOffsetHours, theme, beforeId: omSlotsBeforeId });
+  const omLayers = useMemo(() => {
+    if (!ownPressure && !ownTemperature && !ownSatellite) return activeLayers;
+    return (activeLayers || []).filter((l) => !(l === 'pressure' && ownPressure) && !(l === 'temperature' && ownTemperature)
+      && !(l === 'satellite' && ownSatellite));
+  }, [ownPressure, ownTemperature, ownSatellite, activeLayers]);
+
   // Temporal Preloader
-  useTemporalPreloader({ currentHour: timeOffsetHours, activeLayers, mapInstance, activeModel, theme });
+  useTemporalPreloader({ currentHour: timeOffsetHours, activeLayers: omLayers, mapInstance, activeModel, theme });
 
   // 7. Open-Meteo Tile Protocol and Sliding URL Ring Buffers
 
@@ -258,7 +276,7 @@ const MapWebGL = ({
   } = useOpenMeteoTileUrls({
     mapInstance,
     activeModel,
-    activeLayers,
+    activeLayers: omLayers,
     theme,
     timeOffsetHours,
     userTier,
@@ -300,15 +318,17 @@ const MapWebGL = ({
     () => (surfMode ? computeClusterRatings(spotClusters, spotRatings, supercluster) : {}),
     [surfMode, spotClusters, spotRatings, supercluster]
   );
-  // FCE: Field Composition Engine — Single Source of Truth
+  // FCE: Field Composition Engine — Single Source of Truth. Built from DEFERRED inputs (useDeferredSimField.js: nothing drawn
+  // reads it by default, so it rebuilds after the wind commits; kill __RAW_DISABLE_SIM_FIELD_DEFER__).
+  const simIn = useDeferredSimField({ windData, marineData, activeModel, timeOffsetHours, activeMarineLayer });
   const { field: simulationField, diagnostics: fieldDiagnostics } = useSimulationField({
-    windData,
-    marineData,
+    windData: simIn.windData,
+    marineData: simIn.marineData,
     pressureData: null,
-    activeModel,
-    timeOffsetHours: timeOffsetHours,
+    activeModel: simIn.activeModel,
+    timeOffsetHours: simIn.timeOffsetHours,
     enableLogging: typeof window !== 'undefined' && localStorage.getItem('debug-fce') === 'true',
-    activeMarineLayer,
+    activeMarineLayer: simIn.activeMarineLayer,
   });
 
   // Live simulation bridge — drives RK4 physics independently of React
@@ -435,6 +455,7 @@ const MapWebGL = ({
       return PREFIX + h.toString(36);
     };
     const removeAll = () => {
+      forgetShownRadarFrame();
       try {
         const st = mapInstance.getStyle();
         for (const l of st.layers.filter(x => x.id.startsWith(PREFIX))) { try { mapInstance.removeLayer(l.id); } catch (e) {} }
@@ -496,11 +517,14 @@ const MapWebGL = ({
         if (!mapInstance.getLayer(id)) {
           mapInstance.addLayer({
             id, type: 'raster', source: id,
-            paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 250 }, 'raster-fade-duration': fadeMs },
+            paint: { 'raster-opacity': 0, ...radarFrameTiming(fadeMs) },   // hard cut (radarFrameHold.js)
           }, mapInstance.getLayer('lightning-glow') ? 'lightning-glow' : undefined);
         }
         mapInstance.setPaintProperty(id, 'raster-opacity', opacity);
       }
+      // Keep the frame on screen until the requested one has loaded (radarFrameHold.js).
+      const frameMs = new globalThis.Map(radarFrames.map((f) => { const u = radarFrameUrl(f); return [u ? sid(u) : null, (f.time || 0) * 1000]; }));
+      return holdRadarFrame(mapInstance, [...want].find(([, v]) => v.opacity > 0)?.[0], curOp, (id) => frameMs.get(id));
     } catch (e) { /* style transition — next index change retries */ }
     return undefined;
   }, [mapInstance, radarFrames, radarFrameIndex, activeLayers]);
@@ -829,7 +853,7 @@ const MapWebGL = ({
 
         // Strict visual isolation: Hide wind and marine layers from MapLibre's built-in raster renderer, unless failed
         const isExcludedMarine = ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(layerKey) && !webglMarineFailed;
-        const isVisualRaster = activeLayers.includes(layerKey) && !isExcludedMarine && !['wind'].includes(layerKey);
+        const isVisualRaster = omLayers.includes(layerKey) && !isExcludedMarine && !['wind'].includes(layerKey);
 
         return (
           <Source
@@ -851,7 +875,7 @@ const MapWebGL = ({
                 ? (marineBeforeId || omSlotsBeforeId)
                 : omSlotsBeforeId) || undefined}
               layout={{
-                visibility: (!hideForTransition && activeLayers.includes(layerKey)) ? 'visible' : 'none'
+                visibility: (!hideForTransition && omLayers.includes(layerKey)) ? 'visible' : 'none'
               }}
               paint={{
                 // Air Temp runs ~15% more transparent than Water Temp (user 2026-07-11: "hard to
@@ -874,7 +898,7 @@ const MapWebGL = ({
                       ? [12.5, 0.62, 13.5, 0.35, 15, 0.12] : []),
                   ] : 0.0,
                 'raster-resampling': 'linear',
-                'raster-fade-duration': fadeFor(layerKey)
+                ...slotTiming(fadeFor(layerKey), fadeOverride !== null || fadeDisabled)   // hard cut (rasterFrameSwap.js)
               }}
             />
           </Source>

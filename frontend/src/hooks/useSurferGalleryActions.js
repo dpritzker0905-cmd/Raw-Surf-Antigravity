@@ -159,8 +159,11 @@ const useSurferGalleryActions = ({
         toast.success(`Successfully unlocked item!`);
         fetchGallery();
       }
+      return true;
     } catch (error) {
       toast.error(error.response?.data?.detail || 'Checkout failed');
+      // Callers (the lightbox "Unlocked!" animation) must be able to tell a refused purchase from a paid one.
+      return false;
     }
   };
 

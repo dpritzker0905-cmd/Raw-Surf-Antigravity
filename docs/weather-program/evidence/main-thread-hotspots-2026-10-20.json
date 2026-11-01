@@ -1,0 +1,1155 @@
+{
+ "what": "Main-thread hot spots from the PR #400 stall profile: GL state shadow (WebGLStateIsolation), manifest valid-time index (getSharedValidTime), cached Intl formatters (formatInstant). Offline only; no request reached the live backend.",
+ "setup": {
+  "before": "dev a4a020334, GENERATE_SOURCEMAP=true CI=false npx craco build, served by serve_spa.js on :3161",
+  "after": "claude/main-thread-hotspots, same command and env, served on :3162 (the measured build placed the marine layer's _mapGLContext assignment directly before engine.render; the final commit moves it 5 lines up in the same try block to keep that file's source pins; the real-GPU agreement was re-run on the final build)",
+  "backend": "offline synthetic backend :4121 (serve_synthetic.py --thin-bounds 1 --dynamic 1 --models GFS,ICON,EURO --layers waves,swell_1,swell_2,wind_waves,wind --regions flagship), the same process PR #400 profiled against",
+  "lab": "AB_BASE=<spa> PORT=4121 FLOWS=erratic LAB_TRACE=1 node frontend/scripts/visual-lab/lab.js (PR #400 branch), interleaved base1, new1, base2, new2",
+  "profiler": "stall_profile.js <trace> <build> (50 ms stalls, PR #400's view) and the same with threshold 1 (all main-thread busy time)",
+  "machine": "Windows 11, AMD Radeon 890M, headless Chrome with ANGLE D3D11; other sessions' lab servers were running"
+ },
+ "runs": {
+  "base1": {
+   "arm": "before (dev a4a020334)",
+   "stall50": {
+    "stallMsTotal": 2363,
+    "stalls": 17,
+    "stallMsMax": 717,
+    "byStage": {
+     "shader compile (createProgram / MapLibre program)": 863,
+     "land mask build": 262,
+     "MapLibre (tiles, style, draw)": 237,
+     "convert grid -> texture": 219,
+     "other app code": 209,
+     "browser/native (program)": 128,
+     "GC": 91,
+     "React render/commit": 79,
+     "other library": 72,
+     "wind engine": 62,
+     "fetch / manifest glue": 35,
+     "marine engine draw": 35,
+     "GPU sync: GL state capture (getParameter)": 5,
+     "marine orchestration / commit": 2
+    },
+    "stageByStep": {
+     "before first step (load + setup)": {
+      "shader compile (createProgram / MapLibre program)": 863,
+      "MapLibre (tiles, style, draw)": 231,
+      "other app code": 143,
+      "GC": 72,
+      "convert grid -> texture": 68,
+      "browser/native (program)": 67,
+      "React render/commit": 58,
+      "wind engine": 57,
+      "other library": 57,
+      "land mask build": 52,
+      "marine engine draw": 19,
+      "fetch / manifest glue": 5,
+      "marine orchestration / commit": 2
+     },
+     "0__5h": {
+      "convert grid -> texture": 55,
+      "land mask build": 52,
+      "other app code": 19,
+      "GC": 16,
+      "fetch / manifest glue": 11,
+      "browser/native (program)": 3,
+      "React render/commit": 3,
+      "other library": 2,
+      "marine engine draw": 2,
+      "wind engine": 1,
+      "MapLibre (tiles, style, draw)": 1
+     },
+     "1__45h": {
+      "convert grid -> texture": 25,
+      "other app code": 8,
+      "fetch / manifest glue": 8,
+      "React render/commit": 6,
+      "land mask build": 5,
+      "marine engine draw": 1,
+      "other library": 1,
+      "wind engine": 1,
+      "browser/native (program)": 1,
+      "MapLibre (tiles, style, draw)": 0
+     },
+     "2__131h": {
+      "convert grid -> texture": 21,
+      "other app code": 10,
+      "React render/commit": 5,
+      "fetch / manifest glue": 5,
+      "land mask build": 4,
+      "other library": 2,
+      "MapLibre (tiles, style, draw)": 1,
+      "browser/native (program)": 1
+     },
+     "9_zoom_8": {
+      "land mask build": 149,
+      "convert grid -> texture": 26,
+      "marine engine draw": 11,
+      "other app code": 11,
+      "GPU sync: GL state capture (getParameter)": 5,
+      "other library": 4,
+      "React render/commit": 3,
+      "MapLibre (tiles, style, draw)": 3,
+      "GC": 1,
+      "browser/native (program)": 1,
+      "fetch / manifest glue": 1
+     },
+     "14__12h": {
+      "convert grid -> texture": 24,
+      "other app code": 16,
+      "fetch / manifest glue": 7,
+      "other library": 5,
+      "React render/commit": 4,
+      "GC": 2,
+      "wind engine": 2,
+      "browser/native (program)": 1,
+      "marine engine draw": 1,
+      "marine orchestration / commit": 1,
+      "MapLibre (tiles, style, draw)": 1
+     },
+     "16_Waves_again": {
+      "browser/native (program)": 54
+     }
+    },
+    "functions": {
+     "captureWebGLState": 0,
+     "getSharedValidTime": 15,
+     "formatInstant": 15,
+     "renderHeatmapAndParticles": 0
+    }
+   },
+   "busy1": {
+    "busyMsTotal": 35267,
+    "byStage": {
+     "GPU sync: GL state capture (getParameter)": 13208,
+     "browser/native (program)": 7894,
+     "MapLibre (tiles, style, draw)": 3748,
+     "marine engine draw": 3657,
+     "other app code": 1922,
+     "shader compile (createProgram / MapLibre program)": 1261,
+     "unmapped": 597,
+     "convert grid -> texture": 576,
+     "land mask build": 428,
+     "fetch / manifest glue": 373,
+     "React render/commit": 359,
+     "GC": 284,
+     "wind engine": 253,
+     "other library": 205,
+     "marine orchestration / commit": 19,
+     "idle": 2
+    },
+    "functions": {
+     "captureWebGLState": 13177,
+     "getSharedValidTime": 184,
+     "formatInstant": 156,
+     "renderHeatmapAndParticles": 3459
+    }
+   }
+  },
+  "new1": {
+   "arm": "after (branch)",
+   "stall50": {
+    "stallMsTotal": 5486,
+    "stalls": 36,
+    "stallMsMax": 1170,
+    "byStage": {
+     "browser/native (program)": 870,
+     "shader compile (createProgram / MapLibre program)": 797,
+     "other app code": 594,
+     "MapLibre (tiles, style, draw)": 509,
+     "marine engine draw": 458,
+     "convert grid -> texture": 445,
+     "wind engine": 319,
+     "land mask build": 269,
+     "GC": 242,
+     "fetch / manifest glue": 235,
+     "React render/commit": 214,
+     "other library": 186,
+     "unmapped": 72,
+     "marine orchestration / commit": 40,
+     "GPU sync: GL state capture (getParameter)": 12,
+     "idle": 9
+    },
+    "stageByStep": {
+     "before first step (load + setup)": {
+      "shader compile (createProgram / MapLibre program)": 776,
+      "browser/native (program)": 401,
+      "MapLibre (tiles, style, draw)": 363,
+      "wind engine": 249,
+      "other app code": 216,
+      "fetch / manifest glue": 166,
+      "other library": 113,
+      "marine engine draw": 101,
+      "React render/commit": 100,
+      "GC": 91,
+      "convert grid -> texture": 79,
+      "land mask build": 58,
+      "unmapped": 15,
+      "marine orchestration / commit": 2,
+      "idle": 2
+     },
+     "0__5h": {
+      "marine engine draw": 110,
+      "browser/native (program)": 108,
+      "other app code": 83,
+      "convert grid -> texture": 49,
+      "MapLibre (tiles, style, draw)": 38,
+      "GC": 34,
+      "React render/commit": 30,
+      "unmapped": 17,
+      "wind engine": 14,
+      "other library": 12,
+      "fetch / manifest glue": 12,
+      "shader compile (createProgram / MapLibre program)": 7,
+      "marine orchestration / commit": 4,
+      "land mask build": 3,
+      "GPU sync: GL state capture (getParameter)": 2,
+      "idle": 1
+     },
+     "1__45h": {
+      "browser/native (program)": 97,
+      "marine engine draw": 78,
+      "other app code": 77,
+      "convert grid -> texture": 47,
+      "React render/commit": 35,
+      "MapLibre (tiles, style, draw)": 31,
+      "other library": 15,
+      "unmapped": 13,
+      "GC": 12,
+      "fetch / manifest glue": 11,
+      "wind engine": 8,
+      "shader compile (createProgram / MapLibre program)": 5,
+      "land mask build": 4,
+      "GPU sync: GL state capture (getParameter)": 2,
+      "marine orchestration / commit": 2,
+      "idle": 1
+     },
+     "2__131h": {
+      "browser/native (program)": 53,
+      "marine engine draw": 25,
+      "convert grid -> texture": 23,
+      "GC": 20,
+      "other app code": 18,
+      "MapLibre (tiles, style, draw)": 15,
+      "marine orchestration / commit": 14,
+      "unmapped": 4,
+      "fetch / manifest glue": 4,
+      "other library": 4,
+      "wind engine": 3,
+      "React render/commit": 3,
+      "land mask build": 1,
+      "idle": 1,
+      "shader compile (createProgram / MapLibre program)": 1,
+      "GPU sync: GL state capture (getParameter)": 1
+     },
+     "3_EURO": {
+      "convert grid -> texture": 30,
+      "browser/native (program)": 20,
+      "other app code": 17,
+      "marine engine draw": 16,
+      "MapLibre (tiles, style, draw)": 6,
+      "GC": 5,
+      "fetch / manifest glue": 4,
+      "wind engine": 3,
+      "unmapped": 2,
+      "other library": 2,
+      "React render/commit": 1,
+      "shader compile (createProgram / MapLibre program)": 1,
+      "land mask build": 1,
+      "marine orchestration / commit": 1,
+      "idle": 1,
+      "GPU sync: GL state capture (getParameter)": 0
+     },
+     "4_Wind_Waves": {
+      "land mask build": 44,
+      "convert grid -> texture": 22,
+      "other app code": 7,
+      "React render/commit": 3,
+      "browser/native (program)": 2,
+      "fetch / manifest glue": 1,
+      "other library": 1,
+      "idle": 1,
+      "wind engine": 0,
+      "marine orchestration / commit": 0,
+      "marine engine draw": 0
+     },
+     "6_ICON": {
+      "browser/native (program)": 46,
+      "convert grid -> texture": 28,
+      "marine engine draw": 21,
+      "GC": 20,
+      "other app code": 17,
+      "MapLibre (tiles, style, draw)": 12,
+      "fetch / manifest glue": 8,
+      "wind engine": 5,
+      "React render/commit": 3,
+      "unmapped": 2,
+      "GPU sync: GL state capture (getParameter)": 2,
+      "shader compile (createProgram / MapLibre program)": 2,
+      "marine orchestration / commit": 1,
+      "idle": 1,
+      "land mask build": 1
+     },
+     "7_Swell_2": {
+      "GC": 28,
+      "convert grid -> texture": 27,
+      "other app code": 25,
+      "browser/native (program)": 22,
+      "marine engine draw": 18,
+      "MapLibre (tiles, style, draw)": 9,
+      "other library": 8,
+      "fetch / manifest glue": 6,
+      "wind engine": 4,
+      "unmapped": 4,
+      "React render/commit": 2,
+      "shader compile (createProgram / MapLibre program)": 2,
+      "GPU sync: GL state capture (getParameter)": 2,
+      "marine orchestration / commit": 2,
+      "land mask build": 1
+     },
+     "8__165h": {
+      "other app code": 60,
+      "browser/native (program)": 36,
+      "convert grid -> texture": 29,
+      "marine engine draw": 23,
+      "other library": 22,
+      "React render/commit": 12,
+      "wind engine": 10,
+      "GC": 10,
+      "MapLibre (tiles, style, draw)": 8,
+      "fetch / manifest glue": 5,
+      "unmapped": 3,
+      "shader compile (createProgram / MapLibre program)": 2,
+      "marine orchestration / commit": 1,
+      "GPU sync: GL state capture (getParameter)": 1,
+      "idle": 1
+     },
+     "9_zoom_8": {
+      "land mask build": 155,
+      "convert grid -> texture": 24,
+      "marine engine draw": 16,
+      "other app code": 13,
+      "MapLibre (tiles, style, draw)": 4,
+      "GC": 2,
+      "other library": 2,
+      "React render/commit": 2,
+      "browser/native (program)": 2,
+      "idle": 1
+     },
+     "12_Waves": {
+      "browser/native (program)": 23,
+      "convert grid -> texture": 23,
+      "other app code": 13,
+      "marine orchestration / commit": 10,
+      "marine engine draw": 10,
+      "GC": 8,
+      "fetch / manifest glue": 7,
+      "wind engine": 6,
+      "MapLibre (tiles, style, draw)": 4,
+      "unmapped": 4,
+      "React render/commit": 3,
+      "land mask build": 1,
+      "other library": 1
+     },
+     "14__12h": {
+      "convert grid -> texture": 38,
+      "browser/native (program)": 28,
+      "other app code": 28,
+      "marine engine draw": 15,
+      "React render/commit": 12,
+      "MapLibre (tiles, style, draw)": 9,
+      "fetch / manifest glue": 8,
+      "GC": 7,
+      "wind engine": 6,
+      "other library": 3,
+      "unmapped": 2,
+      "GPU sync: GL state capture (getParameter)": 1,
+      "marine orchestration / commit": 1,
+      "land mask build": 1,
+      "idle": 1
+     },
+     "15_Swell": {
+      "browser/native (program)": 18,
+      "marine engine draw": 16,
+      "convert grid -> texture": 7,
+      "MapLibre (tiles, style, draw)": 6,
+      "other app code": 5,
+      "GC": 4,
+      "React render/commit": 4,
+      "unmapped": 3,
+      "wind engine": 2,
+      "other library": 1,
+      "marine orchestration / commit": 1,
+      "land mask build": 1,
+      "GPU sync: GL state capture (getParameter)": 0,
+      "idle": 0
+     },
+     "16_Waves_again": {
+      "convert grid -> texture": 19,
+      "other app code": 14,
+      "browser/native (program)": 12,
+      "marine engine draw": 10,
+      "wind engine": 7,
+      "MapLibre (tiles, style, draw)": 6,
+      "GC": 3,
+      "unmapped": 3,
+      "React render/commit": 3,
+      "other library": 2,
+      "fetch / manifest glue": 1,
+      "marine orchestration / commit": 1,
+      "shader compile (createProgram / MapLibre program)": 1,
+      "GPU sync: GL state capture (getParameter)": 1,
+      "idle": 1
+     }
+    },
+    "functions": {
+     "captureWebGLState": 0,
+     "getSharedValidTime": 0,
+     "formatInstant": 0,
+     "renderHeatmapAndParticles": 389
+    }
+   },
+   "busy1": {
+    "busyMsTotal": 43623,
+    "byStage": {
+     "browser/native (program)": 13182,
+     "marine engine draw": 12582,
+     "MapLibre (tiles, style, draw)": 7171,
+     "other app code": 3041,
+     "shader compile (createProgram / MapLibre program)": 1706,
+     "unmapped": 1295,
+     "wind engine": 575,
+     "land mask build": 559,
+     "idle": 545,
+     "convert grid -> texture": 543,
+     "React render/commit": 499,
+     "GC": 401,
+     "GPU sync: GL state capture (getParameter)": 386,
+     "other library": 326,
+     "fetch / manifest glue": 299,
+     "marine orchestration / commit": 125
+    },
+    "functions": {
+     "captureWebGLState": 257,
+     "getSharedValidTime": 0,
+     "formatInstant": 0,
+     "renderHeatmapAndParticles": 12327
+    }
+   }
+  },
+  "base2": {
+   "arm": "before (dev a4a020334)",
+   "stall50": {
+    "stallMsTotal": 4625,
+    "stalls": 33,
+    "stallMsMax": 1061,
+    "byStage": {
+     "shader compile (createProgram / MapLibre program)": 974,
+     "browser/native (program)": 649,
+     "other app code": 429,
+     "MapLibre (tiles, style, draw)": 396,
+     "convert grid -> texture": 329,
+     "GPU sync: GL state capture (getParameter)": 298,
+     "fetch / manifest glue": 261,
+     "land mask build": 235,
+     "GC": 209,
+     "marine engine draw": 162,
+     "React render/commit": 141,
+     "other library": 126,
+     "wind engine": 117,
+     "marine orchestration / commit": 63,
+     "unmapped": 26,
+     "idle": 6
+    },
+    "stageByStep": {
+     "before first step (load + setup)": {
+      "shader compile (createProgram / MapLibre program)": 961,
+      "browser/native (program)": 330,
+      "MapLibre (tiles, style, draw)": 321,
+      "other app code": 187,
+      "fetch / manifest glue": 134,
+      "other library": 100,
+      "GC": 98,
+      "React render/commit": 96,
+      "convert grid -> texture": 79,
+      "wind engine": 68,
+      "land mask build": 41,
+      "marine engine draw": 40,
+      "marine orchestration / commit": 20,
+      "GPU sync: GL state capture (getParameter)": 11,
+      "unmapped": 6,
+      "idle": 1
+     },
+     "0__5h": {
+      "GPU sync: GL state capture (getParameter)": 49,
+      "other app code": 44,
+      "browser/native (program)": 37,
+      "convert grid -> texture": 22,
+      "fetch / manifest glue": 19,
+      "marine engine draw": 17,
+      "React render/commit": 10,
+      "wind engine": 8,
+      "MapLibre (tiles, style, draw)": 7,
+      "GC": 5,
+      "unmapped": 5,
+      "marine orchestration / commit": 3,
+      "other library": 2,
+      "shader compile (createProgram / MapLibre program)": 1,
+      "idle": 1,
+      "land mask build": 0
+     },
+     "1__45h": {
+      "GPU sync: GL state capture (getParameter)": 25,
+      "browser/native (program)": 24,
+      "fetch / manifest glue": 10,
+      "other app code": 8,
+      "convert grid -> texture": 8,
+      "MapLibre (tiles, style, draw)": 7,
+      "marine engine draw": 5,
+      "wind engine": 2,
+      "React render/commit": 1,
+      "unmapped": 1,
+      "GC": 1,
+      "other library": 1
+     },
+     "2__131h": {
+      "GPU sync: GL state capture (getParameter)": 23,
+      "browser/native (program)": 18,
+      "other app code": 9,
+      "convert grid -> texture": 8,
+      "fetch / manifest glue": 7,
+      "marine engine draw": 6,
+      "shader compile (createProgram / MapLibre program)": 3,
+      "GC": 2,
+      "MapLibre (tiles, style, draw)": 2,
+      "React render/commit": 2,
+      "wind engine": 1,
+      "unmapped": 1,
+      "other library": 1
+     },
+     "3_EURO": {
+      "GPU sync: GL state capture (getParameter)": 42,
+      "browser/native (program)": 39,
+      "other app code": 23,
+      "convert grid -> texture": 20,
+      "marine engine draw": 17,
+      "marine orchestration / commit": 16,
+      "fetch / manifest glue": 10,
+      "MapLibre (tiles, style, draw)": 10,
+      "GC": 5,
+      "wind engine": 5,
+      "React render/commit": 3,
+      "other library": 2,
+      "unmapped": 1,
+      "shader compile (createProgram / MapLibre program)": 1,
+      "land mask build": 1
+     },
+     "4_Wind_Waves": {
+      "land mask build": 42,
+      "convert grid -> texture": 21,
+      "GC": 19,
+      "fetch / manifest glue": 4,
+      "other app code": 4,
+      "other library": 2,
+      "browser/native (program)": 2,
+      "MapLibre (tiles, style, draw)": 1,
+      "React render/commit": 1,
+      "GPU sync: GL state capture (getParameter)": 1,
+      "marine engine draw": 1,
+      "idle": 1,
+      "unmapped": 0
+     },
+     "6_ICON": {
+      "convert grid -> texture": 20,
+      "GPU sync: GL state capture (getParameter)": 12,
+      "browser/native (program)": 10,
+      "other app code": 10,
+      "fetch / manifest glue": 10,
+      "marine engine draw": 8,
+      "MapLibre (tiles, style, draw)": 2,
+      "GC": 2,
+      "wind engine": 2,
+      "unmapped": 1,
+      "shader compile (createProgram / MapLibre program)": 1,
+      "land mask build": 1,
+      "marine orchestration / commit": 1,
+      "React render/commit": 0
+     },
+     "7_Swell_2": {
+      "browser/native (program)": 66,
+      "GC": 53,
+      "GPU sync: GL state capture (getParameter)": 44,
+      "other app code": 28,
+      "convert grid -> texture": 25,
+      "marine engine draw": 18,
+      "MapLibre (tiles, style, draw)": 12,
+      "marine orchestration / commit": 11,
+      "fetch / manifest glue": 9,
+      "other library": 7,
+      "wind engine": 5,
+      "unmapped": 3,
+      "shader compile (createProgram / MapLibre program)": 2,
+      "idle": 1,
+      "land mask build": 1,
+      "React render/commit": 0
+     },
+     "8__165h": {
+      "other app code": 34,
+      "browser/native (program)": 28,
+      "GPU sync: GL state capture (getParameter)": 26,
+      "convert grid -> texture": 24,
+      "fetch / manifest glue": 12,
+      "marine engine draw": 9,
+      "wind engine": 9,
+      "React render/commit": 8,
+      "MapLibre (tiles, style, draw)": 8,
+      "other library": 4,
+      "GC": 4,
+      "unmapped": 3,
+      "shader compile (createProgram / MapLibre program)": 2,
+      "marine orchestration / commit": 1
+     },
+     "9_zoom_8": {
+      "land mask build": 148,
+      "convert grid -> texture": 25,
+      "marine engine draw": 14,
+      "other app code": 8,
+      "MapLibre (tiles, style, draw)": 6,
+      "browser/native (program)": 4,
+      "GC": 4,
+      "GPU sync: GL state capture (getParameter)": 3,
+      "other library": 2,
+      "React render/commit": 1,
+      "idle": 1,
+      "fetch / manifest glue": 1,
+      "shader compile (createProgram / MapLibre program)": 0
+     },
+     "12_Waves": {
+      "convert grid -> texture": 21,
+      "browser/native (program)": 15,
+      "marine orchestration / commit": 11,
+      "other app code": 10,
+      "GPU sync: GL state capture (getParameter)": 8,
+      "GC": 5,
+      "fetch / manifest glue": 5,
+      "marine engine draw": 5,
+      "wind engine": 2,
+      "MapLibre (tiles, style, draw)": 2,
+      "React render/commit": 1,
+      "unmapped": 1,
+      "shader compile (createProgram / MapLibre program)": 1
+     },
+     "13_GFS": {
+      "browser/native (program)": 14,
+      "other app code": 9,
+      "fetch / manifest glue": 8,
+      "convert grid -> texture": 8,
+      "GPU sync: GL state capture (getParameter)": 7,
+      "marine engine draw": 4,
+      "MapLibre (tiles, style, draw)": 3,
+      "GC": 2,
+      "wind engine": 2,
+      "React render/commit": 2,
+      "shader compile (createProgram / MapLibre program)": 1,
+      "unmapped": 1,
+      "other library": 1,
+      "idle": 1
+     },
+     "14__12h": {
+      "browser/native (program)": 35,
+      "other app code": 31,
+      "GPU sync: GL state capture (getParameter)": 28,
+      "fetch / manifest glue": 22,
+      "convert grid -> texture": 20,
+      "React render/commit": 11,
+      "marine engine draw": 10,
+      "MapLibre (tiles, style, draw)": 7,
+      "wind engine": 6,
+      "GC": 2,
+      "unmapped": 2,
+      "other library": 2,
+      "idle": 1,
+      "marine orchestration / commit": 1
+     },
+     "15_Swell": {
+      "browser/native (program)": 17,
+      "convert grid -> texture": 17,
+      "GPU sync: GL state capture (getParameter)": 11,
+      "other app code": 10,
+      "fetch / manifest glue": 6,
+      "marine engine draw": 5,
+      "MapLibre (tiles, style, draw)": 3,
+      "React render/commit": 3,
+      "GC": 2,
+      "wind engine": 2,
+      "other library": 1,
+      "land mask build": 1,
+      "unmapped": 1
+     },
+     "16_Waves_again": {
+      "other app code": 14,
+      "convert grid -> texture": 12,
+      "browser/native (program)": 10,
+      "GPU sync: GL state capture (getParameter)": 9,
+      "fetch / manifest glue": 6,
+      "GC": 5,
+      "wind engine": 5,
+      "MapLibre (tiles, style, draw)": 4,
+      "marine engine draw": 4,
+      "unmapped": 2,
+      "React render/commit": 2,
+      "other library": 1,
+      "shader compile (createProgram / MapLibre program)": 1,
+      "idle": 1
+     }
+    },
+    "functions": {
+     "captureWebGLState": 298,
+     "getSharedValidTime": 46,
+     "formatInstant": 38,
+     "renderHeatmapAndParticles": 98
+    }
+   },
+   "busy1": {
+    "busyMsTotal": 42836,
+    "byStage": {
+     "GPU sync: GL state capture (getParameter)": 15666,
+     "browser/native (program)": 10312,
+     "MapLibre (tiles, style, draw)": 4447,
+     "marine engine draw": 4269,
+     "other app code": 2151,
+     "shader compile (createProgram / MapLibre program)": 1470,
+     "unmapped": 840,
+     "fetch / manifest glue": 519,
+     "idle": 499,
+     "land mask build": 398,
+     "convert grid -> texture": 374,
+     "React render/commit": 344,
+     "GC": 336,
+     "wind engine": 239,
+     "other library": 205,
+     "marine orchestration / commit": 117
+    },
+    "functions": {
+     "captureWebGLState": 15636,
+     "getSharedValidTime": 162,
+     "formatInstant": 126,
+     "renderHeatmapAndParticles": 4060
+    }
+   }
+  },
+  "new2": {
+   "arm": "after (branch)",
+   "stall50": {
+    "stallMsTotal": 3485,
+    "stalls": 20,
+    "stallMsMax": 1257,
+    "byStage": {
+     "shader compile (createProgram / MapLibre program)": 981,
+     "land mask build": 488,
+     "MapLibre (tiles, style, draw)": 372,
+     "wind engine": 306,
+     "convert grid -> texture": 293,
+     "other app code": 286,
+     "browser/native (program)": 159,
+     "other library": 147,
+     "GC": 132,
+     "React render/commit": 116,
+     "marine engine draw": 56,
+     "marine orchestration / commit": 6,
+     "fetch / manifest glue": 6,
+     "unmapped": 1
+    },
+    "stageByStep": {
+     "before first step (load + setup)": {
+      "shader compile (createProgram / MapLibre program)": 981,
+      "MapLibre (tiles, style, draw)": 365,
+      "wind engine": 296,
+      "other app code": 219,
+      "other library": 124,
+      "GC": 92,
+      "convert grid -> texture": 92,
+      "browser/native (program)": 90,
+      "React render/commit": 87,
+      "land mask build": 75,
+      "marine engine draw": 31,
+      "marine orchestration / commit": 4,
+      "fetch / manifest glue": 2,
+      "unmapped": 1
+     },
+     "0__5h": {
+      "other app code": 21,
+      "convert grid -> texture": 14,
+      "React render/commit": 10,
+      "wind engine": 6,
+      "GC": 4,
+      "other library": 4,
+      "marine engine draw": 3,
+      "MapLibre (tiles, style, draw)": 2,
+      "browser/native (program)": 1,
+      "marine orchestration / commit": 1,
+      "land mask build": 0,
+      "fetch / manifest glue": 0
+     },
+     "4_Wind_Waves": {
+      "land mask build": 54,
+      "convert grid -> texture": 26,
+      "other app code": 4,
+      "marine engine draw": 3,
+      "React render/commit": 2,
+      "other library": 2,
+      "GC": 2,
+      "fetch / manifest glue": 1,
+      "browser/native (program)": 1
+     },
+     "9_zoom_8": {
+      "land mask build": 260,
+      "convert grid -> texture": 65,
+      "marine engine draw": 17,
+      "other app code": 14,
+      "other library": 8,
+      "GC": 6,
+      "React render/commit": 5,
+      "MapLibre (tiles, style, draw)": 4,
+      "browser/native (program)": 2,
+      "marine orchestration / commit": 1,
+      "fetch / manifest glue": 0
+     },
+     "10_pan": {
+      "land mask build": 37,
+      "convert grid -> texture": 26,
+      "other app code": 4,
+      "React render/commit": 3,
+      "other library": 1,
+      "browser/native (program)": 1,
+      "fetch / manifest glue": 1,
+      "marine engine draw": 1
+     },
+     "11_zoom_out_3": {
+      "land mask build": 62,
+      "convert grid -> texture": 36,
+      "GC": 23,
+      "other app code": 9,
+      "other library": 4,
+      "React render/commit": 3,
+      "marine engine draw": 1,
+      "fetch / manifest glue": 1,
+      "browser/native (program)": 1
+     },
+     "14__12h": {
+      "convert grid -> texture": 35,
+      "other app code": 14,
+      "React render/commit": 6,
+      "GC": 5,
+      "wind engine": 4,
+      "other library": 4,
+      "MapLibre (tiles, style, draw)": 1,
+      "browser/native (program)": 1,
+      "marine engine draw": 0
+     },
+     "16_Waves_again": {
+      "browser/native (program)": 62
+     }
+    },
+    "functions": {
+     "captureWebGLState": 0,
+     "getSharedValidTime": 0,
+     "formatInstant": 0,
+     "renderHeatmapAndParticles": 0
+    }
+   },
+   "busy1": {
+    "busyMsTotal": 49435,
+    "byStage": {
+     "marine engine draw": 19305,
+     "browser/native (program)": 13102,
+     "MapLibre (tiles, style, draw)": 7021,
+     "other app code": 2961,
+     "shader compile (createProgram / MapLibre program)": 1781,
+     "unmapped": 1173,
+     "land mask build": 763,
+     "convert grid -> texture": 642,
+     "wind engine": 622,
+     "React render/commit": 472,
+     "GC": 394,
+     "GPU sync: GL state capture (getParameter)": 364,
+     "other library": 310,
+     "fetch / manifest glue": 80,
+     "marine orchestration / commit": 30,
+     "idle": 0
+    },
+    "functions": {
+     "captureWebGLState": 221,
+     "getSharedValidTime": 0,
+     "formatInstant": 0,
+     "renderHeatmapAndParticles": 19016
+    }
+   }
+  }
+ },
+ "controlled_ab_same_build": {
+  "how": "the branch build, window.__RAW_DISABLE_GL_STATE_SHADOW__ set (OFF) or not (ON) before boot; zoom 3, 10 s settle, then 40 ArrowRight presses 250 ms apart (10 s); each engine.render call timed with performance.now; four arms per layer alternating. Wind on = marine not drawn (app behaviour).",
+  "rows": [
+   {
+    "layer": "waves",
+    "shadow": "OFF (kill)",
+    "seconds": 10.7,
+    "fps": 59.6,
+    "marine": {
+     "n": 639,
+     "mean": 4.12,
+     "p50": 3.6,
+     "p95": 6.4,
+     "sum": 2633
+    },
+    "wind": {
+     "n": 0,
+     "mean": null,
+     "p50": null,
+     "p95": null,
+     "sum": 0
+    }
+   },
+   {
+    "layer": "waves",
+    "shadow": "ON",
+    "seconds": 10.7,
+    "fps": 59.5,
+    "marine": {
+     "n": 636,
+     "mean": 3.09,
+     "p50": 2.9,
+     "p95": 4.1,
+     "sum": 1965
+    },
+    "wind": {
+     "n": 0,
+     "mean": null,
+     "p50": null,
+     "p95": null,
+     "sum": 0
+    }
+   },
+   {
+    "layer": "waves",
+    "shadow": "OFF (kill)",
+    "seconds": 10.7,
+    "fps": 59.2,
+    "marine": {
+     "n": 633,
+     "mean": 4.39,
+     "p50": 4,
+     "p95": 5.9,
+     "sum": 2777
+    },
+    "wind": {
+     "n": 0,
+     "mean": null,
+     "p50": null,
+     "p95": null,
+     "sum": 0
+    }
+   },
+   {
+    "layer": "waves",
+    "shadow": "ON",
+    "seconds": 10.7,
+    "fps": 59.7,
+    "marine": {
+     "n": 638,
+     "mean": 3.32,
+     "p50": 3.1,
+     "p95": 4.6,
+     "sum": 2116
+    },
+    "wind": {
+     "n": 0,
+     "mean": null,
+     "p50": null,
+     "p95": null,
+     "sum": 0
+    }
+   },
+   {
+    "layer": "wind",
+    "shadow": "OFF (kill)",
+    "seconds": 10.7,
+    "fps": 59.9,
+    "marine": {
+     "n": 0,
+     "mean": null,
+     "p50": null,
+     "p95": null,
+     "sum": 0
+    },
+    "wind": {
+     "n": 641,
+     "mean": 4.74,
+     "p50": 4.4,
+     "p95": 6.4,
+     "sum": 3041
+    }
+   },
+   {
+    "layer": "wind",
+    "shadow": "ON",
+    "seconds": 10.8,
+    "fps": 59.8,
+    "marine": {
+     "n": 0,
+     "mean": null,
+     "p50": null,
+     "p95": null,
+     "sum": 0
+    },
+    "wind": {
+     "n": 645,
+     "mean": 2.73,
+     "p50": 2.5,
+     "p95": 3.9,
+     "sum": 1763
+    }
+   },
+   {
+    "layer": "wind",
+    "shadow": "OFF (kill)",
+    "seconds": 10.7,
+    "fps": 59.8,
+    "marine": {
+     "n": 0,
+     "mean": null,
+     "p50": null,
+     "p95": null,
+     "sum": 0
+    },
+    "wind": {
+     "n": 642,
+     "mean": 4.07,
+     "p50": 3.8,
+     "p95": 5.6,
+     "sum": 2612
+    }
+   },
+   {
+    "layer": "wind",
+    "shadow": "ON",
+    "seconds": 10.7,
+    "fps": 59.8,
+    "marine": {
+     "n": 0,
+     "mean": null,
+     "p50": null,
+     "p95": null,
+     "sum": 0
+    },
+    "wind": {
+     "n": 641,
+     "mean": 2.8,
+     "p50": 2.7,
+     "p95": 4.1,
+     "sum": 1793
+    }
+   }
+  ]
+ },
+ "real_gpu_agreement_final_build": {
+  "renderer": {
+   "vendor": "Google Inc. (AMD)",
+   "renderer": "ANGLE (AMD, AMD Radeon(TM) 890M Graphics (0x0000150E) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+  },
+  "final": {
+   "captures": 3070,
+   "shadowed": 3070,
+   "checks": 12280,
+   "mismatches": 0,
+   "byValue": {
+    "blendFunc": {
+     "checks": 3070,
+     "mismatches": 0
+    },
+    "blendEquation": {
+     "checks": 3070,
+     "mismatches": 0
+    },
+    "colorMask": {
+     "checks": 3070,
+     "mismatches": 0
+    },
+    "depthMask": {
+     "checks": 3070,
+     "mismatches": 0
+    }
+   },
+   "lastMismatch": null
+  },
+  "perEngine": {
+   "marine": {
+    "renders": 1486,
+    "captures": 1360
+   },
+   "wind": {
+    "renders": 1774,
+    "captures": 1710
+   }
+  },
+  "pass": true,
+  "steps": [
+   {
+    "label": "scrub +6h",
+    "captures": 622,
+    "mismatches": 0
+   },
+   {
+    "label": "scrub +2d",
+    "captures": 877,
+    "mismatches": 0
+   },
+   {
+    "label": "Swell",
+    "captures": 1119,
+    "mismatches": 0
+   },
+   {
+    "label": "EURO",
+    "captures": 1359,
+    "mismatches": 0
+   },
+   {
+    "label": "Wind on",
+    "captures": 1536,
+    "mismatches": 0
+   },
+   {
+    "label": "scrub +9h (wind+marine)",
+    "captures": 1852,
+    "mismatches": 0
+   },
+   {
+    "label": "ICON",
+    "captures": 2094,
+    "mismatches": 0
+   },
+   {
+    "label": "zoom 7",
+    "captures": 2334,
+    "mismatches": 0
+   },
+   {
+    "label": "scrub -1d",
+    "captures": 2582,
+    "mismatches": 0
+   },
+   {
+    "label": "zoom 3",
+    "captures": 2822,
+    "mismatches": 0
+   },
+   {
+    "label": "Home",
+    "captures": 3070,
+    "mismatches": 0
+   }
+  ]
+ }
+}

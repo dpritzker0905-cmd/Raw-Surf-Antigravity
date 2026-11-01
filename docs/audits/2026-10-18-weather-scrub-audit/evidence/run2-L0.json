@@ -1,0 +1,4956 @@
+{
+ "env": {
+  "PORT": 4101,
+  "LAT_SERIES": 0,
+  "LAT_GRID": 0,
+  "startedUtc": "2026-10-19T02:39:47.490Z",
+  "node": "v24.21.0"
+ },
+ "phases": {
+  "activationMs": 10028,
+  "cold": {
+   "rows": [
+    {
+     "target": 1,
+     "ctl": 0.9000000119212928,
+     "field": null,
+     "ctlFirst": 0.9000000119212928,
+     "fieldFirst": null,
+     "timedOut": true,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 1264,
+     "gaps50": 4,
+     "maxGap": 83,
+     "mismSilent": 1262,
+     "mismAdmitted": 0,
+     "mismSamples": [
+      {
+       "t": 1,
+       "wheel": 1,
+       "hour": 0,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 18,
+       "wheel": 1,
+       "hour": 0,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 35,
+       "wheel": 1,
+       "hour": 0,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 51,
+       "wheel": 1,
+       "hour": 0,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 68,
+       "wheel": 1,
+       "hour": 0,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 85,
+       "wheel": 1,
+       "hour": 0,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 0,
+     "uploadHours": [],
+     "longtasks": 3,
+     "longtaskMs": 188,
+     "longtaskMax": 77,
+     "endHour": 0,
+     "endWheel": 1,
+     "endHash": "3d10d10a",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+1 hour",
+     "hstatus": null,
+     "fieldSnap": null
+    },
+    {
+     "target": 2,
+     "ctl": 2.700000011922384,
+     "field": 2438.300000011921,
+     "ctlFirst": 2.700000011922384,
+     "fieldFirst": 2438.300000011921,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 215,
+     "gaps50": 2,
+     "maxGap": 100,
+     "mismSilent": 113,
+     "mismAdmitted": 27,
+     "mismSamples": [
+      {
+       "t": 3,
+       "wheel": 2,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 19,
+       "wheel": 2,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 36,
+       "wheel": 2,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 53,
+       "wheel": 2,
+       "hour": 3,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 153,
+       "wheel": 2,
+       "hour": 3,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 186,
+       "wheel": 2,
+       "hour": 3,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      }
+     ],
+     "uploads": 2,
+     "uploadHours": [
+      [
+       53,
+       3
+      ],
+      [
+       2438,
+       2
+      ]
+     ],
+     "longtasks": 2,
+     "longtaskMs": 160,
+     "longtaskMax": 99,
+     "endHour": 2,
+     "endWheel": 2,
+     "endHash": "2d2f6ccb",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+2 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 2,
+      "hash": "2d2f6ccb"
+     }
+    },
+    {
+     "target": 3,
+     "ctl": 14.700000011922384,
+     "field": 64.80000001192093,
+     "ctlFirst": 14.700000011922384,
+     "fieldFirst": 64.80000001192093,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 83,
+     "gaps50": 0,
+     "maxGap": 19,
+     "mismSilent": 3,
+     "mismAdmitted": 0,
+     "mismSamples": [
+      {
+       "t": 15,
+       "wheel": 3,
+       "hour": 2,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 31,
+       "wheel": 3,
+       "hour": 2,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 48,
+       "wheel": 3,
+       "hour": 2,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       65,
+       3
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 3,
+     "endWheel": 3,
+     "endHash": "2c2148f2",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+3 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 3,
+      "hash": "2c2148f2"
+     }
+    },
+    {
+     "target": 27,
+     "ctl": 3.5999999880805262,
+     "field": 36.99999998808198,
+     "ctlFirst": 3.5999999880805262,
+     "fieldFirst": 36.99999998808198,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 79,
+     "gaps50": 1,
+     "maxGap": 50,
+     "mismSilent": 0,
+     "mismAdmitted": 2,
+     "mismSamples": [
+      {
+       "t": 4,
+       "wheel": 27,
+       "hour": 3,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 20,
+       "wheel": 27,
+       "hour": 3,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       37,
+       27
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 27,
+     "endWheel": 27,
+     "endHash": "9debeeaa",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+27 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 27,
+      "hash": "9debeeaa"
+     }
+    },
+    {
+     "target": 51,
+     "ctl": 7.000000011918019,
+     "field": 40.60000001192384,
+     "ctlFirst": 7.000000011918019,
+     "fieldFirst": 40.60000001192384,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 81,
+     "gaps50": 0,
+     "maxGap": 17,
+     "mismSilent": 0,
+     "mismAdmitted": 2,
+     "mismSamples": [
+      {
+       "t": 7,
+       "wheel": 51,
+       "hour": 27,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 24,
+       "wheel": 51,
+       "hour": 27,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       41,
+       51
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 51,
+     "endWheel": 51,
+     "endHash": "f408a04b",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+51 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 51,
+      "hash": "f408a04b"
+     }
+    },
+    {
+     "target": 50,
+     "ctl": 15.599999988080526,
+     "field": 2501.499999988082,
+     "ctlFirst": 15.599999988080526,
+     "fieldFirst": 2501.499999988082,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 226,
+     "gaps50": 1,
+     "maxGap": 83,
+     "mismSilent": 149,
+     "mismAdmitted": 0,
+     "mismSamples": [
+      {
+       "t": 16,
+       "wheel": 50,
+       "hour": 51,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 32,
+       "wheel": 50,
+       "hour": 51,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 49,
+       "wheel": 50,
+       "hour": 51,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 66,
+       "wheel": 50,
+       "hour": 51,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 82,
+       "wheel": 50,
+       "hour": 51,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 99,
+       "wheel": 50,
+       "hour": 51,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       2501,
+       50
+      ]
+     ],
+     "longtasks": 1,
+     "longtaskMs": 70,
+     "longtaskMax": 70,
+     "endHour": 50,
+     "endWheel": 50,
+     "endHash": "11552fcb",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+50 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 50,
+      "hash": "11552fcb"
+     }
+    },
+    {
+     "target": 74,
+     "ctl": 2.6999999761610525,
+     "field": 2388.399999976158,
+     "ctlFirst": 2.6999999761610525,
+     "fieldFirst": 2388.399999976158,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 218,
+     "gaps50": 1,
+     "maxGap": 50,
+     "mismSilent": 115,
+     "mismAdmitted": 26,
+     "mismSamples": [
+      {
+       "t": 3,
+       "wheel": 74,
+       "hour": 50,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 19,
+       "wheel": 74,
+       "hour": 50,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 38,
+       "wheel": 74,
+       "hour": 75,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 69,
+       "wheel": 74,
+       "hour": 75,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 103,
+       "wheel": 74,
+       "hour": 75,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 120,
+       "wheel": 74,
+       "hour": 75,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      }
+     ],
+     "uploads": 2,
+     "uploadHours": [
+      [
+       38,
+       75
+      ],
+      [
+       2388,
+       74
+      ]
+     ],
+     "longtasks": 1,
+     "longtaskMs": 51,
+     "longtaskMax": 51,
+     "endHour": 74,
+     "endWheel": 74,
+     "endHash": "6ff0ba8f",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+74 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 74,
+      "hash": "6ff0ba8f"
+     }
+    },
+    {
+     "target": 98,
+     "ctl": 5.19999999999709,
+     "field": 2390.800000000003,
+     "ctlFirst": 5.19999999999709,
+     "fieldFirst": 2390.800000000003,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 220,
+     "gaps50": 1,
+     "maxGap": 50,
+     "mismSilent": 112,
+     "mismAdmitted": 30,
+     "mismSamples": [
+      {
+       "t": 5,
+       "wheel": 98,
+       "hour": 74,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 22,
+       "wheel": 98,
+       "hour": 74,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 39,
+       "wheel": 98,
+       "hour": 99,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 72,
+       "wheel": 98,
+       "hour": 99,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 89,
+       "wheel": 98,
+       "hour": 99,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 105,
+       "wheel": 98,
+       "hour": 99,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      }
+     ],
+     "uploads": 2,
+     "uploadHours": [
+      [
+       39,
+       99
+      ],
+      [
+       2391,
+       98
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 98,
+     "endWheel": 98,
+     "endHash": "d81b3aa",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+98 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 98,
+      "hash": "d81b3aa"
+     }
+    },
+    {
+     "target": 122,
+     "ctl": 6.000000011918019,
+     "field": 2458.500000011918,
+     "ctlFirst": 6.000000011918019,
+     "fieldFirst": 2458.500000011918,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 223,
+     "gaps50": 1,
+     "maxGap": 84,
+     "mismSilent": 116,
+     "mismAdmitted": 30,
+     "mismSamples": [
+      {
+       "t": 6,
+       "wheel": 122,
+       "hour": 98,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 23,
+       "wheel": 122,
+       "hour": 98,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 39,
+       "wheel": 122,
+       "hour": 98,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 56,
+       "wheel": 122,
+       "hour": 123,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 89,
+       "wheel": 122,
+       "hour": 123,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 106,
+       "wheel": 122,
+       "hour": 123,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      }
+     ],
+     "uploads": 2,
+     "uploadHours": [
+      [
+       56,
+       123
+      ],
+      [
+       2459,
+       122
+      ]
+     ],
+     "longtasks": 1,
+     "longtaskMs": 70,
+     "longtaskMax": 70,
+     "endHour": 122,
+     "endWheel": 122,
+     "endHash": "a2af02",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+122 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 122,
+      "hash": "a2af02"
+     }
+    },
+    {
+     "target": 146,
+     "ctl": 0.2999999761595973,
+     "field": 2886.5999999761552,
+     "ctlFirst": 0.2999999761595973,
+     "fieldFirst": 2886.5999999761552,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 245,
+     "gaps50": 1,
+     "maxGap": 67,
+     "mismSilent": 139,
+     "mismAdmitted": 31,
+     "mismSamples": [
+      {
+       "t": 0,
+       "wheel": 146,
+       "hour": 122,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 17,
+       "wheel": 146,
+       "hour": 122,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 34,
+       "wheel": 146,
+       "hour": 122,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 50,
+       "wheel": 146,
+       "hour": 147,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 100,
+       "wheel": 146,
+       "hour": 147,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 134,
+       "wheel": 146,
+       "hour": 147,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      }
+     ],
+     "uploads": 2,
+     "uploadHours": [
+      [
+       50,
+       147
+      ],
+      [
+       2887,
+       146
+      ]
+     ],
+     "longtasks": 1,
+     "longtaskMs": 51,
+     "longtaskMax": 51,
+     "endHour": 146,
+     "endWheel": 146,
+     "endHash": "4aeea0d",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+146 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 146,
+      "hash": "4aeea0d"
+     }
+    },
+    {
+     "target": 170,
+     "ctl": 7.099999964237213,
+     "field": 2309.7999999642343,
+     "ctlFirst": 7.099999964237213,
+     "fieldFirst": 2309.7999999642343,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 215,
+     "gaps50": 0,
+     "maxGap": 50,
+     "mismSilent": 106,
+     "mismAdmitted": 31,
+     "mismSamples": [
+      {
+       "t": 7,
+       "wheel": 170,
+       "hour": 146,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 24,
+       "wheel": 170,
+       "hour": 146,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 41,
+       "wheel": 170,
+       "hour": 146,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 57,
+       "wheel": 170,
+       "hour": 171,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 91,
+       "wheel": 170,
+       "hour": 171,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 107,
+       "wheel": 170,
+       "hour": 171,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      }
+     ],
+     "uploads": 2,
+     "uploadHours": [
+      [
+       57,
+       171
+      ],
+      [
+       2310,
+       170
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 170,
+     "endWheel": 170,
+     "endHash": "c339b9c5",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+170 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 170,
+      "hash": "c339b9c5"
+     }
+    },
+    {
+     "target": 169,
+     "ctl": 4.19999999999709,
+     "field": 2356.4000000000015,
+     "ctlFirst": 4.19999999999709,
+     "fieldFirst": 2356.4000000000015,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 218,
+     "gaps50": 0,
+     "maxGap": 34,
+     "mismSilent": 110,
+     "mismAdmitted": 30,
+     "mismSamples": [
+      {
+       "t": 4,
+       "wheel": 169,
+       "hour": 170,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 21,
+       "wheel": 169,
+       "hour": 170,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 38,
+       "wheel": 169,
+       "hour": 168,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 71,
+       "wheel": 169,
+       "hour": 168,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 88,
+       "wheel": 169,
+       "hour": 168,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 104,
+       "wheel": 169,
+       "hour": 168,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      }
+     ],
+     "uploads": 2,
+     "uploadHours": [
+      [
+       38,
+       168
+      ],
+      [
+       2356,
+       169
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 169,
+     "endWheel": 169,
+     "endHash": "cd815141",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+169 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 169,
+      "hash": "cd815141"
+     }
+    },
+    {
+     "target": 168,
+     "ctl": 1.6999999761610525,
+     "field": 34.99999997616396,
+     "ctlFirst": 1.6999999761610525,
+     "fieldFirst": 34.99999997616396,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 81,
+     "gaps50": 0,
+     "maxGap": 19,
+     "mismSilent": 2,
+     "mismAdmitted": 0,
+     "mismSamples": [
+      {
+       "t": 2,
+       "wheel": 168,
+       "hour": 169,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 19,
+       "wheel": 168,
+       "hour": 169,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       35,
+       168
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 168,
+     "endWheel": 168,
+     "endHash": "ce8af450",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+168 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 168,
+      "hash": "ce8af450"
+     }
+    },
+    {
+     "target": 192,
+     "ctl": 0.8999999880761607,
+     "field": 34.19999998807907,
+     "ctlFirst": 0.8999999880761607,
+     "fieldFirst": 34.19999998807907,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 81,
+     "gaps50": 0,
+     "maxGap": 33,
+     "mismSilent": 0,
+     "mismAdmitted": 2,
+     "mismSamples": [
+      {
+       "t": 1,
+       "wheel": 192,
+       "hour": 168,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 17,
+       "wheel": 192,
+       "hour": 168,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       34,
+       192
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 192,
+     "endWheel": 192,
+     "endHash": "28537760",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+192 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 192,
+      "hash": "28537760"
+     }
+    },
+    {
+     "target": 216,
+     "ctl": 4.700000011915108,
+     "field": 56.50000001191802,
+     "ctlFirst": 4.700000011915108,
+     "fieldFirst": 56.50000001191802,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 82,
+     "gaps50": 0,
+     "maxGap": 23,
+     "mismSilent": 0,
+     "mismAdmitted": 3,
+     "mismSamples": [
+      {
+       "t": 5,
+       "wheel": 216,
+       "hour": 192,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 21,
+       "wheel": 216,
+       "hour": 192,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 38,
+       "wheel": 216,
+       "hour": 192,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       57,
+       216
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 216,
+     "endWheel": 216,
+     "endHash": "12431e88",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+216 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 216,
+      "hash": "12431e88"
+     }
+    },
+    {
+     "target": 240,
+     "ctl": 5.199999988079071,
+     "field": 38.49999998808198,
+     "ctlFirst": 5.199999988079071,
+     "fieldFirst": 38.49999998808198,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 82,
+     "gaps50": 0,
+     "maxGap": 17,
+     "mismSilent": 0,
+     "mismAdmitted": 2,
+     "mismSamples": [
+      {
+       "t": 5,
+       "wheel": 240,
+       "hour": 216,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 22,
+       "wheel": 240,
+       "hour": 216,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       38,
+       240
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 240,
+     "endWheel": 240,
+     "endHash": "6aefe7a3",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+240 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 240,
+      "hash": "6aefe7a3"
+     }
+    },
+    {
+     "target": 264,
+     "ctl": 2.099999964237213,
+     "field": 52.199999964243034,
+     "ctlFirst": 2.099999964237213,
+     "fieldFirst": 52.199999964243034,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 81,
+     "gaps50": 0,
+     "maxGap": 18,
+     "mismSilent": 0,
+     "mismAdmitted": 3,
+     "mismSamples": [
+      {
+       "t": 2,
+       "wheel": 264,
+       "hour": 240,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 19,
+       "wheel": 264,
+       "hour": 240,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 35,
+       "wheel": 264,
+       "hour": 240,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       52,
+       264
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 264,
+     "endWheel": 264,
+     "endHash": "ac53bae0",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+264 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 264,
+      "hash": "ac53bae0"
+     }
+    },
+    {
+     "target": 288,
+     "ctl": 6.199999988079071,
+     "field": 39.69999998807907,
+     "ctlFirst": 6.199999988079071,
+     "fieldFirst": 39.69999998807907,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 80,
+     "gaps50": 0,
+     "maxGap": 50,
+     "mismSilent": 0,
+     "mismAdmitted": 2,
+     "mismSamples": [
+      {
+       "t": 6,
+       "wheel": 288,
+       "hour": 264,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 23,
+       "wheel": 288,
+       "hour": 264,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       40,
+       288
+      ]
+     ],
+     "longtasks": 1,
+     "longtaskMs": 51,
+     "longtaskMax": 51,
+     "endHour": 288,
+     "endWheel": 288,
+     "endHash": "c27abd56",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+288 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 288,
+      "hash": "c27abd56"
+     }
+    },
+    {
+     "target": 312,
+     "ctl": 1.5000000119180186,
+     "field": 34.80000001192093,
+     "ctlFirst": 1.5000000119180186,
+     "fieldFirst": 34.80000001192093,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 82,
+     "gaps50": 0,
+     "maxGap": 17,
+     "mismSilent": 0,
+     "mismAdmitted": 2,
+     "mismSamples": [
+      {
+       "t": 2,
+       "wheel": 312,
+       "hour": 288,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 18,
+       "wheel": 312,
+       "hour": 288,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       35,
+       312
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 312,
+     "endWheel": 312,
+     "endHash": "8c5b9588",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+312 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 312,
+      "hash": "8c5b9588"
+     }
+    },
+    {
+     "target": 336,
+     "ctl": 3.4000000119267497,
+     "field": 37.10000001192384,
+     "ctlFirst": 3.4000000119267497,
+     "fieldFirst": 37.10000001192384,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 82,
+     "gaps50": 0,
+     "maxGap": 18,
+     "mismSilent": 0,
+     "mismAdmitted": 2,
+     "mismSamples": [
+      {
+       "t": 3,
+       "wheel": 336,
+       "hour": 312,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 20,
+       "wheel": 336,
+       "hour": 312,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       37,
+       336
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 336,
+     "endWheel": 336,
+     "endHash": "49b2840d",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+336 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 336,
+      "hash": "49b2840d"
+     }
+    },
+    {
+     "target": 335,
+     "ctl": 0.10000001192383934,
+     "field": 2602.800000011921,
+     "ctlFirst": 0.10000001192383934,
+     "fieldFirst": 2602.800000011921,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 233,
+     "gaps50": 0,
+     "maxGap": 21,
+     "mismSilent": 0,
+     "mismAdmitted": 156,
+     "mismSamples": [
+      {
+       "t": 0,
+       "wheel": 335,
+       "hour": 336,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 17,
+       "wheel": 335,
+       "hour": 336,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 34,
+       "wheel": 335,
+       "hour": 336,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 50,
+       "wheel": 335,
+       "hour": 336,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 67,
+       "wheel": 335,
+       "hour": 336,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 84,
+       "wheel": 335,
+       "hour": 336,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       2603,
+       335
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 335,
+     "endWheel": 335,
+     "endHash": "2ecf72ff",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+335 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 335,
+      "hash": "2ecf72ff"
+     }
+    },
+    {
+     "target": 0,
+     "ctl": 6.19999999999709,
+     "field": 56.5,
+     "ctlFirst": 6.19999999999709,
+     "fieldFirst": 56.5,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 82,
+     "gaps50": 0,
+     "maxGap": 22,
+     "mismSilent": 0,
+     "mismAdmitted": 3,
+     "mismSamples": [
+      {
+       "t": 6,
+       "wheel": 0,
+       "hour": 335,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 23,
+       "wheel": 0,
+       "hour": 335,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 40,
+       "wheel": 0,
+       "hour": 335,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       57,
+       0
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 0,
+     "endWheel": 0,
+     "endHash": "3d10d10a",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "Now",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 0,
+      "hash": "3d10d10a"
+     }
+    }
+   ],
+   "ctl": {
+    "n": 22,
+    "ok": 22,
+    "p50": 4,
+    "p95": 15,
+    "max": 16
+   },
+   "field": {
+    "n": 22,
+    "ok": 21,
+    "p50": 57,
+    "p95": 2603,
+    "max": 2887
+   }
+  },
+  "warm": {
+   "rows": [
+    {
+     "target": 1,
+     "ctl": 2.8999999999941792,
+     "field": 2305.100000000006,
+     "ctlFirst": 2.8999999999941792,
+     "fieldFirst": 2305.100000000006,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 217,
+     "gaps50": 0,
+     "maxGap": 20,
+     "mismSilent": 138,
+     "mismAdmitted": 0,
+     "mismSamples": [
+      {
+       "t": 3,
+       "wheel": 1,
+       "hour": 0,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 20,
+       "wheel": 1,
+       "hour": 0,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 36,
+       "wheel": 1,
+       "hour": 0,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 53,
+       "wheel": 1,
+       "hour": 0,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 70,
+       "wheel": 1,
+       "hour": 0,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 86,
+       "wheel": 1,
+       "hour": 0,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 2,
+     "uploadHours": [
+      [
+       36,
+       0
+      ],
+      [
+       2305,
+       1
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 1,
+     "endWheel": 1,
+     "endHash": "3d10d10a",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+1 hour",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 1,
+      "hash": "3d10d10a"
+     }
+    },
+    {
+     "target": 2,
+     "ctl": 14.899999964240124,
+     "field": 48.2999999642343,
+     "ctlFirst": 14.899999964240124,
+     "fieldFirst": 48.2999999642343,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 81,
+     "gaps50": 0,
+     "maxGap": 18,
+     "mismSilent": 0,
+     "mismAdmitted": 2,
+     "mismSamples": [
+      {
+       "t": 15,
+       "wheel": 2,
+       "hour": 1,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 32,
+       "wheel": 2,
+       "hour": 1,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       48,
+       2
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 2,
+     "endWheel": 2,
+     "endHash": "2d2f6ccb",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+2 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 2,
+      "hash": "2d2f6ccb"
+     }
+    },
+    {
+     "target": 3,
+     "ctl": 3.199999988079071,
+     "field": 36.49999998808198,
+     "ctlFirst": 3.199999988079071,
+     "fieldFirst": 36.49999998808198,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 83,
+     "gaps50": 0,
+     "maxGap": 17,
+     "mismSilent": 2,
+     "mismAdmitted": 0,
+     "mismSamples": [
+      {
+       "t": 3,
+       "wheel": 3,
+       "hour": 2,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 20,
+       "wheel": 3,
+       "hour": 2,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       36,
+       3
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 3,
+     "endWheel": 3,
+     "endHash": "2c2148f2",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+3 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 3,
+      "hash": "2c2148f2"
+     }
+    },
+    {
+     "target": 27,
+     "ctl": 4.199999988079071,
+     "field": 37.49999998808198,
+     "ctlFirst": 4.199999988079071,
+     "fieldFirst": 37.49999998808198,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 80,
+     "gaps50": 0,
+     "maxGap": 33,
+     "mismSilent": 0,
+     "mismAdmitted": 2,
+     "mismSamples": [
+      {
+       "t": 4,
+       "wheel": 27,
+       "hour": 3,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 21,
+       "wheel": 27,
+       "hour": 3,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       37,
+       27
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 27,
+     "endWheel": 27,
+     "endHash": "9debeeaa",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+27 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 27,
+      "hash": "9debeeaa"
+     }
+    },
+    {
+     "target": 51,
+     "ctl": 16.699999964243034,
+     "field": 33.2999999642343,
+     "ctlFirst": 16.699999964243034,
+     "fieldFirst": 33.2999999642343,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 82,
+     "gaps50": 0,
+     "maxGap": 19,
+     "mismSilent": 0,
+     "mismAdmitted": 1,
+     "mismSamples": [
+      {
+       "t": 17,
+       "wheel": 51,
+       "hour": 27,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       33,
+       51
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 51,
+     "endWheel": 51,
+     "endHash": "f408a04b",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+51 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 51,
+      "hash": "f408a04b"
+     }
+    },
+    {
+     "target": 50,
+     "ctl": 3.499999976163963,
+     "field": 53.49999997616396,
+     "ctlFirst": 3.499999976163963,
+     "fieldFirst": 53.49999997616396,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 80,
+     "gaps50": 1,
+     "maxGap": 67,
+     "mismSilent": 3,
+     "mismAdmitted": 0,
+     "mismSamples": [
+      {
+       "t": 3,
+       "wheel": 50,
+       "hour": 51,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 20,
+       "wheel": 50,
+       "hour": 51,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 37,
+       "wheel": 50,
+       "hour": 51,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       53,
+       50
+      ]
+     ],
+     "longtasks": 1,
+     "longtaskMs": 65,
+     "longtaskMax": 65,
+     "endHour": 50,
+     "endWheel": 50,
+     "endHash": "11552fcb",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+50 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 50,
+      "hash": "11552fcb"
+     }
+    },
+    {
+     "target": 74,
+     "ctl": 3.300000011920929,
+     "field": 53.70000001191511,
+     "ctlFirst": 3.300000011920929,
+     "fieldFirst": 53.70000001191511,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 81,
+     "gaps50": 0,
+     "maxGap": 33,
+     "mismSilent": 0,
+     "mismAdmitted": 3,
+     "mismSamples": [
+      {
+       "t": 3,
+       "wheel": 74,
+       "hour": 50,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 20,
+       "wheel": 74,
+       "hour": 50,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 37,
+       "wheel": 74,
+       "hour": 50,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       54,
+       74
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 74,
+     "endWheel": 74,
+     "endHash": "6ff0ba8f",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+74 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 74,
+      "hash": "6ff0ba8f"
+     }
+    },
+    {
+     "target": 98,
+     "ctl": 4.199999964243034,
+     "field": 70.69999996424303,
+     "ctlFirst": 4.199999964243034,
+     "fieldFirst": 70.69999996424303,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 80,
+     "gaps50": 1,
+     "maxGap": 50,
+     "mismSilent": 0,
+     "mismAdmitted": 3,
+     "mismSamples": [
+      {
+       "t": 4,
+       "wheel": 98,
+       "hour": 74,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 21,
+       "wheel": 98,
+       "hour": 74,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 37,
+       "wheel": 98,
+       "hour": 74,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       71,
+       98
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 98,
+     "endWheel": 98,
+     "endHash": "d81b3aa",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+98 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 98,
+      "hash": "d81b3aa"
+     }
+    },
+    {
+     "target": 122,
+     "ctl": 0.49999998808198143,
+     "field": 50.79999998808489,
+     "ctlFirst": 0.49999998808198143,
+     "fieldFirst": 50.79999998808489,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 82,
+     "gaps50": 0,
+     "maxGap": 18,
+     "mismSilent": 0,
+     "mismAdmitted": 3,
+     "mismSamples": [
+      {
+       "t": 0,
+       "wheel": 122,
+       "hour": 98,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 17,
+       "wheel": 122,
+       "hour": 98,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 34,
+       "wheel": 122,
+       "hour": 98,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       51,
+       122
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 122,
+     "endWheel": 122,
+     "endHash": "a2af02",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+122 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 122,
+      "hash": "a2af02"
+     }
+    },
+    {
+     "target": 146,
+     "ctl": 14.700000011915108,
+     "field": 48.10000001192384,
+     "ctlFirst": 14.700000011915108,
+     "fieldFirst": 48.10000001192384,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 81,
+     "gaps50": 0,
+     "maxGap": 20,
+     "mismSilent": 0,
+     "mismAdmitted": 2,
+     "mismSamples": [
+      {
+       "t": 15,
+       "wheel": 146,
+       "hour": 122,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 31,
+       "wheel": 146,
+       "hour": 122,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       48,
+       146
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 146,
+     "endWheel": 146,
+     "endHash": "4aeea0d",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+146 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 146,
+      "hash": "4aeea0d"
+     }
+    },
+    {
+     "target": 170,
+     "ctl": 15.299999964234303,
+     "field": 65.49999996423139,
+     "ctlFirst": 15.299999964234303,
+     "fieldFirst": 65.49999996423139,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 83,
+     "gaps50": 0,
+     "maxGap": 19,
+     "mismSilent": 0,
+     "mismAdmitted": 3,
+     "mismSamples": [
+      {
+       "t": 15,
+       "wheel": 170,
+       "hour": 146,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 32,
+       "wheel": 170,
+       "hour": 146,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 49,
+       "wheel": 170,
+       "hour": 146,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       65,
+       170
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 170,
+     "endWheel": 170,
+     "endHash": "c339b9c5",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+170 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 170,
+      "hash": "c339b9c5"
+     }
+    },
+    {
+     "target": 169,
+     "ctl": 1.5999999642372131,
+     "field": 51.89999996424012,
+     "ctlFirst": 1.5999999642372131,
+     "fieldFirst": 51.89999996424012,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 82,
+     "gaps50": 0,
+     "maxGap": 33,
+     "mismSilent": 0,
+     "mismAdmitted": 3,
+     "mismSamples": [
+      {
+       "t": 2,
+       "wheel": 169,
+       "hour": 170,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 18,
+       "wheel": 169,
+       "hour": 170,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 35,
+       "wheel": 169,
+       "hour": 170,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       52,
+       169
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 169,
+     "endWheel": 169,
+     "endHash": "cd815141",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+169 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 169,
+      "hash": "cd815141"
+     }
+    },
+    {
+     "target": 168,
+     "ctl": 2.800000011920929,
+     "field": 36.20000001191511,
+     "ctlFirst": 2.800000011920929,
+     "fieldFirst": 36.20000001191511,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 82,
+     "gaps50": 0,
+     "maxGap": 17,
+     "mismSilent": 2,
+     "mismAdmitted": 0,
+     "mismSamples": [
+      {
+       "t": 3,
+       "wheel": 168,
+       "hour": 169,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 20,
+       "wheel": 168,
+       "hour": 169,
+       "hstatus": null,
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       36,
+       168
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 168,
+     "endWheel": 168,
+     "endHash": "ce8af450",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+168 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 168,
+      "hash": "ce8af450"
+     }
+    },
+    {
+     "target": 192,
+     "ctl": 14.999999976163963,
+     "field": 31.59999997615523,
+     "ctlFirst": 14.999999976163963,
+     "fieldFirst": 31.59999997615523,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 79,
+     "gaps50": 0,
+     "maxGap": 34,
+     "mismSilent": 0,
+     "mismAdmitted": 1,
+     "mismSamples": [
+      {
+       "t": 15,
+       "wheel": 192,
+       "hour": 168,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       32,
+       192
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 192,
+     "endWheel": 192,
+     "endHash": "28537760",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+192 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 192,
+      "hash": "28537760"
+     }
+    },
+    {
+     "target": 216,
+     "ctl": 7.09999998807325,
+     "field": 40.59999998807325,
+     "ctlFirst": 7.09999998807325,
+     "fieldFirst": 40.59999998807325,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 82,
+     "gaps50": 0,
+     "maxGap": 18,
+     "mismSilent": 0,
+     "mismAdmitted": 2,
+     "mismSamples": [
+      {
+       "t": 7,
+       "wheel": 216,
+       "hour": 192,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 24,
+       "wheel": 216,
+       "hour": 192,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       41,
+       216
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 216,
+     "endWheel": 216,
+     "endHash": "12431e88",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+216 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 216,
+      "hash": "12431e88"
+     }
+    },
+    {
+     "target": 240,
+     "ctl": 0.5,
+     "field": 33.80000000000291,
+     "ctlFirst": 0.5,
+     "fieldFirst": 33.80000000000291,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 81,
+     "gaps50": 0,
+     "maxGap": 23,
+     "mismSilent": 0,
+     "mismAdmitted": 2,
+     "mismSamples": [
+      {
+       "t": 1,
+       "wheel": 240,
+       "hour": 216,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 17,
+       "wheel": 240,
+       "hour": 216,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       34,
+       240
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 240,
+     "endWheel": 240,
+     "endHash": "6aefe7a3",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+240 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 240,
+      "hash": "6aefe7a3"
+     }
+    },
+    {
+     "target": 264,
+     "ctl": 0.2999999761523213,
+     "field": 33.69999997616105,
+     "ctlFirst": 0.2999999761523213,
+     "fieldFirst": 33.69999997616105,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 82,
+     "gaps50": 0,
+     "maxGap": 22,
+     "mismSilent": 0,
+     "mismAdmitted": 2,
+     "mismSamples": [
+      {
+       "t": 0,
+       "wheel": 264,
+       "hour": 240,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 17,
+       "wheel": 264,
+       "hour": 240,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       34,
+       264
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 264,
+     "endWheel": 264,
+     "endHash": "ac53bae0",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+264 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 264,
+      "hash": "ac53bae0"
+     }
+    },
+    {
+     "target": 288,
+     "ctl": 1.399999976158142,
+     "field": 34.69999997616105,
+     "ctlFirst": 1.399999976158142,
+     "fieldFirst": 34.69999997616105,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 81,
+     "gaps50": 0,
+     "maxGap": 33,
+     "mismSilent": 0,
+     "mismAdmitted": 2,
+     "mismSamples": [
+      {
+       "t": 1,
+       "wheel": 288,
+       "hour": 264,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 18,
+       "wheel": 288,
+       "hour": 264,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       35,
+       288
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 288,
+     "endWheel": 288,
+     "endHash": "c27abd56",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+288 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 288,
+      "hash": "c27abd56"
+     }
+    },
+    {
+     "target": 312,
+     "ctl": 14.30000000000291,
+     "field": 47.69999999999709,
+     "ctlFirst": 14.30000000000291,
+     "fieldFirst": 47.69999999999709,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 83,
+     "gaps50": 0,
+     "maxGap": 23,
+     "mismSilent": 0,
+     "mismAdmitted": 2,
+     "mismSamples": [
+      {
+       "t": 14,
+       "wheel": 312,
+       "hour": 288,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 31,
+       "wheel": 312,
+       "hour": 288,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       48,
+       312
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 312,
+     "endWheel": 312,
+     "endHash": "8c5b9588",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+312 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 312,
+      "hash": "8c5b9588"
+     }
+    },
+    {
+     "target": 336,
+     "ctl": 16.399999976158142,
+     "field": 66.59999997615523,
+     "ctlFirst": 16.399999976158142,
+     "fieldFirst": 66.59999997615523,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 83,
+     "gaps50": 0,
+     "maxGap": 18,
+     "mismSilent": 0,
+     "mismAdmitted": 3,
+     "mismSamples": [
+      {
+       "t": 16,
+       "wheel": 336,
+       "hour": 312,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 33,
+       "wheel": 336,
+       "hour": 312,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 50,
+       "wheel": 336,
+       "hour": 312,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       67,
+       336
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 336,
+     "endWheel": 336,
+     "endHash": "49b2840d",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+336 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 336,
+      "hash": "49b2840d"
+     }
+    },
+    {
+     "target": 335,
+     "ctl": 15.39999999999418,
+     "field": 65.39999999999418,
+     "ctlFirst": 15.39999999999418,
+     "fieldFirst": 65.39999999999418,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 83,
+     "gaps50": 0,
+     "maxGap": 19,
+     "mismSilent": 0,
+     "mismAdmitted": 3,
+     "mismSamples": [
+      {
+       "t": 15,
+       "wheel": 335,
+       "hour": 336,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 32,
+       "wheel": 335,
+       "hour": 336,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 49,
+       "wheel": 335,
+       "hour": 336,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       65,
+       335
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 335,
+     "endWheel": 335,
+     "endHash": "2ecf72ff",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "+335 hours",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 335,
+      "hash": "2ecf72ff"
+     }
+    },
+    {
+     "target": 0,
+     "ctl": 4.09999998807325,
+     "field": 54.09999998807325,
+     "ctlFirst": 4.09999998807325,
+     "fieldFirst": 54.09999998807325,
+     "timedOut": false,
+     "modelMismSilent": 0,
+     "modelMismAdmitted": 0,
+     "frames": 85,
+     "gaps50": 0,
+     "maxGap": 20,
+     "mismSilent": 0,
+     "mismAdmitted": 3,
+     "mismSamples": [
+      {
+       "t": 4,
+       "wheel": 0,
+       "hour": 335,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 21,
+       "wheel": 0,
+       "hour": 335,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 37,
+       "wheel": 0,
+       "hour": 335,
+       "hstatus": "retained_previous_hour",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      }
+     ],
+     "uploads": 1,
+     "uploadHours": [
+      [
+       54,
+       0
+      ]
+     ],
+     "longtasks": 0,
+     "longtaskMs": 0,
+     "longtaskMax": 0,
+     "endHour": 0,
+     "endWheel": 0,
+     "endHash": "3d10d10a",
+     "endModel": "GFS",
+     "endProv": "open-meteo",
+     "wtext": "Now",
+     "hstatus": null,
+     "fieldSnap": {
+      "hour": 0,
+      "hash": "3d10d10a"
+     }
+    }
+   ],
+   "ctl": {
+    "n": 22,
+    "ok": 22,
+    "p50": 4,
+    "p95": 16,
+    "max": 17
+   },
+   "field": {
+    "n": 22,
+    "ok": 22,
+    "p50": 48,
+    "p95": 71,
+    "max": 2305
+   }
+  },
+  "seeksRequests": [
+   {
+    "t": 832,
+    "ms": 26,
+    "path": "/capabilities",
+    "status": 200
+   },
+   {
+    "t": 3237,
+    "ms": 493,
+    "path": "/products",
+    "status": 200
+   },
+   {
+    "t": 3842,
+    "ms": 1329,
+    "path": "/grid_series",
+    "model": "GFS",
+    "nh": 1,
+    "h0": "0",
+    "status": 200
+   },
+   {
+    "t": 3873,
+    "ms": 1833,
+    "path": "/grid",
+    "model": "GFS",
+    "vt": "2026-10-19T03:00:00.000Z",
+    "status": 200
+   },
+   {
+    "t": 3134,
+    "ms": 7899,
+    "path": "/grid_series",
+    "model": "GFS",
+    "nh": 48,
+    "h0": "0",
+    "status": 200
+   },
+   {
+    "t": 11255,
+    "ms": 7371,
+    "path": "/grid_series",
+    "model": "GFS",
+    "nh": 48,
+    "h0": "144",
+    "status": 200
+   },
+   {
+    "t": 18881,
+    "ms": 6124,
+    "path": "/grid_series",
+    "model": "GFS",
+    "nh": 17,
+    "h0": "288",
+    "status": 200
+   },
+   {
+    "t": 33079,
+    "ms": 686,
+    "path": "/grid",
+    "model": "GFS",
+    "vt": "2026-10-19T06:00:00.000Z",
+    "status": 200
+   },
+   {
+    "t": 40967,
+    "ms": 713,
+    "path": "/grid",
+    "model": "GFS",
+    "vt": "2026-10-21T06:00:00.000Z",
+    "status": 200
+   },
+   {
+    "t": 44704,
+    "ms": 718,
+    "path": "/grid",
+    "model": "GFS",
+    "vt": "2026-10-22T06:00:00.000Z",
+    "status": 200
+   },
+   {
+    "t": 48426,
+    "ms": 730,
+    "path": "/grid",
+    "model": "GFS",
+    "vt": "2026-10-23T06:00:00.000Z",
+    "status": 200
+   },
+   {
+    "t": 52177,
+    "ms": 766,
+    "path": "/grid",
+    "model": "GFS",
+    "vt": "2026-10-24T06:00:00.000Z",
+    "status": 200
+   },
+   {
+    "t": 55966,
+    "ms": 1201,
+    "path": "/grid",
+    "model": "GFS",
+    "vt": "2026-10-25T06:00:00.000Z",
+    "status": 200
+   },
+   {
+    "t": 60169,
+    "ms": 631,
+    "path": "/grid",
+    "model": "GFS",
+    "vt": "2026-10-26T06:00:00.000Z",
+    "status": 200
+   },
+   {
+    "t": 63822,
+    "ms": 673,
+    "path": "/grid",
+    "model": "GFS",
+    "vt": "2026-10-26T03:00:00.000Z",
+    "status": 200
+   },
+   {
+    "t": 78571,
+    "ms": 833,
+    "path": "/grid",
+    "model": "GFS",
+    "vt": "2026-11-02T00:00:00.000Z",
+    "status": 200
+   },
+   {
+    "t": 83708,
+    "ms": 680,
+    "path": "/grid",
+    "model": "GFS",
+    "vt": "2026-10-19T03:00:00.000Z",
+    "status": 200
+   }
+  ],
+  "seeksErrors": [],
+  "seeksConsole": [
+   {
+    "t": 613,
+    "type": "error",
+    "text": "Failed to load resource: net::ERR_FAILED"
+   },
+   {
+    "t": 834,
+    "type": "warning",
+    "text": "Missing Supabase environment variables. Please check your .env file."
+   },
+   {
+    "t": 984,
+    "type": "error",
+    "text": "Failed to load resource: net::ERR_FAILED"
+   },
+   {
+    "t": 984,
+    "type": "error",
+    "text": "[ERROR] [MAP] RainViewer fetch failed: TypeError: Failed to fetch\n    at window.fetch (http://127.0.0.1:3100/static/js/main.0fc2e8e5.js:2:2333)\n    at window.fetch (http://127.0.0.1:3100/static/js/main.0fc2e8e5.js:2:1136627)\n    at n (http:"
+   },
+   {
+    "t": 6501,
+    "type": "error",
+    "text": "[ERROR] Error fetching surf spots (gave up after retries): Error: empty-global-spots\n    at Object.current (http://127.0.0.1:3100/static/js/3461.2644ad7a.chunk.js:1:1264626)"
+   },
+   {
+    "t": 10270,
+    "type": "warning",
+    "text": "[WebRTC] Signaling unreachable — retrying silently (backoff caps at 30s)."
+   },
+   {
+    "t": 36498,
+    "type": "error",
+    "text": "[ERROR] Error fetching surf spots (gave up after retries): Error: empty-global-spots\n    at Object.current (http://127.0.0.1:3100/static/js/3461.2644ad7a.chunk.js:1:1264626)"
+   },
+   {
+    "t": 45253,
+    "type": "warning",
+    "text": "[WEATHER_TRUTH] ABSENT: marine|waves chain 8b33dd5f (series_GFS_waves_h0) died after seriesFrameMint (34s silent, no terminal stage)"
+   },
+   {
+    "t": 66525,
+    "type": "error",
+    "text": "[ERROR] Error fetching surf spots (gave up after retries): Error: empty-global-spots\n    at Object.current (http://127.0.0.1:3100/static/js/3461.2644ad7a.chunk.js:1:1264626)"
+   },
+   {
+    "t": 96508,
+    "type": "error",
+    "text": "[ERROR] Error fetching surf spots (gave up after retries): Error: empty-global-spots\n    at Object.current (http://127.0.0.1:3100/static/js/3461.2644ad7a.chunk.js:1:1264626)"
+   }
+  ],
+  "hosts": {
+   "127.0.0.1": 29,
+   "fonts.googleapis.com": 3,
+   "unpkg.com": 1,
+   "fonts.gstatic.com": 2,
+   "us-assets.i.posthog.com": 1,
+   "raw-surf-antigravity.onrender.com": 79,
+   "api.rainviewer.com": 1,
+   "cdn.jsdelivr.net": 1
+  },
+  "blockedWs": 9,
+  "race": {
+   "seq": [
+    48,
+    6,
+    72,
+    18
+   ],
+   "runs": [
+    {
+     "rep": 0,
+     "final": {
+      "wheel": 18,
+      "wtext": "+18 hours",
+      "hour": 18,
+      "model": "GFS",
+      "prov": "open-meteo",
+      "seq": 125,
+      "hash": "49038630",
+      "hstatus": null,
+      "retained": false,
+      "sel": "GFS",
+      "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected.",
+      "preq": 18,
+      "pren": 18
+     },
+     "field": 1740.3999999761581,
+     "mismSilent": 3,
+     "mismAdmitted": 68,
+     "mismSamples": [
+      {
+       "t": 5,
+       "wheel": 24,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 22,
+       "wheel": 24,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 38,
+       "wheel": 48,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 55,
+       "wheel": 48,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 72,
+       "wheel": 48,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 89,
+       "wheel": 48,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      }
+     ],
+     "uploadHours": [
+      [
+       823,
+       6
+      ],
+      [
+       1006,
+       30
+      ],
+      [
+       1023,
+       54
+      ],
+      [
+       1073,
+       57
+      ],
+      [
+       1140,
+       60
+      ],
+      [
+       1207,
+       63
+      ],
+      [
+       1290,
+       66
+      ],
+      [
+       1356,
+       69
+      ],
+      [
+       1423,
+       72
+      ],
+      [
+       1623,
+       48
+      ],
+      [
+       1640,
+       24
+      ],
+      [
+       1673,
+       21
+      ],
+      [
+       1740,
+       18
+      ],
+      [
+       8647,
+       18
+      ]
+     ],
+     "requests": [
+      {
+       "t": 797,
+       "ms": 21,
+       "path": "/capabilities"
+      },
+      {
+       "t": 3275,
+       "ms": 262,
+       "path": "/products"
+      },
+      {
+       "t": 3496,
+       "ms": 1179,
+       "path": "/grid_series",
+       "h0": "0"
+      },
+      {
+       "t": 3552,
+       "ms": 1737,
+       "path": "/grid",
+       "vt": "2026-10-19T03:00:00.000Z"
+      },
+      {
+       "t": 2909,
+       "ms": 6950,
+       "path": "/grid_series",
+       "h0": "0"
+      },
+      {
+       "t": 10567,
+       "ms": 3390,
+       "path": "/grid",
+       "vt": "2026-10-19T09:00:00.000Z"
+      },
+      {
+       "t": 9830,
+       "ms": 5024,
+       "path": "/grid",
+       "vt": "2026-10-21T03:00:00.000Z"
+      },
+      {
+       "t": 15880,
+       "ms": 2300,
+       "path": "/grid",
+       "vt": "2026-10-19T21:00:00.000Z"
+      },
+      {
+       "t": 10364,
+       "ms": 11093,
+       "path": "/grid_series",
+       "h0": "144"
+      }
+     ]
+    },
+    {
+     "rep": 1,
+     "final": {
+      "wheel": 18,
+      "wtext": "+18 hours",
+      "hour": 18,
+      "model": "GFS",
+      "prov": "open-meteo",
+      "seq": 113,
+      "hash": "49038630",
+      "hstatus": null,
+      "retained": false,
+      "sel": "GFS",
+      "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected.",
+      "preq": 18,
+      "pren": 18
+     },
+     "field": 1734.9000000357628,
+     "mismSilent": 2,
+     "mismAdmitted": 90,
+     "mismSamples": [
+      {
+       "t": 17,
+       "wheel": 24,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 33,
+       "wheel": 48,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 50,
+       "wheel": 48,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 67,
+       "wheel": 48,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 83,
+       "wheel": 48,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 100,
+       "wheel": 48,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      }
+     ],
+     "uploadHours": [
+      [
+       1418,
+       72
+      ],
+      [
+       1568,
+       48
+      ],
+      [
+       1618,
+       24
+      ],
+      [
+       1668,
+       21
+      ],
+      [
+       1735,
+       18
+      ],
+      [
+       9026,
+       18
+      ]
+     ],
+     "requests": [
+      {
+       "t": 1251,
+       "ms": 4033,
+       "path": "/capabilities"
+      },
+      {
+       "t": 4988,
+       "ms": 2384,
+       "path": "/grid_series",
+       "h0": "0"
+      },
+      {
+       "t": 4139,
+       "ms": 3281,
+       "path": "/products"
+      },
+      {
+       "t": 7496,
+       "ms": 1228,
+       "path": "/grid",
+       "vt": "2026-10-19T03:00:00.000Z"
+      },
+      {
+       "t": 4075,
+       "ms": 10000,
+       "path": "/grid_series",
+       "h0": "0"
+      },
+      {
+       "t": 14577,
+       "ms": 2811,
+       "path": "/grid",
+       "vt": "2026-10-22T03:00:00.000Z"
+      },
+      {
+       "t": 13252,
+       "ms": 4772,
+       "path": "/grid",
+       "vt": "2026-10-21T03:00:00.000Z"
+      },
+      {
+       "t": 19312,
+       "ms": 2690,
+       "path": "/grid",
+       "vt": "2026-10-19T21:00:00.000Z"
+      },
+      {
+       "t": 14406,
+       "ms": 11064,
+       "path": "/grid_series",
+       "h0": "144"
+      }
+     ]
+    },
+    {
+     "rep": 2,
+     "final": {
+      "wheel": 18,
+      "wtext": "+18 hours",
+      "hour": 18,
+      "model": "GFS",
+      "prov": "open-meteo",
+      "seq": 53,
+      "hash": "49038630",
+      "hstatus": null,
+      "retained": false,
+      "sel": "GFS",
+      "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection.",
+      "preq": 18,
+      "pren": 18
+     },
+     "field": 2024.2000000000007,
+     "mismSilent": 0,
+     "mismAdmitted": 117,
+     "mismSamples": [
+      {
+       "t": 5,
+       "wheel": 24,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 22,
+       "wheel": 24,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+      },
+      {
+       "t": 39,
+       "wheel": 48,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 55,
+       "wheel": 48,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 72,
+       "wheel": 48,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      },
+      {
+       "t": 89,
+       "wheel": 48,
+       "hour": 0,
+       "hstatus": "no_backend_coverage",
+       "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected. | Forecast time does not match this selection."
+      }
+     ],
+     "uploadHours": [
+      [
+       2024,
+       18
+      ],
+      [
+       3259,
+       18
+      ]
+     ],
+     "requests": [
+      {
+       "t": 809,
+       "ms": 4040,
+       "path": "/capabilities"
+      },
+      {
+       "t": 3866,
+       "ms": 2920,
+       "path": "/grid_series",
+       "h0": "0"
+      },
+      {
+       "t": 3677,
+       "ms": 3168,
+       "path": "/products"
+      },
+      {
+       "t": 6872,
+       "ms": 1303,
+       "path": "/grid",
+       "vt": "2026-10-19T03:00:00.000Z"
+      },
+      {
+       "t": 3280,
+       "ms": 10945,
+       "path": "/grid_series",
+       "h0": "0"
+      },
+      {
+       "t": 14650,
+       "ms": 1134,
+       "path": "/grid",
+       "vt": "2026-10-19T21:00:00.000Z"
+      },
+      {
+       "t": 14148,
+       "ms": 3998,
+       "path": "/grid",
+       "vt": "2026-10-22T03:00:00.000Z"
+      },
+      {
+       "t": 13534,
+       "ms": 5414,
+       "path": "/grid",
+       "vt": "2026-10-19T09:00:00.000Z"
+      },
+      {
+       "t": 12830,
+       "ms": 6897,
+       "path": "/grid",
+       "vt": "2026-10-21T03:00:00.000Z"
+      },
+      {
+       "t": 14575,
+       "ms": 10287,
+       "path": "/grid_series",
+       "h0": "144"
+      }
+     ]
+    }
+   ],
+   "direct": [
+    {
+     "rep": 0,
+     "endHash": "49038630",
+     "endHour": 18,
+     "field": 1954.3999999523166
+    },
+    {
+     "rep": 1,
+     "endHash": "49038630",
+     "endHour": 18,
+     "field": 1282.2999999999993
+    }
+   ],
+   "finalMatchesDirect": [
+    true,
+    true,
+    true
+   ]
+  },
+  "drag": {
+   "dragMs": 8328,
+   "finalWheel": 32,
+   "endHour": 32,
+   "settleAtMsFromDown": 13043,
+   "traceMs": 14011,
+   "lagHoursP50": 1,
+   "lagHoursP95": 1,
+   "lagHoursMax": 2,
+   "uploads": 13,
+   "uploadHours": [
+    [
+     113,
+     0
+    ],
+    [
+     396,
+     3
+    ],
+    [
+     1097,
+     6
+    ],
+    [
+     1765,
+     9
+    ],
+    [
+     2482,
+     12
+    ],
+    [
+     3082,
+     15
+    ],
+    [
+     3767,
+     18
+    ],
+    [
+     4400,
+     21
+    ],
+    [
+     5218,
+     24
+    ],
+    [
+     5919,
+     27
+    ],
+    [
+     6953,
+     30
+    ],
+    [
+     7787,
+     33
+    ],
+    [
+     13043,
+     32
+    ]
+   ],
+   "gaps50": 5,
+   "maxGap": 116,
+   "longtasks": 5,
+   "longtaskMs": 403,
+   "mismSilent": 447,
+   "mismAdmitted": 164,
+   "requests": 8,
+   "trace": [
+    [
+     13,
+     0,
+     0
+    ],
+    [
+     63,
+     0,
+     0
+    ],
+    [
+     113,
+     1,
+     0
+    ],
+    [
+     163,
+     1,
+     0
+    ],
+    [
+     213,
+     1,
+     0
+    ],
+    [
+     263,
+     1,
+     0
+    ],
+    [
+     313,
+     1,
+     0
+    ],
+    [
+     363,
+     2,
+     0
+    ],
+    [
+     480,
+     2,
+     3
+    ],
+    [
+     530,
+     2,
+     3
+    ],
+    [
+     580,
+     2,
+     3
+    ],
+    [
+     630,
+     3,
+     3
+    ],
+    [
+     680,
+     3,
+     3
+    ],
+    [
+     730,
+     3,
+     3
+    ],
+    [
+     780,
+     3,
+     3
+    ],
+    [
+     830,
+     3,
+     3
+    ],
+    [
+     880,
+     4,
+     3
+    ],
+    [
+     930,
+     4,
+     3
+    ],
+    [
+     980,
+     4,
+     3
+    ],
+    [
+     1030,
+     4,
+     3
+    ],
+    [
+     1081,
+     5,
+     3
+    ],
+    [
+     1131,
+     5,
+     6
+    ],
+    [
+     1181,
+     5,
+     6
+    ],
+    [
+     1231,
+     5,
+     6
+    ],
+    [
+     1281,
+     5,
+     6
+    ],
+    [
+     1331,
+     6,
+     6
+    ],
+    [
+     1381,
+     6,
+     6
+    ],
+    [
+     1431,
+     6,
+     6
+    ],
+    [
+     1481,
+     6,
+     6
+    ],
+    [
+     1531,
+     6,
+     6
+    ],
+    [
+     1581,
+     7,
+     6
+    ],
+    [
+     1631,
+     7,
+     6
+    ],
+    [
+     1681,
+     7,
+     6
+    ],
+    [
+     1731,
+     8,
+     6
+    ],
+    [
+     1781,
+     8,
+     9
+    ],
+    [
+     1831,
+     8,
+     9
+    ],
+    [
+     1881,
+     8,
+     9
+    ],
+    [
+     1931,
+     8,
+     9
+    ],
+    [
+     1981,
+     9,
+     9
+    ],
+    [
+     2032,
+     9,
+     9
+    ],
+    [
+     2081,
+     9,
+     9
+    ],
+    [
+     2132,
+     9,
+     9
+    ],
+    [
+     2182,
+     9,
+     9
+    ],
+    [
+     2232,
+     10,
+     9
+    ],
+    [
+     2282,
+     10,
+     9
+    ],
+    [
+     2332,
+     10,
+     9
+    ],
+    [
+     2382,
+     10,
+     9
+    ],
+    [
+     2432,
+     10,
+     9
+    ],
+    [
+     2482,
+     11,
+     12
+    ],
+    [
+     2532,
+     11,
+     12
+    ],
+    [
+     2582,
+     11,
+     12
+    ],
+    [
+     2632,
+     12,
+     12
+    ],
+    [
+     2682,
+     12,
+     12
+    ],
+    [
+     2732,
+     12,
+     12
+    ],
+    [
+     2782,
+     12,
+     12
+    ],
+    [
+     2832,
+     12,
+     12
+    ],
+    [
+     2882,
+     13,
+     12
+    ],
+    [
+     2932,
+     13,
+     12
+    ],
+    [
+     2982,
+     13,
+     12
+    ],
+    [
+     3032,
+     13,
+     12
+    ],
+    [
+     3082,
+     14,
+     15
+    ],
+    [
+     3133,
+     14,
+     15
+    ],
+    [
+     3183,
+     14,
+     15
+    ],
+    [
+     3233,
+     14,
+     15
+    ],
+    [
+     3283,
+     15,
+     15
+    ],
+    [
+     3333,
+     15,
+     15
+    ],
+    [
+     3383,
+     15,
+     15
+    ],
+    [
+     3433,
+     15,
+     15
+    ],
+    [
+     3483,
+     15,
+     15
+    ],
+    [
+     3533,
+     16,
+     15
+    ],
+    [
+     3583,
+     16,
+     15
+    ],
+    [
+     3633,
+     16,
+     15
+    ],
+    [
+     3683,
+     16,
+     15
+    ],
+    [
+     3733,
+     17,
+     15
+    ],
+    [
+     3783,
+     17,
+     18
+    ],
+    [
+     3833,
+     17,
+     18
+    ],
+    [
+     3890,
+     17,
+     18
+    ],
+    [
+     3933,
+     17,
+     18
+    ],
+    [
+     3983,
+     18,
+     18
+    ],
+    [
+     4033,
+     18,
+     18
+    ],
+    [
+     4084,
+     18,
+     18
+    ],
+    [
+     4134,
+     18,
+     18
+    ],
+    [
+     4184,
+     19,
+     18
+    ],
+    [
+     4234,
+     19,
+     18
+    ],
+    [
+     4284,
+     19,
+     18
+    ],
+    [
+     4334,
+     19,
+     18
+    ],
+    [
+     4384,
+     20,
+     18
+    ],
+    [
+     4434,
+     20,
+     21
+    ],
+    [
+     4485,
+     20,
+     21
+    ],
+    [
+     4534,
+     20,
+     21
+    ],
+    [
+     4584,
+     20,
+     21
+    ],
+    [
+     4634,
+     21,
+     21
+    ],
+    [
+     4684,
+     21,
+     21
+    ],
+    [
+     4734,
+     21,
+     21
+    ],
+    [
+     4784,
+     21,
+     21
+    ],
+    [
+     4834,
+     21,
+     21
+    ],
+    [
+     4884,
+     21,
+     21
+    ],
+    [
+     4934,
+     22,
+     21
+    ],
+    [
+     4984,
+     22,
+     21
+    ],
+    [
+     5034,
+     22,
+     21
+    ],
+    [
+     5085,
+     22,
+     21
+    ],
+    [
+     5135,
+     22,
+     21
+    ],
+    [
+     5185,
+     23,
+     21
+    ],
+    [
+     5235,
+     23,
+     24
+    ],
+    [
+     5285,
+     23,
+     24
+    ],
+    [
+     5335,
+     23,
+     24
+    ],
+    [
+     5385,
+     23,
+     24
+    ],
+    [
+     5435,
+     24,
+     24
+    ],
+    [
+     5485,
+     24,
+     24
+    ],
+    [
+     5535,
+     24,
+     24
+    ],
+    [
+     5585,
+     24,
+     24
+    ],
+    [
+     5635,
+     25,
+     24
+    ],
+    [
+     5685,
+     25,
+     24
+    ],
+    [
+     5735,
+     25,
+     24
+    ],
+    [
+     5785,
+     25,
+     24
+    ],
+    [
+     5835,
+     25,
+     24
+    ],
+    [
+     5885,
+     26,
+     24
+    ],
+    [
+     5935,
+     26,
+     27
+    ],
+    [
+     5986,
+     26,
+     27
+    ],
+    [
+     6036,
+     26,
+     27
+    ],
+    [
+     6086,
+     26,
+     27
+    ],
+    [
+     6136,
+     26,
+     27
+    ],
+    [
+     6202,
+     26,
+     27
+    ],
+    [
+     6319,
+     26,
+     27
+    ],
+    [
+     6369,
+     26,
+     27
+    ],
+    [
+     6419,
+     27,
+     27
+    ],
+    [
+     6469,
+     27,
+     27
+    ],
+    [
+     6519,
+     27,
+     27
+    ],
+    [
+     6569,
+     27,
+     27
+    ],
+    [
+     6619,
+     27,
+     27
+    ],
+    [
+     6669,
+     28,
+     27
+    ],
+    [
+     6720,
+     28,
+     27
+    ],
+    [
+     6770,
+     28,
+     27
+    ],
+    [
+     6820,
+     28,
+     27
+    ],
+    [
+     6870,
+     28,
+     27
+    ],
+    [
+     6920,
+     29,
+     27
+    ],
+    [
+     6970,
+     29,
+     30
+    ],
+    [
+     7020,
+     29,
+     30
+    ],
+    [
+     7070,
+     29,
+     30
+    ],
+    [
+     7120,
+     29,
+     30
+    ],
+    [
+     7170,
+     30,
+     30
+    ],
+    [
+     7220,
+     30,
+     30
+    ],
+    [
+     7270,
+     30,
+     30
+    ],
+    [
+     7320,
+     30,
+     30
+    ],
+    [
+     7370,
+     30,
+     30
+    ],
+    [
+     7420,
+     31,
+     30
+    ],
+    [
+     7470,
+     31,
+     30
+    ],
+    [
+     7520,
+     31,
+     30
+    ],
+    [
+     7570,
+     31,
+     30
+    ],
+    [
+     7621,
+     31,
+     30
+    ],
+    [
+     7671,
+     31,
+     30
+    ],
+    [
+     7721,
+     32,
+     30
+    ],
+    [
+     7771,
+     32,
+     30
+    ],
+    [
+     7821,
+     32,
+     33
+    ],
+    [
+     7871,
+     32,
+     33
+    ],
+    [
+     7921,
+     32,
+     33
+    ],
+    [
+     7971,
+     32,
+     33
+    ],
+    [
+     8021,
+     32,
+     33
+    ],
+    [
+     8071,
+     32,
+     33
+    ],
+    [
+     8121,
+     32,
+     33
+    ],
+    [
+     8171,
+     32,
+     33
+    ],
+    [
+     8221,
+     32,
+     33
+    ],
+    [
+     8271,
+     32,
+     33
+    ],
+    [
+     8321,
+     32,
+     33
+    ],
+    [
+     8371,
+     32,
+     33
+    ],
+    [
+     8422,
+     32,
+     33
+    ],
+    [
+     8472,
+     32,
+     33
+    ],
+    [
+     8522,
+     32,
+     33
+    ],
+    [
+     8572,
+     32,
+     33
+    ],
+    [
+     8622,
+     32,
+     33
+    ],
+    [
+     8672,
+     32,
+     33
+    ],
+    [
+     8722,
+     32,
+     33
+    ],
+    [
+     8772,
+     32,
+     33
+    ],
+    [
+     8822,
+     32,
+     33
+    ],
+    [
+     8872,
+     32,
+     33
+    ],
+    [
+     8922,
+     32,
+     33
+    ],
+    [
+     8972,
+     32,
+     33
+    ],
+    [
+     9022,
+     32,
+     33
+    ],
+    [
+     9072,
+     32,
+     33
+    ],
+    [
+     9122,
+     32,
+     33
+    ],
+    [
+     9173,
+     32,
+     33
+    ],
+    [
+     9222,
+     32,
+     33
+    ],
+    [
+     9272,
+     32,
+     33
+    ],
+    [
+     9323,
+     32,
+     33
+    ],
+    [
+     9372,
+     32,
+     33
+    ],
+    [
+     9423,
+     32,
+     33
+    ],
+    [
+     9473,
+     32,
+     33
+    ],
+    [
+     9523,
+     32,
+     33
+    ],
+    [
+     9573,
+     32,
+     33
+    ],
+    [
+     9623,
+     32,
+     33
+    ],
+    [
+     9673,
+     32,
+     33
+    ],
+    [
+     9723,
+     32,
+     33
+    ],
+    [
+     9773,
+     32,
+     33
+    ],
+    [
+     9827,
+     32,
+     33
+    ],
+    [
+     9873,
+     32,
+     33
+    ],
+    [
+     9923,
+     32,
+     33
+    ],
+    [
+     9973,
+     32,
+     33
+    ],
+    [
+     10023,
+     32,
+     33
+    ],
+    [
+     10073,
+     32,
+     33
+    ],
+    [
+     10123,
+     32,
+     33
+    ],
+    [
+     10173,
+     32,
+     33
+    ],
+    [
+     10223,
+     32,
+     33
+    ],
+    [
+     10273,
+     32,
+     33
+    ],
+    [
+     10323,
+     32,
+     33
+    ],
+    [
+     10374,
+     32,
+     33
+    ],
+    [
+     10423,
+     32,
+     33
+    ],
+    [
+     10474,
+     32,
+     33
+    ],
+    [
+     10524,
+     32,
+     33
+    ],
+    [
+     10574,
+     32,
+     33
+    ],
+    [
+     10624,
+     32,
+     33
+    ],
+    [
+     10674,
+     32,
+     33
+    ],
+    [
+     10724,
+     32,
+     33
+    ],
+    [
+     10774,
+     32,
+     33
+    ],
+    [
+     10824,
+     32,
+     33
+    ],
+    [
+     10874,
+     32,
+     33
+    ],
+    [
+     10924,
+     32,
+     33
+    ],
+    [
+     10974,
+     32,
+     33
+    ],
+    [
+     11024,
+     32,
+     33
+    ],
+    [
+     11074,
+     32,
+     33
+    ],
+    [
+     11124,
+     32,
+     33
+    ],
+    [
+     11174,
+     32,
+     33
+    ],
+    [
+     11224,
+     32,
+     33
+    ],
+    [
+     11274,
+     32,
+     33
+    ],
+    [
+     11324,
+     32,
+     33
+    ],
+    [
+     11374,
+     32,
+     33
+    ],
+    [
+     11424,
+     32,
+     33
+    ],
+    [
+     11475,
+     32,
+     33
+    ],
+    [
+     11525,
+     32,
+     33
+    ],
+    [
+     11574,
+     32,
+     33
+    ],
+    [
+     11625,
+     32,
+     33
+    ],
+    [
+     11675,
+     32,
+     33
+    ],
+    [
+     11725,
+     32,
+     33
+    ],
+    [
+     11775,
+     32,
+     33
+    ],
+    [
+     11825,
+     32,
+     33
+    ],
+    [
+     11875,
+     32,
+     33
+    ],
+    [
+     11925,
+     32,
+     33
+    ],
+    [
+     11975,
+     32,
+     33
+    ],
+    [
+     12025,
+     32,
+     33
+    ],
+    [
+     12075,
+     32,
+     33
+    ],
+    [
+     12125,
+     32,
+     33
+    ],
+    [
+     12176,
+     32,
+     33
+    ],
+    [
+     12225,
+     32,
+     33
+    ],
+    [
+     12309,
+     32,
+     33
+    ],
+    [
+     12459,
+     32,
+     33
+    ],
+    [
+     12509,
+     32,
+     33
+    ],
+    [
+     12559,
+     32,
+     33
+    ],
+    [
+     12609,
+     32,
+     33
+    ],
+    [
+     12659,
+     32,
+     33
+    ],
+    [
+     12709,
+     32,
+     33
+    ],
+    [
+     12759,
+     32,
+     33
+    ],
+    [
+     12809,
+     32,
+     33
+    ],
+    [
+     12859,
+     32,
+     33
+    ],
+    [
+     12909,
+     32,
+     33
+    ],
+    [
+     12960,
+     32,
+     33
+    ],
+    [
+     13010,
+     32,
+     33
+    ],
+    [
+     13159,
+     32,
+     32
+    ],
+    [
+     13210,
+     32,
+     32
+    ],
+    [
+     13260,
+     32,
+     32
+    ],
+    [
+     13310,
+     32,
+     32
+    ],
+    [
+     13360,
+     32,
+     32
+    ],
+    [
+     13410,
+     32,
+     32
+    ],
+    [
+     13460,
+     32,
+     32
+    ],
+    [
+     13510,
+     32,
+     32
+    ],
+    [
+     13560,
+     32,
+     32
+    ],
+    [
+     13610,
+     32,
+     32
+    ],
+    [
+     13660,
+     32,
+     32
+    ],
+    [
+     13710,
+     32,
+     32
+    ],
+    [
+     13760,
+     32,
+     32
+    ],
+    [
+     13810,
+     32,
+     32
+    ],
+    [
+     13860,
+     32,
+     32
+    ],
+    [
+     13910,
+     32,
+     32
+    ],
+    [
+     13961,
+     32,
+     32
+    ],
+    [
+     14011,
+     32,
+     32
+    ]
+   ]
+  },
+  "switch": {
+   "gfs72": {
+    "field": 2636.099999964237,
+    "hash": "7a703b36"
+   },
+   "afterSwitch": {
+    "end": {
+     "wheel": 72,
+     "wtext": "+72 hours",
+     "hour": 72,
+     "model": "ICON",
+     "prov": "open-meteo",
+     "seq": 71,
+     "hash": "4e947421",
+     "hstatus": null,
+     "retained": false,
+     "sel": "ICON",
+     "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected.",
+     "preq": 72,
+     "pren": 72
+    },
+    "modelMismSilent": 253,
+    "modelMismAdmitted": 0,
+    "modelSamples": [
+     {
+      "t": 15,
+      "sel": "ICON",
+      "model": "GFS",
+      "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+     },
+     {
+      "t": 32,
+      "sel": "ICON",
+      "model": "GFS",
+      "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+     },
+     {
+      "t": 49,
+      "sel": "ICON",
+      "model": "GFS",
+      "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+     },
+     {
+      "t": 65,
+      "sel": "ICON",
+      "model": "GFS",
+      "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected."
+     }
+    ],
+    "mismSilent": 0,
+    "mismAdmitted": 0,
+    "uploadHours": [
+     [
+      4236,
+      72
+     ]
+    ],
+    "msToIcon72": 5801
+   },
+   "backToGfs": {
+    "end": {
+     "wheel": 72,
+     "wtext": "+72 hours",
+     "hour": 72,
+     "model": "GFS",
+     "prov": "open-meteo",
+     "seq": 77,
+     "hash": "7a703b36",
+     "hstatus": null,
+     "retained": false,
+     "sel": "GFS",
+     "ustatus": "Detailed map unavailable. Showing simplified coastlines; forecasts are unaffected.",
+     "preq": 72,
+     "pren": 72
+    },
+    "hashEqualsBefore": true,
+    "uploadHours": [
+     [
+      420,
+      72
+     ]
+    ]
+   }
+  }
+ }
+}

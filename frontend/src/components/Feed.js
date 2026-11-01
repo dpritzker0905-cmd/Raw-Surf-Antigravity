@@ -173,8 +173,10 @@ export const Feed = () => {
 
     // Spots + location hierarchy lazy-loaded on check-in modal open
 
-    // Poll for live users every 30 seconds
-    const liveInterval = setInterval(fetchLiveUsers, 30000);
+    // Poll for live users every 30 seconds while the tab is visible
+    const liveInterval = setInterval(() => {
+      if (document.visibilityState !== 'hidden') fetchLiveUsers();
+    }, 30000);
     
     // Refresh upcoming sessions when user returns to the page/tab
     const handleVisibilityChange = () => {

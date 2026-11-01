@@ -1,0 +1,221 @@
+{
+  "recordedAtUtc": "2026-10-18T15:04:23.341643+00:00",
+  "pr": 378,
+  "reviewedHead": "79758e79745609e0fb294838059e549056aa1de6",
+  "mergeCommit": "6fbf439ac2bb2da5337f9a45864ffd3af8be8423",
+  "mergedAt": "2026-10-18T15:01:36Z",
+  "base": "dev",
+  "mergedTreeEqualsReviewedTree": true,
+  "reviewedSourceCi": 39137245809,
+  "reviewChecks": {
+    "success": 16,
+    "neutral": 3
+  },
+  "mergeMessageControls": {
+    "skipRender": true,
+    "skipNetlify": false
+  },
+  "guard": {
+    "name": "ESTIMATE_COHERENT_TRENDS",
+    "default": "0",
+    "activated": false
+  },
+  "productionBoundary": "The same Render API serves dev and production. Do not deploy it under the owner production hold. Backend changes are merged but not live.",
+  "deploymentVerification": "dev frontend verified and merge CI passed; shared backend fixes held-not-live",
+  "mergeCiRun": 39138610801,
+  "mergeLighthouseRun": 39138610797,
+  "automaticE2e": {
+    "runId": 39138610843,
+    "cancelRequested": true,
+    "testsExecuted": false,
+    "reason": "Exact merge SHA on shared production backend is deliberately unavailable under the hold.",
+    "acceptedAsPass": false
+  },
+  "premergeReadback": {
+    "observedAtUtc": "2026-10-18T15:00:40.947037+00:00",
+    "dev": {
+      "http": 200,
+      "build": "698ecf62"
+    },
+    "production": {
+      "http": 200,
+      "build": "fc140024"
+    },
+    "health": {
+      "http": 200,
+      "status": "healthy",
+      "version": "2.0.0-stage-6f-v1-62021d59ff78815536391002a5d510a810cfff9e",
+      "restoreStatus": "complete",
+      "restoreErrors": 0
+    },
+    "dataHealth": {
+      "http": 200,
+      "status": "warn",
+      "alerts": [
+        "ICON/marine: model cycle unverified: conflicting",
+        "EURO/marine: model cycle unverified: conflicting"
+      ]
+    }
+  },
+  "mainRef": "261db85a9508bf5a03ddd70dd21271493d5858a8",
+  "runtimeWrites": false,
+  "storedDataWrites": false,
+  "postmergeReadback": {
+    "observedAtUtc": "2026-10-18T15:05:25.822507+00:00",
+    "dev": {
+      "http": 200,
+      "build": "6fbf439a"
+    },
+    "production": {
+      "http": 200,
+      "build": "fc140024"
+    },
+    "health": {
+      "http": 200,
+      "status": "healthy",
+      "version": "2.0.0-stage-6f-v1-62021d59ff78815536391002a5d510a810cfff9e",
+      "checks": [
+        {
+          "name": "database",
+          "status": "pass"
+        },
+        {
+          "name": "scheduler",
+          "status": "pass"
+        }
+      ],
+      "restoreStatus": "complete",
+      "restoreErrors": 0
+    },
+    "dataHealth": {
+      "http": 200,
+      "status": "warn",
+      "alerts": [
+        "ICON/marine: model cycle unverified: conflicting",
+        "EURO/marine: model cycle unverified: conflicting"
+      ]
+    },
+    "staticDelivery": {
+      "observedAtUtc": "2026-10-18T15:05:30.698657+00:00",
+      "site": "https://dev--rawsurf.netlify.app",
+      "indexHttp": 200,
+      "rootMountPresent": true,
+      "assetManifestHttp": 200,
+      "entryPath": "/static/js/main.662b21c3.js",
+      "entryHttp": 200,
+      "entryBytes": 1140235,
+      "entrySha256": "ed4bf2d5c6c745ef768acebf68cd71d09a95ed9952778304f298946121f7f046",
+      "scope": "Static delivery only; no browser/grid/API load test."
+    },
+    "frontendSourceChange": false,
+    "backendDeployment": "held, not live on merge source",
+    "e2eConclusion": "cancelled; tests skipped, not a pass"
+  },
+  "finalQualification": {
+    "observedAtUtc": "2026-10-18T15:20:19.305689+00:00",
+    "mergeCommit": "6fbf439ac2bb2da5337f9a45864ffd3af8be8423",
+    "ciRunId": 39138610801,
+    "ciConclusion": "success",
+    "ciJobsPassed": 12,
+    "guards": {
+      "collected": 3285,
+      "files": 207,
+      "passed": 3218,
+      "skipped": 67,
+      "failed": 0,
+      "errors": 0
+    },
+    "chain": {
+      "collected": 2733,
+      "files": 166,
+      "passed": 2733,
+      "skipped": 0,
+      "failed": 0,
+      "errors": 0
+    },
+    "estate": {
+      "selectedFiles": 322,
+      "resultFiles": 320,
+      "passed": 2257,
+      "silentFiles": 0
+    },
+    "frontend": {
+      "suitesPassed": 438,
+      "testsPassed": 5766,
+      "build": "success"
+    },
+    "lighthouseRunId": 39138610797,
+    "lighthouseConclusion": "success",
+    "ledgerRunId": 39138610836,
+    "governanceRunId": 39138610863,
+    "fullE2e": {
+      "runId": 39138610843,
+      "conclusion": "cancelled",
+      "testsExecuted": false,
+      "acceptedAsPass": false
+    },
+    "publicReadback": {
+      "dev": {
+        "http": 200,
+        "build": "6fbf439a"
+      },
+      "production": {
+        "http": 200,
+        "build": "fc140024"
+      },
+      "health": {
+        "http": 200,
+        "status": "healthy",
+        "version": "2.0.0-stage-6f-v1-62021d59ff78815536391002a5d510a810cfff9e",
+        "restoreStatus": "complete",
+        "restoreErrors": 0
+      },
+      "dataHealth": {
+        "http": 200,
+        "status": "warn",
+        "alerts": [
+          "ICON/marine: model cycle unverified: conflicting",
+          "EURO/marine: model cycle unverified: conflicting"
+        ]
+      }
+    },
+    "routingProbe": {
+      "observedAtUtc": "2026-10-18T15:14:24.692784+00:00",
+      "dev": {
+        "http": 200,
+        "contentType": "application/json",
+        "server": "Netlify",
+        "status": "healthy",
+        "version": "2.0.0-stage-6f-v1-62021d59ff78815536391002a5d510a810cfff9e"
+      },
+      "production": {
+        "http": 404,
+        "contentType": "text/html; charset=utf-8",
+        "server": "Netlify"
+      },
+      "direct": {
+        "http": 200,
+        "contentType": "application/json",
+        "server": "cloudflare",
+        "status": "healthy",
+        "version": "2.0.0-stage-6f-v1-62021d59ff78815536391002a5d510a810cfff9e"
+      }
+    },
+    "productionRoutingClassification": {
+      "entryPath": "/static/js/main.67292410.js",
+      "entryHttp": 200,
+      "containsDirectSharedApiHostname": true,
+      "entrySha256": "fce6e1a9127613c40c574d194e282fcb0669f54d77a902882ab3844fd566badc",
+      "note": "Frozen production static asset inspected read-only; production-origin health proxy404 is not its configured direct API health endpoint."
+    },
+    "holds": {
+      "guardActivated": false,
+      "backendDeployed": false,
+      "mainPromoted": false,
+      "productionPromoted": false,
+      "runtimeSettingWrites": false,
+      "storedDataWrites": false
+    },
+    "qualification": "Dev merge and frontend deployment verified. Shared backend source remains old under production hold; no backend fix deployment, full live E2E or live warning clearance claimed."
+  }
+}

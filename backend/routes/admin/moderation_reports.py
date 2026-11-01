@@ -18,6 +18,7 @@ import logging
 
 from database import get_db
 from deps.admin_auth import get_current_admin
+from core.security import get_current_user_id
 from models import Profile, Dispute, UserReport, PayoutHold, AuditLog
 
 router = APIRouter()
@@ -26,6 +27,9 @@ logger = logging.getLogger(__name__)
 
 # Import log_audit from parent moderation module
 from .moderation import log_audit
+from .dispute_rules import (
+    validate_submission, resolve_transaction, check_against_transaction, ensure_no_open_dispute,
+)
 
 
 # ============ PYDANTIC MODELS ============
@@ -258,8 +262,14 @@ async def auto_create_payout_hold_for_dispute(db: AsyncSession, dispute: Dispute
 # ============ USER-FACING ENDPOINTS ============
 
 @router.post("/reports/submit")
-async def submit_user_report(data: CreateReportRequest, db: AsyncSession = Depends(get_db)):
-    """User-facing endpoint to submit a report (no admin required)."""
+async def submit_user_report(
+    data: CreateReportRequest,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """User-facing endpoint to submit a report (no admin required, but the reporter is the caller)."""
+    if data.reporter_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     result = await db.execute(select(Profile).where(Profile.id == data.reporter_id))
     reporter = result.scalar_one_or_none()
     if not reporter:
@@ -289,31 +299,47 @@ async def submit_user_report(data: CreateReportRequest, db: AsyncSession = Depen
 
 
 @router.post("/disputes/submit")
-async def submit_user_dispute(data: CreateDisputeRequest, db: AsyncSession = Depends(get_db)):
-    """User-facing endpoint to submit a dispute (no admin required)."""
+async def submit_user_dispute(
+    data: CreateDisputeRequest,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """User-facing endpoint to submit a dispute. The complainant is the caller, and the dispute is about ONE
+    transaction the caller took part in; the other party and the ceiling on the amount come from that
+    transaction, not from the request (routes/admin/dispute_rules.py)."""
+    if data.complainant_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
+    kind, reference_id, amount = validate_submission(data)
     result = await db.execute(select(Profile).where(Profile.id == data.complainant_id))
     complainant = result.scalar_one_or_none()
     if not complainant:
         raise HTTPException(status_code=404, detail="User profile not found")
+    txn = await resolve_transaction(db, current_user_id, kind, reference_id)
+    check_against_transaction(data, txn, amount)
+    await ensure_no_open_dispute(db, current_user_id, txn)
 
     dispute = Dispute(
-        complainant_id=data.complainant_id, respondent_id=data.respondent_id,
-        dispute_type=data.dispute_type, subject=data.subject, description=data.description,
-        amount_disputed=data.amount_disputed, booking_id=data.booking_id,
-        live_session_id=data.live_session_id, gallery_item_id=data.gallery_item_id,
-        evidence_urls=data.evidence_urls or [], priority=data.priority or "normal", status="open"
+        complainant_id=current_user_id, respondent_id=txn.respondent_id,
+        dispute_type=data.dispute_type, subject=data.subject.strip(), description=data.description,
+        amount_disputed=amount or None,
+        booking_id=reference_id if kind == "booking" else None,
+        live_session_id=reference_id if kind == "live_session" else None,
+        gallery_item_id=reference_id if kind == "gallery_item" else None,
+        evidence_urls=data.evidence_urls or [],
+        priority="normal",  # urgency is the reviewer's call, not the complainant's
+        status="open"
     )
     db.add(dispute)
     await db.flush()
 
-    if data.amount_disputed and data.amount_disputed > 0:
+    if amount > 0:
         await auto_create_payout_hold_for_dispute(db, dispute)
 
-    await log_audit(db, data.complainant_id, "dispute", "dispute_submitted",
+    await log_audit(db, current_user_id, "dispute", "dispute_submitted",
                     f"User submitted dispute: {data.subject}",
-                    target_type="user", target_id=data.respondent_id,
+                    target_type="user", target_id=txn.respondent_id,
                     is_admin_action=False,
-                    extra_data={"dispute_type": data.dispute_type, "amount": data.amount_disputed})
+                    extra_data={"dispute_type": data.dispute_type, "amount": amount, "transaction": kind})
     await db.commit()
     return {"id": dispute.id, "status": "submitted",
             "message": "Dispute submitted successfully. Our team will review and respond within 24-48 hours."}

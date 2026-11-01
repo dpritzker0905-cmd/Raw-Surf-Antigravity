@@ -1,6 +1,7 @@
 """Sessions pricing — capture session unified API and participant lookup."""
 from pydantic import BaseModel
 from fastapi import Depends, HTTPException, APIRouter
+from core.security import get_user_id_from_jwt_or_query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from database import get_db
@@ -18,8 +19,8 @@ class CaptureSessionPricingRequest(BaseModel):
 @router.post("/sessions/pricing")
 async def get_session_pricing(
     data: CaptureSessionPricingRequest,
-    user_id: str,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    user_id: str = Depends(get_user_id_from_jwt_or_query)
 ):
     """
     Get dynamic pricing for CaptureSession based on context.

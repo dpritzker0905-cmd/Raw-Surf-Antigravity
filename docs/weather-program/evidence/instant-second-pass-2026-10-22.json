@@ -1,0 +1,689 @@
+{
+ "what": "SECOND PASS on instant scrubbing (owner 2026-10-22: make sure we are definitely in position to be instant with scrubbing and delivering heatmap data)",
+ "method": "scn_instant_second_pass.js: one production build of dev 67021e936/eb3e4bcfb plus the fixes on branch claude/frame-validity-tolerance; the 113 REAL frames published by pilots run 39722114072 (run 2026-10-21T18Z) served by a local static host with 340 ms per object; the real backend app over synthetic data for /grid; per FRAME: dimmed (opacity mult < 1), silent-stale (hour held >= 600 ms, drawn product not the selected hour, full strength); GPU readback of the resident wave texture after a store show vs after the normal commit; steps = 10 fixed + 20 seeded random; steps past the run (target >= 320 h: no real frame, the harness mixes real frames with a synthetic /grid there) are excluded from the in-run numbers and reported separately",
+ "live": {
+  "pre_publish": {
+   "at": "2026-10-22T03:57-04:15Z",
+   "build": "67021e936",
+   "latest_json": 400,
+   "store": "on, no sets, misses no_index x4",
+   "steps_ms": [
+    3256,
+    66,
+    56,
+    69
+   ],
+   "health_s": [
+    1.007,
+    0.972
+   ]
+  },
+  "post_publish": {
+   "at": "2026-10-22T05:57-06:21Z",
+   "run": "2026-10-21T18:00:00Z",
+   "frames_resident": 113,
+   "gpu_MB": 7.25,
+   "fill_started_ms": 1420,
+   "fill_done_ms": 92943,
+   "fetch_ms": {
+    "p50": 502,
+    "p95": 687,
+    "max": 1012
+   },
+   "supabase_429": 3,
+   "shows": {
+    "n": 1,
+    "validity_differs": 11
+   },
+   "steps_store_refused": "11 of 12",
+   "parity_vs_grid": {
+    "n": 14842,
+    "bad": 0,
+    "maxH_m": 0.0005
+   },
+   "health_s": [
+    1.29,
+    0.962
+   ],
+   "backend_requests_during_steps": 0
+  }
+ },
+ "real_frames": {
+  "validity": {
+   "frames": 113,
+   "distinct_masks": 113,
+   "cells": 15023,
+   "neighbour_cells_changed": {
+    "min": 1,
+    "median": 8,
+    "max": 15
+   },
+   "any_pair_max_cells": 36
+  },
+  "aux_textures": {
+   "note": "chl/bath are distance-transform derived from the mask (getMarineGeoData 63 ms p50 / 86 ms max per frame)",
+   "neighbour_texels_changed": {
+    "p50": 25,
+    "max": 141
+   },
+   "worst_pair_texels": {
+    "chl": 73,
+    "bath": 122,
+    "bath_max_byte": 64
+   },
+   "of_texels": 15023
+  }
+ },
+ "runs": {
+  "red_before_fix": [
+   {
+    "label": "red",
+    "arm": "dark",
+    "steps_in_run": 25,
+    "missed": 0,
+    "exact_ms_p50": 573,
+    "exact_ms_p95": 603,
+    "exact_ms_max": 619,
+    "via_store": 0,
+    "dimmed_frames": 0,
+    "silent_stale_frames": 0,
+    "regress_frames": 0,
+    "backend_requests_in_run": {
+     "/grid": 14
+    },
+    "readback_pairs_equal": 0,
+    "readback_pairs": 0,
+    "shows": {
+     "n": 5,
+     "misses": {
+      "validity_differs": 31,
+      "no_frame_in_window": 1
+     },
+     "lastMs": 0.3
+    },
+    "tier": "desktop",
+    "fill": {
+     "startedMs": 1200,
+     "doneMs": 7866,
+     "blocked": null
+    },
+    "whole_run_ms": 7934,
+    "cdn": {
+     "requests": 129,
+     "frames": 127,
+     "faults": 0,
+     "truncated": 0
+    },
+    "ctx": null
+   }
+  ],
+  "green_fix1": [
+   {
+    "label": "fix1",
+    "arm": "dark",
+    "steps_in_run": 25,
+    "missed": 0,
+    "exact_ms_p50": 4,
+    "exact_ms_p95": 14,
+    "exact_ms_max": 15,
+    "via_store": 11,
+    "dimmed_frames": 0,
+    "silent_stale_frames": 0,
+    "regress_frames": 0,
+    "backend_requests_in_run": {
+     "/grid": 14
+    },
+    "readback_pairs_equal": 0,
+    "readback_pairs": 0,
+    "shows": {
+     "n": 36,
+     "misses": {
+      "no_frame_in_window": 1
+     },
+     "lastMs": 0.3,
+     "maskTolerated": 28,
+     "maskCellsMax": 27
+    },
+    "tier": "desktop",
+    "fill": {
+     "startedMs": 1227,
+     "doneMs": 8026,
+     "blocked": null
+    },
+    "whole_run_ms": 8239,
+    "cdn": {
+     "requests": 127,
+     "frames": 125,
+     "faults": 0,
+     "truncated": 0
+    },
+    "ctx": null
+   },
+   {
+    "label": "fix1",
+    "arm": "light",
+    "steps_in_run": 30,
+    "missed": 0,
+    "exact_ms_p50": 3,
+    "exact_ms_p95": 11,
+    "exact_ms_max": 14,
+    "via_store": 11,
+    "dimmed_frames": 0,
+    "silent_stale_frames": 0,
+    "regress_frames": 0,
+    "backend_requests_in_run": {},
+    "readback_pairs_equal": 0,
+    "readback_pairs": 0,
+    "shows": {
+     "n": 39,
+     "misses": {},
+     "lastMs": 0.3,
+     "maskTolerated": 32,
+     "maskCellsMax": 21
+    },
+    "tier": "desktop",
+    "fill": {
+     "startedMs": 1198,
+     "doneMs": 7909,
+     "blocked": null
+    },
+    "whole_run_ms": 7915,
+    "cdn": {
+     "requests": 127,
+     "frames": 125,
+     "faults": 0,
+     "truncated": 0
+    },
+    "ctx": null
+   },
+   {
+    "label": "fix1",
+    "arm": "beach",
+    "steps_in_run": 30,
+    "missed": 0,
+    "exact_ms_p50": 3,
+    "exact_ms_p95": 16,
+    "exact_ms_max": 16,
+    "via_store": 11,
+    "dimmed_frames": 0,
+    "silent_stale_frames": 0,
+    "regress_frames": 0,
+    "backend_requests_in_run": {},
+    "readback_pairs_equal": 0,
+    "readback_pairs": 0,
+    "shows": {
+     "n": 39,
+     "misses": {},
+     "lastMs": 0.4,
+     "maskTolerated": 32,
+     "maskCellsMax": 21
+    },
+    "tier": "desktop",
+    "fill": {
+     "startedMs": 1216,
+     "doneMs": 7902,
+     "blocked": null
+    },
+    "whole_run_ms": 7908,
+    "cdn": {
+     "requests": 127,
+     "frames": 125,
+     "faults": 0,
+     "truncated": 0
+    },
+    "ctx": null
+   },
+   {
+    "label": "fix1",
+    "arm": "handheld",
+    "error": "locator.waitFor: Timeout 15000ms exceeded.\nCall log:\n\u001b[2m  - waiting for locator('button').filter({ hasText: /^\\s*Waves\\s*$/ }).filter({ visible: true }).first("
+   },
+   {
+    "label": "fix1",
+    "arm": "faults",
+    "steps_in_run": 30,
+    "missed": 0,
+    "exact_ms_p50": 2,
+    "exact_ms_p95": 15,
+    "exact_ms_max": 16,
+    "via_store": 13,
+    "dimmed_frames": 0,
+    "silent_stale_frames": 0,
+    "regress_frames": 0,
+    "backend_requests_in_run": {},
+    "readback_pairs_equal": 0,
+    "readback_pairs": 0,
+    "shows": {
+     "n": 41,
+     "misses": {},
+     "lastMs": 0.3,
+     "maskTolerated": 35,
+     "maskCellsMax": 27
+    },
+    "tier": "desktop",
+    "fill": {
+     "startedMs": 1200,
+     "doneMs": 45652,
+     "blocked": null
+    },
+    "whole_run_ms": null,
+    "cdn": {
+     "requests": 169,
+     "frames": 167,
+     "faults": 31,
+     "truncated": 9
+    },
+    "ctx": null
+   },
+   {
+    "label": "fix1",
+    "arm": "ctxloss",
+    "steps_in_run": 30,
+    "missed": 0,
+    "exact_ms_p50": 0,
+    "exact_ms_p95": 15,
+    "exact_ms_max": 16,
+    "via_store": 10,
+    "dimmed_frames": 0,
+    "silent_stale_frames": 0,
+    "regress_frames": 0,
+    "backend_requests_in_run": {},
+    "readback_pairs_equal": 0,
+    "readback_pairs": 0,
+    "shows": {
+     "n": 35,
+     "misses": {
+      "resident_not_this_set": 1
+     },
+     "lastMs": 1,
+     "maskTolerated": 27,
+     "maskCellsMax": 21
+    },
+    "tier": "desktop",
+    "fill": {
+     "startedMs": 983,
+     "doneMs": 7623,
+     "blocked": null
+    },
+    "whole_run_ms": 7577,
+    "cdn": {
+     "requests": 125,
+     "frames": 123,
+     "faults": 0,
+     "truncated": 0
+    },
+    "ctx": {
+     "ext": true,
+     "lost": false,
+     "engine": true,
+     "grid": true
+    }
+   },
+   {
+    "label": "fix1",
+    "arm": "bytes",
+    "steps_in_run": 30,
+    "missed": 0,
+    "exact_ms_p50": 4,
+    "exact_ms_p95": 16,
+    "exact_ms_max": 16,
+    "via_store": 11,
+    "dimmed_frames": 0,
+    "silent_stale_frames": 0,
+    "regress_frames": 0,
+    "backend_requests_in_run": {},
+    "readback_pairs_equal": 11,
+    "readback_pairs": 11,
+    "shows": {
+     "n": 39,
+     "misses": {},
+     "lastMs": 0.2,
+     "maskTolerated": 32,
+     "maskCellsMax": 21
+    },
+    "tier": "desktop",
+    "fill": {
+     "startedMs": 1211,
+     "doneMs": 7872,
+     "blocked": null
+    },
+    "whole_run_ms": 7892,
+    "cdn": {
+     "requests": 127,
+     "frames": 125,
+     "faults": 0,
+     "truncated": 0
+    },
+    "ctx": null
+   },
+   {
+    "label": "fix1",
+    "arm": "killed",
+    "steps_in_run": 30,
+    "missed": 0,
+    "exact_ms_p50": 55,
+    "exact_ms_p95": 614,
+    "exact_ms_max": 632,
+    "via_store": 0,
+    "dimmed_frames": 1,
+    "silent_stale_frames": 1,
+    "regress_frames": 0,
+    "backend_requests_in_run": {},
+    "readback_pairs_equal": 0,
+    "readback_pairs": 0,
+    "shows": {
+     "n": 0,
+     "misses": {},
+     "lastMs": null
+    },
+    "tier": "desktop",
+    "fill": {
+     "startedMs": null,
+     "doneMs": null,
+     "blocked": null
+    },
+    "whole_run_ms": null,
+    "cdn": {
+     "requests": 23,
+     "frames": 21,
+     "faults": 0,
+     "truncated": 0
+    },
+    "ctx": null
+   }
+  ],
+  "more_arms_fix1": [
+   {
+    "label": "fix1",
+    "arm": "ctxbytes",
+    "steps_in_run": 30,
+    "missed": 0,
+    "exact_ms_p50": 2,
+    "exact_ms_p95": 10,
+    "exact_ms_max": 13,
+    "via_store": 9,
+    "dimmed_frames": 0,
+    "silent_stale_frames": 0,
+    "regress_frames": 0,
+    "backend_requests_in_run": {},
+    "readback_pairs_equal": 0,
+    "readback_pairs": 8,
+    "shows": {
+     "n": 41,
+     "misses": {},
+     "lastMs": 1.2,
+     "maskTolerated": 29,
+     "maskCellsMax": 25
+    },
+    "tier": "desktop",
+    "fill": {
+     "startedMs": 1215,
+     "doneMs": 7947,
+     "blocked": null
+    },
+    "whole_run_ms": 8158,
+    "cdn": {
+     "requests": 132,
+     "frames": 130,
+     "faults": 0,
+     "truncated": 0
+    },
+    "ctx": {
+     "ext": true,
+     "lost": false,
+     "engine": true,
+     "grid": true
+    }
+   },
+   {
+    "label": "fix1",
+    "arm": "ect3g",
+    "steps_in_run": 30,
+    "missed": 0,
+    "exact_ms_p50": 6,
+    "exact_ms_p95": 456,
+    "exact_ms_max": 458,
+    "via_store": 6,
+    "dimmed_frames": 0,
+    "silent_stale_frames": 0,
+    "regress_frames": 0,
+    "backend_requests_in_run": {},
+    "readback_pairs_equal": 0,
+    "readback_pairs": 0,
+    "shows": {
+     "n": 26,
+     "misses": {
+      "not_ready": 13
+     },
+     "lastMs": 0.1,
+     "maskTolerated": 19,
+     "maskCellsMax": 19
+    },
+    "tier": "constrained",
+    "fill": {
+     "startedMs": null,
+     "doneMs": null,
+     "blocked": "tier"
+    },
+    "whole_run_ms": null,
+    "cdn": {
+     "requests": 79,
+     "frames": 77,
+     "faults": 0,
+     "truncated": 0
+    },
+    "ctx": null
+   },
+   {
+    "label": "fix1",
+    "arm": "handheld",
+    "steps_in_run": 30,
+    "missed": 0,
+    "exact_ms_p50": 5,
+    "exact_ms_p95": 100,
+    "exact_ms_max": 460,
+    "via_store": 8,
+    "dimmed_frames": 0,
+    "silent_stale_frames": 0,
+    "regress_frames": 0,
+    "backend_requests_in_run": {},
+    "readback_pairs_equal": 0,
+    "readback_pairs": 0,
+    "shows": {
+     "n": 37,
+     "misses": {
+      "not_ready": 5
+     },
+     "lastMs": 0.2,
+     "maskTolerated": 25,
+     "maskCellsMax": 25,
+     "deferred": 1
+    },
+    "tier": "handheld",
+    "fill": {
+     "startedMs": null,
+     "doneMs": null,
+     "blocked": "tier"
+    },
+    "whole_run_ms": null,
+    "cdn": {
+     "requests": 129,
+     "frames": 127,
+     "faults": 0,
+     "truncated": 0
+    },
+    "ctx": null
+   }
+  ],
+  "green_fix1_fix2": [
+   {
+    "label": "fix1+fix2",
+    "arm": "ctxbytes",
+    "steps_in_run": 30,
+    "missed": 0,
+    "exact_ms_p50": 2,
+    "exact_ms_p95": 15,
+    "exact_ms_max": 16,
+    "via_store": 9,
+    "dimmed_frames": 0,
+    "silent_stale_frames": 0,
+    "regress_frames": 0,
+    "backend_requests_in_run": {},
+    "readback_pairs_equal": 7,
+    "readback_pairs": 7,
+    "shows": {
+     "n": 41,
+     "misses": {},
+     "lastMs": 0.2,
+     "poolLost": 1,
+     "maskTolerated": 30,
+     "maskCellsMax": 25
+    },
+    "tier": "desktop",
+    "fill": {
+     "startedMs": 1247,
+     "doneMs": 7984,
+     "blocked": null
+    },
+    "whole_run_ms": 8045,
+    "cdn": {
+     "requests": 130,
+     "frames": 128,
+     "faults": 0,
+     "truncated": 0
+    },
+    "ctx": {
+     "ext": true,
+     "lost": false,
+     "engine": true,
+     "grid": true
+    }
+   },
+   {
+    "label": "fix1+fix2",
+    "arm": "bytes",
+    "steps_in_run": 30,
+    "missed": 0,
+    "exact_ms_p50": 3,
+    "exact_ms_p95": 15,
+    "exact_ms_max": 16,
+    "via_store": 10,
+    "dimmed_frames": 0,
+    "silent_stale_frames": 0,
+    "regress_frames": 0,
+    "backend_requests_in_run": {},
+    "readback_pairs_equal": 7,
+    "readback_pairs": 7,
+    "shows": {
+     "n": 38,
+     "misses": {
+      "resident_not_this_set": 1
+     },
+     "lastMs": 0.9,
+     "maskTolerated": 30,
+     "maskCellsMax": 21
+    },
+    "tier": "desktop",
+    "fill": {
+     "startedMs": 912,
+     "doneMs": 7709,
+     "blocked": null
+    },
+    "whole_run_ms": 7725,
+    "cdn": {
+     "requests": 123,
+     "frames": 121,
+     "faults": 0,
+     "truncated": 0
+    },
+    "ctx": null
+   },
+   {
+    "label": "fix1+fix2",
+    "arm": "dark",
+    "steps_in_run": 25,
+    "missed": 0,
+    "exact_ms_p50": 4,
+    "exact_ms_p95": 14,
+    "exact_ms_max": 16,
+    "via_store": 11,
+    "dimmed_frames": 0,
+    "silent_stale_frames": 0,
+    "regress_frames": 0,
+    "backend_requests_in_run": {
+     "/grid": 14
+    },
+    "readback_pairs_equal": 0,
+    "readback_pairs": 0,
+    "shows": {
+     "n": 36,
+     "misses": {
+      "no_frame_in_window": 1
+     },
+     "lastMs": 2,
+     "maskTolerated": 29,
+     "maskCellsMax": 24
+    },
+    "tier": "desktop",
+    "fill": {
+     "startedMs": 1192,
+     "doneMs": 7795,
+     "blocked": null
+    },
+    "whole_run_ms": 7885,
+    "cdn": {
+     "requests": 127,
+     "frames": 125,
+     "faults": 0,
+     "truncated": 0
+    },
+    "ctx": null
+   },
+   {
+    "label": "fix1+fix2",
+    "arm": "faults",
+    "steps_in_run": 30,
+    "missed": 0,
+    "exact_ms_p50": 2,
+    "exact_ms_p95": 17,
+    "exact_ms_max": 21,
+    "via_store": 13,
+    "dimmed_frames": 0,
+    "silent_stale_frames": 0,
+    "regress_frames": 0,
+    "backend_requests_in_run": {},
+    "readback_pairs_equal": 0,
+    "readback_pairs": 0,
+    "shows": {
+     "n": 40,
+     "misses": {
+      "resident_not_this_set": 1
+     },
+     "lastMs": 4.7,
+     "maskTolerated": 35,
+     "maskCellsMax": 27
+    },
+    "tier": "desktop",
+    "fill": {
+     "startedMs": 944,
+     "doneMs": 45686,
+     "blocked": null
+    },
+    "whole_run_ms": null,
+    "cdn": {
+     "requests": 167,
+     "frames": 165,
+     "faults": 31,
+     "truncated": 9
+    },
+    "ctx": null
+   }
+  ]
+ },
+ "caveats": [
+  "one machine, headless Chrome, offline; the live CDN adds variance and 429s",
+  "the live fill (93 s) was in the in-app browser pane, whose visibility and timer throttling are unknown; offline the fill takes 7.6-8.0 s",
+  "hours past the pinned run (~13 h before the 14-day end for this run) fall back to /grid",
+  "ect3g and handheld arms show policy-dependent behaviour, not defects"
+ ]
+}

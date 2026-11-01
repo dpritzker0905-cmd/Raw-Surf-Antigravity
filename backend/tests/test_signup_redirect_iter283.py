@@ -179,7 +179,7 @@ class TestSignupRedirectLogic:
             "username": username,
             "role": "Grom",
             "parent_email": parent_email,
-            "birthdate": "2015-01-15"
+            "birthdate": "2012-01-15"  # 13+: under-13s cannot self-register (guardian program)
         })
         
         assert response.status_code == 200, f"Signup failed: {response.text}"

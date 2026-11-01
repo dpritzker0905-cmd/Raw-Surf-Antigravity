@@ -3,7 +3,7 @@
  * Extracted from DispatchLobby.js.
  */
 import React from 'react';
-import { Camera } from 'lucide-react';
+import { Camera, Radio, RefreshCw } from 'lucide-react';
 import { getFullUrl } from '../../utils/media';
 
 const PhotographerCard = ({ photographer, eta, status, isLight, wasDeclined }) => {

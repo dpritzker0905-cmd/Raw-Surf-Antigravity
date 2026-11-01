@@ -44,6 +44,10 @@ module.exports = [
       // React rules
       "react/jsx-uses-react": "error",
       "react/jsx-uses-vars": "error",
+      // An undefined JSX tag (<Badge/> with no import) is NOT caught by core no-undef, which ignores JSX
+      // identifiers: it renders nothing until the branch runs, then throws a ReferenceError and unmounts the
+      // tree. Found 25 of them in 12 files (2026-10-23); this rule is also in ALWAYS_ZERO (check_eslint.js).
+      "react/jsx-no-undef": "error",
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "off", // Handled: temporarily disabled to prevent infinite re-render loops while polishing
 

@@ -45,8 +45,8 @@ const ChallengesTab = ({ userId }) => {
     try {
       setLoading(true);
       const [currentRes, historyRes] = await Promise.all([
-        apiClient.get('/api/challenges/current'),
-        apiClient.get('/api/challenges/history')
+        apiClient.get('/challenges/current'),
+        apiClient.get('/challenges/history')
       ]);
       setChallenge(currentRes.data.challenge);
       setLeaderboard(currentRes.data.leaderboard || []);

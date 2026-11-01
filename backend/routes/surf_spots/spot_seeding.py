@@ -6,13 +6,14 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import SurfSpot
 
 router = APIRouter()
 
 
 @router.post("/seed-florida-spots")
-async def seed_florida_spots(db: AsyncSession = Depends(get_db)):
+async def seed_florida_spots(db: AsyncSession = Depends(get_db), _admin=Depends(get_current_admin)):
     """Seed Florida surf spots with accurate coordinates."""
     florida_spots = [
         {"name": "Jacksonville Beach Pier", "region": "Northeast Florida", "latitude": 30.2950, "longitude": -81.3906, "difficulty": "Beginner-Intermediate", "description": "Consistent beach break near the pier"},
@@ -43,7 +44,7 @@ async def seed_florida_spots(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/surf-spots/update-coordinates")
-async def update_surf_spot_coordinates(db: AsyncSession = Depends(get_db)):
+async def update_surf_spot_coordinates(db: AsyncSession = Depends(get_db), _admin=Depends(get_current_admin)):
     """Update existing surf spots with corrected coastal coordinates"""
     coordinate_updates = {
         "Jacksonville Beach Pier": {"latitude": 30.2950, "longitude": -81.3906},
@@ -77,7 +78,7 @@ async def update_surf_spot_coordinates(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/surf-spots/seed-images")
-async def seed_spot_images(db: AsyncSession = Depends(get_db)):
+async def seed_spot_images(db: AsyncSession = Depends(get_db), _admin=Depends(get_current_admin)):
     """Seed spot images from Unsplash."""
     spot_images = {
         "Jacksonville Beach Pier": "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=800",

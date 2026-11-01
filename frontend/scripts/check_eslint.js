@@ -52,6 +52,7 @@ const TARGET = 'src';
  */
 const ALWAYS_ZERO = [
   'no-undef', // ← the _washOpacityEff class. The reason this gate exists.
+  'react/jsx-no-undef', // core no-undef skips JSX tags: <Badge/> with no import crashes at render, not at build.
   'no-const-assign',
   'no-class-assign',
   'no-func-assign',

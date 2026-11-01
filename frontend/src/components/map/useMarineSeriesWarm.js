@@ -1,6 +1,17 @@
 import { useEffect, useRef } from 'react';
 import { ensureMarineSeries, prewarmMarineSeries, marineSeriesViewportIdentity } from './marineGridSeries';
 import { createMarineViewportIntent, marineSeriesWorkBoundsEnabled } from './marineSeriesWorkPolicy';
+import { seriesPanSettleMs } from './marineSeriesPanGuard';
+import { prewarmSiblingMarineSeries } from './marineController';
+
+// The sibling-layer warm (marineSiblingWarm.js) also follows the VISIBLE series, not only a /grid commit (2026-10-23): with a
+// static source the visible frame can come from the series before any /grid is asked, and then the /grid hook never fires (offline
+// z9 Florida with regional bundles: 1 of 2 sessions warmed no sibling). Repeat calls are cheap: the warm dedups and keeps ready
+// frames. Kill: window.__RAW_DISABLE_SIBLING_WARM_ON_SERIES__ = true.
+function warmSiblingsAfter(p, model, layer, bounds, hour, signal) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_SIBLING_WARM_ON_SERIES__ === true) return;
+  Promise.resolve(p).then(() => { if (!(signal && signal.aborted)) prewarmSiblingMarineSeries(model, hour, bounds, layer, signal); }).catch(() => {});
+}
 
 const boundsOf = map => {
   const b = map.getBounds();
@@ -21,7 +32,8 @@ export function useMarineSeriesWarm({ mapInstance, activeModel, activeMarineLaye
       if (cancelled) return;
       try {
         const bounds = boundsOf(mapInstance), signal = signalFor(bounds);
-        ensureMarineSeries(activeModelRef.current, activeMarineLayerRef.current, bounds, timeOffsetRef.current, signal);
+        const model = activeModelRef.current, layer = activeMarineLayerRef.current, hour = timeOffsetRef.current;
+        warmSiblingsAfter(ensureMarineSeries(model, layer, bounds, hour, signal), model, layer, bounds, hour, signal);
         prewarmMarineSeries(activeModelRef.current, activeMarineLayerRef.current, bounds, signal);
       } catch { /* map not ready */ }
     };
@@ -33,11 +45,15 @@ export function useMarineSeriesWarm({ mapInstance, activeModel, activeMarineLaye
       } catch { /* map not ready */ }
     };
     const timer = setTimeout(kick, 600);
-    mapInstance.on('moveend', kick);
+    // A pan's series waits until the map has been still SERIES_PAN_SETTLE_MS (marineSeriesPanGuard.js); a new move cancels it.
+    let settle = null;
+    const onMoveStart = () => { clearTimeout(settle); settle = null; };
+    const onMoveEnd = () => { onMoveStart(); const ms = seriesPanSettleMs(); if (ms) settle = setTimeout(kick, ms); else kick(); };
+    mapInstance.on('moveend', onMoveEnd); mapInstance.on('movestart', onMoveStart);
     window.addEventListener('timeline_scrub_start', onScrubStart);
     return () => {
-      cancelled = true; clearTimeout(timer); intent.abort();
-      try { mapInstance.off('moveend', kick); } catch { /* map destroyed */ }
+      cancelled = true; clearTimeout(timer); clearTimeout(settle); intent.abort();
+      try { mapInstance.off('moveend', onMoveEnd); mapInstance.off('movestart', onMoveStart); } catch { /* map destroyed */ }
       window.removeEventListener('timeline_scrub_start', onScrubStart);
       if (intentRef.current === intent) intentRef.current = null;
     };

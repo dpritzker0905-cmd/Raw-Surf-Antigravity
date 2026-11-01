@@ -23,7 +23,10 @@ import { buildTruthTag } from './weatherTruthTracker';
 // only diverges on a boundary, and this one's boundary is the antimeridian.
 import { normalizeRequestBbox } from './marineBboxGeometry';
 import { seriesAnchorTag, seriesAnchorParam } from './seriesAnchor';
-import { windLaneParam, windLaneTag } from './windLane';
+import { windLaneParam, windLaneTag, windLaneDisabled } from './windLane';
+import { getSeriesAnchorMs, getSharedValidTime } from './backendWeatherServiceClient';
+import { readLanePointer, staticWindCovers, windIndex, windStaticEnabled } from './windStaticFrames';
+import { afterNextPaint } from './afterNextPaint';
 
 // pageKey (model_viewportKey_pN) -> { ts, frames: Map<hourOffset, windData>, hours: number[] }
 const _seriesCache = new Map();
@@ -222,6 +225,7 @@ function frameToWindData(frame, model) {
     stale: false,
     source: model || 'GFS',
     hourOffset: frame.hour_offset,
+    valid_time: frame.valid_time || null,
     provider: frame.provider || 'backend-weather-service',
     nonzeroCount,
     renderable,
@@ -232,8 +236,57 @@ function frameToWindData(frame, model) {
   };
 }
 
+// STATIC FRAMES OWN THE WORLD PAGES (2026-10-22, the wind instant scrub): a wide view's page asks the WORLD box, which the CDN's
+// static wind frames answer hour by hour at full resolution (windStaticFrames.js; the page itself is a thinned 46 x 21 world built
+// by the box in ~10-25 s). When every hour of the page can be served statically right now (pinned run, lane check passed), the
+// page is not asked for: the scrub paths read the static frame first. Kill: window.__RAW_DISABLE_WIND_SERIES_STATIC_SKIP__.
+export async function staticOwnsWindPage(model, bounds, page) {
+  const uncovered = await staticUncoveredHours(model, bounds, page);
+  return !!uncovered && uncovered.length === 0;
+}
+
+// THE PAGE ASKS ONLY WHAT THE FRAMES CANNOT SERVE (2026-10-24, the wind pan diet; the worldwide matrix's "stray world page"):
+// GFS wind scrubs to +384 h, the static frames end at their run's f336, so the LAST world page (hours 288-384, 33 frames) was
+// asked whole in every session for its few tail hours, re-building ~15-20 hours the CDN already serves (10-25 s of the box per
+// page). The page now asks only its hours with no static frame; a frame the box serves is the same per hour either way (the
+// series route resolves each hour on its own), so no served number moves. Kill: window.__RAW_DISABLE_WIND_SERIES_TRIM__.
+export function windSeriesTrimEnabled() {
+  return !(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SERIES_TRIM__ === true);
+}
+
+/** The page's hours the static frames cannot serve right now ([] = the page is owned), or null when static frames do not
+ * apply to this view (not the world key, another model, the kills). */
+export async function staticUncoveredHours(model, bounds, page) {
+  try {
+    if (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SERIES_STATIC_SKIP__ === true) return null;
+    if (!windStaticEnabled() || windLaneDisabled() || String(model || 'GFS').toUpperCase() !== 'GFS') return null;
+    if (viewportKey(bounds) !== 'global') return null;
+    await Promise.all([windIndex(), readLanePointer(false)]);
+    const hours = buildPageHours(page);
+    const uncovered = hours.filter((h) => !staticWindCovers([getSharedValidTime(h, 'wind', 'GFS', { readOnly: true })], model));
+    if (typeof window !== 'undefined') {
+      const dg = (window.__WIND_SERIES_DIAG__ = window.__WIND_SERIES_DIAG__ || { loads: 0, hits: 0, misses: 0 });
+      if (!uncovered.length) dg.staticSkips = (dg.staticSkips || 0) + 1;
+      else if (uncovered.length < hours.length) dg.staticTrims = (dg.staticTrims || 0) + 1;
+    }
+    return uncovered;
+  } catch (e) {
+    return null;
+  }
+}
+
 async function loadSeriesPage(model, bounds, page, signal) {
   if (!isWindSeriesEnabled() || !bounds || page < 0 || page > LAST_PAGE) return;
+  // PAGES ARE PLANNED AFTER THE NEXT PAINT (2026-10-25, the wind toggle's click task): planning a page (staticUncoveredHours:
+  // ~49 snapped hours per page, 14-29 ms profiled on the toggle) ran inside the click's task, ahead of the first wind draw. The
+  // first draw never waits on a page (the static frame, or the hour-0 mini, which is not deferred), and a page the box builds
+  // in seconds loses one frame (up to the 100 ms hidden-tab floor). Kill: window.__RAW_DISABLE_WIND_SERIES_AFTER_PAINT__ = true.
+  if (!(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SERIES_AFTER_PAINT__ === true)) {
+    await afterNextPaint();
+    if (callerAborted(signal)) return;
+  }
+  const uncovered = await staticUncoveredHours(model, bounds, page);
+  if (uncovered && uncovered.length === 0) return;      // the static frames own every hour of the page
   // A view that has already been superseded asks for nothing: addEventListener('abort') below never
   // fires for a signal that is aborted before it is attached, so without this the fetch went out.
   if (callerAborted(signal)) return;
@@ -242,7 +295,7 @@ async function loadSeriesPage(model, bounds, page, signal) {
   if (existing && Date.now() - existing.ts < SERIES_TTL_MS) return;
   if (_inFlight.has(key)) return;
 
-  const hours = buildPageHours(page);
+  const hours = uncovered && windSeriesTrimEnabled() ? uncovered : buildPageHours(page);
   if (hours.length === 0) return;
   const reqBox = normalizeRequestBbox(bounds);
   const url = `${API_BASE}/weather/grid_series?model=${encodeURIComponent(model || 'GFS')}`
@@ -321,15 +374,32 @@ async function loadSeriesPage(model, bounds, page, signal) {
 // supersedes it. Deliberately BYPASSES the 2-slot wind queue for the same reason marine does --
 // the point is not to queue behind the very page it exists to beat.
 // Kill: __RAW_DISABLE_HOUR0_FIRST__ (shared with marine). Telemetry: __WIND_SERIES_DIAG__.h0Loads.
+// THE STORED STEP, NOT A FIXED 3 (2026-10-25, hourly GFS wind f000-f120 behind FRAME_WIND_GFS_HOURLY): the hour-0 mini
+// asked the hour rounded to a multiple of 3, so with hourly products stored it would ask the 3-hourly hour under an
+// hourly selection. It now asks the nearest STORED product's hour (getSharedValidTime against the manifest, the same
+// snap /grid and the static frames use): on today's 3-hourly store that is the same hour as before. Kill:
+// window.__RAW_DISABLE_WIND_SERIES_MANIFEST_SNAP__ = true (the fixed 3-hour snap).
+export function windSeriesSnapHour(model, hourOffset) {
+  const fixed = Math.max(0, Math.round(hourOffset / 3) * 3);
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SERIES_MANIFEST_SNAP__ === true) return fixed;
+  try {
+    const ms = Date.parse(getSharedValidTime(hourOffset, 'wind', model || 'GFS', { readOnly: true }));
+    const h = Math.round((ms - getSeriesAnchorMs()) / 3600000);
+    if (Number.isFinite(h) && h >= 0 && Math.abs(h - hourOffset) <= 3) return h;
+  } catch (e) { /* the fixed snap below */ }
+  return fixed;
+}
+
 async function loadWindSeriesHour0(model, bounds, hourOffset, signal) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_HOUR0_FIRST__ === true) return;
   if (!isWindSeriesEnabled() || !bounds) return;
+  if (await staticOwnsWindPage(model, bounds, windSeriesPageForHour(hourOffset))) return;
   if (callerAborted(signal)) return;
   const page = windSeriesPageForHour(hourOffset);
   const h0key = `${pageKey(model, bounds, page)}_h0`;
   const existing = _seriesCache.get(h0key);
   if ((existing && Date.now() - existing.ts < SERIES_TTL_MS) || _inFlight.has(h0key)) return;
-  const h = Math.max(0, Math.round(hourOffset / 3) * 3);   // snap to the frame grid, as the page does
+  const h = windSeriesSnapHour(model, hourOffset);
   const reqBox = normalizeRequestBbox(bounds);
   const url = `${API_BASE}/weather/grid_series?model=${encodeURIComponent(model || 'GFS')}`
     + `&domain=wind&layer=wind`

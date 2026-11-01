@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import logger from '../utils/logger';
+import { BACKEND_URL } from '../lib/apiClient';
 import { isInCooldown } from '../components/map/marineControllerUtils';
 import { governMarineRequest as governProxyRequest } from '../components/map/marineRequestGovernor';
+import { bboxContains, pointModelGuardOn, productHintFor } from '../components/map/pointProductHint';
 
 /**
  * Open-Meteo Weather + Marine forecast hook (v3.12.5).
@@ -61,6 +63,8 @@ const MIN_FETCH_INTERVAL = 2_000;
 const forecastCache = new Map();
 const inFlightRequests = new Map();
 const CACHE_TTL = 120_000; // 2 minutes
+// D10: the quiet time after the last wheel step before a selected point's forecast is asked for that hour.
+export const FORECAST_HOUR_SETTLE_MS = 400;
 
 export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', enabled = true, isExplicit = false, timeOffsetHours = 0, activeLayer = 'waves' }) => {
   const [forecastData, setForecastData] = useState(null);
@@ -148,19 +152,11 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
 
       setIsLoading(true);
 
-      const getBackendUrl = () => {
-        if (typeof window !== 'undefined') {
-          if (window.__BACKEND_URL__) return window.__BACKEND_URL__;
-          if (window.localStorage.getItem('__BACKEND_URL__')) return window.localStorage.getItem('__BACKEND_URL__');
-          const hostname = window.location.hostname;
-          if (hostname === 'localhost' || hostname === '127.0.0.1') {
-            return 'http://localhost:8000';
-          }
-        }
-        return (typeof process !== 'undefined' && process.env && process.env.REACT_APP_BACKEND_URL) || 'https://raw-surf-antigravity.onrender.com';
-      };
+      // The app's one backend-URL resolution (window/localStorage override, then REACT_APP_BACKEND_URL):
+      // the former local copy guarded on `typeof process`, false in a browser, so it always fell back to
+      // the production origin (and sent localhost to :8000).
 
-      const POINT_URL = `${getBackendUrl()}/api/weather/point`;
+      const POINT_URL = `${BACKEND_URL}/api/weather/point`;
 
       const baseTime = (typeof window !== 'undefined' && window.__MOCK_DATE_NOW__) || Date.now();
       const roundedNow = Math.round(baseTime / 3600000) * 3600000;
@@ -174,10 +170,17 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
 
           let gridProductId = null;
           let gridBbox = null;
+          // D4 (2026-10-28, pointProductHint.js): the id named whichever diag was set (a marine product on a pressure ask, the
+          // last model's after a switch) and went on all three asks. It now goes on the WIND ask only, from the wind diag of THIS
+          // model; pressure and rain products are not those (pointRequestIdentity drops weather hints the same way).
+          let windProductId = null;
           if (typeof window !== 'undefined') {
-            const diag = window.__WIND_PROJECTION_DIAG__ || window.__MARINE_PROJECTION_DIAG__;
-            if (diag) {
-              gridProductId = diag.productId || diag.gridProductId || null;
+            const guard = pointModelGuardOn();
+            const windDiag = window.__WIND_PROJECTION_DIAG__;
+            const diag = guard ? windDiag : (windDiag || window.__MARINE_PROJECTION_DIAG__);
+            if (diag && (!guard || diag.activeModel === activeModel)) {
+              gridProductId = guard ? null : (diag.productId || diag.gridProductId || null);
+              windProductId = guard ? productHintFor(diag.productId || diag.gridProductId || null, activeModel, 'wind') : gridProductId;
               gridBbox = diag.requested_bbox || diag.backendRequestBbox || null;
             }
           }
@@ -190,9 +193,17 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
             }
           }
 
-          if (gridProductId) {
+          // D10 (2026-10-28): the point is the user's location or a spot, the box the VIEW's; a box that does not hold the point
+          // (a Hawaii view with a Mexico point) is not this point's, nor is the product drawn for it. Kill:
+          // window.__RAW_DISABLE_POINT_BBOX_CONTAINS__ = true.
+          if (gridBbox && !(typeof window !== 'undefined' && window.__RAW_DISABLE_POINT_BBOX_CONTAINS__ === true)
+              && !bboxContains(gridBbox, latitude, longitude)) {
+            gridBbox = null;
+            windProductId = null;
+          }
+          if (windProductId) windUrl += `&grid_product_id=${encodeURIComponent(windProductId)}`;
+          if (gridProductId) {   // kill switch only: the old id on every ask
             const pId = encodeURIComponent(gridProductId);
-            windUrl += `&grid_product_id=${pId}`;
             pressureUrl += `&grid_product_id=${pId}`;
             precipUrl += `&grid_product_id=${pId}`;
           }
@@ -236,6 +247,8 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
           }
 
           await Promise.all(fetchQueue);
+          // D10: an aborted batch (the next hour superseded it) is not a failure: say so, so it is not logged as an error.
+          if (controller.signal.aborted) { const e = new Error('superseded'); e.name = 'AbortError'; throw e; }
 
           const isAtLeastOneOk = (activeLayer === 'wind' && windRes.ok) ||
                                  (activeLayer === 'pressure' && pressRes.ok) ||
@@ -604,18 +617,26 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
   const prevModelRef = useRef(activeModel);
   const prevCoordsRef = useRef({ latitude, longitude });
   const prevLayerRef = useRef(activeLayer);
+  const prevHourRef = useRef(timeOffsetHours);
 
   useEffect(() => {
     clearTimeout(debounceRef.current);
     const isModelSwitch = prevModelRef.current !== activeModel;
     const isLayerSwitch = prevLayerRef.current !== activeLayer;
-    
+    const samePoint = prevCoordsRef.current.latitude === latitude && prevCoordsRef.current.longitude === longitude;
+    const isHourStep = prevHourRef.current !== timeOffsetHours && samePoint && !isModelSwitch && !isLayerSwitch;
+
     prevModelRef.current = activeModel;
     prevCoordsRef.current = { latitude, longitude };
     prevLayerRef.current = activeLayer;
+    prevHourRef.current = timeOffsetHours;
 
+    // D10 (2026-10-28, the lead's offline fuzzer): with a spot or pin selected every wheel hour re-asked after 50 ms, 1-3 /point
+    // asks per step (~70 x 3 in 2 s while scrubbing a non-marine layer). An hour step now waits for the wheel to SETTLE; a new
+    // point, model or layer still answers at once. Kill: window.__RAW_DISABLE_FORECAST_POINT_SETTLE__ = true.
+    const settle = isHourStep && !(typeof window !== 'undefined' && window.__RAW_DISABLE_FORECAST_POINT_SETTLE__ === true);
     const useFastDebounce = isExplicit || isModelSwitch || isLayerSwitch;
-    const debounceDuration = useFastDebounce ? 50 : 2500;
+    const debounceDuration = settle ? Math.max(FORECAST_HOUR_SETTLE_MS, useFastDebounce ? 0 : 2500) : (useFastDebounce ? 50 : 2500);
 
     debounceRef.current = setTimeout(() => {
       fetchForecast();

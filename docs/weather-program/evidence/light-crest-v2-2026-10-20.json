@@ -1,0 +1,3121 @@
+{
+ "at": "2026-10-20",
+ "branch": "claude/light-crest-v2",
+ "base": "dev f6b80f724 (#415 16 m encoding, #417 D-035 beach locked to v1). Rebuilt 2026-10-20 ~21:00Z on the beach session's word (\"Your branch should come from current dev ... not from #416\"); the first build was stacked on #416 57e72589b (local ref light-crest-v2-on416; its ledger lines 1545-1547 never reached dev)",
+ "scope": "light crest colours only (DRAW_FS light branch: calm, active, storm and its foamHighlight); dark and beach crests (beach: D-035, the owner's), the wash, motion and encoding untouched. No served number changes (no SCOREBOARD row).",
+ "levers": {
+  "kill": "window.__RAW_DISABLE_LIGHT_CREST_V2__ = true draws dev's DRAW_FS byte for byte (sha256 a9e8e102..., 8811 chars)",
+  "wash_kills": "either wave-palette kill stands light V2 down"
+ },
+ "crests": {
+  "v1": {
+   "calm": [
+    0.05,
+    0.15,
+    0.45
+   ],
+   "active": [
+    0.85,
+    0.5,
+    0.0
+   ],
+   "storm": [
+    0.75,
+    0.1,
+    0.05
+   ],
+   "foam": [
+    1,
+    1,
+    1
+   ]
+  },
+  "v2": {
+   "switchHeight": 3.05,
+   "calm_active_below": [
+    0.27,
+    0.1,
+    0.0
+   ],
+   "calm_active_above": [
+    1.0,
+    1.0,
+    0.82
+   ],
+   "storm": [
+    1.0,
+    0.96,
+    0.0
+   ],
+   "foam_below": [
+    0.05,
+    0.02,
+    0.0
+   ],
+   "foam_above": [
+    1,
+    1,
+    1
+   ]
+  }
+ },
+ "wash_luminance_crossing": "light v2 wash passes APCA Y 0.352 (falling, above the 0.18 m depth floor) at 2.60-3.30 m: world 2.93/3.12/3.30, regional 2.78/2.97/3.15, coastal 2.60/2.79/2.97 (swell lighting 0/0.5/1); beach reproduced at 1.76-2.36 m",
+ "checker": {
+  "command": "node wave-check.mjs --palette v2 --theme light [--crest v1]; trial merge with dev 9c6d5ebb0: node wave-check.mjs --theme light",
+  "sampling": "every 0.1 m from 0.2 m and the above-cap state, world/regional/coastal alpha, swell lighting 0/0.5/1, whitecap off and on",
+  "today": {
+   "dE00": 16.8,
+   "colour_blind": 13.4,
+   "apca_body": 0.0,
+   "apca_whitecap_front": 0.0,
+   "coloraide": 14.0
+  },
+  "v2": {
+   "dE00": 32.7,
+   "colour_blind": 24.3,
+   "apca_body": 40.0,
+   "apca_whitecap_front": 40.9,
+   "coloraide": 25.6,
+   "self_contrast_low_h_centre": 64.7,
+   "self_contrast_band_centre": 38.4,
+   "self_contrast_band_best_edge": 46.1
+  },
+  "v2_at_16m_wash": "identical minima (the switch at 3 m sets them); coloraide 25.6 on v2 and v2@16",
+  "red_flag_above_cap": {
+   "today_10m": {
+    "apca": 0.0,
+    "colour_blind": 13.4,
+    "dE00": 16.8
+   },
+   "v2_10m": {
+    "apca": 60.9,
+    "colour_blind": 36.4,
+    "dE00": 53.0
+   },
+   "today_16m": {
+    "apca": 0.0,
+    "colour_blind": 16.2,
+    "dE00": 21.0
+   },
+   "v2_16m": {
+    "apca": 63.0,
+    "colour_blind": 39.3,
+    "dE00": 57.2
+   }
+  },
+  "switch_scan_0.01m": {
+   "2.95": [
+    39.1,
+    23.5
+   ],
+   "3.00": [
+    39.5,
+    23.7
+   ],
+   "3.05": [
+    39.8,
+    24.0
+   ],
+   "3.08": [
+    39.0,
+    24.2
+   ],
+   "3.10": [
+    38.2,
+    24.3
+   ],
+   "3.12": [
+    37.3,
+    24.5
+   ],
+   "3.15": [
+    36.1,
+    24.7
+   ],
+   "3.20": [
+    33.9,
+    25.0
+   ],
+   "note": "[min APCA |Lc| incl. whitecap fronts, min colour-blind], umber-black foam"
+  },
+  "foam_scan": "below-switch foam: whitecap-front |Lc| min / front-minus-body L* at 2.5 m: white 0.0/+30.5, (0.75,0.55,0.25) 21.8/+16.0, (0.45,0.25,0.05) 33.4/+5.3, (0.20,0.08,0) 40.1/-1.9, black 43.3/-6.3; shipped (0.05,0.02,0)",
+  "storm_scan": "storm (1,0.96,0) |Lc| 40.0; (1,0.88,0.05) 38.2 at 4.8 m; (1,0.80,0.10) 31.8 at 5.3 m; (1,0.72,0.12) 25.3 at 5.5 m",
+  "by_height_worst_case_16m": {
+   "cap": 16,
+   "rows": [
+    {
+     "h": 0.2,
+     "today": {
+      "body": 69.4,
+      "front": 69.4,
+      "cb": 51.8
+     },
+     "v2": {
+      "body": 72,
+      "front": 72,
+      "cb": 54.2
+     }
+    },
+    {
+     "h": 0.3,
+     "today": {
+      "body": 68.7,
+      "front": 68.7,
+      "cb": 51.2
+     },
+     "v2": {
+      "body": 71.5,
+      "front": 71.5,
+      "cb": 54.3
+     }
+    },
+    {
+     "h": 0.4,
+     "today": {
+      "body": 67.9,
+      "front": 67.9,
+      "cb": 50.6
+     },
+     "v2": {
+      "body": 71,
+      "front": 71,
+      "cb": 54.5
+     }
+    },
+    {
+     "h": 0.5,
+     "today": {
+      "body": 67,
+      "front": 67,
+      "cb": 49.9
+     },
+     "v2": {
+      "body": 70.6,
+      "front": 70.6,
+      "cb": 54.8
+     }
+    },
+    {
+     "h": 0.6,
+     "today": {
+      "body": 66.2,
+      "front": 66,
+      "cb": 49.1
+     },
+     "v2": {
+      "body": 70.2,
+      "front": 70.2,
+      "cb": 55.2
+     }
+    },
+    {
+     "h": 0.7,
+     "today": {
+      "body": 64.7,
+      "front": 64.1,
+      "cb": 47.7
+     },
+     "v2": {
+      "body": 69.3,
+      "front": 69.3,
+      "cb": 56.2
+     }
+    },
+    {
+     "h": 0.8,
+     "today": {
+      "body": 63.1,
+      "front": 61.9,
+      "cb": 46.1
+     },
+     "v2": {
+      "body": 68.3,
+      "front": 68.5,
+      "cb": 57.8
+     }
+    },
+    {
+     "h": 0.9,
+     "today": {
+      "body": 61.6,
+      "front": 59.6,
+      "cb": 44.2
+     },
+     "v2": {
+      "body": 67.6,
+      "front": 67.9,
+      "cb": 59.3
+     }
+    },
+    {
+     "h": 1,
+     "today": {
+      "body": 60.2,
+      "front": 57.1,
+      "cb": 41.4
+     },
+     "v2": {
+      "body": 67.1,
+      "front": 67.5,
+      "cb": 60.5
+     }
+    },
+    {
+     "h": 1.1,
+     "today": {
+      "body": 58.9,
+      "front": 54.6,
+      "cb": 38.3
+     },
+     "v2": {
+      "body": 66.7,
+      "front": 67.3,
+      "cb": 61.6
+     }
+    },
+    {
+     "h": 1.2,
+     "today": {
+      "body": 57.8,
+      "front": 52,
+      "cb": 35.4
+     },
+     "v2": {
+      "body": 66.5,
+      "front": 67.2,
+      "cb": 62.5
+     }
+    },
+    {
+     "h": 1.3,
+     "today": {
+      "body": 55.6,
+      "front": 48.3,
+      "cb": 32.3
+     },
+     "v2": {
+      "body": 65.2,
+      "front": 66.2,
+      "cb": 62.4
+     }
+    },
+    {
+     "h": 1.4,
+     "today": {
+      "body": 53.2,
+      "front": 44.2,
+      "cb": 29.4
+     },
+     "v2": {
+      "body": 63.8,
+      "front": 64.9,
+      "cb": 62
+     }
+    },
+    {
+     "h": 1.5,
+     "today": {
+      "body": 50.7,
+      "front": 39.9,
+      "cb": 27
+     },
+     "v2": {
+      "body": 62.3,
+      "front": 63.6,
+      "cb": 61.6
+     }
+    },
+    {
+     "h": 1.6,
+     "today": {
+      "body": 48,
+      "front": 35.5,
+      "cb": 25.3
+     },
+     "v2": {
+      "body": 60.8,
+      "front": 62.4,
+      "cb": 61
+     }
+    },
+    {
+     "h": 1.7,
+     "today": {
+      "body": 45.3,
+      "front": 31,
+      "cb": 24.5
+     },
+     "v2": {
+      "body": 59.4,
+      "front": 61.2,
+      "cb": 60.5
+     }
+    },
+    {
+     "h": 1.8,
+     "today": {
+      "body": 42.4,
+      "front": 26.5,
+      "cb": 25
+     },
+     "v2": {
+      "body": 58,
+      "front": 59.9,
+      "cb": 59.8
+     }
+    },
+    {
+     "h": 1.9,
+     "today": {
+      "body": 39.5,
+      "front": 21.9,
+      "cb": 25.8
+     },
+     "v2": {
+      "body": 56.6,
+      "front": 58.7,
+      "cb": 59.1
+     }
+    },
+    {
+     "h": 2,
+     "today": {
+      "body": 36.4,
+      "front": 17.5,
+      "cb": 27.1
+     },
+     "v2": {
+      "body": 55.2,
+      "front": 57.5,
+      "cb": 58.2
+     }
+    },
+    {
+     "h": 2.1,
+     "today": {
+      "body": 33.3,
+      "front": 13.1,
+      "cb": 28.4
+     },
+     "v2": {
+      "body": 53.8,
+      "front": 56.3,
+      "cb": 57.4
+     }
+    },
+    {
+     "h": 2.2,
+     "today": {
+      "body": 30.1,
+      "front": 8.8,
+      "cb": 29.4
+     },
+     "v2": {
+      "body": 52.5,
+      "front": 55.1,
+      "cb": 56.6
+     }
+    },
+    {
+     "h": 2.3,
+     "today": {
+      "body": 26.8,
+      "front": 0,
+      "cb": 30.6
+     },
+     "v2": {
+      "body": 51.2,
+      "front": 54,
+      "cb": 55.8
+     }
+    },
+    {
+     "h": 2.4,
+     "today": {
+      "body": 23.5,
+      "front": 0,
+      "cb": 31.9
+     },
+     "v2": {
+      "body": 49.9,
+      "front": 52.8,
+      "cb": 55
+     }
+    },
+    {
+     "h": 2.5,
+     "today": {
+      "body": 20,
+      "front": 0,
+      "cb": 33.3
+     },
+     "v2": {
+      "body": 48.6,
+      "front": 51.6,
+      "cb": 54.2
+     }
+    },
+    {
+     "h": 2.6,
+     "today": {
+      "body": 16.5,
+      "front": 0,
+      "cb": 34.8
+     },
+     "v2": {
+      "body": 47.3,
+      "front": 50.4,
+      "cb": 53.3
+     }
+    },
+    {
+     "h": 2.7,
+     "today": {
+      "body": 12.9,
+      "front": 0,
+      "cb": 36.3
+     },
+     "v2": {
+      "body": 46,
+      "front": 49.2,
+      "cb": 52.5
+     }
+    },
+    {
+     "h": 2.8,
+     "today": {
+      "body": 9.3,
+      "front": 0,
+      "cb": 37.9
+     },
+     "v2": {
+      "body": 44.8,
+      "front": 48,
+      "cb": 51.6
+     }
+    },
+    {
+     "h": 2.9,
+     "today": {
+      "body": 0,
+      "front": 0,
+      "cb": 39.6
+     },
+     "v2": {
+      "body": 43.5,
+      "front": 46.7,
+      "cb": 50.6
+     }
+    },
+    {
+     "h": 3,
+     "today": {
+      "body": 0,
+      "front": 8.4,
+      "cb": 41.3
+     },
+     "v2": {
+      "body": 42.3,
+      "front": 45.5,
+      "cb": 49.6
+     }
+    },
+    {
+     "h": 3.1,
+     "today": {
+      "body": 0,
+      "front": 8.4,
+      "cb": 38.4
+     },
+     "v2": {
+      "body": 40,
+      "front": 40.9,
+      "cb": 24.3
+     }
+    },
+    {
+     "h": 3.2,
+     "today": {
+      "body": 0,
+      "front": 8.5,
+      "cb": 37.7
+     },
+     "v2": {
+      "body": 40.5,
+      "front": 41.6,
+      "cb": 24.9
+     }
+    },
+    {
+     "h": 3.3,
+     "today": {
+      "body": 0,
+      "front": 8.5,
+      "cb": 37.6
+     },
+     "v2": {
+      "body": 41,
+      "front": 42.3,
+      "cb": 25.6
+     }
+    },
+    {
+     "h": 3.4,
+     "today": {
+      "body": 0,
+      "front": 8.6,
+      "cb": 37.3
+     },
+     "v2": {
+      "body": 41.5,
+      "front": 43,
+      "cb": 26.7
+     }
+    },
+    {
+     "h": 3.5,
+     "today": {
+      "body": 0,
+      "front": 8.6,
+      "cb": 37.1
+     },
+     "v2": {
+      "body": 42,
+      "front": 43.7,
+      "cb": 28.4
+     }
+    },
+    {
+     "h": 3.6,
+     "today": {
+      "body": 0,
+      "front": 8.7,
+      "cb": 36.8
+     },
+     "v2": {
+      "body": 42.5,
+      "front": 44.4,
+      "cb": 29.7
+     }
+    },
+    {
+     "h": 3.7,
+     "today": {
+      "body": 0,
+      "front": 8.6,
+      "cb": 36.5
+     },
+     "v2": {
+      "body": 42.8,
+      "front": 44.8,
+      "cb": 30.8
+     }
+    },
+    {
+     "h": 3.8,
+     "today": {
+      "body": 0,
+      "front": 8.1,
+      "cb": 36.1
+     },
+     "v2": {
+      "body": 42.9,
+      "front": 45,
+      "cb": 31.7
+     }
+    },
+    {
+     "h": 3.9,
+     "today": {
+      "body": 0,
+      "front": 7.7,
+      "cb": 35.7
+     },
+     "v2": {
+      "body": 43,
+      "front": 45.2,
+      "cb": 32.5
+     }
+    },
+    {
+     "h": 4,
+     "today": {
+      "body": 0,
+      "front": 7.3,
+      "cb": 35.3
+     },
+     "v2": {
+      "body": 43,
+      "front": 45.4,
+      "cb": 33.2
+     }
+    },
+    {
+     "h": 4.1,
+     "today": {
+      "body": 0,
+      "front": 0,
+      "cb": 35
+     },
+     "v2": {
+      "body": 43.1,
+      "front": 45.6,
+      "cb": 33.9
+     }
+    },
+    {
+     "h": 4.2,
+     "today": {
+      "body": 0,
+      "front": 0,
+      "cb": 34.7
+     },
+     "v2": {
+      "body": 43.3,
+      "front": 45.8,
+      "cb": 34.5
+     }
+    },
+    {
+     "h": 4.3,
+     "today": {
+      "body": 0,
+      "front": 0,
+      "cb": 34.4
+     },
+     "v2": {
+      "body": 43.4,
+      "front": 46,
+      "cb": 35.1
+     }
+    },
+    {
+     "h": 4.4,
+     "today": {
+      "body": 0,
+      "front": 0,
+      "cb": 34.1
+     },
+     "v2": {
+      "body": 43.6,
+      "front": 46.2,
+      "cb": 35.6
+     }
+    },
+    {
+     "h": 4.5,
+     "today": {
+      "body": 0,
+      "front": 0,
+      "cb": 33.8
+     },
+     "v2": {
+      "body": 43.8,
+      "front": 46.4,
+      "cb": 36.1
+     }
+    },
+    {
+     "h": 4.6,
+     "today": {
+      "body": 0,
+      "front": 0,
+      "cb": 33.6
+     },
+     "v2": {
+      "body": 44,
+      "front": 46.7,
+      "cb": 36.6
+     }
+    },
+    {
+     "h": 4.7,
+     "today": {
+      "body": 7.4,
+      "front": 0,
+      "cb": 33.2
+     },
+     "v2": {
+      "body": 44.2,
+      "front": 46.9,
+      "cb": 37
+     }
+    },
+    {
+     "h": 4.8,
+     "today": {
+      "body": 7.4,
+      "front": 0,
+      "cb": 32.5
+     },
+     "v2": {
+      "body": 44.4,
+      "front": 47.2,
+      "cb": 37.4
+     }
+    },
+    {
+     "h": 4.9,
+     "today": {
+      "body": 7.4,
+      "front": 0,
+      "cb": 31.8
+     },
+     "v2": {
+      "body": 44.6,
+      "front": 47.4,
+      "cb": 37.8
+     }
+    },
+    {
+     "h": 5,
+     "today": {
+      "body": 7.4,
+      "front": 0,
+      "cb": 31.1
+     },
+     "v2": {
+      "body": 44.9,
+      "front": 47.7,
+      "cb": 38.1
+     }
+    },
+    {
+     "h": 5.1,
+     "today": {
+      "body": 0,
+      "front": 0,
+      "cb": 30.5
+     },
+     "v2": {
+      "body": 45.2,
+      "front": 48,
+      "cb": 38.4
+     }
+    },
+    {
+     "h": 5.2,
+     "today": {
+      "body": 0,
+      "front": 0,
+      "cb": 29.8
+     },
+     "v2": {
+      "body": 45.4,
+      "front": 48.3,
+      "cb": 38.7
+     }
+    },
+    {
+     "h": 5.3,
+     "today": {
+      "body": 0,
+      "front": 0,
+      "cb": 29.2
+     },
+     "v2": {
+      "body": 45.7,
+      "front": 48.6,
+      "cb": 38.9
+     }
+    },
+    {
+     "h": 5.4,
+     "today": {
+      "body": 0,
+      "front": 0,
+      "cb": 28.7
+     },
+     "v2": {
+      "body": 46,
+      "front": 48.9,
+      "cb": 39.1
+     }
+    },
+    {
+     "h": 5.5,
+     "today": {
+      "body": 0,
+      "front": 0,
+      "cb": 28.2
+     },
+     "v2": {
+      "body": 46.4,
+      "front": 49.2,
+      "cb": 39.4
+     }
+    },
+    {
+     "h": 5.6,
+     "today": {
+      "body": 0,
+      "front": 0,
+      "cb": 27.8
+     },
+     "v2": {
+      "body": 46.7,
+      "front": 49.6,
+      "cb": 39.5
+     }
+    },
+    {
+     "h": 5.7,
+     "today": {
+      "body": 0,
+      "front": 0,
+      "cb": 27.5
+     },
+     "v2": {
+      "body": 47,
+      "front": 49.9,
+      "cb": 39.7
+     }
+    },
+    {
+     "h": 5.8,
+     "today": {
+      "body": 0,
+      "front": 0,
+      "cb": 27.2
+     },
+     "v2": {
+      "body": 47.4,
+      "front": 50.3,
+      "cb": 39.9
+     }
+    },
+    {
+     "h": 5.9,
+     "today": {
+      "body": 0,
+      "front": 0,
+      "cb": 27.1
+     },
+     "v2": {
+      "body": 47.7,
+      "front": 50.6,
+      "cb": 40
+     }
+    },
+    {
+     "h": 6,
+     "today": {
+      "body": 0,
+      "front": 0,
+      "cb": 27.1
+     },
+     "v2": {
+      "body": 48.1,
+      "front": 51,
+      "cb": 40.1
+     }
+    },
+    {
+     "h": 6.1,
+     "today": {
+      "body": 0,
+      "front": 7.4,
+      "cb": 27.1
+     },
+     "v2": {
+      "body": 48.5,
+      "front": 51.4,
+      "cb": 40.2
+     }
+    },
+    {
+     "h": 6.2,
+     "today": {
+      "body": 0,
+      "front": 7.6,
+      "cb": 27.2
+     },
+     "v2": {
+      "body": 48.7,
+      "front": 51.6,
+      "cb": 40.3
+     }
+    },
+    {
+     "h": 6.3,
+     "today": {
+      "body": 0,
+      "front": 7.8,
+      "cb": 27.2
+     },
+     "v2": {
+      "body": 49,
+      "front": 51.8,
+      "cb": 40.4
+     }
+    },
+    {
+     "h": 6.4,
+     "today": {
+      "body": 0,
+      "front": 8.1,
+      "cb": 27.2
+     },
+     "v2": {
+      "body": 49.2,
+      "front": 52.1,
+      "cb": 40.5
+     }
+    },
+    {
+     "h": 6.5,
+     "today": {
+      "body": 0,
+      "front": 8.3,
+      "cb": 27.3
+     },
+     "v2": {
+      "body": 49.4,
+      "front": 52.3,
+      "cb": 40.5
+     }
+    },
+    {
+     "h": 6.6,
+     "today": {
+      "body": 0,
+      "front": 8.6,
+      "cb": 27.3
+     },
+     "v2": {
+      "body": 49.6,
+      "front": 52.5,
+      "cb": 40.6
+     }
+    },
+    {
+     "h": 6.7,
+     "today": {
+      "body": 0,
+      "front": 8.8,
+      "cb": 27.3
+     },
+     "v2": {
+      "body": 49.9,
+      "front": 52.7,
+      "cb": 40.7
+     }
+    },
+    {
+     "h": 6.8,
+     "today": {
+      "body": 0,
+      "front": 9,
+      "cb": 27.4
+     },
+     "v2": {
+      "body": 50.1,
+      "front": 52.9,
+      "cb": 40.8
+     }
+    },
+    {
+     "h": 6.9,
+     "today": {
+      "body": 0,
+      "front": 9.3,
+      "cb": 27.4
+     },
+     "v2": {
+      "body": 50.3,
+      "front": 53.2,
+      "cb": 40.8
+     }
+    },
+    {
+     "h": 7,
+     "today": {
+      "body": 0,
+      "front": 9.5,
+      "cb": 27.5
+     },
+     "v2": {
+      "body": 50.5,
+      "front": 53.4,
+      "cb": 40.9
+     }
+    },
+    {
+     "h": 7.1,
+     "today": {
+      "body": 0,
+      "front": 9.7,
+      "cb": 27.5
+     },
+     "v2": {
+      "body": 50.7,
+      "front": 53.6,
+      "cb": 41
+     }
+    },
+    {
+     "h": 7.2,
+     "today": {
+      "body": 0,
+      "front": 10,
+      "cb": 27.5
+     },
+     "v2": {
+      "body": 50.9,
+      "front": 53.8,
+      "cb": 41.1
+     }
+    },
+    {
+     "h": 7.3,
+     "today": {
+      "body": 0,
+      "front": 10.2,
+      "cb": 27.6
+     },
+     "v2": {
+      "body": 51.2,
+      "front": 54,
+      "cb": 41.1
+     }
+    },
+    {
+     "h": 7.4,
+     "today": {
+      "body": 0,
+      "front": 10.4,
+      "cb": 27.6
+     },
+     "v2": {
+      "body": 51.4,
+      "front": 54.2,
+      "cb": 41.2
+     }
+    },
+    {
+     "h": 7.5,
+     "today": {
+      "body": 0,
+      "front": 10.6,
+      "cb": 27.7
+     },
+     "v2": {
+      "body": 51.6,
+      "front": 54.4,
+      "cb": 41.3
+     }
+    },
+    {
+     "h": 7.6,
+     "today": {
+      "body": 0,
+      "front": 10.9,
+      "cb": 27.7
+     },
+     "v2": {
+      "body": 51.8,
+      "front": 54.6,
+      "cb": 41.4
+     }
+    },
+    {
+     "h": 7.7,
+     "today": {
+      "body": 0,
+      "front": 11.1,
+      "cb": 27.8
+     },
+     "v2": {
+      "body": 52,
+      "front": 54.9,
+      "cb": 41.5
+     }
+    },
+    {
+     "h": 7.8,
+     "today": {
+      "body": 0,
+      "front": 11.3,
+      "cb": 27.8
+     },
+     "v2": {
+      "body": 52.2,
+      "front": 55.1,
+      "cb": 41.5
+     }
+    },
+    {
+     "h": 7.9,
+     "today": {
+      "body": 0,
+      "front": 11.5,
+      "cb": 27.9
+     },
+     "v2": {
+      "body": 52.4,
+      "front": 55.3,
+      "cb": 41.6
+     }
+    },
+    {
+     "h": 8,
+     "today": {
+      "body": 0,
+      "front": 11.8,
+      "cb": 28
+     },
+     "v2": {
+      "body": 52.6,
+      "front": 55.5,
+      "cb": 41.7
+     }
+    },
+    {
+     "h": 8.1,
+     "today": {
+      "body": 0,
+      "front": 12,
+      "cb": 28
+     },
+     "v2": {
+      "body": 52.8,
+      "front": 55.7,
+      "cb": 41.8
+     }
+    },
+    {
+     "h": 8.2,
+     "today": {
+      "body": 0,
+      "front": 12.2,
+      "cb": 28.1
+     },
+     "v2": {
+      "body": 53.1,
+      "front": 55.9,
+      "cb": 41.9
+     }
+    },
+    {
+     "h": 8.3,
+     "today": {
+      "body": 0,
+      "front": 12.4,
+      "cb": 28.1
+     },
+     "v2": {
+      "body": 53.3,
+      "front": 56.1,
+      "cb": 42
+     }
+    },
+    {
+     "h": 8.4,
+     "today": {
+      "body": 0,
+      "front": 12.7,
+      "cb": 28.2
+     },
+     "v2": {
+      "body": 53.5,
+      "front": 56.3,
+      "cb": 42
+     }
+    },
+    {
+     "h": 8.5,
+     "today": {
+      "body": 0,
+      "front": 12.9,
+      "cb": 28.3
+     },
+     "v2": {
+      "body": 53.7,
+      "front": 56.5,
+      "cb": 42.1
+     }
+    },
+    {
+     "h": 8.6,
+     "today": {
+      "body": 0,
+      "front": 13.1,
+      "cb": 28.3
+     },
+     "v2": {
+      "body": 53.9,
+      "front": 56.7,
+      "cb": 42.2
+     }
+    },
+    {
+     "h": 8.7,
+     "today": {
+      "body": 0,
+      "front": 13.3,
+      "cb": 28.4
+     },
+     "v2": {
+      "body": 54.1,
+      "front": 56.9,
+      "cb": 42.3
+     }
+    },
+    {
+     "h": 8.8,
+     "today": {
+      "body": 0,
+      "front": 13.5,
+      "cb": 28.5
+     },
+     "v2": {
+      "body": 54.3,
+      "front": 57.1,
+      "cb": 42.4
+     }
+    },
+    {
+     "h": 8.9,
+     "today": {
+      "body": 0,
+      "front": 13.7,
+      "cb": 28.5
+     },
+     "v2": {
+      "body": 54.5,
+      "front": 57.3,
+      "cb": 42.5
+     }
+    },
+    {
+     "h": 9,
+     "today": {
+      "body": 0,
+      "front": 14,
+      "cb": 28.6
+     },
+     "v2": {
+      "body": 54.7,
+      "front": 57.5,
+      "cb": 42.6
+     }
+    },
+    {
+     "h": 9.1,
+     "today": {
+      "body": 0,
+      "front": 14.2,
+      "cb": 28.7
+     },
+     "v2": {
+      "body": 54.9,
+      "front": 57.7,
+      "cb": 42.7
+     }
+    },
+    {
+     "h": 9.2,
+     "today": {
+      "body": 0,
+      "front": 14.4,
+      "cb": 28.8
+     },
+     "v2": {
+      "body": 55.1,
+      "front": 57.9,
+      "cb": 42.8
+     }
+    },
+    {
+     "h": 9.3,
+     "today": {
+      "body": 0,
+      "front": 14.6,
+      "cb": 28.8
+     },
+     "v2": {
+      "body": 55.3,
+      "front": 58.1,
+      "cb": 42.8
+     }
+    },
+    {
+     "h": 9.4,
+     "today": {
+      "body": 0,
+      "front": 14.8,
+      "cb": 28.9
+     },
+     "v2": {
+      "body": 55.5,
+      "front": 58.3,
+      "cb": 42.9
+     }
+    },
+    {
+     "h": 9.5,
+     "today": {
+      "body": 0,
+      "front": 15,
+      "cb": 29
+     },
+     "v2": {
+      "body": 55.6,
+      "front": 58.5,
+      "cb": 43
+     }
+    },
+    {
+     "h": 9.6,
+     "today": {
+      "body": 0,
+      "front": 15.2,
+      "cb": 29.1
+     },
+     "v2": {
+      "body": 55.8,
+      "front": 58.7,
+      "cb": 43.1
+     }
+    },
+    {
+     "h": 9.7,
+     "today": {
+      "body": 0,
+      "front": 15.4,
+      "cb": 29.2
+     },
+     "v2": {
+      "body": 56,
+      "front": 58.9,
+      "cb": 43.2
+     }
+    },
+    {
+     "h": 9.8,
+     "today": {
+      "body": 0,
+      "front": 15.6,
+      "cb": 29.3
+     },
+     "v2": {
+      "body": 56.2,
+      "front": 59,
+      "cb": 43.3
+     }
+    },
+    {
+     "h": 9.9,
+     "today": {
+      "body": 0,
+      "front": 15.8,
+      "cb": 29.3
+     },
+     "v2": {
+      "body": 56.4,
+      "front": 59.2,
+      "cb": 43.4
+     }
+    },
+    {
+     "h": 10,
+     "today": {
+      "body": 0,
+      "front": 16,
+      "cb": 29.4
+     },
+     "v2": {
+      "body": 56.6,
+      "front": 59.4,
+      "cb": 43.5
+     }
+    },
+    {
+     "h": 10.1,
+     "today": {
+      "body": 0,
+      "front": 16.1,
+      "cb": 29.5
+     },
+     "v2": {
+      "body": 56.6,
+      "front": 59.5,
+      "cb": 43.4
+     }
+    },
+    {
+     "h": 10.2,
+     "today": {
+      "body": 0,
+      "front": 16.1,
+      "cb": 29.5
+     },
+     "v2": {
+      "body": 56.7,
+      "front": 59.5,
+      "cb": 43.4
+     }
+    },
+    {
+     "h": 10.3,
+     "today": {
+      "body": 0,
+      "front": 16.2,
+      "cb": 29.5
+     },
+     "v2": {
+      "body": 56.8,
+      "front": 59.6,
+      "cb": 43.3
+     }
+    },
+    {
+     "h": 10.4,
+     "today": {
+      "body": 0,
+      "front": 16.2,
+      "cb": 29.5
+     },
+     "v2": {
+      "body": 56.8,
+      "front": 59.6,
+      "cb": 43.3
+     }
+    },
+    {
+     "h": 10.5,
+     "today": {
+      "body": 0,
+      "front": 16.3,
+      "cb": 29.5
+     },
+     "v2": {
+      "body": 56.9,
+      "front": 59.7,
+      "cb": 43.2
+     }
+    },
+    {
+     "h": 10.6,
+     "today": {
+      "body": 0,
+      "front": 16.3,
+      "cb": 29.5
+     },
+     "v2": {
+      "body": 56.9,
+      "front": 59.7,
+      "cb": 43.2
+     }
+    },
+    {
+     "h": 10.7,
+     "today": {
+      "body": 0,
+      "front": 16.4,
+      "cb": 29.6
+     },
+     "v2": {
+      "body": 57,
+      "front": 59.8,
+      "cb": 43.1
+     }
+    },
+    {
+     "h": 10.8,
+     "today": {
+      "body": 0,
+      "front": 16.4,
+      "cb": 29.6
+     },
+     "v2": {
+      "body": 57,
+      "front": 59.8,
+      "cb": 43
+     }
+    },
+    {
+     "h": 10.9,
+     "today": {
+      "body": 0,
+      "front": 16.5,
+      "cb": 29.6
+     },
+     "v2": {
+      "body": 57.1,
+      "front": 59.9,
+      "cb": 43
+     }
+    },
+    {
+     "h": 11,
+     "today": {
+      "body": 0,
+      "front": 16.5,
+      "cb": 29.6
+     },
+     "v2": {
+      "body": 57.1,
+      "front": 59.9,
+      "cb": 42.9
+     }
+    },
+    {
+     "h": 11.1,
+     "today": {
+      "body": 0,
+      "front": 16.6,
+      "cb": 29.6
+     },
+     "v2": {
+      "body": 57.2,
+      "front": 60,
+      "cb": 42.9
+     }
+    },
+    {
+     "h": 11.2,
+     "today": {
+      "body": 0,
+      "front": 16.6,
+      "cb": 29.6
+     },
+     "v2": {
+      "body": 57.2,
+      "front": 60,
+      "cb": 42.8
+     }
+    },
+    {
+     "h": 11.3,
+     "today": {
+      "body": 0,
+      "front": 16.7,
+      "cb": 29.6
+     },
+     "v2": {
+      "body": 57.3,
+      "front": 60.1,
+      "cb": 42.8
+     }
+    },
+    {
+     "h": 11.4,
+     "today": {
+      "body": 0,
+      "front": 16.7,
+      "cb": 29.6
+     },
+     "v2": {
+      "body": 57.3,
+      "front": 60.1,
+      "cb": 42.7
+     }
+    },
+    {
+     "h": 11.5,
+     "today": {
+      "body": 0,
+      "front": 16.8,
+      "cb": 29.7
+     },
+     "v2": {
+      "body": 57.4,
+      "front": 60.1,
+      "cb": 42.7
+     }
+    },
+    {
+     "h": 11.6,
+     "today": {
+      "body": 0,
+      "front": 16.8,
+      "cb": 29.7
+     },
+     "v2": {
+      "body": 57.4,
+      "front": 60.2,
+      "cb": 42.6
+     }
+    },
+    {
+     "h": 11.7,
+     "today": {
+      "body": 0,
+      "front": 16.9,
+      "cb": 29.7
+     },
+     "v2": {
+      "body": 57.5,
+      "front": 60.2,
+      "cb": 42.5
+     }
+    },
+    {
+     "h": 11.8,
+     "today": {
+      "body": 0,
+      "front": 16.9,
+      "cb": 29.7
+     },
+     "v2": {
+      "body": 57.5,
+      "front": 60.3,
+      "cb": 42.5
+     }
+    },
+    {
+     "h": 11.9,
+     "today": {
+      "body": 0,
+      "front": 17,
+      "cb": 29.7
+     },
+     "v2": {
+      "body": 57.6,
+      "front": 60.3,
+      "cb": 42.4
+     }
+    },
+    {
+     "h": 12,
+     "today": {
+      "body": 0,
+      "front": 17,
+      "cb": 29.7
+     },
+     "v2": {
+      "body": 57.6,
+      "front": 60.4,
+      "cb": 42.4
+     }
+    },
+    {
+     "h": 12.1,
+     "today": {
+      "body": 0,
+      "front": 17.1,
+      "cb": 29.7
+     },
+     "v2": {
+      "body": 57.6,
+      "front": 60.4,
+      "cb": 42.3
+     }
+    },
+    {
+     "h": 12.2,
+     "today": {
+      "body": 0,
+      "front": 17.1,
+      "cb": 29.7
+     },
+     "v2": {
+      "body": 57.7,
+      "front": 60.5,
+      "cb": 42.3
+     }
+    },
+    {
+     "h": 12.3,
+     "today": {
+      "body": 0,
+      "front": 17.1,
+      "cb": 29.7
+     },
+     "v2": {
+      "body": 57.7,
+      "front": 60.5,
+      "cb": 42.2
+     }
+    },
+    {
+     "h": 12.4,
+     "today": {
+      "body": 0,
+      "front": 17.2,
+      "cb": 29.7
+     },
+     "v2": {
+      "body": 57.8,
+      "front": 60.6,
+      "cb": 42.2
+     }
+    },
+    {
+     "h": 12.5,
+     "today": {
+      "body": 0,
+      "front": 17.2,
+      "cb": 29.7
+     },
+     "v2": {
+      "body": 57.8,
+      "front": 60.6,
+      "cb": 42.1
+     }
+    },
+    {
+     "h": 12.6,
+     "today": {
+      "body": 0,
+      "front": 17.3,
+      "cb": 29.7
+     },
+     "v2": {
+      "body": 57.9,
+      "front": 60.7,
+      "cb": 42.1
+     }
+    },
+    {
+     "h": 12.7,
+     "today": {
+      "body": 0,
+      "front": 17.3,
+      "cb": 29.6
+     },
+     "v2": {
+      "body": 57.9,
+      "front": 60.7,
+      "cb": 42
+     }
+    },
+    {
+     "h": 12.8,
+     "today": {
+      "body": 0,
+      "front": 17.4,
+      "cb": 29.6
+     },
+     "v2": {
+      "body": 58,
+      "front": 60.7,
+      "cb": 41.9
+     }
+    },
+    {
+     "h": 12.9,
+     "today": {
+      "body": 0,
+      "front": 17.4,
+      "cb": 29.6
+     },
+     "v2": {
+      "body": 58,
+      "front": 60.8,
+      "cb": 41.9
+     }
+    },
+    {
+     "h": 13,
+     "today": {
+      "body": 0,
+      "front": 17.5,
+      "cb": 29.6
+     },
+     "v2": {
+      "body": 58.1,
+      "front": 60.8,
+      "cb": 41.8
+     }
+    },
+    {
+     "h": 13.1,
+     "today": {
+      "body": 0,
+      "front": 17.5,
+      "cb": 29.5
+     },
+     "v2": {
+      "body": 58.1,
+      "front": 60.9,
+      "cb": 41.8
+     }
+    },
+    {
+     "h": 13.2,
+     "today": {
+      "body": 0,
+      "front": 17.5,
+      "cb": 29.2
+     },
+     "v2": {
+      "body": 58.2,
+      "front": 60.9,
+      "cb": 41.7
+     }
+    },
+    {
+     "h": 13.3,
+     "today": {
+      "body": 0,
+      "front": 17.6,
+      "cb": 28.9
+     },
+     "v2": {
+      "body": 58.2,
+      "front": 61,
+      "cb": 41.7
+     }
+    },
+    {
+     "h": 13.4,
+     "today": {
+      "body": 0,
+      "front": 17.6,
+      "cb": 28.5
+     },
+     "v2": {
+      "body": 58.3,
+      "front": 61,
+      "cb": 41.6
+     }
+    },
+    {
+     "h": 13.5,
+     "today": {
+      "body": 0,
+      "front": 17.7,
+      "cb": 28.2
+     },
+     "v2": {
+      "body": 58.3,
+      "front": 61,
+      "cb": 41.6
+     }
+    },
+    {
+     "h": 13.6,
+     "today": {
+      "body": 0,
+      "front": 17.7,
+      "cb": 27.9
+     },
+     "v2": {
+      "body": 58.3,
+      "front": 61.1,
+      "cb": 41.5
+     }
+    },
+    {
+     "h": 13.7,
+     "today": {
+      "body": 0,
+      "front": 17.8,
+      "cb": 27.6
+     },
+     "v2": {
+      "body": 58.4,
+      "front": 61.1,
+      "cb": 41.5
+     }
+    },
+    {
+     "h": 13.8,
+     "today": {
+      "body": 0,
+      "front": 17.8,
+      "cb": 27.3
+     },
+     "v2": {
+      "body": 58.4,
+      "front": 61.2,
+      "cb": 41.4
+     }
+    },
+    {
+     "h": 13.9,
+     "today": {
+      "body": 0,
+      "front": 17.8,
+      "cb": 27.1
+     },
+     "v2": {
+      "body": 58.5,
+      "front": 61.2,
+      "cb": 41.4
+     }
+    },
+    {
+     "h": 14,
+     "today": {
+      "body": 0,
+      "front": 17.9,
+      "cb": 26.8
+     },
+     "v2": {
+      "body": 58.5,
+      "front": 61.3,
+      "cb": 41.3
+     }
+    },
+    {
+     "h": 14.1,
+     "today": {
+      "body": 0,
+      "front": 17.9,
+      "cb": 26.6
+     },
+     "v2": {
+      "body": 58.6,
+      "front": 61.3,
+      "cb": 41.2
+     }
+    },
+    {
+     "h": 14.2,
+     "today": {
+      "body": 0,
+      "front": 18,
+      "cb": 26.3
+     },
+     "v2": {
+      "body": 58.6,
+      "front": 61.3,
+      "cb": 41.2
+     }
+    },
+    {
+     "h": 14.3,
+     "today": {
+      "body": 0,
+      "front": 18,
+      "cb": 26.2
+     },
+     "v2": {
+      "body": 58.6,
+      "front": 61.4,
+      "cb": 41.1
+     }
+    },
+    {
+     "h": 14.4,
+     "today": {
+      "body": 0,
+      "front": 18.1,
+      "cb": 26.1
+     },
+     "v2": {
+      "body": 58.7,
+      "front": 61.4,
+      "cb": 41.1
+     }
+    },
+    {
+     "h": 14.5,
+     "today": {
+      "body": 0,
+      "front": 18.1,
+      "cb": 26.1
+     },
+     "v2": {
+      "body": 58.7,
+      "front": 61.5,
+      "cb": 41
+     }
+    },
+    {
+     "h": 14.6,
+     "today": {
+      "body": 0,
+      "front": 18.1,
+      "cb": 26.7
+     },
+     "v2": {
+      "body": 58.8,
+      "front": 61.5,
+      "cb": 41
+     }
+    },
+    {
+     "h": 14.7,
+     "today": {
+      "body": 0,
+      "front": 18.2,
+      "cb": 26.5
+     },
+     "v2": {
+      "body": 58.8,
+      "front": 61.5,
+      "cb": 40.9
+     }
+    },
+    {
+     "h": 14.8,
+     "today": {
+      "body": 0,
+      "front": 18.2,
+      "cb": 26.3
+     },
+     "v2": {
+      "body": 58.9,
+      "front": 61.6,
+      "cb": 40.9
+     }
+    },
+    {
+     "h": 14.9,
+     "today": {
+      "body": 0,
+      "front": 18.3,
+      "cb": 26.1
+     },
+     "v2": {
+      "body": 58.9,
+      "front": 61.6,
+      "cb": 40.8
+     }
+    },
+    {
+     "h": 15,
+     "today": {
+      "body": 0,
+      "front": 18.3,
+      "cb": 25.9
+     },
+     "v2": {
+      "body": 58.9,
+      "front": 61.7,
+      "cb": 40.8
+     }
+    },
+    {
+     "h": 15.1,
+     "today": {
+      "body": 0,
+      "front": 18.3,
+      "cb": 25.9
+     },
+     "v2": {
+      "body": 59,
+      "front": 61.7,
+      "cb": 40.7
+     }
+    },
+    {
+     "h": 15.2,
+     "today": {
+      "body": 0,
+      "front": 18.4,
+      "cb": 25.8
+     },
+     "v2": {
+      "body": 59,
+      "front": 61.7,
+      "cb": 40.7
+     }
+    },
+    {
+     "h": 15.3,
+     "today": {
+      "body": 0,
+      "front": 18.4,
+      "cb": 25.7
+     },
+     "v2": {
+      "body": 59.1,
+      "front": 61.8,
+      "cb": 40.6
+     }
+    },
+    {
+     "h": 15.4,
+     "today": {
+      "body": 0,
+      "front": 18.5,
+      "cb": 25.5
+     },
+     "v2": {
+      "body": 59.1,
+      "front": 61.8,
+      "cb": 40.6
+     }
+    },
+    {
+     "h": 15.5,
+     "today": {
+      "body": 0,
+      "front": 18.5,
+      "cb": 25.4
+     },
+     "v2": {
+      "body": 59.2,
+      "front": 61.9,
+      "cb": 40.5
+     }
+    },
+    {
+     "h": 15.6,
+     "today": {
+      "body": 0,
+      "front": 18.5,
+      "cb": 25.2
+     },
+     "v2": {
+      "body": 59.2,
+      "front": 61.9,
+      "cb": 40.5
+     }
+    },
+    {
+     "h": 15.7,
+     "today": {
+      "body": 0,
+      "front": 18.6,
+      "cb": 25.1
+     },
+     "v2": {
+      "body": 59.2,
+      "front": 61.9,
+      "cb": 40.4
+     }
+    },
+    {
+     "h": 15.8,
+     "today": {
+      "body": 0,
+      "front": 18.6,
+      "cb": 25
+     },
+     "v2": {
+      "body": 59.3,
+      "front": 62,
+      "cb": 40.4
+     }
+    },
+    {
+     "h": 15.9,
+     "today": {
+      "body": 0,
+      "front": 18.7,
+      "cb": 24.8
+     },
+     "v2": {
+      "body": 59.3,
+      "front": 62,
+      "cb": 40.3
+     }
+    },
+    {
+     "h": 16,
+     "today": {
+      "body": 0,
+      "front": 18.7,
+      "cb": 24.7
+     },
+     "v2": {
+      "body": 59.4,
+      "front": 62.1,
+      "cb": 40.3
+     }
+    }
+   ]
+  },
+  "dev_tree": "on dev f6b80f724: light v2 and v2@16 both 32.7 / 24.3 / |Lc| 40.0, 40.9 on a whitecap front; unchanged"
+ },
+ "cased_model": {
+  "columns": "APCA |Lc|, colour-blind dE00, normal dE00 (min over heights, views, lightings)",
+  "today_self_contrast_everywhere": [
+   17.8,
+   20.9,
+   29.5
+  ],
+  "polarity": [
+   40.0,
+   26.2,
+   40.1
+  ],
+  "polarity_whitecap_front": [
+   40.9,
+   24.3,
+   32.7
+  ],
+  "polarity_self_contrast_everywhere": [
+   46.1,
+   27.0,
+   29.2
+  ],
+  "true_cased_umber_casing_cream_gold_core_better_edge": [
+   42.9,
+   36.4,
+   48.1
+  ],
+  "navy_casing_white_core": [
+   44.9,
+   29.8,
+   31.0
+  ]
+ },
+ "solver_runs": {
+  "A": {
+   "args": "node crest-solve.mjs --theme light --polarity --switch 2.6,3.3 free hues, seed 1",
+   "last_generation": "gen 699: f 35.63 normal 27.5 colour-blind 21.1 (v2 4.4 m) APCA |Lc| 39.9 at 3.2 m path C* 30.5 stops 20.0 switch 3.05 m",
+   "colours": {
+    "calm": [
+     0.33,
+     0,
+     0
+    ],
+    "active": [
+     0.29,
+     0.07,
+     0
+    ],
+    "calmUp": [
+     0.84,
+     0.64,
+     0.66
+    ],
+    "activeUp": [
+     1,
+     1,
+     0.72
+    ],
+    "storm": [
+     0.68,
+     1,
+     0.87
+    ],
+    "switchHeight": 3.05
+   }
+  },
+  "B": {
+   "args": "node crest-solve.mjs --theme light --polarity --switch 2.6,3.3 free hues, seed 2",
+   "last_generation": "gen 699: f 35.61 normal 25.5 colour-blind 21.1 (v2 4.4 m) APCA |Lc| 39.9 at 3.2 m path C* 30.5 stops 20.0 switch 3.06 m",
+   "colours": {
+    "calm": [
+     0.31,
+     0.01,
+     0.15
+    ],
+    "active": [
+     0.27,
+     0.09,
+     0
+    ],
+    "calmUp": [
+     0.97,
+     0.76,
+     0.82
+    ],
+    "activeUp": [
+     1,
+     1,
+     0.72
+    ],
+    "storm": [
+     0.68,
+     1,
+     0.87
+    ],
+    "switchHeight": 3.06
+   }
+  },
+  "C": {
+   "args": "node crest-solve.mjs --theme light --polarity --switch 2.6,3.3 --dark-h 250,300 --light-h 60,110 (navy + gold)",
+   "last_generation": "gen 699: f 19.72 normal 17.5 colour-blind 10.4 (v2 2.8 m whitecap) APCA |Lc| 39.0 at 3.0 m path C* 30.1 stops 20.1 switch 2.87 m",
+   "colours": {
+    "calm": [
+     0.14,
+     0.12,
+     0.3
+    ],
+    "active": [
+     0.14,
+     0.12,
+     0.3
+    ],
+    "calmUp": [
+     0.89,
+     0.9,
+     0.61
+    ],
+    "activeUp": [
+     1,
+     1,
+     0.76
+    ],
+    "storm": [
+     0.6,
+     1,
+     0.83
+    ],
+    "switchHeight": 2.87
+   }
+  },
+  "D": {
+   "args": "node crest-solve.mjs --theme light --polarity --switch 2.6,3.3 navy + gold, --storm-h 60,110, seed 3",
+   "last_generation": "gen 699: f 15.41 normal 17.5 colour-blind 10.4 (v2 2.8 m whitecap) APCA |Lc| 39.1 at 3.0 m path C* 29.6 stops 17.9 switch 2.9 m",
+   "colours": {
+    "calm": [
+     0.14,
+     0.12,
+     0.3
+    ],
+    "active": [
+     0.14,
+     0.12,
+     0.3
+    ],
+    "calmUp": [
+     0.85,
+     0.83,
+     0.35
+    ],
+    "activeUp": [
+     1,
+     1,
+     0.77
+    ],
+    "storm": [
+     0.88,
+     1,
+     0
+    ],
+    "switchHeight": 2.9
+   }
+  },
+  "E": {
+   "args": "node crest-solve.mjs --theme light --polarity --switch 2.6,3.3 --dark-h 320,360 --storm-h 60,100 (plum, gold storm)",
+   "last_generation": "gen 699: f 30.44 normal 29.2 colour-blind 14.7 (v2 3.0 m whitecap) APCA |Lc| 40.6 at 3.2 m path C* 30.1 stops 20.1 switch 3.11 m",
+   "colours": {
+    "calm": [
+     0.32,
+     0,
+     0.15
+    ],
+    "active": [
+     0.3,
+     0.05,
+     0.15
+    ],
+    "calmUp": [
+     0.88,
+     0.64,
+     0.71
+    ],
+    "activeUp": [
+     1,
+     1,
+     0.83
+    ],
+    "storm": [
+     1,
+     0.96,
+     0.12
+    ],
+    "switchHeight": 3.11
+   }
+  },
+  "F": {
+   "args": "node crest-solve.mjs --theme light --polarity --switch 2.6,3.3 --dark-h 30,80 --storm-h 60,100 (brown)",
+   "last_generation": "gen 699: f 40.25 normal 26.4 colour-blind 24.9 (v2 3.2 m whitecap) APCA |Lc| 40.1 at 3.0 m path C* 33.1 stops 20.1 switch 3.14 m",
+   "colours": {
+    "calm": [
+     0.3,
+     0.05,
+     0
+    ],
+    "active": [
+     0.32,
+     0.12,
+     0
+    ],
+    "calmUp": [
+     0.5,
+     0.76,
+     0.87
+    ],
+    "activeUp": [
+     1,
+     1,
+     0.82
+    ],
+    "storm": [
+     1,
+     0.96,
+     0
+    ],
+    "switchHeight": 3.14
+   }
+  },
+  "G": {
+   "args": "node crest-solve.mjs --theme light --polarity --switch 2.6,3.3 --dark-h 320,360 (plum, storm free)",
+   "last_generation": "gen 699: f 30.31 normal 28.9 colour-blind 14.8 (v2 3.0 m whitecap) APCA |Lc| 40.0 at 3.2 m path C* 30.2 stops 20.0 switch 3.03 m",
+   "colours": {
+    "calm": [
+     0.32,
+     0,
+     0.15
+    ],
+    "active": [
+     0.3,
+     0.06,
+     0.15
+    ],
+    "calmUp": [
+     0.2,
+     0.77,
+     0.7
+    ],
+    "activeUp": [
+     1,
+     1,
+     0.73
+    ],
+    "storm": [
+     0.67,
+     1,
+     0.87
+    ],
+    "switchHeight": 3.03
+   }
+  },
+  "H": {
+   "args": "node crest-solve.mjs --theme light --polarity --switch 2.6,3.3 --dark-h 280,330 --storm-h 60,100 (violet-plum)",
+   "last_generation": "gen 699: f 27.09 normal 26.2 colour-blind 11.4 (v2 3.0 m whitecap) APCA |Lc| 40.6 at 3.2 m path C* 30.1 stops 20.1 switch 3.17 m",
+   "colours": {
+    "calm": [
+     0.24,
+     0.08,
+     0.23
+    ],
+    "active": [
+     0.27,
+     0.05,
+     0.25
+    ],
+    "calmUp": [
+     0.64,
+     0.82,
+     0.92
+    ],
+    "activeUp": [
+     1,
+     1,
+     0.83
+    ],
+    "storm": [
+     1,
+     0.96,
+     0.12
+    ],
+    "switchHeight": 3.17
+   }
+  },
+  "I": {
+   "args": "node crest-solve.mjs --theme light --polarity --switch 2.6,3.3 --dark-h 50,80 --storm-h 60,100, seed 1",
+   "last_generation": "gen 699: f 40.23 normal 26.4 colour-blind 24.9 (v2 3.2 m whitecap) APCA |Lc| 40.1 at 3.0 m path C* 30.1 stops 20.1 switch 3.15 m",
+   "colours": {
+    "calm": [
+     0.27,
+     0.1,
+     0
+    ],
+    "active": [
+     0.32,
+     0.12,
+     0
+    ],
+    "calmUp": [
+     0.85,
+     0.61,
+     0.88
+    ],
+    "activeUp": [
+     1,
+     1,
+     0.82
+    ],
+    "storm": [
+     1,
+     0.96,
+     0
+    ],
+    "switchHeight": 3.15
+   }
+  },
+  "J": {
+   "args": "node crest-solve.mjs --theme light --polarity --switch 2.6,3.3 as I, seed 2",
+   "last_generation": "gen 699: f 40.23 normal 26.4 colour-blind 24.9 (v2 3.2 m whitecap) APCA |Lc| 40.1 at 3.0 m path C* 30.1 stops 20.1 switch 3.11 m",
+   "colours": {
+    "calm": [
+     0.27,
+     0.1,
+     0
+    ],
+    "active": [
+     0.32,
+     0.12,
+     0
+    ],
+    "calmUp": [
+     0.78,
+     0.68,
+     0.52
+    ],
+    "activeUp": [
+     1,
+     1,
+     0.82
+    ],
+    "storm": [
+     1,
+     0.96,
+     0
+    ],
+    "switchHeight": 3.11
+   }
+  },
+  "K": {
+   "args": "node crest-solve.mjs --theme light --polarity --switch 2.6,3.3 as I, --lc 45, seed 3",
+   "last_generation": "gen 699: f 27.03 normal 26.3 colour-blind 24.8 (v2 3.2 m whitecap) APCA |Lc| 40.6 at 3.2 m path C* 30.1 stops 20.9 switch 3.17 m",
+   "colours": {
+    "calm": [
+     0.27,
+     0.1,
+     0
+    ],
+    "active": [
+     0.31,
+     0.11,
+     0
+    ],
+    "calmUp": [
+     0.72,
+     0.72,
+     0.98
+    ],
+    "activeUp": [
+     1,
+     1,
+     0.84
+    ],
+    "storm": [
+     1,
+     0.96,
+     0.06
+    ],
+    "switchHeight": 3.17
+   }
+  },
+  "L": {
+   "args": "node crest-solve.mjs --theme light --polarity --switch 2.6,3.3 as I, --switch 2.6,3.0",
+   "last_generation": "gen 699: f 31.15 normal 26.3 colour-blind 24.0 (v2 3.0 m whitecap) APCA |Lc| 39.1 at 3.0 m path C* 29.6 stops 17.7 switch 2.9 m",
+   "colours": {
+    "calm": [
+     0.27,
+     0.1,
+     0
+    ],
+    "active": [
+     0.29,
+     0.11,
+     0
+    ],
+    "calmUp": [
+     0.67,
+     0.91,
+     0.9
+    ],
+    "activeUp": [
+     1,
+     1,
+     0.77
+    ],
+    "storm": [
+     1,
+     0.96,
+     0
+    ],
+    "switchHeight": 2.9
+   }
+  },
+  "M": {
+   "args": "node crest-solve.mjs --theme light --polarity --switch 2.6,3.3 as I, --foam 0.05,0.02,0 (the shipped family), seed 1",
+   "last_generation": "gen 699: f 40.08 normal 35.0 colour-blind 24.9 (v2 3.2 m whitecap) APCA |Lc| 40.5 at 3.2 m path C* 30.1 stops 20.1 switch 3.17 m",
+   "colours": {
+    "calm": [
+     0.27,
+     0.1,
+     0
+    ],
+    "active": [
+     0.27,
+     0.1,
+     0
+    ],
+    "calmUp": [
+     0.95,
+     0.73,
+     0.79
+    ],
+    "activeUp": [
+     1,
+     1,
+     0.82
+    ],
+    "storm": [
+     1,
+     0.96,
+     0
+    ],
+    "switchHeight": 3.17
+   }
+  },
+  "N": {
+   "args": "node crest-solve.mjs --theme light --polarity --switch 2.6,3.3 as M, seed 2",
+   "last_generation": "gen 699: f 40.08 normal 35.0 colour-blind 24.9 (v2 3.2 m whitecap) APCA |Lc| 40.5 at 3.2 m path C* 30.1 stops 20.1 switch 3.17 m",
+   "colours": {
+    "calm": [
+     0.27,
+     0.1,
+     0
+    ],
+    "active": [
+     0.27,
+     0.1,
+     0
+    ],
+    "calmUp": [
+     0.91,
+     0.64,
+     0.72
+    ],
+    "activeUp": [
+     1,
+     1,
+     0.82
+    ],
+    "storm": [
+     1,
+     0.96,
+     0
+    ],
+    "switchHeight": 3.17
+   }
+  }
+ },
+ "owner_page": "https://claude.ai/artifact/F4TCg9jZAGAdjfZW19bNqe (private to the owner; v3 = the dev-based run)",
+ "warm_family_check": {
+  "at": "2026-10-20T18:20Z",
+  "method": "cands.mjs: min over every 0.05 m 0.2 m-cap and above cap, v2 and v2@16, every view and lighting; switch 3.05 m, dark foam below unless named",
+  "table": [
+   "candidate                                            Lc body  Lc front  colour-blind  normal  | ink vs flag dE00 (10 m / 16 m)  ink L* h",
+   "today (v1)                                               0.0       0.0          13.4    16.8  |   37.8 / 35.1                       L*19 h296",
+   "V2 branch: umber / cream / gold                         40.0      40.9          24.3    32.7  |    9.9 / 9.5                        L*15 h50",
+   "beach family exact: oxblood / lemon / peach @3.05       35.0      37.5          32.5    41.6  |    1.5 / 3.6                        L*20 h36",
+   "navy kept below (light logic) / cream / gold            37.2      40.9          24.3    32.7  |   37.8 / 35.1                       L*19 h296",
+   "navy below, white foam (no foam switch)                 37.2       0.0           5.6    10.3  |   37.8 / 35.1                       L*19 h296",
+   "umber / beach lemon / beach peach                       35.0      37.5          32.5    41.6  |    9.9 / 9.5                        L*15 h50",
+   "umber / cream / beach peach storm                       35.7      40.7          24.2    31.1  |    9.9 / 9.5                        L*15 h50",
+   "oxblood / cream / gold                                  40.0      40.9          24.3    32.7  |    1.5 / 3.6                        L*20 h36",
+   "umber / lemon (beach) / gold                            36.1      37.8          32.4    48.8  |    9.9 / 9.5                        L*15 h50",
+   "umber / pale lemon both / gold                          36.8      38.5          30.6    48.6  |    9.9 / 9.5                        L*15 h50",
+   "umber / lemon / warm white storm                        36.3      38.0          29.2    34.8  |    9.9 / 9.5                        L*15 h50",
+   "raspberry (0.38,0.02,0.14) / lemon / gold               36.1      37.8          32.4    52.2  |   13.4 / 9.8                        L*19 h12",
+   "solve warmP.json                                        36.8      41.8          24.9    35.2  |    4.3 / 1.4                        L*18 h32",
+   "solve warmQ.json                                        36.8      41.8          24.9    35.2  |    6.5 / 2.8                        L*18 h28",
+   "solve warmR.json                                        38.7      41.4          24.6    34.0  |    5.8 / 2.2                        L*18 h29",
+   "solve warmS.json                                        36.8      38.5          34.5    38.6  |   10.9 / 6.4                        L*15 h20"
+  ],
+  "solves": {
+   "P": "{\"calm\":[0.37,0.01,0.03],\"active\":[0.37,0,0.04],\"calmUp\":[0.95,0.73,0.54],\"activeUp\":[1,1,0.82],\"storm\":[1,1,0],\"switchHeight\":3.17}",
+   "Q": "{\"calm\":[0.37,0,0.06],\"active\":[0.37,0,0.04],\"calmUp\":[0.77,0.78,0.6],\"activeUp\":[1,1,0.82],\"storm\":[1,1,0],\"switchHeight\":3.19}",
+   "R": "{\"calm\":[0.37,0,0.05],\"active\":[0.37,0,0.05],\"calmUp\":[0.72,0.7,0.41],\"activeUp\":[1,1,0.82],\"storm\":[1,1,0],\"switchHeight\":3.12}",
+   "S": "{\"calm\":[0.32,0,0.08],\"active\":[0.32,0.01,0],\"calmUp\":[0.7,0.77,0.18],\"activeUp\":[1,1,0.08],\"storm\":[1,0.89,0.68],\"switchHeight\":3.13}"
+  },
+  "verdict": "V2 as built (umber/cream/gold) keeps the highest |Lc| (40.0 body, 40.9 front); beach inks on light 35.0/37.5 with colour-blind 32.5 and the oxblood ink 1.5 dE00 from light's red flag; navy calm 37.2. Kept."
+ },
+ "first_base_superseded": "claude/beach-crest-v2 57e72589b (#416; owner pick 2026-10-20 11:47 EDT, relayed by the beach session: ship the V2 polarity beach crest); dev 26385e031 under it. #415 (16 m) merged to dev 9c6d5ebb0 mid-session: re-checked on a trial merge, minima unchanged",
+ "harness_on_416_build": {
+  "command": "serve_synthetic.py --dir <scratch> --port 4120 --dynamic 1 --vortex-peak 11; serve_spa.js build 3107; VARIANTS=l1,v2,lk,l1k THEMES=light CLIP=1 PAIRED=1 CLIP_VIEWS=world,regional,coastal PORT=4120 AB_BASE=http://127.0.0.1:3107 node scn_wave_palette_ab.js; crest_contrast.py <dir> <lut.json> --theme light --pairs l1:v2,l1:lk,l1:l1k,v2:lk",
+  "offline_only": "no request to the live backend; production bundle built from the branch in a dot-free worktree",
+  "water_read": {
+   "light/l1": [
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ]
+   ],
+   "light/v2": [
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ]
+   ],
+   "light/lk": [
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ]
+   ],
+   "light/l1k": [
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ]
+   ]
+  },
+  "gpu_readback": [
+   {
+    "variant": "l1",
+    "lightCrest": [
+     "vec3(0.05, 0.15, 0.45)",
+     "vec3(0.85, 0.50, 0.00)",
+     "vec3(0.75, 0.10, 0.05)",
+     "vec3(1.00, 1.00, 1.00)"
+    ],
+    "crestContrast": null
+   },
+   {
+    "variant": "l1k",
+    "lightCrest": [
+     "vec3(0.05, 0.15, 0.45)",
+     "vec3(0.85, 0.50, 0.00)",
+     "vec3(0.75, 0.10, 0.05)",
+     "vec3(1.00, 1.00, 1.00)"
+    ],
+    "crestContrast": 1
+   },
+   {
+    "variant": "lk",
+    "lightCrest": [
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "vec3(1.00, 0.96, 0.00)",
+     "mix(vec3(0.05, 0.02, 0.00), vec3(1.00, 1.00, 1.00), step(3.05, v_wave_height))"
+    ],
+    "crestContrast": 1
+   },
+   {
+    "variant": "v2",
+    "lightCrest": [
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "vec3(1.00, 0.96, 0.00)",
+     "mix(vec3(0.05, 0.02, 0.00), vec3(1.00, 1.00, 1.00), step(3.05, v_wave_height))"
+    ],
+    "crestContrast": null
+   }
+  ],
+  "crest_contrast_p99": {
+   "world": {
+    "today_l1": {
+     "normal": 15.7,
+     "protan": 15.0,
+     "deutan": 14.7,
+     "tritan": 14.9,
+     "lc": 21.5
+    },
+    "v2": {
+     "normal": 25.1,
+     "protan": 25.7,
+     "deutan": 25.2,
+     "tritan": 23.8,
+     "lc": 34.8
+    },
+    "v2_self_contrast_lk": {
+     "normal": 25.2,
+     "protan": 25.8,
+     "deutan": 25.3,
+     "tritan": 23.9,
+     "lc": 35.3
+    },
+    "today_self_contrast_l1k": {
+     "normal": 15.1,
+     "protan": 14.3,
+     "deutan": 14.1,
+     "tritan": 14.1,
+     "lc": 19.5
+    }
+   },
+   "regional": {
+    "today_l1": {
+     "normal": 26.5,
+     "protan": 24.6,
+     "deutan": 29.3,
+     "tritan": 35.4,
+     "lc": 15.3
+    },
+    "v2": {
+     "normal": 43.4,
+     "protan": 44.4,
+     "deutan": 44.3,
+     "tritan": 31.7,
+     "lc": 41.9
+    },
+    "v2_self_contrast_lk": {
+     "normal": 46.8,
+     "protan": 47.5,
+     "deutan": 47.6,
+     "tritan": 34.4,
+     "lc": 50.2
+    },
+    "today_self_contrast_l1k": {
+     "normal": 26.3,
+     "protan": 24.6,
+     "deutan": 28.7,
+     "tritan": 34.6,
+     "lc": 16.3
+    }
+   },
+   "coastal": {
+    "today_l1": {
+     "normal": 40.1,
+     "protan": 47.2,
+     "deutan": 57.8,
+     "tritan": 46.4,
+     "lc": 23.8
+    },
+    "v2": {
+     "normal": 80.9,
+     "protan": 81.4,
+     "deutan": 81.1,
+     "tritan": 53.5,
+     "lc": 75.2
+    },
+    "v2_self_contrast_lk": {
+     "normal": 81.3,
+     "protan": 81.3,
+     "deutan": 80.9,
+     "tritan": 54.3,
+     "lc": 84.5
+    },
+    "today_self_contrast_l1k": {
+     "normal": 45.2,
+     "protan": 47.2,
+     "deutan": 59.0,
+     "tritan": 51.1,
+     "lc": 50.2
+    }
+   }
+  },
+  "null_control": "half vs half <= 1.2 at world and coastal; regional up to 17.9 (the storm moves between the halves)"
+ },
+ "harness": {
+  "command": "serve_synthetic.py --dir <fresh> --port 4127 --dynamic 1 --vortex-peak 11; serve_spa.js build 3117 (production bundle of the dev-based branch); VARIANTS=l1,v2,lk THEMES=light CLIP=1 PAIRED=1 CLIP_VIEWS=world,regional,coastal PORT=4127 AB_BASE=http://127.0.0.1:3117 node scn_wave_palette_ab.js; crest_contrast.py <dir> <lut> --theme light --pairs l1:v2,l1:lk,v2:lk",
+  "offline_only": "no request to the live backend",
+  "water_read": {
+   "light/l1": [
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ]
+   ],
+   "light/v2": [
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ]
+   ],
+   "light/lk": [
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ],
+    [
+     144,
+     223,
+     254
+    ]
+   ]
+  },
+  "gpu_readback": [
+   {
+    "variant": "l1",
+    "lightCrest": [
+     "vec3(0.05, 0.15, 0.45)",
+     "vec3(0.85, 0.50, 0.00)",
+     "vec3(0.75, 0.10, 0.05)",
+     "vec3(1.00, 1.00, 1.00)"
+    ],
+    "crestContrast": null,
+    "heightScale": 16
+   },
+   {
+    "variant": "lk",
+    "lightCrest": [
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "vec3(1.00, 0.96, 0.00)",
+     "mix(vec3(0.05, 0.02, 0.00), vec3(1.00, 1.00, 1.00), step(3.05, v_wave_height))"
+    ],
+    "crestContrast": 1,
+    "heightScale": 16
+   },
+   {
+    "variant": "v2",
+    "lightCrest": [
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "mix(vec3(0.27, 0.10, 0.00), vec3(1.00, 1.00, 0.82), step(3.05, v_wave_height))",
+     "vec3(1.00, 0.96, 0.00)",
+     "mix(vec3(0.05, 0.02, 0.00), vec3(1.00, 1.00, 1.00), step(3.05, v_wave_height))"
+    ],
+    "crestContrast": null,
+    "heightScale": 16
+   }
+  ],
+  "crest_contrast_p99": {
+   "world": {
+    "today_l1": {
+     "normal": 16.9,
+     "protan": 15.9,
+     "deutan": 15.7,
+     "tritan": 16.1,
+     "lc": 22.3
+    },
+    "v2": {
+     "normal": 24.3,
+     "protan": 24.8,
+     "deutan": 24.4,
+     "tritan": 23.3,
+     "lc": 34.3
+    },
+    "v2_self_contrast_lk": {
+     "normal": 25.2,
+     "protan": 25.8,
+     "deutan": 25.3,
+     "tritan": 23.8,
+     "lc": 35.2
+    },
+    "null_max": {
+     "l1": 0.7,
+     "v2": 1.9,
+     "lk": 0.5
+    }
+   },
+   "regional": {
+    "today_l1": {
+     "normal": 29.8,
+     "protan": 28.4,
+     "deutan": 35.0,
+     "tritan": 39.1,
+     "lc": 17.6
+    },
+    "v2": {
+     "normal": 43.9,
+     "protan": 45.0,
+     "deutan": 45.3,
+     "tritan": 30.0,
+     "lc": 40.1
+    },
+    "v2_self_contrast_lk": {
+     "normal": 57.7,
+     "protan": 58.6,
+     "deutan": 58.7,
+     "tritan": 40.4,
+     "lc": 58.5
+    },
+    "null_max": {
+     "l1": 5.2,
+     "v2": 10.3,
+     "lk": 19.6
+    }
+   },
+   "coastal": {
+    "today_l1": {
+     "normal": 40.0,
+     "protan": 47.0,
+     "deutan": 57.9,
+     "tritan": 46.0,
+     "lc": 24.2
+    },
+    "v2": {
+     "normal": 81.7,
+     "protan": 82.1,
+     "deutan": 81.7,
+     "tritan": 54.0,
+     "lc": 76.1
+    },
+    "v2_self_contrast_lk": {
+     "normal": 81.4,
+     "protan": 81.4,
+     "deutan": 80.9,
+     "tritan": 54.2,
+     "lc": 84.4
+    },
+    "null_max": {
+     "l1": 0.1,
+     "v2": 0.9,
+     "lk": 0.5
+    }
+   }
+  },
+  "note": "regional nulls run 5-20 (the storm moves across the frame between the halves): read regional as a range"
+ },
+ "jest": "dev-based tree: 459/460 suites, 6097/6109 tests; the failing suite is netlifyIconStoredTailScope.test.js (spawnSync bash ETIMEDOUT, the known Windows limit, same on dev); crest + palette + encoding suites 65/65; a 0.01 nudge to v1 navy fails 5"
+}

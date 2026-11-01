@@ -127,16 +127,35 @@ describe('scheduleSWRRevalidation — retries a transient empty grid', () => {
     expect(updateFn).toHaveBeenCalledWith('swr_revalidation');
   });
 
-  it('stops after 3 retries (does not poll forever)', () => {
+  it('backs off instead of re-asking every 2.5 s for ever: 10 asks at 2.5 s, then 5, 10, 20, 40, 48 s (SWR_BACKOFF), never stopping', () => {
     const { result } = renderHook(() => useMarineRevalidation());
     const updateFn = jest.fn();
     const empty = makeGrid({ vectors: [], renderable: false });
 
-    for (let i = 0; i < 5; i++) {
+    for (const rung of [...Array(10).fill(2500), 5000, 10000, 20000, 40000, 48000, 48000]) {
       result.current.scheduleSWRRevalidation(empty, updateFn);
-      jest.advanceTimersByTime(2500);
+      const before = updateFn.mock.calls.length;
+      jest.advanceTimersByTime(rung - 1);
+      expect(updateFn.mock.calls.length).toBe(before);
+      jest.advanceTimersByTime(1);
+      expect(updateFn.mock.calls.length).toBe(before + 1);
     }
-    expect(updateFn.mock.calls.length).toBe(3);
+  });
+
+  it('under the kill switch the old hook-level rule holds: 2.5 s, stop after 3', () => {
+    window.__RAW_DISABLE_SWR_BACKOFF__ = true;
+    try {
+      const { result } = renderHook(() => useMarineRevalidation());
+      const updateFn = jest.fn();
+      const empty = makeGrid({ vectors: [], renderable: false });
+      for (let i = 0; i < 5; i++) {
+        result.current.scheduleSWRRevalidation(empty, updateFn);
+        jest.advanceTimersByTime(2500);
+      }
+      expect(updateFn.mock.calls.length).toBe(3);
+    } finally {
+      delete window.__RAW_DISABLE_SWR_BACKOFF__;
+    }
   });
 
   it('a renderable grid clears the retry state (no retry scheduled)', () => {

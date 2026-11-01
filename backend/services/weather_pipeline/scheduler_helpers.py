@@ -373,12 +373,24 @@ async def normalize_and_save_loop(
 
             product = await normalizer.normalize_async(**norm_kwargs)
             if product:
-                # Security guard: reject test fixtures in non-test environments
-                if not is_test_env and hasattr(product, 'is_test_fixture') and product.is_test_fixture:
+                # Reject fixture input before any recovery can replace its container.
+                if not is_test_env and getattr(product, "is_test_fixture", False):
                     logger.error(f"{log_prefix} Security violation: trying to save test fixture product in non-test environment.")
                     continue
+                product_resolution = resolution
+                if (os.environ.get("MARINE_EMPTY_FRAME_FALLBACK", "0") == "1"
+                        and model == "GFS" and domain == "marine"
+                        and (not product.grid or not any(v.is_valid for v in product.grid.vectors))):
+                    from services.weather_pipeline.empty_frame_recovery import recover_empty_gfs_frame
+                    fallback = await asyncio.to_thread(recover_empty_gfs_frame, product, store, bbox, run_time)
+                    if fallback is None:
+                        logger.error(f"{log_prefix} No usable exact-time GFS parent for {layer} at {time_str}; refusing empty frame.")
+                        continue
+                    product, product_resolution = fallback
                 # Tag as estimated if beyond the native horizon
-                if estimated_after_index is not None and idx >= estimated_after_index:
+                if getattr(product, "source_dataset", None) == "stored_gfs_coarser_fallback":
+                    pass  # Recovery's source identity/basis must survive caller horizon tags.
+                elif estimated_after_index is not None and idx >= estimated_after_index:
                     product.is_estimated = True
                     product.is_forecast_authoritative = False
                     product.estimate_basis = estimate_basis
@@ -396,7 +408,7 @@ async def normalize_and_save_loop(
                     # were "_estimated"-named while /point proved the content native).
                     product.estimate_basis = estimate_basis
                 
-                products_to_save.append((product, resolution))
+                products_to_save.append((product, product_resolution))
                 await asyncio.sleep(0.01)
         except Exception as e:
             logger.error(
@@ -486,6 +498,22 @@ def _coerce_utc(dt):
     if getattr(dt, "tzinfo", None) is None:
         return dt.replace(tzinfo=timezone.utc)
     return dt.astimezone(timezone.utc)
+
+
+# THE DAY-14 END (2026-10-25, the owner's manual test: "the ICON data is showing Saturday 13th day on the Sunday 14th day with holes
+# in Gulf data"). The ICON and EURO marine tails are baked to the anchor's run_time + 336 h, but the scrubber offers now + 336 h.
+# Between two bakes the last (now - run_time) hours have no 2-deg frame, so /grid falls to the 10-deg coarse tail (37 x 17; one
+# node in the Gulf), then the far-edge hold, then 404. Measured live 2026-10-25 21Z: ICON 2-deg tail ended now+320.5 h (anchor
+# run_time 8.5 h old), 10-deg now+332.5 h; EURO 2-deg now+320.5 h. MARINE_EXT_CEILING_MARGIN_H (DARK, default 0; 0..48) bakes
+# both tails that many hours past run + 336, so the 2-deg tier still reaches now + 336 until the next bake. Same blend, same
+# label (is_estimated); the GFS targets past f336 exist only with GFS_WORLD_FULL_HORIZON=1 (on since 2026-10-25T18:09Z).
+def marine_ext_ceiling_hours(base=336.0):
+    """The ICON / EURO marine tail ceiling past the anchor's run_time: 336 h plus MARINE_EXT_CEILING_MARGIN_H (clamped 0..48)."""
+    try:
+        margin = float(os.environ.get("MARINE_EXT_CEILING_MARGIN_H", "0"))
+    except (TypeError, ValueError):
+        margin = 0.0
+    return base + min(48.0, max(0.0, margin))
 
 
 def euro_estimate_within_ceiling(target_time, run_time, anchor_time, native_limit, ceiling_hours=336.0):
@@ -625,7 +653,8 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
 
                 # gfs_targets is sorted chronologically, so the first target past the run+336h ceiling
                 # ends the run rather than generating unbounded estimates.
-                if not euro_estimate_within_ceiling(target_time, euro_run_time, anchor_time, native_limit):
+                if not euro_estimate_within_ceiling(target_time, euro_run_time, anchor_time, native_limit,
+                                                    ceiling_hours=marine_ext_ceiling_hours()):
                     break
 
                 # Load GFS target product
