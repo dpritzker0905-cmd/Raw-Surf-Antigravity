@@ -19,3 +19,13 @@ Parent relayed a newer live-call quote from David: All right, well, you can push
 Exact-candidate CI, skip accounting, relevant source-bound preview/App coverage, owner merge-hold closeout and served-DEV revision readback remain gates before a release claim. Physical-device/live-provider/asset limits and existing out-of-scope axe findings from the owner report remain. No real ticket/account/email/deletion mutations, main promotion, migrations, provider/security changes, or weather source/runtime/log/ledger writes.
 
 Fresh candidate checkpoint: combined216/216regressions across10suites, zero skipped, and full lint-debt gate passed (1626files; inherited86errors901warnings). Production build remains active at this checkpoint.
+
+## Confirmed child-close focus correction
+
+On unchanged PR head031ac9c5d, a real TopNav/BackpackDrawer/Radix Sheet portal case reproduced: child closes and tray stays open, but focus falls to BODY and a second Escape fails opener return. Parent-dismissal leakage did not reproduce. No page errors, external requests or non-GET actions; red receipt/source hashes retained in modal-escape/red-results.json.
+
+Only the already scoped tray source and adjacent test change. The controlled-child onClose bridge records closing-dialog focus ownership; a committed-state layout effect returns to its visible opener, tray handle or desktop Settings fallback. Deliberate outside focus is respected. No timers, flushSync, shared primitive/Backpack rewrite, role/API/data/design change or class/style/markup edit.
+
+Actual Radix portal unit baseline1failed/4passed becomes final7/7, including deliberate outside focus and hidden-header fallback. Combined219/219 regressions pass with zero skips; lint-debt gate and pinned Node24.22.1 normal production build pass with inherited warnings. The actual production-child browser case passes all child/tray/opener focus, outside-focus and390-to1440 desktop-fallback assertions, with no errors/external/non-GET requests. Its exact final source hashes are in modal-escape/results.json; final commit readback binds the same bytes.
+
+Old031 hosted green is historical and cannot qualify this correction. Existing14 browser receipts cover unchanged behavior/appearance; the new case fills the missing child path. New-head CI/preview and independent review are required. Harness owner explicitly released its DEV hold; no other release gate is waived.

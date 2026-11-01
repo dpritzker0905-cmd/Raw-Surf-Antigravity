@@ -28,6 +28,35 @@ export const TopNavDrawerTray = ({ isOpen, onClose }) => {
   const [photoToolsOpen, setPhotoToolsOpen] = useState(false);
   const trayRef = useRef(null);
   const focusWasInside = useRef(false);
+  const childFocusReturn = useRef(null);
+
+  const closeChildDrawer = (setOpen, openerId, open) => {
+    if (!open) return;
+    const active = document.activeElement;
+    const dialog = active?.closest('[role="dialog"]');
+    childFocusReturn.current = dialog || active === document.body ? { openerId, dialog } : null;
+    setOpen(false);
+  };
+
+  useLayoutEffect(() => {
+    const request = childFocusReturn.current;
+    if (!request) return;
+    childFocusReturn.current = null;
+    // The controlled child has committed its close. Respect focus deliberately
+    // moved elsewhere; only reclaim BODY or focus still in that closing dialog.
+    const active = document.activeElement;
+    if (active !== document.body && !request.dialog?.contains(active)) return;
+    const tray = trayRef.current;
+    const candidates = [isOpen && !tray?.inert
+      ? tray?.querySelector(`[data-testid="drawer-${request.openerId}"]`) : null,
+    tray?.closest('header')?.querySelector('[data-testid="topnav-pull-handle"]'),
+    document.querySelector('[data-testid="nav-settings"]')];
+    for (const target of candidates) {
+      if (!target?.getClientRects().length) continue;
+      target.focus({ preventScroll: true });
+      if (document.activeElement === target) break;
+    }
+  }, [isOpen, backpackOpen, photoToolsOpen]);
 
   useEffect(() => {
     const rememberFocus = event => {
@@ -261,14 +290,14 @@ export const TopNavDrawerTray = ({ isOpen, onClose }) => {
       {/* Sub-drawers opened from tray items */}
       <BackpackDrawer
         isOpen={backpackOpen}
-        onClose={() => setBackpackOpen(false)}
+        onClose={() => closeChildDrawer(setBackpackOpen, 'backpack', backpackOpen)}
         onReopen={() => setBackpackOpen(true)}
       />
 
       {(isPhotographer || isGromParent) && (
         <PhotoToolsDrawer
           isOpen={photoToolsOpen}
-          onClose={() => setPhotoToolsOpen(false)}
+          onClose={() => closeChildDrawer(setPhotoToolsOpen, 'photo-tools', photoToolsOpen)}
         />
       )}
     </>
