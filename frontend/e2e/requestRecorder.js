@@ -11,6 +11,7 @@
  * Observation only. It never delays, blocks or rewrites a request.
  */
 const WEATHER_PATH = /\/api\/weather\//;
+const { HEADER, validId, requestIdFor } = require('../scripts/offline-backend/series_diagnostics.cjs');
 
 /** Attach listeners; returns the live row array. `getLabel` reads the gesture in effect. */
 function recordWeatherRequests(page, getLabel) {
@@ -20,6 +21,11 @@ function recordWeatherRequests(page, getLabel) {
     const url = req.url();
     if (!WEATHER_PATH.test(url)) return;
     const row = { url, start: Date.now(), end: null, label: getLabel(), status: null, failed: false };
+    if (endpointOf(url) === 'grid_series') {
+      row.clientRequestId = requestIdFor(req);
+      row.backendRequestId = null;
+      row.failureKind = null;
+    }
     open.set(req, row);
     rows.push(row);
   });
@@ -29,6 +35,9 @@ function recordWeatherRequests(page, getLabel) {
     open.delete(req);
     row.failed = failed;
     try {
+      if (failed && row.clientRequestId) {
+        row.failureKind = (req.failure()?.errorText || '').match(/\bnet::(ERR_[A-Z_]+)\b/)?.[1] || 'unclassified';
+      }
       // The browser's own clock for the exchange when it has one; the event time otherwise.
       const t = req.timing();
       if (t && t.startTime > 0 && t.responseEnd >= 0) {
@@ -39,6 +48,11 @@ function recordWeatherRequests(page, getLabel) {
       }
       const res = failed ? null : await req.response();
       row.status = res ? res.status() : null;
+      if (res && row.clientRequestId) {
+        const backendId = await res.headerValue(HEADER);
+        row.backendRequestId = validId(backendId) ? backendId : null;
+        row.correlationMismatch = row.backendRequestId !== row.clientRequestId;
+      }
     } catch (e) {
       row.end = row.end || Date.now();
     }

@@ -896,6 +896,8 @@ def main():
     ap.add_argument("--euro-regional-estimated-after", type=float, default=None,
                     help="EURO waves regional tiles past this lead (h) are production's 3-hourly euro_persistence_gfs_blend "
                          "estimate (EURO'S REGIONAL ESTIMATED TAIL above); default: native like the global tiers")
+    ap.add_argument("--series-diagnostics", action="store_true",
+                    help="emit correlated synthetic series observations (off for ordinary benchmarks)")
     ap.add_argument("--build-only", action="store_true")
     args = ap.parse_args()
     global VORTEX_PEAK, LAND_MASK, WAVE_LAKES, ENCLOSED_SEAS, EURO_REGIONAL_ESTIMATED_AFTER
@@ -978,7 +980,15 @@ def main():
     app.add_api_route("/__harness/identity", lambda: identity, methods=["GET"])
     print(json.dumps({"harness_identity": identity}), flush=True)
     import uvicorn                                           # noqa: E402
-    uvicorn.run(app, host="127.0.0.1", port=args.port, lifespan="off", log_level="warning")
+    observed_app = app
+    if args.series_diagnostics:
+        from series_diagnostics import SeriesDiagnostics        # noqa: E402
+        observed_app = SeriesDiagnostics(app)
+    try:
+        uvicorn.run(observed_app, host="127.0.0.1", port=args.port, lifespan="off", log_level="warning")
+    finally:
+        if args.series_diagnostics:
+            observed_app.close()
 
 
 if __name__ == "__main__":

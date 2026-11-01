@@ -148,6 +148,12 @@ jobs:
           node --test scripts/e2eHarnessScope.test.cjs
           node scripts/e2eHarnessScope.cjs
 
+      - name: Verify correlated synthetic series diagnostics
+        working-directory: frontend
+        run: |
+          python -m unittest discover -s scripts/offline-backend -p test_series_diagnostics.py -v
+          node --test scripts/seriesDiagnostics.test.cjs
+
       - name: Install Playwright browsers
         working-directory: frontend
         # ⛔ WAS `chromium webkit`, and it was wrong the whole time — invisibly, because this job

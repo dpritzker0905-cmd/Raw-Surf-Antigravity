@@ -22,7 +22,7 @@ case "${1:-}" in
   start)
     nohup python "$HERE/serve_synthetic.py" --dir "$DIR" --port "$PORT" \
       --models GFS,ICON,EURO --layers waves,swell_1,swell_2,wind_waves,wind \
-      --regions florida_east_coast --dynamic 1 > "$LOG" 2>&1 &
+      --regions florida_east_coast --dynamic 1 --series-diagnostics > "$LOG" 2>&1 &
     echo $! > "$PIDFILE"
     echo "synthetic weather backend starting (pid $!) on 127.0.0.1:$PORT; store: $DIR; log: $LOG"
     ;;
