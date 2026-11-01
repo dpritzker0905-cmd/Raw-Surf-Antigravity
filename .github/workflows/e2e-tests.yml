@@ -141,6 +141,13 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      - name: Select E2E qualification scope
+        id: e2e_scope
+        working-directory: frontend
+        run: |
+          node --test scripts/e2eHarnessScope.test.cjs
+          node scripts/e2eHarnessScope.cjs
+
       - name: Install Playwright browsers
         working-directory: frontend
         # ⛔ WAS `chromium webkit`, and it was wrong the whole time — invisibly, because this job
@@ -148,9 +155,16 @@ jobs:
         # Safari (webkit), Desktop Chrome (chromium), Desktop **Firefox**, Desktop Safari (webkit).
         # Firefox was never installed, so on the job's first real run every Desktop Firefox test
         # died with `browserType.launch: Executable doesn't exist` — 33 occurrences in the log.
-        # ★ Install from the CONFIG rather than a hand-kept list, so adding a project to
-        #   playwright.config.js can never again silently outrun the installer.
-        run: npx playwright install --with-deps
+        # ★ Normal regression installs from CONFIG. The explicitly selected Chrome-only
+        #   harness lane installs Chromium and uses that same project output below.
+        env:
+          E2E_PROJECT: ${{ steps.e2e_scope.outputs.project }}
+        run: |
+          if [ "$E2E_PROJECT" = "Desktop Chrome" ]; then
+            npx playwright install --with-deps chromium
+          else
+            npx playwright install --with-deps
+          fi
 
       # ⛔⛔ THE OTHER HALF OF THE RACE — the half that was actually failing the suite.
       # `on: push: [dev]` starts this run AND the Render backend redeploy at the same instant, and
@@ -201,7 +215,7 @@ jobs:
           E2E_UI_ISOLATION_LEDGER: /tmp/e2e-ui-isolation.jsonl
           E2E_BASE_URL: ${{ github.event.inputs.base_url || 'https://dev--rawsurf.netlify.app' }}
           E2E_TEST_GREP: ${{ github.event.inputs.test_grep || '' }}
-          E2E_PROJECT: ${{ github.event.inputs.project || '' }}
+          E2E_PROJECT: ${{ steps.e2e_scope.outputs.project }}
           E2E_DIAGNOSTIC_NO_RETRY: ${{ github.event.inputs.diagnostic_no_retry || 'false' }}
           # The deployed site is behind AccessCodeScreen, whose dev-bypass only covers localhost.
           # Without this the very first page.goto of every spec lands on "Enter Access Code" and the
@@ -225,7 +239,7 @@ jobs:
           # Push acceptance keeps the full suite and existing retries; filters are dispatch-only.
           # Credential-bearing browser contexts must stay untraced, including diagnostics.
           node --test scripts/seededUiBadges.test.cjs scripts/seededUiIsolation.test.cjs
-          node --test scripts/offlineWeatherRoute.test.cjs
+          node --test scripts/offlineWeatherRoute.test.cjs scripts/syntheticCleanup.test.cjs
           args=(--reporter=list,html --trace=off)
           if [ -n "$E2E_TEST_GREP" ]; then args+=(--grep "$E2E_TEST_GREP"); fi
           if [ -n "$E2E_PROJECT" ]; then args+=(--project "$E2E_PROJECT"); fi
@@ -242,6 +256,7 @@ jobs:
           const file = '/tmp/e2e-weather-routing.jsonl';
           const rows = fs.existsSync(file) ? fs.readFileSync(file, 'utf8').split('\n').filter(Boolean).map(JSON.parse) : [];
           const sum = (k) => rows.reduce((n, r) => n + (r[k] || 0), 0);
+          const incomplete = rows.filter(r => r.cleanup?.complete !== true).length;
           const byEndpoint = {}; const byProject = {};
           for (const r of rows) {
             for (const [k, v] of Object.entries(r.byEndpoint || {})) byEndpoint[k] = (byEndpoint[k] || 0) + v;
@@ -249,12 +264,14 @@ jobs:
           }
           const lines = ['### E2E weather traffic: in-runner backend, not the live box', '',
             `- test attempts recorded: ${rows.length}`,
+            `- incomplete cleanup receipts: **${incomplete}**`,
             `- weather requests answered by the in-runner backend: **${sum('routedToLocal')}** (${JSON.stringify(byEndpoint)})`,
             `- per project: ${JSON.stringify(byProject)}`,
             `- weather responses from the LIVE backend: **${sum('sentToLive')}**`,
             `- local backend did not answer: ${sum('localFailures')} · dropped by the page first: ${sum('cancelledByPage')} · preflights/writes answered here: ${sum('answeredHere')}`];
           console.log(lines.join('\n'));
           if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
+          if (!rows.length || incomplete) process.exitCode = 1;
           JS
 
       - name: Seeded UI isolation receipt
@@ -266,15 +283,17 @@ jobs:
           const rows = fs.existsSync(path) ? fs.readFileSync(path, 'utf8').split('\n').filter(Boolean).map(JSON.parse) : [];
           const sum = key => rows.reduce((total, row) => total + (row[key] || 0), 0);
           const violations = rows.reduce((total, row) => total + (row.violations || []).length, 0);
+          const incomplete = rows.filter(row => row.cleanup?.complete !== true).length;
           const lines = ['### Seeded UI request isolation', '',
             `- test attempts recorded: ${rows.length}`,
+            `- incomplete cleanup receipts: **${incomplete}**`,
             `- fictional admin reads: ${sum('adminReads')} · diagnostic reads: ${sum('diagnosticsReads')}`,
             `- sockets isolated before server connection: admin ${sum('adminSockets')} · call ${sum('callSockets')} · realtime ${sum('realtimeSockets')}`,
             `- RUM requests answered locally: ${sum('rumAnswered')} · unmarked RUM responses: ${sum('rumLeaks')}`,
             `- unexpected protected requests blocked: ${sum('blocked')} · isolation violations: ${violations}`];
           console.log(lines.join('\n'));
           if (process.env.GITHUB_STEP_SUMMARY) fs.appendFileSync(process.env.GITHUB_STEP_SUMMARY, lines.join('\n') + '\n');
-          if (!rows.length || sum('rumLeaks') || sum('blocked') || violations) process.exitCode = 1;
+          if (!rows.length || incomplete || sum('rumLeaks') || sum('blocked') || violations) process.exitCode = 1;
           JS
 
       - name: Upload request isolation receipts
@@ -285,6 +304,16 @@ jobs:
           path: |
             /tmp/e2e-weather-routing.jsonl
             /tmp/e2e-ui-isolation.jsonl
+          retention-days: 14
+
+      # Only the runner-owned synthetic server's log: never browser state, headers or env dumps.
+      - name: Upload synthetic server log
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: synthetic-weather-server-log
+          path: /tmp/synthetic-weather.log
+          if-no-files-found: error
           retention-days: 14
 
       - name: Upload test results

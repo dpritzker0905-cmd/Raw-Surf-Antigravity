@@ -5,6 +5,7 @@
  * No server connection is opened by a socket handler. Receipts never include query/header/storage values.
  */
 const { URL } = require('node:url');
+const { createRouteLifecycle } = require('../scripts/offline-backend/route_lifecycle');
 
 const IDS = new Set(['test-surfer-id', 'admin-user-id']);
 const MARKER = 'x-rawsurf-e2e-isolation';
@@ -79,6 +80,7 @@ async function installSeededUiIsolation(context, config) {
   const stats = { adminReads: 0, diagnosticsReads: 0, rumAnswered: 0, rumLeaks: 0,
     adminSockets: 0, callSockets: 0, realtimeSockets: 0, blocked: 0 };
   const violations = [];
+  const lifecycle = createRouteLifecycle();
   const record = (kind, method, path) => {
     stats.blocked += 1;
     violations.push({ kind, method, path });
@@ -93,7 +95,7 @@ async function installSeededUiIsolation(context, config) {
     globalThis.__RAW_RUM_URL__ = '';
   });
 
-  await context.route(url => !!httpKind(url, cfg), async route => {
+  await context.route(url => !!httpKind(url, cfg), lifecycle.wrap(async route => {
     const request = route.request();
     const url = new URL(request.url());
     const method = request.method();
@@ -144,9 +146,9 @@ async function installSeededUiIsolation(context, config) {
     await route.fulfill({ json: kind === 'admin' ? ADMIN_READS.get(url.pathname) : HEALTH,
       headers: { [MARKER]: kind, ...cors } });
     stats[kind === 'admin' ? 'adminReads' : 'diagnosticsReads'] += 1;
-  });
+  }));
 
-  await context.routeWebSocket(url => !!socketKind(url, cfg), async socket => {
+  await context.routeWebSocket(url => !!socketKind(url, cfg), lifecycle.wrap(async socket => {
     const url = new URL(socket.url());
     const kind = socketKind(url, cfg);
     const path = kind === 'unexpected-protected' ? '/api/ws/[unexpected]'
@@ -164,7 +166,7 @@ async function installSeededUiIsolation(context, config) {
     }
     // Deliberately never call connectToServer(), even on invalid sessions or unknown protected paths.
     await socket.close({ code: 1008, reason: 'Synthetic UI fixture: no server connection' });
-  });
+  }));
 
   context.on('response', response => {
     const url = new URL(response.url());
@@ -176,7 +178,7 @@ async function installSeededUiIsolation(context, config) {
     record(`unmarked-${kind}-response`, method, path);
   });
 
-  return { stats, violations, assertNoViolations() {
+  return { stats, violations, lifecycle, assertNoViolations() {
     if (violations.length) throw new Error(`Seeded UI isolation recorded ${violations.length} violation(s)`);
   } };
 }
