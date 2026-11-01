@@ -1616,7 +1616,9 @@ jobs:
           #   base 2975 (dev's map) + 1 new test(s) and 0 new file(s) = 2976, files 182; floor 2976 - 6 = 2970. This PR must read 2976 passed.
           # ⬆ 2970→3002 on 2026-10-28 (rederive_floor.py, claude/infobox-honesty-5efceb): dev run 40633534401 read 2976 / 182 files; dev's map 2976;
           #   base 2976 (hosted read) + 32 new test(s) and 1 new file(s) = 3008, files 183; floor 3008 - 6 = 3002. This PR must read 3008 passed.
-          MIN_FILES, MIN_PASSED = 183, 3002
+          # ⬆ 3002→3011 on 2026-11-01 (rederive_floor.py, claude/euro-icon-scalar-shadow): dev run 41352900763 read 3008 / 183 files; dev's map 3008;
+          #   base 3008 (hosted read) + 9 new test(s) and 0 new file(s) = 3017, files 183; floor 3017 - 6 = 3011. This PR must read 3017 passed.
+          MIN_FILES, MIN_PASSED = 183, 3011
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
