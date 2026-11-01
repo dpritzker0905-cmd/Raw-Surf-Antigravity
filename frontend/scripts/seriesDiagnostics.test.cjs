@@ -10,6 +10,7 @@ const LOCAL = 'http://127.0.0.1:4100';
 function setup({ fetchError, fulfillError, diagnosticSink } = {}) {
   const page = new EventEmitter(), calls = {}, lines = [];
   const request = { url: () => URL_TEXT, method: () => 'GET', headerValue: async () => null,
+    headers: () => ({ authorization: 'never-log-auth', cookie: 'never-log-cookie' }),
     allHeaders: async () => ({ authorization: 'never-log-auth', cookie: 'never-log-cookie' }),
     timing: () => ({ startTime: 1000, responseEnd: 20 }),
     failure: () => ({ errorText: 'net::ERR_ABORTED' }),
@@ -98,4 +99,20 @@ test('correlation refuses a remote target before registering the route', async (
   f.config.local = 'https://remote.invalid';
   await assert.rejects(routeWeatherToLocal(f.page, f.config), /loopback/);
   assert.equal(f.calls.handler, undefined);
+});
+
+test('correlation keeps Playwright default headers and does not broaden to raw-only headers', async () => {
+  const f = setup();
+  let rawReads = 0;
+  f.request.headers = () => ({ 'x-baseline': 'keep' });
+  f.request.allHeaders = async () => {
+    rawReads += 1;
+    return { 'x-baseline': 'keep', authorization: 'raw-only-marker', cookie: 'raw-only-cookie' };
+  };
+  await routeWeatherToLocal(f.page, f.config);
+  await f.calls.handler(f.route);
+  assert.deepEqual(f.calls.fetch.headers, { 'x-baseline': 'keep', [HEADER]: requestIdFor(f.request) });
+  assert.equal(rawReads, 0);
+  assert.equal(f.calls.fetch.url, LOCAL + new URL(URL_TEXT).pathname + new URL(URL_TEXT).search);
+  assert.equal(f.calls.fetch.timeout, 120000);
 });
