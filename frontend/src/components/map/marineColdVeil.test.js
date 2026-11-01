@@ -6,7 +6,7 @@
 import React from 'react';
 import { act, render, screen } from '@testing-library/react';
 import ForecastTimeStatus from './ForecastTimeStatus';
-import { applyColdVeil, clearColdVeil, describeColdVeil, getColdVeilState, subscribeColdVeil, VEIL_WORDS, _resetColdVeilForTest } from './marineColdVeil';
+import { applyColdVeil, clearColdVeil, describeColdVeil, getColdVeilState, noteColdVeilStamp, subscribeColdVeil, VEIL_WORDS, _resetColdVeilForTest } from './marineColdVeil';
 import { resolveColdVeil } from './marineEngineDecisions';
 import { publishMarineDrawn, _resetMarineDrawnForTest } from './marineDrawnFrame';
 
@@ -61,6 +61,19 @@ describe('the phase the status line reads', () => {
     expect(getColdVeilState().phase).toBeNull();
     applyColdVeil(eng, { ...opts({ residentCoarseGlobal: false }), nowMs: 2300 }, {});
     expect(seen).toEqual(['hidden', null]);
+  });
+
+  test('the cold commit publishes the phase at once when the viewport is known (no "Showing …" before the first heatmap pass)', () => {
+    const coarse = { bounds: { west: -180, east: 180, south: -80, north: 84 }, cols: 181, rows: 83 };
+    const eng = { _coldVeil: { t0: performance.now() }, _lastViewportBounds: COAST };
+    noteColdVeilStamp(eng, coarse, {});
+    expect(getColdVeilState().phase).toBe('hidden');
+    expect(eng._coldVeil.hid).toBeUndefined();                                   // decided on a copy: the render pass stamps
+    _resetColdVeilForTest();
+    noteColdVeilStamp({ ...eng, _lastViewportBounds: WIDE }, coarse, {});        // a wide view never veils
+    noteColdVeilStamp({ ...eng, _lastViewportBounds: undefined }, coarse, {});   // unknown viewport: the first render decides
+    noteColdVeilStamp(eng, { ...coarse, cols: 1441, bounds: { west: -82, east: -78, south: 26, north: 30 } }, {});   // a regional tile
+    expect(getColdVeilState().phase).toBeNull();
   });
 
   test('the engine clear (layer off, model-switch clear) ends the words', () => {

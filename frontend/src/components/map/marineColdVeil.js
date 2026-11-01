@@ -20,7 +20,7 @@
  * clearColdVeil() (the engine's resident clear) publishes null, so a cleared layer never leaves the words behind.
  */
 import { useSyncExternalStore } from 'react';
-import { resolveColdVeil } from './marineEngineDecisions';
+import { resolveColdVeil, isCoarseGlobalGrid } from './marineEngineDecisions';
 
 const W = () => (typeof window !== 'undefined' ? window : {});
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -49,6 +49,22 @@ const lonSpan = (vb) => ((vb[2] < vb[0]) ? (vb[2] + 360 - vb[0]) : (vb[2] - vb[0
  * The veil for this frame: the multiplier on the composed heatmap opacity (1 = no veil). `o` = { residentCoarseGlobal, vb (the
  * viewport [w, s, e, n]), isRating, debugIsolate, nowMs? }. Mutates engine._coldVeil exactly as the inline block did.
  */
+/**
+ * The cold commit itself (setWaveData's veil stamp): when the engine already knows its viewport, the phase is published in the
+ * same task as the upload (and the drawn record), so the line never says "Showing …" for the frames between the upload and the
+ * first heatmap pass. Decided exactly as the first render will (on a copy of the veil: nothing is stamped here).
+ */
+export function noteColdVeilStamp(engine, grid, win) {
+  const w = win || W();
+  const vb = engine && engine._lastViewportBounds;
+  if (!engine || !engine._coldVeil || !Array.isArray(vb) || !grid) return;
+  const r = resolveColdVeil({ ...engine._coldVeil }, {
+    residentCoarseGlobal: isCoarseGlobalGrid(grid), viewportSpanDeg: lonSpan(vb), isRating: !!grid.ratingMode,
+    debugIsolate: w.__WEATHER_DEBUG_ISOLATE_OVERLAY__ === true,
+  }, now(), w);
+  if (r.veil && !r.veil.liftT0) publish({ phase: 'hidden' });
+}
+
 export function applyColdVeil(engine, o, win) {
   const w = win || W();
   const t = Number.isFinite(o.nowMs) ? o.nowMs : now();

@@ -64,7 +64,7 @@ import {
   trimDeadEdges, applySharpenOpacityEase, resolveCoarseCrestControls,
   resolveAnimValue, coarseBaseKey, edgeUncoveredMs,
 } from './marineEngineDecisions';
-import { applyColdVeil, clearColdVeil } from './marineColdVeil';   // the veil per frame + its status-line phase (D3)
+import { applyColdVeil, clearColdVeil, noteColdVeilStamp } from './marineColdVeil';   // the veil per frame + its status-line phase (D3)
 import { setHeatmapGateUniforms, resolveWashOverlayMode, resolveOverlayTruthUv, setOverlayTruthUniforms } from './marineCoverageContract';
 
 export {
@@ -312,6 +312,7 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
   this._coldVeil = !oldWaveData
     ? { t0: (typeof performance !== 'undefined' ? performance.now() : Date.now()) }
     : (this._coldVeil && !this._coldVeil.liftT0 ? this._coldVeil : null);
+  if (!oldWaveData) noteColdVeilStamp(this, waveGrid);   // the line's words in the same task as the upload (D3)
 
   // Compare old grid dimensions/bounds to check if they shifted
   const oldGrid = oldWaveData?.waveGrid;
