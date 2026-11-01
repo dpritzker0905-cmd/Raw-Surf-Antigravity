@@ -21,6 +21,7 @@ import os
 import re
 import sys
 import time
+import urllib.error
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
@@ -37,9 +38,55 @@ ARCHIVE_PREFIX = "point_cache/mop_runs/"
 UA = {"User-Agent": "raw-surf-mop-ingest"}
 
 
-def _get(url, timeout=120):
-    with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout) as r:
-        return r.read().decode("utf-8", "replace")
+# A BRIEF CDIP REFUSAL (2026-11-01 forensics): scheduled runs 41179795410 (10-31 07:14Z) and 41334764404
+# (11-01 18:05Z) got HTTP 403 for all 14 grids within ~2 s, so 0/88 cells answered and nothing was archived,
+# while the runs before and after answered 88/88. A refused run loses that MOP forecast for grading for good
+# (the grids hold only future hours). So: one quick retry per request, and if NO grid answered, the whole
+# metadata pass is retried after PHASE_RETRY_SLEEPS. A permanent error (404, bad table) is never retried.
+TRANSIENT_HTTP = {403, 408, 425, 429, 500, 502, 503, 504}
+PHASE_RETRY_SLEEPS = (30, 90)
+
+
+def is_transient(exc) -> bool:
+    """True when a CDIP failure is worth asking again (refusals, throttling, server errors, drops). PURE."""
+    if isinstance(exc, urllib.error.HTTPError):
+        return exc.code in TRANSIENT_HTTP
+    return isinstance(exc, (urllib.error.URLError, TimeoutError, ConnectionError))
+
+
+def _get(url, timeout=120, retries=1, backoff_s=2.0, sleep=time.sleep):
+    for attempt in range(retries + 1):
+        try:
+            with urllib.request.urlopen(urllib.request.Request(url, headers=UA), timeout=timeout) as r:
+                return r.read().decode("utf-8", "replace")
+        except Exception as e:                                         # noqa: BLE001 — re-raised unless transient
+            if attempt >= retries or not is_transient(e):
+                raise
+            sleep(backoff_s * (attempt + 1))
+
+
+def read_grid_metadata(grids, get=None, sleep=time.sleep, phase_sleeps=PHASE_RETRY_SLEEPS):
+    """{grid: run info} and {grid: step count}; the whole pass is retried while no grid answers."""
+    get = get or _get
+    runs, sizes = {}, {}
+    for wait in (0,) + tuple(phase_sleeps):
+        if wait:
+            print(f"no MOP grid answered; asking again in {wait} s")
+            sleep(wait)
+        for grid in grids:
+            if grid in sizes:
+                continue
+            try:
+                das = get(f"{MOP_GRIDS_URL}/{grid}.das")
+                created = re.search(r'date_created "([^"]+)"', das)
+                runs[grid] = {"run": run_stamp(das), "created": created.group(1) if created else None}
+                sizes[grid] = int(re.search(r"waveTime\[waveTime = (\d+)\]", get(f"{MOP_GRIDS_URL}/{grid}.dds")).group(1))
+            except Exception as e:                                     # noqa: BLE001 — one grid, never the run
+                runs.pop(grid, None)
+                print(f"grid {grid} unavailable: {str(e)[:100]}")
+        if sizes:
+            break
+    return runs, sizes
 
 
 def cell_keys(table: dict) -> list:
@@ -75,15 +122,7 @@ def main() -> int:
         return 2
 
     keys = cell_keys(table)
-    runs, sizes = {}, {}
-    for grid in sorted({k[0] for k in keys}):
-        try:
-            das = _get(f"{MOP_GRIDS_URL}/{grid}.das")
-            created = re.search(r'date_created "([^"]+)"', das)
-            runs[grid] = {"run": run_stamp(das), "created": created.group(1) if created else None}
-            sizes[grid] = int(re.search(r"waveTime\[waveTime = (\d+)\]", _get(f"{MOP_GRIDS_URL}/{grid}.dds")).group(1))
-        except Exception as e:                                         # noqa: BLE001 — one grid, never the run
-            print(f"grid {grid} unavailable: {str(e)[:100]}")
+    runs, sizes = read_grid_metadata(sorted({k[0] for k in keys}))
 
     def fetch(key):
         grid, i, j = key
