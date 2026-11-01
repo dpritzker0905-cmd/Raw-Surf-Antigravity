@@ -8,6 +8,14 @@ const ALLOWED = new Set([
   'frontend/scripts/syntheticCleanup.test.cjs',
   'frontend/scripts/e2eHarnessScope.cjs',
   'frontend/scripts/e2eHarnessScope.test.cjs',
+  // Exact synthetic-diagnostics files; never allow a directory or production weather path.
+  'frontend/e2e/requestRecorder.js',
+  'frontend/scripts/offline-backend/ci_weather_backend.sh',
+  'frontend/scripts/offline-backend/serve_synthetic.py',
+  'frontend/scripts/offline-backend/series_diagnostics.cjs',
+  'frontend/scripts/offline-backend/series_diagnostics.py',
+  'frontend/scripts/offline-backend/test_series_diagnostics.py',
+  'frontend/scripts/seriesDiagnostics.test.cjs',
 ]);
 const marked = message => String(message || '').split(/\r?\n/, 1)[0].includes('[harness chromium]');
 function selectScope({ eventName, message, files, project = '' }) {

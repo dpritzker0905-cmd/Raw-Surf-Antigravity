@@ -79,3 +79,41 @@ test('CLI dispatch does not infer the commit marker or invoke Git scope changes'
   assert.equal(result.calls.length, 0);
   assert.equal(result.writes[0].text, 'project=Desktop Firefox\nscope=explicit-dispatch\n');
 });
+
+const diagnosticsHarness = [
+  ".github/workflows/e2e-tests.yml",
+  "frontend/e2e/offlineWeather.js",
+  "frontend/e2e/requestRecorder.js",
+  "frontend/scripts/offline-backend/ci_weather_backend.sh",
+  "frontend/scripts/offline-backend/serve_synthetic.py",
+  "frontend/scripts/offline-backend/weather_route.js",
+  "frontend/scripts/offline-backend/series_diagnostics.cjs",
+  "frontend/scripts/offline-backend/series_diagnostics.py",
+  "frontend/scripts/offline-backend/test_series_diagnostics.py",
+  "frontend/scripts/seriesDiagnostics.test.cjs",
+  "frontend/scripts/e2eHarnessScope.cjs",
+  "frontend/scripts/e2eHarnessScope.test.cjs"
+];
+
+test('marked complete correlated-logging diff selects only Desktop Chrome', () => {
+  assert.equal(diagnosticsHarness.length, 12);
+  assert.deepEqual(selectScope({ ...marked, files: diagnosticsHarness }),
+    { project: 'Desktop Chrome', scope: 'harness-chromium' });
+});
+test('unmarked correlated logging retains the ordinary regression suite', () => {
+  assert.deepEqual(selectScope({ eventName: 'push', message: 'normal change', files: diagnosticsHarness }),
+    { project: '', scope: 'normal-regression' });
+});
+test('logging scope refuses weather code and diagnostic path lookalikes before browsers', () => {
+  for (const path of ['backend/services/weather_pipeline/grid_series_helper.py',
+    'frontend/scripts/offline-backend/series_diagnostics.py.extra',
+    'frontend/src/App.js', 'docs/weather-program/STATE.md']) {
+    assert.throws(() => selectScope({ ...marked, files: [...diagnosticsHarness, path] }), /refusing browser execution/);
+  }
+});
+test('actual CLI selects Chrome for the exact correlated logging file set', () => {
+  const result = runCli({ before: 'a'.repeat(40), head_commit: { message: marked.message } },
+    { files: diagnosticsHarness });
+  assert.equal(result.calls.length, 2);
+  assert.equal(result.writes[0].text, 'project=Desktop Chrome\nscope=harness-chromium\n');
+});

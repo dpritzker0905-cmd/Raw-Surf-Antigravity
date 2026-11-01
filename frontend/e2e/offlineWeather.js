@@ -45,7 +45,9 @@ const test = base.test.extend({
   }, { timeout: 10000, box: true }],
   offlineWeather: [async ({ context, syntheticFinalReceipt }, use, testInfo) => {
     if (!cfg.local) { await use(null); return; }
-    const stats = await routeWeatherToLocal(context, cfg);
+    const stats = await routeWeatherToLocal(context, { ...cfg, seriesDiagnostics: {
+      project: testInfo.project.name, test: testInfo.titlePath.slice(1).join(' > '), retry: testInfo.retry,
+    } });
     // Install the exact UI/RUM fence last so its local diagnostics response wins over
     // the general weather route. All handlers are ready before any page is created.
     const isolation = await installSeededUiIsolation(context, {
