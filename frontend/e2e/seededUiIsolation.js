@@ -141,6 +141,15 @@ async function installSeededUiIsolation(context, config) {
   const violations = [];
   const lifecycle = createRouteLifecycle();
   const socketHandlers = createRouteLifecycle();
+  let appShutdownFinished = false, lateSocketAdmissions = 0;
+  const trackSocketAdmission = handle => {
+    const tracked = socketHandlers.wrap(handle);
+    return (...args) => {
+      // Observe public callback entry before the lifecycle schedules its work.
+      if (appShutdownFinished) lateSocketAdmissions += 1;
+      return tracked(...args);
+    };
+  };
   const observations = socketObservations();
   const record = (kind, method, path, socket, socketObservation) => {
     stats.blocked += 1;
@@ -155,6 +164,9 @@ async function installSeededUiIsolation(context, config) {
   await context.addInitScript(() => {
     // Keep local RUM collection and render instruments, but send no batch anywhere.
     globalThis.__RAW_RUM_URL__ = '';
+    Object.defineProperty(globalThis, '__RAW_SYNTHETIC_APP_LIFECYCLE__', {
+      value: { version: 1 }, configurable: false, writable: false,
+    });
   });
 
   await context.route(url => !!httpKind(url, cfg), lifecycle.wrap(async route => {
@@ -210,7 +222,7 @@ async function installSeededUiIsolation(context, config) {
     stats[kind === 'admin' ? 'adminReads' : 'diagnosticsReads'] += 1;
   }));
 
-  await context.routeWebSocket(url => !!socketKind(url, cfg), socketHandlers.wrap(lifecycle.wrap(async socket => {
+  await context.routeWebSocket(url => !!socketKind(url, cfg), trackSocketAdmission(lifecycle.wrap(async socket => {
     let observation;
     try { observation = observations.handler(); } catch { /* diagnostic only */ }
     const url = new URL(socket.url());
@@ -248,7 +260,67 @@ async function installSeededUiIsolation(context, config) {
     record(`unmarked-${kind}-response`, method, path);
   });
 
+  // Shutdown is a document lifecycle operation, never an identity cache or socket waiver.
+  let appShutdownStarted = false, appShutdownChanged = false;
+  let appShutdown = { requested: false, complete: false, documents: [], changed: false };
+  const watchPage = page => {
+    page.on?.('framenavigated', frame => {
+      if (appShutdownStarted && frame === page.mainFrame()) appShutdownChanged = true;
+    });
+  };
+  for (const page of context.pages()) watchPage(page);
+  context.on('page', page => {
+    if (appShutdownStarted) appShutdownChanged = true;
+    watchPage(page);
+  });
+  async function shutdownApps(timeoutMs = 5000) {
+    if (appShutdownStarted) throw new Error('Synthetic document shutdown already requested');
+    appShutdownStarted = true;
+    appShutdown.requested = true;
+    let timer;
+    const pages = context.pages();
+    const documents = pages.map(page => {
+      if (page.isClosed()) return Promise.resolve({ status: 'closed-before-shutdown' });
+      let origin;
+      try { origin = new URL(page.url()).origin; } catch { return Promise.resolve({ status: 'unavailable-url' }); }
+      if (page.url() === 'about:blank') return Promise.resolve({ status: 'blank' });
+      if (origin !== cfg.siteOrigin) return Promise.resolve({ status: 'non-app' });
+      return page.evaluate(async function shutdownAppDocument() {
+        const marker = globalThis.__RAW_SYNTHETIC_APP_LIFECYCLE__;
+        if (!marker || marker.version !== 1 || !Object.isFrozen(marker)
+            || marker.state !== 'ready' || typeof marker.shutdown !== 'function') {
+          return { status: 'missing-or-invalid-registration' };
+        }
+        try {
+          const result = await marker.shutdown();
+          if (globalThis.__RAW_SYNTHETIC_APP_LIFECYCLE__ !== marker || marker.state !== 'complete') {
+            return { status: 'changed-registration' };
+          }
+          return result;
+        } catch { return { status: 'shutdown-failed' }; }
+      }).then(value => ({ status: value?.status === 'complete'
+          && ['configured', 'unconfigured'].includes(value.client) ? 'complete' : 'shutdown-failed',
+        ...(value?.status === 'complete' ? { client: value.client } : {}) }),
+      () => ({ status: 'evaluation-failed' }));
+    });
+    try {
+      const settled = await Promise.race([Promise.all(documents), new Promise(resolve => {
+        timer = setTimeout(() => resolve(null), timeoutMs);
+      })]);
+      appShutdown.documents = settled || [{ status: 'timeout' }];
+      appShutdown.complete = settled !== null && !appShutdownChanged && settled.every(row =>
+        ['complete', 'blank', 'non-app', 'closed-before-shutdown'].includes(row.status));
+      appShutdownFinished = true;
+      return appShutdownSnapshot();
+    } finally { clearTimeout(timer); }
+  }
+  function appShutdownSnapshot() {
+    return { ...appShutdown, complete: appShutdownFinished && appShutdown.complete && !appShutdownChanged && lateSocketAdmissions === 0,
+      changed: appShutdownChanged, lateSocketAdmissions, lateAdmissionPhase: 'after-app-shutdown-batch-settled', documents: appShutdown.documents.map(row => ({ ...row })) };
+  }
+
   return { stats, violations, lifecycle, socketHandlers,
+    shutdownApps, appShutdownSnapshot,
     observeFixtureUseReturned: () => observeSafely(observations.observeFixtureUseReturned),
     observeContextClose: () => observeSafely(observations.observeContextClose),
     observeFinalReceiptStart: () => observeSafely(observations.observeFinalReceiptStart),

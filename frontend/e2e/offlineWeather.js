@@ -56,7 +56,12 @@ const test = base.test.extend({
       siteOrigin: new URL(process.env.E2E_BASE_URL || 'https://dev--rawsurf.netlify.app').origin,
     });
     // Wait only for owned socket callbacks before native close invalidates their page reads.
-    const socketClose = coordinateContextClose(context, () => isolation.socketHandlers.drain());
+    const socketClose = coordinateContextClose(context, async () => {
+      const deadline = Date.now() + 5000;
+      const app = await isolation.shutdownApps(5000);
+      const drained = await isolation.socketHandlers.drain(Math.max(0, deadline - Date.now()));
+      return { ...drained, complete: app.complete && drained.complete };
+    });
     const leaks = watchLiveWeatherLeaks(context, cfg.liveOrigin);
     if (STUB_OTHER) await stubOtherLiveBackend(context, cfg.liveOrigin);
     let contextClosed = false;
@@ -71,8 +76,9 @@ const test = base.test.extend({
       } finally { socketClose.restore(); }
       const closeCoordination = socketClose.snapshot();
       const cleanup = { complete: contextClosed && weatherCleanup.complete && uiCleanup.complete
-          && (!closeCoordination.requested || closeCoordination.drain?.complete === true),
-        contextClosed, weather: weatherCleanup, ui: uiCleanup, socketClose: closeCoordination };
+          && (!closeCoordination.requested || (closeCoordination.drain?.complete === true
+            && isolation.appShutdownSnapshot().complete)),
+        contextClosed, weather: weatherCleanup, ui: uiCleanup, socketClose: closeCoordination, appShutdown: isolation.appShutdownSnapshot() };
       const { leaked, examples } = leaks();
       const row = {
         cleanup, project: testInfo.project.name, test: testInfo.titlePath.slice(1).join(' > '), retry: testInfo.retry,

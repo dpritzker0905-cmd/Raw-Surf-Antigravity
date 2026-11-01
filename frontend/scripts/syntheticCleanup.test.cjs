@@ -209,7 +209,7 @@ test('actual fixture completed read retains valid acceptance and invalid rejecti
 // Drive the actual fixture and guard; only the native context/RPC boundary is controlled.
 async function afterUseCloseRace({ user = { id: 'test-surfer-id' }, completed = false,
   independentError = false, owners = 1, pendingHttp = false, beforeReadRelease = async () => {},
-  expectComplete = true, lateUnknownDuringClose = false } = {}) {
+  expectComplete = true, lateUnknownDuringClose = false, lateKnownDuringClose = false, appScope = null, lateSocketProducer = null, shutdownStatus = 'complete' } = {}) {
   const vm = require('node:vm'), { EventEmitter } = require('node:events');
   const logs = [], definitions = actualOfflineFixture(logs);
   const finalReady = deferred(), finalRelease = deferred(), fixtureReady = deferred(), fixtureRelease = deferred();
@@ -220,6 +220,11 @@ async function afterUseCloseRace({ user = { id: 'test-surfer-id' }, completed = 
   const httpStarted = deferred(), httpRelease = deferred();
   const owner = { url: () => 'https://site.invalid/map', isClosed: () => closed,
     evaluate: async fn => {
+      if (fn.name === 'shutdownAppDocument') {
+        events.push('app-shutdown');
+        if (appScope) return vm.runInNewContext(`(${fn.toString()})()`, appScope);
+        return { status: shutdownStatus, client: 'unconfigured' };
+      }
       reads += 1; events.push('read-start'); readStarted.resolve();
       try {
         await readRelease.promise;
@@ -236,7 +241,15 @@ async function afterUseCloseRace({ user = { id: 'test-surfer-id' }, completed = 
     pages: () => Array.from({ length: owners }, () => owner),
     async close(options) {
       assert.equal(this, context, 'preserve the native close receiver');
-      closeCalls.push(options); events.push('native-close-start'); closed = true;
+      closeCalls.push(options); events.push('native-close-start');
+      if (lateSocketProducer) await lateSocketProducer(context.sockets[0].handle, socketCloses);
+      else if (lateKnownDuringClose) {
+        lateOperation = context.sockets[0].handle({ url: () => 'wss://realtime.invalid/realtime/v1/websocket',
+          connectToServer: () => assert.fail('late known producer opened upstream'),
+          close: async value => socketCloses.push(value) });
+        await lateOperation;
+      }
+      closed = true;
       if (lateUnknownDuringClose) {
         lateOperation = context.sockets[0].handle({ url: () => 'wss://realtime.invalid/realtime/v1/websocket?token=fictional-query',
           connectToServer: () => { connects += 1; assert.fail('late callback opened upstream'); },
@@ -290,12 +303,13 @@ async function afterUseCloseRace({ user = { id: 'test-surfer-id' }, completed = 
   const ui = JSON.parse(logs.find(line => line.startsWith('[SEEDED UI ISOLATION] ')).slice('[SEEDED UI ISOLATION] '.length));
   assert.equal(connects, 0); assert.equal(closeResult, 'native-close-result');
   assert.deepEqual(closeCalls, [{ reason: 'Test ended.' }]);
-  assert.deepEqual(socketCloses, Array.from({ length: lateUnknownDuringClose ? 2 : 1 },
+  assert.deepEqual(socketCloses, Array.from({ length: lateUnknownDuringClose || lateKnownDuringClose ? 2 : 1 },
     () => ({ code: 1008, reason: 'Synthetic UI fixture: no server connection' })));
   assert.deepEqual(ui.cleanup.ui, { complete: true, pending: 0, handlerErrors: 0 });
   assert.equal(ui.cleanup.complete, expectComplete);
-  assert.equal(reads, owners === 1 ? 1 : 0);
-  return { finalError, ui, events, reads, storageReads, nativeCloseBeforeReadRelease };
+  assert.equal(reads, owners === 1 ? (lateKnownDuringClose ? 2 : 1) : 0);
+  const weather = JSON.parse(logs.find(line => line.startsWith('[OFFLINE WEATHER] ')).slice('[OFFLINE WEATHER] '.length));
+  return { finalError, ui, weather, events, reads, storageReads, nativeCloseBeforeReadRelease };
 }
 
 test('after-use healthy identity read settles before native context close', async () => {
@@ -411,11 +425,73 @@ test('actual fixture keeps a pre-close drain deadline failure red while native c
 });
 
 test('actual fixture still refuses an unknown token-bearing socket arriving during native close', async () => {
-  const result = await afterUseCloseRace({ lateUnknownDuringClose: true });
-  assert.match(result.finalError.message, /Seeded UI isolation recorded 1 violation/);
+  const result = await afterUseCloseRace({ lateUnknownDuringClose: true, expectComplete: false });
+  assert.match(result.finalError.message, /synthetic cleanup incomplete/);
+  assert.equal(result.ui.cleanup.appShutdown.lateSocketAdmissions, 1);
   assert.equal(result.ui.realtimeSockets, 1); assert.equal(result.ui.blocked, 1);
   const violation = result.ui.violations[0];
   assert.equal(violation.socket.sessionObserved, false); assert.equal(violation.socket.tokenQueryPresent, true);
   assert.equal(violation.socketObservation.outcome, 'no-unique-owner');
   assert.equal(JSON.stringify(result.ui).includes('fictional-query'), false);
+});
+
+// Included by the existing hosted cleanup-contract command.
+require('./syntheticAppLifecycle.test.cjs');
+
+test('actual fixture requires app shutdown before native close and retains failure through cleanup', async () => {
+  const good = await afterUseCloseRace();
+  assert.ok(good.events.indexOf('app-shutdown') >= 0);
+  assert.ok(good.events.indexOf('app-shutdown') < good.events.indexOf('native-close-start'));
+  assert.equal(good.ui.cleanup.appShutdown.complete, true);
+  const bad = await afterUseCloseRace({ shutdownStatus: 'shutdown-failed', expectComplete: false });
+  assert.match(bad.finalError.message, /synthetic cleanup incomplete/);
+  assert.equal(bad.ui.cleanup.contextClosed, true);
+  assert.equal(bad.ui.cleanup.appShutdown.complete, false);
+});
+
+test('actual final receipt fails even a valid synthetic socket admitted after app shutdown', async () => {
+  const result = await afterUseCloseRace({ lateKnownDuringClose: true, expectComplete: false });
+  assert.match(result.finalError.message, /synthetic cleanup incomplete/);
+  assert.equal(result.ui.blocked, 0); assert.equal(result.ui.realtimeSockets, 2);
+  assert.equal(result.ui.cleanup.appShutdown.lateSocketAdmissions, 1);
+  assert.equal(result.ui.cleanup.appShutdown.complete, false);
+  assert.equal(result.ui.cleanup.contextClosed, true);
+});
+
+test('installed SDK real shutdown and late subscription fail BOTH actual final fixture receipts', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout', 'setInterval'] });
+  const { moduleReady, realClient, ControlledSocket } = require('./syntheticAppLifecycle.test.cjs');
+  try {
+    const { registerSyntheticAppLifecycle: register } = await moduleReady;
+    const sdk = await realClient();
+    const appScope = { __RAW_SYNTHETIC_APP_LIFECYCLE__: { version: 1 } };
+    let effect;
+    register(appScope, () => { effect = sdk.realtime.removeChannel(sdk.channel); }, async () => sdk.client);
+    const transports = ControlledSocket.instances.length;
+    const result = await afterUseCloseRace({ appScope, lateKnownDuringClose: true, expectComplete: false,
+      lateSocketProducer: async (handle, closes) => {
+        assert.equal(appScope.__RAW_SYNTHETIC_APP_LIFECYCLE__.state, 'complete');
+        assert.equal(sdk.realtime.connectionState(), 'closed');
+        let admission;
+        ControlledSocket.onCreate = () => {
+          admission = handle({ url: () => 'wss://realtime.invalid/realtime/v1/websocket',
+            connectToServer: () => assert.fail('late SDK opened upstream'),
+            close: async value => closes.push(value) });
+        };
+        sdk.realtime.channel('late-sdk-final-receipt-negative').subscribe();
+        await admission; ControlledSocket.onCreate = undefined;
+      } });
+    await effect;
+    assert.equal(ControlledSocket.instances.length, transports + 1);
+    assert.match(result.finalError.message, /synthetic cleanup incomplete/);
+    for (const row of [result.ui, result.weather]) {
+      assert.equal(row.cleanup.complete, false);
+      assert.equal(row.cleanup.contextClosed, true);
+      assert.equal(row.cleanup.appShutdown.complete, false);
+      assert.equal(row.cleanup.appShutdown.lateSocketAdmissions, 1);
+    }
+    assert.equal(result.ui.blocked, 0); assert.equal(result.ui.realtimeSockets, 2);
+    assert.deepEqual(result.ui.violations, []);
+    await sdk.realtime.removeAllChannels(); t.mock.timers.tick(10000);
+  } finally { ControlledSocket.onCreate = undefined; t.mock.timers.reset(); }
 });
