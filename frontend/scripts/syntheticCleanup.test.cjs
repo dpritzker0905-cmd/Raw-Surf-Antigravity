@@ -100,6 +100,7 @@ function actualOfflineFixture(logs) {
       if (name === '@playwright/test') return base;
       if (name === 'node:fs') return { appendFileSync: () => assert.fail('mock fixture wrote a ledger file') };
       if (name === './seededUiIsolation') return require('../e2e/seededUiIsolation');
+      if (name === '../scripts/offline-backend/route_lifecycle') return require('./offline-backend/route_lifecycle');
       if (name === '../scripts/offline-backend/weather_route') return require('./offline-backend/weather_route');
       throw new Error('Unexpected fixture dependency: ' + name);
     },
@@ -202,4 +203,219 @@ test('actual fixture completed read retains valid acceptance and invalid rejecti
   assert.equal(o.outcome, 'evaluated');
   assert.deepEqual(o.phaseAtReadSettlement, { fixtureUseReturned: false, contextCloseObserved: false, finalReceiptStarted: false });
   assert.ok(o.readSettlementSequence < invalid.ui.socketLifecycle.events[0].sequence);
+});
+
+
+// Drive the actual fixture and guard; only the native context/RPC boundary is controlled.
+async function afterUseCloseRace({ user = { id: 'test-surfer-id' }, completed = false,
+  independentError = false, owners = 1, pendingHttp = false, beforeReadRelease = async () => {},
+  expectComplete = true, lateUnknownDuringClose = false } = {}) {
+  const vm = require('node:vm'), { EventEmitter } = require('node:events');
+  const logs = [], definitions = actualOfflineFixture(logs);
+  const finalReady = deferred(), finalRelease = deferred(), fixtureReady = deferred(), fixtureRelease = deferred();
+  const readStarted = deferred(), readRelease = deferred();
+  let register, closed = false, readSettled = false, reads = 0, storageReads = 0, connects = 0;
+  const closeCalls = [], socketCloses = [], events = [];
+  let lateOperation;
+  const httpStarted = deferred(), httpRelease = deferred();
+  const owner = { url: () => 'https://site.invalid/map', isClosed: () => closed,
+    evaluate: async fn => {
+      reads += 1; events.push('read-start'); readStarted.resolve();
+      try {
+        await readRelease.promise;
+        return JSON.parse(JSON.stringify(vm.runInNewContext(`(${fn.toString()})()`, {
+          localStorage: { getItem: key => {
+            storageReads += 1; assert.equal(key, 'raw-surf-user'); return JSON.stringify(user);
+          } },
+        })));
+      } finally { readSettled = true; events.push('read-settled'); }
+    } };
+  const context = Object.assign(new EventEmitter(), { sockets: [], routes: [],
+    addInitScript: async () => {}, route: async (matches, handle) => { context.routes.push({ matches, handle }); },
+    routeWebSocket: async (matches, handle) => { context.sockets.push({ matches, handle }); },
+    pages: () => Array.from({ length: owners }, () => owner),
+    async close(options) {
+      assert.equal(this, context, 'preserve the native close receiver');
+      closeCalls.push(options); events.push('native-close-start'); closed = true;
+      if (lateUnknownDuringClose) {
+        lateOperation = context.sockets[0].handle({ url: () => 'wss://realtime.invalid/realtime/v1/websocket?token=fictional-query',
+          connectToServer: () => { connects += 1; assert.fail('late callback opened upstream'); },
+          close: async value => socketCloses.push(value) });
+      }
+      // Model the pinned native close boundary cancelling an already pending Evaluate.
+      if (!readSettled && reads) readRelease.reject(new Error('page.evaluate: Test ended.'));
+      await new Promise(setImmediate);
+      context.emit('close'); events.push('native-close-event'); return 'native-close-result';
+    } });
+  const finalOwner = definitions.syntheticFinalReceipt[0]({ browserName: 'local-mock-no-browser' }, async callback => {
+    register = callback; finalReady.resolve(); await finalRelease.promise;
+  });
+  const finalOutcome = finalOwner.then(() => null, error => error);
+  await finalReady.promise;
+  const fixtureOwner = definitions.offlineWeather[0]({ context, syntheticFinalReceipt: register }, async () => {
+    fixtureReady.resolve(); await fixtureRelease.promise;
+  }, { project: { name: 'local-mock-no-browser' }, titlePath: ['mock', 'after-use close race'], retry: 0 });
+  await fixtureReady.promise;
+  fixtureRelease.resolve(); await fixtureOwner; events.push('fixture-returned');
+  let httpOperation;
+  if (pendingHttp) {
+    const httpURL = 'https://backend.invalid/api/weather/client-diagnostics';
+    const httpRoute = context.routes.filter(r => typeof r.matches === 'function' && r.matches(new URL(httpURL))).at(-1);
+    assert.ok(httpRoute);
+    httpOperation = httpRoute.handle({ request: () => ({ url: () => httpURL, method: () => 'POST', headerValue: async () => null }),
+      fulfill: async () => { httpStarted.resolve(); await httpRelease.promise; events.push('http-settled'); } });
+    await httpStarted.promise;
+  }
+  const url = 'wss://realtime.invalid/realtime/v1/websocket';
+  const route = context.sockets.find(candidate => candidate.matches(new URL(url))); assert.ok(route);
+  // A native event dispatch does not await this callback before a separate close request.
+  const operation = route.handle({ url: () => url,
+    connectToServer: () => { connects += 1; assert.fail('opened upstream'); },
+    close: async value => { socketCloses.push(value); events.push('socket-close'); } });
+  if (owners === 1) {
+    await readStarted.promise;
+    if (independentError) { readRelease.reject(new Error('page.evaluate: Test ended.')); await operation; }
+    else if (completed) { readRelease.resolve(); await operation; }
+  } else await operation;
+  const closePromise = context.close({ reason: 'Test ended.' });
+  await new Promise(setImmediate);
+  const nativeCloseBeforeReadRelease = closeCalls.length > 0;
+  await beforeReadRelease();
+  // When a coordinator correctly waits, the existing read can settle before native close.
+  if (!completed && !independentError) readRelease.resolve();
+  const closeResult = await closePromise; await operation;
+  if (lateOperation) await lateOperation;
+  if (pendingHttp) { httpRelease.resolve(); await httpOperation; }
+  finalRelease.resolve(); const finalError = await finalOutcome;
+  const ui = JSON.parse(logs.find(line => line.startsWith('[SEEDED UI ISOLATION] ')).slice('[SEEDED UI ISOLATION] '.length));
+  assert.equal(connects, 0); assert.equal(closeResult, 'native-close-result');
+  assert.deepEqual(closeCalls, [{ reason: 'Test ended.' }]);
+  assert.deepEqual(socketCloses, Array.from({ length: lateUnknownDuringClose ? 2 : 1 },
+    () => ({ code: 1008, reason: 'Synthetic UI fixture: no server connection' })));
+  assert.deepEqual(ui.cleanup.ui, { complete: true, pending: 0, handlerErrors: 0 });
+  assert.equal(ui.cleanup.complete, expectComplete);
+  assert.equal(reads, owners === 1 ? 1 : 0);
+  return { finalError, ui, events, reads, storageReads, nativeCloseBeforeReadRelease };
+}
+
+test('after-use healthy identity read settles before native context close', async () => {
+  const result = await afterUseCloseRace();
+  assert.equal(result.finalError, null, 'native context teardown must not cancel an already pending valid guard read');
+  assert.equal(result.storageReads, 1); assert.equal(result.ui.realtimeSockets, 1); assert.equal(result.ui.blocked, 0);
+  assert.equal(result.nativeCloseBeforeReadRelease, false, 'one microtask delay is not sufficient coordination');
+  assert.ok(result.events.indexOf('read-settled') < result.events.indexOf('native-close-start'));
+});
+
+test('after-use invalid and token-bearing identities remain observed and refused', async () => {
+  for (const user of [{ id: 'fictional-other-owner' }, { id: 'test-surfer-id', access_token: 'fictional-token' }]) {
+    const result = await afterUseCloseRace({ user });
+    assert.match(result.finalError.message, /Seeded UI isolation recorded 1 violation/);
+    assert.equal(result.storageReads, 1);
+    const v = result.ui.violations[0]; assert.equal(v.socket.sessionObserved, true);
+    assert.equal(v.socketObservation.outcome, 'evaluated');
+    assert.equal(JSON.stringify(result.ui).includes('fictional-token'), false);
+  }
+});
+
+test('after-use completed valid control remains accepted', async () => {
+  const result = await afterUseCloseRace({ completed: true });
+  assert.equal(result.finalError, null); assert.equal(result.storageReads, 1);
+});
+
+test('after-use independent unavailable or ambiguous identity remains a policy failure', async () => {
+  for (const config of [{ independentError: true }, { owners: 2 }]) {
+    const result = await afterUseCloseRace(config);
+    assert.match(result.finalError.message, /Seeded UI isolation recorded 1 violation/);
+    assert.equal(result.ui.blocked, 1); assert.equal(result.ui.violations[0].socket.sessionObserved, false);
+    assert.equal(result.ui.violations[0].socketObservation.outcome,
+      config.owners ? 'no-unique-owner' : 'evaluate-test-ended');
+  }
+});
+
+
+test('after-use socket settlement does not wait for an unrelated HTTP handler', async () => {
+  const result = await afterUseCloseRace({ pendingHttp: true });
+  assert.equal(result.finalError, null); assert.equal(result.ui.rumAnswered, 1);
+  assert.ok(result.events.indexOf('native-close-start') < result.events.indexOf('http-settled'));
+});
+
+const { coordinateContextClose } = require('./offline-backend/route_lifecycle');
+
+test('close coordinator waits for current and newly started socket work and preserves native call', async () => {
+  const life = createRouteLifecycle(), first = deferred(), second = deferred();
+  const calls = [], options = { reason: 'local-test' };
+  const context = { close(value) { assert.equal(this, context); calls.push(value); return 'native-result'; } };
+  const nativeClose = context.close, descriptor = Object.getOwnPropertyDescriptor(context, 'close');
+  const barrier = coordinateContextClose(context, () => life.drain());
+  const one = life.wrap(() => first.promise)();
+  const close = context.close(options);
+  await new Promise(setImmediate); assert.equal(calls.length, 0);
+  const two = life.wrap(() => second.promise)(); first.resolve(); await one;
+  await new Promise(setImmediate); assert.equal(calls.length, 0);
+  second.resolve(); await two;
+  assert.equal(await close, 'native-result'); assert.deepEqual(calls, [options]);
+  assert.equal(calls[0], options);
+  const snapshot = barrier.snapshot(); assert.equal(snapshot.requested, true); assert.equal(snapshot.drain.complete, true);
+  snapshot.drain.complete = false; assert.equal(barrier.snapshot().drain.complete, true);
+  assert.equal(barrier.restore(), true); assert.equal(context.close, nativeClose);
+  assert.deepEqual(Object.getOwnPropertyDescriptor(context, 'close'), descriptor);
+});
+
+test('close coordinator preserves native rejection and restores an inherited method', async () => {
+  const nativeError = new Error('native-close-control');
+  const prototype = { close() { throw nativeError; } }, context = Object.create(prototype);
+  const barrier = coordinateContextClose(context, async () => ({ complete: true, pending: 0, handlerErrors: 0 }));
+  await assert.rejects(context.close(), error => error === nativeError);
+  assert.equal(barrier.restore(), true); assert.equal(Object.hasOwn(context, 'close'), false);
+  assert.equal(context.close, prototype.close);
+});
+
+test('close coordinator retains failed drain evidence but still permits native cleanup', async () => {
+  for (const drain of [async () => { throw new Error('private-drain-value'); },
+    async () => ({ complete: false, pending: 1, handlerErrors: 0 })]) {
+    let closes = 0;
+    const context = { close: async () => { closes += 1; return 'closed'; } };
+    const barrier = coordinateContextClose(context, drain);
+    assert.equal(await context.close(), 'closed'); assert.equal(closes, 1);
+    assert.equal(barrier.snapshot().drain.complete, false);
+    assert.equal(JSON.stringify(barrier.snapshot()).includes('private-drain-value'), false);
+    barrier.restore();
+  }
+});
+
+test('close coordinator shares only the barrier and forwards each native invocation', async () => {
+  const release = deferred(), calls = []; let drains = 0;
+  const context = { close: async value => { calls.push(value); return value; } };
+  const barrier = coordinateContextClose(context, async () => { drains += 1; await release.promise;
+    return { complete: true, pending: 0, handlerErrors: 0 }; });
+  const a = context.close('first'), b = context.close('second');
+  await new Promise(setImmediate); assert.equal(calls.length, 0); assert.equal(drains, 1);
+  release.resolve(); assert.deepEqual(await Promise.all([a, b]), ['first', 'second']);
+  assert.deepEqual(calls, ['first', 'second']);
+  const replacement = () => 'other-owner'; context.close = replacement;
+  assert.equal(barrier.restore(), false); assert.equal(context.close, replacement);
+});
+
+
+test('actual fixture keeps a pre-close drain deadline failure red while native cleanup finishes', async t => {
+  t.mock.timers.enable({ apis: ['setTimeout'] });
+  try {
+    const result = await afterUseCloseRace({ expectComplete: false, beforeReadRelease: async () => {
+      t.mock.timers.tick(5000); await new Promise(setImmediate);
+    } });
+    assert.match(result.finalError.message, /synthetic cleanup incomplete/);
+    assert.equal(result.ui.cleanup.socketClose.requested, true);
+    assert.equal(result.ui.cleanup.socketClose.drain.complete, false);
+    assert.equal(result.ui.cleanup.contextClosed, true);
+  } finally { t.mock.timers.reset(); }
+});
+
+test('actual fixture still refuses an unknown token-bearing socket arriving during native close', async () => {
+  const result = await afterUseCloseRace({ lateUnknownDuringClose: true });
+  assert.match(result.finalError.message, /Seeded UI isolation recorded 1 violation/);
+  assert.equal(result.ui.realtimeSockets, 1); assert.equal(result.ui.blocked, 1);
+  const violation = result.ui.violations[0];
+  assert.equal(violation.socket.sessionObserved, false); assert.equal(violation.socket.tokenQueryPresent, true);
+  assert.equal(violation.socketObservation.outcome, 'no-unique-owner');
+  assert.equal(JSON.stringify(result.ui).includes('fictional-query'), false);
 });

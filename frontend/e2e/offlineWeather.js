@@ -20,6 +20,7 @@
 const fs = require('node:fs');
 const base = require('@playwright/test');
 const { installSeededUiIsolation } = require('./seededUiIsolation');
+const { coordinateContextClose } = require('../scripts/offline-backend/route_lifecycle');
 const {
   weatherRouteConfig, routeWeatherToLocal, watchLiveWeatherLeaks, stubOtherLiveBackend,
 } = require('../scripts/offline-backend/weather_route');
@@ -54,17 +55,24 @@ const test = base.test.extend({
       liveOrigin: cfg.liveOrigin,
       siteOrigin: new URL(process.env.E2E_BASE_URL || 'https://dev--rawsurf.netlify.app').origin,
     });
+    // Wait only for owned socket callbacks before native close invalidates their page reads.
+    const socketClose = coordinateContextClose(context, () => isolation.socketHandlers.drain());
     const leaks = watchLiveWeatherLeaks(context, cfg.liveOrigin);
     if (STUB_OTHER) await stubOtherLiveBackend(context, cfg.liveOrigin);
     let contextClosed = false;
     context.on('close', () => { contextClosed = true; isolation.observeContextClose(); });
     syntheticFinalReceipt(async () => {
       isolation.observeFinalReceiptStart();
-      const [weatherCleanup, uiCleanup] = await Promise.all([
-        stats.lifecycle.drain(), isolation.lifecycle.drain(),
-      ]);
-      const cleanup = { complete: contextClosed && weatherCleanup.complete && uiCleanup.complete,
-        contextClosed, weather: weatherCleanup, ui: uiCleanup };
+      let weatherCleanup, uiCleanup;
+      try {
+        [weatherCleanup, uiCleanup] = await Promise.all([
+          stats.lifecycle.drain(), isolation.lifecycle.drain(),
+        ]);
+      } finally { socketClose.restore(); }
+      const closeCoordination = socketClose.snapshot();
+      const cleanup = { complete: contextClosed && weatherCleanup.complete && uiCleanup.complete
+          && (!closeCoordination.requested || closeCoordination.drain?.complete === true),
+        contextClosed, weather: weatherCleanup, ui: uiCleanup, socketClose: closeCoordination };
       const { leaked, examples } = leaks();
       const row = {
         cleanup, project: testInfo.project.name, test: testInfo.titlePath.slice(1).join(' > '), retry: testInfo.retry,

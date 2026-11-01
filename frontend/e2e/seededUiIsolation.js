@@ -140,6 +140,7 @@ async function installSeededUiIsolation(context, config) {
     adminSockets: 0, callSockets: 0, realtimeSockets: 0, blocked: 0 };
   const violations = [];
   const lifecycle = createRouteLifecycle();
+  const socketHandlers = createRouteLifecycle();
   const observations = socketObservations();
   const record = (kind, method, path, socket, socketObservation) => {
     stats.blocked += 1;
@@ -209,7 +210,7 @@ async function installSeededUiIsolation(context, config) {
     stats[kind === 'admin' ? 'adminReads' : 'diagnosticsReads'] += 1;
   }));
 
-  await context.routeWebSocket(url => !!socketKind(url, cfg), lifecycle.wrap(async socket => {
+  await context.routeWebSocket(url => !!socketKind(url, cfg), socketHandlers.wrap(lifecycle.wrap(async socket => {
     let observation;
     try { observation = observations.handler(); } catch { /* diagnostic only */ }
     const url = new URL(socket.url());
@@ -235,7 +236,7 @@ async function installSeededUiIsolation(context, config) {
     }
     // Deliberately never call connectToServer(), even on invalid sessions or unknown protected paths.
     await socket.close({ code: 1008, reason: 'Synthetic UI fixture: no server connection' });
-  }));
+  })));
 
   context.on('response', response => {
     const url = new URL(response.url());
@@ -247,7 +248,7 @@ async function installSeededUiIsolation(context, config) {
     record(`unmarked-${kind}-response`, method, path);
   });
 
-  return { stats, violations, lifecycle,
+  return { stats, violations, lifecycle, socketHandlers,
     observeFixtureUseReturned: () => observeSafely(observations.observeFixtureUseReturned),
     observeContextClose: () => observeSafely(observations.observeContextClose),
     observeFinalReceiptStart: () => observeSafely(observations.observeFinalReceiptStart),
