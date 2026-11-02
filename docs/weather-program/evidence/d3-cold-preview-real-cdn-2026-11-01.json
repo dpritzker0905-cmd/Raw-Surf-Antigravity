@@ -1,0 +1,474 @@
+{
+ "what": "D3 real-CDN comparison: the published GFS waves 2-deg world frame (global_mid) vs the 0.25-deg pilot tile (bundle) at the same valid time, for every valid tile node in each box; heights bilinear from the world frame; colour = the checkers model (wave-lib.mjs composite at the coastal alpha 0.77; light spectrum, beach v1; dark not modelled there). A read of the PUBLIC weather-frames bucket only (approved by the lead 2026-11-01), never the Render box.",
+ "world": {
+  "index": "v1/gfs/marine/waves/global_mid/index/20261101T180000Z-280f0bdf4bb4.json",
+  "valid_time": "2026-11-02T00:00:00Z"
+ },
+ "boxes": {
+  "cocoa_z9 (the owner's live z9 box)": {
+   "set": "GFS/marine/waves/florida_east_coast",
+   "tile_valid": "2026-11-02T00:00:00Z",
+   "nodes": 30,
+   "world_land_neighbour_nodes": 0,
+   "mean_signed_ft": -0.37,
+   "abs_ft_p50": 0.57,
+   "abs_ft_p95": 0.79,
+   "abs_ft_max": 1.0,
+   "tile_m_mean": 2.28,
+   "world_m_mean": 2.17
+  },
+  "florida_offshore (-80.2..-79.2, 27..29)": {
+   "set": "GFS/marine/waves/florida_east_coast",
+   "tile_valid": "2026-11-02T00:00:00Z",
+   "nodes": 36,
+   "world_land_neighbour_nodes": 0,
+   "mean_signed_ft": -0.48,
+   "abs_ft_p50": 0.6,
+   "abs_ft_p95": 0.78,
+   "abs_ft_max": 0.8,
+   "tile_m_mean": 2.48,
+   "world_m_mean": 2.33
+  },
+  "outer_banks_offshore (-75.4..-74.6, 34..36)": {
+   "set": "GFS/marine/waves/us_southeast_midatlantic",
+   "tile_valid": "2026-11-02T00:00:00Z",
+   "nodes": 27,
+   "world_land_neighbour_nodes": 0,
+   "mean_signed_ft": -0.31,
+   "abs_ft_p50": 0.3,
+   "abs_ft_p95": 0.86,
+   "abs_ft_max": 1.13,
+   "tile_m_mean": 1.49,
+   "world_m_mean": 1.4
+  }
+ },
+ "colour_dE2000": {
+  "cocoa_z9 (the owner's live z9 box)": {
+   "light": {
+    "n": 30,
+    "p50": 5.66,
+    "p95": 9.5,
+    "max": 12.29
+   },
+   "beach": {
+    "n": 30,
+    "p50": 5.37,
+    "p95": 13.97,
+    "max": 18.76
+   }
+  },
+  "florida_offshore (-80.2..-79.2, 27..29)": {
+   "light": {
+    "n": 36,
+    "p50": 5.39,
+    "p95": 6.76,
+    "max": 9.91
+   },
+   "beach": {
+    "n": 36,
+    "p50": 3.91,
+    "p95": 7.76,
+    "max": 16.38
+   }
+  },
+  "outer_banks_offshore (-75.4..-74.6, 34..36)": {
+   "light": {
+    "n": 27,
+    "p50": 3.89,
+    "p95": 10.37,
+    "max": 13.85
+   },
+   "beach": {
+    "n": 27,
+    "p50": 10.46,
+    "p95": 19.93,
+    "max": 24.1
+   }
+  }
+ },
+ "world_land_nodes": {
+  "total_nodes": 15023,
+  "none_nodes": 4855,
+  "cocoa_z9": 0,
+  "outer_banks_z9": 2,
+  "baja_pacific_z8 (no pilot box)": 0,
+  "open_atlantic_z8": 0
+ },
+ "download": {
+  "bytes": 745592,
+  "objects": 8
+ },
+ "caveat": "Tile node heights are 0.25-deg OFFSHORE significant wave heights, not breaking heights; one valid time.",
+ "rerun_after_coast_test": {
+  "world": {
+   "index": "v1/gfs/marine/waves/global_mid/index/20261101T180000Z-280f0bdf4bb4.json",
+   "valid_time": "2026-11-02T03:00:00Z"
+  },
+  "boxes": {
+   "cocoa_z9 (the owner's live z9 box)": {
+    "set": "GFS/marine/waves/florida_east_coast",
+    "tile_valid": "2026-11-02T03:00:00Z",
+    "nodes": 30,
+    "world_land_neighbour_nodes": 0,
+    "mean_signed_ft": -0.23,
+    "abs_ft_p50": 0.47,
+    "abs_ft_p95": 0.94,
+    "abs_ft_max": 1.24,
+    "tile_m_mean": 2.31,
+    "world_m_mean": 2.24
+   },
+   "florida_offshore (-80.2..-79.2, 27..29)": {
+    "set": "GFS/marine/waves/florida_east_coast",
+    "tile_valid": "2026-11-02T03:00:00Z",
+    "nodes": 36,
+    "world_land_neighbour_nodes": 0,
+    "mean_signed_ft": -0.44,
+    "abs_ft_p50": 0.48,
+    "abs_ft_p95": 0.87,
+    "abs_ft_max": 0.99,
+    "tile_m_mean": 2.53,
+    "world_m_mean": 2.4
+   },
+   "outer_banks_offshore (-75.4..-74.6, 34..36)": {
+    "set": "GFS/marine/waves/us_southeast_midatlantic",
+    "tile_valid": "2026-11-02T03:00:00Z",
+    "nodes": 27,
+    "world_land_neighbour_nodes": 0,
+    "mean_signed_ft": -0.36,
+    "abs_ft_p50": 0.31,
+    "abs_ft_p95": 0.95,
+    "abs_ft_max": 1.16,
+    "tile_m_mean": 1.47,
+    "world_m_mean": 1.36
+   }
+  },
+  "colour_dE2000": {
+   "cocoa_z9 (the owner's live z9 box)": {
+    "light": {
+     "n": 30,
+     "p50": 4.74,
+     "p95": 11.59,
+     "max": 14.95
+    },
+    "beach": {
+     "n": 30,
+     "p50": 3.66,
+     "p95": 17.5,
+     "max": 20.88
+    }
+   },
+   "florida_offshore (-80.2..-79.2, 27..29)": {
+    "light": {
+     "n": 36,
+     "p50": 4.46,
+     "p95": 6.79,
+     "max": 7.68
+    },
+    "beach": {
+     "n": 36,
+     "p50": 3.37,
+     "p95": 6.73,
+     "max": 6.8
+    }
+   },
+   "outer_banks_offshore (-75.4..-74.6, 34..36)": {
+    "light": {
+     "n": 27,
+     "p50": 3.93,
+     "p95": 11.22,
+     "max": 14.23
+    },
+    "beach": {
+     "n": 27,
+     "p50": 12.03,
+     "p95": 25.51,
+     "max": 27.25
+    }
+   }
+  },
+  "world_land_nodes": {
+   "total_nodes": 15023,
+   "none_nodes": 4856,
+   "cocoa_z9": 0,
+   "outer_banks_z9": 2,
+   "baja_pacific_z8 (no pilot box)": 0,
+   "open_atlantic_z8": 0
+  },
+  "download": {
+   "bytes": 745481,
+   "objects": 8
+  }
+ },
+ "coast_test_offline_harness": {
+  "what": "scn_cold_veil.js on the build with the coastline rule; baja = -112.5,24.5 z8 (Bahia Magdalena, no pilot box), ocean = -50,30 z8, cocoa = -80.6,28.1 z9 with the bundles off. preview = the default (ON), nopreview = __RAW_DISABLE_COLD_PREVIEW__.",
+  "runs": {
+   "run6_coast.json": {
+    "summary": {
+     "ocean/preview": {
+      "n": 3,
+      "blankP50": 111,
+      "blankP95": 115,
+      "firstToDetailP50": 3494,
+      "firstToDetailP95": 5880,
+      "lifts": {
+       "grace": 1,
+       "adequate": 2
+      },
+      "mismatchFrames": 0,
+      "dEmean": 9.65
+     },
+     "ocean/nopreview": {
+      "n": 3,
+      "blankP50": 3393,
+      "blankP95": 3809,
+      "firstToDetailP50": 3306,
+      "firstToDetailP95": 3687,
+      "lifts": {
+       "adequate": 3
+      },
+      "mismatchFrames": 0,
+      "dEmean": 48.33
+     },
+     "baja/preview": {
+      "n": 3,
+      "blankP50": 3754,
+      "blankP95": 3891,
+      "firstToDetailP50": 3872,
+      "firstToDetailP95": 4324,
+      "lifts": {
+       "grace": 2,
+       "adequate": 1
+      },
+      "mismatchFrames": 0,
+      "dEmean": 16.32
+     },
+     "baja/nopreview": {
+      "n": 3,
+      "blankP50": 3683,
+      "blankP95": 3777,
+      "firstToDetailP50": 4728,
+      "firstToDetailP95": 4940,
+      "lifts": {
+       "grace": 2,
+       "adequate": 1
+      },
+      "mismatchFrames": 0,
+      "dEmean": 12.08
+     }
+    },
+    "sessions": [
+     {
+      "view": "ocean",
+      "arm": "preview",
+      "round": 0,
+      "blankMs": 115,
+      "previewFrames": 113,
+      "previewWhy": null,
+      "lift": "grace",
+      "mismatchTotal": 0
+     },
+     {
+      "view": "ocean",
+      "arm": "nopreview",
+      "round": 0,
+      "blankMs": 3809,
+      "previewFrames": 0,
+      "previewWhy": null,
+      "lift": "adequate",
+      "mismatchTotal": 0
+     },
+     {
+      "view": "baja",
+      "arm": "preview",
+      "round": 0,
+      "blankMs": 3695,
+      "previewFrames": 0,
+      "previewWhy": "coastline",
+      "lift": "grace",
+      "mismatchTotal": 0
+     },
+     {
+      "view": "baja",
+      "arm": "nopreview",
+      "round": 0,
+      "blankMs": 3683,
+      "previewFrames": 0,
+      "previewWhy": null,
+      "lift": "grace",
+      "mismatchTotal": 0
+     },
+     {
+      "view": "ocean",
+      "arm": "nopreview",
+      "round": 1,
+      "blankMs": 3354,
+      "previewFrames": 0,
+      "previewWhy": null,
+      "lift": "adequate",
+      "mismatchTotal": 0
+     },
+     {
+      "view": "ocean",
+      "arm": "preview",
+      "round": 1,
+      "blankMs": 111,
+      "previewFrames": 85,
+      "previewWhy": null,
+      "lift": "adequate",
+      "mismatchTotal": 0
+     },
+     {
+      "view": "baja",
+      "arm": "nopreview",
+      "round": 1,
+      "blankMs": 3777,
+      "previewFrames": 0,
+      "previewWhy": null,
+      "lift": "grace",
+      "mismatchTotal": 0
+     },
+     {
+      "view": "baja",
+      "arm": "preview",
+      "round": 1,
+      "blankMs": 3891,
+      "previewFrames": 0,
+      "previewWhy": "coastline",
+      "lift": "adequate",
+      "mismatchTotal": 0
+     },
+     {
+      "view": "ocean",
+      "arm": "preview",
+      "round": 2,
+      "blankMs": 99,
+      "previewFrames": 134,
+      "previewWhy": null,
+      "lift": "adequate",
+      "mismatchTotal": 0
+     },
+     {
+      "view": "ocean",
+      "arm": "nopreview",
+      "round": 2,
+      "blankMs": 3393,
+      "previewFrames": 0,
+      "previewWhy": null,
+      "lift": "adequate",
+      "mismatchTotal": 0
+     },
+     {
+      "view": "baja",
+      "arm": "preview",
+      "round": 2,
+      "blankMs": 3754,
+      "previewFrames": 0,
+      "previewWhy": "coastline",
+      "lift": "grace",
+      "mismatchTotal": 0
+     },
+     {
+      "view": "baja",
+      "arm": "nopreview",
+      "round": 2,
+      "blankMs": 3639,
+      "previewFrames": 0,
+      "previewWhy": null,
+      "lift": "adequate",
+      "mismatchTotal": 0
+     }
+    ]
+   },
+   "run6_cocoa.json": {
+    "summary": {
+     "cocoa/preview_nr": {
+      "n": 3,
+      "blankP50": 2579,
+      "blankP95": 2879,
+      "firstToDetailP50": 2516,
+      "firstToDetailP95": 2818,
+      "lifts": {
+       "adequate": 3
+      },
+      "mismatchFrames": 0,
+      "dEmean": 46.31
+     },
+     "cocoa/nopreview_nr": {
+      "n": 3,
+      "blankP50": 2752,
+      "blankP95": 2794,
+      "firstToDetailP50": 2694,
+      "firstToDetailP95": 2742,
+      "lifts": {
+       "adequate": 3
+      },
+      "mismatchFrames": 0,
+      "dEmean": 43.05
+     }
+    },
+    "sessions": [
+     {
+      "view": "cocoa",
+      "arm": "preview_nr",
+      "round": 0,
+      "blankMs": 2082,
+      "previewFrames": 0,
+      "previewWhy": "pilot_box",
+      "lift": "adequate",
+      "mismatchTotal": 0
+     },
+     {
+      "view": "cocoa",
+      "arm": "nopreview_nr",
+      "round": 0,
+      "blankMs": 503,
+      "previewFrames": 0,
+      "previewWhy": null,
+      "lift": "adequate",
+      "mismatchTotal": 0
+     },
+     {
+      "view": "cocoa",
+      "arm": "nopreview_nr",
+      "round": 1,
+      "blankMs": 2794,
+      "previewFrames": 0,
+      "previewWhy": null,
+      "lift": "adequate",
+      "mismatchTotal": 0
+     },
+     {
+      "view": "cocoa",
+      "arm": "preview_nr",
+      "round": 1,
+      "blankMs": 2879,
+      "previewFrames": 0,
+      "previewWhy": "pilot_box",
+      "lift": "adequate",
+      "mismatchTotal": 0
+     },
+     {
+      "view": "cocoa",
+      "arm": "preview_nr",
+      "round": 2,
+      "blankMs": 2579,
+      "previewFrames": 0,
+      "previewWhy": "pilot_box",
+      "lift": "adequate",
+      "mismatchTotal": 0
+     },
+     {
+      "view": "cocoa",
+      "arm": "nopreview_nr",
+      "round": 2,
+      "blankMs": 2752,
+      "previewFrames": 0,
+      "previewWhy": null,
+      "lift": "adequate",
+      "mismatchTotal": 0
+     }
+    ]
+   }
+  }
+ }
+}

@@ -167,7 +167,10 @@ export function publishWindDrawn(grid, fallback = {}) {
     validTime: grid.served_valid_time || grid.valid_time || null,
     dataMs: Date.parse(grid.served_valid_time || (grid.__fromSeries ? grid.valid_time : '') || '') || null,
     estimated: !!(grid.is_estimated || grid.isEstimated),
-    basisType: null,
+    basisType: grid.time_blend ? 'wind_time_blend' : null,
+    // The wind f120+ tail blend (windTimeBlend.js): the two stored frames it came from, as instants. drawnFrameReadout words them
+    // (no import from it here: drawnFrameReadout is the module that formats, this one only records).
+    timeBlend: grid.time_blend ? { fromMs: Date.parse(grid.time_blend.from), toMs: Date.parse(grid.time_blend.to) } : null,
     runMs: Date.parse((grid.model_run_time_status === 'known' && grid.model_run_time) || '') || null,   // its verified cycle (runMsOf)
     provider: grid.provider || null,
     ts: Date.now(),

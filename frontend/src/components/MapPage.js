@@ -21,6 +21,7 @@ import MapPageModals from './map/MapPageModals';
 import MapWeatherControls from './map/MapWeatherControls';
 import MapForecastOverlay from './map/MapForecastOverlay';
 import { prewarmStaticFrames } from './map/staticFrames';
+import { prewarmRegionalForCamera } from './map/staticRegionalPrewarm';
 import { RequestProButton } from './map/RequestProButton';
 // isValidLatLng guards the flyTo below (L~478). It was USED but never imported — a live
 // ReferenceError on the map-search spot-click path, invisible until the ESLint config was
@@ -211,6 +212,8 @@ var MapPageContent = () => {
   // BOOT WARM-UP (skills audit #2): the static frames' worker, latest.json, the model's index and the current hour's frame start
   // now, while the style and tiles load, not after the first Waves click (staticFrames.prewarmStaticFrames; once per page load).
   useEffect(() => { prewarmStaticFrames({ model: activeModel }); }, [activeModel]);
+  // ...and the regional z7-9 bundle of the first view the map settles on inside a pilot box (D3: the detailed first paint from the CDN).
+  useEffect(() => { prewarmRegionalForCamera({ model: activeModel, getMap: () => mapInstanceRef.current }); }, [activeModel]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
