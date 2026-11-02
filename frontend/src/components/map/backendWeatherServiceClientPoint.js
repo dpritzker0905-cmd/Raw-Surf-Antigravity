@@ -8,6 +8,7 @@ import { pointRequestIdentityEnabled, createPointRequestContext, childPointReque
 import { marineValueValidityEnabled, marinePointValues } from './marinePointValues';
 import { readMarineFrameReceipt } from './marineFrameReceipt';
 import { hintIsForeign, refuseForeignReply } from './pointProductHint';
+import { iconPointStoredTailEnabled } from './iconEstimateDelivery';
 
 export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer = 'waves', model = 'GFS', gridProductIdParam = null, gridBboxParam = null, requestContext = null) {
   requestContext = pointRequestIdentityEnabled()
@@ -17,7 +18,9 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
     return fetchBackendExactPoint(lat, lng, hour, signal, childLayer, childModel,
       context ? context.gridProductId : gridProductIdParam, context ? context.gridBbox : gridBboxParam, context);
   };
-  if (model === 'ICON' && hourOffset > 168) {
+  // P1-B (DARK, iconEstimateDelivery.iconPointStoredTailEnabled): with the flag on, ICON past 168 is asked of /point like any hour
+  // and answered from the stored estimate the heat map draws; off, the browser blend below runs exactly as before.
+  if (model === 'ICON' && hourOffset > 168 && !iconPointStoredTailEnabled(layer)) {
     if (hourOffset <= 240 && layer === 'swell_2') {
       // Fall through to unsupported swell_2 response below
     } else {
