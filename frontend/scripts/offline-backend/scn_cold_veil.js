@@ -16,7 +16,7 @@
 //   cur        the default build (A words ON, B regional prewarm ON, regional bundles ON)
 //   noprewarm  __RAW_DISABLE_REGIONAL_PREWARM__        nowords  __RAW_DISABLE_VEIL_WORDS__ (the D3 reading)
 //   noregional __RAW_DISABLE_REGIONAL_BUNDLES__ (+ no prewarm: nothing regional from the CDN)
-//   preview    __RAW_COLD_PREVIEW__                    preview_show  + __RAW_COLD_PREVIEW_COAST__ = 'show'
+//   preview    the default (ON since the owner's pick)  nopreview  __RAW_DISABLE_COLD_PREVIEW__   preview_show  __RAW_COLD_PREVIEW_COAST__ = 'show'
 //   preview_nr / preview_show_nr / cur_nr              the same with __RAW_DISABLE_REGIONAL_BUNDLES__ (the detail on /grid)
 //
 //   python frontend/scripts/offline-backend/serve_synthetic_selector.py --dir <store> --models GFS --regions florida_east_coast --dynamic 1 --port 4100
@@ -47,11 +47,12 @@ const SHOTS = process.env.SHOTS || '';
 const SHOT_MS = +(process.env.SHOT_MS || 250);
 if (!CDN_DIR) throw Error('CDN_DIR=<publisher --out-dir> is required');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const VIEW = { cocoa: { c: [-80.6, 28.1], z: 9 }, ocean: { c: [-50, 30], z: 8 } };
+const VIEW = { cocoa: { c: [-80.6, 28.1], z: 9 }, ocean: { c: [-50, 30], z: 8 }, baja: { c: [-112.5, 24.5], z: 8 } };   // baja: Bahia Magdalena, no pilot box
 const FLAGS = {
   cur: {}, nowords: { __RAW_DISABLE_VEIL_WORDS__: true }, noprewarm: { __RAW_DISABLE_REGIONAL_PREWARM__: true },
-  noregional: { __RAW_DISABLE_REGIONAL_BUNDLES__: true }, preview: { __RAW_COLD_PREVIEW__: true },
-  preview_show: { __RAW_COLD_PREVIEW__: true, __RAW_COLD_PREVIEW_COAST__: 'show' },
+  noregional: { __RAW_DISABLE_REGIONAL_BUNDLES__: true },
+  // the preview is ON by default since the owner's pick (2026-11-01); `preview` is kept as a name for the default
+  preview: {}, nopreview: { __RAW_DISABLE_COLD_PREVIEW__: true }, preview_show: { __RAW_COLD_PREVIEW_COAST__: 'show' },
 };
 const flagsOf = (arm) => { const nr = /_nr$/.test(arm); const base = arm.replace(/_nr$/, ''); return { ...(FLAGS[base] || {}), ...(nr ? FLAGS.noregional : {}) }; };
 
