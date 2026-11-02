@@ -140,3 +140,53 @@ test('socket-diagnostic opt-in refuses test-path lookalikes and mixed production
     assert.throws(() => selectScope({ ...marked, files: [...socketDiagnosticHarness, path] }), /refusing browser execution/);
   }
 });
+
+const connectionDiagnosticHarness = ['.github/workflows/e2e-tests.yml',
+  'frontend/scripts/offline-backend/serve_synthetic.py',
+  'frontend/scripts/offline-backend/connection_diagnostics.py',
+  'frontend/scripts/offline-backend/test_connection_diagnostics.py',
+  'frontend/scripts/e2eHarnessScope.cjs', 'frontend/scripts/e2eHarnessScope.test.cjs'];
+
+test('exact connection-logging integration chooses Chromium in selector and actual CLI', () => {
+  assert.deepEqual(selectScope({ ...marked, files: connectionDiagnosticHarness }),
+    { project: 'Desktop Chrome', scope: 'harness-chromium' });
+  const cli = runCli({ before: 'a'.repeat(40), head_commit: { message: marked.message } },
+    { files: connectionDiagnosticHarness });
+  assert.equal(cli.writes[0].text, 'project=Desktop Chrome\nscope=harness-chromium\n');
+});
+
+test('unmarked connection logging preserves normal browser selection', () => {
+  assert.deepEqual(selectScope({ eventName: 'push', message: 'normal logging', files: connectionDiagnosticHarness }),
+    { project: '', scope: 'normal-regression' });
+});
+
+test('connection-logging marker refuses lookalikes, folders and mixed application or weather paths', () => {
+  for (const other of ['frontend/scripts/offline-backend/connection_diagnostics.py.extra',
+    'frontend/scripts/offline-backend/test_connection_diagnostics.js',
+    'frontend/scripts/offline-backend/', 'frontend/src/App.js',
+    'backend/services/weather_pipeline/grid_resolver.py', 'docs/weather-program/STATE.md']) {
+    assert.throws(() => selectScope({ ...marked, files: [...connectionDiagnosticHarness, other] }), /refusing browser execution/);
+  }
+});
+
+const ciCorrectionHarness = ['.github/workflows/ci.yml',
+  'backend/tests/test_ci_floor_staleness.py', 'backend/tests/test_guardian_level_gates.py',
+  'frontend/scripts/e2eHarnessScope.cjs', 'frontend/scripts/e2eHarnessScope.test.cjs'];
+
+test('exact test-only CI correction selects Chromium while unmarked selection stays normal', () => {
+  assert.deepEqual(selectScope({ ...marked, files: ciCorrectionHarness }),
+    { project: 'Desktop Chrome', scope: 'harness-chromium' });
+  const cli = runCli({ before: 'a'.repeat(40), head_commit: { message: marked.message } },
+    { files: ciCorrectionHarness });
+  assert.equal(cli.writes[0].text, 'project=Desktop Chrome\nscope=harness-chromium\n');
+  assert.deepEqual(selectScope({ eventName: 'push', message: 'normal CI correction', files: ciCorrectionHarness }),
+    { project: '', scope: 'normal-regression' });
+});
+
+test('CI correction opt-in refuses metadata lookalikes and actual guardian or weather runtime changes', () => {
+  for (const other of ['.github/workflows/ci.yml.extra', 'backend/tests/test_guardian_level_gates.py.extra',
+    'backend/tests/', 'backend/routes/auth_pkg/auth.py', 'backend/services/guardian_levels.py',
+    'backend/services/weather_pipeline/grid_resolver.py', 'frontend/src/App.js']) {
+    assert.throws(() => selectScope({ ...marked, files: [...ciCorrectionHarness, other] }), /refusing browser execution/);
+  }
+});

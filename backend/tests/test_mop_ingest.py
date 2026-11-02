@@ -102,3 +102,84 @@ def test_the_committed_table_maps_the_buoys_at_their_own_depth():
     for s in d["stations"]:
         assert s["cell"]["depth_m"] == pytest.approx(s["depth_m"], rel=MOP.STATION_DEPTH_TOLERANCE)
         assert s["cell"]["km"] <= MOP.STATION_MAX_KM
+
+
+# ── A BRIEF CDIP REFUSAL IS ASKED AGAIN (2026-11-01: runs 41179795410 and 41334764404 got 403 on all 14 grids,
+# archived nothing, and the next runs answered 88/88). ─────────────────────────────────────────────────────────
+DAS = 'Attributes { NC_GLOBAL { String date_created "2026-11-01T15:30:00Z"; } }'
+DDS = "Dataset { Int32 waveTime[waveTime = 16]; } x;"
+
+
+def _http(code):
+    import urllib.error
+    return urllib.error.HTTPError("https://thredds.example/x", code, "refused", None, None)
+
+
+@pytest.mark.parametrize("exc, transient", [
+    (_http(403), True), (_http(429), True), (_http(503), True),
+    (_http(404), False), (_http(400), False), (TimeoutError(), True), (ValueError("bad"), False)])
+def test_only_refusals_throttling_server_errors_and_drops_are_asked_again(exc, transient):
+    assert _ingest().is_transient(exc) is transient
+
+
+def test_a_pass_where_no_grid_answers_is_retried_and_then_reads_every_grid(monkeypatch):
+    mod = _ingest()
+    monkeypatch.setattr(mod, "run_stamp", lambda das: "2026-11-01T15:00:00Z")
+    calls, slept = {"n": 0}, []
+
+    def get(url):
+        calls["n"] += 1
+        if calls["n"] <= 2:                       # the first pass: both grids refused
+            raise _http(403)
+        return DAS if url.endswith(".das") else DDS
+
+    runs, sizes = mod.read_grid_metadata(["A", "B"], get=get, sleep=slept.append, phase_sleeps=(30, 90))
+    assert sizes == {"A": 16, "B": 16} and set(runs) == {"A", "B"}
+    assert slept == [30], "one wait before the second pass, none after it answered"
+
+
+def test_a_grid_that_answers_is_not_asked_again_and_a_dead_one_gives_up_after_the_schedule(monkeypatch):
+    mod = _ingest()
+    monkeypatch.setattr(mod, "run_stamp", lambda das: "r")
+    slept = []
+
+    def get(url):
+        if "/B." in url:
+            raise _http(404)
+        return DAS if url.endswith(".das") else DDS
+
+    runs, sizes = mod.read_grid_metadata(["A", "B"], get=get, sleep=slept.append, phase_sleeps=(30, 90))
+    assert sizes == {"A": 16} and "B" not in runs
+    assert slept == [], "a pass where some grid answered is not retried"
+
+
+def test_a_single_request_retries_once_on_a_refusal_but_not_on_a_missing_file(monkeypatch):
+    mod = _ingest()
+    seen, slept = [], []
+
+    class Resp:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *a):
+            return False
+
+        def read(self):
+            return b"ok"
+
+    def urlopen(req, timeout):
+        seen.append(req.full_url)
+        if len(seen) == 1:
+            raise _http(403)
+        return Resp()
+
+    monkeypatch.setattr(mod.urllib.request, "urlopen", urlopen)
+    assert mod._get("https://thredds.example/a", sleep=slept.append) == "ok" and len(seen) == 2 and slept == [2.0]
+
+    def urlopen_404(req, timeout):
+        raise _http(404)
+
+    monkeypatch.setattr(mod.urllib.request, "urlopen", urlopen_404)
+    with pytest.raises(Exception):
+        mod._get("https://thredds.example/b", sleep=slept.append)
+    assert slept == [2.0], "a missing file is not asked again"

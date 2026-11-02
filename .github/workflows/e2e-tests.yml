@@ -151,7 +151,7 @@ jobs:
       - name: Verify correlated synthetic series diagnostics
         working-directory: frontend
         run: |
-          python -m unittest discover -s scripts/offline-backend -p test_series_diagnostics.py -v
+          python -m unittest discover -s scripts/offline-backend -p 'test_*diagnostics.py' -v
           node --test scripts/seriesDiagnostics.test.cjs
 
       - name: Install Playwright browsers

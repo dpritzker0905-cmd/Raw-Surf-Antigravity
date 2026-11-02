@@ -181,7 +181,8 @@ jobs:
             // ICON one-instant range (2026-10-28, stacked on #623): iconOneInstantRange.test.js (+1 suite / +5 tests). Raised by exactly that.
             // Nearest by stored lattice (2026-10-28, D8): storedLattice.test.js (+1 suite / +7 tests). Raised by exactly that.
             // Forecast point settle (2026-10-28, D10): useOpenMeteoForecast.d10.test.js (+1 suite / +5 tests). Raised by exactly that.
-            const MIN_SUITES = 527, MIN_TESTS = 6919;
+            // ICON point stored tail (2026-11-01, P1-B, dark): iconPointStoredTail.test.js (+1 suite / +4 tests). Raised by exactly that.
+            const MIN_SUITES = 528, MIN_TESTS = 6923;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -1616,9 +1617,13 @@ jobs:
           #   base 2975 (dev's map) + 1 new test(s) and 0 new file(s) = 2976, files 182; floor 2976 - 6 = 2970. This PR must read 2976 passed.
           # ⬆ 2970→3002 on 2026-10-28 (rederive_floor.py, claude/infobox-honesty-5efceb): dev run 40633534401 read 2976 / 182 files; dev's map 2976;
           #   base 2976 (hosted read) + 32 new test(s) and 1 new file(s) = 3008, files 183; floor 3008 - 6 = 3002. This PR must read 3008 passed.
-          # ⬆ 3002→3019 on 2026-11-01 (rederive_floor.py, claude/s8-consensus-direction-period): dev run 41352900763 read 3008 / 183 files; dev's map 3008;
-          #   base 3008 (hosted read) + 17 new test(s) and 1 new file(s) = 3025, files 184; floor 3025 - 6 = 3019. This PR must read 3025 passed.
-          MIN_FILES, MIN_PASSED = 184, 3019
+          # ⬆ 3002→3018 on 2026-11-01 (rederive_floor.py, claude/far-edge-bridge): dev run 41350294961 read 3008 / 183 files; dev's map 3008;
+          #   base 3008 (hosted read) + 16 new test(s) and 1 new file(s) = 3024, files 184; floor 3024 - 6 = 3018. This PR must read 3024 passed.
+          # ⬆ 3018→3019 on 2026-11-01 (rederive_floor.py, claude/socal-swell2-dark): dev run 41354746522 read 3008 / 183 files; dev's map 3024;
+          #   base 3024 (dev's map) + 1 new test(s) and 0 new file(s) = 3025, files 184; floor 3025 - 6 = 3019. This PR must read 3025 passed.
+          # ⬆ 3019→3029 on 2026-11-02 (rederive_floor.py, claude/chain-floor-661): dev run 41362488089 read 3035 / 184 files; dev's map 3025;
+          #   base 3035 (hosted read) + 0 new test(s) and 0 new file(s) = 3035, files 184; floor 3035 - 6 = 3029. This PR must read 3035 passed.
+          MIN_FILES, MIN_PASSED = 184, 3029
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

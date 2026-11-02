@@ -1,7 +1,11 @@
 [build]
   base = "frontend"
-  # Owner approved ICON stored tail on dev only; context.dev means local Netlify Dev.
-  command = "if [ \"$CONTEXT\" = \"branch-deploy\" ] && [ \"$BRANCH\" = \"dev\" ]; then export REACT_APP_ICON_STORED_TAIL=true; fi; node update-sw-version.js && npm install --legacy-peer-deps && CI=false npm run build"
+  # ICON stored tail: dev branch deploys since D-016 (2026-10-04), production too since D-056 (owner, 2026-11-01).
+  # Production honours an explicit value set in the Netlify UI (REACT_APP_ICON_STORED_TAIL=false is the kill switch).
+  # The ICON infobox reads that same stored tail (REACT_APP_ICON_POINT_STORED_TAIL, P1-B, #660; owner flip 2026-11-01, D-058),
+  # with the same production kill switch (=false in the Netlify UI). Deploy previews keep the default-off path.
+  # context.dev means local Netlify Dev.
+  command = "if [ \"$CONTEXT\" = \"branch-deploy\" ] && [ \"$BRANCH\" = \"dev\" ]; then export REACT_APP_ICON_STORED_TAIL=true REACT_APP_ICON_POINT_STORED_TAIL=true; elif [ \"$CONTEXT\" = \"production\" ]; then export REACT_APP_ICON_STORED_TAIL=\"${REACT_APP_ICON_STORED_TAIL:-true}\" REACT_APP_ICON_POINT_STORED_TAIL=\"${REACT_APP_ICON_POINT_STORED_TAIL:-true}\"; fi; node update-sw-version.js && npm install --legacy-peer-deps && CI=false npm run build"
   publish = "build"
 
 [build.environment]
