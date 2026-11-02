@@ -218,24 +218,9 @@ def _build_observation_gate(target_dt):
     confirmed spots), so the per-cell nearest scan is cheap. Returns a callable, or a cap-everything
     callable when no blob/frames exist (honest default — good/epic need evidence)."""
     from services.weather_pipeline.rating_confirmation import observation_gate
-    from services.weather_pipeline.spot_ratings_precompute import load_spot_ratings_l2_cached, _parse_dt
 
     RADIUS_DEG = 0.35
-    confirmed = []                                     # (lat, lng, level)
-    try:
-        blob = load_spot_ratings_l2_cached()
-        for fr in (blob or {}).get("frames", []):
-            fr_dt = _parse_dt(fr.get("valid_time"))
-            if target_dt is not None and fr_dt is not None:
-                if abs((fr_dt - target_dt).total_seconds()) > 3 * 3600:
-                    continue                           # confirmations speak for their own hours
-            for sp in fr.get("spots") or []:
-                lvl = sp.get("confirmed")
-                la, ln = sp.get("latitude"), sp.get("longitude")
-                if lvl in ("good", "epic") and la is not None and ln is not None:
-                    confirmed.append((la, ln, lvl))
-    except Exception:
-        confirmed = []
+    confirmed = confirmed_spots(target_dt)             # (lat, lng, level)
 
     def gate_fn(lat, lng, score):
         best = None
@@ -250,6 +235,30 @@ def _build_observation_gate(target_dt):
         return observation_gate(score, best)
 
     return gate_fn
+
+
+def confirmed_spots(target_dt, blob=None):
+    """The gate's confirmed spots for an ask time, [(lat, lng, level)]: 'good'/'epic' spots of the spot-ratings L2 blob's frames
+    within 3 h of `target_dt` (every frame when either time is unknown). Empty on any failure (the gate then caps everything).
+    `blob` defaults to the cached L2 read. Extracted verbatim from _build_observation_gate (2026-11-01) so the rated static
+    frames (frame_set_rating) can tell which ask hours share one frame's gate input."""
+    from services.weather_pipeline.spot_ratings_precompute import load_spot_ratings_l2_cached, _parse_dt
+    confirmed = []
+    try:
+        blob = load_spot_ratings_l2_cached() if blob is None else blob
+        for fr in (blob or {}).get("frames", []):
+            fr_dt = _parse_dt(fr.get("valid_time"))
+            if target_dt is not None and fr_dt is not None:
+                if abs((fr_dt - target_dt).total_seconds()) > 3 * 3600:
+                    continue                           # confirmations speak for their own hours
+            for sp in fr.get("spots") or []:
+                lvl = sp.get("confirmed")
+                la, ln = sp.get("latitude"), sp.get("longitude")
+                if lvl in ("good", "epic") and la is not None and ln is not None:
+                    confirmed.append((la, ln, lvl))
+    except Exception:
+        confirmed = []
+    return confirmed
 
 
 def _make_nearest_sampler(vex):

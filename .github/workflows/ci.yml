@@ -1625,11 +1625,11 @@ jobs:
           #   base 3024 (dev's map) + 1 new test(s) and 0 new file(s) = 3025, files 184; floor 3025 - 6 = 3019. This PR must read 3025 passed.
           # ⬆ 3019→3029 on 2026-11-02 (rederive_floor.py, claude/chain-floor-661): dev run 41362488089 read 3035 / 184 files; dev's map 3025;
           #   base 3035 (hosted read) + 0 new test(s) and 0 new file(s) = 3035, files 184; floor 3035 - 6 = 3029. This PR must read 3035 passed.
-          # ⬆ 3029→3077 on 2026-11-02 (rederive_floor.py, claude/festive-edison-678e61): dev run 41377184916 read 3035 / 184 files; dev's map 3035;
-          #   base 3035 (hosted read) + 48 new test(s) and 1 new file(s) = 3083, files 185; floor 3083 - 6 = 3077. This PR must read 3083 passed.
-          # ⬆ 3029→3140 on 2026-11-02 (rederive_floor.py, claude/weather-batch-2): dev run 41377184916 read 3035 / 184 files; dev's map 3035;
-          #   base 3035 (hosted read) + 111 new test(s) and 2 new file(s) = 3146, files 186; floor 3146 - 6 = 3140. This PR must read 3146 passed.
-          MIN_FILES, MIN_PASSED = 186, 3140
+          # ⬆ 3029→3038 on 2026-11-02 (rederive_floor.py, claude/quizzical-montalcini-ba44c1): dev run 41362488089 read 3035 / 184 files; dev's map 3035;
+          #   base 3035 (hosted read) + 9 new test(s) and 1 new file(s) = 3044, files 185; floor 3044 - 6 = 3038. This PR must read 3044 passed.
+          # ⬆ 3038→3149 on 2026-11-02 (rederive_floor.py, claude/weather-batch-2): dev run 41523850392 read 3035 / 184 files; dev's map 3044;
+          #   base 3044 (dev's map) + 111 new test(s) and 2 new file(s) = 3155, files 187; floor 3155 - 6 = 3149. This PR must read 3155 passed.
+          MIN_FILES, MIN_PASSED = 187, 3149
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
