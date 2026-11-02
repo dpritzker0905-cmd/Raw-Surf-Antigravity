@@ -2165,7 +2165,10 @@ jobs:
           # four existing rendering cases: projected 3405, floor 3403, preserving margin 2.
           # ⬆ 3403→3404 on 2026-10-31 (rederive_floor.py, codex/guardian-purchase-integration-20261030): dev run 41148501823 read 3405; dev's map 3405;
           #   base 3405 (hosted read) + 1 new test(s) = 3406; floor 3406 - 2 = 3404. This PR must read 3406 passed.
-          MIN_PASSED = 3404
+          # ⬆ 3404→3406 on 2026-11-01, IN THE SAME PR THAT CAUSES IT (kill-switch test coverage + routes-flags blind spot):
+          #   one new backend test file adds 2 executed tests (backend/tests/test_routes_flags_not_in_registry.py)
+          #   to the 3406 projected by the prior PR; projected 3408; floor 3408 - 2 = 3406. This PR must read 3408 passed.
+          MIN_PASSED = 3406
 
           try:
               root = ET.parse('estate.xml').getroot()
