@@ -143,6 +143,7 @@ def test_flag_on_anything_short_of_a_full_cover_keeps_today_s_path(monkeypatch, 
 @pytest.mark.parametrize("model, surf", [("ICON", False), ("GFS", True)])
 def test_flag_on_other_models_and_surf_keep_today_s_path(monkeypatch, model, surf):
     monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST", "1")
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST_EURO_ICON", "0")     # ICON's own flag killed: the GFS flag alone never turns it on
     # Surf is outside the rule; ICON is inside it since 2026-11-01 but behind its OWN flag (the EURO/ICON tests below), so the
     # GFS flag alone still leaves it on today's path.
     if surf:
@@ -193,6 +194,7 @@ def test_the_live_series_lane_is_skipped_inside_a_pilot_box_only_with_the_flag(m
     monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST", "1")
     assert tf.skips_live_series("GFS", "marine", "swell_1", False, INSIDE)
     assert not tf.skips_live_series("GFS", "marine", "waves", False, "-60,10,-50,20")             # open Atlantic: no pilot box
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST_EURO_ICON", "0")
     assert not tf.skips_live_series("ICON", "marine", "waves", False, INSIDE)
     assert not tf.skips_live_series("GFS", "marine", "waves", True, INSIDE)
 
@@ -235,8 +237,9 @@ OWNER_Z9 = "-81.65,27.6,-79.58,28.6"   # the owner's Florida east-coast z9 box: 
 
 
 @pytest.mark.parametrize("model", ["EURO", "ICON"])
-def test_euro_icon_flag_off_keeps_today_s_path_even_with_the_gfs_flag_on(monkeypatch, model):
+def test_euro_icon_kill_keeps_the_old_path_even_with_the_gfs_flag_on(monkeypatch, model):
     monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST", "1")
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST_EURO_ICON", "0")              # the kill switch (on by default since D-059)
     vp = _Viewport(_dynamic(model))
     out = _resolve(_world(model), vp, monkeypatch, INSIDE, model=model)
     assert out.product_id == f"viewport_{model.lower()}_marine_waves_dyn.json" and vp.cache_asks == 1
@@ -244,17 +247,20 @@ def test_euro_icon_flag_off_keeps_today_s_path_even_with_the_gfs_flag_on(monkeyp
 
 
 @pytest.mark.parametrize("model", ["EURO", "ICON"])
-def test_euro_icon_flag_on_a_covered_box_is_served_from_the_tile(monkeypatch, model):
-    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST_EURO_ICON", "1")
+def test_euro_icon_on_by_default_a_covered_box_is_served_from_the_tile(monkeypatch, model):
+    assert tf.tile_first_enabled(model) is True                                 # no env: ON (D-059)
     vp = _Viewport(_dynamic(model))
     out = _resolve(_world(model), vp, monkeypatch, INSIDE, model=model)
     assert out.product_id == f"{model.lower()}_marine_waves_florida_east_coast.json" and vp.cache_asks == 0
     b = out.grid.bounds                      # the 2-deg snap: -84..-80, 26..30
     assert (b.west, b.south, b.east, b.north) == (-84.0, 26.0, -80.0, 30.0) and out.partial_coverage is False
-    # The GFS flag alone never turns EURO/ICON on, and this flag never turns GFS on.
-    monkeypatch.delenv("MARINE_REGIONAL_TILE_FIRST_EURO_ICON")
+    # Its kill never touches GFS, and this flag never turns GFS on.
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST_EURO_ICON", "0")
     assert tf.decide(_world(model), model, "marine", "waves", False, INSIDE, _world(model)._items, []) is None
-    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST_EURO_ICON", "1")
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST", "1")
+    assert tf.decide(_world(), "GFS", "marine", "waves", False, INSIDE, _world()._items, []) is not None
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST", "0")
+    monkeypatch.delenv("MARINE_REGIONAL_TILE_FIRST_EURO_ICON")
     assert tf.decide(_world(), "GFS", "marine", "waves", False, INSIDE, _world()._items, []) is None
 
 
@@ -292,7 +298,8 @@ def test_euro_icon_series_skip_uses_their_own_pilot_boxes(monkeypatch):
     assert not tf.skips_live_series("GFS", "marine", "waves", False, INSIDE)     # GFS still reads its own flag
 
 
-def test_euro_icon_dark_diff_runs_while_their_flag_is_off(monkeypatch):
+def test_euro_icon_dark_diff_runs_while_their_flag_is_killed(monkeypatch):
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST_EURO_ICON", "0")
     monkeypatch.setenv("MARINE_TILE_FIRST_DIFF_SAMPLE", "1")
     monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST", "1")                    # GFS on must not silence the EURO diff
     w = _world("EURO")

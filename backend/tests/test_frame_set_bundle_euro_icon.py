@@ -31,7 +31,9 @@ def _env(monkeypatch):
         monkeypatch.delenv(k, raising=False)
 
 
-def test_off_by_default_the_regional_sets_are_gfs_only():
+def test_on_by_default_and_the_kill_leaves_gfs_only(monkeypatch):
+    assert fsb.selected_regional_sets() == fsb.REGIONAL_SETS + fsb.OTHER_MODEL_SETS     # no env: ON (D-059)
+    monkeypatch.setenv("FRAME_REGIONAL_BUNDLES_EURO_ICON", "0")
     assert fsb.selected_regional_sets() == fsb.REGIONAL_SETS
     assert all(t["model"] == "GFS" for t in pub.selected_sets() if fsb.is_bundle(t))
 

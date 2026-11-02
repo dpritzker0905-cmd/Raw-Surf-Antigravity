@@ -39,14 +39,14 @@ logger = logging.getLogger(__name__)
 
 REGIONAL_MODELS = ("GFS",)
 REGIONAL_LAYERS = ("waves", "swell_1", "swell_2", "wind_waves")
-# EURO / ICON (2026-11-01, item 11 "instant everywhere", DARK: MARINE_REGIONAL_TILE_FIRST_EURO_ICON, default '0'). Their marine
+# EURO / ICON (2026-11-01, item 11 "instant everywhere"; ON by default since the owner's D-059, kill MARINE_REGIONAL_TILE_FIRST_EURO_ICON=0). Their marine
 # pilots (marine_mid_res_ingestion: one whole-globe ECMWF wave / DWD GWAM pass sampled per box) store 0.25-deg tiles on the
 # get_all_pilot_regions boxes (REGIONAL_CONFIGS + WORLDWIDE_COASTAL_REGIONS, never the GFS-only extras): EURO waves only (the
 # free ECMWF stream has no swell partitions), ICON waves / swell_1 / wind_waves (GWAM has no swell_2). Today Steps 1-2 answer such a
 # box from the dynamic cache when it is warm (Copernicus for EURO, Open-Meteo/DWD for ICON) and from the tile when it is cold: two
 # sources in one session, as GFS had before D-051. With the flag the SAME rule as GFS serves the tile (the snap is 2 deg for them:
-# get_snapped_bbox), so the client's EURO/ICON regional bundles (staticRegional.js, behind its own default-off gate) are /grid's
-# answer. Flip WITH the client gate, never alone.
+# get_snapped_bbox), so the client's EURO/ICON regional bundles (staticRegional.js, behind its own gate, on by default since D-059) are /grid's
+# answer. Killed together with the client gate (__RAW_DISABLE_REGIONAL_EURO_ICON__), never alone.
 OTHER_MODEL_LAYERS = {"EURO": ("waves",), "ICON": ("waves", "swell_1", "wind_waves")}
 _E9 = 1e-9
 TILE_FIRST_STATS = Counter()       # served_tile, declined_<reason>, diff_logged, diff_skipped_cap
@@ -57,7 +57,7 @@ _DIFF_WINDOW = {"hour": None, "n": 0}
 def tile_first_enabled(model=None):
     """GFS (and no model: the original question) reads MARINE_REGIONAL_TILE_FIRST; EURO / ICON read their own dark flag."""
     if (model or "GFS").upper() in OTHER_MODEL_LAYERS:
-        return os.environ.get("MARINE_REGIONAL_TILE_FIRST_EURO_ICON", "0") == "1"
+        return os.environ.get("MARINE_REGIONAL_TILE_FIRST_EURO_ICON", "1") != "0"
     return os.environ.get("MARINE_REGIONAL_TILE_FIRST", "0") == "1"
 
 

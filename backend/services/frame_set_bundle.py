@@ -52,12 +52,12 @@ REGIONAL_SETS = tuple({"model": "GFS", "domain": "marine", "layer": layer, "regi
                       for layer in REGIONAL_LAYERS for r in _regional_ids())
 
 
-# EURO / ICON (2026-11-01, item 11 "instant everywhere"; BUILT HIDDEN: FRAME_REGIONAL_BUNDLES_EURO_ICON, default '0'). Their marine
+# EURO / ICON (2026-11-01, item 11 "instant everywhere"; ON by default since D-059, kill FRAME_REGIONAL_BUNDLES_EURO_ICON=0). Their marine
 # pilots store 0.25-deg tiles on the get_all_pilot_regions boxes (REGIONAL_CONFIGS + WORLDWIDE_COASTAL_REGIONS, never the GFS-only
 # extras): EURO waves (ECMWF wave stream), ICON waves / swell_1 / wind_waves (DWD GWAM). Same bundle, same parity and coverage gates
 # as GFS; ordered AFTER every GFS set, so the budget stagger drops them first. The regional estimated tails the core lane bakes
 # (flagship boxes) are listed unbuilt on this lane's disk: /grid serves those hours. Publishing changes nothing a user sees: the
-# client reads them only behind __RAW_ENABLE_REGIONAL_EURO_ICON__, flipped with the server's MARINE_REGIONAL_TILE_FIRST_EURO_ICON.
+# client reads them by default (kill __RAW_DISABLE_REGIONAL_EURO_ICON__), with the server's MARINE_REGIONAL_TILE_FIRST_EURO_ICON on.
 OTHER_MODEL_LAYERS = {"EURO": ("waves",), "ICON": ("waves", "swell_1", "wind_waves")}
 
 
@@ -72,11 +72,11 @@ OTHER_MODEL_SETS = tuple({"model": m, "domain": "marine", "layer": layer, "regio
 
 
 def other_models_enabled():
-    return os.environ.get("FRAME_REGIONAL_BUNDLES_EURO_ICON", "0") == "1"
+    return os.environ.get("FRAME_REGIONAL_BUNDLES_EURO_ICON", "1") != "0"
 
 
 def selected_regional_sets():
-    """REGIONAL_SETS (then, with FRAME_REGIONAL_BUNDLES_EURO_ICON=1, OTHER_MODEL_SETS) narrowed by FRAME_REGIONAL_BUNDLE_LAYERS
+    """REGIONAL_SETS (then, unless FRAME_REGIONAL_BUNDLES_EURO_ICON=0, OTHER_MODEL_SETS) narrowed by FRAME_REGIONAL_BUNDLE_LAYERS
     (comma list; default every layer)."""
     want = [x.strip() for x in os.environ.get("FRAME_REGIONAL_BUNDLE_LAYERS", "").split(",") if x.strip()]
     sets = REGIONAL_SETS + (OTHER_MODEL_SETS if other_models_enabled() else ())

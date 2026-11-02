@@ -300,7 +300,7 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
     if (!info) { info = regionalInfoOf(staticKey, idx); regInfos.set(idx, info); }
     return info;
   }
-  // Waves of a model whose regional sets are read: GFS, and EURO / ICON behind staticRegional's default-off gate (2026-11-01).
+  // Waves of a model whose regional sets are read: GFS, and EURO / ICON behind staticRegional's gate (on since D-059; kill __RAW_DISABLE_REGIONAL_EURO_ICON__).
   const isRegionalWaves = (model, layer) => String(layer || 'waves').toLowerCase() === 'waves' && regionalModelLayer(model, 'waves');
 
   // After a normal commit: is this grid a window of a pinned tile's stored frame? Then it is the regional resident (true).
@@ -309,7 +309,9 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
     let keys = [];
     try { keys = pinnedRegionalKeys(String(model || 'GFS').toUpperCase(), 'waves'); } catch (e) { keys = []; }
     const hit = findRegionalFrame(keys.map(regionalInfo).filter(Boolean), grid);
-    return !!hit && noteCropCommitted(hit.info, hit.validTime, grid);
+    // Fail closed on the model (2026-11-01, D-059): only a tile of the commit's own model is its resident.
+    const sameModel = hit && String(hit.info.staticKey).split('/')[0] === String(model || 'GFS').toUpperCase();
+    return !!sameModel && noteCropCommitted(hit.info, hit.validTime, grid);
   }
 
   // tryShowStoredFrame's first question for GFS waves: does the engine hold a clip of a tile? Returns that tile's info, else null
@@ -319,6 +321,7 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
     if (!r || !r.regional || !regionalShowOn() || !cropShowOn() || !isRegionalWaves(model, layer)) return null;
     if (!engineHolds(r)) { Object.assign(crop, { resident: null, window: null, pending: null }); return null; }
     const info = regionalInfo(r.staticKey);
+    if (String(r.staticKey).split('/')[0] !== String(model || 'GFS').toUpperCase()) return null;   // another model's tile window
     return info && info.key === r.setKey ? info : null;
   }
 

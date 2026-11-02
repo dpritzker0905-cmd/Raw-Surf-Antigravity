@@ -35,9 +35,12 @@ afterAll(() => {
 });
 
 describe('EURO / ICON regional bundles (dark)', () => {
-  it('is off by default: no EURO/ICON set key, no tile pick; GFS unchanged and REGIONAL_MODELS still GFS only', () => {
-    expect(REGIONAL_EURO_ICON_DEFAULT_ON).toBe(false);
+  it('is ON by default (D-059); the kill leaves no EURO/ICON set key and no pick; GFS unchanged, REGIONAL_MODELS still GFS only', () => {
+    expect(REGIONAL_EURO_ICON_DEFAULT_ON).toBe(true);
     expect(REGIONAL_MODELS).toEqual(['GFS']);
+    expect(regionalEuroIconOn()).toBe(true);
+    expect(pickRegionalTile({ model: 'EURO', layer: 'waves', bboxStr: INSIDE }).key).toBe('EURO/marine/waves/florida_east_coast');
+    window.__RAW_DISABLE_REGIONAL_EURO_ICON__ = true;
     expect(regionalEuroIconOn()).toBe(false);
     expect(isRegionalSetKey('EURO/marine/waves/florida_east_coast')).toBe(false);
     expect(pickRegionalTile({ model: 'EURO', layer: 'waves', bboxStr: INSIDE })).toBeNull();
@@ -57,7 +60,7 @@ describe('EURO / ICON regional bundles (dark)', () => {
     expect(isRegionalSetKey('EURO/marine/waves/global_mid')).toBe(false);     // world tiers are never regional
   });
 
-  it('the kill wins over the enable', () => {
+  it('the kill wins over the old opt-in', () => {
     window.__RAW_ENABLE_REGIONAL_EURO_ICON__ = true;
     window.__RAW_DISABLE_REGIONAL_EURO_ICON__ = true;
     expect(regionalEuroIconOn()).toBe(false);

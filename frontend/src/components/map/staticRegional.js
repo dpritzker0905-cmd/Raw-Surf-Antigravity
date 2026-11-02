@@ -35,14 +35,14 @@ const W = () => (typeof window !== 'undefined' ? window : {});
 
 export const REGIONAL_MODELS = ['GFS'];
 export const REGIONAL_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
-// EURO / ICON (2026-11-01, item 11 "instant everywhere"; DARK). Their pilots store 0.25-deg tiles on 14 of the boxes below (the
+// EURO / ICON (2026-11-01, item 11 "instant everywhere"; ON since D-059, the owner: measured features ship on with a kill switch). Their pilots store 0.25-deg tiles on 14 of the boxes below (the
 // backend's REGIONAL_CONFIGS + WORLDWIDE_COASTAL_REGIONS: EURO_ICON_BOX_IDS): EURO waves, ICON waves / swell_1 / wind_waves; the
 // publisher bundles them with FRAME_REGIONAL_BUNDLES_EURO_ICON=1 (frame_set_bundle.OTHER_MODEL_SETS). The server answers those boxes
-// from the tile only with MARINE_REGIONAL_TILE_FIRST_EURO_ICON=1 (else the dynamic cache can answer first), so the client reads them
-// only behind this gate, flipped WITH that flag (D-001). REGIONAL_MODELS stays GFS: other modules read it as "the GFS selection".
-// On: window.__RAW_ENABLE_REGIONAL_EURO_ICON__ = true. Kill (once a default flips): window.__RAW_DISABLE_REGIONAL_EURO_ICON__ = true.
+// from the tile with MARINE_REGIONAL_TILE_FIRST_EURO_ICON on (its default; else the dynamic cache can answer first), so killing one
+// means killing both. REGIONAL_MODELS stays GFS: other modules read it as "the GFS selection".
+// Kill: window.__RAW_DISABLE_REGIONAL_EURO_ICON__ = true (the old opt-in __RAW_ENABLE_REGIONAL_EURO_ICON__ is now a no-op).
 export const OTHER_MODEL_LAYERS = { EURO: ['waves'], ICON: ['waves', 'swell_1', 'wind_waves'] };
-export const REGIONAL_EURO_ICON_DEFAULT_ON = false;
+export const REGIONAL_EURO_ICON_DEFAULT_ON = true;
 export const regionalEuroIconOn = () => W().__RAW_DISABLE_REGIONAL_EURO_ICON__ !== true
   && (REGIONAL_EURO_ICON_DEFAULT_ON || W().__RAW_ENABLE_REGIONAL_EURO_ICON__ === true);
 /** Does (model, layer) have regional bundles to read? GFS: the four layers; EURO / ICON: their pilots' layers, behind the gate. */

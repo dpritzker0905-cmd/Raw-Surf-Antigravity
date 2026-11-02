@@ -166,3 +166,13 @@ The next mask lever, if any, is the commit-path rasterize.
 - **#414 closed by the lead on this verdict (2026-11-01 ~02:27Z).** Key re-measure numbers at dev 340e70c07: map-event mask CPU
   1,148 -> 89 ms, long tasks 3,256 -> 2,074 ms, but total stall time with static frames on 3,182 -> 3,083 ms (-3%, n=8, inside
   the spread), worst stall 362 -> 499 ms, mask 0.27 s late (max 0.53 s), replay 48/48 byte-identical.
+
+## Update 22:10 EST: ON by default (D-059)
+- Owner (via the lead): measured features ship ON with a kill switch. All three halves now default ON: Render
+  `MARINE_REGIONAL_TILE_FIRST_EURO_ICON` (kill `0`), repo variable / code `FRAME_REGIONAL_BUNDLES_EURO_ICON` (kill `0`), client
+  `REGIONAL_EURO_ICON_DEFAULT_ON = true` (kill `window.__RAW_DISABLE_REGIONAL_EURO_ICON__`). Registry default `1`.
+- Tests moved with it: the off-by-default pins became on-by-default plus kill pins; `test_frame_set_bundle.py`'s GFS-sets pin and
+  `test_grid_series_provider_ownership.py` (it exercises ICON's live series lane with a Florida box, which tile-first now skips by
+  design) set the EURO/ICON kill so they keep testing what they test. Resolver-path pytest files: 1,085 passed (one local sqlite
+  failure, `test_weather_sim_mcp`, fails on plain dev too). Ledger fragment lines 4 (decision) and 5 (commitment: live read +
+  SCOREBOARD row after deploy).
