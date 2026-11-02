@@ -118,6 +118,8 @@ const datedPair = (aMs, bMs, nowMs) => !(typeof window !== 'undefined' && window
 
 function estimateWords(drawn) {
   if (!drawn || !drawn.estimated) return '';
+  const tb = drawn.timeBlend;   // the wind f120+ tail blend (windTimeBlend.js): "interpolated between Sat 5 AM and Sat 8 AM"
+  if (tb) { const d = datedPair(tb.fromMs, tb.toMs, Date.now()); return `interpolated between ${formatInstant(tb.fromMs, d)} and ${formatInstant(tb.toMs, d)}`; }
   if (!estimateWordsOn() && NEW_ESTIMATE_KEYS.has(drawn.basisType)) return GENERIC_ESTIMATE;
   return ESTIMATE_WORDS[drawn.basisType] || GENERIC_ESTIMATE;
 }
