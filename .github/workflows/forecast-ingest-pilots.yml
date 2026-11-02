@@ -184,6 +184,11 @@ jobs:
           # client serves a filled set only while /capabilities reports the same mode, so a mismatch costs speed, never a number.
           MARINE_GULF_FILL_MID: ${{ vars.MARINE_GULF_FILL_MID || '1' }}
           MARINE_GULF_FILL_MID_TARGETED: ${{ vars.MARINE_GULF_FILL_MID_TARGETED || '0' }}
+          # ON (2026-11-01, item 11; D-059): adds the EURO waves and ICON waves/swell_1/wind_waves regional bundles on their 14
+          # pilot boxes (services/frame_set_bundle.OTHER_MODEL_SETS), after every GFS set so the budget stagger drops them first.
+          # The client reads them by default. Kill: repo variable FRAME_REGIONAL_BUNDLES_EURO_ICON = '0' (with Render
+          # MARINE_REGIONAL_TILE_FIRST_EURO_ICON=0 and the client's __RAW_DISABLE_REGIONAL_EURO_ICON__).
+          FRAME_REGIONAL_BUNDLES_EURO_ICON: ${{ vars.FRAME_REGIONAL_BUNDLES_EURO_ICON || '1' }}
         run: python scripts/publish_frame_images.py
 
       # 2026-10-27 (the lead): the step above exits 1 on a refused set or a crash, and continue-on-error turns that green: the

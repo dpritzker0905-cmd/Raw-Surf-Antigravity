@@ -31,11 +31,28 @@
 import { clampAndNormalize, latticeWindow, parseBboxString } from './staticFrameCrop';
 import { getAvailableTilesFromManifest } from './backendWeatherServiceClientCoverage';
 
+const W = () => (typeof window !== 'undefined' ? window : {});
+
 export const REGIONAL_MODELS = ['GFS'];
 export const REGIONAL_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
+// EURO / ICON (2026-11-01, item 11 "instant everywhere"; ON since D-059, the owner: measured features ship on with a kill switch). Their pilots store 0.25-deg tiles on 14 of the boxes below (the
+// backend's REGIONAL_CONFIGS + WORLDWIDE_COASTAL_REGIONS: EURO_ICON_BOX_IDS): EURO waves, ICON waves / swell_1 / wind_waves; the
+// publisher bundles them with FRAME_REGIONAL_BUNDLES_EURO_ICON=1 (frame_set_bundle.OTHER_MODEL_SETS). The server answers those boxes
+// from the tile with MARINE_REGIONAL_TILE_FIRST_EURO_ICON on (its default; else the dynamic cache can answer first), so killing one
+// means killing both. REGIONAL_MODELS stays GFS: other modules read it as "the GFS selection".
+// Kill: window.__RAW_DISABLE_REGIONAL_EURO_ICON__ = true (the old opt-in __RAW_ENABLE_REGIONAL_EURO_ICON__ is now a no-op).
+export const OTHER_MODEL_LAYERS = { EURO: ['waves'], ICON: ['waves', 'swell_1', 'wind_waves'] };
+export const REGIONAL_EURO_ICON_DEFAULT_ON = true;
+export const regionalEuroIconOn = () => W().__RAW_DISABLE_REGIONAL_EURO_ICON__ !== true
+  && (REGIONAL_EURO_ICON_DEFAULT_ON || W().__RAW_ENABLE_REGIONAL_EURO_ICON__ === true);
+/** Does (model, layer) have regional bundles to read? GFS: the four layers; EURO / ICON: their pilots' layers, behind the gate. */
+export function regionalModelLayer(model, layer) {
+  const m = String(model || 'GFS').toUpperCase(); const l = String(layer || 'waves').toLowerCase();
+  if (REGIONAL_MODELS.includes(m)) return REGIONAL_LAYERS.includes(l);
+  return !!OTHER_MODEL_LAYERS[m] && OTHER_MODEL_LAYERS[m].includes(l) && regionalEuroIconOn();
+}
 const BUNDLES_KEPT = 6;                 // bundles held in memory (the current and previous run of a few boxes; each 0.03-0.9 MB)
 
-const W = () => (typeof window !== 'undefined' ? window : {});
 // ON BY DEFAULT (2026-10-24, owner-approved flip; ready-not-merged until the server-side MARINE_REGIONAL_TILE_FIRST=1 is live and
 // static-frames' live read passes). The server answers a pilot-tile box from the SAME tile the bundle holds once tile-first is on
 // (#508), so the bundle is no longer a served-number change. Kill: window.__RAW_DISABLE_REGIONAL_BUNDLES__ = true. The old opt-in
@@ -47,8 +64,7 @@ export const regionalBundlesOn = () => W().__RAW_DISABLE_REGIONAL_BUNDLES__ !== 
 /** A regional set key ('GFS/marine/waves/florida_east_coast'): anything but the world sets. */
 export function isRegionalSetKey(key) {
   const parts = String(key || '').split('/');
-  return parts.length === 4 && parts[1] === 'marine' && REGIONAL_LAYERS.includes(parts[2]) && REGIONAL_MODELS.includes(parts[0])
-    && !/^global_/.test(parts[3]);
+  return parts.length === 4 && parts[1] === 'marine' && regionalModelLayer(parts[0], parts[2]) && !/^global_/.test(parts[3]);
 }
 
 export function regionalSetKey(model, layer, regionId) {
@@ -79,7 +95,7 @@ const lngSpan = (w, e) => (w <= e ? e - w : (180.0 - w) + (e + 180.0));
 export function pickRegionalTile({ model, layer, bboxStr }) {
   if (!regionalBundlesOn()) return null;
   const m = String(model || 'GFS').toUpperCase(); const l = String(layer || 'waves').toLowerCase();
-  if (!REGIONAL_MODELS.includes(m) || !REGIONAL_LAYERS.includes(l)) return null;
+  if (!regionalModelLayer(m, l)) return null;
   if (!regionalCapable()) return trace({ l, bboxStr, pick: 'not_capable' });
   const req = parseBboxString(bboxStr);
   if (!req) return null;
@@ -116,8 +132,8 @@ export function pickRegionalTile({ model, layer, bboxStr }) {
 export function regionalManifestPending({ model, layer, bbox, surf }) {
   if (surf || !bbox || !regionalBundlesOn() || !regionalCapable()) return false;
   const m = String(model || 'GFS').toUpperCase(); const l = String(layer || 'waves').toLowerCase();
-  if (!REGIONAL_MODELS.includes(m) || !REGIONAL_LAYERS.includes(l)) return false;
-  if (!insidePilotBox(bbox)) return false;              // only a box a pilot tile could cover waits
+  if (!regionalModelLayer(m, l)) return false;
+  if (!insidePilotBox(bbox, m)) return false;              // only a box a pilot tile could cover waits
   if (emptySetFor(m, l, bbox)) return false;             // its set is an explicit empty in the latest.json read (#514): no tile to wait for
   if (_latestRead() && !pilotFallbackOff()) return false;   // latest.json is read: the pilot fallback decides now (pilotFallback)
   return getAvailableTilesFromManifest(m, 'marine', l).fallbackReason === 'manifest_not_loaded';
@@ -142,12 +158,12 @@ let _latestRead = () => false;
 let _empty = () => false;
 export function setRegionalLatestProbes({ listed, read, empty }) { _listed = listed; _latestRead = read; if (empty) _empty = empty; }
 // The pilot box (id) holding this box, or null; and whether its set for (model, layer) is an explicit empty in the latest.json read.
-const pilotBoxFor = (b) => PILOT_BOXES.find(([, w, s, e, n]) => b.west >= w && b.east <= e && b.south >= s && b.north <= n) || null;
-const emptySetFor = (m, l, b) => { const box = pilotBoxFor(b); return !!box && _empty(regionalSetKey(m, l, box[0])); };
+const pilotBoxFor = (b, m) => boxesFor(m).find(([, w, s, e, n]) => b.west >= w && b.east <= e && b.south >= s && b.north <= n) || null;
+const emptySetFor = (m, l, b) => { const box = pilotBoxFor(b, m); return !!box && _empty(regionalSetKey(m, l, box[0])); };
 const pilotFallbackOff = () => W().__RAW_DISABLE_REGIONAL_PILOT_FALLBACK__ === true;
 function pilotFallback(m, l, bboxStr, b) {
   if (pilotFallbackOff()) return trace({ l, bboxStr, pick: 'manifest_not_loaded' });
-  const box = PILOT_BOXES.find(([, w, s, e, n]) => b.west >= w && b.east <= e && b.south >= s && b.north <= n);
+  const box = pilotBoxFor(b, m);
   if (!box) return trace({ l, bboxStr, pick: 'manifest_not_loaded' });
   const key = regionalSetKey(m, l, box[0]);
   if (_empty(key)) return trace({ l, bboxStr, pick: 'empty', key });             // an explicit empty (#514): no tile exists, nothing to wait for
@@ -170,8 +186,14 @@ export const PILOT_BOXES = [
   ['canaries_madeira_morocco', -19, 26, -9, 34], ['caribbean_pr_dr', -71, 12, -61, 20], ['srilanka_maldives', 72, 2, 82, 10],
   ['centralamerica_caribbean', -84, 3, -75, 11], ['us_pacific_northwest', -128, 38, -122, 49],
 ];
-export function insidePilotBox(b) {
-  return !!b && PILOT_BOXES.some(([, w, s, e, n]) => b.west >= w && b.east <= e && b.south >= s && b.north <= n);
+/** The 14 boxes the EURO / ICON pilots store (backend get_all_pilot_regions: REGIONAL_CONFIGS + WORLDWIDE_COASTAL_REGIONS; pinned to
+ *  pilot_regions.py by staticRegional.euroIcon.test.js). The GFS-only extras and Stage B carry no EURO / ICON tile. */
+export const EURO_ICON_BOX_IDS = ['florida_east_coast', 'us_west_coast_socal', 'hawaii', 'iberia_west', 'uk_ireland', 'east_australia',
+  'indonesia', 'brazil_east', 'south_africa', 'mexico_centralamerica_pac', 'us_southeast_midatlantic', 'azores', 'us_northeast', 'france_biscay'];
+const EURO_ICON_BOXES = PILOT_BOXES.filter(([id]) => EURO_ICON_BOX_IDS.includes(id));
+const boxesFor = (model) => (OTHER_MODEL_LAYERS[String(model || 'GFS').toUpperCase()] ? EURO_ICON_BOXES : PILOT_BOXES);
+export function insidePilotBox(b, model = 'GFS') {
+  return !!b && boxesFor(model).some(([, w, s, e, n]) => b.west >= w && b.east <= e && b.south >= s && b.north <= n);
 }
 
 /** Opt-in decision trace (diagnostics only): set window.__RAW_STATIC_REGIONAL_TRACE__ = [] and every tile pick is appended
@@ -206,9 +228,12 @@ export function regionalClipWindow(bboxStr, grid, model = 'GFS') {
   // edge is not a whole degree a PARTIAL cover can snap to the same key as a full one, and its background sharpen would then
   // answer the full one dynamically. With the snapped box inside the data no partial cover shares the key. On whole-degree
   // tiles the two tests agree.
+  // EURO / ICON (2-deg snap) skip the snapped-inside test, as the server's MARINE_REGIONAL_TILE_FIRST_EURO_ICON does: their snap
+  // crosses an odd-degree tile edge on most coastal views (the owner's Florida z9 box snaps east to -78, past the tile's -79), and a
+  // box tile-first serves never reads the dynamic cache, so no shared key can reach it (regional_tile_first.covering_tile).
   const e9 = 1e-9;
   const snapInside = snapped[0] >= b.west - e9 && snapped[2] <= b.east + e9 && snapped[1] >= b.south - e9 && snapped[3] <= b.north + e9;
-  const covers = snapInside && win.bounds.west <= rw && win.bounds.east >= re && win.bounds.south <= rs && win.bounds.north >= rn;
+  const covers = (snapInside || t !== 1.0) && win.bounds.west <= rw && win.bounds.east >= re && win.bounds.south <= rs && win.bounds.north >= rn;
   return { ...win, covers, snapInside, snapped: snapped.map((x) => x.toFixed(4)).join(',') };
 }
 

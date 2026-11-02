@@ -39,13 +39,25 @@ logger = logging.getLogger(__name__)
 
 REGIONAL_MODELS = ("GFS",)
 REGIONAL_LAYERS = ("waves", "swell_1", "swell_2", "wind_waves")
+# EURO / ICON (2026-11-01, item 11 "instant everywhere"; ON by default since the owner's D-059, kill MARINE_REGIONAL_TILE_FIRST_EURO_ICON=0). Their marine
+# pilots (marine_mid_res_ingestion: one whole-globe ECMWF wave / DWD GWAM pass sampled per box) store 0.25-deg tiles on the
+# get_all_pilot_regions boxes (REGIONAL_CONFIGS + WORLDWIDE_COASTAL_REGIONS, never the GFS-only extras): EURO waves only (the
+# free ECMWF stream has no swell partitions), ICON waves / swell_1 / wind_waves (GWAM has no swell_2). Today Steps 1-2 answer such a
+# box from the dynamic cache when it is warm (Copernicus for EURO, Open-Meteo/DWD for ICON) and from the tile when it is cold: two
+# sources in one session, as GFS had before D-051. With the flag the SAME rule as GFS serves the tile (the snap is 2 deg for them:
+# get_snapped_bbox), so the client's EURO/ICON regional bundles (staticRegional.js, behind its own gate, on by default since D-059) are /grid's
+# answer. Killed together with the client gate (__RAW_DISABLE_REGIONAL_EURO_ICON__), never alone.
+OTHER_MODEL_LAYERS = {"EURO": ("waves",), "ICON": ("waves", "swell_1", "wind_waves")}
 _E9 = 1e-9
 TILE_FIRST_STATS = Counter()       # served_tile, declined_<reason>, diff_logged, diff_skipped_cap
 _DIFF_LOCK = threading.Lock()
 _DIFF_WINDOW = {"hour": None, "n": 0}
 
 
-def tile_first_enabled():
+def tile_first_enabled(model=None):
+    """GFS (and no model: the original question) reads MARINE_REGIONAL_TILE_FIRST; EURO / ICON read their own dark flag."""
+    if (model or "GFS").upper() in OTHER_MODEL_LAYERS:
+        return os.environ.get("MARINE_REGIONAL_TILE_FIRST_EURO_ICON", "1") != "0"
     return os.environ.get("MARINE_REGIONAL_TILE_FIRST", "0") == "1"
 
 
@@ -98,8 +110,12 @@ def pick_tile(candidates, w, s, e, n):
 
 
 def eligible(model, domain, layer, surf, bbox):
-    return (bool(bbox) and (not surf or tile_first_surf_enabled()) and (model or "").upper() in REGIONAL_MODELS and (domain or "").lower() == "marine"
-            and (layer or "").lower() in REGIONAL_LAYERS)
+    m, lyr = (model or "").upper(), (layer or "").lower()
+    layers = REGIONAL_LAYERS if m in REGIONAL_MODELS else OTHER_MODEL_LAYERS.get(m, ())
+    # Surf follows tile-first only on the GFS pilot tiles (D-057: the rated regional bundles are GFS-only); EURO / ICON tiles never
+    # answer a surf ask (D-059 measured waves only), so their surf keeps today's path.
+    surf_ok = not surf or (m in REGIONAL_MODELS and tile_first_surf_enabled())
+    return bool(bbox) and surf_ok and (domain or "").lower() == "marine" and lyr in layers
 
 
 def covering_tile(store, model, domain, layer, surf, bbox, authoritative, estimated):
@@ -120,7 +136,12 @@ def covering_tile(store, model, domain, layer, surf, bbox, authoritative, estima
     snapped = get_snapped_bbox(bbox, model)
     sw, ss, se, sn = parse_bbox(snapped)
     b = g.bounds
-    if not (sw >= b.west - _E9 and se <= b.east + _E9 and ss >= b.south - _E9 and sn <= b.north + _E9):
+    # GFS only (the rule #508 shipped): the snapped box inside the data, so no partial cover shares a full cover's dynamic-cache key.
+    # EURO / ICON skip it: a 2-deg snap crosses an odd-degree tile edge on most coastal views (Florida's east edge is -79: the
+    # owner's z9 box -81.65..-79.58 snaps to -82..-78), and a box this rule serves never reads the dynamic cache (Steps 1-2 are
+    # skipped), so a shared key cannot reach it. The margin-0 cover of the served window below still decides.
+    if (model or "GFS").upper() not in OTHER_MODEL_LAYERS and not (
+            sw >= b.west - _E9 and se <= b.east + _E9 and ss >= b.south - _E9 and sn <= b.north + _E9):
         return None, "snap_outside_data"
     served = filter_grid_to_bbox(product, snapped)
     sb = getattr(getattr(served, "grid", None), "bounds", None)
@@ -130,8 +151,9 @@ def covering_tile(store, model, domain, layer, surf, bbox, authoritative, estima
 
 
 def decide(store, model, domain, layer, surf, bbox, authoritative, estimated):
-    """MARINE_REGIONAL_TILE_FIRST=1: the covering tile's manifest item, or None (today's path). Never raises."""
-    if not tile_first_enabled():
+    """MARINE_REGIONAL_TILE_FIRST=1 (GFS) / MARINE_REGIONAL_TILE_FIRST_EURO_ICON=1: the covering tile's manifest item, or None
+    (today's path). Never raises."""
+    if not tile_first_enabled(model):
         return None
     try:
         item, why = covering_tile(store, model, domain, layer, surf, bbox, authoritative, estimated)
@@ -205,7 +227,7 @@ def compare(tile_product, dyn_product):
 def maybe_log_diff(store, model, domain, layer, surf, bbox, authoritative, estimated, dyn_product, rng=random.random, now=None):
     """While dark: a sampled, capped comparison of the dynamic-cache answer against the tile that fully covers the same box.
     Never raises; does nothing with the flag on (the tile is served then) or when the sample / hourly cap says no."""
-    if tile_first_enabled() or dyn_product is None or not eligible(model, domain, layer, surf, bbox):
+    if tile_first_enabled(model) or dyn_product is None or not eligible(model, domain, layer, surf, bbox):
         return None
     try:
         if rng() >= _sample_rate():
@@ -232,27 +254,33 @@ def maybe_log_diff(store, model, domain, layer, surf, bbox, authoritative, estim
 def tile_first_stats():
     with _DIFF_LOCK:
         window = dict(_DIFF_WINDOW)
-    return {"enabled": tile_first_enabled(), "sample_rate": _sample_rate(), "diff_cap_per_hour": _cap(), "diff_window": window,
-            "counts": dict(TILE_FIRST_STATS)}
+    return {"enabled": tile_first_enabled(), "enabled_euro_icon": tile_first_enabled("EURO"), "sample_rate": _sample_rate(),
+            "diff_cap_per_hour": _cap(), "diff_window": window, "counts": dict(TILE_FIRST_STATS)}
 
 
 # ── the GFS/ICON live series lane (GFS_ICON_SERIES_FASTPATH) ─────────────────────────────────────────────────────────────────
-def inside_pilot_box(bbox):
+def inside_pilot_box(bbox, model="GFS"):
     """True when `bbox` lies inside one of the GFS marine pilot boxes (every group, whatever the ingest gates say: the client's
     PILOT_BOXES list, pinned to pilot_regions.py), with GFS_PILOT_WHOLE_DEGREE_BOUNDS=1 the boxes as the GFS pass then stores them
-    (padded to whole degrees, pilot_regions.whole_degree_regions), so a box in the padded band also skips the live lane."""
-    from services.weather_pipeline.pilot_regions import all_gfs_pilot_boxes, whole_degree_regions
+    (padded to whole degrees, pilot_regions.whole_degree_regions), so a box in the padded band also skips the live lane.
+    EURO / ICON: their own pilot boxes (REGIONAL_CONFIGS + WORLDWIDE_COASTAL_REGIONS, ungated, never padded): a box in a GFS-only
+    extra has no ICON tile, so its series keeps today's lane."""
+    from services.weather_pipeline.pilot_regions import (REGIONAL_CONFIGS, WORLDWIDE_COASTAL_REGIONS, all_gfs_pilot_boxes,
+                                                         whole_degree_regions)
     w, s, e, n = parse_bbox(bbox)
-    for c in whole_degree_regions(all_gfs_pilot_boxes()).values():
+    boxes = ({**REGIONAL_CONFIGS, **WORLDWIDE_COASTAL_REGIONS} if (model or "GFS").upper() in OTHER_MODEL_LAYERS
+             else whole_degree_regions(all_gfs_pilot_boxes()))
+    for c in boxes.values():
         if c["west"] <= w and e <= c["east"] and c["south"] <= s and n <= c["north"]:
             return True
     return False
 
 
 def skips_live_series(model, domain, layer, surf, bbox):
-    """MARINE_REGIONAL_TILE_FIRST=1: a series page for a box inside a pilot box never takes the Open-Meteo live lane; its hours go
-    through resolve_grid, which serves the tile when it fully covers the box and today's path when it does not. Never raises."""
+    """MARINE_REGIONAL_TILE_FIRST=1 (GFS; ICON with MARINE_REGIONAL_TILE_FIRST_EURO_ICON=1): a series page for a box inside a pilot
+    box never takes the Open-Meteo live lane; its hours go through resolve_grid, which serves the tile when it fully covers the box
+    and today's path when it does not. Never raises."""
     try:
-        return tile_first_enabled() and eligible(model, domain, layer, surf, bbox) and inside_pilot_box(bbox)
+        return tile_first_enabled(model) and eligible(model, domain, layer, surf, bbox) and inside_pilot_box(bbox, model)
     except Exception:
         return False

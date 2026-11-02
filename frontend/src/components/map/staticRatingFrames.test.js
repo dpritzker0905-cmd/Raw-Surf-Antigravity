@@ -199,6 +199,8 @@ describe('pilot boxes: the RATED regional bundles (0.25 deg, what the band paint
     const tile = ratedRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: '-82.5,27.2,-80.2,29.3' });
     expect(tile && tile.key).toBe('GFS/marine/waves/florida_east_coast_rated');
     expect(isRatedKey(tile.key)).toBe(true);
+    expect(ratedRegionalTile({ model: 'EURO', layer: 'waves', bboxStr: '-82.5,27.2,-80.2,29.3' })).toBeNull();   // rated bundles are GFS-only
+    expect(ratedRegionalTile({ model: 'ICON', layer: 'waves', bboxStr: '-82.5,27.2,-80.2,29.3' })).toBeNull();
     expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: INSIDE_FL, surf: true })).toBe(true);
     window.__RAW_DISABLE_RATING_FRAMES__ = true;
     expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: INSIDE_FL, surf: true })).toBe(false);

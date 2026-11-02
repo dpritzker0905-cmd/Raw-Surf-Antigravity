@@ -294,7 +294,7 @@ async function session(arm, round) {
       const target = step[0];
       const exp = await expect(target, hour);
       await page.evaluate(({ m, e }) => window.__MT__.arm(m, e), { m: target, e: exp });
-      const ringT0 = await page.evaluate(() => Date.now());
+      const ringT0 = await page.evaluate((tr) => { if (tr) window.__RAW_STATIC_REGIONAL_TRACE__ = []; return Date.now(); }, process.env.REGTRACE === '1');
       marks.push({ t: Date.now() - log.t0, what: `click:${target}` });
       await clickExact(page, target);
       const t0 = Date.now(); let r;
@@ -308,6 +308,10 @@ async function session(arm, round) {
       // RING_ALL=1: every forensic event type (fetches, rejects, transitions) from the previous click on, for the hour-168 clicks.
       const ringAll = process.env.RING_ALL === '1' && hour >= 168 ? await page.evaluate((t0) => { const f = window.__RAW_FORENSIC__; const d = f && f.dump ? f.dump() : null;
         return d ? d.events.filter((e) => e.t >= t0 - 9000).map((e) => { const o = { dt: e.t - t0 }; for (const [k, v] of Object.entries(e)) if (k !== 't' && (typeof v !== 'object' || v === null)) o[k] = typeof v === 'string' ? v.slice(0, 60) : v; return o; }) : null; }, ringT0) : undefined;
+      // REGTRACE=1 (2026-11-01, EURO/ICON regional): the regional bundle counters and the click window's tile decisions.
+      const regional = process.env.REGTRACE === '1' ? await page.evaluate(() => JSON.parse(JSON.stringify({
+        stats: window.__RAW_STATIC_REGIONAL__ || null, trace: (window.__RAW_STATIC_REGIONAL_TRACE__ || []).slice(-40),
+        store: window.__RAW_FRAME_STORE__ ? { shows: window.__RAW_FRAME_STORE__.shows, misses: (window.__RAW_FRAME_STORE__.shows || {}).misses } : null }))) : undefined;
       // One wheel step on the new model right after: it must take the resident path (exact, from the store).
       const next = hour + 1; const expN = await expect(target, next);
       await page.evaluate(({ m, e }) => window.__MT__.arm(m, e), { m: target, e: expN });
@@ -318,7 +322,7 @@ async function session(arm, round) {
       await page.keyboard.press('ArrowLeft'); await sleep(1200);
       clicks.push({ from: model, to: target, hour, warmMs, ms: r.exact == null ? null : Math.round(r.exact), viaStore: r.viaStore, framesToExact: r.framesToExact,
         frames: r.frames, wrongSilent: r.wrongSilent, wrongAdmitted: r.wrongAdmitted, labelLag: r.labelLag, dimmed: r.dimmed, regress: r.regress, regressAs: r.regressAs,
-        statusAtExact: r.statusAtExact, litLake: r.litLake, maskPhases: r.maskPhases, maskMode: r.maskMode, silentAt: r.silentAt, silentChipNew: r.silentChipNew, silentChipOld: r.silentChipOld, silentChipOther: r.silentChipOther, ring, ringAll, nextStepMs: s.exact == null ? null : Math.round(s.exact), nextViaStore: s.viaStore });
+        statusAtExact: r.statusAtExact, litLake: r.litLake, maskPhases: r.maskPhases, maskMode: r.maskMode, silentAt: r.silentAt, silentChipNew: r.silentChipNew, silentChipOld: r.silentChipOld, silentChipOther: r.silentChipOther, ring, ringAll, regional, nextStepMs: s.exact == null ? null : Math.round(s.exact), nextViaStore: s.viaStore });
       model = target; warmMs = await settle();
     }
     const req = log.requests; const byPath = {}; for (const q of req) byPath[q.path] = (byPath[q.path] || 0) + 1;
