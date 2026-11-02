@@ -248,5 +248,8 @@ def test_a_rated_regional_bundle_builds_for_a_tile_on_one_side_of_the_split(tmp_
     order = [fs.set_key(t) for t in fsr.rated_publish_sets()]
     assert order[0].endswith("_rated") and order[0].split("/")[2] == "waves" and order[0].split("/")[3] != "global_mid_rated"
     assert order.index("GFS/marine/waves/global_mid_rated") < order.index(next(k for k in order if k.split("/")[2] == "swell_1"))
+    # The plain bundles include EURO / ICON (D-059); their rated twins stay GFS-only (surf is tile-first for GFS alone).
+    assert any(t["model"] != "GFS" for t in fsb.selected_regional_sets())
+    assert fsr.rated_regional_sets() and all(t["model"] == "GFS" for t in fsr.rated_regional_sets())
     monkeypatch.setenv("FRAME_RATING_REGIONAL", "0")
     assert fsr.rated_regional_sets() == ()

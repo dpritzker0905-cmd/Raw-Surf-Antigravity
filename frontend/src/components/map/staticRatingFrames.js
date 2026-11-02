@@ -52,6 +52,9 @@ export function serverTileFirstSurf() {
 /** The pilot tile this surf ask's RATED bundle is (staticRegional.pickRegionalTile, key + '_rated'), or null. No I/O. */
 export function ratedRegionalTile({ model, layer, bboxStr }) {
   if (!serverTileFirstSurf()) return null;
+  // GFS only: pickRegionalTile also returns EURO / ICON tiles (D-059), but /grid?surf=1 rates on the stored tile only for GFS
+  // (regional_tile_first.eligible) and the publisher bakes rated bundles for GFS alone (frame_set_rating.rated_regional_sets).
+  if (String(model || 'GFS').toUpperCase() !== 'GFS') return null;
   const tile = pickRegionalTile({ model, layer, bboxStr });
   return tile ? { ...tile, key: tile.key + RATED_SUFFIX } : null;
 }

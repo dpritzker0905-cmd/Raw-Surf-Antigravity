@@ -120,6 +120,13 @@ _RATING_FLAGS = {
                                         "from that tile, never the dynamic Open-Meteo cache or the live series lane; 0 = today's path. "
                                         "While '0', MARINE_TILE_FIRST_DIFF_SAMPLE (0.05) / _MAX_PER_HOUR (30) log tile vs dynamic",
                                    "Render env (together with the client's regional bundle default)"),
+    # SERVED NUMBER, ON BY DEFAULT (2026-11-01, item 11; D-059, the owner 22:10 EST: ship measured features on, kill if we don't like it): the same single source for EURO waves and ICON waves/swell_1/wind_waves inside their
+    # own pilot boxes (regional_tile_first.OTHER_MODEL_LAYERS). Kill ('0') WITH the client's __RAW_DISABLE_REGIONAL_EURO_ICON__, never alone.
+    "MARINE_REGIONAL_TILE_FIRST_EURO_ICON": ("1", "EURO waves / ICON waves, swell_1, wind_waves: a viewport their stored pilot tile "
+                                                  "FULLY covers (the GFS rule with their 2-deg snap, minus the snapped-inside test) is "
+                                                  "served from that tile, never the dynamic cache (Copernicus / DWD-Open-Meteo) or the "
+                                                  "ICON live series lane; 0 = the kill switch: the old path (the dark diff then samples them)",
+                                             "Render env, to kill (together with the client's __RAW_DISABLE_REGIONAL_EURO_ICON__)"),
     # Item 10 (2026-11-01; ON by default since the owner's 22:10 EST decision, D-057): surf asks follow tile-first too, so the band
     # in a pilot box is rated on the stored tile, as the RATED regional bundles are (frame_set_rating). Inert unless
     # MARINE_REGIONAL_TILE_FIRST=1; the client checks /capabilities `regional_tile_first_surf` before reading rated bundles.

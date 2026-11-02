@@ -145,7 +145,11 @@ describe('which box reads a regional bundle', () => {
     expect(isRegionalSetKey('GFS/marine/wind_waves/us_west_coast_socal')).toBe(true);
     expect(isRegionalSetKey('GFS/marine/wind/florida_east_coast')).toBe(false);
     expect(isRegionalSetKey('GFS/wind/wind/florida_east_coast')).toBe(false);
+    expect(isRegionalSetKey('ICON/marine/swell_2/florida_east_coast')).toBe(false);   // ICON stores no swell_2 tile
+    window.__RAW_DISABLE_REGIONAL_EURO_ICON__ = true;                                    // EURO/ICON on since D-059; their kill
     expect(isRegionalSetKey('ICON/marine/waves/florida_east_coast')).toBe(false);
+    delete window.__RAW_DISABLE_REGIONAL_EURO_ICON__;
+    expect(isRegionalSetKey('ICON/marine/waves/florida_east_coast')).toBe(true);
   });
 
   it('the tile Step 3 picks: inside one tile -> it; inside two -> the smaller; on the edge, outside, ICON or killed -> none', () => {
@@ -416,7 +420,10 @@ describe('at the map opening, before the products manifest has loaded (the z9 Fl
     expect(regionalManifestPending({ model: 'GFS', layer: 'swell_1', bbox: FBOX })).toBe(true);
     expect(regionalManifestPending({ model: 'GFS', layer: 'waves', bbox: BOX })).toBe(false);           // no pilot box: never waits
     expect(regionalManifestPending({ model: 'GFS', layer: 'waves', bbox: WORLD })).toBe(false);
+    expect(regionalManifestPending({ model: 'ICON', layer: 'swell_2', bbox: FBOX })).toBe(false);   // no ICON swell_2 tile
+    window.__RAW_DISABLE_REGIONAL_EURO_ICON__ = true;                                                    // EURO/ICON killed: never wait
     expect(regionalManifestPending({ model: 'ICON', layer: 'waves', bbox: FBOX })).toBe(false);
+    delete window.__RAW_DISABLE_REGIONAL_EURO_ICON__;
     expect(regionalManifestPending({ model: 'GFS', layer: 'waves', bbox: FBOX, surf: true })).toBe(false);
     window.__RAW_DISABLE_REGIONAL_MANIFEST_WAIT__ = true;
     expect(regionalSeriesWait('GFS', 'waves', FBOX, false)).toBeNull();

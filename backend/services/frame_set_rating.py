@@ -55,7 +55,9 @@ def rated_regional_sets():
     if os.environ.get("FRAME_RATING_REGIONAL", "1") == "0":
         return ()
     from services import frame_set_bundle as fsb
-    return tuple(dict(t, variant=VARIANT) for t in fsb.selected_regional_sets())
+    # GFS only (2026-11-02, merging D-059): selected_regional_sets also lists the EURO / ICON bundles now, but /grid?surf=1 rates on
+    # the stored tile only for GFS (regional_tile_first.eligible), so a rated EURO / ICON bundle would be a band /grid does not serve.
+    return tuple(dict(t, variant=VARIANT) for t in fsb.selected_regional_sets() if t["model"] == "GFS")
 
 
 def rated_publish_sets():
