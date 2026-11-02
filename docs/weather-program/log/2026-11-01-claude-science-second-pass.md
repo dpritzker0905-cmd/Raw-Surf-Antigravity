@@ -21,3 +21,16 @@ Branch `claude/science-second-pass-2026-11-01`, stacked on the first-pass commit
 - Four contradictions with memory, listed in §7.3.
 - Reflection (Beam, high effort) reviewed the top 5: agree ×2, agree-with-caveat ×3. All caveats are folded into §7.
 - Live load: none. SCOREBOARD: no row, because no served number changed.
+
+## Third pass (owner 22:45 EST: "keep the researcher digging deeper")
+
+- 04:55Z: §8.1-8.2 (verification metrics and buoy QC; swell decay and arrival), commit fd47f59e2.
+- 05:05Z: §8.3-8.4 (wind-sea growth and fetch; tide and bathymetry), commit 98f0e347f.
+- 05:20Z: §8.5-8.7. Peak-capture check (Hs² gives no peak benefit; Catmull-Rom best). CDIP publishes MOP
+  transformation coefficients. Ranked top 10 after three passes. Twelve contradictions with memory.
+- Source status:
+  - OpenAlex works, but `fetch_top_cited` needs concept IDs.
+  - Europe PMC and CORE return "API server error".
+  - arXiv returns 429.
+  - Some publisher PDFs gave 403 or failed extraction.
+- Live load: none. SCOREBOARD: no row.

@@ -586,3 +586,75 @@ seas are where period error is worst.
        per-spot sediment size) as a "bar state" proxy.
   - *Action:* scope A5 to stable-bathymetry spots first. Add an Ω-based beach-state factor to the rating only as an
     offline experiment against the observation log.
+
+### 8.5 Deeper on topics 1-6
+
+**Time interpolation: peak magnitude and timing (answers Reflection's §7.5 gap).** Storm nodes are the top 5% of
+the true 47 h maximum with a complete series, hours 12-59, on the M7 data set (22-32 nodes per region). The script is
+`peak_capture2.py` in the session scratchpad.
+
+| Region, gap | Median peak ratio, pred max / true max (lin Hs, lin Hs², CR Hs, CR Hs²) | Mean peak-time error, h (same order) |
+|---|---|---|
+| natl 3 h | 0.994, 0.994, **0.997**, 0.997 | 1.28, 1.21, **0.41**, 0.41 |
+| natl 6 h | 0.988, 0.988, **0.993**, 0.993 | **1.17**, 1.17, 1.59, 1.59 |
+| nwpac 3 h | 0.999 for all four | 0.55, 0.55, **0.23**, 0.23 |
+| nwpac 6 h | 0.993, 0.993, **0.996**, 0.996 | 1.27, 1.27, **0.82**, 0.91 |
+| south 3 h | 0.994, 0.994, **0.997**, 0.997 | 0.62, 0.66, 0.44, **0.41** |
+| south 6 h | 0.986, 0.986, **0.994**, 0.994 | 1.00, 1.00, **0.75**, 0.75 |
+
+- Hs² gives **no** peak-magnitude benefit over linear Hs; the maximum sits on a frame either way.
+- Catmull-Rom recovers the most peak and usually times it best. The exception is natl 6 h timing, by 0.4 h on
+  n = 29.
+- This closes the "storm cores mixed" caveat: Hs² does not win where it matters.
+
+**Nearshore: California transfer tables already exist.** The CDIP MOP v1.1 documentation index lists a public
+"Transformation coefficients" dataset with source code, alongshore output-site definitions and a buoy validation set.
+The index does not state the licence or the physics.
+- *Action, cutting A5's effort for California:* read the coefficients' format and licence first. If usable, apply
+  CDIP's coefficients to our partitioned forecast spectra at Californian spots, instead of ray-tracing our own.
+- Keep our own ray tracing for Florida, Hawaii and elsewhere.
+- The O'Reilly 2016 full text was not reachable (publisher 403); the abstract is cited.
+
+**What was not reachable this pass:** the Crosby 2016 and SWRL Net PDFs (extraction failed), Mentaschi 2013 (not open
+access), and the Kahma & Calkoen 1992 / Young & Verhagen 1996 DOIs (404 on OpenAlex). Their claims above rest on
+abstracts.
+
+### 8.6 Ranked top 10 actions after all three passes
+
+All are dark (D-001); owner flips. Gains are literature or measured values as cited, not measurements of our build.
+
+| # | Action | Expected skill gain | Effort | Builds on |
+|---|---|---|---|---|
+| 1 | **Validation gates v2.** DM/HAC plus block bootstrap (A2). Report bias, SI and HH beside MAE. Gate big-swell bands on bias too. Stratify by buoy hull. Score periods against parabolic-fit Tp from NDBC `data_spec`, or in frequency, as well as DPD. | Decision quality: stops MAE "wins" that shave peaks (MAE elicits the median), and stops DPD quantisation (~1-1.5 s) or NOMAD low bias (up to ~1 m above 6 m) from deciding a flip. | S | A2, §8.1 |
+| 2 | **Flip-gate the peak periods (#412)** under gate v2, stratified by DPD < 8 / 8-12 / > 12 s. | ICON period MAE 2.36→1.82 s, CMEMS 2.06→1.54 s (measured 10-20). Mixed-sea member heights +5-12%. | S (built) | A1 |
+| 3 | **Buoy nowcast correction lane** at buoy-adjacent spots. A decaying-average residual first, then a SWRL-style residual model. Add the swell-arrival timing log (§8.2). | Literature: Hs RMSE −23..−50% in hours 0-6 and −10..−20% to 24 h; mean period −20..−56%; direction −28..−54% (SWRL Net). Fixes swell timing bias (Filoche 2026). | M | §8.1, §8.2 |
+| 4 | **Debias members, then take the equal mean**, by lead × region × band, graded on extremes, Tp and direction. | 3-7% MAE (first pass). The literature's gains are mostly bias: NBias 3.5%→<1% (Campos 2020). | M | A3, §7.2 |
+| 5 | **AIFS Single wave as a shadow 4th member**, with `mwp` treated as Te. | −10% SWH vs ecWAM (Hahner 2026); plausibly −2..−5% in the mean at days 3-5. Grade by band (peak smoothing). | S-M | A4 |
+| 6 | **Per-spot, per-partition K**, scoped first to stable bathymetry (points, reefs, capes), never tuned to buoys. California via CDIP's published coefficients if the licence allows; ray tracing elsewhere, starting at Canaveral. | Fixes climate-scale shadow bias: Canaveral NE swell over-read 2-3×, buoy-pair ratio 0.52-0.58. Not event skill (O'Reilly 2016). | L (M for CA) | A5, §7.2, §8.5 |
+| 7 | **Partition slot coherence** before SURF_PARTITIONS feeds any map or scrubber surface. Measure the swap rate; match by direction and period. | Unmeasured. It prevents blending two different swells in space or time (WW3 manual §3.12). | S-M | §7.2 |
+| 8 | **Local wind-sea arm** for coastal and enclosed-sea spots: growth from hourly HRRR/GFS wind over the geometric fetch, graded on DPD < 8 s. | Targets the +1.2 s long-period bias and the Hs under-read at short fetch (Cavaleri & Bertotti 2004). Size unknown. | M | §8.3 |
+| 9 | **Tide depth in the cap for reef and point spots** (`SURF_TIDE_DEPTH`), graded on the observation log. | Literature: breaking and setup vary with tide (Thornton & Kim 1993; Becker 2014). Size unknown at our spots. | S-M | §8.4 |
+| 10 | **Rating truth.** Observation log, then an Iberian-style surfing-day check against logged sessions, then ordinal calibration. An Ω beach-state factor comes later, as an experiment. | First skill score the rating has ever had. | M | A9, §7.2, §8.4 |
+
+Not an action, but recorded: keep Hs-space clamped Catmull-Rom (M4, M7, §8.5). The bigger storm lever is native
+hourly frames (A7, the delivery researcher's lane).
+
+### 8.7 Every contradiction with memory (all three passes)
+
+| # | Memory claim (note) | What the evidence says | Pass |
+|---|---|---|---|
+| 1 | GFS SWPER/WVPER semantics "unverified" (11-01 brief) | Partition **peak**, from both the WW3 source and the manual | 1 + 2 |
+| 2 | No zero-cost ML wave model; nobody ingests AIFS | AIFS Single wave is free, operational and ~10% better than ecWAM | 1 |
+| 3 | Consensus "SETTLED" (`consensus-decision`) | Equal weights stand, but **debias members first** | 1 + 2 |
+| 4 | "Blend Hs² in time, energy adds" (`open-ocean-instant-plan` Q2(b)) | Refuted: M4 and M7 MAE, plus §8.5 peaks | 1 + 2 + 3 |
+| 5 | Constant Kr as "the refraction"; per-spot K is late (`canaveral-surf-shadow` step 4) | Spectral transfer is core practice; raise its priority | 1 |
+| 6 | (new trap) AIFS `mwp` | It is Te, not Tp | 1 |
+| 7 | "Per-partition Tp is the honest field" (`open-ocean-instant-plan` Q2(a)) | Honest per node only; slots are untracked and swap | 2 |
+| 8 | "K calibrated on CDIP/NDBC" (open-ocean plan) vs "never tune K" (Canaveral) | Validate K; adjust the **boundary** with buoys | 2 |
+| 9 | A5 is the "largest per-spot gain" (first pass) | Climate-scale bias yes; event skill no | 2 |
+| 10 | MAE as the skill-ledger gate (`science-method-lessons`, ledger practice) | MAE elicits the median, so it can favour under-forecasting skewed big swells. Add bias, SI and HH gates. | 3 |
+| 11 | NDBC DPD as exact period truth (`wave-period-definitions`, #412 MAEs) | DPD is the max band with no fit: quantised ~1-1.5 s at swell periods. Some of the MAE is truth noise. | 3 |
+| 12 | One static bathymetry per spot (Canaveral plan, A5) | Beach-break bars move (cBathy; Wright & Short). Static K suits points, reefs and capes. | 3 |
+
+Not contradicted: D-006 equal weights, the H1 closure, #412's direction of fix, CMEMS = MFWAM, ICON Swell 2 intended,
+the advection/optical-flow rejection, and that shelf friction must not be a constant.
