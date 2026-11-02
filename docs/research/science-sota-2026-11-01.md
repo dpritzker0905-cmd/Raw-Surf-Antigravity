@@ -512,3 +512,77 @@ Written incrementally, newest subsection last. Docs only. Citation counts are fr
   - Log the timing error by model and source region.
   - This gives the data for a timing bias correction and for the arrival-ramp display. Our n=1 claims about "the
     swell came early" become measurable.
+
+### 8.3 Topic 9: wind-wave growth and fetch (the short-period error)
+
+**Our symptom.** In #412's 30-day NDBC test, every new peak period read ~1.2 s **long** when DPD < 8 s. Short-period
+seas are where period error is worst.
+
+- **Coastal winds are under-forecast at short fetch, and waves more so.** Cavaleri & Bertotti 2004 (Tellus A,
+  doi:10.1111/j.1600-0870.2004.00042.x; 152 cites), running ECMWF at several resolutions:
+  - wind and wave underestimates depend on fetch (the distance to the upwind coast);
+  - they are large at ~100 km and shrink offshore;
+  - they are **larger and more persistent for waves**;
+  - they do not vanish at ~25 km resolution.
+
+  Our members are 0.25° (~25-28 km). So when wind blows off or along a nearby coast, the young, short-period wind sea
+  is under-grown: Hs too small and the period too **long**, because the total peak falls back to an older swell. That
+  fits the +1.2 s.
+- **Slanting fetch turns coastal wind sea alongshore.** Ardhuin et al. 2007 (JPO, doi:10.1175/jpo3039.1; 139 cites),
+  North Carolina, fetch 4-83 km:
+  - the wind sea follows standard growth curves offshore;
+  - at short fetch it develops a large **alongshore** component, so the mean direction flips across the spectral peak;
+  - different model parameterisations reproduce this very differently.
+
+  For us, the wind-sea direction at a coastal spot is the least trustworthy partition direction. That matters for
+  `swell_exposure`, which keys on direction.
+- **Diurnal sea breeze.** At Vengurla, India (Ann. Geophys. 2016, doi:10.5194/angeo-34-215-2016; 15 cites), the sea
+  breeze raised nearshore Hs to an afternoon peak, and the daily range of peak period reached **up to 8 s**. Three-
+  hourly 0.25° global frames under-sample this. Our hourly HRRR wind lane (D-017) can see it, but the wave members
+  cannot.
+- **Canonical growth laws.** These are the parametric fetch-limited growth laws: JONSWAP (Hasselmann et al. 1973),
+  Kahma & Calkoen 1992, and Young & Verhagen 1996 for finite depth. The DOIs of the last two did not resolve on
+  OpenAlex this pass, so counts are not given.
+  - Romero & Melville 2010 (JPO, doi:10.1175/2009jpo4127.1; 136 cites) confirm them from the air in the Gulf of
+    Tehuantepec.
+- **Action (new, dark):** a "local wind-sea" arm for spots within ~50 km of an upwind coast or in enclosed seas.
+  - Grow a wind-sea partition from the hourly local wind (HRRR where it covers, else GFS) over the geometric fetch from
+    the coastline, with a published growth law.
+  - Combine it with the model's swell partitions.
+  - Grade only the DPD < 8 s stratum against NDBC/CDIP, scoring Hs, Tp **and** direction (§8.1 metrics).
+  - This targets the stratum where #412 is worse, without touching swell.
+
+### 8.4 Topic 10: tide and bathymetry effects on surf quality
+
+- **Tide moves surf-zone breaking directly.** Thornton & Kim 1993 (JGR, doi:10.1029/93jc01440; 57 cites; DELILAH,
+  Duck): breaking heights inside the surf zone are "strong functions of the depth", which the tide modulates. The
+  measured tidal variation of the longshore current was as large as its mean.
+  - We serve `SURF_TIDE_DEPTH=0`: the depth cap uses still-water depth only.
+  - *Agrees* with the first pass's "tide depth for tide-sensitive spots" (A9). This evidence moves it up for **reef
+    and point breaks**.
+- **On reefs, water level controls the breaking itself.** Becker et al. 2014 (JGR, doi:10.1002/2013jc009373;
+  128 cites; Marshall and Mariana Islands): the breaking height-to-depth ratio on the reef face varies with tide, and
+  setup is weaker at high tide.
+  - *Implication:* for reef spots a single γ and a tide-blind cap are both wrong.
+  - *Action:* tide depth (h + η) in the cap for spots tagged reef or point, using our existing tide source. Grade it
+    on the observation log (A9), because no buoy measures reef-face breaking.
+- **Tide modulates nearshore Hs where currents are strong.** Lewis et al. 2019 (Ocean Dynamics,
+  doi:10.1007/s10236-018-01245-z; 84 cites), coupled wave-tide modelling of the Irish Sea:
+  - high-water Hs is up to **20%** larger than in an uncoupled run;
+  - sub-kilometre resolution is needed to capture it.
+
+  This matters only at macrotidal or strong-current coasts (UK, Brittany, inlets), and is out of reach of our 0.25°
+  members. Note it as a known bias there; don't build it.
+- **Beach-break quality is a morphodynamic state, and the bathymetry moves.**
+  - Wright & Short 1984 (Marine Geology, doi:10.1016/0025-3227(84)90008-2; **2,011 cites**) classify beaches as
+    dissipative, intermediate or reflective. The intermediate states, which give the classic beach-break peaks, are
+    predicted by the dimensionless fall velocity Ω = H_b/(w_s·T), with antecedent conditions mattering.
+  - cBathy (Holman, Plant & Holland 2013, JGR, doi:10.1002/jgrc.20199; 255 cites) shows sandbars move over days to
+    seasons: depth RMS error 0.51 m at Duck from video inversion.
+  - *Implications:*
+    1. Per-spot K tables (A5) built on static CRM/CUDEM bathymetry suit **points, reefs and capes**, whose bathymetry
+       is stable, but go stale at **beach breaks**.
+    2. A beach-break quality prior could use an antecedent-weighted Ω (from our own breaking height and period plus a
+       per-spot sediment size) as a "bar state" proxy.
+  - *Action:* scope A5 to stable-bathymetry spots first. Add an Ω-based beach-state factor to the rating only as an
+    offline experiment against the observation log.
