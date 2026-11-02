@@ -1622,9 +1622,17 @@ jobs:
           #   base 3008 (hosted read) + 16 new test(s) and 1 new file(s) = 3024, files 184; floor 3024 - 6 = 3018. This PR must read 3024 passed.
           # ⬆ 3018→3019 on 2026-11-01 (rederive_floor.py, claude/socal-swell2-dark): dev run 41354746522 read 3008 / 183 files; dev's map 3024;
           #   base 3024 (dev's map) + 1 new test(s) and 0 new file(s) = 3025, files 184; floor 3025 - 6 = 3019. This PR must read 3025 passed.
+<<<<<<< HEAD
           # ⬆ 3019→3046 on 2026-11-02 (rederive_floor.py, claude/stoic-solomon-366747): dev run 41362488089 read 3035 / 184 files; dev's map 3025;
           #   base 3035 (hosted read) + 17 new test(s) and 1 new file(s) = 3052, files 185; floor 3052 - 6 = 3046. This PR must read 3052 passed.
           MIN_FILES, MIN_PASSED = 185, 3046
+=======
+          # ⬆ 3019→3029 on 2026-11-02 (rederive_floor.py, claude/chain-floor-661): dev run 41362488089 read 3035 / 184 files; dev's map 3025;
+          #   base 3035 (hosted read) + 0 new test(s) and 0 new file(s) = 3035, files 184; floor 3035 - 6 = 3029. This PR must read 3035 passed.
+          # ⬆ 3029→3046 on 2026-11-02 (rederive_floor.py, claude/stoic-solomon-366747): dev run 41362488089 read 3035 / 184 files; dev's map 3035;
+          #   base 3035 (hosted read) + 17 new test(s) and 1 new file(s) = 3052, files 185; floor 3052 - 6 = 3046. This PR must read 3052 passed.
+          MIN_FILES, MIN_PASSED = 185, 3046
+>>>>>>> origin/dev
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

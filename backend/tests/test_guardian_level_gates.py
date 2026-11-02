@@ -37,15 +37,17 @@ from services import guardian_policy as policy
 from services.guardian_levels import ADULT, L0, L1, L2, TEEN_13_15, TEEN_16_17, UNDER_13, UNKNOWN, GuardianStanding
 from services.parental_controls import refusal_for
 
-TODAY = date.today()
-
-
 def years_ago(n, days=0):
-    """The date n whole years before today (plus ``days``): exactly n years old today when days == 0."""
+    """The date n whole years before today (plus ``days``): exactly n years old today when days == 0.
+
+    Today is read at CALL time, not at import (2026-11-01): the app ages a profile with date.today() per request,
+    so an import-time date made any CI run that crossed midnight fail falsely (it reddened #633's estate lane).
+    """
+    today = date.today()
     try:
-        d = TODAY.replace(year=TODAY.year - n)
+        d = today.replace(year=today.year - n)
     except ValueError:          # Feb 29
-        d = TODAY.replace(year=TODAY.year - n, day=28)
+        d = today.replace(year=today.year - n, day=28)
     return d + timedelta(days=days)
 
 
