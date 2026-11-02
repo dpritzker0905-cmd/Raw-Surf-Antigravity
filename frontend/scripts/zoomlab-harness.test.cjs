@@ -15,7 +15,8 @@ async function routeFixture() {
   const count = await stubZoomlabMessageBadge({ route: async (match, handle) => { matches = match; handler = handle; } }, origin);
   return { count, async request(path, method = 'GET', host = origin, authorization = 'Bearer dev-mock-user-token') {
     let result = 'passed-through';
-    if (matches(new URL(path, host))) await handler({ request: () => ({ method: () => method, headers: () => ({ authorization }) }),
+    if (matches(new URL(path, host))) await handler({ request: () => ({ url: () => new URL(path, host).href,
+      method: () => method, headers: () => ({ authorization }) }),
       fallback: async () => {}, fulfill: async options => { result = options; } });
     return result;
   } };
@@ -29,6 +30,60 @@ test('synthetic GET is neutral, labelled and counted; duplicate callers remain c
     assert.equal(result.headers['x-rawsurf-zoomlab-fixture'], 'synthetic-message-badge');
     assert.equal(f.count(), i);
   }
+});
+
+// These contracts come from the actual navigation consumers, not the fixture implementation.
+const mockId = 'dev-mock-user-id';
+const incidentalReads = [
+  { path: `/api/notifications/${mockId}/unread-count`, marker: 'synthetic-notification-badge',
+    json: { unread_count: 0 } },
+  { path: `/api/dispatch/user/${mockId}/active`, marker: 'synthetic-active-session',
+    json: { active_dispatch: null } },
+  { path: `/api/compliance/violations/user/${mockId}`, marker: 'synthetic-violations',
+    json: { user_id: mockId, total_strikes: 0, is_suspended: false, is_banned: false,
+      suspension_until: null, violations: [] } },
+];
+
+for (const { path, marker, json } of incidentalReads) {
+  test(`mock-session incidental GET is answered neutrally without a message-count claim (${marker})`, async () => {
+    const f = await routeFixture();
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const response = await f.request(path);
+      assert.notEqual(response, 'passed-through', 'a fictional session must not send this protected read upstream');
+      assert.deepEqual(response.json, json);
+      assert.equal(response.headers['x-rawsurf-zoomlab-fixture'], marker);
+      assert.equal(f.count(), 0, 'the existing instrument counter counts only message-badge responses');
+    }
+  });
+
+  test(`incidental fixture refuses wrong origin, user, marker, method and path lookalikes (${marker})`, async () => {
+    const f = await routeFixture();
+    for (const authorization of [null, 'Bearer actual-user-control-token', 'Bearer dev-mock-user-token-extra', '']) {
+      assert.equal(await f.request(path, 'GET', origin, authorization), 'passed-through');
+    }
+    for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD']) {
+      assert.equal(await f.request(path, method), 'passed-through');
+    }
+    assert.equal(await f.request(path, 'GET', 'https://another.fixture.invalid'), 'passed-through');
+    assert.equal(await f.request(path.replace(mockId, 'real-user')), 'passed-through');
+    assert.equal(await f.request(path.replace(mockId, mockId.toUpperCase())), 'passed-through');
+    assert.equal(await f.request(path + '/extra'), 'passed-through');
+    assert.equal(f.count(), 0);
+  });
+}
+
+test('boot reads stay within the declared fixture set and preserve the original message counter', async () => {
+  const f = await routeFixture();
+  for (const read of incidentalReads) assert.equal(typeof await f.request(read.path), 'object');
+  assert.equal(f.count(), 0);
+  await f.request(badge);
+  assert.equal(f.count(), 1);
+  for (const path of [`/api/notifications/${mockId}`, `/api/dispatch/user/${mockId}/history`,
+    `/api/compliance/violations/user/${mockId}/extra`, `/api/surfer-gallery/claim-queue-count/${mockId}`,
+    '/api/auth/me', '/api/admin/event-dashboard/events']) {
+    assert.equal(await f.request(path), 'passed-through');
+  }
+  assert.equal(f.count(), 1);
 });
 
 for (const authorization of [undefined, 'Bearer actual-user-control-token']) {

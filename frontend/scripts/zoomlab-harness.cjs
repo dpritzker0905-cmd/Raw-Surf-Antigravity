@@ -1,16 +1,31 @@
-/** Synthetic badge isolation and strict browser prerequisites for the marine instrument. */
+/** Synthetic incidental reads and strict browser prerequisites for the marine instrument. */
 async function stubZoomlabMessageBadge(page, backendOrigin) {
   const origin = new URL(backendOrigin || process.env.REACT_APP_BACKEND_URL || 'https://raw-surf-antigravity.onrender.com').origin;
-  const pathname = '/api/messages/unread-counts/dev-mock-user-id';
+  const userId = 'dev-mock-user-id';
+  const messagePath = `/api/messages/unread-counts/${userId}`;
+  // App navigation reads are incidental to the marine instrument. This fictional
+  // development session cannot authenticate against their deployed protected APIs.
+  const fixtures = new Map([
+    [messagePath, { name: 'message-badge', json: { total: 0, primary: 0, requests: 0, grom_zone: 0 } }],
+    [`/api/notifications/${userId}/unread-count`, { name: 'notification-badge', json: { unread_count: 0 } }],
+    [`/api/dispatch/user/${userId}/active`, { name: 'active-session', json: { active_dispatch: null } }],
+    [`/api/compliance/violations/user/${userId}`, { name: 'violations',
+      json: { user_id: userId, total_strikes: 0, is_suspended: false, is_banned: false,
+        suspension_until: null, violations: [] } }],
+  ]);
+  // Preserve the driver's existing message-badge receipt; other reads do not count as messages.
   let fulfilled = 0;
-  await page.route(url => url.origin === origin && url.pathname === pathname, route => {
+  await page.route(url => url.origin === origin && fixtures.has(url.pathname), route => {
     const request = route.request();
+    const url = new URL(request.url());
+    const fixture = fixtures.get(url.pathname);
     // Public dummy marker from AuthContext's dev-only synthetic session, never a real credential.
-    if (request.method() !== 'GET' || request.headers().authorization !== 'Bearer dev-mock-user-token') return route.fallback();
+    if (url.origin !== origin || !fixture || request.method() !== 'GET'
+        || request.headers().authorization !== 'Bearer dev-mock-user-token') return route.fallback();
     return route.fulfill({
-      json: { total: 0, primary: 0, requests: 0, grom_zone: 0 },
-      headers: { 'x-rawsurf-zoomlab-fixture': 'synthetic-message-badge' },
-    }).then(() => { fulfilled += 1; });
+      json: fixture.json,
+      headers: { 'x-rawsurf-zoomlab-fixture': `synthetic-${fixture.name}` },
+    }).then(() => { if (url.pathname === messagePath) fulfilled += 1; });
   });
   return () => fulfilled;
 }
