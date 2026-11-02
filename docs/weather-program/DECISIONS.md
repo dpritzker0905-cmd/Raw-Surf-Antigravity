@@ -1850,6 +1850,13 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Measure after:** on the production bundle, ICON scrubbed to h192/h250/h300 draws from the frame store (`__MARINE_DRAWN__` source), with no browser blend asks; plus a SCOREBOARD row.
 - **Rollback:** set `REACT_APP_ICON_STORED_TAIL=false` in the Netlify UI for production and rebuild main (an explicit value wins; `src/netlifyIconStoredTailScope.test.js` pins it), or drop the `production` clause from the `netlify.toml` build command.
 
+### D-058 · The ICON infobox reads the same stored tail the heat map draws, in dev and production builds (ON, 2026-11-01)
+- **Decided:** owner chat, 2026-11-01 18:31 EST: "make sure that we're turning on number 660's icon info box switch".
+- **Scope:** `REACT_APP_ICON_POINT_STORED_TAIL=true` wherever `REACT_APP_ICON_STORED_TAIL` is authorized: dev branch deploys (D-016) and production (D-056). Production honours an explicit Netlify UI value for both, and the app requires both, so `REACT_APP_ICON_STORED_TAIL=false` is one kill switch for the map and the card; `window.__RAW_DISABLE_ICON_POINT_STORED_TAIL__` is the runtime one.
+- **Evidence:** #660's offline A/B (SCOREBOARD 2026-11-01 21:32Z): past ICON hour 168 the card-vs-map gap went from +11..+31% to 0.0%.
+- **Measure after:** on the dev site, ICON at h250 and h300 at 21.5N 118W: the card equals the heat-map cell, and no browser anchor-blend asks; SCOREBOARD row.
+- **Rollback:** remove the variable from the `netlify.toml` build command, or set it `false` in the Netlify UI, and rebuild.
+
 ### D-060 · EURO estimates are pruned only after their replacement is written, and the lattice fill rewrites its own stale fills (all three ON by default, 2026-11-01)
 - **Decided:** owner, 2026-11-01 22:10 EST (relayed by the lead): measured features ship ON by default with a kill switch, "start it automatically running … if we don't like it, we kill switch it".
 - **Flags, all default '1' in code, registry and workflows, kill switch '0' (repo variable of the same name):**
