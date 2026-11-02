@@ -85,7 +85,15 @@ async function session(arm) {
     }
     await L.jump(page, CLNG, CLAT, ZOOM);
     await sleep(3000);
-    await clickExact(page, 'Wind');
+    if (PHONE) {   // the phone layout keeps the layer chips in a bottom sheet: open it, pick Wind, close it (its backdrop)
+      await page.locator('[aria-label="Weather layers"]').filter({ visible: true }).first().click();
+      await sleep(800);
+      await clickExact(page, 'Wind');
+      await sleep(800);
+      await page.mouse.click(Math.round(W / 2), 60);
+    } else {
+      await clickExact(page, 'Wind');
+    }
     await sleep(5000);
     const wheel = page.locator(WHEEL).filter({ visible: true }).first(); await wheel.focus();
     const read = () => page.evaluate(() => {
