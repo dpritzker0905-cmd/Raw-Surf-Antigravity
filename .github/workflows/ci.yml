@@ -182,7 +182,8 @@ jobs:
             // Nearest by stored lattice (2026-10-28, D8): storedLattice.test.js (+1 suite / +7 tests). Raised by exactly that.
             // Forecast point settle (2026-10-28, D10): useOpenMeteoForecast.d10.test.js (+1 suite / +5 tests). Raised by exactly that.
             // ICON point stored tail (2026-11-01, P1-B, dark): iconPointStoredTail.test.js (+1 suite / +4 tests). Raised by exactly that.
-            const MIN_SUITES = 528, MIN_TESTS = 6923;
+            // EURO / ICON regional bundles (2026-11-01, item 11, dark): staticRegional.euroIcon.test.js (+1 suite / +5 tests). Raised by exactly that.
+            const MIN_SUITES = 529, MIN_TESTS = 6928;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -1621,7 +1622,9 @@ jobs:
           #   base 3008 (hosted read) + 16 new test(s) and 1 new file(s) = 3024, files 184; floor 3024 - 6 = 3018. This PR must read 3024 passed.
           # ⬆ 3018→3019 on 2026-11-01 (rederive_floor.py, claude/socal-swell2-dark): dev run 41354746522 read 3008 / 183 files; dev's map 3024;
           #   base 3024 (dev's map) + 1 new test(s) and 0 new file(s) = 3025, files 184; floor 3025 - 6 = 3019. This PR must read 3025 passed.
-          MIN_FILES, MIN_PASSED = 184, 3019
+          # ⬆ 3019→3046 on 2026-11-02 (rederive_floor.py, claude/stoic-solomon-366747): dev run 41362488089 read 3035 / 184 files; dev's map 3025;
+          #   base 3035 (hosted read) + 17 new test(s) and 1 new file(s) = 3052, files 185; floor 3052 - 6 = 3046. This PR must read 3052 passed.
+          MIN_FILES, MIN_PASSED = 185, 3046
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

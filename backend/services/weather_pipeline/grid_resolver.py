@@ -228,7 +228,7 @@ async def resolve_grid(
     # skipped and Step 3 serves it unchanged. Partial covers, other models/layers and surf keep today's path.
     from services.weather_pipeline import regional_tile_first as _tf
     _tile_first_item = None
-    if bbox and req_w is not None and _tf.tile_first_enabled():
+    if bbox and req_w is not None and _tf.tile_first_enabled(model):   # EURO/ICON: MARINE_REGIONAL_TILE_FIRST_EURO_ICON (dark)
         _tile_first_item = await asyncio.to_thread(_tf.decide, store, model, domain, layer, surf, bbox,
                                                    authoritative_candidates, estimated_candidates)
         if _tile_first_item is not None:

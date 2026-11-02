@@ -10,7 +10,7 @@
 //     missed opportunity, never a wrong answer).
 // /grid boxes in /grid's URL format, /grid_series at 4 dp, one hour each; frames are read from the BUNDLE (slice + sha12 + gunzip).
 //
-//   [LAYER=waves|swell_1|swell_2|wind_waves] node frontend/scripts/offline-backend/scn_regional_client_parity.mjs <cdn dir with the
+//   [MODEL=GFS|EURO|ICON] [LAYER=waves|swell_1|swell_2|wind_waves] node frontend/scripts/offline-backend/scn_regional_client_parity.mjs <cdn dir with the
 //       regional sets> <backend port> [boxes=300] [out.json]
 // Build the sets with backend/scripts/publish_frame_images.py --store-dir <store> --out-dir <cdn> --only frames (FRAME_SETS=...), and
 // serve the SAME store with serve_synthetic.py --regions flagship.
@@ -29,12 +29,13 @@ const mapDir = path.resolve(here, '../../src/components/map');
 const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'regional-parity-'));
 const API = `http://127.0.0.1:${port}/api/weather`;
 const LAYER = process.env.LAYER || 'waves';
+const MODEL = (process.env.MODEL || 'GFS').toUpperCase();   // EURO / ICON (2026-11-01): their regional sets, behind the app's gate (set below)
 
 const manifest = await (await fetch(`${API}/products`)).json();
 const products = Array.isArray(manifest) ? manifest : (manifest.products || []);
 const tiles = []; const seen = new Set();
 for (const p of products) {
-  if (String(p.model).toUpperCase() !== 'GFS' || String(p.domain).toLowerCase() !== 'marine' || String(p.layer).toLowerCase() !== LAYER) continue;
+  if (String(p.model).toUpperCase() !== MODEL || String(p.domain).toLowerCase() !== 'marine' || String(p.layer).toLowerCase() !== LAYER) continue;
   if (p.region_id && !seen.has(p.region_id)) { seen.add(p.region_id); tiles.push({ id: p.region_id, bounds: p.coverage }); }
 }
 const TILES = `const __TILES = ${JSON.stringify(tiles)};\nconst getAvailableTilesFromManifest = () => ({ tiles: __TILES, fallbackReason: null });`;
@@ -47,7 +48,7 @@ if (!cropSrc.includes('__TILES') || !regSrc.includes('__TILES') || !regSrc.inclu
 fs.writeFileSync(path.join(tmpDir, 'staticFrameCrop.mjs'), cropSrc);
 fs.writeFileSync(path.join(tmpDir, 'staticRegional.mjs'), regSrc);
 // The regional client is DARK by default (2026-10-23 evening): this script measures it opted in.
-globalThis.window = { ...(globalThis.window || {}), __RAW_ENABLE_REGIONAL_BUNDLES__: true };
+globalThis.window = { ...(globalThis.window || {}), __RAW_ENABLE_REGIONAL_BUNDLES__: true, __RAW_ENABLE_REGIONAL_EURO_ICON__: true };
 const C = await import(pathToFileURL(path.join(tmpDir, 'staticFrameCodec.mjs')).href);
 const X = await import(pathToFileURL(path.join(tmpDir, 'staticFrameCrop.mjs')).href);
 const R = await import(pathToFileURL(path.join(tmpDir, 'staticRegional.mjs')).href);
@@ -101,7 +102,7 @@ const metaCmp = (mine, theirs, keys, r) => { for (const k of keys) if (JSON.stri
 // tile's own coverage box, the box 0.01 deg inside it, and one poking 0.5 deg past each edge (a partial cover: never claimed).
 let seed = 20261023;
 const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
-const regTiles = tiles.filter((t) => sets[R.regionalSetKey('GFS', LAYER, t.id)]);
+const regTiles = tiles.filter((t) => sets[R.regionalSetKey(MODEL, LAYER, t.id)]);
 const boxes = [];
 for (let i = 0; i < N_BOXES; i++) {
   const t = regTiles[i % regTiles.length].bounds;
@@ -130,7 +131,7 @@ for (let i = 0; i < boxes.length; i++) {
   for (const seam of ['grid', 'series']) {
     if (seam === 'series' && (i % 3) && !b.edge) continue;
     const param = seam === 'grid' ? X.gridBboxParam(b) : X.seriesBboxParam(b);
-    const tile = R.pickRegionalTile({ model: 'GFS', layer: LAYER, bboxStr: param });
+    const tile = R.pickRegionalTile({ model: MODEL, layer: LAYER, bboxStr: param });
     const set = tile && sets[tile.key];
     const anyIdx = (set || Object.values(sets)[0]).index;
     const built = anyIdx.frames.filter((f) => f.path);
@@ -140,11 +141,11 @@ for (let i = 0; i < boxes.length; i++) {
     const askIso = new Date(askMs).toISOString();
     totals.boxes++;
     let win = null; let pick = null;
-    if (set) { pick = C.pickIndexFrame(set.index, askMs); if (pick && pick.path) win = R.regionalClipWindow(param, pick.grid || set.index.grid, 'GFS'); }
+    if (set) { pick = C.pickIndexFrame(set.index, askMs); if (pick && pick.path) win = R.regionalClipWindow(param, pick.grid || set.index.grid, MODEL); }
     const claimed = !!(win && win.covers);
     const url = seam === 'grid'
-      ? `${API}/grid?model=GFS&domain=marine&layer=${LAYER}&valid_time=${encodeURIComponent(askIso)}&bbox=${param}`
-      : `${API}/grid_series?model=GFS&domain=marine&layer=${LAYER}&bbox=${param}&hours=${hour}&base_time=${encodeURIComponent(new Date(anchorMs).toISOString())}`;
+      ? `${API}/grid?model=${MODEL}&domain=marine&layer=${LAYER}&valid_time=${encodeURIComponent(askIso)}&bbox=${param}`
+      : `${API}/grid_series?model=${MODEL}&domain=marine&layer=${LAYER}&bbox=${param}&hours=${hour}&base_time=${encodeURIComponent(new Date(anchorMs).toISOString())}`;
     const body = await (await fetch(url)).json();
     const theirs = seam === 'grid' ? body : (body.frames || [])[0];
     if (!theirs) continue;
@@ -192,7 +193,7 @@ const sameKey = [];
 if (process.env.SAMEKEY === '1') {
   const wait = +(process.env.SAMEKEY_WAIT || 8000);
   for (const t of regTiles) {
-    const set = sets[R.regionalSetKey('GFS', LAYER, t.id)];
+    const set = sets[R.regionalSetKey(MODEL, LAYER, t.id)];
     const g = set.index.grid.bounds;
     const whole = (v) => Math.abs(v - Math.round(v)) < 1e-9;
     const pairs = [];
@@ -207,9 +208,9 @@ if (process.env.SAMEKEY === '1') {
     for (const pr of pairs) {
       const built = set.index.frames.find((f) => f.path);
       const askIso = new Date(Date.parse(built.valid_time)).toISOString();
-      const ask = async (b) => (await fetch(`${API}/grid?model=GFS&domain=marine&layer=${LAYER}&valid_time=${encodeURIComponent(askIso)}&bbox=${b.map((x) => +x.toFixed(4)).join(',')}`)).json();
+      const ask = async (b) => (await fetch(`${API}/grid?model=${MODEL}&domain=marine&layer=${LAYER}&valid_time=${encodeURIComponent(askIso)}&bbox=${b.map((x) => +x.toFixed(4)).join(',')}`)).json();
       const fullStr = pr.full.map((x) => +x.toFixed(4)).join(',');
-      const winNow = R.regionalClipWindow(fullStr, set.index.grid, 'GFS');
+      const winNow = R.regionalClipWindow(fullStr, set.index.grid, MODEL);
       const before = await ask(pr.full);
       const part = await ask(pr.partial);
       await new Promise((r) => setTimeout(r, wait));

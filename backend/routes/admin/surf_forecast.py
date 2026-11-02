@@ -107,6 +107,13 @@ _RATING_FLAGS = {
                                         "from that tile, never the dynamic Open-Meteo cache or the live series lane; 0 = today's path. "
                                         "While '0', MARINE_TILE_FIRST_DIFF_SAMPLE (0.05) / _MAX_PER_HOUR (30) log tile vs dynamic",
                                    "Render env (together with the client's regional bundle default)"),
+    # SERVED NUMBER, DARK (2026-11-01, item 11): the same single source for EURO waves and ICON waves/swell_1/wind_waves inside their
+    # own pilot boxes (regional_tile_first.OTHER_MODEL_LAYERS). Flip WITH the client's __RAW_ENABLE_REGIONAL_EURO_ICON__, never alone.
+    "MARINE_REGIONAL_TILE_FIRST_EURO_ICON": ("0", "EURO waves / ICON waves, swell_1, wind_waves: a viewport their stored pilot tile "
+                                                  "FULLY covers (the GFS rule with their 2-deg snap, minus the snapped-inside test) is "
+                                                  "served from that tile, never the dynamic cache (Copernicus / DWD-Open-Meteo) or the "
+                                                  "ICON live series lane; 0 = today's path (the dark diff samples them meanwhile)",
+                                             "Render env (together with the client's EURO/ICON regional bundle gate)"),
     # SoCal's GFS swell_2 (2026-10-24, dark): the June 6H.2 pilot left it out of the pilot ingest (scoping, not science).
     "GFS_MARINE_SOCAL_SWELL2": ("0", "store GFS swell_2 for the us_west_coast_socal pilot box like every other pilot box (sampling + "
                                      "~113 saves a run in the whole-globe multi-bbox pass); 0 = SoCal keeps waves/swell_1/wind_waves only "

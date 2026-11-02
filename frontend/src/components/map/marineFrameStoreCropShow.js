@@ -8,6 +8,7 @@ import { cropAheadChains, cropAheadCount, cropAheadOrder, cropShowOn, cropTolera
 import { getPinnedRegionalIndexSync, loadFrameParsed, pinnedRegionalKeys } from './staticFrames';
 import { frameMeta, pickIndexFrame } from './staticFrameCodec';
 import { findRegionalFrame, regionalInfoOf, regionalShowOn } from './marineFrameStoreRegional';   // regional tiles at z7-9 (2026-10-24)
+import { regionalModelLayer } from './staticRegional';
 import { packSignature, validityDiff } from './marineFramePack';
 import { uploadBytesTo2D } from './marineFrameStoreGpu';
 import { publishMarineDrawn } from './marineDrawnFrame';
@@ -299,13 +300,14 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
     if (!info) { info = regionalInfoOf(staticKey, idx); regInfos.set(idx, info); }
     return info;
   }
-  const isGfsWaves = (model, layer) => String(model || 'GFS').toUpperCase() === 'GFS' && String(layer || 'waves').toLowerCase() === 'waves';
+  // Waves of a model whose regional sets are read: GFS, and EURO / ICON behind staticRegional's default-off gate (2026-11-01).
+  const isRegionalWaves = (model, layer) => String(layer || 'waves').toLowerCase() === 'waves' && regionalModelLayer(model, 'waves');
 
   // After a normal commit: is this grid a window of a pinned tile's stored frame? Then it is the regional resident (true).
   function noteRegionalCommitted(grid, model, layer) {
-    if (!grid || grid.ratingMode || !regionalShowOn() || !cropShowOn() || !isGfsWaves(model, layer)) return false;
+    if (!grid || grid.ratingMode || !regionalShowOn() || !cropShowOn() || !isRegionalWaves(model, layer)) return false;
     let keys = [];
-    try { keys = pinnedRegionalKeys('GFS', 'waves'); } catch (e) { keys = []; }
+    try { keys = pinnedRegionalKeys(String(model || 'GFS').toUpperCase(), 'waves'); } catch (e) { keys = []; }
     const hit = findRegionalFrame(keys.map(regionalInfo).filter(Boolean), grid);
     return !!hit && noteCropCommitted(hit.info, hit.validTime, grid);
   }
@@ -314,7 +316,7 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
   // (checked against the engine at every step; a re-pinned run, a killed set or another model ends it).
   function regionalResident(model, layer) {
     const r = crop.resident;
-    if (!r || !r.regional || !regionalShowOn() || !cropShowOn() || !isGfsWaves(model, layer)) return null;
+    if (!r || !r.regional || !regionalShowOn() || !cropShowOn() || !isRegionalWaves(model, layer)) return null;
     if (!engineHolds(r)) { Object.assign(crop, { resident: null, window: null, pending: null }); return null; }
     const info = regionalInfo(r.staticKey);
     return info && info.key === r.setKey ? info : null;

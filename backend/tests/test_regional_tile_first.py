@@ -100,7 +100,7 @@ def _resolve(store, vp, monkeypatch, bbox, model="GFS", surf=False):
 
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
-    for k in ("MARINE_REGIONAL_TILE_FIRST", "MARINE_TILE_FIRST_DIFF_SAMPLE", "MARINE_TILE_FIRST_DIFF_MAX_PER_HOUR",
+    for k in ("MARINE_REGIONAL_TILE_FIRST", "MARINE_REGIONAL_TILE_FIRST_EURO_ICON", "MARINE_TILE_FIRST_DIFF_SAMPLE", "MARINE_TILE_FIRST_DIFF_MAX_PER_HOUR",
               "GFS_ICON_SERIES_FASTPATH", "MARINE_DYNCACHE_PREFER_FINE_REGIONAL"):
         monkeypatch.delenv(k, raising=False)
     monkeypatch.setenv("MARINE_TILE_FIRST_DIFF_SAMPLE", "0")      # the dark diff stays out of the resolver tests
@@ -143,7 +143,10 @@ def test_flag_on_anything_short_of_a_full_cover_keeps_today_s_path(monkeypatch, 
 @pytest.mark.parametrize("model, surf", [("ICON", False), ("GFS", True)])
 def test_flag_on_other_models_and_surf_keep_today_s_path(monkeypatch, model, surf):
     monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST", "1")
-    assert tf.covering_tile(_world(model), model, "marine", "waves", surf, INSIDE, _world(model)._items, [])[0] is None
+    # Surf is outside the rule; ICON is inside it since 2026-11-01 but behind its OWN flag (the EURO/ICON tests below), so the
+    # GFS flag alone still leaves it on today's path.
+    if surf:
+        assert tf.covering_tile(_world(model), model, "marine", "waves", surf, INSIDE, _world(model)._items, [])[0] is None
     assert tf.decide(_world(model), model, "marine", "waves", surf, INSIDE, _world(model)._items, []) is None
 
 
@@ -225,3 +228,76 @@ def test_flag_on_a_snapped_box_inside_the_data_whose_served_window_misses_the_re
     store = _Store([fl], {fl.filename: _product("GFS", _lattice(offset), FL, fl.filename)})
     assert tf.covering_tile(store, "GFS", "marine", "waves", False, "-82.95,27.6,-80.4,29.4", [fl], []) == (None, "partial_cover")
     assert tf.covering_tile(store, "GFS", "marine", "waves", False, "-82.8,27.6,-80.4,29.4", [fl], [])[0] is fl
+
+
+# ── EURO / ICON (2026-11-01, item 11; MARINE_REGIONAL_TILE_FIRST_EURO_ICON, dark) ──────────────────────────────────────────────
+OWNER_Z9 = "-81.65,27.6,-79.58,28.6"   # the owner's Florida east-coast z9 box: a 2-deg snap reaches -78, past the tile's -79 edge
+
+
+@pytest.mark.parametrize("model", ["EURO", "ICON"])
+def test_euro_icon_flag_off_keeps_today_s_path_even_with_the_gfs_flag_on(monkeypatch, model):
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST", "1")
+    vp = _Viewport(_dynamic(model))
+    out = _resolve(_world(model), vp, monkeypatch, INSIDE, model=model)
+    assert out.product_id == f"viewport_{model.lower()}_marine_waves_dyn.json" and vp.cache_asks == 1
+    assert not tf.skips_live_series(model, "marine", "waves", False, INSIDE)
+
+
+@pytest.mark.parametrize("model", ["EURO", "ICON"])
+def test_euro_icon_flag_on_a_covered_box_is_served_from_the_tile(monkeypatch, model):
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST_EURO_ICON", "1")
+    vp = _Viewport(_dynamic(model))
+    out = _resolve(_world(model), vp, monkeypatch, INSIDE, model=model)
+    assert out.product_id == f"{model.lower()}_marine_waves_florida_east_coast.json" and vp.cache_asks == 0
+    b = out.grid.bounds                      # the 2-deg snap: -84..-80, 26..30
+    assert (b.west, b.south, b.east, b.north) == (-84.0, 26.0, -80.0, 30.0) and out.partial_coverage is False
+    # The GFS flag alone never turns EURO/ICON on, and this flag never turns GFS on.
+    monkeypatch.delenv("MARINE_REGIONAL_TILE_FIRST_EURO_ICON")
+    assert tf.decide(_world(model), model, "marine", "waves", False, INSIDE, _world(model)._items, []) is None
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST_EURO_ICON", "1")
+    assert tf.decide(_world(), "GFS", "marine", "waves", False, INSIDE, _world()._items, []) is None
+
+
+@pytest.mark.parametrize("model", ["EURO", "ICON"])
+def test_euro_icon_a_snap_past_an_odd_degree_edge_is_still_a_cover(monkeypatch, model):
+    """The owner's box snaps to -82..-78 (2 deg); the served window is clamped to the data (-79) and still covers -79.58, so Step 3
+    calls it full coverage, and with Steps 1-2 skipped no dynamic-cache key can reach it. GFS keeps #508's snapped-inside rule."""
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST_EURO_ICON", "1")
+    w = _world(model)
+    assert tf.covering_tile(w, model, "marine", "waves", False, OWNER_Z9, w._items, [])[0] is w._items[0]
+    out = _resolve(_world(model), _Viewport(_dynamic(model)), monkeypatch, OWNER_Z9, model=model)
+    assert out.product_id == f"{model.lower()}_marine_waves_florida_east_coast.json" and out.grid.bounds.east == -79.0
+    # A box past the edge is no tile at all (pick_tile: no containing tile), as for GFS.
+    assert tf.covering_tile(w, model, "marine", "waves", False, "-80.5,27.0,-78.5,29.0", w._items, []) == (None, "no_tile")
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST", "1")
+    g = _world()
+    assert tf.covering_tile(g, "GFS", "marine", "waves", False, "-81.65,27.6,-79.58,28.6", g._items, [])[0] is g._items[0]   # 1-deg snap: inside
+    assert tf.covering_tile(g, "GFS", "marine", "waves", False, "-76.0,32.0,-74.5,34.0", g._items, []) == (None, "snap_outside_data")
+
+
+@pytest.mark.parametrize("model, layer, ok", [("EURO", "waves", True), ("EURO", "swell_1", False), ("ICON", "swell_1", True),
+                                              ("ICON", "wind_waves", True), ("ICON", "swell_2", False), ("EURO", "wind_waves", False)])
+def test_euro_icon_layers_are_the_ones_their_pilots_store(model, layer, ok):
+    assert tf.eligible(model, "marine", layer, False, INSIDE) is ok
+    assert tf.eligible(model, "marine", layer, True, INSIDE) is False          # surf never
+
+
+def test_euro_icon_series_skip_uses_their_own_pilot_boxes(monkeypatch):
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST_EURO_ICON", "1")
+    assert tf.skips_live_series("ICON", "marine", "waves", False, INSIDE)
+    assert not tf.skips_live_series("ICON", "marine", "swell_2", False, INSIDE)
+    caribbean = "-68.0,15.0,-66.0,17.0"                                          # caribbean_pr_dr: a GFS-only extra box
+    assert tf.inside_pilot_box(caribbean, "GFS") and not tf.inside_pilot_box(caribbean, "ICON")
+    assert not tf.skips_live_series("ICON", "marine", "waves", False, caribbean)
+    assert not tf.skips_live_series("GFS", "marine", "waves", False, INSIDE)     # GFS still reads its own flag
+
+
+def test_euro_icon_dark_diff_runs_while_their_flag_is_off(monkeypatch):
+    monkeypatch.setenv("MARINE_TILE_FIRST_DIFF_SAMPLE", "1")
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST", "1")                    # GFS on must not silence the EURO diff
+    w = _world("EURO")
+    out = tf.maybe_log_diff(w, "EURO", "marine", "waves", False, INSIDE, w._items, [], _dynamic("EURO"), rng=lambda: 0.0, now=3600.0 * 20)
+    assert out and out["tile"] == "euro_marine_waves_florida_east_coast.json"
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST_EURO_ICON", "1")
+    assert tf.maybe_log_diff(w, "EURO", "marine", "waves", False, INSIDE, w._items, [], _dynamic("EURO"), rng=lambda: 0.0, now=3600.0 * 21) is None
+    assert tf.tile_first_stats()["enabled_euro_icon"] is True
