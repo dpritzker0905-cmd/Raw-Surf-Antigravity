@@ -163,3 +163,6 @@ grid -> texture and the data-commit rasterize (`renderMaskToCanvas`, ~480-530 ms
 touch. A 3,300-line move of the painter for a change inside the noise is not worth its review and merge risk. If a future
 profile shows map-event paints back on top, the merged branch is kept locally (c8b49bba7) and its instruments run as above.
 The next mask lever, if any, is the commit-path rasterize.
+- **#414 closed by the lead on this verdict (2026-11-01 ~02:27Z).** Key re-measure numbers at dev 340e70c07: map-event mask CPU
+  1,148 -> 89 ms, long tasks 3,256 -> 2,074 ms, but total stall time with static frames on 3,182 -> 3,083 ms (-3%, n=8, inside
+  the spread), worst stall 362 -> 499 ms, mask 0.27 s late (max 0.53 s), replay 48/48 byte-identical.
