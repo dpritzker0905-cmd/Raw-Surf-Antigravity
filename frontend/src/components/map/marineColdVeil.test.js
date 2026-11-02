@@ -57,7 +57,9 @@ describe('the phase the status line reads', () => {
     applyColdVeil(eng, { ...opts(), nowMs: 1100 }, {});
     applyColdVeil(eng, { ...opts(), nowMs: 1200 }, {});
     expect(getColdVeilState().phase).toBe('hidden');
-    applyColdVeil(eng, { ...opts({ residentCoarseGlobal: false }), nowMs: 1800 }, {});   // the detailed tile: ramp starts
+    applyColdVeil(eng, { ...opts({ residentCoarseGlobal: false }), nowMs: 1800 }, {});   // the detailed tile: the ramp's first frame is still 0
+    expect(getColdVeilState().phase).toBe('hidden');
+    applyColdVeil(eng, { ...opts({ residentCoarseGlobal: false }), nowMs: 1816 }, {});   // the first frame above 0: the field is on screen
     expect(getColdVeilState().phase).toBeNull();
     applyColdVeil(eng, { ...opts({ residentCoarseGlobal: false }), nowMs: 2300 }, {});
     expect(seen).toEqual(['hidden', null]);
@@ -114,7 +116,8 @@ describe('the status line (ForecastTimeStatus) while the veil hides the 2-degree
     expect(line).toHaveAttribute('aria-busy', 'true');
     expect(line).toHaveAttribute('data-drawn-state', 'pending');
     expect(line).toHaveAttribute('data-cold-veil', 'hidden');
-    act(() => { applyColdVeil(eng, { ...opts({ residentCoarseGlobal: false }) }, {}); });   // the detailed tile lands
+    act(() => { applyColdVeil(eng, { ...opts({ residentCoarseGlobal: false }) }, {}); });   // the detailed tile lands (ramp frame 0)
+    act(() => { applyColdVeil(eng, { ...opts({ residentCoarseGlobal: false }), nowMs: performance.now() + 20 }, {}); });
     expect(screen.getByRole('status')).not.toHaveTextContent('Loading the detailed forecast');
   });
 

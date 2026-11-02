@@ -16,7 +16,7 @@
  * a grandfathered file that may only shrink, does not grow). It returns the opacity multiplier, keeps __RAW_GPU__.coldVeil as before,
  * and publishes the veil's PHASE to the status line only when it changes:
  *   'hidden' — the veil holds the heatmap at 0 this frame (the detailed forecast is still on its way);
- *   null     — no veil, or it is lifting (the 350 ms reveal: the field is on screen and the drawn record describes it).
+ *   null     — no veil, or it is lifting (the 350 ms reveal, from its first frame drawn above 0: the drawn record then describes it).
  * clearColdVeil() (the engine's resident clear) publishes null, so a cleared layer never leaves the words behind.
  */
 import { useSyncExternalStore } from 'react';
@@ -77,7 +77,8 @@ export function applyColdVeil(engine, o, win) {
   if (w.__RAW_GPU__) {
     w.__RAW_GPU__.coldVeil = r.veil ? { mult: +r.mult.toFixed(3), lifted: !!r.veil.liftT0, reason: r.veil.reason || null } : null;
   }
-  publish(hidden ? { phase: 'hidden' } : NONE);
+  // The reveal's first frame still draws at 0 (smoothstep from 0): the words wait for a frame that shows the field.
+  publish(hidden || (r.veil && r.mult === 0) ? { phase: 'hidden' } : NONE);
   return r.mult;
 }
 
