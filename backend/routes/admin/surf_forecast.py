@@ -127,7 +127,7 @@ _RATING_FLAGS = {
                                              "rated on that tile (never the dynamic cache / live series lane); 0 = KILL: surf keeps the old path",
                                         "Render env (kill switch only: set '0' to turn it off; the client follows /capabilities)"),
     # SoCal's GFS swell_2 (2026-10-24, dark): the June 6H.2 pilot left it out of the pilot ingest (scoping, not science).
-    "GFS_MARINE_SOCAL_SWELL2": ("0", "store GFS swell_2 for the us_west_coast_socal pilot box like every other pilot box (sampling + "
+    "GFS_MARINE_SOCAL_SWELL2": ("1", "store GFS swell_2 for the us_west_coast_socal pilot box like every other pilot box (sampling + "
                                      "~113 saves a run in the whole-globe multi-bbox pass); 0 = SoCal keeps waves/swell_1/wind_waves only "
                                      "and its z7-9 swell_2 comes from the dynamic / global tiers",
                                 "repo variable GFS_MARINE_SOCAL_SWELL2, read by forecast-ingest-pilots.yml env"),
@@ -443,7 +443,7 @@ _RATING_FLAGS = {
     "FAR_EDGE_HOLD_BEFORE_UPSTREAM": ("0", "Past a marine lane's stored tail, try the far-edge hold BEFORE /grid's on-demand "
                                            "upstream fetch when that fetch would be coarser than FAR_EDGE_HOLD_UPSTREAM_MIN_RES "
                                            "(default 2 deg; a world box is fetched at 20 deg)", "Render env"),
-    "FAR_EDGE_BRIDGE": ("0", "Past an ICON/EURO 2-deg blend's run+336 h end, serve GFS 2-deg + w * (blend(T0) - GFS(T0)), w linear "
+    "FAR_EDGE_BRIDGE": ("1", "Past an ICON/EURO 2-deg blend's run+336 h end, serve GFS 2-deg + w * (blend(T0) - GFS(T0)), w linear "
                              "1 -> 0 over FAR_EDGE_BRIDGE_DECAY_H (24 h), bounded FAR_EDGE_BRIDGE_MAX_H (72 h); replaces the "
                              "hold / EURO's 10-deg fill there, never a regional product (far_edge_bridge.py). Measured: worst "
                              "3 h step MAE 0.146 m vs 0.973 m for a hard switch", "Render env"),

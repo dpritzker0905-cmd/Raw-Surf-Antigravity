@@ -104,8 +104,9 @@ class WeatherPipelineScheduler:
         def _layers_for(region_id: str) -> list:
             # SoCal swell_2 was left out by the June 6H.2 pilot (c2816a0f5: "GFS swell_2 only florida"), a scoping choice, not
             # science; the multi-bbox pass downloads the whole globe, so it costs only sampling + saves. DARK opt-in (2026-10-24):
-            # GFS_MARINE_SOCAL_SWELL2=1 (repo variable, forecast-ingest-pilots.yml) stores it like every other pilot box.
-            if region_id == "us_west_coast_socal" and os.environ.get("GFS_MARINE_SOCAL_SWELL2", "0") != "1":
+            # GFS_MARINE_SOCAL_SWELL2 (repo variable, forecast-ingest-pilots.yml; ON by default since 2026-11-01, owner, D-063) stores it like
+            # every other pilot box; '0' is the kill switch and restores the old omission.
+            if region_id == "us_west_coast_socal" and os.environ.get("GFS_MARINE_SOCAL_SWELL2", "1") == "0":
                 return ["waves", "swell_1", "wind_waves"]
             return ["waves", "swell_1", "swell_2", "wind_waves"]
 

@@ -1873,6 +1873,16 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Measure after:** on the dev site, ICON at h250 and h300 at 21.5N 118W: the card equals the heat-map cell, and no browser anchor-blend asks; SCOREBOARD row.
 - **Rollback:** remove the variable from the `netlify.toml` build command, or set it `false` in the Netlify UI, and rebuild.
 
+### D-063 · The far-edge bridge serves past the ICON/EURO blend end, and SoCal stores GFS swell_2 like every pilot box (both ON by default, 2026-11-01)
+- **Decided:** owner, 2026-11-01 22:10 EST (relayed by the lead): measured features ship ON by default with a kill switch, "start it automatically running … if we don't like it, we kill switch it". Both flags were merged dark: `FAR_EDGE_BRIDGE` (#594) and `GFS_MARINE_SOCAL_SWELL2` (#524).
+- **Flags:** `FAR_EDGE_BRIDGE` default '1' in code and `_RATING_FLAGS` (Render env; kill with `FAR_EDGE_BRIDGE=0` on Render). `GFS_MARINE_SOCAL_SWELL2` default '1' in code, registry and the pilots workflow (kill: `gh variable set GFS_MARINE_SOCAL_SWELL2 --body 0`).
+- **Sanity reads before the flip (offline, at dev 4b3e27aa6):**
+  - FAR_EDGE_BRIDGE with D-050's Gulf fill (`MARINE_GULF_FILL_MID_TARGETED`) on: the fill runs at the route, after `resolve_grid`, so the bridge reads the raw stored frame. A Gulf node masked in the blend carries no departure and serves GFS as is (1.00 at T0 -> 1.24 m at +24 h, equal to GFS); an open-sea node decays 3.00 -> 2.48 m and equals GFS at +24 h; heights clamp at 0; nothing past +72 h. One cosmetic seam: a node EURO shows but GFS calls land (D-050 step A land-centre nodes, at most ~108 by D-050's count, unmeasured on GFS's own mask) goes blank past T0. 76 + 24 tests passed; #594's evidence: worst 3 h step 0.146 m vs 0.973 m for the hard switch.
+  - GFS_MARINE_SOCAL_SWELL2 (#524, SCOREBOARD 279, cycle 10-23 18Z): swell_2 valid at 786/786 sea nodes; dynamic lane max diff 0.01 m; vs the 2-deg tier p50 0.04, p90 0.10, max 0.24 m. No parity or skill regression found (no buoy skill check exists for SoCal swell_2).
+- **What moves:** past an ICON/EURO 2-deg blend's run+336 h end, the server serves the decaying bridge instead of holding the last frame. SoCal zoom 7-9 swell_2 reads the stored GFS tile instead of falling back to the 2-deg tier (by up to 0.24 m), from the next pilots ingest.
+- **Owed:** #594's live read-back (ICON and EURO world at now+336 h and T0+3 h, health before and after) and a SCOREBOARD row each.
+- **Rollback:** `FAR_EDGE_BRIDGE=0` in Render env; `gh variable set GFS_MARINE_SOCAL_SWELL2 --body 0`.
+
 ### D-064 · The server re-checks a reused product key against the manifest before serving it (PRODUCT_REVISION_REFRESH ON after its fix, 2026-11-01)
 - **Decided:** owner, 2026-11-01 23:26 EST, in chat: "Ok go with your recommendation, both 1 and 2".
 - **Why:** pilot and world-tier files are keyed by valid time only, and the server downloads a file only when none is on disk, so a hot key can serve an older run (Cocoa Beach GFS pilot served from 10-30T18Z at ~03:30Z on 11-02 while storage held 11-01T18Z; cleared without a restart by 04:3xZ, cause of the clearing unknown).
