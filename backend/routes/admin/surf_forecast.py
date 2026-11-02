@@ -36,6 +36,13 @@ _RATING_FLAGS = {
                          "forecast-ingest, forecast-ingest-pilots and precompute workflow env together; NOT Render (no GWAM fetch on the box)"),
     "ICON_PEAK_PERIOD_SHARPNESS": ("2", "Exponent p of the ICON_PEAK_PERIOD blend w_i ~ (H_i^2 Tp_i)^p (1 = energy-weighted, larger -> toward the dominant peak; never a hard switch). Inert while ICON_PEAK_PERIOD is 0",
                                    "same lanes as ICON_PEAK_PERIOD, same value"),
+    # The consensus PERIOD (2026-11-02, dark): Hs stays the equal mean, direction stays GFS's. Inert unless ICON_PEAK_PERIOD
+    # is also '1' (the tm10 median is worse than GFS alone on DPD > 12 s); consensus_product.period_mode.
+    "CONSENSUS_PERIOD_MEDIAN": ("0", "Consensus (equal GFS/EURO/ICON mean) total wave period = the MEDIAN of the three members' periods "
+                                     "where all three answer (else GFS's), instead of GFS's own. Takes effect only while ICON_PEAK_PERIOD "
+                                     "is also 1. services/weather_pipeline/consensus_product.py",
+                                "forecast-ingest-pilots workflow env (the lane that builds the CONSENSUS product); NOT Render. "
+                                "Flip ICON_PEAK_PERIOD first"),
     "ESTIMATE_COHERENT_TRENDS": ("0", "Refuse stored marine estimates whose active trend pair lacks a verified shared model cycle",
                                 "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (L2 writers); NOT Render"),
     "EURO_MARINE_NATIVE_TAIL_CADENCE": ("0", "Preserve NOAA tail cadence and verify completed local extension no-ops", "Local ingestion env; hosted lanes require owner approval"),
@@ -77,6 +84,12 @@ _RATING_FLAGS = {
     # let a prune delete the object its surviving twin names: 51-54 EURO estimates a cycle, 2026-10-25). manifest_object_identity.py
     "MANIFEST_ONE_ENTRY_PER_OBJECT": ("0", "A product save drops every other manifest registration naming the same storage object",
                                       "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (the manifest writers)"),
+    # Immutable object names: run + content hash in every product name, a new run writes new objects and the manifest moves;
+    # storage deletes wait for the mark-and-sweep GC (product_run_keys.py, product_object_gc.py). Fixes 51 h stale pilot tiles.
+    "PRODUCT_RUN_KEYED_NAMES": ("0", "Product objects are named by run + content hash, so no cache serves an older run under a reused "
+                                     "key; prunes defer storage deletes to a two-sweep GC",
+                                "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (the manifest writers) "
+                                "+ Render env (disk sweep)"),
     # A listed product whose object is absent is skipped to the next candidate within the +-3 h window, labelled with its own
     # valid time, instead of a 404 (resolver_missing_skip.py).
     "RESOLVER_SKIP_MISSING_OBJECT": ("0", "The grid resolver skips a listed-but-absent product to the next candidate the selection would pick",

@@ -1890,3 +1890,11 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **What moves:** past an ICON/EURO 2-deg blend's run+336 h end, the server serves the decaying bridge instead of holding the last frame. SoCal zoom 7-9 swell_2 reads the stored GFS tile instead of falling back to the 2-deg tier (by up to 0.24 m), from the next pilots ingest.
 - **Owed:** #594's live read-back (ICON and EURO world at now+336 h and T0+3 h, health before and after) and a SCOREBOARD row each.
 - **Rollback:** `FAR_EDGE_BRIDGE=0` in Render env; `gh variable set GFS_MARINE_SOCAL_SWELL2 --body 0`.
+
+### D-064 · The server re-checks a reused product key against the manifest before serving it (PRODUCT_REVISION_REFRESH ON after its fix, 2026-11-01)
+- **Decided:** owner, 2026-11-01 23:26 EST, in chat: "Ok go with your recommendation, both 1 and 2".
+- **Why:** pilot and world-tier files are keyed by valid time only, and the server downloads a file only when none is on disk, so a hot key can serve an older run (Cocoa Beach GFS pilot served from 10-30T18Z at ~03:30Z on 11-02 while storage held 11-01T18Z; cleared without a restart by 04:3xZ, cause of the clearing unknown).
+- **Fix first:** as merged, the flag tagged every cold download `stale=True` (product_revision_unverified), which the client re-asks and the series memo refuses. A cold download is now checked against its registration after it lands (`log/2026-11-01-claude-revision-refresh-acceptance.md`).
+- **Flip:** Render env `PRODUCT_REVISION_REFRESH=1` after this PR deploys. Cost measured offline: +107 us per warm read, 151 ms per manifest change for the 11.5k-entry index, one validated download per changed key actually read.
+- **Rollback:** `PRODUCT_REVISION_REFRESH=0` in Render env.
+- **Structural fix:** immutable run-keyed product names, its own dark PR (session run-keyed-products).
