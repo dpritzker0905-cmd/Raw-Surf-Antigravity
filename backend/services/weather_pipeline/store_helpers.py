@@ -9,6 +9,7 @@ from services.weather_pipeline.schemas import PipelineManifest, NormalizedProduc
 from services.weather_pipeline.copernicus_validator import is_test_environment
 from services.weather_pipeline.product_upload_progress import submit_product_upload
 from services.weather_pipeline.ingestion_frame_validity import grid_frame_save_allowed
+from services.weather_pipeline import product_run_keys as _run_keys
 
 logger = logging.getLogger(__name__)
 
@@ -159,8 +160,8 @@ def save_product_helper(store, product: NormalizedProduct, resolution: float = 0
 
     _apply_florida_region_defaults(product)
 
-    filename = _build_product_filename(product)
-    product.product_id = filename  # Ensure product_id is set to the saved filename
+    # product_id = the saved filename; run-keyed with PRODUCT_RUN_KEYED_NAMES=1 (product_run_keys.py)
+    filename, product_json_bytes = _run_keys.name_and_bytes(product, _build_product_filename(product))
     target_path = store.cache_dir / filename
 
     # Double check test fixture guard before writing to disk
@@ -171,7 +172,6 @@ def save_product_helper(store, product: NormalizedProduct, resolution: float = 0
         return None
 
     # 1. Write product data atomically to disk (L1)
-    product_json_bytes = product.model_dump_json().encode("utf-8")
     if not _write_product_to_disk(target_path, product_json_bytes):
         return None
     logger.info(f"[Product Store] Atomic save complete: {filename}")
@@ -273,8 +273,8 @@ def save_products_batch_helper(store, products_to_save: List[Tuple[NormalizedPro
 
             _apply_florida_region_defaults(product)
 
-            filename = _build_product_filename(product)
-            product.product_id = filename  # Ensure product_id is set to the saved filename
+            # product_id = the saved filename; run-keyed with PRODUCT_RUN_KEYED_NAMES=1 (product_run_keys.py)
+            filename, product_json_bytes = _run_keys.name_and_bytes(product, _build_product_filename(product))
             target_path = store.cache_dir / filename
 
             # Double check test fixture guard before writing to disk
@@ -284,7 +284,6 @@ def save_products_batch_helper(store, products_to_save: List[Tuple[NormalizedPro
                 continue
 
             # 1. Write product data atomically to disk (L1)
-            product_json_bytes = product.model_dump_json().encode("utf-8")
             if not _write_product_to_disk(target_path, product_json_bytes):
                 continue
             logger.info(f"[Product Store] Atomic save complete in batch: {filename}")
@@ -553,6 +552,8 @@ def _restore_from_supabase_inner(store) -> Tuple[int, List[str]]:
             ProductStore._last_manifest_sha = _pending
             ProductStore._pending_manifest_sha = None
         logger.info(f"[Product Store] Manifest restored to disk with {len(manifest.products)} entries")
+        if _run_keys.enabled():   # superseded run-keyed copies leave this box's disk (product_run_keys.sweep_local_disk)
+            _run_keys.sweep_local_disk(store.cache_dir, {p.filename for p in manifest.products if p.filename})
         # All registered products are considered restored (available on demand)
         restored = len(manifest.products)
     except Exception as e:
