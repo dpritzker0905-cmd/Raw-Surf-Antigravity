@@ -113,6 +113,13 @@ jobs:
           # products 1,704 → 2,216 per fire (~+4% of the 12k-product manifest).
           # Revert = set this back to '3'. Pilot-lane-only: this env is set per-workflow.
           GFS_MARINE_FORECAST_DAYS: '5'
+          # DARK (2026-11-01, item 14): '1' = after the ECMWF `waves` save, the EURO Marine Global Mid job also stores EURO swell_1/swell_2/
+          # wind_waves at 2 deg from CMEMS (MFWAM), the 9 partition variables only, bands split over EURO_MID_CMEMS_WORKERS (default 4)
+          # fetcher processes. Today EURO swell exists only at 10 deg (global_coarse): no world frame at any zoom. The 240-336 h tail comes
+          # from the core lane's extended-estimates job, which already walks global_mid. Cost: a 2-deg CMEMS pass (~83 thin bands, ~5x the
+          # 10-deg ~15-30 min serial; split 4 ways ~20-40 min, unmeasured) in a lane whose p90 is 124 of 200 min. Moves served numbers
+          # (EURO swell from global_mid): owner's word with evidence (D-001).
+          EURO_MARINE_MID_CMEMS_SWELL: ${{ vars.EURO_MARINE_MID_CMEMS_SWELL || '0' }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
@@ -184,6 +191,11 @@ jobs:
           # client serves a filled set only while /capabilities reports the same mode, so a mismatch costs speed, never a number.
           MARINE_GULF_FILL_MID: ${{ vars.MARINE_GULF_FILL_MID || '1' }}
           MARINE_GULF_FILL_MID_TARGETED: ${{ vars.MARINE_GULF_FILL_MID_TARGETED || '0' }}
+          # DARK (2026-11-01, item 14): '1' adds the EURO swell_1/swell_2/wind_waves world sets (plain + Gulf-filled) after the world sets
+          # (frame_set.EURO_SWELL_SETS). They have products only once EURO_MARINE_MID_CMEMS_SWELL is on in the ingest step; the client's
+          # STATIC_SETS must list them before it reads them. With FRAME_TAIL_DOWNLOAD on, their 240-336 h tails need ~3 x 40 more of
+          # FRAME_TAIL_DOWNLOAD_MAX. Flip after the ingest flag, on the owner's word.
+          FRAME_EURO_SWELL_SETS: ${{ vars.FRAME_EURO_SWELL_SETS || '0' }}
         run: python scripts/publish_frame_images.py
 
       # 2026-10-27 (the lead): the step above exits 1 on a refused set or a crash, and continue-on-error turns that green: the

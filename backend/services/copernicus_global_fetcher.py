@@ -163,10 +163,19 @@ def fetch_global_coarse(payload):
 
     lons = _coarse_axis(float(bbox["west"]), float(bbox["east"]), resolution)
     lats = _coarse_axis(float(bbox["south"]), float(bbox["north"]), resolution)
+    # "lats" (2026-11-01, item 14): an explicit slice of this axis, so the caller can split one grid's bands across several
+    # fetcher processes (copernicus_marine_service.split_band_lats); absent -> the whole axis, as before.
+    if payload.get("lats"):
+        lats = [float(x) for x in payload["lats"]]
 
     tmp = Path(tempfile.gettempdir())
     # COPERNICUS_PEAK_PERIOD (dark): VTPK as the total period, VTM10 kept as wave_period_tm10. Off -> VARIABLE_MAP.
     var_map = with_peak_period(VARIABLE_MAP)
+    # "variables" (2026-11-01, item 14): a CMEMS variable subset (e.g. the 9 partition variables for a swell-only product);
+    # each band then downloads only those. Absent -> every variable, as before. Unknown names are ignored.
+    if payload.get("variables"):
+        wanted = set(payload["variables"])
+        var_map = [v for v in var_map if v[0] in wanted]
     # Every period the map emits is paired with its windowed height (test_cmems_period_window): PERIOD_TO_HEIGHT covers
     # the default map; the flag's VTM10 diagnostic is a TOTAL-sea period, so it takes the total height's window too.
     period_to_height = {**PERIOD_TO_HEIGHT, **{om: "wave_height" for _, om, _ in var_map if om == "wave_period_tm10"}}
