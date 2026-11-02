@@ -1627,7 +1627,9 @@ jobs:
           #   base 3035 (hosted read) + 0 new test(s) and 0 new file(s) = 3035, files 184; floor 3035 - 6 = 3029. This PR must read 3035 passed.
           # ⬆ 3029→3077 on 2026-11-02 (rederive_floor.py, claude/festive-edison-678e61): dev run 41377184916 read 3035 / 184 files; dev's map 3035;
           #   base 3035 (hosted read) + 48 new test(s) and 1 new file(s) = 3083, files 185; floor 3083 - 6 = 3077. This PR must read 3083 passed.
-          MIN_FILES, MIN_PASSED = 185, 3077
+          # ⬆ 3029→3140 on 2026-11-02 (rederive_floor.py, claude/weather-batch-2): dev run 41377184916 read 3035 / 184 files; dev's map 3035;
+          #   base 3035 (hosted read) + 111 new test(s) and 2 new file(s) = 3146, files 186; floor 3146 - 6 = 3140. This PR must read 3146 passed.
+          MIN_FILES, MIN_PASSED = 186, 3140
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -2175,6 +2177,8 @@ jobs:
           #   one new backend test file adds 2 executed tests (backend/tests/test_routes_flags_not_in_registry.py)
           #   to the 3406 projected by the prior PR; projected 3408; floor 3408 - 2 = 3406. This PR must read 3408 passed.
           # ⬆ 3404→3406 on 2026-11-02 (rederive_floor.py, claude/upbeat-cori-222cde): dev run 41377184916 read 3406; dev's map 3406;
+          #   base 3406 (hosted read) + 2 new test(s) = 3408; floor 3408 - 2 = 3406. This PR must read 3408 passed.
+          # ⬆ 3404→3406 on 2026-11-02 (rederive_floor.py, claude/weather-batch-2): dev run 41377184916 read 3406; dev's map 3406;
           #   base 3406 (hosted read) + 2 new test(s) = 3408; floor 3408 - 2 = 3406. This PR must read 3408 passed.
           MIN_PASSED = 3406
 
