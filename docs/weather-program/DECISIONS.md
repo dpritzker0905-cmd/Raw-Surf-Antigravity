@@ -1849,3 +1849,15 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **What moves:** past ICON hour 168, production's infobox and heatmap read the stored estimated tail (the D-055 CDN frames), as dev has done since 2026-10-04, instead of the browser's own anchor blend. The evidence is dev's history under the flag: D-016's replay controls, and every regression and SCOREBOARD row since 10-27, which were built with the flag on.
 - **Measure after:** on the production bundle, ICON scrubbed to h192/h250/h300 draws from the frame store (`__MARINE_DRAWN__` source), with no browser blend asks; plus a SCOREBOARD row.
 - **Rollback:** set `REACT_APP_ICON_STORED_TAIL=false` in the Netlify UI for production and rebuild main (an explicit value wins; `src/netlifyIconStoredTailScope.test.js` pins it), or drop the `production` clause from the `netlify.toml` build command.
+
+### D-060 · EURO estimates are pruned only after their replacement is written, and the lattice fill rewrites its own stale fills (all three ON by default, 2026-11-01)
+- **Decided:** owner, 2026-11-01 22:10 EST (relayed by the lead): measured features ship ON by default with a kill switch, "start it automatically running … if we don't like it, we kill switch it".
+- **Flags, all default '1' in code, registry and workflows, kill switch '0' (repo variable of the same name):**
+  - `INGEST_PRUNE_ESTIMATES_AFTER_REPLACE` (both ingest lanes): a superseded estimate is pruned only once a replacement exists at its own valid time.
+  - `LATTICE_FILL_REFRESH_STALE` (both ingest lanes): the in-band fill treats its own interpolations from an older native run as missing and rewrites them.
+  - `EURO_MARINE_NATIVE_TAIL_CADENCE` (forecast-ingest; Codex's code, 10-19): the EURO coarse 10-14 d GFS tail keeps every entry of the three-hourly NOAA cache instead of stride 3.
+- **Evidence:** `log/2026-11-01-claude-ingest-items-13-15.md`. EURO waves +147..+237 h in-band slots empty at both global tiers; core run 41347283478 saved 2 interpolations (usual ~32) while its prune hit NoSuchKey on a listed fill; 9 x 9 h non-fillable holes in the EURO components at coarse (11-16T09Z..11-17T12Z). Tests: `tests/test_estimate_continuity.py` 12 (ON path, kill-switch path, ghost-slot driver test).
+- **What moves:** EURO tail hours that were missing get a product; nothing that was served changes value. Kept estimates are still bounded by the past-valid-time prune.
+- **Found by the flip (fixed in the same PR):** the dark build let ANY native at an hour replace an estimate there, even a native from an OLDER run. With the flag on by default, `tests/test_manifest_one_step_absorb.py` P5 caught it: natives at r1 plus another writer's estimate at r3 under the same key, and the prune deleted that writer's fresher object. A native now replaces an estimate only from a run at least as new.
+- **Not fixed:** the core and pilots lanes both publish the manifest and re-fold each other's pruned keys; these flags heal the outcome, not the re-entry.
+- **Rollback:** `gh variable set <FLAG> --body 0` for any of the three.

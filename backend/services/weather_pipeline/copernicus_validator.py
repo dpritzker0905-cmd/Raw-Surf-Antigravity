@@ -492,21 +492,25 @@ def prune_superseded_products_helper(
     # are time-keyed, so the stage that rewrites them overwrites the same object (MANIFEST_ONE_ENTRY_PER_OBJECT drops the
     # older registration); hours a native now covers go here or in the cycle-end duplicate sweep (authoritative wins).
     # Pairs with LATTICE_FILL_REFRESH_STALE, so a kept interpolation from an older generation is regenerated, not kept.
-    replace_first = preserve_estimates and os.environ.get("INGEST_PRUNE_ESTIMATES_AFTER_REPLACE", "0") == "1"
-    replaced_at = {}
+    replace_first = preserve_estimates and os.environ.get("INGEST_PRUNE_ESTIMATES_AFTER_REPLACE", "1") != "0"
+    replaced_at = {}  # valid_time -> (newest authoritative run, newest estimated run) in the lane
     if replace_first:
         for p in manifest.products:
             if _lane_match(p) and p.run_time is not None and p.valid_time_start is not None:
-                has_auth, newest_est = replaced_at.get(p.valid_time_start, (False, None))
+                newest_auth, newest_est = replaced_at.get(p.valid_time_start, (None, None))
                 if p.is_forecast_authoritative:
-                    has_auth = True
+                    if newest_auth is None or p.run_time > newest_auth:
+                        newest_auth = p.run_time
                 elif newest_est is None or p.run_time > newest_est:
                     newest_est = p.run_time
-                replaced_at[p.valid_time_start] = (has_auth, newest_est)
+                replaced_at[p.valid_time_start] = (newest_auth, newest_est)
 
     def _replaced(p):
-        has_auth, newest_est = replaced_at.get(p.valid_time_start, (False, None))
-        return has_auth or (newest_est is not None and p.run_time < newest_est)
+        # A native replaces an estimate only from a run at least as new: an OLDER native at the same hour must not wipe a newer
+        # estimated generation (tests/test_manifest_one_step_absorb.py P5: natives at r1, another writer's estimate at r3).
+        newest_auth, newest_est = replaced_at.get(p.valid_time_start, (None, None))
+        return ((newest_auth is not None and newest_auth >= p.run_time)
+                or (newest_est is not None and p.run_time < newest_est))
 
     def _superseded(p):
         superseded = False

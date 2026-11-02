@@ -203,7 +203,7 @@ def _stale_own_fills(items) -> set:
     no object at any tier, so the infobox fell through to a direct upstream point. A fill product is time-keyed (its
     filename has no run in it), so regenerating the slot overwrites the same object: an entry older than the lane's newest
     authoritative run is treated as missing. Only `estimated_interpolation` entries qualify, so the extension tails
-    (D-055, the 14-day contract) are never displaced. Flag LATTICE_FILL_REFRESH_STALE (default 0)."""
+    (D-055, the 14-day contract) are never displaced. Flag LATTICE_FILL_REFRESH_STALE (default 1 since 2026-11-01, owner; kill switch 0)."""
     newest_auth = None
     for it in items:
         rt = _coerce_utc(getattr(it, "run_time", None))
@@ -222,7 +222,7 @@ def _stale_own_fills(items) -> set:
 
 
 def refresh_stale_enabled() -> bool:
-    return os.environ.get("LATTICE_FILL_REFRESH_STALE", "0") == "1"
+    return os.environ.get("LATTICE_FILL_REFRESH_STALE", "1") != "0"
 
 
 def find_fill_slots(items, max_bracket_h: float, refresh_stale: bool = False) -> List[Tuple[Any, Any, datetime]]:

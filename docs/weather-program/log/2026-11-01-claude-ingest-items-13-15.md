@@ -72,3 +72,12 @@ re-created from 16:28:19Z.
   needs a SCOREBOARD row and the owner's word with evidence (D-001).
 - **Not fixed here:** the two-writer manifest re-entry itself. The flags make the outcome self-healing each cycle; the
   root fix (a writer folding back another writer's pruned keys) is a manifest-protocol change for the lead.
+
+## 22:10-23:05 EST: flipped ON by default (owner's word, D-060)
+- The owner (via the lead, 22:10 EST): measured features ship ON with a kill switch. All three #675 flags now default '1' in code,
+  `_RATING_FLAGS` and both ingest workflows; '0' (repo variable of the same name) is the kill switch.
+- **The flip found a defect in the dark build:** `_replaced` let any native at an hour replace an estimate there, even a native of an
+  OLDER run. `tests/test_manifest_one_step_absorb.py` P5 (natives at r1, another writer's estimate at r3 under the same key) went red:
+  the prune deleted that writer's fresher object. Fix: a native replaces an estimate only from a run at least as new.
+- Tests that pinned the old est-vs-est rule now set the kill switch explicitly (`test_prune_duplicate_valid_times.py` x2, my own off
+  test); `test_local_forecast_recovery.py`'s unset row now expects the no-op classification. Local: 630 + 289 passed.

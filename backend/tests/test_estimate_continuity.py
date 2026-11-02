@@ -61,9 +61,11 @@ def _names(store):
     return {p.filename for p in store.get_manifest().products}
 
 
-def test_flag_off_deletes_the_whole_previous_tail_before_its_rewrite(tail_store):
-    """The measured defect, pinned so the flag-on case below means something: six old estimates at hours the new
-    9-hourly tail does not cover are deleted now, though nothing will exist there until the extended-estimates stage."""
+def test_flag_off_deletes_the_whole_previous_tail_before_its_rewrite(tail_store, monkeypatch):
+    """The measured defect, pinned so the flag-on case below means something: with the kill switch ('0'), six old
+    estimates at hours the new 9-hourly tail does not cover are deleted, though nothing will exist there until the
+    extended-estimates stage."""
+    monkeypatch.setenv("INGEST_PRUNE_ESTIMATES_AFTER_REPLACE", "0")
     store, disk = tail_store
     store.prune_superseded_products("EURO", "marine", "waves", "global_coarse", NEW)
     left = _names(store)
@@ -72,7 +74,7 @@ def test_flag_off_deletes_the_whole_previous_tail_before_its_rewrite(tail_store)
 
 
 def test_flag_on_keeps_each_old_estimate_until_its_own_hour_is_replaced(tail_store, monkeypatch):
-    monkeypatch.setenv("INGEST_PRUNE_ESTIMATES_AFTER_REPLACE", "1")
+    monkeypatch.delenv("INGEST_PRUNE_ESTIMATES_AFTER_REPLACE", raising=False)  # unset = ON (default since 2026-11-01)
     store, disk = tail_store
     store.prune_superseded_products("EURO", "marine", "waves", "global_coarse", NEW)
     left = _names(store)
@@ -171,9 +173,9 @@ def test_flag_on_with_no_authoritative_product_changes_nothing():
 def test_the_fill_job_reads_the_flag(monkeypatch):
     from services.weather_pipeline import lattice_fill
     monkeypatch.delenv("LATTICE_FILL_REFRESH_STALE", raising=False)
-    assert lattice_fill.refresh_stale_enabled() is False
-    monkeypatch.setenv("LATTICE_FILL_REFRESH_STALE", "1")
-    assert lattice_fill.refresh_stale_enabled() is True
+    assert lattice_fill.refresh_stale_enabled() is True, "ON by default since 2026-11-01 (owner)"
+    monkeypatch.setenv("LATTICE_FILL_REFRESH_STALE", "0")
+    assert lattice_fill.refresh_stale_enabled() is False, "'0' is the kill switch"
 
 
 @pytest.mark.asyncio

@@ -61,7 +61,7 @@ def _verified_euro_extension_noop(store):
 def _completed_job_status(name, value, store):
     if value is not False:
         return "returned", None
-    if name == "ingest_euro_marine_extended_estimates" and os.environ.get("EURO_MARINE_NATIVE_TAIL_CADENCE", "0") == "1":
+    if name == "ingest_euro_marine_extended_estimates" and os.environ.get("EURO_MARINE_NATIVE_TAIL_CADENCE", "1") != "0":
         proof = _verified_euro_extension_noop(store)
         if proof:
             return "no_op", proof

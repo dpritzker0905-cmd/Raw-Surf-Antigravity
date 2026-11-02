@@ -121,7 +121,7 @@ async def ingest_euro_marine_global_impl(scheduler) -> bool:
         gfs_ext_step = 3  # Open-Meteo fallback is hourly.
         if os.environ.get("EURO_MARINE_GFS_REUSE_CACHE", "1") != "0" and scheduler._gfs_coarse_marine_cache:
             gfs_ext_src = scheduler._gfs_coarse_marine_cache
-            if os.environ.get("EURO_MARINE_NATIVE_TAIL_CADENCE", "0") == "1":
+            if os.environ.get("EURO_MARINE_NATIVE_TAIL_CADENCE", "1") != "0":
                 # The cache can also contain hourly Open-Meteo data after a NOAA failure.
                 cache_times = [_parse_iso(t) for t in gfs_ext_src[0].get("hourly", {}).get("time", [])]
                 if len(cache_times) > 1 and all(t is not None for t in cache_times):
