@@ -129,7 +129,7 @@ jobs:
           # ICON marine 0.25° regional pilot (2026-07-13, round-12 §2a-i — ICON close-zoom fix).
           # No-commit kill via repo Actions variable: set ICON_MARINE_PILOT_INGEST=0.
           ICON_MARINE_PILOT_INGEST: ${{ vars.ICON_MARINE_PILOT_INGEST || '1' }}
-          GFS_MARINE_SOCAL_SWELL2: ${{ vars.GFS_MARINE_SOCAL_SWELL2 || '0' }}  # DARK (2026-10-24): store GFS swell_2 for us_west_coast_socal like every other pilot box (the June pilot left it out). Changes what SoCal swell_2 serves at z7-9: the owner's word (D-001).
+          GFS_MARINE_SOCAL_SWELL2: ${{ vars.GFS_MARINE_SOCAL_SWELL2 || '1' }}  # ON by default, kill switch '0' (owner 2026-11-01 22:10 EST, D-063); built (2026-10-24): store GFS swell_2 for us_west_coast_socal like every other pilot box (the June pilot left it out). Changes what SoCal swell_2 serves at z7-9: the owner's word (D-001).
           # EURO marine 0.25° regional pilot (2026-07-13 — the EURO rating-band resolution fix,
           # free ECMWF wave stream, no CMEMS). No-commit kill: set EURO_MARINE_PILOT_INGEST=0.
           EURO_MARINE_PILOT_INGEST: ${{ vars.EURO_MARINE_PILOT_INGEST || '1' }}
@@ -188,6 +188,11 @@ jobs:
           # client serves a filled set only while /capabilities reports the same mode, so a mismatch costs speed, never a number.
           MARINE_GULF_FILL_MID: ${{ vars.MARINE_GULF_FILL_MID || '1' }}
           MARINE_GULF_FILL_MID_TARGETED: ${{ vars.MARINE_GULF_FILL_MID_TARGETED || '0' }}
+          # ON (2026-11-01, item 11; D-059): adds the EURO waves and ICON waves/swell_1/wind_waves regional bundles on their 14
+          # pilot boxes (services/frame_set_bundle.OTHER_MODEL_SETS), after every GFS set so the budget stagger drops them first.
+          # The client reads them by default. Kill: repo variable FRAME_REGIONAL_BUNDLES_EURO_ICON = '0' (with Render
+          # MARINE_REGIONAL_TILE_FIRST_EURO_ICON=0 and the client's __RAW_DISABLE_REGIONAL_EURO_ICON__).
+          FRAME_REGIONAL_BUNDLES_EURO_ICON: ${{ vars.FRAME_REGIONAL_BUNDLES_EURO_ICON || '1' }}
         run: python scripts/publish_frame_images.py
 
       # 2026-10-27 (the lead): the step above exits 1 on a refused set or a crash, and continue-on-error turns that green: the
@@ -196,6 +201,40 @@ jobs:
       - name: Warn when the static frames publish failed
         if: ${{ !cancelled() && steps.frames_publish.outcome == 'failure' }}
         run: echo "::warning title=Static frames publish failed::publish_frame_images.py exited non-zero; the published indexes stay. See the step log and the Static frames summary."
+
+      # RATED STATIC FRAMES (2026-11-01, item 10, DARK; services/frame_set_rating.py): the Surf Rating band as /grid?surf=1 serves it,
+      # one set per world set (<model>/marine/<layer>/global_mid_rated), each frame rated IN THIS STEP by the served overlay
+      # (grid_resolver_surf.apply_surf_overlay) on this runner's own products and checked node by node before upload; an hour
+      # whose wind product is not on this disk, or any node the codec cannot carry exactly, is listed unbuilt (/grid rates it).
+      # Its OWN step after the frames step (one latest.json writer at a time) with its own budget (FRAME_RATING_BUDGET_S, ~1.5 s a
+      # world frame measured offline). The chain env below MUST equal Render's and precompute.yml's (the index records every value
+      # it read, rating_chain.env): a different value is a different band. The client reads these sets only behind its own dark
+      # lever (staticRatingFrames.js: the gate and climatology are read once per publish, Render re-reads them every 300-600 s).
+      # Publish order (frame_set_rating.rated_publish_sets): the RATED REGIONAL bundles of the GFS pilot boxes first (0.25 deg: the only
+      # rating grids the band PAINTS from; marineRatingBandRes holds 1-deg-and-coarser ones), then the world sets. The client reads the
+      # regional ones only while /capabilities reports regional_tile_first_surf, i.e. Render MARINE_REGIONAL_TILE_FIRST_SURF=1 (dark,
+      # the owner's flip: /grid?surf=1 then rates the same stored tile). FRAME_RATING_REGIONAL=0 leaves them out.
+      # ON by default (the owner, 2026-11-01 22:10 EST, D-057). KILL: repository variable FRAME_RATING_SETS = '0' (the published sets stay
+      # until retention; clients keep the client kill window.__RAW_DISABLE_RATING_FRAMES__ and fall back to /grid on any miss).
+      - name: Publish rated static frames (the Surf Rating band; ON, kill FRAME_RATING_SETS=0)
+        id: rated_publish
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RATING_SETS != '0' }}
+        continue-on-error: true
+        timeout-minutes: 14
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RATING_SETS: ${{ vars.FRAME_RATING_SETS || '1' }}
+          FRAME_RATING_BUDGET_S: ${{ vars.FRAME_RATING_BUDGET_S || '600' }}
+          RATING_LOCAL_SIZE: '1'                 # = precompute.yml / forecast-ingest.yml / Render (ONE FORECAST COMPOSITION)
+          RATING_OBS_GATE: '1'                   # = precompute.yml / Render
+          SHORE_NORMAL_BEARING_RADIUS_KM: '3.0'  # = precompute.yml / forecast-ingest.yml / Render
+        run: python scripts/publish_frame_images.py --only rated
+
+      - name: Warn when the rated static frames publish failed
+        if: ${{ !cancelled() && steps.rated_publish.outcome == 'failure' }}
+        run: echo "::warning title=Rated static frames publish failed::publish_frame_images.py --only rated exited non-zero; the published rated indexes stay. See the Rated static frames summary."
 
       # RASTER STATIC FRAMES (2026-10-23, free-GRIB raster phase 1, services/frame_set_raster.py): GFS mean-sea-level pressure
       # (NOAA pgrb2.0p25 PRMSL by .idx byte range from AWS Open Data, every second point = 720 x 361 at 0.5 deg, f000-f336 every
