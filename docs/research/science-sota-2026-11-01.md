@@ -403,3 +403,112 @@ OpenAlex citation counts were read 2026-11-02.
   Ruessink 2003 (188), Salmon 2015 (51), Ardhuin 2003 Part I (163), Hanson & Phillips 2001 (338), Portilla 2009
   (261), Gneiting 2005 (1,141), Raftery 2005 (1,915), Smith & Wallis 2009 (338), Alves 2013 (59), Espejo 2014 (24),
   Scarfe 2009 (66), Lam 2023 (1,467), Bodnar 2025 (269), Hahner 2026 (0), Filoche 2026 (0).
+
+## 8. Third pass: deeper and wider (owner, 2026-11-01 22:45 EST: "keep the researcher digging deeper")
+
+Written incrementally, newest subsection last. Docs only. Citation counts are from OpenAlex, 2026-11-02.
+
+**Source coverage.**
+
+| Source | Status this pass |
+|---|---|
+| OpenAlex | Works. `fetch_top_cited` needs an OpenAlex **concept ID**, not text (text gives 400): Wind wave model C140927136, Surf zone C152303270, Swell C108628306, Significant wave height C85910571, Breaking wave C169596890, Fetch C131918245, Bathymetry C174943157. |
+| Europe PMC, CORE | "API server error" on every call, 2026-11-02 ~04:50Z. |
+| PubMed Central, bioRxiv/medRxiv | Biomedical; no wave literature expected, so not used. |
+| arXiv | 429 / timeouts. Full PDFs still come through `fetch_pdf_content`. |
+| Primary documents | NDBC measurement pages were fetched directly. |
+
+### 8.1 Topic 7: wave-model verification metrics and buoy QC
+
+- **RMSE, and MAE, can reward under-forecasts.**
+  - Mentaschi et al. 2013 (Ocean Modelling, doi:10.1016/j.ocemod.2013.08.003; 280 cites) show that RMSE and NRMSE can
+    favour a model biased *low* when scatter is large. They recommend reporting bias, scatter index and the Hanna &
+    Heinold "HH" index together.
+  - Gneiting 2011 (JASA, doi:10.1198/jasa.2011.r10138; 1,165 cites): MAE is optimised by the **median** of the
+    forecast distribution. For right-skewed Hs, the median sits below the mean, so an MAE gate can prefer a forecast
+    that under-reads big swells.
+  - *Implication for us:* every skill-ledger gate is MAE. That is consistent with the history of "every model reads
+    LOW on big days" and the skill-weighted mean "shaving big-swell peaks" (D-006).
+  - *Action:* in A2, report bias, scatter index (SI) and HH alongside MAE, and **gate big-swell bands on bias as well
+    as MAE**, so a peak-shaving candidate cannot win on MAE alone.
+- **Benchmarks.**
+  - Bidlot et al. 2002 (WAF; 241 cites): the centre with the lowest wind-speed error also had the lowest wave-height
+    error. Third-generation physics shows its value mainly in **peak period**, not Hs.
+  - Altimeter assimilation helps. Comparisons must correct for the anemometer height.
+  - *Agrees* with our consensus and period work. It argues for scoring period as a first-class target.
+- **Buoy semantics (NDBC, primary pages):**
+
+  | Field | Definition | Source |
+  |---|---|---|
+  | WVHT | 4√m₀, summed over 0.0325-0.485 Hz on current systems (0.03-0.40 Hz on older ones) | NDBC wave calculations page |
+  | DPD | 1/f_p, where f_p is the band with the highest spectral density. No parabolic fit or interpolation is mentioned. | same |
+  | APD | From m₀ and m₂, i.e. Tm02. The square root did not survive the page extraction; check NDBC TD 96-01 before relying on the exact form. | same |
+  | MWD | The direction at the dominant period | NDBC measurement descriptions page |
+
+  - Bandwidths run 0.005 Hz at low frequency up to 0.02 Hz.
+  - **DPD is therefore quantised:** at swell periods one band step is ~1-1.5 s (0.060 vs 0.065 Hz = 16.7 vs 15.4 s).
+  - Model PERPW, pp1d and PTP all use a **parabolic fit**, so they are continuous.
+  - *Contradicts nothing in memory but sharpens A1:* part of every "period MAE vs DPD" (1.44-2.36 s, #412) is
+    quantisation noise in the truth. The DPD < 8 s stratum has narrower bands, so the noise differs by stratum.
+  - *Action:* in the A1 flip gate, also score against a parabolic-fit Tp computed from NDBC `data_spec` spectra, or
+    score in frequency (1/T), so that DPD quantisation cannot decide the flip.
+- **Buoy hull and type biases.**
+  - O'Reilly et al. 1996 (JTECH; 86 cites): the NDBC 3 m discus and the Datawell Waverider agree on energy and mean
+    direction, but the Waverider is much better on directional **spread**.
+  - Ocean Dynamics 2021 (doi:10.1007/s10236-021-01461-0; 25 cites), six co-located systems off Monterey:
+    - NOMAD-hull sensors read Hm0 low as height grows, by up to ~1 m above 6-7 m;
+    - parabolic-fit Tp showed "large scatter" and is "temporally unstable" in multi-swell seas;
+    - NDBC directions had 6-9° bias and ~30° RMS.
+  - JTECH 2022 (doi:10.1175/jtech-d-21-0172.1; 7 cites): the new NDBC 2.1 m hull is more accurate than the 3 m hull
+    for Hs and APD.
+  - arXiv 2512.01749 (2025): the Waverider reads **higher** high-frequency energy (0.2-0.6 Hz) than other buoy types.
+  - *Actions:*
+    1. Record hull type per station in the ledger and stratify big-swell scores by hull, because NOMAD/3 m hulls
+       under-read the very days we under-forecast.
+    2. Never use NDBC directional spread as truth for the K-table spread check (§7.2); use CDIP Waveriders.
+    3. Treat a single-hour Tp as noisy truth: smooth it or use Tm-1,0 alongside.
+- **Short-range buoy-assimilating correction exists, and is the strongest near-term lever seen in this audit.** SWRL
+  Net (WAF 2020, doi:10.1175/waf-d-19-0254.1; 18 cites) is a CNN that takes recent WW3 spectra plus the latest buoy
+  observation and corrects the next 24 h at three US West Coast buoys:
+  - Hs RMSE −23..−50% in hours 0-6 and −10..−20% after;
+  - mean-period RMSE −20..−56%;
+  - direction RMSE −28..−54%;
+  - the biggest gains in 5-10 s sea, and it generalises across sites.
+
+  It is the same family as Filoche 2026 (§1d, §7.2). *Action (new):* a dark day-0/day-1 "nowcast correction" lane at
+  spots with a nearby buoy. Start with a decaying-average residual (the NCEP style), then a residual model, graded
+  with A2. The forecast stays the base and the buoy only corrects it.
+
+### 8.2 Topic 8: swell decay and dispersion (long-range arrival)
+
+- **Swell decays slowly but measurably, and faster when steep.** Ardhuin, Chapron & Collard 2009 (GRL,
+  doi:10.1029/2008GL037030; 383 cites; SAR observations):
+  - energy e-folding scales exceed **20,000 km** for gentle swell, shrinking to **2,800 km** for the steepest swells;
+  - that is β ≈ 4.2×10⁻⁶ s⁻¹, read as a laminar-to-turbulent air-side boundary-layer transition.
+
+  This is now in the WW3 ST4 physics (Ardhuin et al. 2010; 1,000+ cites), so GFS-Wave already carries it. *Agrees*:
+  we should not add a swell-decay term of our own. Distant-swell height error is mostly source-storm and wind error,
+  not missing decay physics.
+- **Arrival timing is deep-water dispersion.**
+  - Collard, Ardhuin & Chapron 2009 (JGR, doi:10.1029/2008JC005215; 188 cites) project SAR peak periods along great
+    circles at the peak-period group speed, forward and back in time. The result is consistent with the dispersive
+    arrival of peak periods at a mid-ocean buoy.
+  - Snodgrass et al. 1966 (Phil. Trans., doi:10.1098/rsta.1966.0022; 386 cites) is the canonical cross-Pacific
+    observation.
+  - *Implication:* the period of an arriving swell rises over its arrival day, by dispersion (long periods first). A
+    Tp that jumps between ranked partitions (§7.2) can hide this ramp.
+- **Systematic timing errors exist and are correctable.** Filoche 2026 (§1d) fixed a *premature* swell-arrival bias in
+  ECMWF off NW Australia with buoy learning. Cavaleri 2009 (JPO "Missing the peaks", doi:10.1175/2009JPO4067.1;
+  155 cites) explains why storm peaks are smoothed:
+  - wind error at the peak;
+  - nonlinear transfer that spreads energy too widely;
+  - whitecapping fitted to the bulk of the data;
+  - advection smoothing ("garden-sprinkler" alleviation).
+
+  *Agrees* with the Aurora and AIFS peak-smoothing caveats and with grading A4 by band.
+- **Action (new, cheap, dark):** a per-spot "swell arrival check".
+  - When a long-period partition (>14 s) is forecast to arrive, compare the forecast onset hour and period ramp with
+    the nearest buoy's spectrum.
+  - Log the timing error by model and source region.
+  - This gives the data for a timing bias correction and for the arrival-ramp display. Our n=1 claims about "the
+    swell came early" become measurable.
