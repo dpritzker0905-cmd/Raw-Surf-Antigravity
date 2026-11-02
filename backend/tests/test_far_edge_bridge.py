@@ -130,7 +130,10 @@ def _bridge(store, target, model="ICON", current=None):
     return asyncio.run(feb.try_far_edge_bridge(store, model, "marine", "waves", target, current_product=current))
 
 
-def test_dark_by_default():
+def test_on_by_default_and_zero_kills_it(monkeypatch):
+    # ON by default since 2026-11-01 (owner, D-063): unset bridges; FAR_EDGE_BRIDGE=0 is the kill switch.
+    assert _bridge(_icon_store(), T0 + timedelta(hours=6)) is not None
+    monkeypatch.setenv("FAR_EDGE_BRIDGE", "0")
     assert _bridge(_icon_store(), T0 + timedelta(hours=6)) is None
 
 
@@ -215,9 +218,9 @@ def test_the_resolver_bridges_after_the_mid_tier_and_before_the_hold():
     assert mid < bridge < hold
 
 
-def test_registered_dark():
+def test_registered_on_by_default():
     import ast
     reg_src = (Path(feb.__file__).parents[2] / "routes" / "admin" / "surf_forecast.py").read_text(encoding="utf-8")
     reg = next(ast.literal_eval(n.value) for n in ast.walk(ast.parse(reg_src))
                if isinstance(n, ast.Assign) and any(getattr(t, "id", None) == "_RATING_FLAGS" for t in n.targets))
-    assert reg["FAR_EDGE_BRIDGE"][0] == "0" and reg["FAR_EDGE_BRIDGE"][2] == "Render env"
+    assert reg["FAR_EDGE_BRIDGE"][0] == "1" and reg["FAR_EDGE_BRIDGE"][2] == "Render env"
