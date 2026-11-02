@@ -141,6 +141,9 @@ for (const [message, kind] of [
   ['route.fetch: upstream says Test ended.', 'other'],
   ['route.fetch: Test ended. unexpectedly', 'other'],
   ['route.fetch: Test ended.\nread ECONNRESET', 'transport_reset'],
+  ['route.fetch: Timeout 120000ms exceeded.\nCall log: previous request has been closed', 'timeout'],
+  ['route.fetch: unexpected upstream error\nupstream detail: Target closed', 'other'],
+  ['route.fetch: Target closed\nread ECONNRESET', 'transport_reset'],
 ]) {
   test(`non-cancellation remains a failed local 502: ${message}`, async () => {
     const f = setup({ fetchError: new Error(message) });
@@ -152,5 +155,20 @@ for (const [message, kind] of [
     assert.equal(stats.failedExamples.length, 1);
     assert.equal(f.lines.at(-1).error_kind, kind);
     assert.deepEqual(await stats.lifecycle.drain(), { complete: true, pending: 0, handlerErrors: 0 });
+  });
+}
+
+for (const message of [
+  'route.fetch: Target page, context or browser has been closed\nCall log: pending request',
+  'route.fetch: Request context disposed\nCall log: pending request',
+]) {
+  test(`legacy first-line closure remains cancellation with multiline details: ${message}`, async () => {
+    const f = setup({ fetchError: new Error(message) });
+    const stats = await routeWeatherToLocal(f.page, f.config);
+    await f.calls.handler(f.route);
+    assert.deepEqual([stats.local, stats.failed, stats.cancelled], [0, 0, 1]);
+    assert.equal(f.calls.aborted, true);
+    assert.equal(f.calls.fulfill, undefined);
+    assert.equal(f.lines.at(-1).error_kind, 'page_or_context_closed');
   });
 }
