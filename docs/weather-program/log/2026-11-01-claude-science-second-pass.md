@@ -34,3 +34,21 @@ Branch `claude/science-second-pass-2026-11-01`, stacked on the first-pass commit
   - arXiv returns 429.
   - Some publisher PDFs gave 403 or failed extraction.
 - Live load: none. SCOREBOARD: no row.
+
+## Fourth pass (lead 23:04 EST: SciWeave, #680, open K tools, owner's MCP paper)
+
+- 05:40Z: §9.1-9.7.
+  - The operational GFS-Wave writer is settled: global-workflow `ww3_grib_gfs.x` with
+    `OUTPARS_WAV="... PHS PTP PDIR"`, so SWPER/WVPER = PTP (peak).
+  - Direction-binned MOS: assessed as a sound interim at Canaveral (buoy→buoy ratio × period band), with a
+    validation plan.
+  - Open K tools table, with a serve-time lookup design and a Canaveral pipeline.
+  - O'Reilly & Guza 1991: rays are not accurate for narrow swell over complex bathymetry, so a SWAN check is required.
+  - AIFS wave: summer-only evaluations; gate on a winter.
+  - Ordinal rating calibration (McCullagh 1980; RPS).
+- Not reached:
+  - SciWeave is not loaded in this session;
+  - the Ayuso-Virgili 2024 full text (the publisher page was refused by the session's bot-check policy; the abstract
+    only is used);
+  - retargeting #681's base onto #680's branch was denied, so #681 stays on dev, stacked on 290c15b01.
+- Live load: none. SCOREBOARD: no row.

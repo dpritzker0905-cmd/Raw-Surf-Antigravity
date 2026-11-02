@@ -765,6 +765,14 @@ The chain is read from `NOAA-EMC/global-workflow` (develop) through `gh api`:
 
 \* My own order-of-magnitude estimates, **not measured**: they assume numpy-vectorised rays and SWAN on one CPU core.
 
+**Key caveat on rays (O'Reilly & Guza 1991, abstract read).** Refraction and refraction-diffraction models agree
+better as the incident spectrum gets *broader* and the bathymetry *smoother*. For **directionally narrow spectra**
+there are "significant differences", and "pure refraction models are not quantitatively accurate in these cases".
+- Long-period groundswell over the Cape Canaveral shoals is exactly that case: narrow swell over complex bathymetry.
+- So, at Canaveral, rays are the fast first table but **not** the final answer until the §9.4 step-5 check passes.
+- The same paper warns that a low-resolution pitch-and-roll buoy as the only directional input adds large
+  uncertainty. That is another reason to use the CDIP Waverider for direction truth.
+
 **How the output feeds the serve-time chain (arithmetic only, no I/O).**
 1. Offline, per spot, store an energy transfer table K(f, θ) on the boundary grid (e.g. 0.04-0.30 Hz × 1-5°).
 2. Collapse it, for each **parametric partition shape**, into a 2-D lookup R(T_p, θ_m) = (H_s,spot/H_s,off)²: a
@@ -802,7 +810,8 @@ The same lookup shape serves the §9.2 direction-binned MOS, so the interim and 
    - Score by offshore direction bin against the measured ratio table and against the §9.2 MOS. Use the hold-out
      year, bias/SI/HH, and DM versus the MOS.
    - Use the CDIP Waverider (41113 is a CDIP station) for direction and spread truth, not an NDBC hull (§8.1).
-5. **Physics gap check.** Run one hybrid SWAN library (~100 MDA cases) on the same grid. Measure what rays miss over
+5. **Physics gap check (required at Canaveral, not optional).** Narrow swell over the shoals is where rays fail
+   (O'Reilly & Guza 1991). Run one hybrid SWAN library (~100 MDA cases) on the same grid. Measure what rays miss over
    the Cape shoals: friction, breaking of short energetic waves (Paniagua-Arroyave 2019), and diffraction. If SWAN
    beats rays at 41113 with significance, adopt the SWAN library for Canaveral.
 6. **Validation B, forecast:** drive the winning table with debiased GFS/EURO/ICON partitions at lead times and score
@@ -810,3 +819,73 @@ The same lookup shape serves the §9.2 direction-binned MOS, so the interim and 
 7. **Spots:** apply to Jetty Park, Cocoa and Playalinda. Validate there only against the observation log (A9), because
    no buoy sits in the break.
 8. **Ship dark** behind a per-spot flag. Owner flips on the evidence.
+
+### 9.5 AIFS wave skill beyond one summer: not established
+
+- **Every published AIFS-wave evaluation found is a northern-hemisphere summer:**
+  - the ECMWF AIFS waves blog (2025, fetched): June-August 2023, buoys plus satellite, SWH only, "roughly one forecast
+    day" of medium-range gain, with smoothing noticeable at longer lead and no quantitative extremes or swell result;
+  - Hahner et al. 2026 (arXiv 2604.25559, first pass M3): May-August 2024.
+- The OpenAlex search for later evaluations was rate-limited this pass; nothing newer was found.
+- **Unknown, therefore:**
+  - northern-winter storm skill;
+  - Southern Ocean groundswell, which is the source of most of our long-period swell;
+  - big-swell bands;
+  - period skill. The model's period is `mwp` (Te), and there is no pp1d.
+- **Action (refines A4):** the shadow lane must report skill **by season and by big-swell band** before AIFS enters
+  any consensus. The first northern winter of shadow rows (Dec-Feb) is the gating sample. Peak smoothing at long lead
+  is the documented failure mode, so gate on big-swell **bias**, not only MAE (§8.1).
+
+### 9.6 Surf-rating calibration from observations (refines A9)
+
+- **The literature method for an ordered rating is an ordinal model, scored with a ranked-category score:**
+  - proportional-odds (cumulative-logit) regression (McCullagh 1980, JRSS-B, doi:10.1111/j.2517-6161.1980.tb01109.x;
+    4,454 cites);
+  - the ranked probability score (Epstein 1969, J. Appl. Meteor., doi:10.1175/1520-0450(1969)008<0985:ASSFPF>2.0.CO;2;
+    567 cites).
+- **Truth sources, cheapest first:**
+  1. The owner/user observation log: timestamp, spot, face height, quality level, crowd-blind.
+  2. A "surfing day" yes/no from logged sessions, Iberian-style (JMSE 2020; §7.2).
+  3. Later, camera peel tracking (Remote Sensing 2021).
+- **Procedure, all dark:**
+  1. Keep today's factor structure and fit only a monotone mapping, observed level ~ cumulative-logit(Σ wₖ·log factorₖ).
+     Constrain the signs so a better wind or period can never lower the score. Add a per-spot offset with shrinkage
+     (random effect).
+  2. Score with RPS skill against spot climatology and against today's mapping. Use Kendall τ for rank agreement and
+     a reliability diagram per level.
+  3. Use blocked cross-validation: leave-one-spot-out **and** leave-one-week-out, so the score is never tested on the
+     week it learned.
+  4. Paired DM on per-observation RPS against today's mapping.
+- **Minimum sample:** order of 10 observations per level per spot class before any per-spot term. This is my rule of
+  thumb, not from the literature: ordinal models with sparse cells need pooling.
+- **Do not** let a rating model learn the *height*: that belongs to the forecast composition (the one-chain rule).
+  The rating maps a given breaking height and conditions to quality.
+
+### 9.7 Changes to the ranked top 10 (§8.6) from this pass
+
+- **#6 (per-spot K):**
+  - The serve path is now specified (§9.3).
+  - At Canaveral the interim **direction × period-band ratio MOS (§9.2) comes first (S)**.
+  - Rays are fast but **not sufficient for narrow swell over shoals** (O'Reilly & Guza 1991), so a hybrid SWAN library
+    check is required there.
+  - California can use CDIP's published coefficients if the licence allows.
+- **#5 (AIFS):** gate on a winter, by band and on bias. No published non-summer evaluation exists.
+- **#10 (rating truth):** ordinal (proportional-odds) calibration with RPS and blocked CV (§9.6).
+- **A10 is closed:** the operational GFS-Wave writer is `ww3_grib` with `OUTPARS_WAV` PTP (§9.1).
+
+**New contradictions with memory this pass:**
+
+| # | Memory claim | What the evidence says |
+|---|---|---|
+| 13 | Canaveral note step 4, "per-spot K from backward ray tracing", and the first pass's "K(f, θ) via backward ray tracing confirmed" | Pure refraction is not quantitatively accurate for narrow swell over complex bathymetry (O'Reilly & Guza 1991). Rays need a SWAN or diffraction check at Canaveral. |
+| 14 | A10 "unverified operational writer" | Settled from global-workflow (§9.1) |
+
+**SciWeave questions for a session that has it** (the lead's ~48 credits, hardest first):
+1. "For long-period (>12 s), directionally narrow swell over cape-associated shoals (e.g., Cape Canaveral, Southeast
+   Shoal), how do backward spectral ray tracing, SWAN, and refraction-diffraction models compare against nearshore
+   buoys, and what bathymetry resolution is needed?"
+2. "What published evaluations of ECMWF AIFS (or other ML) ocean-wave forecasts cover northern-hemisphere winter or
+   Southern Ocean swell, and how do they score for Hs > 4 m and for wave period?"
+3. "Which measure-correlate-predict algorithms and sorting criteria perform best for correcting reanalysis wave height
+   and period at sheltered coastal sites, with what error reductions?" This would also stand in for the unread
+   Ayuso-Virgili full text.
