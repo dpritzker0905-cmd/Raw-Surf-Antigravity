@@ -1,8 +1,9 @@
 # 2026-11-02 · claude · Weather batch 2 (#678 #683 #684 #685 #686, dark / test-only)
 
 Session: a delegated subagent of the lead. Branch `claude/weather-batch-2`, cut from `origin/dev` at `4b3e27aa6`, then
-`origin/dev` merged in again at `cd09e4e3e` (dev moved while the batch was built: #674 weather batch 1, #680/#681 science
-docs; frontend and docs only, no backend test or floor change). Nothing merged to dev, nothing flipped, no live backend
+`origin/dev` merged in again three times as dev moved: `cd09e4e3e` (#674 weather batch 1, #680/#681 science docs; no
+backend test or floor change), `558a1a54f` (#687 grom, frontend only) and `6a00e7f6e` (#672 rated frames, chain +9 in
++1 file, which moved dev's chain map to 3044). Nothing merged to dev, nothing flipped, no live backend
 call, no workflow dispatch, no Render/Netlify env change.
 
 ## What the batch carries
@@ -45,15 +46,17 @@ Per-file counts, collected at the batch head vs the same file on dev (`pytest --
 43 vs 41 = +2 (#684 had not moved the floor), `test_scored_rows_gate.py` 44 vs 44, `test_routes_flags_not_in_registry.py`
 2 (new). Lane membership from `scripts/ci_test_lanes.py` (partition OK: guards 213, chain 186, estate 366 files).
 
-`python backend/scripts/rederive_floor.py` against dev run 41377184916 (the last green dev run):
+`python backend/scripts/rederive_floor.py`, last re-run after #672 (base = max(dev's last green hosted read, dev's map)):
 
 | Lane | Dev | Added | Set from | Floor (MIN_PASSED) | Files |
 |---|---|---|---|---|---|
-| guards | 3351 / 213 files | +0 | 3351 | 3345 → 3345 | 213 |
-| chain | 3035 / 184 files | +48 (#683) +2 (#684) +26 (#685) +35 (#686) = +111, +2 files | 3146 | 3029 → 3140 | 184 → 186 |
-| estate | 3406 | +2 (#678) | 3408 | 3404 → 3406 | n/a |
+| guards | 3351 / 213 files (map 3351) | +0 | 3351 | 3345 → 3345 | 213 |
+| chain | dev map 3044 (hosted 3035 + #672's 9) / 185 files | +48 (#683) +2 (#684) +26 (#685) +35 (#686) = +111, +2 files | 3155 | 3038 → 3149 | 185 → 187 |
+| estate | 3406 (map 3406) | +2 (#678) | 3408 | 3404 → 3406 | n/a |
 
-Hosted CI must read guards 3351, chain 3146, estate 3408 passed.
+Hosted CI must read guards 3351, chain 3155, estate 3408 passed. Before #672 landed, hosted CI on head `82238ff7f`
+(run 41525255530) read exactly the then-projection: guards 3351 / 213 files, chain 3146 / 186 files, estate 3408; Jest
+624 suites / 8148 tests.
 
 ## Local verification (from `C:/t/wb2/backend`, the main checkout's venv)
 
