@@ -1,11 +1,12 @@
 /**
- * windTimeBlend.js — the f120+ wind TAIL between two 3-hourly frames (OPT-IN, default off; owner clips decide): a LABELLED
- * estimate, never a stored forecast.
+ * windTimeBlend.js — the f120+ wind TAIL between two 3-hourly frames: a LABELLED estimate, never a stored forecast. ON by default
+ * since the owner's pick (2026-11-01 18:50 EST, from the clips: "I like the wind between frames on").
+ * Kill: window.__RAW_DISABLE_WIND_TIME_BLEND__ = true (the nearest stored frame again, labelled by #560).
  *
- * GFS publishes 3-hourly steps past f120, while the scrubber steps hourly, so 2 of every 3 tail hours draw the nearest frame
- * (labelled by #560). With window.__RAW_WIND_TIME_BLEND__ = true, a selected instant strictly between two built static frames
- * at or past f120 draws them blended by PCHIP on u and v: a monotone cubic Hermite (Fritsch-Carlson slopes) through the
- * frames t-3, t, t+3 and t+6, one-sided where a neighbour frame or node is missing.
+ * GFS publishes 3-hourly steps past f120, while the scrubber steps hourly, so 2 of every 3 tail hours would draw the nearest
+ * frame. A selected instant strictly between two built static frames at or past f120 draws them blended by PCHIP on u and v: a
+ * monotone cubic Hermite (Fritsch-Carlson slopes) through the frames t-3, t, t+3 and t+6, one-sided where a neighbour frame or
+ * node is missing.
  *
  * WHY PCHIP (the hold-out, SCOREBOARD S23, 2026-10-25; side-session-notes wind-holdout-2026-10-25/): every non-frame hour
  * f001-f119 of 3 real GFS runs was rebuilt from the 3-hourly frames alone and scored against the real hourly field. For f073-119,
@@ -19,15 +20,16 @@
  * The result says what it is: `time_blend` on the grid, `is_estimated` true, and the status line reads "Estimated forecast:
  * interpolated between <t0> and <t1>". No served number moves.
  *
- * Pure: no I/O, no globals except the opt-in read.
+ * Pure: no I/O, no globals except the kill switch's read.
  */
 
 export const WIND_BLEND_MAX_GAP_MS = 6 * 3600000;   // never bridge a hole in the lattice (an unbuilt frame) with a long blend
 export const WIND_BLEND_MIN_LEAD_MS = 120 * 3600000; // the tail only: f120+, where NOAA publishes no hourly step
 export const WIND_BLEND_METHOD = 'PCHIP on u/v (monotone cubic, frames t-3..t+6)';
 
+/** ON unless killed: window.__RAW_DISABLE_WIND_TIME_BLEND__ = true. */
 export function windTimeBlendOn() {
-  return typeof window !== 'undefined' && window.__RAW_WIND_TIME_BLEND__ === true;
+  return !(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_TIME_BLEND__ === true);
 }
 
 /** The run (forecast reference time) of a static-frame index, in ms, or NaN. */

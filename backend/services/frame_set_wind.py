@@ -3,7 +3,8 @@
 WHY. Toggling to wind and scrubbing waited on the 1-CPU box: every hour asked /grid (the 2-degree world base and the viewport
 clip of the same product) or a /grid_series page (~10-25 s of the box, then a thinned 46 x 21 picture). The marine world sets
 already come from the CDN (frame_set.SETS); this is the wind set beside them: GFS wind global_mid, written by the PILOTS lane
-("GFS Wind Global Mid": NOAA-direct, 3-hourly f000-f336, 181 x 83), so its products are on the same runner disk.
+("GFS Wind Global Mid": NOAA-direct, 3-hourly f000-f336, 181 x 83; HOURLY f000-f120 too with FRAME_WIND_GFS_HOURLY=1 —
+nothing here assumes a step: every stored product becomes an entry), so its products are on the same runner disk.
 
 WHAT /grid SERVES, AND SO WHAT A FRAME HOLDS. /grid runs `wind_lane.apply_wind_lane` on every GFS wind grid it serves (D-017:
 HRRR inside its CONUS domain and its 48 h horizon, feathered and tapered; GFS elsewhere). A frame of the STORED product would

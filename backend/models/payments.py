@@ -33,6 +33,9 @@ class CreditTransaction(Base):
     
     # Transaction details
     amount = Column(Float, nullable=False)  # Positive = credit, Negative = debit
+    # Signed promotional component of this movement, not an additional amount.
+    spend_only_amount = Column(Float, default=0.0, server_default="0", nullable=False)
+    refund_of_transaction_id = Column(String(36), nullable=True, index=True)
     balance_before = Column(Float, nullable=False)  # Balance before transaction
     balance_after = Column(Float, nullable=False)   # Balance after transaction
     
@@ -101,6 +104,9 @@ class GlobalPricingConfig(Base):
     # Platform commission % charged to photographers, keyed by subscription tier
     # e.g. {"free": 25, "tier_2": 20, "tier_3": 15}
     commission_rates = Column(JSON, nullable=True)
+
+    # Versioned wallet offers; null means the original default schedule.
+    credit_package_bonuses = Column(JSON, nullable=True)
 
     # Surfer media-purchase discount %, keyed by subscription tier
     # e.g. {"free": 0, "tier_2": 10, "tier_3": 20}

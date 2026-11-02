@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -30,6 +30,8 @@ import { getFullUrl } from '../utils/media';
 import { PurchaseRequestsPanel } from './grom/PurchaseRequestsPanel';
 import LinkMyChildPanel from './grom/LinkMyChildPanel';
 import GuardianLevelBadge from './grom/GuardianLevelBadge';
+import FamilyActivityError from './grom/FamilyActivityError';
+import LinkedGromsLoadError from './grom/LinkedGromsLoadError';
 import { GenericPageSkeleton } from './ui/SkeletonVariants';
 
 /**
@@ -43,8 +45,11 @@ export const GromHQ = () => {
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
+  const [gromLoadError, setGromLoadError] = useState(false);
   const [linkedGroms, setLinkedGroms] = useState([]);
   const [pendingRequests, setPendingRequests] = useState([]);
+  const competitionRequests = useRef(new Set());
+  const [competitionPending, setCompetitionPending] = useState({});
   const [stats, setStats] = useState({
     totalEarnings: 0,
     totalSessions: 0,
@@ -66,6 +71,7 @@ export const GromHQ = () => {
   // Family Activity Feed state
   const [activityFeed, setActivityFeed] = useState([]);
   const [activityLoading, setActivityLoading] = useState(false);
+  const [activityError, setActivityError] = useState(false);
   const [showActivityFeed, setShowActivityFeed] = useState(false);
 
   // Theme classes
@@ -85,6 +91,7 @@ export const GromHQ = () => {
   const fetchGromData = async () => {
     if (!user?.id) return;
     setLoading(true);
+    setGromLoadError(false);
     
     try {
       // Fetch linked Groms
@@ -99,9 +106,7 @@ export const GromHQ = () => {
       });
     } catch (error) {
       logger.error('Failed to fetch Grom HQ data:', error);
-      // Use defaults on error
-      setLinkedGroms([]);
-      setPendingRequests([]);
+      setGromLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -130,12 +135,13 @@ export const GromHQ = () => {
   const fetchActivityFeed = async () => {
     if (!user?.id) return;
     setActivityLoading(true);
+    setActivityError(false);
     try {
       const response = await apiClient.get(`/grom-hq/family-activity/${user.id}?limit=20`);
       setActivityFeed(response.data.activities || []);
     } catch (error) {
       logger.error('Failed to fetch activity feed:', error);
-      setActivityFeed([]);
+      setActivityError(true);
     } finally {
       setActivityLoading(false);
     }
@@ -260,8 +266,9 @@ export const GromHQ = () => {
   };
 
   if (loading) {
-    return <GenericPageSkeleton />;
+    return <div role="status" aria-label="Loading linked Groms"><GenericPageSkeleton /></div>;
   }
+  if (gromLoadError) return <LinkedGromsLoadError onRetry={fetchGromData} onBack={() => navigate('/settings')} />;
 
   return (
     <div className={`min-h-screen ${isLight ? 'bg-gray-50' : 'bg-black'} pb-24 md:pb-8`}>
@@ -411,7 +418,7 @@ export const GromHQ = () => {
               <CardTitle className={`${textPrimary} flex items-center gap-2 text-base`}>
                 <Activity className="w-5 h-5 text-emerald-400" />
                 Family Activity
-                {activityFeed.length > 0 && (
+                {!activityLoading && !activityError && activityFeed.length > 0 && (
                   <Badge className="ml-2 bg-emerald-500/20 text-emerald-400 border-0">
                     {activityFeed.length}
                   </Badge>
@@ -430,10 +437,10 @@ export const GromHQ = () => {
           {showActivityFeed && (
             <CardContent className="space-y-3 max-h-[400px] overflow-y-auto">
               {activityLoading ? (
-                <div className="flex items-center justify-center py-8">
+                <div role="status" aria-label="Loading family activity" className="flex items-center justify-center py-8">
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-emerald-500"></div>
                 </div>
-              ) : activityFeed.length === 0 ? (
+              ) : activityError ? <FamilyActivityError onRetry={fetchActivityFeed} /> : activityFeed.length === 0 ? (
                 <div className="text-center py-8">
                   <Activity className="w-8 h-8 mx-auto mb-2 text-gray-500" />
                   <p className={`text-sm ${textSecondary}`}>No recent activity from your Groms</p>
@@ -494,7 +501,7 @@ export const GromHQ = () => {
                 ))
               )}
               
-              {activityFeed.length > 0 && (
+              {!activityLoading && !activityError && activityFeed.length > 0 && (
                 <Button 
                   variant="ghost" 
                   className="w-full text-emerald-400 hover:text-emerald-300"
@@ -589,8 +596,17 @@ export const GromHQ = () => {
                       <span className={`text-sm ${textPrimary}`}>Competition Mode</span>
                     </div>
                     <button
+                      type="button"
+                      role="switch"
+                      aria-label={`Competition Mode for ${grom.full_name || 'Grom'}`}
+                      aria-checked={grom.elite_tier === 'grom_rising'}
+                      aria-busy={Boolean(competitionPending[grom.id])}
+                      disabled={Boolean(competitionPending[grom.id])}
                       onClick={async (e) => {
                         e.stopPropagation();
+                        if (competitionRequests.current.has(grom.id)) return;
+                        competitionRequests.current.add(grom.id);
+                        setCompetitionPending(prev => ({ ...prev, [grom.id]: true }));
                         const newStatus = grom.elite_tier !== 'grom_rising';
                         try {
                           await apiClient.post(`/grom-hq/toggle-competition/${grom.id}?parent_id=${user.id}`, {
@@ -608,9 +624,12 @@ export const GromHQ = () => {
                           );
                         } catch (err) {
                           toast.error('Failed to update competition status');
+                        } finally {
+                          competitionRequests.current.delete(grom.id);
+                          setCompetitionPending(prev => ({ ...prev, [grom.id]: false }));
                         }
                       }}
-                      className={`w-11 h-6 rounded-full transition-colors ${
+                      className={`w-11 h-6 rounded-full transition-colors disabled:opacity-50 focus-visible:ring-2 focus-visible:ring-ring ${
                         grom.elite_tier === 'grom_rising' ? 'bg-yellow-500' : 'bg-zinc-600'
                       }`}
                       data-testid={`grom-competition-toggle-${grom.id}`}

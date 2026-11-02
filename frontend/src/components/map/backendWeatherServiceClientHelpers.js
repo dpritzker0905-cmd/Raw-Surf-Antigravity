@@ -11,7 +11,7 @@ import { updateDiagnostics, updateProjectionDiag } from './backendWeatherService
 import { arrayMax } from './marineControllerUtils';
 import { readMarineFrameReceipt } from './marineFrameReceipt';
 import { iconFarHourRenderEnabled, hasUsableMarineVectors } from './iconEstimateDelivery';
-
+import { oldestServedTime } from './heldFrameTime';   // the blend's data time: its oldest input's served time (readout only)
 import { blendSubVector, extrapolateSubVector } from './marineDirectionBlend';
 export { blendDirection, blendPeriod, blendSubVector, extrapolateSubVector } from './marineDirectionBlend';
 
@@ -563,7 +563,8 @@ export async function fetchBackendMarineGridIconExtended(bounds, hourOffset, sig
 
       const primaryVectors = gfsVectors.length > 0 ? gfsVectors : euroVectors;
       const primaryGrid = gfsVectors.length > 0 ? gfsTargetGrid.grid : euroTargetGrid.grid;
-
+      // HELD TIME (2026-10-25, heldFrameTime.js): the inputs' served times (past the tail, the server's far-edge hold of older frames).
+      const _held = oldestServedTime({ ...(gfsVectors.length ? { gfs: gfsTargetGrid } : {}), ...(euroVectors.length ? { euro: euroTargetGrid } : {}) });
       const GFS_WEIGHT = gfsVectors.length > 0 && euroVectors.length > 0 ? 0.6 : 1.0;
       const EURO_WEIGHT = 1.0 - GFS_WEIGHT;
 
@@ -651,11 +652,13 @@ export async function fetchBackendMarineGridIconExtended(bounds, hourOffset, sig
         renderable: blendedVectors.length > 0,
         is_estimated: true,
         isEstimated: true,
+        ...(_held ? { __readoutServedTime: _held.oldest } : {}),   // the status line's data time; never served_valid_time (the commit rules read that)
         estimate_basis: {
           type: 'icon_extended_blend',
           method: 'weighted_average',
           gfs_weight: GFS_WEIGHT,
-          euro_weight: EURO_WEIGHT
+          euro_weight: EURO_WEIGHT,
+          ...(_held ? { served_times: _held.times } : {})
         }
       };
 

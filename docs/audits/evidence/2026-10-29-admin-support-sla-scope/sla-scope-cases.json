@@ -1,0 +1,293 @@
+{
+  "actualHandlersAndTicketModel": true,
+  "fixedClock": "2026-10-29T12:00:00+00:00",
+  "database": "disposable in-memory SQLite",
+  "fixtureAdapter": "Only sla_due_at result processing attaches UTC to known-UTC synthetic SQLite timestamps, matching the app column's timezone=True intent; no app schema/source change.",
+  "cases": [
+    {
+      "name": "older unresolved overdue ticket: list1/card0",
+      "passed": true,
+      "expected": {
+        "listOverdueFlags": 1,
+        "cohortCount": 0,
+        "days": 30
+      },
+      "actual": {
+        "listOverdueFlags": 1,
+        "cohortCount": 0,
+        "days": 30
+      },
+      "rows": [
+        {
+          "id": "fixture-0",
+          "created_at": "2026-09-28T12:00:00",
+          "status": "open",
+          "is_sla_breached": true
+        }
+      ],
+      "beforeSha256": "fcd384e9fa9a7aebdffed2094e5dae32c1f30e3476a326ea37903905466ccbd6",
+      "afterSha256": "fcd384e9fa9a7aebdffed2094e5dae32c1f30e3476a326ea37903905466ccbd6"
+    },
+    {
+      "name": "recent unresolved overdue ticket: list1/card1",
+      "passed": true,
+      "expected": {
+        "listOverdueFlags": 1,
+        "cohortCount": 1,
+        "days": 30
+      },
+      "actual": {
+        "listOverdueFlags": 1,
+        "cohortCount": 1,
+        "days": 30
+      },
+      "rows": [
+        {
+          "id": "fixture-0",
+          "created_at": "2026-10-28T12:00:00",
+          "status": "open",
+          "is_sla_breached": true
+        }
+      ],
+      "beforeSha256": "70ea3e76e5f32d7dd2206ad00ff8e8375265e1fd7dc74326bc8a1de4a47ec09f",
+      "afterSha256": "70ea3e76e5f32d7dd2206ad00ff8e8375265e1fd7dc74326bc8a1de4a47ec09f"
+    },
+    {
+      "name": "exact creation cutoff included",
+      "passed": true,
+      "expected": {
+        "listOverdueFlags": 1,
+        "cohortCount": 1,
+        "days": 30
+      },
+      "actual": {
+        "listOverdueFlags": 1,
+        "cohortCount": 1,
+        "days": 30
+      },
+      "rows": [
+        {
+          "id": "fixture-0",
+          "created_at": "2026-09-29T12:00:00",
+          "status": "open",
+          "is_sla_breached": true
+        }
+      ],
+      "beforeSha256": "78324e79c034fb6a495f4d50dea97539eacb2f456091cff53169223c70cd9191",
+      "afterSha256": "78324e79c034fb6a495f4d50dea97539eacb2f456091cff53169223c70cd9191"
+    },
+    {
+      "name": "one second outside creation cutoff excluded",
+      "passed": true,
+      "expected": {
+        "listOverdueFlags": 1,
+        "cohortCount": 0,
+        "days": 30
+      },
+      "actual": {
+        "listOverdueFlags": 1,
+        "cohortCount": 0,
+        "days": 30
+      },
+      "rows": [
+        {
+          "id": "fixture-0",
+          "created_at": "2026-09-29T11:59:59",
+          "status": "open",
+          "is_sla_breached": true
+        }
+      ],
+      "beforeSha256": "2ebcb2754e7adeae0ed2767299217923fc0fd177a034cf13e263443977476995",
+      "afterSha256": "2ebcb2754e7adeae0ed2767299217923fc0fd177a034cf13e263443977476995"
+    },
+    {
+      "name": "future deadline not overdue",
+      "passed": true,
+      "expected": {
+        "listOverdueFlags": 0,
+        "cohortCount": 0,
+        "days": 30
+      },
+      "actual": {
+        "listOverdueFlags": 0,
+        "cohortCount": 0,
+        "days": 30
+      },
+      "rows": [
+        {
+          "id": "fixture-0",
+          "created_at": "2026-10-28T12:00:00",
+          "status": "open",
+          "is_sla_breached": false
+        }
+      ],
+      "beforeSha256": "6de35a744120ddf793a4f22e48e54c1ee7ecb642fab36bd16562adeeef3ef095",
+      "afterSha256": "6de35a744120ddf793a4f22e48e54c1ee7ecb642fab36bd16562adeeef3ef095"
+    },
+    {
+      "name": "deadline exactly now is not overdue",
+      "passed": true,
+      "expected": {
+        "listOverdueFlags": 0,
+        "cohortCount": 0,
+        "days": 30
+      },
+      "actual": {
+        "listOverdueFlags": 0,
+        "cohortCount": 0,
+        "days": 30
+      },
+      "rows": [
+        {
+          "id": "fixture-0",
+          "created_at": "2026-10-28T12:00:00",
+          "status": "open",
+          "is_sla_breached": false
+        }
+      ],
+      "beforeSha256": "473d1468e14f1e6174fd2f2a19b7c44cfea33b277f3fa506a5fb304f3c1bd476",
+      "afterSha256": "473d1468e14f1e6174fd2f2a19b7c44cfea33b277f3fa506a5fb304f3c1bd476"
+    },
+    {
+      "name": "Resolved excluded from both",
+      "passed": true,
+      "expected": {
+        "listOverdueFlags": 0,
+        "cohortCount": 0,
+        "days": 30
+      },
+      "actual": {
+        "listOverdueFlags": 0,
+        "cohortCount": 0,
+        "days": 30
+      },
+      "rows": [
+        {
+          "id": "fixture-0",
+          "created_at": "2026-10-28T12:00:00",
+          "status": "resolved",
+          "is_sla_breached": false
+        }
+      ],
+      "beforeSha256": "4a5d35d2320329712a91ae6392aae20f14bf8a008e1600769d72be24c41faee9",
+      "afterSha256": "4a5d35d2320329712a91ae6392aae20f14bf8a008e1600769d72be24c41faee9"
+    },
+    {
+      "name": "Closed excluded from both",
+      "passed": true,
+      "expected": {
+        "listOverdueFlags": 0,
+        "cohortCount": 0,
+        "days": 30
+      },
+      "actual": {
+        "listOverdueFlags": 0,
+        "cohortCount": 0,
+        "days": 30
+      },
+      "rows": [
+        {
+          "id": "fixture-0",
+          "created_at": "2026-10-28T12:00:00",
+          "status": "closed",
+          "is_sla_breached": false
+        }
+      ],
+      "beforeSha256": "353c2d7520cbbe21780fce602373c514bb2ff6cdd4bddb7e42d6aeb1873416e0",
+      "afterSha256": "353c2d7520cbbe21780fce602373c514bb2ff6cdd4bddb7e42d6aeb1873416e0"
+    },
+    {
+      "name": "Waiting Internal remains unresolved for existing SLA logic",
+      "passed": true,
+      "expected": {
+        "listOverdueFlags": 1,
+        "cohortCount": 1,
+        "days": 30
+      },
+      "actual": {
+        "listOverdueFlags": 1,
+        "cohortCount": 1,
+        "days": 30
+      },
+      "rows": [
+        {
+          "id": "fixture-0",
+          "created_at": "2026-10-28T12:00:00",
+          "status": "waiting_internal",
+          "is_sla_breached": true
+        }
+      ],
+      "beforeSha256": "256a08749d209c134b7f4dc7b4efde531e899c8750993a26e45d54dbca0c0c07",
+      "afterSha256": "256a08749d209c134b7f4dc7b4efde531e899c8750993a26e45d54dbca0c0c07"
+    },
+    {
+      "name": "custom seven-day cohort does not alter all-age flags",
+      "passed": true,
+      "expected": {
+        "listOverdueFlags": 1,
+        "cohortCount": 0,
+        "days": 7
+      },
+      "actual": {
+        "listOverdueFlags": 1,
+        "cohortCount": 0,
+        "days": 7
+      },
+      "rows": [
+        {
+          "id": "fixture-0",
+          "created_at": "2026-10-21T12:00:00",
+          "status": "open",
+          "is_sla_breached": true
+        }
+      ],
+      "beforeSha256": "04f01519889da48baff08bc97a948cc8f7dc0f1ad848365be84c727e52469508",
+      "afterSha256": "04f01519889da48baff08bc97a948cc8f7dc0f1ad848365be84c727e52469508"
+    },
+    {
+      "name": "mixed old/recent/terminal/future records",
+      "passed": true,
+      "expected": {
+        "listOverdueFlags": 2,
+        "cohortCount": 1,
+        "days": 30
+      },
+      "actual": {
+        "listOverdueFlags": 2,
+        "cohortCount": 1,
+        "days": 30
+      },
+      "rows": [
+        {
+          "id": "fixture-3",
+          "created_at": "2026-10-28T12:00:00",
+          "status": "open",
+          "is_sla_breached": false
+        },
+        {
+          "id": "fixture-2",
+          "created_at": "2026-10-28T12:00:00",
+          "status": "closed",
+          "is_sla_breached": false
+        },
+        {
+          "id": "fixture-1",
+          "created_at": "2026-10-28T12:00:00",
+          "status": "open",
+          "is_sla_breached": true
+        },
+        {
+          "id": "fixture-0",
+          "created_at": "2026-09-28T12:00:00",
+          "status": "open",
+          "is_sla_breached": true
+        }
+      ],
+      "beforeSha256": "a678aa2d4d8aaa51b2da85087045e35e027cab50c29df085cf56e797c81b95d0",
+      "afterSha256": "a678aa2d4d8aaa51b2da85087045e35e027cab50c29df085cf56e797c81b95d0"
+    }
+  ],
+  "passed": 11,
+  "total": 11,
+  "limits": "Query/flag scope characterization; existing reporting policy preserved, no mounted API/auth/PostgreSQL or live ticket acceptance"
+}

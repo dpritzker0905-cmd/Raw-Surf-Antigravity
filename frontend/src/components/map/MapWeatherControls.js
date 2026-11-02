@@ -3,7 +3,7 @@ import { Wind, Waves, CloudRain, Snowflake, Thermometer, Lock, ChevronDown, Chev
 import { useTheme } from '../../contexts/ThemeContext';
 import { getAllowedModels, resolveForecastWindow } from './LayerAccessResolver';
 import { BASE_CUSTOM_COLOR_SCALES, applyThemePressureScale, applyThemeWaveScale } from './mapUtils';
-import { getSurfModeFlag, setSurfModeFlag } from './backendWeatherServiceClient';
+import { setSurfModeFlag } from './backendWeatherServiceClient'; import { useSurfModeFlagState } from './useSurfModeFlagState';   // D6: one band state for every panel
 import { RATING_LEVELS, RATING_COLOR } from './surfRating';
 import { getHeightUnit, setHeightUnit, M_TO_FT } from './heightUnits';
 import { windLegendGradientCSS, windLegendStops, windLookKey } from './WindColorRamp';
@@ -93,7 +93,7 @@ export var MapWeatherControls = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
   // Remove local isTimelineCollapsed since we lift it up, or use the prop directly if provided.
   const [localTimelineCollapsed, setLocalTimelineCollapsed] = useState(false);
-  const [surfMode, setSurfMode] = useState(() => getSurfModeFlag());
+  const [surfMode, setSurfMode] = useSurfModeFlagState();
 
   // Flip Swell<->Surf: persist the flag and signal the marine fetcher to re-fetch (surf vs swell grid).
   const toggleSurfMode = () => {

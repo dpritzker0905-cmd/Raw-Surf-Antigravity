@@ -1,8 +1,14 @@
 # Email service setup (owner runbook)
 
-**Status: built, switched off. Nothing sends until the OWNER does the steps below.** The code only adds a sender, an
-outbox, templates and a webhook. No existing route sends mail yet; the guardian-linking work is the first caller. With no
+**Status: provider setup is required. Nothing sends until the OWNER does the steps below.** The code supplies a sender,
+an outbox, templates and a webhook. Guardian linking and support events use this outbox. With no
 configuration every caller gets a plain `not_configured` result: no crash, no silent success, no row written.
+
+Support ticket creation queues one generic `support_created` receipt; public staff replies queue `support_reply`.
+Both respect the owner's `email_messages` opt-in and link directly to the authenticated ticket in the app.
+Support subjects, descriptions and reply text stay in-app; email replies are not ingested and no Reply-To is attached.
+Customer follow-up replies do not email that same customer. Both support notices retain the low-priority delay and quota
+controls described below; a saved ticket, queued row or provider acceptance is not proof of inbox delivery.
 
 This file names environment variables only. Never paste a key, secret or token value into the repo, a PR, a chat log or
 this runbook. Values live in Render's environment and nowhere else.

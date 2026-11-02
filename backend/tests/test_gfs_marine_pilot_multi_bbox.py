@@ -142,7 +142,8 @@ async def test_flagship_and_worldwide_horizons_stay_separate(tmp_path, monkeypat
 
 @pytest.mark.asyncio
 async def test_socal_still_omits_swell_2(tmp_path, monkeypatch):
-    """A per-region quirk that the shared save helper must not flatten."""
+    """A per-region quirk that the shared save helper must not flatten (the flag-off control of GFS_MARINE_SOCAL_SWELL2)."""
+    monkeypatch.delenv("GFS_MARINE_SOCAL_SWELL2", raising=False)
     from services.weather_pipeline.scheduler import WeatherPipelineScheduler
     from services.weather_pipeline.store import ProductStore
     import services.noaa_marine_service as noaa_marine
@@ -338,3 +339,29 @@ async def test_kill_switch_restores_the_per_region_path(tmp_path, monkeypatch):
 
     assert await scheduler.ingest_gfs_marine_pilot() is True
     assert not called, "kill switch did not prevent the multi-bbox fetch"
+
+
+@pytest.mark.asyncio
+async def test_the_dark_flag_stores_socal_swell_2_like_every_other_pilot_box(tmp_path, monkeypatch):
+    """GFS_MARINE_SOCAL_SWELL2=1 (2026-10-24): SoCal gets all four layers, Florida is unchanged."""
+    from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+    from services.weather_pipeline.store import ProductStore
+    import services.noaa_marine_service as noaa_marine
+
+    temp_store = ProductStore(cache_dir=tmp_path)
+    scheduler = WeatherPipelineScheduler(store=temp_store)
+    monkeypatch.setenv("NODE_ENV", "test")
+    monkeypatch.setenv("GFS_MARINE_SOCAL_SWELL2", "1")
+
+    async def fake_multi(bboxes, resolution=0.25, forecast_days=3, resolutions=None):
+        return {rid: _wave_like_points(scheduler.om_provider, bb, 5.0)
+                for rid, bb in bboxes.items()}
+
+    monkeypatch.setattr(noaa_marine, "fetch_gfs_marine_regions", fake_multi)
+    await scheduler.ingest_gfs_marine_pilot()
+
+    products = temp_store.get_manifest().products
+    socal = {p.layer for p in products if p.region_id == "us_west_coast_socal" and p.model == "GFS"}
+    fl = {p.layer for p in products if p.region_id == "florida_east_coast" and p.model == "GFS"}
+    assert socal == {"waves", "swell_1", "swell_2", "wind_waves"}
+    assert fl == {"waves", "swell_1", "swell_2", "wind_waves"}

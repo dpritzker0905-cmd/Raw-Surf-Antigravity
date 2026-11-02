@@ -11,6 +11,7 @@ import { CURRENT_TOS_VERSION } from '../constants/tos';
 import apiClient from '../lib/apiClient';
 import { wasSessionRejected } from '../lib/sessionRejection';
 import logger from '../utils/logger';
+import { supportAuthParams, supportReturnPath } from './support/supportRoutes';
 import { MfaChallengeStep, MfaSetupStep, PasskeySignInButton } from './security/MfaSignInSteps';
 
 const ROLE_CONFIG = {
@@ -87,9 +88,9 @@ export const Auth = () => {
   const [sessionWasRejected] = useState(wasSessionRejected);
   useEffect(() => {
     if (user && !sessionWasRejected) {
-      navigate('/feed', { replace: true });
+      navigate(supportReturnPath(redirectPath) || '/feed', { replace: true });
     }
-  }, [user, navigate, sessionWasRejected]);
+  }, [user, navigate, sessionWasRejected, redirectPath]);
 
   // Fetch ToS content from DB when modal opens
   useEffect(() => {
@@ -103,20 +104,20 @@ export const Auth = () => {
   const handleTabChange = (newTab) => {
     setMfaStep(null);
     if (newTab === 'login') {
-      setSearchParams({ tab: 'login' });
+      setSearchParams(supportAuthParams(searchParams, { tab: 'login' }));
     } else {
-      setSearchParams({ tab: 'signup' });
+      setSearchParams(supportAuthParams(searchParams, { tab: 'signup' }));
     }
     setSelectedRole(null);
   };
 
   const handleCategorySelect = (cat) => {
-    setSearchParams({ tab: 'signup', category: cat });
+    setSearchParams(supportAuthParams(searchParams, { tab: 'signup', category: cat }));
     setSelectedRole(null);
   };
 
   const handleBackToCategories = () => {
-    setSearchParams({ tab: 'signup' });
+    setSearchParams(supportAuthParams(searchParams, { tab: 'signup' }));
     setSelectedRole(null);
   };
 

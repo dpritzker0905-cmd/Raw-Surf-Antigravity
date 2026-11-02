@@ -183,6 +183,54 @@ async def verify_admin_websocket(websocket: WebSocket) -> bool:
     return True
 
 
+async def verify_lineup_websocket(websocket: WebSocket, lineup_id: str) -> bool:
+    """
+    Authenticate a lineup WebSocket handshake: a valid `token` query parameter whose subject is on this lineup
+    (a lineup is a booking: its creator, its photographer, or one of its participants).
+
+    The room carries who joined or left and when a crew member paid, so it is for the crew, not for whoever
+    knows a lineup id. Returns False *having already closed the socket* (never accepted first); callers `return`.
+    A lineup that does not exist is refused exactly like one the caller is not on, so ids cannot be probed.
+    No development bypass. Fails closed if the membership lookup errors.
+    """
+    token = websocket.query_params.get("token")
+    if not token:
+        await reject_websocket(websocket, "Authentication token required")
+        return False
+    try:
+        sub = verify_token(token).get("sub")
+    except Exception as e:
+        logger.warning(f"Lineup WebSocket refused: token rejected ({type(e).__name__})")
+        await reject_websocket(websocket, "Authentication failed")
+        return False
+    if not sub:
+        await reject_websocket(websocket, "Authentication failed")
+        return False
+
+    from database import async_session_maker  # read at call time: tests replace it
+    from models import Booking, BookingParticipant
+    from sqlalchemy import or_, select
+    try:
+        async with async_session_maker() as db:
+            on_lineup = select(BookingParticipant.booking_id).where(BookingParticipant.participant_id == sub)
+            row = await db.execute(
+                select(Booking.id).where(
+                    Booking.id == lineup_id,
+                    or_(Booking.creator_id == sub, Booking.photographer_id == sub, Booking.id.in_(on_lineup)),
+                )
+            )
+            is_member = row.scalar_one_or_none() is not None
+    except Exception as e:
+        logger.error(f"Lineup WebSocket refused: membership lookup failed ({type(e).__name__})")
+        await reject_websocket(websocket, "Authentication failed")
+        return False
+    if not is_member:
+        logger.warning("Lineup WebSocket refused: token subject is not on this lineup")
+        await reject_websocket(websocket, "Access forbidden")
+        return False
+    return True
+
+
 @router.websocket("/ws/admin/events")
 async def websocket_admin_events(websocket: WebSocket):
     """
@@ -294,7 +342,10 @@ async def websocket_lineup(websocket: WebSocket, lineup_id: str):
     - Crew member leaves/drops out
     - Lineup is locked or cancelled
     - Payment is received
+    Crew only: see verify_lineup_websocket.
     """
+    if not await verify_lineup_websocket(websocket, lineup_id):
+        return
     room = f"lineup_{lineup_id}"
     await ws_manager.connect(websocket, room=room)
     

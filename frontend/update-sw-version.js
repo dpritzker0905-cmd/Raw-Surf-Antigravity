@@ -16,6 +16,12 @@ try {
 if (fs.existsSync(swPath)) {
   let content = fs.readFileSync(swPath, 'utf8');
   content = content.replace(/const BUILD_VERSION = .*/, `const BUILD_VERSION = '${version}';`);
+  // Stamp the Node runtime that ran THIS build (process.version, e.g. 'v24.22.1') right after
+  // BUILD_VERSION, so the deployed Node can be read from the live site without the Netlify log:
+  //   curl -s <site>/service-worker.js | grep -oE "BUILD_NODE *= *'[^']+"
+  // Idempotent: any previous BUILD_NODE line is dropped before the fresh one is inserted.
+  content = content.replace(/^const BUILD_NODE = .*\r?\n/m, '');
+  content = content.replace(/(const BUILD_VERSION = .*)/, `$1\nconst BUILD_NODE = '${process.version}';`);
   fs.writeFileSync(swPath, content, 'utf8');
   console.log(`Successfully updated BUILD_VERSION in service-worker.js to: ${version}`);
 } else {

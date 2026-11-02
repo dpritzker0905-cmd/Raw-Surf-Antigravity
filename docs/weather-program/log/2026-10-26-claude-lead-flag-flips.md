@@ -30,3 +30,55 @@ then the client key after one publish). Watch one ingest cycle."
   p50 25 ms, p95 250 ms. (Wall times of 18-23 s for those two GETs were this PC's shell, which was timing out on local commands at
   the time; the box's own telemetry is the number.)
 - Verdict: both flips took. The client key (DEFAULT_ON_LAYERS) merges on green CI.
+
+## D-053 (2026-10-26 12:04Z owner word): donor served time + 12 h tail margin
+Ledger: ledger.d/claude--day14-donor-margin-flips.jsonl lines 1-7.
+- 12:11:42Z, BEFORE (live /grid ICON world, asked 11-09T12Z): served icon_..._20261109T090000Z_estimated (offset -3), donor
+  gfs_..._20261109T120000Z (the ASKED hour), 132 cells. Control ask 08Z: served 09Z, donor 09Z (can't discriminate).
+- 12:12:22Z: Render MARINE_GULF_FILL_DONOR_SERVED_TIME=1 (deploy 4e0044461, no backend diff vs 7d059314e), live 12:16:24Z.
+- 12:20:18Z, AFTER: same frame, donor gfs_..._20261109T090000Z (= served hour), 131 cells; height at 124 / 15,023 nodes changed (max 0.42 m),
+  direction at 132; nothing outside the fill footprint.
+- 12:23:06Z: repo var MARINE_EXT_CEILING_MARGIN_H=12; dispatched core 40322129759 + pilots 40322134819 (both success).
+- 14:05Z, tails at now+336 (11-09T14Z): ICON and EURO both serve their own global_mid 15Z estimate (offset +1, no hold), Gulf donor GFS 15Z
+  (ICON 129 cells, EURO 26). Health err_5xx 0 of 1,863 / 1,867.
+- GFS_PILOT_WHOLE_DEGREE_BOUNDS (approved for 9 AM) was held to keep one change set per watch window; it moves to the owner's next window.
+
+## D-054 (2026-10-26 21:08Z owner word): GFS pilot tiles on whole-degree bounds
+Ledger: ledger.d/claude--whole-degree-flip.jsonl lines 1-8.
+- 21:17Z, baseline: Render CPU 0.009-0.024, memory 811-963 MB; FL z8 /grid from the tile in 304 ms.
+- 21:19:59Z: repo var GFS_PILOT_WHOLE_DEGREE_BOUNDS=1; dispatched pilots 40403486736 + core 40403510531 (both green).
+- Runbook step 4 refused every set (all written 13:31:10Z). Two silent publish failures, both behind a green continue-on-error step:
+  - 40403486736: `read weather-frames/v1/latest.json: HTTP 429` at 23:15:38Z, exit 1. write() retries 429/5xx; read() did not.
+  - 40370598765 and 40396075942: every regional set refused with "41/47 authoritative entries have a frame (0.8723 < 0.9)". The manifest
+    still held 6 older-run past hours per set that the pilots runner never downloads.
+  - So the regional static frames were 11 h stale (13:31Z to 00:28Z). Fix: #603 (read retries, gate leaves out older-run not-local hours,
+    a ::warning step when the frames step fails).
+- 00:58Z: scheduled pilots 40419270962 (created 23:22:09Z) published padded sets at 00:28:53Z; verify_padded_tiles PASS (75 sets, 16 padded,
+  0 bad, 0 refused).
+- 01:06:54Z: Render GFS_PILOT_WHOLE_DEGREE_BOUNDS=1, deploy dep-dbfvibkipgvc73e1s8d0 live 01:10:19Z.
+- 01:49Z: scn_edge_live_read PASS: 4 edge boxes, stored tile, padded, 0 missing; health 1.34 s before, 0.19 s after.
+- 01:10-02:54Z watch: no trigger (CPU <= 0.065, memory 460-709 MB, 0 5xx, one pre-existing Stripe boot line). Flag stays ON.
+- Next, one change per publish run: FRAME_TAIL_DOWNLOAD=1 (#597 merged), after #603 lands so the publish it rides on is not refused.
+
+## D-055 (owner word 2026-10-26, "flipping everything on that we need"): ICON/EURO estimated tails as CDN frames
+Ledger: ledger.d/claude--tail-download-flip.jsonl lines 1-9.
+- 03:30Z baseline (tail_census.py): EURO est tail 2/41 built; ICON swell_1 / wind_waves 0/63; ICON waves 58/63.
+- 03:32:39Z: repo var FRAME_TAIL_DOWNLOAD=1; dispatched pilots 40444767755 on dev 594787dcf (#603 in).
+- 05:26:51Z: the run published (step green, warn step skipped, 5,160 parity ok, 0 failures, 0 refusals, 88/90 sets rewritten).
+- 05:40Z read-back: EURO 53/53, ICON swell_1 63/63, wind_waves 63/63, waves 63/63; last built 11-10T09Z on all 8 sets. PASS.
+- 04:19-04:22Z: #605, #602, #601 merged by the auto-merge armed after `gh pr update-branch` (#604 renamed the required check to
+  lint-and-build (24.22.1)). The dev site serves them: chunks 1345.36045d79 / 1673.a6ecadb9 carry the new kill switches.
+- #590 and #600 (both dark) stay draft: the auto-mode classifier refused `gh pr ready 590` from the lead, because the owner had not
+  named it. Both are waiting on the owner.
+- 05:52-05:56Z: Render CPU 0.92-1.0 for 4 min, before my page load, 0 5xx (under the 5-min trigger). The live read waited for it to end.
+- 06:03-06:19Z, one live scenario on dev--rawsurf (in-page probe; health 0 5xx of 3,426 before and of 4,063 after, wall 1.05 s after):
+  - GFS z4.6: steps from the store 2-42 ms; h1/h2 drew the nearest 3-hourly frame with its words.
+  - EURO: switch 3 ms, 0 blank; h250-h336 about 10 ms on revisits (first 231-414 ms, one CDN fetch each).
+  - **EURO h128-h135+: "Loading Sun 9 AM… still showing Sun 7 AM" for 20+ s with no request in flight.** The engine holds the
+    /grid answer (lane timeline_scrub) whose served time is 12Z, the nearest stored 6-hourly product (run 10-26 12Z, step 146).
+    `latticeNearestMaxHours('EURO', 128)` returns 1 because it tests the TIMELINE hour (> 144), not the model step. So every
+    in-between hour from timeline 126 to about 222 reads as loading forever: a wording bug that looks like the owner's "Euro had delays".
+  - ICON: switch 33 ms, 0 blank; h168 372 ms (cold), h200 8, h252 13, h300 0, h336 4 ms ("beyond ICON's native range").
+  - Band: ON 4,396 ms (/grid rating, 30x21), OFF 66 ms, 0 rating frames in the 3 s after OFF.
+  - z8 Florida switches (0 blank): EURO 7 ms, ICON 894 ms, GFS 491 ms, all via /grid.
+  - The band ON + z8 switch put the box at CPU 0.60 for one minute and memory at 1,056 MB at 06:18 (trigger 1,126); back to 896 MB.

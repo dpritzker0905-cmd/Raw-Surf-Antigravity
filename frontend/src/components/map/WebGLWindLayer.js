@@ -11,7 +11,8 @@
  *   - revision: cache-bust revision ID
  */
 import { memo, useEffect, useRef } from 'react';
-import WebGLWindEngine from './WebGLWindEngine';
+import WebGLWindEngine, { windGridsCompatible } from './WebGLWindEngine';
+import { coalesceOn, coalesceWindDeliveries, refreshWindSpeedScale } from './windDeliveryCoalesce';
 import { windLayerBeforeId, windCoastlineLayer, windCoastlineWanted, WIND_COASTLINE } from './WebGLWindUtils';
 import { syncWindBasemapMute, windBasemapMuteStale } from './windBasemapMute';
 import { getWindParticleRes } from './deviceTier';
@@ -418,9 +419,10 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
         const q = deliveryQueueRef.current && deliveryQueueRef.current.current;
         let grids;
         if (queueOn && !scrubbing && q && q.length) {
-          // renderable grids in commit order, guaranteed to end with the current `data`
-          grids = q.filter(g => g && g.vectors?.length && g.renderable !== false);
-          if (!grids.length || grids[grids.length - 1] !== data) grids.push(data);
+          // renderable grids in commit order, ending with the current `data`; coalesced (windDeliveryCoalesce.js, owner test
+          // 2026-10-25: "delivering 8 grid(s)") to the newest world + newest clip of `data`'s own air.
+          // Kill: __RAW_DISABLE_WIND_DELIVERY_COALESCE__ (every queued grid, as before).
+          grids = coalesceWindDeliveries(q, data, windGridsCompatible);
         } else {
           // scrub stays single-delivery so frames scrubbed past are never GPU-uploaded
           grids = [data];
@@ -438,6 +440,9 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
         const preBounds = engine._windData?.bounds;
 
         let lastVerdict = 'skipped';
+        // The speed scale (and so the colour ramp) is set ONCE for the batch, from what the engine holds after the last grid.
+        const scaleOnce = grids.length > 1 && coalesceOn();
+        engine._deferSpeedScale = scaleOnce;
         for (let gi = 0; gi < grids.length; gi++) {
           const grid = grids[gi];
           if (!grid || !grid.vectors?.length) continue;
@@ -460,6 +465,8 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
             });
           }
         }
+        engine._deferSpeedScale = false;
+        if (scaleOnce) refreshWindSpeedScale(engine, gl);
         engine.__lastWindSource = data.source || null;
 
         // NET particle reseed (2026-07-19 keepTrails contract, evaluated on the ENGINE's actual

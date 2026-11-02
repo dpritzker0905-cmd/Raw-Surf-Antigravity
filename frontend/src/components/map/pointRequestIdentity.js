@@ -1,4 +1,5 @@
 import { getSharedValidTime, getSeriesAnchorMs } from './backendWeatherServiceClient';
+import { hintIsForeign } from './pointProductHint';
 
 // D-001: changing a served point's product/time is scientific behavior. Build default-off;
 // the runtime switch can only disable it. No localStorage or console opt-in.
@@ -13,6 +14,7 @@ export function createPointRequestContext(model, layer, hour, force = false, pro
   const domain = layer === 'wind' ? 'wind' : (['pressure', 'precipitation'].includes(layer) ? 'weather' : 'marine');
   // Only hints that the adapter actually transmits belong in its cache identity.
   if (domain === 'weather') productId = bbox = null;
+  if (hintIsForeign(productId, model, layer)) productId = bbox = null;   // D4: another model's/layer's product (pointProductHint.js)
   if (typeof window !== 'undefined' && domain !== 'weather') {
     const diag = domain === 'wind' ? window.__WIND_PROJECTION_DIAG__ : window.__MARINE_PROJECTION_DIAG__;
     if (diag?.activeModel === model && diag?.activeLayer === layer) {

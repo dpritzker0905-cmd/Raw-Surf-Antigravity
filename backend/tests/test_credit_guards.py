@@ -287,7 +287,12 @@ async def test_the_card_checkout_route_has_the_same_bounds(world, change):
     assert await world.state() == before
 
 
-async def test_the_card_checkout_route_refuses_a_negative_price_from_a_negative_rate(world):
+async def test_the_card_checkout_route_refuses_a_negative_price_from_a_negative_rate(world, monkeypatch):
+    # Exercise price validation with a configured fake provider; no checkout call may be reached.
+    monkeypatch.setattr(stripe_checkout, "STRIPE_API_KEY", "fixture-provider-configured")
+    def unexpected_checkout(**kwargs):
+        pytest.fail("Invalid price reached the payment provider")
+    monkeypatch.setattr(stripe_checkout.stripe.checkout.Session, "create", unexpected_checkout)
     async with world.maker() as db:
         row = (await db.execute(select(Profile).where(Profile.id == "photog"))).scalar_one()
         row.booking_hourly_rate = -50.0

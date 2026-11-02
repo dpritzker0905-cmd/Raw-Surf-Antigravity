@@ -132,9 +132,18 @@ export const ProfileReviewsSection = ({ profileUserId, isPhotographer = false, t
   const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState(null);
   const [reviews, setReviews] = useState([]);
+  const [error, setError] = useState(false);
+  const [retry, setRetry] = useState(0);
   
   useEffect(() => {
-    if (!profileUserId) return;
+    let active = true;
+    setStats(null);
+    setReviews([]);
+    setError(false);
+    if (!profileUserId) {
+      setLoading(false);
+      return undefined;
+    }
     
     const fetchReviews = async () => {
       setLoading(true);
@@ -142,6 +151,7 @@ export const ProfileReviewsSection = ({ profileUserId, isPhotographer = false, t
         if (isPhotographer) {
           // Photographer: Get review stats from photographer endpoint
           const statsRes = await apiClient.get(`/reviews/photographer/${profileUserId}/stats`);
+          if (!active) return;
           setStats({
             average_rating: statsRes.data.average_rating,
             total_reviews: statsRes.data.total_reviews,
@@ -151,6 +161,7 @@ export const ProfileReviewsSection = ({ profileUserId, isPhotographer = false, t
         } else {
           // Surfer: Get review stats from surfer endpoint
           const statsRes = await apiClient.get(`/reviews/surfer/${profileUserId}/stats`);
+          if (!active) return;
           setStats({
             average_rating: statsRes.data.average_rating,
             total_reviews: statsRes.data.total_reviews,
@@ -159,21 +170,40 @@ export const ProfileReviewsSection = ({ profileUserId, isPhotographer = false, t
           setReviews(statsRes.data.recent_reviews || []);
         }
       } catch (error) {
+        if (!active) return;
         logger.error('Failed to fetch profile reviews:', error);
         setStats(null);
         setReviews([]);
+        setError(true);
       } finally {
-        setLoading(false);
+        if (active) setLoading(false);
       }
     };
     
     fetchReviews();
-  }, [profileUserId, isPhotographer]);
+    return () => { active = false; };
+  }, [profileUserId, isPhotographer, retry]);
   
   if (loading) {
     return (
-      <div className="flex items-center justify-center py-8">
+      <div role="status" aria-label="Loading reviews" className="flex items-center justify-center py-8">
         <Loader2 className="w-6 h-6 animate-spin text-yellow-500" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="py-8 text-center">
+        <p role="alert" className={textSecondary}>Could not load reviews. Please try again.</p>
+        <button
+          type="button"
+          aria-label="Retry loading reviews"
+          className={`mt-3 rounded px-3 py-2 underline focus-visible:outline focus-visible:outline-2 ${textPrimary}`}
+          onClick={() => setRetry(value => value + 1)}
+        >
+          Retry
+        </button>
       </div>
     );
   }

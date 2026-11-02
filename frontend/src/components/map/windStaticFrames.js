@@ -345,7 +345,7 @@ function pick(index, askIso, bbox, model) {
   return { kind, frame, stamp: v.stamp };
 }
 
-// THE f120+ TAIL BLEND (windTimeBlend.js; opt-in __RAW_WIND_TIME_BLEND__): the bracketing frames for the selected instant and
+// THE f120+ TAIL BLEND (windTimeBlend.js; ON, kill __RAW_DISABLE_WIND_TIME_BLEND__): the bracketing frames for the selected instant and
 // their outer neighbours (PCHIP reads t-3..t+6), built like any other (same box, same lane check), blended and labelled.
 // `raws` = { r0, r1, rm, rp } (bytes or null; a neighbour without bytes or refused by the lane check is an edge). Null on any gap:
 // the caller then serves the nearest frame exactly as before.

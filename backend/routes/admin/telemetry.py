@@ -16,7 +16,7 @@ from models.bookings import Booking, BookingParticipant
 from models.sessions import LiveSession
 from models.spots import SurfSpot
 from utils.sqlite_helpers import get_db_path
-from utils.credits import add_credits
+from utils.credits import refund_credits
 
 router = APIRouter()
 
@@ -116,6 +116,14 @@ async def _perform_real_cancellation_refund(booking_id: str, db: AsyncSession) -
             }
         }
 
+    if booking.status in ('Pending Payment', 'PendingPayment'):
+        from routes.bookings.stripe_checkout import reconcile_expired_booking_checkout
+        if not await reconcile_expired_booking_checkout(booking, db):
+            raise HTTPException(
+                status_code=409,
+                detail='Checkout requires reconciliation before cancellation; retry after settlement'
+            )
+
     now = datetime.now(timezone.utc)
     total_paid = sum(p.paid_amount or 0 for p in booking.participants)
 
@@ -130,7 +138,7 @@ async def _perform_real_cancellation_refund(booking_id: str, db: AsyncSession) -
     refunded_total = 0.0
     for participant in booking.participants:
         if participant.paid_amount and participant.paid_amount > 0:
-            success, _new_balance, _err = await add_credits(
+            success, _new_balance, error = await refund_credits(
                 user_id=participant.participant_id,
                 amount=participant.paid_amount,
                 transaction_type='booking_refund',
@@ -140,9 +148,11 @@ async def _perform_real_cancellation_refund(booking_id: str, db: AsyncSession) -
                 reference_id=booking_id,
                 counterparty_id=booking.photographer_id
             )
-            if success:
-                participant.payment_status = 'Refunded'
-                refunded_total += participant.paid_amount
+            if not success:
+                await db.rollback()
+                raise HTTPException(status_code=409, detail=error or 'Could not refund booking payment')
+            participant.payment_status = 'Refunded'
+            refunded_total += participant.paid_amount
 
     await db.commit()
 

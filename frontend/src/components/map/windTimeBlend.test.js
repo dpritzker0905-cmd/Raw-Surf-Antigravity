@@ -1,4 +1,4 @@
-// The wind f120+ tail blend (windTimeBlend.js): PCHIP on u/v between two 3-hourly frames, labelled, opt-in. The method won the
+// The wind f120+ tail blend (windTimeBlend.js): PCHIP on u/v between two 3-hourly frames, labelled, ON (kill switch). The method won the
 // hold-out (SCOREBOARD S23, 2026-10-25); these pin its arithmetic against the hold-out's own formulas, its no-overshoot property,
 // its f120 gate and its refusals, so the clip shows exactly what the PR says.
 import { blendBracket, blendVectors, blendWindJson, fcSlope, hermite, indexRunMs, pchip, uvSign, windTimeBlendOn,
@@ -17,12 +17,12 @@ const uv = (u, v) => ({ lat: 0, lng: 0, u, v, speed: Math.hypot(u, v), direction
   is_valid: true });
 
 describe('wind f120+ tail blend (PCHIP u/v)', () => {
-  afterEach(() => { delete window.__RAW_WIND_TIME_BLEND__; });
+  afterEach(() => { delete window.__RAW_DISABLE_WIND_TIME_BLEND__; });
 
-  test('opt-in only', () => {
-    expect(windTimeBlendOn()).toBe(false);
-    window.__RAW_WIND_TIME_BLEND__ = true;
+  test('ON by default (the owner, 2026-11-01); the kill switch turns it off', () => {
     expect(windTimeBlendOn()).toBe(true);
+    window.__RAW_DISABLE_WIND_TIME_BLEND__ = true;
+    expect(windTimeBlendOn()).toBe(false);
   });
 
   test('the bracket: two built frames, the weight and the built outer neighbours; refusals on a frame, outside, across a gap', () => {

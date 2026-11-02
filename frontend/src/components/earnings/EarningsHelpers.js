@@ -7,7 +7,7 @@
  * - RevenueBarChart: Horizontal bar chart for revenue by stream
  */
 import React from 'react';
-import { Camera, Calendar, Image, Users } from 'lucide-react';
+import { Camera, Calendar, Image, Users, RefreshCw } from 'lucide-react';
 
 // Helper function to get commission rate based on subscription tier
 export const getCommissionRate = (subscriptionTier) => {
@@ -48,11 +48,12 @@ export const STREAM_COLORS = {
   live_sessions: { bg: 'from-cyan-500 to-blue-500', text: 'text-cyan-400', icon: Camera },
   request_pro: { bg: 'from-purple-500 to-pink-500', text: 'text-purple-400', icon: Users },
   regular_bookings: { bg: 'from-amber-500 to-orange-500', text: 'text-amber-400', icon: Calendar },
-  gallery_sales: { bg: 'from-emerald-500 to-green-500', text: 'text-emerald-400', icon: Image }
+  gallery_sales: { bg: 'from-emerald-500 to-green-500', text: 'text-emerald-400', icon: Image },
+  photo_subscriptions: { bg: 'from-rose-500 to-pink-500', text: 'text-rose-400', icon: RefreshCw }
 };
 
 // Progress Ring Component for Gear Fund
-export const ProgressRing = ({ progress, size = 120, strokeWidth = 8, color = 'cyan' }) => {
+export const ProgressRing = ({ progress, size = 120, strokeWidth = 8, color = 'cyan', isLight = false }) => {
   const radius = (size - strokeWidth) / 2;
   const circumference = radius * 2 * Math.PI;
   const offset = circumference - (progress / 100) * circumference;
@@ -83,7 +84,7 @@ export const ProgressRing = ({ progress, size = 120, strokeWidth = 8, color = 'c
         />
       </svg>
       <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <span className="text-2xl font-bold text-white">{Math.round(progress)}%</span>
+        <span className={`text-2xl font-bold ${isLight ? 'text-gray-900' : 'text-white'}`}>{Math.round(progress)}%</span>
         <span className="text-xs text-gray-400">complete</span>
       </div>
     </div>
@@ -91,9 +92,9 @@ export const ProgressRing = ({ progress, size = 120, strokeWidth = 8, color = 'c
 };
 
 // Revenue Bar Chart Component
-export const RevenueBarChart = ({ data, maxValue }) => {
-  const streams = ['live_sessions', 'request_pro', 'regular_bookings', 'gallery_sales'];
-  const labels = ['Live Sessions', 'Request Pro', 'Bookings', 'Gallery'];
+export const RevenueBarChart = ({ data, maxValue, isLight = false }) => {
+  const streams = ['live_sessions', 'request_pro', 'regular_bookings', 'gallery_sales', 'photo_subscriptions'];
+  const labels = ['Live Sessions', 'Request Pro', 'Bookings', 'Gallery', 'Photo subscriptions'];
   
   return (
     <div className="space-y-3">
@@ -107,9 +108,9 @@ export const RevenueBarChart = ({ data, maxValue }) => {
             <div className="flex items-center justify-between text-sm">
               <div className="flex items-center gap-2">
                 <StreamIcon className={`w-4 h-4 ${STREAM_COLORS[stream].text}`} />
-                <span className="text-gray-300">{labels[i]}</span>
+                <span className={isLight ? 'text-gray-600' : 'text-gray-300'}>{labels[i]}</span>
               </div>
-              <span className="text-white font-medium">${value.toFixed(2)}</span>
+              <span className={`${isLight ? 'text-gray-900' : 'text-white'} font-medium`}>${value.toFixed(2)}</span>
             </div>
             <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
               <div 

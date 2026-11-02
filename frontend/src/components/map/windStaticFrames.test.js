@@ -301,7 +301,7 @@ describe('static GFS wind frames', () => {
   });
 });
 
-// The f120+ tail blend at the seam (windTimeBlend.js, opt-in): PCHIP reads the bracket AND its outer neighbours. Four tail frames
+// The f120+ tail blend at the seam (windTimeBlend.js, ON; kill __RAW_DISABLE_WIND_TIME_BLEND__): PCHIP reads the bracket AND its outer neighbours. Four tail frames
 // of the fixture run (f120..f129, past the HRRR horizon) all serve the real frame's bytes, so the blended field must equal the
 // frame's own nodes: what this pins is which frames are loaded, the label, and that the sync path draws the SAME blend or none.
 describe('the f120+ tail blend at the seam', () => {
@@ -318,12 +318,12 @@ describe('the f120+ tail blend at the seam', () => {
     saved = INDEX.frames;
     INDEX.frames = [...saved, ...tail];
     tail.forEach((f) => extraBin.set(f.path, f.valid_time));
-    window.__RAW_WIND_TIME_BLEND__ = true;
+    // the blend is ON by default (2026-11-01)
   });
   afterEach(() => {
     INDEX.frames = saved;
     extraBin.clear();
-    delete window.__RAW_WIND_TIME_BLEND__;
+    delete window.__RAW_DISABLE_WIND_TIME_BLEND__;
   });
 
   test('async: the bracket and both neighbours are loaded, and the field is a labelled estimate at the selected instant', async () => {

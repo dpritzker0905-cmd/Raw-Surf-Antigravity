@@ -1,0 +1,66 @@
+{
+  "checked_at_utc": "2026-10-29T18:00:22.583987+00:00",
+  "frontend": {
+    "passed": 95,
+    "suites": 10,
+    "timezone": "UTC"
+  },
+  "backend": {
+    "passed": 51,
+    "new_regressions": 15
+  },
+  "postgres": {
+    "passed": 19,
+    "version": "17.11",
+    "server_stopped": true,
+    "owned_listener_count_after_stop": 0
+  },
+  "browser": {
+    "passed": 6,
+    "themes": [
+      "light",
+      "dark",
+      "beach"
+    ],
+    "widths": [
+      390,
+      1440
+    ],
+    "external_requests": 0
+  },
+  "governance": {
+    "frontend_lint_ratchet": "passed",
+    "backend_fatal_lint": "passed",
+    "loc_ratchet": "passed",
+    "backend_size": "passed",
+    "ci_partition": "passed",
+    "estate_projection": 3391,
+    "estate_floor": 3389,
+    "memory_audit": {
+      "fail": 0,
+      "warn": 64,
+      "note": 12
+    },
+    "ledger_entries_verified": 2074,
+    "post_commit_additional_warning": "Existing PR638 awaits lead-owned ledger fold",
+    "staged_secret_scan": "passed",
+    "fragment_check_problems": 0
+  },
+  "build": "passed",
+  "published": false,
+  "runtime": {
+    "node": "24.21.0",
+    "node_repository_pin": "24.22.1",
+    "python": "3.12.10",
+    "missing_declared_python_packages": 4
+  },
+  "build_options": {
+    "eslint_plugin_disabled": true,
+    "separate_full_lint_gate": "passed",
+    "source_maps": false,
+    "output_and_cache": "private worktree .cache"
+  },
+  "build_exit": 0,
+  "verified_at_utc": "2026-10-29T18:07:18.935994+00:00",
+  "source_commit": "65380d9d3"
+}

@@ -1,11 +1,12 @@
 import React from 'react';
+import { localDateKey } from './dateUtils';
 import { X, GripVertical, Move } from 'lucide-react';
 
 export const DayCell = ({ date, isCurrentMonth, isToday, bookings, blockedDates, availabilityWindows,
   onClick, isLight, isDragEnabled, onDragStart, onDragEnd, onDrop, draggedBooking, isDropTarget
 }) => {
   const dayNum = date.getDate();
-  const dateStr = date.toISOString().split('T')[0];
+  const dateStr = localDateKey(date);
   const dayBookings = bookings.filter(b => b.date === dateStr);
   const isBlocked = blockedDates.includes(dateStr);
   const hasAvailability = availabilityWindows.some(w => w.day === date.getDay() && w.enabled);
@@ -25,38 +26,40 @@ export const DayCell = ({ date, isCurrentMonth, isToday, bookings, blockedDates,
   const handleDrop = (e) => { e.preventDefault(); if (onDrop && isValidDropTarget) onDrop(date); };
   
   return (
-    <div
+    <button
+      type="button"
+      aria-label={`${date.toLocaleDateString('en-US', { dateStyle: 'full' })}, ${isBlocked ? 'blocked' : hasAvailability ? 'available' : 'unavailable'}`}
       onClick={() => onClick(date)}
       onDragOver={handleDragOver}
       onDrop={handleDrop}
-      className={`min-h-[80px] p-1 border ${isLight ? 'border-gray-200' : 'border-zinc-700'} ${bgClass} 
+      className={`w-full text-left min-h-[80px] p-1 border ${isLight ? 'border-gray-200' : 'border-zinc-700'} ${bgClass}
         hover:border-yellow-400 transition-all relative cursor-pointer
         ${isActiveDropTarget ? 'ring-2 ring-cyan-400 bg-cyan-500/10' : ''}
         ${isBlocked ? 'opacity-50' : ''}`}
     >
-      <div className={`text-sm font-medium ${textClass} ${isToday ? 'text-yellow-500' : ''}`}>
+      <span className={`block text-sm font-medium ${textClass} ${isToday ? 'text-yellow-500' : ''}`}>
         {dayNum}
-      </div>
+      </span>
       
       {isBlocked && (
-        <div className="absolute inset-0 bg-red-500/10 flex items-center justify-center pointer-events-none">
+        <span className="absolute inset-0 bg-red-500/10 flex items-center justify-center pointer-events-none">
           <X className="w-6 h-6 text-red-400" />
-        </div>
+        </span>
       )}
       
       {!isBlocked && hasAvailability && (
-        <div className="absolute top-1 right-1 w-2 h-2 rounded-full bg-green-400" />
+        <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-green-400" />
       )}
       
       {isValidDropTarget && draggedBooking && (
-        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <span className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <Move className="w-4 h-4 text-cyan-400 opacity-50" />
-        </div>
+        </span>
       )}
       
-      <div className="mt-1 space-y-1">
+      <span className="block mt-1 space-y-1">
         {dayBookings.slice(0, 2).map((booking, idx) => (
-          <div 
+          <span
             key={booking.id || idx}
             draggable={isDragEnabled && (booking.status === 'Confirmed' || booking.status === 'Pending')}
             onDragStart={(e) => {
@@ -84,14 +87,14 @@ export const DayCell = ({ date, isCurrentMonth, isToday, bookings, blockedDates,
               <GripVertical className="w-3 h-3 flex-shrink-0 opacity-50" />
             )}
             <span className="truncate">{booking.time} - {booking.surfer_name?.split(' ')[0] || 'Booking'}</span>
-          </div>
+          </span>
         ))}
         {dayBookings.length > 2 && (
-          <div className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
+          <span className={`text-xs ${isLight ? 'text-gray-500' : 'text-gray-400'}`}>
             +{dayBookings.length - 2} more
-          </div>
+          </span>
         )}
-      </div>
-    </div>
+      </span>
+    </button>
   );
 };

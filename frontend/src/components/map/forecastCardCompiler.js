@@ -82,7 +82,12 @@ export function compileForecastCards({
   degToCompass,
   getClampedValue,
   getBiasAdjustedLocal,
-  isLoading
+  isLoading,
+  // HELD (audit 2026-10-27, P1-D; infoboxFrameTime.js): the exact point answers ANOTHER hour than the wheel's (the wheel
+  // moved, the answer has not). Its numbers stay, marked provisional like a first paint, beside the words that say so.
+  isHeldExactPoint = false,
+  // The Rating row's "from <time>" when the badge answered from another frame than the Surf number (P2).
+  ratingNote = null
 }) {
   const cards = [];
   const strictValues = marineValueValidityEnabled();
@@ -111,7 +116,7 @@ export function compileForecastCards({
   // false for the entire provisional phase and the marker never rendered where it was built to.
   // Kill: __RAW_INFOBOX_PROVISIONAL_MARK_DISABLED__.
   const provisionalMarkOff = typeof window !== 'undefined' && window.__RAW_INFOBOX_PROVISIONAL_MARK_DISABLED__ === true;
-  const isProvisionalPaint = !provisionalMarkOff && isExactPointAuthority && isExactPointLoading;
+  const isProvisionalPaint = !provisionalMarkOff && ((isExactPointAuthority && isExactPointLoading) || isHeldExactPoint === true);
   const _prov = isProvisionalPaint ? '…' : '';
 
   // ── IS THIS NUMBER A MEASUREMENT OR A SYNTHESIS? (1a-1, 2026-08-01) ───────────────────────────
@@ -134,6 +139,15 @@ export function compileForecastCards({
   // ★ ONE EXPRESSION, ONE PLACE. Four copies of a constant is how the knots constant reached seven
   // and diverged; the four block-local declarations are deliberately gone.
   const isEst = useExactPoint?.is_estimated === true;
+  // A DIRECT READ IS NOT AN ESTIMATE (audit 2026-10-27, P2). With Copernicus unavailable, the EURO waves point reads ECMWF's
+  // own wave model (ecmwf_wam025) straight at the hour; nothing is estimated, yet it printed "(est.)". The flag stays (it
+  // gates served behaviour); only the word changes. The backend names it `ecmwf_wam_direct_read`; an older backend says
+  // `ecmwf_ifs_derived_fallback` from the direct point lane. Kill: window.__RAW_DISABLE_DIRECT_READ_WORDS__ = true.
+  const _basis = useExactPoint?.estimate_basis;
+  const isDirectRead = isEst && !!_basis && !(typeof window !== 'undefined' && window.__RAW_DISABLE_DIRECT_READ_WORDS__ === true)
+    && (_basis.type === 'ecmwf_wam_direct_read'
+      || (_basis.type === 'ecmwf_ifs_derived_fallback' && _basis.source_method === 'direct_point_api'));
+  const _estTag = isEst ? (isDirectRead ? ' (ECMWF)' : ' (est.)') : '';
 
   // ── ENERGY (1a-2, 2026-08-01) ────────────────────────────────────────────────────────────────
   // Height alone is the wrong headline — a 1.2 m at 6 s and a 1.2 m at 16 s are not the same sea,
@@ -153,7 +167,7 @@ export function compileForecastCards({
     return {
       icon: Waves,
       label: 'Energy',
-      value: `${formatEnergy(kwm, { coarse: _coarseTier })}${isEst ? ' (est.)' : ''}${_prov}`,
+      value: `${formatEnergy(kwm, { coarse: _coarseTier })}${_estTag}${_prov}`,
       color,
       provisional: isProvisionalPaint,
       ariaLabel: `Wave energy flux ${Math.round(kwm)} kilowatts per metre, ${band.label}`
@@ -299,13 +313,13 @@ export function compileForecastCards({
       const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
       // Provisional first paint: mark with the shared trailing ellipsis (reads "still refining")
       // instead of suppressing the instant feedback; the marker disappears when authority lands.
-      displayHeight = hDisp != null ? `${hDisp}${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}${_prov}` : (strictValues && isExactPointAuthority ? 'Unavailable' : '--');
-      if (wavePeriod != null) displayPeriod = `${wavePeriod.toFixed(1)}s${isEst ? ' (est.)' : ''}${_prov}`;
+      displayHeight = hDisp != null ? `${hDisp}${isStale ? ' (latest)' : _estTag}${_prov}` : (strictValues && isExactPointAuthority ? 'Unavailable' : '--');
+      if (wavePeriod != null) displayPeriod = `${wavePeriod.toFixed(1)}s${_estTag}${_prov}`;
       if (useExactPoint?.wave_peak_period != null && useExactPoint.wave_peak_period > 0) {
         displayPeak = `${useExactPoint.wave_peak_period.toFixed(1)}s`;
       }
       if (waveDir != null) {
-        displayDir = `${Math.round(waveDir)}${isEst ? ' (est.)' : ''}${_prov}`;
+        displayDir = `${Math.round(waveDir)}${_estTag}${_prov}`;
         displayCompass = degToCompass(waveDir);
       }
     }
@@ -336,8 +350,9 @@ export function compileForecastCards({
         const _surfDisp = _h(_surf);
         if (_surfDisp != null) {
           _surfCards.push({
-            icon: Waves, label: 'Surf', value: `${_surfDisp} (est.)`, color: 'text-emerald-300',
-            ariaLabel: `Breaking surf height, estimated ${_hWord(_surf)}`,
+            icon: Waves, label: 'Surf', value: `${_surfDisp} (est.)${_prov}`, color: 'text-emerald-300',
+            provisional: isProvisionalPaint,
+            ariaLabel: `Breaking surf height, estimated ${_hWord(_surf)}${_prov ? ', updating' : ''}`,
           });
         }
       }
@@ -360,12 +375,16 @@ export function compileForecastCards({
       const _reg = useExactPoint?.surf_regime;
       const _coastal = _reg && _reg !== 'open_ocean' && _reg !== 'calm' && _reg !== 'unknown';
       if (_coastal && surfRating && surfRating.score != null && surfRating.level && surfRating.level !== 'unknown') {
+        const _ratingLabel = RATING_LABEL[surfRating.level] || '—';
         cards.push({
           icon: Waves,
           label: 'Rating',
-          value: RATING_LABEL[surfRating.level] || '—',
+          value: _ratingLabel,
           color: 'text-emerald-300',
           badgeColor: RATING_COLOR[surfRating.level],
+          provisional: isProvisionalPaint,
+          // The badge's own frame when it is not the Surf number's (P2: "from Tue 3 PM"); text, never colour alone.
+          ...(ratingNote ? { note: ratingNote, ariaLabel: `Rating: ${_ratingLabel}, ${ratingNote}` } : {}),
         });
       }
     }
@@ -436,14 +455,14 @@ export function compileForecastCards({
         const swell1LowEnergy = swell1Height == null || swell1Height < 0.05;
         const hDisp = _h(swell1Height);
         const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
-        displayHeight = hDisp != null ? `${hDisp}${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}${_prov}` : '--';
+        displayHeight = hDisp != null ? `${hDisp}${isStale ? ' (latest)' : _estTag}${_prov}` : '--';
         if (!swell1LowEnergy) {
-          if (swell1Period != null && swell1Period > 0) displayPeriod = `${swell1Period.toFixed(1)}s${isEst ? ' (est.)' : ''}${_prov}`;
+          if (swell1Period != null && swell1Period > 0) displayPeriod = `${swell1Period.toFixed(1)}s${_estTag}${_prov}`;
           if (useExactPoint?.swell_wave_peak_period != null && useExactPoint.swell_wave_peak_period > 0) {
             displayPeak = `${useExactPoint.swell_wave_peak_period.toFixed(1)}s`;
           }
           if (swell1Dir != null) {
-            displayDir = `${Math.round(swell1Dir)}${isEst ? ' (est.)' : ''}${_prov}`;
+            displayDir = `${Math.round(swell1Dir)}${_estTag}${_prov}`;
             displayCompass = degToCompass(swell1Dir);
           }
         } else {
@@ -544,11 +563,11 @@ export function compileForecastCards({
         const swell2LowEnergy = swell2Height == null || swell2Height < 0.10;
         const hDisp = _h(swell2Height);
         const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
-        displayHeight = hDisp != null ? `${hDisp}${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}${_prov}` : '--';
+        displayHeight = hDisp != null ? `${hDisp}${isStale ? ' (latest)' : _estTag}${_prov}` : '--';
         if (!swell2LowEnergy) {
-          if (swell2Period != null && swell2Period > 0) displayPeriod = `${swell2Period.toFixed(1)}s${isEst ? ' (est.)' : ''}${_prov}`;
+          if (swell2Period != null && swell2Period > 0) displayPeriod = `${swell2Period.toFixed(1)}s${_estTag}${_prov}`;
           if (swell2Dir != null) {
-            displayDir = `${Math.round(swell2Dir)}${isEst ? ' (est.)' : ''}${_prov}`;
+            displayDir = `${Math.round(swell2Dir)}${_estTag}${_prov}`;
             displayCompass = degToCompass(swell2Dir);
           }
         } else {
@@ -638,11 +657,11 @@ export function compileForecastCards({
         const windWaveLowEnergy = windWaveHeight == null || windWaveHeight < 0.05;
         const hDisp = _h(windWaveHeight);
         const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
-        displayHeight = hDisp != null ? `${hDisp}${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}${_prov}` : '--';
+        displayHeight = hDisp != null ? `${hDisp}${isStale ? ' (latest)' : _estTag}${_prov}` : '--';
         if (!windWaveLowEnergy) {
-          if (windWavePeriod != null && windWavePeriod > 0) displayPeriod = `${windWavePeriod.toFixed(1)}s${isEst ? ' (est.)' : ''}${_prov}`;
+          if (windWavePeriod != null && windWavePeriod > 0) displayPeriod = `${windWavePeriod.toFixed(1)}s${_estTag}${_prov}`;
           if (windWaveDir != null) {
-            displayDir = `${Math.round(windWaveDir)}${isEst ? ' (est.)' : ''}${_prov}`;
+            displayDir = `${Math.round(windWaveDir)}${_estTag}${_prov}`;
             displayCompass = degToCompass(windWaveDir);
           }
         } else {

@@ -18,6 +18,7 @@ import stripe
 from utils.geo import haversine_distance
 
 from database import get_db
+from utils.credits import deduct_credits
 from core.security import get_user_id_from_jwt_or_query
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
@@ -97,7 +98,10 @@ async def boost_dispatch_request(
         )
     
     # Deduct credits
-    user_profile.credit_balance = (user_profile.credit_balance or 0) - cost
+    success, _, error = await deduct_credits(
+        user_id, cost, 'dispatch_boost', db, reference_type='dispatch_request', reference_id=request_id)
+    if not success:
+        raise HTTPException(status_code=402, detail=error)
     
     # Apply boost
     dispatch.boost_priority = 10  # Max priority for boosted requests

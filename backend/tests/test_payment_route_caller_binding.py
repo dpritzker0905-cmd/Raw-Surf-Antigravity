@@ -287,15 +287,40 @@ async def test_subscription_completion_requires_a_paid_matching_checkout(harness
 
 
 async def test_owner_completes_a_paid_subscription_once(harness, monkeypatch):
+    async with harness.maker() as db:
+        (await db.get(SurferPhotoSubscription, 'sub')).status = 'expired'
+        await db.commit()
     paid_session(monkeypatch, metadata={'type': 'photo_subscription', 'surfer_id': 'owner', 'plan_id': 'plan'},
                  amount_total=1000)
     first = await harness.client.post(COMPLETE_SUB[1], headers=bearer('owner'))
     second = await harness.client.post(COMPLETE_SUB[1], headers=bearer('owner'))
     assert first.status_code == 200 and 'subscription' in first.json(), first.text
-    assert second.status_code == 200 and second.json().get('message') == 'Already activated', second.text
+    assert first.json()['already_completed'] is False
+    assert second.status_code == 200 and second.json()['already_completed'] is True, second.text
+    assert second.json()['subscription']['id'] == first.json()['subscription']['id']
     async with harness.maker() as db:
-        assert len((await db.execute(select(SurferPhotoSubscription))).scalars().all()) == 2
+        rows = (await db.execute(select(SurferPhotoSubscription))).scalars().all()
+        assert len(rows) == 2
+        assert sum(row.stripe_session_id == 'cs_sub' for row in rows) == 1
+        earnings = (await db.execute(select(CreditTransaction).where(
+            CreditTransaction.user_id == 'pro', CreditTransaction.amount > 0))).scalars().all()
+        assert len(earnings) == 1 and earnings[0].amount == pytest.approx(8.0)
     assert (await balances(harness.maker))['pro'][1] == pytest.approx(58.0)
+
+
+async def test_paid_overlap_requires_review_without_extra_access_or_earning(harness, monkeypatch):
+    paid_session(monkeypatch, metadata={'type': 'photo_subscription', 'surfer_id': 'owner', 'plan_id': 'plan'},
+                 amount_total=1000)
+    before = await balances(harness.maker)
+    response = await harness.client.post(COMPLETE_SUB[1], headers=bearer('owner'))
+    assert response.status_code == 200, response.text
+    assert response.json()['code'] == 'paid_overlap'
+    assert response.json()['activation_status'] == 'review_required' and response.json()['paid'] is True
+    assert await balances(harness.maker) == before
+    async with harness.maker() as db:
+        rows = (await db.execute(select(SurferPhotoSubscription))).scalars().all()
+        assert len(rows) == 1 and rows[0].photos_remaining == 5 and rows[0].sessions_remaining == 2
+        assert not (await db.execute(select(CreditTransaction))).scalars().all()
 
 
 @pytest.mark.parametrize('amount', [0, -5.0, 'NaN'])

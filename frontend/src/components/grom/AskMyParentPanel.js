@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { CheckCircle, Copy, Loader2, ShieldCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import apiClient from '../../lib/apiClient';
@@ -23,18 +23,32 @@ export const AskMyParentPanel = ({ onLinked }) => {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
   const [invites, setInvites] = useState([]);
+  const [invitesLoading, setInvitesLoading] = useState(true);
+  const [invitesError, setInvitesError] = useState(false);
+  const inviteReadGeneration = useRef(0);
   const [error, setError] = useState('');
 
   const loadInvites = useCallback(async () => {
+    const generation = ++inviteReadGeneration.current;
+    setInvitesLoading(true);
+    setInvitesError(false);
     try {
       const res = await apiClient.get('/grom-hq/guardian-invites');
+      if (generation !== inviteReadGeneration.current) return;
       setInvites(res.data?.incoming || []);
     } catch (e) {
+      if (generation !== inviteReadGeneration.current) return;
       logger.error('Failed to load guardian invites:', e);
+      setInvitesError(true);
+    } finally {
+      if (generation === inviteReadGeneration.current) setInvitesLoading(false);
     }
   }, []);
 
-  useEffect(() => { loadInvites(); }, [loadInvites]);
+  useEffect(() => {
+    loadInvites();
+    return () => { inviteReadGeneration.current += 1; };
+  }, [loadInvites]);
 
   const getCode = async () => {
     setBusy(true);
@@ -107,7 +121,14 @@ export const AskMyParentPanel = ({ onLinked }) => {
         </Button>
       </div>
 
-      {invites.length > 0 ? (
+      {invitesLoading ? (
+        <p role="status" aria-label="Loading parent invitations" className="text-sm text-muted-foreground">Loading parent invitations...</p>
+      ) : invitesError ? (
+        <div role="alert" className="rounded-xl border border-border bg-card p-4 space-y-3">
+          <p className="text-sm">Parent invitations could not be loaded. Try again to check who has asked to link with you.</p>
+          <Button type="button" variant="outline" onClick={loadInvites}>Retry parent invitations</Button>
+        </div>
+      ) : invites.length > 0 ? (
         <div className="rounded-xl border border-border bg-card p-4 space-y-3" data-testid="guardian-invites">
           <h3 className="text-sm font-semibold">Asked to link with you</h3>
           <ul className="space-y-3">

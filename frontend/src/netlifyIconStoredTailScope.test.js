@@ -18,8 +18,8 @@ afterAll(() => fs.rmSync(sandbox, { recursive: true, force: true }));
 const cases = [
   ['dev branch deploy', 'branch-deploy', 'dev', undefined, 'true'],
   ['dev branch explicitly disabled before owner flip', 'branch-deploy', 'dev', 'false', 'true'],
-  ['production', 'production', 'main', undefined, 'unset'],
-  ['production from dev', 'production', 'dev', undefined, 'unset'],
+  ['production (D-056, owner 2026-11-01)', 'production', 'main', undefined, 'true'],
+  ['production from dev', 'production', 'dev', undefined, 'true'],
   ['preview from dev', 'deploy-preview', 'dev', undefined, 'unset'],
   ['preview repair branch', 'deploy-preview', 'codex/dev-icon-tail-enable', undefined, 'unset'],
   ['another branch', 'branch-deploy', 'staging', undefined, 'unset'],
@@ -27,7 +27,7 @@ const cases = [
   ['local Netlify dev', 'dev', 'dev', undefined, 'unset'],
   ['missing context', undefined, 'dev', undefined, 'unset'],
   ['missing branch', 'branch-deploy', undefined, undefined, 'unset'],
-  ['production keeps an existing disabled value', 'production', 'main', 'false', 'false'],
+  ['production keeps an existing disabled value (the kill switch)', 'production', 'main', 'false', 'false'],
 ];
 
 test.each(cases)('%s has the authorized flag in every build subprocess', (_, context, branch, prior, expected) => {

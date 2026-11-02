@@ -1,0 +1,59 @@
+{
+  "source": "exact staged index export at ad231e2 plus four packaging paths",
+  "network": "external sockets denied; local loopback allowed",
+  "tests": [
+    {
+      "name": "ci-partition",
+      "exit": 0,
+      "command": [
+        "C:/Users/David/App/raw-surf/backend/.venv/Scripts/python.exe",
+        "-B",
+        "scripts/ci_test_lanes.py",
+        "--assert-partition"
+      ],
+      "cwd": "C:\\Users\\David\\.codex\\worktrees\\repair-integration-20261030\\raw-surf\\backend"
+    },
+    {
+      "name": "ci-launchers-and-floor",
+      "exit": 0,
+      "command": [
+        "C:/Users/David/App/raw-surf/backend/.venv/Scripts/python.exe",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-o",
+        "addopts=",
+        "-p",
+        "no:cacheprovider",
+        "--basetemp=C:\\Users\\David\\.codex\\worktrees\\repair-integration-20261030\\raw-surf\\docs\\audits\\evidence\\2026-10-30-dev-release\\.run\\pytest-ci",
+        "tests/test_notification_recipient_fixture.py",
+        "tests/test_support_ticket_case_fixture.py",
+        "tests/test_support_delivery_fixture.py",
+        "tests/test_ci_floor_staleness.py"
+      ],
+      "cwd": "C:\\Users\\David\\.codex\\worktrees\\repair-integration-20261030\\raw-surf\\docs\\audits\\evidence\\2026-10-30-dev-release\\.export\\ci-staged\\backend"
+    },
+    {
+      "name": "ci-email-regressions-async-plugin",
+      "exit": 0,
+      "command": [
+        "C:/Users/David/App/raw-surf/backend/.venv/Scripts/python.exe",
+        "-B",
+        "-m",
+        "pytest",
+        "-q",
+        "-o",
+        "addopts=",
+        "-p",
+        "no:cacheprovider",
+        "-p",
+        "pytest_asyncio.plugin",
+        "--basetemp=C:\\Users\\David\\.codex\\worktrees\\repair-integration-20261030\\raw-surf\\docs\\audits\\evidence\\2026-10-30-dev-release\\.run\\pytest-mail-plugin",
+        "tests/test_email_service.py",
+        "tests/test_email_templates_and_webhook.py"
+      ],
+      "cwd": "C:\\Users\\David\\.codex\\worktrees\\repair-integration-20261030\\raw-surf\\docs\\audits\\evidence\\2026-10-30-dev-release\\.export\\ci-staged\\backend"
+    }
+  ]
+}

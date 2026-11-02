@@ -25,7 +25,7 @@ export function displayedForecastTime(hour, layer, model) {
   if (!Number.isFinite(anchorMs)) anchorMs = Math.round(Date.now() / HOUR_MS) * HOUR_MS;
   const requestedMs = anchorMs + h * HOUR_MS;
   let ms = requestedMs;
-  // The wind f120+ tail blend (windTimeBlend.js, opt-in): between two built static frames at or past f120 the field drawn IS
+  // The wind f120+ tail blend (windTimeBlend.js, ON; kill __RAW_DISABLE_WIND_TIME_BLEND__): between two built static frames at or past f120 the field drawn IS
   // valid at the requested instant (a labelled PCHIP estimate), so the readout names that instant, not the snapped frame. The
   // same bracket rule as the seam (run + 120 h), so the readout never names a blend the map does not draw. While the frames'
   // bytes are still loading the nearest frame is drawn instead, and the wind status line names it in the same frame.

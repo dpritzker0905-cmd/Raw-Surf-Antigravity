@@ -12,6 +12,8 @@ Features:
 from fastapi import APIRouter, HTTPException, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, desc, and_
+from sqlalchemy.dialects.postgresql import insert as pg_insert
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import selectinload
 from datetime import datetime, timezone
 from typing import Optional
@@ -20,7 +22,7 @@ import logging
 
 from database import get_db
 from models import (
-    Profile, ImpactLedger, LeaderboardSnapshot, 
+    Profile, ImpactLedger, LeaderboardSnapshot, MonthlyLeaderboardArchive,
     Notification, RoleEnum
 )
 from utils.grom_parent import is_grom_parent_eligible
@@ -355,66 +357,111 @@ async def monthly_leaderboard_reset(db: AsyncSession):
     Called by scheduler on 1st of each month.
     Archives current month's data and prepares for new month.
     """
-    now = datetime.now(timezone.utc)
-    
-    # We're resetting for the PREVIOUS month
-    if now.month == 1:
-        archive_month = 12
-        archive_year = now.year - 1
-    else:
-        archive_month = now.month - 1
-        archive_year = now.year
-    
-    logger.info(f"Running monthly leaderboard reset for {archive_month}/{archive_year}")
-    
-    # Get final rankings for the month
-    rankings_result = await db.execute(
-        select(
-            ImpactLedger.photographer_id,
-            func.sum(ImpactLedger.amount).label('total')
+    try:
+        now = datetime.now(timezone.utc)
+
+        # We're resetting for the PREVIOUS month
+        if now.month == 1:
+            archive_month = 12
+            archive_year = now.year - 1
+        else:
+            archive_month = now.month - 1
+            archive_year = now.year
+
+        # The period's unique marker arbitrates concurrent/reset retries in the
+        # same transaction as every snapshot and badge. No partial claim persists.
+        dialect = db.get_bind().dialect.name
+        if dialect not in ('postgresql', 'sqlite'):
+            raise RuntimeError("Monthly leaderboard archival requires PostgreSQL or SQLite")
+        insert_archive = pg_insert if dialect == 'postgresql' else sqlite_insert
+        claim = await db.execute(
+            insert_archive(MonthlyLeaderboardArchive)
+            .values(year=archive_year, month=archive_month, archived_count=0)
+            .on_conflict_do_nothing(index_elements=['year', 'month'])
+            .returning(MonthlyLeaderboardArchive.year)
         )
-        .where(ImpactLedger.month == archive_month)
-        .where(ImpactLedger.year == archive_year)
-        .group_by(ImpactLedger.photographer_id)
-        .order_by(desc('total'))
-    )
-    rankings = rankings_result.all()
-    
-    # Archive each photographer's stats
-    for rank, row in enumerate(rankings, 1):
-        snapshot = LeaderboardSnapshot(
-            photographer_id=row.photographer_id,
-            month=archive_month,
-            year=archive_year,
-            monthly_total=row.total,
-            rank=rank,
-            earned_grom_guardian=(rank <= 10)
-        )
-        db.add(snapshot)
-        
-        # Award Grom Guardian badge to Top 10
-        if rank <= 10:
-            profile_result = await db.execute(
-                select(Profile).where(Profile.id == row.photographer_id)
+        is_new_archive = claim.scalar_one_or_none() is not None
+        archive = (await db.execute(
+            select(MonthlyLeaderboardArchive)
+            .where(MonthlyLeaderboardArchive.year == archive_year)
+            .where(MonthlyLeaderboardArchive.month == archive_month)
+            .with_for_update()
+        )).scalar_one()
+        snapshot_count = (await db.execute(
+            select(func.count(LeaderboardSnapshot.id))
+            .where(LeaderboardSnapshot.year == archive_year)
+            .where(LeaderboardSnapshot.month == archive_month)
+        )).scalar_one()
+        if not is_new_archive:
+            if snapshot_count != archive.archived_count:
+                raise ValueError("Monthly leaderboard archive requires review: snapshot count mismatch")
+            result = {"archived": archive.archived_count, "month": archive_month, "year": archive_year}
+            await db.commit()
+            return result
+        if snapshot_count:
+            raise ValueError("Monthly leaderboard archive requires review: snapshots have no completion record")
+
+        logger.info(f"Running monthly leaderboard reset for {archive_month}/{archive_year}")
+
+        # Get final rankings for the month
+        rankings_result = await db.execute(
+            select(
+                ImpactLedger.photographer_id,
+                func.sum(ImpactLedger.amount).label('total')
             )
-            profile = profile_result.scalar_one_or_none()
-            if profile:
-                # Add badge to profile
-                badges = profile.badges or []
-                grom_guardian_badge = {
-                    "type": "grom_guardian",
-                    "month": archive_month,
-                    "year": archive_year,
-                    "rank": rank
-                }
-                badges.append(grom_guardian_badge)
-                profile.badges = badges
-    
-    await db.commit()
-    
-    logger.info(f"Archived {len(rankings)} photographers for {archive_month}/{archive_year}")
-    
-    return {"archived": len(rankings), "month": archive_month, "year": archive_year}
+            .where(ImpactLedger.month == archive_month)
+            .where(ImpactLedger.year == archive_year)
+            .group_by(ImpactLedger.photographer_id)
+            .order_by(desc('total'))
+        )
+        rankings = rankings_result.all()
+
+        # Archive each photographer's stats
+        for rank, row in enumerate(rankings, 1):
+            snapshot = LeaderboardSnapshot(
+                photographer_id=row.photographer_id,
+                month=archive_month,
+                year=archive_year,
+                monthly_total=row.total,
+                rank=rank,
+                earned_grom_guardian=(rank <= 10)
+            )
+            db.add(snapshot)
+
+            # Award Grom Guardian badge to Top 10
+            if rank <= 10:
+                profile_result = await db.execute(
+                    select(Profile).where(Profile.id == row.photographer_id)
+                )
+                profile = profile_result.scalar_one_or_none()
+                if profile:
+                    # Add badge to profile
+                    try:
+                        badges = json.loads(profile.badges or '[]')
+                    except (json.JSONDecodeError, TypeError) as error:
+                        raise ValueError("Profile badges must contain a JSON array") from error
+                    if not isinstance(badges, list):
+                        raise ValueError("Profile badges must contain a JSON array")
+                    grom_guardian_badge = {
+                        "type": "grom_guardian",
+                        "month": archive_month,
+                        "year": archive_year,
+                        "rank": rank
+                    }
+                    badges.append(grom_guardian_badge)
+                    profile.badges = json.dumps(badges)
+
+        archive.archived_count = len(rankings)
+        archive.completed_at = datetime.now(timezone.utc)
+        await db.commit()
+
+        logger.info(f"Archived {len(rankings)} photographers for {archive_month}/{archive_year}")
+
+        return {"archived": len(rankings), "month": archive_month, "year": archive_year}
+
+    except Exception:
+        await db.rollback()
+        raise
 
 
 

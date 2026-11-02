@@ -51,6 +51,16 @@ def _coarse_axis(lo, hi, step):
     return coarse_axis(lo, hi, step)
 
 
+def forecast_hours(max_f, hourly_until=0):
+    """The forecast steps to fetch: 3-hourly to max_f, plus EVERY hour to `hourly_until` (2026-10-25, hourly GFS wind
+    f000-f120; GFS pgrb2.0p25 is published hourly to f120, 3-hourly beyond). hourly_until <= 0: 3-hourly only (the
+    default and every caller but the gated global_mid ingest)."""
+    steps = set(range(0, max_f + 1, 3))
+    if hourly_until and hourly_until > 0:
+        steps |= set(range(0, min(int(hourly_until), 120, max_f) + 1))
+    return sorted(steps)
+
+
 def _pick_cycle(requests, now, max_f):
     """Probe AWS Open Data newest-first for a COMPLETE GFS atmos cycle (f000 + the requested last hour
     both present). Returns (cycle_dt, file_prefix) or (None, None)."""
@@ -169,7 +179,9 @@ def fetch_global_coarse(payload):
     axes = {rid: (_coarse_axis(float(bb["south"]), float(bb["north"]), resolution),
                   _coarse_axis(float(bb["west"]), float(bb["east"]), resolution))
             for rid, bb in regions.items()}
-    f_hours = list(range(0, max_f + 1, 3))
+    # HOURLY f000-f120 only when the caller asks (payload `hourly_until`: the gated GFS wind global_mid ingest,
+    # FRAME_WIND_GFS_HOURLY=1); NOAA publishes no hourly step past f120, so it is capped there.
+    f_hours = forecast_hours(max_f, int(payload.get("hourly_until") or 0))
 
     cycle_dt, prefix = _pick_cycle(requests, datetime.now(timezone.utc), max_f)
     if not prefix:

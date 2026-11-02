@@ -269,6 +269,46 @@ export function resolveStaleWorldDim(ctx) {
   return { mult: tuned > 0 && tuned <= 1 ? tuned : STALE_WORLD_DIM, stale: true, why: 'stale_world' };
 }
 
+/**
+ * ONE FRAME, ONE TIME (D1, 2026-10-28; the lead's offline erratic fuzzer at 4bd90d0d9: the BLEND BOTH wash was drawn from another
+ * forecast hour or run than the frame on top of it in 75 of 84 sequences, p50 42 h apart, for p50 6.3 s and up to 81 s. Repro 3/3:
+ * desktop, GFS Waves at Florida z8, PageUp x2: the h48 regional tile over the h0 world wash for the rest of the session).
+ * The engine keeps its wash base per model | layer | flavor and engaged it on model and layer alone. This is the time half of that
+ * gate: the base's DATA instant must sit within a snapped step (SAME_STEP_TOL_MS) of the resident's, and the two must name the same
+ * verified cycle when both name one; else the wash is not drawn (the right-hour world grid re-engages it when it lands). The data
+ * instant is the served time (the readout-only copy included), else the product id's stamp, else a series or store frame's own
+ * valid time, else the ask's echo. An instant unknown on either side fails OPEN (the old behaviour), counted as `unknown`.
+ * Kill: window.__RAW_DISABLE_WASH_TIME_MATCH__ = true. Telemetry: window.__MARINE_WASH_TIME__ { refused, unknown (both counted in
+ * rendered frames: the engine asks once per frame, and only when the model and layer already match), last }.
+ */
+const STAMP_RE = /_(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})(\d{2})Z/;
+export function washDataMs(x) {
+  const g = gridOf(x);
+  if (!g) return null;
+  const served = Date.parse(g.served_valid_time || g.__readoutServedTime || (x && x.served_valid_time) || '');
+  if (Number.isFinite(served)) return served;
+  const m = STAMP_RE.exec(String(g.__servedProductId || g.productId || ''));
+  if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +m[6]);
+  return gridValidMs(x);
+}
+const cycleOf = (x) => { const g = gridOf(x); return g ? ((g.model_run_time_status === 'known' && g.model_run_time) || g.__readoutModelRun || null) : null; };
+export function washMatchesResident(base, resident, win) {
+  const w = win || (typeof window !== 'undefined' ? window : null);
+  if (w && w.__RAW_DISABLE_WASH_TIME_MATCH__ === true) return { ok: true, why: 'killed' };
+  if (!base || !resident) return { ok: true, why: 'none' };
+  const t = w ? (w.__MARINE_WASH_TIME__ = w.__MARINE_WASH_TIME__ || { refused: 0, unknown: 0, last: null }) : null;
+  const b = washDataMs(base), r = washDataMs(resident);
+  let v;
+  if (b === null || r === null) v = { ok: true, why: 'unknown_time' };
+  else if (Math.abs(b - r) > SAME_STEP_TOL_MS) v = { ok: false, why: 'other_time', offH: +((b - r) / HOUR_MS).toFixed(2) };
+  else {
+    const cb = Date.parse(cycleOf(base) || ''), cr = Date.parse(cycleOf(resident) || '');
+    v = Number.isFinite(cb) && Number.isFinite(cr) && cb !== cr ? { ok: false, why: 'other_run', offH: +((cb - cr) / HOUR_MS).toFixed(2) } : { ok: true, why: 'same' };
+  }
+  if (t) { if (!v.ok) t.refused++; else if (v.why === 'unknown_time') t.unknown++; t.last = v; t.lastAt = Date.now(); }
+  return v;
+}
+
 /** How long a load must be pending before the status line adds its (non-dimming) indicator. */
 export const HOLD_INDICATOR_MS = 2500;
 /** The hold-without-dimming kill switch, read per call. */

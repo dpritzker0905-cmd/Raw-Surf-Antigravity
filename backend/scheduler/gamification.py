@@ -18,3 +18,15 @@ async def monthly_leaderboard_reset_task():
             logger.info(f"[Scheduler] Leaderboard reset complete: {result}")
     except Exception as e:
         logger.error(f"[Scheduler] Error in leaderboard reset: {str(e)}")
+        raise
+
+
+async def weekly_challenge_finalize_task():
+    """Finalize the previous ISO week's challenge; failures reach tracked status."""
+    from database import async_session_maker
+    from routes.career_hub.challenges import finalize_weekly_challenge
+
+    logger.info("[Scheduler] Finalizing the previous weekly challenge...")
+    async with async_session_maker() as db:
+        await finalize_weekly_challenge(db)
+    logger.info("[Scheduler] Weekly challenge finalization complete")

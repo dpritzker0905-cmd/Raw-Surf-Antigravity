@@ -54,6 +54,7 @@ const SinglePost                  = React.lazy(() => import('./components/Single
 const PaymentSuccess              = React.lazy(() => import('./components/PaymentSuccess'));
 const BookingPaymentSuccess       = React.lazy(() => import('./components/BookingPaymentSuccess'));
 const DispatchPaymentSuccess      = React.lazy(() => import('./components/DispatchPaymentSuccess'));
+const CrewCardPaymentSuccess      = React.lazy(() => import('./components/CrewCardPaymentSuccess'));
 const XPLeaderboard               = React.lazy(() => import('./components/XPLeaderboard'));
 const ThePeakHub                  = React.lazy(() => import('./components/ThePeakHub'));
 const TheInsideHub                = React.lazy(() => import('./components/TheInsideHub'));
@@ -81,6 +82,7 @@ const SessionRecapPage            = React.lazy(() => import('./pages/SessionReca
 const PhotographerSubscriptionSettings = React.lazy(() => import('./components/PhotographerSubscriptionSettings'));
 const PhotographerSubscribePage = React.lazy(() => import('./components/PhotographerSubscribePage'));
 const CareerPage = React.lazy(() => import('./components/CareerPage'));
+const SupportRoute = React.lazy(() => import('./components/support/SupportRoute'));
 
 import './App.css';
 
@@ -148,6 +150,8 @@ function App() {
             <Route path="/setup-username" element={<SubscriptionRoute><Lazy><UsernameSetup skipAllowed={true} /></Lazy></SubscriptionRoute>} />
 
  {/* GG Protected App Routes GG */}
+            <Route path="/support" element={<Lazy><SupportRoute /></Lazy>} />
+            <Route path="/support/tickets/:ticketId" element={<Lazy><SupportRoute /></Lazy>} />
             <Route path="/feed" element={<ProtectedRoute><AppLayout><Lazy><Feed /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/explore" element={<ProtectedRoute><AppLayout><Lazy><Explore /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/search" element={<ProtectedRoute><AppLayout hideTopNav={true}><Lazy><SearchPage /></Lazy></AppLayout></ProtectedRoute>} />
@@ -213,6 +217,7 @@ function App() {
             <Route path="/bookings/pay/:bookingId" element={<ProtectedRoute><AppLayout><Lazy><CrewPaymentPage /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/bookings/success" element={<ProtectedRoute><Lazy><BookingPaymentSuccess /></Lazy></ProtectedRoute>} />
             <Route path="/dispatch/success" element={<ProtectedRoute><Lazy><DispatchPaymentSuccess /></Lazy></ProtectedRoute>} />
+            <Route path="/dispatch/crew-payment/success" element={<ProtectedRoute><Lazy><CrewCardPaymentSuccess /></Lazy></ProtectedRoute>} />
             <Route path="/dispatch/:dispatchId/lobby" element={<ProtectedRoute><AppLayout hideTopNav={false}><Lazy><DispatchLobby /></Lazy></AppLayout></ProtectedRoute>} />
             <Route path="/bookings/:bookingId/chat" element={<ProtectedRoute><Lazy><CrewChat /></Lazy></ProtectedRoute>} />
             <Route path="/session-recap/:sessionId" element={<ProtectedRoute><AppLayout><Lazy><SessionRecapPage /></Lazy></AppLayout></ProtectedRoute>} />

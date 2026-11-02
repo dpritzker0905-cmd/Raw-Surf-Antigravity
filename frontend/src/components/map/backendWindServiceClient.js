@@ -5,6 +5,7 @@
  */
 
 
+import { logFetchFailure } from './marineQuietFailures';
 import {
   GRID_URL,
   POINT_URL,
@@ -668,7 +669,7 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
         validTime: validTimeStr
       });
 
-      console.error(`[Backend Weather Service] Wind grid fetch error: ${err.message}. Falling back cleanly.`);
+      logFetchFailure(err, `[Backend Weather Service] Wind grid fetch error: ${err.message}. Falling back cleanly.`);   // D12: an abort is not an error
       throw err;
     } finally {
       // delete only OUR entry — an aborted predecessor's late finally must not evict a
@@ -698,7 +699,7 @@ function mapStaticWind(json, box, hourOffset) {
   shell.hourOffset = hourOffset;
   shell.nonzeroCount = nonzero;
   shell.renderable = vectors.length > 0 && nonzero > 0;
-  if (json.time_blend) { shell.time_blend = json.time_blend; shell.is_estimated = true; }   // clip B: the label rides with the grid
+  if (json.time_blend) { shell.time_blend = json.time_blend; shell.is_estimated = true; }   // the f120+ tail blend: the label rides with the grid
   if (typeof window !== 'undefined' && hourOffset === 0) {
     recordTruthStage('mappedGrid', { model: json.model || 'GFS', domain: 'wind', layer: 'wind', valid_time: json.valid_time,
       run_time: json.run_time, product_id: json.product_id, is_dynamic_viewport_product: false, coverage_scope: json.coverage_scope,

@@ -1,0 +1,15 @@
+{
+  "utc": "2026-10-30T13:46:55.026012+00:00",
+  "candidate": "e1a7817db6497425572c72e582f2039461c275d1",
+  "settings_commit": "ad231e22fff0bef0d45914a94d933c096522a4b0",
+  "local_tests": {
+    "native_settings": 50,
+    "fixture_floor": 39,
+    "email": 140
+  },
+  "hosted_candidate_ci_verified": false,
+  "mapped_destination_compatibility_verified": false,
+  "merge_performed": false,
+  "deployment_performed": false,
+  "new_weather_writes": false
+}

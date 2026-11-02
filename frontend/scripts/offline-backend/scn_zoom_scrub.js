@@ -121,7 +121,7 @@ const PROBE = () => {
         if (Math.abs(lag) > 1.5) {
           W.stale = (W.stale || 0) + 1; W.maxStaleH = Math.max(W.maxStaleH || 0, Math.abs(lag));
           const st2 = [...document.querySelectorAll('[role="status"]')].filter((x) => x.offsetParent !== null).map((x) => x.textContent.trim()).join(' | ').slice(0, 160);
-          if (!/Loading|Verifying|does not match|pending|nearest|estimated/i.test(st2)) { W.staleSilent = (W.staleSilent || 0) + 1; if (!W.staleEx) W.staleEx = { rel: Math.round(rel), hour: s.hour, lagH: +lag.toFixed(2), pid: (s.pid || '').slice(-44), status: st2 }; }
+          if (!/Loading|Verifying|does not match|pending|nearest|estimated|Holding|not arriving/i.test(st2)) { W.staleSilent = (W.staleSilent || 0) + 1; if (!W.staleEx) W.staleEx = { rel: Math.round(rel), hour: s.hour, lagH: +lag.toFixed(2), pid: (s.pid || '').slice(-44), status: st2 }; }
         }
       }
       if (s.hour === W.target && dm != null && dm !== W.expectedMs && s.layer === 'waves') {
@@ -129,7 +129,7 @@ const PROBE = () => {
         // Does the status line SAY the field is not yet this hour (loading / nearest / estimated)? A mislabel with no such word is the
         // silent kind (matrix class 1); read per frame, the line's text is the only honesty the user has.
         const st = [...document.querySelectorAll('[role="status"]')].filter((x) => x.offsetParent !== null).map((x) => x.textContent.trim()).join(' | ').slice(0, 160);
-        if (!/Loading|Verifying|does not match|pending|nearest|estimated/i.test(st)) W.mislabelSilent = (W.mislabelSilent || 0) + 1;
+        if (!/Loading|Verifying|does not match|pending|nearest|estimated|Holding|not arriving/i.test(st)) W.mislabelSilent = (W.mislabelSilent || 0) + 1;
         if (!W.mid) W.mid = { rel: Math.round(rel), pid: s.pid, served: s.served, store: s.store, series: s.series, dataIso: P.dataIso(s, W), status: st };
       }
       const dims = `${s.cols}x${s.rows}`;
@@ -189,12 +189,15 @@ async function expectedBox(page, log, zoomedIn) {
   return [Math.floor(b[0]), Math.floor(b[1]), Math.ceil(b[2]), Math.ceil(b[3])].join(',');
 }
 
-// Hour 0 of the APP (2026-10-24): the resident grid's own asked valid time minus its hour offset. The old rounded clock disagreed with the
-// app's anchor by an hour whenever the run fell in the second half of an hour, which made a correct frame read as a mislabel (the Biscay
-// north-edge cell, 1,821 'silent' frames). Falls back to the rounded clock when the grid carries neither field.
+// Hour 0 of the APP, read from the app itself (2026-10-26): the status line publishes the label instant of the selected hour
+// (`__RAW_SELECTED_FRAME__.labelMs` = getSeriesAnchorMs() + hour), so labelMs - hour is the app's own anchor by construction. Falls back to
+// getSeriesAnchorMs()'s rule, the rounded clock. The 2026-10-24 rule (the resident grid's valid_time minus its hour offset) read the
+// SNAPPED product time: whenever hour 0 is off the 3-hourly cadence and the hour-0 resident came from /grid, it was 1-2 h off, and correct
+// frames read as missed/mislabelled (regression sweep 2026-10-26: Florida z9 noregional 16/20 missed, 4,721 'silent' frames at 23:17Z;
+// 0/10 and 0 at 23:47Z, hour 0 on the cadence).
 async function appAnchor(page) {
-  const a = await page.evaluate(() => { const e = window.__MARINE_ENGINE__; const g = e && e._waveData && e._waveData.waveGrid;
-    const t = g && Date.parse(g.valid_time || g.validTime || ''); return g && Number.isFinite(t) && Number.isFinite(g.hourOffset) ? t - g.hourOffset * 3600000 : null; });
+  const a = await page.evaluate(() => { const f = window.__RAW_SELECTED_FRAME__;
+    return f && Number.isFinite(f.labelMs) && Number.isFinite(f.hour) ? f.labelMs - f.hour * 3600000 : null; });
   return a != null ? a : Math.round(Date.now() / 3600000) * 3600000;
 }
 

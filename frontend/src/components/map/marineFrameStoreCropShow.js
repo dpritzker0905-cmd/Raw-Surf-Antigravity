@@ -29,7 +29,7 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
   const nearL = (a, b) => !!(a && b) && ['west', 'south', 'east', 'north'].every((k) => Math.abs(a[k] - b[k]) < 1e-6);
   function cropWindowFor(info) {
     const w = crop.window;
-    if (!w || !cropShowOn() || !info) return null;
+    if (!w || !cropShowOn() || !info || info.filled) return null;   // a FILLED world set never feeds a crop: /grid fills world grids only
     if (w.setKey === info.key) return w;
     if (w.regional || info.regional) return null;       // a regional window shows only its own tile's frames, and no world set takes one
     const g = info.index && info.index.grid;
@@ -130,7 +130,7 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
   // other grid: keep the clip resident only while the engine still holds it (the guard may have refused the commit).
   function noteCropCommitted(info, validTime, grid) {
     const own = info.byVt.get(validTime);                     // a frame on its own lattice (frame.grid) is windowed on that one
-    const win = cropShowOn() ? frameWindowOf(grid, (own && own.grid) || (info.index && info.index.grid)) : null;
+    const win = cropShowOn() && !info.filled ? frameWindowOf(grid, (own && own.grid) || (info.index && info.index.grid)) : null;
     if (!win) {
       if (crop.resident && !engineHolds(crop.resident)) Object.assign(crop, { resident: null, window: null, pending: null });
       return false;

@@ -1,0 +1,50 @@
+{
+  "results": [
+    {
+      "case": "basic paid child fulfillment through ASGI",
+      "passed": true,
+      "parent_unchanged": true,
+      "child_only": true
+    },
+    {
+      "case": "basic replay after later free choice",
+      "passed": true,
+      "no_provider_read": true,
+      "no_tier_reapply": true
+    },
+    {
+      "case": "premium paid child fulfillment through ASGI",
+      "passed": true,
+      "parent_unchanged": true,
+      "child_only": true
+    },
+    {
+      "case": "premium replay after later free choice",
+      "passed": true,
+      "no_provider_read": true,
+      "no_tier_reapply": true
+    },
+    {
+      "case": "basic paid child fulfillment through ASGI",
+      "passed": true,
+      "parent_unchanged": true,
+      "child_only": true
+    },
+    {
+      "case": "basic replay after later free choice",
+      "passed": true,
+      "no_provider_read": true,
+      "no_tier_reapply": true
+    }
+  ],
+  "passed": 6,
+  "total": 6,
+  "signed_http_requests": 9,
+  "all_http_200": true,
+  "actual_jwt_dependency": true,
+  "actual_routes_and_async_sqlite": true,
+  "provider": "in-memory Checkout double",
+  "external_calls": false,
+  "normal_app_startup": false,
+  "database_disposed": true
+}

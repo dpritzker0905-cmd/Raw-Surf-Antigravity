@@ -8,6 +8,7 @@
  */
 
 import { BACKEND_URL } from '../../lib/apiClient';
+import { logFetchFailure } from './marineQuietFailures';
 import { BoundedPointCache } from './BoundedPointCache';
 import { readMarineSurfMode } from './marineSurfMode';
 import { clampViewportBbox, getCachedManifest, setCachedManifest } from './backendWeatherServiceClientCoverage';
@@ -639,7 +640,7 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       timeOffsetHours: hourOffset
     });
 
-    console.error(`[Backend Weather Service] Grid fetch error: ${err.message}. Falling back cleanly to standard proxy pipeline.`);
+    logFetchFailure(err, `[Backend Weather Service] Grid fetch error: ${err.message}. Falling back cleanly to standard proxy pipeline.`);   // D12: an abort is not an error
     throw err;
   }
 }

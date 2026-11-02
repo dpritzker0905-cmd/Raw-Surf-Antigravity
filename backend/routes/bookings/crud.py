@@ -54,8 +54,11 @@ async def check_time_slot_conflict(
     
     Only checks scheduled bookings (not on_demand) and non-cancelled statuses.
     """
-    # Calculate the end time of the requested session
-    session_end = session_date + timedelta(minutes=duration)
+    # Legacy naive dates represent UTC. Compare instants consistently with
+    # timezone-aware database timestamps and offset-bearing requests.
+    requested_start = (session_date.replace(tzinfo=timezone.utc) if session_date.tzinfo is None
+                       else session_date.astimezone(timezone.utc))
+    session_end = requested_start + timedelta(minutes=duration)
     
     # Build query for existing bookings
     query = select(Booking).where(
@@ -82,7 +85,10 @@ async def check_time_slot_conflict(
         existing_end = existing_start + timedelta(minutes=booking.duration)
         
         # Check for overlap: new session overlaps if it starts before existing ends AND ends after existing starts
-        if session_date < existing_end and session_end > existing_start:
+        existing_start_utc = (existing_start.replace(tzinfo=timezone.utc) if existing_start.tzinfo is None
+                              else existing_start.astimezone(timezone.utc))
+        existing_end_utc = existing_start_utc + timedelta(minutes=booking.duration)
+        if requested_start < existing_end_utc and session_end > existing_start_utc:
             return {
                 "conflict": True,
                 "existing_booking_id": booking.id,
