@@ -77,6 +77,12 @@ _RATING_FLAGS = {
     # let a prune delete the object its surviving twin names: 51-54 EURO estimates a cycle, 2026-10-25). manifest_object_identity.py
     "MANIFEST_ONE_ENTRY_PER_OBJECT": ("0", "A product save drops every other manifest registration naming the same storage object",
                                       "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (the manifest writers)"),
+    # Immutable object names: run + content hash in every product name, a new run writes new objects and the manifest moves;
+    # storage deletes wait for the mark-and-sweep GC (product_run_keys.py, product_object_gc.py). Fixes 51 h stale pilot tiles.
+    "PRODUCT_RUN_KEYED_NAMES": ("0", "Product objects are named by run + content hash, so no cache serves an older run under a reused "
+                                     "key; prunes defer storage deletes to a two-sweep GC",
+                                "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (the manifest writers) "
+                                "+ Render env (disk sweep)"),
     # A listed product whose object is absent is skipped to the next candidate within the +-3 h window, labelled with its own
     # valid time, instead of a 404 (resolver_missing_skip.py).
     "RESOLVER_SKIP_MISSING_OBJECT": ("0", "The grid resolver skips a listed-but-absent product to the next candidate the selection would pick",
