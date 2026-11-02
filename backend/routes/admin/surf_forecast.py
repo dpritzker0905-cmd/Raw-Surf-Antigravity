@@ -36,6 +36,13 @@ _RATING_FLAGS = {
                          "forecast-ingest, forecast-ingest-pilots and precompute workflow env together; NOT Render (no GWAM fetch on the box)"),
     "ICON_PEAK_PERIOD_SHARPNESS": ("2", "Exponent p of the ICON_PEAK_PERIOD blend w_i ~ (H_i^2 Tp_i)^p (1 = energy-weighted, larger -> toward the dominant peak; never a hard switch). Inert while ICON_PEAK_PERIOD is 0",
                                    "same lanes as ICON_PEAK_PERIOD, same value"),
+    # The consensus PERIOD (2026-11-02, dark): Hs stays the equal mean, direction stays GFS's. Inert unless ICON_PEAK_PERIOD
+    # is also '1' (the tm10 median is worse than GFS alone on DPD > 12 s); consensus_product.period_mode.
+    "CONSENSUS_PERIOD_MEDIAN": ("0", "Consensus (equal GFS/EURO/ICON mean) total wave period = the MEDIAN of the three members' periods "
+                                     "where all three answer (else GFS's), instead of GFS's own. Takes effect only while ICON_PEAK_PERIOD "
+                                     "is also 1. services/weather_pipeline/consensus_product.py",
+                                "forecast-ingest-pilots workflow env (the lane that builds the CONSENSUS product); NOT Render. "
+                                "Flip ICON_PEAK_PERIOD first"),
     "ESTIMATE_COHERENT_TRENDS": ("0", "Refuse stored marine estimates whose active trend pair lacks a verified shared model cycle",
                                 "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (L2 writers); NOT Render"),
     "EURO_MARINE_NATIVE_TAIL_CADENCE": ("0", "Preserve NOAA tail cadence and verify completed local extension no-ops", "Local ingestion env; hosted lanes require owner approval"),
