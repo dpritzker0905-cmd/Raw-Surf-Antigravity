@@ -1,6 +1,6 @@
 """
 far_edge_bridge.py — past the end of an ICON / EURO 2-deg blend, bridge to the stored GFS 2-deg field instead of holding a
-frame or dropping to the 10-deg fill (2026-10-26, DARK: FAR_EDGE_BRIDGE=1; Render env; registered in _RATING_FLAGS).
+frame or dropping to the 10-deg fill (2026-10-26; FAR_EDGE_BRIDGE, Render env, ON by default since 2026-11-01 (owner, D-063); registered in _RATING_FLAGS).
 
 WHY (measured on real CDN frames 2026-10-26, log/2026-10-24-claude-day14-end.md "Research: the seam"). The scrubber ends at
 now + 336 h; the ICON and EURO 2-deg blends (persistence of the model's anchor + the GFS trend, LOCKED) end at their run + 336 h
@@ -24,7 +24,7 @@ beyond the target: a mid-range hole is never bridged); bounded by FAR_EDGE_BRIDG
 GFS 2-deg frames at T0 and at t (each within 1.5 h) on the same lattice, else None and the existing chain answers (the hold
 stays the fallback below). Values up to T0 are never touched: the locked blend is not rebuilt. Served relabelled: model as
 asked, provider "estimated", is_estimated true, estimate_basis {type far_edge_bridge, anchor, GFS frames, weight, decay},
-warning far_edge_bridge:+Nh. Kill: FAR_EDGE_BRIDGE=0 (default).
+warning far_edge_bridge:+Nh. Kill: FAR_EDGE_BRIDGE=0 (ON by default since 2026-11-01, owner, D-063).
 """
 import asyncio
 import logging
@@ -40,7 +40,7 @@ MATCH_WINDOW = timedelta(minutes=90)
 
 
 def bridge_enabled() -> bool:
-    return os.environ.get("FAR_EDGE_BRIDGE", "0") == "1"
+    return os.environ.get("FAR_EDGE_BRIDGE", "1") != "0"
 
 
 def _env_hours(name, default):
