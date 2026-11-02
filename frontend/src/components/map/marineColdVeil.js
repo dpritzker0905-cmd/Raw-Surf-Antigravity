@@ -30,14 +30,20 @@
  * 1.6 ft at Cocoa). The preview is SUPPRESSED (the blank veil and its loading words stay) when the view, padded by one coarse cell,
  *   (a) touches one of the 19 pilot boxes (staticRegional.PILOT_BOXES: the coastal surf regions; they also hold the CDN bundles, so
  *       the detail lands fastest there), or
- *   (b) holds a land / no-data node of the coarse grid itself (real products mark land; any coast the grid can see).
- * So it shows over open water only. window.__RAW_COLD_PREVIEW_COAST__ = 'show' lifts the suppression (the owner's A/B at Cocoa only).
+ *   (b) holds a land / no-data node of the coarse grid itself, or
+ *   (c) holds any COASTLINE of the map's own land polygons (marineCoastTest.js over engine._landGeoJSON, the Natural Earth land the
+ *       engine masks with; padded half a degree more for the cache below). Added 2026-11-01 at the lead's request after the real-CDN
+ *       read: the published 2-deg frame carries values on its land nodes next to coasts, so (b) rarely fires (0 such nodes within one
+ *       cell of Cocoa z9 or Baja z8). No land data yet -> suppressed (fail closed: 'no_land_data').
+ * Decided ONCE per cold commit (at the stamp, cached on the veil by the grid and the view rounded to whole degrees; a pan during the
+ * veil re-decides), never per frame. So it shows over open water only. window.__RAW_COLD_PREVIEW_COAST__ = 'show' lifts the suppression (the owner's A/B at Cocoa only).
  * The strength follows __RAW_BLEND_BASE_WASH__ (0..1).
  */
 import { useSyncExternalStore } from 'react';
 import { resolveColdVeil, gridCellDeg, isCoarseGlobalGrid } from './marineEngineDecisions';
 import { PILOT_BOXES } from './staticRegional';
 import { formatInstant } from './drawnFrameReadout';
+import { coastInBox } from './marineCoastTest';
 
 const W = () => (typeof window !== 'undefined' ? window : {});
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
@@ -69,14 +75,18 @@ export function previewStrength(win) {
   return typeof v === 'number' && v >= 0 && v <= 1 ? v : 0.72;
 }
 const isLandNode = (v) => !v || v.is_valid === false || v.isOcean === false || !!(v.waves && v.waves.is_valid === false);
-/** Why the preview may not paint this view ('pilot_box' | 'land_node'), or null (open water). `vb` = [w, s, e, n]. */
-export function previewCoastal(grid, vb, win) {
+/** Why the preview may not paint this view ('pilot_box' | 'coastline' | 'no_land_data' | 'land_node'), or null (open water).
+ *  `vb` = [w, s, e, n]; `land` = the engine's land GeoJSON. */
+export function previewCoastal(grid, vb, win, land) {
   if ((win || W()).__RAW_COLD_PREVIEW_COAST__ === 'show') return null;
   const deg = gridCellDeg(grid) || 2;
   const parts = vb[2] < vb[0] ? [[vb[0], vb[1], 180, vb[3]], [-180, vb[1], vb[2], vb[3]]] : [vb];
   for (const [w0, s0, e0, n0] of parts) {
     const w = w0 - deg; const s = s0 - deg; const e = e0 + deg; const n = n0 + deg;
     if (PILOT_BOXES.some(([, bw, bs, be, bn]) => w < be && e > bw && s < bn && n > bs)) return 'pilot_box';
+    const coast = coastInBox(land, [w - 0.5, s - 0.5, e + 0.5, n + 0.5]);
+    if (coast === null) return 'no_land_data';
+    if (coast) return 'coastline';
     const b = grid && grid.bounds; const vec = grid && grid.vectors; const cols = grid && grid.cols; const rows = grid && grid.rows;
     if (!b || !Array.isArray(vec) || !(cols > 1) || !(rows > 1)) continue;
     const dx = (b.east - b.west) / (cols - 1); const dy = (b.north - b.south) / (rows - 1);   // row 0 = south, column 0 = west
@@ -90,10 +100,6 @@ const runOf = (g) => Date.parse((g.model_run_time_status === 'known' && g.model_
 const dataOf = (g) => Date.parse(g.served_valid_time || g.__readoutServedTime || g.valid_time || '') || null;
 
 /**
- * The veil for this frame: the multiplier on the composed heatmap opacity (1 = no veil). `o` = { residentCoarseGlobal, vb (the
- * viewport [w, s, e, n]), isRating, debugIsolate, nowMs? }. Mutates engine._coldVeil exactly as the inline block did.
- */
-/**
  * The cold commit itself (setWaveData's veil stamp): when the engine already knows its viewport, the phase is published in the
  * same task as the upload (and the drawn record), so the line never says "Showing …" for the frames between the upload and the
  * first heatmap pass. Decided exactly as the first render will (on a copy of the veil: nothing is stamped here).
@@ -106,18 +112,35 @@ export function noteColdVeilStamp(engine, grid, win) {
     residentCoarseGlobal: isCoarseGlobalGrid(grid), viewportSpanDeg: lonSpan(vb), isRating: !!grid.ratingMode,
     debugIsolate: w.__WEATHER_DEBUG_ISOLATE_OVERLAY__ === true,
   }, now(), w);
-  if (r.veil && !r.veil.liftT0) publish(hiddenPhase(grid, vb, w).next);
+  if (r.veil && !r.veil.liftT0) publish(hiddenPhase(grid, vb, w, engine._coldVeil, engine._landGeoJSON).next);
+}
+
+/** The coast decision, once per cold commit: cached on the veil by the grid and the view rounded to whole degrees. */
+let _coastTests = 0;
+export const coastTestCount = () => _coastTests;
+function coastWhy(veil, grid, vb, w, land) {
+  const g = grid || {};
+  const key = `${g.cols}x${g.rows}|${g.productId || g.product_id || ''}|${vb.map((x) => Math.round(x)).join(',')}|${land ? 1 : 0}|${w.__RAW_COLD_PREVIEW_COAST__ || ''}`;
+  if (veil && veil.coastKey === key) return veil.coastWhy;
+  _coastTests += 1;
+  const why = previewCoastal(grid, vb, w, land);
+  if (veil) { veil.coastKey = key; veil.coastWhy = why; }
+  return why;
 }
 
 /** While the veil is up: the preview's phase over open water (flag on), else 'hidden'; and why the preview was suppressed. */
-function hiddenPhase(grid, vb, w) {
+function hiddenPhase(grid, vb, w, veil, land) {
   if (!previewOn(w)) return { next: { phase: 'hidden' }, why: null, show: false };
-  const why = previewCoastal(grid, vb, w);
+  const why = coastWhy(veil, grid, vb, w, land);
   if (why) return { next: { phase: 'hidden' }, why, show: false };
   const g = grid || {};
   return { next: { phase: 'preview', model: g.__sourceModel || 'GFS', dataMs: dataOf(g), runMs: runOf(g), deg: Math.round(gridCellDeg(g) || 2) }, why: null, show: true };
 }
 
+/**
+ * The veil for this frame: the multiplier on the composed heatmap opacity (1 = no veil). `o` = { residentCoarseGlobal, vb (the
+ * viewport [w, s, e, n]), grid, isRating, debugIsolate, nowMs? }. Mutates engine._coldVeil exactly as the inline block did.
+ */
 export function applyColdVeil(engine, o, win) {
   const w = win || W();
   const t = Number.isFinite(o.nowMs) ? o.nowMs : now();
@@ -130,7 +153,7 @@ export function applyColdVeil(engine, o, win) {
   let mult = r.mult; let next = hidden ? { phase: 'hidden' } : NONE;
   if (r.veil && previewOn(w)) {
     if (hidden) {
-      const h = hiddenPhase(o.grid, vb, w);
+      const h = hiddenPhase(o.grid, vb, w, r.veil, engine._landGeoJSON);
       r.veil.previewWhy = h.why; next = h.next;
       if (h.show) mult = previewStrength(w);
       r.veil.previewMult = mult;                                   // what this frame drew: the lift ramps on from it
