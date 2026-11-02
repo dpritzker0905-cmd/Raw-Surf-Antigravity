@@ -483,12 +483,38 @@ def prune_superseded_products_helper(
                 latest_est_run_time = p.run_time
 
     preserve_estimates = os.environ.get("INGEST_PRUNE_PRESERVE_ESTIMATES", "1") != "0"
+    # PRUNE AFTER REPLACE (item 15, 2026-11-01): the lane rule above still lets the native save's prune delete the whole
+    # previous estimated generation as soon as it writes ANY newer estimate. The EURO coarse save writes a short GFS-ext
+    # tail, so at 16:05:52Z on 10-27 it deleted 112 estimated objects that the extended-estimates stage only re-created
+    # from 16:28:19Z: about 22 min a cycle with no EURO tail product on the /grid path
+    # (log/2026-10-27-claude-lead-prune-protect-flip.md, "#590 flags read back"). With this flag an estimate is superseded
+    # only once a replacement exists AT ITS VALID TIME: an authoritative product, or an estimate of a newer run. Estimates
+    # are time-keyed, so the stage that rewrites them overwrites the same object (MANIFEST_ONE_ENTRY_PER_OBJECT drops the
+    # older registration); hours a native now covers go here or in the cycle-end duplicate sweep (authoritative wins).
+    # Pairs with LATTICE_FILL_REFRESH_STALE, so a kept interpolation from an older generation is regenerated, not kept.
+    replace_first = preserve_estimates and os.environ.get("INGEST_PRUNE_ESTIMATES_AFTER_REPLACE", "0") == "1"
+    replaced_at = {}
+    if replace_first:
+        for p in manifest.products:
+            if _lane_match(p) and p.run_time is not None and p.valid_time_start is not None:
+                has_auth, newest_est = replaced_at.get(p.valid_time_start, (False, None))
+                if p.is_forecast_authoritative:
+                    has_auth = True
+                elif newest_est is None or p.run_time > newest_est:
+                    newest_est = p.run_time
+                replaced_at[p.valid_time_start] = (has_auth, newest_est)
+
+    def _replaced(p):
+        has_auth, newest_est = replaced_at.get(p.valid_time_start, (False, None))
+        return has_auth or (newest_est is not None and p.run_time < newest_est)
 
     def _superseded(p):
         superseded = False
         if _lane_match(p) and p.run_time is not None and p.run_time < latest_run_time:
             if p.is_forecast_authoritative:
                 superseded = latest_auth_run_time is not None and p.run_time < latest_auth_run_time
+            elif replace_first:
+                superseded = _replaced(p)
             elif preserve_estimates:
                 superseded = latest_est_run_time is not None and p.run_time < latest_est_run_time
             else:

@@ -193,10 +193,47 @@ def _lane_items(products, model: str, domain: str, layer: str, region_id: str):
     ]
 
 
-def find_fill_slots(items, max_bracket_h: float) -> List[Tuple[Any, Any, datetime]]:
+def _stale_own_fills(items) -> set:
+    """ids of this job's OWN interpolations made from an older native generation than the lane's newest.
+
+    THE GHOST SLOT (2026-11-01, EURO run 12Z, leads +147/+153 h): the core and pilots lanes run at the same time and both
+    publish the manifest, so an entry one lane pruned comes back with the other lane's head. Core run 41347283478 pruned
+    `euro_marine_waves_global_coarse_20261107T150000Z_estimated.json` (storage answered NoSuchKey: already gone), and 20 min
+    later this sweep still saw the slot as filled and saved 2 frames instead of the usual ~32. The 147/153/... slots then had
+    no object at any tier, so the infobox fell through to a direct upstream point. A fill product is time-keyed (its
+    filename has no run in it), so regenerating the slot overwrites the same object: an entry older than the lane's newest
+    authoritative run is treated as missing. Only `estimated_interpolation` entries qualify, so the extension tails
+    (D-055, the 14-day contract) are never displaced. Flag LATTICE_FILL_REFRESH_STALE (default 0)."""
+    newest_auth = None
+    for it in items:
+        rt = _coerce_utc(getattr(it, "run_time", None))
+        if rt is not None and getattr(it, "is_forecast_authoritative", False) and (newest_auth is None or rt > newest_auth):
+            newest_auth = rt
+    if newest_auth is None:
+        return set()
+    stale = set()
+    for it in items:
+        rt = _coerce_utc(getattr(it, "run_time", None))
+        if (getattr(it, "source_dataset", None) == "estimated_interpolation"
+                and not getattr(it, "is_forecast_authoritative", False)
+                and rt is not None and rt < newest_auth):
+            stale.add(id(it))
+    return stale
+
+
+def refresh_stale_enabled() -> bool:
+    return os.environ.get("LATTICE_FILL_REFRESH_STALE", "0") == "1"
+
+
+def find_fill_slots(items, max_bracket_h: float, refresh_stale: bool = False) -> List[Tuple[Any, Any, datetime]]:
     """(bracket_a_item, bracket_b_item, slot_dt) for every missing on-lattice slot whose bracketing
     products are ≤ max_bracket_h apart. Items are manifest entries (need valid_time_start). Slots
-    off the lattice are never generated, and existing product times are never duplicated."""
+    off the lattice are never generated, and existing product times are never duplicated.
+    With refresh_stale, this job's own interpolations from an older native generation count as missing
+    (see _stale_own_fills)."""
+    if refresh_stale:
+        stale = _stale_own_fills(items)
+        items = [it for it in items if id(it) not in stale]
     by_time = {}
     for it in items:
         t = _coerce_utc(it.valid_time_start)
@@ -263,7 +300,8 @@ async def fill_inband_lattice_gaps_impl(scheduler) -> bool:
                             model, domain, layer, region_id, ta.isoformat(), tb.isoformat(),
                             (tb - ta).total_seconds() / 3600.0,
                         )
-                slots = find_fill_slots(items, min(max_bracket_h, 6.0) if regional else max_bracket_h)
+                slots = find_fill_slots(items, min(max_bracket_h, 6.0) if regional else max_bracket_h,
+                                        refresh_stale=refresh_stale_enabled() and not regional)
                 for item_a, item_b, slot in slots:
                     prod_a = await asyncio.to_thread(scheduler.store.load_product, item_a.filename)
                     prod_b = await asyncio.to_thread(scheduler.store.load_product, item_b.filename)
