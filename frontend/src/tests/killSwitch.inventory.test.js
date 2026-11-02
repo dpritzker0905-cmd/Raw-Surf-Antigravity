@@ -60,6 +60,9 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_VEIL_WORDS__',
   // windTimeBlend.test.js and forecastReadout.windBlend.test.js ("killed: +1 h reads the snapped 00Z frame, as before")
   '__RAW_DISABLE_WIND_TIME_BLEND__',
+  // Added to source by #672 (rated CDN frames, D-057), with its focused test; recorded in weather batch 2:
+  // staticRatingFrames.test.js ("a surf ask is never static while killed (the /grid path)")
+  '__RAW_DISABLE_RATING_FRAMES__',
 ]);
 
 /**

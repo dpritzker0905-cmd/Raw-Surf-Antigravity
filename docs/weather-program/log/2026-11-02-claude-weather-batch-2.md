@@ -38,6 +38,9 @@ Each PR merged with `git merge --no-ff origin/<branch>`, in this order, so every
   prior behaviour (`marineColdPreview`, `staticRegionalPrewarm`, `marineColdVeil`, `windTimeBlend` /
   `forecastReadout.windBlend` tests), so they were added to `KILL_SWITCHES_TESTED`, citing those tests; the shrink-only
   EXEMPT list did not grow. Inventory plus those five files: 6 suites, 53 tests passed; `check_eslint.js` exit 0.
+  The same happened again after #672 merged in (`__RAW_DISABLE_RATING_FRAMES__`, hosted run 41533937636: 1 failed of 8157
+  Jest tests, only this one); `staticRatingFrames.test.js` sets the switch and asserts no static surf ask, so it is TESTED
+  too. Every backend lane on that run read the projection exactly: guards 3351 / 213 files, chain 3155 / 187, estate 3408.
 
 ## Floors (re-derived from the combined branch)
 
