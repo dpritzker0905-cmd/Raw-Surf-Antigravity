@@ -100,7 +100,7 @@ def _resolve(store, vp, monkeypatch, bbox, model="GFS", surf=False):
 
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
-    for k in ("MARINE_REGIONAL_TILE_FIRST", "MARINE_TILE_FIRST_DIFF_SAMPLE", "MARINE_TILE_FIRST_DIFF_MAX_PER_HOUR",
+    for k in ("MARINE_REGIONAL_TILE_FIRST", "MARINE_REGIONAL_TILE_FIRST_SURF", "MARINE_TILE_FIRST_DIFF_SAMPLE", "MARINE_TILE_FIRST_DIFF_MAX_PER_HOUR",
               "GFS_ICON_SERIES_FASTPATH", "MARINE_DYNCACHE_PREFER_FINE_REGIONAL"):
         monkeypatch.delenv(k, raising=False)
     monkeypatch.setenv("MARINE_TILE_FIRST_DIFF_SAMPLE", "0")      # the dark diff stays out of the resolver tests
@@ -143,6 +143,7 @@ def test_flag_on_anything_short_of_a_full_cover_keeps_today_s_path(monkeypatch, 
 @pytest.mark.parametrize("model, surf", [("ICON", False), ("GFS", True)])
 def test_flag_on_other_models_and_surf_keep_today_s_path(monkeypatch, model, surf):
     monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST", "1")
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST_SURF", "0")      # surf: the kill switch restores the old path (D-057)
     assert tf.covering_tile(_world(model), model, "marine", "waves", surf, INSIDE, _world(model)._items, [])[0] is None
     assert tf.decide(_world(model), model, "marine", "waves", surf, INSIDE, _world(model)._items, []) is None
 
@@ -191,7 +192,9 @@ def test_the_live_series_lane_is_skipped_inside_a_pilot_box_only_with_the_flag(m
     assert tf.skips_live_series("GFS", "marine", "swell_1", False, INSIDE)
     assert not tf.skips_live_series("GFS", "marine", "waves", False, "-60,10,-50,20")             # open Atlantic: no pilot box
     assert not tf.skips_live_series("ICON", "marine", "waves", False, INSIDE)
-    assert not tf.skips_live_series("GFS", "marine", "waves", True, INSIDE)
+    assert tf.skips_live_series("GFS", "marine", "waves", True, INSIDE)                            # surf follows by default (D-057)
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST_SURF", "0")
+    assert not tf.skips_live_series("GFS", "marine", "waves", True, INSIDE)                        # ...unless killed
 
 
 def test_the_stats_report_the_flag_and_counts(monkeypatch):
@@ -225,3 +228,29 @@ def test_flag_on_a_snapped_box_inside_the_data_whose_served_window_misses_the_re
     store = _Store([fl], {fl.filename: _product("GFS", _lattice(offset), FL, fl.filename)})
     assert tf.covering_tile(store, "GFS", "marine", "waves", False, "-82.95,27.6,-80.4,29.4", [fl], []) == (None, "partial_cover")
     assert tf.covering_tile(store, "GFS", "marine", "waves", False, "-82.8,27.6,-80.4,29.4", [fl], [])[0] is fl
+
+
+# ── MARINE_REGIONAL_TILE_FIRST_SURF (2026-11-01, item 10, dark): surf asks rated on the stored tile, as the rated bundles are ──
+def test_surf_follows_the_tile_by_default_with_tile_first_and_the_env_var_kills_it(monkeypatch):
+    assert tf.covering_tile(_world(), "GFS", "marine", "waves", True, INSIDE, _world()._items, [])[0] is None   # tile-first off: inert
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST", "1")
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST_SURF", "0")          # the kill switch
+    assert tf.decide(_world(), "GFS", "marine", "waves", True, INSIDE, _world()._items, []) is None
+    monkeypatch.delenv("MARINE_REGIONAL_TILE_FIRST_SURF")               # default ON (D-057)
+    item = tf.decide(_world(), "GFS", "marine", "waves", True, INSIDE, _world()._items, [])
+    assert item is not None and item.region_id == "florida_east_coast"
+    vp = _Viewport(_dynamic())
+    out = _resolve(_world(), vp, monkeypatch, INSIDE, surf=True)
+    assert out.product_id == "gfs_marine_waves_florida_east_coast.json" and vp.cache_asks == 0     # never the dynamic cache
+
+
+def test_capabilities_report_the_surf_flag_on_gfs_marine_rows(monkeypatch):
+    from services.weather_pipeline.capabilities import get_weather_capabilities
+
+    def gfs_marine():
+        return [r for r in get_weather_capabilities() if r.get("domain") == "marine" and r.get("model") == "GFS"]
+    assert gfs_marine() and all(r["regional_tile_first_surf"] is False for r in gfs_marine())   # tile-first off
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST", "1")
+    assert all(r["regional_tile_first_surf"] is True for r in gfs_marine())                       # default ON
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST_SURF", "0")
+    assert all(r["regional_tile_first_surf"] is False for r in gfs_marine())                      # killed

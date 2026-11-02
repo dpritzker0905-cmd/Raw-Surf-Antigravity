@@ -75,14 +75,15 @@ def sha12(data):
     return hashlib.sha256(data).hexdigest()[:12]
 
 
-def publish_bundle_set(source, sink, target, previous_index, uploader, log=print, coverage_floor=None):
+def publish_bundle_set(source, sink, target, previous_index, uploader, log=print, coverage_floor=None, rating_inputs=None):
     """(bundle index or None, stats) for one regional set; uploads the bundle (only) through `uploader` when it changed.
 
     Frames are built by frame_set.publish_set with NO previous index (a regional run is small; every frame is rebuilt and
     re-checked) and a capturing uploader, so nothing reaches the sink until the whole set has passed parity and the coverage
     gate. None = nothing built, coverage refused, or the published index already is this one."""
     captured = []
-    index, stats = fs.publish_set(source, sink, selector(target), None, captured.extend, log=log, coverage_floor=coverage_floor)
+    index, stats = fs.publish_set(source, sink, selector(target), None, captured.extend, log=log, coverage_floor=coverage_floor,
+                                  rating_inputs=rating_inputs)   # a RATED bundle (frame_set_rating): the same build, rated
     stats["uploaded"], stats["bytes_uploaded"] = 0, 0
     if index is None:
         return None, stats

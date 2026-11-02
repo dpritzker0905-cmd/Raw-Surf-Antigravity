@@ -49,6 +49,16 @@ def tile_first_enabled():
     return os.environ.get("MARINE_REGIONAL_TILE_FIRST", "0") == "1"
 
 
+def tile_first_surf_enabled():
+    """MARINE_REGIONAL_TILE_FIRST_SURF (2026-11-01, item 10; default ON since the owner's 2026-11-01 22:10 EST decision, D-057; '0' is
+    the kill switch): surf=1 asks follow the same rule, so the band in a
+    pilot box is rated on the stored tile (as the RATED regional bundles are, frame_set_rating) instead of a warm dynamic-cache
+    product that may hold another lattice or run. A served-number change (which product the band rates there), ON by the owner's
+    word. Only with MARINE_REGIONAL_TILE_FIRST=1. /capabilities reports it (`regional_tile_first_surf`); the client reads rated bundles
+    only while it is True."""
+    return tile_first_enabled() and os.environ.get("MARINE_REGIONAL_TILE_FIRST_SURF", "1") != "0"
+
+
 def _span(c):
     return (c.east - c.west) if c.west <= c.east else (360.0 + c.east - c.west)
 
@@ -88,7 +98,7 @@ def pick_tile(candidates, w, s, e, n):
 
 
 def eligible(model, domain, layer, surf, bbox):
-    return (bool(bbox) and not surf and (model or "").upper() in REGIONAL_MODELS and (domain or "").lower() == "marine"
+    return (bool(bbox) and (not surf or tile_first_surf_enabled()) and (model or "").upper() in REGIONAL_MODELS and (domain or "").lower() == "marine"
             and (layer or "").lower() in REGIONAL_LAYERS)
 
 
