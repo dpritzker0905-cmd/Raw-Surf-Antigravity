@@ -47,6 +47,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from services import frame_set as fs  # noqa: E402
 from services import frame_set_bundle as fsb  # noqa: E402
 from services import frame_set_fill as fsf  # noqa: E402
+from services import frame_set_rating as fsr  # noqa: E402
 from services.frame_image import encode_png, parity  # noqa: E402
 
 FRAME_BUCKET = "weather-frames"
@@ -458,6 +459,8 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
     # The HRRR lane the serve box blends into GFS wind (frame_set_wind.py): read once, applied to every wind frame.
     from services import frame_set_wind as fsw
     wind_lane = fsw.load_publish_lane(log) if any(fsw.is_wind(t) for t in sets) else None
+    # The rating chain's inputs (frame_set_rating, dark): the manifest model and the gate / climatology blobs, read ONCE per run.
+    rating_inputs = fsr.ChainInputs(source, log) if any(fsr.is_rated(t) for t in sets) else None
     for target in sets:
         key = fs.set_key(target)
         if clock() - started > budget:
@@ -478,7 +481,8 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
                 continue
         else:
             fetched = source.prefetch(target, prev_index) if isinstance(source, TailDownloads) else 0
-            index, stats = fs.publish_set(source, sink, target, prev_index, upload, log=log, wind_lane=wind_lane)
+            index, stats = fs.publish_set(source, sink, target, prev_index, upload, log=log, wind_lane=wind_lane,
+                                          rating_inputs=rating_inputs)
             if isinstance(source, TailDownloads):
                 stats["tail_downloaded"] = fetched
         if index is not None:
@@ -584,7 +588,9 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--store-dir", help="offline: a ProductStore dir (manifest.json + products) instead of the runner's")
     ap.add_argument("--out-dir", help="offline: write the public objects here (required with --store-dir)")
-    ap.add_argument("--only", choices=("frames", "png"), help="run one half only (default: both)")
+    ap.add_argument("--only", choices=("frames", "png", "rated"),
+                    help="run one half only (default: frames + png); 'rated': only the RATED sets (frame_set_rating, dark; "
+                         "needs FRAME_RATING_SETS=1), as their own step with their own budget FRAME_RATING_BUDGET_S")
     ap.add_argument("--tail-store-dir", help="offline, with FRAME_TAIL_DOWNLOAD=1: a ProductStore dir standing in for the "
                                              "private products bucket the ICON/EURO tails are downloaded from")
     ap.add_argument("--wind-lane-rebuild", action="store_true",
@@ -607,6 +613,18 @@ def main(argv=None):
     if args.wind_lane_rebuild:
         return _wind_lane_rebuild(source, sink)
     status = 0
+    if args.only == "rated":
+        if not fsr.enabled():
+            print("[frames] rated sets: FRAME_RATING_SETS is not 1; nothing to do")
+            return 0
+        budget = float(os.environ.get("FRAME_RATING_BUDGET_S", "600"))
+        report = publish_frame_sets(source, sink, sets=selected_sets(fsr.RATED_SETS), budget_s=budget)
+        print(json.dumps({"frame_sets": report}))
+        summary = os.environ.get("GITHUB_STEP_SUMMARY")
+        if summary:
+            with open(summary, "a", encoding="utf-8") as fh:
+                fh.write("### Rated static frames\n```\n" + json.dumps(report, indent=1) + "\n```\n")
+        return 1 if any(s.get("refused") or s.get("coverage_refused") for s in report.values()) else 0
     if args.only in (None, "frames"):
         report = publish_frame_sets(source, sink)
         if isinstance(source, TailDownloads):

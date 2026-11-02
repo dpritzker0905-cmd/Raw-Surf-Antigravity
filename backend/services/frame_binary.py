@@ -53,6 +53,11 @@ encoded from a numpy plane (encode_plane / decode_plane), not from product vecto
   7 temp_c          u16  code 0 = no data, else round((degC + 100) / 0.05) + 1 (offset -100.05)          error <= 0.025 degC
   8 cloud_pct       u8   code 0 = no data, else round(%) + 1 (offset -1), 0-100 %                        error <= 0.5 %
 
+RATED frames (2026-11-01, frame_set_rating.py: the Surf Rating band as /grid?surf=1 serves it) carry fields 0-3 of the STORED
+(unrated) product plus one u32 plane (dtype 4, byte-shuffled into four byte planes), exact integer codes:
+  9 rating          u32  0 = the rating left the node as stored; 1 = masked open ocean (is_valid false, phys_speed = height);
+                         k + 2 = rated: speed = k / 10000 (the score / 10 at /grid's 4 dp), phys_speed = height
+
 Node positions are not stored: lat = south + r * (north - south) / (rows - 1), lng likewise, where the bounds are the
 OUTER CELL CENTRES (cell_bounds; what /grid serves). `encode_frame` refuses a product whose lat/lng are not that regular
 grid, and `parity` compares every decoded node with its source.
@@ -74,10 +79,10 @@ NO_MISSING = 0xFFFFFFFF
 GZIP_MAGIC = b"\x1f\x8b"
 
 HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE, SPEED, LANE_WEIGHT, PRESSURE_HPA = 0, 1, 2, 3, 4, 5, 6
-TEMP_C, CLOUD_PCT = 7, 8
+TEMP_C, CLOUD_PCT, RATING = 7, 8, 9
 FIELD_NAMES = {HEIGHT: "height_m", DIRECTION: "direction_deg", PERIOD: "period_s", DIR_CONFIDENCE: "dir_confidence",
                SPEED: "speed", LANE_WEIGHT: "lane_weight", PRESSURE_HPA: "pressure_hpa", TEMP_C: "temp_c",
-               CLOUD_PCT: "cloud_pct"}
+               CLOUD_PCT: "cloud_pct", RATING: "rating"}
 
 # (dtype bytes, layout, missing code, scale, offset). Height's offset -scale makes code 1 = 0 m and leaves 0 for no data;
 # speed (knots, the wind products' unit; the index meta carries value_unit) does the same at 0.01.
@@ -91,9 +96,11 @@ FIELD_SPECS = {
     PRESSURE_HPA: (2, 1, 0, 0.1, 799.9),      # raster frames (frame_set_raster.py): code 1 = 800.0 hPa, 0 = no data
     TEMP_C: (2, 1, 0, 0.05, -100.05),         # raster: code 1 = -100.00 degC, 0 = no data (0.05: 17% smaller than 0.01)
     CLOUD_PCT: (1, 0, 0, 1.0, -1.0),          # raster: code 1 = 0 %, 101 = 100 %, 0 = no data
+    RATING: (4, 1, NO_MISSING, 1.0, 0.0),     # rated frames: the raw code (above), compared exactly
 }
 DEFAULT_FIELDS = (HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE)
 WIND_FIELDS = (DIRECTION, SPEED)
+RATED_FIELDS = DEFAULT_FIELDS + (RATING,)
 
 FLOAT_SLACK = 1e-9
 
@@ -116,6 +123,7 @@ TOLERANCE = {
     PRESSURE_HPA: _half_step(PRESSURE_HPA),      # 0.1 hPa step    -> 0.05 hPa
     TEMP_C: _half_step(TEMP_C),                  # 0.05 degC step  -> 0.025 degC
     CLOUD_PCT: _half_step(CLOUD_PCT),            # 1 % step        -> 0.5 %
+    RATING: _half_step(RATING),                  # integer codes   -> any difference fails
 }
 POSITION_TOL_DEG = 1e-6
 # Marine u, v rebuilt from the decoded height and direction, against the stored u, v the normalizer computed from the
@@ -261,6 +269,8 @@ def field_code(fid, vec):
     if fid == DIR_CONFIDENCE:
         c = _finite(vec.get("dir_confidence"))
         return missing if c is None else max(0, min(254, int(round(c / scale))))
+    if fid == RATING:
+        return int(vec.get("_rating_code") or 0)   # set by frame_set_rating on the vectors it encodes
     raise ValueError(f"unknown field id {fid}")
 
 
@@ -291,8 +301,17 @@ def uv_convention(vectors):
 def _plane_bytes(codes, nbytes, layout):
     if nbytes == 1:
         return bytes(codes)
-    raw = struct.pack(f"<{len(codes)}H", *codes)
-    return raw[0::2] + raw[1::2] if layout == 1 else raw
+    raw = struct.pack(f"<{len(codes)}{'I' if nbytes == 4 else 'H'}", *codes)
+    return b"".join(raw[k::nbytes] for k in range(nbytes)) if layout == 1 else raw
+
+
+def _codes_of(plane, n, nb, layout):
+    """The integer codes of one decoded plane (u8, u16 or u32; plain or byte-shuffled). PURE."""
+    if nb == 1:
+        return list(plane)
+    if layout == 1:
+        return [sum(plane[j * n + k] << (8 * j) for j in range(nb)) for k in range(n)]
+    return list(struct.unpack(f"<{n}{'I' if nb == 4 else 'H'}", plane))
 
 
 def encode_frame(product, fields=DEFAULT_FIELDS):
@@ -368,9 +387,9 @@ def decode_plane(data):
         if nb == 1:
             codes = plane.astype(np.int64)
         elif layout == 1:
-            codes = plane[:n].astype(np.int64) | (plane[n:].astype(np.int64) << 8)
+            codes = sum(plane[j * n:(j + 1) * n].astype(np.int64) << (8 * j) for j in range(nb))
         else:
-            codes = plane.view("<u2").astype(np.int64)
+            codes = plane.view("<u4" if nb == 4 else "<u2").astype(np.int64)
         vals = codes * scale + offset
         if missing != NO_MISSING:
             vals = np.where(codes == missing, np.nan, vals)
@@ -412,6 +431,8 @@ def decode_frame(data):
         pos += size
         if nb == 1:
             codes = list(plane)
+        elif nb == 4:
+            codes = _codes_of(plane, n, nb, layout)
         elif layout == 1:
             codes = [plane[k] | (plane[n + k] << 8) for k in range(n)]
         else:
@@ -486,6 +507,8 @@ def parity(product, decoded):
                     continue
             elif fid == PERIOD:
                 want = _finite(vec.get("period"))
+            elif fid == RATING:
+                want = float(int(vec.get("_rating_code") or 0))
             else:
                 want = _finite(vec.get("dir_confidence"))
             if (want is None) != (got is None):
