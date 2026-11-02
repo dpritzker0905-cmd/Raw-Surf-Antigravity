@@ -116,3 +116,41 @@ test('correlation keeps Playwright default headers and does not broaden to raw-o
   assert.equal(f.calls.fetch.url, LOCAL + new URL(URL_TEXT).pathname + new URL(URL_TEXT).search);
   assert.equal(f.calls.fetch.timeout, 120000);
 });
+
+// Exact Playwright 1.60 teardown reasons; no live request or browser is created.
+for (const message of ['Test ended.', 'route.fetch: Test ended.']) {
+  test(`exact test-ended cancellation shares routing and diagnostic classification: ${message}`, async () => {
+    const f = setup({ fetchError: new Error(message) });
+    const stats = await routeWeatherToLocal(f.page, f.config);
+    await f.calls.handler(f.route);
+    assert.deepEqual([stats.local, stats.failed, stats.cancelled], [0, 0, 1]);
+    assert.deepEqual(stats.failedExamples, []);
+    assert.equal(f.calls.aborted, true);
+    assert.equal(f.calls.fulfill, undefined);
+    assert.deepEqual(f.lines.map(row => row.event), ['fetch_start', 'fetch_error']);
+    assert.equal(f.lines.at(-1).error_kind, 'page_or_context_closed');
+    assert.equal(f.lines[0].request_id, f.lines[1].request_id);
+    assert.deepEqual(await stats.lifecycle.drain(), { complete: true, pending: 0, handlerErrors: 0 });
+  });
+}
+
+for (const [message, kind] of [
+  ['route.fetch: read ECONNRESET', 'transport_reset'],
+  ['route.fetch: Timeout 120000ms exceeded.', 'timeout'],
+  ['route.fetch: unexpected upstream error', 'other'],
+  ['route.fetch: upstream says Test ended.', 'other'],
+  ['route.fetch: Test ended. unexpectedly', 'other'],
+  ['route.fetch: Test ended.\nread ECONNRESET', 'transport_reset'],
+]) {
+  test(`non-cancellation remains a failed local 502: ${message}`, async () => {
+    const f = setup({ fetchError: new Error(message) });
+    const stats = await routeWeatherToLocal(f.page, f.config);
+    await f.calls.handler(f.route);
+    assert.deepEqual([stats.local, stats.failed, stats.cancelled], [0, 1, 0]);
+    assert.equal(f.calls.aborted, undefined);
+    assert.equal(f.calls.fulfill.status, 502);
+    assert.equal(stats.failedExamples.length, 1);
+    assert.equal(f.lines.at(-1).error_kind, kind);
+    assert.deepEqual(await stats.lifecycle.drain(), { complete: true, pending: 0, handlerErrors: 0 });
+  });
+}
