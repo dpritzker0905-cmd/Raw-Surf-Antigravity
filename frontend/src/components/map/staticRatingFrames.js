@@ -16,11 +16,11 @@
  * rating read are the same as at the frame's own hour). Everything else asks /grid as before: world boxes (the box serves the honest
  * field there), z7-9 regional tiles, any ask outside the offsets, an unbuilt hour, the series lane (/grid_series).
  *
- * DARK, because the band's inputs are read once per publish (the gate's spot confirmations, the size climatology) while Render
- * re-reads them every 300-600 s: a CDN band can lag the box by up to one republish. That is the owner's call (D-001), so:
- *   ON for this browser:  localStorage '__RAW_RATING_FRAMES__' = '1', or window.__RAW_RATING_FRAMES__ = true;
- *   ON for a build:       REACT_APP_RATING_FRAMES=true;
- *   KILL (wins over all): window.__RAW_DISABLE_RATING_FRAMES__ = true. The static-frames kills apply too.
+ * ON BY DEFAULT (the owner, 2026-11-01 22:10 EST, D-057: "start it automatically running ... if we don't like it, we kill switch
+ * it"). The band's inputs are read once per publish (the gate's spot confirmations, the size climatology) while Render re-reads them
+ * every 300-600 s, so a CDN band can lag the box by up to one republish; the owner accepted that with the kill switch:
+ *   KILL (wins over all): window.__RAW_DISABLE_RATING_FRAMES__ = true; this browser: localStorage '__RAW_RATING_FRAMES__' = '0';
+ *   a build: REACT_APP_RATING_FRAMES=false. The static-frames kills apply too.
  * Telemetry: window.__RAW_STATIC_FRAMES_RATED__ (hits, misses by reason).
  */
 import { gridJsonFromFrame, pickIndexFrame, ratingCounts } from './staticFrameCodec';
@@ -59,12 +59,16 @@ export const isRatedKey = (key) => String(key || '').endsWith(RATED_SUFFIX);
 
 export const ratedSetKey = (model, layer) => `${(model || 'GFS').toUpperCase()}/marine/${(layer || 'waves').toLowerCase()}/${RATED_TIER}`;
 
-/** Is the rated path on for this page? Kill first, then this browser, then the build. Default OFF (dark). */
+/** Is the rated path on for this page? Kill first, then this browser's choice, then the build. Default ON (D-057). */
 export function ratingFramesOn() {
   if (typeof window === 'undefined' || window.__RAW_DISABLE_RATING_FRAMES__ === true) return false;
   if (window.__RAW_RATING_FRAMES__ === true) return true;
-  try { if (window.localStorage && window.localStorage.getItem('__RAW_RATING_FRAMES__') === '1') return true; } catch (e) { /* blocked */ }
-  try { return process.env.REACT_APP_RATING_FRAMES === 'true'; } catch (e) { return false; }
+  try {
+    const choice = window.localStorage && window.localStorage.getItem('__RAW_RATING_FRAMES__');
+    if (choice === '0' || choice === 'false') return false;
+    if (choice === '1' || choice === 'true') return true;
+  } catch (e) { /* blocked */ }
+  try { return process.env.REACT_APP_RATING_FRAMES !== 'false'; } catch (e) { return true; }
 }
 
 function telemetry() {

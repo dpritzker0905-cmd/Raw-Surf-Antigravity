@@ -205,17 +205,18 @@ jobs:
       # rating grids the band PAINTS from; marineRatingBandRes holds 1-deg-and-coarser ones), then the world sets. The client reads the
       # regional ones only while /capabilities reports regional_tile_first_surf, i.e. Render MARINE_REGIONAL_TILE_FIRST_SURF=1 (dark,
       # the owner's flip: /grid?surf=1 then rates the same stored tile). FRAME_RATING_REGIONAL=0 leaves them out.
-      # OFF until switched on: repository variable FRAME_RATING_SETS = '1'. Off again: delete it (clients fall back to /grid).
-      - name: Publish rated static frames (the Surf Rating band; off unless FRAME_RATING_SETS=1)
+      # ON by default (the owner, 2026-11-01 22:10 EST, D-057). KILL: repository variable FRAME_RATING_SETS = '0' (the published sets stay
+      # until retention; clients keep the client kill window.__RAW_DISABLE_RATING_FRAMES__ and fall back to /grid on any miss).
+      - name: Publish rated static frames (the Surf Rating band; ON, kill FRAME_RATING_SETS=0)
         id: rated_publish
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RATING_SETS == '1' }}
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RATING_SETS != '0' }}
         continue-on-error: true
         timeout-minutes: 14
         working-directory: backend
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          FRAME_RATING_SETS: ${{ vars.FRAME_RATING_SETS }}
+          FRAME_RATING_SETS: ${{ vars.FRAME_RATING_SETS || '1' }}
           FRAME_RATING_BUDGET_S: ${{ vars.FRAME_RATING_BUDGET_S || '600' }}
           RATING_LOCAL_SIZE: '1'                 # = precompute.yml / forecast-ingest.yml / Render (ONE FORECAST COMPOSITION)
           RATING_OBS_GATE: '1'                   # = precompute.yml / Render

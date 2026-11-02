@@ -1849,3 +1849,19 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **What moves:** past ICON hour 168, production's infobox and heatmap read the stored estimated tail (the D-055 CDN frames), as dev has done since 2026-10-04, instead of the browser's own anchor blend. The evidence is dev's history under the flag: D-016's replay controls, and every regression and SCOREBOARD row since 10-27, which were built with the flag on.
 - **Measure after:** on the production bundle, ICON scrubbed to h192/h250/h300 draws from the frame store (`__MARINE_DRAWN__` source), with no browser blend asks; plus a SCOREBOARD row.
 - **Rollback:** set `REACT_APP_ICON_STORED_TAIL=false` in the Netlify UI for production and rebuild main (an explicit value wins; `src/netlifyIconStoredTailScope.test.js` pins it), or drop the `production` clause from the `netlify.toml` build command.
+
+### D-057 · The Surf Rating band reads rated CDN frames by default, and surf asks in a pilot box are rated on the stored tile (ON with a kill switch, 2026-11-01)
+- **Decided:** the owner, 2026-11-01 22:10 EST (relayed by the lead): measured features ship ON by default with a kill switch, "start it automatically running … if we don't like it, we kill switch it". Applied to #672 (item 10).
+- **What is ON:**
+  - Client: `staticRatingFrames.js` reads the rated sets: the 0.25-deg `<region>_rated` bundles inside the GFS pilot boxes, the 2-deg `global_mid_rated` crops elsewhere. Kill: `window.__RAW_DISABLE_RATING_FRAMES__ = true`, or localStorage `__RAW_RATING_FRAMES__ = '0'`, or build `REACT_APP_RATING_FRAMES=false`.
+  - Backend: `MARINE_REGIONAL_TILE_FIRST_SURF` defaults ON in code (inert unless `MARINE_REGIONAL_TILE_FIRST=1`, which is ON per D-051). Surf asks a stored pilot tile fully covers are rated on that tile, never a dynamic-cache product. `/capabilities` reports `regional_tile_first_surf`. Kill: Render env `MARINE_REGIONAL_TILE_FIRST_SURF=0`.
+  - Workflow: `forecast-ingest-pilots.yml` publishes the rated sets every pilots run. Kill: repo variable `FRAME_RATING_SETS=0`.
+- **What moves:**
+  - Inside the pilot boxes, which product rates the band: the stored NOAA tile, where a warm dynamic-cache product could answer before.
+  - The band can lag the box by up to one republish: the gate and size-climatology blobs are read once per publish, while Render re-reads them every 300-600 s. The owner accepted this with the kill switch.
+- **Evidence (offline, log/2026-11-01-claude-rating-frames.md):**
+  - Exact `/grid?surf=1` parity: world 846 asks, ~460k nodes, and regional 39 boxes, 17,915 nodes, 0 bad; rated speed compared exactly.
+  - Band ON paint at z8 in the boxes: today p50 7,696 / p95 8,685 ms (5 of 6 painted) vs p50 136 / p95 702 ms (6 of 6), with 0 box asks.
+- **The guard:** `scn_rated_crop_parity.mjs` and `scn_regional_client_parity.mjs RATED=1` (exact parity), and the publisher's per-node check before every upload.
+- **Measure after (owed):** after the deploy and one pilots publish, `/api/health` probed before and after, ONE short live scenario: band ON at z8 off Florida paints from `GFS/marine/waves/florida_east_coast_rated` (`window.__RAW_STATIC_FRAMES_RATED__.hits` > 0, no `surf=1` /grid ask in the first 5 s); plus a SCOREBOARD row.
+- **Rollback:** the three kill switches above (each alone returns its half to the old path).

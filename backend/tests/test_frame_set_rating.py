@@ -204,13 +204,15 @@ def test_the_u32_rating_plane_round_trips_in_both_decoders():
     assert fb.parity(_product("marine", "waves", VALIDS[0], vecs), fb.decode_frame(raw))["bad"] == 0
 
 
-def test_rated_sets_are_off_unless_switched_on(monkeypatch, tmp_path):
-    assert not fsr.enabled()
-    assert not any(fsr.is_rated(t) for t in pub.selected_sets())
+def test_rated_sets_publish_by_default_in_their_own_step_and_the_kill_switch_stops_them(monkeypatch, tmp_path):
+    assert fsr.enabled()                                              # ON by default (D-057)
+    assert not any(fsr.is_rated(t) for t in pub.selected_sets())      # never in the plain frames step (their own step)
     _write(tmp_path / "s")
-    assert pub.main(["--store-dir", str(tmp_path / "s"), "--out-dir", str(tmp_path / "o"), "--only", "rated"]) == 0   # off: no-op
+    monkeypatch.setenv("FRAME_RATING_SETS", "0")                      # the kill switch
+    assert not fsr.enabled()
+    assert pub.main(["--store-dir", str(tmp_path / "s"), "--out-dir", str(tmp_path / "o"), "--only", "rated"]) == 0   # killed: no-op
     assert not (tmp_path / "o" / "v1" / "latest.json").exists()
-    monkeypatch.setenv("FRAME_RATING_SETS", "1")
+    monkeypatch.delenv("FRAME_RATING_SETS")
     assert fsr.enabled()
     assert [fs.set_key(t) for t in pub.selected_sets(fsr.RATED_SETS)][0] == "GFS/marine/waves/global_mid_rated"
 

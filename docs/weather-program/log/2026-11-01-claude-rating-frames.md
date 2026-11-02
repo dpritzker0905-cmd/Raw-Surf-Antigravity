@@ -143,10 +143,24 @@ arm rated = backend with both flags, lever on. "Painted" = `__RAW_GPU__.ratingBa
 The 702 ms one (SoCal round 2) held its first 2-deg frame for ~430 ms before the bundle landed (a cold bundle fetch). The rated
 sessions' later surf asks (one each, after 5 s) are re-asks outside the band ON.
 
+## Part 3 (11-02 03:15Z): ON by default (D-057)
+
+- **The owner, 2026-11-01 22:10 EST (relayed by the lead):** measured features ship ON by default with a kill switch, "start it
+  automatically running … if we don't like it, we kill switch it".
+- Changed:
+  - Client lever default ON (kill `window.__RAW_DISABLE_RATING_FRAMES__`, localStorage `__RAW_RATING_FRAMES__='0'`, or
+    `REACT_APP_RATING_FRAMES=false`).
+  - `MARINE_REGIONAL_TILE_FIRST_SURF` default ON in code (`_RATING_FLAGS` default "1"; Render `=0` kills).
+  - Publisher `FRAME_RATING_SETS` default ON in code and workflow (repo variable `=0` kills).
+- Pins updated: `test_regional_tile_first.py` (surf follows by default, the kill restores the old path, `skips_live_series`),
+  `test_frame_set_rating.py`, `staticRatingFrames.test.js`, `staticFrames.crop.test.js` (a surf crop box is eligible by default).
+- Re-run: backend touched suites 82 + tile-first 20 passed; Jest map + src/tests 442 suites / 6,211 tests. Whole `src/`: 8,053
+  tests passed; one suite (`netlifyIconStoredTailScope`) cannot load in the dot-free copy (no repo-root netlify.toml).
+- A SCOREBOARD row is owed after the deploy (D-057 "Measure after").
+
 ## Not done / owed
 
 - Outside the pilot boxes the painted band still comes from the box's dynamic 0.25-deg lane (nothing stored to publish): a decision.
-- The flips, both the owner's: Render `MARINE_REGIONAL_TILE_FIRST_SURF=1` (a served-number change), then the client lever; repo
-  variable `FRAME_RATING_SETS=1` (the lead).
+- After the deploy: the D-057 live read (one short scenario, health probed) and its SCOREBOARD row.
 - The swell GPU-resident lever (N4: the frame store packs waves only) and EURO 2-deg swell (a new served product): not built.
 - Ledger `pr_open` line when the PR opens; the live read after the lead sets `FRAME_RATING_SETS=1` and the owner decides staleness.

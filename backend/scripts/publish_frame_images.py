@@ -590,7 +590,7 @@ def main(argv=None):
     ap.add_argument("--out-dir", help="offline: write the public objects here (required with --store-dir)")
     ap.add_argument("--only", choices=("frames", "png", "rated"),
                     help="run one half only (default: frames + png); 'rated': only the RATED sets (frame_set_rating, dark; "
-                         "needs FRAME_RATING_SETS=1), as their own step with their own budget FRAME_RATING_BUDGET_S")
+                         "FRAME_RATING_SETS=0 kills it), as their own step with their own budget FRAME_RATING_BUDGET_S")
     ap.add_argument("--tail-store-dir", help="offline, with FRAME_TAIL_DOWNLOAD=1: a ProductStore dir standing in for the "
                                              "private products bucket the ICON/EURO tails are downloaded from")
     ap.add_argument("--wind-lane-rebuild", action="store_true",
@@ -615,7 +615,7 @@ def main(argv=None):
     status = 0
     if args.only == "rated":
         if not fsr.enabled():
-            print("[frames] rated sets: FRAME_RATING_SETS is not 1; nothing to do")
+            print("[frames] rated sets: killed (FRAME_RATING_SETS=0); nothing to do")
             return 0
         budget = float(os.environ.get("FRAME_RATING_BUDGET_S", "600"))
         report = publish_frame_sets(source, sink, sets=selected_sets(fsr.rated_publish_sets()), budget_s=budget)

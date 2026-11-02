@@ -1,7 +1,7 @@
 /**
- * The Surf Rating band from RATED static frames (staticRatingFrames.js, 2026-11-01, item 10; DARK).
+ * The Surf Rating band from RATED static frames (staticRatingFrames.js, 2026-11-01, item 10; ON by default since D-057).
  * Pins: the u32 RATING plane decodes in both layouts; buildVectors rebuilds the overlay's rated / masked vectors from it; the lever is
- * off by default, on per browser, killed by __RAW_DISABLE_RATING_FRAMES__; a surf ask is served only for a crop box /grid answers
+ * ON by default (D-057), off per browser (localStorage 0), killed by __RAW_DISABLE_RATING_FRAMES__; a surf ask is served only for a crop box /grid answers
  * from global_mid (never a world box, never a box the surf-only regional preference could hand a tile), only at an ask the frame
  * lists in ask_offsets_h, with the overlay's tag and per-box counts; the series lane never takes a surf page.
  */
@@ -127,8 +127,10 @@ describe('the RATING plane and the rebuild', () => {
   });
 });
 
-describe('the dark lever', () => {
-  test('off by default, on per browser, the kill wins', () => {
+describe('the lever: ON by default (D-057), killable', () => {
+  test('on by default, off per browser, the kill wins', () => {
+    expect(ratingFramesOn()).toBe(true);
+    window.localStorage.setItem('__RAW_RATING_FRAMES__', '0');
     expect(ratingFramesOn()).toBe(false);
     window.localStorage.setItem('__RAW_RATING_FRAMES__', '1');
     expect(ratingFramesOn()).toBe(true);
@@ -136,7 +138,8 @@ describe('the dark lever', () => {
     expect(ratingFramesOn()).toBe(false);
   });
 
-  test('a surf ask is never static while the lever is off (today\'s /grid path)', async () => {
+  test('a surf ask is never static while killed (the /grid path)', async () => {
+    window.__RAW_DISABLE_RATING_FRAMES__ = true;
     expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: CROP, surf: true })).toBe(false);
     expect(await tryStaticWorldGrid({ model: 'GFS', layer: 'waves', validTimeStr: VT, clampedBbox: CROP, surf: true })).toBeNull();
     expect(global.fetch).not.toHaveBeenCalled();

@@ -27,7 +27,7 @@ EXACTNESS, by construction and then checked:
     wind term /grid uses).
 INPUT FRESHNESS (the owner's call, why the client path is DARK): the gate (spot-ratings L2 blob, Render TTL 300 s) and the local
 size climatology (600 s) are read ONCE per publish and their identities recorded in the index (`rating_chain`), with every env
-value the chain reads (CHAIN_ENV). A CDN band lags the box by up to one republish. Publishing is off unless FRAME_RATING_SETS=1.
+value the chain reads (CHAIN_ENV). A CDN band lags the box by up to one republish. ON by default (D-057); kill FRAME_RATING_SETS=0.
 """
 from __future__ import annotations
 
@@ -79,8 +79,8 @@ UNCHANGED_FIELDS = ("u", "v", "direction", "period", "dir_confidence", "lat", "l
 
 
 def enabled():
-    """FRAME_RATING_SETS=1 adds the rated sets to a publish (dark: off by default; the lead turns it on)."""
-    return os.environ.get("FRAME_RATING_SETS", "0") == "1"
+    """The rated step publishes (ON by default since D-057, the owner 2026-11-01 22:10 EST); FRAME_RATING_SETS=0 is the kill switch."""
+    return os.environ.get("FRAME_RATING_SETS", "1") != "0"
 
 
 def is_rated(target):
