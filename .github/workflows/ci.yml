@@ -990,6 +990,8 @@ jobs:
           #   base 3337 (dev's map) + 4 new test(s) and 0 new file(s) = 3341, files 212; floor 3341 - 6 = 3335. This PR must read 3341 passed.
           # ⬆ 3335→3345 on 2026-10-26 (rederive_floor.py, claude/manifest-object-consistency): dev run 40398047789 read 3341 / 212 files; dev's map 3341;
           #   base 3341 (hosted read) + 10 new test(s) and 1 new file(s) = 3351, files 213; floor 3351 - 6 = 3345. This PR must read 3351 passed.
+          # ⬆ 3345→3345 on 2026-11-02 (rederive_floor.py, claude/upbeat-cori-222cde): dev run 41377184916 read 3351 / 213 files; dev's map 3351;
+          #   base 3351 (hosted read) + 0 new test(s) and 0 new file(s) = 3351, files 213; floor 3351 - 6 = 3345. This PR must read 3351 passed.
           MIN_FILES, MIN_PASSED = 213, 3345
           try:
               root = ET.parse('guards.xml').getroot()
@@ -1623,6 +1625,8 @@ jobs:
           #   base 3024 (dev's map) + 1 new test(s) and 0 new file(s) = 3025, files 184; floor 3025 - 6 = 3019. This PR must read 3025 passed.
           # ⬆ 3019→3029 on 2026-11-02 (rederive_floor.py, claude/chain-floor-661): dev run 41362488089 read 3035 / 184 files; dev's map 3025;
           #   base 3035 (hosted read) + 0 new test(s) and 0 new file(s) = 3035, files 184; floor 3035 - 6 = 3029. This PR must read 3035 passed.
+          # ⬆ 3029→3029 on 2026-11-02 (rederive_floor.py, claude/upbeat-cori-222cde): dev run 41377184916 read 3035 / 184 files; dev's map 3035;
+          #   base 3035 (hosted read) + 0 new test(s) and 0 new file(s) = 3035, files 184; floor 3035 - 6 = 3029. This PR must read 3035 passed.
           MIN_FILES, MIN_PASSED = 184, 3029
           try:
               root = ET.parse('chain.xml').getroot()
@@ -2170,6 +2174,8 @@ jobs:
           # ⬆ 3404→3406 on 2026-11-01, IN THE SAME PR THAT CAUSES IT (kill-switch test coverage + routes-flags blind spot):
           #   one new backend test file adds 2 executed tests (backend/tests/test_routes_flags_not_in_registry.py)
           #   to the 3406 projected by the prior PR; projected 3408; floor 3408 - 2 = 3406. This PR must read 3408 passed.
+          # ⬆ 3404→3406 on 2026-11-02 (rederive_floor.py, claude/upbeat-cori-222cde): dev run 41377184916 read 3406; dev's map 3406;
+          #   base 3406 (hosted read) + 2 new test(s) = 3408; floor 3408 - 2 = 3406. This PR must read 3408 passed.
           MIN_PASSED = 3406
 
           try:
