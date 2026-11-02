@@ -990,7 +990,9 @@ jobs:
           #   base 3337 (dev's map) + 4 new test(s) and 0 new file(s) = 3341, files 212; floor 3341 - 6 = 3335. This PR must read 3341 passed.
           # ⬆ 3335→3345 on 2026-10-26 (rederive_floor.py, claude/manifest-object-consistency): dev run 40398047789 read 3341 / 212 files; dev's map 3341;
           #   base 3341 (hosted read) + 10 new test(s) and 1 new file(s) = 3351, files 213; floor 3351 - 6 = 3345. This PR must read 3351 passed.
-          MIN_FILES, MIN_PASSED = 213, 3345
+          # ⬆ 3345→3360 on 2026-11-02 (rederive_floor.py, claude/swell-partition-tracking): dev run 41377184916 read 3351 / 213 files; dev's map 3351;
+          #   base 3351 (hosted read) + 15 new test(s) and 1 new file(s) = 3366, files 214; floor 3366 - 6 = 3360. This PR must read 3366 passed.
+          MIN_FILES, MIN_PASSED = 214, 3360
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
