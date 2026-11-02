@@ -50,6 +50,16 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_CALM_WASH_HOLD__',
   // marineController.globalSeriesPrewarm.test.js
   '__RAW_DISABLE_GLOBAL_SERIES_PREWARM__',
+  // Added to source by #674 (weather batch 1), each with a focused test that sets the switch and asserts the prior
+  // behaviour; recorded here when #678's inventory met #674 in weather batch 2 (2026-11-02):
+  // marineColdPreview.test.js ("__RAW_DISABLE_COLD_PREVIEW__ hides the field exactly as before")
+  '__RAW_DISABLE_COLD_PREVIEW__',
+  // staticRegionalPrewarm.test.js ("nothing at all behind any of the three kill switches")
+  '__RAW_DISABLE_REGIONAL_PREWARM__',
+  // marineColdVeil.test.js (describeColdVeil with the switch set returns null)
+  '__RAW_DISABLE_VEIL_WORDS__',
+  // windTimeBlend.test.js and forecastReadout.windBlend.test.js ("killed: +1 h reads the snapped 00Z frame, as before")
+  '__RAW_DISABLE_WIND_TIME_BLEND__',
 ]);
 
 /**

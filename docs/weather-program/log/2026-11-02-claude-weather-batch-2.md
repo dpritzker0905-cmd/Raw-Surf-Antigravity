@@ -30,6 +30,13 @@ Each PR merged with `git merge --no-ff origin/<branch>`, in this order, so every
   registrations (`PRODUCT_RUN_KEYED_NAMES`, `CONSENSUS_PERIOD_MEDIAN`); `forecast-ingest-pilots.yml` env keeps both
   declarations. No flag registration was dropped.
 - Ledger fragments are per branch (`ledger.d/claude--*.jsonl`) and merged without conflict.
+- A semantic collision git did not flag: #678's `frontend/src/tests/killSwitch.inventory.test.js` (every
+  `__RAW_DISABLE_*__` in `components/map` must be TESTED or EXEMPT) met #674's four new switches once dev was merged
+  back, and failed: `__RAW_DISABLE_COLD_PREVIEW__`, `__RAW_DISABLE_REGIONAL_PREWARM__`, `__RAW_DISABLE_VEIL_WORDS__`,
+  `__RAW_DISABLE_WIND_TIME_BLEND__`. Each shipped in #674 with a focused test that sets the switch and asserts the
+  prior behaviour (`marineColdPreview`, `staticRegionalPrewarm`, `marineColdVeil`, `windTimeBlend` /
+  `forecastReadout.windBlend` tests), so they were added to `KILL_SWITCHES_TESTED`, citing those tests; the shrink-only
+  EXEMPT list did not grow. Inventory plus those five files: 6 suites, 53 tests passed; `check_eslint.js` exit 0.
 
 ## Floors (re-derived from the combined branch)
 
