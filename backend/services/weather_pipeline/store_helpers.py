@@ -689,9 +689,16 @@ def load_product_helper(store, filename: str, stride: Optional[int] = None) -> O
                 ProductStore._product_cache_vectors.pop(cache_key, None)
 
     filepath = store.cache_dir / filename
+    cold = revision_reason is not None and revision is not None and not filepath.exists()
     if not fetch_l2_to_disk(store, filename, now):
         return None
-    
+    if cold and filepath.exists():
+        # A cold download was reported UNVERIFIED only because no local file existed to compare. Check the bytes just
+        # fetched against the manifest registration: a match is current (no stale tag); a mismatch goes through the same
+        # validated replacement or REFUSED path as a warm file. Without this, every cold load of a stored tile came back
+        # stale=True, which the client re-asks and which keeps series pages out of the memo (acceptance read 2026-11-01).
+        revision, revision_reason = refresh_revision(store, filename)
+
     try:
         with open(filepath, "r") as f:
             data = json.load(f)

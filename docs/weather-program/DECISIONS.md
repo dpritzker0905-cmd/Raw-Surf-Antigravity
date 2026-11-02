@@ -1849,3 +1849,11 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **What moves:** past ICON hour 168, production's infobox and heatmap read the stored estimated tail (the D-055 CDN frames), as dev has done since 2026-10-04, instead of the browser's own anchor blend. The evidence is dev's history under the flag: D-016's replay controls, and every regression and SCOREBOARD row since 10-27, which were built with the flag on.
 - **Measure after:** on the production bundle, ICON scrubbed to h192/h250/h300 draws from the frame store (`__MARINE_DRAWN__` source), with no browser blend asks; plus a SCOREBOARD row.
 - **Rollback:** set `REACT_APP_ICON_STORED_TAIL=false` in the Netlify UI for production and rebuild main (an explicit value wins; `src/netlifyIconStoredTailScope.test.js` pins it), or drop the `production` clause from the `netlify.toml` build command.
+
+### D-064 · The server re-checks a reused product key against the manifest before serving it (PRODUCT_REVISION_REFRESH ON after its fix, 2026-11-01)
+- **Decided:** owner, 2026-11-01 23:26 EST, in chat: "Ok go with your recommendation, both 1 and 2".
+- **Why:** pilot and world-tier files are keyed by valid time only, and the server downloads a file only when none is on disk, so a hot key can serve an older run (Cocoa Beach GFS pilot served from 10-30T18Z at ~03:30Z on 11-02 while storage held 11-01T18Z; cleared without a restart by 04:3xZ, cause of the clearing unknown).
+- **Fix first:** as merged, the flag tagged every cold download `stale=True` (product_revision_unverified), which the client re-asks and the series memo refuses. A cold download is now checked against its registration after it lands (`log/2026-11-01-claude-revision-refresh-acceptance.md`).
+- **Flip:** Render env `PRODUCT_REVISION_REFRESH=1` after this PR deploys. Cost measured offline: +107 us per warm read, 151 ms per manifest change for the 11.5k-entry index, one validated download per changed key actually read.
+- **Rollback:** `PRODUCT_REVISION_REFRESH=0` in Render env.
+- **Structural fix:** immutable run-keyed product names, its own dark PR (session run-keyed-products).
