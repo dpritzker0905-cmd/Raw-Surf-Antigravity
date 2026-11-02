@@ -320,6 +320,8 @@ async function runSequence(seq, { tag = '', stopAfter = null, quiet = false } = 
   let cdnFrom = cdnLog.length;
   try {
     await page.addInitScript((theme) => { localStorage.setItem('raw-surf-theme', theme); }, seq.theme0);
+    // INIT_FLAGS (2026-11-01, D3): a JSON object of window flags set before boot, so two arms of ONE build replay the same seeds
+    if (process.env.INIT_FLAGS) await page.addInitScript((flags) => { for (const [k, v] of Object.entries(flags)) window[k] = v; }, JSON.parse(process.env.INIT_FLAGS));
     await page.goto(BASE + '/map', { waitUntil: 'domcontentloaded' });
     await page.waitForFunction(() => !!(window.__MAP_INSTANCE__ || window.map), null, { timeout: 90000 });
     await sleep(1500);

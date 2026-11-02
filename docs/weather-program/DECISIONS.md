@@ -1850,6 +1850,29 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Measure after:** on the production bundle, ICON scrubbed to h192/h250/h300 draws from the frame store (`__MARINE_DRAWN__` source), with no browser blend asks; plus a SCOREBOARD row.
 - **Rollback:** set `REACT_APP_ICON_STORED_TAIL=false` in the Netlify UI for production and rebuild main (an explicit value wins; `src/netlifyIconStoredTailScope.test.js` pins it), or drop the `production` clause from the `netlify.toml` build command.
 
+### D-057 · The Surf Rating band reads rated CDN frames by default, and surf asks in a pilot box are rated on the stored tile (ON with a kill switch, 2026-11-01)
+- **Decided:** the owner, 2026-11-01 22:10 EST (relayed by the lead): measured features ship ON by default with a kill switch, "start it automatically running … if we don't like it, we kill switch it". Applied to #672 (item 10).
+- **What is ON:**
+  - Client: `staticRatingFrames.js` reads the rated sets: the 0.25-deg `<region>_rated` bundles inside the GFS pilot boxes, the 2-deg `global_mid_rated` crops elsewhere. Kill: `window.__RAW_DISABLE_RATING_FRAMES__ = true`, or localStorage `__RAW_RATING_FRAMES__ = '0'`, or build `REACT_APP_RATING_FRAMES=false`.
+  - Backend: `MARINE_REGIONAL_TILE_FIRST_SURF` defaults ON in code (inert unless `MARINE_REGIONAL_TILE_FIRST=1`, which is ON per D-051). Surf asks a stored pilot tile fully covers are rated on that tile, never a dynamic-cache product. `/capabilities` reports `regional_tile_first_surf`. Kill: Render env `MARINE_REGIONAL_TILE_FIRST_SURF=0`.
+  - Workflow: `forecast-ingest-pilots.yml` publishes the rated sets every pilots run. Kill: repo variable `FRAME_RATING_SETS=0`.
+- **What moves:**
+  - Inside the pilot boxes, which product rates the band: the stored NOAA tile, where a warm dynamic-cache product could answer before.
+  - The band can lag the box by up to one republish: the gate and size-climatology blobs are read once per publish, while Render re-reads them every 300-600 s. The owner accepted this with the kill switch.
+- **Evidence (offline, log/2026-11-01-claude-rating-frames.md):**
+  - Exact `/grid?surf=1` parity: world 846 asks, ~460k nodes, and regional 39 boxes, 17,915 nodes, 0 bad; rated speed compared exactly.
+  - Band ON paint at z8 in the boxes: today p50 7,696 / p95 8,685 ms (5 of 6 painted) vs p50 136 / p95 702 ms (6 of 6), with 0 box asks.
+- **The guard:** `scn_rated_crop_parity.mjs` and `scn_regional_client_parity.mjs RATED=1` (exact parity), and the publisher's per-node check before every upload.
+- **Measure after (owed):** after the deploy and one pilots publish, `/api/health` probed before and after, ONE short live scenario: band ON at z8 off Florida paints from `GFS/marine/waves/florida_east_coast_rated` (`window.__RAW_STATIC_FRAMES_RATED__.hits` > 0, no `surf=1` /grid ask in the first 5 s); plus a SCOREBOARD row.
+- **Rollback:** the three kill switches above (each alone returns its half to the old path).
+
+### D-058 · The ICON infobox reads the same stored tail the heat map draws, in dev and production builds (ON, 2026-11-01)
+- **Decided:** owner chat, 2026-11-01 18:31 EST: "make sure that we're turning on number 660's icon info box switch".
+- **Scope:** `REACT_APP_ICON_POINT_STORED_TAIL=true` wherever `REACT_APP_ICON_STORED_TAIL` is authorized: dev branch deploys (D-016) and production (D-056). Production honours an explicit Netlify UI value for both, and the app requires both, so `REACT_APP_ICON_STORED_TAIL=false` is one kill switch for the map and the card; `window.__RAW_DISABLE_ICON_POINT_STORED_TAIL__` is the runtime one.
+- **Evidence:** #660's offline A/B (SCOREBOARD 2026-11-01 21:32Z): past ICON hour 168 the card-vs-map gap went from +11..+31% to 0.0%.
+- **Measure after:** on the dev site, ICON at h250 and h300 at 21.5N 118W: the card equals the heat-map cell, and no browser anchor-blend asks; SCOREBOARD row.
+- **Rollback:** remove the variable from the `netlify.toml` build command, or set it `false` in the Netlify UI, and rebuild.
+
 ### D-059 · EURO and ICON zoom 7-9 views inside their pilot boxes draw from the stored 0.25-degree tile, as GFS does (D-051), shipped ON with kill switches (ON, 2026-11-01)
 - **Decided:** owner, 2026-11-01 22:10 EST (via the lead): measured features ship ON by default with a kill switch, "start it automatically running … if we don't like it, we kill switch it". Applied to item 11, PR #673.
 - **Scope:** EURO waves and ICON waves / swell_1 / wind_waves, in the 14 boxes their pilots store (REGIONAL_CONFIGS + WORLDWIDE_COASTAL_REGIONS), for views the stored tile fully covers. Three halves, all default ON: the server serves those views from the tile (`MARINE_REGIONAL_TILE_FIRST_EURO_ICON`, never the dynamic cache or ICON's live series lane), the pilots lane publishes their regional bundles (`FRAME_REGIONAL_BUNDLES_EURO_ICON`, 56 sets after every GFS set), and the client reads them (`staticRegional.REGIONAL_EURO_ICON_DEFAULT_ON`). The rule is GFS's, with their 2-deg snap and without the snapped-inside test (a tile-first view never reads the dynamic cache).

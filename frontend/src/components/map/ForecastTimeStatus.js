@@ -8,6 +8,7 @@ import { HOLD_INDICATOR_MS, holdNoDimKilled } from './marineStaleHour';
 import { useRasterDrawnFrame, describeRasterFrame, RASTER_STATUS_LAYERS, PENDING_QUIET_MS } from './rasterDrawnFrame';
 import { ratingBandHeldText } from './marineRatingBandRes';
 import { ratingBandLoadingText } from './marineFlavorToggle';
+import { useColdVeilState, describeColdVeil } from './marineColdVeil';
 
 // What the map DRAWS against what the user SELECTED, in words, in the same frame (W-1, scrub audit 2026-10-18): the
 // drawn-frame record is published by WebGLMarineLayer at the upload (marineDrawnFrame.js), so this line no longer waits
@@ -23,6 +24,8 @@ import { ratingBandLoadingText } from './marineFlavorToggle';
 // THE SIMPLIFIED FALLBACK (2026-10-27, the lead's z9 EURO live read: "Loading <hour>… still showing Mon, Nov 2, 4 AM" for 15 hours):
 // while MapWebGL has swapped the WebGL marine layer for the simplified one (webglMarineFailed), no frame of ours is drawn, so the line
 // says so instead of describing the last one. Kill: window.__RAW_DISABLE_DRAWN_FALLBACK_TRUTH__ = true (marineDrawnFrame.js).
+// THE COLD VEIL (D3, 2026-11-01, marineColdVeil.js): while the engine holds the heatmap at 0 over a coarse first frame, the line says
+// "Loading the detailed forecast…" instead of describing that frame. Kill: window.__RAW_DISABLE_VEIL_WORDS__ = true.
 const MARINE_LAYERS = new Set(['waves', 'swell_1', 'swell_2', 'wind_waves']);
 /** The drawn record was retired because nothing of ours is on screen (marineDrawnFrame.NOTHING_DRAWN_REASONS), for a marine layer. */
 const nothingDrawnNow = (layer) => typeof window !== 'undefined' && MARINE_LAYERS.has(layer)
@@ -30,6 +33,7 @@ const nothingDrawnNow = (layer) => typeof window !== 'undefined' && MARINE_LAYER
 export const MARINE_FALLBACK_WORDS = 'Simplified wave layer (reduced graphics mode): this app’s forecast frames are off';
 export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs }) {
   const drawn = useMarineDrawnFrame();
+  const veil = useColdVeilState();
   const marineFallback = useMarineFallbackState();
   const rasterRec = useRasterDrawnFrame();
   const isRaster = RASTER_STATUS_LAYERS.has(layer);
@@ -52,9 +56,10 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
   const nearestMaxHours = latticeNearestMaxHours(model, hour, { selectedMs: labelMs, runMs: drawn && drawn.runMs, layer });
   // The newest verified cycle the manifest names, so a held frame can say "from an older run" (drawnFrameReadout holdReason).
   const latestRunMs = isRaster || readoutOff ? null : latestKnownRunMs(model, layer);
-  const readout = isRaster ? (rasterReadout && (rasterReadout.state !== 'pending' || rasterShowPending) ? rasterReadout : null)
+  const veilReadout = isRaster ? null : describeColdVeil(veil, { layer });
+  const readout = veilReadout || (isRaster ? (rasterReadout && (rasterReadout.state !== 'pending' || rasterShowPending) ? rasterReadout : null)
     : (readoutOff ? null : (drawn ? describeDrawnFrame({ model, layer, hour, instantMs, labelMs, nearestMaxHours, latestRunMs }, drawn)
-      : (nothingDrawnNow(layer) ? describeNothingDrawn({ hour, labelMs }) : null)));   // D2: nothing of ours on screen: only the load
+      : (nothingDrawnNow(layer) ? describeNothingDrawn({ hour, labelMs }) : null))));   // D2: nothing of ours on screen: only the load
   // A drawn grid this coarse is said in words (EURO swells are a 10.3-degree grid at every zoom): one quiet line, all themes.
   const coarse = isRaster || readoutOff ? null : describeCoarseGrid({ model, layer }, drawn);
   if (typeof window !== 'undefined') window.__RAW_SELECTED_FRAME__ = { model, layer, hour, instantMs, labelMs };   // instruments compare by instant
@@ -112,7 +117,7 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
       <>
       {heldLine}
       <div role="status" aria-live="polite" data-drawn-state={readout.state} aria-busy={readout.state === 'pending' ? true : undefined}
-        data-hold-indicator={longPending ? 'on' : undefined}
+        data-hold-indicator={longPending ? 'on' : undefined} data-cold-veil={readout.veil || undefined}
         className={`mt-1 text-xs ${readout.state === 'pending' || readout.state === 'held' ? tone : quiet}`}>
         {longPending && (
           <span aria-hidden="true" data-testid="hold-indicator"

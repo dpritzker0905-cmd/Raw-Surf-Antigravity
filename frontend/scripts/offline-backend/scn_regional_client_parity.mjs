@@ -14,6 +14,10 @@
 //       regional sets> <backend port> [boxes=300] [out.json]
 // Build the sets with backend/scripts/publish_frame_images.py --store-dir <store> --out-dir <cdn> --only frames (FRAME_SETS=...), and
 // serve the SAME store with serve_synthetic.py --regions flagship.
+// RATED=1 (2026-11-01, item 10): the RATED bundles (<region>_rated, frame_set_rating) against /grid?surf=1, /grid seam only (a surf
+// page stays on /grid_series), at asks the frame lists in ask_offsets_h. A rated node's speed (the score / 10) must be EXACT;
+// is_valid and phys_speed presence exact; surf_transform's value_kind / rated / masked equal. Serve the backend with
+// MARINE_REGIONAL_TILE_FIRST=1 MARINE_REGIONAL_TILE_FIRST_SURF=1 (the dark server half: surf rated on the stored tile).
 import crypto from 'crypto';
 import fs from 'fs';
 import os from 'os';
@@ -30,6 +34,9 @@ const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'regional-parity-'));
 const API = `http://127.0.0.1:${port}/api/weather`;
 const LAYER = process.env.LAYER || 'waves';
 const MODEL = (process.env.MODEL || 'GFS').toUpperCase();   // EURO / ICON (2026-11-01): their regional sets, behind the app's gate (set below)
+const RATED = process.env.RATED === '1';
+const SFX = RATED ? '_rated' : '';
+if (RATED && MODEL !== 'GFS') { console.error('RATED=1 is GFS-only: the rated regional bundles are the GFS pilot boxes (D-057)'); process.exit(2); }
 
 const manifest = await (await fetch(`${API}/products`)).json();
 const products = Array.isArray(manifest) ? manifest : (manifest.products || []);
@@ -56,7 +63,7 @@ const R = await import(pathToFileURL(path.join(tmpDir, 'staticRegional.mjs')).hr
 const latest = JSON.parse(fs.readFileSync(path.join(cdnDir, 'v1/latest.json'), 'utf8'));
 const sets = {};
 for (const [key, entry] of Object.entries(latest.sets || {})) {
-  if (!R.isRegionalSetKey(key) || !entry.bundle || key.split('/')[2] !== LAYER) continue;
+  if (!R.isRegionalSetKey(key) || !entry.bundle || key.split('/')[2] !== LAYER || key.endsWith('_rated') !== RATED) continue;
   const index = R.normalizeBundleIndex(JSON.parse(fs.readFileSync(path.join(cdnDir, entry.index), 'utf8')));
   index.path = index.path || entry.index;
   sets[key] = { index, bundle: fs.readFileSync(path.join(cdnDir, entry.bundle.path)) };
@@ -92,6 +99,11 @@ function compareNodes(a, b, r) {
       uv: (g.u || g.v) ? Math.max(Math.abs(m.u - g.u), Math.abs(m.v - g.v)) : 0,
     };
     for (const [k, v] of Object.entries(e)) { if (v > r.maxErr[k]) r.maxErr[k] = v; if (v > TOL[k]) bad = true; }
+    if (RATED) {                                   // the rating's own fields, exactly
+      const rated = g.phys_speed != null && g.is_valid !== false;
+      if ((m.phys_speed == null) !== (g.phys_speed == null) || (rated && m.speed !== g.speed)) { r.ratingBad = (r.ratingBad || 0) + 1; bad = true; }
+      if (rated) r.rated = (r.rated || 0) + 1;
+    }
     if (bad) r.bad++;
   }
 }
@@ -102,7 +114,7 @@ const metaCmp = (mine, theirs, keys, r) => { for (const k of keys) if (JSON.stri
 // tile's own coverage box, the box 0.01 deg inside it, and one poking 0.5 deg past each edge (a partial cover: never claimed).
 let seed = 20261023;
 const rnd = () => { seed = (seed * 1103515245 + 12345) % 2147483648; return seed / 2147483648; };
-const regTiles = tiles.filter((t) => sets[R.regionalSetKey(MODEL, LAYER, t.id)]);
+const regTiles = tiles.filter((t) => sets[R.regionalSetKey(MODEL, LAYER, t.id) + SFX]);
 const boxes = [];
 for (let i = 0; i < N_BOXES; i++) {
   const t = regTiles[i % regTiles.length].bounds;
@@ -129,10 +141,10 @@ for (let i = 0; i < boxes.length; i++) {
   const b = boxes[i];
   const anchorMs = Math.round(Date.now() / 3600000) * 3600000;
   for (const seam of ['grid', 'series']) {
-    if (seam === 'series' && (i % 3) && !b.edge) continue;
+    if (seam === 'series' && (RATED || ((i % 3) && !b.edge))) continue;
     const param = seam === 'grid' ? X.gridBboxParam(b) : X.seriesBboxParam(b);
     const tile = R.pickRegionalTile({ model: MODEL, layer: LAYER, bboxStr: param });
-    const set = tile && sets[tile.key];
+    const set = tile && sets[tile.key + SFX];
     const anyIdx = (set || Object.values(sets)[0]).index;
     const built = anyIdx.frames.filter((f) => f.path);
     const frame0 = built[(i * 7) % built.length];
@@ -142,9 +154,16 @@ for (let i = 0; i < boxes.length; i++) {
     totals.boxes++;
     let win = null; let pick = null;
     if (set) { pick = C.pickIndexFrame(set.index, askMs); if (pick && pick.path) win = R.regionalClipWindow(param, pick.grid || set.index.grid, MODEL); }
-    const claimed = !!(win && win.covers);
+    let offsetOk = true;
+    if (RATED && pick) {
+      const meta = { ...(set.index.common_meta || {}), ...(pick.meta || {}) };
+      const off = (askMs - Date.parse(pick.valid_time)) / 3600000;
+      offsetOk = Array.isArray(meta.ask_offsets_h) && meta.ask_offsets_h.includes(off);
+      if (!offsetOk) totals.refusedOffset = (totals.refusedOffset || 0) + 1;
+    }
+    const claimed = !!(win && win.covers) && offsetOk;
     const url = seam === 'grid'
-      ? `${API}/grid?model=${MODEL}&domain=marine&layer=${LAYER}&valid_time=${encodeURIComponent(askIso)}&bbox=${param}`
+      ? `${API}/grid?model=${MODEL}&domain=marine&layer=${LAYER}${RATED ? '&surf=1' : ''}&valid_time=${encodeURIComponent(askIso)}&bbox=${param}`
       : `${API}/grid_series?model=${MODEL}&domain=marine&layer=${LAYER}&bbox=${param}&hours=${hour}&base_time=${encodeURIComponent(new Date(anchorMs).toISOString())}`;
     const body = await (await fetch(url)).json();
     const theirs = seam === 'grid' ? body : (body.frames || [])[0];
@@ -170,6 +189,12 @@ for (let i = 0; i < boxes.length; i++) {
     const r = newR();
     if (seam === 'grid') {
       const mine = R.regionalGridJson(C.gridJsonFromFrame(set.index, pick, vectors, { askIso, requestedBbox: b }), win, X.cropVectors(vectors, grid.cols, win), param);
+      if (RATED) {
+        const cnt = C.ratingCounts(mine.grid.vectors);
+        mine.grid.diagnostics.surf_transform = { ...cnt, ...(mine.grid.diagnostics.surf_transform || {}) };
+        const st = (j) => { const t = (j.grid.diagnostics || {}).surf_transform || {}; return { value_kind: t.value_kind, rated: t.rated, masked: t.masked, wind: t.wind }; };
+        if (JSON.stringify(st(mine)) !== JSON.stringify(st(body))) r.meta.push({ k: 'surf_transform', mine: st(mine), grid: st(body) });
+      }
       metaCmp(mine, body, metaKeys, r);
       compareNodes(mine.grid, body.grid, r);
     } else {
@@ -179,6 +204,7 @@ for (let i = 0; i < boxes.length; i++) {
       compareNodes(mine, theirs, r);
     }
     const T = totals[seam];
+    T.rated = (T.rated || 0) + (r.rated || 0); T.ratingBad = (T.ratingBad || 0) + (r.ratingBad || 0);
     T.nodes += r.nodes; T.bad += r.bad; T.validity += r.validity; T.position += r.position; T.meta.push(...r.meta.map((m) => ({ i, ...m })));
     for (const k of Object.keys(T.maxErr)) T.maxErr[k] = Math.max(T.maxErr[k], r.maxErr[k]);
     if (r.bad || r.meta.length) rows.push({ i, seam, param, bad: r.bad, meta: r.meta.slice(0, 4) });
@@ -226,7 +252,7 @@ if (process.env.SAMEKEY === '1') {
 }
 
 const report = {
-  layer: LAYER, same_key: sameKey, sets: Object.keys(sets), boxes_x_seams: totals.boxes, claimed: totals.claimed, refused: totals.refused,
+  layer: LAYER, rated: RATED, refused_on_ask_offset: totals.refusedOffset || 0, rated_nodes: totals.grid.rated || 0, rating_bad: totals.grid.ratingBad || 0, same_key: sameKey, sets: Object.keys(sets), boxes_x_seams: totals.boxes, claimed: totals.claimed, refused: totals.refused,
   refused_but_backend_full_regional: totals.refusedButFullRegional, claimed_but_backend_not_full_regional: totals.claimedButNot, sha12_bad: shaBad,
   grid: { nodes: totals.grid.nodes, bad: totals.grid.bad, meta_mismatches: totals.grid.meta.length, max_abs_err: totals.grid.maxErr },
   series: { nodes: totals.series.nodes, bad: totals.series.bad, meta_mismatches: totals.series.meta.length, max_abs_err: totals.series.maxErr },
