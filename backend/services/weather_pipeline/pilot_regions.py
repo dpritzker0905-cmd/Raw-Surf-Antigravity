@@ -203,6 +203,27 @@ def flagship_pilot_days(region_id: str, flagship_days: int, worldwide_days: int)
     return flagship_days if is_flagship_pilot_region(region_id) else worldwide_days
 
 
+def gfs_pilot_full_horizon_enabled() -> bool:
+    return os.environ.get("GFS_PILOT_FULL_HORIZON", "0") == "1"
+
+
+def gfs_marine_pilot_days(region_id: str) -> int:
+    """The GFS marine pilot horizon for one box, from the lane env (both scheduler call sites read this one function).
+
+    ITEM 13 (2026-11-01, DARK: GFS_PILOT_FULL_HORIZON, default '0'): with the pilots lane's GFS_MARINE_FORECAST_DAYS
+    at '5', 17 of the 19 GFS boxes end at run + 120 h (CDN audit 10-26T14Z: 41/45 frames, gap h116-h336) while the two
+    flagships carry 14 d, so close-zoom GFS scrubbing past day 5 falls back to the server. '1' gives every box the
+    flagship horizon. Every box is sliced from the same whole-globe NOAA download, and the flagship group already pulls
+    f384 (GFS_WORLD_FULL_HORIZON), so the 17 boxes JOIN that pass: the separate 41-step 5 d download disappears. The
+    cost is products, not bytes: ~17 x 4 layers x (113 - 41) = ~4,900 more per fire, and their regional frames.
+    Changes served numbers past day 5 (0.25 deg tile instead of the 2 deg tier): owner's word with evidence (D-001)."""
+    flagship_days = int(os.environ.get("GFS_MARINE_FLAGSHIP_FORECAST_DAYS", "14"))
+    worldwide_days = int(os.environ.get("GFS_MARINE_FORECAST_DAYS", "8"))
+    if gfs_pilot_full_horizon_enabled():
+        worldwide_days = max(worldwide_days, flagship_days)
+    return flagship_pilot_days(region_id, flagship_days, worldwide_days)
+
+
 # ── F-08 STAGE A (audit 14.1, 2026-09-25): GFS-MARINE-ONLY coverage expansion ──────────────────
 # Census on the live catalogue (1,773 spots): 732 (41.3%) sit outside every 0.25 deg box above, so
 # their marine scrub is either the live Open-Meteo series (GFS_ICON_SERIES_FASTPATH) or a 2 deg

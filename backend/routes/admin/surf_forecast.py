@@ -342,7 +342,11 @@ _RATING_FLAGS = {
     # their fractional edges (pilot_regions.whole_degree_regions), so a z7-9 snapped box inside the padded tile is served from the
     # tile instead of alternating between the dynamic cache and the tile. Cells in the padded band change source. Both ingest lanes
     # write GFS tiles (one repo variable); the box reads it for regional_tile_first.inside_pilot_box (the series lane skip).
-    "GFS_PILOT_WHOLE_DEGREE_BOUNDS": ("0", "GFS pilot tiles fetched and stored out to the next whole degree on every fractional edge "
+    "GFS_PILOT_FULL_HORIZON": ("0", "Every GFS marine pilot box gets the flagship horizon (14 d) instead of GFS_MARINE_FORECAST_DAYS (5 d in the "
+                                    "pilots lane), so z7-9 GFS past day 5 reads the 0.25-deg tile, not the 2-deg tier or /grid. "
+                                    "services/weather_pipeline/pilot_regions.gfs_marine_pilot_days",
+                               "forecast-ingest-pilots workflow env (repo variable GFS_PILOT_FULL_HORIZON); owner's word with evidence"),
+    "GFS_PILOT_WHOLE_DEGREE_BOUNDS": ("0","GFS pilot tiles fetched and stored out to the next whole degree on every fractional edge "
                                           "(us_southeast_midatlantic E, azores W/N, us_northeast W/N, france_biscay S/N; never into another "
                                           "box), so a 1-deg snapped z7-9 box inside the padded tile is covered: one source at the edge",
                                       "repo variable GFS_PILOT_WHOLE_DEGREE_BOUNDS, read by forecast-ingest-pilots.yml AND "
