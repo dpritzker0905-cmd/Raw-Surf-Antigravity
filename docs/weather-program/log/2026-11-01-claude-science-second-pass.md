@@ -52,3 +52,9 @@ Branch `claude/science-second-pass-2026-11-01`, stacked on the first-pass commit
     only is used);
   - retargeting #681's base onto #680's branch was denied, so #681 stays on dev, stacked on 290c15b01.
 - Live load: none. SCOREBOARD: no row.
+- 05:55Z: §9.8 records the lead's SciWeave answers, with edits elsewhere:
+  - contradiction #13 is softened: rays by default, with a ≤ ~90 m SWAN check only for narrow swell over shoals
+    (Crosby et al. 2019, JTECH 36:217);
+  - top-10 #3 must beat persistence and AR(p) (Jiang et al. 2024);
+  - #5 is gated on a winter sample;
+  - Fanti 2023 supports calibration.

@@ -627,9 +627,9 @@ All are dark (D-001); owner flips. Gains are literature or measured values as ci
 |---|---|---|---|---|
 | 1 | **Validation gates v2.** DM/HAC plus block bootstrap (A2). Report bias, SI and HH beside MAE. Gate big-swell bands on bias too. Stratify by buoy hull. Score periods against parabolic-fit Tp from NDBC `data_spec`, or in frequency, as well as DPD. | Decision quality: stops MAE "wins" that shave peaks (MAE elicits the median), and stops DPD quantisation (~1-1.5 s) or NOMAD low bias (up to ~1 m above 6 m) from deciding a flip. | S | A2, §8.1 |
 | 2 | **Flip-gate the peak periods (#412)** under gate v2, stratified by DPD < 8 / 8-12 / > 12 s. | ICON period MAE 2.36→1.82 s, CMEMS 2.06→1.54 s (measured 10-20). Mixed-sea member heights +5-12%. | S (built) | A1 |
-| 3 | **Buoy nowcast correction lane** at buoy-adjacent spots. A decaying-average residual first, then a SWRL-style residual model. Add the swell-arrival timing log (§8.2). | Literature: Hs RMSE −23..−50% in hours 0-6 and −10..−20% to 24 h; mean period −20..−56%; direction −28..−54% (SWRL Net). Fixes swell timing bias (Filoche 2026). | M | §8.1, §8.2 |
+| 3 | **Buoy nowcast correction lane** at buoy-adjacent spots. A decaying-average residual first, then a SWRL-style residual model. Add the swell-arrival timing log (§8.2). | Literature: Hs RMSE −23..−50% in hours 0-6 and −10..−20% to 24 h; mean period −20..−56%; direction −28..−54% (SWRL Net). Fixes swell timing bias (Filoche 2026). **Gate (§9.8):** any residual or ML model must beat persistence and an AR(p) baseline as well as the raw forecast (Jiang et al. 2024). | M | §8.1, §8.2, §9.8 |
 | 4 | **Debias members, then take the equal mean**, by lead × region × band, graded on extremes, Tp and direction. | 3-7% MAE (first pass). The literature's gains are mostly bias: NBias 3.5%→<1% (Campos 2020). | M | A3, §7.2 |
-| 5 | **AIFS Single wave as a shadow 4th member**, with `mwp` treated as Te. | −10% SWH vs ecWAM (Hahner 2026); plausibly −2..−5% in the mean at days 3-5. Grade by band (peak smoothing). | S-M | A4 |
+| 5 | **AIFS Single wave as a shadow 4th member**, with `mwp` treated as Te. | −10% SWH vs ecWAM (Hahner 2026); plausibly −2..−5% in the mean at days 3-5. Grade by band (peak smoothing). **Gate (§9.5, §9.8):** no winter or Southern Ocean evaluation exists (SciWeave also found none), so the first Dec-Feb shadow sample decides, on big-swell bias. | S-M | A4, §9.5, §9.8 |
 | 6 | **Per-spot, per-partition K**, scoped first to stable bathymetry (points, reefs, capes), never tuned to buoys. California via CDIP's published coefficients if the licence allows; ray tracing elsewhere, starting at Canaveral. | Fixes climate-scale shadow bias: Canaveral NE swell over-read 2-3×, buoy-pair ratio 0.52-0.58. Not event skill (O'Reilly 2016). | L (M for CA) | A5, §7.2, §8.5 |
 | 7 | **Partition slot coherence** before SURF_PARTITIONS feeds any map or scrubber surface. Measure the swap rate; match by direction and period. | Unmeasured. It prevents blending two different swells in space or time (WW3 manual §3.12). | S-M | §7.2 |
 | 8 | **Local wind-sea arm** for coastal and enclosed-sea spots: growth from hourly HRRR/GFS wind over the geometric fetch, graded on DPD < 8 s. | Targets the +1.2 s long-period bias and the Hs under-read at short fetch (Cavaleri & Bertotti 2004). Size unknown. | M | §8.3 |
@@ -769,7 +769,8 @@ The chain is read from `NOAA-EMC/global-workflow` (develop) through `gh api`:
 better as the incident spectrum gets *broader* and the bathymetry *smoother*. For **directionally narrow spectra**
 there are "significant differences", and "pure refraction models are not quantitatively accurate in these cases".
 - Long-period groundswell over the Cape Canaveral shoals is exactly that case: narrow swell over complex bathymetry.
-- So, at Canaveral, rays are the fast first table but **not** the final answer until the §9.4 step-5 check passes.
+- So, at Canaveral, rays are the default table, with one §9.4 step-5 check for narrow swell (softened by Crosby et
+  al. 2019, §9.8).
 - The same paper warns that a low-resolution pitch-and-roll buoy as the only directional input adds large
   uncertainty. That is another reason to use the CDIP Waverider for direction truth.
 
@@ -810,8 +811,9 @@ The same lookup shape serves the §9.2 direction-binned MOS, so the interim and 
    - Score by offshore direction bin against the measured ratio table and against the §9.2 MOS. Use the hold-out
      year, bias/SI/HH, and DM versus the MOS.
    - Use the CDIP Waverider (41113 is a CDIP station) for direction and spread truth, not an NDBC hull (§8.1).
-5. **Physics gap check (required at Canaveral, not optional).** Narrow swell over the shoals is where rays fail
-   (O'Reilly & Guza 1991). Run one hybrid SWAN library (~100 MDA cases) on the same grid. Measure what rays miss over
+5. **Physics gap check, for narrow long-period swell over the shoals only.** Rays are the default (Crosby et al.
+   2019), and this case is where they can fail (O'Reilly & Guza 1991). Run one hybrid SWAN library (~100 MDA cases)
+   on the same grid at **≤ ~90 m**: coarser SWAN differs from rays by over 2× in sheltered water (Crosby et al. 2019). Measure what rays miss over
    the Cape shoals: friction, breaking of short energetic waves (Paniagua-Arroyave 2019), and diffraction. If SWAN
    beats rays at 41113 with significance, adopt the SWAN library for Canaveral.
 6. **Validation B, forecast:** drive the winning table with debiased GFS/EURO/ICON partitions at lead times and score
@@ -866,8 +868,8 @@ The same lookup shape serves the §9.2 direction-binned MOS, so the interim and 
 - **#6 (per-spot K):**
   - The serve path is now specified (§9.3).
   - At Canaveral the interim **direction × period-band ratio MOS (§9.2) comes first (S)**.
-  - Rays are fast but **not sufficient for narrow swell over shoals** (O'Reilly & Guza 1991), so a hybrid SWAN library
-    check is required there.
+  - Rays are the default (Crosby et al. 2019, §9.8). A SWAN check at ≤ ~90 m is kept only for narrow long-period
+    swell over complex shoals such as Canaveral (O'Reilly & Guza 1991).
   - California can use CDIP's published coefficients if the licence allows.
 - **#5 (AIFS):** gate on a winter, by band and on bias. No published non-summer evaluation exists.
 - **#10 (rating truth):** ordinal (proportional-odds) calibration with RPS and blocked CV (§9.6).
@@ -877,7 +879,7 @@ The same lookup shape serves the §9.2 direction-binned MOS, so the interim and 
 
 | # | Memory claim | What the evidence says |
 |---|---|---|
-| 13 | Canaveral note step 4, "per-spot K from backward ray tracing", and the first pass's "K(f, θ) via backward ray tracing confirmed" | Pure refraction is not quantitatively accurate for narrow swell over complex bathymetry (O'Reilly & Guza 1991). Rays need a SWAN or diffraction check at Canaveral. |
+| 13 | Canaveral note step 4, "per-spot K from backward ray tracing", and the first pass's "K(f, θ) via backward ray tracing confirmed" | **Softened in §9.8.** Rays stay the default: Crosby et al. 2019 find rays and linear SWAN give similar regional transforms, and rays are cheaper at a few sites with no numerical diffusion. Keep **one** SWAN (≤ ~90 m) or diffraction check for narrow long-period swell over complex shoals such as Canaveral (O'Reilly & Guza 1991). |
 | 14 | A10 "unverified operational writer" | Settled from global-workflow (§9.1) |
 
 **SciWeave questions for a session that has it** (the lead's ~48 credits, hardest first):
@@ -889,3 +891,51 @@ The same lookup shape serves the §9.2 direction-binned MOS, so the interim and 
 3. "Which measure-correlate-predict algorithms and sorting criteria perform best for correcting reanalysis wave height
    and period at sheltered coastal sites, with what error reductions?" This would also stand in for the unread
    Ayuso-Virgili full text.
+
+### 9.8 SciWeave answers (run by the lead, 2026-11-01 ~23:15 EST)
+
+The lead ran the three §9.7 questions. Where this session could check a source on OpenAlex, it says so; the rest are
+as SciWeave cited them.
+
+**1. Rays vs SWAN.** Crosby, Kumar, O'Reilly & Guza, "Regional Swell Transformation by Backward Ray Tracing and SWAN",
+JTECH **36(2):217-229 (2019)**, doi:10.1175/jtech-d-18-0123.1 (8 cites). The lead's note dates it 2018, its online
+year; it is the "Crosby et al. 2019" that §6 cites by volume only. The full abstract was read on OpenAlex; the PDF
+failed to extract.
+- **Rays and linear SWAN give similar transformations** from deep water (seaward of the S. California islands) to
+  O(10) m depth.
+- **SWAN is sensitive to resolution.** At typical 1-2 km, SWAN's nearshore energy in highly sheltered regions differs
+  from rays by **over a factor of 2**, and alongshore radiation stress can even change sign. At **90 m**, SWAN is
+  closest to rays.
+- **Rays are more efficient** at a few locations, and have no numerical diffusion and no domain or resolution limit.
+  Accurate rays still need "significant computation time", so my §9.3 seconds-per-spot figure is optimistic; treat
+  it as minutes, unmeasured.
+- **Softens contradiction #13:**
+  - Backward rays are the **default** per-spot method.
+  - A SWAN check (≤ ~90 m) or a diffraction check is kept only for **narrow long-period swell over complex shoals**,
+    where O'Reilly & Guza 1991 show pure refraction is not quantitatively accurate. Canaveral is that case.
+  - Never trust coarse (km-scale) SWAN in sheltered water.
+- **Also cited by SciWeave (not checked this pass):**
+  - Mortlock 2014: SWAN at an embayed beach, R² 0.86, RMSE 0.2 m, mean period ~1 s low;
+  - Mulligan 2023: nearshore bathymetry needs better than ~100 m.
+
+  Both agree with the §9.4 bathymetry choice (CUDEM 1/3″ or CRM 1″, not GEBCO).
+
+**2. ML or AIFS in winter or the Southern Ocean.** **No published evaluation found**, which agrees with §9.5.
+- New caution: Jiang, Zhang, Qian & Wang 2024, Ocean Modelling, doi:10.1016/j.ocemod.2024.102364 (18 cites; the lead
+  cited it as "Qian et al."; OpenAlex lists Jiang as first author). "Complex models do not outperform auto-regression"
+  for SWH time-series prediction.
+- **Action:** every ML or residual nowcast lane (#3), and any learned post-processing, must beat **persistence and an
+  AR(p) fitted on the same training window**, as well as the raw forecast. Run the same DM/HAC and blocked CV
+  (§8.1, §9.2). A residual model that only beats the raw model is not evidence.
+
+**3. MCP and bias correction.** Fanti, Ferreira, Kümmerer & Loureiro 2023, Commun. Earth Environ.,
+doi:10.1038/s43247-023-00819-0 (65 cites; abstract read).
+- Two global wave reanalyses against **326 coastal buoys**: both consistently **underestimate** Hs, the 50-year
+  return level and mean period at most coastal sites.
+- Calibration cut the underestimation of extreme wave heights by **53%** and improved the 50-year return level by 55%
+  on average.
+- *Agrees* with #4 (debias members) and with the §9.2 interim. It also shows that coastal under-reading is the norm
+  for global products, not a quirk of ours.
+- **Also cited by SciWeave (not checked this pass):** Solari & Alonso 2025 (multivariate bias correction, ICCE) and
+  Parmar 2023 (Gaussian-process regression correction). Candidates for the §9.2 MOS beyond a ratio table, judged
+  under the same AR/persistence and DM gates.
