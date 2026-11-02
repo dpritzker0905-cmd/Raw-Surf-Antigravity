@@ -658,3 +658,155 @@ hourly frames (A7, the delivery researcher's lane).
 
 Not contradicted: D-006 equal weights, the H1 closure, #412's direction of fix, CMEMS = MFWAM, ICON Swell 2 intended,
 the advection/optical-flow rejection, and that shelf friction must not be a constant.
+
+## 9. Fourth pass: what the first pass could not settle (lead, 2026-11-01 23:04 EST)
+
+Docs only, written incrementally. The SciWeave MCP the owner added is **not available in this session**: it was
+connected after the session started, and ToolSearch finds no SciWeave tools. No SciWeave credits were spent, so its
+questions are left for a session that has it (§9.6).
+
+### 9.1 The operational GFS-Wave GRIB writer: settled
+
+The chain is read from `NOAA-EMC/global-workflow` (develop) through `gh api`:
+- `ush/wave_grib2.sh` builds `ww3_grib.inp` from `parm/wave/ww3_grib2.<grid>.inp.tmpl` and runs
+  `${EXECglobal}/ww3_grib_${NET}.x`.
+- `sorc/link_workflow.sh` links that executable from the WW3 build of `ww3_grib`, the program whose `ww3_grib.F90`
+  the first pass read (M1).
+- `dev/parm/config/gfs/config.wave` line 92 sets the field list:
+
+  ```
+  OUTPARS_WAV="WND CUR ICE HS T01 T02 DIR FP DP PHS PTP PDIR"
+  ```
+
+  The only partition period requested is **PTP**, the partition *peak*, parabolic fit (WW3 manual §2.6). No partition
+  mean period is written.
+- The GRIB IDs (for example `parm/wave/grib2_gfswave.aoc_9km.f003`) map:
+
+  | GRIB2 name | Field |
+  |---|---|
+  | WVPER (10-0-6, surface) | PTP, partition 0 (wind sea) |
+  | SWPER (10-0-9, "Order Seq." 1 and 2) | PTP, swell partitions |
+  | PERPW (10-0-11) | FP, the total peak |
+
+- **Verdict:** operational GFS-Wave SWPER/WVPER are partition **peak** periods, and PERPW is the total peak. This
+  closes A10's "confirm the operational writer" half.
+- The NDBC partition spot-check stays as a cheap sanity test. Compare GFS SWPER at f000 with the swell-band peak of
+  NDBC `data_spec` at ~10 buoys; a peak gives a ratio near 1, a mean near 0.8. It is no longer a blocker.
+
+### 9.2 Measure-correlate-predict and a direction-binned MOS (owner's paper; topic 3 and the nearshore interim)
+
+**The paper.** Ayuso-Virgili, Christakos, Lande-Sudall & Lümmen 2024, *Energy*, doi:10.1016/j.energy.2024.132904
+(6 cites; CC BY 4.0).
+- It corrects NORA3 Hs, Tp and wind at a semi-exposed Norwegian aquaculture site with four measure-correlate-predict
+  (MCP) models. The truth is a met mast (wind) and spectral SWAN (DNORA) downscaling (waves).
+- The abstract says prediction accuracy "improves in all four cases when an appropriate data sorting criterion and
+  algorithm is implemented".
+- **The full text could not be read here:**
+  - `fetch_content` returned metadata only;
+  - `fetch_pdf_content` failed;
+  - the Elsevier text API rejected the request;
+  - fetching the publisher page directly was refused by this session's permission policy (bot check).
+
+  So **the best of the four algorithms, the exact sorting criterion and its error metrics are not confirmed here**.
+  I am not guessing them. If the owner or lead pastes the methods and results sections, this subsection gets
+  finished.
+
+**Is a per-spot, direction-binned MOS a sound interim step before K(f, θ)? Yes, with conditions.**
+- **We already measured one.** The Canaveral harness's buoy-pair ratio table (memory `canaveral-surf-shadow`): 41113
+  nearshore vs 41009 offshore, Hs ratio by offshore direction.
+
+  | Offshore direction | N | NNE | NE | ENE | E | ESE | SE |
+  |---|---|---|---|---|---|---|---|
+  | Hs ratio, p50 | 0.52 | 0.54 | 0.58 | 0.65 | 0.75 | 0.78 | 0.75 |
+
+  The explore and hold-out (2025-26) years agree within 0.02, and the ratio is stable in every season (±0.05). That is
+  exactly a direction-sorted MCP of the *transformation*.
+- **Learn the transfer, not the model.** Fit the ratio **buoy→buoy** (offshore buoy to nearshore buoy), not model to
+  nearshore buoy, and apply it to the debiased model offshore partitions at forecast time.
+  - This keeps transformation physics apart from model bias (A3), following Crosby 2016 and MOP.
+  - Otherwise the MOS silently absorbs a lead-dependent model bias it cannot extrapolate.
+- **Bin by direction × period band** (e.g. <8, 8-12, >12 s; the Cape shoals filter long and short waves differently,
+  Paniagua-Arroyave 2019).
+  - Smooth across neighbouring direction bins with a circular kernel.
+  - Require a minimum n per bin, and fall back to the neighbouring-bin or all-direction ratio.
+  - Apply per partition, as an energy ratio: Hs_near,i = Hs_off,i·√R(θ_i, T_i).
+- **Where it is not sound:**
+  1. Spots with no nearshore buoy. "Buoy-to-spot equivalence" is still open: 41113 sits at ~10 m, not at Jetty Park's
+     break.
+  2. Mobile-bathymetry beach breaks (§8.4).
+  3. Directions with too few hours.
+
+  At such spots the MOS truth has to come from a regional model run (SWAN or CMEMS 1/12°) and is only as good as that
+  run.
+- **Validation:**
+  - Train on the explore years and test on the hold-out year, once.
+  - Paired Diebold-Mariano on per-hour absolute and squared errors versus (a) today's chain and (b) the
+    all-direction ratio. Use a HAC variance with a 48 h lag window, since errors are autocorrelated over a swell
+    event.
+  - Moving-block bootstrap with 7-day blocks for confidence intervals.
+  - Blocked cross-validation as leave-one-month-out, reported per direction bin.
+  - Controls: a null (shuffled direction labels must lose) and a positive (a synthetic known shadow must be
+    recovered).
+  - Report bias, SI and HH as well as MAE (§8.1).
+- **Expected gain:** at Canaveral, today's chain over-reads NE swell 2-3× and the measured ratio is 0.52-0.58, so a
+  ratio-corrected input removes most of the climate-scale over-read. Event error remains.
+- **Effort:** S. The harness exists, uncommitted, in the `raw-surf-nearshore` worktree.
+
+### 9.3 Open tools for per-spot K(f, θ), compared
+
+| Tool | Accuracy evidence vs buoys | Compute per spot (estimate*) | Bathymetry need | Licence | Captures | Misses |
+|---|---|---|---|---|---|---|
+| **Backward spectral ray tracing (CDIP MOP style)** | O'Reilly & Guza 1991 (61 cites; refraction vs refraction-diffraction); O'Reilly & Guza 1993 (Coastal Eng., doi:10.1016/0378-3839(93)90032-4; 109); O'Reilly et al. 2016 (134); Crosby et al. 2016 (25): validated at 16 S. California nearshore buoys | ~10⁴ rays (1° × ~40 frequencies), each ~2,000 steps: **seconds to a minute** vectorised on a laptop | ≤ 30-60 m grid, smoothed to ~L/2 to avoid caustics: NOAA CUDEM 1/3″ (~10 m) or CRM 1″ (~30 m) | Own code (any licence); CDIP MOP code is published, licence unchecked | Refraction, shoaling, island and cape shadowing at 1° | Diffraction, friction, breaking, wind growth, currents. Directional broadening (Ardhuin 2003) |
+| **Python ray tracer `ocean_wave_tracing`** (Halsne et al. 2023, GMD, doi:10.5194/gmd-16-6515-2023; 9 cites) | Verified numerically, not a buoy study | Same order as above | Same | **GPL-3.0** (a library dependency in the CI job only; nothing ships in the served app) | Depth **and currents** | As above |
+| **SWAN, stationary, spectral boundary** (Booij et al. 1999, doi:10.1029/98JC02622, **4,555 cites**; Ris et al. 1999, 895; Rogers et al. 2007, S. California Bight, Coastal Eng., doi:10.1016/j.coastaleng.2006.06.011, 151) | Extensively validated; NWPS runs it | One stationary run on ~20×20 km at 50 m ≈ minutes. Either impulse tables (~40 f × 72 θ ≈ 3,000 runs: hours to a day in CI) or a hybrid library | Same grid, plus the offshore boundary | **GPL** (per the SWAN distribution; confirm on the TU Delft page) | Refraction, shoaling, bottom friction, depth breaking, triads, wind growth, currents | Diffraction is only approximate (phase-averaged) |
+| **Hybrid SWAN library: MDA selection + RBF interpolation** (Camus, Mendez & Medina 2011, doi:10.1016/j.coastaleng.2011.05.007, 220 cites; HyWaves 2023, 26) | Validated against buoys in hindcast studies | ~100-500 SWAN runs per site: **hours in CI** | Same | GPL (SWAN) plus own code | Everything SWAN has, including **amplitude-dependent friction and breaking** (nonlinear) | Interpolation error between library cases |
+| **REF/DIF and parabolic mild-slope models** (Kirby & Dalrymple) | O'Reilly & Guza 1991: compared with refraction for S. California | Slow per frequency-direction component | Fine grid (≤ L/10) | Free distribution from U. Delaware; not an OSI licence (check) | **Diffraction** (island lees, jetties) | Wide-angle limits; heavy for many components |
+| **ML emulators of SWAN** (DELWAVE 2024, 12 cites; James et al. 2018, 408) | Reproduce SWAN, not buoys | Training needs the SWAN runs first; inference ~ms | As for SWAN | Varies | Whatever SWAN had | Out-of-sample sea states |
+
+\* My own order-of-magnitude estimates, **not measured**: they assume numpy-vectorised rays and SWAN on one CPU core.
+
+**How the output feeds the serve-time chain (arithmetic only, no I/O).**
+1. Offline, per spot, store an energy transfer table K(f, θ) on the boundary grid (e.g. 0.04-0.30 Hz × 1-5°).
+2. Collapse it, for each **parametric partition shape**, into a 2-D lookup R(T_p, θ_m) = (H_s,spot/H_s,off)²: a
+   JONSWAP frequency shape × cos²ˢ directional spread, with a fixed spread per partition type (wind sea broad, swell
+   narrow).
+3. At serve time, per partition: H_s,spot,i = H_s,i·√R(T_p,i, θ_i) by bilinear interpolation, with a K-weighted
+   direction and period from a matching table. Then H_s,spot = √(Σ H_s,spot,i²).
+4. Breaking stays in our chain, **starting at the table's target depth**. Exposure and the constant Kr must be
+   switched off where K is used, or refraction is counted twice (the Canaveral trap in memory).
+
+The same lookup shape serves the §9.2 direction-binned MOS, so the interim and final steps share one serve path.
+
+### 9.4 Recommended pipeline, Cape Canaveral first (all offline, dark)
+
+1. **Bathymetry.**
+   - Use NOAA CUDEM 1/3″ or CRM 1″ for the Florida east coast. US government data is public domain.
+   - Add USACE/JALBTCX lidar if available near Port Canaveral.
+   - Grid at ~30 m, then smooth to ~60-100 m for rays.
+   - Take the domain from the shore out to 41009's position and depth, so the offshore boundary is a measured buoy,
+     as in MOP.
+2. **Interim, now (§9.2):** the direction × period-band ratio MOS from the existing buoy-pair harness, applied to
+   debiased model partitions. Validate with DM/HAC, block bootstrap and leave-one-month-out.
+3. **Rays.** Backward ray tracing (own numpy, or `ocean_wave_tracing` as a reference), 1° × 0.04-0.30 Hz, from four
+   targets:
+   - the 41113 location (validation);
+   - Jetty Park;
+   - Cocoa Beach;
+   - Playalinda.
+
+   Rays that hit land give K = 0.
+4. **Validation A, pure transformation (the O'Reilly 2016 method):**
+   - Drive K with 41009's measured directional spectra. Use MEM from a₁, b₁, r₁, r₂, and **mind the NDBC r₁/r₂ ×100
+     trap** from memory.
+   - Predict the 41113 spectrum, Hs, Tp, peak direction and spread.
+   - Score by offshore direction bin against the measured ratio table and against the §9.2 MOS. Use the hold-out
+     year, bias/SI/HH, and DM versus the MOS.
+   - Use the CDIP Waverider (41113 is a CDIP station) for direction and spread truth, not an NDBC hull (§8.1).
+5. **Physics gap check.** Run one hybrid SWAN library (~100 MDA cases) on the same grid. Measure what rays miss over
+   the Cape shoals: friction, breaking of short energetic waves (Paniagua-Arroyave 2019), and diffraction. If SWAN
+   beats rays at 41113 with significance, adopt the SWAN library for Canaveral.
+6. **Validation B, forecast:** drive the winning table with debiased GFS/EURO/ICON partitions at lead times and score
+   at 41113. This is the served path's skill.
+7. **Spots:** apply to Jetty Park, Cocoa and Playalinda. Validate there only against the observation log (A9), because
+   no buoy sits in the break.
+8. **Ship dark** behind a per-spot flag. Owner flips on the evidence.
