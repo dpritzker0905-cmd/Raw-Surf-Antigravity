@@ -21,7 +21,9 @@ jest.mock('./WatermarkSettings', () => () => null);
 jest.mock('./gallery/UploadPhotoModal', () => ({ UploadPhotoModal: () => null }));
 jest.mock('./gallery/GalleryItemModal', () => ({ GalleryItemModal: () => null }));
 jest.mock('./gallery/SessionRosterCard', () => ({ SessionRosterCard: () => null }));
-jest.mock('./gallery/GalleryFolderList', () => ({ GalleryFolderList: () => null }));
+jest.mock('./gallery/GalleryFolderList', () => ({
+  ...jest.requireActual('./gallery/GalleryFolderList'), GalleryFolderList: () => null,
+}));
 jest.mock('./gallery/GalleryFolderModals', () => ({ GalleryFolderModals: () => null }));
 jest.mock('./gallery/GalleryPricingCard', () => ({ GalleryPricingCard: () => null }));
 jest.mock('./gallery/GromHighlightsCard', () => () => null);
