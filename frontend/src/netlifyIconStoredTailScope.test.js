@@ -11,7 +11,7 @@ const sandbox = fs.mkdtempSync(path.join(os.tmpdir(), 'rawsurf-netlify-scope-'))
 const shell = process.platform === 'win32' ? 'C:/Program Files/Git/bin/bash.exe' : '/bin/sh';
 const bin = sandbox.replace(/\\/g, '/').replace(/^([A-Za-z]):/, (_, drive) => `/${drive.toLowerCase()}`);
 for (const name of ['node', 'npm']) {
-  fs.writeFileSync(path.join(sandbox, name), '#!/bin/sh\nprintf "FLAG=%s\\n" "${REACT_APP_ICON_STORED_TAIL-unset}"\n', { mode: 0o755 });
+  fs.writeFileSync(path.join(sandbox, name), '#!/bin/sh\nprintf "FLAG=%s POINT=%s\\n" "${REACT_APP_ICON_STORED_TAIL-unset}" "${REACT_APP_ICON_POINT_STORED_TAIL-unset}"\n', { mode: 0o755 });
 }
 afterAll(() => fs.rmSync(sandbox, { recursive: true, force: true }));
 
@@ -38,5 +38,8 @@ test.each(cases)('%s has the authorized flag in every build subprocess', (_, con
   const run = spawnSync(shell, ['-c', command], { env, encoding: 'utf8', timeout: 5000 });
   expect(run.error).toBeUndefined();
   expect(run.status).toBe(0);
-  expect(run.stdout.trim().split(/\r?\n/)).toEqual(Array(3).fill(`FLAG=${expected}`));
+  // The infobox switch (P1-B, D-058) rides with the map's stored tail wherever that is authorized. The app also requires
+  // both flags, so the production kill switch REACT_APP_ICON_STORED_TAIL=false turns the infobox path off too.
+  const point = context === 'production' || (context === 'branch-deploy' && branch === 'dev') ? 'true' : 'unset';
+  expect(run.stdout.trim().split(/\r?\n/)).toEqual(Array(3).fill(`FLAG=${expected} POINT=${point}`));
 });
