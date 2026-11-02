@@ -1,9 +1,10 @@
 # 2026-11-02 · claude · Weather batch 2 (#678 #683 #684 #685 #686, dark / test-only)
 
 Session: a delegated subagent of the lead. Branch `claude/weather-batch-2`, cut from `origin/dev` at `4b3e27aa6`, then
-`origin/dev` merged in again three times as dev moved: `cd09e4e3e` (#674 weather batch 1, #680/#681 science docs; no
-backend test or floor change), `558a1a54f` (#687 grom, frontend only) and `6a00e7f6e` (#672 rated frames, chain +9 in
-+1 file, which moved dev's chain map to 3044). Nothing merged to dev, nothing flipped, no live backend
+`origin/dev` merged in again five times as dev moved: `cd09e4e3e` (#674 weather batch 1, #680/#681 science docs; no
+backend test or floor change), `558a1a54f` (#687 grom, frontend only) `6a00e7f6e` (#672 rated frames, chain +9 in
++1 file, dev's chain map 3044), `f0721ddff` (#682 flags ON, no test count change: collect-only 16/16 and 10/10) and
+`29f4c3591` (#673 EURO/ICON regional bundles, chain +17 in +1 file, dev's chain map 3061). Nothing merged to dev, nothing flipped, no live backend
 call, no workflow dispatch, no Render/Netlify env change.
 
 ## What the batch carries
@@ -40,7 +41,10 @@ Each PR merged with `git merge --no-ff origin/<branch>`, in this order, so every
   EXEMPT list did not grow. Inventory plus those five files: 6 suites, 53 tests passed; `check_eslint.js` exit 0.
   The same happened again after #672 merged in (`__RAW_DISABLE_RATING_FRAMES__`, hosted run 41533937636: 1 failed of 8157
   Jest tests, only this one); `staticRatingFrames.test.js` sets the switch and asserts no static surf ask, so it is TESTED
-  too. Every backend lane on that run read the projection exactly: guards 3351 / 213 files, chain 3155 / 187, estate 3408.
+  too. Every backend lane on that run read the projection exactly: guards 3351 / 213 files, chain 3155 / 187, estate 3408;
+  the next run (41537750110, head `ba9326fdb`) was green on every check with Jest 625 suites / 8157 tests. And once more
+  after #673 (`__RAW_DISABLE_REGIONAL_EURO_ICON__`, `staticRegional.euroIcon.test.js` sets it and asserts no EURO/ICON
+  pick): TESTED.
 
 ## Floors (re-derived from the combined branch)
 
@@ -49,15 +53,15 @@ Per-file counts, collected at the batch head vs the same file on dev (`pytest --
 43 vs 41 = +2 (#684 had not moved the floor), `test_scored_rows_gate.py` 44 vs 44, `test_routes_flags_not_in_registry.py`
 2 (new). Lane membership from `scripts/ci_test_lanes.py` (partition OK: guards 213, chain 186, estate 366 files).
 
-`python backend/scripts/rederive_floor.py`, last re-run after #672 (base = max(dev's last green hosted read, dev's map)):
+`python backend/scripts/rederive_floor.py`, last re-run after #673 (base = max(dev's last green hosted read, dev's map)):
 
 | Lane | Dev | Added | Set from | Floor (MIN_PASSED) | Files |
 |---|---|---|---|---|---|
 | guards | 3351 / 213 files (map 3351) | +0 | 3351 | 3345 → 3345 | 213 |
-| chain | dev map 3044 (hosted 3035 + #672's 9) / 185 files | +48 (#683) +2 (#684) +26 (#685) +35 (#686) = +111, +2 files | 3155 | 3038 → 3149 | 185 → 187 |
+| chain | dev map 3061 (hosted 3044 + #673's 17) / 186 files | +48 (#683) +2 (#684) +26 (#685) +35 (#686) = +111, +2 files | 3172 | 3055 → 3166 | 186 → 188 |
 | estate | 3406 (map 3406) | +2 (#678) | 3408 | 3404 → 3406 | n/a |
 
-Hosted CI must read guards 3351, chain 3155, estate 3408 passed. Before #672 landed, hosted CI on head `82238ff7f`
+Hosted CI must read guards 3351, chain 3172, estate 3408 passed. Before #672 landed, hosted CI on head `82238ff7f`
 (run 41525255530) read exactly the then-projection: guards 3351 / 213 files, chain 3146 / 186 files, estate 3408; Jest
 624 suites / 8148 tests.
 

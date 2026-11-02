@@ -63,6 +63,9 @@ const KILL_SWITCHES_TESTED = new Set([
   // Added to source by #672 (rated CDN frames, D-057), with its focused test; recorded in weather batch 2:
   // staticRatingFrames.test.js ("a surf ask is never static while killed (the /grid path)")
   '__RAW_DISABLE_RATING_FRAMES__',
+  // Added to source by #673 (EURO/ICON regional z7-9 bundles, D-059), with its focused test; recorded in weather batch 2:
+  // staticRegional.euroIcon.test.js ("the kill leaves no EURO/ICON set key and no pick; GFS unchanged")
+  '__RAW_DISABLE_REGIONAL_EURO_ICON__',
 ]);
 
 /**
