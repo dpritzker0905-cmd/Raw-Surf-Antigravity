@@ -383,6 +383,9 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
       '__RAW_DISABLE_WIND_DELIVERY_COALESCE__', '__RAW_DISABLE_WIND_REASK_DEDUPE__',
       // which stored hour a series page asks (the manifest's nearest, hourly when the set is hourly): WHEN, never how it draws
       '__RAW_DISABLE_WIND_SERIES_MANIFEST_SNAP__',
+      // the f120+ tail blend: WHICH field an in-between tail hour draws (a labelled PCHIP estimate or the nearest frame), drawn
+      // through the same tables, ramps and rules either way (windTimeBlend.js)
+      '__RAW_DISABLE_WIND_TIME_BLEND__',
       // WHEN the prefetch plans (after the next paint) and when the truth tag's census is counted: never what is drawn
       '__RAW_DISABLE_WIND_PREFETCH_REPLAN_AFTER_PAINT__', '__RAW_DISABLE_TRUTH_TAG_LAZY_CENSUS__',
       // and the static-frame kills shared with marine (staticFrames.js), which the wind seam also honours
