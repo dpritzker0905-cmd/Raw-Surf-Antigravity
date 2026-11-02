@@ -115,8 +115,10 @@ async def test_euro_marine_global_ingestion(tmp_path, monkeypatch):
         domain="marine",
         layer="waves",
         run_time=old_run,
-        valid_time_start=datetime.now(timezone.utc),
-        valid_time_end=datetime.now(timezone.utc),
+        # On the hour (D-060, INGEST_PRUNE_ESTIMATES_AFTER_REPLACE default ON): an estimate is pruned only once the new run has
+        # written a replacement AT ITS VALID TIME, and the coarse ingest writes whole hours (a sub-second stamp is never replaced).
+        valid_time_start=datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0),
+        valid_time_end=datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0),
         resolution=10.0,
         freshness_sec=1800,
         is_forecast_authoritative=False,
