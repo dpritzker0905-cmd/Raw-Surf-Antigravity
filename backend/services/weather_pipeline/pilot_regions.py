@@ -204,13 +204,13 @@ def flagship_pilot_days(region_id: str, flagship_days: int, worldwide_days: int)
 
 
 def gfs_pilot_full_horizon_enabled() -> bool:
-    return os.environ.get("GFS_PILOT_FULL_HORIZON", "0") == "1"
+    return os.environ.get("GFS_PILOT_FULL_HORIZON", "1") != "0"
 
 
 def gfs_marine_pilot_days(region_id: str) -> int:
     """The GFS marine pilot horizon for one box, from the lane env (both scheduler call sites read this one function).
 
-    ITEM 13 (2026-11-01, DARK: GFS_PILOT_FULL_HORIZON, default '0'): with the pilots lane's GFS_MARINE_FORECAST_DAYS
+    ITEM 13 (2026-11-01: GFS_PILOT_FULL_HORIZON, default '1' since the owner's ON-by-default word that night; kill switch '0'): with the pilots lane's GFS_MARINE_FORECAST_DAYS
     at '5', 17 of the 19 GFS boxes end at run + 120 h (CDN audit 10-26T14Z: 41/45 frames, gap h116-h336) while the two
     flagships carry 14 d, so close-zoom GFS scrubbing past day 5 falls back to the server. '1' gives every box the
     flagship horizon. Every box is sliced from the same whole-globe NOAA download, and the flagship group already pulls

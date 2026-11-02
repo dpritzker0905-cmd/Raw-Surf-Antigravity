@@ -39,3 +39,11 @@ gap). Base `dev` 340e70c07. Nothing dispatched, flipped or pushed.
 - Suggested flip check: one pilots run with the variable set; `[Pipeline Scheduler] GFS-Wave multi-region OK: N
   regions in one 14d pass` with N = 19 (+ global_mid when its horizon matches) and no 5d pass line; Render memory over
   the next cycle; the frame step's summary shows regional sets built, not budget-skipped.
+
+## 22:10-23:05 EST: flipped ON by default (owner's word, D-061)
+- The owner (via the lead, 22:10 EST): measured features ship ON with a kill switch. `GFS_PILOT_FULL_HORIZON` now defaults '1' in
+  code, `_RATING_FLAGS` and the pilots workflow; '0' (repo variable) is the kill switch.
+- Tests: the two-horizon grouping contract (`test_gfs_marine_pilot_multi_bbox.py`) and my flag-off test now set the kill switch
+  explicitly; the unset-env test expects (14, 14); the workflow pin reads `|| '1'`. Local: 163 passed (every test touching the pilot
+  horizon, multi-bbox passes and NOAA marine) + flag_lane_parity.
+- Still unmeasured, watch the first pilots run after merge: ~4,900 more products per fire, ~+300 MB RSS, lane p90 124 of 200 min.

@@ -26,6 +26,7 @@ def lane_env(monkeypatch):
 
 
 def test_flag_off_keeps_the_two_horizons(lane_env):
+    lane_env.setenv("GFS_PILOT_FULL_HORIZON", "0")  # the kill switch (ON by default since 2026-11-01, owner)
     assert gfs_marine_pilot_days(FLAGSHIP) == 14
     assert gfs_marine_pilot_days(WORLDWIDE) == 5
 
@@ -45,7 +46,7 @@ def test_flag_on_never_shortens_a_longer_worldwide_setting(lane_env):
 def test_unset_envs_keep_the_code_defaults(monkeypatch):
     for name in ("GFS_MARINE_FLAGSHIP_FORECAST_DAYS", "GFS_MARINE_FORECAST_DAYS", "GFS_PILOT_FULL_HORIZON"):
         monkeypatch.delenv(name, raising=False)
-    assert (gfs_marine_pilot_days(FLAGSHIP), gfs_marine_pilot_days(WORLDWIDE)) == (14, 8)
+    assert (gfs_marine_pilot_days(FLAGSHIP), gfs_marine_pilot_days(WORLDWIDE)) == (14, 14), "unset = ON since 2026-11-01"
 
 
 @pytest.mark.asyncio
@@ -79,9 +80,9 @@ async def test_flag_on_is_one_pass_carrying_every_box(tmp_path, lane_env):
     assert box_passes == [(14, expected)], f"box passes: {[(d, len(r)) for d, r in box_passes]}"
 
 
-def test_the_pilots_lane_wires_the_flag_dark():
+def test_the_pilots_lane_wires_the_flag_on():
     with open(PILOTS_YML, encoding="utf-8") as fh:
         text = fh.read()
-    assert re.search(r"^\s+GFS_PILOT_FULL_HORIZON: \$\{\{ vars\.GFS_PILOT_FULL_HORIZON \|\| '0' \}\}", text, re.M)
+    assert re.search(r"^\s+GFS_PILOT_FULL_HORIZON: \$\{\{ vars\.GFS_PILOT_FULL_HORIZON \|\| '1' \}\}", text, re.M)
     # The worldwide horizon itself is untouched: the flag, not a quiet edit, is what lengthens it.
     assert re.search(r"^\s+GFS_MARINE_FORECAST_DAYS: '5'$", text, re.M)

@@ -1849,3 +1849,11 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **What moves:** past ICON hour 168, production's infobox and heatmap read the stored estimated tail (the D-055 CDN frames), as dev has done since 2026-10-04, instead of the browser's own anchor blend. The evidence is dev's history under the flag: D-016's replay controls, and every regression and SCOREBOARD row since 10-27, which were built with the flag on.
 - **Measure after:** on the production bundle, ICON scrubbed to h192/h250/h300 draws from the frame store (`__MARINE_DRAWN__` source), with no browser blend asks; plus a SCOREBOARD row.
 - **Rollback:** set `REACT_APP_ICON_STORED_TAIL=false` in the Netlify UI for production and rebuild main (an explicit value wins; `src/netlifyIconStoredTailScope.test.js` pins it), or drop the `production` clause from the `netlify.toml` build command.
+
+### D-061 · Every GFS pilot box ingests the full 14-day horizon (ON by default, 2026-11-01)
+- **Decided:** owner, 2026-11-01 22:10 EST, as D-060.
+- **Flag:** `GFS_PILOT_FULL_HORIZON`, default '1' in code, registry and the pilots workflow; kill switch '0' (repo variable).
+- **Evidence:** `log/2026-11-01-claude-gfs-pilot-full-horizon.md`. 17 of 19 boxes stop at run + 120 h today (CDN audit 10-26T14Z: 41/45 frames, gap h116-h336). Flag on: one 14 d multi-bbox pass carries all 19 boxes (`tests/test_gfs_pilot_full_horizon.py`, 6).
+- **Cost (unmeasured, watch the first run):** ~4,900 more products per pilots fire, ~+300 MB RSS; the separate 5 d download pass disappears. Lane p90 124 of 200 min.
+- **What moves:** close-zoom GFS scrubbing past day 5 inside the boxes draws the stored tile instead of falling back to the server; values are the same GFS products.
+- **Rollback:** `gh variable set GFS_PILOT_FULL_HORIZON --body 0`.

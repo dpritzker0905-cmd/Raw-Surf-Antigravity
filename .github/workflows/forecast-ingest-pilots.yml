@@ -113,8 +113,8 @@ jobs:
           # products 1,704 → 2,216 per fire (~+4% of the 12k-product manifest).
           # Revert = set this back to '3'. Pilot-lane-only: this env is set per-workflow.
           GFS_MARINE_FORECAST_DAYS: '5'
-          # DARK (2026-11-01, item 13): '1' gives EVERY GFS pilot box the flagship horizon (GFS_MARINE_FLAGSHIP_FORECAST_DAYS, 14 d) instead of the 5 d above. Measured: 17 of 19 boxes end at run + 120 h (CDN audit 10-26T14Z, 41/45 frames, gap h116-h336), so close-zoom GFS scrubbing past day 5 falls back to the server. Cost: the 17 boxes join the flagship pass, which already downloads f384 (GFS_WORLD_FULL_HORIZON), so the separate 41-step 5 d pass goes away; ~4,900 more regional products and frames per fire (memory and the frame budget are the risks). The instruments above were not re-run past day 5. Moves served numbers: owner's word with evidence (D-001).
-          GFS_PILOT_FULL_HORIZON: ${{ vars.GFS_PILOT_FULL_HORIZON || '0' }}
+          # ON by default, kill switch '0' (owner 2026-11-01 22:10 EST); built (2026-11-01, item 13): '1' gives EVERY GFS pilot box the flagship horizon (GFS_MARINE_FLAGSHIP_FORECAST_DAYS, 14 d) instead of the 5 d above. Measured: 17 of 19 boxes end at run + 120 h (CDN audit 10-26T14Z, 41/45 frames, gap h116-h336), so close-zoom GFS scrubbing past day 5 falls back to the server. Cost: the 17 boxes join the flagship pass, which already downloads f384 (GFS_WORLD_FULL_HORIZON), so the separate 41-step 5 d pass goes away; ~4,900 more regional products and frames per fire (memory and the frame budget are the risks). The instruments above were not re-run past day 5. Moves served numbers: owner's word with evidence (D-001).
+          GFS_PILOT_FULL_HORIZON: ${{ vars.GFS_PILOT_FULL_HORIZON || '1' }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
