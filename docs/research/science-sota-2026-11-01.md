@@ -175,3 +175,231 @@ Surf quality:
 Every DOI above resolved on Crossref, either as a direct work record or as the top hit of a bibliographic search
 (Battjes & Stive, Ruessink, Goda, Herbers, Ardhuin, Carini, Salmon, Feddersen & Veron, Clemen, Alves, Hagedorn,
 Espejo, Scarfe). Roberts 2017 is doi:10.1111/ecog.02881. Crosby 2019 is cited by volume and pages only.
+
+## 7. Second pass (latest-science MCP), 2026-11-01 (UTC 2026-11-02 ~04:30Z)
+
+A second science session went deeper on the same six questions, adding citation counts, full texts and one
+replication. Docs only: no code, flag or served-number change. Everything below **adds to** §0-§6 above; where this
+pass simply agrees, it says so in one line rather than repeating.
+
+**Tools.** The `latest-science` MCP loaded (`search_papers`, `fetch_content`, `fetch_pdf_content`, `fetch_latest`,
+`fetch_top_cited`). Two limits:
+- Its OpenAlex results carry **no citation counts and no abstracts**, so counts below come from the public OpenAlex
+  API (`cited_by_count`, read 2026-11-02).
+- Its arXiv calls timed out or returned 429. `fetch_pdf_content` worked for full texts: Zhang 2021, Aurora,
+  Campos 2020 and the WW3 v5.16 manual.
+
+Elicit `search_papers` was not used (denied on this plan).
+
+### 7.1 New measurement
+
+**M7: replication of M4 on an independent data set.** The data: Open-Meteo hourly GFS-Wave Hs, run 2026-10-20 00Z,
+2° grid, three regions (natl, nwpac, south). It is the 10-20 hold-out set, a different run, grid and region set from
+M4. In-between hours were withheld from 3 h and 6 h brackets; n = 18-23k points per cell. CIs are a block bootstrap
+over the bracket start, 400 draws. MAE is in cm.
+
+| Region, gap | linear Hs | linear Hs² → √ | Catmull-Rom Hs | Catmull-Rom Hs² → √ | Bias, linear Hs² | 95% CI, ΔMAE (Hs² − Hs) |
+|---|---|---|---|---|---|---|
+| natl 3 h | 2.23 | 2.28 | **1.82** | 1.83 | +0.25 | [+0.035, +0.049] |
+| natl 6 h | 4.99 | 5.13 | **4.19** | 4.28 | +0.72 | [+0.104, +0.175] |
+| nwpac 3 h | 1.77 | 1.83 | **1.51** | 1.54 | +0.23 | [+0.048, +0.092] |
+| nwpac 6 h | 3.97 | 4.21 | **3.45** | 3.59 | +0.54 | [+0.133, +0.365] |
+| south 3 h | 1.80 | 1.85 | **1.45** | 1.46 | +0.20 | [+0.046, +0.058] |
+| south 6 h | 4.21 | 4.40 | **3.39** | 3.49 | +0.64 | [+0.153, +0.228] |
+
+- The Hs² blend loses in all 6 cells; every CI excludes zero, and the Catmull-Rom comparison loses too.
+- In the storm cores (top 2% of truth), Hs² is slightly better in natl and south (e.g. natl 6 h: 14.6 vs 15.4 cm) and
+  worse in nwpac (30.3 vs 29.2).
+- The script is `energy_blend.py` in the session scratchpad. Its data is the 10-20 `advinterp/data` set, read
+  offline; our backend was never touched.
+- Caveat (Reflection): truth is model output, not buoys. Peak timing and shape were not scored.
+- **Verdict:** two independent hold-outs (M4, M7) refute Hs² time blending. Keep clamped Catmull-Rom on Hs.
+
+### 7.2 Findings by topic
+
+Citation counts are from OpenAlex, 2026-11-02.
+
+**Nearshore transform (refines A5).**
+- **Event errors stay large.** O'Reilly et al. 2016 (CDIP MOP; doi:10.1016/j.coastaleng.2016.06.005; 134 cites) run
+  a linear spectral refraction model from offshore buoys to the 20 m contour. Its hindcasts have low bias, so they
+  suit mean (monthly, annual) climate. The abstract says errors "for individual swell or sea events can be large".
+  Skill is high in north San Diego County and low in the Santa Barbara Channel and southern Monterey Bay.
+  - *Agrees* with A5's direction. *Adds* that per-spot K fixes the **climate-scale shadow bias** (Canaveral 0.52-0.58)
+    but should not be sold as event skill.
+  - Its output is a ~20 m spectrum, so breaking stays a separate step.
+- **Direction and the offshore boundary.** Crosby, O'Reilly & Guza 2016 (JTECH; 25 cites): on sheltered coasts,
+  nearshore error is dominated by offshore **directional** uncertainty.
+  - Buoy-derived boundary conditions beat WW3-derived ones. A buoy + WW3 blend (CMB-ADJ) is about as good and more
+    robust across regions.
+  - *Settles a memory tension.* `open-ocean-instant-plan` says to calibrate K on CDIP/NDBC buoys, while the Canaveral
+    Reflection says never tune K to buoys. The literature does neither: it **validates** K on nearshore buoys and
+    **adjusts the offshore boundary** with offshore buoys.
+  - Action: K stays physics. Where an offshore buoy exists, a CMB-ADJ-style day-0 boundary is a separate dark arm.
+- **Per-partition linear superposition.** HyWaves (Ocean Modelling 2023, doi:10.1016/j.ocemod.2023.102210; 26 cites)
+  downscales each spectral partition separately and recombines them by linear theory. It is validated in Samoa,
+  American Samoa, Majuro and Kwajalein, and is valid from offshore to intermediate depth.
+  - *Agrees* with "K per partition", and it is a published template for the table build.
+- **Refraction-only K is too narrow.** Ardhuin et al. 2003 (JPO; 163 cites): energetic swell lost up to 93% of its
+  energy across the wide NC/VA shelf, and less at smaller amplitude (already in §1c).
+  - New here: directional spectra **broaden** over the inner shelf where refraction predicts narrowing (Bragg
+    scattering).
+  - Action: a ray-traced K is directionally too narrow on wide shelves; validate the directional spread, not only Hs.
+- **ML downscaling, a later option.** A 2026 deep-learning offshore→nearshore model (Commun. Earth Environ.,
+  doi:10.1038/s43247-026-04004-x; 0 cites) reaches R² 0.90 against UK buoys and 0.84 in a global check. It combines a
+  surrogate with an observation-based residual correction.
+  - *Agrees* with §1d: emulate only after physics tables exist. Treat it as a reference design, not a shortcut.
+
+**Breaker index (consistent with the H1 closure, §1b).** Zhang et al. 2021 (Coastal Eng.,
+doi:10.1016/j.coastaleng.2021.103914; arXiv 2104.00208; 43 cites) invert a Baldock-type Hrms model on Duck94,
+Egmond and Terschelling, plus 14 lab tests.
+- γ depends **jointly** on offshore steepness s₀ and kh. For s₀ < ~0.023 (long-period swell), γ *decreases* with kh;
+  for s₀ > ~0.026 it increases.
+- Ruessink 2003's γ = 0.29 + 0.76 kh came mostly from steep, energetic hours: its D_b > 15 N/ms filter kept only 18%
+  of the data.
+- The new law cuts Hrms error by 10-24% (mean 19%) against seven laws, most at small s₀. Its fit holds for
+  s₀ 0-0.05 and kh 0.3-1.2, with clipping outside.
+- It is the published counterpart of our Duck Phase A finding (the live γ reads high in low-steepness hours). But it
+  is an **Hrms-model dissipation parameter**, which is exactly the statistic mismatch that closed H1.
+- Action: none now. If γ is ever reopened, Zhang 2021 is the arm to add to `gamma_law_surfzone_eval.py`, with the
+  statistic named first.
+
+**Partitions and periods (extends M1, A1, A10).** The WW3 v5.16 manual corroborates M1 independently of the source:
+`FP` is the total peak "from the one-dimensional frequency spectrum using a parabolic fit", and `PTP` is the "peak
+(relative) periods of partitions … (parabolic fit)". The manual adds two facts §0 does not have:
+1. **Partitions are found per grid point, with no identity across space or time.** They come from a watershed
+   algorithm (Vincent & Soille 1991; Hanson & Phillips 2001, 338 cites; Tracy et al. 2007). The manual says
+   verbatim that "there is no coherence between the identified partitions over geographical space and in time".
+   Tracking is a separate optional step that GFS field output does not apply.
+   - So `swell_1` / `swell_2` are **ranked slots, not tracked systems**, and can swap between neighbouring nodes and
+     between frames.
+   - *Refines memory.* `open-ocean-instant-plan` Q2(a) calls per-partition Tp "the honest field". It is honest per
+     node, but interpolating it slot by slot in space (bilinear tiles) or time (scrubber) can blend two different
+     swells.
+   - Action, before SURF_PARTITIONS drives any interpolated surface: measure the swap rate in a hold-out. Then match
+     slots by direction and period between taps and frames, or interpolate only the total and the per-node shares.
+2. **Wind sea is identified by wave age.** The wind-sea fraction counts energy where 1.7·U₁₀·cos(θ−θw) exceeds the
+   phase speed (default multiplier 1.7). So the "wind waves" slot is a wind-forcing definition, not a period cut.
+   This matters when comparing it to ICON `ppww` and CMEMS `VHM0_WW`.
+
+The partition **periods** still differ by model, and A1 should close this before per-partition surf:
+
+| Model | Partition period carried | Kind |
+|---|---|---|
+| GFS (SWPER, WVPER) | PTP | peak |
+| ICON | `mpts` / `mpww` today; `ppts` / `ppww` behind `ICON_PEAK_PERIOD` | mean today, peak behind the flag |
+| Copernicus EURO | `VTM01_*` (Tm01) | mean, no partition peak published |
+| ECMWF open data | no partitions; bands (`h1012` …) only | none |
+
+Reflection objects that "never interpolate slot-wise" is too absolute where tracked IDs exist. Agreed; GFS fields have
+none.
+
+**Consensus and calibration (supports A3; agrees with D-006).**
+- **Combination studies support equal weights:**
+  - Smith & Wallis 2009 (338 cites): the forecast-combination puzzle.
+  - Weigel et al. 2010 (J. Climate, doi:10.1175/2010JCLI3594.1; 386 cites): weighting with uncertain weights can do
+    worse than equal weights.
+  - Alves et al. 2013 (59 cites): the multi-centre wave ensemble beats its members.
+- **Post-processing gains are mostly bias removal:**
+  - Lenartz et al. 2010 (Ocean Sci., doi:10.5194/os-6-595-2010; 12 cites): the wave super-ensemble's gain was
+    "essentially due to a bias reduction".
+  - Campos et al. 2020 (Ocean Modelling, doi:10.1016/j.ocemod.2020.101617; 49 cites; full text read): a neural-net
+    nonlinear average of the NCEP wave ensemble, trained on altimeters, cut global NBias from 3.5% to under 1%, but
+    scatter "was more difficult to reduce". Day-10 NRMSE equalled the arithmetic mean's day-8, a two-day gain. The
+    best net size grew with lead.
+  - Filoche et al. 2026 (§1d, full abstract read): at 120 h, swell Hs RMSE 0.16→0.12 m (−25%) and swell peak-period
+    error 2.22→1.39 s (−37%). It also removed the early-arrival bias for swell, with 3.5 years of one buoy.
+- *Agrees* with D-006 and A3: debias first, by lead and region, and keep equal weights.
+- *Caveat:* Campos is a single-centre ensemble, not a multi-model mean.
+- Reflection adds: test the bias correction on extremes, and on Tp and direction, not just all-sea Hs, because it can
+  damp peaks too.
+
+**ML wave models (agrees with A4; adds detail).**
+- **Aurora** (Nature 2025; 269 cites; full text read): the wave fine-tune on HRES-WAM *analysis* (0.25°, 2016-2021,
+  tested on 2022) is within 20% RMSE of HRES-WAM on 96% of targets, and matches or beats it on 86% of wave variables
+  (partitions and PP1D included). But it is scored against analysis, not buoys. In its own showcase (Typhoon Nanmadol)
+  it peaks at 10.2 m against 11.3 m in the analysis, a sign of peak smoothing. It needs GPUs and HRES-WAM inputs.
+- **OceanCastNet** (JAMES 2025, doi:10.1029/2025MS005285; 17 cites): better than ECWAM at 24 NDBC stations against
+  10, on Hs, mean period and direction.
+- **For contrast:** GraphCast (1,467 cites) and Pangu (1,675) are atmosphere-only.
+- §0-M3's AIFS Single wave stays the only zero-cost ML wave member. The Aurora peak gap reinforces A4's rule: grade
+  by big-swell band before any consensus change.
+
+**Surf quality (agrees with §6 and A9).**
+- **Accepted descriptors, no validated metric.** The literature's accepted descriptors are height, peel angle,
+  breaking intensity and section length (Scarfe et al. 2009, 66 cites; Hutt, Black & Mead 2001, 54 cites). No
+  validated 0-100 metric exists. `surf_rating.py` already uses Espejo 2014 and an Iribarren breaker-type factor.
+- **A cheap truth route for A9.** Expected Distribution of Surfing Days in the Iberian Peninsula (JMSE 2020,
+  doi:10.3390/jmse8080599; 10 cites) defines a "surfing day" as Hs > 0.9 m with the spot's optimal swell direction.
+  It validates that definition against **citizen-science session logs from a surf app** (Glassy).
+- **A camera route for peel angle.** Wave Peel Tracking (Remote Sensing 2021, doi:10.3390/rs13173372; 9 cites)
+  measures ride rate, length and peel speed from a shore camera, validated against surfers' GPS. It is the only
+  measured route to peel angle, a per-spot static prior we lack.
+
+### 7.3 Contradictions with memory found in this pass
+
+1. **`open-ocean-instant-plan-2026-11-01` Q2(b), "blend Hs² then root in time"**: refuted again (M7, on top of M4).
+2. **`open-ocean-instant-plan` Q2(a), "per-partition Tp is the honest field"**: true per node. GFS partitions are
+   untracked ranked slots, so interpolating them slot by slot is not honest (§7.2).
+3. **K "calibrated on CDIP/NDBC"** (open-ocean plan) versus **"never tune K to buoys"** (Canaveral note): the
+   literature validates K and buoy-adjusts the offshore boundary instead (Crosby 2016).
+4. **A5 framed as the "largest per-spot gain"** (§2): right for climate-scale bias, but O'Reilly 2016 shows event
+   errors remain large, and in sheltered sites the model's direction error dominates (Crosby 2016).
+
+Nothing in this pass contradicts D-006, the H1 closure, #412's period fix, M1 or M3.
+
+### 7.4 Top 5 actions from this pass (all dark; none changes a served number)
+
+1. **Keep Hs-space clamped Catmull-Rom.** Close the Hs² time-blend idea in memory, now with two independent
+   refutations.
+2. **Partition slot coherence before SURF_PARTITIONS feeds any interpolated surface.**
+   - Measure the swell_1/swell_2 swap rate between taps and frames.
+   - Match by direction and period, or interpolate the total plus per-node shares.
+   - Put all partition periods on one definition (peak) first.
+3. **A5 spec additions:**
+   - K per partition, HyWaves-style.
+   - Validate on nearshore buoys and never tune K to them.
+   - Score directional spread as well as Hs.
+   - Run a separate CMB-ADJ-style buoy-adjusted day-0 boundary arm where an offshore buoy exists.
+   - Report climate bias and event error separately.
+4. **A3 spec additions:** bias by lead × region × band, graded on extremes, Tp and direction as well as all-sea Hs.
+   Campos and Lenartz say the gain is bias, not weights.
+5. **A9 truth route:** an Iberian-style surfing-day check against logged sessions is the cheapest first skill score
+   for the rating. Camera peel tracking comes later, for per-spot priors.
+
+### 7.5 Second opinion
+
+Reflection (Beam-1.0, high effort). It was sent the five conclusions as written in §7.1-§7.2, with selected text
+only.
+
+| # | Conclusion | Verdict | Strongest objection, and what it says is missing |
+|---|---|---|---|
+| 1 | Time blending | agree with caveat | Model-output truth; storm cores are mixed. Missing: a buoy or multi-model hold-out, and peak timing and shape. |
+| 2 | Partitions | agree with caveat | Too absolute where tracking exists, and forcing peak periods needs spectral assumptions. Missing: a measured swap rate, a validated matcher, and models with no partitions (total only). |
+| 3 | Nearshore | agree | Static linear K misses breaking, currents, tide and sheltering, and may not improve event skill. Missing: per-spot event validation, tide and depth updates, and a fallback rule. |
+| 4 | Breaker index | agree | Hrms-based, a few beaches. Missing: Hs-specific validation, more sites and slopes, and rollback criteria. |
+| 5 | Consensus | agree with caveat | Bias correction can overfit or damp peaks. Missing: offline EMOS tests on extremes, Tp and direction, plus an update protocol and spread verification. |
+
+All objections are folded into §7.2-§7.4 above.
+
+### 7.6 Sources added in this pass
+
+OpenAlex citation counts were read 2026-11-02.
+
+- Zhang et al. 2021, doi:10.1016/j.coastaleng.2021.103914 (43); arXiv:2104.00208, full text read
+- Lenartz et al. 2010, doi:10.5194/os-6-595-2010 (12)
+- Campos et al. 2020, doi:10.1016/j.ocemod.2020.101617 (49); NOAA repository full text read
+- Weigel et al. 2010, doi:10.1175/2010JCLI3594.1 (386)
+- Ricondo, Cagigal, Rueda et al. 2023 (HyWaves), doi:10.1016/j.ocemod.2023.102210 (26)
+- Offshore→nearshore deep learning 2026, doi:10.1038/s43247-026-04004-x (0)
+- OceanCastNet (Zhang, Yu, Ren et al. 2025), doi:10.1029/2025MS005285 (17)
+- Pangu-Weather (Bi et al. 2023), doi:10.1038/s41586-023-06185-3 (1,675)
+- Hutt, Black & Mead 2001, "Classification of surf breaks in relation to surfing skill", J. Coastal Res. SI 29
+  (OpenAlex W2516922376; 54)
+- Expected surfing days, Iberian Peninsula, 2020, doi:10.3390/jmse8080599 (10)
+- Wave Peel Tracking 2021, doi:10.3390/rs13173372 (9)
+- WAVEWATCH III User Manual v5.16, §2.6 (output parameters) and §3.12 (spectral partitioning):
+  polar.ncep.noaa.gov/waves/wavewatch/manual.v5.16.pdf
+- Counts for sources already listed in §6: O'Reilly 2016 (134), Crosby 2016 (25), Battjes & Stive 1985 (428),
+  Ruessink 2003 (188), Salmon 2015 (51), Ardhuin 2003 Part I (163), Hanson & Phillips 2001 (338), Portilla 2009
+  (261), Gneiting 2005 (1,141), Raftery 2005 (1,915), Smith & Wallis 2009 (338), Alves 2013 (59), Espejo 2014 (24),
+  Scarfe 2009 (66), Lam 2023 (1,467), Bodnar 2025 (269), Hahner 2026 (0), Filoche 2026 (0).
