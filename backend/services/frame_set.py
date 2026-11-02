@@ -65,7 +65,7 @@ SETS = tuple({"model": m, "domain": "marine", "layer": l, "region_id": "global_m
     *(dict(t) for t in fsf.FILLED_SETS),
 )
 
-# EURO SWELL (item 14, 2026-11-01, DARK: FRAME_EURO_SWELL_SETS, default '0'): EURO swell_1/swell_2/wind_waves at the world tier,
+# EURO SWELL (item 14, 2026-11-01: FRAME_EURO_SWELL_SETS, default '1' since the owner's ON-by-default word that night; kill switch '0'): EURO swell_1/swell_2/wind_waves at the world tier,
 # plain and with the targeted Gulf fill (CMEMS masks the enclosed seas for every layer; coarse_gulf_fill fills all four). They exist
 # only once the pilots lane stores EURO global_mid swell (EURO_MARINE_MID_CMEMS_SWELL), so they are NOT in SETS: publish_frame_images
 # adds them after the world sets (before the regional bundles) only while the flag is '1'. The client's STATIC_SETS must list
@@ -76,7 +76,7 @@ EURO_SWELL_SETS = tuple({"model": "EURO", "domain": "marine", "layer": l, "regio
 
 
 def euro_swell_sets_enabled():
-    return os.environ.get("FRAME_EURO_SWELL_SETS", "0") == "1"
+    return os.environ.get("FRAME_EURO_SWELL_SETS", "1") != "0"
 
 
 def euro_swell_sets():

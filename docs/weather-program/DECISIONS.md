@@ -1849,3 +1849,11 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **What moves:** past ICON hour 168, production's infobox and heatmap read the stored estimated tail (the D-055 CDN frames), as dev has done since 2026-10-04, instead of the browser's own anchor blend. The evidence is dev's history under the flag: D-016's replay controls, and every regression and SCOREBOARD row since 10-27, which were built with the flag on.
 - **Measure after:** on the production bundle, ICON scrubbed to h192/h250/h300 draws from the frame store (`__MARINE_DRAWN__` source), with no browser blend asks; plus a SCOREBOARD row.
 - **Rollback:** set `REACT_APP_ICON_STORED_TAIL=false` in the Netlify UI for production and rebuild main (an explicit value wins; `src/netlifyIconStoredTailScope.test.js` pins it), or drop the `production` clause from the `netlify.toml` build command.
+
+### D-062 · EURO swell partitions are stored at the 2-deg world tier from CMEMS, and their frame sets publish (both ON by default, 2026-11-01)
+- **Decided:** owner, 2026-11-01 22:10 EST, as D-060.
+- **Flags:** `EURO_MARINE_MID_CMEMS_SWELL` (pilots ingest) and `FRAME_EURO_SWELL_SETS` (pilots frame step), default '1' in code, registry and workflow; kill switch '0' (repo variables).
+- **Evidence:** `log/2026-11-01-claude-euro-mid-cmems-swell.md`; `tests/test_euro_mid_cmems_swell.py` 13, including an offline run of the real fetcher against a fake CMEMS subset.
+- **What moves:** EURO swell_1/swell_2/wind_waves resolve from the 2-deg tier (same CMEMS MFWAM source, finer grid) instead of 10 deg. The frame sets are unused bytes until the client's `STATIC_SETS` lists them, so the publisher now runs them LAST, after the regional bundles: the publish budget drops them before any set the client draws.
+- **Cost (unmeasured, watch the first run):** ~83 CMEMS bands across 4 fetcher processes; logs `EURO mid CMEMS swell: N files` and four `[Copernicus Global] lats ...` SUMMARY lines. A CMEMS failure costs the swell layers only.
+- **Rollback:** `gh variable set EURO_MARINE_MID_CMEMS_SWELL --body 0` (and `FRAME_EURO_SWELL_SETS`).

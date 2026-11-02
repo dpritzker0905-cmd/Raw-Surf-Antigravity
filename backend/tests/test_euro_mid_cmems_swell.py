@@ -175,7 +175,7 @@ def _layers(store, provider=None):
 
 @pytest.mark.asyncio
 async def test_flag_off_stores_waves_only_and_never_asks_cmems(mid_job, monkeypatch):
-    monkeypatch.delenv("EURO_MARINE_MID_CMEMS_SWELL", raising=False)
+    monkeypatch.setenv("EURO_MARINE_MID_CMEMS_SWELL", "0")  # the kill switch (ON by default since 2026-11-01)
     scheduler, store, calls = mid_job
     assert await scheduler.ingest_euro_marine_global_mid() is True
     assert _layers(store) == {"waves"} and calls == []
@@ -183,7 +183,7 @@ async def test_flag_off_stores_waves_only_and_never_asks_cmems(mid_job, monkeypa
 
 @pytest.mark.asyncio
 async def test_flag_on_adds_the_three_cmems_partitions_at_global_mid(mid_job, monkeypatch):
-    monkeypatch.setenv("EURO_MARINE_MID_CMEMS_SWELL", "1")
+    monkeypatch.delenv("EURO_MARINE_MID_CMEMS_SWELL", raising=False)  # unset = ON
     scheduler, store, calls = mid_job
     assert await scheduler.ingest_euro_marine_global_mid() is True
     assert calls == [{"variables": list(CMEMS_PARTITION_VARS), "workers": 4}]
@@ -210,12 +210,13 @@ def test_publisher_adds_the_euro_swell_sets_only_with_its_flag(monkeypatch):
     from scripts.publish_frame_images import selected_sets
     monkeypatch.delenv("FRAME_SETS", raising=False)
     monkeypatch.setenv("FRAME_REGIONAL_BUNDLES", "0")
-    monkeypatch.delenv("FRAME_EURO_SWELL_SETS", raising=False)
+    monkeypatch.setenv("FRAME_EURO_SWELL_SETS", "0")  # the kill switch (ON by default since 2026-11-01)
     off = [fs.set_key(t) for t in selected_sets()]
     assert not any(k.startswith("EURO/marine/swell") or k.startswith("EURO/marine/wind_waves") for k in off)
-    monkeypatch.setenv("FRAME_EURO_SWELL_SETS", "1")
+    monkeypatch.delenv("FRAME_EURO_SWELL_SETS", raising=False)  # unset = ON
     on = [fs.set_key(t) for t in selected_sets()]
     added = [k for k in on if k not in off]
     assert len(added) == 6
     assert {k.split("/")[2] for k in added} == {"swell_1", "swell_2", "wind_waves"}
-    assert on[:len(fs.SETS)] == off[:len(fs.SETS)], "the existing sets keep their order and come first"
+    assert on[:len(off)] == off, "every existing set (world and regional) keeps its order and comes first"
+    assert on[len(off):] == added, "the EURO swell sets come LAST, so the publish budget drops them before any bundle"

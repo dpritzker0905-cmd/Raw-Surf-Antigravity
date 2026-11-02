@@ -42,3 +42,12 @@ partition variables are asked, only the given latitudes are fetched, and no tota
   `[Copernicus Global] lats ...` SUMMARY lines (bands_ok, elapsed each). The lane's p90 is 124 of 200 min.
 - **Served numbers change when flipped** (EURO swell resolves from global_mid, not the 10-deg coarse): owner's word with
   evidence (D-001) and a SCOREBOARD row. The frame flag moves no number by itself (frames mirror stored products).
+
+## 22:10-23:05 EST: flipped ON by default (owner's word, D-062)
+- The owner (via the lead, 22:10 EST): measured features ship ON with a kill switch. `EURO_MARINE_MID_CMEMS_SWELL` and
+  `FRAME_EURO_SWELL_SETS` now default '1' in code, `_RATING_FLAGS` and the pilots workflow; '0' (repo variables) kills each.
+- **Changed with the flip:** the six EURO swell frame sets now publish LAST, after the regional bundles. They were between the world
+  sets and the bundles; with the flag on, the publish budget stagger (FRAME_PUBLISH_BUDGET_S) could have dropped a bundle the client
+  draws to make room for sets no client reads yet. `test_frame_set_bundle.py` pins the new order.
+- Local: 320 passed (copernicus/cmems/frame_set/publish_frame/static frame/ecmwf_euro/marine_mid/euro_extended/fetcher imports) +
+  flag_lane_parity. Cost still unmeasured: watch the first pilots run's four `[Copernicus Global] lats` SUMMARY lines.

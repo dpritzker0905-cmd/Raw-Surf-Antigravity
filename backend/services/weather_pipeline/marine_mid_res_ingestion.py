@@ -347,7 +347,7 @@ EURO_MID_SWELL_LAYERS = ("swell_1", "swell_2", "wind_waves")
 
 
 def euro_mid_cmems_swell_enabled() -> bool:
-    return os.environ.get("EURO_MARINE_MID_CMEMS_SWELL", "0") == "1"
+    return os.environ.get("EURO_MARINE_MID_CMEMS_SWELL", "1") != "0"
 
 
 def euro_mid_cmems_workers() -> int:
@@ -358,7 +358,7 @@ def euro_mid_cmems_workers() -> int:
 
 
 async def _ingest_euro_mid_cmems_swell(scheduler, env, run_time, resolution, cop_days, basis) -> int:
-    """ITEM 14 (2026-11-01, DARK: EURO_MARINE_MID_CMEMS_SWELL, default '0'): EURO swell_1/swell_2/wind_waves at the 2-deg world tier.
+    """ITEM 14 (2026-11-01: EURO_MARINE_MID_CMEMS_SWELL, default '1' since the owner's ON-by-default word that night; kill switch '0'): EURO swell_1/swell_2/wind_waves at the 2-deg world tier.
 
     Today the ECMWF branch saves `waves` only (the free feed has no partitions), so EURO swell exists only at 10 deg
     (global_coarse) and has no world frame at any zoom. This adds the CMEMS partitions at 2 deg after the ECMWF waves save:
