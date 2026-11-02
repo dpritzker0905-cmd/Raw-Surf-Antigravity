@@ -16,6 +16,8 @@ const ALLOWED = new Set([
   'frontend/scripts/offline-backend/series_diagnostics.cjs',
   'frontend/scripts/offline-backend/series_diagnostics.py',
   'frontend/scripts/offline-backend/test_series_diagnostics.py',
+  'frontend/scripts/offline-backend/connection_diagnostics.py',
+  'frontend/scripts/offline-backend/test_connection_diagnostics.py',
   'frontend/scripts/seriesDiagnostics.test.cjs',
 ]);
 const marked = message => String(message || '').split(/\r?\n/, 1)[0].includes('[harness chromium]');
