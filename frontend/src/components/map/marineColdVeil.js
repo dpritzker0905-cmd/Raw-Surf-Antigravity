@@ -19,7 +19,9 @@
  *   null     — no veil, or it is lifting (the 350 ms reveal, from its first frame drawn above 0: the drawn record then describes it).
  * clearColdVeil() (the engine's resident clear) publishes null, so a cleared layer never leaves the words behind.
  *
- * THE LABELLED COARSE PREVIEW (DARK, for the owner's side-by-side A/B; opt in with window.__RAW_COLD_PREVIEW__ = true).
+ * THE LABELLED COARSE PREVIEW (ON by default: the owner's pick after the side-by-sides, 2026-11-01 20:02 EST, "Yes, show preview").
+ * A visual change the owner asked for, so it ships on; it moves no served number. Kill: window.__RAW_DISABLE_COLD_PREVIEW__ = true
+ * (the blank veil with A's "Loading the detailed forecast…" words, as before).
  * Instead of a blank sea, the veil window paints the 2-deg field at the blend-base wash strength (__RAW_BLEND_BASE_WASH__, 0.72, the
  * faint coarse under-wash BLEND BOTH draws beneath a regional tile), says so in words, and cross-fades to the detail with the veil's
  * own 350 ms smoothstep, from the preview's strength instead of from 0 (non-blocking: nothing waits on it). Phase 'preview'. Words:
@@ -61,7 +63,7 @@ export function _resetColdVeilForTest() { _state = NONE; _listeners.clear(); }
 
 const lonSpan = (vb) => ((vb[2] < vb[0]) ? (vb[2] + 360 - vb[0]) : (vb[2] - vb[0]));
 
-export const previewOn = (win) => (win || W()).__RAW_COLD_PREVIEW__ === true;
+export const previewOn = (win) => (win || W()).__RAW_DISABLE_COLD_PREVIEW__ !== true;
 export function previewStrength(win) {
   const v = (win || W()).__RAW_BLEND_BASE_WASH__;
   return typeof v === 'number' && v >= 0 && v <= 1 ? v : 0.72;

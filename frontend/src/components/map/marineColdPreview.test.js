@@ -1,12 +1,12 @@
 /**
- * The labelled coarse preview (D3 path 3, DARK: window.__RAW_COLD_PREVIEW__ = true, for the owner's side-by-side A/B). During the
- * cold veil it paints the 2-degree first frame at the blend-base wash strength (0.72) with words that say what it is, over open
+ * The labelled coarse preview (D3 path 3; ON by default, the owner's pick 2026-11-01 20:02 EST: "Yes, show preview"; kill
+ * window.__RAW_DISABLE_COLD_PREVIEW__ = true). During the cold veil it paints the 2-degree first frame at the blend-base wash strength (0.72) with words that say what it is, over open
  * water only, and cross-fades to the detail with the veil's 350 ms smoothstep from that strength.
  */
 import React from 'react';
 import { act, render, screen } from '@testing-library/react';
 import ForecastTimeStatus from './ForecastTimeStatus';
-import { applyColdVeil, getColdVeilState, noteColdVeilStamp, previewCoastal, previewWords, _resetColdVeilForTest } from './marineColdVeil';
+import { applyColdVeil, clearColdVeil, getColdVeilState, noteColdVeilStamp, previewCoastal, previewWords, _resetColdVeilForTest } from './marineColdVeil';
 import { _resetMarineDrawnForTest } from './marineDrawnFrame';
 
 const COCOA = [-80.9, 27.9, -79.9, 28.6];          // inside florida_east_coast (a pilot box)
@@ -21,16 +21,27 @@ const world = (land = () => false) => {
   return { cols, rows, vectors, bounds: { west: -180, east: 180, south: -80, north: 84 }, __sourceModel: 'GFS',
     served_valid_time: '2026-11-01T15:00:00Z', model_run_time: '2026-11-01T12:00:00Z', model_run_time_status: 'known' };
 };
-const ON = (extra = {}) => ({ __RAW_COLD_PREVIEW__: true, ...extra });
+const ON = (extra = {}) => ({ ...extra });                                     // the default: no flag needed
+const KILLED = { __RAW_DISABLE_COLD_PREVIEW__: true };
 const opts = (vb, grid = world(), extra = {}) => ({ residentCoarseGlobal: true, vb, grid, isRating: false, ...extra });
 
 afterEach(() => { _resetColdVeilForTest(); });
 
-describe('dark by default', () => {
-  test('without the flag the veil hides the field exactly as before (multiplier 0, the loading words)', () => {
-    const m = applyColdVeil({ _coldVeil: { t0: 1000 } }, { ...opts(OCEAN), nowMs: 1500 }, {});
+describe("ON by default (the owner's pick); the kill switch restores the blank veil", () => {
+  test('with no flag at all the open-water veil paints the preview', () => {
+    expect(applyColdVeil({ _coldVeil: { t0: 1000 } }, { ...opts(OCEAN), nowMs: 1500 }, {})).toBeCloseTo(0.72, 9);
+    expect(getColdVeilState().phase).toBe('preview');
+  });
+  test('__RAW_DISABLE_COLD_PREVIEW__ hides the field exactly as before (multiplier 0, the loading words), stamp and render alike', () => {
+    const m = applyColdVeil({ _coldVeil: { t0: 1000 } }, { ...opts(OCEAN), nowMs: 1500 }, KILLED);
     expect(m).toBe(0);
     expect(getColdVeilState().phase).toBe('hidden');
+    _resetColdVeilForTest();
+    noteColdVeilStamp({ _coldVeil: { t0: performance.now() }, _lastViewportBounds: OCEAN }, world(), KILLED);
+    expect(getColdVeilState().phase).toBe('hidden');
+  });
+  test('the old opt-in name does nothing now (it was never shipped)', () => {
+    expect(applyColdVeil({ _coldVeil: { t0: 1000 } }, { ...opts(OCEAN), nowMs: 1500 }, { __RAW_COLD_PREVIEW__: false })).toBeCloseTo(0.72, 9);
   });
 });
 
@@ -100,9 +111,8 @@ describe('never nearshore truth: suppressed near a coast', () => {
 
 describe('the status line says what the preview is', () => {
   beforeEach(() => { jest.useFakeTimers('modern'); jest.setSystemTime(Date.parse('2026-11-01T16:20:00Z')); _resetMarineDrawnForTest(); });
-  afterEach(() => { jest.useRealTimers(); delete window.__RAW_COLD_PREVIEW__; });
-  test.each(['light', 'dark', 'beach'])('%s: the coarse preview words (polite, busy), with model, valid time and run', (theme) => {
-    window.__RAW_COLD_PREVIEW__ = true;
+  afterEach(() => { jest.useRealTimers(); delete window.__RAW_DISABLE_COLD_PREVIEW__; });
+  test.each(['light', 'dark', 'beach'])('%s: the coarse preview words (polite, busy), with model, valid time and run; none when killed', (theme) => {
     render(<ForecastTimeStatus model="GFS" layer="waves" hour={0} theme={theme} />);
     act(() => { applyColdVeil({ _coldVeil: { t0: performance.now() } }, opts(OCEAN), window); });
     const line = screen.getByRole('status');
@@ -111,5 +121,9 @@ describe('the status line says what the preview is', () => {
     expect(line).toHaveAttribute('aria-live', 'polite');
     expect(line).toHaveAttribute('aria-busy', 'true');
     expect(line).toHaveAttribute('data-cold-veil', 'preview');
+    window.__RAW_DISABLE_COLD_PREVIEW__ = true;
+    act(() => { clearColdVeil(); });
+    act(() => { applyColdVeil({ _coldVeil: { t0: performance.now() } }, opts(OCEAN), window); });
+    expect(screen.getByRole('status')).toHaveTextContent('Loading the detailed forecast…');
   });
 });

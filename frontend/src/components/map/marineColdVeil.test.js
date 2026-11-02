@@ -36,9 +36,9 @@ describe('applyColdVeil: the engine block moved here draws exactly what it drew'
     window.__RAW_GPU__ = {};
     const eng = { _coldVeil: { t0: 1000 } };
     applyColdVeil(eng, { ...opts(), nowMs: 1500 }, window);
-    expect(window.__RAW_GPU__.coldVeil).toEqual({ mult: 0, lifted: false, reason: null });
+    expect(window.__RAW_GPU__.coldVeil).toMatchObject({ mult: 0, lifted: false, reason: null });   // + preview fields (the preview PR)
     applyColdVeil(eng, { ...opts(), nowMs: 5100 }, window);                       // grace (4 s) expired
-    expect(window.__RAW_GPU__.coldVeil).toEqual({ mult: 0, lifted: true, reason: 'grace' });
+    expect(window.__RAW_GPU__.coldVeil).toMatchObject({ mult: 0, lifted: true, reason: 'grace' });
     applyColdVeil(eng, { ...opts(), nowMs: 5500 }, window);
     expect(window.__RAW_GPU__.coldVeil).toBeNull();
   });
