@@ -114,6 +114,9 @@ const PROBE = () => {
     // main pass on purpose and the wash shows through): only a main pass at 0 with NO wash under it is an empty sea
     const blend = window.__RAW_GPU__ && window.__RAW_GPU__.blendBoth; const washUnder = !!(blend && blend.engaged);
     if (marineOn && r.has && opFresh && op.heatmap === 0 && !washUnder) openEp('alpha0', 'inv1_alpha0', snap()); else closeEp('alpha0');
+    // D3 (2026-11-01): the cold veil's empty sea must be WORDED as loading; anything else describes a field that is not on screen
+    const veilUp = !!(window.__RAW_GPU__ && window.__RAW_GPU__.coldVeil && !window.__RAW_GPU__.coldVeil.lifted);
+    if (marineOn && r.has && opFresh && op.heatmap === 0 && !washUnder && veilUp && !/Loading|loading/.test(status)) openEp('veilwords', 'inv2_veil_blank_unworded', snap()); else closeEp('veilwords');
     if (marineOn && r.has && F.firstPaint[layerKey] && op && op.t && Date.now() - op.t > 600 && now - F.firstPaint[layerKey] > 1000) openEp('nodraw', 'inv1_heatmap_not_drawing', snap()); else closeEp('nodraw');
     // ONE FRAME, ONE RUN: under BLEND BOTH the coarse base wash and the resident are drawn together; their verified cycles must agree
     const eng = window.__MARINE_ENGINE__; const base = eng && eng._coarseBaseData && eng._coarseBaseData.waveGrid;
