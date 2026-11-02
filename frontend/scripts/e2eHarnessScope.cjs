@@ -1,6 +1,10 @@
 /** Opt-in qualification scope; normal application regression selection is unchanged. */
 const ALLOWED = new Set([
   '.github/workflows/e2e-tests.yml',
+  // Exact test-only CI corrections; production backend and weather paths stay excluded.
+  '.github/workflows/ci.yml',
+  'backend/tests/test_ci_floor_staleness.py',
+  'backend/tests/test_guardian_level_gates.py',
   'frontend/e2e/offlineWeather.js',
   'frontend/e2e/seededUiIsolation.js',
   'frontend/scripts/seededUiIsolation.test.cjs',
