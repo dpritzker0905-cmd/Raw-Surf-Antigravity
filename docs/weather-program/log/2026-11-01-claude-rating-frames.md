@@ -104,8 +104,49 @@ stopped to free the machine). Swell code is unchanged by this branch, so before/
 - Python 3.14 on this PC has no numpy, so `bathymetry` falls back to "coastal everywhere" there. Run the publisher and the harness
   with `backend/.venv` (3.12), as CI does.
 
+## Part 2 (11-02 ~01:30Z, "Build bundles here"): the RATED REGIONAL bundles, what the band paints from
+
+- **Publisher:** `frame_set_rating.rated_regional_sets()` = every GFS regional bundle set (`frame_set_bundle.REGIONAL_SETS`) with the
+  rated variant, key `GFS/marine/<layer>/<region>_rated`. `publish_bundle_set` passes the run's `ChainInputs` to `publish_set`.
+  The rated step publishes the regional waves bundles FIRST, then the world GFS waves set, then the other regional layers, then the
+  other world sets (`rated_publish_sets`). Off with `FRAME_RATING_REGIONAL=0`. Fixed on the way: a tile entirely on one side of 0 deg
+  (all US boxes) had an empty half and every frame refused (`min()` of nothing). Offline: florida_east_coast / us_west_coast_socal
+  waves and FL swell_1, 115/115 frames each, 0 refused, 0.2-0.4 MB a bundle, 11-25 s a set.
+- **Server, DARK (a served-number change):** `MARINE_REGIONAL_TILE_FIRST_SURF` (Render, default '0', registered in `_RATING_FLAGS`).
+  With `MARINE_REGIONAL_TILE_FIRST=1` it lets surf asks follow the tile-first rule, so `/grid?surf=1` in a box the stored tile fully
+  covers is rated on that tile, never a warm dynamic-cache product (another lattice, possibly another run). Today surf is excluded
+  from tile-first, so a rated bundle could not equal `/grid` wherever the dynamic cache is warm. `/capabilities` reports it on GFS
+  marine rows (`regional_tile_first_surf`).
+- **Client:** `staticRatingFrames.ratedRegionalTile` = `pickRegionalTile` + `_rated`, only while the lever is on AND /capabilities
+  reports the flag. The ask goes through the existing regional seam (`tryStaticRegionalGrid`, passed in), after its own check that the
+  frame is built and rated for this ask hour. Rated keys stay out of the GPU store's regional crop show.
+
+### Rated regional parity vs `/grid?surf=1` (`scn_regional_client_parity.mjs RATED=1`, backend with both flags, `--dynamic 1`)
+
+| Layer | Boxes claimed | Nodes (rated) | Bad | Claimed but the backend did not serve the full tile |
+|---|---|---|---|---|
+| waves (FL + SoCal) | 27 | 13,463 (7,045) | 0 | 0 |
+| swell_1 (FL) | 12 | 4,452 (3,223) | 0 | 0 |
+
+Rated speed is compared exactly. The flag-off control is `test_regional_tile_first.py`: with surf alone the dynamic cache answers.
+
+### Band ON PAINT inside the pilot boxes (z8, one build `build-after2`, interleaved)
+
+Florida (-80.6, 28.1) and SoCal (-118.5, 33.7) x 3 rounds, A B / B A. Arm today = backend tile-first on, surf flag off, lever off;
+arm rated = backend with both flags, lever on. "Painted" = `__RAW_GPU__.ratingBand.active` with a rating grid resident. 10 s watch.
+
+| Arm | Painted | Paint p50 / p95 (max) | Rating grid p50 | Box surf asks in the first 5 s | Blank frames |
+|---|---|---|---|---|---|
+| today (`/grid?surf=1`) | 5 of 6 (one not within 10 s) | 7,696 / 8,685 ms (8,685) | 7,679 ms | 1-2 every session | 0 |
+| rated bundles | **6 of 6** | **136 / 702 ms** (702) | 119 ms | **0** | 0 |
+
+The 702 ms one (SoCal round 2) held its first 2-deg frame for ~430 ms before the bundle landed (a cold bundle fetch). The rated
+sessions' later surf asks (one each, after 5 s) are re-asks outside the band ON.
+
 ## Not done / owed
 
-- Rated regional bundles (the lever that makes the band PAINT fast in pilot boxes): proposed, not built.
+- Outside the pilot boxes the painted band still comes from the box's dynamic 0.25-deg lane (nothing stored to publish): a decision.
+- The flips, both the owner's: Render `MARINE_REGIONAL_TILE_FIRST_SURF=1` (a served-number change), then the client lever; repo
+  variable `FRAME_RATING_SETS=1` (the lead).
 - The swell GPU-resident lever (N4: the frame store packs waves only) and EURO 2-deg swell (a new served product): not built.
 - Ledger `pr_open` line when the PR opens; the live read after the lead sets `FRAME_RATING_SETS=1` and the owner decides staleness.

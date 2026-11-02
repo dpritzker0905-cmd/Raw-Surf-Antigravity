@@ -44,6 +44,26 @@ RATED_LAYERS = (("GFS", "waves"), ("ICON", "waves"), ("EURO", "waves"), ("GFS", 
 RATED_SETS = tuple({"model": m, "domain": "marine", "layer": lyr, "region_id": "global_mid", "variant": VARIANT}
                    for m, lyr in RATED_LAYERS)
 ASK_OFFSETS_H = tuple(range(-3, 4))
+
+
+def rated_regional_sets():
+    """The RATED twins of the GFS regional bundle sets (frame_set_bundle.REGIONAL_SETS: every pilot box x waves, swell_1, swell_2,
+    wind_waves), key <model>/marine/<layer>/<region>_rated. These are what PAINT: the client holds the band on any rating grid with
+    cells of 1.0 deg or more (marineRatingBandRes.js), so a 2-deg world set gives the rating mode at once but the band waits for a
+    0.25-deg tile. Off with FRAME_RATING_REGIONAL=0. The client reads them only while /capabilities reports
+    regional_tile_first_surf (MARINE_REGIONAL_TILE_FIRST_SURF=1: /grid?surf=1 rates the same stored tile)."""
+    if os.environ.get("FRAME_RATING_REGIONAL", "1") == "0":
+        return ()
+    from services import frame_set_bundle as fsb
+    return tuple(dict(t, variant=VARIANT) for t in fsb.selected_regional_sets())
+
+
+def rated_publish_sets():
+    """The rated step's sets in publish order (the budget stagger drops the tail first): the regional waves bundles (they paint),
+    the GFS world waves set, the other regional layers, then the other world sets."""
+    regional = rated_regional_sets()
+    waves = [t for t in regional if t["layer"] == "waves"]
+    return tuple(waves) + RATED_SETS[:1] + tuple(t for t in regional if t["layer"] != "waves") + RATED_SETS[1:]
 SPLIT_LNG = 0.0   # the two halves: lng < 0 and lng >= 0 (each well under the overlay's 350-deg skip)
 # Every env value the rating chain reads (grid_resolver_surf, surf_rating, surf_transform, surf_point, bathymetry, shore normal,
 # the point selection the wind sampler uses). Recorded in the index; a value that differs from Render's is a different band.
@@ -201,11 +221,14 @@ def _code_sha12():
 
 
 def _half(product, keep):
-    """A shallow copy of the stored product holding the vectors `keep` selects, with bounds of its own cells."""
+    """A shallow copy of the stored product holding the vectors `keep` selects, with bounds of its own cells; None when it holds
+    none (a regional tile lies on one side of the split)."""
     from services.weather_pipeline.schemas import CoverageBounds
     p = product.model_copy()
     p.grid = product.grid.model_copy()
     p.grid.vectors = [v for v in product.grid.vectors if keep(v)]
+    if not p.grid.vectors:
+        return None
     lats = [v.lat for v in p.grid.vectors]
     lngs = [v.lng for v in p.grid.vectors]
     p.grid.bounds = CoverageBounds(west=min(lngs), south=min(lats), east=max(lngs), north=max(lats))
@@ -225,7 +248,7 @@ def rate_vectors(product_dict, model, layer, inputs):
     rated, tags = {}, []
     for keep in (lambda v: v.lng < SPLIT_LNG, lambda v: v.lng >= SPLIT_LNG):
         half = _half(product, keep)
-        if not half.grid.vectors:
+        if half is None:
             continue
         out = inputs.loop.run_until_complete(apply_surf_overlay(
             half, store=inputs.store, manifest=inputs.manifest, model=model, domain="marine", layer=layer, surf=True,

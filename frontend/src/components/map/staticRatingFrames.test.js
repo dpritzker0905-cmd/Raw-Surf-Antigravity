@@ -6,11 +6,12 @@
  * lists in ask_offsets_h, with the overlay's tag and per-box counts; the series lane never takes a surf page.
  */
 import {
-  _resetStaticFramesForTest, staticEligible, staticSeriesEligible, staticSeriesFrames, tryStaticWorldGrid,
+  _resetStaticFramesForTest, getPinnedRegionalIndexSync, pinnedRegionalKeys, staticEligible, staticSeriesEligible, staticSeriesFrames, tryStaticWorldGrid,
 } from './staticFrames';
 import { FIELD, RATING_CODE, buildVectors, parseFrame, ratingCounts } from './staticFrameCodec';
-import { askOffsetServed, ratedSetKey, ratingFramesOn, surfRegionalMayWin } from './staticRatingFrames';
+import { askOffsetServed, isRatedKey, ratedRegionalTile, ratedSetKey, ratingFramesOn, serverTileFirstSurf, surfRegionalMayWin } from './staticRatingFrames';
 import { setCachedManifest } from './backendWeatherServiceClientCoverage';
+import { _setRegionalCodecForTest } from './staticRegional';
 
 const BASE = 'https://cdn.test/weather-frames/';
 const KEY = ratedSetKey('GFS', 'waves');
@@ -177,5 +178,31 @@ describe('with the lever on', () => {
   test('the series lane never takes a surf page', async () => {
     expect(staticSeriesEligible({ model: 'GFS', layer: 'waves', bbox: CROP, surf: true })).toBe(false);
     expect(await staticSeriesFrames({ model: 'GFS', layer: 'waves', bbox: CROP, surf: true, hours: [0], anchorMs: Date.parse(VT), onFrames: () => {} })).toBeNull();
+  });
+});
+
+describe('pilot boxes: the RATED regional bundles (0.25 deg, what the band paints from)', () => {
+  const INSIDE_FL = { west: -82.5, south: 27.2, east: -80.2, north: 29.3 };          // a z8 box the florida_east_coast tile contains
+  const caps = (on) => { window.__WEATHER_CAPABILITIES__ = [{ model: 'GFS', domain: 'marine', layer: 'waves', regional_tile_first_surf: on }]; };
+  beforeEach(() => { window.__RAW_RATING_FRAMES__ = true; _setRegionalCodecForTest({ sha12: async () => 'x', gunzip: async (b) => b }); });   // jsdom: no crypto.subtle
+  afterEach(() => { delete window.__WEATHER_CAPABILITIES__; _setRegionalCodecForTest(); });
+
+  test('only while /capabilities reports regional_tile_first_surf: the tile key + _rated', () => {
+    caps(false);
+    expect(ratedRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: '-82.5,27.2,-80.2,29.3' })).toBeNull();
+    expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: INSIDE_FL, surf: true })).toBe(false);   // /grid, as today
+    caps(true);
+    expect(serverTileFirstSurf()).toBe(true);
+    const tile = ratedRegionalTile({ model: 'GFS', layer: 'waves', bboxStr: '-82.5,27.2,-80.2,29.3' });
+    expect(tile && tile.key).toBe('GFS/marine/waves/florida_east_coast_rated');
+    expect(isRatedKey(tile.key)).toBe(true);
+    expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: INSIDE_FL, surf: true })).toBe(true);
+    window.__RAW_DISABLE_RATING_FRAMES__ = true;
+    expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: INSIDE_FL, surf: true })).toBe(false);
+  });
+
+  test('a rated bundle is never a waves source for the GPU store\'s regional crop show', () => {
+    expect(pinnedRegionalKeys('GFS', 'waves').some(isRatedKey)).toBe(false);
+    expect(getPinnedRegionalIndexSync('GFS/marine/waves/florida_east_coast_rated')).toBeNull();
   });
 });

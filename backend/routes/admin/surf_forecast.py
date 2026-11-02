@@ -107,6 +107,12 @@ _RATING_FLAGS = {
                                         "from that tile, never the dynamic Open-Meteo cache or the live series lane; 0 = today's path. "
                                         "While '0', MARINE_TILE_FIRST_DIFF_SAMPLE (0.05) / _MAX_PER_HOUR (30) log tile vs dynamic",
                                    "Render env (together with the client's regional bundle default)"),
+    # Item 10 (2026-11-01, dark): surf asks follow tile-first too, so the band in a pilot box is rated on the stored tile, as the
+    # RATED regional bundles are (frame_set_rating). Flip only with MARINE_REGIONAL_TILE_FIRST=1, and before any client reads the
+    # rated bundles (the client checks /capabilities `regional_tile_first_surf`).
+    "MARINE_REGIONAL_TILE_FIRST_SURF": ("0", "With MARINE_REGIONAL_TILE_FIRST=1, surf=1 asks a stored pilot tile fully covers are "
+                                             "rated on that tile (never the dynamic cache / live series lane); 0 = surf keeps today's path",
+                                        "Render env (the owner's flip; the client's rated bundles read only while /capabilities reports it)"),
     # SoCal's GFS swell_2 (2026-10-24, dark): the June 6H.2 pilot left it out of the pilot ingest (scoping, not science).
     "GFS_MARINE_SOCAL_SWELL2": ("0", "store GFS swell_2 for the us_west_coast_socal pilot box like every other pilot box (sampling + "
                                      "~113 saves a run in the whole-globe multi-bbox pass); 0 = SoCal keeps waves/swell_1/wind_waves only "

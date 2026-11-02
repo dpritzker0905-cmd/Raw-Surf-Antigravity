@@ -474,7 +474,7 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
         bundled = fsb.is_bundle(target)
         if bundled:
             try:
-                index, stats = fsb.publish_bundle_set(source, sink, target, prev_index, upload, log=log)
+                index, stats = fsb.publish_bundle_set(source, sink, target, prev_index, upload, log=log, rating_inputs=rating_inputs)
             except Exception as e:  # one regional set's failed upload must not cost the world sets their pointer move
                 log(f"[frames] {key}: bundle publish failed ({type(e).__name__}: {e}); the published bundle stays")
                 report[key] = {"error": f"{type(e).__name__}: {e}"[:300], "index": (entry or {}).get("index")}
@@ -618,7 +618,7 @@ def main(argv=None):
             print("[frames] rated sets: FRAME_RATING_SETS is not 1; nothing to do")
             return 0
         budget = float(os.environ.get("FRAME_RATING_BUDGET_S", "600"))
-        report = publish_frame_sets(source, sink, sets=selected_sets(fsr.RATED_SETS), budget_s=budget)
+        report = publish_frame_sets(source, sink, sets=selected_sets(fsr.rated_publish_sets()), budget_s=budget)
         print(json.dumps({"frame_sets": report}))
         summary = os.environ.get("GITHUB_STEP_SUMMARY")
         if summary:

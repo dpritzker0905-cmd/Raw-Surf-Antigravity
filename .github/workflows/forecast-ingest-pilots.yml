@@ -201,6 +201,10 @@ jobs:
       # world frame measured offline). The chain env below MUST equal Render's and precompute.yml's (the index records every value
       # it read, rating_chain.env): a different value is a different band. The client reads these sets only behind its own dark
       # lever (staticRatingFrames.js: the gate and climatology are read once per publish, Render re-reads them every 300-600 s).
+      # Publish order (frame_set_rating.rated_publish_sets): the RATED REGIONAL bundles of the GFS pilot boxes first (0.25 deg: the only
+      # rating grids the band PAINTS from; marineRatingBandRes holds 1-deg-and-coarser ones), then the world sets. The client reads the
+      # regional ones only while /capabilities reports regional_tile_first_surf, i.e. Render MARINE_REGIONAL_TILE_FIRST_SURF=1 (dark,
+      # the owner's flip: /grid?surf=1 then rates the same stored tile). FRAME_RATING_REGIONAL=0 leaves them out.
       # OFF until switched on: repository variable FRAME_RATING_SETS = '1'. Off again: delete it (clients fall back to /grid).
       - name: Publish rated static frames (the Surf Rating band; off unless FRAME_RATING_SETS=1)
         id: rated_publish

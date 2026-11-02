@@ -7,7 +7,10 @@
  * `<model>/marine/<layer>/global_mid_rated`: the stored product's four planes plus a RATING plane, which
  * staticFrameCodec.buildVectors turns back into the exact vectors /grid?surf=1 serves.
  *
- * WHAT IT SERVES (seam A only): a CROP box /grid would answer from the global_mid tier (staticFrameCrop.midCropRulesPass), minus
+ * WHAT IT SERVES (seam A only): (1) inside a GFS pilot box, the box's RATED regional bundle (`<model>/marine/<layer>/<region>_rated`,
+ * 0.25 deg: the grid the band PAINTS from; marineRatingBandRes holds 1-deg-and-coarser rating grids) through the regional seam, only while
+ * /capabilities reports `regional_tile_first_surf` (MARINE_REGIONAL_TILE_FIRST_SURF=1: /grid?surf=1 rates the same stored tile);
+ * (2) a CROP box /grid would answer from the global_mid tier (staticFrameCrop.midCropRulesPass), minus
  * the surf-only regional preference (product_selection.pick_surf_regional_override: a request <= 15 deg either way that overlaps a
  * regional tile gets the tile), at an ask the frame was rated for (`ask_offsets_h`: the wind products and gate confirmations the
  * rating read are the same as at the frame's own hour). Everything else asks /grid as before: world boxes (the box serves the honest
@@ -24,6 +27,7 @@ import { gridJsonFromFrame, pickIndexFrame, ratingCounts } from './staticFrameCo
 import { cropGridJson, cropVectors, gridBboxParam, midCropFor, midCropRulesPass, parseBboxString } from './staticFrameCrop';
 import { getAvailableTilesFromManifest } from './backendWeatherServiceClientCoverage';
 import { buildTruthTag } from './weatherTruthTracker';
+import { pickRegionalTile } from './staticRegional';
 
 export const RATED_TIER = 'global_mid_rated';
 // The publisher's frame_set_rating.RATED_LAYERS (the world sets the band can be asked of).
@@ -34,6 +38,24 @@ export const RATED_SET_KEYS = [
 const WORLD_MIN_SPAN = 340;           // staticFrames' world box (the box keeps the honest field there: span >= 350 is not rated)
 const SURF_REGIONAL_MAX_SPAN = 15.5;  // product_selection.pick_surf_regional_override's 15 deg, plus margin (refusing is safe)
 const HOUR_MS = 3600000;
+export const RATED_SUFFIX = '_rated';
+
+/** /capabilities' GFS marine row says surf asks are rated on the stored pilot tile (MARINE_REGIONAL_TILE_FIRST_SURF). Per call. */
+export function serverTileFirstSurf() {
+  try {
+    const rows = typeof window !== 'undefined' ? window.__WEATHER_CAPABILITIES__ : null;
+    return Array.isArray(rows) && rows.some((r) => r && String(r.domain).toLowerCase() === 'marine'
+      && String(r.model).toUpperCase() === 'GFS' && r.regional_tile_first_surf === true);
+  } catch (e) { return false; }
+}
+
+/** The pilot tile this surf ask's RATED bundle is (staticRegional.pickRegionalTile, key + '_rated'), or null. No I/O. */
+export function ratedRegionalTile({ model, layer, bboxStr }) {
+  if (!serverTileFirstSurf()) return null;
+  const tile = pickRegionalTile({ model, layer, bboxStr });
+  return tile ? { ...tile, key: tile.key + RATED_SUFFIX } : null;
+}
+export const isRatedKey = (key) => String(key || '').endsWith(RATED_SUFFIX);
 
 export const ratedSetKey = (model, layer) => `${(model || 'GFS').toUpperCase()}/marine/${(layer || 'waves').toLowerCase()}/${RATED_TIER}`;
 
@@ -80,8 +102,10 @@ export function surfRegionalMayWin({ model, layer, bboxStr }) {
 /** Does a surf ask for this box get a rated frame at all? Cheap, no I/O. `setEnabled` = staticFrames.staticSetEnabled. */
 export function ratedCropEligible({ model, layer, bbox }, setEnabled) {
   if (!ratingFramesOn() || !bbox || spanOf(bbox) >= WORLD_MIN_SPAN) return false;
-  if (!setEnabled(ratedSetKey(model, layer))) return false;
   const bboxStr = gridBboxParam(bbox);
+  const tile = ratedRegionalTile({ model, layer, bboxStr });
+  if (tile) return setEnabled(tile.key);                      // z7-9 in a pilot box: its rated bundle (or /grid), never the world set
+  if (!setEnabled(ratedSetKey(model, layer))) return false;
   return midCropRulesPass({ model, layer, bboxStr }) && !surfRegionalMayWin({ model, layer, bboxStr });
 }
 
@@ -95,9 +119,12 @@ export function askOffsetServed(index, frame, askMs) {
 
 /**
  * Seam A for a surf ask: the /grid?surf=1 JSON for a crop box from the pinned rated frame, or null (the caller asks /grid).
- * `d` = staticFrames' loaders { getPinnedIndex, loadFrameVectors } (passed in: staticFrames imports this module).
+ * `d` = staticFrames' loaders { getPinnedIndex, loadFrameVectors, regionalGrid(tile) } (passed in: staticFrames imports this
+ * module; regionalGrid is its regional seam, which crops the bundle exactly as it does for the plain bundles).
  */
 export async function tryStaticRatedGrid({ model, layer, validTimeStr, clampedBbox, signal }, d) {
+  const tile = ratedRegionalTile({ model, layer, bboxStr: gridBboxParam(clampedBbox) });
+  if (tile) return tryRatedRegional(tile, validTimeStr, d);
   const key = ratedSetKey(model, layer);
   try {
     const index = await d.getPinnedIndex(key);
@@ -114,14 +141,37 @@ export async function tryStaticRatedGrid({ model, layer, validTimeStr, clampedBb
     if (!vectors) return noteMiss('frame_load');
     const cropped = cropVectors(vectors, grid.cols, win);
     const json = cropGridJson(gridJsonFromFrame(index, frame, vectors, { askIso: validTimeStr, requestedBbox: clampedBbox }), win, cropped);
-    const diag = json.grid.diagnostics;
-    diag.surf_transform = { ...ratingCounts(cropped), ...(diag.surf_transform || {}) };   // the overlay's per-box counts
+    stampOverlay(json, cropped, key, frame, validTimeStr);
     try { json.truthTag = buildTruthTag(json, 'staticFrame'); } catch (e) { json.truthTag = null; }
-    const t = telemetry();
-    t.hits += 1;
-    t.last = { hit: key, valid_time: frame.valid_time, ask: validTimeStr, at: Date.now() };
     return json;
   } catch (e) {
     return noteMiss('error');
+  }
+}
+
+function stampOverlay(json, cropped, key, frame, validTimeStr) {
+  const diag = json.grid.diagnostics;
+  diag.surf_transform = { ...ratingCounts(cropped), ...(diag.surf_transform || {}) };   // the overlay's per-box counts
+  const t = telemetry();
+  t.hits += 1;
+  t.last = { hit: key, valid_time: frame.valid_time, ask: validTimeStr, at: Date.now() };
+}
+
+/** A pilot-box surf ask from its rated bundle: the frame must be built and rated for this ask, then the regional seam crops it. */
+async function tryRatedRegional(tile, validTimeStr, d) {
+  try {
+    const index = await d.getPinnedIndex(tile.key);
+    if (!index) return noteMiss('regional_no_index');
+    const askMs = Date.parse(validTimeStr);
+    const frame = pickIndexFrame(index, askMs);
+    if (!frame) return noteMiss('regional_no_frame_in_window');
+    if (!frame.path) return noteMiss('regional_unbuilt_frame');
+    if (!askOffsetServed(index, frame, askMs)) return noteMiss('regional_ask_offset');
+    const json = d.regionalGrid ? await d.regionalGrid(tile) : null;
+    if (!json) return noteMiss('regional_seam');                     // partial cover, window, bundle: the seam recorded why
+    stampOverlay(json, json.grid.vectors, tile.key, frame, validTimeStr);
+    return json;                                                       // the regional seam minted its truth tag
+  } catch (e) {
+    return noteMiss('regional_error');
   }
 }

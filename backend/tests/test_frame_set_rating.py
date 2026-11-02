@@ -213,3 +213,38 @@ def test_rated_sets_are_off_unless_switched_on(monkeypatch, tmp_path):
     monkeypatch.setenv("FRAME_RATING_SETS", "1")
     assert fsr.enabled()
     assert [fs.set_key(t) for t in pub.selected_sets(fsr.RATED_SETS)][0] == "GFS/marine/waves/global_mid_rated"
+
+
+def test_a_rated_regional_bundle_builds_for_a_tile_on_one_side_of_the_split(tmp_path, monkeypatch):
+    """A pilot tile lies entirely west of 0 deg (the east half is empty): the rated bundle still builds, every slice carries the
+    RATING plane, and the rated step publishes the regional waves bundles first (they are what the band paints from)."""
+    from services import frame_set_bundle as fsb
+    store = tmp_path / "s"
+    _write(store)
+    fl = {"west": -82.0, "south": 26.0, "east": -79.0, "north": 30.0}
+    cols, rows = 13, 17                                           # 0.25 deg
+    vecs = [_vec(26.0 + 0.25 * r, -82.0 + 0.25 * c, round(1.4 + 0.01 * c, 3), 90.0, 10.0) for r in range(rows) for c in range(cols)]
+    man = json.loads((store / "manifest.json").read_text())
+    for vt in VALIDS:
+        p = dict(_waves(vt), region_id="florida_east_coast", resolution=0.25, coverage=fl,
+                 grid={"cols": cols, "rows": rows, "bounds": fl, "vectors": vecs, "diagnostics": {}})
+        name = f"gfs_marine_waves_florida_east_coast_{vt.replace('-', '').replace(':', '')}.json"
+        (store / name).write_text(json.dumps(p))
+        man["products"].append(dict(_entry("marine", "waves", vt), region_id="florida_east_coast", resolution=0.25, coverage=fl,
+                                    filename=name))
+    (store / "manifest.json").write_text(json.dumps(man))
+    target = {"model": "GFS", "domain": "marine", "layer": "waves", "region_id": "florida_east_coast", "bundle": True,
+              "variant": fsr.VARIANT}
+    up = []
+    index, stats = fsb.publish_bundle_set(pub.LocalCache(store), None, target, None, up.extend, log=lambda *_: None)
+    assert index is not None and stats["built"] == 2 and stats["rating_refused"] == 0
+    assert index["set"] == "GFS/marine/waves/florida_east_coast_rated" and index["rating_chain"]["code_sha12"]
+    blob = up[0][1]
+    for f in index["frames"]:
+        dec = fb.decode_frame(gzip.decompress(blob[f["offset"]:f["offset"] + f["length"]]))
+        assert fb.RATING in dec["fields"]
+    order = [fs.set_key(t) for t in fsr.rated_publish_sets()]
+    assert order[0].endswith("_rated") and order[0].split("/")[2] == "waves" and order[0].split("/")[3] != "global_mid_rated"
+    assert order.index("GFS/marine/waves/global_mid_rated") < order.index(next(k for k in order if k.split("/")[2] == "swell_1"))
+    monkeypatch.setenv("FRAME_RATING_REGIONAL", "0")
+    assert fsr.rated_regional_sets() == ()

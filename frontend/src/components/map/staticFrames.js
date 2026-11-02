@@ -36,7 +36,7 @@ import { _resetRegionalForTest, bundleBackingOff, isRegionalSetKey, noteRegional
   regionalGridJson, regionalTelemetry } from './staticRegional';   // regional bundles at z7-9 (2026-10-23)
 import { registerLatestProbes, setIsEmpty, setIsListed } from './regionalLatestSets';
 import { filledStoreAccepts, filledStoreOn, filledWorldPossible, filledWorldSetKey, plainCropsOn, preloadFilledIndexes, serveTimeFillAtWorld } from './staticWorldFillGuard';
-import { RATED_SET_KEYS, ratedCropEligible, tryStaticRatedGrid } from './staticRatingFrames';   // the Surf Rating band (2026-11-01, dark)
+import { RATED_SET_KEYS, isRatedKey, ratedCropEligible, tryStaticRatedGrid } from './staticRatingFrames';   // the Surf Rating band (2026-11-01, dark)
 export { serveTimeFillAtWorld };   // moved to staticWorldFillGuard.js (the 800-line cap); the callers import it from here
 
 export const FRAME_BUCKET = 'weather-frames';
@@ -374,8 +374,8 @@ export const storeSetKeyFor = (model, layer) => (filledStoreOn() && filledWorldS
 export const storeCropSetKeyFor = (model, layer) => (serveTimeFillAtWorld(model, layer) && plainCropsOn() ? setKeyFor(model, layer) : null);
 
 // The frame store's regional crop show (2026-10-24): the pinned REGIONAL waves index of a set key (null unless pinned, fresh, enabled; so only while the bundles' gate is open), and the pinned regional keys of a model x layer. No I/O.
-export const getPinnedRegionalIndexSync = (key) => { const pin = _state.pins.get(key); return isRegionalSetKey(key) && key.split('/')[2] === 'waves' && pin && !pin.stale && staticSetEnabled(key) ? pin.index : null; };
-export const pinnedRegionalKeys = (model, layer) => [..._state.pins.keys()].filter((k) => isRegionalSetKey(k) && k.startsWith(`${model}/marine/${layer}/`));
+export const getPinnedRegionalIndexSync = (key) => { const pin = _state.pins.get(key); return isRegionalSetKey(key) && !isRatedKey(key) && key.split('/')[2] === 'waves' && pin && !pin.stale && staticSetEnabled(key) ? pin.index : null; };
+export const pinnedRegionalKeys = (model, layer) => [..._state.pins.keys()].filter((k) => isRegionalSetKey(k) && !isRatedKey(k) && k.startsWith(`${model}/marine/${layer}/`));
 
 function sharedParsedLoad(key, frame, priority) {
   const controller = new AbortController();
@@ -634,7 +634,7 @@ export function staticSeriesEligible(args) {
  */
 export async function tryStaticWorldGrid({ model, layer, validTimeStr, clampedBbox, surf, signal }) {
   if (!staticEligible({ model, layer, bbox: clampedBbox, surf })) return null;
-  if (surf) return tryStaticRatedGrid({ model, layer, validTimeStr, clampedBbox, signal }, { getPinnedIndex, loadFrameVectors });
+  if (surf) return tryStaticRatedGrid({ model, layer, validTimeStr, clampedBbox, signal }, { getPinnedIndex, loadFrameVectors, regionalGrid: (tile) => tryStaticRegionalGrid({ tile, model, validTimeStr, clampedBbox, signal }) });
   const tile = regionalTileFor({ model, layer, bbox: clampedBbox, surf, param: gridBboxParam });
   if (tile) {
     try { return await tryStaticRegionalGrid({ tile, model, validTimeStr, clampedBbox, signal }); } catch (e) { noteRegionalMiss('error'); return null; }

@@ -100,7 +100,7 @@ def _resolve(store, vp, monkeypatch, bbox, model="GFS", surf=False):
 
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
-    for k in ("MARINE_REGIONAL_TILE_FIRST", "MARINE_TILE_FIRST_DIFF_SAMPLE", "MARINE_TILE_FIRST_DIFF_MAX_PER_HOUR",
+    for k in ("MARINE_REGIONAL_TILE_FIRST", "MARINE_REGIONAL_TILE_FIRST_SURF", "MARINE_TILE_FIRST_DIFF_SAMPLE", "MARINE_TILE_FIRST_DIFF_MAX_PER_HOUR",
               "GFS_ICON_SERIES_FASTPATH", "MARINE_DYNCACHE_PREFER_FINE_REGIONAL"):
         monkeypatch.delenv(k, raising=False)
     monkeypatch.setenv("MARINE_TILE_FIRST_DIFF_SAMPLE", "0")      # the dark diff stays out of the resolver tests
@@ -225,3 +225,26 @@ def test_flag_on_a_snapped_box_inside_the_data_whose_served_window_misses_the_re
     store = _Store([fl], {fl.filename: _product("GFS", _lattice(offset), FL, fl.filename)})
     assert tf.covering_tile(store, "GFS", "marine", "waves", False, "-82.95,27.6,-80.4,29.4", [fl], []) == (None, "partial_cover")
     assert tf.covering_tile(store, "GFS", "marine", "waves", False, "-82.8,27.6,-80.4,29.4", [fl], [])[0] is fl
+
+
+# ── MARINE_REGIONAL_TILE_FIRST_SURF (2026-11-01, item 10, dark): surf asks rated on the stored tile, as the rated bundles are ──
+def test_surf_follows_the_tile_only_with_both_flags(monkeypatch):
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST_SURF", "1")          # alone: inert (tile-first itself is off)
+    assert tf.covering_tile(_world(), "GFS", "marine", "waves", True, INSIDE, _world()._items, [])[0] is None
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST", "1")
+    item = tf.decide(_world(), "GFS", "marine", "waves", True, INSIDE, _world()._items, [])
+    assert item is not None and item.region_id == "florida_east_coast"
+    vp = _Viewport(_dynamic())
+    out = _resolve(_world(), vp, monkeypatch, INSIDE, surf=True)
+    assert out.product_id == "gfs_marine_waves_florida_east_coast.json" and vp.cache_asks == 0     # never the dynamic cache
+
+
+def test_capabilities_report_the_surf_flag_on_gfs_marine_rows(monkeypatch):
+    from services.weather_pipeline.capabilities import get_weather_capabilities
+
+    def gfs_marine():
+        return [r for r in get_weather_capabilities() if r.get("domain") == "marine" and r.get("model") == "GFS"]
+    assert gfs_marine() and all(r["regional_tile_first_surf"] is False for r in gfs_marine())
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST", "1")
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST_SURF", "1")
+    assert all(r["regional_tile_first_surf"] is True for r in gfs_marine())
