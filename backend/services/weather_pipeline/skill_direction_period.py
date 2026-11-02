@@ -133,6 +133,12 @@ def direction_period_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAY
                                          "direction": d, "direction_unimodal": _dir_stats(c["du"]),
                                          "wind_status": wind_status, "wind_speed": w,
                                          "wind_direction": _dir_stats(c["wd"])}
-    return {"holdout_days": holdout_days, "cutoff": cutoff.isoformat(), "min_n": MIN_N,
-            "dir_min_obs_hs_m": DIR_MIN_OBS_HS_M, "bimodal_gap_s": BIMODAL_GAP_S,
-            "wind_dir_min_kt": WIND_DIR_MIN_KT, "by_source": by_source}
+    out = {"holdout_days": holdout_days, "cutoff": cutoff.isoformat(), "min_n": MIN_N,
+           "dir_min_obs_hs_m": DIR_MIN_OBS_HS_M, "bimodal_gap_s": BIMODAL_GAP_S,
+           "wind_dir_min_kt": WIND_DIR_MIN_KT, "by_source": by_source}
+    try:                                        # S8 follow-up: its own guard, like the block that calls this function
+        from services.weather_pipeline.skill_direction_consensus import consensus_direction_period
+        out["consensus"] = consensus_direction_period(rows, now, holdout_days)
+    except Exception as e:                      # measurement only: a failure here must never lose the per-lane grades
+        out["consensus"] = {"status": "error", "error": type(e).__name__}
+    return out
