@@ -53,7 +53,9 @@ PENDING_EXPIRY_H = 96                  # unmatched past-target rows drop (buoy g
 # queued behind it: GFS_RAW (added automatically by the CONSENSUS_SERVE flip) and GFS_SCALAR, which would have
 # started evicting every lane's +72 h rows. 9 lanes x 60 x 72 = 38,880; x1.3 = 50,544 <= 54,000 (~6.5 MB object,
 # read and written only in the Actions lanes).
-PENDING_MAX_ENTRIES = 54000
+# ⬆ 54,000 -> 64,000 (2026-11-01): SAMPLER_SCALAR_LEDGER_MODELS can add EURO_SCALAR and ICON_SCALAR. Every switch armed
+# with the scalar dark is 11 lanes x 60 x 72 = 47,520; x1.3 = 61,776 <= 64,000 (~7.7 MB object, Actions lanes only).
+PENDING_MAX_ENTRIES = 64000
 OM_MARINE = "https://marine-api.open-meteo.com/v1/marine"
 
 SOURCE_OURS = "raw_surf"
@@ -138,18 +140,19 @@ def compare_models(primary: str) -> List[str]:
     # served consensus, so raw GFS keeps its own lane, resolved under serve_raw().
     if os.environ.get("CONSENSUS_SERVE", "0") == "1" and (primary or "").strip().upper() == "GFS":
         out.append(GFS_RAW)
-    # THE SCALAR-HEIGHT SHADOW (2026-09-30 audit): while SAMPLER_SCALAR_HEIGHT is dark, SAMPLER_SCALAR_LEDGER grades
-    # the served GFS product sampled with a SCALAR height (sampler.force_scalar_height) on the same buoys, hours and
-    # leads as the served lane, so the flip is decided on paired buoy truth. Once the switch serves, the primary lane
-    # IS the scalar answer and the shadow would count it twice, so it retires itself.
-    if (os.environ.get("SAMPLER_SCALAR_LEDGER", "0") == "1" and os.environ.get("SAMPLER_SCALAR_HEIGHT", "0") != "1"
-            and (primary or "").strip().upper() == "GFS"):
-        out.append(GFS_SCALAR)
+    # THE SCALAR-HEIGHT SHADOWS (2026-09-30 audit; per model 2026-11-01): while a model's height is still served as the
+    # vector mean, SAMPLER_SCALAR_LEDGER grades that model's product sampled with a SCALAR height
+    # (sampler.force_scalar_height) on the same buoys, hours and leads as its raw lane, so its flip is decided on
+    # paired buoy truth. See scalar_shadow_lanes.
+    out.extend(scalar_shadow_lanes(primary, out))
     return out
 
 
 GFS_RAW = "GFS_RAW"
-GFS_SCALAR = "GFS_SCALAR"
+# The per-model scalar shadow lanes (GFS_SCALAR, EURO_SCALAR, ICON_SCALAR): see skill_scalar_lanes.py.
+from services.weather_pipeline.skill_scalar_lanes import (  # noqa: E402
+    GFS_SCALAR, scalar_shadow_base, scalar_shadow_lanes,
+)
 
 
 def source_for(model: str, primary: str) -> str:
@@ -634,10 +637,10 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
                     from services.weather_pipeline.consensus_serve import serve_raw
                     with serve_raw():
                         lead_report = await calibrate_spots(resolver, spots, "GFS", target)
-                elif mdl == GFS_SCALAR:              # the served GFS, sampled with a scalar height (compare_models)
+                elif scalar_shadow_base(mdl):         # that model's product, sampled with a scalar height
                     from services.weather_pipeline.sampler import force_scalar_height
                     with force_scalar_height():
-                        lead_report = await calibrate_spots(resolver, spots, "GFS", target)
+                        lead_report = await calibrate_spots(resolver, spots, scalar_shadow_base(mdl), target)
                 else:
                     lead_report = await calibrate_spots(resolver, spots, mdl, target)
                 incoming.extend(rows_from_calibration_report(lead_report, target, lead, source=src))
