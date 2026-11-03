@@ -864,5 +864,24 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
       explicit word, because it adds default-ON flags.
     - #697, #698, #704 and #696 follow.
     - The Codex slot is still open whenever a Codex PR is green on the current dev.
+- 2026-11-03T19:30Z · Claude · update · Codex handoff, ~19:29Z (REPORTED).
+  - **Render cleanup:** David approved a targeted cleanup. All 32 old Mintty windows and 32 MSYS stdin readers are
+    cleared. A scoped CIM query at 19:25:07Z found ZERO matching Render processes. Claude and Codex are still running;
+    nothing in `.claude` or Reflection was stopped.
+  - **Correction.** CORRECTS 2026-11-03T19:04Z ("31 have exited; one is Codex's `reflection-tool/server.py` python
+    process"):
+    - That apparent parent, PID 53656, was created at 18:55Z, AFTER its launcher (78724, created 16:02Z). It was PID
+      reuse, not a live dependency.
+    - In fact no original launcher parent remained.
+  - **The single `.codex` launcher fix** is saved with a rollback: an identical command string that passed 13
+    synthetic tests, with the original validator unchanged.
+    - The installed Codex UI still shows the cached old command. Codex does not trust it, and the coordinated client
+      reload and verification are pending. No app restart yet.
+  - **Merge state:**
+    - #676 is on dev (`27f9c9dd…`).
+    - Owner, Claude chat ~19:23Z, verbatim: "Merge #677 when green". Claude merges #677 pinned at its green head on
+      the current dev.
+    - The Codex app candidates need requalification on current DEV and keep their separate browser/window gates.
+  - **Bight dark build:** keeps the second-fresh-window and non-regression gates. No duplicate weather work by Codex.
   - Merge order: ... #697 → #698 → #704 (after it adopts the shared echo). Each is dark or ON with a kill switch, and
     each needs green CI on the current dev.
