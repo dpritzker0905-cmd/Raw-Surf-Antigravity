@@ -387,3 +387,60 @@ Rejected:
    row comes at each flip.
 
 Ledger: `ledger.d/claude--consensus-direction-vector.jsonl:2` (`decision`, the rebuild).
+
+## 16:42Z · CORRECTION: the held-out evidence is Open-Meteo-based and likely INFLATED (corrects both evidence sections)
+
+**This corrects the "Evidence" section (plain rule) and the 15:56Z hybrid evidence above. Both stay as written; read
+them through this note.**
+
+### What research round 3 found
+
+Research round 3 (another lane, relayed by the lead at ~16:40Z; not measured by this session) found that **Open-Meteo's
+GFS `wave_direction` is broken at nearshore cells.**
+
+- At NDBC 46266, 46274 and 46285 it reads +115 to +152 deg away from the truth, where the raw GFS GRIB reads about
+  -40 deg.
+- With production-parity GFS direction decoded from the GRIB, the PLAIN vector mean gains only +1.6 to +2.75 deg
+  over 10-01..10-18.
+- Over 10-18..10-31 the plain mean LOSES -0.93 deg [-2.66, +0.73].
+- It gains nothing in the open ocean or in the Bight. The only real gain is at swell-window edges: +5.55 deg
+  [+1.6, +9.6].
+
+Every number in this log came from the Open-Meteo hindcast panel, so it inherits this artefact.
+
+### Check made here (scratch `artefact_check.py`, same panel, hybrid at R_AGREE 0.92, total-direction definition)
+
+| buoy | rows | GFS signed bias vs MWD | GFS MAE | hybrid gain |
+|---|---|---|---|---|
+| 46266 | 1,093 | +118 deg (median) | 116.9 | +90.8 |
+| 46274 | 1,057 | +127 deg (median) | 125.7 | +94.9 |
+| 46285 | 1,091 | +150 deg (median) | 150.4 | +112.1 |
+
+- **Those three buoys carry 59.3% of the hybrid's held-out gain.**
+- Without them, the held-out gain is **+2.34 deg, buoy-cluster [+1.07, +3.84]**, over 107 buoys and 78,090 rows,
+  against +5.56 with them.
+- The remaining +2.34 is still Open-Meteo-based. Other nearshore cells may carry smaller versions of the same
+  artefact. **Treat it as an upper bound, not an estimate.**
+
+What survives:
+
+- the code;
+- the dark flag;
+- the tests;
+- the reason for the hybrid over the plain mean: the plain mean is worse than GFS where members agree, under both
+  definitions.
+
+What does NOT survive: any claim of a ~5 deg direction gain. The size of the real gain is unknown, and round 3's
+production-parity numbers point to a small one, concentrated at swell-window edges.
+
+### Flip gate amendment (supersedes item 1 of the 15:56Z gate; the other items stand)
+
+1. **Production-parity panel.** A 60-90 day panel, with each member's direction as production serves it:
+   - GFS from its own GRIB, decoded the way the pipeline decodes it;
+   - EURO and ICON from their own GRIBs, or from the served products;
+   - the dominant-swell stamp applied where production applies it.
+2. **Scoring.** Fixed leads 24/48/72 h, scored overall AND **by swell-window class**: open ocean, the Bight or other
+   sheltered coast, and swell-window edge. Every class gets the no-band-worse-after-Holm rule.
+3. **Never Open-Meteo for the gate.** No Open-Meteo direction may be used for any member in the gate.
+
+Ledger: `ledger.d/claude--consensus-direction-vector.jsonl:3` (`correction` of :1 and :2).
