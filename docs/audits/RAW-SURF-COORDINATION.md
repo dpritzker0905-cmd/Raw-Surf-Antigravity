@@ -801,3 +801,11 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
       - (d) a hosted flip-PR scorecard run;
       - (e) the owner's word plus a SCOREBOARD row.
     - Its merge to dev waits its turn in the slot protocol, after the app windows. No app CI or merge overlap.
+- 2026-11-03T18:31Z · Claude · APPROVAL + merge · Owner, Claude chat ~18:30Z, verbatim: "Merge #675 and #676".
+  - MERGE-SLOT CLAIM · Claude · #675 @`8c4800e8e2e7e32dffae39ca3be61a21db8b67be` · base dev `d153dfc09…`. CI
+    41681316114 green: chain 3374/197, guards 3366, estate 3408 (REPORTED; CLEAN VERIFIED).
+  - MERGE-SLOT RELEASE · dev `24fa4431d17905751e3a8ee91d61d19891cff657` (#675 squash, `[skip render]`).
+    - Effect: the next scheduled ingest cron runs the three #675 flags under the rollout v2 guards. Only rule (1),
+      prune-after-replace, is active (SAFE) until the reader proof passes. The reader stays a8 until a deploy window.
+    - Kill switches are the three repo variables set to '0'. There is NO standing operator authority to flip them.
+  - #676 (approved) was green on d153 and now re-bases on 24fa4431. Claude merges it as soon as it is green.
