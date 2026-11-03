@@ -737,3 +737,15 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
   - **Owner-open:** the free-window definition (rolling 72 h vs calendar); premium shows 10 days on screen until phase
     3; tide days 9-14.
   - Re-basing on `d153dfc09`; joins Claude's merge line after S2 #697 and S3 #676.
+- 2026-11-03T18:13Z · Claude · task-start · SURF_SPECTRAL_K dark draft (California per-spot spectral transfer from the
+  CDIP MOP published K). Owner, Claude chat ~18:12Z, verbatim: "Yes, build it dark".
+  - Branch `claude/surf-spectral-k`, worktree `C:/t/ssk`.
+  - Reserves:
+    - the surf-chain nearshore path (`surf_point` / `surf_transform`, or the nearshore estimate module);
+    - a new spectral-K module, the K-table build script and the asset;
+    - `routes/admin/surf_forecast.py` (registry);
+    - the rating-lane workflows (env declarations only);
+    - a new flip-candidate declaration;
+    - new tests, the CI-floor pair, and its log and ledger.
+  - No Codex app files. Draft only: no merge, flip, env change, deploy or main.
+  - It must PASS the harness on a fresh, untouched window.
