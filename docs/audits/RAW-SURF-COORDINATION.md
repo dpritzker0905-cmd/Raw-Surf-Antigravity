@@ -84,7 +84,7 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
 | #662 | EURO/ICON scalar-height shadow lanes (serve nothing) | `588c6c0ce75409e2276dd886b182e1ee98926822` | DIRTY | none | merge dark | VERIFIED 02:05Z |
 | #375 | consensus direction + period buoy grading (measurement only) | `7190ae5de8fad18719390ce68af2bd5f219f1d07` | DIRTY | none; its period half is superseded by #686 | keep as a measurement, or close | VERIFIED 02:05Z |
 | #688, #693, #692 (+#689), #679 | Codex app candidates (Messages, photographer, Zoomlab, cancellation) | as Codex reports | drafts or ready | #692 builds on #689 | owner, separately | REPORTED by Codex |
-| #694 | App balance repair, a DRAFT published by its source owner | short head `4fd7f5695`, base `12fd…` (full SHAs not yet supplied) | draft. At Codex's receipt: the App accepted the published source and the completed frontend subset; 26 local checks; hosted 627 suites / 8188 tests, with build warnings; main CI and backend lanes PENDING | none stated | none yet: no merge or browser approval | REPORTED by Codex, 2026-11-03 ~02:10Z, until a full-head, source-owner terminal binding is supplied. Supersedes the earlier "balance repair private" snapshot |
+| #694 | fix(bookings): bind balance reads to the committed session (App balance repair) | head `4fd7f5695ed49fb650e3d49faed710a7fa9f03a7`, base `12fdcd22839f70c12d80ccb5c2bb5d4c787c5652` | VERIFIED 02:19Z: OPEN, draft, MERGEABLE, no auto-merge; CI run 41562727512, attempt 1, 12/12 jobs success at that head. REPORTED (App terminal reviewer / owner, ~02:18Z): temp merge `beaf13f3ce3da594a08306f1b02c6bce08b51ef6`, tree `ea446db68f249cbe7a920ae8b8590b6a729d0929`; LH, Encoding and LOC success; terminal review PASS, receipt sha256 `21f3c14a4230a33cba6055803477ff80823784de02be48328571d41ffa3ed771`; frozen 45-input manifest sha256 `89e82fa42bac152ffa247d1c3b88e3582cc48b25d976cc336e0d1d393ca78b98`; frontend 627 suites / 8188 tests (balance included, build warnings); chain 3172; estate 3408 pass / 2866 skip; sim 3351 pass / 66 skip / 1 xfail (XML 67 skip); Postgres 33 pass; nonadditive; clean checkout; no active watcher or queued action | none stated | owner, separately. NOT accepted: E2E, Safari, latest DEV, backend, deployment | VERIFIED where marked; the rest REPORTED. Supersedes the 02:13Z row ("main CI and backend lanes PENDING") |
 
 ### Approvals on record (owner's own words; a relay is marked as such)
 - 2026-11-02 ~20:04Z: "Merge and push what needs to be". Then at ~20:16Z: "if you're doing the merge yourself, then do
@@ -118,3 +118,8 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
   "Sounds good. I approve of that. Move forward. Thank you." The capitalised phrase was planning context.
 - 2026-11-03T02:13Z · Claude · update · Added #694 (App balance repair draft) as REPORTED by Codex. It supersedes the
   earlier private-balance snapshot. No merge or browser approval.
+- 2026-11-03T02:19Z · Claude · update · #694 publication closeout, from Codex's report at ~02:18Z. The editor
+  independently read: head `4fd7f569…a7`, base `12fdcd22…5a`, OPEN/draft/MERGEABLE, no auto-merge, CI 41562727512 attempt
+  1 12/12 success. The terminal-review and manifest receipts, lane counts, clean checkout and "no queued action" are
+  REPORTED. This supersedes the 02:13Z PENDING row. No E2E, Safari, latest-DEV, backend or deployment acceptance. Codex
+  verified record 091ec5f7 and acknowledged the handoff protocol.
