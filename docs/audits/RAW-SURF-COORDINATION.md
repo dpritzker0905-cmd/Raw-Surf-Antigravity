@@ -260,3 +260,49 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
   - Starts AFTER v0.1 hands off, with the same owner.
   - Never automatic: flag activation, merge, deploy, env, restart or main.
   - Unproven: production parity; 6 stations, one autumn window; Hs/period only, not breaking height or rating.
+- 2026-11-03T03:46Z · Claude · handoff · The #675 v2 build has finished.
+  - **Head (VERIFIED 03:33Z):** `be474a8b7498f16d56f1d057798eccbbba379f63`. CLEAN, draft, 16/16 checks success.
+  - **Hosted CI (REPORTED):** run 41569742988: chain 3225/190 (floor 3219), guards 3351, estate 3408.
+  - **Files.** New:
+    - `rollout_675.py`, `rollout_675_finish.py`, `rollout_675_io.py`, `rollout_675_restore.py`, `rollout_675_reader.py`
+    - `scripts/restore_rollout_snapshot.py`
+    - `tests/test_rollout_675.py`
+  - **Files changed:**
+    - `copernicus_validator.py`, `lattice_fill.py`, `euro_marine_coarse_ingestion.py`
+    - `product_object_gc.py` (`only=` scope; marks file `product_gc/marks_675.json`)
+    - `capabilities.py` (799 lines), `store.py`
+    - `scripts/ingest_forecast_ci.py`, `forecast-ingest.yml`
+    - the CI-floor pair
+    - #675's log and its ledger.d line 2
+  - **Owning lane: core.** Pilots runs none of the new rules.
+  - **Codex's requirements (REPORTED; tests named):**
+    - snapshot-before-first-mutation, with sha256 read-back; a partial snapshot leaves zero mutation;
+    - restore refuses on newer data from either lane, or on a sha change; the head is re-read before republish.
+  - **Residual:** a lost entry is caught one run late; BLOCKED holds only the #675 rules.
+  - **Still needed (owner):**
+    - an exact-head merge;
+    - a reader deploy window (#684, `PRODUCT_REVISION_REFRESH=1`, the `/capabilities` fields) plus one `revision_probe`
+      read-back;
+    - standing restore/kill authority.
+  - Next owner: the owner, for review.
+- 2026-11-03T03:46Z · Claude · research · v2/eval operations lane finished (REPORTED; memory
+  `research-v2-eval-operations-2026-11-03.md`).
+  - **Key correction:** the manifest commit ALREADY has compare-and-swap. It uploads a unique copy, then swaps a
+    Postgres pointer WHERE generation = expected (`manifest_pointer.py`, `manifest_publish_step.py`; on in all 3 lanes
+    since 10-17). The remaining last-writer-wins surface is the per-entry merge rule plus the object bytes.
+  - **Proposed smallest fixes (none started; owner approval needed):**
+    - merge on `(run_time, ingested_at)`;
+    - 60 s cache-control on rewrite classes;
+    - a reader generation high-water mark;
+    - deletes skip the reader's loaded generation.
+  - **Gates:** hard invariants plus per-cycle CUSUM; detecting a 2 cm accuracy gain needs ~141 target hours.
+  - **Post-flip monitoring:** use sequential testing.
+- 2026-11-03T03:46Z · Claude · task-start · Two read-only research lanes. Neither reserves repo files.
+  - **Surfer-facing logic** (owner, ~03:31Z: "better surf forecasting and any logic for surfers ... state of the art").
+  - **Spot hubs and infoboxes** (owner, ~03:34-03:41Z): tides in every infobox (full hub, pinned hub, GPS marker);
+    hub surf-report correctness; a forecast window matching the picker/scrubber and the tiers (free = day-of + 2 d,
+    basic 7 d, premium 14 d); our own forecast charts in the rating colours, replacing Open-Meteo.
+  - Static lead read, VERIFIED on origin/dev:
+    - the full hub (`SpotConditions.js:169-171, 370-388`) shows tides;
+    - the pinned drawer (`UnifiedSpotDrawer.js`) loads tide data but does not render it;
+    - the GPS infobox (`MapForecastOverlay.js`) has no tide, although `/point` returns one when RATING_TIDE is on.
