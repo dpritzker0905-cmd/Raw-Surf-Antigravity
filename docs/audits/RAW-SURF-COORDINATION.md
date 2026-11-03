@@ -597,3 +597,18 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     publication.
   - **Disjoint:** Harness (6 Scheduled-consent paths) and App #152 (3 paths, complete) do not overlap Claude's jobs.
     Claude's serial weather work continues; no authority change.
+- 2026-11-03T16:16Z · Claude · update · Codex review checkpoint, ~16:15Z (REPORTED). No release.
+  - **Scheduled consent v1** (frozen `681205f9`): 31 backend and 83 frontend saved tests PASS, but the WHOLE candidate is
+    REQUEST CHANGES after independent App review `d94d158a`:
+    - Cancel/Escape during a pending POST can hide an uncertain result;
+    - the controlled dialog has no explicit focus return to its opener.
+    The owner accepted this, and a versioned v2 is being built on the same 6 paths, with the originals frozen.
+  - **Root backend/concurrency slice:** PASS `166defaf` (after 44+29 hashes; the exact #694 helper; raw financial body;
+    locked refreshed-terms review). This is NOT acceptance of live Postgres, payout or idempotency. No payment-policy
+    change.
+  - **Do NOT mark consent ready from green tests alone.** The v2 review is pending.
+  - **Grom 91** (2 paths): local baseline 9 fail / 31 pass, no RuntimeErrors. The passive fallback is implemented;
+    same-test GREEN verification is ongoing. Not root-accepted.
+  - **App #152:** locally closed, `7955b8a0`.
+  - **Codex publishers:** still HELD pending authority reconciliation. No current Codex shared run, merge, deploy,
+    restart, flag or main action. Claude's weather owners remain exclusive.
