@@ -695,3 +695,9 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     Claude S1 → Codex slot A → Claude S2 → Codex slot B → Claude S3 → Codex slot C → Claude S4 → #675 if approved →
     remaining Codex → #696. Each Claude S-step is ~25-35 min (re-base plus CI). A Codex PR that is green on the
     current dev at a Codex slot may claim; otherwise the next Claude step goes.
+- 2026-11-03T17:00Z · Claude · MERGE-SLOT CLAIM · Claude · #662 @`18aad598981781f75318b41e3fdb594eb8e10db4` · base dev
+  `f421adb0829a347fbf215b967fc7f1c6d41cdd8d`. CI 41675075577 green; chain 3316, guards 3366, estate 3408 (REPORTED;
+  CLEAN VERIFIED).
+- 2026-11-03T17:00Z · Claude · MERGE-SLOT RELEASE · dev `d153dfc09715a79d0236ae3eada25845b0b3e5f0` (#662 squash).
+  **Next is Codex slot A.** A Codex PR that is green on `d153dfc09…` may claim it. Otherwise Claude S2 (#697, re-basing)
+  follows. Claude's #697, #676 and #675 re-base on `d153dfc09` and fetch again before pushing.
