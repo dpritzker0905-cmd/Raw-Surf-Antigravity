@@ -1640,9 +1640,11 @@ jobs:
           #   base 3172 (hosted read) + 135 new test(s) and 7 new file(s) = 3307, files 195; floor 3307 - 6 = 3301. This PR must read 3307 passed.
           # ⬆ 3301→3310 on 2026-11-03 (rederive_floor.py, claude/euro-icon-scalar-shadow): dev run 41668531514 read 3307 / 195 files; dev's map 3307;
           #   base 3307 (hosted read) + 9 new test(s) and 0 new file(s) = 3316, files 195; floor 3316 - 6 = 3310. This PR must read 3316 passed.
-          # ⬆ 3310→3331 on 2026-11-03 (rederive_floor.py, claude/spot-hub-phase1): dev run 41679759741 read 3316 / 195 files; dev's map 3316;
-          #   base 3316 (hosted read) + 21 new test(s) and 1 new file(s) = 3337, files 196; floor 3337 - 6 = 3331. This PR must read 3337 passed.
-          MIN_FILES, MIN_PASSED = 196, 3331
+          # ⬆ 3310→3368 on 2026-11-03 (rederive_floor.py, claude/euro-estimate-continuity on dev d153dfc09: #675 12 + rollout v2 46): dev run 41673519496 read 3307 / 195 files; dev's map 3316;
+          #   base 3316 (dev's map) + 58 new test(s) and 2 new file(s) = 3374, files 197; floor 3374 - 6 = 3368. This PR must read 3374 passed.
+          # ⬆ 3368→3389 on 2026-11-03 (rederive_floor.py, claude/spot-hub-phase1): dev run 41679759741 read 3316 / 195 files; dev's map 3374;
+          #   base 3374 (dev's map) + 21 new test(s) and 1 new file(s) = 3395, files 198; floor 3395 - 6 = 3389. This PR must read 3395 passed.
+          MIN_FILES, MIN_PASSED = 198, 3389
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

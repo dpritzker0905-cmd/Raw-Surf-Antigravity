@@ -391,7 +391,9 @@ def prune_duplicate_valid_times_helper(store) -> int:
             best[key] = p
 
     keep = set(id(p) for p in best.values())
-    protected_files, protected_keys = retained_prune_references(best.values())
+    from services.weather_pipeline import rollout_675 as _rollout
+    keep.update(id(p) for p in manifest.products if _rollout.read_only(p))   # non-owning lane: owned entries are read-only
+    protected_files, protected_keys = retained_prune_references([p for p in manifest.products if id(p) in keep])
     remaining = []
     pruned = 0
     pruned_keys = set()
@@ -483,12 +485,51 @@ def prune_superseded_products_helper(
                 latest_est_run_time = p.run_time
 
     preserve_estimates = os.environ.get("INGEST_PRUNE_PRESERVE_ESTIMATES", "1") != "0"
+    # PRUNE AFTER REPLACE (item 15, 2026-11-01): the lane rule above still lets the native save's prune delete the whole
+    # previous estimated generation as soon as it writes ANY newer estimate. The EURO coarse save writes a short GFS-ext
+    # tail, so at 16:05:52Z on 10-27 it deleted 112 estimated objects that the extended-estimates stage only re-created
+    # from 16:28:19Z: about 22 min a cycle with no EURO tail product on the /grid path
+    # (log/2026-10-27-claude-lead-prune-protect-flip.md, "#590 flags read back"). With this flag an estimate is superseded
+    # only once a replacement exists AT ITS VALID TIME: an authoritative product, or an estimate of a newer run. Estimates
+    # are time-keyed, so the stage that rewrites them overwrites the same object (MANIFEST_ONE_ENTRY_PER_OBJECT drops the
+    # older registration); hours a native now covers go here or in the cycle-end duplicate sweep (authoritative wins).
+    # Pairs with LATTICE_FILL_REFRESH_STALE, so a kept interpolation from an older generation is regenerated, not kept.
+    # ROLLOUT v2 (2026-11-02, rollout_675.py): in the hosted lanes the new rule runs only behind a dry run + snapshot, with
+    # its storage deletes MARKED for the scoped GC; a BLOCKED run prunes no estimate at all (never the old rule instead);
+    # the non-owning lane keeps the old rule and never touches owned entries. No run context = #675 as shipped.
+    from services.weather_pipeline import rollout_675 as _rollout
+    mode = _rollout.prune_mode()
+    replace_first = preserve_estimates and mode in ("ungated", "active")
+    replaced_at = {}  # valid_time -> (newest authoritative run, newest estimated run) in the lane
+    if replace_first:
+        for p in manifest.products:
+            if _lane_match(p) and p.run_time is not None and p.valid_time_start is not None:
+                newest_auth, newest_est = replaced_at.get(p.valid_time_start, (None, None))
+                if p.is_forecast_authoritative:
+                    if newest_auth is None or p.run_time > newest_auth:
+                        newest_auth = p.run_time
+                elif newest_est is None or p.run_time > newest_est:
+                    newest_est = p.run_time
+                replaced_at[p.valid_time_start] = (newest_auth, newest_est)
+
+    def _replaced(p):
+        # A native replaces an estimate only from a run at least as new: an OLDER native at the same hour must not wipe a newer
+        # estimated generation (tests/test_manifest_one_step_absorb.py P5: natives at r1, another writer's estimate at r3).
+        newest_auth, newest_est = replaced_at.get(p.valid_time_start, (None, None))
+        return ((newest_auth is not None and newest_auth >= p.run_time)
+                or (newest_est is not None and p.run_time < newest_est))
 
     def _superseded(p):
         superseded = False
+        if _rollout.read_only(p):
+            return False
         if _lane_match(p) and p.run_time is not None and p.run_time < latest_run_time:
             if p.is_forecast_authoritative:
                 superseded = latest_auth_run_time is not None and p.run_time < latest_auth_run_time
+            elif replace_first:
+                superseded = _replaced(p)
+            elif preserve_estimates and mode == "blocked":
+                superseded = False
             elif preserve_estimates:
                 superseded = latest_est_run_time is not None and p.run_time < latest_est_run_time
             else:
@@ -496,22 +537,35 @@ def prune_superseded_products_helper(
         return superseded
 
     remaining_products = [p for p in manifest.products if not _superseded(p)]
+    new_rule = [p for p in manifest.products if mode == "active" and not p.is_forecast_authoritative and _superseded(p)]
+    plan = None
+    if new_rule:
+        plan = _rollout.prune_plan(manifest, new_rule, remaining_products, _lane_match, f"{model}/{domain}/{layer}/{region_id}")
+        if _rollout.check_plan(_rollout.current(), plan):
+            _rollout.execute(plan)            # records the reasons and turns the run BLOCKED; mutates nothing
+            mode, replace_first, new_rule, plan = "blocked", False, [], None
+            remaining_products = [p for p in manifest.products if not _superseded(p)]
+    deferred = {id(p) for p in new_rule}
     protected_files, protected_keys = retained_prune_references(remaining_products)
-    pruned_count = 0
-    pruned_keys = set()
-    for p in manifest.products:
-        if _superseded(p):
-            delete_pruned_object(store, p, protected_files)
-            pruned_keys.add(p.product_id or p.filename)
-            pruned_count += 1
-
+    superseded_now = [p for p in manifest.products if _superseded(p)]
+    pruned_keys = {p.product_id or p.filename for p in superseded_now}
+    pruned_count = len(superseded_now)
     pruned_keys.difference_update(protected_keys)
 
-    if pruned_count > 0:
-        manifest.products = remaining_products
-        store._save_manifest(manifest)
-        try:
-            submit_manifest_publish(store, manifest, exclude_keys=pruned_keys)
-            logger.info(f"[Product Store] Manifest L2 uploaded submit after pruning {pruned_count} superseded products.")
-        except Exception as e:
-            logger.warning(f"[Product Store] Manifest L2 upload submit after prune failed: {e}")
+    def _apply():
+        for p in superseded_now:
+            if id(p) not in deferred:       # the new rule's storage deletes are MARKED (after publish), never run here
+                delete_pruned_object(store, p, protected_files)
+        if pruned_count > 0:
+            manifest.products = remaining_products
+            store._save_manifest(manifest)
+            try:
+                submit_manifest_publish(store, manifest, exclude_keys=pruned_keys)
+                logger.info(f"[Product Store] Manifest L2 uploaded submit after pruning {pruned_count} superseded products.")
+            except Exception as e:
+                logger.warning(f"[Product Store] Manifest L2 upload submit after prune failed: {e}")
+
+    if plan is None:
+        _apply()
+    elif not _rollout.execute(plan, publish=_apply):     # snapshot failed: BLOCKED, this call mutates nothing
+        return
