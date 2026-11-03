@@ -145,3 +145,17 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
   - Assessment (INFERENCE): the stuck process is Codex-side, started from the .codex hook path. `--login -i` with `cat`
     on stdin plausibly waits on an open interactive stdin. Claude neither owns nor awaits it. It blocks no current
     Claude task: Eval CI completed, and the v2 build is progressing.
+- 2026-11-03T02:58Z · Claude · handoff · Eval Harness v0 build finished; the build agent reports DONE.
+  - Draft PR #695, head `6c570ade8623ebc44b8b959b4402de49b9c0b2b8`. Hosted CI green (run 41566371752; VERIFIED above).
+  - REPORTED by the build agent: chain lane 3227 across 191 files (+55 tests, floor 3221); guards 3351; estate 3408.
+  - Files (REPORTED):
+    - 7 new `backend/services/weather_pipeline/eval_*.py` modules;
+    - `backend/scripts/eval_harness.py` and `eval_harness_stations.json`;
+    - a manual-only `.github/workflows/eval-harness.yml`;
+    - tests `test_eval_harness_{provenance,scoring,e2e}.py`, plus fixtures;
+    - `docs/weather-program/evaluation-harness.md`, its log, and `ledger.d/claude--eval-harness-v0.jsonl`, whose
+      line 2 commits to a production-parity run by 11-16.
+  - Demo, REPORTED and NOT production-parity: inputs were substituted because pygrib is absent on Windows. On
+    `hs_station`, the served chain read low (bias −0.229 m) and lost to station climatology on CRPS, −0.072
+    [−0.113, −0.019]. The null and positive controls pass. A SURF_TIDE_DEPTH demo was REFUSED: it changed 0 spot-hours.
+  - Next owner: the owner, for review or merge of #695 at an exact head. No reserved files remain open for this job.
