@@ -15,6 +15,7 @@ import { getFullUrl } from '../utils/media';
 import SpotQualityBadge from './SpotQualityBadge';
 import { forecastCalendar } from './forecastCalendar';
 import { forecastStateIdentityEnabled } from './map/forecastStateIdentity';
+import { effectiveWindowHours, hubForecastWindow, spotHubP1Enabled, splitForecastWindow } from './spot-hub/spotHubP1';
 
 // Conditions color mapping
 const conditionColors = {
@@ -48,8 +49,8 @@ const DirectionArrow = ({ direction, className = "" }) => {
 // (contrast 1.03-1.75:1 in beach, 3.16:1 in light) and the chip would vanish.
 const ForecastDayBadge = ({ day, index, isLocked = false }) => {
   const dateObj = new Date(day.date);
-  // index 0 = Tomorrow, index 1 = Day after tomorrow, etc.
-  const calendar = forecastStateIdentityEnabled() ? forecastCalendar(day.date) : null;
+  // index 0 = Tomorrow, index 1 = Day after tomorrow, etc. Rows are UTC dates: phase 1 labels them so.
+  const calendar = spotHubP1Enabled() || forecastStateIdentityEnabled() ? forecastCalendar(day.date) : null;
   const dayName = calendar ? calendar.shortRelative : index === 0 ? 'Tom' : dateObj.toLocaleDateString('en-US', { weekday: 'short' }).slice(0, 3);
   
   if (isLocked) {
@@ -73,6 +74,8 @@ const ForecastDayBadge = ({ day, index, isLocked = false }) => {
   );
 };
 
+const readExploreModel = () => { try { return localStorage.getItem('rawsurf-active-model') || 'GFS'; } catch { return 'GFS'; } };
+
 const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
@@ -86,9 +89,17 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
   const hasLivePhotographers = livePhotographers.length > 0;
   const hasReports = spot.recent_reports?.length > 0;
   
-  // Calculate forecast access
-  const forecastDaysAllowed = spot.forecast_days_allowed || 3;
+  // Calculate forecast access. ⛔ Phase 1 (2026-11-03): the window is the app's resolver's (the
+  // scrubber's), not the server's `forecast_days_allowed` ladder; the server's figure is the rollback.
+  const p1 = spotHubP1Enabled();
   const forecast = spot.forecast || [];
+  const forecastWindow = hubForecastWindow(userSubscriptionTier, readExploreModel());
+  const windowRows = splitForecastWindow(forecast, effectiveWindowHours(forecastWindow.hours, spot.forecast_horizon_hours),
+    Date.now(), spot.forecast_locked_dates);
+  const forecastDaysAllowed = p1 ? windowRows.open.length : (spot.forecast_days_allowed || 3);
+  const openRows = p1 ? windowRows.open : forecast.slice(0, forecastDaysAllowed);
+  const lockedRows = p1 ? windowRows.locked : forecast.slice(forecastDaysAllowed, 10);
+  const isPremiumTier = p1 ? forecastWindow.isPremium : userSubscriptionTier === 'premium';
   
   // ============ GALLERY ROTATION ============
   const gallery = spot.gallery || [];
@@ -322,13 +333,13 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
       <div className="px-3 py-2 border-b border-zinc-800">
         <div className="flex items-center gap-2 mb-2">
           <span className="text-xs font-medium text-gray-400">Forecast</span>
-          <Badge className={`text-[9px] ${userSubscriptionTier === 'premium' ? 'bg-purple-500/20 text-purple-400' : 'bg-zinc-700 text-gray-400'}`}>
+          <Badge className={`text-[9px] ${isPremiumTier ? 'bg-purple-500/20 text-purple-400' : 'bg-zinc-700 text-gray-400'}`}>
             {forecastDaysAllowed} Days
           </Badge>
         </div>
         <div className="flex flex-wrap gap-1">
           {/* Show unlocked forecast days */}
-          {forecast.slice(0, forecastDaysAllowed).map((day, i) => (
+          {openRows.map((day, i) => (
             <ForecastDayBadge 
               key={day.date} 
               day={day} 
@@ -336,7 +347,7 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
             />
           ))}
           {/* Show locked preview days beyond user's tier */}
-          {forecast.slice(forecastDaysAllowed, 10).map((day, i) => (
+          {lockedRows.map((day, i) => (
             <ForecastDayBadge 
               key={day.date} 
               day={day} 
@@ -345,8 +356,19 @@ const ExploreSpotCard = ({ spot, userSubscriptionTier = 'free' }) => {
             />
           ))}
           {/* Show upgrade CTA if there are locked days */}
-          {forecast.length > forecastDaysAllowed && userSubscriptionTier !== 'premium' && (
-            <div 
+          {p1 && lockedRows.length > 0 && !isPremiumTier && (
+            // A real button (the mandate: never a div with onClick), named for what it does.
+            <button type="button"
+              aria-label={`Upgrade to unlock ${lockedRows.length} more forecast day${lockedRows.length === 1 ? '' : 's'}`}
+              className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg cursor-pointer hover:border-purple-400/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-purple-400"
+              onClick={() => navigate('/settings?tab=billing')}
+            >
+              <Crown aria-hidden="true" className="w-3 h-3 text-purple-400" />
+              <span className="text-[10px] text-purple-400 whitespace-nowrap">+{lockedRows.length} days</span>
+            </button>
+          )}
+          {!p1 && forecast.length > forecastDaysAllowed && userSubscriptionTier !== 'premium' && (
+            <div
               className="flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg cursor-pointer hover:border-purple-400/50"
               onClick={() => navigate('/settings?tab=billing')}
             >

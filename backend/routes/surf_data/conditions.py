@@ -343,7 +343,9 @@ async def get_spot_forecast(
     """
     Get multi-day surf forecast for a spot.
     Returns daily wave height ranges and conditions.
-    Tiered access: Free/Basic = 3 days, Premium = 10 days
+    NOT tier-gated (it takes no tier): it returns up to `days` daily rows (10 at most), and the drawer applies the
+    app resolver's window client-side (spot-hub phase 1, 2026-11-03). The old "Free/Basic = 3 days, Premium = 10
+    days" line here described nothing this route did.
     """
     result = await db.execute(select(SurfSpot).where(SurfSpot.id == spot_id))
     spot = result.scalar_one_or_none()
