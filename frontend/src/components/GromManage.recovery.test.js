@@ -10,6 +10,10 @@ let mockTheme = 'light';
 const mockGet = jest.fn();
 const mockPost = jest.fn();
 jest.mock('react-router-dom', () => ({
+  useSearchParams: () => {
+    const [params, setParams] = require('react').useState(() => new URLSearchParams());
+    return [params, next => setParams(next)];
+  },
   useParams: () => ({ gromId: mockGromId }), useNavigate: () => jest.fn(),
 }), { virtual: true });
 jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: { id: mockParentId } }) }));

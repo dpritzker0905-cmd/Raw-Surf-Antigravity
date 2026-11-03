@@ -52,10 +52,35 @@ REGIONAL_SETS = tuple({"model": "GFS", "domain": "marine", "layer": layer, "regi
                       for layer in REGIONAL_LAYERS for r in _regional_ids())
 
 
+# EURO / ICON (2026-11-01, item 11 "instant everywhere"; ON by default since D-059, kill FRAME_REGIONAL_BUNDLES_EURO_ICON=0). Their marine
+# pilots store 0.25-deg tiles on the get_all_pilot_regions boxes (REGIONAL_CONFIGS + WORLDWIDE_COASTAL_REGIONS, never the GFS-only
+# extras): EURO waves (ECMWF wave stream), ICON waves / swell_1 / wind_waves (DWD GWAM). Same bundle, same parity and coverage gates
+# as GFS; ordered AFTER every GFS set, so the budget stagger drops them first. The regional estimated tails the core lane bakes
+# (flagship boxes) are listed unbuilt on this lane's disk: /grid serves those hours. Publishing changes nothing a user sees: the
+# client reads them by default (kill __RAW_DISABLE_REGIONAL_EURO_ICON__), with the server's MARINE_REGIONAL_TILE_FIRST_EURO_ICON on.
+OTHER_MODEL_LAYERS = {"EURO": ("waves",), "ICON": ("waves", "swell_1", "wind_waves")}
+
+
+def _other_model_ids():
+    from services.weather_pipeline import pilot_regions as pr
+    return [r for r in list(pr.REGIONAL_CONFIGS) + [r for r in pr.WORLDWIDE_COASTAL_REGIONS if r not in pr.REGIONAL_CONFIGS]]
+
+
+OTHER_MODEL_SETS = tuple({"model": m, "domain": "marine", "layer": layer, "region_id": r, "bundle": True}
+                         for layer in REGIONAL_LAYERS for m, layers in OTHER_MODEL_LAYERS.items() if layer in layers
+                         for r in _other_model_ids())
+
+
+def other_models_enabled():
+    return os.environ.get("FRAME_REGIONAL_BUNDLES_EURO_ICON", "1") != "0"
+
+
 def selected_regional_sets():
-    """REGIONAL_SETS narrowed by FRAME_REGIONAL_BUNDLE_LAYERS (comma list; default every layer)."""
+    """REGIONAL_SETS (then, unless FRAME_REGIONAL_BUNDLES_EURO_ICON=0, OTHER_MODEL_SETS) narrowed by FRAME_REGIONAL_BUNDLE_LAYERS
+    (comma list; default every layer)."""
     want = [x.strip() for x in os.environ.get("FRAME_REGIONAL_BUNDLE_LAYERS", "").split(",") if x.strip()]
-    return tuple(t for t in REGIONAL_SETS if not want or t["layer"] in want)
+    sets = REGIONAL_SETS + (OTHER_MODEL_SETS if other_models_enabled() else ())
+    return tuple(t for t in sets if not want or t["layer"] in want)
 
 
 def enabled():
@@ -75,14 +100,15 @@ def sha12(data):
     return hashlib.sha256(data).hexdigest()[:12]
 
 
-def publish_bundle_set(source, sink, target, previous_index, uploader, log=print, coverage_floor=None):
+def publish_bundle_set(source, sink, target, previous_index, uploader, log=print, coverage_floor=None, rating_inputs=None):
     """(bundle index or None, stats) for one regional set; uploads the bundle (only) through `uploader` when it changed.
 
     Frames are built by frame_set.publish_set with NO previous index (a regional run is small; every frame is rebuilt and
     re-checked) and a capturing uploader, so nothing reaches the sink until the whole set has passed parity and the coverage
     gate. None = nothing built, coverage refused, or the published index already is this one."""
     captured = []
-    index, stats = fs.publish_set(source, sink, selector(target), None, captured.extend, log=log, coverage_floor=coverage_floor)
+    index, stats = fs.publish_set(source, sink, selector(target), None, captured.extend, log=log, coverage_floor=coverage_floor,
+                                  rating_inputs=rating_inputs)   # a RATED bundle (frame_set_rating): the same build, rated
     stats["uploaded"], stats["bytes_uploaded"] = 0, 0
     if index is None:
         return None, stats

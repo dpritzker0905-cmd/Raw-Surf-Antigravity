@@ -310,3 +310,30 @@ def test_point_sampler_preserves_refresh_refusal(replacement, where):
     response = PointSampler().sample_point(served, 0 if where == 'outside' else 29, 0 if where == 'outside' else -87)
     assert response.stale and response.staleReason == 'product_revision_refresh_refused'
     assert response.model_run_time == old.model_run_time
+
+
+def test_a_cold_download_of_the_registered_object_is_current_not_stale(replacement):
+    """Acceptance read 2026-11-01: with no local file, the first load used to come back stale=True
+    (product_revision_unverified) although it had just fetched the registered object; the stored-tile
+    /grid path served that tag to the client, which re-asks stale answers, and series pages holding the
+    frame were never memoised. The bytes are now checked after the download."""
+    store, _, filename, _, _, reads = replacement
+    module.ProductStore._product_cache.clear()
+    (store.cache_dir / filename).unlink()
+    served = store.load_product(filename)
+    assert served.grid.vectors[0].speed == 4
+    assert not served.stale and served.staleReason is None
+    assert reads == [filename]
+
+
+def test_a_cold_download_older_than_its_registration_is_refused_not_certified(replacement):
+    store, _, filename, _, new, reads = replacement
+    module.ProductStore._product_cache.clear()
+    (store.cache_dir / filename).unlink()
+    manifest = store.get_manifest()                      # the manifest moved on, the object did not (yet)
+    manifest.products[0].run_time = new.run_time
+    manifest.products[0].model_run_time = new.model_run_time
+    store._save_manifest(manifest)
+    served = store.load_product(filename)
+    assert served.grid.vectors[0].speed == 4
+    assert served.stale and served.staleReason == 'product_revision_refresh_refused'

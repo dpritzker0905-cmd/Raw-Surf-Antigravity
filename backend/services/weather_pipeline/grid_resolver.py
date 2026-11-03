@@ -228,7 +228,7 @@ async def resolve_grid(
     # skipped and Step 3 serves it unchanged. Partial covers, other models/layers and surf keep today's path.
     from services.weather_pipeline import regional_tile_first as _tf
     _tile_first_item = None
-    if bbox and req_w is not None and _tf.tile_first_enabled():
+    if bbox and req_w is not None and _tf.tile_first_enabled(model):   # EURO/ICON: MARINE_REGIONAL_TILE_FIRST_EURO_ICON (dark)
         _tile_first_item = await asyncio.to_thread(_tf.decide, store, model, domain, layer, surf, bbox,
                                                    authoritative_candidates, estimated_candidates)
         if _tile_first_item is not None:
@@ -423,7 +423,7 @@ async def resolve_grid(
         if _mid_product is not None:
             product = _mid_product
 
-    # FAR_EDGE_BRIDGE (dark): past an ICON/EURO 2-deg blend's end, its last departure from GFS decays onto the stored GFS 2-deg
+    # FAR_EDGE_BRIDGE (ON by default since 2026-11-01, kill '0'): past an ICON/EURO 2-deg blend's end, its last departure from GFS decays onto the stored GFS 2-deg
     # field (far_edge_bridge.py). It replaces only a world-span product (EURO's 10-deg fill), never a regional or clipped one.
     if domain.lower() == "marine" and model.upper() in ("ICON", "EURO"):
         from services.weather_pipeline.far_edge_bridge import try_far_edge_bridge
