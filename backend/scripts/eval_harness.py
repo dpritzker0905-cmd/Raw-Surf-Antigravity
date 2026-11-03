@@ -117,6 +117,8 @@ def stage_forecast(cache, stations, targets, leads, out_dir, fields_fn, wind_sou
     for c, fh in need:
         try:
             fields, _, info = fields_fn(cache, c, fh, wind_source=wind_source, decoder=decoder)
+        except pv.BudgetExceeded:
+            raise                                                       # a budget is a refusal, never a gap
         except Exception as e:                                          # noqa: BLE001 - counted, never silent
             failed.append({"cycle": f"{c:%Y-%m-%dT%HZ}", "fh": fh, "error": f"{type(e).__name__}: {e}"[:200]})
             continue
@@ -199,9 +201,10 @@ def run(args, get=pv.http_get, fields_fn=gw.fetch_fields, cfg=None) -> dict:
     leads = [int(x) for x in args.leads.split(",")]
     reg = rf.load_stations(args.stations)
     stations = reg["stations"]
-    cache = pv.Cache(args.cache_dir, get=get, pause_s=args.pause_s, offline=args.offline)
+    cache = pv.Cache(args.cache_dir, get=get, pause_s=args.pause_s, offline=args.offline,
+                     max_range_downloads=args.max_range_downloads, max_total_bytes=args.max_bytes)
     os.makedirs(args.out, exist_ok=True)
-    served = rp.served_env(REPO)
+    served = rp.served_env(args.served_env_root or REPO)
     # Truth reaches back clim_days BEFORE the embargo (first target - max lead): the out-of-sample climatology's span.
     embargo = sc.clim_embargo(targets[0], targets[-1], max(leads))
     t_lo = embargo[0] - timedelta(days=args.clim_days)
@@ -256,7 +259,9 @@ def run(args, get=pv.http_get, fields_fn=gw.fetch_fields, cfg=None) -> dict:
         "stations": [{"id": s["id"], "role": s["role"], "source": s["source"],
                       "meta_version": truth_summary[s["id"]]["meta"].get("version"),
                       "good_in_window": truth_summary[s["id"]]["good_in_window"]} for s in stations],
-        "forecast": fc, "quantities": sc.QUANTITIES, "config": _cfg_doc(cfg), "input_parity": parity,
+        "forecast": fc, "quantities": sc.QUANTITIES,
+        "budget": {"range_downloads": cache.range_downloads, "max_range_downloads": args.max_range_downloads,
+                   "downloaded_bytes": cache.downloaded_bytes, "max_bytes": args.max_bytes}, "config": _cfg_doc(cfg), "input_parity": parity,
         "served_env_digest": env_digest,
         "gaps": {"named": NAMED_GAPS, "substitutions": SUBSTITUTIONS,
                  "counts": arms_rows["served"]["gaps"],
@@ -328,6 +333,10 @@ def parser() -> argparse.ArgumentParser:
                    help="add locks this run earns (eligible runs only: controls pass + production parity)")
     r.add_argument("--pause-s", type=float, default=0.5)
     r.add_argument("--offline", action="store_true", help="read the cache only; never the network")
+    r.add_argument("--served-env-root", default=None,
+                   help="a checkout whose precompute.yml defines the SERVED env (the flip job: the merge base)")
+    r.add_argument("--max-range-downloads", type=int, default=None, help="refuse past this many byte-range GETs")
+    r.add_argument("--max-bytes", type=int, default=None, help="refuse past this many downloaded bytes")
     r.add_argument("--no-tide", action="store_true")
     r.add_argument("--exit-zero", action="store_true")
     r.add_argument("--allow-substitutions", action="store_true",

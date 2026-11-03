@@ -46,6 +46,10 @@ class CacheRefused(PermissionError):
     pass
 
 
+class BudgetExceeded(CacheRefused):
+    """A run asked for more range downloads or bytes than its budget (the flip-PR job's limits)."""
+
+
 def utc_now_iso() -> str:
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -151,7 +155,8 @@ class Cache:
     """Raw-file cache with provenance sidecars. `get` is injectable (tests); it must return (bytes, status)."""
 
     def __init__(self, root: str, get: Callable = http_get, pause_s: float = 0.5, offline: bool = False,
-                 clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep):
+                 clock: Callable[[], float] = time.monotonic, sleep: Callable[[float], None] = time.sleep,
+                 max_range_downloads: Optional[int] = None, max_total_bytes: Optional[int] = None):
         root = os.path.abspath(root)
         rr = repo_root()
         if rr and _inside(root, rr):
@@ -159,6 +164,9 @@ class Cache:
         self.root, self.get, self.pause_s, self.offline = root, get, pause_s, offline
         self.clock, self.sleep, self._last = clock, sleep, None
         self.records: List[dict] = []
+        # Budgets count NETWORK fetches only (a cache hit costs nothing): byte-range GETs and bytes received.
+        self.max_range_downloads, self.max_total_bytes = max_range_downloads, max_total_bytes
+        self.range_downloads, self.downloaded_bytes = 0, 0
         os.makedirs(root, exist_ok=True)
 
     def _paths(self, key: str) -> Tuple[str, str]:
@@ -184,6 +192,9 @@ class Cache:
                 return body, rec
         if self.offline:
             raise FileNotFoundError(f"offline and not cached: {key}")
+        if rng is not None and self.max_range_downloads is not None \
+                and self.range_downloads >= self.max_range_downloads:
+            raise BudgetExceeded(f"range-download budget {self.max_range_downloads} reached before {key}")
         if self._last is not None:
             wait = self.pause_s - (self.clock() - self._last)
             if wait > 0:
@@ -194,6 +205,10 @@ class Cache:
             self._last = self.clock()
         got = tuple(got) + ({}, {})[:max(0, 4 - len(got))]
         body, status, hdr, route = got[:4]
+        self.range_downloads += rng is not None
+        self.downloaded_bytes += len(body)
+        if self.max_total_bytes is not None and self.downloaded_bytes > self.max_total_bytes:
+            raise BudgetExceeded(f"download budget {self.max_total_bytes} bytes exceeded at {key}")
         rec = {"source": source, "url": url, "range": list(rng) if rng else None, "retrieved_utc": utc_now_iso(),
                "sha256": sha256_bytes(body), "bytes": len(body), "cache_file": os.path.relpath(path, self.root),
                "parser": parser, "time_standard": time_standard, "qc_policy": qc_policy,

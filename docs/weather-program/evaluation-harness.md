@@ -98,3 +98,26 @@ DECISIONS entry.
 The gate is also the rollback check. After a flip the served env carries the flag, so the KILL value becomes the
 arm (`--arm FLAG=<kill value>`) on a fresh post-flip window. If that arm PASSES (the old behaviour is measurably
 better), the flip is rolled back by its kill value, in every lane together, on the owner's word.
+
+## The flip-PR scorecard (automation; informational)
+
+Scope recorded 2026-11-03T03:30Z in `docs/audits/RAW-SURF-COORDINATION.md` (owner: "we need a testing automation to
+help guage a flip each time, right?" ... "IF we need it, put it on"). Job `flip-scorecard` in `eval-harness.yml`,
+script `backend/scripts/flip_scorecard.py`, declaration format in `docs/weather-program/flip-candidates/README.md`.
+
+- **Trigger:** `pull_request` opened / labeled / synchronize / reopened, SAME-REPO PRs only, label `flip-candidate`,
+  exactly one changed declaration `docs/weather-program/flip-candidates/<slug>.json` (else INVALID).
+- **Comparison:** base = the merge base with the PR's base branch and its `precompute.yml` served env; candidate =
+  that env plus the declared flags; both replayed by the head's harness. The head env must be the base env or the
+  base env plus the flags (else INVALID). Served backend code changed in the same PR = REFUSED.
+- **Data and limits:** the declaration's pinned past window (7-14 days, ending >= 3 days before the run); GFS only
+  (GFS-Wave + the pgrb2 10 m wind, pygrib, production parity), CDIP / NDBC truth; `actions/cache` keyed by the
+  window; 60 minutes; at most 400 byte-range downloads (checked from the plan before any download, enforced by the
+  cache) and 1.5 GB; no secrets, no app, no storage.
+- **Output:** one PR comment edited in place (marker `<!-- raw-surf-flip-scorecard -->`), the job summary, and a
+  14-day artifact (scorecard, panels, provenance manifests). PASS / FAIL / REFUSED / INVALID stay distinct; the job
+  exits 0 on any verdict.
+- **Never:** flag activation, merge, deploy, env change, restart, dispatch, or a ratchet write (`--update-ratchet` is
+  never passed). It is not a required check; making it one is a separate owner decision (not proposed).
+- **Unproven:** production parity in CI (owed: the first hosted run), 6 stations, one autumn window, Hs/period only
+  (not breaking height or rating). NDBC realtime2 holds ~45 days, so an older window loses `hs_offshore` (advisory).

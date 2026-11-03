@@ -241,3 +241,36 @@ skipped".
 `ledger.d/claude--eval-harness-v0.jsonl:4` (the redirect finding, bound to `6c570ade`, fixed), `:5` (the v0.1
 revision). The commitment `:2` (first production-parity run of `eval-harness.yml`, owner's word) stays owed: the
 local eccodes run reached parity but is not the CI workflow run it names.
+
+## v0.2: the flip-PR scorecard automation (2026-11-03, same draft #695)
+
+Scope: `docs/audits/RAW-SURF-COORDINATION.md` 2026-11-03T03:30Z (owner: "we need a testing automation to help guage a
+flip each time, right?" ... "IF we need it, put it on."). Still DRAFT; nothing merged, flipped, dispatched or
+deployed; no env change. **No served number changes.** Built after v0.1's hand-off check: head `a897361b1`, CI green
+(chain "collected 3267 tests across 194 files -> 3266 passed, 1 skipped" = the projection; guards 3351; estate 3408).
+
+- `eval-harness.yml` gains a `pull_request` trigger (opened / labeled / synchronize / reopened) and the job
+  `flip-scorecard`: same-repo PRs with the `flip-candidate` label only; `contents: read`, `pull-requests: write`;
+  60 min; merge base vs head; `actions/cache` keyed by the declaration's window; one PR comment edited in place; a
+  14-day artifact. The manual `harness` job is now `workflow_dispatch`-only. No secret is referenced.
+- `backend/scripts/flip_scorecard.py`: trigger parsing (forks, other labels, other actions do nothing), the
+  declaration `docs/weather-program/flip-candidates/<slug>.json` (schema, slug, replayable flags, a 7-14 day window
+  pinned >= 3 days in the past on 00/06/12/18Z, leads, primary; the plan's range downloads checked against 400 BEFORE
+  any download), the head env = base env or base env + flags (else INVALID), served-code drift = REFUSED, the
+  outcome mapping (PASS / FAIL / REFUSED: no change, underpowered, substitutions, drift, budget / INVALID: input,
+  broken controls, error), and the comment.
+- The harness gains `--served-env-root` (the merge base's precompute.yml) and download budgets
+  (`--max-range-downloads`, `--max-bytes`; `pv.BudgetExceeded`, never swallowed as a per-file gap).
+- Tests `backend/tests/test_flip_scorecard.py` (41, chain lane): trigger (10), declaration (16), drift, env, outcomes
+  (7), the run mapping incl. budget and error, prepare with no declaration / a fork, the comment, the cache budget,
+  and the workflow's own limits (trigger, same-repo, permissions, 60 min, 14 days, one comment, no secrets, no merge /
+  dispatch / push / ratchet write).
+- Local end-to-end (cached public data, no network): a declaration `SURF_REFRACTION_KR=1.0` (the Kr kill value) over
+  the v0.1 window -> **PASS** on hs_station (+0.083 m [+0.075, +0.092], n 480), 0 range downloads (all cache hits),
+  4 alarms in the comment. A demo of the automation, NOT a flip recommendation (one window, 4 stations; Kr=1.0 raises
+  heights, which offsets the -0.23 m low bias at these buoys; breaking height and rating are not measured).
+- Floor: chain re-derived `--add 135 --add-files 7` -> set from 3307, floor 3301, 195 files.
+- Owed: the first hosted run on a labelled PR (none exists yet; the trigger is live only on this branch until #695
+  merges, which needs the owner's exact-head word).
+
+Ledger: `ledger.d/claude--eval-harness-v0.jsonl:6`.
