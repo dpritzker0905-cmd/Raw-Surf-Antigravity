@@ -483,6 +483,12 @@ _RATING_FLAGS = {
                                     "so stored GFS reaches the scrubber's end; regional tiles trimmed to their own horizons, "
                                     "ICON/EURO tails keep their run+336 h ceilings (marine_mid_res_ingestion.gfs_world_fetch_days)",
                                "repo variable GFS_WORLD_FULL_HORIZON (read by forecast-ingest.yml AND forecast-ingest-pilots.yml)"),
+    # Changes WHICH surf alerts fire (2026-11-03, dark): the served rating frames over the next 72 h instead of
+    # GFS-current height; honours saved time_windows / tide_states / preferred_conditions, daylight only.
+    "ALERTS_FORECAST_WINDOWS": ("0", "Surf alerts from the SERVED forecast: daylight windows over the next 72 h (tier-capped) "
+                                     "meeting every saved preference, one push per window, de-duplicated "
+                                     "(services/surf_alert_windows.py, weather_pipeline/alert_horizon.py)",
+                                "precompute workflow env (builds the horizon frames) AND Render env (the alert scheduler) together"),
 }
 
 
