@@ -300,6 +300,8 @@ async def ingest_euro_marine_global_mid_impl(scheduler) -> bool:
             if c > 0:
                 scheduler.store.prune_superseded_products("EURO", "marine", "waves", "global_mid", run_time)
                 await scheduler._cleanup_and_pause(ecmwf_results, 0)
+                if euro_mid_cmems_swell_enabled():
+                    await _ingest_euro_mid_cmems_swell(scheduler, env, run_time, resolution, cop_days, _cop_basis)
                 return True
         logger.warning("[Pipeline Scheduler] EURO marine mid ECMWF-direct unavailable; falling back to CMEMS.")
 
@@ -313,7 +315,18 @@ async def ingest_euro_marine_global_mid_impl(scheduler) -> bool:
         logger.warning("[Pipeline Scheduler] EURO marine global_mid unavailable (Copernicus); skipping.")
         return False
 
-    for layer in ["waves", "swell_1", "swell_2", "wind_waves"]:
+    total_saved += await _save_euro_mid_cmems_layers(
+        scheduler, env, cop_results, ["waves", "swell_1", "swell_2", "wind_waves"], run_time, resolution, _cop_basis)
+
+    await scheduler._cleanup_and_pause(cop_results, 0)
+    return total_saved > 0
+
+
+async def _save_euro_mid_cmems_layers(scheduler, env, cop_results, layers, run_time, resolution, basis) -> int:
+    """Save CMEMS (MFWAM) points as EURO global_mid products, one layer at a time, pruning each layer it wrote. The one save
+    loop for both the CMEMS fallback (all four layers) and the swell pass below (the three partitions)."""
+    total = 0
+    for layer in layers:
         c = await normalize_and_save_loop(
             scheduler.normalizer, scheduler.store, cop_results,
             model="EURO", provider="copernicus", domain="marine", layer=layer,
@@ -321,15 +334,54 @@ async def ingest_euro_marine_global_mid_impl(scheduler) -> bool:
             region_id="global_mid", coverage_mode="global_tile",
             is_test_env=env["is_test_env"], step=1,
             log_prefix=f"[Pipeline Scheduler] EURO {layer} (copernicus native) global_mid",
-            estimate_basis=_cop_basis
+            estimate_basis=basis
         )
         logger.info(f"[Pipeline Scheduler] Ingested {c} EURO {layer} global mid-res grid files.")
-        total_saved += c
+        total += c
         if c > 0:
             scheduler.store.prune_superseded_products("EURO", "marine", layer, "global_mid", run_time)
+    return total
 
-    await scheduler._cleanup_and_pause(cop_results, 0)
-    return total_saved > 0
+
+EURO_MID_SWELL_LAYERS = ("swell_1", "swell_2", "wind_waves")
+
+
+def euro_mid_cmems_swell_enabled() -> bool:
+    return os.environ.get("EURO_MARINE_MID_CMEMS_SWELL", "1") != "0"
+
+
+def euro_mid_cmems_workers() -> int:
+    try:
+        return max(1, int(os.environ.get("EURO_MID_CMEMS_WORKERS", "4")))
+    except ValueError:
+        return 4
+
+
+async def _ingest_euro_mid_cmems_swell(scheduler, env, run_time, resolution, cop_days, basis) -> int:
+    """ITEM 14 (2026-11-01: EURO_MARINE_MID_CMEMS_SWELL, default '1' since the owner's ON-by-default word that night; kill switch '0'): EURO swell_1/swell_2/wind_waves at the 2-deg world tier.
+
+    Today the ECMWF branch saves `waves` only (the free feed has no partitions), so EURO swell exists only at 10 deg
+    (global_coarse) and has no world frame at any zoom. This adds the CMEMS partitions at 2 deg after the ECMWF waves save:
+    only the 9 partition variables, the latitude bands split across EURO_MID_CMEMS_WORKERS fetcher processes (default 4;
+    one process would run ~83 bands back to back, ~5x the 10-deg fetch, past the 40-min ceiling). The 240->336 h estimated
+    tail is NOT built here: ingest_euro_marine_extended_estimates already walks global_mid x all four layers and anchors on
+    these natives (the 14-day contract). A failure here costs the swell layers only: `waves` is already saved.
+    Changes served numbers (EURO swell resolves from global_mid instead of global_coarse): owner's word with evidence (D-001)."""
+    try:
+        from services.copernicus_marine_service import fetch_euro_marine_global_coarse, CMEMS_PARTITION_VARS
+        swell = await fetch_euro_marine_global_coarse(_GLOBAL_REGION, resolution, cop_days,
+                                                      variables=list(CMEMS_PARTITION_VARS),
+                                                      workers=euro_mid_cmems_workers())
+    except Exception as e:
+        logger.error(f"[Pipeline Scheduler] EURO mid CMEMS swell fetch errored: {e}")
+        return 0
+    if not swell:
+        logger.warning("[Pipeline Scheduler] EURO mid CMEMS swell unavailable; EURO swell stays on global_coarse.")
+        return 0
+    saved = await _save_euro_mid_cmems_layers(scheduler, env, swell, list(EURO_MID_SWELL_LAYERS), run_time, resolution, basis)
+    await scheduler._cleanup_and_pause(swell, 0)
+    logger.info(f"[Pipeline Scheduler] EURO mid CMEMS swell: {saved} files across {', '.join(EURO_MID_SWELL_LAYERS)}.")
+    return saved
 
 
 def _icon_pilot_layers():
