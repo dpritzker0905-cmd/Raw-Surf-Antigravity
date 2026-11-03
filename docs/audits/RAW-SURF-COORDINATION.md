@@ -883,5 +883,16 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
       the current dev.
     - The Codex app candidates need requalification on current DEV and keep their separate browser/window gates.
   - **Bight dark build:** keeps the second-fresh-window and non-regression gates. No duplicate weather work by Codex.
+- 2026-11-03T20:18Z · Claude · merge · #677. Owner, Claude chat ~19:23Z, verbatim: "Merge #677 when green".
+  - MERGE-SLOT CLAIM · Claude · #677 @`66d3c20c63e89297d9046bdf4cefa8e954e71f41` · base dev `27f9c9dd7…`. CI
+    41703455776 and ledger run 41703455674 green: chain 3393/199, guards 3366, estate 3408 (REPORTED; CLEAN VERIFIED).
+    It carries a semantic test fix: `test_frame_set_bundle_euro_icon` now expects the EURO swell sets as the tail
+    (D-062) and the EURO/ICON bundles just before them (D-059).
+  - MERGE-SLOT RELEASE · dev `ef4e2fe605547cb5203e256a50c89c1e9cc1d4d7` (#677 squash, `[skip render]`).
+    `EURO_MARINE_MID_CMEMS_SWELL` and `FRAME_EURO_SWELL_SETS` default '1' and apply from the next pilots cron. Kill
+    switches are the repo variables set to 0 (owner word).
+  - **Merged today:** #695, #691, #662, #675, #676, #677.
+  - **Next:** #698 (re-basing, 4th cycle), then #697, #704, the SURF_SPECTRAL_K and Bight builds when ready, and #696
+    last. The Codex slot is open whenever a Codex PR is green on the current dev.
   - Merge order: ... #697 → #698 → #704 (after it adopts the shared echo). Each is dark or ON with a kill switch, and
     each needs green CI on the current dev.
