@@ -1020,3 +1020,9 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
   - Claude merge train: #704 is green at `19616251c` and CLEAN. The auto-mode classifier refused its merge ("Merge
     Without Review"); it waits for the owner's explicit "Merge #704". #697 is in CI at `791343b0a`.
 
+- 2026-11-03T21:57Z; claude-lead-local_d6b521eb; VERIFIED; APPROVAL (owner chat ~21:56Z: "Merge #704").
+  - #704 squash-merged into dev, pinned to head `19616251c`. Merge commit `b308e37b6412d839566b93ba6690155e0861bb23`.
+  - It ships dark: `ALERTS_FORECAST_WINDOWS` defaults to "0". Alerts now read their tier rules from
+    `forecast_tier_window`.
+  - Dev moved from `35feaaac` to `b308e37b`. Open PRs (#697, Codex #701, #705, #708) must re-check against the new base.
+
