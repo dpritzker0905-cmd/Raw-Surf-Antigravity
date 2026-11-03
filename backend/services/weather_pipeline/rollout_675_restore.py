@@ -77,25 +77,50 @@ def _default_publish(store, products, exclude_keys):
     flush_manifest_publish()
 
 
+def _signature(plan):
+    return sorted((e["filename"], e.get("kind"), e.get("before_sha256"), e.get("written_sha256"), e.get("snapshot_key"))
+                  for e in plan.get("entries") or [])
+
+
 def apply_restore(io, store, plan, publish=None, now=None) -> dict:
+    """Order (Codex recovery review 2026-11-03): (1) download EVERY snapshot object and check it against before_sha256;
+    (2) re-run plan_restore FRESH against the current shared head and re-hash every touched live object against what the
+    snapshot recorded (written sha; for a marked delete, the pre-op sha), as the LAST step before the first write; any
+    refusal, or an index that differs from the operator's plan = refuse with ZERO mutation; (3) only then overwrite, each key
+    read back; (4) re-check the head before republishing (defence in depth).
+
+    RESIDUAL (not eliminated): these checks shrink the race to the gap between step (2) and the first write; a lane that writes
+    inside that gap is overwritten. Supabase Storage has no conditional PUT and the bucket is unversioned, so no check here can
+    make the restore atomic. Recommended (not built): an enforced exclusive-writer window, i.e. run the restore only while BOTH
+    ingest workflows (forecast-ingest, forecast-ingest-pilots) and precompute are disabled or held in their concurrency group;
+    storage versioning/CAS would need a storage migration and is the larger change."""
     if plan["refusals"]:
         return {"restored": 0, "refused": plan["refusals"], "advice": REGENERATE}
     now = now or datetime.now(timezone.utc)
-    restored = []
-    for rec in plan["entries"]:
+    staged = {}
+    for rec in plan["entries"]:                               # (1) preflight ALL snapshot objects: reads only
         if not rec.get("snapshot_key"):
             continue
         data = io.download(rec["snapshot_key"])
         if data is None or r.sha256(data) != rec.get("before_sha256"):
-            raise RuntimeError(f"snapshot object {rec['snapshot_key']} missing or altered; nothing republished")
+            return {"restored": 0, "refused": [f"snapshot object {rec['snapshot_key']} missing or altered"],
+                    "advice": "no object was written. " + REGENERATE}
+        staged[rec["filename"]] = (rec, data)
+    fresh = plan_restore(io, plan["lane"], plan["cycle_id"])  # (2) the apply-boundary revalidation, last before any write
+    if fresh["refusals"] or _signature(fresh) != _signature(plan):
+        return {"restored": 0, "refused": fresh["refusals"] or ["the snapshot index changed since the plan"],
+                "advice": "no object was written: something changed after the plan. " + REGENERATE}
+    plan = dict(plan, head=fresh["head"], status=fresh["status"])
+    restored = []
+    for filename, (rec, data) in staged.items():             # (3) the writes
         try:
-            io.copy(rec["snapshot_key"], rec["filename"])
+            io.copy(rec["snapshot_key"], filename)
         except Exception:
-            io.upload(rec["filename"], data)
-        back = io.download(rec["filename"])
+            io.upload(filename, data)
+        back = io.download(filename)
         if back is None or r.sha256(back) != rec["before_sha256"]:
-            raise RuntimeError(f"read-back of restored {rec['filename']} does not match; nothing republished")
-        restored.append(rec["filename"])
+            raise RuntimeError(f"read-back of restored {filename} does not match; nothing republished")
+        restored.append(filename)
     # Re-read the SHARED head just before republishing (Reflection 2026-11-02): a lane that published a touched key since the
     # plan was checked wins; the objects already copied back are then reported, and the operator regenerates.
     again = plan_restore(io, plan["lane"], plan["cycle_id"]) if restored else plan

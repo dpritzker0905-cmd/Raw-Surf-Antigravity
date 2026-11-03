@@ -561,3 +561,32 @@ def test_restore_rechecks_the_shared_head_before_republishing(tmp_path, monkeypa
     monkeypatch.setattr(io, "copy", copy_then_pilots_publishes)
     out = restore.apply_restore(io, store, plan, publish=lambda *a: pytest.fail("published over a newer registration"))
     assert out["republished"] is False and out["refused"]
+
+
+# ── Codex's recovery review (2026-11-03): a change between plan and apply means ZERO live writes ───────────────────────
+
+
+def _live_writes(io, since, keys=("w.json", "d.json")):
+    return [op for op in io.ops[since:] if op[0] in ("upload", "copy", "delete") and op[1] in keys]
+
+
+@pytest.mark.parametrize("change", ["pilots_newer_write", "core_newer_write", "byte_only_rewrite", "corrupt_snapshot"])
+def test_a_change_after_the_plan_means_no_live_write_at_all(tmp_path, change):
+    store, io, run = _written_run(tmp_path)
+    plan = restore.plan_restore(io, "core")
+    assert plan["refusals"] == []
+    if change in ("pilots_newer_write", "core_newer_write"):
+        writer = change.split("_")[0]
+        io.objects["w.json"] = f"w-{writer}-newer".encode()
+        io.head.append(dict(_prod(T0, NEW + timedelta(hours=4), "w.json").model_dump(mode="json"), product_id=f"{writer}-key"))
+    elif change == "byte_only_rewrite":
+        io.objects["w.json"] = b"same registration, new bytes"
+    else:                                                   # one snapshot of N corrupted: the OTHER key must not be written
+        io.objects[f"{run.prefix}/d.json"] = b"bit rot"
+    live = {k: io.objects.get(k) for k in ("w.json", "d.json")}
+    since, keys_before = len(io.ops), dict(io.objects)
+    out = restore.apply_restore(io, store, plan, publish=lambda *a: pytest.fail("published"))
+    assert out["restored"] == 0 and out["refused"]
+    assert _live_writes(io, since) == [] and io.ops[since:] == []          # zero mutation of any kind
+    assert {k: io.objects.get(k) for k in ("w.json", "d.json")} == live    # live bytes preserved byte for byte
+    assert io.objects == keys_before

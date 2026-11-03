@@ -5,6 +5,8 @@
 
 It refuses whenever a newer run of EITHER lane has written a touched key since the snapshot (services/weather_pipeline/
 rollout_675_restore.py); the answer then is to regenerate (the next ingest cycle), not to restore. Run from backend/.
+RESIDUAL: the checks shrink, but cannot close, the gap between the last revalidation and the first write (no conditional PUT,
+no bucket versioning). Run it only while BOTH ingest lanes and precompute are paused (the recommended exclusive-writer window).
 """
 import argparse
 import json
@@ -28,6 +30,8 @@ def main(argv=None) -> int:
     from services.weather_pipeline.rollout_675_restore import REGENERATE, apply_restore, plan_restore
     from services.weather_pipeline.store import ProductStore
     store = ProductStore()
+    if args.yes:
+        store.restore_from_supabase()          # local manifest copy first, so nothing slow sits between plan and apply
     io = SupabaseIO(store)
     plan = plan_restore(io, args.lane, args.cycle)
     print(json.dumps({"lane": plan["lane"], "cycle_id": plan["cycle_id"], "entries": len(plan["entries"]),
@@ -38,8 +42,7 @@ def main(argv=None) -> int:
     if not args.yes:
         print("dry run: pass --yes to restore")
         return 0
-    store.restore_from_supabase()
-    print(json.dumps(apply_restore(io, store, plan), indent=1))
+    print(json.dumps(apply_restore(io, store, plan), indent=1))   # re-validates everything again before its first write
     return 0
 
 

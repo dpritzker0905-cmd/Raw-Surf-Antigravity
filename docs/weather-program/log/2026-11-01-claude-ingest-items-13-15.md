@@ -157,3 +157,31 @@ needed:** (1) the merge of the exact head, on the owner's word; (2) a deploy win
 fields, with #684 + `PRODUCT_REVISION_REFRESH=1`) and one read-back of `revision_probe`; without it the gate stays closed and the
 core lane runs SAFE (flag 1 only); (3) standing operator authority to run `restore_rollout_snapshot.py --yes` and to set the three
 kill variables to '0'.
+
+## 2026-11-03 UTC: restore revalidation fix (Codex recovery review of be474a8b7, P2); corrects "Recovery limits" above
+**What was wrong at be474a8b7.** `rollout_675_restore.apply_restore` trusted the operator's earlier plan: it copied the snapshots over
+the live keys first and only re-ran `plan_restore` afterwards, and the CLI ran `restore_from_supabase` between the plan and the apply.
+A newer write by either lane between plan and apply was therefore OVERWRITTEN by the backup bytes; the late check only stopped the
+republish. A byte-only rewrite (same registration, new bytes) was lost too, because the late check kept only "newer entry"/"newer
+run" refusals. `test_restore_rechecks_the_shared_head_before_republishing` proved "not republished", not "nothing overwritten".
+The claim above that the restore "re-reads the head just before republishing" was true but was not the protection it read as.
+
+**Fix.** `apply_restore` now (1) downloads EVERY snapshot object and checks it against `before_sha256` (reads only); (2) as the last
+step before the first write, re-runs `plan_restore` fresh against the current shared head and re-hashes every touched live object
+against the sha the snapshot recorded (written sha; for a marked delete, the pre-op sha), and also requires the snapshot index to be
+unchanged; any refusal = return with ZERO mutation; (3) then overwrites, reading each key back; (4) keeps the pre-republish head
+re-check. The CLI's `restore_from_supabase` now runs before the plan, so nothing slow sits between plan and apply.
+
+**Tests** (`backend/tests/test_rollout_675.py`, now 45; +4): plan -> a pilots-lane newer write -> apply; plan -> a core-lane newer
+write -> apply; plan -> a byte-only rewrite of a touched key -> apply; one snapshot corrupted among N. Each asserts zero storage
+operations of any kind after the plan and the live bytes preserved byte for byte. Mutation checks: revalidation moved after the
+copies -> 5 red (the 3 race cases, the round trip, the pre-republish test); verification interleaved with the writes -> the
+corrupted-snapshot case red. Chain floor 3219 -> 3223 (dev 3172 + 57 = 3229, files 190).
+
+**Residual race (stated, not solved).** These checks shrink the window to the gap between the last revalidation and the first
+write; they do NOT eliminate the final time-of-check/time-of-use race: a lane that writes inside that gap is overwritten.
+Supabase Storage has no conditional PUT and the bucket is unversioned, so no check in the script can make the restore atomic.
+**Recommended (not built): an enforced exclusive-writer restore window** - run the restore only while both ingest workflows
+(forecast-ingest, forecast-ingest-pilots) and precompute are disabled or held in their concurrency groups, verified before the
+plan. It needs no storage migration and matches how the operator already pauses lanes; storage versioning/CAS would be the larger
+change.
