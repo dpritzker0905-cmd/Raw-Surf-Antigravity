@@ -139,6 +139,14 @@ gated twice (`point_surf_augment` and `spectral_k_serving.enabled`); their compo
 MIN_PASSED 3397, MIN_FILES 199, in ci.yml AND `_FLOOR_SET_FROM` together. flake8 E9/F63/F7/F82 clean; 800-line rule
 0 violations.
 
+**Hosted CI, first run (41705900850, head 0813d4ca9):** chain lane collected 3404 / 199 files (projection 3403 + 1
+skip) with 3 failed, and the sim lane failed 4. All 7 were tests whose `passthrough` fakes of `augment_with_surf` take
+no keyword argument: the new `resolve_raw=` at the two call sites broke them (LESSON: a kwarg added at a call site of a
+monkeypatched function breaks every positional fake). Fix cb365f662: the call sites are unchanged, and
+`augment_with_surf` reads `_resolve_raw` from the owner of `resolve_partitions` (both callers define it). Flag-off
+hash unchanged; 938 local tests touching point resolution pass. The evidence run (dbee90e871f7) used the identical
+arithmetic: `test_the_harness_replays_the_arm_at_the_buoy...` passes at both heads.
+
 ## 7. Reflection (Beam, high) and what it changed
 
 Verdict "keep it dark": the PASS is best read as compensation (unsheltered `sea_et` x low GFS input), the arm's
