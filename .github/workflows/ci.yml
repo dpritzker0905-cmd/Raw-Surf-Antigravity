@@ -995,7 +995,9 @@ jobs:
           #   base 3341 (hosted read) + 10 new test(s) and 1 new file(s) = 3351, files 213; floor 3351 - 6 = 3345. This PR must read 3351 passed.
           # ⬆ 3345→3345 on 2026-11-02 (rederive_floor.py, claude/upbeat-cori-222cde): dev run 41377184916 read 3351 / 213 files; dev's map 3351;
           #   base 3351 (hosted read) + 0 new test(s) and 0 new file(s) = 3351, files 213; floor 3351 - 6 = 3345. This PR must read 3351 passed.
-          MIN_FILES, MIN_PASSED = 213, 3345
+          # ⬆ 3345→3360 on 2026-11-03 (rederive_floor.py, claude/swell-partition-tracking): dev run 41549383722 read 3351 / 213 files; dev's map 3351;
+          #   base 3351 (hosted read) + 15 new test(s) and 1 new file(s) = 3366, files 214; floor 3366 - 6 = 3360. This PR must read 3366 passed.
+          MIN_FILES, MIN_PASSED = 214, 3360
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1634,9 +1636,11 @@ jobs:
           #   base 3044 (hosted read) + 17 new test(s) and 1 new file(s) = 3061, files 186; floor 3061 - 6 = 3055. This PR must read 3061 passed.
           # ⬆ 3055→3166 on 2026-11-02 (rederive_floor.py, claude/weather-batch-2): dev run 41537830114 read 3044 / 185 files; dev's map 3061;
           #   base 3061 (dev's map) + 111 new test(s) and 2 new file(s) = 3172, files 188; floor 3172 - 6 = 3166. This PR must read 3172 passed.
-          # ⬆ 3166→3187 on 2026-11-03 (rederive_floor.py, claude/spot-hub-phase1): dev run 41549383722 read 3172 / 188 files; dev's map 3172;
-          #   base 3172 (hosted read) + 21 new test(s) and 1 new file(s) = 3193, files 189; floor 3193 - 6 = 3187. This PR must read 3193 passed.
-          MIN_FILES, MIN_PASSED = 189, 3187
+          # ⬆ 3166→3301 on 2026-11-03 (rederive_floor.py, claude/eval-harness-v0): dev run 41549383722 read 3172 / 188 files; dev's map 3172;
+          #   base 3172 (hosted read) + 135 new test(s) and 7 new file(s) = 3307, files 195; floor 3307 - 6 = 3301. This PR must read 3307 passed.
+          # ⬆ 3301→3322 on 2026-11-03 (rederive_floor.py, claude/spot-hub-phase1): dev run 41673519496 read 3307 / 195 files; dev's map 3307;
+          #   base 3307 (hosted read) + 21 new test(s) and 1 new file(s) = 3328, files 196; floor 3328 - 6 = 3322. This PR must read 3328 passed.
+          MIN_FILES, MIN_PASSED = 196, 3322
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

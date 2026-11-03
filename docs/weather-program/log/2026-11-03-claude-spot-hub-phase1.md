@@ -51,8 +51,9 @@ gating hub render on capabilities (the scrubber has the same unloaded-capabiliti
 
 - Backend: `tests/test_forecast_tier_window.py` 21 tests (chain lane), plus `test_spot_details_forecast_deadline.py`
   and `test_parity_unification.py`: 34 passed. flake8 E9/F63/F7/F82 clean; 800-line check 0 violations.
-  Chain floor re-derived with `rederive_floor.py --lane chain --add 21 --add-files 1`: 3166 -> 3187, files 189
-  (dev run 41549383722 read 3172); this PR must read 3193 passed.
+  Chain floor re-derived with `rederive_floor.py --lane chain --add 21 --add-files 1`, first 3166 -> 3187 on
+  `12fdcd228`, then again after merging `origin/dev` at `f421adb08` (#695 eval harness moved chain to 3301 / 195 files;
+  dev run 41673519496 read 3307): 3301 -> 3322, files 196; this PR must read 3328 passed.
 - Frontend: full `src/components src/tests` run 516 suites / 7137 passed + the kill-switch inventory fix; new suites
   `spotHubP1.test.js` (38), `SpotHub.phase1.test.js` (12), `SpotConditions.phase1.test.js` (8); frontend floor
   529/6928 -> 532/6986. `check_eslint.js` passes (no rule above baseline). craco build compiles.

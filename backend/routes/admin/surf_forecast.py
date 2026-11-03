@@ -388,6 +388,15 @@ _RATING_FLAGS = {
     # heights — the exact RATING_TIDE-class trap. 4x the marine point resolutions when on.
     "SURF_PARTITIONS":             ("0", "Spectral swell trains in the height AND the rating (all surfaces)",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
+    # 2026-11-02 (DARK): GFS partitions are per-node SLOTS (WW3 §3.12), so the slot-wise bilinear blend can mix two
+    # swells (14.8% of coastal stencils hold a swap, measured offline). On, the trains are matched by direction +
+    # period across the stencil before they are interpolated (partition_tracking.py). ⚠️ ONLY BITES WHEN
+    # `SURF_PARTITIONS` IS ON: it changes the trains that flag feeds to the height and the rating, so it moves
+    # with it, in every lane together.
+    "SURF_PARTITION_TRACKING":     ("0", "Track GFS swell partitions (match by direction + period) across the "
+                                         "bilinear stencil before interpolating them, instead of blending slot by "
+                                         "slot (needs SURF_PARTITIONS)",
+                                    "Render env AND forecast-ingest.yml AND precompute.yml env"),
     # Roadmap stage 4 (2026-09-27). DARK until the nearshore judge's archived-grid arm has the hours.
     "SURF_NEARSHORE_MOP":          ("0", "California spots break from CDIP MOP's nearshore sea+swell forecast "
                                          "instead of the offshore field + parametric transform (all surfaces)",
