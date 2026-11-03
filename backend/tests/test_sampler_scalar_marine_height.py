@@ -436,3 +436,110 @@ def test_every_lane_declares_the_model_list_equal_and_at_the_code_default():
         assert len(found) == 1, wf
         values[wf] = found[0]
     assert set(values.values()) == {SCALAR_HEIGHT_MODELS_DEFAULT}, values
+
+
+# ─── PER-MODEL SHADOW LANES (2026-11-01): EURO_SCALAR and ICON_SCALAR, the evidence the model list waits on ──────────
+# The GFS shadow retired when GFS's flip served (2026-10-17). EURO and ICON still serve |bilinear(u, v)|, so the same
+# instrument is pointed at each: `raw_surf:EURO_SCALAR` beside `raw_surf:EURO`, `raw_surf:ICON_SCALAR` beside
+# `raw_surf:ICON`. SAMPLER_SCALAR_LEDGER_MODELS (default GFS, byte-identical) names the models; each retires itself once
+# its own height serves as the scalar.
+
+LEDGER_LIST = "SAMPLER_SCALAR_LEDGER_MODELS"
+
+
+@pytest.fixture
+def ledger_env(monkeypatch):
+    """The ledger switch armed, every other lane-adding switch and every scalar list at its code default."""
+    for name in (MASTER, LIST, LEDGER_LIST, "FORECAST_SKILL_COMPARE_MODELS", "CONSENSUS_INGEST", "CONSENSUS_SERVE"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("SAMPLER_SCALAR_LEDGER", "1")
+    from services.weather_pipeline import forecast_skill as fs
+    return fs
+
+
+def _shadows(fs, primary="GFS"):
+    return [m for m in fs.compare_models(primary) if m.endswith("_SCALAR")]
+
+
+def test_default_ledger_list_is_gfs_only_so_merging_moves_no_lane(ledger_env):
+    """Null control: with the new list unset the lanes are exactly the pre-2026-11-01 ones."""
+    from services.weather_pipeline.skill_scalar_lanes import SCALAR_LEDGER_MODELS_DEFAULT
+    assert SCALAR_LEDGER_MODELS_DEFAULT == "GFS"
+    assert _shadows(ledger_env) == ["GFS_SCALAR"]                  # master dark: the GFS shadow, as before
+
+
+def test_named_models_get_a_shadow_beside_their_raw_lane(ledger_env, monkeypatch):
+    fs = ledger_env
+    monkeypatch.setenv(LEDGER_LIST, "GFS,EURO,ICON")
+    assert _shadows(fs) == ["GFS_SCALAR", "EURO_SCALAR", "ICON_SCALAR"]
+    assert fs.source_for("EURO_SCALAR", "GFS") == "raw_surf:EURO_SCALAR"
+    assert fs.source_for("ICON_SCALAR", "GFS") == "raw_surf:ICON_SCALAR"
+
+
+def test_production_today_gfs_retired_euro_and_icon_graded(ledger_env, monkeypatch):
+    """Master on, model list GFS (the 2026-10-17 flip): the GFS shadow would double-count and retires; EURO and ICON,
+    still served as the vector mean, are graded."""
+    monkeypatch.setenv(MASTER, "1")
+    monkeypatch.setenv(LEDGER_LIST, "GFS,EURO,ICON")
+    assert _shadows(ledger_env) == ["EURO_SCALAR", "ICON_SCALAR"]
+
+
+@pytest.mark.parametrize("served, left", [("GFS,EURO", ["ICON_SCALAR"]), ("GFS,ICON", ["EURO_SCALAR"]), ("*", [])])
+def test_each_shadow_retires_when_its_own_model_serves_the_scalar(ledger_env, monkeypatch, served, left):
+    monkeypatch.setenv(MASTER, "1")
+    monkeypatch.setenv(LIST, served)
+    monkeypatch.setenv(LEDGER_LIST, "GFS,EURO,ICON")
+    assert _shadows(ledger_env) == left
+
+
+def test_a_shadow_needs_a_graded_raw_partner_and_derived_lanes_never_get_one(ledger_env, monkeypatch):
+    fs = ledger_env
+    monkeypatch.setenv("FORECAST_SKILL_COMPARE_MODELS", "ICON")    # EURO not graded raw: an unpaired shadow is noise
+    monkeypatch.setenv(LEDGER_LIST, "EURO,ICON,CONSENSUS,GFS_RAW,BOGUS, icon ")
+    assert _shadows(fs) == ["ICON_SCALAR"]
+    assert fs.scalar_shadow_base("EURO_SCALAR") == "EURO" and fs.scalar_shadow_base("icon_scalar") == "ICON"
+    assert fs.scalar_shadow_base("CONSENSUS_SCALAR") is None and fs.scalar_shadow_base("EURO") is None
+
+
+def test_the_euro_and_icon_shadows_resolve_their_own_model_with_a_scalar_sampler(ledger_env, monkeypatch):
+    import asyncio
+    from services.weather_pipeline import buoy_calibration as bc
+    fs = ledger_env
+    monkeypatch.setenv(MASTER, "1")                                 # production: GFS serves the scalar
+    monkeypatch.setenv(LEDGER_LIST, "GFS,EURO,ICON")
+    monkeypatch.setenv("FORECAST_SKILL_PERSISTENCE", "0")
+    seen = []
+
+    async def fake_calibrate(resolver, spots, model, target):
+        seen.append((model, scalar_marine_height_enabled("marine", model)))
+        return {"spots": []}
+
+    async def no_coords():
+        return {}
+    monkeypatch.setattr(bc, "calibrate_spots", fake_calibrate)
+    monkeypatch.setattr(bc, "fetch_ndbc_station_coords", no_coords)
+    monkeypatch.setattr(bc, "load_calibration_rows_l2", lambda *a, **k: ([], False))
+    monkeypatch.setattr(bc, "upload_calibration_l2", lambda *a, **k: None)
+    try:
+        asyncio.run(fs.run_skill_ledger(None, None, [], "GFS", {"spots": []}))
+    except Exception:
+        pass                                                        # only the lane resolution is under test here
+    n = len(fs.LEADS_H)
+    assert seen.count(("GFS", True)) == n                           # served GFS is already the scalar; no GFS shadow
+    assert seen.count(("EURO", False)) == n and seen.count(("EURO", True)) == n   # raw EURO vector, its shadow scalar
+    assert seen.count(("ICON", False)) == n and seen.count(("ICON", True)) == n
+    assert len(seen) == 5 * n
+    monkeypatch.delenv(MASTER)
+    assert not scalar_marine_height_enabled("marine", "EURO")       # nothing leaks out of the lane
+
+
+def test_both_ledger_lanes_declare_the_shadow_model_list_equal():
+    values = {}
+    for wf in ("forecast-ingest.yml", "precompute.yml"):
+        d = yaml.safe_load((BACKEND.parent / ".github" / "workflows" / wf).read_text(encoding="utf-8"))
+        found = [st["env"][LEDGER_LIST] for j in d["jobs"].values() for st in j.get("steps", [])
+                 if isinstance(st, dict) and LEDGER_LIST in (st.get("env") or {})]
+        assert len(found) == 1, wf
+        values[wf] = found[0]
+    assert len(set(values.values())) == 1, values
+    assert {"EURO", "ICON"} <= {m.strip().upper() for m in next(iter(values.values())).split(",")}
