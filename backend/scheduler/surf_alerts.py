@@ -19,6 +19,10 @@ from .base import send_push_notification
 
 async def check_surf_alerts_task():
     """Check every 15 minutes; shared database cooldown owns each emission."""
+    from services.surf_alert_windows import enabled as forecast_windows_enabled
+    if forecast_windows_enabled():  # dark ALERTS_FORECAST_WINDOWS; off = the loop below, unchanged
+        from .surf_alert_windows import check_surf_alert_windows_task
+        return await check_surf_alert_windows_task()
     from database import async_session_maker
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
