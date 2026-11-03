@@ -191,9 +191,9 @@ const SessionDetailDrawer = ({
     setShowReviewModal(true);
   }, []);
   
-  const handleReviewSubmitted = useCallback(() => {
+  const handleReviewSubmitted = useCallback((rating) => {
     if (reviewTarget) {
-      setReviewedIds(prev => ({ ...prev, [reviewTarget.id]: true }));
+      setReviewedIds(prev => ({ ...prev, [reviewTarget.id]: rating }));
     }
     setShowReviewModal(false);
   }, [reviewTarget]);

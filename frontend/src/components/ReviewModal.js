@@ -232,7 +232,7 @@ export const ReviewModal = ({
       
       setSubmitted(true);
       toast.success('Review submitted! +10 XP ' + String.fromCodePoint(0x1F929));
-      onReviewSubmitted?.();
+      onReviewSubmitted?.(rating);
       
       // Auto-close after brief delay
       setTimeout(() => {
