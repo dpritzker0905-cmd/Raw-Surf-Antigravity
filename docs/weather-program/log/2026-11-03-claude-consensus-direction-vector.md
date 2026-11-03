@@ -230,3 +230,160 @@ Rejected:
 ## Ledger
 
 One `finding` line: `ledger.d/claude--consensus-direction-vector.jsonl:1`.
+
+## 15:56Z · Rebuilt as the HYBRID (supersedes "What was built" above for the rule; the plain-rule evidence stays as written)
+
+The owner approved the change at ~15:34Z, relayed by the lead: "Yes, use the hybrid if that is the best state of the
+art way". Same flag, same branch, same draft (#697), still DARK.
+
+**Rule.** With R the members' mean resultant length:
+
+| R | direction |
+|---|---|
+| R >= `R_AGREE` (0.92), the members agree | GFS's own direction, scaled exactly as today |
+| `R_MIN` (0.2) <= R < 0.92 | the unweighted vector mean, u/v rebuilt |
+| R < 0.2 | GFS's own direction (the guard) |
+| a member's direction is invalid | GFS's own direction |
+| a member is missing | no consensus cell |
+
+- The cells are counted as `vector_mean`, `members_agree`, `low_agreement` and `member_dir_invalid`.
+- The diagnostics say `method: hybrid_vector_mean, r_agree: 0.92`. R stays on every cell whose three directions are
+  valid.
+
+**R_AGREE provenance.** Chosen on the TRAINING quadrant only (buoy half 0 x even weeks, 27,909 rows), by minimum MAE
+over 0.70 to 0.99 in steps of 0.01:
+
+| R_AGREE | train MAE (deg) |
+|---|---|
+| 0.88 | 19.670 |
+| 0.89 | 19.660 |
+| 0.90 | 19.690 |
+| 0.91 | 19.654 |
+| **0.92** | **19.649 (the minimum)** |
+| 0.93 | 19.669 |
+| 0.95 | 19.893 |
+
+It is frozen as a named constant with this provenance. The served definition's own training pick would be 0.93: the
+plateau is 0.88 to 0.93, so 0.92 is not a precise optimum.
+
+⚠️ **The selection is soft-contaminated.** Before the owner's word, this session's exploratory pass had looked at
+held-out MAE on a coarse grid (0.5 to 1.0) and at the hybrid at 0.90. The training scan alone picks 0.92, but the
+held-out numbers below are therefore **exploratory, not confirmatory**. The fresh-window flip gate is the confirmation.
+
+**Evidence** (scratch `eval_hybrid.py`; same rows, folds and gates-v2 statistics; Holm within each stratification).
+Definition A uses the Open-Meteo TOTAL directions. Definition B is the SERVED definition:
+
+- B rests on 150 public Open-Meteo requests (GFS and GWAM swell partitions), made one at a time.
+- `WAVES_ANIM_DOMINANT_SWELL` = 1, so GFS and ICON carry the larger swell partition's direction where
+  swell_h² >= 0.35 Hs², else their total direction. EURO is never stamped.
+- That stamp applies to 52% of GFS rows and 85% of ICON rows. GFS-alone, the reference, uses its stamped direction too.
+- The product-level availability-coherence rule (>= 95% of cells) is not modelled: it is per point here.
+
+| held-out (80,742 rows) | A: total | B: served |
+|---|---|---|
+| hybrid vs GFS | **+5.60 [+4.90, +6.33]** | **+5.63 [+5.08, +6.29]** |
+| fully held quadrant | +5.31 [+3.97, +7.00] | +5.26 [+4.27, +6.50] |
+| buoy-cluster bootstrap | +5.56 [+2.16, +10.14]; 75 buoys better, 26 worse | +5.56 [+2.17, +10.14]; 80 better, 24 worse |
+| hybrid vs plain mean | +0.67 [+0.41, +0.93] | -0.10 [-0.37, +0.18] |
+| plain mean, 0-10 deg band | -0.27 (Holm ~0) | **-0.22 [-0.30, -0.14] (Holm 2.5e-7)** |
+| hybrid, worst band | 0.00 (identical to GFS) | 0.00 |
+| uses the mean / GFS (agree) / GFS (guard) | 19.5% / 80.4% / 0.05% | 18.5% / 81.4% / 0.08% |
+
+**Under B the hybrid ties the plain mean on overall MAE, but the plain mean still fails the band gate** (0-10 deg
+significantly worse). The hybrid passes it under both definitions. This is why the hybrid, not the plain mean, is the
+candidate.
+
+Bands (held-out, hybrid vs GFS; nothing is significantly worse after Holm under either definition):
+
+| stratification | A | B |
+|---|---|---|
+| disagreement 0-10 / 10-30 deg | identical / identical | identical / identical |
+| disagreement 30-60 deg | +0.08 [-0.26, +0.38] | +0.32 [+0.13, +0.52] |
+| disagreement 60-90 deg | +9.49 [+6.25, +12.70] | +12.68 [+10.17, +15.59] |
+| disagreement > 90 deg | +54.0 [+48.6, +61.1] | +52.6 [+46.9, +61.6] |
+| R 0.2-0.5 / 0.5-0.8 / 0.8-0.92 | +66.3 / +39.3 / +5.2 [+2.3, +7.9] | +64.3 / +40.2 / +8.3 [+6.0, +10.6] |
+| R >= 0.92 | identical | identical |
+| DPD < 8 s | +7.16 [+6.10, +8.43] | +5.82 [+4.79, +6.94] |
+| DPD 8-12 s | +2.99 [+0.78, +4.42] | +2.44 [+0.77, +3.90] |
+| DPD > 12 s | +8.55 [+6.81, +11.14] | +10.53 [+8.53, +13.20] |
+| observed-spread proxy bands | +2.3 to +11.0 | +2.6 to +10.8 |
+
+**Sensitivity** (held-out vs GFS). No band is significantly worse at any value. The worst band at 0.97 is A's -0.41,
+which is not significant.
+
+| R_AGREE | A | B | mean used (A) |
+|---|---|---|---|
+| 0.87 | +5.51 [+4.94, +6.20] | +5.34 | 14.3% |
+| 0.90 | +5.60 | +5.50 | 16.8% |
+| **0.92** | **+5.60** | **+5.63** | **19.5%** |
+| 0.94 | +5.55 | +5.76 | 23.7% |
+| 0.97 | +5.41 [+4.57, +6.28] | +5.87 [+5.14, +6.66] | 36.5% |
+
+**Tests:** 51 in `test_consensus_direction_vector.py`, which adds seven to the earlier 44:
+
+- just below R_AGREE uses the mean, and just above keeps GFS (GFS deliberately is not the mean there);
+- `>=`, not `>`;
+- agreeing members keep GFS even where their mean differs;
+- the circular mean in the regime where it is used (330/30/0 averages to 0, not 120);
+- the metadata says `members_agree`, and the cells are byte-for-byte today's;
+- the off build is still pinned by sha256.
+
+Mutation checks: eight mutants, all caught.
+
+| mutant | tests failed |
+|---|---|
+| M1 arithmetic mean | 13 |
+| M2 R_MIN removed | 6 |
+| M3 scaled u/v | 4 |
+| M4 two-member mean | 4 |
+| M5 sign flip | 3 |
+| **M6 agree comparison inverted** | **25** |
+| **M7 agree branch dropped** | **12** |
+| M8 `>` for `>=` | 1 |
+
+**Floors.** Dev moved: #695 merged as dfed518e8. I merged `origin/dev`, took dev's two floor files, and re-derived:
+
+- base = max(hosted read 3172 / 188, dev's map 3307) = 3307.
+- set_from = 3307 + 51 = **3358**.
+- MIN_PASSED 3301 -> 3352.
+- MIN_FILES 195 -> 196.
+
+### Reflection (Beam, high) on the hybrid — what changed
+
+Accepted:
+
+- **Held-out evidence relabelled exploratory** because of the earlier look (above). The flip gate's fresh window is
+  the confirmation.
+- **0.92 stated as a plateau value**, not a sharp optimum.
+- **Hard-threshold discontinuity added to the flip gate.** Where R crosses 0.92 between neighbouring cells, the bearing
+  can jump by up to ~25 deg (GFS vs the mean). The gate now reports the neighbour-cell bearing-jump rate of the built
+  shadow, flag on vs off, as a crest-animation seam check.
+- **Mixed definition under B made a gate item.** EURO's total direction is averaged with the GFS/ICON swell stamps,
+  so R compares partly different quantities. That is how production builds it, so the gate grades the built product
+  as it is. A common-basis consensus (all-total or per-partition) is out of scope here, because partitions are out of
+  the brief.
+
+Rejected:
+
+- **"Use the plain mean under B."** It still has a significantly worse band, so it fails the gate.
+- **"Round to 0.90" or "smooth blend."** Re-picking after seeing the held-out flatness would be post-hoc. A smooth
+  weight is a different method that the owner has not approved; it is recorded as a possible later variant.
+- **"Average the valid members when one is invalid."** The brief forbids two-member values under the consensus name.
+- **"Require two seasons."** That is the owner's call: it is written into the gate as an option, not a requirement.
+
+### Flip gate (supersedes the one above)
+
+1. **Window and definition.** A fresh window of at least 4 weeks (a second season is optional, the owner's call), at
+   fixed leads 24/48/72 h. Grade the BUILT shadow CONSENSUS direction (served, stamped members) against GFS's served
+   direction, with NDBC MWD as truth.
+2. **Primary endpoint.** The hybrid's direction MAE gain vs GFS at each lead. The CI must exclude 0 under both the
+   hour-panel block bootstrap and the buoy-cluster bootstrap.
+3. **No band worse.** No disagreement, R, DPD or observed-spread band may be significantly worse after Holm.
+4. **Secondary (reported, not gating).** The gain vs the plain mean; the fraction of cells using the mean; the
+   neighbour-cell bearing-jump rate (on vs off).
+5. **Rating flip rate.** The rating-level flip rate against the observed-input chain must not rise: the on-minus-off
+   difference has an upper 95% bound <= 0.
+6. **Order.** The flip order is unchanged (above). CONSENSUS_SERVE flips last, and the owner's word plus a SCOREBOARD
+   row comes at each flip.
+
+Ledger: `ledger.d/claude--consensus-direction-vector.jsonl:2` (`decision`, the rebuild).
