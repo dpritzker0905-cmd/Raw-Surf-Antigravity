@@ -2189,7 +2189,9 @@ jobs:
           #   base 3406 (hosted read) + 2 new test(s) = 3408; floor 3408 - 2 = 3406. This PR must read 3408 passed.
           # ⬆ 3404→3406 on 2026-11-02 (rederive_floor.py, claude/weather-batch-2): dev run 41377184916 read 3406; dev's map 3406;
           #   base 3406 (hosted read) + 2 new test(s) = 3408; floor 3408 - 2 = 3406. This PR must read 3408 passed.
-          MIN_PASSED = 3406
+          # ⬆ 3406→3416 on 2026-11-03 (rederive_floor.py, codex/bookings-reviewed-stack-20261103): dev run 41673519496 read 3408; dev's map 3408;
+          #   base 3408 (hosted read) + 10 new test(s) = 3418; floor 3418 - 2 = 3416. This PR must read 3418 passed.
+          MIN_PASSED = 3416
 
           try:
               root = ET.parse('estate.xml').getroot()

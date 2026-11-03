@@ -24,7 +24,7 @@ from models import (
 )
 from utils.credits import deduct_credits, add_credits
 from websocket_manager import broadcast_earnings_update
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_current_user_id, get_user_id_from_jwt_or_query
 
 try:
     from services.onesignal_service import onesignal_service
@@ -38,7 +38,44 @@ logger = logging.getLogger(__name__)
 from .crud import InviteCrewRequest
 
 
-# ============ INVITE RESPOND ============
+# ============ INVITE READ / RESPOND ============
+
+@router.get("/bookings/invites/{user_id}")
+async def get_user_invites(
+    user_id: str,
+    auth_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db)
+):
+    """Read the authenticated recipient's pending invites without changing them."""
+    if user_id != auth_user_id:
+        raise HTTPException(status_code=403, detail="Cannot read another user's invites")
+
+    result = await db.execute(
+        select(BookingInvite)
+        .where(BookingInvite.invitee_id == auth_user_id, BookingInvite.status == 'pending')
+        .options(
+            selectinload(BookingInvite.booking).selectinload(Booking.photographer),
+            selectinload(BookingInvite.inviter)
+        )
+        .order_by(BookingInvite.created_at.desc())
+    )
+    invites = []
+    for invite in result.scalars().all():
+        booking = invite.booking
+        inviter = invite.inviter
+        photographer = booking.photographer if booking else None
+        invites.append({
+            "id": str(invite.id),
+            "booking_id": str(invite.booking_id),
+            "inviter_name": inviter.full_name if inviter else None,
+            "inviter_avatar": inviter.avatar_url if inviter else None,
+            "location": booking.location if booking else None,
+            "session_date": booking.session_date.isoformat() if booking and booking.session_date else None,
+            "photographer_name": photographer.full_name if photographer else None,
+            "message": invite.message,
+            "created_at": invite.created_at.isoformat() if invite.created_at else None,
+        })
+    return invites
 
 @router.post("/bookings/invites/{invite_id}/respond")
 async def respond_to_invite(
