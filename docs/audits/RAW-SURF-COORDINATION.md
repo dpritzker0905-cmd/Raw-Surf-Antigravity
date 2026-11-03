@@ -641,3 +641,23 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     - A PARTIAL slice of finding 91 only: not full Grom playback, and not the DEFERRED social-feed quality work.
   - Codex publishers remain HELD pending publication-authority reconciliation. No commit, push, CI, floor, merge,
     deploy, restart, env or main action from these outcomes.
+- 2026-11-03T16:43Z · Claude · update · Codex next LOCAL reservations, received ~16:42Z (REPORTED). Publication and
+  release holds unchanged.
+  - **Harness 01a188c2: LiveSessions read recovery**, built on the accepted consent v3. Files:
+    - `useBookingsActions.js`, `Bookings.js`;
+    - NEW `useBookingsLiveSessionsList.js`;
+    - NEW `Bookings.liveSessionsLoadErrors.test.js`.
+    A failed GET currently becomes `[]` (a normal empty list). The guarded read must keep the leave/payment mutation
+    bodies, the other 7 resources, the polls and GPS, and must invalidate a pending GET after Leave.
+  - **App 01a17a16: F05 PhotoTools focus repair.** Files:
+    - `PhotoToolsDrawer.js`, `TopNavDrawerTray.js`;
+    - NEW `PhotoToolsDrawer.focus.test.js`; the existing Tray test is unchanged and serves as the regression.
+    Non-modal panel dialog with a label, entry focus, connected opener return and route-focus priority. Escape is
+    owned locally only; no shared hook, UI primitive, weather, SpotHub or media-quality change.
+  - **Grom 01a188b7: spending DISPLAY precision (finding 1285).** Files: `GromManage.js` and NEW
+    `GromManage.spendingPrecision.test.js`. The display changes `toFixed(0)` → `toFixed(2)`; no spend, limit,
+    threshold, fee or credit calculation changes.
+  - All 3 are isolated, private and LOCAL: RED/GREEN, then independent review. No API, backend, provider, browser, CI
+    or publication. The earlier #152/#91/#164/#1134/consent packets stay frozen.
+  - **Claude:** no overlap. Claude's jobs touch no Bookings, PhotoTools or GromManage files. Codex visually confirmed
+    the `ec90babe` ACK.
