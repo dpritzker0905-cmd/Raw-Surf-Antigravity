@@ -170,3 +170,60 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
   - (2) Inventive research A (new truth/data sources) and (3) inventive research B (new math/ML methods). Both are
     read-only and reserve no repo files. Each writes one memory file and the scratchpad.
   - None of the three may merge, dispatch, change env/Render/Netlify, deploy or touch main.
+- 2026-11-03T03:20Z · Claude · checkpoint · HANDOFF (requested by Codex for David). Grants nothing.
+  - **Heads (VERIFIED 03:19Z):** DEV `12fdcd22839f70c12d80ccb5c2bb5d4c787c5652`. Claude window OPEN, merges PAUSED.
+    No merge, flag, config, restart, deploy or main action by Claude since the 01:49Z pause.
+  - **#675 v2, NOT frozen.** The build is still running. Remote head moved `0f9b2f59c…75` → `be474a8b7498f16d56f1d057798eccbbba379f63`;
+    mergeStateStatus BLOCKED while hosted CI runs. Its readiness waits on the build agent's final report, full CI and
+    Claude's review. Reserved files as in the Owners table.
+  - **Eval harness #695**, head `6c570ade8623ebc44b8b959b4402de49b9c0b2b8`, CI green. Revision v0.1 (eccodes backend,
+    climatology ratchet, out-of-sample climatology, demo rerun) is building in `C:/t/eh0`, not pushed yet.
+  - **Flip automation (owner's question, ~03:05Z):** the harness IS the per-flip gauge. Today it runs offline/CLI and
+    by a manual-only workflow. Running it automatically on each flip-candidate PR would be a CI-trigger config change
+    and needs the owner's explicit approval. Not started.
+  - **GRIB reader (VERIFIED, local only; NOT production-parity qualification):**
+    - Environment: `C:/Users/David/App/raw-surf/backend/.venv`, Python 3.12.10, AMD64, Windows.
+    - `pip download --only-binary :all:` showed: no Windows wheel for `pygrib==2.1.8` ("No matching distribution");
+      `eccodeslib` not found; `eccodes-2.50.0-cp312-cp312-win_amd64.whl` (PyPI, ECMWF) available.
+    - Installed `eccodes==2.50.0`, plus dependency `findlibs-0.1.4` (`cffi` and `pycparser` already present).
+      `codes_get_api_version()` = 2.50.0, from the bundled library.
+    - INITIAL FAILURE: the first decode attempt picked the wrong file (a `find` matched `eval_grib2.py`, a source file)
+      and raised `UnsupportedEditionError` — a test-selection error, not a library fault.
+    - REMEDY: fetched a 1,393-byte public NOMADS `filter_gfswave.pl` subset (gfs 2026-11-02 00Z f024, HTSGW+PERPW,
+      30-36N 238-244E). It decoded 2 messages: `swh` and `perpw`, 600 points each. Value ranges were not checked; the
+      printed max 9999 is the missing-value code.
+  - **Inputs still differing from production in harness runs:**
+    - native 0.25° crop instead of the served tiles;
+    - wind from the wave file in v0 (v0.1 adds the pgrb2 10 m wind via eccodes; pending);
+    - the storage size climatology is unreachable offline;
+    - scores are pre-obs-gate;
+    - no `best_tide` prior;
+    - display swell.
+    `production_parity` is not established.
+  - **Research lanes:** v2/eval operations (started 02:55Z); inventive A, truth/data sources (03:08Z); inventive B,
+    math/ML methods (03:08Z). All running, read-only, reserving no repo files.
+  - **Pending PR decisions (owner, per PR, at an exact head):**
+    - #675: after the v2 review; head moving.
+    - #676: local merge unpushed; DIRTY.
+    - #677: after #676; DIRTY.
+    - #691: dark; DIRTY.
+    - #662: dark; DIRTY.
+    - #375: keep or close; DIRTY.
+    - #695 and #696: drafts.
+    Dependencies are as in the PR table.
+  - **Codex App (REPORTED by Codex, ~03:19Z):**
+    - Gear #58 LOCAL two-file repair complete and independently accepted. Review sha256
+      `0fb0059543cd837068635de2c4caa758e6931b4aa7fc4c73716e85a5a8679e58`; v2 manifest
+      `e2d5c553959e961c28b3149ed06ce6d2e2023143ec149773801ac2fca80a10a8`; 34 real-component cases RED→GREEN; scoped
+      lint clean.
+    - Limits retained: no browser proof; 4 React act warnings; 401/403/account-ABA/abandoned-render paths unexecuted.
+      Source private and unpublished.
+    - #694 balance and the #688/#693/#692 publication-stage CI are terminal green at their recorded heads. They remain
+      drafts and unmerged. This is not current-DEV, backend or browser acceptance.
+    - #689 and #679 stay separate.
+  - **DEFERRED user items** (outside original completion counts; REPORTED; App worklist appended 03:01:35Z, sha256
+    `9233cec22bcd753266fec1264372394ddb5a78034be61802ee0ca98efa81476b`):
+    - (a) user-observed distorted or poor-resolution feed photos/videos; cause unverified; investigation later;
+    - (b) possible future private GitHub visibility; needs an impact review and an explicit later settings approval.
+    No investigation or settings change has started.
+  - **Render hook (REPORTED):** David manually closed the stale Render-hook window. No further hook work.
