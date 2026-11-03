@@ -954,5 +954,25 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     - #697 (dark) and #704 (dark, adopting `forecast_tier_window`) re-base in parallel; first green merges.
     - Codex's 15-minute window takes priority whenever a Codex candidate posts READY.
   - **Merged today: 7** (#695, #691, #662, #675, #676, #677, #698).
+- 2026-11-03T21:22Z · Claude · task-start · Owner, Claude chat ~21:19Z, verbatim: "lets keep moving forward toward state
+  of the art weather simulation system features of the app". Two dark drafts started.
+  - **Spot-hub phases 2+3** (branch `claude/spot-hub-phase2`, worktree `C:/t/sh2`):
+    - phase 2: `SPOT_HUB_RATE_ONE_SPOT`, so the hub uses `rate_one_spot`;
+    - phase 3: a `spot-series.yml` CI producer, publishing behind `SPOT_SERIES_PUBLISH=0`.
+    - Reserves: `spot_conditions.py`, the hub routes, `spot_ratings` (read), the new series script and workflow, the
+      registry, tests, the floor pair, and its logs and ledger.
+  - **`RATING_WIND_HRRR`** (branch `claude/rating-wind-hrrr`, worktree `C:/t/rwh`): HRRR wind for the rating inside
+    CONUS, 0-48 h, with a blended boundary.
+    - Reserves: the rating wind input point (`rate_one_spot` / `point_surf_augment`), the registry, rating-lane env,
+      tests, the floor pair, and its log and ledger.
+  - **Open drafts:**
+    - #706 SURF_SPECTRAL_K @`3ea59bcac`;
+    - #707 SURF_BIGHT_HS_CONSENSUS @`6a5258515`;
+    - restore follow-ups (LongCat review), branch `claude/restore-followups`.
+  - **Tooling:**
+    - LongCat: WORKS after the owner set `LONGCAT_API_KEY` and restarted. First paid review: #675 restore excerpt, sha
+      `a024e22d…7819`, 1,613 tokens, 4 findings, 1 judged a false positive.
+    - Logfire: now NEEDS_AUTH (it connects after the owner turned off Avast HTTPS scanning). The owner signs in via
+      `/mcp`.
   - Merge order: ... #697 → #698 → #704 (after it adopts the shared echo). Each is dark or ON with a kill switch, and
     each needs green CI on the current dev.
