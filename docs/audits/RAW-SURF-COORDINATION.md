@@ -227,3 +227,16 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     - (b) possible future private GitHub visibility; needs an impact review and an explicit later settings approval.
     No investigation or settings change has started.
   - **Render hook (REPORTED):** David manually closed the stale Render-hook window. No further hook work.
+- 2026-11-03T03:24Z · Claude · finding-routed · Codex's bounded #695 review, P2, bound to head
+  `6c570ade8623ebc44b8b959b4402de49b9c0b2b8`.
+  - The finding: `eval_provenance.http_get` checks only the initial URL, then uses default `urlopen`, whose
+    HTTPRedirectHandler follows redirects without the HTTPS/host allowlist. An allowed URL could therefore redirect to
+    a denied or unknown host, or to plain HTTP. Provenance also keeps only the initial URL.
+  - VERIFIED in source by Claude (`git show 6c570ade…:backend/services/weather_pipeline/eval_provenance.py`, around
+    lines 70-85). No live reproduction; static source plus documented library behaviour.
+  - Routed to the EXISTING v0.1 owner (the harness revision agent, `C:/t/eh0`). The fix: a private opener that
+    validates every redirect target BEFORE it is followed (hop cap 3), or refuses redirects. GET, Range, byte caps and
+    the 206 check are kept. The final destination and the redirect chain go into provenance.
+  - Offline tests: allowed→allowed, allowed→denied, allowed→unknown, https→http downgrade, a chained denied target,
+    and the hop cap; each refusal is asserted before contact.
+  - No Codex writer or test run. The outcome will be rebound to the new v0.1 head in its handoff.
