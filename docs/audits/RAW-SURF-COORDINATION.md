@@ -27,6 +27,16 @@ is historical and is NOT continued here.
 - **Raw Surf only.** No secrets, credential values, private chat or session transcripts.
 - **This record grants nothing.** It authorizes no implementation, test, merge, deploy, env change, restart or
   qualification.
+- **Handoffs (owner instruction, relayed by Codex 2026-11-03 ~02:10Z).** Whenever either side works separately, it
+  leaves a timestamped HANDOFF in the Log. The handoff gives:
+  - what changed;
+  - exact refs (full SHAs, PR numbers) and check/run receipts;
+  - reserved files;
+  - open risks and decisions;
+  - the next owner.
+  On resuming collaboration, read the latest handoff and VERIFY current Git, PR and served state from primary sources
+  BEFORE editing anything. This record is not approval, and it is not automatically current truth, even when a field
+  is under the 6 h stale threshold.
 
 ## Current snapshot (as of 2026-11-03T02:07Z unless a field says otherwise)
 
@@ -34,8 +44,9 @@ is historical and is NOT continued here.
 | Item | Value | Observed (UTC) | Label | Source |
 |---|---|---|---|---|
 | DEV head | `12fdcd22839f70c12d80ccb5c2bb5d4c787c5652` (Weather batch 2, #690) | 02:05Z | VERIFIED | `git rev-parse origin/dev` |
-| Backend (Render) serving | `a8e6d0c7` (#644, commit 2026-10-30) | 2026-11-03T00:17Z | VERIFIED | E2E run 41549383730: "backend serving a8e6d0c7, not 12fdcd22" |
-| Frontend (Netlify dev) | builds from DEV pushes; deployed SHA not read for this record | — | UNKNOWN | to be read and stamped separately |
+| Backend (Render) serving, CURRENT | not read for this record | — | UNKNOWN | needs a fresh verified read |
+| Backend (Render) serving, HISTORICAL | `a8e6d0c7` (#644, commit 2026-10-30) | 2026-11-03T00:17Z only | VERIFIED (historical) | E2E run 41549383730: "backend serving a8e6d0c7, not 12fdcd22". Not a claim about 02:07Z or later |
+| Frontend (Netlify dev), CURRENT | builds from DEV pushes; deployed SHA not read | — | UNKNOWN | needs a fresh verified read |
 | DEV CI at 12fdcd228 | success | 2026-11-03 | VERIFIED | CI run 41549383722 |
 | DEV E2E at 12fdcd228 | failure, before the browsers started (backend not on this SHA) | 2026-11-03T00:17Z | VERIFIED | run 41549383730; the same cause at 29f4c3591 (41543535742) and f0721ddff (41537830165), cd09e4e3e (41517795216), 558a1a54f |
 
@@ -73,14 +84,18 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
 | #662 | EURO/ICON scalar-height shadow lanes (serve nothing) | `588c6c0ce75409e2276dd886b182e1ee98926822` | DIRTY | none | merge dark | VERIFIED 02:05Z |
 | #375 | consensus direction + period buoy grading (measurement only) | `7190ae5de8fad18719390ce68af2bd5f219f1d07` | DIRTY | none; its period half is superseded by #686 | keep as a measurement, or close | VERIFIED 02:05Z |
 | #688, #693, #692 (+#689), #679 | Codex app candidates (Messages, photographer, Zoomlab, cancellation) | as Codex reports | drafts or ready | #692 builds on #689 | owner, separately | REPORTED by Codex |
+| #694 | App balance repair, a DRAFT published by its source owner | short head `4fd7f5695`, base `12fd…` (full SHAs not yet supplied) | draft. At Codex's receipt: the App accepted the published source and the completed frontend subset; 26 local checks; hosted 627 suites / 8188 tests, with build warnings; main CI and backend lanes PENDING | none stated | none yet: no merge or browser approval | REPORTED by Codex, 2026-11-03 ~02:10Z, until a full-head, source-owner terminal binding is supplied. Supersedes the earlier "balance repair private" snapshot |
 
 ### Approvals on record (owner's own words; a relay is marked as such)
 - 2026-11-02 ~20:04Z: "Merge and push what needs to be". Then at ~20:16Z: "if you're doing the merge yourself, then do
   the merges" (in Claude chat). Covers the PRs listed at that time: #681, #674, #672, #682, #673, weather batch 2. Plus
   ~20:56Z: "Merge #687 too".
-- 2026-11-03 ~00:32Z (relayed by Codex): "TRUTH / REFERENCE DATA AND EVALUATION INFRASTRUCTURE FIRST ... Move forward."
-  Explicitly not granted: #675 merge, deploy, env, restart, main, browser rerun, gate waivers, all builds, flipping
-  scientific defaults.
+- 2026-11-03 ~00:32Z (relayed by Codex). The owner's own words were "Sounds good. I approve of that. Move forward. Thank
+  you.", in reply to the evaluation-first plan. The #675 merge was expressly separate.
+  - The phrase "TRUTH / REFERENCE DATA AND EVALUATION INFRASTRUCTURE FIRST" was Codex's planning context, NOT a
+    verbatim quote of David. Corrected 2026-11-03T02:13Z; the original wording is kept in the Log.
+  - Explicitly not granted: #675 merge, deploy, env, restart, main, browser rerun, gate waivers, all builds, flipping
+    scientific defaults.
 - 2026-11-03 ~01:47Z: "Build v2 as a draft" (owner selected it in Claude chat; Codex confirmed). Draft authority only.
 
 ### Next actions
@@ -92,3 +107,14 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
 ## Log (append-only; UTC; author; kind; text)
 - 2026-11-03T02:07Z · Claude · created · Record created on the owner's authorization relayed by Codex at ~02:04Z.
   Snapshot built from `git`/`gh` reads at 02:05Z, plus the E2E receipt 41549383730.
+- 2026-11-03T02:13Z · Claude · protocol · Added the HANDOFF requirement (owner instruction relayed by Codex ~02:10Z):
+  leave a timestamped handoff when working separately; verify Git/PR/served state before editing on resume; the record
+  is not approval or automatically current truth. ACKNOWLEDGED by the editor.
+- 2026-11-03T02:13Z · Claude · correction · CORRECTS 2026-11-03T02:07Z. The backend row said "`a8e6d0c7` …
+  2026-11-03T00:17Z … VERIFIED" under a snapshot dated 02:07Z. It is now a HISTORICAL observation at 00:17Z only, and
+  the current backend and frontend are UNKNOWN until fresh verified reads.
+- 2026-11-03T02:13Z · Claude · correction · CORRECTS 2026-11-03T02:07Z. The approval line quoted "TRUTH / REFERENCE DATA
+  AND EVALUATION INFRASTRUCTURE FIRST ... Move forward." as the owner's words. The owner's actual relayed words were
+  "Sounds good. I approve of that. Move forward. Thank you." The capitalised phrase was planning context.
+- 2026-11-03T02:13Z · Claude · update · Added #694 (App balance repair draft) as REPORTED by Codex. It supersedes the
+  earlier private-balance snapshot. No merge or browser approval.
