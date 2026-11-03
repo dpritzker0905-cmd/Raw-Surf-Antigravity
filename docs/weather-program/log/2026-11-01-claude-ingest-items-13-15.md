@@ -202,3 +202,5 @@ change.
 - The residual stands as written above: the final per-key validation -> write race remains across the whole multi-key restore;
   an exclusive all-writer window is recommended, NOT enforced; there is no standing restore authority (it is still an approval
   the owner has not given). The exact head for this entry is the commit that adds it (bound in ledger fragment line 4).
+- Bound: the proof cases above are commit `fdcbb352f`; hosted CI run 41658416627 green (chain 3230 / 190 files = projection,
+  guards 3351, estate 3408). Ledger fragment line 4. This bind is docs only.
