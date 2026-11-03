@@ -480,3 +480,26 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     - Grom 01a188b7: verification completed.
     - David's three relationships stay separate: (1) app-level subscriptions, (2) surfer→photographer subscription,
       (3) individual bookings. Claude makes no weather/app overlap.
+- 2026-11-03T15:36Z · Claude · handoff · #695 harness owner reports DONE. The heads below are VERIFIED (15:29Z); the
+  rest is REPORTED.
+  - **Heads:** v0.1 at `a897361b19cf28af4220a75ac6fe6c0d9d4009cd`. Flip-PR scorecard at
+    `c58229a8cad0d4be1da3667471b4ea150c42ea55`, 16/16 success.
+  - **Chain lane:** 3308 collected / 3307 passed / 1 skipped (eccodes; CI uses pygrib). Floor 3301.
+  - **Demo:** `production_parity: true`, with 3 standing substitutions (native crop; repo vars at defaults; tide by
+    date). On hs_station, served bias −0.2295 m [−0.263, −0.200] (n 480) and served LOSES to out-of-sample climatology,
+    −0.076 [−0.118, −0.022]. Ratchet: 0 locked leads, 4 top-priority alarms.
+  - v0's climatology DID leak (in-sample week). The honest one is slightly better, so the leak did not flatter served.
+  - **Scorecard:** a `pull_request` trigger on the `flip-candidate` label, same-repo only. Permissions `contents: read`,
+    `pull-requests: write`. 60 min, 400 range downloads, 1.5 GB cap. One edited PR comment plus a 14-day artifact.
+    Informational. Skipped on #695, which has no label.
+  - **Owed:** the first hosted labelled run, and the parity commitment `:2`. The trigger goes live only if #695 merges,
+    on the owner's exact-head word.
+- 2026-11-03T15:36Z · Claude · handoff · #697 CONSENSUS_DIRECTION_VECTOR (dark) owner reports DONE. Head
+  `0c5d8b7d2…`, CI 18/18 (VERIFIED). Chain 3216/189, floor 3210 (REPORTED).
+  - Held-out (REPORTED): +4.92 deg [4.13, 5.86] overall; buoy-clustered +4.75 [1.47, 8.97].
+  - But the plain vector mean is significantly WORSE where the models agree: −0.27 deg (<10 deg) and −0.92 deg
+    (10-30 deg), 59% of hours. So it fails its own flip gate as built.
+  - A hybrid (keep GFS where R ≥ 0.9) beats it by +0.67 deg [0.28, 1.04] with no band worse. NOT built: it is a
+    different method, so it needs the owner's word.
+  - Caveat: the evidence graded Open-Meteo total directions, while served members carry dominant-swell directions
+    (`WAVES_ANIM_DOMINANT_SWELL=1`).
