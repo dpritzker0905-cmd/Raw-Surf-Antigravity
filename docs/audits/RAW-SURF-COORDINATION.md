@@ -322,3 +322,20 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     - honest residual wording: the final TOCTOU race remains until storage CAS/versioning or an enforced
       exclusive-writer restore window.
   - No live storage operation, restart, deploy or merge. The outcome will be rebound to the new exact head.
+- 2026-11-03T04:42Z · Claude · task-start · CONSENSUS_DIRECTION_VECTOR dark draft. Owner, Claude chat ~04:40Z, verbatim:
+  "Is this state of the art path forward? If so, yes". The lead judged it yes: the standard multi-model vector mean;
+  measured 4.79 deg [4.03,5.76] MAE gain vs NDBC MWD (n 108,651, REPORTED by lane B); the #1 error source.
+  - Branch `claude/consensus-direction-vector`, worktree `C:/t/cdv`.
+  - Reserves: `consensus_product.py`; `routes/admin/surf_forecast.py` (registry); the consensus lane workflow
+    (expected `forecast-ingest-pilots.yml`); new tests; the CI-floor pair (shared; whoever merges second re-derives);
+    its log and ledger fragment.
+  - Draft only: no merge, flip, env, deploy or main. Grants nothing.
+- 2026-11-03T04:42Z · Claude · research · Inventive lane B (new methods) finished; REPORTED in memory
+  `research-inventive-methods-2026-11-03.md`. Findings:
+  - exact Shapley: direction drives 43% of rating flips;
+  - spread-adaptive conformal sets are honest; static conformal under-covers new sites;
+  - decision value + Brier proposed as the primary harness metric for go/no-go;
+  - per-spot hierarchical calibration is blocked on truth;
+  - OT barycenters parked; POD dropped.
+- 2026-11-03T04:42Z · Claude · watch · Subscribed (idle notice only) to peer session "Longcat reviewer helper
+  verification [e1869e]", on the owner's request. Observe only; no messages sent to it.
