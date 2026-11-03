@@ -31,6 +31,7 @@ if BACKEND not in sys.path:
 from services.weather_pipeline import eval_gate as eg  # noqa: E402
 from services.weather_pipeline import eval_gfswave as gw  # noqa: E402
 from services.weather_pipeline import eval_provenance as pv  # noqa: E402
+from services.weather_pipeline import eval_ratchet as rt  # noqa: E402
 from services.weather_pipeline import eval_reference as rf  # noqa: E402
 from services.weather_pipeline import eval_replay as rp  # noqa: E402
 from services.weather_pipeline import eval_scoring as sc  # noqa: E402
@@ -51,8 +52,9 @@ NAMED_GAPS = {
 SUBSTITUTIONS = {
     "grid": "served /point samples the stored normalized product (regional tiles / coarse globals); the replay "
             "runs the same PointSampler on a native 0.25 deg GFS-Wave crop.",
-    "wind_gfswave": "where pygrib is absent the rating wind is the GFS-Wave file's UGRD/VGRD (the GFS 10 m forcing on "
-                    "the same grid) instead of the atmosphere file's pgrb2.0p25 UGRD/VGRD 10 m (rows say which).",
+    "wind_gfswave": "only with the built-in decoder (no pygrib, no eccodes) is the rating wind the GFS-Wave file's "
+                    "UGRD/VGRD (the GFS 10 m forcing on the same grid) instead of the atmosphere file's pgrb2.0p25 "
+                    "UGRD/VGRD 10 m; rows say which (input_parity.wind_sources).",
     "repo_variables": "workflow `${{ vars.X || 'd' }}` values resolve to their defaults d (repository variables are "
                       "not readable offline); listed in served_env.repo_variables_defaulted.",
     "tide_series": "served fetches forecast_days=3 at run time; replay fetches the same Open-Meteo series by "
@@ -128,7 +130,11 @@ def stage_forecast(cache, stations, targets, leads, out_dir, fields_fn, wind_sou
                    "infos": [dict(v, key=f"{k[0]:%Y%m%d%H}/f{k[1]:03d}") for k, v in infos.items()],
                    "crops": {f"{k[0]:%Y%m%d%H}/f{k[1]:03d}/{k[2]}": v for k, v in crops.items()}})
     pv.write_json(os.path.join(out_dir, "forecast_crops.manifest.json"),
-                  pv.manifest(cache.records[n0:], "forecast_crops"))
+                  pv.manifest(cache.records[n0:], "forecast_crops", {
+                      "grib_backends": sorted({i.get("grib_backend") for i in infos.values() if i.get("grib_backend")}),
+                      "grib_backend_versions": sorted({i.get("grib_backend_version") for i in infos.values()
+                                                       if i.get("grib_backend_version")}),
+                      "wind_sources": sorted({i["wind_source"] for i in infos.values()})}))
     jobs = []
     for c, fh, lead, t in plan:
         if (c, fh) not in infos:
@@ -141,15 +147,16 @@ def stage_forecast(cache, stations, targets, leads, out_dir, fields_fn, wind_sou
     return jobs, {"files": len(need), "failed": failed}
 
 
-def score(arms_rows, truth, stations, hull_of, primary, cfg, controls_cfg=None):
+def score(arms_rows, truth, stations, hull_of, primary, cfg, embargo, baseline, controls_cfg=None):
     by_id = {s["id"]: s for s in stations}
     served_rows = arms_rows["served"]["rows"]
     parity = eg.input_parity(served_rows)
     card_baselines, card_controls, arms = {}, {}, {}
     items_served = {}
     for q in sc.QUANTITIES:
-        items, qc = sc.build_items(q, served_rows, truth, by_id, hull_of)
+        items, qc = sc.build_items(q, served_rows, truth, by_id, hull_of, clim_embargo=embargo)
         items_served[q] = (items, qc)
+    ratchet = {"served_state": {}, "alarms": []}
     for q, (items, qc) in items_served.items():
         lst = list(items.values())
         thr = sc.quantile([i["obs"] for i in lst], 0.90)
@@ -157,6 +164,8 @@ def score(arms_rows, truth, stations, hull_of, primary, cfg, controls_cfg=None):
                                  span=sc.hours_span(lst), leads=sc.lead_hours(lst), weeks=sc.weeks(lst))
         base = [dict(i, f_ref=i["f"]) for i in sorted(lst, key=lambda i: (i["t"], i["buoy"], i["lead"]))]
         card_controls[q] = eg.run_controls(base, controls_cfg or cfg, thr)
+        ratchet["served_state"][q] = rt.served_state(lst, cfg)
+        ratchet["alarms"] += rt.alarms(ratchet["served_state"][q], q)
     for arm, res in arms_rows.items():
         if arm == "served":
             continue
@@ -167,11 +176,11 @@ def score(arms_rows, truth, stations, hull_of, primary, cfg, controls_cfg=None):
                      "flag_reads": {k: res["gaps"][k] - arms_rows["served"]["gaps"][k] for k in res["gaps"]
                                     if res["gaps"][k] != arms_rows["served"]["gaps"][k]}}
         for q, (items, _) in items_served.items():
-            cand, _ = sc.build_items(q, res["rows"], truth, by_id, hull_of)
+            cand, _ = sc.build_items(q, res["rows"], truth, by_id, hull_of, clim_embargo=embargo)
             pairs = sc.pair(items, cand)
             thr = card_baselines[q]["p90_threshold_m"]
             s = eg.summarize(pairs, cfg, thr)
-            v = eg.rules(s, cfg, card_controls[q]["ok"])
+            v = rt.apply(eg.rules(s, cfg, card_controls[q]["ok"]), rt.candidate_rules(pairs, baseline, q, cfg))
             vs = eg.versus_baselines(pairs, cfg, thr)
             v["warnings"] += eg.baseline_warnings(vs)
             if not parity["production_parity"]:
@@ -179,7 +188,7 @@ def score(arms_rows, truth, stations, hull_of, primary, cfg, controls_cfg=None):
                                      f"the verdict is scoped to the replay, not production parity")
             arms[arm]["quantities"][q] = {"summary": s, "verdict": v, "versus_baselines": vs}
     eg.holm_across_arms(arms, primary, cfg)
-    return card_baselines, card_controls, arms, parity
+    return card_baselines, card_controls, arms, parity, ratchet
 
 
 def run(args, get=pv.http_get, fields_fn=gw.fetch_fields, cfg=None) -> dict:
@@ -193,7 +202,9 @@ def run(args, get=pv.http_get, fields_fn=gw.fetch_fields, cfg=None) -> dict:
     cache = pv.Cache(args.cache_dir, get=get, pause_s=args.pause_s, offline=args.offline)
     os.makedirs(args.out, exist_ok=True)
     served = rp.served_env(REPO)
-    t_lo = start - timedelta(days=args.clim_days)
+    # Truth reaches back clim_days BEFORE the embargo (first target - max lead): the out-of-sample climatology's span.
+    embargo = sc.clim_embargo(targets[0], targets[-1], max(leads))
+    t_lo = embargo[0] - timedelta(days=args.clim_days)
     t_hi = end + timedelta(hours=2)
     truth, truth_summary, hull_of = stage_truth(cache, stations, t_lo, t_hi, args.out)
     jobs, fc = stage_forecast(cache, stations, targets, leads, args.out, fields_fn, args.wind_source, args.decoder)
@@ -206,17 +217,42 @@ def run(args, get=pv.http_get, fields_fn=gw.fetch_fields, cfg=None) -> dict:
         res["env_delta"] = delta
         arms_rows[name] = res
         pv.write_json(os.path.join(args.out, f"replay_{_slug(name)}.json"), res)
-    baselines, controls, arms, parity = score(arms_rows, truth, stations, hull_of, args.primary, cfg)
+    baseline = rt.load_baseline(args.ratchet_baseline)
+    baselines, controls, arms, parity, ratchet = score(arms_rows, truth, stations, hull_of, args.primary, cfg,
+                                                       embargo, baseline)
+    generated = pv.utc_now_iso()
+    eligible = controls[args.primary]["ok"] is True and parity["production_parity"]
+    ratchet.update({"baseline_path": args.ratchet_baseline, "locks_before": baseline.get("locks", {}),
+                    "eligible_to_lock": eligible, "update_requested": bool(args.update_ratchet),
+                    "would_lock": {q: rt.would_lock(s) for q, s in ratchet["served_state"].items()},
+                    "embargo": [embargo[0].strftime("%Y-%m-%dT%H:%MZ"), "open"],
+                    "climatology": {q: baselines[q]["join_qc"].get("climatology") for q in baselines}})
+    newly = {}
+    if args.update_ratchet:
+        new = baseline
+        for q, s in ratchet["served_state"].items():
+            new, added = rt.update_baseline(new, s, q, eligible, {"generated_utc": generated, "code": git_state(),
+                                                                  "window": [args.start, args.end],
+                                                                  "stations": [x["id"] for x in stations]})
+            if added:
+                newly[q] = added
+        if new != baseline:                        # new pending entries or locks
+            rt.save_baseline(args.ratchet_baseline, new, baseline)
+        baseline = new
+    ratchet["newly_locked"], ratchet["locks_after"] = newly, baseline.get("locks", {})
+    ratchet["pending_after"] = baseline.get("pending", {})
     env_digest = pv.sha256_bytes(json.dumps(served["env"], sort_keys=True).encode())
     card = {
-        "schema": eg.SCHEMA, "generated_utc": pv.utc_now_iso(), "code": git_state(),
+        "schema": eg.SCHEMA, "generated_utc": generated, "code": git_state(), "alarms": ratchet["alarms"],
+        "ratchet": ratchet,
         "primary": args.primary, "served_env": {k: served[k] for k in ("workflow", "sha256", "job", "step",
                                                                           "repo_variables_defaulted",
                                                                           "secrets_named", "other_expressions")},
         "served_env_values": served["env"], "scrubbed_env_names": scrub,
         "window": {"start": args.start, "end": args.end, "step_h": args.step_h, "leads": leads,
                    "targets": f"{len(targets)} targets {targets[0]:%Y-%m-%dT%HZ}..{targets[-1]:%Y-%m-%dT%HZ}",
-                   "climatology_from": t_lo.astimezone(timezone.utc).strftime("%Y-%m-%dT%HZ")},
+                   "climatology_from": t_lo.astimezone(timezone.utc).strftime("%Y-%m-%dT%HZ"),
+                   "climatology_embargo_from": embargo[0].astimezone(timezone.utc).strftime("%Y-%m-%dT%HZ")},
         "stations": [{"id": s["id"], "role": s["role"], "source": s["source"],
                       "meta_version": truth_summary[s["id"]]["meta"].get("version"),
                       "good_in_window": truth_summary[s["id"]]["good_in_window"]} for s in stations],
@@ -235,6 +271,8 @@ def run(args, get=pv.http_get, fields_fn=gw.fetch_fields, cfg=None) -> dict:
     pv.write_json(os.path.join(args.out, "scorecard.manifest.json"),
                   pv.manifest(cache.records, "scorecard", {"served_env_sha256": served["sha256"],
                                                            "served_env_digest": env_digest, "code": card["code"],
+                                                           "grib_backends": parity["decoders"],
+                                                           "grib_backend_versions": parity["backend_versions"],
                                                            "config": card["config"], "input_parity": parity,
                                                            "arms": {a: r["env_delta"] for a, r in arms_rows.items()},
                                                            "panel_sha256": _panel_hashes(args.out)}))
@@ -279,9 +317,15 @@ def parser() -> argparse.ArgumentParser:
     r.add_argument("--out", required=True)
     r.add_argument("--arm", action="append", default=[], help="candidate FLAG=value[,FLAG=value]; repeatable")
     r.add_argument("--primary", default="hs_station", choices=sorted(sc.QUANTITIES))
-    r.add_argument("--clim-days", type=int, default=30)
+    r.add_argument("--clim-days", type=int, default=30,
+                   help="days of truth BEFORE the embargo (first target - max lead) the out-of-sample climatology reads")
     r.add_argument("--wind-source", default="auto", choices=("auto", "gfswave", "pgrb2"))
-    r.add_argument("--decoder", default="auto", choices=("auto", "builtin", "pygrib"))
+    r.add_argument("--decoder", default="auto", choices=("auto", "builtin", "pygrib", "eccodes"),
+                   help="GRIB backend; auto = pygrib, else eccodes, else the built-in decoder")
+    r.add_argument("--ratchet-baseline", default=os.path.join(HERE, "eval_harness_ratchet.json"),
+                   help="the climatology ratchet's lock file (the floor only rises)")
+    r.add_argument("--update-ratchet", action="store_true",
+                   help="add locks this run earns (eligible runs only: controls pass + production parity)")
     r.add_argument("--pause-s", type=float, default=0.5)
     r.add_argument("--offline", action="store_true", help="read the cache only; never the network")
     r.add_argument("--no-tide", action="store_true")

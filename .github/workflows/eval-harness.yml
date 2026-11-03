@@ -8,7 +8,8 @@ name: Evaluation harness (offline replay, manual dispatch only)
 #
 # ⛔ IT SERVES NOTHING AND WRITES NOTHING: no secret is read, no storage or database is touched, the app's own hosts
 # are refused by the harness's network guard. Here pygrib imports, so the replay runs at PRODUCTION INPUT PARITY
-# (pygrib decoding, the pgrb2.0p25 10 m wind the served lane reads); a local Windows run cannot.
+# (pygrib decoding, the pgrb2.0p25 10 m wind the served lane reads). A local run reaches it too with eccodes
+# (backend/requirements-eval-harness.txt, optional); with the built-in decoder it cannot.
 # ⚠️ Manual dispatch ONLY, on the owner's word for a flip decision. The job fails (exit 1) when any candidate arm is
 # not a PASS on the primary quantity, so a red run is a verdict, not a broken job: read the step summary.
 

@@ -13,7 +13,11 @@ QUANTITIES (each scored against a truth it can honestly be compared with; `QUANT
 
 BASELINES (forecasts built from truth alone, available at issue time):
   persistence  the QC-good observation at or before the cycle time t0 (within 90 min), held for every lead;
-  climatology  the station's mean over its truth panel EXCLUDING the target's ISO week (station x week holdout).
+  climatology  OUT-OF-SAMPLE: the station's mean over truth OUTSIDE an embargo that covers the whole scored window
+               and every issue time ([first target - max lead, last target], or open-ended to "now"), so it is
+               built from other weeks or years and never from the window it is scored on. `build_items` refuses to
+               run without the embargo and `check_out_of_sample` refuses a climatology that read a scored hour
+               (LeakedClimatology). v0's "station x ISO-week holdout" read the scored window's OTHER week: leaked.
 
 SCORES: bias, MAE, RMSE, SI, HH (gate_v2_stats.point_metrics); CRPS (a deterministic forecast's CRPS IS its
 absolute error, so CRPS == MAE until an ensemble or spread arm exists: `crps_kind` says which); threshold-weighted
@@ -93,26 +97,69 @@ def _iso_week(t) -> str:
     return f"{y}-W{w:02d}"
 
 
-def climatology(obs_good: List[dict], quantity: str, depth_m: float) -> Dict[str, Tuple[float, int]]:
-    """{iso week: (mean over every OTHER week, n)} of the station's quantity."""
-    by_w: Dict[str, List[float]] = {}
-    for o in obs_good:
-        v = truth_value(quantity, o, depth_m)
-        if v is not None:
-            by_w.setdefault(_iso_week(o["time"]), []).append(v)
-    tot, n = sum(sum(v) for v in by_w.values()), sum(len(v) for v in by_w.values())
-    return {w: ((tot - sum(v)) / (n - len(v)), n - len(v)) for w, v in by_w.items() if n - len(v) > 0}
+class LeakedClimatology(ValueError):
+    """A climatology that read observations from the scored window (or was built without an embargo)."""
+
+
+def clim_embargo(first_target, last_target, max_lead_h: int, open_ended: bool = True) -> tuple:
+    """(lo, hi) of the hours a climatology may NOT read: from the earliest issue time (first target - max lead) to
+    the last target, or to forever when open_ended (only what was known before the first issue: other weeks before
+    the window, other years)."""
+    from datetime import timedelta
+    return (first_target - timedelta(hours=max_lead_h), None if open_ended else last_target)
+
+
+def _embargoed(t, emb) -> bool:
+    lo, hi = emb
+    return t >= lo and (hi is None or t <= hi)
+
+
+def climatology(obs_good: List[dict], quantity: str, depth_m: float, embargo: Optional[tuple]) -> dict:
+    """The station's OUT-OF-SAMPLE climatology: {value, n, first, last, embargo, times, out_of_sample} = the mean of
+    the quantity over every good observation OUTSIDE the embargo. No embargo = refused."""
+    if not embargo or embargo[0] is None:
+        raise LeakedClimatology("a climatology needs an embargo covering the scored window (out-of-sample only)")
+    vals = [(o["time"], truth_value(quantity, o, depth_m)) for o in obs_good if not _embargoed(o["time"], embargo)]
+    vals = [(t, v) for t, v in vals if v is not None and math.isfinite(v)]
+    return {"value": (sum(v for _, v in vals) / len(vals)) if vals else None, "n": len(vals),
+            "first": min(t for t, _ in vals) if vals else None, "last": max(t for t, _ in vals) if vals else None,
+            "embargo": tuple(embargo), "times": tuple(t for t, _ in vals), "out_of_sample": True}
+
+
+def check_out_of_sample(clim: dict, scored_times: Sequence) -> None:
+    """Refuse (LeakedClimatology) a climatology that read any hour inside its embargo, lacks the marker, or whose
+    embargo does not cover every scored hour."""
+    if not isinstance(clim, dict) or not clim.get("out_of_sample") or not clim.get("embargo"):
+        raise LeakedClimatology("climatology is not marked out-of-sample (no embargo recorded)")
+    emb = clim["embargo"]
+    inside = [t for t in clim.get("times") or () if _embargoed(t, emb)]
+    if inside:
+        raise LeakedClimatology(f"climatology read {len(inside)} observation(s) inside its embargo, first {inside[0]}")
+    outside = [t for t in scored_times if not _embargoed(t, emb)]
+    if outside:
+        raise LeakedClimatology(f"{len(outside)} scored hour(s) fall outside the climatology embargo, first "
+                                f"{outside[0]}: the climatology could have read them")
+
+
+def clim_summary(clim: dict) -> dict:
+    f = (lambda t: t.strftime("%Y-%m-%dT%H:%MZ") if t is not None else None)
+    lo, hi = clim["embargo"]
+    return {"value": clim["value"], "n": clim["n"], "first": f(clim["first"]), "last": f(clim["last"]),
+            "embargo": [f(lo), f(hi) if hi is not None else "open"], "out_of_sample": clim["out_of_sample"]}
 
 
 def build_items(quantity: str, rows: Sequence[dict], truth_by_station: Dict[str, dict], stations: Dict[str, dict],
-                hull_of: Callable = None) -> Tuple[Dict[tuple, dict], dict]:
+                hull_of: Callable = None, clim_embargo: Optional[tuple] = None) -> Tuple[Dict[tuple, dict], dict]:
     """({(station, valid, lead): item}, qc counts) for ONE arm's rows. An item holds obs, f, the two baselines and
-    the observed Hs/Tp. Only anchor rows of the quantity's role; one item per key."""
+    the observed Hs/Tp. Only anchor rows of the quantity's role; one item per key. `clim_embargo` is REQUIRED (the
+    out-of-sample rule); the climatology is checked against every scored hour before the items are returned."""
+    if not clim_embargo:
+        raise LeakedClimatology("build_items needs clim_embargo: climatology is out-of-sample only")
     qc = {"rows": 0, "no_forecast": 0, "no_truth": 0, "no_persistence": 0, "no_climatology": 0, "items": 0,
           "truth_dt_s_p50": None, "persistence_age_s_p50": None}
     dts, ages = [], []
     role = QUANTITIES[quantity]["role"]
-    clim_cache, out = {}, {}
+    clim_cache, out, issued = {}, {}, {}
     for r in rows:
         if r.get("role") != role or not r.get("anchor"):
             continue
@@ -132,11 +179,12 @@ def build_items(quantity: str, rows: Sequence[dict], truth_by_station: Dict[str,
             qc["no_truth"] += 1
             continue
         t0 = _parse(r["cycle"])
+        issued.setdefault(sid, []).append(t0)
         p = ref.nearest(good, t0, PERSIST_TOL_S, before_only=True)
         pv = truth_value(quantity, p, depth) if p else None
         if sid not in clim_cache:
-            clim_cache[sid] = climatology(good, quantity, depth)
-        cv = clim_cache[sid].get(_iso_week(t), (None, 0))[0]
+            clim_cache[sid] = climatology(good, quantity, depth, clim_embargo)
+        cv = clim_cache[sid]["value"]
         dts.append(abs((o["time"] - t).total_seconds()))
         if p is not None:
             ages.append((t0 - p["time"]).total_seconds())
@@ -144,10 +192,15 @@ def build_items(quantity: str, rows: Sequence[dict], truth_by_station: Dict[str,
         qc["no_climatology"] += cv is None
         hull = hull_of(sid, t) if hull_of else ("waverider" if st_["source"] == "cdip" else "unknown")
         out[(sid, t, int(r["lead_h"]))] = {"buoy": sid, "t": t, "lead": int(r["lead_h"]), "obs": obs, "f": f,
-                                           "persistence": pv, "climatology": cv, "obs_hs": o["hs_m"],
+                                           "persistence": pv, "climatology": cv, "clim_oos": True,
+                                           "obs_hs": o["hs_m"],
                                            "dpd": o.get("tp_s"), "hull": hull, "hull_inferred": False, "multi": None,
                                            "score": (r.get("outputs") or {}).get("score"),
                                            "level": (r.get("outputs") or {}).get("level")}
+    for sid, clim in clim_cache.items():
+        # every scored valid hour AND every issue time must be embargoed: nothing the forecasts could not know
+        check_out_of_sample(clim, [k[1] for k in out if k[0] == sid] + issued.get(sid, []))
+    qc["climatology"] = {sid: clim_summary(c) for sid, c in clim_cache.items()}
     qc["items"] = len(out)
     qc["truth_dt_s_p50"], qc["persistence_age_s_p50"] = quantile(dts, 0.5), quantile(ages, 0.5)
     return out, qc

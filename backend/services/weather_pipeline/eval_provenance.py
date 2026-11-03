@@ -5,14 +5,15 @@ THE RECORD. Every raw file the harness reads (a buoy record, a GRIB byte range, 
 described by one provenance record, kept in a `<file>.prov.json` sidecar and copied into the manifest of every panel
 built from it:
     {source, url, range, retrieved_utc, sha256, bytes, cache_file, parser, time_standard, qc_policy,
-     station_meta_version, http_status, notes}
+     station_meta_version, http_status, remote_version, final_url, redirects, notes}
 `sha256` is of the RAW bytes as received (before any parsing), so a later reader can prove the panel was built from
 exactly that file. `retrieved_utc` is the first retrieval; a cache hit keeps it and says `cache_hit: true`.
 
 THE CACHE lives OUTSIDE the repo (EVAL_HARNESS_CACHE, or --cache-dir, or a CI artifact path). A path inside the git
 worktree is refused: this repository is public and downloaded data never belongs in it.
 
-THE NETWORK GUARD. One GET helper, GET only, an explicit HOST ALLOWLIST of public data services, a byte cap, one
+THE NETWORK GUARD. One GET helper, GET only, an explicit HOST ALLOWLIST of public data services applied to the first
+URL AND to every redirect hop before it is contacted (a private opener; at most 3 hops), a byte cap, one
 request at a time with a pause between them (`polite_pause_s`). The app's own hosts (*.onrender.com, the site) are
 refused by name even if someone adds them to the allowlist: the harness must never load the 1-CPU production box.
 """
@@ -66,24 +67,65 @@ def check_url(url: str) -> str:
     return host
 
 
+MAX_REDIRECTS = 3
+
+
+class GuardedRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Follow a redirect ONLY after the resolved absolute target passes check_url (https, not an app host, on the
+    allowlist), and at most MAX_REDIRECTS hops. Python's default handler follows Location/URI with no host check, so
+    an allowed data URL that redirects could otherwise reach a denied host, an unknown host or plain http. The check
+    runs in redirect_request, i.e. BEFORE the next hop is contacted. Used only through a private opener (never
+    installed globally). `chain` records every permitted hop: [{code, url}]."""
+
+    def __init__(self, max_hops: int = MAX_REDIRECTS):
+        super().__init__()
+        self.max_hops, self.chain = max_hops, []
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if len(self.chain) >= self.max_hops:
+            raise NetworkRefused(f"more than {self.max_hops} redirects (next {newurl})")
+        newurl = urllib.parse.urljoin(req.full_url, newurl)
+        check_url(newurl)                          # raises NetworkRefused before the next hop is contacted
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new is None:
+            raise NetworkRefused(f"redirect {code} to {newurl} not followable as a GET")
+        if new.get_method() != "GET":
+            raise NetworkRefused(f"redirect {code} would change the method to {new.get_method()}")
+        rng = req.get_header("Range")
+        if rng is not None and new.get_header("Range") != rng:
+            raise NetworkRefused(f"redirect {code} to {newurl} dropped the Range header")
+        self.chain.append({"code": int(code), "url": newurl})
+        return new
+
+
+def private_opener(extra_handlers=()):
+    """(opener, redirect guard): a fresh opener per request, never urllib.request.install_opener."""
+    guard = GuardedRedirectHandler()
+    return urllib.request.build_opener(guard, *extra_handlers), guard
+
+
 def http_get(url: str, rng: Optional[Tuple[int, Optional[int]]] = None, timeout_s: float = 120.0,
-             max_bytes: int = MAX_BYTES_DEFAULT) -> Tuple[bytes, int, dict]:
-    """(body, status, version headers) of one GET. A Range answered by a 200 (a server ignoring Range) is refused.
-    The headers kept (ETag, Last-Modified, x-amz-version-id) identify WHICH version of a mutable remote object was
-    read, beside the sha256 of what arrived."""
+             max_bytes: int = MAX_BYTES_DEFAULT, extra_handlers=()) -> Tuple[bytes, int, dict, dict]:
+    """(body, status, version headers, route) of one GET. A Range answered by a 200 (a server ignoring Range) is
+    refused. The headers kept (ETag, Last-Modified, x-amz-version-id) identify WHICH version of a mutable remote
+    object was read, beside the sha256 of what arrived. `route` = {final_url, redirects: [{code, url}]}: every hop
+    was checked against the allowlist before it was contacted. `extra_handlers` is for offline tests only."""
     check_url(url)
     req = urllib.request.Request(url, headers={"User-Agent": USER_AGENT}, method="GET")
     if rng is not None:
         req.add_header("Range", f"bytes={rng[0]}-{'' if rng[1] is None else rng[1]}")
-    with urllib.request.urlopen(req, timeout=timeout_s) as resp:     # noqa: S310 - allowlisted https only
+    opener, guard = private_opener(extra_handlers)
+    with opener.open(req, timeout=timeout_s) as resp:                # noqa: S310 - every hop allowlisted https
         status = resp.status
         body = resp.read(max_bytes + 1)
         hdr = {k: resp.headers.get(k) for k in ("ETag", "Last-Modified", "x-amz-version-id") if resp.headers.get(k)}
+        final = resp.geturl()
+    check_url(final)                                                 # belt and braces; the hops were checked first
     if len(body) > max_bytes:
         raise ValueError(f"response larger than the {max_bytes} byte cap")
     if rng is not None and status != 206:
         raise ValueError(f"range request answered {status}, not 206")
-    return body, status, hdr
+    return body, status, hdr, {"final_url": final, "redirects": list(guard.chain)}
 
 
 def _inside(path: str, root: str) -> bool:
@@ -150,12 +192,14 @@ class Cache:
             got = self.get(url, rng=rng, max_bytes=max_bytes)
         finally:
             self._last = self.clock()
-        body, status, hdr = (got + ({},))[:3] if len(got) == 2 else got
+        got = tuple(got) + ({}, {})[:max(0, 4 - len(got))]
+        body, status, hdr, route = got[:4]
         rec = {"source": source, "url": url, "range": list(rng) if rng else None, "retrieved_utc": utc_now_iso(),
                "sha256": sha256_bytes(body), "bytes": len(body), "cache_file": os.path.relpath(path, self.root),
                "parser": parser, "time_standard": time_standard, "qc_policy": qc_policy,
                "station_meta_version": station_meta_version, "http_status": status, "notes": notes,
-               "remote_version": hdr or None, "cache_hit": False}
+               "remote_version": hdr or None, "final_url": (route or {}).get("final_url") or url,
+               "redirects": (route or {}).get("redirects") or [], "cache_hit": False}
         os.makedirs(os.path.dirname(path), exist_ok=True)
         with open(path, "wb") as f:
             f.write(body)
@@ -175,7 +219,8 @@ def manifest(records: List[dict], panel: str, extra: Optional[Dict] = None) -> d
         seen.add(k)
         files.append({x: r.get(x) for x in ("source", "url", "range", "retrieved_utc", "sha256", "bytes",
                                              "cache_file", "parser", "time_standard", "qc_policy",
-                                             "station_meta_version", "remote_version", "notes")})
+                                             "station_meta_version", "remote_version", "final_url", "redirects",
+                                             "notes")})
     files.sort(key=lambda r: (r["source"] or "", r["url"] or "", json.dumps(r["range"])))
     digest = sha256_bytes("\n".join(f["sha256"] for f in files).encode())
     out = {"panel": panel, "written_utc": utc_now_iso(), "n_files": len(files), "files_digest": digest,

@@ -65,17 +65,14 @@ def _obs(n_days=21, step_h=3, fn=lambda h: 1.0 + 0.5 * math.sin(h / 10.0)):
             for h in range(0, n_days * 24, step_h)]
 
 
-def test_climatology_excludes_the_target_week():
+def test_climatology_reads_only_outside_the_embargo():
     obs = [{"time": T0 + timedelta(days=d), "hs_m": 1.0 if d < 7 else 3.0, "tp_s": 10, "qc": "good"}
            for d in range(14)]
-    c = sc.climatology(obs, "hs_station", 17.0)
-    wk_a = sc._iso_week(obs[0]["time"])
-    wk_b = sc._iso_week(obs[-1]["time"])
-    assert c[wk_b][0] < c[wk_a][0]           # each week's value comes from the OTHER weeks
-    for w, (m, n) in c.items():
-        mine = [o["hs_m"] for o in obs if sc._iso_week(o["time"]) == w]
-        others = [o["hs_m"] for o in obs if sc._iso_week(o["time"]) != w]
-        assert n == len(others) and m == pytest.approx(sum(others) / len(others)) and len(mine) > 0
+    c = sc.climatology(obs, "hs_station", 17.0, (T0 + timedelta(days=7), None))
+    assert c["value"] == pytest.approx(1.0) and c["n"] == 7 and c["out_of_sample"] is True
+    assert max(c["times"]) < T0 + timedelta(days=7)
+    with pytest.raises(sc.LeakedClimatology):
+        sc.climatology(obs, "hs_station", 17.0, None)
 
 
 def test_build_items_joins_truth_and_uses_only_issue_time_information():
@@ -90,13 +87,15 @@ def test_build_items_joins_truth_and_uses_only_issue_time_information():
                          "cycle": cyc.strftime("%Y-%m-%dT%H:%MZ"), "lead_h": lead, "hs_station_m": 1.2,
                          "outputs": {"surf_height_m": 1.5}, "inputs": {"offshore_hs_m": 1.4}})
     rows.append(dict(rows[0], anchor=False))         # a non-anchor spot never enters the scored panel
-    items, qc = sc.build_items("hs_station", rows, {"S1": obs}, stations)
+    emb = sc.clim_embargo(T0 + timedelta(days=8), T0 + timedelta(days=11), 48)
+    items, qc = sc.build_items("hs_station", rows, {"S1": obs}, stations, clim_embargo=emb)
     assert qc["items"] == len(items) == 8 and qc["no_truth"] == 0
+    assert qc["climatology"]["S1"]["last"] < (T0 + timedelta(days=6, hours=1)).strftime("%Y-%m-%dT%H:%MZ")
     for (sid, t, lead), it in items.items():
         t0 = t - timedelta(hours=lead)
         assert it["persistence"] == pytest.approx(1.0 + 0.5 * math.sin(((t0 - T0).total_seconds() / 3600) / 10.0))
         assert it["f"] == 1.2 and it["hull"] == "waverider"
-    hb, _ = sc.build_items("hb_proxy", rows, {"S1": obs}, stations)
+    hb, _ = sc.build_items("hb_proxy", rows, {"S1": obs}, stations, clim_embargo=emb)
     assert all(i["f"] == 1.5 and i["obs"] == pytest.approx(sc.hb_proxy(i["obs_hs"], 12.0, 17.0)) for i in hb.values())
 
 
@@ -212,7 +211,11 @@ def test_a_candidate_that_loses_to_a_truth_only_baseline_is_flagged():
     assert len(w) == 1 and "climatology" in w[0]
 
 
-def test_input_parity_requires_pygrib_and_the_served_wind():
+def test_input_parity_requires_an_eccodes_backend_and_the_served_wind():
     rows = [{"decoders": ["builtin"], "wind_source": "gfswave"}]
     assert eg.input_parity(rows)["production_parity"] is False
     assert eg.input_parity([{"decoders": ["pygrib"], "wind_source": "pgrb2"}])["production_parity"] is True
+    assert eg.input_parity([{"decoders": ["eccodes"], "wind_source": "pgrb2"}])["production_parity"] is True
+    assert eg.input_parity([{"decoders": ["eccodes"], "wind_source": "gfswave"}])["production_parity"] is False
+    assert eg.input_parity([{"decoders": ["builtin", "eccodes"], "wind_source": "pgrb2"}])["production_parity"] is False
+    assert eg.input_parity([])["production_parity"] is False

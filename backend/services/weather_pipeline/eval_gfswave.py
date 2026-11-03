@@ -8,8 +8,9 @@ eval_provenance.Cache, so each crop carries the sha256 of the exact bytes it was
 
 WHAT IS NOT THE SERVED INPUT (each a named substitution in the scorecard, never silent):
   * WIND: served ratings read the GFS atmosphere file (pgrb2.0p25 UGRD/VGRD at 10 m, noaa_gfs_wind_fetcher). Its
-    data template 5.3 needs pygrib; where pygrib is absent the harness uses the wave file's own UGRD/VGRD, the same
-    GFS 10 m wind as forcing on the same 0.25 deg grid (`wind_source` records which).
+    data template 5.3 needs an ecCodes backend (pygrib or eccodes); the harness reads it whenever one imports. Only
+    with the built-in decoder does it use the wave file's own UGRD/VGRD, the GFS 10 m forcing on the same 0.25 deg
+    grid (`wind_source` records which; that run has no production parity).
   * GRID: served /point samples the stored normalized product (regional tiles, coarse globals); the replay samples a
     native 0.25 deg crop with the same PointSampler (bilinear, ocean-masked corners, scalar height when
     SAMPLER_SCALAR_HEIGHT applies).
@@ -39,41 +40,56 @@ def urls(cycle: datetime, fh: int) -> Dict[str, str]:
     return {"wave": WAVE_URL.format(d=d, hh=hh, fh=fh), "atm": ATM_URL.format(d=d, hh=hh, fh=fh)}
 
 
-def _span(cache, url: str, key: str, wanted, source: str, decoder: str):
+def _span(cache, url: str, key: str, fetch_keys, decode_keys, source: str, backend: str):
     idx_raw, r_idx = cache.fetch(key + ".idx", url + ".idx", source=source + "_idx", parser="eval_grib2.parse_idx",
                                  time_standard="UTC (cycle + forecast hour)")
     idx = g2.parse_idx(idx_raw.decode("utf-8", "replace"))
-    sel = g2.select_range(idx, wanted)
+    sel = g2.select_range(idx, fetch_keys)
     if sel is None:
-        raise g2.Unsupported(f"{url}: idx lacks {wanted}")
+        raise g2.Unsupported(f"{url}: idx lacks {fetch_keys}")
     lo, hi, keys = sel
     raw, r_grb = cache.fetch(f"{key}.{lo}-{hi}.grib2", url, (lo, hi), source=source,
-                             parser=f"eval_grib2.decode_span({decoder})", time_standard="UTC (cycle + forecast hour)",
-                             notes=f"messages {','.join(keys)}")
-    return g2.decode_span(raw, keys, wanted, decoder), [r_idx, r_grb]
+                             parser=f"eval_grib2.decode_span({backend})", time_standard="UTC (cycle + forecast hour)",
+                             notes=f"messages {','.join(keys)}; decoded {','.join(decode_keys)} by "
+                                   f"{g2.backend_version(backend)}")
+    return g2.decode_span(raw, keys, decode_keys, backend), [r_idx, r_grb]
+
+
+def resolve(wind_source: str = "auto", decoder: str = "auto") -> Tuple[str, str]:
+    """(wind source, GRIB backend). auto wind = the served pgrb2 10 m wind whenever the backend reads template 5.3
+    (pygrib or eccodes), else the wave file's own forcing wind. pgrb2 with the built-in decoder is refused."""
+    backend = g2.select_backend(decoder)
+    if wind_source == "auto":
+        wind_source = "pgrb2" if g2.reads_template_53(backend) else "gfswave"
+    if wind_source == "pgrb2" and not g2.reads_template_53(backend):
+        raise g2.Unsupported(f"the pgrb2 wind (data template 5.3) needs pygrib or eccodes, not {backend}")
+    if wind_source not in WIND_KEYS:
+        raise ValueError(f"unknown wind source {wind_source!r}")
+    return wind_source, backend
 
 
 def fetch_fields(cache, cycle: datetime, fh: int, wind_source: str = "auto", decoder: str = "auto"):
-    """({HTSGW, PERPW, DIRPW, U, V: (array, meta)}, provenance records, info) for one (cycle, fh)."""
+    """({HTSGW, PERPW, DIRPW, U, V: (array, meta)}, provenance records, info) for one (cycle, fh). The wave span
+    always covers UGRD..DIRPW (the same bytes whichever wind is used, so one cache serves both); with the pgrb2 wind
+    the 10 m UGRD/VGRD come from the atmosphere file, exactly as served ratings read them."""
     u = urls(cycle, fh)
     base = f"gfs/{cycle:%Y%m%d%H}/f{fh:03d}"
-    if wind_source == "auto":
-        try:
-            import pygrib  # noqa: F401
-            wind_source = "pgrb2"
-        except ImportError:
-            wind_source = "gfswave"
-    wanted = list(WAVE_KEYS) + (list(WIND_KEYS["gfswave"]) if wind_source == "gfswave" else [])
-    fields, recs = _span(cache, u["wave"], base + "/wave", wanted, "gfs_wave_grib2", decoder)
+    wind_source, backend = resolve(wind_source, decoder)
+    wave_fetch = list(WIND_KEYS["gfswave"]) + list(WAVE_KEYS)
+    wave_decode = list(WAVE_KEYS) + (list(WIND_KEYS["gfswave"]) if wind_source == "gfswave" else [])
+    fields, recs = _span(cache, u["wave"], base + "/wave", wave_fetch, wave_decode, "gfs_wave_grib2", backend)
     if wind_source == "pgrb2":
-        wf, r2 = _span(cache, u["atm"], base + "/atm", list(WIND_KEYS["pgrb2"]), "gfs_atm_grib2", "pygrib")
+        wk = list(WIND_KEYS["pgrb2"])
+        wf, r2 = _span(cache, u["atm"], base + "/atm", wk, wk, "gfs_atm_grib2", backend)
         fields.update(wf)
         recs += r2
     uk, vk = WIND_KEYS[wind_source]
     out = {k: fields[k] for k in WAVE_KEYS}
     out["U"], out["V"] = fields[uk], fields[vk]
     info = {"cycle": cycle.strftime("%Y-%m-%dT%H:%MZ"), "fh": fh, "run_id": run_id(cycle), "wind_source": wind_source,
-            "decoders": sorted({m["decoder"] for _, m in out.values()}),
+            "decoders": sorted({m["decoder"] for _, m in out.values()}), "grib_backend": backend,
+            "grib_backend_version": g2.backend_version(backend),
+            "templates": {k: m.get("template") for k, (_, m) in out.items()},
             "grib_sha256": [r["sha256"] for r in recs if r["source"].endswith("grib2")]}
     return out, recs, info
 
@@ -94,8 +110,9 @@ def crop(fields: Dict[str, Tuple[np.ndarray, dict]], lat: float, lng: float, hal
     out = {"lats": lats, "lngs": lngs}
     for k in ("HTSGW", "PERPW", "DIRPW", "U", "V"):
         a, m = fields[k]
-        if (m["ni"], m["nj"]) != (meta["ni"], meta["nj"]):
-            raise g2.Unsupported(f"{k} is on another grid ({m['ni']}x{m['nj']})")
+        grid = ("ni", "nj", "lat_south", "lon_west", "dlat", "dlon")
+        if any(abs(float(m[g]) - float(meta[g])) > 1e-6 for g in grid):
+            raise g2.Unsupported(f"{k} is on another grid ({ {g: m[g] for g in grid} })")
         out[k] = [[g2.value_at(a, m, i, j) for j in cols] for i in rows]
     return out
 

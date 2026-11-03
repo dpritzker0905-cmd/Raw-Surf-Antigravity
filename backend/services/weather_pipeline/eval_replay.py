@@ -280,6 +280,8 @@ def replay_arm(arm: str, env: Dict[str, str], scrub: List[str], jobs: List[dict]
                              "run_id": j["info"]["run_id"], "cycle": j["info"]["cycle"], "fh": j["fh"],
                              "lead_h": j["lead"], "valid": j["valid"].strftime("%Y-%m-%dT%H:%MZ"),
                              "wind_source": j["info"]["wind_source"], "decoders": j["info"]["decoders"],
+                             "grib_backend": j["info"].get("grib_backend"),
+                             "grib_backend_version": j["info"].get("grib_backend_version"),
                              "input_sha256": j["info"]["grib_sha256"], **res})
         asyncio.run(run())
     return {"arm": arm, "rows": rows, "gaps": gaps}

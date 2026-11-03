@@ -3,12 +3,17 @@
 Two things, both small and both PURE apart from the optional pygrib import:
   * `.idx` parsing and byte-range selection for NOAA's GFS / GFS-Wave files on the AWS Open Data archive
     (s3://noaa-gfs-bdp-pds): one sidecar line per message, `n:offset:d=YYYYMMDDHH:VAR:LEVEL:FCST:`.
-  * DECODING. Production decodes with pygrib (requirements.txt pins it; the Linux wheel bundles ecCodes). The
-    harness prefers it whenever it imports. Where it does not (Windows has no pygrib wheel), a minimal built-in
-    decoder reads exactly what GFS-Wave publishes: grid template 3.0 (regular lat/lon), data template 5.40
-    (JPEG 2000 through Pillow/OpenJPEG) or 5.0 (simple packing), bitmap indicator 0 or 255. Anything else raises
-    `Unsupported` rather than guessing. The scorecard records which decoder produced every field, because two
-    decoders are two instruments (GFS pgrb2 atmosphere files use template 5.3, which only pygrib reads).
+  * DECODING, three backends, chosen by `select_backend` in this order:
+      1. pygrib, when it imports: production's decoder (requirements.txt pins it; the Linux wheel bundles ecCodes)
+         and what CI's eval-harness.yml uses;
+      2. eccodes, ECMWF's own Python binding (the official win_amd64 wheel bundles the library; the harness's
+         optional requirements-eval-harness.txt pins it). The SAME ecCodes library pygrib wraps, so it reads every
+         template production reads, including the GFS pgrb2 atmosphere file's 5.3 (the served 10 m wind);
+      3. a minimal built-in decoder for exactly what GFS-Wave publishes: grid template 3.0 (regular lat/lon), data
+         template 5.40 (JPEG 2000 through Pillow/OpenJPEG) or 5.0 (simple packing), bitmap indicator 0 or 255.
+         Anything else raises `Unsupported` rather than guessing; it cannot read the pgrb2 wind.
+    The scorecard and the provenance manifests record which backend (and library version) decoded every field,
+    because two decoders are two instruments.
 
 Field values: float64 array [nj, ni] with NaN where the bitmap masks a point (land, ice), rows SOUTH to NORTH
 (the decoder flips GFS's north-to-south scan), longitudes 0 .. 360 - dx eastward.
@@ -147,6 +152,86 @@ def decode_builtin(msg: bytes) -> Tuple[np.ndarray, dict]:
                  "decoder": "builtin"}
 
 
+BACKENDS = ("pygrib", "eccodes", "builtin")
+
+
+def _importable(name: str):
+    """The module, or None. eccodes raises RuntimeError (not ImportError) when its bundled library cannot load."""
+    import importlib
+    try:
+        return importlib.import_module(name)
+    except (ImportError, RuntimeError, OSError):
+        return None
+
+
+def select_backend(prefer: str = "auto") -> str:
+    """"pygrib" if it imports, else "eccodes" if it imports, else "builtin". An explicit backend that does not import
+    raises ImportError (never a silent fall back to another instrument)."""
+    if prefer == "auto":
+        for b in ("pygrib", "eccodes"):
+            if _importable(b) is not None:
+                return b
+        return "builtin"
+    if prefer not in BACKENDS:
+        raise ValueError(f"unknown GRIB backend {prefer!r}")
+    if prefer != "builtin" and _importable(prefer) is None:
+        raise ImportError(f"GRIB backend {prefer} is not importable here")
+    return prefer
+
+
+def backend_version(backend: str) -> str:
+    """Library version string of a backend, for provenance."""
+    if backend == "builtin":
+        return "builtin (eval_grib2.decode_builtin)"
+    m = _importable(backend)
+    if m is None:
+        return f"{backend} (not importable)"
+    if backend == "eccodes":
+        try:
+            return f"eccodes-python {getattr(m, '__version__', '?')}, ecCodes {m.codes_get_api_version()}"
+        except Exception:                                               # noqa: BLE001
+            return f"eccodes-python {getattr(m, '__version__', '?')}"
+    return f"pygrib {getattr(m, '__version__', '?')}"
+
+
+def reads_template_53(backend: str) -> bool:
+    """Whether the backend reads the GFS pgrb2 atmosphere file (data template 5.3: complex packing + spatial
+    differencing), i.e. the served 10 m wind."""
+    return backend in ("pygrib", "eccodes")
+
+
+def decode_eccodes(msg: bytes) -> Tuple[np.ndarray, dict]:
+    """(values [nj, ni] south-to-north, meta) for one message through ECMWF's ecCodes; regular lat/lon only."""
+    import eccodes as ec
+    h = ec.codes_new_from_message(msg)
+    try:
+        if ec.codes_get(h, "gridType") != "regular_ll":
+            raise Unsupported(f"grid type {ec.codes_get(h, 'gridType')}")
+        if ec.codes_get(h, "iScansNegatively") != 0:
+            raise Unsupported("iScansNegatively")
+        ni, nj = int(ec.codes_get(h, "Ni")), int(ec.codes_get(h, "Nj"))
+        lat1 = ec.codes_get_double(h, "latitudeOfFirstGridPointInDegrees")
+        lat2 = ec.codes_get_double(h, "latitudeOfLastGridPointInDegrees")
+        lon1 = ec.codes_get_double(h, "longitudeOfFirstGridPointInDegrees")
+        lon2 = ec.codes_get_double(h, "longitudeOfLastGridPointInDegrees")
+        tmpl = int(ec.codes_get(h, "dataRepresentationTemplateNumber"))
+        vals = np.asarray(ec.codes_get_double_array(h, "values"), dtype=np.float64)
+        if int(ec.codes_get(h, "bitmapPresent")):
+            vals[vals == ec.codes_get_double(h, "missingValue")] = np.nan
+        jpos = int(ec.codes_get(h, "jScansPositively"))
+    finally:
+        ec.codes_release(h)
+    if vals.size != ni * nj:
+        raise Unsupported(f"{vals.size} values for a {ni}x{nj} grid")
+    arr = vals.reshape(nj, ni)
+    if not jpos and lat1 > lat2:
+        arr = arr[::-1]
+    return arr, {"ni": ni, "nj": nj, "lat_south": min(lat1, lat2), "lat_north": max(lat1, lat2),
+                 "lon_west": lon1 % 360.0, "dlat": (abs(lat2 - lat1) / (nj - 1)) if nj > 1 else 0.0,
+                 "dlon": ((lon2 - lon1) % 360.0) / (ni - 1) if ni > 1 else 0.0, "template": f"5.{tmpl}",
+                 "decoder": "eccodes"}
+
+
 def _decode_pygrib(buf: bytes, keys: Sequence[str]) -> Dict[str, Tuple[np.ndarray, dict]]:
     import os
     import tempfile
@@ -175,18 +260,17 @@ def _decode_pygrib(buf: bytes, keys: Sequence[str]) -> Dict[str, Tuple[np.ndarra
 def decode_span(buf: bytes, span_keys: Sequence[str], wanted: Sequence[str],
                 prefer: str = "auto") -> Dict[str, Tuple[np.ndarray, dict]]:
     """{key: (values, meta)} for the wanted keys of a contiguous byte span whose messages are `span_keys` in order.
-    prefer: "auto" (pygrib when importable), "pygrib" or "builtin"."""
-    if prefer in ("auto", "pygrib"):
-        try:
-            got = _decode_pygrib(buf, span_keys)
-            return {k: v for k, v in got.items() if k in wanted}
-        except ImportError:
-            if prefer == "pygrib":
-                raise
-    out = {}
-    for key, msg in zip(span_keys, iter_messages(buf)):
-        if key in wanted:
-            out[key] = decode_builtin(msg)
+    prefer: "auto" (select_backend's order) or an explicit backend."""
+    backend = select_backend(prefer)
+    if backend == "pygrib":
+        got = _decode_pygrib(buf, span_keys)
+        out = {k: v for k, v in got.items() if k in wanted}
+    else:
+        dec = decode_eccodes if backend == "eccodes" else decode_builtin
+        out = {}
+        for key, msg in zip(span_keys, iter_messages(buf)):
+            if key in wanted:
+                out[key] = dec(msg)
     missing = [k for k in wanted if k not in out]
     if missing:
         raise Unsupported(f"span decoded without {missing}")

@@ -201,13 +201,20 @@ def versus_baselines(pairs: Sequence[dict], cfg: GateV2Config, thr: Optional[flo
     return out
 
 
+ECCODES_BACKENDS = ("pygrib", "eccodes")
+
+
 def input_parity(rows: Sequence[dict]) -> dict:
-    """Did the replay read the SERVED inputs? production parity = pygrib decoding AND the pgrb2 10 m wind. A run
-    without it is scoped to its substitutions: its verdicts carry a warning and the CLI exit stays non-zero unless
-    --allow-substitutions."""
+    """Did the replay read the SERVED inputs? Production parity = every field decoded by an ecCodes backend (pygrib,
+    as production and CI, or ECMWF's eccodes binding: the same library) AND the pgrb2 10 m wind the served lane reads.
+    It covers the decoder and the wind only; the named substitutions (grid, repo variables, tide by date) apply to
+    every run, CI included, and are listed in the scorecard. A run without parity is scoped to its substitutions:
+    its verdicts carry a warning and the CLI exit stays non-zero unless --allow-substitutions."""
     dec = sorted({d for r in rows for d in (r.get("decoders") or [])})
     wind = sorted({r.get("wind_source") for r in rows if r.get("wind_source")})
-    return {"decoders": dec, "wind_sources": wind, "production_parity": dec == ["pygrib"] and wind == ["pgrb2"]}
+    versions = sorted({r.get("grib_backend_version") for r in rows if r.get("grib_backend_version")})
+    ok = bool(dec) and all(d in ECCODES_BACKENDS for d in dec) and wind == ["pgrb2"]
+    return {"decoders": dec, "wind_sources": wind, "backend_versions": versions, "production_parity": ok}
 
 
 def baseline_block(items: Dict[tuple, dict], cfg: GateV2Config, thr: Optional[float]) -> dict:
@@ -231,6 +238,19 @@ def markdown(card: dict) -> str:
          f"Code {card['code']['commit'][:12]}{' (dirty)' if card['code'].get('dirty') else ''}; served env from "
          f"`{card['served_env']['workflow']}` sha256 {card['served_env']['sha256'][:12]}; primary `{card['primary']}`; "
          f"controls {card.get('controls_state')}; input parity {card['input_parity']}.", ""]
+    for al in card.get("alarms") or []:
+        L.append(f"> **TOP-PRIORITY {al['message']}** (does not block an improving candidate)")
+    if card.get("alarms"):
+        L.append("")
+    rat = card.get("ratchet") or {}
+    for q, state in (rat.get("served_state") or {}).items():
+        locks = (rat.get("locks_after") or {}).get(q) or {}
+        L += [f"## Climatology ratchet: {q} (out-of-sample climatology, embargo from {rat.get('embargo')})", "",
+              "| lead h | class | served vs clim gain | 95% CI | n | locked | would lock |", "|---|---|---|---|---|---|---|"]
+        for lead, x in state.items():
+            L.append(f"| {lead} | {x['lead_class']} | {f(x['gain'], 4)} | {x['ci'] and [round(c, 4) for c in x['ci']]} | "
+                     f"{x['n']} | {'yes' if lead in locks else 'no'} | {'yes' if x['beats_climatology'] and x['lead_class'] != 'long' else 'no'} |")
+        L.append("")
     for q, b in card["baselines"].items():
         L += [f"## {q} ({card['quantities'][q]['truth']})", "",
               "| arm | n | bias | MAE (=CRPS) | RMSE | SI | HH | twCRPS>p90 | top-decile bias |", "|---|---|---|---|---|---|---|---|---|"]

@@ -170,6 +170,23 @@ def test_baselines_controls_and_verdicts(card):
     assert "Candidate arms" in md and "Named gaps" in md and "SURF_REFRACTION_KR=1.0" in md
 
 
+def test_the_scorecard_carries_the_out_of_sample_climatology_and_the_ratchet(card):
+    c = card["card"]
+    r = c["ratchet"]
+    emb = r["embargo"][0]
+    assert emb == "2026-10-18T00:00Z" and r["embargo"][1] == "open"      # first target - max lead (48 h)
+    for sid, clim in r["climatology"]["hs_station"].items():
+        assert clim["out_of_sample"] is True and (clim["last"] is None or clim["last"] < emb)
+    assert set(r["served_state"]["hs_station"]) == {"24", "48"}
+    assert r["eligible_to_lock"] is False                    # the built-in decoder: no production parity, no locks
+    assert r["newly_locked"] == {} and r["update_requested"] is False
+    assert isinstance(c["alarms"], list)
+    for arm in c["arms"].values():
+        assert "ratchet" in arm["quantities"]["hs_station"]["verdict"]
+    with open(os.path.join(card["out"], "scorecard.md"), encoding="utf-8") as f:
+        assert "Climatology ratchet: hs_station" in f.read()
+
+
 def test_unreplayable_arm_is_refused_before_any_work(tmp_path):
     args = eh.parser().parse_args(["run", "--stations", os.path.join(FIX, "stations.json"), "--start",
                                    "2026-10-20T00:00Z", "--end", "2026-10-20T06:00Z", "--cache-dir",
