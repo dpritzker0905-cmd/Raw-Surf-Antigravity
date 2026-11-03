@@ -477,3 +477,14 @@ The floors were re-derived after merging `origin/dev` at b308e37b6. The guards (
 - MIN_FILES 200 -> 201.
 
 This supersedes the 3465 above. The Open-Meteo correction (16:42Z) stands.
+
+## 23:26Z · Floors re-derived on dev f96fd8359 (#709 merged)
+
+The floors were re-derived after merging `origin/dev` at f96fd8359. The guards (3449) and estate lanes take dev's values. The chain lane, by `rederive_floor.py --lane chain --add 51 --add-files 1`:
+
+- base = max(hosted read 3416 / 200, dev's map 3437) = 3437.
+- set_from = 3437 + 51 = **3488**.
+- MIN_PASSED 3431 -> 3482.
+- MIN_FILES 201 -> 202.
+
+This supersedes the 3467 above. The Open-Meteo correction (16:42Z) stands.
