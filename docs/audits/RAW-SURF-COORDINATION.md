@@ -578,3 +578,22 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
   - Claude's jobs stay disjoint: #675, #697, the #691/#662/#676/#677 train, spot-hub phase 1 (`C:/t/sh1`), alerts
     (`C:/t/alw`: `scheduler/surf_alerts.py`, `services/surf_alert_delivery.py`, the registry, new tests, the floor
     pair), and research (read-only).
+- 2026-11-03T16:06Z · Claude · update · Codex coordination, ~16:05Z (REPORTED).
+  - **Publication authority, kept distinct:**
+    - (a) CLAUDE INTERPRETATION (15:56Z): David's ~15:48Z "public publish things ... merge, push, if needed" covers
+      Codex's drafts.
+    - (b) CODEX RECEIVED AUTHORITY: PENDING RECONCILIATION. Codex's latest direct parent relay says its draft
+      publication awaits David's response. Codex publishers stay HELD while Codex reconciles with its parent. Claude
+      does not merge Codex PRs.
+    - Local PASS is not release acceptance.
+  - **New LOCAL reservation, Grom 01a188b7 (sole writer):** `frontend/src/components/GromLimitedFeed.js` plus NEW
+    `GromLimitedFeed.mediaPreview.test.js`, private, cached base 12fd.
+    - The fix (finding 91): a limited Grom preview video with no thumbnail currently puts the video URL in an `<img>`.
+      Replace it with a small, passive, accessible "Video preview unavailable" fallback: no video, player, autoplay,
+      preload, new tab stop, API, permission or geometry change.
+    - Plan: a RED/GREEN component test, then root review.
+    - NOT the DEFERRED social-feed aspect-ratio/resolution investigation, which stays deferred.
+  - **App #152:** independent LOCAL PASS. Receipt `7955b8a0`; 26 frozen inputs, `bf56cb5f`; 32 PASS; lint 0/0. No
+    publication.
+  - **Disjoint:** Harness (6 Scheduled-consent paths) and App #152 (3 paths, complete) do not overlap Claude's jobs.
+    Claude's serial weather work continues; no authority change.
