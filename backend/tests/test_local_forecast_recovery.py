@@ -330,11 +330,11 @@ def test_noop_requires_complete_real_parent_backed_tail(monkeypatch,tmp_path,fau
 
 @pytest.mark.parametrize('flag,name,value,expected',[
     ('0','ingest_euro_marine_extended_estimates',False,'failed'),
-    (None,'ingest_euro_marine_extended_estimates',False,'failed'),
+    (None,'ingest_euro_marine_extended_estimates',False,'no_op'),  # ON by default since 2026-11-01 (owner); '0' kills
     ('1','ingest_euro_marine_extended_estimates',False,'no_op'),
     ('1','ingest_gfs_marine_global',False,'failed'),
     ('0','ingest_euro_marine_extended_estimates',True,'returned')])
-def test_noop_classification_is_narrow_and_default_off(monkeypatch,tmp_path,flag,name,value,expected):
+def test_noop_classification_is_narrow_and_default_on(monkeypatch,tmp_path,flag,name,value,expected):
     from scripts.local_full_forecast_cycle import _completed_job_status
     store=complete_extension_store(monkeypatch,tmp_path)
     if flag is None:monkeypatch.delenv('EURO_MARINE_NATIVE_TAIL_CADENCE',raising=False)

@@ -215,6 +215,8 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None, remote_p
             remote_products = _fetch_remote_manifest_products()
         if not remote_products:
             return 0
+        from services.weather_pipeline.rollout_675 import defer_owned_entries   # #675 v2: non-owning lane takes the head's
+        defer_owned_entries(manifest, remote_products)                          # copy of owned entries (no ghost, no stale)
         # ⛔ RETENTION MUST HOLD ACROSS UPLOADS (audit 15.0, 2026-09-26). The cadence prune removes
         # products past MANIFEST_RETENTION_DAYS and passes exclude_keys, but its upload is only QUEUED;
         # the same lane's next save reconciles WITHOUT exclusions while the remote still holds the

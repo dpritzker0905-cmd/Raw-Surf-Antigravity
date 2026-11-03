@@ -1881,6 +1881,18 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Kill switches:** Render `MARINE_REGIONAL_TILE_FIRST_EURO_ICON=0`; repo variable `FRAME_REGIONAL_BUNDLES_EURO_ICON=0` (stops publishing; published bundles stay until retention); client `window.__RAW_DISABLE_REGIONAL_EURO_ICON__ = true`. Kill the server and client halves together, never one alone (the client would then read the tile while the server answers dynamically).
 - **Measure after:** one live parity read (scn_tile_first_live_read-style, EURO and ICON, 3 boxes) after the deploy and the first pilots publish, plus a SCOREBOARD row (owed).
 
+### D-060 · EURO estimates are pruned only after their replacement is written, and the lattice fill rewrites its own stale fills (all three ON by default, 2026-11-01)
+- **Decided:** owner, 2026-11-01 22:10 EST (relayed by the lead): measured features ship ON by default with a kill switch, "start it automatically running … if we don't like it, we kill switch it".
+- **Flags, all default '1' in code, registry and workflows, kill switch '0' (repo variable of the same name):**
+  - `INGEST_PRUNE_ESTIMATES_AFTER_REPLACE` (both ingest lanes): a superseded estimate is pruned only once a replacement exists at its own valid time.
+  - `LATTICE_FILL_REFRESH_STALE` (both ingest lanes): the in-band fill treats its own interpolations from an older native run as missing and rewrites them.
+  - `EURO_MARINE_NATIVE_TAIL_CADENCE` (forecast-ingest; Codex's code, 10-19): the EURO coarse 10-14 d GFS tail keeps every entry of the three-hourly NOAA cache instead of stride 3.
+- **Evidence:** `log/2026-11-01-claude-ingest-items-13-15.md`. EURO waves +147..+237 h in-band slots empty at both global tiers; core run 41347283478 saved 2 interpolations (usual ~32) while its prune hit NoSuchKey on a listed fill; 9 x 9 h non-fillable holes in the EURO components at coarse (11-16T09Z..11-17T12Z). Tests: `tests/test_estimate_continuity.py` 12 (ON path, kill-switch path, ghost-slot driver test).
+- **What moves:** EURO tail hours that were missing get a product; nothing that was served changes value. Kept estimates are still bounded by the past-valid-time prune.
+- **Found by the flip (fixed in the same PR):** the dark build let ANY native at an hour replace an estimate there, even a native from an OLDER run. With the flag on by default, `tests/test_manifest_one_step_absorb.py` P5 caught it: natives at r1 plus another writer's estimate at r3 under the same key, and the prune deleted that writer's fresher object. A native now replaces an estimate only from a run at least as new.
+- **Not fixed:** the core and pilots lanes both publish the manifest and re-fold each other's pruned keys; these flags heal the outcome, not the re-entry.
+- **Rollback:** `gh variable set <FLAG> --body 0` for any of the three.
+
 ### D-061 · Every GFS pilot box ingests the full 14-day horizon (ON by default, 2026-11-01)
 - **Decided:** owner, 2026-11-01 22:10 EST, as D-060.
 - **Flag:** `GFS_PILOT_FULL_HORIZON`, default '1' in code, registry and the pilots workflow; kill switch '0' (repo variable).
