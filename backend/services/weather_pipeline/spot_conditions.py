@@ -277,7 +277,9 @@ async def resolve_spot_conditions_impl(
     lat: float,
     lng: float,
     forecast_days: int = 11,
-    spot_id: Any = None
+    spot_id: Any = None,
+    spot_meta: Any = None,
+    horizon_hours: Any = None,
 ) -> Dict[str, Any]:
     """
     Unifies conditions retrieval for a spot, checking local dynamic/manifest
@@ -286,7 +288,18 @@ async def resolve_spot_conditions_impl(
     ``spot_id`` is OPTIONAL and affects only the rating's LOCAL SIZE REFERENCE (see below). It is a
     coordinate-keyed function otherwise; every caller that has an id should pass it, and a caller
     that genuinely has none gets exactly the previous behaviour.
+
+    ``spot_meta`` / ``horizon_hours`` are read ONLY by the phase-2 path below and ignored otherwise.
     """
+    # ── SPOT-HUB PHASE 2 (2026-11-03, DARK): THE ONE COMPOSITION ─────────────────────────────────
+    # '1' answers every hub frame with `spot_ratings.rate_one_spot` (precomputed glyph item first,
+    # as /point-rating does) and builds LOCAL-day rows from the real max over their frames
+    # (spot_hub_composition.py). '0' (default) is this function exactly as it was. Served numbers
+    # move, so the flip is the owner's word with the parity evidence (D-001). Render env only.
+    if os.environ.get("SPOT_HUB_RATE_ONE_SPOT", "0") == "1":
+        from services.weather_pipeline.spot_hub_composition import resolve_hub_conditions
+        return await resolve_hub_conditions(self, model, lat, lng, forecast_days, spot_id=spot_id,
+                                            spot_meta=spot_meta, horizon_hours=horizon_hours)
     # Round current conditions target time to nearest 3 hours
     strict_availability = os.environ.get("SURF_STRICT_AVAILABILITY", "0") == "1"
     now_dt = datetime.now(timezone.utc)

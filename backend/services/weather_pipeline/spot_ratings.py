@@ -48,6 +48,15 @@ def spot_confidence(accuracy_flag, is_verified_peak) -> str:
     return "medium"
 
 
+def wind_relation(wind_from, shore_normal) -> Optional[str]:
+    """offshore / cross-shore / onshore for a wind FROM-bearing against the seaward shore normal, or None.
+    ONE definition: the why-text below and the spot hub's wind word (spot_hub_composition) both read it."""
+    if wind_from is None or shore_normal is None:
+        return None
+    off = -math.cos(math.radians(wind_from - shore_normal))  # +1 offshore .. -1 onshore
+    return "offshore" if off > 0.34 else ("onshore" if off < -0.34 else "cross-shore")
+
+
 def rating_why(level, surf_h_m, period_s, wind_ms, wind_from, shore_normal) -> Optional[str]:
     """Compact explainability string. None when there's nothing to rate."""
     if level == "unknown" or surf_h_m is None:
@@ -58,8 +67,7 @@ def rating_why(level, surf_h_m, period_s, wind_ms, wind_from, shore_normal) -> O
     if wind_ms is not None:
         kt = wind_ms * SR.MS_TO_KT
         if wind_from is not None and shore_normal is not None:
-            off = -math.cos(math.radians(wind_from - shore_normal))  # +1 offshore .. -1 onshore
-            wd = "offshore" if off > 0.34 else ("onshore" if off < -0.34 else "cross-shore")
+            wd = wind_relation(wind_from, shore_normal)
             parts.append(f"{kt:.0f}kt {wd} wind")
         else:
             parts.append(f"{kt:.0f}kt wind")

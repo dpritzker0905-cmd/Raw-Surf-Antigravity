@@ -414,6 +414,8 @@ _RATING_SURFACES = (
     # coverage floor below is exactly what catches that.
     "services/weather_pipeline/spot_ratings_precompute.py",
     "services/weather_pipeline/spot_conditions.py",
+    # ADDED 2026-11-03 (spot-hub phase 2): the hub's rate_one_spot path. It reads RATING_LOCAL_SIZE itself.
+    "services/weather_pipeline/spot_hub_composition.py",
     "services/weather_pipeline/sim_rating.py",
     "services/weather_pipeline/grid_resolver_surf.py",
     "services/weather_pipeline/point_surf_augment.py",
