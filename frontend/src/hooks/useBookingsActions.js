@@ -56,7 +56,7 @@ const useBookingsActions = ({
   const session = user?.access_token;
 
   useLayoutEffect(() => {
-    const owner = { userId, session, request: 0 };
+    const owner = { userId, session, request: 0, mutation: false, uncertain: new Set() };
     inviteOwner.current = owner;
     setPendingInvites([]);
     return () => {
@@ -206,13 +206,57 @@ const useBookingsActions = ({
     }
   };
 
-  const handleRespondToInvite = async (inviteId, accept) => {
+  const handleRespondToInvite = async (inviteId, accept, options = {}) => {
+    const owner = inviteOwner.current;
+    const isCurrent = () => owner && inviteOwner.current === owner
+      && owner.userId === userId && owner.session === session;
+    if (!isCurrent() || !userId) return { status: 'stale' };
+    if (options.quoteOnly) {
+      if (owner.uncertain.has(inviteId)) {
+        return { status: 'uncertain', message: 'Check your bookings before trying again.' };
+      }
+      try {
+        const response = await apiClient.get(`/bookings/invites/${inviteId}/accept-quote`);
+        return isCurrent() ? { status: 'quoted', quote: response.data } : { status: 'stale' };
+      } catch (error) {
+        return isCurrent() ? { status: 'error', message: error.response?.data?.detail || 'Could not load invite price' }
+          : { status: 'stale' };
+      }
+    }
+    if (owner.mutation || owner.uncertain.has(inviteId)) {
+      return { status: 'uncertain', message: 'Check your bookings before trying again.' };
+    }
+    if (accept && !/^[a-f0-9]{64}$/.test(options.consentQuote || '')) {
+      return { status: 'error', message: 'Review the current invite price before accepting.' };
+    }
+    owner.mutation = true;
     try {
-      await apiClient.post(`/bookings/invites/${inviteId}/respond?accept=${accept}`);
-      toast.success(accept ? 'Invite accepted!' : 'Invite declined');
+      const consent = accept ? `&consent_quote=${options.consentQuote}` : '';
+      const response = await apiClient.post(`/bookings/invites/${inviteId}/respond?accept=${accept}${consent}`);
+      if (!isCurrent()) return { status: 'stale' };
+      const paid = response.data?.amount_paid_credits;
+      if (accept && (response.data?.status !== 'accepted' || typeof paid !== 'string'
+          || !/^(0|[1-9]\d*)\.\d{2}$/.test(paid))) {
+        owner.uncertain.add(inviteId);
+        return { status: 'uncertain', message: 'Payment result is unconfirmed. Check your bookings before trying again.' };
+      }
+      toast.success(accept ? `Invite accepted! Paid ${paid} credits` : 'Invite declined');
       fetchData();
+      return { status: accept ? 'accepted' : 'declined', amount_paid_credits: paid };
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to respond to invite');
+      if (!isCurrent()) return { status: 'stale' };
+      if (accept && error.response?.status === 409) {
+        return { status: 'changed', message: 'Price changed. Review again.' };
+      }
+      if (!error.response || error.response.status >= 500) {
+        owner.uncertain.add(inviteId);
+        return { status: 'uncertain', message: 'Response unconfirmed. Check your bookings before trying again.' };
+      }
+      const message = error.response?.data?.detail || 'Failed to respond to invite';
+      toast.error(message);
+      return { status: 'error', message };
+    } finally {
+      owner.mutation = false;
     }
   };
 

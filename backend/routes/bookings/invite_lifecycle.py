@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime, timezone, timedelta
 import json
+import hashlib
 import logging
 
 from database import get_db
@@ -22,7 +23,7 @@ from models import (
     Profile, Booking, BookingParticipant, BookingInvite,
     Notification, RoleEnum
 )
-from utils.credits import deduct_credits, add_credits
+from utils.credits import deduct_credits, add_credits, clean_amount
 from websocket_manager import broadcast_earnings_update
 from core.security import get_current_user_id, get_user_id_from_jwt_or_query
 
@@ -77,20 +78,59 @@ async def get_user_invites(
         })
     return invites
 
+def _invite_consent_terms(invite, booking, user_id):
+    """Bind exact stored terms; this public fingerprint is consent, never authorization."""
+    try:
+        split_price = booking.price_per_person or (booking.total_price / booking.max_participants)
+        charge = clean_amount(split_price)
+        if charge is None:
+            raise ValueError("Invalid amount")
+        terms = ["booking-invite-v1", user_id, invite.id, booking.id, booking.photographer_id,
+                 None if booking.price_per_person is None else float(booking.price_per_person).hex(),
+                 float(booking.total_price).hex(), booking.max_participants, float(split_price).hex()]
+    except (AttributeError, TypeError, ValueError, ZeroDivisionError, OverflowError) as exc:
+        raise HTTPException(status_code=400, detail="Invite price is unavailable") from exc
+    fingerprint = hashlib.sha256(json.dumps(terms, separators=(',', ':')).encode()).hexdigest()
+    return {"invite_id": str(invite.id), "booking_id": str(booking.id),
+            "amount_credits": format(charge, '.2f'), "unit": "credits", "quote": fingerprint}
+
+
+@router.get("/bookings/invites/{invite_id}/accept-quote")
+async def get_invite_accept_quote(
+    invite_id: str,
+    user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db)
+):
+    """Read a recipient's current charge; never reserve, accept or charge an invite."""
+    result = await db.execute(select(BookingInvite).where(BookingInvite.id == invite_id)
+                              .execution_options(populate_existing=True))
+    invite = result.scalar_one_or_none()
+    if not invite:
+        raise HTTPException(status_code=404, detail="Invite not found")
+    if invite.invitee_id != user_id:
+        raise HTTPException(status_code=403, detail="This invite is not for you")
+    if invite.status != 'pending':
+        raise HTTPException(status_code=400, detail="This invite has already been responded to")
+    result = await db.execute(select(Booking).where(Booking.id == invite.booking_id)
+                              .execution_options(populate_existing=True))
+    booking = result.scalar_one_or_none()
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    return _invite_consent_terms(invite, booking, user_id)
+
+
 @router.post("/bookings/invites/{invite_id}/respond")
 async def respond_to_invite(
     invite_id: str, accept: bool,
     user_id: str = Depends(get_user_id_from_jwt_or_query),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    consent_quote: Optional[str] = None
 ):
     """Accept or decline a booking invite - charges credits on accept"""
-    invite_result = await db.execute(
-        select(BookingInvite).where(BookingInvite.id == invite_id)
-        .options(
-            selectinload(BookingInvite.booking).selectinload(Booking.photographer),
-            selectinload(BookingInvite.booking).selectinload(Booking.participants)
-        )
-    )
+    # Serialize responses to the same invite, including a competing decline.
+    statement = (select(BookingInvite).where(BookingInvite.id == invite_id)
+                 .with_for_update().execution_options(populate_existing=True))
+    invite_result = await db.execute(statement)
     invite = invite_result.scalar_one_or_none()
     if not invite:
         raise HTTPException(status_code=404, detail="Invite not found")
@@ -98,6 +138,17 @@ async def respond_to_invite(
         raise HTTPException(status_code=403, detail="This invite is not for you")
     if invite.status != 'pending':
         raise HTTPException(status_code=400, detail="This invite has already been responded to")
+
+    if accept:
+        # Hold both current rows until the existing final commit / session rollback.
+        booking_result = await db.execute(select(Booking).where(Booking.id == invite.booking_id)
+                                          .with_for_update().execution_options(populate_existing=True))
+        booking = booking_result.scalar_one_or_none()
+        if not booking:
+            raise HTTPException(status_code=404, detail="Booking not found")
+        quote = _invite_consent_terms(invite, booking, user_id)
+        if not consent_quote or consent_quote != quote['quote']:
+            raise HTTPException(status_code=409, detail="Invite price changed or confirmation is missing. Review again.")
 
     user_result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = user_result.scalar_one_or_none()
@@ -109,7 +160,6 @@ async def respond_to_invite(
     new_balance = None
 
     if accept:
-        booking = invite.booking
         split_price = booking.price_per_person or (booking.total_price / booking.max_participants)
 
         success, new_balance, error = await deduct_credits(
@@ -162,7 +212,8 @@ async def respond_to_invite(
 
     await db.commit()
     return {"message": "Invite accepted" if accept else "Invite declined",
-            "status": invite.status, "amount_paid": amount_paid, "new_balance": new_balance}
+            "status": invite.status, "amount_paid": amount_paid, "new_balance": new_balance,
+            "amount_paid_credits": quote['amount_credits'] if accept else None}
 
 
 # ============ CREW INVITE ============
