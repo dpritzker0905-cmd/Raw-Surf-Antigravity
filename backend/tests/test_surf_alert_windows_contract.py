@@ -1,9 +1,10 @@
 """The forecast-window alert mirrors must equal their sources, and the flag must be declared where it is flipped.
 
-`services/surf_alert_windows.py` copies three things it does not own: the alert UI's time windows, tide states and
-condition ids (frontend/src/components/alerts/surfAlertConstants.js) and the tier ladder
-(frontend/src/components/map/LayerAccessResolver.js, the ONLY place tier policy may live). Each copy is parsed
-back out of its source here, so editing one side without the other fails CI instead of silently mis-gating.
+`services/surf_alert_windows.py` copies what it does not own from the alert UI: time windows, tide states and
+condition ids (frontend/src/components/alerts/surfAlertConstants.js). Each copy is parsed back out of its source
+here, so editing one side without the other fails CI instead of silently mis-gating. The TIER ladder is not copied:
+alerts read the backend's one echo of LayerAccessResolver, services/forecast_tier_window.py, which
+tests/test_forecast_tier_window.py pins to the JS; the last test here pins that alerts use it.
 """
 import ast
 import os
@@ -20,7 +21,6 @@ if backend_dir not in sys.path:
 from services import surf_alert_windows as W  # noqa: E402
 
 CONSTANTS_JS = os.path.join(REPO, "frontend", "src", "components", "alerts", "surfAlertConstants.js")
-RESOLVER_JS = os.path.join(REPO, "frontend", "src", "components", "map", "LayerAccessResolver.js")
 
 
 def _read(path):
@@ -62,35 +62,6 @@ def test_every_condition_the_ui_offers_is_either_evaluated_or_named_unevaluated(
     assert not evaluated & set(W.UNEVALUATED_CONDITIONS)
 
 
-def test_the_tier_ladder_equals_layer_access_resolver():
-    src = _read(RESOLVER_JS)
-    m = re.search(r"var TIER_ACCESS = \{(.*?)\n\};", src, re.S)
-    assert m
-    js = {}
-    for tier, models, days in re.findall(r"(\w+):\s*\{\s*models:\s*\[([^\]]*)\],\s*forecastDays:\s*(\d+)",
-                                         m.group(1)):
-        js[tier] = {"models": tuple(re.findall(r"'([^']+)'", models)), "forecast_days": int(days)}
-    assert js == W.TIER_ACCESS
-
-
-@pytest.mark.parametrize("raw,tier", [
-    (None, "guest"), ("", "guest"), ("guest", "guest"), ("free", "free"), ("tier_1", "free"),
-    ("basic", "basic"), ("paid", "basic"), ("tier_2", "basic"), ("premium", "premium"), ("pro", "premium"),
-    ("parent", "premium"), ("admin", "premium"), ("tier_3", "premium"), ("tier_4", "premium"),
-    ("gold", "guest"), ("FREE_TRIAL", "free"), ("Premium Annual", "premium"),
-])
-def test_canonical_tier_follows_get_user_tier(raw, tier):
-    assert W.canonical_tier(raw) == tier
-
-
-def test_get_user_tier_still_has_the_branches_this_mirror_copies():
-    """If getUserTier gains or loses a keyword, the parametrized table above is stale: fail here."""
-    body = _read(RESOLVER_JS).split("export function getUserTier", 1)[1].split("\n}\n", 1)[0]
-    keywords = sorted(set(re.findall(r"includes\('([^']+)'\)", body)))
-    assert keywords == ["admin", "basic", "free", "paid", "parent", "premium", "pro"]
-    assert sorted(set(re.findall(r"'(tier_\d)'", body))) == ["tier_1", "tier_2", "tier_3", "tier_4"]
-
-
 # ── the flag ────────────────────────────────────────────────────────────────────────────────────────────
 def _registry():
     tree = ast.parse(_read(os.path.join(backend_dir, "routes", "admin", "surf_forecast.py")))
@@ -121,3 +92,12 @@ def test_every_alert_window_knob_is_read_with_a_safe_default(monkeypatch):
     assert W.enabled()
     monkeypatch.setenv(W.FLAG, "true")
     assert not W.enabled()
+
+
+def test_alerts_keep_no_tier_ladder_and_read_the_one_echo():
+    from services import forecast_tier_window as FTW
+    src = _read(os.path.join(backend_dir, "services", "surf_alert_windows.py"))
+    assert "TIER_ACCESS" not in src and "forecast_days" not in src and "forecastDays" not in src
+    assert W.canonical_tier is FTW.canonical_tier
+    assert W.resolve_model_lane(None, "free", ["EURO", "GFS"], "EURO") == ("GFS", "first_permitted")
+    assert W.horizon_h("free", "GFS") == min(W.configured_horizon_h(), FTW.tier_horizon_hours("free", "GFS"))

@@ -147,3 +147,17 @@ runner, one cached read on the box). Its three changes and what was done:
    the nautical-zone clock until spots carry a timezone.
 4. Flip `ALERTS_FORECAST_WINDOWS` '1' in precompute.yml first (producer only, nothing sent), confirm the object,
    then in the Render env. SCOREBOARD row at the flip.
+
+## Update 2026-11-03 (later): one tier echo, not two (the lead's instruction after #698 merged as `35feaaac6`)
+
+- The alert module's own copy of the tier ladder (`TIER_ACCESS`, `canonical_tier`, `tier_rules`, `model_horizon_h`)
+  is deleted. Alerts now read the backend's single echo of LayerAccessResolver, `services/forecast_tier_window.py`:
+  `canonical_tier`, `tier_horizon_hours(tier, model, capabilities)` for the horizon (min with
+  `ALERTS_FORECAST_HORIZON_H`), and a new `TIER_MODELS` / `allowed_models(tier)` for the model lane, added THERE and
+  pinned to the JS `models: [...]` arrays by `tests/test_forecast_tier_window.py` (+2 tests, chain lane).
+- `tests/test_surf_alert_windows_contract.py` drops its ladder and getUserTier tests (19, now covered by #698's
+  test) and gains one that pins alerts to the echo and forbids a ladder in the alert module.
+- Mutants re-run on the moved seam: horizon ignoring the echo, lane ignoring the tier, and a wrong `TIER_MODELS`
+  row are all KILLED.
+- Floors re-derived from dev after #698: guards 3366 + 83 = 3449 (MIN_PASSED 3443, MIN_FILES 217); chain
+  dev's map 3414 + 2 = 3416 (MIN_PASSED 3410).

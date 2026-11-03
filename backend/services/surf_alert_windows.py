@@ -33,6 +33,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
+from services import forecast_tier_window as FTW
 from services.weather_pipeline import sim_daylight
 from services.weather_pipeline import surf_rating as SR
 
@@ -80,56 +81,21 @@ def min_level() -> str:
     return value if value in SR.LEVELS else "fair"
 
 
-# ── MIRRORS, each pinned to its source by tests/test_surf_alert_windows_contract.py ─────────────────────
+# ── MIRRORS of the alert UI, each pinned to its source by tests/test_surf_alert_windows_contract.py ──────
 # frontend/src/components/alerts/surfAlertConstants.js TIME_WINDOWS (the labels the user picked from).
 TIME_WINDOW_HOURS = {"dawn": (5, 8), "morning": (8, 12), "afternoon": (12, 17), "evening": (17, 20)}
 TIDE_LEVEL_STATES = ("low", "mid", "high")
 TIDE_TREND_STATES = ("rising", "falling")
 
-# frontend/src/components/map/LayerAccessResolver.js TIER_ACCESS + getUserTier. ⛔ Tier POLICY lives there
-# (CLAUDE.md); this is a read-only copy so the scheduler can obey it server-side, and the contract test fails
-# the moment the two differ. Do not edit one without the other.
-TIER_ACCESS = {
-    "guest": {"models": ("GFS",), "forecast_days": 3},
-    "free": {"models": ("GFS",), "forecast_days": 3},
-    "basic": {"models": ("GFS", "EURO", "ICON"), "forecast_days": 7},
-    "premium": {"models": ("GFS", "EURO", "ICON"), "forecast_days": 14},
-}
-
-
-def canonical_tier(subscription_tier: Optional[str]) -> str:
-    """getUserTier(), line for line (LayerAccessResolver.js). Unknown -> guest, as there."""
-    if not subscription_tier:
-        return "guest"
-    t = str(subscription_tier).lower()
-    if "free" in t or t == "tier_1":
-        return "free"
-    if "basic" in t or "paid" in t or t == "tier_2":
-        return "basic"
-    if any(k in t for k in ("premium", "pro", "parent", "admin")) or t in ("tier_3", "tier_4"):
-        return "premium"
-    return "guest"
-
-
-def tier_rules(subscription_tier: Optional[str]) -> Dict[str, Any]:
-    return TIER_ACCESS.get(canonical_tier(subscription_tier), TIER_ACCESS["free"])
-
-
-def model_horizon_h(model: str, capabilities: Optional[Sequence[Dict[str, Any]]]) -> Optional[int]:
-    """The model's marine-waves `max_forecast_hours` from capabilities.py (the ONLY source of horizons)."""
-    rows = [c for c in capabilities or ()
-            if str(c.get("model", "")).upper() == model and str(c.get("domain", "")).lower() == "marine"]
-    hours = [int(c.get("max_forecast_hours") or 0) for c in rows]
-    return max(hours) if hours and max(hours) > 0 else None
+# ⛔ TIER POLICY lives in LayerAccessResolver.js (CLAUDE.md). The backend has ONE echo of it,
+# services/forecast_tier_window.py (days + models, pinned to the JS by tests/test_forecast_tier_window.py);
+# alerts read that echo and keep no ladder of their own.
+canonical_tier = FTW.canonical_tier
 
 
 def horizon_h(subscription_tier: Optional[str], model: str, capabilities=None) -> int:
-    """min(configured, tier days x 24, the model's served horizon)."""
-    caps = [configured_horizon_h(), tier_rules(subscription_tier)["forecast_days"] * 24]
-    native = model_horizon_h(model, capabilities)
-    if native:
-        caps.append(native)
-    return min(caps)
+    """min(configured, the resolver's window for this tier and model: tier days x 24, clamped by capabilities)."""
+    return min(configured_horizon_h(), FTW.tier_horizon_hours(subscription_tier, model, capabilities))
 
 
 def resolve_model_lane(lane: Optional[str], subscription_tier: Optional[str],
@@ -139,7 +105,7 @@ def resolve_model_lane(lane: Optional[str], subscription_tier: Optional[str],
     server-side today (the client keeps it in localStorage `rawsurf-active-model`), so every alert currently
     resolves to the served default. Nothing here names a model: the default comes from the producer's config.
     """
-    permitted = set(tier_rules(subscription_tier)["models"])
+    permitted = set(FTW.allowed_models(subscription_tier))
     have = [str(m).upper() for m in available or ()]
     want = (lane or "").strip().upper()
     if want and want in have and want in permitted:
