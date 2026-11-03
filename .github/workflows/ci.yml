@@ -1632,9 +1632,11 @@ jobs:
           #   base 3044 (hosted read) + 17 new test(s) and 1 new file(s) = 3061, files 186; floor 3061 - 6 = 3055. This PR must read 3061 passed.
           # ⬆ 3055→3166 on 2026-11-02 (rederive_floor.py, claude/weather-batch-2): dev run 41537830114 read 3044 / 185 files; dev's map 3061;
           #   base 3061 (dev's map) + 111 new test(s) and 2 new file(s) = 3172, files 188; floor 3172 - 6 = 3166. This PR must read 3172 passed.
-          # ⬆ 3166→3210 on 2026-11-03 (rederive_floor.py, claude/consensus-direction-vector): dev run 41314871394 read 3008 / 183 files; dev's map 3172;
-          #   base 3172 (dev's map) + 44 new test(s) and 1 new file(s) = 3216, files 189; floor 3216 - 6 = 3210. This PR must read 3216 passed.
-          MIN_FILES, MIN_PASSED = 189, 3210
+          # ⬆ 3166→3301 on 2026-11-03 (rederive_floor.py, claude/eval-harness-v0): dev run 41549383722 read 3172 / 188 files; dev's map 3172;
+          #   base 3172 (hosted read) + 135 new test(s) and 7 new file(s) = 3307, files 195; floor 3307 - 6 = 3301. This PR must read 3307 passed.
+          # ⬆ 3301→3352 on 2026-11-03 (rederive_floor.py, claude/consensus-direction-vector): dev run 41549383722 read 3172 / 188 files; dev's map 3307;
+          #   base 3307 (dev's map) + 51 new test(s) and 1 new file(s) = 3358, files 196; floor 3358 - 6 = 3352. This PR must read 3358 passed.
+          MIN_FILES, MIN_PASSED = 196, 3352
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
