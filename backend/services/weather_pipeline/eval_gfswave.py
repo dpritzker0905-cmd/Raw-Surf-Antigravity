@@ -28,7 +28,6 @@ ATM_URL = BASE + "/gfs.{d}/{hh}/atmos/gfs.t{hh}z.pgrb2.0p25.f{fh:03d}"
 WAVE_KEYS = ("HTSGW", "PERPW", "DIRPW")
 WIND_KEYS = {"gfswave": ("UGRD", "VGRD"), "pgrb2": ("UGRD:10m", "VGRD:10m")}
 CROP_HALF_DEG = 1.5
-MS_TO_KT = 1.0 / 0.514444
 
 
 def run_id(cycle: datetime) -> str:
@@ -109,6 +108,7 @@ def _bounds(c):
 def products(c: dict, cycle: datetime, valid: datetime) -> Dict[str, object]:
     """{"marine": NormalizedProduct(waves), "wind": NormalizedProduct(wind)} from one crop, built the way the
     normalizer builds vectors (u = -speed sin(from), v = -speed cos(from); masked cells is_valid False, zeros)."""
+    from services.weather_pipeline import surf_rating as SR   # THE engine's knots<->m/s constant, never a local copy
     from services.weather_pipeline.schemas import GridVector, NormalizedGrid, NormalizedProduct
     mv, wv = [], []
     for a, la in enumerate(c["lats"]):
@@ -127,7 +127,7 @@ def products(c: dict, cycle: datetime, valid: datetime) -> Dict[str, object]:
                 wv.append(GridVector(lat=la, lng=lo, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0,
                                      is_valid=False))
             else:
-                spd = math.hypot(uu, vv) * MS_TO_KT
+                spd = math.hypot(uu, vv) * SR.MS_TO_KT
                 frm = math.degrees(math.atan2(-uu, -vv)) % 360.0
                 r = math.radians(frm)
                 wv.append(GridVector(lat=la, lng=lo, speed=round(spd, 4), direction=round(frm, 2),
