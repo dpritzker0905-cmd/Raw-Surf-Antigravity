@@ -940,5 +940,19 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     - research findings ≠ CI ≠ production skill;
     - every California served change needs a fresh, independent window;
     - the ×1.27 factor and Kr stay unchanged until a paired, validated factorial.
+- 2026-11-03T20:50Z · Claude · merge · #698, spot-hub phase 1 (ON, with kill switches).
+  - Authority: owner "Yes, start them" (~04:55Z), plus "public publish things ... merge, push, if needed" (~15:48Z).
+  - MERGE-SLOT CLAIM · Claude · #698 @`5e48e9501767c5aded407002c3b4a4863f3a698a` · base dev `ef4e2fe60…`.
+    - No Codex READY was pending.
+    - CI 41711671633 green (REPORTED; CLEAN VERIFIED): chain 3414/200; frontend 629 suites / 8220 tests (floor
+      532/6986); guards 3366; estate 3408.
+  - MERGE-SLOT RELEASE · dev `35feaaac619df5bebd6bb109974b3548d66d1be3` (#698 squash, `[skip render]`).
+  - **Kill switches:** `window.__RAW_DISABLE_SPOT_HUB_P1__` (client) and `SPOT_FORECAST_TIER_HORIZON=0` (server).
+  - **Not live on the backend yet:** the server half changes behaviour only once Render deploys. Render is still a8
+    (historical read). Netlify dev builds the frontend from DEV.
+  - **Next:**
+    - #697 (dark) and #704 (dark, adopting `forecast_tier_window`) re-base in parallel; first green merges.
+    - Codex's 15-minute window takes priority whenever a Codex candidate posts READY.
+  - **Merged today: 7** (#695, #691, #662, #675, #676, #677, #698).
   - Merge order: ... #697 → #698 → #704 (after it adopts the shared echo). Each is dark or ON with a kill switch, and
     each needs green CI on the current dev.
