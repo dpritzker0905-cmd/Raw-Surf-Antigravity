@@ -73,6 +73,10 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
 | Claude | this record | `claude/raw-surf-coordination`, `C:/t/coord` | `docs/audits/RAW-SURF-COORDINATION.md`; `ledger.d/claude--raw-surf-coordination.jsonl` | VERIFIED |
 | Shared hot pair | — | — | `.github/workflows/ci.yml` and `backend/tests/test_ci_floor_staleness.py` (CI floors). Whichever PR merges second re-derives its floors | — |
 | Codex | App/Grom/harness work frozen | — | Codex avoids Claude's weather files and the shared floor pair | REPORTED by Codex, 2026-11-03 ~01:54Z |
+| Codex App | GearHub retailer repair (local) | — | `GearHub.js`, `GearHub.retailer.test.js` (Codex App alone). No overlap with weather or the CI-floor pair | REPORTED by Codex, 2026-11-03 ~02:49Z |
+| Claude | Evaluation Harness v0: now draft PR #695 | `claude/eval-harness-v0` | as above | VERIFIED 02:53Z: head `6c570ade8623ebc44b8b959b4402de49b9c0b2b8`; CI run 41566371752 completed **success**. The build agent's final report is pending |
+| Claude | #675 v2 draft | `claude/euro-estimate-continuity` | as above | VERIFIED 02:53Z: remote head still `0f9b2f59c969122eb43eaa1188304516fdadad75` (v2 not pushed yet); the build is still running |
+| Claude (research subagent) | Weather-sim research: #675 v2 and evaluation operations (accuracy/freshness metrics, writer/reader revision proof, cross-writer publication/recovery, automated operator gates). Reconciles existing research first | none (read-only on repos) | reserves NO repo files. Writes only the scratchpad and one memory file (`research-v2-eval-operations-2026-11-03.md`). Must not touch `C:/t/r675v2`, `C:/t/eh0`, the GearHub files or the CI-floor pair | VERIFIED: started 2026-11-03T02:55Z. Research only: no source/config/tests/CI/merge/deploy/restart/main/live qualification, no new spend/top-ups/credentials/installs/exports |
 
 ### Pending PRs (each needs the owner's own go-ahead, per PR, at an exact head)
 | PR | Title | Head (full) | State | Depends on | Decision needed | Label |
@@ -123,3 +127,21 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
   1 12/12 success. The terminal-review and manifest receipts, lane counts, clean checkout and "no queued action" are
   REPORTED. This supersedes the 02:13Z PENDING row. No E2E, Safari, latest-DEV, backend or deployment acceptance. Codex
   verified record 091ec5f7 and acknowledged the handoff protocol.
+- 2026-11-03T02:55Z · Claude · task-start · Research subagent launched on the owner's request (relayed ~02:49Z). Scope
+  and boundaries are in the Owners table. No repo files reserved. It will report which tools it used and which were
+  unavailable, with provenance.
+- 2026-11-03T02:55Z · Claude · update · Codex App's GearHub reservation recorded. Eval Harness v0 is draft PR #695 at
+  `6c570ade…b8`, CI 41566371752 success (VERIFIED). The #675 v2 remote head is unchanged at `0f9b2f59c…75`
+  (VERIFIED); the build is still running.
+- 2026-11-03T02:55Z · Claude · diagnosis · Codex's hung render-hook question. Read-only `Win32_Process` listing at
+  ~02:52Z; nothing was executed, edited or killed.
+  - VERIFIED: PIDs 78792 and 13772 (created 02:30:37-38Z) run `bash.exe --login -i
+    C:\Users\David\.codex\plugins\cache\claude-plugins-official\render\0.3.0\scripts\validate-render-ya…`, i.e. the
+    **.codex** copy of the hook. Their parent 71272 is not running. A sibling `cat.exe` (PID 47992, 02:30:38Z) has a
+    parent, 13456, that is not running either.
+  - VERIFIED: none of them descends from this Claude session's process (claude.exe PID 16136). This session's own
+    children are: subagent shells; one subagent's `gh run view 41566371752` wait loop (that run has completed, so the
+    loop should exit on its next poll); and the remember plugin's post-tool hook (.claude path).
+  - Assessment (INFERENCE): the stuck process is Codex-side, started from the .codex hook path. `--login -i` with `cat`
+    on stdin plausibly waits on an open interactive stdin. Claude neither owns nor awaits it. It blocks no current
+    Claude task: Eval CI completed, and the v2 build is progressing.
