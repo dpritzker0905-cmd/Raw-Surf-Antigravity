@@ -749,3 +749,55 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     - new tests, the CI-floor pair, and its log and ledger.
   - No Codex app files. Draft only: no merge, flip, env change, deploy or main.
   - It must PASS the harness on a fresh, untouched window.
+- 2026-11-03T18:22Z · Claude · merge-refused · The auto-mode permission check refused the merge of #676 at
+  `6e346e69ebbf3b35b49b9cd93e7eaec5d41c2a3d` (green; CI 41682213012), reason "[Production Deploy]". #675 at
+  `8c4800e8e2e7e32dffae39ca3be61a21db8b67be` (green on d153; CI 41681316114) was refused earlier for the same class of
+  change: default-ON ingest flags that act on the next scheduled cron.
+  - Both need the owner's explicit, PR-by-PR word ("Merge #675", "Merge #676", and later #677). Not retried, not worked
+    around.
+  - The dev frontier stays at `d153dfc09…`. Codex slot A is still open.
+  - Merge-train note: the Weather Program Ledger verify job for #676 (run 41682213021) was CANCELLED on attempt 1 (the
+    checkout hung ~11 min). The train agent re-ran that one PR check with `gh run rerun`; attempt 2 passed. A rerun is
+    not a dispatch.
+- 2026-11-03T18:22Z · Claude · HANDOFF · SURF_SPECTRAL_K, for Codex and David. Research findings are kept separate from
+  production skill.
+  - **(1) What round 4 and this build answer vs what is insufficient.**
+    - FINDINGS (research; offline; GFS only; 10-20..10-29; 3 CDIP nearshore buoys, n 360):
+      - the SoCal −0.2 m bias is the GFS INPUT in the sheltered Bight, not the transfer (round 3 and the deep-wave
+        lane agree);
+      - CDIP's published MOP K applied to GFS partitions equals served (+0.002 m);
+      - a POST-HOC open-ocean read-point arm gave −0.073 m bias and +0.077 m MAE gain [0.055, 0.100], chosen after 6
+        variants.
+    - INSUFFICIENT:
+      - no pre-registered result on a fresh window;
+      - the `sea_et` split above ~0.09 Hz (no island sheltering) is unvalidated;
+      - 3 buoys, one autumn window, California only;
+      - no EURO/ICON;
+      - no face-height truth.
+    - Round 4 (running, read-only) independently scores Bight-fix arms (GFS 0.16, EURO/consensus, site correction)
+      with Jason-3 outside the islands as the reference.
+    - NO confirmed production skill.
+  - **(2) Reservations.** Branch `claude/surf-spectral-k`, worktree `C:/t/ssk`:
+    - the surf-chain nearshore path, plus a new spectral-K module, its build script and asset;
+    - `_RATING_FLAGS`;
+    - rating-lane workflow env declarations only;
+    - a NEW `flip-candidates/<slug>.json` (the label is NOT added);
+    - tests, the CI-floor pair, the log and the ledger.
+    It depends on the dev harness (#695, merged). No Codex app files.
+  - **(3) Defaults and safety.**
+    - `SURF_SPECTRAL_K` defaults '0' and is declared '0' in every rating lane. Off = byte-identical, pinned by a hash
+      test.
+    - Scope: California spots with a planar-coast MOP point within ~1 km. Elsewhere, unchanged.
+    - The K tables are built offline. Nothing is published to the bucket without approval. No persisted-data change
+      while the flag is 0.
+    - The ×1.27 H1/10 factor and Kr stay UNCHANGED: never dropped alone. A later separate factorial follows, only
+      after K passes.
+  - **(4) Recommendation: build in PARALLEL as a dark draft; promote SEQUENTIALLY.**
+    - The draft is safe (flag 0, branch-local) and is needed to replay a pre-registered spec.
+    - Promotion gates, in order:
+      - (a) the `sea_et` split check against MOP's own nowcast;
+      - (b) harness PASS on a fresh, untouched window, with one spec, station-cluster CIs and no band worse after Holm;
+      - (c) consistency with round 4's Bight-arm results;
+      - (d) a hosted flip-PR scorecard run;
+      - (e) the owner's word plus a SCOREBOARD row.
+    - Its merge to dev waits its turn in the slot protocol, after the app windows. No app CI or merge overlap.
