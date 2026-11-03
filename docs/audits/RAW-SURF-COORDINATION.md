@@ -339,3 +339,28 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
   - OT barycenters parked; POD dropped.
 - 2026-11-03T04:42Z · Claude · watch · Subscribed (idle notice only) to peer session "Longcat reviewer helper
   verification [e1869e]", on the owner's request. Observe only; no messages sent to it.
+- 2026-11-03T04:46Z · Claude · correction · CORRECTS 2026-11-03T03:46Z ("Static lead read, VERIFIED on origin/dev: the full
+  hub (`SpotConditions.js`) shows tides; the pinned drawer (`UnifiedSpotDrawer.js`) loads tide data but does not render
+  it; the GPS infobox (`MapForecastOverlay.js`) has no tide, although `/point` returns one when RATING_TIDE is on").
+  That mapping was WRONG.
+  - The PINNED drawer shows "Today's Tides" through `SpotReportContent.js:82` → `<SpotConditions>`.
+  - The FULL hub `/spot-hub/:id` (`SpotHub.js`, reading `/explore/spot-details`) shows NO tide and no rating.
+  - `/point` returns no tide. The `tide` field at `weather.py:345` is on `SpotRatingItem` (`/spot-ratings`,
+    `/point-rating`), and `pointRatingClient.js` drops it.
+  - Lead re-VERIFIED `SpotReportContent.js:15,82`.
+- 2026-11-03T04:46Z · Claude · research · Spot-hubs lane finished (REPORTED; memory
+  `research-spot-hubs-forecast-charts-2026-11-03.md`).
+  - Lead VERIFIED the tier days in `backend/routes/explore_discover/spot_details.py:60-69`: free = 3 days AFTER today,
+    basic/paid = 7, premium = 10. The owner's contract is free = today + 2, basic = 7, premium = 14.
+  - The `subscription_tier` is a client-supplied query parameter (REPORTED: client-enforced only). That is a
+    possible entitlement-bypass risk for Codex / app security to assess; Claude makes no code change.
+  - Other mismatches (REPORTED):
+    - the hub forecast is one 12:00 UTC sample per day labelled "max", stopping at 10 days;
+    - the hub rating differs from the glyph's (no tide or breaker term; rates a rounded height);
+    - two wrong source labels;
+    - a direction format bug on the full hub;
+    - a day-scroll off-by-one;
+    - `swell_period` = total period.
+  - Proposed plan, P0-P4: label/bug fixes ON; one tier resolver; the hub delegates to `rate_one_spot` (dark); a CI
+    spot-series shard job to the CDN (dark); rating-colour charts ON with a kill switch.
+  - Owner decisions are listed in the memory file. Nothing built.
