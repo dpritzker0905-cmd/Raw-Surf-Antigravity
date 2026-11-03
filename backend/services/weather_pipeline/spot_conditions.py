@@ -227,6 +227,10 @@ async def _spectral_partitions(self, model, lat, lng, dt, total_h, total_tp=None
                               "dir": _dir, "kind": kind})
             except Exception as e:
                 logger.debug(f"[spot-conditions] partition {layer} at ({lat},{lng}) skipped: {e}")
+        # SURF_PARTITION_TRACKING (dark): the same tracked stencil as the point lane (one composition).
+        if parts and os.environ.get("SURF_PARTITION_TRACKING", "0") == "1":
+            from services.weather_pipeline.partition_tracking import tracked_from_cache
+            parts = await tracked_from_cache(self, model, lat, lng, dt, parts)
         if not parts:
             return None
         from services.weather_pipeline.surf_partitions import partitions_represent, reconcile_partitions

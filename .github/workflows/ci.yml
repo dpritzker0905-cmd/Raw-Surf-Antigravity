@@ -993,7 +993,9 @@ jobs:
           #   base 3341 (hosted read) + 10 new test(s) and 1 new file(s) = 3351, files 213; floor 3351 - 6 = 3345. This PR must read 3351 passed.
           # ⬆ 3345→3345 on 2026-11-02 (rederive_floor.py, claude/upbeat-cori-222cde): dev run 41377184916 read 3351 / 213 files; dev's map 3351;
           #   base 3351 (hosted read) + 0 new test(s) and 0 new file(s) = 3351, files 213; floor 3351 - 6 = 3345. This PR must read 3351 passed.
-          MIN_FILES, MIN_PASSED = 213, 3345
+          # ⬆ 3345→3360 on 2026-11-03 (rederive_floor.py, claude/swell-partition-tracking): dev run 41549383722 read 3351 / 213 files; dev's map 3351;
+          #   base 3351 (hosted read) + 15 new test(s) and 1 new file(s) = 3366, files 214; floor 3366 - 6 = 3360. This PR must read 3366 passed.
+          MIN_FILES, MIN_PASSED = 214, 3360
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
