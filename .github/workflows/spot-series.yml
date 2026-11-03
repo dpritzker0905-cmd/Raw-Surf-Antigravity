@@ -1,0 +1,151 @@
+# Spot-hub phase 3 (2026-11-03, DARK): per-spot forecast SERIES for the hub charts, rated HERE, never on the 1-CPU
+# serve box. One matrix job per model x 4 spot shards (hash shards s % 4 == job), each rating its spots on the hub's
+# frame plan (now, 3-hourly to +72 h, then local 06/12/18 solar day-parts to +336 h; ~58 frames a spot) with
+# spot_ratings.rate_one_spot, then ONE assemble job gates across models (the glyph precompute's observation gate)
+# and builds 64 gzipped hash shards per model + index.json. backend/services/weather_pipeline/spot_series.py.
+#
+# ⛔ DARK TWICE. (1) Automatic runs do NOTHING until the repo variable SPOT_SERIES_PUBLISH is '1': the plan job's
+# `if` skips the whole lane, so a dark lane costs no runner time. (2) The publish step runs only when that variable
+# is '1' AND the run rated every spot (limit 0). The owner flips it after ONE dispatched dry run shows bytes, time
+# and correctness against rate_one_spot (the step summary: ms/frame, shard bytes, hub = glyph counts).
+#   Dry run:  Actions -> "Spot Forecast Series (dark)" -> Run workflow (defaults: 40 spots a job, 10 hub-parity spots).
+# Measured offline (synthetic catalogue, 1,773 spots, scripts/spot_series_ci.py synthetic): 102,834 frames a model,
+# 192 shards, 2.24 MB gzipped in all, mean 11.7 KB, max 17.9 KB. At CI's measured ~54 ms a frame that is ~93 min a
+# model, ~23 min a job at 4 jobs.
+# ⚠️ TIER: shards hold 14 days; the client must show only LayerAccessResolver's window. Anonymous CDN access would
+# expose 14 days to free users (as the map's static frames do) and needs an owner-approved storage policy for the
+# spot_series/ prefix. Both are owner decisions (PR body).
+name: Spot Forecast Series (dark)
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "Rate at most N spots per job (0 = every spot; publishing requires 0)"
+        required: false
+        default: '40'
+      hub_parity:
+        description: "Spots per job on which the phase-2 hub path is compared with the glyph item and these rows"
+        required: false
+        default: '10'
+  # Ratings follow the glyph precompute, so the series and the glyphs are rated on the same restored products.
+  workflow_run:
+    workflows: ["Precompute Spot Ratings (decoupled)"]
+    types: [completed]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: spot-series
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || vars.SPOT_SERIES_PUBLISH == '1'
+    outputs:
+      base_time: ${{ steps.t.outputs.base_time }}
+    steps:
+      - id: t
+        # ONE base for every matrix job, so all three models rate the same frames (the gate and the band join on it).
+        run: echo "base_time=$(date -u +%Y-%m-%dT%H:00:00Z)" >> "$GITHUB_OUTPUT"
+
+  rate:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        model: [GFS, EURO, ICON]
+        job: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+      - name: Rate the series (${{ matrix.model }}, job ${{ matrix.job }}/4)
+        working-directory: backend
+        env:
+          # THE SERVED SCIENCE ENV, mirrored from precompute.yml's rating step so the series and the glyphs are one
+          # composition. backend/tests/test_spot_series.py fails if any of these drifts from precompute.yml.
+          NODE_ENV: 'production'
+          RENDER: 'true'
+          RATING_TIDE: '1'
+          SURF_NEARSHORE_MOP: '0'
+          SURF_STRICT_AVAILABILITY: '0'
+          SURF_REQUESTED_HORIZON: '0'
+          COPERNICUS_TERMINAL_TIME_GUARD: '0'
+          SURF_PARTITIONS: '0'
+          SURF_PARTITION_TRACKING: '0'
+          SHORE_NORMAL_BEARING_RADIUS_KM: '3.0'
+          RATING_OBS_GATE: '1'
+          SAMPLER_SCALAR_HEIGHT: '1'
+          SAMPLER_SCALAR_HEIGHT_MODELS: 'GFS'
+          COPERNICUS_PEAK_PERIOD: '0'
+          ICON_PEAK_PERIOD: '0'
+          ICON_PEAK_PERIOD_SHARPNESS: '2'
+          CONSENSUS_SERVE: '0'
+          CONSENSUS_SERVE_KEEP_GFS: ''
+          RATING_LOCAL_SIZE: '1'
+          POINT_BATCH_NATIVE_COPERNICUS: '1'
+          POINT_CACHE_MAX: '6000'
+          # The series reaches +336 h, so warm the whole horizon (precompute warms 1 day: it rates +0/+3 h).
+          PREFETCH_WINDOW_DAYS: '15'
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          WEATHER_PROXY_URL: ${{ secrets.WEATHER_PROXY_URL }}
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+        run: >-
+          python scripts/spot_series_ci.py rate --model ${{ matrix.model }} --job ${{ matrix.job }} --jobs 4
+          --base-time ${{ needs.plan.outputs.base_time }} --limit ${{ inputs.limit || '0' }}
+          --hub-parity ${{ inputs.hub_parity || '0' }} --out ../series-rows
+      - uses: actions/upload-artifact@v6
+        with:
+          name: series-rows-${{ matrix.model }}-${{ matrix.job }}
+          path: series-rows/
+          retention-days: 3
+
+  assemble:
+    needs: [plan, rate]
+    if: ${{ always() && needs.plan.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: series-rows-*
+          path: series-rows
+          merge-multiple: true
+      - name: Gate across models + build the shards
+        working-directory: backend
+        env:
+          RATING_OBS_GATE: '1'
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/spot_series_ci.py assemble --in ../series-rows --out ../series-out
+      - uses: actions/upload-artifact@v6
+        with:
+          name: spot-series
+          path: series-out/
+          retention-days: 7
+      - name: Publish (only when the owner has flipped SPOT_SERIES_PUBLISH and every spot was rated)
+        if: ${{ vars.SPOT_SERIES_PUBLISH == '1' && (github.event_name == 'workflow_run' || inputs.limit == '0') && needs.rate.result == 'success' }}
+        working-directory: backend
+        env:
+          SPOT_SERIES_PUBLISH: ${{ vars.SPOT_SERIES_PUBLISH || '0' }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/spot_series_ci.py publish --dir ../series-out
