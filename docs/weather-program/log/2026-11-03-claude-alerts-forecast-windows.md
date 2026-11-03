@@ -1,6 +1,6 @@
 # 2026-11-03 · claude · Forecast-window surf alerts (dark `ALERTS_FORECAST_WINDOWS`)
 
-Session: a delegated subagent of the lead. Branch `claude/alerts-forecast-windows`, cut from `origin/dev` at
+Session: a delegated subagent of the lead. Draft PR #704 (ledger `ledger.d/claude--alerts-forecast-windows.jsonl:1`, flip commitment `:2`). Branch `claude/alerts-forecast-windows`, cut from `origin/dev` at
 `dfed518e8`. Owner's words being executed (2026-11-03, relayed by the lead): "keep moving forward on our fixes",
 "Whatever's state of the art makes sense", and earlier "we need better surf forecasting and any logic for surfers that
 makes sense to be state of the art". DRAFT PR only: nothing merged, nothing flipped, no env/Render/Netlify/main
