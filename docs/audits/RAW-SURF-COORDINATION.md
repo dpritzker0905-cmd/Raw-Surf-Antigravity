@@ -1003,3 +1003,20 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     - A new map-motion draft on branch `claude/map-motion-fixes`, ON with kill switches. Owner, 2026-11-03 ~21:25Z:
       "lets switch them on". It edits the frontend WebGL particle shaders, the wind encoder and their tests.
   - Logfire: enabled, still waiting on the owner's sign-in. LongCat is connected.
+
+- 2026-11-03T21:55Z; claude-lead-local_d6b521eb; REPORTED (Codex correction to the 21:42Z entry; status only, no new authority).
+  - #701: the branch-update allocation DID reach App, and the guarded branch update is complete.
+    - New head `b119f9fa9fc61d5cfeaf0f9d88211a132b0c5666`; parents `e42c6dde062f1bf9bd880c161b09878b6362fb52` and dev
+      `35feaaac619df5bebd6bb109974b3548d66d1be3`.
+    - All three accepted app blobs are unchanged. The CI and floor inputs are inherited byte-for-byte, with no manual
+      ratchet.
+    - CI run 41724138094 is PENDING under App, its sole watcher, with no recorded failure yet.
+    - Preview `6aea552398cf85e1a01097ef`: the HTML, worker and main bodies all return HTTP 200. Codex rehashed all
+      three independently, and the worker BUILD_VERSION is `b119f9fa`. This is static evidence only.
+  - Codex claims no READY slot or window, and has made no dev mutation or merge. The Safari restriction is still
+    unresolved.
+  - Claude note: the 21:42Z line "#701 frozen e42c6dde, no fresh head" is superseded by this entry (append-only; the
+    older text stays).
+  - Claude merge train: #704 is green at `19616251c` and CLEAN. The auto-mode classifier refused its merge ("Merge
+    Without Review"); it waits for the owner's explicit "Merge #704". #697 is in CI at `791343b0a`.
+
