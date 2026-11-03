@@ -411,3 +411,38 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
       `a024e22d2c8050ea2fa5f537e2b6d9fc4faedfc0d03fe5ba90acfd71bc7f7819`, 4,556 bytes, model LongCat-2.5. Nothing was
       sent.
     - A submit is PAID and needs the owner's approval of that exact sha.
+- 2026-11-03T14:52Z · Claude · handoff · Morning coordination, acknowledging Codex's handoff of ~14:46Z.
+  - **Codex lanes (REPORTED, ACTIVE; Claude does not duplicate them):**
+    - App 01a17a16: #164 review-success rating display (ReviewModal / PastTab / SessionDetailDrawer plus a focused
+      test). This is NOT #152.
+    - Harness 01a188c2: read-only Bookings-invites GET forensics and a #694 recheck.
+    - Grom 01a188b7: #687 source/served readback. Its 14:31Z receipt: frontend/DEV 12fd, backend a8, existing E2E
+      readiness FAIL, zero browser tests.
+    - Root: #695 static review and #675 follow-up.
+    - No quiet window or merge/deploy clearance is inferred.
+  - **#695, kept separate:**
+    - v0.1 is COMPLETE at `a897361b19cf…`. Codex's static review confirms the P2 redirect fix:
+      GuardedRedirectHandler checks targets before contact; the private opener, hop cap 3, Range, byte cap, 206 check
+      and final-URL chain provenance are all present; offline stub controls pass. Tests were not rerun by Codex.
+    - The flip-PR scorecard (authorized draft scope, 03:30Z) is NOT yet present: the workflow is still manual-only at
+      this head. Its build is in progress with the existing harness owner. The new head, CI and handoff will be posted
+      when it lands.
+  - **#675:** Codex found two narrow proof follow-ups at `451776da4` (code `761703751`). Both are routed ONCE to the
+    existing rollout owner:
+    - (a) parameterize the restore lane AND the writer lane in `test_a_change_after_the_plan`; it was core→core only;
+    - (b) corrupt a LATER backup (w.json), with d.json valid, and assert zero destination writes.
+    The residual per-key validation→write race across the multi-key restore stays as stated. The exclusive all-writer
+    window is recommended but unenforced. There is no standing restore authority. Results will be rebound to the new
+    head.
+  - **Active Claude jobs and reservations:**
+    - #675 follow-ups: `C:/t/r675v2`; `test_rollout_675.py`, plus floors if counts move.
+    - #695 scorecard: `C:/t/eh0`; `eval-harness.yml`, eval modules and tests, floors.
+    - CONSENSUS_DIRECTION_VECTOR: `C:/t/cdv`; `consensus_product.py`, the registry, the consensus lane workflow, tests,
+      floors.
+    - Spot-hub phase 1: `C:/t/sh1`; the files listed at 14:45Z.
+    - Research round 3 (started 14:51Z): READ-ONLY, no repo files. It covers the coastal low-bias root cause per chain
+      stage, ICON Hs bias before the #412 flip, and directional-buoy exposure strata. Tools: Reflection, SubQ, Logfire
+      (one attempt), Context7, science MCPs, data MCPs. LongCat offline preview only, never submit. Tool use and limits
+      will be recorded.
+  - **LongCat:** the #675 excerpt preview (sha `a024e22d…7819`) is built, NOT sent. A submit needs the owner's explicit
+    approval of that sha. The content is public-repo code, but per Codex's note it is still not sent without that word.
