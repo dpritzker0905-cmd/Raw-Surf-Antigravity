@@ -103,7 +103,7 @@ production decides per CELL, so a spot near the line reads a bilinear blend of i
 
 ## 5. Tests, floors, gates
 
-`backend/tests/test_bight_hs_consensus.py` (60, chain lane): off byte-identical (pinned sha256, six off values);
+`backend/tests/test_bight_hs_consensus.py` (62, chain lane): off byte-identical (pinned sha256, six off values);
 inside = mean with GFS period/direction, outside = GFS's object; stored product never mutated; strided frames; EURO
 missing / dry node / off-lattice stencil / estimated / > 3 h / other layer / load failure -> GFS; off-Bight frames never
 examined; other models and layers untouched; caching by run; the frozen polygon, 20 known places, edges; parity: /point
@@ -112,11 +112,13 @@ precedence (twin served, no twin, keep-GFS region, serve_raw); every lane declar
 refuses it; no ingest import. Also: `test_flag_lane_parity._RATING_SURFACES` scans `bight_hs_consensus.py`;
 `test_consensus_product.test_only_short_lived_samplers_memoize` lists its one-frame sampler.
 
-Mutation checks (`scratchpad/bhc/mutate.py`), 13 of 13 killed: edge `>` -> `>=`; EURO-only; GFS-only; precedence
+Mutation checks (`scratchpad/bhc/mutate.py`), 14 of 14 killed (the 14th after the Reflection fix: caching a failed EURO load as no-answer): edge `>` -> `>=`; EURO-only; GFS-only; precedence
 dropped; estimated EURO accepted; dry exact node accepted; nearest fallback accepted; default on; serve_raw ignored;
 cache key without the run; speed scaled without u/v; polygon vertex moved 0.1 deg; outside cells composed.
 
-Floors (`rederive_floor.py --lane chain --add 60 --add-files 1`, on dev ef4e2fe60): chain MIN_PASSED 3387 -> 3447, MIN_FILES 199 -> 200, `_FLOOR_SET_FROM["chain"]` 3453 (dev run 41711330259 read 3393 / 199 files + 60 + 1 file). Guards and estate unchanged (no new test there). flake8 E9/F63/F7/F82 clean; 800-line rule: 0 violations.
+Floors (`rederive_floor.py --lane chain --add 62 --add-files 1`, after merging dev 35feaaac6): chain MIN_PASSED
+3408 -> 3470, MIN_FILES 201 (dev's map 3414 + 62 = 3476 expected passed, + 1 file). Guards and estate unchanged.
+flake8 E9/F63/F7/F82 clean; 800-line rule: 0 violations.
 
 ## 6. Fresh-window harness (the second window)
 
@@ -173,3 +175,23 @@ Kill: '0' in all of them.
 with the caveat that three of the ten anchors sit 18-19 km from their buoys; item 2 is met on LOSS (hb_proxy +0.065)
 but its bias flips to +0.140 m, which the owner should see before deciding; item 3 is met; items 4-6 are open. A
 third window on the original 8 + new deployments (201p1 from 10-21) would remove the anchor caveat.
+
+## 8. Reflection review (Beam, high), on placement and precedence
+
+Asked: is the serving view the one right place; whole-frame vs per-cell CONSENSUS precedence; cache holes; SSK
+precedence; the flip gate given the hb_proxy bias flip. Taken:
+- **Negative-cache poisoning (CHANGED).** A EURO file the store answered None for (a transient miss) made every cell
+  "EURO missing", and the frame was cached as no-answer for the whole run. Now a frame is cached as no-answer only
+  when every EURO file loaded; pinned by `test_a_euro_load_that_returns_nothing_is_not_cached_as_no_answer`
+  (mutation-killed).
+- **Hs_GFS = 0 scaling (already guarded, now PINNED).** The cell is skipped (`gfs_zero`), never scaled from zero;
+  `test_a_calm_gfs_cell_is_never_scaled_from_zero`.
+- **Flip gate (ADOPTED in §7 item 2's status note).** Breaking-height loss not worse AND the bias reviewed: a sign flip
+  to +0.140 m needs the owner's explicit acceptance or the breaker re-calibration first.
+Rebutted, with reasons: the plan cache keyed on the products list's identity + length follows manifest_view's
+contract (writers reassign or append; in-place element replacement is out of contract there too, and products_for
+would be stale first); flag state / polygon need not be in the key (the cache is read only while the flag is on and
+the polygon is a code constant); no double application (the view always composes from the RAW store's frame);
+whole-frame precedence kept (a twin cell the consensus could not blend is one where EURO or ICON is missing, and the
+twin is a same-run full-frame replacement; per-cell is a later refinement). Flip-time items it raised, already in §2:
+static frames and the direct-point upstream fallback serve raw GFS.
