@@ -169,6 +169,11 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
             # region's open-ocean read point (spectral_k_serving). Same site, same breaking step (`nearshore=`), its
             # own try, fail-open. `resolve_raw` resolves WITHOUT this augmentation, so the read point cannot recurse.
             _near_k = None
+            # The raw resolver rides on the caller that owns `resolve_partitions` (PointResolutionService and the
+            # harness's ReplayResolver both define `_resolve_raw`), so the positional call signature, which tests
+            # monkeypatch, is unchanged.
+            if resolve_raw is None:
+                resolve_raw = getattr(getattr(resolve_partitions, "__self__", None), "_resolve_raw", None)
             if _near is None and os.environ.get("SURF_SPECTRAL_K", "0") == "1" and resolve_raw is not None:
                 try:
                     from services.weather_pipeline.spectral_k_serving import nearshore_for_point as _k_for_point

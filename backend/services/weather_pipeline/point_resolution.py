@@ -229,8 +229,7 @@ class PointResolutionService:
         # is passed in so the re-entrancy guard stays intact (it uses `_resolve_point_internal`,
         # never this method, so a partition cannot resolve its own partitions).
         response = await augment_with_surf(
-            response, model, domain, layer, lat, lng, valid_time_str, self._resolve_partitions,
-            resolve_raw=self._resolve_raw)
+            response, model, domain, layer, lat, lng, valid_time_str, self._resolve_partitions)
 
         # ⭐ THE PHYSICS VALIDITY STAMP GOES HERE AND NOWHERE ELSE. `NormalizedPointDetail` is built
         # at 14 sites across 5 modules, so there is no chokepoint down there — but EVERY consumer

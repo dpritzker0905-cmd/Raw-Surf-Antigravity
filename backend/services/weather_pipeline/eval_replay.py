@@ -213,8 +213,7 @@ class ReplayResolver:
             return None
         resp = self.sampler.sample_point(prod, lat, lng)
         if domain == "marine":
-            resp = await augment_with_surf(resp, model, domain, layer, lat, lng, valid_time_str, self._no_partitions,
-                                           resolve_raw=self._resolve_raw)
+            resp = await augment_with_surf(resp, model, domain, layer, lat, lng, valid_time_str, self._no_partitions)
         self.last[domain] = resp
         return resp
 
