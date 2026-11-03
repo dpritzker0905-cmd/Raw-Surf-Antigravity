@@ -217,6 +217,8 @@ class ServedStore:
                 return product
             manifest = self._raw.get_manifest()
             run = product.run_time.isoformat() if product.run_time else None      # filenames carry no run
+            # The plan follows manifest_view's contract: keyed on the products LIST's identity plus its length
+            # (writers reassign the list or append; in-place element replacement is out of contract there too).
             plan_key = (filename, run, stride)
             with self._lock:
                 plan = self._bight_plans.get(plan_key)
@@ -249,6 +251,8 @@ class ServedStore:
         except Exception as e:           # a serving view must never cost the frame it wraps
             logger.warning("[bight-hs-consensus] %s: serving GFS (%s)", filename, e)
             return product
+        if served is None and any(v is None for v in files.values()):
+            return product               # a EURO file failed to load: never cache that as "EURO cannot answer"
         with self._lock:
             self._merged[key] = _NO_BLEND if served is None else served
             while len(self._merged) > MERGED_CACHE_MAX:

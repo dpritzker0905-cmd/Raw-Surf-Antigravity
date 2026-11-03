@@ -484,3 +484,31 @@ def test_compose_itself_refuses_an_estimated_or_foreign_euro_whatever_the_choose
                 _product("EURO", SC, 0.25, _euro_field, layer="swell_1")):
         assert B.compose(gfs, lambda lat, lng, p=bad: p) is None
     assert B.compose(gfs, lambda lat, lng: raw.files[raw.name("EURO")]) is not None
+
+
+def test_a_euro_load_that_returns_nothing_is_not_cached_as_no_answer(on):
+    """Reflection review (2026-11-03): a transient EURO load failure must not suppress the mean for the whole run."""
+    raw = _scene()
+    view = S.served_store(raw)
+    fn, efn = raw.name("GFS"), raw.name("EURO")
+    real = raw.files.pop(efn)                       # the store answers None, as ProductStore does on a miss
+    _assert_gfs(view.load_product(fn), raw.files[fn])
+    raw.files[efn] = real
+    assert view.load_product(fn).grid.diagnostics["bight_hs_consensus"]["cells"]["blended"] > 0
+
+
+def test_a_calm_gfs_cell_is_never_scaled_from_zero(on):
+    """Hs_GFS = 0 at a valid cell: no u/v scale exists (mean / 0), so the cell keeps GFS and is counted."""
+    calm = lambda la, lo: (0.0, 270.0, 10.0) if lo < -118.5 else _gfs_field(la, lo)      # noqa: E731
+    g = _product("GFS", SC, 0.25, calm)
+    for v in g.grid.vectors:
+        v.is_valid = True                        # explicit: valid, not the legacy zero-means-land heuristic
+    raw = FakeStore([(g, 0.25), (_product("EURO", SC, 0.25, _euro_field), 0.25)])
+    fn = raw.name("GFS")
+    served = S.served_store(raw).load_product(fn)
+    d = served.grid.diagnostics["bight_hs_consensus"]["cells"]
+    assert d["gfs_zero"] > 0
+    for a, b in zip(g.grid.vectors, served.grid.vectors):
+        assert all(math.isfinite(x) for x in (b.u, b.v, b.speed))
+        if a.lng < -118.5:
+            assert b == a
