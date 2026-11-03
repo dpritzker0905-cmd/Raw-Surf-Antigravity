@@ -1632,7 +1632,9 @@ jobs:
           #   base 3044 (hosted read) + 17 new test(s) and 1 new file(s) = 3061, files 186; floor 3061 - 6 = 3055. This PR must read 3061 passed.
           # ⬆ 3055→3166 on 2026-11-02 (rederive_floor.py, claude/weather-batch-2): dev run 41537830114 read 3044 / 185 files; dev's map 3061;
           #   base 3061 (dev's map) + 111 new test(s) and 2 new file(s) = 3172, files 188; floor 3172 - 6 = 3166. This PR must read 3172 passed.
-          MIN_FILES, MIN_PASSED = 188, 3166
+          # ⬆ 3166→3221 on 2026-11-03 (rederive_floor.py, claude/eval-harness-v0): dev run 41549383722 read 3172 / 188 files; dev's map 3172;
+          #   base 3172 (hosted read) + 55 new test(s) and 3 new file(s) = 3227, files 191; floor 3227 - 6 = 3221. This PR must read 3227 passed.
+          MIN_FILES, MIN_PASSED = 191, 3221
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

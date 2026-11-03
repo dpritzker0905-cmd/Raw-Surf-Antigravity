@@ -1,0 +1,85 @@
+name: Evaluation harness (offline replay, manual dispatch only)
+
+# WHY THIS EXISTS (owner decision 2026-11-02 19:32 EST: truth / reference data and evaluation infrastructure FIRST;
+# measured improvement before any rating-changing activation). It runs backend/scripts/eval_harness.py: public truth
+# (NDBC, CDIP, CO-OPS) with provenance, a forecast-of-record replay of the served chain under precompute.yml's own
+# env on archived GFS-Wave (NOAA AWS open data), baselines, controls, and the PASS / FAIL / REFUSED verdict per
+# candidate arm. Docs: docs/weather-program/evaluation-harness.md.
+#
+# ⛔ IT SERVES NOTHING AND WRITES NOTHING: no secret is read, no storage or database is touched, the app's own hosts
+# are refused by the harness's network guard. Here pygrib imports, so the replay runs at PRODUCTION INPUT PARITY
+# (pygrib decoding, the pgrb2.0p25 10 m wind the served lane reads); a local Windows run cannot.
+# ⚠️ Manual dispatch ONLY, on the owner's word for a flip decision. The job fails (exit 1) when any candidate arm is
+# not a PASS on the primary quantity, so a red run is a verdict, not a broken job: read the step summary.
+
+on:
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "First target hour, UTC (e.g. 2026-10-20T00:00Z); NDBC realtime2 holds ~45 days"
+        required: true
+      end:
+        description: "Last target hour, UTC"
+        required: true
+      arms:
+        description: "Candidate arms, ';'-separated, each FLAG=value[,FLAG=value] (empty = baselines and controls only)"
+        required: false
+        default: ""
+      primary:
+        description: "Primary quantity (hs_station decides; the others are advisory)"
+        required: false
+        default: "hs_station"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval-harness
+  cancel-in-progress: false
+
+jobs:
+  harness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+
+      - name: Run the harness
+        working-directory: backend
+        env:
+          EH_START: ${{ inputs.start }}
+          EH_END: ${{ inputs.end }}
+          EH_ARMS: ${{ inputs.arms }}
+          EH_PRIMARY: ${{ inputs.primary }}
+        run: |
+          args=()
+          IFS=';' read -ra ARMS <<< "$EH_ARMS"
+          for a in "${ARMS[@]}"; do
+            a="$(echo "$a" | xargs)"
+            if [ -n "$a" ]; then args+=(--arm "$a"); fi
+          done
+          python scripts/eval_harness.py run --start "$EH_START" --end "$EH_END" --primary "$EH_PRIMARY" \
+            --decoder pygrib --wind-source pgrb2 \
+            --cache-dir "$RUNNER_TEMP/eval-cache" --out "$RUNNER_TEMP/eval-out" "${args[@]}"
+
+      - name: Scorecard to the step summary
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/eval-out/scorecard.md" ]; then cat "$RUNNER_TEMP/eval-out/scorecard.md" >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Upload panels, scorecard and provenance manifests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-harness-${{ github.run_id }}
+          path: ${{ runner.temp }}/eval-out
+          retention-days: 14
