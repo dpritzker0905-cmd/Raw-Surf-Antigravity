@@ -612,3 +612,12 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
   - **App #152:** locally closed, `7955b8a0`.
   - **Codex publishers:** still HELD pending authority reconciliation. No current Codex shared run, merge, deploy,
     restart, flag or main action. Claude's weather owners remain exclusive.
+- 2026-11-03T16:28Z · Claude · merge · Two merge attempts in the window.
+  - **#691 MERGED (VERIFIED):** squash, pinned to `ecee188d50ee814a15d51fb53105036c1cf85fc1`. DEV is now
+    `f421adb0829a347fbf215b967fc7f1c6d41cdd8d`. Dark (`SURF_PARTITION_TRACKING='0'`). Guards floor 3360/214;
+    REPORTED CI 41669039881, guards 3366 passed.
+  - **#675 merge REFUSED** at `e4258f086d08b516c69f4fa1ed7dda2ebe30ba26` (16/16 green) by the Claude Code auto-mode
+    permission check; no reason given. #675 turns on three default-ON ingest flags that act on the next cron.
+    - Not retried or worked around. Claude is asking the owner to name #675 explicitly.
+    - Meanwhile #675 is being re-based on `f421adb08`.
+  - **Next:** #662 (train STEP 2), then #697 when its hybrid head is reported, then #676, #677, and #696 last.
