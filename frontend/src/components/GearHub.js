@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -48,6 +48,42 @@ export const GearHub = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [purchasing, setPurchasing] = useState(null);
   const [targetGear, setTargetGear] = useState(null);
+  const [retailer, setRetailer] = useState(null);
+  const retailerOwner = useRef(null);
+  const userId = user?.id;
+  const session = user?.access_token;
+
+  useLayoutEffect(() => {
+    const owner = { userId, session, category: selectedCategory, search: searchQuery };
+    retailerOwner.current = owner;
+    setRetailer(null);
+    return () => {
+      if (retailerOwner.current === owner) retailerOwner.current = null;
+    };
+  }, [userId, session, selectedCategory, searchQuery]);
+
+  const resolveRetailer = async (item, control) => {
+    const owner = retailerOwner.current;
+    if (!owner || owner.userId !== userId || owner.session !== session
+        || owner.category !== selectedCategory || owner.search !== searchQuery) return;
+    if (owner.request?.itemId === item.id && owner.request.pending) return;
+    const request = { itemId: item.id, pending: true, control, restoreFocus: control === document.activeElement };
+    owner.request = request;
+    const isCurrent = () => retailerOwner.current === owner && owner.request === request;
+    setRetailer({ itemId: item.id, pending: true });
+    try {
+      const { data } = await apiClient.get(`/gear-hub/${encodeURIComponent(item.id)}`);
+      if (!isCurrent()) return;
+      if (data?.id !== item.id || typeof data.affiliate_url !== 'string') throw new Error('Retailer link unavailable');
+      const destination = new URL(data.affiliate_url.trim());
+      if (!['https:', 'http:'].includes(destination.protocol)) throw new Error('Retailer link unavailable');
+      request.pending = false;
+      setRetailer({ itemId: item.id, url: destination.href });
+    } catch {
+      request.pending = false;
+      if (isCurrent()) setRetailer({ itemId: item.id, error: true });
+    }
+  };
 
   useEffect(() => {
     fetchGearCatalog();
@@ -408,16 +444,47 @@ export const GearHub = () => {
                           Set as Goal
                         </Button>
                       )}
-                      <Button aria-label="External Link"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => window.open(item.affiliate_url, '_blank')}
-                        className="text-zinc-400 hover:text-white"
-                        title="View on retailer site"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </Button>
+                      {retailer?.itemId === item.id && retailer.url ? (
+                        <Button asChild variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                          <a href={retailer.url} target="_blank" rel="noopener noreferrer"
+                            ref={node => {
+                              const request = retailerOwner.current?.request;
+                              if (node && request?.itemId === item.id && request.restoreFocus
+                                  && [request.control, document.body].includes(document.activeElement)) {
+                                request.restoreFocus = false;
+                                node.focus();
+                              }
+                            }}
+                            aria-label={`Open ${item.name} on retailer site`} title="Open retailer site">
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        </Button>
+                      ) : (
+                        <Button type="button" aria-label={`View ${item.name} on retailer site`}
+                          variant="ghost" size="icon" title="View on retailer site"
+                          aria-disabled={retailer?.itemId === item.id && retailer.pending ? 'true' : undefined}
+                          aria-busy={retailer?.itemId === item.id && retailer.pending ? 'true' : undefined}
+                          onBlur={() => {
+                            const request = retailerOwner.current?.request;
+                            if (request?.itemId === item.id) request.restoreFocus = false;
+                          }}
+                          onClick={event => resolveRetailer(item, event.currentTarget)}
+                          className="text-muted-foreground hover:text-foreground">
+                          {retailer?.itemId === item.id && retailer.pending
+                            ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
+                        </Button>
+                      )}
                     </div>
+                    {retailer?.itemId === item.id && retailer.pending && (
+                      <p role="status" className="mt-2 text-sm text-muted-foreground">Loading retailer link for {item.name}...</p>
+                    )}
+                    {retailer?.itemId === item.id && retailer.error && (
+                      <div role="alert" className="mt-2 text-sm text-foreground">
+                        <p>Retailer link unavailable. Try again.</p>
+                        <Button type="button" variant="outline" size="sm" onClick={event => resolveRetailer(item, event.currentTarget)}
+                          aria-label={`Retry retailer link for ${item.name}`}>Retry retailer link</Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );
