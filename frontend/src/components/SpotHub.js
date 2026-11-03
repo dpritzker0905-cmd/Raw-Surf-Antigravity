@@ -38,6 +38,11 @@ import { CONFIDENCE_TEXT, confidenceDot, confidenceLabel } from './SpotCondition
 import { SpotCardSkeleton, AlertCardSkeleton } from './ui/SkeletonVariants';
 import { forecastCalendar } from './forecastCalendar';
 import { forecastStateIdentityEnabled } from './map/forecastStateIdentity';
+import SpotHubTides from './spot-hub/SpotHubTides';
+import {
+  MISSING, displayDirection, displayPeriod, effectiveWindowHours, forecastDayIndexForOffset, hubForecastWindow,
+  spotHubP1Enabled, splitForecastWindow,
+} from './spot-hub/spotHubP1';
 
 
 
@@ -55,35 +60,45 @@ const conditionColors = {
 };
 
 // Forecast day card - starts from TOMORROW (day 1 = tomorrow, not today)
-const ForecastDayCard = ({ day, _dayIndex, isLocked = false }) => {
+const ForecastDayCard = ({ day, _dayIndex, isLocked = false, isSelected = false }) => {
   const { theme } = useTheme();
   const t = getThemeTokens(theme);
   const isLight = t.isLight;
+  const p1 = spotHubP1Enabled();
   const rowBg = t.isBeach ? t.rowBg : isLight ? 'bg-gray-100/80 shadow-inner' : 'bg-zinc-800/50';
   const lockBg = t.isBeach ? t.rowBg : isLight ? 'bg-gray-100/50' : 'bg-zinc-800/50';
-  
+
   const dateObj = new Date(day.date);
-  const calendar = forecastStateIdentityEnabled() ? forecastCalendar(day.date) : null;
+  // Rows are UTC dates sampled at 12:00 UTC. `new Date('YYYY-MM-DD')` is UTC midnight, which a viewer
+  // west of Greenwich reads as the PREVIOUS day: phase 1 always labels the UTC date (forecastCalendar).
+  const calendar = p1 || forecastStateIdentityEnabled() ? forecastCalendar(day.date) : null;
   const dayName = calendar ? calendar.weekday : dateObj.toLocaleDateString('en-US', { weekday: 'short' });
   const dateNum = calendar ? calendar.dateNumber : dateObj.getDate();
   const colors = conditionColors[day.label] || { bg: 'bg-gray-500', text: 'text-gray-400' };
   
   if (isLocked) {
     return (
-      <div data-testid="spot-hub-page" className={`flex flex-col items-center p-2 rounded-lg min-w-[55px] ${lockBg}`}>
+      <div data-testid="spot-hub-page" className={`flex flex-col items-center p-2 rounded-lg min-w-[55px] ${lockBg}`}
+        {...(p1 ? { role: 'listitem', 'aria-label': `${dayName} ${dateNum}: locked, upgrade to see this day` } : {})}>
         <span className={`text-[10px] ${t.textMuted}`}>{dayName}</span>
         <span className={`text-sm font-bold ${t.textMuted}`}>{dateNum}</span>
         <Lock className="w-3 h-3 text-purple-400 my-0.5" />
       </div>
     );
   }
-  
+  const maxFt = Number(day.wave_height_max);
+  const height = !p1 ? `${day.wave_height_max}ft` : day.wave_height_max != null && Number.isFinite(maxFt) ? `${maxFt}ft` : MISSING;
+  // The day the map's hour falls in: a ring AND aria-current, never colour alone.
+  const ring = isSelected ? (t.isBeach ? ' ring-2 ring-amber-700' : isLight ? ' ring-2 ring-cyan-600' : ' ring-2 ring-cyan-400') : '';
+
   return (
-    <div className={`flex flex-col items-center p-2 rounded-lg min-w-[55px] ${rowBg}`}>
+    <div className={`flex flex-col items-center p-2 rounded-lg min-w-[55px] ${rowBg}${ring}`}
+      {...(p1 ? { role: 'listitem', 'aria-current': isSelected ? 'date' : undefined,
+        'aria-label': `${dayName} ${dateNum}: ${height === MISSING ? 'no forecast' : height}${day.label && height !== MISSING ? `, ${day.label}` : ''}${isSelected ? ', the map hour' : ''}` } : {})}>
       <span className={`text-[10px] ${t.textSecondary}`}>{dayName}</span>
       <span className={`text-sm font-bold ${t.textPrimary}`}>{dateNum}</span>
       <Waves className={`w-4 h-4 ${colors.text} my-0.5`} />
-      <span className="text-xs font-bold">{day.wave_height_max}ft</span>
+      <span className={p1 ? `text-xs font-bold ${t.textPrimary}` : 'text-xs font-bold'}>{height}</span>
     </div>
   );
 };
@@ -115,7 +130,8 @@ const SpotHub = () => {
   
   const searchParams = new URLSearchParams(location.search);
   const timeOffset = parseInt(searchParams.get('timeOffset') || '0', 10);
-  const activeModel = searchParams.get('model') || localStorage.getItem('rawsurf-active-model') || 'GFS';
+  const requestedModel = searchParams.get('model') || localStorage.getItem('rawsurf-active-model') || 'GFS';
+  const p1 = spotHubP1Enabled();
   const forecastScrollRef = useRef(null);
   
   const [spot, setSpot] = useState(null);
@@ -156,9 +172,12 @@ const SpotHub = () => {
   const [intelLoading, setIntelLoading] = useState(false);
   
   const userTier = user?.tier_id || user?.subscription_tier || 'free';
-  const isPremium = ['premium', 'pro', 'gold', 'tier_3', 'admin'].includes(userTier);
-  const isBasic = ['paid', 'basic', 'tier_2'].includes(userTier);
-  const forecastDaysAllowed = isPremium ? 14 : isBasic ? 7 : 3;
+  // ⛔ NO TIER LADDER HERE (phase 1, 2026-11-03). This was `isPremium ? 14 : isBasic ? 7 : 3`, its own
+  // tier list, beside the drawer's 3/7/10 and the server's 3/7/10. The window and the model now come
+  // from the app's resolver, the scrubber's (LayerAccessResolver via spotHubP1.hubForecastWindow).
+  const forecastWindow = hubForecastWindow(user || userTier, requestedModel);
+  const activeModel = p1 ? forecastWindow.model : requestedModel;
+  const forecastDaysAllowed = forecastWindow.days;
   
   // ============ HANDLERS FROM useSpotHubActions ============
   const {
@@ -217,7 +236,9 @@ const SpotHub = () => {
   // Bidirectional Map Timeline Sync: Scroll to the correct forecast day based on timeOffset
   useEffect(() => {
     if (forecastScrollRef.current && spotDetails?.forecast?.length > 0) {
-      const dayIndex = Math.floor(timeOffset / 24);
+      // ⛔ `floor(offset / 24)` indexed a TOMORROW-first array: +24 h scrolled to the day after tomorrow.
+      // Phase 1 places the map's hour by its UTC date among the rows (spotHubP1.forecastDayIndexForOffset).
+      const dayIndex = p1 ? Math.max(0, forecastDayIndexForOffset(spotDetails.forecast, timeOffset)) : Math.floor(timeOffset / 24);
       // Roughly calculate the scroll position (55px width + 6px gap)
       const scrollPosition = dayIndex * 61;
       
@@ -296,6 +317,13 @@ const SpotHub = () => {
 
   const currentConditions = spotDetails?.current_conditions;
   const forecast = spotDetails?.forecast || [];
+  // The window splits by the resolver's HOURS (rolling, as the scrubber's); the server names the dates
+  // it no longer sends data for, so the locked previews survive (`forecast_locked_dates`).
+  const windowRows = splitForecastWindow(forecast, effectiveWindowHours(forecastWindow.hours, spotDetails?.forecast_horizon_hours),
+    Date.now(), spotDetails?.forecast_locked_dates);
+  const openRows = p1 ? windowRows.open : forecast.slice(0, forecastDaysAllowed);
+  const lockedRows = p1 ? windowRows.locked : forecast.slice(forecastDaysAllowed, 14);
+  const selectedDay = p1 ? forecastDayIndexForOffset(openRows, timeOffset) : -1;
 
   return (
     <div className={`max-w-xl mx-auto pb-4 ${isLight ? 'bg-gray-50/50 min-h-screen' : ''}`}>
@@ -431,7 +459,7 @@ const SpotHub = () => {
             </div>
             <div className="text-center">
               <Clock className="w-4 h-4 mx-auto text-blue-400 mb-0.5" />
-              <p className="text-lg font-bold">{currentConditions.wave_period || '-'}s</p>
+              <p className="text-lg font-bold">{p1 ? displayPeriod(currentConditions.wave_period) : `${currentConditions.wave_period || '-'}s`}</p>
               <p className="text-[10px] text-gray-500">Period</p>
             </div>
             <div className="text-center">
@@ -441,7 +469,8 @@ const SpotHub = () => {
               >
                 <Compass className="w-4 h-4 mx-auto text-emerald-400 mb-0.5" />
               </div>
-              <p className={`text-lg font-bold ${textPrimary}`}>{currentConditions.wave_direction || '-'}-</p>
+              {/* ⛔ This printed `${d || '-'}-` ("65.61-", or "--" for missing): W-34 fixed the drawer only. */}
+              <p className={`text-lg font-bold ${textPrimary}`}>{p1 ? displayDirection(currentConditions.wave_direction, currentConditions.wave_period) : `${currentConditions.wave_direction || '-'}-`}</p>
               <p className={`text-[10px] ${textSecondary}`}>Direction</p>
             </div>
             <div className="text-center">
@@ -494,36 +523,50 @@ const SpotHub = () => {
         </div>
       )}
 
+      {/* Tides: the drawer's block and endpoint (/tides/{id}); phase 1, kill switch inside */}
+      <SpotHubTides spotId={spotId} t={t} cardBg={cardBg} />
+
       {/* Forecast Section - Starts from TOMORROW */}
-      {forecast.length > 0 && (
+      {(p1 ? openRows.length + lockedRows.length > 0 : forecast.length > 0) && (
         <div className={`mx-4 mt-3 p-3 rounded-xl border backdrop-blur-md ${cardBg} mb-4`}>
           <div className="flex items-center justify-between mb-2">
             <span className={`text-xs flex items-center gap-1 ${textSecondary}`}>
               <Calendar className="w-3 h-3" />
-              {forecastDaysAllowed}-Day Forecast (Tomorrow onwards)
+              {p1
+                // What exists, counted: premium's 14-day window still meets at most 10 daily rows here.
+                ? `${openRows.length}-day forecast, from tomorrow (UTC dates)`
+                : `${forecastDaysAllowed}-Day Forecast (Tomorrow onwards)`}
             </span>
-            {userTier !== 'tier_3' && userTier !== 'premium' && (
-              <button aria-label="Crown" 
+            {(p1 ? !forecastWindow.isPremium : userTier !== 'tier_3' && userTier !== 'premium') && (
+              <button aria-label={p1 ? 'Upgrade to unlock more forecast days' : 'Crown'}
                 onClick={() => navigate('/settings?tab=billing')}
-                className="text-[10px] text-purple-400 flex items-center gap-1 bg-purple-500/10 px-2 py-1 rounded-full transition-colors hover:bg-purple-500/20"
+                className={p1 && isLight ? 'text-[10px] text-purple-700 flex items-center gap-1 bg-purple-100 px-2 py-1 rounded-full transition-colors hover:bg-purple-200'
+                  : p1 && isBeach ? 'text-[10px] text-purple-900 flex items-center gap-1 bg-purple-200 px-2 py-1 rounded-full transition-colors hover:bg-purple-300'
+                  : 'text-[10px] text-purple-400 flex items-center gap-1 bg-purple-500/10 px-2 py-1 rounded-full transition-colors hover:bg-purple-500/20'}
               >
-                <Crown className="w-3 h-3" />
-                Unlock 14-Day
+                <Crown aria-hidden={p1 ? 'true' : undefined} className="w-3 h-3" />
+                {p1 ? 'Unlock more days' : 'Unlock 14-Day'}
               </button>
             )}
           </div>
-          <div 
+          <div
             ref={forecastScrollRef}
             className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar scroll-smooth"
+            {...(p1 ? { role: 'list', 'aria-label': 'Daily forecast' } : {})}
           >
-            {forecast.slice(0, forecastDaysAllowed).map((day, i) => (
-              <ForecastDayCard key={day.date} day={day} dayIndex={i} />
+            {openRows.map((day, i) => (
+              <ForecastDayCard key={day.date} day={day} dayIndex={i} isSelected={i === selectedDay} />
             ))}
             {/* Show locked days */}
-            {forecast.slice(forecastDaysAllowed, 14).map((day, i) => (
-              <ForecastDayCard key={day.date} day={day} dayIndex={forecastDaysAllowed + i} isLocked />
+            {lockedRows.map((day, i) => (
+              <ForecastDayCard key={day.date} day={day} dayIndex={openRows.length + i} isLocked />
             ))}
           </div>
+          {p1 && forecastWindow.isPremium && openRows.length < forecastDaysAllowed && (
+            <p className={`text-[10px] mt-1 ${textSecondary}`} data-testid="spothub-forecast-horizon-note">
+              Your plan opens {forecastDaysAllowed} days on the map; spot forecasts show up to {openRows.length} days for now.
+            </p>
+          )}
         </div>
       )}
 

@@ -183,7 +183,9 @@ jobs:
             // Forecast point settle (2026-10-28, D10): useOpenMeteoForecast.d10.test.js (+1 suite / +5 tests). Raised by exactly that.
             // ICON point stored tail (2026-11-01, P1-B, dark): iconPointStoredTail.test.js (+1 suite / +4 tests). Raised by exactly that.
             // EURO / ICON regional bundles (2026-11-01, item 11, dark): staticRegional.euroIcon.test.js (+1 suite / +5 tests). Raised by exactly that.
-            const MIN_SUITES = 529, MIN_TESTS = 6928;
+            // Spot-hub phase 1 (2026-11-03, ON with __RAW_DISABLE_SPOT_HUB_P1__): spotHubP1.test.js (+1 suite / +38 tests),
+            // SpotHub.phase1.test.js (+1 / +12), SpotConditions.phase1.test.js (+1 / +8). Raised by exactly that; confirm against the hosted receipt.
+            const MIN_SUITES = 532, MIN_TESTS = 6986;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -1644,9 +1646,11 @@ jobs:
           #   base 3374 (dev's map) + 6 new test(s) and 1 new file(s) = 3380, files 198; floor 3380 - 6 = 3374. This PR must read 3380 passed.
           # ⬆ 3374→3387 on 2026-11-03 (rederive_floor.py, claude/euro-mid-cmems-swell): dev run 41679759741 read 3316 / 195 files; dev's map 3380;
           #   base 3380 (dev's map) + 13 new test(s) and 1 new file(s) = 3393, files 199; floor 3393 - 6 = 3387. This PR must read 3393 passed.
-          # ⬆ 3387→3447 on 2026-11-03 (rederive_floor.py, claude/bight-hs-consensus): dev run 41711330259 read 3393 / 199 files; dev's map 3393;
-          #   base 3393 (hosted read) + 60 new test(s) and 1 new file(s) = 3453, files 200; floor 3453 - 6 = 3447. This PR must read 3453 passed.
-          MIN_FILES, MIN_PASSED = 200, 3447
+          # ⬆ 3387→3408 on 2026-11-03 (rederive_floor.py, claude/spot-hub-phase1): dev run 41702493992 read 3380 / 198 files; dev's map 3393;
+          #   base 3393 (dev's map) + 21 new test(s) and 1 new file(s) = 3414, files 200; floor 3414 - 6 = 3408. This PR must read 3414 passed.
+          # ⬆ 3408→3470 on 2026-11-03 (rederive_floor.py, claude/bight-hs-consensus): dev run 41711330259 read 3393 / 199 files; dev's map 3414;
+          #   base 3414 (dev's map) + 62 new test(s) and 1 new file(s) = 3476, files 201; floor 3476 - 6 = 3470. This PR must read 3476 passed.
+          MIN_FILES, MIN_PASSED = 201, 3470
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
