@@ -159,3 +159,14 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     `hs_station`, the served chain read low (bias −0.229 m) and lost to station climatology on CRPS, −0.072
     [−0.113, −0.019]. The null and positive controls pass. A SURF_TIDE_DEPTH demo was REFUSED: it changed 0 spot-hours.
   - Next owner: the owner, for review or merge of #695 at an exact head. No reserved files remain open for this job.
+- 2026-11-03T03:14Z · Claude · task-start · Three jobs started on the owner's chat words at ~03:05-03:08Z: "If we need
+  it, put it on" (GRIB reader), "I agree with you" (climatology ratchet), and "research wider using new methods not
+  used yet. Be inventive."
+  - Local environment: ECMWF `eccodes` 2.50.0 (official win_amd64 wheel, bundled library) installed into the
+    backend venv. VERIFIED by decoding a public NOMADS GFS-Wave subset (swh, perpw). No repo change.
+  - (1) #695 harness v0.1 DRAFT revision: an eccodes GRIB backend, the climatology RATCHET rule, out-of-sample
+    climatology enforcement, and a demo rerun. Reserves `claude/eval-harness-v0` / `C:/t/eh0`: the eval_* modules,
+    `eval-harness.yml`, the eval tests, `evaluation-harness.md`, its log and ledger fragment, and the CI-floor pair.
+  - (2) Inventive research A (new truth/data sources) and (3) inventive research B (new math/ML methods). Both are
+    read-only and reserve no repo files. Each writes one memory file and the scratchpad.
+  - None of the three may merge, dispatch, change env/Render/Netlify, deploy or touch main.
