@@ -52,8 +52,9 @@ def resolution_or_none(grid):
 
 
 # SAMPLER_SCALAR_HEIGHT_MODELS: which models the master switch applies to once it is flipped. GFS first: its scalar
-# lane (raw_surf:GFS_SCALAR) is the only one graded. EURO and ICON have none, and the scalar is one-sided upward
-# while ICON already leans high, so each joins only after its own shadow lane has been read.
+# lane (raw_surf:GFS_SCALAR) was the only one graded. The scalar is one-sided upward while ICON already leans high, so
+# EURO and ICON each join only after their own shadow lane (raw_surf:EURO_SCALAR / ICON_SCALAR, skill_scalar_lanes.py,
+# armed by SAMPLER_SCALAR_LEDGER_MODELS) has been read.
 SCALAR_HEIGHT_MODELS_DEFAULT = "GFS"
 
 

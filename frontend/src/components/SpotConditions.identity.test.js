@@ -8,6 +8,8 @@ jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: null }) })
 jest.mock('../contexts/ThemeContext', () => ({ useTheme: () => ({ theme: mockTheme }) }));
 jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
 jest.mock('../utils/logger', () => ({ __esModule: true, default: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() } }));
+// Spot-hub phase 1 (2026-11-03) names the forecast toggle for what it is; its kill switch keeps 'Calendar'.
+const FORECAST_TOGGLE = /^(Surf forecast, \d+ days?|Calendar)$/;
 const deferred = () => { let resolve; const promise = new Promise(r => { resolve = r; }); return { promise, resolve }; };
 const current = height => ({ data: { current: { wave_height_ft: height, swell_height_ft: height, wave_period: 12 } } });
 beforeEach(() => {
@@ -27,7 +29,7 @@ test.each(['light', 'dark', 'beach'])('daily %s rows name their actual UTC calen
     ] } } : url.startsWith('/conditions/') ? current(5) : { data: {} }));
   try {
     render(<SpotConditions spotId="spot" />);
-    fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }));
+    fireEvent.click(await screen.findByRole('button', { name: FORECAST_TOGGLE }));
     expect(await screen.findByText('Tomorrow')).toBeInTheDocument();
     expect(screen.getByText('Oct 5')).toBeInTheDocument();
     expect(screen.getByText('Wed')).toBeInTheDocument();
@@ -48,15 +50,18 @@ test.each([[7, 'Overhead'], [9, 'Overhead'], [12, 'Double Overhead'], [16, 'Trip
 test.each(['flag-off', 'runtime-kill'])('%s restores the legacy size ladder and positional date labels', async rollback => {
   if (rollback === 'flag-off') process.env.REACT_APP_FORECAST_STATE_IDENTITY = 'false';
   else window.__RAW_DISABLE_FORECAST_STATE_IDENTITY__ = true;
+  // Phase 1 labels every daily row by its UTC date whatever this flag says, so the LEGACY positional
+  // label needs phase 1's kill switch too.
+  window.__RAW_DISABLE_SPOT_HUB_P1__ = true;
   apiClient.get.mockImplementation(url => Promise.resolve(url.startsWith('/conditions/forecast/')
     ? { data: { forecast: [{ date: '2026-10-05', wave_height_min: 5, wave_height_max: 9, label: 'Overhead' }] } }
     : url.startsWith('/conditions/') ? current(9) : { data: {} }));
   try {
     render(<SpotConditions spotId="spot" />);
     expect(await screen.findByText('Double Overhead')).toBeInTheDocument();
-    fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }));
+    fireEvent.click(await screen.findByRole('button', { name: FORECAST_TOGGLE }));
     expect(await screen.findByText('Today')).toBeInTheDocument();
-  } finally { delete window.__RAW_DISABLE_FORECAST_STATE_IDENTITY__; }
+  } finally { delete window.__RAW_DISABLE_FORECAST_STATE_IDENTITY__; delete window.__RAW_DISABLE_SPOT_HUB_P1__; }
 });
 test.each(['light', 'dark', 'beach'])('late previous spot cannot replace the current %s reading', async theme => {
   mockTheme = theme;
@@ -95,7 +100,7 @@ test.each(['light', 'dark', 'beach'])('full %s current and daily missing heights
     : url.startsWith('/conditions/') ? current(null) : { data: {} }));
   render(<SpotConditions spotId="spot" />);
   expect(await screen.findAllByText('Unavailable')).toHaveLength(3);
-  fireEvent.click(await screen.findByRole('button', { name: 'Calendar' }));
+  fireEvent.click(await screen.findByRole('button', { name: FORECAST_TOGGLE }));
   expect(screen.getAllByText('Unavailable')).toHaveLength(5);
   expect(screen.queryByText('Flat')).toBeNull(); expect(screen.queryByText('-ft')).toBeNull();
 });
