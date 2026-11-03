@@ -51,8 +51,23 @@ const useBookingsActions = ({
   setShowInviteModal,
 }) => {
   const balanceOwner = useRef(null);
+  const inviteOwner = useRef(null);
   const userId = user?.id;
   const session = user?.access_token;
+
+  useLayoutEffect(() => {
+    const owner = { userId, session, request: 0 };
+    inviteOwner.current = owner;
+    setPendingInvites([]);
+    return () => {
+      if (inviteOwner.current === owner) inviteOwner.current = null;
+    };
+    // Setter changes below do not restart the same committed session.
+  }, [userId, session]);
+
+  useLayoutEffect(() => {
+    if (inviteOwner.current) inviteOwner.current.setInvites = setPendingInvites;
+  });
 
   useLayoutEffect(() => {
     const owner = { userId, session, request: 0 };
@@ -84,6 +99,10 @@ const useBookingsActions = ({
     const owner = balanceOwner.current;
     const ownsBalance = owner && owner.userId && owner.userId === userId && owner.session === session;
     const balanceRequest = ownsBalance ? ++owner.request : null;
+    const invitesOwner = inviteOwner.current;
+    const ownsInvites = invitesOwner && invitesOwner.userId
+      && invitesOwner.userId === userId && invitesOwner.session === session;
+    const invitesRequest = ownsInvites ? ++invitesOwner.request : null;
     setLoading(true);
     try {
       const [creditsRes, bookingsRes, sessionsRes, liveRes, invitesRes, crewRes, activeRes, historyRes] = await Promise.allSettled([
@@ -91,7 +110,7 @@ const useBookingsActions = ({
         apiClient.get(`/bookings/user/${user.id}`),
         apiClient.get(`/sessions/user/${user.id}`),
         apiClient.get(`/photographers/live`),
-        apiClient.get(`/bookings/invites/${user.id}`),
+        ownsInvites ? apiClient.get(`/bookings/invites/${userId}`) : Promise.resolve(null),
         apiClient.get(`/dispatch/user/${user.id}/crew-invites`),
         apiClient.get(`/dispatch/user/${user.id}/active`),
         apiClient.get(`/sessions/user/${user.id}/history`),
@@ -106,7 +125,16 @@ const useBookingsActions = ({
       setBookings(bookingsRes.status === 'fulfilled' ? (bookingsRes.value.data || []) : []);
       setLiveSessions(sessionsRes.status === 'fulfilled' ? (sessionsRes.value.data || []) : []);
       setLivePhotographers(liveRes.status === 'fulfilled' ? (liveRes.value.data || []) : []);
-      setPendingInvites(invitesRes.status === 'fulfilled' ? (invitesRes.value.data || []) : []);
+      if (ownsInvites && inviteOwner.current === invitesOwner && invitesRequest === invitesOwner.request) {
+        const data = invitesRes.status === 'fulfilled' ? invitesRes.value?.data : null;
+        const nullableFields = ['inviter_name', 'inviter_avatar', 'location', 'session_date',
+          'photographer_name', 'message', 'created_at'];
+        const valid = Array.isArray(data) && data.every(invite => invite && typeof invite === 'object'
+          && typeof invite.id === 'string' && invite.id.length > 0
+          && typeof invite.booking_id === 'string' && invite.booking_id.length > 0
+          && nullableFields.every(field => invite[field] === null || typeof invite[field] === 'string'));
+        invitesOwner.setInvites(valid ? data : []);
+      }
       setCrewInvites(crewRes.status === 'fulfilled' ? (crewRes.value.data?.crew_invites || []) : []);
 
       if (activeRes.status === 'fulfilled') {
