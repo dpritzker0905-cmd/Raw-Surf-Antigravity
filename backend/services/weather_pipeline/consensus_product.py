@@ -38,7 +38,33 @@ is also "1" in the building lane; otherwise the build keeps GFS's period, says w
   * A median of three IS one member's value (ties included), so no new period is invented.
   * Flag off: every vector and every diagnostics key is byte-identical to the build without the flag.
 
-PURE apart from two call-time flag reads (`period_mode`, once per build). Changes no served number: nothing calls it
+CONSENSUS_DIRECTION_VECTOR (DARK, default "0"; 2026-11-03). On, a blended cell's DIRECTION is the unweighted unit-vector
+(circular) mean of the three members' directions, atan2(mean sin, mean cos), instead of GFS's own. Offline (lane B's
+l5 panel: 110 NDBC buoys, 108,651 buoy-hours, 2026-09-18..11-02, Open-Meteo best lead ~0-6 h; truth NDBC MWD), MAE
+GFS alone 27.0 deg -> 22.3 deg; held out by buoy half x week half (R_MIN fixed beforehand), +4.92 deg [+4.13, +5.86]
+on the three held-out quadrants and +5.00 [+3.55, +6.84] on the quadrant held out on both axes (DM/HAC + moving-block
+bootstrap). Circular median ties; Hs^2- and Hs^2*Tp-weighted means and the Frechet W2 mean are WORSE, so: unweighted.
+  * NOT YET A FLIP CASE (log 2026-11-03-claude-consensus-direction-vector): resampled by BUOY the CI is [+1.47, +8.97]
+    and 65 of 110 buoys gain; where the members agree (max spread < 30 deg, 59% of rows) the mean is significantly
+    WORSE than GFS by 0.3-0.9 deg, and the whole gain is in the disagreeing hours. The evidence graded Open-Meteo TOTAL
+    directions at best lead; the served members carry their dominant-swell stamp (WAVES_ANIM_DOMINANT_SWELL is on)
+    where they have partitions, so the flip gate grades the built product's own members at fixed leads.
+  * Convention: `direction` is the bearing the sea comes FROM, u = -Hs sin(dir), v = -Hs cos(dir) (normalizer.py),
+    so dir = atan2(-u, -v). The circular mean commutes with the 180-deg from/to flip (R is unchanged), and the cell's
+    u and v are REBUILT from the consensus Hs and the new direction, so |(u, v)| is still the consensus height and the
+    bearing they encode is the consensus direction (off the node, /point interpolates u and v, not `direction`).
+  * R = |mean unit vector| (0..1) is the members' agreement; it goes on the cell as `dir_agreement` (on every cell
+    whose three directions were all valid, fallback included) and its p10/median/p90 into the diagnostics. Where
+    R < R_MIN the mean is no direction at all (three bearings nearly evenly round the circle) and the cell keeps GFS's
+    direction, counted as `low_agreement`; a member without a finite direction keeps GFS's, counted as
+    `member_dir_invalid`. Neither is ever a two-member mean.
+  * Flag off: every vector and every diagnostics key is byte-identical to the build without the flag (and
+    `dir_agreement` is omitted from serialization when None). Partition directions are out of scope.
+  * Interaction: nothing here is SERVED unless CONSENSUS_SERVE is "1" (consensus_serve.py); with it "0" the flag
+    moves only the shadow CONSENSUS product and the judge's consensus arm. Independent of CONSENSUS_PERIOD_MEDIAN:
+    with both on, `carried_from_primary` is empty.
+
+PURE apart from three call-time flag reads (`period_mode`, `direction_mode`, once per build). Changes no served number: nothing calls it
 until the ingest wiring (PR B, behind CONSENSUS_INGEST) and the owner's flip; the median is a further dark flag on top.
 """
 import logging
@@ -58,6 +84,41 @@ PERIOD_MEDIAN_FLAG = "CONSENSUS_PERIOD_MEDIAN"
 ICON_PEAK_FLAG = "ICON_PEAK_PERIOD"     # gwam_peak_period.FLAG (that module is imported by path; a test pins the name)
 _PERIOD_MODES = ("primary", "median")
 _SKIP_LOGGED = set()
+
+DIRECTION_VECTOR_FLAG = "CONSENSUS_DIRECTION_VECTOR"
+_DIRECTION_MODES = ("primary", "vector")
+# Below this mean resultant length the three bearings have no mean worth the name: two members that agree exactly hold
+# R >= 1/3 whatever the third says (so a 2-vs-1 split is never a fallback), and R < 0.2 needs all three spread nearly
+# evenly round the circle (symmetric case 0, +-t: t > 101.5 deg). On lane B's panel the training quadrant cannot tell
+# R_MIN 0 from 0.3 apart (MAE within 0.01 deg) and it fires on 0.04% of buoy-hours. 0.2 is NOT data-driven: it is a
+# labelling and numerical guard (atan2 of a near-zero vector is an arbitrary bearing), not a skill lever, and the data
+# lean slightly the other way (held-out MAE 22.644 at R_MIN 0 vs 22.657 at 0.2; where it fires the mean read 78 deg
+# MAE vs GFS's 99, n 42, both near the 90 deg of a random guess).
+R_MIN = 0.2
+
+
+def direction_mode() -> str:
+    """"vector" when CONSENSUS_DIRECTION_VECTOR is "1", else "primary" (the default). Read at call time."""
+    return "vector" if os.environ.get(DIRECTION_VECTOR_FLAG, "0") == "1" else "primary"
+
+
+def member_vector_direction(members: dict) -> Optional[Tuple[float, float]]:
+    """(direction, R): the unweighted unit-vector mean of the three members' directions, in the pipeline's FROM
+    convention, in [0, 360), and its mean resultant length R in [0, 1]; None unless all three are finite. PURE."""
+    s = c = 0.0
+    for m in CONSENSUS_MEMBERS:
+        try:
+            d = float((members.get(m) or {}).get("dir"))
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(d):
+            return None
+        r = math.radians(d)
+        s += math.sin(r)
+        c += math.cos(r)
+    s, c = s / len(CONSENSUS_MEMBERS), c / len(CONSENSUS_MEMBERS)
+    d = math.degrees(math.atan2(s, c)) % 360.0
+    return (0.0 if d >= 360.0 else d), min(1.0, math.hypot(s, c))     # -1e-17 % 360 is 360.0, not 0
 
 
 def period_mode() -> Tuple[str, Optional[str]]:
@@ -86,18 +147,27 @@ def _member_median_tp(members: dict) -> Optional[float]:
     return sorted(tps)[1]
 
 
-def equal_consensus(members: dict, required=CONSENSUS_MEMBERS, period: Optional[str] = None):
+def equal_consensus(members: dict, required=CONSENSUS_MEMBERS, period: Optional[str] = None,
+                    direction: Optional[str] = None):
     """The equal mean of the `required` members' offshore Hs at one spot and hour, carrying the PRIMARY's (GFS, the
     served lane) period and direction: the ingest-time design, the primary's sea scaled to the consensus height.
     None unless EVERY required member answered, so an arm is always its full equal mean (the ledger's pairing rule)
     and never a smaller mean under the same name.
     `period`: "primary" (GFS's) or "median" (CONSENSUS_PERIOD_MEDIAN: the three members' median period, only for the
     full three-member set and only where all three periods are valid, else GFS's; the result then carries
-    `tp_from`). None reads `period_mode()` at call time, so the judge's arm follows the same flag. PURE otherwise."""
+    `tp_from`). None reads `period_mode()` at call time, so the judge's arm follows the same flag.
+    `direction`: "primary" (GFS's) or "vector" (CONSENSUS_DIRECTION_VECTOR: the three members' unit-vector mean, only
+    for the full three-member set; the result then carries `dir_from` = "vector_mean" | "low_agreement" |
+    "member_dir_invalid" and, where all three directions are valid, `dir_agreement` = R). None reads
+    `direction_mode()` at call time. PURE otherwise."""
     if period is None:
         period = period_mode()[0]
     if period not in _PERIOD_MODES:
         raise ValueError(f"consensus: period must be one of {_PERIOD_MODES}, got {period!r}")
+    if direction is None:
+        direction = direction_mode()
+    if direction not in _DIRECTION_MODES:
+        raise ValueError(f"consensus: direction must be one of {_DIRECTION_MODES}, got {direction!r}")
     if not isinstance(members, dict) or "GFS" not in required:
         return None
     vals = []
@@ -119,6 +189,16 @@ def equal_consensus(members: dict, required=CONSENSUS_MEMBERS, period: Optional[
         out["tp_from"] = "primary" if med is None else "median"
         if med is not None:
             out["tp"] = med
+    if direction == "vector" and tuple(required) == CONSENSUS_MEMBERS:
+        vm = member_vector_direction(members)
+        if vm is None:
+            out["dir_from"] = "member_dir_invalid"
+        else:
+            out["dir_agreement"] = vm[1]
+            if vm[1] < R_MIN:
+                out["dir_from"] = "low_agreement"
+            else:
+                out["dir"], out["dir_from"] = vm[0], "vector_mean"
     return out
 
 
@@ -212,6 +292,9 @@ def _build(gfs: NormalizedProduct, choosers: Dict[str, Callable], sampler: Optio
         _SKIP_LOGGED.add(skipped)
         logger.warning("[Consensus] %s requested but skipped: %s", PERIOD_MEDIAN_FLAG, skipped)
     period_cells = {"median": 0, "primary_fallback": 0}
+    dmode = direction_mode()
+    dir_cells = {"vector_mean": 0, "low_agreement": 0, "member_dir_invalid": 0}
+    agreements = []
     out = gfs.model_copy(deep=True)
     cells = {"blended": 0, "kept_primary": 0, "not_ocean": 0}
     missing = {name: 0 for name in choosers}
@@ -241,7 +324,7 @@ def _build(gfs: NormalizedProduct, choosers: Dict[str, Callable], sampler: Optio
             pid = product.product_id or "?"
             sources[name][pid] = sources[name].get(pid, 0) + 1
             offsets[name] += product.valid_time != gfs.valid_time
-        c = equal_consensus(members, period=mode)
+        c = equal_consensus(members, period=mode, direction=dmode)
         if c is None or not hs_primary > 0:     # a member did not answer, or GFS has no sea here to scale
             primary_zero += c is not None
             cells["kept_primary"] += 1
@@ -250,7 +333,17 @@ def _build(gfs: NormalizedProduct, choosers: Dict[str, Callable], sampler: Optio
                 masked += 1
             continue
         k = c["hs"] / hs_primary
-        vec.u, vec.v, vec.speed = round(vec.u * k, 4), round(vec.v * k, 4), round(c["hs"], 4)
+        if dmode == "vector" and c["dir_from"] == "vector_mean":
+            rad = math.radians(c["dir"])     # rebuilt, not scaled: (u, v) must encode the consensus direction too
+            vec.u, vec.v = round(-c["hs"] * math.sin(rad), 4), round(-c["hs"] * math.cos(rad), 4)
+            vec.speed, vec.direction = round(c["hs"], 4), round(c["dir"], 2) % 360.0
+        else:
+            vec.u, vec.v, vec.speed = round(vec.u * k, 4), round(vec.v * k, 4), round(c["hs"], 4)
+        if dmode == "vector":
+            dir_cells[c["dir_from"]] += 1
+            if "dir_agreement" in c:
+                vec.dir_agreement = round(c["dir_agreement"], 4)
+                agreements.append(c["dir_agreement"])
         if mode == "median":
             period_cells["median" if c["tp_from"] == "median" else "primary_fallback"] += 1
             if c["tp"] != vec.period:
@@ -264,8 +357,14 @@ def _build(gfs: NormalizedProduct, choosers: Dict[str, Callable], sampler: Optio
         "unblended": unblended, "masked": masked,
         "member_sources": sources, "member_frame_offset_cells": offsets,
         "consensus_over_primary": _ratio_quantiles(ratios)}}
-    if mode == "median":     # metadata changes ONLY with the flag: off, the diagnostics are byte-identical
-        out.grid.diagnostics["consensus"]["carried_from_primary"] = ["direction"]
+    carried = [f for f, on in (("period", mode == "median"), ("direction", dmode == "vector")) if not on]
+    if carried != ["period", "direction"]:     # metadata changes ONLY with a flag: off, the diagnostics are identical
+        out.grid.diagnostics["consensus"]["carried_from_primary"] = carried
+    if dmode == "vector":
+        out.grid.diagnostics["consensus"]["direction"] = {
+            "method": "vector_mean", "flag": DIRECTION_VECTOR_FLAG, "members": list(CONSENSUS_MEMBERS),
+            "weights": "equal", "r_min": R_MIN, "cells": dir_cells, "dir_agreement": _ratio_quantiles(agreements)}
+    if mode == "median":
         out.grid.diagnostics["consensus"]["period"] = {
             "method": "member_median", "flag": PERIOD_MEDIAN_FLAG, "members": list(CONSENSUS_MEMBERS),
             "cells": period_cells}

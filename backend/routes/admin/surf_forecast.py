@@ -43,6 +43,14 @@ _RATING_FLAGS = {
                                      "is also 1. services/weather_pipeline/consensus_product.py",
                                 "forecast-ingest-pilots workflow env (the lane that builds the CONSENSUS product); NOT Render. "
                                 "Flip ICON_PEAK_PERIOD first"),
+    # The consensus DIRECTION (2026-11-03, dark): Hs stays the equal mean; independent of CONSENSUS_PERIOD_MEDIAN. Serves nothing
+    # unless CONSENSUS_SERVE is also '1'. consensus_product.direction_mode / R_MIN.
+    "CONSENSUS_DIRECTION_VECTOR": ("0", "Consensus (equal GFS/EURO/ICON mean) total wave direction = the unweighted unit-vector (circular) "
+                                        "mean of the three members' directions where all three answer, with u/v rebuilt from it and the "
+                                        "members' agreement R on the cell as dir_agreement; GFS's direction where R < R_MIN (0.2) or a "
+                                        "member has no direction. services/weather_pipeline/consensus_product.py",
+                                   "forecast-ingest-pilots workflow env (the lane that builds the CONSENSUS product); NOT Render. "
+                                   "nearshore-validation reads the same flag (default 0) for the judge's consensus arm"),
     "ESTIMATE_COHERENT_TRENDS": ("0", "Refuse stored marine estimates whose active trend pair lacks a verified shared model cycle",
                                 "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (L2 writers); NOT Render"),
     "EURO_MARINE_NATIVE_TAIL_CADENCE": ("0", "Preserve NOAA tail cadence and verify completed local extension no-ops", "Local ingestion env; hosted lanes require owner approval"),

@@ -39,12 +39,21 @@ class GridVector(BaseModel):
     # grows 0.0000 m at +0 h to 0.1595 m at +120 h (p90 0.6250, max 2.97) — that growth IS the
     # forecast uncertainty a point estimate discards.
     speed_spread: Optional[float] = None
+    # CONSENSUS DIRECTION AGREEMENT (2026-11-03, dark): the mean resultant length R (0..1) of the three members' unit
+    # direction vectors at a CONSENSUS cell, set only while CONSENSUS_DIRECTION_VECTOR is "1"
+    # (consensus_product.py); 1 = the members point the same way, ~0 = no common direction. A DIAGNOSTIC for later
+    # confidence displays, not a skill score for the consensus bearing: offline, the vector mean beat GFS only where R
+    # is LOW and lost slightly where R is high. On a cell with R < R_MIN the bearing is GFS's (R says why).
+    # None everywhere else, and omitted from serialization when None (same rule as speed_spread).
+    dir_agreement: Optional[float] = None
 
     @model_serializer(mode="wrap")
     def _omit_none_extras(self, handler):
         d = handler(self)
         if isinstance(d, dict) and d.get("phys_speed") is None:
             d.pop("phys_speed", None)
+        if isinstance(d, dict) and d.get("dir_agreement") is None:
+            d.pop("dir_agreement", None)
         # ⚠️ OMITTED WHEN ABSENT, not serialized as null. Products are ~688 bytes/vector already and
         # a global_mid carries ~15,000 of them; an always-present null on every deterministic grid
         # would grow every product for a field none of them has. Same rule as phys_speed above.
