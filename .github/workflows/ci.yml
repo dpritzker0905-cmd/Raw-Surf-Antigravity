@@ -1652,7 +1652,9 @@ jobs:
           #   base 3393 (dev's map) + 21 new test(s) and 1 new file(s) = 3414, files 200; floor 3414 - 6 = 3408. This PR must read 3414 passed.
           # ⬆ 3408→3410 on 2026-11-03 (rederive_floor.py, claude/alerts-forecast-windows): dev run 41711330259 read 3393 / 199 files; dev's map 3414;
           #   base 3414 (dev's map) + 2 new test(s) and 0 new file(s) = 3416, files 200; floor 3416 - 6 = 3410. This PR must read 3416 passed.
-          MIN_FILES, MIN_PASSED = 200, 3410
+          # ⬆ 3410→3431 on 2026-11-03 (rederive_floor.py, claude/restore-followups): dev run 41726327573 read 3416 / 200 files; dev's map 3416;
+          #   base 3416 (hosted read) + 21 new test(s) and 1 new file(s) = 3437, files 201; floor 3437 - 6 = 3431. This PR must read 3437 passed.
+          MIN_FILES, MIN_PASSED = 201, 3431
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

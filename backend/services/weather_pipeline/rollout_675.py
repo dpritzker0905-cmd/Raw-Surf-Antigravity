@@ -15,6 +15,8 @@ STATES (step summary + ops/rollout_675.json in the bucket; the owner manages not
   PROMOTED  (1) + (2) + (3): the reader proved at the start of this run that it serves the previous run's canary
             revision through its real L2 loader, and the previous run's sampled audit passed.
   RESTORED  written only by scripts/restore_rollout_snapshot.py (on demand, never automatic).
+  RESTORE_PARTIAL  the same script stopped partway (a write or its read-back failed): the status names the files restored
+            and not restored, the manifest was NOT republished, nothing is rolled back; the operator regenerates.
 
 WHAT "DRY RUN BEFORE ANY MUTATION" MEANS HERE. A run's data does not exist until it is fetched, so the plan cannot be
 known at T+0. Two layers: (a) run-level checks at begin_run (both prerequisites '1' in this lane's own env, the
@@ -55,6 +57,7 @@ FLAGS = (FLAG_PRUNE, FLAG_REFRESH, FLAG_TAIL)
 PREREQUISITES = ("INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS", "MANIFEST_ONE_ENTRY_PER_OBJECT")
 BYPASS = "INGEST_PRUNE_VERIFIED_CYCLES"
 BLOCKED, SAFE, PROMOTED, RESTORED = "BLOCKED", "SAFE", "PROMOTED", "RESTORED"
+RESTORE_PARTIAL = "RESTORE_PARTIAL"              # rollout_675_restore: a restore that stopped partway (no republish)
 OFF, READ_ONLY = "OFF", "READ_ONLY"            # internal: no flag requested / the non-owning lane
 RUNNING = "RUNNING"                             # status marker between begin_run and finish_run (a crash leaves it)
 OWNER_LANE = "core"
