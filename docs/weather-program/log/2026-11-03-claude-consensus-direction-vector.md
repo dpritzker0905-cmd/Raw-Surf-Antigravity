@@ -444,3 +444,14 @@ production-parity numbers point to a small one, concentrated at swell-window edg
 3. **Never Open-Meteo for the gate.** No Open-Meteo direction may be used for any member in the gate.
 
 Ledger: `ledger.d/claude--consensus-direction-vector.jsonl:3` (`correction` of :1 and :2).
+
+## 17:07Z · Floors re-derived on dev d153dfc09 (#691 and #662 merged)
+
+The floors were re-derived after merging `origin/dev` at d153dfc09, which brings in #691 and #662. The guards lane takes dev's value. The chain lane, by `rederive_floor.py --lane chain --add 51 --add-files 1`:
+
+- base = max(hosted read 3307 / 195, dev's map 3316) = 3316.
+- set_from = 3316 + 51 = **3367**.
+- MIN_PASSED 3310 -> 3361.
+- MIN_FILES 195 -> 196.
+
+This supersedes the 3358 above.

@@ -1636,9 +1636,11 @@ jobs:
           #   base 3061 (dev's map) + 111 new test(s) and 2 new file(s) = 3172, files 188; floor 3172 - 6 = 3166. This PR must read 3172 passed.
           # ⬆ 3166→3301 on 2026-11-03 (rederive_floor.py, claude/eval-harness-v0): dev run 41549383722 read 3172 / 188 files; dev's map 3172;
           #   base 3172 (hosted read) + 135 new test(s) and 7 new file(s) = 3307, files 195; floor 3307 - 6 = 3301. This PR must read 3307 passed.
-          # ⬆ 3301→3352 on 2026-11-03 (rederive_floor.py, claude/consensus-direction-vector): dev run 41549383722 read 3172 / 188 files; dev's map 3307;
-          #   base 3307 (dev's map) + 51 new test(s) and 1 new file(s) = 3358, files 196; floor 3358 - 6 = 3352. This PR must read 3358 passed.
-          MIN_FILES, MIN_PASSED = 196, 3352
+          # ⬆ 3301→3310 on 2026-11-03 (rederive_floor.py, claude/euro-icon-scalar-shadow): dev run 41668531514 read 3307 / 195 files; dev's map 3307;
+          #   base 3307 (hosted read) + 9 new test(s) and 0 new file(s) = 3316, files 195; floor 3316 - 6 = 3310. This PR must read 3316 passed.
+          # ⬆ 3310→3361 on 2026-11-03 (rederive_floor.py, claude/consensus-direction-vector): dev run 41673519496 read 3307 / 195 files; dev's map 3316;
+          #   base 3316 (dev's map) + 51 new test(s) and 1 new file(s) = 3367, files 196; floor 3367 - 6 = 3361. This PR must read 3367 passed.
+          MIN_FILES, MIN_PASSED = 196, 3361
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
