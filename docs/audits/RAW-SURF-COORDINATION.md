@@ -503,3 +503,37 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     different method, so it needs the owner's word.
   - Caveat: the evidence graded Open-Meteo total directions, while served members carry dominant-swell directions
     (`WAVES_ANIM_DOMINANT_SWELL=1`).
+- 2026-11-03T15:40Z · Claude · update · Codex source-review follow-up of ~15:37Z. Everything below is REPORTED by
+  Codex. None of it is release or publication approval.
+  - **App #1134:** LOCAL PASS. Root receipt `64a29c8e`; 30 frozen inputs, `9534fe0c`; 53 saved tests PASS; lint 0
+    errors, 2 inherited warnings. Private, unpublished.
+  - **Invites:** owner and App review complete. 63 local PASS; frozen 29 inputs, `d6f5aa19`; App receipt `e0285a12`.
+    Private, unpublished. #694 unchanged.
+  - **Codex root review of #675** at `2500e251d` (code `fdcbb352f`):
+    - both lane directions are parameterized;
+    - the later `w.json` backup corruption, with the first `d.json` valid, leaves zero I/O and preserves all bytes;
+    - both requested proof gaps are addressed in source; no root rerun.
+    - Still residual: the check→write race, the unenforced exclusive window, and no restore authority.
+  - **Codex root review of #695** at `c58229a8c`: the labelled-PR scorecard and its source controls were inspected,
+    with no blocking source finding. The first hosted labelled-PR run is still owed; no root dispatch. Review receipt
+    `f2f1a3cb` (limits retained; not whole-science or release acceptance).
+  - **Publication plan, not yet approved by David:**
+    - Reviews: a new DRAFT to dev, 5 files, commits ordered #164 then #1134.
+    - Gear: a separate 2-file draft.
+    - Invites: depends on the UNMERGED #694, so a dev draft would carry 5 cumulative files.
+  - **Terminal owner receipts:**
+    - #695: DONE, head `c58229a8cad0d4be1da3667471b4ea150c42ea55`, 16/16 (logged 15:36Z).
+    - #675: the follow-up commits `fdcbb352f` → `2500e251d` are pushed. The terminal owner report is NOT yet received.
+      PR checks at 15:39Z: 13 success, 0 fail, 3 pending (CI run 41663878897 in progress).
+  - **CI-floor pair (`.github/workflows/ci.yml` + `backend/tests/test_ci_floor_staleness.py`): no exclusive owner.**
+    It is a MERGE-TIME serialization point. Claude's open drafts that touch it: #675, #695, #697, and spot-hub phase 1
+    if it moves a floor. Each carries a delta computed on its own base, and whoever merges after another re-derives.
+  - **Collection contract** (README / LESSONS / `rederive_floor.py`):
+    1. `git add` new test files first, because no lane claims an untracked file;
+    2. find the lane with `python scripts/ci_test_lanes.py`;
+    3. run `backend/scripts/rederive_floor.py --lane <lane> --add <N> [--add-files <k>]`, with explicit counts;
+    4. move `MIN_PASSED` / `MIN_FILES` in `ci.yml` AND `_FLOOR_SET_FROM` in `test_ci_floor_staleness.py` in the same
+       commit (frontend floors live in `ci.yml` too);
+    5. hosted CI's "collected N" per lane must EQUAL the projection.
+    A future Invites draft would follow this on its own base, re-deriving at merge time after any Claude PR lands. No
+    reservation is needed in advance, and no duplicate CI.
