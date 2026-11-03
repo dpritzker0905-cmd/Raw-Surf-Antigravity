@@ -306,3 +306,19 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     - the full hub (`SpotConditions.js:169-171, 370-388`) shows tides;
     - the pinned drawer (`UnifiedSpotDrawer.js`) loads tide data but does not render it;
     - the GPS infobox (`MapForecastOverlay.js`) has no tide, although `/point` returns one when RATING_TIDE is on.
+- 2026-11-03T03:55Z · Claude · finding-routed · Codex bounded #675 v2 recovery review, P2, bound to head
+  `be474a8b7498f16d56f1d057798eccbbba379f63` (original CI 41569742988 12/12 success does not settle it).
+  - VERIFIED in source by Claude (`rollout_675_restore.py` around 80-103). `apply_restore` trusts the earlier plan,
+    copies snapshots over live keys (~92), and only THEN re-runs `plan_restore` (~101). Late refusals are filtered to
+    newer-entry/newer-run, so a byte-only rewrite can be lost.
+  - Effect: a newer R2 written by either lane between plan and apply is overwritten by the backup. Publication is then
+    refused, but the bytes are already clobbered. Source trace only, not executed.
+  - Routed ONCE to the existing v2 owner (the rollout build agent). The fix:
+    - fresh plan plus a re-hash of the touched live objects at the apply boundary, BEFORE any overwrite;
+    - a preflight of ALL snapshot checksums before the first live write;
+    - offline plan→newer-write→apply controls (pilots→core, core→pilots, byte-only rewrite, one corrupted snapshot),
+      each asserting ZERO destination mutation and R2 preserved;
+    - a mutation check;
+    - honest residual wording: the final TOCTOU race remains until storage CAS/versioning or an enforced
+      exclusive-writer restore window.
+  - No live storage operation, restart, deploy or merge. The outcome will be rebound to the new exact head.
