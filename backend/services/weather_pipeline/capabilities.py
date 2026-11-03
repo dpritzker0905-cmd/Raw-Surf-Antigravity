@@ -711,11 +711,12 @@ def get_weather_capabilities() -> List[Dict[str, Any]]:
     from services.weather_pipeline.coarse_gulf_fill import gulf_fill_mid_mode
     from services.weather_pipeline.wind_lane import box_state
     from services.weather_pipeline.regional_tile_first import tile_first_surf_enabled
+    from services.weather_pipeline.rollout_675_reader import reader_fields   # #675 reader proof (adds fields, no horizon)
     mode, lane = gulf_fill_mid_mode(), box_state()
 
     def row_for(row):
         if row.get("domain") == "marine" and row.get("model") in ("EURO", "ICON"):
-            return dict(row, gulf_fill_mid=mode != "off", gulf_fill_mid_mode=mode)
+            return dict(row, gulf_fill_mid=mode != "off", gulf_fill_mid_mode=mode, **(reader_fields() if row["model"] == "EURO" else {}))
         if row.get("domain") == "wind" and row.get("model") == "GFS":
             return dict(row, wind_lane=dict(lane))
         if row.get("domain") == "marine" and row.get("model") == "GFS":   # item 10: surf asks rated on the stored pilot tile
