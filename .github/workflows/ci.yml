@@ -991,6 +991,8 @@ jobs:
           #   base 3337 (dev's map) + 4 new test(s) and 0 new file(s) = 3341, files 212; floor 3341 - 6 = 3335. This PR must read 3341 passed.
           # ⬆ 3335→3345 on 2026-10-26 (rederive_floor.py, claude/manifest-object-consistency): dev run 40398047789 read 3341 / 212 files; dev's map 3341;
           #   base 3341 (hosted read) + 10 new test(s) and 1 new file(s) = 3351, files 213; floor 3351 - 6 = 3345. This PR must read 3351 passed.
+          # ⬆ 3345→3345 on 2026-11-02 (rederive_floor.py, claude/upbeat-cori-222cde): dev run 41377184916 read 3351 / 213 files; dev's map 3351;
+          #   base 3351 (hosted read) + 0 new test(s) and 0 new file(s) = 3351, files 213; floor 3351 - 6 = 3345. This PR must read 3351 passed.
           MIN_FILES, MIN_PASSED = 213, 3345
           try:
               root = ET.parse('guards.xml').getroot()
@@ -1628,9 +1630,11 @@ jobs:
           #   base 3035 (hosted read) + 9 new test(s) and 1 new file(s) = 3044, files 185; floor 3044 - 6 = 3038. This PR must read 3044 passed.
           # ⬆ 3038→3055 on 2026-11-02 (rederive_floor.py, claude/stoic-solomon-366747): dev run 41529479758 read 3044 / 185 files; dev's map 3044;
           #   base 3044 (hosted read) + 17 new test(s) and 1 new file(s) = 3061, files 186; floor 3061 - 6 = 3055. This PR must read 3061 passed.
-          # ⬆ 3055→3067 on 2026-11-02 (rederive_floor.py, claude/euro-estimate-continuity): dev run 41537830114 read 3044 / 185 files; dev's map 3061;
-          #   base 3061 (dev's map) + 12 new test(s) and 1 new file(s) = 3073, files 187; floor 3073 - 6 = 3067. This PR must read 3073 passed.
-          MIN_FILES, MIN_PASSED = 187, 3067
+          # ⬆ 3055→3166 on 2026-11-02 (rederive_floor.py, claude/weather-batch-2): dev run 41537830114 read 3044 / 185 files; dev's map 3061;
+          #   base 3061 (dev's map) + 111 new test(s) and 2 new file(s) = 3172, files 188; floor 3172 - 6 = 3166. This PR must read 3172 passed.
+          # ⬆ 3166→3178 on 2026-11-03 (rederive_floor.py, claude/euro-estimate-continuity): dev run 41543535776 read 3061 / 186 files; dev's map 3172;
+          #   base 3172 (dev's map) + 12 new test(s) and 1 new file(s) = 3184, files 189; floor 3184 - 6 = 3178. This PR must read 3184 passed.
+          MIN_FILES, MIN_PASSED = 189, 3178
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -2174,7 +2178,14 @@ jobs:
           # four existing rendering cases: projected 3405, floor 3403, preserving margin 2.
           # ⬆ 3403→3404 on 2026-10-31 (rederive_floor.py, codex/guardian-purchase-integration-20261030): dev run 41148501823 read 3405; dev's map 3405;
           #   base 3405 (hosted read) + 1 new test(s) = 3406; floor 3406 - 2 = 3404. This PR must read 3406 passed.
-          MIN_PASSED = 3404
+          # ⬆ 3404→3406 on 2026-11-01, IN THE SAME PR THAT CAUSES IT (kill-switch test coverage + routes-flags blind spot):
+          #   one new backend test file adds 2 executed tests (backend/tests/test_routes_flags_not_in_registry.py)
+          #   to the 3406 projected by the prior PR; projected 3408; floor 3408 - 2 = 3406. This PR must read 3408 passed.
+          # ⬆ 3404→3406 on 2026-11-02 (rederive_floor.py, claude/upbeat-cori-222cde): dev run 41377184916 read 3406; dev's map 3406;
+          #   base 3406 (hosted read) + 2 new test(s) = 3408; floor 3408 - 2 = 3406. This PR must read 3408 passed.
+          # ⬆ 3404→3406 on 2026-11-02 (rederive_floor.py, claude/weather-batch-2): dev run 41377184916 read 3406; dev's map 3406;
+          #   base 3406 (hosted read) + 2 new test(s) = 3408; floor 3408 - 2 = 3406. This PR must read 3408 passed.
+          MIN_PASSED = 3406
 
           try:
               root = ET.parse('estate.xml').getroot()

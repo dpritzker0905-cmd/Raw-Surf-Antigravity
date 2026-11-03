@@ -26,24 +26,78 @@ encode is GFS's to the last digit and |(u, v)| is the consensus height. Every ot
   * Refuses (ValueError) unless the inputs are marine waves products from GFS, EURO and ICON at the same valid_time,
     in the same unit, with a GFS grid. The caller keeps the GFS product on a refusal.
 
-PURE: no I/O and no environment reads. Changes no served number: nothing calls it until the ingest wiring (PR B,
-behind CONSENSUS_INGEST, default off) and the owner's flip.
+CONSENSUS_PERIOD_MEDIAN (DARK, default "0"; 2026-11-02). On, a blended cell's total PERIOD is the MEDIAN of the three
+members' periods instead of GFS's own (direction stays GFS's; Hs is still the equal mean). Offline, 74 NDBC buoys,
+23,527 h (2026-09-18..11-02, best lead), MAE vs buoy DPD: median 1.481 s, equal mean 1.517 s, GFS alone 1.684 s
+(median - mean +0.036 s [+0.019, +0.052], DM/HAC + block bootstrap; no DPD band worse). That median was measured with
+ICON's PEAK-period blend (#412). With the ICON member served today (tm10, the energy period) the median is WORSE than
+GFS alone on long swell (DPD > 12 s: -0.71 s [-1.00, -0.43]), so the median takes effect ONLY while ICON_PEAK_PERIOD
+is also "1" in the building lane; otherwise the build keeps GFS's period, says why in its diagnostics and logs it once.
+  * The median needs ALL THREE members' periods at the cell (finite, > 0); a cell missing one keeps GFS's period, and
+    a cell the members could not all answer is not blended at all, so no two-member median ever ships as consensus.
+  * A median of three IS one member's value (ties included), so no new period is invented.
+  * Flag off: every vector and every diagnostics key is byte-identical to the build without the flag.
+
+PURE apart from two call-time flag reads (`period_mode`, once per build). Changes no served number: nothing calls it
+until the ingest wiring (PR B, behind CONSENSUS_INGEST) and the owner's flip; the median is a further dark flag on top.
 """
+import logging
 import math
-from typing import Callable, Dict, Optional
+import os
+from typing import Callable, Dict, Optional, Tuple
 
 from services.weather_pipeline.sampler import PointSampler
 from services.weather_pipeline.schemas import NormalizedProduct
 
+logger = logging.getLogger(__name__)
+
 CONSENSUS_MEMBERS = ("GFS", "EURO", "ICON")
 _NO_ANSWER = frozenset({"unavailable", "out_of_bounds_fallback"})
 
+PERIOD_MEDIAN_FLAG = "CONSENSUS_PERIOD_MEDIAN"
+ICON_PEAK_FLAG = "ICON_PEAK_PERIOD"     # gwam_peak_period.FLAG (that module is imported by path; a test pins the name)
+_PERIOD_MODES = ("primary", "median")
+_SKIP_LOGGED = set()
 
-def equal_consensus(members: dict, required=CONSENSUS_MEMBERS):
+
+def period_mode() -> Tuple[str, Optional[str]]:
+    """(mode, skipped_reason), read at call time. ("median", None) only when CONSENSUS_PERIOD_MEDIAN and
+    ICON_PEAK_PERIOD are both "1"; ("primary", reason) when the median was asked for but ICON still serves tm10;
+    ("primary", None) when the flag is off (the default)."""
+    if os.environ.get(PERIOD_MEDIAN_FLAG, "0") != "1":
+        return "primary", None
+    if os.environ.get(ICON_PEAK_FLAG, "0") != "1":
+        return "primary", (f"{ICON_PEAK_FLAG} is off: the ICON member is tm10, and the tm10 median is worse than GFS "
+                           "alone on DPD > 12 s; flip ICON_PEAK_PERIOD first")
+    return "median", None
+
+
+def _member_median_tp(members: dict) -> Optional[float]:
+    """The median of the three members' periods, or None unless all three are finite and > 0. PURE."""
+    tps = []
+    for m in CONSENSUS_MEMBERS:
+        try:
+            t = float((members.get(m) or {}).get("tp"))
+        except (TypeError, ValueError):
+            return None
+        if not math.isfinite(t) or t <= 0:
+            return None
+        tps.append(t)
+    return sorted(tps)[1]
+
+
+def equal_consensus(members: dict, required=CONSENSUS_MEMBERS, period: Optional[str] = None):
     """The equal mean of the `required` members' offshore Hs at one spot and hour, carrying the PRIMARY's (GFS, the
     served lane) period and direction: the ingest-time design, the primary's sea scaled to the consensus height.
     None unless EVERY required member answered, so an arm is always its full equal mean (the ledger's pairing rule)
-    and never a smaller mean under the same name. PURE."""
+    and never a smaller mean under the same name.
+    `period`: "primary" (GFS's) or "median" (CONSENSUS_PERIOD_MEDIAN: the three members' median period, only for the
+    full three-member set and only where all three periods are valid, else GFS's; the result then carries
+    `tp_from`). None reads `period_mode()` at call time, so the judge's arm follows the same flag. PURE otherwise."""
+    if period is None:
+        period = period_mode()[0]
+    if period not in _PERIOD_MODES:
+        raise ValueError(f"consensus: period must be one of {_PERIOD_MODES}, got {period!r}")
     if not isinstance(members, dict) or "GFS" not in required:
         return None
     vals = []
@@ -59,7 +113,13 @@ def equal_consensus(members: dict, required=CONSENSUS_MEMBERS):
     p = members["GFS"]
     if p.get("tp") is None or p.get("dir") is None:
         return None
-    return {"hs": sum(vals) / len(vals), "tp": float(p["tp"]), "dir": float(p["dir"])}
+    out = {"hs": sum(vals) / len(vals), "tp": float(p["tp"]), "dir": float(p["dir"])}
+    if period == "median" and tuple(required) == CONSENSUS_MEMBERS:
+        med = _member_median_tp(members)
+        out["tp_from"] = "primary" if med is None else "median"
+        if med is not None:
+            out["tp"] = med
+    return out
 
 
 def member_answer(sampler: PointSampler, product: NormalizedProduct, lat: float, lng: float) -> Optional[dict]:
@@ -147,6 +207,11 @@ def _build(gfs: NormalizedProduct, choosers: Dict[str, Callable], sampler: Optio
     if unblended not in ("keep", "mask"):
         raise ValueError(f"consensus: unblended must be 'keep' or 'mask', got {unblended!r}")
     sampler = sampler or PointSampler(memoize=True)
+    mode, skipped = period_mode()
+    if skipped and skipped not in _SKIP_LOGGED:
+        _SKIP_LOGGED.add(skipped)
+        logger.warning("[Consensus] %s requested but skipped: %s", PERIOD_MEDIAN_FLAG, skipped)
+    period_cells = {"median": 0, "primary_fallback": 0}
     out = gfs.model_copy(deep=True)
     cells = {"blended": 0, "kept_primary": 0, "not_ocean": 0}
     missing = {name: 0 for name in choosers}
@@ -176,7 +241,7 @@ def _build(gfs: NormalizedProduct, choosers: Dict[str, Callable], sampler: Optio
             pid = product.product_id or "?"
             sources[name][pid] = sources[name].get(pid, 0) + 1
             offsets[name] += product.valid_time != gfs.valid_time
-        c = equal_consensus(members)
+        c = equal_consensus(members, period=mode)
         if c is None or not hs_primary > 0:     # a member did not answer, or GFS has no sea here to scale
             primary_zero += c is not None
             cells["kept_primary"] += 1
@@ -186,6 +251,10 @@ def _build(gfs: NormalizedProduct, choosers: Dict[str, Callable], sampler: Optio
             continue
         k = c["hs"] / hs_primary
         vec.u, vec.v, vec.speed = round(vec.u * k, 4), round(vec.v * k, 4), round(c["hs"], 4)
+        if mode == "median":
+            period_cells["median" if c["tp_from"] == "median" else "primary_fallback"] += 1
+            if c["tp"] != vec.period:
+                vec.period = round(c["tp"], 4)
         cells["blended"] += 1
         ratios.append(k)
     out.grid.diagnostics = {**(gfs.grid.diagnostics or {}), "consensus": {
@@ -195,4 +264,12 @@ def _build(gfs: NormalizedProduct, choosers: Dict[str, Callable], sampler: Optio
         "unblended": unblended, "masked": masked,
         "member_sources": sources, "member_frame_offset_cells": offsets,
         "consensus_over_primary": _ratio_quantiles(ratios)}}
+    if mode == "median":     # metadata changes ONLY with the flag: off, the diagnostics are byte-identical
+        out.grid.diagnostics["consensus"]["carried_from_primary"] = ["direction"]
+        out.grid.diagnostics["consensus"]["period"] = {
+            "method": "member_median", "flag": PERIOD_MEDIAN_FLAG, "members": list(CONSENSUS_MEMBERS),
+            "cells": period_cells}
+    elif skipped:
+        out.grid.diagnostics["consensus"]["period"] = {
+            "method": "primary", "flag": PERIOD_MEDIAN_FLAG, "median_skipped": skipped}
     return out

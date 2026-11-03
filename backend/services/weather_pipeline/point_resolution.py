@@ -252,6 +252,11 @@ class PointResolutionService:
                 target_ts = target_dt.strftime("%Y%m%dT%H%M%SZ")
                 if filename_ts != target_ts:
                     adjusted_grid_product_id = grid_product_id.replace(filename_ts, target_ts)
+                    from services.weather_pipeline import product_run_keys as _rk
+                    if _rk.is_run_keyed(grid_product_id):    # another hour is another object: ask the manifest for its name
+                        manifest = await asyncio.to_thread(self.store.get_manifest)
+                        adjusted_grid_product_id = _rk.swap_valid_time(
+                            manifest, grid_product_id, filename_ts, target_ts) or adjusted_grid_product_id
                     file_path = self.store.cache_dir / adjusted_grid_product_id
                     if file_path.exists():
                         logger.info(f"[Point Resolution] Swapped grid_product_id from {grid_product_id} to {adjusted_grid_product_id} due to temporal mismatch during scrubbing.")
