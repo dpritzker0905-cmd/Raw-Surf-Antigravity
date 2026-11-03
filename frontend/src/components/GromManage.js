@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useId } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { 
@@ -34,7 +34,14 @@ const GromManageSession = ({ gromId, parentId }) => {
   const navigate = useNavigate();
   
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('activity'); // 'activity', 'spending', 'controls'
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedTab = searchParams.get('tab');
+  const activeTab = ['spending', 'controls'].includes(requestedTab) ? requestedTab : 'activity';
+  const setActiveTab = tab => {
+    const next = new URLSearchParams(searchParams);
+    if (tab === 'activity') next.delete('tab'); else next.set('tab', tab);
+    setSearchParams(next, { replace: true });
+  };
   const [activityData, setActivityData] = useState(null);
   const [spendingData, setSpendingData] = useState(null);
   const [controls, setControls] = useState({

@@ -13,7 +13,9 @@
 export const FRAME_MAGIC = [0x52, 0x53, 0x57, 0x46]; // "RSWF"
 export const SUPPORTED_ENCODING = 1;
 export const SUPPORTED_TRANSFORM = 1;
-export const FIELD = { HEIGHT: 0, DIRECTION: 1, PERIOD: 2, DIR_CONFIDENCE: 3, SPEED: 4, LANE_WEIGHT: 5 };
+export const FIELD = { HEIGHT: 0, DIRECTION: 1, PERIOD: 2, DIR_CONFIDENCE: 3, SPEED: 4, LANE_WEIGHT: 5, RATING: 9 };
+// The RATING plane's codes (frame_binary.RATING; frame_set_rating): the Surf Rating band as /grid?surf=1 serves it.
+export const RATING_CODE = { UNTOUCHED: 0, MASKED: 1, RATED_BASE: 2 };
 const HEADER_FIXED = 72;
 const DESCRIPTOR_BYTES = 24;
 const NO_MISSING = 0xFFFFFFFF;
@@ -60,14 +62,18 @@ export function parseFrame(buffer) {
     const missing = dv.getUint32(d + 4, true);
     const scale = dv.getFloat64(d + 8, true);
     const offset = dv.getFloat64(d + 16, true);
-    if (dtype !== 1 && dtype !== 2) throw new Error(`static frame: unsupported dtype ${dtype}`);
+    if (dtype !== 1 && dtype !== 2 && dtype !== 4) throw new Error(`static frame: unsupported dtype ${dtype}`);
     const size = n * dtype;
     if (pos + size > bytes.length) throw new Error(`static frame: truncated field ${id}`);
     const out = new Float64Array(n);
     for (let k = 0; k < n; k++) {
       let code;
       if (dtype === 1) code = bytes[pos + k];
-      else if (layout === 1) code = bytes[pos + k] | (bytes[pos + n + k] << 8);
+      else if (dtype === 4) {      // u32 (the rated frames' RATING plane): byte-shuffled = four byte planes, low byte first
+        code = layout === 1
+          ? bytes[pos + k] + bytes[pos + n + k] * 256 + bytes[pos + 2 * n + k] * 65536 + bytes[pos + 3 * n + k] * 16777216
+          : bytes[pos + 4 * k] + bytes[pos + 4 * k + 1] * 256 + bytes[pos + 4 * k + 2] * 65536 + bytes[pos + 4 * k + 3] * 16777216;
+      } else if (layout === 1) code = bytes[pos + k] | (bytes[pos + n + k] << 8);
       else code = bytes[pos + 2 * k] | (bytes[pos + 2 * k + 1] << 8);
       out[k] = (missing !== NO_MISSING && code === missing) ? NaN : code * scale + offset;
     }
@@ -85,6 +91,8 @@ const r6 = (x) => Math.round(x * 1e6) / 1e6;
  * Rebuild the stored product's vectors (row 0 = south, column 0 = west, the product's own order), in the exact
  * shape /grid serializes: {lat, lng, speed, direction, u, v, period, gust, value, is_valid, dir_confidence}.
  * u, v follow from height and direction by the frame's uv convention (0: u = -h sin d, as the ingest normalizer).
+ * A RATED frame (2026-11-01, a RATING plane) rebuilds the vectors /grid?surf=1 serves (surf_rating.rating_transform_grid):
+ * code 1 = masked (is_valid false, phys_speed = height), k + 2 = rated (phys_speed = height, speed = k / 10000, the score / 10).
  */
 export function buildVectors(parsed) {
   const { cols, rows, bounds, fields } = parsed;
@@ -92,6 +100,7 @@ export function buildVectors(parsed) {
   const D = fields[FIELD.DIRECTION];
   const P = fields[FIELD.PERIOD];
   const C = fields[FIELD.DIR_CONFIDENCE];
+  const R = fields[FIELD.RATING];
   if (!H) throw new Error('static frame: no height field');
   const sign = parsed.uvConvention === 1 ? 1 : -1;
   const dLat = rows > 1 ? (bounds.north - bounds.south) / (rows - 1) : 0;
@@ -118,9 +127,19 @@ export function buildVectors(parsed) {
         u: r4(sign * speed * Math.sin(rad)) + 0, v: r4(sign * speed * Math.cos(rad)) + 0,
         period: per, gust: null, value: null, is_valid: true, dir_confidence: conf,
       };
+      const code = R ? R[i] : 0;
+      if (code === RATING_CODE.MASKED) { out[i].is_valid = false; out[i].phys_speed = speed; }
+      else if (code >= RATING_CODE.RATED_BASE) { out[i].phys_speed = speed; out[i].speed = (code - RATING_CODE.RATED_BASE) / 10000; }
     }
   }
   return out;
+}
+
+/** The overlay's per-box counts (grid_resolver_surf's surf_transform tag: `rated`, `masked`) for rated vectors. */
+export function ratingCounts(vectors) {
+  let rated = 0; let masked = 0;
+  for (const v of vectors) if (v && v.phys_speed != null) { if (v.is_valid) rated += 1; else masked += 1; }
+  return { rated, masked };
 }
 
 /**
