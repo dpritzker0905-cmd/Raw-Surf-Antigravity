@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 
 async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time_str,
-                            resolve_partitions):
+                            resolve_partitions, resolve_raw=None):
     """Add the bathymetry-derived surf height + its provenance to a marine point response.
 
     Returns the same response object (mutated), so a caller can keep `return await
@@ -165,11 +165,23 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
                     _near = await nearshore_for_point(lat, lng, valid_time_str)
                 except Exception as _ne:
                     logger.warning(f"[Surf v3] MOP nearshore unavailable at ({lat},{lng}); parametric kept: {_ne!r}")
+            # ── SURF_SPECTRAL_K (DARK, default OFF): CDIP MOP's published ray K on the member's partitions at the
+            # region's open-ocean read point (spectral_k_serving). Same site, same breaking step (`nearshore=`), its
+            # own try, fail-open. `resolve_raw` resolves WITHOUT this augmentation, so the read point cannot recurse.
+            _near_k = None
+            if _near is None and os.environ.get("SURF_SPECTRAL_K", "0") == "1" and resolve_raw is not None:
+                try:
+                    from services.weather_pipeline.spectral_k_serving import nearshore_for_point as _k_for_point
+                    _near_k = await _k_for_point(model, lat, lng, valid_time_str, resolve_raw)
+                    _near = _near_k
+                except Exception as _ke:
+                    logger.warning(f"[Surf v3] spectral K unavailable at ({lat},{lng}); bulk chain kept: {_ke!r}")
             surf, regime = estimate_surf_at(lat, lng, response.point.speed, response.point.period,
                                             swell_from_deg=response.point.direction, geometry=_geo,
                                             partitions=_parts, water_level_m=_eta, nearshore=_near)
             # Say which model the height stands on (the roadmap's "labelled nearshore-model driven").
-            response.surf_source = "cdip_mop" if (_near and surf is not None) else "parametric"
+            response.surf_source = (("cdip_mop_k" if _near_k else "cdip_mop") if (_near and surf is not None)
+                                    else "parametric")
             # The rating half reads the SAME reconciled trains the height ran on. Carried on the
             # response so `rate_one_spot`, the hub and the sim's live lane cannot resolve a second,
             # disagreeing sea state for the same point (None when the flag is off / nothing usable).

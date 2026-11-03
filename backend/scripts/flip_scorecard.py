@@ -99,11 +99,12 @@ def _t(s, what):
         raise Invalid(f"declaration {what} {s!r} is not an ISO UTC time")
 
 
-def range_downloads(start, end, leads, step_h: int = 6) -> int:
-    """Byte-range GETs the plan needs: one wave span + one pgrb2 wind span per distinct (cycle, fh)."""
+def range_downloads(start, end, leads, step_h: int = 6, flags=None) -> int:
+    """Byte-range GETs the plan needs: one wave span + one pgrb2 wind span per distinct (cycle, fh), plus the partition
+    span when the candidate sets SURF_SPECTRAL_K (its read point reads the member's partitions)."""
     from services.weather_pipeline import eval_gfswave as gw
     files = {(c, fh) for c, fh, _, _ in gw.plan(gw.targets_between(start, end, step_h), leads)}
-    return 2 * len(files)
+    return (3 if (flags or {}).get("SURF_SPECTRAL_K") == "1" else 2) * len(files)
 
 
 def parse_declaration(text: str, path: str, now: datetime) -> dict:
@@ -147,7 +148,7 @@ def parse_declaration(text: str, path: str, now: datetime) -> dict:
     primary = d.get("primary", "hs_station")
     if primary not in sc.QUANTITIES:
         raise Invalid(f"{path}: primary must be one of {sorted(sc.QUANTITIES)}")
-    need = range_downloads(start, end, leads)
+    need = range_downloads(start, end, leads, flags=parsed)
     if need > MAX_RANGE_DOWNLOADS:
         raise Refused(f"{path}: the plan needs {need} range downloads, over the {MAX_RANGE_DOWNLOADS} budget")
     return {"path": path, "slug": slug, "flags": parsed, "arm": spec, "start": w["start"], "end": w["end"],

@@ -185,6 +185,12 @@ class PointResolutionService:
             return None
         return reconcile_partitions(parts, total_h)
 
+    async def _resolve_raw(self, model, layer, lat, lng, valid_time_str):
+        """A marine point WITHOUT the surf augmentation (SURF_SPECTRAL_K's read point): `_resolve_point_internal`,
+        the same re-entrancy guard `_resolve_partitions` relies on."""
+        return await self._resolve_point_internal(model=model, domain="marine", layer=layer, lat=lat, lng=lng,
+                                                  valid_time_str=valid_time_str)
+
     @label_l2_read_failures        # W-23: an answer served around a refused L2 read says so
     async def resolve_point(
         self,
@@ -223,7 +229,8 @@ class PointResolutionService:
         # is passed in so the re-entrancy guard stays intact (it uses `_resolve_point_internal`,
         # never this method, so a partition cannot resolve its own partitions).
         response = await augment_with_surf(
-            response, model, domain, layer, lat, lng, valid_time_str, self._resolve_partitions)
+            response, model, domain, layer, lat, lng, valid_time_str, self._resolve_partitions,
+            resolve_raw=self._resolve_raw)
 
         # ⭐ THE PHYSICS VALIDITY STAMP GOES HERE AND NOWHERE ELSE. `NormalizedPointDetail` is built
         # at 14 sites across 5 modules, so there is no chokepoint down there — but EVERY consumer
