@@ -993,7 +993,9 @@ jobs:
           #   base 3341 (hosted read) + 10 new test(s) and 1 new file(s) = 3351, files 213; floor 3351 - 6 = 3345. This PR must read 3351 passed.
           # ⬆ 3345→3345 on 2026-11-02 (rederive_floor.py, claude/upbeat-cori-222cde): dev run 41377184916 read 3351 / 213 files; dev's map 3351;
           #   base 3351 (hosted read) + 0 new test(s) and 0 new file(s) = 3351, files 213; floor 3351 - 6 = 3345. This PR must read 3351 passed.
-          MIN_FILES, MIN_PASSED = 213, 3345
+          # ⬆ 3360→3461 on 2026-11-03 (rederive_floor.py, claude/alerts-forecast-windows): dev run 41679759741 read 3366 / 214 files; dev's map 3366;
+          #   base 3366 (hosted read) + 101 new test(s) and 3 new file(s) = 3467, files 217; floor 3467 - 6 = 3461. This PR must read 3467 passed.
+          MIN_FILES, MIN_PASSED = 217, 3461
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
