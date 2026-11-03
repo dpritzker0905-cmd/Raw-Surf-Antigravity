@@ -10,6 +10,7 @@
  * fetches and shapes that answer; it computes nothing.
  */
 import { BACKEND_URL } from '../../lib/apiClient';
+import { sanitizePointTide } from '../spot-hub/spotHubP1Format';
 
 export const POINT_RATING_URL = `${BACKEND_URL}/api/weather/point-rating`;
 
@@ -38,6 +39,7 @@ export async function fetchPointRating({ lat, lng, model = 'GFS', validTime, sig
 export function mapPointRatingResponse(json) {
   const r = json && json.rating;
   if (!r || r.score == null || !r.level || r.level === 'unknown') return null;
+  const tide = sanitizePointTide(r.tide);
   return {
     score: r.score,
     level: r.level,
@@ -45,5 +47,8 @@ export function mapPointRatingResponse(json) {
     servedValidTime: json.served_valid_time || null,
     why: r.why || null,
     limiter: r.limiter || null,
+    // Spot-hub phase 1 (2026-11-03): `rating.tide` ({height_m, norm, trend}) was dropped here, so the
+    // infobox could never show the tide the rating itself used. Absent => no key (never 0).
+    ...(tide ? { tide } : {}),
   };
 }

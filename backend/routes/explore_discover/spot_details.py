@@ -20,6 +20,7 @@ from services.weather_pipeline.point_resolution import PointResolutionService
 from services.weather_pipeline.sampler import PointSampler
 from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
 from services.conditions_labels import get_conditions_label
+from services.forecast_tier_window import apply_tier_window, days_allowed
 
 point_sampler = PointSampler()
 open_meteo_provider = OpenMeteoProvider()
@@ -57,18 +58,14 @@ async def get_spot_details(
     if not spot:
         return {"error": "Spot not found"}
     
-    # Determine forecast days AFTER today
-    # TODAY = current conditions (not forecast)
-    # FREE = 3 days AFTER today
-    # PAID = 7 days AFTER today  
-    # PREMIUM = 10 days AFTER today
-    forecast_days_after_today = 3
-    if subscription_tier in ['paid', 'basic']:
-        forecast_days_after_today = 7
-    elif subscription_tier in ['premium', 'pro', 'gold']:
-        forecast_days_after_today = 10
-    
-    # Always fetch 10 days from the API so we can show locked previews
+    # ⛔ NO TIER LADDER HERE (spot-hub phase 1, 2026-11-03). This computed "free 3 / paid 7 / premium 10 days after
+    # today" and then sent all ten rows to every tier. The window is now the app resolver's
+    # (services/forecast_tier_window.py, pinned to LayerAccessResolver.js): rows beyond it are withheld and named
+    # by date (`forecast_locked_dates`) so the hub's locked previews still draw. The tier is CLIENT-ASSERTED
+    # (`?subscription_tier=`): this trims what an honest client is sent, it does not enforce entitlement.
+    forecast_days_after_today = days_allowed(subscription_tier, model)
+
+    # Always fetch the full ten daily rows (the request is unchanged); the tier window trims what is sent.
     max_forecast_days = 10
     api_forecast_days = max_forecast_days + 1  # +1 because index 0 is today
     
@@ -105,6 +102,7 @@ async def get_spot_details(
             spot_data["forecast"] = conditions_data.get("forecast", [])
             if spot_data["current_conditions"] is not None or spot_data["forecast"]:
                 spot_data["forecast_status"] = "ready"
+            apply_tier_window(spot_data, subscription_tier, model)
     except TimeoutError:
         logger.warning("Forecast deadline exceeded for spot %s; returning known metadata", spot.id)
     except Exception as e:
