@@ -32,6 +32,11 @@ the switch is on (comma-separated; default '' = none, D-006's global equal mean)
 0.313 vs equal 0.345, n 6,817), while the other coast that week chose (atlantic_se) was refuted there; the
 Hawaii-only rule reads -1.9% vs the equal mean and -16% vs GFS on 57,992 training pairs. The recommendation is
 'hawaii'; adopting it amends D-006, so it flips on the owner's word, with CONSENSUS_SERVE, in the same three places.
+
+SURF_BIGHT_HS_CONSENSUS (2026-11-03, dark, bight_hs_consensus.py) rides the SAME view, for the same reason: a GFS waves
+frame the view serves AS GFS gets the GFS+EURO mean Hs at its cells inside the frozen Southern California Bight
+polygon. A frame served as its consensus twin is never composed again (the twin already carries EURO), and
+serve_raw() answers raw for both.
 """
 import contextvars
 import logging
@@ -50,6 +55,11 @@ _RAW = contextvars.ContextVar("consensus_serve_raw", default=False)
 
 def enabled() -> bool:
     return os.environ.get(SERVE_FLAG, "0") == "1" and not _RAW.get()
+
+
+def raw_requested() -> bool:
+    """Inside serve_raw(): every serving composition answers raw GFS (bight_hs_consensus reads it too)."""
+    return _RAW.get()
 
 
 def keep_gfs_regions() -> frozenset:
@@ -119,6 +129,7 @@ def merge(gfs, consensus):
 
 
 MERGED_CACHE_MAX = 64   # merged frames kept; a spot hub resolves ~22 points against a handful of frames
+_NO_BLEND = object()    # a Bight frame EURO could not answer anywhere: cached so the work is not redone per load
 
 
 class ServedStore:
@@ -134,6 +145,7 @@ class ServedStore:
     def __init__(self, store):
         object.__setattr__(self, "_raw", store)
         object.__setattr__(self, "_merged", OrderedDict())
+        object.__setattr__(self, "_bight_plans", OrderedDict())
         object.__setattr__(self, "_lock", threading.Lock())
 
     @property
@@ -158,8 +170,18 @@ class ServedStore:
     def load_product(self, filename: str, stride: Optional[int] = None):
         kw = {} if stride is None else {"stride": stride}
         product = self._raw.load_product(filename, **kw)
-        if product is None or not enabled() or (product.model or "").upper() != "GFS" or product.layer != "waves":
+        if product is None or (product.model or "").upper() != "GFS" or product.layer != "waves":
             return product
+        if enabled():
+            served = self._consensus_frame(filename, product, stride, kw)
+            if served is not product:       # PRECEDENCE: a served twin already carries EURO; never average it twice
+                return served
+        from services.weather_pipeline import bight_hs_consensus as bight
+        if bight.enabled():
+            return self._bight_frame(bight, filename, product, stride)
+        return product
+
+    def _consensus_frame(self, filename, product, stride, kw):
         try:
             twin = twin_index(self._raw.get_manifest()).get(filename)
             if twin is None:
@@ -182,6 +204,56 @@ class ServedStore:
             while len(self._merged) > MERGED_CACHE_MAX:
                 self._merged.popitem(last=False)
         return served.model_copy()
+
+    def _bight_frame(self, bight, filename, product, stride):
+        """SURF_BIGHT_HS_CONSENSUS (bight_hs_consensus.py, dark): the GFS+EURO mean Hs inside the Bight polygon.
+        STORED-PRODUCT composition, memoized per frame: the EURO frames are the ones the point resolver would answer
+        each Bight cell from, loaded once per composed frame through the raw store (never an upstream), and the
+        composed frame is cached under the GFS file and run AND the EURO files and runs it read, so a new run of
+        either recomposes (a filename is reused across runs: store_helpers._build_product_filename). A
+        frame off the Bight costs one bounds compare; any failure serves the GFS frame it wraps."""
+        try:
+            if not bight.touches_bight(product):
+                return product
+            manifest = self._raw.get_manifest()
+            run = product.run_time.isoformat() if product.run_time else None      # filenames carry no run
+            plan_key = (filename, run, stride)
+            with self._lock:
+                plan = self._bight_plans.get(plan_key)
+            files: dict = {}
+            choose = None
+            if plan is None or plan[0] is not manifest.products or plan[1] != len(manifest.products):
+                cells = bight.bight_cells(product)
+                picks = ()
+                if cells:
+                    choose = bight.euro_chooser(manifest, product.valid_time, self._raw.load_product, files)
+                    vs = product.grid.vectors
+                    picks = tuple(sorted({f for f in (choose.pick(vs[i].lat, vs[i].lng) for i in cells) if f}))
+                plan = (manifest.products, len(manifest.products), cells, picks)
+                with self._lock:
+                    self._bight_plans[plan_key] = plan
+                    while len(self._bight_plans) > 2 * MERGED_CACHE_MAX:
+                        self._bight_plans.popitem(last=False)
+            cells, picks = plan[2], plan[3]
+            if not cells or not picks:
+                return product
+            key = ("bight", filename, run, stride, picks)
+            with self._lock:
+                hit = self._merged.get(key)
+                if hit is not None:
+                    self._merged.move_to_end(key)
+                    return product if hit is _NO_BLEND else hit.model_copy()
+            if choose is None:
+                choose = bight.euro_chooser(manifest, product.valid_time, self._raw.load_product, files)
+            served = bight.compose(product, choose, cells=cells)
+        except Exception as e:           # a serving view must never cost the frame it wraps
+            logger.warning("[bight-hs-consensus] %s: serving GFS (%s)", filename, e)
+            return product
+        with self._lock:
+            self._merged[key] = _NO_BLEND if served is None else served
+            while len(self._merged) > MERGED_CACHE_MAX:
+                self._merged.popitem(last=False)
+        return product if served is None else served.model_copy()
 
 
 def served_store(store):

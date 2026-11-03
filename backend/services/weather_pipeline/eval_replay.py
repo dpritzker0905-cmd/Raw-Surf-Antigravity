@@ -41,6 +41,8 @@ UNREPLAYABLE = {
     "SURF_PARTITIONS": "needs the swell partitions, which v0 does not archive",
     "SURF_NEARSHORE_MOP": "needs CDIP MOP forecast archives",
     "CONSENSUS_SERVE": "needs EURO and ICON (EURO needs Copernicus credentials only CI holds)",
+    "SURF_BIGHT_HS_CONSENSUS": "needs the EURO marine product, which v0 does not archive (scored by an input-substitution "
+                               "arm; log 2026-11-03-claude-bight-hs-consensus.md)",
     "COPERNICUS_PEAK_PERIOD": "a EURO input flag; v0 replays GFS only",
     "ICON_PEAK_PERIOD": "an ICON input flag; v0 replays GFS only",
     "RATING_OBS_GATE": "applied after rating in the precompute merge; the replay records pre-gate scores",

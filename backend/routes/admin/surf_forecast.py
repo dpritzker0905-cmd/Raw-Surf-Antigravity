@@ -406,6 +406,14 @@ _RATING_FLAGS = {
                                          "bilinear stencil before interpolating them, instead of blending slot by "
                                          "slot (needs SURF_PARTITIONS)",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
+    # 2026-11-03 (DARK): inside the frozen Southern California Bight polygon the served offshore Hs is the GFS+EURO
+    # mean where both answer (bight_hs_consensus.py, composed in consensus_serve.ServedStore, so every surface reads
+    # it). Not composed on a frame served as its CONSENSUS twin. Flip gate: log 2026-11-03-claude-bight-hs-consensus.
+    "SURF_BIGHT_HS_CONSENSUS":     ("0", "Inside the Southern California Bight polygon the served offshore Hs is the "
+                                         "mean of GFS and EURO where both answer (GFS period and direction kept); "
+                                         "GFS elsewhere (all surfaces)",
+                                    "Render env AND forecast-ingest.yml AND precompute.yml AND sim-parity-monitor.yml "
+                                    "env (forecast-ingest-pilots.yml declares it '0': ingest never reads it)"),
     # Roadmap stage 4 (2026-09-27). DARK until the nearshore judge's archived-grid arm has the hours.
     "SURF_NEARSHORE_MOP":          ("0", "California spots break from CDIP MOP's nearshore sea+swell forecast "
                                          "instead of the offshore field + parametric transform (all surfaces)",

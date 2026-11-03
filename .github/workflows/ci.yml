@@ -1644,7 +1644,9 @@ jobs:
           #   base 3374 (dev's map) + 6 new test(s) and 1 new file(s) = 3380, files 198; floor 3380 - 6 = 3374. This PR must read 3380 passed.
           # ⬆ 3374→3387 on 2026-11-03 (rederive_floor.py, claude/euro-mid-cmems-swell): dev run 41679759741 read 3316 / 195 files; dev's map 3380;
           #   base 3380 (dev's map) + 13 new test(s) and 1 new file(s) = 3393, files 199; floor 3393 - 6 = 3387. This PR must read 3393 passed.
-          MIN_FILES, MIN_PASSED = 199, 3387
+          # ⬆ 3387→3447 on 2026-11-03 (rederive_floor.py, claude/bight-hs-consensus): dev run 41711330259 read 3393 / 199 files; dev's map 3393;
+          #   base 3393 (hosted read) + 60 new test(s) and 1 new file(s) = 3453, files 200; floor 3453 - 6 = 3447. This PR must read 3453 passed.
+          MIN_FILES, MIN_PASSED = 200, 3447
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

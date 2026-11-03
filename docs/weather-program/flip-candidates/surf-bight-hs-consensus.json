@@ -1,0 +1,9 @@
+{
+  "schema": "raw-surf/flip-candidate/0",
+  "slug": "surf-bight-hs-consensus",
+  "flags": {"SURF_BIGHT_HS_CONSENSUS": "1"},
+  "window": {"start": "2026-10-06T00:00Z", "end": "2026-10-19T18:00Z"},
+  "leads": [24, 48, 72],
+  "primary": "hs_station",
+  "rationale": "Inside the frozen SoCal Bight polygon (round 4's line, untuned) the served offshore Hs becomes the GFS+EURO mean where both answer; the only round-4 arm (10-20..11-01) that passed and left the breaking-height check neutral. Fresh window untouched by that research. The v0 automation REFUSES it (EURO is not archived: eval_replay.UNREPLAYABLE); scored by an input-substitution arm calling the production compose (log 2026-11-03-claude-bight-hs-consensus.md)."
+}
