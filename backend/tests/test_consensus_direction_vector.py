@@ -1,10 +1,12 @@
-"""CONSENSUS_DIRECTION_VECTOR (DARK, 2026-11-03): the consensus direction as the members' unit-vector mean.
+"""CONSENSUS_DIRECTION_VECTOR (DARK, 2026-11-03; HYBRID per the owner ~15:34Z): GFS's direction where the members
+agree (R >= R_AGREE), their unit-vector mean where they disagree, GFS's again where they have no common direction.
 
 The served direction is GFS's alone today, and the dark consensus product carried GFS's direction too
 (`carried_from_primary`). Offline (lane B's l5 panel, 110 NDBC buoys, 108,651 buoy-hours, 2026-09-18..11-02, truth
 NDBC MWD), the unweighted three-member vector mean reads 22.3 deg MAE against GFS's 27.0; held out by buoy half x week
-half, +4.92 deg [+4.13, +5.86]. These pin what the flag must never get wrong: off is byte-identical to the build
-before it existed; on, the mean is circular (359 and 1 average to 0, never 180), every u/v pair is REBUILT so the
+half, +4.92 deg [+4.13, +5.86], but it LOSES to GFS where the members agree; the hybrid keeps GFS there (held out
++5.60 deg [+4.90, +6.33], no band worse). These pin what the flag must never get wrong: off is byte-identical to the
+build before it existed; on, the threshold rule (just above / just below R_AGREE, and >= not >); the mean is circular (359 and 1 average to 0, never 180), every u/v pair is REBUILT so the
 bearing it encodes is the consensus bearing and its length the consensus height, three bearings with no common
 direction (R < R_MIN) keep GFS's, a missing member never yields a two-member direction under the consensus name, and
 the metadata says which field is no longer GFS's.
@@ -101,8 +103,52 @@ def test_the_mean_is_circular_across_north(dirs, want):
     assert _circ_diff(d, want) < 1e-3, (d, want)
     assert 0.0 <= d < 360.0 and 0.0 <= r <= 1.0
     c = cp.equal_consensus(_members(*dirs), direction="vector")
-    assert c["dir_from"] == "vector_mean" and _circ_diff(c["dir"], want) < 1e-3
     assert c["dir_agreement"] == pytest.approx(r)
+    if r >= cp.R_AGREE:                    # they agree: GFS's own bearing, not their mean
+        assert c["dir_from"] == "members_agree" and c["dir"] == dirs[0]
+    else:
+        assert c["dir_from"] == "vector_mean" and _circ_diff(c["dir"], want) < 1e-3
+
+
+@pytest.mark.parametrize("dirs,want", [
+    ((330.0, 30.0, 0.0), 0.0), ((300.0, 20.0, 340.0), 340.0), ((20.0, 300.0, 340.0), 340.0),   # disagree across north
+    ((150.0, 210.0, 180.0), 180.0),
+])
+def test_where_members_disagree_the_mean_is_circular_across_north(dirs, want):
+    """The arithmetic mean of 330, 30 and 0 is 120: in the regime where the hybrid USES the mean it must be circular."""
+    c = cp.equal_consensus(_members(*dirs), direction="vector")
+    assert cp.R_MIN <= c["dir_agreement"] < cp.R_AGREE
+    assert c["dir_from"] == "vector_mean" and _circ_diff(c["dir"], want) < 1e-6, c
+
+
+def _rotated_pair(t, x=40.0):
+    """GFS = x + t, EURO = x, ICON = x - t: R = (1 + 2 cos t) / 3 and the mean is x, never GFS's bearing."""
+    return _members(x + t, x, x - t)
+
+
+def test_just_below_r_agree_uses_the_mean_and_just_above_keeps_gfs():
+    t = math.degrees(math.acos((3 * cp.R_AGREE - 1) / 2))          # R == R_AGREE at t = 28.36 deg
+    below = cp.equal_consensus(_rotated_pair(t + 0.05), direction="vector")
+    above = cp.equal_consensus(_rotated_pair(t - 0.05), direction="vector")
+    assert below["dir_agreement"] < cp.R_AGREE <= above["dir_agreement"]
+    assert below["dir_from"] == "vector_mean" and _circ_diff(below["dir"], 40.0) < 1e-6
+    assert above["dir_from"] == "members_agree" and above["dir"] == 40.0 + t - 0.05     # GFS's, not the mean (40)
+
+
+def test_r_agree_is_inclusive_and_frozen(monkeypatch):
+    assert cp.R_AGREE == 0.92 and cp.R_MIN < cp.R_AGREE < 1.0
+    m = _rotated_pair(20.0)
+    r = cp.member_vector_direction(m)[1]
+    monkeypatch.setattr(cp, "R_AGREE", r)                             # exactly at the threshold: agree (>=)
+    assert cp.equal_consensus(m, direction="vector")["dir_from"] == "members_agree"
+    monkeypatch.setattr(cp, "R_AGREE", r + 1e-12)
+    assert cp.equal_consensus(m, direction="vector")["dir_from"] == "vector_mean"
+
+
+def test_agreeing_members_keep_gfs_even_when_the_mean_differs():
+    c = cp.equal_consensus(_members(10.0, 20.0, 25.0), direction="vector")     # R ~ 0.98
+    assert c["dir_from"] == "members_agree" and c["dir"] == 10.0
+    assert c["dir_agreement"] > cp.R_AGREE
 
 
 def test_359_and_1_never_average_to_180():
@@ -112,6 +158,7 @@ def test_359_and_1_never_average_to_180():
 
 
 def test_the_mean_is_unweighted_by_height_or_period():
+    assert (1 + 2 * math.cos(math.radians(60))) / 3 < cp.R_AGREE        # 0, 60, 120 disagree: the mean is used
     a = cp.equal_consensus(_members(0.0, 60.0, 120.0, hs=(0.2, 3.0, 9.0), tp=(5.0, 9.0, 20.0)), direction="vector")
     b = cp.equal_consensus(_members(0.0, 60.0, 120.0), direction="vector")
     assert a["dir"] == pytest.approx(60.0) == pytest.approx(b["dir"])
@@ -139,7 +186,7 @@ def test_two_agree_and_one_is_an_outlier():
     assert c["dir_from"] == "vector_mean" and 252.5 < c["dir"] < 300.0              # 30 is 137.5 deg clockwise of 252.5
     assert _circ_diff(c["dir"], 252.5) < _circ_diff(c["dir"], 30.0)
     c = cp.equal_consensus(_members(10.0, 20.0, 100.0), direction="vector")
-    assert 15.0 < c["dir"] < 45.0                                                 # pulled toward the outlier, not to it
+    assert c["dir_from"] == "vector_mean" and 15.0 < c["dir"] < 45.0                                                 # pulled toward the outlier, not to it
 
 
 @pytest.mark.parametrize("dirs", [(0.0, 120.0, 240.0), (90.0, 210.0, 330.0), (0.0, 110.0, 250.0), (45.0, 165.0, 285.0)])
@@ -156,7 +203,7 @@ def test_r_min_is_the_named_threshold():
     # symmetric spread 0, +-t: R = (1 + 2 cos t) / 3 crosses 0.2 at cos t = -0.2, t = 101.54 deg
     t = math.degrees(math.acos(-0.2))
     below = cp.equal_consensus(_members(0.0, t + 0.5, -(t + 0.5)), direction="vector")
-    above = cp.equal_consensus(_members(10.0, 10.0 + t - 0.5, 10.0 - (t - 0.5)), direction="vector")
+    above = cp.equal_consensus(_members(10.0 + t - 0.5, 10.0, 10.0 - (t - 0.5)), direction="vector")
     assert below["dir_from"] == "low_agreement" and below["dir"] == 0.0
     assert above["dir_from"] == "vector_mean" and _circ_diff(above["dir"], 10.0) < 1e-6
 
@@ -179,8 +226,8 @@ def test_a_missing_member_is_never_a_two_member_direction():
 
 
 def test_equal_consensus_reads_the_flag_at_call_time(monkeypatch):
-    m = _members(350.0, 10.0, 0.0)
-    assert cp.equal_consensus(m)["dir"] == 350.0
+    m = _members(320.0, 40.0, 0.0)
+    assert cp.equal_consensus(m)["dir"] == 320.0
     _on(monkeypatch)
     assert cp.direction_mode() == "vector"
     c = cp.equal_consensus(m)
@@ -191,10 +238,11 @@ def test_equal_consensus_reads_the_flag_at_call_time(monkeypatch):
 # ── the build ────────────────────────────────────────────────────────────────────────────────────────────────────────
 
 def _wrap_trio():
-    """Members straddling north everywhere, with varying heights, so a non-circular mean would show as ~180 deg."""
+    """Members that DISAGREE across north everywhere (R ~ 0.84, below R_AGREE), with varying heights, so a
+    non-circular mean would show as ~120-180 deg."""
     f = lambda a, d0: (lambda lat, lng: (a + 0.3 * math.sin(3 * lat), (d0 + 4 * math.cos(lng)) % 360,   # noqa: E731
                                          9 + math.cos(lat)))
-    return tuple(_product(m, f(a, d0), land=LAND) for m, a, d0 in (("GFS", 0.9, 352.0), ("EURO", 1.1, 6.0),
+    return tuple(_product(m, f(a, d0), land=LAND) for m, a, d0 in (("GFS", 0.9, 320.0), ("EURO", 1.1, 40.0),
                                                                    ("ICON", 1.4, 1.0)))
 
 
@@ -210,6 +258,7 @@ def test_flag_on_every_blended_cell_carries_the_vector_mean_and_consistent_uv(mo
             continue
         mv = {m: {"dir": by[m][(before.lat, before.lng)].direction} for m in GFS_E_I}
         want, r = cp.member_vector_direction(mv)
+        assert cp.R_MIN <= r < cp.R_AGREE
         hs = sum(math.hypot(by[m][(before.lat, before.lng)].u, by[m][(before.lat, before.lng)].v) for m in GFS_E_I) / 3
         assert _circ_diff(after.direction, want) < 0.006                         # rounded to 2 decimals
         assert _circ_diff(after.direction, 0.0) < 20.0                           # never the arithmetic 180-ish
@@ -220,7 +269,7 @@ def test_flag_on_every_blended_cell_carries_the_vector_mean_and_consistent_uv(mo
         n += 1
     d = out.grid.diagnostics["consensus"]
     assert n == d["cells"]["blended"] > 0
-    assert d["direction"]["cells"] == {"vector_mean": n, "low_agreement": 0, "member_dir_invalid": 0}
+    assert d["direction"]["cells"] == {"vector_mean": n, "members_agree": 0, "low_agreement": 0, "member_dir_invalid": 0}
 
 
 def test_flag_on_the_product_answers_at_a_point_what_the_judges_arm_computes(monkeypatch):
@@ -246,8 +295,9 @@ def test_flag_on_interpolated_points_between_nodes_read_the_consensus_bearing(mo
     """Off the node /point interpolates (u, v), not `direction`: with u/v only SCALED the bearing there would stay
     GFS's. Uniform members make the expected bearing exact everywhere."""
     _on(monkeypatch)
-    out = cp.build_equal_mean(*_dir_trio((350.0, 10.0, 15.0), land=lambda lat, lng: False))
-    want, _ = cp.member_vector_direction(_members(350.0, 10.0, 15.0))
+    out = cp.build_equal_mean(*_dir_trio((320.0, 40.0, 10.0), land=lambda lat, lng: False))
+    want, r = cp.member_vector_direction(_members(320.0, 40.0, 10.0))
+    assert r < cp.R_AGREE
     s = PointSampler()
     for lat, lng in ((27.13, -80.61), (28.4, -79.9), (27.9, -80.07)):
         pt = s.sample_point(out, lat, lng).point
@@ -264,17 +314,17 @@ def test_flag_on_opposite_members_keep_gfs_bearing_scaled_and_are_counted(monkey
         assert after.direction == before.direction == 0.0 and _circ_diff(_uv_bearing(after), 0.0) < 0.01
         assert after.speed == pytest.approx(1.0) and after.dir_agreement == pytest.approx(0.0, abs=1e-4)
     d = out.grid.diagnostics["consensus"]["direction"]
-    assert d["cells"] == {"vector_mean": 0, "low_agreement": len(blended), "member_dir_invalid": 0}
+    assert d["cells"] == {"vector_mean": 0, "members_agree": 0, "low_agreement": len(blended), "member_dir_invalid": 0}
     assert d["dir_agreement"]["median"] == 0.0 and d["r_min"] == cp.R_MIN
 
 
 def test_flag_on_a_member_that_cannot_answer_leaves_the_gfs_cell_untouched(monkeypatch):
     _on(monkeypatch)
-    gfs = _product("GFS", _uniform(0.8, 350.0, 9.0))
-    euro = _product("EURO", _uniform(1.0, 10.0, 10.0), box=(-81.0, 27.0, -80.0, 29.0))   # covers the west half only
-    icon = _product("ICON", _uniform(1.2, 20.0, 11.0))
+    gfs = _product("GFS", _uniform(0.8, 320.0, 9.0))
+    euro = _product("EURO", _uniform(1.0, 40.0, 10.0), box=(-81.0, 27.0, -80.0, 29.0))   # covers the west half only
+    icon = _product("ICON", _uniform(1.2, 10.0, 11.0))
     out = cp.build_equal_mean(gfs, euro, icon)
-    want, _ = cp.member_vector_direction(_members(350.0, 10.0, 20.0))
+    want, _ = cp.member_vector_direction(_members(320.0, 40.0, 10.0))
     for before, after in zip(gfs.grid.vectors, out.grid.vectors):
         if before.lng > -80.0:
             assert after.model_dump() == before.model_dump()                     # never a GFS/ICON two-member bearing
@@ -287,17 +337,24 @@ def test_flag_on_a_member_that_cannot_answer_leaves_the_gfs_cell_untouched(monke
 
 
 def test_flag_on_metadata_drops_direction_from_carried_and_reports_agreement(monkeypatch):
+    """_trio's members (90, 100, 110 deg) AGREE (R 0.99): every cell keeps GFS's bearing, scaled exactly as today, and
+    the metadata still says the direction is the hybrid's choice, with R on every cell."""
+    base = cp.build_equal_mean(*_trio())
     _on(monkeypatch)
-    base_keys = set(cp.build_equal_mean(*_trio()).grid.diagnostics["consensus"])
     out = cp.build_equal_mean(*_trio())
     d = out.grid.diagnostics["consensus"]
     assert d["carried_from_primary"] == ["period"] and d["method"] == "equal_mean"
-    assert set(d) == base_keys | {"direction"}
+    assert set(d) == set(base.grid.diagnostics["consensus"]) | {"direction"}
     r = cp.member_vector_direction(_members(90.0, 100.0, 110.0))[1]
-    assert d["direction"] == {"method": "vector_mean", "flag": "CONSENSUS_DIRECTION_VECTOR", "members": list(GFS_E_I),
-                              "weights": "equal", "r_min": 0.2,
-                              "cells": {"vector_mean": d["cells"]["blended"], "low_agreement": 0, "member_dir_invalid": 0},
+    assert r >= cp.R_AGREE
+    assert d["direction"] == {"method": "hybrid_vector_mean", "flag": "CONSENSUS_DIRECTION_VECTOR",
+                              "members": list(GFS_E_I), "weights": "equal", "r_min": 0.2, "r_agree": 0.92,
+                              "cells": {"vector_mean": 0, "members_agree": d["cells"]["blended"], "low_agreement": 0,
+                                        "member_dir_invalid": 0},
                               "dir_agreement": {q: round(r, 3) for q in ("p10", "median", "p90")}}
+    for a, b in zip(base.grid.vectors, out.grid.vectors):     # agree: today's cell, plus R
+        assert (b.direction, b.u, b.v, b.speed) == (a.direction, a.u, a.v, a.speed)
+        assert b.dir_agreement == (round(r, 4) if a.is_valid else None)
 
 
 def test_with_the_period_median_both_fields_leave_carried(monkeypatch):
@@ -307,7 +364,7 @@ def test_with_the_period_median_both_fields_leave_carried(monkeypatch):
     out = cp.build_equal_mean(*_spread_trio())
     d = out.grid.diagnostics["consensus"]
     assert d["carried_from_primary"] == [] and d["period"]["method"] == "member_median"
-    assert d["direction"]["cells"]["vector_mean"] == d["cells"]["blended"] > 0
+    assert d["direction"]["cells"]["members_agree"] == d["cells"]["blended"] > 0     # identical member bearings
     monkeypatch.setenv("CONSENSUS_DIRECTION_VECTOR", "0")
     assert cp.build_equal_mean(*_spread_trio()).grid.diagnostics["consensus"]["carried_from_primary"] == ["direction"]
 

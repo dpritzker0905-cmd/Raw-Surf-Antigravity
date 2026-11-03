@@ -43,7 +43,8 @@ class GridVector(BaseModel):
     # direction vectors at a CONSENSUS cell, set only while CONSENSUS_DIRECTION_VECTOR is "1"
     # (consensus_product.py); 1 = the members point the same way, ~0 = no common direction. A DIAGNOSTIC for later
     # confidence displays, not a skill score for the consensus bearing: offline, the vector mean beat GFS only where R
-    # is LOW and lost slightly where R is high. On a cell with R < R_MIN the bearing is GFS's (R says why).
+    # is LOW and lost slightly where R is high, which is why the hybrid keeps GFS's bearing where R >= R_AGREE (and
+    # where R < R_MIN); R on the cell says which bearing it carries.
     # None everywhere else, and omitted from serialization when None (same rule as speed_spread).
     dir_agreement: Optional[float] = None
 
