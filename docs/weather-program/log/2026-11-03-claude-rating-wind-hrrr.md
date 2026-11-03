@@ -136,3 +136,34 @@ by wind regime.
 
 A flip-candidate declaration is at `flip-candidates/rating-wind-hrrr.json`. It is unlabelled, and the scorecard
 refuses it by design (UNREPLAYABLE).
+
+## Reflection (Beam, after the PR opened): what it changed
+
+Prompt: where the change sits, the boundary blend, and the evidence reading. Its answers:
+
+- **Evidence: agreed, keep it dark.** It proposed one decisive check: score the same NOAA points UN-rotated (as
+  Open-Meteo serves them). **Run** (evidence/unrot_check.json, same rows): un-rotated bilinear −0.24 [−0.82, +0.31],
+  un-rotated nearest −0.85 [−1.40, −0.29], rotated bilinear +0.21 [−0.44, +0.87], Open-Meteo +1.27 [+0.81, +1.76].
+  Rotation does not explain the gap. Galveston, where the rotation is only 1.7°, still shows the largest gap: NOAA
+  +0.86 against Open-Meteo +3.77. So the difference lies in what Open-Meteo's product is (which cell, what processing),
+  not in the rotation or the lane's area mean. The sea-cell hypothesis above stands as the next measurement.
+- **Taper: recorded, not changed.** It suggested the map's taper may not be optimal for ratings and asked about cycle
+  swaps. Within one lane, the valid-hour sequence has no step: the taper is the only place weights change, and the test
+  pins it at no more than one step. When the lane swaps cycles, the hours that were tapered return to weight 1. That
+  changes the same valid hour's forecast between two runs, as every model-run change does, and is not a step along the
+  scrubber. "GFS before the cycle" only affects hours before the lane's cycle. Those are past hours: the precompute
+  rates from the top of the current hour, which is after the newest complete cycle. The lane result shows no lead
+  dependence (−0.13..+0.37 over leads 1–6 h), so a shorter HRRR lead cap has no support yet. Revisit the taper only
+  once a product actually wins.
+- **Composition point: its objection is recorded; the design is kept.** It argued that `/point` should stay model-pure
+  and the substitution should happen only inside the rating, for attribution. It is kept at `resolve_point` for three
+  reasons:
+  1. The spot hub shows the wind from the same point it rates on. A rating-only substitution would show a GFS wind
+     beside a score graded on HRRR.
+  2. The map already draws HRRR at that point. Today `/point` disagrees with the map under the same "GFS" label; with
+     the flag on, the two would agree.
+  3. The brief names this layer.
+
+  Attribution is carried by `wind_src` on every rating and by `_rating_wind` on the point object. If the owner prefers
+  a model-pure `/point`, the change is small: move the call into `rate_one_spot` and the hub, then re-run the parity
+  test.
