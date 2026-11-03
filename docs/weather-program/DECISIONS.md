@@ -1893,6 +1893,14 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Not fixed:** the core and pilots lanes both publish the manifest and re-fold each other's pruned keys; these flags heal the outcome, not the re-entry.
 - **Rollback:** `gh variable set <FLAG> --body 0` for any of the three.
 
+### D-061 · Every GFS pilot box ingests the full 14-day horizon (ON by default, 2026-11-01)
+- **Decided:** owner, 2026-11-01 22:10 EST, as D-060.
+- **Flag:** `GFS_PILOT_FULL_HORIZON`, default '1' in code, registry and the pilots workflow; kill switch '0' (repo variable).
+- **Evidence:** `log/2026-11-01-claude-gfs-pilot-full-horizon.md`. 17 of 19 boxes stop at run + 120 h today (CDN audit 10-26T14Z: 41/45 frames, gap h116-h336). Flag on: one 14 d multi-bbox pass carries all 19 boxes (`tests/test_gfs_pilot_full_horizon.py`, 6).
+- **Cost (unmeasured, watch the first run):** ~4,900 more products per pilots fire, ~+300 MB RSS; the separate 5 d download pass disappears. Lane p90 124 of 200 min.
+- **What moves:** close-zoom GFS scrubbing past day 5 inside the boxes draws the stored tile instead of falling back to the server; values are the same GFS products.
+- **Rollback:** `gh variable set GFS_PILOT_FULL_HORIZON --body 0`.
+
 ### D-063 · The far-edge bridge serves past the ICON/EURO blend end, and SoCal stores GFS swell_2 like every pilot box (both ON by default, 2026-11-01)
 - **Decided:** owner, 2026-11-01 22:10 EST (relayed by the lead): measured features ship ON by default with a kill switch, "start it automatically running … if we don't like it, we kill switch it". Both flags were merged dark: `FAR_EDGE_BRIDGE` (#594) and `GFS_MARINE_SOCAL_SWELL2` (#524).
 - **Flags:** `FAR_EDGE_BRIDGE` default '1' in code and `_RATING_FLAGS` (Render env; kill with `FAR_EDGE_BRIDGE=0` on Render). `GFS_MARINE_SOCAL_SWELL2` default '1' in code, registry and the pilots workflow (kill: `gh variable set GFS_MARINE_SOCAL_SWELL2 --body 0`).
