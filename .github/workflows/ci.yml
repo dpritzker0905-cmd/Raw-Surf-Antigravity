@@ -1632,15 +1632,9 @@ jobs:
           #   base 3044 (hosted read) + 17 new test(s) and 1 new file(s) = 3061, files 186; floor 3061 - 6 = 3055. This PR must read 3061 passed.
           # ⬆ 3055→3166 on 2026-11-02 (rederive_floor.py, claude/weather-batch-2): dev run 41537830114 read 3044 / 185 files; dev's map 3061;
           #   base 3061 (dev's map) + 111 new test(s) and 2 new file(s) = 3172, files 188; floor 3172 - 6 = 3166. This PR must read 3172 passed.
-          # ⬆ 3166→3178 on 2026-11-03 (rederive_floor.py, claude/euro-estimate-continuity): dev run 41543535776 read 3061 / 186 files; dev's map 3172;
-          #   base 3172 (dev's map) + 12 new test(s) and 1 new file(s) = 3184, files 189; floor 3184 - 6 = 3178. This PR must read 3184 passed.
-          # ⬆ 3178→3219 on 2026-11-03 (rederive_floor.py, claude/euro-estimate-continuity, rollout v2: +41 tests, +1 file): dev run 41549383722 read 3172 / 188 files; dev's map 3172;
-          #   base 3172 (hosted read) + 53 new test(s) and 2 new file(s) = 3225, files 190; floor 3225 - 6 = 3219. This PR must read 3225 passed.
-          # ⬆ 3219→3223 on 2026-11-03 (rederive_floor.py, claude/euro-estimate-continuity, restore revalidation: +4 tests): dev run 41549383722 read 3172 / 188 files; dev's map 3172;
-          #   base 3172 (hosted read) + 57 new test(s) and 2 new file(s) = 3229, files 190; floor 3229 - 6 = 3223. This PR must read 3229 passed.
-          # ⬆ 3223→3224 on 2026-11-03 (rederive_floor.py, claude/euro-estimate-continuity, restore lane-direction + later-backup cases: +1 test): dev run 41549383722 read 3172 / 188 files; dev's map 3172;
-          #   base 3172 (hosted read) + 58 new test(s) and 2 new file(s) = 3230, files 190; floor 3230 - 6 = 3224. This PR must read 3230 passed.
-          MIN_FILES, MIN_PASSED = 190, 3224
+          # ⬆ 3166→3301 on 2026-11-03 (rederive_floor.py, claude/eval-harness-v0): dev run 41549383722 read 3172 / 188 files; dev's map 3172;
+          #   base 3172 (hosted read) + 135 new test(s) and 7 new file(s) = 3307, files 195; floor 3307 - 6 = 3301. This PR must read 3307 passed.
+          MIN_FILES, MIN_PASSED = 195, 3301
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
