@@ -1,0 +1,185 @@
+name: Evaluation harness (offline replay; manual dispatch, and the informational flip-PR scorecard)
+
+# WHY THIS EXISTS (owner decision 2026-11-02 19:32 EST: truth / reference data and evaluation infrastructure FIRST;
+# measured improvement before any rating-changing activation). It runs backend/scripts/eval_harness.py: public truth
+# (NDBC, CDIP, CO-OPS) with provenance, a forecast-of-record replay of the served chain under precompute.yml's own
+# env on archived GFS-Wave (NOAA AWS open data), baselines, controls, and the PASS / FAIL / REFUSED verdict per
+# candidate arm. Docs: docs/weather-program/evaluation-harness.md.
+#
+# ⛔ IT SERVES NOTHING AND WRITES NOTHING: no secret is read, no storage or database is touched, the app's own hosts
+# are refused by the harness's network guard. Here pygrib imports, so the replay runs at PRODUCTION INPUT PARITY
+# (pygrib decoding, the pgrb2.0p25 10 m wind the served lane reads). A local run reaches it too with eccodes
+# (backend/requirements-eval-harness.txt, optional); with the built-in decoder it cannot.
+# ⚠️ job `harness`: manual dispatch ONLY, on the owner's word. It fails (exit 1) when any candidate arm is not a PASS
+# on the primary quantity, so a red run is a verdict, not a broken job: read the step summary.
+# job `flip-scorecard` (scope: docs/audits/RAW-SURF-COORDINATION.md 2026-11-03T03:30Z; owner: "we need a testing
+# automation to help guage a flip each time, right?" ... "IF we need it, put it on."): on a SAME-REPO pull request
+# labelled `flip-candidate` with ONE declaration docs/weather-program/flip-candidates/<slug>.json, it replays the
+# merge base's served env against that env plus the declared flags over the declaration's PINNED PAST window (GFS
+# only, public immutable archives, cached), within 60 minutes and 400 range downloads, and writes ONE PR comment
+# (edited in place) plus a 14-day artifact. Outcomes PASS / FAIL / REFUSED / INVALID stay distinct.
+# INFORMATIONAL: not a required check, it always exits 0 on a verdict, and it NEVER activates a flag, merges,
+# deploys, changes an env, restarts or dispatches anything. backend/scripts/flip_scorecard.py holds the contract.
+
+on:
+  pull_request:
+    types: [opened, labeled, synchronize, reopened]
+  workflow_dispatch:
+    inputs:
+      start:
+        description: "First target hour, UTC (e.g. 2026-10-20T00:00Z); NDBC realtime2 holds ~45 days"
+        required: true
+      end:
+        description: "Last target hour, UTC"
+        required: true
+      arms:
+        description: "Candidate arms, ';'-separated, each FLAG=value[,FLAG=value] (empty = baselines and controls only)"
+        required: false
+        default: ""
+      primary:
+        description: "Primary quantity (hs_station decides; the others are advisory)"
+        required: false
+        default: "hs_station"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eval-harness-${{ github.event.pull_request.number || 'dispatch' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  harness:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+
+      - name: Run the harness
+        working-directory: backend
+        env:
+          EH_START: ${{ inputs.start }}
+          EH_END: ${{ inputs.end }}
+          EH_ARMS: ${{ inputs.arms }}
+          EH_PRIMARY: ${{ inputs.primary }}
+        run: |
+          args=()
+          IFS=';' read -ra ARMS <<< "$EH_ARMS"
+          for a in "${ARMS[@]}"; do
+            a="$(echo "$a" | xargs)"
+            if [ -n "$a" ]; then args+=(--arm "$a"); fi
+          done
+          python scripts/eval_harness.py run --start "$EH_START" --end "$EH_END" --primary "$EH_PRIMARY" \
+            --decoder pygrib --wind-source pgrb2 \
+            --cache-dir "$RUNNER_TEMP/eval-cache" --out "$RUNNER_TEMP/eval-out" "${args[@]}"
+
+      - name: Scorecard to the step summary
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/eval-out/scorecard.md" ]; then cat "$RUNNER_TEMP/eval-out/scorecard.md" >> "$GITHUB_STEP_SUMMARY"; fi
+
+      - name: Upload panels, scorecard and provenance manifests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-harness-${{ github.run_id }}
+          path: ${{ runner.temp }}/eval-out
+          retention-days: 14
+
+  flip-scorecard:
+    # Same-repo PRs only (a fork's head never runs here), and only with the label; the script re-checks both.
+    if: >-
+      github.event_name == 'pull_request' &&
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      contains(github.event.pull_request.labels.*.name, 'flip-candidate')
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Merge base with the PR's base branch
+        id: mb
+        env:
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          git fetch --no-tags --quiet origin "$BASE_REF"
+          echo "sha=$(git merge-base FETCH_HEAD HEAD)" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+
+      - name: Check the trigger, the declaration and the env change
+        id: prep
+        working-directory: backend
+        env:
+          BASE_SHA: ${{ steps.mb.outputs.sha }}
+        run: |
+          python scripts/flip_scorecard.py prepare --event "$GITHUB_EVENT_PATH" --base-sha "$BASE_SHA"             --out "$RUNNER_TEMP/flip"
+          python - <<'PY' >> "$GITHUB_OUTPUT"
+          import hashlib, json, os
+          p = json.load(open(os.path.join(os.environ["RUNNER_TEMP"], "flip", "prepared.json")))
+          d = p.get("declaration") or {}
+          key = hashlib.sha256(json.dumps([d.get("start"), d.get("end"), d.get("leads")]).encode()).hexdigest()[:16]
+          print(f"run={'true' if p.get('run') else 'false'}")
+          print(f"key={key}")
+          PY
+
+      - name: Restore the public-data cache (pinned window)
+        if: steps.prep.outputs.run == 'true'
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/eval-cache
+          key: flip-scorecard-gfs-${{ steps.prep.outputs.key }}
+
+      - name: Score the flip (informational)
+        working-directory: backend
+        run: |
+          python scripts/flip_scorecard.py run --prepared "$RUNNER_TEMP/flip/prepared.json"             --cache-dir "$RUNNER_TEMP/eval-cache" --out "$RUNNER_TEMP/flip"             --run-url "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+
+      - name: One PR comment, edited in place
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          f="$RUNNER_TEMP/flip/comment.md"
+          [ -f "$f" ] || { echo "no comment (not triggered)"; exit 0; }
+          id=$(gh api "repos/$GITHUB_REPOSITORY/issues/$PR/comments" --paginate                --jq '.[] | select(.body | contains("<!-- raw-surf-flip-scorecard -->")) | .id' | head -n 1)
+          if [ -n "$id" ]; then
+            gh api -X PATCH "repos/$GITHUB_REPOSITORY/issues/comments/$id" -F "body=@$f" > /dev/null
+          else
+            gh api -X POST "repos/$GITHUB_REPOSITORY/issues/$PR/comments" -F "body=@$f" > /dev/null
+          fi
+          cat "$f" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the scorecard, panels and provenance (14 days)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flip-scorecard-${{ github.event.pull_request.number }}-${{ github.run_id }}
+          path: ${{ runner.temp }}/flip
+          retention-days: 14
+          if-no-files-found: ignore

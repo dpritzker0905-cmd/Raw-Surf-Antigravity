@@ -237,14 +237,18 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None, remote_p
         ours = {(p.product_id or p.filename): p for p in manifest.products if (p.product_id or p.filename)}
         excl = set(exclude_keys or ())
         prefer_newer = os.environ.get("MANIFEST_MERGE_PREFER_NEWER", "1") != "0"
-        folded, refreshed = [], []
+        folded, refreshed, logical = [], [], None
+        from services.weather_pipeline import product_run_keys as _rk
         for raw in remote_products:
             pid = raw.get("product_id") or raw.get("filename")
             if not pid or pid in excl:
                 continue
             if cutoff is not None and _past_retention(raw.get("valid_time_start"), cutoff):
                 continue  # a pruned entry the remote still holds: never resurrect it
-            mine = ours.get(pid)
+            mine, mine_key = ours.get(pid), pid
+            if mine is None and (_rk.enabled() or _rk.is_run_keyed(pid)):   # one slice = one LOGICAL name (product_run_keys)
+                logical = _rk.logical_index(ours) if logical is None else logical
+                mine_key, mine = logical.get(_rk.logical_name(raw.get("filename") or pid), (pid, None))
             if mine is not None:
                 if os.environ.get('INGEST_PRUNE_VERIFIED_CYCLES', '0') == '1':
                     from services.weather_pipeline.prune_verified_cycles import newer_collision
@@ -259,7 +263,7 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None, remote_p
             if mine is None:
                 folded.append(item)
             else:
-                ours[pid] = item
+                ours[mine_key] = item
                 refreshed.append((pid, mine.run_time, item.run_time))
         if refreshed:
             manifest.products = [ours.get(p.product_id or p.filename, p) for p in manifest.products]

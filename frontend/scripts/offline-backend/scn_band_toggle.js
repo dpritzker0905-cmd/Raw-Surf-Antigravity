@@ -60,7 +60,7 @@ const cdn = http.createServer((req, res) => {
 const PROBE = () => {
   const P = (window.__BT__ = { marks: {}, frames: [], t0: null, console: [] });
   const flag = () => (window.__SURF_MODE__ !== undefined ? !!window.__SURF_MODE__ : (localStorage.getItem('__SURF_MODE__') === 'true'));
-  P.mark = (n) => { const t = performance.now(); P.marks[n] = t; if (P.t0 === null) P.t0 = t; return t; };
+  P.mark = (n) => { const t = performance.now(); P.marks[n] = t; if (n === 'click') P.marks.clickWall = Date.now(); if (P.t0 === null) P.t0 = t; return t; };
   const origLog = console.log; const origWarn = console.warn;
   const grab = (a) => { const s = a.map((x) => (typeof x === 'string' ? x : '')).join(' '); if (/Abort-Gate\]|Releasing active fetch|Stranded fetch-pending|Releasing in-flight fetch|Engine-Clear|model lock|returned early|Marine-Bounds-Clear|Marine\] Fetch/.test(s)) P.console.push({ t: Math.round(performance.now() - (P.t0 || 0)), s: s.slice(0, 150) }); };
   console.log = function (...a) { try { grab(a); } catch (e) { /* ignore */ } return origLog.apply(this, a); };
@@ -101,8 +101,10 @@ async function clickToggle(page) {
 
 async function session() {
   let gateUntil = 0;                    // while Date.now() < gateUntil, weather grid asks are delayed until gateUntil
+  const surfAsks = [];                  // 2026-11-01 (item 10): every surf=1 /grid or /grid_series ask the backend saw, ms since load
   const { browser, page } = await L.launch({ port: PORT, width: DIMS.width, height: DIMS.height, dpr: DIMS.dpr, contextOptions: DIMS.contextOptions, hooks: {
     beforeWeather: async (url) => {
+      if (/surf=(1|true)/.test(url.search)) surfAsks.push({ t: Date.now(), path: url.pathname.split('/').pop() });
       if (Date.now() < gateUntil && /\/(grid|grid_series)$/.test(url.pathname)) await sleep(Math.max(0, gateUntil - Date.now()));
     },
   } });
@@ -178,6 +180,12 @@ async function session() {
     for (let i = 0; i < after.length; i++) { if (after[i].active === false) { const t0 = after[i].t; if (after.filter((f) => f.t >= t0 && f.t <= t0 + 400).every((f) => f.active === false)) { offMs = t0 - click; break; } } }
     out.offMs = offMs;
     const honest = after.find((f) => f.grid && f.grid[0] === 'H'); out.honestMs = honest ? honest.t - click : null;
+    // SCN=on (2026-11-01, item 10): ms from the click to the first frame painting the band from a rating grid, and the surf asks after it
+    const rated = after.find((f) => f.active && f.grid && f.grid[0] === 'R'); out.ratedMs = rated ? Math.round(rated.t - click) : null;
+    const rgrid = after.find((f) => f.grid && f.grid[0] === 'R'); out.ratingGridMs = rgrid ? Math.round(rgrid.t - click) : null;   // resident, held or not
+    const clickWall = rec.marks.clickWall || null;
+    out.surfAsks = clickWall ? surfAsks.filter((a) => a.t >= clickWall).map((a) => ({ ms: a.t - clickWall, path: a.path })) : surfAsks.length;
+    out.ratedTelemetry = await page.evaluate(() => window.__RAW_STATIC_FRAMES_RATED__ || null);
     const flagFlip = after.find((f) => f.flag === false); out.flagOffMs = flagFlip ? flagFlip.t - click : null;
     let blank = 0; for (let i = 1; i < after.length; i++) if (!after[i].grid) blank += after[i].t - after[i - 1].t; out.blankMs = Math.round(blank);
     out.finalGrid = after.length ? after[after.length - 1].grid : null;
@@ -198,5 +206,5 @@ async function session() {
   cdn.close();
   if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify(res, null, 1));
   if (res.error) { console.log('ERROR', res.error); return; }
-  console.log(`${res.scn} z${res.zoom} px ${res.pxBefore}->${res.pxAfter} ${res.theme} ${res.view} | settled ${JSON.stringify(res.settled)} | flagOff ${res.flagOffMs} ms | bandGone ${res.offMs} ms | honest grid ${res.honestMs} ms | blank ${res.blankMs} ms | final flag=${res.finalFlag} band=${res.finalActive} grid=${res.finalGrid} | console ${res.console.length}`);
+  console.log(`ratingGrid ${res.ratingGridMs} ms | painted ${res.ratedMs} ms | surf asks ${Array.isArray(res.surfAsks) ? res.surfAsks.length : res.surfAsks} | ${res.scn} z${res.zoom} px ${res.pxBefore}->${res.pxAfter} ${res.theme} ${res.view} | settled ${JSON.stringify(res.settled)} | flagOff ${res.flagOffMs} ms | bandGone ${res.offMs} ms | honest grid ${res.honestMs} ms | blank ${res.blankMs} ms | final flag=${res.finalFlag} band=${res.finalActive} grid=${res.finalGrid} | console ${res.console.length}`);
 })();

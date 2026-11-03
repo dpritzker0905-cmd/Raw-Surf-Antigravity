@@ -155,6 +155,8 @@ def test_retention_keeps_the_current_and_previous_bundle(tmp_path):
 
 def test_the_regional_sets_are_every_gfs_marine_pilot_box_after_the_world_sets(monkeypatch):
     from services.weather_pipeline import pilot_regions as pr
+    # The GFS sets alone (the EURO/ICON sets, ON by default since D-059, follow them: test_frame_set_bundle_euro_icon.py).
+    monkeypatch.setenv("FRAME_REGIONAL_BUNDLES_EURO_ICON", "0")
     boxes = {**pr.REGIONAL_CONFIGS, **pr.WORLDWIDE_COASTAL_REGIONS, **pr.GFS_MARINE_EXTRA_REGIONS,
              **pr.GFS_MARINE_STAGE_B_REGIONS}
     layers = ("waves", "swell_1", "swell_2", "wind_waves")                  # waves first: the stagger drops the trains first

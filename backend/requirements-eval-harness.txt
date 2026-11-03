@@ -1,0 +1,14 @@
+# OPTIONAL, for the evaluation harness ONLY (backend/scripts/eval_harness.py) - 2026-11-03.
+#
+# NOT a production dependency and NOT installed by CI, Render or the precompute lanes: production and CI decode
+# GRIB with pygrib (requirements.txt), whose Linux wheel bundles ecCodes. pygrib has no Windows wheel, so a Windows
+# harness run used the built-in decoder, which cannot read the GFS pgrb2 atmosphere file (data template 5.3) the
+# served 10 m wind comes from. ECMWF's own eccodes binding is the same ecCodes library, ships an official
+# win_amd64 wheel with the library bundled, and reads 5.3, so a local run can reach input parity
+# (eval_gate.input_parity: an ecCodes backend + the pgrb2 wind). The harness's backend order is pygrib, then
+# eccodes, then the built-in decoder (eval_grib2.select_backend); the backend and its library version are recorded
+# in every forecast manifest and scorecard.
+#
+# Install AFTER requirements.txt:   pip install -r requirements-eval-harness.txt
+# Verified 2026-11-03 on Windows / Python 3.12: eccodes 2.50.0 (ecCodes 2.50.0) decoded a GFS-Wave subset.
+eccodes==2.50.0

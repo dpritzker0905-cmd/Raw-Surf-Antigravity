@@ -83,7 +83,10 @@ test('a viewport box the mid tier answers is eligible; a world box still is; a n
   if (typeof DecompressionStream === 'undefined' || !(global.crypto && global.crypto.subtle)) {
     expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: TILE_BOX })).toBe(false);          // this jsdom: not capable
   }
-  expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: VIEW, surf: true })).toBe(false);
+  expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: VIEW, surf: true })).toBe(true);    // the RATED set (staticRatingFrames, ON by default, D-057)
+  window.__RAW_DISABLE_RATING_FRAMES__ = true;
+  expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: VIEW, surf: true })).toBe(false);   // killed: /grid
+  delete window.__RAW_DISABLE_RATING_FRAMES__;
   window.__RAW_DISABLE_STATIC_MID_CROP__ = true;
   expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: VIEW })).toBe(false);
   expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: WORLD })).toBe(true);

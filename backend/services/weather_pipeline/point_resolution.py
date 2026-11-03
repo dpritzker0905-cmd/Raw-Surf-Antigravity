@@ -163,6 +163,16 @@ class PointResolutionService:
                               "dir": _dir, "kind": kind})
             except Exception as _pe:
                 logger.debug(f"[Surf partitions] {part_layer} at ({lat},{lng}) skipped: {_pe}")
+        # SURF_PARTITION_TRACKING (dark, default '0'): GFS numbers its partitions per node, so the slot-wise
+        # bilinear blend above can mix two swells; on, the trains are matched by direction + period across the
+        # stencil first (partition_tracking.py). Fail-open: any miss keeps the slot-wise `parts` unchanged.
+        if parts and os.environ.get("SURF_PARTITION_TRACKING", "0") == "1":
+            from services.weather_pipeline.partition_tracking import tracked_from_cache
+            try:
+                _dt = parse_valid_time(valid_time_str)
+            except Exception:
+                _dt = None
+            parts = await tracked_from_cache(self, model, lat, lng, _dt, parts)
         if not parts:
             return None
         from services.weather_pipeline.surf_partitions import partitions_represent, reconcile_partitions
@@ -252,6 +262,11 @@ class PointResolutionService:
                 target_ts = target_dt.strftime("%Y%m%dT%H%M%SZ")
                 if filename_ts != target_ts:
                     adjusted_grid_product_id = grid_product_id.replace(filename_ts, target_ts)
+                    from services.weather_pipeline import product_run_keys as _rk
+                    if _rk.is_run_keyed(grid_product_id):    # another hour is another object: ask the manifest for its name
+                        manifest = await asyncio.to_thread(self.store.get_manifest)
+                        adjusted_grid_product_id = _rk.swap_valid_time(
+                            manifest, grid_product_id, filename_ts, target_ts) or adjusted_grid_product_id
                     file_path = self.store.cache_dir / adjusted_grid_product_id
                     if file_path.exists():
                         logger.info(f"[Point Resolution] Swapped grid_product_id from {grid_product_id} to {adjusted_grid_product_id} due to temporal mismatch during scrubbing.")
