@@ -390,6 +390,12 @@ _RATING_FLAGS = {
                                         "GFS targets past f336 need GFS_WORLD_FULL_HORIZON=1)",
                                     "repo variable MARINE_EXT_CEILING_MARGIN_H, read by forecast-ingest.yml AND forecast-ingest-pilots.yml env "
                                     "(both lanes bake tails: the 10-deg in core, the 2-deg ICON in pilots)"),
+    # SERVED NUMBER, DARK (2026-11-03): the rating's wind = the HRRR lane /grid already blends (D-017), inside CONUS and
+    # HRRR's horizon, for GFS ratings at every surface (rating_wind.py). L6: +1.17 rating pts [0.57, 1.82] vs GFS wind.
+    "RATING_WIND_HRRR":            ("0", "GFS surf ratings grade on the HRRR wind lane (the map's /grid lane: same product, "
+                                         "feather and 3 h taper at the horizon) inside HRRR's domain; GFS wind elsewhere. "
+                                         "Needs WIND_HRRR_LANE on. services/weather_pipeline/rating_wind.py",
+                                    "Render env AND forecast-ingest.yml AND precompute.yml env (and sim-parity-monitor.yml)"),
     "RATING_TIDE":                 ("0", "Tide-fit factor in spot ratings",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
     # 2026-07-30: partitions now reach the RATING at all three surfaces, so a lane split on this

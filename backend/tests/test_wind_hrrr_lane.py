@@ -371,11 +371,16 @@ def test_only_the_grid_route_calls_the_lane():
     # below: no store write in it). /capabilities (services/weather_pipeline/capabilities.py, 2026-10-22) only READS box_state(),
     # the blend's constants, so the client can refuse static frames blended with others; it never applies the lane (asserted below).
     # routes/weather_wind_lane.py (2026-10-23) serves box_state() read-only: the lane the box holds, never applied (asserted below).
+    # services/weather_pipeline/rating_wind.py (2026-11-03, RATING_WIND_HRRR, default '0'): the rating's wind reads the SAME lane
+    # (current_lane, blend_vector) at one point, behind its own dark flag; it never applies the grid blend (asserted below), and
+    # with the flag off no served number moves (tests/test_rating_wind_hrrr.py pins that byte for byte).
     assert sorted(callers) == ["routes/weather.py", "routes/weather_wind_lane.py", "server.py", "services/frame_set_wind.py",
                                "services/weather_pipeline/capabilities.py",
+                               "services/weather_pipeline/rating_wind.py",
                                "services/weather_pipeline/series_memo_keys.py",
                                "services/weather_pipeline/wind_lane_ingest.py"], callers
-    for ro in ("services/weather_pipeline/capabilities.py", "routes/weather_wind_lane.py"):
+    for ro in ("services/weather_pipeline/capabilities.py", "routes/weather_wind_lane.py",
+               "services/weather_pipeline/rating_wind.py"):
         tree_ro = ast.parse((BACKEND / ro).read_text(encoding="utf-8"))
         assert not [n for n in ast.walk(tree_ro) if isinstance(n, ast.Call)
                     and getattr(n.func, "attr", getattr(n.func, "id", None)) == "apply_wind_lane"], ro

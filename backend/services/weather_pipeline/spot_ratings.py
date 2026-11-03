@@ -107,6 +107,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     geometry_readiness = None
     partitions = None
     run_time = wind_run_time = None
+    wind_src = None
     cycle_evidence = {lane: time_provenance(None) for lane in ('marine', 'wind')}
     try:
         marine = await resolver.resolve_point(
@@ -160,6 +161,9 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
             cycle_evidence['wind'] = time_provenance(wind)
             wind_ms = (wind.point.speed or 0.0) * SR.KT_TO_MS    # wind point speed is knots
             wind_from = wind.point.direction
+            # RATING_WIND_HRRR (dark): the resolver already put the HRRR lane's wind on this point (rating_wind.py);
+            # this only records it. None (absent below) unless the flag is on and HRRR carried weight.
+            wind_src = (getattr(wind, "_rating_wind", None) or {}).get("src")
     except Exception as e:
         logger.debug(f"[spot-ratings] wind resolve failed for {spot.get('id')}: {e}")
     # Tide (global, lat/lng): the tide level + the spot's best_tide prior → tide_fit factor. Gated RATING_TIDE
@@ -333,6 +337,8 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         # downloads. The live path keeps them inline (nothing to intern, one request).
         "run_time": run_time,
         "wind_run_time": wind_run_time,
+        # WHICH WIND MODEL, when it is not the rated model's own: 'hrrr' / 'hrrr+gfs' (RATING_WIND_HRRR). Absent otherwise.
+        **({"wind_src": wind_src} if wind_src else {}),
         "time_provenance": {lane: {k: _iso_z(v) if isinstance(v, datetime) else v
                                    for k, v in evidence.items()}
                             for lane, evidence in cycle_evidence.items()},
