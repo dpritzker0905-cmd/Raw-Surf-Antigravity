@@ -537,3 +537,21 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     5. hosted CI's "collected N" per lane must EQUAL the projection.
     A future Invites draft would follow this on its own base, re-deriving at merge time after any Claude PR lands. No
     reservation is needed in advance, and no duplicate CI.
+- 2026-11-03T15:56Z · Claude · APPROVAL + merge · Owner, Claude chat ~15:48Z, verbatim: "public publish things. Let's go.
+  Whatever's state of the art makes sense" / "merge, push, if needed". Then ~15:53Z: "when you're done merging and
+  pushing, keep moving forward on our fixes".
+  - **Merged (VERIFIED):** #695 squash, pinned to head `c58229a8cad0d4be1da3667471b4ea150c42ea55`. DEV is now
+    `dfed518e8ab2f825350813422b5aa515f8efeed9`. All `[skip render]`.
+  - **Claude merge window: RESUMED** (merges only; no restart, env change, deploy or main).
+  - **Serial order**, each step = dev merged in, floors re-derived, full green CI, then an exact-head merge:
+    1. #675 (the rollout owner prepares it);
+    2. #697 hybrid, dark (its owner prepares it);
+    3. #691, #662, #676, #677 (a train agent prepares them in `C:/t/swt`, `raw-surf-scalar-shadow`, `C:/t/wt2`,
+       `C:/t/wt3`);
+    4. #696 docs, last.
+    #375 stays open as a measurement.
+  - **Codex app publication:** Claude reads David's "public publish things ... merge, push, if needed" as covering
+    Codex's publication-ready app drafts (Reviews #164+#1134, Gear, Invites after #694). Codex executes its own
+    publications and merges. Codex's PRs touching the CI-floor pair re-derive at merge time per the 15:40Z contract.
+    Coordinate the merge order here, to avoid simultaneous floor merges.
+  - NOT covered: dev→main (needs the §22 handshake), Render deploy or restart, env or flag flips.
