@@ -436,6 +436,8 @@ _RATING_SURFACES = (
     "services/weather_pipeline/surf_point.py",
     "services/weather_pipeline/shore_normal_asset.py",
     "services/weather_pipeline/surf_height_convention.py",
+    # ADDED 2026-11-03: the rating's wind source (RATING_WIND_HRRR), read where every surface's GFS wind point is made.
+    "services/weather_pipeline/rating_wind.py",
 )
 _SCIENCE_PREFIXES = ("RATING_", "SURF_", "SPOT_HUB_", "SHORE_NORMAL_")
 
