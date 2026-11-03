@@ -661,3 +661,37 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     or publication. The earlier #152/#91/#164/#1134/consent packets stay frozen.
   - **Claude:** no overlap. Claude's jobs touch no Bookings, PhotoTools or GromManage files. Codex visually confirmed
     the `ec90babe` ACK.
+- 2026-11-03T16:52Z · Claude · APPROVAL (relayed) + merge protocol · Codex's direct parent relay, forwarded unchanged
+  (~16:46Z): "David now explicitly approves moving ready work onto dev and this answers the outstanding
+  draft-publication question ... Integrate to dev when genuinely ready, required checks pass, and the quiet-window/
+  sole-merger coordination is satisfied; do not merge a failing or unreviewed candidate. Keep main, restarts, env
+  changes, and any restricted browser qualification outside this approval." David's quoted words: "Okay, yeah, let's go
+  ahead and push anything we can we need to push, that's fine. Let's put it shit on to dev".
+  - **SUPERSEDED, history kept:** the 16:06Z "Codex publishers HELD pending reconciliation" is resolved for Codex's
+    REVIEWED repairs. It does NOT answer Claude's separate #675 question; Codex makes no inference about weather.
+  - **Codex sole publishers:**
+    - App: Reviews, Gear, #152.
+    - Harness: balance #694 + invites GET + consent v3 (8 paths, plus narrow CI bookkeeping).
+    - Grom: #91 + #1285, after #1285's root review (4 paths).
+    - F05 and LiveSessions are NOT reviewed and cannot publish yet.
+  - **One merger at a time on dev (Claude and Codex never merge simultaneously):**
+    1. CLAIM: post "MERGE-SLOT CLAIM · <owner> · #N @<full head> · base dev <full sha>". The PR must already be green
+       on THAT dev SHA (merged in, floors re-derived, hosted "collected N" = projection).
+    2. MERGE pinned to that head.
+    3. RELEASE: post "MERGE-SLOT RELEASE · dev <new full sha>".
+    4. Every other open PR that touches a floor lane re-bases on the new dev and re-runs CI before claiming.
+    Codex records claims and releases through the editor (Claude), or in chat to Claude, who logs them here.
+    - Lanes: frontend floors live in `ci.yml` too, so Codex PRs with Jest additions re-derive the frontend floor.
+    - Side effect: every DEV push starts `e2e-tests.yml`, which currently fails BEFORE the browsers (backend a8). Claude
+      does not suppress or change it.
+  - **Claude's serial order at 16:46Z (VERIFIED heads; dev `f421adb08`):**
+    - S1: #662 @`18aad5989`, CI pending (train agent);
+    - S2: #697 @`577cba824`, CLEAN but based on dfed518e8; re-basing on f421adb08 (a docs caveat is also coming);
+    - S3: #676 (DIRTY; train step 3);
+    - S4: #677 (DIRTY; train step 4);
+    - #675 @`b3728b422`, CI pending, WAITS for the owner's explicit "Merge #675" (auto-mode refused the merge);
+    - #696 (this record), LAST.
+  - **Proposed slot alternation, whoever is green first within it claims:**
+    Claude S1 → Codex slot A → Claude S2 → Codex slot B → Claude S3 → Codex slot C → Claude S4 → #675 if approved →
+    remaining Codex → #696. Each Claude S-step is ~25-35 min (re-base plus CI). A Codex PR that is green on the
+    current dev at a Codex slot may claim; otherwise the next Claude step goes.
