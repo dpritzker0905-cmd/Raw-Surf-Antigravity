@@ -44,7 +44,7 @@ beforeEach(() => {
     if (path.startsWith('/credits/')) return Promise.resolve({data:{user_id:'synthetic-a',balance:0}});
     return Promise.resolve({ data: [] });
   });
-  apiClient.post.mockResolvedValue({ data:{status:'accepted',amount_paid:25,new_balance:75} });
+  apiClient.post.mockResolvedValue({ data:{status:'accepted',amount_paid:25,new_balance:75,amount_paid_credits:'25.00'} });
 });
 
 it('keeps the registered invite URL and all other resource requests with no payment or auth override', async () => {
@@ -182,16 +182,75 @@ it('does not revive an earlier A lifetime after A to B to A', async () => {
 
 it.each([true,false])('preserves the existing response action and its successful refetch: accept=%p', async accept => {
   const { result } = mount();
-  await act(async () => { await result.current.handleRespondToInvite('synthetic-invite-id',accept); });
-  expect(apiClient.post.mock.calls).toEqual([[`/bookings/invites/synthetic-invite-id/respond?accept=${accept}`]]);
-  expect(toast.success).toHaveBeenCalledWith(accept ? 'Invite accepted!' : 'Invite declined');
+  await act(async () => { await result.current.handleRespondToInvite('synthetic-invite-id',accept,accept ? {consentQuote:'a'.repeat(64)} : {}); });
+  expect(apiClient.post.mock.calls).toEqual([[`/bookings/invites/synthetic-invite-id/respond?accept=${accept}${accept ? '&consent_quote=' + 'a'.repeat(64) : ''}`]]);
+  expect(toast.success).toHaveBeenCalledWith(accept ? 'Invite accepted! Paid 25.00 credits' : 'Invite declined');
   expect(reads).toHaveLength(1);
   await settle(reads[0], []);
 });
 
 it('keeps response errors separate from a list read or success state', async () => {
   const { result } = mount(); apiClient.post.mockRejectedValueOnce({response:{data:{detail:'Synthetic refusal'}}});
-  await act(async () => { await result.current.handleRespondToInvite('synthetic-invite-id',true); });
+  await act(async () => { await result.current.handleRespondToInvite('synthetic-invite-id',true,{consentQuote:'a'.repeat(64)}); });
   expect(toast.error).toHaveBeenCalledWith('Synthetic refusal');
   expect(toast.success).not.toHaveBeenCalled(); expect(apiClient.get).not.toHaveBeenCalled();
+});
+
+const consentOptions = {consentQuote:'a'.repeat(64)};
+it('loads a quote without mutation, success toast, or aggregate refetch', async () => {
+  const {result}=mount();apiClient.get.mockResolvedValueOnce({data:{invite_id:'invite-a',quote:'a'.repeat(64)}});
+  let response;await act(async()=>{response=await result.current.handleRespondToInvite('invite-a',true,{quoteOnly:true});});
+  expect(response.status).toBe('quoted');
+  expect(apiClient.get.mock.calls).toEqual([['/bookings/invites/invite-a/accept-quote']]);
+  expect(apiClient.post).not.toHaveBeenCalled();expect(toast.success).not.toHaveBeenCalled();
+});
+
+it.each([undefined,{}, {consentQuote:'bad'}])('refuses unconfirmed acceptance in the hook: %p',async options=>{
+  const {result}=mount();await act(async()=>{await result.current.handleRespondToInvite('invite-a',true,options);});
+  expect(apiClient.post).not.toHaveBeenCalled();expect(apiClient.get).not.toHaveBeenCalled();
+});
+
+it('suppresses duplicate mutations while a confirmed action is pending',async()=>{
+  const {result}=mount();const response=deferred();apiClient.post.mockReturnValueOnce(response.promise);
+  let first;act(()=>{first=result.current.handleRespondToInvite('invite-a',true,consentOptions);});
+  await act(async()=>{await result.current.handleRespondToInvite('invite-a',true,consentOptions);});
+  expect(apiClient.post).toHaveBeenCalledTimes(1);
+  await act(async()=>{response.resolve({data:{status:'accepted',amount_paid_credits:'25.12'}});await first;});
+  expect(toast.success).toHaveBeenCalledWith('Invite accepted! Paid 25.12 credits');
+  await settle(reads[0],[]);
+});
+
+it.each([null,503])('does not retry an ambiguous financial failure or reopen payment: %p',async status=>{
+  const {result}=mount();apiClient.post.mockRejectedValueOnce(status ? {response:{status}} : new Error('Synthetic reset'));
+  let outcome;await act(async()=>{outcome=await result.current.handleRespondToInvite('invite-a',true,consentOptions);});
+  expect(outcome.status).toBe('uncertain');
+  await act(async()=>{
+    await result.current.handleRespondToInvite('invite-a',true,consentOptions);
+    outcome=await result.current.handleRespondToInvite('invite-a',true,{quoteOnly:true});
+  });
+  expect(outcome.status).toBe('uncertain');expect(apiClient.post).toHaveBeenCalledTimes(1);
+  expect(apiClient.get).not.toHaveBeenCalled();expect(toast.success).not.toHaveBeenCalled();
+});
+
+it('returns amount conflict without automatic quote or payment retry',async()=>{
+  const {result}=mount();apiClient.post.mockRejectedValueOnce({response:{status:409}});
+  let outcome;await act(async()=>{outcome=await result.current.handleRespondToInvite('invite-a',true,consentOptions);});
+  expect(outcome.status).toBe('changed');expect(apiClient.post).toHaveBeenCalledTimes(1);
+  expect(apiClient.get).not.toHaveBeenCalled();expect(toast.success).not.toHaveBeenCalled();
+});
+
+it.each([null,{status:'accepted',amount_paid_credits:'NaN'},{status:'pending',amount_paid_credits:'25.00'}])('treats malformed success as uncertain: %p',async data=>{
+  const {result}=mount();apiClient.post.mockResolvedValueOnce({data});let outcome;
+  await act(async()=>{outcome=await result.current.handleRespondToInvite('invite-a',true,consentOptions);});
+  expect(outcome.status).toBe('uncertain');expect(toast.success).not.toHaveBeenCalled();expect(apiClient.get).not.toHaveBeenCalled();
+});
+
+it.each(['quote','mutation'])('discards old-session %s completions without success or refetch',async kind=>{
+  const {result,props,rerender}=mount();const response=deferred();
+  if(kind==='quote')apiClient.get.mockReturnValueOnce(response.promise);else apiClient.post.mockReturnValueOnce(response.promise);
+  let pending;act(()=>{pending=result.current.handleRespondToInvite('invite-a',true,kind==='quote'?{quoteOnly:true}:consentOptions);});
+  rerender({...props,user:identity('synthetic-b','other-session')});let outcome;
+  await act(async()=>{response.resolve({data:{status:'accepted',amount_paid_credits:'25.12'}});outcome=await pending;});
+  expect(outcome.status).toBe('stale');expect(toast.success).not.toHaveBeenCalled();
+  expect(apiClient.get).toHaveBeenCalledTimes(kind==='quote'?1:0);
 });
