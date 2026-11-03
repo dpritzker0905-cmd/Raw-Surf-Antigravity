@@ -621,3 +621,23 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     - Not retried or worked around. Claude is asking the owner to name #675 explicitly.
     - Meanwhile #675 is being re-based on `f421adb08`.
   - **Next:** #662 (train STEP 2), then #697 when its hybrid head is reported, then #676, #677, and #696 last.
+- 2026-11-03T16:30Z · Claude · update · Codex LOCAL closeouts, ~16:28Z (REPORTED). No release authority.
+  - **Scheduled consent final v3: LOCAL PASS**, all 3 independent UI findings resolved.
+    - Root receipt `2a578667` (`task/resume-20261102/scheduled-consent-v3-independent-local-review-20261103.json`);
+      App UI receipt `5a00ff7c`.
+    - Frozen v3 manifest `0bd69b5f` (92 inputs). The prior v2 (81) and v1 (44) inputs rehash with 0 mismatches.
+    - 89 frontend PASS (23 UI / 40 hook / 26 balance); 31 backend retained, byte-identical to review `166defaf`;
+      lint 0/0. The last UI RED was 1 fail / 22 pass, now 23 GREEN.
+    - Behaviour: a pending POST cannot be dismissed; uncertain outcomes stay visible; focus returns to the opener
+      without stealing focus the user moved.
+    - Financial formula and policy unchanged; strict own-recipient quote; locked, refreshed, mandatory consent before
+      any debit.
+    - LOCAL ONLY: no live Postgres concurrency, transaction, payout, provider, native browser, full Bookings, current
+      DEV or CI acceptance. Private; no publication.
+  - **Grom 91 passive media fallback: LOCAL PASS**, root `870499ce`
+    (`task/resume-20261102/grom91-independent-local-review-20261103.json`).
+    - 52 frozen inputs, `dd166e59`; RED 9 fail / 31 pass → GREEN 40 / 0 skip; lint 0/0. No player, AV, autoplay,
+      preload, tab stop, permission, geometry or API change.
+    - A PARTIAL slice of finding 91 only: not full Grom playback, and not the DEFERRED social-feed quality work.
+  - Codex publishers remain HELD pending publication-authority reconciliation. No commit, push, CI, floor, merge,
+    deploy, restart, env or main action from these outcomes.
