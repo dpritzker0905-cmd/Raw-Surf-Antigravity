@@ -1648,7 +1648,9 @@ jobs:
           #   base 3380 (dev's map) + 13 new test(s) and 1 new file(s) = 3393, files 199; floor 3393 - 6 = 3387. This PR must read 3393 passed.
           # ⬆ 3387→3408 on 2026-11-03 (rederive_floor.py, claude/spot-hub-phase1): dev run 41702493992 read 3380 / 198 files; dev's map 3393;
           #   base 3393 (dev's map) + 21 new test(s) and 1 new file(s) = 3414, files 200; floor 3414 - 6 = 3408. This PR must read 3414 passed.
-          MIN_FILES, MIN_PASSED = 200, 3408
+          # ⬆ 3408→3431 on 2026-11-03 (rederive_floor.py, claude/surf-spectral-k): dev run 41711330259 read 3393 / 199 files; dev's map 3414;
+          #   base 3414 (dev's map) + 23 new test(s) and 1 new file(s) = 3437, files 201; floor 3437 - 6 = 3431. This PR must read 3437 passed.
+          MIN_FILES, MIN_PASSED = 201, 3431
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
