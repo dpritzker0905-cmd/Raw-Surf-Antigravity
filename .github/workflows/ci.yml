@@ -1638,7 +1638,9 @@ jobs:
           #   base 3172 (hosted read) + 53 new test(s) and 2 new file(s) = 3225, files 190; floor 3225 - 6 = 3219. This PR must read 3225 passed.
           # ⬆ 3219→3223 on 2026-11-03 (rederive_floor.py, claude/euro-estimate-continuity, restore revalidation: +4 tests): dev run 41549383722 read 3172 / 188 files; dev's map 3172;
           #   base 3172 (hosted read) + 57 new test(s) and 2 new file(s) = 3229, files 190; floor 3229 - 6 = 3223. This PR must read 3229 passed.
-          MIN_FILES, MIN_PASSED = 190, 3223
+          # ⬆ 3223→3224 on 2026-11-03 (rederive_floor.py, claude/euro-estimate-continuity, restore lane-direction + later-backup cases: +1 test): dev run 41549383722 read 3172 / 188 files; dev's map 3172;
+          #   base 3172 (hosted read) + 58 new test(s) and 2 new file(s) = 3230, files 190; floor 3230 - 6 = 3224. This PR must read 3230 passed.
+          MIN_FILES, MIN_PASSED = 190, 3224
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

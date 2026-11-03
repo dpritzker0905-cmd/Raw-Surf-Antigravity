@@ -570,19 +570,28 @@ def _live_writes(io, since, keys=("w.json", "d.json")):
     return [op for op in io.ops[since:] if op[0] in ("upload", "copy", "delete") and op[1] in keys]
 
 
-@pytest.mark.parametrize("change", ["pilots_newer_write", "core_newer_write", "byte_only_rewrite", "corrupt_snapshot"])
-def test_a_change_after_the_plan_means_no_live_write_at_all(tmp_path, change):
-    store, io, run = _written_run(tmp_path)
-    plan = restore.plan_restore(io, "core")
-    assert plan["refusals"] == []
-    if change in ("pilots_newer_write", "core_newer_write"):
-        writer = change.split("_")[0]
+@pytest.mark.parametrize("restore_lane,writer,change", [
+    ("core", "pilots", "newer_write"),          # restore core; the PILOTS lane writes newer data after the plan
+    ("pilots", "core", "newer_write"),          # restore pilots; the CORE lane writes newer data after the plan
+    ("core", None, "byte_only_rewrite"),        # same registration, new bytes
+    ("core", None, "corrupt_first_backup"),     # d.json: the first backup in sorted order
+    ("core", None, "corrupt_later_backup"),     # w.json: a LATER backup, d.json valid -> still no write at all
+])
+def test_a_change_after_the_plan_means_no_live_write_at_all(tmp_path, monkeypatch, restore_lane, writer, change):
+    monkeypatch.setattr(r, "OWNER_LANE", restore_lane)    # the snapshot is taken by (and restored for) restore_lane
+    store, io, run = _written_run(tmp_path, restore_lane)
+    plan = restore.plan_restore(io, restore_lane)
+    assert plan["refusals"] == [] and [e["filename"] for e in plan["entries"]] == ["d.json", "w.json"]
+    if change == "newer_write":
         io.objects["w.json"] = f"w-{writer}-newer".encode()
         io.head.append(dict(_prod(T0, NEW + timedelta(hours=4), "w.json").model_dump(mode="json"), product_id=f"{writer}-key"))
     elif change == "byte_only_rewrite":
         io.objects["w.json"] = b"same registration, new bytes"
-    else:                                                   # one snapshot of N corrupted: the OTHER key must not be written
+    elif change == "corrupt_first_backup":
         io.objects[f"{run.prefix}/d.json"] = b"bit rot"
+    else:
+        assert r.sha256(io.objects[f"{run.prefix}/d.json"]) == r.sha256(b"d-old")      # the first backup stays valid
+        io.objects[f"{run.prefix}/w.json"] = b"bit rot"
     live = {k: io.objects.get(k) for k in ("w.json", "d.json")}
     since, keys_before = len(io.ops), dict(io.objects)
     out = restore.apply_restore(io, store, plan, publish=lambda *a: pytest.fail("published"))

@@ -192,3 +192,13 @@ change.
 - The tests (`test_rollout_675.py`, 45) and the recovery limits above (snapshots keep 2 cycles per lane; restore on demand only,
   refusing with zero mutation on any change after the plan; the residual last-check-to-first-write race; the recommended
   exclusive-writer window) describe `761703751`. This entry and its ledger line are docs only (no code change after it).
+
+## 2026-11-03 UTC: restore proof cases tightened (Codex review of 451776da4; tests only, no code change)
+- `test_a_change_after_the_plan_means_no_live_write_at_all` now parameterizes the restored lane AND the writing lane: restore core
+  with a newer PILOTS write after the plan, and restore pilots with a newer CORE write (the earlier "core_newer_write" case was
+  core -> core). It adds a corruption of a LATER backup (`w.json`, second in sorted order) while the first (`d.json`) stays valid:
+  no destination write happens, which proves every backup is checked before the first write. Mutation check (verification
+  interleaved with the writes) turns exactly that case red. `test_rollout_675.py`: 46 tests; chain floor 3223 -> 3224 (3230).
+- The residual stands as written above: the final per-key validation -> write race remains across the whole multi-key restore;
+  an exclusive all-writer window is recommended, NOT enforced; there is no standing restore authority (it is still an approval
+  the owner has not given). The exact head for this entry is the commit that adds it (bound in ledger fragment line 4).
