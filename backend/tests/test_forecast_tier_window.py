@@ -32,6 +32,19 @@ def test_tier_days_are_the_resolvers_numbers():
     assert _resolver_days() == W.TIER_FORECAST_DAYS
 
 
+def test_tier_models_are_the_resolvers_lists():
+    src = open(RESOLVER_JS, encoding="utf-8").read()
+    block = src[src.index("TIER_ACCESS = {"):src.index("};", src.index("TIER_ACCESS = {"))]
+    js = {m.group(1): tuple(re.findall(r"'([^']+)'", m.group(2)))
+          for m in re.finditer(r"(\w+):\s*\{\s*models:\s*\[([^\]]*)\]", block)}
+    assert js == W.TIER_MODELS
+
+
+def test_allowed_models_follows_the_canonical_tier():
+    assert W.allowed_models("tier_1") == ("GFS",) and W.allowed_models(None) == ("GFS",)
+    assert W.allowed_models("Premium Annual") == ("GFS", "EURO", "ICON") == W.allowed_models("paid")
+
+
 @pytest.mark.parametrize("raw,tier", [
     ("free", "free"), ("tier_1", "free"), ("basic", "basic"), ("paid", "basic"), ("tier_2", "basic"),
     ("premium", "premium"), ("pro", "premium"), ("admin", "premium"), ("tier_3", "premium"), ("tier_4", "premium"),
