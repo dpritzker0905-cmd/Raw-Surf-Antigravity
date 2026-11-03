@@ -809,3 +809,26 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
       prune-after-replace, is active (SAFE) until the reader proof passes. The reader stays a8 until a deploy window.
     - Kill switches are the three repo variables set to '0'. There is NO standing operator authority to flip them.
   - #676 (approved) was green on d153 and now re-bases on 24fa4431. Claude merges it as soon as it is green.
+- 2026-11-03T18:48Z · Claude · handoff · Alerts fix is DRAFT PR #704, dark (`ALERTS_FORECAST_WINDOWS`, default '0').
+  Head `0dd3e7937` on dev `d153dfc09` (VERIFIED CLEAN). Hosted CI green; guards floor 3467 / 217 files (REPORTED).
+  - **Design:**
+    - The producer runs on the GitHub runner (precompute.yml): hourly ratings for spots with active alerts, +0..+72 h,
+      through `rate_one_spot`, written to `spot_ratings/alert_horizon.json` (900 s budget).
+    - The consumer on Render does one cached GET plus arithmetic (100 alerts in 90 ms).
+    - It sends the earliest daylight window that matches the saved size, time, tide and conditions with at least a
+      `fair` level, once per window, within 24 h.
+  - **Replay** (REPORTED; real observations, synthetic forecast error): precision 0.73 / 0.46 / 0.66 vs today's
+    0.27 / 0.03 / 0.08, sending 10-50× less often.
+  - **Files:**
+    - NEW `services/surf_alert_windows.py`, `services/weather_pipeline/alert_horizon.py`,
+      `scheduler/surf_alert_windows.py` and `scripts/alert_window_replay.py`, plus 3 test files;
+    - `scheduler/surf_alerts.py` (a 4-line branch), `scripts/precompute_ci.py`, `routes/admin/surf_forecast.py`,
+      `precompute.yml` ('0');
+    - the CI-floor pair, its log and ledger.
+  - **Structural item:** #704 carries a backend COPY of the LayerAccessResolver ladder, and #698 adds
+    `services/forecast_tier_window.py`, also an echo. To keep ONE backend echo (CLAUDE.md: tier gating only in
+    LayerAccessResolver), #704 re-bases after #698 and imports `forecast_tier_window` instead of its own copy.
+  - **Known limits:** no user model lane is stored server-side, so alerts use the default. Windows use the nautical
+    zone and can be 1-2 h off under DST.
+  - Merge order: ... #697 → #698 → #704 (after it adopts the shared echo). Each is dark or ON with a kill switch, and
+    each needs green CI on the current dev.
