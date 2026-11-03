@@ -364,3 +364,29 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
   - Proposed plan, P0-P4: label/bug fixes ON; one tier resolver; the hub delegates to `rate_one_spot` (dark); a CI
     spot-series shard job to the CDN (dark); rating-colour charts ON with a kill switch.
   - Owner decisions are listed in the memory file. Nothing built.
+- 2026-11-03T05:00Z · Claude · HANDOFF (pre-restart) · The owner paused for a Claude Code restart (~04:55Z). He approved
+  ("Yes, start them") spot-hub phase 1 (labels, bugs, tides in infoboxes) plus the single tier resolver: NOT STARTED,
+  starts after the restart. On resume, VERIFY Git/PR state before editing.
+  - **DEV:** `12fdcd22839f70c12d80ccb5c2bb5d4c787c5652`. Claude window OPEN, merges PAUSED.
+  - **#675 v2 DONE.** Exact head to review: `451776da4214…` (docs-only on top of code head `761703751`).
+    - P2 restore fix: preflight of all snapshots, then a fresh revalidation before the first write; zero-clobber
+      controls in both lane directions, the byte-only case and a corrupted snapshot.
+    - Tests 45; CI green (41575644898 code, 41578789157 docs); chain 3229/190, floor 3223.
+    - Residual TOCTOU stated; recommendation: an exclusive-writer restore window (lanes held).
+    - REPORTED by its builder; heads VERIFIED by `git ls-remote` at 04:56Z.
+  - **#695 v0.1 IN FLIGHT** at restart. Remote head `a897361b19cf…`; its final report is not received. On resume:
+    read `C:/t/eh0`, check CI, check that the P2 redirect fix, the eccodes backend and the ratchet are present, then
+    the flip-PR scorecard (scope recorded 03:30Z).
+  - **CONSENSUS_DIRECTION_VECTOR IN FLIGHT** at restart. `C:/t/cdv` is still at dev (no commits); branch not pushed.
+    Restart this build from its brief.
+  - **Surfer-logic research IN FLIGHT** at restart; no report. Re-launch if needed.
+  - **Finished research:** v2/eval operations, inventive A (data sources), inventive B (methods), spot hubs. All in
+    memory (`research-*-2026-11-03.md`).
+  - **LongCat:** peer session registered MCP `longcat-reviewer` (preview_review, submit_review). It should appear after
+    the restart.
+  - **Reserved worktrees:** `C:/t/r675v2`, `C:/t/eh0`, `C:/t/cdv`, `C:/t/coord`. Their trees were clean at 04:56Z.
+  - **Owner decisions pending:**
+    - exact-head merges: #675 at `451776da4`, #676, #677, #691, #662, #375, #695, #696;
+    - spot-hub details (free window rolling vs calendar; CDN 14-day shard tier exposure; tide days 9-14; chart cadence;
+      hub model);
+    - free Copernicus accounts for satellite direction truth.
