@@ -109,7 +109,10 @@ def test_sweep_never_lets_estimated_displace_authoritative(tmp_path):
     assert pruned == 2
 
 
-def test_superseded_prune_estimated_batch_cannot_wipe_natives(tmp_path):
+def test_superseded_prune_estimated_batch_cannot_wipe_natives(tmp_path, monkeypatch):
+    # Pins the KILL-SWITCH path: INGEST_PRUNE_ESTIMATES_AFTER_REPLACE is ON by default since 2026-11-01 (owner) and keeps an
+    # unreplaced estimate; tests/test_estimate_continuity.py pins the ON path.
+    monkeypatch.setenv("INGEST_PRUNE_ESTIMATES_AFTER_REPLACE", "0")
     store = ProductStore(cache_dir=tmp_path)
     t0 = datetime(2026, 7, 6, 0, 0, tzinfo=timezone.utc)
     native_run = datetime(2026, 7, 6, 4, 20, tzinfo=timezone.utc)
@@ -164,9 +167,12 @@ def test_superseded_prune_native_batch_preserves_estimated_tail(tmp_path):
     assert remaining == {"euro_waves_new_native.json", "euro_waves_old_est.json"}
 
 
-def test_superseded_prune_estimated_tail_goes_once_newer_estimates_exist(tmp_path):
+def test_superseded_prune_estimated_tail_goes_once_newer_estimates_exist(tmp_path, monkeypatch):
     """The second half of write-new-then-delete-old: after the extended-estimates job saves the
     NEW tail, the next prune supersedes the old one (est-vs-est newest-run rule unchanged)."""
+    # Pins the KILL-SWITCH path: INGEST_PRUNE_ESTIMATES_AFTER_REPLACE is ON by default since 2026-11-01 (owner) and keeps an
+    # unreplaced estimate; tests/test_estimate_continuity.py pins the ON path.
+    monkeypatch.setenv("INGEST_PRUNE_ESTIMATES_AFTER_REPLACE", "0")
     store = ProductStore(cache_dir=tmp_path)
     t0 = datetime(2026, 7, 6, 0, 0, tzinfo=timezone.utc)
     old_est = datetime(2026, 7, 6, 11, 19, tzinfo=timezone.utc)

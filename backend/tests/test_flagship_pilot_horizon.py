@@ -32,6 +32,11 @@ def test_gfs_pilot_uses_flagship_first_horizon():
     revert flagship coasts to the 8d worldwide horizon (the coastal 14-day regression)."""
     import inspect
     from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+    from services.weather_pipeline import pilot_regions
     src = inspect.getsource(WeatherPipelineScheduler.ingest_gfs_marine_pilot)
-    assert "flagship_pilot_days" in src, "GFS pilot must select the flagship-first horizon"
-    assert "GFS_MARINE_FLAGSHIP_FORECAST_DAYS" in src
+    # 2026-11-01 (item 13): both call sites read pilot_regions.gfs_marine_pilot_days, which holds the env reads and
+    # the GFS_PILOT_FULL_HORIZON switch, so the selection is checked where it now lives.
+    assert src.count("gfs_marine_pilot_days(") == 2, "both GFS pilot call sites must use the shared horizon helper"
+    helper = inspect.getsource(pilot_regions.gfs_marine_pilot_days)
+    assert "flagship_pilot_days" in helper, "GFS pilot must select the flagship-first horizon"
+    assert "GFS_MARINE_FLAGSHIP_FORECAST_DAYS" in helper
