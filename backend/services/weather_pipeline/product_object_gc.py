@@ -33,16 +33,19 @@ def is_product_object(name) -> bool:
     return bool(name) and "/" not in name and _PRODUCT_NAME.match(name) is not None
 
 
-def plan_sweep(listed, referenced, marks, now, grace_s, min_manifest=500, max_delete=500):
+def plan_sweep(listed, referenced, marks, now, grace_s, min_manifest=500, max_delete=500, only=None):
     """PURE. (to_delete, new_marks, reason). `marks` maps name -> first-seen-unreferenced epoch seconds.
 
-    reason is None for a normal sweep, or why nothing was planned (the guards)."""
+    reason is None for a normal sweep, or why nothing was planned (the guards). `only` (the #675 rollout, rollout_675_io.
+    scoped_gc_sweep) limits marking and deleting to those names; the guards still read the whole listing."""
     products = [n for n in listed if is_product_object(n)]
     if len(referenced) < min_manifest:
         return [], dict(marks), f"head names only {len(referenced)} objects (< {min_manifest})"
     unreferenced = [n for n in products if n not in referenced]
     if products and len(unreferenced) > 0.95 * len(products):
         return [], dict(marks), f"{len(unreferenced)}/{len(products)} objects look unreferenced (> 95%)"
+    if only is not None:
+        unreferenced = [n for n in unreferenced if n in only]
     new_marks = {n: marks.get(n, now) for n in unreferenced}
     due = sorted((t, n) for n, t in new_marks.items() if n in marks and now - t >= grace_s)
     to_delete = [n for _, n in due[:max_delete]]

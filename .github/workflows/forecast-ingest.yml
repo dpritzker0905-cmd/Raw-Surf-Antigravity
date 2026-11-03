@@ -70,6 +70,10 @@ jobs:
           LATTICE_FILL_REFRESH_STALE: ${{ vars.LATTICE_FILL_REFRESH_STALE || '1' }}
           # ON by default, kill switch '0' (owner 2026-11-01 22:10 EST); built (wired 2026-11-01; code by Codex 10-19): '1' = the EURO coarse GFS 10-14 d tail keeps every entry of the already three-hourly NOAA cache (step 1) instead of index stride 3, which makes NINE-hourly estimates the 6-h lattice cap refuses to bridge. Core run 41347283478 logged 9 such 'NON-fillable' 9 h holes (EURO swell_1/swell_2/wind_waves global_coarse, 11-16T09Z..11-17T12Z). Core lane only (the EURO coarse job runs here). Changes served tail values: owner's word with evidence (D-001).
           EURO_MARINE_NATIVE_TAIL_CADENCE: ${{ vars.EURO_MARINE_NATIVE_TAIL_CADENCE || '1' }}
+          # #675 ROLLOUT v2 (2026-11-02, rollout_675.py): the reader whose /capabilities the run-start gate GETs ONCE (5 s timeout,
+          # fail closed) for reader_protocol + revision_probe; flags (2) and (3) run only when it serves the previous run's canary.
+          # A public URL, not a secret. The gate state, reasons and counters land in the step summary and ops/rollout_675.json.
+          ROLLOUT_675_READER_BASE: ${{ vars.HEALTH_BASE || 'https://raw-surf-antigravity.onrender.com' }}
           # DARK (2026-11-01): '1' = product objects are named by run + content hash (product_run_keys.py), so a cache can never serve an older run under a reused key (Render served the 10-30T18Z Cocoa Beach GFS tile for 51 h after storage held 11-01T18Z). Prunes defer storage deletes to product_object_gc (two sweeps a grace apart). ONE repo variable read by the three manifest writers; Render env set together (scrub swap needs nothing, the disk sweep reads it). Owner's word.
           PRODUCT_RUN_KEYED_NAMES: ${{ vars.PRODUCT_RUN_KEYED_NAMES || '0' }}
           NODE_ENV: production          # real ingestion, not the test mock

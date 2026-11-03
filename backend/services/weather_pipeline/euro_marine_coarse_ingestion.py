@@ -121,7 +121,8 @@ async def ingest_euro_marine_global_impl(scheduler) -> bool:
         gfs_ext_step = 3  # Open-Meteo fallback is hourly.
         if os.environ.get("EURO_MARINE_GFS_REUSE_CACHE", "1") != "0" and scheduler._gfs_coarse_marine_cache:
             gfs_ext_src = scheduler._gfs_coarse_marine_cache
-            if os.environ.get("EURO_MARINE_NATIVE_TAIL_CADENCE", "1") != "0":
+            from services.weather_pipeline import rollout_675 as _rollout   # #675 v2: PROMOTED runs only (reader proof)
+            if _rollout.tail_cadence_allowed():
                 # The cache can also contain hourly Open-Meteo data after a NOAA failure.
                 cache_times = [_parse_iso(t) for t in gfs_ext_src[0].get("hourly", {}).get("time", [])]
                 if len(cache_times) > 1 and all(t is not None for t in cache_times):
@@ -214,12 +215,16 @@ async def ingest_euro_marine_global_impl(scheduler) -> bool:
             )
             e_cnt = 0
             if _layer_gfs_ext:  # Preserve NOAA cadence; sample hourly Open-Meteo at three hours.
+                from services.weather_pipeline import rollout_675 as _rollout
+                # #675 v2: plan + check (expected slots from this source's own times x cadence) + snapshot of every key the
+                # tail rewrites, before the save; a failed check BLOCKS the run and saves at the legacy stride.
+                _tail_step = _rollout.tail_gate(scheduler.store, layer, _layer_gfs_ext, gfs_ext_step, run_time)
                 e_cnt = await normalize_and_save_loop(
                     scheduler.normalizer, scheduler.store, _layer_gfs_ext,
                     model="EURO", provider=_prov, domain="marine", layer=layer,
                     bbox=global_region, resolution=resolution, run_time=run_time,
                     region_id="global_coarse", coverage_mode="global_tile",
-                    is_test_env=env["is_test_env"], step=gfs_ext_step,
+                    is_test_env=env["is_test_env"], step=_tail_step,
                     log_prefix=f"[Pipeline Scheduler] EURO {layer} (GFS 10-14d ext) global_coarse",
                     estimated_after_index=0, estimate_basis=_gfs_ext_basis
                 )

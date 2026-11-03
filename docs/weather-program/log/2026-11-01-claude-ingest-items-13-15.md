@@ -81,3 +81,79 @@ re-created from 16:28:19Z.
   the prune deleted that writer's fresher object. Fix: a native replaces an estimate only from a run at least as new.
 - Tests that pinned the old est-vs-est rule now set the kill switch explicitly (`test_prune_duplicate_valid_times.py` x2, my own off
   test); `test_local_forecast_recovery.py`'s unset row now expects the no-op classification. Local: 630 + 289 passed.
+
+## 2026-11-03 UTC (2026-11-02 evening EST): Rollout v2, the safety patch (owner: "Build v2 as a draft")
+Authority: the owner's words 2026-11-02 20:47 EST, "Build v2 as a draft" (plan v2 after Codex's independent review of v1). Build
+and push to the draft only: not merge authority, no workflow dispatch, no variable flip, no Render/Netlify change.
+
+**Design** (`backend/services/weather_pipeline/rollout_675.py`, `_io.py`, `_finish.py`, `_reader.py`, `_restore.py`;
+`backend/scripts/restore_rollout_snapshot.py`). The three #675 flags stay default '1' (kill '0'); in the hosted lanes they now run
+only behind these steps:
+- **Preflight** (`begin_run`, called by `scripts/ingest_forecast_ci.py` after the pre-ingest restore): BLOCKED unless both
+  prerequisites (`INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS`, `MANIFEST_ONE_ENTRY_PER_OBJECT`) are '1' in the lane's own env, the
+  verified-cycles bypass is off, the status object and the published head are readable, and the last run left no "entries lost
+  after publish", no bounds breach and no RUNNING marker (a run that died before its read-back). Any preflight error = BLOCKED.
+- **Dry run per operation** (each prune call, the fill batch, each EURO tail layer): the plan (writes, overwrites, deletes) is
+  checked before the operation's first mutation: no filename to delete is named by a retained registration of ANY lane in a freshly
+  read published head; every expected slot is covered (prune: each pruned estimate's hour; fill: the slots `find_fill_slots`
+  computes; tail: the source cycle's own times x cadence, three-hourly with (3) PROMOTED, nine-hourly otherwise; never a fixed range
+  or count). The run's data does not exist at T+0, so the plan is per operation, checked before that operation mutates anything.
+- **On pass: snapshot -> write -> publish -> mark.** Every touched object is copied to `snapshots/<lane>/<cycle_id>/<filename>`
+  (storage copy API `client.storage.from_(bucket).copy(from_path, to_path)`, checked through Context7; download-then-upload when it
+  raises) and READ BACK by sha256, plus the pre-publish head (`_manifest.json`) and an index (`_index.json`), all before any write,
+  publish or delete. A snapshot that fails partway = BLOCKED, no mutation. A delete whose stored bytes are a different run than the
+  registration being pruned aborts (a torn key). Deletes are only MARKED: `product_object_gc.plan_sweep` (new `only=` scope; its
+  guards still read the whole listing) deletes a mark after two sweeps >= 2 h apart while the merged head + local manifest do not
+  name it (`product_gc/marks_675.json`). Legacy time-keyed names already fit the GC's product grammar, so no name adapter is needed;
+  the only adapter is the scope (the run-keyed GC itself stays off with `PRODUCT_RUN_KEYED_NAMES=0`).
+- **Reader proof gates (2) and (3) (PROMOTED); (1) alone runs SAFE.** The EURO marine `/capabilities` row reports `reader_protocol`
+  (1), `commit` and `revision_probe` (the canary `ops_rollout675_canary.json` loaded through `ProductStore.load_product`, memo 60 s).
+  The owning lane rewrites the canary under the SAME key at the end of every SAFE/PROMOTED run (fixed valid time, new run_time, so
+  #684's refresh treats it as a newer registration of the same frame). Run N opens the gate only if ONE 5 s GET shows protocol >= 1
+  and run N-1's canary revision, and run N-1's sampled audit (10 touched keys plus the canary, expected run_time + sha256) passed.
+  Horizons unchanged (a test pins it). The deployed a8 reader reports none of these fields, so the gate is closed until a deploy.
+- **The lane race.** Owner = core (`INGEST_PILOTS=skip`): it writes the EURO coarse estimates (the EURO coarse job runs only there)
+  and the in-band fills (the fill runs in pilots only with the dark `LATTICE_FILL_AFTER_PILOTS=1`). The pilots lane runs none of the
+  new rules; while any flag is requested its reconcile takes the head's copy of owned entries (no ghost folded back), its prunes and
+  duplicate sweep skip them, and it fills no global lane. After publishing, the core lane flushes the publish queue and reads the
+  head back: a written key without an entry of our run (or newer) = "entries lost after publish" -> the NEXT run is BLOCKED.
+- **Observable states** BLOCKED / SAFE / PROMOTED / RESTORED (+ the RUNNING marker) with reasons and counters in the step summary
+  and `ops/rollout_675.json`. Growth (manifest count vs the baseline median, x1.10) and duration (+15 min) are observe-only for the
+  first 6 cycles (rolling baseline in the status object); after that a breach blocks the next run.
+- With all three flags '0' every hook is inert (no I/O; a test compares manifests and deletes byte for byte). With no run context
+  (unit tests, local tools) the flags behave as #675 shipped them.
+
+**BLOCKED scope.** BLOCKED holds the #675 rules only: no estimate is pruned at all (neither the new rule nor the old one), no
+in-place fill refresh, the legacy tail stride. The pipeline's pre-#675 behaviour continues (the authoritative prune, normal
+writes, the cycle-end duplicate sweep).
+
+**Recovery limits.** No bucket versioning: snapshots keep the last 2 cycles per lane, and only the objects the new rules touched.
+The restore script runs on demand only. It refuses (regenerate instead) if the lane has a newer cycle, if the shared head holds on
+any touched key an entry of ANY lane newer than the snapshot recorded, or if a touched object's storage sha256 is not what the
+snapshot recorded as written; it re-reads the head just before republishing. A reader's stale DISK copies are cleared only by
+#684 + `PRODUCT_REVISION_REFRESH=1` or a restart. A cancelled or crashed run leaves the RUNNING marker, so the next run is BLOCKED
+once.
+
+**Residual risks (stated, not solved).** (a) No compare-and-swap or lease across the lanes beyond the one-step publish CAS. With
+`MANIFEST_PUBLISH_ONE_STEP=1` the pilots merge (and its owned-entry deference) runs inside each CAS attempt against the exact head,
+but a loss is still caught one run late, by the read-back. (b) The scoped GC deletes on a head read at sweep time; a registration
+landing between that read and the delete is not seen (the same window as #685's GC). (c) The restore's head re-check narrows the
+window against a concurrent publish; it does not close it. (d) The canary is a manifest entry (model OPS, domain ops, region
+ops_canary): consumers that list every product see one extra entry. (e) Cancelled runs block the next run once.
+
+**Reflection (Beam, high effort) attacked the ordering and the race; changes made:** the RUNNING marker (a run that dies between
+its writes and its read-back blocks the next one); the torn-delete check; the canary always audited with its storage sha256 and its
+content revision; the restore re-reads the shared head before republishing. Not taken, with reasons: a lane-scoped merge inside the
+publish protocol (the owned-entry deference already runs inside each CAS attempt; changing the protocol is the lead's
+manifest-protocol item); a flush after every operation (each publish re-downloads the ~15 MB head; the RUNNING marker and the
+read-back cover the crash case); a content-hash probe revision (the probe's revision is already read from the loaded bytes).
+
+**Tests:** `backend/tests/test_rollout_675.py`, 41 (chain lane). Floor: dev run 41549383722 read 3172 / 188 files; base 3172 + 53
+(this PR: #675's 12 + 41) = 3225, files 190, floor 3219 (`ci.yml` and `_FLOOR_SET_FROM` together). Mutation checks: the BLOCKED
+guard off (8 fail), the order swapped (5 fail), mark-before-publish (2 fail), the restore's newer-head check off (2 fail).
+
+**Served numbers:** this patch moves none itself (it gates when the #675 rules run): no SCOREBOARD row. **Approvals still
+needed:** (1) the merge of the exact head, on the owner's word; (2) a deploy window for the reader (this build's `/capabilities`
+fields, with #684 + `PRODUCT_REVISION_REFRESH=1`) and one read-back of `revision_probe`; without it the gate stays closed and the
+core lane runs SAFE (flag 1 only); (3) standing operator authority to run `restore_rollout_snapshot.py --yes` and to set the three
+kill variables to '0'.
