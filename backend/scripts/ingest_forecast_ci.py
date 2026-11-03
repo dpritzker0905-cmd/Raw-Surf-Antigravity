@@ -91,6 +91,15 @@ def main() -> int:
     except Exception as _pe:
         logger.warning("Duplicate-valid_time sweep skipped (non-fatal): %s", _pe)
 
+    # PRODUCT_RUN_KEYED_NAMES (dark): superseded run-keyed objects are deleted only by this mark-and-sweep, two sweeps a grace
+    # apart, after the published manifest stopped naming them (product_object_gc.py). A no-op with the flag off; never raises.
+    try:
+        from services.weather_pipeline.store import ProductStore as _GcStore
+        from services.weather_pipeline.product_object_gc import run_object_gc
+        logger.info("Product object GC: %s", run_object_gc(_GcStore()))
+    except Exception as _ge:
+        logger.warning("Product object GC skipped (non-fatal): %s", _ge)
+
     # ── P1 increment 3: precompute per-spot surf ratings → L2 (off the 1-CPU serve box) ──────────────────
     # AFTER ingestion (so the store holds fresh marine + wind products), rate every active surf spot for the
     # current frame and upload a small JSON object to L2; the serve box reads it (source="precomputed") and

@@ -1,0 +1,59 @@
+{
+ "version": "fixture",
+ "about": "SYNTHETIC test fixture: real public station identities, invented values.",
+ "stations": [
+  {
+   "id": "153p1",
+   "source": "cdip",
+   "role": "nearshore",
+   "lat": 32.95654,
+   "lng": -117.27956,
+   "depth_m": 17.0,
+   "anchor_spot": {
+    "name": "Blacks Beach",
+    "lat": 32.8925,
+    "lng": -117.2536,
+    "distance_km": 7.4
+   },
+   "spots": [
+    {
+     "name": "Blacks Beach",
+     "lat": 32.8925,
+     "lng": -117.2536,
+     "distance_km": 7.4
+    }
+   ]
+  },
+  {
+   "id": "103p1",
+   "source": "cdip",
+   "role": "nearshore",
+   "lat": 34.022068,
+   "lng": -118.5784,
+   "depth_m": 20.4,
+   "anchor_spot": {
+    "name": "Topanga",
+    "lat": 34.0388,
+    "lng": -118.62,
+    "distance_km": 4.1
+   },
+   "spots": [
+    {
+     "name": "Topanga",
+     "lat": 34.0388,
+     "lng": -118.62,
+     "distance_km": 4.1
+    }
+   ]
+  },
+  {
+   "id": "46025",
+   "source": "ndbc",
+   "role": "offshore",
+   "lat": 33.765,
+   "lng": -119.077,
+   "depth_m": null,
+   "name": "Santa Monica Basin"
+  }
+ ]
+}

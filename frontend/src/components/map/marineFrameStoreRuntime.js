@@ -547,11 +547,12 @@ function showStored({ model, layer, hourOffset, requestedValidTime }, switching)
   try {
     if (!frameStoreOn()) return false;
     if (!rt.target) return miss('no_target');
+    // ICON past 168 h is drawn from a client-side blend (backendWeatherServiceClient -> fetchBackendMarineGridIconExtended), never
+    // its stored frame, unless the build reads the stored tail: the store never shows a frame the normal path will not draw. Asked
+    // BEFORE the regional show since ICON tiles can be regional too (2026-11-01, behind staticRegional's EURO/ICON gate).
+    if (model === 'ICON' && hourOffset > 168 && process.env.REACT_APP_ICON_STORED_TAIL !== 'true') return miss('icon_blend_hour');
     const regional = CS.regionalResident(model, layer);          // the engine holds a clip of a pilot tile's frame (z7-9): its window of the next frame
     if (regional) return CS.showRegional(regional, { model, layer, hourOffset, requestedValidTime }, t0);
-    // ICON past 168 h is drawn from a client-side blend (backendWeatherServiceClient -> fetchBackendMarineGridIconExtended), never
-    // its stored frame, unless the build reads the stored tail: the store never shows a frame the normal path will not draw.
-    if (model === 'ICON' && hourOffset > 168 && process.env.REACT_APP_ICON_STORED_TAIL !== 'true') return miss('icon_blend_hour');
     const clip = engineClip();
     const key = keyFor(model, layer, clip);
     const index = getPinnedIndexSync(key, { crop: clip });

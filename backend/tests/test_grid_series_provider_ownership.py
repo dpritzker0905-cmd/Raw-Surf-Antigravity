@@ -33,6 +33,8 @@ def test_provider_completion_is_owned_after_series_fallback(monkeypatch, caplog,
     monkeypatch.setenv("GFS_ICON_SERIES_FASTPATH", "1")
     monkeypatch.setenv("GFS_ICON_SERIES_FASTPATH_WAIT_SEC", "0.05")
     monkeypatch.setenv("EURO_SERIES_LIVE_COPERNICUS", "1")
+    # The live lane under test: inside a pilot box tile-first skips it by design (ICON on by default since D-059).
+    monkeypatch.setenv("MARINE_REGIONAL_TILE_FIRST_EURO_ICON", "0")
     monkeypatch.setattr(series, "EURO_SERIES_TIMEOUT", 0.05)
     caplog.set_level(logging.WARNING)
 

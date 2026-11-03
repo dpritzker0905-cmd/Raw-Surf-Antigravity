@@ -117,6 +117,8 @@ jobs:
           INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS: ${{ vars.INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS || '0' }}
           # DARK (2026-10-28 wiring): '1' = a product save drops every other manifest registration naming the same storage object (manifest_object_identity.py, #590), so a save or prune never deletes the file a twin registration still names. Storage logs 2026-10-27: 56 EURO global_coarse estimates deleted ~5 s after the first writer's upload, absent 10-30 min a cycle. ONE repo variable read by the three manifest writers (forecast-ingest, forecast-ingest-pilots, precompute); Render never writes. Owner's word 2026-10-28.
           MANIFEST_ONE_ENTRY_PER_OBJECT: ${{ vars.MANIFEST_ONE_ENTRY_PER_OBJECT || '0' }}
+          # DARK (2026-11-01): '1' = product objects are named by run + content hash (product_run_keys.py), so a cache can never serve an older run under a reused key (Render served the 10-30T18Z Cocoa Beach GFS tile for 51 h after storage held 11-01T18Z). Prunes defer storage deletes to product_object_gc (two sweeps a grace apart). ONE repo variable read by the three manifest writers; Render env set together (scrub swap needs nothing, the disk sweep reads it). Owner's word.
+          PRODUCT_RUN_KEYED_NAMES: ${{ vars.PRODUCT_RUN_KEYED_NAMES || '0' }}
           NODE_ENV: production
           RENDER: 'true'                # match production grid resolution + point-resolution paths
           PREFETCH_WINDOW_DAYS: '1'     # precompute rates only the current frame → warm just near-term grids (faster)

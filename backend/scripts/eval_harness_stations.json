@@ -1,0 +1,138 @@
+{
+ "version": "v0-2026-11-02",
+ "about": "Evaluation harness v0 station list. Nearshore CDIP stations and their linked spots come from backend/data/nearshore_validation_pairs.json (anchor = nearest linked spot, whose served input is graded); offshore NDBC coordinates from stationmetadata.xml (covering deployment, 2026-11-02). California first, live CDIP realtime deployments only. Public station identities and public spot coordinates only; no data.",
+ "stations": [
+  {
+   "id": "103p1",
+   "source": "cdip",
+   "role": "nearshore",
+   "lat": 34.022068,
+   "lng": -118.5784,
+   "depth_m": 20.4,
+   "anchor_spot": {
+    "name": "Topanga",
+    "lat": 34.0388,
+    "lng": -118.62,
+    "distance_km": 4.26
+   },
+   "spots": [
+    {
+     "name": "Topanga",
+     "lat": 34.0388,
+     "lng": -118.62,
+     "distance_km": 4.26
+    },
+    {
+     "name": "Venice Breakwater",
+     "lat": 33.9898,
+     "lng": -118.502,
+     "distance_km": 7.9
+    }
+   ],
+   "coops_id": "9410840"
+  },
+  {
+   "id": "142p1",
+   "source": "cdip",
+   "role": "nearshore",
+   "lat": 37.788,
+   "lng": -122.6318,
+   "depth_m": 14.9,
+   "anchor_spot": {
+    "name": "Rodeo Beach",
+    "lat": 37.838,
+    "lng": -122.548,
+    "distance_km": 9.23
+   },
+   "spots": [
+    {
+     "name": "Rodeo Beach",
+     "lat": 37.838,
+     "lng": -122.548,
+     "distance_km": 9.23
+    }
+   ]
+  },
+  {
+   "id": "153p1",
+   "source": "cdip",
+   "role": "nearshore",
+   "lat": 32.95654,
+   "lng": -117.27956,
+   "depth_m": 17.0,
+   "anchor_spot": {
+    "name": "Blacks Beach",
+    "lat": 32.8925,
+    "lng": -117.2536,
+    "distance_km": 7.52
+   },
+   "spots": [
+    {
+     "name": "Blacks Beach",
+     "lat": 32.8925,
+     "lng": -117.2536,
+     "distance_km": 7.52
+    },
+    {
+     "name": "Cardiff Reef",
+     "lat": 33.0228,
+     "lng": -117.3178,
+     "distance_km": 8.19
+    },
+    {
+     "name": "Swamis",
+     "lat": 33.0348,
+     "lng": -117.3248,
+     "distance_km": 9.67
+    }
+   ],
+   "coops_id": "9410230"
+  },
+  {
+   "id": "262p1",
+   "source": "cdip",
+   "role": "nearshore",
+   "lat": 33.062077,
+   "lng": -117.31407,
+   "depth_m": 17.0,
+   "anchor_spot": {
+    "name": "Swamis",
+    "lat": 33.0348,
+    "lng": -117.3248,
+    "distance_km": 3.19
+   },
+   "spots": [
+    {
+     "name": "Swamis",
+     "lat": 33.0348,
+     "lng": -117.3248,
+     "distance_km": 3.19
+    },
+    {
+     "name": "Cardiff Reef",
+     "lat": 33.0228,
+     "lng": -117.3178,
+     "distance_km": 4.38
+    }
+   ]
+  },
+  {
+   "id": "46025",
+   "source": "ndbc",
+   "role": "offshore",
+   "lat": 33.765,
+   "lng": -119.077,
+   "depth_m": null,
+   "name": "Santa Monica Basin"
+  },
+  {
+   "id": "46086",
+   "source": "ndbc",
+   "role": "offshore",
+   "lat": 32.504,
+   "lng": -118.029,
+   "depth_m": null,
+   "name": "San Clemente Basin"
+  }
+ ]
+}
