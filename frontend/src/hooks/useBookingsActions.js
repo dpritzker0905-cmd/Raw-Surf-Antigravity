@@ -15,6 +15,7 @@ import { useLayoutEffect, useRef } from 'react';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
+import useBookingsLiveSessionsList from './useBookingsLiveSessionsList';
 
 const useBookingsActions = ({
   user,
@@ -54,6 +55,7 @@ const useBookingsActions = ({
   const inviteOwner = useRef(null);
   const userId = user?.id;
   const session = user?.access_token;
+  const liveSessionsList = useBookingsLiveSessionsList({ user, setLiveSessions });
 
   useLayoutEffect(() => {
     const owner = { userId, session, request: 0, mutation: false, uncertain: new Set() };
@@ -105,10 +107,11 @@ const useBookingsActions = ({
     const invitesRequest = ownsInvites ? ++invitesOwner.request : null;
     setLoading(true);
     try {
-      const [creditsRes, bookingsRes, sessionsRes, liveRes, invitesRes, crewRes, activeRes, historyRes] = await Promise.allSettled([
+      const [creditsRes, bookingsRes, , liveRes, invitesRes, crewRes, activeRes, historyRes] = await Promise.allSettled([
         ownsBalance ? apiClient.get(`/credits/balance/${userId}`) : Promise.resolve(null),
         apiClient.get(`/bookings/user/${user.id}`),
-        apiClient.get(`/sessions/user/${user.id}`),
+        // Start in the existing order; this list settles independently of the other seven reads.
+        (() => { void liveSessionsList.refresh(); return null; })(),
         apiClient.get(`/photographers/live`),
         ownsInvites ? apiClient.get(`/bookings/invites/${userId}`) : Promise.resolve(null),
         apiClient.get(`/dispatch/user/${user.id}/crew-invites`),
@@ -123,7 +126,6 @@ const useBookingsActions = ({
         owner.updateUser({ credit_balance: creditData.balance });
       }
       setBookings(bookingsRes.status === 'fulfilled' ? (bookingsRes.value.data || []) : []);
-      setLiveSessions(sessionsRes.status === 'fulfilled' ? (sessionsRes.value.data || []) : []);
       setLivePhotographers(liveRes.status === 'fulfilled' ? (liveRes.value.data || []) : []);
       if (ownsInvites && inviteOwner.current === invitesOwner && invitesRequest === invitesOwner.request) {
         const data = invitesRes.status === 'fulfilled' ? invitesRes.value?.data : null;
@@ -390,6 +392,7 @@ const useBookingsActions = ({
   };
 
   return {
+    liveSessionsList,
     fetchData,
     handleJumpIn,
     handleJoinByCode,
