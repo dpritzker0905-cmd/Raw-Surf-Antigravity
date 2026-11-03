@@ -24,6 +24,10 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 # MIRROR of frontend/src/components/map/LayerAccessResolver.js TIER_ACCESS[*].forecastDays.
 TIER_FORECAST_DAYS = {"guest": 3, "free": 3, "basic": 7, "premium": 14}
+# MIRROR of TIER_ACCESS[*].models: getAllowedModels() before its capabilities filter (forecast-window alerts pick
+# a model lane with it, 2026-11-03). Pinned to the JS by tests/test_forecast_tier_window.py, like the days.
+TIER_MODELS = {"guest": ("GFS",), "free": ("GFS",), "basic": ("GFS", "EURO", "ICON"),
+               "premium": ("GFS", "EURO", "ICON")}
 # The hub's rows are wave rows: clamp by the model's `waves` capability row, as the client does.
 CAPABILITY_LAYER = "waves"
 
@@ -42,6 +46,11 @@ def canonical_tier(tier: Any) -> str:
     if "premium" in s or "pro" in s or "parent" in s or "admin" in s or s in ("tier_3", "tier_4"):
         return "premium"
     return "guest"
+
+
+def allowed_models(tier: Any) -> Tuple[str, ...]:
+    """getAllowedModels(tier) without the capabilities cross-check (callers check what they actually have)."""
+    return TIER_MODELS.get(canonical_tier(tier), TIER_MODELS["free"])
 
 
 def tier_horizon_hours(tier: Any, model: str = "GFS", capabilities: Optional[List[Dict[str, Any]]] = None) -> int:
