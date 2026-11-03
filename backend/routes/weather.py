@@ -375,6 +375,7 @@ class SpotRatingItem(BaseModel):
     # `geometry_readiness` above, and as `served_valid_time` on the response).
     run_time: Optional[str] = None            # the marine run — it produced `surf_height_m`
     wind_run_time: Optional[str] = None
+    wind_src: Optional[str] = None  # RATING_WIND_HRRR: 'hrrr' / 'hrrr+gfs' (rating_wind.py); null = the model's own wind
     time_provenance: Optional[dict] = None  # independent marine/wind cycle evidence; legacy unknown
     # WHICH OF THE NINE FACTORS REMOVED THE MOST. The score is a product of nine terms in [0,1] and
     # this payload published only the score plus `why` (height/period/wind — three INPUTS, not

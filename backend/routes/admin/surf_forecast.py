@@ -391,7 +391,7 @@ _RATING_FLAGS = {
                                     "repo variable MARINE_EXT_CEILING_MARGIN_H, read by forecast-ingest.yml AND forecast-ingest-pilots.yml env "
                                     "(both lanes bake tails: the 10-deg in core, the 2-deg ICON in pilots)"),
     # SERVED NUMBER, DARK (2026-11-03): the rating's wind = the HRRR lane /grid already blends (D-017), inside CONUS and
-    # HRRR's horizon, for GFS ratings at every surface (rating_wind.py). L6: +1.17 rating pts [0.57, 1.82] vs GFS wind.
+    # HRRR's horizon, for GFS ratings at every surface (rating_wind.py). Fresh window: +0.22 [-0.30, 0.71], piers worse; NOT flippable.
     "RATING_WIND_HRRR":            ("0", "GFS surf ratings grade on the HRRR wind lane (the map's /grid lane: same product, "
                                          "feather and 3 h taper at the horizon) inside HRRR's domain; GFS wind elsewhere. "
                                          "Needs WIND_HRRR_LANE on. services/weather_pipeline/rating_wind.py",

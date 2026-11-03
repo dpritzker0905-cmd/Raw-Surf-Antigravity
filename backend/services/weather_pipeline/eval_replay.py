@@ -44,6 +44,7 @@ UNREPLAYABLE = {
     "COPERNICUS_PEAK_PERIOD": "a EURO input flag; v0 replays GFS only",
     "ICON_PEAK_PERIOD": "an ICON input flag; v0 replays GFS only",
     "RATING_OBS_GATE": "applied after rating in the precompute merge; the replay records pre-gate scores",
+    "RATING_WIND_HRRR": "needs the HRRR wind lane cycles (wind_lane/), which v0 does not archive; and v0 has no wind truth",
 }
 GAPS = ("size_reference", "obs_gate", "best_tide", "primary_swell", "tide_missing", "tide_replayed")
 _VAR = re.compile(r"^\$\{\{\s*vars\.(\w+)\s*\|\|\s*'([^']*)'\s*\}\}$")

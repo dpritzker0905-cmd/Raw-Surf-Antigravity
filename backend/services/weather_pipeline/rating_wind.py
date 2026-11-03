@@ -3,9 +3,11 @@
 WHY. The rating's wind has been the same model's stored point wind (GFS = Open-Meteo `gfs_global`), while the wind MAP
 draws NOAA HRRR inside HRRR's domain and horizon (`wind_lane.py`, D-017). Against 7 anemometers (L6, 2026-10-19..11-02,
 n 2,469, spot-day cluster bootstrap) HRRR as the rating wind beat the served GFS wind by +1.17 rating points
-[0.57, 1.82] with 5.6 pp fewer level misses (piers only +0.67 [0.13, 1.25]); ICON and ECMWF were worse. Research note:
-memory research-wind-tide-nearshore-verification-2026-11-02; this build's log:
-docs/weather-program/log/2026-11-03-claude-rating-wind-hrrr.md.
+[0.57, 1.82] with 5.6 pp fewer level misses (piers only +0.67 [0.13, 1.25]); ICON and ECMWF were worse.
+⚠️ L6's "HRRR" was Open-Meteo's gfs_hrrr. On a FRESH window (2026-09-19..10-18, n 3,498) THIS lane's NOAA HRRR gained
+only +0.22 [-0.30, 0.71], -0.84 [-1.46, -0.23] at the piers, and was worse in every light-wind regime after Holm, while
+Open-Meteo's gfs_hrrr reproduced +1.27 [0.81, 1.75]. The flip gate is NOT met; keep it dark (log:
+docs/weather-program/log/2026-11-03-claude-rating-wind-hrrr.md).
 
 WHERE. ONE place: `point_resolution.resolve_point` calls `apply_to_wind_point` on every GFS wind point it returns, so
 every surface that reads its wind there gets the same value — `spot_ratings.rate_one_spot` (glyphs, /spot-ratings, the

@@ -41,6 +41,7 @@ on:
       - 'backend/services/weather_pipeline/point_resolution.py'
       - 'backend/services/weather_pipeline/point_surf_augment.py'
       - 'backend/services/weather_pipeline/product_selection.py'
+      - 'backend/services/weather_pipeline/rating_wind.py'
       - 'backend/services/weather_pipeline/spot_conditions.py'
       - 'backend/services/weather_pipeline/spot_ratings.py'
       - 'backend/services/weather_pipeline/spot_ratings_precompute.py'
