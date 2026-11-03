@@ -492,8 +492,8 @@ _FLOOR_SET_FROM = {
     # guards: set from 3366 = max(dev run 41549383722 read 3351, dev's map 3351) + 15 (claude/swell-partition-tracking, 2026-11-03); floor 3360, margin 6.
     "guards": 3366,
 
-    # chain: set from 3401 = max(dev run 41679759741 read 3316, dev's map 3380) + 21 (claude/spot-hub-phase1, 2026-11-03); floor 3395, margin 6.
-    "chain": 3401,
+    # chain: set from 3414 = max(dev run 41702493992 read 3380, dev's map 3393) + 21 (claude/spot-hub-phase1, 2026-11-03); floor 3408, margin 6.
+    "chain": 3414,
 
     # estate: set from 3408 = max(dev run 41377184916 read 3406, dev's map 3406) + 2 (claude/weather-batch-2, 2026-11-02); floor 3406, margin 2.
     "estate": 3408,

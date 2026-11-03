@@ -49,6 +49,10 @@ def test_on_the_euro_icon_sets_follow_every_gfs_set_on_their_own_boxes(monkeypat
     keys = [fs.set_key(t) for t in pub.selected_sets()]
     last_gfs = max(i for i, t in enumerate(pub.selected_sets()) if fsb.is_bundle(t) and t["model"] == "GFS")
     first_other = min(i for i, t in enumerate(pub.selected_sets()) if fsb.is_bundle(t) and t["model"] != "GFS")
+    # The EURO swell world sets (FRAME_EURO_SWELL_SETS, D-062) come after these, LAST of all (test_euro_mid_cmems_swell).
+    tail = [fs.set_key(t) for t in fs.euro_swell_sets()]
+    assert keys[len(keys) - len(tail):] == tail
+    keys = keys[:len(keys) - len(tail)]
     assert first_other == last_gfs + 1 and keys[-56:] == [fs.set_key(t) for t in fsb.OTHER_MODEL_SETS]
     monkeypatch.setenv("FRAME_REGIONAL_BUNDLE_LAYERS", "swell_1")      # the layer filter narrows both groups
     assert {(t["model"], t["layer"]) for t in fsb.selected_regional_sets()} == {("GFS", "swell_1"), ("ICON", "swell_1")}

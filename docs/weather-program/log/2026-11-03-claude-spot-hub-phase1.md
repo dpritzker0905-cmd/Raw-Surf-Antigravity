@@ -56,7 +56,8 @@ gating hub render on capabilities (the scrubber has the same unloaded-capabiliti
   dev run 41673519496 read 3307): 3301 -> 3322, files 196 (hosted chain read 3328, green); and once more after merging
   `origin/dev` at `d153dfc09` (#662 moved chain to 3310; dev run 41679759741 read 3316): 3310 -> 3331, files 196 (hosted chain read 3337, green at `94e315e6d`); and
   after merging `origin/dev` at `24fa4431d` (#675; dev's map 3374): 3368 -> 3389, files 198 (hosted chain read 3395, green at `dcf2e670c`); and after
-  merging `origin/dev` at `27f9c9dd7` (#676; dev's map 3380): 3374 -> 3395, files 199; this PR must read 3401 passed.
+  merging `origin/dev` at `27f9c9dd7` (#676; dev's map 3380): 3374 -> 3395, files 199 (hosted chain read 3401, green at `890468c62`); and after
+  merging `origin/dev` at `ef4e2fe60` (#677; dev's map 3393 / 199): 3387 -> 3408, files 200; this PR must read 3414 passed.
 - Frontend: full `src/components src/tests` run 516 suites / 7137 passed + the kill-switch inventory fix; new suites
   `spotHubP1.test.js` (38), `SpotHub.phase1.test.js` (12), `SpotConditions.phase1.test.js` (8); frontend floor
   529/6928 -> 532/6986. `check_eslint.js` passes (no rule above baseline). craco build compiles.

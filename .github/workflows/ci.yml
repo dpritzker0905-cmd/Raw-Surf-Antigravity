@@ -1644,9 +1644,11 @@ jobs:
           #   base 3316 (dev's map) + 58 new test(s) and 2 new file(s) = 3374, files 197; floor 3374 - 6 = 3368. This PR must read 3374 passed.
           # ⬆ 3368→3374 on 2026-11-03 (rederive_floor.py, claude/gfs-pilot-full-horizon): dev run 41679759741 read 3316 / 195 files; dev's map 3374;
           #   base 3374 (dev's map) + 6 new test(s) and 1 new file(s) = 3380, files 198; floor 3380 - 6 = 3374. This PR must read 3380 passed.
-          # ⬆ 3374→3395 on 2026-11-03 (rederive_floor.py, claude/spot-hub-phase1): dev run 41679759741 read 3316 / 195 files; dev's map 3380;
-          #   base 3380 (dev's map) + 21 new test(s) and 1 new file(s) = 3401, files 199; floor 3401 - 6 = 3395. This PR must read 3401 passed.
-          MIN_FILES, MIN_PASSED = 199, 3395
+          # ⬆ 3374→3387 on 2026-11-03 (rederive_floor.py, claude/euro-mid-cmems-swell): dev run 41679759741 read 3316 / 195 files; dev's map 3380;
+          #   base 3380 (dev's map) + 13 new test(s) and 1 new file(s) = 3393, files 199; floor 3393 - 6 = 3387. This PR must read 3393 passed.
+          # ⬆ 3387→3408 on 2026-11-03 (rederive_floor.py, claude/spot-hub-phase1): dev run 41702493992 read 3380 / 198 files; dev's map 3393;
+          #   base 3393 (dev's map) + 21 new test(s) and 1 new file(s) = 3414, files 200; floor 3414 - 6 = 3408. This PR must read 3414 passed.
+          MIN_FILES, MIN_PASSED = 200, 3408
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

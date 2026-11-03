@@ -431,6 +431,13 @@ _RATING_FLAGS = {
     "SURF_REGIONAL_PREFER":        ("1", "Surf regional-tile preference for the coastal band", "Render env"),
     "EURO_MARINE_MID_RES_INGEST":  ("1", "EURO mid-tier ingest (ECMWF wave stream) — the EURO band's data", "pilots workflow env"),
     "EURO_MARINE_MID_ECMWF":       ("1", "EURO mid source: ECMWF free wave stream (0 = legacy CMEMS)", "pilots workflow env"),
+    "EURO_MARINE_MID_CMEMS_SWELL": ("1", "EURO swell_1/swell_2/wind_waves stored at the 2-deg world tier from CMEMS (MFWAM) after the ECMWF waves save "
+                                         "(was 10-deg global_coarse only); 9 partition variables, bands split over EURO_MID_CMEMS_WORKERS processes. "
+                                         "services/weather_pipeline/marine_mid_res_ingestion._ingest_euro_mid_cmems_swell",
+                                    "forecast-ingest-pilots workflow env (repo variable EURO_MARINE_MID_CMEMS_SWELL); owner's word with evidence"),
+    "FRAME_EURO_SWELL_SETS":       ("1", "Static frame publisher adds the EURO swell_1/swell_2/wind_waves world sets (plain + Gulf-filled). No served "
+                                         "number moves (frames mirror stored products); needs EURO_MARINE_MID_CMEMS_SWELL data and the client's STATIC_SETS",
+                                    "forecast-ingest-pilots workflow env, frame step (repo variable FRAME_EURO_SWELL_SETS)"),
     # ── 2026-08-05: THE HEIGHT PAIR. These two and SURF_HEIGHT_H110 move TOGETHER. ──────────────
     "SURF_GAMMA_FIELD_CEILING":    ("1", "Breaker-index ceiling from FIELD observation (Carini 2021 "
                                          "Duck FRF: spilling 0.63-0.71, plunging 0.73-0.81). "
