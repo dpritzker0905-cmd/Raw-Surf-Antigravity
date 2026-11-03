@@ -113,6 +113,7 @@ async def test_flagship_and_worldwide_horizons_stay_separate(tmp_path, monkeypat
     monkeypatch.delenv("GFS_MARINE_EXTRA_REGIONS", raising=False)
     monkeypatch.setenv("GFS_MARINE_FLAGSHIP_FORECAST_DAYS", "14")
     monkeypatch.setenv("GFS_MARINE_FORECAST_DAYS", "3")
+    monkeypatch.setenv("GFS_PILOT_FULL_HORIZON", "0")  # the grouping contract, under the kill switch (flag ON by default since 2026-11-01)
     monkeypatch.setattr(copernicus_validator, "is_test_environment", lambda: False)
 
     calls = []

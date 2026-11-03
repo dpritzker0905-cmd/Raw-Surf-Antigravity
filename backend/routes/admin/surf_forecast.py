@@ -45,7 +45,12 @@ _RATING_FLAGS = {
                                 "Flip ICON_PEAK_PERIOD first"),
     "ESTIMATE_COHERENT_TRENDS": ("0", "Refuse stored marine estimates whose active trend pair lacks a verified shared model cycle",
                                 "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (L2 writers); NOT Render"),
-    "EURO_MARINE_NATIVE_TAIL_CADENCE": ("0", "Preserve NOAA tail cadence and verify completed local extension no-ops", "Local ingestion env; hosted lanes require owner approval"),
+    "EURO_MARINE_NATIVE_TAIL_CADENCE": ("1", "Preserve NOAA tail cadence (step 1 on the three-hourly cache, not stride 3 -> nine-hourly EURO 10-14 d estimates) and verify completed local extension no-ops",
+                                        "forecast-ingest workflow env (repo variable EURO_MARINE_NATIVE_TAIL_CADENCE); owner's word with evidence"),
+    "INGEST_PRUNE_ESTIMATES_AFTER_REPLACE": ("1", "Prune a superseded estimate only once a replacement exists at its valid time (authoritative, or an estimate of a newer run); closes the ~22 min EURO tail outage between the coarse save's prune and the extended-estimates rewrite. services/weather_pipeline/copernicus_validator.py",
+                                             "forecast-ingest and forecast-ingest-pilots workflow env together (repo variable INGEST_PRUNE_ESTIMATES_AFTER_REPLACE); NOT Render"),
+    "LATTICE_FILL_REFRESH_STALE": ("1", "In-band lattice fill rewrites its own interpolations from an older native run instead of treating the slot as filled (ghost entries left EURO waves 147/153/.. h with no object). services/weather_pipeline/lattice_fill.py",
+                                   "forecast-ingest and forecast-ingest-pilots workflow env together (repo variable LATTICE_FILL_REFRESH_STALE); NOT Render"),
     "MID_RES_EXACT_TIME_ESTIMATE": ("0", "Prefer near-exact mid estimates over distant native frames using the shared time policy", "Local serving env; hosted lanes require owner approval"),
     "LATTICE_FILL_AFTER_PILOTS": ("0", "Run one lattice pass after all selected core and pilot producers", "Local ingestion env; hosted lanes require owner approval"),
     "LATTICE_REGIONAL_WIND_FILL": ("0", "Fill bounded regional wind gaps from verified native same-cycle brackets", "Local ingestion env; hosted lanes require owner approval"),
@@ -368,7 +373,11 @@ _RATING_FLAGS = {
     # their fractional edges (pilot_regions.whole_degree_regions), so a z7-9 snapped box inside the padded tile is served from the
     # tile instead of alternating between the dynamic cache and the tile. Cells in the padded band change source. Both ingest lanes
     # write GFS tiles (one repo variable); the box reads it for regional_tile_first.inside_pilot_box (the series lane skip).
-    "GFS_PILOT_WHOLE_DEGREE_BOUNDS": ("0", "GFS pilot tiles fetched and stored out to the next whole degree on every fractional edge "
+    "GFS_PILOT_FULL_HORIZON": ("1", "Every GFS marine pilot box gets the flagship horizon (14 d) instead of GFS_MARINE_FORECAST_DAYS (5 d in the "
+                                    "pilots lane), so z7-9 GFS past day 5 reads the 0.25-deg tile, not the 2-deg tier or /grid. "
+                                    "services/weather_pipeline/pilot_regions.gfs_marine_pilot_days",
+                               "forecast-ingest-pilots workflow env (repo variable GFS_PILOT_FULL_HORIZON); owner's word with evidence"),
+    "GFS_PILOT_WHOLE_DEGREE_BOUNDS": ("0","GFS pilot tiles fetched and stored out to the next whole degree on every fractional edge "
                                           "(us_southeast_midatlantic E, azores W/N, us_northeast W/N, france_biscay S/N; never into another "
                                           "box), so a 1-deg snapped z7-9 box inside the padded tile is covered: one source at the edge",
                                       "repo variable GFS_PILOT_WHOLE_DEGREE_BOUNDS, read by forecast-ingest-pilots.yml AND "
