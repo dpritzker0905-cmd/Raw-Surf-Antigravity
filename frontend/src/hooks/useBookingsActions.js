@@ -6,14 +6,16 @@
  * G Step 1: JSX scan -- zero JSX in extraction range
  * G Step 2: Closure param audit -- all state/setters listed
  * G Step 3: Phantom param check -- every param used in handler body
- * G Step 4: React hooks scan -- no React hooks needed (pure handlers)
+ * G Step 4: React hooks scan -- committed ownership guards the balance read
  * G Step 5: Utility/import scan -- apiClient, toast, logger
  * G Step 6: Hook placement -- called AFTER all useState declarations
  * G Step 7: Cross-module export -- SURFER_ROLES is local const, not needed
  */
+import { useLayoutEffect, useRef } from 'react';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
+import useBookingsLiveSessionsList from './useBookingsLiveSessionsList';
 
 const useBookingsActions = ({
   user,
@@ -49,6 +51,43 @@ const useBookingsActions = ({
   setSelectedBooking,
   setShowInviteModal,
 }) => {
+  const balanceOwner = useRef(null);
+  const inviteOwner = useRef(null);
+  const userId = user?.id;
+  const session = user?.access_token;
+  const liveSessionsList = useBookingsLiveSessionsList({ user, setLiveSessions });
+
+  useLayoutEffect(() => {
+    const owner = { userId, session, request: 0, mutation: false, uncertain: new Set() };
+    inviteOwner.current = owner;
+    setPendingInvites([]);
+    return () => {
+      if (inviteOwner.current === owner) inviteOwner.current = null;
+    };
+    // Setter changes below do not restart the same committed session.
+  }, [userId, session]);
+
+  useLayoutEffect(() => {
+    if (inviteOwner.current) inviteOwner.current.setInvites = setPendingInvites;
+  });
+
+  useLayoutEffect(() => {
+    const owner = { userId, session, request: 0 };
+    balanceOwner.current = owner;
+    // Clear the previous session's local value; this is not a confirmed profile balance.
+    setUserCreditBalance(0);
+    return () => {
+      if (balanceOwner.current === owner) balanceOwner.current = null;
+    };
+    // Callback updates below must not restart ownership for the same session.
+  }, [userId, session]);
+
+  useLayoutEffect(() => {
+    if (balanceOwner.current) {
+      balanceOwner.current.setBalance = setUserCreditBalance;
+      balanceOwner.current.updateUser = updateUser;
+    }
+  });
 
   // Helper: sort photographers by priority
   const sortPhotographers = (photographers) => {
@@ -59,27 +98,45 @@ const useBookingsActions = ({
   };
 
   const fetchData = async () => {
+    const owner = balanceOwner.current;
+    const ownsBalance = owner && owner.userId && owner.userId === userId && owner.session === session;
+    const balanceRequest = ownsBalance ? ++owner.request : null;
+    const invitesOwner = inviteOwner.current;
+    const ownsInvites = invitesOwner && invitesOwner.userId
+      && invitesOwner.userId === userId && invitesOwner.session === session;
+    const invitesRequest = ownsInvites ? ++invitesOwner.request : null;
     setLoading(true);
     try {
-      const [creditsRes, bookingsRes, sessionsRes, liveRes, invitesRes, crewRes, activeRes, historyRes] = await Promise.allSettled([
-        apiClient.get(`/credits/${user.id}/balance`),
+      const [creditsRes, bookingsRes, , liveRes, invitesRes, crewRes, activeRes, historyRes] = await Promise.allSettled([
+        ownsBalance ? apiClient.get(`/credits/balance/${userId}`) : Promise.resolve(null),
         apiClient.get(`/bookings/user/${user.id}`),
-        apiClient.get(`/sessions/user/${user.id}`),
+        // Start in the existing order; this list settles independently of the other seven reads.
+        (() => { void liveSessionsList.refresh(); return null; })(),
         apiClient.get(`/photographers/live`),
-        apiClient.get(`/bookings/invites/${user.id}`),
+        ownsInvites ? apiClient.get(`/bookings/invites/${userId}`) : Promise.resolve(null),
         apiClient.get(`/dispatch/user/${user.id}/crew-invites`),
         apiClient.get(`/dispatch/user/${user.id}/active`),
         apiClient.get(`/sessions/user/${user.id}/history`),
       ]);
 
-      if (creditsRes.status === 'fulfilled' && creditsRes.value.data?.balance !== undefined) {
-        setUserCreditBalance(creditsRes.value.data.balance);
-        updateUser({ credit_balance: creditsRes.value.data.balance });
+      const creditData = creditsRes.status === 'fulfilled' ? creditsRes.value?.data : null;
+      if (ownsBalance && balanceOwner.current === owner && balanceRequest === owner.request
+          && creditData?.user_id === userId && Number.isFinite(creditData.balance)) {
+        owner.setBalance(creditData.balance);
+        owner.updateUser({ credit_balance: creditData.balance });
       }
       setBookings(bookingsRes.status === 'fulfilled' ? (bookingsRes.value.data || []) : []);
-      setLiveSessions(sessionsRes.status === 'fulfilled' ? (sessionsRes.value.data || []) : []);
       setLivePhotographers(liveRes.status === 'fulfilled' ? (liveRes.value.data || []) : []);
-      setPendingInvites(invitesRes.status === 'fulfilled' ? (invitesRes.value.data || []) : []);
+      if (ownsInvites && inviteOwner.current === invitesOwner && invitesRequest === invitesOwner.request) {
+        const data = invitesRes.status === 'fulfilled' ? invitesRes.value?.data : null;
+        const nullableFields = ['inviter_name', 'inviter_avatar', 'location', 'session_date',
+          'photographer_name', 'message', 'created_at'];
+        const valid = Array.isArray(data) && data.every(invite => invite && typeof invite === 'object'
+          && typeof invite.id === 'string' && invite.id.length > 0
+          && typeof invite.booking_id === 'string' && invite.booking_id.length > 0
+          && nullableFields.every(field => invite[field] === null || typeof invite[field] === 'string'));
+        invitesOwner.setInvites(valid ? data : []);
+      }
       setCrewInvites(crewRes.status === 'fulfilled' ? (crewRes.value.data?.crew_invites || []) : []);
 
       if (activeRes.status === 'fulfilled') {
@@ -151,13 +208,57 @@ const useBookingsActions = ({
     }
   };
 
-  const handleRespondToInvite = async (inviteId, accept) => {
+  const handleRespondToInvite = async (inviteId, accept, options = {}) => {
+    const owner = inviteOwner.current;
+    const isCurrent = () => owner && inviteOwner.current === owner
+      && owner.userId === userId && owner.session === session;
+    if (!isCurrent() || !userId) return { status: 'stale' };
+    if (options.quoteOnly) {
+      if (owner.uncertain.has(inviteId)) {
+        return { status: 'uncertain', message: 'Check your bookings before trying again.' };
+      }
+      try {
+        const response = await apiClient.get(`/bookings/invites/${inviteId}/accept-quote`);
+        return isCurrent() ? { status: 'quoted', quote: response.data } : { status: 'stale' };
+      } catch (error) {
+        return isCurrent() ? { status: 'error', message: error.response?.data?.detail || 'Could not load invite price' }
+          : { status: 'stale' };
+      }
+    }
+    if (owner.mutation || owner.uncertain.has(inviteId)) {
+      return { status: 'uncertain', message: 'Check your bookings before trying again.' };
+    }
+    if (accept && !/^[a-f0-9]{64}$/.test(options.consentQuote || '')) {
+      return { status: 'error', message: 'Review the current invite price before accepting.' };
+    }
+    owner.mutation = true;
     try {
-      await apiClient.post(`/bookings/invites/${inviteId}/respond?accept=${accept}`);
-      toast.success(accept ? 'Invite accepted!' : 'Invite declined');
+      const consent = accept ? `&consent_quote=${options.consentQuote}` : '';
+      const response = await apiClient.post(`/bookings/invites/${inviteId}/respond?accept=${accept}${consent}`);
+      if (!isCurrent()) return { status: 'stale' };
+      const paid = response.data?.amount_paid_credits;
+      if (accept && (response.data?.status !== 'accepted' || typeof paid !== 'string'
+          || !/^(0|[1-9]\d*)\.\d{2}$/.test(paid))) {
+        owner.uncertain.add(inviteId);
+        return { status: 'uncertain', message: 'Payment result is unconfirmed. Check your bookings before trying again.' };
+      }
+      toast.success(accept ? `Invite accepted! Paid ${paid} credits` : 'Invite declined');
       fetchData();
+      return { status: accept ? 'accepted' : 'declined', amount_paid_credits: paid };
     } catch (error) {
-      toast.error(error.response?.data?.detail || 'Failed to respond to invite');
+      if (!isCurrent()) return { status: 'stale' };
+      if (accept && error.response?.status === 409) {
+        return { status: 'changed', message: 'Price changed. Review again.' };
+      }
+      if (!error.response || error.response.status >= 500) {
+        owner.uncertain.add(inviteId);
+        return { status: 'uncertain', message: 'Response unconfirmed. Check your bookings before trying again.' };
+      }
+      const message = error.response?.data?.detail || 'Failed to respond to invite';
+      toast.error(message);
+      return { status: 'error', message };
+    } finally {
+      owner.mutation = false;
     }
   };
 
@@ -291,6 +392,7 @@ const useBookingsActions = ({
   };
 
   return {
+    liveSessionsList,
     fetchData,
     handleJumpIn,
     handleJoinByCode,

@@ -240,8 +240,7 @@ export const Bookings = () => {
             // Switch to live_sessions tab to show the active session
             setActiveTab('live_sessions');
             // Refresh live sessions
-            const sessionsRes = await apiClient.get(`/sessions/user/${user.id}`);
-            setLiveSessions(sessionsRes.data || []);
+            await liveSessionsList.refresh();
           }
         } catch (error) {
           logger.error('Complete session payment error:', error);
@@ -261,6 +260,7 @@ export const Bookings = () => {
 
   // ============ HANDLERS EXTRACTED TO hooks/useBookingsActions.js ============
   const {
+    liveSessionsList,
     fetchData,
     handleJumpIn,
     handleJoinByCode,
@@ -345,7 +345,8 @@ export const Bookings = () => {
   const tabs = [
     { id: 'lineup', label: 'The Lineup', icon: Users, count: 0, highlight: true },
     { id: 'directory', label: 'Find Photogs', icon: Search, count: 0 },
-    { id: 'live_sessions', label: 'Live Sessions', icon: Zap, count: liveSessions.length },
+    { id: 'live_sessions', label: 'Live Sessions', icon: Zap,
+      count: liveSessionsList.phase === 'ready' ? liveSessions.length : null },
     { id: 'on_demand', label: 'On-Demand', icon: Target, count: onDemandPhotographers.length },
     { id: 'find_buddies', label: 'Open Sessions', icon: Users, count: nearbyBookings.length },
     { id: 'scheduled', label: 'Scheduled', icon: CalendarClock, count: scheduledBookings.length },
@@ -361,7 +362,7 @@ export const Bookings = () => {
     setActiveTab,
   });
 
-  if (loading) {
+  if (loading && activeTab !== 'live_sessions') {
     return (
       <div className={`flex items-center justify-center min-h-screen ${mainBgClass}`}>
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-yellow-400"></div>
@@ -439,15 +440,29 @@ export const Bookings = () => {
 
           {/* Live Sessions Tab */}
           <div style={{ display: activeTab === 'live_sessions' ? 'block' : 'none' }}>
+            <div aria-busy={liveSessionsList.phase === 'loading'} className="space-y-3">
+              <div className="flex justify-end">
+                <Button onClick={() => liveSessionsList.refresh()} disabled={liveSessionsList.phase === 'loading'}>
+                  {liveSessionsList.phase === 'error' ? 'Retry live sessions' : 'Refresh live sessions'}
+                </Button>
+              </div>
+              {liveSessionsList.phase === 'loading' && <p role="status" className={textSecondaryClass}>Loading live sessions…</p>}
+              {liveSessionsList.phase === 'error' && <p role="alert" className={textPrimaryClass}>Could not load live sessions. Please retry.</p>}
+              {liveSessionsList.phase !== 'ready' && <p className={textSecondaryClass}>Live Sessions count unavailable</p>}
+              {liveSessionsList.phase !== 'ready' && liveSessionsList.hasLoaded && liveSessions.length > 0
+                && <p className={textSecondaryClass}>Showing last loaded sessions.</p>}
+              {(liveSessionsList.phase === 'ready' || (liveSessionsList.hasLoaded && liveSessions.length > 0)) &&
             <LiveSessionsTab
               liveSessions={liveSessions}
               onGoToLiveNow={() => setActiveTab('live_now')}
               onSessionLeft={(sessionId) => {
+                if (!liveSessionsList.invalidate()) return;
                 setLiveSessions(prev => prev.filter(s => s.id !== sessionId));
               }}
               userId={user?.id}
               theme={theme}
-            />
+            />}
+            </div>
           </div>
 
           {/* On-Demand Tab - Request a Photographer */}
