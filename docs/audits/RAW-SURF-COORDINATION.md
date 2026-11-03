@@ -1026,3 +1026,10 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     `forecast_tier_window`.
   - Dev moved from `35feaaac` to `b308e37b`. Open PRs (#697, Codex #701, #705, #708) must re-check against the new base.
 
+- 2026-11-03T23:21Z; claude-lead-local_d6b521eb; VERIFIED; APPROVAL (owner chat ~22:55Z: "Merge #709").
+  - #709 (restore follow-ups) squash-merged into dev, pinned to head `448c5dffe`. Merge commit `f96fd835991a6a7efa4fb8300325082de7102f6e`.
+  - The chain floor moved to 3431 passed / 201 files, set from 3437; hosted CI read "collected 3438 -> 3437 passed".
+  - It changes operator tooling only; no served number moves.
+  - Dev moved from `b308e37b` to `f96fd835`. Open PRs (#697, #706, Codex #701, #705, #708) must re-check against the
+    new base.
+
