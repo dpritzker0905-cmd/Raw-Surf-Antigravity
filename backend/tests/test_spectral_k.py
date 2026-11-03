@@ -328,3 +328,25 @@ async def test_the_harness_replays_the_arm_at_the_buoy_and_keeps_the_bulk_instru
     want = await S.station_hs("GFS", "153p1", 17.0, "2026-10-06T00:00:00Z", rr._resolve_raw)
     assert on["hs_station_m"] == pytest.approx(round(want, 4)) and on["hs_station_m"] != off["hs_station_m"]
     assert on["outputs"]["surf_height_m"] != off["outputs"]["surf_height_m"], "Blacks is covered: the spot moves too"
+
+
+def test_a_point_is_a_covered_spot_only_inside_the_match_radius(clean):
+    t = S.load_table()
+    spots = [e for e in t["entries"] if e["kind"] == "spot"]
+    for e in spots[:8]:
+        assert S.entry_for_point(e["lat"], e["lng"], t)["key"] == e["key"]
+    near_miss = next(((e["lat"], e["lng"] + d) for e in spots for d in (0.005, -0.005, 0.007, -0.007)
+                      if 0.35 < S._km(e["lat"], e["lng"] + d, e["lat"], e["lng"]) < 0.9
+                      and min(S._km(e["lat"], e["lng"] + d, x["lat"], x["lng"]) for x in spots) > S.SPOT_MATCH_KM), None)
+    assert near_miss and S.entry_for_point(*near_miss, t) is None
+
+
+def test_wind_sea_spreads_wider_than_swell_and_k_sees_the_difference():
+    assert K.SPREAD_S == {"swell": 25.0, "windsea": 10.0}
+    swl = np.zeros((10, 72))
+    sea = np.zeros((17, 72))
+    sea[:, 53] = swl[:, 53] = 1.0                      # only the 270-deg bin transfers
+    T = K.Transfer(swl, sea, SF, QF, 10.0)
+    as_sea = K.nearshore_sea([{"h": 1.0, "tp": 6.0, "dir": 270.0, "kind": "windsea"}], T)["hs"]
+    as_swell = K.nearshore_sea([{"h": 1.0, "tp": 6.0, "dir": 270.0, "kind": "swell"}], T)["hs"]
+    assert as_sea < as_swell, "a wider wind sea puts less of its energy in the one open bin"
