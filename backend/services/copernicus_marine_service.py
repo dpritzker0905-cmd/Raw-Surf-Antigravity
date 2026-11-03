@@ -279,10 +279,40 @@ def _has_forecast_samples(rows):
     return False
 
 
+# The 9 CMEMS partition variables (swell_1, swell_2, wind_waves). A swell-only product asks for these alone: each thin band then
+# downloads 9 of the 12 variables (copernicus_global_fetcher's "variables" payload key).
+CMEMS_PARTITION_VARS = ("VHM0_SW1", "VMDR_SW1", "VTM01_SW1", "VHM0_SW2", "VMDR_SW2", "VTM01_SW2",
+                        "VHM0_WW", "VMDR_WW", "VTM01_WW")
+
+
+def split_band_lats(lats, workers):
+    """Contiguous, ordered chunks of the latitude axis, one per fetcher process (at most len(lats) chunks, never empty ones).
+    Concatenating the chunks' results in order reproduces the single-process point order exactly."""
+    lats = list(lats)
+    n = max(1, min(int(workers or 1), len(lats)))
+    size, extra = divmod(len(lats), n)
+    out, i = [], 0
+    for k in range(n):
+        step = size + (1 if k < extra else 0)
+        out.append(lats[i:i + step])
+        i += step
+    return [c for c in out if c]
+
+
+def global_fetch_timeout_s() -> int:
+    """Per-process ceiling for the thin-band fetcher (COPERNICUS_GLOBAL_TIMEOUT_S, default 2400 = the historical 40 min)."""
+    try:
+        return max(60, int(os.environ.get("COPERNICUS_GLOBAL_TIMEOUT_S", "2400")))
+    except ValueError:
+        return 2400
+
+
 async def fetch_euro_marine_global_coarse(
     bbox: dict,
     resolution: float = 10.0,
     forecast_days: int = 10,
+    variables: Optional[List[str]] = None,
+    workers: int = 1,
 ) -> Optional[List[dict]]:
     """
     BACKGROUND-ONLY: fetch a coarse (resolution°) GLOBAL EURO marine grid from Copernicus using the
@@ -290,6 +320,12 @@ async def fetch_euro_marine_global_coarse(
     dicts for ALL 4 native layers (waves/swell_1/swell_2/wind_waves incl the real MFWAM swell partitions), or
     None on failure. Slow (~15-30 min, ~0.3 GB, ~36 MB peak) — scheduler ingestion ONLY, never a user
     request. CMEMS global waves is a ~10-day product (caller extends 10->14d with cached GFS).
+
+    variables / workers (2026-11-01, item 14; defaults keep the old single process with every variable): a 2-deg grid is
+    ~83 bands against ~17 at 10 deg, run one after another. `variables` narrows each band's download (CMEMS_PARTITION_VARS
+    for a swell-only product); `workers` > 1 splits the latitude axis into that many contiguous chunks, one fetcher process
+    each, joined in order. Processes, not threads: the copernicusmarine toolbox is not known to be thread-safe, and a process
+    keeps the ~36 MB-per-band peak per worker. All or nothing: one failed chunk returns None, never a globe with a hole.
     """
     def _axis(lo, hi, step):
         out = []
@@ -310,60 +346,75 @@ async def fetch_euro_marine_global_coarse(
     import subprocess
     import sys
     import json
-    import os
     import tempfile
     import uuid
     from pathlib import Path
-    from datetime import datetime, timezone, timedelta
 
     user, pwd = _check_credentials()
     now = datetime.now(timezone.utc)
     tmp = Path(tempfile.gettempdir())
     os.environ["COPERNICUSMARINE_CREDENTIALS_DIRECTORY"] = str(tmp)
-    out = tmp / f"cmems_global_{uuid.uuid4().hex}.json"
-    payload = {
+    base = {
         "username": user, "password": pwd, "bbox": bbox, "resolution": resolution,
         "start_datetime": (now - timedelta(hours=6)).strftime("%Y-%m-%dT%H:%M:%S"),
         "end_datetime": (now + timedelta(days=forecast_days)).strftime("%Y-%m-%dT%H:%M:%S"),
-        "output_path": str(out),
     }
+    if variables:
+        base["variables"] = list(variables)
+    chunks = split_band_lats(lats, workers) if (workers or 1) > 1 else [None]
     script = os.path.join(os.path.dirname(__file__), "copernicus_global_fetcher.py")
+    timeout_s = global_fetch_timeout_s()
 
-    def _run():
-        return subprocess.run(
-            [sys.executable, "-OO", script, json.dumps(payload)],
-            capture_output=True, text=True, timeout=2400,  # 40 min ceiling
-        )
+    def _read_json_file(path):
+        with open(path) as fh:
+            return json.load(fh)
 
-    try:
-        result = await asyncio.get_event_loop().run_in_executor(None, _run)
-        if result.stdout and result.stdout.strip():
-            logger.info(f"[Copernicus Global] {result.stdout.strip().splitlines()[-1]}")
-        if result.returncode != 0:
-            logger.error(f"[Copernicus Global] fetcher failed (exit {result.returncode}): {result.stderr.strip()[-600:]}")
-            return None
-        # ⛔ OFF THE EVENT LOOP — same class and same shape as the GFS-Wave lane; see the note at
-        # `_fetch_common.run_fetcher_subprocess` (MASTER-AUDIT-10.0 §1.1). Copernicus Global is the
-        # longest-running lane in the pilots pass (1,158.8 s observed), so its product is not small.
-        def _read_json_file(path):
-            with open(path) as fh:
-                return json.load(fh)
+    async def _one(chunk):
+        out = tmp / f"cmems_global_{uuid.uuid4().hex}.json"
+        payload = dict(base, output_path=str(out))
+        if chunk is not None:
+            payload["lats"] = chunk
 
-        data = await asyncio.to_thread(_read_json_file, out)
-        return data if data else None
-    except subprocess.TimeoutExpired:
-        logger.error("[Copernicus Global] fetcher subprocess timed out (>2400s)")
-        return None
-    except Exception as e:
-        logger.error(f"[Copernicus Global] error: {e}")
-        return None
-    finally:
+        def _run():
+            return subprocess.run([sys.executable, "-OO", script, json.dumps(payload)],
+                                  capture_output=True, text=True, timeout=timeout_s)
+        label = "" if chunk is None else f" lats {chunk[0]}..{chunk[-1]}"
         try:
-            if out.exists():
-                out.unlink()
-        except Exception:
-            pass
+            result = await asyncio.get_event_loop().run_in_executor(None, _run)
+            if result.stdout and result.stdout.strip():
+                logger.info(f"[Copernicus Global]{label} {result.stdout.strip().splitlines()[-1]}")
+            if result.returncode != 0:
+                logger.error(f"[Copernicus Global]{label} fetcher failed (exit {result.returncode}): {result.stderr.strip()[-600:]}")
+                return None
+            # ⛔ OFF THE EVENT LOOP — same class and same shape as the GFS-Wave lane; see the note at
+            # `_fetch_common.run_fetcher_subprocess` (MASTER-AUDIT-10.0 §1.1). Copernicus Global is the
+            # longest-running lane in the pilots pass (1,158.8 s observed), so its product is not small.
+            data = await asyncio.to_thread(_read_json_file, out)
+            return data if data else None
+        except subprocess.TimeoutExpired:
+            logger.error(f"[Copernicus Global]{label} fetcher subprocess timed out (>{timeout_s}s)")
+            return None
+        except Exception as e:
+            logger.error(f"[Copernicus Global]{label} error: {e}")
+            return None
+        finally:
+            try:
+                if out.exists():
+                    out.unlink()
+            except Exception:
+                pass
 
+    parts = await asyncio.gather(*(_one(c) for c in chunks))
+    if any(not part for part in parts):
+        if len(parts) > 1:
+            logger.error(f"[Copernicus Global] {sum(1 for p in parts if not p)} of {len(parts)} band chunks failed; "
+                         "returning nothing rather than a partial globe.")
+        return None
+    runs = {pt.get("__model_run_time") for part in parts for pt in part[:1]}
+    if len(runs) > 1:
+        logger.warning(f"[Copernicus Global] band chunks stamped different bulletins {sorted(map(str, runs))}: "
+                       "a CMEMS publish landed mid-fetch; each point keeps its own stamp.")
+    return [pt for part in parts for pt in part]
 
 def _fetch_tiled_sync(
     latitudes: List[float],

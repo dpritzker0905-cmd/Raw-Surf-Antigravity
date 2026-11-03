@@ -183,7 +183,9 @@ jobs:
             // Forecast point settle (2026-10-28, D10): useOpenMeteoForecast.d10.test.js (+1 suite / +5 tests). Raised by exactly that.
             // ICON point stored tail (2026-11-01, P1-B, dark): iconPointStoredTail.test.js (+1 suite / +4 tests). Raised by exactly that.
             // EURO / ICON regional bundles (2026-11-01, item 11, dark): staticRegional.euroIcon.test.js (+1 suite / +5 tests). Raised by exactly that.
-            const MIN_SUITES = 529, MIN_TESTS = 6928;
+            // Spot-hub phase 1 (2026-11-03, ON with __RAW_DISABLE_SPOT_HUB_P1__): spotHubP1.test.js (+1 suite / +38 tests),
+            // SpotHub.phase1.test.js (+1 / +12), SpotConditions.phase1.test.js (+1 / +8). Raised by exactly that; confirm against the hosted receipt.
+            const MIN_SUITES = 532, MIN_TESTS = 6986;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -1638,9 +1640,17 @@ jobs:
           #   base 3172 (hosted read) + 135 new test(s) and 7 new file(s) = 3307, files 195; floor 3307 - 6 = 3301. This PR must read 3307 passed.
           # ⬆ 3301→3310 on 2026-11-03 (rederive_floor.py, claude/euro-icon-scalar-shadow): dev run 41668531514 read 3307 / 195 files; dev's map 3307;
           #   base 3307 (hosted read) + 9 new test(s) and 0 new file(s) = 3316, files 195; floor 3316 - 6 = 3310. This PR must read 3316 passed.
-          # ⬆ 3310→3361 on 2026-11-03 (rederive_floor.py, claude/consensus-direction-vector): dev run 41673519496 read 3307 / 195 files; dev's map 3316;
-          #   base 3316 (dev's map) + 51 new test(s) and 1 new file(s) = 3367, files 196; floor 3367 - 6 = 3361. This PR must read 3367 passed.
-          MIN_FILES, MIN_PASSED = 196, 3361
+          # ⬆ 3310→3368 on 2026-11-03 (rederive_floor.py, claude/euro-estimate-continuity on dev d153dfc09: #675 12 + rollout v2 46): dev run 41673519496 read 3307 / 195 files; dev's map 3316;
+          #   base 3316 (dev's map) + 58 new test(s) and 2 new file(s) = 3374, files 197; floor 3374 - 6 = 3368. This PR must read 3374 passed.
+          # ⬆ 3368→3374 on 2026-11-03 (rederive_floor.py, claude/gfs-pilot-full-horizon): dev run 41679759741 read 3316 / 195 files; dev's map 3374;
+          #   base 3374 (dev's map) + 6 new test(s) and 1 new file(s) = 3380, files 198; floor 3380 - 6 = 3374. This PR must read 3380 passed.
+          # ⬆ 3374→3387 on 2026-11-03 (rederive_floor.py, claude/euro-mid-cmems-swell): dev run 41679759741 read 3316 / 195 files; dev's map 3380;
+          #   base 3380 (dev's map) + 13 new test(s) and 1 new file(s) = 3393, files 199; floor 3393 - 6 = 3387. This PR must read 3393 passed.
+          # ⬆ 3387→3408 on 2026-11-03 (rederive_floor.py, claude/spot-hub-phase1): dev run 41702493992 read 3380 / 198 files; dev's map 3393;
+          #   base 3393 (dev's map) + 21 new test(s) and 1 new file(s) = 3414, files 200; floor 3414 - 6 = 3408. This PR must read 3414 passed.
+          # ⬆ 3408→3459 on 2026-11-03 (rederive_floor.py, claude/consensus-direction-vector): dev run 41711330259 read 3393 / 199 files; dev's map 3414;
+          #   base 3414 (dev's map) + 51 new test(s) and 1 new file(s) = 3465, files 201; floor 3465 - 6 = 3459. This PR must read 3465 passed.
+          MIN_FILES, MIN_PASSED = 201, 3459
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

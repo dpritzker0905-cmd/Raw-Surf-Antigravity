@@ -1,5 +1,6 @@
 import { Wind, Waves, CloudRain, Snowflake, ArrowUp, Droplets, Gauge, Thermometer, Cloud, Eye } from 'lucide-react';
 import { RATING_LABEL, RATING_COLOR } from './surfRating';
+import { TIDE_MODEL_LABEL, formatPointTide, spotHubP1Enabled } from '../spot-hub/spotHubP1Format';
 import { energyFluxKwM, energyBand, formatEnergy, isCoarseTier } from './surfEnergy';
 // ⚠️ IMPORTED, NOT INJECTED — deliberately, and this is the whole point of the 2026-08-09 fix.
 // Every height on these cards used the injected `mToFt`, which each of the five card test files
@@ -386,6 +387,17 @@ export function compileForecastCards({
           // The badge's own frame when it is not the Surf number's (P2: "from Tue 3 PM"); text, never colour alone.
           ...(ratingNote ? { note: ratingNote, ariaLabel: `Rating: ${_ratingLabel}, ${ratingNote}` } : {}),
         });
+        // TIDE (spot-hub phase 1, 2026-11-03): the tide the rating used, from the same answer
+        // (/point-rating `rating.tide`). Absent => no row (never 0). It is a MODEL estimate on the
+        // mean-sea-level datum, and the row says so. Kill: window.__RAW_DISABLE_SPOT_HUB_P1__.
+        const _tideText = spotHubP1Enabled() ? formatPointTide(surfRating.tide) : null;
+        if (_tideText) {
+          cards.push({
+            icon: Waves, label: 'Tide', value: _tideText, color: 'text-cyan-300',
+            note: 'model estimate, mean sea level',
+            ariaLabel: `${TIDE_MODEL_LABEL}: ${_tideText.replace('ft', 'feet')}`,
+          });
+        }
       }
     }
     if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {

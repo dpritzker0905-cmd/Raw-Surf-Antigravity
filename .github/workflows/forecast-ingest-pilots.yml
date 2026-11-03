@@ -68,6 +68,10 @@ jobs:
           INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS: ${{ vars.INGEST_PRUNE_PROTECT_REFERENCED_OBJECTS || '0' }}
           # DARK (2026-10-28 wiring): '1' = a product save drops every other manifest registration naming the same storage object (manifest_object_identity.py, #590), so a save or prune never deletes the file a twin registration still names. Storage logs 2026-10-27: 56 EURO global_coarse estimates deleted ~5 s after the first writer's upload, absent 10-30 min a cycle. ONE repo variable read by the three manifest writers (forecast-ingest, forecast-ingest-pilots, precompute); Render never writes. Owner's word 2026-10-28.
           MANIFEST_ONE_ENTRY_PER_OBJECT: ${{ vars.MANIFEST_ONE_ENTRY_PER_OBJECT || '0' }}
+          # ON by default, kill switch '0' (owner 2026-11-01 22:10 EST); built (2026-11-01, item 15): '1' = a superseded ESTIMATE is pruned only once a replacement exists at its valid time (an authoritative product, or an estimate of a newer run), not as soon as the lane has any newer estimate. Off, the EURO coarse save deletes the previous estimated generation ~22 min before the extended-estimates stage rewrites it (112 objects at 16:05:52Z on 10-27; log/2026-10-27-claude-lead-prune-protect-flip.md), so EURO tail hours have no /grid product for that window. ONE repo variable read by both ingest lanes (both call the prune). Pairs with LATTICE_FILL_REFRESH_STALE. Owner's word.
+          INGEST_PRUNE_ESTIMATES_AFTER_REPLACE: ${{ vars.INGEST_PRUNE_ESTIMATES_AFTER_REPLACE || '1' }}
+          # ON by default, kill switch '0' (owner 2026-11-01 22:10 EST); built (2026-11-01, the EURO +147/+153 h gap): '1' = the in-band lattice fill treats ITS OWN interpolations from an older native run as missing and rewrites them (same time-keyed object). Off, a ghost manifest entry (pruned by one lane, folded back by the other lane's concurrent publish) makes the fill skip the slot: core run 41347283478 saved 2 frames, not the usual ~32, and EURO waves 147/153/.../237 h had no object at either global tier. Both lanes (the fill also runs after the pilots when LATTICE_FILL_AFTER_PILOTS=1). Owner's word.
+          LATTICE_FILL_REFRESH_STALE: ${{ vars.LATTICE_FILL_REFRESH_STALE || '1' }}
           # DARK (2026-11-01): '1' = product objects are named by run + content hash (product_run_keys.py), so a cache can never serve an older run under a reused key (Render served the 10-30T18Z Cocoa Beach GFS tile for 51 h after storage held 11-01T18Z). Prunes defer storage deletes to product_object_gc (two sweeps a grace apart). ONE repo variable read by the three manifest writers; Render env set together (scrub swap needs nothing, the disk sweep reads it). Owner's word.
           PRODUCT_RUN_KEYED_NAMES: ${{ vars.PRODUCT_RUN_KEYED_NAMES || '0' }}
           NODE_ENV: production
@@ -117,6 +121,15 @@ jobs:
           # products 1,704 → 2,216 per fire (~+4% of the 12k-product manifest).
           # Revert = set this back to '3'. Pilot-lane-only: this env is set per-workflow.
           GFS_MARINE_FORECAST_DAYS: '5'
+          # ON by default, kill switch '0' (owner 2026-11-01 22:10 EST); built (2026-11-01, item 13): '1' gives EVERY GFS pilot box the flagship horizon (GFS_MARINE_FLAGSHIP_FORECAST_DAYS, 14 d) instead of the 5 d above. Measured: 17 of 19 boxes end at run + 120 h (CDN audit 10-26T14Z, 41/45 frames, gap h116-h336), so close-zoom GFS scrubbing past day 5 falls back to the server. Cost: the 17 boxes join the flagship pass, which already downloads f384 (GFS_WORLD_FULL_HORIZON), so the separate 41-step 5 d pass goes away; ~4,900 more regional products and frames per fire (memory and the frame budget are the risks). The instruments above were not re-run past day 5. Moves served numbers: owner's word with evidence (D-001).
+          GFS_PILOT_FULL_HORIZON: ${{ vars.GFS_PILOT_FULL_HORIZON || '1' }}
+          # ON by default, kill switch '0' (owner 2026-11-01 22:10 EST); built 2026-11-01, item 14: '1' = after the ECMWF `waves` save, the EURO Marine Global Mid job also stores EURO swell_1/swell_2/
+          # wind_waves at 2 deg from CMEMS (MFWAM), the 9 partition variables only, bands split over EURO_MID_CMEMS_WORKERS (default 4)
+          # fetcher processes. Today EURO swell exists only at 10 deg (global_coarse): no world frame at any zoom. The 240-336 h tail comes
+          # from the core lane's extended-estimates job, which already walks global_mid. Cost: a 2-deg CMEMS pass (~83 thin bands, ~5x the
+          # 10-deg ~15-30 min serial; split 4 ways ~20-40 min, unmeasured) in a lane whose p90 is 124 of 200 min. Moves served numbers
+          # (EURO swell from global_mid): ON on the owner's word 2026-11-01 (D-059); kill with EURO_MARINE_MID_CMEMS_SWELL=0.
+          EURO_MARINE_MID_CMEMS_SWELL: ${{ vars.EURO_MARINE_MID_CMEMS_SWELL || '1' }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
@@ -193,6 +206,11 @@ jobs:
           # The client reads them by default. Kill: repo variable FRAME_REGIONAL_BUNDLES_EURO_ICON = '0' (with Render
           # MARINE_REGIONAL_TILE_FIRST_EURO_ICON=0 and the client's __RAW_DISABLE_REGIONAL_EURO_ICON__).
           FRAME_REGIONAL_BUNDLES_EURO_ICON: ${{ vars.FRAME_REGIONAL_BUNDLES_EURO_ICON || '1' }}
+          # ON by default, kill switch '0' (owner 2026-11-01 22:10 EST); built 2026-11-01, item 14 (published LAST, after the regional bundles): '1' adds the EURO swell_1/swell_2/wind_waves world sets (plain + Gulf-filled) after the world sets
+          # (frame_set.EURO_SWELL_SETS). They have products only once EURO_MARINE_MID_CMEMS_SWELL is on in the ingest step; the client's
+          # STATIC_SETS must list them before it reads them. With FRAME_TAIL_DOWNLOAD on, their 240-336 h tails need ~3 x 40 more of
+          # FRAME_TAIL_DOWNLOAD_MAX. Kill with FRAME_EURO_SWELL_SETS=0.
+          FRAME_EURO_SWELL_SETS: ${{ vars.FRAME_EURO_SWELL_SETS || '1' }}
         run: python scripts/publish_frame_images.py
 
       # 2026-10-27 (the lead): the step above exits 1 on a refused set or a crash, and continue-on-error turns that green: the
