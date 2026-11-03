@@ -1634,7 +1634,9 @@ jobs:
           #   base 3061 (dev's map) + 111 new test(s) and 2 new file(s) = 3172, files 188; floor 3172 - 6 = 3166. This PR must read 3172 passed.
           # ⬆ 3166→3301 on 2026-11-03 (rederive_floor.py, claude/eval-harness-v0): dev run 41549383722 read 3172 / 188 files; dev's map 3172;
           #   base 3172 (hosted read) + 135 new test(s) and 7 new file(s) = 3307, files 195; floor 3307 - 6 = 3301. This PR must read 3307 passed.
-          MIN_FILES, MIN_PASSED = 195, 3301
+          # ⬆ 3301→3359 on 2026-11-03 (rederive_floor.py, claude/euro-estimate-continuity on dev dfed518e8: #675 12 + rollout v2 46): dev run 41549383722 read 3172 / 188 files; dev's map 3307;
+          #   base 3307 (dev's map) + 58 new test(s) and 2 new file(s) = 3365, files 197; floor 3365 - 6 = 3359. This PR must read 3365 passed.
+          MIN_FILES, MIN_PASSED = 197, 3359
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

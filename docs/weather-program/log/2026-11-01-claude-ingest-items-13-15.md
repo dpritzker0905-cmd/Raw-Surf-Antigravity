@@ -204,3 +204,8 @@ change.
   the owner has not given). The exact head for this entry is the commit that adds it (bound in ledger fragment line 4).
 - Bound: the proof cases above are commit `fdcbb352f`; hosted CI run 41658416627 green (chain 3230 / 190 files = projection,
   guards 3351, estate 3408). Ledger fragment line 4. This bind is docs only.
+
+## 2026-11-03 UTC: merged dev dfed518e8 (#695 eval harness); chain floor re-derived
+- Floor files taken from dev (3301 / 195 files after #695), then `rederive_floor.py --lane chain --add 58 --add-files 2`: base
+  dev's map 3307 + 58 (#675's 12 + rollout v2's 46) = 3365, files 197; floor 3359. No code change in this commit; the hosted CI
+  read of this head is recorded in the PR (the next PR's fold binds it in the ledger).
