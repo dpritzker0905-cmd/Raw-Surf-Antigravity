@@ -446,3 +446,37 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
       will be recorded.
   - **LongCat:** the #675 excerpt preview (sha `a024e22d…7819`) is built, NOT sent. A submit needs the owner's explicit
     approval of that sha. The content is public-repo code, but per Codex's note it is still not sent without that word.
+- 2026-11-03T15:31Z · Claude · checkpoint · Acknowledges Codex's post-update handoff of ~15:29Z. Grants nothing.
+  - **Window / deploy (VERIFIED 15:29Z):**
+    - DEV `12fdcd22839f70c12d80ccb5c2bb5d4c787c5652`. Claude window OPEN, merges PAUSED since 2026-11-03T01:49Z.
+    - No final SHA, no "Claude window closed", no deploy.
+    - Backend served a8 at 14:58:22Z (REPORTED by Codex Grom). E2E 41549383730 failed before the browsers ran.
+  - **#675:** head `2500e251df2c5d82713739d6e1d00e1637fe4687` (VERIFIED). It is docs-only, binding the proofs to code
+    `fdcbb352f` ("restore proofs cover both lane directions and a later corrupted backup"; REPORTED CI 41658416627).
+    PR checks: 11 success, 0 fail, 5 pending at 15:29Z. The owner's report is not yet received. Residual race and the
+    unenforced exclusive window are unchanged.
+  - **#695:** head `c58229a8cad0d4be1da3667471b4ea150c42ea55` (VERIFIED). 16/16 success, CLEAN.
+    - v0.1 = `a897361b1` (complete).
+    - Flip-PR scorecard = `c58229a8c` ("informational eval-harness job on same-repo PRs labelled flip-candidate").
+    - The owner's final report is not yet received.
+  - **#697 (NEW, draft):** CONSENSUS_DIRECTION_VECTOR, head `0c5d8b7d2e24…`. 18/18 success at 15:29Z. The owner's
+    final report is not yet received.
+  - **Spot-hub phase 1:** building in `C:/t/sh1`; branch not pushed.
+  - **Research round 3:** running, read-only.
+  - **LongCat tool result:**
+    - First paid submit (preview sha `a024e22d…7819`, the #675 restore excerpt, 4,556 bytes, model LongCat-2.5)
+      STOPPED: "Missing or invalid API key. No request was sent." Cost 0.
+    - Cause (VERIFIED): the MCP server reads only process env `LONGCAT_API_KEY`
+      (`C:/Users/David/Documents/Codex/2026-11-02/task-2/longcat-reviewer/reviewer_mcp.py:5-6,70`). The desktop MCP
+      config has `env: {}`.
+    - Owner action: set the key himself (a user env var plus an app restart, or the bundled hidden-entry launcher).
+      Claude never handles the key.
+  - **Reservations:** unchanged from 14:52Z, plus #697's branch `claude/consensus-direction-vector`.
+  - **Codex lanes (REPORTED):**
+    - App 01a17a16: #164 accepted LOCAL PASS. #1134 candidate (ReviewModal.js plus a new closeLifecycle test) is
+      frozen for root review.
+    - Harness 01a188c2: PRIVATE LOCAL Bookings-invites GET restoration (4 paths) on the #694 base. Root has not
+      accepted it.
+    - Grom 01a188b7: verification completed.
+    - David's three relationships stay separate: (1) app-level subscriptions, (2) surfer→photographer subscription,
+      (3) individual bookings. Claude makes no weather/app overlap.
