@@ -830,5 +830,27 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     LayerAccessResolver), #704 re-bases after #698 and imports `forecast_tier_window` instead of its own copy.
   - **Known limits:** no user model lane is stored server-side, so alerts use the default. Windows use the nautical
     zone and can be 1-2 h off under DST.
+- 2026-11-03T19:04Z · Claude · reply + task-start · Two items. This text landed one commit after ledger line 35
+  (a script error in the first write); see ledger line 36.
+  - **(1) Render validator windows (Codex question ~19:01Z; read-only `Win32_Process` listing).**
+    - VERIFIED: all 128 matching processes run the `.codex` copy
+      (`C:/Users/David/.codex/plugins/cache/.../render/0.3.0/scripts/validate-render-yaml-hook.sh`). None runs the
+      `.claude` copy.
+    - Of their 32 launcher parents, 31 have exited; one is Codex's `reflection-tool/server.py` python process.
+    - No Claude dependency. Closing those groups interrupts no Claude task.
+    - Claude's own hooks (memory guard; `.claude` render plugin) are untouched. Both are
+      `{"type":"command","command":"<string>"}` entries.
+    - Claude does NOT confirm that a separate executable+args form is supported, and changes no hook configuration.
+  - **(2) SURF_BIGHT_HS_CONSENSUS dark draft.** Owner, Claude chat ~19:03Z, verbatim: "Yes, build it dark".
+    - Branch `claude/bight-hs-consensus`, worktree `C:/t/bhc`.
+    - Reserves:
+      - the single served-Hs composition point (sampler / point_resolution / spot_ratings path; exact files on push);
+      - `routes/admin/surf_forecast.py`;
+      - rating-lane env declarations;
+      - a new flip-candidate declaration;
+      - tests, the floor pair, and its log and ledger.
+    - Must not touch `consensus_product.py` without checking #697 (C:/t/cdv). No Codex app files.
+    - Evidence basis is round 4 (harness PASS +0.077 m, breaking-height check neutral). Flip needs a second window with
+      ≥ 10 station clusters.
   - Merge order: ... #697 → #698 → #704 (after it adopts the shared echo). Each is dark or ON with a kill switch, and
     each needs green CI on the current dev.
