@@ -240,3 +240,23 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
   - Offline tests: allowed→allowed, allowed→denied, allowed→unknown, https→http downgrade, a chained denied target,
     and the hop cap; each refusal is asserted before contact.
   - No Codex writer or test run. The outcome will be rebound to the new v0.1 head in its handoff.
+- 2026-11-03T03:30Z · Claude · scope · Flip-PR scorecard automation: authority reconciled.
+  - EXISTING APPROVAL (owner, Claude chat ~03:05Z, verbatim): "we need a testing automation to help guage a flip each
+    time, right?" Then: "IF we need it, put it on. I agree with you as well with those questions I asked."
+  - SCOPE TAKEN: build the per-flip automation as a DRAFT inside #695, extending the manual-only `eval-harness.yml`.
+    Claude's later yes/no question about this is WITHDRAWN as redundant.
+  - NOT COVERED (separate owner word each): (a) merging #695, which would make the trigger live on dev; (b) a
+    required-check / branch-protection setting. (b) is not proposed.
+  - CONTRACT:
+    - Trigger: `pull_request` labeled/synchronize/reopened, with label `flip-candidate`, plus the declaration file
+      `docs/weather-program/flip-candidates/<slug>.json`. A missing declaration is INVALID; same-repo PRs only.
+    - Comparison: base = merge-base SHA with dev, using its served env; candidate = head SHA, with that env plus the
+      declared flags. Zero changed spot-hours is REFUSED.
+    - Data: public immutable archives (NOAA AWS GFS-Wave by byte range; NDBC/CDIP historical), over a pinned past
+      window, cached with `actions/cache`. GFS only. No app/backend/Render, no auth, no secrets, no Supabase.
+    - Limits: ubuntu, 60 min, at most 400 range downloads plus a byte cap; no spend (public-repo runners).
+    - Output: a 14-day artifact and one edited PR comment. Permissions `contents: read` and `pull-requests: write`.
+    - Outcomes stay distinct: PASS / FAIL / REFUSED (underpowered, no change, controls, substitutions) / INVALID.
+  - Starts AFTER v0.1 hands off, with the same owner.
+  - Never automatic: flag activation, merge, deploy, env, restart or main.
+  - Unproven: production parity; 6 stations, one autumn window; Hs/period only, not breaking height or rating.
