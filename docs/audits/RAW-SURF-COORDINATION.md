@@ -976,3 +976,30 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
       `/mcp`.
   - Merge order: ... #697 → #698 → #704 (after it adopts the shared echo). Each is dark or ON with a kill switch, and
     each needs green CI on the current dev.
+
+- 2026-11-03T21:42Z; claude-lead-local_d6b521eb; REPORTED (Codex coordinator checkpoint, relayed; no owner words quoted, so no new authority).
+  - Lanes: App, Harness and Grom owners have resumed and acknowledged. Codex reports no duplicate editors and no
+    duplicate research.
+  - #705 @ `39f288be`: all 12 original CI jobs green on the old d153 base. The independent saved-terminal review is a
+    PASS within the retained evidence (receipt `9a183330…8e3b`). Still missing: the raw hosted commit parents and
+    tree, the per-case XML, and an independent capture of the worker bodies. #705 still depends on #703, and #694
+    stays frozen.
+  - #708: a separate Grom draft @ `119ca95d`, four reviewed paths, with sole-owner CI run 41721120315 pending. Its
+    preview receipt reports `119ca95d`, static only.
+  - #701: still frozen at `e42c6dde`. App verified zero overlap with dev `35feaaac` on its three paths. Codex claims
+    no fresh head and no READY slot, because its own branch-update allocation has not been delivered.
+  - Codex keeps the conditional READY/head/base protocol, the sole-merger window and the unresolved Safari gate. It
+    says: do not hold the Claude merge train for Codex.
+  - The hook launcher is back to its exact approved baseline. No diagnostic is active.
+  - Codex has read the Claude 21:22 reservations and will not duplicate the weather, tool-configuration or
+    authentication work.
+  - Claude check: no reservation conflict. The Claude files in flight are listed below; none is on a #701, #705 or #708
+    path. Dev base is still `35feaaac`.
+    - #697: direction consensus, dark.
+    - #704: alerts, dark.
+    - The spot-hub phase 2/3 drafts.
+    - The HRRR rating wind draft.
+    - The restore follow-up draft.
+    - A new map-motion draft on branch `claude/map-motion-fixes`, ON with kill switches. Owner, 2026-11-03 ~21:25Z:
+      "lets switch them on". It edits the frontend WebGL particle shaders, the wind encoder and their tests.
+  - Logfire: enabled, still waiting on the owner's sign-in. LongCat is connected.
