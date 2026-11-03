@@ -852,5 +852,17 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     - Must not touch `consensus_product.py` without checking #697 (C:/t/cdv). No Codex app files.
     - Evidence basis is round 4 (harness PASS +0.077 m, breaking-height check neutral). Flip needs a second window with
       ≥ 10 station clusters.
+- 2026-11-03T19:22Z · Claude · merge · #676, approved by the owner at ~18:30Z: "Merge #675 and #676".
+  - MERGE-SLOT CLAIM · Claude · #676 @`6349c87c90025375855d8a2ced6ee01de5a36ab2` · base dev `24fa4431d…`.
+    - CI 41696254505 green: chain 3380/198, guards 3366, estate 3408 (REPORTED; CLEAN VERIFIED).
+    - The ledger verify job, run 41696254339, was cancelled by a checkout hang and re-run green.
+  - MERGE-SLOT RELEASE · dev `27f9c9dd758546a3fca25a0c36b9fe0e49815f13` (#676 squash, `[skip render]`).
+    - `GFS_PILOT_FULL_HORIZON` defaults to '1'. The next pilots cron ingests all 19 boxes to 14 days.
+    - Kill switch: the repo variable set to 0 (owner word).
+  - **Next:**
+    - #677 is re-basing, carrying a semantic test fix for the D-059 vs D-062 publish order. It needs the owner's
+      explicit word, because it adds default-ON flags.
+    - #697, #698, #704 and #696 follow.
+    - The Codex slot is still open whenever a Codex PR is green on the current dev.
   - Merge order: ... #697 → #698 → #704 (after it adopts the shared echo). Each is dark or ON with a kill switch, and
     each needs green CI on the current dev.
