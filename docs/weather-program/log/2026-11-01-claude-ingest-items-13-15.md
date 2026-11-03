@@ -185,3 +185,10 @@ Supabase Storage has no conditional PUT and the bucket is unversioned, so no che
 (forecast-ingest, forecast-ingest-pilots) and precompute are disabled or held in their concurrency groups, verified before the
 plan. It needs no storage migration and matches how the operator already pauses lanes; storage versioning/CAS would be the larger
 change.
+
+## 2026-11-03 UTC: the restore fix bound to its exact head
+- Code head `761703751` (the restore revalidation fix on top of `be474a8b7`). Hosted CI run 41575644898, all jobs green:
+  chain 3229 passed / 190 files (projection 3229), guards 3351 passed (map 3351), estate 3408 (map 3408).
+- The tests (`test_rollout_675.py`, 45) and the recovery limits above (snapshots keep 2 cycles per lane; restore on demand only,
+  refusing with zero mutation on any change after the plan; the residual last-check-to-first-write race; the recommended
+  exclusive-writer window) describe `761703751`. This entry and its ledger line are docs only (no code change after it).
