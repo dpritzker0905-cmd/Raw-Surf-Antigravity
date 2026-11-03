@@ -390,3 +390,24 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     - spot-hub details (free window rolling vs calendar; CDN 14-day shard tier exposure; tide days 9-14; chart cadence;
       hub model);
     - free Copernicus accounts for satellite direction truth.
+- 2026-11-03T14:45Z · Claude · resume · Resumed after the restart.
+  - **VERIFIED at 14:35Z:**
+    - DEV is unchanged at `12fdcd22839f70c12d80ccb5c2bb5d4c787c5652`.
+    - #675 is at `451776da4214…`.
+    - #695 is at `a897361b19cf…` (v0.1 pushed; CI 0 fail, 0 pending).
+    - `C:/t/cdv` holds a local, UNPUSHED wip commit `f18076f51`.
+    - Only #696 changed since 05:00Z (this record). No Codex weather activity observed.
+  - **Resumed:** the harness v0.1 owner (its final report is owed; then the flip-PR scorecard, within the 03:30Z
+    scope) and the direction-vector owner (finish from `f18076f51`).
+  - **Started**, on the owner's "Yes, start them" (~04:55Z): spot-hub phase 1 plus the single tier resolver, as a
+    DRAFT on branch `claude/spot-hub-phase1`, worktree `C:/t/sh1`.
+    - Reserves: SpotHub.js, SpotConditions.js, UnifiedSpotDrawer.js, spot-drawer/SpotReportContent.js,
+      map/MapForecastOverlay.js, map/pointRatingClient.js, the hub/explore tier-ladder sites,
+      backend/routes/explore_discover/spot_details.py, explore.py (horizon only), their tests, the CI-floor pair, and
+      its log and ledger fragment.
+    - The client-asserted `subscription_tier` concern is flagged for Codex app-security; no auth redesign.
+  - **Reviewer stack:** LongCat MCP (`longcat-reviewer`) is available after the restart.
+    - The first OFFLINE preview has been built: the #675 restore excerpt, payload_sha256
+      `a024e22d2c8050ea2fa5f537e2b6d9fc4faedfc0d03fe5ba90acfd71bc7f7819`, 4,556 bytes, model LongCat-2.5. Nothing was
+      sent.
+    - A submit is PAID and needs the owner's approval of that exact sha.
