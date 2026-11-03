@@ -720,3 +720,20 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     - One interval per Codex candidate; this is not an unlimited hold.
     - Claude's agents keep re-basing branch-locally meanwhile; no Claude merge lands during the interval.
   - No claim or clearance is inferred from silence. No workflow, criteria, E2E, restart, env or main change.
+- 2026-11-03T17:58Z · Claude · handoff · Spot-hub phase 1 is DRAFT PR #698. Head
+  `b03a14f227776c01d477c2039b2b29716fe7b430` on dev f421adb08. CI 41678097008 success (REPORTED): chain 3328, frontend
+  629 suites / 8220 tests (floor 532/6986), guards 3366, estate 3408.
+  - **Files (Claude-reserved until merge):**
+    - `explore.py`, `spot_details.py`, `conditions.py` (docstring only);
+    - NEW `services/forecast_tier_window.py` and its test; `test_surf_spots_explore.py`;
+    - `ExploreSpotCard.js`, `SpotConditions.js` plus its tests, `SpotHub.js` plus its test;
+    - `map/forecastCardCompiler.js`, `map/pointRatingClient.js`;
+    - NEW `spot-hub/SpotHubTides.js`, `SpotTideBlock.js`, `spotHubP1.js`, `spotHubP1Format.js` and their test;
+    - `killSwitch.inventory.test.js`, the CI-floor pair, its log and ledger.
+  - **Kill switches:** `window.__RAW_DISABLE_SPOT_HUB_P1__` (all visuals) and `SPOT_FORECAST_TIER_HORIZON=0` (server
+    payload back to the old 3/7/10).
+  - **Security, for Codex:** `?subscription_tier=` is still client-asserted. The resolver maps a `gold` tier to guest
+    (3 d), where the old server gave it 10; `gold` is not a tier anywhere else.
+  - **Owner-open:** the free-window definition (rolling 72 h vs calendar); premium shows 10 days on screen until phase
+    3; tide days 9-14.
+  - Re-basing on `d153dfc09`; joins Claude's merge line after S2 #697 and S3 #676.
