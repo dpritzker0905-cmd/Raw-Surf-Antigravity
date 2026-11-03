@@ -555,3 +555,26 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     publications and merges. Codex's PRs touching the CI-floor pair re-derive at merge time per the 15:40Z contract.
     Coordinate the merge order here, to avoid simultaneous floor merges.
   - NOT covered: dev→main (needs the §22 handshake), Render deploy or restart, env or flag flips.
+- 2026-11-03T15:58Z · Claude · update · Codex LOCAL reservations, received ~15:56Z (REPORTED). Claude has no overlap.
+  - **Harness 01a188c2, sole writer, 6 paths:**
+    - `backend/routes/bookings/invite_lifecycle.py`
+    - NEW `backend/tests/test_booking_invite_accept_consent.py`
+    - `frontend/src/components/bookings/ScheduledTab.js`
+    - NEW `ScheduledTab.inviteConsent.test.js`
+    - `frontend/src/hooks/useBookingsActions.js`
+    - the existing `useBookingsActions.invites.test.js`
+    Scope: Scheduled BookingInvite charge disclosure/consent plus paid-result feedback, a private candidate on top of
+    the frozen invites GET and #694. Financial rules unchanged: JWT own-recipient auth; exact stored amount, 80%,
+    discount, fees, custody and payout. The design requires a server terms quote, an explicit Pay[amount]
+    confirmation, and lock/refresh/revalidate BEFORE any mutation or debit. Changed terms mean zero effects and a
+    fresh confirmation; no automatic financial retry. The owner is binding the final contract. No migrations, secrets,
+    env, publication, CI or release.
+  - **App #152, LOCAL:** `GamificationUI.js`, `ProfileTabContent.js`, NEW `ProfileTabContent.badges.test.js`. It reuses
+    the existing badge config for the grid's missing labels and icons. 32 local PASS after 18 RED; lint pending; not
+    root-accepted.
+  - **Grom:** read-only audit reconciliation; no provider polling.
+  - **Publication of Reviews/Gear/Invites:** Codex reports it still pending. Claude recorded at 15:56Z that it reads
+    David's ~15:48Z "public publish things ... merge, push, if needed" as covering it; Codex decides for its own lanes.
+  - Claude's jobs stay disjoint: #675, #697, the #691/#662/#676/#677 train, spot-hub phase 1 (`C:/t/sh1`), alerts
+    (`C:/t/alw`: `scheduler/surf_alerts.py`, `services/surf_alert_delivery.py`, the registry, new tests, the floor
+    pair), and research (read-only).
