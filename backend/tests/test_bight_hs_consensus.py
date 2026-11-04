@@ -2,7 +2,7 @@
 the frozen SoCal Bight polygon.
 
 Pins, on real product types through the real serving view (consensus_serve.ServedStore):
-  * the KILL SWITCH ("0") is byte-identical (a pinned sha256 of the served frame); any other value, or none, is ON;
+  * the KILL SWITCH ("0", env or the guardrail's runtime manifest) is byte-identical (a pinned sha256); unset is ON;
   * ON: inside the polygon the cell carries (GFS + EURO) / 2 with GFS's period and direction; outside it is GFS's own
     object; EURO missing / masked / estimated / beyond the resolver's 3 h window keeps GFS;
   * the polygon is round 4's, frozen, with its edge conventions;
@@ -106,6 +106,15 @@ def _scene(euro=True, euro_kw=None, extra=()):
     return FakeStore(prods)
 
 
+@pytest.fixture(autouse=True)
+def _no_runtime_manifest():
+    """The guarded flag reads env > runtime manifest > code default; never let a test reach the bucket."""
+    from services import runtime_flags as rf
+    rf._reset_for_tests(lambda: None)
+    yield
+    rf._reset_for_tests()
+
+
 @pytest.fixture
 def on(monkeypatch):
     monkeypatch.setenv("SURF_BIGHT_HS_CONSENSUS", "1")
@@ -135,8 +144,8 @@ def test_killed_the_served_frame_is_the_stored_frame_byte_for_byte(monkeypatch):
     assert B.enabled() is False
 
 
-@pytest.mark.parametrize("value", [None, "1", "", "true", "on", "1 "])
-def test_on_by_default_any_value_but_the_kill_is_on(monkeypatch, value):
+@pytest.mark.parametrize("value", [None, "1"])
+def test_on_by_default(monkeypatch, value):
     if value is None:
         monkeypatch.delenv("SURF_BIGHT_HS_CONSENSUS", raising=False)
     else:
@@ -462,9 +471,10 @@ def _env_values(name, flag):
 
 
 @pytest.mark.parametrize("lane", LANES)
-def test_every_lane_declares_the_flag_on(lane):
+def test_every_lane_defers_the_flag_to_the_guardrail(lane):
+    """D-065: '' = unset, so the runtime manifest (the guardrail's 'off') reaches the lane; the code default is ON."""
     vals = _env_values(lane, B.FLAG)
-    assert vals and set(vals) == {"1"}, (lane, vals)
+    assert vals and set(vals) == {""}, (lane, vals)
 
 
 def test_the_flag_is_registered_on_and_the_v0_harness_refuses_it():
@@ -570,3 +580,17 @@ def test_the_weight_option_is_registered_declared_and_refused_by_v0():
     assert REGISTRY[B.WEIGHT_FLAG][0] == "0.5" and B.WEIGHT_FLAG in UNREPLAYABLE
     for lane in LANES:
         assert set(_env_values(lane, B.WEIGHT_FLAG)) == {"0.5"}, lane
+
+
+def test_the_guardrails_runtime_off_kills_it_like_the_env_kill(monkeypatch):
+    """D-065: the flag guardrail writes 'off' to the runtime manifest; with no env pin that kills the composition."""
+    from services import runtime_flags as rf
+    from services.weather_pipeline import bight_hs_consensus as BB
+    assert rf.GUARDED[BB.FLAG] == "1" and BB.FLAG in rf.FIX_VERSION
+    monkeypatch.delenv("SURF_BIGHT_HS_CONSENSUS", raising=False)
+    entry = {"state": "off", "reason": "t", "set_by": "flag-guardrail", "set_at": "2026-11-04T00:00:00Z", "evidence": "x"}
+    rf._reset_for_tests(lambda: {"schema": rf.SCHEMA, "flags": {BB.FLAG: entry}})
+    raw = _scene()
+    fn = raw.name("GFS")
+    assert BB.enabled() is False
+    assert hashlib.sha256(_dump(S.served_store(raw).load_product(fn))).hexdigest() == OFF_SHA256

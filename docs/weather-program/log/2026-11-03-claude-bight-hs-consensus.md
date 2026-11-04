@@ -240,3 +240,13 @@ harness's served lane in the Bight is GFS (the flag is inert in a replay; EURO i
 for other flags reads a non-production baseline there. Floors after merging dev 29c01f71f: chain MIN_PASSED 3482 ->
 3551, MIN_FILES 202 -> 203 (expected read 3557 = 3488 + 69). Local chain lane before this merge: 3553 passed, 4 failed,
 all in `test_product_run_keys.py`, which fail identically with this PR stashed (Windows-local, not this change).
+
+## 11. 2026-11-04 20:31Z: guarded under D-065 (#723 merged, dev 8686ddc78)
+
+Round 7's history test (#722): weight 0.5 PASSES, Bight buoys +0.155 m [0.089, 0.196] on the two-way CI, and no
+season or region is worse, so the default stays ON at 0.5. `SURF_BIGHT_HS_CONSENSUS` joined `runtime_flags.GUARDED`
+('1') and is now read through `_rf.on()` (env > runtime kill manifest > code default; on only when the value is "1").
+Each of the four lanes is now `''`, which defers to the manifest, so the guardrail's 'off' reaches them. A '0' pin
+still hard-kills that one lane. Pinned: the manifest 'off' gives the kill-switch frame (same sha256). Floors after the
+merge: chain MIN_PASSED 3508 -> 3574, MIN_FILES 203 -> 204 (dev's map 3514 + 66). The SCOREBOARD row moved to the
+bottom, dated 20:31Z.

@@ -57,7 +57,7 @@ PRECEDENCE (log 2026-11-03-claude-bight-hs-consensus.md):
 DEFAULT ON, KILL "0" (2026-11-04): built dark on 2026-11-03; the owner's policy relayed by the lead ~01:41Z ("fixes now
 ship ON by default with a kill switch, plus a history filter and a live guardrail"; precedent DECISIONS 2026-11-01
 22:10 EST, "measured features ship ON by default with a kill switch") moved the code default to "1". An os.environ read
-at call time: any value but "0" is on. Registered in `_RATING_FLAGS` (routes/admin/surf_forecast.py) and declared '1'
+at call time through services/runtime_flags (GUARDED, D-065: env > runtime manifest > code default "1"; on iff "1"). Registered in `_RATING_FLAGS` (routes/admin/surf_forecast.py) and declared '1'
 in forecast-ingest.yml, precompute.yml, forecast-ingest-pilots.yml and sim-parity-monitor.yml; Render env needs no
 entry for ON. Kill: SURF_BIGHT_HS_CONSENSUS='0' in Render env AND those four lanes together. The lead merges it only
 after the guardrail PR (claude/default-on-guardrails). Evidence and the open breaking-height bias: the log.
@@ -94,8 +94,10 @@ def euro_weight() -> float:
 
 
 def enabled() -> bool:
-    """On unless the flag is "0" (the kill switch), and never for the ledger's raw baseline (consensus_serve.serve_raw)."""
-    if os.environ.get("SURF_BIGHT_HS_CONSENSUS", "1") == "0":      # literal: the lane-parity scan reads it
+    """On when the guarded flag is effectively "1" (code default; the guardrail or env "0" kills it), and never for the
+    ledger's raw baseline (consensus_serve.serve_raw)."""
+    from services import runtime_flags as _rf     # D-065: guarded (env > runtime manifest > code default '1')
+    if not _rf.on("SURF_BIGHT_HS_CONSENSUS"):
         return False
     from services.weather_pipeline.consensus_serve import raw_requested
     return not raw_requested()

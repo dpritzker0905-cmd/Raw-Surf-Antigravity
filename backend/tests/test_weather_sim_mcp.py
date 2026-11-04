@@ -77,10 +77,11 @@ def test_rating_is_relative_to_the_spot(monkeypatch):
 
 
 def test_local_size_reference_follows_the_production_flag(monkeypatch):
-    """With RATING_LOCAL_SIZE off (the live default) the sim must use the GLOBAL curve, because
-    that is what the app is serving. The sim's job is to predict the app, not to out-calibrate it."""
+    """The sim follows the production flag: off -> the GLOBAL curve, on -> the spot's own. The sim's job is to
+    predict the app, not to out-calibrate it. D-065: unset is the code default ON (every lane already ran it)."""
     monkeypatch.delenv("RATING_LOCAL_SIZE", raising=False)
-    assert weather_sim_mcp.reference_size_for(MAVS) is None
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
+    assert weather_sim_mcp.reference_size_for(MAVS) == MAVS["reference_size_m"]
     monkeypatch.setenv("RATING_LOCAL_SIZE", "0")
     assert weather_sim_mcp.reference_size_for(MAVS) is None
     monkeypatch.setenv("RATING_LOCAL_SIZE", "1")
@@ -599,11 +600,14 @@ if __name__ == "__main__":
     pytest.main([__file__, "-v"])
 
 
-def test_size_verdict_names_the_reason_a_big_day_scores_low():
+def test_size_verdict_names_the_reason_a_big_day_scores_low(monkeypatch):
     """Before the oversize veto (2026-07-29) the delegated rating SATURATED — 4 / 12 / 25 / 35 ft all
     scored 97.3 'epic' — so this payload could not tell a groomed head-high day from a closeout. The
     veto fixes the number; `size_verdict` names WHY, so a low score from onshore slop and a low score
     from unrideable surf are distinguishable answers to "should I paddle out?"."""
+    # D-065: RATING_LOCAL_SIZE now defaults ON (as production ran it); this test is the GLOBAL-curve regime by
+    # design (the xfail below pins the local-curve regime), so it states the kill value it used to inherit.
+    monkeypatch.setenv("RATING_LOCAL_SIZE", "0")
     args = dict(spot_name="Mavericks", wind_direction_deg=110.0, wind_speed_knots=5.0,
                 swell_period_sec=17.0, swell_direction_deg=225.0)
 
@@ -637,7 +641,7 @@ def test_size_verdict_names_the_reason_a_big_day_scores_low():
 
 
 # THE SAME ORDERING, IN THE REGIME PRODUCTION RUNS. The test above passes with RATING_LOCAL_SIZE
-# unset ("0"), but production has run it ON in all three lanes since 3263031c (2026-08-01). Under
+# "0" (unset until D-065), but production has run it ON in all three lanes since 3263031c (2026-08-01). Under
 # the flag the ordering INVERTS: `surf_rating.size_score` grades on the local-relative curve, which
 # saturates at 1.0 from ~3x the spot's reference with no upper penalty (measured on dev b75ed960,
 # ref 4.0 m: 12 m -> 1.0000, 20 m -> 1.0000), and the oversize veto is not strong enough to restore
