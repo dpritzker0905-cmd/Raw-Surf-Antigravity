@@ -76,17 +76,20 @@ def test_both_composition_calls_grade_with_the_shared_tide_reader():
 
 def test_the_shared_reader_is_gated_and_sanitises(monkeypatch):
     item = {"tide": {"norm": 0.3, "trend": "falling", "height_m": 0.2}}
+    want = {"norm": 0.3, "trend": "falling", "height_m": 0.2, "source": "served_glyph"}
     monkeypatch.delenv("SIM_SERVED_TIDE", raising=False)
-    assert sim_observed.glyph_tide(item) is None
+    assert sim_observed.glyph_tide(item) == want, "unset = ON (default since 2026-11-04)"
+    monkeypatch.setenv("SIM_SERVED_TIDE", "0")
+    assert sim_observed.glyph_tide(item) is None, "'0' is the kill switch"
     monkeypatch.setenv("SIM_SERVED_TIDE", "1")
-    assert sim_observed.glyph_tide(item) == {"norm": 0.3, "trend": "falling", "height_m": 0.2,
-                                             "source": "served_glyph"}
+    assert sim_observed.glyph_tide(item) == want
     assert sim_observed.glyph_tide({"tide": {"norm": float("nan")}}) is None
     assert sim_observed.glyph_tide(None) is None
 
 
-def test_the_monitor_dispatch_carries_the_ab_and_the_cron_stays_tide_blind():
+def test_the_monitor_dispatch_carries_the_ab_and_the_cron_grades_with_the_served_tide():
+    # 2026-11-04: W-30 default ON (the cron measures the sim users now run); dispatching '0' is the kill-arm A/B.
     wf = open(_WORKFLOW, encoding="utf-8").read()
-    assert "SIM_SERVED_TIDE: ${{ github.event.inputs.sim_served_tide || '0' }}" in wf
+    assert "SIM_SERVED_TIDE: ${{ github.event.inputs.sim_served_tide || '1' }}" in wf
     assert "TIDE_BANDED: ${{ github.event.inputs.tide_banded || 'false' }}" in wf
     assert 'if [ "$TIDE_BANDED" = "true" ]; then ARGS="$ARGS --tide-banded"; fi' in wf
