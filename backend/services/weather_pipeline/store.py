@@ -459,6 +459,11 @@ class ProductStore:
                 raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:300]}"
                                    + (f" (after {retries} retries)" if retries else ""))
             ProductStore._last_upload_time = datetime.now(timezone.utc).isoformat()
+            if not overwrite and filename.startswith("manifests/"):
+                # A create-only upload acknowledged: these bytes ARE the object, so the next publish's head read of this key
+                # needs no GET (manifest_pointer.remember_manifest_object; kill switch MANIFEST_SELF_READ_CACHE=0).
+                from services.weather_pipeline.manifest_pointer import remember_manifest_object
+                remember_manifest_object(filename, data_bytes)
             logger.info(f"[Product Store] L2 upload OK: {filename} ({len(data_bytes)} bytes)"
                         + (f" after {retries} retries" if retries else ""))
             # S2 run-keyed manifest + pointer CAS: every successful legacy manifest.json upload
