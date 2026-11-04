@@ -245,7 +245,7 @@ def test_the_three_GLYPH_lanes_still_DO_read_the_flag__THE_CONTROL():
                     "services/weather_pipeline/grid_resolver_surf.py"):
         src = open(os.path.join(backend_dir, relpath), encoding="utf-8").read()
         reads = [ln.strip() for ln in src.splitlines()
-                 if "RATING_OBS_GATE" in ln and "environ" in ln and not ln.strip().startswith("#")]
+                 if "RATING_OBS_GATE" in ln and ("environ" in ln or "_rf.flag" in ln) and not ln.strip().startswith("#")]
         assert reads, (
             f"{relpath} no longer reads RATING_OBS_GATE — the kill switch now controls NOTHING, "
             f"and the asymmetry test above has become vacuous."

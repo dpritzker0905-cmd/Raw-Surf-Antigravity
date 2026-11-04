@@ -270,6 +270,8 @@ _PRE_FLAG_KEYS = {"method", "members", "carried_from_primary", "valid_time", "pr
 def _flags_unset(monkeypatch):
     for f in _FLAGS:
         monkeypatch.delenv(f, raising=False)
+    # D-065: CONSENSUS_DIRECTION_VECTOR defaults ON now, so these period-era tests pin it OFF explicitly.
+    monkeypatch.setenv("CONSENSUS_DIRECTION_VECTOR", "0")
     monkeypatch.setattr(cp, "_SKIP_LOGGED", set())
 
 

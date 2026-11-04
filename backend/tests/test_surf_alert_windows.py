@@ -27,7 +27,8 @@ OFFSHORE, ONSHORE, CROSS = 270.0, 90.0, 0.0                    # wind FROM, for 
 @pytest.fixture(autouse=True)
 def _clean_env(monkeypatch):
     for k in ("ALERTS_FORECAST_HORIZON_H", "ALERTS_WINDOW_MIN_HOURS", "ALERTS_WINDOW_MIN_LEVEL",
-              "ALERTS_HORIZON_MAX_AGE_H"):
+              "ALERTS_HORIZON_MAX_AGE_H", "ALERTS_WINDOW_SUPPRESSION", "ALERTS_WINDOW_MERGE_GAP_H",
+              "ALERTS_MAX_PER_USER_DAY"):
         monkeypatch.delenv(k, raising=False)
     monkeypatch.setenv("ALERTS_NOTIFY_LEAD_H", "0")     # the lead gate has its own tests below
 
@@ -218,6 +219,92 @@ def test_every_window_notified_means_nothing_fires():
     h = horizon()
     seen = [(NOW, NOW + timedelta(hours=96))]
     assert fire(alert(), h, notified=seen)["reason"] == "already_notified"
+
+
+# ── collapse, same-window suppression, best-rated first, the daily cap (ALERTS_WINDOW_SUPPRESSION) ──────────
+def _gapped(gap_hours=(15,), poor_score=20.0):
+    """Day 1 good 12Z..22Z except the `gap_hours` (poor), every other day very poor: one session, fragmented."""
+    def fn(vt):
+        if vt.date() != NOW.date():
+            return entry(h_ft=0.5, score=5, level="very_poor")
+        if vt.hour in gap_hours:
+            return entry(score=poor_score, level="poor")
+        return entry(score=70.0 if vt.hour >= 16 else 60.0, level="fair_good")
+    return horizon(fn, step=1)
+
+
+def test_a_one_hour_gap_collapses_two_fragments_into_one_window_rated_by_its_best_part():
+    d = fire(alert(), _gapped())
+    w = d["window"]
+    assert (w["start"], w["end"], w["hours"]) == ("2026-11-03T12:00:00Z", "2026-11-03T23:00:00Z", 10)
+    assert (w["local_start"], w["local_end"], w["rating"]) == ("07:00", "18:00", 70.0)
+    assert d["windows_found"] == 2                                       # the raw find still sees two
+
+
+def test_a_gap_wider_than_merge_gap_h_stays_two_windows(monkeypatch):
+    assert fire(alert(), _gapped((15, 16)))["window"]["end"] == "2026-11-03T23:00:00Z"   # 2 h gap, best (70) first
+    monkeypatch.setenv("ALERTS_WINDOW_MERGE_GAP_H", "2")
+    assert fire(alert(), _gapped((15, 16)))["window"]["start"] == "2026-11-03T12:00:00Z"
+    monkeypatch.setenv("ALERTS_WINDOW_MERGE_GAP_H", "0")
+    assert fire(alert(), _gapped())["window"]["start"] == "2026-11-03T16:00:00Z"
+
+
+def test_kill_switch_is_704_exactly__no_collapse_earliest_first(monkeypatch):
+    monkeypatch.setenv("ALERTS_WINDOW_SUPPRESSION", "0")
+    w = fire(alert(), _gapped())["window"]
+    assert (w["start"], w["end"]) == ("2026-11-03T12:00:00Z", "2026-11-03T15:00:00Z")
+
+
+def test_a_fragment_within_the_gap_of_a_sent_window_is_the_same_window():
+    """Cycle 1 sent 12-15Z; cycle 2 says 16-23Z (no overlap, 1 h apart): not re-sent; 2 h apart: sent."""
+    sent = [(datetime(2026, 11, 3, 12, tzinfo=timezone.utc), datetime(2026, 11, 3, 15, tzinfo=timezone.utc))]
+    later = horizon(lambda vt: entry() if vt.date() == NOW.date() and vt.hour >= 16 else
+                    entry(h_ft=0.5, score=5, level="very_poor"), step=1)
+    assert fire(alert(), later, notified=sent)["reason"] == "already_notified"
+    sent2 = [(sent[0][0], sent[0][1] - timedelta(hours=1))]
+    assert fire(alert(), later, notified=sent2)["fire"]
+    assert W.same_window({"start": "2026-11-03T16:00:00Z", "end": "2026-11-03T18:00:00Z"}, sent, 1)
+    assert not W.same_window({"start": "2026-11-03T16:00:00Z", "end": "2026-11-03T18:00:00Z"}, sent, 0)
+
+
+def test_best_rated_due_window_first_ties_to_the_earliest():
+    h = horizon(lambda vt: entry(score=80.0 if vt.date() > NOW.date() else 60.0))
+    assert fire(alert(), h)["window"]["start"] == "2026-11-04T12:00:00Z"
+    assert fire(alert(), horizon())["window"]["start"] == "2026-11-03T12:00:00Z"
+
+
+def test_admit_caps_sends_per_local_day_and_the_kill_switch_lifts_it(monkeypatch):
+    w = {"start": "2026-11-04T12:00:00Z", "end": "2026-11-04T15:00:00Z", "local_offset_h": -5}
+    now = datetime(2026, 11, 3, 14, tzinfo=timezone.utc)                       # local 09:00 Tue
+    tue = [datetime(2026, 11, 3, 5, 30, tzinfo=timezone.utc), datetime(2026, 11, 3, 13, tzinfo=timezone.utc)]
+    mon = [datetime(2026, 11, 3, 4, 30, tzinfo=timezone.utc)] * 2                # local 23:30 Mon
+    assert W.admit(w, [], tue[:1] + mon, now) == (True, "ok")
+    assert W.admit(w, [], tue, now) == (False, "daily_cap")
+    assert W.admit(w, [(W.parse_time(w["start"]), W.parse_time(w["end"]))], [], now) == \
+        (False, "already_notified_same_spot")
+    monkeypatch.setenv("ALERTS_MAX_PER_USER_DAY", "3")
+    assert W.admit(w, [], tue, now) == (True, "ok")
+    monkeypatch.setenv("ALERTS_WINDOW_SUPPRESSION", "0")
+    monkeypatch.setenv("ALERTS_MAX_PER_USER_DAY", "2")
+    assert W.admit(w, [], tue * 5, now) == (True, "ok")
+
+
+@pytest.mark.parametrize("name,value,expect", [
+    ("ALERTS_WINDOW_MERGE_GAP_H", None, 1), ("ALERTS_WINDOW_MERGE_GAP_H", "9", 1),
+    ("ALERTS_WINDOW_MERGE_GAP_H", "x", 1), ("ALERTS_MAX_PER_USER_DAY", None, 2),
+    ("ALERTS_MAX_PER_USER_DAY", "-1", 2), ("ALERTS_MAX_PER_USER_DAY", "0", 0)])
+def test_the_knobs_default_and_reject_out_of_range(monkeypatch, name, value, expect):
+    if value is not None:
+        monkeypatch.setenv(name, value)
+    fn = W.merge_gap_h if name.endswith("GAP_H") else W.max_per_user_day
+    assert fn() == expect
+
+
+def test_suppression_is_on_by_default_and_only_0_turns_it_off(monkeypatch):
+    assert W.suppression_enabled()
+    for v, on in (("1", True), ("", True), ("false", True), ("0", False)):
+        monkeypatch.setenv("ALERTS_WINDOW_SUPPRESSION", v)
+        assert W.suppression_enabled() is on
 
 
 # ── tier horizon ────────────────────────────────────────────────────────────────────────────────────────
