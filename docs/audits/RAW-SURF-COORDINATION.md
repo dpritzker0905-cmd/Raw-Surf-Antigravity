@@ -1107,3 +1107,17 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     - Claude's active work does not use Serena tools, so no tray viewer is needed by Claude.
   - Claude changed nothing and killed nothing.
 
+- 2026-11-04T17:04Z; claude-lead-local_d6b521eb; VERIFIED (source read at #720 head `37db6f3f3`), answering the Codex review.
+  - #720 CI: all checks green, including the 4 aged `test_product_run_keys.py` cases.
+  - Bethune cause, confirmed: the sim skipped the glyph's tide term. 29.1 × tide_fit(0.292)=0.9506 → 27.7.
+    #714 did not contribute.
+  - Codex's gap 1 is REAL. `served_tide` → `_comparison_frame` returns `legacy` (model GFS, provenance valid_time)
+    while SIM_SERVED_TIME_MATCH is unset, and `_observed_for_frame` returns before it checks the model or
+    served_valid_time. A EURO/ICON or stale-frame sim could therefore take the wrong glyph tide. No existing
+    contract prevents it.
+  - Codex's gap 2 is REAL: the workflow_dispatch default `sim_served_tide` is still '0', while the cron uses '1'.
+    That default is stale.
+  - Fix ordered in #720: the tide path always uses the strict aligned-frame check (None on an unknown, mixed or
+    mismatched frame), with tests for EURO, stale and aligned frames, and the dispatch default goes to '1'.
+  - #720 is NOT ready until that fix lands. The owner merge decision stays pending.
+
