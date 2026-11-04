@@ -151,6 +151,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from services.weather_pipeline import manifest_pointer as mp
+from services.weather_pipeline import manifest_publish_economy as economy
 
 logger = logging.getLogger(__name__)
 
@@ -627,7 +628,7 @@ def _attempt_once(pending, deadline=None) -> bool:
     if _adopt_landed(pending, row, deadline):
         return True
     head_bytes = mp.fetch_manifest_object(head_key, **_timeout_kw(deadline, 30))
-    legacy = merge = None
+    legacy = merge = head_sig = None
     if head_bytes is mp.MISSING:
         # The pointer names an object that does not exist (an old-path writer's failed upload, or a deletion). Merge against the
         # legacy manifest.json instead. The swap below still names generation g AND this key, so a writer that commits meanwhile
@@ -657,6 +658,7 @@ def _attempt_once(pending, deadline=None) -> bool:
             _slot.unusable, _slot.parse_failures = {}, 0
             merge = _merge_closed(pending, products, head_key)
             del products
+            head_sig = economy.content_signature(head_bytes) if economy.skip_noop_enabled() else None
     del head_bytes
     if legacy is not None:
         legacy_products = _legacy_products(deadline)
@@ -666,6 +668,12 @@ def _attempt_once(pending, deadline=None) -> bool:
         merge = _merge_closed(pending, legacy_products, "the legacy manifest.json")
         del legacy_products
     merged, excludes, seen = merge
+    if legacy is None and economy.is_noop(head_sig, merged):
+        # The head already serves exactly these products (only the per-dump stamps differ): nothing to upload or swap.
+        pending.merged = merged
+        logger.info(f"[Manifest Publish] no-op: the merge equals the head {head_key} (g{generation}); nothing uploaded "
+                    f"(skips this process: {economy.noop_skips})")
+        return True
     key = f"manifests/manifest-g{generation + 1:012d}-{uuid4().hex}.json"
     if pending.store._upload_to_supabase(key, merged, strict=True, overwrite=False, **_timeout_kw(deadline, 30)) is not True:
         logger.warning(f"[Manifest Publish] {key} was not acknowledged; it is never swapped in")

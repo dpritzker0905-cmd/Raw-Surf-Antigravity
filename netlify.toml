@@ -44,3 +44,6 @@
   from = "/api/*"
   to = "https://raw-surf-antigravity.onrender.com/api/:splat"
   status = 200
+
+[context."codex/support-f10-landmarks-20261104"]
+  ignore = "false"

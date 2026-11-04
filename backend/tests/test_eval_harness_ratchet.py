@@ -91,7 +91,7 @@ def test_the_ratchet_refuses_items_without_the_out_of_sample_marker():
 
 
 # ---- the ratchet ------------------------------------------------------------------------------------------------
-def _panel(hours=48, stations=4, leads=(24, 48, 72), srv_err=None, cand_err=None, seed=3):
+def _panel(hours=60, stations=4, leads=(24, 48, 72), srv_err=None, cand_err=None, seed=3):
     """Items with obs, an out-of-sample climatology (error ~0.20 m), served and candidate errors per lead."""
     srv_err = srv_err or {lead: 0.10 for lead in leads}
     cand_err = cand_err or srv_err
@@ -155,6 +155,17 @@ def test_a_lead_locks_only_after_two_eligible_non_overlapping_windows_and_the_lo
     del dropped["locks"]["hs_station"]["48"]
     with pytest.raises(ValueError, match="remove or change the lock"):
         rt.save_baseline(path, dropped, rt.load_baseline(path))
+
+
+def test_a_window_under_14_days_never_locks_d066():
+    # 48 six-hourly targets = 12 UTC days: served beats climatology on the block CI, but the binding two-way CI
+    # (block x day, >= 14 days) cannot be computed, so nothing becomes even PENDING.
+    state = rt.served_state(_panel(hours=48, srv_err={24: 0.05, 48: 0.10, 72: 0.40}), CFG)
+    assert state["24"]["ci"][0] > 0 and state["24"]["two_way"]["computable"] is False
+    assert state["24"]["two_way"]["days"] == 12 and not state["24"]["beats_climatology"]
+    assert rt.would_lock(state) == []
+    b, added = rt.update_baseline(rt.empty_baseline(), state, "hs_station", True, {"generated_utc": "x", "window": W1})
+    assert added == [] and b["pending"]["hs_station"] == {}
 
 
 def test_locking_is_holm_adjusted_across_leads():

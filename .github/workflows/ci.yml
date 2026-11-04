@@ -1005,7 +1005,9 @@ jobs:
           #   base 3449 (hosted read) + 5 new test(s) and 0 new file(s) = 3454, files 217; floor 3454 - 6 = 3448. This PR must read 3454 passed.
           # ⬆ 3448→3468 on 2026-11-04 (rederive_floor.py, claude/alerts-dedupe-cap): dev run 41898465148 read 3454 / 217 files; dev's map 3454;
           #   base 3454 (hosted read) + 20 new test(s) and 0 new file(s) = 3474, files 217; floor 3474 - 6 = 3468. This PR must read 3474 passed.
-          MIN_FILES, MIN_PASSED = 217, 3468
+          # ⬆ 3468→3481 on 2026-11-04 (rederive_floor.py, claude/manifest-egress): dev run 41905839333 read 3454 / 217 files; dev's map 3474;
+          #   base 3474 (dev's map) + 13 new test(s) and 2 new file(s) = 3487, files 219; floor 3487 - 6 = 3481. This PR must read 3487 passed.
+          MIN_FILES, MIN_PASSED = 219, 3481
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1668,7 +1670,9 @@ jobs:
           #   base 3514 (dev's map) + 18 new test(s) and 2 new file(s) = 3532, files 205; floor 3532 - 6 = 3526. This PR must read 3532 passed.
           # ⬆ 3526→3592 on 2026-11-04 (rederive_floor.py, claude/bight-hs-consensus): dev run 41905654969 read 3488 / 202 files; dev's map 3532;
           #   base 3532 (dev's map) + 66 new test(s) and 1 new file(s) = 3598, files 206; floor 3598 - 6 = 3592. This PR must read 3598 passed.
-          MIN_FILES, MIN_PASSED = 206, 3592
+          # ⬆ 3592→3618 on 2026-11-04 (rederive_floor.py, claude/harness-two-way-gate): dev run 41919430899 read 3531 / 205 files; dev's map 3598;
+          #   base 3598 (dev's map) + 26 new test(s) and 1 new file(s) = 3624, files 207; floor 3624 - 6 = 3618. This PR must read 3624 passed.
+          MIN_FILES, MIN_PASSED = 207, 3618
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
