@@ -1,3 +1,4 @@
+import './motionFixesKill.testsupport';   // the 2026-11-03 motion fixes stand down here: this suite pins an older DRAW_VS / ADVECT_FS byte for byte
 // THE LIGHT SPECTRUM (D-037, owner 2026-10-21): light's wave-height wash draws seven colour steps on the sea-state breaks, with the widest
 // spectrum the light map can show, lightness falling at every step as drawn; dark and beach draw exactly what they drew.
 // Baselines: hashed from dev 23a91534f's own files (the original light crests are the default again there, D-041; dark's 8 m+ storm

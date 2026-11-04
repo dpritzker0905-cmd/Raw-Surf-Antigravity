@@ -70,6 +70,14 @@ const KILL_SWITCHES_TESTED = new Set([
   // hub"), SpotConditions.phase1.test.js ("kill switch: the old source lines") and spot-hub/spotHubP1.test.js
   // (the infobox Tide row and the explore card's server count).
   '__RAW_DISABLE_SPOT_HUB_P1__',
+  // Map motion fixes (2026-11-03, ON with a kill each). motionFixes.killSwitch.test.js: set before load, the four shader kills draw
+  // origin/dev's ADVECT_FS / DRAW_VS byte for byte (hash-pinned); set live, each kill's uniforms or encoder return the old behaviour.
+  // Plus particleState.test.js, particleRk2.test.js, crestLocalPhase.test.js, crestTexelRank.test.js and windEncoderRound.test.js.
+  '__RAW_DISABLE_FLOAT_PARTICLE_STATE__',
+  '__RAW_DISABLE_RK2_ADVECTION__',
+  '__RAW_DISABLE_CREST_LOCAL_PHASE__',
+  '__RAW_DISABLE_CREST_TEXEL_RANK__',
+  '__RAW_DISABLE_WIND_ENCODER_ROUND__',
 ]);
 
 /**

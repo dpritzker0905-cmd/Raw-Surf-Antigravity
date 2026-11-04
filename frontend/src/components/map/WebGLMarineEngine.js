@@ -8,7 +8,7 @@
 
 import { recordTruthStage } from './weatherTruthTracker';
 import { measureMarineCpuPhase, instrumentMarineEngineCpuPhases } from './marineCpuPhaseTiming';
-import { forecastStateIdentityEnabled } from './forecastStateIdentity'; import { applyWaveSetUniforms } from './waveSetScreenBound';
+import { forecastStateIdentityEnabled } from './forecastStateIdentity'; import { applyWaveSetUniforms } from './waveSetScreenBound'; import { syncParticleStateFormat, applyParticleStateUniforms } from './particleState'; import { applyCrestPhaseUniforms } from './crestLocalPhase'; import { applyCrestRankUniforms } from './crestTexelRank';
 import { readMarineSurfMode } from './marineSurfMode'; import { crestDensityCut } from './marineCrestDensity';
 import { recordMarineEvent } from './marineForensics'; import { keepMaskPatch, stampMaskPatch } from './maskPatchKeep'; import { uniformLoc } from './glUniformCache'; import { seedConsumeAllowed } from './marineQuietFrames'; import { coarseMaskReuse, noteCoarseMaskUse, releaseCoarseMaskCache } from './marineCoarseMaskCache';   // __RAW_FORENSIC__ ring; 2026-10-23 jank
 import { arbiterDecide } from './marineCommitArbiter'; import { washMatchesResident } from './marineStaleHour';   // ARBITER PHASE B: shadow verdicts at the commit choke; D1 wash time
@@ -1878,6 +1878,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       if (heatUVLoc !== -1) gl.disableVertexAttribArray(heatUVLoc);
     }
 
+    syncParticleStateFormat(gl, this, () => this.reinitParticles(gl));   // float state <-> RGBA8 follows its kill; an incomplete float FBO falls back
     if (this._fboSupported !== false) {
       // ==========================================
       // PHASE 2: WAVE CREST RENDERER
@@ -2114,6 +2115,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_motion_scale'), motionScale);
       gl.uniform2f(uniformLoc(gl, this.drawProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
       gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_tile_width'), tileWidth); applyWaveSetUniforms(gl, this.drawProgram);
+      applyParticleStateUniforms(gl, this.drawProgram, this); applyCrestRankUniforms(gl, this.drawProgram); applyCrestPhaseUniforms(gl, this.drawProgram, this, { time, motionScale, zoom: z, cx, cy, tileWidth, tileCenter: isHighZoom ? [this._tileCenterX, this._tileCenterY] : null });   // motion fixes (2026-11-03)
 
       // v5.3: viewport and DPR uniforms for pixel-space quad expansion
       var dpr = (typeof window !== 'undefined' && window.devicePixelRatio) ? window.devicePixelRatio : 1.0;
@@ -2226,7 +2228,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_zoom'), z);
       gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_tileZoomMin'), tileZoomMin);
       gl.uniform2f(uniformLoc(gl, this.advectProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
-      gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_tile_width'), tileWidth);
+      gl.uniform1f(uniformLoc(gl, this.advectProgram, 'u_tile_width'), tileWidth); applyParticleStateUniforms(gl, this.advectProgram, this);   // float state / dither / RK2
       // U2 stratified reseeding (default ON): respawn each particle inside its own state-texel stratum for
       // Jobard–Lefer-style even seed spacing (kills uniform-random reseed clumps at low density). Kill:
       // window.__RAW_STRATIFIED_RESEED__ = 0.
