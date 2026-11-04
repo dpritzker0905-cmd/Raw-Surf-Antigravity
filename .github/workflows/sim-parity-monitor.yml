@@ -54,7 +54,7 @@ on:
         required: false
         default: 'false'
       sim_served_tide:
-        description: "SIM_SERVED_TIDE for the sim side: '0' tide-blind (today), '1' the glyph's served tide (W-30's A/B)"
+        description: "SIM_SERVED_TIDE for the sim side: '1' the glyph's served tide (default ON since 2026-11-04), '0' the tide-blind kill arm"
         required: false
         default: '0'
 
@@ -123,7 +123,7 @@ jobs:
           # W-30 (commitment 203): a SIM-side switch, not a lane flag (the sim reads the glyph's served tide),
           # so it is a dispatch input: '0' on the cron keeps the monitor measuring the sim users run today.
           TIDE_BANDED: ${{ github.event.inputs.tide_banded || 'false' }}
-          SIM_SERVED_TIDE: ${{ github.event.inputs.sim_served_tide || '0' }}
+          SIM_SERVED_TIDE: ${{ github.event.inputs.sim_served_tide || '1' }}
           # ⚠️⚠️ THESE MIRROR THE INGEST LANES AND ARE NOT OPTIONAL. The probe runs the SIM in this
           # runner and compares it against what the serve box PRECOMPUTED. Science flags are read
           # per-process from the environment (sim_rating.py:91 for local size), so a flag set in the

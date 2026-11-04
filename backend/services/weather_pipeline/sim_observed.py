@@ -207,9 +207,9 @@ def served_tide(spot: Dict[str, Any], provenance: Dict[str, Any], baseline_sourc
     whether production applies tide and at what level, for the same frame parity compares against.
     ⚠️ ZERO NEW I/O: the same condition and arguments as `parity` below, so its fetch is this one's
     cache hit. Only a live baseline: a what-if hour or a catalogue default was never rated by the app.
-    Gated SIM_SERVED_TIDE (default '0', dark): it changes the sim's quality where a spot's
+    Gated SIM_SERVED_TIDE (default ON since 2026-11-04, owner policy ~01:41Z "fixes by default"; kill: '0'): it changes the sim's quality where a spot's
     `best_tide` parses to a band (18 of 1,773 in 2026-07; up to x0.5 at the wrong tide)."""
-    if os.environ.get("SIM_SERVED_TIDE", "0") != "1" or baseline_source != "live_forecast":
+    if os.environ.get("SIM_SERVED_TIDE", "1") == "0" or baseline_source != "live_forecast":
         return None
     if not (provenance or {}).get("served_surf_height_m"):
         return None
@@ -224,7 +224,7 @@ def glyph_tide(item: Optional[Dict[str, Any]]) -> Optional[Dict[str, Any]]:
     ★ ONE READER for the forecast tool (`served_tide`, above) and the S4 parity probe
     (`scripts/sim_health_probe.py`), so the instrument that decides the flip grades exactly the input the
     tool would serve with it on (commitment 203)."""
-    if os.environ.get("SIM_SERVED_TIDE", "0") != "1":
+    if os.environ.get("SIM_SERVED_TIDE", "1") == "0":   # default ON (2026-11-04); '0' is the kill switch
         return None
     tide = (item or {}).get("tide")
     norm = tide.get("norm") if isinstance(tide, dict) else None

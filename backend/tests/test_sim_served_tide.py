@@ -52,11 +52,16 @@ def _rate(served_tide):
     return sim_rating.calculate_surf_rating(SPOT, 2.0, 14.0, 250.0, 4.0, 70.0, served_tide=served_tide)
 
 
-def test_dark_by_default_and_no_request_is_made(served, monkeypatch):
+def test_on_by_default_and_the_kill_switch_makes_no_request(served, monkeypatch):
     calls, _ = served
     monkeypatch.delenv("SIM_SERVED_TIDE")
+    assert sim_observed.served_tide(SPOT, PROV, "live_forecast", "2026-09-30T18:00:00Z") is not None, (
+        "unset = ON (default since 2026-11-04)")
+    calls.clear()
+    monkeypatch.setattr(sim_observed, "_cache", {})
+    monkeypatch.setenv("SIM_SERVED_TIDE", "0")
     assert sim_observed.served_tide(SPOT, PROV, "live_forecast", "2026-09-30T18:00:00Z") is None
-    assert calls == [], "off means no fetch at all"
+    assert calls == [], "the '0' kill switch means no fetch at all"
 
 
 def test_only_a_live_baseline_with_a_served_height_asks(served):

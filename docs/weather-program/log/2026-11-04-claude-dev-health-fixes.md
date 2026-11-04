@@ -40,3 +40,19 @@ Branch `claude/dev-health-fixes` off `dev` `29c01f71f`. No served number moves.
   would change the sim's served quality, so under D-001 it needs the owner's word. The one-line flip: the
   `'0'` defaults at sim_observed.py:212 and :227, plus the monitor's cron default at sim-parity-monitor.yml:126.
 - Not run: the monitor and the live backend. No rerun.
+
+## 3. The flip (coordinator, same session): SIM_SERVED_TIDE default ON
+
+- Authority: the owner's policy in chat at ~01:41Z on 2026-11-04 ("fixes by default so they are visible and on"),
+  quoted verbatim in `docs/audits/RAW-SURF-COORDINATION.md` on `claude/raw-surf-coordination`, and relayed by the
+  coordinator for this PR. ⚠️ That entry says the policy supersedes D-001 "once its PR merges"
+  (`claude/default-on-guardrails`), and I found no merged PR for it. So this PR's flip takes effect only when the
+  owner merges #720.
+- Change: `sim_observed.served_tide` and `glyph_tide` treat an unset flag as ON, and only `'0'` disables
+  (sim_observed.py:212, :227). The monitor's cron default is `'1'` (sim-parity-monitor.yml:126), and dispatching
+  `'0'` runs the tide-blind kill arm as the A/B.
+- Tests: `test_sim_served_tide.py::test_on_by_default_and_the_kill_switch_makes_no_request` (unset = ON, `'0'` =
+  None with no fetch); `test_probe_tide_banded.py`, where the shared reader is ON when unset and off at `'0'`, and
+  the cron default is `'1'`. The test count is unchanged (one test was renamed in each file), so no floor moves.
+- The SCOREBOARD row is appended, and its AFTER reading is owed from the first scheduled monitor run after the merge.
+- Kill switch: set `SIM_SERVED_TIDE=0` in the sim's process. For the monitor, dispatch with `sim_served_tide=0`.
