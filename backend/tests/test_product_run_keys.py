@@ -20,11 +20,17 @@ from services.weather_pipeline.schemas import CoverageBounds, GridVector, Normal
 from services.weather_pipeline.store_helpers import _build_product_filename
 
 REPO = Path(__file__).resolve().parents[2]
-VALID = datetime(2026, 11, 2, 3, tzinfo=timezone.utc)
-RUN1 = datetime(2026, 10, 30, 18, tzinfo=timezone.utc)
-RUN2 = datetime(2026, 11, 1, 18, tzinfo=timezone.utc)
+# The fixture clock: every slice is built relative to one frozen "now" (the hour this module loaded), so the manifest
+# retention cutoff (store.manifest_retention_cutoff, now - MANIFEST_RETENTION_DAYS) never ages the fixtures out. The
+# literal 2026-11-02T03Z slice did exactly that once the wall clock passed 2026-11-04T03Z (dev 29c01f71f, 4 RED).
+# Same shape as the live incident: run 1 is 81 h before the valid time, run 2 is 9 h before it.
+NOW = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+VALID = NOW + timedelta(hours=3)
+RUN1 = VALID - timedelta(hours=81)
+RUN2 = VALID - timedelta(hours=9)
+VALID_TAG, RUN1_TAG, RUN2_TAG = (t.strftime("%Y%m%dT%H%M%SZ") for t in (VALID, RUN1, RUN2))
 FLORIDA = CoverageBounds(west=-85.0, south=24.0, east=-79.0, north=31.0)
-LEGACY = "gfs_marine_waves_florida_east_coast_20261102T030000Z.json"
+LEGACY = f"gfs_marine_waves_florida_east_coast_{VALID_TAG}.json"
 
 
 class ImmediateExecutor:
@@ -131,7 +137,7 @@ def test_control_flag_off_a_disk_copy_hides_the_newer_run(runtime, tmp_path):
     writer._upload_to_supabase = store._upload_to_supabase
     writer._delete_from_supabase = store._delete_from_supabase
     save(writer, tile(RUN2, height=2.0), batch=True)
-    assert json.loads(storage[LEGACY])["run_time"].startswith("2026-11-01T18")
+    assert json.loads(storage[LEGACY])["run_time"].startswith(RUN2.strftime("%Y-%m-%dT%H"))
     module.ProductStore._product_cache.clear()
     assert store.load_product(LEGACY).run_time == RUN1          # the bug: storage moved, the reader did not
 
@@ -144,11 +150,11 @@ def test_flag_on_a_new_run_makes_a_new_key_and_moves_the_manifest(runtime, monke
     store, storage, deleted = runtime
     a = save(store, tile(RUN1), batch)
     assert rk.is_run_keyed(a) and rk.logical_name(a) == LEGACY
-    assert re.fullmatch(r"gfs_marine_waves_florida_east_coast_20261102T030000Z\.r20261030T1800-[0-9a-f]{8}\.json", a)
+    assert re.fullmatch(rf"gfs_marine_waves_florida_east_coast_{VALID_TAG}\.r{RUN1_TAG[:13]}-[0-9a-f]{{8}}\.json", a)
     assert json.loads(storage[a])["product_id"] == a             # the body names itself
     assert save(store, tile(RUN1), batch) == a                   # same run, same bytes: same key (idempotent)
     b = save(store, tile(RUN2, height=2.0), batch)
-    assert b != a and rk.logical_name(b) == LEGACY and ".r20261101T1800-" in b
+    assert b != a and rk.logical_name(b) == LEGACY and f".r{RUN2_TAG[:13]}-" in b
     assert [e.filename for e in slice_entries(store)] == [b]     # one registration, the new object
     assert a in storage and deleted == []                       # the old object waits for the GC
     c = save(store, tile(RUN2, height=2.5), batch)               # same run, rewritten in place (lattice fill, extensions)
@@ -177,7 +183,7 @@ def test_flag_on_hash_ignores_nothing_but_the_name(monkeypatch):
     assert (n1, body1) == (n2, body2) and n3 != n1
     assert json.loads(body1)["product_id"] == n1
     # the run token never looks like a valid time, so a reader's \d{8}T\d{6}Z finds the valid time and only it
-    assert re.findall(r"\d{8}T\d{6}Z", n1) == ["20261102T030000Z"]
+    assert re.findall(r"\d{8}T\d{6}Z", n1) == [VALID_TAG]
 
 
 @pytest.mark.parametrize("value", [None, "0", "true", "yes"])
