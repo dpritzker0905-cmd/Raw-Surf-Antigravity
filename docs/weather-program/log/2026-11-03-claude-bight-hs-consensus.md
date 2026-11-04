@@ -195,3 +195,48 @@ the polygon is a code constant); no double application (the view always composes
 whole-frame precedence kept (a twin cell the consensus could not blend is one where EURO or ICON is missing, and the
 twin is a same-run full-frame replacement; per-cell is a later refinement). Flip-time items it raised, already in §2:
 static frames and the direct-point upstream fallback serve raw GFS.
+
+## 9. 2026-11-04: round 6 folded in; EURO-weighted arm (dark option) scored jointly with the breaker; two-way CIs
+
+**Round 6 (offline, HIGH; owner memory research-journal "Round 6").** Jason-3's in-situ offset is ~0 at <= 10-15 km
+collocation, so inside the Bight GFS reads -0.327 m, EURO +0.068 and the GFS+EURO mean -0.129 (October buoys -0.319 /
++0.054 / -0.133): EURO is the least-biased offshore Hs and the equal mean still leaves ~-0.13 m. Round 4/5's "EURO high"
+is retracted. Gate rule: the 11 Bight buoys behave like ~1.3 independent stations; the station-cluster bootstrap falsely
+passes 31-35% of nulls, the two-way spatial-block x day bootstrap 0-6%. The binding CI should be the two-way one.
+
+**New dark arm option `SURF_BIGHT_HS_EURO_WEIGHT`** (default '0.5' = the equal mean, byte-identical; registered,
+declared '0.5' in the four lanes, refused by v0): Hs = (1 - w) GFS + w EURO inside the polygon while
+SURF_BIGHT_HS_CONSENSUS is on. In the composed-frame cache key; out-of-range or unparsable values read 0.5.
+
+**Joint family (one Holm family, same window 10-06..10-19, production parity, 10 clusters; EXPLORATORY: this window
+already scored the equal mean).** Breaker re-calibration = the global `SURF_REFRACTION_KR` at 0.797, the CDIP-measured
+median the served 0.873 was moved from (pre-registered; no value fitted here). Two-way = round 6's blocks (N, SP, OC,
+SD + OUT) x UTC day, `scratchpad/bhc/twoway.py` on the harness's own replays.
+
+| arm | hs_station gain | station-cluster CI | two-way CI | hb_proxy gain [two-way] | hb bias (served -0.079) | harness |
+|---|---|---|---|---|---|---|
+| equal mean (w 0.5) | +0.099 | [0.054, 0.144] | **[0.038, 0.182]** | +0.064 [-0.035, 0.218] | +0.138 | PASS |
+| EURO only (w 1.0) | +0.126 | [0.048, 0.215] | [0.019, 0.289] | -0.022 [-0.230, 0.218] | **+0.342** | PASS |
+| w 0.5 + Kr 0.797 | +0.052 | [0.006, 0.097] | [0.002, 0.115] | **+0.085 [0.029, 0.160]** | **-0.040** | FAIL (obs >= 2 m |bias| +0.069) |
+| w 1.0 + Kr 0.797 | +0.112 | [0.035, 0.189] | [0.019, 0.249] | +0.073 [-0.082, 0.258] | +0.146 | PASS (hb FAIL: band) |
+| Kr 0.797 alone (control) | -0.050 | [-0.073, -0.016] | [-0.067, -0.037] | -0.043 [-0.117, 0.027] | -0.238 | FAIL |
+
+Bight-only hs_offshore (6 harness NDBC buoys, two-way): equal mean +0.158 [0.111, 0.201], bias -0.308 -> -0.104;
+EURO only +0.151 [0.073, 0.224], bias -> +0.100. Reading: EURO-only fixes the offshore and station bias best but
+pushes the breaking height +0.34 m high; Kr 0.797 is the only knob that brings the breaking bias back (-0.04) and is
+the only arm whose breaking-height gain survives the two-way CI, but it is GLOBAL (moves every coast) and fails the
+>= 2 m band. Recommendation: keep w 0.5 as served; next, a BIGHT-scoped breaker term scored with w 0.5 and w 1.0 on a
+fresh window (W3 11-02..11-15, scorable 11-16) under the two-way rule. Evidence:
+`evidence/bight-hs-consensus-joint-arms-2026-11-04.md`, `evidence/bight-hs-consensus-twoway-2026-11-04.json`.
+
+## 10. 2026-11-04: ON by default, kill '0'
+
+The lead relayed the owner's policy (~01:41Z: "fixes now ship ON by default with a kill switch, plus a history filter
+and a live guardrail; nothing is built dark"; precedent DECISIONS 2026-11-01 22:10 EST). Code default "1" (any value
+but "0" is on), registry "1", the four lanes '1'. The kill path stays byte-identical (pinned sha256). The lead merges
+after the guardrail PR (`claude/default-on-guardrails`); this session does not merge. Open items the owner should see
+at merge: the breaking-height bias +0.138 m under the equal mean (section 9), and that after the merge the v0
+harness's served lane in the Bight is GFS (the flag is inert in a replay; EURO is not archived), so a flip scorecard
+for other flags reads a non-production baseline there. Floors after merging dev 29c01f71f: chain MIN_PASSED 3482 ->
+3551, MIN_FILES 202 -> 203 (expected read 3557 = 3488 + 69). Local chain lane before this merge: 3553 passed, 4 failed,
+all in `test_product_run_keys.py`, which fail identically with this PR stashed (Windows-local, not this change).
