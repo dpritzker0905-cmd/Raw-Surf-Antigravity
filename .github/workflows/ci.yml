@@ -1001,7 +1001,9 @@ jobs:
           #   base 3351 (hosted read) + 15 new test(s) and 1 new file(s) = 3366, files 214; floor 3366 - 6 = 3360. This PR must read 3366 passed.
           # ⬆ 3360→3443 on 2026-11-03 (rederive_floor.py, claude/alerts-forecast-windows): dev run 41711330259 read 3366 / 214 files; dev's map 3366;
           #   base 3366 (hosted read) + 83 new test(s) and 3 new file(s) = 3449, files 217; floor 3449 - 6 = 3443. This PR must read 3449 passed.
-          MIN_FILES, MIN_PASSED = 217, 3443
+          # ⬆ 3443→3463 on 2026-11-04 (rederive_floor.py, claude/alerts-dedupe-cap): dev run 41747311909 read 3449 / 217 files; dev's map 3449;
+          #   base 3449 (hosted read) + 20 new test(s) and 0 new file(s) = 3469, files 217; floor 3469 - 6 = 3463. This PR must read 3469 passed.
+          MIN_FILES, MIN_PASSED = 217, 3463
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

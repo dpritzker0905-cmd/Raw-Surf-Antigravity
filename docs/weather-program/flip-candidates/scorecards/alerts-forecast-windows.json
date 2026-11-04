@@ -1,0 +1,792 @@
+{
+ "schema": "raw-surf/flip-scorecard-record/0",
+ "flag": "ALERTS_FORECAST_WINDOWS",
+ "where": "dev (merged #704, b308e37b6)",
+ "outcome": "FAIL (precision; volume now passes)",
+ "code_commit": "b308e37b6",
+ "instrument": "backend/scripts/alert_window_replay.py --step 1 (hourly frames = the producer's ALERTS_HORIZON_STEP_H default) plus a scratch volume/tier wrapper over the same functions (surf_alert_windows.decide, the served chain estimate_surf_at + compute_surf_rating); offline; NOTHING sent, no backend, no database, no user rows read",
+ "data": "public NDBC realtime2 (41113/TRDF1, 46254/LJPC1, 44100/DUKN7) + CO-OPS hourly tide predictions (8721604, 9410230, 8651370), fetched 2026-11-03T22:53Z; record 2026-09-19..2026-11-03 (last 72 h used only as horizon)",
+ "users": "synthetic: 3 spots (Cocoa Beach FL, Scripps Pier CA, Duck Pier NC) x 3 preference classes x 5 forecast-noise seeds; k = 15 users per class (aggregate only); the real user-preference mix was NOT read",
+ "forecast_error": "AR(1) rho 0.95/h; Hs MAE 0.24/0.30/0.33/0.39 m at 6/24/48/72 h (SCOREBOARD rows 2026-09-29/30); wind sigma ASSUMED (no measured wind lead skill); sigma 0 = perfect-forecast control",
+ "precision_recall_hourly": [
+  {
+   "alert": "dawn_morning_clean_mid_high_tide",
+   "sigma": 0.0,
+   "realised_windows": 60.0,
+   "new_fires_per_week": 3.15,
+   "new_precision": 1.0,
+   "new_recall": 0.967,
+   "new_recall_6h": 0.967,
+   "today_fires_per_week": 160.72,
+   "today_precision": 0.076,
+   "today_recall": 0.95
+  },
+  {
+   "alert": "dawn_morning_clean_mid_high_tide",
+   "sigma": 1.0,
+   "realised_windows": 60.0,
+   "new_fires_per_week": 5.3,
+   "new_precision": 0.665,
+   "new_recall": 0.963,
+   "new_recall_6h": 0.953,
+   "today_fires_per_week": 158.08,
+   "today_precision": 0.077,
+   "today_recall": 0.95
+  },
+  {
+   "alert": "dawn_morning_clean_mid_high_tide",
+   "sigma": 2.0,
+   "realised_windows": 60.0,
+   "new_fires_per_week": 6.06,
+   "new_precision": 0.58,
+   "new_recall": 0.963,
+   "new_recall_6h": 0.957,
+   "today_fires_per_week": 149.49,
+   "today_precision": 0.075,
+   "today_recall": 0.937
+  },
+  {
+   "alert": "morning_afternoon_offshore_light",
+   "sigma": 0.0,
+   "realised_windows": 20.0,
+   "new_fires_per_week": 1.03,
+   "new_precision": 1.0,
+   "new_recall": 0.95,
+   "new_recall_6h": 0.95,
+   "today_fires_per_week": 131.73,
+   "today_precision": 0.031,
+   "today_recall": 0.95
+  },
+  {
+   "alert": "morning_afternoon_offshore_light",
+   "sigma": 1.0,
+   "realised_windows": 20.0,
+   "new_fires_per_week": 2.5,
+   "new_precision": 0.457,
+   "new_recall": 0.93,
+   "new_recall_6h": 0.89,
+   "today_fires_per_week": 125.79,
+   "today_precision": 0.031,
+   "today_recall": 0.93
+  },
+  {
+   "alert": "morning_afternoon_offshore_light",
+   "sigma": 2.0,
+   "realised_windows": 20.0,
+   "new_fires_per_week": 4.19,
+   "new_precision": 0.255,
+   "new_recall": 0.85,
+   "new_recall_6h": 0.75,
+   "today_fires_per_week": 114.84,
+   "today_precision": 0.029,
+   "today_recall": 0.91
+  },
+  {
+   "alert": "size_only_2_6ft",
+   "sigma": 0.0,
+   "realised_windows": 110.0,
+   "new_fires_per_week": 5.71,
+   "new_precision": 1.0,
+   "new_recall": 0.955,
+   "new_recall_6h": 0.955,
+   "today_fires_per_week": 111.45,
+   "today_precision": 0.281,
+   "today_recall": 0.945
+  },
+  {
+   "alert": "size_only_2_6ft",
+   "sigma": 1.0,
+   "realised_windows": 110.0,
+   "new_fires_per_week": 10.24,
+   "new_precision": 0.731,
+   "new_recall": 0.947,
+   "new_recall_6h": 0.927,
+   "today_fires_per_week": 105.08,
+   "today_precision": 0.274,
+   "today_recall": 0.927
+  },
+  {
+   "alert": "size_only_2_6ft",
+   "sigma": 2.0,
+   "realised_windows": 110.0,
+   "new_fires_per_week": 12.37,
+   "new_precision": 0.675,
+   "new_recall": 0.924,
+   "new_recall_6h": 0.867,
+   "today_fires_per_week": 92.1,
+   "today_precision": 0.253,
+   "today_recall": 0.885
+  }
+ ],
+ "volume_sigma1": [
+  {
+   "class": "dawn_morning_clean_mid_high_tide",
+   "tier": "basic",
+   "k_users": 15,
+   "fires_per_user_day": 0.757,
+   "max_fires_one_user_one_day": 3,
+   "fires_outside_tier_window": 0,
+   "tier_horizon_h": 72
+  },
+  {
+   "class": "dawn_morning_clean_mid_high_tide",
+   "tier": "free",
+   "k_users": 15,
+   "fires_per_user_day": 0.757,
+   "max_fires_one_user_one_day": 3,
+   "fires_outside_tier_window": 0,
+   "tier_horizon_h": 72
+  },
+  {
+   "class": "dawn_morning_clean_mid_high_tide",
+   "tier": "premium",
+   "k_users": 15,
+   "fires_per_user_day": 0.757,
+   "max_fires_one_user_one_day": 3,
+   "fires_outside_tier_window": 0,
+   "tier_horizon_h": 72
+  },
+  {
+   "class": "morning_afternoon_offshore_light",
+   "tier": "basic",
+   "k_users": 15,
+   "fires_per_user_day": 0.357,
+   "max_fires_one_user_one_day": 3,
+   "fires_outside_tier_window": 0,
+   "tier_horizon_h": 72
+  },
+  {
+   "class": "morning_afternoon_offshore_light",
+   "tier": "free",
+   "k_users": 15,
+   "fires_per_user_day": 0.357,
+   "max_fires_one_user_one_day": 3,
+   "fires_outside_tier_window": 0,
+   "tier_horizon_h": 72
+  },
+  {
+   "class": "morning_afternoon_offshore_light",
+   "tier": "premium",
+   "k_users": 15,
+   "fires_per_user_day": 0.357,
+   "max_fires_one_user_one_day": 3,
+   "fires_outside_tier_window": 0,
+   "tier_horizon_h": 72
+  },
+  {
+   "class": "size_only_2_6ft",
+   "tier": "basic",
+   "k_users": 15,
+   "fires_per_user_day": 1.462,
+   "max_fires_one_user_one_day": 5,
+   "fires_outside_tier_window": 0,
+   "tier_horizon_h": 72
+  },
+  {
+   "class": "size_only_2_6ft",
+   "tier": "free",
+   "k_users": 15,
+   "fires_per_user_day": 1.462,
+   "max_fires_one_user_one_day": 5,
+   "fires_outside_tier_window": 0,
+   "tier_horizon_h": 72
+  },
+  {
+   "class": "size_only_2_6ft",
+   "tier": "premium",
+   "k_users": 15,
+   "fires_per_user_day": 1.462,
+   "max_fires_one_user_one_day": 5,
+   "fires_outside_tier_window": 0,
+   "tier_horizon_h": 72
+  }
+ ],
+ "volume_sigma2": [
+  {
+   "class": "dawn_morning_clean_mid_high_tide",
+   "tier": "basic",
+   "k_users": 15,
+   "fires_per_user_day": 0.865,
+   "max_fires_one_user_one_day": 4,
+   "fires_outside_tier_window": 0,
+   "tier_horizon_h": 72
+  },
+  {
+   "class": "dawn_morning_clean_mid_high_tide",
+   "tier": "free",
+   "k_users": 15,
+   "fires_per_user_day": 0.865,
+   "max_fires_one_user_one_day": 4,
+   "fires_outside_tier_window": 0,
+   "tier_horizon_h": 72
+  },
+  {
+   "class": "dawn_morning_clean_mid_high_tide",
+   "tier": "premium",
+   "k_users": 15,
+   "fires_per_user_day": 0.865,
+   "max_fires_one_user_one_day": 4,
+   "fires_outside_tier_window": 0,
+   "tier_horizon_h": 72
+  },
+  {
+   "class": "morning_afternoon_offshore_light",
+   "tier": "basic",
+   "k_users": 15,
+   "fires_per_user_day": 0.598,
+   "max_fires_one_user_one_day": 4,
+   "fires_outside_tier_window": 0,
+   "tier_horizon_h": 72
+  },
+  {
+   "class": "morning_afternoon_offshore_light",
+   "tier": "free",
+   "k_users": 15,
+   "fires_per_user_day": 0.598,
+   "max_fires_one_user_one_day": 4,
+   "fires_outside_tier_window": 0,
+   "tier_horizon_h": 72
+  },
+  {
+   "class": "morning_afternoon_offshore_light",
+   "tier": "premium",
+   "k_users": 15,
+   "fires_per_user_day": 0.598,
+   "max_fires_one_user_one_day": 4,
+   "fires_outside_tier_window": 0,
+   "tier_horizon_h": 72
+  },
+  {
+   "class": "size_only_2_6ft",
+   "tier": "basic",
+   "k_users": 15,
+   "fires_per_user_day": 1.766,
+   "max_fires_one_user_one_day": 6,
+   "fires_outside_tier_window": 0,
+   "tier_horizon_h": 72
+  },
+  {
+   "class": "size_only_2_6ft",
+   "tier": "free",
+   "k_users": 15,
+   "fires_per_user_day": 1.766,
+   "max_fires_one_user_one_day": 6,
+   "fires_outside_tier_window": 0,
+   "tier_horizon_h": 72
+  },
+  {
+   "class": "size_only_2_6ft",
+   "tier": "premium",
+   "k_users": 15,
+   "fires_per_user_day": 1.766,
+   "max_fires_one_user_one_day": 6,
+   "fires_outside_tier_window": 0,
+   "tier_horizon_h": 72
+  }
+ ],
+ "per_user_day_histogram_sigma1": {
+  "size_only_2_6ft": {
+   "0": 147,
+   "1": 196,
+   "2": 194,
+   "3": 78,
+   "4": 27,
+   "5": 3
+  },
+  "morning_afternoon_offshore_light": {
+   "0": 463,
+   "1": 139,
+   "2": 38,
+   "3": 5
+  },
+  "dawn_morning_clean_mid_high_tide": {
+   "0": 228,
+   "1": 351,
+   "2": 62,
+   "3": 4
+  }
+ },
+ "per_user_day_histogram_sigma0_control": {
+  "size_only_2_6ft": {
+   "0": 250,
+   "1": 270,
+   "2": 120,
+   "3": 5
+  },
+  "morning_afternoon_offshore_light": {
+   "0": 555,
+   "1": 85,
+   "2": 5
+  },
+  "dawn_morning_clean_mid_high_tide": {
+   "0": 360,
+   "1": 280,
+   "2": 5
+  }
+ },
+ "tier_window": "0 fired windows outside send time + the tier horizon in every class and tier; free/basic/premium all resolve to 72 h (ALERTS_FORECAST_HORIZON_H 72 <= free's 3 days), so tier never binds at the default",
+ "reason": "The replay is sane (perfect-forecast control precision 1.000, recall 0.95-0.97; at sigma 1 precision 0.457-0.731 vs today's simulated 0.031-0.281, recall 0.93-0.96, 0.36-1.46 alerts per user-day vs today's simulated ~15-23), but the brief's volume rule fails: the broad size-only class gets 4-5 alerts in one local day on 30 of 645 user-days (4.7%) at sigma 1 and up to 6 at sigma 2. The perfect-forecast control never exceeds 3, so the excess is forecast noise fragmenting one window into several non-overlapping ones that each re-announce.",
+ "fix": "Add a per-user daily send cap (e.g. ALERTS_MAX_PER_USER_DAY 2-3) or suppress a new window that starts on the same local day as one already sent for that alert, then re-run this replay (target: max <= 3/user/day at sigma 1 and 2, precision not lower). Also: if Render env carries ALERTS_FORECAST_WINDOWS='0' explicitly, a code-default flip alone will not turn the scheduler on (env change is the owner's).",
+ "reaches_users": "YES - push notifications",
+ "rerun_2026_11_04": {
+  "pr": "claude/alerts-dedupe-cap (draft)",
+  "code": "ALERTS_WINDOW_SUPPRESSION (default on) + ALERTS_WINDOW_MERGE_GAP_H 1 + ALERTS_MAX_PER_USER_DAY 2; flag ALERTS_FORECAST_WINDOWS stays default '0'",
+  "paired": "same data dir as #712 (fetched 2026-11-03T22:53Z), same 3 spots x 3 classes x 5 seeds, same AR(1) errors, step 1; the kill_switch arm reproduces #712 exactly (size-only sigma 1: precision 0.731, recall 0.947, histogram {0:147,1:196,2:194,3:78,4:27,5:3})",
+  "instrument": "backend/scripts/alert_window_replay.py (both arms, real decide + admit); evidence/2026-11-04-alerts-dedupe-cap/replay_summary.json",
+  "bar": "max per user-day <= 2; precision >= 0.8 at recall >= 0.85 per alert class; 0 alerts outside the tier window",
+  "before_kill_switch": [
+   {
+    "alert": "dawn_morning_clean_mid_high_tide",
+    "sigma": 0.0,
+    "new_precision": 1.0,
+    "new_hour_precision": 1.0,
+    "new_recall": 0.967,
+    "new_recall_6h": 0.967,
+    "new_fires_per_week": 3.15,
+    "max_per_user_day": 2,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 72,
+     "1": 56,
+     "2": 1
+    }
+   },
+   {
+    "alert": "dawn_morning_clean_mid_high_tide",
+    "sigma": 1.0,
+    "new_precision": 0.665,
+    "new_hour_precision": 0.634,
+    "new_recall": 0.963,
+    "new_recall_6h": 0.953,
+    "new_fires_per_week": 5.3,
+    "max_per_user_day": 3,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 228,
+     "1": 351,
+     "2": 62,
+     "3": 4
+    }
+   },
+   {
+    "alert": "dawn_morning_clean_mid_high_tide",
+    "sigma": 2.0,
+    "new_precision": 0.58,
+    "new_hour_precision": 0.537,
+    "new_recall": 0.963,
+    "new_recall_6h": 0.957,
+    "new_fires_per_week": 6.06,
+    "max_per_user_day": 4,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 174,
+     "1": 390,
+     "2": 77,
+     "3": 3,
+     "4": 1
+    }
+   },
+   {
+    "alert": "morning_afternoon_offshore_light",
+    "sigma": 0.0,
+    "new_precision": 1.0,
+    "new_hour_precision": 1.0,
+    "new_recall": 0.95,
+    "new_recall_6h": 0.95,
+    "new_fires_per_week": 1.03,
+    "max_per_user_day": 2,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 111,
+     "1": 17,
+     "2": 1
+    }
+   },
+   {
+    "alert": "morning_afternoon_offshore_light",
+    "sigma": 1.0,
+    "new_precision": 0.457,
+    "new_hour_precision": 0.468,
+    "new_recall": 0.93,
+    "new_recall_6h": 0.89,
+    "new_fires_per_week": 2.5,
+    "max_per_user_day": 3,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 463,
+     "1": 139,
+     "2": 38,
+     "3": 5
+    }
+   },
+   {
+    "alert": "morning_afternoon_offshore_light",
+    "sigma": 2.0,
+    "new_precision": 0.255,
+    "new_hour_precision": 0.244,
+    "new_recall": 0.85,
+    "new_recall_6h": 0.75,
+    "new_fires_per_week": 4.19,
+    "max_per_user_day": 4,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 350,
+     "1": 222,
+     "2": 58,
+     "3": 13,
+     "4": 2
+    }
+   },
+   {
+    "alert": "size_only_2_6ft",
+    "sigma": 0.0,
+    "new_precision": 1.0,
+    "new_hour_precision": 1.0,
+    "new_recall": 0.955,
+    "new_recall_6h": 0.955,
+    "new_fires_per_week": 5.71,
+    "max_per_user_day": 3,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 50,
+     "1": 54,
+     "2": 24,
+     "3": 1
+    }
+   },
+   {
+    "alert": "size_only_2_6ft",
+    "sigma": 1.0,
+    "new_precision": 0.731,
+    "new_hour_precision": 0.665,
+    "new_recall": 0.947,
+    "new_recall_6h": 0.927,
+    "new_fires_per_week": 10.24,
+    "max_per_user_day": 5,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 147,
+     "1": 196,
+     "2": 194,
+     "3": 78,
+     "4": 27,
+     "5": 3
+    }
+   },
+   {
+    "alert": "size_only_2_6ft",
+    "sigma": 2.0,
+    "new_precision": 0.675,
+    "new_hour_precision": 0.609,
+    "new_recall": 0.924,
+    "new_recall_6h": 0.867,
+    "new_fires_per_week": 12.37,
+    "max_per_user_day": 6,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 109,
+     "1": 177,
+     "2": 183,
+     "3": 123,
+     "4": 42,
+     "5": 9,
+     "6": 2
+    }
+   }
+  ],
+  "after_default": [
+   {
+    "alert": "dawn_morning_clean_mid_high_tide",
+    "sigma": 0.0,
+    "new_precision": 1.0,
+    "new_hour_precision": 0.996,
+    "new_recall": 0.967,
+    "new_recall_6h": 0.967,
+    "new_fires_per_week": 3.1,
+    "max_per_user_day": 1,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 72,
+     "1": 57
+    }
+   },
+   {
+    "alert": "dawn_morning_clean_mid_high_tide",
+    "sigma": 1.0,
+    "new_precision": 0.678,
+    "new_hour_precision": 0.635,
+    "new_recall": 0.96,
+    "new_recall_6h": 0.953,
+    "new_fires_per_week": 4.73,
+    "max_per_user_day": 2,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 233,
+     "1": 389,
+     "2": 23
+    }
+   },
+   {
+    "alert": "dawn_morning_clean_mid_high_tide",
+    "sigma": 2.0,
+    "new_precision": 0.585,
+    "new_hour_precision": 0.533,
+    "new_recall": 0.947,
+    "new_recall_6h": 0.943,
+    "new_fires_per_week": 5.34,
+    "max_per_user_day": 2,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 180,
+     "1": 439,
+     "2": 26
+    }
+   },
+   {
+    "alert": "morning_afternoon_offshore_light",
+    "sigma": 0.0,
+    "new_precision": 1.0,
+    "new_hour_precision": 1.0,
+    "new_recall": 0.95,
+    "new_recall_6h": 0.95,
+    "new_fires_per_week": 1.03,
+    "max_per_user_day": 2,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 111,
+     "1": 17,
+     "2": 1
+    }
+   },
+   {
+    "alert": "morning_afternoon_offshore_light",
+    "sigma": 1.0,
+    "new_precision": 0.469,
+    "new_hour_precision": 0.461,
+    "new_recall": 0.92,
+    "new_recall_6h": 0.88,
+    "new_fires_per_week": 2.13,
+    "max_per_user_day": 2,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 466,
+     "1": 162,
+     "2": 17
+    }
+   },
+   {
+    "alert": "morning_afternoon_offshore_light",
+    "sigma": 2.0,
+    "new_precision": 0.253,
+    "new_hour_precision": 0.234,
+    "new_recall": 0.82,
+    "new_recall_6h": 0.71,
+    "new_fires_per_week": 3.61,
+    "max_per_user_day": 2,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 358,
+     "1": 242,
+     "2": 45
+    }
+   },
+   {
+    "alert": "size_only_2_6ft",
+    "sigma": 0.0,
+    "new_precision": 1.0,
+    "new_hour_precision": 0.975,
+    "new_recall": 0.955,
+    "new_recall_6h": 0.955,
+    "new_fires_per_week": 4.9,
+    "max_per_user_day": 2,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 50,
+     "1": 68,
+     "2": 11
+    }
+   },
+   {
+    "alert": "size_only_2_6ft",
+    "sigma": 1.0,
+    "new_precision": 0.74,
+    "new_hour_precision": 0.664,
+    "new_recall": 0.916,
+    "new_recall_6h": 0.871,
+    "new_fires_per_week": 7.66,
+    "max_per_user_day": 2,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 154,
+     "1": 278,
+     "2": 213
+    }
+   },
+   {
+    "alert": "size_only_2_6ft",
+    "sigma": 2.0,
+    "new_precision": 0.665,
+    "new_hour_precision": 0.602,
+    "new_recall": 0.849,
+    "new_recall_6h": 0.778,
+    "new_fires_per_week": 8.74,
+    "max_per_user_day": 2,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 113,
+     "1": 261,
+     "2": 271
+    }
+   }
+  ],
+  "replay_only_hysteresis_default": [
+   {
+    "alert": "dawn_morning_clean_mid_high_tide",
+    "sigma": 0.0,
+    "new_precision": 1.0,
+    "new_hour_precision": 0.996,
+    "new_recall": 0.967,
+    "new_recall_6h": 0.967,
+    "new_fires_per_week": 3.1,
+    "max_per_user_day": 1,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 72,
+     "1": 57
+    }
+   },
+   {
+    "alert": "dawn_morning_clean_mid_high_tide",
+    "sigma": 1.0,
+    "new_precision": 0.792,
+    "new_hour_precision": 0.751,
+    "new_recall": 0.933,
+    "new_recall_6h": 0.86,
+    "new_fires_per_week": 3.93,
+    "max_per_user_day": 2,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 328,
+     "1": 273,
+     "2": 44
+    }
+   },
+   {
+    "alert": "dawn_morning_clean_mid_high_tide",
+    "sigma": 2.0,
+    "new_precision": 0.705,
+    "new_hour_precision": 0.636,
+    "new_recall": 0.9,
+    "new_recall_6h": 0.737,
+    "new_fires_per_week": 4.21,
+    "max_per_user_day": 2,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 322,
+     "1": 259,
+     "2": 64
+    }
+   },
+   {
+    "alert": "morning_afternoon_offshore_light",
+    "sigma": 0.0,
+    "new_precision": 1.0,
+    "new_hour_precision": 1.0,
+    "new_recall": 0.95,
+    "new_recall_6h": 0.95,
+    "new_fires_per_week": 1.03,
+    "max_per_user_day": 2,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 111,
+     "1": 17,
+     "2": 1
+    }
+   },
+   {
+    "alert": "morning_afternoon_offshore_light",
+    "sigma": 1.0,
+    "new_precision": 0.792,
+    "new_hour_precision": 0.728,
+    "new_recall": 0.8,
+    "new_recall_6h": 0.58,
+    "new_fires_per_week": 1.15,
+    "max_per_user_day": 2,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 551,
+     "1": 82,
+     "2": 12
+    }
+   },
+   {
+    "alert": "morning_afternoon_offshore_light",
+    "sigma": 2.0,
+    "new_precision": 0.603,
+    "new_hour_precision": 0.506,
+    "new_recall": 0.66,
+    "new_recall_6h": 0.26,
+    "new_fires_per_week": 1.26,
+    "max_per_user_day": 2,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 541,
+     "1": 92,
+     "2": 12
+    }
+   },
+   {
+    "alert": "size_only_2_6ft",
+    "sigma": 0.0,
+    "new_precision": 1.0,
+    "new_hour_precision": 0.975,
+    "new_recall": 0.955,
+    "new_recall_6h": 0.955,
+    "new_fires_per_week": 4.9,
+    "max_per_user_day": 2,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 51,
+     "1": 66,
+     "2": 12
+    }
+   },
+   {
+    "alert": "size_only_2_6ft",
+    "sigma": 1.0,
+    "new_precision": 0.827,
+    "new_hour_precision": 0.738,
+    "new_recall": 0.893,
+    "new_recall_6h": 0.765,
+    "new_fires_per_week": 6.34,
+    "max_per_user_day": 2,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 230,
+     "1": 247,
+     "2": 168
+    }
+   },
+   {
+    "alert": "size_only_2_6ft",
+    "sigma": 2.0,
+    "new_precision": 0.789,
+    "new_hour_precision": 0.688,
+    "new_recall": 0.771,
+    "new_recall_6h": 0.442,
+    "new_fires_per_week": 6.28,
+    "max_per_user_day": 2,
+    "outside_tier_window": 0,
+    "per_user_day_hist": {
+     "0": 253,
+     "1": 207,
+     "2": 185
+    }
+   }
+  ],
+  "tier_window": "0 outside in every arm, class, sigma and tier (free/basic/premium all resolve to 72 h)",
+  "outcome": "FAIL (precision)",
+  "reason": "Volume and tier pass: max 2 per user-day in every class and sigma (was 3/3/5 at sigma 1). Precision does not: at sigma 1 it is 0.678 / 0.469 / 0.740 (dawn / offshore-light / size) at recall 0.960 / 0.920 / 0.916. The residual false alerts are FIRST announcements of windows the noisy forecast invents, which no dedupe can remove. The replay-only two-cycle hysteresis lifts precision to 0.792 / 0.792 / 0.827 but recall falls to 0.933 / 0.800 / 0.893: offshore-light misses both halves of the bar and dawn misses precision. No setting swept (gap 0-6, cap 2, hysteresis with a 0/3/6/12 h near-lead exemption) met precision >= 0.8 at recall >= 0.85 for all three classes at sigma 1.",
+  "light_pr_ready": false
+ }
+}
