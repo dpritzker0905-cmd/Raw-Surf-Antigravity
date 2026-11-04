@@ -741,7 +741,8 @@ class PointResolutionService:
         lat: float,
         lng: float,
         forecast_days: int = 11,
-        spot_id: Any = None
+        spot_id: Any = None,
+        **phase2: Any,
     ) -> Dict[str, Any]:
         """
         Unifies conditions retrieval for a spot, checking local dynamic/manifest
@@ -754,5 +755,7 @@ class PointResolutionService:
         that has an id should pass it, or the hub and the glyphs grade the same spot differently.
         """
         from services.weather_pipeline.spot_conditions import resolve_spot_conditions_impl
+        # `phase2` carries `spot_meta` / `horizon_hours`, which callers send only while
+        # SPOT_HUB_RATE_ONE_SPOT is on (spot_hub_composition.call_kwargs): a flag-off call is unchanged.
         return await resolve_spot_conditions_impl(self, model, lat, lng, forecast_days,
-                                                  spot_id=spot_id)
+                                                  spot_id=spot_id, **phase2)

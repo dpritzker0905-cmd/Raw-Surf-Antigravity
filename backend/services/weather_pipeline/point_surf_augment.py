@@ -17,6 +17,7 @@ service — and so the re-entrancy guard stays where it belongs: the caller pass
 `self._resolve_partitions`, which goes through `_resolve_point_internal` and therefore cannot
 recurse back into this augmentation.
 """
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default
 import logging
 import os
 
@@ -147,7 +148,7 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
             # ⚠️ η reaches the CAP only (`surf_transform.estimate_surf`), never `depth_m` — a metre
             # of tide against a ~139 km shelf median is noise pretending to be signal.
             _eta = 0.0
-            if os.environ.get("SURF_TIDE_DEPTH", "0") != "0":
+            if _rf.flag("SURF_TIDE_DEPTH") != "0":
                 try:
                     from services.weather_pipeline.tide import tide_norm_at
                     _ts = await tide_norm_at(lat, lng, valid_time_str)

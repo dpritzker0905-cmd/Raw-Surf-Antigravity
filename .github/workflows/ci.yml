@@ -185,7 +185,9 @@ jobs:
             // EURO / ICON regional bundles (2026-11-01, item 11, dark): staticRegional.euroIcon.test.js (+1 suite / +5 tests). Raised by exactly that.
             // Spot-hub phase 1 (2026-11-03, ON with __RAW_DISABLE_SPOT_HUB_P1__): spotHubP1.test.js (+1 suite / +38 tests),
             // SpotHub.phase1.test.js (+1 / +12), SpotConditions.phase1.test.js (+1 / +8). Raised by exactly that; confirm against the hosted receipt.
-            const MIN_SUITES = 532, MIN_TESTS = 6986;
+            // Map motion fixes (2026-11-03, ON with five kills): motionFixes.killSwitch (6), particleState (13), particleRk2 (8),
+            // crestLocalPhase (13), crestTexelRank (8), windEncoderRound (6) = +6 suites / +54 tests. Raised by exactly that; confirm against the hosted receipt.
+            const MIN_SUITES = 538, MIN_TESTS = 7040;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -999,9 +1001,17 @@ jobs:
           #   base 3351 (hosted read) + 15 new test(s) and 1 new file(s) = 3366, files 214; floor 3366 - 6 = 3360. This PR must read 3366 passed.
           # ⬆ 3360→3443 on 2026-11-03 (rederive_floor.py, claude/alerts-forecast-windows): dev run 41711330259 read 3366 / 214 files; dev's map 3366;
           #   base 3366 (hosted read) + 83 new test(s) and 3 new file(s) = 3449, files 217; floor 3449 - 6 = 3443. This PR must read 3449 passed.
-          # ⬆ 3443→3468 on 2026-11-03 (rederive_floor.py, claude/rating-wind-hrrr): dev run 41726327573 read 3449 / 217 files; dev's map 3449;
-          #   base 3449 (hosted read) + 25 new test(s) and 1 new file(s) = 3474, files 218; floor 3474 - 6 = 3468. This PR must read 3474 passed.
-          MIN_FILES, MIN_PASSED = 218, 3468
+          # ⬆ 3443→3448 on 2026-11-04 (rederive_floor.py, claude/dev-health-fixes): dev run 41747311909 read 3449 / 217 files; dev's map 3449;
+          #   base 3449 (hosted read) + 5 new test(s) and 0 new file(s) = 3454, files 217; floor 3454 - 6 = 3448. This PR must read 3454 passed.
+          # ⬆ 3448→3468 on 2026-11-04 (rederive_floor.py, claude/alerts-dedupe-cap): dev run 41898465148 read 3454 / 217 files; dev's map 3454;
+          #   base 3454 (hosted read) + 20 new test(s) and 0 new file(s) = 3474, files 217; floor 3474 - 6 = 3468. This PR must read 3474 passed.
+          # ⬆ 3468→3481 on 2026-11-04 (rederive_floor.py, claude/manifest-egress): dev run 41905839333 read 3454 / 217 files; dev's map 3474;
+          #   base 3474 (dev's map) + 13 new test(s) and 2 new file(s) = 3487, files 219; floor 3487 - 6 = 3481. This PR must read 3487 passed.
+          # ⬆ 3481→3501 on 2026-11-04 (rederive_floor.py, claude/spot-hub-phase2): dev run 41919430899 read 3474 / 217 files; dev's map 3487;
+          #   base 3487 (dev's map) + 20 new test(s) and 1 new file(s) = 3507, files 220; floor 3507 - 6 = 3501. This PR must read 3507 passed.
+          # ⬆ 3501→3515 on 2026-11-04 (rederive_floor.py, claude/spot-hub-phase3): dev run 41927072977 read 3487 / 219 files; dev's map 3507;
+          #   base 3507 (dev's map) + 14 new test(s) and 1 new file(s) = 3521, files 221; floor 3521 - 6 = 3515. This PR must read 3521 passed.
+          MIN_FILES, MIN_PASSED = 221, 3515
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1654,7 +1664,19 @@ jobs:
           #   base 3393 (dev's map) + 21 new test(s) and 1 new file(s) = 3414, files 200; floor 3414 - 6 = 3408. This PR must read 3414 passed.
           # ⬆ 3408→3410 on 2026-11-03 (rederive_floor.py, claude/alerts-forecast-windows): dev run 41711330259 read 3393 / 199 files; dev's map 3414;
           #   base 3414 (dev's map) + 2 new test(s) and 0 new file(s) = 3416, files 200; floor 3416 - 6 = 3410. This PR must read 3416 passed.
-          MIN_FILES, MIN_PASSED = 200, 3410
+          # ⬆ 3410→3431 on 2026-11-03 (rederive_floor.py, claude/restore-followups): dev run 41726327573 read 3416 / 200 files; dev's map 3416;
+          #   base 3416 (hosted read) + 21 new test(s) and 1 new file(s) = 3437, files 201; floor 3437 - 6 = 3431. This PR must read 3437 passed.
+          # ⬆ 3431→3482 on 2026-11-03 (rederive_floor.py, claude/consensus-direction-vector): dev run 41726327573 read 3416 / 200 files; dev's map 3437;
+          #   base 3437 (dev's map) + 51 new test(s) and 1 new file(s) = 3488, files 202; floor 3488 - 6 = 3482. This PR must read 3488 passed.
+          # ⬆ 3482→3508 on 2026-11-04 (rederive_floor.py, claude/default-on-guardrails): dev run 41747311909 read 3488 / 202 files; dev's map 3488;
+          #   base 3488 (hosted read) + 26 new test(s) and 1 new file(s) = 3514, files 203; floor 3514 - 6 = 3508. This PR must read 3514 passed.
+          # ⬆ 3508→3526 on 2026-11-04 (rederive_floor.py, claude/harness-backfill): dev run 41898465148 read 3488 / 202 files; dev's map 3514;
+          #   base 3514 (dev's map) + 18 new test(s) and 2 new file(s) = 3532, files 205; floor 3532 - 6 = 3526. This PR must read 3532 passed.
+          # ⬆ 3526→3592 on 2026-11-04 (rederive_floor.py, claude/bight-hs-consensus): dev run 41905654969 read 3488 / 202 files; dev's map 3532;
+          #   base 3532 (dev's map) + 66 new test(s) and 1 new file(s) = 3598, files 206; floor 3598 - 6 = 3592. This PR must read 3598 passed.
+          # ⬆ 3592→3618 on 2026-11-04 (rederive_floor.py, claude/harness-two-way-gate): dev run 41919430899 read 3531 / 205 files; dev's map 3598;
+          #   base 3598 (dev's map) + 26 new test(s) and 1 new file(s) = 3624, files 207; floor 3624 - 6 = 3618. This PR must read 3624 passed.
+          MIN_FILES, MIN_PASSED = 207, 3618
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -2205,7 +2227,9 @@ jobs:
           #   base 3406 (hosted read) + 2 new test(s) = 3408; floor 3408 - 2 = 3406. This PR must read 3408 passed.
           # ⬆ 3404→3406 on 2026-11-02 (rederive_floor.py, claude/weather-batch-2): dev run 41377184916 read 3406; dev's map 3406;
           #   base 3406 (hosted read) + 2 new test(s) = 3408; floor 3408 - 2 = 3406. This PR must read 3408 passed.
-          MIN_PASSED = 3406
+          # ⬆ 3406→3419 on 2026-11-04 (rederive_floor.py, claude/default-on-guardrails): dev run 41747311909 read 3408; dev's map 3408;
+          #   base 3408 (hosted read) + 13 new test(s) = 3421; floor 3421 - 2 = 3419. This PR must read 3421 passed.
+          MIN_PASSED = 3419
 
           try:
               root = ET.parse('estate.xml').getroot()

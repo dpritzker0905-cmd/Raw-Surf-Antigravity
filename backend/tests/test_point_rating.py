@@ -168,7 +168,7 @@ async def test_the_reference_is_spot_first_then_cell_and_off_without_the_flag(mo
     monkeypatch.setattr(GSC, "load_grid_size_climatology_l2_cached", lambda *a, **k: {"cells": {}})
     monkeypatch.setattr(GSC, "reference_for", lambda clim, la, ln: 2.22)
     monkeypatch.setattr(SSC, "reference_for_coordinate", lambda la, ln, **k: 1.11)
-    monkeypatch.delenv("RATING_LOCAL_SIZE", raising=False)
+    monkeypatch.setenv("RATING_LOCAL_SIZE", "0")  # D-065: unset is ON now; OFF is the explicit kill value
     assert await PR.local_reference_at(*PIPELINE) is None, "flag off is the global curve"
     monkeypatch.setenv("RATING_LOCAL_SIZE", "1")
     assert await PR.local_reference_at(*PIPELINE) == 1.11

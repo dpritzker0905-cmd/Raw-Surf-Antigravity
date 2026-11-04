@@ -171,17 +171,18 @@ def test_rating_transform_grid_applies_gate_fn():
 
 
 def test_wiring_sites_are_gated():
-    """All three serve surfaces consult RATING_OBS_GATE (default OFF) — a silent unwire regresses the
+    """All three serve surfaces consult RATING_OBS_GATE (default ON since D-065) — a silent unwire regresses the
     Surfline hybrid; a default flip must be an explicit commit."""
+    G = '_rf.flag("RATING_OBS_GATE") == "1"'   # D-065: the guarded read (env > manifest > code default)
     import inspect
     from services.weather_pipeline.spot_ratings_precompute import run_spot_ratings_precompute
     src = inspect.getsource(run_spot_ratings_precompute)
-    assert 'os.environ.get("RATING_OBS_GATE", "0") == "1"' in src and "apply_gate_to_frames" in src
+    assert G in src and "apply_gate_to_frames" in src
     # The live compute moved into _compute_live_ratings (2026-07-13 load-shed extraction) — the
     # gate wiring must live wherever the live serve path actually computes.
     from routes.weather import _compute_live_ratings
     src = inspect.getsource(_compute_live_ratings)
-    assert 'os.environ.get("RATING_OBS_GATE", "0") == "1"' in src and "observation_gate" in src
+    assert G in src and "observation_gate" in src
     from services.weather_pipeline.grid_resolver_surf import apply_surf_overlay
     src = inspect.getsource(apply_surf_overlay)
-    assert 'os.environ.get("RATING_OBS_GATE", "0") == "1"' in src and "_build_observation_gate" in src
+    assert G in src and "_build_observation_gate" in src

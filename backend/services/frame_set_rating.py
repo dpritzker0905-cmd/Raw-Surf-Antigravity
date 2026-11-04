@@ -30,6 +30,7 @@ size climatology (600 s) are read ONCE per publish and their identities recorded
 value the chain reads (CHAIN_ENV). A CDN band lags the box by up to one republish. ON by default (D-057); kill FRAME_RATING_SETS=0.
 """
 from __future__ import annotations
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default
 
 import asyncio
 import hashlib
@@ -126,13 +127,13 @@ class ChainInputs:
         self.loop = asyncio.new_event_loop()
         self.gate_blob = None
         self.clim_id = None
-        if os.environ.get("RATING_OBS_GATE", "0") == "1":
+        if _rf.flag("RATING_OBS_GATE") == "1":
             try:
                 from services.weather_pipeline.spot_ratings_precompute import load_spot_ratings_l2_cached
                 self.gate_blob = load_spot_ratings_l2_cached()
             except Exception as e:   # the box falls back to cap-everything too; recorded, never hidden
                 log(f"[frames] rated: spot-ratings blob unavailable ({type(e).__name__}: {e})")
-        if os.environ.get("RATING_LOCAL_SIZE", "0") == "1":
+        if _rf.flag("RATING_LOCAL_SIZE") == "1":
             try:
                 from services.weather_pipeline.grid_size_climatology import load_grid_size_climatology_l2_cached
                 clim = load_grid_size_climatology_l2_cached()

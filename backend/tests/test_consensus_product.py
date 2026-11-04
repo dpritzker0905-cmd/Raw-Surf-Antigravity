@@ -250,7 +250,10 @@ def test_only_short_lived_samplers_memoize():
     # consensus_ingest.build_hour: one sampler per forecast hour, dropped with it (2026-09-29, D-009).
     # model_spread.build_spread and scripts/publish_model_spread.collect: one sampler per spread frame (three
     # products), dropped with the frame, in a one-shot CI script (2026-10-19, dark data collector).
-    assert hits == ["scripts/publish_model_spread.py", "services/weather_pipeline/consensus_ingest.py",
+    # bight_hs_consensus.compose (SURF_BIGHT_HS_CONSENSUS, dark, 2026-11-03): one sampler per composed frame, dropped
+    # with it (the serving view caches the composed PRODUCT, never the sampler).
+    assert hits == ["scripts/publish_model_spread.py", "services/weather_pipeline/bight_hs_consensus.py",
+                    "services/weather_pipeline/consensus_ingest.py",
                     "services/weather_pipeline/consensus_product.py", "services/weather_pipeline/model_spread.py"]
 
 
@@ -270,6 +273,8 @@ _PRE_FLAG_KEYS = {"method", "members", "carried_from_primary", "valid_time", "pr
 def _flags_unset(monkeypatch):
     for f in _FLAGS:
         monkeypatch.delenv(f, raising=False)
+    # D-065: CONSENSUS_DIRECTION_VECTOR defaults ON now, so these period-era tests pin it OFF explicitly.
+    monkeypatch.setenv("CONSENSUS_DIRECTION_VECTOR", "0")
     monkeypatch.setattr(cp, "_SKIP_LOGGED", set())
 
 

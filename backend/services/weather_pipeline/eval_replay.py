@@ -26,6 +26,7 @@ WHAT THE REPLAY CANNOT REACH OFFLINE is a NAMED GAP with a counter, never a sile
                    a spot-hour found no series.
 UNREPLAYABLE ARMS (refused, not silently run as the baseline): flags whose input v0 does not archive.
 """
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default
 import asyncio
 import contextlib
 import hashlib
@@ -41,6 +42,11 @@ UNREPLAYABLE = {
     "SURF_PARTITIONS": "needs the swell partitions, which v0 does not archive",
     "SURF_NEARSHORE_MOP": "needs CDIP MOP forecast archives",
     "CONSENSUS_SERVE": "needs EURO and ICON (EURO needs Copernicus credentials only CI holds)",
+    "SURF_BIGHT_HS_EURO_WEIGHT": "an option of SURF_BIGHT_HS_CONSENSUS: needs the EURO marine product (input-substitution "
+                                 "arm only)",
+    "SURF_BIGHT_HS_CONSENSUS": "needs the EURO marine product, which v0 does not archive (scored by an input-substitution "
+                               "arm; log 2026-11-03-claude-bight-hs-consensus.md). ON in production since its merge: "
+                               "the v0 served lane is GFS in the Bight (the flag is inert in a replay)",
     "COPERNICUS_PEAK_PERIOD": "a EURO input flag; v0 replays GFS only",
     "ICON_PEAK_PERIOD": "an ICON input flag; v0 replays GFS only",
     "RATING_OBS_GATE": "applied after rating in the precompute merge; the replay records pre-gate scores",
@@ -173,7 +179,7 @@ def replay_patches(tides: Optional[TideSeries], gaps: Dict[str, int]):
         return tide.tide_state_at(s["time"], s["level"], valid_time)
 
     async def local_reference_at(lat, lng):
-        if os.environ.get("RATING_LOCAL_SIZE", "0") == "1":
+        if _rf.flag("RATING_LOCAL_SIZE") == "1":
             gaps["size_reference"] += 1
         return None
 
@@ -229,7 +235,7 @@ async def replay_one(products: dict, coord: dict, valid: datetime, gaps: Dict[st
             "best_tide": None, "accuracy_flag": None, "is_verified_peak": None}
     rating = await rate_one_spot(resolver, spot, "GFS", vt, reference_size_m=None)
     gaps["best_tide"] += 1
-    if os.environ.get("RATING_OBS_GATE", "0") == "1":
+    if _rf.flag("RATING_OBS_GATE") == "1":
         gaps["obs_gate"] += 1
     m, w = resolver.last.get("marine"), resolver.last.get("wind")
     pt = getattr(m, "point", None)

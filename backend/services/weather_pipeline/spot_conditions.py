@@ -31,6 +31,7 @@ PERFORMANCE: geometry is resolved ONCE and reused for all 11 frames, so the corr
 network I/O. The daily loop still samples the cached grid — the fix is what the numbers MEAN, not
 how many of them are fetched.
 """
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default
 import logging
 import math
 import os
@@ -277,7 +278,9 @@ async def resolve_spot_conditions_impl(
     lat: float,
     lng: float,
     forecast_days: int = 11,
-    spot_id: Any = None
+    spot_id: Any = None,
+    spot_meta: Any = None,
+    horizon_hours: Any = None,
 ) -> Dict[str, Any]:
     """
     Unifies conditions retrieval for a spot, checking local dynamic/manifest
@@ -286,7 +289,21 @@ async def resolve_spot_conditions_impl(
     ``spot_id`` is OPTIONAL and affects only the rating's LOCAL SIZE REFERENCE (see below). It is a
     coordinate-keyed function otherwise; every caller that has an id should pass it, and a caller
     that genuinely has none gets exactly the previous behaviour.
+
+    ``spot_meta`` / ``horizon_hours`` are read ONLY by the phase-2 path below and ignored otherwise.
     """
+    # ── SPOT-HUB PHASE 2 (2026-11-03): THE ONE COMPOSITION, ON BY DEFAULT ────────────────────────
+    # Default (unset or anything but '0') answers every hub frame with `spot_ratings.rate_one_spot`
+    # (precomputed glyph item first, as /point-rating does) and builds LOCAL-day rows from the real
+    # max over their frames (spot_hub_composition.py). ON by default per the owner's policy of
+    # 2026-11-04 ~01:41Z (fixes ship ON with a kill switch, a history filter and a live guardrail).
+    # KILL SWITCH: SPOT_HUB_RATE_ONE_SPOT=0 (Render env, read per call) is this function exactly as it was.
+    # Read through runtime_flags (D-065) so the guardrail's manifest 'off' reaches it; env still overrides.
+    from services import runtime_flags as _rf
+    if _rf.on("SPOT_HUB_RATE_ONE_SPOT"):
+        from services.weather_pipeline.spot_hub_composition import resolve_hub_conditions
+        return await resolve_hub_conditions(self, model, lat, lng, forecast_days, spot_id=spot_id,
+                                            spot_meta=spot_meta, horizon_hours=horizon_hours)
     # Round current conditions target time to nearest 3 hours
     strict_availability = os.environ.get("SURF_STRICT_AVAILABILITY", "0") == "1"
     now_dt = datetime.now(timezone.utc)
@@ -429,7 +446,7 @@ async def resolve_spot_conditions_impl(
     # the rating block below is a broad `except`: a blob-read failure must cost the LOCAL curve, not
     # the whole rating.
     reference_size_m = None
-    if spot_id is not None and os.environ.get("RATING_LOCAL_SIZE", "0") == "1":
+    if spot_id is not None and _rf.flag("RATING_LOCAL_SIZE") == "1":
         try:
             from services.weather_pipeline.spot_size_climatology import reference_for_spot
             reference_size_m = reference_for_spot(spot_id)

@@ -414,6 +414,8 @@ _RATING_SURFACES = (
     # coverage floor below is exactly what catches that.
     "services/weather_pipeline/spot_ratings_precompute.py",
     "services/weather_pipeline/spot_conditions.py",
+    # ADDED 2026-11-03 (spot-hub phase 2): the hub's rate_one_spot path. It reads RATING_LOCAL_SIZE itself.
+    "services/weather_pipeline/spot_hub_composition.py",
     "services/weather_pipeline/sim_rating.py",
     "services/weather_pipeline/grid_resolver_surf.py",
     "services/weather_pipeline/point_surf_augment.py",
@@ -438,6 +440,8 @@ _RATING_SURFACES = (
     "services/weather_pipeline/surf_height_convention.py",
     # ADDED 2026-11-03: the rating's wind source (RATING_WIND_HRRR), read where every surface's GFS wind point is made.
     "services/weather_pipeline/rating_wind.py",
+    # ADDED 2026-11-03: the serving view's Bight composition moves the offshore Hs every surface rates.
+    "services/weather_pipeline/bight_hs_consensus.py",
 )
 _SCIENCE_PREFIXES = ("RATING_", "SURF_", "SPOT_HUB_", "SHORE_NORMAL_")
 
@@ -449,6 +453,8 @@ _SCIENCE_PREFIXES = ("RATING_", "SURF_", "SPOT_HUB_", "SHORE_NORMAL_")
 _ENV_READ_PATTERNS = (
     r'os\.environ\.get\(\s*["\']([A-Z][A-Z0-9_]{3,})["\']',
     r'_v3\(\s*["\']([A-Z][A-Z0-9_]{3,})["\']',
+    # D-065: guarded served-number flags read through services/runtime_flags (env > manifest > code default).
+    r'_rf\.(?:flag|on|resolve)\(\s*["\']([A-Z][A-Z0-9_]{3,})["\']',
 )
 
 

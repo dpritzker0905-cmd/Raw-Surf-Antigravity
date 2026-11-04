@@ -5,6 +5,7 @@ The Option-2 surf/rating overlay tail of grid_resolver.resolve_grid + its wind s
 extracted VERBATIM (2026-07-11 split — grid_resolver sat at 786/800 LOC). Pure extraction:
 behavior is identical; resolve_grid calls apply_surf_overlay(product, ...) as its last step.
 """
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default
 import asyncio
 import os
 import logging
@@ -95,7 +96,7 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
                 # (enabling one without the other is the documented divergence trap). Never fatal; a missing
                 # blob/cell simply keeps the global default per cell.
                 reference_fn = None
-                if os.environ.get("RATING_LOCAL_SIZE", "0") == "1":
+                if _rf.flag("RATING_LOCAL_SIZE") == "1":
                     try:
                         from services.weather_pipeline.grid_size_climatology import (
                             load_grid_size_climatology_l2_cached, reference_for)
@@ -113,7 +114,7 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
                 # good/epic ribbons paint only around confirmed breaks, exactly like Surfline's
                 # forecaster-verified purple. Never fatal; no blob = everything capped (honest default).
                 gate_fn = None
-                if os.environ.get("RATING_OBS_GATE", "0") == "1":
+                if _rf.flag("RATING_OBS_GATE") == "1":
                     try:
                         # ⛔ OFF THE EVENT LOOP — this reaches `load_spot_ratings_l2_cached`, another
                         # `requests.get(timeout=10)` behind a 300 s TTL. The audit offloaded that

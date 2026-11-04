@@ -26,6 +26,7 @@ import logging
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -82,7 +83,7 @@ def main() -> int:
     # DARK (ALERTS_FORECAST_WINDOWS, default '0'): the served frames over the next 72 h for spots that carry an
     # active alert, read by the Render alert scheduler. Off = not imported, nothing rated. Never fails the run:
     # the glyph frames above are already uploaded and are what users see.
-    if os.environ.get("ALERTS_FORECAST_WINDOWS", "0") == "1":
+    if _rf.flag("ALERTS_FORECAST_WINDOWS") == "1":
         try:
             from services.weather_pipeline.alert_horizon import run_alert_horizon_precompute
             n_spots, n_frames = run_alert_horizon_precompute()

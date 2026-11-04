@@ -1,0 +1,249 @@
+{
+ "schema": "raw-surf/flip-scorecard-record/0",
+ "generated_utc": "2026-11-03T22:59:53Z",
+ "code_commit": "b308e37b6412d839566b93ba6690155e0861bb23",
+ "harness": "backend/scripts/eval_harness.py run (offline GRIB cache; 0 range downloads; Open-Meteo tide series fetched by date, 124,515 bytes)",
+ "window": {
+  "climatology_embargo_from": "2026-10-15T00Z",
+  "climatology_from": "2026-09-15T00Z",
+  "end": "2026-10-31T18:00Z",
+  "leads": [
+   24,
+   48,
+   72
+  ],
+  "start": "2026-10-18T00:00Z",
+  "step_h": 6,
+  "targets": "56 targets 2026-10-18T00Z..2026-10-31T18Z"
+ },
+ "stations": "pre-registered 10-station CA list from #706 (8 CDIP nearshore + NDBC 46025, 46086); 8 hs_station clusters (< 10: cluster CI advisory)",
+ "input_parity": {
+  "backend_versions": [
+   "eccodes-python 2.50.0, ecCodes 2.50.0"
+  ],
+  "decoders": [
+   "eccodes"
+  ],
+  "production_parity": true,
+  "wind_sources": [
+   "pgrb2"
+  ]
+ },
+ "served_env_digest": "cd28d1c701390c950a3a4228695f7116c535996040c8835d57cb231f1003bbc9",
+ "controls_ok": true,
+ "controls_hs_station": {
+  "negative": {
+   "gain": -0.0684,
+   "ci": [
+    -0.07665,
+    -0.06215
+   ],
+   "verdict": "FAIL"
+  },
+  "null_identical": {
+   "gain": 0.0,
+   "ci": [
+    0.0,
+    0.0
+   ],
+   "verdict": "REFUSED"
+  },
+  "null_swap": {
+   "gain": -0.0197,
+   "ci": [
+    -0.05108,
+    0.01547
+   ],
+   "verdict": "FAIL"
+  },
+  "positive": {
+   "gain": 0.0547,
+   "ci": [
+    0.04972,
+    0.06132
+   ],
+   "verdict": "PASS"
+  }
+ },
+ "alarms": [
+  "ALARM: served hs_station LOSES to out-of-sample climatology at lead 24 h (days 0-3): gain -0.1023 m, CI [-0.1361, -0.0582]",
+  "ALARM: served hs_station LOSES to out-of-sample climatology at lead 48 h (days 0-3): gain -0.0999 m, CI [-0.1339, -0.0549]",
+  "ALARM: served hs_station LOSES to out-of-sample climatology at lead 72 h (days 0-3): gain -0.1101 m, CI [-0.1423, -0.0687]",
+  "ALARM: served hb_proxy LOSES to out-of-sample climatology at lead 72 h (days 0-3): gain -0.0634 m, CI [-0.1076, -0.0081]",
+  "ALARM: served hs_offshore LOSES to out-of-sample climatology at lead 72 h (days 0-3): gain -0.0601 m, CI [-0.1069, -0.0127]"
+ ],
+ "holm_family": [
+  "SURF_EXPOSURE_RECONCILED=1",
+  "SURF_TIDE_DEPTH=1",
+  "RATING_BREAKER_TYPE=1"
+ ],
+ "flag": "SURF_EXPOSURE_RECONCILED",
+ "arm": "SURF_EXPOSURE_RECONCILED=1",
+ "outcome": "FAIL",
+ "impact": {
+  "height_changed": 3193,
+  "level_changed": 69,
+  "max_abs_score_change": 5.700000000000003,
+  "mean_abs_score_change": 0.4819345238095238,
+  "spot_hours": 3360
+ },
+ "flag_reads": {},
+ "quantities": {
+  "hb_proxy": {
+   "verdict": "FAIL",
+   "n": 1296,
+   "target_hours": 56,
+   "gain_m": -0.0485,
+   "ci": [
+    -0.06411,
+    -0.03448
+   ],
+   "cluster_ci": [
+    -0.14946705375388472,
+    0.01709744772975631
+   ],
+   "cluster_binding": false,
+   "ref": {
+    "bias": 0.014320730522553548,
+    "hh": 0.25402958737270537,
+    "mae": 0.27626391678117085,
+    "rmse": 0.40001132680407975,
+    "si": 0.26026868761955096
+   },
+   "cand": {
+    "bias": -0.07493158429226127,
+    "hh": 0.28308808506236643,
+    "mae": 0.32605135521537537,
+    "rmse": 0.4347628683661663,
+    "si": 0.2788255333530893
+   },
+   "reasons": [
+    "not significant overall: DM (abs loss) one-sided p = 1 >= 0.05",
+    "the 95% block-bootstrap CI of the mean gain [-0.0641, -0.0345] includes 0 (block 6)",
+    "band 'obs top 10% (p90)': |bias| grows by +0.071 (candidate -0.348 vs reference -0.277), over the 0.050 limit",
+    "significant harm: lead +24 h, abs loss (p 1.9e-08, Holm 1.14e-07 < 0.05)",
+    "significant harm: lead +24 h, sq loss (p 0.000147, Holm 0.000735 < 0.05)",
+    "significant harm: lead +48 h, abs loss (p 5.6e-09, Holm 4.48e-08 < 0.05)"
+   ]
+  },
+  "hs_offshore": {
+   "verdict": "REFUSED",
+   "n": 204,
+   "target_hours": 56,
+   "gain_m": 0.0,
+   "ci": [
+    0.0,
+    0.0
+   ],
+   "cluster_ci": [
+    0.0,
+    0.0
+   ],
+   "cluster_binding": false,
+   "ref": {
+    "bias": -0.2489936274509804,
+    "hh": 0.27631379470749373,
+    "mae": 0.24996617647058827,
+    "rmse": 0.28216269025955537,
+    "si": 0.11737087681772176
+   },
+   "cand": {
+    "bias": -0.2489936274509804,
+    "hh": 0.27631379470749373,
+    "mae": 0.24996617647058827,
+    "rmse": 0.28216269025955537,
+    "si": 0.11737087681772176
+   },
+   "reasons": [
+    "the positive control cannot pass at this sample size: the instrument is underpowered for this quantity"
+   ]
+  },
+  "hs_station": {
+   "verdict": "FAIL",
+   "n": 1296,
+   "target_hours": 56,
+   "gain_m": -0.0159,
+   "ci": [
+    -0.02318,
+    -0.00907
+   ],
+   "cluster_ci": [
+    -0.06096225,
+    0.011940550595238096
+   ],
+   "cluster_binding": false,
+   "ref": {
+    "bias": -0.16005470679012346,
+    "hh": 0.3884637769451768,
+    "mae": 0.2721604166666667,
+    "rmse": 0.32136480137574436,
+    "si": 0.31477606132416175
+   },
+   "cand": {
+    "bias": -0.18951666666666667,
+    "hh": 0.4157125112951139,
+    "mae": 0.2886449074074074,
+    "rmse": 0.3383500644239321,
+    "si": 0.316607665481599
+   },
+   "reasons": [
+    "not significant overall: DM (abs loss) one-sided p = 1 >= 0.05",
+    "the 95% block-bootstrap CI of the mean gain [-0.0232, -0.0091] includes 0 (block 7)",
+    "significant harm: lead +24 h, abs loss (p 3.99e-05, Holm 0.00024 < 0.05)",
+    "significant harm: lead +24 h, sq loss (p 0.00069, Holm 0.00345 < 0.05)",
+    "significant harm: lead +48 h, abs loss (p 1.05e-05, Holm 8.43e-05 < 0.05)",
+    "significant harm: lead +48 h, sq loss (p 0.00103, Holm 0.00395 < 0.05)"
+   ]
+  }
+ },
+ "per_region": {
+  "Bight (103p1,153p1,201p1,262p1,264p1,284p1)": {
+   "n": 960,
+   "mae_gain_m": -0.029
+  },
+  "NorCal (142p1)": {
+   "n": 168,
+   "mae_gain_m": -0.009
+  },
+  "Central (285p1)": {
+   "n": 168,
+   "mae_gain_m": 0.048
+  },
+  "by_station_bias_ref_to_cand_m": {
+   "103p1": [
+    -0.266,
+    -0.267
+   ],
+   "142p1": [
+    -0.292,
+    -0.301
+   ],
+   "153p1": [
+    -0.145,
+    -0.158
+   ],
+   "201p1": [
+    -0.299,
+    -0.484
+   ],
+   "262p1": [
+    -0.166,
+    -0.179
+   ],
+   "264p1": [
+    -0.283,
+    -0.289
+   ],
+   "284p1": [
+    -0.292,
+    -0.297
+   ],
+   "285p1": [
+    0.424,
+    0.375
+   ]
+  }
+ },
+ "reason": "Lowers breaking/station heights on an already low-biased coast: worse at 7 of 8 stations (La Jolla Shores bias -0.30 -> -0.48 m), better only at Pismo where served reads high. Fix: re-derive the height curve with partition-wise / per-frequency exposure (round 4: per-frequency Snell + one constant wins +0.023 log-MAE) and re-score; do not flip the bulk sqrt curve.",
+ "declaration": "docs/weather-program/flip-candidates/surf-exposure-reconciled.json"
+}

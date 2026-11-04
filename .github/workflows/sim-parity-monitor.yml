@@ -54,9 +54,9 @@ on:
         required: false
         default: 'false'
       sim_served_tide:
-        description: "SIM_SERVED_TIDE for the sim side: '0' tide-blind (today), '1' the glyph's served tide (W-30's A/B)"
+        description: "SIM_SERVED_TIDE for the sim side: '1' the glyph's served tide (default ON since 2026-11-04), '0' the tide-blind kill arm"
         required: false
-        default: '0'
+        default: '1'
 
 permissions:
   contents: read
@@ -123,7 +123,7 @@ jobs:
           # W-30 (commitment 203): a SIM-side switch, not a lane flag (the sim reads the glyph's served tide),
           # so it is a dispatch input: '0' on the cron keeps the monitor measuring the sim users run today.
           TIDE_BANDED: ${{ github.event.inputs.tide_banded || 'false' }}
-          SIM_SERVED_TIDE: ${{ github.event.inputs.sim_served_tide || '0' }}
+          SIM_SERVED_TIDE: ${{ github.event.inputs.sim_served_tide || '1' }}
           # ⚠️⚠️ THESE MIRROR THE INGEST LANES AND ARE NOT OPTIONAL. The probe runs the SIM in this
           # runner and compares it against what the serve box PRECOMPUTED. Science flags are read
           # per-process from the environment (sim_rating.py:91 for local size), so a flag set in the
@@ -146,6 +146,8 @@ jobs:
           SURF_PARTITIONS: '0'
           SURF_PARTITION_TRACKING: '0'
           RATING_WIND_HRRR: '0'
+          SURF_BIGHT_HS_CONSENSUS: ''  # D-065 GUARDED, ON by code default '1' (services/runtime_flags.GUARDED); '' DEFERS to the runtime kill manifest so the flag guardrail's 'off' reaches this lane. A '0' here is a hard kill for this lane only; kill everywhere = the manifest 'off' (or '0' in every lane AND Render env). Evidence: log 2026-11-03-claude-bight-hs-consensus.md.
+          SURF_BIGHT_HS_EURO_WEIGHT: '0.5'  # DECLARED AT DEFAULT (2026-11-04, dark arm option): EURO's weight in the Bight Hs while SURF_BIGHT_HS_CONSENSUS is '1' (0.5 = the equal mean). Moves only with that flag, in the same lanes and Render env together.
           SURF_NEARSHORE_MOP: '0'
           RATING_OBS_GATE: '1'
           RATING_LOCAL_SIZE: '1'
