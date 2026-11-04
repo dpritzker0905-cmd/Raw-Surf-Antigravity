@@ -1,0 +1,97 @@
+name: Flag guardrail (D-065, live; dry run until enforced)
+
+# WHY (owner, 2026-11-04 ~01:41Z): fixes ship ON "and have a checker or filter to see if its working or not"
+# (DECISIONS D-065). Every 6 h, after precompute's slots, backend/scripts/flag_guardrail.py scores each ON guarded fix
+# (services/runtime_flags.GUARDED) ON against OFF over the rolling 14 days, offline in this job from public forecast and
+# buoy data; checks the sanity bounds (height/rating ranges, swell monotonicity, alert volume per user-day vs its cap);
+# and, ONLY when the repo variable FLAG_GUARDRAIL_ENFORCE is '1', writes 'off' with a reason into the runtime manifest
+# control/flags.json (weather-products bucket), which Render and the lanes read within 5 minutes, with no deploy.
+# It never calls the Render backend. It is the ONLY writer of control/flags.json. Secrets by NAME only.
+# DRY RUN by default: with FLAG_GUARDRAIL_ENFORCE unset or '0' it writes nothing and reports what it would do.
+# The owner enforces it with: gh variable set FLAG_GUARDRAIL_ENFORCE --body 1
+# NO FLAP: it only writes 'off'; a fix comes back on with a new runtime_flags.FIX_VERSION or the owner's word
+# (dispatch with reenable + owner_words, which still needs FLAG_GUARDRAIL_ENFORCE '1' to write).
+
+on:
+  schedule:
+    - cron: '30 2,8,14,20 * * *'
+  workflow_dispatch:
+    inputs:
+      reenable:
+        description: "Owner re-enable: the guarded flag to turn back on (empty = a normal guardrail run)"
+        required: false
+        default: ""
+      owner_words:
+        description: "The owner's words authorizing the re-enable, verbatim"
+        required: false
+        default: ""
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: flag-guardrail
+  cancel-in-progress: false
+
+jobs:
+  guardrail:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+
+      - name: Restore the rolling cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/guardrail-cache
+          key: flag-guardrail-${{ github.run_id }}
+          restore-keys: flag-guardrail-
+
+      - name: Guardrail
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FLAG_GUARDRAIL_ENFORCE: ${{ vars.FLAG_GUARDRAIL_ENFORCE || '0' }}
+          RUNTIME_FLAGS_MANIFEST: '0'
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+          REENABLE: ${{ inputs.reenable }}
+          OWNER_WORDS: ${{ inputs.owner_words }}
+        run: |
+          python scripts/flag_guardrail.py --cache-dir "$RUNNER_TEMP/guardrail-cache" --out "$RUNNER_TEMP/guardrail-out" \
+            --reenable "$REENABLE" --owner-words "$OWNER_WORDS"
+          cat "$RUNNER_TEMP/guardrail-out/guardrail.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open or update the guardrail issue
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ENFORCE: ${{ vars.FLAG_GUARDRAIL_ENFORCE || '0' }}
+        run: |
+          f="$RUNNER_TEMP/guardrail-out/guardrail.md"
+          [ -f "$f" ] || exit 0
+          acted="$(cat "$RUNNER_TEMP/guardrail-out/acted.txt" 2>/dev/null || true)"
+          [ -n "$acted" ] || exit 0
+          tag="[dry run] "; [ "$ENFORCE" = "1" ] && tag=""
+          title="${tag}Flag guardrail: ${acted}"
+          n="$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "Flag guardrail in:title" --json number --jq '.[0].number')"
+          if [ -n "$n" ]; then gh issue comment "$n" --repo "$GITHUB_REPOSITORY" --body-file "$f"
+          else gh issue create --repo "$GITHUB_REPOSITORY" --title "$title" --body-file "$f"; fi
+
+      - name: Upload the guardrail report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: flag-guardrail
+          path: ${{ runner.temp }}/guardrail-out/guardrail.*
+          retention-days: 30

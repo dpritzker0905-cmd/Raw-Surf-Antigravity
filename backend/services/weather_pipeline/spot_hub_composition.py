@@ -39,6 +39,8 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
+from services import runtime_flags as _rf   # D-065: guarded flags are read through the guardrail's manifest
+
 logger = logging.getLogger(__name__)
 
 FLAG = "SPOT_HUB_RATE_ONE_SPOT"
@@ -66,7 +68,7 @@ def clear_caches() -> None:
 
 
 def enabled() -> bool:
-    return os.environ.get(FLAG, "1") != "0"
+    return _rf.on(FLAG)
 
 
 def spot_meta_of(spot) -> Dict[str, Any]:
@@ -378,7 +380,7 @@ async def resolve_hub_conditions(resolver, model: str, lat: float, lng: float, f
     now = now or datetime.now(timezone.utc)
     key = (model, str(spot_id if spot_id is not None else f"{float(lat):.4f},{float(lng):.4f}"),
            int(forecast_days), horizon_hours, valid_time_str(current_valid_time(now)),
-           os.environ.get("RATING_LOCAL_SIZE", "0"), os.environ.get("RATING_TIDE", "0"))
+           _rf.flag("RATING_LOCAL_SIZE"), os.environ.get("RATING_TIDE", "0"))
     hit = _PAYLOAD.get(key)
     if hit is not None and (time.time() - hit[0]) < _PAYLOAD_TTL_S:
         return copy.deepcopy(hit[1])
@@ -408,7 +410,7 @@ async def _build_hub_conditions(resolver, model, lat, lng, forecast_days, spot_i
     spot.setdefault("id", spot_id if spot_id is not None else f"point:{float(lat):.4f},{float(lng):.4f}")
     spot["latitude"], spot["longitude"] = lat, lng
     ref = None
-    if spot_id is not None and os.environ.get("RATING_LOCAL_SIZE", "0") == "1":
+    if spot_id is not None and _rf.on("RATING_LOCAL_SIZE"):
         try:
             from services.weather_pipeline.spot_size_climatology import reference_for_spot
             ref = reference_for_spot(spot_id)

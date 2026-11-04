@@ -20,6 +20,7 @@ object /spot-ratings already caches. The live answer is three point resolutions 
 per-spot cost of the /spot-ratings live lane), so it is cached per coordinate+hour and capped in flight;
 beyond the cap the route answers 503 and the badge is simply absent, never a guessed number.
 """
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default
 import asyncio
 import logging
 import math
@@ -53,7 +54,7 @@ async def local_reference_at(lat, lng) -> Optional[float]:
     a 600 s TTL. ⚠️ THE SHORT-CIRCUIT IS PRESERVED DELIBERATELY: the loader runs only when the spot
     lookup came back empty, so a point that has a per-coordinate reference never pays a cache miss.
     Gated RATING_LOCAL_SIZE (the same flag the glyph lanes read); fail-open is the caller's job."""
-    if os.environ.get("RATING_LOCAL_SIZE", "0") != "1":
+    if _rf.flag("RATING_LOCAL_SIZE") != "1":
         return None
     from services.weather_pipeline.grid_size_climatology import (
         load_grid_size_climatology_l2_cached, reference_for)

@@ -36,6 +36,7 @@ BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
+from services import runtime_flags as _rf  # noqa: E402  (D-065: env > guardrail manifest > code default)
 from services.weather_pipeline import spot_series as SS  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s", stream=sys.stdout)
@@ -55,7 +56,7 @@ def _restore_products() -> bool:
 
 
 def _ref_map():
-    if os.environ.get("RATING_LOCAL_SIZE", "0") != "1":
+    if not _rf.on("RATING_LOCAL_SIZE"):
         return {}
     from services.weather_pipeline.spot_size_climatology import load_size_climatology_for_rating, reference_map
     clim, status = load_size_climatology_for_rating()
@@ -175,7 +176,7 @@ def cmd_assemble(a) -> int:
         logger.error("no rows files under %s", a.inp)
         return 1
     reports = {}
-    if os.environ.get("RATING_OBS_GATE", "0") == "1":
+    if _rf.on("RATING_OBS_GATE"):
         try:
             from services.weather_pipeline.rating_confirmation import fetch_recent_reports_via_rest
             reports = fetch_recent_reports_via_rest()
@@ -219,7 +220,7 @@ def _step_summary(summary):
 
 
 def cmd_publish(a) -> int:
-    if os.environ.get("SPOT_SERIES_PUBLISH", "1") == "0":
+    if _rf.flag("SPOT_SERIES_PUBLISH", "1") == "0":
         logger.error("SPOT_SERIES_PUBLISH is '0' (the kill switch): refusing to upload (the workflow gates this too)")
         return 1
     from services.weather_pipeline.store import ProductStore

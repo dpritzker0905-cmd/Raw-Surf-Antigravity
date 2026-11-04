@@ -1,0 +1,7 @@
+{
+ "about": "The default-ON filter window (D-065): a settled, cached past window the eval harness already ran (log 2026-11-02-claude-eval-harness-v0). Replace it with a newer settled window when the cache moves; claude/harness-backfill index.json takes precedence when given.",
+ "start": "2026-10-20T00:00Z",
+ "end": "2026-10-29T18:00Z",
+ "leads": "24,48,72",
+ "step_h": 6
+}

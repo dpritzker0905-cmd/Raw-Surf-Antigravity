@@ -237,8 +237,10 @@ async def test_the_flag_is_the_gate_and_it_lives_at_the_hub(monkeypatch):
     assert called
     assert ref is None, f"RATING_LOCAL_SIZE=0 must keep the global curve, got {ref}"
     monkeypatch.delenv("RATING_LOCAL_SIZE", raising=False)
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
     called, ref = await _hub_reference(monkeypatch, spot_id=_BIG_SPOT_ID)
-    assert called and ref is None, "an UNSET flag must default off, like every other lane"
+    # D-065 (2026-11-04): an UNSET flag is the code default ON, as every lane already ran it.
+    assert called and ref is not None, "an UNSET flag is the D-065 default ON, like every lane"
 
 
 @pytest.mark.asyncio

@@ -102,7 +102,8 @@ def test_the_hub_and_the_series_rate_the_same_frame_identically(monkeypatch):
 
 # ── the gate and the band ─────────────────────────────────────────────────────────────────────────────────
 
-def test_gate_off_levels_follow_the_ungated_score():
+def test_gate_off_levels_follow_the_ungated_score(monkeypatch):
+    monkeypatch.setenv("RATING_OBS_GATE", "0")              # guarded, default ON (D-065): '0' is its kill
     by = _rate()
     assert SS.gate_models(by) == 0
     from services.weather_pipeline.surf_rating import score_to_level

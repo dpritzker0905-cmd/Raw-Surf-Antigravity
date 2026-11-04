@@ -38,6 +38,8 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
+from services import runtime_flags as _rf   # D-065: guarded flags are read through the guardrail's manifest
+
 logger = logging.getLogger(__name__)
 
 SCHEMA = "raw-surf/spot-series/1"
@@ -114,9 +116,8 @@ def gate_models(by_model: Dict[str, Dict[str, Any]], reports_by_spot=None) -> in
     Returns the number of capped spot-frames. Reuses `apply_gate_to_frames` on a frames-shaped VIEW of the rows.
     Gated on RATING_OBS_GATE exactly as `run_spot_ratings_precompute` gates the glyph frames; off, the level is the
     ungated score's."""
-    import os
     from services.weather_pipeline.surf_rating import score_to_level
-    if os.environ.get("RATING_OBS_GATE", "0") != "1":
+    if not _rf.on("RATING_OBS_GATE"):
         for spots in by_model.values():
             for rec in spots.values():
                 for row in rec["rows"]:

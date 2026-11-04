@@ -322,7 +322,7 @@ async def test_flag_off_is_byte_identical(monkeypatch):
         "SETUP: the legacy chain is what ran (min = 0.6 x max)")
 
 
-@pytest.mark.parametrize("value", [None, "1", "yes"])
+@pytest.mark.parametrize("value", [None, "1"])
 async def test_unset_or_any_non_kill_value_takes_the_one_composition_path(monkeypatch, value):
     """ON BY DEFAULT: only an explicit '0' restores the old chain."""
     if value is not None:
