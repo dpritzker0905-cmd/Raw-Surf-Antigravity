@@ -1670,7 +1670,9 @@ jobs:
           #   base 3514 (dev's map) + 18 new test(s) and 2 new file(s) = 3532, files 205; floor 3532 - 6 = 3526. This PR must read 3532 passed.
           # ⬆ 3526→3592 on 2026-11-04 (rederive_floor.py, claude/bight-hs-consensus): dev run 41905654969 read 3488 / 202 files; dev's map 3532;
           #   base 3532 (dev's map) + 66 new test(s) and 1 new file(s) = 3598, files 206; floor 3598 - 6 = 3592. This PR must read 3598 passed.
-          MIN_FILES, MIN_PASSED = 206, 3592
+          # ⬆ 3592→3618 on 2026-11-04 (rederive_floor.py, claude/harness-two-way-gate): dev run 41919430899 read 3531 / 205 files; dev's map 3598;
+          #   base 3598 (dev's map) + 26 new test(s) and 1 new file(s) = 3624, files 207; floor 3624 - 6 = 3618. This PR must read 3624 passed.
+          MIN_FILES, MIN_PASSED = 207, 3618
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

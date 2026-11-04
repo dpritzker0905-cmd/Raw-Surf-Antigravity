@@ -492,8 +492,8 @@ _FLOOR_SET_FROM = {
     # guards: set from 3487 = max(dev run 41905839333 read 3454, dev's map 3474) + 13 (claude/manifest-egress, 2026-11-04); floor 3481, margin 6.
     "guards": 3487,
 
-    # chain: set from 3598 = max(dev run 41905654969 read 3488, dev's map 3532) + 66 (claude/bight-hs-consensus, 2026-11-04); floor 3592, margin 6.
-    "chain": 3598,
+    # chain: set from 3624 = max(dev run 41919430899 read 3531, dev's map 3598) + 26 (claude/harness-two-way-gate, 2026-11-04); floor 3618, margin 6.
+    "chain": 3624,
 
     # estate: set from 3421 = max(dev run 41747311909 read 3408, dev's map 3408) + 13 (claude/default-on-guardrails, 2026-11-04); floor 3419, margin 2.
     "estate": 3421,

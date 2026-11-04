@@ -33,7 +33,8 @@ from services.weather_pipeline import eval_reference as ref
 G = 9.80665
 MATCH_TOL_S = 1800.0          # the nearshore lane's tolerance (nearshore_validation.match)
 PERSIST_TOL_S = 5400.0
-CLUSTER_BINDING_MIN = 10      # stations needed before the station-cluster bootstrap CI becomes a gate rule
+# The station-cluster CI is ADVISORY only since D-066 (it falsely passed 31-35% on correlated nulls); the binding
+# rule is eval_twoway.two_way_ci (spatial block x day). CLUSTER_BINDING_MIN (10) is retired.
 QUANTITIES = {
     "hs_station": {"role": "nearshore", "units": "m", "truth": "CDIP Hs (waveFlagPrimary == 1)",
                    "forecast": "nearshore_validation.model_hs_at_station(served offshore field at the anchor spot)"},
@@ -193,7 +194,7 @@ def build_items(quantity: str, rows: Sequence[dict], truth_by_station: Dict[str,
         hull = hull_of(sid, t) if hull_of else ("waverider" if st_["source"] == "cdip" else "unknown")
         out[(sid, t, int(r["lead_h"]))] = {"buoy": sid, "t": t, "lead": int(r["lead_h"]), "obs": obs, "f": f,
                                            "persistence": pv, "climatology": cv, "clim_oos": True,
-                                           "obs_hs": o["hs_m"],
+                                           "obs_hs": o["hs_m"], "lat": st_.get("lat"), "lng": st_.get("lng"),
                                            "dpd": o.get("tp_s"), "hull": hull, "hull_inferred": False, "multi": None,
                                            "score": (r.get("outputs") or {}).get("score"),
                                            "level": (r.get("outputs") or {}).get("level")}
@@ -275,7 +276,8 @@ def twcrps_test(items: Sequence[dict], thr: Optional[float], cfg) -> Optional[di
 
 
 def station_cluster_boot(items: Sequence[dict], reps: int = 2000, seed: int = 20261102, level: float = 0.95) -> dict:
-    """Bootstrap of the mean absolute-error gain resampling STATIONS (clusters) with replacement."""
+    """ADVISORY bootstrap of the mean absolute-error gain resampling STATIONS (clusters) with replacement. Never binding
+    (D-066): correlated stations make it falsely pass 31-35% of null sets."""
     by: Dict[str, List[float]] = {}
     for i in items:
         by.setdefault(i["buoy"], []).append(abs(i["f_ref"] - i["obs"]) - abs(i["f_cand"] - i["obs"]))
@@ -290,10 +292,10 @@ def station_cluster_boot(items: Sequence[dict], reps: int = 2000, seed: int = 20
         vals.append(st.mean(flat))
     vals.sort()
     a = (1 - level) / 2
-    binding = len(keys) >= CLUSTER_BINDING_MIN
     return {"clusters": len(keys), "ci": [vals[int(a * reps)], vals[min(reps - 1, int((1 - a) * reps))]],
-            "binding": binding,
-            "note": "" if binding else f"advisory: {len(keys)} clusters < {CLUSTER_BINDING_MIN} for a binding cluster CI"}
+            "binding": False,
+            "note": f"advisory: station-cluster CI over {len(keys)} stations (D-066: stations are not independent; "
+                    f"the binding CI is the two-way block x day one)"}
 
 
 def station_week_folds(items: Sequence[dict], min_n: int = 10) -> dict:
