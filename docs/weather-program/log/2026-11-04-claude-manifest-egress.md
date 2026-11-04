@@ -49,3 +49,35 @@ Expected: up to the 1,393 self-read GETs/day (~31 GB declared) go, less one cold
 Measure after merge: the same edge_logs query, runner GETs vs POSTs per hour (expect GETs << POSTs).
 
 Tests: `backend/tests/test_manifest_self_read_cache.py` (6), guards floor re-derived (3454 -> 3460).
+
+## Reconciliation with Codex (181 repeated-key GETs, ~4 GB)
+
+Both counts are right. Codex counts a GET as a repeat only when the key was already GET before; a runner's GET of the key it
+POSTed seconds earlier is a FIRST read in that count. It is still a duplicate transfer, because the runner already holds
+those exact bytes (it sent them, create-only, acknowledged). So: ~4 GB repeated reads (mostly Render and cross-runner) +
+~31 GB own-write read-backs (this PR) are disjoint.
+
+## Why a publication every 6-8 s during runs (analysis only, no build)
+
+- Mechanism: every `save_product` calls `submit_manifest_publish`; the slot coalesces, ONE drain job publishes the newest
+  snapshot and loops while a newer one is pending. One publish = pointer GET + head GET (22 MB) + unique POST (22 MB) +
+  PATCH + legacy `manifest.json` POST (22 MB). Trace 11-04 13:14Z, one runner: a full cycle every 5-11 s. The cadence is the
+  publish's own duration, not product arrival: each commit carries the products saved during the previous cycle (a).
+- No-op evidence (b): 648 of 1,532 generations (42%) have the SAME byte length as the generation before (627 by the same
+  writer); in the 13:14Z trace g169824..g169831 are all 22,612,415 bytes. Same length is NOT proof of no change (a run-keyed
+  filename replacing an older one keeps the width; `last_manifest_update` always changes), so 42% is an upper bound on
+  no-op product sets. The publisher has no "merged == head" check; proving it needs a products-only hash at publish time.
+- Contention (c): 69 of 1,532 pointer PATCHes (4.5%) answered `content-range */*` (0 rows: CAS lost), vs 1,463 `0-0/*`.
+  Up to 4 writer IPs per hour. Each loss wastes one 22 MB POST plus one re-GET.
+- Immutable contract (code): `_attempt_once` names `manifests/manifest-g<g+1:012d>-<uuid4().hex>.json`, uploads strict
+  `overwrite=False` (x-upsert false), and CASes with `expected_key=head`; logs show 0 keys POSTed twice.
+
+## Options that keep every new product visible at once
+
+1. Skip a no-op: if the merged products (ignoring `last_manifest_update`) hash equal to the head's, skip POST/PATCH/legacy
+   POST. Saves up to 42% of publishes; zero freshness cost.
+2. Drop the per-publish legacy `manifest.json` POST in the loop; refresh it once at drain end / exit. Readers are
+   pointer-first; ~22 MB of upload per publish; the fallback lags by one drain.
+3. Coalesce within a step: drain at the end of a batch helper / fetcher step instead of per save. New products visible at
+   step end (seconds to a minute), not 3 h.
+4. Lane serialization (one writer per concurrency group) removes the 4.5% CAS losses.
