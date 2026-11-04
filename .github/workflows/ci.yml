@@ -1003,8 +1003,8 @@ jobs:
           #   base 3366 (hosted read) + 83 new test(s) and 3 new file(s) = 3449, files 217; floor 3449 - 6 = 3443. This PR must read 3449 passed.
           # ⬆ 3443→3448 on 2026-11-04 (rederive_floor.py, claude/dev-health-fixes): dev run 41747311909 read 3449 / 217 files; dev's map 3449;
           #   base 3449 (hosted read) + 5 new test(s) and 0 new file(s) = 3454, files 217; floor 3454 - 6 = 3448. This PR must read 3454 passed.
-          # ⬆ 3448→3468 on 2026-11-04 (rederive_floor.py, claude/alerts-dedupe-cap): dev run 41747311909 read 3449 / 217 files; dev's map 3454;
-          #   base 3454 (dev's map) + 20 new test(s) and 0 new file(s) = 3474, files 217; floor 3474 - 6 = 3468. This PR must read 3474 passed.
+          # ⬆ 3448→3468 on 2026-11-04 (rederive_floor.py, claude/alerts-dedupe-cap): dev run 41898465148 read 3454 / 217 files; dev's map 3454;
+          #   base 3454 (hosted read) + 20 new test(s) and 0 new file(s) = 3474, files 217; floor 3474 - 6 = 3468. This PR must read 3474 passed.
           MIN_FILES, MIN_PASSED = 217, 3468
           try:
               root = ET.parse('guards.xml').getroot()
