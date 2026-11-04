@@ -2,7 +2,7 @@
  * WebGLWindShaders.js
  * GPU-native shaders for raw wind particle simulation.
  */
-import { GLSL_PT_REG } from './gridPointRegistration'; import { GLSL_TRAIL_UV } from './windTrailAnchor'; import { GLSL_INK_MARK, GLSL_INK_COVER } from './windInk'; import { GLSL_LAND_FS } from './windLandMask'; import { GLSL_TRAIL_VEIL } from './windTrailVeil';
+import { GLSL_PT_REG } from './gridPointRegistration'; import { STATE_SPLICE } from './particleState'; import { WIND_RK2_GLSL, WIND_RK2_STEP } from './particleRk2'; import { GLSL_TRAIL_UV } from './windTrailAnchor'; import { GLSL_INK_MARK, GLSL_INK_COVER } from './windInk'; import { GLSL_LAND_FS } from './windLandMask'; import { GLSL_TRAIL_VEIL } from './windTrailVeil';
 
 export const ADVECT_VS = `
 attribute vec2 a_pos;
@@ -74,23 +74,7 @@ uniform vec2 u_fine_texel;        // one CELL in fine tex coords: (1/(cols-1), 1
 uniform vec2 u_fine_cell_km;      // physical cell size km: (dlng*111.32*cos(meanLat), dlat*110.57)
 varying vec2 v_uv;
 
-// Decode position from 2-channel encoding (16-bit precision per axis)
-vec2 decodePos(vec4 color) {
-  return vec2(
-    color.r + color.g / 255.0,
-    color.b + color.a / 255.0
-  );
-}
-
-vec4 encodePos(vec2 pos) {
-  // Encode position into RGBA with sub-pixel precision
-  vec2 clamped = clamp(pos, 0.0, 1.0);
-  float x_hi = floor(clamped.x * 255.0);
-  float x_lo = fract(clamped.x * 255.0);
-  float y_hi = floor(clamped.y * 255.0);
-  float y_lo = fract(clamped.y * 255.0);
-  return vec4(x_hi / 255.0, x_lo, y_hi / 255.0, y_lo);
-}
+${STATE_SPLICE.windAdvect}
 
 // Pseudo-random hash
 ${GLSL_PT_REG}
@@ -108,7 +92,7 @@ float latToMercatorY(float lat) {
   float rad = latClamped * 3.141592653589793 / 180.0;
   return (1.0 - log(tan(rad) + 1.0 / cos(rad)) / 3.141592653589793) / 2.0;
 }
-
+${WIND_RK2_GLSL}
 void main() {
   vec4 encoded = texture2D(u_particles, v_uv);
   vec2 pos = decodePos(encoded);
@@ -191,7 +175,7 @@ void main() {
   // yields back to LINEAR physics truth — slow annulus air moves at its real relative speed
   // instead of being damped toward stillness. gate 0 -> exactly pow(speedNorm, u_speed_gamma-1).
   float gammaEff = mix(u_speed_gamma, 1.0, vortexGate);
-  offset *= pow(speedNorm, gammaEff - 1.0);
+  offset *= pow(speedNorm, gammaEff - 1.0);${WIND_RK2_STEP}
   
   vec2 nextPos;
   if (u_zoom > 6.0) {
@@ -374,7 +358,7 @@ void main() {
     pos.y = clamp(pos.y, 0.001, 0.999);
   }
 
-  gl_FragColor = encodePos(pos);
+  gl_FragColor = ${STATE_SPLICE.encode};
 }`;
 
 export const DRAW_VS = `
@@ -416,12 +400,7 @@ uniform float u_edgeFeatherEnabled;
 uniform float u_edge_feather_frac;  // 2026-07-19: feather width as a fraction of grid span (see edgeFade)
 uniform float u_debug_mode;
 
-vec2 decodePos(vec4 color) {
-  return vec2(
-    color.r + color.g / 255.0,
-    color.b + color.a / 255.0
-  );
-}
+${STATE_SPLICE.windDrawDecode}
 
 float mercatorYToLat(float y) {
   float sinhVal = (exp(3.141592653589793 * (1.0 - 2.0 * y)) - exp(-3.141592653589793 * (1.0 - 2.0 * y))) * 0.5;

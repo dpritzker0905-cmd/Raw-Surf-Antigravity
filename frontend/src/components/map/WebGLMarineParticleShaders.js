@@ -2,7 +2,7 @@
  * WebGLMarineParticleShaders.js: Ocean GPU v2 GLSL for the particle advection and drawing layers (from WebGLMarineShaders.js).
  */
 import { WAVE_SET_GLSL } from './waveSetScreenBound'; import { withHeightScale } from './marineHeightEncoding'; import { CREST_DENSITY_GLSL } from './marineCrestDensity';
-import { LIGHT_CREST_GLSL, DARK_STORM_CREST_GLSL, withSpectrumCrestLift } from './marineCrestPalette'; import { LIGHT_CREST_STYLE_GLSL } from './marineLightCrestStyle'; import { BEACH_CREST_LIFT_GLSL } from './marineBeachCrestLift';   // crests + kills (see there); light two-tone style; beach crest lift
+import { LIGHT_CREST_GLSL, DARK_STORM_CREST_GLSL, withSpectrumCrestLift } from './marineCrestPalette'; import { LIGHT_CREST_STYLE_GLSL } from './marineLightCrestStyle'; import { BEACH_CREST_LIFT_GLSL } from './marineBeachCrestLift'; import { STATE_SPLICE } from './particleState'; import { MARINE_RK2_PROTO, MARINE_RK2_GLSL, MARINE_RK2_STEP } from './particleRk2'; import { CREST_PHASE_SPLICE } from './crestLocalPhase'; import { CREST_RANK_SPLICE } from './crestTexelRank';   // crests + kills (see there); light two-tone style; beach crest lift
 
 export const ADVECT_VS = `
 attribute vec2 a_pos;
@@ -58,21 +58,7 @@ uniform vec2 u_coarseBounds_max;
 uniform float u_wrapLng;
 varying vec2 v_uv;
 
-vec2 decodePos(vec4 color) {
-  return vec2(
-    color.r + color.g / 255.0,
-    color.b + color.a / 255.0
-  );
-}
-
-vec4 encodePos(vec2 pos) {
-  vec2 clamped = clamp(pos, 0.0, 1.0);
-  float x_hi = floor(clamped.x * 255.0);
-  float x_lo = fract(clamped.x * 255.0);
-  float y_hi = floor(clamped.y * 255.0);
-  float y_lo = fract(clamped.y * 255.0);
-  return vec4(x_hi / 255.0, x_lo, y_hi / 255.0, y_lo);
-}
+${STATE_SPLICE.marineAdvect}
 
 float rand(vec2 co) {
   return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
@@ -88,7 +74,7 @@ float latToMercatorY(float lat) {
   float rad = latClamped * 3.141592653589793 / 180.0;
   return (1.0 - log(tan(rad) + 1.0 / cos(rad)) / 3.141592653589793) / 2.0;
 }
-
+${MARINE_RK2_PROTO}
 void main() {
   vec4 encoded = texture2D(u_particles, v_uv);
   vec2 pos = decodePos(encoded);
@@ -205,7 +191,7 @@ void main() {
   if (u_dirCoherenceMin > 0.001) {
     offset *= mix(0.35, 1.0, smoothstep(0.0, u_dirCoherenceMin, dirCoherence));
   }
-  
+  ${MARINE_RK2_STEP}
   vec2 nextPos;
   if (u_zoom > u_tileZoomMin) {
     nextPos = pos + (offset / u_tile_width);
@@ -326,9 +312,9 @@ void main() {
     pos.y = clamp(pos.y, 0.001, 0.999);
   }
 
-  gl_FragColor = encodePos(pos);
+  gl_FragColor = ${STATE_SPLICE.encode};
 }
-`, 'useCoarse ? u_heightScale.y : u_heightScale.x');   // THE HEIGHT BYTE: the resident or ring-fill scale (marineHeightEncoding.js)
+${MARINE_RK2_GLSL}`, 'useCoarse ? u_heightScale.y : u_heightScale.x');   // THE HEIGHT BYTE: the resident or ring-fill scale (marineHeightEncoding.js)
 
 export const DRAW_VS = withSpectrumCrestLift(withHeightScale(`
 attribute highp float a_vertex_id;       // 0 to (numParticles*6 - 1), six vertices per particle
@@ -370,7 +356,7 @@ uniform float u_motion_scale;
 uniform vec2 u_tile_origin;
 uniform float u_tile_width;
 uniform float u_opacity;
-uniform float u_densityBase;${CREST_DENSITY_GLSL.decl}   // engine-computed constant-screen-density cull fraction (z>tileZoomMin); <=0 → legacy per-zoom curve
+uniform float u_densityBase;${CREST_DENSITY_GLSL.decl}${STATE_SPLICE.marineDrawDecl}${CREST_PHASE_SPLICE.decl}${CREST_RANK_SPLICE.decl}   // engine-computed constant-screen-density cull fraction (z>tileZoomMin); <=0 → legacy per-zoom curve
 uniform float u_endpointLandFade; // 1 = fade ribbon corners whose along-crest END lies over land (0 = legacy center-only cull)
 uniform float u_crestLandThreshold; // crest-center oceanFlag discard cut (2026-07-07): match the heatmap's 0.5 so crests don't survive on soft/partial-land mask values (thin cays, coastal edges) the wash discards
 // COAST SDF (2026-07-21): when the mask .b carries a signed distance-to-coast, threshold the DISTANCE
@@ -428,11 +414,7 @@ void main() {
   float row = floor(particleIndex / u_particles_res);
   vec2 p_uv = (vec2(col, row) + 0.5) / u_particles_res;
 
-  vec4 encodedPos = texture2D(u_particles, p_uv);
-  vec2 pos = vec2(
-    encodedPos.r + encodedPos.g / 255.0,
-    encodedPos.b + encodedPos.a / 255.0
-  );
+${STATE_SPLICE.marineDrawDecode}
 
   vec2 global_pos = (u_zoom > u_tileZoomMin) ? (u_tile_origin + pos * u_tile_width) : pos;
   float lng = ((u_wrapLng > 0.5) ? fract(global_pos.x) : global_pos.x) * 360.0 - 180.0;  // antimeridian wrap (lookup only; render pos untouched)
@@ -570,7 +552,7 @@ void main() {
     : (mix(0.128, 0.90, smoothstep(2.0, 10.0, u_zoom)) + 0.0076 * smoothstep(2.4, 2.7, u_zoom));
   float densityThreshold = clamp(effBase + heightBoost, 0.02, 0.97)${CREST_DENSITY_GLSL.drop};
 
-  if (!bypassDiscard && particleHash > densityThreshold) {
+${CREST_RANK_SPLICE.cull}
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0; v_phase = 0.0; v_period_norm = 0.5; v_whitecap = 0.0;
     v_debug_color = vec4(0.0);
@@ -589,7 +571,7 @@ void main() {
 
   // === v5.4: STABILIZED SCREEN-SPACE DIRECTION ===
   // Higher magnitude threshold prevents jittery near-zero directions
-  vec2 dir = length(waveVec) > 0.01 ? normalize(waveVec) : vec2(1.0, 0.0);
+  vec2 dir = length(waveVec) > 0.01 ? normalize(waveVec) : vec2(1.0, 0.0);${CREST_PHASE_SPLICE.dir0}
 
   // Directional-spectrum spread: real seas are NOT perfectly parallel. Rotate each crest by a small per-particle
   // random heading so a uniform/coarse direction field stops reading as a rigid parallel LATTICE ("grid"). Visual
@@ -650,7 +632,7 @@ void main() {
     float pv = mp > 0.5 ? mp : (6.0 + waveHeight * 2.0);
     float sf = waveSetFreq(pv, (u_viewport.x / dpr) / (512.0 * exp2(u_zoom)));   // same sets as the envelope (waveSetScreenBound.js)
     float ts = (u_time * u_motion_scale) / max(2.0, pv);
-    float orbPhase = fract(dot(global_pos, dir) * sf - ts) * 6.28318530718;
+    float orbPhase = ${CREST_PHASE_SPLICE.orbPhase} * 6.28318530718;
     pixel0 += waveDir * sin(orbPhase) * u_orbitalPitch * dpr;
   }
 
@@ -678,14 +660,14 @@ void main() {
   // All ribbons in the same wave train advance at the same rate.
   float temporalSpeed = (u_time * u_motion_scale) / max(2.0, periodVal);
   float trainPhase = fract(dot(global_pos, dir) * spatialFreq - temporalSpeed);
-  v_phase = trainPhase;
+${CREST_PHASE_SPLICE.vPhase}
 
   // === v5.8: WAVE-TRAIN ENVELOPE — period controls visible band spacing ===
   // Short-period wind waves: tighter, more frequent visible bands.
   // Long-period swell: wider spacing, organized sets.
   // Modulates alpha softly (never fully invisible) to create visible wave sets.
   float train = fract(dot(global_pos, dir) * spatialFreq - temporalSpeed);
-  float crestBand = 1.0 - smoothstep(0.08, 0.30, abs(train - 0.5));
+${CREST_PHASE_SPLICE.crestBand}
   float trainEnvelope = mix(0.25, 1.0, crestBand);
 
   // === v5.8: ZOOM-AWARE ALPHA (far = subtler, close = detailed) ===
@@ -697,7 +679,7 @@ void main() {
   v_alpha *= trainEnvelope;
 
   // Per-particle brightness variation (±10%) — subtle, NOT on phase speed
-  v_alpha *= 0.9 + particleHash * 0.2;
+${CREST_RANK_SPLICE.alpha}
 
   // SEAM FADE (2026-07-02; dim-not-kill 2026-07-03): two-segment coherence dim.
   //  [0.5·floor, floor]  → alpha ramps u_seamFadeFloor..1 (mild seams stay visible, de-emphasized)
