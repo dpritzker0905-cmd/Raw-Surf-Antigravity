@@ -108,3 +108,16 @@ commit); `--lane estate --add 13`. ci.yml and `_FLOOR_SET_FROM` moved together b
 - Its `eval_twoway.py` is a different estimator (100 km spatial blocks x UTC days, >= 14 days); see the overlap note in
   `guardrail_stats.py`. The 10-day cached filter window is shorter than that rule; a 14-day settled window is owed
   when the backfill cache lands.
+
+## Addendum: round 7 folded in (coordinator, from PR #722)
+
+Round 7's history replay agrees with this PR's conversions: SURF_TIDE_DEPTH inert -> ON (done here);
+SURF_EXPOSURE_RECONCILED failed -> stays OFF (done here). SURF_SPECTRAL_K failed and SURF_BIGHT_HS_CONSENSUS passed,
+but neither flag is on dev at 29c01f71f, so neither is in GUARDED here: #707 ships SURF_BIGHT_HS_CONSENSUS ON (it
+should add itself to `runtime_flags.GUARDED` at '1' when it rebases on this), and SURF_SPECTRAL_K's PR keeps '0'
+(add it to GUARDED at '0' with its round-7 numbers so the guardrail tracks it).
+
+Local lanes at the pushed head: guards 3447 passed; chain 3504 passed / 5 failed before the fix (4 test_product_run_keys
+fail identically on another checkout, time-dependent, unrelated; 1 nearshore consensus pin fixed); estate 3417 passed /
+3 failed (pydantic_ai absent locally; two rederive_floor reads that collided with the mid-run floor rewrite, green on
+rerun).
