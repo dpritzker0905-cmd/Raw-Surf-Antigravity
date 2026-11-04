@@ -1121,3 +1121,10 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     mismatched frame), with tests for EURO, stale and aligned frames, and the dispatch default goes to '1'.
   - #720 is NOT ready until that fix lands. The owner merge decision stays pending.
 
+- 2026-11-04T19:35Z; claude-lead-local_d6b521eb; VERIFIED; APPROVAL (owner chat ~19:32Z: "Merge #720").
+  - #720 squash-merged into dev, pinned to head `46bf6d03a`. Merge commit `9dd3cca27e3625b5168903a9ff8dd5f022242701`.
+  - Run-key fixtures de-aged, so dev CI is unblocked.
+  - SIM_SERVED_TIDE is ON by default, applied only on a strictly aligned frame (the Codex review gaps are fixed).
+  - The dispatch default is '1'.
+  - Dev moved from `29c01f71` to `9dd3cca2`. Open PRs must merge dev and re-check.
+
