@@ -88,13 +88,15 @@ def test_requested_hour_perturbation_cannot_move_actual_comparison(frames):
     assert after['delta_pct'] == before['delta_pct']
     assert len(calls) == 1
 
-def test_default_off_preserves_legacy_request_hour_and_tide(frames, monkeypatch):
+def test_default_off_preserves_legacy_parity_but_tide_stays_strict(frames, monkeypatch):
+    # #720 review: SIM_SERVED_TIME_MATCH unset keeps PARITY on the legacy frame (the asked hour), but the tide
+    # path always asks the strict aligned frame, and a stale answer (06Z for an aligned 09Z) gives no tide.
     prov, payload, calls = frames
     monkeypatch.delenv('SIM_SERVED_TIME_MATCH')
     payload['served_valid_time'] = '2026-10-03T06:00:00Z'
-    assert observed.served_tide(SPOT, prov, 'live_forecast', ASKED)['norm'] == 0.5
+    assert observed.served_tide(SPOT, prov, 'live_forecast', ASKED) is None
     assert 'quality' in observed.parity(SIM, SPOT, prov, 'live_forecast', ASKED)
-    assert len(calls) == 1 and calls[0]['valid_time'] == [ASKED]
+    assert [c['valid_time'] for c in calls] == [[SERVED], [ASKED]]
 
 @pytest.mark.parametrize('source', ['catalogue_default', 'staged_override'])
 def test_nonlive_composition_is_not_compared(frames, source):
