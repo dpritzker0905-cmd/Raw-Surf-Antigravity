@@ -1,0 +1,213 @@
+{
+ "schema": "raw-surf/flip-inventory/0",
+ "dev": "b308e37b6",
+ "generated": "2026-11-03",
+ "owner_rule": "2026-11-03 ~22:40Z 'Only the passes': only a clean fresh-window PASS gets a light PR; PASS-with-caveats stays dark",
+ "flags": [
+  {
+   "flag": "SURF_EXPOSURE_RECONCILED",
+   "where": "dev (merged)",
+   "changes": "height swell-aim curve 0.55+0.45e -> sqrt(e)",
+   "flipped_by": "code default '0' + Render env",
+   "reaches_users": "yes (every height)",
+   "outcome": "FAIL",
+   "scorecard": "surf-exposure-reconciled.json"
+  },
+  {
+   "flag": "SURF_TIDE_DEPTH",
+   "where": "dev (merged)",
+   "changes": "tide moves the depth-limited breaking cap",
+   "flipped_by": "code default '0' + Render env",
+   "reaches_users": "yes (heights where the cap binds)",
+   "outcome": "REFUSED",
+   "scorecard": "surf-tide-depth.json"
+  },
+  {
+   "flag": "RATING_BREAKER_TYPE",
+   "where": "dev (merged)",
+   "changes": "Iribarren breaker-type factor in the 0-100 rating",
+   "flipped_by": "code default '0' + Render env",
+   "reaches_users": "yes (rating/glyph level)",
+   "outcome": "REFUSED",
+   "scorecard": "rating-breaker-type.json"
+  },
+  {
+   "flag": "ALERTS_FORECAST_WINDOWS",
+   "where": "dev (merged, #704 b308e37b)",
+   "changes": "alerts fire on served forecast windows honouring saved time windows/tides/conditions",
+   "flipped_by": "code default '0' + precompute.yml '0' + Render env",
+   "reaches_users": "YES: push notifications",
+   "outcome": "FAIL (volume rule: 4-5 alerts/user/day on 4.7% of size-only user-days at realistic noise; sane otherwise)",
+   "scorecard": "alerts-forecast-windows.json"
+  },
+  {
+   "flag": "RATING_OBS_GATE",
+   "where": "dev",
+   "changes": "good/epic cap at 69.9 unless confirmed",
+   "flipped_by": "code default '0'; precompute.yml '1' since 2026-07-30 (owner flip); Render env per that flip",
+   "reaches_users": "yes",
+   "outcome": "REFUSED (eval_replay.UNREPLAYABLE: applied after rating in the precompute merge). Already served ON in the precompute lane; the code default is a separate owner call"
+  },
+  {
+   "flag": "RATING_LOCAL_SIZE",
+   "where": "dev",
+   "changes": "per-spot size calibration",
+   "flipped_by": "code default '0'; precompute.yml '1'",
+   "reaches_users": "yes",
+   "outcome": "REFUSED (replay passes None for the size climatology: named gap size_reference). Already ON in the precompute lane"
+  },
+  {
+   "flag": "SURF_PARTITIONS",
+   "where": "dev",
+   "changes": "spectral trains in height and rating",
+   "flipped_by": "code '0' + forecast-ingest + precompute + Render",
+   "reaches_users": "yes",
+   "outcome": "REFUSED (UNREPLAYABLE: partitions not archived)"
+  },
+  {
+   "flag": "SURF_PARTITION_TRACKING",
+   "where": "dev",
+   "changes": "track GFS partitions across the stencil",
+   "flipped_by": "same lanes as SURF_PARTITIONS",
+   "reaches_users": "only with SURF_PARTITIONS",
+   "outcome": "REFUSED (inert without SURF_PARTITIONS, itself unreplayable)"
+  },
+  {
+   "flag": "SURF_NEARSHORE_MOP",
+   "where": "dev",
+   "changes": "CA spots break from CDIP MOP",
+   "flipped_by": "code '0' + ingest + precompute + Render",
+   "reaches_users": "yes (CA)",
+   "outcome": "REFUSED (UNREPLAYABLE: MOP archives)"
+  },
+  {
+   "flag": "CONSENSUS_SERVE",
+   "where": "dev",
+   "changes": "serve the GFS/EURO/ICON mean",
+   "flipped_by": "workflow '0' + Render",
+   "reaches_users": "yes",
+   "outcome": "REFUSED (UNREPLAYABLE: EURO/ICON)"
+  },
+  {
+   "flag": "COPERNICUS_PEAK_PERIOD",
+   "where": "dev",
+   "changes": "EURO peak period VTPK",
+   "flipped_by": "ingest lanes + Render",
+   "reaches_users": "yes (EURO lane)",
+   "outcome": "REFUSED (UNREPLAYABLE: EURO)"
+  },
+  {
+   "flag": "ICON_PEAK_PERIOD",
+   "where": "dev",
+   "changes": "ICON partition peak periods",
+   "flipped_by": "ingest lanes",
+   "reaches_users": "yes (ICON lane)",
+   "outcome": "REFUSED (UNREPLAYABLE: ICON). Round 5: the ICON period-k debias overcorrects in Hawaii (deep buoys -0.11 m with it vs +0.14 without); any Hawaii-applicable period-k flag stays dark in Hawaii whatever its global score"
+  },
+  {
+   "flag": "CONSENSUS_PERIOD_MEDIAN",
+   "where": "dev",
+   "changes": "consensus period median",
+   "flipped_by": "pilots lane",
+   "reaches_users": "only with ICON_PEAK_PERIOD",
+   "outcome": "REFUSED (inert unless ICON_PEAK_PERIOD; unreplayable)"
+  },
+  {
+   "flag": "ECMWF_WAVE_LAND_CENTRE_BLOCK",
+   "where": "dev",
+   "changes": "EURO land-centre nodes take dir/period from the block",
+   "flipped_by": "repo variable",
+   "reaches_users": "yes (EURO)",
+   "outcome": "REFUSED (EURO input, unreplayable)"
+  },
+  {
+   "flag": "ECMWF_PERIOD_BANDS",
+   "where": "dev",
+   "changes": "fetch EURO period bands (composition not wired)",
+   "flipped_by": "workflow '0'",
+   "reaches_users": "no rating moves today",
+   "outcome": "REFUSED (changes no served number yet)"
+  },
+  {
+   "flag": "COPERNICUS_ISLAND_SERVE",
+   "where": "dev",
+   "changes": "serve 0.083 deg CMEMS island tiles",
+   "flipped_by": "Render env",
+   "reaches_users": "yes (islands)",
+   "outcome": "REFUSED (CMEMS input, unreplayable)"
+  },
+  {
+   "flag": "MARINE_PARTITION_RATIO_FALLBACK",
+   "where": "dev",
+   "changes": "normalizer partition ratio fallback",
+   "flipped_by": "ingest env",
+   "reaches_users": "yes (ingested fields)",
+   "outcome": "REFUSED (ingest-time, unreplayable)"
+  },
+  {
+   "flag": "WAVES_ANIM_DOMINANT_SWELL",
+   "where": "dev",
+   "changes": "map wave animation direction",
+   "flipped_by": "repo variable",
+   "reaches_users": "display only",
+   "outcome": "REFUSED (no skill metric; display)"
+  },
+  {
+   "flag": "SURF_WAVE_WRAPPING",
+   "where": "dev",
+   "changes": "headland wrapping physics",
+   "flipped_by": "code '0'",
+   "reaches_users": "no (nothing in production calls it)",
+   "outcome": "REFUSED (not wired: inert)"
+  },
+  {
+   "flag": "SAMPLER_EXACT_VALIDITY, SURF_STRICT_AVAILABILITY, SURF_REQUESTED_HORIZON, POINT_PRODUCT_IDENTITY, WIND_GRID_GFS_GLOBAL, MARINE_REGIONAL_TILE_FIRST, MARINE_GULF_FILL_*, FAR_EDGE_HOLD_*, GFS_WORLD_FULL_HORIZON, MID_RES_EXACT_TIME_ESTIMATE, MARINE_EMPTY_FRAME_FALLBACK, FRAME_WIND_GFS_HOURLY, SIM_SERVED_TIME_MATCH, SIM_STRICT_INPUTS, SIM_FORECAST_SERVED_GATE",
+   "where": "dev",
+   "changes": "which product/frame/hour is served (correctness), not the physics",
+   "flipped_by": "mostly Render env or repo variables",
+   "reaches_users": "yes, indirectly",
+   "outcome": "NOT SCORED (no buoy-skill instrument isolates them; each needs its own parity probe). Manifest/prune/cache/lattice/ingest-retry flags move no served number and are excluded"
+  },
+  {
+   "flag": "SURF_SPECTRAL_K",
+   "where": "open PR #706 (3ea59bcac)",
+   "changes": "CA per-spot spectral transfer from MOP K",
+   "flipped_by": "code '0'",
+   "reaches_users": "yes (CA)",
+   "outcome": "PASS WITH CAVEATS (reused, not re-run): +0.080 m [0.062, 0.103], n 720, 6 CA buoys, window 10-06..10-15; cluster CI advisory (6 clusters); hb_proxy FAIL; Capistrano worse; partly cancels GFS's low Bight input; split check x1.04-1.59 over MOP; Render first-request cost open. Stays dark until a second window + >= 10 clusters + a sheltered wind-sea control"
+  },
+  {
+   "flag": "SURF_BIGHT_HS_CONSENSUS",
+   "where": "open PR #707 (6a5258515)",
+   "changes": "GFS+EURO Hs mean inside the Bight",
+   "flipped_by": "code '0'",
+   "reaches_users": "yes (SoCal)",
+   "outcome": "PASS on its own harness (input-substitution arm; v0 automation REFUSES it: EURO not archived): hs_station +0.099 m [0.072, 0.129], binding cluster CI [0.054, 0.146] (10 clusters), window 10-06..10-19; round-4 window 10-20..11-01 also PASS +0.077. CAVEAT: breaking-height bias flips -0.077 -> +0.140 m and hb_proxy FAILs its cluster CI. Supporting only: Jason-3 (328 Bight blocks) GFS+EURO MAE 0.127 vs GFS 0.249. In an open PR: not flipped here; the lead decides after merge"
+  },
+  {
+   "flag": "CONSENSUS_DIRECTION_VECTOR",
+   "where": "open PR #697 (490ff5fdd)",
+   "changes": "vector-mean consensus direction",
+   "flipped_by": "pilots lane",
+   "reaches_users": "yes (direction)",
+   "outcome": "REFUSED: the harness grades no direction and the arm needs EURO/ICON. The earlier +4.79 deg gain was mostly the Open-Meteo nearshore GFS direction artefact (+115..+152 deg off at 46266/46274/46285); production parity gave +1.6..+2.75 deg one window, -0.93 the next. Needs a 60-90 day parity direction panel"
+  },
+  {
+   "flag": "RATING_WIND_HRRR",
+   "where": "no PR (uncommitted work, branch claude/rating-wind-hrrr at dev 35feaaac6)",
+   "changes": "rating wind from the HRRR lane inside CONUS",
+   "flipped_by": "code '0'",
+   "reaches_users": "yes (ratings)",
+   "outcome": "INVALID: no committed head to replay; HRRR wind is not archived by harness v0 (unreplayable). Score once a draft PR exists, with an archived HRRR wind panel"
+  },
+  {
+   "flag": "SPOT_HUB_RATE_ONE_SPOT",
+   "where": "no PR (uncommitted work, branch claude/spot-hub-phase2)",
+   "changes": "hub frames from rate_one_spot (composition parity)",
+   "flipped_by": "code '0'",
+   "reaches_users": "yes (hub)",
+   "outcome": "INVALID: no committed head. When it lands, its gate is a hub-vs-glyph parity test, not buoy skill (the harness already replays rate_one_spot)"
+  }
+ ],
+ "reflection": "Reflection Beam second opinion (2026-11-03): no arm is a clean PASS; agrees with FAIL/REFUSED/not-clean verdicts; alerts closest after a daily cap and re-replay. Its two other remarks are advisory and NOT adopted: it read the cluster CI (advisory below 10 clusters) as invalidating the exposure FAIL (the FAIL rests on DM harm + the bootstrap CI, not the cluster CI); and it suggested freezing flips while served loses to climatology (the owner chose a ratchet, not a wall, 2026-11-03)."
+}
