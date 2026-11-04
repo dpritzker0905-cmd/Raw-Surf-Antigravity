@@ -17,6 +17,7 @@ from services.weather_pipeline.sampler import PointSampler
 from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
 from services.conditions_labels import get_conditions_label
 from services.weather_pipeline.spot_conditions import hourly_breaking_forecast
+from services.weather_pipeline.spot_hub_composition import call_kwargs as hub_call_kwargs
 from services.weather_pipeline.surf_point import resolve_surf_geometry
 
 point_sampler = PointSampler()
@@ -179,7 +180,7 @@ async def get_batch_conditions(
             try:
                 data = await point_resolution_service.resolve_spot_conditions(
                     model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=1,
-                    spot_id=spot_id
+                    spot_id=spot_id, **hub_call_kwargs(spot)
                 )
                 if data and "current_conditions" in data:
                     current = data["current_conditions"]
@@ -253,7 +254,8 @@ async def get_spot_conditions(
     try:
         data = await point_resolution_service.resolve_spot_conditions(
             model=model, lat=spot.latitude, lng=spot.longitude,
-            forecast_days=1 if os.environ.get("SURF_REQUESTED_HORIZON", "0") == "1" else 2, spot_id=spot_id
+            forecast_days=1 if os.environ.get("SURF_REQUESTED_HORIZON", "0") == "1" else 2, spot_id=spot_id,
+            **hub_call_kwargs(spot)
         )
         if data and "current_conditions" in data:
             current = data["current_conditions"]
@@ -358,7 +360,7 @@ async def get_spot_forecast(
             model=model, lat=spot.latitude, lng=spot.longitude,
             forecast_days=(min(max(days, 0), 10) + 1 if os.environ.get("SURF_REQUESTED_HORIZON", "0") == "1"
                            else min(days, 10)),
-            spot_id=spot_id
+            spot_id=spot_id, **hub_call_kwargs(spot)
         )
         if data and "forecast" in data:
             forecast = data["forecast"][:days]
