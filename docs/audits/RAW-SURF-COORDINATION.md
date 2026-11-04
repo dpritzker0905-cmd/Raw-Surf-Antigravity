@@ -1197,3 +1197,28 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     - #724 keeps the exact-key self-read cache plus a no-op publish skip, and adds a pointer-error-path test.
     - The savings sets may overlap (the own-write read-backs and the repeated GETs), so they are not added together.
 
+- 2026-11-04T23:51Z; claude-lead-local_d6b521eb; LANE CLOSE-OUT (David: "Merge all eight" plus the four wrap-up steps).
+  - Merged since the last checkpoint, each pinned to a green head:
+    - #712 `945d887f`, #722 `5ba3f284`, #723 `8686ddc7` (default-ON policy);
+    - #716 `ee13f919`, #719 `f3b46b07`, #718 `3999c3d2`;
+    - #707 `519532cb` (Bight Hs consensus ON), #724 `5d1cadd6` (manifest self-read cache + no-op skip);
+    - #721 `0955e6e6` (two-way gate D-066), #710 `df713415`, #713 `f2dda1f9`.
+  - In flight: #726, the accuracy-monitor L2 retry (429/5xx backoff, kill switch `L2_FETCH_RETRIES=1`). It merges on
+    green under the owner's wrap-up word.
+  - Left open, NOT merged:
+    - #706 SURF_SPECTRAL_K (failed history, OFF);
+    - #711 RATING_WIND_HRRR (failed).
+    Both are being reworked by cloud session "rework-failed-fixes".
+  - Cloud sessions running (David's credits). They open draft PRs to dev only and never merge:
+    - rework-failed-fixes (spectral-K, exposure, HRRR);
+    - alert-accuracy (measured wind skill to reach precision ≥ 0.8);
+    - spot-hub-charts (phase 4 display, rolling-72 h entitlement with day-of+2 daily view).
+  - Owner actions pending:
+    - (1) `gh variable set FLAG_GUARDRAIL_ENFORCE --body 1`. Claude recommends it now: it only disables, after two
+      worse runs ≥24 h apart.
+    - (2) A Render deploy of dev (Codex executes, with David's OK), so the backend picks up the default-ON flags, the
+      runtime manifest, SIM_SERVED_TIDE, the Bight consensus and the hub rate_one_spot.
+  - Owner decision recorded: the free tier is a ROLLING 72 h entitlement. The hub daily view shows today + 2 full local
+    days inside it.
+  - #696 (this record) merges last.
+
