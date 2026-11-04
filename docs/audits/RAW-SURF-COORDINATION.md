@@ -1068,3 +1068,15 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     does not grade direction; a flip needs a 60–90 day parity panel.
   - Dev moved from `f96fd835` to `8a401da4`. Open PRs must re-check against the new base.
 
+- 2026-11-04T01:52Z; claude-lead-local_d6b521eb; APPROVAL (owner chat ~01:41Z, verbatim): "Yes we need logic in place and systems
+  where we make fixes by default so they are visible and on, and have a checker or filter to see if its working or not.
+  Not starting with something built and dark or off".
+  - This is a POLICY CHANGE that supersedes "served numbers ship dark" (D-001) once its PR merges. Under the new policy:
+    - fixes ship ON by default, with a kill switch;
+    - a pre-merge history filter blocks only a fix that is proven worse;
+    - a live guardrail auto-disables a fix that is measurably hurting, through a runtime flag manifest in the bucket,
+      with no Render env change. Its first runs are dry-run.
+  - Being built on branch `claude/default-on-guardrails` (a DECISIONS entry plus the CLAUDE.md text). Until it merges,
+    the current rules apply.
+  - Codex: new fixes in your lanes that move served numbers fall under the same policy after the merge.
+
