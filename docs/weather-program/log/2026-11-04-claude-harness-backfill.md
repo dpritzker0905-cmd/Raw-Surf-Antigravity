@@ -52,3 +52,22 @@ those windows at more than a few buoys.
 ## Not done (scope cut)
 
 GitHub Actions backfill workflow, decoded-box store, EURO fetcher, the four-window set (spring/summer), the tool scan.
+
+## Truth archive reader (lead, 2026-11-04 ~15:10Z)
+
+`eval_reference.fetch_station` now merges archives when the realtime record does not reach the window start and the
+window is more than 40 days old (`needs_archive`; recent runs and the flip job are unchanged). Realtime rows win;
+archive rows only fill the time before realtime starts (`merge_archive`). Both write the same truth rows.
+- CDIP: the THREDDS archive catalog, each deployment's `.das` (time_coverage), and the OPeNDAP ascii of each
+  overlapping `<id>_dNN.nc`, parsed by the same `parse_cdip_ascii` (waveFlagPrimary kept). Cache keys `truth/cdip/`.
+- NDBC: yearly `historical/stdmet/<id>h<year>.txt.gz`, this year's finished months `stdmet/<Mon>/<id>.txt`
+  (a month NDBC has not published yet is counted in `archive_missing`). 99 / 999 = missing. Cache keys `truth/ndbc/`.
+- TIME STANDARD (measured): the QC'd archive stamps a wave record 10 min before realtime2 does. On 46025 / 46086,
+  Sep 2026, a +10 min shift matched 523 / 276 records, all within 0.05 m (the archive publishes 0.01 m, realtime 0.1 m),
+  against 264 / 159 at 0 min. Archive times move +10 min onto the realtime standard.
+- CDIP parity: an archived deployment and the realtime file share no timestamps (realtime starts where the archive
+  ends; 153p1 d06 -> rt, 0 common rows), so parity there is the shared parser only.
+
+Truth filled into C:/t/hist-cache (10 flip-run stations), good records in window:
+autumn-2025-10: 9/10 stations (285p1 none: deployed 2026-09, no archive); winter-2024-12: 8/10 (284p1, 285p1 none;
+142p1 partial, 434). Per-station counts, archive versions/files and the parity numbers are in index.json.

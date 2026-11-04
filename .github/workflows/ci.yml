@@ -1658,9 +1658,9 @@ jobs:
           #   base 3416 (hosted read) + 21 new test(s) and 1 new file(s) = 3437, files 201; floor 3437 - 6 = 3431. This PR must read 3437 passed.
           # ⬆ 3431→3482 on 2026-11-03 (rederive_floor.py, claude/consensus-direction-vector): dev run 41726327573 read 3416 / 200 files; dev's map 3437;
           #   base 3437 (dev's map) + 51 new test(s) and 1 new file(s) = 3488, files 202; floor 3488 - 6 = 3482. This PR must read 3488 passed.
-          # ⬆ 3482→3492 on 2026-11-04 (rederive_floor.py, claude/harness-backfill): dev run 41747311909 read 3488 / 202 files; dev's map 3488;
-          #   base 3488 (hosted read) + 10 new test(s) and 1 new file(s) = 3498, files 203; floor 3498 - 6 = 3492. This PR must read 3498 passed.
-          MIN_FILES, MIN_PASSED = 203, 3492
+          # ⬆ 3482→3500 on 2026-11-04 (rederive_floor.py, claude/harness-backfill): dev run 41747311909 read 3488 / 202 files; dev's map 3488;
+          #   base 3488 (hosted read) + 18 new test(s) and 2 new file(s) = 3506, files 204; floor 3506 - 6 = 3500. This PR must read 3506 passed.
+          MIN_FILES, MIN_PASSED = 204, 3500
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
