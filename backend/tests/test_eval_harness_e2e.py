@@ -157,13 +157,21 @@ def test_baselines_controls_and_verdicts(card):
     b = c["baselines"]["hs_station"]
     assert set(b["scores"]) == {"served", "persistence", "climatology"}
     assert b["scores"]["served"]["n"] > 20 and b["served_vs_persistence"]["n"] > 0
-    assert c["controls"]["hs_station"]["ok"] is True and c["controls_ok"] is True
+    # D-066: a 3-day window cannot carry the binding two-way CI (>= 14 UTC days), so the positive control is REFUSED
+    # and the quantity is underpowered: no arm can PASS, whatever its gain.
+    ctl = c["controls"]["hs_station"]
+    assert ctl["ok"] == "underpowered" and c["controls_ok"] is False and c["controls_state"] == "underpowered"
+    assert ctl["positive"]["verdict"] == "REFUSED" and ctl["negative"]["verdict"] == "FAIL"
+    assert any("two-way" in r for r in ctl["positive"]["reasons"]) and ctl["two_way_calibration"] is None
+    assert c["two_way_self_test"]["ok"] is True and c["two_way_self_test"]["worst_false_pass"] <= 0.05
     same = c["arms"]["SURF_TRANSFORM=1"]
     assert same["impact"]["height_changed"] == 0
     assert same["quantities"]["hs_station"]["verdict"]["verdict"] == "REFUSED"
     kr = c["arms"]["SURF_REFRACTION_KR=1.0"]
     assert kr["quantities"]["hs_station"]["summary"]["crps_gain"] != 0
-    assert kr["quantities"]["hs_station"]["verdict"]["verdict"] in ("PASS", "FAIL")
+    w2 = kr["quantities"]["hs_station"]["summary"]["two_way"]
+    assert w2["computable"] is False and w2["days"] == 3 and w2["min_days"] == 14
+    assert kr["quantities"]["hs_station"]["verdict"]["verdict"] == "REFUSED"
     assert kr["quantities"]["hs_station"]["holm_across_arms"]["arms"] >= 1
     with open(os.path.join(card["out"], "scorecard.md"), encoding="utf-8") as f:
         md = f.read()
