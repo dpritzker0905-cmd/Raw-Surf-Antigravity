@@ -1,0 +1,1111 @@
+{
+ "version": 1,
+ "generated_at": "2026-11-03T18:53:29Z",
+ "source": "https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/model/R_CA_coefficients (CDIP MOP ray coefficients, public)",
+ "generator": "backend/scripts/build_spectral_k_tables.py",
+ "criteria": {
+  "shore_flag": 1,
+  "spot_max_km": 1.0,
+  "station_max_km": 3.0,
+  "max_candidates": 60
+ },
+ "storage": "spectral_k_ca.npz: swl_et [N,10,72], sea_et [N,17,72] float16 (3,888 B per entry)",
+ "n_entries": 50,
+ "entries": [
+  {
+   "key": "spot:3a1682c3-7945-4416-b43f-bd6262d948b4",
+   "kind": "spot",
+   "name": "Centerville Beach",
+   "lat": 40.568,
+   "lng": -124.358,
+   "row": 0,
+   "label": "HU414",
+   "mop_lat": 40.56771,
+   "mop_lng": -124.3648,
+   "km": 0.575,
+   "depth_m": 14.999,
+   "shore_normal": 291.96,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:bf9c64c4-9038-4053-83b9-b16bac12d000",
+   "kind": "spot",
+   "name": "Shelter Cove",
+   "lat": 40.028,
+   "lng": -124.078,
+   "row": 1,
+   "label": "HU035",
+   "mop_lat": 40.02666,
+   "mop_lng": -124.08046,
+   "km": 0.257,
+   "depth_m": 15.482,
+   "shore_normal": 201.45,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:32707e87-0851-459f-a77b-eb8d23fbcf67",
+   "kind": "spot",
+   "name": "Fort Bragg - Glass Beach",
+   "lat": 39.458,
+   "lng": -123.818,
+   "row": 2,
+   "label": "M0658",
+   "mop_lat": 39.45771,
+   "mop_lng": -123.81808,
+   "km": 0.033,
+   "depth_m": 14.982,
+   "shore_normal": 298.37,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:705f75f7-a414-430f-875e-a7b54c8978af",
+   "kind": "spot",
+   "name": "Caspar Headlands",
+   "lat": 39.358,
+   "lng": -123.828,
+   "row": 3,
+   "label": "M0557",
+   "mop_lat": 39.35737,
+   "mop_lng": -123.83035,
+   "km": 0.214,
+   "depth_m": 15.075,
+   "shore_normal": 255.5,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:bdd11e3c-4fb4-4f60-9980-92d0d9b7eedf",
+   "kind": "spot",
+   "name": "Big River Mouth",
+   "lat": 39.308,
+   "lng": -123.808,
+   "row": 4,
+   "label": "M0495",
+   "mop_lat": 39.30744,
+   "mop_lng": -123.81665,
+   "km": 0.747,
+   "depth_m": 15.078,
+   "shore_normal": 262.8,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:29496286-0e8a-4b86-93ae-0e16d5a74792",
+   "kind": "spot",
+   "name": "Arena Cove",
+   "lat": 38.918,
+   "lng": -123.718,
+   "row": 5,
+   "label": "M0155",
+   "mop_lat": 38.91183,
+   "mop_lng": -123.72236,
+   "km": 0.783,
+   "depth_m": 15.017,
+   "shore_normal": 184.1,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:5bcf341a-0fc8-47af-b561-d351e2593891",
+   "kind": "spot",
+   "name": "Salmon Creek",
+   "lat": 38.358,
+   "lng": -123.078,
+   "row": 6,
+   "label": "SN085",
+   "mop_lat": 38.35798,
+   "mop_lng": -123.07944,
+   "km": 0.126,
+   "depth_m": 15.008,
+   "shore_normal": 245.52,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:d7a491e4-e486-4400-80f0-aa24518e66c2",
+   "kind": "spot",
+   "name": "Rodeo Beach",
+   "lat": 37.838,
+   "lng": -122.548,
+   "row": 7,
+   "label": "MA053",
+   "mop_lat": 37.82922,
+   "mop_lng": -122.54816,
+   "km": 0.976,
+   "depth_m": 15.001,
+   "shore_normal": 201.3,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:0f7ee945-82cc-4388-97c6-2a62004791f5",
+   "kind": "spot",
+   "name": "Fort Point",
+   "lat": 37.808,
+   "lng": -122.478,
+   "row": 8,
+   "label": "SF069",
+   "mop_lat": 37.80916,
+   "mop_lng": -122.48079,
+   "km": 0.277,
+   "depth_m": 10.004,
+   "shore_normal": 281.02,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:3992dbb3-f385-4e36-8bec-9223016b2c79",
+   "kind": "spot",
+   "name": "Kelly's Cove",
+   "lat": 37.768,
+   "lng": -122.518,
+   "row": 9,
+   "label": "SF034",
+   "mop_lat": 37.76788,
+   "mop_lng": -122.52,
+   "km": 0.176,
+   "depth_m": 9.888,
+   "shore_normal": 264.02,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:21157011-ccf1-477a-9dfc-226cafecf890",
+   "kind": "spot",
+   "name": "Ocean Beach SF",
+   "lat": 37.758,
+   "lng": -122.515,
+   "row": 10,
+   "label": "SF030",
+   "mop_lat": 37.76092,
+   "mop_lng": -122.52083,
+   "km": 0.607,
+   "depth_m": 10.009,
+   "shore_normal": 266.5,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:821faca1-1e2d-4eac-bb4b-97406aff7b92",
+   "kind": "spot",
+   "name": "Montara State Beach",
+   "lat": 37.548,
+   "lng": -122.518,
+   "row": 11,
+   "label": "SM339",
+   "mop_lat": 37.54834,
+   "mop_lng": -122.52032,
+   "km": 0.208,
+   "depth_m": 14.994,
+   "shore_normal": 286.46,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:264de2b4-fefc-4101-bb2c-c0557b9ca190",
+   "kind": "spot",
+   "name": "Mavericks",
+   "lat": 37.4915,
+   "lng": -122.5083,
+   "row": 12,
+   "label": "SM306",
+   "mop_lat": 37.49657,
+   "mop_lng": -122.50756,
+   "km": 0.568,
+   "depth_m": 15.003,
+   "shore_normal": 262.47,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:31579ade-026c-4a47-92b5-b956b4bfacf6",
+   "kind": "spot",
+   "name": "Four Mile Beach",
+   "lat": 37.0088,
+   "lng": -122.205,
+   "row": 13,
+   "label": "SC257",
+   "mop_lat": 37.00634,
+   "mop_lng": -122.20469,
+   "km": 0.275,
+   "depth_m": 15.005,
+   "shore_normal": 203.29,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:e25e2940-5340-44d6-a88e-b9c0f9676f28",
+   "kind": "spot",
+   "name": "Davenport Landing",
+   "lat": 37.0038,
+   "lng": -122.215,
+   "row": 14,
+   "label": "SC259",
+   "mop_lat": 37.00755,
+   "mop_lng": -122.2104,
+   "km": 0.584,
+   "depth_m": 15.009,
+   "shore_normal": 212.99,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:a0831e90-e082-4f2d-8aa4-922cf413ad24",
+   "kind": "spot",
+   "name": "Steamer Lane",
+   "lat": 36.951,
+   "lng": -122.026,
+   "row": 15,
+   "label": "SC151",
+   "mop_lat": 36.94341,
+   "mop_lng": -122.03112,
+   "km": 0.959,
+   "depth_m": 15.003,
+   "shore_normal": 193.66,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:2d61d58f-7d38-4e1f-b653-0dde2b1ceb68",
+   "kind": "spot",
+   "name": "Big Sur - Andrew Molera",
+   "lat": 36.2878,
+   "lng": -121.8938,
+   "row": 16,
+   "label": "MO435",
+   "mop_lat": 36.29157,
+   "mop_lng": -121.88789,
+   "km": 0.676,
+   "depth_m": 15.053,
+   "shore_normal": 235.99,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:005226cd-af31-45a8-9054-54ac7abe9335",
+   "kind": "spot",
+   "name": "Cayucos Pier",
+   "lat": 35.442,
+   "lng": -120.915,
+   "row": 17,
+   "label": "SL407",
+   "mop_lat": 35.43691,
+   "mop_lng": -120.91936,
+   "km": 0.69,
+   "depth_m": 15.007,
+   "shore_normal": 175.51,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:7e5ea9cc-639d-41d7-bbd3-d0ad1b6216a8",
+   "kind": "spot",
+   "name": "Pismo Beach Pier",
+   "lat": 35.138,
+   "lng": -120.648,
+   "row": 18,
+   "label": "SL093",
+   "mop_lat": 35.13267,
+   "mop_lng": -120.65611,
+   "km": 0.946,
+   "depth_m": 15.003,
+   "shore_normal": 244.53,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:1c76a94d-6105-4a0a-a6d8-74d378ac156f",
+   "kind": "spot",
+   "name": "Sands Beach",
+   "lat": 34.4025,
+   "lng": -119.878,
+   "row": 19,
+   "label": "B0415",
+   "mop_lat": 34.403,
+   "mop_lng": -119.87724,
+   "km": 0.089,
+   "depth_m": 10.014,
+   "shore_normal": 172.96,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:31224425-2f57-4129-9f69-089cd1205ac7",
+   "kind": "spot",
+   "name": "Rincon",
+   "lat": 34.3781,
+   "lng": -119.4819,
+   "row": 20,
+   "label": "B0007",
+   "mop_lat": 34.37476,
+   "mop_lng": -119.48573,
+   "km": 0.511,
+   "depth_m": 10.017,
+   "shore_normal": 233.49,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:6ee47aa0-87d1-4946-a79f-9bf2c0626760",
+   "kind": "spot",
+   "name": "Mondos",
+   "lat": 34.318,
+   "lng": -119.398,
+   "row": 21,
+   "label": "VE572",
+   "mop_lat": 34.31802,
+   "mop_lng": -119.39869,
+   "km": 0.063,
+   "depth_m": 10.007,
+   "shore_normal": 237.0,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:e4259b3d-a3a8-4736-8850-65d75888e2fe",
+   "kind": "spot",
+   "name": "Emma Wood",
+   "lat": 34.292,
+   "lng": -119.345,
+   "row": 22,
+   "label": "VE509",
+   "mop_lat": 34.2902,
+   "mop_lng": -119.34869,
+   "km": 0.394,
+   "depth_m": 9.994,
+   "shore_normal": 237.96,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:9b4373eb-95e9-4eb2-b1ce-73e14c48e53b",
+   "kind": "spot",
+   "name": "C Street Ventura",
+   "lat": 34.275,
+   "lng": -119.298,
+   "row": 23,
+   "label": "VE463",
+   "mop_lat": 34.26745,
+   "mop_lng": -119.29896,
+   "km": 0.844,
+   "depth_m": 10.002,
+   "shore_normal": 173.98,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:03c67a2b-486a-458f-a4af-bdd8cc39edb5",
+   "kind": "spot",
+   "name": "County Line",
+   "lat": 34.0522,
+   "lng": -118.9838,
+   "row": 24,
+   "label": "VE040",
+   "mop_lat": 34.05658,
+   "mop_lng": -118.98261,
+   "km": 0.499,
+   "depth_m": 10.017,
+   "shore_normal": 180.47,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:0d4b2204-229c-4163-99b0-66b578e4e7f2",
+   "kind": "spot",
+   "name": "Topanga",
+   "lat": 34.0388,
+   "lng": -118.62,
+   "row": 25,
+   "label": "L0844",
+   "mop_lat": 34.03362,
+   "mop_lng": -118.62083,
+   "km": 0.581,
+   "depth_m": 9.993,
+   "shore_normal": 186.6,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:07ce3cf2-66a7-4cdf-bf9d-760b298b88fa",
+   "kind": "spot",
+   "name": "Malibu Third Point",
+   "lat": 34.036,
+   "lng": -118.714,
+   "row": 26,
+   "label": "L0940",
+   "mop_lat": 34.02761,
+   "mop_lng": -118.71758,
+   "km": 0.99,
+   "depth_m": 10.004,
+   "shore_normal": 179.09,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:043c051f-2e48-4666-9cd2-f0c4ec729ecb",
+   "kind": "spot",
+   "name": "Venice Breakwater",
+   "lat": 33.9898,
+   "lng": -118.502,
+   "row": 27,
+   "label": "L0700",
+   "mop_lat": 33.99467,
+   "mop_lng": -118.49368,
+   "km": 0.939,
+   "depth_m": 10.004,
+   "shore_normal": 237.53,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:8564794f-d631-460e-9032-8bf1d11d8ece",
+   "kind": "spot",
+   "name": "El Porto",
+   "lat": 33.901,
+   "lng": -118.42,
+   "row": 28,
+   "label": "L0576",
+   "mop_lat": 33.89981,
+   "mop_lng": -118.42794,
+   "km": 0.745,
+   "depth_m": 10.002,
+   "shore_normal": 247.99,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:fc97ffcd-97e1-4b01-bd50-3cc9d9a274e1",
+   "kind": "spot",
+   "name": "Manhattan Beach Pier",
+   "lat": 33.885,
+   "lng": -118.412,
+   "row": 29,
+   "label": "L0556",
+   "mop_lat": 33.88306,
+   "mop_lng": -118.41923,
+   "km": 0.701,
+   "depth_m": 10.019,
+   "shore_normal": 245.47,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:b6e20a3f-b0b1-4179-9579-fb073cce6f98",
+   "kind": "spot",
+   "name": "Redondo Beach",
+   "lat": 33.843,
+   "lng": -118.396,
+   "row": 30,
+   "label": "L0495",
+   "mop_lat": 33.83656,
+   "mop_lng": -118.39335,
+   "km": 0.757,
+   "depth_m": 10.052,
+   "shore_normal": 248.06,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:b683d2ed-09f2-446c-b430-242930dad4fc",
+   "kind": "spot",
+   "name": "54th Street Newport",
+   "lat": 33.6032,
+   "lng": -117.92,
+   "row": 31,
+   "label": "OC417",
+   "mop_lat": 33.60095,
+   "mop_lng": -117.92013,
+   "km": 0.25,
+   "depth_m": 10.016,
+   "shore_normal": 196.05,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:89a194d1-eca7-4a6a-820e-fcc64ca0cece",
+   "kind": "spot",
+   "name": "The Wedge",
+   "lat": 33.593,
+   "lng": -117.878,
+   "row": 32,
+   "label": "OC372",
+   "mop_lat": 33.5885,
+   "mop_lng": -117.87566,
+   "km": 0.545,
+   "depth_m": 9.998,
+   "shore_normal": 210.16,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:b0dbef94-5e72-4c10-9959-8f320295aa39",
+   "kind": "spot",
+   "name": "Newport Point",
+   "lat": 33.593,
+   "lng": -117.882,
+   "row": 33,
+   "label": "OC382",
+   "mop_lat": 33.59064,
+   "mop_lng": -117.88501,
+   "km": 0.383,
+   "depth_m": 9.995,
+   "shore_normal": 200.05,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:30066ba0-79db-4953-bfa9-be9ac9e1e418",
+   "kind": "spot",
+   "name": "Upper Trestles",
+   "lat": 33.387,
+   "lng": -117.592,
+   "row": 34,
+   "label": "D1208",
+   "mop_lat": 33.38048,
+   "mop_lng": -117.59937,
+   "km": 0.997,
+   "depth_m": 10.009,
+   "shore_normal": 218.51,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:981d82c5-cd71-4c10-a148-561006477991",
+   "kind": "spot",
+   "name": "Trestles",
+   "lat": 33.384,
+   "lng": -117.59,
+   "row": 35,
+   "label": "D1204",
+   "mop_lat": 33.37775,
+   "mop_lng": -117.59569,
+   "km": 0.873,
+   "depth_m": 10.002,
+   "shore_normal": 214.31,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:27ef0e02-542c-4202-8b2d-74aa3479528d",
+   "kind": "spot",
+   "name": "Lower Trestles",
+   "lat": 33.3819,
+   "lng": -117.5885,
+   "row": 36,
+   "label": "D1204",
+   "mop_lat": 33.37775,
+   "mop_lng": -117.59569,
+   "km": 0.812,
+   "depth_m": 10.002,
+   "shore_normal": 214.31,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:e40a9a9e-494f-40bf-b9c0-02a5a22dcf34",
+   "kind": "spot",
+   "name": "San Onofre",
+   "lat": 33.372,
+   "lng": -117.568,
+   "row": 37,
+   "label": "D1178",
+   "mop_lat": 33.36514,
+   "mop_lng": -117.57491,
+   "km": 0.997,
+   "depth_m": 10.002,
+   "shore_normal": 218.03,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:7eb3a816-3e9d-41d1-ab08-392bdd19f8b0",
+   "kind": "spot",
+   "name": "Blacks Beach",
+   "lat": 32.8925,
+   "lng": -117.2536,
+   "row": 38,
+   "label": "D0542",
+   "mop_lat": 32.8919,
+   "mop_lng": -117.25989,
+   "km": 0.591,
+   "depth_m": 10.005,
+   "shore_normal": 270.0,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:9bdaed85-9db6-4b41-bc37-4828e094bc2a",
+   "kind": "spot",
+   "name": "La Jolla Shores",
+   "lat": 32.8565,
+   "lng": -117.2585,
+   "row": 39,
+   "label": "D0499",
+   "mop_lat": 32.85648,
+   "mop_lng": -117.2625,
+   "km": 0.374,
+   "depth_m": 9.69,
+   "shore_normal": 300.48,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:dcac30c9-0124-4f96-be32-612007bdf240",
+   "kind": "spot",
+   "name": "Windansea",
+   "lat": 32.8312,
+   "lng": -117.2811,
+   "row": 40,
+   "label": "D0457",
+   "mop_lat": 32.8328,
+   "mop_lng": -117.28749,
+   "km": 0.623,
+   "depth_m": 10.006,
+   "shore_normal": 267.47,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:24340718-5822-45b2-bdf3-cf05ba46586b",
+   "kind": "spot",
+   "name": "Pacific Beach",
+   "lat": 32.7982,
+   "lng": -117.278,
+   "row": 41,
+   "label": "D0423",
+   "mop_lat": 32.80307,
+   "mop_lng": -117.27488,
+   "km": 0.615,
+   "depth_m": 10.003,
+   "shore_normal": 228.01,
+   "shore_flag": 1
+  },
+  {
+   "key": "spot:8e9790ee-406e-45ac-85b5-2ca1bc826324",
+   "kind": "spot",
+   "name": "Sunset Cliffs",
+   "lat": 32.719,
+   "lng": -117.256,
+   "row": 42,
+   "label": "D0317",
+   "mop_lat": 32.72007,
+   "mop_lng": -117.26493,
+   "km": 0.844,
+   "depth_m": 10.006,
+   "shore_normal": 264.47,
+   "shore_flag": 1
+  },
+  {
+   "key": "station:103p1",
+   "kind": "station",
+   "name": "103p1",
+   "lat": 34.022068,
+   "lng": -118.5784,
+   "row": 43,
+   "label": "L0808",
+   "mop_lat": 34.03342,
+   "mop_lng": -118.57958,
+   "km": 1.267,
+   "depth_m": 10.007,
+   "shore_normal": 150.5,
+   "shore_flag": 1,
+   "station_depth_m": 20.4
+  },
+  {
+   "key": "station:153p1",
+   "kind": "station",
+   "name": "153p1",
+   "lat": 32.95654,
+   "lng": -117.27956,
+   "row": 44,
+   "label": "D0617",
+   "mop_lat": 32.95728,
+   "mop_lng": -117.27555,
+   "km": 0.383,
+   "depth_m": 10.002,
+   "shore_normal": 264.48,
+   "shore_flag": 1,
+   "station_depth_m": 17.0
+  },
+  {
+   "key": "station:262p1",
+   "kind": "station",
+   "name": "262p1",
+   "lat": 33.062077,
+   "lng": -117.31407,
+   "row": 45,
+   "label": "D0742",
+   "mop_lat": 33.06213,
+   "mop_lng": -117.31169,
+   "km": 0.222,
+   "depth_m": 10.013,
+   "shore_normal": 248.55,
+   "shore_flag": 1,
+   "station_depth_m": 17.0
+  },
+  {
+   "key": "station:201p1",
+   "kind": "station",
+   "name": "201p1",
+   "lat": 32.86785,
+   "lng": -117.26667,
+   "row": 46,
+   "label": "D0511",
+   "mop_lat": 32.86588,
+   "mop_lng": -117.26069,
+   "km": 0.6,
+   "depth_m": 10.014,
+   "shore_normal": 282.99,
+   "shore_flag": 1,
+   "station_depth_m": 41.0
+  },
+  {
+   "key": "station:264p1",
+   "kind": "station",
+   "name": "264p1",
+   "lat": 33.29076,
+   "lng": -117.50146,
+   "row": 47,
+   "label": "D1068",
+   "mop_lat": 33.30096,
+   "mop_lng": -117.48952,
+   "km": 1.587,
+   "depth_m": 9.999,
+   "shore_normal": 229.98,
+   "shore_flag": 1,
+   "station_depth_m": 16.79
+  },
+  {
+   "key": "station:284p1",
+   "kind": "station",
+   "name": "284p1",
+   "lat": 33.445168,
+   "lng": -117.68015,
+   "row": 48,
+   "label": "OC121",
+   "mop_lat": 33.44505,
+   "mop_lng": -117.68026,
+   "km": 0.017,
+   "depth_m": 9.999,
+   "shore_normal": 166.41,
+   "shore_flag": 1,
+   "station_depth_m": 11.13
+  },
+  {
+   "key": "station:285p1",
+   "kind": "station",
+   "name": "285p1",
+   "lat": 35.16396,
+   "lng": -120.73756,
+   "row": 49,
+   "label": "SL145",
+   "mop_lat": 35.16448,
+   "mop_lng": -120.73693,
+   "km": 0.081,
+   "depth_m": 15.002,
+   "shore_normal": 209.31,
+   "shore_flag": 1,
+   "station_depth_m": 15.0
+  }
+ ],
+ "missing": [
+  {
+   "key": "spot:bcc8ba6a-21d4-4a41-b133-da15f9d9e076",
+   "name": "Camel Rock",
+   "lat": 41.058,
+   "lng": -124.138,
+   "tried": []
+  },
+  {
+   "key": "spot:652d9696-248c-4f1b-a9ab-b57ddc31bc62",
+   "name": "Moonstone Beach Humboldt",
+   "lat": 41.048,
+   "lng": -124.128,
+   "tried": []
+  },
+  {
+   "key": "spot:58145cd4-579f-4f55-8e19-4b4b2709d16f",
+   "name": "Goat Rock",
+   "lat": 38.448,
+   "lng": -123.128,
+   "tried": []
+  },
+  {
+   "key": "spot:232c45c1-71c7-4769-a846-68a756fd68b8",
+   "name": "Doran Beach",
+   "lat": 38.318,
+   "lng": -123.048,
+   "tried": []
+  },
+  {
+   "key": "spot:70beabff-a315-42c8-b3a0-c89236535b2e",
+   "name": "Stinson Beach",
+   "lat": 37.9008,
+   "lng": -122.6778,
+   "tried": []
+  },
+  {
+   "key": "spot:61c7af2d-9285-44f2-9809-1cedfbfa0ba2",
+   "name": "Muir Beach",
+   "lat": 37.868,
+   "lng": -122.578,
+   "tried": []
+  },
+  {
+   "key": "spot:39a12113-3441-463d-91e9-fb1bb94c010d",
+   "name": "Sloat Boulevard",
+   "lat": 37.738,
+   "lng": -122.508,
+   "tried": [
+    {
+     "label": "SF017",
+     "km": 0.792,
+     "shoreFlag": 2
+    },
+    {
+     "label": "SF016",
+     "km": 0.797,
+     "shoreFlag": 2
+    },
+    {
+     "label": "SF018",
+     "km": 0.818,
+     "shoreFlag": 2
+    },
+    {
+     "label": "SF015",
+     "km": 0.837,
+     "shoreFlag": 2
+    },
+    {
+     "label": "SF019",
+     "km": 0.901,
+     "shoreFlag": 2
+    },
+    {
+     "label": "SF014",
+     "km": 0.93,
+     "shoreFlag": 2
+    }
+   ]
+  },
+  {
+   "key": "spot:65d0b368-f594-412a-af93-7c5c2c35be3e",
+   "name": "Pacifica - Rockaway",
+   "lat": 37.608,
+   "lng": -122.498,
+   "tried": []
+  },
+  {
+   "key": "spot:84e9c0aa-c650-4ed0-bb17-578a4c0b258a",
+   "name": "Pacifica - Linda Mar",
+   "lat": 37.5958,
+   "lng": -122.532,
+   "tried": [
+    {
+     "label": "SM371",
+     "km": 0.756,
+     "shoreFlag": 2
+    },
+    {
+     "label": "SM370",
+     "km": 0.863,
+     "shoreFlag": 2
+    }
+   ]
+  },
+  {
+   "key": "spot:0b775e46-715f-491d-87d7-09a0aa0f3247",
+   "name": "Princeton Jetty",
+   "lat": 37.498,
+   "lng": -122.488,
+   "tried": [
+    {
+     "label": "SM298",
+     "km": 0.964,
+     "shoreFlag": 0
+    }
+   ]
+  },
+  {
+   "key": "spot:3981246b-2010-4753-ac88-2191f326631b",
+   "name": "Ross's Cove",
+   "lat": 37.488,
+   "lng": -122.498,
+   "tried": [
+    {
+     "label": "SM302",
+     "km": 0.217,
+     "shoreFlag": 0
+    },
+    {
+     "label": "SM303",
+     "km": 0.312,
+     "shoreFlag": 0
+    },
+    {
+     "label": "SM304",
+     "km": 0.312,
+     "shoreFlag": 2
+    },
+    {
+     "label": "SM301",
+     "km": 0.565,
+     "shoreFlag": 0
+    },
+    {
+     "label": "SM305",
+     "km": 0.755,
+     "shoreFlag": 2
+    },
+    {
+     "label": "SM300",
+     "km": 0.948,
+     "shoreFlag": 0
+    },
+    {
+     "label": "SM299",
+     "km": 0.995,
+     "shoreFlag": 0
+    }
+   ]
+  },
+  {
+   "key": "spot:2636f0f8-efb5-44c5-8a85-dbc4c10eb934",
+   "name": "Waddell Creek",
+   "lat": 37.0888,
+   "lng": -122.303,
+   "tried": []
+  },
+  {
+   "key": "spot:41f7c0e0-01c6-4bde-8f20-701972e4ea1c",
+   "name": "Capitola",
+   "lat": 36.978,
+   "lng": -121.958,
+   "tried": []
+  },
+  {
+   "key": "spot:f8b94dd9-9b5b-4467-9361-9a08aff27106",
+   "name": "New Brighton",
+   "lat": 36.978,
+   "lng": -121.938,
+   "tried": []
+  },
+  {
+   "key": "spot:5ffb6b8d-4b51-4d57-9c26-2c389db6d92f",
+   "name": "Pleasure Point",
+   "lat": 36.962,
+   "lng": -121.978,
+   "tried": []
+  },
+  {
+   "key": "spot:54ad0401-dceb-4992-9dff-7dd48fa4594c",
+   "name": "Cowell's Beach",
+   "lat": 36.958,
+   "lng": -122.028,
+   "tried": []
+  },
+  {
+   "key": "spot:617e5123-774e-4469-8ee1-0b7477ed9dd1",
+   "name": "The Hook",
+   "lat": 36.958,
+   "lng": -121.968,
+   "tried": []
+  },
+  {
+   "key": "spot:d27b500f-f3bc-4919-aa63-3ea68cdabad6",
+   "name": "Manresa",
+   "lat": 36.938,
+   "lng": -121.858,
+   "tried": []
+  },
+  {
+   "key": "spot:27be5b59-578e-4b66-bd14-403220a2f382",
+   "name": "Sunset State Beach",
+   "lat": 36.898,
+   "lng": -121.838,
+   "tried": []
+  },
+  {
+   "key": "spot:6f14cf3f-4e67-4775-93ea-a07c7cb3afd8",
+   "name": "Moss Landing",
+   "lat": 36.7968,
+   "lng": -121.815,
+   "tried": []
+  },
+  {
+   "key": "spot:efe348ef-9a48-4bd9-b599-f0cf7747d90e",
+   "name": "Carmel Beach",
+   "lat": 36.5418,
+   "lng": -121.953,
+   "tried": []
+  },
+  {
+   "key": "spot:ec950634-775a-4c46-979a-8fd07fd76725",
+   "name": "Morro Bay",
+   "lat": 35.3668,
+   "lng": -120.897,
+   "tried": []
+  },
+  {
+   "key": "spot:b5959a52-a22a-479b-ae7e-4eca72697343",
+   "name": "Jalama Beach",
+   "lat": 34.5122,
+   "lng": -120.534,
+   "tried": []
+  },
+  {
+   "key": "spot:675526a0-fc63-4a29-8363-59f4e13f7df3",
+   "name": "Leadbetter Beach",
+   "lat": 34.4038,
+   "lng": -119.728,
+   "tried": []
+  },
+  {
+   "key": "spot:dc4e8fea-f08a-455d-a9e0-a8fa72b76437",
+   "name": "Malibu First Point",
+   "lat": 34.0368,
+   "lng": -118.71,
+   "tried": []
+  },
+  {
+   "key": "spot:18bd33c7-1213-44e2-9c6b-8d8c610566f1",
+   "name": "Malibu Second Point",
+   "lat": 34.0365,
+   "lng": -118.712,
+   "tried": []
+  },
+  {
+   "key": "spot:526a90b8-ba87-43cc-be19-7320976ffa56",
+   "name": "Zuma Beach",
+   "lat": 34.028,
+   "lng": -118.824,
+   "tried": []
+  },
+  {
+   "key": "spot:1d9e3ae3-b87c-4383-93d8-df857651e420",
+   "name": "Hermosa Beach",
+   "lat": 33.8622,
+   "lng": -118.434,
+   "tried": []
+  },
+  {
+   "key": "spot:c84de5b4-bd84-4e3a-b96d-2a315b9774d0",
+   "name": "Huntington Beach Pier",
+   "lat": 33.655,
+   "lng": -117.999,
+   "tried": []
+  },
+  {
+   "key": "spot:f954c3f5-34ec-4827-8b38-8fe630303c1a",
+   "name": "Oceanside Pier",
+   "lat": 33.1938,
+   "lng": -117.4218,
+   "tried": []
+  },
+  {
+   "key": "spot:7e1299b0-e296-4ba0-a47e-05911d606505",
+   "name": "Swamis",
+   "lat": 33.0348,
+   "lng": -117.3248,
+   "tried": []
+  },
+  {
+   "key": "spot:19d843e0-993a-4311-b4ce-3d36f78cd2b7",
+   "name": "Cardiff Reef",
+   "lat": 33.0228,
+   "lng": -117.3178,
+   "tried": []
+  },
+  {
+   "key": "spot:bf89c80c-fac3-43ee-b8c9-8513c1f90d7d",
+   "name": "Mission Beach",
+   "lat": 32.7692,
+   "lng": -117.274,
+   "tried": []
+  },
+  {
+   "key": "spot:28f09e5b-7821-40a3-b8d7-3f83e1873d70",
+   "name": "Ocean Beach SD",
+   "lat": 32.7495,
+   "lng": -117.276,
+   "tried": []
+  },
+  {
+   "key": "spot:73c2880a-7e9d-4f39-b9d1-136682b6281b",
+   "name": "Bolinas",
+   "lat": 37.908,
+   "lng": -122.702,
+   "tried": []
+  },
+  {
+   "key": "station:142p1",
+   "name": "142p1",
+   "lat": 37.788,
+   "lng": -122.6318,
+   "tried": []
+  }
+ ]
+}

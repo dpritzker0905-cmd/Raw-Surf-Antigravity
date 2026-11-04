@@ -29,6 +29,13 @@ ATM_URL = BASE + "/gfs.{d}/{hh}/atmos/gfs.t{hh}z.pgrb2.0p25.f{fh:03d}"
 WAVE_KEYS = ("HTSGW", "PERPW", "DIRPW")
 WIND_KEYS = {"gfswave": ("UGRD", "VGRD"), "pgrb2": ("UGRD:10m", "VGRD:10m")}
 CROP_HALF_DEG = 1.5
+# SURF_SPECTRAL_K's read point (spectral_k_serving.READ_POINTS) needs the member's PARTITIONS, which the served GFS
+# lane ingests as swell_1 / swell_2 / wind_waves (noaa_gfs_wave_fetcher.IDX_TO_OM: SWELL/SWPER/SWDIR 1-2 and WVHGT/
+# WVPER/WVDIR). Fetched as ONE extra byte range per (cycle, fh), only when an arm sets the flag.
+PART_KEYS = ("WVHGT", "SWELL:1", "SWELL:2", "WVPER", "SWPER:1", "SWPER:2", "WVDIR", "SWDIR:1", "SWDIR:2")
+PART_LAYERS = {"swell_1": ("SWELL:1", "SWPER:1", "SWDIR:1"), "swell_2": ("SWELL:2", "SWPER:2", "SWDIR:2"),
+               "wind_waves": ("WVHGT", "WVPER", "WVDIR")}
+READ_CROP_HALF_DEG = 0.5
 
 
 def run_id(cycle: datetime) -> str:
@@ -94,7 +101,15 @@ def fetch_fields(cache, cycle: datetime, fh: int, wind_source: str = "auto", dec
     return out, recs, info
 
 
-def crop(fields: Dict[str, Tuple[np.ndarray, dict]], lat: float, lng: float, half_deg: float = CROP_HALF_DEG) -> dict:
+def fetch_partitions(cache, cycle: datetime, fh: int, decoder: str = "auto"):
+    """({PART_KEYS: (array, meta)}, provenance records) for one (cycle, fh): one byte range of the same wave file."""
+    backend = g2.select_backend(decoder)
+    return _span(cache, urls(cycle, fh)["wave"], f"gfs/{cycle:%Y%m%d%H}/f{fh:03d}/wave", list(PART_KEYS),
+                 list(PART_KEYS), "gfs_wave_grib2", backend)
+
+
+def crop(fields: Dict[str, Tuple[np.ndarray, dict]], lat: float, lng: float, half_deg: float = CROP_HALF_DEG,
+         keys=("HTSGW", "PERPW", "DIRPW", "U", "V")) -> dict:
     """A small JSON-able crop {lats, lngs, HTSGW, PERPW, DIRPW, U, V (None = masked)} around (lat, lng); longitudes
     in -180..180, rows south to north. Every field shares the wave grid."""
     arr, meta = fields["HTSGW"]
@@ -108,7 +123,7 @@ def crop(fields: Dict[str, Tuple[np.ndarray, dict]], lat: float, lng: float, hal
         x = (meta["lon_west"] + (j % meta["ni"]) * meta["dlon"]) % 360.0
         lngs.append(round(x - 360.0 if x > 180.0 else x, 4))
     out = {"lats": lats, "lngs": lngs}
-    for k in ("HTSGW", "PERPW", "DIRPW", "U", "V"):
+    for k in keys:
         a, m = fields[k]
         grid = ("ni", "nj", "lat_south", "lon_west", "dlat", "dlon")
         if any(abs(float(m[g]) - float(meta[g])) > 1e-6 for g in grid):
@@ -163,6 +178,35 @@ def products(c: dict, cycle: datetime, valid: datetime) -> Dict[str, object]:
                              display_unit_hint="kn", source_variables=["UGRD", "VGRD"],
                              grid=NormalizedGrid(bounds=bnd, cols=cols, rows=rows, vectors=wv), **common)
     return {"marine": marine, "wind": wind}
+
+
+def layer_products(c: dict, cycle: datetime, valid: datetime) -> Dict[str, object]:
+    """{"waves", "swell_1", "swell_2", "wind_waves": NormalizedProduct} from one read-point crop (keys HTSGW/PERPW/
+    DIRPW + PART_KEYS), each built the way `products` builds the marine field. A 0 m or missing train is invalid."""
+    from services.weather_pipeline.schemas import GridVector, NormalizedGrid, NormalizedProduct
+    bnd = _bounds(c)
+    out = {}
+    for layer, (hk, tk, dk) in dict({"waves": ("HTSGW", "PERPW", "DIRPW")}, **PART_LAYERS).items():
+        vecs = []
+        for a, la in enumerate(c["lats"]):
+            for b, lo in enumerate(c["lngs"]):
+                hs, tp, dr = c[hk][a][b], c[tk][a][b], c[dk][a][b]
+                if hs is None or dr is None or (layer != "waves" and not hs > 0):
+                    vecs.append(GridVector(lat=la, lng=lo, speed=0.0, direction=0.0, u=0.0, v=0.0, period=0.0,
+                                           is_valid=False))
+                    continue
+                r = math.radians(dr)
+                vecs.append(GridVector(lat=la, lng=lo, speed=round(hs, 4), direction=round(dr, 2),
+                                       u=round(-hs * math.sin(r), 4), v=round(-hs * math.cos(r), 4),
+                                       period=round(tp, 2) if tp is not None else 0.0, is_valid=True))
+        out[layer] = NormalizedProduct(
+            domain="marine", layer=layer, value_kind="wave_height", value_unit="m", display_unit_hint="ft",
+            source_variables=[hk, tk, dk], grid=NormalizedGrid(bounds=bnd, cols=len(c["lngs"]), rows=len(c["lats"]),
+                                                               vectors=vecs),
+            model="GFS", provider="noaa_gfs_aws_archive", run_time=cycle, model_run_time=cycle,
+            model_run_time_status="known", valid_time=valid, is_forecast_authoritative=True, is_estimated=False,
+            coverage=bnd, freshness_sec=0, source_dataset="eval_harness replay: gfswave.global.0p25 (AWS open archive)")
+    return out
 
 
 def plan(targets: List[datetime], leads: List[int], cycle_step_h: int = 6) -> List[Tuple[datetime, int, int, datetime]]:
