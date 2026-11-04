@@ -102,7 +102,7 @@ async def test_the_flag_ON_carries_the_REAL_eta_into_the_height(spies, monkeypat
 async def test_flag_off_does_no_tide_IO_and_passes_zero(spies, monkeypatch):
     """⛔ THE COST LINE. Off must mean no round trip, not a fetch whose result is discarded — this
     call sits on the ratings precompute for every point."""
-    monkeypatch.delenv("SURF_TIDE_DEPTH", raising=False)
+    monkeypatch.setenv("SURF_TIDE_DEPTH", "0")  # D-065: unset is ON now; OFF is the explicit kill value
     await PSA.augment_with_surf(_response(), "EURO", "marine", "waves", LAT, LNG, VT, _no_partitions)
     assert spies["calls"] >= 1, "SETUP BROKEN: the surf estimate never ran"
     assert spies["tide_calls"] == 0, "a tide was fetched with the flag OFF — that is pure cost"
@@ -126,13 +126,15 @@ async def test_a_tide_failure_never_costs_the_caller_its_height(spies, monkeypat
 
 
 @pytest.mark.asyncio
-async def test_the_flag_is_OFF_by_default__the_flip_is_an_owner_decision(monkeypatch):
-    """Records the shipped state by execution rather than by reading the default. Measured at
-    wiring time this changes 0 of 172 served spots — but that was a small-surf frame, so the flip
-    must be re-priced in a bigger sea, not inferred from this test going green."""
+async def test_the_flag_is_ON_by_default_under_d065(monkeypatch):
+    """Records the shipped state by execution. D-065 (2026-11-04): fixes ship ON; the history filter found the flag
+    inert in the 10-day window (0 of 1,200 spot-hours changed), and the re-pricing in a bigger sea is the golden
+    sweep: at the depth-limited ceiling (8-12 m swell) eta moves the cap (29.5 ft at eta 0). The guardrail watches it."""
     monkeypatch.delenv("SURF_TIDE_DEPTH", raising=False)
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
+    from services import runtime_flags as RF
     from services.weather_pipeline import surf_transform as ST
-    assert os.environ.get("SURF_TIDE_DEPTH", "0") == "0"
+    assert RF.flag("SURF_TIDE_DEPTH") == "1"
     # And the physics half agrees: η is inert unless the flag is set.
     import inspect
     src = inspect.getsource(ST.estimate_surf)

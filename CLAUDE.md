@@ -139,11 +139,15 @@ measurement: check `git fetch`, `gh pr list --state open` and `/api/health` befo
   `useMarineOrchestrator.js` (hour/model/layer) → `marineCommitArbiter.js` / `marineTransitionCoordinator.js` →
   `WebGLMarineLayer.js` → `WebGLMarineEngine.js` + `WebGLMarineShaders.js`. Scrubber: `ForecastWheel.js`. Tier
   gating lives ONLY in `LayerAccessResolver.js`; diagnostics ONLY in the `TruthOverlay.js` HUD (`?diag=1`).
-- **Served numbers change dark.** Anything that moves a surf height, rating, glyph, hub or sim value ships behind a
-  default-off flag and is flipped only on the owner's explicit word with evidence (D-001), plus a `SCOREBOARD.md`
-  row. Backend flags are `os.environ` reads at call time, registered in `_RATING_FLAGS`
-  (`backend/routes/admin/surf_forecast.py`) and kept in parity by `tests/test_flag_lane_parity.py`. Client-only fixes
-  that change no served number ship on, with a `window.__RAW_DISABLE_<NAME>__ = true` kill switch.
+- **Fixes ship ON, with guardrails (D-065, supersedes D-001).** Anything that moves a surf height, rating, glyph,
+  hub or sim value ships with its code default ON and a kill switch, plus a `SCOREBOARD.md` row. Before merge, the
+  history filter (`default-on-filter.yml`) must not show it significantly worse (pooled, or any season or region
+  after Holm; "not proven better" does not block). After merge, the live guardrail (`flag-guardrail.yml`, every 6 h)
+  can auto-disable it through the runtime manifest `control/flags.json` with a written reason; only a new
+  `FIX_VERSION` or the owner's word turns it back on. Alerts and anything that sends to users also need volume caps.
+  Guarded flags read through `services/runtime_flags.flag()` (explicit env > manifest > code default); every flag is
+  registered in `_RATING_FLAGS` (`backend/routes/admin/surf_forecast.py`) and kept in parity by
+  `tests/test_flag_lane_parity.py`. Client-only fixes ship on with a `window.__RAW_DISABLE_<NAME>__ = true` kill switch.
 - **The 14-day horizon / subscription-tier contract is LOCKED** (BRAIN_RULES, "14-Day Forecast Horizon"): never cap
   the scrubber to a model's native horizon, never rebuild the ICON/EURO extension blends, never gate tiers outside
   `LayerAccessResolver.js`.

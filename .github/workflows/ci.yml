@@ -1660,7 +1660,9 @@ jobs:
           #   base 3416 (hosted read) + 21 new test(s) and 1 new file(s) = 3437, files 201; floor 3437 - 6 = 3431. This PR must read 3437 passed.
           # ⬆ 3431→3482 on 2026-11-03 (rederive_floor.py, claude/consensus-direction-vector): dev run 41726327573 read 3416 / 200 files; dev's map 3437;
           #   base 3437 (dev's map) + 51 new test(s) and 1 new file(s) = 3488, files 202; floor 3488 - 6 = 3482. This PR must read 3488 passed.
-          MIN_FILES, MIN_PASSED = 202, 3482
+          # ⬆ 3482→3508 on 2026-11-04 (rederive_floor.py, claude/default-on-guardrails): dev run 41747311909 read 3488 / 202 files; dev's map 3488;
+          #   base 3488 (hosted read) + 26 new test(s) and 1 new file(s) = 3514, files 203; floor 3514 - 6 = 3508. This PR must read 3514 passed.
+          MIN_FILES, MIN_PASSED = 203, 3508
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -2211,7 +2213,9 @@ jobs:
           #   base 3406 (hosted read) + 2 new test(s) = 3408; floor 3408 - 2 = 3406. This PR must read 3408 passed.
           # ⬆ 3404→3406 on 2026-11-02 (rederive_floor.py, claude/weather-batch-2): dev run 41377184916 read 3406; dev's map 3406;
           #   base 3406 (hosted read) + 2 new test(s) = 3408; floor 3408 - 2 = 3406. This PR must read 3408 passed.
-          MIN_PASSED = 3406
+          # ⬆ 3406→3419 on 2026-11-04 (rederive_floor.py, claude/default-on-guardrails): dev run 41747311909 read 3408; dev's map 3408;
+          #   base 3408 (hosted read) + 13 new test(s) = 3421; floor 3421 - 2 = 3419. This PR must read 3421 passed.
+          MIN_PASSED = 3419
 
           try:
               root = ET.parse('estate.xml').getroot()

@@ -31,6 +31,7 @@ PERFORMANCE: geometry is resolved ONCE and reused for all 11 frames, so the corr
 network I/O. The daily loop still samples the cached grid — the fix is what the numbers MEAN, not
 how many of them are fetched.
 """
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default
 import logging
 import math
 import os
@@ -429,7 +430,7 @@ async def resolve_spot_conditions_impl(
     # the rating block below is a broad `except`: a blob-read failure must cost the LOCAL curve, not
     # the whole rating.
     reference_size_m = None
-    if spot_id is not None and os.environ.get("RATING_LOCAL_SIZE", "0") == "1":
+    if spot_id is not None and _rf.flag("RATING_LOCAL_SIZE") == "1":
         try:
             from services.weather_pipeline.spot_size_climatology import reference_for_spot
             reference_size_m = reference_for_spot(spot_id)
