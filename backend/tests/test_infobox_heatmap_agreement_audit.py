@@ -56,6 +56,9 @@ _CHAIN_FLAGS = (
 def default_flags(monkeypatch):
     for name in _CHAIN_FLAGS:
         monkeypatch.delenv(name, raising=False)
+    # D-065: SURF_TIDE_DEPTH defaults ON and reads the LIVE tide; the goldens (and CLAUDE.md's sweep) are at eta = 0,
+    # and a test never fetches a tide, so the tide lever is pinned off here and priced in its own tests.
+    monkeypatch.setenv("SURF_TIDE_DEPTH", "0")
 
 
 # ── A. GOLDEN VALUES ───────────────────────────────────────────────────────────────────────────

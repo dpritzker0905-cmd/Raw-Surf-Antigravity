@@ -71,6 +71,7 @@ definition and the flip gate: log 2026-11-03-claude-consensus-direction-vector.
 PURE apart from three call-time flag reads (`period_mode`, `direction_mode`, once per build). Changes no served number: nothing calls it
 until the ingest wiring (PR B, behind CONSENSUS_INGEST) and the owner's flip; the median is a further dark flag on top.
 """
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default
 import logging
 import math
 import os
@@ -110,7 +111,7 @@ R_AGREE = 0.92
 
 def direction_mode() -> str:
     """"vector" when CONSENSUS_DIRECTION_VECTOR is "1", else "primary" (the default). Read at call time."""
-    return "vector" if os.environ.get(DIRECTION_VECTOR_FLAG, "0") == "1" else "primary"
+    return "vector" if _rf.flag(DIRECTION_VECTOR_FLAG) == "1" else "primary"
 
 
 def member_vector_direction(members: dict) -> Optional[Tuple[float, float]]:

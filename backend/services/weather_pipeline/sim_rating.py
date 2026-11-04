@@ -31,6 +31,7 @@ reaches some of them and not others. That has now happened twice:
 ⚠️ Pass every optional factor to the rating engine BY NAME. A positional call is precisely how a new
 engine input silently fails to reach a surface.
 """
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default
 import logging
 import math
 import os
@@ -157,7 +158,7 @@ def reference_size_for(spot: Dict[str, Any], allow_lookup: bool = False,
     # is untouched — this branch STRENGTHENS it by answering before the blob lookup is considered.
     if served is not None:
         return served
-    if os.environ.get("RATING_LOCAL_SIZE", "0") != "1":
+    if _rf.flag("RATING_LOCAL_SIZE") != "1":
         return None
     ref = spot.get("reference_size_m")
     if ref is not None:
