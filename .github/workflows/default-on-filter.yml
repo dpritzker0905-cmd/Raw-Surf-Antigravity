@@ -1,0 +1,87 @@
+name: Default-ON history filter (D-065)
+
+# WHY (owner, 2026-11-04 ~01:41Z): "make fixes by default so they are visible and on, and have a checker or filter to
+# see if its working or not. Not starting with something built and dark or off" (DECISIONS D-065).
+# On a pull request that turns a served-number flag ON (a GUARDED default or a `_RATING_FLAGS` default moving to '1'),
+# backend/scripts/default_on_filter.py replays a cached past window with the flag OFF and ON through the reference chain
+# and scores both at the buoys. It FAILS the PR only when the fix is significantly WORSE (pooled, or any season or region
+# after Holm, beyond the materiality margin) or breaches a sanity bound. "Not proven better" passes: ON is the default.
+# No cache for the window -> the replay is SKIPPED with a message (the sanity sweep still runs); a pull_request run never
+# downloads. Fill the cache with a manual dispatch (online: true), which saves it under the same key.
+# It reads no secret and touches no storage, database or app host (the harness's network guard refuses them).
+
+on:
+  pull_request:
+    paths:
+      - 'backend/routes/admin/surf_forecast.py'
+      - 'backend/services/runtime_flags.py'
+      - 'backend/services/weather_pipeline/**'
+      - 'backend/scripts/default_on_filter*'
+  workflow_dispatch:
+    inputs:
+      flags:
+        description: "Flags to filter, space-separated FLAG or FLAG=on_value (empty = those the branch turns ON vs dev)"
+        required: false
+        default: ""
+      online:
+        description: "Allow public-data downloads to fill the cache (true/false)"
+        required: false
+        default: "false"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: default-on-filter-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  filter:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+
+      - name: Restore the history cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/hist-cache
+          key: default-on-filter-${{ hashFiles('backend/scripts/default_on_filter_window.json') }}
+          restore-keys: default-on-filter-
+
+      - name: Filter
+        working-directory: backend
+        env:
+          RUNTIME_FLAGS_MANIFEST: '0'
+          BASE_REF: ${{ github.event.pull_request.base.sha || 'origin/dev' }}
+          FLAGS: ${{ inputs.flags }}
+          ONLINE: ${{ inputs.online }}
+        run: |
+          args=(--base "$BASE_REF" --cache-dir "$RUNNER_TEMP/hist-cache" --out "$RUNNER_TEMP/filter-out")
+          for f in $FLAGS; do args+=(--flag "$f"); done
+          if [ "$ONLINE" = "true" ]; then args+=(--online); fi
+          set +e
+          python scripts/default_on_filter.py "${args[@]}"
+          rc=$?
+          set -e
+          cat "$RUNNER_TEMP/filter-out/filter.md" >> "$GITHUB_STEP_SUMMARY" || true
+          exit $rc
+
+      - name: Upload the filter report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: default-on-filter
+          path: ${{ runner.temp }}/filter-out/filter.*
+          retention-days: 14

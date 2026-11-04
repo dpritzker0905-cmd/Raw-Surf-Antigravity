@@ -28,6 +28,7 @@ civil zone along most surf coasts (US East -5, US West -8, Bali +8, Gold Coast +
 DST or a political zone (Portugal, Spain, Hawaii -11 vs -10). Daylight itself uses the true sun, so a window is
 never in the dark. A stored spot timezone is the follow-up that removes this caveat.
 """
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default
 import math
 import os
 from datetime import datetime, timedelta, timezone
@@ -43,7 +44,7 @@ M_TO_FT = 3.28084
 
 def enabled() -> bool:
     """Read at call time (a Render env flip needs no redeploy of this module)."""
-    return os.environ.get(FLAG, "0") == "1"
+    return _rf.flag(FLAG) == "1"
 
 
 def _env_int(name: str, default: int, lo: int, hi: int) -> int:

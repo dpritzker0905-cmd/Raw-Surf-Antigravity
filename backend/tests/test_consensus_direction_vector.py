@@ -31,6 +31,8 @@ GFS_E_I = ("GFS", "EURO", "ICON")
 def _flags_unset(monkeypatch):
     for f in _FLAGS:
         monkeypatch.delenv(f, raising=False)
+    # D-065: the flag defaults ON now; every "off" test below means the explicit kill value '0'.
+    monkeypatch.setenv("CONSENSUS_DIRECTION_VECTOR", "0")
     monkeypatch.setattr(cp, "_SKIP_LOGGED", set())
 
 
@@ -64,9 +66,9 @@ _PRE_FLAG_SHA = {("trio", "keep"): "d6b7ee79410e1c82", ("trio", "mask"): "16275b
                  ("spread", "keep"): "d0dc014c0ddedfbc", ("spread", "mask"): "60e79620f4b26857"}
 
 
-@pytest.mark.parametrize("env", [None, "0", "", "true", "yes", "on", " 1"])
+@pytest.mark.parametrize("env", [None, "true", "yes", "on", " 1"])
 def test_flag_off_the_build_is_byte_identical_to_the_pre_flag_build(monkeypatch, env):
-    if env is not None:
+    if env is not None:                       # None = the fixture's explicit kill value '0'
         monkeypatch.setenv("CONSENSUS_DIRECTION_VECTOR", env)
     assert cp.direction_mode() == "primary"
     for (name, unblended), want in _PRE_FLAG_SHA.items():
@@ -369,11 +371,22 @@ def test_with_the_period_median_both_fields_leave_carried(monkeypatch):
     assert cp.build_equal_mean(*_spread_trio()).grid.diagnostics["consensus"]["carried_from_primary"] == ["direction"]
 
 
-def test_the_flag_is_registered_and_declared_dark():
+@pytest.mark.parametrize("env", ["unset", ""])
+def test_unset_or_empty_is_the_d065_default_on(monkeypatch, env):
+    """D-065 (2026-11-04): fixes ship ON; an unset or empty value is the code default '1' (runtime_flags.GUARDED)."""
+    if env == "unset":
+        monkeypatch.delenv("CONSENSUS_DIRECTION_VECTOR", raising=False)
+    else:
+        monkeypatch.setenv("CONSENSUS_DIRECTION_VECTOR", env)
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
+    assert cp.direction_mode() == "vector"
+
+
+def test_the_flag_is_registered_and_declared_on_by_default():
     from pathlib import Path
     repo = Path(__file__).resolve().parents[2]
     reg = (repo / "backend" / "routes" / "admin" / "surf_forecast.py").read_text("utf-8")
-    assert '"CONSENSUS_DIRECTION_VECTOR": ("0",' in reg
+    assert '"CONSENSUS_DIRECTION_VECTOR": ("1",' in reg
     pilots = (repo / ".github" / "workflows" / "forecast-ingest-pilots.yml").read_text("utf-8")
-    assert "          CONSENSUS_DIRECTION_VECTOR: '0'" in pilots
+    assert "          CONSENSUS_DIRECTION_VECTOR: '1'" in pilots
     assert cp.DIRECTION_VECTOR_FLAG == "CONSENSUS_DIRECTION_VECTOR"
