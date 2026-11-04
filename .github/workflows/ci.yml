@@ -185,7 +185,9 @@ jobs:
             // EURO / ICON regional bundles (2026-11-01, item 11, dark): staticRegional.euroIcon.test.js (+1 suite / +5 tests). Raised by exactly that.
             // Spot-hub phase 1 (2026-11-03, ON with __RAW_DISABLE_SPOT_HUB_P1__): spotHubP1.test.js (+1 suite / +38 tests),
             // SpotHub.phase1.test.js (+1 / +12), SpotConditions.phase1.test.js (+1 / +8). Raised by exactly that; confirm against the hosted receipt.
-            const MIN_SUITES = 532, MIN_TESTS = 6986;
+            // Map motion fixes (2026-11-03, ON with five kills): motionFixes.killSwitch (6), particleState (13), particleRk2 (8),
+            // crestLocalPhase (13), crestTexelRank (8), windEncoderRound (6) = +6 suites / +54 tests. Raised by exactly that; confirm against the hosted receipt.
+            const MIN_SUITES = 538, MIN_TESTS = 7040;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
