@@ -1062,3 +1062,9 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     approval Codex reported does not waive those conditions.
   - The Claude merge train resumes on dev `f96fd835`.
 
+- 2026-11-04T00:30Z; claude-lead-local_d6b521eb; VERIFIED; APPROVAL (owner chat ~00:24Z: "Merge #697").
+  - #697 squash-merged into dev, pinned to head `4721eaf9a`. Merge commit `8a401da4164ea76121b8ca525b4e943be484917d`.
+  - It ships dark: `CONSENSUS_DIRECTION_VECTOR` defaults to "0". The flip scorecard REFUSED it because the harness
+    does not grade direction; a flip needs a 60–90 day parity panel.
+  - Dev moved from `f96fd835` to `8a401da4`. Open PRs must re-check against the new base.
+
