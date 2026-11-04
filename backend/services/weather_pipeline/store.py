@@ -215,6 +215,8 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None, remote_p
             remote_products = _fetch_remote_manifest_products()
         if not remote_products:
             return 0
+        from services.weather_pipeline.rollout_675 import defer_owned_entries   # #675 v2: non-owning lane takes the head's
+        defer_owned_entries(manifest, remote_products)                          # copy of owned entries (no ghost, no stale)
         # ⛔ RETENTION MUST HOLD ACROSS UPLOADS (audit 15.0, 2026-09-26). The cadence prune removes
         # products past MANIFEST_RETENTION_DAYS and passes exclude_keys, but its upload is only QUEUED;
         # the same lane's next save reconciles WITHOUT exclusions while the remote still holds the
@@ -457,6 +459,11 @@ class ProductStore:
                 raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:300]}"
                                    + (f" (after {retries} retries)" if retries else ""))
             ProductStore._last_upload_time = datetime.now(timezone.utc).isoformat()
+            if not overwrite and filename.startswith("manifests/"):
+                # A create-only upload acknowledged: these bytes ARE the object, so the next publish's head read of this key
+                # needs no GET (manifest_pointer.remember_manifest_object; kill switch MANIFEST_SELF_READ_CACHE=0).
+                from services.weather_pipeline.manifest_pointer import remember_manifest_object
+                remember_manifest_object(filename, data_bytes)
             logger.info(f"[Product Store] L2 upload OK: {filename} ({len(data_bytes)} bytes)"
                         + (f" after {retries} retries" if retries else ""))
             # S2 run-keyed manifest + pointer CAS: every successful legacy manifest.json upload

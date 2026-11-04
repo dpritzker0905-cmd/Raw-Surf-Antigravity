@@ -12,6 +12,7 @@ starved by a slow ingest. Safe to run any time after an ingest cycle has populat
 ENV (from repo secrets, same as forecast-ingest):
   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY  -> L2 source + PostgREST spots read (REQUIRED)
   SPOT_RATINGS_PRECOMPUTE / BUOY_CALIBRATION / REPORT_CALIBRATION = 1 to enable each step
+  ALERTS_FORECAST_WINDOWS = 1 adds the alert-horizon frames (dark, default 0)
   WEATHER_PROXY_URL, COPERNICUS* -> only for any live point-resolution fallback; optional
 
 Exit: 0 if every ENABLED step succeeded; 1 if L2 had nothing to restore or any enabled step raised. Unlike
@@ -25,6 +26,7 @@ import logging
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -77,6 +79,17 @@ def main() -> int:
         except Exception as e:
             logger.error("Spot-ratings precompute FAILED: %s", e, exc_info=True)
             rc = 1
+
+    # DARK (ALERTS_FORECAST_WINDOWS, default '0'): the served frames over the next 72 h for spots that carry an
+    # active alert, read by the Render alert scheduler. Off = not imported, nothing rated. Never fails the run:
+    # the glyph frames above are already uploaded and are what users see.
+    if _rf.flag("ALERTS_FORECAST_WINDOWS") == "1":
+        try:
+            from services.weather_pipeline.alert_horizon import run_alert_horizon_precompute
+            n_spots, n_frames = run_alert_horizon_precompute()
+            logger.info("Alert horizon complete: %d alert spots x %d frames -> L2.", n_spots, n_frames)
+        except Exception as e:
+            logger.error("Alert horizon FAILED (alerts fail safe, glyphs unaffected): %s", e, exc_info=True)
 
     if os.environ.get("BUOY_CALIBRATION", "0") == "1":
         try:

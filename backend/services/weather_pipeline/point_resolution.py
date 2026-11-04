@@ -163,6 +163,16 @@ class PointResolutionService:
                               "dir": _dir, "kind": kind})
             except Exception as _pe:
                 logger.debug(f"[Surf partitions] {part_layer} at ({lat},{lng}) skipped: {_pe}")
+        # SURF_PARTITION_TRACKING (dark, default '0'): GFS numbers its partitions per node, so the slot-wise
+        # bilinear blend above can mix two swells; on, the trains are matched by direction + period across the
+        # stencil first (partition_tracking.py). Fail-open: any miss keeps the slot-wise `parts` unchanged.
+        if parts and os.environ.get("SURF_PARTITION_TRACKING", "0") == "1":
+            from services.weather_pipeline.partition_tracking import tracked_from_cache
+            try:
+                _dt = parse_valid_time(valid_time_str)
+            except Exception:
+                _dt = None
+            parts = await tracked_from_cache(self, model, lat, lng, _dt, parts)
         if not parts:
             return None
         from services.weather_pipeline.surf_partitions import partitions_represent, reconcile_partitions
@@ -726,7 +736,8 @@ class PointResolutionService:
         lat: float,
         lng: float,
         forecast_days: int = 11,
-        spot_id: Any = None
+        spot_id: Any = None,
+        **phase2: Any,
     ) -> Dict[str, Any]:
         """
         Unifies conditions retrieval for a spot, checking local dynamic/manifest
@@ -739,5 +750,7 @@ class PointResolutionService:
         that has an id should pass it, or the hub and the glyphs grade the same spot differently.
         """
         from services.weather_pipeline.spot_conditions import resolve_spot_conditions_impl
+        # `phase2` carries `spot_meta` / `horizon_hours`, which callers send only while
+        # SPOT_HUB_RATE_ONE_SPOT is on (spot_hub_composition.call_kwargs): a flag-off call is unchanged.
         return await resolve_spot_conditions_impl(self, model, lat, lng, forecast_days,
-                                                  spot_id=spot_id)
+                                                  spot_id=spot_id, **phase2)

@@ -12,6 +12,7 @@ with a single line `Superseded by D-MMM (date)`. The newest entry is at the bott
   default-off flag and flipped only on the owner's explicit word, with evidence attached (nearshore judge, skill
   ledger, shadow A/B, catalogue sweep).
 - **Reopen if:** the owner says so.
+- Superseded by D-065 (2026-11-04).
 
 ### D-002 · The production frontend is frozen at `fc140024`
 - **Decided:** by the owner, before 2026-09-28.
@@ -1881,6 +1882,34 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Kill switches:** Render `MARINE_REGIONAL_TILE_FIRST_EURO_ICON=0`; repo variable `FRAME_REGIONAL_BUNDLES_EURO_ICON=0` (stops publishing; published bundles stay until retention); client `window.__RAW_DISABLE_REGIONAL_EURO_ICON__ = true`. Kill the server and client halves together, never one alone (the client would then read the tile while the server answers dynamically).
 - **Measure after:** one live parity read (scn_tile_first_live_read-style, EURO and ICON, 3 boxes) after the deploy and the first pilots publish, plus a SCOREBOARD row (owed).
 
+### D-060 · EURO estimates are pruned only after their replacement is written, and the lattice fill rewrites its own stale fills (all three ON by default, 2026-11-01)
+- **Decided:** owner, 2026-11-01 22:10 EST (relayed by the lead): measured features ship ON by default with a kill switch, "start it automatically running … if we don't like it, we kill switch it".
+- **Flags, all default '1' in code, registry and workflows, kill switch '0' (repo variable of the same name):**
+  - `INGEST_PRUNE_ESTIMATES_AFTER_REPLACE` (both ingest lanes): a superseded estimate is pruned only once a replacement exists at its own valid time.
+  - `LATTICE_FILL_REFRESH_STALE` (both ingest lanes): the in-band fill treats its own interpolations from an older native run as missing and rewrites them.
+  - `EURO_MARINE_NATIVE_TAIL_CADENCE` (forecast-ingest; Codex's code, 10-19): the EURO coarse 10-14 d GFS tail keeps every entry of the three-hourly NOAA cache instead of stride 3.
+- **Evidence:** `log/2026-11-01-claude-ingest-items-13-15.md`. EURO waves +147..+237 h in-band slots empty at both global tiers; core run 41347283478 saved 2 interpolations (usual ~32) while its prune hit NoSuchKey on a listed fill; 9 x 9 h non-fillable holes in the EURO components at coarse (11-16T09Z..11-17T12Z). Tests: `tests/test_estimate_continuity.py` 12 (ON path, kill-switch path, ghost-slot driver test).
+- **What moves:** EURO tail hours that were missing get a product; nothing that was served changes value. Kept estimates are still bounded by the past-valid-time prune.
+- **Found by the flip (fixed in the same PR):** the dark build let ANY native at an hour replace an estimate there, even a native from an OLDER run. With the flag on by default, `tests/test_manifest_one_step_absorb.py` P5 caught it: natives at r1 plus another writer's estimate at r3 under the same key, and the prune deleted that writer's fresher object. A native now replaces an estimate only from a run at least as new.
+- **Not fixed:** the core and pilots lanes both publish the manifest and re-fold each other's pruned keys; these flags heal the outcome, not the re-entry.
+- **Rollback:** `gh variable set <FLAG> --body 0` for any of the three.
+
+### D-061 · Every GFS pilot box ingests the full 14-day horizon (ON by default, 2026-11-01)
+- **Decided:** owner, 2026-11-01 22:10 EST, as D-060.
+- **Flag:** `GFS_PILOT_FULL_HORIZON`, default '1' in code, registry and the pilots workflow; kill switch '0' (repo variable).
+- **Evidence:** `log/2026-11-01-claude-gfs-pilot-full-horizon.md`. 17 of 19 boxes stop at run + 120 h today (CDN audit 10-26T14Z: 41/45 frames, gap h116-h336). Flag on: one 14 d multi-bbox pass carries all 19 boxes (`tests/test_gfs_pilot_full_horizon.py`, 6).
+- **Cost (unmeasured, watch the first run):** ~4,900 more products per pilots fire, ~+300 MB RSS; the separate 5 d download pass disappears. Lane p90 124 of 200 min.
+- **What moves:** close-zoom GFS scrubbing past day 5 inside the boxes draws the stored tile instead of falling back to the server; values are the same GFS products.
+- **Rollback:** `gh variable set GFS_PILOT_FULL_HORIZON --body 0`.
+
+### D-062 · EURO swell partitions are stored at the 2-deg world tier from CMEMS, and their frame sets publish (both ON by default, 2026-11-01)
+- **Decided:** owner, 2026-11-01 22:10 EST, as D-060.
+- **Flags:** `EURO_MARINE_MID_CMEMS_SWELL` (pilots ingest) and `FRAME_EURO_SWELL_SETS` (pilots frame step), default '1' in code, registry and workflow; kill switch '0' (repo variables).
+- **Evidence:** `log/2026-11-01-claude-euro-mid-cmems-swell.md`; `tests/test_euro_mid_cmems_swell.py` 13, including an offline run of the real fetcher against a fake CMEMS subset.
+- **What moves:** EURO swell_1/swell_2/wind_waves resolve from the 2-deg tier (same CMEMS MFWAM source, finer grid) instead of 10 deg. The frame sets are unused bytes until the client's `STATIC_SETS` lists them, so the publisher now runs them LAST, after the regional bundles: the publish budget drops them before any set the client draws.
+- **Cost (unmeasured, watch the first run):** ~83 CMEMS bands across 4 fetcher processes; logs `EURO mid CMEMS swell: N files` and four `[Copernicus Global] lats ...` SUMMARY lines. A CMEMS failure costs the swell layers only.
+- **Rollback:** `gh variable set EURO_MARINE_MID_CMEMS_SWELL --body 0` (and `FRAME_EURO_SWELL_SETS`).
+
 ### D-063 · The far-edge bridge serves past the ICON/EURO blend end, and SoCal stores GFS swell_2 like every pilot box (both ON by default, 2026-11-01)
 - **Decided:** owner, 2026-11-01 22:10 EST (relayed by the lead): measured features ship ON by default with a kill switch, "start it automatically running … if we don't like it, we kill switch it". Both flags were merged dark: `FAR_EDGE_BRIDGE` (#594) and `GFS_MARINE_SOCAL_SWELL2` (#524).
 - **Flags:** `FAR_EDGE_BRIDGE` default '1' in code and `_RATING_FLAGS` (Render env; kill with `FAR_EDGE_BRIDGE=0` on Render). `GFS_MARINE_SOCAL_SWELL2` default '1' in code, registry and the pilots workflow (kill: `gh variable set GFS_MARINE_SOCAL_SWELL2 --body 0`).
@@ -1898,3 +1927,31 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Flip:** Render env `PRODUCT_REVISION_REFRESH=1` after this PR deploys. Cost measured offline: +107 us per warm read, 151 ms per manifest change for the 11.5k-entry index, one validated download per changed key actually read.
 - **Rollback:** `PRODUCT_REVISION_REFRESH=0` in Render env.
 - **Structural fix:** immutable run-keyed product names, its own dark PR (session run-keyed-products).
+
+### D-065 · Fixes ship ON by default, with a pre-merge history filter, a live guardrail that can turn them off, and a kill switch (supersedes D-001)
+- **Decided:** owner, 2026-11-04 ~01:41Z, verbatim: "Yes we need logic in place and systems where we make fixes by default so they are visible and on, and have a checker or filter to see if its working or not. Not starting with something built and dark or off".
+- **Supersedes D-001** (served numbers dark-then-flip). Progressive delivery with automated guardrails instead:
+  1. **Default ON + kill switch.** A fix that moves a served number ships with its code default ON, a kill switch, and a SCOREBOARD row (still required).
+  2. **Pre-merge history filter** (`default-on-filter.yml`, `backend/scripts/default_on_filter.py`): a PR that turns a served-number flag ON is replayed over a cached past window, OFF vs ON, through the reference chain, scored at the buoys. It FAILS only when the fix is **significantly worse**: Holm-adjusted one-sided Diebold-Mariano p_worse < 0.05 AND the moving-block bootstrap CI of the loss wholly beyond the materiality margin max(0.005 m, 1% of OFF's MAE), pooled or in any season or region; or a sanity bound breaks (breaking height 0..30.5 m, rating 0..100, swell-height monotonicity within 1 cm). "Not proven better" does not block. No cache = SKIPPED with a message.
+  3. **Live guardrail** (`flag-guardrail.yml`, every 6 h, `backend/scripts/flag_guardrail.py`): never calls Render; scores each ON guarded fix OFF vs ON over the rolling 14 days (settled 24 h) by offline replay of public forecast and buoy data, with the same test and bounds, plus alert volume per user-day against its cap (2) for anything that sends to users. A WORSE verdict or a breach writes `off` with a human-readable reason into the runtime manifest `control/flags.json` (weather-products bucket), opens or updates a GitHub issue, logs to `control/flags-actions.jsonl` and prints the ledger line owed.
+  4. **No flap.** The guardrail only writes `off`. A fix comes back on only with a new `runtime_flags.FIX_VERSION` (a PR that changes the fix) or the owner's word (dispatch `reenable` + `owner_words`).
+  5. **Dry run first.** It writes nothing until the owner sets the repo variable: `gh variable set FLAG_GUARDRAIL_ENFORCE --body 1`.
+  6. **Alerts and anything that sends to users** also need volume caps before they ship ON.
+- **Runtime manifest precedence:** an explicit env value (Render env, a workflow `env:` line) is a hard override both ways (an empty string counts as unset); else the manifest; else the code default (`services/runtime_flags.GUARDED`, equal to `_RATING_FLAGS`). Cached 5 min; the first read blocks at most 2 s, later refreshes are background; an unreadable manifest keeps the last good one for up to 6 h, then the code default.
+- **Existing dark fixes, converted** (filter on the cached window 2026-10-20..10-29, 6 California stations, leads 24/48/72, built-in decoder; log `log/2026-11-04-claude-default-on-guardrails.md`):
+  - ON in code: `SURF_TIDE_DEPTH` (NO_CHANGE in the window: read, inert), `CONSENSUS_DIRECTION_VECTOR` (NO_CHANGE in the GFS replay; offline vs NDBC MWD +5.6 deg [4.9, 6.3] better, no band worse; serves nothing unless CONSENSUS_SERVE), `RATING_OBS_GATE` and `RATING_LOCAL_SIZE` (already '1' in every lane; the code default now agrees).
+  - Held OFF ("fix in progress"; the guardrail tracks them): `SURF_EXPOSURE_RECONCILED` (WORSE: hs_station MAE +0.0093 m, CI [0.0076, 0.0112], Holm p_worse 0.0002 on the margin-shifted null, n 480 / 40 h; worse at every lead (+0.0100 / +0.0088 / +0.0090 m at 24 / 48 / 72 h) and in the lat 30..33 W region, +0.0133 m); `ALERTS_FORECAST_WINDOWS` (up to 5 alerts a day before the cap fix; #718's cap holds volume to 2/user-day but its precision still fails); `RATING_BREAKER_TYPE` (only the glyph path reads it, so ON would split ONE FORECAST COMPOSITION; 152 of 1,200 replayed spot-hours change level, max 13 points).
+- **Round 7 (PR #722) agrees:** SURF_TIDE_DEPTH inert (ON); SURF_EXPOSURE_RECONCILED and SURF_SPECTRAL_K failed (stay OFF; SURF_SPECTRAL_K is not on dev yet, so its PR keeps code default 0); SURF_BIGHT_HS_CONSENSUS passed and ships ON in #707 (registered there under this policy).
+- **Unchanged:** ONE FORECAST COMPOSITION, the 14-day horizon / tier contract, never load-test the live backend.
+- **Reopen if:** the owner says so, or the guardrail disables a fix that the owner judges was fine (then the test or its margin is the thing to fix, by a new entry).
+
+### D-066 · The flip gate's binding CI is a two-way spatial block x day bootstrap over >= 14 days; the station-cluster CI is advisory (2026-11-04)
+- **Decided:** owner, 2026-11-04, relayed by the lead: "Merge #723 and #721". Test infrastructure only: no served number moves, no flag changes.
+- **Why (research round 6 item 1, 2026-11-03):** daily gains at nearby buoys are strongly correlated (mean cross-station rho 0.72-0.75; the 11 SoCal Bight NDBC buoys behave like ~1.3 independent stations). On 400 sign-flip null sets per window the harness rule (station-cluster bootstrap, binding at >= 10 stations, `CLUSTER_BINDING_MIN`) falsely PASSED 31-35% under a day null (nominal 2.5% one-sided); a two-way block x day bootstrap falsely passed 5.3-6.3% (day null) / 0.25% / 0%. The owner's "only the passes" rule is only as honest as this gate.
+- **Rule (`backend/services/weather_pipeline/eval_twoway.py`):** blocks = complete-linkage clustering of station coordinates at 100 km (diameter <= 100 km, ties by station id; no chaining); days = UTC date of the target time; pigeonhole bootstrap (block weights x day weights, 2000 reps); interval = mean +/- t(0.975, days-1) x sqrt(days/(days-1)) x SE; PASS needs its lower bound > 0 over >= 14 UTC target days, else REFUSED. Stations the candidate never changes are left out. The ratchet's locks need it too. Flip declarations need >= 14 UTC target days (was 7-14).
+- **Self-test:** the harness refuses to run (`CalibrationFailed`, exit 2) unless synthetic mean-zero nulls (day, block x day, daily field, mixed; 400 sets on a canonical 12-station / 4-block / 14-day layout) each falsely pass <= 5% and a 4-null-SD effect passes >= 80%. Pinned: worst 2.5%, power 91.5%. Each run's own layout is calibrated too (false pass > 5% = INVALID; power short = underpowered).
+- **Rejected in the build:** a Welch-Satterthwaite df over both factors (an arm scoped to the Bight has 2 blocks: df ~1.4, t ~7, no regional fix could pass); the percentile interval (under-covers at 14 days, as round 6 measured).
+- **Known limit, stated:** a PERSISTENT regional effect (fixed across days) is treated as the estimand (the effect at these stations), not noise: the canonical layout falsely passes a pure persistent-block null 6.25% and a persistent 100 km field 6.5% (reported as `advisory_nulls`); at 250 km correlation 15-20% (100 km blocks). Reflection (Beam) argued for ~250 km blocks or correlogram-based blocks; not adopted: the day factor carries the measured 250 km correlation (daily-field nulls 0-1.5%), and 250 km blocks leave CA 2-3 blocks.
+- **Re-scored offline (cached rows only, no GRIB):** `evidence/2026-11-04-harness-two-way-gate/rescore.json`. Changed: SURF_SPECTRAL_K (#706) hs_station PASS -> REFUSED (its window has 10 days); SURF_EXPOSURE_RECONCILED hb_proxy (advisory) FAIL -> REFUSED (underpowered). Unchanged: SURF_EXPOSURE_RECONCILED hs_station FAIL, SURF_TIDE_DEPTH / RATING_BREAKER_TYPE REFUSED, SURF_BIGHT_HS_CONSENSUS (#707 h5) hs_station PASS (two-way [0.067, 0.216], 2 blocks x 14 days).
+- **Evidence:** `log/2026-11-04-claude-harness-two-way-gate.md`; `backend/tests/test_eval_twoway.py`.
+- **Rollback:** revert the PR (the gate returns to the station-cluster rule).

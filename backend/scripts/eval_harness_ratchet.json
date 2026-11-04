@@ -1,0 +1,7 @@
+{
+ "history": [],
+ "locks": {},
+ "pending": {},
+ "rule": "locks are only ever added by eval_ratchet.update_baseline (pending after one eligible run, locked after a second on a non-overlapping window); removing one is a DECISIONS entry",
+ "schema": "raw-surf/eval-harness-climatology-ratchet/0"
+}

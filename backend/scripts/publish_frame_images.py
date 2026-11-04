@@ -434,10 +434,11 @@ def _uploader(sink):
 
 def selected_sets(sets=None):
     """FRAME_SETS (comma list of set keys, e.g. 'GFS/marine/waves/global_mid') narrows the run; default every set: the world
-    sets, then the regional bundle sets (frame_set_bundle.REGIONAL_SETS, LAST so the budget stagger drops them first; off with
-    FRAME_REGIONAL_BUNDLES=0)."""
+    sets, then the regional bundle sets (frame_set_bundle.REGIONAL_SETS, late so the budget stagger drops them first; off with
+    FRAME_REGIONAL_BUNDLES=0), then the EURO swell world sets (FRAME_EURO_SWELL_SETS, ON since 2026-11-01) LAST: no client reads
+    them until staticFrames.js STATIC_SETS lists them, so they must never cost a bundle the client already draws."""
     if sets is None:
-        sets = tuple(fs.SETS) + (fsb.selected_regional_sets() if fsb.enabled() else ())
+        sets = tuple(fs.SETS) + (fsb.selected_regional_sets() if fsb.enabled() else ()) + fs.euro_swell_sets()
     want = [k.strip() for k in os.environ.get("FRAME_SETS", "").split(",") if k.strip()]
     return [t for t in sets if not want or fs.set_key(t) in want]
 

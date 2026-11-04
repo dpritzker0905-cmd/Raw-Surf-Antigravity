@@ -66,6 +66,25 @@ SETS = tuple({"model": m, "domain": "marine", "layer": l, "region_id": "global_m
     *(dict(t) for t in fsf.FILLED_SETS),
 )
 
+# EURO SWELL (item 14, 2026-11-01: FRAME_EURO_SWELL_SETS, default '1' since the owner's ON-by-default word that night; kill switch '0'): EURO swell_1/swell_2/wind_waves at the world tier,
+# plain and with the targeted Gulf fill (CMEMS masks the enclosed seas for every layer; coarse_gulf_fill fills all four). They exist
+# only once the pilots lane stores EURO global_mid swell (EURO_MARINE_MID_CMEMS_SWELL), so they are NOT in SETS: publish_frame_images
+# adds them after the world sets (before the regional bundles) only while the flag is '1'. The client's STATIC_SETS must list
+# the keys before it reads them (a follow-up); until then a published set is unused bytes, never a wrong frame.
+EURO_SWELL_LAYERS = ("swell_1", "swell_2", "wind_waves")
+EURO_SWELL_SETS = tuple({"model": "EURO", "domain": "marine", "layer": l, "region_id": "global_mid"} for l in EURO_SWELL_LAYERS) + tuple(
+    {"model": "EURO", "domain": "marine", "layer": l, "region_id": "global_mid", "variant": fsf.VARIANT} for l in EURO_SWELL_LAYERS)
+
+
+def euro_swell_sets_enabled():
+    return os.environ.get("FRAME_EURO_SWELL_SETS", "1") != "0"
+
+
+def euro_swell_sets():
+    """The EURO swell set targets while FRAME_EURO_SWELL_SETS is '1', else ()."""
+    return tuple(dict(t) for t in EURO_SWELL_SETS) if euro_swell_sets_enabled() else ()
+
+
 # Product fields the client needs to rebuild the /grid response (backendWeatherServiceClient + mapNormalizedGridToWebGL).
 PRODUCT_META = (
     "model", "provider", "domain", "layer", "run_time", "model_run_time", "model_run_time_status", "ingested_at",

@@ -66,6 +66,18 @@ const KILL_SWITCHES_TESTED = new Set([
   // Added to source by #673 (EURO/ICON regional z7-9 bundles, D-059), with its focused test; recorded in weather batch 2:
   // staticRegional.euroIcon.test.js ("the kill leaves no EURO/ICON set key and no pick; GFS unchanged")
   '__RAW_DISABLE_REGIONAL_EURO_ICON__',
+  // Spot-hub phase 1 (2026-11-03), with its focused tests: SpotHub.phase1.test.js ("kill switch restores the previous
+  // hub"), SpotConditions.phase1.test.js ("kill switch: the old source lines") and spot-hub/spotHubP1.test.js
+  // (the infobox Tide row and the explore card's server count).
+  '__RAW_DISABLE_SPOT_HUB_P1__',
+  // Map motion fixes (2026-11-03, ON with a kill each). motionFixes.killSwitch.test.js: set before load, the four shader kills draw
+  // origin/dev's ADVECT_FS / DRAW_VS byte for byte (hash-pinned); set live, each kill's uniforms or encoder return the old behaviour.
+  // Plus particleState.test.js, particleRk2.test.js, crestLocalPhase.test.js, crestTexelRank.test.js and windEncoderRound.test.js.
+  '__RAW_DISABLE_FLOAT_PARTICLE_STATE__',
+  '__RAW_DISABLE_RK2_ADVECTION__',
+  '__RAW_DISABLE_CREST_LOCAL_PHASE__',
+  '__RAW_DISABLE_CREST_TEXEL_RANK__',
+  '__RAW_DISABLE_WIND_ENCODER_ROUND__',
 ]);
 
 /**

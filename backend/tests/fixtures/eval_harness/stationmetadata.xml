@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<stationmetadata>
+ <station id="46025" name="SYNTHETIC FIXTURE" owner="NDBC" pgm="NDBC Meteorological/Ocean" type="other">
+  <history start="2026-04-11" stop="" lat="33.765" lng="-119.077" elev="0" met="y" hull="3D15" anemom_height="5.0"/>
+ </station>
+</stationmetadata>

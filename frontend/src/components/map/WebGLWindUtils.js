@@ -3,7 +3,7 @@
  * standard WebGL utilities for the GPU Wind engine.
  */
 import { setGridPointRegUniform } from './gridPointRegistration';
-import { windInk } from './windInk';
+import { windInk } from './windInk'; import { createParticleStateTexture } from './particleState'; import { windByteRange, windByte, windEncoderRoundOn } from './windEncoderRound';   // u/v bytes round on a zero-aligned lattice (kill there)
 
 export function createShader(gl, type, source) {
   const shader = gl.createShader(type);
@@ -157,6 +157,7 @@ export function encodeWindTexture(gl, windGrid) {
 
   if (maxU === minU) { maxU = minU + 1; }
   if (maxV === minV) { maxV = minV + 1; }
+  const _round = windEncoderRoundOn(); ({ min: minU, max: maxU } = windByteRange(minU, maxU, _round)); ({ min: minV, max: maxV } = windByteRange(minV, maxV, _round));
   // Sane floor: avoid division by zero; sane ceiling: keep storm values visible
   const effectiveMaxSpeed = Math.max(5, Math.min(maxSpeed, 120));
 
@@ -166,9 +167,9 @@ export function encodeWindTexture(gl, windGrid) {
     const nu = (v.u - minU) / (maxU - minU);
     const nv = (v.v - minV) / (maxV - minV);
     const speed = Math.min(1.0, v.speed / effectiveMaxSpeed);
-    data[i * 4 + 0] = Math.floor(nu * 255);
-    data[i * 4 + 1] = Math.floor(nv * 255);
-    data[i * 4 + 2] = Math.floor(speed * 255);
+    data[i * 4 + 0] = _round ? windByte(v.u, minU, maxU, true) : Math.floor(nu * 255);
+    data[i * 4 + 1] = _round ? windByte(v.v, minV, maxV, true) : Math.floor(nv * 255);
+    data[i * 4 + 2] = _round ? Math.min(255, Math.round(speed * 255)) : Math.floor(speed * 255);
     data[i * 4 + 3] = 255;
   }
 
@@ -234,23 +235,8 @@ export function encodeWindTexture(gl, windGrid) {
   };
 }
 
-export function initParticleTexture(gl, resolution) {
-  const numParticles = resolution * resolution;
-  const data = new Uint8Array(numParticles * 4);
-  for (let i = 0; i < numParticles; i++) {
-    const x = Math.random();
-    const y = Math.random();
-    const xHi = Math.floor(x * 255);
-    const xLo = Math.floor(((x * 255) - xHi) * 255);
-    const yHi = Math.floor(y * 255);
-    const yLo = Math.floor(((y * 255) - yHi) * 255);
-    data[i * 4 + 0] = xHi;
-    data[i * 4 + 1] = xLo;
-    data[i * 4 + 2] = yHi;
-    data[i * 4 + 3] = yLo;
-  }
-  return createTexture(gl, gl.NEAREST, data, resolution, resolution);
-}
+// The state texture: RGBA32F where the context renders to float, else the old RGBA8 packing (particleState.js; the kill there).
+export function initParticleTexture(gl, resolution, engine) { return createParticleStateTexture(gl, resolution, engine, createTexture); }
 
 /**
  * Dimensions of every texture this module's accounting knows about, so a DELETE can subtract
