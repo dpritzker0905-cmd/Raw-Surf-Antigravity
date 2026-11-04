@@ -15,7 +15,7 @@ written for, so absolute heights run high; both policies are judged against the 
 comparison needs.
 
 FORECASTS are the realised inputs plus lead-dependent, hour-correlated errors (AR(1), rho 0.95/h, fresh per
-issue every 4 h, frames every 3 h to +72 h, as the producer writes them): Hs MAE 0.24 / 0.30 / 0.33 / 0.39 m at
+issue every 4 h, frames every --step h (1, as the producer writes them) to +72 h): Hs MAE 0.24 / 0.30 / 0.33 / 0.39 m at
 6 / 24 / 48 / 72 h (SCOREBOARD row 2026-09-29, served GFS all-sea, and the 2026-09-30 NDBC row), wind speed
 sigma 1.8 m/s + 0.4 m/s per day and direction sigma 25 deg + 10 deg per day (ASSUMED: no measured wind lead
 skill exists in the repo yet). `--sigma 0` is the perfect-forecast control.
@@ -23,12 +23,20 @@ skill exists in the repo yet). `--sigma 0` is the perfect-forecast control.
 POLICIES, run hourly over the record:
   today  fires when the lead-0 forecast height is inside [min, max] (claim_alert_delivery), 1 h cooldown,
          ignoring time windows, tides, conditions and darkness (what scheduler/surf_alerts.py does).
-  new    `surf_alert_windows.decide` on the latest issued horizon, with every window already sent de-duplicated.
+  new    `surf_alert_windows.decide` on the latest issued horizon, then `surf_alert_windows.admit` (the per-user
+         gate the scheduler applies), in two PAIRED arms on the same forecasts: `kill_switch`
+         (ALERTS_WINDOW_SUPPRESSION=0, #704 exactly) and `default` (collapse within ALERTS_WINDOW_MERGE_GAP_H,
+         same-window suppression, ALERTS_MAX_PER_USER_DAY). `--hysteresis` adds a replay-only arm (a window must
+         also be in the previous cycle) that the product does NOT implement.
 SCORING against the realised windows (daylight, every saved preference, the same level floor):
   precision  today: fraction of fires at an hour that was realised-qualifying ("it is good now" was true);
-             new: fraction of announced windows that overlap a realised window by >= 1 h.
+             new: fraction of announced windows that overlap a realised window by >= 1 h; hour-precision: the
+             share of all announced hours that were realised-qualifying (so a collapsed span cannot hide a gap).
   recall     fraction of realised windows (>= the minimum length) announced before they ended
              (new: by a window overlapping it; today: by a fire inside it).
+VOLUME (new): sends per user per local day (nautical zone; one synthetic user = one alert at one spot under one
+seed), the histogram over user-days and its maximum; tier: sends whose window ends past send time + the tier's
+horizon. Aggregate only: synthetic users, no user row is ever read.
 """
 import argparse
 import json
@@ -37,6 +45,7 @@ import os
 import random
 import sys
 import types
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 
 BACKEND = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -172,7 +181,46 @@ def qualifying_hours(windows):
     return out
 
 
-def replay(spot, geo, obs, truth, alert_kw, sig, seed, step=3):
+ARMS = {
+    # The kill switch: #704 exactly (per-alert overlap de-dup, no collapse, no cap). The paired "before".
+    "kill_switch": {"ALERTS_WINDOW_SUPPRESSION": "0"},
+    # The shipped defaults: collapse (ALERTS_WINDOW_MERGE_GAP_H 1) + same-window suppression + cap 2/user-day.
+    "default": {},
+}
+KNOBS = ("ALERTS_WINDOW_SUPPRESSION", "ALERTS_WINDOW_MERGE_GAP_H", "ALERTS_MAX_PER_USER_DAY", "ALERTS_NOTIFY_LEAD_H")
+
+
+def _with_env(env):
+    saved = {k: os.environ.get(k) for k in KNOBS}
+    for k in KNOBS:
+        os.environ.pop(k, None)
+    os.environ.update(env)
+    return saved
+
+
+def _restore(saved):
+    for k, v in saved.items():
+        if v is None:
+            os.environ.pop(k, None)
+        else:
+            os.environ[k] = v
+
+
+def _seen_last_cycle(window, prev_hz, alert, spot_ns, run, spot_name):
+    """HYSTERESIS (replay-only arm, NOT in the product): the window, or a window overlapping it, was also in the
+    previous forecast cycle; a window already under way is exempt."""
+    if W.parse_time(window["start"]) <= run:
+        return True
+    if prev_hz is None:
+        return False
+    series = W.spot_series(prev_hz, "GFS", spot_name)
+    prev = W.collapse_windows(W.find_windows(alert, spot_ns, series, run, 72, 1.0)["windows"], W.merge_gap_h())
+    return W.overlaps(window, [(W.parse_time(p["start"]), W.parse_time(p["end"])) for p in prev])
+
+
+def replay(spot, geo, obs, truth, alert_kw, sig, seed, step=1, arm="default", tier="premium", hysteresis=False):
+    """One synthetic user (one alert) at one spot under one noise seed. The issues are drawn from Random(seed)
+    first, so every arm and tier of a (spot, class, sigma, seed) sees the SAME forecasts: the comparison is paired."""
     rng = random.Random(seed)
     spot_ns = types.SimpleNamespace(name=spot["name"], latitude=spot["lat"], longitude=spot["lng"])
     alert = types.SimpleNamespace(id="a", spot_id=spot["name"], min_wave_height=None, max_wave_height=None,
@@ -187,40 +235,112 @@ def replay(spot, geo, obs, truth, alert_kw, sig, seed, step=3):
     while t <= last:
         issues[t] = issue(spot, geo, obs, t, sig, rng, step)
         t += timedelta(hours=4)
-    new_fires, sent, legacy_fires = [], [], []
-    run = first + timedelta(hours=1)
-    while run <= last:
-        cur = max((i for i in issues if i + timedelta(hours=1) <= run), default=None)
-        if cur is not None:
-            hz = issues[cur]
-            d = W.decide(alert, spot_ns, hz, run, notified=sent, subscription_tier="premium")
-            if d["fire"]:
-                w = d["window"]
-                new_fires.append((run, W.parse_time(w["start"]), W.parse_time(w["end"])))
-                sent.append((W.parse_time(w["start"]), W.parse_time(w["end"])))
-            lead0 = W.nearest(W.spot_series(hz, "GFS", spot["name"]), run, 5400)
-            if lead0 and W.size_ok(lead0, alert.min_wave_height, alert.max_wave_height):
-                legacy_fires.append(run)
-        run += timedelta(hours=1)
+    keys = sorted(issues)
+    off = W.local_offset_h(spot["lng"])
+    saved = _with_env(ARMS[arm])
+    try:
+        new_fires, sent, sent_at, legacy_fires, outside, refused = [], [], [], [], 0, Counter()
+        run = first + timedelta(hours=1)
+        while run <= last:
+            cur = max((i for i in keys if i + timedelta(hours=1) <= run), default=None)
+            if cur is not None:
+                hz = issues[cur]
+                prev_hz = issues[keys[keys.index(cur) - 1]] if keys.index(cur) else None
+                held = list(sent)
+                for _try in range(8):
+                    d = W.decide(alert, spot_ns, hz, run, notified=held, subscription_tier=tier)
+                    if not d["fire"] or not hysteresis or _seen_last_cycle(d["window"], prev_hz, alert, spot_ns,
+                                                                         run, spot["name"]):
+                        break
+                    held.append((W.parse_time(d["window"]["start"]), W.parse_time(d["window"]["end"])))
+                    d = {"fire": False}
+                if d["fire"]:
+                    ok, why = W.admit(d["window"], sent, sent_at, run)
+                    if ok:
+                        a, b = W.parse_time(d["window"]["start"]), W.parse_time(d["window"]["end"])
+                        new_fires.append((run, a, b))
+                        sent.append((a, b))
+                        sent_at.append(run)
+                        if b > run + timedelta(hours=W.horizon_h(tier, d["model"])):
+                            outside += 1
+                    else:
+                        refused[why] += 1
+                lead0 = W.nearest(W.spot_series(hz, "GFS", spot["name"]), run, 5400)
+                if lead0 and W.size_ok(lead0, alert.min_wave_height, alert.max_wave_height):
+                    legacy_fires.append(run)
+            run += timedelta(hours=1)
+    finally:
+        _restore(saved)
     days = (last - first).total_seconds() / 86400
     new_hits = sum(1 for _r, a, b in new_fires if len(qualifying_hours([(a, b)]) & good_hours) >= 1)
+    span_h = sum(len(qualifying_hours([(a, b)])) for _r, a, b in new_fires)
+    good_h = sum(len(qualifying_hours([(a, b)]) & good_hours) for _r, a, b in new_fires)
     new_rec = sum(1 for a, b in real if any(r < b and fa < b and a < fb for r, fa, fb in new_fires))
     new_rec_6h = sum(1 for a, b in real if any(r <= a - timedelta(hours=6) and fa < b and a < fb
                                                for r, fa, fb in new_fires))
     leg_hits = sum(1 for r in legacy_fires if r in good_hours)
     leg_rec = sum(1 for a, b in real if any(a <= r < b for r in legacy_fires))
-    in_window_real = [(a, b) for a, b in real if a >= first + timedelta(hours=1) and b <= last]
-    by_lead = {}
-    for r, a, b in new_fires:
-        lead = (a - r).total_seconds() / 3600
-        bucket = "<12h" if lead < 12 else "12-24h" if lead < 24 else "24-48h" if lead < 48 else "48-72h"
-        hit = len(qualifying_hours([(a, b)]) & good_hours) >= 1
-        n, h = by_lead.get(bucket, (0, 0))
-        by_lead[bucket] = (n + 1, h + int(hit))
-    return {"real_windows": len(real), "days": round(days, 1), "new_by_lead": by_lead,
-            "new": {"fires": len(new_fires), "hits": new_hits, "recall_hits": new_rec, "recall_6h": new_rec_6h},
-            "today": {"fires": len(legacy_fires), "hits": leg_hits, "recall_hits": leg_rec},
-            "scored_windows": len(in_window_real)}
+    per_day = Counter((r + timedelta(hours=off)).date() for r, _a, _b in new_fires)
+    user_days = int(round(days))
+    hist = Counter(per_day.values())
+    hist[0] += user_days - sum(hist.values())
+    return {"real_windows": len(real), "days": round(days, 1), "arm": arm, "tier": tier, "hysteresis": hysteresis,
+            "new": {"fires": len(new_fires), "hits": new_hits, "recall_hits": new_rec, "recall_6h": new_rec_6h,
+                    "span_h": span_h, "good_h": good_h, "max_per_day": max(per_day.values()) if per_day else 0,
+                    "per_day_hist": dict(hist), "outside_tier": outside, "refused": dict(refused)},
+            "today": {"fires": len(legacy_fires), "hits": leg_hits, "recall_hits": leg_rec}}
+
+
+def _job(args):
+    data, si, name, sig, seed, step, arms, tiers, hysteresis = args
+    spot = SPOTS[si]
+    geo = resolve_surf_geometry(spot["lat"], spot["lng"])
+    obs = build(spot, data)
+    truth = realised(spot, geo, obs)
+    out = []
+    for arm in arms:
+        for tier in tiers:
+            for hy in ((False, True) if hysteresis else (False,)):
+                r = replay(spot, geo, obs, truth, ALERTS[name], sig, seed, step, arm, tier, hy)
+                r.update({"spot": spot["name"], "alert": name, "sigma": sig, "seed": seed})
+                out.append(r)
+    return out
+
+
+def summarize(results, seeds):
+    summary = {}
+    for r in results:
+        k = (r["arm"], r["tier"], r["hysteresis"], r["alert"], r["sigma"])
+        s = summary.setdefault(k, Counter())
+        reps = 1 if not r["sigma"] else seeds
+        s["real"] += r["real_windows"] / reps
+        s["days"] += r["days"] / reps
+        for key in ("fires", "hits", "recall_hits", "recall_6h", "span_h", "good_h"):
+            s["n_" + key] += r["new"][key] / reps
+        for key in ("fires", "hits", "recall_hits"):
+            s["t_" + key] += r["today"][key] / reps
+        s["max_per_day"] = max(s["max_per_day"], r["new"]["max_per_day"])
+        s["outside_tier"] += r["new"]["outside_tier"]
+        for n, c in r["new"]["per_day_hist"].items():
+            s[f"hist_{n}"] += c
+
+    def ratio(a, b):
+        return round(a / b, 3) if b else None
+    rows = []
+    for (arm, tier, hy, alert, sig), s in sorted(summary.items(), key=lambda kv: (kv[0][2], kv[0][1], kv[0][3],
+                                                                                    kv[0][4], kv[0][0])):
+        wk = s["days"] / 7 or 1
+        rows.append({
+            "arm": arm, "tier": tier, "hysteresis": hy, "alert": alert, "sigma": sig,
+            "realised_windows": round(s["real"], 1), "new_fires_per_week": round(s["n_fires"] / wk, 2),
+            "new_precision": ratio(s["n_hits"], s["n_fires"]), "new_hour_precision": ratio(s["n_good_h"], s["n_span_h"]),
+            "new_recall": ratio(s["n_recall_hits"], s["real"]), "new_recall_6h": ratio(s["n_recall_6h"], s["real"]),
+            "max_per_user_day": int(s["max_per_day"]), "outside_tier_window": int(s["outside_tier"]),
+            "per_user_day_hist": {int(k[5:]): int(v) for k, v in sorted(s.items(), key=lambda kv: kv[0])
+                                  if k.startswith("hist_")},
+            "today_fires_per_week": round(s["t_fires"] / wk, 2), "today_precision": ratio(s["t_hits"], s["t_fires"]),
+            "today_recall": ratio(s["t_recall_hits"], s["real"])})
+    return rows
 
 
 def main(argv=None):
@@ -228,60 +348,31 @@ def main(argv=None):
     ap.add_argument("--data", required=True)
     ap.add_argument("--sigma", type=float, nargs="+", default=[0.0, 1.0, 2.0])
     ap.add_argument("--seeds", type=int, default=5)
-    ap.add_argument("--step", type=int, default=3, help="forecast frame spacing, h (the producer's ALERTS_HORIZON_STEP_H)")
+    ap.add_argument("--step", type=int, default=1, help="forecast frame spacing, h (the producer's ALERTS_HORIZON_STEP_H, 1)")
+    ap.add_argument("--arms", default="kill_switch,default", help=f"comma list of {sorted(ARMS)}")
+    ap.add_argument("--tiers", default="premium", help="comma list; free/basic/premium all resolve to 72 h today")
+    ap.add_argument("--hysteresis", action="store_true", help="also run the replay-only two-cycle hysteresis arm")
+    ap.add_argument("--jobs", type=int, default=1)
     ap.add_argument("--out")
     args = ap.parse_args(argv)
-    results = []
-    for spot in SPOTS:
-        geo = resolve_surf_geometry(spot["lat"], spot["lng"])
-        obs = build(spot, args.data)
-        truth = realised(spot, geo, obs)
-        for name, kw in ALERTS.items():
-            for sig in args.sigma:
-                for seed in range(args.seeds if sig else 1):
-                    r = replay(spot, geo, obs, truth, kw, sig, seed, args.step)
-                    r.update({"spot": spot["name"], "alert": name, "sigma": sig, "seed": seed})
-                    results.append(r)
-    summary = {}
-    for r in results:
-        k = (r["alert"], r["sigma"])
-        s = summary.setdefault(k, {"real": 0, "days": 0.0, "nf": 0, "nh": 0, "nr": 0, "nr6": 0, "lf": 0, "lh": 0,
-                                   "lr": 0})
-        reps = 1 if not r["sigma"] else args.seeds
-        s["real"] += r["real_windows"] / reps
-        s["days"] += r["days"] / reps
-        s["nf"] += r["new"]["fires"] / reps
-        s["nh"] += r["new"]["hits"] / reps
-        s["nr"] += r["new"]["recall_hits"] / reps
-        s["nr6"] += r["new"]["recall_6h"] / reps
-        s["lf"] += r["today"]["fires"] / reps
-        s["lh"] += r["today"]["hits"] / reps
-        s["lr"] += r["today"]["recall_hits"] / reps
-    print("alert | sigma | realised windows | NEW fires/wk, precision, recall (>=6 h ahead) | TODAY fires/wk, "
-          "precision, recall")
-    rows = []
-    for (alert, sig), s in sorted(summary.items()):
-        wk = s["days"] / 7 or 1
-        row = {"alert": alert, "sigma": sig, "realised_windows": round(s["real"], 1),
-               "new_fires_per_week": round(s["nf"] / wk, 2), "new_precision": round(s["nh"] / s["nf"], 3) if s["nf"] else None,
-               "new_recall": round(s["nr"] / s["real"], 3) if s["real"] else None,
-               "new_recall_6h": round(s["nr6"] / s["real"], 3) if s["real"] else None,
-               "today_fires_per_week": round(s["lf"] / wk, 2),
-               "today_precision": round(s["lh"] / s["lf"], 3) if s["lf"] else None,
-               "today_recall": round(s["lr"] / s["real"], 3) if s["real"] else None}
-        rows.append(row)
-        print(f"{alert} | {sig} | {row['realised_windows']} | {row['new_fires_per_week']}, {row['new_precision']}, "
-              f"{row['new_recall']} ({row['new_recall_6h']}) | {row['today_fires_per_week']}, "
-              f"{row['today_precision']}, {row['today_recall']}")
-    leads = {}
-    for r in results:
-        for bucket, (n, h) in r["new_by_lead"].items():
-            tot = leads.setdefault((r["sigma"], bucket), [0, 0])
-            tot[0] += n
-            tot[1] += h
-    print("NEW precision by lead (window start - send time), all alerts and spots:")
-    for (sig, bucket), (n, h) in sorted(leads.items()):
-        print(f"  sigma {sig} {bucket}: {h}/{n} = {h / n:.3f}")
+    arms, tiers = args.arms.split(","), args.tiers.split(",")
+    jobs = [(args.data, si, name, sig, seed, args.step, arms, tiers, args.hysteresis)
+            for si in range(len(SPOTS)) for name in ALERTS for sig in args.sigma
+            for seed in range(args.seeds if sig else 1)]
+    if args.jobs > 1:
+        from multiprocessing import Pool
+        with Pool(args.jobs) as pool:
+            results = [r for rs in pool.map(_job, jobs) for r in rs]
+    else:
+        results = [r for j in jobs for r in _job(j)]
+    rows = summarize(results, args.seeds)
+    print("arm | tier | hyst | alert | sigma | NEW precision, hour-precision, recall (>=6 h), fires/wk, max/user-day,"
+          " outside tier | per-user-day histogram | TODAY precision, recall")
+    for row in rows:
+        print(f"{row['arm']} | {row['tier']} | {int(row['hysteresis'])} | {row['alert']} | {row['sigma']} | "
+              f"{row['new_precision']}, {row['new_hour_precision']}, {row['new_recall']} ({row['new_recall_6h']}), "
+              f"{row['new_fires_per_week']}, {row['max_per_user_day']}, {row['outside_tier_window']} | "
+              f"{row['per_user_day_hist']} | {row['today_precision']}, {row['today_recall']}")
     if args.out:
         with open(args.out, "w", encoding="utf-8") as fh:
             json.dump({"summary": rows, "runs": results}, fh, indent=1, default=str)

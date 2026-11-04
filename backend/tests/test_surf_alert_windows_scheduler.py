@@ -48,6 +48,10 @@ class _Session:
                 data = rows if "notifications" in text else alerts
                 return types.SimpleNamespace(all=lambda: list(data))
 
+            def all(self):
+                # (user_id, data, created_at): a bare data string is user u1's row, sent at an unknown time.
+                return [r if isinstance(r, tuple) else ("u1", r, None) for r in rows]
+
             def scalar_one_or_none(self):
                 return "claimed" if ok else None
         return _R()
@@ -178,16 +182,90 @@ async def test_dedup_across_runs_reads_back_the_window_already_sent(run_windows)
     (note,) = second["notifications"]
     assert json.loads(note.data)["alert_window"]["start"] == "2026-11-04T12:00:00Z"
     third = await run_windows(horizon(), rows=[sent, second["notifications"][0].data,
-                                               json.dumps({"alert_id": "a1", "alert_window": {
+                                               json.dumps({"alert_id": "a1", "spot_id": "s1", "alert_window": {
                                                    "start": "2026-11-05T00:00:00Z", "end": "2026-11-06T00:00:00Z"}})])
     assert "notifications" not in third and third["pushes"] == []
 
 
-async def test_another_alerts_window_does_not_suppress_this_one(run_windows):
-    other = json.dumps({"alert_id": "a2", "alert_window": {"start": "2026-11-03T12:00:00Z",
-                                                           "end": "2026-11-03T23:00:00Z"}})
-    store = await run_windows(horizon(), rows=[other, "not json", None])
-    assert len(store["notifications"]) == 1
+def _row(alert_id="a2", user_id="u1", spot_id="s1", start="2026-11-03T12:00:00Z", end="2026-11-03T23:00:00Z",
+         created_at=None):
+    return (user_id, json.dumps({"alert_id": alert_id, "spot_id": spot_id,
+                                 "alert_window": {"start": start, "end": end}}), created_at)
+
+
+async def test_the_same_window_sent_by_another_of_the_users_alerts_at_this_spot_is_not_sent_again(run_windows):
+    """Suppression is per (user, spot): one session announced once, whichever alert announced it."""
+    store = await run_windows(horizon(), rows=[_row(), "not json", None])
+    (note,) = store["notifications"]
+    assert json.loads(note.data)["alert_window"]["start"] == "2026-11-04T12:00:00Z"
+
+
+@pytest.mark.parametrize("row", [_row(user_id="u2"), _row(spot_id="s9")])
+async def test_another_users_or_another_spots_window_does_not_suppress_this_one(run_windows, row):
+    store = await run_windows(horizon(), rows=[row])
+    (note,) = store["notifications"]
+    assert json.loads(note.data)["alert_window"]["start"] == "2026-11-03T12:00:00Z"
+
+
+async def test_kill_switch_restores_704s_per_alert_dedup(run_windows, monkeypatch):
+    monkeypatch.setenv("ALERTS_WINDOW_SUPPRESSION", "0")
+    store = await run_windows(horizon(), rows=[_row()])                 # a2's window no longer suppresses a1
+    (note,) = store["notifications"]
+    assert json.loads(note.data)["alert_window"]["start"] == "2026-11-03T12:00:00Z"
+
+
+def _spot_alert(i, score):
+    spot = types.SimpleNamespace(id=f"s{i}", name=f"Spot {i}", latitude=28.35, longitude=-80.6)
+    return _alert(id=f"a{i}", spot=spot, spot_id=f"s{i}"), score
+
+
+def _scored_horizon(scores):
+    h = horizon()
+    for fr in h["frames"]:
+        fr["spots"] = [{**fr["spots"][0], "spot_id": sid, "score": sc} for sid, sc in scores.items()]
+    return h
+
+
+async def test_the_daily_cap_is_a_hard_limit_spent_on_the_best_rated_windows(run_windows, caplog):
+    """Three of one user's alerts fire in one run: the cap (2) sends the two best-rated, logs the third."""
+    alerts = [_spot_alert(i, s)[0] for i, s in ((1, 55.0), (2, 80.0), (3, 70.0))]
+    caplog.set_level(logging.INFO, logger="scheduler.surf_alert_windows")
+    store = await run_windows(_scored_horizon({"s1": 55.0, "s2": 80.0, "s3": 70.0}), alerts=alerts)
+    assert [json.loads(n.data)["alert_id"] for n in store["notifications"]] == ["a2", "a3"]
+    assert len(store["pushes"]) == 2 and store["sql"].count("update") == 2
+    assert "'daily_cap': 1" in caplog.text
+
+
+async def test_the_cap_counts_sends_already_made_today_and_not_yesterdays(run_windows):
+    alerts = [_spot_alert(i, 60.0)[0] for i in (1, 2)]
+    today = (NOW - timedelta(hours=1)).isoformat()                        # local 18:00 Mon: the same local day
+    earlier = (NOW - timedelta(hours=6)).isoformat()                      # local 13:00 Mon: the same day too
+    old = (NOW - timedelta(hours=30)).isoformat()                         # local Sun: another day
+    h = _scored_horizon({"s1": 60.0, "s2": 60.0})
+    one_today = await run_windows(h, alerts=alerts, rows=[_row(spot_id="s7", created_at=today)])
+    assert len(one_today["notifications"]) == 1
+    two_today = await run_windows(h, alerts=alerts, rows=[_row(spot_id="s7", created_at=today),
+                                                          _row(spot_id="s8", created_at=earlier)])
+    assert "notifications" not in two_today
+    two_old = await run_windows(h, alerts=alerts, rows=[_row(spot_id="s7", created_at=old),
+                                                        _row(spot_id="s8", created_at=old)])
+    assert len(two_old["notifications"]) == 2
+
+
+async def test_two_of_a_users_alerts_on_one_spot_in_one_run_send_one_window(run_windows):
+    store = await run_windows(horizon(), alerts=[_alert(), _alert(id="a2", min_wave_height=1.0)])
+    (note,) = store["notifications"]
+    assert len(store["pushes"]) == 1
+
+
+async def test_cap_zero_or_the_kill_switch_means_no_cap(run_windows, monkeypatch):
+    alerts = [_spot_alert(i, 60.0)[0] for i in (1, 2, 3)]
+    h = _scored_horizon({"s1": 60.0, "s2": 60.0, "s3": 60.0})
+    for env in (("ALERTS_MAX_PER_USER_DAY", "0"), ("ALERTS_WINDOW_SUPPRESSION", "0")):
+        monkeypatch.setenv(*env)
+        assert len((await run_windows(h, alerts=alerts))["notifications"]) == 3
+        monkeypatch.delenv(env[0])
+    assert len((await run_windows(h, alerts=alerts))["notifications"]) == 2   # control: the default caps
 
 
 async def test_a_lost_claim_sends_nothing(run_windows):
