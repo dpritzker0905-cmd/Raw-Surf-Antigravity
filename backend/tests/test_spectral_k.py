@@ -1,7 +1,8 @@
-"""SURF_SPECTRAL_K (DARK, default '0'): California spots break from CDIP MOP's published ray K applied to one member's
+"""SURF_SPECTRAL_K (default '1' since the owner's 2026-11-04 policy, kill switch '0'): California spots break from CDIP MOP's published ray K applied to one member's
 partitions at one open-ocean read point per region, through the EXISTING breaking step.
 
-Pins: the flag off is byte-identical (a hash of the served augmentation, equal to origin/dev's before this change);
+Pins: the KILL SWITCH ('0') is byte-identical (a hash of the served augmentation, equal to origin/dev's before this
+change), and the default is ON;
 K on a synthetic spectrum reproduces a hand-computed answer; the frequency split; a point without a MOP entry keeps
 the bulk chain; every member and the full 14-day horizon run the arm; the read point is resolved once per member,
 region and hour; the committed table is what its index says; the harness replays the arm on its own instrument.
@@ -86,10 +87,18 @@ async def _flag_off_rows(resolve_raw):
 
 
 @pytest.mark.asyncio
-async def test_the_flag_off_is_byte_identical_and_never_reads_the_read_point(clean):
+async def test_the_kill_switch_is_byte_identical_and_never_reads_the_read_point(clean):
+    clean.setenv("SURF_SPECTRAL_K", "0")
     raw = Raw()
     assert await _flag_off_rows(raw.raw) == FLAG_OFF_SHA
-    assert raw.asked == [], "flag off: the read point is never resolved"
+    assert raw.asked == [], "kill switch: the read point is never resolved"
+
+
+@pytest.mark.asyncio
+async def test_the_default_is_on_and_moves_a_covered_spot(clean):
+    raw = Raw()
+    assert S.enabled(), "unset = ON (owner policy 2026-11-04)"
+    assert await _flag_off_rows(raw.raw) != FLAG_OFF_SHA and raw.asked, "default ON reads the read point"
 
 
 # ── K on a synthetic spectrum: hand-computed ─────────────────────────────────────────────────────────────────────
@@ -214,6 +223,7 @@ async def test_the_read_point_is_resolved_once_per_member_region_and_hour(clean)
 async def test_no_mop_point_keeps_the_bulk_chain_unchanged(clean):
     from services.weather_pipeline.point_surf_augment import augment_with_surf
     raw = Raw()
+    clean.setenv("SURF_SPECTRAL_K", "0")
     off = await augment_with_surf(_resp(*SWAMIS), "GFS", "marine", "waves", *SWAMIS, VT0, _no_parts,
                                   resolve_raw=raw.raw)
     clean.setenv("SURF_SPECTRAL_K", "1")
@@ -265,14 +275,14 @@ async def test_the_station_instrument_shoals_the_buoys_own_k_to_the_buoy_depth(c
     assert await S.station_hs("GFS", "153p1", 17.0, VT0, Raw().raw) is None
 
 
-def test_the_flag_is_registered_and_declared_at_default_in_every_rating_lane():
+def test_the_flag_is_registered_and_declared_on_in_every_rating_lane():
     import os
     repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     with open(os.path.join(repo, "backend", "routes", "admin", "surf_forecast.py"), encoding="utf-8") as f:
         assert '"SURF_SPECTRAL_K":' in f.read()
     for lane in ("precompute.yml", "forecast-ingest.yml", "sim-parity-monitor.yml"):
         with open(os.path.join(repo, ".github", "workflows", lane), encoding="utf-8") as f:
-            assert "SURF_SPECTRAL_K: '0'" in f.read(), lane
+            assert "SURF_SPECTRAL_K: '1'" in f.read(), lane
 
 
 def test_the_flip_budget_counts_the_partition_span():
@@ -284,10 +294,11 @@ def test_the_flip_budget_counts_the_partition_span():
     fs = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(fs)
     a, b = datetime(2026, 10, 6, tzinfo=timezone.utc), datetime(2026, 10, 15, 18, tzinfo=timezone.utc)
-    base = fs.range_downloads(a, b, [24, 48, 72])
-    assert fs.range_downloads(a, b, [24, 48, 72], flags={"SURF_SPECTRAL_K": "1"}) == base * 3 // 2
-    assert fs.range_downloads(a, b, [24, 48, 72], flags={"SURF_TIDE_DEPTH": "1"}) == base
-    assert fs.range_downloads(a, b, [24, 48, 72], flags={"SURF_SPECTRAL_K": "1"}) <= fs.MAX_RANGE_DOWNLOADS
+    from services.weather_pipeline import eval_gfswave as gw
+    files = len({(c, fh) for c, fh, _, _ in gw.plan(gw.targets_between(a, b, 6), [24, 48, 72])})
+    for flags in ({"SURF_SPECTRAL_K": "1"}, {"SURF_SPECTRAL_K": "0"}, {"SURF_TIDE_DEPTH": "1"}):
+        assert fs.range_downloads(a, b, [24, 48, 72], flags=flags) == 3 * files, "the base arm reads K: always 3"
+    assert 3 * files <= fs.MAX_RANGE_DOWNLOADS
 
 
 # ── the evaluation harness replays the arm on its own instrument ─────────────────────────────────────────────────
@@ -318,6 +329,7 @@ async def test_the_harness_replays_the_arm_at_the_buoy_and_keeps_the_bulk_instru
     async def one():
         gaps = {g: 0 for g in rp.GAPS}
         return await rp.replay_one(prods, spot, valid, gaps, geom, 17.0, "153p1")
+    clean.setenv("SURF_SPECTRAL_K", "0")
     off = await one()
     clean.setenv("SURF_SPECTRAL_K", "1")
     on = await one()

@@ -419,10 +419,11 @@ _RATING_FLAGS = {
     "SURF_NEARSHORE_MOP":          ("0", "California spots break from CDIP MOP's nearshore sea+swell forecast "
                                          "instead of the offshore field + parametric transform (all surfaces)",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
-    # 2026-11-03 (DARK): CDIP MOP's published per-point ray K (R_CA_coefficients, committed table built offline by
+    # 2026-11-03, default ON since 2026-11-04 (owner policy ~01:41Z: fixes ship ON with a kill switch; '0' = the bulk
+    # chain, byte-identical; the round-7 four-season history test filters whether it merges ON): CDIP MOP's published per-point ray K (R_CA_coefficients, committed table built offline by
     # scripts/build_spectral_k_tables.py) on the member's partitions at one open-ocean read point per region, into
     # the existing breaking step. California spots with a shoreFlag-1 MOP point within 1 km only; else bulk.
-    "SURF_SPECTRAL_K":             ("0", "California spots break from CDIP MOP's ray K applied to the member's "
+    "SURF_SPECTRAL_K":             ("1", "California spots break from CDIP MOP's ray K applied to the member's "
                                          "partitions at one open-ocean read point per region (all surfaces)",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
     # ⚠️ ONLY BITES WHEN `SURF_PARTITIONS` IS ON — it gates the partition-aware exposure, which is

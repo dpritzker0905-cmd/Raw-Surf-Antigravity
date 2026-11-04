@@ -229,3 +229,30 @@ test).** Inputs: the section 5 run's own panels in `C:/t/ssk-eh-out` (`replay_se
     sees.
   - The CI method differs from the harness gate.
   - 6 clusters.
+
+## Update 2026-11-04 (owner policy, relayed by the lead): default ON, kill switch '0'
+
+The lead relayed an owner policy change (~01:41Z). Fixes now ship ON by default with a kill switch, with a history
+filter (it blocks only a fix proven worse) and a live guardrail. Changes in this PR:
+- **Defaults are now '1':** the code (`point_surf_augment`, `spectral_k_serving.enabled`, `eval_replay`), the
+  `_RATING_FLAGS` default, and the three lanes (precompute.yml, forecast-ingest.yml, sim-parity-monitor.yml).
+- **The kill switch '0' stays byte-identical to origin/dev.** The pinned hash test now sets '0' explicitly. A new
+  test pins that unset means ON.
+- **The harness replays the served env with K:**
+  - the partition span is fetched whenever the served env or an arm runs the flag;
+  - a partition span that cannot be read is COUNTED (`failed`, stage `partitions`), and only that file falls back
+    to bulk;
+  - `flip_scorecard.range_downloads` counts the span always: 3 per (cycle, fh). A 10-day window is about 369 of the
+    400 budget, so a 14-day window would now be REFUSED on budget.
+- **Merge gate (the lead's word):**
+  - whether it merges ON is the round-7 four-season (2024-25) history test;
+  - the lead merges only after the guardrail PR lands;
+  - this session does not merge.
+- ⚠️ **Policy conflict, for the lead to record:**
+  - CLAUDE.md and D-001 still say served numbers ship dark and flip only on the owner's explicit word. A DECISIONS
+    entry should record the policy change, and CLAUDE.md should follow it.
+  - This PR's own evidence still carries its caveats: the split check fails in San Diego, the PASS is plausibly by
+    cancellation, Capistrano got worse, there are 6 clusters, and Render pays a first-touch cost.
+  - With the flag ON, Render pays the read-point cost on the live hub/scrub path (section 4) unless the guardrail
+    bounds it.
+- Tests: `test_spectral_k.py` now has 24 (+1). The chain floor was re-derived with `--add 24`.

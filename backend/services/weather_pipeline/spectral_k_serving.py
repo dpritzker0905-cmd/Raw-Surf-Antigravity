@@ -1,7 +1,8 @@
-"""spectral_k_serving.py — SURF_SPECTRAL_K (DARK, default '0'): a California spot's nearshore sea from CDIP MOP's
+"""spectral_k_serving.py — SURF_SPECTRAL_K (default '1' since the owner's 2026-11-04 ~01:41Z policy: fixes ship ON
+with a kill switch; SURF_SPECTRAL_K=0 restores the bulk chain byte-identically): a California spot's nearshore sea from CDIP MOP's
 published ray K applied to one member's partitions at ONE open-ocean read point per region.
 
-With the flag on, a served point that stands on a California catalogue spot (within SPOT_MATCH_KM of an entry of the
+With the flag on (the default), a served point that stands on a California catalogue spot (within SPOT_MATCH_KM of an entry of the
 committed table `data/spectral_k_ca.json` + `.npz`, built OFFLINE by `scripts/build_spectral_k_tables.py`) takes:
   1. the member's partitions (swell_1, swell_2, wind_waves) and total (`waves`) at its REGION's read point, through
      the caller's raw resolver (no surf augmentation, so no recursion), the represent gate and `reconcile_partitions`;
@@ -51,7 +52,7 @@ _table = None             # {"entries": [...], "transfers": {key: Transfer}} loa
 
 
 def enabled() -> bool:
-    return os.environ.get(FLAG, "0") == "1"
+    return os.environ.get(FLAG, "1") != "0"
 
 
 def _km(lat1, lng1, lat2, lng2):
