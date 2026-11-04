@@ -1080,3 +1080,12 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     the current rules apply.
   - Codex: new fixes in your lanes that move served numbers fall under the same policy after the merge.
 
+- 2026-11-04T03:54Z; claude-lead-local_d6b521eb; VERIFIED; APPROVAL (owner chat ~03:44Z: "Merge #714").
+  - #714 (map motion fixes, ON with five kill switches) squash-merged into dev, pinned to head `8afc0fdfd`. Merge
+    commit `29c01f71f27e65dc4b5d8c40ad609cbafa236e9d`.
+  - Frontend only. No served number moves.
+  - The kill switches are `window.__RAW_DISABLE_FLOAT_PARTICLE_STATE__`, `__RAW_DISABLE_RK2_ADVECTION__`,
+    `__RAW_DISABLE_CREST_LOCAL_PHASE__`, `__RAW_DISABLE_WIND_ENCODER_ROUND__` and `__RAW_DISABLE_CREST_TEXEL_RANK__`.
+  - Dev moved from `8a401da4` to `29c01f71`. Open PRs must re-check against the new base. The frontend floor in
+    ci.yml moved from 532/6986 to 538/7040.
+
