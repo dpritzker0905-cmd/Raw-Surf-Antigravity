@@ -56,3 +56,17 @@ Branch `claude/dev-health-fixes` off `dev` `29c01f71f`. No served number moves.
   the cron default is `'1'`. The test count is unchanged (one test was renamed in each file), so no floor moves.
 - The SCOREBOARD row is appended, and its AFTER reading is owed from the first scheduled monitor run after the merge.
 - Kill switch: set `SIM_SERVED_TIDE=0` in the sim's process. For the monitor, dispatch with `sim_served_tide=0`.
+
+## 4. #720 review fixes (Codex, confirmed by the coordinator at 37db6f3f3)
+
+- `served_tide` now always uses the STRICT frame check (`_aligned_frame`, which was the time-match branch of
+  `_comparison_frame`), whatever SIM_SERVED_TIME_MATCH says. The legacy parity frame is "GFS at the asked hour"
+  and skips the model and served-time checks, so with it a EURO/ICON sim or a stale fallback frame could have
+  borrowed another frame's tide. Any unknown, mixed or mismatched frame now gives None (tide neutral). The parity
+  path's own legacy frame is unchanged.
+- The `sim_served_tide` dispatch input now defaults to '1', matching the cron. '0' remains the kill arm you can pick.
+- Five new test cases in `test_sim_served_tide.py`: a EURO sim gets no GFS tide; a stale `served_valid_time` gives
+  None; an unknown or mixed frame gives None with no fetch (2 cases); an aligned frame applies the tide.
+  Mutation check: swapping back to `_comparison_frame` turns 4 of them red.
+- Guards floor: `rederive_floor.py --lane guards --add 5` gives 3449 + 5 = 3454, with MIN_PASSED moving from 3443
+  to 3448.

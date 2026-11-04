@@ -20,11 +20,16 @@ from services.weather_pipeline import surf_rating as SR
 
 SPOT = {"id": "s-low", "name": "Test Low Reef", "latitude": 21.5, "longitude": -158.2, "orientation": 250.0,
         "best_tide": "Low"}
-PROV = {"served_surf_height_m": 1.4, "valid_time": "2026-09-30T18:00:00Z"}
+T0 = "2026-09-30T18:00:00Z"
+# A live provenance whose marine and wind frames name ONE instant and a known model: the strict frame
+# `served_tide` always requires (#720 review), whatever SIM_SERVED_TIME_MATCH says.
+PROV = {"served_surf_height_m": 1.4, "valid_time": T0, "model": "GFS",
+        "product_identity": {"marine": {"served_valid_time": T0}, "wind": {"served_valid_time": T0}}}
 
 
-def _payload(tide):
-    return {"source": "precomputed", "spots": [{"spot_id": "s-low", "name": "Test Low Reef", "latitude": 21.5,
+def _payload(tide, model="GFS", served_valid_time=T0):
+    return {"source": "precomputed", "model": model, "valid_time": T0, "served_valid_time": served_valid_time,
+            "spots": [{"spot_id": "s-low", "name": "Test Low Reef", "latitude": 21.5,
                                                  "longitude": -158.2, "score": 40.0, "level": "fair",
                                                  "raw_score": 40.0, "tide": tide}]}
 
@@ -154,3 +159,50 @@ def test_the_forecast_tool_passes_the_served_tide():
     import weather_sim_mcp
     src = inspect.getsource(weather_sim_mcp)
     assert "served_tide=sim_observed.served_tide(spot, provenance, source, hour)" in src
+
+
+# ---- #720 review: the tide path always uses the STRICT aligned frame ----
+
+def test_a_euro_sim_never_takes_a_gfs_glyph_tide(served, monkeypatch):
+    """SIM_SERVED_TIME_MATCH unset (legacy parity frame = GFS): a EURO sim asks for the EURO frame, and a
+    GFS-labelled answer is a mismatch, so no tide is applied."""
+    monkeypatch.delenv("SIM_SERVED_TIME_MATCH", raising=False)
+    calls, _ = served
+    prov = {**PROV, "model": "EURO"}
+    assert sim_observed.served_tide(SPOT, prov, "live_forecast", None) is None
+    assert calls and all("model=EURO" in u for u in calls), calls
+
+
+def test_a_stale_served_frame_gives_no_tide(served, monkeypatch):
+    """The glyph answered from a fallback frame 6 h away: its tide describes another instant."""
+    monkeypatch.delenv("SIM_SERVED_TIME_MATCH", raising=False)
+    calls, _ = served
+
+    def urlopen(req, timeout=None):
+        calls.append(req.full_url)
+        return io.BytesIO(json.dumps(_payload({"norm": 0.95}, served_valid_time="2026-09-30T12:00:00Z")).encode())
+
+    monkeypatch.setattr(sim_observed.urllib.request, "urlopen", urlopen)
+    assert sim_observed.served_tide(SPOT, PROV, "live_forecast", None) is None
+
+
+@pytest.mark.parametrize("identity", [
+    None,                                                                            # unknown frame
+    {"marine": {"served_valid_time": T0}, "wind": {"served_valid_time": "2026-09-30T15:00:00Z"}},  # mixed
+])
+def test_an_unknown_or_mixed_frame_gives_no_tide_and_no_fetch(served, monkeypatch, identity):
+    monkeypatch.delenv("SIM_SERVED_TIME_MATCH", raising=False)
+    calls, _ = served
+    prov = {k: v for k, v in PROV.items() if k != "product_identity"}
+    if identity is not None:
+        prov["product_identity"] = identity
+    assert sim_observed.served_tide(SPOT, prov, "live_forecast", None) is None
+    assert calls == []
+
+
+def test_an_aligned_frame_applies_the_tide_with_time_match_unset(served, monkeypatch):
+    monkeypatch.delenv("SIM_SERVED_TIME_MATCH", raising=False)
+    tide = sim_observed.served_tide(SPOT, PROV, "live_forecast", None)
+    assert tide == {"norm": 0.95, "trend": "rising", "height_m": 1.1, "source": "served_glyph"}
+    assert _rate(tide)["quality_raw"] == pytest.approx(
+        _rate(None)["quality_raw"] * SR.tide_fit(0.95, SR.parse_best_tide("Low")), abs=0.1)

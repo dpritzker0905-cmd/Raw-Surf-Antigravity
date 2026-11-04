@@ -56,7 +56,7 @@ on:
       sim_served_tide:
         description: "SIM_SERVED_TIDE for the sim side: '1' the glyph's served tide (default ON since 2026-11-04), '0' the tide-blind kill arm"
         required: false
-        default: '0'
+        default: '1'
 
 permissions:
   contents: read

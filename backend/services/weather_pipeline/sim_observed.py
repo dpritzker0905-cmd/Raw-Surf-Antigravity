@@ -162,6 +162,12 @@ def _frame_time(value):
 def _comparison_frame(provenance, hour):
     if os.environ.get("SIM_SERVED_TIME_MATCH", "0") != "1":
         return {"status": "legacy", "valid_time": provenance.get("valid_time") or hour, "model": "GFS"}
+    return _aligned_frame(provenance)
+
+
+def _aligned_frame(provenance):
+    """The STRICT frame check: aligned only when the marine and wind frames name one known instant and the
+    model is known; otherwise unavailable. `served_tide` always uses this, whatever SIM_SERVED_TIME_MATCH says."""
     identity = provenance.get("product_identity")
     identity = identity if isinstance(identity, dict) else {}
     times = []
@@ -213,7 +219,11 @@ def served_tide(spot: Dict[str, Any], provenance: Dict[str, Any], baseline_sourc
         return None
     if not (provenance or {}).get("served_surf_height_m"):
         return None
-    frame = _comparison_frame(provenance, hour)
+    # ★ STRICT FRAME, ALWAYS (#720 review): the legacy parity frame is "GFS at the asked hour" and skips the
+    # model and served_valid_time checks, so a EURO/ICON sim or a stale fallback frame would borrow another
+    # frame's tide. A tide is applied only from a glyph that provably describes this sim's model and instant;
+    # an unknown, mixed or mismatched frame gives None (tide neutral). The parity path keeps its legacy frame.
+    frame = _aligned_frame(provenance or {})
     observed, _ = _observed_for_frame(spot, frame)
     return glyph_tide(observed)
 
