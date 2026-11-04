@@ -256,3 +256,12 @@ filter (it blocks only a fix proven worse) and a live guardrail. Changes in this
   - With the flag ON, Render pays the read-point cost on the live hub/scrub path (section 4) unless the guardrail
     bounds it.
 - Tests: `test_spectral_k.py` now has 24 (+1). The chain floor was re-derived with `--add 24`.
+
+## Update 2026-11-04: FAIL on history, default back to '0'
+
+FAIL on history (round 7, PR #722); rework = K only at headland-sheltered spots (Avila type) after BHC fixes the level.
+- Pooled result: +0.015 [-0.008, 0.043], two-way. Breaking height was worse in 2026-10, in 2025-10 and in the Bight.
+- Under the owner's rule, a fix proven worse does not ship on.
+- `SURF_SPECTRAL_K` is back to default '0' in the code, `_RATING_FLAGS` and the three lanes.
+- The harness and flip budget fetch the partition data only when an arm sets the flag to '1'.
+- All 24 tests are kept. They now pin the default as OFF and byte-identical.

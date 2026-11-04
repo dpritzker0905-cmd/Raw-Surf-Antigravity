@@ -100,13 +100,11 @@ def _t(s, what):
 
 
 def range_downloads(start, end, leads, step_h: int = 6, flags=None) -> int:
-    """Byte-range GETs the plan needs per distinct (cycle, fh): one wave span + one pgrb2 wind span, plus the partition
-    span SURF_SPECTRAL_K's read point needs. It is counted ALWAYS since the flag defaults ON (2026-11-04): the base arm
-    replays the served env with the head's code, so even a candidate setting the kill value '0' replays the other arm
-    with it on. `flags` is kept for the call sites (and a future per-arm budget)."""
+    """Byte-range GETs the plan needs: one wave span + one pgrb2 wind span per distinct (cycle, fh), plus the partition
+    span when the candidate sets SURF_SPECTRAL_K (its read point reads the member's partitions; default OFF)."""
     from services.weather_pipeline import eval_gfswave as gw
     files = {(c, fh) for c, fh, _, _ in gw.plan(gw.targets_between(start, end, step_h), leads)}
-    return 3 * len(files)
+    return (3 if (flags or {}).get("SURF_SPECTRAL_K") == "1" else 2) * len(files)
 
 
 def parse_declaration(text: str, path: str, now: datetime) -> dict:

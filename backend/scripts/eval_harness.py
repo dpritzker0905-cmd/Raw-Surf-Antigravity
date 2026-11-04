@@ -112,7 +112,7 @@ def stage_truth(cache, stations, t_lo, t_hi, out_dir):
 
 def stage_forecast(cache, stations, targets, leads, out_dir, fields_fn, wind_source, decoder, kread=False,
                    parts_fn=gw.fetch_partitions):
-    """`kread`: the served env or an arm runs SURF_SPECTRAL_K (default ON since 2026-11-04), so each (cycle, fh) also
+    """`kread`: the served env or an arm runs SURF_SPECTRAL_K (default OFF), so each (cycle, fh) also
     fetches the partition span and crops it at every read point (spectral_k_serving.READ_POINTS); the jobs carry those
     crops as products["kread"]. A partition span that cannot be read is COUNTED (`failed`, stage "partitions") and that
     file's jobs keep the bulk chain; it never costs the file's base fields."""
@@ -235,7 +235,7 @@ def run(args, get=pv.http_get, fields_fn=gw.fetch_fields, cfg=None) -> dict:
     t_lo = embargo[0] - timedelta(days=args.clim_days)
     t_hi = end + timedelta(hours=2)
     truth, truth_summary, hull_of = stage_truth(cache, stations, t_lo, t_hi, args.out)
-    kread = any(dict(served["env"], **d).get("SURF_SPECTRAL_K", "1") != "0" for _, d in deltas)
+    kread = any(dict(served["env"], **d).get("SURF_SPECTRAL_K", "0") == "1" for _, d in deltas)
     jobs, fc = stage_forecast(cache, stations, targets, leads, args.out, fields_fn, args.wind_source, args.decoder,
                               kread=kread)
     tides = rp.TideSeries(cache, min(j["cycle"] for j in jobs) if jobs else start, end, enabled=not args.no_tide)
