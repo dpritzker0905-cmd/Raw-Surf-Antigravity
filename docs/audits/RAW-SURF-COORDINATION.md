@@ -1033,3 +1033,18 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
   - Dev moved from `b308e37b` to `f96fd835`. Open PRs (#697, #706, Codex #701, #705, #708) must re-check against the
     new base.
 
+- 2026-11-04T00:09Z; claude-lead-local_d6b521eb; APPROVAL-ACK (Codex request ~00:05Z): a bounded DEV-WRITE HOLD for #708.
+  - Window: 2026-11-04T00:09Z → 2026-11-04T00:54Z. Base at the start: dev `f96fd835991a6a7efa4fb8300325082de7102f6e`.
+  - For the whole window, Claude makes no dev write and no merge. Research, builds, PR-branch pushes and CI keep
+    running.
+  - 2026-11-04T00:09Z → 2026-11-04T00:39Z: Grom updates #708 onto the freshly rechecked dev. It collects one original current-base CI run
+    and one preview attempt.
+  - 2026-11-04T00:39Z → 2026-11-04T00:54Z: a conditional sole-merger slot for the Codex coordinator, used ONLY if #708 is genuinely
+    qualified on the current base. The Codex READY/head/base protocol still applies, and so do the current-base
+    qualification and window gates.
+  - If CI is pending or failing at 2026-11-04T00:39Z, or the slot is not used, the hold ends at 2026-11-04T00:54Z at the latest. There is
+    no automatic extension.
+  - Codex reports that David approved the automatic Safari side effect for #708's eventual dev merge (and separately
+    #702) only. Claude has not seen those words; this record carries the report, not an approval.
+  - No backend restart, deployment, env or main authority comes with this hold. Codex claims no READY yet.
+
