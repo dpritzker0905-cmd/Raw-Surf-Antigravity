@@ -13,6 +13,8 @@ STAGES (each writes a panel + a provenance manifest beside it, under --out):
   3. replay     the served chain under the served env, then under each candidate arm       replay_<arm>.json
   4. score      baselines, controls, every arm on every quantity, the verdicts              scorecard.json / .md
 Network: public data hosts only (eval_provenance.ALLOWED_HOSTS), one request at a time, cached; never the app.
+Gate: the BINDING uncertainty rule is the two-way spatial block x day CI over >= 14 UTC target days (D-065,
+eval_twoway.py); it must pass its synthetic-null self-test first, else the run is REFUSED before any download.
 Exit code: 0 when every candidate arm PASSES on the primary quantity (or --exit-zero), 1 otherwise, 2 on error.
 """
 import argparse
@@ -35,6 +37,7 @@ from services.weather_pipeline import eval_ratchet as rt  # noqa: E402
 from services.weather_pipeline import eval_reference as rf  # noqa: E402
 from services.weather_pipeline import eval_replay as rp  # noqa: E402
 from services.weather_pipeline import eval_scoring as sc  # noqa: E402
+from services.weather_pipeline import eval_twoway as tw  # noqa: E402
 from services.weather_pipeline import gate_v2_truth as gt  # noqa: E402
 
 FLAG_PREFIXES = ("SURF_", "RATING_", "SAMPLER_", "CONSENSUS_", "SHORE_NORMAL_", "SPOT_RATINGS_", "MARINE_")
@@ -182,6 +185,7 @@ def score(arms_rows, truth, stations, hull_of, primary, cfg, embargo, baseline, 
             pairs = sc.pair(items, cand)
             thr = card_baselines[q]["p90_threshold_m"]
             s = eg.summarize(pairs, cfg, thr)
+            s["two_way_calibration"] = card_controls[q].get("two_way_calibration")
             v = rt.apply(eg.rules(s, cfg, card_controls[q]["ok"]), rt.candidate_rules(pairs, baseline, q, cfg))
             vs = eg.versus_baselines(pairs, cfg, thr)
             v["warnings"] += eg.baseline_warnings(vs)
@@ -195,6 +199,8 @@ def score(arms_rows, truth, stations, hull_of, primary, cfg, embargo, baseline, 
 
 def run(args, get=pv.http_get, fields_fn=gw.fetch_fields, cfg=None) -> dict:
     cfg = cfg or eg.harness_config()
+    # D-065: the binding two-way gate must pass its null self-test before any work (CalibrationFailed = REFUSED).
+    self_test = tw.require_calibrated()
     deltas = [("served", {})] + [(a, rp.parse_arm(a)) for a in args.arm]     # refuse a bad arm before any work
     start, end = rp.parse_time(args.start), rp.parse_time(args.end)
     targets = gw.targets_between(start, end, args.step_h)
@@ -266,6 +272,7 @@ def run(args, get=pv.http_get, fields_fn=gw.fetch_fields, cfg=None) -> dict:
         "gaps": {"named": NAMED_GAPS, "substitutions": SUBSTITUTIONS,
                  "counts": arms_rows["served"]["gaps"],
                  "unreplayable_flags": rp.UNREPLAYABLE},
+        "two_way_self_test": eg._cal_summary(self_test),
         "baselines": baselines, "controls": controls, "controls_ok": controls[args.primary]["ok"] is True,
         "controls_state": controls[args.primary]["ok"],
         "arms": arms,

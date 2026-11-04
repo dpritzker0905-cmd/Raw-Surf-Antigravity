@@ -43,7 +43,8 @@ DECL_SCHEMA = "raw-surf/flip-candidate/0"
 COMMENT_MARKER = "<!-- raw-surf-flip-scorecard -->"
 MAX_RANGE_DOWNLOADS = 400
 MAX_BYTES = 1_500_000_000
-MIN_WINDOW_DAYS, MAX_WINDOW_DAYS = 7, 14
+MAX_WINDOW_DAYS = 14             # span (end - start); with 6-hourly targets the budget allows it at leads 24/48/72
+# D-065: the binding two-way CI needs >= eval_twoway.MIN_DAYS (14) distinct UTC target days: 00Z day 1 .. 18Z day 14.
 SETTLE_DAYS = 3                   # the window must end this long before the run: archived, truth QC'd, immutable
 SERVED_WORKFLOW = ".github/workflows/precompute.yml"
 OUTCOMES = ("PASS", "FAIL", "REFUSED", "INVALID")
@@ -134,9 +135,13 @@ def parse_declaration(text: str, path: str, now: datetime) -> dict:
     start, end = _t(w.get("start"), "window.start"), _t(w.get("end"), "window.end")
     if end <= start:
         raise Invalid(f"{path}: window.end must be after window.start")
+    from services.weather_pipeline import eval_gfswave as gw
+    from services.weather_pipeline import eval_twoway as tw
     days = (end - start).total_seconds() / 86400.0
-    if not (MIN_WINDOW_DAYS <= days <= MAX_WINDOW_DAYS):
-        raise Invalid(f"{path}: window must span {MIN_WINDOW_DAYS}-{MAX_WINDOW_DAYS} days, got {days:.2f}")
+    target_days = len({t.date() for t in gw.targets_between(start, end, 6)})
+    if target_days < tw.MIN_DAYS or days > MAX_WINDOW_DAYS:
+        raise Invalid(f"{path}: window must cover at least {tw.MIN_DAYS} UTC target days (the binding two-way CI, "
+                      f"D-065) and span at most {MAX_WINDOW_DAYS} days; got {target_days} days over {days:.2f}")
     if end > now - timedelta(days=SETTLE_DAYS):
         raise Invalid(f"{path}: window must be PINNED in the past (end at least {SETTLE_DAYS} days before the run)")
     if start.hour % 6 or end.hour % 6 or start.minute or end.minute:

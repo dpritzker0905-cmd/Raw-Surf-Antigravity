@@ -14,7 +14,7 @@ SCOREBOARD row, plus the owner's explicit word. The scorecard is the evidence; t
 1. Run it with production input parity (`input_parity.production_parity: true` = every field decoded by an ecCodes
    backend AND the pgrb2 10 m wind the served lane reads): the manual workflow `eval-harness.yml` (Linux, pygrib),
    or a local run with ECMWF's `eccodes` (optional `backend/requirements-eval-harness.txt`; the same ecCodes library
-   pygrib wraps), on a window of at least 7 days of 6-hourly targets, leads 24/48/72, the committed station list
+   pygrib wraps), on a window of at least 14 UTC days of 6-hourly targets (the two-way rule, D-065), leads 24/48/72, the committed station list
    (`backend/scripts/eval_harness_stations.json`) or a larger one. The GRIB backend order is pygrib, then eccodes,
    then the built-in decoder (`eval_grib2.select_backend`); the backend and its library version are in every
    forecast manifest and scorecard. A built-in-decoder run (wave-file wind) is scoped to its substitutions and says
@@ -39,8 +39,24 @@ SCOREBOARD row, plus the owner's explicit word. The scorecard is the evidence; t
 4. **The controls pass** on the served baseline's own pairs: an identical candidate gives gain 0 with a CI covering 0
    and never PASSES; 20% less error PASSES; 25% more error FAILS. Failing controls make every verdict INVALID; a
    positive control that cannot pass at the sample size makes the quantity REFUSED ("underpowered").
-5. With 10 or more stations the station-cluster bootstrap CI must also exclude 0 (below that it is advisory).
+5. **The two-way CI excludes 0 (binding, D-065).** `eval_twoway.two_way_ci`: the mean gain's interval from a
+   pigeonhole bootstrap over spatial BLOCKS x UTC target DAYS, over **at least 14 UTC target days** (fewer = REFUSED).
+   Blocks: complete-linkage clustering of the station coordinates at 100 km (merge the pair of clusters whose
+   farthest members are closest while that is <= 100 km; ties by station id; every block's diameter <= 100 km).
+   Interval: mean +/- t(0.975, days - 1) x sqrt(days / (days - 1)) x the bootstrap SE. Stations the candidate never
+   changes are left out (gain 0 by construction). The station-cluster CI is reported, ADVISORY at any station count:
+   round 6 measured nearby stations' daily gains at rho 0.72-0.75 (the 11 Bight buoys ~ 1.3 independent stations),
+   and on 400 null sets it falsely passed 31-35% (nominal 2.5%). `CLUSTER_BINDING_MIN = 10` is retired.
 6. **The climatology ratchet holds** (next section).
+
+**The null self-test (D-065): without it the harness refuses to run.** Before any download `eval_harness.run` calls
+`eval_twoway.require_calibrated()`: on a canonical 12-station / 4-block / 14-day synthetic layout, mean-zero nulls
+(a day shock shared by every station, block x day shocks, a daily smooth field, a mixed one; 400 sets each) must each
+falsely pass <= 5%, and a known effect of 4 null SDs must pass >= 80% (pinned: worst 2.5%, power 91.5%). A failure is
+`CalibrationFailed` (REFUSED, exit 2). Each run also calibrates its OWN layout (its blocks, days, rows): a false-pass
+over 5% there makes the controls fail (every verdict INVALID); a power shortfall makes them `underpowered` (REFUSED).
+Persistent nulls (a fixed block effect, a persistent smooth field) are reported as `advisory_nulls`: the estimand is
+the candidate's effect at THESE stations over future days, so a fixed regional difference is measured, not noise.
 
 ## Climatology: a ratchet, not a wall (owner, 2026-11-03: "I agree with you")
 
@@ -57,7 +73,8 @@ primary quantity (the advisory quantities get the same lines, advisory):
 | days 10-14 | Only "not significantly worse than climatology" (candidate vs climatology CI wholly below 0); no never-widen rule, no lock | FAIL |
 | any locked lead the run does not score or cannot test | the floor cannot be checked | REFUSED |
 
-**Locks.** A lead below day 10 LOCKS when served beats climatology there (CI wholly above 0) in an ELIGIBLE run
+**Locks.** A lead below day 10 LOCKS when served beats climatology there (CI wholly above 0, and since D-065 the
+binding two-way block x day CI too, over >= 14 days) in an ELIGIBLE run
 (controls pass, production parity, out-of-sample climatology). `--update-ratchet` writes new locks to
 `backend/scripts/eval_harness_ratchet.json`; code only ever adds a lock (`save_baseline` refuses a write that drops or
 changes one), so the floor only rises. Removing a lock is a DECISIONS entry, by hand, with the evidence. The lock
@@ -71,7 +88,7 @@ whose embargo misses a scored hour; the ratchet refuses items without the marker
 far back before the embargo it reads. v0's "station x ISO-week holdout" averaged every OTHER week of a panel that
 included the scored window, so a week-A target's climatology read week B's scored (and later) hours: it leaked.
 
-**REFUSED** (never a PASS): fewer than 100 pairs, under 20 target hours, the required band untestable, or a
+**REFUSED** (never a PASS): fewer than 14 UTC target days (the binding two-way CI), fewer than 100 pairs, under 20 target hours, the required band untestable, or a
 candidate that changes nothing at any hour. A REFUSED arm that the `flag_reads` evidence shows was read (for
 example SURF_TIDE_DEPTH, which adds a tide lookup) is a flag that is inert in that window, not a broken flag.
 Thresholds live in `gate_v2_config.DEFAULT` with the bands replaced in `eval_gate.harness_config`; changing one is a
@@ -110,7 +127,8 @@ script `backend/scripts/flip_scorecard.py`, declaration format in `docs/weather-
 - **Comparison:** base = the merge base with the PR's base branch and its `precompute.yml` served env; candidate =
   that env plus the declared flags; both replayed by the head's harness. The head env must be the base env or the
   base env plus the flags (else INVALID). Served backend code changed in the same PR = REFUSED.
-- **Data and limits:** the declaration's pinned past window (7-14 days, ending >= 3 days before the run); GFS only
+- **Data and limits:** the declaration's pinned past window (at least 14 UTC target days and at most a 14-day span,
+  i.e. 00Z day 1 .. 18Z day 14, ending >= 3 days before the run; 7-13 days before D-065); GFS only
   (GFS-Wave + the pgrb2 10 m wind, pygrib, production parity), CDIP / NDBC truth; `actions/cache` keyed by the
   window; 60 minutes; at most 400 byte-range downloads (checked from the plan before any download, enforced by the
   cache) and 1.5 GB; no secrets, no app, no storage.

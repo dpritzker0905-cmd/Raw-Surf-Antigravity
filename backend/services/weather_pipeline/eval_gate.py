@@ -9,10 +9,12 @@ activation"). A candidate arm PASSES on the PRIMARY quantity only if ALL hold:
      CRPS above the observed p90, Holm-corrected; and gates v2's per-band bias-growth limits;
   3. TOP-DECILE BIAS NO WORSE: in the observed top 10% (a REQUIRED band), |bias| may not grow by more than its limit
      and its bootstrap CI of the growth may not sit wholly above 0;
-  4. THE CONTROLS PASS: on the served baseline's own pairs, an identical candidate gives gain 0 with a CI covering 0
+  4. THE TWO-WAY CI EXCLUDES 0 (D-065, binding): eval_twoway.two_way_ci, spatial block (complete linkage <= 100 km)
+     x UTC day, over at least 14 target days; fewer days = REFUSED. The station-cluster CI is advisory;
+  5. THE CONTROLS PASS: on the served baseline's own pairs, an identical candidate gives gain 0 with a CI covering 0
      and never PASSES, a 20%-less-error candidate PASSES and a 25%-more-error candidate FAILS. If they do not, the
      instrument is broken and every arm is INVALID.
-REFUSED (never PASS): too few pairs, too short a series, a required band untestable, or a candidate that does not
+REFUSED (never PASS): fewer than 14 UTC target days (the two-way CI cannot bind), too few pairs, too short a series, a required band untestable, or a candidate that does not
 move the quantity at all (the gate refuses to call "no change" an improvement).
 Secondary quantities get the same verdict as ADVISORY lines; only the primary one decides.
 
@@ -23,6 +25,7 @@ import dataclasses
 from typing import Dict, List, Optional, Sequence
 
 from services.weather_pipeline import eval_scoring as sc
+from services.weather_pipeline import eval_twoway as tw
 from services.weather_pipeline import gate_v2
 from services.weather_pipeline import gate_v2_stats as st
 from services.weather_pipeline.gate_v2_config import DEFAULT, Band, GateV2Config
@@ -69,9 +72,20 @@ def summarize(items: Sequence[dict], cfg: GateV2Config, thr: Optional[float]) ->
         "cv": {k: {"scored": c["scored"], "positive_share": c["positive_share"]} for k, c in res["cv"].items()},
         "twcrps": _tw(sc.twcrps_test(items, thr, cfg)),
         "station_cluster": sc.station_cluster_boot(items),
+        "two_way": _two_way(items, cfg),
         "station_week": sc.station_week_folds(items),
     })
     return out
+
+
+def _two_way(items, cfg) -> dict:
+    r = tw.two_way_ci(items, reps=cfg.bootstrap_reps, seed=cfg.bootstrap_seed, level=cfg.ci_level)
+    r.pop("block_of", None)
+    r["block_names"] = sorted(set(tw.item_blocks(items).values())) if items else []
+    for k in ("ci", "ci_percentile"):
+        if r.get(k):
+            r[k] = [round(x, 5) for x in r[k]]
+    return r
 
 
 def _tw(t):
@@ -104,12 +118,22 @@ def rules(s: dict, cfg: GateV2Config, controls_ok: bool) -> dict:
             reasons.append(f"significant harm above the observed p90: twCRPS (p {tw['p_worse']:.3g}, Holm {adj:.3g})")
     elif tw is None:
         warnings.append("twCRPS above p90 not computable")
+    cal = s.get("two_way_calibration") or {}
+    if cal.get("warning"):
+        warnings.append(cal["warning"])
     cl = s.get("station_cluster") or {}
-    if cl.get("binding") and cl.get("ci") and cl["ci"][0] <= 0:
-        reasons.append(f"the station-cluster bootstrap CI of the gain {cl['ci']} includes 0 ({cl['clusters']} stations)")
-    elif cl.get("note"):
-        warnings.append(cl["note"])
-    return {"verdict": "FAIL" if reasons else "PASS", "reasons": reasons, "warnings": warnings}
+    if cl.get("note"):
+        warnings.append(f"{cl['note']}: CI {cl.get('ci') and [round(x, 4) for x in cl['ci']]}")
+    w2 = s.get("two_way") or {}
+    if w2.get("computable") and w2["ci"][0] <= 0:
+        reasons.append(f"the binding two-way (block x day) CI of the gain {w2['ci']} includes 0 "
+                       f"({w2['blocks']} blocks x {w2['days']} days)")
+    if reasons:
+        return {"verdict": "FAIL", "reasons": reasons, "warnings": warnings}
+    if not w2.get("computable"):
+        return {"verdict": "REFUSED", "reasons": [f"two-way CI not computable: {w2.get('reason') or 'missing'}"],
+                "warnings": warnings}
+    return {"verdict": "PASS", "reasons": reasons, "warnings": warnings}
 
 
 def baseline_warnings(arm_vs: dict) -> List[str]:
@@ -139,13 +163,30 @@ def holm_across_arms(arms: Dict[str, dict], primary: str, cfg: GateV2Config) -> 
             q["verdict"]["reasons"].append(f"not significant after Holm across {len(names)} arms (p_adj {p:.3g})")
 
 
-def run_controls(base_items: Sequence[dict], cfg: GateV2Config, thr: Optional[float]) -> dict:
+def _cal_summary(cal: Optional[dict]) -> Optional[dict]:
+    if cal is None:
+        return None
+    out = {k: cal[k] for k in ("layout", "false_pass", "advisory_nulls", "power", "worst_false_pass", "ok",
+                               "reasons", "n_sets", "reps")}
+    hi = {k: v for k, v in cal["advisory_nulls"].items() if v > tw.MAX_FALSE_PASS}
+    out["warning"] = (f"advisory: with {cal['layout']['blocks']} spatial block(s) a PERSISTENT regional effect is not "
+                      f"separable from skill (persistent nulls falsely pass {hi}); a PASS here generalises to these "
+                      f"stations, not beyond them") if hi else ""
+    return out
+
+
+def run_controls(base_items: Sequence[dict], cfg: GateV2Config, thr: Optional[float], calibrate: bool = True) -> dict:
     """The four controls on the served baseline's pairs, and whether the instrument passes them."""
     out, ok = {}, True
     for kind in ("null_identical", "null_swap", "positive", "negative"):
         items = sc.control_items(base_items, kind)
         s = summarize(items, cfg, thr)
         r = rules(s, cfg, True)
+        if (kind == "positive" and r["verdict"] == "FAIL" and r["reasons"]
+                and all(x.startswith("the binding two-way") for x in r["reasons"])):
+            # 20% less error everywhere, held back ONLY by the binding two-way CI: a power floor of this layout
+            # (too few independent blocks x days for this quantity), not a broken instrument.
+            r = dict(r, verdict="REFUSED", reasons=["underpowered: " + r["reasons"][0]])
         gain, ci = s.get("crps_gain"), s.get("crps_gain_ci")
         if kind == "null_identical":
             passed = (gain is not None and abs(gain) < 1e-12 and (ci is None or ci[0] <= 0 <= ci[1])
@@ -160,9 +201,17 @@ def run_controls(base_items: Sequence[dict], cfg: GateV2Config, thr: Optional[fl
         ok = ok and (passed or not binding)
         out[kind] = {"n": s.get("n"), "crps_gain": gain, "crps_gain_ci": ci, "verdict": r["verdict"],
                      "reasons": r["reasons"][:3], "passed": passed, "binding": binding}
+    # The binding two-way rule must hold its false-pass rate on THIS run's layout (blocks, days, rows), else INVALID.
+    cal = tw.calibrate_items(base_items) if calibrate else None
+    out["two_way_calibration"] = _cal_summary(cal)
+    false_pass_ok = cal is None or cal["worst_false_pass"] <= tw.MAX_FALSE_PASS
+    if not false_pass_ok:
+        ok = False                      # the rule passes noise on this layout: INVALID
+    underpowered = cal is not None and false_pass_ok and not cal["ok"]     # honest but cannot see 4 null SD
     # A REFUSED positive control is a sample-size floor, not a broken instrument: the quantity cannot decide.
     neg_ok = out["negative"]["verdict"] in ("FAIL", "REFUSED")
-    if not ok and out["positive"]["verdict"] == "REFUSED" and out["null_identical"]["passed"] and neg_ok:
+    if (false_pass_ok and out["null_identical"]["passed"] and neg_ok
+            and ((not ok and out["positive"]["verdict"] == "REFUSED") or (ok is True and underpowered))):
         ok = "underpowered"
     out["ok"] = ok
     return out
@@ -268,15 +317,27 @@ def markdown(card: dict) -> str:
         if ctl:
             L.append(f"- controls ({ctl['ok'] if ctl['ok'] == 'underpowered' else ('pass' if ctl['ok'] else 'FAIL')}): "
                      + "; ".join(f"{k} {v['verdict']} gain {f(v['crps_gain'], 4)} CI {v['crps_gain_ci']}"
-                                 f" -> {'ok' if v['passed'] else 'not met'}" for k, v in ctl.items() if k != "ok"))
+                                 f" -> {'ok' if v['passed'] else 'not met'}" for k, v in ctl.items()
+                                 if k not in ("ok", "two_way_calibration")))
+            cal = ctl.get("two_way_calibration")
+            if cal:
+                L.append(f"- two-way calibration on this layout ({cal['layout']}): false pass {cal['false_pass']}, "
+                         f"power {cal['power']['rate']} -> {'ok' if cal['ok'] else 'FAIL'}")
         L.append("")
-    L += ["## Candidate arms", "", "| arm | quantity | n | gain (m) | 95% CI | DM p | verdict | first reason |",
-          "|---|---|---|---|---|---|---|---|"]
+    st_ = card.get("two_way_self_test") or {}
+    if st_:
+        L += [f"Two-way gate self-test (D-065): worst null false-pass {st_.get('worst_false_pass')}, power "
+              f"{(st_.get('power') or {}).get('rate')} at {(st_.get('power') or {}).get('effect_in_null_sd')} null SD; "
+              f"ok {st_.get('ok')}.", ""]
+    L += ["## Candidate arms", "", "| arm | quantity | n | gain (m) | 95% CI | two-way CI (binding) | DM p | verdict | "
+          "first reason |", "|---|---|---|---|---|---|---|---|---|"]
     for arm, a in card["arms"].items():
         for q, r in a["quantities"].items():
             s, v = r["summary"], r["verdict"]
             tag = "" if q == card["primary"] else " (advisory)"
+            w2 = s.get("two_way") or {}
             L.append(f"| `{arm}` | {q}{tag} | {s.get('n')} | {f(s.get('crps_gain'), 4)} | {s.get('crps_gain_ci')} | "
+                     f"{w2.get('ci') if w2.get('computable') else 'n/a (' + str(w2.get('days')) + ' days)'} | "
                      f"{f(s.get('dm_p_better'))} | **{v['verdict']}** | {(v['reasons'] or ['-'])[0][:110]} |")
     for arm, a in card["arms"].items():
         im = a.get("impact") or {}

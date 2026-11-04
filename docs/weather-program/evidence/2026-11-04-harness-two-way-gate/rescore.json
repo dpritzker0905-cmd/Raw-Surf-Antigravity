@@ -1,0 +1,552 @@
+{
+ "about": "Offline re-score of cached harness rows under D-065 (two-way block x day CI, >=14 UTC days). old = the same rows scored by origin/dev 29c01f71 code (reproduces every stored verdict); new = this branch. No GRIB downloaded. Script: rescore.py.",
+ "runs": {
+  "pr712-inventory dev10t (10-18..10-31)": {
+   "window": "56 targets 2026-10-18T00Z..2026-10-31T18Z",
+   "controls_state": {
+    "hs_station": true,
+    "hb_proxy": "underpowered",
+    "hs_offshore": "underpowered"
+   },
+   "layout_calibration": {
+    "hs_station": {
+     "layout": {
+      "stations": 8,
+      "blocks": 4,
+      "days": 14,
+      "rows": 1296
+     },
+     "false_pass": {
+      "day": 0.03,
+      "block_x_day": 0.0033333333333333335,
+      "daily_field": 0.0,
+      "mixed": 0.02
+     },
+     "advisory_nulls": {
+      "block": 0.11,
+      "persistent_field": 0.11333333333333333
+     },
+     "power": {
+      "effect": 0.8604637322065837,
+      "effect_in_null_sd": 4.0,
+      "n_sets": 200,
+      "rate": 0.94
+     },
+     "ok": true
+    },
+    "hb_proxy": {
+     "layout": {
+      "stations": 8,
+      "blocks": 4,
+      "days": 14,
+      "rows": 1296
+     },
+     "false_pass": {
+      "day": 0.03,
+      "block_x_day": 0.0033333333333333335,
+      "daily_field": 0.0,
+      "mixed": 0.02
+     },
+     "advisory_nulls": {
+      "block": 0.11,
+      "persistent_field": 0.11333333333333333
+     },
+     "power": {
+      "effect": 0.8604637322065837,
+      "effect_in_null_sd": 4.0,
+      "n_sets": 200,
+      "rate": 0.94
+     },
+     "ok": true
+    },
+    "hs_offshore": {
+     "layout": {
+      "stations": 2,
+      "blocks": 2,
+      "days": 14,
+      "rows": 204
+     },
+     "false_pass": {
+      "day": 0.0033333333333333335,
+      "block_x_day": 0.0,
+      "daily_field": 0.0033333333333333335,
+      "mixed": 0.0033333333333333335
+     },
+     "advisory_nulls": {
+      "block": 0.16666666666666666,
+      "persistent_field": 0.22
+     },
+     "power": {
+      "effect": 0.983108737173704,
+      "effect_in_null_sd": 4.0,
+      "n_sets": 200,
+      "rate": 0.63
+     },
+     "ok": false
+    }
+   },
+   "arms": {
+    "RATING_BREAKER_TYPE=1 | hs_station": {
+     "old": "REFUSED",
+     "new": "REFUSED",
+     "gain": 0.0,
+     "block_ci": [
+      0.0,
+      0.0
+     ],
+     "station_cluster_ci": [
+      0.0,
+      0.0
+     ],
+     "two_way": {
+      "computable": false,
+      "ci": null,
+      "blocks": 0,
+      "days": 0,
+      "reason": "no paired items"
+     },
+     "reasons": [
+      "the two lanes give the same loss at every hour: nothing to judge"
+     ]
+    },
+    "RATING_BREAKER_TYPE=1 | hb_proxy": {
+     "old": "REFUSED",
+     "new": "REFUSED",
+     "gain": 0.0,
+     "block_ci": [
+      0.0,
+      0.0
+     ],
+     "station_cluster_ci": [
+      0.0,
+      0.0
+     ],
+     "two_way": {
+      "computable": false,
+      "ci": null,
+      "blocks": 0,
+      "days": 0,
+      "reason": "no paired items"
+     },
+     "reasons": [
+      "the positive control cannot pass at this sample size: the instrument is underpowered for this quantity"
+     ]
+    },
+    "RATING_BREAKER_TYPE=1 | hs_offshore": {
+     "old": "REFUSED",
+     "new": "REFUSED",
+     "gain": 0.0,
+     "block_ci": [
+      0.0,
+      0.0
+     ],
+     "station_cluster_ci": [
+      0.0,
+      0.0
+     ],
+     "two_way": {
+      "computable": false,
+      "ci": null,
+      "blocks": 0,
+      "days": 0,
+      "reason": "no paired items"
+     },
+     "reasons": [
+      "the positive control cannot pass at this sample size: the instrument is underpowered for this quantity"
+     ]
+    },
+    "SURF_EXPOSURE_RECONCILED=1 | hs_station": {
+     "old": "FAIL",
+     "new": "FAIL",
+     "gain": -0.015908769132653062,
+     "block_ci": [
+      -0.02318,
+      -0.00907
+     ],
+     "station_cluster_ci": [
+      -0.06096225,
+      0.011940550595238096
+     ],
+     "two_way": {
+      "computable": true,
+      "ci": [
+       -0.05691,
+       0.02394
+      ],
+      "blocks": 4,
+      "days": 14,
+      "reason": ""
+     },
+     "reasons": [
+      "not significant overall: DM (abs loss) one-sided p = 1 >= 0.05",
+      "the 95% block-bootstrap CI of the mean gain [-0.0232, -0.0091] includes 0 (block 7)"
+     ]
+    },
+    "SURF_EXPOSURE_RECONCILED=1 | hb_proxy": {
+     "old": "FAIL",
+     "new": "REFUSED",
+     "gain": -0.048526244047586445,
+     "block_ci": [
+      -0.06411,
+      -0.03448
+     ],
+     "station_cluster_ci": [
+      -0.14946705375388472,
+      0.01709744772975631
+     ],
+     "two_way": {
+      "computable": true,
+      "ci": [
+       -0.1435,
+       0.04392
+      ],
+      "blocks": 4,
+      "days": 14,
+      "reason": ""
+     },
+     "reasons": [
+      "the positive control cannot pass at this sample size: the instrument is underpowered for this quantity",
+      "lead 24 h: widens the gap to climatology (candidate significantly worse than served at this lead, gain -0.0482 m, CI [-0.0644, -0.0348])"
+     ]
+    },
+    "SURF_EXPOSURE_RECONCILED=1 | hs_offshore": {
+     "old": "REFUSED",
+     "new": "REFUSED",
+     "gain": 0.0,
+     "block_ci": [
+      0.0,
+      0.0
+     ],
+     "station_cluster_ci": [
+      0.0,
+      0.0
+     ],
+     "two_way": {
+      "computable": false,
+      "ci": null,
+      "blocks": 0,
+      "days": 0,
+      "reason": "no paired items"
+     },
+     "reasons": [
+      "the positive control cannot pass at this sample size: the instrument is underpowered for this quantity"
+     ]
+    },
+    "SURF_TIDE_DEPTH=1 | hs_station": {
+     "old": "REFUSED",
+     "new": "REFUSED",
+     "gain": 0.0,
+     "block_ci": [
+      0.0,
+      0.0
+     ],
+     "station_cluster_ci": [
+      0.0,
+      0.0
+     ],
+     "two_way": {
+      "computable": false,
+      "ci": null,
+      "blocks": 0,
+      "days": 0,
+      "reason": "no paired items"
+     },
+     "reasons": [
+      "the two lanes give the same loss at every hour: nothing to judge"
+     ]
+    },
+    "SURF_TIDE_DEPTH=1 | hb_proxy": {
+     "old": "REFUSED",
+     "new": "REFUSED",
+     "gain": 0.0,
+     "block_ci": [
+      0.0,
+      0.0
+     ],
+     "station_cluster_ci": [
+      0.0,
+      0.0
+     ],
+     "two_way": {
+      "computable": false,
+      "ci": null,
+      "blocks": 0,
+      "days": 0,
+      "reason": "no paired items"
+     },
+     "reasons": [
+      "the positive control cannot pass at this sample size: the instrument is underpowered for this quantity"
+     ]
+    },
+    "SURF_TIDE_DEPTH=1 | hs_offshore": {
+     "old": "REFUSED",
+     "new": "REFUSED",
+     "gain": 0.0,
+     "block_ci": [
+      0.0,
+      0.0
+     ],
+     "station_cluster_ci": [
+      0.0,
+      0.0
+     ],
+     "two_way": {
+      "computable": false,
+      "ci": null,
+      "blocks": 0,
+      "days": 0,
+      "reason": "no paired items"
+     },
+     "reasons": [
+      "the positive control cannot pass at this sample size: the instrument is underpowered for this quantity"
+     ]
+    }
+   }
+  },
+  "surf-spectral-k #706 (10-06..10-15)": {
+   "window": "40 targets 2026-10-06T00Z..2026-10-15T18Z",
+   "controls_state": {
+    "hs_station": "underpowered",
+    "hb_proxy": "underpowered",
+    "hs_offshore": "underpowered"
+   },
+   "layout_calibration": {
+    "hs_station": null,
+    "hb_proxy": null,
+    "hs_offshore": null
+   },
+   "arms": {
+    "SURF_SPECTRAL_K=1 | hs_station": {
+     "old": "PASS",
+     "new": "REFUSED",
+     "gain": 0.08004791666666666,
+     "block_ci": [
+      0.06248,
+      0.10277
+     ],
+     "station_cluster_ci": [
+      0.004331249999999995,
+      0.18980333333333332
+     ],
+     "two_way": {
+      "computable": false,
+      "ci": null,
+      "blocks": 3,
+      "days": 10,
+      "reason": "10 UTC target days < 14: the two-way CI cannot be binding"
+     },
+     "reasons": [
+      "the positive control cannot pass at this sample size: the instrument is underpowered for this quantity"
+     ]
+    },
+    "SURF_SPECTRAL_K=1 | hb_proxy": {
+     "old": "FAIL",
+     "new": "REFUSED",
+     "gain": -0.036797318631364755,
+     "block_ci": [
+      -0.07295,
+      0.00741
+     ],
+     "station_cluster_ci": [
+      -0.22442508982801307,
+      0.2189241469233422
+     ],
+     "two_way": {
+      "computable": false,
+      "ci": null,
+      "blocks": 4,
+      "days": 10,
+      "reason": "10 UTC target days < 14: the two-way CI cannot be binding"
+     },
+     "reasons": [
+      "the positive control cannot pass at this sample size: the instrument is underpowered for this quantity"
+     ]
+    },
+    "SURF_SPECTRAL_K=1 | hs_offshore": {
+     "old": "REFUSED",
+     "new": "REFUSED",
+     "gain": 0.0,
+     "block_ci": [
+      0.0,
+      0.0
+     ],
+     "station_cluster_ci": [
+      0.0,
+      0.0
+     ],
+     "two_way": {
+      "computable": false,
+      "ci": null,
+      "blocks": 0,
+      "days": 0,
+      "reason": "no paired items"
+     },
+     "reasons": [
+      "the positive control cannot pass at this sample size: the instrument is underpowered for this quantity"
+     ]
+    }
+   }
+  },
+  "bight-hs-consensus #707 h5 (W1)": {
+   "window": "56 targets 2026-10-06T00Z..2026-10-19T18Z",
+   "controls_state": {
+    "hs_station": true,
+    "hb_proxy": true,
+    "hs_offshore": true
+   },
+   "layout_calibration": {
+    "hs_station": {
+     "layout": {
+      "stations": 10,
+      "blocks": 4,
+      "days": 14,
+      "rows": 1677
+     },
+     "false_pass": {
+      "day": 0.013333333333333334,
+      "block_x_day": 0.0,
+      "daily_field": 0.0033333333333333335,
+      "mixed": 0.016666666666666666
+     },
+     "advisory_nulls": {
+      "block": 0.07666666666666666,
+      "persistent_field": 0.12
+     },
+     "power": {
+      "effect": 0.8206071154709348,
+      "effect_in_null_sd": 4.0,
+      "n_sets": 200,
+      "rate": 0.945
+     },
+     "ok": true
+    },
+    "hb_proxy": {
+     "layout": {
+      "stations": 10,
+      "blocks": 4,
+      "days": 14,
+      "rows": 1677
+     },
+     "false_pass": {
+      "day": 0.013333333333333334,
+      "block_x_day": 0.0,
+      "daily_field": 0.0033333333333333335,
+      "mixed": 0.016666666666666666
+     },
+     "advisory_nulls": {
+      "block": 0.07666666666666666,
+      "persistent_field": 0.12
+     },
+     "power": {
+      "effect": 0.8206071154709348,
+      "effect_in_null_sd": 4.0,
+      "n_sets": 200,
+      "rate": 0.945
+     },
+     "ok": true
+    },
+    "hs_offshore": {
+     "layout": {
+      "stations": 14,
+      "blocks": 7,
+      "days": 14,
+      "rows": 2316
+     },
+     "false_pass": {
+      "day": 0.013333333333333334,
+      "block_x_day": 0.0,
+      "daily_field": 0.0,
+      "mixed": 0.023333333333333334
+     },
+     "advisory_nulls": {
+      "block": 0.07666666666666666,
+      "persistent_field": 0.05333333333333334
+     },
+     "power": {
+      "effect": 0.7775419919906797,
+      "effect_in_null_sd": 4.0,
+      "n_sets": 200,
+      "rate": 0.95
+     },
+     "ok": true
+    }
+   },
+   "arms": {
+    "R5_ARM=bhc | hs_station": {
+     "old": "PASS",
+     "new": "PASS",
+     "gain": 0.09884880952380952,
+     "block_ci": [
+      0.07233,
+      0.12905
+     ],
+     "station_cluster_ci": [
+      0.053643809523809524,
+      0.1461782142857143
+     ],
+     "two_way": {
+      "computable": true,
+      "ci": [
+       0.06668,
+       0.21632
+      ],
+      "blocks": 2,
+      "days": 14,
+      "reason": ""
+     },
+     "reasons": []
+    },
+    "R5_ARM=bhc | hb_proxy": {
+     "old": "FAIL",
+     "new": "FAIL",
+     "gain": 0.06451885881705499,
+     "block_ci": [
+      0.02931,
+      0.09702
+     ],
+     "station_cluster_ci": [
+      -0.013916899977912794,
+      0.16347228868467978
+     ],
+     "two_way": {
+      "computable": true,
+      "ci": [
+       -0.10374,
+       0.28866
+      ],
+      "blocks": 2,
+      "days": 14,
+      "reason": ""
+     },
+     "reasons": [
+      "the binding two-way (block x day) CI of the gain [-0.10374, 0.28866] includes 0 (2 blocks x 14 days)"
+     ]
+    },
+    "R5_ARM=bhc | hs_offshore": {
+     "old": "PASS",
+     "new": "PASS",
+     "gain": 0.0698365090266876,
+     "block_ci": [
+      0.05316,
+      0.08459
+     ],
+     "station_cluster_ci": [
+      0.029542573402417966,
+      0.11103402417962005
+     ],
+     "two_way": {
+      "computable": true,
+      "ci": [
+       0.0477,
+       0.19924
+      ],
+      "blocks": 3,
+      "days": 14,
+      "reason": ""
+     },
+     "reasons": []
+    }
+   }
+  }
+ }
+}

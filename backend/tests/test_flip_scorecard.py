@@ -56,7 +56,7 @@ def test_trigger_refuses_a_non_pr_event():
 # ---- declaration ------------------------------------------------------------------------------------------------
 def _decl(**over):
     d = {"schema": fs.DECL_SCHEMA, "slug": "kr-off", "flags": {"SURF_REFRACTION_KR": "1.0"},
-         "window": {"start": "2026-10-20T00:00Z", "end": "2026-10-29T18:00Z"}, "rationale": "demo"}
+         "window": {"start": "2026-10-16T00:00Z", "end": "2026-10-29T18:00Z"}, "rationale": "demo"}
     d.update(over)
     return json.dumps(d)
 
@@ -78,10 +78,12 @@ def test_a_valid_declaration_parses_with_its_plan_inside_the_budget():
     (_decl(slug="other"), "slug"),
     (_decl(flags={}), "flags"),
     (_decl(flags={"SURF_PARTITIONS": "1"}), "SURF_PARTITIONS"),                      # unreplayable
-    (_decl(window={"start": "2026-10-20T00:00Z", "end": "2026-10-24T00:00Z"}), "7-14 days"),
-    (_decl(window={"start": "2026-10-01T00:00Z", "end": "2026-10-20T00:00Z"}), "7-14 days"),
-    (_decl(window={"start": "2026-10-25T00:00Z", "end": "2026-11-02T00:00Z"}), "PINNED in the past"),
-    (_decl(window={"start": "2026-10-20T03:00Z", "end": "2026-10-29T18:00Z"}), "00/06/12/18Z"),
+    (_decl(window={"start": "2026-10-20T00:00Z", "end": "2026-10-24T00:00Z"}), "at least 14 UTC target days"),
+    # D-065: 13 target days (the old 7-14 day rule admitted this; the binding two-way CI needs 14)
+    (_decl(window={"start": "2026-10-17T00:00Z", "end": "2026-10-29T18:00Z"}), "at least 14 UTC target days"),
+    (_decl(window={"start": "2026-10-01T00:00Z", "end": "2026-10-20T00:00Z"}), "span at most 14"),
+    (_decl(window={"start": "2026-10-20T00:00Z", "end": "2026-11-02T18:00Z"}), "PINNED in the past"),
+    (_decl(window={"start": "2026-10-16T03:00Z", "end": "2026-10-29T18:00Z"}), "00/06/12/18Z"),
     (_decl(window={"start": "soon", "end": "2026-10-29T18:00Z"}), "ISO UTC"),
     (_decl(leads=[25]), "multiples of 6"),
     (_decl(primary="rating"), "primary"),
