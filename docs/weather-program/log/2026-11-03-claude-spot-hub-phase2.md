@@ -1,4 +1,4 @@
-# 2026-11-03 · claude · Spot-hub phase 2: the hub on THE ONE composition (DARK, `SPOT_HUB_RATE_ONE_SPOT`)
+# 2026-11-03 · claude · Spot-hub phase 2: the hub on THE ONE composition (ON by default, kill `SPOT_HUB_RATE_ONE_SPOT=0`)
 
 Session: a delegated subagent of the lead. Branch `claude/spot-hub-phase2`, cut from `origin/dev` `35feaaac6` and
 rebased onto `b308e37b6` (#704). Owner's words: "our own logic to generate our own forecasting charts that work in
@@ -7,7 +7,22 @@ state of the art weather simulation system features" (~16:19Z). DRAFT PR only: n
 Render/Netlify env change, no workflow dispatch, no live backend or app call. Research of record: memory
 `research-spot-hubs-forecast-charts-2026-11-03.md` (M1-M13).
 
-## What changed (served numbers move only when the flag flips, so it ships dark)
+## 2026-11-04 update: ON by default
+
+The lead relayed the owner's policy change (~01:41Z): "fixes now ship ON by default with a kill switch, plus a history
+filter and a live guardrail; nothing is built dark", with `SPOT_HUB_RATE_ONE_SPOT` and `SPOT_SERIES_PUBLISH` defaulting
+to `"1"` and `"0"` kept as the kill switch. Done: the read is `os.environ.get("SPOT_HUB_RATE_ONE_SPOT", "1") != "0"`,
+the registry default is `"1"`. The history filter and the live guardrail are the lead's `claude/default-on-guardrails`
+PR, which lands first. Seven legacy-contract test files (`test_audit_conditions_isolation`,
+`test_conditions_batch_precompute`, `test_forecast_tier_window`, `test_spot_conditions_batch_bounds`,
+`test_spot_details_forecast_deadline`, `test_spot_hub_data_source`, `test_spot_hub_local_size_reference`) pin the
+KILL-SWITCH chain with an autouse `SPOT_HUB_RATE_ONE_SPOT=0` fixture; the default path's route, tier-window and
+size-reference equivalents were added to `test_spot_hub_rate_one_spot.py` (now 20 tests). The tier windows are
+unchanged (free 72 h rolling as the phase-1 resolver echo has it, basic 7 d, premium 14 d; "day-of + 2" vs rolling
+72 h stays the owner decision phase 1 recorded). Everything below that says "dark" or "flip" describes the
+pre-policy build; the evidence stands, and the flip-gate list is now the merge gate.
+
+## What changed
 
 `SPOT_HUB_RATE_ONE_SPOT` (default `'0'`, read at call time in `spot_conditions.resolve_spot_conditions_impl`,
 registered in `_RATING_FLAGS` with lane "Render env": only the serve box runs the hub, the same as

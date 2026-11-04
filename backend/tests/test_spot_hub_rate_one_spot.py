@@ -1,12 +1,12 @@
-"""Spot-hub phase 2 (SPOT_HUB_RATE_ONE_SPOT, dark): the hub on THE ONE composition.
+"""Spot-hub phase 2 (SPOT_HUB_RATE_ONE_SPOT, ON by default, '0' kills): the hub on THE ONE composition.
 
 Pins three things:
   1. PARITY: with the flag on, the hub, /point-rating and /spot-ratings give the IDENTICAL height and rating for
      the same spot and hour, on both lanes (the glyph's precomputed frame, and the live `rate_one_spot`).
   2. M1: a daily row is the spot's LOCAL day and the real max / min over its frames, not one 12:00 UTC sample
      labelled "max" with min = 0.6 x max.
-  3. FLAG OFF: the hub payload is byte-identical to the chain it always ran, and the routes call it exactly as
-     before (no new kwargs reach a flag-off call).
+  3. KILL SWITCH ('0'): the hub payload is byte-identical to the chain it always ran, and the routes call it
+     exactly as before (no new kwargs reach a killed call). Unset is ON (owner policy 2026-11-04 ~01:41Z).
 """
 import json
 import math
@@ -310,8 +310,8 @@ async def _legacy(**extra):
 
 async def test_flag_off_is_byte_identical(monkeypatch):
     monkeypatch.setattr(SC, "datetime", _Frozen)
-    base = json.dumps(await _legacy(), sort_keys=True, default=str)
     monkeypatch.setenv("SPOT_HUB_RATE_ONE_SPOT", "0")
+    base = json.dumps(await _legacy(), sort_keys=True, default=str)
     explicit_off = json.dumps(await _legacy(), sort_keys=True, default=str)
     with_kwargs = json.dumps(await _legacy(spot_meta=dict(TRESTLES), horizon_hours=72), sort_keys=True,
                              default=str)
@@ -322,8 +322,11 @@ async def test_flag_off_is_byte_identical(monkeypatch):
         "SETUP: the legacy chain is what ran (min = 0.6 x max)")
 
 
-async def test_flag_on_takes_the_one_composition_path(monkeypatch):
-    monkeypatch.setenv("SPOT_HUB_RATE_ONE_SPOT", "1")
+@pytest.mark.parametrize("value", [None, "1", "yes"])
+async def test_unset_or_any_non_kill_value_takes_the_one_composition_path(monkeypatch, value):
+    """ON BY DEFAULT: only an explicit '0' restores the old chain."""
+    if value is not None:
+        monkeypatch.setenv("SPOT_HUB_RATE_ONE_SPOT", value)
     seen = {}
 
     async def fake(resolver, model, lat, lng, forecast_days=11, **kw):
@@ -335,17 +338,82 @@ async def test_flag_on_takes_the_one_composition_path(monkeypatch):
     assert seen == {"spot_id": "trestles", "spot_meta": TRESTLES, "horizon_hours": 72, "forecast_days": 11}
 
 
-def test_routes_send_no_new_kwargs_while_the_flag_is_off(monkeypatch):
+def test_routes_send_no_new_kwargs_under_the_kill_switch(monkeypatch):
     spot = SimpleNamespace(**TRESTLES)
+    monkeypatch.setenv("SPOT_HUB_RATE_ONE_SPOT", "0")
     assert HUB.call_kwargs(spot, 72) == {}
-    monkeypatch.setenv("SPOT_HUB_RATE_ONE_SPOT", "1")
+    monkeypatch.delenv("SPOT_HUB_RATE_ONE_SPOT")
     kw = HUB.call_kwargs(spot, 72)
     assert kw["horizon_hours"] == 72 and kw["spot_meta"]["best_tide"] is None
     assert set(kw["spot_meta"]) == {"id", "name", "latitude", "longitude", "accuracy_flag", "is_verified_peak",
                                     "best_tide"}, "the same keys /spot-ratings gives rate_one_spot"
 
 
-def test_the_flag_is_declared_dark_for_the_render_lane():
+def test_the_flag_is_declared_on_with_a_render_kill_switch():
     from routes.admin.surf_forecast import _RATING_FLAGS
     default, _why, lane = _RATING_FLAGS["SPOT_HUB_RATE_ONE_SPOT"][:3]
-    assert default == "0" and lane == "Render env"
+    assert default == "1" and lane == "Render env"
+
+
+# ── 4. THE DEFAULT PATH THROUGH THE ROUTES (ON by default; the legacy files pin the kill switch) ─────────────
+
+async def test_spot_details_sends_the_glyph_spot_and_the_tier_window_by_default(monkeypatch):
+    """The full hub, default ON: the resolver gets the glyph's spot dict and the free 72 h window, and the
+    route still withholds rows beyond the window (free = 72 h rolling, basic 7 d, premium 14 d)."""
+    from unittest.mock import AsyncMock, Mock
+    from routes.explore_discover import spot_details as route
+    monkeypatch.delenv("SPOT_FORECAST_TIER_HORIZON", raising=False)
+    spot = SimpleNamespace(id="tier-spot", name="Tier beach", region="Coast", difficulty=None, image_url=None,
+                           latitude=28.4, longitude=-80.6, description=None, best_tide="mid",
+                           accuracy_flag="verified", is_verified_peak=True)
+    first = Mock()
+    first.scalar_one_or_none.return_value = spot
+    empty = Mock()
+    empty.scalars.return_value.all.return_value = []
+    db = SimpleNamespace(execute=AsyncMock(side_effect=[first, empty, empty, empty, empty]))
+    rows = [{"date": (NOW.date() + timedelta(days=i)).isoformat(), "wave_height_max": 3.0} for i in range(1, 11)]
+    resolver = AsyncMock(return_value={"current_conditions": {"wave_height_ft": 2.0}, "forecast": rows})
+    monkeypatch.setattr(route.point_resolution_service, "resolve_spot_conditions", resolver)
+    from services import forecast_tier_window as W
+    real_split = W.split_forecast_rows
+    monkeypatch.setattr(W, "split_forecast_rows", lambda r, hours, now=None: real_split(r, hours, NOW))
+    for tier, hours in (("free", 72), ("basic", 168), ("premium", 336)):
+        resolver.reset_mock()
+        db.execute = AsyncMock(side_effect=[first, empty, empty, empty, empty])
+        out = await route.get_spot_details("tier-spot", subscription_tier=tier, model="GFS", db=db)
+        kw = resolver.await_args.kwargs
+        assert kw["horizon_hours"] == min(hours, W.tier_horizon_hours("premium", "GFS"))
+        assert kw["spot_meta"] == {"id": "tier-spot", "name": "Tier beach", "latitude": 28.4, "longitude": -80.6,
+                                   "accuracy_flag": "verified", "is_verified_peak": True, "best_tide": "mid"}
+        assert out["forecast_horizon_hours"] == kw["horizon_hours"]
+    assert out["forecast_status"] == "ready"
+
+
+async def test_the_drawer_route_sends_the_glyph_spot_by_default(monkeypatch):
+    from unittest.mock import AsyncMock, Mock
+    from routes.surf_data import conditions as route
+    spot = SimpleNamespace(**TRESTLES)
+    first = Mock()
+    first.scalar_one_or_none.return_value = spot
+    db = SimpleNamespace(execute=AsyncMock(return_value=first))
+    resolver = AsyncMock(return_value={"forecast": []})
+    monkeypatch.setattr(route.point_resolution_service, "resolve_spot_conditions", resolver)
+    await route.get_spot_forecast("trestles", days=3, model="GFS", db=db)
+    assert resolver.await_args.kwargs["spot_meta"]["best_tide"] is None
+    assert "horizon_hours" not in resolver.await_args.kwargs, "the drawer applies its window client-side"
+
+
+async def test_the_spots_own_size_reference_reaches_every_frame(monkeypatch):
+    """RATING_LOCAL_SIZE: the hub grades against the spot's own good day, as the glyph does."""
+    monkeypatch.setenv("RATING_LOCAL_SIZE", "1")
+    import services.weather_pipeline.spot_size_climatology as C
+    monkeypatch.setattr(C, "reference_for_spot", lambda sid: 1.37 if sid == "trestles" else None)
+    seen = []
+    real = SPR.rate_one_spot
+
+    async def spy(resolver, spot, model, vt, reference_size_m=None):
+        seen.append(reference_size_m)
+        return await real(resolver, spot, model, vt, reference_size_m=reference_size_m)
+    monkeypatch.setattr(SPR, "rate_one_spot", spy)
+    await _hub(FakeResolver(), horizon_hours=72, forecast_days=2)
+    assert seen and set(seen) == {1.37}
