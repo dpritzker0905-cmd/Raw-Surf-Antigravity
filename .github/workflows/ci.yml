@@ -997,7 +997,9 @@ jobs:
           #   base 3351 (hosted read) + 0 new test(s) and 0 new file(s) = 3351, files 213; floor 3351 - 6 = 3345. This PR must read 3351 passed.
           # ⬆ 3345→3360 on 2026-11-03 (rederive_floor.py, claude/swell-partition-tracking): dev run 41549383722 read 3351 / 213 files; dev's map 3351;
           #   base 3351 (hosted read) + 15 new test(s) and 1 new file(s) = 3366, files 214; floor 3366 - 6 = 3360. This PR must read 3366 passed.
-          MIN_FILES, MIN_PASSED = 214, 3360
+          # ⬆ 3360→3443 on 2026-11-03 (rederive_floor.py, claude/alerts-forecast-windows): dev run 41711330259 read 3366 / 214 files; dev's map 3366;
+          #   base 3366 (hosted read) + 83 new test(s) and 3 new file(s) = 3449, files 217; floor 3449 - 6 = 3443. This PR must read 3449 passed.
+          MIN_FILES, MIN_PASSED = 217, 3443
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1648,9 +1650,13 @@ jobs:
           #   base 3380 (dev's map) + 13 new test(s) and 1 new file(s) = 3393, files 199; floor 3393 - 6 = 3387. This PR must read 3393 passed.
           # ⬆ 3387→3408 on 2026-11-03 (rederive_floor.py, claude/spot-hub-phase1): dev run 41702493992 read 3380 / 198 files; dev's map 3393;
           #   base 3393 (dev's map) + 21 new test(s) and 1 new file(s) = 3414, files 200; floor 3414 - 6 = 3408. This PR must read 3414 passed.
-          # ⬆ 3408→3470 on 2026-11-03 (rederive_floor.py, claude/bight-hs-consensus): dev run 41711330259 read 3393 / 199 files; dev's map 3414;
-          #   base 3414 (dev's map) + 62 new test(s) and 1 new file(s) = 3476, files 201; floor 3476 - 6 = 3470. This PR must read 3476 passed.
-          MIN_FILES, MIN_PASSED = 201, 3470
+          # ⬆ 3408→3410 on 2026-11-03 (rederive_floor.py, claude/alerts-forecast-windows): dev run 41711330259 read 3393 / 199 files; dev's map 3414;
+          #   base 3414 (dev's map) + 2 new test(s) and 0 new file(s) = 3416, files 200; floor 3416 - 6 = 3410. This PR must read 3416 passed.
+          # ⬆ 3410→3431 on 2026-11-03 (rederive_floor.py, claude/restore-followups): dev run 41726327573 read 3416 / 200 files; dev's map 3416;
+          #   base 3416 (hosted read) + 21 new test(s) and 1 new file(s) = 3437, files 201; floor 3437 - 6 = 3431. This PR must read 3437 passed.
+          # ⬆ 3431→3482 on 2026-11-03 (rederive_floor.py, claude/consensus-direction-vector): dev run 41726327573 read 3416 / 200 files; dev's map 3437;
+          #   base 3437 (dev's map) + 51 new test(s) and 1 new file(s) = 3488, files 202; floor 3488 - 6 = 3482. This PR must read 3488 passed.
+          MIN_FILES, MIN_PASSED = 202, 3482
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

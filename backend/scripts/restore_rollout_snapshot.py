@@ -26,6 +26,10 @@ def main(argv=None) -> int:
     args = parser.parse_args(argv)
     if args.yes:
         os.environ.setdefault("L2_WRITER", "1")    # the restore writes top-level product keys and the manifest
+        # Republish through the read-merge-CAS lane every CI writer uses (#350). Without it (the variable unset on an operator's
+        # machine) the merge runs before a queued PUT, and a registration landing in between is lost (LongCat review 2026-11-03,
+        # tests/test_rollout_675_restore_followups.py). An explicit '0' is still honoured.
+        os.environ.setdefault("MANIFEST_PUBLISH_ONE_STEP", "1")
     from services.weather_pipeline.rollout_675_io import SupabaseIO
     from services.weather_pipeline.rollout_675_restore import REGENERATE, apply_restore, plan_restore
     from services.weather_pipeline.store import ProductStore
@@ -42,8 +46,9 @@ def main(argv=None) -> int:
     if not args.yes:
         print("dry run: pass --yes to restore")
         return 0
-    print(json.dumps(apply_restore(io, store, plan), indent=1))   # re-validates everything again before its first write
-    return 0
+    out = apply_restore(io, store, plan)                         # re-validates everything again before its first write
+    print(json.dumps(out, indent=1))
+    return 3 if out.get("state") == "RESTORE_PARTIAL" else 0      # stopped partway: restored_files / not_restored_files above
 
 
 if __name__ == "__main__":

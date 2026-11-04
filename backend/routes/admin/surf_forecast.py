@@ -43,6 +43,15 @@ _RATING_FLAGS = {
                                      "is also 1. services/weather_pipeline/consensus_product.py",
                                 "forecast-ingest-pilots workflow env (the lane that builds the CONSENSUS product); NOT Render. "
                                 "Flip ICON_PEAK_PERIOD first"),
+    # The consensus DIRECTION (2026-11-03, dark): Hs stays the equal mean; independent of CONSENSUS_PERIOD_MEDIAN. Serves nothing
+    # unless CONSENSUS_SERVE is also '1'. consensus_product.direction_mode / R_MIN.
+    "CONSENSUS_DIRECTION_VECTOR": ("0", "HYBRID consensus (equal GFS/EURO/ICON mean) total wave direction: where all three answer and the "
+                                        "members disagree (R_MIN 0.2 <= R < R_AGREE 0.92, R = their mean resultant length) the unweighted "
+                                        "unit-vector mean of the three, u/v rebuilt from it; GFS's own direction where they agree "
+                                        "(R >= 0.92), where R < 0.2 or where a member has no direction. R on the cell as dir_agreement. "
+                                        "services/weather_pipeline/consensus_product.py",
+                                   "forecast-ingest-pilots workflow env (the lane that builds the CONSENSUS product); NOT Render. "
+                                   "nearshore-validation reads the same flag (default 0) for the judge's consensus arm"),
     "ESTIMATE_COHERENT_TRENDS": ("0", "Refuse stored marine estimates whose active trend pair lacks a verified shared model cycle",
                                 "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (L2 writers); NOT Render"),
     "EURO_MARINE_NATIVE_TAIL_CADENCE": ("1", "Preserve NOAA tail cadence (step 1 on the three-hourly cache, not stride 3 -> nine-hourly EURO 10-14 d estimates) and verify completed local extension no-ops",
@@ -491,6 +500,12 @@ _RATING_FLAGS = {
                                     "so stored GFS reaches the scrubber's end; regional tiles trimmed to their own horizons, "
                                     "ICON/EURO tails keep their run+336 h ceilings (marine_mid_res_ingestion.gfs_world_fetch_days)",
                                "repo variable GFS_WORLD_FULL_HORIZON (read by forecast-ingest.yml AND forecast-ingest-pilots.yml)"),
+    # Changes WHICH surf alerts fire (2026-11-03, dark): the served rating frames over the next 72 h instead of
+    # GFS-current height; honours saved time_windows / tide_states / preferred_conditions, daylight only.
+    "ALERTS_FORECAST_WINDOWS": ("0", "Surf alerts from the SERVED forecast: daylight windows over the next 72 h (tier-capped) "
+                                     "meeting every saved preference, one push per window, de-duplicated "
+                                     "(services/surf_alert_windows.py, weather_pipeline/alert_horizon.py)",
+                                "precompute workflow env (builds the horizon frames) AND Render env (the alert scheduler) together"),
 }
 
 
