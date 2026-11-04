@@ -168,3 +168,64 @@ cancellation share is measured; the arm beating a leave-one-station-out offset a
 the Render read-point cost removed (precompute-baked seas) or bounded (pre-warm + singleflight + time budget).
 This PR's own flip-scorecard run would be REFUSED (it changes served backend code); the declaration is for the later
 flip PR, and adding the `flip-candidate` label is the lead's call.
+
+## Update 2026-11-04 (lead's ask, round-6 research): the station read on the nearshore-input path (offline, no code change)
+
+Question: round 6 suspects the served chain double-counts shelf attenuation where its input is a fallback cell
+(`model_hs_at_station`, nearshore_validation.py:79, treats that input as OFFSHORE). Do #706's harness numbers change
+when the station-side read uses `model_hs_from_nearshore_input` (:102) instead?
+
+**Method (exact; the scratch script was run inline and is not committed, because it is a one-off re-score with no
+test).** Inputs: the section 5 run's own panels in `C:/t/ssk-eh-out` (`replay_served.json`,
+`replay_SURF_SPECTRAL_K_1.json`, `truth.json`), unchanged; stations from `eval_harness_stations_ca.json`.
+1. For every anchor row of a nearshore station with an `hs_station_m`, recompute the station value as
+   `model_hs_from_nearshore_input(inputs.offshore_hs_m, inputs.tp_s, d_cell, station.depth_m)`. This is linear
+   shoaling from `d_cell` to the buoy depth, and nothing else: no friction, no exposure, no Kr.
+2. `d_cell` = the mean of the POSITIVE ETOPO depths among the 4 nodes of
+   `services/weather_pipeline/data/etopo_depth_0p25.npy` around the row's spot (`i0 = floor((lat+90)/0.25)`,
+   `j0 = floor((lng+180)/0.25)`, nodes `(i0|i0+1, j0|j0+1)`). These are the same 0.25-degree nodes as the GFS
+   bilinear stencil.
+3. Applied to every served row. On the arm rows it is applied only where the buoy has NO K entry (142p1); the arm's
+   K instrument stays as built.
+4. Paired by `eval_scoring.build_items('hs_station', ..., clim_embargo=clim_embargo(10-06T00Z, 10-15T18Z, 72))`
+   (n 720, 6 stations). Bias and MAE are means over those pairs. Gain = mean(|e_ref| - |e_cand|), and its 95% CI is
+   a 2000-draw bootstrap that resamples whole TARGET HOURS (seed 1). This is not the harness's moving-block or DM
+   gate, so these lines are advisory.
+
+| hs_station | bias (m) | MAE (m) |
+|---|---|---|
+| served, offshore-input path (today) | -0.165 | 0.324 |
+| served, nearshore-input path | **+0.098** | 0.302 |
+| K arm (142 on the bulk offshore-input path) | -0.146 | 0.244 |
+| K arm (142 on the nearshore-input path) | -0.085 | 0.222 |
+
+- **The arm's gain over served:** +0.080 [+0.064, +0.098] against today's instrument, and **+0.079 [+0.055,
+  +0.110]** against the nearshore-input instrument. The #706 aggregate does not change.
+- **The nearshore-input path alone:** +0.022 [-0.007, +0.046] over today's served. That is not significant, and it
+  overshoots the bias to +0.098.
+
+| Station | d_cell | served bias / MAE | nearshore-input bias / MAE | K arm bias / MAE |
+|---|---|---|---|---|
+| 153 Del Mar | 642 m | -0.240 / 0.240 | -0.019 / **0.125** | +0.055 / 0.174 |
+| 262 Leucadia | 384 m | -0.217 / 0.220 | -0.001 / **0.099** | +0.015 / 0.149 |
+| 284 Capistrano | 276 m | -0.348 / 0.348 | -0.166 / **0.205** | -0.341 / 0.385 |
+| 103 Topanga | 30 m | -0.330 / 0.330 | -0.221 / 0.223 | -0.253 / 0.284 |
+| 142 SF Bar | 42 m | -0.331 / 0.332 | +0.037 / 0.200 | (no K: bulk) |
+| 285 Avila | 65 m | +0.473 / 0.474 | +0.958 / 0.958 | -0.025 / **0.140** |
+
+**Reading.**
+- **Where the stencil cell is deep (San Diego canyons, Capistrano), the attenuation looks double-counted.**
+  Removing it beats the served instrument, and also beats the K arm at 153, 262 and 284. #706's San Diego gain is
+  therefore matched or exceeded by not attenuating at all, which is consistent with section 5's cancellation
+  reading (`sea_et` over-transfer offsetting GFS's low input).
+- **Where shelter is real (Avila, behind Point San Luis), the nearshore-input path doubles the error**
+  (+0.47 -> +0.96). Only K, which carries the headland's rays, fixes it (-0.03).
+- **Topanga:** both help, and neither fully.
+- **Next experiment:** a 2x2 factorial, "drop the fallback-cell attenuation" x SURF_SPECTRAL_K, stratified by
+  `d_cell` (deep vs shelf). It must be pre-registered and run on a window that is fresh to BOTH arms (not
+  10-06..10-15, which this note has now read). It is not paired in #706.
+- **Caveats:**
+  - `d_cell` from a 0.25-degree ETOPO stencil is crude. 642 m at Del Mar is the canyon edge, not the sea the buoy
+    sees.
+  - The CI method differs from the harness gate.
+  - 6 clusters.
