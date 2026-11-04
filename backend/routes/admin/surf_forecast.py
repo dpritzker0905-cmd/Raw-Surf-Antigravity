@@ -10,7 +10,9 @@ One place for the operator to see the rating pipeline's truth and moderate the d
         the confirmation/nudge windows only read fresh rows).
 
 Flags are SERVER ENV (Render / workflow env) — this endpoint reports what the serve box actually sees;
-flipping them is an env change + restart, documented per flag. Read-only besides report deletion.
+flipping them is an env change + restart, documented per flag. Since D-065 the GUARDED flags
+(services/runtime_flags.GUARDED) also read the runtime manifest control/flags.json (env > manifest > default),
+which the guardrail workflow alone writes; the status board reports their effective value and its source. Read-only besides report deletion.
 """
 import asyncio
 import logging
@@ -22,6 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from database import get_db
+from services import runtime_flags as _rf
 from models import Profile, SurfReport, SurfSpot
 from deps.admin_auth import get_current_admin
 
@@ -45,7 +48,7 @@ _RATING_FLAGS = {
                                 "Flip ICON_PEAK_PERIOD first"),
     # The consensus DIRECTION (2026-11-03, dark): Hs stays the equal mean; independent of CONSENSUS_PERIOD_MEDIAN. Serves nothing
     # unless CONSENSUS_SERVE is also '1'. consensus_product.direction_mode / R_MIN.
-    "CONSENSUS_DIRECTION_VECTOR": ("0", "HYBRID consensus (equal GFS/EURO/ICON mean) total wave direction: where all three answer and the "
+    "CONSENSUS_DIRECTION_VECTOR": ("1", "[D-065 default ON; guardrail-watched] HYBRID consensus (equal GFS/EURO/ICON mean) total wave direction: where all three answer and the "
                                         "members disagree (R_MIN 0.2 <= R < R_AGREE 0.92, R = their mean resultant length) the unweighted "
                                         "unit-vector mean of the three, u/v rebuilt from it; GFS's own direction where they agree "
                                         "(R >= 0.92), where R < 0.2 or where a member has no direction. R on the cell as dir_agreement. "
@@ -237,7 +240,7 @@ _RATING_FLAGS = {
     # registry wording. `0.55+0.45*exposure` is surf_transform._height_exposure_factor; quality
     # (surf_rating.swell_exposure) is untouched. Direction matters to an operator: flipping this
     # SHRINKS off-axis heights (-46.9% at the floor, 0.0% head-on), it does not raise scores.
-    "SURF_EXPOSURE_RECONCILED": ("0", "Reconcile the DUAL swell-aim floor: replace the HEIGHT "
+    "SURF_EXPOSURE_RECONCILED": ("0", "[D-065 held OFF: the history filter shows it WORSE, hs_station MAE +0.0093 m CI [0.0076, 0.0113]; fix in progress] Reconcile the DUAL swell-aim floor: replace the HEIGHT "
                                       "curve 0.55+0.45*exposure with sqrt(exposure) so height**2 "
                                       "== exposure and the height/quality chains stop reading one "
                                       "swell through two floors (0.595 vs 0.100). Heights only: "
@@ -262,7 +265,7 @@ _RATING_FLAGS = {
     # HIGH regression risk, so the physics ships dark and is enabled deliberately, after a served
     # delta census. ⚠️ NO SERVING CALLER SUPPLIES A WATER LEVEL YET — turning this on alone changes
     # nothing; it gates the term, it does not feed it.
-    "SURF_TIDE_DEPTH":             ("0", "Let the tide (sea_level_height_msl) move the depth-limited "
+    "SURF_TIDE_DEPTH":             ("1", "[D-065 default ON; guardrail-watched] Let the tide (sea_level_height_msl) move the depth-limited "
                                          "breaking cap — binds only where a shallow break meets surf "
                                          "big enough to feel bottom", "Render env"),
     "SURF_RATING":                 ("1", "Rating overlay (vs raw surf-height band) on surf=1 grids", "Render env"),
@@ -346,7 +349,7 @@ _RATING_FLAGS = {
     "SURF_V3_MAGNETS":             ("1", "Sub-grid inlet/jetty focusing factor", "Render env"),
     "SURF_V3_SHELF_RECAL":         ("1", "Shelf-friction recalibration; off restores the "
                                          "pre-calibration cf scale", "Render env"),
-    "RATING_OBS_GATE":             ("0", "Good/Epic observation gate + user-report weigh-in (Surfline hybrid)",
+    "RATING_OBS_GATE":             ("1", "[D-065 default ON, as every lane already ran it; guardrail-watched] Good/Epic observation gate + user-report weigh-in (Surfline hybrid)",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
     # ⚠️ THIS COLUMN WAS WRONG AND THE ERROR WAS DORMANT. It named 2 places ("Render env AND
     # precompute.yml") for a flag whose own workflow comments, tests/test_flag_lane_parity.py and
@@ -355,7 +358,7 @@ _RATING_FLAGS = {
     # everywhere the missing lane was invisible; flipping it to '1' on 2026-08-01 surfaced it
     # immediately. ★ A "where to flip" that is short by one lane is worse than none: it reads as
     # complete, and the lane it omits is exactly the one that silently keeps the old reference.
-    "RATING_LOCAL_SIZE":           ("0", "Local (per-spot/per-cell) size calibration — flip glyphs+band together",
+    "RATING_LOCAL_SIZE":           ("1", "[D-065 default ON, as every lane already ran it; guardrail-watched] Local (per-spot/per-cell) size calibration — flip glyphs+band together",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
     "RATING_SIZE_CLIMATOLOGY":     ("1", "Accumulate per-SPOT good-day size climatology (blob only)", "precompute.yml env"),
     "RATING_GRID_SIZE_CLIMATOLOGY": ("1", "Accumulate per-CELL (band) size climatology (blob only)", "pilots workflow env"),
@@ -428,7 +431,7 @@ _RATING_FLAGS = {
                                               "must carry before the partition-aware exposure may "
                                               "speak for the sea (0 = pre-fix behaviour)",
                                       "Render env"),
-    "RATING_BREAKER_TYPE":         ("0", "Iribarren breaker-type factor in spot ratings", "Render env"),
+    "RATING_BREAKER_TYPE":         ("0", "[D-065 held OFF: only the glyph path reads it, so ON splits ONE FORECAST COMPOSITION] Iribarren breaker-type factor in spot ratings", "Render env"),
     "SPOT_RATINGS_V2":             ("1", "Spot-ratings endpoint (glyphs) master switch", "Render env"),
     # 2026-08-15 (WS-CAN-0064): /conditions/batch answers from the precomputed frames per spot
     # (same ladder as /spot-ratings), live fallback for anything a frame cannot answer. The
@@ -494,7 +497,7 @@ _RATING_FLAGS = {
                                "repo variable GFS_WORLD_FULL_HORIZON (read by forecast-ingest.yml AND forecast-ingest-pilots.yml)"),
     # Changes WHICH surf alerts fire (2026-11-03, dark): the served rating frames over the next 72 h instead of
     # GFS-current height; honours saved time_windows / tide_states / preferred_conditions, daylight only.
-    "ALERTS_FORECAST_WINDOWS": ("0", "Surf alerts from the SERVED forecast: daylight windows over the next 72 h (tier-capped) "
+    "ALERTS_FORECAST_WINDOWS": ("0", "[D-065 held OFF: up to 5 alerts a day before the cap fix (claude/alerts-dedupe-cap); fix in progress] Surf alerts from the SERVED forecast: daylight windows over the next 72 h (tier-capped) "
                                      "meeting every saved preference, one push per window, de-duplicated "
                                      "(services/surf_alert_windows.py, weather_pipeline/alert_horizon.py)",
                                 "precompute workflow env (builds the horizon frames) AND Render env (the alert scheduler) together"),
@@ -505,11 +508,15 @@ _RATING_FLAGS = {
 async def get_surf_forecast_status(admin: Profile = Depends(get_current_admin)):
     """The rating system's live truth: flag values AS THE SERVE BOX SEES THEM, blob freshness, and
     calibration summaries. Every sub-read is independent and never fatal."""
-    flags = [
-        {"name": name, "value": os.environ.get(name, default), "default": default,
-         "active": os.environ.get(name, default) != "0", "controls": controls, "where": where}
-        for name, (default, controls, where) in _RATING_FLAGS.items()
-    ]
+    flags = []
+    for name, (default, controls, where) in _RATING_FLAGS.items():
+        # D-065: a GUARDED flag's effective value can come from the runtime manifest (the guardrail's kill).
+        r = (_rf.resolve(name, default) if name in _rf.GUARDED
+             else {"value": os.environ.get(name, default), "source": "env" if name in os.environ else "default",
+                   "entry": None})
+        flags.append({"name": name, "value": r["value"], "default": default, "active": r["value"] != "0",
+                      "source": r["source"], "manifest_entry": r["entry"], "guarded": name in _rf.GUARDED,
+                      "controls": controls, "where": where})
 
     blobs = {}
     try:
@@ -666,7 +673,7 @@ async def local_size_preview(admin: Profile = Depends(get_current_admin),
     report["owner_anchors"] = {"today_global": anchor_report(None),
                                "with_local_reference": anchor_report(0.75)}
     report["flag"] = {"name": "RATING_LOCAL_SIZE",
-                      "current": os.environ.get("RATING_LOCAL_SIZE", "0"),
+                      "current": _rf.flag("RATING_LOCAL_SIZE"),
                       "flip_where": "Render env AND precompute.yml env (glyphs+band together)"}
     # ⚠️ The aggregate cannot see an INVERTED climatology — a blob giving Florida 2.5 m and Pipeline
     # 0.7 m produces a perfectly plausible spread. Only the named exemplars can, so the go/no-go
