@@ -418,6 +418,24 @@ _RATING_FLAGS = {
                                          "bilinear stencil before interpolating them, instead of blending slot by "
                                          "slot (needs SURF_PARTITIONS)",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
+    # 2026-11-03, ON by default since 2026-11-04 (owner policy via the lead: ON with a kill switch; kill '0'): inside
+    # the frozen Southern California Bight polygon the served offshore Hs is the GFS+EURO
+    # mean where both answer (bight_hs_consensus.py, composed in consensus_serve.ServedStore, so every surface reads
+    # it). Not composed on a frame served as its CONSENSUS twin. Flip gate: log 2026-11-03-claude-bight-hs-consensus.
+    "SURF_BIGHT_HS_CONSENSUS":     ("1", "Inside the Southern California Bight polygon the served offshore Hs is the "
+                                         "mean of GFS and EURO where both answer (GFS period and direction kept); "
+                                         "GFS elsewhere (all surfaces)",
+                                    "Render env AND forecast-ingest.yml AND precompute.yml AND sim-parity-monitor.yml "
+                                    "env: GUARDED (D-065), every lane '' so the runtime kill manifest (the flag guardrail's 'off') reaches it; "
+                                    "a '0' pin is a hard per-lane kill"),
+    # 2026-11-04 (DARK arm option): EURO's weight in the Bight mean (round 6: EURO is the least-biased offshore Hs).
+    # 0.5 = the equal mean (byte-identical). Moves a served number only with SURF_BIGHT_HS_CONSENSUS on; scored only
+    # jointly with a breaker re-calibration (log 2026-11-03-claude-bight-hs-consensus.md section 9).
+    "SURF_BIGHT_HS_EURO_WEIGHT":   ("0.5", "EURO's weight w in the Bight Hs, (1 - w) GFS + w EURO, while "
+                                           "SURF_BIGHT_HS_CONSENSUS is on (0.5 = the equal mean)",
+                                    "Render env AND forecast-ingest.yml AND precompute.yml AND sim-parity-monitor.yml "
+                                    "env, TOGETHER with SURF_BIGHT_HS_CONSENSUS (pilots declares it: ingest never "
+                                    "reads it)"),
     # Roadmap stage 4 (2026-09-27). DARK until the nearshore judge's archived-grid arm has the hours.
     "SURF_NEARSHORE_MOP":          ("0", "California spots break from CDIP MOP's nearshore sea+swell forecast "
                                          "instead of the offshore field + parametric transform (all surfaces)",
