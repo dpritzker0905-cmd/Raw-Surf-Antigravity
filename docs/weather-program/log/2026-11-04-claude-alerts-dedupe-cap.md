@@ -91,5 +91,5 @@ local day.
   and the knob ranges. Suites: 103 passed.
 - Mutants (`scratchpad/adc/mutate.py`, 25 single edits across collapse, suppression, cap, ranking, the kill switch
   and the scheduler scope and in-run record): **25 / 25 killed**.
-- Floors via `rederive_floor.py --lane guards --add 20`: 3449 -> **3469**, MIN_PASSED 3463, MIN_FILES 217.
+- Floors via `rederive_floor.py --lane guards --add 20` (re-run after merging dev 945d887f, which carried #712): 3454 -> **3474**, MIN_PASSED 3468, MIN_FILES 217.
 - flake8 `E9,F63,F7,F82` clean. Largest touched file: 490 lines.
