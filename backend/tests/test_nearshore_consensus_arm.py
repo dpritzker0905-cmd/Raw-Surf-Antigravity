@@ -33,7 +33,9 @@ def _members(**over):
     return m
 
 
-def test_the_consensus_is_the_full_equal_mean_with_the_primarys_period_and_bearing():
+def test_the_consensus_is_the_full_equal_mean_with_the_primarys_period_and_bearing(monkeypatch):
+    # D-065: CONSENSUS_DIRECTION_VECTOR defaults ON now; the primary's bearing is the flag-off contract pinned here.
+    monkeypatch.setenv("CONSENSUS_DIRECTION_VECTOR", "0")
     c = equal_consensus(_members())
     assert c == {"hs": pytest.approx(1.0), "tp": 9.0, "dir": 270.0}
 

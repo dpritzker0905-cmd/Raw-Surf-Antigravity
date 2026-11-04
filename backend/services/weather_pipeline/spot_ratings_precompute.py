@@ -30,6 +30,7 @@ admin panel and to every lane guard. Moving a flag out of the scanned set is how
 that key is pinned by a Supabase storage RLS policy AND by the frontend CDN client, and its warning
 belongs beside the constant, not one import away.
 """
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default
 import asyncio
 import json
 import logging
@@ -357,7 +358,7 @@ async def precompute_spot_ratings(resolver, spots, models, hour_offsets, base_dt
     # per-model loop keeps that model's previous frames, as it does for a coverage failure. A climatology
     # that is ABSENT (never seeded) still rates on the global default, as designed.
     ref_map = {}
-    if os.environ.get("RATING_LOCAL_SIZE", "0") == "1":
+    if _rf.flag("RATING_LOCAL_SIZE") == "1":
         try:
             from services.weather_pipeline.spot_size_climatology import (
                 load_size_climatology_for_rating, reference_map as _size_reference_map)
@@ -493,7 +494,7 @@ def run_spot_ratings_precompute() -> tuple:
             # OBSERVATION GATE + light report weigh-in (rating plan Step 4): scores above 'good' are
             # capped unless >=2 models agree or a fresh user report confirms. Applied to the merged
             # object BEFORE each checkpoint upload so every consumer sees one truth. Kill: RATING_OBS_GATE=0.
-            if os.environ.get("RATING_OBS_GATE", "0") == "1":
+            if _rf.flag("RATING_OBS_GATE") == "1":
                 try:
                     from services.weather_pipeline.rating_confirmation import (
                         apply_gate_to_frames, fetch_recent_reports_via_rest)

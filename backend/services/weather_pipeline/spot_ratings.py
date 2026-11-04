@@ -11,6 +11,7 @@ string keep grading THIS file. Rationale: `docs/research/FINDING-2026-08-14-spli
 ⚠️ This file was at 800/800 LOC when the split was made. It is the mandated reference; keep it
 readable and keep the headroom — move rationale to docs rather than deleting it.
 """
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default
 import json
 import logging
 import math
@@ -186,7 +187,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     # Breaker TYPE (Iribarren): bed slope + swell steepness → plunging/spilling/surging quality. Gated
     # RATING_BREAKER_TYPE (default "0"). ⚠️ 2026-08-09 dropped a FALSE "slope asset unbundled" clause — it ships since `fa86fb53`; only the flag + CONTESTED science gate it. Waiver: parity test.
     breaker_xi = None
-    if os.environ.get("RATING_BREAKER_TYPE", "0") == "1":
+    if _rf.flag("RATING_BREAKER_TYPE") == "1":
         try:
             from services.weather_pipeline.bathymetry import bed_slope_at
             from services.weather_pipeline.surf_transform import iribarren

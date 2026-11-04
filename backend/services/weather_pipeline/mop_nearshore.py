@@ -19,6 +19,7 @@ THIS MODULE holds the grid geometry and the cell choice, PURE: which cell of whi
 for a catalogue spot. The geometry is discovered from the files and committed with the spot table
 (scripts/build_mop_spot_cells.py, data/mop_spot_cells.json); nothing here touches the network.
 """
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default
 import math
 import re
 from datetime import datetime, timezone
@@ -218,7 +219,7 @@ def estimate_surf_from_nearshore(hs_m, tp_s, cell_depth_m, shelf_depth_m, shelf_
         cap_depth = float(break_depth_m)
     if cap_depth is None or cap_depth <= 0:
         return None, "unknown"
-    if water_level_m and os.environ.get("SURF_TIDE_DEPTH", "0") != "0":
+    if water_level_m and _rf.flag("SURF_TIDE_DEPTH") != "0":
         cap_depth = max(_MIN_CAP_DEPTH_M, cap_depth + float(water_level_m))
     slope = (shelf_depth_m / (shelf_width_km * 1000.0)) if (shelf_depth_m and shelf_width_km and shelf_width_km > 0) else None
     cap = breaker_index(tp_s, slope=slope) * cap_depth

@@ -21,6 +21,7 @@ good/epic hour for want of a peer and disagree with the glyph.
 Key `spot_ratings/alert_horizon.json` (namespaced, so the designated-writer gate lets the precompute lane write
 it; not the client-downloaded `latest.json`, so its size taxes no browser).
 """
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default
 import asyncio
 import contextlib
 import json
@@ -134,7 +135,7 @@ async def build_alert_horizon(resolver, spots, models, offsets, *, base_dt=None,
             if obj.get("refused"):
                 raise RuntimeError(f"rating refused for {model}: {obj['refused']}")
             frames.extend(obj.get("frames") or [])
-    if os.environ.get("RATING_OBS_GATE", "0") == "1" and frames:
+    if _rf.flag("RATING_OBS_GATE") == "1" and frames:
         from services.weather_pipeline.rating_confirmation import apply_gate_to_frames, fetch_recent_reports_via_rest
         apply_gate_to_frames(frames, fetch_recent_reports_via_rest())
     obj = build_l2_object([{"model": f.get("model"), "valid_time": f.get("valid_time"),
