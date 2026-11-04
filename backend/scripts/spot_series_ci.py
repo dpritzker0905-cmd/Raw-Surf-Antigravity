@@ -150,7 +150,13 @@ def cmd_rate(a) -> int:
     with open(os.path.join(a.out, f"meta-{model}-{a.job}.json"), "w", encoding="utf-8") as fh:
         json.dump(meta, fh, indent=1)
     logger.info("rate %s job %d/%d: %s", model, a.job, a.jobs, json.dumps(meta))
-    return 0 if n_rated else 1
+    # The glyph precompute's per-model coverage guard (SPOT_RATINGS_MIN_COVERAGE, default 0.05): a job below it
+    # fails, so the assemble job's publish step (which needs every rate job green) never ships a hollow series.
+    floor = float(os.environ.get("SPOT_RATINGS_MIN_COVERAGE", "0.05"))
+    if not n_frames or n_rated / n_frames < floor:
+        logger.error("coverage %d/%d below the %.0f%% floor: failing the job", n_rated, n_frames, floor * 100)
+        return 1
+    return 0
 
 
 def _assemble(paths, base, reports=None):
