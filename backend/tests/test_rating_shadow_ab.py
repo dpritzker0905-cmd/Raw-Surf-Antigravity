@@ -66,6 +66,8 @@ _SCIENCE_SWITCHES = (
 def clean_flags(monkeypatch):
     for k in _SCIENCE_SWITCHES:
         monkeypatch.delenv(k, raising=False)
+    # D-065: SURF_TIDE_DEPTH defaults ON now; these replays measure it as the CANDIDATE, so the base arm states '0'.
+    monkeypatch.setenv("SURF_TIDE_DEPTH", "0")
 
 
 def _rounded_row(level_flip=False):

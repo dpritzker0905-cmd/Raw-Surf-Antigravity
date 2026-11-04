@@ -447,6 +447,8 @@ _SCIENCE_PREFIXES = ("RATING_", "SURF_", "SPOT_HUB_", "SHORE_NORMAL_")
 _ENV_READ_PATTERNS = (
     r'os\.environ\.get\(\s*["\']([A-Z][A-Z0-9_]{3,})["\']',
     r'_v3\(\s*["\']([A-Z][A-Z0-9_]{3,})["\']',
+    # D-065: guarded served-number flags read through services/runtime_flags (env > manifest > code default).
+    r'_rf\.(?:flag|on|resolve)\(\s*["\']([A-Z][A-Z0-9_]{3,})["\']',
 )
 
 

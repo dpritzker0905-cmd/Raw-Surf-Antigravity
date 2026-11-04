@@ -135,7 +135,7 @@ def test_apply_surf_overlay_threads_reference_under_flag():
     import inspect
     from services.weather_pipeline.grid_resolver_surf import apply_surf_overlay
     src = inspect.getsource(apply_surf_overlay)
-    assert 'os.environ.get("RATING_LOCAL_SIZE", "0") == "1"' in src
+    assert '_rf.flag("RATING_LOCAL_SIZE") == "1"' in src    # D-065: guarded reads go through runtime_flags
     assert "load_grid_size_climatology_l2_cached" in src
     # ⬇ 2026-09-21: was `assert "reference_fn=reference_fn" in src`. The reference is now threaded
     # through a RECORDING WRAPPER so the per-cell values it returns can be echoed into
