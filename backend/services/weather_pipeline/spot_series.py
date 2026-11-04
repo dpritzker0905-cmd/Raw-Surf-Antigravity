@@ -1,4 +1,4 @@
-"""spot_series.py: per-spot forecast SERIES for the hub charts, produced in CI (spot-hub phase 3, 2026-11-03, DARK).
+"""spot_series.py: per-spot forecast SERIES for the hub charts, produced in CI (spot-hub phase 3, 2026-11-03).
 
 WHY. The owner asked for "our own logic to generate our own forecasting charts that work in the rating color codes"
 (2026-11-03 ~03:41Z). A chart needs ~57 rated frames per spot per model. On the 1-CPU serve box that is ~3 s of
@@ -26,8 +26,8 @@ TIER. The shards hold the full 14 days. The CLIENT must show only `LayerAccessRe
 owner decision, stated in the PR. The bucket is private: anonymous reads would also need an owner-approved storage
 policy for this prefix (today only `spot_ratings/latest.json` has one).
 
-PUBLISH is gated by the repo variable `SPOT_SERIES_PUBLISH` (default '0') in the workflow, and nothing reads the
-objects yet (phase 4 builds the chart).
+PUBLISH is ON by default; the repo variable `SPOT_SERIES_PUBLISH='0'` is the kill switch (owner policy 2026-11-04:
+fixes ship ON with a kill switch). Nothing reads the objects yet (phase 4 builds the chart).
 """
 import asyncio
 import gzip

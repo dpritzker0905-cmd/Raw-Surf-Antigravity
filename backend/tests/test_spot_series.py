@@ -174,7 +174,8 @@ def test_the_synthetic_dry_run_runs_offline(capsys):
     assert summary["shards"] >= 1 and summary["bytes_gz_total"] > 0
 
 
-def test_publish_refuses_while_dark(tmp_path):
+def test_publish_refuses_under_the_kill_switch(tmp_path, monkeypatch):
+    monkeypatch.setenv("SPOT_SERIES_PUBLISH", "0")
     assert CLI.main(["publish", "--dir", str(tmp_path)]) == 1
 
 
@@ -201,13 +202,14 @@ def test_the_series_runs_in_the_glyphs_served_env():
     assert not drift, f"spot-series.yml disagrees with precompute.yml: {drift}"
 
 
-def test_nothing_runs_or_publishes_while_dark():
+def test_on_by_default_and_one_kill_switch_stops_runs_and_publish():
     wf = _wf("spot-series.yml")
     on = wf.get("on", wf.get(True))
     assert set(on) == {"workflow_dispatch", "workflow_run"}, "no schedule: automatic runs follow the precompute"
-    assert "vars.SPOT_SERIES_PUBLISH == '1'" in wf["jobs"]["plan"]["if"], "automatic runs must be gated"
+    assert "vars.SPOT_SERIES_PUBLISH != '0'" in wf["jobs"]["plan"]["if"], "the kill switch must stop automatic runs"
     pub = [s for s in wf["jobs"]["assemble"]["steps"] if "publish" in str(s.get("run", ""))]
-    assert len(pub) == 1 and "vars.SPOT_SERIES_PUBLISH == '1'" in pub[0]["if"]
+    assert len(pub) == 1 and "vars.SPOT_SERIES_PUBLISH != '0'" in pub[0]["if"]
+    assert pub[0]["env"]["SPOT_SERIES_PUBLISH"] == "${{ vars.SPOT_SERIES_PUBLISH || '1' }}", "unset = ON"
     assert "inputs.limit == '0'" in pub[0]["if"], "a partial (dry-run) series must never publish"
     assert all("publish" not in str(s.get("run", "")) for s in wf["jobs"]["rate"]["steps"])
     assert wf["jobs"]["rate"]["strategy"]["matrix"] == {"model": ["GFS", "EURO", "ICON"], "job": [0, 1, 2, 3]}

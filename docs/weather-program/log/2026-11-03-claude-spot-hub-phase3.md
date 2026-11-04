@@ -1,9 +1,19 @@
-# 2026-11-03 · claude · Spot-hub phase 3: per-spot chart series rated in CI (DARK, `SPOT_SERIES_PUBLISH`)
+# 2026-11-03 · claude · Spot-hub phase 3: per-spot chart series rated in CI (ON by default, kill `SPOT_SERIES_PUBLISH=0`)
 
 Session: a delegated subagent of the lead. Branch `claude/spot-hub-phase3`, stacked on `claude/spot-hub-phase2`
 (#710). Owner's words as in the phase-2 log ("our own logic to generate our own forecasting charts that work in the
 rating color codes"; "lets keep moving forward toward state of the art weather simulation system features"). DRAFT
 PR only: no workflow dispatched, no repo variable set, nothing uploaded, no live backend or app call.
+
+## 2026-11-04 update: ON by default
+
+Owner policy relayed by the lead (~01:41Z): fixes ship ON by default with a kill switch (the lead's
+`claude/default-on-guardrails` PR adds the history filter and the live guardrail, and lands first). The repo variable
+`SPOT_SERIES_PUBLISH` unset or `'1'` now means automatic runs rate and publish after every glyph precompute; `'0'` is
+the one kill switch (the plan job skips automatic runs, the publish step never runs, and `cmd_publish` refuses). A
+dispatched run still publishes only with `limit 0`, so the default dispatch is always a dry run. Where this log says
+"dark" or "flip" below, read "kill switch" and "merge": the measured numbers stand. The objects land in the private
+bucket; nothing reads them until phase 4, and the anonymous-read policy stays an owner decision.
 
 ## What was built
 

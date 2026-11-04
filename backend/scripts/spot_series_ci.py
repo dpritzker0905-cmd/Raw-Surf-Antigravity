@@ -13,8 +13,8 @@ format). Three steps, one per workflow stage:
     assemble  reads every rows file, applies the glyph precompute's observation gate across models, builds the
               shards + index.json, writes them under --out and a summary (bytes, frames, time, parity) to stdout and
               $GITHUB_STEP_SUMMARY.
-    publish   uploads --dir to Supabase Storage under spot_series/v1/. The workflow runs it ONLY when the repo
-              variable SPOT_SERIES_PUBLISH is '1' (default '0'; the owner flips it after one dry run).
+    publish   uploads --dir to Supabase Storage under spot_series/v1/. ON by default; the repo variable
+              SPOT_SERIES_PUBLISH='0' is the kill switch (the workflow skips the step, and this refuses).
     synthetic a local, network-free dry run on a synthetic catalogue: the producer's own overhead, the frame count
               and the shard bytes (the resolve cost is CI's measured ~54 ms/frame, not this machine's).
 
@@ -219,8 +219,8 @@ def _step_summary(summary):
 
 
 def cmd_publish(a) -> int:
-    if os.environ.get("SPOT_SERIES_PUBLISH", "0") != "1":
-        logger.error("SPOT_SERIES_PUBLISH is not '1': refusing to upload (the workflow gates this step too)")
+    if os.environ.get("SPOT_SERIES_PUBLISH", "1") == "0":
+        logger.error("SPOT_SERIES_PUBLISH is '0' (the kill switch): refusing to upload (the workflow gates this too)")
         return 1
     from services.weather_pipeline.store import ProductStore
     store = ProductStore()
