@@ -1,8 +1,8 @@
-"""Egress savings 1 and 2 of #724 (manifest_publish_economy), ON, through the real one-step publisher and the chain harness.
+"""Egress saving (no-op skip) of #724 (manifest_publish_economy), ON, through the real one-step publisher and the chain harness.
 
-1. A merge that equals the head (only the per-dump stamps differ) uploads nothing and swaps nothing; any real change still
-   publishes at once. 2. The legacy manifest.json is PUT once per drain with the NEWEST merged bytes (or when held past the
-   lag bound), not after every win. Each has its own kill switch, which restores today's behaviour.
+A merge that equals the head (only the per-dump stamps differ) uploads nothing and swaps nothing; any real change still
+publishes at once; the kill switch restores today's behaviour. The legacy manifest.json stays a LIVE fallback: it is still
+PUT after every win, and written on every publish when the pointer lane is disabled.
 """
 import json
 
@@ -16,11 +16,8 @@ from tests._manifest_chain_harness import BASE, PILOTS_NEW, _files, chain, inlin
 @pytest.fixture(autouse=True)
 def _savings_on(monkeypatch, chain):
     monkeypatch.setenv("MANIFEST_SKIP_NOOP_PUBLISH", "1")
-    monkeypatch.setenv("MANIFEST_LEGACY_REFRESH_DEFERRED", "1")
-    monkeypatch.setattr(economy, "_held", None)
     monkeypatch.setattr(economy, "noop_skips", 0)
     yield
-    economy._held = None
 
 
 def _legacy_puts(chain):
@@ -55,23 +52,42 @@ def _two_wins_in_one_drain(chain, store):
     submit(store, BASE + PILOTS_NEW)
 
 
-def test_the_legacy_manifest_is_put_once_per_drain_with_the_newest_bytes(chain, store, inline):
+def test_the_legacy_fallback_is_still_put_after_every_win(chain, store, inline):
+    """manifest.json is a LIVE fallback (store_helpers reads it whenever fetch_pointed_manifest() returns None), so it is
+    refreshed after EVERY win, never deferred, and always equals the head that was just published."""
+    seen = []
+    real_upload = chain.upload
+
+    def upload(key, data, **kw):
+        result = real_upload(key, data, **kw)
+        if key == "manifest.json":
+            seen.append((_files(data), chain.head_files()))
+        return result
+    chain.upload = upload
     _two_wins_in_one_drain(chain, store)
-    assert len(chain.wins()) == 2
-    assert len(_legacy_puts(chain)) == 1
-    assert _files(chain.objects["manifest.json"]) == chain.head_files()   # the fallback equals the head at drain end
+    assert len(chain.wins()) == 2 and len(seen) == 2
+    assert all(legacy == head for legacy, head in seen)
 
 
-def test_the_legacy_kill_switch_puts_after_every_win(chain, store, inline, monkeypatch):
-    monkeypatch.setenv("MANIFEST_LEGACY_REFRESH_DEFERRED", "0")
-    _two_wins_in_one_drain(chain, store)
-    assert len(chain.wins()) == 2 and len(_legacy_puts(chain)) == 2
+def test_pointer_disabled_writes_the_legacy_manifest_on_every_publish(chain, store, inline, monkeypatch):
+    """The pointer lane gone (disabled for the process): every publish goes to manifest.json, the only copy readers then use."""
+    from services.weather_pipeline import manifest_pointer as mp
+    monkeypatch.setattr(mp, "pointer_enabled", lambda: False)
+    monkeypatch.setattr(mp, "read_pointer", lambda **kw: None)
+    submit(store, BASE + PILOTS_NEW)
+    submit(store, BASE + PILOTS_NEW + ["euro_wind_wind_global_mid_20261026T000000Z.json"])
+    assert len(_legacy_puts(chain)) == 2 and economy.noop_skips == 0
+    assert "euro_wind_wind_global_mid_20261026T000000Z.json" in _files(chain.objects["manifest.json"])
 
 
-def test_the_lag_bound_puts_held_bytes_before_the_drain_ends(chain, store, inline, monkeypatch):
-    monkeypatch.setattr(economy, "LEGACY_MAX_LAG_SECONDS", 0.0)
-    _two_wins_in_one_drain(chain, store)
-    assert len(_legacy_puts(chain)) == 2
+def test_a_pointer_read_error_never_counts_as_a_noop(chain, store, inline, monkeypatch):
+    """A transient pointer failure is a failed attempt (retried), never a skip: nothing is called published that was not."""
+    from services.weather_pipeline import manifest_pointer as mp
+    real = mp.read_pointer
+    answers = [None]
+    monkeypatch.setattr(mp, "read_pointer", lambda **kw: answers.pop(0) if answers else real(**kw))
+    submit(store, BASE + PILOTS_NEW)
+    assert economy.noop_skips == 0 and len(chain.wins()) == 1 and len(_legacy_puts(chain)) == 1
 
 
 def test_signature_ignores_only_the_per_dump_stamps():

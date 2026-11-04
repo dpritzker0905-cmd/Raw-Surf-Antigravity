@@ -347,8 +347,6 @@ def _drain(slot):
         with slot.lock:
             slot.scheduled = False
         raise
-    finally:
-        economy.flush_legacy()       # the held legacy manifest.json bytes go once per drain (the executor is serial)
 
 
 def _settle(slot, current, published) -> bool:
@@ -768,7 +766,11 @@ def _after_win(store, generation, head_key, merged, deadline=None):
     _retire_old_copies(generation, head_key, deadline)
     if deadline is not None or merged is None:
         return
-    economy.refresh_legacy(store, generation, merged)   # now, or held to drain end (MANIFEST_LEGACY_REFRESH_DEFERRED=0: now)
+    try:
+        with mp.publish_run_keyed_suppressed():
+            store._upload_to_supabase("manifest.json", merged)
+    except Exception as exc:
+        logger.warning(f"[Manifest Publish] legacy manifest.json refresh after g{generation} failed (the pointer win stands): {exc}")
 
 
 def _publish_old_path(pending):

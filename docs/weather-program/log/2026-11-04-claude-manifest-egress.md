@@ -97,3 +97,16 @@ those exact bytes (it sent them, create-only, acknowledged). So: ~4 GB repeated 
   of head GETs not already covered by the self-read copy, more if other writers' heads are no-ops); legacy POSTs drop from
   ~1,532/day to about one per minute of burst (upload/ingress, not egress). Storage writes and CPU fall accordingly.
 - Tests: `test_manifest_publish_economy.py` (7); the chain harness runs its older pins with both switches OFF. Guards floor 3454 -> 3467.
+
+## Correction (same session): option 2 DROPPED; the two saving sets may overlap
+
+- The drain-end legacy write is removed. Codex: `store_helpers.py:384-413` reads the cache-busted manifest.json whenever
+  `fetch_pointed_manifest()` returns None, and `manifest_pointer.py:366-395` returns None on a disabled, missing or
+  unreadable pointer, a GET failure or an exception. The legacy copy is a LIVE fallback, so deferring it could serve stale
+  data on any pointer failure or crash. It is still PUT after every win; new tests pin that, plus the pointer-disabled path
+  (every publish writes manifest.json) and a pointer read error (a retry, never counted as a no-op).
+- The "60 s lag" and "legacy POSTs drop" claims above are void.
+- The ~31 GB own-write read-back set and Codex's ~4 GB repeated-GET set MAY OVERLAP: one GET can be in both (a runner re-reading
+  its own key a second time). Do not add them. Saving from this PR: at least ~25 GB/day (self-read, after cold-process misses),
+  at most ~31 GB/day declared for the self-read copy; the no-op skip adds at most ~0.9 GB/day of head GETs, mostly already
+  inside that set. Content-Length estimates, not billed bytes.
