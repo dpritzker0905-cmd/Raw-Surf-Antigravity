@@ -147,7 +147,7 @@ describe('the GLSL', () => {
     expect(CREST_LOCAL_PHASE_GLSL).toContain('mix(bp, bc, u_crestAnchorMix)');
     expect(CREST_PHASE_SPLICE.vPhase).toContain('v_phase = u_crestLocal > 0.5 ? localBand.y : trainPhase;');
     expect(CREST_PHASE_SPLICE.crestBand).toContain('u_crestLocal > 0.5 ? localBand.x : 1.0 - smoothstep(0.08, 0.30, abs(train - 0.5))');
-    expect(CREST_PHASE_SPLICE.orbPhase).toContain(': fract(dot(global_pos, dir) * sf - ts))');
+    expect(CREST_PHASE_SPLICE.orbPhase).toContain('mix(fract(dot(global_pos, dir) * sf - ts), crestLocalBand(');
     expect(CREST_LOCAL_PHASE_GLSL).not.toContain('+=');
   });
 });

@@ -59,7 +59,7 @@ const ON = CREST_LOCAL_AT_LOAD;
 export const CREST_PHASE_SPLICE = {
   decl: ON ? LOCAL_GLSL : '',
   dir0: ON ? ' vec2 dir0 = dir;   // dir0: the swell heading, before any jitter (crestLocalPhase.js)' : '',
-  orbPhase: ON ? `(u_crestLocal > 0.5 ? crestLocalBand(global_pos, dir0, pv, ${VIEW_W}).y : fract(dot(global_pos, dir) * sf - ts))`
+  orbPhase: ON ? `mix(fract(dot(global_pos, dir) * sf - ts), crestLocalBand(global_pos, dir0, pv, ${VIEW_W}).y, step(0.5, u_crestLocal))`
     : 'fract(dot(global_pos, dir) * sf - ts)',
   vPhase: ON ? `  vec2 localBand = crestLocalBand(global_pos, dir0, periodVal, ${VIEW_W});   // local coords + period bank (crestLocalPhase.js)
 `

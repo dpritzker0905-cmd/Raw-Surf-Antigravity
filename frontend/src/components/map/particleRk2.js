@@ -21,8 +21,9 @@ import { RK2_KILL } from './particleState';
 const WIN = typeof window === 'undefined' ? {} : window;
 export const RK2_AT_LOAD = WIN[RK2_KILL] !== true;
 
-const lngToTex = (lng, mn, mx) => `((${mn}.x > ${mx}.x) ? mod(${lng} - ${mn}.x, 360.0) / max((${mx}.x + 360.0) - ${mn}.x, 0.0001) `
-  + `: (${lng} - ${mn}.x) / max(${mx}.x - ${mn}.x, 0.0001))`;
+// one literal per conditional (the encodingDebris guard reads a '?' split from its ':' across template chunks as a separator)
+const LNG_TEX = '((MN.x > MX.x) ? mod(LNG - MN.x, 360.0) / max((MX.x + 360.0) - MN.x, 0.0001) : (LNG - MN.x) / max(MX.x - MN.x, 0.0001))';
+const lngToTex = (lng, mn, mx) => LNG_TEX.replace(/LNG/g, lng).replace(/MN/g, mn).replace(/MX/g, mx);
 
 // Wind: spliced before ADVECT_FS's main(); every uniform it reads is declared above it.
 const WIND_MID = `uniform float u_rk2;
