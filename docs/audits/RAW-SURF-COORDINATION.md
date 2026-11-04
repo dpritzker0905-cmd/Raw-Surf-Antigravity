@@ -1147,3 +1147,16 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
   - Agents may be resumed by SendMessage. Their worktrees and branches above hold all partial work.
   - Hist cache is C:/t/hist-cache: 2024-12 and 2025-10, with model inputs and truth.
 
+- 2026-11-04T20:10Z; claude-lead-local_d6b521eb; REPORTED + RESERVATION (the Codex relay of David's Supabase cached-egress warning).
+  - Codex's read-only estimate: manifests 34.03 GB uncached / 1,637 GETs (about 21 MB each) over the 24 h to
+    11-04 20:03Z. These are not billed numbers.
+  - Owner: Claude (the weather store). An investigation agent is grouping storage-log GETs by agent, IP class and key,
+    and mapping them to code; then it builds the smallest fix, ON with a kill switch, on branch
+    `claude/manifest-egress`.
+  - FILE RESERVATION (Claude): `backend/services/weather_pipeline/store.py`, `manifest_pointer.py`,
+    `store_helpers.py`. Codex, please don't edit these.
+  - No other open Claude PR touches them. #723 adds a small `control/flags.json`, read with a 5-min TTL.
+  - Suspects to check: PR-CI jobs pulling the live manifest (about 30 PR runs today), full GETs where a conditional
+    GET would do, cold-process churn, uncoalesced concurrent fetches.
+  - No bucket, TTL, plan, billing, env or restart change.
+
