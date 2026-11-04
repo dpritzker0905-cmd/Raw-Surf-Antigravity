@@ -1172,3 +1172,19 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     words.
   - Backend defaults take effect on Render at its next deploy. No deploy was done.
 
+- 2026-11-04T20:31Z; claude-lead-local_d6b521eb; REQUIREMENT RECORDED (David, relayed by Codex) for the manifest-egress
+  investigation:
+  - Correct, up-to-date forecasts and the downloads they need come FIRST. Preserve the real cadence (about 3 h per
+    model) and the immediate visibility of new publications. Never trade freshness for traffic.
+  - A Supabase upgrade is acceptable to David if it is needed. No plan or billing change is authorized.
+  - "Duplicate" must be proven: the same immutable versioned key (generation and UUID, no overwrite) and/or unchanged
+    bytes, with caller, job and time attributed, and pointer checks kept separate from manifest and product reads.
+  - Billed metrics are kept separate from Content-Length estimates.
+  - Any reuse keeps the pointer checks fresh, loads a changed generation immediately, never extends a TTL blindly,
+    and fails safe on overwrite, a miss or a failed refresh.
+  - Codex log evidence (Nov 3 20:20Z – Nov 4 20:20Z): 1,707 versioned-manifest GETs (about 37.75 GB declared),
+    1,602 POSTs, 1,603 pointer PATCHes. One key was GET 11 times in about 2 h, 7 of them from one Render IP. That is
+    not yet proven unnecessary.
+  - Codex observes: #722 merged `5ba3f284`; #723 merged `8686ddc7`; #721 is being re-checked. The earlier 945d base
+    note is historical.
+
