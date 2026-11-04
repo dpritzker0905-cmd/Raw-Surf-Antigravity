@@ -6,7 +6,8 @@ nearest 3 h, and picks its own product (`find_cached_grid_product`). So the hub 
 one spot-hour differently (research M3). Its daily rows were worse: ONE 12:00 UTC sample per UTC day, labelled
 "max", with min = 0.6 x max (M1). At Hawaii 12:00 UTC is 02:00 local.
 
-WHAT THIS DOES, with `SPOT_HUB_RATE_ONE_SPOT=1` (read at call time in spot_conditions.py; default '0'):
+WHAT THIS DOES, ON by default (`SPOT_HUB_RATE_ONE_SPOT`, read at call time in spot_conditions.py; '0' is the kill
+switch that restores the hub's own chain byte for byte; owner policy 2026-11-04 ~01:41Z: fixes ship ON):
   * EVERY hub frame is `spot_ratings.rate_one_spot`, the reference implementation, answered the way
     `/point-rating` answers: the glyph's PRECOMPUTED frame item first, else `rate_one_spot` live plus the
     single-model observation gate. Same product choice (`resolve_point`), same tide and breaker terms, the exact
@@ -65,7 +66,7 @@ def clear_caches() -> None:
 
 
 def enabled() -> bool:
-    return os.environ.get(FLAG, "0") == "1"
+    return os.environ.get(FLAG, "1") != "0"
 
 
 def spot_meta_of(spot) -> Dict[str, Any]:
@@ -78,8 +79,8 @@ def spot_meta_of(spot) -> Dict[str, Any]:
 
 
 def call_kwargs(spot=None, horizon_hours: Optional[int] = None) -> Dict[str, Any]:
-    """Extra kwargs for `resolve_spot_conditions`, EMPTY while the flag is off, so a flag-off call is the exact
-    call the routes made before (and every test fake of that signature keeps working)."""
+    """Extra kwargs for `resolve_spot_conditions`, EMPTY under the kill switch, so a killed call is the exact call
+    the routes made before."""
     if not enabled():
         return {}
     out: Dict[str, Any] = {}

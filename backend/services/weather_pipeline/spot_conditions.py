@@ -291,12 +291,13 @@ async def resolve_spot_conditions_impl(
 
     ``spot_meta`` / ``horizon_hours`` are read ONLY by the phase-2 path below and ignored otherwise.
     """
-    # ── SPOT-HUB PHASE 2 (2026-11-03, DARK): THE ONE COMPOSITION ─────────────────────────────────
-    # '1' answers every hub frame with `spot_ratings.rate_one_spot` (precomputed glyph item first,
-    # as /point-rating does) and builds LOCAL-day rows from the real max over their frames
-    # (spot_hub_composition.py). '0' (default) is this function exactly as it was. Served numbers
-    # move, so the flip is the owner's word with the parity evidence (D-001). Render env only.
-    if os.environ.get("SPOT_HUB_RATE_ONE_SPOT", "0") == "1":
+    # ── SPOT-HUB PHASE 2 (2026-11-03): THE ONE COMPOSITION, ON BY DEFAULT ────────────────────────
+    # Default (unset or anything but '0') answers every hub frame with `spot_ratings.rate_one_spot`
+    # (precomputed glyph item first, as /point-rating does) and builds LOCAL-day rows from the real
+    # max over their frames (spot_hub_composition.py). ON by default per the owner's policy of
+    # 2026-11-04 ~01:41Z (fixes ship ON with a kill switch, a history filter and a live guardrail).
+    # KILL SWITCH: SPOT_HUB_RATE_ONE_SPOT=0 (Render env, read per call) is this function exactly as it was.
+    if os.environ.get("SPOT_HUB_RATE_ONE_SPOT", "1") != "0":
         from services.weather_pipeline.spot_hub_composition import resolve_hub_conditions
         return await resolve_hub_conditions(self, model, lat, lng, forecast_days, spot_id=spot_id,
                                             spot_meta=spot_meta, horizon_hours=horizon_hours)

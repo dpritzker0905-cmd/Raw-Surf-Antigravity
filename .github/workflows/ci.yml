@@ -185,7 +185,9 @@ jobs:
             // EURO / ICON regional bundles (2026-11-01, item 11, dark): staticRegional.euroIcon.test.js (+1 suite / +5 tests). Raised by exactly that.
             // Spot-hub phase 1 (2026-11-03, ON with __RAW_DISABLE_SPOT_HUB_P1__): spotHubP1.test.js (+1 suite / +38 tests),
             // SpotHub.phase1.test.js (+1 / +12), SpotConditions.phase1.test.js (+1 / +8). Raised by exactly that; confirm against the hosted receipt.
-            const MIN_SUITES = 532, MIN_TESTS = 6986;
+            // Map motion fixes (2026-11-03, ON with five kills): motionFixes.killSwitch (6), particleState (13), particleRk2 (8),
+            // crestLocalPhase (13), crestTexelRank (8), windEncoderRound (6) = +6 suites / +54 tests. Raised by exactly that; confirm against the hosted receipt.
+            const MIN_SUITES = 538, MIN_TESTS = 7040;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -999,9 +1001,9 @@ jobs:
           #   base 3351 (hosted read) + 15 new test(s) and 1 new file(s) = 3366, files 214; floor 3366 - 6 = 3360. This PR must read 3366 passed.
           # ⬆ 3360→3443 on 2026-11-03 (rederive_floor.py, claude/alerts-forecast-windows): dev run 41711330259 read 3366 / 214 files; dev's map 3366;
           #   base 3366 (hosted read) + 83 new test(s) and 3 new file(s) = 3449, files 217; floor 3449 - 6 = 3443. This PR must read 3449 passed.
-          # ⬆ 3443→3459 on 2026-11-04 (rederive_floor.py, claude/spot-hub-phase2): dev run 41747311909 read 3449 / 217 files; dev's map 3449;
-          #   base 3449 (hosted read) + 16 new test(s) and 1 new file(s) = 3465, files 218; floor 3465 - 6 = 3459. This PR must read 3465 passed.
-          MIN_FILES, MIN_PASSED = 218, 3459
+          # ⬆ 3443→3464 on 2026-11-04 (rederive_floor.py, claude/spot-hub-phase2): dev run 41747311909 read 3449 / 217 files; dev's map 3449;
+          #   base 3449 (hosted read) + 21 new test(s) and 1 new file(s) = 3470, files 218; floor 3470 - 6 = 3464. This PR must read 3470 passed.
+          MIN_FILES, MIN_PASSED = 218, 3464
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

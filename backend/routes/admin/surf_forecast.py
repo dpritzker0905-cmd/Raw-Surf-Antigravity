@@ -276,12 +276,12 @@ _RATING_FLAGS = {
     "SPOT_HUB_SURF_TRANSFORM":     ("1", "Spot hub's offshore->breaking transform (SEPARATE switch "
                                          "from SURF_TRANSFORM — pulling that one does NOT stop the hub)",
                                     "Render env"),
-    # DARK (spot-hub phase 2, 2026-11-03). Only the serve box runs the hub, so like the switch above it has
-    # no workflow lane. Served numbers move: flip on the owner's word with the parity evidence (D-001).
-    "SPOT_HUB_RATE_ONE_SPOT":      ("0", "Spot hub + drawer frames from spot_ratings.rate_one_spot (the "
+    # ON by default (spot-hub phase 2; owner policy 2026-11-04 ~01:41Z: fixes ship ON with a kill switch). Only the
+    # serve box runs the hub, so like the switch above it has no workflow lane. Kill: '0' in Render env.
+    "SPOT_HUB_RATE_ONE_SPOT":      ("1", "Spot hub + drawer frames from spot_ratings.rate_one_spot (the "
                                          "glyph's precomputed item first, as /point-rating), and LOCAL-day "
-                                         "rows from the real max over their frames; off = the hub's own "
-                                         "chain and one 12:00 UTC sample per day labelled max",
+                                         "rows from the real max over their frames; '0' (kill) = the "
+                                         "hub's own chain and one 12:00 UTC sample per day labelled max",
                                     "Render env"),
     # ★★★ THE THREE MULTIPLICATIVE VETOES. Each exists because an ADDITIVE term with a floor cannot
     # veto, and each was added to close a MEASURED defect. Setting any of them to 0 re-opens that

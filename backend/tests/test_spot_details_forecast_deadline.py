@@ -120,3 +120,11 @@ async def test_empty_or_partial_forecast_is_labelled_honestly(monkeypatch, condi
     result = await read(database())
     assert result["forecast_status"] == status
     assert result["current_conditions"] is None
+
+
+@pytest.fixture(autouse=True)
+def _pin_the_kill_switch_chain(monkeypatch):
+    """Spot-hub phase 2 is ON by default (SPOT_HUB_RATE_ONE_SPOT, owner policy 2026-11-04). This file pins the
+    contract of the chain the KILL SWITCH ('0') restores, so it runs under '0'; the default path's equivalents
+    live in tests/test_spot_hub_rate_one_spot.py."""
+    monkeypatch.setenv("SPOT_HUB_RATE_ONE_SPOT", "0")
