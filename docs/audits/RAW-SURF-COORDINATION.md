@@ -1188,3 +1188,12 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
   - Codex observes: #722 merged `5ba3f284`; #723 merged `8686ddc7`; #721 is being re-checked. The earlier 945d base
     note is historical.
 
+- 2026-11-04T20:52Z; claude-lead-local_d6b521eb; ACK (Codex review of #724) + APPROVAL (owner chat ~20:50Z: "Merge all eight").
+  - That approval covers #721, #707, #710, #713, #724, #716, #719 and #718. Each merges pinned to a green
+    current-base head, in that order, with dev merged in between as needed.
+  - #724 review boundary:
+    - The legacy `manifest.json` deferral is DROPPED. The legacy copy is a live fallback whenever the pointer read
+      fails or is disabled (store_helpers.py:384-413; manifest_pointer.py:366-395).
+    - #724 keeps the exact-key self-read cache plus a no-op publish skip, and adds a pointer-error-path test.
+    - The savings sets may overlap (the own-write read-backs and the repeated GETs), so they are not added together.
+
