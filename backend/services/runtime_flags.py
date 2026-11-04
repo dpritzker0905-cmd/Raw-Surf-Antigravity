@@ -50,6 +50,7 @@ GUARDED = {
     "SURF_EXPOSURE_RECONCILED": "0",    # D-065: WORSE (hs_station MAE +0.0093 m, CI [0.0076, 0.0113]); fix in progress
     "RATING_BREAKER_TYPE": "0",         # D-065: read by the glyph path only, so ON splits ONE FORECAST COMPOSITION
     "ALERTS_FORECAST_WINDOWS": "0",     # D-065: up to 5 alerts/day before the cap fix (claude/alerts-dedupe-cap)
+    "SURF_BIGHT_HS_CONSENSUS": "1",     # #707: hs_station +0.099 m [two-way 0.038, 0.182]; round-7 history +0.155, ON
     "SPOT_HUB_RATE_ONE_SPOT": "1",      # spot-hub phase 2 (#710): the hub on rate_one_spot; kill '0' = the old chain
 }
 
