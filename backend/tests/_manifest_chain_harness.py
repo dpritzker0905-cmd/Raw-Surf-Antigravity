@@ -380,6 +380,10 @@ def chain(monkeypatch):
         monkeypatch.delenv(name, raising=False)
     monkeypatch.setenv(FLAG, "1")
     monkeypatch.setenv("MANIFEST_RETENTION_DAYS", "36500")
+    # The chain pins count every win and every legacy PUT: they run with the two egress savings OFF (their kill switches).
+    # tests/test_manifest_publish_economy.py pins the savings themselves, ON, through this same harness.
+    monkeypatch.setenv("MANIFEST_SKIP_NOOP_PUBLISH", "0")
+    monkeypatch.setenv("MANIFEST_LEGACY_REFRESH_DEFERRED", "0")
     c = Chain(BASE)
     monkeypatch.setattr(mp, "pointer_enabled", lambda: True)
     monkeypatch.setattr(mp, "read_pointer", c.read_pointer)

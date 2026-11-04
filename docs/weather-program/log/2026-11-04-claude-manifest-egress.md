@@ -81,3 +81,19 @@ those exact bytes (it sent them, create-only, acknowledged). So: ~4 GB repeated 
 3. Coalesce within a step: drain at the end of a batch helper / fetcher step instead of per save. New products visible at
    step end (seconds to a minute), not 3 h.
 4. Lane serialization (one writer per concurrency group) removes the 4.5% CAS losses.
+
+## Built in #724 (options 1 and 2; module `manifest_publish_economy.py`)
+
+- No-op skip (`MANIFEST_SKIP_NOOP_PUBLISH=0` kills): sha256 of the canonical manifest without `last_manifest_update` /
+  `written_by`, order-sensitive. When the merge against the REAL head (never the legacy fallback) equals the head, nothing is
+  uploaded, swapped or PUT; the head already serves those products; counter `noop_skips`, logged per skip. `last_manifest_update`
+  readers (products_response, series_page_memo) key memos on it: unchanged stamp + unchanged products = still valid.
+- Legacy refresh at drain end (`MANIFEST_LEGACY_REFRESH_DEFERRED=0` kills). Reader audit: every reader is pointer-first
+  (store_helpers get_manifest restore, store._fetch_remote_manifest_products, the publisher); manifest.json is read only when the
+  pointer read fails, the pointed head is MISSING/unusable (`_legacy_products`), or MANIFEST_POINTER=0. No reader depends on its
+  freshness in the normal path, but those fallbacks do, so the held bytes are also PUT whenever older than 60 s
+  (`LEGACY_MAX_LAG_SECONDS`): the fallback lags the pointer by at most 60 s (was ~7 s) during a burst, 0 at drain end.
+- Expected extra saving: up to 42% fewer publishes (each a 22 MB GET + 22 MB POST + 22 MB legacy POST; egress part ~0.9 GB/day
+  of head GETs not already covered by the self-read copy, more if other writers' heads are no-ops); legacy POSTs drop from
+  ~1,532/day to about one per minute of burst (upload/ingress, not egress). Storage writes and CPU fall accordingly.
+- Tests: `test_manifest_publish_economy.py` (7); the chain harness runs its older pins with both switches OFF. Guards floor 3454 -> 3467.
