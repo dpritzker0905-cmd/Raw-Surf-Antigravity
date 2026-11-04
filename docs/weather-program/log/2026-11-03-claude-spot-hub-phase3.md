@@ -99,3 +99,13 @@ branch carries both): **must read 3479 passed** in the guards lane.
   `node scripts/wind-color/check.mjs`-style contrast for the rating colours on each theme's card background.
 - Kill switch `window.__RAW_DISABLE_SPOT_CHART__ = true` falls back to today's daily rows.
 - The hub's daily rows can then read from the series instead of rating on the box, retiring phase 2's on-demand cost.
+
+## Reviews
+
+- Self-review of the dark guarantee: a rate job below the glyph precompute's coverage floor
+  (`SPOT_RATINGS_MIN_COVERAGE`, 0.05) now fails, so the publish step (which needs every rate job green) cannot ship
+  a hollow series.
+- LongCat (paid): an offline `preview_review` of the publish gate (workflow triggers/`if`s + `cmd_publish`) was built,
+  payload sha256 `951355260a4413b8ee12d8950310814e040a4c4da234996641f249bcb248b1ce` (3,071 B). It was NOT submitted:
+  the paid send needs the owner's own approval of that hash, which a delegated session does not have.
+- Reflection (phase 2's composition change) is recorded in the phase-2 log.
