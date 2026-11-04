@@ -1658,7 +1658,9 @@ jobs:
           #   base 3416 (hosted read) + 21 new test(s) and 1 new file(s) = 3437, files 201; floor 3437 - 6 = 3431. This PR must read 3437 passed.
           # ⬆ 3431→3482 on 2026-11-03 (rederive_floor.py, claude/consensus-direction-vector): dev run 41726327573 read 3416 / 200 files; dev's map 3437;
           #   base 3437 (dev's map) + 51 new test(s) and 1 new file(s) = 3488, files 202; floor 3488 - 6 = 3482. This PR must read 3488 passed.
-          MIN_FILES, MIN_PASSED = 202, 3482
+          # ⬆ 3482→3506 on 2026-11-04 (rederive_floor.py, claude/surf-spectral-k): dev run 41747311909 read 3488 / 202 files; dev's map 3488;
+          #   base 3488 (hosted read) + 24 new test(s) and 1 new file(s) = 3512, files 203; floor 3512 - 6 = 3506. This PR must read 3512 passed.
+          MIN_FILES, MIN_PASSED = 203, 3506
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
