@@ -1003,7 +1003,9 @@ jobs:
           #   base 3366 (hosted read) + 83 new test(s) and 3 new file(s) = 3449, files 217; floor 3449 - 6 = 3443. This PR must read 3449 passed.
           # ⬆ 3443→3448 on 2026-11-04 (rederive_floor.py, claude/dev-health-fixes): dev run 41747311909 read 3449 / 217 files; dev's map 3449;
           #   base 3449 (hosted read) + 5 new test(s) and 0 new file(s) = 3454, files 217; floor 3454 - 6 = 3448. This PR must read 3454 passed.
-          MIN_FILES, MIN_PASSED = 217, 3448
+          # ⬆ 3448→3468 on 2026-11-04 (rederive_floor.py, claude/alerts-dedupe-cap): dev run 41898465148 read 3454 / 217 files; dev's map 3454;
+          #   base 3454 (hosted read) + 20 new test(s) and 0 new file(s) = 3474, files 217; floor 3474 - 6 = 3468. This PR must read 3474 passed.
+          MIN_FILES, MIN_PASSED = 217, 3468
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1662,7 +1664,11 @@ jobs:
           #   base 3437 (dev's map) + 51 new test(s) and 1 new file(s) = 3488, files 202; floor 3488 - 6 = 3482. This PR must read 3488 passed.
           # ⬆ 3482→3508 on 2026-11-04 (rederive_floor.py, claude/default-on-guardrails): dev run 41747311909 read 3488 / 202 files; dev's map 3488;
           #   base 3488 (hosted read) + 26 new test(s) and 1 new file(s) = 3514, files 203; floor 3514 - 6 = 3508. This PR must read 3514 passed.
-          MIN_FILES, MIN_PASSED = 203, 3508
+          # ⬆ 3508→3526 on 2026-11-04 (rederive_floor.py, claude/harness-backfill): dev run 41898465148 read 3488 / 202 files; dev's map 3514;
+          #   base 3514 (dev's map) + 18 new test(s) and 2 new file(s) = 3532, files 205; floor 3532 - 6 = 3526. This PR must read 3532 passed.
+          # ⬆ 3526→3592 on 2026-11-04 (rederive_floor.py, claude/bight-hs-consensus): dev run 41905654969 read 3488 / 202 files; dev's map 3532;
+          #   base 3532 (dev's map) + 66 new test(s) and 1 new file(s) = 3598, files 206; floor 3598 - 6 = 3592. This PR must read 3598 passed.
+          MIN_FILES, MIN_PASSED = 206, 3592
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
