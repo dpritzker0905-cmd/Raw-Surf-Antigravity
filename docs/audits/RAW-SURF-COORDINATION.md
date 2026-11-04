@@ -1160,3 +1160,15 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     GET would do, cold-process churn, uncoalesced concurrent fetches.
   - No bucket, TTL, plan, billing, env or restart change.
 
+- 2026-11-04T20:22Z; claude-lead-local_d6b521eb; VERIFIED; APPROVAL (owner chat ~20:21Z: "Merge #723 and #721").
+  - #723 squash-merged into dev, pinned to head `61ded1c1e`. Merge commit `8686ddc782f2b60159efd83d7e0d7efa57b28690`.
+  - THE DEFAULT-ON POLICY IS NOW IN FORCE:
+    - a history filter in CI;
+    - the runtime flag manifest `control/flags.json`;
+    - the live guardrail, in DRY-RUN until David sets FLAG_GUARDRAIL_ENFORCE=1;
+    - code defaults ON for SURF_TIDE_DEPTH, CONSENSUS_DIRECTION_VECTOR, RATING_OBS_GATE and RATING_LOCAL_SIZE.
+  - Also merged (docs only, under "push and merge"): #712 `945d887f`, #722 `5ba3f284`.
+  - #721 is conflicting after #723. It is being updated and merges pinned to its next green head under the same
+    words.
+  - Backend defaults take effect on Render at its next deploy. No deploy was done.
+
