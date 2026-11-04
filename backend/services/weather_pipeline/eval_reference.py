@@ -19,6 +19,7 @@ THE STATION LIST is data, not code (`scripts/eval_harness_stations.json`): id, s
 inside the transform chain, or "offshore" NDBC buoys that verify the model INPUT), coordinates, depth, the anchor
 spot whose served input is graded, the other linked spots (from data/nearshore_validation_pairs.json).
 """
+import gzip
 import json
 import math
 import re
@@ -34,6 +35,19 @@ CDIP_RT_ASCII = ("https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/realtime/{id}
 CDIP_RT_DAS = "https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/realtime/{id}_rt.nc.das"
 COOPS = ("https://api.tidesandcurrents.noaa.gov/api/prod/datagetter?product=water_level&application=raw_surf_eval"
          "&begin_date={b}&end_date={e}&datum=MSL&station={id}&time_zone=gmt&units=metric&format=json")
+# Archives (historical windows; read only when the realtime record does not reach the window start).
+CDIP_ARCH_CATALOG = "https://thredds.cdip.ucsd.edu/thredds/catalog/cdip/archive/{id}/catalog.xml"
+CDIP_ARCH_DAS = "https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/archive/{id}/{dep}.nc.das"
+CDIP_ARCH_ASCII = ("https://thredds.cdip.ucsd.edu/thredds/dodsC/cdip/archive/{id}/{dep}.nc.ascii"
+                   "?waveTime,waveHs,waveTp,waveDp,waveFlagPrimary")
+NDBC_HIST_YEAR = "https://www.ndbc.noaa.gov/data/historical/stdmet/{id}h{year}.txt.gz"
+NDBC_HIST_MONTH = "https://www.ndbc.noaa.gov/data/stdmet/{mon}/{id}.txt"
+# NDBC's QC'd archive stamps a wave record 10 min BEFORE realtime2 stamps the same record. Measured 2026-11-04 on
+# 46025 / 46086, Sep 2026 (archive vs realtime2): +10 min matched 523 / 276 records, all within 0.05 m (archive is
+# 0.01 m, realtime 0.1 m); 0 min matched 264 / 159. Archive times are moved +10 min onto the realtime standard.
+NDBC_HIST_SHIFT = timedelta(minutes=10)
+NDBC_HIST_TIME = "UTC, archive stamp + 10 min (= the realtime2 stamp: end of the acquisition period)"
+ARCHIVE_MIN_AGE_DAYS = 40
 QC_GOOD = "good"
 CDIP_FLAGS = {1: "good", 2: "not_evaluated", 3: "questionable", 4: "bad", 9: "missing"}
 NDBC_TIME = "UTC (NDBC stamp: end of the acquisition period)"
@@ -218,6 +232,105 @@ def parse_cdip_das(text: str) -> dict:
             "lng": (sum(lng) / 2) if None not in lng else None, "history": attr("history")}
 
 
+# ---- archives (historical windows) --------------------------------------------------------------------------------
+def parse_ndbc_historical(text: str) -> List[dict]:
+    """parse_ndbc_stdmet for NDBC's QC'd archive (yearly .txt.gz / monthly .txt): missing is 99 / 999 there, not MM,
+    and times move +NDBC_HIST_SHIFT onto the realtime2 stamp. qc good when WVHT is present."""
+    out = []
+    for o in parse_ndbc_stdmet(text):
+        for k, bad in (("hs_m", 99.0), ("tp_s", 99.0), ("apd_s", 99.0), ("dp_deg", 999.0), ("wspd_ms", 99.0),
+                       ("wdir_deg", 999.0)):
+            if o.get(k) is not None and o[k] >= bad:
+                o[k] = None
+        o["qc"] = QC_GOOD if o["hs_m"] is not None else "missing"
+        o["qc_raw"] = None if o["hs_m"] is not None else "99.00"
+        o["time"] = o["time"] + NDBC_HIST_SHIFT
+        out.append(o)
+    return out
+
+
+def parse_cdip_catalog(text: str, sid: str) -> List[str]:
+    """Deployment names (<id>_dNN) listed in the THREDDS archive catalog, sorted."""
+    return sorted(set(re.findall(r'name="(' + re.escape(sid) + r'_d\d+)\.nc"', text or "")))
+
+
+def _cover(das_text: str):
+    def t(name):
+        m = re.search(r'String ' + name + r' "([^"]+)"', das_text or "")
+        return datetime.strptime(m.group(1), "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc) if m else None
+    return t("time_coverage_start"), t("time_coverage_end")
+
+
+def fetch_cdip_archive(cache, sid: str, window: Tuple[datetime, datetime]) -> Tuple[List[dict], List[dict], List[str]]:
+    """(obs, provenance, deployment versions) from every archived CDIP deployment that overlaps the window."""
+    cat, r0 = cache.fetch(f"truth/cdip/{sid}/archive_catalog.xml", CDIP_ARCH_CATALOG.format(id=sid),
+                          source="cdip_archive_catalog", parser="eval_reference.parse_cdip_catalog",
+                          time_standard="n/a (catalog)")
+    recs, obs, versions = [r0], [], []
+    for dep in parse_cdip_catalog(cat.decode("utf-8", "replace"), sid):
+        das, r1 = cache.fetch(f"truth/cdip/{sid}/{dep}.das", CDIP_ARCH_DAS.format(id=sid, dep=dep),
+                              source="cdip_archive_das", parser="eval_reference.parse_cdip_das",
+                              time_standard="n/a (metadata)")
+        recs.append(r1)
+        txt = das.decode("utf-8", "replace")
+        a, b = _cover(txt)
+        if a is None or b is None or b < window[0] or a > window[1]:
+            continue
+        meta = parse_cdip_das(txt)
+        version = f"cdip:{meta['deployment_id']}:{meta['dataset_id']}"
+        body, r2 = cache.fetch(f"truth/cdip/{sid}/{dep}.ascii", CDIP_ARCH_ASCII.format(id=sid, dep=dep),
+                               source="cdip_archive", parser="eval_reference.parse_cdip_ascii", time_standard=CDIP_TIME,
+                               qc_policy="waveFlagPrimary kept per record; scored on flag 1 (good) only",
+                               station_meta_version=version)
+        recs.append(r2)
+        obs += parse_cdip_ascii(body.decode("utf-8", "replace"))
+        versions.append(version)
+    return obs, recs, versions
+
+
+def fetch_ndbc_archive(cache, sid: str, window: Tuple[datetime, datetime], now: Optional[datetime] = None):
+    """(obs, provenance, files, missing) from NDBC's QC'd archive: yearly files for past years, monthly files for
+    this year's finished months. A file NDBC has not published yet is counted in `missing`, never filled."""
+    now = now or datetime.now(timezone.utc)
+    recs, obs, files, missing = [], [], [], []
+    for year in range(window[0].year, window[1].year + 1):
+        if year < now.year:
+            parts = [(f"truth/ndbc/{sid}/h{year}.txt.gz", NDBC_HIST_YEAR.format(id=sid, year=year), True)]
+        else:
+            m0 = window[0].month if window[0].year == year else 1
+            m1 = window[1].month if window[1].year == year else 12
+            parts = [(f"truth/ndbc/{sid}/{year}{m:02d}.txt",
+                      NDBC_HIST_MONTH.format(id=sid, mon=datetime(year, m, 1).strftime("%b")), False)
+                     for m in range(m0, m1 + 1) if m < now.month]
+        for key, url, gz in parts:
+            try:
+                body, r = cache.fetch(key, url, source="ndbc_historical_stdmet",
+                                      parser="eval_reference.parse_ndbc_historical", time_standard=NDBC_HIST_TIME,
+                                      qc_policy="NDBC QC'd archive; 99 / 999 = missing, kept")
+                got = parse_ndbc_historical((gzip.decompress(body) if gz else body).decode("utf-8", "replace"))
+            except Exception as e:                                      # noqa: BLE001 - counted, never silent
+                missing.append(f"{url}: {type(e).__name__}")
+                continue
+            recs.append(r)
+            obs += got
+            files.append(key)
+    return obs, recs, files, missing
+
+
+def merge_archive(realtime: List[dict], archive: List[dict]) -> List[dict]:
+    """Realtime records win; archive records fill only the times BEFORE the realtime record starts."""
+    first = min((o["time"] for o in realtime), default=None)
+    keep = [o for o in archive if first is None or o["time"] < first]
+    return sorted(keep + list(realtime), key=lambda o: o["time"])
+
+
+def needs_archive(obs: List[dict], window: Tuple[datetime, datetime], now: Optional[datetime] = None) -> bool:
+    """The realtime record does not reach the window start, and the window is old enough for an archive."""
+    now = now or datetime.now(timezone.utc)
+    first = min((o["time"] for o in obs), default=None)
+    return (first is None or first > window[0]) and window[0] < now - timedelta(days=ARCHIVE_MIN_AGE_DAYS)
+
+
 # ---- CO-OPS -------------------------------------------------------------------------------------------------------
 def parse_coops(text: str) -> List[dict]:
     obj = json.loads(text or "{}")
@@ -272,6 +385,19 @@ def fetch_station(cache, station: dict, window: Tuple[datetime, datetime], ndbc_
                     extra[ext] = len(parse_ndbc_spec(txt) if ext == "data_spec" else parse_ndbc_banded(txt))
                 except Exception as e:                                  # noqa: BLE001 - optional product, counted
                     extra["failed"].append(f"{ext}: {type(e).__name__}")
+    if needs_archive(obs, window):
+        try:
+            if station["source"] == "cdip":
+                arch, ar, versions = fetch_cdip_archive(cache, sid, window)
+                extra["archive_versions"] = versions
+            else:
+                arch, ar, files, missing = fetch_ndbc_archive(cache, sid, window)
+                extra["archive_files"], extra["archive_missing"] = files, missing
+            recs += ar
+            extra["archive_n"] = len(arch)
+            obs = merge_archive(obs, arch)
+        except Exception as e:                                          # noqa: BLE001 - counted, never silent
+            extra["failed"].append(f"archive: {type(e).__name__}: {e}"[:200])
     if station.get("coops_id"):
         b, e = (window[0] - timedelta(days=1)).strftime("%Y%m%d"), (window[1] + timedelta(days=1)).strftime("%Y%m%d")
         try:

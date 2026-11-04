@@ -139,3 +139,13 @@ script `backend/scripts/flip_scorecard.py`, declaration format in `docs/weather-
   never passed). It is not a required check; making it one is a separate owner decision (not proposed).
 - **Unproven:** production parity in CI (owed: the first hosted run), 6 stations, one autumn window, Hs/period only
   (not breaking height or rating). NDBC realtime2 holds ~45 days, so an older window loses `hs_offshore` (advisory).
+
+## Historical windows: fill the cache first (2026-11-04)
+
+`backend/scripts/eval_backfill.py prefetch --name <w> --start .. --end .. --cache-dir <dir>` fills the harness cache
+for any past window (2024-01 on) with 8 parallel `.idx` byte-range GETs to the NOAA bucket: the SAME keys, URLs and
+ranges `eval_gfswave.fetch_fields` reads, so `eval_harness.py run --cache-dir <dir>` runs on cache hits (parity proof:
+`eval_backfill.py parity`, byte identity). `<dir>/index.json` records coverage and the GFS-Wave input fingerprint;
+a fingerprint different from today's product is a parity break, scored separately. Truth for a window older than 40
+days that realtime does not reach comes from the CDIP deployment archive and NDBC's QC'd stdmet archive
+(`eval_reference.needs_archive` / `merge_archive`; NDBC archive stamps +10 min onto the realtime standard).
