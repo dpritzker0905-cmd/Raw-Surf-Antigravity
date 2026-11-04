@@ -12,7 +12,7 @@
  * 5. Final composite: render trail texture to screen canvas
  */
 
-import { buildFieldRampTexture, drawnMarkRampData, windLookKey, windDarkRulesOn, windWhiteStrength } from './WindColorRamp'; import { bindLandMask } from './windLandMask'; import { bindCalmAir } from './windCalmAir';
+import { buildFieldRampTexture, drawnMarkRampData, windLookKey, windDarkRulesOn, windWhiteStrength } from './WindColorRamp'; import { bindLandMask } from './windLandMask'; import { bindCalmAir } from './windCalmAir'; import { syncParticleStateFormat, applyParticleStateUniforms } from './particleState';
 import { baseClipKeepsFine } from './windOverlayKeep'; import { tierMosaic, tierKeepsOver, tierOuter } from './windTierMosaic';
 import { windTrailFrame, bindTrailUv, TRAIL_IDENTITY } from './windTrailAnchor'; import { windInk, bindInk, clearTrails } from './windInk'; import { blendIntoMap } from './windCanvasAlpha'; import { trailVeilUniform } from './windTrailVeil';
 import {
@@ -691,7 +691,8 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
       if (heatUVLoc !== -1) gl.disableVertexAttribArray(heatUVLoc);
     }
 
-  // Step 1: Advect particles (ping-pong)
+  // Step 1: Advect particles (ping-pong). The state format follows its kill (particleState.js; a flip reseeds, trails kept).
+  syncParticleStateFormat(gl, this, () => this.reinitParticles(gl, { keepTrails: true }));
   gl.disable(gl.BLEND); // CRITICAL: Disable blend to prevent position texture corruption!
   gl.useProgram(this.advectProgram);
   gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_particles'), 0);
@@ -712,7 +713,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform4f(gl.getUniformLocation(this.advectProgram, 'u_viewport_bounds'), vb[0], vb[1], vb[2], vb[3]);
   // v3.22: Bind tile origin and width for high zoom precision
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
-  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_tile_width'), tileWidth);
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_tile_width'), tileWidth); applyParticleStateUniforms(gl, this.advectProgram, this);   // float state / dither / RK2
   // 2026-07-06 wind anim tuning: low-band density floor + speed-contrast gamma (levers in
   // resolveWindAnimTuning; physics stays linearly speed-proportional at gamma 1.0).
   const _windTune = resolveWindAnimTuning(typeof window !== 'undefined' ? window : null);
@@ -821,7 +822,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_color_ramp'), 2); bindLandMask(gl, this.drawProgram, 5, windDarkRulesOn(effectiveTheme), null, windWhiteStrength(effectiveTheme), effectiveTheme); bindCalmAir(gl, this.drawProgram, effectiveTheme, z);   // dark's rules: land and sea rows, and the white's strength over each (D-022), and its fall in near-calm air (D-030)
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_max_speed'), this._maxWindSpeed);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_particles_res'), this.particleRes);
-  gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
+  gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]); applyParticleStateUniforms(gl, this.drawProgram, this);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
   gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, _trail.draw || mat4); gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_trail_dk'), _trail.dk);
   var bnd = this._windData.bounds;

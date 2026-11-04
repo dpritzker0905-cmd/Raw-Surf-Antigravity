@@ -1,3 +1,4 @@
+import './motionFixesKill.testsupport';   // the 2026-11-03 motion fixes stand down here: this suite pins an older DRAW_VS / ADVECT_FS byte for byte
 import './marineBeachCrestLiftKill.testsupport';   // light's shader is pinned here; the beach crest lift in marineBeachCrestLift.test.js
 import { createHash } from 'crypto';
 import { DRAW_FS, DRAW_VS } from './WebGLMarineParticleShaders';
