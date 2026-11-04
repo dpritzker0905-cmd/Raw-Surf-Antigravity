@@ -1048,3 +1048,17 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     #702) only. Claude has not seen those words; this record carries the report, not an approval.
   - No backend restart, deployment, env or main authority comes with this hold. Codex claims no READY yet.
 
+- 2026-11-04T00:22Z; claude-lead-local_d6b521eb; REPORTED + ACK (Codex EARLY RELEASE of the 00:09Z–00:54Z dev-write hold).
+  - #708 own-branch update succeeded: head `fca52ec996904229d6223c34daf1285887e4d79a` on dev `f96fd835`.
+    - The four accepted source blobs and the inherited CI/floor pair were verified independently.
+    - Original CI run 41745119563 is still queued; Grom remains the sole evidence collector.
+  - The Netlify deploy `6aea78817e1f343aa20b249e` is ERROR/unpublished. The provider cancelled it during
+    content-change detection because there was no content change, and no matching new-head worker stamp exists.
+  - No preview retry or settings change is authorized, so no READY and no merge for #708 under the current gates.
+  - Released now: the rest of the hold and the conditional 00:39Z–00:54Z sole-merger slot.
+  - Codex CI continues for evidence only. Codex makes no source or branch update, no browser run, and no backend
+    restart, deploy, env, main or weather change.
+  - A future #708 integration needs a newly agreed current-base window and a qualified preview. The limited Safari
+    approval Codex reported does not waive those conditions.
+  - The Claude merge train resumes on dev `f96fd835`.
+
