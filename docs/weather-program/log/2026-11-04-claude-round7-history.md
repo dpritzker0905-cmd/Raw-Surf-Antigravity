@@ -42,3 +42,38 @@ all on, and testing against historical data."
   + an offline NSI arm (model_hs_from_nearshore_input), then run W4 first (cache under C:/t/hist-cache if it exists,
   else C:/t/r7w/cache), score with round 6's twoway_ci (bhc/twoway.py pattern).
 - Moved aside (not deleted): stale pytest temp dirs that occupied C:/t/r7 -> `C:/t/r7-pytest-2026-11-01`.
+
+## Resumed 2026-11-04 (after the reboot): results
+
+Scope cut by the lead (budget): W1 2024-12, W4 2025-10 and W26 2026-10-06..10-31 only; no Reflection, SubQ or LongCat
+calls. The BHC EURO feed uses the previous 00/12 run at step+6 for 06/18 cycles, because EURO has no 06/18 wave
+before 2026: 15,456 same-cycle and 15,456 previous-cycle reads in W1. Input versions: one GFS-Wave GRIB fingerprint
+across the windows (backfill index #719). The EURO IFS cycle was not checked: 49r1 (Nov 2024) precedes W1.
+
+The scorecard is `flip-candidates/scorecards/round7/README.md`; the numbers are in `history-gate-2026-11-04.json`.
+
+- **SURF_BIGHT_HS_CONSENSUS PASSES on history.** Bight buoys gain +0.155 m [0.089, 0.196] (two-way), and every season
+  is positive (W1 +0.19, W4 +0.14, W26 +0.14). The bias goes from -0.32 to -0.18. The hs_station and hb_proxy no-harm
+  checks pass. The EURO weight 1.0 variant does not beat 0.5: hb bias is +0.33 and W1's CI crosses 0.
+- **SURF_SPECTRAL_K FAILS.**
+  - The hs_station gain is +0.015 [-0.008, 0.043], and hb_proxy is significantly worse (-0.136).
+  - Diagnosis: K's fresh-window gain was level compensation of the chain-wide low bias. Once the instrument's shelf
+    attenuation is removed (NSI), K costs -0.044 at Bight stations.
+  - Proposed variant (not tested; budget): K only where real headland shelter exists (Avila type, 285p1 has no history
+    before 2026-09) and BHC as the level fix.
+- **SURF_EXPOSURE_RECONCILED FAILS everywhere** (-0.024 [-0.039, -0.006]). It deepens the low bias (-0.347 -> -0.374).
+  Retest only after a level fix (BHC).
+- **SURF_TIDE_DEPTH is INERT.** Zero heights moved in 46,368 spot-hours. It acts only on the depth-limited breaking
+  cap, which no hour in these windows reached.
+- **NSI** (`model_hs_from_nearshore_input` from the ETOPO stencil depth; this is the harness instrument, not a served
+  number) **gains +0.119 [0.049, 0.187]**.
+  - It is positive in both cell-depth strata: < 50 m +0.16, > 200 m +0.11. No station has a 50-200 m cell.
+  - It is worse at sheltered 266p1 (-0.28).
+  - The instrument double-counts shelf attenuation, so every hs_station verdict here is conservative.
+- **Combined:**
+  - BHC + SSK + TIDE scores +0.066 [0.011, 0.136], less than BHC alone (+0.124): SSK drags it down.
+  - Adding EXPOSURE makes it FAIL (+0.054 [-0.007, 0.117]).
+  - The recommended combination is BHC (+ TIDE, inert).
+
+Ready for a turn-on PR: SURF_BIGHT_HS_CONSENSUS (w 0.5). SURF_TIDE_DEPTH could ride along, as no harm was measured
+(no gain either).
