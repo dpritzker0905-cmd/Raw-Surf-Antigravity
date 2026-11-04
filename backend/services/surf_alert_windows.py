@@ -77,6 +77,25 @@ def notify_lead_h() -> int:
     return _env_int("ALERTS_NOTIFY_LEAD_H", 24, 0, 168)
 
 
+def suppression_enabled() -> bool:
+    """ALERTS_WINDOW_SUPPRESSION: '0' is the kill switch back to #704's de-dup (per alert, overlap only, no
+    collapse, no cap). Anything else (default) applies collapse + same-window suppression + the daily cap."""
+    return os.environ.get("ALERTS_WINDOW_SUPPRESSION", "1") != "0"
+
+
+def merge_gap_h() -> int:
+    """Windows of one spot whose gap is <= this many hours are ONE window (forecast noise splits a session).
+    1 by default, chosen from the replay (scripts/alert_window_replay.py): the smallest gap that brings the
+    perfect-forecast control to <= 2 sends per user-day without the cap; precision is flat in the gap (0.74-0.76
+    for size-only at calibrated error, gaps 0-4) while recall falls as it grows (0.929 / 0.920 / 0.905 / 0.895)."""
+    return _env_int("ALERTS_WINDOW_MERGE_GAP_H", 1, 0, 6)
+
+
+def max_per_user_day() -> int:
+    """Window alerts per user per local day (the nautical zone of the spot being sent). 0 = no cap."""
+    return _env_int("ALERTS_MAX_PER_USER_DAY", 2, 0, 24)
+
+
 def min_level() -> str:
     value = os.environ.get("ALERTS_WINDOW_MIN_LEVEL", "fair")
     return value if value in SR.LEVELS else "fair"
@@ -357,6 +376,67 @@ def overlaps(window: Dict[str, Any], notified: Iterable[Tuple[datetime, datetime
     return any(a < nb and na < b for na, nb in notified)
 
 
+def same_window(window: Dict[str, Any], notified: Iterable[Tuple[datetime, datetime]], gap_h: int) -> bool:
+    """Already sent: overlaps a sent window, or sits within `gap_h` hours of one (a fragment of it).
+
+    No rounded-start key on top: with windows >= 2 h and gap 1 h, two windows that neither overlap nor sit within
+    the gap start >= 4 h apart, so a start rounded to 3 h can never match them (measured: identical replay)."""
+    a, b = parse_time(window["start"]), parse_time(window["end"])
+    g = timedelta(hours=gap_h)
+    return any(a - nb <= g and na - b <= g for na, nb in notified)
+
+
+def _rating(w: Dict[str, Any]) -> float:
+    r = w.get("rating")
+    return float(r) if _finite(r) else -1.0
+
+
+def collapse_windows(windows: Sequence[Dict[str, Any]], gap_h: int) -> List[Dict[str, Any]]:
+    """Merge one spot's windows whose gap is <= gap_h hours into one: span start..end, the best-rated part's
+    rating, level and period, heights over both, `hours` = qualifying hours (the gap is not counted)."""
+    out: List[Dict[str, Any]] = []
+    for w in sorted(windows, key=lambda w: w["start"]):
+        if out and parse_time(w["start"]) - parse_time(out[-1]["end"]) <= timedelta(hours=gap_h):
+            m = dict(out[-1])
+            if parse_time(w["end"]) > parse_time(m["end"]):
+                m["end"] = w["end"]
+                m["local_end"] = (parse_time(w["end"]) + timedelta(hours=m["local_offset_h"])).strftime("%H:%M")
+            m["height_ft_min"] = min(m["height_ft_min"], w["height_ft_min"])
+            m["height_ft_max"] = max(m["height_ft_max"], w["height_ft_max"])
+            if _rating(w) > _rating(m):
+                m.update(rating=w.get("rating"), rating_level=w.get("rating_level"), period_s=w.get("period_s"))
+            m["hours"] = m.get("hours", 0) + w.get("hours", 0)
+            out[-1] = m
+        else:
+            out.append(dict(w))
+    return out
+
+
+def sends_today(sent_times: Iterable[datetime], now: datetime, offset_h: int) -> int:
+    """How many of a user's sends fall on today's local day (in the zone `offset_h` of the spot being sent)."""
+    day = (now + timedelta(hours=offset_h)).date()
+    return sum(1 for t in sent_times if t is not None and (parse_time(t) + timedelta(hours=offset_h)).date() == day)
+
+
+def admit(window: Dict[str, Any], same_spot_sent: Iterable[Tuple[datetime, datetime]],
+          user_sent_times: Iterable[datetime], now: datetime) -> Tuple[bool, str]:
+    """The per-user gate the scheduler applies AFTER decide, in best-rated order and again after every send of
+    the run (so two alerts of one user on one spot cannot both announce one window): (ok, reason)."""
+    if not suppression_enabled():
+        return True, "ok"
+    if same_window(window, same_spot_sent, merge_gap_h()):
+        return False, "already_notified_same_spot"
+    cap = max_per_user_day()
+    if cap and sends_today(user_sent_times, now, int(window.get("local_offset_h") or 0)) >= cap:
+        return False, "daily_cap"
+    return True, "ok"
+
+
+def rank_best_first(items, window_of=lambda x: x):
+    """Best rating first, then the earliest start (deterministic): the order the daily cap is spent in."""
+    return sorted(items, key=lambda x: (-_rating(window_of(x)), window_of(x)["start"]))
+
+
 def format_height(lo: float, hi: float) -> str:
     lo_r, hi_r = round(lo), round(hi)
     if lo_r == hi_r:
@@ -375,7 +455,11 @@ def window_message(spot_name: str, window: Dict[str, Any]) -> str:
 def decide(alert, spot, horizon: Optional[Dict[str, Any]], now: datetime, *, notified=(),
            subscription_tier=None, lane=None, capabilities=None) -> Dict[str, Any]:
     """The whole decision for one alert. Fails SAFE: every path without a trustworthy forecast returns
-    fire=False with a reason the scheduler logs. Never raises on bad data."""
+    fire=False with a reason the scheduler logs. Never raises on bad data.
+
+    `notified` = [(start, end)] already sent: with suppression on, every window this user was sent for this SPOT
+    (any of their alerts); with the kill switch, this alert's own. Suppression on: collapse fragments within
+    merge_gap_h, drop windows that are the same as a sent one, best-rated first. The daily cap is `admit`."""
     if not horizon or not isinstance(horizon.get("frames"), list):
         return {"fire": False, "reason": "horizon_unavailable"}
     generated = parse_time(horizon.get("generated_at"))
@@ -392,11 +476,16 @@ def decide(alert, spot, horizon: Optional[Dict[str, Any]], now: datetime, *, not
             "windows_found": len(found["windows"]), "unevaluated_conditions": found.get("unevaluated_conditions", [])}
     if not found["windows"]:
         return {"fire": False, "reason": found["reason"], **base}
+    suppress = suppression_enabled()
+    windows = collapse_windows(found["windows"], merge_gap_h()) if suppress else found["windows"]
     lead = notify_lead_h()
-    due = [w for w in found["windows"] if not lead or parse_time(w["start"]) <= now + timedelta(hours=lead)]
+    due = [w for w in windows if not lead or parse_time(w["start"]) <= now + timedelta(hours=lead)]
     if not due:
         return {"fire": False, "reason": "not_yet_within_notify_lead", **base}
-    fresh = [w for w in due if not overlaps(w, notified)]
+    if suppress:
+        fresh = rank_best_first([w for w in due if not same_window(w, notified, merge_gap_h())])
+    else:
+        fresh = [w for w in due if not overlaps(w, notified)]
     if not fresh:
         return {"fire": False, "reason": "already_notified", **base}
     return {"fire": True, "reason": "window_found", "window": fresh[0], **base}
