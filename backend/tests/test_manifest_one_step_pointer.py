@@ -72,6 +72,7 @@ def storage_get(monkeypatch):
     """requests.get, recorded. `answers` is consumed one per call (an Exception instance is raised)."""
     import requests
     calls, answers = [], []
+    mp.forget_manifest_object()      # the self-read copy (test_manifest_self_read_cache.py) must not answer for an earlier test
     monkeypatch.setattr(mp, "_rest_base_and_headers", lambda: ("https://storage.invalid", {"apikey": "test-key"}))
 
     def get(url, **kwargs):
