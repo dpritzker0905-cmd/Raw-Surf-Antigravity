@@ -1,4 +1,4 @@
-"""bight_hs_consensus.py — SURF_BIGHT_HS_CONSENSUS: the GFS+EURO mean offshore Hs inside the SoCal Bight (DARK).
+"""bight_hs_consensus.py — SURF_BIGHT_HS_CONSENSUS: the GFS+EURO mean offshore Hs inside the SoCal Bight (ON, kill "0").
 
 WHY. Inside the island-sheltered Bight the served lane (GFS-Wave 0.25) reads LOW: research round 4 (2026-11-03, the
 evaluation harness at production parity, 8 CDIP nearshore stations, n 1,224 served spot-hours, window 10-20..11-01,
@@ -54,9 +54,13 @@ PRECEDENCE (log 2026-11-03-claude-bight-hs-consensus.md):
      (pinned by a test), so the Bight mean never feeds MOP K and the sheltering is not corrected twice. Those spots'
      own-cell offshore Hs (displayed, and the bulk chain on fail-open) does carry the mean.
 
-DARK: SURF_BIGHT_HS_CONSENSUS (default "0"), an os.environ read at call time, registered in `_RATING_FLAGS`
-(routes/admin/surf_forecast.py) and declared '0' in forecast-ingest.yml, precompute.yml, forecast-ingest-pilots.yml and
-sim-parity-monitor.yml. Flip only on the owner's word after the flip gate in the log is met.
+DEFAULT ON, KILL "0" (2026-11-04): built dark on 2026-11-03; the owner's policy relayed by the lead ~01:41Z ("fixes now
+ship ON by default with a kill switch, plus a history filter and a live guardrail"; precedent DECISIONS 2026-11-01
+22:10 EST, "measured features ship ON by default with a kill switch") moved the code default to "1". An os.environ read
+at call time: any value but "0" is on. Registered in `_RATING_FLAGS` (routes/admin/surf_forecast.py) and declared '1'
+in forecast-ingest.yml, precompute.yml, forecast-ingest-pilots.yml and sim-parity-monitor.yml; Render env needs no
+entry for ON. Kill: SURF_BIGHT_HS_CONSENSUS='0' in Render env AND those four lanes together. The lead merges it only
+after the guardrail PR (claude/default-on-guardrails). Evidence and the open breaking-height bias: the log.
 """
 import math
 import os
@@ -69,9 +73,29 @@ BIGHT_LINE = ((34.45, -120.47), (34.03, -120.37), (33.25, -119.50), (32.82, -118
 BIGHT_BBOX = (31.75, 34.6, -120.6, -116.5)        # (south, north, west, east)
 
 
+WEIGHT_FLAG = "SURF_BIGHT_HS_EURO_WEIGHT"
+EQUAL_WEIGHT = 0.5
+
+
+def euro_weight() -> float:
+    """SURF_BIGHT_HS_EURO_WEIGHT (DARK arm option, default "0.5" = the equal mean, byte-identical): EURO's weight w in
+    Hs = (1 - w) Hs_GFS + w Hs_EURO inside the polygon, read at call time and only while SURF_BIGHT_HS_CONSENSUS is on.
+    WHY (research round 6, 2026-11-04, offline, HIGH): Jason-3's in-situ offset is ~0 at <= 10-15 km collocation, so
+    inside the Bight GFS reads -0.327 m, EURO +0.068 and the equal mean still -0.129 (October buoys -0.319 / +0.054 /
+    -0.133): EURO is the least-biased offshore Hs. A EURO-weighted mean raises the breaking height further, whose bias
+    already flips -0.077 -> +0.140 under the equal mean, so it is scored ONLY jointly with a breaker re-calibration
+    (log 2026-11-03-claude-bight-hs-consensus.md, section 9). A value outside [0, 1] or unparsable reads 0.5."""
+    raw = os.environ.get("SURF_BIGHT_HS_EURO_WEIGHT", "0.5")      # literal: the lane-parity scan reads it
+    try:
+        w = float(raw)
+    except (TypeError, ValueError):
+        return EQUAL_WEIGHT
+    return w if math.isfinite(w) and 0.0 <= w <= 1.0 else EQUAL_WEIGHT
+
+
 def enabled() -> bool:
-    """On only when the flag is "1" and the caller is not the ledger's raw baseline (consensus_serve.serve_raw)."""
-    if os.environ.get("SURF_BIGHT_HS_CONSENSUS", "0") != "1":      # literal: the lane-parity scan reads it
+    """On unless the flag is "0" (the kill switch), and never for the ledger's raw baseline (consensus_serve.serve_raw)."""
+    if os.environ.get("SURF_BIGHT_HS_CONSENSUS", "1") == "0":      # literal: the lane-parity scan reads it
         return False
     from services.weather_pipeline.consensus_serve import raw_requested
     return not raw_requested()
@@ -177,6 +201,7 @@ def compose(gfs, choose_euro: Callable, cells: Optional[list] = None, sampler=No
     vectors = list(gfs.grid.vectors)
     counts = {"inside": len(idx), "blended": 0, "not_ocean": 0, "gfs_zero": 0, "euro_missing": 0}
     sources, offsets, ratios, nodes = {}, 0, [], {}
+    w = euro_weight()
     for i in idx:
         vec = vectors[i]
         if not sampler._is_vector_valid(vec, gfs.domain, gfs.layer):
@@ -194,7 +219,7 @@ def compose(gfs, choose_euro: Callable, cells: Optional[list] = None, sampler=No
         if hs_e is None:
             counts["euro_missing"] += 1
             continue
-        mean = 0.5 * (hs_g + hs_e)
+        mean = 0.5 * (hs_g + hs_e) if w == EQUAL_WEIGHT else (1.0 - w) * hs_g + w * hs_e
         k = mean / hs_g
         vectors[i] = vec.model_copy(update={"u": round(vec.u * k, 4), "v": round(vec.v * k, 4),
                                             "speed": round(mean, 4)})
@@ -210,5 +235,8 @@ def compose(gfs, choose_euro: Callable, cells: Optional[list] = None, sampler=No
         "flag": FLAG, "polygon": POLYGON_VERSION, "method": "mean(GFS, EURO) Hs; GFS period and direction",
         "cells": counts, "euro_sources": sources, "euro_frame_offset_cells": offsets,
         "mean_over_gfs": _ratio_quantiles(ratios)}
+    if w != EQUAL_WEIGHT:            # metadata changes only with the arm: at 0.5 the diagnostics are byte-identical
+        diagnostics["bight_hs_consensus"]["euro_weight"] = w
+        diagnostics["bight_hs_consensus"]["method"] = f"({1.0 - w:g} GFS + {w:g} EURO) Hs; GFS period and direction"
     grid = gfs.grid.model_copy(update={"vectors": vectors, "diagnostics": diagnostics})
     return gfs.model_copy(update={"grid": grid})

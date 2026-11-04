@@ -33,7 +33,7 @@ the switch is on (comma-separated; default '' = none, D-006's global equal mean)
 Hawaii-only rule reads -1.9% vs the equal mean and -16% vs GFS on 57,992 training pairs. The recommendation is
 'hawaii'; adopting it amends D-006, so it flips on the owner's word, with CONSENSUS_SERVE, in the same three places.
 
-SURF_BIGHT_HS_CONSENSUS (2026-11-03, dark, bight_hs_consensus.py) rides the SAME view, for the same reason: a GFS waves
+SURF_BIGHT_HS_CONSENSUS (2026-11-03; default ON since 2026-11-04, kill "0"; bight_hs_consensus.py) rides the SAME view, for the same reason: a GFS waves
 frame the view serves AS GFS gets the GFS+EURO mean Hs at its cells inside the frozen Southern California Bight
 polygon. A frame served as its consensus twin is never composed again (the twin already carries EURO), and
 serve_raw() answers raw for both.
@@ -206,7 +206,7 @@ class ServedStore:
         return served.model_copy()
 
     def _bight_frame(self, bight, filename, product, stride):
-        """SURF_BIGHT_HS_CONSENSUS (bight_hs_consensus.py, dark): the GFS+EURO mean Hs inside the Bight polygon.
+        """SURF_BIGHT_HS_CONSENSUS (bight_hs_consensus.py, ON, kill "0"): the GFS+EURO mean Hs inside the Bight polygon.
         STORED-PRODUCT composition, memoized per frame: the EURO frames are the ones the point resolver would answer
         each Bight cell from, loaded once per composed frame through the raw store (never an upstream), and the
         composed frame is cached under the GFS file and run AND the EURO files and runs it read, so a new run of
@@ -239,7 +239,7 @@ class ServedStore:
             cells, picks = plan[2], plan[3]
             if not cells or not picks:
                 return product
-            key = ("bight", filename, run, stride, picks)
+            key = ("bight", filename, run, stride, picks, bight.euro_weight())
             with self._lock:
                 hit = self._merged.get(key)
                 if hit is not None:

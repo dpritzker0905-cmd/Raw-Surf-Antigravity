@@ -145,7 +145,8 @@ jobs:
           MANIFEST_PUBLISH_ONE_STEP: '1' # ENABLED 2026-10-17 on the owner's explicit word (#350): read-merge-CAS in one step; ALL manifest writers together (forecast-ingest, pilots, precompute, sim-parity-monitor); NOT Render. Kill: set '0' in all four.
           SURF_PARTITIONS: '0'
           SURF_PARTITION_TRACKING: '0'
-          SURF_BIGHT_HS_CONSENSUS: '0'  # DECLARED AT DEFAULT (2026-11-03, dark) so the lane-parity guard can see it: inside the frozen SoCal Bight polygon the served offshore Hs becomes the GFS+EURO mean where both answer (bight_hs_consensus.py, composed in consensus_serve.ServedStore). Flip ONLY together: forecast-ingest.yml, precompute.yml, sim-parity-monitor.yml AND Render env, on the owner's word after the flip gate (log 2026-11-03-claude-bight-hs-consensus.md).
+          SURF_BIGHT_HS_CONSENSUS: '1'  # ON BY DEFAULT (2026-11-04, owner policy via the lead: ship ON with a kill switch): inside the frozen SoCal Bight polygon the served offshore Hs is the GFS+EURO mean where both answer (bight_hs_consensus.py, composed in consensus_serve.ServedStore). KILL: '0' here, in forecast-ingest.yml, precompute.yml, forecast-ingest-pilots.yml, sim-parity-monitor.yml AND Render env together (log 2026-11-03-claude-bight-hs-consensus.md).
+          SURF_BIGHT_HS_EURO_WEIGHT: '0.5'  # DECLARED AT DEFAULT (2026-11-04, dark arm option): EURO's weight in the Bight Hs while SURF_BIGHT_HS_CONSENSUS is '1' (0.5 = the equal mean). Moves only with that flag, in the same lanes and Render env together.
           SURF_NEARSHORE_MOP: '0'
           RATING_OBS_GATE: '1'
           RATING_LOCAL_SIZE: '1'

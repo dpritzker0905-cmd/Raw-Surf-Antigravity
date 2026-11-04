@@ -1,14 +1,15 @@
-"""SURF_BIGHT_HS_CONSENSUS (2026-11-03, dark): the GFS+EURO mean offshore Hs inside the frozen SoCal Bight polygon.
+"""SURF_BIGHT_HS_CONSENSUS (2026-11-03; ON by default since 2026-11-04, kill "0"): the GFS+EURO mean offshore Hs inside
+the frozen SoCal Bight polygon.
 
 Pins, on real product types through the real serving view (consensus_serve.ServedStore):
-  * OFF is byte-identical (a pinned sha256 of the served frame), for every value that is not exactly "1";
+  * the KILL SWITCH ("0") is byte-identical (a pinned sha256 of the served frame); any other value, or none, is ON;
   * ON: inside the polygon the cell carries (GFS + EURO) / 2 with GFS's period and direction; outside it is GFS's own
     object; EURO missing / masked / estimated / beyond the resolver's 3 h window keeps GFS;
   * the polygon is round 4's, frozen, with its edge conventions;
   * every surface reads the same number: /point (rate_one_spot's input, the infobox, alerts, the sim), the hub's
     cached-grid lane and the glyph precompute's resolver;
   * precedence: a frame served as its CONSENSUS twin is not composed again; serve_raw() answers raw;
-  * registered and declared '0' in every lane; refused by the v0 harness (EURO is not archived).
+  * registered and declared '1' in every lane; refused by the v0 harness (EURO is not archived).
 """
 import asyncio
 import hashlib
@@ -116,26 +117,35 @@ def _dump(p):
     return p.model_dump_json().encode("utf-8")
 
 
-# ── OFF: byte-identical ─────────────────────────────────────────────────────────────────────────────
+# ── KILL SWITCH: byte-identical ─────────────────────────────────────────────────────────────────────────────
 
-# sha256 of the served SoCal GFS frame of `_scene()` with the flag off: the raw stored frame, byte for byte.
+# sha256 of the served SoCal GFS frame of `_scene()` with the kill switch: the raw stored frame, byte for byte.
 OFF_SHA256 = "c92971651a2974045977b3a2ad279111776626b48e6afca215bab7829b5806d6"
 
 
-@pytest.mark.parametrize("value", [None, "0", "", "true", "on", "1 "])
-def test_off_the_served_frame_is_the_stored_frame_byte_for_byte(monkeypatch, value):
-    if value is None:
-        monkeypatch.delenv("SURF_BIGHT_HS_CONSENSUS", raising=False)
-    else:
-        monkeypatch.setenv("SURF_BIGHT_HS_CONSENSUS", value)
+def test_killed_the_served_frame_is_the_stored_frame_byte_for_byte(monkeypatch):
+    monkeypatch.setenv("SURF_BIGHT_HS_CONSENSUS", "0")
     raw = _scene()
     view = S.served_store(raw)
     fn = raw.name("GFS")
     served = view.load_product(fn)
     assert _dump(served) == _dump(raw.files[fn])
     assert hashlib.sha256(_dump(served)).hexdigest() == OFF_SHA256
-    assert raw.loads == [fn]                          # off never reads the manifest's EURO, never loads it
+    assert raw.loads == [fn]                          # killed: never reads the manifest's EURO, never loads it
     assert B.enabled() is False
+
+
+@pytest.mark.parametrize("value", [None, "1", "", "true", "on", "1 "])
+def test_on_by_default_any_value_but_the_kill_is_on(monkeypatch, value):
+    if value is None:
+        monkeypatch.delenv("SURF_BIGHT_HS_CONSENSUS", raising=False)
+    else:
+        monkeypatch.setenv("SURF_BIGHT_HS_CONSENSUS", value)
+    monkeypatch.delenv("CONSENSUS_SERVE", raising=False)
+    raw = _scene()
+    assert B.enabled() is True
+    served = S.served_store(raw).load_product(raw.name("GFS"))
+    assert served.grid.diagnostics["bight_hs_consensus"]["cells"]["blended"] > 0
 
 
 # ── ON: inside the mean, outside unchanged ────────────────────────────────────────────────────────────
@@ -452,15 +462,15 @@ def _env_values(name, flag):
 
 
 @pytest.mark.parametrize("lane", LANES)
-def test_every_lane_declares_the_flag_dark(lane):
+def test_every_lane_declares_the_flag_on(lane):
     vals = _env_values(lane, B.FLAG)
-    assert vals and set(vals) == {"0"}, (lane, vals)
+    assert vals and set(vals) == {"1"}, (lane, vals)
 
 
-def test_the_flag_is_registered_dark_and_the_v0_harness_refuses_it():
+def test_the_flag_is_registered_on_and_the_v0_harness_refuses_it():
     from tests.test_flag_lane_parity import REGISTRY
     from services.weather_pipeline.eval_replay import UNREPLAYABLE, parse_arm
-    assert REGISTRY[B.FLAG][0] == "0"
+    assert REGISTRY[B.FLAG][0] == "1"
     assert B.FLAG in UNREPLAYABLE
     with pytest.raises(ValueError):
         parse_arm(f"{B.FLAG}=1")
@@ -512,3 +522,51 @@ def test_a_calm_gfs_cell_is_never_scaled_from_zero(on):
         assert all(math.isfinite(x) for x in (b.u, b.v, b.speed))
         if a.lng < -118.5:
             assert b == a
+
+
+# ── SURF_BIGHT_HS_EURO_WEIGHT (dark arm option, 2026-11-04) ──────────────────────────────────────────────
+
+def test_the_default_weight_is_the_equal_mean_byte_for_byte(on, monkeypatch):
+    raw = _scene()
+    fn = raw.name("GFS")
+    monkeypatch.delenv("SURF_BIGHT_HS_EURO_WEIGHT", raising=False)
+    a = _dump(S.served_store(raw).load_product(fn))
+    for v in ("0.5", "0.50", "-1", "1.5", "nan", "x", ""):
+        monkeypatch.setenv("SURF_BIGHT_HS_EURO_WEIGHT", v)
+        assert B.euro_weight() == 0.5, v
+        assert _dump(S.served_store(raw).load_product(fn)) == a, v
+
+
+@pytest.mark.parametrize("w", [0.0, 0.75, 1.0])
+def test_a_euro_weight_moves_inside_cells_linearly_and_never_outside(on, monkeypatch, w):
+    monkeypatch.setenv("SURF_BIGHT_HS_EURO_WEIGHT", str(w))
+    raw = _scene()
+    fn = raw.name("GFS")
+    gfs = raw.files[fn]
+    served = S.served_store(raw).load_product(fn)
+    for g, s in zip(gfs.grid.vectors, served.grid.vectors):
+        if g.is_valid and B.inside_bight(g.lat, g.lng):
+            want = (1 - w) * math.hypot(g.u, g.v) + w * _euro_field(g.lat, g.lng)[0]
+            assert s.speed == pytest.approx(want, abs=2e-4) and s.period == g.period
+        else:
+            assert s == g
+    d = served.grid.diagnostics["bight_hs_consensus"]
+    assert d["euro_weight"] == w
+
+
+def test_a_changed_weight_is_never_answered_from_the_cache(on, monkeypatch):
+    raw = _scene()
+    view = S.served_store(raw)
+    fn = raw.name("GFS")
+    a = view.load_product(fn)
+    monkeypatch.setenv("SURF_BIGHT_HS_EURO_WEIGHT", "1")
+    b = view.load_product(fn)
+    assert _dump(a) != _dump(b) and b.grid.diagnostics["bight_hs_consensus"]["euro_weight"] == 1.0
+
+
+def test_the_weight_option_is_registered_declared_and_refused_by_v0():
+    from tests.test_flag_lane_parity import REGISTRY
+    from services.weather_pipeline.eval_replay import UNREPLAYABLE
+    assert REGISTRY[B.WEIGHT_FLAG][0] == "0.5" and B.WEIGHT_FLAG in UNREPLAYABLE
+    for lane in LANES:
+        assert set(_env_values(lane, B.WEIGHT_FLAG)) == {"0.5"}, lane
