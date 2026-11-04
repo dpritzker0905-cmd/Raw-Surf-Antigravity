@@ -179,3 +179,11 @@ async def test_current_rounding_across_midnight_keeps_provider_target_covered(mo
     assert resolver.cache_reads[0][1].isoformat() == '2027-01-01T00:00:00+00:00'
     assert len(resolver.cache_reads) == 2 and data["forecast"] == []
     assert len(resolver.upstream) == 1 and resolver.upstream[0]['forecast_days'] == 2
+
+
+@pytest.fixture(autouse=True)
+def _pin_the_kill_switch_chain(monkeypatch):
+    """Spot-hub phase 2 is ON by default (SPOT_HUB_RATE_ONE_SPOT, owner policy 2026-11-04). This file pins the
+    contract of the chain the KILL SWITCH ('0') restores, so it runs under '0'; the default path's equivalents
+    live in tests/test_spot_hub_rate_one_spot.py."""
+    monkeypatch.setenv("SPOT_HUB_RATE_ONE_SPOT", "0")
