@@ -94,6 +94,8 @@ jobs:
           RATING_LOCAL_SIZE: '1'
           POINT_BATCH_NATIVE_COPERNICUS: '1'
           POINT_CACHE_MAX: '6000'
+          SURF_BIGHT_HS_CONSENSUS: ''         # mirrors precompute.yml: '' hands the guarded flag to the runtime manifest
+          SURF_BIGHT_HS_EURO_WEIGHT: '0.5'
           # The series reaches +336 h, so warm the whole horizon (precompute warms 1 day: it rates +0/+3 h).
           PREFETCH_WINDOW_DAYS: '15'
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
