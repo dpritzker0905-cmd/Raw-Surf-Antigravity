@@ -17,31 +17,17 @@ import {
 import { recordChurn } from './marineTransitionCoordinator';
 import { startProgramBatch, pollEngineBatch, publishBatch, BATCH } from './WebGLProgramBatch';
 import { freeMaskStash } from './maskTextureStash';
+import { createParticleStateTexture, reseedParticleStateTextures } from './particleState';
 
 // --- Particle Texture Init Helper ---
-export function initParticleTexture(gl, resolution) {
-  const numParticles = resolution * resolution;
-  const data = new Uint8Array(numParticles * 4);
-  for (let i = 0; i < numParticles; i++) {
-    const x = Math.random();
-    const y = Math.random();
-    const xHi = Math.floor(x * 255);
-    const xLo = Math.floor(((x * 255) - xHi) * 255);
-    const yHi = Math.floor(y * 255);
-    const yLo = Math.floor(((y * 255) - yHi) * 255);
-    data[i * 4 + 0] = xHi;
-    data[i * 4 + 1] = xLo;
-    data[i * 4 + 2] = yHi;
-    data[i * 4 + 3] = yLo;
-  }
-  return createTexture(gl, gl.NEAREST, data, resolution, resolution);
-}
+// The state texture: RGBA32F where the context renders to float, else the old RGBA8 packing (particleState.js; the kill there).
+export function initParticleTexture(gl, resolution, engine) { return createParticleStateTexture(gl, resolution, engine, createTexture); }
 
 export function reinitParticles(engine, gl) {
   if (engine.particleStateA) gl.deleteTexture(engine.particleStateA);
   if (engine.particleStateB) gl.deleteTexture(engine.particleStateB);
-  engine.particleStateA = initParticleTexture(gl, engine.particleRes);
-  engine.particleStateB = initParticleTexture(gl, engine.particleRes);
+  engine.particleStateA = initParticleTexture(gl, engine.particleRes, engine);
+  engine.particleStateB = initParticleTexture(gl, engine.particleRes, engine);
 }
 
 // PARTICLE CARRY predicate (2026-07-06, Part 9 ② zoom-out ladder): particle positions live in
@@ -79,26 +65,7 @@ export function reseedParticleStateInPlace(engine, gl) {
     reinitParticles(engine, gl);
     return;
   }
-  const numParticles = res * res;
-  const data = new Uint8Array(numParticles * 4);
-  for (let i = 0; i < numParticles; i++) {
-    const x = Math.random();
-    const y = Math.random();
-    const xHi = Math.floor(x * 255);
-    const xLo = Math.floor(((x * 255) - xHi) * 255);
-    const yHi = Math.floor(y * 255);
-    const yLo = Math.floor(((y * 255) - yHi) * 255);
-    data[i * 4 + 0] = xHi;
-    data[i * 4 + 1] = xLo;
-    data[i * 4 + 2] = yHi;
-    data[i * 4 + 3] = yLo;
-  }
-  const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
-  gl.bindTexture(gl.TEXTURE_2D, engine.particleStateA);
-  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, res, res, gl.RGBA, gl.UNSIGNED_BYTE, data);
-  gl.bindTexture(gl.TEXTURE_2D, engine.particleStateB);
-  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, res, res, gl.RGBA, gl.UNSIGNED_BYTE, data);
-  gl.bindTexture(gl.TEXTURE_2D, prevTex);
+  reseedParticleStateTextures(gl, engine, res);   // same fresh random seed, in the textures' own format (particleState.js)
 }
 
 export function initEngine(engine, gl) {
@@ -170,8 +137,8 @@ export function initEngine(engine, gl) {
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, gridIndices, gl.STATIC_DRAW);
   engine.numGridIndices = gridIndices.length;
 
-  engine.particleStateA = initParticleTexture(gl, engine.particleRes);
-  engine.particleStateB = initParticleTexture(gl, engine.particleRes);
+  engine.particleStateA = initParticleTexture(gl, engine.particleRes, engine);
+  engine.particleStateB = initParticleTexture(gl, engine.particleRes, engine);
 
   engine.advFBO = gl.createFramebuffer();
   if (typeof window !== 'undefined' && window.__RAW_GPU__) {
