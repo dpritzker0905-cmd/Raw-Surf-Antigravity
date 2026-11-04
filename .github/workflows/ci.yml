@@ -1009,7 +1009,9 @@ jobs:
           #   base 3474 (dev's map) + 13 new test(s) and 2 new file(s) = 3487, files 219; floor 3487 - 6 = 3481. This PR must read 3487 passed.
           # ⬆ 3481→3501 on 2026-11-04 (rederive_floor.py, claude/spot-hub-phase2): dev run 41919430899 read 3474 / 217 files; dev's map 3487;
           #   base 3487 (dev's map) + 20 new test(s) and 1 new file(s) = 3507, files 220; floor 3507 - 6 = 3501. This PR must read 3507 passed.
-          MIN_FILES, MIN_PASSED = 220, 3501
+          # ⬆ 3501→3503 on 2026-11-04 (rederive_floor.py, claude/monitor-l2-retry): dev run 41927072977 read 3487 / 219 files; dev's map 3507;
+          #   base 3507 (dev's map) + 2 new test(s) and 0 new file(s) = 3509, files 220; floor 3509 - 6 = 3503. This PR must read 3509 passed.
+          MIN_FILES, MIN_PASSED = 220, 3503
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
