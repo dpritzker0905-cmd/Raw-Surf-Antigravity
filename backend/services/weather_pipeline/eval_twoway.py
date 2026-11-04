@@ -1,7 +1,7 @@
 """eval_twoway.py - the flip gate's BINDING uncertainty rule: a two-way (spatial block x UTC day) bootstrap of the
 mean loss gain, and the null-calibration self-test without which the harness refuses to run. PURE (stdlib only).
 
-WHY (D-065; research round 6 item 1, 2026-11-03): daily gains at nearby buoys are strongly correlated (rho 0.72-0.75;
+WHY (D-066; research round 6 item 1, 2026-11-03): daily gains at nearby buoys are strongly correlated (rho 0.72-0.75;
 the 11 SoCal Bight NDBC buoys behave like ~1.3 independent stations). On 400 sign-flip null sets the station-cluster
 bootstrap the gate used (binding at >= 10 stations, CLUSTER_BINDING_MIN) falsely PASSED 31-35% of the time (nominal
 2.5% one-sided); a two-way spatial block x day bootstrap falsely passed 0-6.3%. Stations are not the independent

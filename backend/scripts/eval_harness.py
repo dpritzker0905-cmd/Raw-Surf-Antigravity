@@ -13,7 +13,7 @@ STAGES (each writes a panel + a provenance manifest beside it, under --out):
   3. replay     the served chain under the served env, then under each candidate arm       replay_<arm>.json
   4. score      baselines, controls, every arm on every quantity, the verdicts              scorecard.json / .md
 Network: public data hosts only (eval_provenance.ALLOWED_HOSTS), one request at a time, cached; never the app.
-Gate: the BINDING uncertainty rule is the two-way spatial block x day CI over >= 14 UTC target days (D-065,
+Gate: the BINDING uncertainty rule is the two-way spatial block x day CI over >= 14 UTC target days (D-066,
 eval_twoway.py); it must pass its synthetic-null self-test first, else the run is REFUSED before any download.
 Exit code: 0 when every candidate arm PASSES on the primary quantity (or --exit-zero), 1 otherwise, 2 on error.
 """
@@ -199,7 +199,7 @@ def score(arms_rows, truth, stations, hull_of, primary, cfg, embargo, baseline, 
 
 def run(args, get=pv.http_get, fields_fn=gw.fetch_fields, cfg=None) -> dict:
     cfg = cfg or eg.harness_config()
-    # D-065: the binding two-way gate must pass its null self-test before any work (CalibrationFailed = REFUSED).
+    # D-066: the binding two-way gate must pass its null self-test before any work (CalibrationFailed = REFUSED).
     self_test = tw.require_calibrated()
     deltas = [("served", {})] + [(a, rp.parse_arm(a)) for a in args.arm]     # refuse a bad arm before any work
     start, end = rp.parse_time(args.start), rp.parse_time(args.end)

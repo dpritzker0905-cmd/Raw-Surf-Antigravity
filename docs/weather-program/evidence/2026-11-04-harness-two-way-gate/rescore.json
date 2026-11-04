@@ -1,5 +1,5 @@
 {
- "about": "Offline re-score of cached harness rows under D-065 (two-way block x day CI, >=14 UTC days). old = the same rows scored by origin/dev 29c01f71 code (reproduces every stored verdict); new = this branch. No GRIB downloaded. Script: rescore.py.",
+ "about": "Offline re-score of cached harness rows under D-066 (two-way block x day CI, >=14 UTC days). old = the same rows scored by origin/dev 29c01f71 code (reproduces every stored verdict); new = this branch. No GRIB downloaded. Script: rescore.py.",
  "runs": {
   "pr712-inventory dev10t (10-18..10-31)": {
    "window": "56 targets 2026-10-18T00Z..2026-10-31T18Z",

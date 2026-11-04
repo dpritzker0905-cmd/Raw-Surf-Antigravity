@@ -79,7 +79,7 @@ def test_a_valid_declaration_parses_with_its_plan_inside_the_budget():
     (_decl(flags={}), "flags"),
     (_decl(flags={"SURF_PARTITIONS": "1"}), "SURF_PARTITIONS"),                      # unreplayable
     (_decl(window={"start": "2026-10-20T00:00Z", "end": "2026-10-24T00:00Z"}), "at least 14 UTC target days"),
-    # D-065: 13 target days (the old 7-14 day rule admitted this; the binding two-way CI needs 14)
+    # D-066: 13 target days (the old 7-14 day rule admitted this; the binding two-way CI needs 14)
     (_decl(window={"start": "2026-10-17T00:00Z", "end": "2026-10-29T18:00Z"}), "at least 14 UTC target days"),
     (_decl(window={"start": "2026-10-01T00:00Z", "end": "2026-10-20T00:00Z"}), "span at most 14"),
     (_decl(window={"start": "2026-10-20T00:00Z", "end": "2026-11-02T18:00Z"}), "PINNED in the past"),

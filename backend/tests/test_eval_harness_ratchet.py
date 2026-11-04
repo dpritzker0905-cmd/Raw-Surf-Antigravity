@@ -157,7 +157,7 @@ def test_a_lead_locks_only_after_two_eligible_non_overlapping_windows_and_the_lo
         rt.save_baseline(path, dropped, rt.load_baseline(path))
 
 
-def test_a_window_under_14_days_never_locks_d065():
+def test_a_window_under_14_days_never_locks_d066():
     # 48 six-hourly targets = 12 UTC days: served beats climatology on the block CI, but the binding two-way CI
     # (block x day, >= 14 days) cannot be computed, so nothing becomes even PENDING.
     state = rt.served_state(_panel(hours=48, srv_err={24: 0.05, 48: 0.10, 72: 0.40}), CFG)

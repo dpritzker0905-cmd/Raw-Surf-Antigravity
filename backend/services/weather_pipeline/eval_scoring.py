@@ -33,7 +33,7 @@ from services.weather_pipeline import eval_reference as ref
 G = 9.80665
 MATCH_TOL_S = 1800.0          # the nearshore lane's tolerance (nearshore_validation.match)
 PERSIST_TOL_S = 5400.0
-# The station-cluster CI is ADVISORY only since D-065 (it falsely passed 31-35% on correlated nulls); the binding
+# The station-cluster CI is ADVISORY only since D-066 (it falsely passed 31-35% on correlated nulls); the binding
 # rule is eval_twoway.two_way_ci (spatial block x day). CLUSTER_BINDING_MIN (10) is retired.
 QUANTITIES = {
     "hs_station": {"role": "nearshore", "units": "m", "truth": "CDIP Hs (waveFlagPrimary == 1)",
@@ -277,7 +277,7 @@ def twcrps_test(items: Sequence[dict], thr: Optional[float], cfg) -> Optional[di
 
 def station_cluster_boot(items: Sequence[dict], reps: int = 2000, seed: int = 20261102, level: float = 0.95) -> dict:
     """ADVISORY bootstrap of the mean absolute-error gain resampling STATIONS (clusters) with replacement. Never binding
-    (D-065): correlated stations make it falsely pass 31-35% of null sets."""
+    (D-066): correlated stations make it falsely pass 31-35% of null sets."""
     by: Dict[str, List[float]] = {}
     for i in items:
         by.setdefault(i["buoy"], []).append(abs(i["f_ref"] - i["obs"]) - abs(i["f_cand"] - i["obs"]))
@@ -294,7 +294,7 @@ def station_cluster_boot(items: Sequence[dict], reps: int = 2000, seed: int = 20
     a = (1 - level) / 2
     return {"clusters": len(keys), "ci": [vals[int(a * reps)], vals[min(reps - 1, int((1 - a) * reps))]],
             "binding": False,
-            "note": f"advisory: station-cluster CI over {len(keys)} stations (D-065: stations are not independent; "
+            "note": f"advisory: station-cluster CI over {len(keys)} stations (D-066: stations are not independent; "
                     f"the binding CI is the two-way block x day one)"}
 
 

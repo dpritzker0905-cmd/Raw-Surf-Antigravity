@@ -1,4 +1,4 @@
-# 2026-11-04 · claude · Harness gate rule: two-way spatial block x day bootstrap (D-065, draft)
+# 2026-11-04 · claude · Harness gate rule: two-way spatial block x day bootstrap (D-066, draft)
 
 Branch `claude/harness-two-way-gate`, worktree `C:/t/h2w`, cut from `origin/dev` 8a401da4 on 11-03 and reset to
 29c01f71 on 11-04 after a reboot (the coordinator's resume note; the harness files were identical between the two).
@@ -29,7 +29,7 @@ like ~1.3 independent stations. On 400 sign-flip null sets the harness rule (sta
   exit 2); the scorecard carries `two_way_self_test`.
 - `scripts/flip_scorecard.py`: a declaration needs >= 14 UTC target days (span <= 14 days: 00Z day 1 .. 18Z day 14;
   342 range downloads at leads 24/48/72, under the 400 budget).
-- Docs: `evaluation-harness.md` rule 5 + the self-test, `flip-candidates/README.md`, DECISIONS D-065.
+- Docs: `evaluation-harness.md` rule 5 + the self-test, `flip-candidates/README.md`, DECISIONS D-066.
 
 ## How the interval was chosen (synthetic nulls, prototype in the session scratchpad)
 
@@ -43,7 +43,7 @@ Smooth-field nulls (exp(-d/L) correlation over the real station lists, 400 sets)
 0.25-1.5% at 100 or 250 km blocks; a PERSISTENT 250 km field 15.5% (stations10, 5 blocks) and 19.75% (25 stations,
 8 blocks) at 100 km blocks, 8.25% / 8.75% at 250 km blocks; a persistent 100 km field 10.5% at 100 km. The rule
 treats a persistent regional effect as the estimand (the effect at these stations over future days) and reports it
-as `advisory_nulls`; stated as the LIMIT in the module, the contract and D-065.
+as `advisory_nulls`; stated as the LIMIT in the module, the contract and D-066.
 
 ## Self-test (pinned in `tests/test_eval_twoway.py`)
 

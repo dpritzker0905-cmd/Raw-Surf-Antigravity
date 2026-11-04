@@ -14,7 +14,7 @@ climatology; eval_scoring refuses a leaked one, and so does every function here)
      across leads x losses x bands; the ratchet is not).
   2. LOCKED LEADS (the floor): where SERVED beats climatology at a lead in an ELIGIBLE run (controls pass,
      production input parity, out-of-sample climatology) - CI of served vs climatology wholly above 0 AND the one-
-     sided DM p-value below alpha after Holm across that quantity's leads AND (D-065) the binding two-way block x
+     sided DM p-value below alpha after Holm across that quantity's leads AND (D-066) the binding two-way block x
      day CI wholly above 0 over >= 14 days - the lead becomes PENDING; a second
      eligible run on a NON-OVERLAPPING window that qualifies again LOCKS it (two independent windows, so one lucky
      window cannot raise the floor for good). From then on "not worse than climatology" is a HARD rule there: the
@@ -88,7 +88,7 @@ def served_state(items: Sequence[dict], cfg) -> Dict[str, dict]:
     for lead, its in _by_lead(items).items():
         t = lead_test(its, "climatology", "f", cfg)
         ci = t["ci"]
-        # D-065: a lock is a "served is better" claim, so it also needs the binding two-way (block x day) CI wholly
+        # D-066: a lock is a "served is better" claim, so it also needs the binding two-way (block x day) CI wholly
         # above 0 over >= 14 days; a lock earned on correlated stations would raise the floor on noise.
         w2 = tw.two_way_ci([dict(i, f_ref=i["climatology"], f_cand=i["f"]) for i in its
                             if i.get("climatology") is not None and i.get("f") is not None],

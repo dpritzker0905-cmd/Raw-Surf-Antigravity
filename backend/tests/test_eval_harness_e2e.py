@@ -157,7 +157,7 @@ def test_baselines_controls_and_verdicts(card):
     b = c["baselines"]["hs_station"]
     assert set(b["scores"]) == {"served", "persistence", "climatology"}
     assert b["scores"]["served"]["n"] > 20 and b["served_vs_persistence"]["n"] > 0
-    # D-065: a 3-day window cannot carry the binding two-way CI (>= 14 UTC days), so the positive control is REFUSED
+    # D-066: a 3-day window cannot carry the binding two-way CI (>= 14 UTC days), so the positive control is REFUSED
     # and the quantity is underpowered: no arm can PASS, whatever its gain.
     ctl = c["controls"]["hs_station"]
     assert ctl["ok"] == "underpowered" and c["controls_ok"] is False and c["controls_state"] == "underpowered"

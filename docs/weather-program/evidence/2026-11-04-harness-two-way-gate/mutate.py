@@ -1,4 +1,4 @@
-"""Mutation check for the D-065 two-way gate: every mutant must turn at least one test RED."""
+"""Mutation check for the D-066 two-way gate: every mutant must turn at least one test RED."""
 import subprocess
 import sys
 

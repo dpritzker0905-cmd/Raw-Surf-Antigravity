@@ -1,4 +1,4 @@
-"""D-065: the binding two-way (spatial block x UTC day) bootstrap and its null self-test. PURE, offline, seeded."""
+"""D-066: the binding two-way (spatial block x UTC day) bootstrap and its null self-test. PURE, offline, seeded."""
 import dataclasses
 import math
 import os

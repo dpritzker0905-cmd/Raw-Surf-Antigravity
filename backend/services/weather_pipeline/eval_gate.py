@@ -9,7 +9,7 @@ activation"). A candidate arm PASSES on the PRIMARY quantity only if ALL hold:
      CRPS above the observed p90, Holm-corrected; and gates v2's per-band bias-growth limits;
   3. TOP-DECILE BIAS NO WORSE: in the observed top 10% (a REQUIRED band), |bias| may not grow by more than its limit
      and its bootstrap CI of the growth may not sit wholly above 0;
-  4. THE TWO-WAY CI EXCLUDES 0 (D-065, binding): eval_twoway.two_way_ci, spatial block (complete linkage <= 100 km)
+  4. THE TWO-WAY CI EXCLUDES 0 (D-066, binding): eval_twoway.two_way_ci, spatial block (complete linkage <= 100 km)
      x UTC day, over at least 14 target days; fewer days = REFUSED. The station-cluster CI is advisory;
   5. THE CONTROLS PASS: on the served baseline's own pairs, an identical candidate gives gain 0 with a CI covering 0
      and never PASSES, a 20%-less-error candidate PASSES and a 25%-more-error candidate FAILS. If they do not, the
@@ -326,7 +326,7 @@ def markdown(card: dict) -> str:
         L.append("")
     st_ = card.get("two_way_self_test") or {}
     if st_:
-        L += [f"Two-way gate self-test (D-065): worst null false-pass {st_.get('worst_false_pass')}, power "
+        L += [f"Two-way gate self-test (D-066): worst null false-pass {st_.get('worst_false_pass')}, power "
               f"{(st_.get('power') or {}).get('rate')} at {(st_.get('power') or {}).get('effect_in_null_sd')} null SD; "
               f"ok {st_.get('ok')}.", ""]
     L += ["## Candidate arms", "", "| arm | quantity | n | gain (m) | 95% CI | two-way CI (binding) | DM p | verdict | "

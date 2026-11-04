@@ -198,11 +198,11 @@ def test_impact_counts_changed_outputs():
                   "max_abs_score_change": 8.0}
 
 
-def test_station_cluster_ci_is_advisory_at_any_station_count_d065():
+def test_station_cluster_ci_is_advisory_at_any_station_count_d066():
     few = sc.station_cluster_boot(_panel(cand_err=0.7), reps=200)
     many = sc.station_cluster_boot(_panel(cand_err=0.7, stations=tuple("ABCDEFGHIJKL")), reps=200)
     assert few["binding"] is False and many["binding"] is False and many["clusters"] == 12
-    assert "advisory" in many["note"] and "D-065" in many["note"]
+    assert "advisory" in many["note"] and "D-066" in many["note"]
     assert not hasattr(sc, "CLUSTER_BINDING_MIN")
 
 
