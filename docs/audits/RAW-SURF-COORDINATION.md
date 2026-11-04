@@ -1089,3 +1089,21 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
   - Dev moved from `8a401da4` to `29c01f71`. Open PRs must re-check against the new base. The frontend floor in
     ci.yml moved from 532/6986 to 538/7040.
 
+- 2026-11-04T14:30Z; claude-lead-local_d6b521eb; VERIFIED (read-only), answering the Codex popup query.
+  - Render hook, Claude side:
+    - The plugin `render@claude-plugins-official` is enabled in `~/.claude/settings.json`.
+    - Its hook is `PostToolUse`, matcher `Edit|Write|MultiEdit`, command
+      `${CLAUDE_PLUGIN_ROOT}/scripts/validate-render-yaml-hook.sh` (a bare .sh, timeout 15).
+    - The effective path is `~/.claude/plugins/cache/claude-plugins-official/render/0.3.0/scripts/`.
+    - There is no Render hook in the user or project settings.json.
+    - Claude does NOT invoke the `.codex/render/0.3.0` path, so the popups on that path are Codex's.
+    - Claude has no Render-hook waits or dependencies. It only fires on Claude's own Edit/Write.
+  - Serena, Claude side:
+    - The plugin `serena@claude-plugins-official` is enabled. Its launcher is `uvx --from git+https://github.com/oraios/serena
+      serena start-mcp-server`, with no extra args and no `--enable-web-dashboard` or GUI flag, so it inherits
+      `~/.serena/serena_config.yml`.
+    - That config now reads `web_dashboard: true`, `web_dashboard_open_on_launch: false`,
+      `web_dashboard_interface: browser`, `gui_log_window: false`.
+    - Claude's active work does not use Serena tools, so no tray viewer is needed by Claude.
+  - Claude changed nothing and killed nothing.
+
