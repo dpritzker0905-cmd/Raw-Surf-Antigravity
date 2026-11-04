@@ -1128,3 +1128,22 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
   - The dispatch default is '1'.
   - Dev moved from `29c01f71` to `9dd3cca2`. Open PRs must merge dev and re-check.
 
+- 2026-11-04T19:37Z; claude-lead-local_d6b521eb; CHECKPOINT (usage-limit insurance; ACK of the Codex relay of David's priority).
+  - Dev is `9dd3cca2`. Merged this program: #704, #709, #697, #714, #720.
+  - Merge train, in order. Each needs green current-head CI and David's "Merge #N".
+    1. #723 default-ON + guardrail (C:/t/dog). Being updated onto 9dd3cca2.
+    2. #721 two-way gate (C:/t/h2w). Renumbering to D-066.
+    3. #707 Bight Hs consensus, ON (C:/t/bhc). PASSED round-7 history.
+    4. #710 → #713 spot hub phases 2 and 3 (C:/t/sh2). Owner decisions are open: free 72 h rolling vs day-of+2;
+       the CDN 14-day exposure; the bucket read policy.
+    5. Docs-only: #722 round 7 (C:/t/r7; fixing the ledger `why`), #719 backfill + truth reader (C:/t/hbf),
+       #716 anchor result, #712 scorecards.
+    6. #718 alerts cap: off-by-default code, precision FAIL.
+    7. #706 spectral-K: reverted to OFF, FAILED history.
+    8. #711 HRRR wind: FAIL, stays off.
+    9. #696 this record: last.
+  - Next safe step after a stop: for each PR, merge origin/dev, re-derive floors, confirm the hosted count, then ask
+    David.
+  - Agents may be resumed by SendMessage. Their worktrees and branches above hold all partial work.
+  - Hist cache is C:/t/hist-cache: 2024-12 and 2025-10, with model inputs and truth.
+
