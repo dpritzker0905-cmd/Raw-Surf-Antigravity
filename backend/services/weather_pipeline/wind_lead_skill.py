@@ -18,9 +18,9 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Sequence, Tuple
 
-KT = 0.514444
+from services.weather_pipeline import surf_rating as SR   # ONE knots constant, read as an attribute
 # m/s edges: calm < 5 kt, light 5-10 kt, moderate 10-20 kt, strong >= 20 kt (the alert's own class thresholds)
-SPEED_EDGES = (5 * KT, 10 * KT, 20 * KT)
+SPEED_EDGES = (5 * SR.KT_TO_MS, 10 * SR.KT_TO_MS, 20 * SR.KT_TO_MS)
 SPEED_CLASSES = ("calm", "light", "moderate", "strong")
 LEAD_BUCKETS = ((0, 6), (6, 12), (12, 24), (24, 48), (48, 73))
 DIR_MIN_MS = 2.0   # direction is scored only when the observed wind is at least this strong
@@ -195,14 +195,14 @@ def _r(x, n=3):
 
 def class_flips(p: dict, normal: Optional[float]) -> Dict[str, bool]:
     """Does the forecast put this hour in a different alert wind class than the truth?"""
-    out = {"light_wind": (p["fs"] < 10 * KT) != (p["os"] < 10 * KT)}
+    out = {"light_wind": (p["fs"] < 10 * SR.KT_TO_MS) != (p["os"] < 10 * SR.KT_TO_MS)}
     if normal is None:
         return out
 
     def classes(ms, frm):
         off = None if frm is None else -math.cos(math.radians(frm - normal))
         offshore = off is not None and off > 0.34
-        clean = ms < 5 * KT or (offshore and ms <= 20 * KT)
+        clean = ms < 5 * SR.KT_TO_MS or (offshore and ms <= 20 * SR.KT_TO_MS)
         return offshore, clean
     if p["od"] is not None and p["os"] >= DIR_MIN_MS:
         fo, fc = classes(p["fs"], p["fd"])
