@@ -144,3 +144,45 @@ set a minimum block count for it before scoring.
 
 **Recorded:** DECISIONS D-068, and ledger `ledger.d/claude--rework-spectral-k-sheltered.jsonl`. There is no
 SCOREBOARD row, because no served number changes.
+
+## 5. Follow-up diagnostic: why Rodeo is worse (owner: "lets accomplish 1")
+
+Two hypotheses were tested; both are now settled.
+
+**Double-counting of shelter: ruled out by reading the code.** When K supplies the sea (`nearshore=`),
+`mop_nearshore.estimate_surf_from_nearshore` removes shelf friction, the swell-angle exposure, the refraction constant
+and the magnet factor. Only shoaling, Komar breaking and the depth cap remain.
+
+**A proxy that can't see the shelter: ruled out by measurement.**
+- Tool: `scripts/rodeo_diagnostic.py`, with its reading rule in the docstring, committed before its first run.
+- Run: `.github/workflows/rodeo-diagnostic.yml`, Actions run 41968988006, reading the window artifacts of run
+  41958242376.
+- Method: each Rodeo pair is binned by K's own single-train shelter ratio at its forecast Tp and direction.
+
+| 142p1 / Rodeo bin | n | gain m | storm-block CI | bias served → K | K/served median |
+|---|---|---|---|---|---|
+| all | 1116 | −0.195 | [−0.263, −0.127] | −0.195 → −0.264 | 0.94 |
+| shadowed < 0.6 | 176 | −0.204 | [−0.227, −0.180] | −0.395 → −0.612 | 0.87 |
+| partial 0.6-0.8 | 790 | −0.159 | [−0.206, −0.112] | −0.195 → −0.328 | 0.94 |
+| exposed ≥ 0.8 | 150 | −0.373 | [−0.404, −0.342] | +0.038 → +0.479 | 1.16 |
+| direction < 250° | 88 | −0.451 | (1 block) | +0.115 → +0.524 | 1.12 |
+| obs ≥ 2 m | 300 | −0.306 | [−0.369, −0.242] | −0.395 → −0.393 | 0.95 |
+
+**Reading, by the stated rule: K-PATH DEFECT (b).**
+- The exposed pairs are worse too. There K over-reads by about +0.48 m against a near-zero served bias.
+- A proxy blind to the shadow can only make K look too LOW. It cannot produce this.
+- Across the bins, K's error tracks K's own directional contrast: too high where exposed, too low where shadowed.
+  K is more direction-selective at Rodeo than the observations are.
+- Likely causes (not yet tested):
+  - the spectrum rebuilt from three GFS partitions, with an assumed spread (`spectral_k.SPREAD_S`);
+  - the distant Bay read point (37.25 N 123.50 W).
+- Pismo (285p1): K better in every bin. INCONCLUSIVE by the rule: 14 days, wide CI.
+
+**Caveats:**
+- The bins split by forecast state, so their CIs are descriptive, not a test.
+- Bins drawn from few, scattered storm blocks show degenerate intervals, e.g. [−0.451, −0.451]. Those are not
+  evidence.
+
+**Implication.** Re-scoping K (dropping Rodeo) would hide the defect. The targeted next step is item 3 of the plan:
+feed K a measured directional spectrum (spread and direction) instead of the partition rebuild. A cheap offline
+pre-check comes first: how Rodeo's K ratio moves with the assumed spread s.
