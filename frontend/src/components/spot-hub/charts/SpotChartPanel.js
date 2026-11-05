@@ -30,6 +30,18 @@ export function SpotMiniChartPanel({ spotId, user, model, selectedOffsetHours, o
   );
 }
 
+/**
+ * The map infobox's chart: only for a selected catalogued spot (a GPS / long-press point has no series). The infobox
+ * draws beach on its dark glass, so the chart takes the glass's palette (`isLight` ? light : dark).
+ */
+export function InfoboxSpotChart({ spot, user, model, hour, onTimeChange, isLight }) {
+  if (!spot || spot.id == null) return null;
+  return (
+    <SpotMiniChartPanel spotId={spot.id} user={user} model={model} selectedOffsetHours={Number(hour) || 0}
+      onSelectOffset={onTimeChange} hostTheme={isLight ? 'light' : 'dark'} />
+  );
+}
+
 /** Whether a surface should hide its old daily rows: only once the chart is actually showing. */
 export function useSpotChartShowing(spotId, user, model) {
   return useSpotSeries(spotId, user, model).status === 'ok';

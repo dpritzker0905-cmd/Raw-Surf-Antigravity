@@ -10,10 +10,8 @@ const read = (rel) => fs.readFileSync(path.join(__dirname, '..', rel), 'utf8');
 
 test('the infobox draws the compact chart for a selected spot, with the tier and the scrubber setter', () => {
   const overlay = read('components/map/MapForecastOverlay.js');
-  expect(overlay).toMatch(/import \{ SpotMiniChartPanel \} from '\.\.\/spot-hub\/charts\/SpotChartPanel'/);
-  expect(overlay).toMatch(/selectedSpot\?\.id != null && \(\s*<SpotMiniChartPanel spotId=\{selectedSpot\.id\} user=\{user\} model=\{activeModel\}/);
-  expect(overlay).toMatch(/onSelectOffset=\{onTimeChange\}/);
-  expect(overlay).toMatch(/hostTheme=\{isLight \? 'light' : 'dark'\}/);   // the infobox glass is two-tone
+  expect(overlay).toMatch(/import \{ InfoboxSpotChart \} from '\.\.\/spot-hub\/charts\/SpotChartPanel'/);
+  expect(overlay).toMatch(/<InfoboxSpotChart spot=\{selectedSpot\} user=\{user\} model=\{activeModel\} hour=\{timeOffsetHours\} onTimeChange=\{onTimeChange\} isLight=\{isLight\} \/>/);
   const page = read('components/MapPage.js');
   const block = page.slice(page.indexOf('<MapForecastOverlay'), page.indexOf('/>', page.indexOf('<MapForecastOverlay')));
   expect(block).toMatch(/user=\{user\}/);

@@ -34,7 +34,7 @@ import { useMarineDrawnFrame } from './marineDrawnFrame';
 import { reconcileStaleBadge, latticeNearestMaxHours } from './drawnFrameReadout';
 import { forecastHourMs, infoboxFrameView, ratingFrameNote } from './infoboxFrameTime';
 import { InfoboxFrameWords } from './InfoboxFrameWords';
-import { SpotMiniChartPanel } from '../spot-hub/charts/SpotChartPanel';
+import { InfoboxSpotChart } from '../spot-hub/charts/SpotChartPanel';
 
 
 export const MapForecastOverlay = ({
@@ -55,9 +55,7 @@ export const MapForecastOverlay = ({
   defaultSnappedLat = null,
   defaultSnappedLng = null,
   isPlaying = false,
-  // Spot-hub phase 4: the tier for the compact chart, and the scrubber's setter (a bar choice moves it).
-  user = null,
-  onTimeChange = null,
+  user = null, onTimeChange = null, // spot-hub phase 4: the compact chart's tier, and the scrubber setter a bar moves
 }) => {
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -750,11 +748,7 @@ export const MapForecastOverlay = ({
                   </button>
                 </div>
               )}
-              {selectedSpot?.id != null && (
-                <SpotMiniChartPanel spotId={selectedSpot.id} user={user} model={activeModel}
-                  selectedOffsetHours={Number(timeOffsetHours) || 0} onSelectOffset={onTimeChange}
-                  hostTheme={isLight ? 'light' : 'dark'} />
-              )}
+              <InfoboxSpotChart spot={selectedSpot} user={user} model={activeModel} hour={timeOffsetHours} onTimeChange={onTimeChange} isLight={isLight} />
               <InfoboxFrameWords view={frameView} />
               {!modelSubstitution && staleHour && (
                 <div

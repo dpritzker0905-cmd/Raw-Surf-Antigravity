@@ -7,7 +7,7 @@ import React from 'react';
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import apiClient from '../../../lib/apiClient';
 import SpotForecastChart, { SpotForecastMiniChart } from './SpotForecastChart';
-import { SpotChartPanel, SpotMiniChartPanel } from './SpotChartPanel';
+import { InfoboxSpotChart, SpotChartPanel, SpotMiniChartPanel } from './SpotChartPanel';
 import { _resetSpotSeriesCacheForTests } from './useSpotSeries';
 import { makeSeriesBody } from './spotSeries.fixture';
 import { RATING_COLOR, RATING_LABEL } from '../../map/surfRating';
@@ -174,4 +174,14 @@ test('the infobox chart takes the palette of the glass it sits on (beach app, da
   render(<SpotForecastMiniChart body={makeSeriesBody({ nowMs: NOW })} resolverHours={72} hostTheme="dark" />);
   expect(screen.getByTestId('spot-mini-chart-readout').className).toMatch(/text-white/);
   expect(screen.getByTestId('spot-mini-chart-readout').className).not.toMatch(/amber/);
+});
+
+test('the infobox wrapper: nothing for a point with no catalogued spot; the glass palette for a spot', async () => {
+  mockTheme = 'beach';
+  apiClient.get.mockResolvedValue({ data: makeSeriesBody({ nowMs: NOW }) });
+  const { rerender } = render(<InfoboxSpotChart spot={null} user={null} model="GFS" hour={6} isLight={false} />);
+  await act(async () => {});
+  expect(apiClient.get).not.toHaveBeenCalled();
+  rerender(<InfoboxSpotChart spot={{ id: 'abc' }} user={null} model="GFS" hour={6} isLight={false} />);
+  expect((await screen.findByTestId('spot-mini-chart-readout')).className).toMatch(/text-white/);
 });

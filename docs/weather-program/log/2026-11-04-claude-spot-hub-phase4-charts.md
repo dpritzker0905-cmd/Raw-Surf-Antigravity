@@ -51,7 +51,7 @@ tier (basic 7, premium 14).
   index, misses say why, flag default on / '0' kills with no storage read, registry entry, the route through FastAPI.
   Mutation: dropping the window clip turns 4 tests red. Plus 110 passed over flag-lane parity, runtime flags,
   spot_series, tier window and floor staleness; flake8 gate clean; file size OK (`routes/weather.py` 800 lines).
-- Frontend: 52 new tests (5 suites) green; touched surfaces' existing suites (SpotHub*, SpotConditions*, spot-hub,
+- Frontend: 53 new tests (5 suites) green; touched surfaces' existing suites (SpotHub*, SpotConditions*, spot-hub,
   drawer, kill-switch inventory) 224 passed. Full `src/components src/tests`: the only red file is
   `map/marineHeightEncoding.test.js` (8 hash tests), red IDENTICALLY on a clean `origin/dev` worktree here (local
   Node 22.23 vs CI's 24.22), so not this change. `check_eslint.js` passes; `npm run build` passes.
@@ -61,8 +61,8 @@ tier (basic 7, premium 14).
   Two defects found by looking and fixed: the infobox drew beach text on its dark glass (now follows the glass), and
   the "no tide" label clipped at the chart edge (now drawn only where it fits).
 - Floors: guards +22 tests / +1 file on dev's map after #713 (3521 -> 3543, floor 3537, files 222; by hand:
-  `rederive_floor.py` needs `gh`, absent here; re-derive if another guards PR merges first). Frontend +5 suites / +52 tests
-  (538/7040 -> 543/7092).
+  `rederive_floor.py` needs `gh`, absent here; re-derive if another guards PR merges first). Frontend +5 suites / +53 tests
+  (538/7040 -> 543/7093).
 
 ## Not done / owner decisions
 
@@ -75,3 +75,8 @@ tier (basic 7, premium 14).
 - Civil vs solar local time (unchanged from phase 2): the chart labels solar time with its offset.
 - `memory_audit.py --docs-only`: 0 FAIL, 71 WARN (overdue LIVE-read commitments of other PRs; this delegated session
   may not touch the live box), 7 NOTE.
+
+## Review: File Size Governance (hosted, first head)
+
+`scripts/loc_ratchet.py` caps frontend files at 800 lines too: `MapForecastOverlay.js` read 806. The infobox's chart
+block moved into `SpotChartPanel.InfoboxSpotChart` (one test added), the overlay now reads 800; ratchet "New: 0".
