@@ -80,3 +80,9 @@ tier (basic 7, premium 14).
 
 `scripts/loc_ratchet.py` caps frontend files at 800 lines too: `MapForecastOverlay.js` read 806. The infobox's chart
 block moved into `SpotChartPanel.InfoboxSpotChart` (one test added), the overlay now reads 800; ratchet "New: 0".
+
+## 2026-11-05: hosted CI green, then a floor merge with #726
+
+Hosted CI on `8cb80a70f` went green on every check; the guards lane read **3543 passed across 222 files**, exactly the
+projection. `dev` then took #726 (+2 guards tests, +1 file), which conflicted on the guards floor. Re-derived on dev's
+map: 3523 + 22 = **3545, files 223, floor 3539**. This merge must read 3545 passed.
