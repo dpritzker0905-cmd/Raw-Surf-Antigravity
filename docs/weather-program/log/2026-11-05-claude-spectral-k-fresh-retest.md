@@ -31,8 +31,26 @@ Both failures are in `tests/test_spectral_k.py`:
 - `test_the_kill_switch_is_byte_identical_and_never_reads_the_read_point`;
 - `test_the_default_is_on_and_the_kill_switch_is_byte_identical`.
 
-In both, the kill-switch hash came out `ff55d0e4…` against the pinned `fad3cb8e…`. The cause and fix are filled in
-below once measured.
+In both, the kill-switch hash came out `ff55d0e4…` against the pinned `fad3cb8e…`.
+
+**Cause: the test was not hermetic.**
+- `SURF_TIDE_DEPTH` is ON by default (D-065), so `augment_with_surf` calls `tide.tide_norm_at`. That reaches
+  Open-Meteo whenever the network is open.
+- The pin was taken with no tide (η = 0). This container blocks Open-Meteo, so here the tests passed alone and in
+  the full local chain lane.
+- **Measured here:** a stubbed 1.5 m tide reproduces CI's `ff55d0e4f5d9…` exactly; a −1.0 m tide gives `8a99cca3…`;
+  no tide gives `fad3cb8e…`. The bulk chain did not change; the test read live weather.
+
+**Fix: d4bc7c6.** The fixture stubs `tide_norm_at`. It was pushed to this branch at 02:42Z by the PR's original
+session (`session_016RofuPzhKERefhSbMffbFY`) while this session was working. It was verified here as above, and this
+session's commits were rebased onto it. Nothing in the served chain changes.
+
+**Floors** (`rederive_floor.py`, from dev run 41945407573):
+
+| lane | new tests | floor | must read |
+|---|---|---|---|
+| chain | `--add 32 --add-files 2`, unchanged by this session | 3650, 209 files | 3656 passed |
+| estate | `--add 11` (rework_gate 5 + rework_storm_gate 6) | 3424 → 3430 | 3432 passed |
 
 ## 3. Pre-registration (committed before any score of these windows)
 

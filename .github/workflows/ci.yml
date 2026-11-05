@@ -1678,7 +1678,7 @@ jobs:
           #   base 3532 (dev's map) + 66 new test(s) and 1 new file(s) = 3598, files 206; floor 3598 - 6 = 3592. This PR must read 3598 passed.
           # ⬆ 3592→3618 on 2026-11-04 (rederive_floor.py, claude/harness-two-way-gate): dev run 41919430899 read 3531 / 205 files; dev's map 3598;
           #   base 3598 (dev's map) + 26 new test(s) and 1 new file(s) = 3624, files 207; floor 3624 - 6 = 3618. This PR must read 3624 passed.
-          # ⬆ 3618→3650 on 2026-11-05 (rederive_floor.py, claude/rework-spectral-k-sheltered): dev run 41932317052 read 3623 / 207 files; dev's map 3624;
+          # ⬆ 3618→3650 on 2026-11-05 (rederive_floor.py, claude/rework-spectral-k-sheltered): dev run 41945407573 read 3623 / 207 files; dev's map 3624;
           #   base 3624 (dev's map) + 32 new test(s) and 2 new file(s) = 3656, files 209; floor 3656 - 6 = 3650. This PR must read 3656 passed.
           MIN_FILES, MIN_PASSED = 209, 3650
           try:
@@ -2233,9 +2233,9 @@ jobs:
           #   base 3406 (hosted read) + 2 new test(s) = 3408; floor 3408 - 2 = 3406. This PR must read 3408 passed.
           # ⬆ 3406→3419 on 2026-11-04 (rederive_floor.py, claude/default-on-guardrails): dev run 41747311909 read 3408; dev's map 3408;
           #   base 3408 (hosted read) + 13 new test(s) = 3421; floor 3421 - 2 = 3419. This PR must read 3421 passed.
-          # ⬆ 3419→3424 on 2026-11-05 (rederive_floor.py, claude/rework-spectral-k-sheltered): dev run 41932317052 read 3421; dev's map 3421;
-          #   base 3421 (hosted read) + 5 new test(s) = 3426; floor 3426 - 2 = 3424. This PR must read 3426 passed.
-          MIN_PASSED = 3424
+          # ⬆ 3419→3430 on 2026-11-05 (rederive_floor.py, claude/rework-spectral-k-sheltered): dev run 41945407573 read 3421; dev's map 3421;
+          #   base 3421 (hosted read) + 11 new test(s) = 3432; floor 3432 - 2 = 3430. This PR must read 3432 passed.
+          MIN_PASSED = 3430
 
           try:
               root = ET.parse('estate.xml').getroot()
