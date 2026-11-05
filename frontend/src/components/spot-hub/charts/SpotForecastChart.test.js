@@ -87,6 +87,28 @@ test('the map hour selects its bar, and tapping a bar moves the map hour', () =>
   expect(onSelect).toHaveBeenCalledWith(Math.max(0, Math.round((Date.parse(body.valid_times[3]) - anchor) / H)));
 });
 
+test('two-way bound to the map hour: Home and a tap still reach a first bar that sits before hour 0', () => {
+  // 17:40Z: anchor 18:00Z, so bar 0 (15:00Z, the frame covering now) maps to hour 0, and hour 0's nearest bar is bar 1.
+  const now = Date.parse('2026-11-04T17:40:00Z');
+  Date.now.mockReturnValue(now);
+  const body = makeSeriesBody({ nowMs: now });
+  function Bound() {
+    const [h, setH] = React.useState(0);
+    return <SpotForecastChart body={body} resolverHours={72} selectedOffsetHours={h} onSelectOffset={setH} />;
+  }
+  render(<Bound />);
+  const slider = screen.getByRole('slider');
+  expect(slider).toHaveAttribute('aria-valuenow', '1');
+  fireEvent.keyDown(slider, { key: 'ArrowRight' });
+  expect(slider).toHaveAttribute('aria-valuenow', '2');
+  fireEvent.keyDown(slider, { key: 'Home' });
+  expect(slider).toHaveAttribute('aria-valuenow', '0');
+  fireEvent.click(screen.getAllByTestId('spot-chart-bar')[3]);
+  expect(slider).toHaveAttribute('aria-valuenow', '3');
+  fireEvent.click(screen.getAllByTestId('spot-chart-bar')[0]);
+  expect(slider).toHaveAttribute('aria-valuenow', '0');
+});
+
 test('free: 3 daily buttons (today + 2), 11 locked days, one upgrade prompt, and the leftover-hours note', () => {
   const onUpgrade = jest.fn();
   render(<SpotForecastChart body={makeSeriesBody({ nowMs: NOW })} resolverHours={72} onUpgrade={onUpgrade} />);
@@ -129,6 +151,8 @@ test('the infobox chart: the slider over the next 72 h, with a text readout', ()
   render(<SpotForecastMiniChart body={makeSeriesBody({ nowMs: NOW, hours: 336 })} resolverHours={72} />);
   expect(screen.getByRole('slider')).toHaveAttribute('aria-label', 'Surf forecast at this spot, next 72 hours');
   expect(screen.getByTestId('spot-mini-chart-readout')).toHaveTextContent(/\(UTC\u22128\) · \d.* ft · /);   // the spot's clock, named
+  // the rating word is the colour's text equivalent: the ~200 px infobox wraps it, never cuts it off
+  expect(screen.getByTestId('spot-mini-chart-readout').className).not.toMatch(/truncate/);
 });
 
 // ── the panel: request, fallback, kill switch ─────────────────────────────────────────────────────────

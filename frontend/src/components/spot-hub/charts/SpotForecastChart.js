@@ -240,7 +240,12 @@ function useSelection(series, selectedOffsetHours, onSelectOffset) {
   const anchor = getSeriesAnchorMs();
   const fromProp = series ? frameIndexForOffset(series.frames, selectedOffsetHours || 0, anchor) : -1;
   const [local, setLocal] = useState(fromProp);
-  useEffect(() => { setLocal(fromProp); }, [fromProp]);
+  // Follow the map hour, except when it is the hour our own bar already stands for: the frame covering "now" sits
+  // before hour 0 and maps to it, and hour 0's nearest bar is the next one, so a resync would bounce Home and taps off it.
+  useEffect(() => {
+    setLocal((cur) => (series && series.frames[cur]
+      && offsetForFrame(series.frames[cur], anchor) === (Number(selectedOffsetHours) || 0) ? cur : fromProp));
+  }, [fromProp]);
   const select = (i) => {
     setLocal(i);
     if (onSelectOffset && series) onSelectOffset(offsetForFrame(series.frames[i], anchor));
@@ -319,7 +324,8 @@ export function SpotForecastMiniChart({ body, resolverHours, selectedOffsetHours
         <HourlyBars series={series} selected={selected} onSelect={select} theme={theme} unit={unit} compact
           label={`Surf forecast at this spot, next ${series.horizonHours} hours`} />
       </div>
-      <div className={`text-[10px] ${t.textPrimary} truncate`} data-testid="spot-mini-chart-readout">
+      {/* Wraps, never truncates: the rating word is the colour's text equivalent and must stay readable. */}
+      <div className={`text-[10px] leading-tight break-words ${t.textPrimary}`} data-testid="spot-mini-chart-readout">
         {cur.label} ({offsetLabel(series.offsetH)}) · {cur.heightM == null ? '—' : formatHeightFromMeters(cur.heightM, unit, { withUnit: true })} · {levelWord(cur.level)}
       </div>
     </div>
