@@ -54,7 +54,9 @@ import argparse
 import json
 import math
 import os
+import random
 import sys
+import time
 import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -557,20 +559,51 @@ def _fetch_l2(key, timeout=30):
     tok = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
     if not base or not tok:
         return None
+    attempts = _retry_attempts()
+    for attempt in range(1, attempts + 1):
+        try:
+            req = urllib.request.Request(
+                "%s/storage/v1/object/weather-products/%s" % (base, key),
+                headers={"Authorization": "Bearer %s" % tok, "apikey": tok})
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return json.load(r)
+        except urllib.error.HTTPError as e:
+            if _storage_says_missing(e):
+                return ABSENT
+            if (e.code == 429 or 500 <= e.code < 600) and attempt < attempts:
+                delay = _retry_delay(e, attempt)
+                print("L2 read busy (%s), retry %d/%d in %.1fs: %s" % (e.code, attempt, attempts - 1, delay, key))
+                _sleep(delay)
+                continue
+            print("L2 read failed: %s -> %s" % (key, e))
+            return None
+        except Exception as e:
+            print("L2 read failed: %s -> %s" % (key, e))
+            return None
+    return None
+
+
+# A busy Storage (HTTP 429, or a 5xx) is retried with capped exponential backoff plus jitter, honouring
+# Retry-After when sent. Run 41906117768 lost its paired skill to ONE 429 during an ingest burst
+# (2026-11-04 20:30:39Z). Absence (NoSuchKey) and auth errors are never retried.
+# L2_FETCH_RETRIES=1 is the kill switch (a single attempt, the old behaviour).
+_sleep = time.sleep
+
+
+def _retry_attempts():
     try:
-        req = urllib.request.Request(
-            "%s/storage/v1/object/weather-products/%s" % (base, key),
-            headers={"Authorization": "Bearer %s" % tok, "apikey": tok})
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return json.load(r)
-    except urllib.error.HTTPError as e:
-        if _storage_says_missing(e):
-            return ABSENT
-        print("L2 read failed: %s -> %s" % (key, e))
-        return None
-    except Exception as e:
-        print("L2 read failed: %s -> %s" % (key, e))
-        return None
+        return max(1, min(5, int(os.environ.get("L2_FETCH_RETRIES", "3"))))
+    except ValueError:
+        return 3
+
+
+def _retry_delay(err, attempt):
+    try:
+        after = float((err.headers or {}).get("Retry-After") or 0)
+    except (TypeError, ValueError):
+        after = 0.0
+    backoff = min(8.0, 2.0 ** (attempt - 1)) + random.uniform(0, 0.5)
+    return min(30.0, max(after, backoff))
 
 
 class _Unreadable(Exception):

@@ -1011,9 +1011,11 @@ jobs:
           #   base 3487 (dev's map) + 20 new test(s) and 1 new file(s) = 3507, files 220; floor 3507 - 6 = 3501. This PR must read 3507 passed.
           # ⬆ 3501→3515 on 2026-11-04 (rederive_floor.py, claude/spot-hub-phase3): dev run 41927072977 read 3487 / 219 files; dev's map 3507;
           #   base 3507 (dev's map) + 14 new test(s) and 1 new file(s) = 3521, files 221; floor 3521 - 6 = 3515. This PR must read 3521 passed.
-          # ⬆ 3515→3556 on 2026-11-05 (rederive_floor.py, claude/rework-rating-wind-hrrr-sea): dev run 41936505013 read 3521 / 221 files; dev's map 3521;
-          #   base 3521 (hosted read) + 41 new test(s) and 2 new file(s) = 3562, files 223; floor 3562 - 6 = 3556. This PR must read 3562 passed.
-          MIN_FILES, MIN_PASSED = 223, 3556
+          # ⬆ 3515→3517 on 2026-11-04 (rederive_floor.py, claude/monitor-l2-retry): dev run 41932317052 read 3507 / 220 files; dev's map 3521;
+          #   base 3521 (dev's map) + 2 new test(s) and 1 new file(s) = 3523, files 222; floor 3523 - 6 = 3517. This PR must read 3523 passed.
+          # ⬆ 3517→3558 on 2026-11-05 (rederive_floor.py, claude/rework-rating-wind-hrrr-sea): dev run 41945407573 read 3523 / 222 files; dev's map 3523;
+          #   base 3523 (hosted read) + 41 new test(s) and 2 new file(s) = 3564, files 224; floor 3564 - 6 = 3558. This PR must read 3564 passed.
+          MIN_FILES, MIN_PASSED = 224, 3558
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
