@@ -76,7 +76,7 @@ jobs:
           NODE_ENV: 'production'
           RENDER: 'true'
           RATING_TIDE: '1'
-          SURF_NEARSHORE_MOP: '0'
+          SURF_NEARSHORE_MOP: ''  # D-065 GUARDED, ON by code default '1' since 2026-11-05 (services/runtime_flags.GUARDED; nearshore judge MAE 0.250 -> 0.096 m at CDIP buoys, 86/86 runs); '' DEFERS to the runtime kill manifest so the flag guardrail's 'off' reaches this lane. A '0' here is a hard kill for this lane only.
           SURF_STRICT_AVAILABILITY: '0'
           SURF_REQUESTED_HORIZON: '0'
           COPERNICUS_TERMINAL_TIME_GUARD: '0'

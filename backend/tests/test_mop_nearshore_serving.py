@@ -92,8 +92,10 @@ async def _no_parts(*a, **k):
 
 
 @pytest.mark.asyncio
-async def test_flag_off_never_asks_and_the_height_says_parametric(clean):
+async def test_kill_switch_never_asks_and_the_height_says_parametric(clean):
+    """SURF_NEARSHORE_MOP='0' (the D-065 kill switch) never reads MOP: the parametric chain, as before 2026-11-05."""
     from services.weather_pipeline.point_surf_augment import augment_with_surf
+    clean.setenv("SURF_NEARSHORE_MOP", "0")
     asked = []
 
     async def spy(*a, **k):
@@ -139,3 +141,13 @@ def test_a_point_is_a_covered_spot_only_when_it_stands_on_one(clean):
 @pytest.mark.asyncio
 async def test_the_flag_off_reads_nothing(clean):
     assert await SERVE.nearshore_for_point(36.9514, -122.0263, "2026-09-28T06:00:00Z") is None
+
+
+def test_the_default_is_on_and_guarded(clean):
+    """D-065 (2026-11-05): unset = ON (runtime_flags.GUARDED '1', _RATING_FLAGS '1'); '0' anywhere = off."""
+    from services import runtime_flags as rf
+    from routes.admin.surf_forecast import _RATING_FLAGS
+    assert rf.GUARDED["SURF_NEARSHORE_MOP"] == "1" and _RATING_FLAGS["SURF_NEARSHORE_MOP"][0] == "1"
+    assert SERVE.enabled()
+    clean.setenv("SURF_NEARSHORE_MOP", "0")
+    assert not SERVE.enabled()

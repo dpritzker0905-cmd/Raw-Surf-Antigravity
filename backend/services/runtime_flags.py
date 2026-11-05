@@ -52,6 +52,8 @@ GUARDED = {
     "ALERTS_FORECAST_WINDOWS": "0",     # D-065: up to 5 alerts/day before the cap fix (claude/alerts-dedupe-cap)
     "SURF_BIGHT_HS_CONSENSUS": "1",     # #707: hs_station +0.099 m [two-way 0.038, 0.182]; round-7 history +0.155, ON
     "SPOT_HUB_RATE_ONE_SPOT": "1",      # spot-hub phase 2 (#710): the hub on rate_one_spot; kill '0' = the old chain
+    "SURF_NEARSHORE_MOP": "1",          # CDIP MOP nearshore sea at California spots: nearshore judge 86/86 runs better,
+                                        # MAE 0.250 -> 0.096 m at CDIP buoys (2026-10-09..11-04), ON; kill '0'
 }
 
 # FIX_VERSION: bump a flag's version in the PR that changes its fix. The guardrail's 'off' records the version it

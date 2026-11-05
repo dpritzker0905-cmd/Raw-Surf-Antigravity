@@ -448,9 +448,12 @@ _RATING_FLAGS = {
                                     "Render env AND forecast-ingest.yml AND precompute.yml AND sim-parity-monitor.yml "
                                     "env, TOGETHER with SURF_BIGHT_HS_CONSENSUS (pilots declares it: ingest never "
                                     "reads it)"),
-    # Roadmap stage 4 (2026-09-27). DARK until the nearshore judge's archived-grid arm has the hours.
-    "SURF_NEARSHORE_MOP":          ("0", "California spots break from CDIP MOP's nearshore sea+swell forecast "
-                                         "instead of the offshore field + parametric transform (all surfaces)",
+    # Roadmap stage 4 (2026-09-27). ON since 2026-11-05 (D-065): the nearshore judge's archived-grid arm, 86 of 86
+    # runs better at CDIP buoys (MAE 0.250 -> 0.096 m, bias -0.175 -> -0.011, 2026-10-09..11-04).
+    "SURF_NEARSHORE_MOP":          ("1", "[D-065 GUARDED, ON since 2026-11-05: nearshore judge MAE 0.250 -> 0.096 m at "
+                                         "CDIP buoys, 86/86 runs] California spots break from CDIP MOP's nearshore "
+                                         "sea+swell forecast instead of the offshore field + parametric transform "
+                                         "(all surfaces); kill switch '0'",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
     # ⚠️ ONLY BITES WHEN `SURF_PARTITIONS` IS ON — it gates the partition-aware exposure, which is
     # dark while that flag is off. Declared anyway, in the commit that added it: the lane-parity

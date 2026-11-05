@@ -32,7 +32,9 @@ _blob = (0.0, None)          # (loaded_at, blob)
 
 
 def enabled() -> bool:
-    return os.environ.get("SURF_NEARSHORE_MOP", "0") == "1"
+    """D-065 guarded (env > runtime manifest > code default '1', ON since 2026-11-05); '0' is the kill switch."""
+    from services import runtime_flags as _rf
+    return _rf.on("SURF_NEARSHORE_MOP")
 
 
 def _km(lat1, lng1, lat2, lng2):
