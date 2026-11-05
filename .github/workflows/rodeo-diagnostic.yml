@@ -1,0 +1,51 @@
+name: Rodeo diagnostic (SURF_SPECTRAL_K, #727)
+
+# WHY (2026-11-05, #727 follow-up, owner: "lets accomplish 1"): split the Rodeo Beach hb_proxy harm by K's own shelter
+# ratio to tell a proxy that cannot see the headland's shadow from a K-path defect (backend/scripts/rodeo_diagnostic.py,
+# reading rule in its docstring). It reads the window artifacts of rework-score run 41958242376 (kept to 2026-11-19).
+# ⛔ READS ONLY: no data is fetched, no secret is read, nothing is written outside the runner. INFORMATIONAL.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'backend/scripts/rodeo_diagnostic.py'
+      - '.github/workflows/rodeo-diagnostic.yml'
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  diagnose:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          run-id: 41958242376
+          github-token: ${{ github.token }}
+          pattern: rework-window-*
+          path: ${{ runner.temp }}/wins
+      - name: Diagnose
+        working-directory: backend
+        env:
+          RUNTIME_FLAGS_MANIFEST: '0'
+        run: |
+          t="$RUNNER_TEMP/wins"
+          python scripts/rodeo_diagnostic.py --win "F1=$t/rework-window-F1" --win "F2=$t/rework-window-F2" \
+            --win "F3=$t/rework-window-F3" --stations scripts/eval_harness_stations_ca.json --out "$RUNNER_TEMP/rodeo.json"
+          python - >> "$GITHUB_STEP_SUMMARY" <<'PY'
+          import json, os, sys
+          sys.path.insert(0, "scripts")
+          import rodeo_diagnostic as R
+          print(R.markdown(json.load(open(os.path.join(os.environ["RUNNER_TEMP"], "rodeo.json")))))
+          PY
