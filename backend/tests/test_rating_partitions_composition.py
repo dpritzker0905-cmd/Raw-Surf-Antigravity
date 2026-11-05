@@ -694,3 +694,11 @@ def test_the_window_scan_grades_each_frames_trains(monkeypatch):
     out = sim_window.scan(spot, lambda sp, hour: (dict(base), "live_forecast", {}), hours)
     assert len(out["series"]) == 2
     assert seen == [base["partitions"], base["partitions"]]
+
+
+@pytest.fixture(autouse=True)
+def _pin_the_kill_switch_chain(monkeypatch):
+    """Spot-hub phase 2 is ON by default (SPOT_HUB_RATE_ONE_SPOT, owner policy 2026-11-04). This file pins the
+    contract of the chain the KILL SWITCH ('0') restores, so it runs under '0'; the default path's equivalents
+    live in tests/test_spot_hub_rate_one_spot.py."""
+    monkeypatch.setenv("SPOT_HUB_RATE_ONE_SPOT", "0")

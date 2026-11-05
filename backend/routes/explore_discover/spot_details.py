@@ -20,7 +20,8 @@ from services.weather_pipeline.point_resolution import PointResolutionService
 from services.weather_pipeline.sampler import PointSampler
 from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
 from services.conditions_labels import get_conditions_label
-from services.forecast_tier_window import apply_tier_window, days_allowed
+from services.forecast_tier_window import apply_tier_window, days_allowed, tier_horizon_enabled, tier_horizon_hours
+from services.weather_pipeline.spot_hub_composition import call_kwargs as hub_call_kwargs
 
 point_sampler = PointSampler()
 open_meteo_provider = OpenMeteoProvider()
@@ -91,7 +92,10 @@ async def get_spot_details(
     try:
         forecast_request = point_resolution_service.resolve_spot_conditions(
             model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=api_forecast_days,
-            spot_id=spot.id
+            spot_id=spot.id,
+            # Spot-hub phase 2 (SPOT_HUB_RATE_ONE_SPOT, dark): the glyph's spot dict, and the tier window so
+            # rows the window withholds are not computed. Empty while the flag is off (the call is unchanged).
+            **hub_call_kwargs(spot, tier_horizon_hours(subscription_tier, model) if tier_horizon_enabled() else None)
         )
         # Older clients (including the locked production frontend) retain their existing wait.
         # Only clients that can present partial forecast availability opt into this contract.
