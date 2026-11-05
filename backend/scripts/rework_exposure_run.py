@@ -24,8 +24,6 @@ import json
 import math
 import os
 import sys
-import time
-import urllib.error
 from datetime import timedelta
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -36,6 +34,7 @@ for p in (BACKEND, HERE):
 
 import numpy as np  # noqa: E402
 import eval_harness as eh  # noqa: E402
+from rework_net import COUNT, bump, install_resilient_truth, retrying_get  # noqa: E402,F401
 from services.weather_pipeline import bight_hs_consensus as B  # noqa: E402
 from services.weather_pipeline import eval_gfswave as gw  # noqa: E402
 from services.weather_pipeline import eval_grib2 as g2  # noqa: E402
@@ -46,48 +45,7 @@ EURO_URL = "https://" + EURO_HOST + "/{d}/{hh}z/ifs/0p25/wave/{d}{hh}0000-{step}
 PART_KEYS = ("WVHGT", "SWELL:1", "SWELL:2", "WVPER", "SWPER:1", "SWPER:2", "WVDIR", "SWDIR:1", "SWDIR:2")
 PART_LAYERS = (("swell_1", "SWELL:1", "SWPER:1", "SWDIR:1", "swell"), ("swell_2", "SWELL:2", "SWPER:2", "SWDIR:2", "swell"),
                ("wind_waves", "WVHGT", "WVPER", "WVDIR", "windsea"))
-COUNT = {}
 STATE = {"stations": [], "euro": {}, "parts": {}}
-
-
-def bump(k, n=1):
-    COUNT[k] = COUNT.get(k, 0) + n
-
-
-def retrying_get(url, rng=None, **kw):
-    """pv.http_get with backoff on throttling (S3 SlowDown 503, 429, CDIP THREDDS's transient 403 under load) and
-    transient network errors: 7 tries over ~2 min. A 404 is never retried (a missing object is an answer)."""
-    for i in range(7):
-        try:
-            return pv.http_get(url, rng=rng, **kw)
-        except urllib.error.HTTPError as e:
-            if e.code not in (403, 429, 500, 502, 503, 504) or i == 6:
-                raise
-        except (urllib.error.URLError, TimeoutError, ConnectionError):
-            if i == 6:
-                raise
-        bump("http_retry")
-        time.sleep(min(2 ** i, 40))
-
-
-def install_resilient_truth():
-    """One station's truth failing (after retrying_get's retries) costs THAT station, not the window: it scores with
-    no truth (no items) and the failure is recorded in truth.json's summary and COUNT. eval_harness.stage_truth raises
-    on the first failing station otherwise."""
-    from services.weather_pipeline import eval_reference as rf
-    if getattr(rf.fetch_station, "_rework_resilient", False):
-        return
-    orig = rf.fetch_station
-
-    def fetch_station(cache, station, window, ndbc_meta=None, with_spectra=True):
-        try:
-            return orig(cache, station, window, ndbc_meta, with_spectra)
-        except (urllib.error.URLError, TimeoutError, ConnectionError, ValueError) as e:
-            bump("truth_unavailable_" + station["id"])
-            return {"obs": [], "meta": {"version": f"unavailable: {type(e).__name__}: {e}"[:160]},
-                    "extra": {"failed": [f"primary: {type(e).__name__}: {e}"[:200]]}, "records": []}
-    fetch_station._rework_resilient = True
-    rf.fetch_station = fetch_station
 
 
 # ---------------- EURO swh (ECMWF open data on AWS) ----------------

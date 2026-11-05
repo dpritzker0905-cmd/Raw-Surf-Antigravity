@@ -51,11 +51,11 @@ def commands(d, win, cache, out, workers=8):
 
 
 def harness(hargs):
-    """eval_harness.run in-process with the retrying GET (rework_exposure_run.retrying_get): CDIP's THREDDS answers
+    """eval_harness.run in-process with the retrying GET (rework_net.retrying_get): CDIP's THREDDS answers
     a transient 403 under load (seen on the first CI run), which the harness's single GET treats as fatal."""
     sys.path[:0] = [BACKEND, HERE]
     import eval_harness as eh
-    from rework_exposure_run import COUNT, install_resilient_truth, retrying_get
+    from rework_net import COUNT, install_resilient_truth, retrying_get
     args = eh.parser().parse_args(hargs)
     install_resilient_truth()
     card = eh.run(args, get=retrying_get)

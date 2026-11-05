@@ -137,7 +137,7 @@ def gate(its, reps=2000):
                 continue
             pw = p_one_sided(rs, better=False)
             strata[f"{key}={v}"] = {"n": len(sub), "days": rs["days"], "gain": round(rs["mean"], 4),
-                                   "ci": [round(x, 4) for x in rs["ci"]], "p_worse": round(pw, 6)}
+                                    "ci": [round(x, 4) for x in rs["ci"]], "p_worse": round(pw, 6)}
             harm.append((f"{key}={v}", pw))
     res["strata"] = strata
     res["holm_worse"] = holm(harm)
