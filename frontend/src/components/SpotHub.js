@@ -39,6 +39,7 @@ import { SpotCardSkeleton, AlertCardSkeleton } from './ui/SkeletonVariants';
 import { forecastCalendar } from './forecastCalendar';
 import { forecastStateIdentityEnabled } from './map/forecastStateIdentity';
 import SpotHubTides from './spot-hub/SpotHubTides';
+import { SpotChartPanel } from './spot-hub/charts/SpotChartPanel';
 import {
   MISSING, displayDirection, displayPeriod, effectiveWindowHours, forecastDayIndexForOffset, hubForecastWindow,
   spotHubP1Enabled, splitForecastWindow,
@@ -324,6 +325,12 @@ const SpotHub = () => {
   const openRows = p1 ? windowRows.open : forecast.slice(0, forecastDaysAllowed);
   const lockedRows = p1 ? windowRows.locked : forecast.slice(forecastDaysAllowed, 14);
   const selectedDay = p1 ? forecastDayIndexForOffset(openRows, timeOffset) : -1;
+  // The chart's bar choice moves the hub's hour (the map's `timeOffset`), as the map's scrubber does.
+  const setHubOffset = (h) => {
+    const q = new URLSearchParams(location.search);
+    q.set('timeOffset', String(h));
+    navigate(`${location.pathname}?${q.toString()}`, { replace: true });
+  };
 
   return (
     <div className={`max-w-xl mx-auto pb-4 ${isLight ? 'bg-gray-50/50 min-h-screen' : ''}`}>
@@ -526,8 +533,11 @@ const SpotHub = () => {
       {/* Tides: the drawer's block and endpoint (/tides/{id}); phase 1, kill switch inside */}
       <SpotHubTides spotId={spotId} t={t} cardBg={cardBg} />
 
-      {/* Forecast Section - Starts from TOMORROW */}
-      {(p1 ? openRows.length + lockedRows.length > 0 : forecast.length > 0) && (
+      {/* Forecast: Raw Surf's own chart (phase 4) when the spot's series is published; else the daily cards */}
+      <SpotChartPanel spotId={spotId} user={user || userTier} model={activeModel} selectedOffsetHours={timeOffset}
+        onSelectOffset={setHubOffset} onUpgrade={() => navigate('/settings?tab=billing')}
+        className={`mx-4 mt-3 p-3 rounded-xl border backdrop-blur-md ${cardBg} mb-4`}
+        fallback={(p1 ? openRows.length + lockedRows.length > 0 : forecast.length > 0) && (
         <div className={`mx-4 mt-3 p-3 rounded-xl border backdrop-blur-md ${cardBg} mb-4`}>
           <div className="flex items-center justify-between mb-2">
             <span className={`text-xs flex items-center gap-1 ${textSecondary}`}>
@@ -568,7 +578,7 @@ const SpotHub = () => {
             </p>
           )}
         </div>
-      )}
+      )} />
 
       {/* Tab Navigation */}
       <div className="flex border-b border-zinc-800 mt-4 px-4">

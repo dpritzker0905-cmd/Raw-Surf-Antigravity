@@ -34,6 +34,7 @@ import { useMarineDrawnFrame } from './marineDrawnFrame';
 import { reconcileStaleBadge, latticeNearestMaxHours } from './drawnFrameReadout';
 import { forecastHourMs, infoboxFrameView, ratingFrameNote } from './infoboxFrameTime';
 import { InfoboxFrameWords } from './InfoboxFrameWords';
+import { SpotMiniChartPanel } from '../spot-hub/charts/SpotChartPanel';
 
 
 export const MapForecastOverlay = ({
@@ -54,6 +55,9 @@ export const MapForecastOverlay = ({
   defaultSnappedLat = null,
   defaultSnappedLng = null,
   isPlaying = false,
+  // Spot-hub phase 4: the tier for the compact chart, and the scrubber's setter (a bar choice moves it).
+  user = null,
+  onTimeChange = null,
 }) => {
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -675,7 +679,7 @@ export const MapForecastOverlay = ({
       </button>
 
       {/* Data cards */}
-      <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[300px] opacity-100'}`}>
+      <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[420px] opacity-100'}`}>
         {/* role=list + listitem rows: without it the cards are anonymous divs and a screen reader
             reads a run of bare numbers with no indication that 'Swell' and 'Surf' are different
             quantities in the same units (2026-07-14 accessibility mandate). */}
@@ -745,6 +749,11 @@ export const MapForecastOverlay = ({
                     {effectiveExactPointStatus === 'estimate_pending_sources' ? 'Load missing data' : 'Compute Extended Estimate (Load GFS/ICON)'}
                   </button>
                 </div>
+              )}
+              {selectedSpot?.id != null && (
+                <SpotMiniChartPanel spotId={selectedSpot.id} user={user} model={activeModel}
+                  selectedOffsetHours={Number(timeOffsetHours) || 0} onSelectOffset={onTimeChange}
+                  hostTheme={isLight ? 'light' : 'dark'} />
               )}
               <InfoboxFrameWords view={frameView} />
               {!modelSubstitution && staleHour && (

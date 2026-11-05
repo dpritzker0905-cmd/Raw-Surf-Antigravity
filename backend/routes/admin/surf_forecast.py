@@ -286,6 +286,11 @@ _RATING_FLAGS = {
                                          "rows from the real max over their frames; '0' (kill) = the "
                                          "hub's own chain and one 12:00 UTC sample per day labelled max",
                                     "Render env"),
+    # Spot-hub phase 4 (display only: serves the phase-3 series rate_one_spot wrote in CI; moves no number).
+    "SPOT_HUB_CHARTS":             ("1", "Spot hub / drawer / infobox charts from the CI-rated series "
+                                         "(/api/weather/spot-series, tier-trimmed); '0' (kill) = route 404s "
+                                         "and the hubs show their previous daily rows",
+                                    "Render env"),
     # ★★★ THE THREE MULTIPLICATIVE VETOES. Each exists because an ADDITIVE term with a floor cannot
     # veto, and each was added to close a MEASURED defect. Setting any of them to 0 re-opens that
     # exact defect, and none was declared here — invisible to this panel and to the lane-parity guard.
