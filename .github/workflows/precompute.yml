@@ -34,6 +34,7 @@ on:
   push:
     branches: [dev]
     paths:
+      - 'backend/services/weather_pipeline/bight_hs_consensus.py'
       - 'backend/services/weather_pipeline/grid_resolver_selection.py'
       - 'backend/services/weather_pipeline/mop_nearshore.py'
       - 'backend/services/weather_pipeline/mop_serving.py'
