@@ -1,0 +1,17 @@
+{
+ "slug": "spectral-k-sheltered-retest",
+ "protocol": "storm-v1",
+ "preregistration": "docs/weather-program/flip-candidates/scorecards/rework-2026-11-04/spectral-k-sheltered-retest-preregistration.md",
+ "runner": "harness",
+ "stations": "backend/scripts/eval_harness_stations_ca.json",
+ "windows": {
+  "F1": ["2025-01-15T00:00Z", "2025-02-28T18:00Z"],
+  "F2": ["2025-11-01T00:00Z", "2025-12-15T18:00Z"],
+  "F3": ["2026-09-22T00:00Z", "2026-10-05T18:00Z"]
+ },
+ "harness_arms": ["SURF_SPECTRAL_K=1"],
+ "ref": "served",
+ "gate_arms": ["SURF_SPECTRAL_K_1"],
+ "rodeo": "142p1",
+ "note": "Fresh-window re-test of #727 (2026-11-05). served = code default '0' (the kill switch); candidate = SURF_SPECTRAL_K=1 at the sheltered scope (SURF_SPECTRAL_K_ALL_SPOTS '0'). The round-1 declaration (W1/W4/W26, run 41939357144) is kept as spectral-k-sheltered.round1-declaration.json, which the workflow's glob does not match."
+}

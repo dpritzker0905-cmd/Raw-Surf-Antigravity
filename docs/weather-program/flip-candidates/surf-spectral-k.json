@@ -1,0 +1,9 @@
+{
+  "schema": "raw-surf/flip-candidate/0",
+  "slug": "surf-spectral-k",
+  "flags": {"SURF_SPECTRAL_K": "1"},
+  "window": {"start": "2026-10-06T00:00Z", "end": "2026-10-15T18:00Z"},
+  "leads": [24, 48, 72],
+  "primary": "hs_station",
+  "rationale": "California spots and CDIP buoys take CDIP MOP's published ray K (fc 0.09 Hz) on GFS partitions at one open-ocean read point per region; fresh window, untouched by the research (10-20..10-29); pre-registered 2026-11-03, single spec, not paired with drop-x1.27 or Kr=1."
+}

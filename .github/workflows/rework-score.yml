@@ -1,0 +1,143 @@
+name: Rework scorecard (pooled history gate, D-066)
+
+# WHY (owner, 2026-11-04, answering "Can I take this as your go-ahead to run scoring jobs on the three draft PRs?":
+# "Yes"): the round-7 reworks are scored on GitHub's runners, not on one machine, so every verdict is tied to a commit
+# and a run id and anyone can re-run it. It runs on a same-repo pull request whose branch carries ONE declaration
+# docs/weather-program/flip-candidates/scorecards/rework-2026-11-04/*.score.json (its pre-registration is committed
+# beside it), or on manual dispatch.
+#
+# ⛔ IT SERVES NOTHING AND WRITES NOTHING: public data only (NOAA AWS open archive, ECMWF open data on AWS, CDIP, NDBC,
+# CO-OPS), no secret is read, no storage or database is touched, the app's own hosts are refused by the harness's
+# network guard. INFORMATIONAL: never a required check, never activates a flag, merges, deploys or dispatches.
+# The verdict is printed to the step summary AND to the gate job's log between GATE_JSON_BEGIN / GATE_JSON_END.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'docs/weather-program/flip-candidates/scorecards/rework-2026-11-04/*.score.json'
+      - 'backend/scripts/rework_*.py'
+      - '.github/workflows/rework-score.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rework-score-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    outputs:
+      decl: ${{ steps.p.outputs.decl }}
+      windows: ${{ steps.p.outputs.windows }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: p
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import glob, json
+          ds = sorted(glob.glob("docs/weather-program/flip-candidates/scorecards/rework-2026-11-04/*.score.json"))
+          if len(ds) != 1:
+              raise SystemExit(f"expected ONE declaration on this branch, found {ds}")
+          d = json.load(open(ds[0]))
+          print(f"decl={ds[0]}")
+          print("windows=" + json.dumps(sorted(d["windows"])))
+          PY
+
+  window:
+    needs: plan
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        win: ${{ fromJson(needs.plan.outputs.windows) }}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+      - name: Run the window
+        working-directory: backend
+        env:
+          DECL: ${{ needs.plan.outputs.decl }}
+          WIN: ${{ matrix.win }}
+          RUNTIME_FLAGS_MANIFEST: '0'
+        run: |
+          python scripts/rework_window.py --decl "../$DECL" --win "$WIN" \
+            --cache-dir "$RUNNER_TEMP/cache" --out "$RUNNER_TEMP/out_$WIN"
+          du -sh "$RUNNER_TEMP/cache" "$RUNNER_TEMP/out_$WIN" || true
+      - name: Upload the window's panels
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rework-window-${{ matrix.win }}
+          path: |
+            ${{ runner.temp }}/out_${{ matrix.win }}/truth.json
+            ${{ runner.temp }}/out_${{ matrix.win }}/replay_*.json
+            ${{ runner.temp }}/out_${{ matrix.win }}/scorecard.json
+            ${{ runner.temp }}/out_${{ matrix.win }}/scorecard.md
+            ${{ runner.temp }}/out_${{ matrix.win }}/forecast_crops.json
+            ${{ runner.temp }}/out_${{ matrix.win }}/rework_*.json
+          retention-days: 14
+
+  gate:
+    needs: [plan, window]
+    if: always() && needs.plan.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: rework-window-*
+          path: ${{ runner.temp }}/wins
+      - name: Pooled gate
+        working-directory: backend
+        env:
+          DECL: ${{ needs.plan.outputs.decl }}
+        run: |
+          args=$(python3 - <<'PY'
+          import json, os, shlex
+          d = json.load(open("../" + os.environ["DECL"]))
+          t = os.environ["RUNNER_TEMP"]
+          a = []
+          for w in sorted(d["windows"]):
+              a += ["--win", f"{w}={t}/wins/rework-window-{w}"]
+          if d.get("protocol") == "storm-v1":
+              # PR #727 re-test: the storm-block gate (scripts/rework_storm_gate.py), ONE candidate arm.
+              a = ["scripts/rework_storm_gate.py"] + a + ["--arm", d["gate_arms"][0], "--rodeo", d.get("rodeo", "142p1")]
+          else:
+              a = ["scripts/rework_gate.py"] + a
+              for x in d["gate_arms"]:
+                  a += ["--arm", x]
+              for x in d.get("reference_arms", []):
+                  a += ["--reference-arm", x]
+              for q in d.get("quantities", ["hs_station"]):
+                  a += ["--quantity", q]
+          a += ["--ref", d.get("ref", "served"), "--stations", "../" + d["stations"], "--out", f"{t}/gate.json"]
+          print(" ".join(shlex.quote(x) for x in a))
+          PY
+          )
+          eval python $args
+          cat "$RUNNER_TEMP/gate.md" >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload the gate
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rework-gate
+          path: ${{ runner.temp }}/gate.*
+          retention-days: 30

@@ -203,6 +203,15 @@ class ReplayResolver:
     async def _no_partitions(self, *a, **k):
         return None
 
+    async def _resolve_raw(self, model, layer, lat, lng, valid_time_str):
+        """SURF_SPECTRAL_K's read point: the production sampler on the job's read-point crop (`products["kread"]`,
+        present only when an arm sets the flag), no surf augmentation. None off the read points."""
+        for prods in (self.products.get("kread") or {}).values():
+            prod = prods.get(layer)
+            if prod is not None and prods.get("_at") == (lat, lng):
+                return self.sampler.sample_point(prod, lat, lng)
+        return None
+
     async def resolve_point(self, model, domain, layer, lat, lng, valid_time_str):
         from services.weather_pipeline.point_surf_augment import augment_with_surf
         prod = self.products.get(domain)
@@ -224,7 +233,7 @@ def _r(x, nd=4):
 
 
 async def replay_one(products: dict, coord: dict, valid: datetime, gaps: Dict[str, int],
-                     station_geom=None, station_depth_m: Optional[float] = None) -> dict:
+                     station_geom=None, station_depth_m: Optional[float] = None, station_id: Optional[str] = None) -> dict:
     """One spot-hour through the reference implementation: {inputs, outputs, hs_station_m}."""
     from services.weather_pipeline.nearshore_validation import model_hs_at_station
     from services.weather_pipeline.spot_ratings import rate_one_spot
@@ -242,6 +251,13 @@ async def replay_one(products: dict, coord: dict, valid: datetime, gaps: Dict[st
     if station_geom is not None and pt is not None and pt.speed and pt.period:
         hs_station = model_hs_at_station(pt.speed, pt.period, pt.direction, station_geom.shore_normal_deg,
                                          station_depth_m, station_geom.depth_m, station_geom.shelf_width_km)
+        # SURF_SPECTRAL_K (flag-gated): the arm's own instrument at the buoy, K at the buoy's MOP point shoaled to the
+        # buoy depth (spectral_k_serving.station_hs). A buoy without a K entry keeps the bulk instrument above.
+        if os.environ.get("SURF_SPECTRAL_K", "0") == "1" and station_id:
+            from services.weather_pipeline.spectral_k_serving import station_hs
+            hs_k = await station_hs("GFS", station_id, station_depth_m, vt, resolver._resolve_raw)
+            if hs_k is not None:
+                hs_station = hs_k
     tide_state = rating.get("tide") or {}
     return {
         "inputs": {"offshore_hs_m": _r(getattr(pt, "speed", None)), "tp_s": _r(getattr(pt, "period", None), 2),
@@ -280,7 +296,7 @@ def replay_arm(arm: str, env: Dict[str, str], scrub: List[str], jobs: List[dict]
                 st = stations[j["station"]]
                 res = await replay_one(j["products"], j["coord"], j["valid"], gaps,
                                        geoms.get(j["station"]) if j["anchor"] else None,
-                                       float(st.get("depth_m") or 20.0))
+                                       float(st.get("depth_m") or 20.0), j["station"])
                 rows.append({"arm": arm, "station": j["station"], "role": st["role"], "spot": j["coord"]["name"],
                              "anchor": j["anchor"], "lat": j["coord"]["lat"], "lng": j["coord"]["lng"],
                              "run_id": j["info"]["run_id"], "cycle": j["info"]["cycle"], "fh": j["fh"],

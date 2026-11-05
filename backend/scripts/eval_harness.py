@@ -113,7 +113,13 @@ def stage_truth(cache, stations, t_lo, t_hi, out_dir):
     return truth, summary, hull_of
 
 
-def stage_forecast(cache, stations, targets, leads, out_dir, fields_fn, wind_source, decoder):
+def stage_forecast(cache, stations, targets, leads, out_dir, fields_fn, wind_source, decoder, kread=False,
+                   parts_fn=gw.fetch_partitions):
+    """`kread`: the served env or an arm runs SURF_SPECTRAL_K (default OFF), so each (cycle, fh) also
+    fetches the partition span and crops it at every read point (spectral_k_serving.READ_POINTS); the jobs carry those
+    crops as products["kread"]. A partition span that cannot be read is COUNTED (`failed`, stage "partitions") and that
+    file's jobs keep the bulk chain; it never costs the file's base fields."""
+    from services.weather_pipeline.spectral_k_serving import READ_POINTS
     plan = gw.plan(targets, leads)
     need = sorted({(c, fh) for c, fh, _, _ in plan})
     crops, infos, failed, n0 = {}, {}, [], len(cache.records)
@@ -129,6 +135,21 @@ def stage_forecast(cache, stations, targets, leads, out_dir, fields_fn, wind_sou
         for st in stations:
             for coord, _ in _coords(st):
                 crops[(c, fh, coord["name"])] = gw.crop(fields, coord["lat"], coord["lng"])
+        got_parts = False
+        if kread:
+            try:
+                pf, _ = parts_fn(cache, c, fh, decoder=decoder)
+                fields.update(pf)
+                got_parts = True
+            except pv.BudgetExceeded:
+                raise
+            except Exception as e:                                      # noqa: BLE001 - counted, never silent
+                failed.append({"cycle": f"{c:%Y-%m-%dT%HZ}", "fh": fh, "stage": "partitions",
+                               "error": f"{type(e).__name__}: {e}"[:200]})
+        if got_parts:
+            for region, _, _, rla, rlo in READ_POINTS:
+                crops[(c, fh, f"kread:{region}")] = gw.crop(fields, rla, rlo, gw.READ_CROP_HALF_DEG,
+                                                             keys=("HTSGW", "PERPW", "DIRPW") + gw.PART_KEYS)
         del fields
     pv.write_json(os.path.join(out_dir, "forecast_crops.json"),
                   {"plan": len(plan), "files": len(need), "failed": failed,
@@ -144,11 +165,15 @@ def stage_forecast(cache, stations, targets, leads, out_dir, fields_fn, wind_sou
     for c, fh, lead, t in plan:
         if (c, fh) not in infos:
             continue
+        kprods = ({region: dict(gw.layer_products(crops[(c, fh, f"kread:{region}")], c, t), _at=(rla, rlo))
+                   for region, _, _, rla, rlo in READ_POINTS} if (c, fh, "kread:socal") in crops else None)
         for st in stations:
             for coord, anchor in _coords(st):
+                prods = gw.products(crops[(c, fh, coord["name"])], c, t)
+                if kprods:
+                    prods["kread"] = kprods
                 jobs.append({"station": st["id"], "coord": coord, "anchor": anchor, "cycle": c, "fh": fh,
-                             "lead": lead, "valid": t, "info": infos[(c, fh)],
-                             "products": gw.products(crops[(c, fh, coord["name"])], c, t)})
+                             "lead": lead, "valid": t, "info": infos[(c, fh)], "products": prods})
     return jobs, {"files": len(need), "failed": failed}
 
 
@@ -216,7 +241,9 @@ def run(args, get=pv.http_get, fields_fn=gw.fetch_fields, cfg=None) -> dict:
     t_lo = embargo[0] - timedelta(days=args.clim_days)
     t_hi = end + timedelta(hours=2)
     truth, truth_summary, hull_of = stage_truth(cache, stations, t_lo, t_hi, args.out)
-    jobs, fc = stage_forecast(cache, stations, targets, leads, args.out, fields_fn, args.wind_source, args.decoder)
+    kread = any(dict(served["env"], **d).get("SURF_SPECTRAL_K", "0") == "1" for _, d in deltas)
+    jobs, fc = stage_forecast(cache, stations, targets, leads, args.out, fields_fn, args.wind_source, args.decoder,
+                              kread=kread)
     tides = rp.TideSeries(cache, min(j["cycle"] for j in jobs) if jobs else start, end, enabled=not args.no_tide)
     stray = sorted(k for k in os.environ if k.startswith(FLAG_PREFIXES) and k not in served["env"])
     scrub = served["secrets_named"] + stray
