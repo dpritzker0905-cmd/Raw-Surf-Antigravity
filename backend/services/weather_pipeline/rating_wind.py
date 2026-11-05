@@ -99,6 +99,85 @@ def sample_point(lane, lat, lng, k):
     return su / sw, sv / sw
 
 
+SEA_SEARCH_CELLS = 10          # 30 km on the 3 km grid (pre-registered 2026-11-04)
+SEA_SAMPLES = ("sea_nearest", "sea_bilinear")
+
+
+def sea_sample(u_e, v_e, land, lat, lng, mode="sea_nearest", radius=SEA_SEARCH_CELLS):
+    """The HRRR wind over WATER at a spot, from NATIVE 3 km earth-relative fields `u_e`, `v_e` and the `land` mask
+    (LAND:surface, 1 = land, 0 = water), all shaped (NY, NX) and indexed [j, i]. Returns (u, v) in the fields' units,
+    or (nan, nan) when no finite water cell lies within `radius` cells. PURE (numpy).
+
+    sea_nearest:  the water cell nearest the spot's fractional (i, j) (grid distance), within `radius`.
+    sea_bilinear: the 2x2 bilinear stencil with land cells' weights dropped and the rest renormalised; a stencil with
+                  no finite water cell falls back to sea_nearest.
+    WHY (pre-registration rating-wind-hrrr-sea-preregistration.md): Open-Meteo, whose gfs_hrrr beat the lane by ~1
+    rating point, picks the cell whose elevation matches the request (a sea cell at a pier); the lane averages land in.
+    Evaluation status: scored by backend/scripts/rework_hrrr_score.py; NOT wired into serving (the lane stores no
+    native cells) unless that score passes."""
+    import numpy as np
+    from services.weather_pipeline import wind_lane
+    hg = wind_lane._grid()
+    if mode not in SEA_SAMPLES:
+        raise ValueError(f"unknown sea sample {mode!r}")
+    ny, nx = land.shape
+    fi, fj = hg.grid_ij(float(lat), ((float(lng) + 180.0) % 360.0) - 180.0)
+
+    def water(j, i):
+        return (0 <= j < ny and 0 <= i < nx and land[j, i] < 0.5
+                and math.isfinite(float(u_e[j, i])) and math.isfinite(float(v_e[j, i])))
+
+    if mode == "sea_bilinear":
+        i0, j0 = int(math.floor(fi)), int(math.floor(fj))
+        ti, tj = fi - i0, fj - j0
+        su = sv = sw = 0.0
+        for dj, wj in ((0, 1.0 - tj), (1, tj)):
+            for di, wi in ((0, 1.0 - ti), (1, ti)):
+                j, i = j0 + dj, i0 + di
+                w = wi * wj
+                if w > 0 and water(j, i):
+                    su += w * float(u_e[j, i])
+                    sv += w * float(v_e[j, i])
+                    sw += w
+        if sw > 1e-12:
+            return su / sw, sv / sw
+    ci, cj = int(round(fi)), int(round(fj))
+    j_lo, j_hi = max(cj - radius, 0), min(cj + radius, ny - 1)
+    i_lo, i_hi = max(ci - radius, 0), min(ci + radius, nx - 1)
+    if j_lo > j_hi or i_lo > i_hi:
+        return float("nan"), float("nan")
+    jj, ii = np.mgrid[j_lo:j_hi + 1, i_lo:i_hi + 1]
+    sub_u, sub_v = u_e[j_lo:j_hi + 1, i_lo:i_hi + 1], v_e[j_lo:j_hi + 1, i_lo:i_hi + 1]
+    ok = (land[j_lo:j_hi + 1, i_lo:i_hi + 1] < 0.5) & np.isfinite(sub_u) & np.isfinite(sub_v)
+    d2 = (ii - fi) ** 2 + (jj - fj) ** 2
+    d2 = np.where(ok & (d2 <= radius * radius), d2, np.inf)
+    k = int(np.argmin(d2))
+    if not np.isfinite(d2.reshape(-1)[k]):
+        return float("nan"), float("nan")
+    return float(sub_u.reshape(-1)[k]), float(sub_v.reshape(-1)[k])
+
+
+def sea_wind(u_kt, v_kt, lat, lng, valid, g_speed_kt, g_from_deg, horizon):
+    """A native HRRR sample (u, v knots, earth-relative) blended with the model wind under the lane's OWN weights
+    (space feather x time weight against `horizon`, `wind_lane.blend_vector`): the same dict as `lane_wind`, or None
+    where HRRR carries no weight or the sample is missing. Used by the rework scorer so the candidate differs from
+    the lane ONLY in the sample."""
+    from services.weather_pipeline import wind_lane
+    hg = wind_lane._grid()
+    if g_speed_kt is None or g_from_deg is None or not (math.isfinite(u_kt) and math.isfinite(v_kt)):
+        return None
+    valid = hg.utc(valid)
+    w = hg.space_weight(float(lat), ((float(lng) + 180.0) % 360.0) - 180.0, wind_lane.feather_km()) * \
+        hg.time_weight(valid, hg.utc(horizon), wind_lane.taper_hours())
+    if w <= 0.0:
+        return None
+    g_s, g_d = float(g_speed_kt), float(g_from_deg)
+    g_u, g_v = -g_s * math.sin(math.radians(g_d)), -g_s * math.cos(math.radians(g_d))
+    speed, u, v, direction = wind_lane.blend_vector(w, u_kt, v_kt, g_s, g_u, g_v, g_d)
+    return {"speed_kt": round(speed, 4), "u_kt": round(u, 4), "v_kt": round(v, 4), "from_deg": round(direction, 2),
+            "weight": round(w, 4)}
+
+
 def lane_wind(lat, lng, valid, g_speed_kt, g_from_deg, lane=None):
     """The rating wind at (lat, lng, valid) given the model's own (speed kt, from-deg): a dict with speed_kt,
     from_deg, weight (HRRR's share, 0..1) and reason, or None when the lane does not apply (keep the model wind)."""
