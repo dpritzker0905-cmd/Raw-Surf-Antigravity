@@ -242,3 +242,36 @@ at buoy-adjacent spots is a valid future candidate, but it does not help the ~1,
 - swell exposed from 150-290°, blocked from 300-140°;
 - this agrees with K's geometry: 290° sits at the edge (K ratio 0.47), and NW is blocked;
 - so K's shadow geometry is not grossly wrong. What remains open is the magnitude driven by the input spectrum.
+
+## 8. CDIP MOP reference at Rodeo / Pismo: the GFS input is the defect (Actions run 41970891049)
+
+- **Tool:** `scripts/mop_reference_diagnostic.py`. Its reading rule is in the docstring, committed before the first run.
+- **Method:** CDIP's buoy-driven MOP hindcast (to 2025-04-01) and nowcast (after it), at the spot's own MOP point,
+  run through the chain's own breaking step (`estimate_surf_from_nearshore`). The only difference from the K arm is
+  the input spectrum.
+- No flag was changed. `SURF_NEARSHORE_MOP` stays OFF.
+
+**Rodeo (MA053, 1116 pairs, all with a reference):**
+
+| bin | served − MOP | K − MOP | proxy − MOP | MAE vs MOP: served / K |
+|---|---|---|---|---|
+| all | −0.162 | −0.231 | +0.033 | 0.290 / 0.414 |
+| shadowed < 0.6 | −0.108 | −0.325 | +0.287 | 0.282 / 0.392 |
+| partial | −0.167 | −0.300 | +0.027 | 0.290 / 0.400 |
+| exposed ≥ 0.8 | −0.195 | +0.245 | −0.234 | 0.300 / 0.517 |
+
+**Reading, by the stated rule: GFS INPUT DEFECT.**
+- Against CDIP's own reference, K is high where exposed and low where shadowed, and its MAE is worse than served.
+- The proxy is ALSO shadow-blind (+0.29 m above MOP in the shadow), but K's error goes the other way. Rodeo's verdict
+  stands on two independent references.
+
+**Pismo (SL093, 168 pairs, nowcast only):** INCONCLUSIVE by the rule (< 200 pairs). For the record, K's MAE vs MOP is
+0.19 against served 0.27.
+
+**Path toward state of the art:** CDIP publishes its ECMWF-driven MOP forecast at every spot (`<label>_ecmwf_fc.nc`).
+That is the operational system (O'Reilly et al. 2016; Behrens et al. 2024), and `SURF_NEARSHORE_MOP` is its built,
+dark path.
+- Its historical forecasts are not archived, so it cannot be scored on history like K was.
+- The honest test is forward: archive `ecmwf_fc` at the catalogue spots each cycle, then score it after ≥ 14 days
+  with the storm-block gate, against CDIP buoys and the MOP nowcast.
+- Turning it on is the owner's call, on that evidence.
