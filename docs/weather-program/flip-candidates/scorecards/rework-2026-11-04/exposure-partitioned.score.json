@@ -1,0 +1,15 @@
+{
+ "slug": "exposure-partitioned",
+ "preregistration": "docs/weather-program/flip-candidates/scorecards/rework-2026-11-04/exposure-partitioned-preregistration.md",
+ "runner": "exposure",
+ "stations": "backend/scripts/eval_harness_stations_ca.json",
+ "windows": {
+  "W1": ["2024-12-01T00:00Z", "2024-12-28T18:00Z"],
+  "W4": ["2025-10-01T00:00Z", "2025-10-28T18:00Z"],
+  "W26": ["2026-10-17T00:00Z", "2026-10-30T18:00Z"]
+ },
+ "ref": "served",
+ "gate_arms": ["E1", "E2"],
+ "reference_arms": ["R"],
+ "quantities": ["hs_station", "hb_proxy"]
+}
