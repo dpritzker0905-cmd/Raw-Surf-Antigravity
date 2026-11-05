@@ -46,13 +46,54 @@ READ_POINTS = (            # (region, lat_min, lat_max, read_lat, read_lng)
 )
 PARTITION_LAYERS = (("swell_1", "swell"), ("swell_2", "swell"), ("wind_waves", "windsea"))
 MEMO_TTL_S = 900.0
+# REWORK (2026-11-04, pre-registered in docs/weather-program/flip-candidates/scorecards/rework-2026-11-04/
+# spectral-k-sheltered-preregistration.md BEFORE any scoring): round 7 showed the one-point K over-transfers the sea
+# band inside the Bight (sea_et carries no island sheltering) and its gain elsewhere compensated the chain-wide low
+# bias that SURF_BIGHT_HS_CONSENSUS now fixes. K is therefore applied ONLY at HEADLAND-SHELTERED points: outside the
+# Bight polygon AND K's height ratio for a reference open-ocean swell (SHELTER_REF: 14 s from 290 deg, s 25) below
+# SHELTER_MAX_RATIO. Geometry only (CDIP's ray coefficients), no truth. SCOPE_FLAG = '1' restores #706's scope.
+SCOPE_FLAG = "SURF_SPECTRAL_K_ALL_SPOTS"
+SHELTER_REF = {"h": 1.0, "tp": 14.0, "dir": 290.0, "kind": "swell"}
+SHELTER_MAX_RATIO = 0.5
 MEMO_MAX = 2048
 
 _table = None             # {"entries": [...], "transfers": {key: Transfer}} loaded once
+_shelter = {}             # entry key -> is_sheltered (geometry only, so fixed per table)
 
 
 def enabled() -> bool:
     return os.environ.get(FLAG, "0") == "1"
+
+
+def scope() -> str:
+    """'sheltered' (the rework's default, SCOPE_FLAG '0') or 'all' (#706's original scope, SCOPE_FLAG '1')."""
+    return "all" if os.environ.get(SCOPE_FLAG, "0").strip() == "1" else "sheltered"
+
+
+def shelter_ratio(transfer) -> float:
+    """K's Hs ratio for SHELTER_REF against flux shoaling alone from the deep reference to the MOP depth (1 = open)."""
+    from services.weather_pipeline.spectral_k import DEEP_REF_M, hs_of, rebuild, shoal_to_depth
+    E = rebuild([SHELTER_REF])
+    ref = hs_of(shoal_to_depth(E.sum(axis=1), DEEP_REF_M, transfer.depth_m))
+    return hs_of(transfer.apply(E)) / ref if ref > 0 else 1.0
+
+
+def is_sheltered(entry, table=None) -> bool:
+    """The pre-registered eligibility: outside the Bight polygon AND shelter_ratio < SHELTER_MAX_RATIO."""
+    from services.weather_pipeline.bight_hs_consensus import inside_bight
+    key = entry.get("key")
+    if key in _shelter:
+        return _shelter[key]
+    t = table or load_table()
+    tr = t["transfers"].get(key)
+    ok = bool(tr is not None and not inside_bight(float(entry["mop_lat"]), float(entry["mop_lng"]))
+              and shelter_ratio(tr) < SHELTER_MAX_RATIO)
+    _shelter[key] = ok
+    return ok
+
+
+def in_scope(entry, table=None) -> bool:
+    return scope() == "all" or is_sheltered(entry, table)
 
 
 def _km(lat1, lng1, lat2, lng2):
@@ -166,7 +207,7 @@ async def nearshore_for_point(model, lat, lng, valid_time_str, resolve_raw):
         return None
     t = load_table()
     e = entry_for_point(float(lat), float(lng), t)
-    if e is None:
+    if e is None or not in_scope(e, t):
         return None
     reg = region_for(e["lat"])
     if reg is None:
@@ -191,7 +232,7 @@ async def station_hs(model, station_id, station_depth_m, valid_time_str, resolve
         return None
     t = load_table()
     e = next((x for x in t["entries"] if x.get("key") == f"station:{station_id}"), None)
-    if e is None or not station_depth_m:
+    if e is None or not station_depth_m or not in_scope(e, t):
         return None
     reg = region_for(e["mop_lat"])
     parts = await read_point_partitions(resolve_raw, model, reg[0], valid_time_str) if reg else None
@@ -207,3 +248,4 @@ async def station_hs(model, station_id, station_depth_m, valid_time_str, resolve
 def _reset_for_test():
     global _table
     _table = None
+    _shelter.clear()

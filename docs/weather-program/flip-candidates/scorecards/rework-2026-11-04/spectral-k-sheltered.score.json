@@ -1,0 +1,16 @@
+{
+ "slug": "spectral-k-sheltered",
+ "preregistration": "docs/weather-program/flip-candidates/scorecards/rework-2026-11-04/spectral-k-sheltered-preregistration.md",
+ "runner": "harness",
+ "stations": "backend/scripts/eval_harness_stations_ca.json",
+ "windows": {
+  "W1": ["2024-12-01T00:00Z", "2024-12-28T18:00Z"],
+  "W4": ["2025-10-01T00:00Z", "2025-10-28T18:00Z"],
+  "W26": ["2026-10-17T00:00Z", "2026-10-30T18:00Z"]
+ },
+ "harness_arms": ["SURF_SPECTRAL_K=1", "SURF_SPECTRAL_K=1,SURF_SPECTRAL_K_ALL_SPOTS=1"],
+ "ref": "served",
+ "gate_arms": ["SURF_SPECTRAL_K_1"],
+ "reference_arms": ["SURF_SPECTRAL_K_1_SURF_SPECTRAL_K_ALL_SPOTS_1"],
+ "quantities": ["hs_station", "hb_proxy"]
+}

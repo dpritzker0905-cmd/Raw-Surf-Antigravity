@@ -454,6 +454,11 @@ _RATING_FLAGS = {
     "SURF_SPECTRAL_K":             ("0", "California spots break from CDIP MOP's ray K applied to the member's "
                                          "partitions at one open-ocean read point per region (all surfaces)",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
+    "SURF_SPECTRAL_K_ALL_SPOTS":   ("0", "Where SURF_SPECTRAL_K applies: '0' = only headland-sheltered points outside "
+                                         "the Bight, K ratio < 0.5 for a 14 s 290 deg swell (rework 2026-11-04); "
+                                         "'1' = every table spot (#706's scope, which FAILED round 7)",
+                                    "Render env AND forecast-ingest.yml AND precompute.yml AND sim-parity-monitor.yml "
+                                    "env, TOGETHER with SURF_SPECTRAL_K"),
     # ⚠️ ONLY BITES WHEN `SURF_PARTITIONS` IS ON — it gates the partition-aware exposure, which is
     # dark while that flag is off. Declared anyway, in the commit that added it: the lane-parity
     # guard caught this one MISSING and it was right to, because an undeclared switch is invisible

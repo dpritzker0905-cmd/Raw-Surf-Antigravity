@@ -32,6 +32,9 @@ PARTS = {"waves": (1.6, 13.0, 285.0), "swell_1": (1.3, 14.0, 290.0), "swell_2": 
 def clean(monkeypatch):
     for k in FLAGS:
         monkeypatch.delenv(k, raising=False)
+    # #706's tests pin the K MECHANICS on Bight points (Blacks, Del Mar): they run at #706's scope. The 2026-11-04
+    # rework's default scope ('sheltered') is pinned by tests/test_spectral_k_sheltered.py.
+    monkeypatch.setenv("SURF_SPECTRAL_K_ALL_SPOTS", "1")
     S._reset_for_test()
     yield monkeypatch
     S._reset_for_test()
