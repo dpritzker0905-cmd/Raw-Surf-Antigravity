@@ -214,3 +214,31 @@ would double-correct the Bight in production.
 
 **Decision:** item 2 is not pre-registered, built or scored. No PR was opened; nothing runs. Revisit only with more
 outside-Bight truth stations, or once K's input defect (§5) is fixed.
+
+## 7. Outside check (literature via Consensus; Solano shelter ray-cast), before item 3
+
+**Correction to §6.** I wrote that what remains after BHC is scatter, and that a correction cannot remove scatter.
+The second half is wrong for conditional post-processing:
+- buoy-trained models that condition on wind, sea state and lead cut Hs MAE or RMSE by 10-40%, peaks and timing
+  included (Zhang 2023, Ocean Modelling; Filoche 2026, JGR-MLC; Campos 2017; Gallo 2023);
+- they need years of paired data (3.5 years site-specific in Filoche);
+- their corrections do not transfer beyond the buoy's surroundings (Callea 2025, Applied Ocean Research).
+
+§6's decision stands for what was proposed, a regional constant. A multi-year, site-specific conditional correction
+at buoy-adjacent spots is a valid future candidate, but it does not help the ~1,700 spots that have no buoy.
+
+**Item 3 is supported by the literature:**
+- on sheltered shorelines, nearshore prediction error is dominated by directional uncertainty offshore (Crosby et al.
+  2016, JTECH: ray-traced swell, 16 Southern California buoys);
+- full directional spectra vs parametric inputs change nearshore energy by 40-55% at sheltered beaches (Silva et al.
+  2020, JCR);
+- narrow incident spectra make refraction transforms hypersensitive (O'Reilly et al. 1991, 1993);
+- pure refraction is inaccurate at HIGHLY sheltered sites, where diffraction matters (O'Reilly 1993). That is a
+  caution for Fort Point (ratio 0.26) even with perfect input;
+- SW swell ultra-refracts over the SF ebb-tidal delta (Hanes et al. 2013), which is relevant to Rodeo's SW
+  over-read.
+
+**Solano ray-cast at Rodeo (37.832, −122.545), line of sight only, no refraction:**
+- swell exposed from 150-290°, blocked from 300-140°;
+- this agrees with K's geometry: 290° sits at the edge (K ratio 0.47), and NW is blocked;
+- so K's shadow geometry is not grossly wrong. What remains open is the magnitude driven by the input spectrum.
