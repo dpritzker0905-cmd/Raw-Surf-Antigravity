@@ -4,13 +4,33 @@
  "runner": "harness",
  "stations": "backend/scripts/eval_harness_stations_ca.json",
  "windows": {
-  "W1": ["2024-12-01T00:00Z", "2024-12-28T18:00Z"],
-  "W4": ["2025-10-01T00:00Z", "2025-10-28T18:00Z"],
-  "W26": ["2026-10-17T00:00Z", "2026-10-30T18:00Z"]
+  "W1": [
+   "2024-12-01T00:00Z",
+   "2024-12-28T18:00Z"
+  ],
+  "W4": [
+   "2025-10-01T00:00Z",
+   "2025-10-28T18:00Z"
+  ],
+  "W26": [
+   "2026-10-17T00:00Z",
+   "2026-10-30T18:00Z"
+  ]
  },
- "harness_arms": ["SURF_SPECTRAL_K=1", "SURF_SPECTRAL_K=1,SURF_SPECTRAL_K_ALL_SPOTS=1"],
- "ref": "served",
- "gate_arms": ["SURF_SPECTRAL_K_1"],
- "reference_arms": ["SURF_SPECTRAL_K_1_SURF_SPECTRAL_K_ALL_SPOTS_1"],
- "quantities": ["hs_station", "hb_proxy"]
+ "harness_arms": [
+  "SURF_SPECTRAL_K=0",
+  "SURF_SPECTRAL_K_ALL_SPOTS=1"
+ ],
+ "ref": "SURF_SPECTRAL_K_0",
+ "gate_arms": [
+  "served"
+ ],
+ "reference_arms": [
+  "SURF_SPECTRAL_K_ALL_SPOTS_1"
+ ],
+ "quantities": [
+  "hs_station",
+  "hb_proxy"
+ ],
+ "note": "After the flip (D-067) the served env runs the candidate (code default ON, lanes ''), so the baseline is the kill-switch arm SURF_SPECTRAL_K=0 and the candidate is 'served'; the comparison is the one run 41939357144 scored (served-OFF vs SURF_SPECTRAL_K=1) and must reproduce its numbers."
 }

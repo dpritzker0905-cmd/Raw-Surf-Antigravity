@@ -253,7 +253,7 @@ async def replay_one(products: dict, coord: dict, valid: datetime, gaps: Dict[st
                                          station_depth_m, station_geom.depth_m, station_geom.shelf_width_km)
         # SURF_SPECTRAL_K (flag-gated): the arm's own instrument at the buoy, K at the buoy's MOP point shoaled to the
         # buoy depth (spectral_k_serving.station_hs). A buoy without a K entry keeps the bulk instrument above.
-        if os.environ.get("SURF_SPECTRAL_K", "0") == "1" and station_id:
+        if _rf.on("SURF_SPECTRAL_K") and station_id:
             from services.weather_pipeline.spectral_k_serving import station_hs
             hs_k = await station_hs("GFS", station_id, station_depth_m, vt, resolver._resolve_raw)
             if hs_k is not None:

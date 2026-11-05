@@ -1,5 +1,6 @@
-"""spectral_k_serving.py — SURF_SPECTRAL_K (default '0': it FAILED the round-7 four-season
-history test (PR #722), so it does not ship on; '0' is the bulk chain, byte-identical): a California spot's nearshore sea from CDIP MOP's
+"""spectral_k_serving.py — SURF_SPECTRAL_K (default ON since the 2026-11-04 rework, #727: K only at HEADLAND-SHELTERED
+points outside the Bight, which PASSED the pre-registered pooled history gate; #706's all-spots scope FAILED round 7,
+PR #722, and stays behind SURF_SPECTRAL_K_ALL_SPOTS=1; '0' is the kill switch, the bulk chain byte-identical): a California spot's nearshore sea from CDIP MOP's
 published ray K applied to one member's partitions at ONE open-ocean read point per region.
 
 With the flag on, a served point that stands on a California catalogue spot (within SPOT_MATCH_KM of an entry of the
@@ -62,7 +63,10 @@ _shelter = {}             # entry key -> is_sheltered (geometry only, so fixed p
 
 
 def enabled() -> bool:
-    return os.environ.get(FLAG, "0") == "1"
+    """D-065 guarded (env > runtime manifest > code default '1'): ON since the sheltered-scope rework PASSED its
+    pre-registered pooled history gate (#727); '0' anywhere it is read is the kill switch."""
+    from services import runtime_flags as _rf
+    return _rf.on(FLAG)
 
 
 def scope() -> str:

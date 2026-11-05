@@ -1,8 +1,8 @@
-"""SURF_SPECTRAL_K (default '0': FAIL on the round-7 history test, PR #722): California spots break from CDIP MOP's published ray K applied to one member's
+"""SURF_SPECTRAL_K (default ON since the sheltered-scope rework #727 passed; #706's all-spots scope FAILED round 7, PR #722): California spots break from CDIP MOP's published ray K applied to one member's
 partitions at one open-ocean read point per region, through the EXISTING breaking step.
 
-Pins: '0' is byte-identical (a hash of the served augmentation, equal to origin/dev's before this change), and the
-default is OFF;
+Pins: the kill switch '0' is byte-identical (a hash of the served augmentation, equal to origin/dev's before #706), and
+the default is ON (D-065);
 K on a synthetic spectrum reproduces a hand-computed answer; the frequency split; a point without a MOP entry keeps
 the bulk chain; every member and the full 14-day horizon run the arm; the read point is resolved once per member,
 region and hour; the committed table is what its index says; the harness replays the arm on its own instrument.
@@ -98,9 +98,11 @@ async def test_the_kill_switch_is_byte_identical_and_never_reads_the_read_point(
 
 
 @pytest.mark.asyncio
-async def test_the_default_is_off_and_byte_identical(clean):
+async def test_the_default_is_on_and_the_kill_switch_is_byte_identical(clean):
+    assert S.enabled(), "unset = ON (D-065; the sheltered-scope rework #727 passed)"
+    clean.setenv("SURF_SPECTRAL_K", "0")
     raw = Raw()
-    assert not S.enabled(), "unset = OFF (FAIL on the round-7 history test, PR #722)"
+    assert not S.enabled()
     assert await _flag_off_rows(raw.raw) == FLAG_OFF_SHA and raw.asked == []
 
 
@@ -278,14 +280,14 @@ async def test_the_station_instrument_shoals_the_buoys_own_k_to_the_buoy_depth(c
     assert await S.station_hs("GFS", "153p1", 17.0, VT0, Raw().raw) is None
 
 
-def test_the_flag_is_registered_and_declared_off_in_every_rating_lane():
+def test_the_flag_is_registered_and_deferred_to_the_manifest_in_every_rating_lane():
     import os
     repo = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     with open(os.path.join(repo, "backend", "routes", "admin", "surf_forecast.py"), encoding="utf-8") as f:
         assert '"SURF_SPECTRAL_K":' in f.read()
     for lane in ("precompute.yml", "forecast-ingest.yml", "sim-parity-monitor.yml"):
         with open(os.path.join(repo, ".github", "workflows", lane), encoding="utf-8") as f:
-            assert "SURF_SPECTRAL_K: '0'" in f.read(), lane
+            assert "SURF_SPECTRAL_K: ''  # D-065 GUARDED" in f.read(), lane
 
 
 def test_the_flip_budget_counts_the_partition_span():
