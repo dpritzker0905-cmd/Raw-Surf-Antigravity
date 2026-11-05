@@ -1,0 +1,143 @@
+name: Rework score - RATING_WIND_HRRR nearest sea cell (pre-registered, offline)
+
+# WHY: the round-7 rework of RATING_WIND_HRRR (#711) is scored HERE, on GitHub's runners, so the score is
+# reproducible from a commit and a run id (owner, 2026-11-04: "Yes" to running the scoring jobs on the draft PRs).
+# The gate, arms, stations and windows are fixed by the pre-registration committed BEFORE any scoring:
+#   docs/weather-program/flip-candidates/scorecards/rework-2026-11-04/rating-wind-hrrr-sea-preregistration.md
+# ⛔ It serves nothing and writes nothing outside its own artifacts: public data only (NOAA AWS Open Data HRRR /
+# GFS / GFS-Wave, NDBC stdmet), no secret is read, never the app, its backend (Render) or its storage.
+# INFORMATIONAL: it never flips a flag, merges or deploys. The verdict is printed to the gate job's log and summary.
+
+on:
+  pull_request:
+    paths:
+      - 'backend/scripts/rework_hrrr_score.py'
+      - '.github/workflows/rework-score-hrrr.yml'
+      - 'docs/weather-program/flip-candidates/scorecards/rework-2026-11-04/rating-wind-hrrr-sea-preregistration.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rework-score-hrrr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  EXTRACT_VERSION: v1   # bump when the extract step changes (the cached inputs are keyed on it)
+
+jobs:
+  extract:
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'claude/rework-rating-wind-hrrr-sea')
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        include:
+          - {window: W1, start: '2024-12-01', end: '2024-12-28', chunk: 0, chunks: 4}
+          - {window: W1, start: '2024-12-01', end: '2024-12-28', chunk: 1, chunks: 4}
+          - {window: W1, start: '2024-12-01', end: '2024-12-28', chunk: 2, chunks: 4}
+          - {window: W1, start: '2024-12-01', end: '2024-12-28', chunk: 3, chunks: 4}
+          - {window: W4, start: '2025-10-01', end: '2025-10-28', chunk: 0, chunks: 4}
+          - {window: W4, start: '2025-10-01', end: '2025-10-28', chunk: 1, chunks: 4}
+          - {window: W4, start: '2025-10-01', end: '2025-10-28', chunk: 2, chunks: 4}
+          - {window: W4, start: '2025-10-01', end: '2025-10-28', chunk: 3, chunks: 4}
+          - {window: W26, start: '2026-10-17', end: '2026-10-30', chunk: 0, chunks: 2}
+          - {window: W26, start: '2026-10-17', end: '2026-10-30', chunk: 1, chunks: 2}
+    steps:
+      - uses: actions/checkout@v5
+      - name: Cached inputs
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/out
+          key: rework-hrrr-${{ env.EXTRACT_VERSION }}-${{ matrix.window }}-${{ matrix.chunk }}of${{ matrix.chunks }}
+      - uses: actions/setup-python@v6
+        if: steps.cache.outputs.cache-hit != 'true'
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend dependencies
+        if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+      - name: Extract HRRR + GFS at the stations
+        if: steps.cache.outputs.cache-hit != 'true'
+        working-directory: backend
+        run: |
+          python scripts/rework_hrrr_score.py extract --window ${{ matrix.window }} --start ${{ matrix.start }} \
+            --end ${{ matrix.end }} --chunk ${{ matrix.chunk }} --chunks ${{ matrix.chunks }} \
+            --cache-dir "$RUNNER_TEMP/raw" --out "$RUNNER_TEMP/out/inputs_${{ matrix.window }}_${{ matrix.chunk }}.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          if-no-files-found: warn
+          name: inputs-${{ matrix.window }}-${{ matrix.chunk }}
+          path: ${{ runner.temp }}/out/inputs_${{ matrix.window }}_${{ matrix.chunk }}.json
+          retention-days: 14
+
+  truth:
+    if: github.event_name == 'workflow_dispatch' || (github.event.pull_request.head.repo.full_name == github.repository && github.head_ref == 'claude/rework-rating-wind-hrrr-sea')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {window: W1, start: '2024-12-01', end: '2024-12-28'}
+          - {window: W4, start: '2025-10-01', end: '2025-10-28'}
+          - {window: W26, start: '2026-10-17', end: '2026-10-30'}
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+      - name: NDBC anemometer truth
+        working-directory: backend
+        run: |
+          python scripts/rework_hrrr_score.py truth --window ${{ matrix.window }} --start ${{ matrix.start }} \
+            --end ${{ matrix.end }} --cache-dir "$RUNNER_TEMP/raw" --out "$RUNNER_TEMP/out/truth_${{ matrix.window }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: truth-${{ matrix.window }}
+          path: ${{ runner.temp }}/out/truth_${{ matrix.window }}.json
+          retention-days: 14
+
+  gate:
+    needs: [extract, truth]
+    if: always() && needs.truth.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          path: ${{ runner.temp }}/all
+          merge-multiple: true
+      - name: The pre-registered gate
+        working-directory: backend
+        run: |
+          ls -la "$RUNNER_TEMP/all"
+          python scripts/rework_hrrr_score.py gate "$RUNNER_TEMP/all" --out "$RUNNER_TEMP/all/gate.json" \
+            --summary "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: gate
+          path: ${{ runner.temp }}/all/gate.json
+          retention-days: 14

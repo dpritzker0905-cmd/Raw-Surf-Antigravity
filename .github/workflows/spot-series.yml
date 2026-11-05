@@ -96,6 +96,7 @@ jobs:
           POINT_CACHE_MAX: '6000'
           SURF_BIGHT_HS_CONSENSUS: ''         # mirrors precompute.yml: '' hands the guarded flag to the runtime manifest
           SURF_BIGHT_HS_EURO_WEIGHT: '0.5'
+          RATING_WIND_HRRR: '0'               # mirrors precompute.yml (#711/#728, dark): moves only with every rating lane and Render env together
           # The series reaches +336 h, so warm the whole horizon (precompute warms 1 day: it rates +0/+3 h).
           PREFETCH_WINDOW_DAYS: '15'
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}

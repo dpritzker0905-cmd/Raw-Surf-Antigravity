@@ -225,6 +225,11 @@ class PointResolutionService:
         response = await augment_with_surf(
             response, model, domain, layer, lat, lng, valid_time_str, self._resolve_partitions)
 
+        # RATING_WIND_HRRR (default off): a GFS wind point carries the HRRR lane's wind inside CONUS, the SAME lane /grid
+        # blends, so every rating surface that reads its wind here grades on one wind (rating_wind.py). Off = untouched.
+        from services.weather_pipeline.rating_wind import apply_to_wind_point
+        response = apply_to_wind_point(response, model, domain, layer, lat, lng, valid_time_str)
+
         # ⭐ THE PHYSICS VALIDITY STAMP GOES HERE AND NOWHERE ELSE. `NormalizedPointDetail` is built
         # at 14 sites across 5 modules, so there is no chokepoint down there — but EVERY consumer
         # that matters (the ratings precompute, the spot hub, buoy calibration, and /api/weather/

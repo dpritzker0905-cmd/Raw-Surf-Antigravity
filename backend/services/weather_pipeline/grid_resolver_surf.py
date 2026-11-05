@@ -318,6 +318,9 @@ async def _build_wind_sampler(store, manifest, model, target_dt):
     if not (cands[0] or cands[1]):
         return None
     loaded = {}
+    # RATING_WIND_HRRR (dark): the band grades on the SAME lane wind as the glyph at a coordinate (rating_wind.blend_ms).
+    from services.weather_pipeline import rating_wind
+    lane_on = rating_wind.enabled() and (model or "").upper() in rating_wind.MODELS
 
     def sampler(lat, lng):
         p = choose_for_point(cands, lat, lng)
@@ -326,7 +329,10 @@ async def _build_wind_sampler(store, manifest, model, target_dt):
         if p.filename not in loaded:
             loaded[p.filename] = _load_nearest_sampler(store, p.filename)
         s = loaded[p.filename]
-        return s(lat, lng) if s is not None else None
+        got = s(lat, lng) if s is not None else None
+        if got is not None and lane_on:
+            got = rating_wind.blend_ms(lat, lng, target_dt, got[0], got[1], model)
+        return got
     return sampler
 
 

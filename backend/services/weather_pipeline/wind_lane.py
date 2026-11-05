@@ -10,7 +10,8 @@ blended into EVERY GFS wind grid the map is served (the 10-deg and 2-deg world t
 the dynamic viewport boxes, the native recovery) by `apply_wind_lane`, called once in the /grid route that /grid_series
 also calls per frame. A node's HRRR value is the same in every tier, so a zoom or a pan cannot change the model under
 the eye. Nothing is written back: stored and cached products stay GFS, so spot points, ratings and glyphs (which read
-those products and fetch_point, never this route) see no change.
+those products and fetch_point, never this route) see no change. RATING_WIND_HRRR (default '0', 2026-11-03,
+rating_wind.py) is the one dark exception: with it on, GFS rating winds read this same lane at their point.
 
 SEAMS (measured 2026-10-09, HRRR 12Z vs NOAA GFS 12Z at f03/f12/f24/f36/f48, 0.25-deg lattice):
   * space: a cos^2 feather over FEATHER_KM inside HRRR's edge, starting past HRRR's own relaxation rows (15 km). The
@@ -357,6 +358,22 @@ def lane_use(vectors, lane, valid, w_t):
     return idx, w, hu, hv, use
 
 
+def blend_vector(wk, h_u, h_v, g_s, g_u, g_v, g_dir):
+    """ONE node's lane blend at HRRR weight `wk`: (speed, u, v, direction-from). SCALAR speed, direction from the blended
+    vector (L-S16). Shared by the map's `_blend` and the rating wind (`rating_wind.py`), so the two cannot drift."""
+    h_s = math.hypot(h_u, h_v)
+    speed = wk * h_s + (1.0 - wk) * g_s
+    bu = wk * h_u + (1.0 - wk) * g_u
+    bv = wk * h_v + (1.0 - wk) * g_v
+    if math.hypot(bu, bv) < 1e-9:                     # opposed and equal: keep the heavier side's bearing
+        bu, bv = (h_u, h_v) if wk >= 0.5 else (g_u, g_v)
+    norm = math.hypot(bu, bv)
+    if norm < 1e-9:
+        return speed, 0.0, 0.0, g_dir
+    u_out, v_out = speed * bu / norm, speed * bv / norm
+    return speed, u_out, v_out, (math.degrees(math.atan2(-u_out, -v_out)) + 360.0) % 360.0
+
+
 def _blend(product, grid, lane, valid, w_t, base):
     import copy
     import numpy as np
@@ -376,21 +393,8 @@ def _blend(product, grid, lane, valid, w_t, base):
         if not getattr(g, "is_valid", True):
             continue
         wk = float(w[k])
-        h_u, h_v = float(hu[k]), float(hv[k])
-        h_s = math.hypot(h_u, h_v)
-        g_s = float(g.speed or 0.0)
-        speed = wk * h_s + (1.0 - wk) * g_s
-        bu = wk * h_u + (1.0 - wk) * float(g.u or 0.0)
-        bv = wk * h_v + (1.0 - wk) * float(g.v or 0.0)
-        if math.hypot(bu, bv) < 1e-9:                     # opposed and equal: keep the heavier side's bearing
-            bu, bv = (h_u, h_v) if wk >= 0.5 else (float(g.u or 0.0), float(g.v or 0.0))
-        norm = math.hypot(bu, bv)
-        if norm < 1e-9:
-            u_out = v_out = 0.0
-            direction = float(g.direction or 0.0)
-        else:
-            u_out, v_out = speed * bu / norm, speed * bv / norm
-            direction = (math.degrees(math.atan2(-u_out, -v_out)) + 360.0) % 360.0
+        speed, u_out, v_out, direction = blend_vector(wk, float(hu[k]), float(hv[k]), float(g.speed or 0.0),
+                                                      float(g.u or 0.0), float(g.v or 0.0), float(g.direction or 0.0))
         out_vectors[i] = g.model_copy(update={"speed": round(speed, 4), "u": round(u_out, 4), "v": round(v_out, 4),
                                               "direction": round(direction, 2)})
         n_full += wk >= 0.9999

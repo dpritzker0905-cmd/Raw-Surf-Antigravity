@@ -408,6 +408,19 @@ async def precompute_spot_ratings(resolver, spots, models, hour_offsets, base_dt
         except Exception as _te:
             logger.warning(f"[spot-ratings] tide pre-warm skipped: {_te}")
 
+    # RATING_WIND_HRRR (dark): load the HRRR lane ONCE, before any spot is rated, so the whole run grades on one cycle.
+    # Fail-OPEN: no lane = today's model wind (each spot's `wind_src` is then absent, so the frames say so).
+    if spots and any((m or "").upper() == "GFS" for m in models):
+        try:
+            from services.weather_pipeline import rating_wind
+            if rating_wind.enabled():
+                _t0 = time.monotonic()
+                _ok = await asyncio.to_thread(rating_wind.preload)
+                logger.info("[spot-ratings] HRRR rating-wind lane %s in %.2f s.",
+                            "loaded" if _ok else "UNAVAILABLE (GFS wind kept)", time.monotonic() - _t0)
+        except Exception as _we:
+            logger.warning(f"[spot-ratings] HRRR rating-wind preload skipped (GFS wind kept): {_we}")
+
     async def _one(resolver, sp, model, vt):
         async with sem:
             return await rate_one_spot(resolver, sp, model, vt, reference_size_m=ref_map.get(str(sp.get("id"))))

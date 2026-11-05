@@ -1,0 +1,9 @@
+{
+  "schema": "raw-surf/flip-candidate/0",
+  "slug": "rating-wind-hrrr",
+  "flags": {"RATING_WIND_HRRR": "1"},
+  "window": {"start": "2026-09-19T00:00Z", "end": "2026-09-29T00:00Z"},
+  "leads": [24, 48, 72],
+  "primary": "hb_proxy",
+  "rationale": "GFS ratings grade on the HRRR wind lane inside CONUS. The harness cannot replay it (eval_replay.UNREPLAYABLE: no lane archive, no wind truth), so this declaration is REFUSED by design; the wind-truth evidence is docs/weather-program/log/2026-11-03-claude-rating-wind-hrrr.md. Declared, not labelled (no flip proposed)."
+}

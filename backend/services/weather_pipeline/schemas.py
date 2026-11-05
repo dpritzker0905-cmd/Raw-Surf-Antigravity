@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator, model_serializer
+from pydantic import BaseModel, Field, PrivateAttr, field_validator, model_serializer
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
@@ -317,6 +317,9 @@ class NormalizedPointResponse(BaseModel):
     # byte-identical: like every Optional field above, the JSON gains a constant `"partitions":
     # null` on flag-off responses — ~18 bytes, no in-repo consumer parses it strictly.)
     partitions: Optional[List[Dict[str, Any]]] = None
+    # RATING_WIND_HRRR provenance (rating_wind.apply_to_wind_point): PRIVATE, so it never reaches the served JSON and
+    # the response is byte-identical while the flag is off; rate_one_spot reads it into `wind_src`.
+    _rating_wind: Optional[Dict[str, Any]] = PrivateAttr(default=None)
 
 
 class ManifestProduct(BaseModel):

@@ -145,6 +145,7 @@ jobs:
           MANIFEST_PUBLISH_ONE_STEP: '1' # ENABLED 2026-10-17 on the owner's explicit word (#350): read-merge-CAS in one step; ALL manifest writers together (forecast-ingest, pilots, precompute, sim-parity-monitor); NOT Render. Kill: set '0' in all four.
           SURF_PARTITIONS: '0'
           SURF_PARTITION_TRACKING: '0'
+          RATING_WIND_HRRR: '0'
           SURF_BIGHT_HS_CONSENSUS: ''  # D-065 GUARDED, ON by code default '1' (services/runtime_flags.GUARDED); '' DEFERS to the runtime kill manifest so the flag guardrail's 'off' reaches this lane. A '0' here is a hard kill for this lane only; kill everywhere = the manifest 'off' (or '0' in every lane AND Render env). Evidence: log 2026-11-03-claude-bight-hs-consensus.md.
           SURF_BIGHT_HS_EURO_WEIGHT: '0.5'  # DECLARED AT DEFAULT (2026-11-04, dark arm option): EURO's weight in the Bight Hs while SURF_BIGHT_HS_CONSENSUS is '1' (0.5 = the equal mean). Moves only with that flag, in the same lanes and Render env together.
           SURF_NEARSHORE_MOP: '0'
