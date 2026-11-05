@@ -18,6 +18,7 @@ import { forecastStateIdentityEnabled } from './map/forecastStateIdentity';
 import { marineValueValidityEnabled } from './map/marinePointValues';
 import { forecastCalendar } from './forecastCalendar';
 import SpotTideBlock from './spot-hub/SpotTideBlock';
+import { SpotChartPanel } from './spot-hub/charts/SpotChartPanel';
 import { displayPeriod, hubForecastWindow, spotHubP1Enabled, splitForecastWindow } from './spot-hub/spotHubP1';
 
 // Emoji constants -- using String.fromCodePoint to prevent encoding corruption
@@ -92,7 +93,7 @@ export const confidenceLabel = (fc) => {
     : `Forecast confidence: ${word}. Ensemble members differ by about ${pct}% of the forecast wave height. This describes confidence in the forecast, not surf quality, and does not change the rating.`;
 };
 
-export const SpotConditions = ({ spotId, spotName, compact = false }) => {
+export const SpotConditions = ({ spotId, spotName, compact = false, timeOffsetHours = 0, onSelectOffset = null }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const t = getThemeTokens(theme);
@@ -367,8 +368,11 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
       {/* Tide Data Section: shared with the full hub (spot-hub/SpotTideBlock), ONE tide source */}
       <SpotTideBlock tideData={tideData} t={t} containerBorder={containerBorder} />
 
-      {/* Forecast Section - Tiered Access (the window is the resolver's; phase 1 counts what it opens) */}
-      {forecast.length > 0 && (
+      {/* Forecast: Raw Surf's own chart (phase 4) when the spot's series is published; else the tiered rows */}
+      <SpotChartPanel spotId={spotId} user={user} model={forecastWindow.model} selectedOffsetHours={timeOffsetHours}
+        onSelectOffset={onSelectOffset} onUpgrade={() => { window.location.href = '/settings?tab=billing'; }}
+        className={`border-t ${containerBorder} px-4 py-3`}
+        fallback={forecast.length > 0 && (
         <div className={`border-t ${containerBorder}`}>
           <button aria-label={p1 ? `Surf forecast, ${openCount} day${openCount === 1 ? '' : 's'}` : 'Calendar'}
             aria-expanded={p1 ? forecastExpanded : undefined}
@@ -467,7 +471,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
             </div>
           )}
         </div>
-      )}
+      )} />
 
       {/* Community Reports Section */}
       <div className={`border-t ${containerBorder}`}>

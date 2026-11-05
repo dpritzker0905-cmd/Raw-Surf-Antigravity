@@ -79,7 +79,9 @@ const SpotReportContent = ({
 
       {/* Surf Conditions - Always visible */}
       <div className="px-4">
-        <SpotConditions spotId={spot?.id} spotName={spot?.name} />
+        <SpotConditions spotId={spot?.id} spotName={spot?.name} timeOffsetHours={timeOffsetHours}
+          // The chart's bar choice moves the map's scrubber (MapPage exposes its setter on window).
+          onSelectOffset={(h) => { if (typeof window !== 'undefined' && typeof window.setTimeOffsetHours === 'function') window.setTimeOffsetHours(h); }} />
         
         {/* Targeted Spot AI Scan Feature */}
         {user && (

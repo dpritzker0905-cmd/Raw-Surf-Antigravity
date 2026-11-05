@@ -1955,3 +1955,28 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Re-scored offline (cached rows only, no GRIB):** `evidence/2026-11-04-harness-two-way-gate/rescore.json`. Changed: SURF_SPECTRAL_K (#706) hs_station PASS -> REFUSED (its window has 10 days); SURF_EXPOSURE_RECONCILED hb_proxy (advisory) FAIL -> REFUSED (underpowered). Unchanged: SURF_EXPOSURE_RECONCILED hs_station FAIL, SURF_TIDE_DEPTH / RATING_BREAKER_TYPE REFUSED, SURF_BIGHT_HS_CONSENSUS (#707 h5) hs_station PASS (two-way [0.067, 0.216], 2 blocks x 14 days).
 - **Evidence:** `log/2026-11-04-claude-harness-two-way-gate.md`; `backend/tests/test_eval_twoway.py`.
 - **Rollback:** revert the PR (the gate returns to the station-cluster rule).
+
+### D-069 · SURF_NEARSHORE_MOP ships ON for the EURO member: California spots break from CDIP MOP's ECMWF-driven nearshore forecast (2026-11-05, proposed)
+- **Scope: EURO only** (`mop_serving.MOP_MEMBERS`). The product is ECMWF-driven, so it is EURO's nearshore. GFS and ICON keep their own chain. That keeps the model picker meaningful, keeps RATING_OBS_GATE's ">= 2 of 3 agree" a test of independent members, and keeps the member spread an honest uncertainty. Owner, 2026-11-05: "yes" to this scoping.
+- **Open:** the judge's evidence below is MOP vs the served bulk chain, not vs EURO's own chain specifically. Confirm the EURO-vs-MOP comparison after merge. Also find MOP's forecast horizon and whether the hand-off to EURO's chain at its end needs a taper.
+- **Decided:** under D-065, on the owner's word ("switch things on that help us and make sense logically",
+  2026-11-05). The code default is `'1'` (runtime_flags.GUARDED), and the kill switch is `'0'` (env, any lane, or the
+  runtime manifest the guardrail writes). The owner merges.
+- **Evidence:** the nearshore judge's archived MOP-grid arm, 86 scheduled runs from 2026-10-09 to 11-04, graded at
+  CDIP buoys' depth on QC-good observations.
+  - MAE 0.250 → 0.096 m; bias −0.175 → −0.011 m.
+  - Better in 86/86 runs and 27/27 days.
+  - 5-day storm-block gains: mean +0.179 m, t(5) 95% [0.128, 0.230].
+  - Source: `evidence/2026-11-05-nearshore-mop/judge-grid-arm.json`.
+  - Corroborated at Rodeo (#727 log §8): against CDIP's buoy-driven reference, GFS-driven K is the defect.
+- **Why this is state of the art:** MOP is CDIP's operational California nearshore system: spectral refraction from
+  a global model's boundary spectra, validated at CDIP buoys (O'Reilly et al. 2016; Behrens et al. 2024).
+- **Limits (stated):**
+  - It is graded at buoys, before breaking. The breaking step is the chain's own (`estimate_surf_from_nearshore`).
+  - Sheltered spots (Fort Point, Rincon, Leadbetter, Sands) have no spot truth; refraction-only models are weakest
+    there (O'Reilly 1993).
+  - Hours beyond MOP's forecast horizon, and uncovered spots, keep the parametric chain. So does every failure:
+    `mop_serving` never raises.
+  - The pooled n double-counts overlapping backfill hours.
+- **Supersedes:** the STATE note "flip waits on spot observations", a D-001-era hold.
+- **Rollback:** `SURF_NEARSHORE_MOP=0` (env or manifest), or revert the PR.
