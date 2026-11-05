@@ -186,3 +186,31 @@ and the magnet factor. Only shoaling, Komar breaking and the depth cap remain.
 **Implication.** Re-scoping K (dropping Rodeo) would hide the defect. The targeted next step is item 3 of the plan:
 feed K a measured directional spectrum (spread and direction) instead of the partition rebuild. A cheap offline
 pre-check comes first: how Rodeo's K ratio moves with the assumed spread s.
+
+## 6. Item 2 (a regional bias correction): stopped at stage A, not built
+
+The owner approved stages A-C, with a stop after any stage that fails. Stage A was answered from committed data, at
+no cost: `flip-candidates/scorecards/round7/history-gate-2026-11-04.json`, the BHC arms scored with an EURO input
+substitution.
+
+**Inside the Bight, BHC already removes the offset a correction would target:**
+
+| quantity (Bight) | before BHC | after BHC (w 0.5, production) | EURO weight 1.0 (a stronger push) |
+|---|---|---|---|
+| hs_station bias | −0.353 m | −0.168 m | — |
+| hs_offshore bias | −0.36 m | −0.159 m | +0.041 m |
+| hb_proxy bias | −0.322 m | +0.040 m | +0.371 m |
+| hs_offshore gain | — | +0.155 m | +0.136 m |
+
+The stronger push removed nearly all the remaining offshore bias but did not reduce error, and it pushed breaking
+heights high. What remains is scatter, not an offset.
+
+**Outside the Bight, the station set cannot support a correction.** It has only two CDIP buoys, with opposite signs:
+142p1 hs_station −0.395 m, 285p1 +0.472 m (headland-sheltered). One regional constant cannot fit both; two points
+cannot fit a per-site model.
+
+**The replay cannot see BHC** (no EURO archive: `eval_replay` marks it inert). A correction fitted on replay data
+would double-correct the Bight in production.
+
+**Decision:** item 2 is not pre-registered, built or scored. No PR was opened; nothing runs. Revisit only with more
+outside-Bight truth stations, or once K's input defect (§5) is fixed.
