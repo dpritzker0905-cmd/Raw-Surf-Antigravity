@@ -503,6 +503,7 @@ def test_fetch_l2_tells_an_absent_object_from_an_unreadable_one(monkeypatch):
     import scripts.forecast_accuracy_monitor as fam
     monkeypatch.setenv("SUPABASE_URL", "https://storage.example.invalid")
     monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-not-a-key")
+    monkeypatch.setattr(fam, "_sleep", lambda s: None)
     unreadable = [
         _http_error(503, {}),
         _http_error(400, {"statusCode": "400", "code": "InvalidJWT", "message": "Invalid JWT"}),
