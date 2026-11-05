@@ -126,7 +126,7 @@ jobs:
           SPOT_RATINGS_PRECOMPUTE: '1'
           SPOT_RATINGS_PRECOMPUTE_MODELS: 'GFS,EURO,ICON'  # precompute glyphs for all 3 models (match forecast-ingest)
           RATING_TIDE: '1'              # 2026-07-18 SOTA-gap #1 flip (match forecast-ingest): tide state on every rated spot + tide_fit where a best_tide prior exists; batched pre-warm keeps it ~10 requests/run. Kill: '0'.
-          SURF_NEARSHORE_MOP: '0'       # DECLARED AT DEFAULT (2026-09-27, roadmap stage 4) — flip ONLY together with forecast-ingest.yml AND Render env.
+          SURF_NEARSHORE_MOP: ''  # D-065 GUARDED, ON by code default '1' since 2026-11-05 (services/runtime_flags.GUARDED; nearshore judge MAE 0.250 -> 0.096 m at CDIP buoys, 86/86 runs); '' DEFERS to the runtime kill manifest so the flag guardrail's 'off' reaches this lane. A '0' here is a hard kill for this lane only.
           SURF_STRICT_AVAILABILITY: '0' # Dark: unknown sea must not become Flat
           SURF_REQUESTED_HORIZON: '0' # Dark: request-scoped spot forecast work
           COPERNICUS_TERMINAL_TIME_GUARD: '0' # Dark: fail once for dataset-wide temporal bounds
