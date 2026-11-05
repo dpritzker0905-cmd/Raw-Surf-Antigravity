@@ -96,6 +96,39 @@ def max_per_user_day() -> int:
     return _env_int("ALERTS_MAX_PER_USER_DAY", 2, 0, 24)
 
 
+def _env_float(name: str, default: float, lo: float, hi: float) -> float:
+    try:
+        value = float(os.environ.get(name, str(default)))
+    except (TypeError, ValueError):
+        return default
+    return default if not (math.isfinite(value) and lo <= value <= hi) else value
+
+
+# ── PRECISION LEVERS (pre-registered 2026-11-04: docs/weather-program/evidence/2026-11-04-alert-accuracy/) ──
+def peer_agreement_enabled() -> bool:
+    """L1: a window is sent only if a PEER lane of the same horizon (the producer rates every
+    SPOT_RATINGS_PRECOMPUTE_MODELS lane) finds an overlapping window (>= PEER_MIN_OVERLAP_H). Fail open when no
+    peer lane has frames for the spot."""
+    return os.environ.get("ALERTS_PEER_AGREEMENT", "0") == "1"
+
+
+PEER_MIN_OVERLAP_H = 1
+
+
+def lead_margin_scale() -> float:
+    """L2: margins on the size band and the wind classes that grow with lead (x lead / 24 h). 0 = off."""
+    return _env_float("ALERTS_LEAD_MARGIN", 0.0, 0.0, 4.0)
+
+
+def lead_hysteresis_enabled() -> bool:
+    """L3: a window starting >= 6 h ahead must also be in the previous 1 (6-18 h) or 2 (>= 18 h) cycles."""
+    return os.environ.get("ALERTS_LEAD_HYSTERESIS", "0") == "1"
+
+
+def hysteresis_cycles(start_lead_h: float) -> int:
+    return 0 if start_lead_h < 6 else (1 if start_lead_h < 18 else 2)
+
+
 def min_level() -> str:
     value = os.environ.get("ALERTS_WINDOW_MIN_LEVEL", "fair")
     return value if value in SR.LEVELS else "fair"
@@ -167,8 +200,10 @@ def _finite(x) -> bool:
     return isinstance(x, (int, float)) and not isinstance(x, bool) and math.isfinite(x)
 
 
-def wind_classes(entry: Dict[str, Any]) -> Optional[set]:
-    """The condition ids this hour's served wind satisfies, or None when the frame has no wind."""
+def wind_classes(entry: Dict[str, Any], margin: float = 0.0) -> Optional[set]:
+    """The condition ids this hour's served wind satisfies, or None when the frame has no wind. `margin` (L2,
+    lead / 24 x scale) tightens the FAVOURABLE classes: light-wind < 10 - 1.0 m kt, clean < 5 - 0.5 m kt or
+    offshore <= 20 - 1.0 m kt, offshore needs offshoreness > 0.34 + 0.05 m."""
     inputs = entry.get("inputs") or {}
     ms, frm, normal = inputs.get("wind_ms"), inputs.get("wind_from_deg"), inputs.get("shore_normal_deg")
     if not _finite(ms):
@@ -177,23 +212,25 @@ def wind_classes(entry: Dict[str, Any]) -> Optional[set]:
     out = set()
     if kt < GLASSY_KT:
         out |= {"glassy", "no-wind"}
-    if kt < LIGHT_WIND_KT:
+    if kt < LIGHT_WIND_KT - 1.0 * margin:
         out.add("light-wind")
     off = SR.offshoreness(frm, normal) if _finite(frm) and _finite(normal) else None
+    split = DIRECTION_SPLIT + 0.05 * margin
     if off is not None:
-        out.add("offshore" if off > DIRECTION_SPLIT else ("onshore" if off < -DIRECTION_SPLIT else "cross-shore"))
-    clean = kt < CLEAN_CALM_KT or (off is not None and off > DIRECTION_SPLIT and kt <= CLEAN_OFFSHORE_MAX_KT)
+        out.add("offshore" if off > split else ("onshore" if off < -DIRECTION_SPLIT else "cross-shore"))
+    offshore_clean = off is not None and off > split and kt <= CLEAN_OFFSHORE_MAX_KT - 1.0 * margin
+    clean = kt < CLEAN_CALM_KT - 0.5 * margin or offshore_clean
     out.add("clean" if clean else "choppy")
     return out
 
 
-def conditions_ok(entry: Dict[str, Any], wanted: Iterable[str]) -> bool:
+def conditions_ok(entry: Dict[str, Any], wanted: Iterable[str], margin: float = 0.0) -> bool:
     wanted = set(wanted)
     axes = [set(ids) & wanted for ids in CONDITION_AXES.values()]
     axes = [a for a in axes if a]
     if not axes:
         return True
-    have = wind_classes(entry)
+    have = wind_classes(entry, margin)
     if have is None:
         return False   # unknown wind never satisfies a wind preference (fail safe)
     if any(not (a & have) for a in axes):
@@ -222,11 +259,15 @@ def tide_ok(entry: Dict[str, Any], states: Iterable[str]) -> bool:
     return True
 
 
-def size_ok(entry: Dict[str, Any], low, high) -> bool:
+def size_ok(entry: Dict[str, Any], low, high, margin: float = 0.0) -> bool:
+    """Breaking height in [low, high] ft; `margin` (L2) narrows the band to [low x (1 + 0.1 m), high x (1 - 0.1 m)]."""
     h = entry.get("surf_height_m")
     if not _finite(h) or h < 0:
         return False
     ft = h * M_TO_FT
+    if margin:
+        low = None if low is None else low * (1 + 0.10 * margin)
+        high = None if high is None else high * (1 - 0.10 * margin)
     return not ((low is not None and ft < low) or (high is not None and ft > high))
 
 
@@ -327,6 +368,7 @@ def find_windows(alert, spot, series, now: datetime, horizon_hours: int, step_h:
     conds = _as_list(getattr(alert, "preferred_conditions", None))
     low, high = getattr(alert, "min_wave_height", None), getattr(alert, "max_wave_height", None)
     floor = min_level()
+    scale = lead_margin_scale()
     start = now.astimezone(timezone.utc).replace(minute=0, second=0, microsecond=0)
     end = now + timedelta(hours=horizon_hours)
     windows, run, known = [], [], 0
@@ -336,13 +378,14 @@ def find_windows(alert, spot, series, now: datetime, horizon_hours: int, step_h:
         if entry is not None:
             known += 1
         local = slot + timedelta(hours=off_h)
+        m = scale * max(0.0, (slot + timedelta(minutes=30) - now).total_seconds() / 3600.0) / 24.0 if scale else 0.0
         ok = (entry is not None and slot + timedelta(hours=1) > now
               and daylit(lat, lng, slot)
               and in_time_windows(local.hour, tw)
-              and size_ok(entry, low, high)
+              and size_ok(entry, low, high, m)
               and level_ok(entry, floor)
               and tide_ok(entry, tides)
-              and conditions_ok(entry, conds))
+              and conditions_ok(entry, conds, m))
         if ok and (not run or local.date() == (run[-1][0] + timedelta(hours=off_h)).date()):
             run.append((slot, entry))
         else:
@@ -452,8 +495,48 @@ def window_message(spot_name: str, window: Dict[str, Any]) -> str:
             f"{height}, {level}")
 
 
+def overlap_h(window: Dict[str, Any], span: Tuple[datetime, datetime]) -> float:
+    a, b = parse_time(window["start"]), parse_time(window["end"])
+    return max(0.0, (min(b, span[1]) - max(a, span[0])).total_seconds() / 3600.0)
+
+
+def _spans(alert, spot, horizon, model, now, hours) -> Optional[List[Tuple[datetime, datetime]]]:
+    """The windows one lane of `horizon` finds for this alert, as (start, end); None when it has no frames."""
+    series = spot_series(horizon, model, getattr(alert, "spot_id", None))
+    if not series:
+        return None
+    found = find_windows(alert, spot, series, now, hours, float(horizon.get("step_h") or 1.0))["windows"]
+    return [(parse_time(w["start"]), parse_time(w["end"])) for w in found]
+
+
+def peer_agrees(window, alert, spot, horizon, model, available, now, hours) -> Optional[bool]:
+    """L1. True/False when at least one peer lane has frames for the spot; None (not gated) when none has."""
+    verdicts = []
+    for peer in available:
+        if str(peer).upper() == model:
+            continue
+        spans = _spans(alert, spot, horizon, str(peer).upper(), now, hours)
+        if spans is None:
+            continue
+        verdicts.append(any(overlap_h(window, s) >= PEER_MIN_OVERLAP_H for s in spans))
+    return any(verdicts) if verdicts else None
+
+
+def seen_in_prior(window, alert, spot, prior, model, now, hours) -> bool:
+    """L3. The window overlaps a window of each of the previous hysteresis_cycles(start lead) cycles' horizons
+    (newest first). Too few prior cycles known -> not yet (it is sent once it is near, or the cycles arrive)."""
+    need = hysteresis_cycles((parse_time(window["start"]) - now).total_seconds() / 3600.0)
+    if need > len(prior):
+        return False
+    for hz in list(prior)[:need]:
+        spans = _spans(alert, spot, hz, model, now, hours) or []
+        if not overlaps(window, spans):
+            return False
+    return True
+
+
 def decide(alert, spot, horizon: Optional[Dict[str, Any]], now: datetime, *, notified=(),
-           subscription_tier=None, lane=None, capabilities=None) -> Dict[str, Any]:
+           subscription_tier=None, lane=None, capabilities=None, prior=()) -> Dict[str, Any]:
     """The whole decision for one alert. Fails SAFE: every path without a trustworthy forecast returns
     fire=False with a reason the scheduler logs. Never raises on bad data.
 
@@ -488,4 +571,13 @@ def decide(alert, spot, horizon: Optional[Dict[str, Any]], now: datetime, *, not
         fresh = [w for w in due if not overlaps(w, notified)]
     if not fresh:
         return {"fire": False, "reason": "already_notified", **base}
+    if peer_agreement_enabled():
+        kept = [w for w in fresh if peer_agrees(w, alert, spot, horizon, model, available, now, hours) is not False]
+        if not kept:
+            return {"fire": False, "reason": "peer_lane_disagrees", **base}
+        fresh = kept
+    if lead_hysteresis_enabled():
+        fresh = [w for w in fresh if seen_in_prior(w, alert, spot, prior, model, now, hours)]
+        if not fresh:
+            return {"fire": False, "reason": "awaiting_consistent_cycles", **base}
     return {"fire": True, "reason": "window_found", "window": fresh[0], **base}
