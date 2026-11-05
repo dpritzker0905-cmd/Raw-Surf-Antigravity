@@ -95,8 +95,8 @@ jobs:
           POINT_BATCH_NATIVE_COPERNICUS: '1'
           POINT_CACHE_MAX: '6000'
           SURF_BIGHT_HS_CONSENSUS: ''         # mirrors precompute.yml: '' hands the guarded flag to the runtime manifest
-          SURF_SPECTRAL_K: ''                 # mirrors precompute.yml: '' hands the guarded flag to the runtime manifest (code default '1', rework #727)
-          SURF_SPECTRAL_K_ALL_SPOTS: '0'      # mirrors precompute.yml: '0' = the sheltered scope (D-067)
+          SURF_SPECTRAL_K: '0'                # mirrors precompute.yml: DECLARED AT DEFAULT, OFF (rework #727 re-test on fresh data, 2026-11-05)
+          SURF_SPECTRAL_K_ALL_SPOTS: '0'      # mirrors precompute.yml: '0' = the sheltered scope (moves only with SURF_SPECTRAL_K)
           SURF_BIGHT_HS_EURO_WEIGHT: '0.5'
           # The series reaches +336 h, so warm the whole horizon (precompute warms 1 day: it rates +0/+3 h).
           PREFETCH_WINDOW_DAYS: '15'

@@ -85,12 +85,12 @@ async def test_a_bight_spot_keeps_the_bulk_chain_unless_all_spots(clean):
 
 
 @pytest.mark.asyncio
-async def test_a_sheltered_spot_takes_k_by_default_and_the_kill_switch_restores_bulk(clean):
+async def test_a_sheltered_spot_takes_k_and_only_with_the_flag(clean):
     e = _entry("Pismo Beach Pier")
+    assert await S.nearshore_for_point("GFS", e["lat"], e["lng"], VT, raw) is None, "flag off"
+    clean.setenv("SURF_SPECTRAL_K", "1")
     sea = await S.nearshore_for_point("GFS", e["lat"], e["lng"], VT, raw)
-    assert sea and sea["region"] == "central" and 0 < sea["hs"] < 3, "default ON (D-065)"
-    clean.setenv("SURF_SPECTRAL_K", "0")
-    assert await S.nearshore_for_point("GFS", e["lat"], e["lng"], VT, raw) is None, "the kill switch"
+    assert sea and sea["region"] == "central" and 0 < sea["hs"] < 3
 
 
 @pytest.mark.asyncio

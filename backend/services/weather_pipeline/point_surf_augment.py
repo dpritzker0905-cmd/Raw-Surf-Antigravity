@@ -166,7 +166,7 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
                     _near = await nearshore_for_point(lat, lng, valid_time_str)
                 except Exception as _ne:
                     logger.warning(f"[Surf v3] MOP nearshore unavailable at ({lat},{lng}); parametric kept: {_ne!r}")
-            # ── SURF_SPECTRAL_K (default ON, sheltered scope, since the rework #727 passed; #706's all-spots scope FAILED round 7): CDIP MOP's published ray K on the member's partitions at the
+            # ── SURF_SPECTRAL_K (default OFF again 2026-11-04: FAIL on the round-7 history test, PR #722): CDIP MOP's published ray K on the member's partitions at the
             # region's open-ocean read point (spectral_k_serving). Same site, same breaking step (`nearshore=`), its
             # own try, fail-open. `resolve_raw` resolves WITHOUT this augmentation, so the read point cannot recurse.
             _near_k = None
@@ -175,7 +175,7 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
             # monkeypatch, is unchanged.
             if resolve_raw is None:
                 resolve_raw = getattr(getattr(resolve_partitions, "__self__", None), "_resolve_raw", None)
-            if _near is None and _rf.on("SURF_SPECTRAL_K") and resolve_raw is not None:
+            if _near is None and os.environ.get("SURF_SPECTRAL_K", "0") == "1" and resolve_raw is not None:
                 try:
                     from services.weather_pipeline.spectral_k_serving import nearshore_for_point as _k_for_point
                     _near_k = await _k_for_point(model, lat, lng, valid_time_str, resolve_raw)

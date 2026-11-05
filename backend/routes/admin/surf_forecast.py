@@ -451,11 +451,8 @@ _RATING_FLAGS = {
     # does not ship on): CDIP MOP's published per-point ray K (R_CA_coefficients, committed table built offline by
     # scripts/build_spectral_k_tables.py) on the member's partitions at one open-ocean read point per region, into
     # the existing breaking step. California spots with a shoreFlag-1 MOP point within 1 km only; else bulk.
-    "SURF_SPECTRAL_K":             ("1", "[D-065 GUARDED, ON since the sheltered-scope rework #727 PASSED: hs_station "
-                                         "+0.312 m two-way [0.218, 0.406] at the Avila buoy] Headland-sheltered "
-                                         "California spots outside the Bight break from CDIP MOP's ray K applied to "
-                                         "the member's partitions at one open-ocean read point per region (all "
-                                         "surfaces); kill switch '0'",
+    "SURF_SPECTRAL_K":             ("0", "California spots break from CDIP MOP's ray K applied to the member's "
+                                         "partitions at one open-ocean read point per region (all surfaces)",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
     "SURF_SPECTRAL_K_ALL_SPOTS":   ("0", "Where SURF_SPECTRAL_K applies: '0' = only headland-sheltered points outside "
                                          "the Bight, K ratio < 0.5 for a 14 s 290 deg swell (rework 2026-11-04); "

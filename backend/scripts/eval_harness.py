@@ -30,7 +30,6 @@ REPO = os.path.dirname(BACKEND)
 if BACKEND not in sys.path:
     sys.path.insert(0, BACKEND)
 
-from services import runtime_flags as _rf  # noqa: E402
 from services.weather_pipeline import eval_gate as eg  # noqa: E402
 from services.weather_pipeline import eval_gfswave as gw  # noqa: E402
 from services.weather_pipeline import eval_provenance as pv  # noqa: E402
@@ -242,10 +241,7 @@ def run(args, get=pv.http_get, fields_fn=gw.fetch_fields, cfg=None) -> dict:
     t_lo = embargo[0] - timedelta(days=args.clim_days)
     t_hi = end + timedelta(hours=2)
     truth, truth_summary, hull_of = stage_truth(cache, stations, t_lo, t_hi, args.out)
-    # SURF_SPECTRAL_K is GUARDED (D-065): an empty lane value defers to the code default, so the replay asks for the
-    # read-point partitions whenever the EFFECTIVE value of any arm is '1'.
-    kread = any((dict(served["env"], **d).get("SURF_SPECTRAL_K") or _rf.GUARDED.get("SURF_SPECTRAL_K", "0")) == "1"
-                for _, d in deltas)
+    kread = any(dict(served["env"], **d).get("SURF_SPECTRAL_K", "0") == "1" for _, d in deltas)
     jobs, fc = stage_forecast(cache, stations, targets, leads, args.out, fields_fn, args.wind_source, args.decoder,
                               kread=kread)
     tides = rp.TideSeries(cache, min(j["cycle"] for j in jobs) if jobs else start, end, enabled=not args.no_tide)

@@ -56,7 +56,12 @@ Controls on both quantities: null REFUSED, x0.8 PASS, x1.25 FAIL. Full JSON:
   scope is the next test if the guardrail or a Bay buoy says so.
 - The all-spots reference reproduces round 7 (Bight buoys flip from -0.3 m to +0.3 m bias): the diagnosis holds.
 
-## 4. Outcome: ships ON (D-065), per the pre-registered rule
+## 4. Outcome: ships ON (D-065), per the pre-registered rule — ⚠️ WITHDRAWN 2026-11-05
+
+Review of #727 found three problems: the scope was picked on inspected data, the windows overlap earlier tests,
+and the days were treated as independent. The flip below was reverted before merge (default `'0'`, not GUARDED).
+The binding test is `2026-11-05-claude-spectral-k-fresh-retest.md`. The text below is the record of what was
+proposed.
 
 - `runtime_flags.GUARDED["SURF_SPECTRAL_K"] = "1"`; every read goes through `_rf.on` (`spectral_k_serving.enabled`,
   `point_surf_augment`, `eval_replay`); the harness asks for the read-point span whenever the EFFECTIVE value is '1'.
