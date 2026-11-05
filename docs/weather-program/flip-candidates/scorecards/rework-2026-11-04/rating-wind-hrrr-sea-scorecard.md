@@ -15,6 +15,7 @@ Per season, A1: W1 +0.76 [-0.89, 2.40], W4 -0.50 [-1.87, 0.87], W26 -0.24 [-1.24
 
 Controls: x0.8 PASS [0.93, 2.48], x1.25 FAIL [-3.11, -1.16]. The null read FAIL [0, 0] in the first run because of a
 scorer rounding bug (null built as truth + 1.0 x (gfs - truth)); fixed to cand = gfs bit for bit as pre-registered and
-re-run on the cached inputs (see PR #728's comment for that run). The arms do not depend on the controls.
+re-run on the cached inputs: run 41950428464 (head 30cde870), controls_ok true (null REFUSED, x0.8 PASS
+[0.93, 2.48], x1.25 FAIL [-3.11, -1.16]); every arm number identical to the first run.
 
 Verdict: RATING_WIND_HRRR stays '0'. No served number moves.

@@ -49,8 +49,8 @@ for W1 and W4; 46026 (obsf) none in W1. So W1 and W4 are East + Gulf + (W4) obsf
 `truth + 1.0 x (gfs - truth)`, which is not bit-identical to `gfs`, so 5,366 rows counted as "moved" by rounding.
 That is a scorer bug against the pre-registration (null = cand = gfs), not a property of any arm: the arms' numbers
 do not depend on the controls. Fixed (`control_fn`, regression test `test_scorer_null_control_is_the_baseline_bit_for_bit`)
-and the gate re-run on the cached inputs; see the PR comment for that run's controls (null REFUSED, x0.8 PASS, x1.25
-FAIL expected). The x0.8 and x1.25 controls behaved in the first run (PASS [0.93, 2.48], FAIL [-3.11, -1.16]).
+and the gate re-run on the cached inputs: run 41950428464 (head 30cde870), controls_ok true (null REFUSED, x0.8 PASS
+[0.93, 2.48], x1.25 FAIL [-3.11, -1.16]); every arm number identical to the first run.
 
 ## Diagnosis
 
