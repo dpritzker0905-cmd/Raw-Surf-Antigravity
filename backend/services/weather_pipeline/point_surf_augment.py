@@ -159,11 +159,13 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
             # ── ROADMAP STAGE 4: CDIP MOP'S NEARSHORE SEA (SURF_NEARSHORE_MOP, D-065 guarded, default ON since 2026-11-05) ──
             # Resolved HERE, at the one site `surf_height_m` is produced, for the reason tide and the
             # partitions are: glyphs, the hub and the sim inherit one input. Its own try, fail-open.
+            # EURO ONLY (mop_serving.MOP_MEMBERS): the product is ECMWF-driven, so it is the EURO member's
+            # nearshore. GFS and ICON keep their own chain, and the three members stay independent.
             _near = None
-            if _rf.on("SURF_NEARSHORE_MOP"):
+            from services.weather_pipeline import mop_serving as _mop
+            if _rf.on("SURF_NEARSHORE_MOP") and _mop.applies_to(model):
                 try:
-                    from services.weather_pipeline.mop_serving import nearshore_for_point
-                    _near = await nearshore_for_point(lat, lng, valid_time_str)
+                    _near = await _mop.nearshore_for_point(lat, lng, valid_time_str)
                 except Exception as _ne:
                     logger.warning(f"[Surf v3] MOP nearshore unavailable at ({lat},{lng}); parametric kept: {_ne!r}")
             surf, regime = estimate_surf_at(lat, lng, response.point.speed, response.point.period,

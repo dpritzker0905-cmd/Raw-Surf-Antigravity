@@ -31,6 +31,18 @@ _spots = None                # [(lat, lng, spot_id)] from the committed table, l
 _blob = (0.0, None)          # (loaded_at, blob)
 
 
+# THE THREE-MODEL DESIGN (2026-11-05): the MOP forecast this module serves is ECMWF-driven (`<label>_ecmwf_fc`), so it is
+# the EURO member's nearshore, not every model's. GFS and ICON keep their own chain at every spot: the model picker stays
+# meaningful, RATING_OBS_GATE's ">= 2 of 3 models agree" stays a test of INDEPENDENT members, and the member spread
+# stays an honest uncertainty. Widen this set only with a MOP product driven by that model.
+MOP_MEMBERS = frozenset({"EURO"})
+
+
+def applies_to(model) -> bool:
+    """True when `model` is a member whose nearshore this ECMWF-driven product is (see MOP_MEMBERS). PURE."""
+    return str(model or "").upper() in MOP_MEMBERS
+
+
 def enabled() -> bool:
     """D-065 guarded (env > runtime manifest > code default '1', ON since 2026-11-05); '0' is the kill switch."""
     from services import runtime_flags as _rf

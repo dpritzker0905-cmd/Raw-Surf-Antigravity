@@ -41,3 +41,24 @@ built but dark.
 ## Not done
 
 Nothing merged, no deploy, no env or secret change. `SURF_SPECTRAL_K` stays OFF (#727).
+
+## Update: scoped to the EURO member (owner: "yes", 2026-11-05)
+
+As first built, the flag was model-blind (`nearshore_for_point` takes no model). Every member at a covered California
+spot would have shown the same ECMWF-driven height. That would have:
+- emptied the model picker of meaning there;
+- let RATING_OBS_GATE's ">= 2 of 3 models agree" pass on one shared input;
+- collapsed the member spread.
+
+Fix: `mop_serving.MOP_MEMBERS = {"EURO"}` and `applies_to(model)`. `point_surf_augment` asks MOP only for EURO.
+
+Tests:
+- `test_gfs_and_icon_keep_their_own_chain_the_three_members_stay_independent` (GFS, ICON): never asks MOP, stays
+  parametric;
+- the existing flag-on test now runs as EURO.
+
+The chain floor was re-derived with `--add 3`.
+
+Still open:
+- the judge compared MOP with the served bulk chain; the EURO-chain-vs-MOP comparison needs confirming;
+- MOP's forecast horizon, and the hand-off to EURO's chain at its end.

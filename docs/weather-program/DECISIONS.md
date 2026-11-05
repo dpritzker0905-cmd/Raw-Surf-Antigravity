@@ -1956,7 +1956,9 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Evidence:** `log/2026-11-04-claude-harness-two-way-gate.md`; `backend/tests/test_eval_twoway.py`.
 - **Rollback:** revert the PR (the gate returns to the station-cluster rule).
 
-### D-069 · SURF_NEARSHORE_MOP ships ON: California spots break from CDIP MOP's nearshore forecast (2026-11-05, proposed)
+### D-069 · SURF_NEARSHORE_MOP ships ON for the EURO member: California spots break from CDIP MOP's ECMWF-driven nearshore forecast (2026-11-05, proposed)
+- **Scope: EURO only** (`mop_serving.MOP_MEMBERS`). The product is ECMWF-driven, so it is EURO's nearshore. GFS and ICON keep their own chain. That keeps the model picker meaningful, keeps RATING_OBS_GATE's ">= 2 of 3 agree" a test of independent members, and keeps the member spread an honest uncertainty. Owner, 2026-11-05: "yes" to this scoping.
+- **Open:** the judge's evidence below is MOP vs the served bulk chain, not vs EURO's own chain specifically. Confirm the EURO-vs-MOP comparison after merge. Also find MOP's forecast horizon and whether the hand-off to EURO's chain at its end needs a taper.
 - **Decided:** under D-065, on the owner's word ("switch things on that help us and make sense logically",
   2026-11-05). The code default is `'1'` (runtime_flags.GUARDED), and the kill switch is `'0'` (env, any lane, or the
   runtime manifest the guardrail writes). The owner merges.
