@@ -117,17 +117,22 @@ jobs:
           a = []
           for w in sorted(d["windows"]):
               a += ["--win", f"{w}={t}/wins/rework-window-{w}"]
-          for x in d["gate_arms"]:
-              a += ["--arm", x]
-          for x in d.get("reference_arms", []):
-              a += ["--reference-arm", x]
-          for q in d.get("quantities", ["hs_station"]):
-              a += ["--quantity", q]
+          if d.get("protocol") == "storm-v1":
+              # PR #727 re-test: the storm-block gate (scripts/rework_storm_gate.py), ONE candidate arm.
+              a = ["scripts/rework_storm_gate.py"] + a + ["--arm", d["gate_arms"][0], "--rodeo", d.get("rodeo", "142p1")]
+          else:
+              a = ["scripts/rework_gate.py"] + a
+              for x in d["gate_arms"]:
+                  a += ["--arm", x]
+              for x in d.get("reference_arms", []):
+                  a += ["--reference-arm", x]
+              for q in d.get("quantities", ["hs_station"]):
+                  a += ["--quantity", q]
           a += ["--ref", d.get("ref", "served"), "--stations", "../" + d["stations"], "--out", f"{t}/gate.json"]
           print(" ".join(shlex.quote(x) for x in a))
           PY
           )
-          eval python scripts/rework_gate.py $args
+          eval python $args
           cat "$RUNNER_TEMP/gate.md" >> "$GITHUB_STEP_SUMMARY"
       - name: Upload the gate
         if: always()
