@@ -1,0 +1,732 @@
+{
+ "source": "GitHub Actions run 41958242376 (rework-score.yml, head 9c4e3c14), gate job 127043248151, copied verbatim from the log between GATE_JSON_BEGIN / GATE_JSON_END",
+ "gate": {
+  "schema": "raw-surf.rework-storm-gate.v1",
+  "protocol": "storm-v1",
+  "storm_days": 5,
+  "generated_utc": "2026-11-05T04:13Z",
+  "windows": {
+   "F1": "/home/runner/work/_temp/wins/rework-window-F1",
+   "F2": "/home/runner/work/_temp/wins/rework-window-F2",
+   "F3": "/home/runner/work/_temp/wins/rework-window-F3"
+  },
+  "window_meta": {
+   "F1": {
+    "rows": 10800,
+    "arms": [
+     "SURF_SPECTRAL_K_1",
+     "served"
+    ]
+   },
+   "F2": {
+    "rows": 10800,
+    "arms": [
+     "SURF_SPECTRAL_K_1",
+     "served"
+    ]
+   },
+   "F3": {
+    "rows": 3360,
+    "arms": [
+     "SURF_SPECTRAL_K_1",
+     "served"
+    ]
+   }
+  },
+  "ref": "served",
+  "arm": "SURF_SPECTRAL_K_1",
+  "rodeo_station": "142p1",
+  "quantities": {
+   "hs_station": {
+    "n": 168,
+    "days": 14,
+    "blocks": 1,
+    "storm_blocks": 3,
+    "gain": 0.3542,
+    "ci": [
+     0.0955,
+     0.6129
+    ],
+    "computable": true,
+    "reason": "",
+    "stations_moved": [
+     "285p1"
+    ],
+    "p_better": 0.01381,
+    "p_worse": 0.98619,
+    "n_all": 8229,
+    "bias_ref": 0.4722,
+    "bias_cand": 0.0566,
+    "mae_ref": 0.4722,
+    "mae_cand": 0.118,
+    "strata": {
+     "band=obs<1m": {
+      "n": 168,
+      "days": 14,
+      "blocks": 1,
+      "storm_blocks": 3,
+      "gain": 0.3542,
+      "ci": [
+       0.0926,
+       0.6158
+      ],
+      "computable": true,
+      "reason": "",
+      "stations_moved": [
+       "285p1"
+      ],
+      "p_better": 0.014109,
+      "p_worse": 0.985891,
+      "bias_ref": 0.4722,
+      "bias_cand": 0.0566,
+      "mae_ref": 0.4722,
+      "mae_cand": 0.118
+     },
+     "lead=24h": {
+      "n": 56,
+      "days": 14,
+      "blocks": 1,
+      "storm_blocks": 3,
+      "gain": 0.3406,
+      "ci": [
+       0.0933,
+       0.5878
+      ],
+      "computable": true,
+      "reason": "",
+      "stations_moved": [
+       "285p1"
+      ],
+      "p_better": 0.013653,
+      "p_worse": 0.986347,
+      "bias_ref": 0.4541,
+      "bias_cand": 0.0541,
+      "mae_ref": 0.4541,
+      "mae_cand": 0.1136
+     },
+     "lead=48h": {
+      "n": 56,
+      "days": 14,
+      "blocks": 1,
+      "storm_blocks": 3,
+      "gain": 0.3607,
+      "ci": [
+       0.0845,
+       0.6368
+      ],
+      "computable": true,
+      "reason": "",
+      "stations_moved": [
+       "285p1"
+      ],
+      "p_better": 0.015119,
+      "p_worse": 0.984881,
+      "bias_ref": 0.4784,
+      "bias_cand": 0.0637,
+      "mae_ref": 0.4784,
+      "mae_cand": 0.1177
+     },
+     "lead=72h": {
+      "n": 56,
+      "days": 14,
+      "blocks": 1,
+      "storm_blocks": 3,
+      "gain": 0.3614,
+      "ci": [
+       0.0964,
+       0.6265
+      ],
+      "computable": true,
+      "reason": "",
+      "stations_moved": [
+       "285p1"
+      ],
+      "p_better": 0.013922,
+      "p_worse": 0.986078,
+      "bias_ref": 0.4841,
+      "bias_cand": 0.0521,
+      "mae_ref": 0.4841,
+      "mae_cand": 0.1227
+     },
+     "season=F3": {
+      "n": 168,
+      "days": 14,
+      "blocks": 1,
+      "storm_blocks": 3,
+      "gain": 0.3542,
+      "ci": [
+       0.0926,
+       0.6158
+      ],
+      "computable": true,
+      "reason": "",
+      "stations_moved": [
+       "285p1"
+      ],
+      "p_better": 0.014109,
+      "p_worse": 0.985891,
+      "bias_ref": 0.4722,
+      "bias_cand": 0.0566,
+      "mae_ref": 0.4722,
+      "mae_cand": 0.118
+     },
+     "spot=285p1": {
+      "n": 168,
+      "days": 14,
+      "blocks": 1,
+      "storm_blocks": 3,
+      "gain": 0.3542,
+      "ci": [
+       0.0926,
+       0.6158
+      ],
+      "computable": true,
+      "reason": "",
+      "stations_moved": [
+       "285p1"
+      ],
+      "p_better": 0.014109,
+      "p_worse": 0.985891,
+      "bias_ref": 0.4722,
+      "bias_cand": 0.0566,
+      "mae_ref": 0.4722,
+      "mae_cand": 0.118
+     }
+    },
+    "per_station": {
+     "103p1": {
+      "n": 1248,
+      "gain": 0.0,
+      "bias_ref": -0.3034,
+      "bias_cand": -0.3034,
+      "mae_ref": 0.3034,
+      "mae_cand": 0.3034
+     },
+     "142p1": {
+      "n": 1116,
+      "gain": 0.0,
+      "bias_ref": -0.3949,
+      "bias_cand": -0.3949,
+      "mae_ref": 0.407,
+      "mae_cand": 0.407
+     },
+     "153p1": {
+      "n": 1248,
+      "gain": 0.0,
+      "bias_ref": -0.3171,
+      "bias_cand": -0.3171,
+      "mae_ref": 0.3196,
+      "mae_cand": 0.3196
+     },
+     "201p1": {
+      "n": 1248,
+      "gain": 0.0,
+      "bias_ref": -0.3004,
+      "bias_cand": -0.3004,
+      "mae_ref": 0.3081,
+      "mae_cand": 0.3081
+     },
+     "262p1": {
+      "n": 1248,
+      "gain": 0.0,
+      "bias_ref": -0.2974,
+      "bias_cand": -0.2974,
+      "mae_ref": 0.2996,
+      "mae_cand": 0.2996
+     },
+     "264p1": {
+      "n": 1245,
+      "gain": 0.0,
+      "bias_ref": -0.2186,
+      "bias_cand": -0.2186,
+      "mae_ref": 0.2205,
+      "mae_cand": 0.2205
+     },
+     "284p1": {
+      "n": 708,
+      "gain": 0.0,
+      "bias_ref": -0.2527,
+      "bias_cand": -0.2527,
+      "mae_ref": 0.2561,
+      "mae_cand": 0.2561
+     },
+     "285p1": {
+      "n": 168,
+      "gain": 0.3542,
+      "bias_ref": 0.4722,
+      "bias_cand": 0.0566,
+      "mae_ref": 0.4722,
+      "mae_cand": 0.118
+     }
+    }
+   },
+   "hb_proxy": {
+    "n": 1284,
+    "days": 104,
+    "blocks": 2,
+    "storm_blocks": 21,
+    "gain": -0.1315,
+    "ci": [
+     -0.9318,
+     0.6689
+    ],
+    "computable": true,
+    "reason": "",
+    "stations_moved": [
+     "142p1",
+     "285p1"
+    ],
+    "p_better": 0.632258,
+    "p_worse": 0.367742,
+    "n_all": 8229,
+    "bias_ref": -0.0524,
+    "bias_cand": -0.1504,
+    "mae_ref": 0.3895,
+    "mae_cand": 0.521,
+    "strata": {
+     "band=obs1-2m": {
+      "n": 375,
+      "days": 45,
+      "blocks": 2,
+      "storm_blocks": 20,
+      "gain": -0.0038,
+      "ci": [
+       -0.4708,
+       0.4632
+      ],
+      "computable": true,
+      "reason": "",
+      "stations_moved": [
+       "142p1",
+       "285p1"
+      ],
+      "p_better": 0.506699,
+      "p_worse": 0.493301,
+      "bias_ref": 0.17,
+      "bias_cand": 0.0384,
+      "mae_ref": 0.3321,
+      "mae_cand": 0.3359
+     },
+     "band=obs<1m": {
+      "n": 102,
+      "days": 12,
+      "blocks": 2,
+      "storm_blocks": 4,
+      "gain": 0.1898,
+      "ci": [
+       -0.0316,
+       0.4112
+      ],
+      "computable": true,
+      "reason": "",
+      "stations_moved": [
+       "142p1",
+       "285p1"
+      ],
+      "p_better": 0.036024,
+      "p_worse": 0.963976,
+      "bias_ref": 0.7668,
+      "bias_cand": 0.5746,
+      "mae_ref": 0.7668,
+      "mae_cand": 0.577
+     },
+     "band=obs>=2m": {
+      "n": 807,
+      "days": 76,
+      "blocks": 1,
+      "storm_blocks": 19,
+      "gain": -0.2314,
+      "ci": [
+       -0.291,
+       -0.1718
+      ],
+      "computable": true,
+      "reason": "",
+      "stations_moved": [
+       "142p1"
+      ],
+      "p_better": 1.0,
+      "p_worse": 0.0,
+      "bias_ref": -0.2592,
+      "bias_cand": -0.3299,
+      "mae_ref": 0.3685,
+      "mae_cand": 0.5999
+     },
+     "lead=24h": {
+      "n": 428,
+      "days": 104,
+      "blocks": 2,
+      "storm_blocks": 21,
+      "gain": -0.1465,
+      "ci": [
+       -0.9325,
+       0.6395
+      ],
+      "computable": true,
+      "reason": "",
+      "stations_moved": [
+       "142p1",
+       "285p1"
+      ],
+      "p_better": 0.649241,
+      "p_worse": 0.350759,
+      "bias_ref": -0.0662,
+      "bias_cand": -0.1581,
+      "mae_ref": 0.3911,
+      "mae_cand": 0.5376
+     },
+     "lead=48h": {
+      "n": 428,
+      "days": 104,
+      "blocks": 2,
+      "storm_blocks": 21,
+      "gain": -0.1359,
+      "ci": [
+       -0.9671,
+       0.6952
+      ],
+      "computable": true,
+      "reason": "",
+      "stations_moved": [
+       "142p1",
+       "285p1"
+      ],
+      "p_better": 0.631724,
+      "p_worse": 0.368276,
+      "bias_ref": -0.0424,
+      "bias_cand": -0.1366,
+      "mae_ref": 0.3893,
+      "mae_cand": 0.5252
+     },
+     "lead=72h": {
+      "n": 428,
+      "days": 104,
+      "blocks": 2,
+      "storm_blocks": 21,
+      "gain": -0.1119,
+      "ci": [
+       -0.8786,
+       0.6548
+      ],
+      "computable": true,
+      "reason": "",
+      "stations_moved": [
+       "142p1",
+       "285p1"
+      ],
+      "p_better": 0.618053,
+      "p_worse": 0.381947,
+      "bias_ref": -0.0485,
+      "bias_cand": -0.1566,
+      "mae_ref": 0.3881,
+      "mae_cand": 0.5
+     },
+     "season=F1": {
+      "n": 540,
+      "days": 45,
+      "blocks": 1,
+      "storm_blocks": 9,
+      "gain": -0.2386,
+      "ci": [
+       -0.3623,
+       -0.1149
+      ],
+      "computable": true,
+      "reason": "",
+      "stations_moved": [
+       "142p1"
+      ],
+      "p_better": 0.998927,
+      "p_worse": 0.001073,
+      "bias_ref": -0.1698,
+      "bias_cand": -0.2045,
+      "mae_ref": 0.3025,
+      "mae_cand": 0.541
+     },
+     "season=F2": {
+      "n": 540,
+      "days": 45,
+      "blocks": 1,
+      "storm_blocks": 9,
+      "gain": -0.1619,
+      "ci": [
+       -0.2314,
+       -0.0924
+      ],
+      "computable": true,
+      "reason": "",
+      "stations_moved": [
+       "142p1"
+      ],
+      "p_better": 0.999666,
+      "p_worse": 0.000334,
+      "bias_ref": -0.2324,
+      "bias_cand": -0.3411,
+      "mae_ref": 0.3372,
+      "mae_cand": 0.4991
+     },
+     "season=F3": {
+      "n": 204,
+      "days": 14,
+      "blocks": 2,
+      "storm_blocks": 3,
+      "gain": 0.2326,
+      "ci": [
+       -0.5721,
+       1.0374
+      ],
+      "computable": true,
+      "reason": "",
+      "stations_moved": [
+       "142p1",
+       "285p1"
+      ],
+      "p_better": 0.169814,
+      "p_worse": 0.830186,
+      "bias_ref": 0.7349,
+      "bias_cand": 0.4972,
+      "mae_ref": 0.7583,
+      "mae_cand": 0.5257
+     },
+     "spot=142p1": {
+      "n": 1116,
+      "days": 93,
+      "blocks": 1,
+      "storm_blocks": 19,
+      "gain": -0.1948,
+      "ci": [
+       -0.2625,
+       -0.1271
+      ],
+      "computable": true,
+      "reason": "",
+      "stations_moved": [
+       "142p1"
+      ],
+      "p_better": 0.999995,
+      "p_worse": 5e-06,
+      "bias_ref": -0.1947,
+      "bias_cand": -0.2639,
+      "mae_ref": 0.3137,
+      "mae_cand": 0.5085
+     },
+     "spot=285p1": {
+      "n": 168,
+      "days": 14,
+      "blocks": 1,
+      "storm_blocks": 3,
+      "gain": 0.2892,
+      "ci": [
+       -0.1828,
+       0.7613
+      ],
+      "computable": true,
+      "reason": "",
+      "stations_moved": [
+       "285p1"
+      ],
+      "p_better": 0.059381,
+      "p_worse": 0.940619,
+      "bias_ref": 0.8932,
+      "bias_cand": 0.6035,
+      "mae_ref": 0.8932,
+      "mae_cand": 0.604
+     }
+    },
+    "per_station": {
+     "103p1": {
+      "n": 1248,
+      "gain": 0.0,
+      "bias_ref": -0.3982,
+      "bias_cand": -0.3982,
+      "mae_ref": 0.4053,
+      "mae_cand": 0.4053
+     },
+     "142p1": {
+      "n": 1116,
+      "gain": -0.1948,
+      "bias_ref": -0.1947,
+      "bias_cand": -0.2639,
+      "mae_ref": 0.3137,
+      "mae_cand": 0.5085
+     },
+     "153p1": {
+      "n": 1248,
+      "gain": 0.0,
+      "bias_ref": -0.3103,
+      "bias_cand": -0.3103,
+      "mae_ref": 0.3336,
+      "mae_cand": 0.3336
+     },
+     "201p1": {
+      "n": 1248,
+      "gain": 0.0,
+      "bias_ref": -0.2127,
+      "bias_cand": -0.2127,
+      "mae_ref": 0.303,
+      "mae_cand": 0.303
+     },
+     "262p1": {
+      "n": 1248,
+      "gain": 0.0,
+      "bias_ref": -0.2444,
+      "bias_cand": -0.2444,
+      "mae_ref": 0.2812,
+      "mae_cand": 0.2812
+     },
+     "264p1": {
+      "n": 1245,
+      "gain": 0.0,
+      "bias_ref": -0.0958,
+      "bias_cand": -0.0958,
+      "mae_ref": 0.1762,
+      "mae_cand": 0.1762
+     },
+     "284p1": {
+      "n": 708,
+      "gain": 0.0,
+      "bias_ref": -0.1379,
+      "bias_cand": -0.1379,
+      "mae_ref": 0.2164,
+      "mae_cand": 0.2164
+     },
+     "285p1": {
+      "n": 168,
+      "gain": 0.2892,
+      "bias_ref": 0.8932,
+      "bias_cand": 0.6035,
+      "mae_ref": 0.8932,
+      "mae_cand": 0.604
+     }
+    }
+   }
+  },
+  "controls": {
+   "hs_station": {
+    "cases": {
+     "null_identical": {
+      "verdict": "REFUSED",
+      "ci": null
+     },
+     "positive_0.8": {
+      "verdict": "PASS",
+      "ci": [
+       0.0177,
+       0.1712
+      ]
+     },
+     "negative_1.25": {
+      "verdict": "FAIL",
+      "ci": [
+       -0.214,
+       -0.0221
+      ]
+     },
+     "sign_flip_null": {
+      "sets": 200,
+      "false_pass": 0.145
+     }
+    },
+    "ok": false
+   },
+   "hb_proxy": {
+    "cases": {
+     "null_identical": {
+      "verdict": "REFUSED",
+      "ci": null
+     },
+     "positive_0.8": {
+      "verdict": "INCONCLUSIVE",
+      "ci": [
+       -0.1301,
+       0.2859
+      ]
+     },
+     "negative_1.25": {
+      "verdict": "INCONCLUSIVE",
+      "ci": [
+       -0.3574,
+       0.1627
+      ]
+     },
+     "sign_flip_null": {
+      "sets": 200,
+      "false_pass": 0.0
+     }
+    },
+    "ok": false
+   }
+  },
+  "calibration": {
+   "n_sets": 300,
+   "reps": 200,
+   "seed": 20261105,
+   "storm_days": 5,
+   "layouts": {
+    "14d_1block": {
+     "false_pass": {
+      "iid_day": 0.0033333333333333335,
+      "storm_day_rho0.6": 0.016666666666666666,
+      "storm_block_x_day_rho0.6": 0.02,
+      "mixed_rho0.6": 0.016666666666666666
+     },
+     "advisory_nulls": {
+      "storm_day_rho0.8": 0.03666666666666667,
+      "storm_block_x_day_rho0.8": 0.06
+     },
+     "power": 0.7866666666666666,
+     "power_binding": false,
+     "ok": true
+    },
+    "fresh_2blocks": {
+     "false_pass": {
+      "iid_day": 0.016666666666666666,
+      "storm_day_rho0.6": 0.03,
+      "storm_block_x_day_rho0.6": 0.006666666666666667,
+      "mixed_rho0.6": 0.03
+     },
+     "advisory_nulls": {
+      "storm_day_rho0.8": 0.02666666666666667,
+      "storm_block_x_day_rho0.8": 0.006666666666666667
+     },
+     "power": 0.96,
+     "power_binding": true,
+     "ok": true
+    }
+   },
+   "ok": true
+  },
+  "holm_worse": [
+   "hb_proxy:band=obs>=2m",
+   "hb_proxy:spot=142p1",
+   "hb_proxy:season=F2",
+   "hb_proxy:season=F1"
+  ],
+  "rodeo": {
+   "n": 1116,
+   "days": 93,
+   "blocks": 1,
+   "storm_blocks": 19,
+   "gain": -0.1948,
+   "ci": [
+    -0.2625,
+    -0.1271
+   ],
+   "computable": true,
+   "reason": "",
+   "stations_moved": [
+    "142p1"
+   ],
+   "p_better": 0.999995,
+   "p_worse": 5e-06,
+   "bias_ref": -0.1947,
+   "bias_cand": -0.2639,
+   "mae_ref": 0.3137,
+   "mae_cand": 0.5085
+  },
+  "verdict": "INVALID",
+  "reasons": [
+   "hs_station controls failed"
+  ]
+ }
+}

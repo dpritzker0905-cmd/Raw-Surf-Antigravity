@@ -88,3 +88,59 @@ In short:
   - a block-constant sign-flip null then falsely passed 10.5%. Taking the larger of the moving and non-overlapping
     SEs fixed that (4.0% on the test panel at L = 5);
   - L = 4 reached 83% power at 14 days but falsely passed 5.7%; L = 3 up to 7.3%. L = 5 was kept.
+
+## 4. Result (Actions run 41958242376, head 9c4e3c14, gate job 127043248151)
+
+**Runs:**
+- Windows: F1 68 min, F2 72 min, F3 19 min. Harness controls were ok in each.
+- CI on the same head (run 41958242418) was 12/12 green:
+  - chain lane collected 3656 tests (3655 passed, plus the 1 skip that was already there);
+  - estate lane passed 3432.
+- JSON: `flip-candidates/scorecards/rework-2026-11-04/spectral-k-sheltered-retest-gate-2026-11-05.json`.
+
+**Pooled results:**
+
+| quantity | stations moved | n | days | storm blocks | gain m | 95% CI | p worse | bias ref → cand | MAE ref → cand |
+|---|---|---|---|---|---|---|---|---|---|
+| hs_station | 285p1 | 168 | 14 | 3 | **+0.354** | [0.096, 0.613] | 0.986 | +0.472 → +0.057 | 0.472 → 0.118 |
+| hb_proxy | 142p1, 285p1 | 1284 | 104 | 21 | −0.132 | [−0.932, 0.669] | 0.368 | −0.052 → −0.150 | 0.390 → 0.521 |
+
+**hb_proxy by stratum:**
+
+| stratum | gain m | 95% CI | p worse | worse after Holm? |
+|---|---|---|---|---|
+| **Rodeo, spot 142p1** (n 1116, 93 days) | **−0.195** | [−0.263, −0.127] | 5e-6 | yes |
+| Pismo, spot 285p1 (n 168) | +0.289 | [−0.183, 0.761] | 0.94 | no |
+| season F1 | −0.239 | [−0.362, −0.115] | | yes |
+| season F2 | −0.162 | [−0.231, −0.092] | | yes |
+| season F3 | +0.233 | [−0.572, 1.037] | | no |
+| band obs ≥ 2 m | −0.231 | [−0.291, −0.172] | | yes |
+
+- Rodeo bias went −0.195 → −0.264 and MAE 0.314 → 0.509.
+- Every hs_station stratum (each lead, each band, F3) is positive.
+
+**Controls:**
+- hs_station: identical REFUSED, ×0.8 PASS, ×1.25 FAIL, **sign-flip null 14.5% (limit 5%) → controls FAILED**.
+- hb_proxy: ×0.8 and ×1.25 were INCONCLUSIVE, because the pooled hb interval spans two blocks of opposite sign.
+- The synthetic calibration held: ok, binding false pass ≤ 3.0%.
+
+**Verdict (pre-registered rule): INVALID.** A control failed, so `SURF_SPECTRAL_K` stays `'0'`. It is not a near
+miss:
+- with the controls set aside, rules 2-4 fail on their own (Holm-worse strata; Rodeo p_worse 5e-6);
+- so under no reading is this a PASS.
+
+**What it says:**
+- **Buoy half:** at Avila, K's buoy-depth Hs removes most of the bulk chain's +0.47 m high bias again, on 14 days it
+  had never seen. That is still one station, one block and 3 storm blocks.
+- **Spot half:** at the Rodeo Beach anchor K lowers a breaking height that already reads low. This happens in both
+  fresh winters and in big surf. The harm round 1 called "advisory" is real.
+
+**Not done, on purpose:**
+- no rescoping to "Avila / Pismo only" after seeing this, and no re-scoring;
+- no change to the bar or the controls after the result.
+
+**Lesson (D-068):** the sign-flip control was ill-posed at 3 storm blocks (8 sign patterns). A future protocol must
+set a minimum block count for it before scoring.
+
+**Recorded:** DECISIONS D-068, and ledger `ledger.d/claude--rework-spectral-k-sheltered.jsonl`. There is no
+SCOREBOARD row, because no served number changes.

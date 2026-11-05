@@ -1964,3 +1964,12 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Stated limits:** one station, one block, 14 days (Avila's CDIP record covers only W26 of the three windows), so this is an Avila result, not a California claim. The Bay spots (Rodeo Beach, Fort Point) are in scope by the rule but have no K buoy: the advisory hb_proxy at 142p1's Rodeo Beach anchor is WORSE (-0.233 m, bias -0.260 -> -0.391; W4 worse after Holm). Not rescoped after seeing it (that would be tuning); flagged for the owner, and a pre-registered "central region only" scope is the next test if the guardrail or a bay buoy says so.
 - **Serving cost:** only requests for the 3 in-scope spots pay the read point (4 raw resolutions per member, region and hour, memoised 15 min; #706 section 4).
 - **Rollback:** `SURF_SPECTRAL_K=0` (env, any lane, or the runtime manifest), or revert #727.
+
+### D-068 · SURF_SPECTRAL_K stays OFF: the pre-registered fresh-window storm-block re-test of the sheltered scope did not pass (2026-11-05, #727)
+- **Decided:** by the outcome rule written before scoring (`flip-candidates/scorecards/rework-2026-11-04/spectral-k-sheltered-retest-preregistration.md`): anything but PASS keeps the code default `'0'`. The flag is not GUARDED. The owner merges #727 himself.
+- **Evidence:** Actions run 41958242376, gate job 127043248151, JSON `spectral-k-sheltered-retest-gate-2026-11-05.json`. Fresh windows F1 2025-01-15..02-28, F2 2025-11-01..12-15, F3 2026-09-22..10-05; protocol storm-v1 (5-day storm blocks).
+  - **Verdict: INVALID.** The hs_station sign-flip null falsely passed 14.5% (limit 5%).
+  - **The harm rules fail it on their own:** Rodeo hb_proxy (142p1) −0.195 m [−0.263, −0.127], p_worse 5e-6; worse after Holm in F1, F2, spot 142p1 and the ≥ 2 m band.
+  - **Avila hs_station:** +0.354 m [0.096, 0.613], 168 pairs, 14 days, 3 storm blocks. Bias +0.472 → +0.057.
+- **Reading:** the Avila buoy result repeats on fresh days, but it is thin. The scope's spot half breaks Rodeo Beach in both fresh winters, as round 1 had already hinted. Any next scope is a new pre-registration on new data. Re-scoping to "Avila / Pismo only" after this result would be tuning.
+- **Lesson:** a block-level sign-flip null is ill-posed when a quantity has only 3 storm blocks: 8 sign patterns, so the null cannot control. A future protocol must require a minimum block count for the sign-flip control, or omit it, stated before scoring.
