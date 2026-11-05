@@ -275,3 +275,19 @@ dark path.
 - The honest test is forward: archive `ecmwf_fc` at the catalogue spots each cycle, then score it after ≥ 14 days
   with the storm-block gate, against CDIP buoys and the MOP nowcast.
 - Turning it on is the owner's call, on that evidence.
+
+## 9. What to switch on (owner: "switch things on that help us and make sense logically")
+
+**Measured state, 2026-11-05:**
+- `mop-nearshore-ingest.yml` has archived every CDIP MOP run (ECMWF-driven, the product `SURF_NEARSHORE_MOP` would
+  serve) since 2026-09-27: 258 runs, all succeeding. The artifacts are kept 30 days.
+- The nearshore judge (`nearshore-validation.yml`, whose MOP-grid arm grades those archives against CDIP buoys) runs
+  but reports "NOT GRADED — ARMED OFF". Arming it is the repo variable `NEARSHORE_VAL_ENABLED=1`, the owner's call.
+  This session cannot set repo variables: the proxy refuses that API path, and the brief forbids env changes.
+
+**Recommendation:**
+1. **Owner: arm the judge.** It is measurement only, with no served change.
+2. **Then decide on `SURF_NEARSHORE_MOP`** on its graded skill vs served, under D-065: ON with a kill switch if not
+   worse.
+3. **Nothing else is switched on.** `SURF_SPECTRAL_K` failed. The other held-OFF guarded flags have no passing
+   evidence.
