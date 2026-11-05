@@ -35,6 +35,14 @@ def clean(monkeypatch):
     # #706's tests pin the K MECHANICS on Bight points (Blacks, Del Mar): they run at #706's scope. The 2026-11-04
     # rework's default scope ('sheltered') is pinned by tests/test_spectral_k_sheltered.py.
     monkeypatch.setenv("SURF_SPECTRAL_K_ALL_SPOTS", "1")
+    # HERMETIC: SURF_TIDE_DEPTH is ON by default (D-065), so the augmentation asks `tide_norm_at`, which reaches
+    # Open-Meteo whenever the network is open (GitHub's runners: the FLAG_OFF_SHA pin then moved with the live
+    # tide, ff55d0e4 vs fad3cb8e, run 41951077989). The pin was taken with no tide (eta 0); keep it that way.
+    from services.weather_pipeline import tide as _tide
+
+    async def _no_tide(*a, **k):
+        return None
+    monkeypatch.setattr(_tide, "tide_norm_at", _no_tide)
     S._reset_for_test()
     yield monkeypatch
     S._reset_for_test()
