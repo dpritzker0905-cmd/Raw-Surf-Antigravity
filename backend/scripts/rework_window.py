@@ -39,9 +39,9 @@ def commands(d, win, cache, out, workers=8):
     pre = [sys.executable, os.path.join(HERE, "eval_backfill.py"), "prefetch", "--name", win, "--start", start,
            "--end", end, "--cache-dir", cache, "--workers", str(workers)]
     if d["runner"] == "harness":
-        run = [sys.executable, os.path.join(HERE, "eval_harness.py"), "run", "--stations", stations, "--start", start,
-               "--end", end, "--cache-dir", cache, "--out", out, "--decoder", "pygrib", "--wind-source", "pgrb2",
-               "--exit-zero", "--pause-s", "0.05"]
+        run = [sys.executable, os.path.abspath(__file__), "--harness", "--", "run", "--stations", stations,
+               "--start", start, "--end", end, "--cache-dir", cache, "--out", out, "--decoder", "pygrib",
+               "--wind-source", "pgrb2", "--exit-zero", "--pause-s", "0.05"]
         for a in d.get("harness_arms", []):
             run += ["--arm", a]
     else:
@@ -50,7 +50,25 @@ def commands(d, win, cache, out, workers=8):
     return pre, run
 
 
+def harness(hargs):
+    """eval_harness.run in-process with the retrying GET (rework_net.retrying_get): CDIP's THREDDS answers
+    a transient 403 under load (seen on the first CI run), which the harness's single GET treats as fatal."""
+    sys.path[:0] = [BACKEND, HERE]
+    import eval_harness as eh
+    from rework_net import COUNT, install_resilient_truth, retrying_get
+    args = eh.parser().parse_args(hargs)
+    install_resilient_truth()
+    card = eh.run(args, get=retrying_get)
+    print(json.dumps({"controls_ok": card["controls_ok"], "counts": COUNT}, indent=1))
+    with open(os.path.join(args.out, "rework_counts.json"), "w", encoding="utf-8") as f:
+        json.dump(COUNT, f, indent=1)
+    return 0
+
+
 def main(argv=None):
+    argv = sys.argv[1:] if argv is None else argv
+    if argv[:2] == ["--harness", "--"]:
+        return harness(argv[2:])
     ap = argparse.ArgumentParser()
     ap.add_argument("--decl", required=True)
     ap.add_argument("--win", required=True)
