@@ -796,3 +796,5 @@ from .weather_ingest import router as ingest_router
 router.include_router(ingest_router)
 from .weather_wind_lane import router as wind_lane_router  # noqa: E402  GET /api/weather/wind_lane (the box's HRRR lane)
 router.include_router(wind_lane_router)
+from .weather_spot_series import router as spot_series_router  # noqa: E402  GET /api/weather/spot-series/{id} (hub charts)
+router.include_router(spot_series_router)

@@ -1,0 +1,668 @@
+[
+ {
+  "surface": "hub",
+  "theme": "light",
+  "vp": "desktop",
+  "kill": false,
+  "chart": 1,
+  "seriesRequests": 1,
+  "oldCards": 0,
+  "days": 3,
+  "dayLabels": [
+   "Wed 4 Nov: 2.6–3.5 ft, best Fair at 22:00, wind 14 kt onshore",
+   "Thu 5 Nov: 3.4–5.2 ft, best Good at 07:00, wind 15 kt onshore",
+   "Fri 6 Nov: 3.1–5.4 ft, best Good at 13:00, wind 9 kt offshore"
+  ],
+  "dayPressed": 3,
+  "locked": 11,
+  "upgrade": 1,
+  "barLevels": [
+   "poor_fair",
+   "fair",
+   "fair_good",
+   "good"
+  ],
+  "bars": 24,
+  "barFills": [
+   "#f7d038",
+   "none",
+   "#2fd07a",
+   "#14b8a6",
+   "#7c3aed"
+  ],
+  "slider": {
+   "label": "Hourly surf forecast, 24 forecast times. Use arrow keys to move.",
+   "tabindex": "0",
+   "max": 23,
+   "arrowRight": true,
+   "home": true,
+   "firstText": "Wed 16:00, 2.6 ft, Poor to Fair, 4 kt offshore, tide 0.6 m",
+   "end": true,
+   "lastText": "Sat 13:00, 3.8 ft, Fair to Good, 7 kt onshore, tide -0.6 m",
+   "focusRing": true
+  },
+  "endOffsetH": 66,
+  "readout": "Sat 13:00 · 3.8 ft · \nFair to Good · 7 kt onshore · tide -0.6 m",
+  "hScroll": false,
+  "errors": [],
+  "noiseErrors": 3
+ },
+ {
+  "surface": "gps-infobox",
+  "theme": "light",
+  "vp": "desktop",
+  "kill": false,
+  "gpsBtn": 1,
+  "mini": 0,
+  "infobox": 1
+ },
+ {
+  "surface": "drawer",
+  "theme": "light",
+  "vp": "desktop",
+  "kill": false,
+  "chart": 1,
+  "oldRows": 0,
+  "days": 3,
+  "locked": 11,
+  "slider": {
+   "label": "Hourly surf forecast, 24 forecast times. Use arrow keys to move.",
+   "tabindex": "0",
+   "max": 23,
+   "arrowRight": true,
+   "home": true,
+   "firstText": "Wed 16:00, 2.6 ft, Poor to Fair, 4 kt offshore, tide 0.6 m",
+   "end": true,
+   "lastText": "Sat 13:00, 3.8 ft, Fair to Good, 7 kt onshore, tide -0.6 m",
+   "focusRing": true
+  },
+  "errors": [
+   "`DialogContent` requires a `DialogTitle` for the component to be accessible for screen reader users.\n\nIf you want to hide the `DialogTitle`, you can wrap it wit"
+  ],
+  "noiseErrors": 7,
+  "seriesRequests": 1
+ },
+ {
+  "surface": "spot-infobox",
+  "theme": "light",
+  "vp": "desktop",
+  "kill": false,
+  "mini": 1,
+  "miniVisible": true,
+  "miniLabel": "Surf forecast at this spot, next 72 hours",
+  "miniReadout": "Wed 19:00 (UTC−8) · 3.0 ft · Poor to Fair",
+  "miniBars": 24
+ },
+ {
+  "surface": "hub",
+  "theme": "light",
+  "vp": "phone",
+  "kill": false,
+  "chart": 1,
+  "seriesRequests": 1,
+  "oldCards": 0,
+  "days": 3,
+  "dayLabels": [
+   "Wed 4 Nov: 2.6–3.5 ft, best Fair at 22:00, wind 14 kt onshore",
+   "Thu 5 Nov: 3.4–5.2 ft, best Good at 07:00, wind 15 kt onshore",
+   "Fri 6 Nov: 3.1–5.4 ft, best Good at 13:00, wind 9 kt offshore"
+  ],
+  "dayPressed": 3,
+  "locked": 11,
+  "upgrade": 1,
+  "barLevels": [
+   "poor_fair",
+   "fair",
+   "fair_good",
+   "good"
+  ],
+  "bars": 24,
+  "barFills": [
+   "#f7d038",
+   "none",
+   "#2fd07a",
+   "#14b8a6",
+   "#7c3aed"
+  ],
+  "slider": {
+   "label": "Hourly surf forecast, 24 forecast times. Use arrow keys to move.",
+   "tabindex": "0",
+   "max": 23,
+   "arrowRight": true,
+   "home": true,
+   "firstText": "Wed 16:00, 2.6 ft, Poor to Fair, 4 kt offshore, tide 0.6 m",
+   "end": true,
+   "lastText": "Sat 13:00, 3.8 ft, Fair to Good, 7 kt onshore, tide -0.6 m",
+   "focusRing": true
+  },
+  "endOffsetH": 66,
+  "readout": "Sat 13:00 · 3.8 ft · \nFair to Good · 7 kt onshore · tide -0.6 m",
+  "hScroll": false,
+  "errors": [],
+  "noiseErrors": 3
+ },
+ {
+  "surface": "gps-infobox",
+  "theme": "light",
+  "vp": "phone",
+  "kill": false,
+  "gpsBtn": 1,
+  "mini": 0,
+  "infobox": 1
+ },
+ {
+  "surface": "drawer",
+  "theme": "light",
+  "vp": "phone",
+  "kill": false,
+  "chart": 1,
+  "oldRows": 0,
+  "days": 3,
+  "locked": 11,
+  "slider": {
+   "label": "Hourly surf forecast, 24 forecast times. Use arrow keys to move.",
+   "tabindex": "0",
+   "max": 23,
+   "arrowRight": true,
+   "home": true,
+   "firstText": "Wed 16:00, 2.6 ft, Poor to Fair, 4 kt offshore, tide 0.6 m",
+   "end": true,
+   "lastText": "Sat 13:00, 3.8 ft, Fair to Good, 7 kt onshore, tide -0.6 m",
+   "focusRing": true
+  },
+  "errors": [
+   "`DialogContent` requires a `DialogTitle` for the component to be accessible for screen reader users.\n\nIf you want to hide the `DialogTitle`, you can wrap it wit"
+  ],
+  "noiseErrors": 7,
+  "seriesRequests": 1
+ },
+ {
+  "surface": "spot-infobox",
+  "theme": "light",
+  "vp": "phone",
+  "kill": false,
+  "mini": 1,
+  "miniVisible": true,
+  "miniLabel": "Surf forecast at this spot, next 72 hours",
+  "miniReadout": "Wed 19:00 (UTC−8) · 3.0 ft · Poor to Fair",
+  "miniBars": 24
+ },
+ {
+  "surface": "hub",
+  "theme": "dark",
+  "vp": "desktop",
+  "kill": false,
+  "chart": 1,
+  "seriesRequests": 1,
+  "oldCards": 0,
+  "days": 3,
+  "dayLabels": [
+   "Wed 4 Nov: 2.6–3.5 ft, best Fair at 22:00, wind 14 kt onshore",
+   "Thu 5 Nov: 3.4–5.2 ft, best Good at 07:00, wind 15 kt onshore",
+   "Fri 6 Nov: 3.1–5.4 ft, best Good at 13:00, wind 9 kt offshore"
+  ],
+  "dayPressed": 3,
+  "locked": 11,
+  "upgrade": 1,
+  "barLevels": [
+   "poor_fair",
+   "fair",
+   "fair_good",
+   "good"
+  ],
+  "bars": 24,
+  "barFills": [
+   "#f7d038",
+   "none",
+   "#2fd07a",
+   "#14b8a6",
+   "#7c3aed"
+  ],
+  "slider": {
+   "label": "Hourly surf forecast, 24 forecast times. Use arrow keys to move.",
+   "tabindex": "0",
+   "max": 23,
+   "arrowRight": true,
+   "home": true,
+   "firstText": "Wed 16:00, 2.6 ft, Poor to Fair, 4 kt offshore, tide 0.6 m",
+   "end": true,
+   "lastText": "Sat 13:00, 3.8 ft, Fair to Good, 7 kt onshore, tide -0.6 m",
+   "focusRing": true
+  },
+  "endOffsetH": 66,
+  "readout": "Sat 13:00 · 3.8 ft · \nFair to Good · 7 kt onshore · tide -0.6 m",
+  "hScroll": false,
+  "errors": [],
+  "noiseErrors": 3
+ },
+ {
+  "surface": "gps-infobox",
+  "theme": "dark",
+  "vp": "desktop",
+  "kill": false,
+  "gpsBtn": 1,
+  "mini": 0,
+  "infobox": 1
+ },
+ {
+  "surface": "drawer",
+  "theme": "dark",
+  "vp": "desktop",
+  "kill": false,
+  "chart": 1,
+  "oldRows": 0,
+  "days": 3,
+  "locked": 11,
+  "slider": {
+   "label": "Hourly surf forecast, 24 forecast times. Use arrow keys to move.",
+   "tabindex": "0",
+   "max": 23,
+   "arrowRight": true,
+   "home": true,
+   "firstText": "Wed 16:00, 2.6 ft, Poor to Fair, 4 kt offshore, tide 0.6 m",
+   "end": true,
+   "lastText": "Sat 13:00, 3.8 ft, Fair to Good, 7 kt onshore, tide -0.6 m",
+   "focusRing": true
+  },
+  "errors": [
+   "`DialogContent` requires a `DialogTitle` for the component to be accessible for screen reader users.\n\nIf you want to hide the `DialogTitle`, you can wrap it wit"
+  ],
+  "noiseErrors": 7,
+  "seriesRequests": 1
+ },
+ {
+  "surface": "spot-infobox",
+  "theme": "dark",
+  "vp": "desktop",
+  "kill": false,
+  "mini": 1,
+  "miniVisible": true,
+  "miniLabel": "Surf forecast at this spot, next 72 hours",
+  "miniReadout": "Wed 19:00 (UTC−8) · 3.0 ft · Poor to Fair",
+  "miniBars": 24
+ },
+ {
+  "surface": "hub",
+  "theme": "dark",
+  "vp": "phone",
+  "kill": false,
+  "chart": 1,
+  "seriesRequests": 1,
+  "oldCards": 0,
+  "days": 3,
+  "dayLabels": [
+   "Wed 4 Nov: 2.6–3.5 ft, best Fair at 22:00, wind 14 kt onshore",
+   "Thu 5 Nov: 3.4–5.2 ft, best Good at 07:00, wind 15 kt onshore",
+   "Fri 6 Nov: 3.1–5.4 ft, best Good at 13:00, wind 9 kt offshore"
+  ],
+  "dayPressed": 3,
+  "locked": 11,
+  "upgrade": 1,
+  "barLevels": [
+   "poor_fair",
+   "fair",
+   "fair_good",
+   "good"
+  ],
+  "bars": 24,
+  "barFills": [
+   "#f7d038",
+   "none",
+   "#2fd07a",
+   "#14b8a6",
+   "#7c3aed"
+  ],
+  "slider": {
+   "label": "Hourly surf forecast, 24 forecast times. Use arrow keys to move.",
+   "tabindex": "0",
+   "max": 23,
+   "arrowRight": true,
+   "home": true,
+   "firstText": "Wed 16:00, 2.6 ft, Poor to Fair, 4 kt offshore, tide 0.6 m",
+   "end": true,
+   "lastText": "Sat 13:00, 3.8 ft, Fair to Good, 7 kt onshore, tide -0.6 m",
+   "focusRing": true
+  },
+  "endOffsetH": 66,
+  "readout": "Sat 13:00 · 3.8 ft · \nFair to Good · 7 kt onshore · tide -0.6 m",
+  "hScroll": false,
+  "errors": [],
+  "noiseErrors": 3
+ },
+ {
+  "surface": "gps-infobox",
+  "theme": "dark",
+  "vp": "phone",
+  "kill": false,
+  "gpsBtn": 1,
+  "mini": 0,
+  "infobox": 1
+ },
+ {
+  "surface": "drawer",
+  "theme": "dark",
+  "vp": "phone",
+  "kill": false,
+  "chart": 1,
+  "oldRows": 0,
+  "days": 3,
+  "locked": 11,
+  "slider": {
+   "label": "Hourly surf forecast, 24 forecast times. Use arrow keys to move.",
+   "tabindex": "0",
+   "max": 23,
+   "arrowRight": true,
+   "home": true,
+   "firstText": "Wed 16:00, 2.6 ft, Poor to Fair, 4 kt offshore, tide 0.6 m",
+   "end": true,
+   "lastText": "Sat 13:00, 3.8 ft, Fair to Good, 7 kt onshore, tide -0.6 m",
+   "focusRing": true
+  },
+  "errors": [
+   "`DialogContent` requires a `DialogTitle` for the component to be accessible for screen reader users.\n\nIf you want to hide the `DialogTitle`, you can wrap it wit"
+  ],
+  "noiseErrors": 7,
+  "seriesRequests": 1
+ },
+ {
+  "surface": "spot-infobox",
+  "theme": "dark",
+  "vp": "phone",
+  "kill": false,
+  "mini": 1,
+  "miniVisible": true,
+  "miniLabel": "Surf forecast at this spot, next 72 hours",
+  "miniReadout": "Wed 19:00 (UTC−8) · 3.0 ft · Poor to Fair",
+  "miniBars": 24
+ },
+ {
+  "surface": "hub",
+  "theme": "beach",
+  "vp": "desktop",
+  "kill": false,
+  "chart": 1,
+  "seriesRequests": 1,
+  "oldCards": 0,
+  "days": 3,
+  "dayLabels": [
+   "Wed 4 Nov: 2.6–3.5 ft, best Fair at 22:00, wind 14 kt onshore",
+   "Thu 5 Nov: 3.4–5.2 ft, best Good at 07:00, wind 15 kt onshore",
+   "Fri 6 Nov: 3.1–5.4 ft, best Good at 13:00, wind 9 kt offshore"
+  ],
+  "dayPressed": 3,
+  "locked": 11,
+  "upgrade": 1,
+  "barLevels": [
+   "poor_fair",
+   "fair",
+   "fair_good",
+   "good"
+  ],
+  "bars": 24,
+  "barFills": [
+   "#f7d038",
+   "none",
+   "#2fd07a",
+   "#14b8a6",
+   "#7c3aed"
+  ],
+  "slider": {
+   "label": "Hourly surf forecast, 24 forecast times. Use arrow keys to move.",
+   "tabindex": "0",
+   "max": 23,
+   "arrowRight": true,
+   "home": true,
+   "firstText": "Wed 16:00, 2.6 ft, Poor to Fair, 4 kt offshore, tide 0.6 m",
+   "end": true,
+   "lastText": "Sat 13:00, 3.8 ft, Fair to Good, 7 kt onshore, tide -0.6 m",
+   "focusRing": true
+  },
+  "endOffsetH": 66,
+  "readout": "Sat 13:00 · 3.8 ft · \nFair to Good · 7 kt onshore · tide -0.6 m",
+  "hScroll": false,
+  "errors": [],
+  "noiseErrors": 3
+ },
+ {
+  "surface": "gps-infobox",
+  "theme": "beach",
+  "vp": "desktop",
+  "kill": false,
+  "gpsBtn": 1,
+  "mini": 0,
+  "infobox": 1
+ },
+ {
+  "surface": "drawer",
+  "theme": "beach",
+  "vp": "desktop",
+  "kill": false,
+  "chart": 1,
+  "oldRows": 0,
+  "days": 3,
+  "locked": 11,
+  "slider": {
+   "label": "Hourly surf forecast, 24 forecast times. Use arrow keys to move.",
+   "tabindex": "0",
+   "max": 23,
+   "arrowRight": true,
+   "home": true,
+   "firstText": "Wed 16:00, 2.6 ft, Poor to Fair, 4 kt offshore, tide 0.6 m",
+   "end": true,
+   "lastText": "Sat 13:00, 3.8 ft, Fair to Good, 7 kt onshore, tide -0.6 m",
+   "focusRing": true
+  },
+  "errors": [
+   "`DialogContent` requires a `DialogTitle` for the component to be accessible for screen reader users.\n\nIf you want to hide the `DialogTitle`, you can wrap it wit"
+  ],
+  "noiseErrors": 7,
+  "seriesRequests": 1
+ },
+ {
+  "surface": "spot-infobox",
+  "theme": "beach",
+  "vp": "desktop",
+  "kill": false,
+  "mini": 1,
+  "miniVisible": true,
+  "miniLabel": "Surf forecast at this spot, next 72 hours",
+  "miniReadout": "Wed 19:00 (UTC−8) · 3.0 ft · Poor to Fair",
+  "miniBars": 24
+ },
+ {
+  "surface": "hub",
+  "theme": "beach",
+  "vp": "phone",
+  "kill": false,
+  "chart": 1,
+  "seriesRequests": 1,
+  "oldCards": 0,
+  "days": 3,
+  "dayLabels": [
+   "Wed 4 Nov: 2.6–3.5 ft, best Fair at 22:00, wind 14 kt onshore",
+   "Thu 5 Nov: 3.4–5.2 ft, best Good at 07:00, wind 15 kt onshore",
+   "Fri 6 Nov: 3.1–5.4 ft, best Good at 13:00, wind 9 kt offshore"
+  ],
+  "dayPressed": 3,
+  "locked": 11,
+  "upgrade": 1,
+  "barLevels": [
+   "poor_fair",
+   "fair",
+   "fair_good",
+   "good"
+  ],
+  "bars": 24,
+  "barFills": [
+   "#f7d038",
+   "none",
+   "#2fd07a",
+   "#14b8a6",
+   "#7c3aed"
+  ],
+  "slider": {
+   "label": "Hourly surf forecast, 24 forecast times. Use arrow keys to move.",
+   "tabindex": "0",
+   "max": 23,
+   "arrowRight": true,
+   "home": true,
+   "firstText": "Wed 16:00, 2.6 ft, Poor to Fair, 4 kt offshore, tide 0.6 m",
+   "end": true,
+   "lastText": "Sat 13:00, 3.8 ft, Fair to Good, 7 kt onshore, tide -0.6 m",
+   "focusRing": true
+  },
+  "endOffsetH": 66,
+  "readout": "Sat 13:00 · 3.8 ft · \nFair to Good · 7 kt onshore · tide -0.6 m",
+  "hScroll": false,
+  "errors": [],
+  "noiseErrors": 3
+ },
+ {
+  "surface": "gps-infobox",
+  "theme": "beach",
+  "vp": "phone",
+  "kill": false,
+  "gpsBtn": 1,
+  "mini": 0,
+  "infobox": 1
+ },
+ {
+  "surface": "drawer",
+  "theme": "beach",
+  "vp": "phone",
+  "kill": false,
+  "chart": 1,
+  "oldRows": 0,
+  "days": 3,
+  "locked": 11,
+  "slider": {
+   "label": "Hourly surf forecast, 24 forecast times. Use arrow keys to move.",
+   "tabindex": "0",
+   "max": 23,
+   "arrowRight": true,
+   "home": true,
+   "firstText": "Wed 16:00, 2.6 ft, Poor to Fair, 4 kt offshore, tide 0.6 m",
+   "end": true,
+   "lastText": "Sat 13:00, 3.8 ft, Fair to Good, 7 kt onshore, tide -0.6 m",
+   "focusRing": true
+  },
+  "errors": [
+   "`DialogContent` requires a `DialogTitle` for the component to be accessible for screen reader users.\n\nIf you want to hide the `DialogTitle`, you can wrap it wit"
+  ],
+  "noiseErrors": 7,
+  "seriesRequests": 1
+ },
+ {
+  "surface": "spot-infobox",
+  "theme": "beach",
+  "vp": "phone",
+  "kill": false,
+  "mini": 1,
+  "miniVisible": true,
+  "miniLabel": "Surf forecast at this spot, next 72 hours",
+  "miniReadout": "Wed 19:00 (UTC−8) · 3.0 ft · Poor to Fair",
+  "miniBars": 24
+ },
+ {
+  "surface": "hub",
+  "theme": "light",
+  "vp": "desktop",
+  "kill": true,
+  "chart": 0,
+  "seriesRequests": 0,
+  "oldCards": 1,
+  "errors": [],
+  "noiseErrors": 3
+ },
+ {
+  "surface": "hub",
+  "theme": "dark",
+  "vp": "desktop",
+  "kill": true,
+  "chart": 0,
+  "seriesRequests": 0,
+  "oldCards": 1,
+  "errors": [],
+  "noiseErrors": 3
+ },
+ {
+  "surface": "hub",
+  "theme": "beach",
+  "vp": "desktop",
+  "kill": true,
+  "chart": 0,
+  "seriesRequests": 0,
+  "oldCards": 1,
+  "errors": [],
+  "noiseErrors": 3
+ },
+ {
+  "surface": "hub",
+  "theme": "dark",
+  "vp": "phone",
+  "kill": true,
+  "chart": 0,
+  "seriesRequests": 0,
+  "oldCards": 1,
+  "errors": [],
+  "noiseErrors": 3
+ },
+ {
+  "surface": "gps-infobox",
+  "theme": "dark",
+  "vp": "desktop",
+  "kill": true,
+  "gpsBtn": 1,
+  "mini": 0,
+  "infobox": 1
+ },
+ {
+  "surface": "drawer",
+  "theme": "dark",
+  "vp": "desktop",
+  "kill": true,
+  "chart": 0,
+  "oldRows": 1,
+  "errors": [
+   "`DialogContent` requires a `DialogTitle` for the component to be accessible for screen reader users.\n\nIf you want to hide the `DialogTitle`, you can wrap it wit"
+  ],
+  "noiseErrors": 7,
+  "seriesRequests": 0
+ },
+ {
+  "surface": "spot-infobox",
+  "theme": "dark",
+  "vp": "desktop",
+  "kill": true,
+  "mini": 0
+ },
+ {
+  "surface": "gps-infobox",
+  "theme": "light",
+  "vp": "phone",
+  "kill": true,
+  "gpsBtn": 1,
+  "mini": 0,
+  "infobox": 1
+ },
+ {
+  "surface": "drawer",
+  "theme": "light",
+  "vp": "phone",
+  "kill": true,
+  "chart": 0,
+  "oldRows": 1,
+  "errors": [
+   "`DialogContent` requires a `DialogTitle` for the component to be accessible for screen reader users.\n\nIf you want to hide the `DialogTitle`, you can wrap it wit"
+  ],
+  "noiseErrors": 7,
+  "seriesRequests": 0
+ },
+ {
+  "surface": "spot-infobox",
+  "theme": "light",
+  "vp": "phone",
+  "kill": true,
+  "mini": 0
+ }
+]

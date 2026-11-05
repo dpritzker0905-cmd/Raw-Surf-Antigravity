@@ -187,7 +187,10 @@ jobs:
             // SpotHub.phase1.test.js (+1 / +12), SpotConditions.phase1.test.js (+1 / +8). Raised by exactly that; confirm against the hosted receipt.
             // Map motion fixes (2026-11-03, ON with five kills): motionFixes.killSwitch (6), particleState (13), particleRk2 (8),
             // crestLocalPhase (13), crestTexelRank (8), windEncoderRound (6) = +6 suites / +54 tests. Raised by exactly that; confirm against the hosted receipt.
-            const MIN_SUITES = 538, MIN_TESTS = 7040;
+            // Spot-hub phase 4 charts (2026-11-04, ON with __RAW_DISABLE_SPOT_HUB_CHARTS__): spotSeriesModel (18), SpotForecastChart (20),
+            // SpotHub.charts (8), SpotConditions.charts (4), spotHubCharts.wiring (3) = +5 suites / +53 tests. Raised by exactly that; confirm against the hosted receipt.
+            // Phase 4 visual-check fixes (2026-11-05): SpotForecastChart +1 (Home/tap reach the bar before hour 0) = +0 suites / +1 test.
+            const MIN_SUITES = 543, MIN_TESTS = 7094;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -1013,7 +1016,9 @@ jobs:
           #   base 3507 (dev's map) + 14 new test(s) and 1 new file(s) = 3521, files 221; floor 3521 - 6 = 3515. This PR must read 3521 passed.
           # ⬆ 3515→3517 on 2026-11-04 (rederive_floor.py, claude/monitor-l2-retry): dev run 41932317052 read 3507 / 220 files; dev's map 3521;
           #   base 3521 (dev's map) + 2 new test(s) and 1 new file(s) = 3523, files 222; floor 3523 - 6 = 3517. This PR must read 3523 passed.
-          MIN_FILES, MIN_PASSED = 222, 3517
+          # ⬆ 3517→3539 on 2026-11-05 (by hand, claude/spot-hub-charts: rederive_floor.py needs `gh`, absent here):
+          #   base 3523 (dev's map after #726) + 22 new test(s) and 1 new file(s) = 3545, files 223; floor 3545 - 6 = 3539. This PR must read 3545 passed.
+          MIN_FILES, MIN_PASSED = 223, 3539
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
