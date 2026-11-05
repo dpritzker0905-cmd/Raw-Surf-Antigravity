@@ -321,7 +321,8 @@ def cmd_truth(a):
 
 # ---------------------------------------------------------------- the gate ----------------------------------------
 def regime(obs_ms, off):
-    kt = obs_ms * 1.943844
+    from services.weather_pipeline import surf_rating as SR
+    kt = obs_ms * SR.MS_TO_KT
     spd = "light<6kt" if kt < 6 else ("mod6-15" if kt < 15 else "strong15+")
     d = "offshore" if (off or 0) > 0.38 else ("onshore" if (off or 0) < -0.38 else "cross")
     return f"{spd}|{d}"
@@ -520,6 +521,11 @@ def advisory(rows, arm):
             "per_station": per, "vector_rmse_ms_obs_ge_3": _rd(vr, 3), "speed_slope": _rd(slope, 3)}
 
 
+def control_fn(fac):
+    """The control candidate truth + fac x (gfs - truth); fac 1 is the baseline ITSELF, bit for bit."""
+    return (lambda o, f: f) if fac == 1.0 else (lambda o, f, k=fac: o + k * (f - o))
+
+
 def cmd_gate(a):
     from services.weather_pipeline import eval_twoway as tw
     tw.require_calibrated()                               # D-066: the harness's own self-test, or refuse
@@ -532,7 +538,9 @@ def cmd_gate(a):
     cal = tw.calibrate_items([dict(i, f_cand=i["f_ref"] + 1e-9) for i in base]) if base else None
     out["layout_calibration"] = cal
     for name, fac in (("null", 1.0), ("positive_0.8", 0.8), ("negative_1.25", 1.25)):
-        g = gate_items(items_of(rows, "gfs", cand_fn=lambda o, f, k=fac: o + k * (f - o)))
+        # The null IS the baseline (pre-registration: cand = gfs). `o + 1.0 * (f - o)` is not bit-identical to `f`
+        # (run 41938532670: 5,366 rows "moved" by rounding, so the null read FAIL with CI [0, 0] instead of REFUSED).
+        g = gate_items(items_of(rows, "gfs", cand_fn=control_fn(fac)))
         if g.get("computable"):
             g["verdict"] = "PASS" if g["twoway_ci"][0] > 0 and not g["holm_worse"] else "FAIL"
         out["controls"][name] = {k: g.get(k) for k in ("n", "days", "gain", "twoway_ci", "holm_worse", "verdict")}

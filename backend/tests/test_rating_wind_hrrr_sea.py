@@ -195,3 +195,14 @@ def test_scorer_reads_only_the_hrrr_bucket():
     S = _load_scorer()
     with pytest.raises(PermissionError):
         S._get("https://example.com/hrrr.20241201/conus/x.grib2")
+
+
+def test_scorer_null_control_is_the_baseline_bit_for_bit():
+    """Run 41938532670: o + 1.0 * (f - o) != f in floating point moved 5,366 rows and the null read FAIL."""
+    S = _load_scorer()
+    import random
+    rng = random.Random(11)
+    pairs = [(rng.uniform(0, 100), rng.uniform(0, 100)) for _ in range(5000)]
+    assert any(o + 1.0 * (f - o) != f for o, f in pairs)          # the trap is real
+    assert all(S.control_fn(1.0)(o, f) == f for o, f in pairs)
+    assert S.control_fn(0.8)(10.0, 20.0) == pytest.approx(18.0)
