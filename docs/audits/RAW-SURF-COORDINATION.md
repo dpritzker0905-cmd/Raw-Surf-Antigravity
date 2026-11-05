@@ -1222,3 +1222,6 @@ Merged in the Claude window (VERIFIED, `git log origin/dev`):
     days inside it.
   - #696 (this record) merges last.
 
+- 2026-11-05T00:15Z; claude-lead-local_d6b521eb; VERIFIED: #726 squash-merged into dev, pinned to head `e9280934`.
+  Merge commit `68869273f778ad7001967316b7fcaeaafc7a7ea7`. All lane merges are done; this record (#696) merges last.
+
