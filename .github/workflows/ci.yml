@@ -2238,7 +2238,9 @@ jobs:
           #   base 3406 (hosted read) + 2 new test(s) = 3408; floor 3408 - 2 = 3406. This PR must read 3408 passed.
           # ⬆ 3406→3419 on 2026-11-04 (rederive_floor.py, claude/default-on-guardrails): dev run 41747311909 read 3408; dev's map 3408;
           #   base 3408 (hosted read) + 13 new test(s) = 3421; floor 3421 - 2 = 3419. This PR must read 3421 passed.
-          MIN_PASSED = 3419
+          # Review category scores: DEV d719b45f; CI 41960481203 estate read 3421 passed.
+          # New tracked estate file collects 9 cases: projected 3430; floor 3428 keeps margin 2. Hosted CI must confirm.
+          MIN_PASSED = 3428
 
           try:
               root = ET.parse('estate.xml').getroot()
