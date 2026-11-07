@@ -41,6 +41,8 @@ const MAP_DIR = path.resolve(__dirname, '../components/map');
  * for phantom entries.  To add: write the test file first.
  */
 const KILL_SWITCHES_TESTED = new Set([
+  // components/map/marineHoldOnError.test.js
+  '__RAW_DISABLE_MARINE_HOLD_ON_ERROR__',
   // cadenceStep.test.js
   '__RAW_DISABLE_CADENCE_STEP__',
   // components/map/TideReadout.test.js
