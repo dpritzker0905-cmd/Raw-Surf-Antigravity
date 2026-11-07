@@ -19,7 +19,7 @@ import { SessionRosterCard } from './gallery/SessionRosterCard';
 import { PostSessionSummary } from './gallery/PostSessionSummary';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
-import { GalleryFolderList } from './gallery/GalleryFolderList';
+import { GalleryFolderList, GalleryLoadError } from './gallery/GalleryFolderList';
 
 // Extracted gallery folder modals
 import { GalleryFolderModals } from './gallery/GalleryFolderModals';
@@ -236,6 +236,7 @@ export const GalleryPage = ({ initialRecapData = null }) => {
   const {
     fetchLinkedGroms, fetchGromHighlights, handleTagGrom, handleUntagGrom,
     fetchGalleries, fetchGalleryItems, handleDeleteFromGallery, executeDeleteFromGallery, executeBulkDelete,
+    galleriesLoading, galleriesError, galleryItemsError, galleryOwnerMatches,
     handleAddToGallery, openGalleryDetail, closeGalleryDetail,
     fetchConditionsStatus, handlePushToSpotHub, handleSaveGalleryPricing,
     fetchGallery, handleQuickPriceUpdate, handleClearCustomPrice,
@@ -287,7 +288,10 @@ export const GalleryPage = ({ initialRecapData = null }) => {
     { threshold: 60, enabled: !loading }
   );
 
-  if (loading) {
+  const itemsCountLabel = galleryItems.length ? `${galleryItems.length} items`
+    : galleryItemsError ? 'Items unavailable' : galleryItemsLoading ? 'Loading items…' : '0 items';
+
+  if (loading || galleryOwnerMatches === false) {
     return (
       <div className="p-4 max-w-6xl mx-auto">
         <GallerySkeleton />
@@ -306,7 +310,7 @@ export const GalleryPage = ({ initialRecapData = null }) => {
               {initialRecapData ? 'Session Recap' : 'Gallery Hub'}
           </h1>
           <p className="text-muted-foreground text-sm mt-1">
-            {initialRecapData && selectedGallery ? galleryItems.length : gallery.length} items {"\u2022"} Manage your sessions, folders & distribution
+            {initialRecapData && selectedGallery ? itemsCountLabel : `${gallery.length} items`} {"\u2022"} Manage your sessions, folders & distribution
           </p>
         </div>
         
@@ -362,6 +366,8 @@ export const GalleryPage = ({ initialRecapData = null }) => {
       {isPhotographer && !selectedGallery && (
         <GalleryFolderList
           galleries={galleries}
+          galleriesLoading={galleriesLoading}
+          galleriesError={galleriesError}
           isGromParent={isGromParent}
           user={user}
           openGalleryDetail={openGalleryDetail}
@@ -416,7 +422,7 @@ export const GalleryPage = ({ initialRecapData = null }) => {
                       <span className="truncate">{selectedGallery.surf_spot_name}</span>
                     </span>
                   )}
-                  <span className="flex-shrink-0">{galleryItems.length} items</span>
+                  <span className="flex-shrink-0">{itemsCountLabel}</span>
                   {bulkSelectMode && selectedItems.size > 0 && (
                     <Badge className="bg-cyan-500 text-white text-xs">
                       {selectedItems.size} selected
@@ -627,13 +633,15 @@ export const GalleryPage = ({ initialRecapData = null }) => {
             />
           </div>
 
+          <GalleryLoadError error={galleryItemsError} loading={galleryItemsLoading}
+            onRetry={() => fetchGalleryItems(selectedGallery.id)} retryLabel="Retry gallery items" />
           {/* Gallery items grid */}
           {galleryItemsLoading ? (
-            <div className="flex justify-center py-12">
+            <div role="status" aria-label="Loading gallery items" className="flex justify-center py-12">
               <Loader2 className="w-8 h-8 animate-spin text-gray-400" />
             </div>
           ) : galleryItems.length === 0 ? (
-            <div className="text-center py-12 bg-muted/50 rounded-lg">
+            !galleryItemsError && <div className="text-center py-12 bg-muted/50 rounded-lg">
               <Camera className="w-12 h-12 text-muted-foreground/40 mx-auto mb-3" />
               <p className="text-muted-foreground">No items in this gallery yet</p>
               <Button aria-label="Add"
