@@ -15,7 +15,8 @@ async function routeFixture() {
   const count = await stubZoomlabMessageBadge({ route: async (match, handle) => { matches = match; handler = handle; } }, origin);
   return { count, async request(path, method = 'GET', host = origin, authorization = 'Bearer dev-mock-user-token') {
     let result = 'passed-through';
-    if (matches(new URL(path, host))) await handler({ request: () => ({ method: () => method, headers: () => ({ authorization }) }),
+    if (matches(new URL(path, host))) await handler({ request: () => ({ url: () => new URL(path, host).href,
+      method: () => method, headers: () => ({ authorization }) }),
       fallback: async () => {}, fulfill: async options => { result = options; } });
     return result;
   } };
@@ -29,6 +30,60 @@ test('synthetic GET is neutral, labelled and counted; duplicate callers remain c
     assert.equal(result.headers['x-rawsurf-zoomlab-fixture'], 'synthetic-message-badge');
     assert.equal(f.count(), i);
   }
+});
+
+// These contracts come from the actual navigation consumers, not the fixture implementation.
+const mockId = 'dev-mock-user-id';
+const incidentalReads = [
+  { path: `/api/notifications/${mockId}/unread-count`, marker: 'synthetic-notification-badge',
+    json: { unread_count: 0 } },
+  { path: `/api/dispatch/user/${mockId}/active`, marker: 'synthetic-active-session',
+    json: { active_dispatch: null } },
+  { path: `/api/compliance/violations/user/${mockId}`, marker: 'synthetic-violations',
+    json: { user_id: mockId, total_strikes: 0, is_suspended: false, is_banned: false,
+      suspension_until: null, violations: [] } },
+];
+
+for (const { path, marker, json } of incidentalReads) {
+  test(`mock-session incidental GET is answered neutrally without a message-count claim (${marker})`, async () => {
+    const f = await routeFixture();
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const response = await f.request(path);
+      assert.notEqual(response, 'passed-through', 'a fictional session must not send this protected read upstream');
+      assert.deepEqual(response.json, json);
+      assert.equal(response.headers['x-rawsurf-zoomlab-fixture'], marker);
+      assert.equal(f.count(), 0, 'the existing instrument counter counts only message-badge responses');
+    }
+  });
+
+  test(`incidental fixture refuses wrong origin, user, marker, method and path lookalikes (${marker})`, async () => {
+    const f = await routeFixture();
+    for (const authorization of [null, 'Bearer actual-user-control-token', 'Bearer dev-mock-user-token-extra', '']) {
+      assert.equal(await f.request(path, 'GET', origin, authorization), 'passed-through');
+    }
+    for (const method of ['POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS', 'HEAD']) {
+      assert.equal(await f.request(path, method), 'passed-through');
+    }
+    assert.equal(await f.request(path, 'GET', 'https://another.fixture.invalid'), 'passed-through');
+    assert.equal(await f.request(path.replace(mockId, 'real-user')), 'passed-through');
+    assert.equal(await f.request(path.replace(mockId, mockId.toUpperCase())), 'passed-through');
+    assert.equal(await f.request(path + '/extra'), 'passed-through');
+    assert.equal(f.count(), 0);
+  });
+}
+
+test('boot reads stay within the declared fixture set and preserve the original message counter', async () => {
+  const f = await routeFixture();
+  for (const read of incidentalReads) assert.equal(typeof await f.request(read.path), 'object');
+  assert.equal(f.count(), 0);
+  await f.request(badge);
+  assert.equal(f.count(), 1);
+  for (const path of [`/api/notifications/${mockId}`, `/api/dispatch/user/${mockId}/history`,
+    `/api/compliance/violations/user/${mockId}/extra`, `/api/surfer-gallery/claim-queue-count/${mockId}`,
+    '/api/auth/me', '/api/admin/event-dashboard/events']) {
+    assert.equal(await f.request(path), 'passed-through');
+  }
+  assert.equal(f.count(), 1);
 });
 
 for (const authorization of [undefined, 'Bearer actual-user-control-token']) {
@@ -94,7 +149,7 @@ test('readiness timeout is explicit and unexpected browser failures are preserve
 
 test('redirect during readiness yields a specific route failure', async () => {
   const w = ready('/auth'); const p = pageFor(w);
-  p.waitForFunction = async fn => browser(fn, w);
+  p.waitForFunction = async fn => pollHandle(browser(fn, w));
   await assert.rejects(waitForMarineReady(p), e => e.code === 'unexpected-route' && e.state.route === '/auth');
 });
 
@@ -146,4 +201,157 @@ test('independent application errors remain FAIL even when the instrument cannot
   assert.equal(report.verdict, 'FAIL');
   assert.deepEqual(report.consoleErrors, ['Uncaught controlled renderer defect']);
   assert.equal(analyzeTrace(report).verdict, 'FAIL');
+});
+
+// Model the observed pageerror delivery at the browser boundary; no browser or network is used.
+// The real predicate, Node-side checks, failure report and verdict run unchanged.
+function pollHandle(value) { return { disposed: false, jsonValue: async () => value,
+  async dispose() { this.disposed = true; } }; }
+function pollingPage(window, beforePoll = () => {}, document = { querySelectorAll: () => [] }, afterPoll = () => {}) {
+  const page = new EventEmitter();
+  const errors = [];
+  const handles = [];
+  page.on('pageerror', error => errors.push(`Uncaught ${error.message}`));
+  page.evaluate = async (fn, argument) => browser(fn, window, document, argument);
+  page.waitForFunction = async expression => {
+    beforePoll();
+    let result;
+    try {
+      result = typeof expression === 'function' ? browser(expression, window, document)
+        : vm.runInNewContext(expression, { window, document });
+    } catch (error) {
+      page.emit('pageerror', error);
+      throw error;
+    }
+    if (!result) { const error = new Error('controlled poll timeout'); error.name = 'TimeoutError'; throw error; }
+    afterPoll();
+    const handle = pollHandle(result);
+    handles.push(handle);
+    return handle;
+  };
+  return { page, errors, handles };
+}
+
+for (const route of ['/auth', '/feed', '/private/customer-fixture']) {
+  test(`route departure settles browser polling without a sentinel exception (${route})`, async () => {
+    const { page, errors } = pollingPage(ready(route));
+    let failure;
+    await assert.rejects(waitForMarineReady(page), error => {
+      failure = error;
+      return error instanceof ZoomlabInstrumentError && error.code === 'unexpected-route';
+    });
+    assert.deepEqual(errors, [], 'a harness route check must not generate a browser pageerror');
+    const report = instrumentFailureReport(failure, 'staircase_full', 1, errors);
+    assert.equal(report.verdict, 'REFUSE');
+    assert.equal(report.completed, false);
+    assert.equal(report.readiness.route, route.startsWith('/private/') ? 'other' : route);
+    assert.equal(JSON.stringify(report).includes('customer-fixture'), false);
+  });
+}
+
+test('route loss during the Waves poll refuses without a browser exception or accepting stale controls', async () => {
+  const window = ready();
+  const { page, errors } = pollingPage(window, () => { window.location.pathname = '/auth'; });
+  let failure;
+  await assert.rejects(waitForWavesControl(page), error => {
+    failure = error;
+    return error instanceof ZoomlabInstrumentError && error.code === 'unexpected-route';
+  });
+  assert.deepEqual(errors, []);
+  assert.equal(instrumentFailureReport(failure, 'staircase_full', 1, errors).verdict, 'REFUSE');
+});
+
+test('ordinary missing map and Waves controls remain instrument failures, while ready map succeeds', async () => {
+  const window = ready();
+  delete window.map;
+  const missing = pollingPage(window);
+  await assert.rejects(waitForMarineReady(missing.page), error => error.code === 'map-unavailable');
+  assert.deepEqual(missing.errors, []);
+  const present = pollingPage(ready());
+  assert.equal((await waitForMarineReady(present.page)).route, '/map');
+  await assert.rejects(waitForWavesControl(present.page), error => error.code === 'waves-control-unavailable');
+  assert.deepEqual(present.errors, []);
+  const controls = pollingPage(ready(), () => {}, { querySelectorAll: () => [button('Waves', 'false')] });
+  await waitForWavesControl(controls.page);
+});
+
+test('genuine browser exceptions and their renderer failure are preserved', async () => {
+  const window = ready();
+  Object.defineProperty(window.map, 'jumpTo', { get() { throw new Error('controlled application crash'); } });
+  const { page, errors } = pollingPage(window);
+  await assert.rejects(waitForMarineReady(page), error => error.message === 'controlled application crash'
+    && !(error instanceof ZoomlabInstrumentError));
+  assert.deepEqual(errors, ['Uncaught controlled application crash']);
+  assert.equal(analyzeTrace({ consoleErrors: errors }).verdict, 'FAIL');
+});
+
+test('a foreign error mentioning the old sentinel is not converted to instrument refusal', async () => {
+  const page = pageFor(ready('/auth'));
+  const failure = new Error('application failure ZOOMLAB_INSTRUMENT_UNEXPECTED_ROUTE:/auth');
+  page.waitForFunction = async () => { throw failure; };
+  await assert.rejects(waitForMarineReady(page), error => error === failure);
+  await assert.rejects(waitForWavesControl(pageForForeignFailure()), error => error === failure);
+  function pageForForeignFailure() {
+    const readyPage = pageFor(ready());
+    readyPage.waitForFunction = page.waitForFunction;
+    return readyPage;
+  }
+});
+
+test('route failure from the real poll still closes context and saves incomplete evidence', async () => {
+  const { page, errors } = pollingPage(ready('/auth'));
+  let evidence, closed = false;
+  await assert.rejects(runWithNetworkEvidence(page, {
+    run: () => waitForMarineReady(page),
+    close: async () => { closed = true; },
+    save: async value => { evidence = value; },
+  }), error => error instanceof ZoomlabInstrumentError && error.code === 'unexpected-route');
+  assert.equal(closed, true);
+  assert.equal(evidence.completion.scenarioCompleted, false);
+  assert.equal(evidence.completion.contextClosed, true);
+  assert.deepEqual(errors, []);
+});
+
+test('route refusal keeps genuine coexisting errors and historical sentinel evidence unchanged', () => {
+  const error = new ZoomlabInstrumentError('unexpected-route', { route: '/auth', reason: 'unexpected-route' });
+  for (const message of ['Uncaught controlled application crash', 'Uncaught ZOOMLAB_INSTRUMENT_UNEXPECTED_ROUTE:/auth']) {
+    const report = instrumentFailureReport(error, 'staircase_full', 1, [message]);
+    assert.deepEqual(report.consoleErrors, [message]);
+    assert.equal(report.verdict, 'FAIL');
+  }
+});
+
+for (const route of ['/auth', '/feed', '/private/customer-fixture']) {
+  for (const waiter of [waitForMarineReady, waitForWavesControl]) {
+    test(`${waiter.name} retains terminal ${route} even if /map recovers before Node inspection`, async () => {
+      const window = ready();
+      const { page } = pollingPage(window, () => { window.location.pathname = route; },
+        { querySelectorAll: () => [] }, () => { window.location.pathname = '/map'; });
+      await assert.rejects(waiter(page), error => error instanceof ZoomlabInstrumentError
+        && error.code === 'unexpected-route'
+        && error.state.route === (route.startsWith('/private/') ? 'other' : route)
+        && !error.message.includes('customer-fixture'));
+    });
+  }
+}
+
+for (const waiter of [waitForMarineReady, waitForWavesControl]) {
+  test(`${waiter.name} still validates current state after a successful poll`, async () => {
+    const window = ready();
+    const { page, handles } = pollingPage(window, () => {},
+      { querySelectorAll: () => [button('Waves', 'false')] },
+      () => { window.location.pathname = '/auth'; });
+    await assert.rejects(waiter(page), error => error.code === 'unexpected-route');
+    assert.equal(handles[0].disposed, true);
+  });
+}
+
+test('poll observation failure is preserved and its result handle is disposed', async () => {
+  const page = pageFor(ready());
+  const failure = new Error('controlled observation failure');
+  let disposed = false;
+  page.waitForFunction = async () => ({ jsonValue: async () => { throw failure; },
+    dispose: async () => { disposed = true; } });
+  await assert.rejects(waitForMarineReady(page), error => error === failure);
+  assert.equal(disposed, true);
 });
