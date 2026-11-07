@@ -64,3 +64,8 @@ The reviewed nine-file patch was applied in the same approved independent clone 
 The restore and floor-control tests were rerun in the approved clone: **53 passed**. The same four missing dependency pins still limit local evidence. Hosted CI on the published commit remains required. The owner reports a separate active weather infobox release; this candidate changes only restore object lifetimes and must not merge into that release window without coordination.
 
 Authorization transcription correction: fragment line 2 lightly normalized the spoken wording. Fragment line 3 records the exact owner response. The cleanup scope and safeguard-preserving result are unchanged.
+
+
+## Draft publication
+
+Source commit 2879f5a37a8cd26c6c4213a0443559c6e91173c2 passed the real unchanged commit hook and was published to the feature branch after explicit GitHub CLI publication authorization. Remote read-back matched. Draft PR #737 targets dev: https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/737. Final docs audit before source commit: 0 FAIL, 83 WARN, 8 NOTE. Hosted checks are pending, and merge remains held for coordination with the separate infobox release. No dev merge or deployment occurred.
