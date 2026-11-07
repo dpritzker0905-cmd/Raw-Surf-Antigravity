@@ -192,7 +192,8 @@ jobs:
             // Phase 4 visual-check fixes (2026-11-05): SpotForecastChart +1 (Home/tap reach the bar before hour 0) = +0 suites / +1 test.
             // XP ordering: hosted run 42341428383 confirmed 641 suites / 8,401 tests on the d719b45f base.
             // Locker #735 adds 1 suite / 12 tests: current-dev integration projects 642 / 8,413; fresh hosted CI must confirm.
-            const MIN_SUITES = 642, MIN_TESTS = 8413;
+            // HUD resident truth (2026-11-07, ON with __RAW_DISABLE_HUD_RESIDENT_TRUTH__): hudResidentTruth.test.js (+1 suite / +3 tests). Raised by exactly that.
+            const MIN_SUITES = 643, MIN_TESTS = 8416;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
