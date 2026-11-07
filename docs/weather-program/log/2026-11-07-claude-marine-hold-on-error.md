@@ -1,6 +1,6 @@
 # 2026-11-07 - Claude: marine map holds the last good frame on fetch errors
 
-Trigger: Render backend srv-d7fhiu7lk1mc73debje0 was OOM-killed at 22:25:19Z (2Gi) and back at 22:25:59Z. Every API call
+Trigger: Render backend (the production web service) was OOM-killed at 22:25:19Z (2Gi) and back at 22:25:59Z. Every API call
 returned 502 (CORS-less, so the browser logged CORS errors), then `[WebGLMarineEngine-Clear]` fired and the wave heatmap
 and particles went blank.
 
