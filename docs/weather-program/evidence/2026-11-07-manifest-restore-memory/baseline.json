@@ -1,0 +1,39 @@
+{
+  "entries": 18002,
+  "wire_mib": 17.42,
+  "baseline_rss_mib": 180.86,
+  "python": "3.12.10 (tags/v3.12.10:0cc8128, Apr  8 2025, 12:21:36) [MSC v.1943 64 bit (AMD64)]",
+  "pydantic": "2.11.7",
+  "cycles": [
+    {
+      "cycle": 1,
+      "restored": 18002,
+      "additional_python_peak_mib": 267.6,
+      "traced_end_mib": 100.51,
+      "rss_mib": 304.64,
+      "seconds": 4.653,
+      "content_sha256": "23cbd9bb87ef179165d99b255f3d54a25f919478ba7d4be97a25946cfe0528a8",
+      "disk_bytes_sha256": "a1065600afaef71cf75fa3a18c4efa1101331660854b802685f4a68b64d2a93f"
+    },
+    {
+      "cycle": 2,
+      "restored": 18002,
+      "additional_python_peak_mib": 267.6,
+      "traced_end_mib": 100.53,
+      "rss_mib": 324.99,
+      "seconds": 5.965,
+      "content_sha256": "acb89ffecc7c8551e4367d34306e23757b777ddb308bd0a89a4987a6c08c817c",
+      "disk_bytes_sha256": "f5ea83bc825a9b43c676205df986c182b1180ae123f58412ba8d770837e15259"
+    },
+    {
+      "cycle": 3,
+      "restored": 18002,
+      "additional_python_peak_mib": 267.6,
+      "traced_end_mib": 100.53,
+      "rss_mib": 326.98,
+      "seconds": 5.505,
+      "content_sha256": "a014c0a2bccdbe23ca0ceaaccfd68cebeddc2de071aeb68035d52ca8be5c1b1b",
+      "disk_bytes_sha256": "842be9083ca73e534933319fc180a9d4b56264bea3e83ed8876a5c3264b2e328"
+    }
+  ]
+}
