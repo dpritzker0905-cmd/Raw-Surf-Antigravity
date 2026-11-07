@@ -46,6 +46,8 @@ def build_point_tide(series, lat, lng, now):
     return {
         "available": True, "height_m": state["height_m"], "trend": state["trend"], "rate_m_per_h": rate,
         "next_high": nxt["High"], "next_low": nxt["Low"], "series": pts,
+        # every high/low inside the curve window, so the client can recompute "next" from the cache as time passes
+        "events": [dict(_event(e), type=e["type"]) for e in events if lo <= e["time"] <= hi],
         "now": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         # Solar-time offset (longitude / 15): the series is GMT, no tz database is shipped. APPROXIMATE
         # (ignores zones and DST); the client prefers the browser zone when it agrees within 1.5 h.

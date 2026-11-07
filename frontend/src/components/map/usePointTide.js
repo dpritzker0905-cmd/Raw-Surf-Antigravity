@@ -7,7 +7,7 @@
 import { useEffect, useState } from 'react';
 import { BACKEND_URL } from '../../lib/apiClient';
 import { tideCellKey } from './tideClient';
-import { infoboxTideDisabled } from './tideReadoutFormat';
+import { infoboxTideDisabled, tideCovers } from './tideReadoutFormat';
 
 export const POINT_TIDE_URL = `${BACKEND_URL}/api/weather/point-tide`;
 const TTL_MS = 10 * 60 * 1000;
@@ -35,17 +35,23 @@ function load(cell, lat, lng) {
   return p;
 }
 
-export function usePointTide(lat, lng) {
+const MIN_REFETCH_MS = 60 * 1000;
+
+export function usePointTide(lat, lng, nowMs = Date.now()) {
   const off = infoboxTideDisabled();
   const ok = !off && lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
   const cell = ok ? tideCellKey(Number(lat), Number(lng)) : null;
   const [res, setRes] = useState({ cell: null, value: null });
+  // Series no longer reaches now+6h: drop the cached cell once (at most once a minute) and refetch.
+  const cached = cell ? _cache.get(cell) : null;
+  const stale = !!(cached && cached.value && !tideCovers(cached.value, nowMs) && Date.now() - cached.ts > MIN_REFETCH_MS);
+  if (stale) _cache.delete(cell);
   useEffect(() => {
     if (!cell) return undefined;
     let live = true;
     load(cell, lat, lng).then((value) => { if (live) setRes({ cell, value }); });
     return () => { live = false; };
-  }, [cell, lat, lng]);
+  }, [cell, lat, lng, stale]);
   if (off) return { status: 'off', data: null };
   if (!cell) return { status: 'loading', data: null };
   const hit = _cache.get(cell);

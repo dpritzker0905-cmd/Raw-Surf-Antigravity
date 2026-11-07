@@ -1,9 +1,9 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
-import TideReadout from './TideReadout';
+import { render, screen, waitFor, act } from '@testing-library/react';
+import TideReadout, { TIDE_TICK_MS } from './TideReadout';
 import { clearPointTideCache } from './usePointTide';
 import {
-  formatTideTime, formatTideEvent, formatTideRate, tideAriaLabel, tideCurve, trendWord, trendGlyph,
+  formatTideTime, formatTideEvent, tideAt, tideCovers, formatTideRate, tideAriaLabel, tideCurve, trendWord, trendGlyph,
 } from './tideReadoutFormat';
 
 const NOW = '2026-11-07T12:00:00Z';
@@ -13,6 +13,7 @@ const series = Array.from({ length: 37 }, (_, i) => {
 });
 const payload = {
   available: true, height_m: 0.6, trend: 'rising', rate_m_per_h: 0.12, now: NOW, tz_offset_h: 0, tz_approx: true,
+  events: [{ type: 'High', time: '2026-11-07T14:32:00Z', height_m: 1.2 }, { type: 'Low', time: '2026-11-07T20:45:00Z', height_m: -0.4 }],
   next_high: { time: '2026-11-07T14:32:00Z', height_m: 1.2 }, next_low: { time: '2026-11-07T20:45:00Z', height_m: -0.4 },
   series, source: 'model-msl', cell_km: 11,
 };
@@ -58,7 +59,7 @@ describe('TideReadout', () => {
 
   test('renders height, word, curve aria and honest footer', async () => {
     global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(payload) }));
-    render(<TideReadout lat={21.6} lng={-158} heightUnit="m" isLight={false} isBeach={false} />);
+    render(<TideReadout lat={21.6} lng={-158} heightUnit="m" isLight={false} isBeach={false} atTime={Date.parse(NOW)} />);
     expect(await screen.findByTestId('tide-readout')).toBeTruthy();
     expect(screen.getByText('Rising')).toBeTruthy();
     expect(screen.getByTestId('tide-curve').getAttribute('aria-label')).toMatch(/^Tide rising, 0\.6 m now/);
@@ -93,5 +94,64 @@ describe('TideReadout', () => {
     const { container } = render(<TideReadout lat={21.6} lng={-158} heightUnit="m" />);
     expect(container.firstChild).toBeNull();
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('time-aware readout', () => {
+  beforeEach(() => { clearPointTideCache(); delete window.__RAW_DISABLE_INFOBOX_TIDE__; });
+  afterEach(() => { delete global.fetch; jest.useRealTimers(); });
+
+  test('timer recomputes now/next from the cache with no extra fetch', async () => {
+    jest.useFakeTimers('modern');
+    jest.setSystemTime(Date.parse(NOW));
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(payload) }));
+    render(<TideReadout lat={5} lng={6} heightUnit="m" />);
+    await act(async () => { await Promise.resolve(); await Promise.resolve(); await Promise.resolve(); });
+    expect(screen.getByTestId('tide-curve').getAttribute('aria-label')).toMatch(/Tide rising/);
+    expect(screen.getByText(/Next high/)).toBeTruthy();
+    // 3 h later the 14:32 high is past: the card must now say falling, and the next high is gone.
+    await act(async () => { jest.setSystemTime(Date.parse(NOW) + 3 * 3600e3); jest.advanceTimersByTime(TIDE_TICK_MS); });
+    expect(screen.getByTestId('tide-curve').getAttribute('aria-label')).toMatch(/Tide falling/);
+    expect(screen.queryByText(/Next high/)).toBeNull();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  test('tz_approx caveat renders only when the solar offset is used', async () => {
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ ...payload, tz_offset_h: 15 }) }));
+    render(<TideReadout lat={7} lng={8} heightUnit="m" />);
+    expect(await screen.findByTestId('tide-solar-note')).toBeTruthy();
+    expect(screen.getByText('times approx. (local solar time)')).toBeTruthy();
+  });
+
+  test('no caveat when the browser zone agrees', async () => {
+    const off = -new Date(Date.parse(NOW)).getTimezoneOffset() / 60;
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ ...payload, tz_offset_h: off }) }));
+    render(<TideReadout lat={9} lng={10} heightUnit="m" />);
+    await screen.findByTestId('tide-readout');
+    expect(screen.queryByTestId('tide-solar-note')).toBeNull();
+  });
+
+  test('an event on another day carries its day label', () => {
+    const ref = Date.parse(NOW);
+    expect(formatTideTime('2026-11-08T14:32:00Z', 0, 0, ref)).toMatch(/^Sun .*:32/);
+    expect(formatTideTime('2026-11-07T14:32:00Z', 0, 0, ref)).toMatch(/^\d{1,2}:32/);
+    expect(formatTideEvent('high', { time: '2026-11-08T14:32:00Z', height_m: 1.2 }, 'm', 0, 0, ref)).toMatch(/^Next high Sun /);
+  });
+
+  test('atTime overrides now', () => {
+    const later = Date.parse(NOW) + 3 * 3600e3;
+    expect(tideAt(payload, Date.parse(NOW)).trend).toBe('rising');
+    expect(tideAt(payload, later).trend).toBe('falling');
+    expect(tideAt(payload, later).next_high).toBeNull();
+    expect(tideAt(payload, Date.parse(NOW) + 99 * 3600e3)).toBeNull();
+    expect(tideCovers(payload, Date.parse(NOW))).toBe(true);
+    expect(tideCovers(payload, Date.parse(NOW) + 28 * 3600e3)).toBe(false);
+  });
+
+  test('atTime prop drives the component', async () => {
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(payload) }));
+    render(<TideReadout lat={11} lng={12} heightUnit="m" atTime={Date.parse(NOW) + 3 * 3600e3} />);
+    const svg = await screen.findByTestId('tide-curve');
+    expect(svg.getAttribute('aria-label')).toMatch(/Tide falling/);
   });
 });
