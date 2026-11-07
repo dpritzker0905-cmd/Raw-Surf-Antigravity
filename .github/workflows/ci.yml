@@ -190,9 +190,9 @@ jobs:
             // Spot-hub phase 4 charts (2026-11-04, ON with __RAW_DISABLE_SPOT_HUB_CHARTS__): spotSeriesModel (18), SpotForecastChart (20),
             // SpotHub.charts (8), SpotConditions.charts (4), spotHubCharts.wiring (3) = +5 suites / +53 tests. Raised by exactly that; confirm against the hosted receipt.
             // Phase 4 visual-check fixes (2026-11-05): SpotForecastChart +1 (Home/tap reach the bar before hour 0) = +0 suites / +1 test.
-            // XP ordering: CI run 41960481203 observed 640 suites / 8,328 tests; frontend tree e03a829b is identical on DEV d719b45f.
-            // Projected +1 suite/+73 tests = 641/8401; this candidate still requires its own hosted confirmation.
-            const MIN_SUITES = 641, MIN_TESTS = 8401;
+            // XP ordering: hosted run 42341428383 confirmed 641 suites / 8,401 tests on the d719b45f base.
+            // Locker #735 adds 1 suite / 12 tests: current-dev integration projects 642 / 8,413; fresh hosted CI must confirm.
+            const MIN_SUITES = 642, MIN_TESTS = 8413;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -2240,7 +2240,9 @@ jobs:
           #   base 3406 (hosted read) + 2 new test(s) = 3408; floor 3408 - 2 = 3406. This PR must read 3408 passed.
           # ⬆ 3406→3419 on 2026-11-04 (rederive_floor.py, claude/default-on-guardrails): dev run 41747311909 read 3408; dev's map 3408;
           #   base 3408 (hosted read) + 13 new test(s) = 3421; floor 3421 - 2 = 3419. This PR must read 3421 passed.
-          MIN_PASSED = 3419
+          # Review category scores: DEV d719b45f; CI 41960481203 estate read 3421 passed.
+          # New tracked estate file collects 9 cases: projected 3430; floor 3428 keeps margin 2. Hosted CI must confirm.
+          MIN_PASSED = 3428
 
           try:
               root = ET.parse('estate.xml').getroot()

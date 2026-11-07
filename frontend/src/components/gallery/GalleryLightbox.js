@@ -39,9 +39,12 @@ export const GalleryLightbox = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [swipeStartX, setSwipeStartX] = useState(null);
-  const [unlocking, setUnlocking] = useState(false);
-  const [unlocked, setUnlocked] = useState(false);
-  const [purchasing, setPurchasing] = useState(false);
+  const [purchaseState, setPurchaseState] = useState({ itemId: null, phase: 'idle' });
+  const purchaseLifetimeRef = useRef(null);
+  const purchasePhase = purchaseState.itemId === item?.id ? purchaseState.phase : 'idle';
+  const purchasing = purchasePhase === 'purchasing';
+  const unlocking = purchasePhase === 'unlocking';
+  const unlocked = purchasePhase === 'unlocked';
   const [imgLoaded, setImgLoaded] = useState(false);
   const containerRef = useRef(null);
   const imgRef = useRef(null);
@@ -60,7 +63,17 @@ export const GalleryLightbox = ({
     setZoom(1);
     setPanOffset({ x: 0, y: 0 });
     setImgLoaded(false);
-    setUnlocked(false);
+  }, [item?.id]);
+
+  // A visit owns its pending purchase and animation, even when returning to the same item.
+  useEffect(() => {
+    const lifetime = { active: true, inFlight: false, timer: null };
+    purchaseLifetimeRef.current = lifetime;
+    setPurchaseState({ itemId: item?.id, phase: 'idle' });
+    return () => {
+      lifetime.active = false;
+      if (lifetime.timer !== null) clearTimeout(lifetime.timer);
+    };
   }, [item?.id]);
 
   // Keyboard navigation
@@ -129,22 +142,31 @@ export const GalleryLightbox = ({
       toast.info('Ask your parent to approve this purchase!');
       return;
     }
-    if (!onPurchase) return;
-    setPurchasing(true);
+    if (!onPurchase || !item) return;
+    const lifetime = purchaseLifetimeRef.current;
+    if (!lifetime?.active || lifetime.inFlight) return;
+    const isCurrent = () => lifetime.active && purchaseLifetimeRef.current === lifetime;
+    const updatePhase = phase => setPurchaseState({ itemId: item.id, phase });
+    lifetime.inFlight = true;
+    updatePhase('purchasing');
     try {
       const purchased = await onPurchase(item.id, 'high');
-      // The parent reports a refused purchase (not enough credits, already bought...) as `false` after toasting
-      // the reason; playing "Unlocked!" and swapping in the original on a failure would be a lie.
-      if (purchased === false) return;
-      setUnlocking(true);
-      setTimeout(() => {
-        setUnlocked(true);
-        setUnlocking(false);
+      if (!isCurrent()) return;
+      // Preserve the parent's refusal contract without animating or unlocking this visit.
+      if (purchased === false) {
+        updatePhase('idle');
+        return;
+      }
+      updatePhase('unlocking');
+      lifetime.timer = setTimeout(() => {
+        lifetime.timer = null;
+        if (isCurrent()) updatePhase('unlocked');
       }, 1200);
     } catch {
-      // Error handled by parent
+      // Error handled by parent; only the initiating visit may clear its pending state.
+      if (isCurrent()) updatePhase('idle');
     } finally {
-      setPurchasing(false);
+      lifetime.inFlight = false;
     }
   };
 
