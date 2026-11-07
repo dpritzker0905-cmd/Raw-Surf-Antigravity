@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -24,6 +24,7 @@ import { Badge } from './ui/badge';
 
 import { toast } from 'sonner';
 import useBookingManagerActions from '../hooks/useBookingManagerActions';
+import usePhotographerBookingsList from '../hooks/usePhotographerBookingsList';
 
 import { PhotographerAvailabilityCalendar } from './PhotographerAvailabilityCalendar';
 
@@ -44,8 +45,9 @@ export const PhotographerBookingsManager = () => {
   const _navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState('pending');
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { bookings, setBookings, loading, error: bookingsError, fetchBookings } = usePhotographerBookingsList({
+    userId: user?.id, ownerKey: JSON.stringify([user?.role, user?.is_admin]),
+  });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [showParticipantsModal, setShowParticipantsModal] = useState(false);
@@ -231,7 +233,6 @@ export const PhotographerBookingsManager = () => {
     toggleRecurringDay,
     fetchBookingPricing,
     handleSaveBookingPricing,
-    fetchBookings,
     handleCreateBooking,
     handleAddCrewMember,
     handleRemoveCrewMember,
@@ -262,7 +263,7 @@ export const PhotographerBookingsManager = () => {
     setGeneratedSplitLink,
     setGridDragMode,
     setIsGridDragging,
-    setLoading,
+    fetchBookings,
     setNewAvailability,
     setNewBooking,
     setNewCrewInput,
@@ -287,17 +288,13 @@ export const PhotographerBookingsManager = () => {
   });
 
 
-  // Safety timeout: prevent infinite spinner if API is unreachable
-  useEffect(() => {
-    if (loading) {
-      const timeout = setTimeout(() => setLoading(false), 10000);
-      return () => clearTimeout(timeout);
-    }
-  }, [loading]);
-  if (loading) {
+  if (loading && bookings.length === 0 && !bookingsError) {
     return (
       <div className={`flex items-center justify-center min-h-screen ${mainBgClass}`}>
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+        <div role="status">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-cyan-400"></div>
+          <span className="sr-only">Loading bookings...</span>
+        </div>
       </div>
     );
   }
@@ -454,6 +451,15 @@ export const PhotographerBookingsManager = () => {
           })}
         </div>
 
+        {bookingsError && (
+          <div role="alert" className="mb-4 p-3 rounded-lg border border-border bg-muted text-foreground text-sm">
+            <p>{bookingsError}</p>
+            <Button type="button" variant="outline" className="mt-2" onClick={fetchBookings}
+              disabled={loading} aria-label="Retry bookings">Retry</Button>
+          </div>
+        )}
+        {loading && <p role="status" className="mb-4 text-sm text-muted-foreground">Loading bookings...</p>}
+
         {/* Calendar View */}
         {activeTab === 'calendar' && (
           <div className="mt-4">
@@ -463,8 +469,8 @@ export const PhotographerBookingsManager = () => {
 
         {/* Bookings List */}
         {activeTab !== 'calendar' && (
-        <div className="space-y-4">
-          {filteredBookings.length === 0 ? (
+        <div className="space-y-4" aria-busy={loading}>
+          {filteredBookings.length === 0 ? (bookingsError || loading ? null : (
             <Card className={`${cardBgClass} transition-colors duration-300`}>
               <CardContent className="py-12 text-center">
                 <div className={`w-16 h-16 mx-auto mb-4 rounded-full ${isLight ? 'bg-gray-100' : 'bg-zinc-800'} flex items-center justify-center`}>
@@ -476,7 +482,7 @@ export const PhotographerBookingsManager = () => {
                 </p>
               </CardContent>
             </Card>
-          ) : (
+          )) : (
             filteredBookings.map((booking) => (
               <div
                 key={booking.id}
