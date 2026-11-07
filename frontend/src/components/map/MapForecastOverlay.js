@@ -3,7 +3,7 @@ import { Lock, ChevronDown, MapPin, Check, Info, AlertTriangle } from 'lucide-re
 import { useTheme } from '../../contexts/ThemeContext';
 import { getHeightUnit } from './heightUnits';
 import { describeLayerSubstitution, describeStaleHour } from './modelProvenance';
-import { resolveDisplayedSlot } from './decodedOmSampler';
+import { resolveDisplayedSlot, sampleDecodedOmValue } from './decodedOmSampler';
 import {
   sampleFromMarineGrid,
   fetchExactMarinePoint,
@@ -21,7 +21,7 @@ import { isLayerSupportedByModel, isGridLayerSupported, isInCooldown } from './m
 import { getSurfModeFlag, getSharedValidTime, getSeriesAnchorMs } from './backendWeatherServiceClient';
 import { compileForecastCards, STATUS_RENDERS } from './forecastCardCompiler';
 import { modelDisplayName } from './modelDisplayName';
-import { sampleDecodedOmValue } from './decodedOmSampler';
+import TideReadout from './TideReadout';
 import { usePointRating } from './usePointRating';
 import { computeHeatmapStatus } from './forecastDiagnostics';
 import { logPressureTelemetryDiagnostics, checkIsExactPointValid, logForensicAudit } from './MapForecastOverlayDiag';
@@ -35,7 +35,6 @@ import { reconcileStaleBadge, latticeNearestMaxHours } from './drawnFrameReadout
 import { forecastHourMs, infoboxFrameView, ratingFrameNote } from './infoboxFrameTime';
 import { InfoboxFrameWords } from './InfoboxFrameWords';
 import { InfoboxSpotChart } from '../spot-hub/charts/SpotChartPanel';
-
 
 export const MapForecastOverlay = ({
   forecastData,
@@ -748,6 +747,7 @@ export const MapForecastOverlay = ({
                   </button>
                 </div>
               )}
+              <TideReadout lat={pointLat} lng={pointLng} heightUnit={heightUnit} isLight={isLight} isBeach={isBeach} />
               <InfoboxSpotChart spot={selectedSpot} user={user} model={activeModel} hour={timeOffsetHours} onTimeChange={onTimeChange} isLight={isLight} />
               <InfoboxFrameWords view={frameView} />
               {!modelSubstitution && staleHour && (

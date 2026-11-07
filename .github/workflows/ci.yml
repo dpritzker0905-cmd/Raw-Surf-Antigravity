@@ -1021,7 +1021,11 @@ jobs:
           #   base 3521 (dev's map) + 2 new test(s) and 1 new file(s) = 3523, files 222; floor 3523 - 6 = 3517. This PR must read 3523 passed.
           # ⬆ 3517→3539 on 2026-11-05 (by hand, claude/spot-hub-charts: rederive_floor.py needs `gh`, absent here):
           #   base 3523 (dev's map after #726) + 22 new test(s) and 1 new file(s) = 3545, files 223; floor 3545 - 6 = 3539. This PR must read 3545 passed.
-          MIN_FILES, MIN_PASSED = 223, 3539
+          # ⬆ 3539→3550 on 2026-11-07 (rederive_floor.py, codex/manifest-restore-memory-20261107): dev run 42348439253 read 3545 / 223 files; dev's map 3545;
+          #   base 3545 (hosted read) + 11 new test(s) and 0 new file(s) = 3556, files 223; floor 3556 - 6 = 3550. This PR must read 3556 passed.
+          # ⬆ 3550→3554 on 2026-11-07 (rederive_floor.py, claude/infobox-tide): dev run 42396705577 read 3556 / 223 files; dev's map 3556;
+          #   base 3556 (hosted read) + 4 new test(s) and 1 new file(s) = 3560, files 224; floor 3560 - 6 = 3554. This PR must read 3560 passed.
+          MIN_FILES, MIN_PASSED = 224, 3554
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

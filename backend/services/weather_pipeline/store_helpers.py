@@ -472,6 +472,11 @@ def _restore_from_supabase_inner(store) -> Tuple[int, List[str]]:
     # Step 3: Write manifest to disk
     try:
         manifest = PipelineManifest.model_validate(manifest_data)
+        # A changed 18k-entry restore otherwise keeps the downloaded bytes/raw tree alive
+        # alongside both validated manifests through serialization. Drop obsolete owners
+        # before loading the local copy; the serving cache stays valid until publication.
+        manifest_data = manifest_bytes = None
+        resp = None  # the cache-busted requests.Response also owns the downloaded bytes
         # Preserve existing local test fixtures and estimated products if in dev/test environment
         node_env = os.environ.get("NODE_ENV", "").lower()
         env = os.environ.get("ENV", "").lower()
@@ -483,6 +488,7 @@ def _restore_from_supabase_inner(store) -> Tuple[int, List[str]]:
                 with open(store.manifest_path, "r") as f:
                     local_data = json.load(f)
                 local_manifest = PipelineManifest.model_validate(local_data)
+                del local_data  # validation has copied the fields it retains
                 local_tf_and_estimated = [
                     p for p in local_manifest.products
                     if p.is_test_fixture or getattr(p, "is_estimated", False)
@@ -501,6 +507,8 @@ def _restore_from_supabase_inner(store) -> Tuple[int, List[str]]:
                         logger.info(f"[Product Store] Merged {merged_count} existing local test fixtures / estimated products from disk manifest")
             except Exception as merge_err:
                 logger.warning(f"[Product Store] Failed to merge local test fixtures / estimated products: {merge_err}")
+            finally:
+                local_data = local_manifest = local_tf_and_estimated = None
 
         # Filter out test fixtures from manifest in production
         if not is_test_env:
