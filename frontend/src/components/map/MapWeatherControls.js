@@ -564,15 +564,9 @@ export var MapWeatherControls = ({
             frame-step buttons above. Theme-aware via chipBg/btnHover/textMuted. */}
         {useWheel && !isRadar && (
           <div className="flex flex-wrap items-center justify-center gap-1 mt-1.5">
-            {[
-              { label: '−1d', delta: -24, aria: 'Step back 1 day' },
-              { label: '−3h', delta: -3, aria: 'Step back 3 hours', grid: -1 },
-              { label: '−1h', delta: -1, aria: 'Step back 1 hour' },
-              { label: 'Now', delta: null },
-              { label: '+1h', delta: 1, aria: 'Step forward 1 hour' },
-              { label: '+3h', delta: 3, aria: 'Step forward 3 hours', grid: 1 },
-              { label: '+1d', delta: 24, aria: 'Step forward 1 day' },
-            ].map(({ label, delta, aria, grid }) => (
+            {[['−1d',-24,'Step back 1 day'],['−3h',-3,'Step back 3 hours',-1],['−1h',-1,'Step back 1 hour'],['Now',null],
+              ['+1h',1,'Step forward 1 hour'],['+3h',3,'Step forward 3 hours',1],['+1d',24,'Step forward 1 day']
+            ].map(([label, delta, aria, grid]) => (
               <button
                 key={label}
                 type="button"
