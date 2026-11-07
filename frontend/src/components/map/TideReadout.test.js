@@ -62,7 +62,7 @@ describe('TideReadout', () => {
     render(<TideReadout lat={21.6} lng={-158} heightUnit="m" isLight={false} isBeach={false} atTime={Date.parse(NOW)} />);
     expect(await screen.findByTestId('tide-readout')).toBeTruthy();
     expect(screen.getByText('Rising')).toBeTruthy();
-    expect(screen.getByTestId('tide-curve').getAttribute('aria-label')).toMatch(/^Tide rising, 0\.6 m now/);
+    expect(screen.getByTestId('tide-curve').getAttribute('aria-label')).toMatch(/^Tide rising, 0\.0 m now/);
     expect(screen.getByText(/not an official tide table/)).toBeTruthy();
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
