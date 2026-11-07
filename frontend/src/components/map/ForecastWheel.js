@@ -307,7 +307,8 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
     const step = { ArrowLeft: -1, ArrowRight: 1, PageDown: -dayStep, PageUp: dayStep }[e.key];
     if (step !== undefined) {
       e.preventDefault();
-      setHour(wheelSettleTarget(s.hour, max) + step, { doCommit: true });
+      const cur = wheelSettleTarget(s.hour, max);
+      setHour(cur + step, { doCommit: true });
     } else if (e.key === 'Home') {
       e.preventDefault();
       setHour(0, { doCommit: true });
