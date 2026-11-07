@@ -9,6 +9,7 @@ const ALLOWED = new Set([
   'frontend/e2e/seededUiIsolation.js',
   'frontend/scripts/seededUiIsolation.test.cjs',
   'frontend/scripts/offline-backend/weather_route.js',
+  'frontend/scripts/offlineWeatherRoute.test.cjs',
   'frontend/scripts/offline-backend/route_lifecycle.js',
   'frontend/scripts/syntheticCleanup.test.cjs',
   'frontend/scripts/e2eHarnessScope.cjs',
