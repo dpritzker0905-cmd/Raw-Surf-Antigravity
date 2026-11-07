@@ -30,3 +30,8 @@ Work is in the existing approved independent clone on a new no-track branch. Its
 ## Final local cohort
 
 The final seven-file cohort passed: **151 passed, 3 warnings**, no skips. This includes both review-requested controls and CI-floor staleness tests. The warnings are existing Pydantic deprecations; four absent dependency pins remain an environment limitation.
+
+## Draft publication
+
+The unchanged hook passed. Source commit 211cc3d222659727fc18386a3416c60bea87675d was pushed and remotely verified. Draft PR #742 targets dev: https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/pull/742. Hosted checks are pending; named-PR merge approval remains held. Full backend fatal lint and lane partition passed; docs audit reported 0 FAIL, 88 WARN, 7 NOTE; ledger verified 2,074 canonical entries plus this separate fragment.
+
