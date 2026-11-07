@@ -27,24 +27,31 @@ export const XPLeaderboard = ({ compact = false, limit = 10 }) => {
   const textSecondary = isLight ? 'text-gray-600' : 'text-gray-400';
 
   useEffect(() => {
-    fetchLeaderboard();
-  }, [timeRange, category, limit]);
+    let active = true;
 
-  const fetchLeaderboard = async () => {
-    setLoading(true);
-    try {
-      const response = await apiClient.get(`/gamification/leaderboard`, {
-        params: { time_range: timeRange, category, limit }
-      });
-      setLeaderboard(response.data.leaderboard || []);
-    } catch (error) {
-      logger.error('Failed to fetch leaderboard:', error);
-      // Use mock data if API fails
-      setLeaderboard(getMockLeaderboard());
-    } finally {
-      setLoading(false);
-    }
-  };
+    const fetchLeaderboard = async () => {
+      setLoading(true);
+      try {
+        const response = await apiClient.get(`/gamification/leaderboard`, {
+          params: { time_range: timeRange, category, limit }
+        });
+        if (!active) return;
+        setLeaderboard(response.data.leaderboard || []);
+      } catch (error) {
+        if (!active) return;
+        logger.error('Failed to fetch leaderboard:', error);
+        // Use mock data if API fails
+        setLeaderboard(getMockLeaderboard());
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    fetchLeaderboard();
+    return () => {
+      active = false;
+    };
+  }, [timeRange, category, limit]);
 
   // Mock data for development/fallback
   const getMockLeaderboard = () => [

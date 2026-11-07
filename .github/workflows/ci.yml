@@ -190,7 +190,9 @@ jobs:
             // Spot-hub phase 4 charts (2026-11-04, ON with __RAW_DISABLE_SPOT_HUB_CHARTS__): spotSeriesModel (18), SpotForecastChart (20),
             // SpotHub.charts (8), SpotConditions.charts (4), spotHubCharts.wiring (3) = +5 suites / +53 tests. Raised by exactly that; confirm against the hosted receipt.
             // Phase 4 visual-check fixes (2026-11-05): SpotForecastChart +1 (Home/tap reach the bar before hour 0) = +0 suites / +1 test.
-            const MIN_SUITES = 543, MIN_TESTS = 7094;
+            // XP ordering: hosted run 42341428383 confirmed 641 suites / 8,401 tests on the d719b45f base.
+            // Locker #735 adds 1 suite / 12 tests: current-dev integration projects 642 / 8,413; fresh hosted CI must confirm.
+            const MIN_SUITES = 642, MIN_TESTS = 8413;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
