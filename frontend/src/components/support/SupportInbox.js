@@ -112,7 +112,7 @@ const SupportSession = () => {
     finally { mutation.current = false; if (alive.current) setPending(false); }
   };
 
-  return <main className="mx-auto max-w-5xl p-4 text-foreground space-y-4">
+  return <div className="mx-auto max-w-5xl p-4 text-foreground space-y-4">
     <div className="flex flex-wrap items-center justify-between gap-2">
       <h1 className="text-2xl font-semibold">Support inbox</h1>
       <div className="flex flex-wrap gap-2">
@@ -185,7 +185,7 @@ const SupportSession = () => {
         {failure?.ticketId === null && <p role="alert">{failure.text}</p>}
       </form>
     </section>
-  </main>;
+  </div>;
 };
 
 export default SupportInbox;
