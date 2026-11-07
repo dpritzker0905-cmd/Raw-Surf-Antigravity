@@ -788,5 +788,29 @@
   "outcome": "FAIL (precision)",
   "reason": "Volume and tier pass: max 2 per user-day in every class and sigma (was 3/3/5 at sigma 1). Precision does not: at sigma 1 it is 0.678 / 0.469 / 0.740 (dawn / offshore-light / size) at recall 0.960 / 0.920 / 0.916. The residual false alerts are FIRST announcements of windows the noisy forecast invents, which no dedupe can remove. The replay-only two-cycle hysteresis lifts precision to 0.792 / 0.792 / 0.827 but recall falls to 0.933 / 0.800 / 0.893: offshore-light misses both halves of the bar and dawn misses precision. No setting swept (gap 0-6, cap 2, hysteresis with a 0/3/6/12 h near-lead exemption) met precision >= 0.8 at recall >= 0.85 for all three classes at sigma 1.",
   "light_pr_ready": false
+ },
+ "rerun_2026_11_05": {
+  "pr": "claude/alert-accuracy (draft)",
+  "question": "the #718 replay ASSUMED the wind lead error; measure it, replace it, try pre-registered precision levers",
+  "measured_wind_skill": "scripts/wind_lead_skill.py: ISD C-MAN pier anemometers (TRDF1 LJPC1 DUKN7 LKWF1 JMPN7 MROS1 PTAT2) vs archived GFS 0.25 (the lane alerts read), ECMWF IFS 0.25, HRRR (map-only), 2024 Apr/Jul/Sep-Nov/Dec; GFS speed RMSE 1.74 m/s at lead 0 -> 2.17 at 72 h; class flips at lead 0 light 0.18 / clean 0.19 / offshore 0.13; cross-cycle error correlation 0.92 (runs 6 h apart); GFS-ECMWF error correlation 0.83 speed / 0.56 direction; evidence/2026-11-04-alert-accuracy/wind_skill.json",
+  "data": "NOT #718's NDBC dir (unreachable from the sandbox): archived 2024-09-19..11-06 built by scripts/alert_replay_inputs.py (real pier wind, GFS-Wave analysis sea, synthetic tide); same 3 spots x 3 classes x seeds 0-4",
+  "preregistration": "evidence/2026-11-04-alert-accuracy/PREREGISTRATION.md (commit 86f615579, pushed before scoring)",
+  "bar": "unchanged: precision >= 0.8 AND recall >= 0.85 per class at sigma 1 (measured), max 2 per user-day, 0 outside the tier window; L1 configurations must also pass at rho_hs 1.0",
+  "sigma1_measured_precision_recall": {
+   "baseline": {"size": [0.72, 0.702], "offshore_light": [0.575, 0.6], "dawn_clean": [0.802, 0.742]},
+   "L1": {"size": [0.762, 0.638], "offshore_light": [0.766, 0.538], "dawn_clean": [0.846, 0.642]},
+   "L2": {"size": [0.758, 0.675], "offshore_light": [0.615, 0.554], "dawn_clean": [0.809, 0.742]},
+   "L2b": {"size": [0.767, 0.645], "offshore_light": [0.656, 0.554], "dawn_clean": [0.796, 0.708]},
+   "L3": {"size": [0.743, 0.642], "offshore_light": [0.607, 0.538], "dawn_clean": [0.8, 0.7]},
+   "L1+L2": {"size": [0.793, 0.589], "offshore_light": [0.805, 0.477], "dawn_clean": [0.864, 0.633]},
+   "L1+L3": {"size": [0.778, 0.555], "offshore_light": [0.825, 0.492], "dawn_clean": [0.859, 0.608]},
+   "L1+L2+L3": {"size": [0.801, 0.536], "offshore_light": [0.838, 0.446], "dawn_clean": [0.88, 0.608]}
+  },
+  "volume_tier": "max 2 per user-day and 0 outside the tier window in every capped arm, class and sigma",
+  "instrument": "scripts/alert_window_replay.py --error-model measured; scripts/alert_lever_verdict.py; evidence/2026-11-04-alert-accuracy/replay_summary.json, verdict.json",
+  "outcome": "FAIL (recall; precision for size and offshore)",
+  "reason": "The measured wind error is mostly present at lead 0 (the grid does not see the pier), persists across runs (0.92) and is shared by ECMWF (0.83), so re-forecasting, a second model and lead margins cannot average it out; it is also biased by station and regime, which misses the same real window in every cycle. Recall falls below 0.85 in every configuration and class, the #718 baseline included. Exploratory (not pre-registered) debiasing restores recall (0.85 / 0.72 / 0.88) but not precision (0.70 / 0.60 / 0.69).",
+  "flag": "ALERTS_FORECAST_WINDOWS stays default '0'; levers ALERTS_PEER_AGREEMENT / ALERTS_LEAD_MARGIN / ALERTS_LEAD_HYSTERESIS ship inert (default off)",
+  "light_pr_ready": false
  }
 }

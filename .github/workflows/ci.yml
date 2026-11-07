@@ -1020,7 +1020,9 @@ jobs:
           #   base 3521 (dev's map) + 2 new test(s) and 1 new file(s) = 3523, files 222; floor 3523 - 6 = 3517. This PR must read 3523 passed.
           # ⬆ 3517→3539 on 2026-11-05 (by hand, claude/spot-hub-charts: rederive_floor.py needs `gh`, absent here):
           #   base 3523 (dev's map after #726) + 22 new test(s) and 1 new file(s) = 3545, files 223; floor 3545 - 6 = 3539. This PR must read 3545 passed.
-          MIN_FILES, MIN_PASSED = 223, 3539
+          # ⬆ 3539→3615 on 2026-11-05 (rederive_floor.py, claude/alert-accuracy): dev run 41978366384 read 3545 / 223 files; dev's map 3545;
+          #   base 3545 (hosted read) + 76 new test(s) and 3 new file(s) = 3621, files 226; floor 3621 - 6 = 3615. This PR must read 3621 passed.
+          MIN_FILES, MIN_PASSED = 226, 3615
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

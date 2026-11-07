@@ -1,0 +1,531 @@
+{
+ "bar": {
+  "precision": 0.8,
+  "recall": 0.85,
+  "max_per_user_day": 2,
+  "outside_tier_window": 0
+ },
+ "order": [
+  "L1",
+  "L2",
+  "L2b",
+  "L3",
+  "L1+L2",
+  "L1+L3",
+  "L1+L2+L3"
+ ],
+ "configs": [
+  {
+   "arm": "baseline",
+   "classes": {
+    "size_only_2_6ft": {
+     "0.8": {
+      "precision": 0.72,
+      "recall": 0.702,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 3.07,
+      "pass": false,
+      "short": [
+       "precision 0.72 < 0.8",
+       "recall 0.702 < 0.85"
+      ]
+     }
+    },
+    "morning_afternoon_offshore_light": {
+     "0.8": {
+      "precision": 0.575,
+      "recall": 0.6,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 0.76,
+      "pass": false,
+      "short": [
+       "precision 0.575 < 0.8",
+       "recall 0.6 < 0.85"
+      ]
+     }
+    },
+    "dawn_morning_clean_mid_high_tide": {
+     "0.8": {
+      "precision": 0.802,
+      "recall": 0.742,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 1.15,
+      "pass": false,
+      "short": [
+       "recall 0.742 < 0.85"
+      ]
+     }
+    }
+   },
+   "pass": false
+  },
+  {
+   "arm": "L1",
+   "classes": {
+    "size_only_2_6ft": {
+     "0.8": {
+      "precision": 0.762,
+      "recall": 0.638,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 2.53,
+      "pass": false,
+      "short": [
+       "precision 0.762 < 0.8",
+       "recall 0.638 < 0.85"
+      ]
+     },
+     "1.0": {
+      "precision": 0.73,
+      "recall": 0.66,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 2.84,
+      "pass": false,
+      "short": [
+       "precision 0.73 < 0.8",
+       "recall 0.66 < 0.85"
+      ]
+     }
+    },
+    "morning_afternoon_offshore_light": {
+     "0.8": {
+      "precision": 0.766,
+      "recall": 0.538,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 0.49,
+      "pass": false,
+      "short": [
+       "precision 0.766 < 0.8",
+       "recall 0.538 < 0.85"
+      ]
+     },
+     "1.0": {
+      "precision": 0.75,
+      "recall": 0.554,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 0.54,
+      "pass": false,
+      "short": [
+       "precision 0.75 < 0.8",
+       "recall 0.554 < 0.85"
+      ]
+     }
+    },
+    "dawn_morning_clean_mid_high_tide": {
+     "0.8": {
+      "precision": 0.846,
+      "recall": 0.642,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 0.94,
+      "pass": false,
+      "short": [
+       "recall 0.642 < 0.85"
+      ]
+     },
+     "1.0": {
+      "precision": 0.854,
+      "recall": 0.683,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 1.0,
+      "pass": false,
+      "short": [
+       "recall 0.683 < 0.85"
+      ]
+     }
+    }
+   },
+   "pass": false
+  },
+  {
+   "arm": "L2",
+   "classes": {
+    "size_only_2_6ft": {
+     "0.8": {
+      "precision": 0.758,
+      "recall": 0.675,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 3.0,
+      "pass": false,
+      "short": [
+       "precision 0.758 < 0.8",
+       "recall 0.675 < 0.85"
+      ]
+     }
+    },
+    "morning_afternoon_offshore_light": {
+     "0.8": {
+      "precision": 0.615,
+      "recall": 0.554,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 0.67,
+      "pass": false,
+      "short": [
+       "precision 0.615 < 0.8",
+       "recall 0.554 < 0.85"
+      ]
+     }
+    },
+    "dawn_morning_clean_mid_high_tide": {
+     "0.8": {
+      "precision": 0.809,
+      "recall": 0.742,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 1.14,
+      "pass": false,
+      "short": [
+       "recall 0.742 < 0.85"
+      ]
+     }
+    }
+   },
+   "pass": false
+  },
+  {
+   "arm": "L2b",
+   "classes": {
+    "size_only_2_6ft": {
+     "0.8": {
+      "precision": 0.767,
+      "recall": 0.645,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 2.89,
+      "pass": false,
+      "short": [
+       "precision 0.767 < 0.8",
+       "recall 0.645 < 0.85"
+      ]
+     }
+    },
+    "morning_afternoon_offshore_light": {
+     "0.8": {
+      "precision": 0.656,
+      "recall": 0.554,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 0.66,
+      "pass": false,
+      "short": [
+       "precision 0.656 < 0.8",
+       "recall 0.554 < 0.85"
+      ]
+     }
+    },
+    "dawn_morning_clean_mid_high_tide": {
+     "0.8": {
+      "precision": 0.796,
+      "recall": 0.708,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 1.12,
+      "pass": false,
+      "short": [
+       "precision 0.796 < 0.8",
+       "recall 0.708 < 0.85"
+      ]
+     }
+    }
+   },
+   "pass": false
+  },
+  {
+   "arm": "L3",
+   "classes": {
+    "size_only_2_6ft": {
+     "0.8": {
+      "precision": 0.743,
+      "recall": 0.642,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 2.62,
+      "pass": false,
+      "short": [
+       "precision 0.743 < 0.8",
+       "recall 0.642 < 0.85"
+      ]
+     }
+    },
+    "morning_afternoon_offshore_light": {
+     "0.8": {
+      "precision": 0.607,
+      "recall": 0.538,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 0.63,
+      "pass": false,
+      "short": [
+       "precision 0.607 < 0.8",
+       "recall 0.538 < 0.85"
+      ]
+     }
+    },
+    "dawn_morning_clean_mid_high_tide": {
+     "0.8": {
+      "precision": 0.8,
+      "recall": 0.7,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 1.09,
+      "pass": false,
+      "short": [
+       "recall 0.7 < 0.85"
+      ]
+     }
+    }
+   },
+   "pass": false
+  },
+  {
+   "arm": "L1+L2",
+   "classes": {
+    "size_only_2_6ft": {
+     "0.8": {
+      "precision": 0.793,
+      "recall": 0.589,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 2.35,
+      "pass": false,
+      "short": [
+       "precision 0.793 < 0.8",
+       "recall 0.589 < 0.85"
+      ]
+     },
+     "1.0": {
+      "precision": 0.765,
+      "recall": 0.634,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 2.78,
+      "pass": false,
+      "short": [
+       "precision 0.765 < 0.8",
+       "recall 0.634 < 0.85"
+      ]
+     }
+    },
+    "morning_afternoon_offshore_light": {
+     "0.8": {
+      "precision": 0.805,
+      "recall": 0.477,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 0.43,
+      "pass": false,
+      "short": [
+       "recall 0.477 < 0.85"
+      ]
+     },
+     "1.0": {
+      "precision": 0.818,
+      "recall": 0.508,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 0.46,
+      "pass": false,
+      "short": [
+       "recall 0.508 < 0.85"
+      ]
+     }
+    },
+    "dawn_morning_clean_mid_high_tide": {
+     "0.8": {
+      "precision": 0.864,
+      "recall": 0.633,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 0.91,
+      "pass": false,
+      "short": [
+       "recall 0.633 < 0.85"
+      ]
+     },
+     "1.0": {
+      "precision": 0.872,
+      "recall": 0.683,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 0.97,
+      "pass": false,
+      "short": [
+       "recall 0.683 < 0.85"
+      ]
+     }
+    }
+   },
+   "pass": false
+  },
+  {
+   "arm": "L1+L3",
+   "classes": {
+    "size_only_2_6ft": {
+     "0.8": {
+      "precision": 0.778,
+      "recall": 0.555,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 2.11,
+      "pass": false,
+      "short": [
+       "precision 0.778 < 0.8",
+       "recall 0.555 < 0.85"
+      ]
+     },
+     "1.0": {
+      "precision": 0.748,
+      "recall": 0.596,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 2.43,
+      "pass": false,
+      "short": [
+       "precision 0.748 < 0.8",
+       "recall 0.596 < 0.85"
+      ]
+     }
+    },
+    "morning_afternoon_offshore_light": {
+     "0.8": {
+      "precision": 0.825,
+      "recall": 0.492,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 0.41,
+      "pass": false,
+      "short": [
+       "recall 0.492 < 0.85"
+      ]
+     },
+     "1.0": {
+      "precision": 0.81,
+      "recall": 0.492,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 0.44,
+      "pass": false,
+      "short": [
+       "recall 0.492 < 0.85"
+      ]
+     }
+    },
+    "dawn_morning_clean_mid_high_tide": {
+     "0.8": {
+      "precision": 0.859,
+      "recall": 0.608,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 0.88,
+      "pass": false,
+      "short": [
+       "recall 0.608 < 0.85"
+      ]
+     },
+     "1.0": {
+      "precision": 0.867,
+      "recall": 0.65,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 0.93,
+      "pass": false,
+      "short": [
+       "recall 0.65 < 0.85"
+      ]
+     }
+    }
+   },
+   "pass": false
+  },
+  {
+   "arm": "L1+L2+L3",
+   "classes": {
+    "size_only_2_6ft": {
+     "0.8": {
+      "precision": 0.801,
+      "recall": 0.536,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 2.08,
+      "pass": false,
+      "short": [
+       "recall 0.536 < 0.85"
+      ]
+     },
+     "1.0": {
+      "precision": 0.772,
+      "recall": 0.585,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 2.46,
+      "pass": false,
+      "short": [
+       "precision 0.772 < 0.8",
+       "recall 0.585 < 0.85"
+      ]
+     }
+    },
+    "morning_afternoon_offshore_light": {
+     "0.8": {
+      "precision": 0.838,
+      "recall": 0.446,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 0.38,
+      "pass": false,
+      "short": [
+       "recall 0.446 < 0.85"
+      ]
+     },
+     "1.0": {
+      "precision": 0.846,
+      "recall": 0.462,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 0.4,
+      "pass": false,
+      "short": [
+       "recall 0.462 < 0.85"
+      ]
+     }
+    },
+    "dawn_morning_clean_mid_high_tide": {
+     "0.8": {
+      "precision": 0.88,
+      "recall": 0.608,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 0.86,
+      "pass": false,
+      "short": [
+       "recall 0.608 < 0.85"
+      ]
+     },
+     "1.0": {
+      "precision": 0.886,
+      "recall": 0.65,
+      "max_per_user_day": 2,
+      "outside": 0,
+      "fires_per_week": 0.91,
+      "pass": false,
+      "short": [
+       "recall 0.65 < 0.85"
+      ]
+     }
+    }
+   },
+   "pass": false
+  }
+ ],
+ "adopted": null,
+ "outcome": "FAIL"
+}
