@@ -84,6 +84,9 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_CREST_LOCAL_PHASE__',
   '__RAW_DISABLE_CREST_TEXEL_RANK__',
   '__RAW_DISABLE_WIND_ENCODER_ROUND__',
+  // Map-clear self-capture recorder (#744, opt-in diagnostics, no served number). marineClearRecorder.test.js:
+  // the switch beats both ?diag=1 and window.__RAW_SOAK_RECORDER__ (isSoakRecorderEnabled returns false).
+  '__RAW_DISABLE_SOAK_RECORDER__',
 ]);
 
 /**
