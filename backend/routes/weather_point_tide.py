@@ -33,17 +33,21 @@ def build_point_tide(series, lat, lng, now):
         return None
     pts, segments, segment = [], [], []
     previous = None
+    broken = False  # a skipped (unparsable / duplicate / out-of-order) sample is a GAP, not a verdict on the cell
     for t, h in zip(times, levels):
         dt = _tide._parse_iso(t) if isinstance(t, str) else None
+        if dt is not None:
+            dt = dt.astimezone(timezone.utc)  # every instant below is UTC, whatever offset the feed used
         if dt is None or (previous is not None and dt <= previous):
-            return None  # malformed ordering is not a forecast
+            broken = True
+            continue
         valid = isinstance(h, (int, float)) and not isinstance(h, bool) and math.isfinite(h)
-        if not valid or (previous is not None and dt - previous != timedelta(hours=1)):
+        if not valid or broken or (previous is not None and dt - previous != timedelta(hours=1)):
             if segment:
                 segments.append(segment)
             segment = []
-        pts.append({"t": dt.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "h": round(h, 3) if valid else None})
+        broken = False
+        pts.append({"t": dt.strftime("%Y-%m-%dT%H:%M:%SZ"), "h": round(h, 3) if valid else None})
         if valid:
             segment.append((dt, h))
         previous = dt
@@ -74,7 +78,8 @@ def build_point_tide(series, lat, lng, now):
         "next_high": nxt["High"], "next_low": nxt["Low"], "series": pts,
         "events": [dict(_event(e), type=e["type"]) for e in events],
         "now": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
-        "coverage": [{"start": part[0][0].isoformat(), "end": part[-1][0].isoformat()} for part in usable],
+        "coverage": [{"start": part[0][0].strftime("%Y-%m-%dT%H:%M:%SZ"),
+                      "end": part[-1][0].strftime("%Y-%m-%dT%H:%M:%SZ")} for part in usable],
         "timezone": "UTC", "datum": "MSL", "quantity": "modeled_sea_level",
         "provider": "Open-Meteo Marine", "source_url": _tide.OPEN_METEO_MARINE_API,
         # Retained for older clients. New clients use explicit UTC, never a guessed civil zone.
