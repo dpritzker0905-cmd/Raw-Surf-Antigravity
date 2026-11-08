@@ -7,6 +7,7 @@ import { TruthOverlayVisualTab } from './TruthOverlayVisualTab';
 import { TruthOverlayGpuTab } from './TruthOverlayGpuTab';
 import { resolveTruthVerdict } from './truthVerdict';
 import { basicSourceName } from './dataOrigin';
+import MarineClearCapture from './MarineClearCapture';
 import { describeWindLane, windLaneOnScreen } from './windLane';
 import {
   isOpenMeteoProtocolFailed, subscribeToProtocolFailure, getOpenMeteoProtocolFailure,
@@ -338,9 +339,11 @@ var TruthOverlay = ({
 
   // Render gate — AFTER every hook (rules of hooks), so the telemetry/report effects above keep
   // running for production users while the panel itself never mounts for them.
-  if (!isDiagHudEnabled(typeof window !== 'undefined' ? window : null)) return null;
+  if (!isDiagHudEnabled(typeof window !== 'undefined' ? window : null)) return <MarineClearCapture />;
 
   return (
+    <>
+    <MarineClearCapture />
     <div style={{
       position: 'absolute', bottom: '16px', left: '16px', zIndex: 100,
       fontFamily: '"Outfit", "Inter", -apple-system, sans-serif', color: '#f8fafc',
@@ -751,6 +754,7 @@ var TruthOverlay = ({
         }
       `}} />
     </div>
+    </>
   );
 };
 
