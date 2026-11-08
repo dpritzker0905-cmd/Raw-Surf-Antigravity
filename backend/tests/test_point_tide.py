@@ -47,7 +47,7 @@ def test_shape_and_units(monkeypatch, client):
     for k in ("next_high", "next_low"):
         assert j[k]["time"].endswith("Z") and 0.5 < abs(j[k]["height_m"]) <= 0.61
     assert j["next_high"]["height_m"] > 0 > j["next_low"]["height_m"]
-    assert j["series"][0]["t"] < j["series"][-1]["t"] and len(j["series"]) == 37
+    assert j["series"][0]["t"] < j["series"][-1]["t"] and len(j["series"]) == 72
     assert j["rate_m_per_h"] > 0 and j["trend"] == "rising"   # sin() crossing zero upward at NOW
 
 
@@ -70,3 +70,31 @@ def test_upstream_error_is_unavailable_not_5xx(monkeypatch, client):
 
 def test_bad_coordinates_rejected(client):
     assert client.get("/api/weather/point-tide", params={"lat": 91, "lng": 0}).status_code == 422
+
+
+def test_selected_coverage_gaps_and_nonfinite():
+    series = _series()
+    series["level"][24] = None
+    out = WPT.build_point_tide(series, 0, 0, NOW)
+    assert out["selected_time_available"] is False and out["height_m"] is None
+    assert out["series"][24]["h"] is None and len(out["coverage"]) == 2
+    assert out["datum"] == "MSL" and out["timezone"] == "UTC"
+    for invalid in (float("nan"), float("inf"), True, "0.3"):
+        series["level"][24] = invalid
+        assert WPT.build_point_tide(series, 0, 0, NOW)["height_m"] is None
+
+
+def test_no_extrapolation_or_reordering():
+    series = _series(hours=3)
+    out = WPT.build_point_tide(series, 0, 0, NOW)
+    assert out["selected_time_available"] is False and out["height_m"] is None
+    series["time"][1] = series["time"][0]
+    assert WPT.build_point_tide(series, 0, 0, NOW) is None
+
+
+def test_interpolation_and_missing_hour():
+    series = {"time": ["2026-11-07T12:00", "2026-11-07T13:00", "2026-11-07T15:00", "2026-11-07T16:00"],
+              "level": [0, 1, 2, 3]}
+    assert WPT.build_point_tide(series, 0, 0, NOW + timedelta(minutes=30))["height_m"] == 0.5
+    out = WPT.build_point_tide(series, 0, 0, NOW + timedelta(hours=2))
+    assert out["height_m"] is None and len(out["coverage"]) == 2
