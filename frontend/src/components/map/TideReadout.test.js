@@ -69,9 +69,9 @@ describe('TideReadout', () => {
 
   test('themes render without throwing', async () => {
     global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve(payload) }));
-    const { rerender } = render(<TideReadout lat={21.6} lng={-158} heightUnit="ft" isLight isBeach={false} />);
+    const { rerender } = render(<TideReadout lat={21.6} lng={-158} heightUnit="ft" isLight isBeach={false} atTime={Date.parse(NOW)} />);
     await screen.findByTestId('tide-readout');
-    rerender(<TideReadout lat={21.6} lng={-158} heightUnit="ft" isLight={false} isBeach />);
+    rerender(<TideReadout lat={21.6} lng={-158} heightUnit="ft" isLight={false} isBeach atTime={Date.parse(NOW)} />);
     expect(screen.getByTestId('tide-readout')).toBeTruthy();
     expect(global.fetch).toHaveBeenCalledTimes(1);   // theme/unit changes never refetch
   });
@@ -118,7 +118,7 @@ describe('time-aware readout', () => {
 
   test('tz_approx caveat renders only when the solar offset is used', async () => {
     global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ ...payload, tz_offset_h: 15 }) }));
-    render(<TideReadout lat={7} lng={8} heightUnit="m" />);
+    render(<TideReadout lat={7} lng={8} heightUnit="m" atTime={Date.parse(NOW)} />);
     expect(await screen.findByTestId('tide-solar-note')).toBeTruthy();
     expect(screen.getByText('times approx. (local solar time)')).toBeTruthy();
   });
@@ -126,7 +126,7 @@ describe('time-aware readout', () => {
   test('no caveat when the browser zone agrees', async () => {
     const off = -new Date(Date.parse(NOW)).getTimezoneOffset() / 60;
     global.fetch = jest.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ ...payload, tz_offset_h: off }) }));
-    render(<TideReadout lat={9} lng={10} heightUnit="m" />);
+    render(<TideReadout lat={9} lng={10} heightUnit="m" atTime={Date.parse(NOW)} />);
     await screen.findByTestId('tide-readout');
     expect(screen.queryByTestId('tide-solar-note')).toBeNull();
   });
