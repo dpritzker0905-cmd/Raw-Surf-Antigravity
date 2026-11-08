@@ -327,6 +327,8 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
     # this private impl (tests, any future internal path) on the historic floor behaviour.
     base = base_anchor or datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
 
+    # Cancellation is control flow, not a provider failure: never turn an abandoned page into
+    # another fast-path fallback or more per-hour work. Catch Exception, not BaseException.
     # EURO/Copernicus fast path: one full-range fetch + slice all hours (the generic per-hour
     # loop below hangs for EURO — each hour is a separate ±3h CMEMS download). Additive +
     # EURO-marine-only; on any failure fall through to the generic loop.
@@ -372,7 +374,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
                     # per-hour flow for them meanwhile. Next request resolves native from cache.
                     loop_hours = estimated_hours
                     logger.warning("[grid_series] EURO fast path returned no frames; serving estimated-only, native hours warming")
-            except BaseException as e:
+            except Exception as e:
                 loop_hours = estimated_hours
                 logger.warning(f"[grid_series] EURO fast path failed ({type(e).__name__}: {e}); serving estimated-only, native hours warming")
         # native_hours empty (page entirely >240h): loop_hours stays = hour_list (all estimated)
@@ -411,7 +413,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
             if fp and fp.get("frame_count", 0) > 0:
                 return fp
             logger.warning(f"[grid_series] {model} marine fast path returned no frames; using the per-hour loop.")
-        except BaseException as e:
+        except Exception as e:
             logger.warning(f"[grid_series] {model} marine fast path failed ({type(e).__name__}: {e}); using the per-hour loop.")
 
     # Bound concurrency so we don't spike CPU/memory on the 1-CPU box re-normalizing many
@@ -510,7 +512,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
         except asyncio.TimeoutError:
             logger.warning(f"[grid_series] hour +{h}h timed out after {_per_hour_timeout()}s")
             return (h, None)
-        except BaseException as e:  # incl. CancelledError — one hour must never sink the series
+        except Exception as e:  # Provider failures omit one hour; cancellation must stop the page.
             logger.warning(f"[grid_series] hour +{h}h failed: {type(e).__name__}: {e}")
             return (h, None)
 
@@ -532,7 +534,7 @@ async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, do
             if len(loop_hours) > 1:
                 results.extend(await asyncio.gather(*[_build_one(h) for h in loop_hours[1:]], return_exceptions=True))
         results = [r for r in results if isinstance(r, tuple)]
-    except BaseException as e:
+    except Exception as e:
         import traceback
         logger.error(f"[grid_series] build failed for {model}/{layer}: {type(e).__name__}: {e}\n{traceback.format_exc()}")
         return {"model": model, "domain": domain, "layer": layer, "base_time": base.strftime("%Y-%m-%dT%H:%M:%SZ"),
