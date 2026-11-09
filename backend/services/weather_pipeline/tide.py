@@ -221,7 +221,31 @@ def tide_extrema(times, levels, min_separation_h: float = _MIN_EXTREMA_SEPARATIO
         return []
     parsed = [_parse_iso(t) for t in times]
     out = []
-    for i in range(1, len(levels) - 1):
+    n = len(levels)
+    skip_to = 0
+    for i in range(1, n - 1):
+        if i < skip_to:
+            continue
+        # A run of equal samples is ONE point. It is an extremum only when the sign of the change
+        # actually flips across it (rise-plateau-rise and fall-plateau-fall are NOT turns); the
+        # High/Low sits at the plateau midpoint.
+        j = i
+        while j + 1 < n and levels[i] is not None and levels[j + 1] == levels[i]:
+            j += 1
+        if j > i:
+            skip_to = j + 1
+            v, before, after = levels[i], levels[i - 1], levels[j + 1] if j + 1 < n else None
+            if (before is None or after is None or parsed[i] is None or parsed[j] is None):
+                continue
+            if v > before and v > after:
+                kind = "High"
+            elif v < before and v < after:
+                kind = "Low"
+            else:
+                continue
+            out.append({"time": parsed[i] + (parsed[j] - parsed[i]) / 2,
+                        "level_m": float(v), "type": kind})
+            continue
         y0, y1, y2 = levels[i - 1], levels[i], levels[i + 1]
         if y0 is None or y1 is None or y2 is None or parsed[i] is None:
             continue
