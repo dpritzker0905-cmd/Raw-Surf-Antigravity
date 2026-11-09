@@ -193,10 +193,47 @@ def _lane_items(products, model: str, domain: str, layer: str, region_id: str):
     ]
 
 
-def find_fill_slots(items, max_bracket_h: float) -> List[Tuple[Any, Any, datetime]]:
+def _stale_own_fills(items) -> set:
+    """ids of this job's OWN interpolations made from an older native generation than the lane's newest.
+
+    THE GHOST SLOT (2026-11-01, EURO run 12Z, leads +147/+153 h): the core and pilots lanes run at the same time and both
+    publish the manifest, so an entry one lane pruned comes back with the other lane's head. Core run 41347283478 pruned
+    `euro_marine_waves_global_coarse_20261107T150000Z_estimated.json` (storage answered NoSuchKey: already gone), and 20 min
+    later this sweep still saw the slot as filled and saved 2 frames instead of the usual ~32. The 147/153/... slots then had
+    no object at any tier, so the infobox fell through to a direct upstream point. A fill product is time-keyed (its
+    filename has no run in it), so regenerating the slot overwrites the same object: an entry older than the lane's newest
+    authoritative run is treated as missing. Only `estimated_interpolation` entries qualify, so the extension tails
+    (D-055, the 14-day contract) are never displaced. Flag LATTICE_FILL_REFRESH_STALE (default 1 since 2026-11-01, owner; kill switch 0)."""
+    newest_auth = None
+    for it in items:
+        rt = _coerce_utc(getattr(it, "run_time", None))
+        if rt is not None and getattr(it, "is_forecast_authoritative", False) and (newest_auth is None or rt > newest_auth):
+            newest_auth = rt
+    if newest_auth is None:
+        return set()
+    stale = set()
+    for it in items:
+        rt = _coerce_utc(getattr(it, "run_time", None))
+        if (getattr(it, "source_dataset", None) == "estimated_interpolation"
+                and not getattr(it, "is_forecast_authoritative", False)
+                and rt is not None and rt < newest_auth):
+            stale.add(id(it))
+    return stale
+
+
+def refresh_stale_enabled() -> bool:
+    return os.environ.get("LATTICE_FILL_REFRESH_STALE", "1") != "0"
+
+
+def find_fill_slots(items, max_bracket_h: float, refresh_stale: bool = False) -> List[Tuple[Any, Any, datetime]]:
     """(bracket_a_item, bracket_b_item, slot_dt) for every missing on-lattice slot whose bracketing
     products are ≤ max_bracket_h apart. Items are manifest entries (need valid_time_start). Slots
-    off the lattice are never generated, and existing product times are never duplicated."""
+    off the lattice are never generated, and existing product times are never duplicated.
+    With refresh_stale, this job's own interpolations from an older native generation count as missing
+    (see _stale_own_fills)."""
+    if refresh_stale:
+        stale = _stale_own_fills(items)
+        items = [it for it in items if id(it) not in stale]
     by_time = {}
     for it in items:
         t = _coerce_utc(it.valid_time_start)
@@ -221,22 +258,12 @@ def find_fill_slots(items, max_bracket_h: float) -> List[Tuple[Any, Any, datetim
     return out
 
 
-async def fill_inband_lattice_gaps_impl(scheduler) -> bool:
-    """Decoupled-cron job: sweep the global-tier lanes, interpolate every qualifying missing slot.
-    Compute-only (store-fed). Idempotent — a slot that gained a product since the last sweep is
-    simply no longer a gap."""
-    if os.environ.get("LATTICE_INBAND_FILL", "1") == "0":
-        logger.info("[Lattice Fill] LATTICE_INBAND_FILL=0 — skipping in-band lattice gap fill.")
-        return False
-    try:
-        max_bracket_h = float(os.environ.get("LATTICE_FILL_MAX_BRACKET_H", "6"))
-    except ValueError:
-        max_bracket_h = 6.0
-
-    manifest = await asyncio.to_thread(scheduler.store.get_manifest)
-    to_save: List[Tuple[NormalizedProduct, Any]] = []
-    wide_gaps = 0
-
+async def _collect(scheduler, manifest, max_bracket_h, refresh):
+    """The fill plan: (to_save [(lane label, slot ISO, filename, (est, resolution))], wide holes, refreshed lanes
+    [{label, expected slots, stale {slot ISO: filename}}]). No write happens here."""
+    from services.weather_pipeline import rollout_675 as _rollout
+    from services.weather_pipeline.store_helpers import _build_product_filename
+    to_save, wide_gaps, lanes = [], 0, []
     for model in _MODELS:
         for domain, layer in _LANES:
             regions = list(_REGIONS)
@@ -247,6 +274,8 @@ async def fill_inband_lattice_gaps_impl(scheduler) -> bool:
                                        and p.region_id and p.region_id not in _REGIONS}))
             for region_id in regions:
                 regional = region_id not in _REGIONS
+                if not regional and _rollout.non_owner_active():
+                    continue        # #675 v2: global fills are owned by the owning lane; this lane treats them read-only
                 items = _lane_items(manifest.products, model, domain, layer, region_id)
                 if len(items) < 2:
                     continue
@@ -263,7 +292,14 @@ async def fill_inband_lattice_gaps_impl(scheduler) -> bool:
                             model, domain, layer, region_id, ta.isoformat(), tb.isoformat(),
                             (tb - ta).total_seconds() / 3600.0,
                         )
-                slots = find_fill_slots(items, min(max_bracket_h, 6.0) if regional else max_bracket_h)
+                lane_refresh = refresh and not regional
+                slots = find_fill_slots(items, min(max_bracket_h, 6.0) if regional else max_bracket_h,
+                                        refresh_stale=lane_refresh)
+                label = f"{model}/{domain}/{layer}/{region_id}"
+                if lane_refresh:
+                    stale = _stale_own_fills(items)
+                    lanes.append({"label": label, "expected": {_rollout.iso(s) for _, _, s in slots},
+                                  "stale": {_rollout.iso(it.valid_time_start): it.filename for it in items if id(it) in stale}})
                 for item_a, item_b, slot in slots:
                     prod_a = await asyncio.to_thread(scheduler.store.load_product, item_a.filename)
                     prod_b = await asyncio.to_thread(scheduler.store.load_product, item_b.filename)
@@ -274,7 +310,35 @@ async def fill_inband_lattice_gaps_impl(scheduler) -> bool:
                         continue
                     est = interpolate_between(prod_a, prod_b, slot)
                     if est is not None:
-                        to_save.append((est, getattr(item_a, "resolution", None)))
+                        to_save.append((label, _rollout.iso(slot), _build_product_filename(est),
+                                        (est, getattr(item_a, "resolution", None))))
+    return to_save, wide_gaps, lanes
+
+
+async def fill_inband_lattice_gaps_impl(scheduler) -> bool:
+    """Decoupled-cron job: sweep the global-tier lanes, interpolate every qualifying missing slot.
+    Compute-only (store-fed). Idempotent — a slot that gained a product since the last sweep is
+    simply no longer a gap."""
+    if os.environ.get("LATTICE_INBAND_FILL", "1") == "0":
+        logger.info("[Lattice Fill] LATTICE_INBAND_FILL=0 — skipping in-band lattice gap fill.")
+        return False
+    try:
+        max_bracket_h = float(os.environ.get("LATTICE_FILL_MAX_BRACKET_H", "6"))
+    except ValueError:
+        max_bracket_h = 6.0
+
+    manifest = await asyncio.to_thread(scheduler.store.get_manifest)
+    # ROLLOUT v2 (rollout_675.py): the refresh of stale own fills (LATTICE_FILL_REFRESH_STALE) runs in the hosted lanes only
+    # when the run is PROMOTED (reader proof), behind a dry run + snapshot of every object it overwrites; a failed check
+    # re-plans the batch WITHOUT the refresh (the legacy fill). The non-owning lane fills no owned (global) lane at all.
+    from services.weather_pipeline import rollout_675 as _rollout
+    refresh = _rollout.refresh_stale_allowed()
+    to_save, wide_gaps, lanes = await _collect(scheduler, manifest, max_bracket_h, refresh)
+    if refresh and _rollout.current() is not None:
+        plan = _rollout.fill_plan(manifest, lanes, to_save, lambda est: _rollout.iso(est.run_time))
+        if not _rollout.execute(plan):
+            to_save, wide_gaps, _ = await _collect(scheduler, manifest, max_bracket_h, False)
+    to_save = [pair for _, _, _, pair in to_save]
 
     saved = 0
     if to_save:

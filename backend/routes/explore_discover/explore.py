@@ -21,6 +21,7 @@ from services.weather_pipeline.point_resolution import PointResolutionService
 from services.weather_pipeline.sampler import PointSampler
 from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
 from services.conditions_labels import get_conditions_label
+from services.forecast_tier_window import apply_tier_window, days_allowed
 
 point_sampler = PointSampler()
 open_meteo_provider = OpenMeteoProvider()
@@ -411,7 +412,8 @@ async def get_surf_spots_with_conditions(
 ):
     """
     Get surf spots with real-time conditions, forecasts, recent reports, and nearby photographers.
-    Tiered forecast access: Free = 3 days, Paid = 7 days, Premium = 10 days.
+    Tiered forecast access: the app resolver's window (services/forecast_tier_window.py): free 72 h, basic 7 days,
+    premium 14 days, clamped by capabilities.py; the daily rows themselves stop at 10.
     
     Supports filtering by region, country, and/or state_province for location hierarchy browsing.
     OPTIMIZED: Uses response caching (5-min TTL), batched queries, and parallel fetching.
@@ -447,21 +449,13 @@ async def get_surf_spots_with_conditions(
     result = await db.execute(query)
     spots = result.scalars().all()
     
-    # Determine forecast days based on subscription
-    # TODAY = current conditions (not forecast)
-    # FREE = 3 days AFTER today
-    # PAID = 7 days AFTER today
-    # PREMIUM = 10 days AFTER today
-    # We fetch +1 day because Open-Meteo includes today, but we show today as "current"
-    forecast_days_after_today = 3  # Free tier
-    if subscription_tier in ['paid', 'basic']:
-        forecast_days_after_today = 7
-    elif subscription_tier in ['premium', 'pro', 'gold']:
-        forecast_days_after_today = 10
-    
-    # Always fetch 10 days from the API so we can show locked previews
-    # for upselling lower-tier users. The frontend uses forecast_days_allowed
-    # to determine which days are unlocked vs locked.
+    # ⛔ NO TIER LADDER HERE (spot-hub phase 1, 2026-11-03). This was its own "free 3 / paid 7 / premium 10 days
+    # after today" list, and every tier was then sent all ten rows. The window is now the app resolver's
+    # (services/forecast_tier_window.py, pinned to LayerAccessResolver.js), applied per spot below: rows beyond
+    # it are withheld and named by date (`forecast_locked_dates`) so the locked previews still draw.
+    forecast_days_after_today = days_allowed(subscription_tier, model)
+
+    # Always fetch the full ten daily rows (the request is unchanged); the tier window trims what is sent.
     max_forecast_days = 10
     api_forecast_days = max_forecast_days + 1  # +1 because index 0 is today
     
@@ -619,6 +613,7 @@ async def get_surf_spots_with_conditions(
         if conditions_data:
             spot_data["current_conditions"] = conditions_data.get("current_conditions")
             spot_data["forecast"] = conditions_data.get("forecast", [])
+        apply_tier_window(spot_data, subscription_tier, model)
         
         # Add recent reports (from batch query)
         spot_reports = reports_by_spot.get(spot.id, [])

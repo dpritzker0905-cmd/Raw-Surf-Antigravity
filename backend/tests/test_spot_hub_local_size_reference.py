@@ -237,8 +237,10 @@ async def test_the_flag_is_the_gate_and_it_lives_at_the_hub(monkeypatch):
     assert called
     assert ref is None, f"RATING_LOCAL_SIZE=0 must keep the global curve, got {ref}"
     monkeypatch.delenv("RATING_LOCAL_SIZE", raising=False)
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
     called, ref = await _hub_reference(monkeypatch, spot_id=_BIG_SPOT_ID)
-    assert called and ref is None, "an UNSET flag must default off, like every other lane"
+    # D-065 (2026-11-04): an UNSET flag is the code default ON, as every lane already ran it.
+    assert called and ref is not None, "an UNSET flag is the D-065 default ON, like every lane"
 
 
 @pytest.mark.asyncio
@@ -317,3 +319,11 @@ def test_the_explore_cache_key_is_keyed_by_spot_not_only_by_coordinate():
     assert a != b, "two spots in one rounded cell share a cache entry — and now a rating"
     assert a == _get_cache_key(37.4917, -122.5081, 11, "GFS", "spot-a"), \
         "the coordinate rounding that made the cache useful must survive"
+
+
+@pytest.fixture(autouse=True)
+def _pin_the_kill_switch_chain(monkeypatch):
+    """Spot-hub phase 2 is ON by default (SPOT_HUB_RATE_ONE_SPOT, owner policy 2026-11-04). This file pins the
+    contract of the chain the KILL SWITCH ('0') restores, so it runs under '0'; the default path's equivalents
+    live in tests/test_spot_hub_rate_one_spot.py."""
+    monkeypatch.setenv("SPOT_HUB_RATE_ONE_SPOT", "0")

@@ -360,3 +360,11 @@ def test_an_unrated_spot_carries_no_quality_keys(app_client, monkeypatch):
     client, _ = app_client(_blob([spot]), _NoDB())
     a = client.get("/conditions/batch", params={"spot_ids": "a"}).json()["conditions"]["a"]
     assert "rating" not in a and "rating_level" not in a
+
+
+@pytest.fixture(autouse=True)
+def _pin_the_kill_switch_chain(monkeypatch):
+    """Spot-hub phase 2 is ON by default (SPOT_HUB_RATE_ONE_SPOT, owner policy 2026-11-04). This file pins the
+    contract of the chain the KILL SWITCH ('0') restores, so it runs under '0'; the default path's equivalents
+    live in tests/test_spot_hub_rate_one_spot.py."""
+    monkeypatch.setenv("SPOT_HUB_RATE_ONE_SPOT", "0")

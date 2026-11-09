@@ -27,6 +27,7 @@ and bounded age/generation retention; default off preserves the legacy writer.
 import os
 import json
 import logging
+import re
 import sys
 import threading
 from contextlib import contextmanager
@@ -338,6 +339,53 @@ def _definite_miss(resp) -> bool:
     return isinstance(body, dict) and body.get("error") == "not_found"
 
 
+# Egress (2026-11-04): the one-step publisher read back, over HTTP, the head object it had itself just uploaded: every publish
+# GETs the head, and on a single-writer CI run the head is nearly always this process's previous win. Storage logs for
+# 2026-11-03T20:03Z..11-04T20:03Z: 1,503 GitHub-runner GETs of `manifests/manifest-g*` (~33 GB, about 22 MB each), each
+# preceded by a POST of the same key from the same runner IP. A UNIQUE key (generation + uuid4, uploaded create-only) is
+# immutable, so the bytes this process uploaded or fetched under that key ARE the object: answering them from memory changes
+# nothing but the egress. Only unique keys are held (a legacy `manifest-g<gen>.json` copy is upserted and can be replaced), and
+# only one object (the newest), so memory stays one manifest. Kill switch: MANIFEST_SELF_READ_CACHE=0 (read at call time).
+_UNIQUE_MANIFEST_KEY = re.compile(r"^manifests/manifest-g\d{12}-[0-9a-f]{32}\.json$")
+_self_copy_lock = threading.Lock()
+_self_copy: Optional[Tuple[str, bytes]] = None
+self_copy_hits = 0
+
+
+def self_read_cache_enabled() -> bool:
+    return os.environ.get("MANIFEST_SELF_READ_CACHE", "1") != "0"
+
+
+def remember_manifest_object(key: str, data) -> None:
+    """Hold `data` as the bytes of the unique, immutable object `key` (only after Storage acknowledged a create-only upload of
+    exactly these bytes, or answered a GET with them). Anything else is ignored. Never raises."""
+    global _self_copy
+    if not self_read_cache_enabled() or not isinstance(key, str) or not _UNIQUE_MANIFEST_KEY.match(key):
+        return
+    if not isinstance(data, (bytes, bytearray)) or not data:
+        return
+    with _self_copy_lock:
+        _self_copy = (key, bytes(data))
+
+
+def forget_manifest_object() -> None:
+    global _self_copy
+    with _self_copy_lock:
+        _self_copy = None
+
+
+def _remembered(key: str) -> Optional[bytes]:
+    global self_copy_hits
+    if not self_read_cache_enabled():
+        return None
+    with _self_copy_lock:
+        held = _self_copy
+        if held is None or held[0] != key:
+            return None
+        self_copy_hits += 1
+        return held[1]
+
+
 def fetch_manifest_object(key: str, timeout: float = 30):
     """GET one run-keyed manifest object by the key the pointer row names (plain GET, immutable object).
 
@@ -347,6 +395,10 @@ def fetch_manifest_object(key: str, timeout: float = 30):
     (a 5xx, a 429, a timeout: transient, the caller retries)."""
     if not key:
         return None
+    held = _remembered(key)
+    if held is not None:
+        logger.info(f"[Manifest Pointer] {key} answered from this process's own copy (immutable key; no GET)")
+        return held
     base, headers = _rest_base_and_headers()
     if not base:
         return None
@@ -357,6 +409,7 @@ def fetch_manifest_object(key: str, timeout: float = 30):
         if resp.status_code != 200:
             logger.warning(f"[Manifest Pointer] manifest object GET {key} -> HTTP {resp.status_code}")
             return MISSING if _definite_miss(resp) else None
+        remember_manifest_object(key, resp.content)
         return resp.content
     except Exception as e:
         logger.warning(f"[Manifest Pointer] manifest object fetch failed for {key}: {e}")

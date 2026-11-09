@@ -113,6 +113,7 @@ async def test_flagship_and_worldwide_horizons_stay_separate(tmp_path, monkeypat
     monkeypatch.delenv("GFS_MARINE_EXTRA_REGIONS", raising=False)
     monkeypatch.setenv("GFS_MARINE_FLAGSHIP_FORECAST_DAYS", "14")
     monkeypatch.setenv("GFS_MARINE_FORECAST_DAYS", "3")
+    monkeypatch.setenv("GFS_PILOT_FULL_HORIZON", "0")  # the grouping contract, under the kill switch (flag ON by default since 2026-11-01)
     monkeypatch.setattr(copernicus_validator, "is_test_environment", lambda: False)
 
     calls = []
@@ -142,8 +143,9 @@ async def test_flagship_and_worldwide_horizons_stay_separate(tmp_path, monkeypat
 
 @pytest.mark.asyncio
 async def test_socal_still_omits_swell_2(tmp_path, monkeypatch):
-    """A per-region quirk that the shared save helper must not flatten (the flag-off control of GFS_MARINE_SOCAL_SWELL2)."""
-    monkeypatch.delenv("GFS_MARINE_SOCAL_SWELL2", raising=False)
+    """A per-region quirk that the shared save helper must not flatten (the kill-switch control of GFS_MARINE_SOCAL_SWELL2,
+    ON by default since 2026-11-01)."""
+    monkeypatch.setenv("GFS_MARINE_SOCAL_SWELL2", "0")
     from services.weather_pipeline.scheduler import WeatherPipelineScheduler
     from services.weather_pipeline.store import ProductStore
     import services.noaa_marine_service as noaa_marine

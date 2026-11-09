@@ -12,10 +12,14 @@ def _utc(value):
 
 
 def cycle_thresholds(model, domain):
-    # Global GFS/atmospheric IFS: 6h; GWAM and Copernicus global waves: 12h.
+    # Global GFS: 6h; GWAM and Copernicus global waves: 12h. EURO atmospheric is 12h AS INGESTED: the
+    # ECMWF open-data fetcher asks for steps to 240h, which only the 00Z/12Z IFS runs publish (06Z/18Z stop
+    # at 144h), so the client always resolves a 00Z/12Z run and a 6h cadence false-warned daily from ~18Z
+    # (live 2026-11-08 19:00Z: wind/weather 19.0h on the 00Z run, product 1.0h old). Taking 06Z/18Z would
+    # cut the horizon, which the 14-day contract forbids.
     # Allow two/three missed cycles plus 6h publication/ingest slack. These are
     # operational thresholds, not a forecast-skill or serving selection policy.
-    cadence = 12 if domain == 'marine' and model in ('ICON', 'EURO') else 6
+    cadence = 12 if model == 'EURO' or (domain == 'marine' and model == 'ICON') else 6
     defaults = (2 * cadence + 6, 3 * cadence + 6)
     try:
         warn, critical = [float(os.environ.get(f'HEALTH_MODEL_CYCLE_{level}_HOURS_{model}_{domain.upper()}', default))
@@ -25,6 +29,17 @@ def cycle_thresholds(model, domain):
         return warn, critical
     except (TypeError, ValueError):
         return defaults
+
+
+_MAX_UNVERIFIED_COHORTS = 12
+
+
+def _cohort_entry(p, status):
+    # Diagnostic only: names WHICH products carry an unverified cycle. Reads existing fields, never
+    # relabels or invents a timestamp, and feeds no verdict.
+    return (str(getattr(p, 'layer', '')), str(getattr(p, 'region_id', None)),
+            str(getattr(p, 'tile_id', None)), bool(getattr(p, 'is_estimated', False)),
+            str(getattr(p, 'source_dataset', None)), status)
 
 
 def summarize_model_cycles(products, now, model, domain):
@@ -45,19 +60,26 @@ def summarize_model_cycles(products, now, model, domain):
             current[1].append(p)
     warn_h, critical_h = cycle_thresholds(model, domain)
     known_ages, unknown, contributors = [], set(), {}
+    unverified_counts = {}
+
+    def _mark(p, status):
+        unknown.add(status)
+        entry = _cohort_entry(p, status)
+        unverified_counts[entry] = unverified_counts.get(entry, 0) + 1
+
     for _, group in cohorts.values():
         for p in group:
             provenance = getattr(p, 'model_run_time_status', 'missing')
             try:
                 sources = verified_blend_cycles(p)
             except ValueError:
-                unknown.add(str(provenance) if provenance != 'known' else 'invalid')
+                _mark(p, str(provenance) if provenance != 'known' else 'invalid')
                 continue
             if sources is not None:
                 for source_model, dataset, cycle in sources:
                     age = (now - cycle).total_seconds() / 3600
                     if age < -5 / 60:
-                        unknown.add('future')
+                        _mark(p, 'future')
                         continue
                     age = max(0.0, age)
                     source_warn, source_critical = cycle_thresholds(source_model, domain)
@@ -73,11 +95,11 @@ def summarize_model_cycles(products, now, model, domain):
                 continue
             cycle = _utc(getattr(p, 'model_run_time', None)) if provenance == 'known' else None
             if cycle is None:
-                unknown.add(str(provenance) if provenance != 'known' else 'invalid')
+                _mark(p, str(provenance) if provenance != 'known' else 'invalid')
                 continue
             age = (now - cycle).total_seconds() / 3600
             if age < -5 / 60:
-                unknown.add('future')
+                _mark(p, 'future')
             else:
                 known_ages.append(max(0.0, age))
     age_h = max(known_ages, default=None)
@@ -105,5 +127,10 @@ def summarize_model_cycles(products, now, model, domain):
         'verified_contributors' if contributors else 'known')
     return {'model_cycle_age_h': round(age_h, 1) if age_h is not None else None,
             'model_cycle_status': status, 'model_cycle_contributors': source_details,
-            'model_cycle_unverified': sorted(unknown), 'model_cycle_warn_h': warn_h,
+            'model_cycle_unverified': sorted(unknown),
+            'model_cycle_unverified_cohorts': [
+                {'layer': k[0], 'region_id': None if k[1] == 'None' else k[1],
+                 'tile_id': None if k[2] == 'None' else k[2], 'is_estimated': k[3],
+                 'source_dataset': None if k[4] == 'None' else k[4], 'status': k[5], 'n_products': n}
+                for k, n in sorted(unverified_counts.items())[:_MAX_UNVERIFIED_COHORTS]], 'model_cycle_warn_h': warn_h,
             'model_cycle_critical_h': critical_h}, verdict, reasons

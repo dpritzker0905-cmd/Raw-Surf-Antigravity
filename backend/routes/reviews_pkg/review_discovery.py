@@ -251,6 +251,8 @@ async def get_surfer_review_stats(
             "reviewer_name": reviewer.full_name if reviewer else "Unknown",
             "reviewer_avatar": reviewer.avatar_url if reviewer else None,
             "rating": review.rating,
+            "communication_rating": review.communication_rating,
+            "punctuality_rating": review.punctuality_rating,
             "comment": review.comment,
             "created_at": review.created_at.isoformat()
         })

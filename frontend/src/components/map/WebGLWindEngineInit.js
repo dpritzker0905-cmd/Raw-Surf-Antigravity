@@ -28,8 +28,8 @@ export function reinitParticles(engine, gl, opts) {
   if (!keepTrails) engine.clearBuffers(gl);
   if (engine.particleStateA) gl.deleteTexture(engine.particleStateA);
   if (engine.particleStateB) gl.deleteTexture(engine.particleStateB);
-  engine.particleStateA = initParticleTexture(gl, engine.particleRes);
-  engine.particleStateB = initParticleTexture(gl, engine.particleRes);
+  engine.particleStateA = initParticleTexture(gl, engine.particleRes, engine);
+  engine.particleStateB = initParticleTexture(gl, engine.particleRes, engine);
   console.log(keepTrails
     ? '[WebGLWind] Particles re-seeded (trails kept — camera recenter)'
     : '[WebGLWind] Particles re-initialized and FBOs cleared due to bounds change');
@@ -87,8 +87,8 @@ export function initEngine(engine, gl) {
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, engine.heatmapIndexBuffer);
   gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, gridIndices, gl.STATIC_DRAW);
   engine.heatmapIndexCount = gridIndices.length;
-  engine.particleStateA = initParticleTexture(gl, engine.particleRes);
-  engine.particleStateB = initParticleTexture(gl, engine.particleRes);
+  engine.particleStateA = initParticleTexture(gl, engine.particleRes, engine);
+  engine.particleStateB = initParticleTexture(gl, engine.particleRes, engine);
   engine.advFBO = gl.createFramebuffer();
 
   if (batch.state === BATCH.READY) { publishBatch(engine, batch); initVertexArrays(engine, gl); }

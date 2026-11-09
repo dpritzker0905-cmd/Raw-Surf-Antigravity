@@ -1,0 +1,262 @@
+{
+ "version": "ca-2026-11-03",
+ "about": "SURF_SPECTRAL_K evidence list, pre-registered 2026-11-03 BEFORE any scoring: the committed v0 list (eval_harness_stations.json) plus every LIVE California CDIP realtime nearshore buoy (depth <= 45 m, thredds cdip/realtime catalog 2026-11-03) whose nearest California catalogue spot (data/mop_spot_cells.json, cells + uncovered) lies within 15 km (anchor = nearest, spots = up to 3 within 15 km). Excluded by that rule: 076p1 Diablo Canyon (18.4 km), 215p1 Long Beach Channel (19.3 km). Station coordinates and depths from the CDIP realtime metadata. Public identities and coordinates only; no data.",
+ "stations": [
+  {
+   "id": "103p1",
+   "source": "cdip",
+   "role": "nearshore",
+   "lat": 34.022068,
+   "lng": -118.5784,
+   "depth_m": 20.4,
+   "anchor_spot": {
+    "name": "Topanga",
+    "lat": 34.0388,
+    "lng": -118.62,
+    "distance_km": 4.26
+   },
+   "spots": [
+    {
+     "name": "Topanga",
+     "lat": 34.0388,
+     "lng": -118.62,
+     "distance_km": 4.26
+    },
+    {
+     "name": "Venice Breakwater",
+     "lat": 33.9898,
+     "lng": -118.502,
+     "distance_km": 7.9
+    }
+   ],
+   "coops_id": "9410840"
+  },
+  {
+   "id": "142p1",
+   "source": "cdip",
+   "role": "nearshore",
+   "lat": 37.788,
+   "lng": -122.6318,
+   "depth_m": 14.9,
+   "anchor_spot": {
+    "name": "Rodeo Beach",
+    "lat": 37.838,
+    "lng": -122.548,
+    "distance_km": 9.23
+   },
+   "spots": [
+    {
+     "name": "Rodeo Beach",
+     "lat": 37.838,
+     "lng": -122.548,
+     "distance_km": 9.23
+    }
+   ]
+  },
+  {
+   "id": "153p1",
+   "source": "cdip",
+   "role": "nearshore",
+   "lat": 32.95654,
+   "lng": -117.27956,
+   "depth_m": 17.0,
+   "anchor_spot": {
+    "name": "Blacks Beach",
+    "lat": 32.8925,
+    "lng": -117.2536,
+    "distance_km": 7.52
+   },
+   "spots": [
+    {
+     "name": "Blacks Beach",
+     "lat": 32.8925,
+     "lng": -117.2536,
+     "distance_km": 7.52
+    },
+    {
+     "name": "Cardiff Reef",
+     "lat": 33.0228,
+     "lng": -117.3178,
+     "distance_km": 8.19
+    },
+    {
+     "name": "Swamis",
+     "lat": 33.0348,
+     "lng": -117.3248,
+     "distance_km": 9.67
+    }
+   ],
+   "coops_id": "9410230"
+  },
+  {
+   "id": "262p1",
+   "source": "cdip",
+   "role": "nearshore",
+   "lat": 33.062077,
+   "lng": -117.31407,
+   "depth_m": 17.0,
+   "anchor_spot": {
+    "name": "Swamis",
+    "lat": 33.0348,
+    "lng": -117.3248,
+    "distance_km": 3.19
+   },
+   "spots": [
+    {
+     "name": "Swamis",
+     "lat": 33.0348,
+     "lng": -117.3248,
+     "distance_km": 3.19
+    },
+    {
+     "name": "Cardiff Reef",
+     "lat": 33.0228,
+     "lng": -117.3178,
+     "distance_km": 4.38
+    }
+   ]
+  },
+  {
+   "id": "201p1",
+   "source": "cdip",
+   "role": "nearshore",
+   "lat": 32.86785,
+   "lng": -117.26667,
+   "depth_m": 41.0,
+   "anchor_spot": {
+    "name": "La Jolla Shores",
+    "lat": 32.8565,
+    "lng": -117.2585,
+    "distance_km": 1.47
+   },
+   "spots": [
+    {
+     "name": "La Jolla Shores",
+     "lat": 32.8565,
+     "lng": -117.2585,
+     "distance_km": 1.47
+    },
+    {
+     "name": "Blacks Beach",
+     "lat": 32.8925,
+     "lng": -117.2536,
+     "distance_km": 3.0
+    },
+    {
+     "name": "Windansea",
+     "lat": 32.8312,
+     "lng": -117.2811,
+     "distance_km": 4.29
+    }
+   ]
+  },
+  {
+   "id": "264p1",
+   "source": "cdip",
+   "role": "nearshore",
+   "lat": 33.29076,
+   "lng": -117.50146,
+   "depth_m": 16.79,
+   "anchor_spot": {
+    "name": "San Onofre",
+    "lat": 33.372,
+    "lng": -117.568,
+    "distance_km": 10.95
+   },
+   "spots": [
+    {
+     "name": "San Onofre",
+     "lat": 33.372,
+     "lng": -117.568,
+     "distance_km": 10.95
+    },
+    {
+     "name": "Lower Trestles",
+     "lat": 33.3819,
+     "lng": -117.5885,
+     "distance_km": 12.96
+    },
+    {
+     "name": "Oceanside Pier",
+     "lat": 33.1938,
+     "lng": -117.4218,
+     "distance_km": 13.08
+    }
+   ]
+  },
+  {
+   "id": "284p1",
+   "source": "cdip",
+   "role": "nearshore",
+   "lat": 33.445168,
+   "lng": -117.68015,
+   "depth_m": 11.13,
+   "anchor_spot": {
+    "name": "Upper Trestles",
+    "lat": 33.387,
+    "lng": -117.592,
+    "distance_km": 10.43
+   },
+   "spots": [
+    {
+     "name": "Upper Trestles",
+     "lat": 33.387,
+     "lng": -117.592,
+     "distance_km": 10.43
+    },
+    {
+     "name": "Trestles",
+     "lat": 33.384,
+     "lng": -117.59,
+     "distance_km": 10.78
+    },
+    {
+     "name": "Lower Trestles",
+     "lat": 33.3819,
+     "lng": -117.5885,
+     "distance_km": 11.04
+    }
+   ]
+  },
+  {
+   "id": "285p1",
+   "source": "cdip",
+   "role": "nearshore",
+   "lat": 35.16396,
+   "lng": -120.73756,
+   "depth_m": 15.0,
+   "anchor_spot": {
+    "name": "Pismo Beach Pier",
+    "lat": 35.138,
+    "lng": -120.648,
+    "distance_km": 8.64
+   },
+   "spots": [
+    {
+     "name": "Pismo Beach Pier",
+     "lat": 35.138,
+     "lng": -120.648,
+     "distance_km": 8.64
+    }
+   ]
+  },
+  {
+   "id": "46025",
+   "source": "ndbc",
+   "role": "offshore",
+   "lat": 33.765,
+   "lng": -119.077,
+   "depth_m": null,
+   "name": "Santa Monica Basin"
+  },
+  {
+   "id": "46086",
+   "source": "ndbc",
+   "role": "offshore",
+   "lat": 32.504,
+   "lng": -118.029,
+   "depth_m": null,
+   "name": "San Clemente Basin"
+  }
+ ]
+}

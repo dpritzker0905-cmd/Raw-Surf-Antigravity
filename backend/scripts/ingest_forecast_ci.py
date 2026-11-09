@@ -45,6 +45,17 @@ PRODUCT_UPLOAD_DRAIN_SECONDS = 300
 
 
 def main() -> int:
+    try:
+        return _main()
+    finally:
+        try:   # the #675 rollout run context is per process run; never leak it into a later caller (tests, tools)
+            from services.weather_pipeline import rollout_675
+            rollout_675.reset()
+        except Exception:
+            pass
+
+
+def _main() -> int:
     if not (os.environ.get("SUPABASE_URL") and
             (os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY"))):
         logger.error("SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_KEY) are required — without "
@@ -69,6 +80,14 @@ def main() -> int:
     except Exception as _re:
         logger.warning("Pre-ingest L2 restore failed (continuing from empty store): %s", _re)
 
+    # #675 ROLLOUT v2 (rollout_675.py): the run-level preflight (prerequisites, bypass, owning lane, last run's read-back and
+    # bounds, the reader proof) BEFORE any ingest mutation. Inert (no I/O) with all three #675 flags '0'. Never raises.
+    try:
+        from services.weather_pipeline import rollout_675
+        rollout_675.begin_run(ProductStore())
+    except Exception as _ro:
+        logger.warning("Rollout 675 preflight errored (the #675 rules stay ungated only if this import failed): %s", _ro)
+
     logger.info("Starting decoupled forecast ingestion (reusing production ingest_marine_forecast_task)...")
     from scheduler.forecast import ingest_marine_forecast_task
     from services.weather_pipeline.product_upload_progress import collect_product_uploads
@@ -90,6 +109,24 @@ def main() -> int:
         logger.info("Duplicate-valid_time sweep: pruned %d superseded products.", n_dupes)
     except Exception as _pe:
         logger.warning("Duplicate-valid_time sweep skipped (non-fatal): %s", _pe)
+
+    # #675 ROLLOUT v2: canary, post-publish read-back, sampled audit, the scoped GC of marked deletes, bounds, status object
+    # ops/rollout_675.json and the step summary. Never raises; a no-op with all three flags '0'.
+    try:
+        from services.weather_pipeline.store import ProductStore as _RoStore
+        from services.weather_pipeline.rollout_675_finish import finish_run
+        finish_run(_RoStore())
+    except Exception as _rf:
+        logger.warning("Rollout 675 finish skipped (non-fatal): %s", _rf)
+
+    # PRODUCT_RUN_KEYED_NAMES (dark): superseded run-keyed objects are deleted only by this mark-and-sweep, two sweeps a grace
+    # apart, after the published manifest stopped naming them (product_object_gc.py). A no-op with the flag off; never raises.
+    try:
+        from services.weather_pipeline.store import ProductStore as _GcStore
+        from services.weather_pipeline.product_object_gc import run_object_gc
+        logger.info("Product object GC: %s", run_object_gc(_GcStore()))
+    except Exception as _ge:
+        logger.warning("Product object GC skipped (non-fatal): %s", _ge)
 
     # ── P1 increment 3: precompute per-spot surf ratings → L2 (off the 1-CPU serve box) ──────────────────
     # AFTER ingestion (so the store holds fresh marine + wind products), rate every active surf spot for the

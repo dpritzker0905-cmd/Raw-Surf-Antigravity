@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../lib/apiClient';
-import { Waves, Clock, Compass, Users, Star, MessageSquare, ChevronDown, ChevronUp, Loader2, ArrowUp, ArrowDown, Droplets, Calendar, Lock, Crown } from 'lucide-react';
+import { Waves, Clock, Compass, Users, Star, MessageSquare, ChevronDown, ChevronUp, Loader2, Calendar, Lock, Crown } from 'lucide-react';
 import { Badge } from './ui/badge';
 import { Button } from './ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from './ui/dialog';
@@ -17,6 +17,9 @@ import { useSpotReadings } from '../hooks/useSpotReadings';
 import { forecastStateIdentityEnabled } from './map/forecastStateIdentity';
 import { marineValueValidityEnabled } from './map/marinePointValues';
 import { forecastCalendar } from './forecastCalendar';
+import SpotTideBlock from './spot-hub/SpotTideBlock';
+import { SpotChartPanel } from './spot-hub/charts/SpotChartPanel';
+import { displayPeriod, hubForecastWindow, spotHubP1Enabled, splitForecastWindow } from './spot-hub/spotHubP1';
 
 // Emoji constants -- using String.fromCodePoint to prevent encoding corruption
 const E = {
@@ -39,18 +42,10 @@ const E = {
 };
 
 
-// Get subscription tier for forecast access
-const getForecastDays = (subscriptionTier) => {
-  if (!subscriptionTier || subscriptionTier === 'free') return 3;
-  if (['basic', 'paid'].includes(subscriptionTier)) return 7;
-  if (['premium', 'pro', 'gold'].includes(subscriptionTier)) return 10;
-  return 3; // Default fallback for unknown tiers
-};
-
-// Check if user has premium forecast access
-const hasPremiumForecast = (subscriptionTier) => {
-  return subscriptionTier === 'premium' || subscriptionTier === 'pro' || subscriptionTier === 'gold';
-};
+// ⛔ NO TIER LADDER HERE (spot-hub phase 1, 2026-11-03). This file carried its own 3/7/10 ladder,
+// unlike the map's 3/7/14 and the full hub's 3/7/14; the window now comes from the app's resolver
+// (LayerAccessResolver via spot-hub/spotHubP1.hubForecastWindow), the one the scrubber uses.
+const readActiveModel = () => { try { return localStorage.getItem('rawsurf-active-model') || 'GFS'; } catch { return 'GFS'; } };
 
 // Conditions badge colors
 const conditionColors = {
@@ -98,7 +93,7 @@ export const confidenceLabel = (fc) => {
     : `Forecast confidence: ${word}. Ensemble members differ by about ${pct}% of the forecast wave height. This describes confidence in the forecast, not surf quality, and does not change the rating.`;
 };
 
-export const SpotConditions = ({ spotId, spotName, compact = false }) => {
+export const SpotConditions = ({ spotId, spotName, compact = false, timeOffsetHours = 0, onSelectOffset = null }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
   const t = getThemeTokens(theme);
@@ -141,9 +136,17 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
     notes: ''
   });
   
-  // Get forecast days based on user's subscription
-  const forecastDaysAllowed = getForecastDays(user?.subscription_tier);
-  const isPremiumUser = hasPremiumForecast(user?.subscription_tier);
+  // The forecast window per tier: the resolver's, clamped by /capabilities, as the scrubber's is.
+  const p1 = spotHubP1Enabled();
+  const forecastWindow = hubForecastWindow(user, readActiveModel());
+  const forecastDaysAllowed = forecastWindow.days;
+  const isPremiumUser = forecastWindow.isPremium;
+  const windowRows = splitForecastWindow(forecast, forecastWindow.hours);
+  // Kill switch off: the old count-based slice, on the resolver's day count.
+  const openRows = p1 ? windowRows.open : forecast.slice(0, forecastDaysAllowed);
+  const lockedRows = p1 ? windowRows.locked : forecast.slice(forecastDaysAllowed);
+  const openCount = p1 ? openRows.length : forecastDaysAllowed;
+  const premiumDays = hubForecastWindow('premium', forecastWindow.model).days;
 
   useEffect(() => {
     if (spotId && !strictIdentity) {
@@ -362,77 +365,25 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
         </p>
       </div>
 
-      {/* Tide Data Section */}
-      {tideData && tideData.tides && tideData.tides.length > 0 && (
-        <div className={`border-t ${containerBorder} p-4`}>
-          <div className="flex items-center gap-2 mb-3">
-            <Droplets className="w-5 h-5 text-cyan-400" />
-            <h4 className={`font-bold ${tPrimary} text-sm`}>Today's Tides</h4>
-            {tideData.current_status && (
-              <Badge className={`text-[10px] ${
-                tideData.current_status === 'Rising' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-orange-500/20 text-orange-400'
-              }`}>
-                {tideData.current_status === 'Rising' ? (
-                  <><ArrowUp className="w-3 h-3 mr-1" /> Rising</>
-                ) : (
-                  <><ArrowDown className="w-3 h-3 mr-1" /> Falling</>
-                )}
-              </Badge>
-            )}
-          </div>
-          
-          <div className="grid grid-cols-2 gap-2">
-            {tideData.tides.slice(0, 4).map((tide, index) => {
-              const tideTime = new Date(tide.time);
-              const isHigh = tide.type === 'High';
-              const isPast = tideTime < new Date();
-              
-              return (
-                <div 
-                  key={index} 
-                  className={`p-2 rounded-lg ${isPast ? cellBgFaded : cellBg}`}
-                >
-                  <div className="flex items-center gap-2 mb-1">
-                    {isHigh ? (
-                      <ArrowUp className="w-4 h-4 text-cyan-400" />
-                    ) : (
-                      <ArrowDown className="w-4 h-4 text-blue-400" />
-                    )}
-                    <span className={`text-xs font-medium ${isHigh ? 'text-cyan-400' : 'text-blue-400'}`}>
-                      {tide.type} Tide
-                    </span>
-                  </div>
-                  <div className="flex items-baseline gap-2">
-                    <span className={`text-lg font-bold ${tPrimary}`}>
-                      {tideTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                    <span className={`text-xs ${tSecondary}`}>
-                      {parseFloat(tide.height).toFixed(1)}ft
-                    </span>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          
-          <p className={`text-[10px] ${tMuted} mt-2`}>
-            Data from NOAA Tides & Currents
-          </p>
-        </div>
-      )}
+      {/* Tide Data Section: shared with the full hub (spot-hub/SpotTideBlock), ONE tide source */}
+      <SpotTideBlock tideData={tideData} t={t} containerBorder={containerBorder} />
 
-      {/* Forecast Section - Tiered Access */}
-      {forecast.length > 0 && (
+      {/* Forecast: Raw Surf's own chart (phase 4) when the spot's series is published; else the tiered rows */}
+      <SpotChartPanel spotId={spotId} user={user} model={forecastWindow.model} selectedOffsetHours={timeOffsetHours}
+        onSelectOffset={onSelectOffset} onUpgrade={() => { window.location.href = '/settings?tab=billing'; }}
+        className={`border-t ${containerBorder} px-4 py-3`}
+        fallback={forecast.length > 0 && (
         <div className={`border-t ${containerBorder}`}>
-          <button aria-label="Calendar"
+          <button aria-label={p1 ? `Surf forecast, ${openCount} day${openCount === 1 ? '' : 's'}` : 'Calendar'}
+            aria-expanded={p1 ? forecastExpanded : undefined}
             onClick={() => setForecastExpanded(!forecastExpanded)}
             className={`w-full flex items-center justify-between p-4 ${hoverBg} transition-colors`}
           >
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-purple-400" />
               <span className={`text-sm font-medium ${tPrimary}`}>Surf Forecast</span>
-              <Badge className={`text-[10px] ${isPremiumUser ? 'bg-purple-500/20 text-purple-400' : isLight ? 'bg-gray-200 text-gray-500' : 'bg-zinc-700 text-gray-400'}`}>
-                {forecastDaysAllowed} Day{forecastDaysAllowed > 1 ? 's' : ''}
+              <Badge className={`text-[10px] ${isPremiumUser ? 'bg-purple-500/20 text-purple-400' : isLight ? 'bg-gray-200 text-gray-500' : isBeach && p1 ? t.badgeBg : 'bg-zinc-700 text-gray-400'}`}>
+                {openCount} Day{openCount === 1 ? '' : 's'}
               </Badge>
             </div>
             {forecastExpanded ? <ChevronUp className={`w-4 h-4 ${tSecondary}`} /> : <ChevronDown className={`w-4 h-4 ${tSecondary}`} />}
@@ -442,9 +393,10 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
             <div className="px-4 pb-4 space-y-3">
               {/* Forecast Days Grid */}
               <div className="space-y-2">
-                {forecast.slice(0, forecastDaysAllowed).map((day, index) => {
+                {openRows.map((day, index) => {
                   const dateObj = new Date(day.date);
-                  const calendar = forecastStateIdentityEnabled() ? forecastCalendar(day.date) : null;
+                  // Rows are UTC dates (one 12:00 UTC sample): phase 1 always labels them as such.
+                  const calendar = p1 || forecastStateIdentityEnabled() ? forecastCalendar(day.date) : null;
                   const dayName = calendar ? calendar.relative : index === 0 ? 'Today' : index === 1 ? 'Tomorrow' : dateObj.toLocaleDateString('en-US', { weekday: 'short' });
                   const dateStr = calendar ? calendar.monthDay : dateObj.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
                   
@@ -464,7 +416,11 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                         <Badge className={`text-[10px] ${strictValues && (!validHeight(day.wave_height_min) || !validHeight(day.wave_height_max)) ? unavailableBadge : conditionColors[day.label] || 'bg-gray-500'}`}>
                           {strictValues && (!validHeight(day.wave_height_min) || !validHeight(day.wave_height_max)) ? 'Unavailable' : day.label}
                         </Badge>
-                        {day.swell_period && (
+                        {p1 ? (
+                          // The row's period is the TOTAL-sea period (`wave_period`); `swell_period` never
+                          // arrives in a forecast row. Named "Period", and "—" when absent, never "0s".
+                          <span className={`${tSecondary} text-xs`}>Period {displayPeriod(day.wave_period ?? day.swell_period)}</span>
+                        ) : day.swell_period && (
                           <span className={`${tSecondary} text-xs`}>{day.swell_period}s</span>
                         )}
                       </div>
@@ -474,24 +430,27 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
               </div>
               
               {/* Premium Upsell - Show if user doesn't have premium */}
-              {!isPremiumUser && forecast.length > forecastDaysAllowed && (
+              {!isPremiumUser && lockedRows.length > 0 && (
                 <div className="p-3 bg-gradient-to-r from-purple-500/10 to-pink-500/10 border border-purple-500/30 rounded-lg">
                   <div className="flex items-center gap-2 mb-2">
-                    <Lock className="w-4 h-4 text-purple-400" />
-                    <span className={`${tPrimary} font-medium text-sm`}>Unlock 10-Day Forecast</span>
+                    <Lock aria-hidden={p1 ? 'true' : undefined} className="w-4 h-4 text-purple-400" />
+                    <span className={`${tPrimary} font-medium text-sm`}>{p1 ? 'Unlock more forecast days' : 'Unlock 10-Day Forecast'}</span>
                   </div>
                   <p className={`${tSecondary} text-xs mb-2`}>
-                    Premium members get extended 10-day forecasts and priority buoy data.
+                    {p1
+                      // Honest interim: the map opens 14 days for premium, the spot forecast stops at 10.
+                      ? `Premium opens the map's ${premiumDays}-day window; spot forecasts show up to 10 days for now.`
+                      : 'Premium members get extended 10-day forecasts and priority buoy data.'}
                   </p>
                   <div className="flex items-center gap-2">
-                    <div className="flex -space-x-1">
-                      {forecast.slice(forecastDaysAllowed, forecastDaysAllowed + 3).map((day, i) => (
+                    <div className="flex -space-x-1" aria-hidden={p1 ? 'true' : undefined}>
+                      {lockedRows.slice(0, 3).map((day, i) => (
                         <div key={i} className="w-6 h-6 rounded-full bg-zinc-700/80 backdrop-blur flex items-center justify-center border border-purple-500/30">
                           <Lock className="w-3 h-3 text-purple-400" />
                         </div>
                       ))}
                     </div>
-                    <span className="text-purple-400 text-xs">+{Math.min(forecast.length - forecastDaysAllowed, 7)} more days locked</span>
+                    <span className="text-purple-400 text-xs">+{p1 ? lockedRows.length : Math.min(forecast.length - forecastDaysAllowed, 7)} more days locked</span>
                   </div>
                   <Button aria-label="Crown"
                     size="sm"
@@ -505,13 +464,14 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
                 </div>
               )}
               
-              <p className={`text-[10px] ${tMuted}`}>
-                Forecast from Open-Meteo Marine API
+              <p className={`text-[10px] ${tMuted}`} data-testid="forecast-source-label">
+                {/* The rows are Raw Surf's own stored products through the hub chain, not an Open-Meteo call. */}
+                {p1 ? 'Raw Surf forecast · one sample per UTC day (12:00 UTC)' : 'Forecast from Open-Meteo Marine API'}
               </p>
             </div>
           )}
         </div>
-      )}
+      )} />
 
       {/* Community Reports Section */}
       <div className={`border-t ${containerBorder}`}>

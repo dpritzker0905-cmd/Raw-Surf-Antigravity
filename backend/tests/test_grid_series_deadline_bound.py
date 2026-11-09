@@ -140,3 +140,121 @@ def test_the_route_really_clamps_rather_than_calling_the_bare_timeout():
     assert "min(_per_hour_timeout(), _remaining)" in src, (
         "the per-hour timeout must be clamped to the time actually left before the deadline"
     )
+
+
+@pytest.mark.parametrize("stage", ["first_hour", "later_hours", "euro_fastpath", "openmeteo_fastpath"])
+def test_cancelled_series_propagates_without_starting_fallback(monkeypatch, stage):
+    """Cancel the real builder, not a copied rule; abandoned pages must stop fan-out."""
+    import asyncio
+    from services.weather_pipeline import regional_tile_first
+
+    async def scenario():
+        entered = asyncio.Event()
+        calls = []
+        active = set()
+
+        async def resolve(**kwargs):
+            calls.append(kwargs["valid_time"])
+            if stage.endswith("fastpath") or (stage == "later_hours" and len(calls) == 1):
+                return None
+            key = kwargs["valid_time"]
+            active.add(key)
+            entered.set()
+            try:
+                await asyncio.Event().wait()
+            finally:
+                active.remove(key)
+
+        async def fastpath(*args, **kwargs):
+            entered.set()
+            await asyncio.Event().wait()
+
+        async def no_coverage(*args, **kwargs):
+            return False
+
+        monkeypatch.setenv("EURO_SERIES_LIVE_COPERNICUS", "1" if stage == "euro_fastpath" else "0")
+        monkeypatch.setenv("GFS_ICON_SERIES_FASTPATH", "1" if stage == "openmeteo_fastpath" else "0")
+        monkeypatch.setattr(gsh, "_build_euro_marine_series", fastpath)
+        monkeypatch.setattr(gsh, "_build_openmeteo_marine_series", fastpath)
+        monkeypatch.setattr(gsh, "has_stored_series_coverage", no_coverage)
+        monkeypatch.setattr(gsh, "live_lane_cannot_beat_stored", no_coverage)
+        monkeypatch.setattr(regional_tile_first, "skips_live_series", lambda *args: False)
+        model = "EURO" if stage == "euro_fastpath" else "GFS"
+        hours = "0,243" if stage == "euro_fastpath" else "0,1,2,3,4,5"
+        task = asyncio.create_task(gsh.build_grid_series(
+            resolve, object() if stage.endswith("fastpath") else None,
+            model, "marine", "waves", "-82,26,-78,30", hours))
+        try:
+            await asyncio.wait_for(entered.wait(), 3)
+            before = len(calls)
+            task.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await asyncio.wait_for(task, 3)
+            await asyncio.sleep(0)
+            assert len(calls) == before, "cancellation started more resolver work"
+            assert task.cancelled()
+            assert not active, "resolver cleanup must finish before the cancelled page returns"
+        finally:
+            if not task.done():
+                task.cancel()
+            await asyncio.gather(task, return_exceptions=True)
+
+    asyncio.run(scenario())
+
+
+@pytest.mark.parametrize("failure", [TimeoutError, RuntimeError])
+def test_series_fastpath_failure_still_uses_per_hour_fallback(monkeypatch, failure):
+    """Ordinary provider errors/timeouts are recoverable; caller cancellation is not."""
+    import asyncio
+    from services.weather_pipeline import regional_tile_first
+
+    async def scenario():
+        calls = []
+
+        async def resolve(**kwargs):
+            calls.append(kwargs["valid_time"])
+            return None
+
+        async def fastpath(*args, **kwargs):
+            raise failure("synthetic provider failure")
+
+        async def no_coverage(*args, **kwargs):
+            return False
+
+        monkeypatch.setenv("GFS_ICON_SERIES_FASTPATH", "1")
+        monkeypatch.setattr(gsh, "_build_openmeteo_marine_series", fastpath)
+        monkeypatch.setattr(gsh, "has_stored_series_coverage", no_coverage)
+        monkeypatch.setattr(gsh, "live_lane_cannot_beat_stored", no_coverage)
+        monkeypatch.setattr(regional_tile_first, "skips_live_series", lambda *args: False)
+        result = await gsh.build_grid_series(resolve, object(), "GFS", "marine", "waves", "-82,26,-78,30", "0,1")
+        assert len(calls) == 2
+        assert result["frame_count"] == 0
+
+    asyncio.run(scenario())
+
+
+def test_independently_cancelled_later_hour_does_not_cancel_siblings(monkeypatch):
+    """gather(return_exceptions=True) still permits a partial page for one lost child."""
+    import asyncio
+
+    async def scenario():
+        calls = []
+        completed = []
+
+        async def resolve(**kwargs):
+            calls.append(kwargs["valid_time"])
+            index = len(calls)
+            if index == 2:
+                raise asyncio.CancelledError()
+            await asyncio.sleep(0)
+            completed.append(index)
+            return None
+
+        monkeypatch.setenv("GFS_ICON_SERIES_FASTPATH", "0")
+        result = await gsh.build_grid_series(resolve, None, "GFS", "marine", "waves", "-82,26,-78,30", "0,1,2")
+        assert len(calls) == 3
+        assert completed == [1, 3]
+        assert result["frame_count"] == 0
+        assert "_error" not in result
+
+    asyncio.run(scenario())

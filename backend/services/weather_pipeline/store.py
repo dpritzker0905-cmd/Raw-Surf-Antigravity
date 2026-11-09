@@ -215,6 +215,8 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None, remote_p
             remote_products = _fetch_remote_manifest_products()
         if not remote_products:
             return 0
+        from services.weather_pipeline.rollout_675 import defer_owned_entries   # #675 v2: non-owning lane takes the head's
+        defer_owned_entries(manifest, remote_products)                          # copy of owned entries (no ghost, no stale)
         # ⛔ RETENTION MUST HOLD ACROSS UPLOADS (audit 15.0, 2026-09-26). The cadence prune removes
         # products past MANIFEST_RETENTION_DAYS and passes exclude_keys, but its upload is only QUEUED;
         # the same lane's next save reconciles WITHOUT exclusions while the remote still holds the
@@ -237,14 +239,18 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None, remote_p
         ours = {(p.product_id or p.filename): p for p in manifest.products if (p.product_id or p.filename)}
         excl = set(exclude_keys or ())
         prefer_newer = os.environ.get("MANIFEST_MERGE_PREFER_NEWER", "1") != "0"
-        folded, refreshed = [], []
+        folded, refreshed, logical = [], [], None
+        from services.weather_pipeline import product_run_keys as _rk
         for raw in remote_products:
             pid = raw.get("product_id") or raw.get("filename")
             if not pid or pid in excl:
                 continue
             if cutoff is not None and _past_retention(raw.get("valid_time_start"), cutoff):
                 continue  # a pruned entry the remote still holds: never resurrect it
-            mine = ours.get(pid)
+            mine, mine_key = ours.get(pid), pid
+            if mine is None and (_rk.enabled() or _rk.is_run_keyed(pid)):   # one slice = one LOGICAL name (product_run_keys)
+                logical = _rk.logical_index(ours) if logical is None else logical
+                mine_key, mine = logical.get(_rk.logical_name(raw.get("filename") or pid), (pid, None))
             if mine is not None:
                 if os.environ.get('INGEST_PRUNE_VERIFIED_CYCLES', '0') == '1':
                     from services.weather_pipeline.prune_verified_cycles import newer_collision
@@ -259,7 +265,7 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None, remote_p
             if mine is None:
                 folded.append(item)
             else:
-                ours[pid] = item
+                ours[mine_key] = item
                 refreshed.append((pid, mine.run_time, item.run_time))
         if refreshed:
             manifest.products = [ours.get(p.product_id or p.filename, p) for p in manifest.products]
@@ -453,6 +459,11 @@ class ProductStore:
                 raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:300]}"
                                    + (f" (after {retries} retries)" if retries else ""))
             ProductStore._last_upload_time = datetime.now(timezone.utc).isoformat()
+            if not overwrite and filename.startswith("manifests/"):
+                # A create-only upload acknowledged: these bytes ARE the object, so the next publish's head read of this key
+                # needs no GET (manifest_pointer.remember_manifest_object; kill switch MANIFEST_SELF_READ_CACHE=0).
+                from services.weather_pipeline.manifest_pointer import remember_manifest_object
+                remember_manifest_object(filename, data_bytes)
             logger.info(f"[Product Store] L2 upload OK: {filename} ({len(data_bytes)} bytes)"
                         + (f" after {retries} retries" if retries else ""))
             # S2 run-keyed manifest + pointer CAS: every successful legacy manifest.json upload

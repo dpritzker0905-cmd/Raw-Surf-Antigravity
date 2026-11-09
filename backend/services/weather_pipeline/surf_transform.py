@@ -37,6 +37,7 @@ MUST tag it is_estimated and present it as "surf", never as authoritative model 
 Pure ``math`` only — no I/O, no network, no numpy dependency — so it runs in-process on the serve-only box
 (cheap, per-point) and is fully unit-testable without the GRIB/data stack.
 """
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default
 import math
 import os
 
@@ -371,7 +372,7 @@ def _height_exposure_factor(swell_from_deg, shore_normal_deg) -> float:
         return 1.0
     align = math.cos(math.radians(swell_from_deg - shore_normal_deg))
     exposure = _clamp(0.10 + 0.90 * max(0.0, align), 0.0, 1.0)
-    if os.environ.get("SURF_EXPOSURE_RECONCILED", "0") == "1": return math.sqrt(exposure)  # noqa: E701 - OFF by default; docs/research/FINDING-2026-08-09-the-dual-floor-reconciliation.md
+    if _rf.flag("SURF_EXPOSURE_RECONCILED") == "1": return math.sqrt(exposure)  # noqa: E701 - OFF by default; docs/research/FINDING-2026-08-09-the-dual-floor-reconciliation.md
     return 0.55 + 0.45 * exposure
 
 
@@ -537,7 +538,7 @@ def effective_cap_depth(depth_m, break_depth_m, water_level_m=0.0):
     cap_depth = depth_m
     if break_depth_m is not None and break_depth_m > 0 and os.environ.get("SURF_BREAK_DEPTH", "1") != "0":
         cap_depth = float(break_depth_m)
-    if water_level_m and os.environ.get("SURF_TIDE_DEPTH", "0") != "0":
+    if water_level_m and _rf.flag("SURF_TIDE_DEPTH") != "0":
         cap_depth = max(_MIN_CAP_DEPTH_M, cap_depth + float(water_level_m))
     return cap_depth
 

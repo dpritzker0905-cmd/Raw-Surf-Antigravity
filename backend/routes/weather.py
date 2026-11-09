@@ -1,3 +1,4 @@
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends, Request
 from fastapi.responses import JSONResponse
 from datetime import datetime, timedelta, timezone
@@ -563,7 +564,7 @@ async def _compute_live_ratings(db, w, s, e, n, bbox, model, valid_time, limit, 
     # RATING_LOCAL_SIZE is consistent whether ratings are served precomputed or live. Empty map when the
     # feature is off or a spot lacks climatology → reference None → global default. Kept OUT of the loop.
     _ref_map = {}
-    if os.environ.get("RATING_LOCAL_SIZE", "0") == "1":
+    if _rf.flag("RATING_LOCAL_SIZE") == "1":
         try:
             from services.weather_pipeline.spot_size_climatology import (
                 load_size_climatology_l2_cached, reference_map as _size_reference_map)
@@ -589,7 +590,7 @@ async def _compute_live_ratings(db, w, s, e, n, bbox, model, valid_time, limit, 
     # serves): report-confirmation + light nudge from this viewport's fresh reports (one DB query), then
     # cap. No cross-model corroboration here (live rates ONE model; a single-model spike staying capped
     # is exactly the gate's job). Kill: RATING_OBS_GATE=0 (default OFF).
-    if os.environ.get("RATING_OBS_GATE", "0") == "1" and items:
+    if _rf.flag("RATING_OBS_GATE") == "1" and items:
         try:
             from services.weather_pipeline.rating_confirmation import (
                 observation_gate, report_confirmation, report_nudge, REPORT_FRESH_H)
@@ -795,3 +796,5 @@ from .weather_ingest import router as ingest_router
 router.include_router(ingest_router)
 from .weather_wind_lane import router as wind_lane_router  # noqa: E402  GET /api/weather/wind_lane (the box's HRRR lane)
 router.include_router(wind_lane_router)
+from .weather_spot_series import router as spot_series_router  # noqa: E402  GET /api/weather/spot-series/{id} (hub charts)
+router.include_router(spot_series_router)

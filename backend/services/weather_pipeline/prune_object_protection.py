@@ -31,4 +31,10 @@ def delete_pruned_object(store, product, protected_filenames):
             logger.info('[Product Store] Pruned unreferenced product file: %s', product.filename)
         except Exception as exc:
             logger.warning('[Product Store] Failed to delete pruned file %s: %s', product.filename, exc)
+    from services.weather_pipeline import product_run_keys
+    if product_run_keys.enabled():
+        # PRODUCT_RUN_KEYED_NAMES: the published manifest a serve box holds may still name this object, so the storage delete
+        # waits for product_object_gc (two unreferenced sweeps a grace apart), never the prune's own snapshot.
+        logger.info('[Product Store] Storage delete deferred to the object GC: %s', product.filename)
+        return
     _upload_executor.submit(store._delete_from_supabase, product.filename)

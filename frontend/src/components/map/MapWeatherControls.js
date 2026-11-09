@@ -8,6 +8,7 @@ import { RATING_LEVELS, RATING_COLOR } from './surfRating';
 import { getHeightUnit, setHeightUnit, M_TO_FT } from './heightUnits';
 import { windLegendGradientCSS, windLegendStops, windLookKey } from './WindColorRamp';
 import { valueTicks, evenTicks, dropCollisions, LegendTicks } from './legendTicks';
+import { activeCadenceHours, stepHour } from './cadenceStep';
 import ForecastWheel, { shouldUseClassicScrubber } from './ForecastWheel';
 import TimelineStatus from './TimelineStatus'; import { RASTER_STATUS_LAYERS } from './rasterDrawnFrame';
 import { forecastReadout } from './forecastReadout'; import LayerDataCredit from './LayerDataCredit';
@@ -553,7 +554,7 @@ export var MapWeatherControls = ({
 
           {/* Time Readout */}
           <div className={`text-[10px] font-bold shrink-0 text-right min-w-[50px] ${textClass}`}>
-            <span aria-hidden={!isRadar}>{formatTime()}</span>{!isRadar && <span className="sr-only">{forecastReadout(sliderVal, activeLayer, activeModel).srText}</span>}
+            <span aria-hidden={!isRadar}>{formatTime()}</span>{!isRadar && <span className="sr-only">{forecastReadout(sliderVal, activeLayer, activeModel).srText}</span>}{!isRadar && forecastReadout(sliderVal, activeLayer, activeModel).snapped && <span className={`block text-[8px] font-medium leading-tight ${textMuted}`} title="Nearest stored model time step">model step</span>}
           </div>
         </div>
 
@@ -562,22 +563,20 @@ export var MapWeatherControls = ({
             equivalents live on the wheel itself). Forecast mode only — radar keeps its dedicated
             frame-step buttons above. Theme-aware via chipBg/btnHover/textMuted. */}
         {useWheel && !isRadar && (
-          <div className="flex items-center justify-center gap-1.5 mt-1.5">
-            {[
-              { label: '−1d', delta: -24 }, { label: '−1h', delta: -1 },
-              { label: 'Now', delta: null },
-              { label: '+1h', delta: 1 }, { label: '+1d', delta: 24 },
-            ].map(({ label, delta }) => (
+          <div className="flex flex-wrap items-center justify-center gap-1 mt-1.5">
+            {[['−1d',-24,'Step back 1 day'],['−3h',-3,'Step back 3 hours',-1],['−1h',-1,'Step back 1 hour'],['Now',null],
+              ['+1h',1,'Step forward 1 hour'],['+3h',3,'Step forward 3 hours',1],['+1d',24,'Step forward 1 day']
+            ].map(([label, delta, aria, grid]) => (
               <button
                 key={label}
                 type="button"
                 onClick={() => {
-                  const v = delta === null ? 0 : Math.max(0, Math.min(maxForecastHours, sliderVal + delta));
+                  const v = delta === null ? 0 : (grid && activeCadenceHours(activeModel, activeLayer) > 1) ? stepHour(sliderVal, grid, activeCadenceHours(activeModel, activeLayer), maxForecastHours) : Math.max(0, Math.min(maxForecastHours, sliderVal + delta));
                   setSliderVal(v);
                   onTimeChange(v);
                 }}
                 className={`text-[9px] leading-none font-bold px-2 py-1 rounded-full border ${chipBg} ${btnHover} ${textMuted} transition-colors`}
-                aria-label={delta === null ? 'Jump to now' : `Step ${label.replace('−', 'minus ')}`}
+                aria-label={delta === null ? 'Jump to now' : (aria || `Step ${label.replace('−', 'minus ')}`)}
               >
                 {label}
               </button>

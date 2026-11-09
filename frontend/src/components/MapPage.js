@@ -612,6 +612,8 @@ var MapPageContent = () => {
           isTimelineCollapsed={isTimelineCollapsed}
           isImmersiveMode={isImmersiveMode}
           selectedSpot={selectedSpot}
+          user={user}
+          onTimeChange={setTimeOffsetHours}
           longPressLocation={longPressLocation}
           defaultSnappedLat={snappedCoordinates?.lat}
           defaultSnappedLng={snappedCoordinates?.lng}

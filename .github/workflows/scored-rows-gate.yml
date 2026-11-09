@@ -16,7 +16,10 @@
 #
 # WHEN IT RUNS: workflow_dispatch ONLY (no schedule, no push, no pull_request), and only on the OWNER'S WORD. GitHub runs a
 # workflow_dispatch file only if it exists on the DEFAULT branch (dev here), so merging this file to dev is the owner's first
-# word and dispatching it the second. Delete the file (and scripts/scored_rows_gate.py, services/weather_pipeline/
+# word and dispatching it the second. GATES_V2 (input `gates_v2`, default '0'; science audit 2026-11-01): '1' also judges the
+# SAME rows with validation gates v2 (DM/HAC + block bootstrap, big-swell bias bands, Holm, hull/sea-state strata, periods vs
+# DPD and a parabolic-fit Tp from NDBC spectra) and appends where v1 and v2 disagree; it then also GETs NDBC's public station
+# metadata and realtime2 spectra (GET only, no key). It keeps this file alive until v2 has been read beside v1. Delete the file (and scripts/scored_rows_gate.py, services/weather_pipeline/
 # scored_rows_analysis.py, tests/test_scored_rows_gate.py with its floor entries) in the PR that records the result.
 name: Scored Rows Gate (ONE-OFF)
 
@@ -35,6 +38,10 @@ on:
         description: 'Largest MAE loss, in metres, the scalar lane may show against the served lane in any such cell.'
         required: false
         default: '0.005'
+      gates_v2:
+        description: "'1' also runs validation gates v2 beside v1 on the same rows (GATES_V2; default off)."
+        required: false
+        default: '0'
 
 permissions:
   contents: read
@@ -60,6 +67,7 @@ jobs:
           GATE_SINCE: ${{ inputs.since }}
           GATE_MIN_N: ${{ inputs.min_n }}
           GATE_MAX_LOSS_M: ${{ inputs.max_loss_m }}
+          GATES_V2: ${{ inputs.gates_v2 }}
         run: |
           set -o pipefail
           python3 scripts/scored_rows_gate.py \

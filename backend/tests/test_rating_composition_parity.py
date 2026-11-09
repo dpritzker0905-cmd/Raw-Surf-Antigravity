@@ -479,6 +479,9 @@ POST_STEP_SURFACES = {
     "precompute -> glyph payload": ("services.weather_pipeline.rating_confirmation", None),
     "map rating band":             ("services.weather_pipeline.grid_resolver_surf", None),
     "spot hub":                    ("services.weather_pipeline.spot_conditions", None),
+    # 2026-11-03 (spot-hub phase 2, SPOT_HUB_RATE_ONE_SPOT): the hub on rate_one_spot. Its live frames take the
+    # infobox's gate; its precomputed frames are the glyph's already-gated items.
+    "spot hub (rate_one_spot)":    ("services.weather_pipeline.spot_hub_composition", None),
     "weather sim":                 ("services.weather_pipeline.sim_rating", None),
     # 2026-09-26 (A15-05(b)): the map infobox. Its live lane is `rate_one_spot` + the hub's gate;
     # its precomputed lane serves the glyph's already-gated frame item.

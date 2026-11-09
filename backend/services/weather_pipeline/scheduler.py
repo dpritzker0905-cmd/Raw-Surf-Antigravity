@@ -95,7 +95,8 @@ class WeatherPipelineScheduler:
         noaa_direct = os.environ.get("GFS_MARINE_NOAA_DIRECT", "1") != "0"
 
         from services.weather_pipeline.scheduler_helpers import (
-            flagship_pilot_days, get_gfs_marine_pilot_regions)
+            get_gfs_marine_pilot_regions)
+        from services.weather_pipeline.pilot_regions import gfs_marine_pilot_days
         from services.weather_pipeline.marine_mid_res_ingestion import (
             _GLOBAL_REGION, _save_marine_regional, gfs_mid_folds_into_pilot,
             gfs_mid_forecast_days, gfs_mid_resolution, gfs_world_fetch_days, save_gfs_marine_global_mid,
@@ -104,8 +105,9 @@ class WeatherPipelineScheduler:
         def _layers_for(region_id: str) -> list:
             # SoCal swell_2 was left out by the June 6H.2 pilot (c2816a0f5: "GFS swell_2 only florida"), a scoping choice, not
             # science; the multi-bbox pass downloads the whole globe, so it costs only sampling + saves. DARK opt-in (2026-10-24):
-            # GFS_MARINE_SOCAL_SWELL2=1 (repo variable, forecast-ingest-pilots.yml) stores it like every other pilot box.
-            if region_id == "us_west_coast_socal" and os.environ.get("GFS_MARINE_SOCAL_SWELL2", "0") != "1":
+            # GFS_MARINE_SOCAL_SWELL2 (repo variable, forecast-ingest-pilots.yml; ON by default since 2026-11-01, owner, D-063) stores it like
+            # every other pilot box; '0' is the kill switch and restores the old omission.
+            if region_id == "us_west_coast_socal" and os.environ.get("GFS_MARINE_SOCAL_SWELL2", "1") == "0":
                 return ["waves", "swell_1", "wind_waves"]
             return ["waves", "swell_1", "swell_2", "wind_waves"]
 
@@ -128,11 +130,7 @@ class WeatherPipelineScheduler:
             regions_all = get_gfs_marine_pilot_regions()
             by_horizon = {}
             for rid, rcfg in regions_all.items():
-                days = flagship_pilot_days(
-                    rid,
-                    int(os.environ.get("GFS_MARINE_FLAGSHIP_FORECAST_DAYS", "14")),
-                    int(os.environ.get("GFS_MARINE_FORECAST_DAYS", "8")),
-                )
+                days = gfs_marine_pilot_days(rid)  # GFS_PILOT_FULL_HORIZON lives there
                 by_horizon.setdefault(days, {})[rid] = rcfg
 
             # ══ FOLD THE 2° global_mid TILE INTO THIS SAME PASS (2026-08-02) ══
@@ -225,12 +223,7 @@ class WeatherPipelineScheduler:
             # NOAA gfswave025 ceiling is 16d), while the rotating WORLDWIDE regions stay at the shorter
             # budget horizon so the ~165-min CI stays green. Envs: GFS_MARINE_FLAGSHIP_FORECAST_DAYS
             # (default 14) / GFS_MARINE_FORECAST_DAYS (default 8, the worldwide horizon).
-            from services.weather_pipeline.scheduler_helpers import flagship_pilot_days
-            env_forecast_days = flagship_pilot_days(
-                region_id,
-                int(os.environ.get("GFS_MARINE_FLAGSHIP_FORECAST_DAYS", "14")),
-                int(os.environ.get("GFS_MARINE_FORECAST_DAYS", "8")),
-            )
+            env_forecast_days = gfs_marine_pilot_days(region_id)  # GFS_PILOT_FULL_HORIZON lives there
 
             # ══ PRIMARY: native GFS-Wave direct from NOAA (regional 0.25°, off open-meteo) ══
             results = None

@@ -155,6 +155,8 @@ def test_retention_keeps_the_current_and_previous_bundle(tmp_path):
 
 def test_the_regional_sets_are_every_gfs_marine_pilot_box_after_the_world_sets(monkeypatch):
     from services.weather_pipeline import pilot_regions as pr
+    # The GFS sets alone (the EURO/ICON sets, ON by default since D-059, follow them: test_frame_set_bundle_euro_icon.py).
+    monkeypatch.setenv("FRAME_REGIONAL_BUNDLES_EURO_ICON", "0")
     boxes = {**pr.REGIONAL_CONFIGS, **pr.WORLDWIDE_COASTAL_REGIONS, **pr.GFS_MARINE_EXTRA_REGIONS,
              **pr.GFS_MARINE_STAGE_B_REGIONS}
     layers = ("waves", "swell_1", "swell_2", "wind_waves")                  # waves first: the stagger drops the trains first
@@ -166,9 +168,12 @@ def test_the_regional_sets_are_every_gfs_marine_pilot_box_after_the_world_sets(m
     monkeypatch.delenv("FRAME_SETS")
     keys = [fs.set_key(t) for t in pub.selected_sets()]
     assert keys[:len(fs.SETS)] == [fs.set_key(t) for t in fs.SETS]           # world sets first, unchanged
-    assert keys[len(fs.SETS):] == [fs.set_key(t) for t in fsb.REGIONAL_SETS]  # regional LAST: the stagger drops them first
+    n = len(fs.SETS) + len(fsb.REGIONAL_SETS)
+    assert keys[len(fs.SETS):n] == [fs.set_key(t) for t in fsb.REGIONAL_SETS]  # regional after the world sets: the stagger drops them early
+    # ...and only the EURO swell world sets (FRAME_EURO_SWELL_SETS, ON since 2026-11-01, no client reader yet) come after them.
+    assert keys[n:] == [fs.set_key(t) for t in fs.euro_swell_sets()]
     monkeypatch.setenv("FRAME_REGIONAL_BUNDLES", "0")
-    assert [fs.set_key(t) for t in pub.selected_sets()] == [fs.set_key(t) for t in fs.SETS]
+    assert [fs.set_key(t) for t in pub.selected_sets()] == [fs.set_key(t) for t in tuple(fs.SETS) + tuple(fs.euro_swell_sets())]
 
 
 def test_an_upload_is_retried_on_429_and_5xx_with_backoff_then_gives_up(monkeypatch):

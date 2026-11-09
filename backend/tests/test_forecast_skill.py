@@ -379,11 +379,13 @@ def test_the_cap_holds_headroom_over_the_documented_production_demand(monkeypatc
     # adds is demand the moment an owner flips it, so it is sized for here, before the flip.
     for switch in ("CONSENSUS_INGEST", "CONSENSUS_SERVE", "SAMPLER_SCALAR_LEDGER"):
         monkeypatch.setenv(switch, "1")
+    monkeypatch.setenv("SAMPLER_SCALAR_LEDGER_MODELS", "GFS,EURO,ICON")   # every scalar shadow a list can add (11-01)
     monkeypatch.delenv("SAMPLER_SCALAR_HEIGHT", raising=False)
     from services.weather_pipeline.forecast_skill import (
         GFS_RAW, GFS_SCALAR, LEADS_H, PENDING_MAX_ENTRIES, compare_models)
-    assert {"CONSENSUS", GFS_RAW, GFS_SCALAR} <= set(compare_models("GFS"))
-    # ours + compares (ICON, EURO, CONSENSUS, GFS_RAW, GFS_SCALAR) + Open-Meteo marine + its same-model control
+    assert {"CONSENSUS", GFS_RAW, GFS_SCALAR, "EURO_SCALAR", "ICON_SCALAR"} <= set(compare_models("GFS"))
+    # ours + compares (ICON, EURO, CONSENSUS, GFS_RAW, GFS_SCALAR, EURO_SCALAR, ICON_SCALAR) + Open-Meteo marine + its
+    # same-model control
     # + persistence
     lanes = 1 + len(compare_models("GFS")) + 1 + 1 + 1
     buoys, runs_per_day = 60, 12                      # NDBC map size; forecast-ingest 6 + precompute 6

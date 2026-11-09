@@ -17,6 +17,7 @@ service — and so the re-entrancy guard stays where it belongs: the caller pass
 `self._resolve_partitions`, which goes through `_resolve_point_internal` and therefore cannot
 recurse back into this augmentation.
 """
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default
 import logging
 import os
 
@@ -147,7 +148,7 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
             # ⚠️ η reaches the CAP only (`surf_transform.estimate_surf`), never `depth_m` — a metre
             # of tide against a ~139 km shelf median is noise pretending to be signal.
             _eta = 0.0
-            if os.environ.get("SURF_TIDE_DEPTH", "0") != "0":
+            if _rf.flag("SURF_TIDE_DEPTH") != "0":
                 try:
                     from services.weather_pipeline.tide import tide_norm_at
                     _ts = await tide_norm_at(lat, lng, valid_time_str)
@@ -155,14 +156,16 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
                         _eta = float(_ts["height_m"])
                 except Exception as _te:
                     logger.debug(f"[Surf v3] tide resolve failed at ({lat},{lng}); η=0: {_te!r}")
-            # ── ROADMAP STAGE 4: CDIP MOP'S NEARSHORE SEA (behind SURF_NEARSHORE_MOP, default OFF) ──
+            # ── ROADMAP STAGE 4: CDIP MOP'S NEARSHORE SEA (SURF_NEARSHORE_MOP, D-065 guarded, default ON since 2026-11-05) ──
             # Resolved HERE, at the one site `surf_height_m` is produced, for the reason tide and the
             # partitions are: glyphs, the hub and the sim inherit one input. Its own try, fail-open.
+            # EURO ONLY (mop_serving.MOP_MEMBERS): the product is ECMWF-driven, so it is the EURO member's
+            # nearshore. GFS and ICON keep their own chain, and the three members stay independent.
             _near = None
-            if os.environ.get("SURF_NEARSHORE_MOP", "0") == "1":
+            from services.weather_pipeline import mop_serving as _mop
+            if _rf.on("SURF_NEARSHORE_MOP") and _mop.applies_to(model):
                 try:
-                    from services.weather_pipeline.mop_serving import nearshore_for_point
-                    _near = await nearshore_for_point(lat, lng, valid_time_str)
+                    _near = await _mop.nearshore_for_point(lat, lng, valid_time_str)
                 except Exception as _ne:
                     logger.warning(f"[Surf v3] MOP nearshore unavailable at ({lat},{lng}); parametric kept: {_ne!r}")
             surf, regime = estimate_surf_at(lat, lng, response.point.speed, response.point.period,

@@ -491,7 +491,7 @@ def test_workflow_secret_names_match_the_monitors_and_hold_no_values():
     assert not re.search(r"eyJ[A-Za-z0-9_-]{10,}|sb_secret|sbp_|https?://[a-z0-9-]+\.supabase\.(co|in)|[A-Za-z0-9+/_-]{40,}", text)
     expressions = set(re.findall(r"\$\{\{\s*([^}]+?)\s*\}\}", text))
     assert expressions == {"secrets.SUPABASE_URL", "secrets.SUPABASE_SERVICE_ROLE_KEY", "inputs.since", "inputs.min_n",
-                           "inputs.max_loss_m"}
+                           "inputs.max_loss_m", "inputs.gates_v2"}
 
 
 def test_workflow_never_traces_and_never_puts_inputs_in_the_shell_line():

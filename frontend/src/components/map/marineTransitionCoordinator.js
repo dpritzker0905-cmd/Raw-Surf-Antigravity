@@ -136,6 +136,31 @@ const SWITCH_HOLD_TTL_MS_DEFAULT = 30000;
 let _switchHoldStartedAt = null;
 let _switchHoldTargetKey = null;
 
+// HOLD ON FETCH ERROR (2026-11-07): the backend was OOM-killed and answered 502 for ~40 s (CORS-less, so the
+// browser saw CORS errors); the failed fetch committed a fallback_safe_zero / abort_recovery grid, the non-renderable
+// branch of WebGLMarineLayer reached its terminal clear (regional resident at a global viewport, or a switch whose
+// hold had lapsed) and the wave heatmap + particles went blank until the server returned. A backend blip must never
+// blank the map: a commit that CARRIES a fetch-failure marker keeps the last good resident frame, whatever the
+// viewport or switch state. Deliberate clears are untouched (layer off, unsupported layer, unmount, and a RENDERABLE
+// commit replaces the frame through the normal path). Kill: window.__RAW_DISABLE_MARINE_HOLD_ON_ERROR__ = true.
+const FETCH_FAILURE_PROVIDERS = ['fallback_safe_zero', 'abort_recovery'];
+export function isFetchFailureCommit(data) {
+  if (!data) return false;
+  const g = data.grid || null;
+  if (data.__unsupportedLayer === true) return false;
+  return FETCH_FAILURE_PROVIDERS.includes(data.__provider) || (g && FETCH_FAILURE_PROVIDERS.includes(g.__provider))
+    || !!data.__failureReason || !!(g && g.__failureReason);
+}
+
+export function shouldHoldFrameOnFetchError(data, opts, win) {
+  const w = win || (typeof window !== 'undefined' ? window : null);
+  if (!w || w.__RAW_DISABLE_MARINE_HOLD_ON_ERROR__ === true) return false;
+  const { hasResident, hasUploadSignature } = opts || {};
+  if (!hasResident || !hasUploadSignature || !isFetchFailureCommit(data)) return false;
+  w.__MARINE_ERROR_HOLD_COUNT__ = (w.__MARINE_ERROR_HOLD_COUNT__ || 0) + 1;
+  return true;
+}
+
 export function shouldHoldFrameThroughSwitch(opts, nowMs, win) {
   const w = win || (typeof window !== 'undefined' ? window : null);
   if (!w) return false;
@@ -374,4 +399,18 @@ export function __resetForTests() {
     window.__MARINE_TRANSITIONING__ = false;
     window.__MARINE_TRANSITION_STATE__ = null;
   }
+}
+
+// ENCODE-THROW PROBE (2026-11-08): WebGLMarineEngine.setWaveData clears the resident when encodeMarineTexture throws (the encoder has already nulled the
+// resident textures, so that blank is unavoidable for the commit) but nothing recorded WHY, so a ~200 ms "waveDataPresent false, 0 vectors" window with no
+// clear-log entry could not be told from a hold failure. Telemetry only: window.__WEBGL_MARINE_ENCODE_THROW__ {count,last} + an engine_encode_throw clear entry.
+export function noteEncodeThrow(err, engine, grid) {
+  try {
+    if (typeof window === 'undefined') return;
+    const t = window.__WEBGL_MARINE_ENCODE_THROW__ || (window.__WEBGL_MARINE_ENCODE_THROW__ = { count: 0 });
+    t.count++;
+    t.last = { message: String(err && err.message), vectors: grid && grid.vectors ? grid.vectors.length : 0, cols: grid && grid.cols, rows: grid && grid.rows,
+      model: grid && grid.__sourceModel, layer: grid && grid.__componentLayer, residentLeft: !!(engine && engine._waveData), ts: Date.now() };
+    if (!(engine && engine._waveData)) recordClear('engine_encode_throw');
+  } catch (e) { /* a probe never affects rendering */ }
 }

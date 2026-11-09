@@ -250,5 +250,187 @@ def test_only_short_lived_samplers_memoize():
     # consensus_ingest.build_hour: one sampler per forecast hour, dropped with it (2026-09-29, D-009).
     # model_spread.build_spread and scripts/publish_model_spread.collect: one sampler per spread frame (three
     # products), dropped with the frame, in a one-shot CI script (2026-10-19, dark data collector).
-    assert hits == ["scripts/publish_model_spread.py", "services/weather_pipeline/consensus_ingest.py",
+    # bight_hs_consensus.compose (SURF_BIGHT_HS_CONSENSUS, dark, 2026-11-03): one sampler per composed frame, dropped
+    # with it (the serving view caches the composed PRODUCT, never the sampler).
+    assert hits == ["scripts/publish_model_spread.py", "services/weather_pipeline/bight_hs_consensus.py",
+                    "services/weather_pipeline/consensus_ingest.py",
                     "services/weather_pipeline/consensus_product.py", "services/weather_pipeline/model_spread.py"]
+
+
+# ── CONSENSUS_PERIOD_MEDIAN (dark, 2026-11-02): the member-median period ─────────────────────────────────────────────
+# Offline evidence (74 NDBC buoys, 23,527 h, 2026-09-18..11-02): the median of GFS PERPW / EURO pp1d / ICON's peak blend
+# reads 1.481 s MAE vs DPD against GFS's 1.684 and the equal mean's 1.517; with ICON's tm10 (served today) it is WORSE
+# than GFS on DPD > 12 s, so the median is gated on ICON_PEAK_PERIOD. These pin: off is byte-identical, on is the
+# median of all three, a missing member never makes a two-member median, the gate, and the metadata.
+
+_FLAGS = ("CONSENSUS_PERIOD_MEDIAN", "ICON_PEAK_PERIOD")
+_PRE_FLAG_KEYS = {"method", "members", "carried_from_primary", "valid_time", "primary_product", "cells", "member_missing",
+                  "primary_zero", "unblended", "masked", "member_sources", "member_frame_offset_cells",
+                  "consensus_over_primary", "member_products"}
+
+
+@pytest.fixture(autouse=True)
+def _flags_unset(monkeypatch):
+    for f in _FLAGS:
+        monkeypatch.delenv(f, raising=False)
+    # D-065: CONSENSUS_DIRECTION_VECTOR defaults ON now, so these period-era tests pin it OFF explicitly.
+    monkeypatch.setenv("CONSENSUS_DIRECTION_VECTOR", "0")
+    monkeypatch.setattr(cp, "_SKIP_LOGGED", set())
+
+
+def _median_on(monkeypatch):
+    monkeypatch.setenv("CONSENSUS_PERIOD_MEDIAN", "1")
+    monkeypatch.setenv("ICON_PEAK_PERIOD", "1")
+
+
+def _spread_trio():
+    """Three members whose periods differ everywhere (GFS lowest), so a median that applied would always show."""
+    wavy = lambda a, t: (lambda lat, lng: (a + 0.3 * math.sin(3 * lat), (200 + 30 * math.sin(lat + lng)) % 360,  # noqa: E731
+                                           t + 2 * math.cos(lng)))
+    return tuple(_product(m, wavy(a, t), land=LAND) for m, a, t in (("GFS", 0.9, 8.0), ("EURO", 1.1, 11.0),
+                                                                    ("ICON", 1.4, 13.5)))
+
+
+@pytest.mark.parametrize("env", [{}, {"CONSENSUS_PERIOD_MEDIAN": "0"}, {"CONSENSUS_PERIOD_MEDIAN": ""},
+                                 {"CONSENSUS_PERIOD_MEDIAN": "true"}, {"CONSENSUS_PERIOD_MEDIAN": "0", "ICON_PEAK_PERIOD": "1"},
+                                 {"ICON_PEAK_PERIOD": "1"}])
+def test_flag_off_the_build_is_byte_identical_and_carries_gfs_period(monkeypatch, env):
+    base = cp.build_equal_mean(*_spread_trio()).model_dump_json()
+    for k, v in env.items():
+        monkeypatch.setenv(k, v)
+    gfs, euro, icon = _spread_trio()
+    out = cp.build_equal_mean(gfs, euro, icon)
+    assert out.model_dump_json() == base
+    for before, after in zip(gfs.grid.vectors, out.grid.vectors):
+        assert after.period == before.period and after.direction == before.direction
+    d = out.grid.diagnostics["consensus"]
+    assert set(d) == _PRE_FLAG_KEYS and d["carried_from_primary"] == ["period", "direction"]
+    m = {"GFS": {"hs": 1.0, "tp": 9.0, "dir": 90.0}, "EURO": {"hs": 1.0, "tp": 12.0, "dir": 0.0},
+         "ICON": {"hs": 1.0, "tp": 14.0, "dir": 0.0}}
+    assert cp.equal_consensus(m) == {"hs": 1.0, "tp": 9.0, "dir": 90.0}         # exactly today's three keys
+
+
+def test_flag_on_every_blended_cell_carries_the_median_of_the_three_periods(monkeypatch):
+    _median_on(monkeypatch)
+    gfs, euro, icon = _spread_trio()
+    out = cp.build_equal_mean(gfs, euro, icon)
+    by = {m: {(v.lat, v.lng): v for v in p.grid.vectors} for m, p in (("GFS", gfs), ("EURO", euro), ("ICON", icon))}
+    n = 0
+    for before, after in zip(gfs.grid.vectors, out.grid.vectors):
+        if not before.is_valid:
+            assert after.model_dump() == before.model_dump()
+            continue
+        tps = sorted(by[m][(before.lat, before.lng)].period for m in ("GFS", "EURO", "ICON"))
+        assert after.period == pytest.approx(tps[1], abs=1e-4)                 # the median, here EURO's
+        assert after.direction == before.direction                            # direction stays GFS's
+        assert after.speed == pytest.approx(sum(by[m][(before.lat, before.lng)].speed
+                                                for m in ("GFS", "EURO", "ICON")) / 3, abs=5e-4)
+        n += 1
+    d = out.grid.diagnostics["consensus"]
+    assert n == d["cells"]["blended"] > 0
+    assert d["carried_from_primary"] == ["direction"]
+    assert d["period"] == {"method": "member_median", "flag": "CONSENSUS_PERIOD_MEDIAN", "members": ["GFS", "EURO", "ICON"],
+                           "cells": {"median": n, "primary_fallback": 0}}
+    assert d["method"] == "equal_mean"                                        # Hs is still the equal mean
+
+
+def test_flag_on_the_product_still_answers_what_the_judges_arm_computes(monkeypatch):
+    """ONE definition holds with the flag on: equal_consensus() reads the same flag, so the judge's consensus arm and the
+    built product agree on the period at every node."""
+    _median_on(monkeypatch)
+    gfs, euro, icon = _spread_trio()
+    out = cp.build_equal_mean(gfs, euro, icon)
+    s = PointSampler()
+    for v in random.Random(5).sample([v for v in gfs.grid.vectors if v.is_valid], 25):
+        members = {m: cp.member_answer(s, p, v.lat, v.lng) for m, p in (("GFS", gfs), ("EURO", euro), ("ICON", icon))}
+        want = nearshore_validation.equal_consensus(members)
+        assert want["tp_from"] == "median"
+        got = s.sample_point(out, v.lat, v.lng).point
+        assert got.period == pytest.approx(want["tp"], abs=1e-3) and got.direction == pytest.approx(want["dir"], abs=0.05)
+
+
+def test_flag_on_a_member_that_cannot_answer_leaves_the_gfs_cell_period_and_all(monkeypatch):
+    _median_on(monkeypatch)
+    gfs = _product("GFS", _uniform(0.8, 90.0, 9.0))
+    euro = _product("EURO", _uniform(1.0, 100.0, 12.0), box=(-81.0, 27.0, -80.0, 29.0))   # covers the west half only
+    icon = _product("ICON", _uniform(1.2, 110.0, 14.0))
+    out = cp.build_equal_mean(gfs, euro, icon)
+    for before, after in zip(gfs.grid.vectors, out.grid.vectors):
+        if before.lng > -80.0:
+            assert after.model_dump() == before.model_dump()          # GFS's period: never a GFS/ICON two-member median
+        else:
+            assert after.period == 12.0
+    east = sum(v.lng > -80.0 for v in gfs.grid.vectors)
+    assert out.grid.diagnostics["consensus"]["period"]["cells"] == {"median": len(gfs.grid.vectors) - east,
+                                                                   "primary_fallback": 0}
+
+
+def test_flag_on_the_masked_shadow_never_serves_a_period_from_fewer_than_three(monkeypatch):
+    _median_on(monkeypatch)
+    gfs = _product("GFS", _uniform(0.8, 90.0, 9.0))
+    euro = _product("EURO", _uniform(1.0, 100.0, 12.0), box=(-81.0, 27.0, -80.0, 29.0))
+    out = cp.build_equal_mean(gfs, euro, _product("ICON", _uniform(1.2, 110.0, 14.0)), unblended="mask")
+    assert all((not a.is_valid) if b.lng > -80.0 else a.period == 12.0
+               for b, a in zip(gfs.grid.vectors, out.grid.vectors))
+
+
+@pytest.mark.parametrize("tps,want", [
+    ((9.0, 9.0, 11.0), 9.0), ((9.0, 11.0, 11.0), 11.0), ((10.0, 10.0, 10.0), 10.0),          # ties
+    ((14.2, 6.1, 9.7), 9.7), ((6.1, 14.2, 9.7), 9.7), ((9.7, 6.1, 14.2), 9.7),               # every order
+    ((25.0, 4.0, 4.5), 4.5), ((4.0, 4.5, 25.0), 4.5),                                         # an outlier is ignored
+    ((1e-3, 1e-3, 30.0), 1e-3), ((7.123456, 7.123457, 7.1234565), 7.1234565),
+])
+def test_the_median_is_one_members_value_for_ties_and_odd_values(tps, want):
+    m = {k: {"hs": 1.0, "tp": t, "dir": 0.0} for k, t in zip(("GFS", "EURO", "ICON"), tps)}
+    c = cp.equal_consensus(m, period="median")
+    assert c["tp"] == want and c["tp"] in tps and c["tp_from"] == "median"
+
+
+@pytest.mark.parametrize("bad", [None, float("nan"), float("inf"), -1.0, 0.0, "x"])
+@pytest.mark.parametrize("who", ["EURO", "ICON"])
+def test_a_member_without_a_valid_period_falls_back_to_gfs(bad, who):
+    m = {k: {"hs": 1.0, "tp": t, "dir": 0.0} for k, t in (("GFS", 9.0), ("EURO", 12.0), ("ICON", 14.0))}
+    m[who]["tp"] = bad
+    c = cp.equal_consensus(m, period="median")
+    assert c["tp"] == 9.0 and c["tp_from"] == "primary" and c["hs"] == 1.0
+
+
+def test_no_two_member_median_under_any_name():
+    m = {k: {"hs": 1.0, "tp": t, "dir": 0.0} for k, t in (("GFS", 9.0), ("EURO", 12.0), ("ICON", 14.0))}
+    pair = cp.equal_consensus(m, nearshore_validation.PAIR_MEMBERS, period="median")
+    assert pair == {"hs": 1.0, "tp": 9.0, "dir": 0.0}                       # the pair arm keeps GFS's period
+    del m["ICON"]
+    assert cp.equal_consensus(m, period="median") is None                    # no ICON: not a consensus at all
+    with pytest.raises(ValueError, match="consensus: period"):
+        cp.equal_consensus(m, period="mean")
+
+
+def test_without_icon_peak_period_the_median_is_skipped_logged_and_byte_identical(monkeypatch, caplog):
+    """The tm10 median is worse than GFS alone on DPD > 12 s (offline check, 2026-11-02), so CONSENSUS_PERIOD_MEDIAN
+    alone changes no vector: the build keeps GFS's period, records why, and logs it once per process."""
+    base = cp.build_equal_mean(*_spread_trio())
+    monkeypatch.setenv("CONSENSUS_PERIOD_MEDIAN", "1")
+    assert cp.period_mode()[0] == "primary" and "ICON_PEAK_PERIOD" in cp.period_mode()[1]
+    with caplog.at_level("WARNING", logger=cp.__name__):
+        out = cp.build_equal_mean(*_spread_trio())
+        cp.build_equal_mean(*_spread_trio())
+    assert [v.model_dump() for v in out.grid.vectors] == [v.model_dump() for v in base.grid.vectors]
+    d = out.grid.diagnostics["consensus"]
+    assert d["carried_from_primary"] == ["period", "direction"]
+    assert d["period"]["method"] == "primary" and "ICON_PEAK_PERIOD is off" in d["period"]["median_skipped"]
+    assert {k: v for k, v in d.items() if k != "period"} == base.grid.diagnostics["consensus"]
+    assert sum("CONSENSUS_PERIOD_MEDIAN requested but skipped" in r.message for r in caplog.records) == 1
+    monkeypatch.setenv("ICON_PEAK_PERIOD", "0")
+    assert cp.period_mode()[0] == "primary"
+    monkeypatch.setenv("ICON_PEAK_PERIOD", "1")
+    assert cp.period_mode() == ("median", None)
+
+
+def test_the_gate_names_the_icon_flag_and_the_flag_is_declared_dark():
+    from services import gwam_peak_period
+    assert cp.ICON_PEAK_FLAG == gwam_peak_period.FLAG
+    repo = Path(__file__).resolve().parents[2]
+    reg = (repo / "backend" / "routes" / "admin" / "surf_forecast.py").read_text("utf-8")
+    assert '"CONSENSUS_PERIOD_MEDIAN": ("0",' in reg
+    pilots = (repo / ".github" / "workflows" / "forecast-ingest-pilots.yml").read_text("utf-8")
+    assert "          CONSENSUS_PERIOD_MEDIAN: '0'" in pilots

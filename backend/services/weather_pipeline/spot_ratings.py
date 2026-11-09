@@ -11,6 +11,7 @@ string keep grading THIS file. Rationale: `docs/research/FINDING-2026-08-14-spli
 ⚠️ This file was at 800/800 LOC when the split was made. It is the mandated reference; keep it
 readable and keep the headroom — move rationale to docs rather than deleting it.
 """
+from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default
 import json
 import logging
 import math
@@ -48,6 +49,15 @@ def spot_confidence(accuracy_flag, is_verified_peak) -> str:
     return "medium"
 
 
+def wind_relation(wind_from, shore_normal) -> Optional[str]:
+    """offshore / cross-shore / onshore for a wind FROM-bearing against the seaward shore normal, or None.
+    ONE definition: the why-text below and the spot hub's wind word (spot_hub_composition) both read it."""
+    if wind_from is None or shore_normal is None:
+        return None
+    off = -math.cos(math.radians(wind_from - shore_normal))  # +1 offshore .. -1 onshore
+    return "offshore" if off > 0.34 else ("onshore" if off < -0.34 else "cross-shore")
+
+
 def rating_why(level, surf_h_m, period_s, wind_ms, wind_from, shore_normal) -> Optional[str]:
     """Compact explainability string. None when there's nothing to rate."""
     if level == "unknown" or surf_h_m is None:
@@ -58,8 +68,7 @@ def rating_why(level, surf_h_m, period_s, wind_ms, wind_from, shore_normal) -> O
     if wind_ms is not None:
         kt = wind_ms * SR.MS_TO_KT
         if wind_from is not None and shore_normal is not None:
-            off = -math.cos(math.radians(wind_from - shore_normal))  # +1 offshore .. -1 onshore
-            wd = "offshore" if off > 0.34 else ("onshore" if off < -0.34 else "cross-shore")
+            wd = wind_relation(wind_from, shore_normal)
             parts.append(f"{kt:.0f}kt {wd} wind")
         else:
             parts.append(f"{kt:.0f}kt wind")
@@ -178,7 +187,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     # Breaker TYPE (Iribarren): bed slope + swell steepness → plunging/spilling/surging quality. Gated
     # RATING_BREAKER_TYPE (default "0"). ⚠️ 2026-08-09 dropped a FALSE "slope asset unbundled" clause — it ships since `fa86fb53`; only the flag + CONTESTED science gate it. Waiver: parity test.
     breaker_xi = None
-    if os.environ.get("RATING_BREAKER_TYPE", "0") == "1":
+    if _rf.flag("RATING_BREAKER_TYPE") == "1":
         try:
             from services.weather_pipeline.bathymetry import bed_slope_at
             from services.weather_pipeline.surf_transform import iribarren

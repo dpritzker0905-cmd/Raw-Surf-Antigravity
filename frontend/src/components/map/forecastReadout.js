@@ -92,5 +92,5 @@ export function forecastReadout(hour, layer, model, { timeZone } = {}) {
     : snapped
       ? `Showing the forecast for ${shown}, the nearest model time step to ${formatInstant(requestedMs, timeZone)}.`
       : `Showing the forecast for ${shown}.`;
-  return { text, srText };
+  return { text, srText, snapped: !!snapped && !blend };
 }

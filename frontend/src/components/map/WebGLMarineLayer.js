@@ -12,7 +12,7 @@ import { shouldHoldScrubDowngrade } from './marineScrubHold';
 import { getMarineParticleRes } from './deviceTier';
 import { prewarmZoomOutMarineGrid } from './marineController';
 import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from './mapUtils';
-import { recordClear, shouldHoldClearOnDeactivate, noteMarineActive, shouldHoldFrameThroughSwitch, noteMarineRenderableCommit } from './marineTransitionCoordinator';
+import { shouldHoldFrameOnFetchError, recordClear, shouldHoldClearOnDeactivate, noteMarineActive, shouldHoldFrameThroughSwitch, noteMarineRenderableCommit, noteEncodeThrow } from './marineTransitionCoordinator';
 import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
 import { engineHoldsGrid, publishMarineDrawn, retireMarineDrawn } from './marineDrawnFrame';
 import { recordResolutionSample } from './marineResolutionWatch';
@@ -280,7 +280,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       if (window.__WEATHER_TELEMETRY__) {
         window.__WEATHER_TELEMETRY__.trackTextureEncodingError(gridModel, activeMarineLayer, requestedHour, err.message);
       }
-      lastUploadedSignatureRef.current = '';
+      lastUploadedSignatureRef.current = ''; noteEncodeThrow(err, engine, grid);
       runDiagnosticsUpdate('upload_failed');
       return;
     }
@@ -901,6 +901,16 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
 
       const isScrubbing = window.isScrubbingTimeline || (window.lastScrubTime && (Date.now() - window.lastScrubTime < 1500));
       if (isScrubbing) {
+        return;
+      }
+
+      // HOLD ON FETCH ERROR: a 5xx / timeout / network-reject commit never clears the last good frame (see
+      // shouldHoldFrameOnFetchError). Kill: __RAW_DISABLE_MARINE_HOLD_ON_ERROR__.
+      if (shouldHoldFrameOnFetchError(currentData, {
+        hasResident: !!engine._waveData,
+        hasUploadSignature: !!lastUploadedSignatureRef.current,
+      })) {
+        runDiagnosticsUpdate('error_hold');
         return;
       }
 

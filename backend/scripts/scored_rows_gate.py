@@ -22,6 +22,12 @@ the monitor reads them. No value, and no URL, is ever printed.
 
 Usage (CI): python3 scripts/scored_rows_gate.py --since 2026-10-03T00:00:00Z
 Exit: 0 gate computed (YES or NO), 3 blind or refused (archive unreadable, no cell reached n, credentials absent).
+
+GATES_V2 (default off; science audit 2026-11-01): when the env flag is on, the same rows are also judged by validation
+gates v2 (services/weather_pipeline/gate_v2*.py: DM/HAC, block bootstrap, big-swell bias bands, Holm-corrected harm,
+hull and sea-state strata, periods against DPD and a parabolic-fit Tp) and a section is APPENDED, including where v1 and
+v2 disagree. The guard then admits NDBC's public host too (GET only; scripts/gate_v2_ndbc.py). v1's verdict and the
+exit code do not change.
 """
 import argparse
 import contextlib
@@ -36,6 +42,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from scripts import forecast_accuracy_monitor as monitor            # noqa: E402  the monitor's own loader
 from services.weather_pipeline import forecast_skill as fs           # noqa: E402
 from services.weather_pipeline import scored_rows_analysis as sra    # noqa: E402
+from services.weather_pipeline import gate_v2_config                 # noqa: E402  GATES_V2 (default off)
 
 DONE, BLIND = 0, 3
 DEFAULT_SINCE = "2026-10-03T00:00:00Z"      # the first monitor read with GFS_SCALAR rows
@@ -52,17 +59,19 @@ class Unreadable(Exception):
 
 
 @contextlib.contextmanager
-def read_only_http(allowed_host=None):
-    """Inside, every http.client request must be a GET without a body to `allowed_host` (when given)."""
+def read_only_http(allowed_host=None, extra_hosts=()):
+    """Inside, every http.client request must be a GET without a body to `allowed_host` (when given) or one of
+    `extra_hosts` (GATES_V2 adds exactly NDBC's public host, for hull metadata and spectra)."""
     cls = http.client.HTTPConnection
     request, putrequest = cls.request, cls.putrequest
+    allowed = {h.lower() for h in ((allowed_host,) if allowed_host else ()) + tuple(extra_hosts or ())}
 
     def check(self, method, body=None):
         if str(method).upper() != "GET":
             raise ReadOnlyViolation("refused a non-GET request: " + str(method).upper())
         if body is not None:
             raise ReadOnlyViolation("refused a GET that carries a body")
-        if allowed_host and (self.host or "").lower() != allowed_host.lower():
+        if allowed and (self.host or "").lower() not in allowed:
             raise ReadOnlyViolation("refused a request to a host other than the Supabase project")
 
     def guarded_request(self, method, url, body=None, *args, **kwargs):
@@ -111,6 +120,18 @@ def in_window(rows, since, until=None):
     return out
 
 
+V2_NDBC_HOST = "www.ndbc.noaa.gov"     # = gate_v2_ndbc.NDBC_HOST (pinned equal by a test)
+
+
+def fetch_v2_truth(rows, fetch=None):
+    """GATES_V2 only: NDBC hull metadata and spectra for the buoys the graded lanes scored at. Never fatal."""
+    from scripts import gate_v2_ndbc
+    from services.weather_pipeline import gate_v2_truth
+    buoys = {r.get("buoy_id") for r in rows if r.get("source") in sra.KEEP}
+    return (fetch or gate_v2_ndbc.fetch_truth)(buoys, gate_v2_truth.parse_station_metadata,
+                                               gate_v2_truth.parse_data_spec)
+
+
 def main(argv=None, now=None):
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     ap.add_argument("--since", default=DEFAULT_SINCE, help="first target time to include (UTC ISO)")
@@ -128,15 +149,23 @@ def main(argv=None, now=None):
     if not host or not (os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY")):
         print("REFUSED: archive credentials absent (SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set); blind, not healthy")
         return BLIND
+    v2 = gate_v2_config.enabled()
+    truth_data = None
     try:
-        with read_only_http(host):
+        with read_only_http(host, extra_hosts=(V2_NDBC_HOST,) if v2 else ()):
             read, rows = load_rows(months_between(since, now), (now + timedelta(days=1)).date())
+            rows = in_window(rows, since, until)
+            if v2:
+                truth_data = fetch_v2_truth(rows)
     except Unreadable as e:
         print(f"REFUSED: the scored archive for {e} could not be read; blind, not healthy")
         return BLIND
-    rows = in_window(rows, since, until)
     report = sra.render_report({"since": args.since, "until": args.until or "now", "rows_read": read},
                                rows, max(args.min_n, sra.MIN_CELL_N), args.max_loss)
+    if v2:      # BESIDE v1 on the same rows; v1's verdict and this job's exit code are unchanged by it
+        from services.weather_pipeline import gate_v2_report
+        report += gate_v2_report.build_v2_section(
+            rows, sra.gate(sra.tables(rows), max(args.min_n, sra.MIN_CELL_N), args.max_loss), truth_data)
     print(report)
     summary = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary:

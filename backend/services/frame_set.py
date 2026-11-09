@@ -33,6 +33,7 @@ from datetime import datetime, timezone
 
 from services import frame_binary as fb
 from services import frame_set_fill as fsf
+from services import frame_set_rating as fsr
 from services import frame_set_wind as fsw
 
 LATEST = "v1/latest.json"
@@ -64,6 +65,25 @@ SETS = tuple({"model": m, "domain": "marine", "layer": l, "region_id": "global_m
     # <model>/marine/<layer>/global_mid_filled, published only while the targeted mode is on. Last: new, and the stagger drops it first.
     *(dict(t) for t in fsf.FILLED_SETS),
 )
+
+# EURO SWELL (item 14, 2026-11-01: FRAME_EURO_SWELL_SETS, default '1' since the owner's ON-by-default word that night; kill switch '0'): EURO swell_1/swell_2/wind_waves at the world tier,
+# plain and with the targeted Gulf fill (CMEMS masks the enclosed seas for every layer; coarse_gulf_fill fills all four). They exist
+# only once the pilots lane stores EURO global_mid swell (EURO_MARINE_MID_CMEMS_SWELL), so they are NOT in SETS: publish_frame_images
+# adds them after the world sets (before the regional bundles) only while the flag is '1'. The client's STATIC_SETS must list
+# the keys before it reads them (a follow-up); until then a published set is unused bytes, never a wrong frame.
+EURO_SWELL_LAYERS = ("swell_1", "swell_2", "wind_waves")
+EURO_SWELL_SETS = tuple({"model": "EURO", "domain": "marine", "layer": l, "region_id": "global_mid"} for l in EURO_SWELL_LAYERS) + tuple(
+    {"model": "EURO", "domain": "marine", "layer": l, "region_id": "global_mid", "variant": fsf.VARIANT} for l in EURO_SWELL_LAYERS)
+
+
+def euro_swell_sets_enabled():
+    return os.environ.get("FRAME_EURO_SWELL_SETS", "1") != "0"
+
+
+def euro_swell_sets():
+    """The EURO swell set targets while FRAME_EURO_SWELL_SETS is '1', else ()."""
+    return tuple(dict(t) for t in EURO_SWELL_SETS) if euro_swell_sets_enabled() else ()
+
 
 # Product fields the client needs to rebuild the /grid response (backendWeatherServiceClient + mapNormalizedGridToWebGL).
 PRODUCT_META = (
@@ -160,7 +180,7 @@ def fields_for(target, lane_touched=False):
     """The frame fields of a set: the marine four, or wind's speed + direction (+ lane_weight when the HRRR lane touched it)."""
     if fsw.is_wind(target):
         return fb.WIND_FIELDS + ((fb.LANE_WEIGHT,) if lane_touched else ())
-    return fb.DEFAULT_FIELDS
+    return fb.RATED_FIELDS if fsr.is_rated(target) else fb.DEFAULT_FIELDS
 
 
 def note_parity(stats, check):
@@ -220,7 +240,8 @@ def min_coverage():
         return MIN_COVERAGE_DEFAULT
 
 
-def publish_set(source, sink, target, previous_index, uploader, log=print, coverage_floor=None, wind_lane=None):
+def publish_set(source, sink, target, previous_index, uploader, log=print, coverage_floor=None, wind_lane=None,
+                rating_inputs=None):
     """Build, check and upload one set's frames; return (index or None, stats).
 
     `source.product_bytes(filename)` returns local bytes or None and never downloads. `uploader(jobs)` uploads
@@ -232,9 +253,16 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
     FRAME_MIN_COVERAGE) of the entries have a frame: then NOTHING is uploaded and the published index stays.
     A WIND set takes `wind_lane` (frame_set_wind.load_publish_lane): every frame is its product with that lane applied, and the
     lane key is part of each frame's source identity.
+    A RATED set (frame_set_rating, dark) takes `rating_inputs` (fsr.ChainInputs, one per run): every frame is its stored product
+    with the rating code per node from apply_surf_overlay, and the chain's identity + the frame's ask signature are part of each
+    frame's source identity (a new gate blob, wind product or deploy rebuilds it).
     """
     wind = fsw.is_wind(target)
     filled = fsf.is_filled(target)
+    rated = fsr.is_rated(target)
+    if rated and rating_inputs is None:
+        rating_inputs = fsr.ChainInputs(source, log)
+    chain_key = fsr._digest(rating_inputs.chain())[:16] if rated else None
     lane_key = (wind_lane.key if wind_lane is not None else None) if wind else None
     prefix = set_prefix(target)
     floor = min_coverage() if coverage_floor is None else coverage_floor
@@ -253,6 +281,8 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
              # the marine u/v error per height band, the reading that says whether u/v can be tightened below 6 m.
              "parity_max_abs_err": {}, "uv_max_err_by_height_m": {}, "parity_by_region": {}}
     frames, uploads, grid, max_err = [], [], (previous_index or {}).get("grid"), {}
+    if rated:
+        stats.update(rating_refused=0, rated_nodes=0, masked_nodes=0)
     if filled:
         # Only the targeted mode is baked (frame_set_fill): in any other mode this set publishes nothing, and the caller retires
         # its latest.json record (fill_mode_off_record) so no client pairs an old filled index with a box in another mode.
@@ -279,6 +309,8 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
         if filled:                             # a new GFS donor run rebuilds the frame (its bytes change only at filled nodes)
             donor = fsf.donor_entry(products, vt, target["layer"], store=fill_store)
             ident["fill_donor"] = fsf.donor_identity(donor)
+        if rated:                              # the chain (env, blobs, code) and this hour's wind + gate inputs
+            ident["rating"] = chain_key + ":" + rating_inputs.ask_key(target["model"], fsr._iso_dt(vt))
         prev = prev_frames.get((vt, est))
         if prev and prev.get("path") and prev.get("source") == ident:
             frames.append(prev)
@@ -312,6 +344,16 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
                 log(f"[frames] {entry['filename']}: wind lane refused ({type(e).__name__}: {e})")
                 unbuilt(vt, est, ident, "refused")
                 continue
+        rating_meta = None
+        if rated:
+            try:
+                product, rating_meta, offsets, counts = fsr.rated_product(product, target["model"], target["layer"], rating_inputs)
+            except ValueError as e:            # never publish a band /grid would not serve: this hour goes to /grid
+                log(f"[frames] {entry['filename']}: rating refused ({e})")
+                unbuilt(vt, est, ident, "rating_refused")
+                continue
+            stats["rated_nodes"] += counts["rated"]
+            stats["masked_nodes"] += counts["masked"]
         try:
             raw, check = build_frame(product, entry, fields_for(target, touched > 0))
         except ValueError as e:
@@ -336,6 +378,10 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
         meta = product_meta(product, entry["filename"])
         if wind:
             meta["wind_lane"] = lane_stamp     # the stamp /grid puts on the world response for this product
+        if rating_meta is not None:            # what /grid?surf=1 sets on a rated grid; the asks this frame answers
+            meta["is_estimated"] = rating_meta["is_estimated"]
+            meta["diagnostics"] = dict(meta["diagnostics"], surf_transform=rating_meta["surf_transform"])
+            meta["ask_offsets_h"] = offsets
         run_stamp = stamp(meta["model_run_time"] or meta["run_time"])
         if prev and prev.get("path") and prev.get("sha256") == sha:
             path, nbytes = prev["path"], prev["bytes"]
@@ -399,6 +445,11 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
     }
     if wind:
         index["wind_lane"] = wind_lane.identity() if wind_lane is not None else None
+    if rated:
+        index["rating_chain"] = rating_inputs.identity()
+        index["rating"] = {"code": "frame_binary.RATING: 0 untouched, 1 masked (is_valid false, phys_speed = height), k + 2 rated "
+                                   "(speed = k / 10000, phys_speed = height)", "via": "grid_resolver_surf.apply_surf_overlay",
+                           "serves": "crop boxes only (a world box keeps the honest field); asks at valid_time + ask_offsets_h"}
     if filled:
         index["fill"] = {"mode": "targeted", "code": "coarse_gulf_fill.targeted_fill_vectors", "donor_region": "global_mid",
                          "applies_to": "world boxes only (served span >= 350 deg); crops read the unfilled global_mid set"}

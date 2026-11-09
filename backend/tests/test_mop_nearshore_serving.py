@@ -92,8 +92,10 @@ async def _no_parts(*a, **k):
 
 
 @pytest.mark.asyncio
-async def test_flag_off_never_asks_and_the_height_says_parametric(clean):
+async def test_kill_switch_never_asks_and_the_height_says_parametric(clean):
+    """SURF_NEARSHORE_MOP='0' (the D-065 kill switch) never reads MOP: the parametric chain, as before 2026-11-05."""
     from services.weather_pipeline.point_surf_augment import augment_with_surf
+    clean.setenv("SURF_NEARSHORE_MOP", "0")
     asked = []
 
     async def spy(*a, **k):
@@ -115,7 +117,7 @@ async def test_flag_on_the_height_breaks_from_mop_and_says_so(clean):
         return {"hs": 0.8, "tp": 13.0, "depth_m": 9.9}
 
     clean.setattr(SERVE, "nearshore_for_point", mop)
-    r = await augment_with_surf(_resp(), "GFS", "marine", "waves", 36.9514, -122.0263, "2026-09-28T06:00:00Z", _no_parts)
+    r = await augment_with_surf(_resp(), "EURO", "marine", "waves", 36.9514, -122.0263, "2026-09-28T06:00:00Z", _no_parts)
     g = resolve_surf_geometry(36.9514, -122.0263)
     want, _ = MOP.estimate_surf_from_nearshore(0.8, 13.0, 9.9, g.depth_m, g.shelf_width_km, g.break_depth_m)
     assert r.surf_source == "cdip_mop" and r.surf_height_m == pytest.approx(round(want, 4))
@@ -139,3 +141,31 @@ def test_a_point_is_a_covered_spot_only_when_it_stands_on_one(clean):
 @pytest.mark.asyncio
 async def test_the_flag_off_reads_nothing(clean):
     assert await SERVE.nearshore_for_point(36.9514, -122.0263, "2026-09-28T06:00:00Z") is None
+
+
+def test_the_default_is_on_and_guarded(clean):
+    """D-065 (2026-11-05): unset = ON (runtime_flags.GUARDED '1', _RATING_FLAGS '1'); '0' anywhere = off."""
+    from services import runtime_flags as rf
+    from routes.admin.surf_forecast import _RATING_FLAGS
+    assert rf.GUARDED["SURF_NEARSHORE_MOP"] == "1" and _RATING_FLAGS["SURF_NEARSHORE_MOP"][0] == "1"
+    assert SERVE.enabled()
+    clean.setenv("SURF_NEARSHORE_MOP", "0")
+    assert not SERVE.enabled()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("model", ["GFS", "ICON"])
+async def test_gfs_and_icon_keep_their_own_chain_the_three_members_stay_independent(clean, model):
+    """The MOP product is ECMWF-driven: only EURO breaks from it. GFS and ICON never ask MOP and stay parametric, so
+    the model picker, RATING_OBS_GATE's agreement of independent members and the member spread are unchanged."""
+    from services.weather_pipeline.point_surf_augment import augment_with_surf
+    asked = []
+
+    async def spy(*a, **k):
+        asked.append(a)
+        return {"hs": 0.8, "tp": 13.0, "depth_m": 9.9}
+
+    clean.setattr(SERVE, "nearshore_for_point", spy)
+    r = await augment_with_surf(_resp(), model, "marine", "waves", 36.9514, -122.0263, "2026-09-28T06:00:00Z", _no_parts)
+    assert asked == [] and r.surf_source == "parametric"
+    assert SERVE.applies_to("EURO") and not SERVE.applies_to(model) and not SERVE.applies_to("CONSENSUS")

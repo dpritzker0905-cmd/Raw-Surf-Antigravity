@@ -149,7 +149,7 @@ def test_served_outranks_the_hand_tuned_catalog_constant(monkeypatch):
 
 def test_the_served_reference_does_not_need_the_flag_but_the_lookup_still_does(monkeypatch):
     """The two lanes stay distinct: an OBSERVATION needs no permission, an inference still does."""
-    monkeypatch.delenv("RATING_LOCAL_SIZE", raising=False)
+    monkeypatch.setenv("RATING_LOCAL_SIZE", "0")  # D-065: unset is ON now; OFF is the explicit kill value
     assert sim_rating.reference_size_for(MAVERICKS, allow_lookup=True, served=1.86) == 1.86
     assert sim_rating.reference_size_for({**MAVERICKS, "reference_size_m": 2.5},
                                          allow_lookup=True, served=None) is None
