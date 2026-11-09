@@ -103,7 +103,8 @@ describe('pan, pan, clamp_resharpen racing: the drawn frame is never empty and n
     expect(hold(inc({ hourOffset: 15 }, { hourOffset: 15 }))).toBe(false);
     expect(hold(inc({ ratingMode: true }))).toBe(false);
     expect(hold(inc({ __sourceModel: 'GFS' }))).toBe(false);
-    expect(hold(inc({ bounds: { west: -180, south: -80, east: 180, north: 85 }, cols: 181, rows: 83 }))).toBe(false);  // world grids stay with the engine guards
+    // a world incoming is held at a regional viewport since 2026-11-08 (marineWorldOverRegionalHold.test.js); its own kill restores "engine guards only"
+    expect(shouldHoldFinerResident({ prev, incoming: inc({ bounds: { west: -180, south: -80, east: 180, north: 85 }, cols: 181, rows: 83 }), viewport: VIEW, disabledWorld: true })).toBe(false);
     expect(shouldHoldFinerResident({ prev: { ...prev, stale: true }, incoming: mid(), viewport: VIEW })).toBe(false);
     expect(shouldHoldFinerResident({ prev, incoming: mk(41, 49, FINE_B), viewport: VIEW })).toBe(false);                 // finer always commits
   });
