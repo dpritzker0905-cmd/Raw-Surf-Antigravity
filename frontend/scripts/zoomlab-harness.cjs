@@ -28,10 +28,13 @@ function marinePageState(camera) {
 
 function marineReadyPredicate() {
   const path = window.location.pathname;
-  if (path !== '/map') {
-    const route = ['/auth', '/feed'].includes(path) ? path : 'other';
-    throw new Error('ZOOMLAB_INSTRUMENT_UNEXPECTED_ROUTE:' + route);
-  }
+  // Settle the browser poll on route loss; requireMarinePage rejects it on the Node side.
+  // Throwing here can surface our own diagnostic as an uncaught application error.
+  if (path !== '/map') return {
+    route: ['/auth', '/feed'].includes(path) ? path : 'other',
+    mapReady: typeof window.map?.jumpTo === 'function', marineReady: !!window.__MARINE_ENGINE__,
+    reason: 'unexpected-route',
+  };
   return typeof window.map?.jumpTo === 'function' && !!window.__MARINE_ENGINE__;
 }
 
@@ -50,11 +53,21 @@ async function requireMarinePage(page, camera) {
   return state;
 }
 
+async function requirePollRoute(handle) {
+  try {
+    const state = await handle.jsonValue();
+    // Preserve the poll's terminal observation even if navigation recovers before Node checks.
+    if (state && state.reason === 'unexpected-route') throw new ZoomlabInstrumentError(state.reason, state);
+  } finally {
+    await handle.dispose();
+  }
+}
+
 async function waitForMarineReady(page, timeout = 60000) {
   try {
-    await page.waitForFunction(marineReadyPredicate, null, { timeout });
+    await requirePollRoute(await page.waitForFunction(marineReadyPredicate, null, { timeout }));
   } catch (error) {
-    if (error.name !== 'TimeoutError' && !error.message.includes('ZOOMLAB_INSTRUMENT_UNEXPECTED_ROUTE:')) throw error;
+    if (error.name !== 'TimeoutError') throw error;
     const state = await page.evaluate(marinePageState);
     throw new ZoomlabInstrumentError(state.reason || 'readiness-timeout', state);
   }
@@ -76,9 +89,13 @@ function findWavesControl() {
 async function waitForWavesControl(page, timeout = 45000) {
   await requireMarinePage(page);
   try {
-    await page.waitForFunction(`(() => { (${marineReadyPredicate.toString()})(); return (${findWavesControl.toString()})() !== null; })()`, null, { timeout });
+    await requirePollRoute(await page.waitForFunction(`(() => {
+      const state = (${marineReadyPredicate.toString()})();
+      if (state && state.reason === 'unexpected-route') return state;
+      return state && (${findWavesControl.toString()})() !== null;
+    })()`, null, { timeout }));
   } catch (error) {
-    if (error.name !== 'TimeoutError' && !error.message.includes('ZOOMLAB_INSTRUMENT_UNEXPECTED_ROUTE:')) throw error;
+    if (error.name !== 'TimeoutError') throw error;
     const state = await page.evaluate(marinePageState);
     throw new ZoomlabInstrumentError(state.reason || 'waves-control-unavailable', state);
   }
