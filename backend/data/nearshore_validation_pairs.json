@@ -1,6 +1,6 @@
 {
  "version": 1,
- "generated_at": "2026-08-15T23:15:44.604958+00:00",
+ "generated_at": "2026-11-09T02:38:33.587863+00:00",
  "generator": "backend/scripts/build_nearshore_pairs.py",
  "params": {
   "max_km": 10.0,
@@ -195,8 +195,8 @@
   },
   {
    "station": "143p1",
-   "station_lat": 28.39998,
-   "station_lng": -80.53334,
+   "station_lat": 28.39987,
+   "station_lng": -80.53326,
    "station_depth_m": 9.8,
    "spots": [
     {
@@ -204,21 +204,21 @@
      "name": "Jetty Park",
      "lat": 28.4061,
      "lng": -80.589,
-     "distance_km": 5.49
+     "distance_km": 5.5
     },
     {
      "spot_id": "2447cd65-4f05-47aa-88af-ee4fcb852d1c",
      "name": "Cape Canaveral",
      "lat": 28.3955,
      "lng": -80.592,
-     "distance_km": 5.76
+     "distance_km": 5.77
     },
     {
      "spot_id": "ffb87adc-2445-4bda-b4e8-b982ba525e1a",
      "name": "Cherie Down Park",
      "lat": 28.3918,
      "lng": -80.5951,
-     "distance_km": 6.11
+     "distance_km": 6.12
     },
     {
      "spot_id": "c673e683-6d29-4ee4-90b1-2b9d82363f35",
@@ -239,7 +239,7 @@
      "name": "Cape Canaveral Air Force Station",
      "lat": 28.47,
      "lng": -80.585,
-     "distance_km": 9.28
+     "distance_km": 9.3
     }
    ]
   },

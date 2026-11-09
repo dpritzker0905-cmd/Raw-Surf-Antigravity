@@ -2254,7 +2254,9 @@ jobs:
           #   base 3408 (hosted read) + 13 new test(s) = 3421; floor 3421 - 2 = 3419. This PR must read 3421 passed.
           # Review category scores: DEV d719b45f; CI 41960481203 estate read 3421 passed.
           # New tracked estate file collects 9 cases: projected 3430; floor 3428 keeps margin 2. Hosted CI must confirm.
-          MIN_PASSED = 3428
+          # ⬆ 3428→3430 on 2026-11-09 (rederive_floor.py, claude/nearshore-pairs-refresh): dev run 42540686323 read 3430; dev's map 3430;
+          #   base 3430 (hosted read) + 2 new test(s) = 3432; floor 3432 - 2 = 3430. This PR must read 3432 passed.
+          MIN_PASSED = 3430
 
           try:
               root = ET.parse('estate.xml').getroot()
