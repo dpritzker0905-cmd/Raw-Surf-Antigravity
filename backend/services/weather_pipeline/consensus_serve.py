@@ -129,6 +129,10 @@ def merge(gfs, consensus):
 
 
 MERGED_CACHE_MAX = 64   # merged frames kept; a spot hub resolves ~22 points against a handful of frames
+# The Bight composition can retain all ~15k vectors of a global_mid product,
+# including shared raw vectors that survive ProductStore eviction. Bound this
+# independent owner by vectors too, using the raw store's default 120k budget.
+MERGED_CACHE_VECTOR_BUDGET = 120000
 _NO_BLEND = object()    # a Bight frame EURO could not answer anywhere: cached so the work is not redone per load
 
 
@@ -146,6 +150,7 @@ class ServedStore:
         object.__setattr__(self, "_raw", store)
         object.__setattr__(self, "_merged", OrderedDict())
         object.__setattr__(self, "_bight_plans", OrderedDict())
+        object.__setattr__(self, "_bight_plan_source", None)
         object.__setattr__(self, "_lock", threading.Lock())
 
     @property
@@ -166,6 +171,21 @@ class ServedStore:
             object.__delattr__(self, name)
         else:
             delattr(self._raw, name)
+
+    def _remember_merged(self, key, product):
+        """Called with _lock held; an oversized response is served without retaining it."""
+        def vectors(value):
+            grid = getattr(value, "grid", None)
+            return len(getattr(grid, "vectors", None) or ())
+
+        self._merged.pop(key, None)
+        size = vectors(product)
+        if size > MERGED_CACHE_VECTOR_BUDGET:
+            return
+        while self._merged and (len(self._merged) >= MERGED_CACHE_MAX
+                                or sum(vectors(p) for p in self._merged.values()) + size > MERGED_CACHE_VECTOR_BUDGET):
+            self._merged.popitem(last=False)
+        self._merged[key] = product
 
     def load_product(self, filename: str, stride: Optional[int] = None):
         kw = {} if stride is None else {"stride": stride}
@@ -200,9 +220,7 @@ class ServedStore:
         if served is None:
             return product
         with self._lock:
-            self._merged[key] = served
-            while len(self._merged) > MERGED_CACHE_MAX:
-                self._merged.popitem(last=False)
+            self._remember_merged(key, served)
         return served.model_copy()
 
     def _bight_frame(self, bight, filename, product, stride):
@@ -220,23 +238,33 @@ class ServedStore:
             # The plan follows manifest_view's contract: keyed on the products LIST's identity plus its length
             # (writers reassign the list or append; in-place element replacement is out of contract there too).
             plan_key = (filename, run, stride)
+            products = manifest.products
+            count = len(products)
             with self._lock:
+                source = self._bight_plan_source
+                if source is None or source[0] is not products or source[1] != count:
+                    # One strong generation token for the whole cache, not a full manifest per inactive frame.
+                    # Older in-flight requests may still finish, but cannot publish into a changed generation.
+                    self._bight_plans.clear()
+                    source = (products, count)
+                    object.__setattr__(self, "_bight_plan_source", source)
                 plan = self._bight_plans.get(plan_key)
             files: dict = {}
             choose = None
-            if plan is None or plan[0] is not manifest.products or plan[1] != len(manifest.products):
+            if plan is None:
                 cells = bight.bight_cells(product)
                 picks = ()
                 if cells:
                     choose = bight.euro_chooser(manifest, product.valid_time, self._raw.load_product, files)
                     vs = product.grid.vectors
                     picks = tuple(sorted({f for f in (choose.pick(vs[i].lat, vs[i].lng) for i in cells) if f}))
-                plan = (manifest.products, len(manifest.products), cells, picks)
+                plan = (cells, picks)
                 with self._lock:
-                    self._bight_plans[plan_key] = plan
-                    while len(self._bight_plans) > 2 * MERGED_CACHE_MAX:
-                        self._bight_plans.popitem(last=False)
-            cells, picks = plan[2], plan[3]
+                    if self._bight_plan_source is source:
+                        self._bight_plans[plan_key] = plan
+                        while len(self._bight_plans) > 2 * MERGED_CACHE_MAX:
+                            self._bight_plans.popitem(last=False)
+            cells, picks = plan
             if not cells or not picks:
                 return product
             key = ("bight", filename, run, stride, picks, bight.euro_weight())
@@ -254,9 +282,7 @@ class ServedStore:
         if served is None and any(v is None for v in files.values()):
             return product               # a EURO file failed to load: never cache that as "EURO cannot answer"
         with self._lock:
-            self._merged[key] = _NO_BLEND if served is None else served
-            while len(self._merged) > MERGED_CACHE_MAX:
-                self._merged.popitem(last=False)
+            self._remember_merged(key, _NO_BLEND if served is None else served)
         return product if served is None else served.model_copy()
 
 
