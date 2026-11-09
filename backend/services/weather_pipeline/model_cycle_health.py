@@ -31,6 +31,17 @@ def cycle_thresholds(model, domain):
         return defaults
 
 
+_MAX_UNVERIFIED_COHORTS = 12
+
+
+def _cohort_entry(p, status):
+    # Diagnostic only: names WHICH products carry an unverified cycle. Reads existing fields, never
+    # relabels or invents a timestamp, and feeds no verdict.
+    return (str(getattr(p, 'layer', '')), str(getattr(p, 'region_id', None)),
+            str(getattr(p, 'tile_id', None)), bool(getattr(p, 'is_estimated', False)),
+            str(getattr(p, 'source_dataset', None)), status)
+
+
 def summarize_model_cycles(products, now, model, domain):
     # Latest receipt per component/global tier/tile. Old retained frames do not
     # poison a refreshed cohort; new unknown receipts cannot borrow old provenance.
@@ -49,19 +60,26 @@ def summarize_model_cycles(products, now, model, domain):
             current[1].append(p)
     warn_h, critical_h = cycle_thresholds(model, domain)
     known_ages, unknown, contributors = [], set(), {}
+    unverified_counts = {}
+
+    def _mark(p, status):
+        unknown.add(status)
+        entry = _cohort_entry(p, status)
+        unverified_counts[entry] = unverified_counts.get(entry, 0) + 1
+
     for _, group in cohorts.values():
         for p in group:
             provenance = getattr(p, 'model_run_time_status', 'missing')
             try:
                 sources = verified_blend_cycles(p)
             except ValueError:
-                unknown.add(str(provenance) if provenance != 'known' else 'invalid')
+                _mark(p, str(provenance) if provenance != 'known' else 'invalid')
                 continue
             if sources is not None:
                 for source_model, dataset, cycle in sources:
                     age = (now - cycle).total_seconds() / 3600
                     if age < -5 / 60:
-                        unknown.add('future')
+                        _mark(p, 'future')
                         continue
                     age = max(0.0, age)
                     source_warn, source_critical = cycle_thresholds(source_model, domain)
@@ -77,11 +95,11 @@ def summarize_model_cycles(products, now, model, domain):
                 continue
             cycle = _utc(getattr(p, 'model_run_time', None)) if provenance == 'known' else None
             if cycle is None:
-                unknown.add(str(provenance) if provenance != 'known' else 'invalid')
+                _mark(p, str(provenance) if provenance != 'known' else 'invalid')
                 continue
             age = (now - cycle).total_seconds() / 3600
             if age < -5 / 60:
-                unknown.add('future')
+                _mark(p, 'future')
             else:
                 known_ages.append(max(0.0, age))
     age_h = max(known_ages, default=None)
@@ -109,5 +127,10 @@ def summarize_model_cycles(products, now, model, domain):
         'verified_contributors' if contributors else 'known')
     return {'model_cycle_age_h': round(age_h, 1) if age_h is not None else None,
             'model_cycle_status': status, 'model_cycle_contributors': source_details,
-            'model_cycle_unverified': sorted(unknown), 'model_cycle_warn_h': warn_h,
+            'model_cycle_unverified': sorted(unknown),
+            'model_cycle_unverified_cohorts': [
+                {'layer': k[0], 'region_id': None if k[1] == 'None' else k[1],
+                 'tile_id': None if k[2] == 'None' else k[2], 'is_estimated': k[3],
+                 'source_dataset': None if k[4] == 'None' else k[4], 'status': k[5], 'n_products': n}
+                for k, n in sorted(unverified_counts.items())[:_MAX_UNVERIFIED_COHORTS]], 'model_cycle_warn_h': warn_h,
             'model_cycle_critical_h': critical_h}, verdict, reasons

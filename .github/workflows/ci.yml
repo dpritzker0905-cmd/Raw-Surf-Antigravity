@@ -1035,7 +1035,9 @@ jobs:
           #   base 3567 (hosted read) + 1 new test(s) and 0 new file(s) = 3568, files 224; floor 3568 - 6 = 3562. This PR must read 3568 passed.
           # ⬆ 3562→3579 on 2026-11-09 (rederive_floor.py, claude/tide-contract-fixes): dev run 42540686323 read 3568 / 224 files; dev's map 3568;
           #   base 3568 (hosted read) + 17 new test(s) and 0 new file(s) = 3585, files 224; floor 3585 - 6 = 3579. This PR must read 3585 passed.
-          MIN_FILES, MIN_PASSED = 224, 3579
+          # ⬆ 3579→3582 on 2026-11-09 (rederive_floor.py, HEAD): dev run 42547168318 read 3585 / 224 files; dev's map 3585;
+          #   base 3585 (hosted read) + 3 new test(s) and 0 new file(s) = 3588, files 224; floor 3588 - 6 = 3582. This PR must read 3588 passed.
+          MIN_FILES, MIN_PASSED = 224, 3582
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
