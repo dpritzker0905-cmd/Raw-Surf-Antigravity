@@ -59,6 +59,16 @@ EURO/waves 200 ms blank: root cause NOT proven. The only unattributed clear foun
 ~779 nulls the textures), now logged as `__WEBGL_MARINE_ENCODE_THROW__` / `engine_encode_throw`. World-over-regional hold
 (`__RAW_DISABLE_WORLD_OVER_REGIONAL_HOLD__`) is on a branch.
 
+## Read-only review: #743 + UI + history-boundary checkpoint (22:42 EST)
+Source compared against 5ebf1be60; 17 Jest suites (155 tests) pass in a scratch copy; probes of tideAt/tideCurve agree with
+build_point_tide (inclusive ends, gaps return unavailable, next events stop at the segment end, curve split per segment, null
+coverage fails closed). The backend in the checkpoint is byte-identical to #743 head 01288107. No high or medium findings.
+LOW: usePointTide.js:27 caches by the JS cell but fetches the first caller's toFixed(2), so lat 34.05 caches as 34.1 while the
+backend (Python round) serves 34.0 (reproduced in node and python). LOW: usePointTide.js:46-55 expiry only takes effect on
+re-render (an idle "unavailable" never retries). LOW (perf): useMapChromeLayout.js:12-76 rebuilds its observers and reflows on
+every render. NITs: MapForecastOverlay.js:781 aria-label on a div with no role; two time zones on one card (643-646).
+History boundary: no findings. Codex owns the fixes.
+
 ## Nearshore validation (Codex relay, 21:10 EST; verified in code)
 - Latest Nearshore Validation run 42543128074 (Nov 9 00:59Z) failed. 16 archived MOP runs were read, but grading refused at
   9 station-hours against the 30 minimum (GRADED_MIN_STATION_HOURS), with 2 live stations and the surf-zone grade skipped.
@@ -69,3 +79,17 @@ EURO/waves 200 ms blank: root cause NOT proven. The only unattributed clear foun
 - Refresh owner: Claude weather lead. Plan: rerun `backend/scripts/build_nearshore_pairs.py` (it reads CDIP, not our backend),
   review the diff (station identities only; no grading gate changes), and open a PR for the owner to name before Nov 13.
   The 30 station-hour gate stays as it is.
+
+## #748 + #749 merged (owner-named, 23:50 EST); #749 live check (Nov 9 ~05:00Z)
+- #748 merged 5a914091 (pair table; refusal now 2027-02-07T02:38:33Z). #749 merged d39fb0c4; dev bundle chunk
+  6091.49ad8778 contains __RAW_DISABLE_UNRESOLVED_DIRECTION__. Backend healthy before and after.
+- ICON wind_waves at the FL east coast, desktop: the live 13x17 grid holds 76 of 170 wet cells with the GWAM 180 deg / <=1 s
+  placeholder (more than at 21:30, 45). The data is unchanged by design; the encoder rule zeroes their advection. The
+  particle field itself was not inspected (no velocity-texture read).
+- FINDING: the world-over-regional hold did NOT fire live. Turning on the layer drew 13x17 @0.25 deg at 12.1 s; the
+  181x83 @2.0 deg world frame replaced it at 13.5 s and stayed until a pan at 22.6 s. __MARINE_FINER_HELD__ = null and
+  encode-throw = null. The likely cause is one of these (unverified; next session):
+  (a) the same-frame test needs run/valid time on both frames and fails open when either is unlabelled;
+  (b) the world frame commits through a path other than commitMarineData (e.g. the static series-page window commit).
+  Next step: log the world commit's source and the frames' served_valid_time/model_run_time at that moment.
+- Per the owner's stop for the night: no further investigation tonight; #743 and #747 remain drafts.
