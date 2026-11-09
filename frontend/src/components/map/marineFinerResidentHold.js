@@ -23,6 +23,7 @@
  * Pure. Kill: window.__RAW_DISABLE_FINER_RESIDENT_HOLD__ = true. Telemetry: __MARINE_FINER_HELD__ {count, last}.
  */
 import { coversViewport, boundsWidth } from './marineScrubHold';
+import { marineFrameInstant } from './marineFrameInstant';
 
 // WORLD OVER REGIONAL (2026-11-08, live: ICON wind_waves at z9, a 13x17 regional drew at t=0.1 s, the 181x83 world frame replaced it at
 // t=1.6 s and stayed ~17 s until a pan). Verified in the engine: setWaveData only refuses a world grid via the no-downgrade guard, whose
@@ -40,6 +41,12 @@ const WORLD_SPAN_DEG = 340;
 
 const readRunTime = (d) => d?.run_time ?? d?.runTime ?? d?.grid?.run_time ?? d?.grid?.runTime ?? null;
 const readHour = (d) => { const h = d?.hourOffset ?? d?.grid?.hourOffset; return typeof h === 'number' ? h : null; };
+// SAME CLOCK, ANY SPELLING (2026-11-09): /grid serialises its times through pydantic, /grid_series through strftime, and a world frame can
+// reach the commit through either. Equal strings, or two zoned ISO strings that name the same instant; never a guess across zones.
+const instantOf = (s) => (typeof s === 'string' && /(?:Z|[+-]\d{2}:\d{2})$/i.test(s) && Number.isFinite(Date.parse(s)) ? Date.parse(s) : null);
+function sameTime(a, b) { if (a === b) return true; const x = instantOf(a), y = instantOf(b); return x !== null && x === y; }
+// The frame the backend actually SERVED (marineFrameInstant: the strict served_valid_time), on the grid or its wrapper; null when unknown.
+const readServed = (d) => { const g = marineFrameInstant(d && d.grid); return g !== null ? g : marineFrameInstant(d); };
 
 // Cell size (deg) on the coarser axis, the same measure as detectClamp's cellDeg; NaN when the grid has none.
 export function gridCellDeg(g) {
@@ -51,37 +58,56 @@ export function gridCellDeg(g) {
  * @returns {false | object} false = commit normally; object = hold detail (telemetry).
  * `viewport` = { west, south, east, north } the request was made for.
  */
-export function shouldHoldFinerResident({ disabled, prev, incoming, viewport, liveViewport, disabledWorld }) {
-  if (disabled || !viewport) return false;
+export function shouldHoldFinerResident(args) {
+  const d = finerResidentHoldDecision(args);
+  return d.hold ? d.detail : false;
+}
+
+/**
+ * The same rule with its REASON (2026-11-09; the commit choke, marineCommitChoke.js, reads it so a live release names its guard):
+ * { hold: true, detail } or { hold: false, reason }.
+ * SAME FRAME, PROVABLY: model, layer, flavour and run (compared as instants) equal, and EITHER the same served instant on both sides (the
+ * physical frame; hour labels and ask echoes can differ at 3-hourly range, marineFrameInstant.js) OR the same hour label and valid time.
+ * Two known served instants that differ are two frames, whatever the labels say.
+ */
+export function finerResidentHoldDecision({ disabled, prev, incoming, viewport, liveViewport, disabledWorld }) {
+  const no = (reason) => ({ hold: false, reason });
+  if (disabled) return no('disabled');
+  if (!viewport) return no('no_viewport');
   const pg = prev && prev.grid, ng = incoming && incoming.grid;
-  if (!pg || !ng || !pg.vectors || !pg.vectors.length || !ng.vectors || !ng.vectors.length) return false;
-  if (ng.renderable === false || pg.renderable === false || prev.__renderable === false) return false;
-  if (prev.stale || pg.stale || incoming.stale || ng.stale) return false;
-  if (pg.__sourceModel !== ng.__sourceModel || pg.__componentLayer !== ng.__componentLayer) return false;
+  if (!pg || !ng || !pg.vectors || !pg.vectors.length || !ng.vectors || !ng.vectors.length) return no('no_vectors');
+  if (ng.renderable === false || pg.renderable === false || prev.__renderable === false) return no('not_renderable');
+  if (prev.stale || pg.stale || incoming.stale || ng.stale) return no('stale');
+  if (pg.__sourceModel !== ng.__sourceModel || pg.__componentLayer !== ng.__componentLayer) return no('model_or_layer');
+  const ps = readServed(prev), ns = readServed(incoming);
+  if (ps !== null && ns !== null && ps !== ns) return no('served_instant');
+  const sameServed = ps !== null && ps === ns;
   const ph = readHour(prev), nh = readHour(incoming);
-  if (ph === null || nh === null || ph !== nh) return false;
-  if (!!pg.ratingMode !== !!ng.ratingMode) return false;
+  if (!sameServed && (ph === null || nh === null || ph !== nh)) return no('hour');
+  if (!!pg.ratingMode !== !!ng.ratingMode) return no('flavour');
   const pvt = pg.validTime ?? prev.validTime ?? pg.valid_time ?? prev.valid_time ?? null;
   const nvt = ng.validTime ?? incoming.validTime ?? ng.valid_time ?? incoming.valid_time ?? null;
-  if (pvt && nvt && pvt !== nvt) return false;
+  if (!sameServed && pvt && nvt && !sameTime(pvt, nvt)) return no('valid_time');
   const prt = readRunTime(prev), nrt = readRunTime(incoming);
-  if (prt && nrt && prt !== nrt) return false;   // a new run is fresher data, however coarse
-  // The frame must be PROVABLY the same one: a known run or a known valid time on both sides (never hold across an unlabelled refresh).
-  if (!((prt && nrt) || (pvt && nvt))) return false;
-  if (!pg.bounds || !ng.bounds) return false;
-  if (boundsWidth(pg.bounds) >= WORLD_SPAN_DEG) return false;
+  if (prt && nrt && !sameTime(prt, nrt)) return no('run');   // a new run is fresher data, however coarse
+  // The frame must be PROVABLY the same one: a known run, valid time or served instant on both sides (never hold across an unlabelled
+  // refresh).
+  if (!((prt && nrt) || (pvt && nvt) || sameServed)) return no('unlabelled');
+  if (!pg.bounds || !ng.bounds) return no('no_bounds');
+  if (boundsWidth(pg.bounds) >= WORLD_SPAN_DEG) return no('world_resident');
   // A switch / activation asks for the WORLD box, so the request box is no evidence of what the user sees: judge a world incoming
   // against the live map viewport (the caller reads it), never against the request.
   const worldIn = boundsWidth(ng.bounds) >= WORLD_SPAN_DEG;
   const vp = worldIn ? (liveViewport || viewport) : viewport;
-  if (worldIn && !worldOverRegionalHeld(disabledWorld, vp)) return false;
-  if (!coversViewport(pg.bounds, vp)) return false;
+  if (worldIn && !worldOverRegionalHeld(disabledWorld, vp)) return no(disabledWorld ? 'world_disabled' : 'wide_view');
+  if (!coversViewport(pg.bounds, vp)) return no('resident_not_covering');
   const pc = gridCellDeg(pg), nc = gridCellDeg(ng);
   // Not meaningfully FINER (5% jitter): a coarser grid, or a same-cell clip of the same product (the post-pan 2 deg clip <-> clip
   // ping-pong adds no information while the resident still covers the viewport). A meaningfully finer grid always commits.
-  if (!Number.isFinite(pc) || !Number.isFinite(nc) || !(nc >= pc * SAME_CELL_FLOOR)) return false;
-  return { hour: nh, residentDims: `${pg.cols}x${pg.rows}`, incomingDims: `${ng.cols}x${ng.rows}`,
-    residentCell: +pc.toFixed(3), incomingCell: +nc.toFixed(3) };
+  if (!Number.isFinite(pc) || !Number.isFinite(nc) || !(nc >= pc * SAME_CELL_FLOOR)) return no('incoming_finer');
+  return { hold: true, detail: { hour: nh !== null ? nh : ph, residentDims: `${pg.cols}x${pg.rows}`, incomingDims: `${ng.cols}x${ng.rows}`,
+    residentCell: +pc.toFixed(3), incomingCell: +nc.toFixed(3), ...(worldIn ? { world: true } : {}),
+    ...(sameServed && ph !== nh ? { byServedInstant: true } : {}) } };
 }
 
 // The live map viewport for the world-over-regional judgement; null when no map is reachable (the hold then falls back to the request box).

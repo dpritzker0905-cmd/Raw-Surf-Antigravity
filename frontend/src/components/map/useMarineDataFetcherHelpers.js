@@ -8,6 +8,7 @@ import { MARINE_ZOOMED_OUT_MAX_ZOOM, alignedCoverFrac } from './marineZoomThresh
 import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { shouldShortCircuitSameProductCommit } from './marineCommitShortCircuit';
 import { shouldHoldFinerResident, readLiveViewport } from './marineFinerResidentHold';
+import { noteFinerHeld } from './marineCommitChoke';
 import { recordMarineEvent } from './marineForensics';
 
 export const EURO_NATIVE_HOURS = 240;
@@ -568,11 +569,7 @@ export function commitMarineData({
       if (_fh) {
         logPipelineEventHelper('finer_resident_held', _fh);
         recordMarineEvent('finer_resident_held', _fh);
-        if (typeof window !== 'undefined') {
-          const fh = window.__MARINE_FINER_HELD__ || (window.__MARINE_FINER_HELD__ = { count: 0 });
-          fh.count++;
-          fh.last = { ..._fh, ts: Date.now() };
-        }
+        noteFinerHeld(_fh, data, 'commit');   // telemetry + a held WORLD frame goes to the engine's base-wash seed (marineCommitChoke.js)
         return prev;
       }
     }
