@@ -196,7 +196,8 @@ jobs:
             // Hold on fetch error (2026-11-07, ON with __RAW_DISABLE_MARINE_HOLD_ON_ERROR__): marineHoldOnError.test.js (+1 suite / +3 tests). Raised by exactly that; confirm against the hosted receipt.
             // Opt-in map-clear self-capture recorder (2026-11-08): marineClearRecorder.test.js = +1 suite / +4 tests. Raised by exactly that; confirm against the hosted receipt.
             // Marine render fixes (2026-11-08, ON with kill switches): marineUnpatchedMaskHold.test.js (+1 suite / +13) and marineFinerResidentHold.test.js (+1 suite / +9). Local full run 648 / 8,462; confirm against the hosted receipt.
-            const MIN_SUITES = 650, MIN_TESTS = 8464;   // +3 suites / +17 tests: marineCrossModelSwitchHold (5) + marineWorldOverRegionalHold (6) + marineUnresolvedDirection (6)
+            // Marine commit choke (2026-11-09, ON with the finer-resident / world-over-regional kills): marineCommitChoke.test.js (+1 suite / +23 tests). Raised by exactly that; confirm against the hosted receipt.
+            const MIN_SUITES = 651, MIN_TESTS = 8487;   // +1 suite / +23 tests: marineCommitChoke (23)
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -1032,7 +1033,9 @@ jobs:
           #   base 3560 (hosted read) + 7 new test(s) and 0 new file(s) = 3567, files 224; floor 3567 - 6 = 3561. This PR must read 3567 passed.
           # ⬆ 3561→3562 on 2026-11-08 (rederive_floor.py, claude/euro-cycle-cadence): dev run 42428531550 read 3567 / 224 files; dev's map 3567;
           #   base 3567 (hosted read) + 1 new test(s) and 0 new file(s) = 3568, files 224; floor 3568 - 6 = 3562. This PR must read 3568 passed.
-          MIN_FILES, MIN_PASSED = 224, 3562
+          # ⬆ 3562→3579 on 2026-11-09 (rederive_floor.py, claude/tide-contract-fixes): dev run 42540686323 read 3568 / 224 files; dev's map 3568;
+          #   base 3568 (hosted read) + 17 new test(s) and 0 new file(s) = 3585, files 224; floor 3585 - 6 = 3579. This PR must read 3585 passed.
+          MIN_FILES, MIN_PASSED = 224, 3579
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
