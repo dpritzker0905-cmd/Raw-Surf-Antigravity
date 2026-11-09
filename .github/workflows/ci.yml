@@ -198,7 +198,8 @@ jobs:
             // Marine render fixes (2026-11-08, ON with kill switches): marineUnpatchedMaskHold.test.js (+1 suite / +13) and marineFinerResidentHold.test.js (+1 suite / +9). Local full run 648 / 8,462; confirm against the hosted receipt.
             // Marine commit choke (2026-11-09, ON with the finer-resident / world-over-regional kills): marineCommitChoke.test.js (+1 suite / +23 tests). Raised by exactly that; confirm against the hosted receipt.
             // Hold compares the model cycle, not the ingest stamp (2026-11-09): marineHoldModelCycle.test.js (+1 suite / +9 tests). Raised by exactly that; confirm against the hosted receipt.
-            const MIN_SUITES = 652, MIN_TESTS = 8496;   // +1 suite / +9 tests: marineHoldModelCycle (9)
+            // HUD resident truth (2026-11-07, ON with __RAW_DISABLE_HUD_RESIDENT_TRUTH__): hudResidentTruth.test.js (+1 suite / +3 tests). Raised by exactly that from 652 / 8,496; confirm against the hosted receipt.
+            const MIN_SUITES = 653, MIN_TESTS = 8499;   // +1 suite / +3 tests: hudResidentTruth (3)
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
