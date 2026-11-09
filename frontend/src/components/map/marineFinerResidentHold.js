@@ -40,6 +40,17 @@ export const SAME_CELL_FLOOR = 0.95;   // incoming cell >= 95% of the resident's
 const WORLD_SPAN_DEG = 340;
 
 const readRunTime = (d) => d?.run_time ?? d?.runTime ?? d?.grid?.run_time ?? d?.grid?.runTime ?? null;
+// THE MODEL CYCLE, NOT THE INGEST STAMP (2026-11-09, measured live): `run_time` on a served grid is when OUR ingest minted the product,
+// so two ingests of one cycle carry two stamps (ICON wind_waves: world 12:11:11Z vs regional 13:23:19Z, both model_run_time 00Z, valid
+// 18Z) and the hold released them as "a new run". When BOTH frames name a zoned model cycle, that decides; else the old run_time check.
+const CYCLE_KEYS = ['model_run_time', 'modelRunTime', '__readoutModelRun'];
+function readModelCycle(d) {
+  for (const o of [d?.grid, d, d?.grid?.truthTag, d?.truthTag]) {
+    if (!o) continue;
+    for (const k of CYCLE_KEYS) if (instantOf(o[k]) !== null) return o[k];
+  }
+  return null;
+}
 const readHour = (d) => { const h = d?.hourOffset ?? d?.grid?.hourOffset; return typeof h === 'number' ? h : null; };
 // SAME CLOCK, ANY SPELLING (2026-11-09): /grid serialises its times through pydantic, /grid_series through strftime, and a world frame can
 // reach the commit through either. Equal strings, or two zoned ISO strings that name the same instant; never a guess across zones.
@@ -88,7 +99,9 @@ export function finerResidentHoldDecision({ disabled, prev, incoming, viewport, 
   const pvt = pg.validTime ?? prev.validTime ?? pg.valid_time ?? prev.valid_time ?? null;
   const nvt = ng.validTime ?? incoming.validTime ?? ng.valid_time ?? incoming.valid_time ?? null;
   if (!sameServed && pvt && nvt && !sameTime(pvt, nvt)) return no('valid_time');
-  const prt = readRunTime(prev), nrt = readRunTime(incoming);
+  const pcy = readModelCycle(prev), ncy = readModelCycle(incoming);
+  const byCycle = pcy !== null && ncy !== null;
+  const prt = byCycle ? pcy : readRunTime(prev), nrt = byCycle ? ncy : readRunTime(incoming);
   if (prt && nrt && !sameTime(prt, nrt)) return no('run');   // a new run is fresher data, however coarse
   // The frame must be PROVABLY the same one: a known run, valid time or served instant on both sides (never hold across an unlabelled
   // refresh).
