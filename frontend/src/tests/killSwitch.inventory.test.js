@@ -43,6 +43,7 @@ const MAP_DIR = path.resolve(__dirname, '../components/map');
 const KILL_SWITCHES_TESTED = new Set([
   // components/map/marineUnpatchedMaskHold.test.js
   '__RAW_DISABLE_UNPATCHED_MASK_HOLD__',
+  '__RAW_DISABLE_UNRESOLVED_DIRECTION__',
   // components/map/marineFinerResidentHold.test.js
   '__RAW_DISABLE_FINER_RESIDENT_HOLD__',
   '__RAW_DISABLE_LANE_SWITCH_REGIONAL_FIRST__',

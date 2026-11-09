@@ -1,6 +1,6 @@
 import { renderMaskToCanvas, maskDensityPxPerDeg, incomingMaskDensityPxPerDeg } from './WebGLMarineMaskRenderer';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer
-import { applyPatchCarry } from './maskSmoothing';
+import { applyPatchCarry } from './maskSmoothing'; import { isUnresolvedDirection } from './marineUnresolvedDirection';
 import { maskCoversWorldFrame } from './maskCoverReuse'; import { withWaveLakes } from './waveLakes';   // lakes a model carries (waveLakes.js)
 import { takeMaskStash, stashResidentMask, installStashedMask, releaseSwappedMask } from './maskTextureStash';
 import { writeCoastDistanceField } from './maskCoastSDF'; // signed dist-to-coast → mask .b (opt-in, best-in-class crisp coast)
@@ -169,7 +169,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     // phantom due-south unit vector on every landmass — a coastline-wide fake direction seam against any
     // northish sea (the land-blind fade's second costume, after the zero-vector one). Left at zero here,
     // such cells get a REAL neighbor direction from extrapolateOceanData / dilateDirectionField below.
-    if (uVal === 0 && vVal === 0 && direction !== undefined && isOcean) {
+    if (isUnresolvedDirection(height, period, direction)) { uVal = 0; vVal = 0; } else if (uVal === 0 && vVal === 0 && direction !== undefined && isOcean) {   // period on the model's 1 s floor: no direction (marineUnresolvedDirection.js)
       const dirRad = direction * (Math.PI / 180);
       uVal = -Math.sin(dirRad);
       vVal = -Math.cos(dirRad);

@@ -24,6 +24,7 @@
  */
 import { FloatArrayConstructor, extrapolateOceanData, dilateDirectionField, scaleUnitDirByConfidence } from './WebGLMarineFieldMath';
 import { marineWaveHeightScale } from './marineWavePalette';
+import { isUnresolvedDirection } from './marineUnresolvedDirection';
 
 const r2 = (x) => Math.round(x * 100) / 100;
 const r4 = (x) => Math.round(x * 1e4) / 1e4;
@@ -42,6 +43,7 @@ export function packSignature(win) {
     `conf${confOn ? strength : 'off'}`,
     `trim${w.__RAW_DISABLE_DEAD_EDGE_TRIM__ === true ? 0 : 1}`,
     `wrap${w.__RAW_DISABLE_WRAP_MIRROR__ === true ? 0 : 1}`,
+    `udir${w.__RAW_DISABLE_UNRESOLVED_DIRECTION__ === true ? 0 : 1}`,
     `f${FloatArrayConstructor === Float32Array ? 32 : 16}`,
   ].join('|');
 }
@@ -150,7 +152,8 @@ export function packStaticFrame(parsed, { layer = 'waves', ratingMode = false, w
       const j = (r + tw.r0) * C0 + (c + tw.c0);
       const isOcean = valid[j] === 1;
       let uVal = uu[j]; let vVal = vv[j];
-      if (uVal === 0 && vVal === 0 && isOcean) {
+      if (isUnresolvedDirection(spd[j], per[j], dir[j], w)) { uVal = 0; vVal = 0; }
+      else if (uVal === 0 && vVal === 0 && isOcean) {
         const rad = dir[j] * DEG;
         uVal = -Math.sin(rad);
         vVal = -Math.cos(rad);

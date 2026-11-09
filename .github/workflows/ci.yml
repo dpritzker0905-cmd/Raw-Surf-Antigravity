@@ -196,7 +196,7 @@ jobs:
             // Hold on fetch error (2026-11-07, ON with __RAW_DISABLE_MARINE_HOLD_ON_ERROR__): marineHoldOnError.test.js (+1 suite / +3 tests). Raised by exactly that; confirm against the hosted receipt.
             // Opt-in map-clear self-capture recorder (2026-11-08): marineClearRecorder.test.js = +1 suite / +4 tests. Raised by exactly that; confirm against the hosted receipt.
             // Marine render fixes (2026-11-08, ON with kill switches): marineUnpatchedMaskHold.test.js (+1 suite / +13) and marineFinerResidentHold.test.js (+1 suite / +9). Local full run 648 / 8,462; confirm against the hosted receipt.
-            const MIN_SUITES = 649, MIN_TESTS = 8458;   // +2 suites / +11 tests: marineCrossModelSwitchHold (5) + marineWorldOverRegionalHold (6)
+            const MIN_SUITES = 650, MIN_TESTS = 8464;   // +3 suites / +17 tests: marineCrossModelSwitchHold (5) + marineWorldOverRegionalHold (6) + marineUnresolvedDirection (6)
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
