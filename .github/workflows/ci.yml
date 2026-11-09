@@ -1706,7 +1706,9 @@ jobs:
           #   base 3598 (dev's map) + 26 new test(s) and 1 new file(s) = 3624, files 207; floor 3624 - 6 = 3618. This PR must read 3624 passed.
           # ⬆ 3618→3621 on 2026-11-05 (rederive_floor.py, claude/zen-goodall-6f6smk): dev run 41960481203 read 3623 / 207 files; dev's map 3624;
           #   base 3624 (dev's map) + 3 new test(s) and 0 new file(s) = 3627, files 207; floor 3627 - 6 = 3621. This PR must read 3627 passed.
-          MIN_FILES, MIN_PASSED = 207, 3621
+          # ⬆ 3621→3638 on 2026-11-09 (rederive_floor.py, m375): dev run 42683890530 read 3626 / 207 files; dev's map 3627;
+          #   base 3627 (dev's map) + 17 new test(s) and 1 new file(s) = 3644, files 208; floor 3644 - 6 = 3638. This PR must read 3644 passed.
+          MIN_FILES, MIN_PASSED = 208, 3638
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
