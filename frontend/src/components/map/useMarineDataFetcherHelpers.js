@@ -7,6 +7,7 @@ import { getMarineSeriesFrame } from './marineGridSeries';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM, alignedCoverFrac } from './marineZoomThresholds';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { shouldShortCircuitSameProductCommit } from './marineCommitShortCircuit';
+import { shouldHoldFinerResident } from './marineFinerResidentHold';
 import { recordMarineEvent } from './marineForensics';
 
 export const EURO_NATIVE_HOURS = 240;
@@ -551,6 +552,25 @@ export function commitMarineData({
           const sc = window.__MARINE_COMMIT_SHORT_CIRCUIT__ || (window.__MARINE_COMMIT_SHORT_CIRCUIT__ = { count: 0 });
           sc.count++;
           sc.last = { ..._sc, ts: Date.now() };
+        }
+        return prev;
+      }
+    }
+    // FINER-RESIDENT HOLD (marineFinerResidentHold.js): a pan's snapped request is answered with the coarse MID clip; never swap the
+    // finer same-frame grid, which still contains the viewport, for it (the coarse-then-clamp_resharpen bounce).
+    // Kill: __RAW_DISABLE_FINER_RESIDENT_HOLD__.
+    if (hasNewValidData && hasPrevValidData && isSameModelAndLayer) {
+      const _fh = shouldHoldFinerResident({
+        disabled: typeof window !== 'undefined' && window.__RAW_DISABLE_FINER_RESIDENT_HOLD__ === true,
+        prev, incoming: data, viewport: bounds,
+      });
+      if (_fh) {
+        logPipelineEventHelper('finer_resident_held', _fh);
+        recordMarineEvent('finer_resident_held', _fh);
+        if (typeof window !== 'undefined') {
+          const fh = window.__MARINE_FINER_HELD__ || (window.__MARINE_FINER_HELD__ = { count: 0 });
+          fh.count++;
+          fh.last = { ..._fh, ts: Date.now() };
         }
         return prev;
       }

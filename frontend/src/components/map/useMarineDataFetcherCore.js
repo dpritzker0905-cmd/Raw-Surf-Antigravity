@@ -29,6 +29,7 @@ import { claimEnqueueSlot } from './marineEnqueueSlot';
 import { marineErrorOwnsDisplay } from './marineSeekIdentity';
 import { keepSwrRetryCount, noteRequestDiet, swrReaskScheduledFor } from './marineRequestDiet';
 import { isFlavorToggleSource, leasePendingStampOf } from './marineFlavorToggle';
+import { isAbandonedLive, cellDegOf, commitLaneSwitchRegionalFirst } from './marineFetchCoreBits';
 
 /**
  * Release an abandoned in-flight marine fetch when a newer request supersedes it.
@@ -43,6 +44,7 @@ import { isFlavorToggleSource, leasePendingStampOf } from './marineFlavorToggle'
  */
 function releaseAbandonedFetch(inFlight, controller, site, activeSource, source) {
   if (!controller || !controller.__intent) return;
+  if (!isAbandonedLive(inFlight, controller)) return;   // a fetch that already landed is not abandoned (no phantom 'detach')
   const scrubbing = typeof window !== 'undefined' && window.isScrubbingTimeline;
   if (scrubbing) {
     recordChurn('scrub_abort', { site, from: activeSource, to: source });
@@ -394,12 +396,16 @@ export function useMarineDataFetcherCore({
         // Resolution-upgrade leg (the series-arrival re-drive): same flavor but the resident is
         // meaningfully coarser than what the series cache now holds (the stuck-mid interim).
         // 1.25 mirrors the resolver's Root-A finer-regional threshold.
-        const _cellDegOf = (g) => {
-          const b = g && g.bounds;
-          if (!b || !g.cols || g.cols < 2) return null;
-          const w = (b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west;
-          return w / g.cols;
-        };
+        const _cacheCommit = (data, b, src) => commitMarineData({
+          data, bounds: b, model, layer, timeOffset, timeOffsetRef, setMarineData, lastCommittedSigRef,
+          marineRevision, getViewportHash, logPipelineEventHelper, consecutiveFailuresRef,
+          isCommittingDataRef, isInternalMapUpdateRef, internalUpdateTimerRef, locks, source: src,
+          scheduleSWRRevalidation, updateMarineGrid, getBackendCopernicusFlag, getBackendIconMarineFlag,
+          getBackendWeatherFlag, _marineDataSignature, getSharedValidTime, updateDeprecationDiag,
+          setTimeoutFunc: setTimeout, clearTimeoutFunc: clearTimeout });
+        commitLaneSwitchRegionalFirst({ mapInstance, resident: _mdNow, model, layer, hour: timeOffset, wantSurf: _wantSurf,
+          getFrame: getMarineSeriesFrame, record: recordMarineEvent, commit: _cacheCommit });
+        const _cellDegOf = cellDegOf;
         if ((typeof window === 'undefined' || window.__RAW_DISABLE_FLAVOR_CACHE_FASTPATH__ !== true)
             && !(typeof window !== 'undefined' && window.isScrubbingTimeline)
             && _mdNow?.grid?.vectors?.length > 0
@@ -421,15 +427,7 @@ export function useMarineDataFetcherCore({
               dims: `${_fg.cols}x${_fg.rows}`, toSurf: _wantSurf, hour: timeOffset,
             });
             try {
-              commitMarineData({
-                data: _frame, bounds, model, layer, timeOffset, timeOffsetRef, setMarineData, lastCommittedSigRef,
-                marineRevision, getViewportHash, logPipelineEventHelper, consecutiveFailuresRef,
-                isCommittingDataRef, isInternalMapUpdateRef, internalUpdateTimerRef, locks,
-                source: 'flavor_cache_fastpath',
-                scheduleSWRRevalidation, updateMarineGrid, getBackendCopernicusFlag, getBackendIconMarineFlag,
-                getBackendWeatherFlag, _marineDataSignature, getSharedValidTime, updateDeprecationDiag,
-                setTimeoutFunc: setTimeout, clearTimeoutFunc: clearTimeout
-              });
+              _cacheCommit(_frame, bounds, 'flavor_cache_fastpath');
             } catch (ce) {
               recordMarineEvent('flavor_fastpath_commit_err', { msg: String(ce && ce.message).slice(0, 80) });
             }

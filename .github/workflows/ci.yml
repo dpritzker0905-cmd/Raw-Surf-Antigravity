@@ -194,7 +194,9 @@ jobs:
             // Locker #735 adds 1 suite / 12 tests: current-dev integration projects 642 / 8,413; fresh hosted CI must confirm.
             // Cadence-aware scrubber step (2026-11-07, ON with __RAW_DISABLE_CADENCE_STEP__): cadenceStep.test.js (+1 suite / +5 tests). Raised by exactly that; confirm against the hosted receipt.
             // Hold on fetch error (2026-11-07, ON with __RAW_DISABLE_MARINE_HOLD_ON_ERROR__): marineHoldOnError.test.js (+1 suite / +3 tests). Raised by exactly that; confirm against the hosted receipt.
-            const MIN_SUITES = 644, MIN_TESTS = 8421;
+            // Opt-in map-clear self-capture recorder (2026-11-08): marineClearRecorder.test.js = +1 suite / +4 tests. Raised by exactly that; confirm against the hosted receipt.
+            // Marine render fixes (2026-11-08, ON with kill switches): marineUnpatchedMaskHold.test.js (+1 suite / +13) and marineFinerResidentHold.test.js (+1 suite / +9). Local full run 648 / 8,462; confirm against the hosted receipt.
+            const MIN_SUITES = 647, MIN_TESTS = 8447;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -1028,9 +1030,9 @@ jobs:
           #   base 3556 (hosted read) + 4 new test(s) and 1 new file(s) = 3560, files 224; floor 3560 - 6 = 3554. This PR must read 3560 passed.
           # ⬆ 3554→3561 on 2026-11-07 (rederive_floor.py, codex/series-cancellation-20261107): dev run 42414690794 read 3560 / 224 files; dev's map 3560;
           #   base 3560 (hosted read) + 7 new test(s) and 0 new file(s) = 3567, files 224; floor 3567 - 6 = 3561. This PR must read 3567 passed.
-          # ⬆ 3561→3578 on 2026-11-08 (rederive_floor.py, claude/tide-contract-fixes): dev run 42428531550 read 3567 / 224 files; dev's map 3567;
-          #   base 3567 (hosted read) + 17 new test(s) and 0 new file(s) = 3584, files 224; floor 3584 - 6 = 3578. This PR must read 3584 passed.
-          MIN_FILES, MIN_PASSED = 224, 3578
+          # ⬆ 3561→3562 on 2026-11-08 (rederive_floor.py, claude/euro-cycle-cadence): dev run 42428531550 read 3567 / 224 files; dev's map 3567;
+          #   base 3567 (hosted read) + 1 new test(s) and 0 new file(s) = 3568, files 224; floor 3568 - 6 = 3562. This PR must read 3568 passed.
+          MIN_FILES, MIN_PASSED = 224, 3562
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

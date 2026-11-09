@@ -12,10 +12,14 @@ def _utc(value):
 
 
 def cycle_thresholds(model, domain):
-    # Global GFS/atmospheric IFS: 6h; GWAM and Copernicus global waves: 12h.
+    # Global GFS: 6h; GWAM and Copernicus global waves: 12h. EURO atmospheric is 12h AS INGESTED: the
+    # ECMWF open-data fetcher asks for steps to 240h, which only the 00Z/12Z IFS runs publish (06Z/18Z stop
+    # at 144h), so the client always resolves a 00Z/12Z run and a 6h cadence false-warned daily from ~18Z
+    # (live 2026-11-08 19:00Z: wind/weather 19.0h on the 00Z run, product 1.0h old). Taking 06Z/18Z would
+    # cut the horizon, which the 14-day contract forbids.
     # Allow two/three missed cycles plus 6h publication/ingest slack. These are
     # operational thresholds, not a forecast-skill or serving selection policy.
-    cadence = 12 if domain == 'marine' and model in ('ICON', 'EURO') else 6
+    cadence = 12 if model == 'EURO' or (domain == 'marine' and model == 'ICON') else 6
     defaults = (2 * cadence + 6, 3 * cadence + 6)
     try:
         warn, critical = [float(os.environ.get(f'HEALTH_MODEL_CYCLE_{level}_HOURS_{model}_{domain.upper()}', default))

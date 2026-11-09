@@ -237,7 +237,7 @@ def test_legacy_cycle_provenance_is_unknown_not_healthy_or_invented():
     ('ICON', 'marine', 19, 'ok'), ('ICON', 'marine', 30.01, 'warn'),
     ('ICON', 'marine', 42.01, 'critical'), ('EURO', 'marine', 19, 'ok'),
     ('EURO', 'marine', 42.01, 'critical'), ('ICON', 'wind', 19, 'warn'),
-    ('EURO', 'weather', 19, 'warn')])
+    ('EURO', 'weather', 19, 'ok'), ('EURO', 'weather', 30.01, 'warn')])
 def test_cadence_thresholds_use_unrounded_age(model, domain, age, expected):
     products = _all_healthy()
     target = next(p for p in products if p.model == model and p.domain == domain)
