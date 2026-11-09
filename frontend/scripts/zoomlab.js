@@ -71,8 +71,11 @@ async function main() {
     run: async networkEvidence => {
       try { return await runScenario(page, networkEvidence, messageBadgeFixtureCount, consoleErrors); }
       catch (error) {
+        const refusedMockToken = messageBadgeFixtureCount.refused();
+        if (refusedMockToken.length) log(`dummy-session refusals (401): ${refusedMockToken.join(', ')}`);
         if (error instanceof ZoomlabInstrumentError) {
           const report = instrumentFailureReport(error, scenario, messageBadgeFixtureCount(), consoleErrors);
+          report.syntheticSession = { fixtures: messageBadgeFixtureCount.counts(), refusedMockToken: messageBadgeFixtureCount.refused() };
           error.exitCode = report.verdict === 'FAIL' ? 1 : 3;
           fs.writeFileSync(path.join(outdir, `instrument_${scenario}.json`),
             JSON.stringify(report));
@@ -557,7 +560,8 @@ async function runScenario(page, networkEvidence, messageBadgeFixtureCount, cons
   }));
   await requireMarinePage(page);
   fs.writeFileSync(path.join(outdir, `trace_${scenario}.json`), JSON.stringify({ ...trace, scenario, completed: true, zoomNow, consoleErrors: [...new Set(consoleErrors)], networkEvidence: networkEvidence(), arbShadow, arbLive,
-    syntheticMessageBadge: { user: 'dev-mock-user-id', fulfilled: messageBadgeFixtureCount() } }));
+    syntheticMessageBadge: { user: 'dev-mock-user-id', fulfilled: messageBadgeFixtureCount() },
+    syntheticSession: { fixtures: messageBadgeFixtureCount.counts(), refusedMockToken: messageBadgeFixtureCount.refused() } }));
   log(`arbiter: mode=${arbLive.mode} decisions=${arbLive.tallies ? arbLive.tallies.n : 0} rejects=${arbLive.tallies ? arbLive.tallies.rejects : 0} rules=${JSON.stringify(arbLive.tallies ? arbLive.tallies.byRule : {})}`);
   log(`trace saved: ${trace.frames.length} frames, final zoom ${zoomNow.toFixed(2)}`);
 
