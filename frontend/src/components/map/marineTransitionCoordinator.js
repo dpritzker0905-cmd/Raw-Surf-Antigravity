@@ -400,3 +400,17 @@ export function __resetForTests() {
     window.__MARINE_TRANSITION_STATE__ = null;
   }
 }
+
+// ENCODE-THROW PROBE (2026-11-08): WebGLMarineEngine.setWaveData clears the resident when encodeMarineTexture throws (the encoder has already nulled the
+// resident textures, so that blank is unavoidable for the commit) but nothing recorded WHY, so a ~200 ms "waveDataPresent false, 0 vectors" window with no
+// clear-log entry could not be told from a hold failure. Telemetry only: window.__WEBGL_MARINE_ENCODE_THROW__ {count,last} + an engine_encode_throw clear entry.
+export function noteEncodeThrow(err, engine, grid) {
+  try {
+    if (typeof window === 'undefined') return;
+    const t = window.__WEBGL_MARINE_ENCODE_THROW__ || (window.__WEBGL_MARINE_ENCODE_THROW__ = { count: 0 });
+    t.count++;
+    t.last = { message: String(err && err.message), vectors: grid && grid.vectors ? grid.vectors.length : 0, cols: grid && grid.cols, rows: grid && grid.rows,
+      model: grid && grid.__sourceModel, layer: grid && grid.__componentLayer, residentLeft: !!(engine && engine._waveData), ts: Date.now() };
+    if (!(engine && engine._waveData)) recordClear('engine_encode_throw');
+  } catch (e) { /* a probe never affects rendering */ }
+}

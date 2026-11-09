@@ -24,6 +24,17 @@
  */
 import { coversViewport, boundsWidth } from './marineScrubHold';
 
+// WORLD OVER REGIONAL (2026-11-08, live: ICON wind_waves at z9, a 13x17 regional drew at t=0.1 s, the 181x83 world frame replaced it at
+// t=1.6 s and stayed ~17 s until a pan). Verified in the engine: setWaveData only refuses a world grid via the no-downgrade guard, whose
+// "same frame" test needs served_valid_time on BOTH frames (an unlabelled one fails open), and a refused world grid is stashed BEFORE the
+// coarse-base capture, so holding it here feeds the base wash exactly as the guard does. Only at a regional viewport (< 15 deg span); a
+// zoom-out leaves the viewport uncovered by the resident, which releases the hold. Kill: __RAW_DISABLE_WORLD_OVER_REGIONAL_HOLD__.
+function worldOverRegionalHeld(disabledWorld, viewport) {
+  if (disabledWorld) return false;
+  return boundsWidth(viewport) < REGIONAL_VIEW_MAX_SPAN_DEG && (viewport.north - viewport.south) < REGIONAL_VIEW_MAX_SPAN_DEG;
+}
+const REGIONAL_VIEW_MAX_SPAN_DEG = 15;
+
 export const SAME_CELL_FLOOR = 0.95;   // incoming cell >= 95% of the resident's = not finer: nothing to gain, hold
 const WORLD_SPAN_DEG = 340;
 
@@ -40,7 +51,7 @@ export function gridCellDeg(g) {
  * @returns {false | object} false = commit normally; object = hold detail (telemetry).
  * `viewport` = { west, south, east, north } the request was made for.
  */
-export function shouldHoldFinerResident({ disabled, prev, incoming, viewport }) {
+export function shouldHoldFinerResident({ disabled, prev, incoming, viewport, liveViewport, disabledWorld }) {
   if (disabled || !viewport) return false;
   const pg = prev && prev.grid, ng = incoming && incoming.grid;
   if (!pg || !ng || !pg.vectors || !pg.vectors.length || !ng.vectors || !ng.vectors.length) return false;
@@ -58,12 +69,26 @@ export function shouldHoldFinerResident({ disabled, prev, incoming, viewport }) 
   // The frame must be PROVABLY the same one: a known run or a known valid time on both sides (never hold across an unlabelled refresh).
   if (!((prt && nrt) || (pvt && nvt))) return false;
   if (!pg.bounds || !ng.bounds) return false;
-  if (boundsWidth(pg.bounds) >= WORLD_SPAN_DEG || boundsWidth(ng.bounds) >= WORLD_SPAN_DEG) return false;
-  if (!coversViewport(pg.bounds, viewport)) return false;
+  if (boundsWidth(pg.bounds) >= WORLD_SPAN_DEG) return false;
+  // A switch / activation asks for the WORLD box, so the request box is no evidence of what the user sees: judge a world incoming
+  // against the live map viewport (the caller reads it), never against the request.
+  const worldIn = boundsWidth(ng.bounds) >= WORLD_SPAN_DEG;
+  const vp = worldIn ? (liveViewport || viewport) : viewport;
+  if (worldIn && !worldOverRegionalHeld(disabledWorld, vp)) return false;
+  if (!coversViewport(pg.bounds, vp)) return false;
   const pc = gridCellDeg(pg), nc = gridCellDeg(ng);
   // Not meaningfully FINER (5% jitter): a coarser grid, or a same-cell clip of the same product (the post-pan 2 deg clip <-> clip
   // ping-pong adds no information while the resident still covers the viewport). A meaningfully finer grid always commits.
   if (!Number.isFinite(pc) || !Number.isFinite(nc) || !(nc >= pc * SAME_CELL_FLOOR)) return false;
   return { hour: nh, residentDims: `${pg.cols}x${pg.rows}`, incomingDims: `${ng.cols}x${ng.rows}`,
     residentCell: +pc.toFixed(3), incomingCell: +nc.toFixed(3) };
+}
+
+// The live map viewport for the world-over-regional judgement; null when no map is reachable (the hold then falls back to the request box).
+export function readLiveViewport(win) {
+  try {
+    const w = win || (typeof window !== 'undefined' ? window : null);
+    const b = w && w.map && typeof w.map.getBounds === 'function' ? w.map.getBounds() : null;
+    return b ? { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() } : null;
+  } catch (e) { return null; }
 }

@@ -7,7 +7,7 @@ import { getMarineSeriesFrame } from './marineGridSeries';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM, alignedCoverFrac } from './marineZoomThresholds';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { shouldShortCircuitSameProductCommit } from './marineCommitShortCircuit';
-import { shouldHoldFinerResident } from './marineFinerResidentHold';
+import { shouldHoldFinerResident, readLiveViewport } from './marineFinerResidentHold';
 import { recordMarineEvent } from './marineForensics';
 
 export const EURO_NATIVE_HOURS = 240;
@@ -562,7 +562,8 @@ export function commitMarineData({
     if (hasNewValidData && hasPrevValidData && isSameModelAndLayer) {
       const _fh = shouldHoldFinerResident({
         disabled: typeof window !== 'undefined' && window.__RAW_DISABLE_FINER_RESIDENT_HOLD__ === true,
-        prev, incoming: data, viewport: bounds,
+        disabledWorld: typeof window !== 'undefined' && window.__RAW_DISABLE_WORLD_OVER_REGIONAL_HOLD__ === true,
+        prev, incoming: data, viewport: bounds, liveViewport: readLiveViewport(),
       });
       if (_fh) {
         logPipelineEventHelper('finer_resident_held', _fh);
