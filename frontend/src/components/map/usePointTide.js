@@ -1,27 +1,32 @@
 /**
  * usePointTide(lat, lng) - the infobox tide readout's data from GET /api/weather/point-tide (2026-11-07).
- * Keyed on the ~0.1 degree cell ONLY: tide does not change with the forecast hour, so scrubbing never
- * refetches. Cached 10 min with in-flight dedupe. Returns { status: 'loading'|'ok'|'unavailable'|'off', data }.
+ * Keyed on the ~0.1 degree cell ONLY: the returned series is evaluated at the selected hour, so scrubbing never
+ * refetches. Series cached 5 min, misses 30 s, with in-flight dedupe. Returns { status: 'loading'|'ok'|'unavailable'|'off', data }.
  * Kill switch: window.__RAW_DISABLE_INFOBOX_TIDE__ === true (no fetch, status 'off').
  */
 import { useEffect, useState } from 'react';
 import { BACKEND_URL } from '../../lib/apiClient';
 import { tideCellKey } from './tideClient';
-import { infoboxTideDisabled, tideCovers } from './tideReadoutFormat';
+import { infoboxTideDisabled } from './tideReadoutFormat';
 
 export const POINT_TIDE_URL = `${BACKEND_URL}/api/weather/point-tide`;
-const TTL_MS = 10 * 60 * 1000;
+// Match /point-tide Cache-Control: successful series max-age=300, unavailable max-age=30.
+const TTL_MS = 5 * 60 * 1000;
+const UNAVAILABLE_TTL_MS = 30 * 1000;
+const isFresh = entry => !!entry && Date.now() - entry.ts < (entry.value ? TTL_MS : UNAVAILABLE_TTL_MS);
 const _cache = new Map();   // cell -> { ts, value }
 const _inflight = new Map();
 
 export function clearPointTideCache() { _cache.clear(); _inflight.clear(); }
 
-function load(cell, lat, lng) {
+function load(cell) {
   const hit = _cache.get(cell);
-  if (hit && Date.now() - hit.ts < TTL_MS) return Promise.resolve(hit.value);
+  if (isFresh(hit)) return Promise.resolve(hit.value);
   if (_inflight.has(cell)) return _inflight.get(cell);
+  // Address the cell we cache; rounding the original coordinates again in Python can select a neighbour.
+  const [cellLat, cellLng] = cell.split(',');
   const ask = () => (typeof fetch === 'function'
-    ? fetch(`${POINT_TIDE_URL}?lat=${Number(lat).toFixed(2)}&lng=${Number(lng).toFixed(2)}`) : Promise.reject(new Error('no fetch')));
+    ? fetch(`${POINT_TIDE_URL}?lat=${cellLat}&lng=${cellLng}`) : Promise.reject(new Error('no fetch')));
   const p = Promise.resolve().then(ask)
     .then((r) => (r.ok ? r.json() : null))
     .catch(() => null)
@@ -35,27 +40,35 @@ function load(cell, lat, lng) {
   return p;
 }
 
-const MIN_REFETCH_MS = 60 * 1000;
-
-export function usePointTide(lat, lng, nowMs = Date.now()) {
+export function usePointTide(lat, lng) {
   const off = infoboxTideDisabled();
   const ok = !off && lat != null && lng != null && Number.isFinite(Number(lat)) && Number.isFinite(Number(lng));
   const cell = ok ? tideCellKey(Number(lat), Number(lng)) : null;
   const [res, setRes] = useState({ cell: null, value: null });
-  // Series no longer reaches now+6h: drop the cached cell once (at most once a minute) and refetch.
+  // Refresh by wall-clock age only. An uncovered selected day cannot extend source coverage.
   const cached = cell ? _cache.get(cell) : null;
-  const stale = !!(cached && cached.value && !tideCovers(cached.value, nowMs) && Date.now() - cached.ts > MIN_REFETCH_MS);
-  if (stale) _cache.delete(cell);
+  const stale = !!cached && !isFresh(cached);
   useEffect(() => {
     if (!cell) return undefined;
     let live = true;
-    load(cell, lat, lng).then((value) => { if (live) setRes({ cell, value }); });
-    return () => { live = false; };
+    let timer;
+    const refresh = () => load(cell).then((value) => {
+      if (!live) return;
+      setRes({ cell, value });
+      // Use the acquisition deadline, so fixed selections retry and scrubbing cannot extend cache age.
+      const hit = _cache.get(cell);
+      if (hit) {
+        const expiresAt = hit.ts + (hit.value ? TTL_MS : UNAVAILABLE_TTL_MS);
+        timer = setTimeout(refresh, Math.max(1, expiresAt - Date.now()));
+      }
+    });
+    refresh();
+    return () => { live = false; clearTimeout(timer); };
   }, [cell, lat, lng, stale]);
   if (off) return { status: 'off', data: null };
   if (!cell) return { status: 'loading', data: null };
   const hit = _cache.get(cell);
-  const value = res.cell === cell ? res.value : (hit && Date.now() - hit.ts < TTL_MS ? hit.value : undefined);
+  const value = res.cell === cell ? res.value : (isFresh(hit) ? hit.value : undefined);
   if (value === undefined) return { status: 'loading', data: null };
   return value ? { status: 'ok', data: value } : { status: 'unavailable', data: null };
 }

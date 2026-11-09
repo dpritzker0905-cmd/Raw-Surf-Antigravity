@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
+import React, { useMemo, useState, useEffect, useRef, useId } from 'react';
 import { Lock, ChevronDown, MapPin, Check, Info, AlertTriangle } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getHeightUnit } from './heightUnits';
@@ -22,6 +22,9 @@ import { getSurfModeFlag, getSharedValidTime, getSeriesAnchorMs } from './backen
 import { compileForecastCards, STATUS_RENDERS } from './forecastCardCompiler';
 import { modelDisplayName } from './modelDisplayName';
 import TideReadout from './TideReadout';
+import { infoboxTideDisabled } from './tideReadoutFormat';
+import { formatForecastInstant, forecastSelectionMs } from './forecastReadout';
+import { showPointTide } from './useMapChromeLayout';
 import { usePointRating } from './usePointRating';
 import { computeHeatmapStatus } from './forecastDiagnostics';
 import { logPressureTelemetryDiagnostics, checkIsExactPointValid, logForensicAudit } from './MapForecastOverlayDiag';
@@ -58,6 +61,8 @@ export const MapForecastOverlay = ({
 }) => {
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const detailsId = useId();
   const isLight = theme === 'light';
   // ⚠️ This file computed only `isLight`, so BEACH rendered with dark-mode colours -- a
   // pre-existing violation of the three-theme mandate. New elements below must not extend it,
@@ -123,9 +128,9 @@ export const MapForecastOverlay = ({
 
   const bgClass = isLight
     ? 'bg-white/90 border-gray-200'
-    : 'bg-zinc-900/90 border-zinc-800';
+    : isBeach ? 'bg-black/90 border-cyan-900/50' : 'bg-zinc-900/90 border-zinc-800';
   const textClass = isLight ? 'text-gray-900' : 'text-white';
-  const textMuted = isLight ? 'text-gray-500' : 'text-gray-400';
+  const textMuted = isLight ? 'text-gray-600' : isBeach ? 'text-cyan-200/80' : 'text-gray-400';
 
   const currentHourIndex = useMemo(() => findHourIndex(forecastData?.hourly?.time, timeOffsetHours), [forecastData, timeOffsetHours]);
   const marineHourIndex = useMemo(() => findHourIndex(marineData?.hourly?.time, timeOffsetHours), [marineData, timeOffsetHours]);
@@ -635,7 +640,12 @@ export const MapForecastOverlay = ({
   // v163: Show pin icon when displaying spot or long-press location
   const showPinIcon = !!(selectedSpot || longPressLocation);
   // P1-C: a selected spot/pin header had NO time; it now names the instant of the numbers below it.
-  const headerTimeLabel = showPinIcon ? frameView.timeLabel : '';
+  const headerTimeLabel = showPinIcon ? formatForecastInstant(frameView.refMs) : '';
+  // Tide follows the selected instant, even when weather is holding a different model frame.
+  const tideTimeMs = forecastSelectionMs(timeOffsetHours);
+  const tideTimeLabel = formatForecastInstant(tideTimeMs, 'UTC');
+  const detailsLayerLabel = { waves: 'Waves', swell_1: 'Swell', swell_2: 'Swell 2', wind_waves: 'Wind waves' }[activeLayer] || 'Forecast';
+  const detailsUnits = showPointTide(activeLayer) ? ` · ${heightUnit}` : '';
 
   // v7.1: Don't render the infobox at all when no location is selected.
   // It will appear only after a user selects a surf spot, places a marker, or taps GPS.
@@ -643,22 +653,43 @@ export const MapForecastOverlay = ({
     return null;
   }
 
+  // This wrapper delegates Escape from its controls; the header, list and tide
+  // group retain their own semantics. The wrapper itself is not a new control.
   return (
     <div
-      className={`absolute ${
+      className={`weather-point-card absolute ${
         isImmersiveMode 
           ? (isTimelineCollapsed ? 'bottom-[80px]' : 'bottom-[170px]') 
           : (isTimelineCollapsed ? 'bottom-[140px]' : 'bottom-[230px]')
       } md:bottom-20 left-4 z-[900] rounded-xl border backdrop-blur-xl shadow-2xl ${bgClass} max-w-[200px] transition-all duration-300`}
       data-testid="forecast-overlay"
+      role="presentation"
+      data-point-details-expanded={detailsExpanded}
+      onKeyDown={event => {
+        if (event.key === 'Escape' && detailsExpanded) {
+          event.stopPropagation();
+          setDetailsExpanded(false);
+          event.currentTarget.querySelector('.weather-point-details-toggle')?.focus();
+        }
+      }}
     >
+      <div className={`weather-point-context ${textClass}`}>
+        {detailsLayerLabel}{detailsUnits} · {tideTimeLabel}
+      </div>
+      <button type="button" className={`weather-point-details-toggle text-left px-3 ${textClass}`}
+        aria-expanded={detailsExpanded} aria-controls={detailsId}
+        aria-label={detailsExpanded ? 'Close forecast details' : 'Forecast details'}
+        onClick={() => { setDetailsExpanded(value => !value); setIsCollapsed(false); }}>
+        {detailsExpanded ? 'Close details' : 'Details'}
+        {!detailsExpanded && <span className="block text-[10px] leading-[12px]">{detailsLayerLabel}{detailsUnits}</span>}
+      </button>
       {/* Header — a real <button> with aria-expanded (was a bare div-with-onClick: invisible to
           screen readers and keyboard-unreachable; ACCESSIBILITY mandate 2026-07-14 §0a item 2).
           The visible model/time text is the accessible name; Enter/Space toggle collapse. */}
       <button
         type="button"
         aria-expanded={!isCollapsed}
-        className={`w-full text-left bg-transparent px-3 pt-2 pb-1 border-0 border-b border-zinc-800/30 flex justify-between items-center cursor-pointer select-none transition-colors rounded-t-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${isCollapsed ? 'pb-2 border-transparent rounded-b-xl' : ''}`}
+        className={`weather-point-header w-full text-left bg-transparent px-3 pt-2 pb-1 border-0 border-b border-zinc-800/30 flex justify-between items-center cursor-pointer select-none transition-colors rounded-t-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${isCollapsed ? 'pb-2 border-transparent rounded-b-xl' : ''}`}
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
         <div>
@@ -676,7 +707,7 @@ export const MapForecastOverlay = ({
       </button>
 
       {/* Data cards */}
-      <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[420px] opacity-100'}`}>
+      <div id={detailsId} inert={isCollapsed} aria-hidden={isCollapsed || undefined} className={`weather-point-body overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[420px] opacity-100'}`}>
         {/* role=list + listitem rows: without it the cards are anonymous divs and a screen reader
             reads a run of bare numbers with no indication that 'Swell' and 'Surf' are different
             quantities in the same units (2026-07-14 accessibility mandate). */}
@@ -747,7 +778,10 @@ export const MapForecastOverlay = ({
                   </button>
                 </div>
               )}
-              <TideReadout lat={pointLat} lng={pointLng} heightUnit={heightUnit} isLight={isLight} isBeach={isBeach} />
+              {showPointTide(activeLayer) && !infoboxTideDisabled() && <div role="group" aria-label={`Tide at selected forecast time: ${tideTimeLabel}`}>
+                <div className={`text-[10px] font-semibold mt-2 ${textMuted}`}>Tide at {tideTimeLabel}</div>
+                <TideReadout lat={pointLat} lng={pointLng} heightUnit={heightUnit} isLight={isLight} isBeach={isBeach} atTime={tideTimeMs} />
+              </div>}
               <InfoboxSpotChart spot={selectedSpot} user={user} model={activeModel} hour={timeOffsetHours} onTimeChange={onTimeChange} isLight={isLight} />
               <InfoboxFrameWords view={frameView} />
               {!modelSubstitution && staleHour && (
