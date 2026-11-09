@@ -93,3 +93,18 @@ History boundary: no findings. Codex owns the fixes.
   (b) the world frame commits through a path other than commitMarineData (e.g. the static series-page window commit).
   Next step: log the world commit's source and the frames' served_valid_time/model_run_time at that moment.
 - Per the owner's stop for the night: no further investigation tonight; #743 and #747 remain drafts.
+
+## #751 merged + live check (Nov 9 ~18:15Z; owner-named merge, owner signed in to the beta gate)
+- #751 merged 59e51fb5 (hosted CI 652 suites / 8502 tests, floor 651/8487). Dev chunk 5251.a91c3ebe contains
+  `__MARINE_WORLD_OVER_REGIONAL__`; truthTag.build = 59e51fb5. /api/health 200 before (0.48 s) and after (0.54 s).
+- ICON wind_waves, FL east coast z9, desktop: 2 pans held the 13x17 regional grid (`__MARINE_FINER_HELD__.count` 2,
+  route `commit`, lane `moveend`); no world frame drawn on either pan.
+- ROOT CAUSE of the world-over-regional release, measured: on layer activation (lane `manual`) the 181x83 world frame is
+  offered and the hold RELEASES with reason `run` (2 of 2 activations). Both frames are the SAME model cycle and hour:
+  model_run_time 2026-11-09T00:00Z, valid 18:00Z on both. Their `run_time` fields are ingest/mint stamps, not cycles:
+  world 12:11:11Z (`_coarseBaseData.waveGrid`) vs regional 13:23:19Z. `readRunTime` (marineFinerResidentHold.js:42)
+  reads `run_time` first, so two ingests of one cycle look like two runs. Fix candidate: compare model_run_time
+  (truthTag / `__readoutModelRun`) before run_time. Today the engine's own `_pendingDowngrade` kept the world frame
+  off screen (100 ms sampler saw only 13x17 through the toggle), so the visible symptom did not repeat.
+- Opposing-flow fix (#749), visual: screenshot of the live particle field shows one coherent WSW flow over the water;
+  no northward strands.
