@@ -154,6 +154,7 @@ test('independent application errors remain FAIL even when the instrument cannot
 for (const [path, label, json] of [
   ['/api/compliance/tos-status/dev-mock-user-id', 'synthetic-tos-status', { acknowledged: true }],
   ['/api/compliance/violations/user/dev-mock-user-id', 'synthetic-violations', { violations: [], is_suspended: false, is_banned: false }],
+  ['/api/notifications/dev-mock-user-id/unread-count', 'synthetic-notification-count', { unread_count: 0 }],
 ]) {
   test(`${label}: the dummy session's read is answered locally, neutral and labelled`, async () => {
     const f = await routeFixture();

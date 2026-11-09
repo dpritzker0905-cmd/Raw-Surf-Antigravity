@@ -12,6 +12,9 @@ const SESSION_FIXTURES = [
     json: { acknowledged: true } },
   { path: `/api/compliance/violations/user/${MOCK_USER}`, label: 'synthetic-violations', // ViolationBanner
     json: { violations: [], is_suspended: false, is_banned: false } },
+  // Named by this harness's own refusal log on run 42711770989 (2026-11-09): strict JWT, routes/notifications/notifications.py:62.
+  { path: `/api/notifications/${MOCK_USER}/unread-count`, label: 'synthetic-notification-count', // useUnreadCounts (TopNav)
+    json: { unread_count: 0 } },
 ];
 
 async function stubZoomlabMessageBadge(page, backendOrigin) {
