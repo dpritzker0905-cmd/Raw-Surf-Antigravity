@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
+import { guardMarineSetter } from './marineCommitChoke';
 import { useMarineRevalidation } from '../../hooks/useMarineRevalidation';
 import { useMarineDataFetcherCore } from './useMarineDataFetcherCore';
 import { fetchMarineData, getRemainingCooldown, getModelSafeMarine, isContainedInMarineCache } from './marineController';
@@ -36,7 +37,9 @@ export function useMarineDataFetcher({
   activeModel,
   activeModelRef
 }) {
-  const [marineData, setMarineData] = useState(null);
+  const [marineData, setMarineDataRaw] = useState(null);
+  // COMMIT CHOKE (marineCommitChoke.js): every route's commit, direct value or updater, meets the finer-resident hold. Stable identity.
+  const setMarineData = useMemo(() => guardMarineSetter(setMarineDataRaw), [setMarineDataRaw]);
   const marineDataRef = useRef(null);
 
   const marineRevision = useRef(0);

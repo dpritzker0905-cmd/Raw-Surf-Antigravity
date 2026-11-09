@@ -41,6 +41,20 @@ const MAP_DIR = path.resolve(__dirname, '../components/map');
  * for phantom entries.  To add: write the test file first.
  */
 const KILL_SWITCHES_TESTED = new Set([
+  // components/map/marineUnpatchedMaskHold.test.js
+  '__RAW_DISABLE_UNPATCHED_MASK_HOLD__',
+  '__RAW_DISABLE_UNRESOLVED_DIRECTION__',
+  // components/map/marineFinerResidentHold.test.js
+  '__RAW_DISABLE_FINER_RESIDENT_HOLD__',
+  '__RAW_DISABLE_LANE_SWITCH_REGIONAL_FIRST__',
+  // components/map/marineWorldOverRegionalHold.test.js
+  '__RAW_DISABLE_WORLD_OVER_REGIONAL_HOLD__',
+  // components/map/marineHoldOnError.test.js
+  '__RAW_DISABLE_MARINE_HOLD_ON_ERROR__',
+  // cadenceStep.test.js
+  '__RAW_DISABLE_CADENCE_STEP__',
+  // components/map/TideReadout.test.js
+  '__RAW_DISABLE_INFOBOX_TIDE__',
   // hudResidentTruth.test.js
   '__RAW_DISABLE_HUD_RESIDENT_TRUTH__',
   // marineSeriesFrame.killSwitch.test.js
@@ -80,6 +94,9 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_CREST_LOCAL_PHASE__',
   '__RAW_DISABLE_CREST_TEXEL_RANK__',
   '__RAW_DISABLE_WIND_ENCODER_ROUND__',
+  // Map-clear self-capture recorder (#744, opt-in diagnostics, no served number). marineClearRecorder.test.js:
+  // the switch beats both ?diag=1 and window.__RAW_SOAK_RECORDER__ (isSoakRecorderEnabled returns false).
+  '__RAW_DISABLE_SOAK_RECORDER__',
 ]);
 
 /**

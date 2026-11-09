@@ -489,14 +489,14 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # conflicts, by design: take dev's side, then `python backend/scripts/rederive_floor.py --lane <lane> --add <this
 # PR's new tests>` re-derives both this value and ci.yml's floor from dev (LESSONS L-P39).
 _FLOOR_SET_FROM = {
-    # guards: set from 3556 = max(dev run 42348439253 read 3545, dev's map 3545) + 11 (codex/manifest-restore-memory-20261107, 2026-11-07); floor 3550, margin 6.
-    "guards": 3556,
+    # guards: set from 3588 = max(dev run 42547168318 read 3585, dev's map 3585) + 3 (HEAD, 2026-11-09); floor 3582, margin 6.
+    "guards": 3588,
 
     # chain: set from 3627 = max(dev run 41960481203 read 3623, dev's map 3624) + 3 (claude/zen-goodall-6f6smk, 2026-11-05); floor 3621, margin 6.
     "chain": 3627,
 
-    # estate: set from 3430 = max(dev run 41960481203 read 3421, dev map 3421) + 9 review category cases; floor 3428, margin 2.
-    "estate": 3430,
+    # estate: set from 3432 = max(dev run 42540686323 read 3430, dev's map 3430) + 2 (claude/nearshore-pairs-refresh, 2026-11-09); floor 3430, margin 2.
+    "estate": 3432,
 }
 # Completeness sees squash merges, re-derived after #470 (+5, hosted 2397 / 331 files, run 39979894860): +14 estate tests
 # in a new file (tests/test_ledger_merges.py) = 2411 / 332; floor 2409, margin 2.

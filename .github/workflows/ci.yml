@@ -192,8 +192,14 @@ jobs:
             // Phase 4 visual-check fixes (2026-11-05): SpotForecastChart +1 (Home/tap reach the bar before hour 0) = +0 suites / +1 test.
             // XP ordering: hosted run 42341428383 confirmed 641 suites / 8,401 tests on the d719b45f base.
             // Locker #735 adds 1 suite / 12 tests: current-dev integration projects 642 / 8,413; fresh hosted CI must confirm.
-            // HUD resident truth (2026-11-07, ON with __RAW_DISABLE_HUD_RESIDENT_TRUTH__): hudResidentTruth.test.js (+1 suite / +3 tests). Raised by exactly that.
-            const MIN_SUITES = 643, MIN_TESTS = 8416;
+            // Cadence-aware scrubber step (2026-11-07, ON with __RAW_DISABLE_CADENCE_STEP__): cadenceStep.test.js (+1 suite / +5 tests). Raised by exactly that; confirm against the hosted receipt.
+            // Hold on fetch error (2026-11-07, ON with __RAW_DISABLE_MARINE_HOLD_ON_ERROR__): marineHoldOnError.test.js (+1 suite / +3 tests). Raised by exactly that; confirm against the hosted receipt.
+            // Opt-in map-clear self-capture recorder (2026-11-08): marineClearRecorder.test.js = +1 suite / +4 tests. Raised by exactly that; confirm against the hosted receipt.
+            // Marine render fixes (2026-11-08, ON with kill switches): marineUnpatchedMaskHold.test.js (+1 suite / +13) and marineFinerResidentHold.test.js (+1 suite / +9). Local full run 648 / 8,462; confirm against the hosted receipt.
+            // Marine commit choke (2026-11-09, ON with the finer-resident / world-over-regional kills): marineCommitChoke.test.js (+1 suite / +23 tests). Raised by exactly that; confirm against the hosted receipt.
+            // Hold compares the model cycle, not the ingest stamp (2026-11-09): marineHoldModelCycle.test.js (+1 suite / +9 tests). Raised by exactly that; confirm against the hosted receipt.
+            // HUD resident truth (2026-11-07, ON with __RAW_DISABLE_HUD_RESIDENT_TRUTH__): hudResidentTruth.test.js (+1 suite / +3 tests). Raised by exactly that from 652 / 8,496; confirm against the hosted receipt.
+            const MIN_SUITES = 653, MIN_TESTS = 8499;   // +1 suite / +3 tests: hudResidentTruth (3)
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -1023,7 +1029,17 @@ jobs:
           #   base 3523 (dev's map after #726) + 22 new test(s) and 1 new file(s) = 3545, files 223; floor 3545 - 6 = 3539. This PR must read 3545 passed.
           # ⬆ 3539→3550 on 2026-11-07 (rederive_floor.py, codex/manifest-restore-memory-20261107): dev run 42348439253 read 3545 / 223 files; dev's map 3545;
           #   base 3545 (hosted read) + 11 new test(s) and 0 new file(s) = 3556, files 223; floor 3556 - 6 = 3550. This PR must read 3556 passed.
-          MIN_FILES, MIN_PASSED = 223, 3550
+          # ⬆ 3550→3554 on 2026-11-07 (rederive_floor.py, claude/infobox-tide): dev run 42396705577 read 3556 / 223 files; dev's map 3556;
+          #   base 3556 (hosted read) + 4 new test(s) and 1 new file(s) = 3560, files 224; floor 3560 - 6 = 3554. This PR must read 3560 passed.
+          # ⬆ 3554→3561 on 2026-11-07 (rederive_floor.py, codex/series-cancellation-20261107): dev run 42414690794 read 3560 / 224 files; dev's map 3560;
+          #   base 3560 (hosted read) + 7 new test(s) and 0 new file(s) = 3567, files 224; floor 3567 - 6 = 3561. This PR must read 3567 passed.
+          # ⬆ 3561→3562 on 2026-11-08 (rederive_floor.py, claude/euro-cycle-cadence): dev run 42428531550 read 3567 / 224 files; dev's map 3567;
+          #   base 3567 (hosted read) + 1 new test(s) and 0 new file(s) = 3568, files 224; floor 3568 - 6 = 3562. This PR must read 3568 passed.
+          # ⬆ 3562→3579 on 2026-11-09 (rederive_floor.py, claude/tide-contract-fixes): dev run 42540686323 read 3568 / 224 files; dev's map 3568;
+          #   base 3568 (hosted read) + 17 new test(s) and 0 new file(s) = 3585, files 224; floor 3585 - 6 = 3579. This PR must read 3585 passed.
+          # ⬆ 3579→3582 on 2026-11-09 (rederive_floor.py, HEAD): dev run 42547168318 read 3585 / 224 files; dev's map 3585;
+          #   base 3585 (hosted read) + 3 new test(s) and 0 new file(s) = 3588, files 224; floor 3588 - 6 = 3582. This PR must read 3588 passed.
+          MIN_FILES, MIN_PASSED = 224, 3582
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -2245,7 +2261,9 @@ jobs:
           #   base 3408 (hosted read) + 13 new test(s) = 3421; floor 3421 - 2 = 3419. This PR must read 3421 passed.
           # Review category scores: DEV d719b45f; CI 41960481203 estate read 3421 passed.
           # New tracked estate file collects 9 cases: projected 3430; floor 3428 keeps margin 2. Hosted CI must confirm.
-          MIN_PASSED = 3428
+          # ⬆ 3428→3430 on 2026-11-09 (rederive_floor.py, claude/nearshore-pairs-refresh): dev run 42540686323 read 3430; dev's map 3430;
+          #   base 3430 (hosted read) + 2 new test(s) = 3432; floor 3432 - 2 = 3430. This PR must read 3432 passed.
+          MIN_PASSED = 3430
 
           try:
               root = ET.parse('estate.xml').getroot()

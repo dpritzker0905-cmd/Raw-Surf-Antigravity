@@ -10,7 +10,7 @@ import { recordTruthStage } from './weatherTruthTracker';
 import { measureMarineCpuPhase, instrumentMarineEngineCpuPhases } from './marineCpuPhaseTiming';
 import { forecastStateIdentityEnabled } from './forecastStateIdentity'; import { applyWaveSetUniforms } from './waveSetScreenBound'; import { syncParticleStateFormat, applyParticleStateUniforms } from './particleState'; import { applyCrestPhaseUniforms } from './crestLocalPhase'; import { applyCrestRankUniforms } from './crestTexelRank';
 import { readMarineSurfMode } from './marineSurfMode'; import { crestDensityCut } from './marineCrestDensity';
-import { recordMarineEvent } from './marineForensics'; import { keepMaskPatch, stampMaskPatch } from './maskPatchKeep'; import { uniformLoc } from './glUniformCache'; import { seedConsumeAllowed } from './marineQuietFrames'; import { coarseMaskReuse, noteCoarseMaskUse, releaseCoarseMaskCache } from './marineCoarseMaskCache';   // __RAW_FORENSIC__ ring; 2026-10-23 jank
+import { unpatchedMaskHold } from './marineUnpatchedMaskHold'; import { recordMarineEvent } from './marineForensics'; import { keepMaskPatch, stampMaskPatch } from './maskPatchKeep'; import { uniformLoc } from './glUniformCache'; import { seedConsumeAllowed } from './marineQuietFrames'; import { coarseMaskReuse, noteCoarseMaskUse, releaseCoarseMaskCache } from './marineCoarseMaskCache';   // __RAW_FORENSIC__ ring; 2026-10-23 jank
 import { arbiterDecide } from './marineCommitArbiter'; import { washMatchesResident } from './marineStaleHour';   // ARBITER PHASE B: shadow verdicts at the commit choke; D1 wash time
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { cachedFramebufferStatus, advTeardownNeeded } from './advFboSync';
 import './maskFloodProbe';   // installs window.__MASK_PROBE__ (dev mask-flood diagnostic)
@@ -1819,7 +1819,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       }
     }
 
-    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_opacity'), heatmapOpacity);
+    gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_opacity'), heatmapOpacity * unpatchedMaskHold(this, { tex: this._waveData.u_oceanMaskTexture, cachedTex: this._cachedMaskTex, bounds: this._cachedMaskBounds, z, overlayOn }));   // marineUnpatchedMaskHold.js: no NE-only mask through lagoons
     // Per-frame MAIN-pass opacity + resident-mask identity forensics (2026-07-16 zoom-clear trace).
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
       // t/n (2026-09-21): unstamped, this object goes STALE when the heatmap stops drawing — so
