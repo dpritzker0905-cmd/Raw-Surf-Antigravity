@@ -42,10 +42,15 @@ def haversine_km(lat1, lon1, lat2, lon2):
     return 2 * r * math.asin(math.sqrt(a))
 
 
-def fetch_spots():
-    req = urllib.request.Request(SPOTS_URL, headers={"User-Agent": "raw-surf-nearshore-pairs"})
-    with urllib.request.urlopen(req, timeout=120) as r:
-        d = json.load(r)
+def fetch_spots(spots_file=None):
+    """Spots from the production API, or from a local JSON file (offline refresh) when given."""
+    if spots_file:
+        with open(spots_file, encoding="utf-8") as f:
+            d = json.load(f)
+    else:
+        req = urllib.request.Request(SPOTS_URL, headers={"User-Agent": "raw-surf-nearshore-pairs"})
+        with urllib.request.urlopen(req, timeout=120) as r:
+            d = json.load(r)
     spots = d if isinstance(d, list) else d.get("spots", d.get("data", []))
     out = []
     for s in spots:
@@ -62,6 +67,9 @@ def main():
     ap.add_argument("--max-depth", type=float, default=30.0,
                     help="max station depth in metres (nearshore = inside the transform chain)")
     ap.add_argument("--out", default=OUT_DEFAULT)
+    ap.add_argument("--spots-file", default=None,
+                    help="read spots from this local JSON (list, or {spots|data: [...]}) instead of "
+                         "calling the production /api/surf-spots; enables offline refreshes")
     args = ap.parse_args()
 
     stations = list_stations()
@@ -77,7 +85,7 @@ def main():
     print(f"usable meta {len(metas)}; nearshore <= {args.max_depth} m: {len(nearshore)}",
           file=sys.stderr)
 
-    spots = fetch_spots()
+    spots = fetch_spots(args.spots_file)
     print(f"catalogue spots: {len(spots)}", file=sys.stderr)
 
     pairs = []
