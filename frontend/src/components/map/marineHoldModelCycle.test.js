@@ -73,3 +73,50 @@ describe('the hold judges "a new run" by the model cycle, not the ingest stamp',
     expect(decide(regional(), world(), { disabled: true })).toEqual({ hold: false, reason: 'disabled' });
   });
 });
+
+// THE /grid COMMIT PATH (2026-11-09, offline scn_ingest_skew_hold.js, both pre-#752 and #752 bundles: FAIL "run"). The marine /grid
+// conform carries the cycle only in its frameReceipt, so a /grid-committed regional had no cycle and the rule fell back to the stamps.
+// These run the REAL conform, so a fixture cannot drift from what the app commits.
+import { mapNormalizedGridToWebGL } from './backendWeatherServiceClientHelpers';
+
+const gridJson = (extra = {}) => {
+  const vectors = [];
+  for (let r = 0; r < 17; r++) for (let c = 0; c < 13; c++) {
+    vectors.push({ lat: 26 + r * 0.25, lng: -82 + c * 0.25, speed: 0.4, u: 0.1, v: -0.1, direction: 54, period: 1.45, is_valid: true });
+  }
+  return { model: 'ICON', domain: 'marine', layer: 'wind_waves', provider: 'open-meteo', source_dataset: 'dwd_gwam',
+    valid_time: VALID, served_valid_time: VALID, run_time: '2026-11-09T13:23:19Z', model_run_time: CYCLE, model_run_time_status: 'known',
+    product_id: 'icon_marine_wind_waves_florida_east_coast_20261109T180000Z.json', is_estimated: false,
+    grid: { bounds: REGIONAL_B, cols: 13, rows: 17, vectors }, ...extra };
+};
+const conformed = (extra) => mapNormalizedGridToWebGL(gridJson(extra), null, 0, 'wind_waves', 'ICON');
+
+describe('a /grid-committed regional names its cycle through the conform\'s verified frameReceipt', () => {
+  test('the conform drops model_run_time and keeps it in the receipt (the shape this rule must read)', () => {
+    const r = conformed();
+    expect(r.grid.model_run_time).toBeUndefined();
+    expect(r.grid.frameReceipt).toMatchObject({ modelRunTime: '2026-11-09T00:00:00.000Z', modelRunTimeStatus: 'known' });
+  });
+
+  test('the live/offline case: /grid regional (receipt cycle) vs series world (model_run_time), same cycle, two stamps: HELD', () => {
+    const d = decide(conformed(), world());
+    expect(d.hold).toBe(true);
+    expect(d.detail).toMatchObject({ world: true, residentDims: '13x17', incomingDims: '181x83' });
+  });
+
+  test('a newer cycle in the world frame still releases', () => {
+    expect(decide(conformed(), world({ model_run_time: '2026-11-09T06:00:00Z' }))).toEqual({ hold: false, reason: 'run' });
+  });
+
+  test('an UNVERIFIED receipt cycle is no evidence: the stamps decide (and differ)', () => {
+    for (const status of ['missing', 'conflicting']) {
+      expect(decide(conformed({ model_run_time_status: status }), world())).toEqual({ hold: false, reason: 'run' });
+    }
+  });
+
+  test('with resident-frame diagnostics killed there is no receipt: the old run_time rule, unchanged', () => {
+    window.__RAW_DISABLE_RESIDENT_FRAME_DIAGNOSTICS__ = true;
+    try { expect(decide(conformed(), world())).toEqual({ hold: false, reason: 'run' }); }
+    finally { delete window.__RAW_DISABLE_RESIDENT_FRAME_DIAGNOSTICS__; }
+  });
+});
