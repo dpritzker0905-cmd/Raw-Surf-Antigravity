@@ -313,6 +313,21 @@ def euro_regional_estimated_dict(run_time, valid_time, h, filename, region_id, b
     return body
 
 
+# INGEST STAMPS (2026-11-09, `--ingest-stamp-minutes world=731,regional=803`; the #752 live case). Production's served `run_time` is
+# when OUR ingest minted the product, not the model cycle: live ICON wind_waves at FL z9 carried run_time 12:11:11Z on the world frame
+# and 13:23:19Z on the regional tile, both model_run_time 00Z. Without the flag every synthetic product has run_time == model_run_time,
+# so the finer-resident hold's "same run?" test never meets two stamps of one cycle. With it, non-estimated marine products carry
+# run_time = ingested_at = cycle + N minutes for their tier (world: global_mid / global_coarse; regional: every regional tile);
+# model_run_time stays the cycle. A tier left out keeps run_time == cycle.
+INGEST_STAMP_MINUTES = {}
+
+
+def ingest_stamp(run_time, region_id):
+    tier = "world" if region_id in ("global_mid", "global_coarse") else "regional"
+    minutes = INGEST_STAMP_MINUTES.get(tier)
+    return None if minutes is None else run_time + timedelta(minutes=minutes)
+
+
 def product_dict(run_time, valid_time, h, filename, region_id="global_mid", bounds=WORLD, res=RES, model="GFS", estimated=False,
                  layer="waves"):
     rows = int(round((bounds["north"] - bounds["south"]) / res)) + 1
@@ -338,9 +353,11 @@ def product_dict(run_time, valid_time, h, filename, region_id="global_mid", boun
     iso = lambda d: d.strftime("%Y-%m-%dT%H:%M:%SZ")  # noqa: E731
     body = {
         "model": model, "domain": "marine", "layer": layer,
-        "run_time": iso(run_time + timedelta(hours=4)) if estimated else iso(run_time),
+        "run_time": (iso(run_time + timedelta(hours=4)) if estimated else
+                     iso(ingest_stamp(run_time, region_id) or run_time)),
         "model_run_time": None if estimated else iso(run_time), "model_run_time_status": "conflicting" if estimated else "known",
-        "ingested_at": None if estimated else iso(run_time + timedelta(hours=4)), "valid_time": iso(valid_time),
+        "ingested_at": None if estimated else iso(ingest_stamp(run_time, region_id) or run_time + timedelta(hours=4)),
+        "valid_time": iso(valid_time),
         "is_forecast_authoritative": not estimated, "is_estimated": estimated,
         "estimate_basis": (estimate_basis(valid_time, region_id, run_time) if model == "ICON" else
                            {"type": "gfs_estimated_fallback", "layer": layer}) if estimated else None,
@@ -898,6 +915,8 @@ def main():
                          "estimate (EURO'S REGIONAL ESTIMATED TAIL above); default: native like the global tiers")
     ap.add_argument("--series-diagnostics", action="store_true",
                     help="emit correlated synthetic series observations (off for ordinary benchmarks)")
+    ap.add_argument("--ingest-stamp-minutes", default="",
+                    help="world=N,regional=M: non-estimated marine run_time = cycle + N / M minutes (see INGEST STAMPS)")
     ap.add_argument("--build-only", action="store_true")
     args = ap.parse_args()
     global VORTEX_PEAK, LAND_MASK, WAVE_LAKES, ENCLOSED_SEAS, EURO_REGIONAL_ESTIMATED_AFTER
@@ -941,6 +960,11 @@ def main():
     sys.path.insert(0, str(BACKEND))
     os.chdir(BACKEND)
 
+    for part in (x.strip() for x in args.ingest_stamp_minutes.split(",") if x.strip()):
+        tier, _, minutes = part.partition("=")
+        if tier not in ("world", "regional") or not minutes.strip().lstrip("-").isdigit():
+            raise SystemExit(f"--ingest-stamp-minutes: expected world=N,regional=M, got {part!r}")
+        INGEST_STAMP_MINUTES[tier] = int(minutes)
     meta = {"reused": True}
     if not (Path(args.dir) / "manifest.json").exists():
         meta = build_store(args.dir, args.horizon, args.step, models=tuple(m.strip().upper() for m in args.models.split(',')),
