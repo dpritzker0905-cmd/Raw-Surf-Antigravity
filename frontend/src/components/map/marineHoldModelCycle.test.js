@@ -120,3 +120,20 @@ describe('a /grid-committed regional names its cycle through the conform\'s veri
     finally { delete window.__RAW_DISABLE_RESIDENT_FRAME_DIAGNOSTICS__; }
   });
 });
+
+// Reflection review (2026-11-09): a direct cycle was trusted without its status, while the receipt was gated.
+describe('a direct cycle that states it is unverified offers no cycle', () => {
+  test('world model_run_time with status conflicting: the stamps decide (two stamps release)', () => {
+    expect(decide(regional(), world({ model_run_time_status: 'conflicting' }))).toEqual({ hold: false, reason: 'run' });
+    expect(decide(regional({ model_run_time_status: 'missing' }), world())).toEqual({ hold: false, reason: 'run' });
+  });
+  test('status known, or no status at all, keeps the cycle comparison', () => {
+    expect(decide(regional({ model_run_time_status: 'known' }), world({ model_run_time_status: 'known' })).hold).toBe(true);
+    expect(decide(regional(), world()).hold).toBe(true);
+  });
+  test('an unverified direct cycle does not mask a verified receipt cycle on the same frame', () => {
+    const viaReceipt = conformed();                                   // receipt known, grid has no model_run_time
+    const w = world({ model_run_time_status: 'conflicting', __readoutModelRun: CYCLE });
+    expect(decide(viaReceipt, w).hold).toBe(true);                    // __readoutModelRun is itself a verified cycle
+  });
+});

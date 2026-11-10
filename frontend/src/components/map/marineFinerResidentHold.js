@@ -52,7 +52,13 @@ const receiptCycle = (r) => (r && r.modelRunTimeStatus === 'known' && instantOf(
 function readModelCycle(d) {
   for (const o of [d?.grid, d, d?.grid?.truthTag, d?.truthTag]) {
     if (!o) continue;
-    for (const k of CYCLE_KEYS) if (instantOf(o[k]) !== null) return o[k];
+    // A container that STATES its cycle is unverified ('conflicting', 'missing', an estimate) offers no cycle (Reflection review,
+    // 2026-11-09): the stamps decide, which can only release. No status at all keeps the #752 behaviour.
+    const unverified = typeof o.model_run_time_status === 'string' && o.model_run_time_status !== 'known';
+    for (const k of CYCLE_KEYS) {
+      if (unverified && k !== '__readoutModelRun') continue;
+      if (instantOf(o[k]) !== null) return o[k];
+    }
   }
   return receiptCycle(d?.grid?.frameReceipt) || receiptCycle(d?.frameReceipt);
 }
