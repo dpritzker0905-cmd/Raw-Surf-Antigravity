@@ -14,8 +14,10 @@
 // resident regional; offline the FIRST activation draws the world frame before the regional clip), then two pans (PAN_WAIT ms each). Verdict, from the app's own telemetry (__MARINE_WORLD_OVER_REGIONAL__,
 // __MARINE_FINER_HELD__) and the sampler:
 //   skew      the world frame and a regional frame (any non-world grid) carry different run_time, the same cycle (else INCONCLUSIVE)
-//   offered   the world frame was offered while the regional was resident (held + released >= 1; else INCONCLUSIVE)
-//   held      it was held at least once and its last decision was not a "run" release
+//   offered   the world frame was offered while the regional was resident: a setter-choke decision (__MARINE_WORLD_OVER_REGIONAL__
+//             held + released >= 1) OR a world frame held inside commitMarineData (a __MARINE_FINER_HELD__ event with incomingDims
+//             181x83; that hold stops the frame before the setter, so the setter never records it). Else INCONCLUSIVE.
+//   held      a world frame was held (either place) and no setter decision released it as "run"
 //   drawn     after the re-activation no 181x83 frame was drawn while a regional was resident
 // Exit 0 PASS, 1 FAIL, 3 INCONCLUSIVE. Offline only: no request leaves the machine but basemap tiles and fonts (ab_lib.js).
 const fs = require('fs');
@@ -37,6 +39,8 @@ function installSampler() {
   const t0 = performance.now();
   window.__SKEW_T0__ = t0;
   window.__SKEW_SAMPLES__ = [];
+  window.__SKEW_HELD__ = [];
+  let heldSeen = (window.__MARINE_FINER_HELD__ && window.__MARINE_FINER_HELD__.count) || 0;
   let last = null;
   const stamp = (wd) => {
     const g = wd && wd.waveGrid; const tag = wd && wd.truthTag;
@@ -51,6 +55,13 @@ function installSampler() {
     const s = e && stamp(e._waveData);
     const sig = s ? `${s.dims}|${s.run}|${s.cycle}|${s.valid}` : 'none';
     if (sig !== last) { last = sig; window.__SKEW_SAMPLES__.push({ t: Math.round(performance.now() - t0), ...(s || { dims: 'none' }) }); }
+    const fh = window.__MARINE_FINER_HELD__;
+    if (fh && fh.count !== heldSeen) {
+      heldSeen = fh.count;
+      const l = fh.last || {};
+      window.__SKEW_HELD__.push({ t: Math.round(performance.now() - t0), count: fh.count, residentDims: l.residentDims, incomingDims: l.incomingDims,
+        world: !!l.world, route: l.route || null, lane: l.lane || null });
+    }
   }, 100);
 }
 
@@ -58,7 +69,7 @@ function readOutcome() {
   clearInterval(window.__SKEW_TIMER__);
   const e = window.__MARINE_ENGINE__;
   const coarse = e && e._coarseBaseData ? window.__SKEW_STAMP__(e._coarseBaseData) : null;
-  return { samples: window.__SKEW_SAMPLES__, wor: window.__MARINE_WORLD_OVER_REGIONAL__ || null,
+  return { samples: window.__SKEW_SAMPLES__, heldEvents: window.__SKEW_HELD__, wor: window.__MARINE_WORLD_OVER_REGIONAL__ || null,
     held: window.__MARINE_FINER_HELD__ || null, encodeThrow: window.__WEBGL_MARINE_ENCODE_THROW__ || null,
     coarseBase: coarse, resident: e ? window.__SKEW_STAMP__(e._waveData) : null };
 }
@@ -70,8 +81,9 @@ function verdict(o) {
   const checks = {};
   checks.skew = !!(world && regional && world.run && regional.run && world.run !== regional.run && sameCycle(world.cycle, regional.cycle));
   const wor = o.wor || { held: 0, released: 0, last: null };
-  checks.offered = (wor.held || 0) + (wor.released || 0) >= 1;
-  checks.held = (wor.held || 0) >= 1 && !(wor.last && wor.last.held === false && wor.last.reason === 'run');
+  const worldHeld = (o.heldEvents || []).filter((e) => e.incomingDims === '181x83');
+  checks.offered = (wor.held || 0) + (wor.released || 0) >= 1 || worldHeld.length >= 1;
+  checks.held = ((wor.held || 0) >= 1 || worldHeld.length >= 1) && !(wor.last && wor.last.held === false && wor.last.reason === 'run');
   const after = o.samples.filter((s) => s.t >= o.reactivatedAt);
   checks.drawn = isRegional(o.residentAtReactivation) && !after.some(isWorld);
   const inconclusive = !checks.skew || !checks.offered;
@@ -108,10 +120,12 @@ function verdict(o) {
     o.residentAtReactivation = before.resident;
     o.reactivatedAt = (await page.evaluate((t) => t - Math.round(window.__SKEW_T0__ || 0), reactivatedAt));
     out = { base: L.BASE, port: PORT, center: [CLNG, CLAT], zoom: ZOOM, reactivatedAt: o.reactivatedAt, ...verdict(o), wor: o.wor, finerHeld: o.held,
+      heldEvents: o.heldEvents,
       encodeThrow: o.encodeThrow, samples: o.samples, pageErrors: log.errors.slice(0, 10) };
   } finally { await browser.close(); }
   if (OUT) fs.writeFileSync(OUT, JSON.stringify(out, null, 1));
   console.log(JSON.stringify({ result: out.result, checks: out.checks, world: out.world, regional: out.regional,
-    reactivatedAt: out.reactivatedAt, wor: out.wor, finerHeld: out.finerHeld && out.finerHeld.count, drawn: out.samples.map((s) => `${s.t}:${s.dims}`).join(' ') }));
+    reactivatedAt: out.reactivatedAt, wor: out.wor, finerHeld: out.finerHeld && out.finerHeld.count,
+    worldHeld: (out.heldEvents || []).filter((e) => e.incomingDims === '181x83').map((e) => `${e.t}:${e.route}/${e.lane}`).join(' '), drawn: out.samples.map((s) => `${s.t}:${s.dims}`).join(' ') }));
   process.exit(out.result === 'PASS' ? 0 : out.result === 'FAIL' ? 1 : 3);
 })().catch((e) => { console.error(e); process.exit(2); });
