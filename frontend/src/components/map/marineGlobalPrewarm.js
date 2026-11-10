@@ -222,6 +222,9 @@ export function _resetWashAsksForTest() { _washAsks.clear(); }
 export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer, opts) {
   const playback = !!opts?.playback && exactGfsPlaybackEnabled(model, activeLayer);
   const gridFirst = !!(opts && opts.gridFirst) && !(typeof window !== 'undefined' && window.__RAW_DISABLE_WORLD_GRID_FIRST__ === true);
+  // `opts.foreground` (2026-11-09, the viewport-first model switch, useMarineDataFetcherHelpers.warmSwitchWash): the new model's world grid
+  // skips the background lane, as the old switch's own world /grid did. Same request, no longer committed over the viewport tile.
+  const _foreground = !!(opts && opts.foreground);
   let _seriesStarted = false;
   let _deferSeries = false;
   let _gatesPassed = false;
@@ -347,7 +350,7 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer, 
     // A15-11: under the series limiter's BACKGROUND lane (one slot, after anything on screen) instead of
     // beside it — this world /grid used to bypass the cap entirely at every activation.
     Promise.resolve()
-      .then(() => (_cdnFirst ? (fn) => fn() : runBackgroundWarm)(() => (_gridT.startedAt = Date.now(), m === 'ICON')
+      .then(() => ((_cdnFirst || _foreground) ? (fn) => fn() : runBackgroundWarm)(() => (_gridT.startedAt = Date.now(), m === 'ICON')
         ? fetchBackendMarineGrid(_GLOBAL_BOUNDS, hourOffset, undefined, _GLOBAL_BOUNDS, activeLayer, 'ICON')
         : (m === 'EURO')
           // EURO world-coarse is a manifest product like the others (decoupled era) but routes

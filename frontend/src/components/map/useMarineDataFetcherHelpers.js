@@ -25,8 +25,47 @@ export const DISPLAY_ICON_MAX_HOURS = 336;
 // the rated viewport tile ([rating-band] OFF forever at a settled camera). 'flavor_toggle' is
 // deliberately NOT an activation: the layer is already live — re-fetch the current viewport in
 // the new flavor. Kill (in useMarineDataFetcher): __RAW_DISABLE_FLAVOR_TOGGLE_VIEWPORT__.
-export function isActivationSource(source) {
-  return source.startsWith('mount') || source.startsWith('load') || source.startsWith('manual');
+// SWITCH AT A REGIONAL VIEW ASKS THE VIEWPORT (2026-11-09, offline battery + one clean session, GFS->ICON at z9 Florida): the
+// 'manual' lane (model switch, layer activation, style-ready, re-drives) asked the WORLD box, drew the new model's 2 deg 181x83 frame at
+// 3.3 s and its viewport tile only at 7.7 s, when the clamp_resharpen backstop noticed the coarse grid (battery: world frame on screen
+// 0.4-17.3 s per switch). At a regional view (both spans < 15 deg, the world-over-regional threshold) a 'manual' fetch now asks the
+// viewport, like a pan; the coarse base wash keeps its own path (prewarmGlobalMarineGrid after every redirect fetch). mount/load and a
+// wide view stay world-first; without a map the old rule holds. Kill: window.__RAW_DISABLE_SWITCH_VIEWPORT_FIRST__ = true.
+const SWITCH_VIEWPORT_MAX_SPAN_DEG = 15;
+function regionalViewport(mapInstance) {
+  try {
+    const b = mapInstance && typeof mapInstance.getBounds === 'function' ? mapInstance.getBounds() : null;
+    if (!b) return false;
+    const w = b.getWest(), e = b.getEast();
+    const lng = e >= w ? e - w : e + 360 - w;
+    const lat = b.getNorth() - b.getSouth();
+    return Number.isFinite(lng) && Number.isFinite(lat) && lng < SWITCH_VIEWPORT_MAX_SPAN_DEG && lat < SWITCH_VIEWPORT_MAX_SPAN_DEG;
+  } catch (e) { return false; }
+}
+// THE WASH FOR A VIEWPORT-FIRST SWITCH (same date, measured): the world /grid the old activation committed was also the new model's
+// coarse base. Without it the base stayed the OLD model's (GFS under ICON 25 s after the switch; blend-both then turns the wash off):
+// the per-fetch prewarm runs its world SERIES half first and the world grid waits behind it in the background lane's single slot. Ask the
+// world grid first instead (the wash-refusal warm's options): it is cached and staged as the base, never committed over the viewport
+// tile; deduped and TTL'd inside prewarmGlobalMarineGrid. Lazy require: suites that mock the backend clients must not load the prewarm.
+// Only when the engine's base (or its pending seed) is NOT already this (model, layer): a 'manual' dispatch can still carry the old
+// model at click time, and warming it fetched a world grid nobody would draw. Foreground: behind the visible 48-frame series page the
+// background lane held the grid 5-25 s (measured), while the old switch's own world /grid went at once.
+function warmSwitchWash(model, layer, hour, bounds) {
+  if (!Number.isFinite(hour)) return;
+  try {
+    const prewarm = require('./marineGlobalPrewarm');
+    const eng = typeof window !== 'undefined' ? window.__MARINE_ENGINE__ : null;
+    if (eng && (prewarm._coarseBaseMatches(eng._coarseBaseData, model, layer)
+      || prewarm._coarseBaseMatches(eng._pendingCoarseBaseGrid, model, layer))) return;
+    prewarm.prewarmGlobalMarineGrid(model || 'GFS', hour, bounds, layer || 'waves', { gridFirst: true, band: true, foreground: true });
+  } catch (e) { /* a warm never breaks the switch that asked */ }
+}
+export function isActivationSource(source, mapInstance, win) {
+  const activation = source.startsWith('mount') || source.startsWith('load') || source.startsWith('manual');
+  if (!activation || !source.startsWith('manual') || !mapInstance) return activation;
+  const w = win || (typeof window !== 'undefined' ? window : null);
+  if (w && w.__RAW_DISABLE_SWITCH_VIEWPORT_FIRST__ === true) return true;
+  return !regionalViewport(mapInstance);
 }
 
 export function getLongitudinalOverlap(w1, e1, w2, e2) {
@@ -218,7 +257,8 @@ export function getAbortRecoveryGrid(model, layer, phase, marineRevision) {
   };
 }
 
-export function handleRegionalGridClearing({ mapInstance, isActivation, marineData, zoom, model, layer, setMarineData, lastCommittedSigRef }) {
+export function handleRegionalGridClearing({ mapInstance, isActivation, marineData, zoom, model, layer, setMarineData, lastCommittedSigRef,
+  timeOffset, source }) {
   let bounds = { west: -180, south: -85, east: 180, north: 85 };
   if (!isActivation) {
     try {
@@ -227,6 +267,7 @@ export function handleRegionalGridClearing({ mapInstance, isActivation, marineDa
     } catch (e) {
       // Fallback if map not ready
     }
+    if (typeof source === 'string' && source.startsWith('manual')) warmSwitchWash(model, layer, timeOffset, bounds);
   }
 
   if (marineData && marineData.grid && marineData.grid.bounds) {

@@ -47,6 +47,8 @@ const KILL_SWITCHES_TESTED = new Set([
   // components/map/marineFinerResidentHold.test.js
   '__RAW_DISABLE_FINER_RESIDENT_HOLD__',
   '__RAW_DISABLE_LANE_SWITCH_REGIONAL_FIRST__',
+  // components/map/useMarineDataFetcherHelpers.activation.test.js
+  '__RAW_DISABLE_SWITCH_VIEWPORT_FIRST__',
   // components/map/marineWorldOverRegionalHold.test.js
   '__RAW_DISABLE_WORLD_OVER_REGIONAL_HOLD__',
   // components/map/marineHoldOnError.test.js
