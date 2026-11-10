@@ -44,12 +44,23 @@ const readRunTime = (d) => d?.run_time ?? d?.runTime ?? d?.grid?.run_time ?? d?.
 // so two ingests of one cycle carry two stamps (ICON wind_waves: world 12:11:11Z vs regional 13:23:19Z, both model_run_time 00Z, valid
 // 18Z) and the hold released them as "a new run". When BOTH frames name a zoned model cycle, that decides; else the old run_time check.
 const CYCLE_KEYS = ['model_run_time', 'modelRunTime', '__readoutModelRun'];
+// THE /grid COMMIT PATH (2026-11-09, offline scn_ingest_skew_hold.js): the marine /grid conform (backendWeatherServiceClientHelpers.js)
+// rebuilds the grid field by field and carries the cycle ONLY in its diagnostic frameReceipt (modelRunTime + modelRunTimeStatus), so a
+// /grid-committed regional had no cycle here, the rule fell back to the ingest stamps and released the world frame as "run". The receipt's
+// cycle counts only when it is VERIFIED ('known'); the conform itself is untouched (its run-identity fields feed other modules).
+const receiptCycle = (r) => (r && r.modelRunTimeStatus === 'known' && instantOf(r.modelRunTime) !== null ? r.modelRunTime : null);
 function readModelCycle(d) {
   for (const o of [d?.grid, d, d?.grid?.truthTag, d?.truthTag]) {
     if (!o) continue;
-    for (const k of CYCLE_KEYS) if (instantOf(o[k]) !== null) return o[k];
+    // A container that STATES its cycle is unverified ('conflicting', 'missing', an estimate) offers no cycle (Reflection review,
+    // 2026-11-09): the stamps decide, which can only release. No status at all keeps the #752 behaviour.
+    const unverified = typeof o.model_run_time_status === 'string' && o.model_run_time_status !== 'known';
+    for (const k of CYCLE_KEYS) {
+      if (unverified && k !== '__readoutModelRun') continue;
+      if (instantOf(o[k]) !== null) return o[k];
+    }
   }
-  return null;
+  return receiptCycle(d?.grid?.frameReceipt) || receiptCycle(d?.frameReceipt);
 }
 const readHour = (d) => { const h = d?.hourOffset ?? d?.grid?.hourOffset; return typeof h === 'number' ? h : null; };
 // SAME CLOCK, ANY SPELLING (2026-11-09): /grid serialises its times through pydantic, /grid_series through strftime, and a world frame can
