@@ -300,6 +300,42 @@ def _schedule_sharpen(product, *, model, domain, layer, bbox, span, viewport_ser
         product.cache_hit = "mid_res_preview"
 
 
+# Own permits for the real worker lifetime, not the HTTP waiter's lifetime.
+# asyncio.to_thread keeps running when its waiter is canceled by a per-hour timeout.
+_MID_LOAD_TASKS = set()
+
+
+async def _load_mid_candidate(store, filename, stride, clip, try_strided, sem):
+    await sem.acquire()  # cancellation while queued starts no worker
+
+    def load():
+        identity = None
+        if try_strided:
+            candidate = store.load_product(filename, stride=stride)
+            identity = _identity_clip_bounds(candidate, clip, stride) if candidate else None
+            if identity is None and candidate and candidate.grid and (candidate.grid.diagnostics or {}).get("load_stride"):
+                candidate = store.load_product(filename)
+        else:
+            candidate = store.load_product(filename)
+        return candidate, identity
+
+    try:
+        task = asyncio.create_task(asyncio.to_thread(load))
+    except BaseException:
+        sem.release()
+        raise
+    _MID_LOAD_TASKS.add(task)
+
+    def finished(done):
+        sem.release()
+        _MID_LOAD_TASKS.discard(done)
+        if not done.cancelled():
+            done.exception()  # retrieve a late failure after its request has left
+
+    task.add_done_callback(finished)
+    return await asyncio.shield(task)
+
+
 async def try_serve_mid_res_tier(
     store,
     *,
@@ -482,16 +518,8 @@ async def try_serve_mid_res_tier(
     # STRIDED WORLD READ above); anything unproven reads the grid whole, exactly as before.
     _try_strided = (_stride > 1 and _clip is not None and os.environ.get("MARINE_MID_SERIES_LOAD_STRIDE", "1") != "0"
                     and _window_covers(_clip, mid_item.coverage) and _store_takes_stride(store))
-    _identity = None
-    async with _LOAD_SEM:
-        if _try_strided:
-            candidate_product = await asyncio.to_thread(store.load_product, mid_item.filename, stride=_stride)
-            _identity = _identity_clip_bounds(candidate_product, _clip, _stride) if candidate_product else None
-            if _identity is None and candidate_product and candidate_product.grid and \
-                    (candidate_product.grid.diagnostics or {}).get("load_stride"):
-                candidate_product = await asyncio.to_thread(store.load_product, mid_item.filename)
-        else:
-            candidate_product = await asyncio.to_thread(store.load_product, mid_item.filename)
+    candidate_product, _identity = await _load_mid_candidate(
+        store, mid_item.filename, _stride, _clip, _try_strided, _LOAD_SEM)
     if not candidate_product or not candidate_product.grid:
         return None
     if _is_oversized_grid(candidate_product):
