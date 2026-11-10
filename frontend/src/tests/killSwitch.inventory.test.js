@@ -55,6 +55,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_CADENCE_STEP__',
   // components/map/TideReadout.test.js
   '__RAW_DISABLE_INFOBOX_TIDE__',
+  // hudResidentTruth.test.js
+  '__RAW_DISABLE_HUD_RESIDENT_TRUTH__',
   // marineSeriesFrame.killSwitch.test.js
   '__RAW_DISABLE_SERIES_MINT_STAGE__',
   '__RAW_DISABLE_SERIES_ESTIMATE_PROVENANCE__',

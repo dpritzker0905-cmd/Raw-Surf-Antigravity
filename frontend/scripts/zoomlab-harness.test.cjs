@@ -15,7 +15,8 @@ async function routeFixture() {
   const count = await stubZoomlabMessageBadge({ route: async (match, handle) => { matches = match; handler = handle; } }, origin);
   return { count, async request(path, method = 'GET', host = origin, authorization = 'Bearer dev-mock-user-token') {
     let result = 'passed-through';
-    if (matches(new URL(path, host))) await handler({ request: () => ({ method: () => method, headers: () => ({ authorization }) }),
+    const url = new URL(path, host);
+    if (matches(url)) await handler({ request: () => ({ method: () => method, headers: () => ({ authorization }), url: () => url.href }),
       fallback: async () => {}, fulfill: async options => { result = options; } });
     return result;
   } };
@@ -146,4 +147,41 @@ test('independent application errors remain FAIL even when the instrument cannot
   assert.equal(report.verdict, 'FAIL');
   assert.deepEqual(report.consoleErrors, ['Uncaught controlled renderer defect']);
   assert.equal(analyzeTrace(report).verdict, 'FAIL');
+});
+
+// 2026-11-09: #496 bound personal reads to the caller's JWT; the live backend refused the dummy token with 401 and the app's
+// handleRefusedSession sent every nightly to /auth (2026-10-24 .. 11-09). These pin the two map-shell reads as exact fixtures.
+for (const [path, label, json] of [
+  ['/api/compliance/tos-status/dev-mock-user-id', 'synthetic-tos-status', { acknowledged: true }],
+  ['/api/compliance/violations/user/dev-mock-user-id', 'synthetic-violations', { violations: [], is_suspended: false, is_banned: false }],
+  ['/api/notifications/dev-mock-user-id/unread-count', 'synthetic-notification-count', { unread_count: 0 }],
+]) {
+  test(`${label}: the dummy session's read is answered locally, neutral and labelled`, async () => {
+    const f = await routeFixture();
+    const result = await f.request(path);
+    assert.deepEqual(result.json, json);
+    assert.equal(result.headers['x-rawsurf-zoomlab-fixture'], label);
+    assert.equal(f.count.counts()[label], 1);
+    assert.equal(f.count(), 0);                                   // the badge count stays the badge's own
+  });
+  test(`${label}: a real token, another user, a write or a prefix still pass through`, async () => {
+    const f = await routeFixture();
+    assert.equal(await f.request(path, 'GET', origin, 'Bearer actual-user-control-token'), 'passed-through');
+    assert.equal(await f.request(path.replace('dev-mock-user-id', 'real-user'), 'GET'), 'passed-through');
+    assert.equal(await f.request(path, 'POST'), 'passed-through');
+    assert.equal(await f.request(path + '/extra'), 'passed-through');
+    assert.equal(f.count.counts()[label], 0);
+  });
+}
+
+test('refusals of the dummy token are recorded by path; real tokens, other origins and non-401s are not', async () => {
+  let onResponse;
+  const count = await stubZoomlabMessageBadge({ route: async () => {}, on: (ev, fn) => { if (ev === 'response') onResponse = fn; } }, origin);
+  const resp = (url, status, authorization = 'Bearer dev-mock-user-token', method = 'GET') => ({
+    url: () => url, status: () => status, request: () => ({ method: () => method, headers: () => ({ authorization }) }) });
+  onResponse(resp(origin + '/api/credits/balance/dev-mock-user-id', 401));
+  onResponse(resp(origin + '/api/credits/balance/dev-mock-user-id', 200));
+  onResponse(resp(origin + '/api/credits/balance/real', 401, 'Bearer actual-user-control-token'));
+  onResponse(resp('https://another.fixture.invalid/api/x', 401));
+  assert.deepEqual(count.refused(), ['GET /api/credits/balance/dev-mock-user-id']);
 });

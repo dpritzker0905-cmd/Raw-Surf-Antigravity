@@ -275,6 +275,32 @@ def test_invalid_naive_future_and_conflicting_cycles_are_unverified(value, statu
     assert lane['verdict'] == 'warn' and lane['model_cycle_age_h'] is None
 
 
+def test_unverified_cohorts_name_only_the_unknown_cohort_and_change_no_verdict():
+    products = _all_healthy()
+    bad = _p('GFS', 'marine', layer='swell')
+    bad.model_run_time, bad.model_run_time_status = None, 'missing'
+    bad.region_id, bad.source_dataset = 'copernicus_global', 'cmems_mod_glo_wav'
+    baseline = compute_data_health(_Store(products), now=NOW)['lanes']['GFS/marine']
+    lane = compute_data_health(_Store([*products, bad]), now=NOW)['lanes']['GFS/marine']
+    assert baseline['model_cycle_unverified_cohorts'] == []
+    assert lane['model_cycle_unverified_cohorts'] == [
+        {'layer': 'swell', 'region_id': 'copernicus_global', 'tile_id': None, 'is_estimated': False,
+         'source_dataset': 'cmems_mod_glo_wav', 'status': 'missing', 'n_products': 1}]
+    assert lane['model_cycle_unverified'] == ['missing'] and lane['model_cycle_status'] == 'mixed'
+    assert lane['verdict'] == 'warn' and lane['model_cycle_age_h'] == baseline['model_cycle_age_h']
+
+
+@pytest.mark.parametrize('model', ['ICON', 'EURO'])
+def test_unverified_cohorts_cover_the_invalid_blend_value_error_path(model):
+    blend = _recorded_blend(model)
+    blend.estimate_basis['cycle_sources'].pop()
+    lane = compute_data_health(_Store([*_all_healthy(), blend]), now=NOW)['lanes'][f'{model}/marine']
+    assert lane['verdict'] == 'warn' and lane['model_cycle_unverified'] == ['conflicting']
+    cohorts = lane['model_cycle_unverified_cohorts']
+    assert len(cohorts) == 1 and cohorts[0]['is_estimated'] is True
+    assert cohorts[0]['status'] == 'conflicting' and cohorts[0]['n_products'] == 1
+
+
 def test_latest_known_cohort_can_replace_old_retained_frames_without_mutation():
     products = _all_healthy()
     old = _p('GFS', 'marine', run_age_h=9)

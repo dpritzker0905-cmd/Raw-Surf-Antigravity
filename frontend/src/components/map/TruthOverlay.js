@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { residentResolutionDeg } from './hudResidentTruth';
 import { LAYER_REGISTRY } from './LayerRegistry';
 import { WeatherTelemetry } from './WeatherTelemetry';
 import { API_BASE } from '../../lib/apiClient';
@@ -277,7 +278,7 @@ var TruthOverlay = ({
   // Prefer the grid this overlay was handed; fall back to the live field the engine is drawing.
   const gridVectorCount = __countOf(marineData?.grid) ?? __countOf(__windData);
   const productIdForClass = marineData?.grid?.productId || __projDiag?.productId || null;
-  const resolutionDeg = marineData?.grid?.resolution ?? __projDiag?.resolution ?? null;
+  const resolutionDeg = residentResolutionDeg(typeof window !== 'undefined' ? window : null, marineData?.grid) ?? marineData?.grid?.resolution ?? __projDiag?.resolution ?? null;   // the engine's resident wins (hudResidentTruth.js)
   const isSubstituted = /fallback|blend|estimated/.test(String(gridProvider).toLowerCase());
 
   // ⛔ "NO VIOLATIONS DETECTED" WAS NOT A RESULT (fixed 2026-08-11, audit 11.2 / RC-02).

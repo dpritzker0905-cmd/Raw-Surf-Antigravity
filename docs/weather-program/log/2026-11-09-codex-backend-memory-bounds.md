@@ -48,3 +48,11 @@ A fresh Render read at 16:05Z still reports d39fb0c as the live deployment, no n
 Final docs-only memory audit: zero failures, 95 warnings, six notes. Outstanding historical ledger/STATE warnings were not changed by this scoped candidate.
 
 Timestamp correction: the preceding update heading should read 16:07Z. The typed 16:10Z heading is not a measured event time; the clock read was 2026-11-09T16:07:30Z.
+
+## Publication result
+
+Commit `31547f60de6fbbbdf6165d4aff3fb196e0c4b30d` was pushed to `codex/backend-memory-bounds-20261109` with existing commit/push hooks intact. The ledger guard reported zero problems, and the explicit floor guard passed. Dev and main were not updated.
+
+Draft PR creation returned GitHub HTTP 403, `Resource not accessible by integration`. An exact-branch PR search returned no results. The denied operation stopped; no alternate gh/browser creation route was attempted. There is no PR or hosted CI acceptance to report. Weather-owner coordination and exact-head CI remain merge gates. This publication receipt is retained locally pending the next authorized documentation commit.
+
+2026-11-10T00:22Z correction: the committed header "Draft-publication update, 16:10Z" was an estimated minute. The actual checkpoint was 16:07Z, supported by the clock read 2026-11-09T16:07:30Z. The earlier timestamp-correction paragraph is unchanged. This correction now also has the matching ledger entry required by the clock audit; the historical header is preserved.

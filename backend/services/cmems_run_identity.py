@@ -24,10 +24,12 @@ None and the products stay 'missing', never a guessed run. Kill: CMEMS_RUN_IDENT
 import os
 import re
 import time
+import logging
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta, timezone
 from urllib.parse import urlsplit
 
+logger = logging.getLogger(__name__)
 _NATIVE_NAME = re.compile(r"_(\d{10})_R(\d{8})_(\d{2})H\.nc$")
 _S3_NS = "{http://s3.amazonaws.com/doc/2006-03-01/}"
 
@@ -152,6 +154,8 @@ def resolve_run(dataset_id, times, describe=None, session=None):
 def stamp_run(points, times, dataset_id, **kw):
     """Stamp every point with the proven bulletin, or none of them. Returns (iso | None, reason)."""
     iso, reason = resolve_run(dataset_id, times, **kw)
+    if not iso:  # diagnostic only: why this dataset stays unstamped ('missing' cycle in /api/health/data)
+        logger.info("cmems run identity not proven for %s: %s", dataset_id, reason)
     if iso:
         for p in points:
             p["__model_run_time"] = iso
