@@ -92,3 +92,13 @@ def test_reference_prior_follows_the_flag(prior):
     assert ssc.reference_prior() == ssc.REFERENCE_PRIOR_M
     prior("0")
     assert ssc.reference_prior() is None
+
+
+def test_held_off_by_default(monkeypatch):
+    """D-065 hold (coordinator, 2026-11-10): -17.9 pt mean move on reference-less spot-hours with no rating truth."""
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
+    monkeypatch.delenv(ssc.REFERENCE_PRIOR_FLAG, raising=False)
+    from services import runtime_flags as rf
+    assert rf.GUARDED[ssc.REFERENCE_PRIOR_FLAG] == "0"
+    assert ssc.reference_prior() is None
+    assert len({sr.rating_factors(h, **CLEAN)["score"] for h in SWEEP_M}) == 1     # legacy curve: the defect stays

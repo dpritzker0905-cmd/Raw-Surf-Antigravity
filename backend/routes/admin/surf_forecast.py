@@ -372,7 +372,7 @@ _RATING_FLAGS = {
     # complete, and the lane it omits is exactly the one that silently keeps the old reference.
     "RATING_LOCAL_SIZE":           ("1", "[D-065 default ON, as every lane already ran it; guardrail-watched] Local (per-spot/per-cell) size calibration — flip glyphs+band together",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
-    "RATING_REF_PRIOR":            ("1", "[D-065 default ON; guardrail-watched] JAC-2 (#771): a spot with NO size reference is graded "
+    "RATING_REF_PRIOR":            ("0", "[D-065 held OFF: -17.9 pt mean rating move on reference-less spot-hours, no rating truth yet] JAC-2 (#771): a spot with NO size reference is graded "
                                          "against the catalogue median reference (1.142 m, scripts/climatology_baseline.json) instead "
                                          "of the legacy curve that read 1.2-8 m flat; spots with a reference are byte-identical. "
                                          "Accuracy not measured: the history filter's primary is hs_station. "

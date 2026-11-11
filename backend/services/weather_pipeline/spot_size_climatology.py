@@ -92,13 +92,15 @@ REF_CLAMP_MAX_M = 4.0                  # and cap it (a spot whose good day is > 
 # ⚠️ GLOBAL, NOT REGIONAL, deliberately: the rating chain has no coordinate at the size gate, and the
 # regional tier already exists for coordinates (`grid_size_climatology`, 2 deg cells). A per-region prior
 # for catalogue spots below MIN_SAMPLES would have to be threaded through every batch lane's ref map.
-# Kill: RATING_REF_PRIOR=0 (env, or the runtime manifest via `runtime_flags.flag`).
+# ⚠️ HELD OFF (D-065, coordinator 2026-11-10): on the nearshore arm's anchor census (#773) the prior moved 480/480
+# reference-less spot-hours, 414 changed level, mean -17.9 points, with no rating truth to say that is better.
+# GUARDED["RATING_REF_PRIOR"] = '0'; turn ON through the runtime manifest once the evidence in #771 exists.
 REFERENCE_PRIOR_FLAG = "RATING_REF_PRIOR"
 REFERENCE_PRIOR_M = 1.142              # median per-spot reference, baseline 2026-08-01, n = 1,821
 
 
 def reference_prior() -> Optional[float]:
-    """The catalogue reference prior (m) when RATING_REF_PRIOR is on (env > manifest > code default '1'),
+    """The catalogue reference prior (m) when RATING_REF_PRIOR is on (env > manifest > GUARDED default, held '0'),
     else None (the legacy absolute curve). Callers consult it ONLY for a spot with no reference."""
     from services import runtime_flags as _rf
     return REFERENCE_PRIOR_M if _rf.on(REFERENCE_PRIOR_FLAG) else None
