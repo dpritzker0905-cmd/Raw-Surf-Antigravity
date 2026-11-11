@@ -101,8 +101,7 @@ def reference_prior() -> Optional[float]:
     """The catalogue reference prior (m) when RATING_REF_PRIOR is on (env > manifest > code default '1'),
     else None (the legacy absolute curve). Callers consult it ONLY for a spot with no reference."""
     from services import runtime_flags as _rf
-    on = _rf.flag(REFERENCE_PRIOR_FLAG, _rf.GUARDED.get(REFERENCE_PRIOR_FLAG, "1")) == "1"
-    return REFERENCE_PRIOR_M if on else None
+    return REFERENCE_PRIOR_M if _rf.on(REFERENCE_PRIOR_FLAG) else None
 
 
 def _bin_index(h_m: float) -> int:
