@@ -209,7 +209,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     # FORECAST COMPOSITION), and keep `break_depth_at` only as the fallback when the response has none.
     # Kill: RATING_BREAK_DEPTH_FROM_GEOMETRY=0 restores the independent `break_depth_at` read.
     break_depth = None
-    if served_break_depth is not None and _rf.flag("RATING_BREAK_DEPTH_FROM_GEOMETRY", "1") == "1":
+    if served_break_depth is not None and _rf.flag("RATING_BREAK_DEPTH_FROM_GEOMETRY") == "1":
         break_depth = served_break_depth
     else:
         try:
