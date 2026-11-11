@@ -156,7 +156,9 @@ def _anchor_ahead_h(params: List[Tuple[str, str]], now: datetime) -> int:
     ANCHOR_MAX_SKEW_H of the server clock, as grid_series_helper._resolve_series_anchor accepts); else 0."""
     raw = next((v for k, v in params if k == "base_time"), None)
     at = _parse_time(raw) if raw else None
-    if at is None or abs((at - now).total_seconds()) > ANCHOR_MAX_SKEW_H * 3600:
+    # +1 h MARGIN (security review, TOCTOU): the route reads its own clock a moment after this one, so an anchor
+    # just past the skew edge here can be inside it there. Treating the edge band as honoured only tightens the cap.
+    if at is None or (at - now).total_seconds() > (ANCHOR_MAX_SKEW_H + 1) * 3600:
         return 0
     ahead = (at.replace(minute=0, second=0, microsecond=0)
              - now.replace(minute=0, second=0, microsecond=0)).total_seconds() / 3600.0

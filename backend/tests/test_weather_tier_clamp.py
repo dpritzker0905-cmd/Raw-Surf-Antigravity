@@ -210,3 +210,11 @@ def test_spot_series_is_never_shared_cacheable(monkeypatch):
     app.add_middleware(C.WeatherTierClampMiddleware, tier_fn=tier_fn)
     r = TestClient(app).get("/api/weather/spot-series/x?model=GFS&subscription_tier=premium")
     assert r.json()["subscription_tier"] == "premium" and r.headers["cache-control"] == "private, no-store"
+
+
+def test_an_anchor_at_the_skew_edge_is_treated_as_honoured():
+    """Security review (TOCTOU): the route's clock runs a moment later, so an anchor a hair past 26 h here may be
+    honoured there. Inside the +1 h margin the cap assumes it is."""
+    edge = (NOW + timedelta(hours=26, minutes=0, seconds=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    out, _ = C.clamp_params([("model", "GFS"), ("hours", "72"), ("base_time", edge)], SERIES, "guest", NOW)
+    assert int(_q(out)["hours"]) <= 72 - 26
