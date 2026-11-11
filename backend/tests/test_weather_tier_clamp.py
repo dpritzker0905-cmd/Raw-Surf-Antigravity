@@ -165,3 +165,48 @@ def test_held_off_by_default(monkeypatch):
 def test_the_server_registers_the_middleware():
     import server
     assert any(m.cls is C.WeatherTierClampMiddleware for m in server.app.user_middleware)
+
+
+def test_head_is_clamped_like_get(monkeypatch):
+    r = _client(monkeypatch).head("/api/weather/grid_series?model=EURO&hours=0,336")
+    assert r.headers["x-raw-tier-clamp"] == "hours,model" and r.headers["cache-control"] == "private, no-store"
+
+
+def test_duplicate_params_are_judged_on_the_value_the_route_reads():
+    """Security review: FastAPI serves the LAST value of a repeated scalar; the clamp must judge that one."""
+    out, changed = C.clamp_params([("model", "GFS"), ("model", "EURO"), ("hours", "0"), ("hours", "0,336")],
+                                  SERIES, "guest", NOW)
+    assert out == [("model", "GFS"), ("hours", "0,72")] and "model" in changed and "duplicate" in changed
+
+
+def test_a_future_base_time_cannot_stretch_the_guest_window():
+    """Security review: /grid_series honours base_time up to 26 h ahead; offsets are capped so anchor + offset stays
+    inside now + window."""
+    anchor = (NOW + timedelta(hours=20)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    out, _ = C.clamp_params([("model", "GFS"), ("hours", "0,72"), ("base_time", anchor)], SERIES, "guest", NOW)
+    assert _q(out)["hours"] == "0,52"
+    far = (NOW + timedelta(hours=40)).strftime("%Y-%m-%dT%H:%M:%SZ")      # the route ignores it (server anchor)
+    assert _q(C.clamp_params([("model", "GFS"), ("hours", "72"), ("base_time", far)], SERIES, "guest", NOW)[0])["hours"] == "72"
+
+
+def test_anchor_skew_mirrors_the_series_helper():
+    from services.weather_pipeline.grid_series_helper import SERIES_ANCHOR_MAX_SKEW_HOURS
+    assert C.ANCHOR_MAX_SKEW_H == SERIES_ANCHOR_MAX_SKEW_HOURS
+
+
+def test_spot_series_is_never_shared_cacheable(monkeypatch):
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
+    monkeypatch.setenv(C.FLAG, "1")
+    rf._reset_for_tests(lambda: None)
+    app = FastAPI()
+
+    @app.get("/api/weather/spot-series/{sid}")
+    async def ss(sid: str, request: Request):
+        return JSONResponse(dict(request.query_params), headers={"Cache-Control": "public, max-age=300"})
+
+    async def tier_fn(auth):
+        return "premium"
+
+    app.add_middleware(C.WeatherTierClampMiddleware, tier_fn=tier_fn)
+    r = TestClient(app).get("/api/weather/spot-series/x?model=GFS&subscription_tier=premium")
+    assert r.json()["subscription_tier"] == "premium" and r.headers["cache-control"] == "private, no-store"

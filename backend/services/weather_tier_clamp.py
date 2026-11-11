@@ -32,10 +32,11 @@ Kill: runtime manifest 'off' or env WEATHER_TIER_CLAMP=0.
 it is split into a free public set plus signed URLs (owner decision, TIER-1).
 """
 import logging
+import math
 import time
 from collections import OrderedDict
 from datetime import datetime, timedelta, timezone
-from typing import Callable, Dict, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple
 from urllib.parse import parse_qsl, urlencode
 
 from services import forecast_tier_window as FTW
@@ -56,7 +57,13 @@ ROUTES = {
     "point-rating": ("model", "valid_time"),
 }
 SPOT_SERIES = "spot-series/"
-TIER_CACHE_TTL_S = 300.0
+# Parameters this module gates. Each is collapsed to ONE value before it is judged (security review 2026-11-11: with
+# `model=GFS&model=EURO` the clamp read the first and FastAPI serves the LAST, a guest got EURO).
+GATED = ("model", "hours", "valid_time", "base_time", "subscription_tier")
+# MIRROR of grid_series_helper.SERIES_ANCHOR_MAX_SKEW_HOURS (Codex-reserved file; pinned by a test): /grid_series
+# honours a client `base_time` up to this far from the server clock, so a FUTURE anchor moves every hour offset later.
+ANCHOR_MAX_SKEW_H = 26
+TIER_CACHE_TTL_S = 60.0     # LongCat review: an upgrade (or downgrade) takes effect within a minute
 TIER_CACHE_MAX = 4096
 
 
@@ -88,8 +95,8 @@ def clamp_params(params: List[Tuple[str, str]], names: Tuple[str, ...], tier: st
     route's own validation to reject: this only ever narrows a request, it never invents one."""
     now = now or datetime.now(timezone.utc)
     tier = FTW.canonical_tier(tier)
-    out = list(params)
-    changed: List[str] = []
+    out = _single_valued(params)
+    changed: List[str] = ["duplicate"] if out != list(params) else []
     model = next((v for k, v in out if k == "model"), FALLBACK_MODEL)
     if "model" in names and str(model).upper() in TIER_MODELS and str(model).upper() not in FTW.allowed_models(tier):
         out = [(k, FALLBACK_MODEL if k == "model" else v) for k, v in out]
@@ -107,7 +114,8 @@ def clamp_params(params: List[Tuple[str, str]], names: Tuple[str, ...], tier: st
             except ValueError:
                 new.append((k, v))                       # the route rejects it, exactly as before
                 continue
-            capped = list(dict.fromkeys(min(h, horizon) for h in hs))
+            cap = max(0, horizon - _anchor_ahead_h(out, now))     # a future base_time shifts every offset later
+            capped = list(dict.fromkeys(min(h, cap) for h in hs))
             if capped != hs:
                 changed.append("hours")
             new.append((k, ",".join(str(h) for h in capped)))
@@ -127,6 +135,32 @@ def clamp_params(params: List[Tuple[str, str]], names: Tuple[str, ...], tier: st
             changed.append("subscription_tier")
         out = [(k, v) for k, v in out if k != "subscription_tier"] + [("subscription_tier", tier)]
     return out, changed
+
+
+def _single_valued(params: List[Tuple[str, str]]) -> List[Tuple[str, str]]:
+    """Each GATED parameter once, holding its LAST value (what FastAPI reads for a scalar); others untouched."""
+    last = {k: v for k, v in params if k in GATED}
+    out, seen = [], set()
+    for k, v in params:
+        if k in GATED:
+            if k in seen:
+                continue
+            seen.add(k)
+            v = last[k]
+        out.append((k, v))
+    return out
+
+
+def _anchor_ahead_h(params: List[Tuple[str, str]], now: datetime) -> int:
+    """Whole hours a client `base_time` sits AHEAD of the server's hour, when /grid_series would honour it (within
+    ANCHOR_MAX_SKEW_H of the server clock, as grid_series_helper._resolve_series_anchor accepts); else 0."""
+    raw = next((v for k, v in params if k == "base_time"), None)
+    at = _parse_time(raw) if raw else None
+    if at is None or abs((at - now).total_seconds()) > ANCHOR_MAX_SKEW_H * 3600:
+        return 0
+    ahead = (at.replace(minute=0, second=0, microsecond=0)
+             - now.replace(minute=0, second=0, microsecond=0)).total_seconds() / 3600.0
+    return max(0, int(math.ceil(ahead)))
 
 
 def beyond_guest(params: List[Tuple[str, str]], names: Tuple[str, ...], now: Optional[datetime] = None) -> bool:
@@ -178,13 +212,16 @@ class WeatherTierClampMiddleware:
     """Rewrites the query string of a clamped forecast read BEFORE routing, so every route (weather.py,
     weather_point_rating.py, weather_spot_series.py) sees the tier-safe request without any route changing. Off (the
     held default) it costs one cached flag read on /api/weather/ GETs and touches nothing."""
+    # Identity is the Authorization header only, as everywhere in this API (core.security is Bearer-only; no cookie
+    # sessions), so "no header" really is "no identity" (LongCat finding 1, checked and not applicable).
 
     def __init__(self, app, tier_fn: Callable = None):
         self.app = app
         self.tier_fn = tier_fn or resolve_tier
 
     async def __call__(self, scope, receive, send):
-        if scope.get("type") != "http" or scope.get("method") != "GET":
+        # HEAD too (LongCat review): Starlette routes HEAD to the GET handler; it returns no body, but one rule is simpler.
+        if scope.get("type") != "http" or scope.get("method") not in ("GET", "HEAD"):
             return await self.app(scope, receive, send)
         names = route_params(scope.get("path", ""))
         if names is None or not enabled():
@@ -194,7 +231,8 @@ class WeatherTierClampMiddleware:
         tier = await self.tier_fn(auth)
         now = datetime.now(timezone.utc)
         new, changed = clamp_params(params, names, tier, now)
-        private = bool(changed) or beyond_guest(params, names, now)
+        # /spot-series answers per RESOLVED tier whatever its URL says, so it is never shared-cacheable (security review).
+        private = bool(changed) or "subscription_tier" in names or beyond_guest(params, names, now)
         if changed:
             scope = dict(scope, query_string=urlencode(new).encode("latin-1"))
 
