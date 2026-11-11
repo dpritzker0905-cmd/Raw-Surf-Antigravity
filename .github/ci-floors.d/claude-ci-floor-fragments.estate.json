@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 30,
+  "branch": "claude/ci-floor-fragments",
+  "date": "2026-11-11",
+  "note": "test_ci_floor_fragments.py (new, 30 tests): the floor-fragment mechanism itself"
+}
