@@ -5,14 +5,18 @@ The hint used to flow unchecked into `store.cache_dir / id` and `storage.from_(W
 
 Now the hint must be (1) a bare filename: letters, digits, `_ . -`, ends in `.json`, no `/`, `\\`, `..`, no drive or
 absolute path; and (2) a product this box knows: listed in the current manifest or in the dynamic-viewport index.
-Anything else is a 400. (1) has no kill switch (it is the security fix). Kill for (2) only: POINT_PRODUCT_ID_MEMBERSHIP=0.
+A malformed hint is a 400 (no kill switch: the security fix); a well-formed unknown one is dropped to automatic
+selection. Kill for (2) only: POINT_PRODUCT_ID_MEMBERSHIP=0.
 """
 import asyncio
+import logging
 import os
 import re
 from typing import Optional
 
 from fastapi import HTTPException
+
+logger = logging.getLogger(__name__)
 
 _SAFE_ID = re.compile(r"[A-Za-z0-9][A-Za-z0-9_.\-]{0,199}\.json")
 
@@ -41,13 +45,17 @@ def _known(store, dynamic_index, product_id: str) -> bool:
     return product_id in _manifest_names(store) or _dynamic_has(dynamic_index, product_id)
 
 
-async def require_known_point_product(store, dynamic_index, grid_product_id: Optional[str]) -> None:
-    """Raise 400 unless `grid_product_id` is None or an allowed, known product name."""
+async def require_known_point_product(store, dynamic_index, grid_product_id: Optional[str]) -> Optional[str]:
+    """The hint to use: None stays None; a MALFORMED id raises 400; a well-formed id this box does not know is
+    dropped (None, logged) so the resolver falls back to automatic selection, as it always did for an absent object
+    (A15-09: an id from a /grid page loaded before the manifest rolled must not blank the infobox)."""
     if grid_product_id is None:
-        return
+        return None
     if not is_bare_product_filename(grid_product_id):
         raise HTTPException(status_code=400, detail="grid_product_id must be a bare product filename")
     if os.environ.get("POINT_PRODUCT_ID_MEMBERSHIP", "1") == "0":
-        return
+        return grid_product_id
     if not await asyncio.to_thread(_known, store, dynamic_index, grid_product_id):
-        raise HTTPException(status_code=400, detail="grid_product_id is not a current product")
+        logger.info("[Point] grid_product_id %s is not a current product; using automatic selection", grid_product_id)
+        return None
+    return grid_product_id

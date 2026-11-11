@@ -190,8 +190,8 @@ async def get_point(
     GET /api/weather/point
     Samples from the exact same cached product grid used for heatmaps, ensuring parity.
     """
-    # SRV-1: a bare, known product filename or 400 (it used to flow straight into a storage path).
-    await _ppid.require_known_point_product(store, dynamic_index, grid_product_id)
+    # SRV-1: malformed id = 400, unknown id = hint dropped (it used to flow straight into a storage path).
+    grid_product_id = await _ppid.require_known_point_product(store, dynamic_index, grid_product_id)
     response = await point_resolution_service.resolve_point(
         model=model,
         domain=domain,

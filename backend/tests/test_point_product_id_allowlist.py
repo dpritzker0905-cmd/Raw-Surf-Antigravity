@@ -55,11 +55,11 @@ def test_unsafe_ids_are_400_and_never_reach_the_resolver(client, bad):
     assert not is_bare_product_filename(bad)
 
 
-def test_unknown_but_well_formed_name_is_400(client):
+def test_unknown_but_well_formed_name_drops_the_hint_not_the_request(client):
     c, calls = client
     r = c.get("/api/weather/point", params={**PARAMS, "grid_product_id": "nope_20261110T000000Z.json"})
-    assert r.status_code == 400
-    assert calls == []
+    assert r.status_code == 200, r.text
+    assert calls and calls[0]["grid_product_id"] is None
 
 
 @pytest.mark.parametrize("good", [GOOD, DYN])
