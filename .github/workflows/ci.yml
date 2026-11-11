@@ -1043,7 +1043,9 @@ jobs:
           #   base 3588 (hosted read) + 22 new test(s) and 1 new file(s) = 3610, files 225; floor 3610 - 6 = 3604. This PR must read 3610 passed.
           # ⬆ 3604→3614 on 2026-11-11 (rederive_floor.py, fix/ing-2-one-ratings-writer): dev run 42752117173 read 3588 / 224 files; dev's map 3610;
           #   base 3610 (dev's map) + 10 new test(s) and 1 new file(s) = 3620, files 226; floor 3620 - 6 = 3614. This PR must read 3620 passed.
-          MIN_FILES, MIN_PASSED = 226, 3614
+          # ⬆ 3614→3616 on 2026-11-11 (rederive_floor.py, claude/docs-break-depth): dev run 43015131089 read 3610 / 225 files; dev's map 3620;
+          #   base 3620 (dev's map) + 2 new test(s) and 0 new file(s) = 3622, files 226; floor 3622 - 6 = 3616. This PR must read 3622 passed.
+          MIN_FILES, MIN_PASSED = 226, 3616
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
