@@ -79,6 +79,35 @@ def test_horizon_still_takes_the_furthest_product_within_the_newest_run():
     assert _gfs_marine_horizon([long_layer, short_layer]) == 336.0
 
 
+# ── ING-7 side effect: EURO 06/18Z cycles reach only 144 h ─────────────────────────────────────────────
+def _euro_marine(cycle_hour, reach_h, run_age_h=1.0):
+    cyc = NOW.replace(hour=cycle_hour) - timedelta(days=0 if cycle_hour <= NOW.hour else 1)
+    p = _p("EURO", "marine", run_age_h, 0.0)
+    return p.model_copy(update={"model_run_time": cyc, "valid_time_end": cyc + timedelta(hours=reach_h)})
+
+
+def _euro_marine_lane(product):
+    base = [_p(m, d, 1.0, 336.0) for (m, d) in EXPECTED_LANES if (m, d) != ("EURO", "marine")]
+    return compute_data_health(_Store(base + [product]), now=NOW)["lanes"]["EURO/marine"]
+
+
+@pytest.mark.parametrize("hour", [6, 18])
+def test_euro_short_cycle_full_144h_reach_is_not_a_horizon_warn(hour):
+    lane = _euro_marine_lane(_euro_marine(hour, 144.0))
+    assert not any("horizon" in r for r in [lane.get("reason", "")]) and lane["verdict"] != "warn"
+
+
+@pytest.mark.parametrize("hour", [6, 18])
+def test_euro_short_cycle_truncated_below_its_own_reach_still_warns(hour):
+    assert _euro_marine_lane(_euro_marine(hour, 96.0))["verdict"] == "warn"
+
+
+@pytest.mark.parametrize("hour", [0, 12])
+def test_euro_long_cycle_keeps_the_192h_floor(hour):
+    assert _euro_marine_lane(_euro_marine(hour, 144.0))["verdict"] == "warn"
+    assert _euro_marine_lane(_euro_marine(hour, 240.0))["verdict"] == "ok"
+
+
 # ── ING-6: precompute ───────────────────────────────────────────────────────────────────────────────────
 @pytest.fixture
 def precompute(monkeypatch):

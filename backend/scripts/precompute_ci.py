@@ -16,7 +16,9 @@ ENV (from repo secrets, same as forecast-ingest):
   WEATHER_PROXY_URL, COPERNICUS* -> only for any live point-resolution fallback; optional
 
 Exit: 0 if every ENABLED step succeeded; 1 if L2 had nothing to restore, any enabled step raised, or the
-spot-ratings precompute saved zero frames (ING-6; PRECOMPUTE_FAIL_ON_ZERO_FRAMES=0 disables). Unlike
+spot-ratings precompute saved zero frames (ING-6; PRECOMPUTE_FAIL_ON_ZERO_FRAMES=0 disables).
+NOTE: a run superseded (cancelled/preempted, e.g. by #765) before its first upload also returns zero frames and
+goes RED here. That is deliberate: the run published nothing, and the next cycle's run is the one that counts. Unlike
 the ingest tail (which SWALLOWS these as non-fatal because ingestion is the primary job), here precompute IS
 the job — a failure should turn the run RED so it's visible.
 """
