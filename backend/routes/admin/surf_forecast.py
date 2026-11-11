@@ -463,6 +463,13 @@ _RATING_FLAGS = {
                                           "/point does (services/weather_pipeline/sea_inputs.py); kill switch '0' = "
                                           "those callers pass (0.0, None) as before",
                                      "Render env (serve-side surfaces); the sim reads the served glyph's tide, no env"),
+    # CMP-1 (Fable audit 2026-11-10): the map rating band rated a bare estimate_surf height (no exposure/cap/magnet).
+    "RATING_BAND_ONE_CHAIN":       ("1", "[D-065 GUARDED, default ON] Map rating band (rating_transform_grid): each coastal "
+                                         "cell's breaking height from estimate_surf_at on the production geometry (cached "
+                                         "per cell), rated with the geometry's break depth, so band level == glyph level for "
+                                         "the same sea (eta 0, parametric: no per-cell tide/MOP). services/weather_pipeline/"
+                                         "band_chain.py; kill switch '0' = the bare-estimate band byte for byte",
+                                    "Render env AND precompute.yml env (rated static frames)"),
     # ⚠️ ONLY BITES WHEN `SURF_PARTITIONS` IS ON — it gates the partition-aware exposure, which is
     # dark while that flag is off. Declared anyway, in the commit that added it: the lane-parity
     # guard caught this one MISSING and it was right to, because an undeclared switch is invisible
