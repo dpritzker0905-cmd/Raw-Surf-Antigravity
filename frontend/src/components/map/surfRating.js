@@ -1,8 +1,9 @@
 /**
  * surfRating.js — JS MIRROR of backend services/weather_pipeline/surf_rating.py. KEEP IN SYNC.
  *
- * Multivariable surf-quality rating used for the infobox badge (the map/grid rating is computed backend-side
- * from the same model). Answers "how GOOD is it?" not just "how big?": a size gate * (0.60 wind + 0.40
+ * Multivariable surf-quality rating. NOTHING in production grades with this any more (the infobox badge and the
+ * map/grid rating are both computed backend-side, see pointRatingClient.js); production imports only the RATING_*
+ * tables and scoreToLevel. The helpers below are kept as a pinned mirror for the parity tests. Answers "how GOOD is it?" not just "how big?": a size gate * (0.60 wind + 0.40
  * period) composite -> 0..100 -> a 7-level surf-quality scale. Grounded in Espejo et al. (2014)
  * multivariable surf index + Goda (2010) breaker statistics (see surf_rating.py).
  *
@@ -320,7 +321,9 @@ export function ratingScore(h, tp, speedMs, windFromDeg = null, shoreNormalDeg =
 
 const _BUCKETS = [[14, 'very_poor'], [28, 'poor'], [42, 'poor_fair'], [56, 'fair'], [70, 'fair_good'], [84, 'good']];
 export function scoreToLevel(score) {
-  if (score == null) return 'unknown';
+  // Mirror of backend score_to_level: null, NaN and +/-Infinity are all 'unknown'. Without the finite
+  // check NaN fell through every `<` comparison to 'epic' (the best verdict on garbage input).
+  if (score == null || !Number.isFinite(score)) return 'unknown';
   for (const [upper, name] of _BUCKETS) if (score < upper) return name;
   return 'epic';
 }
@@ -337,13 +340,6 @@ export function observationGate(score, confirm = null) {
   if (confirm === 'epic') return score;
   const cap = confirm === 'good' ? OBS_CAP_GOOD : OBS_CAP_UNCONFIRMED;
   return Math.round(Math.min(score, cap) * 10) / 10;
-}
-
-/** -> { score: 0-100|null, level } where level in RATING_LEVELS (or 'unknown' if no surf height). */
-export function computeSurfRating(surfHm, tpS, windSpeedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null, tideNorm = null, bestTide = null, breakerXi = null, referenceSizeM = null, partitions = null, breakDepthM = null) {
-  if (surfHm == null) return { score: null, level: 'unknown' };
-  const score = ratingScore(surfHm, tpS, windSpeedMs, windFromDeg, shoreNormalDeg, swellFromDeg, tideNorm, bestTide, breakerXi, referenceSizeM, partitions, breakDepthM);
-  return { score, level: scoreToLevel(score) };
 }
 
 export const RATING_LABEL = {

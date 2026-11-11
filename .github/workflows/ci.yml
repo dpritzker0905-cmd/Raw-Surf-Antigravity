@@ -1039,7 +1039,9 @@ jobs:
           #   base 3568 (hosted read) + 17 new test(s) and 0 new file(s) = 3585, files 224; floor 3585 - 6 = 3579. This PR must read 3585 passed.
           # ⬆ 3579→3582 on 2026-11-09 (rederive_floor.py, HEAD): dev run 42547168318 read 3585 / 224 files; dev's map 3585;
           #   base 3585 (hosted read) + 3 new test(s) and 0 new file(s) = 3588, files 224; floor 3588 - 6 = 3582. This PR must read 3588 passed.
-          MIN_FILES, MIN_PASSED = 224, 3582
+          # ⬆ 3582→3604 on 2026-11-11 (rederive_floor.py, claude/point-allowlist-e8e79f): dev run 42752117173 read 3588 / 224 files; dev's map 3588;
+          #   base 3588 (hosted read) + 22 new test(s) and 1 new file(s) = 3610, files 225; floor 3610 - 6 = 3604. This PR must read 3610 passed.
+          MIN_FILES, MIN_PASSED = 225, 3604
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1710,9 +1712,15 @@ jobs:
           #   base 3627 (dev's map) + 17 new test(s) and 1 new file(s) = 3644, files 208; floor 3644 - 6 = 3638. This PR must read 3644 passed.
           # ⬆ 3638→3653 on 2026-11-10 (rederive_floor.py, codex/backend-memory-bounds-20261109): dev run 42716155249 read 3643 / 208 files; dev's map 3644;
           #   base 3644 (dev's map) + 15 new test(s) and 3 new file(s) = 3659, files 211; floor 3659 - 6 = 3653. This PR must read 3659 passed.
+<<<<<<< HEAD
           # ⬆ 3653→3663 on 2026-11-11 (rederive_floor.py, fable/nearshore-truth-arm): dev run 42752117173 read 3643 / 208 files; dev's map 3659;
           #   base 3659 (dev's map) + 10 new test(s) and 1 new file(s) = 3669, files 212; floor 3669 - 6 = 3663. This PR must read 3669 passed.
           MIN_FILES, MIN_PASSED = 212, 3663
+=======
+          # ⬆ 3653→3667 on 2026-11-11 (rederive_floor.py, claude/ingest-health-1e6f76): dev run 42752117173 read 3643 / 208 files; dev's map 3659;
+          #   base 3659 (dev's map) + 14 new test(s) and 1 new file(s) = 3673, files 212; floor 3673 - 6 = 3667. This PR must read 3673 passed.
+          MIN_FILES, MIN_PASSED = 212, 3667
+>>>>>>> origin/dev
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
