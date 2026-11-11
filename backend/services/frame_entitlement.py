@@ -186,9 +186,11 @@ class EntitledSink:
             raw = self.paid.read(path)
             if raw:
                 try:
-                    self._keep |= class_bundle_paths(json.loads(raw))
+                    named = class_bundle_paths(json.loads(raw))
                 except ValueError:
-                    pass
+                    named = set()
+                with self._lock:                 # LongCat review: every _keep update under the one lock
+                    self._keep |= named
                 return raw
         return self.public.read(path)
 
@@ -196,7 +198,9 @@ class EntitledSink:
         return sorted(set(self.public.list(prefix) or []) | set(self.paid.list(prefix) or []))
 
     def delete(self, paths: Iterable[str]):
-        gone = [p for p in paths if p not in self._keep]
+        with self._lock:
+            keep = set(self._keep)
+        gone = [p for p in paths if p not in keep]
         if gone:
             self.public.delete(gone)
             self.paid.delete(gone)
