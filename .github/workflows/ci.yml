@@ -1716,7 +1716,9 @@ jobs:
           #   base 3644 (dev's map) + 15 new test(s) and 3 new file(s) = 3659, files 211; floor 3659 - 6 = 3653. This PR must read 3659 passed.
           # ⬆ 3653→3667 on 2026-11-11 (rederive_floor.py, claude/ingest-health-1e6f76): dev run 42752117173 read 3643 / 208 files; dev's map 3659;
           #   base 3659 (dev's map) + 14 new test(s) and 1 new file(s) = 3673, files 212; floor 3673 - 6 = 3667. This PR must read 3673 passed.
-          MIN_FILES, MIN_PASSED = 212, 3667
+          # ⬆ 3667→3672 on 2026-11-11 (rederive_floor.py, claude/bathymetry-loud-f84a05): dev run 42752117173 read 3643 / 208 files; dev's map 3673;
+          #   base 3673 (dev's map) + 5 new test(s) and 1 new file(s) = 3678, files 213; floor 3678 - 6 = 3672. This PR must read 3678 passed.
+          MIN_FILES, MIN_PASSED = 213, 3672
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
