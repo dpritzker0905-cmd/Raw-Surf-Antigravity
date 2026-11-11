@@ -417,11 +417,9 @@ async def get_spot_ratings(
 
     # SRV-6 (2026-11-10): one anonymous client could hold BOTH live slots indefinitely by asking for times off the
     # precompute ladder. Per-IP sliding window on the live path ONLY (precomputed/cached answers cost nothing and are
-    # never limited). Default 6/60 s per IP; kill: SPOT_RATINGS_LIVE_PER_IP_MAX=0.
-    _ip_max = int(os.environ.get("SPOT_RATINGS_LIVE_PER_IP_MAX", "6") or 0)
-    if request is not None and _ip_max > 0:
-        from core.rate_limiter import rate_limit_check
-        rate_limit_check(request, max_requests=_ip_max, window_seconds=60, key_prefix="spot_ratings_live:")
+    # never limited). See live_ratings_limit.py.
+    from services.weather_pipeline.live_ratings_limit import check_live_ratings_ip_limit
+    check_live_ratings_ip_limit(request)
 
     # LIVE-PATH LOAD SHED (2026-07-13, melt round 4 — the box must be UNMELTABLE by ratings): each
     # live compute is 7.5-8.6 s on the 1-CPU box; concurrent pileups starve the DB pool and 500 every
