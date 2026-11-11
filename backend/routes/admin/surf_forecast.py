@@ -455,6 +455,15 @@ _RATING_FLAGS = {
                                          "sea+swell forecast instead of the offshore field + parametric transform "
                                          "(all surfaces); kill switch '0'",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
+    # 2026-11-11 (follow-up to JAC-1 #779): MOP-calibrated swell-exposure normals for California spots.
+    "SHORE_NORMAL_MOP_CALIBRATED": ("0", "[D-065 GUARDED, held OFF: the default-ON filter's nearshore arm reads hb_proxy WORSE "
+                                         "(+0.0385 m MAE, CI [0.0234, 0.0589], 8 CDIP anchors) while CDIP MOP reads it much "
+                                         "better; resolve the instrument conflict before any flip] The surf HEIGHT's swell-angle factor measures against a "
+                                         "per-spot effective exposure normal fitted to CDIP MOP v1.1 (56 California spots, "
+                                         "data/swell_exposure_normals.json) instead of the coastline normal; the coastline normal "
+                                         "still decides wind and the rating. Held-out MSE vs MOP 0.0234 -> 0.0046. "
+                                         "services/weather_pipeline/swell_exposure_normals.py; kill switch '0'",
+                                    "Render env AND forecast-ingest.yml AND precompute.yml env"),
     # ⚠️ ONLY BITES WHEN `SURF_PARTITIONS` IS ON — it gates the partition-aware exposure, which is
     # dark while that flag is off. Declared anyway, in the commit that added it: the lane-parity
     # guard caught this one MISSING and it was right to, because an undeclared switch is invisible

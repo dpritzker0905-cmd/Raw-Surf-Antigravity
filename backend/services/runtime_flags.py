@@ -54,6 +54,8 @@ GUARDED = {
     "SPOT_HUB_RATE_ONE_SPOT": "1",      # spot-hub phase 2 (#710): the hub on rate_one_spot; kill '0' = the old chain
     "SURF_NEARSHORE_MOP": "1",          # CDIP MOP nearshore sea at California spots: nearshore judge 86/86 runs better,
                                         # MAE 0.250 -> 0.096 m at CDIP buoys (2026-10-09..11-04), ON; kill '0'
+    "SHORE_NORMAL_MOP_CALIBRATED": "0",  # HELD OFF (D-065 WORSE): MOP says better (held-out MSE 0.0234 -> 0.0046, 77 spots)
+                                         # but the nearshore arm's hb_proxy says WORSE, +0.0385 m MAE [0.0234, 0.0589]
 }
 
 # FIX_VERSION: bump a flag's version in the PR that changes its fix. The guardrail's 'off' records the version it
