@@ -101,7 +101,7 @@ def test_a_missing_grid_is_a_reason(tmp_path, monkeypatch):
 
 
 def test_a_corrupt_grid_fails_its_checksum_and_is_never_read(grid):
-    with open(os.path.join(grid, "grid.npz"), "ab") as fh:
+    with open(os.path.join(grid, "ids.npy"), "ab") as fh:
         fh.write(b"tampered")
     lt.reset_for_tests()
     r = lt.describe(21.3, -157.8, data_dir=grid)
@@ -152,6 +152,7 @@ def test_the_shipped_grid_verifies_and_answers_known_places():
     lt.reset_for_tests()
     manifest = json.load(open(os.path.join(lt.DATA_DIR, "manifest.json"), encoding="utf-8"))
     assert manifest["res_deg"] == 0.01 and manifest["inputs"]["timezone_boundaries"]["data_version"]
+    assert manifest["schema"] == lt.FORMAT and set(manifest["files"]) == set(lt.FILES)
     for (lat, lng), want in {(21.30, -157.85): "Pacific/Honolulu", (36.14, -5.35): "Europe/Gibraltar",
                              (35.78, -5.81): "Africa/Casablanca", (-31.55, 159.08): "Australia/Lord_Howe",
                              (27.70, 85.32): "Asia/Kathmandu", (-13.83, -171.76): "Pacific/Apia",
@@ -162,24 +163,32 @@ def test_the_shipped_grid_verifies_and_answers_known_places():
 
 
 # -- reviewer fixes (2026-11-10) ------------------------------------------------------------------------------
+def _rewrite(d, **change):
+    """Rewrite a grid with some arrays changed, through the real writer: hashes valid, structure not."""
+    import numpy as np
+    arr = {k: np.load(os.path.join(d, k + ".npy")) for k in lt.ARRAYS}
+    classes = json.load(open(os.path.join(d, "classes.json"), encoding="utf-8"))
+    arr.update(change)
+    lt.reset_for_tests()
+    lt.write_grid_dir(d, arr["row_ptr"], arr["starts"], arr["ids"], classes, 1.0)
+
+
 def test_a_grid_that_matches_its_checksum_but_is_malformed_is_corrupt(tmp_path, monkeypatch):
-    """A file can hash correctly and still be broken (truncated `ids`): the structure check makes that a reason, not an
-    IndexError and not a neighbouring row's zone."""
-    import hashlib
+    """A grid can hash correctly and still be broken (truncated `ids`, a row that does not start at column 0): the
+    structure check and the per-lookup bounds make that a reason, not an IndexError and not a neighbour's zone."""
     import numpy as np
     monkeypatch.setenv("LOCATION_TIME_FIELD", "1")
     rf._reset_for_tests(lambda: None)
-    lt.reset_for_tests()
     d = write_grid(str(tmp_path / "g"))
-    path = os.path.join(d, "grid.npz")
-    with np.load(path) as z:
-        arrs = {k: np.array(z[k]) for k in z.files}
-    arrs["ids"] = arrs["ids"][:-3]
-    np.savez_compressed(path, **arrs)
-    m = json.load(open(os.path.join(d, "manifest.json"), encoding="utf-8"))
-    m["grid_sha256"] = hashlib.sha256(open(path, "rb").read()).hexdigest()
-    json.dump(m, open(os.path.join(d, "manifest.json"), "w", encoding="utf-8"))
+    ids = np.load(os.path.join(d, "ids.npy"))
+    _rewrite(d, ids=ids[:-3])
     assert lt.describe(21.3, -157.8, data_dir=d)["reason"] == "grid_corrupt"
+    d2 = write_grid(str(tmp_path / "g2"))
+    starts = np.load(os.path.join(d2, "starts.npy")).copy()
+    row_ptr = np.load(os.path.join(d2, "row_ptr.npy"))
+    starts[row_ptr[111]] = 5                                             # row 111 (lat 21) no longer starts at 0
+    _rewrite(d2, starts=starts)
+    assert lt.describe(21.3, -179.9, data_dir=d2)["reason"] == "grid_corrupt"
     lt.reset_for_tests()
     rf._reset_for_tests()
 
@@ -209,18 +218,55 @@ def test_concurrent_first_lookups_all_see_the_grid(grid):
 
 
 def test_the_shipped_grid_stays_under_the_memory_cap():
-    """Owner/Codex gate: <= 8 MB in-process. Measured as the bytes the load RETAINS (tracemalloc), with numpy already
-    imported as it is in the serving process; 2026-11-10 shipped grid: 5.95 MB arrays + 0.54 MB class tables."""
+    """Owner/Codex gate: <= 8 MB in-process. The arrays are memory-mapped read-only, so loading adds almost nothing to
+    RSS; measured 2026-11-10 inside the real app: +0.04 MB at load, +3.2 MB of clean file pages after 20,000 scattered
+    lookups (the compressed npz this replaced cost +8.1 MB RSS). Pinned here: mapped, not copied, and the bytes the
+    load itself allocates stay far under the cap."""
     import gc
     import tracemalloc
-    import numpy  # noqa: F401 - imported by the app before any lookup; its own import is not the grid's cost
+    import numpy as np
     lt.reset_for_tests()
     gc.collect()
     tracemalloc.start()
     g = lt._load()
     gc.collect()
-    retained, _peak = tracemalloc.get_traced_memory()
+    retained, peak = tracemalloc.get_traced_memory()
     tracemalloc.stop()
-    assert g is not None and g["ids"].dtype.itemsize == 2
-    assert retained < lt.MEM_CAP_BYTES, retained
+    assert g is not None and isinstance(g["starts"], np.memmap) and isinstance(g["ids"], np.memmap)
+    assert g["ids"].dtype.itemsize == 2
+    assert retained < 2 * 2**20 and peak < lt.MEM_CAP_BYTES, (retained, peak)
+    lt.reset_for_tests()
+
+
+def test_a_class_id_beyond_the_table_is_a_reason_not_a_zone(tmp_path, monkeypatch):
+    """An id past the class table (e.g. a wrapped uint16) must never read as some other real zone."""
+    import numpy as np
+    monkeypatch.setenv("LOCATION_TIME_FIELD", "1")
+    rf._reset_for_tests(lambda: None)
+    d = write_grid(str(tmp_path / "g"))
+    ids = np.load(os.path.join(d, "ids.npy")).copy()
+    row_ptr = np.load(os.path.join(d, "row_ptr.npy"))
+    ids[row_ptr[111]:row_ptr[112]] = 60000                              # every run of row 111 (lat 21)
+    _rewrite(d, ids=ids)
+    assert lt.describe(21.3, -157.8, data_dir=d)["reason"] == "grid_corrupt"
+    lt.reset_for_tests()
+    rf._reset_for_tests()
+
+
+def test_warm_loads_the_grid_off_the_event_loop(grid):
+    import asyncio
+    import threading
+    lt.reset_for_tests()
+    seen = {}
+    real = lt._load
+
+    def spy(data_dir=None):
+        seen["thread"] = threading.current_thread() is threading.main_thread()
+        return real(data_dir)
+    lt._load = spy
+    try:
+        asyncio.run(lt.warm(grid))
+    finally:
+        lt._load = real
+    assert seen["thread"] is False and lt.is_loaded(grid)
     lt.reset_for_tests()

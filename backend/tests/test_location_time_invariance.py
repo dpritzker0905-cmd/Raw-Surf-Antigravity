@@ -121,17 +121,95 @@ def test_the_tier_window_sends_and_withholds_the_same_number_of_rows(grid, monke
 DATELINE = {"apia": (-13.5, -171.5), "chatham": (-43.5, -176.5)}
 
 
-@pytest.mark.xfail(strict=True, reason="OPEN (reviewer 2026-11-10): split_forecast_rows places a row at its date's "
-                   "12:00 UTC, so civil dates a day ahead of solar (+13 vs -11) send one row fewer. Needs a civil-aware "
-                   "rule in forecast_tier_window.py, which is outside this reservation; requested from root.")
 @pytest.mark.parametrize("name", list(DATELINE))
 def test_the_tier_window_is_unchanged_at_dateline_spots(grid, monkeypatch, name):
+    """Was a strict xfail until the civil-aware rule (forecast_tier_window._civil_row_instant): a civil row is judged
+    by the solar row that holds its last frame."""
     lat, lng = DATELINE[name]
     on, _ = _hub(monkeypatch, lat, lng, True)
     off, _ = _hub(monkeypatch, lat, lng, False)
     s_on, _ = split_forecast_rows(on["forecast"], 72, NOW)
     s_off, _ = split_forecast_rows(off["forecast"], 72, NOW)
     assert len(s_on) == len(s_off)
+
+
+# Entitlement sweep (Codex/root acceptance, 2026-11-10): dateline, civil AHEAD of and BEHIND solar, fractional zones,
+# a UTC spot; every hour of two base days (one spanning the EU and US DST ends); every tier's GFS horizon plus
+# off-boundary horizons. The frames a tier is sent with civil rows must be a SUBSET of those it is sent with solar rows.
+SWEEP = {"apia": (-13.5, -171.5), "chatham": (-43.5, -176.5), "kiritimati": (1.5, -157.5), "taveuni": (-16.5, 179.5),
+         "honolulu": (21.3, -157.8), "lisbon": (38.5, -9.5), "recife": (-8.5, -34.5), "kolkata": (22.5, 88.5),
+         "utc": (0.5, 0.5), "new_york": (40.5, -73.5), "kathmandu": (27.5, 85.5), "lord_howe": (-31.5, 159.5)}
+EXACT = {"apia", "kiritimati", "utc"}           # civil and solar days cover the same instants: same rows sent
+BASES = (datetime(2026, 11, 10, tzinfo=timezone.utc), datetime(2026, 10, 24, tzinfo=timezone.utc))
+
+
+def _tier_hours():
+    from services import forecast_tier_window as W
+    hours = {W.tier_horizon_hours(t, "GFS") for t in ("guest", "free", "basic", "premium")}
+    return sorted(hours | {24, 71, 73, 240})
+
+
+def _exposed(rows, planned, civil, off_h):
+    """The planned frame instants inside the rows a tier is sent."""
+    out = set()
+    for r in rows:
+        for vt in planned:
+            at = datetime.fromisoformat(vt.replace("Z", "+00:00"))
+            if civil:                         # a row's frames: its span, up to its own last frame (a head stops early)
+                start, end = (datetime.fromisoformat(r[k].replace("Z", "+00:00")) for k in ("day_start_utc", "day_end_utc"))
+                last = r.get("last_frame_utc")
+                inside = start <= at < end and last is not None and vt <= last
+            else:
+                inside = hub.local_date(at, off_h).isoformat() == r["date"]
+            if inside:
+                out.add(vt)
+    return out
+
+
+@pytest.mark.parametrize("name", list(SWEEP))
+def test_civil_rows_never_expose_a_frame_the_solar_rows_did_not(grid, monkeypatch, name):
+    lat, lng = SWEEP[name]
+    off_h = hub.solar_utc_offset_hours(lng)
+    hours = _tier_hours()
+    fewer = 0
+    for base in BASES:
+        for hh in range(24):
+            now = base + timedelta(hours=hh)
+            on, calls = _hub(monkeypatch, lat, lng, True, now)
+            off, calls_off = _hub(monkeypatch, lat, lng, False, now)
+            assert calls == calls_off                                  # the same frames rated, every hour
+            assert on["composition"]["day_grouping"] == "civil"
+            planned = [c[2] for c in calls[1:]]
+            for h in hours:
+                s_on, w_on = split_forecast_rows(on["forecast"], h, now)
+                s_off, w_off = split_forecast_rows(off["forecast"], h, now)
+                assert len(s_on) + len(w_on) == len(on["forecast"])     # every row placed, none dropped
+                exp_on = _exposed(s_on, planned, True, off_h)
+                exp_off = _exposed(s_off, planned, False, off_h)
+                assert exp_on <= exp_off, (name, now, h, sorted(exp_on - exp_off))
+                if name in EXACT:
+                    assert len(s_on) == len(s_off) and exp_on == exp_off, (name, now, h)
+                else:
+                    assert len(s_on) >= len(s_off) - 1, (name, now, h)  # at most one straddling row held back
+                fewer += len(s_on) < len(s_off)
+    if name in EXACT:
+        assert fewer == 0
+
+
+def test_an_unparseable_civil_row_is_withheld_not_sent():
+    rows = [{"date": "2026-11-11", "day_end_utc": "garbage", "solar_utc_offset_hours": -10},
+            {"date": "2026-11-11", "day_end_utc": "2026-11-12T10:00:00Z"},           # no solar offset
+            {"date": "2026-11-11"}]                                                  # a solar row: old rule
+    sent, withheld = split_forecast_rows(rows, 336, NOW)
+    assert sent == [rows[2]] and withheld == ["2026-11-11", "2026-11-11"]
+
+
+def test_civil_rows_carry_what_the_tier_window_reads(grid, monkeypatch):
+    on, calls = _hub(monkeypatch, *SWEEP["recife"], True)
+    for r in on["forecast"]:
+        assert r["solar_utc_offset_hours"] == hub.solar_utc_offset_hours(SWEEP["recife"][1])
+        inside = [c[2] for c in calls[1:] if r["day_start_utc"] <= c[2] < r["day_end_utc"]]
+        assert r["last_frame_utc"] == (max(inside) if inside else None)
 
 
 def test_payload_cache_key_carries_presentation_identity_but_frame_keys_do_not(grid, monkeypatch):

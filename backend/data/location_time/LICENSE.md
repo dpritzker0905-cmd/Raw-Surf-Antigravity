@@ -1,6 +1,6 @@
 # location_time grid: licence and attribution
 
-`grid.npz` in this folder is a **Derivative Database** of two databases, both licensed under the
+The grid in this folder (`row_ptr.npy`, `starts.npy`, `ids.npy`, `classes.json`) is a **Derivative Database** of two databases, both licensed under the
 [Open Database License (ODbL) 1.0](https://opendatacommons.org/licenses/odbl/1-0/):
 
 1. **OpenStreetMap** land polygons, © OpenStreetMap contributors (via [osmdata.openstreetmap.de](https://osmdata.openstreetmap.de/),
@@ -9,7 +9,7 @@
 2. **timezone-boundary-builder** time-zone boundaries (`timezones-with-oceans`; release in `manifest.json`), itself
    derived from OpenStreetMap data, packaged by `timezonefinder-data`.
 
-This Derivative Database (`grid.npz` together with `manifest.json`) is made available under the **Open Database
+This Derivative Database (those four files together with `manifest.json`) is made available under the **Open Database
 License 1.0**. Any rights in individual contents are licensed under the Database Contents License where applicable.
 You may use, copy, adapt and share it under the same licence, with this attribution:
 

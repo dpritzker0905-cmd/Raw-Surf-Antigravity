@@ -1,7 +1,5 @@
 {
- "schema": "raw-surf/location-time-grid/1",
  "built_utc": "2026-11-11T00:05:27Z",
- "res_deg": 0.01,
  "cells": 648000000,
  "runs": 1504065,
  "classes": 3019,
@@ -17,7 +15,6 @@
   "max_km": 0.0751,
   "min_km": -0.0
  },
- "grid_sha256": "9330eb540d5d1df4c4eac44507709f4a8731d9e73142ff22034122548e37c3fb",
  "inputs": {
   "timezonefinder": "9.2.0",
   "timezone_boundaries": {
@@ -40,8 +37,20 @@
   "scipy": "1.14.1"
  },
  "licence": "ODbL 1.0 (Derivative Database of OpenStreetMap and timezone-boundary-builder data)",
- "repacked": {
-  "from_grid_sha256": "4fc9a9f3b20dce5cb30019f1f919998b0fe375dbc8669d08c73cc5330640eb04",
-  "change": "ids uint32 -> uint16 (identical values; 8 MB runtime cap)"
- }
+ "provenance": {
+  "built_as": "raw-surf/location-time-grid/1 grid.npz sha256 4fc9a9f3b20dce5cb30019f1f919998b0fe375dbc8669d08c73cc5330640eb04",
+  "repacks": [
+   "ids uint32 -> uint16, identical values (8 MB cap) -> npz sha256 9330eb540d5d1df4c4eac44507709f4a8731d9e73142ff22034122548e37c3fb",
+   "npz -> v2 uncompressed .npy + classes.json for memory mapping, identical values"
+  ]
+ },
+ "schema": "raw-surf/location-time-grid/2",
+ "res_deg": 0.01,
+ "files": {
+  "row_ptr": "96c5512e5b76c97b93e219ee35e267759b021281533c0f67dc059f48394a1bb0",
+  "starts": "688d633b26eaf059221161fe76ff7b20c9cba97cdef5199a8a7a9da387c6a705",
+  "ids": "b3015848176b32db310369414cd1198e37dba18528308c574f6a072d4f532b28",
+  "classes.json": "80cc1a1872113a6fb824017142a51a3270962d8b13876d7e7d84d72b00c76b1c"
+ },
+ "grid_sha256": "bdf48d291d0550b0b6550003abd24bcdadd02562ac0b415992a786ddd9175eee"
 }

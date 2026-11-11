@@ -336,48 +336,71 @@ def daily_rows(frames: List[Dict[str, Any]], dates, offset_h: int,
     rows = []
     for d in dates:
         planned = by_day[d]
-        rated = [f for f in planned if isinstance(f.get("surf_height_m"), (int, float))]
-        row = {"date": d.isoformat(), "utc_offset_hours": offset_h, "frames_planned": len(planned),
-               "frames_rated": len(rated)}
+        row = _day_row(d, planned, offset_h, dense_end, civil)
         if civil:
-            row.update(_civil_row_fields(d, civil))
-        if dense_end is not None and planned:
-            dense = [datetime.fromisoformat(f["valid_time"].replace("Z", "+00:00")) <= dense_end for f in planned]
-            row["sample_basis"] = "3-hourly" if all(dense) else ("day-parts" if not any(dense) else "mixed")
-        if not rated:
-            row.update({"wave_height_min": None, "wave_height_max": None, "label": "Unavailable",
-                        "status": "no_data" if planned else "not_computed"})
-            rows.append(row)
-            continue
-        top = max(rated, key=lambda f: f["surf_height_m"])
-        low = min(rated, key=lambda f: f["surf_height_m"])
-        scored = [f for f in rated if f.get("score") is not None]
-        best = max(scored, key=lambda f: f["score"]) if scored else None
-        max_ft = _ft(top["surf_height_m"])
-        row.update({
-            "wave_height_min": _ft(low["surf_height_m"]),
-            "wave_height_max": max_ft,
-            "surf_height_max_m": top["surf_height_m"],
-            "surf_height_min_m": low["surf_height_m"],
-            "max_time": top["valid_time"],
-            "offshore_height_ft": _ft(top.get("offshore_hs_m")),
-            "surf_regime": top.get("surf_regime"),
-            "wave_direction": top.get("swell_from_deg"),
-            "wave_period": top.get("period_s"),
-            "swell_height_ft": _ft(top.get("primary_swell_hs_m")),
-            "label": _label(max_ft),
-            "status": "available",
-        })
-        if best is not None:
-            row.update({"rating": best["score"], "rating_level": best.get("level"),
-                        "rating_time": best["valid_time"], "rating_basis": "best_frame"})
-        if civil:
-            for k in ("max_time", "rating_time"):
-                if row.get(k):
-                    row[k + "_local"] = _lt.local_iso(datetime.fromisoformat(row[k].replace("Z", "+00:00")),
-                                                      civil["iana"])
+            # A civil day can span two SOLAR days. The tier window judges a civil row by the solar day of its last
+            # frame (forecast_tier_window._civil_row_instant); when only the earlier solar day is inside a tier's
+            # window it sends `tier_head` instead: the same day built from just those frames. So no tier is sent a
+            # frame the solar rows withheld, and no tier loses a whole day to a straddle.
+            solar_days = sorted({local_date(_vt(f), offset_h) for f in planned})
+            if len(solar_days) > 1:
+                head = [f for f in planned if local_date(_vt(f), offset_h) < solar_days[-1]]
+                row["tier_head"] = _day_row(d, head, offset_h, dense_end, civil, truncated=True)
         rows.append(row)
     return rows
+
+
+def _vt(frame) -> datetime:
+    return datetime.fromisoformat(frame["valid_time"].replace("Z", "+00:00"))
+
+
+def _day_row(d, planned, offset_h, dense_end, civil, truncated: bool = False) -> Dict[str, Any]:
+    """One daily row from its planned frames (the body of daily_rows, shared with the civil `tier_head`)."""
+    rated = [f for f in planned if isinstance(f.get("surf_height_m"), (int, float))]
+    row = {"date": d.isoformat(), "utc_offset_hours": offset_h, "frames_planned": len(planned),
+           "frames_rated": len(rated)}
+    if civil:
+        row.update(_civil_row_fields(d, civil))
+        # what the tier window judges a civil row by (forecast_tier_window._civil_row_instant)
+        row["solar_utc_offset_hours"] = offset_h
+        row["last_frame_utc"] = max((f["valid_time"] for f in planned), default=None)
+        if truncated:
+            row.update(partial=True, truncated_for_tier=True)
+    if dense_end is not None and planned:
+        dense = [datetime.fromisoformat(f["valid_time"].replace("Z", "+00:00")) <= dense_end for f in planned]
+        row["sample_basis"] = "3-hourly" if all(dense) else ("day-parts" if not any(dense) else "mixed")
+    if not rated:
+        row.update({"wave_height_min": None, "wave_height_max": None, "label": "Unavailable",
+                    "status": "no_data" if planned else "not_computed"})
+        return row
+    top = max(rated, key=lambda f: f["surf_height_m"])
+    low = min(rated, key=lambda f: f["surf_height_m"])
+    scored = [f for f in rated if f.get("score") is not None]
+    best = max(scored, key=lambda f: f["score"]) if scored else None
+    max_ft = _ft(top["surf_height_m"])
+    row.update({
+        "wave_height_min": _ft(low["surf_height_m"]),
+        "wave_height_max": max_ft,
+        "surf_height_max_m": top["surf_height_m"],
+        "surf_height_min_m": low["surf_height_m"],
+        "max_time": top["valid_time"],
+        "offshore_height_ft": _ft(top.get("offshore_hs_m")),
+        "surf_regime": top.get("surf_regime"),
+        "wave_direction": top.get("swell_from_deg"),
+        "wave_period": top.get("period_s"),
+        "swell_height_ft": _ft(top.get("primary_swell_hs_m")),
+        "label": _label(max_ft),
+        "status": "available",
+    })
+    if best is not None:
+        row.update({"rating": best["score"], "rating_level": best.get("level"),
+                    "rating_time": best["valid_time"], "rating_basis": "best_frame"})
+    if civil:
+        for k in ("max_time", "rating_time"):
+            if row.get(k):
+                row[k + "_local"] = _lt.local_iso(datetime.fromisoformat(row[k].replace("Z", "+00:00")),
+                                                  civil["iana"])
+    return row
 
 
 def _civil_row_fields(d, civil: Dict[str, Any]) -> Dict[str, Any]:
@@ -418,6 +441,8 @@ async def resolve_hub_conditions(resolver, model: str, lat: float, lng: float, f
     build already running."""
     import copy
     now = now or datetime.now(timezone.utc)
+    if _lt.enabled():
+        await _lt.warm()                                     # first request: grid I/O off the event loop
     lt = describe_location_time(lat, lng, now)
     key = (model, str(spot_id if spot_id is not None else f"{float(lat):.4f},{float(lng):.4f}"),
            int(forecast_days), horizon_hours, valid_time_str(current_valid_time(now)),

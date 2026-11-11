@@ -3,8 +3,6 @@ manifest checksum, so tests exercise the real load / verify / lookup path withou
 
 Cell (i, j) centre = (-90 + i + .5, -180 + j + .5). Default class: nautical Etc/GMT by longitude band. Painted cells:
 """
-import hashlib
-import json
 import os
 
 import numpy as np
@@ -24,6 +22,10 @@ PAINT = {
     (10, 10): ("Not/AZone", "civil", False, "", -1),
     (-17, 179): ("Pacific/Fiji", "civil", False, "", -1),
     (-17, -180): ("Pacific/Fiji", "civil", False, "", -1),
+    (1, -158): ("Pacific/Kiritimati", "civil", False, "", -1),     # +14 vs solar -10: a day ahead
+    (-9, -35): ("America/Recife", "civil", False, "", -1),         # -3 vs solar -2: civil BEHIND solar
+    (22, 88): ("Asia/Kolkata", "civil", False, "", -1),            # +5:30 vs solar +6: behind by a fraction
+    (0, 0): ("Etc/UTC", "civil", False, "", -1),
 }
 
 
@@ -58,14 +60,6 @@ def write_grid(path):
         starts.extend(s.tolist())
         ids.extend(row[s].tolist())
         row_ptr.append(len(starts))
-    gp = os.path.join(path, "grid.npz")
-    np.savez_compressed(gp, row_ptr=np.array(row_ptr, np.uint32), starts=np.array(starts, np.uint16),
-                        ids=np.array(ids, np.uint32), cls_iana=np.array([c[0] for c in classes]),
-                        cls_source=np.array([c[1] for c in classes]),
-                        cls_near_border=np.array([c[2] for c in classes]), cls_alt=np.array([c[3] for c in classes]),
-                        cls_band=np.array([c[4] for c in classes], np.int16), res=np.array(1.0))
-    with open(gp, "rb") as fh:
-        sha = hashlib.sha256(fh.read()).hexdigest()
-    with open(os.path.join(path, "manifest.json"), "w", encoding="utf-8") as fh:
-        json.dump({"schema": "raw-surf/location-time-grid/1", "res_deg": 1.0, "grid_sha256": sha}, fh)
+    from services.weather_pipeline.location_time import write_grid_dir
+    write_grid_dir(path, row_ptr, starts, ids, classes, 1.0)
     return path

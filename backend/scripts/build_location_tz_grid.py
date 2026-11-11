@@ -30,7 +30,7 @@ Usage:  python scripts/build_location_tz_grid.py --osm-dir <dir with land_polygo
 import argparse
 import hashlib
 import importlib.metadata as md
-import json
+import sys
 import math
 import os
 import time
@@ -326,22 +326,16 @@ def main(argv=None):
     cls, classes, n_border = classify(grid, names, snap_zone, snap_km)
     row_ptr, starts, ids = rle(cls)
     os.makedirs(args.out, exist_ok=True)
-    grid_path = os.path.join(args.out, "grid.npz")
-    if len(classes) < 2**16:                             # 3,019 classes: uint16 halves the runtime memory (8 MB cap)
-        ids = ids.astype(np.uint16)
-    np.savez_compressed(grid_path, row_ptr=row_ptr, starts=starts, ids=ids,
-                        cls_iana=np.array([c[0] for c in classes]), cls_source=np.array([c[1] for c in classes]),
-                        cls_near_border=np.array([c[2] for c in classes]), cls_alt=np.array([c[3] for c in classes]),
-                        cls_band=np.array([c[4] for c in classes], np.int16), res=np.array(R_DEG))
+    # Runtime format v2 (location_time.write_grid_dir): uncompressed .npy arrays the server memory-maps, so its RSS
+    # stays far under the 8 MB cap; uint16 ids while there are < 65,536 classes.
     with open(os.path.join(args.osm_dir, "README.txt"), encoding="utf-8") as fh:
         osm_date = next((ln.split("is", 1)[1].strip() for ln in fh if ln.startswith("Date of the data")), "unknown")
-    manifest = {
-        "schema": "raw-surf/location-time-grid/1", "built_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    extra = {
+        "built_utc": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
         "res_deg": R_DEG, "cells": nlat * nlon, "runs": int(len(starts)), "classes": len(classes),
         "policy": "C-prime: civil on land and territorial waters; coast_snap <= 50 km to OSM land; else nautical",
         "snap_km": SNAP_KM, "coast_snap_cells": n_snap, "near_border_cells": n_border, "exact_resolves": refits,
         "band_method_error_vs_densified_resolve": err_stats,
-        "grid_sha256": sha256_file(grid_path),
         "inputs": {"timezonefinder": md.version("timezonefinder"), "timezone_boundaries": tfid,
                    "osm_land_polygons": {"file": os.path.basename(args.osm_zip), "sha256": sha256_file(args.osm_zip),
                                          "data_date": osm_date, "source": "https://osmdata.openstreetmap.de/",
@@ -349,8 +343,9 @@ def main(argv=None):
                    "shapely": md.version("shapely"), "numpy": md.version("numpy"), "scipy": md.version("scipy")},
         "licence": "ODbL 1.0 (Derivative Database of OpenStreetMap and timezone-boundary-builder data)",
     }
-    with open(os.path.join(args.out, "manifest.json"), "w", encoding="utf-8") as fh:
-        json.dump(manifest, fh, indent=1)
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from services.weather_pipeline.location_time import write_grid_dir
+    manifest = write_grid_dir(args.out, row_ptr, starts, ids, classes, R_DEG, extra)
     log(f"done: {manifest['runs']} runs, {manifest['classes']} classes, grid sha256 {manifest['grid_sha256'][:16]}")
 
 

@@ -137,6 +137,8 @@ async def get_location_time(response: Response,
             raise HTTPException(status_code=422, detail="at must be an ISO-8601 instant")
         if when.tzinfo is None:
             raise HTTPException(status_code=422, detail="at must carry a UTC offset or Z")
+    if _lt.enabled():
+        await _lt.warm()                                     # first request: grid I/O off the event loop
     lt = _lt.describe(lat, lng, when)
     if lt is None:
         response.headers["Cache-Control"] = "no-store"
