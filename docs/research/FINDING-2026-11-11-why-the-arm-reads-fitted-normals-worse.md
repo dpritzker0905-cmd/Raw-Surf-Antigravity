@@ -2,7 +2,7 @@
 
 Research only. **Nothing served changes**, and `SHORE_NORMAL_MOP_CALIBRATED` stays held OFF (#780).
 
-> **Update 2026-11-12 (negative control, addendum at the end):** the arm passes the control. It reads a deliberately wrong "no exposure" candidate as much WORSE, so it can reward a correct height reduction. Mechanism (d) is refuted as the explanation, and #780's WORSE stands as real evidence, for the reasons (a) and (c) below.
+> **Update 2026-11-11 05:35Z (negative control, addendum at the end):** the arm passes the control. It reads a deliberately wrong "no exposure" candidate as much WORSE, so it can reward a correct height reduction. Mechanism (d) is refuted as the explanation, and #780's WORSE stands as real evidence, for the reasons (a) and (c) below.
 
 ## The question
 
@@ -135,7 +135,7 @@ Keep `hb_proxy` for what it measures well: offshore and level changes that do no
 
 [4] [Breaking Wave Height Estimation from Timex Images: Two Methods for Coastal Video Monitoring Systems](https://consensus.app/papers/details/75cc3e1c21e356dda9571881f4080b61/?utm_source=claude_code) (U. Andriolo et al., 2020, Remote Sensing)
 
-## Addendum 2026-11-12: negative control (requested by the advisor and the coordinator)
+## Addendum 2026-11-11 (05:35Z): negative control (requested by the advisor and the coordinator)
 
 **Question.** #773's only positive control (H1/10) moves height UP, toward the proxy. Can the arm reward a correct REDUCTION at all, or is it one-directional for exposure changes?
 
