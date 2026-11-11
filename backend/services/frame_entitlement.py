@@ -150,13 +150,20 @@ class EntitledSink:
     """Wraps the publisher's sink (write/read/list/delete) and routes every object to the bucket its class allows."""
 
     def __init__(self, public_sink, paid_sink):
+        import threading
         self.public, self.paid = public_sink, paid_sink
         self._bundles: Dict[str, bytes] = {}
         self._keep: set = set()          # re-cut bundles written or named this run: never retention-deleted
+        self._lock = threading.Lock()    # the publisher's uploader writes frames from a thread pool
+
+    def ensure_bucket(self):
+        self.public.ensure_bucket()
+        self.paid.ensure_bucket()
 
     def write(self, path, data, ctype, cache):
         if path.endswith(".bin") and "/bundle-" in path:
-            self._bundles[path] = data   # the full bundle: written re-cut, with its index
+            with self._lock:
+                self._bundles[path] = data   # the full bundle: written re-cut, with its index
             return None
         cls = class_for_path(path)
         if cls is not None:
@@ -168,7 +175,8 @@ class EntitledSink:
             for bpath, blob in recut.items():
                 (self.public if bpath == (public.get("bundle") or {}).get("path") else self.paid).write(
                     bpath, blob, "application/octet-stream", cache)
-                self._keep.add(bpath)
+                with self._lock:
+                    self._keep.add(bpath)
             self.paid.write(path, json.dumps(private, sort_keys=True, separators=(",", ":")).encode(), ctype, cache)
             return self.public.write(path, json.dumps(public, sort_keys=True, separators=(",", ":")).encode(), ctype, cache)
         return self.public.write(path, data, ctype, cache)

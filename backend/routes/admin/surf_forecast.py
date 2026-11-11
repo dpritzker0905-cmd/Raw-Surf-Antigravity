@@ -372,6 +372,11 @@ _RATING_FLAGS = {
     # complete, and the lane it omits is exactly the one that silently keeps the old reference.
     "RATING_LOCAL_SIZE":           ("1", "[D-065 default ON, as every lane already ran it; guardrail-watched] Local (per-spot/per-cell) size calibration — flip glyphs+band together",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
+    "FRAME_ENTITLEMENT":           ("0", "[D-065 held OFF until the private bucket weather-frames-paid exists and the client "
+                                         "signer half ships] O6: publish EURO/ICON and beyond-guest GFS frames to the private "
+                                         "bucket and serve them by signed URL (/api/weather/frame-urls) to entitled tiers only. "
+                                         "services/frame_entitlement.py",
+                                    "forecast-ingest-pilots.yml env (publisher) AND runtime manifest (signer)"),
     "WEATHER_TIER_CLAMP":          ("0", "[D-065 held OFF until the client half (frontend/src/lib/weatherAuthFetch.js) is deployed: "
                                          "ON earlier clamps every paying user to guest] O5/TIER-1: clamp model, hours and "
                                          "valid_time on /api/weather forecast reads to the JWT-resolved tier's window "

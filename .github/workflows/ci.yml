@@ -2270,7 +2270,9 @@ jobs:
           # New tracked estate file collects 9 cases: projected 3430; floor 3428 keeps margin 2. Hosted CI must confirm.
           # ⬆ 3428→3430 on 2026-11-09 (rederive_floor.py, claude/nearshore-pairs-refresh): dev run 42540686323 read 3430; dev's map 3430;
           #   base 3430 (hosted read) + 2 new test(s) = 3432; floor 3432 - 2 = 3430. This PR must read 3432 passed.
-          MIN_PASSED = 3430
+          # ⬆ 3430→3455 on 2026-11-11 (rederive_floor.py, claude/o6-frame-entitlement): dev run 43015121117 read 3432; dev's map 3432;
+          #   base 3432 (hosted read) + 25 new test(s) = 3457; floor 3457 - 2 = 3455. This PR must read 3457 passed.
+          MIN_PASSED = 3455
 
           try:
               root = ET.parse('estate.xml').getroot()
