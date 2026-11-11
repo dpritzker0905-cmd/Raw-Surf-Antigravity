@@ -1039,7 +1039,9 @@ jobs:
           #   base 3568 (hosted read) + 17 new test(s) and 0 new file(s) = 3585, files 224; floor 3585 - 6 = 3579. This PR must read 3585 passed.
           # ⬆ 3579→3582 on 2026-11-09 (rederive_floor.py, HEAD): dev run 42547168318 read 3585 / 224 files; dev's map 3585;
           #   base 3585 (hosted read) + 3 new test(s) and 0 new file(s) = 3588, files 224; floor 3588 - 6 = 3582. This PR must read 3588 passed.
-          MIN_FILES, MIN_PASSED = 224, 3582
+          # ⬆ 3582→3595 on 2026-11-11 (rederive_floor.py, fable/ing1-manifest-tombstones): dev run 42752117173 read 3588 / 224 files; dev's map 3588;
+          #   base 3588 (hosted read) + 13 new test(s) and 1 new file(s) = 3601, files 225; floor 3601 - 6 = 3595. This PR must read 3601 passed.
+          MIN_FILES, MIN_PASSED = 225, 3595
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
