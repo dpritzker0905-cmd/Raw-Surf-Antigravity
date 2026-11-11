@@ -1719,7 +1719,9 @@ jobs:
 =======
           # ⬆ 3653→3667 on 2026-11-11 (rederive_floor.py, claude/ingest-health-1e6f76): dev run 42752117173 read 3643 / 208 files; dev's map 3659;
           #   base 3659 (dev's map) + 14 new test(s) and 1 new file(s) = 3673, files 212; floor 3673 - 6 = 3667. This PR must read 3673 passed.
-          MIN_FILES, MIN_PASSED = 212, 3667
+          # ⬆ 3667→3701 on 2026-11-11 (rederive_floor.py, fable/guardrail-nearshore): dev run 43015131089 read 3672 / 212 files; dev's map 3673;
+          #   base 3673 (dev's map) + 34 new test(s) and 2 new file(s) = 3707, files 214; floor 3707 - 6 = 3701. This PR must read 3707 passed.
+          MIN_FILES, MIN_PASSED = 214, 3701
 >>>>>>> origin/dev
           try:
               root = ET.parse('chain.xml').getroot()
