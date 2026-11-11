@@ -31,6 +31,9 @@ mapped to a 7-level surf-quality scale: very_poor, poor, poor_fair, fair, fair_g
 import math
 import os
 
+# JAC-2: the catalogue reference prior for a spot with NO reference, or None (RATING_REF_PRIOR off).
+from services.weather_pipeline.spot_size_climatology import reference_prior as _reference_prior
+
 LEVELS = ["very_poor", "poor", "poor_fair", "fair", "fair_good", "good", "epic"]
 # (exclusive upper score bound, level) — last bucket is open-ended 'epic'.
 _BUCKETS = [(14, "very_poor"), (28, "poor"), (42, "poor_fair"), (56, "fair"),
@@ -109,7 +112,9 @@ def size_score(surf_h_m, reference_size_m=None):
     if surf_h_m is None or surf_h_m <= _HMIN_RIDEABLE_M:
         return 0.0
     if reference_size_m is None or reference_size_m <= _HMIN_RIDEABLE_M:
-        # LEGACY absolute curve (live behavior — byte-identical).
+        reference_size_m = _reference_prior()          # JAC-2 catalogue prior (None = flag off)
+    if reference_size_m is None:
+        # LEGACY absolute curve (RATING_REF_PRIOR=0 — byte-identical to before the prior).
         if surf_h_m >= _DEFAULT_REF_SIZE_M:
             return 1.0
         return _clamp((surf_h_m - _HMIN_RIDEABLE_M) / (_DEFAULT_REF_SIZE_M - _HMIN_RIDEABLE_M), 0.0, 1.0)
@@ -268,7 +273,7 @@ def wind_gate(wind_speed_ms, wind_from_deg=None, shore_normal_deg=None, enabled=
 # A single absolute ceiling is right for the ~97% of the catalogue that is beach and reef breaks and
 # WRONG for exactly the spots people look at: an early draft of this gate knocked Mavericks from
 # "epic" to "good" at 24.7 ft and to "poor_fair" at 31 ft — the days that spot exists for.
-# So capacity is resolved in three tiers, most-trusted first (each falls through when unavailable):
+# So capacity is resolved in four tiers, most-trusted first (each falls through when unavailable):
 #
 #   1. `reference_size_m` — the spot's MEDIAN (p50) surfable-day breaking height. ⚠️⚠️ THIS SAID
 #      "p80 good-day" until 2026-08-08 and OVERSIZE_START_MULT was chosen against THAT quantity;
@@ -289,12 +294,9 @@ def wind_gate(wind_speed_ms, wind_from_deg=None, shore_normal_deg=None, enabled=
 #      arc-second grid cannot resolve a reef pass it samples the deep water outside it: Teahupo'o
 #      reads 273 m deep => a 699 ft "capacity". Hence BOTH bounds below. Out-of-band readings are
 #      treated as no information (fail open), never as a licence to crush a spot.
-#   3. the absolute pair — used only when we know nothing about the spot.
-#
-# ⚠️ The absolute pair is deliberately LATE (26 ft) because tier 2 is missing on real big-wave spots
-# (Puerto Escondido-Zicatela, Todos Santos, Dungeons, Mullaghmore, Punta de Lobos and Cloudbreak all
-# lack `break_depth_m`). Where we cannot identify the spot, the fail-safe is to under-penalise: a
-# 35 ft unknown still drops epic -> fair_good, and 46 ft+ reaches the floor.
+#   3. the catalogue reference PRIOR (JAC-2; `spot_size_climatology.reference_prior`): we know nothing of the spot.
+#   4. the absolute pair (26 -> 46 ft), only with that flag off. It was deliberately LATE because tier 2 is
+#      missing on real big-wave spots (Zicatela, Todos Santos, Dungeons, Mullaghmore, Cloudbreak, ...).
 OVERSIZE_START_MULT = 3.5      # x reference_size_m: taper begins (above size_score's 2.5x plateau)
 OVERSIZE_FLOOR_MULT = 6.0      # x reference_size_m: taper reaches the floor
 OVERSIZE_ABS_START_M = 8.0     # know nothing about the spot: ~26.2 ft of breaking surf
@@ -314,15 +316,16 @@ _OVERSIZE_TAPER_SPAN = OVERSIZE_FLOOR_MULT / OVERSIZE_START_MULT   # keep every 
 def oversize_thresholds(reference_size_m=None, break_depth_m=None):
     """(start_m, floor_m) — the breaking heights where the oversize taper begins and bottoms out.
 
-    Three tiers, most-trusted first: the spot's size climatology, else its bathymetric capacity,
-    else the conservative absolute pair. See the block comment above for why, and for the measured
-    evidence behind each bound."""
+    Four tiers, most-trusted first (evidence: the block comment above): climatology, bathymetry, prior, absolute."""
     if reference_size_m is not None and reference_size_m > _HMIN_RIDEABLE_M:
         return reference_size_m * OVERSIZE_START_MULT, reference_size_m * OVERSIZE_FLOOR_MULT
     if break_depth_m is not None and break_depth_m > 0:
         depth = min(float(break_depth_m), OVERSIZE_MAX_BREAK_DEPTH_M)
         start = max(OVERSIZE_MIN_START_M, OVERSIZE_CAPACITY_MULT * OVERSIZE_GAMMA * depth)
         return start, start * _OVERSIZE_TAPER_SPAN
+    prior = _reference_prior()
+    if prior is not None:
+        return prior * OVERSIZE_START_MULT, prior * OVERSIZE_FLOOR_MULT
     return OVERSIZE_ABS_START_M, OVERSIZE_ABS_FLOOR_M
 
 
@@ -593,7 +596,7 @@ def rating_factors(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_norm
     ★ `limiter` is argmin(factors): in a product, the smallest term is the one that removed the most.
       That single name is the attribution the payload was missing.
 
-    Pure: no I/O, no env reads. Callers decide what to publish.
+    Pure apart from the RATING_REF_PRIOR read (`size_score`/`oversize_gate`, only with no reference).
     """
     sg = size_score(surf_h_m, reference_size_m)
     if sg <= 0.0:

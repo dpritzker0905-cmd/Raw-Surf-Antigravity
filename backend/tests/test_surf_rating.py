@@ -673,3 +673,10 @@ def test_period_gate_leaves_the_user_calibration_anchors_untouched():
     """The 2026-07-12 acceptance spec sits at 9 s and 11 s — provably inert."""
     for tp in (9.0, 11.0):
         assert period_gate(tp) == 1.0
+
+
+@__import__("pytest").fixture(autouse=True)
+def _legacy_reference_curve(monkeypatch):
+    """These pins describe the reference-LESS legacy size curve. JAC-2's catalogue prior
+    (RATING_REF_PRIOR, default ON) replaces it; that path is pinned in test_reference_prior.py."""
+    monkeypatch.setenv("RATING_REF_PRIOR", "0")
