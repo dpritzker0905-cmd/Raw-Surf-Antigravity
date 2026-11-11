@@ -73,3 +73,16 @@ There is no MOP, so nothing changes: no lookup entry exists and the coastline no
 - The angle uses each buoy's single peak direction.
 - Fits along several coasts bunch at 240-246 deg, partly because only directions the buoy records often enough are informative. Read those values as the response window, not a coastline.
 - Samples are autocorrelated. The held-out period covers about 450 days.
+
+## Addendum: the >90 deg height floor depends on these normals (no floor change ships)
+
+The coordinator's second follow-up was to refit the floor beyond 90 deg against MOP with corrected normals, using held-out spots, and to ship it only if the CI is clear of 0.595 and the arm is not worse. The fit (`scripts/swell_exposure_normals_fit/floor_refit.py`) used the count-weighted mean of MOP's normalised attenuation over the >=90 deg bins, with 5-fold spot cross-validation and a 5000-draw spot bootstrap:
+
+| normals | spots / bins / hours | pooled floor | 95% CI | CV MSE: refit vs today's 0.595 |
+|---|---|---|---|---|
+| coastline (served today) | 72 / 236 / 279,574 | 0.684 | [0.643, 0.728] | 0.0329 vs 0.0419 |
+| fitted exposure (this PR, held off) | 58 / 128 / 186,900 | 0.553 | [0.532, 0.572] | 0.0040 vs 0.0058 |
+
+**The sign flips with the normals.** Under the coastline normals, many hours counted as beyond 90 deg are really much closer to head-on, so a higher floor "helps". Under the response normals, the floor should come down slightly.
+
+A floor change now would bake the normal error into a second constant. So, as the coordinator sequenced it, **no floor change ships until the normals question above is resolved.** When `SHORE_NORMAL_MOP_CALIBRATED` can be flipped, 0.553 [0.532, 0.572] is the candidate, and it must clear the arm under the same instrument caveat.
