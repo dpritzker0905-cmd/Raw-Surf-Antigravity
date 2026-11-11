@@ -13,6 +13,7 @@ from services.weather_pipeline.schemas import (
 logger = logging.getLogger(__name__)
 
 from services.weather_pipeline.copernicus_validator import is_test_environment
+from services.weather_pipeline import manifest_tombstones as _tomb   # ING-1 (manifest tombstones)
 from services.weather_pipeline.persistence_diagnostics import PersistenceListingProbe
 
 _persistence_listing_probe = PersistenceListingProbe()
@@ -142,7 +143,7 @@ def _fetch_remote_manifest_products() -> Optional[list]:
             return None
     try:
         data = json.loads(manifest_bytes.decode("utf-8"))
-        return data.get("products") or []
+        return _tomb.ProductList.of(data.get("products") or [], _tomb.pruned_of(data))   # ING-1: tombstones ride along
     except Exception:
         return None
 
@@ -276,6 +277,7 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None, remote_p
             manifest.products = manifest.products + folded
             logger.info(f"[Product Store] Manifest reconciliation folded in {len(folded)} "
                         f"concurrent-writer entries before upload.")
+        _tomb.apply(manifest, getattr(remote_products, "pruned", None))   # ING-1: the union never REMOVES another lane's prune
         return len(folded)
     except Exception as e:
         if supplied:
