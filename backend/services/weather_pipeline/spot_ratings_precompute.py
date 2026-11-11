@@ -473,19 +473,29 @@ def build_run_stamp(env=None, now=None) -> dict:
             "started_at": (now or datetime.now(timezone.utc)).isoformat()}
 
 
-def is_older_stamp(ours, theirs) -> bool:
-    """PURE: True only when `ours` is PROVABLY older than `theirs`, comparing code_ts, then run_id, then
-    started_at, each only when both sides carry a usable value. An unstamped object (written before this
-    guard) or an unprovable comparison returns False, so the guard can only refuse real stale overwrites,
-    never wedge the lane on missing metadata."""
+def is_older_stamp(ours, theirs, now=None) -> bool:
+    """PURE: True only when `ours` is PROVABLY older than `theirs`. Order: run_id first (GitHub numbers runs at
+    trigger time, across workflows), then code_ts as a tie-break only, then started_at; each only when both sides
+    carry a usable value. code_ts must NOT rank first: a workflow_dispatch from a branch with a newer head commit
+    would otherwise out-rank every later scheduled run on dev and wedge the lane. A stored stamp whose started_at
+    is older than SPOT_RATINGS_STALE_TOLERANCE_S (default 6 h) never blocks (a dead owner cannot hold the lane).
+    Unstamped objects or unprovable comparisons return False (fail open)."""
     if not isinstance(ours, dict) or not isinstance(theirs, dict):
         return False
-    for field in ("code_ts", "run_id"):
+    t_start = _parse_dt(theirs.get("started_at"))
+    if t_start is not None:
+        try:
+            tol = float(os.environ.get("SPOT_RATINGS_STALE_TOLERANCE_S", "21600"))
+        except ValueError:
+            tol = 21600.0
+        if ((now or datetime.now(timezone.utc)) - t_start).total_seconds() > tol:
+            return False
+    for field in ("run_id", "code_ts"):
         a, b = _int_or_0(ours.get(field)), _int_or_0(theirs.get(field))
         if a > 0 and b > 0 and a != b:
             return a < b
-    a, b = _parse_dt(ours.get("started_at")), _parse_dt(theirs.get("started_at"))
-    return bool(a and b and a < b)
+    a = _parse_dt(ours.get("started_at"))
+    return bool(a and t_start and a < t_start)
 
 
 def run_spot_ratings_precompute() -> tuple:
@@ -495,6 +505,8 @@ def run_spot_ratings_precompute() -> tuple:
     only happened at the very end. Now each model's frames go live as soon as that model completes,
     merged with the previous object so not-yet-recomputed models keep their prior coverage (the stale
     ladder serves them). Returns (n_spots, n_frames_uploaded; 0 = every model withheld/failed).
+    A run superseded by a newer stamp before its first upload returns (n_spots, 0); precompute_ci treats
+    0 frames as a failure, so that run goes red by design (nothing was written).
     Config via env: SPOT_RATINGS_PRECOMPUTE_MODELS (csv, default GFS), SPOT_RATINGS_PRECOMPUTE_HOURS
     (csv offsets, default '0'), SPOT_RATINGS_MIN_COVERAGE (per-model guard, default 0.05)."""
     from services.weather_pipeline.store import ProductStore

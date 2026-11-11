@@ -16,16 +16,37 @@ def _frame(model, vt, score):
     return {"model": model, "valid_time": vt, "spots": [{"spot_id": "trestles", "score": score}]}
 
 
-def test_is_older_stamp_orders_code_then_run_then_start():
+def test_is_older_stamp_orders_run_then_code_then_start():
+    from datetime import datetime, timezone
+    now = datetime(2026, 11, 10, 14, 0, tzinfo=timezone.utc)
     new = {"code_ts": 2000, "run_id": 20, "started_at": "2026-11-10T12:00:00+00:00"}
     old = {"code_ts": 1000, "run_id": 10, "started_at": "2026-11-10T10:00:00+00:00"}
-    assert pc.is_older_stamp(old, new) and not pc.is_older_stamp(new, old)
-    # newer code beats a bigger run id (a re-run of an old commit)
-    assert pc.is_older_stamp({"code_ts": 1000, "run_id": 99}, {"code_ts": 2000, "run_id": 5})
-    # same code: the earlier-TRIGGERED run (smaller run id) is older even if its tail step uploads later
-    assert pc.is_older_stamp({"code_ts": 1000, "run_id": 5, "started_at": "2026-11-10T13:00:00+00:00"},
-                             {"code_ts": 1000, "run_id": 6, "started_at": "2026-11-10T12:00:00+00:00"})
-    assert not pc.is_older_stamp(new, dict(new))                       # equal: allowed (same run, next model)
+    assert pc.is_older_stamp(old, new, now) and not pc.is_older_stamp(new, old, now)
+    # same run id: code_ts breaks the tie
+    assert pc.is_older_stamp({"code_ts": 1000, "run_id": 5}, {"code_ts": 2000, "run_id": 5}, now)
+    # same run id and code: later start wins
+    assert pc.is_older_stamp({"code_ts": 1, "run_id": 5, "started_at": "2026-11-10T11:00:00+00:00"},
+                             {"code_ts": 1, "run_id": 5, "started_at": "2026-11-10T12:00:00+00:00"}, now)
+    assert not pc.is_older_stamp(new, dict(new), now)
+
+
+def test_a_larger_code_ts_with_a_smaller_run_id_does_not_block_a_newer_run():
+    """workflow_dispatch from a branch with a newer head commit must not wedge later scheduled runs on dev."""
+    from datetime import datetime, timezone
+    now = datetime(2026, 11, 10, 14, 0, tzinfo=timezone.utc)
+    stored = {"code_ts": 9000, "run_id": 10, "started_at": "2026-11-10T12:00:00+00:00"}
+    later_dev_run = {"code_ts": 1000, "run_id": 20, "started_at": "2026-11-10T13:00:00+00:00"}
+    assert not pc.is_older_stamp(later_dev_run, stored, now)
+
+
+def test_a_stale_stored_stamp_never_blocks(monkeypatch):
+    from datetime import datetime, timezone
+    now = datetime(2026, 11, 10, 22, 0, tzinfo=timezone.utc)
+    stored = {"code_ts": 2000, "run_id": 20, "started_at": "2026-11-10T12:00:00+00:00"}   # 10 h old > 6 h
+    ours = {"code_ts": 1000, "run_id": 10, "started_at": "2026-11-10T21:00:00+00:00"}
+    assert not pc.is_older_stamp(ours, stored, now)
+    monkeypatch.setenv("SPOT_RATINGS_STALE_TOLERANCE_S", "86400")
+    assert pc.is_older_stamp(ours, stored, now)
 
 
 def test_missing_or_partial_stamps_never_block():
@@ -49,6 +70,7 @@ def _drive(monkeypatch, current_l2, our_env, climatology_calls=None):
     monkeypatch.setenv("SPOT_RATINGS_PRECOMPUTE_MODELS", "GFS,ICON")
     monkeypatch.setenv("SPOT_RATINGS_MIN_COVERAGE", "0")
     monkeypatch.setenv("RATING_OBS_GATE", "0")
+    monkeypatch.setenv("SPOT_RATINGS_STALE_TOLERANCE_S", "999999999")
     monkeypatch.setenv("RATING_SIZE_CLIMATOLOGY", "1" if climatology_calls is not None else "0")
     for k, v in our_env.items():
         monkeypatch.setenv(k, v)
