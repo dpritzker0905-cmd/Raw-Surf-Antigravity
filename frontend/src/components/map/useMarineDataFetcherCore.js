@@ -357,9 +357,9 @@ export function useMarineDataFetcherCore({
       // §5b: 'flavor_toggle' (the surf-rating toggle) is deliberately NON-activation — see
       // isActivationSource. An activation here means a WORLD-bbox fetch, which can never serve
       // the rated viewport tile the toggle needs.
-      const isActivation = isActivationSource(source);
+      const isActivation = isActivationSource(source, mapInstance);
       const bounds = handleRegionalGridClearing({
-        mapInstance, isActivation, marineData, zoom, model, layer, setMarineData, lastCommittedSigRef
+        mapInstance, isActivation, marineData, zoom, model, layer, setMarineData, lastCommittedSigRef, timeOffset, source
       });
 
       // NOTE: do NOT bump requestId before the cooldown early-return. The finally clears
