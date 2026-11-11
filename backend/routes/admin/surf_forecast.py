@@ -455,6 +455,14 @@ _RATING_FLAGS = {
                                          "sea+swell forecast instead of the offshore field + parametric transform "
                                          "(all surfaces); kill switch '0'",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
+    # ING-1 (Fable audit 2026-11-10): manifest tombstones. Measured 593 of 18,466 live entries naming a deleted object.
+    "MANIFEST_PRUNE_TOMBSTONES":   ("1", "[D-065 GUARDED, default ON; moves manifest membership, not a forecast number] "
+                                         "A prune writes pruned[name]=time into the manifest it publishes; every merge "
+                                         "drops entries registered at or before their tombstone, so a lane's stale "
+                                         "snapshot cannot resurrect an entry whose object another lane deleted "
+                                         "(services/weather_pipeline/manifest_tombstones.py); kill switch '0'",
+                                    "forecast-ingest, forecast-ingest-pilots and precompute (the manifest writers); "
+                                    "the runtime manifest reaches all three"),
     # ⚠️ ONLY BITES WHEN `SURF_PARTITIONS` IS ON — it gates the partition-aware exposure, which is
     # dark while that flag is off. Declared anyway, in the commit that added it: the lane-parity
     # guard caught this one MISSING and it was right to, because an undeclared switch is invisible

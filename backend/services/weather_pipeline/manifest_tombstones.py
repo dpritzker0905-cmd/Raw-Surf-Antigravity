@@ -38,11 +38,12 @@ def _now() -> datetime:
 
 
 def enabled() -> bool:
+    """D-065 guarded (env > runtime manifest > code default '1'); '0' is the kill switch. Never raises."""
     try:
         from services.runtime_flags import flag
-        return flag(FLAG, CODE_DEFAULT) == "1"
+        return flag(FLAG) == "1"
     except Exception:
-        return os.environ.get(FLAG, CODE_DEFAULT) == "1"
+        return CODE_DEFAULT == "1"
 
 
 def ttl() -> timedelta:
