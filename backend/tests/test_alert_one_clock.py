@@ -156,3 +156,16 @@ def test_the_edge_pass_marks_only_large_gaps_and_both_sides():
     assert got[3] == ("Pacific/Apia", False, "") and got[6] == ("Etc/GMT+11", False, "")   # one cell from the line
     assert not got[10][1] and not got[11][1]                           # GMT+1 | Lisbon: ordinary gap, no note
     assert n == 2 * 3
+
+
+def test_new_york_fall_back_day_checked_equals_printed(grid, monkeypatch):
+    """LongCat review (O2): DST fold. A UTC instant converts unambiguously; on 2026-11-01 New York's 01:00 happens twice
+    and the window's hours checked are still exactly the hours printed, on the post-transition offset (EST)."""
+    _flag(monkeypatch, True)
+    now = datetime(2026, 11, 1, 4, 0, tzinfo=timezone.utc)                # 00:00 EDT, before the 06:00Z fall-back
+    spot = SimpleNamespace(latitude=40.5, longitude=-73.5)
+    w = saw.find_windows(_alert(["morning"]), spot, _series(now), now, 30)["windows"][0]
+    z = ZoneInfo("America/New_York")
+    assert (w["start"], w["end"]) == ("2026-11-01T13:00:00Z", "2026-11-01T17:00:00Z")     # 08-12 EST
+    assert (w["local_start"], w["local_end"]) == ("08:00", "12:00")
+    assert _t(w["start"]).astimezone(z).utcoffset() == timedelta(hours=-5)
