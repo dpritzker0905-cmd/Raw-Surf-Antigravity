@@ -342,6 +342,8 @@ the kill `__RAW_DISABLE_WAVE_SPECTRUM__` draws v2 at 16 m. `wave-lib.mjs` models
 node spectrum-solve.mjs      # the seven break colours: widest weakest neighbour step at max displayable chroma, lightness falling
 node spectrum-tune.mjs       # 4-6 m: violet trim + OKLab blend anchors so the band's lightness cannot climb (the winner goes in by hand)
 node wave-check.mjs --palette spectrum --theme light   # what light ships
+# a palette with no table for a theme (spectrum is light-only) prints "skipped" for that theme instead of crashing (CLI-1);
+# without --strict the checker exits 0 even with RED lines: they are reported, not gated. Use --strict to gate.
 node crest-switch.mjs --palette spectrum --from 1.3 --to 3.2   # V2's crest colours: weakest |Lc| by switch height (1.55 m best)
 node crest-critique.mjs [--json out.json]   # crests vs the wash under them in all three themes, by height: |Lc|, colour-blind dE00, hue relation
 ```

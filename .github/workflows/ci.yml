@@ -1039,7 +1039,11 @@ jobs:
           #   base 3568 (hosted read) + 17 new test(s) and 0 new file(s) = 3585, files 224; floor 3585 - 6 = 3579. This PR must read 3585 passed.
           # ⬆ 3579→3582 on 2026-11-09 (rederive_floor.py, HEAD): dev run 42547168318 read 3585 / 224 files; dev's map 3585;
           #   base 3585 (hosted read) + 3 new test(s) and 0 new file(s) = 3588, files 224; floor 3588 - 6 = 3582. This PR must read 3588 passed.
-          MIN_FILES, MIN_PASSED = 224, 3582
+          # ⬆ 3582→3604 on 2026-11-11 (rederive_floor.py, claude/point-allowlist-e8e79f): dev run 42752117173 read 3588 / 224 files; dev's map 3588;
+          #   base 3588 (hosted read) + 22 new test(s) and 1 new file(s) = 3610, files 225; floor 3610 - 6 = 3604. This PR must read 3610 passed.
+          # ⬆ 3604→3614 on 2026-11-11 (rederive_floor.py, fix/ing-2-one-ratings-writer): dev run 42752117173 read 3588 / 224 files; dev's map 3610;
+          #   base 3610 (dev's map) + 10 new test(s) and 1 new file(s) = 3620, files 226; floor 3620 - 6 = 3614. This PR must read 3620 passed.
+          MIN_FILES, MIN_PASSED = 226, 3614
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1710,9 +1714,13 @@ jobs:
           #   base 3627 (dev's map) + 17 new test(s) and 1 new file(s) = 3644, files 208; floor 3644 - 6 = 3638. This PR must read 3644 passed.
           # ⬆ 3638→3653 on 2026-11-10 (rederive_floor.py, codex/backend-memory-bounds-20261109): dev run 42716155249 read 3643 / 208 files; dev's map 3644;
           #   base 3644 (dev's map) + 15 new test(s) and 3 new file(s) = 3659, files 211; floor 3659 - 6 = 3653. This PR must read 3659 passed.
-          # ⬆ 3653→3744 on 2026-11-11 (rederive_floor.py, claude/location-time-phase1): dev run 42752117173 read 3643 / 208 files; dev's map 3659;
-          #   base 3659 (dev's map) + 91 new test(s) and 2 new file(s) = 3750, files 213; floor 3750 - 6 = 3744. This PR must read 3750 passed.
-          MIN_FILES, MIN_PASSED = 213, 3744
+          # ⬆ 3653→3667 on 2026-11-11 (rederive_floor.py, claude/ingest-health-1e6f76): dev run 42752117173 read 3643 / 208 files; dev's map 3659;
+          #   base 3659 (dev's map) + 14 new test(s) and 1 new file(s) = 3673, files 212; floor 3673 - 6 = 3667. This PR must read 3673 passed.
+          # ⬆ 3667→3672 on 2026-11-11 (rederive_floor.py, claude/bathymetry-loud-f84a05): dev run 42752117173 read 3643 / 208 files; dev's map 3673;
+          #   base 3673 (dev's map) + 5 new test(s) and 1 new file(s) = 3678, files 213; floor 3678 - 6 = 3672. This PR must read 3678 passed.
+          # ⬆ 3672→3763 on 2026-11-11 (rederive_floor.py, claude/location-time-phase1): dev run 43015131089 read 3672 / 212 files; dev's map 3678;
+          #   base 3678 (dev's map) + 91 new test(s) and 2 new file(s) = 3769, files 215; floor 3769 - 6 = 3763. This PR must read 3769 passed.
+          MIN_FILES, MIN_PASSED = 215, 3763
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

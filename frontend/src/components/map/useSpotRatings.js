@@ -96,7 +96,7 @@ export function sampleRatingScoreFromGrid(grid, lat, lng) {
       const y = cy + dy;
       if (x < 0 || y < 0 || x >= grid.cols || y >= grid.rows) continue;
       const v = grid.vectors[y * grid.cols + x];
-      const sp = v && typeof v.speed === 'number' ? v.speed : 0;
+      const sp = v && Number.isFinite(v.speed) ? v.speed : 0;
       if (sp <= 0.05) continue;                 // unrated / land-masked / open ocean
       const d2 = dx * dx + dy * dy;             // squared distance in cells — no sqrt needed
       if (d2 < bestD2) { bestD2 = d2; best = sp; }
