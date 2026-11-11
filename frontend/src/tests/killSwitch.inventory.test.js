@@ -97,6 +97,9 @@ const KILL_SWITCHES_TESTED = new Set([
   // Map-clear self-capture recorder (#744, opt-in diagnostics, no served number). marineClearRecorder.test.js:
   // the switch beats both ?diag=1 and window.__RAW_SOAK_RECORDER__ (isSoakRecorderEnabled returns false).
   '__RAW_DISABLE_SOAK_RECORDER__',
+  // O6 static-frame signer (2026-11-11). staticFrameSigner.test.js: with the switch set no /frame-urls call is made and the
+  // paid hours stay unbuilt (-> /grid, the pre-O6 path); the same index without it is signed (null control).
+  '__RAW_DISABLE_FRAME_SIGNER__',
 ]);
 
 /**

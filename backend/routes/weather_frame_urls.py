@@ -92,7 +92,8 @@ def entitled_urls(index_path: str, tier: str, *, load: Callable = None, sign: Ca
             hit = (clock(), (sign or sign_paths)(objs, SIGN_EXPIRES_S) if objs else {})
             _sign_cache[(index_path, cls)] = hit
         urls.update(hit[1])
-    frames = [dict({k: v for k, v in i.items() if k != "object"}, url=urls[i["object"]]) for i in items if i["object"] in urls]
+    # `object` stays: the client keys its bundle cache by it (a path is not a credential; the private bucket needs the token).
+    frames = [dict(i, url=urls[i["object"]]) for i in items if i["object"] in urls]
     return {"index": index_path, "tier": tier, "frames": frames, "expires_in_s": SIGN_EXPIRES_S}
 
 

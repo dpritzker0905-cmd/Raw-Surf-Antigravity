@@ -297,7 +297,7 @@ function bundleFor(base, path, opts) {
   if (f && Date.now() < f.until) { noteRegionalMiss('bundle_backoff'); return Promise.resolve({ status: 'backoff', error: 'bundle_backoff' }); }
   let p = _bundles.get(path);
   if (p) { _bundles.delete(path); _bundles.set(path, p); return p; }
-  p = fetchBundle(base + path, opts).then((got) => {
+  p = fetchBundle((opts && opts.url) || base + path, opts).then((got) => {   // url: an O6 signed class bundle
     if (got.buf) { _failed.delete(path); return got; }
     noteRegionalMiss(got.error);
     const n = (f ? f.n : 0) + 1;
@@ -339,7 +339,7 @@ export async function regionalFrameBytes(base, frame, signal, priority) {
   if (!s || !Number.isFinite(s.offset) || !Number.isFinite(s.length)) return { error: 'not_a_bundle_frame' };
   if (signal && signal.aborted) return { error: 'aborted' };
   const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-  const got = await bundleFor(base, s.path, { bytes: s.bytes, priority });
+  const got = await bundleFor(base, s.path, { bytes: s.bytes, priority, url: s.url });
   if (!got.buf) return { error: got.error || 'bundle_unavailable', status: got.status };
   const buf = got.buf;
   if (s.offset + s.length > buf.byteLength) { noteRegionalMiss('slice_out_of_range'); return { error: 'slice_out_of_range' }; }

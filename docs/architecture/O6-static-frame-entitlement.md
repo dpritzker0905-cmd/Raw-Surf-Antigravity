@@ -78,8 +78,13 @@ Tier rules (`forecast_tier_window`, the pinned echo of `LayerAccessResolver.js`)
 
 ## Rollout (each step reversible; none taken by this PR)
 1. **Merge #782**, then this PR (flag OFF: nothing changes).
-2. **Client half (follow-up PR, not in Codex-reserved files):** after pinning an index whose entries carry `paid`, call `/frame-urls` once and give those entries `url` (and bundle slice coordinates). Fetch `frame.url || base + frame.path` in `staticFrames.js` (`fetchFrameBytes` call site, line ~387) and `staticRegional.js` (`regionalFrameBytes` / `bundleFor`).
-   - **Without it, entitled users fall back to `/grid` for paid hours**: correct, but that load on the box is exactly what frames avoid. So the flip waits for it.
+2. **Client half: built in this PR** (`frontend/src/components/map/staticFrameSigner.js`, kill `window.__RAW_DISABLE_FRAME_SIGNER__`).
+   - When `staticFrames.loadIndex` loads an index with `paid` entries and a user is signed in, it calls `/frame-urls` once, **before the index resolves**, so every consumer sees one consistent index.
+   - Per-frame entries get `path` (the private object, the cache key) and `url`; bundle entries get a slice record on the signed class bundle (still sha12-checked).
+   - The fetch sites read `frame.url || base + frame.path` (`staticFrames.sharedParsedLoad`) and `bundle.url || base + path` (`staticRegional.bundleFor`).
+   - Guests (no token) make no call. A guest/free token makes one call per session, then none. Any error, 401, timeout (4 s) or 404 leaves the hours unbuilt, so they go to `/grid` exactly as before; a 404 (server held off) backs off 10 minutes.
+   - Signed tokens (≥ 30 h left) outlive the objects (~12 h retention), so no client re-sign is needed.
+   - Cost on an entitled pin: one extra round trip before the index is ready.
 3. **Apply the migration** (creates the private bucket; no user policy).
 4. **Turn the signer on** (runtime manifest `FRAME_ENTITLEMENT` on), then the **publisher** (`FRAME_ENTITLEMENT=1` in `forecast-ingest-pilots.yml` env). New runs publish split; old public runs age out in about two runs.
 5. **Undo:** publisher env `0` (new runs public again), then manifest `off`.

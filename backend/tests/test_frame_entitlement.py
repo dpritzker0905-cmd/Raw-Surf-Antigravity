@@ -165,6 +165,7 @@ def test_signing_is_once_per_index_and_class_and_shared(monkeypatch):
     assert [f["class"] for f in basic["frames"]] == ["basic"]
     assert [f["class"] for f in prem1["frames"]] == ["basic", "premium"] and prem1 == prem2
     assert len(calls) == 2                                                  # basic once, premium once, for every user
+    assert all(f["url"].startswith(f"https://cdn.test/{f['object']}?") for f in prem1["frames"])   # the client keys bundles by object
     now[0] = W.SIGN_CACHE_S + 1
     W.entitled_urls(full["path"], "premium", load=lambda p: full, sign=sign, clock=lambda: now[0])
     assert len(calls) == 4                                                  # re-signed after the cache window
