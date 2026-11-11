@@ -14,6 +14,7 @@ logger = logging.getLogger(__name__)
 
 from services.weather_pipeline.copernicus_validator import is_test_environment
 from services.weather_pipeline.persistence_diagnostics import PersistenceListingProbe
+from services.weather_pipeline.bounded_dict import BoundedDict
 
 _persistence_listing_probe = PersistenceListingProbe()
 
@@ -344,9 +345,9 @@ class ProductStore:
     _last_upload_errors: List[str] = []
     _pruned_anomalous_count: int = 0
     _pruned_anomalous_ids: List[str] = []
-    _download_locks: Dict[str, threading.Lock] = {}
+    _download_locks: Dict[str, threading.Lock] = BoundedDict(4096, lambda lk: not lk.locked())   # SRV-1: LRU, never drops a held lock
     _download_locks_lock = threading.Lock()
-    _l2_negative_cache: Dict[str, float] = {}
+    _l2_negative_cache: Dict[str, float] = BoundedDict(4096)   # SRV-1: LRU
     _l2_negative_cache_lock = threading.Lock()
     _L2_NEGATIVE_CACHE_TTL = 60.0
     _cached_manifest: Optional[PipelineManifest] = None
