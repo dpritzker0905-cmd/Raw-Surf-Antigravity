@@ -48,7 +48,7 @@ MEM_CAP_BYTES = 8 * 2**20
 # (2026-11-10): flip with the runtime manifest ('on', no deploy) once that fix ships, then make this "1".
 # Registration in runtime_flags.GUARDED / _RATING_FLAGS is a shared-file change requested from root; until then
 # flag(name, default) already honours env > manifest > default.
-CODE_DEFAULT = "0"
+CODE_DEFAULT = _rf.GUARDED[FLAG]                     # registered: runtime_flags.GUARDED + _RATING_FLAGS ("0")
 
 
 def enabled() -> bool:
