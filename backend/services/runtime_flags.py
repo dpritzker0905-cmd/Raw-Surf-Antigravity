@@ -57,6 +57,9 @@ GUARDED = {
     "SURF_SEA_INPUTS_EVERY_CALLER": "1",  # CMP-2: hub/conditions/surf-conditions/sim take /point's tide (+MOP) via
                                           # sea_inputs; parity 20 spots x 3 h to 1e-6; accuracy NOT measured
                                           # (filter primary hs_station: NO_CHANGE); kill '0'
+    "SIDE_PATHS_THROUGH_CHAIN": "1",    # O4: /api/conditions preview rows = precomputed rate_one_spot frames (rated);
+                                        # _breaking_ft fails CLOSED (never offshore Hs as surf); /api/surf-conditions
+                                        # target-time height labelled an unrated estimate; kill '0'
 }
 
 # FIX_VERSION: bump a flag's version in the PR that changes its fix. The guardrail's 'off' records the version it

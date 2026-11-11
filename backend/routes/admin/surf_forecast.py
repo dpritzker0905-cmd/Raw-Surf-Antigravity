@@ -463,6 +463,14 @@ _RATING_FLAGS = {
                                           "/point does (services/weather_pipeline/sea_inputs.py); kill switch '0' = "
                                           "those callers pass (0.0, None) as before",
                                      "Render env (serve-side surfaces); the sim reads the served glyph's tide, no env"),
+    # O4 (Fable audit 2026-11-10): the backend side paths that showed surf without the chain (CMP-5, CMP-6, CMP-7).
+    "SIDE_PATHS_THROUGH_CHAIN":    ("1", "[D-065 GUARDED, default ON; accuracy not measured: these surfaces are not replayed] "
+                                         "/api/conditions/{id} forecast rows come from the precomputed rate_one_spot frames "
+                                         "(rated; no_data where none) instead of a direct provider fetch; _breaking_ft fails "
+                                         "CLOSED (no height) instead of serving offshore Hs as surf; /api/surf-conditions with "
+                                         "a target time labels its height an unrated Open-Meteo estimate "
+                                         "(services/weather_pipeline/side_paths.py); kill switch '0' restores all three",
+                                    "Render env"),
     # ⚠️ ONLY BITES WHEN `SURF_PARTITIONS` IS ON — it gates the partition-aware exposure, which is
     # dark while that flag is off. Declared anyway, in the commit that added it: the lane-parity
     # guard caught this one MISSING and it was right to, because an undeclared switch is invisible
