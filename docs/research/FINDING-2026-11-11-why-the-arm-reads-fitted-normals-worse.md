@@ -2,6 +2,8 @@
 
 Research only. **Nothing served changes**, and `SHORE_NORMAL_MOP_CALIBRATED` stays held OFF (#780).
 
+> **Update 2026-11-12 (negative control, addendum at the end):** the arm passes the control. It reads a deliberately wrong "no exposure" candidate as much WORSE, so it can reward a correct height reduction. Mechanism (d) is refuted as the explanation, and #780's WORSE stands as real evidence, for the reasons (a) and (c) below.
+
 ## The question
 
 The coordinating session asked this as an open design question. In #780 the fitted swell-exposure normals beat the coastline normals against CDIP MOP out of sample: held-out MSE 0.0046 vs 0.0234 over 77 spots. Yet #773's `hb_proxy` arm reads them **WORSE** (ON loses 0.0385 m MAE, CI [0.0234, 0.0589]). Three hypotheses were tested:
@@ -132,3 +134,43 @@ Keep `hb_proxy` for what it measures well: offshore and level changes that do no
 [3] [Modeling Long-Period Swell in Southern California: Practical Boundary Conditions from Buoy Observations and Global Wave Model Predictions](https://consensus.app/papers/details/c5cf6332ef06555ab81e7ef90360783d/?utm_source=claude_code) (S. Crosby et al., 2016, Journal of Atmospheric and Oceanic Technology)
 
 [4] [Breaking Wave Height Estimation from Timex Images: Two Methods for Coastal Video Monitoring Systems](https://consensus.app/papers/details/75cc3e1c21e356dda9571881f4080b61/?utm_source=claude_code) (U. Andriolo et al., 2020, Remote Sensing)
+
+## Addendum 2026-11-12: negative control (requested by the advisor and the coordinator)
+
+**Question.** #773's only positive control (H1/10) moves height UP, toward the proxy. Can the arm reward a correct REDUCTION at all, or is it one-directional for exposure changes?
+
+**Setup.**
+- Same arm, cache (`eh0-cache`), window (2026-10-20..29) and 8 anchors as #780's run, offline.
+- Candidate: the existing kill switch `SURF_V3_EXPOSURE`, which at `0` sets the height exposure factor to 1 at every angle. This is deliberately wrong.
+- `default_on_filter.py` fixes its OFF arm at `0`, so the run is `--flag SURF_V3_EXPOSURE=1`:
+  - OFF = no exposure (the wrong candidate);
+  - ON = today's exposure.
+- A first run with `=0` compared 0 against 0 and was correctly reported as inert.
+
+**Sanity check.** ON MAE equals #780's OFF MAE exactly (0.2692 m). Both are today's coastline-normal state.
+
+| quantity | verdict | today's exposure (ON) vs no exposure (OFF) |
+|---|---|---|
+| `hb_proxy` | **BETTER** | MAE 0.269 vs 0.373 m; gain 0.103 m, CI [0.084, 0.128]; no member worse (pooled, every lead, SON, both regions) |
+| `hs_station` | WORSE | ON loses 0.0265 m MAE, CI [0.0186, 0.0359] |
+| rating census | n/a | n 960, score moved 229, level moved 29, mean −0.59 |
+
+**Reading.**
+
+1. **The arm passes.** `hb_proxy` reads the no-exposure candidate as clearly WORSE, though it moves the height UP toward a proxy the chain under-reads. So:
+   - the arm is not structurally one-directional for this class;
+   - it is not simply rewarding whatever raises the level;
+   - (d), the level-bias confound, does not explain #780's WORSE;
+   - **#780's WORSE survives the control and counts as evidence.**
+   - The remaining explanations are (a), location, and (c), the autumn reversal, which this study measured against MOP itself.
+2. **Limit: the control's magnitude.** It is a large change: the factor floor goes from 0.595 to 1 off-angle. #780 is about 0.04 m. The control shows the arm CAN reward a reduction. It does not prove the arm resolves small re-aimings of the window correctly, which is the location caveat (a).
+3. **Side observation, not pursued tonight.** `hs_station` (model Hs at the station vs observed) prefers no exposure, by 0.027 m. The two quantities disagree on the exposure factor at the station level. That deserves its own look before anyone uses `hs_station` to judge exposure changes.
+
+**Consequence.** `SHORE_NORMAL_MOP_CALIBRATED` stays OFF on the arm's evidence, not only out of caution. A future attempt needs:
+- the robustness and season gates in the proposal above;
+- ideally a two-window response at sheltered spots;
+- then a re-run of this arm and the station-geometry score.
+
+**Reproduction.** Run from a local merge of #780 and #773, never pushed, with the window's `stations` set to the 8 anchors:
+
+`python scripts/default_on_filter.py --flag SURF_V3_EXPOSURE=1 --cache-dir <eh0-cache> --out <dir>`
