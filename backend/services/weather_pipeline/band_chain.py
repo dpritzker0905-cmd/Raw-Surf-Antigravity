@@ -19,6 +19,7 @@ I/O; a frame is thousands of cells. The band is the glyph's chain at eta = 0, pa
 Flag RATING_BAND_ONE_CHAIN (GUARDED, code default ON, D-065); '0' is the bare-estimate band, byte for byte.
 """
 import logging
+import os
 from functools import lru_cache
 from typing import Optional, Tuple
 
@@ -31,11 +32,40 @@ CODE_DEFAULT = "1"
 
 
 def enabled() -> bool:
-    """Read once per grid transform, not per cell."""
+    """Read once per grid transform, not per cell. Also re-checks the flag state the cached geometry was built under."""
+    sync_flag_state()
     try:
         return _rf.flag(FLAG) == "1"
     except Exception:
         return CODE_DEFAULT == "1"
+
+
+# The geometry reads flags (SHORE_NORMAL_ASSET, SURF_COASTAL_FROM_LAND_BIT, SURF_V3_NORMAL_OVERRIDES, the guarded flags via the
+# runtime manifest, ...). A process-lifetime cache keyed on (lat, lng) alone would keep the OLD normals and depths after a
+# runtime kill or flip (the live guardrail's auto-disable included) while the glyph follows at once: band != glyph and an
+# incomplete kill (verifier, #776 review). So the cache is valid for ONE flag state: every guarded flag's effective value
+# (env > manifest > default) plus every env value under the chain's prefixes, read once per transform.
+_ENV_PREFIXES = ("SURF_", "SHORE_NORMAL_", "RATING_", "COPERNICUS_", "POINT_RES_")
+_built_under = {"state": None}
+
+
+def flag_state():
+    guarded = tuple((n, _rf.flag(n)) for n in sorted(_rf.GUARDED))
+    env = tuple(sorted((k, v) for k, v in os.environ.items() if k.startswith(_ENV_PREFIXES)))
+    return guarded, env
+
+
+def sync_flag_state() -> None:
+    """Clear the geometry cache when the flag state differs from the one it was built under. Unreadable state: clear
+    (correct, only slower)."""
+    try:
+        state = flag_state()
+    except Exception as e:
+        logger.debug(f"[Band Chain] flag state unreadable, clearing the geometry cache: {e}")
+        state = None
+    if state is None or state != _built_under["state"]:
+        _geometry.cache_clear()
+        _built_under["state"] = state
 
 
 @lru_cache(maxsize=200_000)
@@ -81,3 +111,4 @@ def shore_normal_at(lat, lng):
 
 def clear_cache() -> None:
     _geometry.cache_clear()
+    _built_under["state"] = None

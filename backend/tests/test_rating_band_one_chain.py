@@ -153,3 +153,42 @@ def test_the_route_passes_the_geometry_bearing_only_under_the_flag():
     from services.weather_pipeline import grid_resolver_surf
     src = inspect.getsource(grid_resolver_surf)
     assert "_band_chain.shore_normal_at if _band_chain.enabled() else chain_shore_normal_at" in src
+
+
+def test_a_flag_flip_between_transforms_reaches_the_band(monkeypatch):
+    """Verifier (#776 review): the geometry cache was keyed on (lat, lng) for the process's life, so a runtime kill left the
+    band on the old normals while the glyph followed. Pipeline's bearing is a hand override (325); with
+    SURF_V3_NORMAL_OVERRIDES=0 it falls back to the asset (308.1). Each transform starts with `enabled()`."""
+    lat, lng = 21.6650, -158.0533
+    band_chain.enabled()
+    with_asset = band_chain.shore_normal_at(lat, lng)
+    if with_asset is None:
+        pytest.skip("geometry assets unavailable")
+    assert with_asset == chain_shore_normal_at(lat, lng)
+    monkeypatch.setenv("SURF_V3_NORMAL_OVERRIDES", "0")
+    band_chain.enabled()                                                  # the next transform
+    killed = band_chain.shore_normal_at(lat, lng)
+    assert killed == chain_shore_normal_at(lat, lng) and abs(killed - with_asset) > 5.0
+    monkeypatch.delenv("SURF_V3_NORMAL_OVERRIDES")
+    band_chain.enabled()
+    assert band_chain.shore_normal_at(lat, lng) == with_asset
+
+
+def test_a_runtime_manifest_change_clears_the_geometry_cache(monkeypatch):
+    """The guardrail's auto-disable arrives through the manifest, not env: a guarded flag's state change must re-resolve."""
+    from services import runtime_flags as rf
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "1")
+    monkeypatch.delenv("SURF_TIDE_DEPTH", raising=False)
+    doc = {"schema": rf.SCHEMA, "flags": {}}
+    rf._reset_for_tests(lambda: doc)
+    try:
+        band_chain.enabled()
+        band_chain.surf_at(28.32, -80.607, 2.0, 12.0, 90.0)
+        band_chain.enabled()                                              # same state: the cache survives
+        assert band_chain._geometry.cache_info().currsize == 1
+        doc["flags"]["SURF_TIDE_DEPTH"] = {"state": "off", "reason": "test"}
+        rf._reset_for_tests(lambda: doc)                                  # the manifest re-read the guardrail causes
+        band_chain.enabled()
+        assert band_chain._geometry.cache_info().currsize == 0
+    finally:
+        rf._reset_for_tests(None)
