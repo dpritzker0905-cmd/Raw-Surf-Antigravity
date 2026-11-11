@@ -218,3 +218,48 @@ def test_an_anchor_at_the_skew_edge_is_treated_as_honoured():
     edge = (NOW + timedelta(hours=26, minutes=0, seconds=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
     out, _ = C.clamp_params([("model", "GFS"), ("hours", "72"), ("base_time", edge)], SERIES, "guest", NOW)
     assert int(_q(out)["hours"]) <= 72 - 26
+
+
+# ── one switch for both halves (owner 2026-11-11, "Yes, hold both") ───────────────────────────────────────────────────
+def test_capabilities_rows_carry_the_switch(monkeypatch):
+    from services.weather_pipeline.capabilities import get_weather_capabilities
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
+    rf._reset_for_tests(lambda: None)
+    monkeypatch.delenv(C.FLAG, raising=False)
+    rows = get_weather_capabilities()
+    assert rows and all(r["tier_clamp"] is False for r in rows)          # held OFF: the client sends nothing
+    monkeypatch.setenv(C.FLAG, "1")
+    assert all(r["tier_clamp"] is True for r in get_weather_capabilities())
+
+
+def test_every_weather_response_announces_the_clamp_only_while_it_is_on(monkeypatch):
+    for on in (True, False):
+        monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
+        monkeypatch.setenv(C.FLAG, "1" if on else "0")
+        rf._reset_for_tests(lambda: None)
+        app = FastAPI()
+
+        @app.get("/api/weather/capabilities")
+        async def caps():
+            return [{"model": "GFS"}]
+
+        async def tier_fn(auth):
+            return "guest"
+
+        app.add_middleware(C.WeatherTierClampMiddleware, tier_fn=tier_fn)
+        r = TestClient(app).get("/api/weather/capabilities")
+        assert (r.headers.get("x-raw-tier-clamp-on") == "1") is on
+
+
+def test_cors_caches_the_preflight_and_exposes_the_switch():
+    """Clamp ON makes the browser preflight every weather GET (Authorization): the answer must carry a 2 h Max-Age, and
+    the switch headers must be readable cross-origin."""
+    import server
+    client = TestClient(server.app)
+    origin = "https://raw-surf.netlify.app"
+    pre = client.options("/api/weather/grid_series", headers={
+        "Origin": origin, "Access-Control-Request-Method": "GET", "Access-Control-Request-Headers": "authorization"})
+    assert pre.headers.get("access-control-max-age") == "7200"
+    cors = next(m for m in server.app.user_middleware if m.cls.__name__ == "CORSMiddleware")
+    exposed = {h.lower() for h in cors.kwargs.get("expose_headers", [])}
+    assert {"x-raw-tier-clamp-on", "x-raw-tier-clamp"} <= exposed

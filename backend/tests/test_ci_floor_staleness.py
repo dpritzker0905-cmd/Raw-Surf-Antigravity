@@ -489,8 +489,8 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # conflicts, by design: take dev's side, then `python backend/scripts/rederive_floor.py --lane <lane> --add <this
 # PR's new tests>` re-derives both this value and ci.yml's floor from dev (LESSONS L-P39).
 _FLOOR_SET_FROM = {
-    # guards: set from 3612 = max(dev run 42752117173 read 3588, dev's map 3588) + 24 (claude/o5-server-tier-clamp, 2026-11-11); floor 3606, margin 6.
-    "guards": 3612,
+    # guards: set from 3615 = max(dev run 42752117173 read 3588, dev's map 3588) + 27 (claude/o5-server-tier-clamp, 2026-11-11); floor 3609, margin 6.
+    "guards": 3615,
 
     # chain: set from 3659 = max(dev run 42716155249 read 3643, dev's map 3644) + 15 (codex/backend-memory-bounds-20261109, 2026-11-10); floor 3653, margin 6.
     "chain": 3659,

@@ -199,8 +199,8 @@ jobs:
             // Marine commit choke (2026-11-09, ON with the finer-resident / world-over-regional kills): marineCommitChoke.test.js (+1 suite / +23 tests). Raised by exactly that; confirm against the hosted receipt.
             // Hold compares the model cycle, not the ingest stamp (2026-11-09): marineHoldModelCycle.test.js (+1 suite / +9 tests). Raised by exactly that; confirm against the hosted receipt.
             // HUD resident truth (2026-11-07, ON with __RAW_DISABLE_HUD_RESIDENT_TRUTH__): hudResidentTruth.test.js (+1 suite / +3 tests). Raised by exactly that from 652 / 8,496; confirm against the hosted receipt.
-            // O5 server tier clamp client half (2026-11-11, ON with __RAW_DISABLE_WEATHER_AUTH__): weatherAuthFetch.test.js (+1 suite / +5 tests). Raised by exactly that; confirm against the hosted receipt.
-            const MIN_SUITES = 654, MIN_TESTS = 8504;   // +1 suite / +5 tests: weatherAuthFetch (5)
+            // O5 server tier clamp client half (2026-11-11; one switch with the server clamp, kill __RAW_DISABLE_WEATHER_AUTH__): weatherAuthFetch.test.js (+1 suite / +9 tests). Raised by exactly that; confirm against the hosted receipt.
+            const MIN_SUITES = 654, MIN_TESTS = 8508;   // +1 suite / +9 tests: weatherAuthFetch (9)
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -1040,9 +1040,9 @@ jobs:
           #   base 3568 (hosted read) + 17 new test(s) and 0 new file(s) = 3585, files 224; floor 3585 - 6 = 3579. This PR must read 3585 passed.
           # ⬆ 3579→3582 on 2026-11-09 (rederive_floor.py, HEAD): dev run 42547168318 read 3585 / 224 files; dev's map 3585;
           #   base 3585 (hosted read) + 3 new test(s) and 0 new file(s) = 3588, files 224; floor 3588 - 6 = 3582. This PR must read 3588 passed.
-          # ⬆ 3582→3606 on 2026-11-11 (rederive_floor.py, claude/o5-server-tier-clamp): dev run 42752117173 read 3588 / 224 files; dev's map 3588;
-          #   base 3588 (hosted read) + 24 new test(s) and 1 new file(s) = 3612, files 225; floor 3612 - 6 = 3606. This PR must read 3612 passed.
-          MIN_FILES, MIN_PASSED = 225, 3606
+          # ⬆ 3582→3609 on 2026-11-11 (rederive_floor.py, claude/o5-server-tier-clamp): dev run 42752117173 read 3588 / 224 files; dev's map 3588;
+          #   base 3588 (hosted read) + 27 new test(s) and 1 new file(s) = 3615, files 225; floor 3615 - 6 = 3609. This PR must read 3615 passed.
+          MIN_FILES, MIN_PASSED = 225, 3609
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

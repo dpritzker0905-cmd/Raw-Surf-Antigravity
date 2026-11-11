@@ -57,6 +57,10 @@ ROUTES = {
     "point-rating": ("model", "valid_time"),
 }
 SPOT_SERIES = "spot-series/"
+# ONE SWITCH FOR BOTH HALVES (owner 2026-11-11 "Yes, hold both"): while the clamp is on, every /api/weather/ response
+# says so, and /capabilities rows carry `tier_clamp`; the client (lib/weatherAuthFetch.js) sends its token ONLY then,
+# so with the clamp off no Authorization header and no CORS preflight ever leave the browser. Exposed in server.py CORS.
+ON_HEADER = b"x-raw-tier-clamp-on"
 # Parameters this module gates. Each is collapsed to ONE value before it is judged (security review 2026-11-11: with
 # `model=GFS&model=EURO` the clamp read the first and FastAPI serves the LAST, a guest got EURO).
 GATED = ("model", "hours", "valid_time", "base_time", "subscription_tier")
@@ -225,9 +229,16 @@ class WeatherTierClampMiddleware:
         # HEAD too (LongCat review): Starlette routes HEAD to the GET handler; it returns no body, but one rule is simpler.
         if scope.get("type") != "http" or scope.get("method") not in ("GET", "HEAD"):
             return await self.app(scope, receive, send)
-        names = route_params(scope.get("path", ""))
-        if names is None or not enabled():
+        path = scope.get("path", "")
+        if not path.startswith(PREFIX) or not enabled():
             return await self.app(scope, receive, send)
+        names = route_params(path)
+        if names is None:                                # not a clamped read: only announce that the clamp is on
+            async def send_on(message):
+                if message.get("type") == "http.response.start":
+                    message = dict(message, headers=list(message.get("headers", [])) + [(ON_HEADER, b"1")])
+                await send(message)
+            return await self.app(scope, receive, send_on)
         params = parse_qsl(scope.get("query_string", b"").decode("latin-1"), keep_blank_values=True)
         auth = next((v.decode("latin-1") for k, v in scope.get("headers") or [] if k == b"authorization"), None)
         tier = await self.tier_fn(auth)
@@ -243,6 +254,7 @@ class WeatherTierClampMiddleware:
                 headers = [(k, v) for k, v in message.get("headers", [])
                            if not (private and k.lower() == b"cache-control")]
                 headers.append((b"vary", b"Authorization"))
+                headers.append((ON_HEADER, b"1"))
                 if private:
                     headers.append((b"cache-control", b"private, no-store"))
                 if changed:
