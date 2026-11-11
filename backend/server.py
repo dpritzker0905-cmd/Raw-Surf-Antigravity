@@ -505,7 +505,15 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    # O5: weather fetches now carry Authorization (frontend/src/lib/weatherAuthFetch.js), which makes each
+    # cross-origin GET preflight. Cache a URL's preflight for 2 h (Chromium's cap) instead of Starlette's 10 min.
+    max_age=7200,
 )
+
+# O5 / TIER-1 (2026-11-11): server-side tier clamp on forecast reads, mirrored from LayerAccessResolver via
+# services/forecast_tier_window.py. HELD OFF (GUARDED WEATHER_TIER_CLAMP='0') until the client half is live.
+from services.weather_tier_clamp import WeatherTierClampMiddleware  # noqa: E402
+app.add_middleware(WeatherTierClampMiddleware)
 
 # Request telemetry (2026-08-09, MASTER-AUDIT-11.0 §3.14): bounded in-process latency/status
 # histograms per route template, read back on /api/health. Starlette wraps middleware so the

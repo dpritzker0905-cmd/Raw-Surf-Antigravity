@@ -54,6 +54,8 @@ GUARDED = {
     "SPOT_HUB_RATE_ONE_SPOT": "1",      # spot-hub phase 2 (#710): the hub on rate_one_spot; kill '0' = the old chain
     "SURF_NEARSHORE_MOP": "1",          # CDIP MOP nearshore sea at California spots: nearshore judge 86/86 runs better,
                                         # MAE 0.250 -> 0.096 m at CDIP buoys (2026-10-09..11-04), ON; kill '0'
+    "WEATHER_TIER_CLAMP": "0",          # O5 (#TBD): server tier clamp. Held OFF until the client sends its token
+                                        # (weatherAuthFetch.js) - ON earlier makes every paying user a guest
 }
 
 # FIX_VERSION: bump a flag's version in the PR that changes its fix. The guardrail's 'off' records the version it
