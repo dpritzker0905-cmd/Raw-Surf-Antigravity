@@ -1,0 +1,47 @@
+{
+ "schema": "raw-surf/location-time-grid/1",
+ "built_utc": "2026-11-11T00:05:27Z",
+ "res_deg": 0.01,
+ "cells": 648000000,
+ "runs": 1504065,
+ "classes": 3019,
+ "policy": "C-prime: civil on land and territorial waters; coast_snap <= 50 km to OSM land; else nautical",
+ "snap_km": 50.0,
+ "coast_snap_cells": 12219571,
+ "near_border_cells": 51908,
+ "exact_resolves": 46957,
+ "band_method_error_vs_densified_resolve": {
+  "n": 2397,
+  "p50_km": 0.0,
+  "p99_km": 0.0016,
+  "max_km": 0.0751,
+  "min_km": -0.0
+ },
+ "grid_sha256": "9330eb540d5d1df4c4eac44507709f4a8731d9e73142ff22034122548e37c3fb",
+ "inputs": {
+  "timezonefinder": "9.2.0",
+  "timezone_boundaries": {
+   "package": "timezonefinder-data",
+   "package_version": "4.2026.6",
+   "data_version": "2026f",
+   "variant": "timezones-with-oceans",
+   "files": 28,
+   "sha256_of_file_sha256s": "67e43f4f9ef328d39401ee9cbefc93f9e65ca247c79c0c4fd5e6472adda83d7a"
+  },
+  "osm_land_polygons": {
+   "file": "land-polygons-split-4326.zip",
+   "sha256": "7f0472bd4a0d480000f835eceb634f256a645514844ea8d6a1edd2d0b939cdc4",
+   "data_date": "2026-11-10T03:00:00Z",
+   "source": "https://osmdata.openstreetmap.de/",
+   "licence": "ODbL 1.0, (c) OpenStreetMap contributors"
+  },
+  "shapely": "2.0.6",
+  "numpy": "2.2.6",
+  "scipy": "1.14.1"
+ },
+ "licence": "ODbL 1.0 (Derivative Database of OpenStreetMap and timezone-boundary-builder data)",
+ "repacked": {
+  "from_grid_sha256": "4fc9a9f3b20dce5cb30019f1f919998b0fe375dbc8669d08c73cc5330640eb04",
+  "change": "ids uint32 -> uint16 (identical values; 8 MB runtime cap)"
+ }
+}

@@ -40,6 +40,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from services import runtime_flags as _rf   # D-065: guarded flags are read through the guardrail's manifest
+from services.weather_pipeline import location_time as _lt   # phase 1: civil labels/grouping, never the frame plan
 
 logger = logging.getLogger(__name__)
 
@@ -320,13 +321,16 @@ def current_conditions(row: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def daily_rows(frames: List[Dict[str, Any]], dates, offset_h: int,
-               dense_end: Optional[datetime] = None) -> List[Dict[str, Any]]:
+               dense_end: Optional[datetime] = None, civil: Optional[Dict[str, Any]] = None) -> List[Dict[str, Any]]:
     """One row per LOCAL date in `dates`: the real max / min over that day's frames that resolved, and the
-    day's best-rated frame. A date with no resolved frame is a `no_data` row, never a 0 ft one."""
+    day's best-rated frame. A date with no resolved frame is a `no_data` row, never a 0 ft one.
+
+    `civil` = {"iana", "plan_start", "plan_end"} groups the SAME frames by civil date instead (location_time phase 1,
+    presentation only: the frames were planned and rated before this and are not changed by it)."""
     by_day: Dict[Any, List[Dict[str, Any]]] = {d: [] for d in dates}
     for fr in frames:
         at = datetime.fromisoformat(fr["valid_time"].replace("Z", "+00:00"))
-        d = local_date(at, offset_h)
+        d = _lt.civil_date(at, civil["iana"]) if civil else local_date(at, offset_h)
         if d in by_day:
             by_day[d].append(fr)
     rows = []
@@ -335,6 +339,8 @@ def daily_rows(frames: List[Dict[str, Any]], dates, offset_h: int,
         rated = [f for f in planned if isinstance(f.get("surf_height_m"), (int, float))]
         row = {"date": d.isoformat(), "utc_offset_hours": offset_h, "frames_planned": len(planned),
                "frames_rated": len(rated)}
+        if civil:
+            row.update(_civil_row_fields(d, civil))
         if dense_end is not None and planned:
             dense = [datetime.fromisoformat(f["valid_time"].replace("Z", "+00:00")) <= dense_end for f in planned]
             row["sample_basis"] = "3-hourly" if all(dense) else ("day-parts" if not any(dense) else "mixed")
@@ -365,8 +371,42 @@ def daily_rows(frames: List[Dict[str, Any]], dates, offset_h: int,
         if best is not None:
             row.update({"rating": best["score"], "rating_level": best.get("level"),
                         "rating_time": best["valid_time"], "rating_basis": "best_frame"})
+        if civil:
+            for k in ("max_time", "rating_time"):
+                if row.get(k):
+                    row[k + "_local"] = _lt.local_iso(datetime.fromisoformat(row[k].replace("Z", "+00:00")),
+                                                      civil["iana"])
         rows.append(row)
     return rows
+
+
+def _civil_row_fields(d, civil: Dict[str, Any]) -> Dict[str, Any]:
+    """The civil day's zone, its offset at local noon, and `partial` when the day reaches outside the planned span
+    (the plan keeps its solar local-day bounds in phase 1, so a civil day at either end can be partly unplanned)."""
+    start, end = _lt.civil_day_bounds(d, civil["iana"])
+    noon = start + (end - start) / 2
+    off_min = _lt.offset_minutes(civil["iana"], noon)
+    return {"iana": civil["iana"], "utc_offset_min": off_min,
+            "utc_offset_hours": off_min // 60 if off_min % 60 == 0 else round(off_min / 60.0, 2),
+            "day_start_utc": start.strftime("%Y-%m-%dT%H:%M:%SZ"), "day_end_utc": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "partial": bool(start < civil["plan_start"] or end > civil["plan_end"])}
+
+
+def describe_location_time(lat: float, lng: float, now: datetime) -> Optional[Dict[str, Any]]:
+    """`location_time` for the hub, read ONCE per request: the cache key and the payload must come from the same answer,
+    or a flag flip between two reads would file a civil payload under a solar key (or the reverse) for the TTL."""
+    try:
+        return _lt.describe(lat, lng, now)
+    except Exception as e:                                              # noqa: BLE001 - presentation only
+        logger.warning(f"[spot-hub] location_time failed at ({lat},{lng}); solar rows: {e}")
+        return None
+
+
+def presentation_identity(lt: Optional[Dict[str, Any]]):
+    """What the payload cache must also key on now that rows can be civil: the zone + grid version (or 'solar' when the
+    flag is off or the grid cannot answer). Per-frame rating keys (`_CACHE`) do NOT include it - phase 1 never changes
+    which frames are rated."""
+    return ("civil", lt["iana"], lt.get("grid")) if lt and lt.get("iana") else ("solar",)
 
 
 async def resolve_hub_conditions(resolver, model: str, lat: float, lng: float, forecast_days: int = 11,
@@ -378,16 +418,18 @@ async def resolve_hub_conditions(resolver, model: str, lat: float, lng: float, f
     build already running."""
     import copy
     now = now or datetime.now(timezone.utc)
+    lt = describe_location_time(lat, lng, now)
     key = (model, str(spot_id if spot_id is not None else f"{float(lat):.4f},{float(lng):.4f}"),
            int(forecast_days), horizon_hours, valid_time_str(current_valid_time(now)),
-           _rf.flag("RATING_LOCAL_SIZE"), os.environ.get("RATING_TIDE", "0"))
+           _rf.flag("RATING_LOCAL_SIZE"), os.environ.get("RATING_TIDE", "0"),
+           presentation_identity(lt))
     hit = _PAYLOAD.get(key)
     if hit is not None and (time.time() - hit[0]) < _PAYLOAD_TTL_S:
         return copy.deepcopy(hit[1])
     task = _BUILDING.get(key)
     if task is None:
         task = asyncio.ensure_future(_build_hub_conditions(resolver, model, lat, lng, forecast_days, spot_id,
-                                                           spot_meta, horizon_hours, now, load_l2))
+                                                           spot_meta, horizon_hours, now, load_l2, lt))
         _BUILDING[key] = task
 
         def _store(t, key=key):
@@ -405,7 +447,7 @@ async def resolve_hub_conditions(resolver, model: str, lat: float, lng: float, f
 
 
 async def _build_hub_conditions(resolver, model, lat, lng, forecast_days, spot_id, spot_meta, horizon_hours,
-                                now, load_l2) -> Dict[str, Any]:
+                                now, load_l2, lt=None) -> Dict[str, Any]:
     spot = dict(spot_meta or {})
     spot.setdefault("id", spot_id if spot_id is not None else f"point:{float(lat):.4f},{float(lng):.4f}")
     spot["latitude"], spot["longitude"] = lat, lng
@@ -455,10 +497,29 @@ async def _build_hub_conditions(resolver, model, lat, lng, forecast_days, spot_i
     if current_row.get("source", "").startswith("precomputed") and current_row.get("wind_kt") is None:
         await _display_wind(resolver, model, lat, lng, current_row)
     dense_end = now + timedelta(hours=DENSE_HORIZON_H)
-    return {"current_conditions": current_conditions(current_row),
-            "forecast": daily_rows(frames, dates, offset, dense_end),
-            "composition": {"flag": FLAG, "chain": "spot_ratings.rate_one_spot",
-                            "frames": len(plan) + 1, "horizon_hours": horizon, "utc_offset_hours": offset}}
+    composition = {"flag": FLAG, "chain": "spot_ratings.rate_one_spot",
+                   "frames": len(plan) + 1, "horizon_hours": horizon, "utc_offset_hours": offset}
+    forecast = None
+    if lt is not None:                                       # killed -> None -> the composition is exactly as before
+        composition["location_time"] = lt
+    if lt and lt.get("iana") and dates:
+        # location_time phase 1: the SAME rated frames, grouped by the spot's civil date. Any failure here falls back
+        # to the solar rows (the flag-off payload), never to a 500.
+        try:
+            civil_first = _lt.civil_date(now, lt["iana"]) + timedelta(days=1)
+            civil_dates = [civil_first + timedelta(days=i) for i in range(n_days)]
+            plan_start = datetime(first.year, first.month, first.day, tzinfo=timezone.utc) - timedelta(hours=offset)
+            civil = {"iana": lt["iana"], "plan_start": plan_start,
+                     "plan_end": now + timedelta(hours=plan_end_h)}
+            forecast = daily_rows(frames, civil_dates, offset, dense_end, civil)
+            composition["day_grouping"] = "civil"
+        except Exception as e:                                          # noqa: BLE001 - presentation only
+            logger.warning(f"[spot-hub] civil grouping failed at ({lat},{lng}) zone {lt.get('iana')}; solar rows: {e}")
+            forecast = None
+            composition["day_grouping"] = "solar_fallback"
+    if forecast is None:
+        forecast = daily_rows(frames, dates, offset, dense_end)
+    return {"current_conditions": current_conditions(current_row), "forecast": forecast, "composition": composition}
 
 
 async def _display_wind(resolver, model, lat, lng, row):
