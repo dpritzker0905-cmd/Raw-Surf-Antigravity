@@ -384,6 +384,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
       // strictly improves regional hits (the served tile is ≥ the requested viewport).
       _seriesCache.set(key, { ts: Date.now(), frames, hours: hoursList, bounds: sfb || bounds, model, layer, page, surf: surfFlavor, coarsePreview: isCoarsePreview, revalCount });
       _failRetries.delete(key); // §4.3(b): a successful page resets its failure budget
+      evictOlderRunSiblings(model, layer, bounds, page, reqBox, frames);   // CLI-7: never two runs across a page boundary
       boundSeriesCache(key);   // Bound memory.
       // Self-schedule a revalidation re-fetch while still coarse (the backend is building the regional
       // grid in the background). Bounded by COARSE_REVAL_MAX. Aborts with the active signal.
@@ -435,6 +436,36 @@ function boundSeriesCache(key) {
 }
 
 // Seam B of the static frames (marineSeriesStatic.runStaticPageFlight): the fill runs as this page's flight.
+// CLI-7 (Fable audit 2026-11-10): page keys carry no model run, so pages fetched either side of an ingest held two cycles and a
+// scrub across the boundary stepped from the new run back to the old one. When a page lands with a NEWER verified cycle than a
+// sibling page (same model, layer, flavour, viewport, anchor; and its hour-0 mini), the older sibling is evicted and refetches.
+// Only VERIFIED zoned cycles compare; an unknown cycle never evicts anything. Kill: window.__RAW_DISABLE_SERIES_RUN_EVICT__.
+function newestVerifiedCycle(frames) {
+  let best = null;
+  for (const f of frames.values()) {
+    const t = f && f.model_run_time_status === 'known' && typeof f.model_run_time === 'string'
+      && /(?:Z|[+-]\d{2}:\d{2})$/i.test(f.model_run_time) ? Date.parse(f.model_run_time) : NaN;
+    if (Number.isFinite(t) && (best === null || t > best)) best = t;
+  }
+  return best;
+}
+
+function evictOlderRunSiblings(model, layer, bounds, page, reqBox, frames) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_SERIES_RUN_EVICT__ === true) return;
+  const mine = newestVerifiedCycle(frames);
+  if (mine === null) return;
+  const surf = getSurfModeFlag();
+  for (let p = 0; p <= lastPageFor(model); p++) {
+    const base = pageKey(model, layer, bounds, p);
+    for (const k of [p === page ? null : staticCropPageKey(base, { model, layer, reqBox, surf }), `${base}_h0`]) {
+      const e = k ? _seriesCache.get(k) : null;
+      if (!e || !e.frames || !e.frames.size) continue;
+      const theirs = newestVerifiedCycle(e.frames);
+      if (theirs !== null && theirs < mine) _seriesCache.delete(k);
+    }
+  }
+}
+
 function loadSeriesPageStatic(key, ctx) {
   const flight = runStaticPageFlight(key, ctx, { seriesCache: _seriesCache, frameToMarineData, finish: (f) => finishFlight(key, f),
     evict: boundSeriesCache });
