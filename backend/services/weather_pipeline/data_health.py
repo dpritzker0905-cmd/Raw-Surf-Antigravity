@@ -95,7 +95,9 @@ def compute_data_health(store, now: Optional[datetime] = None) -> dict:
         if cur is None or rt > cur["run_time"]:
             lane_state[key] = {"run_time": rt, "horizon_end": vt,
                                "source": getattr(p, "source_dataset", None) or getattr(p, "upstream_model", None)}
-        elif vt is not None and (cur["horizon_end"] is None or vt > cur["horizon_end"]):
+        elif rt == cur["run_time"] and vt is not None and (cur["horizon_end"] is None or vt > cur["horizon_end"]):
+            # ING-7: horizon is the NEWEST run's reach only. An older run's surviving tail must not mask a
+            # newest run that was truncated.
             cur["horizon_end"] = vt
 
     freshest = max((s["run_time"] for s in lane_state.values()), default=None)

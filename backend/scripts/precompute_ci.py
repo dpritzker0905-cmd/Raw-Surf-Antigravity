@@ -15,7 +15,8 @@ ENV (from repo secrets, same as forecast-ingest):
   ALERTS_FORECAST_WINDOWS = 1 adds the alert-horizon frames (dark, default 0)
   WEATHER_PROXY_URL, COPERNICUS* -> only for any live point-resolution fallback; optional
 
-Exit: 0 if every ENABLED step succeeded; 1 if L2 had nothing to restore or any enabled step raised. Unlike
+Exit: 0 if every ENABLED step succeeded; 1 if L2 had nothing to restore, any enabled step raised, or the
+spot-ratings precompute saved zero frames (ING-6; PRECOMPUTE_FAIL_ON_ZERO_FRAMES=0 disables). Unlike
 the ingest tail (which SWALLOWS these as non-fatal because ingestion is the primary job), here precompute IS
 the job — a failure should turn the run RED so it's visible.
 """
@@ -76,6 +77,12 @@ def main() -> int:
             from services.weather_pipeline.spot_ratings_precompute import run_spot_ratings_precompute
             n_spots, n_frames = run_spot_ratings_precompute()
             logger.info("Spot-ratings precompute complete: %d spots × %d frames → L2.", n_spots, n_frames)
+            # ING-6: every model refused / below coverage returns (n, 0) without raising. Zero frames means
+            # nothing was published, so the job must go RED, not green. Kill switch: PRECOMPUTE_FAIL_ON_ZERO_FRAMES=0.
+            if not n_frames and os.environ.get("PRECOMPUTE_FAIL_ON_ZERO_FRAMES", "1") != "0":
+                logger.error("Spot-ratings precompute saved ZERO frames (%d spots) — nothing was published; "
+                             "failing the run.", n_spots)
+                rc = 1
         except Exception as e:
             logger.error("Spot-ratings precompute FAILED: %s", e, exc_info=True)
             rc = 1
