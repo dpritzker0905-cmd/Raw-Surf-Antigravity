@@ -1710,7 +1710,9 @@ jobs:
           #   base 3627 (dev's map) + 17 new test(s) and 1 new file(s) = 3644, files 208; floor 3644 - 6 = 3638. This PR must read 3644 passed.
           # ⬆ 3638→3653 on 2026-11-10 (rederive_floor.py, codex/backend-memory-bounds-20261109): dev run 42716155249 read 3643 / 208 files; dev's map 3644;
           #   base 3644 (dev's map) + 15 new test(s) and 3 new file(s) = 3659, files 211; floor 3659 - 6 = 3653. This PR must read 3659 passed.
-          MIN_FILES, MIN_PASSED = 211, 3653
+          # ⬆ 3653→3658 on 2026-11-11 (rederive_floor.py, claude/bathymetry-loud-f84a05): dev run 42752117173 read 3643 / 208 files; dev's map 3659;
+          #   base 3659 (dev's map) + 5 new test(s) and 1 new file(s) = 3664, files 212; floor 3664 - 6 = 3658. This PR must read 3664 passed.
+          MIN_FILES, MIN_PASSED = 212, 3658
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
