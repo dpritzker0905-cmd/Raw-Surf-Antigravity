@@ -455,6 +455,14 @@ _RATING_FLAGS = {
                                          "sea+swell forecast instead of the offshore field + parametric transform "
                                          "(all surfaces); kill switch '0'",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
+    # CMP-2 (Fable audit 2026-11-10): one resolver (sea_inputs.py) for the hour's tide and MOP sea, used by every
+    # estimate_surf_at caller. Parity with /point 20 spots x 3 h to 1e-6; accuracy not measured (filter primary hs_station).
+    "SURF_SEA_INPUTS_EVERY_CALLER": ("1", "[D-065 GUARDED, default ON; accuracy not measured: filter primary hs_station] "
+                                          "The spot hub's own chain, /api/conditions forecast rows, /api/surf-conditions "
+                                          "and the sim take the hour's tide (and, EURO, the MOP nearshore sea) exactly as "
+                                          "/point does (services/weather_pipeline/sea_inputs.py); kill switch '0' = "
+                                          "those callers pass (0.0, None) as before",
+                                     "Render env (serve-side surfaces); the sim reads the served glyph's tide, no env"),
     # ⚠️ ONLY BITES WHEN `SURF_PARTITIONS` IS ON — it gates the partition-aware exposure, which is
     # dark while that flag is off. Declared anyway, in the commit that added it: the lane-parity
     # guard caught this one MISSING and it was right to, because an undeclared switch is invisible
