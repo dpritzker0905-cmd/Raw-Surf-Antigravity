@@ -199,7 +199,8 @@ jobs:
             // Marine commit choke (2026-11-09, ON with the finer-resident / world-over-regional kills): marineCommitChoke.test.js (+1 suite / +23 tests). Raised by exactly that; confirm against the hosted receipt.
             // Hold compares the model cycle, not the ingest stamp (2026-11-09): marineHoldModelCycle.test.js (+1 suite / +9 tests). Raised by exactly that; confirm against the hosted receipt.
             // HUD resident truth (2026-11-07, ON with __RAW_DISABLE_HUD_RESIDENT_TRUTH__): hudResidentTruth.test.js (+1 suite / +3 tests). Raised by exactly that from 652 / 8,496; confirm against the hosted receipt.
-            const MIN_SUITES = 653, MIN_TESTS = 8499;   // +1 suite / +3 tests: hudResidentTruth (3)
+            // O4 / CLI-3 glyph area estimates (2026-11-10, ON with __RAW_DISABLE_GLYPH_ESTIMATE_LABEL__): glyphAreaEstimate.test.js (+1 suite / +4 tests). Raised by exactly that from 653 / 8,499; confirm against the hosted receipt.
+            const MIN_SUITES = 654, MIN_TESTS = 8503;   // +1 suite / +4 tests: glyphAreaEstimate (4)
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -1712,7 +1713,9 @@ jobs:
           #   base 3644 (dev's map) + 15 new test(s) and 3 new file(s) = 3659, files 211; floor 3659 - 6 = 3653. This PR must read 3659 passed.
           # ⬆ 3653→3660 on 2026-11-11 (rederive_floor.py, fable/cmp2-tide-nearshore-helper): dev run 42752117173 read 3643 / 208 files; dev's map 3659;
           #   base 3659 (dev's map) + 7 new test(s) and 1 new file(s) = 3666, files 212; floor 3666 - 6 = 3660. This PR must read 3666 passed.
-          MIN_FILES, MIN_PASSED = 212, 3660
+          # ⬆ 3653→3669 on 2026-11-11 (rederive_floor.py, fable/o4-side-paths): dev run 42752117173 read 3643 / 208 files; dev's map 3659;
+          #   base 3659 (dev's map) + 16 new test(s) and 2 new file(s) = 3675, files 213; floor 3675 - 6 = 3669. This PR must read 3675 passed.
+          MIN_FILES, MIN_PASSED = 213, 3669
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
