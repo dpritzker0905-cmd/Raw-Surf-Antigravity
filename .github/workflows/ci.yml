@@ -199,7 +199,8 @@ jobs:
             // Marine commit choke (2026-11-09, ON with the finer-resident / world-over-regional kills): marineCommitChoke.test.js (+1 suite / +23 tests). Raised by exactly that; confirm against the hosted receipt.
             // Hold compares the model cycle, not the ingest stamp (2026-11-09): marineHoldModelCycle.test.js (+1 suite / +9 tests). Raised by exactly that; confirm against the hosted receipt.
             // HUD resident truth (2026-11-07, ON with __RAW_DISABLE_HUD_RESIDENT_TRUTH__): hudResidentTruth.test.js (+1 suite / +3 tests). Raised by exactly that from 652 / 8,496; confirm against the hosted receipt.
-            const MIN_SUITES = 653, MIN_TESTS = 8499;   // +1 suite / +3 tests: hudResidentTruth (3)
+            // CLI-6 / CLI-7 client identity at commit (2026-11-10, ON with __RAW_DISABLE_HOLD_RUN_UNKNOWN_RELEASE__ / __RAW_DISABLE_SERIES_RUN_EVICT__): marineHoldRunUnknown.test.js (+1 suite / +5) and marineGridSeries.runIdentity.test.js (+1 suite / +5). Raised by exactly that from 653 / 8,499; confirm against the hosted receipt.
+            const MIN_SUITES = 655, MIN_TESTS = 8509;   // +2 suites / +10 tests: marineHoldRunUnknown (5), marineGridSeries.runIdentity (5)
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
