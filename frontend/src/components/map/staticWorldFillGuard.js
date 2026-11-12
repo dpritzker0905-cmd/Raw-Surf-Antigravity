@@ -3,6 +3,7 @@
  * had reached the 800-line cap). Moved verbatim; staticFrames re-exports serveTimeFillAtWorld (the callers and tests import it
  * from there). Reads only window globals (__RAW_DISABLE_STATIC_WORLD_FILL_GUARD__, __WEATHER_CAPABILITIES__).
  */
+import { packableLayer } from './marineFramePack';   // filledStoreAccepts: the layers the GPU frame store packs
 
 /**
  * A WORLD-span /grid (and /grid_series frame) of this set is NOT the stored product (2026-10-22): the route runs
@@ -63,6 +64,8 @@ export function preloadFilledIndexes(latest, load, enabled = () => true) {
  * server and the latest.json record both say 'targeted') AND the index itself was baked in the server's mode (index.fill.mode): a pin
  * from another mode never passes. The store shows a filled frame only as a WORLD-sized resident (its dims and bounds checks), never as
  * a crop window (marineFrameStoreCropShow refuses filled sets: /grid does not fill a viewport crop).
+ * Since 2026-11-12 every layer the packer takes (marineFramePack.packableLayer: the four marine layers; waves only under
+ * window.__RAW_DISABLE_FRAME_STORE_ALL_LAYERS__), not waves alone.
  * Kill (the store takes no EURO/ICON frame again): window.__RAW_DISABLE_FILLED_WORLD_STORE__ = true.
  */
 export const filledStoreOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_FILLED_WORLD_STORE__ === true);
@@ -77,7 +80,7 @@ export const filledStoreOn = () => !(typeof window !== 'undefined' && window.__R
  */
 export const plainCropsOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_PLAIN_SET_CROPS__ === true);
 export function filledStoreAccepts(model, layer, key, index, latest) {
-  if (!filledStoreOn() || String(layer || '').toLowerCase() !== 'waves' || filledWorldSetKey(model, layer, latest) !== key) return false;
+  if (!filledStoreOn() || !packableLayer(layer) || filledWorldSetKey(model, layer, latest) !== key) return false;   // the packer's layers (all four since 2026-11-12)
   const mode = serverFillModeOf(String(model || '').toUpperCase());
   return !!mode && !!(index && index.fill) && index.fill.mode === mode;
 }

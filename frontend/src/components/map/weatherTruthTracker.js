@@ -143,6 +143,29 @@ export function attachCensus(tag, vecs) {
   return tag;
 }
 
+/**
+ * LAZY DATA HASH (2026-11-11, the layer animation lane). computeJsDataHash string-formats every vector (seven toFixed each),
+ * and a tag used to compute it when it was BUILT. A wind or marine series page mints a tag for each of its up-to-48 frames in
+ * the task that receives the page, so one page landing hashed 48 frames in one long task for frames nobody had looked at
+ * (CPU profile, phone profile, wind at a regional zoom: 840 of 7,376 ms of a six-step scrub; log
+ * 2026-11-11-fable-layer-animation). Now `dataHash` and `traceId` (which is a hash of the data hash) are enumerable getters
+ * that compute ONCE on first read: the SAME values, for the frames that are actually committed, compared or serialised (a
+ * spread, JSON.stringify or structured clone reads them then). Both stay assignable. Diagnostic only: no served number reads
+ * either. A caller that changes the vectors in place between the mint and the first read gets the hash of the changed
+ * vectors; the eager path cached the hash on the array at mint.
+ * Kill: window.__RAW_DISABLE_TRUTH_TAG_LAZY_HASH__ = true (both computed at build, as before).
+ */
+export const truthTagLazyHashOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_TRUTH_TAG_LAZY_HASH__ === true);
+export function attachLazyHash(tag, vecs, layer, traceIdOf) {
+  let dataHash; let traceId;
+  const readHash = () => (dataHash !== undefined ? dataHash : (dataHash = computeJsDataHash(vecs, layer)));
+  // Redefining the two keys the literal already holds keeps their place in the tag's key order.
+  Object.defineProperty(tag, 'dataHash', { enumerable: true, configurable: true, get: readHash, set: (v) => { dataHash = v; } });
+  Object.defineProperty(tag, 'traceId', { enumerable: true, configurable: true,
+    get: () => (traceId !== undefined ? traceId : (traceId = traceIdOf(readHash()))), set: (v) => { traceId = v; } });
+  return tag;
+}
+
 // Build a truthTag from a grid-commit-shaped payload. Exported so series-frame MINT sites can
 // stamp lineage ONCE (audit #18/A3): recordTruthStage PRESERVES an existing data.truthTag, so a
 // tag minted at frame construction keeps product_id + traceId identical across commit → webglUpload
@@ -157,9 +180,11 @@ export function buildTruthTag(data, stageName) {
     const layer = data.layer;
     const validTime = data.valid_time || data.validTime;
     const servedBbox = data.served_bbox || data.servedBbox || (data.grid.bounds ? `${data.grid.bounds.west.toFixed(2)},${data.grid.bounds.south.toFixed(2)},${data.grid.bounds.east.toFixed(2)},${data.grid.bounds.north.toFixed(2)}` : "");
-    const dataHash = computeJsDataHash(data.grid.vectors, layer);
+    // LAZY HASH (2026-11-11, layer animation lane): see attachLazyHash. Under the kill both are computed here, as before.
+    const lazyHash = truthTagLazyHashOn();
+    const dataHash = lazyHash ? undefined : computeJsDataHash(data.grid.vectors, layer);
     const boundsHash = computeJsBoundsHash(servedBbox);
-    const traceId = computeJsTraceId(model, domain, layer, validTime, servedBbox, dataHash);
+    const traceId = lazyHash ? undefined : computeJsTraceId(model, domain, layer, validTime, servedBbox, dataHash);
     
     const runTime = data.run_time || data.runTime || new Date().toISOString();
     let timeOffsetHours = 0;
@@ -171,7 +196,7 @@ export function buildTruthTag(data, stageName) {
       }
     } catch (e) {}
     
-    return attachCensus({
+    const tag = attachCensus({
       ...verifiedCycleTime(data),
       traceId,
       model,
@@ -210,6 +235,9 @@ export function buildTruthTag(data, stageName) {
       sourceStage: stageName,
       build: BUILD_VERSION
     }, data.grid.vectors);
+    return lazyHash
+      ? attachLazyHash(tag, data.grid.vectors, layer, (h) => computeJsTraceId(model, domain, layer, validTime, servedBbox, h))
+      : tag;
   }
 }
 

@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 10,
+  "files": 2,
+  "branch": "fable/cli-identity-at-commit",
+  "date": "2026-11-12",
+  "note": "CLI-6/7 identity at commit (#778)"
+}
