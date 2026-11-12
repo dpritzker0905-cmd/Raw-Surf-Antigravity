@@ -129,3 +129,12 @@ Not the laptop key, not a new dispatch workflow. Built `services/weather_pipelin
   correction, which the sign flip of GFS-Wave bias by coast (hawaii +0.108 served bias vs pacific_ne big-swell under-read) makes plausible. Unproven until the run.
 - Tests: `tests/test_skill_ocf.py` (11): per-coast bias removed where the pooled correction cannot, deterministic interval, gate logic, causal window,
   thin-coast fallback, thin refusal, unusable rows, report wiring, kill switch byte-identity, block isolation. Chain floor fragment +11 tests, +1 file.
+
+## Addendum: positive control and the consensus-shadow tier split (2026-11-12, after the handover from move 1)
+
+Added to the same shadow block (`skill_ocf.py`, same kill switch `FORECAST_SKILL_OCF`; off adds nothing):
+
+- `positive_control`: a known +0.30 m is added to every served-lane (GFS) forecast and the held-out scoring is rerun. `served` bias must move by +0.30; `ocf_pooled`, `ocf_region` and `ocf_rolling` must absorb it (shift near 0). Unit test pins this on synthetic rows. It reads in the report as `forecast_skill_ocf.positive_control`.
+- `tier_split`: the consensus shadow minus the equal mean (the move 1 defect, +0.09 m at 48/72 h), split by how many member lanes have tier 'unknown' (row has no `tier`). Per lead: flagged vs rest mean gap and difference, a random-row null (labels shuffled, 400 draws), a day-block bootstrap interval, and a +0.30 m positive control on the flagged rows. Reads as `forecast_skill_ocf.tier_split`.
+
+Not measured yet: both read the private scored rows, so numbers exist only after merge and the next scoring run. Not answered even then: WHY an unknown-tier row reads high (frame offset vs masked-cell fallback). That needs member_frame_offset / masked per row, a change in the scoring writer, not in this PR. Nothing here touches `consensus_serve.py` or any flag.

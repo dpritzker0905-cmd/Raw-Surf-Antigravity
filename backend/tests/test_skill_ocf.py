@@ -151,3 +151,69 @@ def test_an_ocf_failure_costs_only_its_own_block(ledger, monkeypatch):
     monkeypatch.setattr(ocf, "ocf_report", boom)
     skill = ledger()
     assert "ocf" not in skill and skill["consensus"] is not None and skill["mos_shadow"] is not None
+
+
+# ── positive control and tier split (2026-11-12) ──────────────────────────────────────────────────────
+from services.weather_pipeline.skill_ocf import POS_DELTA_M, positive_control, tier_split_report  # noqa: E402
+
+SH = "raw_surf:CONSENSUS"
+
+
+def _tier_rows(extra_unknown=0.30, n_days=6, per_day=60):
+    """Shadow = equal mean, plus `extra_unknown` on pairs whose EURO row has no tier (a missing tier reads 'unknown')."""
+    rows = []
+    for d in range(n_days):
+        for i in range(per_day):
+            t = (NOW - timedelta(days=d, hours=i % 20)).strftime("%Y-%m-%dT%H:00:00Z")
+            buoy, unk = f"B{i % 5}", i % 3 == 0
+            f = {"raw_surf": 2.0, "raw_surf:EURO": 2.4, "raw_surf:ICON": 2.2}
+            for src, v in f.items():
+                r = {"source": src, "buoy_id": buoy, "target_time": t, "lead_h": 48.0, "hs_m": v, "obs_hs_m": 2.0}
+                if not (src == "raw_surf:EURO" and unk):
+                    r["tier"] = "regional"
+                rows.append(r)
+            rows.append({"source": SH, "buoy_id": buoy, "target_time": t, "lead_h": 48.0, "obs_hs_m": 2.0,
+                         "hs_m": 2.2 + (extra_unknown if unk else 0.0), "tier": "regional"})
+    return rows
+
+
+def test_tier_split_finds_an_excess_that_sits_in_unknown_tier_rows_and_the_positive_control_comes_back():
+    e = tier_split_report(_tier_rows(0.30), NOW)["by_lead"][0]
+    assert e["status"] == "scored"
+    assert e["diff_m"] == pytest.approx(0.30, abs=1e-6)
+    assert e["mean_gap_rest_m"] == pytest.approx(0.0, abs=1e-6)
+    assert e["positive_control"]["recovered_m"] == pytest.approx(POS_DELTA_M, abs=1e-6)
+    assert e["diff_m"] > e["null_ci95_m"][1]                        # outside the random-row null
+    assert e["by_n_unknown"]["1"]["mean_gap_m"] == pytest.approx(0.30, abs=1e-6)
+
+
+def test_tier_split_with_no_excess_sits_inside_the_null():
+    e = tier_split_report(_tier_rows(0.0), NOW)["by_lead"][0]
+    assert e["diff_m"] == pytest.approx(0.0, abs=1e-6)
+    assert e["null_ci95_m"][0] <= e["diff_m"] <= e["null_ci95_m"][1]
+
+
+def test_tier_split_refuses_thin_data_and_ignores_unusable_rows():
+    assert tier_split_report([], NOW)["by_lead"] == []
+    thin = tier_split_report(_tier_rows(0.3, n_days=1, per_day=6), NOW)["by_lead"][0]
+    assert thin["status"] == "insufficient" and "diff_m" not in thin
+
+
+def test_positive_control_a_known_bias_is_absorbed_by_the_bias_removing_variants_but_not_by_served():
+    pc = positive_control(_data(), NOW, delta=0.30)
+    e = next(x for x in pc["by_lead"] if x["lead_h"] == 48)
+    assert e["status"] == "scored"
+    assert e["bias_shift"]["served"] == pytest.approx(0.30, abs=1e-6)
+    assert e["bias_shift"]["equal"] == pytest.approx(0.10, abs=1e-6)          # only one of three members moved
+    for k in ("ocf_pooled", "ocf_region", "ocf_rolling"):
+        assert abs(e["bias_shift"][k]) < 0.02, k
+        assert abs(e["mae_shift"][k]) < 0.02, k
+
+
+def test_report_wiring_carries_the_controls_and_the_kill_switch_still_adds_nothing(monkeypatch):
+    assert "positive_control" in inspect_run_source() and "tier_split" in inspect_run_source()
+
+
+def inspect_run_source():
+    import inspect
+    return inspect.getsource(fs.run_skill_ledger)

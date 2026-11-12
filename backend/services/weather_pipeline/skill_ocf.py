@@ -217,3 +217,117 @@ def ocf_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_test: 
             "holdout_days": holdout_days, "roll_days": ROLL_DAYS, "cutoff": (now - timedelta(days=holdout_days)).isoformat(),
             "depth_split": DEPTH_SPLIT, "by_lead": by_lead, "by_region": by_region, "by_band": by_band,
             "gate": verdict}
+
+
+# ── CONTROLS AND THE TIER SPLIT (move 4, 2026-11-12) ──────────────────────────────────────────────────
+POS_DELTA_M = 0.30
+SHADOW = "raw_surf:CONSENSUS"
+
+
+def positive_control(rows, now: datetime, delta: float = POS_DELTA_M, holdout_days: int = HOLDOUT_DAYS,
+                     min_test: int = MIN_TEST, members=MEMBERS) -> Dict:
+    """PURE positive control: add a KNOWN constant bias `delta` to every forecast of the served lane (members[0]) in all
+    rows, rerun the held-out scoring, and report per lead how far each variant's MAE and bias moved. A bias-removing
+    variant must absorb it (MAE shift near 0, bias shift near 0); `served` must move by about `delta` in bias. If a
+    variant that claims to remove bias does not, the block cannot be trusted."""
+    shifted = []
+    for r in rows or []:
+        r2 = dict(r)
+        if str(r2.get("source")) == members[0] and _ok(r2.get("hs_m")):
+            r2["hs_m"] = float(r2["hs_m"]) + delta
+        shifted.append(r2)
+    base, bent = ocf_report(rows, now, holdout_days, min_test, members), ocf_report(shifted, now, holdout_days, min_test, members)
+    out = []
+    for a, b in zip(base["by_lead"], bent["by_lead"]):
+        if a.get("status") != "scored" or b.get("status") != "scored":
+            out.append({"lead_h": a.get("lead_h"), "status": "insufficient"})
+            continue
+        out.append({"lead_h": a["lead_h"], "status": "scored", "delta_m": delta,
+                    "mae_shift": {k: round(b["variants"][k]["mae_m"] - a["variants"][k]["mae_m"], 4) for k in VARIANTS},
+                    "bias_shift": {k: round(b["variants"][k]["bias_m"] - a["variants"][k]["bias_m"], 4) for k in VARIANTS}})
+    return {"delta_m": delta, "by_lead": out}
+
+
+def _gap_stats(pairs, flagged) -> Dict:
+    g_in = [p["gap"] for p, f in zip(pairs, flagged) if f]
+    g_out = [p["gap"] for p, f in zip(pairs, flagged) if not f]
+    if not g_in or not g_out:
+        return None
+    return {"n_flagged": len(g_in), "n_rest": len(g_out), "mean_gap_flagged_m": round(_mean(g_in), 3),
+            "mean_gap_rest_m": round(_mean(g_out), 3), "diff_m": round(_mean(g_in) - _mean(g_out), 3)}
+
+
+def tier_split_report(rows, now: datetime, members=MEMBERS, shadow: str = SHADOW, min_test: int = MIN_TEST,
+                      since: Optional[datetime] = None) -> Dict:
+    """PURE: where the built consensus shadow reads HIGH against the equal mean of its members, split by how many member
+    lanes have an unknown serving tier (no stored product, direct-point path; the ledger row carries `tier` or nothing).
+
+    Per lead: the signed mean of (shadow - equal) for pairs with >= 1 unknown-tier member vs the rest, and the difference
+    `diff_m`. Controls on the SAME pairs: a random-row null (labels shuffled among the pairs, BOOT_DRAWS times; `diff_m`
+    must sit inside `null_ci95_m` if the split means nothing), a day-block bootstrap interval on the observed difference,
+    and a positive control (+POS_DELTA_M added to the shadow of the flagged pairs must come back as diff_m + POS_DELTA_M).
+    A lead under min_test flagged or rest pairs prints its n and a status only. Measurement only; changes no served value."""
+    need = tuple(members) + (shadow,)
+    keys: Dict[tuple, Dict[str, tuple]] = {}
+    for r in rows or []:
+        src = str(r.get("source"))
+        if src not in need:
+            continue
+        x, y, t, lead = r.get("hs_m"), r.get("obs_hs_m"), _parse(r.get("target_time")), _lead(r.get("lead_h"))
+        if not (_ok(x) and _ok(y)) or x <= 0 or y < 0 or t is None or lead is None or t > now or (since and t < since):
+            continue
+        keys.setdefault((r.get("buoy_id"), t, lead), {})[src] = (float(x), float(y), r.get("tier") or "unknown")
+    by_lead: Dict[int, List[dict]] = {}
+    for (buoy, t, lead), got in keys.items():
+        if len(got) == len(need):
+            eq = _mean([got[m][0] for m in members])
+            by_lead.setdefault(lead, []).append({
+                "t": t, "buoy": buoy, "gap": got[shadow][0] - eq, "n_unknown": sum(got[m][2] == "unknown" for m in members),
+                "euro_unknown": got[members[1]][2] == "unknown" if len(members) > 1 else False})
+    out = []
+    for lead, pairs in sorted(by_lead.items()):
+        pairs.sort(key=lambda p: (p["t"], str(p["buoy"])))
+        flagged = [p["n_unknown"] >= 1 for p in pairs]
+        entry = {"lead_h": lead, "n": len(pairs), "by_n_unknown": {
+            str(k): {"n": sum(p["n_unknown"] == k for p in pairs),
+                     **({"mean_gap_m": round(_mean([p["gap"] for p in pairs if p["n_unknown"] == k]), 3)}
+                        if sum(p["n_unknown"] == k for p in pairs) >= min_test else {"status": "insufficient"})}
+            for k in sorted({p["n_unknown"] for p in pairs})}}
+        obs = _gap_stats(pairs, flagged)
+        if not obs or obs["n_flagged"] < min_test or obs["n_rest"] < min_test:
+            out.append({**entry, "status": "insufficient"})
+            continue
+        rng = random.Random(BOOT_SEED)
+        null = []
+        for _ in range(BOOT_DRAWS):
+            lab = flagged[:]
+            rng.shuffle(lab)
+            null.append(_gap_stats(pairs, lab)["diff_m"])
+        null.sort()
+        days: Dict[str, list] = {}
+        for p, f in zip(pairs, flagged):
+            d = days.setdefault(p["t"].strftime("%Y-%m-%d"), [[], []])
+            d[0 if f else 1].append(p["gap"])
+        dl = list(days.values())
+        boots = []
+        for _ in range(BOOT_DRAWS):
+            draw = [dl[rng.randrange(len(dl))] for _ in dl]
+            a = [g for d in draw for g in d[0]]
+            b = [g for d in draw for g in d[1]]
+            if a and b:
+                boots.append(_mean(a) - _mean(b))
+        boots.sort()
+        pos = _gap_stats([{**p, "gap": p["gap"] + (POS_DELTA_M if f else 0.0)} for p, f in zip(pairs, flagged)], flagged)
+        entry.update({"status": "scored", **obs,
+                      "null_ci95_m": [round(null[int(0.025 * BOOT_DRAWS)], 3), round(null[int(0.975 * BOOT_DRAWS) - 1], 3)],
+                      "day_bootstrap_ci95_m": ([round(boots[int(0.025 * len(boots))], 3), round(boots[int(0.975 * len(boots)) - 1], 3)]
+                                               if len(boots) >= 20 else None),
+                      "n_days": len(dl), "n_buoys": len({p["buoy"] for p in pairs}),
+                      "positive_control": {"injected_m": POS_DELTA_M, "diff_m": pos["diff_m"],
+                                           "recovered_m": round(pos["diff_m"] - obs["diff_m"], 3)}})
+        eu = [p["euro_unknown"] for p in pairs]
+        if any(eu) and not all(eu):
+            entry["euro_unknown_only"] = _gap_stats(pairs, eu)
+        out.append(entry)
+    return {"method": "shadow_minus_equal_by_unknown_member_tier", "shadow": shadow, "members": list(members),
+            "since": since.isoformat() if since else None, "by_lead": out}

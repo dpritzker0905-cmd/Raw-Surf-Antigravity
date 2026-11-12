@@ -1,8 +1,8 @@
 {
   "lane": "chain",
-  "tests": 11,
+  "tests": 16,
   "files": 1,
   "branch": "claude/eloquent-khorana-f240a0",
   "date": "2026-11-12",
-  "note": "tests/test_skill_ocf.py: OCF-style shadow block, kill switch"
+  "note": "tests/test_skill_ocf.py: OCF-style shadow block, kill switch, positive control, tier split"
 }
