@@ -12,7 +12,9 @@ WHAT IT MEASURES (all offline, no Raw Surf backend, no Supabase):
   A. PRODUCT LEVEL, through the REAL normalizer, flag off then on, over the same raw points: regional 0.25 deg boxes
      and the 2 deg world grid. Reports the coherence-gate diagnostics (swellAvailFrac, swellStampSuppressed), how many
      cells changed direction, and the angle difference. Also checks the vectorised stamp used in B/C against it.
-  B. RATING CENSUS through the REAL chain (sim_rating.calculate_surf_rating -> estimate_surf_at -> rating_score):
+  B. RATING CENSUS through the REFERENCE chain, spot_ratings.rate_one_spot (ONE FORECAST COMPOSITION) with a stub point
+     resolver that serves the native cell's sea state (point_surf_augment.augment_with_surf -> resolve_surf_geometry /
+     estimate_surf_at -> compute_surf_rating), the same harness as #792's dominant_swell_anim_census.py:
      every catalogue spot, every forecast hour, four wind scenarios stated relative to the spot's shore normal.
      Counts spot-hours whose score / level change, and by how much. Rows with an unchanged direction are not re-rated
      (identical inputs, identical output); a control re-rates a sample of them to prove that.
@@ -237,9 +239,50 @@ def region_of(lat, lon):
     return "other"
 
 
+def _point(domain, layer, t, speed, direction, period):
+    from services.weather_pipeline.schemas import NormalizedPointDetail, NormalizedPointResponse
+    return NormalizedPointResponse(
+        model="GFS", provider="noaa", domain=domain, layer=layer, run_time=t, valid_time=t,
+        is_forecast_authoritative=True, is_estimated=False,
+        point=NormalizedPointDetail(requested_lat=0, requested_lng=0, sampled_lat=0, sampled_lng=0, speed=speed,
+                                    direction=direction, u=0.0, v=0.0, period=period, interpolation_method="exact_match"),
+        value_kind="wave_height" if domain == "marine" else "wind_speed", value_unit="m" if domain == "marine" else "kn",
+        display_unit_hint="ft", source_variables=["x"], freshness_sec=0)
+
+
+class _StubResolver:
+    """Serves ONE sea state (the native cell's, with the flag's direction) and ONE wind to rate_one_spot's point reads."""
+    def __init__(self, t, hs, direction, tp, swell1, wind_kn, wind_from):
+        self.t, self.hs, self.dir, self.tp, self.s1, self.wind = t, hs, direction, tp, swell1, (wind_kn, wind_from)
+
+    async def resolve_point(self, model, domain, layer, lat, lng, valid_time_str, **_k):
+        from services.weather_pipeline.point_surf_augment import augment_with_surf
+        if domain == "wind":
+            return _point("wind", "wind", self.t, self.wind[0], self.wind[1], None)
+        if layer == "waves":
+            async def _none(*_a, **_kw):
+                return None
+            return await augment_with_surf(_point("marine", "waves", self.t, self.hs, self.dir, self.tp),
+                                           model, domain, layer, lat, lng, valid_time_str, _none)
+        if layer == "swell_1" and self.s1 is not None:
+            return _point("marine", "swell_1", self.t, *self.s1)
+        return None
+
+
+def rate_ref(sp, t, hs, direction, tp, swell1, wind_kn, wind_from):
+    """rate_one_spot (the reference) at the spot's own coordinate, served this sea state and wind."""
+    import asyncio
+    from services.weather_pipeline import spot_ratings as SR
+    res = _StubResolver(t, hs, direction, tp, swell1, wind_kn, wind_from)
+    spot = {"id": sp.get("id") or "census", "name": sp.get("name") or "census", "latitude": sp["latitude"],
+            "longitude": sp["longitude"], "accuracy_flag": sp.get("accuracy_flag"), "is_verified_peak": sp.get("is_verified_peak")}
+    return asyncio.run(SR.rate_one_spot(res, spot, "GFS", t.strftime("%Y-%m-%dT%H:%M:%SZ")))
+
+
 def part_b(F, spots, max_spots=None, gate=None):
     os.environ.setdefault("SIM_PRODUCTION_GEOMETRY", "1")
-    from services.weather_pipeline import sim_rating as SRT
+    from services.weather_pipeline import sim_rating as SRT   # shore_normal_for only: the scenario's wind bearing
+    cyc = F.cyc_dt if F.cyc_dt.tzinfo else F.cyc_dt.replace(tzinfo=timezone.utc)
     scen_def = {  # name -> (speed_kn, from-bearing offset relative to the seaward shore normal)
         "calm": (2.0, 180.0), "light_offshore": (10.0, 180.0), "onshore": (14.0, 0.0), "cross": (10.0, 90.0)}
     rows = []
@@ -283,10 +326,14 @@ def part_b(F, spots, max_spots=None, gate=None):
                 rec = {"spot": sp.get("name"), "region": reg, "fh": F.hours[ti], "scen": sc, "changed_dir": bool(changed),
                        "dir_delta": float(angdiff(d_on, d_off))}
                 if changed or len(sample_ctrl) < 400:
-                    a = SRT.calculate_surf_rating(sp, float(H), float(T), float(d_off), kn, wind_from)
-                    b = SRT.calculate_surf_rating(sp, float(H), float(T), d_on, kn, wind_from)
-                    rec.update(score_off=a["quality_raw"], score_on=b["quality_raw"], level_off=a["quality_label"],
-                               level_on=b["quality_label"], ft_off=a["breaking_height_ft"], ft_on=b["breaking_height_ft"])
+                    t = cyc + timedelta(hours=int(F.hours[ti]))
+                    s1 = tuple(float(F.a[k][ti, r, c]) for k in ("swell_wave_height", "swell_wave_direction", "swell_wave_period"))
+                    s1 = s1 if all(np.isfinite(s1)) else None
+                    a = rate_ref(sp, t, float(H), float(d_off), float(T), s1, kn, wind_from)
+                    b = rate_ref(sp, t, float(H), d_on, float(T), s1, kn, wind_from)
+                    ft = lambda d: None if d.get("surf_height_m") is None else d["surf_height_m"] * 3.28084  # noqa: E731
+                    rec.update(score_off=a.get("score"), score_on=b.get("score"), level_off=a.get("level"),
+                               level_on=b.get("level"), ft_off=ft(a), ft_on=ft(b))
                     if not changed:
                         sample_ctrl.append(rec)
                         continue
@@ -313,11 +360,12 @@ def part_b_report(rows, ctrl, nspots, F):
            "level_changed_rows": len(lev),
            "frac_all_rows_level_changed": round(len(lev) / max(1, total + len(ctrl)), 4),
            "frac_all_rows_score_changed_gt_1": round(float((np.abs(dscore) > 1).sum()) / max(1, total + len(ctrl)), 4),
-           "height_changed_rows_ft_gt_0_05": int(sum(1 for r in rated if abs(r["ft_on"] - r["ft_off"]) > 0.05))}
+           "height_changed_rows_ft_gt_0_05": int(sum(1 for r in rated if r["ft_on"] is not None and r["ft_off"] is not None
+                                                  and abs(r["ft_on"] - r["ft_off"]) > 0.05))}
     by = {}
     for sc in sorted({r["scen"] for r in rated}):
         rs = [r for r in rated if r["scen"] == sc]
-        ds = np.array([r["score_on"] - r["score_off"] for r in rs])
+        ds = np.array([r["score_on"] - r["score_off"] for r in rs if r["score_on"] is not None and r["score_off"] is not None])
         by[sc] = {"rows_changed_dir": len(rs), "score_abs_delta": summary(np.abs(ds)),
                   "level_changed": sum(1 for r in rs if r["level_on"] != r["level_off"]),
                   "mean_signed": round(float(ds.mean()), 3) if ds.size else None}
@@ -328,7 +376,7 @@ def part_b_report(rows, ctrl, nspots, F):
         all_by_reg[r["region"]] = all_by_reg.get(r["region"], 0) + 1
     for rg, tot in sorted(all_by_reg.items()):
         rs = [r for r in rated if r["region"] == rg]
-        ds = np.array([abs(r["score_on"] - r["score_off"]) for r in rs])
+        ds = np.array([abs(r["score_on"] - r["score_off"]) for r in rs if r["score_on"] is not None and r["score_off"] is not None])
         regs[rg] = {"rows": tot, "rows_dir_changed": len(rs), "frac_dir_changed": round(len(rs) / tot, 4),
                     "level_changed": sum(1 for r in rs if r["level_on"] != r["level_off"]),
                     "frac_level_changed": round(sum(1 for r in rs if r["level_on"] != r["level_off"]) / tot, 4),
