@@ -3,6 +3,7 @@
  * Extracted from SpotHub.js -- handler logic for spot detail pages.
  * v32: Rewritten to match actual SpotHub.js handler implementations.
  */
+import {goBackOr} from '../components/routing/appHistory';
 import { useRef } from 'react';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
@@ -212,7 +213,7 @@ const useSpotHubActions = ({
   };
 
   const handleClose = () => {
-    navigate(-1);
+    goBackOr(navigate, '/map');
   };
 
   // Handle booking type selection from modal
