@@ -83,7 +83,10 @@ HUB_ROUTES = (
     ("/api/tides/", (), "refuse"),
     ("/api/explore/spot-details/", ("model", "subscription_tier"), "withhold"),
     ("/api/explore/surf-spots", ("model", "subscription_tier"), "withhold"),
+    ("/api/surf-conditions", (), "refuse"),                      # the create-post autofill: conditions at any point
 )
+# Static metadata under a governed prefix: never gated (the create-post spot list, no forecast in it).
+HUB_PUBLIC = ("/api/surf-conditions/known-spots",)
 SIGNED_OUT = "signed_out"       # canonical_tier() reads it as guest, so a route's tier window is empty as well
 # MIRROR of the `days` default of routes/surf_data/conditions.get_spot_forecast (pinned by a test): a request without
 # `days` asks for this many daily rows, so the clamp states it explicitly when the window is shorter.
@@ -132,6 +135,8 @@ def gate(path: str) -> Optional[Tuple[Tuple[str, ...], str]]:
         return names, "refuse"
     if account_required(path):
         return (), "refuse"
+    if path.rstrip("/") in HUB_PUBLIC:
+        return None
     for prefix, hub_names, mode in HUB_ROUTES:
         if path.startswith(prefix):
             return hub_names, mode
@@ -205,8 +210,10 @@ def clamp_params(params: List[Tuple[str, str]], names: Tuple[str, ...], tier: st
         try:
             want = FORECAST_DAYS_DEFAULT if asked is None else int(asked)
         except ValueError:
-            want = None                                  # the route rejects it, exactly as before
-        if want is not None and want > cap:
+            # FAIL CLOSED (security review 2026-11-12): a value int() refuses might still be one the route's own parser
+            # accepts, so it is never passed through unclamped; it becomes the cap.
+            want = cap + 1
+        if want > cap:
             out = [(k, v) for k, v in out if k != "days"] + [("days", str(cap))]
             changed.append("days")
     if "subscription_tier" in names:

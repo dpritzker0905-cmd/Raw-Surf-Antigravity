@@ -23,6 +23,9 @@ from services import weather_tier_clamp as C
     ("/api/explore/surf-spots", (("model", "subscription_tier"), "withhold")),
     ("/api/weather/point-tide", ((), "refuse")),
     ("/api/weather/grid", (("model", "valid_time"), "refuse")),
+    ("/api/surf-conditions", ((), "refuse")),
+    ("/api/surf-conditions/", ((), "refuse")),
+    ("/api/surf-conditions/known-spots", None),
     ("/api/explore/search", None),
     ("/api/surf-spots/s1", None),
     ("/api/weather/capabilities", None),
@@ -36,7 +39,8 @@ def test_days_is_clamped_to_today_plus_the_window():
     assert C.clamp_params([("days", "10")], ("model", "days"), "free")[0] == [("days", str(cap))]
     assert C.clamp_params([], ("model", "days"), "free")[0] == [("days", str(cap))]         # the route default is 10
     assert C.clamp_params([("days", "2")], ("model", "days"), "free") == ([("days", "2")], [])
-    assert C.clamp_params([("days", "x")], ("model", "days"), "free") == ([("days", "x")], [])  # the route rejects it
+    for odd in ("x", "10.0", "1e3", ""):                 # FAIL CLOSED: never passed through to the route's own parser
+        assert C.clamp_params([("days", odd)], ("model", "days"), "free")[0] == [("days", str(cap))], odd
     premium_cap = FTW.tier_horizon_hours("premium", "EURO") // 24 + 1
     assert premium_cap >= C.FORECAST_DAYS_DEFAULT
     assert C.clamp_params([], ("model", "days"), "premium") == ([], [])
@@ -142,6 +146,59 @@ async def test_spot_details_signed_out_computes_no_forecast_and_sends_none(monke
     assert out["forecast_status"] == "sign_in_required" and out["forecast_days_allowed"] == 0
     out = await route.get_spot_details("s1", subscription_tier="free", model="GFS", db=_db())
     assert resolver.await_count == 1 and out["current_conditions"] == {"wave_height_ft": 3}
+
+
+FORECAST_CALLS = ("resolve_spot_conditions", "pipeline_current_conditions", "get_full_conditions", "rate_one_spot(",
+                  "estimate_surf_at(", "compute_surf_rating(", "fetch_marine_conditions(", "PointResolutionService")
+# Public GETs that live in a forecast-computing MODULE but serve no forecast, each with its reason. Adding a route here is
+# a review decision: it must not return heights, ratings, conditions or tides.
+NOT_FORECAST = {
+    "/api/photographer-requests/active": "marketplace requests (alerts.py also runs the alert check)",
+    "/api/photographer-requests/my-requests": "marketplace requests",
+    "/api/photographer-requests/x": "marketplace request detail",
+    "/api/explore/search": "spots, users and posts by name",
+    "/api/explore/trending": "posts",
+    "/api/surf-conditions/known-spots": "static spot names and coordinates (HUB_PUBLIC)",
+    "/api/surf-spots/x/live-shooting-pulse": "live photographer activity",
+    "/api/weather/products": "product inventory (public by design: run ages, census jobs)",
+    "/api/weather/buoy-calibration": "calibration statistics",
+    "/api/weather/report-calibration": "calibration statistics",
+    "/api/weather/status": "service status (the client reads the switch from it)",
+    "/api/weather/capabilities": "horizons and the `tier_clamp` switch (the client reads it before signing in)",
+    "/api/weather/diagnostics-log": "client diagnostics sink",
+}
+
+
+def _public_get_routes_in_forecast_modules():
+    """Every public GET of the real app defined in a module that computes a forecast, conditions or a rating anywhere
+    (handler OR helper: the spot pages compute in helpers), so a sibling route cannot hide behind a helper."""
+    import re
+    import sys
+    import server
+    from fastapi.routing import APIRoute
+    out = []
+    for r in server.app.routes:
+        if not isinstance(r, APIRoute) or "GET" not in r.methods or r.path.startswith("/api/admin"):
+            continue
+        if not any(m in inspect.getsource(sys.modules[r.endpoint.__module__]) for m in FORECAST_CALLS):
+            continue
+        src = inspect.getsource(r.endpoint)
+        if "get_current_user_id" in src or "require_admin" in src:   # strict identity already: not a public read
+            continue
+        out.append(re.sub(r"\{[^}]+\}", "x", r.path))
+    return out
+
+
+def test_every_public_get_route_that_computes_a_forecast_is_governed():
+    """Security review 2026-11-12 (sibling-path parity): a forecast route outside the clamp's table would be a way
+    around the accounts-only rule. Every public GET in a forecast-computing module is gated, or named in NOT_FORECAST."""
+    routes = _public_get_routes_in_forecast_modules()
+    for must in ("/api/conditions/forecast/x", "/api/surf-conditions", "/api/explore/spot-details/x",
+                 "/api/explore/surf-spots", "/api/weather/grid_series", "/api/weather/point"):
+        assert must in routes, must                                 # positive control: the sweep sees the hub
+    ungated = sorted(p for p in routes if C.gate(p) is None and p not in NOT_FORECAST)
+    assert ungated == [], ungated
+    assert not [p for p in NOT_FORECAST if C.gate(p) is not None]   # an exemption that is gated is stale
 
 
 def test_surf_spots_signed_out_fetches_no_conditions_and_withholds():
