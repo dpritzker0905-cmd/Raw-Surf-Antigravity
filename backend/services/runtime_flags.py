@@ -62,6 +62,8 @@ GUARDED = {
                                           # sea_inputs; parity 20 spots x 3 h to 1e-6; accuracy NOT measured
                                           # (filter primary hs_station: NO_CHANGE); kill '0'
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": "1",  # CMP-3: the rating reads the break depth the height's cap used; offline filter NO_CHANGE
+    "RATING_BAND_ONE_CHAIN": "1",       # CMP-1: map rating band = estimate_surf_at on cached geometry + break depth;
+                                        # band level == glyph level at 4,101 of 4,197 asset spot-seas, 0 unexplained
 }
 
 # FIX_VERSION: bump a flag's version in the PR that changes its fix. The guardrail's 'off' records the version it

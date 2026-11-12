@@ -78,6 +78,14 @@ async def test_the_band_route_hands_the_chain_normal_to_the_transform(monkeypatc
     class _Manifest:
         products = []
 
-    await GRS.apply_surf_overlay(product, store=None, manifest=_Manifest(), model="GFS", domain="marine",
-                                 layer="waves", surf=True, target_dt=None)
-    assert seen["fn"] is chain_shore_normal_at, "the band is not using the chain's shore normal"
+    # CMP-1 (2026-11-10): under RATING_BAND_ONE_CHAIN (default ON) the band reads the SAME bearing from its cell's cached
+    # geometry (`band_chain.shore_normal_at`, bit-identical to chain_shore_normal_at: test_rating_band_one_chain); the
+    # kill switch hands over chain_shore_normal_at itself. Either way it is the chain's normal, never the coarse raster.
+    from services.weather_pipeline import band_chain
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
+    for flag, want in (("1", band_chain.shore_normal_at), ("0", chain_shore_normal_at)):
+        monkeypatch.setenv("RATING_BAND_ONE_CHAIN", flag)
+        seen.clear()
+        await GRS.apply_surf_overlay(product.model_copy(deep=True), store=None, manifest=_Manifest(), model="GFS",
+                                     domain="marine", layer="waves", surf=True, target_dt=None)
+        assert seen["fn"] is want, f"RATING_BAND_ONE_CHAIN={flag}: the band is not using the chain's shore normal"

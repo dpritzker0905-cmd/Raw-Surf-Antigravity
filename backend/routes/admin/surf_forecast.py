@@ -474,14 +474,11 @@ _RATING_FLAGS = {
                                          "still decides wind and the rating. Held-out MSE vs MOP 0.0234 -> 0.0046. "
                                          "services/weather_pipeline/swell_exposure_normals.py; kill switch '0'",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
-    # CMP-2 (Fable audit 2026-11-10): one resolver (sea_inputs.py) for the hour's tide and MOP sea, used by every
-    # estimate_surf_at caller. Parity with /point 20 spots x 3 h to 1e-6; accuracy not measured (filter primary hs_station).
-    "SURF_SEA_INPUTS_EVERY_CALLER": ("1", "[D-065 GUARDED, default ON; accuracy not measured: filter primary hs_station] "
-                                          "The spot hub's own chain, /api/conditions forecast rows, /api/surf-conditions "
-                                          "and the sim take the hour's tide (and, EURO, the MOP nearshore sea) exactly as "
-                                          "/point does (services/weather_pipeline/sea_inputs.py); kill switch '0' = "
-                                          "those callers pass (0.0, None) as before",
+    # CMP-2 (Fable audit 2026-11-10): one tide/MOP resolver (sea_inputs.py) for every estimate_surf_at caller.
+    "SURF_SEA_INPUTS_EVERY_CALLER": ("1", "[D-065 GUARDED, ON; accuracy not measured] hub, conditions, sim take /point's tide+MOP; kill '0'",
                                      "Render env (serve-side surfaces); the sim reads the served glyph's tide, no env"),
+    "RATING_BAND_ONE_CHAIN": ("1", "[D-065 GUARDED, ON] CMP-1: map band = estimate_surf_at on cached geometry + break depth, "
+                                   "eta 0 (band_chain.py); kill '0'", "Render env AND precompute.yml env (rated static frames)"),
     # CMP-3 (audit 2026-11-10). The rating's oversize gate read `break_depth_at` while the height's cap read the
     # geometry's depth (incl. the land-present promotion): 12 of 14 land-present coords disagreed.
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": ("1", "[D-065 GUARDED, ON] the rating reads the served response's "
