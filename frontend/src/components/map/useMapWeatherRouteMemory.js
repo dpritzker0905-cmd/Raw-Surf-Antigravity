@@ -13,13 +13,13 @@ const LAYERS = new Set(['rain', 'radar', 'satellite', 'wind', 'waves', 'swell_1'
   'wind_waves', 'fog', 'pressure', 'temperature', 'water_temp']);
 
 export default function useMapWeatherRouteMemory({ user, activeModel, activeLayers, timeOffsetHours,
-  setActiveLayers, setTimeOffsetHours }) {
+  setActiveLayers, setTimeOffsetHours, setIsPlayingTimeline }) {
   const location = useLocation();
   const navigationType = useNavigationType();
   const owner = user?.id == null ? null
     : `${user.id}:${getUserTier(user)}:${getAllowedModels(user).slice().sort().join(',')}`;
   const inputs = useRef(null);
-  inputs.current = { user, activeModel, setActiveLayers, setTimeOffsetHours };
+  inputs.current = { user, activeModel, setActiveLayers, setTimeOffsetHours, setIsPlayingTimeline };
   const latest = useRef(null);
   const layer = activeLayers?.[0] || null;
   const hour = Number(timeOffsetHours);
@@ -44,6 +44,7 @@ export default function useMapWeatherRouteMemory({ user, activeModel, activeLaye
         // A fresh radar/satellite catalog owns its frame index; never revive old frames.
         const hourToApply = ['radar', 'satellite'].includes(saved.layer) ? 0 : restoredHour;
         latest.current = { ...saved, isNow: hourToApply === 0, selectedMs: forecastSelectionMs(hourToApply) };
+        input.setIsPlayingTimeline(false);
         input.setActiveLayers(saved.layer ? [saved.layer] : []);
         input.setTimeOffsetHours(hourToApply);
       }

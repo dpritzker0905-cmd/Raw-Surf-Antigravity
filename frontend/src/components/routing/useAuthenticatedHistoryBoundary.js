@@ -1,5 +1,6 @@
 import {useEffect, useRef} from 'react';
 import {useHref, useLocation, useNavigate} from 'react-router-dom';
+import { clearMapWeatherRouteMemory } from '../map/mapWeatherRouteMemoryStore';
 import {AUTHENTICATED_HISTORY_MARKER as MARKER} from './appHistory';
 
 const AUTH_PATHS = new Set(['/', '/auth', '/login', '/auth/']);
@@ -7,8 +8,6 @@ const token = () => typeof window.crypto?.randomUUID === 'function'
   ? window.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const pathInRoot = (pathname, root) => !root ? pathname
   : pathname === root ? '/' : pathname.startsWith(`${root}/`) ? pathname.slice(root.length) : null;
-import { clearMapWeatherRouteMemory } from '../map/mapWeatherRouteMemoryStore';
-
 const routeUrl = location => `${location.pathname}${location.search}${location.hash}`;
 
 // One invisible entry protects the signed-in arrival boundary. Private POPs never push,

@@ -3,6 +3,7 @@
 /* Full dates must also wrap when the responsive rollout is disabled. */
 .weather-timeline-track { flex-wrap: wrap; }
 .weather-time-readout { flex-basis: 100%; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
+.weather-point-header [data-testid="forecast-overlay-time"] { white-space: normal; overflow-wrap: anywhere; }
 /* Geometry only: all surfaces, borders, and text retain the three-theme component tokens. */
 [data-responsive-weather="true"] { --weather-top: 160px; --weather-bottom: 280px; }
 [data-responsive-weather="true"] .top-rail-container {
@@ -88,6 +89,7 @@
   }
   [data-responsive-weather="true"] .weather-desktop-panel.w-60 { width: 280px; }
   [data-responsive-weather="true"] .weather-map-actions { right: 296px; }
+  [data-responsive-weather="true"]:has(button.weather-desktop-panel) .weather-map-actions { right: 64px; }
 }
 @media (max-width: 374px) {
   /* Intentional paired rows retain Now on the exact centerline; no accidental 5+2 wrap. */

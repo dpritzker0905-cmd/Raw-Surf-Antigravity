@@ -16,7 +16,8 @@ global.fetch = originalFetch;
 function MapView() {
   const [layers,setLayers] = useState([]);
   const [hour,setHour] = useState(0);
-  useMapWeatherRouteMemory({user:mockUser,activeModel:'GFS',activeLayers:layers,timeOffsetHours:hour,setActiveLayers:setLayers,setTimeOffsetHours:setHour});
+  const [,setPlaying]=useState(false);
+  useMapWeatherRouteMemory({user:mockUser,activeModel:'GFS',activeLayers:layers,timeOffsetHours:hour,setActiveLayers:setLayers,setTimeOffsetHours:setHour,setIsPlayingTimeline:setPlaying});
   return <><output aria-label="Selection">{layers[0] || 'none'}:{hour}</output>
     <button onClick={()=>{setLayers(['waves']);setHour(4);}}>Select forecast</button><Link to="/theme">Theme</Link></>;
 }

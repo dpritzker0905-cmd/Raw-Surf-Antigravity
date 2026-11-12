@@ -30,7 +30,7 @@ function MapView({ user, model }) {
     setTimeOffsetHours: setHour, isPlayingTimeline: playing, setIsPlayingTimeline: setPlaying } = useWeatherState({ user });
   const navigate = useNavigate();
   useMapWeatherRouteMemory({ user, activeModel: model, activeLayers: layers, timeOffsetHours: hour,
-    setActiveLayers: setLayers, setTimeOffsetHours: setHour });
+    setActiveLayers: setLayers, setTimeOffsetHours: setHour, setIsPlayingTimeline: setPlaying });
   return <>
     <output aria-label="Layer">{layers[0] || 'none'}</output><output aria-label="Hour">{hour}</output>
     <output aria-label="Playing">{String(playing)}</output><output aria-label="Model">{model}</output>
@@ -39,7 +39,8 @@ function MapView({ user, model }) {
     <button onClick={() => setLayers(['unrecognized-layer'])}>Other layer</button>
     <button onClick={() => setHour(4)}>Select four</button><button onClick={() => setHour(7)}>Select seven</button>
     <button onClick={() => setHour(48)}>Select forty-eight</button><button onClick={() => setPlaying(true)}>Play</button>
-    <Link to="/theme">Theme</Link><button onClick={() => navigate(1)}>Forward</button>
+    <Link to="/theme">Theme</Link><Link to="/map?view=second">Another map entry</Link>
+    <button onClick={() => navigate(-1)}>Back</button><button onClick={() => navigate(1)}>Forward</button>
   </>;
 }
 function Away() {
@@ -118,4 +119,13 @@ test('unsupported current intent removes an older saved entry rather than revivi
   click('Other layer'); leave(); click('Back');
   expect(screen.getByLabelText('Layer')).toHaveTextContent('none');
   expect(screen.getByLabelText('Hour')).toHaveTextContent('0');
+});
+
+test('a POP between map entries sharing one mounted state provider stops playback before restoring the selected hour', () => {
+  render(<App />); click('Waves'); click('Select four');
+  fireEvent.click(screen.getByRole('link', { name: 'Another map entry' }));
+  click('Select seven'); click('Play'); expect(screen.getByLabelText('Playing')).toHaveTextContent('true');
+  click('Back'); expect(screen.getByLabelText('Hour')).toHaveTextContent('4');
+  expect(screen.getByLabelText('Layer')).toHaveTextContent('waves');
+  expect(screen.getByLabelText('Playing')).toHaveTextContent('false');
 });

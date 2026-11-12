@@ -17,7 +17,8 @@ let authMounts=0;
 function Auth(){useEffect(()=>{authMounts++;},[]);return <p>Auth destination</p>;}
 function MapView(){
   const [layers,setLayers]=useState([]),[hour,setHour]=useState(0);
-  useMapWeatherRouteMemory({user:mockUser,activeModel:'GFS',activeLayers:layers,timeOffsetHours:hour,setActiveLayers:setLayers,setTimeOffsetHours:setHour});
+  const [,setPlaying]=useState(false);
+  useMapWeatherRouteMemory({user:mockUser,activeModel:'GFS',activeLayers:layers,timeOffsetHours:hour,setActiveLayers:setLayers,setTimeOffsetHours:setHour,setIsPlayingTimeline:setPlaying});
   return <><p>Map destination</p><output aria-label="Selection">{layers[0]||'none'}:{hour}</output>
     <button onClick={()=>{setLayers(['waves']);setHour(4);}}>Select forecast</button><Link to="/theme">Theme</Link></>;
 }

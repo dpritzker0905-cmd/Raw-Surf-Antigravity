@@ -216,7 +216,7 @@ var MapPageContent = () => {
   } = useWeatherState({ user });
   useMapWeatherRouteMemory({
     user, activeModel, activeLayers, timeOffsetHours,
-    setActiveLayers, setTimeOffsetHours,
+    setActiveLayers, setTimeOffsetHours, setIsPlayingTimeline,
   });
 
   // BOOT WARM-UP (skills audit #2): the static frames' worker, latest.json, the model's index and the current hour's frame start

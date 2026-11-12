@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 118,
+  "tests": 119,
   "files": 12,
   "branch": "codex/responsive-weather-local-20261112",
   "date": "2026-11-12",
-  "note": "Measured candidate27/286 minus preserved same-runtime exact-base control15/168 = +12 suites/+118 cases. Additional disclosure-test pattern has no file in the base tree; every changed test path covered. Hosted qualification is separate."
+  "note": "Measured corrected own selection27/287 (full29/297 less upstream2/10) minus same-runtime exact-base control15/168 = +12 suites/+119 cases. All changed tests covered; new own test pattern absent from baseline. Hosted qualification remains separate."
 }
