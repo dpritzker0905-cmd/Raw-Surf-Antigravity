@@ -208,6 +208,11 @@ jobs:
           # The client reads them by default. Kill: repo variable FRAME_REGIONAL_BUNDLES_EURO_ICON = '0' (with Render
           # MARINE_REGIONAL_TILE_FIRST_EURO_ICON=0 and the client's __RAW_DISABLE_REGIONAL_EURO_ICON__).
           FRAME_REGIONAL_BUNDLES_EURO_ICON: ${{ vars.FRAME_REGIONAL_BUNDLES_EURO_ICON || '1' }}
+          # ON (2026-11-12, services/frame_set_content.py): a frame whose product bytes differ from the previous build's only in
+          # run_time / ingested_at (the pilots lane re-ingests the same CMEMS run every fire) is carried as a rebuild with an unchanged
+          # sha would write it, without re-encoding; the EURO swell sets rebuilt 74-118 frames each per run before. Wind, rated and
+          # Bight frames keep the identity carry only. Kill: repo variable FRAME_CONTENT_CARRY = '0' (every changed identity rebuilds).
+          FRAME_CONTENT_CARRY: ${{ vars.FRAME_CONTENT_CARRY || '1' }}
           # ON by default, kill switch '0' (owner 2026-11-01 22:10 EST); built 2026-11-01, item 14 (published LAST, after the regional bundles): '1' adds the EURO swell_1/swell_2/wind_waves world sets (plain + Gulf-filled) after the world sets
           # (frame_set.EURO_SWELL_SETS). They have products only once EURO_MARINE_MID_CMEMS_SWELL is on in the ingest step; the client's
           # STATIC_SETS must list them before it reads them. With FRAME_TAIL_DOWNLOAD on, their 240-336 h tails need ~3 x 40 more of
