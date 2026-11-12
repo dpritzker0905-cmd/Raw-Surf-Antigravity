@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 10,
+  "tests": 20,
   "branch": "codex/backend-sqlite-fixture-teardown-20261112",
   "date": "2026-11-12",
-  "note": "Five fixture lifetimes, ownership recurrence guard, real census acceptance/rejection, and late warning exit proofs; one new tracked test file"
+  "note": "Twenty real SQLite fixture lifetime, cancellation and failure-reporting contracts; no runtime changes."
 }
