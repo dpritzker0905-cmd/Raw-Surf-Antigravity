@@ -179,3 +179,8 @@ SCOREBOARD row at the flip.
   `.github/ci-floors.d/claude-big-swell-holdout-217.guards.json` (+10 tests, +0 files) via `rederive_floor.py`.
 - Ledger: fragment line 4 supersedes line 2 before any read (its paths (a)/(b) are dropped); line 5 is the new
   commitment: the first scheduled monitor run after #801 merges, and one at least 7 days later, due 2026-11-27.
+- Correction (2026-11-12, LOC Governance on `8370dddb6`): adding the 10 cases took `tests/test_forecast_accuracy_monitor.py`
+  to 829 lines (limit 800). They now live in `tests/test_forecast_accuracy_big_swell.py` (10 tests; it imports the
+  monitor file's `NOW`, `_main`, `_report`), registered in the guards lane in `scripts/ci_test_lanes.py` (unregistered,
+  the chain lane's import regex claimed it); the monitor file is back to 87 tests / 765 lines. Fragment recreated:
+  guards +10 tests, +1 file -> the hosted guards run must read 3653 passed across 228 files.

@@ -1,8 +1,8 @@
 {
   "lane": "guards",
   "tests": 10,
-  "files": 0,
+  "files": 1,
   "branch": "claude/big-swell-holdout-217",
   "date": "2026-11-12",
-  "note": "monitor prints the big-swell by-coast table (#801)"
+  "note": "monitor prints the big-swell by-coast table (#801); tests in their own file"
 }
