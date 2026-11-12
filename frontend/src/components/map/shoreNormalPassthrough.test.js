@@ -1,7 +1,7 @@
 /**
  * Regression pin (2026-07-26): `shore_normal_deg` must survive the point mappers.
  *
- * MapForecastOverlay.js feeds `useExactPoint?.shore_normal_deg` into computeSurfRating as
+ * MapForecastOverlay.js feeds `useExactPoint?.shore_normal_deg` into ratingScore as
  * shoreNormalDeg. Every point mapper used to drop the field, so it was ALWAYS undefined and the
  * infobox rating was permanently geometry-blind:
  *   - offshoreness() -> null  => windQuality falls to the speed-only 5-rung ladder
@@ -10,7 +10,7 @@
  * /api/weather/point: shore_normal_deg 247.93). Nothing asserted its absence, so it went unnoticed.
  */
 import { selectExactPointHour } from './forecastSamplers';
-import { computeSurfRating, windQuality, swellExposure } from './surfRating';
+import { ratingScore, windQuality, swellExposure } from './surfRating';
 
 const T0 = '2026-07-26T17:00:00Z';
 
@@ -46,8 +46,8 @@ describe('shore_normal_deg passthrough', () => {
     // 1.5 m / 12 s, 23 kt wind FROM 90 deg at a shore facing 90 deg = dead ONSHORE,
     // with the swell arriving 45 deg off the shore normal.
     const args = [1.5, 12.0, 23 / 1.943844, 90.0];
-    const withGeom = computeSurfRating(...args, 90.0, 135.0);
-    const blind = computeSurfRating(...args, null, 135.0);
+    const withGeom = { score: ratingScore(...args, 90.0, 135.0) };
+    const blind = { score: ratingScore(...args, null, 135.0) };
     expect(withGeom.score).not.toBeCloseTo(blind.score, 1);
     // geometry-aware must be HARSHER here: onshore wind + off-angle swell both penalise
     expect(withGeom.score).toBeLessThan(blind.score);
@@ -69,7 +69,7 @@ describe('shore_normal_deg passthrough', () => {
  *
  * RATING_LOCAL_SIZE flipped to 1 in all three lanes, so the glyph and the band now grade the size
  * gate against each spot's own good day instead of the global 1.2 m. MapForecastOverlay feeds
- * `useExactPoint?.reference_size_m` into computeSurfRating as referenceSizeM. It previously passed a
+ * `useExactPoint?.reference_size_m` into ratingScore as referenceSizeM. It previously passed a
  * hard-coded `null` — a DECLARED waiver, which test_rating_composition_parity.py accepts as a valid
  * position, so no structural guard could see the problem.
  *
@@ -97,12 +97,12 @@ describe('reference_size_m passthrough (RATING_LOCAL_SIZE)', () => {
     // A 1.5 m day, clean. Against a big-wave reference (2.5 m) it is a small day; against the
     // global default it saturates. Same inputs, only the reference differs.
     const clean = [1.5, 12.0, 4 / 1.943844, 270.0, 270.0, 270.0, null, null, null];
-    const global = computeSurfRating(...clean, null);
-    const bigWave = computeSurfRating(...clean, 2.5);
+    const global = { score: ratingScore(...clean, null) };
+    const bigWave = { score: ratingScore(...clean, 2.5) };
     expect(bigWave.score).toBeLessThan(global.score);
     // ...and against a small-wave reference the SAME day is not penalised the same way, so the
     // field moves the score in BOTH directions rather than being a uniform damper.
-    const smallWave = computeSurfRating(...clean, 0.7);
+    const smallWave = { score: ratingScore(...clean, 0.7) };
     expect(smallWave.score).toBeGreaterThan(bigWave.score);
   });
 });

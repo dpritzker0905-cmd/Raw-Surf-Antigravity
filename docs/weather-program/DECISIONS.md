@@ -1980,3 +1980,25 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   - The pooled n double-counts overlapping backfill hours.
 - **Supersedes:** the STATE note "flip waits on spot observations", a D-001-era hold.
 - **Rollback:** `SURF_NEARSHORE_MOP=0` (env or manifest), or revert the PR.
+
+### D-071 · The wind lane's HRRR weight is capped by region and lead from a buoy fit (WIND_LANE_SKILL_WEIGHTS, DARK, 2026-11-12, proposed)
+- **Status: PROPOSED, not decided.** Built dark on branch `claude/wind-lane-skill-weights` (default `'0'`, Render env).
+  It flips only on the owner's word. It reopens D-017's "full HRRR weight inside the domain and horizon"; D-017's
+  place/time lane, feather, taper and kills stand.
+- **Why it reopens:** D-017's own reopen condition fired. The >= 14-day NDBC grade (#798, log
+  2026-11-11-claude-hrrr-wind-grade.md) found the lane worse than GFS on the West coast at every lead (vector RMSE
+  +0.41 / +0.62 / +1.47 / +1.49 kn at L3/12/24/36, CIs clear of 0) and tied on the East; the half weight at L47
+  beat both.
+- **Rule (when on):** HRRR's weight at a node = min(space x time weight, cap(region, lead)), from the checked-in
+  `services/weather_pipeline/wind_lane_skill_weights.json`: west (Pacific) 0.4 / 0.3 / 0.2 / 0.2 and east (Atlantic +
+  Gulf) 0.5 / 0.6 / 0.5 / 0.5 at L3/12/24/36, linear in lead, flat outside; the regions joined by a cos^2 ramp over
+  -112..-106 deg. Moves only the drawn wind map; no spot height or rating reads the lane (tests pin it).
+- **Evidence:** fit on odd cycles, scored on held-out even cycles (`backend/scripts/sweep_wind_lane_weight.py`,
+  `evidence/wind-lane-skill-sweep-2026-11-12.json`): the blend beats both GFS and today's lane in 8 of 8 table cells
+  (e.g. west L24 5.55 kn vs GFS 5.77 vs lane 6.75; east L36 6.24 vs 6.59 vs 6.76) and in 26 of 28 published
+  coast x coastal/offshore cells (misses: L3 Gulf offshore, L3 West offshore, both n < 300).
+- **Known cost of a flip:** the static wind frames never cap, so a box with the flag on sends the lane's hours to
+  `/grid` (the client's `laneVerdict`); a follow-up can make the frames apply the same table.
+- **Reopen if:** a later grade (another season, or a scheduled wind truth lane) moves a cell's fitted weight by >= 0.2,
+  or the held-out blend stops beating both members in a cell with n >= 300.
+- **Rollback:** `WIND_LANE_SKILL_WEIGHTS` unset or `0`.

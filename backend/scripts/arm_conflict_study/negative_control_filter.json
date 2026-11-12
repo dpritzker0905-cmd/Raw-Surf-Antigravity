@@ -1,0 +1,413 @@
+{
+ "window": {
+  "about": "The default-ON filter window (D-065): a settled, cached past window the eval harness already ran (log 2026-11-02-claude-eval-harness-v0). Replace it with a newer settled window when the cache moves; claude/harness-backfill index.json takes precedence when given.",
+  "start": "2026-10-20T00:00Z",
+  "end": "2026-10-29T18:00Z",
+  "leads": "24,48,72",
+  "step_h": 6,
+  "stations": "(8 nearshore CDIP anchors: 4 standard + 201p1, 264p1, 284p1, 285p1)",
+  "cache_dir": "eh0-cache"
+ },
+ "results": [
+  {
+   "flag": "SURF_V3_EXPOSURE",
+   "on_value": "1",
+   "sanity": [],
+   "verdict": "WORSE",
+   "reasons": [
+    "hs_station: pooled: ON is worse by 0.0265 m MAE (CI of the loss [0.0186, 0.0359], margin 0.0050; p_worse Holm 8.16e-05 across 8 members; n 936, 40 hours)",
+    "hs_station: lead +24 h: ON is worse by 0.0273 m MAE (CI of the loss [0.0187, 0.0363], margin 0.0050; p_worse Holm 2.89e-05 across 8 members; n 312, 40 hours)",
+    "hs_station: season SON: ON is worse by 0.0265 m MAE (CI of the loss [0.0186, 0.0359], margin 0.0050; p_worse Holm 8.16e-05 across 8 members; n 936, 40 hours)",
+    "hs_station: lead +48 h: ON is worse by 0.0254 m MAE (CI of the loss [0.0181, 0.0343], margin 0.0050; p_worse Holm 8.16e-05 across 8 members; n 312, 40 hours)",
+    "hs_station: lead +72 h: ON is worse by 0.0269 m MAE (CI of the loss [0.0180, 0.0383], margin 0.0050; p_worse Holm 0.000334 across 8 members; n 312, 40 hours)",
+    "hs_station: region lat 36..39 W: ON is worse by 0.0612 m MAE (CI of the loss [0.0402, 0.0907], margin 0.0050; p_worse Holm 0.000124 across 8 members; n 120, 40 hours)",
+    "hs_station: region lat 30..33 W: ON is worse by 0.1144 m MAE (CI of the loss [0.0873, 0.1442], margin 0.0050; p_worse Holm 3.58e-11 across 8 members; n 216, 40 hours)",
+    "hb_proxy: pooled better, no member worse (pooled, lead +24 h, season SON, region lat 33..36 W, lead +48 h, lead +72 h, region lat 30..33 W)"
+   ],
+   "members": {
+    "pooled": {
+     "n": 936,
+     "T": 40,
+     "testable": true,
+     "no_change": false,
+     "off_mae": 0.243520405982906,
+     "on_mae": 0.2704913461538462,
+     "margin": 0.005,
+     "mean_gain": -0.026520877976190477,
+     "ci": [
+      -0.03591431547619048,
+      -0.018609880952380954
+     ],
+     "p_worse": 1.453676029838924e-05,
+     "p_better": 0.9999999995413853,
+     "block": 4,
+     "hac_lag": 3,
+     "p_worse_holm": 8.160524880440612e-05,
+     "p_better_holm": 1.0,
+     "worse": true,
+     "better": false
+    },
+    "lead +24 h": {
+     "n": 312,
+     "T": 40,
+     "testable": true,
+     "no_change": false,
+     "off_mae": 0.24043365384615384,
+     "on_mae": 0.26818653846153845,
+     "margin": 0.005,
+     "mean_gain": -0.027348705357142854,
+     "ci": [
+      -0.03627781249999999,
+      -0.018670625
+     ],
+     "p_worse": 4.129409076902846e-06,
+     "p_better": 0.9999999999452693,
+     "block": 4,
+     "hac_lag": 3,
+     "p_worse_holm": 2.890586353831992e-05,
+     "p_better_holm": 1.0,
+     "worse": true,
+     "better": false
+    },
+    "season SON": {
+     "n": 936,
+     "T": 40,
+     "testable": true,
+     "no_change": false,
+     "off_mae": 0.243520405982906,
+     "on_mae": 0.2704913461538462,
+     "margin": 0.005,
+     "mean_gain": -0.026520877976190477,
+     "ci": [
+      -0.03591431547619048,
+      -0.018609880952380954
+     ],
+     "p_worse": 1.453676029838924e-05,
+     "p_better": 0.9999999995413853,
+     "block": 4,
+     "hac_lag": 3,
+     "p_worse_holm": 8.160524880440612e-05,
+     "p_better_holm": 1.0,
+     "worse": true,
+     "better": false
+    },
+    "region lat 33..36 W": {
+     "n": 600,
+     "T": 40,
+     "testable": true,
+     "no_change": false,
+     "off_mae": 0.2873698333333333,
+     "on_mae": 0.27294983333333334,
+     "margin": 0.005,
+     "mean_gain": 0.014419999999999997,
+     "ci": [
+      0.0009613333333333326,
+      0.028537
+     ],
+     "p_worse": 0.995117499654804,
+     "p_better": 0.10502405318090391,
+     "block": 4,
+     "hac_lag": 3,
+     "p_worse_holm": 0.995117499654804,
+     "p_better_holm": 0.8401924254472313,
+     "worse": false,
+     "better": false
+    },
+    "lead +48 h": {
+     "n": 312,
+     "T": 40,
+     "testable": true,
+     "no_change": false,
+     "off_mae": 0.23961987179487182,
+     "on_mae": 0.2653823717948718,
+     "margin": 0.005,
+     "mean_gain": -0.025351964285714283,
+     "ci": [
+      -0.034335937500000004,
+      -0.018085892857142856
+     ],
+     "p_worse": 1.3600874800734353e-05,
+     "p_better": 0.9999999998041323,
+     "block": 4,
+     "hac_lag": 3,
+     "p_worse_holm": 8.160524880440612e-05,
+     "p_better_holm": 1.0,
+     "worse": true,
+     "better": false
+    },
+    "lead +72 h": {
+     "n": 312,
+     "T": 40,
+     "testable": true,
+     "no_change": false,
+     "off_mae": 0.2505076923076923,
+     "on_mae": 0.2779051282051282,
+     "margin": 0.005,
+     "mean_gain": -0.02686196428571429,
+     "ci": [
+      -0.03833549107142857,
+      -0.018013482142857147
+     ],
+     "p_worse": 0.00016713542184232377,
+     "p_better": 0.9999999143300204,
+     "block": 4,
+     "hac_lag": 3,
+     "p_worse_holm": 0.00033427084368464755,
+     "p_better_holm": 1.0,
+     "worse": true,
+     "better": false
+    },
+    "region lat 36..39 W": {
+     "n": 120,
+     "T": 40,
+     "testable": true,
+     "no_change": false,
+     "off_mae": 0.258335,
+     "on_mae": 0.3194925,
+     "margin": 0.005,
+     "mean_gain": -0.0611575,
+     "ci": [
+      -0.09071166666666666,
+      -0.04020083333333333
+     ],
+     "p_worse": 4.139822922211156e-05,
+     "p_better": 0.9999982331040105,
+     "block": 4,
+     "hac_lag": 3,
+     "p_worse_holm": 0.00012419468766633468,
+     "p_better_holm": 1.0,
+     "worse": true,
+     "better": false
+    },
+    "region lat 30..33 W": {
+     "n": 216,
+     "T": 40,
+     "testable": true,
+     "no_change": false,
+     "off_mae": 0.11348611111111112,
+     "on_mae": 0.23643935185185186,
+     "margin": 0.005,
+     "mean_gain": -0.11437291666666667,
+     "ci": [
+      -0.14416416666666668,
+      -0.08727916666666666
+     ],
+     "p_worse": 4.476252701834937e-12,
+     "p_better": 0.999999999999952,
+     "block": 4,
+     "hac_lag": 3,
+     "p_worse_holm": 3.58100216146795e-11,
+     "p_better_holm": 1.0,
+     "worse": true,
+     "better": false
+    }
+   },
+   "quantities": {
+    "hs_station": {
+     "verdict": "WORSE",
+     "reasons": [
+      "pooled: ON is worse by 0.0265 m MAE (CI of the loss [0.0186, 0.0359], margin 0.0050; p_worse Holm 8.16e-05 across 8 members; n 936, 40 hours)",
+      "lead +24 h: ON is worse by 0.0273 m MAE (CI of the loss [0.0187, 0.0363], margin 0.0050; p_worse Holm 2.89e-05 across 8 members; n 312, 40 hours)",
+      "season SON: ON is worse by 0.0265 m MAE (CI of the loss [0.0186, 0.0359], margin 0.0050; p_worse Holm 8.16e-05 across 8 members; n 936, 40 hours)",
+      "lead +48 h: ON is worse by 0.0254 m MAE (CI of the loss [0.0181, 0.0343], margin 0.0050; p_worse Holm 8.16e-05 across 8 members; n 312, 40 hours)",
+      "lead +72 h: ON is worse by 0.0269 m MAE (CI of the loss [0.0180, 0.0383], margin 0.0050; p_worse Holm 0.000334 across 8 members; n 312, 40 hours)",
+      "region lat 36..39 W: ON is worse by 0.0612 m MAE (CI of the loss [0.0402, 0.0907], margin 0.0050; p_worse Holm 0.000124 across 8 members; n 120, 40 hours)",
+      "region lat 30..33 W: ON is worse by 0.1144 m MAE (CI of the loss [0.0873, 0.1442], margin 0.0050; p_worse Holm 3.58e-11 across 8 members; n 216, 40 hours)"
+     ]
+    },
+    "hb_proxy": {
+     "verdict": "BETTER",
+     "reasons": [
+      "pooled better, no member worse (pooled, lead +24 h, season SON, region lat 33..36 W, lead +48 h, lead +72 h, region lat 30..33 W)"
+     ],
+     "members": {
+      "pooled": {
+       "n": 936,
+       "T": 40,
+       "testable": true,
+       "no_change": false,
+       "off_mae": 0.37338468367607575,
+       "on_mae": 0.26923104904718487,
+       "margin": 0.005,
+       "mean_gain": 0.1034412933559978,
+       "ci": [
+        0.08422436860755016,
+        0.1277389864167771
+       ],
+       "p_worse": 1.0,
+       "p_better": 4.440892098500626e-16,
+       "block": 4,
+       "hac_lag": 3,
+       "p_worse_holm": 1.0,
+       "p_better_holm": 3.1086244689504383e-15,
+       "worse": false,
+       "better": true
+      },
+      "lead +24 h": {
+       "n": 312,
+       "T": 40,
+       "testable": true,
+       "no_change": false,
+       "off_mae": 0.37375710715941207,
+       "on_mae": 0.27076548856192967,
+       "margin": 0.005,
+       "mean_gain": 0.10195521882115666,
+       "ci": [
+        0.07872364699683855,
+        0.13214753048938238
+       ],
+       "p_worse": 0.9999999999987559,
+       "p_better": 1.0828604679602449e-10,
+       "block": 4,
+       "hac_lag": 3,
+       "p_worse_holm": 1.0,
+       "p_better_holm": 3.248581403880735e-10,
+       "worse": false,
+       "better": true
+      },
+      "season SON": {
+       "n": 936,
+       "T": 40,
+       "testable": true,
+       "no_change": false,
+       "off_mae": 0.37338468367607575,
+       "on_mae": 0.26923104904718487,
+       "margin": 0.005,
+       "mean_gain": 0.1034412933559978,
+       "ci": [
+        0.08422436860755016,
+        0.1277389864167771
+       ],
+       "p_worse": 1.0,
+       "p_better": 4.440892098500626e-16,
+       "block": 4,
+       "hac_lag": 3,
+       "p_worse_holm": 1.0,
+       "p_better_holm": 3.1086244689504383e-15,
+       "worse": false,
+       "better": true
+      },
+      "region lat 33..36 W": {
+       "n": 600,
+       "T": 40,
+       "testable": true,
+       "no_change": false,
+       "off_mae": 0.4065108114697323,
+       "on_mae": 0.3071400793328211,
+       "margin": 0.005,
+       "mean_gain": 0.09937073213691118,
+       "ci": [
+        0.07809296514841904,
+        0.12774777076347896
+       ],
+       "p_worse": 0.9999999999999909,
+       "p_better": 2.1141977057936856e-12,
+       "block": 4,
+       "hac_lag": 3,
+       "p_worse_holm": 1.0,
+       "p_better_holm": 8.456790823174742e-12,
+       "worse": false,
+       "better": true
+      },
+      "lead +48 h": {
+       "n": 312,
+       "T": 40,
+       "testable": true,
+       "no_change": false,
+       "off_mae": 0.37469518024240955,
+       "on_mae": 0.26421799227069614,
+       "margin": 0.005,
+       "mean_gain": 0.1094884082175042,
+       "ci": [
+        0.08763961766117113,
+        0.13633887610765363
+       ],
+       "p_worse": 1.0,
+       "p_better": 5.551115123125783e-15,
+       "block": 4,
+       "hac_lag": 3,
+       "p_worse_holm": 1.0,
+       "p_better_holm": 2.7755575615628914e-14,
+       "worse": false,
+       "better": true
+      },
+      "lead +72 h": {
+       "n": 312,
+       "T": 40,
+       "testable": true,
+       "no_change": false,
+       "off_mae": 0.3717017636264056,
+       "on_mae": 0.2727096663089287,
+       "margin": 0.005,
+       "mean_gain": 0.09888025302933255,
+       "ci": [
+        0.08018692848766225,
+        0.12018789777793766
+       ],
+       "p_worse": 1.0,
+       "p_better": 0.0,
+       "block": 4,
+       "hac_lag": 3,
+       "p_worse_holm": 1.0,
+       "p_better_holm": 0.0,
+       "worse": false,
+       "better": true
+      },
+      "region lat 36..39 W": {
+       "n": 120,
+       "T": 40,
+       "testable": true,
+       "no_change": false,
+       "off_mae": 0.16202021995237442,
+       "on_mae": 0.22399898969735368,
+       "margin": 0.005,
+       "mean_gain": -0.06197876974497927,
+       "ci": [
+        -0.16950106580538846,
+        0.026544367883663218
+       ],
+       "p_worse": 0.1453954983886337,
+       "p_better": 0.8928426513675911,
+       "block": 4,
+       "hac_lag": 3,
+       "p_worse_holm": 1.0,
+       "p_better_holm": 0.8928426513675911,
+       "worse": false,
+       "better": false
+      },
+      "region lat 30..33 W": {
+       "n": 216,
+       "T": 40,
+       "testable": true,
+       "no_change": false,
+       "off_mae": 0.39879236409575264,
+       "on_mae": 0.1890571090036569,
+       "margin": 0.005,
+       "mean_gain": 0.21096760094930705,
+       "ci": [
+        0.13951346227299932,
+        0.29418380604358124
+       ],
+       "p_worse": 0.9999998102236655,
+       "p_better": 6.370058183158278e-07,
+       "block": 4,
+       "hac_lag": 3,
+       "p_worse_holm": 1.0,
+       "p_better_holm": 1.2740116366316556e-06,
+       "worse": false,
+       "better": true
+      }
+     }
+    }
+   },
+   "rating_census": {
+    "n": 960,
+    "score_changed": 229,
+    "level_changed": 29,
+    "mean_delta": -0.586,
+    "mean_abs_delta": 0.586
+   },
+   "blocks": true
+  }
+ ]
+}

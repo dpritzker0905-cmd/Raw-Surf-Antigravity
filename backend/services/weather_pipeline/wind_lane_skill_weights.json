@@ -1,0 +1,26 @@
+{
+ "id": "skill-v1-2026-10-15..2026-11-08",
+ "what": "HRRR's maximum weight in the wind lane blend by region and lead (hours from the HRRR cycle), read by wind_lane_skill.py only when WIND_LANE_SKILL_WEIGHTS=1. Linear in lead between the fitted leads, held flat outside them.",
+ "fit": {
+  "script": "backend/scripts/sweep_wind_lane_weight.py on the rows of backend/scripts/grade_wind_lane_ndbc.py",
+  "window": "100 extended HRRR cycles 2026-10-15 00Z to 2026-11-08 18Z (00/06/12/18Z)",
+  "truth": "NDBC realtime2 buoy wind at the valid time (+-30 min), adjusted to 10 m (power law 0.11), full-weight buoys only",
+  "split": "fit on odd rows ((day of month + cycle hour / 6) odd), scored on the even rows; w grid 0.0..1.0 step 0.1",
+  "regions": "west = WMO 46 buoys (Pacific); east = WMO 41/42/44 (Atlantic + Gulf, pooled: the Gulf's 4 buoys are under n 300)",
+  "log": "docs/weather-program/log/2026-11-12-claude-wind-lane-skill-weights.md"
+ },
+ "region_ramp_lon": [-112.0, -106.0],
+ "leads_h": [3, 12, 24, 36],
+ "w_max": {
+  "west": [0.4, 0.3, 0.2, 0.2],
+  "east": [0.5, 0.6, 0.5, 0.5]
+ },
+ "n": {
+  "west": [2267, 2266, 2266, 2265],
+  "east": [3909, 3909, 3911, 3911]
+ },
+ "held_out_vec_rmse_kt": {
+  "west": {"blend": [4.46, 5.29, 5.55, 5.98], "gfs": [4.51, 5.47, 5.77, 6.21], "lane": [5.14, 6.07, 6.75, 7.21]},
+  "east": {"blend": [5.39, 5.59, 5.79, 6.24], "gfs": [5.52, 5.83, 6.12, 6.59], "lane": [5.71, 5.84, 6.09, 6.76]}
+ }
+}

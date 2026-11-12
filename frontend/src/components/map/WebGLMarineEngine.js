@@ -1136,7 +1136,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // where near-coast fades are translucent — i.e. its ONLY visible contribution is the dark
     // coastal halo (the 10°/cell base block-means low near land). Gate it to zero there. Ring-fill
     // (coverage < 0.8) and the zoom-out bridge keep the wash — the "never blank the revealed ring"
-    // floor lesson still holds on those paths. Kill: __RAW_DISABLE_BASE_COVER_GATE__.
+    // floor lesson still holds on those paths. (No kill switch: the gate is opt-in only, see below.)
     // Telemetry: __RAW_GPU__.baseWashGated.
     // 2026-07-06 SAME NIGHT DEMOTION → OPT-IN ONLY (__RAW_ENABLE_BASE_COVER_GATE__): live regression
     // "colored heatmap clears leaving just the animations" — the wash under a covering regional is

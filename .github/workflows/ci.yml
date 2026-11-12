@@ -199,8 +199,13 @@ jobs:
             // Marine commit choke (2026-11-09, ON with the finer-resident / world-over-regional kills): marineCommitChoke.test.js (+1 suite / +23 tests). Raised by exactly that; confirm against the hosted receipt.
             // Hold compares the model cycle, not the ingest stamp (2026-11-09): marineHoldModelCycle.test.js (+1 suite / +9 tests). Raised by exactly that; confirm against the hosted receipt.
             // HUD resident truth (2026-11-07, ON with __RAW_DISABLE_HUD_RESIDENT_TRUTH__): hudResidentTruth.test.js (+1 suite / +3 tests). Raised by exactly that from 652 / 8,496; confirm against the hosted receipt.
-            // O4 / CLI-3 glyph area estimates (2026-11-10, ON with __RAW_DISABLE_GLYPH_ESTIMATE_LABEL__): glyphAreaEstimate.test.js (+1 suite / +4 tests). Raised by exactly that from 653 / 8,499; confirm against the hosted receipt.
-            const MIN_SUITES = 654, MIN_TESTS = 8503;   // +1 suite / +4 tests: glyphAreaEstimate (4)
+            // ⬇ 2026-11-11 FLOOR FRAGMENTS: the literals below are the BASE. A PR that adds frontend tests adds
+            //   .github/ci-floors.d/<branch-slug>.frontend.json ("files" = Jest suites) with backend/scripts/rederive_floor.py
+            //   and never edits them; `rederive_floor.py --compact` folds the fragments in, on dev only.
+            const FRONTEND_BASE_SUITES = 653, FRONTEND_BASE_TESTS = 8499;   // +1 suite / +3 tests: hudResidentTruth (3)
+            const FRAG = JSON.parse(require('child_process').execFileSync('python3', ['../backend/scripts/ci_floor_fragments.py', '--sum', 'frontend'], { encoding: 'utf8' }));
+            const MIN_SUITES = FRONTEND_BASE_SUITES + FRAG.files, MIN_TESTS = FRONTEND_BASE_TESTS + FRAG.tests;
+            console.log(`floor ${MIN_SUITES} suites / ${MIN_TESTS} tests = base ${FRONTEND_BASE_SUITES} / ${FRONTEND_BASE_TESTS} + fragments ${FRAG.files} / ${FRAG.tests}`);
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
@@ -1040,7 +1045,16 @@ jobs:
           #   base 3568 (hosted read) + 17 new test(s) and 0 new file(s) = 3585, files 224; floor 3585 - 6 = 3579. This PR must read 3585 passed.
           # ⬆ 3579→3582 on 2026-11-09 (rederive_floor.py, HEAD): dev run 42547168318 read 3585 / 224 files; dev's map 3585;
           #   base 3585 (hosted read) + 3 new test(s) and 0 new file(s) = 3588, files 224; floor 3588 - 6 = 3582. This PR must read 3588 passed.
-          MIN_FILES, MIN_PASSED = 224, 3582
+          # ⬆ 3582→3604 on 2026-11-11 (rederive_floor.py, claude/point-allowlist-e8e79f): dev run 42752117173 read 3588 / 224 files; dev's map 3588;
+          #   base 3588 (hosted read) + 22 new test(s) and 1 new file(s) = 3610, files 225; floor 3610 - 6 = 3604. This PR must read 3610 passed.
+          # ⬆ 3604→3614 on 2026-11-11 (rederive_floor.py, fix/ing-2-one-ratings-writer): dev run 42752117173 read 3588 / 224 files; dev's map 3610;
+          #   base 3610 (dev's map) + 10 new test(s) and 1 new file(s) = 3620, files 226; floor 3620 - 6 = 3614. This PR must read 3620 passed.
+          # ⬆ 3614→3616 on 2026-11-11 (rederive_floor.py, claude/docs-break-depth): dev run 43015131089 read 3610 / 225 files; dev's map 3620;
+          #   base 3620 (dev's map) + 2 new test(s) and 0 new file(s) = 3622, files 226; floor 3622 - 6 = 3616. This PR must read 3622 passed.
+          # ⬇ 2026-11-11 FLOOR FRAGMENTS: the literal below is the BASE. A PR that adds guards tests adds
+          #   .github/ci-floors.d/<branch-slug>.guards.json (backend/scripts/rederive_floor.py) and never edits it.
+          MIN_FILES, MIN_PASSED = 226, 3616
+          MIN_FILES, MIN_PASSED = __import__('runpy').run_path('scripts/ci_floor_fragments.py')['floor_pair']('guards', MIN_FILES, MIN_PASSED)  # + fragments
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -1711,11 +1725,14 @@ jobs:
           #   base 3627 (dev's map) + 17 new test(s) and 1 new file(s) = 3644, files 208; floor 3644 - 6 = 3638. This PR must read 3644 passed.
           # ⬆ 3638→3653 on 2026-11-10 (rederive_floor.py, codex/backend-memory-bounds-20261109): dev run 42716155249 read 3643 / 208 files; dev's map 3644;
           #   base 3644 (dev's map) + 15 new test(s) and 3 new file(s) = 3659, files 211; floor 3659 - 6 = 3653. This PR must read 3659 passed.
-          # ⬆ 3653→3660 on 2026-11-11 (rederive_floor.py, fable/cmp2-tide-nearshore-helper): dev run 42752117173 read 3643 / 208 files; dev's map 3659;
-          #   base 3659 (dev's map) + 7 new test(s) and 1 new file(s) = 3666, files 212; floor 3666 - 6 = 3660. This PR must read 3666 passed.
-          # ⬆ 3653→3669 on 2026-11-11 (rederive_floor.py, fable/o4-side-paths): dev run 42752117173 read 3643 / 208 files; dev's map 3659;
-          #   base 3659 (dev's map) + 16 new test(s) and 2 new file(s) = 3675, files 213; floor 3675 - 6 = 3669. This PR must read 3675 passed.
-          MIN_FILES, MIN_PASSED = 213, 3669
+          # ⬆ 3653→3667 on 2026-11-11 (rederive_floor.py, claude/ingest-health-1e6f76): dev run 42752117173 read 3643 / 208 files; dev's map 3659;
+          #   base 3659 (dev's map) + 14 new test(s) and 1 new file(s) = 3673, files 212; floor 3673 - 6 = 3667. This PR must read 3673 passed.
+          # ⬆ 3667→3672 on 2026-11-11 (rederive_floor.py, claude/bathymetry-loud-f84a05): dev run 42752117173 read 3643 / 208 files; dev's map 3673;
+          #   base 3673 (dev's map) + 5 new test(s) and 1 new file(s) = 3678, files 213; floor 3678 - 6 = 3672. This PR must read 3678 passed.
+          # ⬇ 2026-11-11 FLOOR FRAGMENTS: the literal below is the BASE. A PR that adds chain tests adds
+          #   .github/ci-floors.d/<branch-slug>.chain.json (backend/scripts/rederive_floor.py) and never edits it.
+          MIN_FILES, MIN_PASSED = 213, 3672
+          MIN_FILES, MIN_PASSED = __import__('runpy').run_path('scripts/ci_floor_fragments.py')['floor_pair']('chain', MIN_FILES, MIN_PASSED)  # + fragments
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
@@ -2272,7 +2289,10 @@ jobs:
           # New tracked estate file collects 9 cases: projected 3430; floor 3428 keeps margin 2. Hosted CI must confirm.
           # ⬆ 3428→3430 on 2026-11-09 (rederive_floor.py, claude/nearshore-pairs-refresh): dev run 42540686323 read 3430; dev's map 3430;
           #   base 3430 (hosted read) + 2 new test(s) = 3432; floor 3432 - 2 = 3430. This PR must read 3432 passed.
+          # ⬇ 2026-11-11 FLOOR FRAGMENTS: the literal below is the BASE. A PR that adds estate tests adds
+          #   .github/ci-floors.d/<branch-slug>.estate.json (backend/scripts/rederive_floor.py) and never edits it.
           MIN_PASSED = 3430
+          MIN_PASSED = __import__('runpy').run_path('scripts/ci_floor_fragments.py')['floor_passed']('estate', MIN_PASSED)  # + fragments
 
           try:
               root = ET.parse('estate.xml').getroot()

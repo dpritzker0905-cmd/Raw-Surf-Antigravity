@@ -91,6 +91,8 @@ def main(argv):
     # Did the floor move anywhere in this range? One MIN_PASSED edit clears every lane: the raise
     # is bookkeeping, and demanding a per-lane match here would fire on correct pushes.
     floor_moved = bool(MIN_PASSED.search(_git("diff", rng, "--", ".github/workflows/ci.yml")))
+    # ⬇ 2026-11-11: a floor fragment (.github/ci-floors.d/*.json) IS the floor moving, and now the normal way.
+    floor_moved = floor_moved or any(c.startswith(".github/ci-floors.d/") and c.endswith(".json") for c in changed)
     hits = []
     for lane in LANES:
         files = _lane_files(lane)
@@ -112,10 +114,8 @@ def main(argv):
     print("  The next CI run will observe more tests than MIN_PASSED allows and")
     print("  `backend-floor-staleness` will go red. This has happened 4 times.")
     print("")
-    print("  TWO EDITS, both required:")
-    print("    1. .github/workflows/ci.yml            raise that lane's MIN_PASSED")
-    print("    2. backend/tests/test_ci_floor_staleness.py   _FLOOR_SET_FROM[lane]")
-    print("  Both at once, from dev's last green run plus your new tests:")
+    print("  ONE file, never the base lines (they conflict across open PRs): a floor fragment,")
+    print("  .github/ci-floors.d/<branch-slug>.<lane>.json, written by:")
     print("    python backend/scripts/rederive_floor.py --lane <lane> --add <N> [--add-files <M>]")
     print("  (or read the numbers from: python backend/scripts/ci_floor_staleness.py --report,")
     print("  remembering it reports the LAST GREEN run -- add the tests you just wrote.)")

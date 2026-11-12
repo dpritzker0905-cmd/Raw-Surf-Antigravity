@@ -60,6 +60,10 @@ class SurfGeometry(NamedTuple):
     # How far the entry that supplied the bearing actually sits, in km. None unless the asset (or
     # overlay) answered. Trailing + defaulted so no existing construction site has to change.
     shore_normal_match_km: Optional[float] = None
+    # SHORE_NORMAL_MOP_CALIBRATED (2026-11-11): the bearing the HEIGHT's swell-angle factor measures against, when a CDIP
+    # MOP fit exists for this California spot (swell_exposure_normals.py); None = the shore normal above, as before. Never
+    # the wind's reference: an island-shaped exposure bearing is not the direction of the coast.
+    swell_normal_deg: Optional[float] = None
 
 
 def _shore_normal_precedence(lat: float, lng: float):
@@ -238,7 +242,17 @@ def resolve_surf_geometry(lat: float, lng: float) -> SurfGeometry:
                         # None unless the ASSET supplied the bearing — a coarse or overridden
                         # bearing has no match distance, and saying "0 km" would claim a precision
                         # that does not exist.
-                        shore_normal_match_km=(match_km if src.startswith("etopo") else None))
+                        shore_normal_match_km=(match_km if src.startswith("etopo") else None),
+                        swell_normal_deg=_swell_exposure_normal(lat, lng))
+
+
+def _swell_exposure_normal(lat, lng):
+    """The MOP-calibrated swell-exposure bearing for a California spot, or None (flag off, no fit). Never raises."""
+    try:
+        from services.weather_pipeline.swell_exposure_normals import exposure_normal_at
+        return exposure_normal_at(lat, lng)[0]
+    except Exception:
+        return None
 
 
 def estimate_surf_at(lat: float, lng: float, Hs_m, Tp_s, swell_from_deg=None,
@@ -268,12 +282,13 @@ def estimate_surf_at(lat: float, lng: float, Hs_m, Tp_s, swell_from_deg=None,
             g.shelf_width_km, g.break_depth_m, water_level_m=water_level_m)
         if h is not None:
             return h, regime
+    exposure_normal = g.swell_normal_deg if g.swell_normal_deg is not None else g.shore_normal_deg
     if partitions:
         h, regime = estimate_surf_partitioned(
             partitions, g.depth_m,
             coastal=g.coastal,
             shelf_width_km=g.shelf_width_km,
-            shore_normal_deg=g.shore_normal_deg,
+            shore_normal_deg=exposure_normal,
             magnet_factor=g.magnet_factor,
             break_depth_m=g.break_depth_m,
             water_level_m=water_level_m,
@@ -297,7 +312,7 @@ def estimate_surf_at(lat: float, lng: float, Hs_m, Tp_s, swell_from_deg=None,
         coastal=g.coastal,
         shelf_width_km=g.shelf_width_km,
         swell_from_deg=swell_from_deg,
-        shore_normal_deg=g.shore_normal_deg,
+        shore_normal_deg=exposure_normal,
         magnet_factor=g.magnet_factor,
         break_depth_m=g.break_depth_m,
         water_level_m=water_level_m,

@@ -43,6 +43,14 @@ const MAP_DIR = path.resolve(__dirname, '../components/map');
 const KILL_SWITCHES_TESTED = new Set([
   // components/map/glyphAreaEstimate.test.js (O4 / CLI-3: grid-sample glyphs labelled area estimates)
   '__RAW_DISABLE_GLYPH_ESTIMATE_LABEL__',
+  // components/map/marineHoldRunUnknown.test.js (CLI-6: a run known on one side only releases the hold)
+  '__RAW_DISABLE_HOLD_RUN_UNKNOWN_RELEASE__',
+  // components/map/marineGridSeries.runIdentity.test.js (CLI-7: a newer-run page evicts older-run sibling pages)
+  '__RAW_DISABLE_SERIES_RUN_EVICT__',
+  // components/map/responsiveWeather.test.js
+  '__RAW_DISABLE_RESPONSIVE_WEATHER__',
+  // tests/forecast-card-swell-vs-surf.test.js (CMP-4)
+  '__RAW_DISABLE_UNKNOWN_DEPTH_HIDE__',
   // components/map/marineUnpatchedMaskHold.test.js
   '__RAW_DISABLE_UNPATCHED_MASK_HOLD__',
   '__RAW_DISABLE_UNRESOLVED_DIRECTION__',
@@ -123,7 +131,6 @@ const KILL_SWITCHES_EXEMPT = new Set([
   '__RAW_DISABLE_BAND_RES_FADE__',
   '__RAW_DISABLE_BAND_WASH_UNDAMP__',
   '__RAW_DISABLE_BASE_AWARE_BRIDGE__',
-  '__RAW_DISABLE_BASE_COVER_GATE__',
   '__RAW_DISABLE_BASE_CRISP_MASK__',
   '__RAW_DISABLE_BASE_HOLD__',
   '__RAW_DISABLE_BASE_HOUR_SYNC__',
