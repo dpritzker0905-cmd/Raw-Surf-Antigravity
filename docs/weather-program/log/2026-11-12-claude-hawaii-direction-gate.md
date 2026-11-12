@@ -202,3 +202,15 @@ be an artefact of train identity**. Withdrawn: "ARTEFACT" for the exposed class.
 
 What would decide the exposed class (not done): a one-to-one, energy-weighted train match; a physical label fixed in advance
 (the period rule) with measured wind at a wind-equipped Hawaii buoy; a multi-season window; a real climatology.
+
+## 6. Coverage-hole note (from the Fable repair lead, PR #835; peer information, not re-measured here)
+
+The repair lead measured GFS-Wave 0.25 as null at all 96 h at NDBC coordinates for **51201 and 51206** (two of my three
+exposed buoys); 51202, 51205 and 51211 are not holes. The gate's GFS columns at 51201/51206 therefore come from a
+neighbouring sea cell (Open-Meteo `cell_selection=sea` in the bulk lane; the nearest valid cell in the GRIB lane), so those
+two buoys' GFS error mixes model error with the distance to the fallback cell. Check done from the per-buoy table in
+`evidence/2026-11-12-hawaii-gate/hawaii_gate.json` (bulk key, unweighted per-buoy means, age run): at the non-hole buoys
+51202, 51211, 51212 GFS 45.4 vs persistence 20.2 (EURO 31.1); at the hole buoys 51201, 51206 GFS 38.8 vs persistence 25.5.
+GFS trails persistence at all five buoys, so the hole does not by itself produce the gap, but the
+exposed class is now one non-hole buoy (51202: GFS 29.1, persistence 20.6, EURO 14.0) plus two fallback-cell buoys, which
+weakens any exposed-class reading further. The verdict in section 5 stands (exposed unresolved).
