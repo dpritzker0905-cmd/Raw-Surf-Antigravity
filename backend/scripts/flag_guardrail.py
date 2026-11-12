@@ -91,6 +91,12 @@ COVERAGE = {
     "WIND_LANE_SKILL_WEIGHTS": (BLIND, "moves only the drawn /grid wind map (the HRRR lane's weight); no spot height or "
                                        "rating reads the lane. Evidence: grade_wind_lane_ndbc.py + sweep_wind_lane_weight.py "
                                        "(held-out NDBC vector RMSE by region x lead)"),
+    "WEATHER_TIER_CLAMP": (BLIND, "access, not a forecast number: who may read /api/weather (accounts only) and which tier "
+                                  "window (#782). Evidence: test_weather_tier_clamp.py (no number of its own; the echo pin)"),
+    "FRAME_ENTITLEMENT": (BLIND, "access, not a forecast number: which bucket a static frame lives in and who gets a signed "
+                                 "URL (#783). Evidence: test_frame_entitlement.py (frame bytes unchanged)"),
+    "LOCATION_TIME_FIELD": (BLIND, "presentation only: adds civil zone and civil-day rows (#762); no height, rating or "
+                                   "forecast value reads it. Evidence: test_location_time_invariance.py (served numbers equal)"),
 }
 BLIND_EVIDENCE = {
     "SURF_NEARSHORE_MOP": "nearshore-validation.yml mop_grid arm (archived MOP runs vs CDIP; armed off, dispatch)",

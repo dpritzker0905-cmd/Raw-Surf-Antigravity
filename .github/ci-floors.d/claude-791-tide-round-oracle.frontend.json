@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 3,
+  "files": 1,
+  "branch": "claude/791-tide-round-oracle",
+  "date": "2026-11-12",
+  "note": "tide-cell rounding oracle (#791 follow-up)"
+}

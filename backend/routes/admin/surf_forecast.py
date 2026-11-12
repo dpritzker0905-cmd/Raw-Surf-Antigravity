@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # flag -> (default, what it controls, where to flip)
-_RATING_FLAGS = {
+_RATING_FLAGS = {"WEATHER_TIER_CLAMP": ("0", "[D-065 held OFF until weatherAuthFetch.js is live] O5 accounts only: no verified JWT = 401, else clamp to the tier window. services/weather_tier_clamp.py", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"), "FRAME_ENTITLEMENT": ("0", "[D-065 held OFF until bucket weather-frames-private exists and the signer ships] O6 accounts only: every frame private, signed per class to accounts (/api/weather/frame-urls). services/frame_entitlement.py", "forecast-ingest-pilots.yml env (publisher) AND runtime manifest (signer)"),  # O5 #782 + O6 #783: on the opener line, this file sits at the 800-line cap
     "COPERNICUS_PEAK_PERIOD": ("0", "CMEMS (MFWAM) total wave_period from VTPK, the spectral PEAK period the surf chain is written for, instead of VTM10 (energy period Tm-1,0, kept as wave_period_tm10); CMEMS partitions keep VTM01 (no partition peak exists). services/cmems_period_map.py",
                                "forecast-ingest, forecast-ingest-pilots and precompute workflow env AND Render env together (Render serves the native CMEMS /point)"),
     "ICON_PEAK_PERIOD": ("0", "DWD GWAM partition PEAK periods ppts/ppww (were mean mpts/mpww) and a smooth blended total peak period (was tm10, kept as wave_period_tm10). services/gwam_peak_period.py",
@@ -242,6 +242,7 @@ _RATING_FLAGS = {
     # registry wording. `0.55+0.45*exposure` is surf_transform._height_exposure_factor; quality
     # (surf_rating.swell_exposure) is untouched. Direction matters to an operator: flipping this
     # SHRINKS off-axis heights (-46.9% at the floor, 0.0% head-on), it does not raise scores.
+    "LOCATION_TIME_FIELD": ("0", "[D-065 held OFF until its SCOREBOARD row + history filter land] location_time phase 1 (#762): civil IANA zone (0.01 deg grid) on the hub, /point-tide and GET /weather/location-time; hub daily rows by CIVIL date (same rated frames). Tier-safe. services/weather_pipeline/location_time.py", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"),
     "SURF_EXPOSURE_RECONCILED": ("0", "[D-065 held OFF: the history filter shows it WORSE, hs_station MAE +0.0093 m CI [0.0076, 0.0113]; fix in progress] Reconcile the DUAL swell-aim floor: replace the HEIGHT "
                                       "curve 0.55+0.45*exposure with sqrt(exposure) so height**2 "
                                       "== exposure and the height/quality chains stop reading one "
@@ -374,7 +375,6 @@ _RATING_FLAGS = {
     # complete, and the lane it omits is exactly the one that silently keeps the old reference.
     "RATING_LOCAL_SIZE":           ("1", "[D-065 default ON, as every lane already ran it; guardrail-watched] Local (per-spot/per-cell) size calibration — flip glyphs+band together",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
-    "FRAME_ENTITLEMENT": ("0", "[D-065 held OFF until bucket weather-frames-private exists and the signer ships] O6 accounts only: every frame private, signed per class to accounts (/api/weather/frame-urls). services/frame_entitlement.py", "forecast-ingest-pilots.yml env (publisher) AND runtime manifest (signer)"), "WEATHER_TIER_CLAMP": ("0", "[D-065 held OFF until weatherAuthFetch.js is live] O5 accounts only: no verified JWT = 401, else clamp to the tier window. services/weather_tier_clamp.py", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"),
     "RATING_SIZE_CLIMATOLOGY":     ("1", "Accumulate per-SPOT good-day size climatology (blob only)", "precompute.yml env"),
     "RATING_GRID_SIZE_CLIMATOLOGY": ("1", "Accumulate per-CELL (band) size climatology (blob only)", "pilots workflow env"),
     # ⚠️ "where to flip" is CHECKED — tests/test_flag_lane_parity.py fails if a workflow sets a flag
