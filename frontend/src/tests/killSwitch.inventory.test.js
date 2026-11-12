@@ -50,6 +50,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_FRAME_STORE_ALL_LAYERS__',
   // staticEuroSwellSets.test.js ("OFF PATH: the kill disables every EURO swell set and nothing else"; 2026-11-12, move 3)
   '__RAW_DISABLE_STATIC_EURO_SWELL__',
+  // components/map/responsiveWeather.test.js
+  '__RAW_DISABLE_RESPONSIVE_WEATHER__',
   // tests/forecast-card-swell-vs-surf.test.js (CMP-4)
   '__RAW_DISABLE_UNKNOWN_DEPTH_HIDE__',
   // components/map/marineUnpatchedMaskHold.test.js

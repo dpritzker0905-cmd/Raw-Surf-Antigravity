@@ -743,12 +743,13 @@ def main():
     app.add_api_route("/__harness/identity", lambda: identity, methods=["GET"])
     print(json.dumps({"harness_identity": identity}), flush=True)
     import uvicorn                                           # noqa: E402
-    observed_app = app
+    from synthetic_bounce_lab import install_bounce_lab     # noqa: E402  (/__lab/unlabel, /__lab/cycle; idle until armed)
+    observed_app = install_bounce_lab(app)
     protocol_options = {}
     if args.series_diagnostics:
         from series_diagnostics import SeriesDiagnostics        # noqa: E402
         from connection_diagnostics import diagnostic_protocol
-        observed_app = SeriesDiagnostics(app)
+        observed_app = SeriesDiagnostics(observed_app)
         protocol_options["http"] = diagnostic_protocol()
     try:
         uvicorn.run(observed_app, host="127.0.0.1", port=args.port, lifespan="off", log_level="warning", **protocol_options)

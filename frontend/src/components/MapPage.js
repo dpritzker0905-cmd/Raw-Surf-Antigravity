@@ -20,6 +20,9 @@ import { NearestSpotCard } from './map/NearestSpotCard';
 import MapPageModals from './map/MapPageModals';
 import MapWeatherControls from './map/MapWeatherControls';
 import MapForecastOverlay from './map/MapForecastOverlay';
+import { useMapChromeLayout, responsiveWeatherOn } from './map/useMapChromeLayout';
+import useMapWeatherRouteMemory from './map/useMapWeatherRouteMemory';
+import './map/responsiveWeather.css';
 import { prewarmStaticFrames } from './map/staticFrames';
 import { prewarmRegionalForCamera } from './map/staticRegionalPrewarm';
 import { RequestProButton } from './map/RequestProButton';
@@ -57,6 +60,9 @@ var MapPageContent = () => {
   const isLight = theme === 'light';
   const mapInstanceRef = useRef(null);
   const mapPageContainerRef = useRef(null);
+  const [compactExploreOpen, setCompactExploreOpen] = useState(false);
+  const [compactTimelineOpen, setCompactTimelineOpen] = useState(false);
+  useMapChromeLayout(mapPageContainerRef);
 
   // Keep the WebGL map canvas sized to its container (2026-07-03). The container's left offset now
   // follows the sidebar rail width per breakpoint (md:left-16 xl:left-[200px]) — it was a hardcoded
@@ -198,7 +204,7 @@ var MapPageContent = () => {
  // Weather Mapping State extracted into useWeatherState hook (v125 decomposition)
   const {
     activeModel, setActiveModel,
-    activeLayers,
+    activeLayers, setActiveLayers,
     timeOffsetHours, setTimeOffsetHours,
     isPlayingTimeline, setIsPlayingTimeline, isForecastBuffering,
     showWeatherControls, setShowWeatherControls,
@@ -208,6 +214,10 @@ var MapPageContent = () => {
     toggleLayer,
     isTimelineCollapsed, setIsTimelineCollapsed,
   } = useWeatherState({ user });
+  useMapWeatherRouteMemory({
+    user, activeModel, activeLayers, timeOffsetHours,
+    setActiveLayers, setTimeOffsetHours, setIsPlayingTimeline,
+  });
 
   // BOOT WARM-UP (skills audit #2): the static frames' worker, latest.json, the model's index and the current hour's frame start
   // now, while the style and tiles load, not after the first Waves click (staticFrames.prewarmStaticFrames; once per page load).
@@ -409,6 +419,9 @@ var MapPageContent = () => {
     <div
       ref={mapPageContainerRef}
       className={`fixed top-[56px] md:top-0 left-0 right-0 bottom-0 md:left-16 xl:left-[200px] ${isLight ? 'bg-gray-50' : 'bg-black'} z-[50] ${isImmersiveMode ? 'immersive' : ''}`}
+      data-responsive-weather={responsiveWeatherOn() ? "true" : undefined}
+      data-explore-open={compactExploreOpen ? "true" : "false"}
+      data-compact-timeline-open={String(compactTimelineOpen)}
       data-testid="map-page-container"
     >
       {/* Map Container - Fill entire view */}
@@ -471,7 +484,12 @@ var MapPageContent = () => {
       <div 
         className={`absolute top-0 left-0 right-0 z-[1000] pointer-events-none pt-4 transition-opacity duration-300 ${isImmersiveMode ? 'opacity-0' : 'opacity-100'} top-rail-container`} 
       >
-        <div className="px-4">
+        <button type="button" className={`weather-explorer-toggle mx-3 px-4 py-2 rounded-full border backdrop-blur-xl text-sm font-semibold ${isLight ? 'bg-white/90 text-gray-900 border-gray-200' : theme === 'beach' ? 'bg-black/90 text-white border-cyan-900/50' : 'bg-zinc-900/90 text-white border-zinc-700'}`}
+          aria-expanded={compactExploreOpen} aria-controls="map-explore-content"
+          onClick={() => setCompactExploreOpen(value => !value)}>
+          {compactExploreOpen ? 'Close search & filters' : 'Map search & filters'}
+        </button>
+        <div id="map-explore-content" className="weather-explore-content px-4">
           <MapHeader livePhotographerCount={livePhotographers.length} />
           {currentUserShooting && (
             <div className="mb-3 pointer-events-auto">
@@ -574,6 +592,8 @@ var MapPageContent = () => {
       <MapWeatherControls 
         isDesktop={false}
         isMobileExpanded={showWeatherControls}
+        isCompactTimelineOpen={compactTimelineOpen}
+        onCompactTimelineToggle={() => setCompactTimelineOpen(value => !value)}
         isTimelineCollapsed={isTimelineCollapsed}
         onTimelineCollapseToggle={setIsTimelineCollapsed}
         activeModel={activeModel}

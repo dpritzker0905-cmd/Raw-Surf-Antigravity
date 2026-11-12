@@ -23,7 +23,8 @@ SEAMS (measured 2026-10-09, HRRR 12Z vs NOAA GFS 12Z at f03/f12/f24/f36/f48, 0.2
 
 FLAGS. WIND_HRRR_LANE (default "1", owner 2026-10-09: "start it switched on"); "0" returns every product untouched, which
 is the gfs_global map exactly as it was. Per session: the client's `window.__RAW_DISABLE_WIND_HRRR_LANE__` sends
-`wind_lane=gfs`, which server.py's middleware puts in `request_mode`.
+`wind_lane=gfs`, which server.py's middleware puts in `request_mode`. WIND_LANE_SKILL_WEIGHTS (default "0", DARK,
+2026-11-12): "1" caps HRRR's weight by region and lead from a buoy-fitted table (wind_lane_skill.py); "0" is the lane above.
 """
 import logging
 import math
@@ -74,10 +75,38 @@ def box_state() -> dict:
     the same in their index; the client serves a lane-window hour only when the box's key and constants equal the frames'
     (2026-10-23: a box can hold an older lane than L2 names, and its pointer cannot tell)."""
     lane = _state.get("lane")
-    return {"enabled": enabled(), "feather_km": feather_km(), "taper_hours": taper_hours(),
-            "key": getattr(lane, "key", None), "cycle": _iso(getattr(lane, "cycle", None)),
-            "horizon": _iso(getattr(lane, "horizon", None)), "source": SOURCE,
-            "refresh_error": (_state.get("error") or "").split(":", 1)[0] or None}
+    out = {"enabled": enabled(), "feather_km": feather_km(), "taper_hours": taper_hours(),
+           "key": getattr(lane, "key", None), "cycle": _iso(getattr(lane, "cycle", None)),
+           "horizon": _iso(getattr(lane, "horizon", None)), "source": SOURCE,
+           "refresh_error": (_state.get("error") or "").split(":", 1)[0] or None}
+    skill = _skill_id()
+    if skill:                  # only while WIND_LANE_SKILL_WEIGHTS=1: the flag-off state is byte-identical to before
+        out["skill_weights"] = skill
+    return out
+
+
+def _skill():
+    try:
+        from services.weather_pipeline import wind_lane_skill
+    except ImportError:  # pragma: no cover
+        import wind_lane_skill
+    return wind_lane_skill
+
+
+def _skill_id():
+    """The skill table's id while WIND_LANE_SKILL_WEIGHTS=1, else None. An unreadable table logs and reads as None (the
+    uncapped lane), so it can never break /capabilities or a /grid response."""
+    try:
+        return _skill().table_id()
+    except Exception as e:
+        msg = f"{type(e).__name__}: {e}"
+        if msg != _skill_error.get("last"):          # once per distinct error, never every /grid
+            _skill_error["last"] = msg
+            logger.warning(f"[wind-lane] skill weight table unreadable, blending uncapped: {msg}")
+        return None
+
+
+_skill_error = {"last": None}
 
 
 def _grid():
@@ -323,6 +352,9 @@ def apply_wind_lane(product, model, domain, layer, lane=None):
             return product
         base = {"lane": "gfs", "feather_km": feather_km(), "taper_hours": taper_hours(),
                 "hrrr_cycle": _iso(lane.cycle), "hrrr_horizon": _iso(lane.horizon), "source": SOURCE}
+        skill = _skill_id()
+        if skill:                  # WIND_LANE_SKILL_WEIGHTS=1 only; the flag-off stamp is unchanged
+            base["skill_weights"] = skill
         valid = _data_time(product)
         if valid is None:
             return _stamped(product, {**base, "reason": "no_valid_time"})
@@ -352,6 +384,9 @@ def lane_use(vectors, lane, valid, w_t):
     if idx.size == 0:
         return None
     w = hg.space_weight_np(lats[idx], lngs[idx], feather_km()) * w_t
+    if _skill_id():            # WIND_LANE_SKILL_WEIGHTS=1: min(space x time, cap(region, lead)), wind_lane_skill.py
+        sk = _skill()
+        w = np.minimum(w, sk.cap(lngs[idx], sk.lead_hours(lane.cycle, valid)))
     hu, hv = lane.sample(lats[idx], lngs[idx], lane.hour_index(valid))
     use = (w > 0.0) & np.isfinite(hu) & np.isfinite(hv)
     return idx, w, hu, hv, use
