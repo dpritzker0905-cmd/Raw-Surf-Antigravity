@@ -147,3 +147,13 @@ table's real row counts (needs the database; not read), and NO source's terms of
 - **Not changed:** no workflow, runner, flag, variable or schedule. The exact S3 change is described in section 3 for the owner.
 - A bad shell command of mine (`taskkill` on every python.exe) was refused by the harness and not retried; I stopped my own background jobs with
   TaskStop instead. No other session's process was touched.
+
+## 6. Addendum 2026-11-12 04:30Z: reconciliation against the buoy's MWD (asked for by the #790 design, §2 step 5)
+
+One-off check, not a committed script: 1,799 sparse buoy-hours (31 buoys, every 6th half-hourly record, cached NDBC files, MWD from the
+`.txt` column, buoy WVHT >= 0.5 m). Partition-derived direction minus MWD: **energy-weighted over all partitions: median -1.0 deg, mean +4.3,
+MAE 20.8, p90 |d| 49.4; the largest partition alone: median +0.8, mean +4.9, MAE 18.1.** Reading: the partitioner has no systematic offset
+against the buoy's own bulk direction (convention "from" holds on real data, not only on synthetic), and it scatters about 18 deg from MWD, which
+is the cost of partitioning a multi-train hour against a single-number product. So the -10 deg primary-direction bias in section 2 is NOT a
+partitioner-wide offset; it remains unexplained between the model and the cell sampling. #790's two-mode band approach (alpha2/r2 per bin) is not built
+here; my default uses mode 1 only, which is the stated limit. Not committed as a script: n sparse, one pass.
