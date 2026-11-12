@@ -373,8 +373,8 @@ _RATING_FLAGS = {
     "RATING_LOCAL_SIZE":           ("1", "[D-065 default ON, as every lane already ran it; guardrail-watched] Local (per-spot/per-cell) size calibration — flip glyphs+band together",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
     "WEATHER_TIER_CLAMP":          ("0", "[D-065 held OFF until the client half (frontend/src/lib/weatherAuthFetch.js) is deployed: "
-                                         "ON earlier clamps every paying user to guest] O5/TIER-1: clamp model, hours and "
-                                         "valid_time on /api/weather forecast reads to the JWT-resolved tier's window "
+                                         "ON earlier refuses every paying user] O5/TIER-1, accounts only: no verified JWT = 401; else clamp model, "
+                                         "hours and valid_time on /api/weather forecast reads to the JWT-resolved tier's window "
                                          "(forecast_tier_window, the resolver's pinned echo). services/weather_tier_clamp.py",
                                     "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"),
     "RATING_SIZE_CLIMATOLOGY":     ("1", "Accumulate per-SPOT good-day size climatology (blob only)", "precompute.yml env"),

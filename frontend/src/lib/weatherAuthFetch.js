@@ -19,8 +19,14 @@
  * window.__WEATHER_CAPABILITIES__, which the resolver loads at start), else OFF.
  * SELF-HEAL AT THE FLIP: if an answer comes back clamped (`X-Raw-Tier-Clamp`) to a signed-in user whose token was not
  * sent (the state was still OFF), it is re-requested ONCE with the token, so a paying user is never left with a guest page.
+ *
+ * ACCOUNTS ONLY (owner 2026-11-12, #782): with the switch on, a read without a verified account is REFUSED (401,
+ * `X-Raw-Tier-Clamp: account`), not clamped. The same self-heal covers it: a signed-in user's refused request is
+ * re-asked once with the token. A refusal of a request that DID carry the token means the session is no longer accepted
+ * (expired), and is reported to the sign-in prompt (weatherSession.js) instead of leaving a blank map.
  */
 import { BACKEND_URL } from './apiClient';
+import { isSignInRefusal, reportWeatherSessionExpired } from './weatherSession';
 
 export function storedAccessToken(storage) {
   try {
@@ -85,14 +91,19 @@ export function installWeatherAuthFetch(win = typeof window !== 'undefined' ? wi
     const token = disabled ? null : storedAccessToken(win.localStorage);
     const next = tierClampOn(win) ? withWeatherAuth(input, init, { token, disabled }) : init;
     const sentToken = next !== init;
+    const refusedWithToken = (res) => {
+      if (isSignInRefusal(res)) reportWeatherSessionExpired(win);       // our token was sent and not accepted
+      return res;
+    };
     return inner.call(self, input, next).then((res) => {
       const on = headerOf(res, 'x-raw-tier-clamp-on');
       if (res && res.headers) win.__RAW_TIER_CLAMP_ON__ = on === '1';      // follow a manifest flip either way
       if (!sentToken && token && headerOf(res, 'x-raw-tier-clamp')) {
-        // The clamp flipped ON before we knew: this answer was cut to guest. Ask once more, as who we are.
-        return inner.call(self, input, withWeatherAuth(input, init, { token }));
+        // The switch flipped ON before we knew: this answer was cut (or refused, accounts only) as if we were signed
+        // out. Ask once more, as who we are.
+        return inner.call(self, input, withWeatherAuth(input, init, { token })).then(refusedWithToken);
       }
-      return res;
+      return sentToken ? refusedWithToken(res) : res;
     });
   };
   win.__RAW_WEATHER_AUTH_INSTALLED__ = true;

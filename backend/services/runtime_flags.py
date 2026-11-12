@@ -55,7 +55,7 @@ GUARDED = {
     "SURF_NEARSHORE_MOP": "1",          # CDIP MOP nearshore sea at California spots: nearshore judge 86/86 runs better,
                                         # MAE 0.250 -> 0.096 m at CDIP buoys (2026-10-09..11-04), ON; kill '0'
     "WEATHER_TIER_CLAMP": "0",          # O5 (#TBD): server tier clamp. Held OFF until the client sends its token
-                                        # (weatherAuthFetch.js) - ON earlier makes every paying user a guest
+                                        # (weatherAuthFetch.js) - ON earlier refuses every paying user (accounts only)
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": "1",  # CMP-3: the rating reads the break depth the height's cap used; offline filter NO_CHANGE
 }
 

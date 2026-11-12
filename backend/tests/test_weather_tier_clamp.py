@@ -105,17 +105,23 @@ def test_identity_is_strict_and_fails_closed(monkeypatch):
     assert run(C.resolve_tier("Bearer forged", lookup)) == "guest"
     assert run(C.resolve_tier("Bearer good", lookup)) == "premium"
     assert run(C.resolve_tier("Bearer good", lookup)) == "premium" and calls == ["u1"]        # cached
-    assert run(C.resolve_tier("Bearer admin", lookup)) == "guest"                              # no tier = guest
+    assert run(C.resolve_tier("Bearer admin", lookup)) == "free"          # an ACCOUNT with no tier is free, not guest
 
     async def broken(u):
         raise RuntimeError("db down")
 
     C._tier_cache.clear()
-    assert run(C.resolve_tier("Bearer good", broken)) == "guest"
+    assert run(C.resolve_tier("Bearer good", broken)) == "free"           # verified, lookup down: lowest ACCOUNT window
+
+    async def no_row(u):
+        return None
+
+    C._tier_cache.clear()
+    assert run(C.resolve_tier("Bearer good", no_row)) == "free"
 
 
 # ── the middleware, end to end on an echo app ─────────────────────────────────────────────────────────────────────────
-def _client(monkeypatch, on=True, tier="guest"):
+def _client(monkeypatch, on=True, tier="free"):
     monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
     monkeypatch.setenv(C.FLAG, "1" if on else "0")
     rf._reset_for_tests(lambda: None)
@@ -132,7 +138,7 @@ def _client(monkeypatch, on=True, tier="guest"):
     return TestClient(app)
 
 
-def test_guest_gets_the_clamped_answer_and_it_is_never_shared_cached(monkeypatch):
+def test_free_gets_the_clamped_answer_and_it_is_never_shared_cached(monkeypatch):
     r = _client(monkeypatch).get("/api/weather/grid_series?model=EURO&hours=0,336")
     assert r.json() == {"model": "GFS", "hours": "0,72"}
     assert r.headers["x-raw-tier-clamp"] == "hours,model"
@@ -142,12 +148,95 @@ def test_guest_gets_the_clamped_answer_and_it_is_never_shared_cached(monkeypatch
 def test_premium_beyond_the_guest_window_is_served_but_private(monkeypatch):
     r = _client(monkeypatch, tier="premium").get("/api/weather/grid_series?model=EURO&hours=0,120")
     assert r.json() == {"model": "EURO", "hours": "0,120"} and "x-raw-tier-clamp" not in r.headers
-    assert r.headers["cache-control"] == "private, no-store"          # a shared cache must not hand this to a guest
+    assert r.headers["cache-control"] == "private, no-store"          # a shared cache must not hand this to free
 
 
-def test_inside_the_guest_window_the_route_keeps_its_cache_headers(monkeypatch):
+def test_inside_the_free_window_the_answer_is_browser_cacheable_but_never_shared(monkeypatch):
+    """Accounts only: a signed-out caller gets nothing, so an account's answer must not sit in a URL-keyed shared cache
+    (Netlify proxies /api/*). The route's max-age survives for the browser."""
     r = _client(monkeypatch).get("/api/weather/grid_series?model=GFS&hours=0,3")
-    assert r.json() == {"model": "GFS", "hours": "0,3"} and r.headers["cache-control"] == "public, max-age=60"
+    assert r.json() == {"model": "GFS", "hours": "0,3"} and r.headers["cache-control"] == "private, max-age=60"
+    assert "Authorization" in r.headers["vary"]
+
+
+@pytest.mark.parametrize("path", ["/api/weather/grid_series?model=GFS&hours=0", "/api/weather/grid?model=GFS",
+                                  "/api/weather/point?lat=1&lng=2", "/api/weather/spot-ratings",
+                                  "/api/weather/point-rating?lat=1&lng=2", "/api/weather/spot-series/x",
+                                  "/api/weather/point-tide?lat=1&lng=2", "/api/weather/wind_lane"])
+def test_accounts_only_no_verified_account_gets_401_and_no_data(monkeypatch, path):
+    """Owner 2026-11-12: "we do not want non-account holders to access the data". The guest window is EMPTY: every
+    forecast read (incl. tide and the wind lane) is 401, marked so the client can prompt sign-in, never cacheable."""
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
+    monkeypatch.setenv(C.FLAG, "1")
+    rf._reset_for_tests(lambda: None)
+    app, served = FastAPI(), []
+
+    @app.get("/api/weather/{rest:path}")
+    async def anything(rest: str):
+        served.append(rest)
+        return {"data": 1}
+
+    app.add_middleware(C.WeatherTierClampMiddleware)          # the REAL resolver: no Authorization header at all
+    r = TestClient(app).get(path)
+    assert r.status_code == 401 and r.json() == {"detail": "sign_in_required"} and served == []
+    assert r.headers["x-raw-tier-clamp"] == "account" and r.headers["x-raw-tier-clamp-on"] == "1"
+    assert r.headers["cache-control"] == "private, no-store"
+
+
+def test_a_paying_user_whose_token_does_not_reach_the_server_gets_an_empty_window(monkeypatch):
+    """THE FAILURE CASE THE ROLLOUT ORDER EXISTS FOR (#782): the server cannot know a request is a premium user's unless
+    the token arrives. A premium profile, asked WITHOUT its token, is refused like anyone signed out. So the client half
+    (lib/weatherAuthFetch.js sending the token, and retrying a refused request with it) must be live BEFORE the switch."""
+    import core.security as sec
+
+    async def uid(authorization=None):
+        return {"Bearer premium-token": "paying-user"}.get(authorization)
+
+    async def lookup(u):
+        return "surfer_premium"
+
+    monkeypatch.setattr(sec, "get_optional_user_id", uid)
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
+    monkeypatch.setenv(C.FLAG, "1")
+    rf._reset_for_tests(lambda: None)
+    C._tier_cache.clear()
+    app = FastAPI()
+
+    @app.get("/api/weather/grid_series")
+    async def series(request: Request):
+        return dict(request.query_params)
+
+    async def tier_fn(auth):
+        return await C.resolve_tier(auth, lookup)
+
+    app.add_middleware(C.WeatherTierClampMiddleware, tier_fn=tier_fn)
+    client = TestClient(app)
+    url = "/api/weather/grid_series?model=EURO&hours=0,240"
+    assert client.get(url).status_code == 401                                         # token lost: empty window
+    ok = client.get(url, headers={"Authorization": "Bearer premium-token"})            # token arrives: premium window
+    assert ok.status_code == 200 and ok.json() == {"model": "EURO", "hours": "0,240"}
+
+
+def test_public_weather_routes_stay_public_with_the_clamp_on(monkeypatch):
+    """The client learns the switch from /capabilities: it must answer a signed-out caller."""
+    for path in ("/api/weather/capabilities", "/api/weather/status", "/api/weather/products"):
+        assert not C.account_required(path), path
+    for path in ("/api/weather/point-tide", "/api/weather/wind_lane", "/api/weather/grid"):
+        assert C.account_required(path), path
+
+
+def test_the_sign_in_refusal_is_readable_cross_origin(monkeypatch):
+    """The 401 is raised INSIDE CORSMiddleware (server.py registers the clamp before CORS), so it carries the CORS
+    headers; otherwise the browser reports a network error and the expired-session prompt never sees a 401."""
+    import server
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
+    monkeypatch.setenv(C.FLAG, "1")
+    rf._reset_for_tests(lambda: None)
+    origin = "https://raw-surf.netlify.app"
+    r = TestClient(server.app).get("/api/weather/wind_lane", headers={"Origin": origin})
+    assert r.status_code == 401 and r.headers.get("access-control-allow-origin") == origin
+    names = [m.cls.__name__ for m in server.app.user_middleware]      # outermost first
+    assert names.index("CORSMiddleware") < names.index("WeatherTierClampMiddleware")
 
 
 def test_held_off_nothing_changes(monkeypatch):

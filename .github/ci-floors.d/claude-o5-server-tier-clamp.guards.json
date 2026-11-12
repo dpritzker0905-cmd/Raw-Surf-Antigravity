@@ -1,8 +1,8 @@
 {
   "lane": "guards",
-  "tests": 27,
+  "tests": 38,
   "files": 1,
   "branch": "claude/o5-server-tier-clamp",
   "date": "2026-11-12",
-  "note": "O5 server tier clamp"
+  "note": "O5 server tier clamp, accounts only (#782)"
 }

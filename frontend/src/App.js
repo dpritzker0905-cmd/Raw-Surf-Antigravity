@@ -5,6 +5,7 @@ import { ThemeProvider } from './contexts/ThemeContext';
 import { PricingProvider } from './contexts/PricingContext';
 import { PersonaProvider } from './contexts/PersonaContext';
 import { Toaster } from './components/ui/sonner';
+import SessionExpiredPrompt from './components/SessionExpiredPrompt';
 import AccessCodeScreen from './components/AccessCodeScreen';
 import CookieConsentBanner from './components/ui/CookieConsentBanner';
 
@@ -226,6 +227,8 @@ function App() {
             <Route path="*" element={<Home />} />
           </Routes>
           <Toaster position="top-center" richColors />
+          {/* #782: a forecast read refused WITH this user's token -> sign in again, with a return path. */}
+          <SessionExpiredPrompt />
           <CookieConsentBanner />
           <PushNotificationInit />
           <BackButtonHandler />

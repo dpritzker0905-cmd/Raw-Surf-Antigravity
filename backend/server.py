@@ -501,6 +501,13 @@ configure_logfire(app)
 from services.weather_pipeline.config_env import env_int as _env_int  # noqa: E402  (a bad value warns, never crashes boot)
 app.add_middleware(GZipMiddleware, minimum_size=500, compresslevel=_env_int("GZIP_COMPRESSLEVEL", 9, lo=1, hi=9))
 
+# O5 / TIER-1 (2026-11-11): server-side tier clamp on forecast reads, mirrored from LayerAccessResolver via
+# services/forecast_tier_window.py. HELD OFF (GUARDED WEATHER_TIER_CLAMP='0') until the client half is live.
+# Added BEFORE CORS so CORS wraps it (the last added is outermost): its accounts-only 401 must carry the CORS headers,
+# or the browser sees a network error instead of a refusal it can act on (#782, the expired-session prompt).
+from services.weather_tier_clamp import WeatherTierClampMiddleware  # noqa: E402
+app.add_middleware(WeatherTierClampMiddleware)
+
 # CORS Configuration
 app.add_middleware(
     CORSMiddleware,
@@ -514,11 +521,6 @@ app.add_middleware(
     # O5: the client reads these cross-origin to learn the clamp is on (and to retry a clamped answer with its token).
     expose_headers=["X-Raw-Tier-Clamp-On", "X-Raw-Tier-Clamp"],
 )
-
-# O5 / TIER-1 (2026-11-11): server-side tier clamp on forecast reads, mirrored from LayerAccessResolver via
-# services/forecast_tier_window.py. HELD OFF (GUARDED WEATHER_TIER_CLAMP='0') until the client half is live.
-from services.weather_tier_clamp import WeatherTierClampMiddleware  # noqa: E402
-app.add_middleware(WeatherTierClampMiddleware)
 
 # Request telemetry (2026-08-09, MASTER-AUDIT-11.0 §3.14): bounded in-process latency/status
 # histograms per route template, read back on /api/health. Starlette wraps middleware so the
