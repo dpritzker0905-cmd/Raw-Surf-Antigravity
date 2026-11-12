@@ -263,3 +263,44 @@ a 5 s hole is the whole canvas, so they are worth a rerun on a quiet machine. Ne
   four built tiles; the production block-mean's effect on the 0.95 gate; Render's current env value; the owner's zoom, model and
   theme when he saw "opposing in all layers".
 - Not touched: any renderer file. `scn_crest_dropout.js` is a new read-only harness script.
+
+## 9. Addendum 05:10Z: consolidation with #792, and the advisor's accuracy notes
+
+**Overlap.** The director had also given move 2 to the opus design lead, whose PR #792 registers the flag, adds a parity
+test, a census through `rate_one_spot` (stub resolver) and DECISIONS D-070 (proposed). The design lead handed #792 to this
+session. To keep one PR per file: **#792 is now the registration + census + D-070 PR**; this PR (#797) keeps only what #792
+lacks (this log, the gate-aware census instrument and evidence, the Part B captures, `scn_crest_dropout.js`). Done on #792
+(head `501ca2198`): merged `origin/dev` 10b4ef4cf (the step its verifier said was owed; `surf_forecast.py` reached 810 lines,
+so the entry is now one line, at exactly 800), registered `WAVES_ANIM_SWELL_MIN_FRAC`, added `WAVES_ANIM_` to `DRIFT_PREFIXES`
+with lane exceptions, and an assertion that the gate is registered (mutation: removing it fails 1 test). The registry entry,
+parity test and guards floor fragment were REMOVED from #797, so section 6 now describes #792's files, not this PR's.
+**Correction to sections 5 and 6:** the decision proposal of record is D-070 in #792; section 5 here is a second text with the
+gate-aware costs, for the advisor to merge into D-070 or drop.
+
+**Advisor notes, answered.**
+1. *Re-verified at current dev `10b4ef4cf`:* `normalizer.py:178` default `"0"`; both ingest workflows line 142 `vars... || '0'`;
+   `gh variable list` still reads `WAVES_ANIM_DOMINANT_SWELL 1 2026-07-13T03:31:46Z`. All claims in section 1 hold.
+2. *Direction convention.* Every angle in this log is between two provider FROM directions (meteorological, 0 = from north),
+   so a difference is the same whether read as from or toward; no angle mixes the two. The normalizer turns FROM into a
+   travel vector `u = -H sin(dir)`, `v = -H cos(dir)`. *Positive control (real normalizer, synthetic point):* total FROM 90,
+   swell FROM 270 (90% of the height): flag off serves 90.0, `u = -1.000` (travels west); flag on serves 270.0, `u = +1.000`
+   (travels east). So where the dominant swell opposes the total, the flag reverses the waves layer's motion by design; on
+   real data that is the 1.2% of cells whose on-vs-off angle is >= 135 deg (section 4 table).
+3. *The #749 placeholder.* Stored frames cannot be read from here (private bucket). In the GFS-Wave fields this census used:
+   0 of 1,763,141 valid wind-wave cells carry direction 180 with period <= 1 s, and 0 total zero-fill cells (H 0, dir 0) at
+   H >= 1 m. The placeholder is a DWD (ICON) property and this census is GFS only, so nothing here is attributed to it, and
+   whether it still appears in current ICON stored frames is NOT checked.
+4. *Coverage of "all marine layers".* The flag touches the TOTAL waves layer only (and, through `/point`, the rating and
+   height). Swell 1, swell 2 and wind waves are drawn from their own partitions with or without it. So it cannot by itself
+   explain opposing motion in all layers; at most the waves layer's share. **The motion verdict is the director's
+   diagnosis agent's**, by the advisor's scope note; section 4 here is field statistics for that agent, not a verdict.
+5. *`rate_one_spot`.* This session's census went through `sim_rating.calculate_surf_rating` (the sim's wrapper over
+   `estimate_surf_at` + `rating_score`), NOT `rate_one_spot`, so it is not the one composition: no tide, no local size
+   reference, no partitions, no observation gate. **#792's census goes through `rate_one_spot` and is the census of record**
+   (GFS, 120 spots, real GFS wind, n 1,116 spot-hours: level changes on 18.5%). This one stays as a SUPPLEMENT for what #792
+   does not model: the product coherence gate (Florida east and the 2-deg world suppressed; Iberia flips) and the per-region
+   split; its 13.9% gate-aware and 64.2% upper-bound figures are not comparable 1:1 with #792's 18.5% (different spot sample,
+   wind scenarios instead of forecast wind, gate applied).
+6. *Part B.* Each entry in section 7 names a mechanism only where a capture shows it (7.1 the commit swap, with a holds-off
+   control; 7.2 the field values); the rest say "not reproduced". Which of these the director's agent also covers is asked of
+   the director.

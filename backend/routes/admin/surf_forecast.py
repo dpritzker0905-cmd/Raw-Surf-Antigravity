@@ -565,8 +565,6 @@ _RATING_FLAGS = {
                                      "meeting every saved preference, one push per window, de-duplicated "
                                      "(services/surf_alert_windows.py, weather_pipeline/alert_horizon.py)",
                                 "precompute workflow env (builds the horizon frames) AND Render env (the alert scheduler) together"),
-    "WAVES_ANIM_DOMINANT_SWELL": ("0", "[EFFECTIVE 1 via repo variable since 2026-07-13; code default 0; ING-5; log 2026-11-12-claude-dominant-swell-flag.md] Ingest: the TOTAL marine waves layer takes its direction (u/v) from the dominant swell partition where it holds >= WAVES_ANIM_SWELL_MIN_FRAC of the energy; applied per product only if >= 95% of wave-active cells carry a partition. Moves /point swell_from, so the rating and breaking height. normalizer.py", "repo variable WAVES_ANIM_DOMINANT_SWELL (forecast-ingest.yml AND forecast-ingest-pilots.yml, default 0); precompute runs no marine ingest; Render env value unverified"),
-    "WAVES_ANIM_SWELL_MIN_FRAC": ("0.35", "Energy gate (height^2 ratio) of WAVES_ANIM_DOMINANT_SWELL; inert while that is 0; repo variable unset 2026-11-11", "repo variable WAVES_ANIM_SWELL_MIN_FRAC (forecast-ingest.yml AND forecast-ingest-pilots.yml); precompute runs no marine ingest"),
 }
 
 
