@@ -2038,7 +2038,7 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   or the held-out blend stops beating both members in a cell with n >= 300.
 - **Rollback:** `WIND_LANE_SKILL_WEIGHTS` unset or `0`.
 
-### D-072 · The accuracy monitor pages on a same-model regression; the best_match gap warns, and is graded only where the same model also scores (2026-11-12, proposed)
+### D-072 · The accuracy monitor's reference page splits into three: a same-model regression, the hole buoys, and the best_match gap where both models score (2026-11-12, proposed)
 - **Status: PROPOSED, not decided.** Nothing is built. The owner decides. It reopens the WS-CAN-0026 rule in
   `forecast-accuracy-monitor.yml` that pages when the `open_meteo_marine` (Open-Meteo `best_match`) paired MAE gap
   passes +0.10 m. Every other gate in that workflow stands.
@@ -2054,19 +2054,26 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
     (plus 41121 is a `best_match` hole). The control drops those rows, `best_match` keeps them, and our sampler serves the
     nearest ocean cell there. Our MAE on those keys went 0.24 -> 0.58 m.
   - The +0.10 m bound was set as ~1.24x the worst gap recorded by 2026-08-10 (+0.081 m), a summer basis.
-- **Rule (when on):**
-  1. RED when we lose to `open_meteo:ncep_gfswave025` at a lead by more than a margin (proposed +0.03 m, ~3x the worst
-     same-model delta in the 25 runs 11-01..11-12, +0.009 m) AND the win rate is under 50%: that is a regression inside
-     our chain, which is what the page is for.
-  2. The `best_match` gap stays a WARN at every level. Its RED, if kept, is graded only on keys the same-model control
-     also scores (the coverage-hole buoys excluded), so a coastline the 0.25 deg model cannot resolve does not page.
-  3. The coverage-hole buoys get their own printed line (MAE, bias, n per lead), WARN only: they are a real product gap
-     (the nearest-ocean fallback reads exposed water at sheltered buoys, e.g. 46267 served 2.61 m vs 0.2 m observed at
-     T+0), tracked as work, not as an incident.
+- **Rule (when on), three REDs instead of one, so nothing that pages today stops paging for a real defect:**
+  1. **Same-model regression.** RED when we lose to `open_meteo:ncep_gfswave025` at a lead by more than a margin AND the
+     win rate is under 50%: a regression inside our chain. The margin is set from the monitor's whole retained history
+     (2026-08 .. 11), not from the 25 runs this entry diagnoses (the first draft's +0.03 m was fitted on those 25 runs).
+  2. **Hole buoys.** The keys the control cannot score (the coverage-hole buoys) get their own paired gap against
+     `best_match`, printed per lead with n, and their own RED bound, also from the whole history. Today it would page,
+     and should: the nearest-ocean fallback reads exposed water at sheltered buoys (46267: 2.61 m served vs 0.2 m
+     observed at T+0). That is a product defect, weather-triggered or not.
+  3. **best_match where both models score.** The existing +0.10 m RED, graded only on keys the control also scores, so
+     the pooled number no longer mixes a model-resolution gap at 10 buoys into the rest.
+  The pooled `best_match` gap stays printed as today, as a WARN.
 - **Evidence:** the 25 scheduled monitor logs (public Actions), one cached read of `/api/weather/buoy-calibration`
   (generated 2026-11-12T20:11Z; health 0.60 s before, 0.58 s after), NDBC daily summaries, one batched Open-Meteo call.
   Estimated (aggregates only, the scored rows were not read): under rule 2 today's +72 h `best_match` gap is ~0.064 ..
-  0.077 m, under the bound; under rule 1 today is -0.019 m, green.
+  0.077 m, under the bound; under rule 1 today is -0.019 m, green; rule 2 would be RED.
+- **Second opinions (owner approved the tools 2026-11-12 17:24 EST):** Reflection rated the first draft UNSOUND: making
+  `best_match` WARN-only removed the alarm for the hole-buoy fallback error, and the margin was fitted on the runs it
+  graded. Both points are taken above (rules 2 and 1). SubQ (probabilities): a code regression 0.02; the target-time
+  inference valid 0.997; paging on the same-model control sound 0.96; the fallback proven to be the defect 0.06 (not yet:
+  the per-buoy 7-day rows are needed).
 - **Reopen if:** the same-model control stops being fetched or loses coverage beyond the 10 hole buoys, or a regression
   is found that moved served MAE without moving the same-model delta.
 - **Rollback:** the current behaviour is the repo variables as they are today (`ACCURACY_PAIRED_REFERENCE_MARGIN_M`

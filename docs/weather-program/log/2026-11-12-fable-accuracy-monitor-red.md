@@ -85,3 +85,20 @@ Append-only. Lane assigned by the coordinator (local_d6b521eb). Read-only so far
   the same model also scores; print the hole buoys on their own line.
 - **Tools:** Reflection, SubQ and LongCat were NOT called. The coordinator relayed the owner's approval; the owner had not
   answered the same question asked here directly, so it waits for him.
+
+## Addendum: second opinions (owner approved Reflection, SubQ and LongCat at 17:24 EST: "Yes, use them")
+
+- Sent only result text and numbers (no rows, no secrets).
+- **Reflection (Beam-1.0), on the diagnosis and D-072 draft 1: UNSOUND.** Its points, and what I did:
+  - "Not code" only excludes merges after 10-30. Partly fair: a change before 10-30 would already sit in the 11-01 window,
+    which was stable (+0.019 m); the ramp starts with the 11-02 targets. Kept, with that reasoning stated.
+  - The extra-key decomposition rests on an unverified subset assumption and changing n. Fair; it stays labelled an
+    estimate until the rows are read.
+  - The hole-buoy fallback error is a real product defect even if weather triggers it, and draft 1 silenced its alarm.
+    TAKEN: D-072 now keeps a RED on the hole buoys (rule 2).
+  - best_match identity can change, and its flat MAE across leads suggests coverage or model-selection effects. Noted;
+    it argues for not grading the pooled best_match number alone.
+  - The +0.03 m margin was fitted on the 25 runs it graded. TAKEN: the margins come from the full retained history.
+- **SubQ (subq-snap-1.1, probabilities):** code regression 0.02; target-time inference valid 0.997; same-model gate sound
+  0.96; nearest-ocean fallback PROVEN as the defect 0.06 (agrees: not proven without the rows).
+- LongCat: not yet run (the diff review comes with the margins commit).
