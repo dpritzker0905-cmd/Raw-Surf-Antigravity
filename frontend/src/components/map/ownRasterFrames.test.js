@@ -52,7 +52,8 @@ test('toField: Float32 values, missing nodes as MISSING, the frame times in ms',
 });
 
 describe('levers (phase 1 is dark)', () => {
-  test('off by default', () => expect(ownFramesOn('pressure')).toBe(false));
+  // Pressure is ON by default since 2026-11-12 (DEFAULT_ON_LAYERS); temperature is the layer that is still dark.
+  test('off by default', () => expect(ownFramesOn('temperature')).toBe(false));
   test("on with the window lever or this browser's choice", () => {
     window.__RAW_RASTER_OWN_FRAMES__ = true;
     expect(ownFramesOn('pressure')).toBe(true);
@@ -120,9 +121,10 @@ describe('the remembered index (prewarm: a toggle draws after one frame round tr
   test('ownIndex remembers what it pinned; nothing while the lever is off', async () => {
     const idx = { path: 'i.json', frames: [{ valid_time: '2026-10-23T06:00:00Z', path: 'f0' }] };
     getPinnedIndex.mockResolvedValue(idx);
-    expect(await ownIndex('pressure')).toBeNull();          // lever off
+    window.__RAW_DISABLE_RASTER_OWN_PRESSURE__ = true;      // pressure is on by default (2026-11-12): its kill is the "off"
+    expect(await ownIndex('pressure')).toBeNull();
     expect(lastIndex('pressure')).toBeNull();
-    window.__RAW_RASTER_OWN_FRAMES__ = true;
+    delete window.__RAW_DISABLE_RASTER_OWN_PRESSURE__;
     expect(await ownIndex('pressure')).toBe(idx);
     expect(lastIndex('pressure')).toBe(idx);
     expect(getPinnedIndex).toHaveBeenCalledWith('GFS/weather/pressure/global_0p5');
@@ -180,7 +182,7 @@ describe('air temperature (2026-10-24)', () => {
     delete window.__RAW_RASTER_OWN_FRAMES__;
     window.localStorage.setItem('__RAW_RASTER_OWN_FRAMES__', 'temperature');
     expect(ownFramesOn('temperature')).toBe(true);
-    expect(ownFramesOn('pressure')).toBe(false);
+    expect(ownFramesOn('pressure')).toBe(true);             // on by default (2026-11-12), whatever the lever names
     expect(leverCovers(false, 'pressure')).toBe(false);
     expect(leverCovers('true', 'temperature')).toBe(true);
     expect(leverCovers('pressures', 'pressure')).toBe(false);
@@ -209,12 +211,29 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
     window.__RAW_DISABLE_RASTER_OWN_SATELLITE__ = true;
     expect(ownFramesOn('satellite', 'GFS')).toBe(false);
   });
-  test('ON by default (D-052): no lever draws cloud from own frames; every other layer stays dark', () => {
-    expect(DEFAULT_ON_LAYERS).toEqual(['satellite']);
+  test('ON by default (D-052, pressure 2026-11-12): no lever draws cloud and pressure from own frames; temperature stays dark', () => {
+    expect(DEFAULT_ON_LAYERS).toEqual(['satellite', 'pressure']);
     expect(ownFramesOn('satellite', 'GFS')).toBe(true);
     expect(ownFramesOn('satellite', 'EURO')).toBe(false); // no EURO cloud set: the .om path draws EURO as before
-    expect(ownFramesOn('pressure', 'GFS')).toBe(false);
     expect(ownFramesOn('temperature', 'GFS')).toBe(false);
+  });
+  test('pressure is ON by default for each model with its own set', () => {
+    for (const m of ['GFS', 'EURO', 'ICON']) expect(ownFramesOn('pressure', m)).toBe(true);
+  });
+  test('KILL: __RAW_DISABLE_RASTER_OWN_PRESSURE__ puts pressure back on the .om path and leaves cloud alone', () => {
+    window.__RAW_DISABLE_RASTER_OWN_PRESSURE__ = true;
+    try {
+      for (const m of ['GFS', 'EURO', 'ICON']) expect(ownFramesOn('pressure', m)).toBe(false);
+      expect(ownFramesOn('satellite', 'GFS')).toBe(true);
+    } finally { delete window.__RAW_DISABLE_RASTER_OWN_PRESSURE__; }
+  });
+  test('the pressure default yields to the all-layers kill and to a per-set kill', () => {
+    window.__RAW_DISABLE_RASTER_OWN_FRAMES__ = true;
+    expect(ownFramesOn('pressure', 'GFS')).toBe(false);
+    delete window.__RAW_DISABLE_RASTER_OWN_FRAMES__;
+    staticSetEnabled.mockImplementation((key) => key !== 'EURO/weather/pressure/global_0p5');   // the per-set kill's answer
+    expect(ownFramesOn('pressure', 'EURO')).toBe(false);     // EURO alone falls back to the .om path
+    expect(ownFramesOn('pressure', 'GFS')).toBe(true);
   });
   test('the cloud default yields to both kills and to a set that is not published', () => {
     window.__RAW_DISABLE_RASTER_OWN_SATELLITE__ = true;
