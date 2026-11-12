@@ -356,6 +356,16 @@ class PipelineManifest(BaseModel):
     # manifest's last L2 writer was anything else (gate bypassed) or when the field is absent
     # (written by pre-gate code — the rogue-local-backend signature).
     written_by: Optional[str] = None
+    # ING-1 (2026-11-10): product id -> UTC ISO time its object was deleted by a prune (manifest_tombstones.py). Omitted
+    # from serialization while None, so a manifest with no tombstones (flag off) dumps byte for byte as before.
+    pruned: Optional[Dict[str, str]] = None
+
+    @model_serializer(mode="wrap")
+    def _omit_absent_tombstones(self, handler):
+        d = handler(self)
+        if isinstance(d, dict) and d.get("pruned") is None:
+            d.pop("pruned", None)
+        return d
 
 
 class ClientDiagnosticReport(BaseModel):

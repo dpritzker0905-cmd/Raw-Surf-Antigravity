@@ -82,6 +82,8 @@ COVERAGE = {
                                             "the replay rates already took these inputs. Evidence: caller parity tests"),
     "RATING_BAND_ONE_CHAIN": (BLIND, "the map rating band (#776). Evidence: band level = glyph level over the spot "
                                      "asset (unit, offline)"),
+    "MANIFEST_PRUNE_TOMBSTONES": (BLIND, "moves which products the manifest lists, not a forecast number (#770). "
+                                         "Evidence: the manifest chain harness (pruned entries stay pruned)"),
     "CONSENSUS_DIRECTION_VECTOR": (BLIND, "acts only inside a multi-model consensus build; the replay is GFS only. "
                                           "Evidence: the held-out NDBC MWD comparison that turned it on"),
 }
