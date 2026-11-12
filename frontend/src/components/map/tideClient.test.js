@@ -12,6 +12,10 @@ describe('tideCellKey', () => {
   it('rounds to ~0.1° so nearby spots share a fetch (backend cache parity)', () => {
     expect(tideCellKey(28.41, -80.59)).toBe(tideCellKey(28.4, -80.6));
     expect(tideCellKey(28.4, -80.6)).not.toBe(tideCellKey(21.66, -158.05));
+    // Independent Python round(value, 1) oracle, including binary-float and exact ties.
+    for (const [coordinate,expected] of [[34.05,'34'],[0.25,'0.2'],[1.45,'1.4'],[-0.05,'-0.1'],[-0.75,'-0.8']]) {
+      expect(tideCellKey(coordinate,0)).toBe(`${expected},0`);
+    }
   });
 });
 

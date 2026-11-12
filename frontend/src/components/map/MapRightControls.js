@@ -32,7 +32,7 @@ export var MapRightControls = ({
 
   return (
     <div
-      className={`absolute right-4 z-[1000] flex flex-col gap-2 transition-all duration-300 ${bottomStyle}`}
+      className={`weather-map-actions absolute right-4 z-[1000] flex flex-col gap-2 transition-all duration-300 ${bottomStyle}`}
     >
       {/* Low-accuracy location fix button */}
       {userLocation?.accuracy && userLocation.accuracy > 1000 && (

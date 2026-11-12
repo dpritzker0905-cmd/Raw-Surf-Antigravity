@@ -25,7 +25,7 @@ test('default, in the f120+ tail: +1 h reads the blend instant 01Z, and the scre
   const d = displayedForecastTime(1, 'wind', 'GFS');
   expect(d).toMatchObject({ ms: at('2026-10-25T01:00:00Z'), snapped: false });
   expect(forecastReadout(1, 'wind', 'GFS', { timeZone: 'UTC' }).srText)
-    .toBe('Showing an estimate for Sun 1 AM, interpolated between the forecasts for Sun 12 AM and Sun 3 AM.');
+    .toBe('Showing an estimate for Sun, Oct 25, 2026, 1:00 AM UTC, interpolated between the forecasts for Sun, Oct 25, 2026, 12:00 AM UTC and Sun, Oct 25, 2026, 3:00 AM UTC.');
 });
 
 test('default, before f120 of the run: no blend, the snapped readout (the map draws the nearest frame there too)', () => {

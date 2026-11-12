@@ -1,3 +1,4 @@
+import {replaceHistoryUrl} from '../routing/appHistory';
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useTheme } from '../../contexts/ThemeContext';
@@ -58,7 +59,7 @@ export const AdminP1Dashboard = () => {
         setSelectedVerification(targetApplication);
         setShowVerificationDetail(true);
         // Clear the state so it doesn't re-open on subsequent renders
-        window.history.replaceState({}, document.title);
+        replaceHistoryUrl(undefined, {clearCallerState: true});
       }
     }
   }, [location.state?.applicantId, location.state?.verificationRequestId, verificationQueue]);

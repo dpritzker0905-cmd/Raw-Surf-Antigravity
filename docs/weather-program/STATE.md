@@ -2374,7 +2374,11 @@ is a claim, not a measurement.
 done); 4 MERGED as #193 (its first graded rows: commitment 172, 2026-10-02); 5 (wind) MERGED as #194 (commitment 177); 6 (W-23) MERGED as #195 (commitment 182); commitments 79/94 checked (seq 185, 187), re-promised as 186/188; 188's instrument MERGED as #197; 186 read (seq 196): the per-region rule wins IN SAMPLE, its out-of-sample grade is #198 (merged; commitment 198); W-30 (sim tide parity) MERGED DARK as #199, its evidence lane is commitment 203;
 2 the consensus flip on commitment 79's evidence (its ledger-cap precondition is met by that PR); 3 the
 scalar-height flip on 48-72 h of `raw_surf:GFS_SCALAR` rows (commitment 149); 4 an S8 swell-direction (and period)
-lane in the ledger (33% of rating variance, no instrument), then test a consensus direction/period; 5 S9 wind in
+lane in the ledger (33% of rating variance, no instrument), then test a consensus direction/period [2026-11-12: the
+per-lane lane exists since 09-30 (#375 its consensus); the PAIRED v2 (by coast, circular bias, persistence +
+climatology, period kinds never mixed) is built DARK behind `FORECAST_SKILL_DIRPER_PAIRED`, branch
+`claude/s8-direction-period-paired`; offline first reading: consensus direction does not beat EURO beyond noise, see
+log 2026-11-11-claude-swell-direction-lane]; 5 S9 wind in
 the ledger (19%; the observed-wind swap moves 30% of GFS levels), then coastal high-resolution wind; 6 W-23 (the
 serve path retries a 429 and names its fallback); 7 W-10/W-11 (release). Deprioritised by measurement: item 5 below
 (big-swell calibration: forecast-binned bias on the equal mean is -0.10/-0.04/-0.03 m) and partitions as a
