@@ -455,6 +455,14 @@ _RATING_FLAGS = {
                                          "sea+swell forecast instead of the offshore field + parametric transform "
                                          "(all surfaces); kill switch '0'",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
+    # ING-1 (Fable audit 2026-11-10): manifest tombstones. Measured 593 of 18,466 live entries naming a deleted object.
+    "MANIFEST_PRUNE_TOMBSTONES":   ("1", "[D-065 GUARDED, default ON; moves manifest membership, not a forecast number] "
+                                         "A prune writes pruned[name]=time into the manifest it publishes; every merge "
+                                         "drops entries registered at or before their tombstone, so a lane's stale "
+                                         "snapshot cannot resurrect an entry whose object another lane deleted "
+                                         "(services/weather_pipeline/manifest_tombstones.py); kill switch '0'",
+                                    "forecast-ingest, forecast-ingest-pilots and precompute (the manifest writers); "
+                                    "the runtime manifest reaches all three"),
     # 2026-11-11 (follow-up to JAC-1 #779): MOP-calibrated swell-exposure normals for California spots.
     "SHORE_NORMAL_MOP_CALIBRATED": ("0", "[D-065 GUARDED, held OFF: the default-ON filter's nearshore arm reads hb_proxy WORSE "
                                          "(+0.0385 m MAE, CI [0.0234, 0.0589], 8 CDIP anchors) while CDIP MOP reads it much "
