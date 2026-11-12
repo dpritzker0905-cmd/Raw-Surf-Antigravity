@@ -1,0 +1,46 @@
+# Accuracy monitor PER-BUOY SPLIT (2026-11-12). MEASUREMENT ONLY, DISPATCH ONLY.
+#
+# WHY: the Forecast Accuracy Monitor has been RED since 2026-11-10 on the Open-Meteo best_match paired gap, and its
+# logs carry pooled numbers only. The diagnosis (docs/weather-program/log/2026-11-12-fable-accuracy-monitor-red.md) and
+# D-072 (proposed) rest on an ESTIMATE of how much of that gap sits on the 9 buoys GFS-Wave 0.25 deg cannot see. This
+# job replaces the estimate with exact numbers, computed where the scored rows live.
+# APPROVED by the owner 2026-11-12 17:54 EST ("Yes, run it there") for a job in Actions that prints AGGREGATES ONLY.
+#
+# ⛔ PRINTS AGGREGATES ONLY: per buoy x lead gaps, n, intervals, and MAE. No row, no observation series, no credential
+#   reaches the log; there is no artifact upload. The script's tests pin that the printed lines carry no row fields.
+# ⛔ NO SCHEDULE on purpose: the owner names each dispatch. Not running it is the kill switch.
+# ⛔ Reads only (Storage GET with the same read pair the monitor uses); never writes Storage, never calls the serve box.
+name: Accuracy Per-Buoy Split
+
+on:
+  workflow_dispatch:
+    inputs:
+      days:
+        description: "Trailing window in days (default 14)"
+        required: false
+        default: "14"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: accuracy-per-buoy-split
+  cancel-in-progress: true
+
+jobs:
+  split:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Per-buoy split of the paired gaps (aggregates only)
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          DAYS: ${{ github.event.inputs.days || '14' }}
+        run: |
+          set -o pipefail
+          case "$DAYS" in ''|*[!0-9]*) echo "days must be a whole number"; exit 2;; esac
+          python3 scripts/accuracy_per_buoy_split.py --days "$DAYS"
