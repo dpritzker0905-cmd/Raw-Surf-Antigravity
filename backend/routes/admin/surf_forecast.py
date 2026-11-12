@@ -565,24 +565,8 @@ _RATING_FLAGS = {
                                      "meeting every saved preference, one push per window, de-duplicated "
                                      "(services/surf_alert_windows.py, weather_pipeline/alert_horizon.py)",
                                 "precompute workflow env (builds the horizon frames) AND Render env (the alert scheduler) together"),
-    # REGISTERED 2026-11-12 (audit ING-5), no value change. The code default is '0' (normalizer.py) and so is the workflows' fallback, but the
-    # REPO VARIABLE of the same name has read '1' since 2026-07-13T03:31Z, so every waves frame ingested since then carries it. This
-    # entry's default stays the CODE default (what an unset environment does); the EFFECTIVE served value is the variable's.
-    # It was never a rating flag by name, yet it moves the rating: point resolution samples the stamped grid, so `swell_from` becomes
-    # the dominant swell partition's direction. Census and decision proposal: docs/weather-program/log/2026-11-12-claude-dominant-swell-flag.md
-    "WAVES_ANIM_DOMINANT_SWELL": ("0", "[EFFECTIVE VALUE 1 via repo variable since 2026-07-13; code default 0; no DECISIONS entry yet] At ingest, the TOTAL marine waves "
-                                       "layer takes its direction (and u/v) from the dominant swell partition wherever that partition holds >= "
-                                       "WAVES_ANIM_SWELL_MIN_FRAC (0.35) of the energy (height^2 ratio); height stays total. Per-cell, and applied to a "
-                                       "product only if >= WAVES_ANIM_SWELL_AVAIL_MIN (0.95) of its wave-active cells carry a partition "
-                                       "(WAVES_ANIM_SWELL_COHERENT=1), else the whole product keeps the total direction. COUPLED: the same grids feed "
-                                       "/point, so the rating's swell_from changes with it. services/weather_pipeline/normalizer.py",
-                                  "repo variable WAVES_ANIM_DOMINANT_SWELL (read by forecast-ingest.yml AND forecast-ingest-pilots.yml, default '0' there); "
-                                  "precompute workflow reads no marine ingest; Render env carried it on 2026-07-13 (runbook), current value unverified"),
-    "WAVES_ANIM_SWELL_MIN_FRAC": ("0.35", "Energy gate of WAVES_ANIM_DOMINANT_SWELL: the dominant swell partition must hold at least this fraction of the total "
-                                          "(height^2 ratio) for the waves layer to take its direction. Inert while WAVES_ANIM_DOMINANT_SWELL is 0. "
-                                          "The repo variable of this name is unset (2026-11-11), so the value is the 0.35 default",
-                                  "repo variable WAVES_ANIM_SWELL_MIN_FRAC (read by forecast-ingest.yml AND forecast-ingest-pilots.yml); "
-                                  "precompute workflow reads no marine ingest"),
+    "WAVES_ANIM_DOMINANT_SWELL": ("0", "[EFFECTIVE 1 via repo variable since 2026-07-13; code default 0; ING-5; log 2026-11-12-claude-dominant-swell-flag.md] Ingest: the TOTAL marine waves layer takes its direction (u/v) from the dominant swell partition where it holds >= WAVES_ANIM_SWELL_MIN_FRAC of the energy; applied per product only if >= 95% of wave-active cells carry a partition. Moves /point swell_from, so the rating and breaking height. normalizer.py", "repo variable WAVES_ANIM_DOMINANT_SWELL (forecast-ingest.yml AND forecast-ingest-pilots.yml, default 0); precompute runs no marine ingest; Render env value unverified"),
+    "WAVES_ANIM_SWELL_MIN_FRAC": ("0.35", "Energy gate (height^2 ratio) of WAVES_ANIM_DOMINANT_SWELL; inert while that is 0; repo variable unset 2026-11-11", "repo variable WAVES_ANIM_SWELL_MIN_FRAC (forecast-ingest.yml AND forecast-ingest-pilots.yml); precompute runs no marine ingest"),
 }
 
 
