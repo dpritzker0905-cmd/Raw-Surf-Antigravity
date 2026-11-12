@@ -2049,7 +2049,7 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
     (served 0.238 -> 0.341, the control 0.230 -> 0.325, persistence peaked 0.506); only `best_match` held (0.218 -> 0.232).
   - The excess rose at +24, +48 and +72 h on the same 11-02 targets, so it follows the target date (weather: the first
     North Pacific winter swell at 51201, PNW storms), not the issue date of any merge.
-  - 30-42% of the +72 h gap sits on the 10 buoys where GFS-Wave 0.25 deg has no wet cell (Open-Meteo `ncep_gfswave025`
+  - 30-42% of the +72 h gap sits on the 9 buoys where GFS-Wave 0.25 deg has no wet cell (Open-Meteo `ncep_gfswave025`
     returns nothing at all 96 hours, checked 2026-11-12): 44090, 46254, 46267, 46274, 46285, 51201, 51206, 51208, LJPC1
     (plus 41121 is a `best_match` hole). The control drops those rows, `best_match` keeps them, and our sampler serves the
     nearest ocean cell there. Our MAE on those keys went 0.24 -> 0.58 m.
@@ -2063,18 +2063,36 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
      and should: the nearest-ocean fallback reads exposed water at sheltered buoys (46267: 2.61 m served vs 0.2 m
      observed at T+0). That is a product defect, weather-triggered or not.
   3. **best_match where both models score.** The existing +0.10 m RED, graded only on keys the control also scores, so
-     the pooled number no longer mixes a model-resolution gap at 10 buoys into the rest.
+     the pooled number no longer mixes a model-resolution gap at 9 buoys into the rest.
   The pooled `best_match` gap stays printed as today, as a WARN.
+- **Scope, stated so no rule is read as covering another:** rule 1 is meant to stay SILENT on today's episode (our chain
+  did not regress; the same-model delta improved). Today's episode is rule 2's: the hole buoys. Rule 2 is an EMPIRICAL
+  threshold on the hole-key gap; the claim that the nearest-ocean fallback causes it rests on one buoy at one T+0 (46267)
+  and is a separate, unproven claim (SubQ 0.06), to be tested per buoy on the rows.
+- **Margins, from the retained history** (one monitor run per day, 2026-08-15 .. 10-31, n 73-74 days per lead, ALL
+  pre-onset; the same "~1.24x the worst recorded" method as the original bound). ⚠️ PROVISIONAL: these are estimates
+  from logged aggregates. The built gate computes each number exactly from the scored rows, so its bounds must be
+  re-derived from a row backfill of the same window before it can page:
+  - Rule 1: the same-model delta's basis max was +0.057 / +0.046 / +0.041 m at +24/48/72 h (p95 +0.045 / +0.044 / +0.036).
+    Proposed RED at **+0.06 m** at every lead. Since 11-01 it has not passed +0.009 m.
+  - Rule 2: the hole-key gap's basis max (estimated from aggregates) was +0.247 / +0.245 / +0.206 m. Proposed RED at
+    **+0.30 m**. Since 11-01 it reached +0.291 / +0.340 / +0.354 m: past its own history, so it pages at +48 and +72 h.
+  - Rule 3: +0.10 m as today, PROVISIONAL. The original basis is stale: the POOLED gap already reached +0.097 m at
+    +72 h within Aug .. Oct, so +0.10 m is ~1.03x the pooled max, not 1.24x. Rule 3 grades the common keys only, whose
+    gap cannot be recovered from the logs; its bound is set from the row backfill like the others.
 - **Evidence:** the 25 scheduled monitor logs (public Actions), one cached read of `/api/weather/buoy-calibration`
   (generated 2026-11-12T20:11Z; health 0.60 s before, 0.58 s after), NDBC daily summaries, one batched Open-Meteo call.
-  Estimated (aggregates only, the scored rows were not read): under rule 2 today's +72 h `best_match` gap is ~0.064 ..
+  Estimated (aggregates only, the scored rows were not read): under rule 3 today's +72 h `best_match` gap is ~0.064 ..
   0.077 m, under the bound; under rule 1 today is -0.019 m, green; rule 2 would be RED.
 - **Second opinions (owner approved the tools 2026-11-12 17:24 EST):** Reflection rated the first draft UNSOUND: making
   `best_match` WARN-only removed the alarm for the hole-buoy fallback error, and the margin was fitted on the runs it
   graded. Both points are taken above (rules 2 and 1). SubQ (probabilities): a code regression 0.02; the target-time
   inference valid 0.997; paging on the same-model control sound 0.96; the fallback proven to be the defect 0.06 (not yet:
-  the per-buoy 7-day rows are needed).
-- **Reopen if:** the same-model control stops being fetched or loses coverage beyond the 10 hole buoys, or a regression
+  the per-buoy 7-day rows are needed). LongCat on draft 2 (five findings): Rule 1 is silent on today's gap (by design;
+  scope now stated); Rule 2's basis is pre-onset and an estimate (now labelled, re-derived from rows before paging);
+  Rule 3's +0.10 m is ~1.03x, not 1.24x, the Aug..Oct pooled max (now provisional); Rule 2's cause rests on one buoy
+  (rule reframed as empirical). All taken.
+- **Reopen if:** the same-model control stops being fetched or loses coverage beyond the 9 hole buoys, or a regression
   is found that moved served MAE without moving the same-model delta.
 - **Rollback:** the current behaviour is the repo variables as they are today (`ACCURACY_PAIRED_REFERENCE_MARGIN_M`
   0.10, `ACCURACY_PAIRED_GATE` 1); the change would ship behind its own kill switch.

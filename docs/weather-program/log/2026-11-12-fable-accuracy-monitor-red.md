@@ -102,3 +102,19 @@ Append-only. Lane assigned by the coordinator (local_d6b521eb). Read-only so far
 - **SubQ (subq-snap-1.1, probabilities):** code regression 0.02; target-time inference valid 0.997; same-model gate sound
   0.96; nearest-ocean fallback PROVEN as the defect 0.06 (agrees: not proven without the rows).
 - LongCat: not yet run (the diff review comes with the margins commit).
+
+## Correction (same day)
+
+- The hole list has **9** buoys, not 10 as written in the live-read addendum above: Hawaii 51201, 51206, 51208; San Diego
+  and Oceanside 46254, 46274, 46285, LJPC1; 46267; 44090. (41121 is a `best_match` hole, not one of ours.) Corrected in
+  D-072. The numbers derived from pairing counts did not use the buoy count, so they stand.
+- **History basis for D-072** (one monitor run per day, 86 days 2026-08-15 .. 11-12; basis = the 74 days before 11-01):
+  same-model delta max +0.057 / +0.046 / +0.041 m at +24/48/72 h (since 11-01: +0.002 / +0.004 / +0.009); hole-key gap
+  (estimate) max +0.247 / +0.245 / +0.206 (since 11-01: +0.291 / +0.340 / +0.354, past its history); pooled best_match
+  gap max +0.070 / +0.079 / +0.097 (the Aug "+0.081 worst ever" basis was already exceeded before November).
+- **LongCat (LongCat-2.5, paid, payload sha256 3e826c20...468a, D-072 draft 2):** five findings. (1) Rule 2's basis is
+  pre-onset only: correct and intended; now labelled, and every bound is re-derived from a row backfill before it can page.
+  (2) "Rule 1 will not fire on the current regression": a misreading (today is not a chain regression; rule 1 is meant to
+  stay silent and rule 2 carries it), but the entry did not say so; scope now stated. (3) Rule 3's +0.10 m is ~1.03x, not
+  1.24x, the Aug..Oct pooled max (+0.097): correct; marked provisional. (4) Rule 2 rests on aggregate estimates: correct;
+  labelled. (5) The fallback cause rests on one buoy: correct; rule 2 reframed as empirical, cause kept as a separate claim.
