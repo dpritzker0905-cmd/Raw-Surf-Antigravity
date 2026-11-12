@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 108,
+  "files": 11,
+  "branch": "codex/responsive-weather-local-20261112",
+  "date": "2026-11-12",
+  "note": "Same-runtime differential selection: candidate 26 suites/276 cases, exact-base control 15/168; all changed test paths covered. Local-only checkpoint; hosted qualification remains separate."
+}

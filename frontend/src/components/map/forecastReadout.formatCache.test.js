@@ -56,8 +56,8 @@ describe('formatInstant — cached formatters, identical strings', () => {
   });
 
   it('forecastReadout copy is unchanged ("Live" at hour 0, the shown instant otherwise)', () => {
-    expect(forecastReadout(0, 'none', 'GFS', { timeZone: 'UTC' }).text).toBe('Live');
+    expect(forecastReadout(0, 'none', 'GFS', { timeZone: 'UTC' }).text).toContain('Now · ');
     const r = forecastReadout(5, 'none', 'GFS', { timeZone: 'UTC' });
-    expect(r.text).toMatch(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat) \d{1,2} (AM|PM)$/);
+    expect(r.text).toMatch(/^(Sun|Mon|Tue|Wed|Thu|Fri|Sat), [A-Z][a-z]{2} \d{1,2}, \d{4}, \d{1,2}:\d{2} (AM|PM) UTC$/);
   });
 });

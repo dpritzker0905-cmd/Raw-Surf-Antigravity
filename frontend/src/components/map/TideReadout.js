@@ -1,7 +1,7 @@
 /**
- * TideReadout - the map infobox's tide block (2026-11-07). Current height (ft/m setting), arrow + word
- * (Rising/Falling/Slack, never colour or arrow alone), rate, next high/low in local time, and a mini
- * curve of today with a "now" marker. MODEL sea level (Open-Meteo MSL), stated in the footer. Three themes.
+ * TideReadout - the map infobox's tide block (2026-11-07). Selected height (ft/m setting), arrow + word
+ * (Rising/Falling/Slack, never colour or arrow alone), rate, next high/low in UTC, and a mini
+ * curve around the selected instant with its marker. MODEL sea level (Open-Meteo MSL), stated in the footer. Three themes.
  * Kill: window.__RAW_DISABLE_INFOBOX_TIDE__ = true. The infobox has ONE layout (desktop and mobile share it).
  */
 import React, { useEffect, useState } from 'react';
@@ -13,7 +13,7 @@ import {
 
 export const TIDE_TICK_MS = 5 * 60 * 1000;
 
-/** `atTime` (ms or Date, default = now) is reserved for following the forecast hour; MapForecastOverlay does not pass it yet. */
+/** `atTime` (ms or Date) follows the forecast selection; omitted consumers retain a current-time clock. */
 export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, atTime }) {
   const [tick, setTick] = useState(() => Date.now());
   useEffect(() => {
@@ -22,23 +22,26 @@ export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, at
     return () => clearInterval(id);
   }, [atTime]);
   const atMs = atTime != null ? Number(atTime instanceof Date ? atTime.getTime() : atTime) : tick;
-  const { status, data: payload } = usePointTide(lat, lng, atMs);
+  const { status, data: payload } = usePointTide(lat, lng);
   const data = payload ? tideAt(payload, atMs) : null;
-  if (infoboxTideDisabled() || status === 'off' || status === 'loading') return null;
+  if (infoboxTideDisabled() || status === 'off') return null;
   const textClass = isLight ? 'text-gray-900' : 'text-white';
   const muted = isLight ? 'text-gray-500' : isBeach ? 'text-cyan-200/80' : 'text-gray-400';
   const accent = isLight ? 'text-sky-700' : isBeach ? 'text-amber-300' : 'text-cyan-400';
   const rule = isLight ? 'border-gray-200' : isBeach ? 'border-cyan-900/50' : 'border-zinc-800/20';
   const wrap = `pt-1.5 mt-1.5 border-t ${rule}`;
+  if (status === 'loading') {
+    return <div className={`${wrap} text-[10px] ${muted}`} role="status">Loading modeled sea level…</div>;
+  }
   if (status === 'unavailable' || (status === 'ok' && !data)) {
-    return <div className={`${wrap} text-[10px] ${muted}`} data-testid="tide-readout-unavailable">{TIDE_UNAVAILABLE}</div>;
+    return <div className={`${wrap} text-[10px] ${muted}`} data-testid="tide-readout-unavailable" role="status">{TIDE_UNAVAILABLE}</div>;
   }
   const d = data;
   const unit = heightUnit;
-  const rate = formatTideRate(d.rate_m_per_h, unit);
+  const rate = formatTideRate(d.rate_m_per_h, unit, d.trend);
   const hi = formatTideEvent('high', d.next_high, unit, d.tz_offset_h, undefined, atMs);
   const lo = formatTideEvent('low', d.next_low, unit, d.tz_offset_h, undefined, atMs);
-  const curve = tideCurve(d.series, d.now);
+  const curve = tideCurve(d, d.now);
   return (
     <div className={wrap} data-testid="tide-readout" role="group" aria-label="Tide">
       <div className="flex items-baseline gap-1.5">
@@ -50,8 +53,8 @@ export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, at
         {rate && <span className={`text-[9px] ${muted}`}>{rate}</span>}
       </div>
       {curve && (
-        <svg role="img" aria-label={tideAriaLabel(d, unit)} viewBox={`0 0 ${curve.w} ${curve.h}`}
-             className={`w-full h-10 mt-1 ${accent}`} data-testid="tide-curve">
+        <svg role="img" tabIndex={0} aria-label={tideAriaLabel(d, unit)} viewBox={`0 0 ${curve.w} ${curve.h}`}
+             className={`w-full h-10 mt-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-current ${accent}`} data-testid="tide-curve">
           <path d={curve.path} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           {curve.nowX != null && (
             <>

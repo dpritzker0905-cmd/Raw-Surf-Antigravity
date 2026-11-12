@@ -41,6 +41,8 @@ const MAP_DIR = path.resolve(__dirname, '../components/map');
  * for phantom entries.  To add: write the test file first.
  */
 const KILL_SWITCHES_TESTED = new Set([
+  // components/map/responsiveWeather.test.js
+  '__RAW_DISABLE_RESPONSIVE_WEATHER__',
   // tests/forecast-card-swell-vs-surf.test.js (CMP-4)
   '__RAW_DISABLE_UNKNOWN_DEPTH_HIDE__',
   // components/map/marineUnpatchedMaskHold.test.js
