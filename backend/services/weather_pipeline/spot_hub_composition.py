@@ -40,6 +40,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from services import runtime_flags as _rf   # D-065: guarded flags are read through the guardrail's manifest
+from services.weather_pipeline.spot_timezone import spot_timezone
 
 logger = logging.getLogger(__name__)
 
@@ -458,7 +459,9 @@ async def _build_hub_conditions(resolver, model, lat, lng, forecast_days, spot_i
     return {"current_conditions": current_conditions(current_row),
             "forecast": daily_rows(frames, dates, offset, dense_end),
             "composition": {"flag": FLAG, "chain": "spot_ratings.rate_one_spot",
-                            "frames": len(plan) + 1, "horizon_hours": horizon, "utc_offset_hours": offset}}
+                            "frames": len(plan) + 1, "horizon_hours": horizon, "utc_offset_hours": offset,
+                            # The spot's IANA civil zone (spot_timezone.py), additive: utc_offset_hours stays the solar day.
+                            "spot_timezone": spot_timezone(lat, lng)}}
 
 
 async def _display_wind(resolver, model, lat, lng, row):

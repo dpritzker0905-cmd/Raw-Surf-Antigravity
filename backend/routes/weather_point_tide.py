@@ -14,6 +14,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, Query, Response
 
 from services.weather_pipeline import tide as _tide
+from services.weather_pipeline.spot_timezone import spot_timezone
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/weather")
@@ -84,6 +85,8 @@ def build_point_tide(series, lat, lng, now):
         "provider": "Open-Meteo Marine", "source_url": _tide.OPEN_METEO_MARINE_API,
         # Retained for older clients. New clients use explicit UTC, never a guessed civil zone.
         "tz_offset_h": round(float(lng) / 15.0), "tz_approx": True,
+        # The location's IANA civil zone (spot_timezone.py) or null; additive. Every time above stays UTC.
+        "spot_timezone": spot_timezone(lat, lng),
         "source": SOURCE, "cell_km": CELL_KM,
     }
 

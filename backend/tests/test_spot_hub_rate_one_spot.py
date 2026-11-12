@@ -417,3 +417,20 @@ async def test_the_spots_own_size_reference_reaches_every_frame(monkeypatch):
     monkeypatch.setattr(SPR, "rate_one_spot", spy)
     await _hub(FakeResolver(), horizon_hours=72, forecast_days=2)
     assert seen and set(seen) == {1.37}
+
+
+async def test_the_hub_names_the_spots_civil_zone_beside_the_unchanged_solar_offset(monkeypatch):
+    """spot_timezone.py (2026-11-10): an ADDITIVE field. utc_offset_hours (the daily rows' solar day) is untouched."""
+    hub = await _hub(FakeResolver(), forecast_days=2)
+    assert hub["composition"]["spot_timezone"] == "America/Los_Angeles"
+    assert hub["composition"]["utc_offset_hours"] == HUB.solar_utc_offset_hours(TRESTLES["longitude"]) == -8
+    monkeypatch.setenv("SPOT_TIMEZONE_FIELD", "0")
+    HUB.clear_caches()
+    killed = await _hub(FakeResolver(), forecast_days=2)
+    assert killed["composition"]["spot_timezone"] is None
+    def _no_clock(x):   # updated_at is the build's wall clock, not a forecast value
+        if isinstance(x, dict):
+            return {k: _no_clock(v) for k, v in x.items() if k != "updated_at"}
+        return [_no_clock(v) for v in x] if isinstance(x, list) else x
+    assert _no_clock(killed["forecast"]) == _no_clock(hub["forecast"])
+    assert _no_clock(killed["current_conditions"]) == _no_clock(hub["current_conditions"])
