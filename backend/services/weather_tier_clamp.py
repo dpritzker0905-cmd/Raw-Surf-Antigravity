@@ -48,6 +48,7 @@ from urllib.parse import parse_qsl, urlencode
 
 from services import forecast_tier_window as FTW
 from services import runtime_flags as _rf
+from services import weather_account_rate_limit as _RL
 
 logger = logging.getLogger(__name__)
 
@@ -279,6 +280,9 @@ class WeatherTierClampMiddleware:
         uid, tier = await self._identify(auth)
         if tier == "guest":                              # ACCOUNTS ONLY: no verified account, no data
             return await _sign_in_required(scope, send)
+        wait = _RL.retry_after("reads", uid)              # per-account limit (in-process, no I/O); kill: flag '0'
+        if wait is not None:
+            return await _too_many(scope, send, wait)
         if names is None:                                # accounts-only, nothing to clamp (/point-tide, /wind_lane)
             names = ()
         params = parse_qsl(scope.get("query_string", b"").decode("latin-1"), keep_blank_values=True)
@@ -326,3 +330,12 @@ async def _sign_in_required(scope, send):
         (b"www-authenticate", b'Bearer realm="raw-surf"'), (ON_HEADER, b"1"), (b"x-raw-tier-clamp", SIGN_IN_REQUIRED)]})
     await send({"type": "http.response.body", "body": b"" if scope.get("method") == "HEAD" else body})
 
+
+async def _too_many(scope, send, retry_after_s: int):
+    """429 for an account over its per-account read limit (weather_account_rate_limit.py). Never cacheable."""
+    body = _RL.TOO_MANY
+    await send({"type": "http.response.start", "status": 429, "headers": [
+        (b"content-type", b"application/json"), (b"content-length", str(len(body)).encode()),
+        (b"cache-control", b"private, no-store"), (b"vary", b"Authorization"),
+        (b"retry-after", str(int(retry_after_s)).encode()), (ON_HEADER, b"1")]})
+    await send({"type": "http.response.body", "body": b"" if scope.get("method") == "HEAD" else body})
