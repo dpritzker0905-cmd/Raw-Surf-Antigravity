@@ -56,7 +56,6 @@ GUARDED = {
                                         # MAE 0.250 -> 0.096 m at CDIP buoys (2026-10-09..11-04), ON; kill '0'
     "FRAME_ENTITLEMENT": "0",           # O6 accounts only: EVERY static frame private + signed URLs. Held OFF: needs the
                                         # private bucket created and the client signer half before the flip
-    "WEATHER_ACCOUNT_RATE_LIMIT": "1",  # #782/#783: per-account 429 on clamped reads + /frame-urls; acts only once a switch is on
     "WEATHER_TIER_CLAMP": "0",          # O5 (#TBD): server tier clamp. Held OFF until the client sends its token
                                         # (weatherAuthFetch.js) - ON earlier refuses every paying user (accounts only)
     "MANIFEST_PRUNE_TOMBSTONES": "1",   # ING-1: a pruned manifest entry stays pruned across lanes (593/18,466 dangling

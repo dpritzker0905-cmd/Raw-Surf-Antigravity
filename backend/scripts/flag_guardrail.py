@@ -93,8 +93,6 @@ COVERAGE = {
                                        "(held-out NDBC vector RMSE by region x lead)"),
     "WEATHER_TIER_CLAMP": (BLIND, "access, not a forecast number: who may read /api/weather (accounts only) and which tier "
                                   "window (#782). Evidence: test_weather_tier_clamp.py (no number of its own; the echo pin)"),
-    "WEATHER_ACCOUNT_RATE_LIMIT": (BLIND, "load control, not a forecast number: 429 for one account over its request budget "
-                                          "(#782/#783). Evidence: test_weather_account_rate_limit.py"),
     "FRAME_ENTITLEMENT": (BLIND, "access, not a forecast number: which bucket a static frame lives in and who gets a signed "
                                  "URL (#783). Evidence: test_frame_entitlement.py (frame bytes unchanged)"),
     "LOCATION_TIME_FIELD": (BLIND, "presentation only: adds civil zone and civil-day rows (#762); no height, rating or "
