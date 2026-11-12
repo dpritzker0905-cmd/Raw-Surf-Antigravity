@@ -55,6 +55,8 @@ _RATING_FLAGS = {
                                         "services/weather_pipeline/consensus_product.py",
                                    "forecast-ingest-pilots workflow env (the lane that builds the CONSENSUS product); NOT Render. "
                                    "nearshore-validation reads the same flag (default 0) for the judge's consensus arm"),
+    "FORECAST_SKILL_DIRPER_PAIRED": ("0", "MEASUREMENT ONLY (S8 v2, skill_direction_period_paired.py): paired swell direction/period skill by lead and coast vs persistence and climatology; periods graded per definition, never pooled; no served number",
+                                     "forecast-ingest and precompute workflow env together (the two skill-ledger lanes); NOT Render"),
     "ESTIMATE_COHERENT_TRENDS": ("0", "Refuse stored marine estimates whose active trend pair lacks a verified shared model cycle",
                                 "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (L2 writers); NOT Render"),
     "EURO_MARINE_NATIVE_TAIL_CADENCE": ("1", "Preserve NOAA tail cadence (step 1 on the three-hourly cache, not stride 3 -> nine-hourly EURO 10-14 d estimates) and verify completed local extension no-ops",
