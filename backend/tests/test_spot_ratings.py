@@ -213,7 +213,9 @@ def test_upload_writes_the_single_rls_exposed_key():
     # this test turns that silent break loud.
     store = _MirrorStore()
     pc.upload_spot_ratings_l2(store, {"version": 1, "frames": []})
-    assert [f for f, _ in store.uploads] == ["spot_ratings/latest.json"]
+    # latest.json FIRST (the anon lane's object until the flip), then each tier's copy (flip blocker 3, 2026-11-12).
+    assert [f for f, _ in store.uploads] == ["spot_ratings/latest.json", "spot_ratings/tier/free.json",
+                                             "spot_ratings/tier/basic.json"]
     assert SPOT_RATINGS_L2_KEY == "spot_ratings/latest.json"
 
 

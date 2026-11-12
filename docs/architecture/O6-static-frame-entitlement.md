@@ -107,5 +107,5 @@ Tier rules (`forecast_tier_window`, the pinned echo of `LayerAccessResolver.js`)
 
 ## Not covered
 - **Public metadata:** `latest.json`, the path-free indexes and the HRRR wind-lane pointer stay public. They carry no forecast values.
-- **Spot ratings by anon key:** `spot_ratings/latest.json` in `weather-products` is readable with the anon key, by the scoped RLS policy `anon_read_spot_ratings_latest_only` (`spotRatingsCdn.js`). These are per-spot scores, readable without an account. That is the owner's call, outside the frames bucket.
+- **Spot ratings by anon key:** `spot_ratings/latest.json` in `weather-products` is readable with the anon key, by the scoped RLS policy `anon_read_spot_ratings_latest_only` (`spotRatingsCdn.js`). These are per-spot scores, readable without an account. That is the owner's call, outside the frames bucket. **Closed at the flip (flip blocker 3, 2026-11-12):** with the clamp on, the map reads its tier's copy (`spot_ratings/tier/<tier>.json`, latest.json for premium) through `GET /api/weather/spot-ratings-url` (`services/spot_ratings_entitlement.py`), and `supabase_scripts/storage_rls_spot_ratings_drop_anon.sql` (an owner action, at the flip) drops the anon policy.
 - **The spot hub:** `/tides/{spot_id}` and `/explore/*` are outside `/api/weather/` (#782).
