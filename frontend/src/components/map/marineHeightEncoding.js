@@ -2,8 +2,8 @@
 //
 // The encoder packs height as floor(min(1, h / scale) * 255) into the B byte (WebGLMarineTextureEncoder.js). Until 2026-10-20
 // scale was the constant 10 and every decoder read waveData.b * 10.0, so no sea above 10 m ever reached the GPU (live storms
-// reach 12.3 m). Now the scale is chosen PER UPLOAD by marineWaveHeightScale (marineWavePalette.js): the V2 table's cap (16) for
-// the light and beach wash, 10 everywhere else. Dark keeps 10 on purpose (a /16 step moves its calm water up to ~4.7 dE00),
+// reach 12.3 m). Now the scale is chosen PER UPLOAD by marineWaveHeightScale (marineWavePalette.js): the palette table's cap
+// for the light and beach wash (light spectrum 14, beach v1 10; see marineWaveHeightScale), 10 everywhere else. Dark keeps 10 on purpose (a /16 step moves its calm water up to ~4.7 dE00),
 // rating grids keep 10 (the encoder forces it: the surf-quality path stays byte-identical), and the separate score texture is
 // always /10 (its b is score / 100, decoded ratingScore = waveHeight * 10.0).
 //

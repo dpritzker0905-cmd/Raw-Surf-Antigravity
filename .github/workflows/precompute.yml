@@ -123,6 +123,7 @@ jobs:
           NODE_ENV: production
           RENDER: 'true'                # match production grid resolution + point-resolution paths
           PREFETCH_WINDOW_DAYS: '1'     # precompute rates only the current frame → warm just near-term grids (faster)
+          # ING-2: shares spot_ratings/latest.json with forecast-ingest's core tail; uploads carry a run_stamp and an older run/code never overwrites a newer one (spot_ratings_precompute.is_older_stamp).
           SPOT_RATINGS_PRECOMPUTE: '1'
           SPOT_RATINGS_PRECOMPUTE_MODELS: 'GFS,EURO,ICON'  # precompute glyphs for all 3 models (match forecast-ingest)
           RATING_TIDE: '1'              # 2026-07-18 SOTA-gap #1 flip (match forecast-ingest): tide state on every rated spot + tide_fit where a best_tide prior exists; batched pre-warm keeps it ~10 requests/run. Kill: '0'.

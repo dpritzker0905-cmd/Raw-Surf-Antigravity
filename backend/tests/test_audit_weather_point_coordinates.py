@@ -36,6 +36,9 @@ def point_client(monkeypatch):
                              "source": "offline_fixture", "product_id": None})
 
     monkeypatch.setattr(weather, "point_resolution_service", SimpleNamespace(resolve_point=resolve))
+    # SRV-1: the hint must be a manifest-listed bare filename.
+    manifest = SimpleNamespace(products=[SimpleNamespace(filename="offline-product.json")])
+    monkeypatch.setattr(weather, "store", SimpleNamespace(get_manifest=lambda: manifest))
     app = FastAPI()
     app.include_router(weather.router, prefix="/api")
     with TestClient(app, raise_server_exceptions=False) as client:
@@ -45,7 +48,7 @@ def point_client(monkeypatch):
 def params(lane, lat=30.04, lng=-87.41):
     model, domain, layer = lane
     return {"model": model, "domain": domain, "layer": layer, "lat": lat, "lng": lng,
-            "valid_time": "2026-10-09T00:00:00Z", "grid_product_id": "offline-product",
+            "valid_time": "2026-10-09T00:00:00Z", "grid_product_id": "offline-product.json",
             "grid_bbox": "-90,20,-80,35"}
 
 
