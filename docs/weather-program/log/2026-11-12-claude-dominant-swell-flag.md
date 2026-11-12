@@ -304,3 +304,22 @@ gate-aware costs, for the advisor to merge into D-070 or drop.
 6. *Part B.* Each entry in section 7 names a mechanism only where a capture shows it (7.1 the commit swap, with a holds-off
    control; 7.2 the field values); the rest say "not reproduced". Which of these the director's agent also covers is asked of
    the director.
+
+## 10. Addendum 05:50Z: the motion verdict is #796's; what 7.1 does and does not prove
+
+**Direction.** The director's diagnosis agent (draft #796) owns the motion verdict: no sign error in any layer. The "opposing"
+look is the orbital pitch sway (`__RAW_ORBITAL_PITCH__`, 2.5 px) outrunning the dash drift under troughs, so 41-49% of dashes
+move against the swell. `WAVES_ANIM_DOMINANT_SWELL` adds head-on neighbours inside the waves layer at the 0.35 gate, which
+agrees with section 4 item 3 here (within-layer opposed pairs 0.12% to 0.35%). The fix went to the layer-animation lane. Cite
+#796 for direction; section 4 here is supporting field statistics only. The director confirmed all four Part B defects stay
+with this PR.
+
+**ICON bounce: no fix from this capture.** Section 7.1 reproduced the bounce ONLY with the shipped holds DISABLED (the null
+control). With the holds as shipped (#746, #752) the offline run showed no bounce: 3 holds, the resident 13x17 grid kept to the end.
+So the capture proves the mechanism and that the existing holds stop it offline. It does not show a defect in the current code
+to fix. Per the brief ("fix only what a capture proves"), no change is made. What would justify one is a capture of the bounce with
+the holds ON. Candidates to test, in order:
+(a) a frame without `served_valid_time` (the engine guard fails open, 2026-11-08 note);
+(b) a pan that moves the viewport off the resident (the hold releases by design);
+(c) a re-ingest that advances the model cycle mid-session.
+The fix file would be `marineFinerResidentHold.js`, a client file next to the renderer; the animation lane is asked first.
