@@ -1,0 +1,306 @@
+{
+ "by_lead": {
+  "24": {
+   "by_forecast_by_region": {
+    "atlantic_ne": {
+     "equal": {
+      "bias_m": 0.059,
+      "mae_m": 0.397,
+      "n": 521
+     },
+     "raw_surf": {
+      "bias_m": -0.036,
+      "mae_m": 0.347,
+      "n": 491
+     }
+    },
+    "atlantic_se": {
+     "equal": {
+      "bias_m": 0.168,
+      "mae_m": 0.381,
+      "n": 79
+     },
+     "raw_surf": {
+      "bias_m": 0.175,
+      "mae_m": 0.382,
+      "n": 78
+     }
+    },
+    "hawaii": {
+     "equal": {
+      "bias_m": 0.157,
+      "mae_m": 0.373,
+      "n": 246
+     },
+     "raw_surf": {
+      "bias_m": -0.095,
+      "mae_m": 0.411,
+      "n": 198
+     }
+    },
+    "pacific_ne": {
+     "equal": {
+      "bias_m": 0.073,
+      "mae_m": 0.385,
+      "n": 289
+     },
+     "raw_surf": {
+      "bias_m": 0.144,
+      "mae_m": 0.419,
+      "n": 269
+     }
+    }
+   },
+   "by_forecast_pooled": {
+    "equal": {
+     "bias_m": 0.091,
+     "mae_m": 0.388,
+     "n": 1135
+    },
+    "raw_surf": {
+     "bias_m": 0.015,
+     "mae_m": 0.38,
+     "n": 1036
+    }
+   },
+   "by_observed_by_region_equal": {
+    "atlantic_ne": {
+     "bias_m": -0.043,
+     "mae_m": 0.37,
+     "n": 496
+    },
+    "atlantic_se": {
+     "bias_m": -0.134,
+     "mae_m": 0.264,
+     "n": 48
+    },
+    "gulf": {
+     "n": 0
+    },
+    "hawaii": {
+     "bias_m": -0.044,
+     "mae_m": 0.286,
+     "n": 228
+    },
+    "pacific_ne": {
+     "bias_m": -0.163,
+     "mae_m": 0.421,
+     "n": 338
+    }
+   },
+   "pairs": 8573,
+   "pairs_by_region": {
+    "atlantic_ne": 1419,
+    "atlantic_se": 1723,
+    "gulf": 527,
+    "hawaii": 840,
+    "pacific_ne": 4064
+   }
+  },
+  "48": {
+   "by_forecast_by_region": {
+    "atlantic_ne": {
+     "equal": {
+      "bias_m": -0.01,
+      "mae_m": 0.43,
+      "n": 514
+     },
+     "raw_surf": {
+      "bias_m": -0.15,
+      "mae_m": 0.438,
+      "n": 457
+     }
+    },
+    "atlantic_se": {
+     "equal": {
+      "bias_m": -0.002,
+      "mae_m": 0.385,
+      "n": 65
+     },
+     "raw_surf": {
+      "bias_m": 0.019,
+      "mae_m": 0.375,
+      "n": 71
+     }
+    },
+    "hawaii": {
+     "equal": {
+      "bias_m": 0.032,
+      "mae_m": 0.403,
+      "n": 231
+     },
+     "raw_surf": {
+      "bias_m": -0.124,
+      "mae_m": 0.535,
+      "n": 180
+     }
+    },
+    "pacific_ne": {
+     "equal": {
+      "bias_m": 0.102,
+      "mae_m": 0.436,
+      "n": 311
+     },
+     "raw_surf": {
+      "bias_m": 0.269,
+      "mae_m": 0.563,
+      "n": 304
+     }
+    }
+   },
+   "by_forecast_pooled": {
+    "equal": {
+     "bias_m": 0.031,
+     "mae_m": 0.423,
+     "n": 1121
+    },
+    "raw_surf": {
+     "bias_m": -0.008,
+     "mae_m": 0.488,
+     "n": 1012
+    }
+   },
+   "by_observed_by_region_equal": {
+    "atlantic_ne": {
+     "bias_m": -0.113,
+     "mae_m": 0.405,
+     "n": 496
+    },
+    "atlantic_se": {
+     "bias_m": -0.256,
+     "mae_m": 0.36,
+     "n": 48
+    },
+    "gulf": {
+     "n": 0
+    },
+    "hawaii": {
+     "bias_m": -0.131,
+     "mae_m": 0.371,
+     "n": 228
+    },
+    "pacific_ne": {
+     "bias_m": -0.132,
+     "mae_m": 0.436,
+     "n": 338
+    }
+   },
+   "pairs": 8573,
+   "pairs_by_region": {
+    "atlantic_ne": 1419,
+    "atlantic_se": 1723,
+    "gulf": 527,
+    "hawaii": 840,
+    "pacific_ne": 4064
+   }
+  },
+  "72": {
+   "by_forecast_by_region": {
+    "atlantic_ne": {
+     "equal": {
+      "bias_m": -0.141,
+      "mae_m": 0.499,
+      "n": 473
+     },
+     "raw_surf": {
+      "bias_m": -0.308,
+      "mae_m": 0.592,
+      "n": 399
+     }
+    },
+    "atlantic_se": {
+     "equal": {
+      "bias_m": -0.117,
+      "mae_m": 0.468,
+      "n": 56
+     },
+     "raw_surf": {
+      "bias_m": -0.1,
+      "mae_m": 0.477,
+      "n": 61
+     }
+    },
+    "hawaii": {
+     "equal": {
+      "bias_m": 0.093,
+      "mae_m": 0.464,
+      "n": 237
+     },
+     "raw_surf": {
+      "bias_m": -0.125,
+      "mae_m": 0.589,
+      "n": 153
+     }
+    },
+    "pacific_ne": {
+     "equal": {
+      "bias_m": -0.091,
+      "mae_m": 0.563,
+      "n": 250
+     },
+     "raw_surf": {
+      "bias_m": 0.104,
+      "mae_m": 0.743,
+      "n": 209
+     }
+    }
+   },
+   "by_forecast_pooled": {
+    "equal": {
+     "bias_m": -0.073,
+     "mae_m": 0.505,
+     "n": 1016
+    },
+    "raw_surf": {
+     "bias_m": -0.154,
+     "mae_m": 0.621,
+     "n": 822
+    }
+   },
+   "by_observed_by_region_equal": {
+    "atlantic_ne": {
+     "bias_m": -0.29,
+     "mae_m": 0.517,
+     "n": 496
+    },
+    "atlantic_se": {
+     "bias_m": -0.484,
+     "mae_m": 0.501,
+     "n": 48
+    },
+    "gulf": {
+     "n": 0
+    },
+    "hawaii": {
+     "bias_m": -0.125,
+     "mae_m": 0.424,
+     "n": 228
+    },
+    "pacific_ne": {
+     "bias_m": -0.495,
+     "mae_m": 0.654,
+     "n": 338
+    }
+   },
+   "pairs": 8573,
+   "pairs_by_region": {
+    "atlantic_ne": 1419,
+    "atlantic_se": 1723,
+    "gulf": 527,
+    "hawaii": 840,
+    "pacific_ne": 4064
+   }
+  }
+ },
+ "population": "wave_reporting",
+ "stations_by_region": {
+  "atlantic_ne": 23,
+  "atlantic_se": 22,
+  "gulf": 8,
+  "hawaii": 12,
+  "pacific_ne": 56
+ },
+ "stations_with_obs": 121,
+ "step_h": 2,
+ "window": "2026-09-23T20:00Z/2026-09-30T20:00Z"
+}
