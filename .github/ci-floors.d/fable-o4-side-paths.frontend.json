@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 4,
+  "files": 1,
+  "branch": "fable/o4-side-paths",
+  "date": "2026-11-12",
+  "note": "O4 / CLI-3 glyphAreaEstimate.test.js"
+}

@@ -114,8 +114,9 @@ def _breaking_ft(lat, lng, offshore_m, period_s, swell_from_deg, geometry, parti
                  water_level_m=0.0, nearshore=None):
     """Offshore Hs -> BREAKING height in feet, through the production chain.
 
-    Fails OPEN to the offshore value: a hub that shows a slightly wrong number is worth more than a
-    hub that shows nothing, and this is an enrichment of an already-working read. ``partitions``
+    Fails CLOSED since 2026-11-10 (O4 / CMP-7): `(None, "unknown")`, never the offshore Hs under the surf's name, which
+    is the exact number CLAUDE.md forbids. It used to fail OPEN to the offshore value ("a slightly wrong number beats
+    none"); SIDE_PATHS_THROUGH_CHAIN=0 restores that. ``partitions``
     (reconciled trains, or None) makes the estimate spectral exactly as `estimate_surf_at` does for
     the point lane — None keeps the total-field transform, byte-identical to before.
     ``water_level_m`` / ``nearshore``: the hour's tide and MOP sea from `sea_inputs.resolve_for_caller` (CMP-2), so this
@@ -132,6 +133,11 @@ def _breaking_ft(lat, lng, offshore_m, period_s, swell_from_deg, geometry, parti
             return round(breaking_m * M_TO_FT, 1), regime
     except Exception as e:
         logger.debug(f"[spot-conditions] surf transform failed at ({lat},{lng}): {e}")
+    # O4 / CMP-7: never the OFFSHORE Hs under the surf's name. No height is the honest answer (kill:
+    # SIDE_PATHS_THROUGH_CHAIN=0 restores the old fail-open; the offshore value is reported under its own key anyway).
+    from services.weather_pipeline import side_paths as _side
+    if _side.enabled():
+        return None, "unknown"
     return round(offshore_m * M_TO_FT, 1), "offshore_estimate"
 
 
@@ -177,7 +183,8 @@ def hourly_breaking_forecast(lat, lng, hourly, geometry, limit: int = 6, sea_by_
                      # ★ the number this endpoint used to serve as `wave_height_ft`, kept under its
                      #   TRUE name so nothing is lost and the two can never be confused again.
                      "offshore_height_ft": round(offshore_m * M_TO_FT, 1),
-                     "surf_regime": regime, "label": get_conditions_label(ft), "status": None})
+                     "surf_regime": regime, "label": get_conditions_label(ft) if ft is not None else None,
+                     "status": None if ft is not None else "no_data"})
     return rows
 
 

@@ -118,6 +118,7 @@ export function sampleRatingScoreFromGrid(grid, lat, lng) {
 export function computeSpotRatings(spotClusters, grid, surfMode) {
   if (!surfMode || !grid || !grid.ratingMode || !spotClusters) return EMPTY_RATINGS;
   const out = {};
+  const labelled = glyphEstimateLabelEnabled();
   for (const c of spotClusters) {
     if (!c || c.isCluster) continue;
     const score = sampleRatingScoreFromGrid(grid, c.latitude, c.longitude);
@@ -127,10 +128,23 @@ export function computeSpotRatings(spotClusters, grid, surfMode) {
       score: Math.round(score),
       level,
       color: RATING_COLOR[level],
-      label: RATING_LABEL[level],
+      label: labelled ? `${RATING_LABEL[level]} (area estimate)` : RATING_LABEL[level],
+      ...(labelled ? { estimate: true } : {}),
     };
   }
   return out;
+}
+
+/**
+ * O4 / CLI-3 (Fable audit 2026-11-10): the grid-sample fallback above is NOT `rate_one_spot` at the spot. It is the
+ * nearest rated grid cell within +/-2 cells (~55 km at 0.25 deg), and beyond the precompute bound EVERY glyph comes
+ * from it. ONE FORECAST COMPOSITION forbids passing it off as the spot's rating, so the glyph says what it is: an
+ * "area estimate" in its label (spoken by the aria-label and shown in the card) and a dashed, still ring instead of
+ * the solid pulsing core. The endpoint's per-spot rating, when it arrives, replaces it and drops the mark.
+ * Kill: window.__RAW_DISABLE_GLYPH_ESTIMATE_LABEL__ = true restores the unlabelled fallback.
+ */
+export function glyphEstimateLabelEnabled() {
+  return !(typeof window !== 'undefined' && window.__RAW_DISABLE_GLYPH_ESTIMATE_LABEL__ === true);
 }
 
 /**
@@ -180,6 +194,7 @@ export function ratingsShallowEqual(a, b) {
     const rb = b[k];
     if (!rb) return false;
     if (ra.score !== rb.score || ra.level !== rb.level) return false;
+    if (!ra.estimate !== !rb.estimate) return false;   // CLI-3: an endpoint rating replacing an estimate must re-render
   }
   return true;
 }

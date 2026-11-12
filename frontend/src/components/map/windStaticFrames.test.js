@@ -128,6 +128,8 @@ describe('static GFS wind frames', () => {
       window.__RAW_DISABLE_WIND_FRAME_HASH_SEED__ = true;
       _resetStaticFramesForTest(); _resetWindStaticForTest(); _setBoxLaneForTest(HELD);
       const killed = await ask(WORLD);
+      // 2026-11-11: the tag's hash is computed on its first read (weatherTruthTracker.attachLazyHash), then cached on the array
+      expect(killed.truthTag.dataHash).toBe(vectorHash(killed));
       expect(killed.grid.vectors.__jsDataHash_wind).toBe(vectorHash(killed));
     } finally {
       delete FRAME.sha256;

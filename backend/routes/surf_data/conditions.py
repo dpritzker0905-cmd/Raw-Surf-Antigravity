@@ -273,25 +273,36 @@ async def get_spot_conditions(
             # Current conditions are authoritative; the preview is an optional enrichment.
             forecast = []
             forecast_status = "unavailable"
-            try:
-                raw_point = await asyncio.wait_for(
-                    point_resolution_service.provider.fetch_point(
-                        model=model, domain="marine", layer="waves", lat=spot.latitude,
-                        lng=spot.longitude, forecast_days=1),
-                    timeout=CONDITIONS_PREVIEW_TIMEOUT_SECONDS,
-                )
-                geometry = resolve_surf_geometry(spot.latitude, spot.longitude)
-                hourly = (raw_point or {}).get("hourly")
-                # CMP-2: each row's tide and MOP sea from the one resolver `/point` uses (kill: SURF_SEA_INPUTS_EVERY_CALLER=0).
-                from services.weather_pipeline import sea_inputs as _sea
-                sea_by_time = {}
-                for t in ((hourly or {}).get("time") or [])[:6]:
-                    sea_by_time[t] = await _sea.resolve_for_caller(spot.latitude, spot.longitude, _sea.iso_z(t), model)
-                forecast = hourly_breaking_forecast(
-                    spot.latitude, spot.longitude, hourly, geometry, limit=6, sea_by_time=sea_by_time)
-                forecast_status = "available" if forecast else "unavailable"
-            except Exception:
-                logger.warning("Optional conditions preview unavailable for spot %s model %s", spot_id, model)
+            from services.weather_pipeline import side_paths as _side
+            # O4 / CMP-5 (2026-11-10): the rows are the precomputed rate_one_spot frames the glyphs and the hub serve,
+            # each with its rating; a frame that is not precomputed is a `no_data` row. No upstream fetch.
+            # Kill: SIDE_PATHS_THROUGH_CHAIN=0 restores the provider-fetch preview below.
+            if _side.enabled():
+                try:
+                    forecast = await _side.rated_preview_rows(spot_id, spot.latitude, spot.longitude, model)
+                    forecast_status = "available" if any(r["status"] is None for r in forecast) else "unavailable"
+                except Exception:
+                    logger.warning("Optional rated conditions preview unavailable for spot %s model %s", spot_id, model)
+            else:
+                try:
+                    raw_point = await asyncio.wait_for(
+                        point_resolution_service.provider.fetch_point(
+                            model=model, domain="marine", layer="waves", lat=spot.latitude,
+                            lng=spot.longitude, forecast_days=1),
+                        timeout=CONDITIONS_PREVIEW_TIMEOUT_SECONDS,
+                    )
+                    geometry = resolve_surf_geometry(spot.latitude, spot.longitude)
+                    hourly = (raw_point or {}).get("hourly")
+                    # CMP-2: each row's tide and MOP sea from the one resolver `/point` uses (kill: SURF_SEA_INPUTS_EVERY_CALLER=0).
+                    from services.weather_pipeline import sea_inputs as _sea
+                    sea_by_time = {}
+                    for t in ((hourly or {}).get("time") or [])[:6]:
+                        sea_by_time[t] = await _sea.resolve_for_caller(spot.latitude, spot.longitude, _sea.iso_z(t), model)
+                    forecast = hourly_breaking_forecast(
+                        spot.latitude, spot.longitude, hourly, geometry, limit=6, sea_by_time=sea_by_time)
+                    forecast_status = "available" if forecast else "unavailable"
+                except Exception:
+                    logger.warning("Optional conditions preview unavailable for spot %s model %s", spot_id, model)
             
             return {
                 "spot_id": spot_id,
