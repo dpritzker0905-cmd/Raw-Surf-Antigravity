@@ -463,6 +463,12 @@ _RATING_FLAGS = {
                                          "(services/weather_pipeline/manifest_tombstones.py); kill switch '0'",
                                     "forecast-ingest, forecast-ingest-pilots and precompute (the manifest writers); "
                                     "the runtime manifest reaches all three"),
+    # CMP-3 (audit 2026-11-10). The rating's oversize gate read `break_depth_at` while the height's cap read the
+    # geometry's depth (incl. the land-present promotion): 12 of 14 land-present coords disagreed.
+    "RATING_BREAK_DEPTH_FROM_GEOMETRY": ("1", "[D-065 GUARDED, ON] the rating reads the served response's "
+                                              "break_depth_m (the depth the height's cap used); kill switch '0' "
+                                              "restores the independent break_depth_at read",
+                                         "Render env AND precompute.yml env"),
     # ⚠️ ONLY BITES WHEN `SURF_PARTITIONS` IS ON — it gates the partition-aware exposure, which is
     # dark while that flag is off. Declared anyway, in the commit that added it: the lane-parity
     # guard caught this one MISSING and it was right to, because an undeclared switch is invisible

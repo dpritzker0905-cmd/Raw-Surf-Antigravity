@@ -1464,3 +1464,16 @@ A stored estimate can be estimated again in a browser branch with different sour
   not the largest-looking number). Derive every tolerance from the encoding's steps, and when a check compares a quantity
   rebuilt from quantised inputs, carry each input's error through the formula (here, a term that grows with height).
   Loosen only what the measurement says; keep the old value as a floor until accepted frames' errors can be measured too.
+
+
+### 2026-11-11 — L-P43 · Floors move by fragment, not by editing a running total (supersedes the edit steps of L-P1, L-P2, L-P39)
+
+- Blank lines between lanes (L-P39) stopped DIFFERENT-lane conflicts, but any two PRs that grew the SAME lane still
+  rewrote the same total, and every merge re-broke every other open PR: 9 of 10 open PRs conflicted on exactly those lines.
+- Rule (owner-approved): a feature PR never edits the base lines (`MIN_FILES, MIN_PASSED` / `MIN_PASSED` and
+  `FRONTEND_BASE_SUITES / FRONTEND_BASE_TESTS` in ci.yml, `_FLOOR_SET_FROM`). It adds one file per lane it grows,
+  `.github/ci-floors.d/<branch-slug>.<lane>.json`, with `python backend/scripts/rederive_floor.py --lane <guards|chain|estate|frontend>
+  --add <N> [--add-files <M>]`. Effective floor = base + the lane's fragments, summed by ONE helper
+  (`backend/scripts/ci_floor_fragments.py`) that the ci.yml steps, the staleness check and the tests all call. A malformed
+  fragment reddens CI. `rederive_floor.py --compact` folds the fragments into the base, on dev only, in a PR of its own.
+  The hosted "collected N tests" must still equal `_FLOOR_SET_FROM[lane]` + the lane's fragment tests. Rules in `.github/ci-floors.d/README.md`.

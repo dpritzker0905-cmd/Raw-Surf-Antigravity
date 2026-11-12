@@ -56,6 +56,7 @@ GUARDED = {
                                         # MAE 0.250 -> 0.096 m at CDIP buoys (2026-10-09..11-04), ON; kill '0'
     "MANIFEST_PRUNE_TOMBSTONES": "1",   # ING-1: a pruned manifest entry stays pruned across lanes (593/18,466 dangling
                                         # 2026-11-11); moves manifest membership only, filter NO_CHANGE; kill '0'
+    "RATING_BREAK_DEPTH_FROM_GEOMETRY": "1",  # CMP-3: the rating reads the break depth the height's cap used; offline filter NO_CHANGE
 }
 
 # FIX_VERSION: bump a flag's version in the PR that changes its fix. The guardrail's 'off' records the version it
