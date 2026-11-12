@@ -41,6 +41,9 @@ const MAP_DIR = path.resolve(__dirname, '../components/map');
  * for phantom entries.  To add: write the test file first.
  */
 const KILL_SWITCHES_TESTED = new Set([
+  // components/map/truthTagLazyHash.test.js, components/map/readoutDateFormat.test.js (layer animation lane, 2026-11-11)
+  '__RAW_DISABLE_TRUTH_TAG_LAZY_HASH__',
+  '__RAW_DISABLE_READOUT_FORMAT_CACHE__',
   // tests/forecast-card-swell-vs-surf.test.js (CMP-4)
   '__RAW_DISABLE_UNKNOWN_DEPTH_HIDE__',
   // components/map/marineUnpatchedMaskHold.test.js
