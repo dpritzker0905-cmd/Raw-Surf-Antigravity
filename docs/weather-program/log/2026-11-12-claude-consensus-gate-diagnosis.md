@@ -99,3 +99,61 @@ the flagged rows, the +0.13 m must vanish, and dropping the same number of rando
 Ownership respected: no edit to `consensus_serve.py`, `skill_consensus.py`, `skill_mos.py` (move 4). If cause 2 holds the fix is in
 `consensus_product._build` (carry the member answer through to a cell only where the sampler's read is a real bilinear, or keep
 GFS's cell and flag it); I have not written it because the cause is unproven. CONSENSUS_SERVE untouched.
+
+## Addendum 3 (2026-11-12, after David's "Yes, approve read"): the split already exists, in public aggregates
+
+No Supabase credential exists on this machine (the main checkout's `backend/.env` has one unrelated line), so I did not
+pull the archive myself. The repo's own read-only workflow `scored-rows-gate.yml` holds the CI secrets and prints
+`scored_rows_analysis.construction` (GET-only, aggregates, no rows). Its run 41389448778 (2026-11-02, `gh run view --log`) is
+the instrument for every number below; run 43174501916 (dispatched 2026-11-12 on dev) is the fresh read (Addendum 4).
+
+Shadow minus ledger equal mean, built CONSENSUS shadow, regional tier, run 41389448778 (n = paired pairs, NOT independent stations):
+
+| lead | member tiers (EURO / ICON) | n | shadow-equal signed mean | shadow bias vs buoy | equal bias vs buoy | shadow MAE | equal MAE |
+|---|---|---|---|---|---|---|---|
+| +48 h | global_mid / global_mid | 5973 | -0.055 | -0.047 | +0.008 | 0.293 | 0.290 |
+| +48 h | unknown / global_mid | 8746 | +0.151 | +0.229 | +0.078 | 0.342 | 0.239 |
+| +48 h | unknown / unknown | 2989 | +0.341 | +0.300 | -0.041 | 0.408 | 0.205 |
+| +48 h | all (regional shadow) | 17760 | +0.114 | +0.149 | +0.035 | 0.337 | 0.251 |
+| +72 h | global_mid / global_mid | 5121 | -0.058 | -0.071 | -0.013 | 0.298 | 0.295 |
+| +72 h | unknown / global_mid | 7745 | +0.150 | +0.219 | +0.069 | 0.349 | 0.245 |
+| +72 h | unknown / unknown | 2638 | +0.329 | +0.286 | -0.043 | 0.416 | 0.215 |
+| +72 h | all (regional shadow) | 15551 | +0.112 | +0.136 | +0.024 | 0.344 | 0.256 |
+
+Check: the +48 h rows weight to (8746*0.151 + 5973*-0.055 + 2989*0.341 + 52*0.283)/17760 = +0.114, the pooled figure.
+
+What this proves and what it does not:
+* PROVEN (aggregate): the whole +0.11 m sits in rows where a ledger member lane read 'unknown'. Drop them and the shadow reads
+  -0.055 / -0.058 m (slightly LOW), median |diff| 0.002 m. 'Unknown' is therefore a real data condition, not a label: the three
+  groupings (member tiers, frames, cycles) all separate it, and the same cut at +24 h (control) shows EURO=ICON=unknown +0.502.
+* PROVEN: the shadow is the wrong side, not the ledger. In the flagged rows the shadow's own bias vs the buoy is +0.22..+0.30 m
+  while the equal mean's is +0.08..-0.04 m, and the equal MAE is lower by 0.10..0.20 m.
+* PROVEN FROM CODE: the build cannot degrade to GFS or to two members. `consensus_product._build` masks a cell when any member
+  gives no answer (`unblended="mask"`, `member_answer` -> None on `_NO_ANSWER`), so the shadow is a three-member mean wherever it
+  exists. Hypothesis 'EURO missing, GFS-only shadow' is REFUTED.
+* NOT PROVEN: why the stored-frame shadow is high where the point lane found no stored product. Open: cycle/frame mismatch of the
+  stored member frames at those cells, or an exposed neighbour cell (hypothesis 2). Needs `member_sources`,
+  `member_frame_offset_cells` and `masked` from stored frames, which the aggregates do not carry.
+* NOT RUN: the random-row null control (needs rows; the aggregate reconstruction above is the substitute and is weaker). Independent
+  stations are not in the gate's output: n above counts pairs.
+
+## Addendum 4 (2026-11-12): fresh read, run 43174501916 (dispatched on dev; success; aggregates only)
+
+Replicates Addendum 3 at current dev; pairs, not independent stations; in-sample (all scored pairs since 2026-10-03, not held out).
+
+| lead | member tiers (EURO / ICON) | n | shadow-equal | shadow bias | equal bias |
+|---|---|---|---|---|---|
+| +48 h | global_mid / global_mid | 10539 | -0.045 | -0.009 | +0.035 |
+| +48 h | unknown / global_mid | 9653 | +0.143 | +0.237 | +0.094 |
+| +48 h | unknown / unknown | 4103 | +0.332 | +0.308 | -0.024 |
+| +48 h | all regional | 24377 | +0.094 | +0.143 | +0.049 |
+| +72 h | global_mid / global_mid | 9956 | -0.045 | -0.020 | +0.024 |
+| +72 h | unknown / global_mid | 8701 | +0.144 | +0.231 | +0.087 |
+| +72 h | unknown / unknown | 3823 | +0.322 | +0.293 | -0.029 |
+| +72 h | all regional | 22560 | +0.091 | +0.131 | +0.040 |
+
+Where it moved: pooled +0.114 -> +0.094 (+48 h), +0.112 -> +0.091 (+72 h). Gate (<0.03 m) still NOT met.
+Per coast, shadow-equal signed mean at +48 / +72 h: hawaii -0.177 / -0.185 (n 2014 / 1866, shadow LOW, the opposite sign);
+atlantic_se +0.154 / +0.146 (n 5370 / 4984, median 0.056 / 0.051, so a heavy tail); pacific_ne +0.146 / +0.150 (n 10278 / 9490).
+The pooled defect is pacific_ne and atlantic_se; hawaii offsets it. Control at +24 h: atlantic_se +0.000 (n 5663).
+Not run: filter with nearshore arm (replays GFS only); null control; independent-station counts.
