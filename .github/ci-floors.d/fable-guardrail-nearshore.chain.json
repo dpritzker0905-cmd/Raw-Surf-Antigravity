@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 24,
+  "files": 1,
+  "branch": "fable/guardrail-nearshore",
+  "date": "2026-11-12",
+  "note": "live guardrail nearshore + stats V2 (#784)"
+}

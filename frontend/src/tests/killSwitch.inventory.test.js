@@ -44,6 +44,10 @@ const KILL_SWITCHES_TESTED = new Set([
   // components/map/truthTagLazyHash.test.js, components/map/readoutDateFormat.test.js (layer animation lane, 2026-11-11)
   '__RAW_DISABLE_TRUTH_TAG_LAZY_HASH__',
   '__RAW_DISABLE_READOUT_FORMAT_CACHE__',
+  // components/map/marineHoldRunUnknown.test.js (CLI-6: a run known on one side only releases the hold)
+  '__RAW_DISABLE_HOLD_RUN_UNKNOWN_RELEASE__',
+  // components/map/marineGridSeries.runIdentity.test.js (CLI-7: a newer-run page evicts older-run sibling pages)
+  '__RAW_DISABLE_SERIES_RUN_EVICT__',
   // tests/forecast-card-swell-vs-surf.test.js (CMP-4)
   '__RAW_DISABLE_UNKNOWN_DEPTH_HIDE__',
   // components/map/marineUnpatchedMaskHold.test.js

@@ -438,6 +438,12 @@ def sleeps(monkeypatch):
 def _fresh_slot(monkeypatch):
     """The coalescing slot is process state (like the manifest cache); a test must not inherit another's."""
     monkeypatch.setattr(mps, "_slot", mps._Slot())
+    # ING-1 tombstones compare a prune's WALL-CLOCK time with an entry's ingest stamp. This harness's timeline is fixed in
+    # October 2026, so a "re-registration" here carries a stamp older than any real prune and would read as the deleted copy.
+    # Pin the tombstone clock to before the timeline: tombstones are written and merged, and never drop a harness entry.
+    # The tombstone semantics themselves are pinned in tests/test_manifest_tombstones.py with a consistent clock.
+    from services.weather_pipeline import manifest_tombstones
+    monkeypatch.setattr(manifest_tombstones, "_now", lambda: RUN_TIME - timedelta(days=1))
 
 
 def _keep_moving(chain, times):
