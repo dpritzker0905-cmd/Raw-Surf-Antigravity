@@ -45,3 +45,13 @@ Rows are identical across columns where a key has all three; unmatched keys are 
   control by seeding a known 30 degree rotation into the model column and recovering it; a leave-one-buoy-out table.
 - Stop rule (from the researcher): if the exposed interval includes zero, record H1 as not supported at n = 3 exposed
   and do not add buoys to rescue it.
+
+### Amendment A (written after the BULK lane ran, before any PARTITION error was computed)
+The bulk lane ran first and reproduced #794's Hawaii row (see section 1). The partition lane then returned zero keys: the
+six buoys are PacIOOS-operated and their NDBC standard-met files carry NO wind columns (wind map empty for all six), and
+`partitioner.trains` refuses to label swell without a wind ("a period guess is not a label"). That is a limit of the
+instrument at these buoys, found before any partition score. Fix, fixed here: label wind sea by wave age with a MODELLED
+10 m wind (Open-Meteo, hourly, at the buoy coordinate, m/s) in place of the missing observation; sensitivity label: swell =
+partitions with Tp >= 10 s. Both are reported. If the two labels disagree on the ordering of GFS and persistence, the
+partition lane is UNRESOLVED and says so. The modelled wind makes the train truth softer than at the wind-equipped
+buoys; the result is a check on the bulk finding, not an independent truth of equal quality.
