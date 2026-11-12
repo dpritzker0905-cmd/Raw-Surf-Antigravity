@@ -28,3 +28,16 @@ gap closes".
 ## Not measured
 - A real publish with 193 frames (time, bytes, coverage). The client on the hourly set (offline replay needs a published
   hourly index to mirror). Second opinions (Reflection, LongCat) not yet taken for this PR.
+
+## Second opinion: Reflection (Beam), 2026-11-12, on the plan and the numbers above
+Verdict: hourly real data for days 0-5 is the right call over client-side blending ("real fields are meteorologically
+safer than interpolating pressure systems"); ship once the client's mixed-cadence lookup is verified.
+- Raised: a client that assumes index position = hour would be wrong after f120. CHECKED: `pickIndexFrame` picks by
+  `valid_time` (nearest within 3 h). Pinned by 3 new tests in `ownRasterFrames.test.js` (every hour 0-120 shows its own
+  frame; 121 -> f120, 122 -> f123; the position window across f120 holds f119, f120, f123).
+- Raised: the 90% coverage floor is count-based, so with 193 entries more hours can be missing (19, was 11) and still
+  publish. TRUE, not changed here: a missing hour is listed unbuilt and the client shows the nearest frame within 3 h.
+- Raised: past f120 an hourly scrub holds one frame for three ticks. TRUE and expected (GFS is 3-hourly there); the
+  blend for the far range and EURO is the next piece (2b).
+- Raised: measure a real 193-frame publish before calling it done. AGREED: still not measured.
+LongCat review of the diff: not run (its paid submit needs the owner's approval of the payload hash).
