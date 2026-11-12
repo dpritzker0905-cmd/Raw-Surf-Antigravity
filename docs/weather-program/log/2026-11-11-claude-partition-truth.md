@@ -210,3 +210,29 @@ Findings (each tied to a number):
    train-versus-bulk definition, the rest is the open-ocean set.
 
 **Not done:** a row-level join on #794's pairs (needs its per-row file, not committed); the cause of the 42 deg on open-ocean buoys.
+
+## 9. Why the open-ocean buoys carry about 42 deg (2026-11-12)
+
+Instrument: `backend/scripts/partition_truth/open_ocean_breakdown.py`, same cached rows as section 8 (GFS-Wave slot 1 vs observed primary
+train, targets 2026-10-19..11-09, all three leads pooled). Open = the 13 scored buoys outside the S8 bulk lane's 100 km set; near = the 16 inside it.
+
+| | open (13 buoys, n 1,484) | near (16, n 1,680) |
+|---|---|---|
+| MAE slot 1 vs observed primary | 41.5 | 18.4 |
+| best of model slots 1-3 | 27.3 | 12.9 |
+| slot 1 vs ANY observed swell train (no rank) | 22.4 | 10.5 |
+| persistence (observed primary at issue time) | 42.4 | 24.0 |
+| share of rows over 90 deg | 0.19 | 0.04 |
+| model Tp minus observed Tp | +0.56 s | +0.35 s |
+
+Reading: (1) The error is concentrated. The five Hawaii-region buoys (51002 80.5, 51003 70.2, 51004 50.4, 51001 45.6, 51101 42.0; n 618)
+average 57 deg; the other eight open buoys (n 866) average 30 deg. (2) It is mostly WHICH train is compared, not how wrong the model's
+direction is: dropping the rank rule cuts 41.5 to 22.4, and the open-ocean persistence error (42.4) equals the model's, so the observed
+"primary" itself changes train from one day to the next. These buoys see 2.5 to 3.3 swell trains and in 30% of rows a second swell is at
+least 0.7 of the primary's height (near: 25%). (3) At 51002 and 51003 the model slot 1 is also a smaller system (Hs 0.80 vs 1.52 m;
+1.11 vs 1.77 m), so slot 1 there is likely a different train, not the observed primary.
+
+Not shown: a residual of 22 deg remains after the rank-free match (near: 10.5), so some real direction error is left on the open ocean; I
+did not separate it from island shadowing at the Hawaii buoys or from partitioner error (no CDIP / second-method check yet).
+The ~42 deg is therefore mostly a rank-matching and train-identity artefact of multi-swell open ocean, not evidence the model direction is
+42 deg wrong. Anything scored against "the primary swell" by rank (including SURF_PARTITIONS slot 1) inherits this.
