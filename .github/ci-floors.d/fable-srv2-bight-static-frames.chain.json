@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 12,
+  "files": 1,
+  "branch": "fable/srv2-bight-static-frames",
+  "date": "2026-11-12",
+  "note": "SRV-2 bight static frames (#777)"
+}

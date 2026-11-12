@@ -10,6 +10,20 @@ per season and region, Holm, materiality margin) plus the sanity bounds.
   BETTER / NOT_WORSE / NO_CHANGE / UNTESTABLE -> exit 0: ON is the default; "not proven better" does not block.
   No cache for the window -> SKIPPED, exit 0, with the reason (the job never downloads on a pull_request).
 
+NEARSHORE ARM (2026-11-10, Fable audit follow-up). `hs_station` is the chain's shoaled Hs at a CDIP buoy's depth: a
+fix that moves only the BREAKING height or the RATING at the coast (tide in the depth cap, a landward-swell taper)
+leaves it untouched, so the filter read NO_CHANGE ("not proven better never blocks") with no evidence. Two more
+quantities are now read from the SAME two replay arms (no extra replay, no extra CPU):
+  * `hb_proxy` (eval_scoring.QUANTITIES): the served breaking height vs a FROZEN Komar & Gaughan operator applied to the
+    measured CDIP Hs/Tp. Scored with the same verdict (two-way DM + block bootstrap, pooled/season/region, Holm,
+    margin). A PROXY: its absolute bias mixes convention with error, but the paired ON-vs-OFF difference is the test,
+    and the operator cannot move with the candidate. WORSE here blocks, exactly like the primary.
+  * the rating census: how many anchor spot-hours change score or level ON vs OFF. No observed rating exists, so it is
+    DESCRIPTIVE (it never blocks and is never called better or worse); it says whether the rating moved at all.
+Kill: DEFAULT_ON_NEARSHORE_ARM=0 scores the primary only (the pre-2026-11-10 filter).
+LIMIT: the replay rates through `rate_one_spot` (the glyph). A change confined to another surface (the hub's own chain,
+the map rating band) is still invisible to both arms: say so in the PR, never read NO_CHANGE as evidence for it.
+
 CPU: two arms over the window (measured 2026-11-04 on the 10-day / 6-station / 3-lead window: ~35 s per arm after the
 shared staging; the 5-arm harness run took 2 m 58 s in total). No app, no storage, no secrets, no Render.
 Window: `default_on_filter_window.json`, or `--hist-index` (the backfill agent's index.json: a list of windows with
@@ -38,6 +52,8 @@ REGISTRY = os.path.join("backend", "routes", "admin", "surf_forecast.py")
 RUNTIME = os.path.join("backend", "services", "runtime_flags.py")
 WINDOW_FILE = os.path.join(HERE, "default_on_filter_window.json")
 PRIMARY = "hs_station"
+NEARSHORE = "hb_proxy"
+SCORE_CHANGE_EPS = 0.05      # a rating score move below this is float noise, not a change (scores are 0-100)
 
 
 # ---- which flags does the PR turn ON -----------------------------------------------------------------------------
@@ -138,6 +154,55 @@ def replay_pair(ctx: dict, flag: str, on_value: str = "1", off_value: str = "0")
     return sc.pair(off, on), rows["off"], rows["on"]
 
 
+def nearshore_arm_enabled() -> bool:
+    return os.environ.get("DEFAULT_ON_NEARSHORE_ARM", "1") != "0"
+
+
+def nearshore_items(ctx: dict, rows_off: list, rows_on: list) -> list:
+    """gate_v2 pairs for the nearshore BREAKING height (`hb_proxy`) from the two arms' rows (no new replay)."""
+    from services.weather_pipeline import eval_scoring as sc
+    if not rows_off or not rows_on or not ctx or "truth" not in ctx:
+        return []
+    by_id = {s["id"]: s for s in ctx["stations"]}
+    off, _ = sc.build_items(NEARSHORE, rows_off, ctx["truth"], by_id, ctx.get("hull_of"), clim_embargo=ctx["embargo"])
+    on, _ = sc.build_items(NEARSHORE, rows_on, ctx["truth"], by_id, ctx.get("hull_of"), clim_embargo=ctx["embargo"])
+    return sc.pair(off, on)
+
+
+def rating_census(rows_off: list, rows_on: list) -> dict:
+    """DESCRIPTIVE: at the nearshore anchor spot-hours both arms rated, how many changed score / level, and by how much.
+    No observed rating exists, so this never yields a verdict."""
+    def anchors(rows):
+        return {(r.get("station"), r.get("valid"), r.get("lead_h")): (r.get("outputs") or {})
+                for r in rows or [] if r.get("anchor") and r.get("role") == "nearshore"}
+    off, on = anchors(rows_off), anchors(rows_on)
+    deltas, level_changes = [], 0
+    for k, o in off.items():
+        c = on.get(k)
+        if c is None or o.get("score") is None or c.get("score") is None:
+            continue
+        deltas.append(float(c["score"]) - float(o["score"]))
+        level_changes += o.get("level") != c.get("level")
+    n = len(deltas)
+    return {"n": n, "score_changed": sum(abs(d) > SCORE_CHANGE_EPS for d in deltas), "level_changed": level_changes,
+            "mean_delta": round(sum(deltas) / n, 3) if n else None,
+            "mean_abs_delta": round(sum(abs(d) for d in deltas) / n, 3) if n else None}
+
+
+def combine(primary: str, nearshore: str) -> str:
+    """One verdict over both scored quantities. WORSE if either is; NO_CHANGE only if both are; else the most
+    informative testable verdict (BETTER, then NOT_WORSE); UNTESTABLE when neither quantity could be tested."""
+    v = {primary, nearshore}
+    if gs.WORSE in v:
+        return gs.WORSE
+    if v == {gs.NO_CHANGE}:
+        return gs.NO_CHANGE
+    for o in (gs.BETTER, gs.NOT_WORSE):
+        if o in v:
+            return o
+    return gs.UNTESTABLE
+
+
 def sweep(flag: str, value: str, lat: float = 33.38, lng: float = -117.59) -> list:
     """[(swell Hs, breaking height)] through `surf_point.estimate_surf_at` at one coordinate (default Trestles), 14 s,
     swell from 225 deg, swell Hs 0.25..12 m, with the flag at `value`; the interior of the range is what counts."""
@@ -171,8 +236,16 @@ def evaluate(flag: str, ctx=None, on_value: str = "1") -> dict:
     else:
         items, rows_off, rows_on = replay_pair(ctx, flag, on_value)
         res["sanity"] += gs.sanity_rows(rows_on, rows_off)
-        v = gs.verdict(items, {s["id"]: s for s in ctx["stations"]})
+        stations = {s["id"]: s for s in ctx["stations"]}
+        v = gs.verdict(items, stations)
         res.update(v)
+        res["quantities"] = {PRIMARY: {"verdict": v["verdict"], "reasons": v["reasons"]}}
+        if nearshore_arm_enabled():
+            nv = gs.verdict(nearshore_items(ctx, rows_off, rows_on), stations)
+            res["quantities"][NEARSHORE] = {"verdict": nv["verdict"], "reasons": nv["reasons"], "members": nv["members"]}
+            res["rating_census"] = rating_census(rows_off, rows_on)
+            res["verdict"] = combine(v["verdict"], nv["verdict"])
+            res["reasons"] = ([f"{PRIMARY}: {r}" for r in v["reasons"]] + [f"{NEARSHORE}: {r}" for r in nv["reasons"]])
     res["blocks"] = res["verdict"] == gs.WORSE or any(not s.startswith("sweep could not run") for s in res["sanity"])
     return res
 
@@ -186,6 +259,20 @@ def markdown(results: list, window: dict) -> str:
     for r in results:
         why = "; ".join(r["reasons"] + r["sanity"])[:600].replace("|", "/")
         lines.append(f"| `{r['flag']}` | {r['verdict']} | {'**yes**' if r['blocks'] else 'no'} | {why} |")
+    near = [r for r in results if NEARSHORE in (r.get("quantities") or {})]
+    if near:
+        lines += ["", f"Per quantity (the verdict above is WORSE if either is). `{NEARSHORE}`: the served BREAKING "
+                  "height vs a frozen Komar-Gaughan operator on measured CDIP Hs/Tp (a proxy: read the ON-OFF "
+                  "difference). The rating census is descriptive: no observed rating exists.", "",
+                  f"| flag | `{PRIMARY}` | `{NEARSHORE}` | rating census (nearshore anchor spot-hours) |",
+                  "|---|---|---|---|"]
+        for r in near:
+            q, c = r["quantities"], r.get("rating_census") or {}
+            cen = (f"n {c.get('n')}, score moved {c.get('score_changed')}, level moved {c.get('level_changed')}, "
+                   f"mean abs d {c.get('mean_abs_delta')}, mean d {c.get('mean_delta')}")
+            lines.append(f"| `{r['flag']}` | {q[PRIMARY]['verdict']} | {q[NEARSHORE]['verdict']} | {cen} |")
+        lines += ["", "Both arms rate through `rate_one_spot` (the glyph). A change confined to another surface (the "
+                  "hub's own chain, the map rating band) is invisible here: NO_CHANGE is not evidence for it."]
     lines += ["", "WORSE or a sanity breach blocks; anything else does not (ON is the default; 'not proven better' "
               "never blocks)."]
     return "\n".join(lines) + "\n"
