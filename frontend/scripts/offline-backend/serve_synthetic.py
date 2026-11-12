@@ -157,6 +157,12 @@ SCALE = {"GFS": 1.0, "ICON": 0.92, "EURO": 1.06}
 LAYERS = ("waves", "swell_1", "swell_2", "wind_waves")
 
 
+# EURO SWELL AT THE WORLD TIER (2026-11-12, `--euro-mid-swell 1`): production stores EURO swell_1 / swell_2 / wind_waves at global_mid
+# too since D-059 (EURO_MARINE_MID_CMEMS_SWELL, default '1' in forecast-ingest-pilots.yml since 2026-11-01), so the publisher's EURO
+# swell sets (frame_set.EURO_SWELL_SETS) have products. Off by default: earlier runs of this lab keep their store.
+EURO_MID_SWELL = False
+
+
 def tiers_for(model, layer, regions=()):
     """Stored tiers per (model, layer), mirroring the production manifest (read 2026-10-19): GFS has every layer at
     global_mid + global_coarse; ICON has no swell_2 product (the client blends GFS/EURO); EURO waves (ECMWF WAM) has
@@ -165,7 +171,7 @@ def tiers_for(model, layer, regions=()):
     if model == "ICON" and layer == "swell_2":
         return ()
     if model == "EURO" and layer != "waves":
-        return tuple(t for t in TIERS if t[0] == "global_coarse")
+        return TIERS if EURO_MID_SWELL else tuple(t for t in TIERS if t[0] == "global_coarse")
     return TIERS + tuple(regions)
 
 
@@ -647,10 +653,13 @@ def main():
                     help="emit correlated synthetic series observations (off for ordinary benchmarks)")
     ap.add_argument("--ingest-stamp-minutes", default="",
                     help="world=N,regional=M: non-estimated marine run_time = cycle + N / M minutes (see INGEST STAMPS)")
+    ap.add_argument("--euro-mid-swell", choices=["0", "1"], default="0",
+                    help="EURO swell_1/swell_2/wind_waves also at global_mid, as production stores them since D-059 (2026-11-01)")
     ap.add_argument("--build-only", action="store_true")
     args = ap.parse_args()
-    global VORTEX_PEAK, LAND_MASK, WAVE_LAKES, ENCLOSED_SEAS, EURO_REGIONAL_ESTIMATED_AFTER
+    global VORTEX_PEAK, LAND_MASK, WAVE_LAKES, ENCLOSED_SEAS, EURO_REGIONAL_ESTIMATED_AFTER, EURO_MID_SWELL
     VORTEX_PEAK = args.vortex_peak
+    EURO_MID_SWELL = args.euro_mid_swell == "1"
     EURO_REGIONAL_ESTIMATED_AFTER = args.euro_regional_estimated_after
     LAND_MASK = args.land_mask == "1"
     WAVE_LAKES = args.wave_lakes == "1"

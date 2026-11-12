@@ -43,7 +43,7 @@ const VIEWS = { desktop: { width: 1280, height: 800, dpr: 1 }, phone: { width: 3
 const [CLNG, CLAT] = (process.env.CENTER || '-75,30').split(',').map(Number);
 const PLAN = (process.env.PLAN || 'R,R,R,PU,J:29,J:250,J:336,J:126,D:12,M,R,J:250,M,R,J:336').split(',');
 const ARMS = (process.env.ARMS || 'cur').split(',').map((a) => { const [name, flags] = a.split(':'); return { name, flags: flags ? flags.split('+') : [] }; });
-const CHIP = { waves: 'Waves', swell_1: 'Swell', wind_waves: 'Wind Waves' };
+const CHIP = { waves: 'Waves', swell_1: 'Swell', swell_2: 'Swell 2', wind_waves: 'Wind Waves' };
 const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 if (!CDN_DIR) throw Error('CDN_DIR=<published static frames> is required');
