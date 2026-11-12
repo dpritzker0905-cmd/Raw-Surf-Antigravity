@@ -214,3 +214,22 @@ two buoys' GFS error mixes model error with the distance to the fallback cell. C
 GFS trails persistence at all five buoys, so the hole does not by itself produce the gap, but the
 exposed class is now one non-hole buoy (51202: GFS 29.1, persistence 20.6, EURO 14.0) plus two fallback-cell buoys, which
 weakens any exposed-class reading further. The verdict in section 5 stands (exposed unresolved).
+
+## 7. Red-team corrections (advisor review of #831, PASS WITH LIMITS; applied by appending, earlier text left as written)
+
+1. **"Buoy-cluster 95% interval" is a range, not an interval, wherever it resamples 3 or 2 buoys.** With so few clusters the
+   percentile bootstrap returns about the min..max of the per-buoy means. Read every such figure in sections 1, 2 and 5 as
+   "range across the 3 (or 2, or 5) buoys": exposed consensus minus persistence +4.3 (range -2.2..15.5), GFS minus
+   persistence +11.7 (8.5..15.6), the sheltered ones the same way, and the rank-free table in section 5. The JSON keys
+   `lo`/`hi` in the evidence file keep their name; they mean min-ish and max-ish of the per-buoy means for n_buoys <= 5. The
+   day-block intervals (22 days, one window) are the only resampled intervals, and they treat days as exchangeable.
+2. **Limits, plainly.** One window (2026-10-19..11-09), one lead (24 h), 3 exposed + 2 sheltered buoys, class confounded
+   with site. The sector split conditions on the OBSERVED direction, so it selects keys by the outcome: a model that
+   forecasts a steady direction will look worse in whichever sector the truth leaves it. It describes where the error sits;
+   it does not show a cause. The partition truth uses a modelled wind for the wave-age label and the two labels disagree.
+3. **Verdict wording (supersedes any "artefact" wording in the PR title and body):** exposed = unresolved (GFS-specific);
+   sheltered = real in the sense that persistence beats GFS under every key and label, but unsized (n = 2).
+4. **Coverage-hole context (Fable repair lead, PR #835; not re-measured here).** GFS-Wave 0.25 is null at the NDBC
+   coordinate for 51201, 51206 and 51208 (Hawaii), 46254, 46274, 46285 and LJPC1 (San Diego), 46267 (Strait of Juan de
+   Fuca) and 44090 (Cape Cod Bay); 51202, 51205 and 51211 are not holes. The chain serves the holes through the sampler's
+   `nearest_ocean_fallback`. Two of this gate's five Hawaii buoys (51201, 51206) are holes, as section 6 says.
