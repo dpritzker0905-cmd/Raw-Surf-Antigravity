@@ -13,6 +13,7 @@ none of it while the stubbed provider still receives one complete message.
 import contextlib
 import logging
 import re
+import sys
 
 import pytest
 from fastapi import FastAPI
@@ -25,6 +26,7 @@ import database
 from database import Base
 from models import PasswordResetToken, Profile, RoleEnum
 from routes.auth_pkg import password_reset
+from tests.sqlite_lifecycle import assert_request_engines_closed
 
 EMAIL = 'synthetic-reset@example.com'
 APP_URL = 'https://app.example.invalid'
@@ -90,9 +92,11 @@ def client(tmp_path, env):
 
     async def get_db():
         engine = create_async_engine(f'sqlite+aiosqlite:///{path}')
-        async with async_sessionmaker(engine, expire_on_commit=False)() as session:
-            yield session
-        await engine.dispose()
+        try:
+            async with async_sessionmaker(engine, expire_on_commit=False)() as session:
+                yield session
+        finally:
+            await engine.dispose()
 
     app = FastAPI()
     app.include_router(password_reset.router, prefix='/api')
@@ -201,3 +205,10 @@ def test_an_unknown_address_gets_the_identical_response(client, sent):
 
 def test_the_debug_response_helper_is_gone():
     assert not hasattr(password_reset, 'include_dev_reset_details')
+
+
+def test_rate_limited_reset_disposes_every_request_engine(client, sent, monkeypatch):
+    """The first requests use real SQLite; the limiter's HTTP error must also dispose its engine."""
+    with assert_request_engines_closed(client, monkeypatch, sys.modules[__name__]):
+        responses = [forgot(client) for _ in range(11)]
+        assert [response.status_code for response in responses] == [200] * 10 + [429]
