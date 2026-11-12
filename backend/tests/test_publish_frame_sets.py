@@ -327,11 +327,85 @@ def test_a_run_past_its_time_budget_stops_starting_sets_and_keeps_their_index(tm
     first = _latest(out)["sets"]["GFS/marine/swell_1/global_mid"]["index"]
     _write_store(store, run="2026-10-20T12:00:00Z", bump=0.2)
     ticks = itertools.chain([0.0, 0.0], itertools.repeat(999.0))      # past the budget after the first set, for EVERY later set
-    report = pub.publish_frame_sets(pub.LocalCache(store), pub.LocalSink(out), log=lambda *_: None, budget_s=10,
-                                    clock=lambda: next(ticks))
+    # The two sets named (2026-11-12): under the fair order (publish_order) the sets this store never published would start first.
+    report = pub.publish_frame_sets(pub.LocalCache(store), pub.LocalSink(out), sets=[TARGET, _t("GFS", "swell_1")],
+                                    log=lambda *_: None, budget_s=10, clock=lambda: next(ticks))
     assert report["GFS/marine/swell_1/global_mid"] == {"skipped_budget": True, "index": first}
     assert report[fs.set_key(TARGET)]["built"] == 3                  # the first set still ran
     assert _latest(out)["sets"]["GFS/marine/swell_1/global_mid"]["index"] == first
+
+
+def _t(model, layer, region="global_mid", **kw):
+    return {"model": model, "domain": "marine", "layer": layer, "region_id": region, **kw}
+
+
+def test_fair_order_puts_the_set_written_longest_ago_first_and_world_before_regional_on_ties():
+    """FRAME_PUBLISH_FAIR_ORDER (2026-11-12): oldest latest.json record first (never-written first of all), world sets before
+    regional bundles on equal times, then the list order."""
+    a, b, c = _t("GFS", "waves"), _t("ICON", "swell_1"), _t("EURO", "swell_1")
+    reg_old, reg_new = _t("GFS", "waves", "hawaii", bundle=True), _t("GFS", "swell_1", "hawaii", bundle=True)
+    latest = {"sets": {
+        fs.set_key(a): {"written_at": "2026-11-12T14:14:00Z"}, fs.set_key(b): {"written_at": "2026-11-12T14:14:00Z"},
+        fs.set_key(c): {"written_at": "2026-11-12T03:50:00Z"},                       # skipped by the last runs' budget
+        fs.set_key(reg_old): {"written_at": "2026-11-11T01:00:00Z"}, fs.set_key(reg_new): {"written_at": "2026-11-12T14:14:00Z"}}}
+    never = _t("EURO", "swell_2")
+    order = [fs.set_key(t) for t in pub.publish_order([reg_new, a, reg_old, b, c, never], latest)]
+    # a regional bundle skipped since 11-11 leads even the world sets; at the 14:14 tie the world sets go first
+    assert order == [fs.set_key(t) for t in (never, reg_old, c, a, b, reg_new)]
+    # a run where every record shares one written_at keeps the list order exactly (sorted() is stable)
+    same = {"sets": {fs.set_key(t): {"written_at": "2026-11-12T14:14:00Z"} for t in (a, b, c)}}
+    assert pub.publish_order([c, a, b], same) == [c, a, b]
+
+
+def test_fair_order_off_path_keeps_the_list_order(monkeypatch):
+    """OFF PATH: FRAME_PUBLISH_FAIR_ORDER=0 restores the fixed order of selected_sets."""
+    monkeypatch.setenv("FRAME_PUBLISH_FAIR_ORDER", "0")
+    a, b = _t("GFS", "waves"), _t("EURO", "swell_1")
+    latest = {"sets": {fs.set_key(a): {"written_at": "2026-11-12T14:00:00Z"}, fs.set_key(b): {"written_at": "2026-01-01T00:00:00Z"}}}
+    assert pub.publish_order([a, b], latest) == [a, b]
+    assert pub.publish_order([a, b], None) == [a, b]
+
+
+def test_fair_order_bounds_starvation_where_the_fixed_order_starves_the_tail_forever():
+    """Replay of the stagger on a budget that fits 3 of 5 equal sets per run: the fixed order skips the last two EVERY run; the fair
+    order publishes every set at least every second run (each skipped set leads the next one)."""
+    sets = [_t("GFS", layer) for layer in ("waves", "swell_1", "swell_2", "wind_waves")] + [_t("EURO", "swell_1")]
+
+    def replay(order_fn, runs=6, fits=3):
+        latest, misses = {"sets": {}}, {fs.set_key(t): 0 for t in sets}
+        worst = 0
+        for r in range(runs):
+            now = f"2026-11-12T{r:02d}:00:00Z"
+            for i, t in enumerate(order_fn(sets, latest)):
+                k = fs.set_key(t)
+                if i < fits:
+                    latest["sets"][k], misses[k] = {"written_at": now}, 0
+                else:
+                    misses[k] += 1
+                    worst = max(worst, misses[k])
+        return worst
+
+    assert replay(lambda s, latest: list(s)) == 6          # fixed order: the tail is skipped in every one of the 6 runs
+    assert replay(pub.publish_order) == 1                   # fair order: never skipped twice in a row
+
+
+def test_the_budget_stagger_starts_with_the_set_the_last_run_skipped(tmp_path):
+    """End to end through publish_frame_sets: a set the budget skipped is the FIRST one started on the next run."""
+    store, out = tmp_path / "store", tmp_path / "out"
+    _write_store(store)
+    _write_set(store, "GFS", "swell_1", VALIDS)
+    pub.publish_frame_sets(pub.LocalCache(store), pub.LocalSink(out), log=lambda *_: None)
+    latest_path = out / fs.LATEST
+    latest = json.loads(latest_path.read_text())
+    latest["sets"]["GFS/marine/swell_1/global_mid"]["written_at"] = "2026-01-01T00:00:00Z"   # as if every run since had skipped it
+    latest_path.write_text(json.dumps(latest))
+    _write_store(store, run="2026-10-20T12:00:00Z", bump=0.2)
+    _write_set(store, "GFS", "swell_1", VALIDS, run="2026-10-20T12:00:00Z")
+    ticks = itertools.chain([0.0, 0.0], itertools.repeat(999.0))      # only the FIRST set started fits the budget
+    report = pub.publish_frame_sets(pub.LocalCache(store), pub.LocalSink(out), sets=[TARGET, _t("GFS", "swell_1")],
+                                    log=lambda *_: None, budget_s=10, clock=lambda: next(ticks))
+    assert report["GFS/marine/swell_1/global_mid"]["built"] == 3
+    assert report[fs.set_key(TARGET)].get("skipped_budget") is True
 
 
 def test_an_older_runs_past_hours_not_on_this_disk_do_not_refuse_the_set(tmp_path):
