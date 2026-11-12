@@ -40,7 +40,16 @@ counting `claude--spot-hub-charts.jsonl:2`, due 2026-11-12T00:00Z). Every sessio
 | IN PROGRESS | 3 |
 | total | 74 |
 
-OVERDUE before: 74. After the 74 lines: 0 (audit re-run below).
+OVERDUE before: 74. After the 74 lines: 0 in the first push (`be73f9b13`).
+
+**Correction (2026-11-12, after the coordinator's report of a red estate lane on #804):** the four lines for the
+fragment commitments (`claude--default-on-guardrails.jsonl:2`, `claude--s8-consensus-direction-period.jsonl:3`,
+`claude--stoic-solomon-366747.jsonl:5`, `claude--spot-hub-charts.jsonl:2`) used `fulfills '@frag:<name>:N'`.
+`test_the_repos_own_fragments_chain_cleanly_onto_its_ledger` failed in hosted CI ("does not resolve: neither folded nor
+earlier in this fold") because CI folds the fragments in a different order. The fragment was regenerated with the same
+classifications, but those four lines carry no `fulfills`; each names its commitment in evidence. So the audit now shows
+**4 OVERDUE** (those four), and the lead closes or re-dates them at the fold. The 70 folded-seq reconciliations are
+unchanged.
 
 ## Findings made on the way (not fixed here)
 

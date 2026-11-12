@@ -21,7 +21,9 @@ is a claim, not a measurement.
   - **Commitments:** the audit listed 74 OVERDUE; each now has a line in `ledger.d/claude--state-reconciliation-20261111.jsonl`:
     6 DONE (283, 309, 1349, 1604, 1865, the guardrail's first run), 10 SUPERSEDED, 27 STILL OWED (re-dated, mostly one short
     live read each), 28 NEEDS OWNER (the owner's browser, eye, word or a Render/repo flag), 3 in progress (149, 217, 970,
-    due 2026-11-14). After: 0 OVERDUE.
+    due 2026-11-14). After: 4 OVERDUE, the four fragment commitments (default-on-guardrails:2, s8:3, stoic-solomon:5,
+    spot-hub-charts:2): their lines name them in evidence, not as `fulfills`, because a cross-fragment `@frag` reference
+    failed CI's fold order; the lead closes or re-dates them at the fold.
   - **Static CDN frames are the default world path:** #422 (FRAME_IMAGES_PUBLISH=1 since 2026-10-20), #437 GPU frame store
     (`576e021b1`), #453 eight world sets, #459 mid-zoom clip, #522 HRRR lane-window rebuild, #514/#530 explicit-empty
     regional sets, #535/#552 regional z7-9 bundles ON, #575 EURO/ICON world store, #673 EURO/ICON regional z7-9 ON (D-059).
@@ -2410,7 +2412,10 @@ done); 4 MERGED as #193 (its first graded rows: commitment 172, 2026-10-02); 5 (
 scalar-height flip on 48-72 h of `raw_surf:GFS_SCALAR` rows (commitment 149) [2026-11-12: FLIPPED for GFS by #363
 (2026-10-17); its AFTER read is commitment 1380, re-dated to 2026-11-16]; 4 an S8 swell-direction (and period)
 lane in the ledger (33% of rating variance, no instrument), then test a consensus direction/period [2026-11-12: the
-lane MERGED as #193; the consensus direction/period grading MERGED as #375 on 2026-11-09, its live read re-dated]; 5 S9 wind in
+per-lane lane exists since 09-30 (#375 its consensus); the PAIRED v2 (by coast, circular bias, persistence +
+climatology, period kinds never mixed) is built DARK behind `FORECAST_SKILL_DIRPER_PAIRED`, branch
+`claude/s8-direction-period-paired`; offline first reading: consensus direction does not beat EURO beyond noise, see
+log 2026-11-11-claude-swell-direction-lane]; 5 S9 wind in
 the ledger (19%; the observed-wind swap moves 30% of GFS levels), then coastal high-resolution wind; 6 W-23 (the
 serve path retries a 429 and names its fallback); 7 W-10/W-11 (release). Deprioritised by measurement: item 5 below
 (big-swell calibration: forecast-binned bias on the equal mean is -0.10/-0.04/-0.03 m) and partitions as a
