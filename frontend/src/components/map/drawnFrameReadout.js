@@ -10,6 +10,7 @@
  * Returns null when the drawn frame IS the selection and is not an estimate.
  */
 import { latticeByLayerOn, servedPick, servedPickHalfStep } from './storedLattice';
+import { formatReadoutDate } from './readoutDateFormat';
 
 const LAYER_NAMES = { waves: 'Waves', swell_1: 'Swell', swell_2: 'Swell 2', wind_waves: 'Wind Waves', wind: 'Wind' };
 const MARINE_LAYERS = new Set(['waves', 'swell_1', 'swell_2', 'wind_waves']);
@@ -102,7 +103,7 @@ export function formatForecastHour(hour, nowMs = Date.now()) {
   if (!Number.isFinite(hour)) return '';
   const d = new Date(nowMs + hour * 3600000);
   d.setMinutes(0, 0, 0);
-  return d.toLocaleString('en-US', { weekday: 'short', hour: 'numeric' });
+  return formatReadoutDate(d, 'hour');
 }
 
 // DATED (2026-10-25): weekday + hour cannot tell two times a week apart, and the timeline spans 14 days ("Loading Sun 11 PM… still
@@ -110,7 +111,7 @@ export function formatForecastHour(hour, nowMs = Date.now()) {
 const DAY_MS = 24 * 3600000;
 export function formatInstant(ms, dated = false) {
   if (!Number.isFinite(ms)) return '';
-  return new Date(ms).toLocaleString('en-US', dated ? { weekday: 'short', month: 'short', day: 'numeric', hour: 'numeric' } : { weekday: 'short', hour: 'numeric' });
+  return formatReadoutDate(new Date(ms), dated ? 'dated' : 'hour');
 }
 /** Date the words when the two times are a day or more apart, or the selection is six or more days out. */
 const datedPair = (aMs, bMs, nowMs) => !(typeof window !== 'undefined' && window.__RAW_DISABLE_DRAWN_DATED_LABEL__ === true)

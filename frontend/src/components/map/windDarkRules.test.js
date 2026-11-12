@@ -388,6 +388,8 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
       '__RAW_DISABLE_WIND_TIME_BLEND__',
       // WHEN the prefetch plans (after the next paint) and when the truth tag's census is counted: never what is drawn
       '__RAW_DISABLE_WIND_PREFETCH_REPLAN_AFTER_PAINT__', '__RAW_DISABLE_TRUTH_TAG_LAZY_CENSUS__',
+      // WHEN the truth tag's data hash is computed (first read, not build): the same hash, never what is drawn (2026-11-11)
+      '__RAW_DISABLE_TRUTH_TAG_LAZY_HASH__',
       // and the static-frame kills shared with marine (staticFrames.js), which the wind seam also honours
       '__RAW_DISABLE_STATIC_FRAMES__', '__RAW_DISABLE_STATIC_FRAMES_SETS__', '__RAW_DISABLE_STATIC_MID_CROP__',
       // the final hour of a wheel drag is settled at scrub end (scrub audit 2026-10-18, T-02): WHEN a grid is fetched, never how it is drawn
