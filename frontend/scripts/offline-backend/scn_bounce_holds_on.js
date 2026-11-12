@@ -5,6 +5,9 @@
 //   a  a WORLD frame without served_valid_time (the engine's no-downgrade guard fails open on it): /__lab/unlabel armed before activation
 //   b  pans that leave the resident clip but stay inside the 0.25 deg Florida tile (the hold releases as resident_not_covering by design)
 //   c  a model cycle that advances mid-session, the world tier first, then every tier (/__lab/cycle), with a pan after each step
+//   c2 the same cycle advance followed by the REFRESH TRIGGER (c alone asked no current-hour page): scrub the forecast wheel a week
+//      ahead (PageUp x7) into a series page the client has not cached, so the new-cycle frames are fetched, then back (Home). Needs a
+//      store with the full horizon (serve_synthetic --horizon 336; the 48 h store fits in page 1)
 //
 //   python frontend/scripts/offline-backend/serve_synthetic.py --dir <fresh store> --port 4142 --models GFS,ICON \
 //     --layers waves,wind_waves --regions florida_east_coast --dynamic 1 --horizon 48 --ingest-stamp-minutes world=731,regional=803
@@ -32,7 +35,13 @@ const PAN_WAIT = +(process.env.PAN_WAIT || 8000);
 const BOUNCE_MS = +(process.env.BOUNCE_MS || 15000);
 const OUT = process.env.OUT || null;
 const API = `http://127.0.0.1:${PORT}`;
-if (!['a', 'b', 'c'].includes(CASE)) throw Error('CASE must be a, b or c');
+if (!['a', 'b', 'c', 'c2'].includes(CASE)) throw Error('CASE must be a, b, c or c2');
+const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
+async function keys(page, key, n) {
+  const wheel = page.locator(WHEEL).filter({ visible: true }).first();
+  await wheel.focus();
+  for (let i = 0; i < n; i++) { await page.keyboard.press(key); await page.waitForTimeout(400); }
+}
 
 async function lab(path) {
   const r = await fetch(API + path);
@@ -111,6 +120,13 @@ const mark = async (page, label) => { const req = (await lab('/__lab/bounce/stat
     } else if (CASE === 'b') {
       // ~1.1-1.9 deg per leg at z9: off the resident clip each time, inside florida_east_coast (-85..-79, 24..31) throughout
       for (const [dx, dy] of [[-700, 0], [0, 500], [-400, -300], [600, 200], [300, -400]]) { await mark(page, `pan ${dx},${dy}`); await pan(page, dx, dy); await page.waitForTimeout(PAN_WAIT); }
+    } else if (CASE === 'c2') {
+      await mark(page, 'cycle world +6h'); await lab('/__lab/cycle?hours=6&scope=world');
+      await mark(page, 'scrub +7 days'); await keys(page, 'PageUp', 7); await page.waitForTimeout(WATCH);
+      await mark(page, 'cycle all +6h'); await lab('/__lab/cycle?hours=6&scope=any');
+      await mark(page, 'scrub -1 day'); await keys(page, 'PageDown', 1); await page.waitForTimeout(WATCH);
+      await mark(page, 'pan 250,0'); await pan(page, 250, 0); await page.waitForTimeout(PAN_WAIT);
+      await mark(page, 'Home'); await keys(page, 'Home', 1); await page.waitForTimeout(WATCH);
     } else {
       await mark(page, 'cycle world +6h'); await lab('/__lab/cycle?hours=6&scope=world');
       await page.waitForTimeout(PAN_WAIT);

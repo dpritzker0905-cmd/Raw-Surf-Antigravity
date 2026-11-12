@@ -389,3 +389,38 @@ Readings:
 **Verdict for the director: closed as "not reproduced with holds on" for (a) and (b). (c) stays OPEN as untested.** No fix was
 written and `marineFinerResidentHold.js` is untouched, so the animation lane was not asked. Next capture for (c): arm `/__lab/cycle`,
 then scrub the hour into a page the client has not cached (or wait out the series page TTL), with both arms.
+
+## 13. Addendum 07:59Z: (c) with the refresh trigger, and the census re-run through rate_one_spot
+
+**(c) with the refresh trigger** (director's request; `scn_bounce_holds_on.js` CASE=c2). The store was rebuilt with
+`--horizon 336` because the 48 h store fits in series page 1. Steps: cycle +6 h on the world tier; scrub the forecast wheel a
+week ahead (PageUp x7) into an uncached series page; cycle +6 h on every tier; PageDown; a pan; Home.
+
+| Arm | Lab rewrites (new-cycle frames served) | New cycle drawn | Downgrades | Bounces | Recommits (all same resolution) |
+|---|---|---|---|---|---|
+| ON | 114 | 13x17 at cycle 06Z from 83.7 s | 0 | 0 | 5 (each hour change, the pan, Home) |
+| OFF | 277 | 13x17 at cycle 06Z from 83.9 s | 0 | 0 | 5 (the same points) |
+
+The trigger works: new-cycle frames reached the client and were drawn. Neither arm drew a coarser grid over the regional one, and
+no world frame replaced the regional. Every change was a 0.235-0.238 deg grid replacing another at an hour change, the pan or Home,
+which is the normal per-hour commit. **(c) is not reproduced with the holds on (nor with them off).** With (a) and (b), the item
+closes as "not reproduced with holds on". The same caveat as section 12 applies: the bounce's original trigger (the 2-deg moveend
+clip) does not occur offline on this build, so these runs show its absence, not the hold stopping it.
+
+**Census re-run through `rate_one_spot`** (the supersession in section 11 is resolved). Same fields, gate and 35,100 rows,
+with `spot_ratings.rate_one_spot` and a stub point resolver:
+
+| Measure | sim_rating wrapper (section 3) | rate_one_spot (now) |
+|---|---|---|
+| rows with direction changed | 58.48% | 58.48% |
+| level changed, all rows | 13.89% (4,876) | 13.88% (4,871) |
+| score change where the direction changed: signed mean / median abs / p99 abs / max | -1.489 / 1.2 / 46.0 / 88.2 | -1.488 / 1.2 / 46.0 / 88.2 |
+| breaking height moved > 0.05 ft | 11,408 rows | 10,836 rows |
+| by region, level changed | SoCal 61%, Hawaii 12%, Iberia 10%, Florida east 0 | SoCal 61.1%, Hawaii 11.6%, Iberia 10.4%, Florida east 0 |
+| control: unchanged-direction rows re-rated | 0 mismatches of 400 | 0 mismatches of 400 |
+
+So section 3's conclusions stand at the precision they were stated. The one number that moved (the height-changed row count) is
+corrected in the SCOREBOARD row. The evidence JSON now carries the `rate_one_spot` result as `B_rating_census`; the wrapper
+result is kept beside it as `B_rating_census_sim_rating_wrapper_SUPERSEDED`. The two paths agree on aggregates although they
+differ on 2.6% of single rows (section 11), because those differences are signed both ways and are small next to the flag's
+effect.
