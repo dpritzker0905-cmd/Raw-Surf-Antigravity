@@ -41,10 +41,20 @@ const MAP_DIR = path.resolve(__dirname, '../components/map');
  * for phantom entries.  To add: write the test file first.
  */
 const KILL_SWITCHES_TESTED = new Set([
+  // components/map/glyphAreaEstimate.test.js (O4 / CLI-3: grid-sample glyphs labelled area estimates)
+  '__RAW_DISABLE_GLYPH_ESTIMATE_LABEL__',
+  // components/map/truthTagLazyHash.test.js, components/map/readoutDateFormat.test.js (layer animation lane, 2026-11-11)
+  '__RAW_DISABLE_TRUTH_TAG_LAZY_HASH__',
+  '__RAW_DISABLE_READOUT_FORMAT_CACHE__',
   // components/map/marineHoldRunUnknown.test.js (CLI-6: a run known on one side only releases the hold)
   '__RAW_DISABLE_HOLD_RUN_UNKNOWN_RELEASE__',
   // components/map/marineGridSeries.runIdentity.test.js (CLI-7: a newer-run page evicts older-run sibling pages)
   '__RAW_DISABLE_SERIES_RUN_EVICT__',
+  // marineFramePack.parity.test.js + marineFrameStoreRuntime.allLayers.test.js + filledWorldStore.test.js + staticFrames.test.js
+  // ("OFF PATH: ... packs waves only again"; 2026-11-12, move 3: the GPU frame store takes every marine layer)
+  '__RAW_DISABLE_FRAME_STORE_ALL_LAYERS__',
+  // staticEuroSwellSets.test.js ("OFF PATH: the kill disables every EURO swell set and nothing else"; 2026-11-12, move 3)
+  '__RAW_DISABLE_STATIC_EURO_SWELL__',
   // components/map/responsiveWeather.test.js
   '__RAW_DISABLE_RESPONSIVE_WEATHER__',
   // components/map/radarAdvectWorker.test.js (the nowcast warp in a worker; the kill runs the main-thread warp + PNG)

@@ -19,8 +19,14 @@
  *     floored for beach / dark) and the full-wrap seam average are the encoder's.
  * Everything that changes the bytes is in packSignature(): a pack is valid only while its signature matches.
  *
- * SCOPE: the `waves` layer of non-rating frames. Other layers return null: the series conform drops `is_valid` for them, so the
- * encoder's ocean flag differs by lane there (phase 2 finding; see the spec). Nothing in the app calls this yet.
+ * SCOPE: the four marine layers of non-rating frames (packableLayer). Until 2026-11-12 only `waves`: the series conform dropped
+ * `is_valid` for the other layers, so the encoder's ocean flag differed by lane there (phase 2 finding; see the spec). #456 made the
+ * conform carry is_valid for every layer, and a swell_1 / swell_2 / wind_waves static frame carries the same RSWF planes (height,
+ * direction, period, confidence) that the encoder reads top-level for those layers, so this packer is byte-identical to the encoder
+ * for them on both lanes too (marineFramePack.parity.test.js, "every marine layer"; 84/84 cases measured before the gate opened).
+ * Kill: window.__RAW_DISABLE_FRAME_STORE_ALL_LAYERS__ = true (waves only again). The other layers also close by themselves when
+ * #456's conform fix or the all-sets series lane is killed (__RAW_DISABLE_CONFORM_IS_VALID__, __RAW_DISABLE_STATIC_SERIES_ALL_SETS__),
+ * because the commit that follows a show would then draw different bytes.
  */
 import { FloatArrayConstructor, extrapolateOceanData, dilateDirectionField, scaleUnitDirByConfidence } from './WebGLMarineFieldMath';
 import { marineWaveHeightScale } from './marineWavePalette';
@@ -31,6 +37,23 @@ const r4 = (x) => Math.round(x * 1e4) / 1e4;
 const DEG = Math.PI / 180;
 
 const winOf = (win) => win || (typeof window !== 'undefined' ? window : {});
+
+/** The marine layers whose static frames this packer turns into the encoder's exact bytes. */
+export const STORE_LAYERS = Object.freeze(['waves', 'swell_1', 'swell_2', 'wind_waves']);
+
+/** Is the GPU frame store open to this layer now? `waves` always; the other marine layers unless one of their kills is set
+ *  (read per call, so a kill flipped mid-session stops the next pack, plan and show). */
+export function packableLayer(layer, win) {
+  const l = String(layer || 'waves').toLowerCase();
+  if (l === 'waves') return true;
+  if (!STORE_LAYERS.includes(l)) return false;
+  const w = winOf(win);
+  return w.__RAW_DISABLE_FRAME_STORE_ALL_LAYERS__ !== true && w.__RAW_DISABLE_CONFORM_IS_VALID__ !== true
+    && w.__RAW_DISABLE_STATIC_SERIES_ALL_SETS__ !== true;
+}
+
+/** The layer of a frame-store set key (marineFrameStore.setKeyOf: `MODEL/layer/domain/run/signature`). */
+export const layerOfStoreKey = (key) => String(key || '').split('/')[1] || 'waves';
 
 /** Everything outside the frame that changes the packed bytes. A stored pack is reusable only while this is unchanged. */
 export function packSignature(win) {
@@ -44,6 +67,7 @@ export function packSignature(win) {
     `trim${w.__RAW_DISABLE_DEAD_EDGE_TRIM__ === true ? 0 : 1}`,
     `wrap${w.__RAW_DISABLE_WRAP_MIRROR__ === true ? 0 : 1}`,
     `udir${w.__RAW_DISABLE_UNRESOLVED_DIRECTION__ === true ? 0 : 1}`,
+    `lay${packableLayer('swell_1', w) ? 4 : 1}`,   // the layers in scope: a kill retires every held set at once (new signature)
     `f${FloatArrayConstructor === Float32Array ? 32 : 16}`,
   ].join('|');
 }
@@ -103,7 +127,7 @@ function trimWindow(cols, rows, bounds, live, w) {
  */
 export function packStaticFrame(parsed, { layer = 'waves', ratingMode = false, win } = {}) {
   const w = winOf(win);
-  if (!parsed || layer !== 'waves' || ratingMode) return null;
+  if (!parsed || !packableLayer(layer, w) || ratingMode) return null;
   const { cols: C0, rows: R0, bounds: B0, fields } = parsed;
   const H = fields && fields[0];
   if (!H || !(C0 >= 2) || !(R0 >= 2) || H.length !== C0 * R0) return null;

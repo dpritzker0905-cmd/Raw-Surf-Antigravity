@@ -36,6 +36,26 @@ FT = 3.28084
 PIPELINE = (21.665, -158.051)
 
 
+@pytest.fixture(autouse=True)
+def _restore_reloaded_modules():
+    """`_tf` sets SURF_TIDE_DEPTH and `importlib.reload`s surf_transform / surf_point, which REBINDS every function on
+    those shared module objects. Test modules collected earlier keep the old function objects, so a later identity check
+    (test_band_chain_shore_normal's `is chain_shore_normal_at`) failed only when this file ran first (verifier, 2026-11-11;
+    CI's alphabetical order hid it). Restore both namespaces and the env var after every test."""
+    import services.weather_pipeline.surf_point as _sp
+    import services.weather_pipeline.surf_transform as _st
+    saved = {m: dict(vars(m)) for m in (_sp, _st)}
+    env = os.environ.get("SURF_TIDE_DEPTH")
+    yield
+    for m, ns in saved.items():
+        vars(m).clear()
+        vars(m).update(ns)
+    if env is None:
+        os.environ.pop("SURF_TIDE_DEPTH", None)
+    else:
+        os.environ["SURF_TIDE_DEPTH"] = env
+
+
 def _tf(flag="1"):
     os.environ["SURF_TIDE_DEPTH"] = flag
     import services.weather_pipeline.surf_transform as mod
@@ -224,7 +244,7 @@ def test_exactly_ONE_serving_module_RESOLVES_eta__RECORDED_NOT_ASSUMED():
     import ast
     import pathlib
     root = pathlib.Path(__file__).resolve().parent.parent / "services" / "weather_pipeline"
-    suppliers, readers = [], []
+    suppliers, readers, eta_zero = [], [], []
     for p in root.glob("*.py"):
         try:
             text = p.read_text(encoding="utf-8")
@@ -236,7 +256,11 @@ def test_exactly_ONE_serving_module_RESOLVES_eta__RECORDED_NOT_ASSUMED():
                 continue
             name = getattr(node.func, "attr", getattr(node.func, "id", ""))
             if name in ("estimate_surf_at", "estimate_surf", "estimate_surf_partitioned")                     and any(k.arg == "water_level_m" for k in node.keywords):
-                suppliers.append(p.name)
+                kw = next(k for k in node.keywords if k.arg == "water_level_m")
+                if isinstance(kw.value, ast.Constant) and kw.value.value == 0:
+                    eta_zero.append(p.name)      # a DECLARED eta = 0 (no tide read), not a supplier
+                else:
+                    suppliers.append(p.name)
             if name == "tide_norm_at":
                 readers.append(p.name)
     # `surf_point` / `surf_transform` are the physics chain itself, not serving callers.
@@ -247,5 +271,11 @@ def test_exactly_ONE_serving_module_RESOLVES_eta__RECORDED_NOT_ASSUMED():
     assert serving == ["point_surf_augment.py", "sim_rating.py", "spot_conditions.py"], (
         f"serving η suppliers changed: {serving}. Each must take η from sea_inputs (or the served glyph's tide); "
         f"re-read CMP-2 before adding another.")
+    # NAMED eta = 0 WAIVERS: a caller that passes the literal 0.0 declares it carries no tide, on purpose.
+    #   band_chain.py (CMP-1): the map rating band rates thousands of cells per frame; a per-cell tide read is per-cell
+    #   I/O, so the band is the glyph's chain at eta = 0 (its module docstring; band = glyph is measured at eta = 0).
+    assert sorted(set(eta_zero)) == ["band_chain.py"], (
+        f"declared eta = 0 callers changed: {sorted(set(eta_zero))}. Add a named waiver with its reason, or take eta "
+        f"from sea_inputs.")
     for name in ("point_surf_augment.py", "spot_conditions.py"):
         assert "sea_inputs" in (root / name).read_text(encoding="utf-8"), f"{name} supplies η without sea_inputs"
