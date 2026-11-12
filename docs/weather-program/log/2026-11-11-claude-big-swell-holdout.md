@@ -163,3 +163,19 @@ SCOREBOARD row at the flip.
 - Network this session: marine-api.open-meteo.com, coastwatch.pfeg.noaa.gov (ERDDAP), www.ndbc.noaa.gov
   (`latest_obs.txt`); GitHub Actions logs read with `gh run view` (precompute 43120065518, scored-rows gate
   41389448778). Nothing else.
+
+## 2026-11-12: recommendation (c) built in #801 (coordinator's word), separate commit
+
+- `backend/scripts/forecast_accuracy_monitor.py` gains `big_swell_by_region_lines(report)`: from the calibration report
+  the monitor already fetches, it prints `forecast_skill_consensus.by_lead[*].big_swell` for the served lane and the
+  equal mean, pooled ("all coasts") and per coast, per lead, in the report's forecast band (fc >= 3.0 m, the only
+  forecast-height band the report carries; `by_band` there is the OBSERVED band and is not printed), each cell with
+  bias, MAE and n; a cell under the report's n 10 prints n only. Aggregates only: no row, no buoy, no key, no new
+  secret. PRINT ONLY: it returns no code and `main()` wraps it so even an exception is one NOT AVAILABLE line; an
+  absent block is one NOT AVAILABLE line (plain text, not a `::warning::`). Kill switch `ACCURACY_BIG_SWELL_TABLE=0`.
+  No served number moves; the monitor's verdict is unchanged (tested for green, red, refused and unreachable).
+- Tests: +10 cases in the existing guards-lane file `tests/test_forecast_accuracy_monitor.py` (87 -> 97 collected);
+  the table is built from the REAL `skill_consensus.consensus_report`, not a hand-made shape. Floor fragment
+  `.github/ci-floors.d/claude-big-swell-holdout-217.guards.json` (+10 tests, +0 files) via `rederive_floor.py`.
+- Ledger: fragment line 4 supersedes line 2 before any read (its paths (a)/(b) are dropped); line 5 is the new
+  commitment: the first scheduled monitor run after #801 merges, and one at least 7 days later, due 2026-11-27.
