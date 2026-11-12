@@ -25,7 +25,7 @@ beforeAll(() => {
   if (typeof window.PointerEvent === 'undefined') {
     // jsdom has no PointerEvent; without one fireEvent.pointer* drops clientX.
     window.PointerEvent = class PointerEvent extends MouseEvent {
-      constructor(type, init = {}) { super(type, init); this.pointerId = init.pointerId || 1; }
+      constructor(type, init = {}) { super(type, init); this.pointerId = init.pointerId || 1; this.isPrimary = init.isPrimary !== false; }
     };
   }
 });
@@ -63,6 +63,43 @@ function flick(box) {
   fireEvent.pointerUp(box, { clientX: x, pointerId: 1 });
 }
 
+describe('interrupted pointer input', () => {
+  it('cancellation settles the last detent without release inertia, and leaves pinch zoom to the browser', () => {
+    const { box, props } = mountWheel();
+    fireEvent.pointerDown(box, { clientX: 400, pointerId: 1 });
+    for (let i = 1; i <= 4; i++) { clock += 16; fireEvent.pointerMove(box, { clientX: 400 - i * 28, pointerId: 1 }); }
+    clock += 4;
+    fireEvent.pointerCancel(box, { pointerId: 1 });
+    act(() => { for (let i = 0; i < 200 && rafQueue.length; i++) { clock += 16; rafQueue.shift()(clock); } });
+    expect(props.onCommit).toHaveBeenLastCalledWith(18);
+    expect(props.onScrubEnd).toHaveBeenCalledTimes(1);
+    expect(box.style.touchAction).toBe('pan-y pinch-zoom');
+    fireEvent.pointerCancel(box, { pointerId: 1 });
+    expect(props.onScrubEnd).toHaveBeenCalledTimes(1);
+    fireEvent.keyDown(box, { key: 'ArrowRight' });
+    expect(props.onCommit).toHaveBeenLastCalledWith(19);
+  });
+
+  it('right-click and a second pointer cannot start or take over a primary scrub', () => {
+    const { box, props } = mountWheel();
+    fireEvent.pointerDown(box, { button: 2, clientX: 400, pointerId: 3 });
+    expect(props.onScrubStart).not.toHaveBeenCalled();
+    fireEvent.pointerDown(box, { clientX: 400, pointerId: 1 });
+    fireEvent.pointerDown(box, { clientX: 50, pointerId: 2, isPrimary: false });
+    clock += 100;
+    fireEvent.pointerMove(box, { clientX: 0, pointerId: 2, isPrimary: false });
+    fireEvent.pointerUp(box, { pointerId: 2, isPrimary: false });
+    expect(props.onScrubStart).toHaveBeenCalledTimes(1);
+    expect(box.getAttribute('aria-valuenow')).toBe('10');
+    fireEvent.pointerMove(box, { clientX: 386, pointerId: 1 });
+    fireEvent.pointerCancel(box, { pointerId: 1 });
+    act(() => { for (let i = 0; i < 100 && rafQueue.length; i++) { clock += 16; rafQueue.shift()(clock); } });
+    expect(props.onCommit).toHaveBeenLastCalledWith(11);
+    expect(props.onScrubEnd).toHaveBeenCalledTimes(1);
+  });
+});
+
+
 describe('wheelGestureNeedsFinish (pure)', () => {
   it('a running coast or settle needs finishing on any cancel; a drag only on unmount', () => {
     expect(wheelGestureNeedsFinish({ coasting: true }, false, {})).toBe(true);
@@ -85,6 +122,23 @@ describe('R-3: unmount / redraw mid-coast', () => {
     unmount();
     expect(props.onScrubEnd).toHaveBeenCalledTimes(1);
     expect(props.onCommit).toHaveBeenLastCalledWith(18);
+
+    // Component-level preference simulation, not a browser/device motion check.
+    const originalMatchMedia = window.matchMedia;
+    window.matchMedia = query => ({ matches: query === '(prefers-reduced-motion: reduce)' });
+    rafQueue = [];
+    try {
+      const reduced = mountWheel();
+      flick(reduced.box);
+      expect(reduced.props.onCommit).toHaveBeenLastCalledWith(18);
+      expect(reduced.props.onScrubEnd).toHaveBeenCalledTimes(1);
+      expect(rafQueue).toHaveLength(0); // The same gesture settles immediately without inertia.
+      reduced.unmount();
+      expect(reduced.props.onScrubEnd).toHaveBeenCalledTimes(1);
+    } finally {
+      if (originalMatchMedia === undefined) delete window.matchMedia;
+      else window.matchMedia = originalMatchMedia;
+    }
   });
 
   it('a redraw mid-coast (max changes on a model switch) finishes the gesture once, and the wheel then follows external values again', () => {

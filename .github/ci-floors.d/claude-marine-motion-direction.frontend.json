@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 36,
+  "files": 1,
+  "branch": "claude/marine-motion-direction",
+  "date": "2026-11-12",
+  "note": "marineMotionDirection.test.js: marine motion direction diagnosis (36 tests)"
+}

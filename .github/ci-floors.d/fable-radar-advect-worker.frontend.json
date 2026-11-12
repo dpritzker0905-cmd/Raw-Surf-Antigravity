@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 20,
+  "files": 1,
+  "branch": "fable/radar-advect-worker",
+  "date": "2026-11-12",
+  "note": "radar advection worker"
+}

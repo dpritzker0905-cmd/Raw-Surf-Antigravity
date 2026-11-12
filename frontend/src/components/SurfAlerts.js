@@ -1,3 +1,4 @@
+import {replaceHistoryUrl} from './routing/appHistory';
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useLocation, useSearchParams } from 'react-router-dom';
@@ -149,7 +150,7 @@ export const SurfAlerts = () => {
         toast.info('Alert configuration loaded! Review and create.');
         
         // Clean URL
-        window.history.replaceState({}, '', '/alerts');
+        replaceHistoryUrl('/alerts');
       } catch (e) {
         logger.error('Failed to parse imported alert:', e);
       }

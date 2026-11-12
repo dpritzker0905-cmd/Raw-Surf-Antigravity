@@ -27,7 +27,7 @@ def provider(monkeypatch):
             return type('Response', (), {'status_code': 200, 'json': lambda _: payload})()
 
     monkeypatch.setattr(sc.httpx, 'AsyncClient', Client)
-    monkeypatch.setattr(sc, '_breaking_ft', lambda *args: (4.2, 'test_breaking'))
+    monkeypatch.setattr(sc, '_breaking_ft', lambda *args, **kw: (4.2, 'test_breaking'))   # CMP-2 adds water_level_m/nearshore kwargs
     return payload, requests
 
 
