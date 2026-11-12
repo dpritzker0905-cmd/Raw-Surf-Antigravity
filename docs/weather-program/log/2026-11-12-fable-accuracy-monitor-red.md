@@ -118,3 +118,8 @@ Append-only. Lane assigned by the coordinator (local_d6b521eb). Read-only so far
   stay silent and rule 2 carries it), but the entry did not say so; scope now stated. (3) Rule 3's +0.10 m is ~1.03x, not
   1.24x, the Aug..Oct pooled max (+0.097): correct; marked provisional. (4) Rule 2 rests on aggregate estimates: correct;
   labelled. (5) The fallback cause rests on one buoy: correct; rule 2 reframed as empirical, cause kept as a separate claim.
+- **Advisor re-read of #835 at 1d3388b1a, three points, all taken in D-072:** the 30-42% share is now labelled an
+  estimate where it is first stated; the scope paragraph says the same-model control drops the hole buoys, so "our chain
+  did not regress" holds only on the keys it scores; rule 2's +0.30 m is flagged as chosen after seeing November, to be
+  re-set blind from the pre-onset window by the row backfill. The advisor's note: the pooled gap's pre-November max was
+  +0.097 m, so today's +0.111 is 0.014 m past it, which is why #840 prints its interval.

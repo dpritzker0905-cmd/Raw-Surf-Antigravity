@@ -2049,7 +2049,8 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
     (served 0.238 -> 0.341, the control 0.230 -> 0.325, persistence peaked 0.506); only `best_match` held (0.218 -> 0.232).
   - The excess rose at +24, +48 and +72 h on the same 11-02 targets, so it follows the target date (weather: the first
     North Pacific winter swell at 51201, PNW storms), not the issue date of any merge.
-  - 30-42% of the +72 h gap sits on the 9 buoys where GFS-Wave 0.25 deg has no wet cell (Open-Meteo `ncep_gfswave025`
+  - An ESTIMATED 30-42% of the +72 h gap (the range spans two assumed values for best_match's own error on those keys,
+    which the logs do not carry; #840 measures it) sits on the 9 buoys where GFS-Wave 0.25 deg has no wet cell (Open-Meteo `ncep_gfswave025`
     returns nothing at all 96 hours, checked 2026-11-12): 44090, 46254, 46267, 46274, 46285, 51201, 51206, 51208, LJPC1
     (plus 41121 is a `best_match` hole). The control drops those rows, `best_match` keeps them, and our sampler serves the
     nearest ocean cell there. Our MAE on those keys went 0.24 -> 0.58 m.
@@ -2068,7 +2069,9 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Scope, stated so no rule is read as covering another:** rule 1 is meant to stay SILENT on today's episode (our chain
   did not regress; the same-model delta improved). Today's episode is rule 2's: the hole buoys. Rule 2 is an EMPIRICAL
   threshold on the hole-key gap; the claim that the nearest-ocean fallback causes it rests on one buoy at one T+0 (46267)
-  and is a separate, unproven claim (SubQ 0.06), to be tested per buoy on the rows.
+  and is a separate, unproven claim (SubQ 0.06), to be tested per buoy on the rows. ⚠️ The same-model control DROPS the
+  hole buoys (it has no value there), so "our chain did not regress" is shown only on the keys the control scores; on
+  the hole buoys the control is silent, which is why rule 2 exists.
 - **Margins, from the retained history** (one monitor run per day, 2026-08-15 .. 10-31, n 73-74 days per lead, ALL
   pre-onset; the same "~1.24x the worst recorded" method as the original bound). ⚠️ PROVISIONAL: these are estimates
   from logged aggregates. The built gate computes each number exactly from the scored rows, so its bounds must be
@@ -2077,6 +2080,8 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
     Proposed RED at **+0.06 m** at every lead. Since 11-01 it has not passed +0.009 m.
   - Rule 2: the hole-key gap's basis max (estimated from aggregates) was +0.247 / +0.245 / +0.206 m. Proposed RED at
     **+0.30 m**. Since 11-01 it reached +0.291 / +0.340 / +0.354 m: past its own history, so it pages at +48 and +72 h.
+    ⚠️ NOT BLIND: +0.30 m was proposed after seeing November's values and lands between them. The row backfill must set
+    rule 2's bound from the pre-onset window alone, without looking at November, before it can page.
   - Rule 3: +0.10 m as today, PROVISIONAL. The original basis is stale: the POOLED gap already reached +0.097 m at
     +72 h within Aug .. Oct, so +0.10 m is ~1.03x the pooled max, not 1.24x. Rule 3 grades the common keys only, whose
     gap cannot be recovered from the logs; its bound is set from the row backfill like the others.
