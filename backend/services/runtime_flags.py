@@ -56,6 +56,9 @@ GUARDED = {
                                         # MAE 0.250 -> 0.096 m at CDIP buoys (2026-10-09..11-04), ON; kill '0'
     "MANIFEST_PRUNE_TOMBSTONES": "1",   # ING-1: a pruned manifest entry stays pruned across lanes (593/18,466 dangling
                                         # 2026-11-11); moves manifest membership only, filter NO_CHANGE; kill '0'
+    "SURF_SEA_INPUTS_EVERY_CALLER": "1",  # CMP-2: hub/conditions/surf-conditions/sim take /point's tide (+MOP) via
+                                          # sea_inputs; parity 20 spots x 3 h to 1e-6; accuracy NOT measured
+                                          # (filter primary hs_station: NO_CHANGE); kill '0'
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": "1",  # CMP-3: the rating reads the break depth the height's cap used; offline filter NO_CHANGE
 }
 

@@ -281,8 +281,14 @@ async def get_spot_conditions(
                     timeout=CONDITIONS_PREVIEW_TIMEOUT_SECONDS,
                 )
                 geometry = resolve_surf_geometry(spot.latitude, spot.longitude)
+                hourly = (raw_point or {}).get("hourly")
+                # CMP-2: each row's tide and MOP sea from the one resolver `/point` uses (kill: SURF_SEA_INPUTS_EVERY_CALLER=0).
+                from services.weather_pipeline import sea_inputs as _sea
+                sea_by_time = {}
+                for t in ((hourly or {}).get("time") or [])[:6]:
+                    sea_by_time[t] = await _sea.resolve_for_caller(spot.latitude, spot.longitude, _sea.iso_z(t), model)
                 forecast = hourly_breaking_forecast(
-                    spot.latitude, spot.longitude, (raw_point or {}).get("hourly"), geometry, limit=6)
+                    spot.latitude, spot.longitude, hourly, geometry, limit=6, sea_by_time=sea_by_time)
                 forecast_status = "available" if forecast else "unavailable"
             except Exception:
                 logger.warning("Optional conditions preview unavailable for spot %s model %s", spot_id, model)

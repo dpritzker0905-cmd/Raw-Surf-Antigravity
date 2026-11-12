@@ -463,6 +463,14 @@ _RATING_FLAGS = {
                                          "(services/weather_pipeline/manifest_tombstones.py); kill switch '0'",
                                     "forecast-ingest, forecast-ingest-pilots and precompute (the manifest writers); "
                                     "the runtime manifest reaches all three"),
+    # CMP-2 (Fable audit 2026-11-10): one resolver (sea_inputs.py) for the hour's tide and MOP sea, used by every
+    # estimate_surf_at caller. Parity with /point 20 spots x 3 h to 1e-6; accuracy not measured (filter primary hs_station).
+    "SURF_SEA_INPUTS_EVERY_CALLER": ("1", "[D-065 GUARDED, default ON; accuracy not measured: filter primary hs_station] "
+                                          "The spot hub's own chain, /api/conditions forecast rows, /api/surf-conditions "
+                                          "and the sim take the hour's tide (and, EURO, the MOP nearshore sea) exactly as "
+                                          "/point does (services/weather_pipeline/sea_inputs.py); kill switch '0' = "
+                                          "those callers pass (0.0, None) as before",
+                                     "Render env (serve-side surfaces); the sim reads the served glyph's tide, no env"),
     # CMP-3 (audit 2026-11-10). The rating's oversize gate read `break_depth_at` while the height's cap read the
     # geometry's depth (incl. the land-present promotion): 12 of 14 land-present coords disagreed.
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": ("1", "[D-065 GUARDED, ON] the rating reads the served response's "
