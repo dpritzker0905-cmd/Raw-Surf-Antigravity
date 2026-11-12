@@ -128,7 +128,7 @@ harness's own note: a series-page frame carries no product id and is never calle
 - **Wind for ICON and EURO, and the Surf Rating band** are not covered by these two changes (no published ICON/EURO wind sets; the
   band's CI step never ran: the separate PR fixes its condition).
 
-## 07:20Z Accuracy addendum (the advisor's five notes)
+## 07:15Z Accuracy addendum (the advisor's five notes)
 
 **Labels for every number above.** OFFLINE only: one desktop PC (Windows 11), headless system Chrome, 1280 x 800 at dpr 1, dark theme,
 center (-75, 30), zooms 2 and 4.6, harness `scn_instant_contract.js` against `serve_synthetic.py` (synthetic data, real backend code).
