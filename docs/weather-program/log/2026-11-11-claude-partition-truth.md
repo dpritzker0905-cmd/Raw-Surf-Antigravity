@@ -157,3 +157,23 @@ against the buoy's own bulk direction (convention "from" holds on real data, not
 is the cost of partitioning a multi-train hour against a single-number product. So the -10 deg primary-direction bias in section 2 is NOT a
 partitioner-wide offset; it remains unexplained between the model and the cell sampling. #790's two-mode band approach (alpha2/r2 per bin) is not built
 here; my default uses mode 1 only, which is the stated limit. Not committed as a script: n sparse, one pass.
+
+## 7. Alignment with the S8 bulk lane (draft PR #794, head `7a217b4a2`), 2026-11-12 04:45Z
+
+Read from #794's log only (its module was not run). Same pairing idea: (buoy, valid hour, lead 24/48/72) with the verifying observation at that hour.
+
+| | S8 bulk lane (#794) | S8P partition lane (this PR) |
+|---|---|---|
+| Truth | buoy bulk MWD / DPD / APD, NDBC realtime2 | primary / second swell and wind-sea trains rebuilt from NDBC spectra |
+| Buoys | 92 direction, 108 period (within 100 km of a catalogue spot, so some nearshore) | 31 asked, 29 contribute; deep-water / basin buoys only (list in `run_partition_truth.STATIONS`) |
+| Forecast | Open-Meteo archived previous runs of GFS-Wave, ECMWF WAM, DWD GWAM | NOAA GFS-Wave 0.25 swell slots 1-3 and wind sea, byte ranges (same ingest source); no EURO/ICON |
+| Window | graded 2026-10-19..11-09 | cycles 2026-10-12..11-08; `--target-start/--target-end` now restricts targets |
+| Nulls | persistence, per-buoy climatology | persistence only (no climatology) |
+| Significance | buoy-cluster bootstrap | 3-day-block bootstrap over days; 15 spatial blocks reported, not resampled |
+
+On #794's window (targets 2026-10-19..11-09, 22 days, 29 buoys, 15 blocks) the partition numbers are unchanged in substance:
+primary swell direction MAE model / persistence 29.6 / 26.6, 28.2 / 33.4, 30.7 / 38.0 deg (n 1,045 / 1,030 / 1,032); period 1.6 / 2.3, 1.6 / 2.6,
+1.7 / 2.7 s; wind-sea direction 14.0 / 25.0, 14.3 / 35.4, 17.5 / 39.5. **These are not comparable to #794's 22.3 / 22.4 / 23.1 deg**: its
+truth is the bulk MWD (the dominant-period direction), mine is the primary TRAIN, and the stations differ. What is comparable: both lanes find
+the GFS-Wave direction no better than persistence at +24 h. The next alignment step (owed, not done): run both on the intersection of buoys and
+join on (buoy, hour, lead) to see how much of the 29 deg is the train definition and how much is the forecast.

@@ -133,6 +133,8 @@ def main(argv=None):
     ap.add_argument("--merge-ratio", type=float, default=P.MERGE_RATIO)
     ap.add_argument("--model", choices=("wrapped_normal", "mem"), default="wrapped_normal")
     ap.add_argument("--radius-km", type=float, default=500.0)
+    ap.add_argument("--target-start", default=None, help="only score targets on/after this UTC day (YYYY-MM-DD)")
+    ap.add_argument("--target-end", default=None, help="only score targets on/before this UTC day (YYYY-MM-DD)")
     ap.add_argument("--out", default=None)
     a = ap.parse_args(argv)
     d0 = datetime.fromisoformat(a.start).replace(tzinfo=timezone.utc)
@@ -166,6 +168,9 @@ def main(argv=None):
         return memo[k]
 
     rows, diag = build_rows(obs_cache, sample_by, stations, cyc)
+    if a.target_start or a.target_end:                # align the window with another lane (days compare as ISO strings)
+        lo, hi = a.target_start or "0000", a.target_end or "9999"
+        rows = {k: [r for r in v if lo <= r["day"] <= hi] for k, v in rows.items()}
     blocks = sc.station_blocks(pos, a.radius_km)
     result = {"window_cycles": [f"{cyc[0]:%Y-%m-%d %HZ}", f"{cyc[-1]:%Y-%m-%d %HZ}"], "partitioner": {
         "model": a.model, "merge_ratio": a.merge_ratio, "min_partition_hs_m": P.MIN_PARTITION_HS_M,
