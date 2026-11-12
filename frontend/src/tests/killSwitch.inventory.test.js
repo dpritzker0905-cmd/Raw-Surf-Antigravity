@@ -41,6 +41,9 @@ const MAP_DIR = path.resolve(__dirname, '../components/map');
  * for phantom entries.  To add: write the test file first.
  */
 const KILL_SWITCHES_TESTED = new Set([
+  // components/map/oneWayCrests.test.js (one-way crests, 2026-11-12)
+  '__RAW_DISABLE_ONE_WAY_CRESTS__',
+  '__RAW_DISABLE_REDUCED_MOTION_BAND__',
   // components/map/glyphAreaEstimate.test.js (O4 / CLI-3: grid-sample glyphs labelled area estimates)
   '__RAW_DISABLE_GLYPH_ESTIMATE_LABEL__',
   // components/map/truthTagLazyHash.test.js, components/map/readoutDateFormat.test.js (layer animation lane, 2026-11-11)
