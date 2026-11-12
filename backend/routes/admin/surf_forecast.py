@@ -374,11 +374,7 @@ _RATING_FLAGS = {
     # complete, and the lane it omits is exactly the one that silently keeps the old reference.
     "RATING_LOCAL_SIZE":           ("1", "[D-065 default ON, as every lane already ran it; guardrail-watched] Local (per-spot/per-cell) size calibration — flip glyphs+band together",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
-    "WEATHER_TIER_CLAMP":          ("0", "[D-065 held OFF until the client half (frontend/src/lib/weatherAuthFetch.js) is deployed: "
-                                         "ON earlier refuses every paying user] O5/TIER-1, accounts only: no verified JWT = 401; else clamp model, "
-                                         "hours and valid_time on /api/weather forecast reads to the JWT-resolved tier's window "
-                                         "(forecast_tier_window, the resolver's pinned echo). services/weather_tier_clamp.py",
-                                    "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"),
+    "WEATHER_TIER_CLAMP": ("0", "[D-065 held OFF until weatherAuthFetch.js is live] O5 accounts only: no verified JWT = 401, else clamp to the tier window. services/weather_tier_clamp.py", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"),
     "RATING_SIZE_CLIMATOLOGY":     ("1", "Accumulate per-SPOT good-day size climatology (blob only)", "precompute.yml env"),
     "RATING_GRID_SIZE_CLIMATOLOGY": ("1", "Accumulate per-CELL (band) size climatology (blob only)", "pilots workflow env"),
     # ⚠️ "where to flip" is CHECKED — tests/test_flag_lane_parity.py fails if a workflow sets a flag
