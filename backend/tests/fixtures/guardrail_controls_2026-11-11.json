@@ -1,0 +1,45 @@
+{
+ "about": "Recorded hb_proxy pooled members of the two real control runs of the nearshore arm (offline, eh0-cache window 2026-10-20..29, leads 24/48/72; default_on_filter.py). No Render, no secrets. The guardrail must treat the negative control as WORSE and the positive control as not WORSE.",
+ "window": {
+  "start": "2026-10-20T00:00Z",
+  "end": "2026-10-29T18:00Z",
+  "leads": "24,48,72"
+ },
+ "positive": {
+  "flag": "SURF_HEIGHT_H110",
+  "candidate": "H1/10 breaking height (known-good, #773)",
+  "hb_proxy": {
+   "n": 480,
+   "T": 40,
+   "off_mae": 0.46013295319301023,
+   "on_mae": 0.19557904012200178,
+   "mean_gain": 0.2645539130710084,
+   "ci": [
+    0.23163899737000732,
+    0.2943120068796458
+   ],
+   "margin": 0.005,
+   "p_worse_holm": 1.0,
+   "p_better_holm": 0.0
+  }
+ },
+ "negative": {
+  "flag": "SURF_V3_EXPOSURE",
+  "candidate": "exposure factor 1 at every angle (deliberately wrong, #781)",
+  "recorded_as": "OFF = no exposure, ON = today; mirrored here so ON = the wrong candidate",
+  "hb_proxy": {
+   "n": 936,
+   "T": 40,
+   "off_mae": 0.26923104904718487,
+   "on_mae": 0.37338468367607575,
+   "mean_gain": -0.1034412933559978,
+   "ci": [
+    -0.1277389864167771,
+    -0.08422436860755016
+   ],
+   "margin": 0.005,
+   "p_worse_holm": 3.1086244689504383e-15,
+   "p_better_holm": 1.0
+  }
+ }
+}

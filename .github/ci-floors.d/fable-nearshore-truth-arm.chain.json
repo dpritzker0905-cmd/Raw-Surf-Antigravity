@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 10,
+  "files": 1,
+  "branch": "fable/nearshore-truth-arm",
+  "date": "2026-11-12",
+  "note": "nearshore truth arm (#773)"
+}
