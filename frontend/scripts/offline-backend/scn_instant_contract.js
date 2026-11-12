@@ -14,7 +14,7 @@
 //   CDN_DIR=<published frames> PORT=4263 OUT=c.json node frontend/scripts/offline-backend/scn_instant_contract.js
 // Env: MODELS (GFS,EURO,ICON: one session per model, which then switches to the others mid-scrub), LAYERS (waves), ZOOMS (2,4.6,5.3,8),
 // THEMES (dark), VIEW (desktop | phone = 390 x 844 at dpr 3), CENTER (-75,30), PLAN (below), ARMS (cur | <name>:<FLAG>+<FLAG>...: window
-// flags set true), SETTLE (6000), WIN (6000), DRAG_GAP (33), CDN_PORT (4264), CDN_LAT (ms per static object), LAT_MODEL
+// flags set true), SHOT_DIR (a screenshot per session after settle and after the plan), SETTLE (6000), WIN (6000), DRAG_GAP (33), CDN_PORT (4264), CDN_LAT (ms per static object), LAT_MODEL
 // (<MODEL>:<ms>: that model's /grid and /grid_series answers held back, a slow switch), AB_BASE (REQUIRED: the SPA under test).
 // Known limits: a series-page frame carries no product id or served time, so it is never called exact; the phone layout's
 // controls are not opened yet (VIEW=phone fails at the layer chip).
@@ -34,6 +34,7 @@ const CDN_LAT = +(process.env.CDN_LAT || 0);
 const WIN = +(process.env.WIN || 6000);
 const SETTLE = +(process.env.SETTLE || 6000);
 const DRAG_GAP = +(process.env.DRAG_GAP || 33);
+const SHOT_DIR = process.env.SHOT_DIR || '';
 const MODELS = (process.env.MODELS || 'GFS,EURO,ICON').split(',');
 const LAYERS = (process.env.LAYERS || 'waves').split(',');
 const ZOOMS = (process.env.ZOOMS || '2,4.6,5.3,8').split(',').map(Number);
@@ -188,6 +189,10 @@ async function session({ model0, layer, zoom, theme, arm }) {
     await page.evaluate(() => { window.__IC__.layerOn = true; });
     if (model0 !== 'GFS') { await clickExact(page, model0); }
     await sleep(SETTLE);
+    // SHOT_DIR (2026-11-12): a screenshot after settle and after the plan, for the owner's visual review of a change (one per session).
+    const shot = async (what) => { if (!SHOT_DIR) return; fs.mkdirSync(SHOT_DIR, { recursive: true });
+      await page.screenshot({ path: path.join(SHOT_DIR, `${arm.name}-${theme}-${layer}-z${zoom}-${model0}-${what}.png`) }); };
+    await shot('settled');
     const idle = await page.evaluate(() => new Promise((resolve) => { const out = []; const one = () => { const t0 = performance.now(); requestAnimationFrame(() => requestAnimationFrame(() => { out.push(performance.now() - t0); if (out.length < 20) setTimeout(one, 30); else { out.sort((a, b) => a - b); resolve(+out[10].toFixed(1)); } })); }; one(); }));
     // Hour 0 is THE app's anchor (backendWeatherServiceClient.getSeriesAnchorMs: now rounded to the nearest hour), read right before
     // each action: a grid-derived anchor read at settle was an hour off for half of every hour, and the hour can roll mid-run.
@@ -268,6 +273,7 @@ async function session({ model0, layer, zoom, theme, arm }) {
         ...(tok === 'M' || r.blank || process.env.RING === '1' ? { ring } : {}) });
       await sleep(300);
     }
+    await shot('after-plan');
     const counters = await page.evaluate(() => { const f = window.__RAW_FRAME_STORE__; const sf = window.__RAW_STATIC_FRAMES__;
       return { store: f ? { shows: f.shows && f.shows.n, misses: f.shows && { ...f.shows.misses }, commits: { ...f.commits }, crop: f.crop && { window: f.crop.window && f.crop.window.key, built: f.crop.built, shows: f.crop.shows }, switches: f.switches } : null,
         sf: sf ? { hits: sf.hits, seriesFrames: sf.seriesFrames, crops: sf.crops, misses: { ...sf.misses } } : null, clears: window.__WEBGL_MARINE_CLEAR_COUNT__ || 0 }; });
