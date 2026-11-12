@@ -195,3 +195,20 @@ order, with no secrets and no code.
 Item 0 (the owed readings) is already with the director's reconciliation agent and gates all five.
 
 Not done and not verified: no instrument was re-run; no live request was made; nothing was merged.
+
+## 02:40Z Correction to item 4 (statistical correction)
+
+Corrects the claim above, under item 4 and in the tools section, that "there is no MOS, ML or bias correction in
+the chain". That was wrong. It came from a reader's inferred absence and I did not check it.
+
+- A linear MOS already exists in shadow: `forecast_skill_mos_shadow` in
+  `backend/services/weather_pipeline/forecast_skill.py`, with tests in `backend/tests/test_skill_mos.py`. It is
+  held out by week and is not served. Found by the move 4 session; I confirmed the files exist at `dev` `a7c41dd2a`.
+- The gap to our own source was also already attributed: `log/2026-10-17-served-height-gap.md` puts 60-107% of
+  the same-model gap on vector height interpolation, and `SAMPLER_SCALAR_HEIGHT` went live on 2026-10-17. The
+  +0.020 / +0.026 / +0.027 m rows quoted in item 4 are from before that flip.
+- **Item 4 as it now stands:** read what the existing MOS shadow scores and why it is not served; take the
+  post-flip gap reading (still owed, commitment 1365); only then decide whether a per-region, per-lead fit adds
+  anything. A per-region fit needs row-level scored pairs, which the repository keeps inside Actions by design.
+- The ranking is unchanged, but item 4's expected effect is smaller than the text above implies until the
+  post-flip reading exists.
