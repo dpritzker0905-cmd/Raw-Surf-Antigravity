@@ -59,3 +59,21 @@ test('a late successful expiry retry for the old cell cannot replace a newer cel
   await act(async()=>{finishRetry(ok(9));await settle();});await advance(30000);
   expect(screen.getByLabelText('Tide result')).toHaveTextContent('ok:5');expect(global.fetch).toHaveBeenCalledTimes(3);
 });
+
+test.each([false,true])('background polling pauses and resumes at the original cache deadline (hidden mount=%s)',async hiddenAtMount=>{
+  let hidden=hiddenAtMount;
+  const visibility=jest.spyOn(document,'visibilityState','get').mockImplementation(()=>hidden?'hidden':'visible');
+  const change=async value=>{hidden=value;await act(async()=>{document.dispatchEvent(new Event('visibilitychange'));await settle();});};
+  try {
+    global.fetch=jest.fn().mockResolvedValueOnce({ok:true,json:()=>Promise.resolve({available:false})}).mockResolvedValue(ok(6));
+    const view=render(<Probe/>);await advance(0);
+    expect(global.fetch).toHaveBeenCalledTimes(hiddenAtMount?0:1);
+    if(hiddenAtMount){await change(false);expect(global.fetch).toHaveBeenCalledTimes(1);}
+    await change(true);await advance(120000);expect(global.fetch).toHaveBeenCalledTimes(1);
+    await change(false);expect(global.fetch).toHaveBeenCalledTimes(2);
+    expect(screen.getByLabelText('Tide result')).toHaveTextContent('ok:6');
+    await advance(299999);expect(global.fetch).toHaveBeenCalledTimes(2);
+    view.unmount();await change(true);await change(false);await advance(300001);
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  } finally {visibility.mockRestore();}
+});

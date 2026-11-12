@@ -81,6 +81,7 @@ export function formatInstant(ms, timeZone) {
 // Full calendar labels distinguish repeated weekdays across the 14-day forecast.
 const datedFormatters = new Map();
 export function formatForecastInstant(ms, timeZone) {
+  if (!Number.isFinite(ms)) return '';
   const key = timeZone || '';
   let formatter = datedFormatters.get(key);
   if (!formatter) {
@@ -92,7 +93,7 @@ export function formatForecastInstant(ms, timeZone) {
     if (datedFormatters.size >= FORMATTER_CACHE_MAX) datedFormatters.clear();
     datedFormatters.set(key, formatter);
   }
-  return Number.isFinite(ms) ? formatter.format(new Date(ms)) : 'Invalid Date';
+  return formatter.format(new Date(ms));
 }
 
 /** Forecast selection clock: UTC elapsed hours, never local wall-clock arithmetic. */

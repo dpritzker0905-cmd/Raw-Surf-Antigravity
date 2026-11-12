@@ -2,16 +2,15 @@ import { useEffect, useRef } from 'react';
 import { useLocation, useNavigationType } from 'react-router-dom';
 import { getAllowedModels, getUserTier, resolveForecastWindow } from './LayerAccessResolver';
 import { forecastSelectionMs } from './forecastReadout';
+import { mapWeatherRouteMemory } from './mapWeatherRouteMemoryStore';
+export { clearMapWeatherRouteMemory } from './mapWeatherRouteMemoryStore';
 
 // UI intent only: no forecasts, coordinates, credentials, or persistent storage.
-const entries = new Map();
+const { entries } = mapWeatherRouteMemory;
 const MAX_ENTRIES = 8;
 const HOUR_MS = 3600000;
 const LAYERS = new Set(['rain', 'radar', 'satellite', 'wind', 'waves', 'swell_1', 'swell_2',
   'wind_waves', 'fog', 'pressure', 'temperature', 'water_temp']);
-let currentOwner = null;
-
-export function clearMapWeatherRouteMemory() { entries.clear(); currentOwner = null; }
 
 export default function useMapWeatherRouteMemory({ user, activeModel, activeLayers, timeOffsetHours,
   setActiveLayers, setTimeOffsetHours }) {
@@ -29,7 +28,7 @@ export default function useMapWeatherRouteMemory({ user, activeModel, activeLaye
     : null;
 
   useEffect(() => {
-    if (currentOwner !== owner) { entries.clear(); currentOwner = owner; }
+    if (mapWeatherRouteMemory.owner !== owner) { entries.clear(); mapWeatherRouteMemory.owner = owner; }
     if (!owner) return undefined;
     const { key, pathname, search } = location;
     const saved = entries.get(key);
@@ -51,7 +50,7 @@ export default function useMapWeatherRouteMemory({ user, activeModel, activeLaye
     }
     return () => {
       const value = latest.current;
-      if (currentOwner !== owner) return;
+      if (mapWeatherRouteMemory.owner !== owner) return;
       entries.delete(key);
       if (value?.owner !== owner) return;
       entries.set(key, { ...value, pathname, search });

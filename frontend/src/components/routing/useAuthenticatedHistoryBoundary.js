@@ -7,6 +7,8 @@ const token = () => typeof window.crypto?.randomUUID === 'function'
   ? window.crypto.randomUUID() : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 const pathInRoot = (pathname, root) => !root ? pathname
   : pathname === root ? '/' : pathname.startsWith(`${root}/`) ? pathname.slice(root.length) : null;
+import { clearMapWeatherRouteMemory } from '../map/mapWeatherRouteMemoryStore';
+
 const routeUrl = location => `${location.pathname}${location.search}${location.hash}`;
 
 // One invisible entry protects the signed-in arrival boundary. Private POPs never push,
@@ -103,5 +105,8 @@ export default function useAuthenticatedHistoryBoundary(accountId) {
     };
   }, []);
 
-  useEffect(() => { manager.current?.sync(); }, [accountId, root, location]);
+  useEffect(() => {
+    if (!accountId) clearMapWeatherRouteMemory();
+    manager.current?.sync();
+  }, [accountId, root, location]);
 }

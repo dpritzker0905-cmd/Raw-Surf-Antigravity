@@ -23,6 +23,7 @@ import { compileForecastCards } from './forecastCardCompiler';
 import { ForecastConditionRows, ForecastHeatmapStatus } from './ForecastConditionRows';
 import { modelDisplayName } from './modelDisplayName';
 import TideReadout from './TideReadout';
+import usePointDetailsDisclosure from './usePointDetailsDisclosure';
 import { infoboxTideDisabled } from './tideReadoutFormat';
 import { formatForecastInstant, forecastSelectionMs } from './forecastReadout';
 import { showPointTide } from './useMapChromeLayout';
@@ -62,7 +63,7 @@ export const MapForecastOverlay = ({
 }) => {
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [detailsExpanded, setDetailsExpanded] = useState(false);
+  const { detailsExpanded, setDetailsExpanded, detailsRef, onDetailsKeyDown } = usePointDetailsDisclosure();
   const detailsId = useId();
   const isLight = theme === 'light';
   // ⚠️ This file computed only `isLight`, so BEACH rendered with dark-mode colours -- a
@@ -666,20 +667,13 @@ export const MapForecastOverlay = ({
       data-testid="forecast-overlay"
       role="presentation"
       data-point-details-expanded={detailsExpanded}
-      onKeyDown={event => {
-        if (event.key === 'Escape' && detailsExpanded) {
-          event.stopPropagation();
-          setDetailsExpanded(false);
-          event.currentTarget.querySelector('.weather-point-details-toggle')?.focus();
-        }
-      }}
+      ref={detailsRef} onKeyDown={onDetailsKeyDown}
     >
       <div className={`weather-point-context ${textClass}`}>
         {detailsLayerLabel}{detailsUnits} · {tideTimeLabel}
       </div>
       <button type="button" className={`weather-point-details-toggle text-left px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-400 ${textClass}`}
         aria-expanded={detailsExpanded} aria-controls={detailsId}
-        aria-label={detailsExpanded ? 'Close forecast details' : 'Forecast details'}
         onClick={() => { setDetailsExpanded(value => !value); setIsCollapsed(false); }}>
         {detailsExpanded ? 'Close details' : 'Details'}
         {!detailsExpanded && <span className="block text-[10px] leading-[12px]">{detailsLayerLabel}{detailsUnits}</span>}

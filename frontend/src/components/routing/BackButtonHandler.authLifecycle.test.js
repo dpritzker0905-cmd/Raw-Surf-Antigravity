@@ -7,6 +7,7 @@ if(!global.TextEncoder)global.TextEncoder=TextEncoder;
 if(!global.TextDecoder)global.TextDecoder=TextDecoder;
 const {BrowserRouter,Routes,Route,Link,useLocation,useNavigate}=require('react-router-dom');
 const {goBackOr}=require('./appHistory');
+const {mapWeatherRouteMemory}=require('../map/mapWeatherRouteMemoryStore');
 let mockUser={id:'auth-lifecycle-account',role:'surfer'};
 jest.mock('../../contexts/AuthContext',()=>({useAuth:()=>({user:mockUser,loading:false})}));
 // Ancillary ToS/child-role UI is outside this adult authentication lifecycle check.
@@ -32,7 +33,10 @@ beforeEach(()=>{localStorage.removeItem('raw-surf-user');mockUser={id:'auth-life
 test('sign-out releases the boundary and Back cannot expose a private page',async()=>{
   const view=render(<App/>);fireEvent.click(screen.getByRole('link',{name:'Feed link'}));
   expect(screen.getByText('Private feed')).toBeInTheDocument();
+  // MapPage is unmounted on Feed; logout must still clear the prior session's UI intent.
+  mapWeatherRouteMemory.owner=mockUser.id;mapWeatherRouteMemory.entries.set('old-map-entry',{layer:'waves',selectedMs:1});
   mockUser=null;view.rerender(<App/>);
+  expect(mapWeatherRouteMemory.entries.size).toBe(0);expect(mapWeatherRouteMemory.owner).toBeNull();
   await waitFor(()=>expect(screen.getByText('Sign in required')).toBeInTheDocument());
   await act(async()=>{const pop=new Promise(resolve=>window.addEventListener('popstate',resolve,{once:true}));window.history.back();await pop;});
   await waitFor(()=>expect(screen.getByLabelText('Auth route')).toHaveTextContent('/auth?tab=signup&redirect=%2Fmap'));

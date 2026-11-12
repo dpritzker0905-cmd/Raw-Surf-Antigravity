@@ -55,7 +55,7 @@ test.each(['light', 'dark', 'beach'])('%s overlay moves tide and its explicit UT
   expect(within(screen.getByRole('group', { name: 'Tide', exact: true })).getByText('0.0 m')).toBeInTheDocument();
   expect(screen.getByText(/^Tide at .*Oct 31, 2026.*12:00 PM UTC$/)).toBeInTheDocument();
   expect(screen.getByRole('group', { name: /^Tide at selected forecast time:/ })).toHaveAccessibleName(/Oct 31, 2026.*12:00 PM UTC/);
-  const details = screen.getByRole('button', { name: 'Forecast details', exact: true });
+  const details = screen.getByRole('button', { name: 'Details Waves · m', exact: true });
   expect(details).toHaveAttribute('aria-expanded', 'false');
   fireEvent.click(details);
   expect(details).toHaveAttribute('aria-expanded', 'true');
@@ -64,7 +64,7 @@ test.each(['light', 'dark', 'beach'])('%s overlay moves tide and its explicit UT
   expect(within(screen.getByRole('group', { name: 'Tide', exact: true })).getByText('2.4 m')).toBeInTheDocument();
   expect(screen.getByText(/^Tide at .*Nov 1, 2026.*12:00 PM UTC$/)).toBeInTheDocument();
   expect(screen.getByRole('group', { name: /^Tide at selected forecast time:/ })).toHaveAccessibleName(/Nov 1, 2026.*12:00 PM UTC/);
-  expect(screen.queryByText('Tide now · not forecast hour')).not.toBeInTheDocument();
+  expect(screen.queryByText('Tide now Â· not forecast hour')).not.toBeInTheDocument();
   fireEvent.keyDown(screen.getByTestId('forecast-overlay'), { key: 'Escape' });
   expect(details).toHaveAttribute('aria-expanded', 'false');
   expect(details).toHaveFocus();

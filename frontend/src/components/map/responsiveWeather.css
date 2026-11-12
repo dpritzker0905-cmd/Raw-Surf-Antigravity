@@ -1,8 +1,12 @@
 .weather-explorer-toggle, .weather-legend-toggle, .weather-point-details-toggle, .weather-point-context { display: none; }
+.weather-explorer-toggle { pointer-events: auto; }
+/* Full dates must also wrap when the responsive rollout is disabled. */
+.weather-timeline-track { flex-wrap: wrap; }
+.weather-time-readout { flex-basis: 100%; min-width: 0; white-space: normal; overflow-wrap: anywhere; }
 /* Geometry only: all surfaces, borders, and text retain the three-theme component tokens. */
 [data-responsive-weather="true"] { --weather-top: 160px; --weather-bottom: 280px; }
 [data-responsive-weather="true"] .top-rail-container {
-  max-height: 28%; overflow-y: auto; overscroll-behavior: contain; pointer-events: auto;
+  max-height: 28%; overflow-y: auto; overscroll-behavior: contain; pointer-events: none;
   padding-top: max(8px, env(safe-area-inset-top));
 }
 [data-responsive-weather="true"] .top-rail-container:focus-within { max-height: none; overflow: visible; }

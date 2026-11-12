@@ -52,18 +52,29 @@ export function usePointTide(lat, lng) {
     if (!cell) return undefined;
     let live = true;
     let timer;
-    const refresh = () => load(cell).then((value) => {
+    const refresh = () => {
+      clearTimeout(timer);
+      if (!live || document.visibilityState === 'hidden') return;
+      return load(cell).then((value) => {
       if (!live) return;
       setRes({ cell, value });
       // Use the acquisition deadline, so fixed selections retry and scrubbing cannot extend cache age.
       const hit = _cache.get(cell);
-      if (hit) {
+      if (hit && document.visibilityState !== 'hidden') {
         const expiresAt = hit.ts + (hit.value ? TTL_MS : UNAVAILABLE_TTL_MS);
+        clearTimeout(timer);
         timer = setTimeout(refresh, Math.max(1, expiresAt - Date.now()));
       }
-    });
+      });
+    };
+    // Resume against the original cache deadline; background tabs do not poll.
+    const onVisibility = () => {
+      clearTimeout(timer);
+      if (document.visibilityState !== 'hidden') refresh();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
     refresh();
-    return () => { live = false; clearTimeout(timer); };
+    return () => { live = false; clearTimeout(timer); document.removeEventListener('visibilitychange', onVisibility); };
   }, [cell, lat, lng, stale]);
   if (off) return { status: 'off', data: null };
   if (!cell) return { status: 'loading', data: null };

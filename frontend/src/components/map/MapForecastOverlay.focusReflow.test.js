@@ -89,11 +89,11 @@ test.each(['light','dark','beach'])('%s compact reflow moves hidden-header focus
   // Reproduce the 48px landscape scrollport before retaining the enlarged case.
   mapHeight=264;timelineTop=160;act(()=>resize());act(()=>scheduled());
   expect(root).toHaveAttribute('data-point-details-compact','true');
-  expect(screen.getByRole('button',{name:'Forecast details',exact:true})).toHaveFocus();
+  expect(screen.getByRole('button',{name:'Details Waves · m',exact:true})).toHaveFocus();
   mapHeight=800;timelineTop=600;act(()=>resize());act(()=>scheduled());
   expect(root).toHaveAttribute('data-point-details-compact','false');header.focus();
   compactReflow();
-  const details=screen.getByRole('button',{name:'Forecast details',exact:true});
+  const details=screen.getByRole('button',{name:'Details Waves · m',exact:true});
   expect(root).toHaveAttribute('data-point-details-compact','true');expect(details).toHaveFocus();
   expect(details).toHaveAttribute('aria-expanded','false');expect(tide.textContent).toBe(text);
   fireEvent.click(details);
@@ -103,11 +103,11 @@ test.each(['light','dark','beach'])('%s compact reflow moves hidden-header focus
 });
 
 test('a reading area already opened by the user retains real curve focus through compact reflow',()=>{
-  render(<Chrome/>);fireEvent.click(screen.getByRole('button',{name:'Forecast details',exact:true}));
+  render(<Chrome/>);fireEvent.click(screen.getByRole('button',{name:'Details Waves · m',exact:true}));
   const curve=within(screen.getByRole('group',{name:'Tide',exact:true})).getByRole('img');
   curve.scrollIntoView=jest.fn();curve.focus();compactReflow();
   expect(screen.getByTestId('chrome-root')).toHaveAttribute('data-point-details-compact','true');
-  expect(screen.getByRole('button',{name:'Close forecast details',exact:true})).toHaveAttribute('aria-expanded','true');
+  expect(screen.getByRole('button',{name:'Close details',exact:true})).toHaveAttribute('aria-expanded','true');
   expect(curve).toHaveFocus();expect(curve.scrollIntoView).toHaveBeenCalledWith({block:'nearest',inline:'nearest'});
 });
 

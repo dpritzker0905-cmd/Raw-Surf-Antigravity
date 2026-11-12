@@ -26,3 +26,7 @@ test('full timestamp formatter is reused while scrubbing', () => {
     spy.mockRestore();
   }
 });
+
+test.each([null, undefined, NaN, Infinity, -Infinity])('missing or non-finite forecast instant %s has no visible invalid-date label', value => {
+  expect(formatForecastInstant(value, 'UTC')).toBe('');
+});

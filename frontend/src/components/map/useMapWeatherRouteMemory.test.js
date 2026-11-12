@@ -1,4 +1,7 @@
-import React, { StrictMode, useState } from 'react';
+import React, { StrictMode } from 'react';
+jest.mock('./radarTileRecolor', () => ({ registerRadarRecolorProtocol: jest.fn() }));
+jest.mock('./marineController', () => ({ getModelSafeMarine: jest.fn(), prewarmGlobalMarineGrid: jest.fn() }));
+jest.mock('./radarForecastSources', () => ({ radarFutureFramesForModel: () => [], radarRegionForCenter: () => 'CONUS', discoverHrrrRun: () => Promise.resolve(null), HRRR_RUN_TTL_MS: 300000, rainviewerCatalogUrl: () => '/offline-radar-catalog' }));
 import { act, fireEvent, render, screen } from '@testing-library/react';
 
 // CRA/Jest's resolver cannot follow these installed package export-map entries.
@@ -16,14 +19,15 @@ const { default: useMapWeatherRouteMemory, clearMapWeatherRouteMemory } = (() =>
   try { return require('./useMapWeatherRouteMemory'); }
   finally { global.fetch = originalFetch; }
 })();
+const { useWeatherState } = require('../../hooks/useWeatherState');
 const NOW = Date.parse('2026-11-08T12:00:00Z');
 const H = 3600000;
 const USER = { id: 'route-user', subscription_tier: 'tier_4' };
 
 function MapView({ user, model }) {
-  const [layers, setLayers] = useState([]);
-  const [hour, setHour] = useState(0);
-  const [playing, setPlaying] = useState(false);
+  // MapPage's real state provider and public setters, not fake restore state.
+  const { activeLayers: layers, setActiveLayers: setLayers, timeOffsetHours: hour,
+    setTimeOffsetHours: setHour, isPlayingTimeline: playing, setIsPlayingTimeline: setPlaying } = useWeatherState({ user });
   const navigate = useNavigate();
   useMapWeatherRouteMemory({ user, activeModel: model, activeLayers: layers, timeOffsetHours: hour,
     setActiveLayers: setLayers, setTimeOffsetHours: setHour });
