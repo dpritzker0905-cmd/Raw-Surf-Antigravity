@@ -1,13 +1,15 @@
-"""GET /api/weather/frame-urls: signed URLs for the paid static frames a caller is entitled to (O6). HELD OFF.
+"""GET /api/weather/frame-urls: signed URLs for the static frames a caller's ACCOUNT is entitled to (O6). HELD OFF.
 
-One request per pinned index per session: the client pins a run index from the PUBLIC latest.json; for the entries that
-index marks `paid`, it asks here once and receives signed URLs for the classes its JWT tier allows (none for guest/free).
+One request per pinned index per session: the client pins a run index from the PUBLIC latest.json (path-free: every
+forecast frame is private, owner 2026-11-12 "accounts only"); it asks here once and receives signed URLs for the classes
+its JWT tier allows: free = GFS to 3 days (+ margin), basic, premium. No verified account: 401, no URLs (the client's
+expired-session prompt keys on `X-Raw-Tier-Clamp: account`, as for the weather reads).
 
 CPU on the 1-CPU box: per request, a JWT check, a cached dict lookup and a JSON response. The FULL index is read from the
 private bucket once per path (immutable, content-addressed), and the signatures are minted ONCE per (index, class) for
 SIGN_CACHE_S and shared by every entitled user: the Smart CDN keys each signed URL's token separately, so sharing the URL
 is what keeps the paid frames' CDN hit rate equal to the public ones'. Signing is one batch call per (index, class) per
-SIGN_CACHE_S: at most ~150 sets x 2 classes per cycle, whatever the number of users.
+SIGN_CACHE_S: at most ~150 sets x 3 classes per cycle, whatever the number of users.
 
 Leak bound: a signed URL is valid SIGN_EXPIRES_S; its cached CDN response outlives the token until retention deletes the
 object (about two runs), i.e. it can only ever reveal a forecast that is already being replaced.
@@ -45,7 +47,7 @@ def read_paid_index(path: str) -> Optional[dict]:
     base, key = _storage()
     if not base or not key:
         return None
-    r = requests.get(f"{base}/storage/v1/object/{FE.PAID_BUCKET}/{path}",
+    r = requests.get(f"{base}/storage/v1/object/{FE.PRIVATE_BUCKET}/{path}",
                      headers={"Authorization": f"Bearer {key}", "apikey": key}, timeout=10)
     return r.json() if r.status_code == 200 else None
 
@@ -56,7 +58,7 @@ def sign_paths(paths: List[str], expires_s: int) -> Dict[str, str]:
     base, key = _storage()
     if not base or not key or not paths:
         return {}
-    r = requests.post(f"{base}/storage/v1/object/sign/{FE.PAID_BUCKET}", json={"expiresIn": int(expires_s), "paths": paths},
+    r = requests.post(f"{base}/storage/v1/object/sign/{FE.PRIVATE_BUCKET}", json={"expiresIn": int(expires_s), "paths": paths},
                       headers={"Authorization": f"Bearer {key}", "apikey": key}, timeout=15)
     if r.status_code != 200:
         logger.warning("[frame-urls] batch sign HTTP %s", r.status_code)
@@ -72,7 +74,7 @@ def sign_paths(paths: List[str], expires_s: int) -> Dict[str, str]:
 def entitled_urls(index_path: str, tier: str, *, load: Callable = None, sign: Callable = None,
                   clock: Callable[[], float] = time.monotonic) -> dict:
     """PURE but for the injected load/sign. The payload for one (index, tier)."""
-    classes = [c for c in FE.allowed_classes(tier) if c != "public"]
+    classes = list(FE.allowed_classes(tier))
     if not classes:
         return {"index": index_path, "tier": tier, "frames": []}
     full = _index_cache.get(index_path)
@@ -83,12 +85,12 @@ def entitled_urls(index_path: str, tier: str, *, load: Callable = None, sign: Ca
         _index_cache[index_path] = full
         while len(_index_cache) > INDEX_CACHE_MAX:
             _index_cache.popitem(last=False)
-    items = FE.paid_items(full, classes)
+    items = FE.entitled_items(full, classes)
     urls: Dict[str, str] = {}
     for cls in classes:
         hit = _sign_cache.get((index_path, cls))
         if hit is None or clock() - hit[0] >= SIGN_CACHE_S:
-            objs = sorted({i["object"] for i in FE.paid_items(full, [cls])})
+            objs = sorted({i["object"] for i in FE.entitled_items(full, [cls])})
             hit = (clock(), (sign or sign_paths)(objs, SIGN_EXPIRES_S) if objs else {})
             _sign_cache[(index_path, cls)] = hit
         urls.update(hit[1])
@@ -106,5 +108,9 @@ async def get_frame_urls(index: str = Query(..., max_length=200), authorization:
     from services.weather_tier_clamp import resolve_tier
     import asyncio
     tier = await resolve_tier(authorization)
+    if tier == "guest":                                  # accounts only: no verified account, no URLs
+        return JSONResponse({"detail": "sign_in_required"}, status_code=401, headers={
+            "Cache-Control": "private, no-store", "Vary": "Authorization", "WWW-Authenticate": 'Bearer realm="raw-surf"',
+            "X-Raw-Tier-Clamp": "account"})
     body = await asyncio.to_thread(entitled_urls, index, tier)
     return JSONResponse(body, headers={"Cache-Control": "private, max-age=300", "Vary": "Authorization"})

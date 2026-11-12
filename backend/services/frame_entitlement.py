@@ -1,29 +1,31 @@
-"""frame_entitlement.py: tier entitlement for the static weather frames (O6, 2026-11-11). HELD OFF.
+"""frame_entitlement.py: account entitlement for the static weather frames (O6, 2026-11-11; accounts only 2026-11-12). HELD OFF.
 
-WHY. #782 clamps the API to the caller's tier, but the static frames sit in the PUBLIC bucket `weather-frames` and every
-run index lists every frame: anyone holding an index URL can fetch EURO/ICON and the 14-day tail from the CDN. Measured
-2026-11-11 on the live latest.json: 152 sets, 12,732 frames, 8,332 (65%) beyond 72 h; every EURO/ICON frame is paid
-content at every hour (guest/free = GFS only).
+WHY. #782 clamps the API to the caller's tier, but the static frames sat in the PUBLIC bucket `weather-frames` and every
+run index listed every frame: anyone holding an index URL could fetch every model and the 14-day tail from the CDN.
+Measured 2026-11-11 on the live latest.json: 152 sets, 12,732 frames, 8,332 (65%) beyond 72 h.
+OWNER, 2026-11-12: "we do not want non-account holders to access the data. Free account holders should still have to go
+through signed URLs, which will encourage people to create free accounts." So NO forecast frame stays public.
 
-DESIGN (docs/design/O6-static-frame-entitlement.md has the options and the costs). Three classes per frame, from the
-model and the forecast LEAD (valid - run), mirrored from forecast_tier_window (the resolver's pinned echo; no new ladder):
-  public   GFS (guest models), lead <= guest days * 24 + RUN_MARGIN_H     -> the public bucket, exactly as today
-  basic    basic models,      lead <= basic days * 24 + RUN_MARGIN_H     -> the PRIVATE bucket `weather-frames-paid`
-  premium  everything else (to the locked 14-day horizon)                -> the private bucket
-RUN_MARGIN_H: the class is fixed at publish (content-addressed, carried over across runs), while the tier window rolls
-from NOW. A run is up to ~a day old when served, so the margin keeps the public set covering now + 72 h; the cost is
-that a guest can read up to RUN_MARGIN_H past 72 h of GFS straight from the CDN (the API clamp and the UI still gate it).
-No storage copy is ever needed when time passes.
+DESIGN (docs/architecture/O6-static-frame-entitlement.md). Three classes per frame, from the model and the forecast LEAD
+(valid - run), mirrored from forecast_tier_window (the resolver's pinned echo; no new ladder):
+  free     GFS (free models),  lead <= free days * 24 + RUN_MARGIN_H   -> the PRIVATE bucket `weather-frames-private`
+  basic    basic models,       lead <= basic days * 24 + RUN_MARGIN_H  -> the private bucket
+  premium  everything else (to the locked 14-day horizon)              -> the private bucket
+A signed-out caller (guest) is entitled to NO class. RUN_MARGIN_H: the class is fixed at publish (content-addressed,
+carried over across runs) while the tier window rolls from NOW; a run is up to ~a day old when served, so the margin keeps
+the free class covering now + 72 h. No storage copy is ever needed when time passes.
 
-THE PUBLISHER IS UNTOUCHED: `EntitledSink` wraps its sink. Per-frame files route by the class their PATH names (run and
-valid stamps); each index is written twice: the FULL copy to the private bucket (the signer and the next run's carry-over
-read it) and a PUBLIC copy whose paid entries keep their valid_time but lose `path`/`offset` and gain `paid: <class>`.
-An entry with no path is what today's client already treats as unbuilt: it asks /grid for that hour, and #782's clamp
-answers it at the caller's tier. A regional BUNDLE is re-cut into one bundle per class (public bytes stay public).
+THE PUBLISHER IS UNTOUCHED: `EntitledSink` wraps its sink. Every per-frame object and every regional bundle goes to the
+private bucket. Each run index is written twice: the FULL copy to the private bucket (the signer and the next run's
+carry-over read it) and a PUBLIC copy that keeps each entry's metadata (valid_time, decode meta) but no `path`/`offset`
+and gains `entitlement: <class>`; the public copy has no bundle. The public bucket keeps only latest.json, those
+path-free indexes and pointers: no forecast values. An entry with no path is what the client treats as unbuilt (it asks
+/grid, which #782 answers at the caller's tier, or 401 signed out); the client signer (staticFrameSigner.js) gives each
+entitled entry its signed object instead. A regional BUNDLE is re-cut into one bundle per class.
 
-SIGNING: `routes/weather_frame_urls.py` returns signed URLs for the classes the caller's JWT tier allows, signed ONCE
-per (index, class) and shared by every entitled user, so the Smart CDN keeps one cache entry per frame per signing
-(Supabase: each token is its own cache key). Kill / hold: GUARDED FRAME_ENTITLEMENT = '0'.
+SIGNING: `routes/weather_frame_urls.py` returns signed URLs for the classes the caller's account allows (401 with no
+account), signed ONCE per (index, class) and shared by every entitled user, so the Smart CDN keeps one cache entry per
+frame per signing (Supabase: each token is its own cache key). Kill / hold: GUARDED FRAME_ENTITLEMENT = '0'.
 """
 import hashlib
 import json
@@ -36,11 +38,11 @@ from services import runtime_flags as _rf
 
 FLAG = "FRAME_ENTITLEMENT"
 PUBLIC_BUCKET = "weather-frames"
-PAID_BUCKET = "weather-frames-paid"
+PRIVATE_BUCKET = "weather-frames-private"   # every forecast frame (owner 2026-11-12: accounts only)
 RUN_MARGIN_H = 24
-CLASSES = ("public", "basic", "premium")
+CLASSES = ("free", "basic", "premium")
 # A class's requirement = (days, models) of the tier the resolver names for it.
-_CLASS_TIER = {"public": "guest", "basic": "basic", "premium": "premium"}
+_CLASS_TIER = {"free": "free", "basic": "basic", "premium": "premium"}
 _FRAME_RE = re.compile(r"^v1/(?P<model>[a-z]+)/[a-z_]+/[a-z0-9_]+/[a-z0-9_]+/(?P<run>\d{8}T\d{6}Z)/"
                        r"(?P<valid>\d{8}T\d{6}Z)-[0-9a-f]{12}\.bin$")
 INDEX_RE = re.compile(r"^v1/[a-z]+/[a-z_]+/[a-z0-9_]+/[a-z0-9_]+/index/\d{8}T\d{6}Z-[0-9a-f]{12}\.json$")
@@ -71,7 +73,7 @@ def class_for(model: str, run, valid) -> str:
         return "premium"
     lead_h = (v - r).total_seconds() / 3600.0
     m = str(model or "").upper()
-    for cls in ("public", "basic"):
+    for cls in ("free", "basic"):
         tier = _CLASS_TIER[cls]
         if m in FTW.TIER_MODELS[tier] and lead_h <= FTW.TIER_FORECAST_DAYS[tier] * 24 + RUN_MARGIN_H:
             return cls
@@ -85,8 +87,11 @@ def class_for_path(path: str) -> Optional[str]:
 
 
 def allowed_classes(tier) -> Tuple[str, ...]:
-    """The classes a tier may read: those whose required days AND models the tier's own resolver entry covers."""
+    """The classes a tier may read: those whose required days AND models the tier's own resolver entry covers. A
+    signed-out caller (guest) reads NONE: accounts only (owner 2026-11-12)."""
     t = FTW.canonical_tier(tier)
+    if t == "guest":
+        return ()
     days, models = FTW.TIER_FORECAST_DAYS[t], set(FTW.TIER_MODELS[t])
     return tuple(c for c in CLASSES
                  if FTW.TIER_FORECAST_DAYS[_CLASS_TIER[c]] <= days and set(FTW.TIER_MODELS[_CLASS_TIER[c]]) <= models)
@@ -99,8 +104,9 @@ def _sha12(data: bytes) -> str:
 def split_index(full: dict, bundle_bytes: Optional[bytes] = None) -> Tuple[dict, dict, Dict[str, bytes]]:
     """PURE. (public index, full index for the private bucket, {object path: bytes} of re-cut class bundles).
 
-    Per-frame index: each paid entry loses `path` in the public copy and gains `paid`. Bundle index: the bundle's bytes
-    are re-cut into one bundle per class; the public copy points at the public bundle (or none) with re-based offsets."""
+    Every entry of the public copy loses `path` (bundle sets: offset/length/sha12 too) and gains `entitlement`; the
+    public copy has no bundle. The private copy keeps everything; a bundle's bytes are re-cut into one bundle per class
+    with re-based offsets, all of them private."""
     model, run = full.get("model"), full.get("run")
     frames = full.get("frames") or []
     public = {k: v for k, v in full.items() if k not in ("frames", "bundle")}
@@ -117,13 +123,10 @@ def split_index(full: dict, bundle_bytes: Optional[bytes] = None) -> Tuple[dict,
             off = len(blobs[cls])
             blobs[cls] += seg
             p.update(offset=off, length=len(seg), bundle_class=cls)
-            if cls == "public":
-                g["offset"] = off
-        if cls != "public":
-            g.pop("path", None)
-            g.update(paid=cls)
-            if bundle is not None:
-                g.update(offset=None, length=None, sha12=None)
+        g.pop("path", None)
+        g.update(entitlement=cls)
+        if bundle is not None:
+            g.update(offset=None, length=None, sha12=None)
         pub_frames.append(g)
         priv_frames.append(p)
     public["frames"], private["frames"] = pub_frames, priv_frames
@@ -133,11 +136,10 @@ def split_index(full: dict, bundle_bytes: Optional[bytes] = None) -> Tuple[dict,
         for cls, blob in blobs.items():
             if not blob:
                 continue
-            b = bytes(blob)
-            name = f"bundle-{_sha12(b)}.bin" if cls == "public" else f"bundle-{cls}-{_sha12(b)}.bin"
-            class_bundles[cls] = {"path": f"{stem}/{name}", "bytes": len(b), "sha12": _sha12(b)}
-            out_bundles[class_bundles[cls]["path"]] = b
-        public["bundle"] = class_bundles.get("public")
+            bb = bytes(blob)
+            class_bundles[cls] = {"path": f"{stem}/bundle-{cls}-{_sha12(bb)}.bin", "bytes": len(bb), "sha12": _sha12(bb)}
+            out_bundles[class_bundles[cls]["path"]] = bb
+        public["bundle"] = None
         private["bundle"], private["bundles"] = bundle, class_bundles
     return public, private, out_bundles
 
@@ -147,43 +149,42 @@ def class_bundle_paths(index: Optional[dict]) -> set:
 
 
 class EntitledSink:
-    """Wraps the publisher's sink (write/read/list/delete) and routes every object to the bucket its class allows."""
+    """Wraps the publisher's sink (write/read/list/delete): every forecast object goes to the PRIVATE bucket; the public
+    bucket gets only the path-free index copies, latest.json and pointers."""
 
-    def __init__(self, public_sink, paid_sink):
+    def __init__(self, public_sink, private_sink):
         import threading
-        self.public, self.paid = public_sink, paid_sink
+        self.public, self.private = public_sink, private_sink
         self._bundles: Dict[str, bytes] = {}
         self._keep: set = set()          # re-cut bundles written or named this run: never retention-deleted
         self._lock = threading.Lock()    # the publisher's uploader writes frames from a thread pool
 
     def ensure_bucket(self):
         self.public.ensure_bucket()
-        self.paid.ensure_bucket()
+        self.private.ensure_bucket()
 
     def write(self, path, data, ctype, cache):
         if path.endswith(".bin") and "/bundle-" in path:
             with self._lock:
                 self._bundles[path] = data   # the full bundle: written re-cut, with its index
             return None
-        cls = class_for_path(path)
-        if cls is not None:
-            return (self.public if cls == "public" else self.paid).write(path, data, ctype, cache)
         if INDEX_RE.match(path):
             full = json.loads(data)
             bundle = (full.get("bundle") or {}).get("path") if isinstance(full.get("bundle"), dict) else None
             public, private, recut = split_index(full, self._bundles.pop(bundle, None) if bundle else None)
             for bpath, blob in recut.items():
-                (self.public if bpath == (public.get("bundle") or {}).get("path") else self.paid).write(
-                    bpath, blob, "application/octet-stream", cache)
+                self.private.write(bpath, blob, "application/octet-stream", cache)
                 with self._lock:
                     self._keep.add(bpath)
-            self.paid.write(path, json.dumps(private, sort_keys=True, separators=(",", ":")).encode(), ctype, cache)
+            self.private.write(path, json.dumps(private, sort_keys=True, separators=(",", ":")).encode(), ctype, cache)
             return self.public.write(path, json.dumps(public, sort_keys=True, separators=(",", ":")).encode(), ctype, cache)
+        if path.endswith(".bin"):                # every frame (and any other binary) is forecast bytes: never public
+            return self.private.write(path, data, ctype, cache)
         return self.public.write(path, data, ctype, cache)
 
     def read(self, path):
         if INDEX_RE.match(path or ""):
-            raw = self.paid.read(path)
+            raw = self.private.read(path)
             if raw:
                 try:
                     named = class_bundle_paths(json.loads(raw))
@@ -191,11 +192,16 @@ class EntitledSink:
                     named = set()
                 with self._lock:                 # LongCat review: every _keep update under the one lock
                     self._keep |= named
-                return raw
+            # A miss is a miss: never the PUBLIC copy. Before the flip that copy names frames in the PUBLIC bucket, and
+            # carrying them over would leave their bytes public. So the first entitled run rebuilds every set into the
+            # private bucket (rollout: then purge_public_frame_bins.py removes the orphaned public bytes).
+            return raw
+        if (path or "").endswith(".bin"):
+            return self.private.read(path)
         return self.public.read(path)
 
     def list(self, prefix):
-        return sorted(set(self.public.list(prefix) or []) | set(self.paid.list(prefix) or []))
+        return sorted(set(self.public.list(prefix) or []) | set(self.private.list(prefix) or []))
 
     def delete(self, paths: Iterable[str]):
         with self._lock:
@@ -203,12 +209,12 @@ class EntitledSink:
         gone = [p for p in paths if p not in keep]
         if gone:
             self.public.delete(gone)
-            self.paid.delete(gone)
+            self.private.delete(gone)
 
 
-def paid_items(full: dict, classes: Iterable[str]) -> List[dict]:
+def entitled_items(full: dict, classes: Iterable[str]) -> List[dict]:
     """The entries of a FULL index a caller entitled to `classes` may fetch, with the object each lives in."""
-    want = set(classes) - {"public"}
+    want = set(classes)
     bundles = full.get("bundles") or {}
     out = []
     for f in full.get("frames") or []:

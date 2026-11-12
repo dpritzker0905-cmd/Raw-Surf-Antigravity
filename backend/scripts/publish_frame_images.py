@@ -637,9 +637,9 @@ def main(argv=None):
         if fetch is not None:
             source = TailDownloads(source, fetch, cap=tail_cap())
     if fe.enabled() and not args.wind_lane_rebuild:
-        # O6 (held OFF): paid frames to the PRIVATE bucket, public index copies stripped of their paths (frame_entitlement).
-        paid = LocalSink(Path(args.out_dir) / "_paid") if args.store_dir else SupabaseSink(bucket=fe.PAID_BUCKET, public=False)
-        sink = fe.EntitledSink(sink, paid)
+        # O6 (held OFF): EVERY frame to the PRIVATE bucket (accounts only), public index copies stripped of their paths.
+        private = LocalSink(Path(args.out_dir) / "_private") if args.store_dir else SupabaseSink(bucket=fe.PRIVATE_BUCKET, public=False)
+        sink = fe.EntitledSink(sink, private)
     sink.ensure_bucket()
     if args.wind_lane_rebuild:
         return _wind_lane_rebuild(source, sink)

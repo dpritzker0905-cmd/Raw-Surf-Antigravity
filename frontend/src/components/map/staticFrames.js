@@ -36,7 +36,7 @@ import { buildTruthTag } from './weatherTruthTracker';
 import { cropGridJson, cropSeriesFrame, cropVectors, gridBboxParam, midCropFor, midCropRulesPass, seriesBboxParam } from './staticFrameCrop';
 import { _resetRegionalForTest, bundleBackingOff, isRegionalSetKey, noteRegionalMiss, normalizeBundleIndex, pickRegionalTile, regionalBundlesOn, regionalClipWindow, regionalFrameBytes,
   regionalGridJson, regionalTelemetry } from './staticRegional';   // regional bundles at z7-9 (2026-10-23)
-import { signPaidFrames } from './staticFrameSigner';
+import { signEntitledFrames } from './staticFrameSigner';
 import { registerLatestProbes, setIsEmpty, setIsListed } from './regionalLatestSets';
 import { filledStoreAccepts, filledStoreOn, filledWorldPossible, filledWorldSetKey, plainCropsOn, preloadFilledIndexes, serveTimeFillAtWorld } from './staticWorldFillGuard';
 import { RATED_SET_KEYS, isRatedKey, ratedCropEligible, tryStaticRatedGrid } from './staticRatingFrames';   // the Surf Rating band (2026-11-01, dark)
@@ -278,7 +278,7 @@ async function loadIndex(path) {
       throw new Error('unsupported index');
     }
     idx.path = idx.path || path;
-    return signPaidFrames(normalizeBundleIndex(idx)); // bundle sets read slices (staticRegional); paid hours get signed URLs (O6)
+    return signEntitledFrames(normalizeBundleIndex(idx)); // bundle sets read slices (staticRegional); hours get signed URLs (O6)
   });
   _state.indexLoads.set(path, p);
   p.catch(() => _state.indexLoads.delete(path));

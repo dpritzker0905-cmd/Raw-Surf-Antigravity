@@ -1,36 +1,39 @@
 /**
- * staticFrameSigner.js: the client half of static-frame entitlement (O6, 2026-11-11).
+ * staticFrameSigner.js: the client half of static-frame entitlement (O6, 2026-11-11; ACCOUNTS ONLY 2026-11-12).
  *
- * With FRAME_ENTITLEMENT on, the publisher keeps paid frames (EURO / ICON, and GFS beyond the guest window) in a PRIVATE
- * bucket, and the PUBLIC index lists those hours with no `path` (bundle sets: `offset: null`) and `paid: '<class>'`.
- * Without this module such an hour is "unbuilt" and the map asks /grid for it: correct (the server clamps it to the
- * caller's tier), but that is box load the static frames exist to avoid.
+ * Owner, 2026-11-12: "we do not want non-account holders to access the data. Free account holders should still have to
+ * go through signed URLs." With FRAME_ENTITLEMENT on, the publisher keeps EVERY frame in a PRIVATE bucket, and the
+ * PUBLIC index lists each hour with no `path` (bundle sets: `offset: null`) and `entitlement: '<free|basic|premium>'`.
+ * Without this module every such hour is "unbuilt" and the map asks /grid for it (which #782 answers at the caller's
+ * tier, or refuses signed out).
  *
- * WHAT IT DOES. When an index is loaded (staticFrames.loadIndex) and it has paid entries, and a user is signed in, it
- * asks GET /api/weather/frame-urls?index=<path> ONCE for that index and gives each entitled entry back a fetchable frame:
+ * WHAT IT DOES. When an index is loaded (staticFrames.loadIndex) and has unsigned entries, and a user is SIGNED IN (any
+ * account, free included), it asks GET /api/weather/frame-urls?index=<path> ONCE for that index and gives each entitled
+ * entry back a fetchable frame:
  *   per-frame set:  frame.path = the private object path (the cache key), frame.url = its signed URL;
  *   bundle set:     frame.bundle = { path: the class bundle, url, bytes, offset, length, sha12 }, frame.path = '<bundle>#<offset>'.
  * Signing happens BEFORE the index resolves, so every consumer sees one consistent index (nothing flips mid-pin).
  *
- * COST. Guests (no token): zero calls. A guest/free token: one call per session, then none (the answer names the tier).
- * Basic / premium: one call per pinned index; the URLs are shared by every entitled user (the server signs once per
- * index x class per 6 h), so the CDN stays warm. A token outlives the object (>= 30 h left vs ~12 h retention).
+ * COST. Signed out (no token): zero calls, and nothing is served. Any account: one call per pinned index; the URLs are
+ * shared by every user of the same class (the server signs once per index x class per 6 h), so the CDN stays warm.
  *
- * FAILURE IS SAFE. Any error, timeout, 401 or 404 (the server flag off) leaves the paid entries unbuilt: those hours go to
- * /grid exactly as without this module. A 404 also backs off SIGNER_OFF_BACKOFF_MS so a held-off server is not asked per index.
+ * FAILURE IS SAFE. Any error, timeout or 404 (the server flag off) leaves the entries unbuilt: those hours go to /grid
+ * exactly as without this module. A 404 also backs off SIGNER_OFF_BACKOFF_MS. A 401 marked `X-Raw-Tier-Clamp: account`
+ * on a request that carried our token is an expired session: it raises the sign-in-again prompt (lib/weatherSession.js).
  *
- * KILL: window.__RAW_DISABLE_FRAME_SIGNER__ = true (paid hours fall back to /grid). Telemetry: window.__RAW_FRAME_SIGNER__.
+ * KILL: window.__RAW_DISABLE_FRAME_SIGNER__ = true (hours fall back to /grid). Telemetry: window.__RAW_FRAME_SIGNER__.
  */
 import { BACKEND_URL } from '../../lib/apiClient';
 import { storedAccessToken } from '../../lib/weatherAuthFetch';
+import { isSignInRefusal, reportWeatherSessionExpired } from '../../lib/weatherSession';
 
 export const FRAME_URLS_PATH = '/api/weather/frame-urls';
 export const SIGNER_TIMEOUT_MS = 4000;
 export const SIGNER_OFF_BACKOFF_MS = 10 * 60 * 1000;
-const NO_PAID_TIERS = new Set(['guest', 'free']);
+const NO_CLASS_TIERS = new Set(['guest']);       // accounts only: every account (free included) has a class
 
 const W = () => (typeof window !== 'undefined' ? window : {});
-const _state = { offUntil: 0, noPaidToken: null };
+const _state = { offUntil: 0, noClassToken: null };
 
 export function frameSignerTelemetry() {
   const w = W();
@@ -44,15 +47,15 @@ export function frameSignerEnabled() {
   return W().__RAW_DISABLE_FRAME_SIGNER__ !== true;
 }
 
-/** Entries the public index marks paid and leaves unbuilt. */
-export function paidUnbuilt(idx) {
-  return (idx && Array.isArray(idx.frames) ? idx.frames : []).filter((f) => f && f.paid && !f.path);
+/** Entries the public index names a class for and leaves without a path (they need a signed object). */
+export function unsignedEntries(idx) {
+  return (idx && Array.isArray(idx.frames) ? idx.frames : []).filter((f) => f && f.entitlement && !f.path);
 }
 
 /**
- * PURE. Give the paid entries of `idx` the signed objects in `body.frames` (matched by valid_time). Returns the count applied.
- * An item is used only when it is well formed: a url and an object, and for a bundle slice finite offset/length and a sha12
- * (staticRegional checks every slice against it, so a wrong signed object can never be decoded).
+ * PURE. Give the unsigned entries of `idx` the signed objects in `body.frames` (matched by valid_time). Returns the count
+ * applied. An item is used only when it is well formed: a url and an object, and for a bundle slice finite offset/length and
+ * a sha12 (staticRegional checks every slice against it, so a wrong signed object can never be decoded).
  */
 export function applySignedFrames(idx, body) {
   const items = new Map();
@@ -60,7 +63,7 @@ export function applySignedFrames(idx, body) {
     if (it && typeof it.url === 'string' && typeof it.object === 'string' && it.valid_time) items.set(it.valid_time, it);
   }
   let n = 0;
-  for (const f of paidUnbuilt(idx)) {
+  for (const f of unsignedEntries(idx)) {
     const it = items.get(f.valid_time);
     if (!it) continue;
     if (it.offset !== undefined && it.offset !== null) {
@@ -77,15 +80,15 @@ export function applySignedFrames(idx, body) {
 }
 
 /**
- * The index, with its paid entries signed when this user may read them. Never throws, never rejects; resolves to `idx`.
- * Options are test seams: fetchImpl, token, backendUrl, now.
+ * The index, with its entries signed when this account may read them. Never throws, never rejects; resolves to `idx`.
+ * Options are test seams: fetchImpl, token, backendUrl, now, win.
  */
-export async function signPaidFrames(idx, opts = {}) {
-  if (!idx || !idx.path || paidUnbuilt(idx).length === 0) return idx;
+export async function signEntitledFrames(idx, opts = {}) {
+  if (!idx || !idx.path || unsignedEntries(idx).length === 0) return idx;
   if (!frameSignerEnabled()) { skip('killed'); return idx; }
   const token = opts.token !== undefined ? opts.token : storedAccessToken(typeof window !== 'undefined' ? window.localStorage : null);
   if (!token) { skip('no_token'); return idx; }
-  if (_state.noPaidToken === token) { skip('tier_has_none'); return idx; }
+  if (_state.noClassToken === token) { skip('tier_has_none'); return idx; }
   const now = (opts.now || Date.now)();
   if (now < _state.offUntil) { skip('server_off'); return idx; }
   const fetchImpl = opts.fetchImpl || (typeof fetch !== 'undefined' ? fetch : null);
@@ -101,11 +104,12 @@ export async function signPaidFrames(idx, opts = {}) {
     });
     if (!res.ok) {
       if (res.status === 404) _state.offUntil = now + SIGNER_OFF_BACKOFF_MS;
+      if (isSignInRefusal(res)) reportWeatherSessionExpired(opts.win);   // our token was sent and not accepted
       t.errors += 1; t.last = { index: idx.path, status: res.status };
       return idx;
     }
     const body = await res.json();
-    if (body && NO_PAID_TIERS.has(body.tier)) _state.noPaidToken = token;
+    if (body && NO_CLASS_TIERS.has(body.tier)) _state.noClassToken = token;
     const applied = applySignedFrames(idx, body);
     t.applied += applied; t.last = { index: idx.path, status: res.status, tier: body && body.tier, applied };
     return idx;
@@ -118,6 +122,6 @@ export async function signPaidFrames(idx, opts = {}) {
 }
 
 export function _resetFrameSignerForTest() {
-  _state.offUntil = 0; _state.noPaidToken = null;
+  _state.offUntil = 0; _state.noClassToken = null;
   if (typeof window !== 'undefined') delete window.__RAW_FRAME_SIGNER__;
 }

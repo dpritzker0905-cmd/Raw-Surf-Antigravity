@@ -54,7 +54,7 @@ GUARDED = {
     "SPOT_HUB_RATE_ONE_SPOT": "1",      # spot-hub phase 2 (#710): the hub on rate_one_spot; kill '0' = the old chain
     "SURF_NEARSHORE_MOP": "1",          # CDIP MOP nearshore sea at California spots: nearshore judge 86/86 runs better,
                                         # MAE 0.250 -> 0.096 m at CDIP buoys (2026-10-09..11-04), ON; kill '0'
-    "FRAME_ENTITLEMENT": "0",           # O6: paid static frames to a private bucket + signed URLs. Held OFF: needs the
+    "FRAME_ENTITLEMENT": "0",           # O6 accounts only: EVERY static frame private + signed URLs. Held OFF: needs the
                                         # private bucket created and the client signer half before the flip
     "WEATHER_TIER_CLAMP": "0",          # O5 (#TBD): server tier clamp. Held OFF until the client sends its token
                                         # (weatherAuthFetch.js) - ON earlier refuses every paying user (accounts only)
