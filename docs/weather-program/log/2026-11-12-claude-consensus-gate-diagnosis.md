@@ -66,3 +66,10 @@ Sources re-verified: SCOREBOARD rows at lines 72, 73, 75; STATE lines 48-50; led
 Commitment 1336 stays open. Owed: the decisive read above (one credentialed read-only job, or the existing
 dispatch-only `scored_rows_gate` job on the owner's word), then the fix, then the shadow re-run, then the filter
 once a mean-consensus arm exists in the harness (EURO/ICON replay inputs do not exist yet).
+
+## Addendum (2026-11-12, advisor accuracy notes)
+
+- **Staleness.** Every number above is quoted from SCOREBOARD/STATE as of dev a7c41dd2a (STATE's consensus lines date from 2026-10-17/18). I found no newer consensus reading in either file; I did not re-measure anything. Treat all of them as 3-4 weeks old.
+- **In- vs out-of-sample.** The 0.196 vs 0.229 (train n 57,992) is the rule-selection set, out of sample for the hawaii/atlantic_se rule only; the hawaii 0.443->0.543 and atlantic_se 0.222->0.250 figures are a single held-out week whose per-lead n and independent-station count I did not record. They are context, not gate evidence. No held-out n per lead or independent-station count exists in this PR.
+- **'Unknown' is a data condition, not proven cause.** It is a real condition (lane answered by the direct-point path, `product_id=None`), not a labelling artefact in the sense of a missing field. But it is not shown to cause the +0.13 m: that needs removing or repairing those rows and a random-row null control of equal size, neither of which was run.
+- **-0.03 m is offline.** The ~0.03 m gain is a computed-equal-mean figure from the ledger, not a served-shadow result; the built shadow has never matched it at +48/+72 h.
