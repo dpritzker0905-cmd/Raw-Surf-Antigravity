@@ -27,11 +27,15 @@ export function promptPalette(theme) {
     secondary: 'border-zinc-600 text-zinc-100 hover:bg-zinc-800', scrim: 'bg-black/60' };
 }
 
+// Closed, the mount reads nothing but the signal (App-level tests mock ThemeContext down to its provider).
 export default function SessionExpiredPrompt({ onSignIn } = {}) {
-  const theme = useThemeName();
   const { open, dismiss } = useSessionExpiredPrompt();
-  const trapRef = useFocusTrap(open, { onEscape: dismiss });
-  if (!open) return null;
+  return open ? <SessionExpiredDialog onSignIn={onSignIn} dismiss={dismiss} /> : null;
+}
+
+function SessionExpiredDialog({ onSignIn, dismiss }) {
+  const theme = useThemeName();
+  const trapRef = useFocusTrap(true, { onEscape: dismiss });
   const p = promptPalette(theme);
   const signIn = onSignIn || (() => signInAgain({ clearSession: clearStoredSession }));
   return (
