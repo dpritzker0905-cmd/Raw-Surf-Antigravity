@@ -44,6 +44,13 @@ logger = logging.getLogger("ingest_forecast_ci")
 PRODUCT_UPLOAD_DRAIN_SECONDS = 300
 
 
+def health_is_critical(health) -> bool:
+    """True when the run must exit non-zero for a critical DATA HEALTH verdict (ING-6)."""
+    if os.environ.get("HEALTH_FAIL_ON_CRITICAL", "1") == "0":
+        return False
+    return isinstance(health, dict) and health.get("status") == "critical"
+
+
 def main() -> int:
     try:
         return _main()
@@ -138,6 +145,8 @@ def _main() -> int:
             from services.weather_pipeline.spot_ratings_precompute import run_spot_ratings_precompute
             n_spots, n_frames = run_spot_ratings_precompute()
             logger.info("Spot-ratings precompute complete: %d spots × %d frames → L2.", n_spots, n_frames)
+            if not n_frames:   # ING-6: stays non-fatal here (ingestion already persisted); precompute.yml owns the RED
+                logger.error("Spot-ratings precompute saved ZERO frames (%d spots).", n_spots)
         except Exception as _spe:
             logger.warning("Spot-ratings precompute skipped (non-fatal, ingestion already persisted): %s", _spe)
 
@@ -169,6 +178,7 @@ def _main() -> int:
     # domain lane is fresh, present, in-parity, and full-horizon — logging a clear status and publishing
     # health.json to L2 (an external monitor / admin view can poll it). Read-only + fully guarded: a health
     # check must never break the cycle it watches. Tunable via HEALTH_* env; disable with DATA_HEALTH_CHECK=0.
+    health_critical = False
     if os.environ.get("DATA_HEALTH_CHECK", "1") == "1":
         try:
             import json as _json
@@ -180,6 +190,7 @@ def _main() -> int:
                 logging.WARNING if health["status"] == "warn" else logging.INFO)
             logger.log(_lvl, "DATA HEALTH: status=%s freshest=%sh alerts=%s",
                        health["status"], health.get("freshest_run_age_h"), health["alerts"] or "none")
+            health_critical = health_is_critical(health)
             try:
                 _store._upload_to_supabase("health.json", _json.dumps(health, separators=(",", ":")).encode("utf-8"))
                 logger.info("DATA HEALTH: published health.json to L2 (status=%s).", health["status"])
@@ -201,6 +212,9 @@ def _main() -> int:
         logger.warning("Partial product-upload failure in this cycle: %s", product_diag)
     if diag.get("last_upload_errors"):
         logger.warning("Some L2 uploads failed: %s", diag.get("last_upload_errors"))
+    if health_critical:   # ING-6: a critical health verdict used to end green. Kill switch: HEALTH_FAIL_ON_CRITICAL=0.
+        logger.error("Ingest finished but DATA HEALTH is critical — failing the run so it is visible.")
+        return 1
     logger.info("Decoupled ingestion complete — current-cycle product objects acknowledged in L2. "
                 "Manifest publication/readback and every-lane completeness are separate checks.")
     return 0

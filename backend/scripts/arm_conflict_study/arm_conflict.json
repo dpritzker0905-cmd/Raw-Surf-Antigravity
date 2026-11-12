@@ -1,0 +1,107 @@
+[
+ {
+  "station": "103p1",
+  "spot": "Topanga",
+  "chain": 180.0,
+  "spot_fit": 194,
+  "station_fit": 205,
+  "n_station_hours": 29059,
+  "station_truth": {
+   "chain": null,
+   "spot_fit": null,
+   "station_fit": null
+  },
+  "mop_spot_truth": {
+   "chain": 0.0034429212278517174,
+   "spot_fit": 0.002043445403250853
+  },
+  "mop_spot_truth_SON": {
+   "chain": 0.0019374309209264405,
+   "spot_fit": 0.0018797365651087446
+  }
+ },
+ {
+  "station": "142p1",
+  "spot": "Rodeo Beach",
+  "chain": 223.9,
+  "spot_fit": 214,
+  "station_fit": 250,
+  "n_station_hours": 51822,
+  "station_truth": {
+   "chain": 0.018914541196748732,
+   "spot_fit": 0.027237686156668387,
+   "station_fit": 0.000557487146593965
+  },
+  "mop_spot_truth": {
+   "chain": 0.004384302123918156,
+   "spot_fit": 0.0026615437511533497
+  },
+  "mop_spot_truth_SON": {
+   "chain": 0.002795307607757858,
+   "spot_fit": 0.0025308377813391117
+  }
+ },
+ {
+  "station": "153p1",
+  "spot": "Blacks Beach",
+  "chain": 266.9,
+  "spot_fit": 245,
+  "station_fit": 242,
+  "n_station_hours": 56881,
+  "station_truth": {
+   "chain": 0.015419836274278727,
+   "spot_fit": 0.0005777703149201732,
+   "station_fit": 0.0004401495624450635
+  },
+  "mop_spot_truth": {
+   "chain": 0.011199807606607196,
+   "spot_fit": 0.000820452443414488
+  },
+  "mop_spot_truth_SON": {
+   "chain": 0.023153780470890124,
+   "spot_fit": 0.03207237516041822
+  }
+ },
+ {
+  "station": "201p1",
+  "spot": "La Jolla Shores",
+  "chain": 301.5,
+  "spot_fit": 229,
+  "station_fit": 243,
+  "n_station_hours": 56432,
+  "station_truth": {
+   "chain": 0.02550361210607009,
+   "spot_fit": 0.03104106565086942,
+   "station_fit": 0.011798166955739538
+  },
+  "mop_spot_truth": {
+   "chain": 0.03835007579902264,
+   "spot_fit": 0.04061196348683659
+  },
+  "mop_spot_truth_SON": {
+   "chain": 0.017479204580073147,
+   "spot_fit": 0.13067257806964533
+  }
+ },
+ {
+  "station": "264p1",
+  "spot": "San Onofre",
+  "chain": 213.6,
+  "spot_fit": 210,
+  "station_fit": 206,
+  "n_station_hours": 42570,
+  "station_truth": {
+   "chain": 0.0009186409127319337,
+   "spot_fit": 0.0013376501872257231,
+   "station_fit": 0.002106647592783756
+  },
+  "mop_spot_truth": {
+   "chain": 0.0003279540639163133,
+   "spot_fit": 0.00044320749611639665
+  },
+  "mop_spot_truth_SON": {
+   "chain": 0.0006471116749618286,
+   "spot_fit": 0.0011698123691164033
+  }
+ }
+]

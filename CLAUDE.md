@@ -33,10 +33,13 @@ node scripts/check_eslint.js   # CI's shrink-only lint-debt ratchet; a green Jes
 node scripts/wind-color/check.mjs   # wind palettes as COMPOSITED over each basemap, incl. colour-blind (its README)
 ```
 
-- **Test floors are shrink-only.** For a new backend test, `git add` it first (no lane claims an untracked file), then
-  move that lane's floor in `.github/workflows/ci.yml` AND `_FLOOR_SET_FROM` in
-  `backend/tests/test_ci_floor_staleness.py` in the same commit, and check that hosted CI's "collected N tests" equals
-  your projection. Hosted CI is the authority (the local guards lane takes 15-25 min).
+- **Test floors are shrink-only.** For a new backend test, `git add` it first (no lane claims an untracked file). Then
+  add a floor fragment for each lane you grow (guards, chain, estate or frontend; for frontend, files = Jest suites):
+  `python backend/scripts/rederive_floor.py --lane <lane> --add <N> [--add-files <M>]`. It writes
+  `.github/ci-floors.d/<branch-slug>.<lane>.json`. **Never edit the base lines** (the ci.yml floors or `_FLOOR_SET_FROM`):
+  every open PR conflicts on them. `--compact` folds the fragments into the base, on dev only, in a PR of its own
+  (`.github/ci-floors.d/README.md`). Check that hosted CI's "collected N tests" equals the number the script prints.
+  Hosted CI is the authority (the local guards lane takes 15-25 min).
 - **Fetchers run as subprocesses by path** (`services/_fetch_common.run_fetcher_subprocess`), where `services` is not
   importable: sibling imports are `try: from _x import … except ImportError: from services._x import …`
   (guard: `tests/test_fetcher_script_imports.py`).
@@ -129,9 +132,11 @@ measurement: check `git fetch`, `gh pr list --state open` and `/api/health` befo
 - **Surf chain** (`backend/services/weather_pipeline/`): `surf_point.resolve_surf_geometry` / `estimate_surf_at`
   (nearshore physics in `surf_transform.py`) → `surf_rating.compute_surf_rating`; reference
   `spot_ratings.rate_one_spot`. The sim is NOT a second path: `sim_rating.py` delegates both halves to this chain (the
-  private physics copy was deleted in `0cae5d74`). Pipeline sweep at `dev` `52e0ec53` (2026-09-28; 14 s, 315°, 5 kt
-  wind from 45°, only swell height varied): `0.5 m → 3.6 ft / 78.0` · `1 m → 6.4 ft / 86.5` · `4 m → 19.3 ft / 86.5`
-  · `8, 10, 12 m → 29.5 ft / 61.2` (the depth-limited ceiling). The earlier `8 m → 30.6 ft` and
+  private physics copy was deleted in `0cae5d74`). Pipeline sweep at (21.6650, -158.0500), re-run at `dev` `866a0e44`
+  (2026-11-10, `backend/scripts/pipeline_sweep_probe.py`; 14 s, 315°, 5 kt wind from 45°, η = 0, only swell height
+  varied): `0.5 m → 3.6 ft / 78.0` · `1 m → 6.4 ft / 86.5` · `4 m → 19.3 ft / 86.5` · `8, 10, 12 m → 29.5 ft / 61.2`
+  (the depth-limited ceiling: γ 0.81 × break depth 11.1 m). ⚠️ The ceiling is COORDINATE-SENSITIVE: the catalogue pin
+  (21.6650, -158.0538) sits in the next asset cell (11.8 m) and gives `31.4 ft`; scores are identical. The earlier `8 m → 30.6 ft` and
   `10 m → 36.6 ft / 34.6` readings were the MC-01 cap seam (bigger swell, smaller surf), repaired by #146
   (`SURF_CAP_SEAM_MONOTONE`, default on since 2026-09-28). Sweep the interior of a range, not its ends (LESSONS L-S10).
 - **Client** (`frontend/src/components/map/`, ~400 files): `marineGridSeries.js` (48-frame `/grid_series` pages) and

@@ -45,6 +45,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_HOLD_RUN_UNKNOWN_RELEASE__',
   // components/map/marineGridSeries.runIdentity.test.js (CLI-7: a newer-run page evicts older-run sibling pages)
   '__RAW_DISABLE_SERIES_RUN_EVICT__',
+  // tests/forecast-card-swell-vs-surf.test.js (CMP-4)
+  '__RAW_DISABLE_UNKNOWN_DEPTH_HIDE__',
   // components/map/marineUnpatchedMaskHold.test.js
   '__RAW_DISABLE_UNPATCHED_MASK_HOLD__',
   '__RAW_DISABLE_UNRESOLVED_DIRECTION__',
@@ -125,7 +127,6 @@ const KILL_SWITCHES_EXEMPT = new Set([
   '__RAW_DISABLE_BAND_RES_FADE__',
   '__RAW_DISABLE_BAND_WASH_UNDAMP__',
   '__RAW_DISABLE_BASE_AWARE_BRIDGE__',
-  '__RAW_DISABLE_BASE_COVER_GATE__',
   '__RAW_DISABLE_BASE_CRISP_MASK__',
   '__RAW_DISABLE_BASE_HOLD__',
   '__RAW_DISABLE_BASE_HOUR_SYNC__',

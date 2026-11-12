@@ -36,6 +36,12 @@ EXPECTED_LANES = [
 # native). These catch a real tail-LOSS per model (e.g. the EURO-estimates regression) without warning on
 # each model's NORMAL native horizon. Per-model override: HEALTH_MIN_HORIZON_HOURS_{GFS,EURO,ICON}.
 _HORIZON_DEFAULTS = {"GFS": 288.0, "EURO": 192.0, "ICON": 96.0}
+# ECMWF open-data 06/18Z cycles only reach 144 h (ecmwf_opendata_fetcher docstring). Since ING-7 reads the NEWEST
+# run only, those cycles would warn against the 192 h floor every time. Their floor counts from the CYCLE start
+# (hours of reach after the cycle time), minus a small slack for publication lag. Override:
+# HEALTH_MIN_HORIZON_HOURS_EURO_SHORT_CYCLE.
+_EURO_SHORT_CYCLE_HOURS = (6, 18)
+_EURO_SHORT_CYCLE_REACH_H = 138.0
 
 
 class _RatingsLaneUnconfigured(Exception):
@@ -94,8 +100,12 @@ def compute_data_health(store, now: Optional[datetime] = None) -> dict:
         cur = lane_state.get(key)
         if cur is None or rt > cur["run_time"]:
             lane_state[key] = {"run_time": rt, "horizon_end": vt,
+                               "cycle": _coerce_utc(getattr(p, "model_run_time", None))
+                               if getattr(p, "model_run_time_status", None) == "known" else None,
                                "source": getattr(p, "source_dataset", None) or getattr(p, "upstream_model", None)}
-        elif vt is not None and (cur["horizon_end"] is None or vt > cur["horizon_end"]):
+        elif rt == cur["run_time"] and vt is not None and (cur["horizon_end"] is None or vt > cur["horizon_end"]):
+            # ING-7: horizon is the NEWEST run's reach only. An older run's surviving tail must not mask a
+            # newest run that was truncated.
             cur["horizon_end"] = vt
 
     freshest = max((s["run_time"] for s in lane_state.values()), default=None)
@@ -143,7 +153,13 @@ def compute_data_health(store, now: Optional[datetime] = None) -> dict:
             verdict = _worse(verdict, "critical"); reasons.append(f"stale {age_h}h")
         elif lag_h > stale_h:
             verdict = _worse(verdict, "warn"); reasons.append(f"lags freshest by {lag_h}h")
-        if horizon_h is not None and horizon_h < _min_horizon(model):
+        cyc = st.get("cycle")
+        if model == "EURO" and cyc is not None and cyc.hour in _EURO_SHORT_CYCLE_HOURS and horizon_h is not None:
+            # 06/18Z: judge reach from the cycle start, not from now.
+            reach_h = round((st["horizon_end"] - cyc).total_seconds() / 3600.0, 1)
+            if reach_h < _f("HEALTH_MIN_HORIZON_HOURS_EURO_SHORT_CYCLE", _EURO_SHORT_CYCLE_REACH_H):
+                verdict = _worse(verdict, "warn"); reasons.append(f"horizon only {horizon_h}h (06/18Z cycle reach {reach_h}h)")
+        elif horizon_h is not None and horizon_h < _min_horizon(model):
             verdict = _worse(verdict, "warn"); reasons.append(f"horizon only {horizon_h}h")
         cycle_fields, cycle_verdict, cycle_reasons = summarize_model_cycles(
             lane_products[(model, domain)], now, model, domain)
