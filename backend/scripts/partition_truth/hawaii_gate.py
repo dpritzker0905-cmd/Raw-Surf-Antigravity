@@ -147,6 +147,7 @@ def lanes(rows):
         if "sl1" in r:
             d.update(p_sl1=float(ad(r["sl1"], r["tr"])), p_any=float(ad(r["sl1"], r["tr_any"])),
                      p_pers=None if r["tr_pers"] is None else float(ad(r["tr_pers"], r["tr"])),
+                     p_pers_any=None if r["tr_pers"] is None else min(abs(float(ad(r["tr_pers"], q))) for q in r["trs"]),
                      p_gfs_bulk=d["e_gfs"], p_tr_vs_mwd=float(ad(r["tr"], r["obs_mwd"])))
         out.append(d)
     return out
@@ -238,7 +239,8 @@ def report(L):
     P = [x for x in L if x["has_part"]]
     out["partition_keys"] = {"n": len(P), "bulk_on_same_keys": table(P, ("e_gfs", "e_cons", "e_pers")),
                              "slot1_vs_primary_train": table(P, ("p_sl1",)), "slot1_vs_any_train": table(P, ("p_any",)),
-                             "persistence_train": table(P, ("p_pers",)), "train_vs_mwd": table(P, ("p_tr_vs_mwd",)),
+                             "persistence_train": table(P, ("p_pers",)), "persistence_any_train": table(P, ("p_pers_any",)),
+                             "boot_buoy_any_minus_pers_any": cluster_boot(P, "p_any", "p_pers_any"), "train_vs_mwd": table(P, ("p_tr_vs_mwd",)),
                              "boot_buoy_slot1_minus_pers_train": cluster_boot(P, "p_sl1", "p_pers"),
                              "boot_buoy_any_minus_pers_train": cluster_boot(P, "p_any", "p_pers")}
     rng, nul = random.Random(9), []

@@ -162,3 +162,43 @@ licence is unresolved (researcher section 6). None of these is built here.
   ERDDAP MCP: `ww3_hawaii` dataset info (coverage 2011-06-21 to now, 0.05 deg, "best" splice). The ww3 MCP compares wave
   height with a buoy only and the SeaLegs MCP serves buoy observations already read from NDBC, so neither added direction
   evidence and neither was used.
+
+## 5. Reflection's review and a correction to the verdict (David approved the consult: "Yes, consult it")
+
+Reflection (`ask_reflection`, model Beam-1.0, high effort; sent the numbers in sections 1-2 only, no secrets) said, in short:
+the classification is **not fully justified**; "exposed = artefact" is defensible only for GFS against bulk MWD (consensus and
+EURO beat climatology, so the truth key alone cannot explain it); the partition reversal rests on a label-unstable lane; the
+largest gap is that rank-free matching was applied to GFS but **not to persistence**; "sheltered = real" is n = 2 and should
+read "unresolved / not yet sized"; other challenges: peak-vs-mean direction mismatch, closest-train matching is generous,
+class is confounded with site, a 3-week prior climatology is not a climatology, and the PacIOOS splice is not independent.
+It named one decisive check: run persistence through the same rank-free protocol.
+
+**I ran that check** (`hawaii_gate.py`, column `p_pers_any`: persistence's issue-time primary train matched to the closest
+observed train at the valid hour, exactly as GFS slot 1 is). Direction MAE, deg, rank-free:
+
+| exposed (3 buoys) | GFS slot 1 | persistence | GFS minus pers (buoy-cluster 95%) |
+|---|---|---|---|
+| label age (n 132) | 13.2 | 8.3 | +4.9 (3.8..6.7), all 3 buoys positive |
+| label tp10 (n 104) | 19.4 | 19.1 | -0.5 (-8.4..3.5) |
+| sheltered, age (n 79) | 37.4 | 9.4 | +28.6 (11.8..45.4) |
+| sheltered, tp10 (n 61) | 44.9 | 12.7 | +33.7 (26.8..40.7) |
+
+**Correction.** Section 2 item 1 said rule (b) fired because rank-free GFS (13.2) was below persistence of the primary train
+(19.7). That compared a closest-of-k oracle with a single-candidate baseline. With persistence given the same freedom it
+improves as much (8.3, and a tie at 19.1 under tp10), so **rule (b) does not fire**, and the exposed class is **not shown to
+be an artefact of train identity**. Withdrawn: "ARTEFACT" for the exposed class.
+
+**Revised verdict (supersedes section 2 where they differ):**
+1. **Exposed class: UNRESOLVED, GFS-specific.** What survives: persistence is a strong baseline here and GFS is worse than a
+   constant (31.8) on the bulk key, while EURO (29.3) and the consensus (28.2) are better than climatology. On N-NW swell the
+   model ties persistence (27.0 vs 27.9), and loses where the buoy's dominant direction is easterly (44.4 vs 19.8). That is
+   consistent with a peak-direction forecast against a dominant-period coastal key, but the instrument has not separated that
+   from a real GFS direction error, and the two labels disagree. The researcher's H1 (consensus) stays not supported at n = 3.
+2. **Sheltered class: persistence beats GFS under every key and label, including the symmetric rank-free one (intervals above
+   zero).** Read it as "the open-ocean direction does not represent these two buoys" and call it unsized: two buoys, one at a
+   harbour entrance, class confounded with site.
+3. **Unchanged:** 51214 is American Samoa and does not drive the figure; the pooled Hawaii row of #794 should not be read as a
+   swell-direction failure of the North Pacific swell sector; no served number moves.
+
+What would decide the exposed class (not done): a one-to-one, energy-weighted train match; a physical label fixed in advance
+(the period rule) with measured wind at a wind-equipped Hawaii buoy; a multi-season window; a real climatology.
