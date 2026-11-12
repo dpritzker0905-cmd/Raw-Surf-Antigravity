@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 10,
+  "branch": "codex/backend-sqlite-fixture-teardown-20261112",
+  "date": "2026-11-12",
+  "note": "Five fixture lifetime controls, ownership recurrence guard, real census rejection/acceptance, and late-thread/unraisable exit-code proofs; one new tracked test file"
+}
