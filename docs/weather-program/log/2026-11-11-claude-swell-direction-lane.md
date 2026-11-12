@@ -115,5 +115,5 @@ the buoy. It does say ICON's tm10 is as good as EURO's mwp on the same definitio
 
 ## 5. Ledger
 
-`ledger.d/claude-s8-direction-period-paired.jsonl`: the PR open line. Nothing armed, dispatched, written to Supabase
+`ledger.d/claude--s8-direction-period-paired.jsonl:1`: the PR open line (draft PR #794). Nothing armed, dispatched, written to Supabase
 or Render; no env var changed.
