@@ -89,6 +89,7 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
             # surf-HEIGHT band (the prior surf_transform_grid behaviour) for rollback.
             if os.environ.get("SURF_RATING", "1") != "0":
                 from services.weather_pipeline.surf_rating import rating_transform_grid
+                from services.weather_pipeline import band_chain as _band_chain
                 wind_fn = await _build_wind_sampler(store, manifest, model, target_dt)
                 # LOCAL SIZE CALIBRATION (P-local, band half): the size gate saturates at THIS coast's own
                 # good-day breaking height (gridded p80 climatology) instead of the global 1.2 m — the SAME
@@ -158,7 +159,9 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
 
                 n_t, n_masked = await asyncio.to_thread(
                     rating_transform_grid,
-                    product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km, wind_fn, chain_shore_normal_at,
+                    product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km, wind_fn,
+                    # CMP-1: under the one chain the bearing comes from the band cell's cached geometry (identical value)
+                    _band_chain.shore_normal_at if _band_chain.enabled() else chain_shore_normal_at,
                     reference_fn=(_recording_reference_fn if reference_fn else None), gate_fn=gate_fn)
                 tag = {"rated": n_t, "masked": n_masked, "value_kind": "surf_rating", "wind": bool(wind_fn),
                        "local_size": bool(reference_fn), "obs_gate": bool(gate_fn)}

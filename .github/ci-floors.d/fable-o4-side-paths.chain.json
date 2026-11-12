@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 9,
+  "files": 1,
+  "branch": "fable/o4-side-paths",
+  "date": "2026-11-12",
+  "note": "O4 side paths through the chain (side_paths tests)"
+}

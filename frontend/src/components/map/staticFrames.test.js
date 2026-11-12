@@ -108,7 +108,7 @@ describe('static frames loader', () => {
     } finally {
       delete window.__WEATHER_CAPABILITIES__;
     }
-    expect(STATIC_SETS).toHaveLength(26);   // + the eight RATED sets (staticRatingFrames, dark); the eight marine sets + GFS wind (windStaticFrames.js) + GFS/EURO/ICON pressure + GFS air temperature + GFS cloud cover (ownRasterFrames.js), which marine never serves, + the four filled EURO/ICON world sets (staticWorldFilled.test.js)
+    expect(STATIC_SETS).toHaveLength(32);   // + the six EURO swell sets (staticEuroSwellSets, 2026-11-12) + the eight RATED sets (staticRatingFrames, dark); the eight marine sets + GFS wind (windStaticFrames.js) + GFS/EURO/ICON pressure + GFS air temperature + GFS cloud cover (ownRasterFrames.js), which marine never serves, + the four filled EURO/ICON world sets (staticWorldFilled.test.js)
     expect(staticEligible({ model: 'GFS', layer: 'wind', bbox: WORLD })).toBe(false);
     expect(staticEligible({ model: 'GFS', layer: 'waves', bbox: WORLD, surf: true })).toBe(false);
     expect(staticEligible({ model: 'EURO', layer: 'swell_1', bbox: WORLD })).toBe(false);
@@ -165,7 +165,7 @@ describe('static frames loader', () => {
     expect(getPinnedIndexSync(iconKey)).toBeNull();
   });
 
-  test('a non-waves set rides both seams since #456 (the conform carries is_valid); the frame store still does not take it', async () => {
+  test('a non-waves set rides both seams since #456 (the conform carries is_valid), and the frame store takes it since 2026-11-12', async () => {
     // Before #456 the series conform dropped top-level is_valid and the encoder recovered land from v.waves only, so a swell
     // series frame's land cells (~4,850 of 15,023 in a real world frame) encoded as ocean: #453 held non-waves sets to seam A.
     const idx = indexFor('s1', ['2026-10-20T00:00:00Z']);
@@ -197,7 +197,10 @@ describe('static frames loader', () => {
     expect(staticSeriesEligible({ model: 'GFS', layer: 'swell_1', bbox: WORLD })).toBe(false);
     delete window.__RAW_DISABLE_STATIC_SERIES_ALL_SETS__;
     expect(hasPinnedIndex(swellKey)).toBe(true);
-    expect(getPinnedIndexSync(swellKey)).toBeNull();      // the frame store (waves-only packer) still never sees it
+    expect(getPinnedIndexSync(swellKey)).not.toBeNull();  // the frame store packs every marine layer (marineFramePack.packableLayer)
+    window.__RAW_DISABLE_FRAME_STORE_ALL_LAYERS__ = true;  // its kill: waves only again
+    expect(getPinnedIndexSync(swellKey)).toBeNull();
+    delete window.__RAW_DISABLE_FRAME_STORE_ALL_LAYERS__;
   });
 
   test('serves the /grid JSON from the CDN frame, then from memory', async () => {

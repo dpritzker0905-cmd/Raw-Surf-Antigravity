@@ -275,7 +275,12 @@ def submit_manifest_publish(store, manifest, exclude_keys=None):
     """Publish `manifest` (this process's cumulative in-memory registry) to L2.
 
     `exclude_keys`: product ids this call pruned (their objects are deleted), which a head that still names them must
-    not bring back. Raises what the three lines it replaces raised; the call sites already log that."""
+    not bring back. Raises what the three lines it replaces raised; the call sites already log that.
+    Every prune site passes its deleted ids here, so this is where their tombstones are written (ING-1, manifest_tombstones)."""
+    if exclude_keys is not None:
+        exclude_keys = list(exclude_keys)                                 # any iterable: read once here, used twice below
+        from services.weather_pipeline.manifest_tombstones import stamp
+        stamp(manifest, exclude_keys)
     if not one_step_active():
         _submit_legacy(store, manifest, exclude_keys)
         return
@@ -469,7 +474,8 @@ def _head_products(head_bytes, source="the head"):
     if len(usable) != len(products):
         logger.warning(f"[Manifest Publish] {len(products) - len(usable)} of {len(products)} entries in {source} are not usable "
                        f"(not an object, or no string id) and were left out of the merge")
-    return usable
+    from services.weather_pipeline.manifest_tombstones import ProductList, pruned_of
+    return ProductList.of(usable, pruned_of(doc))       # ING-1: the head's tombstones ride with its products
 
 
 def _legacy_products(deadline=None):

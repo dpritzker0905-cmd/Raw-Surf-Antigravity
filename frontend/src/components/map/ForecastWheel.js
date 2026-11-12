@@ -25,6 +25,7 @@
  * (shouldUseClassicScrubber — the parent checks it, this module owns the predicate).
  */
 import React, { useEffect, useRef, useCallback } from 'react';
+import { forecastDayLabel, forecastSelectionMs, formatForecastInstant } from './forecastReadout';
 
 export const WHEEL_MAX_VEL_HPS = 6;      // shuttle coast cap, hours/second (user-tunable below)
 const FRICTION_PER_SEC = 0.06;           // strong friction: velocity decays to 6% per second
@@ -151,8 +152,9 @@ export function wheelSettleTarget(hour, max) {
  * interacted. The information existed in the code and never reached the person who needed it, at
  * exactly the moment they needed it.
  */
-export function wheelValueText(hour, isRadar) {
+export function wheelValueText(hour, isRadar, dated = false) {
   if (isRadar) return `frame ${hour + 1}`;
+  if (dated) return `${hour === 0 ? 'Now' : `+${hour} ${hour === 1 ? 'hour' : 'hours'}`}, ${formatForecastInstant(forecastSelectionMs(hour))}`;
   if (hour === 0) return 'Now';
   return hour === 1 ? '+1 hour' : `+${hour} hours`;
 }
@@ -202,8 +204,7 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
         ctx.fillStyle = colors.label;
         ctx.font = `${10 * dpr}px -apple-system, sans-serif`;
         ctx.textAlign = 'center';
-        const d = new Date(); d.setHours(d.getHours() + h);
-        ctx.fillText(h === 0 ? 'Now' : d.toLocaleDateString('en-US', { weekday: 'short' }), x, H * 0.28);
+        ctx.fillText(h === 0 ? 'Now' : forecastDayLabel(h), x, H * 0.28);
       }
     }
     // nearest-detent emphasis under the cursor line
@@ -218,7 +219,7 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
     if (!box) return;
     const h = wheelSettleTarget(s.hour, max);
     box.setAttribute('aria-valuenow', h);
-    box.setAttribute('aria-valuetext', wheelValueText(h, isRadar));
+    box.setAttribute('aria-valuetext', wheelValueText(h, isRadar, true));
   }, [max, isRadar, s]);
 
   const commit = useCallback((h) => {
@@ -266,6 +267,8 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
   }, [reduced, settle, setHour, s]);
 
   const onPointerDown = useCallback((e) => {
+    if (s.dragging || e.isPrimary === false || (e.button !== undefined && e.button !== 0)) return;
+    s.pointerId = e.pointerId;
     s.dragging = true; s.vel = 0; s.lastDragCommitT = null;
     s.lastX = e.clientX; s.lastT = performance.now();
     if (s.raf) cancelAnimationFrame(s.raf);
@@ -276,7 +279,7 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
   }, [onScrubStart, commit, s]);
 
   const onPointerMove = useCallback((e) => {
-    if (!s.dragging) return;
+    if (!s.dragging || e.pointerId !== s.pointerId) return;
     const dx = e.clientX - s.lastX;
     const t = performance.now();
     const dh = dx / pitch;
@@ -293,25 +296,31 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
     }
   }, [pitch, max, isRadar, setHour, commit, s]);
 
-  const onPointerUp = useCallback(() => {
-    if (!s.dragging) return;
-    s.dragging = false;
+  const onPointerUp = useCallback((e) => {
+    if (!s.dragging || e.pointerId !== s.pointerId) return;
+    s.dragging = false; s.pointerId = null;
     // Decay the sampled velocity across the gap since the last MOVE, not the last event: a finger
     // that stopped moving has no velocity, however recently it was lifted. See wheelReleaseVelocity.
     s.vel = wheelReleaseVelocity(s.vel, performance.now() - s.lastT);
     if (Math.abs(s.vel) > 1.2 && !isRadar) coast(); else settle();
   }, [coast, settle, isRadar, s]);
 
+  const onPointerCancel = useCallback((e) => {
+    if (!s.dragging || e.pointerId !== s.pointerId) return;
+    s.dragging = false; s.pointerId = null; s.vel = 0;
+    settle(); // Cancellation ends at the current detent, without release inertia.
+  }, [settle, s]);
+
   const onKeyDown = useCallback((e) => {
     const dayStep = isRadar ? 1 : 24;
-    const step = { ArrowLeft: -1, ArrowRight: 1, PageDown: -dayStep, PageUp: dayStep }[e.key];
+    const step = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1, PageDown: -dayStep, PageUp: dayStep }[e.key];
     if (step !== undefined) {
       e.preventDefault();
       const cur = wheelSettleTarget(s.hour, max);
       setHour(cur + step, { doCommit: true });
-    } else if (e.key === 'Home') {
+    } else if (e.key === 'Home' || e.key === 'End') {
       e.preventDefault();
-      setHour(0, { doCommit: true });
+      setHour(e.key === 'Home' ? 0 : max, { doCommit: true });
     }
   }, [max, isRadar, setHour, s]);
 
@@ -379,14 +388,14 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
       // Declared here as well as in `setAria`, so it is correct FROM FIRST PAINT rather than only
       // after the user drives the wheel. React owns neither attribute exclusively — `setAria` still
       // updates both mid-gesture without a re-render — but both now read the same function.
-      aria-valuetext={wheelValueText(wheelSettleTarget(s.hour, max), isRadar)}
+      aria-valuetext={wheelValueText(wheelSettleTarget(s.hour, max), isRadar, true)}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}
+      onPointerCancel={onPointerCancel}
       onKeyDown={onKeyDown}
       className="relative w-full rounded-lg overflow-hidden cursor-grab active:cursor-grabbing focus-visible:ring-2 focus-visible:ring-cyan-500 outline-none"
-      style={{ height: 52, touchAction: 'pan-y' }}
+      style={{ height: 52, touchAction: 'pan-y pinch-zoom' }}
     >
       <canvas ref={canvasRef} className="absolute inset-0" />
       <div className="absolute top-0 bottom-0 pointer-events-none" style={{ left: 0, width: 36, background: `linear-gradient(to right, ${edgeFade}, transparent)` }} />

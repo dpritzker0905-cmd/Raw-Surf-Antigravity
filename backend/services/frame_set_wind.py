@@ -64,7 +64,10 @@ class PublishLane:
                 "feather_km": self.feather_km, "taper_hours": self.taper_hours, "source": self.source}
 
 
-LANE_ENV_OVERRIDES = ("WIND_HRRR_FEATHER_KM", "WIND_HRRR_TAPER_HOURS")
+# WIND_LANE_SKILL_WEIGHTS (2026-11-12, dark): frames always blend uncapped. A box with it on reports `skill_weights` in
+# box_state and the client then serves the lane's hours from /grid (windStaticFrames.laneVerdict), so a runner variable can
+# never make a frame carry a cap the box does not apply, or the reverse.
+LANE_ENV_OVERRIDES = ("WIND_HRRR_FEATHER_KM", "WIND_HRRR_TAPER_HOURS", "WIND_LANE_SKILL_WEIGHTS")
 
 
 def pin_code_defaults(log=print):

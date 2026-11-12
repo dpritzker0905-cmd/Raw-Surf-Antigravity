@@ -204,9 +204,10 @@ export function laneVerdict(index, frame, ptr, now = nowMs(), box = boxLane()) {
   // touch asks /grid. window.__RAW_DISABLE_WIND_STATIC_LANE_HOURS__ = true.
   if (touched && W().__RAW_DISABLE_WIND_STATIC_LANE_HOURS__ === true) return { refuse: 'lane_hours_killed' };
   // A lane hour is served only when the box says it blends the frames' OWN lane (key) with the frames' constants. Unknown (no
-  // fresh box read, an older server) is not confirmed: /grid serves it.
+  // fresh box read, an older server) is not confirmed: /grid serves it. A box capping HRRR's weight (WIND_LANE_SKILL_WEIGHTS=1
+  // reports `skill_weights`; the frames publisher never caps) blends differently from the frames: /grid serves its lane hours.
   const boxSame = !!(held && box.enabled === true && frames && held.key === frames.key && box.feather_km === frames.feather_km
-    && box.taper_hours === frames.taper_hours);
+    && box.taper_hours === frames.taper_hours && (box.skill_weights || null) === (frames.skill_weights || null));
   if (touched && !boxSame) return { refuse: held ? 'box_lane_differs' : 'box_lane_unconfirmed' };
   if (touched) return same && settled && own ? { stamp: own } : { refuse: same ? 'lane_unsettled' : 'lane_mismatch' };
   // GFS on both sides. The frame's own stamp names the frames' lane: /grid's, unless the box holds another one.
