@@ -90,14 +90,23 @@ def test_geometry_matches_the_pre_extraction_chain(name, lat, lng):
 
 
 @pytest.mark.parametrize("name,lat,lng", COORDS)
-def test_height_matches_the_pre_extraction_call(name, lat, lng):
-    """The composed height must equal the literal estimate_surf call point_resolution used to make."""
+@pytest.mark.parametrize("mop_calibrated", ["1", "0"])
+def test_height_matches_the_pre_extraction_call(name, lat, lng, mop_calibrated, monkeypatch):
+    """The composed height must equal the literal estimate_surf call point_resolution used to make.
+    SHORE_NORMAL_MOP_CALIBRATED (2026-11-11): at a California spot with a CDIP MOP fit, the literal call's exposure bearing
+    is the declared swell-exposure normal (swell_exposure_normals); with the flag off it is the coastline normal, as before."""
+    from services.weather_pipeline.swell_exposure_normals import exposure_normal_at
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
+    monkeypatch.setenv("SHORE_NORMAL_MOP_CALIBRATED", mop_calibrated)
     legacy = _legacy_chain(lat, lng)
+    exposure = exposure_normal_at(lat, lng)[0]
+    if mop_calibrated == "0":
+        assert exposure is None
     for Hs, Tp, sdir in ((1.0, 10.0, 270.0), (2.5, 14.0, 290.0), (6.0, 18.0, 300.0)):
         expected = estimate_surf(Hs, Tp, legacy["depth"], coastal=legacy["coastal"],
                                  shelf_width_km=legacy["width"], swell_from_deg=sdir,
-                                 shore_normal_deg=legacy["normal"], magnet_factor=legacy["magnet"],
-                                 break_depth_m=legacy["break_depth"])
+                                 shore_normal_deg=legacy["normal"] if exposure is None else exposure,
+                                 magnet_factor=legacy["magnet"], break_depth_m=legacy["break_depth"])
         got = estimate_surf_at(lat, lng, Hs, Tp, swell_from_deg=sdir)
         assert got == expected, f"{name} @ {Hs}m/{Tp}s/{sdir}deg: {got} != {expected}"
 
