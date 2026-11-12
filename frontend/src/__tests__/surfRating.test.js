@@ -1,5 +1,5 @@
 import {
-  computeSurfRating, ratingScore, sizeScore, periodQuality, windQuality, offshoreness,
+  ratingScore, sizeScore, periodQuality, windQuality, offshoreness,
   swellExposure, scoreToLevel, RATING_LEVELS, RATING_LABEL, RATING_COLOR,
   parseBestTide, tideFit, breakerTypeQuality,
   dominantSwellPeriod, effectiveSwellExposure, seaCleanliness,
@@ -9,6 +9,11 @@ import {
   oversizeGate, oversizeThresholds, OVERSIZE_FLOOR, OVERSIZE_ABS_START_M, OVERSIZE_ABS_FLOOR_M,
   OVERSIZE_GAMMA, OVERSIZE_MAX_BREAK_DEPTH_M, OVERSIZE_MIN_START_M,
 } from '../components/map/surfRating';
+
+// computeSurfRating was removed from production (CLI-4); this test-local helper keeps the same contract.
+const computeSurfRating = (h, ...rest) => (h == null
+  ? { score: null, level: 'unknown' }
+  : (s => ({ score: s, level: scoreToLevel(s) }))(ratingScore(h, ...rest)));
 
 // Parity mirror of backend tests/test_surf_rating.py — keep the two in sync.
 describe('surfRating (JS mirror of surf_rating.py)', () => {

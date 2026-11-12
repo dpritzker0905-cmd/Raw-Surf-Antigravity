@@ -427,6 +427,9 @@ async def lifespan(app: FastAPI):
     loop.set_default_executor(ThreadPoolExecutor(max_workers=16, thread_name_prefix="asyncio_default_executor"))
 
     logger.info("Starting Raw Surf OS API...")
+    # CMP-4: refuse to boot when the depth grid cannot load, rather than serve offshore heights as surf heights.
+    from services.weather_pipeline import bathymetry as _bathymetry
+    _bathymetry.verify_loadable()
     # Database health check - ensure all tables exist
     await ensure_database_tables()
     # Seed mock dev user profile on startup
