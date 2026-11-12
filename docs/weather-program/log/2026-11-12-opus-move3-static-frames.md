@@ -127,3 +127,53 @@ harness's own note: a series-page frame carries no product id and is never calle
   measured here (the lab store has no regional products in this run).
 - **Wind for ICON and EURO, and the Surf Rating band** are not covered by these two changes (no published ICON/EURO wind sets; the
   band's CI step never ran: the separate PR fixes its condition).
+
+## 07:20Z Accuracy addendum (the advisor's five notes)
+
+**Labels for every number above.** OFFLINE only: one desktop PC (Windows 11), headless system Chrome, 1280 x 800 at dpr 1, dark theme,
+center (-75, 30), zooms 2 and 4.6, harness `scn_instant_contract.js` against `serve_synthetic.py` (synthetic data, real backend code).
+Each session is a fresh browser (cold page load, empty frame store); the layer is turned on and settles 6 s, then the 15-action plan
+runs, so the first actions are cold-ish (store filling) and later ones warm. Before and after use the same plan, so they compare
+like with like; neither is a warm-only number. n per layer x model = 11-25 steps and 0-4 toggles from one run per arm. These do not
+prove live latency: the box, the CDN edge and real networks were not involved. **The real-user timing feed (`instant_rum`) has never
+been read** (its read-back was due 2026-10-30); no live reading backs any number here.
+
+**Corrections to the gap map (`log/2026-11-12-advisor-sota-gap-map.md` section 3), from current code at dev `a7c41dd2a`:**
+- "The GPU frame store is waves-only": TRUE at dev (three gates, quoted above), though much of the instant work it predates had merged:
+  #456 GPU-resident frames, #459 mid-zoom crops, #535 regional frames, #575 filled EURO/ICON world sets, #601 EURO/ICON mid-zoom
+  crops. Waves was already instant offline for all three models (p95 41-161 ms before this change).
+- GFS and ICON swell layers were NOT on the box before this change: they already read static frames (seam A/B), at 150-350 ms a step
+  offline. The box was involved for EURO swell (never listed client-side), estimated EURO hours, and the band (CI step never ran).
+- "EURO model toggle 1.0-1.3 s": for EURO waves, already ~160-190 ms offline before this change (#575); for EURO swell, 1.4-2.1 s
+  before, 91-174 ms after.
+
+**David's requirement, "All layers should be instant frames": every layer, offline, after #802 (+ #803 for the band).**
+
+| Layer | GFS | EURO | ICON | Why not, where not |
+|---|---|---|---|---|
+| waves | meets | meets | meets | - |
+| swell_1 | meets | meets | no (one 141 ms far jump) | first far jump before the fill reaches it |
+| swell_2 | meets | no | no | EURO: estimated hours > 240 still ask the box (fixable client-side; next). ICON: no product, client blend per step: needs a published blend set (publisher change) or a packed blend in the store |
+| wind_waves | no (first far jumps 270-468) | no (estimated tail) | no (157-239) | fill timing; EURO estimated tail as above |
+| wind | GFS has its own static engine (#468); not re-measured here | no frames published | no frames published | needs EURO/ICON wind sets in the publisher; adds ingest minutes to a step already over budget (below) |
+| Surf Rating band | box until #803 merges and a run publishes | same | same | CI condition bug (#803); not re-measured |
+| regional z7-9, non-waves layers | static, not store | EURO swell: no bundles | static | `getPinnedRegionalIndexSync` waves only; not measured |
+| pressure, temperature, satellite, precip, fog, water temp, radar | third-party tiles, never our box | same | same | not measured; own frames exist but are dark |
+
+None of the gaps found needs a Codex-reserved file, a bigger box or a tier-contract change. The one constraint that is structural:
+**the publish step is already over its budget** (15-18 min against 960 s; a run skipped all six EURO swell sets). Every added set
+(ICON swell_2 blend, EURO/ICON wind) competes for the same ~16 min. A second step with its own budget, or a parallel job, is needed
+before more sets are added.
+
+**Cost per ingest cycle (pilots run, about every 4 h):**
+- #802: **0 added bytes and 0 added ingest minutes**: it reads sets that are already published. Client egress per viewer changes: a
+  desktop that scrubs a swell layer now prefetches that run (~6.8 MB of frames for 115 frames) instead of fetching ~150-250 KB vectors
+  per step from the CDN, the same policy waves has had since D-048.
+- #803: the rated band step, up to 600 s of runner time per run (its own budget), ~16 KB a frame, 1.6-1.8 MB per set per run
+  (`log/2026-11-01-claude-rating-frames.md`); the bucket keeps the current and previous index, so about twice that is resident.
+- For reference, the EURO swell sets already cost ~6.6 MB uploaded per cycle when a run reaches them (offline: 1.23 + 0.22 + 0.74 MB
+  plain, the same again filled) and ~507 s of publish time on this PC.
+
+**Phone memory bound:** handheld tier 16 MiB GPU / 12 MiB CPU (`marineFrameStore.TIERS`), CPU bytes dropped once resident: about two
+whole runs resident (one 128-layer array is ~7.6 MB), LRU by set; the constrained tier (<= 2 GB RAM, Save-Data, 2g) 8 / 6 MiB.
+Phones fill on demand only (no idle fill). Not measured on a phone.
