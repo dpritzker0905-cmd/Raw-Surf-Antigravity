@@ -138,5 +138,8 @@ def test_current_resolution_failure_still_fails(conditions, monkeypatch):
 def _pin_the_kill_switch_chain(monkeypatch):
     """Spot-hub phase 2 is ON by default (SPOT_HUB_RATE_ONE_SPOT, owner policy 2026-11-04). This file pins the
     contract of the chain the KILL SWITCH ('0') restores, so it runs under '0'; the default path's equivalents
-    live in tests/test_spot_hub_rate_one_spot.py."""
+    live in tests/test_spot_hub_rate_one_spot.py.
+    The provider-fetch PREVIEW is likewise the O4 kill switch's path (SIDE_PATHS_THROUGH_CHAIN='0'); the default
+    rated preview's isolation contract is pinned in tests/test_side_paths_through_chain.py."""
     monkeypatch.setenv("SPOT_HUB_RATE_ONE_SPOT", "0")
+    monkeypatch.setenv("SIDE_PATHS_THROUGH_CHAIN", "0")

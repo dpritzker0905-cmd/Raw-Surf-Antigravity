@@ -29,6 +29,7 @@ DST or a political zone (Portugal, Spain, Hawaii -11 vs -10). Daylight itself us
 never in the dark. A stored spot timezone is the follow-up that removes this caveat.
 """
 from services import runtime_flags as _rf  # D-065: guarded flags read env > manifest > code default
+import logging
 import math
 import os
 from datetime import datetime, timedelta, timezone
@@ -37,6 +38,8 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 from services import forecast_tier_window as FTW
 from services.weather_pipeline import sim_daylight
 from services.weather_pipeline import surf_rating as SR
+
+logger = logging.getLogger(__name__)
 
 FLAG = "ALERTS_FORECAST_WINDOWS"
 M_TO_FT = 3.28084
@@ -321,6 +324,7 @@ def find_windows(alert, spot, series, now: datetime, horizon_hours: int, step_h:
     if not series:
         return {"windows": [], "reason": "no_forecast_for_spot"}
     off_h = local_offset_h(lng)
+    civil = _civil_zone(lat, lng)   # PRESENTATION ONLY (location_time phase 1): labels, never eligibility or splitting
     hold_s = max(1800.0, float(step_h) * 1800.0)
     tw = _as_list(getattr(alert, "time_windows", None))
     tides = _as_list(getattr(alert, "tide_states", None))
@@ -347,11 +351,11 @@ def find_windows(alert, spot, series, now: datetime, horizon_hours: int, step_h:
             run.append((slot, entry))
         else:
             if len(run) >= min_window_hours():
-                windows.append(_summarize(run, off_h))
+                windows.append(_summarize(run, off_h, civil))
             run = [(slot, entry)] if ok else []
         slot += timedelta(hours=1)
     if len(run) >= min_window_hours():
-        windows.append(_summarize(run, off_h))
+        windows.append(_summarize(run, off_h, civil))
     if not known:
         return {"windows": [], "reason": "no_forecast_in_horizon"}
     unevaluated = sorted(set(conds) & set(UNEVALUATED_CONDITIONS))
@@ -359,16 +363,40 @@ def find_windows(alert, spot, series, now: datetime, horizon_hours: int, step_h:
             "unevaluated_conditions": unevaluated}
 
 
-def _summarize(run, off_h: int) -> Dict[str, Any]:
+def _civil_zone(lat, lng) -> Optional[str]:
+    """The spot's civil IANA zone for LABELS (location_time phase 1), or None (flag off / no grid). The solar
+    `local_offset_h` keeps deciding time-window membership, the local-midnight split and the daily cap."""
+    try:
+        from services.weather_pipeline import location_time
+        lt = location_time.describe(lat, lng)
+        return (lt or {}).get("iana")
+    except Exception as e:                               # noqa: BLE001 - a label must never cost an alert
+        logger.warning("[surf-alerts] location_time failed at (%s, %s); solar labels: %s", lat, lng, e)
+        return None
+
+
+def _civil_labels(start: datetime, end: datetime, iana: str) -> Dict[str, Any]:
+    from services.weather_pipeline.location_time import offset_minutes
+    from zoneinfo import ZoneInfo
+    z = ZoneInfo(iana)
+    ls, le = start.astimezone(z), end.astimezone(z)
+    return {"civil_iana": iana, "civil_day": ls.strftime("%a"), "civil_start": ls.strftime("%H:%M"),
+            "civil_end": le.strftime("%H:%M"), "civil_utc_offset_min": offset_minutes(iana, start)}
+
+
+def _summarize(run, off_h: int, civil: Optional[str] = None) -> Dict[str, Any]:
     heights = [e["surf_height_m"] * M_TO_FT for _s, e in run]
     peak = max(run, key=lambda p: (p[1].get("score") if _finite(p[1].get("score")) else -1))[1]
     start, end = run[0][0], run[-1][0] + timedelta(hours=1)
     ls, le = start + timedelta(hours=off_h), end + timedelta(hours=off_h)
-    return {"start": start.strftime("%Y-%m-%dT%H:%M:%SZ"), "end": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
-            "local_day": ls.strftime("%a"), "local_start": ls.strftime("%H:%M"), "local_end": le.strftime("%H:%M"),
-            "local_offset_h": off_h, "height_ft_min": round(min(heights), 1), "height_ft_max": round(max(heights), 1),
-            "rating": peak.get("score"), "rating_level": peak.get("level"), "period_s": peak.get("period_s"),
-            "hours": len(run)}
+    out = {"start": start.strftime("%Y-%m-%dT%H:%M:%SZ"), "end": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+           "local_day": ls.strftime("%a"), "local_start": ls.strftime("%H:%M"), "local_end": le.strftime("%H:%M"),
+           "local_offset_h": off_h, "height_ft_min": round(min(heights), 1), "height_ft_max": round(max(heights), 1),
+           "rating": peak.get("score"), "rating_level": peak.get("level"), "period_s": peak.get("period_s"),
+           "hours": len(run)}
+    if civil:
+        out.update(_civil_labels(start, end, civil))
+    return out
 
 
 def overlaps(window: Dict[str, Any], notified: Iterable[Tuple[datetime, datetime]]) -> bool:
@@ -401,6 +429,8 @@ def collapse_windows(windows: Sequence[Dict[str, Any]], gap_h: int) -> List[Dict
             if parse_time(w["end"]) > parse_time(m["end"]):
                 m["end"] = w["end"]
                 m["local_end"] = (parse_time(w["end"]) + timedelta(hours=m["local_offset_h"])).strftime("%H:%M")
+                if m.get("civil_iana"):
+                    m["civil_end"] = _civil_labels(parse_time(m["start"]), parse_time(m["end"]), m["civil_iana"])["civil_end"]
             m["height_ft_min"] = min(m["height_ft_min"], w["height_ft_min"])
             m["height_ft_max"] = max(m["height_ft_max"], w["height_ft_max"])
             if _rating(w) > _rating(m):
@@ -448,8 +478,11 @@ def window_message(spot_name: str, window: Dict[str, Any]) -> str:
     """The brief's format: "Good window at {spot}: {day} {start}-{end}, {height}, {rating level}"."""
     level = (window.get("rating_level") or "").replace("_", " ").strip() or "quality unavailable"
     height = format_height(window["height_ft_min"], window["height_ft_max"])
-    return (f"Good window at {spot_name}: {window['local_day']} {window['local_start']}-{window['local_end']}, "
-            f"{height}, {level}")
+    if window.get("civil_iana"):   # location_time phase 1: the spot's real local time
+        when = f"{window['civil_day']} {window['civil_start']}-{window['civil_end']}"
+    else:
+        when = f"{window['local_day']} {window['local_start']}-{window['local_end']}"
+    return f"Good window at {spot_name}: {when}, {height}, {level}"
 
 
 def decide(alert, spot, horizon: Optional[Dict[str, Any]], now: datetime, *, notified=(),

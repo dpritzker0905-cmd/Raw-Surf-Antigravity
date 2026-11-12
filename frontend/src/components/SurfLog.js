@@ -1,4 +1,5 @@
 ﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {replaceHistoryUrl} from './routing/appHistory';
 import { useNavigate } from 'react-router-dom';
 import {
   BookOpen, Plus, Waves, Clock, MapPin, Star, Trash2, Edit3,
@@ -464,7 +465,7 @@ const SurfLog = () => {
           if (res.data.success) {
             toast.success("Strava successfully connected!");
             // Clean up the URL
-            window.history.replaceState({}, document.title, window.location.pathname);
+            replaceHistoryUrl(window.location.pathname);
           }
         } catch (err) {
           logger.error("Failed to connect Strava:", err);
@@ -474,7 +475,7 @@ const SurfLog = () => {
       exchangeToken();
     } else if (error) {
       toast.error(`Strava connection denied: ${error}`);
-      window.history.replaceState({}, document.title, window.location.pathname);
+      replaceHistoryUrl(window.location.pathname);
     }
   }, []);
 

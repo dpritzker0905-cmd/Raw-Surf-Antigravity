@@ -82,10 +82,17 @@ COVERAGE = {
                                             "the replay rates already took these inputs. Evidence: caller parity tests"),
     "RATING_BAND_ONE_CHAIN": (BLIND, "the map rating band (#776). Evidence: band level = glyph level over the spot "
                                      "asset (unit, offline)"),
+    "SIDE_PATHS_THROUGH_CHAIN": (BLIND, "the conditions preview, _breaking_ft and surf-conditions side paths (#774); "
+                                        "the replay rates rate_one_spot. Evidence: test_side_paths_through_chain.py"),
     "MANIFEST_PRUNE_TOMBSTONES": (BLIND, "moves which products the manifest lists, not a forecast number (#770). "
                                          "Evidence: the manifest chain harness (pruned entries stay pruned)"),
     "CONSENSUS_DIRECTION_VECTOR": (BLIND, "acts only inside a multi-model consensus build; the replay is GFS only. "
                                           "Evidence: the held-out NDBC MWD comparison that turned it on"),
+    "WIND_LANE_SKILL_WEIGHTS": (BLIND, "moves only the drawn /grid wind map (the HRRR lane's weight); no spot height or "
+                                       "rating reads the lane. Evidence: grade_wind_lane_ndbc.py + sweep_wind_lane_weight.py "
+                                       "(held-out NDBC vector RMSE by region x lead)"),
+    "LOCATION_TIME_FIELD": (BLIND, "presentation only: adds civil zone and civil-day rows (#762); no height, rating or "
+                                   "forecast value reads it. Evidence: test_location_time_invariance.py (served numbers equal)"),
 }
 BLIND_EVIDENCE = {
     "SURF_NEARSHORE_MOP": "nearshore-validation.yml mop_grid arm (archived MOP runs vs CDIP; armed off, dispatch)",

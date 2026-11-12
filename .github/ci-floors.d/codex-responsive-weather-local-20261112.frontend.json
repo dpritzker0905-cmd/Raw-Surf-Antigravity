@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 119,
+  "files": 12,
+  "branch": "codex/responsive-weather-local-20261112",
+  "date": "2026-11-12",
+  "note": "Measured corrected own selection27/287 (full29/297 less upstream2/10) minus same-runtime exact-base control15/168 = +12 suites/+119 cases. All changed tests covered; new own test pattern absent from baseline. Hosted qualification remains separate."
+}

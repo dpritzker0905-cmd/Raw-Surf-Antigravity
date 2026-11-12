@@ -17,6 +17,17 @@ from now. "Calendar today + 2" would be a different rule, and is an owner decisi
 entitlement enforcement. That needs server-side identity and is out of scope here.
 
 Kill switch: SPOT_FORECAST_TIER_HORIZON=0 sends every row again (the previous payload), read at call time.
+
+CIVIL ROWS (location_time phase 1, 2026-11-10). A hub row grouped by CIVIL date carries `day_end_utc`,
+`last_frame_utc` (its latest planned frame) and `solar_utc_offset_hours`. Its civil date can sit a day away from the
+solar date the rule above was written for (Apia +13 civil vs -11 solar), so judging it by its own date's 12:00 UTC
+under-sent a dateline spot's window by a row and, where civil runs behind solar, could expose frames solar never
+sent. Such a row is judged by the SOLAR row that holds its last frame: it is sent iff that solar row would be. A civil
+day that straddles two solar days also carries `tier_head` (the same day built from only its earlier solar day's
+frames, `truncated_for_tier`): when only that earlier solar day is inside the window, the head is sent in the row's
+place. So the frames a tier receives with civil rows are always a subset of the frames it received with solar rows -
+no added exposure - and a straddle never costs a tier a whole day (Kathmandu, +05:45 vs solar +6). By construction (pinned in tests/test_location_time_invariance.py over 24 hours x tiers x dateline and
+both offset directions). A civil row whose fields do not parse is withheld, never sent.
 """
 import os
 from datetime import datetime, timedelta, timezone
@@ -90,6 +101,21 @@ def _row_instant(date_id: Any) -> Optional[datetime]:
     return d.replace(hour=12, tzinfo=timezone.utc)
 
 
+def _civil_row_instant(row: Dict[str, Any]) -> Optional[datetime]:
+    """The 12:00 UTC sample of the solar date that holds this civil row's last planned frame (see the header)."""
+    try:
+        off = int(row["solar_utc_offset_hours"])
+        ref = row.get("last_frame_utc")
+        if ref:
+            last = datetime.fromisoformat(str(ref).replace("Z", "+00:00"))
+        else:                                   # no planned frame: the last instant of the civil day stands in
+            last = datetime.fromisoformat(str(row["day_end_utc"]).replace("Z", "+00:00")) - timedelta(seconds=1)
+        solar_day = (last.astimezone(timezone.utc) + timedelta(hours=off)).date()
+    except (KeyError, TypeError, ValueError):
+        return None
+    return datetime(solar_day.year, solar_day.month, solar_day.day, 12, tzinfo=timezone.utc)
+
+
 def split_forecast_rows(rows: Iterable[Dict[str, Any]], horizon_hours: int,
                         now: Optional[datetime] = None) -> Tuple[List[Dict[str, Any]], List[str]]:
     """(rows to send, dates withheld). A withheld row is named by its date only, so the client can still draw the
@@ -103,6 +129,16 @@ def split_forecast_rows(rows: Iterable[Dict[str, Any]], horizon_hours: int,
         at = _row_instant(row.get("date") if isinstance(row, dict) else None)
         if at is None:
             continue
+        if "day_end_utc" in row:                                # a civil row: judged by its last frame's solar day
+            civil_at = _civil_row_instant(row)
+            at = civil_at if civil_at is not None else limit + timedelta(days=1)   # unparseable: withheld
+            head = row.get("tier_head")
+            row = {k: v for k, v in row.items() if k != "tier_head"}            # never sent on; the head stands alone
+            if at > limit and isinstance(head, dict):
+                head_at = _civil_row_instant(head)
+                if head_at is not None and head_at <= limit:
+                    sent.append(head)
+                    continue
         if at > limit:
             withheld.append(row["date"])
         else:
