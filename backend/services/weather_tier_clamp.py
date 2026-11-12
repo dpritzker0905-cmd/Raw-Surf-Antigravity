@@ -48,6 +48,7 @@ from urllib.parse import parse_qsl, urlencode
 
 from services import forecast_tier_window as FTW
 from services import runtime_flags as _rf
+from services import weather_account_rate_limit as _RL
 
 logger = logging.getLogger(__name__)
 
@@ -208,7 +209,13 @@ async def _profile_tier(user_id: str) -> Optional[str]:
 
 
 async def resolve_tier(authorization: Optional[str], lookup: Callable = None, clock: Callable[[], float] = time.monotonic) -> str:
-    """The caller's canonical tier. Strict identity: only a VERIFIED JWT subject counts (get_optional_user_id); no
+    """The caller's canonical tier (see resolve_identity)."""
+    return (await resolve_identity(authorization, lookup, clock))[1]
+
+
+async def resolve_identity(authorization: Optional[str], lookup: Callable = None,
+                           clock: Callable[[], float] = time.monotonic) -> Tuple[Optional[str], str]:
+    """(verified user id or None, canonical tier). The id keys the per-account rate limit. Strict identity: only a VERIFIED JWT subject counts (get_optional_user_id); no
     token or a bad token is GUEST (no data, fail closed). A verified account is at least ACCOUNT_FLOOR: a profile with
     no tier, no profile row, or a failed lookup is `free` (the lowest window, never a paid one). Cached TIER_CACHE_TTL_S."""
     from core.security import get_optional_user_id
@@ -217,23 +224,23 @@ async def resolve_tier(authorization: Optional[str], lookup: Callable = None, cl
     except Exception:                                    # noqa: BLE001 - any identity failure is a guest
         uid = None
     if not uid:
-        return "guest"
+        return None, "guest"
     hit = _tier_cache.get(uid)
     if hit and clock() - hit[0] < TIER_CACHE_TTL_S:
         _tier_cache.move_to_end(uid)
-        return hit[1]
+        return uid, hit[1]
     try:
         raw = await (lookup or _profile_tier)(uid)
     except Exception as e:                               # noqa: BLE001
         logger.warning("[tier-clamp] profile tier lookup failed (free for this request): %s", type(e).__name__)
-        return ACCOUNT_FLOOR
+        return uid, ACCOUNT_FLOOR
     tier = FTW.canonical_tier(raw)
     if tier == "guest":
         tier = ACCOUNT_FLOOR
     _tier_cache[uid] = (clock(), tier)
     while len(_tier_cache) > TIER_CACHE_MAX:
         _tier_cache.popitem(last=False)
-    return tier
+    return uid, tier
 
 
 # ── the ASGI middleware ───────────────────────────────────────────────────────────────────────────────────────────────
@@ -244,9 +251,15 @@ class WeatherTierClampMiddleware:
     # Identity is the Authorization header only, as everywhere in this API (core.security is Bearer-only; no cookie
     # sessions), so "no header" really is "no identity" (LongCat finding 1, checked and not applicable).
 
-    def __init__(self, app, tier_fn: Callable = None):
+    def __init__(self, app, tier_fn: Callable = None, identity_fn: Callable = None):
         self.app = app
-        self.tier_fn = tier_fn or resolve_tier
+        self.tier_fn = tier_fn                       # tests: a tier only (no id, so no per-account limit)
+        self.identity_fn = identity_fn or (None if tier_fn else resolve_identity)
+
+    async def _identify(self, auth):
+        if self.identity_fn is not None:
+            return await self.identity_fn(auth)
+        return None, await self.tier_fn(auth)
 
     async def __call__(self, scope, receive, send):
         # HEAD too (LongCat review): Starlette routes HEAD to the GET handler; it returns no body, but one rule is simpler.
@@ -264,9 +277,12 @@ class WeatherTierClampMiddleware:
                 await send(message)
             return await self.app(scope, receive, send_on)
         auth = next((v.decode("latin-1") for k, v in scope.get("headers") or [] if k == b"authorization"), None)
-        tier = await self.tier_fn(auth)
+        uid, tier = await self._identify(auth)
         if tier == "guest":                              # ACCOUNTS ONLY: no verified account, no data
             return await _sign_in_required(scope, send)
+        wait = _RL.retry_after("reads", uid)              # per-account limit (in-process, no I/O); kill: flag '0'
+        if wait is not None:
+            return await _too_many(scope, send, wait)
         if names is None:                                # accounts-only, nothing to clamp (/point-tide, /wind_lane)
             names = ()
         params = parse_qsl(scope.get("query_string", b"").decode("latin-1"), keep_blank_values=True)
@@ -312,4 +328,14 @@ async def _sign_in_required(scope, send):
         (b"content-type", b"application/json"), (b"content-length", str(len(body)).encode()),
         (b"cache-control", b"private, no-store"), (b"vary", b"Authorization"),
         (b"www-authenticate", b'Bearer realm="raw-surf"'), (ON_HEADER, b"1"), (b"x-raw-tier-clamp", SIGN_IN_REQUIRED)]})
+    await send({"type": "http.response.body", "body": b"" if scope.get("method") == "HEAD" else body})
+
+
+async def _too_many(scope, send, retry_after_s: int):
+    """429 for an account over its per-account read limit (weather_account_rate_limit.py). Never cacheable."""
+    body = _RL.TOO_MANY
+    await send({"type": "http.response.start", "status": 429, "headers": [
+        (b"content-type", b"application/json"), (b"content-length", str(len(body)).encode()),
+        (b"cache-control", b"private, no-store"), (b"vary", b"Authorization"),
+        (b"retry-after", str(int(retry_after_s)).encode()), (ON_HEADER, b"1")]})
     await send({"type": "http.response.body", "body": b"" if scope.get("method") == "HEAD" else body})

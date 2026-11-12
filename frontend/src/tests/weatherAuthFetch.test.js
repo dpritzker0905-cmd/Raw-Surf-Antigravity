@@ -157,6 +157,23 @@ describe('weatherAuthFetch (O5 client half, one switch with the server clamp)', 
     expect(events).toEqual([]);
   });
 
+  test('a 5xx, a 429 or a network error never signs anyone out (no prompt, no retry, the error passes through)', async () => {
+    for (const status of [500, 502, 503, 429]) {
+      const r = { ok: false, status, headers: new Headers({ 'X-Raw-Tier-Clamp-On': '1' }) };
+      const { win, seen } = makeWin({ caps: [{ tier_clamp: true }], responses: [r] });
+      const events = withEvents(win);
+      const out = await win.fetch('/api/weather/grid?x=1');
+      expect([out.status, seen.length, events]).toEqual([status, 1, []]);
+    }
+    const win = { fetch: () => Promise.reject(new TypeError('Failed to fetch')), localStorage: { getItem: () => JSON.stringify({ access_token: 'tok' }) },
+      __WEATHER_CAPABILITIES__: [{ tier_clamp: true }] };
+    const events = withEvents(win);
+    installWeatherAuthFetch(win);
+    await expect(win.fetch('/api/weather/grid?x=1')).rejects.toThrow('Failed to fetch');
+    expect(events).toEqual([]);
+    expect(win.localStorage.getItem('raw-surf-user')).toContain('tok');      // the session is untouched
+  });
+
   test('install wraps fetch only once', () => {
     const win = { fetch: () => Promise.resolve(res()), localStorage: { getItem: () => null } };
     expect(installWeatherAuthFetch(win)).toBe(true);
