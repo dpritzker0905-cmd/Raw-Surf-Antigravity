@@ -2037,3 +2037,37 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Reopen if:** a later grade (another season, or a scheduled wind truth lane) moves a cell's fitted weight by >= 0.2,
   or the held-out blend stops beating both members in a cell with n >= 300.
 - **Rollback:** `WIND_LANE_SKILL_WEIGHTS` unset or `0`.
+
+### D-072 · The accuracy monitor pages on a same-model regression; the best_match gap warns, and is graded only where the same model also scores (2026-11-12, proposed)
+- **Status: PROPOSED, not decided.** Nothing is built. The owner decides. It reopens the WS-CAN-0026 rule in
+  `forecast-accuracy-monitor.yml` that pages when the `open_meteo_marine` (Open-Meteo `best_match`) paired MAE gap
+  passes +0.10 m. Every other gate in that workflow stands.
+- **Why it reopens:** the monitor has been RED since 2026-11-10 (+72 h gap +0.103 .. +0.111 m), and the RED says "this
+  size of gap is a regression". It is not one of ours (log `2026-11-12-fable-accuracy-monitor-red.md`):
+  - The same-model control (`open_meteo:ncep_gfswave025`, the identical GFS-Wave fetched by Open-Meteo) moved IN OUR
+    FAVOUR over the same runs: +72 h +0.006 (11-01) -> -0.019 m (11-12). Every 0.25 deg lane degraded together
+    (served 0.238 -> 0.341, the control 0.230 -> 0.325, persistence peaked 0.506); only `best_match` held (0.218 -> 0.232).
+  - The excess rose at +24, +48 and +72 h on the same 11-02 targets, so it follows the target date (weather: the first
+    North Pacific winter swell at 51201, PNW storms), not the issue date of any merge.
+  - 30-42% of the +72 h gap sits on the 10 buoys where GFS-Wave 0.25 deg has no wet cell (Open-Meteo `ncep_gfswave025`
+    returns nothing at all 96 hours, checked 2026-11-12): 44090, 46254, 46267, 46274, 46285, 51201, 51206, 51208, LJPC1
+    (plus 41121 is a `best_match` hole). The control drops those rows, `best_match` keeps them, and our sampler serves the
+    nearest ocean cell there. Our MAE on those keys went 0.24 -> 0.58 m.
+  - The +0.10 m bound was set as ~1.24x the worst gap recorded by 2026-08-10 (+0.081 m), a summer basis.
+- **Rule (when on):**
+  1. RED when we lose to `open_meteo:ncep_gfswave025` at a lead by more than a margin (proposed +0.03 m, ~3x the worst
+     same-model delta in the 25 runs 11-01..11-12, +0.009 m) AND the win rate is under 50%: that is a regression inside
+     our chain, which is what the page is for.
+  2. The `best_match` gap stays a WARN at every level. Its RED, if kept, is graded only on keys the same-model control
+     also scores (the coverage-hole buoys excluded), so a coastline the 0.25 deg model cannot resolve does not page.
+  3. The coverage-hole buoys get their own printed line (MAE, bias, n per lead), WARN only: they are a real product gap
+     (the nearest-ocean fallback reads exposed water at sheltered buoys, e.g. 46267 served 2.61 m vs 0.2 m observed at
+     T+0), tracked as work, not as an incident.
+- **Evidence:** the 25 scheduled monitor logs (public Actions), one cached read of `/api/weather/buoy-calibration`
+  (generated 2026-11-12T20:11Z; health 0.60 s before, 0.58 s after), NDBC daily summaries, one batched Open-Meteo call.
+  Estimated (aggregates only, the scored rows were not read): under rule 2 today's +72 h `best_match` gap is ~0.064 ..
+  0.077 m, under the bound; under rule 1 today is -0.019 m, green.
+- **Reopen if:** the same-model control stops being fetched or loses coverage beyond the 10 hole buoys, or a regression
+  is found that moved served MAE without moving the same-model delta.
+- **Rollback:** the current behaviour is the repo variables as they are today (`ACCURACY_PAIRED_REFERENCE_MARGIN_M`
+  0.10, `ACCURACY_PAIRED_GATE` 1); the change would ship behind its own kill switch.

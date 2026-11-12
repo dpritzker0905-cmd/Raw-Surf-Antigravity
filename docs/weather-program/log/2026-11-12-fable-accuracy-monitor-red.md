@@ -59,3 +59,29 @@ Append-only. Lane assigned by the coordinator (local_d6b521eb). Read-only so far
 2. Then one of: (a) a served fix at those buoys under D-065 (filter, kill switch, SCOREBOARD row), if a defect is found in
    what the Hawaii box serves at a no-wet-cell buoy; or (b) a DECISIONS entry that pages on WIDENING of the same-model control
    (a chain regression) and keeps the best_match level as a WARN, so a winter regime cannot page on a model-choice gap.
+
+## Addendum (same day, after the coordinator's go-ahead for one cached read)
+
+- **Live read:** `/api/health` 200 in 0.60 s, ONE `GET /api/weather/buoy-calibration` (200, 299,855 B, 0.68 s; report
+  generated 2026-11-12T20:11:40Z), `/api/health` 200 in 0.58 s. No retries. Scored rows not touched.
+- **The coverage holes, measured, not guessed:** one batched Open-Meteo call (the ledger's own request shape) at the NDBC
+  coordinates of all 60 buoys. `ncep_gfswave025` returns nothing (null or 0.0) at all 96 hours at 10 buoys: Hawaii 51201,
+  51206, 51208; San Diego and Oceanside 46254, 46274, 46285, LJPC1; Strait of Juan de Fuca 46267; Cape Cod Bay 44090.
+  `best_match` covers all of them. (`best_match` has its own hole at 41121, Puerto Rico.) The earlier Hawaii-only guess was
+  partly wrong: 51202, 51205 and 51211 are NOT holes.
+- **What we serve there:** the regional 0.25 deg pilot boxes (hawaii, us_west_coast_socal, us_pacific_northwest,
+  us_northeast) have no wet cell at those coordinates either, so `sampler.py` takes `nearest_ocean_fallback`: the nearest
+  wet cell, which reads exposed water. T+0 at 46267: observed 0.2 m, served 2.61 m (best_match mean 0.51 m). NDBC shows
+  46267 at 0.2..0.6 m daily mean the whole window while the open PNW buoys ran 3.5..5 m: the error scales with the offshore
+  sea, which is why it grew with the storms. The other hole buoys were close at this T+0 (51201 -0.35, 51206 -0.13,
+  44090 +0.33, SoCal holes within 0.13 m), so 46267 is the single worst; the 7-day split per buoy needs the rows.
+- **By coast (`forecast_skill_ocf.by_region`, held-out week from 11-05T20:11Z, paired consensus subset):** served MAE
+  pacific_ne 0.449 / 0.488 / 0.509 (n ~1,900), hawaii 0.405 / 0.400 / 0.411 (bias +0.09), other 0.36..0.46, atlantic_ne
+  0.18..0.21, atlantic_se 0.14, gulf 0.09..0.13 at +24/48/72 h.
+- **Served fix (a): NOT built.** A change to the nearest-ocean fallback would move every coastal spot that uses it, and the
+  evidence that it is wrong is one T+0 sample at one buoy plus an aggregate inference. D-065 needs the history filter on a
+  proposed served change, and the per-buoy 7-day split needs the scored rows (the owner's word on a credentialed read).
+- **(b) DECISIONS D-072, PROPOSED:** page on a same-model regression; keep the best_match gap as a WARN graded only where
+  the same model also scores; print the hole buoys on their own line.
+- **Tools:** Reflection, SubQ and LongCat were NOT called. The coordinator relayed the owner's approval; the owner had not
+  answered the same question asked here directly, so it waits for him.
