@@ -55,6 +55,8 @@ _RATING_FLAGS = {
                                         "services/weather_pipeline/consensus_product.py",
                                    "forecast-ingest-pilots workflow env (the lane that builds the CONSENSUS product); NOT Render. "
                                    "nearshore-validation reads the same flag (default 0) for the judge's consensus arm"),
+    "FORECAST_SKILL_DIRPER_PAIRED": ("0", "MEASUREMENT ONLY (S8 v2, skill_direction_period_paired.py): paired swell direction/period skill by lead and coast vs persistence and climatology; periods graded per definition, never pooled; no served number",
+                                     "forecast-ingest and precompute workflow env together (the two skill-ledger lanes); NOT Render"),
     "ESTIMATE_COHERENT_TRENDS": ("0", "Refuse stored marine estimates whose active trend pair lacks a verified shared model cycle",
                                 "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (L2 writers); NOT Render"),
     "EURO_MARINE_NATIVE_TAIL_CADENCE": ("1", "Preserve NOAA tail cadence (step 1 on the three-hourly cache, not stride 3 -> nine-hourly EURO 10-14 d estimates) and verify completed local extension no-ops",
@@ -176,9 +178,9 @@ _RATING_FLAGS = {
                                      "Render env"),
     # DEFAULT ON by the owner's word (D-017, 2026-10-09: "start it switched on"). It moves only the /grid wind map:
     # stored products, spot points, ratings and glyphs never pass through it (tests/test_wind_hrrr_lane.py pins that).
-    "WIND_HRRR_LANE": ("1", "The wind map draws HRRR by place and time: inside HRRR's domain and horizon every GFS wind "
-                            "tier blends the stored NOAA HRRR cycle (200 km feather, 3 h taper); 0 = the gfs_global map",
+    "WIND_HRRR_LANE": ("1", "The wind map draws HRRR by place and time: inside HRRR's domain and horizon every GFS wind tier blends the stored NOAA HRRR cycle (200 km feather, 3 h taper); 0 = the gfs_global map",
                        "Render env"),
+    "WIND_LANE_SKILL_WEIGHTS": ("0", "DARK (D-017 reopen, 2026-11-12): cap HRRR's weight in the wind lane by region x lead from the NDBC-fitted table (weather_pipeline/wind_lane_skill.py; West 0.4->0.2, East 0.5-0.6); moves the drawn wind map only, never a spot point or rating", "Render env"),
     # SERVE-BOX COST, not physics (2026-10-10): no wind number moves (tests/test_wind_bg_build_bounded.py pins the
     # vectors equal, on vs off). Off, a fresh wind box builds all ~385 hourly steps in the background with a full
     # gc.collect() each (0.42 s on the event loop) and a new box cancels the task a request may be waiting on.

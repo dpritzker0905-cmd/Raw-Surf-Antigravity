@@ -21,9 +21,22 @@ const TREND_EPS_M = 0.02;             // backend tide_state_at's slack threshold
 const cache = new Map();              // cellKey -> { ts, ok, state: {height_m, trend}|null }
 const inflight = new Map();           // cellKey -> Promise<state|null>
 
-/** ~0.1° cell key so nearby spots share one fetch (mirrors backend tide._round_key). */
+// Python round(value, 1) rounds the original binary float, including ties-to-even.
+// toFixed uses that original float too, but exact quarter-degree ties require
+// an even decimal neighbour rather than its usual away-from-zero tie rule.
+function roundTideCoordinate(value) {
+  const coordinate = Number(value);
+  const fraction = Math.abs(coordinate) % 1;
+  if (fraction === 0.25 || fraction === 0.75) {
+    const lower = Math.floor(Math.abs(coordinate) * 10);
+    return Math.sign(coordinate) * (lower + lower % 2) / 10;
+  }
+  return Number(coordinate.toFixed(1));
+}
+
+/** ~0.1° cell key so nearby spots share the backend tide._round_key cell. */
 export function tideCellKey(lat, lng) {
-  return `${Math.round(lat * 10) / 10},${Math.round(lng * 10) / 10}`;
+  return `${roundTideCoordinate(lat)},${roundTideCoordinate(lng)}`;
 }
 
 /**
