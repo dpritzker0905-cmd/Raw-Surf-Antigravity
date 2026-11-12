@@ -62,6 +62,9 @@ GUARDED = {
                                           # sea_inputs; parity 20 spots x 3 h to 1e-6; accuracy NOT measured
                                           # (filter primary hs_station: NO_CHANGE); kill '0'
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": "1",  # CMP-3: the rating reads the break depth the height's cap used; offline filter NO_CHANGE
+    "SIDE_PATHS_THROUGH_CHAIN": "1",    # O4: /api/conditions preview rows = precomputed rate_one_spot frames (rated);
+                                        # _breaking_ft fails CLOSED (never offshore Hs as surf); /api/surf-conditions
+                                        # target-time height labelled an unrated estimate; kill '0'
     "RATING_BAND_ONE_CHAIN": "1",       # CMP-1: map rating band = estimate_surf_at on cached geometry + break depth;
                                         # band level == glyph level at 4,101 of 4,197 asset spot-seas, 0 unexplained
 }
