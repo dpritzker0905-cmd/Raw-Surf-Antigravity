@@ -114,3 +114,35 @@ describe('forecastCardCompiler.js - compileForecastCards', () => {
     expect(cards[0].value).toBe('Clear (15 km)');
   });
 });
+
+// NO INVENTED WEATHER (2026-11-10): the infobox cards fed what the point hook now serves (null temperature, rain chance and
+// snowfall) instead of the old constants (20 C -> "68F", 0 %).
+describe('infobox cards with no invented weather', () => {
+  const clamp = (arr, i) => (Array.isArray(arr) ? (arr[i] ?? null) : null);
+  const cards = (activeLayer, wx, extra = {}) => compileForecastCards({
+    activeLayer, wx, currentHourIndex: 0, getClampedValue: clamp, isLoading: false,
+    temp: clamp(wx.temperature_2m, 0), snowfall: clamp(wx.snowfall, 0), precip: clamp(wx.precipitation, 0), ...extra,
+  });
+  const byLabel = (list, label) => list.find((c) => c.label === label);
+  const unknown = { temperature_2m: [null], precipitation_probability: [null], snowfall: [null] };
+
+  test.each(['rain', 'precipitation'])('%s: no Temp card, rain chance "--", a measured zero stays 0.0 mm/h', (layer) => {
+    const list = cards(layer, { ...unknown, precipitation: [0] });
+    expect(byLabel(list, 'Temp')).toBeUndefined();
+    expect(byLabel(list, 'Prob').value).toBe('--');
+    expect(byLabel(list, 'Rain').value).toBe('0.0 mm/h');
+    expect(byLabel(list, 'Snow')).toBeUndefined();
+  });
+
+  test('temperature layer: Air Temp is the decoded grid, else "--", never 68F', () => {
+    expect(byLabel(cards('temperature', unknown, { sampledAirTempC: 25 }), 'Air Temp').value).toBe('77°F');
+    expect(byLabel(cards('temperature', unknown, { sampledAirTempC: null }), 'Air Temp').value).toBe('--');
+  });
+
+  test('a real temperature and rain chance still render, with units', () => {
+    const list = cards('rain', { temperature_2m: [20], precipitation_probability: [40], snowfall: [0], precipitation: [1] });
+    expect(byLabel(list, 'Temp').value).toBe('68°F');
+    expect(byLabel(list, 'Prob').value).toBe('40%');
+    expect(byLabel(cards('temperature', { temperature_2m: [20] }, { sampledAirTempC: 25 }), 'Air Temp').value).toBe('68°F');
+  });
+});
