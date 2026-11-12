@@ -56,6 +56,8 @@ GUARDED = {
                                         # MAE 0.250 -> 0.096 m at CDIP buoys (2026-10-09..11-04), ON; kill '0'
     "MANIFEST_PRUNE_TOMBSTONES": "1",   # ING-1: a pruned manifest entry stays pruned across lanes (593/18,466 dangling
                                         # 2026-11-11); moves manifest membership only, filter NO_CHANGE; kill '0'
+    "SHORE_NORMAL_MOP_CALIBRATED": "0",  # HELD OFF (D-065 WORSE): MOP says better (held-out MSE 0.0234 -> 0.0046, 77 spots)
+                                         # but the nearshore arm's hb_proxy says WORSE, +0.0385 m MAE [0.0234, 0.0589]
     "SURF_SEA_INPUTS_EVERY_CALLER": "1",  # CMP-2: hub/conditions/surf-conditions/sim take /point's tide (+MOP) via
                                           # sea_inputs; parity 20 spots x 3 h to 1e-6; accuracy NOT measured
                                           # (filter primary hs_station: NO_CHANGE); kill '0'
