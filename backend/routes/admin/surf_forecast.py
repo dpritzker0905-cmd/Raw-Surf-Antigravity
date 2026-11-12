@@ -55,10 +55,10 @@ _RATING_FLAGS = {
                                         "services/weather_pipeline/consensus_product.py",
                                    "forecast-ingest-pilots workflow env (the lane that builds the CONSENSUS product); NOT Render. "
                                    "nearshore-validation reads the same flag (default 0) for the judge's consensus arm"),
-    "FORECAST_SKILL_DIRPER_PAIRED": ("0", "MEASUREMENT ONLY (S8 v2, skill_direction_period_paired.py): paired swell direction/period skill by lead and coast vs persistence and climatology; periods graded per definition, never pooled; no served number",
-                                     "forecast-ingest and precompute workflow env together (the two skill-ledger lanes); NOT Render"),
-    "ESTIMATE_COHERENT_TRENDS": ("0", "Refuse stored marine estimates whose active trend pair lacks a verified shared model cycle",
-                                "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (L2 writers); NOT Render"),
+    "WAVES_ANIM_DOMINANT_SWELL": ("0", "[EFFECTIVE 1 via repo variable since 2026-07-13; D-070 proposed; ING-5] marine/waves direction and u/v from the dominant swell partition where H_sw^2 >= WAVES_ANIM_SWELL_MIN_FRAC x Hs^2 and >= 95% of the product's wave cells carry a partition; height stays total. Reaches the rating's swell_from and the height's direction terms via the point sampler. GFS/ICON only. normalizer.py", "repo VARIABLE WAVES_ANIM_DOMINANT_SWELL (reads 1), read by forecast-ingest and forecast-ingest-pilots with '0' fallback; NOT precompute (it rates stored grids); Render env set 2026-07-13, current value unverified"),
+    "WAVES_ANIM_SWELL_MIN_FRAC": ("0.35", "Energy gate (height^2 ratio) of WAVES_ANIM_DOMINANT_SWELL; inert while that is 0", "repo VARIABLE WAVES_ANIM_SWELL_MIN_FRAC (unset 2026-11-11), read by forecast-ingest and forecast-ingest-pilots with '0.35' fallback; NOT precompute"),
+    "FORECAST_SKILL_DIRPER_PAIRED": ("0", "MEASUREMENT ONLY (S8 v2, skill_direction_period_paired.py): paired swell direction/period skill by lead and coast vs persistence and climatology; periods graded per definition, never pooled; no served number", "forecast-ingest and precompute workflow env together (the two skill-ledger lanes); NOT Render"),
+    "ESTIMATE_COHERENT_TRENDS": ("0", "Refuse stored marine estimates whose active trend pair lacks a verified shared model cycle", "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (L2 writers); NOT Render"),
     "EURO_MARINE_NATIVE_TAIL_CADENCE": ("1", "Preserve NOAA tail cadence (step 1 on the three-hourly cache, not stride 3 -> nine-hourly EURO 10-14 d estimates) and verify completed local extension no-ops",
                                         "forecast-ingest workflow env (repo variable EURO_MARINE_NATIVE_TAIL_CADENCE); owner's word with evidence"),
     "INGEST_PRUNE_ESTIMATES_AFTER_REPLACE": ("1", "Prune a superseded estimate only once a replacement exists at its valid time (authoritative, or an estimate of a newer run); closes the ~22 min EURO tail outage between the coarse save's prune and the extended-estimates rewrite. services/weather_pipeline/copernicus_validator.py",
@@ -242,6 +242,7 @@ _RATING_FLAGS = {
     # registry wording. `0.55+0.45*exposure` is surf_transform._height_exposure_factor; quality
     # (surf_rating.swell_exposure) is untouched. Direction matters to an operator: flipping this
     # SHRINKS off-axis heights (-46.9% at the floor, 0.0% head-on), it does not raise scores.
+    "LOCATION_TIME_FIELD": ("0", "[D-065 held OFF until its SCOREBOARD row + history filter land] location_time phase 1 (#762): civil IANA zone (0.01 deg grid) on the hub, /point-tide and GET /weather/location-time; hub daily rows by CIVIL date (same rated frames). Tier-safe. services/weather_pipeline/location_time.py", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"),
     "SURF_EXPOSURE_RECONCILED": ("0", "[D-065 held OFF: the history filter shows it WORSE, hs_station MAE +0.0093 m CI [0.0076, 0.0113]; fix in progress] Reconcile the DUAL swell-aim floor: replace the HEIGHT "
                                       "curve 0.55+0.45*exposure with sqrt(exposure) so height**2 "
                                       "== exposure and the height/quality chains stop reading one "

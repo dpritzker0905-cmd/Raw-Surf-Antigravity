@@ -7,6 +7,7 @@ appends the address it saw on the RIGHT). Rotating that value gave 30 wrong-pass
 Everything here goes through the real routers over an ephemeral SQLite file; nothing leaves the process.
 """
 import logging
+import sys
 import types
 
 import pytest
@@ -24,6 +25,7 @@ from models import PlatformSettings, Profile, RoleEnum
 from routes.admin import analytics_settings
 from routes.auth_pkg import auth as auth_module
 from routes.auth_pkg import password_reset
+from tests.sqlite_lifecycle import assert_request_engines_closed
 
 PASSWORD = 'correct-horse-9'
 BAD = 'wrong-password'
@@ -110,9 +112,11 @@ def client(tmp_path):
 
     async def get_db():
         engine = create_async_engine(f'sqlite+aiosqlite:///{path}')
-        async with async_sessionmaker(engine, expire_on_commit=False)() as session:
-            yield session
-        await engine.dispose()
+        try:
+            async with async_sessionmaker(engine, expire_on_commit=False)() as session:
+                yield session
+        finally:
+            await engine.dispose()
 
     app = FastAPI()
     for router in (auth_module.router, password_reset.router, analytics_settings.router):
@@ -373,3 +377,11 @@ def test_a_valid_code_clears_earlier_misses_from_that_address(client):
     assert verify(client, 'OPENSESAME', '203.0.113.9').json()['valid'] is True
     for i in range(limit - 1):
         assert verify(client, f'AGAIN{i}', '203.0.113.9').status_code == 200
+
+
+@pytest.mark.parametrize('accepted', [True, False], ids=['success', 'http-error'])
+def test_request_closes_sqlite_connection_before_returning(client, monkeypatch, accepted):
+    """Successful and denied requests release their real SQLite connections and workers."""
+    with assert_request_engines_closed(client, monkeypatch, sys.modules[__name__]):
+        response = attempt(client, 'alice@example.com', PASSWORD if accepted else BAD, '203.0.113.9')
+        assert response.status_code == (200 if accepted else 401)
