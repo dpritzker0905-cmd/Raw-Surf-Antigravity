@@ -303,7 +303,7 @@ test.describe('Standard Surfer Map Controls', () => {
     const playBtn = page.locator('button[aria-label="Play"]').filter({ visible: true });
     await expect(playBtn).toBeVisible();
 
-    // Verify time readout initially says "Live"
+    // Verify time readout initially shows the hour-0 "Now · …" chip
     // The chip holds two spans since 1cfc15fd (F-07): the visible time (aria-hidden) and a
     // screen-reader sentence ("Showing the forecast for …"). Reading the whole div concatenated them
     // ("LiveShowing the forecast for Fri 4 PM.") and failed on every run from then on (audit 15.0,
@@ -311,7 +311,9 @@ test.describe('Standard Surfer Map Controls', () => {
     const timeReadout = page
       .locator('div.min-w-\\[50px\\] > span[aria-hidden="true"]')
       .filter({ visible: true });
-    await expect(timeReadout).toHaveText('Live');
+    // Since #791 (responsive weather, 2026-11-12) the visible chip reads "Now · <date, time, zone>" at hour 0
+    // (forecastReadout.js), not "Live". Pin the prefix the hour-0 contract owns, not the clock text.
+    await expect(timeReadout).toHaveText(/^Now · /);
 
     // 4. Toggle timeline play
     await playBtn.evaluate(el => el.click());
@@ -348,9 +350,9 @@ test.describe('Standard Surfer Map Controls', () => {
     // re-render cannot steal focus between the two.
     await scrubber.press('PageUp');
 
-    // The widget's own contract moved (0 -> 24), and the readout followed it off "Live".
+    // The widget's own contract moved (0 -> 24), and the readout followed it off "Now · …".
     await expect(scrubber).not.toHaveAttribute('aria-valuenow', '0');
-    await expect(timeReadout).not.toHaveText('Live');
+    await expect(timeReadout).not.toHaveText(/^Now · /);
   });
 
   test('surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas', async ({ page }) => {

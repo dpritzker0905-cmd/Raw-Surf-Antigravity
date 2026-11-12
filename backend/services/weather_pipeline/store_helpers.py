@@ -590,6 +590,8 @@ def fetch_l2_to_disk(store, filename: str, now: Optional[float] = None) -> bool:
     import threading
     from services.weather_pipeline.store import ProductStore, WEATHER_BUCKET, _get_supabase_storage
     now = time.time() if now is None else now
+    if not filename or ("/" in filename or "\\" in filename) or '..' in filename:   # SRV-1 defence in depth: never a path
+        return False
     filepath = store.cache_dir / filename
     if not filepath.exists():
         with ProductStore._l2_negative_cache_lock:

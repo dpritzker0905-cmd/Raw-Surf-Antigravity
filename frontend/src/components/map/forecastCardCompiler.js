@@ -341,7 +341,12 @@ export function compileForecastCards({
     {
       const _surf = useExactPoint?.surf_height_m;
       const _reg = useExactPoint?.surf_regime;
-      const _hidden = _reg === 'open_ocean' || _reg === 'calm' || _reg === 'unknown';
+      // CMP-4: `unknown_depth` = coastal point with no usable depth; the backend passes the OFFSHORE height through
+      // untransformed, so showing it as "Surf" would be the offshore number under a breaking-height label. Hidden
+      // (Swell below still carries the offshore sea, named). Kill: window.__RAW_DISABLE_UNKNOWN_DEPTH_HIDE__ = true.
+      const _unknownDepthHidden = _reg === 'unknown_depth'
+        && !(typeof window !== 'undefined' && window.__RAW_DISABLE_UNKNOWN_DEPTH_HIDE__ === true);
+      const _hidden = _reg === 'open_ocean' || _reg === 'calm' || _reg === 'unknown' || _unknownDepthHidden;
       // NEARSHORE GATE (2026-07-18, user mandate: "Estimated surf should only appear on a marker
       // that is nearshore"): the backend tags land-within-~±0.25° (surf_nearshore). Strictly hide
       // when the backend says false; null/undefined (older cached responses, deploy skew) keeps the
@@ -374,7 +379,9 @@ export function compileForecastCards({
     // A15-05(b)); nothing here grades.
     {
       const _reg = useExactPoint?.surf_regime;
-      const _coastal = _reg && _reg !== 'open_ocean' && _reg !== 'calm' && _reg !== 'unknown';
+      // The rating of an `unknown_depth` point was graded on that same untransformed offshore height (CMP-4).
+      const _coastal = _reg && _reg !== 'open_ocean' && _reg !== 'calm' && _reg !== 'unknown'
+        && !(_reg === 'unknown_depth' && !(typeof window !== 'undefined' && window.__RAW_DISABLE_UNKNOWN_DEPTH_HIDE__ === true));
       if (_coastal && surfRating && surfRating.score != null && surfRating.level && surfRating.level !== 'unknown') {
         const _ratingLabel = RATING_LABEL[surfRating.level] || '—';
         cards.push({

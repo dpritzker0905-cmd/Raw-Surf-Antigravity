@@ -55,6 +55,8 @@ for (const id of ids) {
   const P = palettes[id];
   out[id] = {};
   for (const theme of themes) {
+    if (!Array.isArray(P[theme])) { console.log(`
+=== ${theme.toUpperCase()}  palette ${id}: no ${theme} table (the ${id} palette is not drawn in ${theme}): skipped`); continue; }   // spectrum is light-only (D-037)
     const H = P.heights, cap = P.cap, water = BASEMAP[theme].water.map((v) => v / 255), land = BASEMAP[theme].land.map((v) => v / 255), panel = BASEMAP[theme].panel.map((v) => v / 255);
     console.log(`\n=== ${theme.toUpperCase()}  palette ${id}  (anchors ${H.join(' ')} m; ${P.over ? `above ${cap} m: its own colour` : `clamped at ${cap} m`}; over the ${theme} water ${BASEMAP[theme].water.join(',')})`);
     // 1. Lightness: the wash, then the composite at each view and lighting. Sampled every 0.02 m from 0.18 m (the depth floor below).

@@ -129,6 +129,32 @@ describe('when the Surf row is suppressed, the label is the only thing keeping i
   });
 });
 
+describe('CMP-4: an unknown_depth row renders no height', () => {
+  const rating = { score: 86.6, level: 'epic' };
+
+  afterEach(() => { delete window.__RAW_DISABLE_UNKNOWN_DEPTH_HIDE__; });
+
+  test('no Surf card and no Rating badge; the named offshore Swell card stays', () => {
+    const cards = build({ exact: { surf_regime: 'unknown_depth', surf_height_m: 2.4 }, surfRating: rating });
+    expect(labels(cards)).not.toContain('Surf');
+    expect(labels(cards)).not.toContain('Rating');
+    expect(labels(cards)).toContain('Swell');
+    expect(byLabel(cards, 'Swell').ariaLabel).toMatch(/offshore swell height/i);
+  });
+
+  test('a healthy regime still shows Surf and Rating', () => {
+    const cards = build({ surfRating: rating });
+    expect(labels(cards)).toContain('Surf');
+    expect(labels(cards)).toContain('Rating');
+  });
+
+  test('window.__RAW_DISABLE_UNKNOWN_DEPTH_HIDE__ restores the old row', () => {
+    window.__RAW_DISABLE_UNKNOWN_DEPTH_HIDE__ = true;
+    const cards = build({ exact: { surf_regime: 'unknown_depth', surf_height_m: 2.4 }, surfRating: rating });
+    expect(labels(cards)).toContain('Surf');
+  });
+});
+
 describe('accessibility: the two quantities must survive being read aloud', () => {
   test('both cards carry an aria-label naming the quantity in full', () => {
     const cards = build();

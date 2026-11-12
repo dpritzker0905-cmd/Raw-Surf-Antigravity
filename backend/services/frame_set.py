@@ -32,6 +32,7 @@ import os
 from datetime import datetime, timezone
 
 from services import frame_binary as fb
+from services import frame_set_bight as fsb
 from services import frame_set_fill as fsf
 from services import frame_set_rating as fsr
 from services import frame_set_wind as fsw
@@ -274,7 +275,8 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
             f = dict(f, meta={**prev_common, **(f.get("meta") or {})}, grid=f.get("grid") or prev_grid)
         prev_frames[(f["valid_time"], bool(f.get("is_estimated")))] = f
     stats = {"entries": 0, "built": 0, "carried": 0, "unchanged": 0, "uploaded": 0, "not_local": 0, "stale_local": 0,
-             "refused": 0, "bytes_uploaded": 0, "parity_bad": 0, "coverage": 0.0, "coverage_authoritative": 0.0,
+             "refused": 0, "bight_refused": 0, "bytes_uploaded": 0, "parity_bad": 0, "coverage": 0.0,
+             "coverage_authoritative": 0.0,
              "coverage_refused": False,
              # ⬇ 2026-10-24 (the lead): every CHECKED frame's errors, refused or built, so the publish report shows how
              # close accepted frames run to each tolerance (before, only refusals printed u/v): per field plus u/v, and
@@ -295,6 +297,7 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
     entries = select_entries(products, target)
     stats["entries"] = len(entries)
     fill_store = fsf._ManifestStore(products) if filled else None
+    bight_view = None                          # SRV-2: the Bight composition /grid serves, baked (frame_set_bight)
 
     def unbuilt(vt, est, ident, reason):
         stats[reason] += 1
@@ -311,6 +314,10 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
             ident["fill_donor"] = fsf.donor_identity(donor)
         if rated:                              # the chain (env, blobs, code) and this hour's wind + gate inputs
             ident["rating"] = chain_key + ":" + rating_inputs.ask_key(target["model"], fsr._iso_dt(vt))
+        bight_on = fsb.applies(target, entry)
+        if bight_on:                           # a new EURO run in the Bight rebuilds the frame
+            bight_view = bight_view or fsb.ManifestView(products)
+            ident["bight"] = fsb.identity(bight_view, vt)
         prev = prev_frames.get((vt, est))
         if prev and prev.get("path") and prev.get("source") == ident:
             frames.append(prev)
@@ -324,6 +331,14 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
         if iso(product.get("model_run_time")) != ident["model_run_time"] or iso(product.get("run_time")) != ident["run_time"]:
             unbuilt(vt, est, ident, "stale_local")   # the disk copy is not the run the manifest names: never mix runs
             continue
+        if bight_on:
+            try:
+                product, n_blended = fsb.bake(product, bight_view, fsb.dependency_reader(source))
+            except ValueError as e:            # never publish a Bight frame /grid would not serve: this hour goes to /grid
+                log(f"[frames] {entry['filename']}: Bight composition refused ({e})")
+                unbuilt(vt, est, ident, "bight_refused")
+                continue
+            stats["bight_blended_cells"] = stats.get("bight_blended_cells", 0) + n_blended
         if filled:
             if donor is None:
                 log(f"[frames] {entry['filename']}: no same-layer GFS global_mid within 3 h; /grid serves this hour")
@@ -406,6 +421,9 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
     older = [f for f in auth if not f.get("path") and f.get("unbuilt") == "not_local"
              and (f["source"].get("model_run_time") or "") < newest]
     stats["not_local_older_run"] = len(older)
+    # SRV-2: an hour whose Bight composition could not be baked goes to /grid (correct, slower) and stays out of the gate,
+    # or one missing EURO frame would refuse the whole set and leave the previous RAW index published.
+    older += [f for f in auth if not f.get("path") and f.get("unbuilt") == "bight_refused"]
     auth = [f for f in auth if not any(f is o for o in older)]
     stats["coverage_authoritative"] = round(sum(1 for f in auth if f.get("path")) / len(auth), 4) if auth else 0.0
     if not built:

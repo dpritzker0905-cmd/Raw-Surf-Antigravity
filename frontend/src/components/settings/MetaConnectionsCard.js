@@ -1,3 +1,4 @@
+import {replaceHistoryUrl} from '../routing/appHistory';
 import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Loader2, Link2, ExternalLink } from 'lucide-react';
@@ -25,7 +26,7 @@ export const MetaConnectionsCard = ({ userId, textPrimaryClass, textSecondaryCla
     setConnecting(true);
     try {
       const response = await apiClient.get(`/meta/callback`, { params: { code, state, redirect_uri: `${window.location.origin}/settings` } });
-      if (response.data.success) { toast.success('Meta accounts connected successfully!'); fetchMetaStatus(); window.history.replaceState({}, '', '/settings'); }
+      if (response.data.success) { toast.success('Meta accounts connected successfully!'); fetchMetaStatus(); replaceHistoryUrl('/settings'); }
     } catch (err) { toast.error(err.response?.data?.detail || 'Failed to connect Meta accounts'); } finally { setConnecting(false); }
   };
 

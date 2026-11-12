@@ -1,3 +1,4 @@
+import {goBackOr} from '../components/routing/appHistory';
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, TrendingUp, Clock, Hash, User, MapPin } from 'lucide-react';
@@ -79,7 +80,7 @@ const SearchPage = () => {
         style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 12px)' }}
       >
         <button
-          onClick={() => navigate(-1)}
+          onClick={() => goBackOr(navigate, '/feed')}
           className="p-1.5 -ml-1 text-muted-foreground hover:text-foreground transition-colors"
           data-testid="search-back-button"
         >

@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 10,
+  "files": 1,
+  "branch": "fable/cmp1-band-one-chain",
+  "date": "2026-11-12",
+  "note": "CMP-1 band one chain (test_rating_band_one_chain.py + tide/parity pins)"
+}

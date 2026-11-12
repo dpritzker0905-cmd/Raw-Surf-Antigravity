@@ -30,6 +30,7 @@ if BACKEND not in sys.path:
     sys.path.insert(0, BACKEND)
 
 from scripts import ci_floor_staleness as S            # noqa: E402
+from scripts import ci_floor_fragments as F            # noqa: E402
 
 
 def test_test_fixtures_leave_platform_metadata_usable():
@@ -489,11 +490,11 @@ def test_the_budgets_are_documented_where_they_are_defined():
 # conflicts, by design: take dev's side, then `python backend/scripts/rederive_floor.py --lane <lane> --add <this
 # PR's new tests>` re-derives both this value and ci.yml's floor from dev (LESSONS L-P39).
 _FLOOR_SET_FROM = {
-    # guards: set from 3598 = max(dev run 42752117173 read 3588, dev's map 3588) + 10 (fable/cmp1-band-one-chain, 2026-11-11); floor 3592, margin 6.
-    "guards": 3598,
+    # guards: set from 3622 = max(dev run 43015131089 read 3610, dev's map 3620) + 2 (claude/docs-break-depth, 2026-11-11); floor 3616, margin 6.
+    "guards": 3622,
 
-    # chain: set from 3666 = max(dev run 42752117173 read 3643, dev's map 3659) + 7 (fable/cmp2-tide-nearshore-helper, 2026-11-11); floor 3660, margin 6.
-    "chain": 3666,
+    # chain: set from 3678 = max(dev run 42752117173 read 3643, dev's map 3673) + 5 (claude/bathymetry-loud-f84a05, 2026-11-11); floor 3672, margin 6.
+    "chain": 3678,
 
     # estate: set from 3432 = max(dev run 42540686323 read 3430, dev's map 3430) + 2 (claude/nearshore-pairs-refresh, 2026-11-09); floor 3430, margin 2.
     "estate": 3432,
@@ -538,13 +539,21 @@ def test_each_lane_budget_matches_the_margin_that_lane_actually_uses(lane):
     it. Pinning the pair means neither can be edited alone — which is how this test earned its
     keep immediately, catching the estate floor moving 328 -> 334 without its entry here.
     """
-    floor = S.read_floors()[lane]["passed"]
-    margin = _FLOOR_SET_FROM[lane] - floor
+    # ⬇ 2026-11-11: EFFECTIVE on both sides (base + .github/ci-floors.d fragments), the numbers CI enforces. A
+    # fragment adds the same `tests` to the floor and to the set-from, so the margin is unchanged by construction.
+    floor = S.effective_floors()[lane]["passed"]
+    margin = effective_set_from(lane) - floor
     assert S.LANES[lane]["passed_budget"] == margin, (
         f"{lane} carries a budget of {S.LANES[lane]['passed_budget']} while its floor sits {margin} "
-        f"below the reading it was set from ({floor} vs {_FLOOR_SET_FROM[lane]}). A budget under "
-        f"the margin reddens a correct repo; one over it is slack that drift will occupy. If the "
-        f"floor moved, move its entry in _FLOOR_SET_FROM with it.")
+        f"below the reading it was set from ({floor} vs {effective_set_from(lane)}). A budget under "
+        f"the margin reddens a correct repo; one over it is slack that drift will occupy. Move a floor "
+        f"with a fragment (rederive_floor.py --lane {lane} --add N), never by editing one side alone.")
+
+
+def effective_set_from(lane, frag_dir=None):
+    """_FLOOR_SET_FROM[lane] plus that lane's fragment tests: what the PR must read. The base is only edited on dev,
+    by `rederive_floor.py --compact`; feature PRs add a `.github/ci-floors.d/<slug>.<lane>.json` instead."""
+    return _FLOOR_SET_FROM[lane] + F.sums(frag_dir)[lane]["tests"]
 
 @pytest.mark.parametrize("bad", [None, {}, {"databaseId": 1, "headSha": "sha", "createdAt": "nonsense"}, {"databaseId": 1, "headSha": "sha", "createdAt": "2026-10-02T12:00:00"}, {"databaseId": 1, "headSha": "sha", "createdAt": "2026-10-04T12:00:00Z"}])
 def test_invalid_cli_source_cannot_poison_current_rest_reading(monkeypatch, bad):

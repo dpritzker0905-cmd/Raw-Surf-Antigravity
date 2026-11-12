@@ -719,7 +719,8 @@ def test_report_text_never_reaches_the_log():
 
 def _main(monkeypatch, capsys, report, *argv, env=None):
     import scripts.forecast_accuracy_monitor as fam
-    for k in ("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_KEY", "ACCURACY_CONSENSUS_CONSTRUCTION"):
+    for k in ("SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY", "SUPABASE_KEY", "ACCURACY_CONSENSUS_CONSTRUCTION",
+              "ACCURACY_BIG_SWELL_TABLE"):
         monkeypatch.delenv(k, raising=False)
     for k, v in (env or {}).items():
         monkeypatch.setenv(k, v)
@@ -761,3 +762,4 @@ def test_the_workflow_wires_the_variables_and_its_defaults_are_the_scripts():
             ("--consensus-construction-grace", "ACCURACY_CONSENSUS_CONSTRUCTION_GRACE", "2026-11-15T00:00:00Z", cfg["consensus_construction_grace"])):
         assert '%s "${{ vars.%s || \'%s\' }}"' % (flag, var, default) in yml
         assert (_parse_iso(default) if "grace" in flag else type(expect)(default)) == expect
+
