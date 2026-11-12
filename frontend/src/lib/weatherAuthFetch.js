@@ -27,6 +27,7 @@
  */
 import { BACKEND_URL } from './apiClient';
 import { isSignInRefusal, reportWeatherSessionExpired } from './weatherSession';
+import { heldResponse, heldUntil, isRateLimited, laneOf, noteRateLimited } from './weatherRateLimit';
 
 export function storedAccessToken(storage) {
   try {
@@ -87,6 +88,12 @@ export function installWeatherAuthFetch(win = typeof window !== 'undefined' ? wi
   win.fetch = function weatherAuthFetch(input, init) {
     const self = this;
     if (typeof input !== 'string' || !isBackendWeatherUrl(input)) return inner.call(self, input, init);
+    const held = heldUntil(win, laneOf(input));
+    if (held) return Promise.resolve(heldResponse(held));               // #815: no request inside the server's wait
+    const limited = (res) => {
+      if (isRateLimited(res)) noteRateLimited(win, input, res);         // hold this lane + the too-many-requests notice
+      return res;
+    };
     const disabled = !!win.__RAW_DISABLE_WEATHER_AUTH__;
     const token = disabled ? null : storedAccessToken(win.localStorage);
     const next = tierClampOn(win) ? withWeatherAuth(input, init, { token, disabled }) : init;
@@ -95,13 +102,13 @@ export function installWeatherAuthFetch(win = typeof window !== 'undefined' ? wi
       if (isSignInRefusal(res)) reportWeatherSessionExpired(win);       // our token was sent and not accepted
       return res;
     };
-    return inner.call(self, input, next).then((res) => {
+    return inner.call(self, input, next).then(limited).then((res) => {
       const on = headerOf(res, 'x-raw-tier-clamp-on');
       if (res && res.headers) win.__RAW_TIER_CLAMP_ON__ = on === '1';      // follow a manifest flip either way
-      if (!sentToken && token && headerOf(res, 'x-raw-tier-clamp')) {
+      if (!sentToken && token && headerOf(res, 'x-raw-tier-clamp') && !isRateLimited(res)) {
         // The switch flipped ON before we knew: this answer was cut (or refused, accounts only) as if we were signed
         // out. Ask once more, as who we are.
-        return inner.call(self, input, withWeatherAuth(input, init, { token })).then(refusedWithToken);
+        return inner.call(self, input, withWeatherAuth(input, init, { token })).then(limited).then(refusedWithToken);
       }
       return sentToken ? refusedWithToken(res) : res;
     });

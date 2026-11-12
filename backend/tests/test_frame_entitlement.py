@@ -308,3 +308,26 @@ def test_the_purge_refuses_until_every_set_is_private_then_removes_only_public_b
     assert P.run(pub, private, apply=True, log=lambda *_: None) == 0
     assert set(pub.store) == {"v1/latest.json", idx, "v1/wind_lane.json"}       # metadata only
 
+
+def test_signing_requests_are_limited_per_account_with_retry_after(monkeypatch):
+    """Owner 2026-11-12: "a per-account limit on signing requests". 429 + Retry-After; another account is untouched."""
+    from services import weather_account_rate_limit as RL
+    client, W = _app(monkeypatch, True)
+    import services.weather_tier_clamp as C
+
+    async def identity(auth):
+        return {"Bearer a": ("u-a", "free"), "Bearer b": ("u-b", "free")}[auth]
+
+    monkeypatch.setattr(C, "resolve_identity", identity)
+    monkeypatch.setattr(W, "entitled_urls", lambda index, t: {"index": index, "tier": t, "frames": []})
+    monkeypatch.setattr(RL, "LIMITER", RL.AccountLimiter({"frame-urls": (2.0, 0.1)}, clock=lambda: 0.0))
+    path = "v1/gfs/marine/waves/global_mid/index/20261111T000000Z-aaaaaaaaaaaa.json"
+    ask = lambda who: client.get("/api/weather/frame-urls", params={"index": path}, headers={"Authorization": f"Bearer {who}"})  # noqa: E731
+    assert [ask("a").status_code for _ in range(2)] == [200, 200]
+    r = ask("a")
+    assert r.status_code == 429 and r.headers["retry-after"] == "10" and r.headers["cache-control"] == "private, no-store"
+    assert r.headers["x-raw-tier-clamp"] == "rate_limited" and r.json()["retry_after_s"] == 10
+    assert ask("b").status_code == 200
+    monkeypatch.setenv(RL.FLAG, "0")
+    rf._reset_for_tests(lambda: None)
+    assert ask("a").status_code == 200                                      # the kill switch

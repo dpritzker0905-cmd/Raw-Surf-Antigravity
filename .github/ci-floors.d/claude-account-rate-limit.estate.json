@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 1,
+  "branch": "claude/account-rate-limit",
+  "date": "2026-11-12",
+  "note": "per-account rate limit (/frame-urls 429)"
+}
