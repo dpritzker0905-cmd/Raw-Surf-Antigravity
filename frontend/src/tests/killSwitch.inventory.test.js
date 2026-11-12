@@ -41,6 +41,10 @@ const MAP_DIR = path.resolve(__dirname, '../components/map');
  * for phantom entries.  To add: write the test file first.
  */
 const KILL_SWITCHES_TESTED = new Set([
+  // components/map/marineHoldRunUnknown.test.js (CLI-6: a run known on one side only releases the hold)
+  '__RAW_DISABLE_HOLD_RUN_UNKNOWN_RELEASE__',
+  // components/map/marineGridSeries.runIdentity.test.js (CLI-7: a newer-run page evicts older-run sibling pages)
+  '__RAW_DISABLE_SERIES_RUN_EVICT__',
   // tests/forecast-card-swell-vs-surf.test.js (CMP-4)
   '__RAW_DISABLE_UNKNOWN_DEPTH_HIDE__',
   // components/map/marineUnpatchedMaskHold.test.js
