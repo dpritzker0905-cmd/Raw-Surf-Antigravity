@@ -58,6 +58,7 @@ GUARDED = {
                                         # private bucket created and the client signer half before the flip
     "WEATHER_TIER_CLAMP": "0",          # O5 (#TBD): server tier clamp. Held OFF until the client sends its token
                                         # (weatherAuthFetch.js) - ON earlier makes every paying user a guest
+    "RATING_BREAK_DEPTH_FROM_GEOMETRY": "1",  # CMP-3: the rating reads the break depth the height's cap used; offline filter NO_CHANGE
 }
 
 # FIX_VERSION: bump a flag's version in the PR that changes its fix. The guardrail's 'off' records the version it
