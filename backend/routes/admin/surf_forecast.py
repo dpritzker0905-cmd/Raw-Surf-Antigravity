@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 # flag -> (default, what it controls, where to flip)
-_RATING_FLAGS = {
+_RATING_FLAGS = {"WEATHER_TIER_CLAMP": ("0", "[D-065 held OFF until weatherAuthFetch.js is live] O5 accounts only: no verified JWT = 401, else clamp to the tier window. services/weather_tier_clamp.py", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"),  # O5 (#782): on the opener line, this file sits at the 800-line cap
     "COPERNICUS_PEAK_PERIOD": ("0", "CMEMS (MFWAM) total wave_period from VTPK, the spectral PEAK period the surf chain is written for, instead of VTM10 (energy period Tm-1,0, kept as wave_period_tm10); CMEMS partitions keep VTM01 (no partition peak exists). services/cmems_period_map.py",
                                "forecast-ingest, forecast-ingest-pilots and precompute workflow env AND Render env together (Render serves the native CMEMS /point)"),
     "ICON_PEAK_PERIOD": ("0", "DWD GWAM partition PEAK periods ppts/ppww (were mean mpts/mpww) and a smooth blended total peak period (was tm10, kept as wave_period_tm10). services/gwam_peak_period.py",
@@ -375,7 +375,6 @@ _RATING_FLAGS = {
     # complete, and the lane it omits is exactly the one that silently keeps the old reference.
     "RATING_LOCAL_SIZE":           ("1", "[D-065 default ON, as every lane already ran it; guardrail-watched] Local (per-spot/per-cell) size calibration — flip glyphs+band together",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
-    "WEATHER_TIER_CLAMP": ("0", "[D-065 held OFF until weatherAuthFetch.js is live] O5 accounts only: no verified JWT = 401, else clamp to the tier window. services/weather_tier_clamp.py", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"),
     "RATING_SIZE_CLIMATOLOGY":     ("1", "Accumulate per-SPOT good-day size climatology (blob only)", "precompute.yml env"),
     "RATING_GRID_SIZE_CLIMATOLOGY": ("1", "Accumulate per-CELL (band) size climatology (blob only)", "pilots workflow env"),
     # ⚠️ "where to flip" is CHECKED — tests/test_flag_lane_parity.py fails if a workflow sets a flag
