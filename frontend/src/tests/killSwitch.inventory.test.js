@@ -48,6 +48,11 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_HOLD_RUN_UNKNOWN_RELEASE__',
   // components/map/marineGridSeries.runIdentity.test.js (CLI-7: a newer-run page evicts older-run sibling pages)
   '__RAW_DISABLE_SERIES_RUN_EVICT__',
+  // marineFramePack.parity.test.js + marineFrameStoreRuntime.allLayers.test.js + filledWorldStore.test.js + staticFrames.test.js
+  // ("OFF PATH: ... packs waves only again"; 2026-11-12, move 3: the GPU frame store takes every marine layer)
+  '__RAW_DISABLE_FRAME_STORE_ALL_LAYERS__',
+  // staticEuroSwellSets.test.js ("OFF PATH: the kill disables every EURO swell set and nothing else"; 2026-11-12, move 3)
+  '__RAW_DISABLE_STATIC_EURO_SWELL__',
   // components/map/responsiveWeather.test.js
   '__RAW_DISABLE_RESPONSIVE_WEATHER__',
   // tests/forecast-card-swell-vs-surf.test.js (CMP-4)

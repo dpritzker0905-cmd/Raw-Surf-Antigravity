@@ -5,6 +5,7 @@
  * The packing (frameWindowOf, packWindow, the LRU) is marineFrameStoreCrop.js; this module is the runtime half.
  */
 import { cropAheadChains, cropAheadCount, cropAheadOrder, cropShowOn, cropToleranceCells, createCropPacks, frameWindowOf, packWindow } from './marineFrameStoreCrop';
+import { layerOfStoreKey } from './marineFramePack';   // the crop window packs its set's own layer
 import { getPinnedRegionalIndexSync, loadFrameParsed, pinnedRegionalKeys } from './staticFrames';
 import { frameMeta, pickIndexFrame } from './staticFrameCodec';
 import { findRegionalFrame, regionalInfoOf, regionalShowOn } from './marineFrameStoreRegional';   // regional tiles at z7-9 (2026-10-24)
@@ -45,7 +46,7 @@ export function createCropShow({ rt, store, miss, deferredShow, W, nowMs, AUX_CA
       const w2 = cropWindowFor(info);
       if (!w2 || w2.key !== w.key || crop.packs.has(info.key, validTime, w2.key)) return;
       let p = null;
-      try { p = packWindow(parsed, w2); } catch (e) { p = null; }
+      try { p = packWindow(parsed, w2, { layer: layerOfStoreKey(info.key) }); } catch (e) { p = null; }
       if (!p) return;
       crop.packs.put(info.key, validTime, w2.key, p);
       crop.built += 1;
