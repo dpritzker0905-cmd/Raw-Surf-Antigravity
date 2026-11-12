@@ -134,6 +134,21 @@ def test_the_sink_keeps_every_frame_private_and_only_metadata_public():
     assert set(pub.store) == {full["path"], "v1/latest.json"}
 
 
+def test_the_public_bucket_is_an_allowlist_so_the_png_proof_and_anything_new_stay_private():
+    """Security review 2026-11-12: a deny-list (.bin only) let the PNG proof (a forecast image) through. Only the
+    path-free index copies and PUBLIC_POINTERS may be public; the pointers are the publisher's own constants."""
+    from services import frame_set as fs
+    from services import frame_set_wind as fsw
+    assert FE.PUBLIC_POINTERS == {fs.LATEST, fsw.LANE_POINTER}
+    pub, private = DictSink(), DictSink()
+    sink = FE.EntitledSink(pub, private)
+    for path in ("gfs/waves/global_mid/20261111T000000Z/20261111T030000Z.png", "manifest.json", "v1/new/thing.json"):
+        sink.write(path, b"data", "application/octet-stream", "immutable")
+        assert path in private.store and path not in pub.store
+    sink.write(fsw.LANE_POINTER, b"{}", "application/json", "no-cache")
+    assert set(pub.store) == {fsw.LANE_POINTER} and sink.read(fsw.LANE_POINTER) == b"{}"
+
+
 def test_a_private_index_miss_never_falls_back_to_the_public_copy():
     """Before the flip, the public index names frames in the PUBLIC bucket. Carrying those over would keep their bytes
     public, so a private miss is a miss: the first entitled run rebuilds every set privately."""
@@ -284,9 +299,11 @@ def test_the_purge_refuses_until_every_set_is_private_then_removes_only_public_b
     pub, private = DictSink(), DictSink()
     idx = "v1/gfs/marine/waves/global_mid/index/20261111T000000Z-aaaaaaaaaaaa.json"
     pub.store.update({"v1/latest.json": json.dumps({"sets": {"gfs": {"index": idx}}}).encode(), idx: b"{}",
-                      "v1/gfs/marine/waves/global_mid/20261111T000000Z/x-0123456789ab.bin": b"old"})
+                      "v1/gfs/marine/waves/global_mid/20261111T000000Z/x-0123456789ab.bin": b"old",
+                      "gfs/waves/global_mid/20261111T000000Z/20261111T030000Z.png": b"proof", "manifest.json": b"{}",
+                      "v1/wind_lane.json": b"{}"})
     assert P.run(pub, private, apply=True, log=lambda *_: None) == 2 and pub.deleted == []   # not rebuilt yet: refused
     private.store[idx] = b"{}"
     assert P.run(pub, private, apply=False, log=lambda *_: None) == 0 and pub.deleted == []  # dry run
     assert P.run(pub, private, apply=True, log=lambda *_: None) == 0
-    assert set(pub.store) == {"v1/latest.json", idx}
+    assert set(pub.store) == {"v1/latest.json", idx, "v1/wind_lane.json"}       # metadata only

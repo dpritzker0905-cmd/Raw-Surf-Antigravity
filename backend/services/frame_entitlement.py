@@ -45,6 +45,10 @@ CLASSES = ("free", "basic", "premium")
 _CLASS_TIER = {"free": "free", "basic": "basic", "premium": "premium"}
 _FRAME_RE = re.compile(r"^v1/(?P<model>[a-z]+)/[a-z_]+/[a-z0-9_]+/[a-z0-9_]+/(?P<run>\d{8}T\d{6}Z)/"
                        r"(?P<valid>\d{8}T\d{6}Z)-[0-9a-f]{12}\.bin$")
+# The ONLY objects the public bucket may receive besides the path-free index copies (security review 2026-11-12: an
+# allowlist, so anything new or unknown fails CLOSED into the private bucket). Pinned to frame_set.LATEST and
+# frame_set_wind.LANE_POINTER by tests/test_frame_entitlement.py.
+PUBLIC_POINTERS = frozenset({"v1/latest.json", "v1/wind_lane.json"})
 INDEX_RE = re.compile(r"^v1/[a-z]+/[a-z_]+/[a-z0-9_]+/[a-z0-9_]+/index/\d{8}T\d{6}Z-[0-9a-f]{12}\.json$")
 
 
@@ -149,8 +153,9 @@ def class_bundle_paths(index: Optional[dict]) -> set:
 
 
 class EntitledSink:
-    """Wraps the publisher's sink (write/read/list/delete): every forecast object goes to the PRIVATE bucket; the public
-    bucket gets only the path-free index copies, latest.json and pointers."""
+    """Wraps the publisher's sink (write/read/list/delete). The public bucket gets ONLY the path-free index copies and
+    PUBLIC_POINTERS (latest.json, the wind-lane pointer); every other object (frames, bundles, the PNG proof and its
+    manifest, anything unknown) goes to the PRIVATE bucket."""
 
     def __init__(self, public_sink, private_sink):
         import threading
@@ -178,9 +183,9 @@ class EntitledSink:
                     self._keep.add(bpath)
             self.private.write(path, json.dumps(private, sort_keys=True, separators=(",", ":")).encode(), ctype, cache)
             return self.public.write(path, json.dumps(public, sort_keys=True, separators=(",", ":")).encode(), ctype, cache)
-        if path.endswith(".bin"):                # every frame (and any other binary) is forecast bytes: never public
-            return self.private.write(path, data, ctype, cache)
-        return self.public.write(path, data, ctype, cache)
+        if path in PUBLIC_POINTERS:
+            return self.public.write(path, data, ctype, cache)
+        return self.private.write(path, data, ctype, cache)          # allowlist: everything else is private
 
     def read(self, path):
         if INDEX_RE.match(path or ""):
@@ -196,9 +201,9 @@ class EntitledSink:
             # carrying them over would leave their bytes public. So the first entitled run rebuilds every set into the
             # private bucket (rollout: then purge_public_frame_bins.py removes the orphaned public bytes).
             return raw
-        if (path or "").endswith(".bin"):
-            return self.private.read(path)
-        return self.public.read(path)
+        if path in PUBLIC_POINTERS:
+            return self.public.read(path)
+        return self.private.read(path)
 
     def list(self, prefix):
         return sorted(set(self.public.list(prefix) or []) | set(self.private.list(prefix) or []))

@@ -3,8 +3,9 @@
 WHY. With FRAME_ENTITLEMENT on, every new frame goes to the private bucket (services/frame_entitlement.py). The frames
 published BEFORE the flip stay in the PUBLIC bucket `weather-frames`: the first entitled run cannot carry them over (it
 never reads a public index, so it rebuilds every set privately) and so never retention-deletes them either. Until they
-are removed, anyone holding an old index URL can still read them. This removes every `.bin` under v1/ from the public
-bucket, which then holds only latest.json, the path-free index copies and pointers.
+are removed, anyone holding an old index URL can still read them. This removes from the public bucket every object
+that is neither a PUBLIC_POINTER nor a run index (the frames' `.bin`, the PNG proof and its manifest.json), so it then
+holds only latest.json, the wind-lane pointer and index copies (metadata).
 
 SAFETY. It refuses to delete unless EVERY set latest.json names has its FULL index in the private bucket, i.e. the
 entitled publisher has already rebuilt each set privately; deleting earlier would blank the map for everyone.
@@ -35,14 +36,21 @@ def sets_missing_private_index(public_sink, private_sink) -> list:
                   if not (rec or {}).get("index") or private_sink.read(rec["index"]) is None)
 
 
-def public_bins(public_sink, prefix: str = "v1") -> list:
-    return [p for p in public_sink.list(prefix) if p.endswith(".bin")]
+PREFIXES = ("v1", "gfs")          # the frame sets; the PNG proof (gfs/waves/global_mid/...)
+ROOT_OBJECTS = ("manifest.json",)  # the PNG proof's manifest
+
+
+def public_bins(public_sink) -> list:
+    """Every public object that is not metadata the client needs (frames, the proof): what the purge deletes."""
+    found = [p for prefix in PREFIXES for p in (public_sink.list(prefix) or [])]
+    found += [p for p in ROOT_OBJECTS if public_sink.read(p) is not None]
+    return sorted(p for p in set(found) if p not in fe.PUBLIC_POINTERS and not fe.INDEX_RE.match(p))
 
 
 def run(public_sink, private_sink, apply: bool, log=print) -> int:
     missing = sets_missing_private_index(public_sink, private_sink)
     bins = public_bins(public_sink)
-    log(f"[purge] public .bin objects: {len(bins)}; sets without a private index: {len(missing)}")
+    log(f"[purge] public data objects: {len(bins)}; sets without a private index: {len(missing)}")
     if missing:
         log(f"[purge] REFUSED: the entitled publisher has not rebuilt these sets privately yet: {', '.join(missing[:10])}"
             + (" ..." if len(missing) > 10 else ""))
@@ -51,7 +59,7 @@ def run(public_sink, private_sink, apply: bool, log=print) -> int:
         log("[purge] dry run: nothing deleted (pass --apply)")
         return 0
     public_sink.delete(bins)
-    log(f"[purge] deleted {len(bins)} public .bin objects")
+    log(f"[purge] deleted {len(bins)} public data objects")
     return 0
 
 

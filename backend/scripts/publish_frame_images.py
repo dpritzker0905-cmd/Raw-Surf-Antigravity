@@ -636,8 +636,9 @@ def main(argv=None):
             None if args.store_dir else supabase_product_fetcher())
         if fetch is not None:
             source = TailDownloads(source, fetch, cap=tail_cap())
-    if fe.enabled() and not args.wind_lane_rebuild:
+    if fe.enabled():
         # O6 (held OFF): EVERY frame to the PRIVATE bucket (accounts only), public index copies stripped of their paths.
+        # The wind-lane rebuild too (security review 2026-11-12): it reads the FULL index and writes frames like a run.
         private = LocalSink(Path(args.out_dir) / "_private") if args.store_dir else SupabaseSink(bucket=fe.PRIVATE_BUCKET, public=False)
         sink = fe.EntitledSink(sink, private)
     sink.ensure_bucket()

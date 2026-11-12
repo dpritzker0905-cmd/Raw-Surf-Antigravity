@@ -46,8 +46,9 @@ Tier rules (`forecast_tier_window`, the pinned echo of `LayerAccessResolver.js`)
 - **Cost:** a free account can read up to 24 h past 72 h of GFS by signed URL. The API clamp and the UI still gate it.
 - **If a run goes stale beyond the margin,** the last free hours fall back to `/grid`, which #782 serves at the caller's tier.
 
-**The publisher is untouched.** `frame_entitlement.EntitledSink` wraps its sink, in `publish_frame_images.py` and, for the raster sets (pressure, temperature, cloud cover), `publish_raster_frames.py`:
-- **Every `.bin`** (per-frame objects, and any binary of an unknown shape: fail closed) goes to the private bucket `weather-frames-private`.
+**The publisher is untouched.** `frame_entitlement.EntitledSink` wraps its sink, in `publish_frame_images.py` (the wind-lane rebuild included) and, for the raster sets (pressure, temperature, cloud cover), `publish_raster_frames.py`:
+- **The public bucket is an allowlist.** It receives only the path-free index copies and `PUBLIC_POINTERS` (`v1/latest.json`, `v1/wind_lane.json`).
+- **Everything else is private,** in the bucket `weather-frames-private`: per-frame `.bin`, bundles, the PNG proof and its `manifest.json`, and anything of an unknown shape (fail closed).
 - **Index:** written twice.
   - The **full** copy goes to the private bucket, for the signer and the next run's carry-over.
   - The **public** copy keeps every entry's `valid_time` and decode metadata, drops `path` (bundle sets: `offset`, `length`, `sha12`) and adds `entitlement: "<class>"`. It names no bundle.
@@ -55,7 +56,7 @@ Tier rules (`forecast_tier_window`, the pinned echo of `LayerAccessResolver.js`)
 - **Retention:** `list` is the union of both buckets, `delete` deletes from both, and the re-cut bundles of the current and previous run are protected.
 - **Index reads use the private copy only.** A miss is a miss, never the public copy: before the flip, the public copy names frames in the public bucket, and carrying them over would keep their bytes public. So the first entitled run rebuilds every set privately.
 
-**The public bucket afterwards** holds `latest.json`, the path-free index copies, the PNG proof and the HRRR wind-lane pointer: metadata, no forecast values.
+**The public bucket afterwards** holds `latest.json`, the path-free index copies and the HRRR wind-lane pointer: metadata, no forecast values. The PNG proof (`frameImageProof.js`, a diagnostic) is private too, so it reads as unavailable.
 
 **Today's client already degrades safely.** An entry with no `path` (or `offset: null` in a bundle) is "unbuilt", and the client asks `/grid` for that hour, which #782 clamps (or refuses signed out).
 
@@ -101,10 +102,10 @@ Tier rules (`forecast_tier_window`, the pinned echo of `LayerAccessResolver.js`)
    ```bash
    python scripts/purge_public_frame_bins.py --apply
    ```
-   Run the first command (a dry run) before `--apply`. Old frames are never retention-deleted, because the first entitled run cannot read their public index. The script refuses until every set in `latest.json` has its full index in the private bucket.
+   Run the first command (a dry run) before `--apply`. Old frames are never retention-deleted, because the first entitled run cannot read their public index. The script removes every public object that is neither a pointer nor an index (frames, the PNG proof and its manifest), and refuses until every set in `latest.json` has its full index in the private bucket.
 7. **Undo:** publisher env `0` (new runs public again), then manifest `off`.
 
 ## Not covered
-- **Public metadata:** `latest.json`, the path-free indexes, the PNG proof and the HRRR wind-lane pointer stay public. They carry no forecast values.
+- **Public metadata:** `latest.json`, the path-free indexes and the HRRR wind-lane pointer stay public. They carry no forecast values.
 - **Spot ratings by anon key:** `spot_ratings/latest.json` in `weather-products` is readable with the anon key, by the scoped RLS policy `anon_read_spot_ratings_latest_only` (`spotRatingsCdn.js`). These are per-spot scores, readable without an account. That is the owner's call, outside the frames bucket.
 - **The spot hub:** `/tides/{spot_id}` and `/explore/*` are outside `/api/weather/` (#782).
