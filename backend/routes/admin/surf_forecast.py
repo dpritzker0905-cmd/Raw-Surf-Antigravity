@@ -477,6 +477,8 @@ _RATING_FLAGS = {
     # CMP-2 (Fable audit 2026-11-10): one tide/MOP resolver (sea_inputs.py) for every estimate_surf_at caller.
     "SURF_SEA_INPUTS_EVERY_CALLER": ("1", "[D-065 GUARDED, ON; accuracy not measured] hub, conditions, sim take /point's tide+MOP; kill '0'",
                                      "Render env (serve-side surfaces); the sim reads the served glyph's tide, no env"),
+    "SIDE_PATHS_THROUGH_CHAIN": ("1", "[D-065 GUARDED, ON] O4: conditions rows from rate_one_spot frames, _breaking_ft fails closed, "
+                                     "target-time surf-conditions labelled unrated (side_paths.py); kill '0'", "Render env"),
     "RATING_BAND_ONE_CHAIN": ("1", "[D-065 GUARDED, ON] CMP-1: map band = estimate_surf_at on cached geometry + break depth, "
                                    "eta 0 (band_chain.py); kill '0'", "Render env AND precompute.yml env (rated static frames)"),
     # CMP-3 (audit 2026-11-10). The rating's oversize gate read `break_depth_at` while the height's cap read the
