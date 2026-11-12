@@ -1,8 +1,8 @@
 {
   "lane": "chain",
-  "tests": 14,
+  "tests": 13,
   "files": 1,
   "branch": "claude/s8-direction-period-paired",
   "date": "2026-11-12",
-  "note": "S8/S7 v2 paired direction/period lane (test_skill_direction_period_paired.py)"
+  "note": ""
 }
