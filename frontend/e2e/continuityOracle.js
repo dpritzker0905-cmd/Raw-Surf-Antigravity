@@ -156,4 +156,27 @@ function isAppStall(worst, anatomy, budgetMs, minOfferedFrames = MIN_OFFERED_FRA
   return anatomy.rafTicks >= minOfferedFrames;
 }
 
-module.exports = { longestStall, stallAnatomy, isAppStall, EVENT_LEAD_MS, MIN_OFFERED_FRAMES };
+/**
+ * THE AT-REST POSITIVE CONTROL: is the engine drawing STEADILY yet, not just "has it drawn once".
+ *
+ * ⛔ Desktop Safari flaked here 4 times in ~12 dev runs (43216443158 x2, 43224263438, 43231836639; 2026-11-12),
+ * always "Expected: > 1, Received: 1": the spec waited for `n > 0`, which the FIRST draw satisfies, then gave the
+ * engine 1.5 s to draw again. In all 4 the counter had drawn exactly once and the detailed forecast was still
+ * loading (the burst's screenshot reads "Loading the detailed forecast..."). That is STARTUP, which the spec says
+ * the gate must not measure; each retry passed. So the control now asks for an advance across one full window,
+ * re-anchoring while the counter is still flat, until a deadline. It stays strict: an engine that never resumes
+ * still fails, by name, with the last state attached.
+ *
+ * One step per poll. `state` is the anchor `{n, at}` (null before the first draw). Returns the next anchor and
+ * whether the counter advanced across at least `windowMs` since it was anchored.
+ */
+function steadyDrawStep(state, n, now, windowMs) {
+  if (typeof n !== 'number' || !(n > 0)) return { state: null, steady: false };
+  // No anchor yet, or the counter went BACKWARDS (a new engine instance restarts it): anchor here.
+  if (!state || n < state.n) return { state: { n, at: now }, steady: false };
+  if (now - state.at < windowMs) return { state, steady: false };
+  if (n > state.n) return { state, steady: true };
+  return { state: { n, at: now }, steady: false };   // flat across a whole window: still starting, re-anchor
+}
+
+module.exports = { longestStall, stallAnatomy, isAppStall, steadyDrawStep, EVENT_LEAD_MS, MIN_OFFERED_FRAMES };
