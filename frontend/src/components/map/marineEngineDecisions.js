@@ -722,7 +722,7 @@ export function resolveCoarseCrestControls(inVortexBand, win, cellDeg) {
 // untouched, so motion/physics cannot regress. Exported for tests + the tuner (single source of truth).
 export const NATURAL_ANIM_DEFAULTS = {
   __RAW_TROCHOIDAL__: 0.7,        // asymmetric crest: sharp leading face, broad trailing back
-  __RAW_ORBITAL_PITCH__: 2.5,     // phase-synced fwd/back sway (px); keep ≤3 to avoid banding
+  __RAW_ORBITAL_PITCH__: 0,       // fwd/back sway (px), 0 since 2026-11-12: it ran 41-49% of dashes AGAINST the swell (oneWayCrests.js; kill restores 2.5)
   __RAW_SHOAL_FOAM__: 1.5,        // extra whitecap in shallow water (inert without bathymetry)
   __RAW_CREST_DIR_JITTER__: 0.26, // rad of per-crest heading spread (breaks the parallel-crest lattice; 0.2→0.26 2026-07-07, user-tuned to soften the z9 GFS-0.25° crest grid — runbook §9e)
 };

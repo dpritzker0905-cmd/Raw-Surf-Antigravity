@@ -242,6 +242,7 @@ _RATING_FLAGS = {
     # registry wording. `0.55+0.45*exposure` is surf_transform._height_exposure_factor; quality
     # (surf_rating.swell_exposure) is untouched. Direction matters to an operator: flipping this
     # SHRINKS off-axis heights (-46.9% at the floor, 0.0% head-on), it does not raise scores.
+    "LOCATION_TIME_FIELD": ("0", "[D-065 held OFF until its SCOREBOARD row + history filter land] location_time phase 1 (#762): civil IANA zone (0.01 deg grid) on the hub, /point-tide and GET /weather/location-time; hub daily rows by CIVIL date (same rated frames). Tier-safe. services/weather_pipeline/location_time.py", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"),
     "SURF_EXPOSURE_RECONCILED": ("0", "[D-065 held OFF: the history filter shows it WORSE, hs_station MAE +0.0093 m CI [0.0076, 0.0113]; fix in progress] Reconcile the DUAL swell-aim floor: replace the HEIGHT "
                                       "curve 0.55+0.45*exposure with sqrt(exposure) so height**2 "
                                       "== exposure and the height/quality chains stop reading one "
