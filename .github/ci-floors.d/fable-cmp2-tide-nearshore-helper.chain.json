@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 7,
+  "files": 1,
+  "branch": "fable/cmp2-tide-nearshore-helper",
+  "date": "2026-11-12",
+  "note": "CMP-2 sea inputs every caller (#772)"
+}
