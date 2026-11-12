@@ -626,6 +626,8 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
     )
     now = now or datetime.now(timezone.utc)
     incoming: List[dict] = []
+    from services.weather_pipeline import skill_direction_period_paired as s8v2   # S8 v2, FORECAST_SKILL_DIRPER_PAIRED
+    tag_kinds = s8v2.enabled()                     # off: rows and report byte-identical to before
     # The served model first, then any comparison models — each is an INDEPENDENT source, so one
     # model failing a lead never removes another's row. See COMPARE_MODELS_DEFAULT for the cost.
     for mdl in [model] + compare_models(model):
@@ -643,11 +645,13 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
                         lead_report = await calibrate_spots(resolver, spots, scalar_shadow_base(mdl), target)
                 else:
                     lead_report = await calibrate_spots(resolver, spots, mdl, target)
-                incoming.extend(rows_from_calibration_report(lead_report, target, lead, source=src))
+                lane_rows = rows_from_calibration_report(lead_report, target, lead, source=src)
+                incoming.extend(s8v2.tag_lane_rows(lane_rows, mdl) if tag_kinds else lane_rows)
             except Exception as e:
                 logger.warning("[forecast-skill] %s lead +%dh resolve failed (%s)", src, lead, e)
     if os.environ.get("FORECAST_SKILL_PERSISTENCE", "1") != "0":
-        incoming.extend(persistence_rows_from_report(report, now))
+        prows = persistence_rows_from_report(report, now)
+        incoming.extend(s8v2.tag_persistence_rows(prows, report) if tag_kinds else prows)
     try:
         coords = await fetch_ndbc_station_coords()
         buoys = {}
@@ -711,7 +715,7 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
     # ── SHADOW MOS (roadmap stage 5, step 1) — measurement only, after every write has landed ──
     # Its own try and its own kill switch (FORECAST_SKILL_MOS=0): a read or fit failure here costs
     # the shadow block and nothing else. See skill_mos.py.
-    mos = attribution = consensus = dirper = None
+    mos = attribution = consensus = dirper = ocf = None
     if os.environ.get("FORECAST_SKILL_MOS", "1") != "0":
         try:
             from services.weather_pipeline.skill_attribution import same_model_attribution
@@ -726,18 +730,34 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
             consensus = consensus_report(history, now)
             # The BUILT shadow (D-009) beside what it was built from: published inside the same block.
             consensus["shadow"] = consensus_shadow(history, now)
+            # Move 4: the OCF-style bias-corrected equal mean beside served/equal/MOS (skill_ocf). Its own
+            # kill switch and guard; with FORECAST_SKILL_OCF=0 nothing is added to the report.
+            if os.environ.get("FORECAST_SKILL_OCF", "1") != "0":
+                try:
+                    from services.weather_pipeline.skill_ocf import ocf_report, positive_control, tier_split_report
+                    ocf = ocf_report(history, now)
+                    ocf["positive_control"] = positive_control(history, now)
+                    ocf["tier_split"] = tier_split_report(history, now)
+                except Exception as e:
+                    logger.warning("[forecast-skill] OCF block skipped (%s)", e)
             # S7/S8: period and direction on the same history (skill_direction_period); its own guard.
             try:
                 from services.weather_pipeline.skill_direction_period import direction_period_report
                 dirper = direction_period_report(history, now)
             except Exception as e:
                 logger.warning("[forecast-skill] direction/period block skipped (%s)", e)
+            if tag_kinds and dirper is not None:      # S8 v2: paired, by coast, period kinds never mixed; own guard
+                try:
+                    dirper["paired"] = s8v2.paired_direction_period_report(history, now, primary=model)
+                except Exception as e:
+                    logger.warning("[forecast-skill] paired direction/period block skipped (%s)", e)
         except Exception as e:
             logger.warning("[forecast-skill] MOS shadow skipped (%s)", e)
     return {"ledgered": len(incoming), "scored": len(scored),
             "pending_kept": len(still), "pending_evicted_cap": merge_stats.get("cap_evicted", 0),
             "summary": summary, "scoring_rejections": score_stats, "mos_shadow": mos,
-            "same_model_attribution": attribution, "consensus": consensus, "direction_period": dirper}
+            "same_model_attribution": attribution, "consensus": consensus, "direction_period": dirper,
+            **({"ocf": ocf} if ocf is not None else {})}
 
 
 def mos_history_rows(now: datetime, archives, load_rows) -> List[dict]:
@@ -773,3 +793,5 @@ def attach_to_report(report, skill) -> None:
         report["forecast_skill_consensus"] = skill["consensus"]
     if skill.get("direction_period") is not None:
         report["forecast_skill_direction_period"] = skill["direction_period"]
+    if skill.get("ocf") is not None:
+        report["forecast_skill_ocf"] = skill["ocf"]

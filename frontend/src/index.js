@@ -10,6 +10,11 @@ import './i18n';
 import { isOpenMeteoSpatialUrl } from './components/map/openMeteoEndpoints';
 import reportWebVitals, { logWebVitals } from './reportWebVitals';
 import { installInstantTelemetry } from './components/map/instantTelemetry';
+import { installWeatherAuthFetch } from './lib/weatherAuthFetch';
+
+// O5 / TIER-1: the session token on /api/weather/ reads, so the server's tier clamp sees who is asking.
+// Installed before the wrappers below, so it sits innermost and adds the header just before the request goes out.
+installWeatherAuthFetch();
 
 // Aggressively suppress ResizeObserver errors - these are benign browser warnings
 // that React's dev overlay incorrectly shows as errors

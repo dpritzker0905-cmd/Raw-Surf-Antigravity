@@ -202,11 +202,14 @@ var MapMarkerLayers = ({
                 <div
                   style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
-                  {/* expanding pulse ring — GPU-composited transform/opacity, honours reduced-motion */}
-                  <span
-                    className="absolute rounded-full animate-ping motion-reduce:animate-none"
-                    style={{ width: 30, height: 30, backgroundColor: rating.color, opacity: 0.4 }}
-                  />
+                  {/* expanding pulse ring — GPU-composited transform/opacity, honours reduced-motion. An AREA
+                      ESTIMATE (CLI-3: the nearest rated grid cell, not this spot's own rating) does not pulse. */}
+                  {!rating.estimate && (
+                    <span
+                      className="absolute rounded-full animate-ping motion-reduce:animate-none"
+                      style={{ width: 30, height: 30, backgroundColor: rating.color, opacity: 0.4 }}
+                    />
+                  )}
                   {/* soft static halo for depth (sized to at least match the 32px location pin so Rating mode
                       reads as the headline overlay, not a lesser marker) */}
                   <span
@@ -216,9 +219,11 @@ var MapMarkerLayers = ({
                   {/* solid core dot in the rating colour — bold ring + colour glow makes it unmistakable */}
                   <span
                     className="relative rounded-full"
+                    data-estimate={rating.estimate ? 'true' : undefined}
                     style={{
                       width: 19, height: 19, backgroundColor: rating.color,
-                      border: '2.5px solid rgba(255,255,255,0.92)',
+                      // CLI-3: an area estimate wears a DASHED ring (shape, not colour, carries the difference).
+                      border: rating.estimate ? '2.5px dashed rgba(255,255,255,0.92)' : '2.5px solid rgba(255,255,255,0.92)',
                       boxShadow: `0 0 10px 3px ${rating.color}, 0 1px 3px rgba(0,0,0,0.5)`
                     }}
                   />
@@ -269,6 +274,11 @@ var MapMarkerLayers = ({
                     <div className="mt-0.5 flex items-center gap-2 text-[11px] font-semibold text-cyan-300">
                       <span>{formatHeightFromMeters(rating.surfHeightM, heightUnit, { withUnit: true })}</span>
                       {rating.periodS != null && <span className="text-zinc-400 font-normal">· {Math.round(rating.periodS)}s period</span>}
+                    </div>
+                  )}
+                  {rating && rating.estimate && (
+                    <div className="mt-0.5 text-[10px] font-normal text-zinc-300" data-testid="glyph-area-estimate">
+                      Area estimate: nearest rated grid cell, not this spot's own forecast
                     </div>
                   )}
                   {/* Tide state (2026-07-18 Tides toggle): height in the ft/m display unit + the trend as a

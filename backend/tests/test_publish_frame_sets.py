@@ -399,6 +399,31 @@ def test_a_rate_limited_read_retries_with_the_upload_backoff(monkeypatch):
     assert len(calls) == 4 and waits == list(pub.UPLOAD_BACKOFF_S)
 
 
+def test_an_upload_retries_through_the_storage_edge_s_52x_errors(monkeypatch):
+    """Run 43239161836: one HTTP 520 on a frame upload failed the ICON pressure set (the step is continue-on-error, so green)."""
+    statuses, waits = [520, 522, 524, 200], []
+
+    class _Resp:
+        def __init__(self, code):
+            self.status_code, self.text = code, ""
+
+    class _Requests:
+        ConnectionError, Timeout = ConnectionError, TimeoutError
+
+        def post(self, url, headers=None, data=None, json=None, timeout=None):
+            return _Resp(statuses.pop(0))
+    monkeypatch.setenv("SUPABASE_URL", "https://example.invalid")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-not-a-key")
+    monkeypatch.setattr(pub, "_sleep", waits.append)
+    sink = pub.SupabaseSink()
+    sink.requests = _Requests()
+    sink.write(f"{PREFIX}/r/v-abc.bin", b"xx", fs.FRAME_TYPE, fs.IMMUTABLE)
+    assert statuses == [] and waits == list(pub.UPLOAD_BACKOFF_S) and sink.order == [f"{PREFIX}/r/v-abc.bin"]
+    statuses[:] = [520, 520, 520, 520]
+    with pytest.raises(RuntimeError, match="HTTP 520"):
+        sink.write(f"{PREFIX}/r/v-abc.bin", b"xx", fs.FRAME_TYPE, fs.IMMUTABLE)   # still fails after the last attempt
+
+
 def test_a_read_still_fails_after_the_last_retry_and_a_missing_object_never_retries(monkeypatch):
     sink, calls, waits = _sink_with_get_statuses(monkeypatch, [429, 429, 429, 429])
     with pytest.raises(RuntimeError, match="HTTP 429"):

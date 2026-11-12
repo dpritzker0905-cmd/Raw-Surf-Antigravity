@@ -56,18 +56,22 @@ def test_flat_is_flat_and_never_crashes():
         assert _breaking_ft(*COCOA, hs, 10.0, 90.0, None) == (0.0, "calm")
 
 
-def test_it_fails_OPEN_to_the_offshore_value(monkeypatch):
-    """A hub showing a slightly wrong number beats a hub showing nothing — this is an enrichment of
-    an already-working read, so a geometry failure must degrade, never raise."""
+def test_it_fails_CLOSED_never_the_offshore_value_as_surf(monkeypatch):
+    """O4 / CMP-7 (2026-11-10): a geometry failure degrades to NO height, never raises, and never serves the offshore
+    Hs under `wave_height_ft` (the number CLAUDE.md forbids as surf). The old fail-open stays behind the kill switch."""
     import services.weather_pipeline.surf_point as sp
 
     def boom(*a, **k):
         raise RuntimeError("bathymetry asset unavailable")
 
     monkeypatch.setattr(sp, "estimate_surf_at", boom)
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
+    monkeypatch.delenv("SIDE_PATHS_THROUGH_CHAIN", raising=False)
+    assert _breaking_ft(*COCOA, 1.0, 12.0, 90.0, None) == (None, "unknown")
+    monkeypatch.setenv("SIDE_PATHS_THROUGH_CHAIN", "0")      # the kill switch: the pre-O4 fail-open, and it SAYS so
     ft, regime = _breaking_ft(*COCOA, 1.0, 12.0, 90.0, None)
     assert ft == round(1.0 * M_TO_FT, 1)
-    assert regime == "offshore_estimate"      # and it SAYS the number is unimproved
+    assert regime == "offshore_estimate"
 
 
 def test_the_kill_switch_is_documented_and_read():

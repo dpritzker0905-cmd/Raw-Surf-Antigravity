@@ -111,3 +111,65 @@ def test_the_asset_kill_switch_covers_the_land_section_too(monkeypatch):
     monkeypatch.setenv("SHORE_NORMAL_ASSET", "0")
     lat, lng, _, _ = _doc()["land_present"][0]
     assert land_present_at(lat, lng) is None
+
+
+# ── CMP-3 (audit 2026-11-10): the rating reads the SAME break depth the height's cap used ─────────
+
+def _rating_break_depth(monkeypatch, lat, lng, flag=None):
+    """The break_depth_m rate_one_spot hands compute_surf_rating, via the REAL augment."""
+    import asyncio
+    from datetime import datetime, timezone
+    from services.weather_pipeline import spot_ratings as SRT
+    from services.weather_pipeline.schemas import NormalizedPointDetail, NormalizedPointResponse
+    from services.weather_pipeline.point_surf_augment import augment_with_surf
+    monkeypatch.setenv("SURF_TIDE_DEPTH", "0")
+    if flag is None:
+        monkeypatch.delenv("RATING_BREAK_DEPTH_FROM_GEOMETRY", raising=False)
+    else:
+        monkeypatch.setenv("RATING_BREAK_DEPTH_FROM_GEOMETRY", flag)
+    t0 = datetime(2026, 11, 10, 12, tzinfo=timezone.utc)
+
+    def resp(domain, layer, speed, direction, period):
+        return NormalizedPointResponse(
+            model="GFS", provider="open-meteo", domain=domain, layer=layer, run_time=t0, valid_time=t0,
+            is_forecast_authoritative=True, is_estimated=False,
+            point=NormalizedPointDetail(requested_lat=0, requested_lng=0, sampled_lat=0, sampled_lng=0,
+                                        speed=speed, direction=direction, u=0.0, v=0.0, period=period,
+                                        interpolation_method="exact_match"),
+            value_kind="wave_height" if domain == "marine" else "wind_speed",
+            value_unit="m" if domain == "marine" else "kn", display_unit_hint="ft",
+            source_variables=["x"], freshness_sec=0)
+
+    class R:
+        async def resolve_point(self, model, domain, layer, lat, lng, valid_time_str, **_k):
+            if domain == "marine":
+                async def _np(*_a, **_kw):
+                    return None
+                return await augment_with_surf(resp("marine", layer, 2.0, 180.0, 12.0), model, domain, layer,
+                                               lat, lng, valid_time_str, _np)
+            return resp("wind", "wind", 5.0, 0.0, None)
+
+    seen = {}
+    real = SRT.compute_surf_rating
+
+    def spy(*a, **kw):
+        seen["bd"] = kw.get("break_depth_m")
+        return real(*a, **kw)
+    monkeypatch.setattr(SRT, "compute_surf_rating", spy)
+    asyncio.run(SRT.rate_one_spot(R(), {"id": "x", "name": "x", "latitude": lat, "longitude": lng},
+                                  "GFS", "2026-11-10T12:00:00Z"))
+    return seen["bd"]
+
+
+def test_rating_and_height_read_the_same_break_depth_at_every_land_present_coord(monkeypatch):
+    rows = _doc()["land_present"]
+    assert len(rows) == 14
+    for lat, lng, _skm, _d in rows:
+        assert _rating_break_depth(monkeypatch, lat, lng) == resolve_surf_geometry(lat, lng).break_depth_m, (lat, lng)
+
+
+def test_the_kill_switch_restores_the_independent_break_depth_read(monkeypatch):
+    from services.weather_pipeline.shore_normal_asset import break_depth_at
+    lat, lng, _skm, _d = next(r for r in _doc()["land_present"] if r[3] is not None)
+    assert resolve_surf_geometry(lat, lng).break_depth_m is not None and break_depth_at(lat, lng) is None
+    assert _rating_break_depth(monkeypatch, lat, lng, flag="0") is None

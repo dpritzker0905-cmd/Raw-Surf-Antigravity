@@ -19,7 +19,7 @@
  * about the state a user LANDS on, so the assertion has to be made before any event is dispatched.
  */
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 
 import ForecastWheel, { wheelValueText } from './ForecastWheel';
 
@@ -73,20 +73,24 @@ describe('ForecastWheel — the announcement is present AT MOUNT', () => {
 
     expect(slider).toHaveAttribute('aria-valuenow', '0');
     // THE REGRESSION: this was "" on the live map.
-    expect(slider.getAttribute('aria-valuetext')).toBe('Now');
+    expect(slider.getAttribute('aria-valuetext')).toMatch(/^Now, .+\d{4}/);
   });
 
   it('agrees with aria-valuenow at a non-zero hour', () => {
     render(<ForecastWheel {...props} value={6} />);
     const slider = screen.getByRole('slider', { name: 'Forecast timeline wheel' });
     expect(slider).toHaveAttribute('aria-valuenow', '6');
-    expect(slider.getAttribute('aria-valuetext')).toBe('+6 hours');
+    expect(slider.getAttribute('aria-valuetext')).toMatch(/^\+6 hours, .+\d{4}/);
   });
 
   it('radar wheels announce frames and carry their own label', () => {
     render(<ForecastWheel {...props} isRadar value={3} max={12} />);
     const slider = screen.getByRole('slider', { name: 'Radar timeline wheel' });
     expect(slider.getAttribute('aria-valuetext')).toBe('frame 4');
+    fireEvent.keyDown(slider, { key: 'End' });
+    expect(slider).toHaveAttribute('aria-valuenow', '12');
+    fireEvent.keyDown(slider, { key: 'Home' });
+    expect(slider).toHaveAttribute('aria-valuenow', '0');
   });
 
   it('the slider keeps the rest of its contract: range, focusability, role', () => {
@@ -95,5 +99,18 @@ describe('ForecastWheel — the announcement is present AT MOUNT', () => {
     expect(slider).toHaveAttribute('aria-valuemin', '0');
     expect(slider).toHaveAttribute('aria-valuemax', '336');
     expect(slider).toHaveAttribute('tabindex', '0');
+    fireEvent.keyDown(slider, { key: 'ArrowUp' });
+    expect(slider).toHaveAttribute('aria-valuenow', '1');
+    fireEvent.keyDown(slider, { key: 'ArrowDown' });
+    expect(slider).toHaveAttribute('aria-valuenow', '0');
+    fireEvent.keyDown(slider, { key: 'End' });
+    expect(slider).toHaveAttribute('aria-valuenow', '336');
+    expect(slider.getAttribute('aria-valuetext')).toMatch(/^\+336 hours,/);
+    fireEvent.keyDown(slider, { key: 'ArrowRight' });
+    expect(slider).toHaveAttribute('aria-valuenow', '336');
+    fireEvent.keyDown(slider, { key: 'Home' });
+    expect(slider).toHaveAttribute('aria-valuenow', '0');
+    fireEvent.keyDown(slider, { key: 'ArrowDown' });
+    expect(slider).toHaveAttribute('aria-valuenow', '0');
   });
 });

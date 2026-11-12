@@ -73,6 +73,12 @@ import time
 from datetime import datetime, timezone
 from urllib.parse import quote
 
+try:
+    from . import ci_floor_fragments as F       # as scripts.ci_floor_staleness
+except ImportError:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+    import ci_floor_fragments as F  # noqa: E402 - run as a script
+
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 CI_YML = os.path.join(REPO_ROOT, ".github", "workflows", "ci.yml")
 
@@ -186,6 +192,21 @@ def read_floors(path=CI_YML):
                     f"could not parse the {lane} floor from ci.yml -- this check is BLIND, so it "
                     f"refuses rather than reporting the lane current. Fix the anchor, do not delete it.")
             floors[lane] = {"files": None, "passed": int(m.group(1))}
+    return floors
+
+
+def effective_floors(path=CI_YML, frag_dir=None):
+    """read_floors() plus every `.github/ci-floors.d/*.json` fragment (2026-11-11): what each lane's ci.yml step
+    ACTUALLY enforces, since that step adds the same sums through the same helper. A malformed fragment refuses."""
+    floors = read_floors(path)
+    try:
+        sums = F.sums(frag_dir)
+    except F.FragmentError as exc:
+        raise Refusal(f"malformed CI floor fragment: {exc}")
+    for lane, floor in floors.items():
+        floor["passed"] += sums[lane]["tests"]
+        if floor["files"] is not None:
+            floor["files"] += sums[lane]["files"]
     return floors
 
 
@@ -399,7 +420,7 @@ def main():
 
     try:
         branch = history_branch(args.branch)
-        floors = read_floors()
+        floors = effective_floors()
         run_id, sha, created = last_green_run(branch)
         readings = {lane: observed(run_id, lane) for lane in LANES}
     except Refusal as exc:
@@ -430,15 +451,16 @@ def main():
             #   328 -> 334 (recorded in that test's own docstring), 1685 -> 1695, 334 -> 347.
             # A prescription that names one of two required edits has a 100% miss rate here, which
             # is a property of the instruction, not of three separate authors.
-            second = "backend/tests/test_ci_floor_staleness.py"
+            # ⬇ 2026-11-11: ONE edit now, a fragment, never the base lines (they conflict across open PRs).
+            fix = (f"--add 0 --add-files {target - floor}" if kind == "MIN_FILES"
+                   else f"--add {target - floor}")
             print(f"::error::{lane} {kind} is {lag} below what CI last observed "
-                  f"({floor} vs {obs}, budget {budget}). Set it to {target} in this commit and cite "
-                  f"run {run_id} -- a floor below the reading cannot detect anything shrinking back "
-                  f"to it. TWO EDITS ARE REQUIRED: also set _FLOOR_SET_FROM[\"{lane}\"] = {obs} "
-                  f"in {second}, because that table is where the citation is PARSED. With it at "
-                  f"{obs} the margin {obs} - {target} = {budget} matches the declared budget; leave "
-                  f"it at its OLD value and the margin is wrong, reddening the paired test on the "
-                  f"very next run.")
+                  f"({floor} vs {obs}, budget {budget}; effective = ci.yml base + .github/ci-floors.d). "
+                  f"It should be {target} (run {run_id}) -- a floor below the reading cannot detect "
+                  f"anything shrinking back to it. Raise it with a fragment, never by editing the base "
+                  f"line: python backend/scripts/rederive_floor.py --lane {lane} {fix} "
+                  f"(it writes this branch's fragment, so include what that fragment already counts; the "
+                  f"fragment moves the floor and the set-from together).")
         return 1
     print("every floor is current against the last green run.")
     return 0

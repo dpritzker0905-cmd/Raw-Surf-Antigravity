@@ -56,6 +56,38 @@ def is_available() -> bool:
     return os.path.exists(_NPY) and os.path.exists(_META)
 
 
+class BathymetryUnavailableError(RuntimeError):
+    """The bundled depth grid cannot be loaded (file absent, numpy missing, corrupt asset)."""
+
+
+def fail_loud_enabled() -> bool:
+    """CMP-4 kill switch. Default ON; ``BATHYMETRY_FAIL_LOUD=0`` restores the old silent degrade (a coastal point with
+    no depth then serves the OFFSHORE height as surf height, regime ``unknown_depth``)."""
+    return os.environ.get("BATHYMETRY_FAIL_LOUD", "1").strip().lower() not in ("0", "false", "off", "no")
+
+
+def verify_loadable() -> None:
+    """Startup check (CMP-4): raise ``BathymetryUnavailableError`` when the depth grid cannot be loaded and sampled.
+
+    Every reader in this module swallows a load failure and answers None/True/0.0, which the surf chain turns into
+    the untransformed OFFSHORE height labelled as surf (measured without numpy: Pipeline 8 m -> 8.000 m "epic",
+    the healthy chain gives 9.558 m). A box that cannot load the grid must not boot and serve that. No-op when
+    ``BATHYMETRY_FAIL_LOUD=0``."""
+    if not fail_loud_enabled():
+        return
+    if not is_available():
+        raise BathymetryUnavailableError(
+            f"bathymetry depth grid missing: {_NPY} / {_META} (surf heights would be offshore heights)")
+    try:
+        grid, meta = _load()
+        int(grid[0, 0])                                   # touch the memory map: a truncated file fails here
+        _ = meta["nlat"], meta["nlon"], meta["lat0"], meta["lon0"], meta["dlat"], meta["dlon"]
+    except Exception as e:                                # numpy ImportError, bad JSON, truncated .npy, missing key
+        raise BathymetryUnavailableError(
+            f"bathymetry depth grid cannot be loaded ({type(e).__name__}: {e}); "
+            "surf heights would be offshore heights") from e
+
+
 def depth_at(lat: float, lng: float, search_cells: int = 4) -> Optional[float]:
     """Ocean depth in metres (positive down) at (lat, lng). If the exact 0.25° cell is land/no-depth, return
     the nearest OCEAN cell's depth within ``search_cells`` (the adjacent shelf). Returns None if there is no

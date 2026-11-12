@@ -54,8 +54,26 @@ GUARDED = {
     "SPOT_HUB_RATE_ONE_SPOT": "1",      # spot-hub phase 2 (#710): the hub on rate_one_spot; kill '0' = the old chain
     "SURF_NEARSHORE_MOP": "1",          # CDIP MOP nearshore sea at California spots: nearshore judge 86/86 runs better,
                                         # MAE 0.250 -> 0.096 m at CDIP buoys (2026-10-09..11-04), ON; kill '0'
+    "FRAME_ENTITLEMENT": "0",           # O6 accounts only: EVERY static frame private + signed URLs. Held OFF: needs the
+                                        # private bucket created and the client signer half before the flip
+    "WEATHER_ACCOUNT_RATE_LIMIT": "1",  # per-account 429 on clamped reads + /frame-urls; acts only once a switch is on; kill '0'
+    "WEATHER_TIER_CLAMP": "0",          # O5 (#TBD): server tier clamp. Held OFF until the client sends its token
+                                        # (weatherAuthFetch.js) - ON earlier refuses every paying user (accounts only)
+    "MANIFEST_PRUNE_TOMBSTONES": "1",   # ING-1: a pruned manifest entry stays pruned across lanes (593/18,466 dangling
+                                        # 2026-11-11); moves manifest membership only, filter NO_CHANGE; kill '0'
+    "SHORE_NORMAL_MOP_CALIBRATED": "0",  # HELD OFF (D-065 WORSE): MOP says better (held-out MSE 0.0234 -> 0.0046, 77 spots)
+                                         # but the nearshore arm's hb_proxy says WORSE, +0.0385 m MAE [0.0234, 0.0589]
+    "SURF_SEA_INPUTS_EVERY_CALLER": "1",  # CMP-2: hub/conditions/surf-conditions/sim take /point's tide (+MOP) via
+                                          # sea_inputs; parity 20 spots x 3 h to 1e-6; accuracy NOT measured
+                                          # (filter primary hs_station: NO_CHANGE); kill '0'
     "LOCATION_TIME_FIELD": "0",         # location_time phase 1 (#762): civil zone + civil day rows. Held OFF until
                                         # the D-065 prerequisites (SCOREBOARD row, history filter) land; tier-safe
+    "RATING_BREAK_DEPTH_FROM_GEOMETRY": "1",  # CMP-3: the rating reads the break depth the height's cap used; offline filter NO_CHANGE
+    "SIDE_PATHS_THROUGH_CHAIN": "1",    # O4: /api/conditions preview rows = precomputed rate_one_spot frames (rated);
+                                        # _breaking_ft fails CLOSED (never offshore Hs as surf); /api/surf-conditions
+                                        # target-time height labelled an unrated estimate; kill '0'
+    "RATING_BAND_ONE_CHAIN": "1",       # CMP-1: map rating band = estimate_surf_at on cached geometry + break depth;
+                                        # band level == glyph level at 4,101 of 4,197 asset spot-seas, 0 unexplained
 }
 
 # FIX_VERSION: bump a flag's version in the PR that changes its fix. The guardrail's 'off' records the version it

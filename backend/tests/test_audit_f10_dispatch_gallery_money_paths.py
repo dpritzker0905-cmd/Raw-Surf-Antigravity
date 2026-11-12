@@ -9,6 +9,7 @@
 Both run here through the real routers, real JWTs and an ephemeral SQLite file; nothing leaves the process.
 """
 import inspect
+import sys
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -28,6 +29,7 @@ from models import (
 )
 from routes.dispatch import boost
 from routes.gallery import sales
+from tests.sqlite_lifecycle import assert_request_engines_closed
 
 
 def auth(subject):
@@ -91,9 +93,11 @@ def client(tmp_path):
 
     async def get_db():
         engine = create_async_engine(f'sqlite+aiosqlite:///{path}')
-        async with async_sessionmaker(engine, expire_on_commit=False)() as session:
-            yield session
-        await engine.dispose()
+        try:
+            async with async_sessionmaker(engine, expire_on_commit=False)() as session:
+                yield session
+        finally:
+            await engine.dispose()
 
     app = FastAPI()
     app.include_router(boost.router, prefix='/api')
@@ -233,3 +237,10 @@ def test_a_caller_cannot_buy_as_someone_else(client):
     response = bulk(client, 'crew', ['g1', 'g2'], buyer='captain')
     assert response.status_code == 403
     assert rows(client, GalleryPurchase) == []
+
+
+def test_refused_purchase_closes_sqlite_request_engine(client, monkeypatch):
+    """A refusal after a real balance query releases the fixture connection and worker."""
+    with assert_request_engines_closed(client, monkeypatch, sys.modules[__name__]):
+        response = bulk(client, 'broke', ['g1', 'g2'])
+        assert response.status_code == 400 and 'Insufficient credits' in response.json()['detail']

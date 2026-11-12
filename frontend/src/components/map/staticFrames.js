@@ -29,11 +29,14 @@
 import {
   buildVectors, gridJsonFromFrame, isGzip, parseFrame, pickIndexFrame, seriesFrameFromFrame,
 } from './staticFrameCodec';
+import { packableLayer } from './marineFramePack';   // the layers the GPU frame store packs (getPinnedIndexSync)
+import { EURO_SWELL_SET_KEYS, euroSwellSetsOn, isEuroSwellSetKey } from './staticEuroSwellSets';   // EURO swell world sets (2026-11-12)
 import { buildTruthTag } from './weatherTruthTracker';
 // MID-ZOOM CROPS (2026-10-22): a viewport box the resolver answers from global_mid is served as a crop of the same frame.
 import { cropGridJson, cropSeriesFrame, cropVectors, gridBboxParam, midCropFor, midCropRulesPass, seriesBboxParam } from './staticFrameCrop';
 import { _resetRegionalForTest, bundleBackingOff, isRegionalSetKey, noteRegionalMiss, normalizeBundleIndex, pickRegionalTile, regionalBundlesOn, regionalClipWindow, regionalFrameBytes,
   regionalGridJson, regionalTelemetry } from './staticRegional';   // regional bundles at z7-9 (2026-10-23)
+import { signEntitledFrames } from './staticFrameSigner';
 import { registerLatestProbes, setIsEmpty, setIsListed } from './regionalLatestSets';
 import { filledStoreAccepts, filledStoreOn, filledWorldPossible, filledWorldSetKey, plainCropsOn, preloadFilledIndexes, serveTimeFillAtWorld } from './staticWorldFillGuard';
 import { RATED_SET_KEYS, isRatedKey, ratedCropEligible, tryStaticRatedGrid } from './staticRatingFrames';   // the Surf Rating band (2026-11-01, dark)
@@ -210,8 +213,7 @@ export function setKeyFor(model, layer) {
 
 // The world sets the client reads from the CDN (the publisher's frame_set.SETS; each parity-gated node by node at publish
 // and offline against /grid, 2026-10-22). A set the publisher has not published yet is simply a miss ('no_index' or
-// 'set_not_published') and /grid serves it. Not here: EURO swell layers (global_coarse + serve-time Gulf fill) and ICON
-// swell_2 (a client blend; its GFS swell_2 input IS served from frames through the same seam).
+// 'set_not_published') and /grid serves it. EURO swell: staticEuroSwellSets (2026-11-12). Not here: ICON swell_2 (a client blend).
 export const STATIC_SETS = [
   'GFS/marine/waves/global_mid', 'GFS/marine/swell_1/global_mid', 'GFS/marine/swell_2/global_mid',
   'GFS/marine/wind_waves/global_mid', 'ICON/marine/waves/global_mid', 'EURO/marine/waves/global_mid',
@@ -232,13 +234,13 @@ export const STATIC_SETS = [
   // EURO / ICON world frames with /grid's TARGETED Gulf fill baked in (2026-10-24, frame_set_fill.py): read only for WORLD boxes,
   // only while the server and the set agree on the mode (staticWorldFillGuard.filledWorldSetKey); crops read the plain sets.
   'ICON/marine/waves/global_mid_filled', 'EURO/marine/waves/global_mid_filled', 'ICON/marine/swell_1/global_mid_filled',
-  'ICON/marine/wind_waves/global_mid_filled', ...RATED_SET_KEYS,   // + the RATED sets (staticRatingFrames: the band, dark)
+  'ICON/marine/wind_waves/global_mid_filled', ...RATED_SET_KEYS, ...EURO_SWELL_SET_KEYS,   // + RATED (the band) + EURO swell (staticEuroSwellSets)
 ];
 
 /** Per-set kill: window.__RAW_DISABLE_STATIC_FRAMES_SETS__ = ['ICON/marine/waves/global_mid', ...] (or '*'), or
  *  localStorage '__RAW_STATIC_FRAMES_SETS_OFF__' = a comma list, for this browser. The global kill still wins over all. */
 export function staticSetEnabled(key) {
-  if (!STATIC_SETS.includes(key) && !(isRegionalSetKey(key) && regionalBundlesOn())) return false;
+  if ((!STATIC_SETS.includes(key) && !(isRegionalSetKey(key) && regionalBundlesOn())) || (isEuroSwellSetKey(key) && !euroSwellSetsOn())) return false;
   const off = (list) => list === '*' || (Array.isArray(list) && list.includes(key));
   if (typeof window !== 'undefined' && off(window.__RAW_DISABLE_STATIC_FRAMES_SETS__)) return false;
   try {
@@ -276,8 +278,7 @@ async function loadIndex(path) {
       throw new Error('unsupported index');
     }
     idx.path = idx.path || path;
-    normalizeBundleIndex(idx);                       // a regional bundle set: frames read slices of one object (staticRegional)
-    return idx;
+    return signEntitledFrames(normalizeBundleIndex(idx)); // bundle sets read slices (staticRegional); hours get signed URLs (O6)
   });
   _state.indexLoads.set(path, p);
   p.catch(() => _state.indexLoads.delete(path));
@@ -352,16 +353,16 @@ export function onStaticFrameParsed(fn) {
   return () => _parsedHooks.delete(fn);
 }
 
-/** The pinned index for a set right now, synchronously; null when none, stale, the set is killed, it is not a WAVES set, or
+/** The pinned index for a set right now, synchronously; null when none, stale, killed, its layer not packable now (packableLayer), or
  *  it is a EURO / ICON set (serveTimeFillAtWorld: /grid's world-span Gulf fill).
  *  The GPU frame store (#437) reaches sets only through this: a per-set kill flipped after a pin also stops it, and it never
- *  plans or prefetches a non-waves run its packer would refuse (packStaticFrame: waves only), which would be egress for
+ *  plans or prefetches a run its packer would refuse (packStaticFrame: packableLayer), which would be egress for
  *  nothing (a whole run is ~6.3 MB). No I/O. */
 export function getPinnedIndexSync(key, { crop = false } = {}) {
   const pin = _state.pins.get(key);
   const [model, , layer, tier] = String(key || '').split('/');
   if (isRegionalSetKey(key)) return null;            // regional bundles (phase 1): the GPU frame store keeps to world sets
-  if (!pin || pin.stale || !staticSetEnabled(key) || layer !== 'waves' || tier === 'global_mid_rated') return null;
+  if (!pin || pin.stale || !staticSetEnabled(key) || !packableLayer(layer) || tier === 'global_mid_rated') return null;
   // EURO / ICON: a plain set as a WORLD frame never (/grid's serve-time Gulf fill makes a world grid differ from its stored frame), as a
   // CROP source yes (`crop`: a viewport clip is never filled, plainCropsOn); their FILLED world set only while the server, the record
   // and the index agree on the mode (staticWorldFillGuard.filledStoreAccepts).
@@ -384,7 +385,7 @@ function sharedParsedLoad(key, frame, priority) {
     let got;
     try {
       got = frame.bundle ? await regionalFrameBytes(staticFramesBase(), frame, controller.signal, priority)
-        : await fetchFrameBytes(staticFramesBase() + frame.path, controller.signal, priority);
+        : await fetchFrameBytes(frame.url || staticFramesBase() + frame.path, controller.signal, priority);  // url: O6 signed
     } catch (e) { got = { error: 'fetch_error' }; }                      // never an unhandled rejection
     if (got.error) {
       if (got.status === 404 || got.status === 400 || got.status === 'integrity') markPinStale(key); // gone or wrong: re-pin
@@ -619,7 +620,7 @@ const WORLD_GRID = { bounds: { west: -180, south: -80, east: 180, north: 84 }, c
  * is_valid for every layer (marineFramePack.parity.test.js: swell_1 texels that differ between the lanes 4,657 -> 0 on a real
  * frame). The waves-only rule comes back by itself whenever that fix is killed (window.__RAW_DISABLE_CONFORM_IS_VALID__), and
  * on its own kill: window.__RAW_DISABLE_STATIC_SERIES_ALL_SETS__ = true. Series CROP pages (#459) follow this gate too.
- * The GPU frame store stays waves-only (getPinnedIndexSync) until its packer handles the other layers.
+ * The GPU frame store takes the other marine layers too since 2026-11-12 (getPinnedIndexSync + marineFramePack.packableLayer).
  */
 export function staticSeriesEligible(args) {
   if ((args && args.surf) || !staticEligible(args)) return false;   // a surf page stays on /grid_series

@@ -29,8 +29,8 @@ describe('forecastReadout — names the displayed instant (F-07)', () => {
     expect(new Date(t.ms).toISOString()).toBe('2026-09-23T06:00:00.000Z');
     expect(t.snapped).toBe(true);
     const r = forecastReadout(1, 'waves', 'GFS', { timeZone: 'UTC' });
-    expect(r.text).toBe('Wed 6 AM');
-    expect(r.srText).toBe('Showing the forecast for Wed 6 AM, the nearest model time step to Wed 5 AM.');
+    expect(r.text).toBe('Wed, Sep 23, 2026, 6:00 AM UTC');
+    expect(r.srText).toBe('Showing the forecast for Wed, Sep 23, 2026, 6:00 AM UTC, the nearest model time step to Wed, Sep 23, 2026, 5:00 AM UTC.');
   });
 
   it('never asks the manifest to refresh (readOnly) — it runs on every scrubber render', () => {
@@ -41,8 +41,8 @@ describe('forecastReadout — names the displayed instant (F-07)', () => {
   it('an exact frame is not reported as snapped', () => {
     state.selected = grid3;
     const r = forecastReadout(2, 'waves', 'GFS', { timeZone: 'UTC' });   // 06:00 exactly
-    expect(r.text).toBe('Wed 6 AM');
-    expect(r.srText).toBe('Showing the forecast for Wed 6 AM.');
+    expect(r.text).toBe('Wed, Sep 23, 2026, 6:00 AM UTC');
+    expect(r.srText).toBe('Showing the forecast for Wed, Sep 23, 2026, 6:00 AM UTC.');
   });
 
   it('non-manifest layers read the forecast ANCHOR + offset, not browser time', () => {
@@ -55,8 +55,8 @@ describe('forecastReadout — names the displayed instant (F-07)', () => {
   it('hour 0 keeps the "Live" copy but still discloses the displayed step to screen readers', () => {
     state.selected = grid3;                                     // 04:00 anchor -> 03:00 frame
     const r = forecastReadout(0, 'waves', 'GFS', { timeZone: 'UTC' });
-    expect(r.text).toBe('Live');
-    expect(r.srText).toBe('Showing the forecast for Wed 3 AM, the nearest model time step to Wed 4 AM.');
+    expect(r.text).toContain('Now · Wed, Sep 23, 2026');
+    expect(r.srText).toBe('Showing the forecast for Wed, Sep 23, 2026, 3:00 AM UTC, the nearest model time step to Wed, Sep 23, 2026, 4:00 AM UTC.');
   });
 
   it('a manifest failure degrades to the requested instant instead of throwing', () => {

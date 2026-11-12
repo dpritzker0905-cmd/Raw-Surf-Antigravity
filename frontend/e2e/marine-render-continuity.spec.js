@@ -55,7 +55,7 @@
 const { test, expect } = require('./offlineWeather');
 const { stubSeededUiBadges } = require('./seededUiBadges');
 // Extracted so it can be unit-tested against known answers — see continuityOracle.test.js.
-const { longestStall, stallAnatomy, isAppStall } = require('./continuityOracle');
+const { longestStall, stallAnatomy, isAppStall, steadyDrawStep } = require('./continuityOracle');
 // A measured stall must not be retried away — see stallLedger.js.
 const { runKey, ledgerFile, readEarlierStalls, recordStall } = require('./stallLedger');
 // What each gesture asks the 1-CPU backend for (A15-11) — see requestRecorder.js. Observation only.
@@ -178,6 +178,35 @@ async function expectPinnedStart(page) {
     + `it is at ${JSON.stringify(center)}, IP lookups answered: ${ipLookups}`).toBe(true);
 }
 
+/**
+ * POSITIVE CONTROL at rest: wait until the draw counter advances across a whole window (steadyDrawStep), not merely
+ * until it has drawn once. Fails by name, with the engine's last state, if it never does before the deadline.
+ * Annotates how long startup took, so a slow Safari startup is visible on the report rather than retried away.
+ */
+const STEADY_WINDOW_MS = 1500;
+async function expectSteadyDrawing(page, message, timeoutMs = 60000) {
+  const started = Date.now();
+  let state = null;
+  let last = null;
+  while (Date.now() - started < timeoutMs) {
+    last = await page.evaluate(() => {
+      const g = window.__RAW_GPU__ || {};
+      const o = g.opacity || null;
+      return { n: o ? o.n : null, heatmap: o ? o.heatmap : null,
+        layer: g.layer ? { n: g.layer.n, skip: g.layer.skip } : null };
+    });
+    const step = steadyDrawStep(state, last.n, Date.now(), STEADY_WINDOW_MS);
+    if (step.steady) {
+      test.info().annotations.push({ type: 'steady drawing after', description: `${Date.now() - started} ms` });
+      return;
+    }
+    state = step.state;
+    await page.waitForTimeout(250);
+  }
+  expect(false, `${message}: the draw counter never advanced across ${STEADY_WINDOW_MS} ms in ${timeoutMs} ms; `
+    + `last ${JSON.stringify(last)}`).toBe(true);
+}
+
 /** Start an in-page sampler that records draw-counter stalls until stopped. */
 async function startSampler(page) {
   await page.evaluate((pollMs) => {
@@ -297,12 +326,9 @@ test.describe('Marine render continuity across real gestures', () => {
 
     // POSITIVE CONTROL, before any gesture: the counter must advance while the map sits still. If
     // it does not, every stall measured below would be meaningless — the engine simply is not
-    // running, and this test must say THAT rather than blaming the gestures.
-    const n0 = await page.evaluate(() => window.__RAW_GPU__.opacity.n);
-    await page.waitForTimeout(1500);
-    const n1 = await page.evaluate(() => window.__RAW_GPU__.opacity.n);
-    expect(n1, 'the engine must be drawing at rest before gesture continuity means anything')
-      .toBeGreaterThan(n0);
+    // running, and this test must say THAT rather than blaming the gestures. Steady, not first-draw:
+    // see continuityOracle.steadyDrawStep for the Safari startup flake this replaced.
+    await expectSteadyDrawing(page, 'the engine must be drawing at rest before gesture continuity means anything');
 
     await startSampler(page);
 
@@ -432,10 +458,7 @@ test.describe('Marine render continuity under a rapid zoom/pan burst', () => {
 
     // POSITIVE CONTROL at rest, before any gesture. Without it a burst that measured a dead engine
     // would read as a catastrophic gap and point at the gesture rather than at startup.
-    const n0 = await page.evaluate(() => window.__RAW_GPU__.opacity.n);
-    await page.waitForTimeout(1500);
-    const n1 = await page.evaluate(() => window.__RAW_GPU__.opacity.n);
-    expect(n1, 'the engine must be drawing at rest before a burst means anything').toBeGreaterThan(n0);
+    await expectSteadyDrawing(page, 'the engine must be drawing at rest before a burst means anything');
 
     await startSampler(page);
     await label(page, 'burst:sebastian-z12');

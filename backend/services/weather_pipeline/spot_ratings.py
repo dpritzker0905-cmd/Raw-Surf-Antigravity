@@ -115,6 +115,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     primary_swell_h = None
     geometry_readiness = None
     partitions = None
+    served_break_depth = None
     run_time = wind_run_time = None
     cycle_evidence = {lane: time_provenance(None) for lane in ('marine', 'wind')}
     try:
@@ -141,6 +142,9 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
             # is on). Read off the response, NEVER re-resolved here — one sea state for the height
             # and the rating, or the two can disagree about the same hour.
             partitions = getattr(marine, "partitions", None)
+            # The break depth the HEIGHT's cap actually used (geometry, incl. the land-present
+            # promotion). Read off the response for the same reason: one geometry, two halves.
+            served_break_depth = getattr(marine, "break_depth_m", None)
             # ENSEMBLE SPREAD on the OFFSHORE Hs (marine `point.speed` IS the offshore significant
             # height — the repo's loudest landmine). Paired with that same offshore height below,
             # never with the breaking height, or the ratio inflates by whatever the transform did.
@@ -198,12 +202,21 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     # big-wave spot keeps its ceiling even before it has enough size climatology. Cached asset lookup,
     # no I/O beyond the already-loaded ETOPO shore-normal asset; None simply falls through to the
     # conservative absolute pair. Never let it break the rating.
+    # ★ CMP-3 (audit 2026-11-10): the HEIGHT's cap reads `resolve_surf_geometry().break_depth_m`, which
+    # promotes the land-present fit's depth when `break_depth_at` has none (SURF_COASTAL_FROM_LAND_BIT);
+    # this call alone did not, so at 12 of the 14 land-present coordinates the rating saw None while the
+    # height was capped. The served response already carries the geometry's number: read THAT (ONE
+    # FORECAST COMPOSITION), and keep `break_depth_at` only as the fallback when the response has none.
+    # Kill: RATING_BREAK_DEPTH_FROM_GEOMETRY=0 restores the independent `break_depth_at` read.
     break_depth = None
-    try:
-        from services.weather_pipeline.shore_normal_asset import break_depth_at
-        break_depth = break_depth_at(lat, lng)
-    except Exception as e:
-        logger.debug(f"[spot-ratings] break-depth resolve failed for {spot.get('id')}: {e}")
+    if served_break_depth is not None and _rf.flag("RATING_BREAK_DEPTH_FROM_GEOMETRY") == "1":
+        break_depth = served_break_depth
+    else:
+        try:
+            from services.weather_pipeline.shore_normal_asset import break_depth_at
+            break_depth = break_depth_at(lat, lng)
+        except Exception as e:
+            logger.debug(f"[spot-ratings] break-depth resolve failed for {spot.get('id')}: {e}")
     # ⚠️ KEYWORDS, NOT POSITION — this is the REFERENCE implementation, and it was the last surface
     # still calling positionally (invariant 2: ten positional args are exactly how `9b808d05`
     # silently stopped one short of `break_depth_m` at the hub).

@@ -48,7 +48,7 @@
 import { staticFramesEnabled, onStaticFrameParsed, getPinnedIndexSync, getPinnedIndex, loadFrameParsed, storeSetKeyFor, storeCropSetKeyFor, staticEligible } from './staticFrames';
 import { pickIndexFrame, frameMeta } from './staticFrameCodec';
 import { plainClipServable } from './staticFrameCrop';   // the plain EURO/ICON crop's parity gate (2026-10-26)
-import { packStaticFrame, packSignature, validityDiff } from './marineFramePack';
+import { packStaticFrame, packSignature, validityDiff, layerOfStoreKey } from './marineFramePack';
 import { createFrameStore, resolveTier, setKeyOf } from './marineFrameStore';
 import { createIntent, createPrefetcher, idleSlice, planWant } from './marineFramePrefetch';
 import { createFrameArrays, isWebGL2, uploadBytesTo2D } from './marineFrameStoreGpu';
@@ -359,7 +359,7 @@ function uploadGpu(info, validTime) {
 
 function packInto(info, validTime, parsed, buffer) {
   const s = store();
-  const pack = packStaticFrame(parsed);
+  const pack = packStaticFrame(parsed, { layer: layerOfStoreKey(info.key) });   // every marine layer since 2026-11-12
   if (!pack) { if (s.markInflight(info.key, validTime)) s.markUnpackable(info.key, validTime, 'unpackable'); return null; }
   if (!s.putPacked(info.key, validTime, pack, buffer || null)) return null;
   upload(info, validTime);
@@ -391,7 +391,7 @@ function ensureInit() {
         const got = await loadFrameParsed(info.staticKey, frame, signal, { priority });
         return got ? { buffer: { parsed: got.parsed }, raw: got.buffer || null, wire: got.wire } : { error: signal && signal.aborted ? 'aborted' : 'load_failed' };
       },
-      decodeAndPack: ({ parsed }) => packStaticFrame(parsed),
+      decodeAndPack: ({ parsed }, key) => packStaticFrame(parsed, { layer: layerOfStoreKey(key) }),
       onPacked: (key, validTime) => { const info = [...rt.sets.values()].find((x) => x.key === key); if (info) upload(info, validTime); },
     });
   }

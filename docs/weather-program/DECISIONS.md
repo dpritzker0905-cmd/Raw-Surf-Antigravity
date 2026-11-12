@@ -1980,3 +1980,68 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   - The pooled n double-counts overlapping backfill hours.
 - **Supersedes:** the STATE note "flip waits on spot observations", a D-001-era hold.
 - **Rollback:** `SURF_NEARSHORE_MOP=0` (env or manifest), or revert the PR.
+
+### D-070 · WAVES_ANIM_DOMINANT_SWELL is registered as a rating flag; its value stays 1 pending the owner (2026-11-12, proposed)
+- **What it is:** an ingest-time rule in `normalizer.py`. For the marine/waves layer, where the larger of the two swell
+  partitions holds at least 0.35 of the total energy (H_sw^2 >= 0.35 Hs^2), and the product carries partitions on at least
+  95% of its wave cells, the cell's direction and u/v become that partition's direction. Height stays total. GFS and ICON
+  only: EURO WAM serves no partitions. The point sampler reads the same grid, so the rating's `swell_from` and the height's
+  direction terms follow it.
+- **State recorded, not changed:** code default `'0'`; the repository variable has read `1` since the 2026-07-13 A/B
+  (`docs/runbooks/HANDOFF-2026-07-13-data-truth-and-swell-animation-decision.md`), read by forecast-ingest and
+  forecast-ingest-pilots with a `'0'` fallback. It had no DECISIONS or SCOREBOARD entry and no `_RATING_FLAGS` line, so
+  the flag-parity guard could not see it (its prefixes skip `WAVES_ANIM_`). Now registered, with a test that pins one
+  repository variable, the same fallback in both lanes, equality with the normalizer's code default, and absence from
+  precompute (`tests/test_flag_lane_parity.py::test_dominant_swell_anim_is_registered_and_read_the_same_way_by_both_ingest_lanes`).
+- **Measured (sensitivity, not skill):** `backend/scripts/dominant_swell_anim_census.py`, 2026-11-12. 120 catalogue
+  spots, sampled one per 15 deg lat x 30 deg lon cell, up to 4 per cell; 93 had a sea state. GFS-Wave 0.25 deg (Open-Meteo `ncep_gfswave025`,
+  nearest sea cell) and GFS wind, every 6 h over 3 days: 1,116 spot-hours. Both lanes went through the real chain
+  (`rate_one_spot` -> `augment_with_surf` -> `compute_surf_rating`); only the direction differed. No request reached our backend.
+  - Direction changed on 60.5% of spot-hours: median 6 deg, p90 33 deg, max 130 deg; 44 rows turned >= 45 deg.
+  - Rating LEVEL changed on **18.5%** of spot-hours (61 up, 145 down); score mean -1.60, mean |d| 3.66, range -66 to +62.
+  - Breaking height: mean -0.013 m, mean |d| 0.037 m; 131 rows moved > 0.1 m.
+  - The effect grows with the turn: mean |dscore| 4.1 (0-30 deg), 20.1 (30-60 deg), 25.7 (60-90 deg).
+  - Tropics and extratropics alike (18.9% vs 18.0% level change).
+  - Null control: 40 identical re-rates gave 0 score differences.
+- **Why not decided here:** the census measures how much the flag moves the rating, not which direction is right. The
+  only direction truth we hold is the buoy's bulk mean direction, which is a TOTAL direction (S8); judging a swell-
+  partition direction needs spectral truth (gap map item 5). Physically the dominant swell is what refracts onto a
+  break, which argues for ON; the honest test is the partition-truth instrument.
+- **Also stated:** with the flag on, GFS and ICON carry a swell direction and EURO a total direction, so the consensus
+  direction averages unlike quantities (`log/2026-11-03-claude-consensus-direction-vector.md`). With the flag on, the
+  waves layer animates along a swell partition while wind-waves and other layers follow their own fields, so layers can
+  legitimately disagree over the same water (the advisor's hypothesis for the 2026-11-11 "opposing animations" report;
+  not tested here).
+- **Owner's call:** keep 1 (today's behaviour) or set the repository variable to 0. Either is one variable flip,
+  effective on the next ingest cycle; no code change.
+- **Reopen if:** the partition-truth instrument reads, or the owner decides.
+
+### D-071 · The wind lane's HRRR weight is capped by region and lead from a buoy fit (WIND_LANE_SKILL_WEIGHTS, 2026-11-12, decided ON 2026-11-12 19:49Z)
+- **Status: DECIDED, ON (2026-11-12).** The owner (David), 14:43 EST 2026-11-12 (19:43Z), answering "Turn on the
+  skill-weighted HRRR wind lane (WIND_LANE_SKILL_WEIGHTS=1)?": "Turn it on". The director set Render env
+  `WIND_LANE_SKILL_WEIGHTS=1` on the Render backend service at ~19:49Z, triggering deploy
+  `dep-dbr1gorrjlhs73cd7890` on dev `37b85b463`. Evidence the owner decided on: held-out (odd-cycle fit, even-cycle
+  score) the blend beat both GFS and the shipped lane in 8 of 8 table cells and 26 of 28 published cells (#798 grade,
+  #805 build; SCOREBOARD S9 rows 2026-11-12 04:50Z and 06:00Z). Commitment (ledger): re-grade the live lane against
+  NDBC (`backend/scripts/grade_wind_lane_ndbc.py`, #798's method) on >= 14 days after the flip, due 2026-11-26; revert
+  if any region x lead with n >= 300 is worse than GFS by > 0.3 kn vector RMSE.
+- **Was: PROPOSED, not decided.** Built dark on branch `claude/wind-lane-skill-weights` (default `'0'`, Render env).
+  It flips only on the owner's word. It reopens D-017's "full HRRR weight inside the domain and horizon"; D-017's
+  place/time lane, feather, taper and kills stand.
+- **Why it reopens:** D-017's own reopen condition fired. The >= 14-day NDBC grade (#798, log
+  2026-11-11-claude-hrrr-wind-grade.md) found the lane worse than GFS on the West coast at every lead (vector RMSE
+  +0.41 / +0.62 / +1.47 / +1.49 kn at L3/12/24/36, CIs clear of 0) and tied on the East; the half weight at L47
+  beat both.
+- **Rule (when on):** HRRR's weight at a node = min(space x time weight, cap(region, lead)), from the checked-in
+  `services/weather_pipeline/wind_lane_skill_weights.json`: west (Pacific) 0.4 / 0.3 / 0.2 / 0.2 and east (Atlantic +
+  Gulf) 0.5 / 0.6 / 0.5 / 0.5 at L3/12/24/36, linear in lead, flat outside; the regions joined by a cos^2 ramp over
+  -112..-106 deg. Moves only the drawn wind map; no spot height or rating reads the lane (tests pin it).
+- **Evidence:** fit on odd cycles, scored on held-out even cycles (`backend/scripts/sweep_wind_lane_weight.py`,
+  `evidence/wind-lane-skill-sweep-2026-11-12.json`): the blend beats both GFS and today's lane in 8 of 8 table cells
+  (e.g. west L24 5.55 kn vs GFS 5.77 vs lane 6.75; east L36 6.24 vs 6.59 vs 6.76) and in 26 of 28 published
+  coast x coastal/offshore cells (misses: L3 Gulf offshore, L3 West offshore, both n < 300).
+- **Known cost of a flip:** the static wind frames never cap, so a box with the flag on sends the lane's hours to
+  `/grid` (the client's `laneVerdict`); a follow-up can make the frames apply the same table.
+- **Reopen if:** a later grade (another season, or a scheduled wind truth lane) moves a cell's fitted weight by >= 0.2,
+  or the held-out blend stops beating both members in a cell with n >= 300.
+- **Rollback:** `WIND_LANE_SKILL_WEIGHTS` unset or `0` (Render env; setting it redeploys).
