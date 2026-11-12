@@ -6,8 +6,8 @@ its log `2026-11-12-opus-move3-publish-order.md`). Ask (owner via the advisor, 1
 lab only, no served number moves, a published frame may only be read where it is a parity-gated mirror of `/grid`, and a published
 ICON blend set is not to be built without the owner's decision.
 
-**Result, plainly: no runtime change ships here.** On a fresh lab store, current dev already meets 100 ms at p95 in the four
-non-ICON cells; the 06:50Z table that named them was read on an AGED lab store. The fix I built for the named cause (c) measured no
+**Result, plainly: no runtime change ships here.** On a fresh lab store, current dev already meets 100 ms at p95 in the three
+non-ICON cells of the six (EURO swell_2, GFS wind_waves, EURO wind_waves; corrected from "four" after the advisor's check); the 06:50Z table that named them was read on an AGED lab store. The fix I built for the named cause (c) measured no
 gain and is withdrawn. The two ICON causes remain and are sized below. This PR carries only the harness instrumentation and records.
 
 ## Method
@@ -45,7 +45,9 @@ Per-run p95, BEFORE / AFTER: swell_1 ICON [150,169,153] / [132,145,140]; swell_2
 path (`onParsed` packs and shows synchronously when the parsed frame is the one a deferred step is waiting for, kill
 `__RAW_DISABLE_FRAME_WANT_PACK_NOW__`, 2 tests and a mutant check). Deferred shows were 18 BEFORE / 19 AFTER and `not_ready` misses
 62 / 66: the race it closes did not occur often enough to move any cell, and AFTER is no better at p50 or p95 in any cell (the
-AFTER p95s that read higher are within run-to-run spread on a shared machine: the third AFTER runs read 16, 12 and 12 ms). A change with no
+AFTER p95s that read higher, 16 -> 47, 31 -> 50 and 28 -> 67 ms, are not separable from machine load: BEFORE and AFTER ran in
+separate time blocks on a shared machine, so this is not shown to be noise either; the third AFTER runs read 16, 12 and 12 ms).
+Model toggles are excluded from the step figures and still run 53-655 ms p50 BEFORE (max 1,180 ms, ICON swell_2). A change with no
 measured benefit does not ship. The diff is kept outside the repo for reference.
 
 **(a) EURO hours past 240 h going to the box: in the lab it was the aged store.** With the fresh store, EURO swell_2 and wind_waves
