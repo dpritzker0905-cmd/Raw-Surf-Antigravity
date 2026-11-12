@@ -16,6 +16,7 @@ import { packStaticFrame } from './marineFramePack';
 import { createCrestPhaseState, stepCrestPhase, localCrestBand } from './crestLocalPhase';
 import { waveSetFreq, viewWorldWidth } from './waveSetScreenBound';
 import { NATURAL_ANIM_DEFAULTS } from './marineEngineDecisions';
+import { ORBITAL_SWAY_PX } from './oneWayCrests';
 import { ADVECT_FS, DRAW_VS, DRAW_FS } from './WebGLMarineParticleShaders';
 import { HEATMAP_FS } from './WebGLMarineShaders';
 
@@ -147,7 +148,9 @@ describe('3. Mercator -> screen and each moving element, for each compass input'
 
 // The shipped constants that set how far a dash moves, read from the source so a retune moves these numbers too.
 const SPEED_FACTOR = Number(read('WebGLMarineEngine.js').match(/this\.speedFactor = ([0-9.]+);/)[1]);
-const PITCH_PX = NATURAL_ANIM_DEFAULTS.__RAW_ORBITAL_PITCH__;
+// 2026-11-12 (one-way crests): the pitch DEFAULT is now 0 (oneWayCrests.js). Section 4 characterises the sway the kill switch
+// window.__RAW_DISABLE_ONE_WAY_CRESTS__ restores; oneWayCrests.test.js pins that the default has no backward dash.
+const PITCH_PX = ORBITAL_SWAY_PX;
 const motionScaleAt = (z) => { const ss = (a, b, x) => { const t = Math.max(0, Math.min(1, (x - a) / (b - a))); return t * t * (3 - 2 * t); };
   return (0.75 + 0.25 * ss(4, 7, z)) * (z < 6 ? 0.75 + 0.25 * ss(3, 6, z) : 1); };
 /** Dash drift in CSS px/s: ADVECT_FS offset per frame x fps, world = 512 * 2^z CSS px (WebGLMarineEngine stableSpeedScale). */
@@ -161,9 +164,10 @@ const swayPeakPxPerSec = (T, z) => PITCH_PX * 2 * Math.PI * motionScaleAt(z) / M
 /** Band (crest) speed in CSS px/s: one set spacing per T / m seconds. */
 const bandPxPerSec = (T, z) => (512 * 2 ** z / waveSetFreq(T, viewWorldWidth(1400, z))) * motionScaleAt(z) / Math.max(2, T);
 
-describe('4. THE FINDING: orbital pitch moves the trough dashes AGAINST the swell (by design, but it reads as opposing motion)', () => {
-  test('the pitch is on by default and its sway is phase-locked to the band (forward under the crest, back under the trough)', () => {
+describe('4. THE FINDING: orbital pitch moves the trough dashes AGAINST the swell (the default until 2026-11-12; now only under the one-way-crests kill)', () => {
+  test('the sway the kill restores is 2.5 px, off by default, and phase-locked to the band (forward under the crest, back under the trough)', () => {
     expect(PITCH_PX).toBe(2.5);
+    expect(NATURAL_ANIM_DEFAULTS.__RAW_ORBITAL_PITCH__).toBe(0);
     expect(DRAW_VS).toContain('pixel0 += waveDir * sin(orbPhase) * u_orbitalPitch * dpr;');
     // the band peak sits at phase 0.5 (crestBand = 1 - smoothstep(0.08, 0.30, |fract(ph) - 0.5|)); d/dt sin(2 pi ph) with ph
     // falling = -2 pi cos(2 pi ph) * rate: + (forward) at ph 0.5, - (backward) at ph 0 (the trough).
