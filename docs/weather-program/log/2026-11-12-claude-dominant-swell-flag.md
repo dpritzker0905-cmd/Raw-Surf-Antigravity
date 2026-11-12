@@ -342,3 +342,50 @@ off), the scores were identical on 97.4% of rows (median difference 0, p90 0) bu
 The level disagreed on 1.3% of rows, and the breaking height differed by a median of 0.02 ft. So the section 3 numbers are
 SUPERSEDED: the full census is being re-run through `rate_one_spot`, and the replacement numbers will land in a following
 addendum and SCOREBOARD correction. Until then, cite #792's `rate_one_spot` census (D-070), not section 3.
+
+## 12. Addendum 07:47Z: ICON bounce captures (a)-(c) with the holds ON (director's request)
+
+Build: this branch at 137534ee0 (client identical to `origin/dev` 10b4ef4cf; built locally). Store: `serve_synthetic.py --models GFS,ICON
+--layers waves,wind_waves --regions florida_east_coast --dynamic 1 --horizon 48 --ingest-stamp-minutes world=731,regional=803`
+(synthetic fields). New harness pieces, offline only and read-only towards the app:
+- `frontend/scripts/offline-backend/synthetic_bounce_lab.py`, an ASGI wrapper `serve_synthetic.py` now always installs (idle until
+  armed). `GET /__lab/unlabel` strips `served_valid_time` from world-tier marine frames. `GET /__lab/cycle?hours=6&scope=` moves
+  run_time / model_run_time / ingested_at 6 h later on one tier or all tiers. It also logs every marine `/grid` and `/grid_series`
+  request.
+- `frontend/scripts/offline-backend/scn_bounce_holds_on.js`, which runs CASE a|b|c, with HOLDS=off as the null control (both kill
+  switches set before load). It samples the engine's drawn grid every 100 ms and counts three things. A DOWNGRADE: the cell
+  becomes >= 1.05x coarser at a regional view. A BOUNCE: a downgrade, then an upgrade within 15 s. A RECOMMIT: a changed grid at
+  the same resolution (texture rebuild and particle reset, no coarse flash). It also records how many requests the backend had seen
+  at each step.
+
+| Case | Arm | Lab rewrites | Requests during the steps | Downgrades | Bounces | Recommits |
+|---|---|---|---|---|---|---|
+| a: world frame without served_valid_time; re-activate, 2 pans | ON | 38 frames unlabelled | (run 1, not counted) | 0 | 0 | 0 |
+| a | OFF | 61 (cumulative) | (run 1) | 0 | 0 | 1 (13x17 -> 21x17 at 96.8 s, after the pans) |
+| b: 5 pans of 1.1-1.9 deg inside the Florida tile | ON | n/a | 15 over 5 pans | 0 | 0 | 0 |
+| b | OFF | n/a | 12 over 5 pans | 0 | 0 | 1 (13x17 -> 21x17 at 4.3 s, at activation) |
+| c: cycle +6 h on the world tier, a pan, every tier, a pan, re-activate | ON | **0** | 3 (all hours 286-334) | 0 | 0 | 1 (13x17 -> 21x17 at 92.9 s, after re-activation) |
+| c | OFF | **0** | 3 (all hours 286-334) | 0 | 0 | 0 |
+
+Readings:
+- **(a) not reproduced with the holds on.** The unlabelled world frame was served 38 times. It was drawn only at first activation
+  (181x83 at 2.5 s, before any regional was resident: the activation order recorded in section 7.3, not a downgrade). The hold
+  fired 4 times. A world frame without `served_valid_time` is still held, because the hold falls back to the hour label plus the
+  valid time (`marineFinerResidentHold.js`, the `sameServed` / `hour` / `valid_time` branch), so the engine guard's fail-open is
+  never reached.
+- **(b) not reproduced with the holds on.** The pans did reach the backend (12-15 marine requests), but on this build the drawn
+  grid is the resident 48-frame series page (21x17 over -82..-79, 27..30). No pan committed a new current-hour grid, with the holds
+  on OR off. The 2-deg moveend clip behind the original live bounce (#746, step 1) never arrived in either arm.
+- **(c) UNTESTED, not "not reproduced".** After each cycle step the client asked only for future pages (hours 286-334, beyond this
+  store's 48 h horizon). The lab therefore rewrote **0** responses, and no new-cycle frame for the current hour ever reached the
+  client. A mid-session cycle reaches this client only through a new series page for the current hour. Neither a pan, a
+  re-activation nor waiting asked for one inside 2 min. Testing (c) needs that refresh trigger (a series-page expiry, or an hour
+  scrub into a page not yet cached).
+- The null controls did not reproduce the bounce either. The same-resolution recommits (0.2353 -> 0.2381 deg, +1.2%) appeared in
+  both arms. In c ON the 13x17 resident no longer covered the panned view, so its replacement by the covering 21x17 is the hold's
+  designed release (`resident_not_covering`), not a coarse flash. So these runs show that the pan path which produced the live bounce
+  does not fire on this build offline. They cannot separately prove that the hold would stop it.
+
+**Verdict for the director: closed as "not reproduced with holds on" for (a) and (b). (c) stays OPEN as untested.** No fix was
+written and `marineFinerResidentHold.js` is untouched, so the animation lane was not asked. Next capture for (c): arm `/__lab/cycle`,
+then scrub the hour into a page the client has not cached (or wait out the series page TTL), with both arms.
