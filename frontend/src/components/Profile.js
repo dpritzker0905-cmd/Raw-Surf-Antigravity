@@ -1,3 +1,4 @@
+import {goBackOr} from './routing/appHistory';
 import React, { useEffect, useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -394,7 +395,7 @@ export const Profile = () => {
       {!isOwnProfile && (
         <div className="sticky top-0 z-10 bg-background/90 backdrop-blur-sm border-b border-border px-4 py-3">
           <button aria-label="Go back"
-            onClick={() => navigate(-1)}
+            onClick={() => goBackOr(navigate, '/feed')}
             className="flex items-center gap-2 text-white hover:text-gray-300"
             data-testid="back-button"
           >
