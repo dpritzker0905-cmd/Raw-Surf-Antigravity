@@ -37,7 +37,7 @@ function cdn(filledIndex) {
   });
 }
 const flush = () => new Promise((r) => setTimeout(r, 0));
-const KILLS = ['__RAW_DISABLE_FILLED_WORLD_STORE__', '__WEATHER_CAPABILITIES__', '__RAW_DISABLE_STATIC_FILLED_WORLD__', '__RAW_DISABLE_PLAIN_SET_CROPS__'];
+const KILLS = ['__RAW_DISABLE_FRAME_STORE_ALL_LAYERS__', '__RAW_DISABLE_FILLED_WORLD_STORE__', '__WEATHER_CAPABILITIES__', '__RAW_DISABLE_STATIC_FILLED_WORLD__', '__RAW_DISABLE_PLAIN_SET_CROPS__'];
 
 describe('the frame store and the filled EURO/ICON world set', () => {
   const realFetch = global.fetch;
@@ -65,7 +65,15 @@ describe('the frame store and the filled EURO/ICON world set', () => {
     expect(filledStoreAccepts('EURO', 'waves', FILLED, indexFor('filled', { mode: 'legacy' }), latest)).toBe(false);   // baked in another mode
     expect(filledStoreAccepts('EURO', 'waves', FILLED, baked, { sets: { [FILLED]: { index: 'x', run: 'r' } } })).toBe(false);  // record: no mode
     expect(filledStoreAccepts('EURO', 'waves', FILLED, baked, null)).toBe(false);                                      // latest.json not read
-    expect(filledStoreAccepts('EURO', 'swell_1', 'EURO/marine/swell_1/global_mid_filled', baked, latest)).toBe(false); // the store holds waves only
+    // Every marine layer since 2026-11-12 (marineFramePack.packableLayer), on the same rule; waves only under its kill.
+    const SW = 'EURO/marine/swell_1/global_mid_filled';
+    const latestSw = { sets: { ...SETS, [SW]: { index: 'v1/idx/sw.json', run: 'r', fill_mode: 'targeted' } } };
+    expect(filledStoreAccepts('EURO', 'swell_1', SW, baked, latestSw)).toBe(true);
+    expect(filledStoreAccepts('EURO', 'swell_1', SW, baked, latest)).toBe(false);                                      // no record for it
+    window.__RAW_DISABLE_FRAME_STORE_ALL_LAYERS__ = true;
+    expect(filledStoreAccepts('EURO', 'swell_1', SW, baked, latestSw)).toBe(false);                                    // the kill: waves only
+    expect(filledStoreAccepts('EURO', 'waves', FILLED, baked, latestSw)).toBe(true);
+    delete window.__RAW_DISABLE_FRAME_STORE_ALL_LAYERS__;
     expect(filledStoreAccepts('EURO', 'waves', PLAIN, baked, latest)).toBe(false);                                     // the plain key never
     window.__WEATHER_CAPABILITIES__ = caps('legacy');                                                                  // the box in another mode
     expect(filledStoreAccepts('EURO', 'waves', FILLED, baked, latest)).toBe(false);

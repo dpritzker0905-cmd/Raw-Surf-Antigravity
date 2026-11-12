@@ -626,6 +626,8 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
     )
     now = now or datetime.now(timezone.utc)
     incoming: List[dict] = []
+    from services.weather_pipeline import skill_direction_period_paired as s8v2   # S8 v2, FORECAST_SKILL_DIRPER_PAIRED
+    tag_kinds = s8v2.enabled()                     # off: rows and report byte-identical to before
     # The served model first, then any comparison models — each is an INDEPENDENT source, so one
     # model failing a lead never removes another's row. See COMPARE_MODELS_DEFAULT for the cost.
     for mdl in [model] + compare_models(model):
@@ -643,11 +645,13 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
                         lead_report = await calibrate_spots(resolver, spots, scalar_shadow_base(mdl), target)
                 else:
                     lead_report = await calibrate_spots(resolver, spots, mdl, target)
-                incoming.extend(rows_from_calibration_report(lead_report, target, lead, source=src))
+                lane_rows = rows_from_calibration_report(lead_report, target, lead, source=src)
+                incoming.extend(s8v2.tag_lane_rows(lane_rows, mdl) if tag_kinds else lane_rows)
             except Exception as e:
                 logger.warning("[forecast-skill] %s lead +%dh resolve failed (%s)", src, lead, e)
     if os.environ.get("FORECAST_SKILL_PERSISTENCE", "1") != "0":
-        incoming.extend(persistence_rows_from_report(report, now))
+        prows = persistence_rows_from_report(report, now)
+        incoming.extend(s8v2.tag_persistence_rows(prows, report) if tag_kinds else prows)
     try:
         coords = await fetch_ndbc_station_coords()
         buoys = {}
@@ -742,6 +746,11 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
                 dirper = direction_period_report(history, now)
             except Exception as e:
                 logger.warning("[forecast-skill] direction/period block skipped (%s)", e)
+            if tag_kinds and dirper is not None:      # S8 v2: paired, by coast, period kinds never mixed; own guard
+                try:
+                    dirper["paired"] = s8v2.paired_direction_period_report(history, now, primary=model)
+                except Exception as e:
+                    logger.warning("[forecast-skill] paired direction/period block skipped (%s)", e)
         except Exception as e:
             logger.warning("[forecast-skill] MOS shadow skipped (%s)", e)
     return {"ledgered": len(incoming), "scored": len(scored),

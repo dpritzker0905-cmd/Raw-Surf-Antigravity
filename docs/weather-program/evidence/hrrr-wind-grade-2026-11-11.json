@@ -1,0 +1,4316 @@
+{
+ "generated": "2026-11-12T04:08:48Z",
+ "cycles": [
+  "2026-10-15T00Z",
+  "2026-11-08T18Z",
+  100
+ ],
+ "leads": [
+  3,
+  12,
+  24,
+  36,
+  47
+ ],
+ "stations": [
+  {
+   "id": "41004",
+   "lat": 32.502,
+   "lon": -79.099,
+   "name": "EDISTO - 41 NM Southeast of Charleston, SC",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 973.1,
+   "land_km": 63.2,
+   "coastal": false,
+   "cell": 656310,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "41008",
+   "lat": 31.4,
+   "lon": -80.866,
+   "name": "GRAYS REEF - 40 NM Southeast of Savannah, GA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 939.2,
+   "land_km": 34.4,
+   "coastal": true,
+   "cell": 564513,
+   "anemometer_m": 3.8,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "41009",
+   "lat": 28.508,
+   "lon": -80.185,
+   "name": "CANAVERAL 20 NM East of Cape Canaveral, FL",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 631.7,
+   "land_km": 36.6,
+   "coastal": true,
+   "cell": 381057,
+   "anemometer_m": 3.8,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "41010",
+   "lat": 28.86,
+   "lon": -78.478,
+   "name": "CANAVERAL EAST - 120NM East of Cape Canaveral",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 703.8,
+   "land_km": 206.9,
+   "coastal": false,
+   "cell": 424286,
+   "anemometer_m": 3.2,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "41013",
+   "lat": 33.436,
+   "lon": -77.764,
+   "name": "Frying Pan Shoals, NC",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 872.1,
+   "land_km": 52.9,
+   "coastal": false,
+   "cell": 733700,
+   "anemometer_m": 3.8,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "41025",
+   "lat": 35.026,
+   "lon": -75.38,
+   "name": "Diamond Shoals, NC",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 698.0,
+   "land_km": 29.0,
+   "coastal": true,
+   "cell": 866884,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "41029",
+   "lat": 32.803,
+   "lon": -79.624,
+   "name": "Capers Nearshore, SC (CAP2)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 1028.1,
+   "land_km": 9.6,
+   "coastal": true,
+   "cell": 670683,
+   "anemometer_m": 2.95,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "41033",
+   "lat": 32.279,
+   "lon": -80.406,
+   "name": "Fripp Nearshore, SC (FRP2)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 1043.9,
+   "land_km": 9.1,
+   "coastal": true,
+   "cell": 627487,
+   "anemometer_m": 2.95,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "41038",
+   "lat": 34.141,
+   "lon": -77.715,
+   "name": "Wrightsville Beach Nearshore, NC (ILM2)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 884.4,
+   "land_km": 12.0,
+   "coastal": true,
+   "cell": 780470,
+   "anemometer_m": 2.95,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "41047",
+   "lat": 27.557,
+   "lon": -71.48,
+   "name": "NE BAHAMAS - 350 NM ENE of Nassau, Bahamas",
+   "w_space": 0.5445,
+   "zone": "feather",
+   "coast": "East",
+   "edge_km": 120.7,
+   "land_km": 999.0,
+   "coastal": false,
+   "cell": 438915,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "41048",
+   "lat": 31.878,
+   "lon": -69.722,
+   "name": "WEST BERMUDA - 240 NM West of Bermuda",
+   "w_space": 0.355,
+   "zone": "feather",
+   "coast": "East",
+   "edge_km": 96.3,
+   "land_km": 999.0,
+   "coastal": false,
+   "cell": 748351,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "41064",
+   "lat": 34.207,
+   "lon": -76.949,
+   "name": "Onslow Bay Outer, NC (LEJ3)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 817.0,
+   "land_km": 50.7,
+   "coastal": false,
+   "cell": 793086,
+   "anemometer_m": 2.95,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "41065",
+   "lat": 32.802,
+   "lon": -79.619,
+   "name": "Capers Nearshore Waves (CAP2WAVE)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 1027.6,
+   "land_km": 9.9,
+   "coastal": true,
+   "cell": 670683,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "41066",
+   "lat": 32.536,
+   "lon": -79.656,
+   "name": "CHR60",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 1025.3,
+   "land_km": 30.2,
+   "coastal": true,
+   "cell": 652694,
+   "anemometer_m": 2.95,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "41067",
+   "lat": 32.276,
+   "lon": -80.406,
+   "name": "FRP2WAVE",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 1043.5,
+   "land_km": 9.3,
+   "coastal": true,
+   "cell": 627487,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "41068",
+   "lat": 27.593,
+   "lon": -80.189,
+   "name": "Fort Pierce, FL (FTP)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 530.1,
+   "land_km": 15.3,
+   "coastal": true,
+   "cell": 319897,
+   "anemometer_m": 3.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "41069",
+   "lat": 29.289,
+   "lon": -80.803,
+   "name": "Ponce de Leon Inlet, FL (PNC)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 707.1,
+   "land_km": 21.9,
+   "coastal": true,
+   "cell": 426007,
+   "anemometer_m": 3.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "41070",
+   "lat": 29.289,
+   "lon": -80.803,
+   "name": "Ponce de Leon Inlet Waves (PNCWAVE)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 707.1,
+   "land_km": 21.9,
+   "coastal": true,
+   "cell": 426007,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "41076",
+   "lat": 32.536,
+   "lon": -79.659,
+   "name": "CHR60WAVE",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 1025.6,
+   "land_km": 30.0,
+   "coastal": true,
+   "cell": 652694,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "41082",
+   "lat": 35.95,
+   "lon": -75.125,
+   "name": "OOI Pioneer - Mid-Atlantic Bight Central Surface Mooring",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 700.1,
+   "land_km": 42.0,
+   "coastal": true,
+   "cell": 929849,
+   "anemometer_m": 4.25,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "41083",
+   "lat": 35.725,
+   "lon": -74.853,
+   "name": "OOI Pioneer - Mid-Atlantic Bight Southern Surface Mooring",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 670.3,
+   "land_km": 58.3,
+   "coastal": false,
+   "cell": 919065,
+   "anemometer_m": 4.74,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "41108",
+   "lat": 33.719,
+   "lon": -78.016,
+   "name": "Wilmington Harbor, NC - (200)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 901.7,
+   "land_km": 17.3,
+   "coastal": true,
+   "cell": 748082,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "41110",
+   "lat": 34.144,
+   "lon": -77.715,
+   "name": "Masonboro Inlet, ILM2, NC (150)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 884.5,
+   "land_km": 11.8,
+   "coastal": true,
+   "cell": 780470,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "41112",
+   "lat": 30.709,
+   "lon": -81.292,
+   "name": "Offshore Fernandina Beach, FL (132)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 855.7,
+   "land_km": 14.3,
+   "coastal": true,
+   "cell": 514133,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "41113",
+   "lat": 28.4,
+   "lon": -80.533,
+   "name": "Cape Canaveral Nearshore, FL (143)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 613.4,
+   "land_km": 6.5,
+   "coastal": true,
+   "cell": 368454,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "41114",
+   "lat": 27.564,
+   "lon": -80.215,
+   "name": "Fort Pierce, FL (134)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 526.4,
+   "land_km": 11.9,
+   "coastal": true,
+   "cell": 316299,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "41117",
+   "lat": 29.999,
+   "lon": -81.079,
+   "name": "St. Augustine, FL (194)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 780.8,
+   "land_km": 23.3,
+   "coastal": true,
+   "cell": 469169,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "41120",
+   "lat": 35.258,
+   "lon": -75.285,
+   "name": "Cape Hatteras East, NC (250)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 695.7,
+   "land_km": 24.8,
+   "coastal": true,
+   "cell": 883076,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "41122",
+   "lat": 26.001,
+   "lon": -80.096,
+   "name": "Hollywood Beach, FL (265)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 354.5,
+   "land_km": 5.3,
+   "coastal": true,
+   "cell": 213771,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "41159",
+   "lat": 34.211,
+   "lon": -76.944,
+   "name": "Onslow Bay Outer, NC (217)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 816.7,
+   "land_km": 50.5,
+   "coastal": false,
+   "cell": 793086,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "42001",
+   "lat": 25.922,
+   "lon": -89.638,
+   "name": "MID GULF - 180 nm South of Southwest Pass, LA",
+   "w_space": 0.9995,
+   "zone": "feather",
+   "coast": "Gulf",
+   "edge_km": 212.1,
+   "land_km": 999.0,
+   "coastal": false,
+   "cell": 128896,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "42002",
+   "lat": 25.95,
+   "lon": -93.78,
+   "name": "WEST GULF - 207 NM East of Brownsville, TX",
+   "w_space": 0.9577,
+   "zone": "feather",
+   "coast": "Gulf",
+   "edge_km": 188.6,
+   "land_km": 337.2,
+   "coastal": false,
+   "cell": 114363,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "42012",
+   "lat": 30.061,
+   "lon": -87.547,
+   "name": "ORANGE BEACH - 44 NM SE of Mobile, AL",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Gulf",
+   "edge_km": 697.9,
+   "land_km": 23.9,
+   "coastal": true,
+   "cell": 420388,
+   "anemometer_m": 3.8,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "42035",
+   "lat": 29.235,
+   "lon": -94.41,
+   "name": "GALVESTON,TX -  22 NM East of Galveston, TX",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Gulf",
+   "edge_km": 557.8,
+   "land_km": 31.3,
+   "coastal": true,
+   "cell": 335614,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "42036",
+   "lat": 28.5,
+   "lon": -84.505,
+   "name": "WEST TAMPA  - 112 NM WNW of Tampa, FL",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Gulf",
+   "edge_km": 560.6,
+   "land_km": 140.5,
+   "coastal": false,
+   "cell": 337740,
+   "anemometer_m": 3.8,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "42039",
+   "lat": 28.768,
+   "lon": -86.024,
+   "name": "PENSACOLA - 115NM SSE of Pensacola, FL",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Gulf",
+   "edge_km": 570.7,
+   "land_km": 120.9,
+   "coastal": false,
+   "cell": 343086,
+   "anemometer_m": 3.2,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "42043",
+   "lat": 28.982,
+   "lon": -94.899,
+   "name": "TGLO TABS Buoy B",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Gulf",
+   "edge_km": 527.8,
+   "land_km": 23.5,
+   "coastal": true,
+   "cell": 317609,
+   "anemometer_m": 3.4,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "42044",
+   "lat": 26.191,
+   "lon": -97.051,
+   "name": "TGLO TABS Buoy J",
+   "w_space": 0.9973,
+   "zone": "feather",
+   "coast": "Gulf",
+   "edge_km": 208.4,
+   "land_km": 19.0,
+   "coastal": true,
+   "cell": 125045,
+   "anemometer_m": 4.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "42095",
+   "lat": 24.407,
+   "lon": -81.968,
+   "name": "Satan Shoal, FL (244)",
+   "w_space": 0.6994,
+   "zone": "feather",
+   "coast": "Gulf",
+   "edge_km": 141.1,
+   "land_km": 24.7,
+   "coastal": true,
+   "cell": 85989,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "42098",
+   "lat": 27.59,
+   "lon": -82.931,
+   "name": "Egmont Channel Entrance, FL (214)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Gulf",
+   "edge_km": 482.4,
+   "land_km": 21.2,
+   "coastal": true,
+   "cell": 291023,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "42099",
+   "lat": 27.352,
+   "lon": -84.275,
+   "name": "Offshore St. Petersburg, FL (144)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Gulf",
+   "edge_km": 435.4,
+   "land_km": 151.5,
+   "coastal": false,
+   "cell": 262196,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "42354",
+   "lat": 29.579,
+   "lon": -88.645,
+   "name": "Chandeleur Island SE, LA (279)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Gulf",
+   "edge_km": 633.0,
+   "land_km": 60.1,
+   "coastal": false,
+   "cell": 380777,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "44007",
+   "lat": 43.525,
+   "lon": -70.14,
+   "name": "PORTLAND - 12 NM Southeast of Portland,ME",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 514.3,
+   "land_km": 10.8,
+   "coastal": true,
+   "cell": 1485802,
+   "anemometer_m": 3.8,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44008",
+   "lat": 40.5,
+   "lon": -69.254,
+   "name": "NANTUCKET 54 NM Southeast of Nantucket",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 344.0,
+   "land_km": 104.8,
+   "coastal": false,
+   "cell": 1305958,
+   "anemometer_m": 3.8,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44009",
+   "lat": 38.46,
+   "lon": -74.692,
+   "name": "DELAWARE BAY 26 NM Southeast of Cape May, NJ",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 730.8,
+   "land_km": 32.7,
+   "coastal": true,
+   "cell": 1097145,
+   "anemometer_m": 3.8,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44011",
+   "lat": 41.088,
+   "lon": -66.546,
+   "name": "GEORGES BANK 170 NM East of Hyannis, MA",
+   "w_space": 0.7491,
+   "zone": "feather",
+   "coast": "East",
+   "edge_km": 148.2,
+   "land_km": 272.1,
+   "coastal": false,
+   "cell": 1385180,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44013",
+   "lat": 42.346,
+   "lon": -70.651,
+   "name": "BOSTON 16 NM East of Boston, MA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 516.0,
+   "land_km": 16.8,
+   "coastal": true,
+   "cell": 1403047,
+   "anemometer_m": 3.2,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44014",
+   "lat": 36.603,
+   "lon": -74.837,
+   "name": "VIRGINIA BEACH 64 NM East of Virginia Beach, VA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 692.7,
+   "land_km": 93.4,
+   "coastal": false,
+   "cell": 974826,
+   "anemometer_m": 3.2,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44020",
+   "lat": 41.497,
+   "lon": -70.283,
+   "name": "NANTUCKET SOUND",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 459.4,
+   "land_km": 16.5,
+   "coastal": true,
+   "cell": 1352694,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44025",
+   "lat": 40.258,
+   "lon": -73.175,
+   "name": "LONG ISLAND - 30 NM South of Islip, NY",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 655.2,
+   "land_km": 44.5,
+   "coastal": true,
+   "cell": 1233895,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44027",
+   "lat": 44.284,
+   "lon": -67.301,
+   "name": "Jonesport, ME - 20 NM SE of Jonesport, ME",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 322.9,
+   "land_km": 37.6,
+   "coastal": true,
+   "cell": 1575815,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44029",
+   "lat": 42.523,
+   "lon": -70.566,
+   "name": "Buoy A01 - Massachusetts Bay",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 515.0,
+   "land_km": 12.4,
+   "coastal": true,
+   "cell": 1415640,
+   "anemometer_m": 4.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44030",
+   "lat": 43.179,
+   "lon": -70.426,
+   "name": "Buoy B01 - Western Maine Shelf",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 525.2,
+   "land_km": 14.7,
+   "coastal": true,
+   "cell": 1458813,
+   "anemometer_m": 4.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44032",
+   "lat": 43.715,
+   "lon": -69.355,
+   "name": "Buoy E01 - Central Maine Shelf",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 460.0,
+   "land_km": 21.5,
+   "coastal": true,
+   "cell": 1509207,
+   "anemometer_m": 4.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44033",
+   "lat": 44.055,
+   "lon": -68.996,
+   "name": "Buoy F01 - Penobscot Bay",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 443.9,
+   "land_km": 9.2,
+   "coastal": true,
+   "cell": 1536197,
+   "anemometer_m": 4.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44034",
+   "lat": 44.103,
+   "lon": -68.112,
+   "name": "Buoy I01 - Eastern Maine Shelf",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 378.1,
+   "land_km": 23.2,
+   "coastal": true,
+   "cell": 1552410,
+   "anemometer_m": 4.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44037",
+   "lat": 43.497,
+   "lon": -67.876,
+   "name": "Buoy M01 - Jordan Basin",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 338.7,
+   "land_km": 84.8,
+   "coastal": false,
+   "cell": 1516443,
+   "anemometer_m": 4.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44042",
+   "lat": 38.033,
+   "lon": -76.335,
+   "name": "Potomac, MD",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 858.9,
+   "land_km": 4.9,
+   "coastal": true,
+   "cell": 1050329,
+   "anemometer_m": 3.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44056",
+   "lat": 36.2,
+   "lon": -75.714,
+   "name": "Duck FRF, NC",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 758.2,
+   "land_km": 8.0,
+   "coastal": true,
+   "cell": 938824,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "44058",
+   "lat": 37.567,
+   "lon": -76.257,
+   "name": "Stingray Point, VA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 840.4,
+   "land_km": 6.7,
+   "coastal": true,
+   "cell": 1019752,
+   "anemometer_m": 3.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44062",
+   "lat": 38.556,
+   "lon": -76.415,
+   "name": "Gooses Reef, MD",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 879.0,
+   "land_km": 10.6,
+   "coastal": true,
+   "cell": 1082704,
+   "anemometer_m": 3.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44063",
+   "lat": 38.963,
+   "lon": -76.448,
+   "name": "Annapolis, MD",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 892.0,
+   "land_km": 4.5,
+   "coastal": true,
+   "cell": 1107886,
+   "anemometer_m": 3.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44065",
+   "lat": 40.368,
+   "lon": -73.701,
+   "name": "New York Harbor Entrance - 15 NM SE of Breezy Point , NY",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 701.5,
+   "land_km": 24.6,
+   "coastal": true,
+   "cell": 1233879,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44069",
+   "lat": 40.699,
+   "lon": -73.087,
+   "name": "Great South Bay",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 660.9,
+   "land_km": 3.3,
+   "coastal": true,
+   "cell": 1262677,
+   "anemometer_m": 3.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44072",
+   "lat": 37.201,
+   "lon": -76.266,
+   "name": "York Spit, VA   ",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 831.9,
+   "land_km": 10.2,
+   "coastal": true,
+   "cell": 996368,
+   "anemometer_m": 3.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44074",
+   "lat": 43.071,
+   "lon": -70.868,
+   "name": "Great Bay Buoy",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 556.2,
+   "land_km": 1.6,
+   "coastal": true,
+   "cell": 1446210,
+   "anemometer_m": 2.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44079",
+   "lat": 36.175,
+   "lon": -74.827,
+   "name": "OOI Pioneer - Mid-Atlantic Bight Northern Surface Mooring",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 680.2,
+   "land_km": 76.5,
+   "coastal": false,
+   "cell": 947845,
+   "anemometer_m": 4.74,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44080",
+   "lat": 39.223,
+   "lon": -76.528,
+   "name": "Baltimore",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 905.3,
+   "land_km": 2.4,
+   "coastal": true,
+   "cell": 1124072,
+   "anemometer_m": 2.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "44084",
+   "lat": 38.537,
+   "lon": -75.044,
+   "name": "Bethany Beach, DE (263)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 762.6,
+   "land_km": 2.8,
+   "coastal": true,
+   "cell": 1098934,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "44085",
+   "lat": 41.387,
+   "lon": -71.032,
+   "name": "Buzzards Bay, MA (260)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 515.8,
+   "land_km": 14.1,
+   "coastal": true,
+   "cell": 1334685,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "44086",
+   "lat": 36.001,
+   "lon": -75.421,
+   "name": "Nags Head, NC (243)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 727.4,
+   "land_km": 19.7,
+   "coastal": true,
+   "cell": 929840,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "44087",
+   "lat": 37.043,
+   "lon": -76.129,
+   "name": "Thimble Shoal, VA (240)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 816.0,
+   "land_km": 14.7,
+   "coastal": true,
+   "cell": 987378,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "44088",
+   "lat": 36.612,
+   "lon": -74.839,
+   "name": "Virginia Beach Offshore, VA (171)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 693.1,
+   "land_km": 93.4,
+   "coastal": false,
+   "cell": 976625,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "44090",
+   "lat": 41.84,
+   "lon": -70.329,
+   "name": "Cape Cod Bay, MA (221)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 474.2,
+   "land_km": 12.3,
+   "coastal": true,
+   "cell": 1374277,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "44091",
+   "lat": 39.772,
+   "lon": -73.769,
+   "name": "Barnegat, NJ (209)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 690.2,
+   "land_km": 35.8,
+   "coastal": true,
+   "cell": 1194305,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "44095",
+   "lat": 35.75,
+   "lon": -75.33,
+   "name": "Oregon Inlet, NC (192)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 712.8,
+   "land_km": 16.3,
+   "coastal": true,
+   "cell": 913653,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "44097",
+   "lat": 40.966,
+   "lon": -71.123,
+   "name": "Block Island, RI  (154)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 509.8,
+   "land_km": 43.3,
+   "coastal": true,
+   "cell": 1307702,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "44098",
+   "lat": 42.8,
+   "lon": -70.169,
+   "name": "Jeffrey's Ledge, NH (160)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 492.8,
+   "land_km": 40.9,
+   "coastal": true,
+   "cell": 1439035,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "44099",
+   "lat": 36.915,
+   "lon": -75.722,
+   "name": "Cape Henry, VA (147)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 777.6,
+   "land_km": 25.5,
+   "coastal": true,
+   "cell": 983793,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "44100",
+   "lat": 36.257,
+   "lon": -75.593,
+   "name": "Duck FRF 26m, NC (430)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "East",
+   "edge_km": 749.1,
+   "land_km": 19.4,
+   "coastal": true,
+   "cell": 944224,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "44258",
+   "lat": 44.5,
+   "lon": -63.4,
+   "name": "Halifax Harbour",
+   "w_space": 0.0333,
+   "zone": "feather",
+   "coast": "East",
+   "edge_km": 38.4,
+   "land_km": 12.9,
+   "coastal": true,
+   "cell": 1653267,
+   "anemometer_m": 5.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "45001",
+   "lat": 48.061,
+   "lon": -87.793,
+   "name": "MID SUPERIOR- 60 NM North Northeast Hancock, MI",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 479.8,
+   "land_km": 52.8,
+   "coastal": false,
+   "cell": 1616645,
+   "anemometer_m": 3.2,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "45002",
+   "lat": 45.344,
+   "lon": -86.411,
+   "name": "NORTH MICHIGAN- Halfway between North Manitou and Washington Islands.",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 771.3,
+   "land_km": 30.7,
+   "coastal": true,
+   "cell": 1442189,
+   "anemometer_m": 3.2,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "45013",
+   "lat": 43.098,
+   "lon": -87.85,
+   "name": "ATW20 - Atwater Park, WI",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 1033.7,
+   "land_km": 4.8,
+   "coastal": true,
+   "cell": 1283848,
+   "anemometer_m": 2.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "45132",
+   "lat": 42.46,
+   "lon": -81.22,
+   "name": "Port Stanley",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 1027.9,
+   "land_km": 22.8,
+   "coastal": true,
+   "cell": 1287628,
+   "anemometer_m": 5.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "45135",
+   "lat": 43.78,
+   "lon": -76.87,
+   "name": "Prince Edward Pt",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 813.1,
+   "land_km": 16.2,
+   "coastal": true,
+   "cell": 1417262,
+   "anemometer_m": 5.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "45136",
+   "lat": 48.54,
+   "lon": -86.95,
+   "name": "Slate Island",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 419.1,
+   "land_km": 12.1,
+   "coastal": true,
+   "cell": 1652644,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "45137",
+   "lat": 45.54,
+   "lon": -81.02,
+   "name": "Georgian Bay",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 686.3,
+   "land_km": 35.2,
+   "coastal": true,
+   "cell": 1492699,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "45139",
+   "lat": 43.25,
+   "lon": -79.53,
+   "name": "West Lake Ontario - Grimsby",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 915.7,
+   "land_km": 7.8,
+   "coastal": true,
+   "cell": 1356030,
+   "anemometer_m": 5.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "45142",
+   "lat": 42.74,
+   "lon": -79.29,
+   "name": "Port Colborne",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 967.7,
+   "land_km": 15.0,
+   "coastal": true,
+   "cell": 1323658,
+   "anemometer_m": 5.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "45143",
+   "lat": 44.94,
+   "lon": -80.627,
+   "name": "South Georgian Bay",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 746.8,
+   "land_km": 26.4,
+   "coastal": true,
+   "cell": 1456733,
+   "anemometer_m": 5.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "45149",
+   "lat": 43.54,
+   "lon": -82.08,
+   "name": "Southern Lake Huron",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 921.2,
+   "land_km": 29.3,
+   "coastal": true,
+   "cell": 1352362,
+   "anemometer_m": 5.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "45154",
+   "lat": 46.05,
+   "lon": -82.64,
+   "name": "North Channel East",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 651.4,
+   "land_km": 9.4,
+   "coastal": true,
+   "cell": 1514242,
+   "anemometer_m": 5.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "45159",
+   "lat": 43.77,
+   "lon": -78.98,
+   "name": "NW Lake Ontario Ajax",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 850.1,
+   "land_km": 7.3,
+   "coastal": true,
+   "cell": 1395619,
+   "anemometer_m": 5.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "45164",
+   "lat": 41.748,
+   "lon": -81.698,
+   "name": "Cleveland Buoy, OH",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 1112.9,
+   "land_km": 21.8,
+   "coastal": true,
+   "cell": 1237248,
+   "anemometer_m": 1.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "45176",
+   "lat": 41.55,
+   "lon": -81.765,
+   "name": "Cleveland Intake Crib Buoy, OH",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 1135.6,
+   "land_km": 7.1,
+   "coastal": true,
+   "cell": 1222855,
+   "anemometer_m": 3.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "45196",
+   "lat": 41.521,
+   "lon": -81.88,
+   "name": "Rocky River, OH",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 1140.4,
+   "land_km": 5.7,
+   "coastal": true,
+   "cell": 1221053,
+   "anemometer_m": 4.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "45197",
+   "lat": 41.619,
+   "lon": -81.617,
+   "name": "Euclid, OH",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 1125.9,
+   "land_km": 6.3,
+   "coastal": true,
+   "cell": 1230055,
+   "anemometer_m": 4.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "45207",
+   "lat": 41.731,
+   "lon": -81.367,
+   "name": "Mentor Harbor Buoy",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 1110.0,
+   "land_km": 3.0,
+   "coastal": true,
+   "cell": 1239056,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "45210",
+   "lat": 44.055,
+   "lon": -87.05,
+   "name": "Rawley Point East, WI (269)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 920.4,
+   "land_km": 41.3,
+   "coastal": true,
+   "cell": 1352227,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "45215",
+   "lat": 43.501,
+   "lon": -76.539,
+   "name": "Oswego, NY (274)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "Lakes",
+   "edge_km": 837.4,
+   "land_km": 5.6,
+   "coastal": true,
+   "cell": 1402881,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46002",
+   "lat": 42.56,
+   "lon": -130.523,
+   "name": "WEST OREGON - 275NM West of Coos Bay, OR",
+   "w_space": 0.0497,
+   "zone": "feather",
+   "coast": "West",
+   "edge_km": 43.6,
+   "land_km": 999.0,
+   "coastal": false,
+   "cell": 1511175,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46005",
+   "lat": 46.147,
+   "lon": -131.077,
+   "name": "WEST WASHINGTON - 300NM West of Aberdeen, WA",
+   "w_space": 0.7212,
+   "zone": "feather",
+   "coast": "West",
+   "edge_km": 144.2,
+   "land_km": 999.0,
+   "coastal": false,
+   "cell": 1745078,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46011",
+   "lat": 34.937,
+   "lon": -120.999,
+   "name": "SANTA MARIA - 21NM NW of Point Arguello, CA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 574.5,
+   "land_km": 31.9,
+   "coastal": true,
+   "cell": 878104,
+   "anemometer_m": 3.8,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46013",
+   "lat": 38.235,
+   "lon": -123.317,
+   "name": "BODEGA BAY - 48NM NW of San Francisco, CA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 472.0,
+   "land_km": 23.2,
+   "coastal": true,
+   "cell": 1122733,
+   "anemometer_m": 3.8,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46014",
+   "lat": 39.225,
+   "lon": -123.98,
+   "name": "PT ARENA - 19NM North of Point Arena, CA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 447.6,
+   "land_km": 17.4,
+   "coastal": true,
+   "cell": 1196484,
+   "anemometer_m": 3.8,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46015",
+   "lat": 42.754,
+   "lon": -124.839,
+   "name": "PORT ORFORD - 15 NM West of Port Orford, OR",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 491.8,
+   "land_km": 27.2,
+   "coastal": true,
+   "cell": 1433967,
+   "anemometer_m": 3.8,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46022",
+   "lat": 40.716,
+   "lon": -124.54,
+   "name": "EEL RIVER - 17NM WSW of Eureka, CA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 449.4,
+   "land_km": 21.9,
+   "coastal": true,
+   "cell": 1299028,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46025",
+   "lat": 33.765,
+   "lon": -119.077,
+   "name": "Santa Monica Basin - 33NM WSW of Santa Monica, CA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 714.5,
+   "land_km": 34.0,
+   "coastal": true,
+   "cell": 775607,
+   "anemometer_m": 3.8,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46026",
+   "lat": 37.75,
+   "lon": -122.838,
+   "name": "SAN FRANCISCO - 18NM West of San Francisco, CA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 497.6,
+   "land_km": 21.8,
+   "coastal": true,
+   "cell": 1084963,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46027",
+   "lat": 41.84,
+   "lon": -124.382,
+   "name": "ST GEORGES - 8 NM NW of Crescent City, CA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 498.2,
+   "land_km": 14.4,
+   "coastal": true,
+   "cell": 1369205,
+   "anemometer_m": 3.8,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46028",
+   "lat": 35.763,
+   "lon": -121.9,
+   "name": "CAPE SAN MARTIN - 55NM West NW of Morro Bay, CA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 519.1,
+   "land_km": 42.4,
+   "coastal": true,
+   "cell": 942849,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46029",
+   "lat": 46.148,
+   "lon": -124.508,
+   "name": "COLUMBIA RIVER BAR - 20NM West of Columbia River Mouth",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 427.7,
+   "land_km": 38.4,
+   "coastal": true,
+   "cell": 1646294,
+   "anemometer_m": 3.2,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46041",
+   "lat": 47.351,
+   "lon": -124.741,
+   "name": "CAPE ELIZABETH - 45NM NW of Aberdeen, WA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 293.1,
+   "land_km": 31.3,
+   "coastal": true,
+   "cell": 1727257,
+   "anemometer_m": 3.8,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46042",
+   "lat": 36.787,
+   "lon": -122.408,
+   "name": "MONTEREY - 27NM WNW of Monterey, CA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 505.3,
+   "land_km": 31.2,
+   "coastal": true,
+   "cell": 1016603,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46047",
+   "lat": 32.418,
+   "lon": -119.535,
+   "name": "TANNER BANK - 121 NM West of San Diego, CA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 637.5,
+   "land_km": 89.9,
+   "coastal": false,
+   "cell": 694627,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46050",
+   "lat": 44.679,
+   "lon": -124.535,
+   "name": "STONEWALL BANK - 20NM West of Newport, OR",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 577.8,
+   "land_km": 38.1,
+   "coastal": true,
+   "cell": 1552730,
+   "anemometer_m": 3.8,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46053",
+   "lat": 34.246,
+   "lon": -119.842,
+   "name": "EAST SANTA BARBARA  - 12NM Southwest of Santa Barbara, CA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 658.4,
+   "land_km": 19.0,
+   "coastal": true,
+   "cell": 816965,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46054",
+   "lat": 34.274,
+   "lon": -120.468,
+   "name": "WEST SANTA BARBARA  38 NM West of Santa Barbara, CA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 603.2,
+   "land_km": 20.3,
+   "coastal": true,
+   "cell": 827741,
+   "anemometer_m": 3.8,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46069",
+   "lat": 33.657,
+   "lon": -120.227,
+   "name": "SOUTH SANTA ROSA - 14 NM SW of Santa Rosa Island, CA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 608.0,
+   "land_km": 29.2,
+   "coastal": true,
+   "cell": 784567,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46086",
+   "lat": 32.504,
+   "lon": -118.029,
+   "name": "SAN CLEMENTE BASIN - 27NM SE Of San Clemente Is, CA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 778.0,
+   "land_km": 50.0,
+   "coastal": false,
+   "cell": 680281,
+   "anemometer_m": 3.2,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46087",
+   "lat": 48.493,
+   "lon": -124.727,
+   "name": "Neah Bay - 6 NM North of Cape Flattery, WA (Traffic Separation Lighted Buoy)",
+   "w_space": 0.8812,
+   "zone": "feather",
+   "coast": "West",
+   "edge_km": 170.2,
+   "land_km": 11.2,
+   "coastal": true,
+   "cell": 1801028,
+   "anemometer_m": 3.8,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46088",
+   "lat": 48.332,
+   "lon": -123.179,
+   "name": "NEW DUNGENESS - 17 NM NE of Port Angeles, WA",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 220.5,
+   "land_km": 14.3,
+   "coastal": true,
+   "cell": 1770481,
+   "anemometer_m": 3.8,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46089",
+   "lat": 45.928,
+   "lon": -125.815,
+   "name": "TILLAMOOK, OR - 85 NM WNW of Tillamook, OR",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 421.2,
+   "land_km": 141.8,
+   "coastal": false,
+   "cell": 1651656,
+   "anemometer_m": 4.1,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46092",
+   "lat": 36.751,
+   "lon": -122.029,
+   "name": "MBM1",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 536.8,
+   "land_km": 17.7,
+   "coastal": true,
+   "cell": 1009418,
+   "anemometer_m": 4.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46097",
+   "lat": 44.639,
+   "lon": -124.304,
+   "name": "OOI Newport Shelf",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 594.1,
+   "land_km": 19.8,
+   "coastal": true,
+   "cell": 1547338,
+   "anemometer_m": 4.5,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46099",
+   "lat": 46.988,
+   "lon": -124.567,
+   "name": "OOI Westport Shelf",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 336.1,
+   "land_km": 30.3,
+   "coastal": true,
+   "cell": 1702071,
+   "anemometer_m": 4.5,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46146",
+   "lat": 49.34,
+   "lon": -123.73,
+   "name": "Halibut Bank",
+   "w_space": 0.3801,
+   "zone": "feather",
+   "coast": "West",
+   "edge_km": 99.6,
+   "land_km": 10.8,
+   "coastal": true,
+   "cell": 1844237,
+   "anemometer_m": 5.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46206",
+   "lat": 48.84,
+   "lon": -126.0,
+   "name": "La Perouse Bank",
+   "w_space": 0.4172,
+   "zone": "feather",
+   "coast": "West",
+   "edge_km": 104.4,
+   "land_km": 28.7,
+   "coastal": true,
+   "cell": 1840580,
+   "anemometer_m": 5.0,
+   "anemometer_src": "station page"
+  },
+  {
+   "id": "46211",
+   "lat": 46.857,
+   "lon": -124.243,
+   "name": "Grays Harbor, WA (036)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 357.3,
+   "land_km": 10.9,
+   "coastal": true,
+   "cell": 1689484,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46214",
+   "lat": 37.944,
+   "lon": -123.466,
+   "name": "Point Reyes, CA (029)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 450.5,
+   "land_km": 41.9,
+   "coastal": true,
+   "cell": 1106535,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46215",
+   "lat": 35.204,
+   "lon": -120.859,
+   "name": "Diablo Canyon, CA (076)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 594.4,
+   "land_km": 2.1,
+   "coastal": true,
+   "cell": 892502,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46218",
+   "lat": 34.452,
+   "lon": -120.78,
+   "name": "Harvest, CA (071)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 580.4,
+   "land_km": 19.4,
+   "coastal": true,
+   "cell": 843924,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46219",
+   "lat": 33.226,
+   "lon": -119.891,
+   "name": "San Nicolas Island, CA (067)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 626.6,
+   "land_km": 30.7,
+   "coastal": true,
+   "cell": 752191,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46221",
+   "lat": 33.86,
+   "lon": -118.641,
+   "name": "Santa Monica Bay, CA (028)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 756.3,
+   "land_km": 19.2,
+   "coastal": true,
+   "cell": 777420,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46222",
+   "lat": 33.614,
+   "lon": -118.314,
+   "name": "San Pedro, CA (092)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 779.6,
+   "land_km": 11.3,
+   "coastal": true,
+   "cell": 755840,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46224",
+   "lat": 33.178,
+   "lon": -117.472,
+   "name": "Oceanside Offshore, CA (045)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 845.5,
+   "land_km": 9.2,
+   "coastal": true,
+   "cell": 718083,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46225",
+   "lat": 32.933,
+   "lon": -117.391,
+   "name": "Torrey Pines Outer, CA (100)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 847.0,
+   "land_km": 14.0,
+   "coastal": true,
+   "cell": 700093,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46229",
+   "lat": 43.772,
+   "lon": -124.549,
+   "name": "UMPQUA OFFSHORE, OR (139)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 547.4,
+   "land_km": 30.8,
+   "coastal": true,
+   "cell": 1495151,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46232",
+   "lat": 32.517,
+   "lon": -117.425,
+   "name": "Point Loma South, CA  (191)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 833.9,
+   "land_km": 26.8,
+   "coastal": true,
+   "cell": 673104,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46236",
+   "lat": 36.759,
+   "lon": -121.95,
+   "name": "Monterey Canyon Outer, CA  (156)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 543.9,
+   "land_km": 14.8,
+   "coastal": true,
+   "cell": 1007621,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46237",
+   "lat": 37.788,
+   "lon": -122.634,
+   "name": "San Francisco Bar, CA  (142)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 516.0,
+   "land_km": 9.3,
+   "coastal": true,
+   "cell": 1084969,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46243",
+   "lat": 46.215,
+   "lon": -124.129,
+   "name": "Clatsop Spit, OR (162)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 429.0,
+   "land_km": 10.0,
+   "coastal": true,
+   "cell": 1646304,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46244",
+   "lat": 40.896,
+   "lon": -124.358,
+   "name": "Humboldt Bay, North Spit, CA (168)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 469.9,
+   "land_km": 18.2,
+   "coastal": true,
+   "cell": 1308030,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46248",
+   "lat": 46.133,
+   "lon": -124.64,
+   "name": "Astoria Canyon, OR  (179)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 426.4,
+   "land_km": 48.5,
+   "coastal": true,
+   "cell": 1648090,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46251",
+   "lat": 33.769,
+   "lon": -119.565,
+   "name": "Santa Cruz Basin, CA (203)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 670.6,
+   "land_km": 24.6,
+   "coastal": true,
+   "cell": 782789,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46253",
+   "lat": 33.576,
+   "lon": -118.182,
+   "name": "San Pedro South, CA (213)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 790.6,
+   "land_km": 18.3,
+   "coastal": true,
+   "cell": 752246,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46254",
+   "lat": 32.868,
+   "lon": -117.267,
+   "name": "SCRIPPS Nearshore, CA (201)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 856.8,
+   "land_km": 3.7,
+   "coastal": true,
+   "cell": 694700,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46256",
+   "lat": 33.7,
+   "lon": -118.201,
+   "name": "Long Beach Channel, CA (215)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 792.0,
+   "land_km": 6.8,
+   "coastal": true,
+   "cell": 761241,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46258",
+   "lat": 32.749,
+   "lon": -117.502,
+   "name": "Mission Bay West, CA (220)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 832.4,
+   "land_km": 23.6,
+   "coastal": true,
+   "cell": 689294,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46266",
+   "lat": 32.957,
+   "lon": -117.279,
+   "name": "Del Mar Nearshore, CA (153)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 857.8,
+   "land_km": 3.5,
+   "coastal": true,
+   "cell": 700097,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46267",
+   "lat": 48.171,
+   "lon": -123.6,
+   "name": "Angeles Point, WA (248)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 229.2,
+   "land_km": 4.7,
+   "coastal": true,
+   "cell": 1766871,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46268",
+   "lat": 34.022,
+   "lon": -118.578,
+   "name": "Topanga Nearshore, CA (103)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 766.0,
+   "land_km": 3.2,
+   "coastal": true,
+   "cell": 786418,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46274",
+   "lat": 33.062,
+   "lon": -117.314,
+   "name": "Leucadia Nearshore, CA (262)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 857.1,
+   "land_km": 4.1,
+   "coastal": true,
+   "cell": 709092,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46275",
+   "lat": 33.291,
+   "lon": -117.501,
+   "name": "Red Beach Nearshore, CA (264)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 845.5,
+   "land_km": 3.5,
+   "coastal": true,
+   "cell": 725279,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46277",
+   "lat": 33.336,
+   "lon": -117.659,
+   "name": "Green Beach Offshore, CA (271)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 832.2,
+   "land_km": 10.1,
+   "coastal": true,
+   "cell": 730671,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46278",
+   "lat": 45.559,
+   "lon": -123.991,
+   "name": "Tillamook Bay South Jetty, OR (270)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 502.6,
+   "land_km": 4.0,
+   "coastal": true,
+   "cell": 1601326,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46285",
+   "lat": 33.445,
+   "lon": -117.68,
+   "name": "Capistrano Beach Nearshore, CA (284)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 833.0,
+   "land_km": 3.4,
+   "coastal": true,
+   "cell": 737868,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46286",
+   "lat": 35.164,
+   "lon": -120.737,
+   "name": "Avila Beach Nearshore, CA (285)",
+   "w_space": 1.0,
+   "zone": "full",
+   "coast": "West",
+   "edge_km": 604.0,
+   "land_km": 3.3,
+   "coastal": true,
+   "cell": 888907,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  },
+  {
+   "id": "46304",
+   "lat": 49.3,
+   "lon": -123.36,
+   "name": "Entrance To English Bay",
+   "w_space": 0.4731,
+   "zone": "feather",
+   "coast": "West",
+   "edge_km": 111.6,
+   "land_km": 6.6,
+   "coastal": true,
+   "cell": 1837050,
+   "anemometer_m": 4.1,
+   "anemometer_src": "default"
+  }
+ ],
+ "missing": {
+  "fc": 0,
+  "obs": 41291
+ },
+ "n_rows": 38709,
+ "cells": [
+  {
+   "lead": 3,
+   "group": "East+Gulf+West full-weight",
+   "lane": {
+    "n": 6176,
+    "vec_rmse": 5.45365094281725,
+    "spd_mae": 2.6012664323436296,
+    "spd_bias": -1.0706849267613057,
+    "dir_mae": 17.48019536475212,
+    "n_dir": 5877
+   },
+   "gfs": {
+    "n": 6176,
+    "vec_rmse": 5.207723200738229,
+    "spd_mae": 2.5687214541893515,
+    "spd_bias": -1.2814805255125021,
+    "dir_mae": 16.44880814484478,
+    "n_dir": 5877
+   },
+   "raw": {
+    "n": 6176,
+    "vec_rmse": 5.556756636933262,
+    "spd_mae": 2.5225239101845376,
+    "spd_bias": -0.6142090281149608,
+    "dir_mae": 18.130833066237454,
+    "n_dir": 5877
+   },
+   "delta_ci95": [
+    0.14636883940618312,
+    0.3436932371934216
+   ],
+   "buoys_lane_better": [
+    17,
+    64
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 3,
+   "group": "East coastal <50 km",
+   "lane": {
+    "n": 2722,
+    "vec_rmse": 5.684155569320715,
+    "spd_mae": 2.99100535044206,
+    "spd_bias": -1.8989153568681993,
+    "dir_mae": 16.163289645189447,
+    "n_dir": 2623
+   },
+   "gfs": {
+    "n": 2722,
+    "vec_rmse": 5.578684820836216,
+    "spd_mae": 3.0032687527172865,
+    "spd_bias": -1.9689364257047908,
+    "dir_mae": 15.664818896167445,
+    "n_dir": 2623
+   },
+   "raw": {
+    "n": 2722,
+    "vec_rmse": 5.611893233166072,
+    "spd_mae": 2.676090098038732,
+    "spd_bias": -1.0230445286338383,
+    "dir_mae": 16.566045243243995,
+    "n_dir": 2623
+   },
+   "delta_ci95": [
+    -0.008341921620352764,
+    0.214077302827727
+   ],
+   "buoys_lane_better": [
+    9,
+    29
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 3,
+   "group": "East offshore",
+   "lane": {
+    "n": 790,
+    "vec_rmse": 5.915669657061136,
+    "spd_mae": 2.3443013756390205,
+    "spd_bias": -0.7218509031599225,
+    "dir_mae": 15.267753397648663,
+    "n_dir": 777
+   },
+   "gfs": {
+    "n": 790,
+    "vec_rmse": 5.612770360684159,
+    "spd_mae": 2.17201295825475,
+    "spd_bias": -0.78676896179245,
+    "dir_mae": 13.708520945606402,
+    "n_dir": 777
+   },
+   "raw": {
+    "n": 790,
+    "vec_rmse": 6.096490873142751,
+    "spd_mae": 2.4195027128554907,
+    "spd_bias": -0.7340330934859001,
+    "dir_mae": 15.624030654098744,
+    "n_dir": 777
+   },
+   "delta_ci95": [
+    0.10552295123587714,
+    0.5139840981826843
+   ],
+   "buoys_lane_better": [
+    3,
+    8
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 3,
+   "group": "Gulf coastal <50 km",
+   "lane": {
+    "n": 198,
+    "vec_rmse": 5.629094537062756,
+    "spd_mae": 2.106100463788428,
+    "spd_bias": -1.0272985534335113,
+    "dir_mae": 17.868425953526586,
+    "n_dir": 188
+   },
+   "gfs": {
+    "n": 198,
+    "vec_rmse": 5.695495076279823,
+    "spd_mae": 2.569054999916742,
+    "spd_bias": -1.993095520394722,
+    "dir_mae": 18.418330406182346,
+    "n_dir": 188
+   },
+   "raw": {
+    "n": 198,
+    "vec_rmse": 5.706649751416251,
+    "spd_mae": 1.986797198824866,
+    "spd_bias": -0.6746894565143716,
+    "dir_mae": 18.41382083800759,
+    "n_dir": 188
+   },
+   "delta_ci95": [
+    -0.3229731838204474,
+    0.2289008301358042
+   ],
+   "buoys_lane_better": [
+    2,
+    2
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 3,
+   "group": "Gulf offshore",
+   "lane": {
+    "n": 199,
+    "vec_rmse": 4.831698249944266,
+    "spd_mae": 1.7012373917100587,
+    "spd_bias": -0.6048669315034936,
+    "dir_mae": 12.735865940446999,
+    "n_dir": 196
+   },
+   "gfs": {
+    "n": 199,
+    "vec_rmse": 4.2131784227173785,
+    "spd_mae": 1.7616284265469195,
+    "spd_bias": -1.3079112490207263,
+    "dir_mae": 9.974503678353258,
+    "n_dir": 196
+   },
+   "raw": {
+    "n": 199,
+    "vec_rmse": 4.939976126446752,
+    "spd_mae": 1.7551339504601622,
+    "spd_bias": -0.6499384156325522,
+    "dir_mae": 13.20974469359795,
+    "n_dir": 196
+   },
+   "delta_ci95": [
+    0.31414537808631604,
+    0.9582642887224694
+   ],
+   "buoys_lane_better": [
+    0,
+    2
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 3,
+   "group": "West coastal <50 km",
+   "lane": {
+    "n": 1976,
+    "vec_rmse": 5.053906735022095,
+    "spd_mae": 2.3756544746948522,
+    "spd_bias": -0.20381602831151857,
+    "dir_mae": 20.774835046720604,
+    "n_dir": 1814
+   },
+   "gfs": {
+    "n": 1976,
+    "vec_rmse": 4.648839794907624,
+    "spd_mae": 2.2957776395117975,
+    "spd_bias": -0.5586121390937593,
+    "dir_mae": 19.30291638846959,
+    "n_dir": 1814
+   },
+   "raw": {
+    "n": 1976,
+    "vec_rmse": 5.364767774395672,
+    "spd_mae": 2.5245362985234023,
+    "spd_bias": -0.010686288672739049,
+    "dir_mae": 21.817439761472517,
+    "n_dir": 1814
+   },
+   "delta_ci95": [
+    0.2391082066308004,
+    0.5635983784162468
+   ],
+   "buoys_lane_better": [
+    3,
+    20
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 3,
+   "group": "West offshore",
+   "lane": {
+    "n": 291,
+    "vec_rmse": 4.800096753403481,
+    "spd_mae": 2.137661377040215,
+    "spd_bias": -0.5049009893252744,
+    "dir_mae": 17.672797315417593,
+    "n_dir": 279
+   },
+   "gfs": {
+    "n": 291,
+    "vec_rmse": 4.241262344236738,
+    "spd_mae": 1.9860562082957647,
+    "spd_bias": -0.600365830028144,
+    "dir_mae": 16.11528875220804,
+    "n_dir": 279
+   },
+   "raw": {
+    "n": 291,
+    "vec_rmse": 5.055601873470097,
+    "spd_mae": 2.241381621619587,
+    "spd_bias": -0.4972482588480161,
+    "dir_mae": 19.120263205061057,
+    "n_dir": 279
+   },
+   "delta_ci95": [
+    0.06775762513479248,
+    1.065516202190401
+   ],
+   "buoys_lane_better": [
+    0,
+    3
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 3,
+   "group": "Lakes coastal <50 km",
+   "lane": {
+    "n": 688,
+    "vec_rmse": 8.210214266865403,
+    "spd_mae": 3.0166943246187246,
+    "spd_bias": -2.0652160790742218,
+    "dir_mae": 30.620155283424083,
+    "n_dir": 664
+   },
+   "gfs": {
+    "n": 688,
+    "vec_rmse": 8.32401690483918,
+    "spd_mae": 3.1323524363516366,
+    "spd_bias": -2.1771868510056844,
+    "dir_mae": 31.77122210644051,
+    "n_dir": 664
+   },
+   "raw": {
+    "n": 688,
+    "vec_rmse": 8.196629268404962,
+    "spd_mae": 2.4519776775571747,
+    "spd_bias": -1.2001129683002467,
+    "dir_mae": 30.040100934107908,
+    "n_dir": 664
+   },
+   "delta_ci95": [
+    -0.27906971497272703,
+    0.06065510261954315
+   ],
+   "buoys_lane_better": [
+    5,
+    7
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 3,
+   "group": "Lakes offshore",
+   "lane": {
+    "n": 99,
+    "vec_rmse": 6.62744214685151,
+    "spd_mae": 2.5539955931307925,
+    "spd_bias": 0.6358481264771267,
+    "dir_mae": 25.229992647944933,
+    "n_dir": 94
+   },
+   "gfs": {
+    "n": 99,
+    "vec_rmse": 5.3217394547907455,
+    "spd_mae": 2.2076559111741183,
+    "spd_bias": 0.44388544795199386,
+    "dir_mae": 20.6560654252728,
+    "n_dir": 94
+   },
+   "raw": {
+    "n": 99,
+    "vec_rmse": 6.792607537462859,
+    "spd_mae": 2.685722776451224,
+    "spd_bias": 0.806753026076285,
+    "dir_mae": 25.37166106989198,
+    "n_dir": 94
+   },
+   "delta_ci95": [
+    0.8363168938828254,
+    1.868996340627905
+   ],
+   "buoys_lane_better": [
+    0,
+    1
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 3,
+   "group": "feather zone (0<w<1)",
+   "lane": {
+    "n": 789,
+    "vec_rmse": 5.157016973180059,
+    "spd_mae": 2.149946348917415,
+    "spd_bias": -0.6237449931619389,
+    "dir_mae": 15.012853849949723,
+    "n_dir": 773
+   },
+   "gfs": {
+    "n": 789,
+    "vec_rmse": 4.7616669952130435,
+    "spd_mae": 2.115039417617137,
+    "spd_bias": -0.8382946187181789,
+    "dir_mae": 13.563946108489796,
+    "n_dir": 773
+   },
+   "raw": {
+    "n": 789,
+    "vec_rmse": 5.9025316697975185,
+    "spd_mae": 2.3947892224436855,
+    "spd_bias": -0.41282871656644354,
+    "dir_mae": 17.22533681900802,
+    "n_dir": 773
+   },
+   "delta_ci95": [
+    0.20844353256200204,
+    0.5763065734831131
+   ],
+   "buoys_lane_better": [
+    3,
+    8
+   ],
+   "mean_w": 0.6584365019011407
+  },
+  {
+   "lead": 12,
+   "group": "East+Gulf+West full-weight",
+   "lane": {
+    "n": 6175,
+    "vec_rmse": 5.929776621785673,
+    "spd_mae": 2.7515769158809484,
+    "spd_bias": -0.7561248053796573,
+    "dir_mae": 19.77704447715048,
+    "n_dir": 5852
+   },
+   "gfs": {
+    "n": 6175,
+    "vec_rmse": 5.7423998672016,
+    "spd_mae": 2.786350774686456,
+    "spd_bias": -1.100688836376673,
+    "dir_mae": 19.421837534041966,
+    "n_dir": 5852
+   },
+   "raw": {
+    "n": 6175,
+    "vec_rmse": 6.116497360160896,
+    "spd_mae": 2.712538120093427,
+    "spd_bias": -0.2636056558257613,
+    "dir_mae": 20.397723798411967,
+    "n_dir": 5852
+   },
+   "delta_ci95": [
+    0.05573300488598352,
+    0.33029072843093116
+   ],
+   "buoys_lane_better": [
+    25,
+    64
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 12,
+   "group": "East coastal <50 km",
+   "lane": {
+    "n": 2723,
+    "vec_rmse": 5.934910533391387,
+    "spd_mae": 3.019107347191114,
+    "spd_bias": -1.7516980199085395,
+    "dir_mae": 17.692926540051317,
+    "n_dir": 2616
+   },
+   "gfs": {
+    "n": 2723,
+    "vec_rmse": 5.970407786709323,
+    "spd_mae": 3.1328493748519537,
+    "spd_bias": -1.7344450986996982,
+    "dir_mae": 18.079707001328043,
+    "n_dir": 2616
+   },
+   "raw": {
+    "n": 2723,
+    "vec_rmse": 5.992169440046435,
+    "spd_mae": 2.7571680260134404,
+    "spd_bias": -0.8170432633302429,
+    "dir_mae": 18.07907120994077,
+    "n_dir": 2616
+   },
+   "delta_ci95": [
+    -0.18617727895357636,
+    0.10356128300424491
+   ],
+   "buoys_lane_better": [
+    15,
+    29
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 12,
+   "group": "East offshore",
+   "lane": {
+    "n": 790,
+    "vec_rmse": 5.889435906386377,
+    "spd_mae": 2.3628354675503993,
+    "spd_bias": -0.7648616113317976,
+    "dir_mae": 15.382101928337299,
+    "n_dir": 777
+   },
+   "gfs": {
+    "n": 790,
+    "vec_rmse": 5.892212463030853,
+    "spd_mae": 2.2856432210570916,
+    "spd_bias": -0.601685285567962,
+    "dir_mae": 15.110618717588457,
+    "n_dir": 777
+   },
+   "raw": {
+    "n": 790,
+    "vec_rmse": 6.104160466837962,
+    "spd_mae": 2.4520362858320968,
+    "spd_bias": -0.7496819134028583,
+    "dir_mae": 16.018334487250588,
+    "n_dir": 777
+   },
+   "delta_ci95": [
+    -0.25892675573302903,
+    0.23989548002116703
+   ],
+   "buoys_lane_better": [
+    3,
+    8
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 12,
+   "group": "Gulf coastal <50 km",
+   "lane": {
+    "n": 199,
+    "vec_rmse": 6.599811578931872,
+    "spd_mae": 2.501861238991308,
+    "spd_bias": -1.201710563745994,
+    "dir_mae": 22.24390059953959,
+    "n_dir": 193
+   },
+   "gfs": {
+    "n": 199,
+    "vec_rmse": 6.779526285328475,
+    "spd_mae": 2.6645266704743604,
+    "spd_bias": -1.8372463606717508,
+    "dir_mae": 23.771601780723074,
+    "n_dir": 193
+   },
+   "raw": {
+    "n": 199,
+    "vec_rmse": 6.7584724884840615,
+    "spd_mae": 2.343438715715304,
+    "spd_bias": -0.864100765950258,
+    "dir_mae": 23.06269643622414,
+    "n_dir": 193
+   },
+   "delta_ci95": [
+    -0.5466580708013039,
+    0.22601709907953943
+   ],
+   "buoys_lane_better": [
+    1,
+    2
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 12,
+   "group": "Gulf offshore",
+   "lane": {
+    "n": 197,
+    "vec_rmse": 4.061245244629119,
+    "spd_mae": 1.6781457357538527,
+    "spd_bias": -0.4328775540740933,
+    "dir_mae": 11.329784698864804,
+    "n_dir": 192
+   },
+   "gfs": {
+    "n": 197,
+    "vec_rmse": 4.356272393756634,
+    "spd_mae": 1.7000018886275856,
+    "spd_bias": -0.7378750766418425,
+    "dir_mae": 12.47421907459695,
+    "n_dir": 192
+   },
+   "raw": {
+    "n": 197,
+    "vec_rmse": 4.086957724686565,
+    "spd_mae": 1.675154303497992,
+    "spd_bias": -0.4770928091568037,
+    "dir_mae": 11.782798421740075,
+    "n_dir": 192
+   },
+   "delta_ci95": [
+    -0.6397246330149297,
+    0.00932435742204961
+   ],
+   "buoys_lane_better": [
+    2,
+    2
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 12,
+   "group": "West coastal <50 km",
+   "lane": {
+    "n": 1973,
+    "vec_rmse": 6.055963635138899,
+    "spd_mae": 2.734715200636419,
+    "spd_bias": 0.4694575067578063,
+    "dir_mae": 25.16204925780014,
+    "n_dir": 1798
+   },
+   "gfs": {
+    "n": 1973,
+    "vec_rmse": 5.437954845428532,
+    "spd_mae": 2.7173418948036194,
+    "spd_bias": -0.531482464701387,
+    "dir_mae": 23.413174751861405,
+    "n_dir": 1798
+   },
+   "raw": {
+    "n": 1973,
+    "vec_rmse": 6.4053838480766165,
+    "spd_mae": 2.9337024316720766,
+    "spd_bias": 0.682889125039527,
+    "dir_mae": 26.093212142028865,
+    "n_dir": 1798
+   },
+   "delta_ci95": [
+    0.34928511829697195,
+    0.8859551886511883
+   ],
+   "buoys_lane_better": [
+    3,
+    20
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 12,
+   "group": "West offshore",
+   "lane": {
+    "n": 293,
+    "vec_rmse": 5.705016989066152,
+    "spd_mae": 2.318293318908541,
+    "spd_bias": 0.35229121996104806,
+    "dir_mae": 20.97434496295081,
+    "n_dir": 276
+   },
+   "gfs": {
+    "n": 293,
+    "vec_rmse": 5.193065985532892,
+    "spd_mae": 2.1940351651888084,
+    "spd_bias": -0.13290056839600167,
+    "dir_mae": 20.069824566392047,
+    "n_dir": 276
+   },
+   "raw": {
+    "n": 293,
+    "vec_rmse": 5.979943783724996,
+    "spd_mae": 2.459048092250867,
+    "spd_bias": 0.3682446588308475,
+    "dir_mae": 21.729675166575397,
+    "n_dir": 276
+   },
+   "delta_ci95": [
+    -0.013798450448279998,
+    0.9464026062771028
+   ],
+   "buoys_lane_better": [
+    1,
+    3
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 12,
+   "group": "Lakes coastal <50 km",
+   "lane": {
+    "n": 677,
+    "vec_rmse": 8.41061356942097,
+    "spd_mae": 3.0184807733798196,
+    "spd_bias": -1.9843698533078011,
+    "dir_mae": 32.04939437584383,
+    "n_dir": 650
+   },
+   "gfs": {
+    "n": 677,
+    "vec_rmse": 8.40808589707656,
+    "spd_mae": 3.1217799892399376,
+    "spd_bias": -2.114379310639238,
+    "dir_mae": 31.974530604709223,
+    "n_dir": 650
+   },
+   "raw": {
+    "n": 677,
+    "vec_rmse": 8.452477538561718,
+    "spd_mae": 2.530428049281529,
+    "spd_bias": -1.060616315905479,
+    "dir_mae": 31.230801376367264,
+    "n_dir": 650
+   },
+   "delta_ci95": [
+    -0.22547901665385614,
+    0.2190275913081906
+   ],
+   "buoys_lane_better": [
+    4,
+    7
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 12,
+   "group": "Lakes offshore",
+   "lane": {
+    "n": 98,
+    "vec_rmse": 7.042136576735898,
+    "spd_mae": 2.6309898513521848,
+    "spd_bias": 1.6065295936199777,
+    "dir_mae": 25.32913014689038,
+    "n_dir": 92
+   },
+   "gfs": {
+    "n": 98,
+    "vec_rmse": 6.253068753704183,
+    "spd_mae": 2.3560443051825746,
+    "spd_bias": 0.7884179988618286,
+    "dir_mae": 21.748846657144156,
+    "n_dir": 92
+   },
+   "raw": {
+    "n": 98,
+    "vec_rmse": 7.2541924677417065,
+    "spd_mae": 2.8575533666265547,
+    "spd_bias": 1.6850335891515913,
+    "dir_mae": 26.00192853268863,
+    "n_dir": 92
+   },
+   "delta_ci95": [
+    0.11612478690968007,
+    1.412803257765522
+   ],
+   "buoys_lane_better": [
+    0,
+    1
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 12,
+   "group": "feather zone (0<w<1)",
+   "lane": {
+    "n": 788,
+    "vec_rmse": 6.326465048948494,
+    "spd_mae": 2.7457354421273203,
+    "spd_bias": -0.7181382429824281,
+    "dir_mae": 17.81553951828247,
+    "n_dir": 761
+   },
+   "gfs": {
+    "n": 788,
+    "vec_rmse": 5.6088401227049385,
+    "spd_mae": 2.5826134964010934,
+    "spd_bias": -0.9089298896296136,
+    "dir_mae": 15.105325972847735,
+    "n_dir": 761
+   },
+   "raw": {
+    "n": 788,
+    "vec_rmse": 7.29028292407593,
+    "spd_mae": 3.1417743224730943,
+    "spd_bias": -0.4050133683869715,
+    "dir_mae": 21.418439539523337,
+    "n_dir": 761
+   },
+   "delta_ci95": [
+    0.42667706739060224,
+    1.0351774500582525
+   ],
+   "buoys_lane_better": [
+    2,
+    8
+   ],
+   "mean_w": 0.6581538071065989
+  },
+  {
+   "lead": 24,
+   "group": "East+Gulf+West full-weight",
+   "lane": {
+    "n": 6177,
+    "vec_rmse": 6.554987831416548,
+    "spd_mae": 2.984757023630321,
+    "spd_bias": -0.4487246649170302,
+    "dir_mae": 21.89642320646777,
+    "n_dir": 5858
+   },
+   "gfs": {
+    "n": 6177,
+    "vec_rmse": 6.061057729253412,
+    "spd_mae": 2.9150161458569697,
+    "spd_bias": -1.0928979314768459,
+    "dir_mae": 20.687475822918923,
+    "n_dir": 5858
+   },
+   "raw": {
+    "n": 6177,
+    "vec_rmse": 6.806030276648426,
+    "spd_mae": 3.012915738965453,
+    "spd_bias": 0.045412248216427004,
+    "dir_mae": 22.6443342352908,
+    "n_dir": 5858
+   },
+   "delta_ci95": [
+    0.3315207544617309,
+    0.6494033985565547
+   ],
+   "buoys_lane_better": [
+    21,
+    64
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 24,
+   "group": "East coastal <50 km",
+   "lane": {
+    "n": 2725,
+    "vec_rmse": 6.164298598854042,
+    "spd_mae": 3.0458247459419883,
+    "spd_bias": -1.4739011379469857,
+    "dir_mae": 18.749468346510525,
+    "n_dir": 2617
+   },
+   "gfs": {
+    "n": 2725,
+    "vec_rmse": 6.2133146894010505,
+    "spd_mae": 3.2085586530666004,
+    "spd_bias": -1.737208454519154,
+    "dir_mae": 18.932937177702883,
+    "n_dir": 2617
+   },
+   "raw": {
+    "n": 2725,
+    "vec_rmse": 6.328949664266581,
+    "spd_mae": 2.882636980880602,
+    "spd_bias": -0.5370234376729188,
+    "dir_mae": 19.35904904802854,
+    "n_dir": 2617
+   },
+   "delta_ci95": [
+    -0.1952781934509682,
+    0.10563223256727047
+   ],
+   "buoys_lane_better": [
+    13,
+    29
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 24,
+   "group": "East offshore",
+   "lane": {
+    "n": 790,
+    "vec_rmse": 6.397275014944348,
+    "spd_mae": 2.466452916210107,
+    "spd_bias": -0.2687702610801134,
+    "dir_mae": 15.902294000925297,
+    "n_dir": 777
+   },
+   "gfs": {
+    "n": 790,
+    "vec_rmse": 6.363511516525162,
+    "spd_mae": 2.4807714679530593,
+    "spd_bias": -0.5389367788253148,
+    "dir_mae": 16.162259386287463,
+    "n_dir": 777
+   },
+   "raw": {
+    "n": 790,
+    "vec_rmse": 6.57261354369117,
+    "spd_mae": 2.5901485970730795,
+    "spd_bias": -0.3180782162544892,
+    "dir_mae": 16.30327357971806,
+    "n_dir": 777
+   },
+   "delta_ci95": [
+    -0.2278477339329448,
+    0.3105546516757884
+   ],
+   "buoys_lane_better": [
+    4,
+    8
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 24,
+   "group": "Gulf coastal <50 km",
+   "lane": {
+    "n": 199,
+    "vec_rmse": 6.741698502206526,
+    "spd_mae": 2.6439415656651803,
+    "spd_bias": -1.3538281520096054,
+    "dir_mae": 21.5636184283426,
+    "n_dir": 193
+   },
+   "gfs": {
+    "n": 199,
+    "vec_rmse": 6.829032696673741,
+    "spd_mae": 2.7014456778662024,
+    "spd_bias": -1.8564053221948986,
+    "dir_mae": 24.57105921376346,
+    "n_dir": 193
+   },
+   "raw": {
+    "n": 199,
+    "vec_rmse": 6.958048463207529,
+    "spd_mae": 2.547379559681195,
+    "spd_bias": -1.0022744526386138,
+    "dir_mae": 21.890709418687837,
+    "n_dir": 193
+   },
+   "delta_ci95": [
+    -0.4839230605798268,
+    0.3206467460795147
+   ],
+   "buoys_lane_better": [
+    1,
+    2
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 24,
+   "group": "Gulf offshore",
+   "lane": {
+    "n": 197,
+    "vec_rmse": 4.755741020873139,
+    "spd_mae": 1.8863347729291584,
+    "spd_bias": -0.17471939742675038,
+    "dir_mae": 12.706004158272924,
+    "n_dir": 192
+   },
+   "gfs": {
+    "n": 197,
+    "vec_rmse": 4.729701297405244,
+    "spd_mae": 1.945531730209646,
+    "spd_bias": -0.5561560066293706,
+    "dir_mae": 12.366473176259243,
+    "n_dir": 192
+   },
+   "raw": {
+    "n": 197,
+    "vec_rmse": 4.831303298912059,
+    "spd_mae": 1.9462914911774059,
+    "spd_bias": -0.16434151727124058,
+    "dir_mae": 13.164796251990438,
+    "n_dir": 192
+   },
+   "delta_ci95": [
+    -0.5331038544149598,
+    0.5564844538319746
+   ],
+   "buoys_lane_better": [
+    1,
+    2
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 24,
+   "group": "West coastal <50 km",
+   "lane": {
+    "n": 1973,
+    "vec_rmse": 7.295891475659795,
+    "spd_mae": 3.3177260579268033,
+    "spd_bias": 0.8376276638553161,
+    "dir_mae": 29.981769966319803,
+    "n_dir": 1803
+   },
+   "gfs": {
+    "n": 1973,
+    "vec_rmse": 5.824670720780351,
+    "spd_mae": 2.8767616955594013,
+    "spd_bias": -0.5373135226271587,
+    "dir_mae": 25.46339977131542,
+    "n_dir": 1803
+   },
+   "raw": {
+    "n": 1973,
+    "vec_rmse": 7.666182683107171,
+    "spd_mae": 3.5591935996724127,
+    "spd_bias": 1.059846672806395,
+    "dir_mae": 31.06107538026462,
+    "n_dir": 1803
+   },
+   "delta_ci95": [
+    1.128600843075967,
+    1.851080891266121
+   ],
+   "buoys_lane_better": [
+    1,
+    20
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 24,
+   "group": "West offshore",
+   "lane": {
+    "n": 293,
+    "vec_rmse": 6.1306772811855,
+    "spd_mae": 2.542143564309187,
+    "spd_bias": 0.36904093762038515,
+    "dir_mae": 22.417911730500215,
+    "n_dir": 276
+   },
+   "gfs": {
+    "n": 293,
+    "vec_rmse": 5.574822535619299,
+    "spd_mae": 2.4102890019922434,
+    "spd_bias": -0.177714868019213,
+    "dir_mae": 21.936862926396532,
+    "n_dir": 276
+   },
+   "raw": {
+    "n": 293,
+    "vec_rmse": 6.5747741428932525,
+    "spd_mae": 2.719250603105983,
+    "spd_bias": 0.46393353332123244,
+    "dir_mae": 23.78466779491248,
+    "n_dir": 276
+   },
+   "delta_ci95": [
+    0.051894518261643006,
+    1.0634652637230098
+   ],
+   "buoys_lane_better": [
+    1,
+    3
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 24,
+   "group": "Lakes coastal <50 km",
+   "lane": {
+    "n": 678,
+    "vec_rmse": 8.724510941416776,
+    "spd_mae": 2.863375070383794,
+    "spd_bias": -1.5239861240145596,
+    "dir_mae": 32.05999186575548,
+    "n_dir": 651
+   },
+   "gfs": {
+    "n": 678,
+    "vec_rmse": 8.540690255275873,
+    "spd_mae": 3.3115229422861336,
+    "spd_bias": -2.134121656465989,
+    "dir_mae": 31.997495272621997,
+    "n_dir": 651
+   },
+   "raw": {
+    "n": 678,
+    "vec_rmse": 8.945665705181385,
+    "spd_mae": 2.5779358968112867,
+    "spd_bias": -0.5014177926411836,
+    "dir_mae": 30.825092444140818,
+    "n_dir": 651
+   },
+   "delta_ci95": [
+    -0.08315843854662934,
+    0.470361063083008
+   ],
+   "buoys_lane_better": [
+    4,
+    7
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 24,
+   "group": "Lakes offshore",
+   "lane": {
+    "n": 98,
+    "vec_rmse": 8.179506974468397,
+    "spd_mae": 3.204368351434612,
+    "spd_bias": 1.9696011019657347,
+    "dir_mae": 28.398588325477846,
+    "n_dir": 92
+   },
+   "gfs": {
+    "n": 98,
+    "vec_rmse": 6.6434713155903795,
+    "spd_mae": 2.765823112428639,
+    "spd_bias": 0.6461891118198574,
+    "dir_mae": 22.27600445085899,
+    "n_dir": 92
+   },
+   "raw": {
+    "n": 98,
+    "vec_rmse": 8.346677618015091,
+    "spd_mae": 3.3955183752126854,
+    "spd_bias": 1.9476208021657044,
+    "dir_mae": 29.346782395317316,
+    "n_dir": 92
+   },
+   "delta_ci95": [
+    0.2795321971660708,
+    2.519351182751437
+   ],
+   "buoys_lane_better": [
+    0,
+    1
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 24,
+   "group": "feather zone (0<w<1)",
+   "lane": {
+    "n": 788,
+    "vec_rmse": 6.846440099997684,
+    "spd_mae": 2.835230096285889,
+    "spd_bias": -0.5894362150740686,
+    "dir_mae": 19.560599860452268,
+    "n_dir": 761
+   },
+   "gfs": {
+    "n": 788,
+    "vec_rmse": 6.02991218455993,
+    "spd_mae": 2.738658801551183,
+    "spd_bias": -0.7758226795047871,
+    "dir_mae": 16.982928745994357,
+    "n_dir": 761
+   },
+   "raw": {
+    "n": 788,
+    "vec_rmse": 8.217315042370299,
+    "spd_mae": 3.2379172363541056,
+    "spd_bias": -0.29638424520155543,
+    "dir_mae": 24.096708497710956,
+    "n_dir": 761
+   },
+   "delta_ci95": [
+    0.36001949243672854,
+    1.28928225472755
+   ],
+   "buoys_lane_better": [
+    4,
+    8
+   ],
+   "mean_w": 0.6581538071065989
+  },
+  {
+   "lead": 36,
+   "group": "East+Gulf+West full-weight",
+   "lane": {
+    "n": 6176,
+    "vec_rmse": 7.005957518720297,
+    "spd_mae": 3.138809218847983,
+    "spd_bias": -0.2609547392442217,
+    "dir_mae": 23.22751824096029,
+    "n_dir": 5860
+   },
+   "gfs": {
+    "n": 6176,
+    "vec_rmse": 6.425250048123637,
+    "spd_mae": 3.1099272931716704,
+    "spd_bias": -1.10694035822664,
+    "dir_mae": 21.966906277046714,
+    "n_dir": 5860
+   },
+   "raw": {
+    "n": 6176,
+    "vec_rmse": 7.273739044568038,
+    "spd_mae": 3.2254527814754637,
+    "spd_bias": 0.27984854817153343,
+    "dir_mae": 23.82529640674124,
+    "n_dir": 5860
+   },
+   "delta_ci95": [
+    0.3461851759597936,
+    0.80997775912502
+   ],
+   "buoys_lane_better": [
+    18,
+    64
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 36,
+   "group": "East coastal <50 km",
+   "lane": {
+    "n": 2725,
+    "vec_rmse": 6.637918615926332,
+    "spd_mae": 3.116698309901282,
+    "spd_bias": -1.2054538008842997,
+    "dir_mae": 19.945787713156815,
+    "n_dir": 2617
+   },
+   "gfs": {
+    "n": 2725,
+    "vec_rmse": 6.510744093837169,
+    "spd_mae": 3.3431240497291523,
+    "spd_bias": -1.729850223260526,
+    "dir_mae": 20.189843611594725,
+    "n_dir": 2617
+   },
+   "raw": {
+    "n": 2725,
+    "vec_rmse": 6.844661913700281,
+    "spd_mae": 3.0825061025043,
+    "spd_bias": -0.22597674823199493,
+    "dir_mae": 20.27766133139469,
+    "n_dir": 2617
+   },
+   "delta_ci95": [
+    -0.18698118815645043,
+    0.46215082303598437
+   ],
+   "buoys_lane_better": [
+    12,
+    29
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 36,
+   "group": "East offshore",
+   "lane": {
+    "n": 790,
+    "vec_rmse": 6.705500283899764,
+    "spd_mae": 2.558175838418223,
+    "spd_bias": 0.1342774339159845,
+    "dir_mae": 16.934239747774242,
+    "n_dir": 777
+   },
+   "gfs": {
+    "n": 790,
+    "vec_rmse": 6.815620762353912,
+    "spd_mae": 2.7553666040927,
+    "spd_bias": -0.5713058036095168,
+    "dir_mae": 17.4532411856368,
+    "n_dir": 777
+   },
+   "raw": {
+    "n": 790,
+    "vec_rmse": 6.857292104906806,
+    "spd_mae": 2.6350597702749585,
+    "spd_bias": 0.15409506000925133,
+    "dir_mae": 17.562362486885863,
+    "n_dir": 777
+   },
+   "delta_ci95": [
+    -0.5982604758285031,
+    0.3290543722927379
+   ],
+   "buoys_lane_better": [
+    5,
+    8
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 36,
+   "group": "Gulf coastal <50 km",
+   "lane": {
+    "n": 199,
+    "vec_rmse": 7.0330450148462536,
+    "spd_mae": 2.649656213914338,
+    "spd_bias": -1.1543248075136636,
+    "dir_mae": 23.043373719159312,
+    "n_dir": 193
+   },
+   "gfs": {
+    "n": 199,
+    "vec_rmse": 7.072174784928623,
+    "spd_mae": 2.7607779789881213,
+    "spd_bias": -1.556540269040136,
+    "dir_mae": 26.258129829949215,
+    "n_dir": 193
+   },
+   "raw": {
+    "n": 199,
+    "vec_rmse": 7.300620130903285,
+    "spd_mae": 2.5404306779629606,
+    "spd_bias": -0.7180185896636585,
+    "dir_mae": 23.601555316554293,
+    "n_dir": 193
+   },
+   "delta_ci95": [
+    -0.6121139479896535,
+    0.5407624905965229
+   ],
+   "buoys_lane_better": [
+    1,
+    2
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 36,
+   "group": "Gulf offshore",
+   "lane": {
+    "n": 197,
+    "vec_rmse": 4.897366633278619,
+    "spd_mae": 1.997416154189405,
+    "spd_bias": -0.0771157001097636,
+    "dir_mae": 13.518874481151466,
+    "n_dir": 191
+   },
+   "gfs": {
+    "n": 197,
+    "vec_rmse": 4.680213724451207,
+    "spd_mae": 1.9409499170009803,
+    "spd_bias": -0.42764330893450303,
+    "dir_mae": 13.260401087380217,
+    "n_dir": 191
+   },
+   "raw": {
+    "n": 197,
+    "vec_rmse": 5.090399411910029,
+    "spd_mae": 2.0980597905439518,
+    "spd_bias": -0.11342971934439265,
+    "dir_mae": 14.155789525841998,
+    "n_dir": 191
+   },
+   "delta_ci95": [
+    -0.3062717915960481,
+    0.7030077342104665
+   ],
+   "buoys_lane_better": [
+    0,
+    2
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 36,
+   "group": "West coastal <50 km",
+   "lane": {
+    "n": 1973,
+    "vec_rmse": 7.7955921879056955,
+    "spd_mae": 3.611147305095137,
+    "spd_bias": 0.8411607130768579,
+    "dir_mae": 31.585377505780755,
+    "n_dir": 1807
+   },
+   "gfs": {
+    "n": 1973,
+    "vec_rmse": 6.306670502271031,
+    "spd_mae": 3.1253480591164853,
+    "spd_bias": -0.594606233217478,
+    "dir_mae": 26.89624973837313,
+    "n_dir": 1807
+   },
+   "raw": {
+    "n": 1973,
+    "vec_rmse": 8.188265899769855,
+    "spd_mae": 3.872694819281208,
+    "spd_bias": 1.1343971626493423,
+    "dir_mae": 32.52922363173068,
+    "n_dir": 1807
+   },
+   "delta_ci95": [
+    1.064439919474208,
+    1.9196978730830132
+   ],
+   "buoys_lane_better": [
+    0,
+    20
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 36,
+   "group": "West offshore",
+   "lane": {
+    "n": 292,
+    "vec_rmse": 6.692684169159558,
+    "spd_mae": 2.8279374208108914,
+    "spd_bias": 0.5219805060273194,
+    "dir_mae": 24.19262856738845,
+    "n_dir": 275
+   },
+   "gfs": {
+    "n": 292,
+    "vec_rmse": 5.856918593079556,
+    "spd_mae": 2.8153583485562113,
+    "spd_bias": -0.3566262521716031,
+    "dir_mae": 22.27637348581997,
+    "n_dir": 275
+   },
+   "raw": {
+    "n": 292,
+    "vec_rmse": 6.911053356375486,
+    "spd_mae": 3.010889275539101,
+    "spd_bias": 0.5118559149966735,
+    "dir_mae": 24.96174003223748,
+    "n_dir": 275
+   },
+   "delta_ci95": [
+    0.04801098049987353,
+    1.606157350170606
+   ],
+   "buoys_lane_better": [
+    0,
+    3
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 36,
+   "group": "Lakes coastal <50 km",
+   "lane": {
+    "n": 680,
+    "vec_rmse": 9.206347943732041,
+    "spd_mae": 3.094929206583395,
+    "spd_bias": -1.4064900394241973,
+    "dir_mae": 34.74190637256518,
+    "n_dir": 653
+   },
+   "gfs": {
+    "n": 680,
+    "vec_rmse": 8.968237824170759,
+    "spd_mae": 3.4770093838101794,
+    "spd_bias": -2.139934761787578,
+    "dir_mae": 33.34940442358001,
+    "n_dir": 653
+   },
+   "raw": {
+    "n": 680,
+    "vec_rmse": 9.482625017962112,
+    "spd_mae": 2.9185857023043402,
+    "spd_bias": -0.325213693143296,
+    "dir_mae": 33.344946366010625,
+    "n_dir": 653
+   },
+   "delta_ci95": [
+    -0.20367069605641366,
+    0.6804134610935701
+   ],
+   "buoys_lane_better": [
+    1,
+    7
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 36,
+   "group": "Lakes offshore",
+   "lane": {
+    "n": 98,
+    "vec_rmse": 9.76409679293817,
+    "spd_mae": 3.466404953707164,
+    "spd_bias": 1.8855572665713933,
+    "dir_mae": 32.119394513879726,
+    "n_dir": 93
+   },
+   "gfs": {
+    "n": 98,
+    "vec_rmse": 6.893505880214643,
+    "spd_mae": 2.7551474618346297,
+    "spd_bias": 0.7604187393639995,
+    "dir_mae": 25.000691353550177,
+    "n_dir": 93
+   },
+   "raw": {
+    "n": 98,
+    "vec_rmse": 9.952953281294139,
+    "spd_mae": 3.6910676203120842,
+    "spd_bias": 2.038709681156398,
+    "dir_mae": 32.09431967639855,
+    "n_dir": 93
+   },
+   "delta_ci95": [
+    1.7369019380095776,
+    4.037484600332387
+   ],
+   "buoys_lane_better": [
+    0,
+    1
+   ],
+   "mean_w": 1.0
+  },
+  {
+   "lead": 36,
+   "group": "feather zone (0<w<1)",
+   "lane": {
+    "n": 788,
+    "vec_rmse": 7.330549135587988,
+    "spd_mae": 3.1403157464143288,
+    "spd_bias": -0.548051521592803,
+    "dir_mae": 21.474309681629855,
+    "n_dir": 761
+   },
+   "gfs": {
+    "n": 788,
+    "vec_rmse": 6.604464199406956,
+    "spd_mae": 3.0729184068176862,
+    "spd_bias": -0.8332498833706442,
+    "dir_mae": 18.680270851090555,
+    "n_dir": 761
+   },
+   "raw": {
+    "n": 788,
+    "vec_rmse": 8.677341360425716,
+    "spd_mae": 3.7106700331636913,
+    "spd_bias": -0.2122249531258928,
+    "dir_mae": 25.11215089633838,
+    "n_dir": 761
+   },
+   "delta_ci95": [
+    0.3546925545979365,
+    1.1409166712756362
+   ],
+   "buoys_lane_better": [
+    2,
+    8
+   ],
+   "mean_w": 0.6581538071065989
+  },
+  {
+   "lead": 47,
+   "group": "East+Gulf+West full-weight",
+   "lane": {
+    "n": 6161,
+    "vec_rmse": 6.5191940268303465,
+    "spd_mae": 2.990706526311082,
+    "spd_bias": -0.6672552085889257,
+    "dir_mae": 21.957636204229807,
+    "n_dir": 5862
+   },
+   "gfs": {
+    "n": 6161,
+    "vec_rmse": 6.738985601336142,
+    "spd_mae": 3.2224433979687097,
+    "spd_bias": -1.1101560161037558,
+    "dir_mae": 22.718364215381055,
+    "n_dir": 5862
+   },
+   "raw": {
+    "n": 6161,
+    "vec_rmse": 7.799597218261196,
+    "spd_mae": 3.4377639274700824,
+    "spd_bias": 0.3196750432069051,
+    "dir_mae": 25.891338517062245,
+    "n_dir": 5862
+   },
+   "delta_ci95": [
+    -0.3504876259177961,
+    -0.08785893124395014
+   ],
+   "buoys_lane_better": [
+    44,
+    64
+   ],
+   "mean_w": 0.5
+  },
+  {
+   "lead": 47,
+   "group": "East coastal <50 km",
+   "lane": {
+    "n": 2712,
+    "vec_rmse": 6.369417028752572,
+    "spd_mae": 3.125963180017687,
+    "spd_bias": -1.3493220250217477,
+    "dir_mae": 19.772043127888267,
+    "n_dir": 2611
+   },
+   "gfs": {
+    "n": 2712,
+    "vec_rmse": 6.75998937615988,
+    "spd_mae": 3.4529170110832954,
+    "spd_bias": -1.6890925180850074,
+    "dir_mae": 21.12827556584031,
+    "n_dir": 2611
+   },
+   "raw": {
+    "n": 2712,
+    "vec_rmse": 7.417015669278286,
+    "spd_mae": 3.2975330449283966,
+    "spd_bias": 0.011172970148200928,
+    "dir_mae": 22.179476952310143,
+    "n_dir": 2611
+   },
+   "delta_ci95": [
+    -0.5337617589382799,
+    -0.24833097693579326
+   ],
+   "buoys_lane_better": [
+    24,
+    29
+   ],
+   "mean_w": 0.5
+  },
+  {
+   "lead": 47,
+   "group": "East offshore",
+   "lane": {
+    "n": 781,
+    "vec_rmse": 7.012904589157944,
+    "spd_mae": 2.6774215795681395,
+    "spd_bias": 0.010038911568577474,
+    "dir_mae": 17.756924746116617,
+    "n_dir": 765
+   },
+   "gfs": {
+    "n": 781,
+    "vec_rmse": 7.155659008729766,
+    "spd_mae": 2.866236027350243,
+    "spd_bias": -0.28350662069825927,
+    "dir_mae": 19.021169209453813,
+    "n_dir": 765
+   },
+   "raw": {
+    "n": 781,
+    "vec_rmse": 8.045416172548363,
+    "spd_mae": 3.073555160963808,
+    "spd_bias": 0.32696089435098985,
+    "dir_mae": 20.14187318876285,
+    "n_dir": 765
+   },
+   "delta_ci95": [
+    -0.44788493826060705,
+    0.11420148668282122
+   ],
+   "buoys_lane_better": [
+    6,
+    8
+   ],
+   "mean_w": 0.5
+  },
+  {
+   "lead": 47,
+   "group": "Gulf coastal <50 km",
+   "lane": {
+    "n": 199,
+    "vec_rmse": 6.553578358766463,
+    "spd_mae": 2.5008596173117033,
+    "spd_bias": -1.1540181702577275,
+    "dir_mae": 22.59287498515569,
+    "n_dir": 197
+   },
+   "gfs": {
+    "n": 199,
+    "vec_rmse": 6.902834847246338,
+    "spd_mae": 2.756544481996879,
+    "spd_bias": -1.4477224562801876,
+    "dir_mae": 26.07923646899722,
+    "n_dir": 197
+   },
+   "raw": {
+    "n": 199,
+    "vec_rmse": 7.4205333062896095,
+    "spd_mae": 2.7257487393242554,
+    "spd_bias": -0.40375977273828634,
+    "dir_mae": 24.145586404995747,
+    "n_dir": 197
+   },
+   "delta_ci95": [
+    -0.6206172311497328,
+    -0.08569795076994201
+   ],
+   "buoys_lane_better": [
+    2,
+    2
+   ],
+   "mean_w": 0.5
+  },
+  {
+   "lead": 47,
+   "group": "Gulf offshore",
+   "lane": {
+    "n": 200,
+    "vec_rmse": 4.499712389716067,
+    "spd_mae": 1.7461459037326295,
+    "spd_bias": -0.16815804101563997,
+    "dir_mae": 12.790252468060688,
+    "n_dir": 196
+   },
+   "gfs": {
+    "n": 200,
+    "vec_rmse": 4.93317652438064,
+    "spd_mae": 1.8592692849794177,
+    "spd_bias": -0.41726960799251844,
+    "dir_mae": 14.726799522534174,
+    "n_dir": 196
+   },
+   "raw": {
+    "n": 200,
+    "vec_rmse": 4.985340801686736,
+    "spd_mae": 2.1583999811877437,
+    "spd_bias": 0.10552278630120274,
+    "dir_mae": 14.433287746031425,
+    "n_dir": 196
+   },
+   "delta_ci95": [
+    -0.704816332137875,
+    -0.17287324024400336
+   ],
+   "buoys_lane_better": [
+    2,
+    2
+   ],
+   "mean_w": 0.5
+  },
+  {
+   "lead": 47,
+   "group": "West coastal <50 km",
+   "lane": {
+    "n": 1976,
+    "vec_rmse": 6.682445120499458,
+    "spd_mae": 3.184176613084949,
+    "spd_bias": -0.0773655016794131,
+    "dir_mae": 27.379773033236866,
+    "n_dir": 1814
+   },
+   "gfs": {
+    "n": 1976,
+    "vec_rmse": 6.7075912855406745,
+    "spd_mae": 3.289902256098195,
+    "spd_bias": -0.7525025046678643,
+    "dir_mae": 26.8332762823117,
+    "n_dir": 1814
+   },
+   "raw": {
+    "n": 1976,
+    "vec_rmse": 8.482475212787907,
+    "spd_mae": 4.06673217874527,
+    "spd_bias": 0.8327202623603136,
+    "dir_mae": 34.65837991146233,
+    "n_dir": 1814
+   },
+   "delta_ci95": [
+    -0.2759208593489884,
+    0.22871897226651172
+   ],
+   "buoys_lane_better": [
+    9,
+    20
+   ],
+   "mean_w": 0.5
+  },
+  {
+   "lead": 47,
+   "group": "West offshore",
+   "lane": {
+    "n": 293,
+    "vec_rmse": 6.55050006186748,
+    "spd_mae": 2.4513012925067468,
+    "spd_bias": -0.1477233542304262,
+    "dir_mae": 24.667445352660874,
+    "n_dir": 279
+   },
+   "gfs": {
+    "n": 293,
+    "vec_rmse": 6.563062793354507,
+    "spd_mae": 2.830646540967535,
+    "spd_bias": -0.6107098832129673,
+    "dir_mae": 24.223310451612726,
+    "n_dir": 279
+   },
+   "raw": {
+    "n": 293,
+    "vec_rmse": 7.604580725151044,
+    "spd_mae": 2.821640198023557,
+    "spd_bias": 0.33327230975562117,
+    "dir_mae": 28.673738335966057,
+    "n_dir": 279
+   },
+   "delta_ci95": [
+    -0.4388347297876843,
+    0.45963248036679993
+   ],
+   "buoys_lane_better": [
+    1,
+    3
+   ],
+   "mean_w": 0.5
+  },
+  {
+   "lead": 47,
+   "group": "Lakes coastal <50 km",
+   "lane": {
+    "n": 685,
+    "vec_rmse": 8.854221190344049,
+    "spd_mae": 3.047916000248779,
+    "spd_bias": -1.7021398324835695,
+    "dir_mae": 33.39163023551559,
+    "n_dir": 653
+   },
+   "gfs": {
+    "n": 685,
+    "vec_rmse": 8.869155519878156,
+    "spd_mae": 3.3560967812568476,
+    "spd_bias": -2.178696212439888,
+    "dir_mae": 33.20109534134263,
+    "n_dir": 653
+   },
+   "raw": {
+    "n": 685,
+    "vec_rmse": 9.749410557517011,
+    "spd_mae": 3.069702583167851,
+    "spd_bias": -0.15422544441828195,
+    "dir_mae": 34.27599089268962,
+    "n_dir": 653
+   },
+   "delta_ci95": [
+    -0.2374863568833668,
+    0.22002039949401442
+   ],
+   "buoys_lane_better": [
+    4,
+    7
+   ],
+   "mean_w": 0.5
+  },
+  {
+   "lead": 47,
+   "group": "Lakes offshore",
+   "lane": {
+    "n": 99,
+    "vec_rmse": 8.46541517610289,
+    "spd_mae": 2.8589021281318856,
+    "spd_bias": 1.658529802320458,
+    "dir_mae": 28.013877985425626,
+    "n_dir": 97
+   },
+   "gfs": {
+    "n": 99,
+    "vec_rmse": 7.758191241804471,
+    "spd_mae": 2.8460290858250774,
+    "spd_bias": 1.1552727350601826,
+    "dir_mae": 27.914678833582794,
+    "n_dir": 97
+   },
+   "raw": {
+    "n": 99,
+    "vec_rmse": 10.678809910261505,
+    "spd_mae": 3.8713798868515004,
+    "spd_bias": 2.2325980924843964,
+    "dir_mae": 32.85757106392655,
+    "n_dir": 97
+   },
+   "delta_ci95": [
+    -0.033094385235416586,
+    1.4830733958345539
+   ],
+   "buoys_lane_better": [
+    0,
+    1
+   ],
+   "mean_w": 0.5
+  },
+  {
+   "lead": 47,
+   "group": "feather zone (0<w<1)",
+   "lane": {
+    "n": 791,
+    "vec_rmse": 6.909523949513514,
+    "spd_mae": 3.135723375996871,
+    "spd_bias": -0.4415963135080279,
+    "dir_mae": 18.954919473630685,
+    "n_dir": 766
+   },
+   "gfs": {
+    "n": 791,
+    "vec_rmse": 7.0582653163624105,
+    "spd_mae": 3.3170508865069492,
+    "spd_bias": -0.6273803501466579,
+    "dir_mae": 19.84842952518228,
+    "n_dir": 766
+   },
+   "raw": {
+    "n": 791,
+    "vec_rmse": 9.261173568295591,
+    "spd_mae": 3.9420492898867483,
+    "spd_bias": 0.05536877245285027,
+    "dir_mae": 26.372226359961278,
+    "n_dir": 766
+   },
+   "delta_ci95": [
+    -0.3116401824108832,
+    0.013271367277598659
+   ],
+   "buoys_lane_better": [
+    7,
+    8
+   ],
+   "mean_w": 0.3282907079646018
+  }
+ ],
+ "rule": {
+  "kt": 0.3,
+  "n": 300,
+  "triggered": [
+   [
+    3,
+    "East offshore"
+   ],
+   [
+    3,
+    "West coastal <50 km"
+   ],
+   [
+    12,
+    "West coastal <50 km"
+   ],
+   [
+    24,
+    "East+Gulf+West full-weight"
+   ],
+   [
+    24,
+    "West coastal <50 km"
+   ],
+   [
+    36,
+    "East+Gulf+West full-weight"
+   ],
+   [
+    36,
+    "West coastal <50 km"
+   ]
+  ]
+ },
+ "method": {
+  "height": "U10 = Uz*(10/z)^0.11",
+  "dir_min_kt": 4.0,
+  "obs_window_min": 30,
+  "coastal_km": 50.0,
+  "feather_km": 200.0,
+  "taper_hours": 3
+ }
+}

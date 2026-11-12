@@ -5,61 +5,19 @@ import { getAllowedModels, resolveForecastWindow } from './LayerAccessResolver';
 import { BASE_CUSTOM_COLOR_SCALES, applyThemePressureScale, applyThemeWaveScale } from './mapUtils';
 import { setSurfModeFlag } from './backendWeatherServiceClient'; import { useSurfModeFlagState } from './useSurfModeFlagState';   // D6: one band state for every panel
 import { RATING_LEVELS, RATING_COLOR } from './surfRating';
-import { getHeightUnit, setHeightUnit, M_TO_FT } from './heightUnits';
+import useHeightUnit from './useHeightUnit';
 import { windLegendGradientCSS, windLegendStops, windLookKey } from './WindColorRamp';
-import { valueTicks, evenTicks, dropCollisions, LegendTicks } from './legendTicks';
+import { evenTicks, LegendTicks } from './legendTicks';
 import { activeCadenceHours, stepHour } from './cadenceStep';
 import ForecastWheel, { shouldUseClassicScrubber } from './ForecastWheel';
 import TimelineStatus from './TimelineStatus'; import { RASTER_STATUS_LAYERS } from './rasterDrawnFrame';
-import { forecastReadout } from './forecastReadout'; import LayerDataCredit from './LayerDataCredit';
+import { forecastReadout, forecastDayLabel } from './forecastReadout';
+import { responsiveWeatherOn } from './useMapChromeLayout'; import LayerDataCredit from './LayerDataCredit';
 import { marineWaveLegend } from './marineWavePalette';
+import WeatherLayerSheet, { useWeatherPanelDisclosure } from './WeatherLayerSheet';
+import { buildGradientCSS, buildStops, evenStops, HEIGHT_VARIABLES } from './weatherControlLegend';
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
 const SURF_TOGGLE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
-
-/**
- * Build a CSS linear-gradient string from RGBA color array + breakpoints.
- * Colors are positioned proportionally along the gradient.
- */
-function buildGradientCSS(scale) {
-  if (!scale?.colors?.length || !scale?.breakpoints?.length) return 'linear-gradient(to right, #888, #888)';
-  const colors = scale.colors;
-  const bp = scale.breakpoints;
-  const maxBp = bp[bp.length - 1];
-  const minBp = bp[0];
-  const range = maxBp - minBp || 1;
-
-  const stops = colors.map((c, i) => {
-    const pct = ((bp[i] - minBp) / range) * 100;
-    return `rgba(${c[0]},${c[1]},${c[2]},${Math.min(c[3] + 0.2, 1).toFixed(2)}) ${pct.toFixed(1)}%`;
-  });
-  return `linear-gradient(to right, ${stops.join(', ')})`;
-}
-
-// Marine height variables whose breakpoints are stored in METERS (display converts per the
-// user's ft/m preference — heightUnits.js is the single source of that preference).
-const HEIGHT_VARIABLES = ['wave_height', 'wave', 'swell_wave_height', 'secondary_swell_wave_height', 'wind_wave_height'];
-
-/**
- * Build legend stops (labels) from breakpoints. Wave variables convert meters → the user's
- * display unit ('ft' default — the pre-toggle live behavior; 'm' keeps meters).
- */
-function buildStops(scale, layerId, heightUnit) {
-  // Returns POSITIONED ticks ([{label, pct}]), not bare strings — see legendTicks.js for why
-  // (evenly-spaced labels sat up to 47 pp from the colour they name).
-  if (!scale?.breakpoints?.length) return [];
-  const isHeight = scale.unit === 'm' && HEIGHT_VARIABLES.includes(layerId);
-  const toFeet = isHeight && heightUnit !== 'm';
-  return dropCollisions(valueTicks(scale.breakpoints, (bp, i, isLast) => {
-    const val = toFeet ? bp * M_TO_FT : bp;
-    const display = val < 1 ? val.toFixed(1) : Math.round(val);
-    return isLast ? `${display}+` : `${display}`;
-  }));
-}
-
-/** Hand-authored gradients carry no percentages, so CSS spaces their colours evenly and their
- *  labels were always right; normalised so both legend kinds render through one path. */
-const evenStops = (labels) => evenTicks(labels);
-
 /**
  * Compact weather controls chip-based layer selector + integrated timeline.
  * Mobile: renders as a slim bottom-sheet panel.
@@ -68,6 +26,8 @@ const evenStops = (labels) => evenTicks(labels);
 export var MapWeatherControls = ({
   isDesktop = true,
   isMobileExpanded = false,
+  isCompactTimelineOpen = false,
+  onCompactTimelineToggle,
   activeModel,
   onModelChange,
   activeLayers,
@@ -91,7 +51,9 @@ export var MapWeatherControls = ({
   isImmersiveMode = false,
 }) => {
   const { theme } = useTheme();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const responsive = responsiveWeatherOn();
+  const [isCollapsed, setIsCollapsed, panelToggleRef, togglePanel] = useWeatherPanelDisclosure();
+  const [compactLegendOpen, setCompactLegendOpen] = useState(false);
   // Remove local isTimelineCollapsed since we lift it up, or use the prop directly if provided.
   const [localTimelineCollapsed, setLocalTimelineCollapsed] = useState(false);
   const [surfMode, setSurfMode] = useSurfModeFlagState();
@@ -105,8 +67,7 @@ export var MapWeatherControls = ({
   };
 
   // Wave-height display unit (ft | m) — display-only preference, data stays metric (heightUnits.js).
-  const [heightUnit, setHeightUnitState] = useState(() => getHeightUnit());
-  const toggleHeightUnit = () => setHeightUnitState(setHeightUnit(heightUnit === 'ft' ? 'm' : 'ft'));
+  const [heightUnit, toggleHeightUnit] = useHeightUnit();
 
   useEffect(() => {
     setIsCollapsed(isImmersiveMode);
@@ -477,8 +438,8 @@ export var MapWeatherControls = ({
   const renderTimeline = (isMobile = false) => {
     if (!activeLayer) return null;
     return (
-      <div className={isMobile ? "" : `mt-2 pt-2 border-t ${isLight ? 'border-gray-200' : 'border-zinc-800'}`}>
-        <div className="flex items-center gap-2">
+      <div className={`weather-timeline ${isMobile ? "" : `mt-2 pt-2 border-t ${isLight ? 'border-gray-200' : 'border-zinc-800'}`}`} >
+        <div className={`weather-timeline-track flex items-center gap-2 ${isRadar ? "weather-radar-track" : ""}`}>
           {/* Play/Pause */}
           <button
             onClick={onTogglePlay}
@@ -505,7 +466,7 @@ export var MapWeatherControls = ({
           {/* Scrubber: the detented FORECAST WHEEL (user-approved prototype d50c0923) — jog for
               hour precision, flick to shuttle (speed-capped), commits gate on detent settle.
               Kill switch __RAW_CLASSIC_SCRUBBER__=true restores the classic range slider. */}
-          <div className="flex-1 px-1 flex flex-col justify-center">
+          <div className="weather-wheel flex-1 px-1 flex flex-col justify-center">
             {useWheel ? (
               <ForecastWheel
                 isRadar={isRadar}
@@ -553,7 +514,7 @@ export var MapWeatherControls = ({
           )}
 
           {/* Time Readout */}
-          <div className={`text-[10px] font-bold shrink-0 text-right min-w-[50px] ${textClass}`}>
+          <div className={`weather-time-readout text-[10px] font-bold shrink-0 text-right min-w-[50px] ${textClass}`}>
             <span aria-hidden={!isRadar}>{formatTime()}</span>{!isRadar && <span className="sr-only">{forecastReadout(sliderVal, activeLayer, activeModel).srText}</span>}{!isRadar && forecastReadout(sliderVal, activeLayer, activeModel).snapped && <span className={`block text-[8px] font-medium leading-tight ${textMuted}`} title="Nearest stored model time step">model step</span>}
           </div>
         </div>
@@ -563,7 +524,7 @@ export var MapWeatherControls = ({
             equivalents live on the wheel itself). Forecast mode only — radar keeps its dedicated
             frame-step buttons above. Theme-aware via chipBg/btnHover/textMuted. */}
         {useWheel && !isRadar && (
-          <div className="flex flex-wrap items-center justify-center gap-1 mt-1.5">
+          <div className="weather-time-steps flex flex-wrap items-center justify-center gap-1 mt-1.5">
             {[['−1d',-24,'Step back 1 day'],['−3h',-3,'Step back 3 hours',-1],['−1h',-1,'Step back 1 hour'],['Now',null],
               ['+1h',1,'Step forward 1 hour'],['+3h',3,'Step forward 3 hours',1],['+1d',24,'Step forward 1 day']
             ].map(([label, delta, aria, grid]) => (
@@ -614,11 +575,7 @@ export var MapWeatherControls = ({
               const pct = (hrOff / maxForecastHours) * 100;
               if (pct > 100) return null;
               const isDay = hrOff % 24 === 0;
-              const d = new Date();
-              d.setHours(d.getHours() + hrOff);
-              const label = isDay
-                ? (hrOff === 24 ? 'Tmrw' : d.toLocaleDateString('en-US', { weekday: 'short' }))
-                : '';
+              const label = isDay ? forecastDayLabel(hrOff) : '';
               return (
                 <div key={i} style={{
                   position: 'absolute', left: `${pct}%`, top: 0,
@@ -660,9 +617,15 @@ export var MapWeatherControls = ({
     );
   };
 
+  const desktopTimeline = responsive && activeLayer ? (
+    <div className={`weather-desktop-timeline hidden md:block absolute z-[900] p-3 rounded-xl border backdrop-blur-xl shadow-2xl ${bgClass}`} data-weather-timeline="desktop">
+      {renderTimeline(true)}
+    </div>
+  ) : null;
+
   // ==================== DESKTOP LAYOUT ====================
   if (isDesktop) {
-    const desktopClass = `absolute top-24 right-2 z-[1000] backdrop-blur-xl border rounded-xl transition-all duration-300 ease-in-out hidden md:block ${bgClass}`;
+    const desktopClass = `weather-desktop-panel absolute top-24 right-2 z-[1000] backdrop-blur-xl border rounded-xl transition-all duration-300 ease-in-out hidden md:block ${bgClass}`;
 
     if (isCollapsed) {
       const activeLayerObj = layers.find(l => l.id === activeLayer);
@@ -670,9 +633,11 @@ export var MapWeatherControls = ({
       const activeColor = activeLayerObj ? activeLayerObj.color : textMuted;
 
       return (
-        <div
+        <>
+        {desktopTimeline}
+        <button type="button" ref={panelToggleRef}
           className={`${desktopClass} w-12 h-12 p-0 overflow-hidden flex flex-col items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-lg group`}
-          onClick={() => setIsCollapsed(false)}
+          onClick={() => togglePanel(false)}
           aria-label="Expand weather controls"
           style={{ borderRadius: '12px' }}
         >
@@ -680,15 +645,18 @@ export var MapWeatherControls = ({
             <ActiveIcon className={`w-5 h-5 ${activeColor} transition-transform group-hover:rotate-12`} />
             <ChevronDown className={`w-3.5 h-3.5 ${textMuted}`} />
           </div>
-        </div>
+        </button>
+        </>
       );
     }
 
     return (
+      <>
+      {desktopTimeline}
       <div className={`${desktopClass} w-60 p-3 max-h-[calc(100vh-120px)] overflow-y-auto`}>
         <div className="flex items-center justify-between mb-2">
           <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Weather</span>
-          <button onClick={() => setIsCollapsed(true)} className={`p-1 rounded ${btnHover}`} aria-label="Collapse weather controls">
+          <button ref={panelToggleRef} onClick={() => togglePanel(true)} className={`p-1 rounded ${btnHover}`} aria-label="Collapse weather controls">
             <ChevronUp className={`w-4 h-4 ${textMuted}`} />
           </button>
         </div>
@@ -723,7 +691,7 @@ export var MapWeatherControls = ({
             type="button"
             onClick={toggleHeightUnit}
             title="Wave-height display unit (feet or meters)"
-            aria-label={heightUnit === 'm' ? 'Wave height unit: meters — switch to feet' : 'Wave height unit: feet — switch to meters'}
+            aria-label={heightUnit === 'm' ? 'Wave height unit: meters (m) — switch to feet' : 'Wave height unit: feet (ft) — switch to meters'}
             className={`text-[9px] leading-none px-2 py-1 rounded-full border transition-colors ${textMuted} border-current opacity-70 hover:opacity-100`}
           >
             {heightUnit === 'm' ? 'm' : 'ft'} ⇄
@@ -782,8 +750,9 @@ export var MapWeatherControls = ({
           </div>
         )}
 
-        {renderTimeline()}
+        {!responsive && renderTimeline()}
       </div>
+      </>
     );
   }
 
@@ -792,9 +761,18 @@ export var MapWeatherControls = ({
     // Collapsed mobile state: Just show timeline and legend floating above bottom nav
     if (!activeLayer) return null;
     return (
-      <div className="absolute left-0 right-0 z-[900] md:hidden px-4 pointer-events-none transition-all duration-300" style={{ bottom: isImmersiveMode ? '16px' : '72px' }}>
+      <div data-weather-timeline="mobile" className="weather-mobile-timeline absolute left-0 right-0 z-[900] md:hidden px-4 pointer-events-none transition-all duration-300" style={{ bottom: isImmersiveMode ? '16px' : '72px' }}>
         <div className={`pointer-events-auto rounded-xl backdrop-blur-xl border shadow-2xl ${bgClass} ${collapsedState ? 'pt-2 pb-2' : 'p-3'} transition-all duration-300`}>
-          <div className="flex justify-center gap-24 items-center pb-2 -mt-2">
+          <div className="weather-compact-timeline-header">
+            <button type="button" className={`flex-1 text-[11px] rounded-lg ${textMuted}`} aria-expanded={isCompactTimelineOpen} aria-controls="weather-mobile-timeline-body" onClick={() => { if (!isCompactTimelineOpen) setCollapsedState(false); onCompactTimelineToggle?.(); }}>
+              {`${isCompactTimelineOpen ? 'Close timeline' : 'Timeline'} \u00b7 ${formatTime()}`}
+            </button>
+            {isCompactTimelineOpen && <button type="button" className={`text-[11px] px-3 rounded-full border ${chipBg} ${textMuted}`} aria-expanded={compactLegendOpen} onClick={() => setCompactLegendOpen(value => !value)}>{compactLegendOpen ? 'Hide legend' : 'Legend'}</button>}
+          </div>
+          <div className="weather-mobile-timeline-handle flex justify-center gap-24 items-center pb-2 -mt-2">
+            <button type="button" className={`weather-legend-toggle text-[11px] px-3 rounded-full border ${chipBg} ${textMuted}`} aria-expanded={compactLegendOpen} onClick={() => setCompactLegendOpen(value => !value)}>
+              {compactLegendOpen ? 'Hide legend' : 'Legend'}
+            </button>
             <button 
               className="py-1 px-3 -mx-3 group cursor-pointer active:scale-95 transition-transform"
               onClick={() => setCollapsedState(!collapsedState)}
@@ -818,9 +796,9 @@ export var MapWeatherControls = ({
               </svg>
             </button>
           </div>
-          <div className={`overflow-hidden transition-all duration-300 ${collapsedState ? 'max-h-0 opacity-0' : 'max-h-[200px] opacity-100'}`}>
+          <div id="weather-mobile-timeline-body" inert={collapsedState} aria-hidden={collapsedState || undefined} className={`weather-mobile-timeline-body overflow-hidden transition-all duration-300 ${collapsedState ? 'max-h-0 opacity-0' : 'max-h-[200px] opacity-100'}`}>
             {legendConfig[activeLayer] && (
-              <div className="mb-2">
+              <div className="weather-mobile-legend mb-2" data-legend-expanded={compactLegendOpen}>
                 {/* Stacked keys (rating never covers the layer key) — mirrors the desktop panel. */}
                 {surfMode && SURF_TOGGLE_LAYERS.includes(activeLayer) && (
                   <div className="mb-1.5">
@@ -847,14 +825,14 @@ export var MapWeatherControls = ({
   return (
     <>
       <div className="absolute inset-0 z-[999] bg-black/40 backdrop-blur-sm md:hidden" onClick={onClose} />
-      <div className={`absolute left-0 right-0 z-[1000] md:hidden rounded-t-3xl backdrop-blur-xl border-t ${bgClass} shadow-[0_-20px_40px_rgba(0,0,0,0.4)]`} style={{ bottom: '64px' }}>
+      <WeatherLayerSheet onClose={onClose} className={`weather-layer-sheet absolute left-0 right-0 z-[1000] md:hidden rounded-t-3xl backdrop-blur-xl border-t ${bgClass} shadow-[0_-20px_40px_rgba(0,0,0,0.4)]`} style={{ bottom: '64px' }}>
         <div className="flex flex-col items-center pt-2 pb-1">
           <div className="w-12 h-1.5 bg-gray-500/30 rounded-full" />
         </div>
         <div className="flex items-center justify-between px-5 pt-1 pb-3 border-b border-zinc-800/30">
           <span className={`text-xs font-bold uppercase tracking-wider ${textClass}`}>Map Layers</span>
           {onClose && (
-            <button onClick={onClose} className={`p-1.5 rounded-full ${btnHover} transition-colors`} aria-label="Close">
+            <button onClick={onClose} className={`p-1.5 rounded-full ${btnHover} transition-colors`} aria-label="Close weather layers">
               <X className={`w-5 h-5 ${textMuted}`} />
             </button>
           )}
@@ -891,7 +869,7 @@ export var MapWeatherControls = ({
               type="button"
               onClick={toggleHeightUnit}
               title="Wave-height display unit (feet or meters)"
-              aria-label={heightUnit === 'm' ? 'Wave height unit: meters — switch to feet' : 'Wave height unit: feet — switch to meters'}
+              aria-label={heightUnit === 'm' ? 'Wave height unit: meters (m) — switch to feet' : 'Wave height unit: feet (ft) — switch to meters'}
               className={`text-[11px] leading-none px-3 py-2 rounded-full border transition-colors ${textMuted} border-current opacity-70`}
             >
               {heightUnit === 'm' ? 'm' : 'ft'} ⇄
@@ -948,7 +926,7 @@ export var MapWeatherControls = ({
             </div>
           )}
         </div>
-      </div>
+      </WeatherLayerSheet>
     </>
   );
 };

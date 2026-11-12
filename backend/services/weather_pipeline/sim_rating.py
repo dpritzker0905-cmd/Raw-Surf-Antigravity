@@ -254,12 +254,26 @@ def calculate_surf_rating(
     # that omission over-read the served height by a median 19.1% (max +39.2%).
     regime = "estimate"
     breaking_height = None
+    # CMP-2 (2026-11-10): the HEIGHT half of W-30. The glyph's height ran on this hour's tide (`/point` threads eta into
+    # the depth-limited cap); the sim passed none, so a capped spot read up to ~8.5% per 0.5 m of tide off the served
+    # height. `served_tide` is the glyph's own tide state for this exact frame (live lane only, gated SIM_SERVED_TIDE),
+    # so its `height_m` is the eta the served height used: zero new I/O. A what-if hour carries none and stays at 0.
+    # The MOP nearshore sea (EURO only) is NOT reachable here without a fetch: still open, named in the PR.
+    # Kill: SURF_SEA_INPUTS_EVERY_CALLER=0 (sea_inputs).
+    water_level_m = 0.0
+    try:
+        from services.weather_pipeline import sea_inputs as _sea
+        _h = served_tide.get("height_m") if isinstance(served_tide, dict) else None
+        if _sea.every_caller_enabled() and isinstance(_h, (int, float)) and not isinstance(_h, bool)                 and math.isfinite(_h) and abs(_h) <= 10.0:
+            water_level_m = float(_h)
+    except Exception as e:
+        logger.debug(f"served tide height unusable for {spot.get('name')}: {e}")
     if geo is not None:
         try:
             breaking_height, regime = estimate_surf_at(
                 float(spot["latitude"]), float(spot["longitude"]),
                 swell_h, swell_p, swell_from_deg=swell_dir, geometry=geo,
-                partitions=partitions)
+                partitions=partitions, water_level_m=water_level_m)
         except Exception as e:
             logger.warning(f"estimate_surf_at failed for {spot.get('name')}: {e}")
             breaking_height = None

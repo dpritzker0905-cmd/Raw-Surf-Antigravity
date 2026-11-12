@@ -1,0 +1,14 @@
+{
+ "null_control": {
+  "by_forecast": {
+   "n": 12741,
+   "bias_m": -0.001,
+   "mae_m": 0.28
+  },
+  "by_observed": {
+   "n": 14299,
+   "bias_m": -0.162,
+   "mae_m": 0.312
+  }
+ }
+}

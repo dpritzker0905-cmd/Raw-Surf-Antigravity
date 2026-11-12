@@ -23,7 +23,8 @@ FORECAST (each variant's own >= 3 m calls). A group under MIN_TEST pairs prints 
 
 NOT available: station depth. Woodcock 2007 found raw models barely beat persistence at shallow sites (< 25 m); the ledger rows
 carry no depth, so deep and shallow buoys cannot be split here (`depth_split` says so). Changes no served number; kill switch
-FORECAST_SKILL_OCF=0 (read in forecast_skill.run_skill_ledger), and the off path adds nothing to the report.
+FORECAST_SKILL_OCF=0 (read in forecast_skill.run_skill_ledger), and the off path adds nothing to the report. It runs inside the
+FORECAST_SKILL_MOS gate, so FORECAST_SKILL_MOS=0 also turns it off.
 """
 import bisect
 import random
@@ -38,6 +39,7 @@ MIN_WINDOW = 20
 BOOT_DRAWS = 400
 BOOT_SEED = 20261112
 VARIANTS = ("served", "equal", "mos_served", "ocf_pooled", "ocf_region", "ocf_rolling")
+EXPECTED_LEADS = (24, 48, 72)
 DEPTH_SPLIT = "unavailable: ledger rows carry no station depth (OCF literature: raw models barely beat persistence under 25 m)"
 
 
@@ -176,7 +178,7 @@ def _big(test, fcs, min_test: int) -> Dict:
 
 
 def ocf_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_test: int = MIN_TEST,
-               members=MEMBERS) -> Dict:
+               members=MEMBERS, expected_leads=EXPECTED_LEADS) -> Dict:
     """PURE: the held-out OCF-style comparison over scored ledger rows (see the module docstring)."""
     from services.weather_pipeline.forecast_skill import obs_band      # lazy: forecast_skill imports this module
     by_lead, by_region, by_band = [], {}, {}
@@ -207,16 +209,20 @@ def ocf_report(rows, now: datetime, holdout_days: int = HOLDOUT_DAYS, min_test: 
         for band in sorted({obs_band(p["obs"]) for p in test} - {None}):
             idx = [i for i, p in enumerate(test) if obs_band(p["obs"]) == band]
             by_band.setdefault(band, {})[str(lead)] = _grade([test[i] for i in idx], [fcs[i] for i in idx], min_test)
+    seen = {e["lead_h"] for e in by_lead}
+    missing_leads = [l for l in expected_leads if l not in seen]
     if not scored_leads:
         verdict = {}
     else:
         for v in verdict.values():
-            v["gate_met"] = bool(v["better_every_lead"] and not v["worse_regions"]
+            v["gate_met"] = bool(v["better_every_lead"] and not v["worse_regions"] and not missing_leads
                                  and all(e.get("status") == "scored" for e in by_lead))
+            v["note"] = "a coast under the minimum n is not counted as worse; a lead with no complete member triplets blocks the gate"
     return {"method": "ocf_style_bias_corrected_equal_mean", "members": list(members), "variants": list(VARIANTS),
             "holdout_days": holdout_days, "roll_days": ROLL_DAYS, "cutoff": (now - timedelta(days=holdout_days)).isoformat(),
             "depth_split": DEPTH_SPLIT, "by_lead": by_lead, "by_region": by_region, "by_band": by_band,
-            "gate": verdict}
+            "leads_scored": sorted(e["lead_h"] for e in by_lead if e.get("status") == "scored"),
+            "expected_leads": list(expected_leads), "missing_leads": missing_leads, "gate": verdict}
 
 
 # ── CONTROLS AND THE TIER SPLIT (move 4, 2026-11-12) ──────────────────────────────────────────────────

@@ -55,6 +55,8 @@ _RATING_FLAGS = {
                                         "services/weather_pipeline/consensus_product.py",
                                    "forecast-ingest-pilots workflow env (the lane that builds the CONSENSUS product); NOT Render. "
                                    "nearshore-validation reads the same flag (default 0) for the judge's consensus arm"),
+    "FORECAST_SKILL_DIRPER_PAIRED": ("0", "MEASUREMENT ONLY (S8 v2, skill_direction_period_paired.py): paired swell direction/period skill by lead and coast vs persistence and climatology; periods graded per definition, never pooled; no served number",
+                                     "forecast-ingest and precompute workflow env together (the two skill-ledger lanes); NOT Render"),
     "ESTIMATE_COHERENT_TRENDS": ("0", "Refuse stored marine estimates whose active trend pair lacks a verified shared model cycle",
                                 "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (L2 writers); NOT Render"),
     "EURO_MARINE_NATIVE_TAIL_CADENCE": ("1", "Preserve NOAA tail cadence (step 1 on the three-hourly cache, not stride 3 -> nine-hourly EURO 10-14 d estimates) and verify completed local extension no-ops",
@@ -176,9 +178,9 @@ _RATING_FLAGS = {
                                      "Render env"),
     # DEFAULT ON by the owner's word (D-017, 2026-10-09: "start it switched on"). It moves only the /grid wind map:
     # stored products, spot points, ratings and glyphs never pass through it (tests/test_wind_hrrr_lane.py pins that).
-    "WIND_HRRR_LANE": ("1", "The wind map draws HRRR by place and time: inside HRRR's domain and horizon every GFS wind "
-                            "tier blends the stored NOAA HRRR cycle (200 km feather, 3 h taper); 0 = the gfs_global map",
+    "WIND_HRRR_LANE": ("1", "The wind map draws HRRR by place and time: inside HRRR's domain and horizon every GFS wind tier blends the stored NOAA HRRR cycle (200 km feather, 3 h taper); 0 = the gfs_global map",
                        "Render env"),
+    "WIND_LANE_SKILL_WEIGHTS": ("0", "DARK (D-017 reopen, 2026-11-12): cap HRRR's weight in the wind lane by region x lead from the NDBC-fitted table (weather_pipeline/wind_lane_skill.py; West 0.4->0.2, East 0.5-0.6); moves the drawn wind map only, never a spot point or rating", "Render env"),
     # SERVE-BOX COST, not physics (2026-10-10): no wind number moves (tests/test_wind_bg_build_bounded.py pins the
     # vectors equal, on vs off). Off, a fresh wind box builds all ~385 hourly steps in the background with a full
     # gc.collect() each (0.42 s on the event loop) and a new box cancels the task a request may be waiting on.
@@ -240,6 +242,7 @@ _RATING_FLAGS = {
     # registry wording. `0.55+0.45*exposure` is surf_transform._height_exposure_factor; quality
     # (surf_rating.swell_exposure) is untouched. Direction matters to an operator: flipping this
     # SHRINKS off-axis heights (-46.9% at the floor, 0.0% head-on), it does not raise scores.
+    "LOCATION_TIME_FIELD": ("0", "[D-065 held OFF until its SCOREBOARD row + history filter land] location_time phase 1 (#762): civil IANA zone (0.01 deg grid) on the hub, /point-tide and GET /weather/location-time; hub daily rows by CIVIL date (same rated frames). Tier-safe. services/weather_pipeline/location_time.py", "runtime manifest (control/flags.json) - no workflow or Render env; keep Render env UNSET"),
     "SURF_EXPOSURE_RECONCILED": ("0", "[D-065 held OFF: the history filter shows it WORSE, hs_station MAE +0.0093 m CI [0.0076, 0.0113]; fix in progress] Reconcile the DUAL swell-aim floor: replace the HEIGHT "
                                       "curve 0.55+0.45*exposure with sqrt(exposure) so height**2 "
                                       "== exposure and the height/quality chains stop reading one "
@@ -455,6 +458,30 @@ _RATING_FLAGS = {
                                          "sea+swell forecast instead of the offshore field + parametric transform "
                                          "(all surfaces); kill switch '0'",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
+    # ING-1 (Fable audit 2026-11-10): manifest tombstones. Measured 593 of 18,466 live entries naming a deleted object.
+    "MANIFEST_PRUNE_TOMBSTONES":   ("1", "[D-065 GUARDED, default ON; moves manifest membership, not a forecast number] "
+                                         "A prune writes pruned[name]=time into the manifest it publishes; every merge "
+                                         "drops entries registered at or before their tombstone, so a lane's stale "
+                                         "snapshot cannot resurrect an entry whose object another lane deleted "
+                                         "(services/weather_pipeline/manifest_tombstones.py); kill switch '0'",
+                                    "forecast-ingest, forecast-ingest-pilots and precompute (the manifest writers); "
+                                    "the runtime manifest reaches all three"),
+    # 2026-11-11 (follow-up to JAC-1 #779): MOP-calibrated swell-exposure normals for California spots.
+    "SHORE_NORMAL_MOP_CALIBRATED": ("0", "[D-065 GUARDED, held OFF: the default-ON filter's nearshore arm reads hb_proxy WORSE "
+                                         "(+0.0385 m MAE, CI [0.0234, 0.0589], 8 CDIP anchors) while CDIP MOP reads it much "
+                                         "better; resolve the instrument conflict before any flip] The surf HEIGHT's swell-angle factor measures against a "
+                                         "per-spot effective exposure normal fitted to CDIP MOP v1.1 (56 California spots, "
+                                         "data/swell_exposure_normals.json) instead of the coastline normal; the coastline normal "
+                                         "still decides wind and the rating. Held-out MSE vs MOP 0.0234 -> 0.0046. "
+                                         "services/weather_pipeline/swell_exposure_normals.py; kill switch '0'",
+                                    "Render env AND forecast-ingest.yml AND precompute.yml env"),
+    # CMP-2 (Fable audit 2026-11-10): one tide/MOP resolver (sea_inputs.py) for every estimate_surf_at caller.
+    "SURF_SEA_INPUTS_EVERY_CALLER": ("1", "[D-065 GUARDED, ON; accuracy not measured] hub, conditions, sim take /point's tide+MOP; kill '0'",
+                                     "Render env (serve-side surfaces); the sim reads the served glyph's tide, no env"),
+    "SIDE_PATHS_THROUGH_CHAIN": ("1", "[D-065 GUARDED, ON] O4: conditions rows from rate_one_spot frames, _breaking_ft fails closed, "
+                                     "target-time surf-conditions labelled unrated (side_paths.py); kill '0'", "Render env"),
+    "RATING_BAND_ONE_CHAIN": ("1", "[D-065 GUARDED, ON] CMP-1: map band = estimate_surf_at on cached geometry + break depth, "
+                                   "eta 0 (band_chain.py); kill '0'", "Render env AND precompute.yml env (rated static frames)"),
     # CMP-3 (audit 2026-11-10). The rating's oversize gate read `break_depth_at` while the height's cap read the
     # geometry's depth (incl. the land-present promotion): 12 of 14 land-present coords disagreed.
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": ("1", "[D-065 GUARDED, ON] the rating reads the served response's "

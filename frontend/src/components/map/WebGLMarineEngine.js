@@ -8,7 +8,7 @@
 
 import { recordTruthStage } from './weatherTruthTracker';
 import { measureMarineCpuPhase, instrumentMarineEngineCpuPhases } from './marineCpuPhaseTiming';
-import { forecastStateIdentityEnabled } from './forecastStateIdentity'; import { applyWaveSetUniforms } from './waveSetScreenBound'; import { syncParticleStateFormat, applyParticleStateUniforms } from './particleState'; import { applyCrestPhaseUniforms } from './crestLocalPhase'; import { applyCrestRankUniforms } from './crestTexelRank';
+import { forecastStateIdentityEnabled } from './forecastStateIdentity'; import { applyWaveSetUniforms } from './waveSetScreenBound'; import { syncParticleStateFormat, applyParticleStateUniforms } from './particleState'; import { applyCrestPhaseUniforms } from './crestLocalPhase'; import { applyCrestRankUniforms } from './crestTexelRank'; import { resolveOrbitalPitch, bandMotionScale } from './oneWayCrests';
 import { readMarineSurfMode } from './marineSurfMode'; import { crestDensityCut } from './marineCrestDensity';
 import { unpatchedMaskHold } from './marineUnpatchedMaskHold'; import { recordMarineEvent } from './marineForensics'; import { keepMaskPatch, stampMaskPatch } from './maskPatchKeep'; import { uniformLoc } from './glUniformCache'; import { seedConsumeAllowed } from './marineQuietFrames'; import { coarseMaskReuse, noteCoarseMaskUse, releaseCoarseMaskCache } from './marineCoarseMaskCache';   // __RAW_FORENSIC__ ring; 2026-10-23 jank
 import { arbiterDecide } from './marineCommitArbiter'; import { washMatchesResident } from './marineStaleHour';   // ARBITER PHASE B: shadow verdicts at the commit choke; D1 wash time
@@ -1971,7 +1971,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       const _trochoidal = resolveAnimValue('__RAW_TROCHOIDAL__');
       gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_trochoidal'), _trochoidal);
       // Orbital pitch: phase-synced forward/back sway (CSS px) so crests pitch, not just translate. window.__RAW_ORBITAL_PITCH__.
-      const _orbitalPitch = resolveAnimValue('__RAW_ORBITAL_PITCH__');
+      const _orbitalPitch = resolveOrbitalPitch();
       gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_orbitalPitch'), _orbitalPitch);
       // Shoaling foam: extra whitecap in shallow water via bathymetry. GATED on a resident bath texture so the
       // sampler (bound to unit 3 below) is never READ unbound. window.__RAW_SHOAL_FOAM__.
@@ -2115,7 +2115,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_motion_scale'), motionScale);
       gl.uniform2f(uniformLoc(gl, this.drawProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
       gl.uniform1f(uniformLoc(gl, this.drawProgram, 'u_tile_width'), tileWidth); applyWaveSetUniforms(gl, this.drawProgram);
-      applyParticleStateUniforms(gl, this.drawProgram, this); applyCrestRankUniforms(gl, this.drawProgram); applyCrestPhaseUniforms(gl, this.drawProgram, this, { time, motionScale, zoom: z, cx, cy, tileWidth, tileCenter: isHighZoom ? [this._tileCenterX, this._tileCenterY] : null });   // motion fixes (2026-11-03)
+      applyParticleStateUniforms(gl, this.drawProgram, this); applyCrestRankUniforms(gl, this.drawProgram); applyCrestPhaseUniforms(gl, this.drawProgram, this, { time, motionScale: bandMotionScale(motionScale), zoom: z, cx, cy, tileWidth, tileCenter: isHighZoom ? [this._tileCenterX, this._tileCenterY] : null });   // motion fixes (2026-11-03)
 
       // v5.3: viewport and DPR uniforms for pixel-space quad expansion
       var dpr = (typeof window !== 'undefined' && window.devicePixelRatio) ? window.devicePixelRatio : 1.0;

@@ -91,9 +91,13 @@ def test_calm_or_missing_height_is_calm_not_an_exception(offshore_m):
     assert _breaking_ft(37.4956, -122.5011, offshore_m, 13.0, None) == (0.0, "calm")
 
 
-def test_a_missing_period_fails_OPEN_to_the_offshore_value_and_SAYS_SO():
-    """No period => no transform is possible. It must degrade to the offshore number AND label it,
-    because a silent fallback is indistinguishable from a working transform."""
+def test_a_missing_period_fails_CLOSED_and_the_kill_switch_restores_the_labelled_fail_open(monkeypatch):
+    """No period => no transform is possible. Since O4 / CMP-7 (2026-11-10) that is NO height, never the offshore Hs
+    under the surf's name; SIDE_PATHS_THROUGH_CHAIN=0 restores the old labelled fail-open."""
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
+    monkeypatch.delenv("SIDE_PATHS_THROUGH_CHAIN", raising=False)
+    assert _breaking_ft(21.6650, -158.0530, 1.8, None, None) == (None, "unknown")
+    monkeypatch.setenv("SIDE_PATHS_THROUGH_CHAIN", "0")
     breaking, regime = _breaking_ft(21.6650, -158.0530, 1.8, None, None)
     assert regime == "offshore_estimate"
     assert breaking == _offshore_ft(1.8)

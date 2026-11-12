@@ -61,15 +61,25 @@ def test_the_gain_interval_is_over_days_and_is_deterministic():
 
 
 def test_the_gate_needs_every_lead_and_every_coast():
-    rep = ocf_report(_data(), NOW)
+    rep = ocf_report(_data(), NOW, expected_leads=(48,))
     assert rep["gate"]["ocf_region"]["gate_met"] is True
     assert rep["gate"]["ocf_pooled"]["gate_met"] is False                # not better than served on either coast
+
+
+def test_a_missing_or_insufficient_lead_blocks_the_gate_and_the_leads_are_published():
+    rep = ocf_report(_data(), NOW)                                       # only 48 h has data; 24 and 72 do not
+    assert rep["leads_scored"] == [48] and rep["missing_leads"] == [24, 72]
+    assert rep["gate"]["ocf_region"]["gate_met"] is False and "note" in rep["gate"]["ocf_region"]
+    thin = _data() + _rows(range(0, 1), 1, lead=24.0)                    # 24 h exists but is far under the minimum n
+    rep = ocf_report(thin, NOW, expected_leads=(24, 48))
+    assert 24 in [e["lead_h"] for e in rep["by_lead"]] and rep["leads_scored"] == [48]
+    assert rep["gate"]["ocf_region"]["gate_met"] is False
 
 
 def test_a_perfect_served_lane_is_not_beaten():
     perfect = {A: {m: 0.0 for m in MEMBERS}, B: {m: 0.0 for m in MEMBERS}}
     perfect[A]["raw_surf:ICON"] = 0.5
-    rep = ocf_report(_rows(range(8, 30), 3, bias=perfect) + _rows(range(0, 7), 3, bias=perfect), NOW)
+    rep = ocf_report(_rows(range(8, 30), 3, bias=perfect) + _rows(range(0, 7), 3, bias=perfect), NOW, expected_leads=(48,))
     assert rep["gate"]["ocf_region"]["gate_met"] is False
 
 

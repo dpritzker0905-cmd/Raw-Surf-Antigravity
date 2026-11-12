@@ -128,6 +128,8 @@ describe('static GFS wind frames', () => {
       window.__RAW_DISABLE_WIND_FRAME_HASH_SEED__ = true;
       _resetStaticFramesForTest(); _resetWindStaticForTest(); _setBoxLaneForTest(HELD);
       const killed = await ask(WORLD);
+      // 2026-11-11: the tag's hash is computed on its first read (weatherTruthTracker.attachLazyHash), then cached on the array
+      expect(killed.truthTag.dataHash).toBe(vectorHash(killed));
       expect(killed.grid.vectors.__jsDataHash_wind).toBe(vectorHash(killed));
     } finally {
       delete FRAME.sha256;
@@ -199,6 +201,12 @@ describe('static GFS wind frames', () => {
       hrrr_cycle: older.cycle, hrrr_horizon: older.horizon, source: LANE.source, valid_time: '2026-10-28T00:00:00Z', reason: 'beyond_hrrr_horizon' } });
     _setBoxLaneForTest({ ...HELD, feather_km: 350 });                                             // a Render override
     expect(laneVerdict(INDEX, FRAME, ptr, now)).toEqual({ refuse: 'box_lane_differs' });
+    // WIND_LANE_SKILL_WEIGHTS=1 on the box (the frames never cap): lane hours go to /grid; GFS hours stay static.
+    _setBoxLaneForTest({ ...HELD, skill_weights: 'skill-v1-2026-10-15..2026-11-08' });
+    expect(laneVerdict(INDEX, FRAME, ptr, now)).toEqual({ refuse: 'box_lane_differs' });
+    expect(laneVerdict(INDEX, INDEX.frames[1], ptr, now).stamp.reason).toBe('beyond_hrrr_horizon');
+    _setBoxLaneForTest({ ...HELD, skill_weights: null });                                         // off: served as before
+    expect(laneVerdict(INDEX, FRAME, ptr, now)).toEqual({ stamp: STAMP });
     _setBoxLaneForTest({ ...HELD, key: null, cycle: null, horizon: null });                       // no lane loaded yet
     expect(laneVerdict(INDEX, FRAME, ptr, now)).toEqual({ refuse: 'box_lane_unconfirmed' });
     _setBoxLaneForTest(null);                                                                     // no box read: /capabilities

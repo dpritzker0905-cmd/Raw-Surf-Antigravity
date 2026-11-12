@@ -522,6 +522,68 @@ def evaluate_consensus_construction(report, now, cfg):
     return OK, lines
 
 
+# THE BIG-SWELL TABLE BY COAST (2026-11-12, ledger commitment 217's successor, log 2026-11-11-claude-big-swell-holdout).
+# PRINT ONLY: it never enters the verdict. The calibration report's `forecast_skill_consensus.by_lead[*].big_swell`
+# carries, for the served lane (`raw_surf`) and the equal GFS/EURO/ICON mean, each forecast's OWN >= threshold calls
+# on the ledger's held-out week, pooled (`by_forecast`) and per coast (`by_forecast_by_region`). The pacific_ne
+# re-read needs those numbers every week, and before this they were reachable only by reading the report off the live
+# backend or the scored rows behind the service key. The monitor already fetches that report, so it prints the cells:
+# aggregates only (bias, MAE, n per coast x lead x band), a cell under the report's own minimum prints n only, no row,
+# no buoy. Forecast-binned on purpose: binning by the OBSERVED height reads low even for a calibrated forecast
+# (regression to the mean; a synthetic null reads -0.001 m forecast-binned vs -0.162 m observed-binned).
+# Kill switch: ACCURACY_BIG_SWELL_TABLE=0 (the exact string) removes every line.
+BIG_SWELL_TABLE_KEYS = (("raw_surf", "served"), ("equal", "equal"))
+
+
+def _safe_name(v):
+    s = str(v)
+    return s if s and len(s) <= 32 and all(c.islower() or c.isdigit() or c == "_" for c in s) else None
+
+
+def _big_swell_cell(cell):
+    if not isinstance(cell, dict) or not _count(cell.get("n")):
+        return "n/a"
+    bias, mae = cell.get("bias_m"), cell.get("mae_m")
+    if _finite(bias) and _finite(mae):
+        return "bias %+.3f mae %.3f n %d" % (bias, mae, cell["n"])
+    return "n %d (thin, not shown)" % cell["n"]
+
+
+def big_swell_by_region_lines(report):
+    """[lines]: the served lane's and the equal mean's own big-swell calls per lead, pooled and per coast. PURE and
+    print-only: it returns no code, and a missing or malformed block is one NOT AVAILABLE line, never a failure."""
+    block = report.get("forecast_skill_consensus") if isinstance(report, dict) else None
+    entries = block.get("by_lead") if isinstance(block, dict) else None
+    rows = []
+    for e in (entries if isinstance(entries, list) else []):
+        if not isinstance(e, dict) or not _finite(e.get("lead_h")) or not isinstance(e.get("big_swell"), dict):
+            continue
+        rows.append((int(e["lead_h"]), e["big_swell"]))
+    if not rows:
+        return ["big-swell by coast: NOT AVAILABLE (%s) -- informational only, the verdict does not read it" % (
+            "calibration report unavailable" if not isinstance(report, dict)
+            else "report carries no forecast_skill_consensus block" if not isinstance(block, dict)
+            else "no lead carries a big_swell block")]
+    lines = ["big-swell by coast, the ledger's held-out week: each forecast's OWN calls at or above the band edge, "
+             "forecast-binned; served = raw_surf, equal = the GFS/EURO/ICON mean; bias and MAE in m; aggregates only, "
+             "never graded"]
+    for lead, b in sorted(rows, key=lambda r: r[0]):
+        edge = b.get("threshold_m")
+        band = "fc>=%.1fm" % edge if _finite(edge) else "fc>=?"
+        pooled = b.get("by_forecast") if isinstance(b.get("by_forecast"), dict) else {}
+        lines.append("big-swell +%dh %s all coasts: %s" % (lead, band, " | ".join(
+            "%s %s" % (label, _big_swell_cell(pooled.get(key))) for key, label in BIG_SWELL_TABLE_KEYS)))
+        regions = b.get("by_forecast_by_region")
+        if not isinstance(regions, dict):
+            lines.append("big-swell +%dh %s by coast: not in this report" % (lead, band))
+            continue
+        for region in sorted(r for r in regions if _safe_name(r)):
+            cells = regions[region] if isinstance(regions[region], dict) else {}
+            lines.append("big-swell +%dh %s %s: %s" % (lead, band, region, " | ".join(
+                "%s %s" % (label, _big_swell_cell(cells.get(key))) for key, label in BIG_SWELL_TABLE_KEYS)))
+    return lines
+
+
 def _fetch_json(url, timeout=60):
     try:
         req = urllib.request.Request(url, headers={"User-Agent": "raw-surf-accuracy-monitor"})
@@ -682,6 +744,11 @@ def main():
     if cl:
         print("\n".join(cl))
     code = combine(code, cc)
+    if os.environ.get("ACCURACY_BIG_SWELL_TABLE", "1") != "0":     # print-only: `code` never reads it
+        try:
+            print("\n".join(big_swell_by_region_lines(report)))
+        except Exception as e:                                       # a table must never cost the verdict
+            print("big-swell by coast: NOT AVAILABLE (table failed: %s)" % type(e).__name__)
 
     if has_creds:
         rc, rl = evaluate_residual_history(_fetch_l2("calibration/history/residuals-%s.json" % month), now)
