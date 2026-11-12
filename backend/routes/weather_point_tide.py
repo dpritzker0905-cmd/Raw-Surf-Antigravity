@@ -11,8 +11,11 @@ import logging
 import math
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Query, Response
+from typing import Optional
 
+from fastapi import APIRouter, HTTPException, Query, Response
+
+from services.weather_pipeline import location_time as _lt
 from services.weather_pipeline import tide as _tide
 
 logger = logging.getLogger(__name__)
@@ -88,19 +91,60 @@ def build_point_tide(series, lat, lng, now):
     }
 
 
+def _with_location_time(out, lat, lng, now):
+    """Add the civil zone (location_time phase 1; presentation only). Absent when the flag is off; a failure is a
+    reason inside the field, never a lost tide readout."""
+    try:
+        lt = _lt.describe(lat, lng, now)
+    except Exception as e:  # noqa: BLE001
+        logger.warning("[point-tide] location_time failed at (%s, %s): %s", lat, lng, e)
+        lt = None
+    if lt is not None:
+        out["location_time"] = lt
+    return out
+
 
 @router.get("/point-tide")
 async def get_point_tide(response: Response,
                          lat: float = Query(..., ge=-90, le=90),
                          lng: float = Query(..., ge=-180, le=180)):
     response.headers["Cache-Control"] = "public, max-age=300"
+    now = datetime.now(timezone.utc)
     try:
         series = await _tide.fetch_tide_hourly(lat, lng)
-        out = build_point_tide(series, lat, lng, datetime.now(timezone.utc))
+        out = build_point_tide(series, lat, lng, now)
     except Exception as e:  # a lookup that threw is "unavailable", never a 5xx the client toasts
         logger.warning("[point-tide] lookup failed: %s", e)
         out = None
     if out is None:
         response.headers["Cache-Control"] = "public, max-age=30"
-        return {"available": False, "source": SOURCE, "cell_km": CELL_KM}
-    return out
+        return _with_location_time({"available": False, "source": SOURCE, "cell_km": CELL_KM}, lat, lng, now)
+    return _with_location_time(out, lat, lng, now)
+
+
+@router.get("/location-time")
+async def get_location_time(response: Response,
+                            lat: float = Query(..., ge=-90, le=90),
+                            lng: float = Query(..., ge=-180, le=180),
+                            at: Optional[str] = Query(None, description="UTC instant, e.g. 2026-11-10T18:00:00Z")):
+    """The civil time zone at ANY coordinate for one instant (location_time phase 1): the infobox and other
+    any-coordinate surfaces label the SELECTED time with it. In-process grid lookup, no upstream call."""
+    when = None
+    if at:
+        try:
+            when = datetime.fromisoformat(at.replace("Z", "+00:00"))
+        except ValueError:
+            raise HTTPException(status_code=422, detail="at must be an ISO-8601 instant")
+        if when.tzinfo is None:
+            raise HTTPException(status_code=422, detail="at must carry a UTC offset or Z")
+    if _lt.enabled():
+        await _lt.warm()                                     # first request: grid I/O off the event loop
+    lt = _lt.describe(lat, lng, when)
+    if lt is None:
+        response.headers["Cache-Control"] = "no-store"
+        return {"location_time": None, "reason": "disabled"}
+    if not lt.get("iana"):                               # a reason (grid missing/corrupt) must not outlive its fix
+        response.headers["Cache-Control"] = "no-store"
+    else:
+        response.headers["Cache-Control"] = "public, max-age=3600" if at else "public, max-age=60"
+    return {"location_time": lt}
