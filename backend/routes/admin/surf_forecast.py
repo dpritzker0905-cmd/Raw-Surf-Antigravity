@@ -178,9 +178,9 @@ _RATING_FLAGS = {
                                      "Render env"),
     # DEFAULT ON by the owner's word (D-017, 2026-10-09: "start it switched on"). It moves only the /grid wind map:
     # stored products, spot points, ratings and glyphs never pass through it (tests/test_wind_hrrr_lane.py pins that).
-    "WIND_HRRR_LANE": ("1", "The wind map draws HRRR by place and time: inside HRRR's domain and horizon every GFS wind "
-                            "tier blends the stored NOAA HRRR cycle (200 km feather, 3 h taper); 0 = the gfs_global map",
+    "WIND_HRRR_LANE": ("1", "The wind map draws HRRR by place and time: inside HRRR's domain and horizon every GFS wind tier blends the stored NOAA HRRR cycle (200 km feather, 3 h taper); 0 = the gfs_global map",
                        "Render env"),
+    "WIND_LANE_SKILL_WEIGHTS": ("0", "DARK (D-017 reopen, 2026-11-12): cap HRRR's weight in the wind lane by region x lead from the NDBC-fitted table (weather_pipeline/wind_lane_skill.py; West 0.4->0.2, East 0.5-0.6); moves the drawn wind map only, never a spot point or rating", "Render env"),
     # SERVE-BOX COST, not physics (2026-10-10): no wind number moves (tests/test_wind_bg_build_bounded.py pins the
     # vectors equal, on vs off). Off, a fresh wind box builds all ~385 hourly steps in the background with a full
     # gc.collect() each (0.42 s on the event loop) and a new box cancels the task a request may be waiting on.
