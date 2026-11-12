@@ -33,10 +33,13 @@ node scripts/check_eslint.js   # CI's shrink-only lint-debt ratchet; a green Jes
 node scripts/wind-color/check.mjs   # wind palettes as COMPOSITED over each basemap, incl. colour-blind (its README)
 ```
 
-- **Test floors are shrink-only.** For a new backend test, `git add` it first (no lane claims an untracked file), then
-  move that lane's floor in `.github/workflows/ci.yml` AND `_FLOOR_SET_FROM` in
-  `backend/tests/test_ci_floor_staleness.py` in the same commit, and check that hosted CI's "collected N tests" equals
-  your projection. Hosted CI is the authority (the local guards lane takes 15-25 min).
+- **Test floors are shrink-only.** For a new backend test, `git add` it first (no lane claims an untracked file). Then
+  add a floor fragment for each lane you grow (guards, chain, estate or frontend; for frontend, files = Jest suites):
+  `python backend/scripts/rederive_floor.py --lane <lane> --add <N> [--add-files <M>]`. It writes
+  `.github/ci-floors.d/<branch-slug>.<lane>.json`. **Never edit the base lines** (the ci.yml floors or `_FLOOR_SET_FROM`):
+  every open PR conflicts on them. `--compact` folds the fragments into the base, on dev only, in a PR of its own
+  (`.github/ci-floors.d/README.md`). Check that hosted CI's "collected N tests" equals the number the script prints.
+  Hosted CI is the authority (the local guards lane takes 15-25 min).
 - **Fetchers run as subprocesses by path** (`services/_fetch_common.run_fetcher_subprocess`), where `services` is not
   importable: sibling imports are `try: from _x import … except ImportError: from services._x import …`
   (guard: `tests/test_fetcher_script_imports.py`).

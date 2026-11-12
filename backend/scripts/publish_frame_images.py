@@ -144,6 +144,30 @@ class TailDownloads:
         raw = self.local.product_bytes(filename)
         return raw if raw is not None else self._got.get(filename)
 
+    def fetch_dependency(self, filename):
+        """SRV-2 (frame_set_bight): ONE stored product a frame's composition reads (the EURO frame the Bight mean averages
+        in), fetched on demand under the same switch, cap and accounting as the tails, once per run. None when capped or
+        failed: that hour is then listed unbuilt and /grid serves it."""
+        if filename in self._got:
+            return self._got[filename]
+        if self.stats["downloaded"] >= self.cap:
+            self.stats["download_capped"] += 1
+            return None
+        try:
+            data, wire = self.fetch(filename)
+        except Exception as e:  # a failed download refuses that frame: /grid serves it
+            self.log(f"[frames] dependency download {filename} failed ({type(e).__name__}: {e})")
+            data, wire = None, 0
+        if data is None:
+            self.stats["download_failed"] += 1
+            return None
+        self._got[filename] = data
+        self.stats["downloaded"] += 1
+        self.stats["dependency_downloads"] = self.stats.get("dependency_downloads", 0) + 1
+        self.stats["bytes"] += len(data)
+        self.stats["wire_bytes"] += int(wire or 0)
+        return data
+
     @staticmethod
     def wants(target):
         return target.get("model") in TAIL_MODELS and target.get("domain") == "marine" and target.get("region_id") == "global_mid"

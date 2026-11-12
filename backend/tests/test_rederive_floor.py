@@ -166,14 +166,14 @@ def checkout(tmp_path, monkeypatch):
 
 
 def test_cli_rederives_both_files_and_the_pair_keeps_the_lane_budget(checkout):
-    assert R.main(["--lane", "estate", "--add", "5"]) == 0
+    assert R.main(["--base-from-hosted", "--lane", "estate", "--add", "5"]) == 0
     ci = str(checkout.joinpath(*R.CI_REL.split("/")))
     mp = R.parse_map(checkout.joinpath(*R.MAP_REL.split("/")).read_text(encoding="utf-8"))
     base = max(2392, R.parse_map(MAP_TEXT)["estate"])
     assert mp["estate"] == base + 5 and S.read_floors(ci)["estate"]["passed"] == base + 5 - 2
     assert mp["estate"] - S.read_floors(ci)["estate"]["passed"] == S.LANES["estate"]["passed_budget"]
     first = checkout.joinpath(*R.CI_REL.split("/")).read_bytes()
-    assert R.main(["--lane", "estate", "--add", "5"]) == 0                   # idempotent: same numbers, one note
+    assert R.main(["--base-from-hosted", "--lane", "estate", "--add", "5"]) == 0                   # idempotent: same numbers, one note
     assert checkout.joinpath(*R.CI_REL.split("/")).read_bytes() == first
 
 
@@ -223,7 +223,7 @@ def test_add_auto_re_lays_an_old_one_line_prs_own_lane_change_into_the_block_lay
     monkeypatch.setattr(S, "last_green_run", lambda branch, now=None: (7, "sha", "2026-10-23T00:00:00Z"))
     monkeypatch.setattr(S, "observed", lambda run, lane: (files, vals["chain"]) if lane == "chain" else (None, 1))
     assert R.own_delta("chain", "dev") == (9, 1)
-    assert R.main(["--lane", "chain", "--add", "auto", "--base", "dev"]) == 0
+    assert R.main(["--base-from-hosted", "--lane", "chain", "--add", "auto", "--base", "dev"]) == 0
     out = repo.joinpath(*R.MAP_REL.split("/")).read_text(encoding="utf-8")
     # base = max(hosted read, dev's map chain + 4) = chain + 4; + the PR's own 9.
     assert R.parse_map(out) == {**vals, "chain": vals["chain"] + 13, "estate": vals["estate"] + 5}
@@ -268,7 +268,7 @@ def test_add_auto_reads_the_branchs_own_note_not_devs_later_merges(isolated_git,
     monkeypatch.setattr(S, "last_green_run", lambda branch, now=None: (7, "sha", "2026-10-24T00:00:00Z"))
     monkeypatch.setattr(S, "observed", lambda run, lane: (None, e0))
     git("switch", "-q", "pr")
-    assert R.main(["--lane", "estate", "--add", "17", "--base", "dev"]) == 0     # set from the NEWER dev: e0 + 26 + 17
+    assert R.main(["--base-from-hosted", "--lane", "estate", "--add", "17", "--base", "dev"]) == 0     # set from the NEWER dev: e0 + 26 + 17
     assert R.parse_map(read(R.MAP_REL))["estate"] == e0 + 43
     git("commit", "-qam", "pr: its floor, set by the helper")
     dev_moves_estate(5, "another PR: +5")
@@ -276,7 +276,7 @@ def test_add_auto_reads_the_branchs_own_note_not_devs_later_merges(isolated_git,
     assert git("merge", "--no-edit", "dev").returncode != 0
     git("checkout", "--theirs", "--", R.MAP_REL, R.CI_REL)
     assert R.own_delta("estate", "dev") == (17, 0), "the difference alone reads 43: 26 of it is other PRs' tests"
-    assert R.main(["--lane", "estate", "--add", "auto", "--base", "dev"]) == 0
+    assert R.main(["--base-from-hosted", "--lane", "estate", "--add", "auto", "--base", "dev"]) == 0
     assert R.parse_map(read(R.MAP_REL))["estate"] == e0 + 26 + 5 + 17
     assert S.read_floors(str(repo.joinpath(*R.CI_REL.split("/"))))["estate"]["passed"] == e0 + 26 + 5 + 17 - 2
 
@@ -290,16 +290,16 @@ def test_the_note_carries_the_files_and_an_old_note_without_them_still_reads():
 
 
 def test_a_bad_add_is_refused(checkout):
-    assert R.main(["--lane", "estate", "--add", "lots"]) == 1
-    assert R.main(["--lane", "chain", "--add", "3", "--add-files", "x"]) == 1
+    assert R.main(["--base-from-hosted", "--lane", "estate", "--add", "lots"]) == 1
+    assert R.main(["--base-from-hosted", "--lane", "chain", "--add", "3", "--add-files", "x"]) == 1
 
 
 def test_cli_dry_run_and_a_refused_read_write_nothing(checkout, monkeypatch):
     before = [checkout.joinpath(*r.split("/")).read_bytes() for r in (R.CI_REL, R.MAP_REL)]
-    assert R.main(["--lane", "chain", "--add", "3", "--add-files", "1", "--dry-run"]) == 0
+    assert R.main(["--base-from-hosted", "--lane", "chain", "--add", "3", "--add-files", "1", "--dry-run"]) == 0
 
     def refuse(run, lane):
         raise S.Refusal("no reading")
     monkeypatch.setattr(S, "observed", refuse)
-    assert R.main(["--lane", "chain", "--add", "3"]) == 1
+    assert R.main(["--base-from-hosted", "--lane", "chain", "--add", "3"]) == 1
     assert [checkout.joinpath(*r.split("/")).read_bytes() for r in (R.CI_REL, R.MAP_REL)] == before
