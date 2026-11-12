@@ -55,6 +55,18 @@ _RATING_FLAGS = {
                                         "services/weather_pipeline/consensus_product.py",
                                    "forecast-ingest-pilots workflow env (the lane that builds the CONSENSUS product); NOT Render. "
                                    "nearshore-validation reads the same flag (default 0) for the judge's consensus arm"),
+    # INGEST-TIME, and it reaches the RATING (2026-11-12 registration; in use since 2026-07-13, repo variable = 1): the waves
+    # grid's direction becomes the dominant swell partition's where that partition holds >= WAVES_ANIM_SWELL_MIN_FRAC of the
+    # energy, and the point sampler reads that grid, so swell_from (and the height's refraction) follow it. Census:
+    # scripts/dominant_swell_anim_census.py (18.5% of 1,116 GFS spot-hours change LEVEL ON vs OFF). DECISIONS D-070.
+    "WAVES_ANIM_DOMINANT_SWELL": ("0", "marine/waves direction and u/v from the dominant swell partition (secondary when strictly larger) where "
+                                       "H_sw^2 >= WAVES_ANIM_SWELL_MIN_FRAC (0.35) x Hs^2 and the product's partition availability >= "
+                                       "WAVES_ANIM_SWELL_AVAIL_MIN (0.95); height stays total. Feeds the rating's swell_from and the "
+                                       "height's direction terms through the point sampler. GFS and ICON only (EURO has no partitions). "
+                                       "services/weather_pipeline/normalizer.py",
+                                  "repo VARIABLE WAVES_ANIM_DOMINANT_SWELL (reads 1), which forecast-ingest and forecast-ingest-pilots "
+                                  "both read with '0' fallback; takes effect on the next ingest cycle. NOT precompute (it rates "
+                                  "the stored grids). The 2026-07-13 handoff also set Render env (Render serves live fallbacks)"),
     "ESTIMATE_COHERENT_TRENDS": ("0", "Refuse stored marine estimates whose active trend pair lacks a verified shared model cycle",
                                 "forecast-ingest, forecast-ingest-pilots and precompute workflow env together (L2 writers); NOT Render"),
     "EURO_MARINE_NATIVE_TAIL_CADENCE": ("1", "Preserve NOAA tail cadence (step 1 on the three-hourly cache, not stride 3 -> nine-hourly EURO 10-14 d estimates) and verify completed local extension no-ops",
