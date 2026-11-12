@@ -58,7 +58,7 @@ def mps_to_mph(mps: float) -> float:
     return round(mps * 2.237, 1)
 
 
-def _breaking_ft(lat, lng, offshore_m, period_s, swell_from_deg):
+def _breaking_ft(lat, lng, offshore_m, period_s, swell_from_deg, water_level_m=0.0, nearshore=None):
     """Offshore Hs -> BREAKING height in feet, through the production chain.
 
     ⚠️⚠️ THIS MODULE SERVED THE OFFSHORE NUMBER AS THE SURF, AND THAT IS THE DEFECT CLAUDE.md WAS
@@ -82,19 +82,26 @@ def _breaking_ft(lat, lng, offshore_m, period_s, swell_from_deg):
     re-deriving it — CLAUDE.md: mirror the reference, never re-derive. Same signature shape, same
     fail-open contract, same `(value, source)` provenance tuple.
 
-    Fails OPEN to the offshore value: an endpoint that shows a slightly wrong number is worth more
-    than one that shows nothing, and this is an enrichment of an already-working read. No I/O — the
-    transform is arithmetic over the bundled bathymetry."""
+    Fails CLOSED since 2026-11-10 (O4 / CMP-7): `(None, "unknown")`, never the offshore Hs as surf (it used to fail OPEN
+    to the offshore value; SIDE_PATHS_THROUGH_CHAIN=0 restores that). No I/O — the
+    transform is arithmetic over the bundled bathymetry.
+    ``water_level_m`` / ``nearshore``: the hour's tide and MOP sea from `sea_inputs.resolve_for_caller` (CMP-2); the
+    defaults (0.0, None) are the pre-CMP-2 call, byte for byte."""
     if not offshore_m:
         return 0.0, "calm"
     try:
         from services.weather_pipeline.surf_point import estimate_surf_at
         breaking_m, regime = estimate_surf_at(
-            lat, lng, offshore_m, period_s or 0.0, swell_from_deg=swell_from_deg)
+            lat, lng, offshore_m, period_s or 0.0, swell_from_deg=swell_from_deg,
+            water_level_m=water_level_m, nearshore=nearshore)
         if breaking_m is not None:
             return round(breaking_m * 3.28084, 1), regime
     except Exception as e:
         logger.debug(f"[surf-conditions] surf transform failed at ({lat},{lng}): {e}")
+    # O4 / CMP-7: never the OFFSHORE Hs under the surf's name (kill: SIDE_PATHS_THROUGH_CHAIN=0).
+    from services.weather_pipeline import side_paths as _side
+    if _side.enabled():
+        return None, "unknown"
     return round(offshore_m * 3.28084, 1), "offshore_estimate"
 
 
@@ -328,11 +335,19 @@ async def get_surf_conditions(
                 # units and nothing else distinguishes them. `wave_height_ft` is what the post
                 # composer auto-fills as the surf the user rode, so it must be the BREAKING height;
                 # the offshore number is kept beside it, named, rather than deleted.
+                # CMP-2: the hour's tide from the one resolver `/point` uses. This sea is Open-Meteo's, not a member
+                # MOP drives, so model=None: no MOP sea (kill: SURF_SEA_INPUTS_EVERY_CALLER=0).
+                from services.weather_pipeline import sea_inputs as _sea
+                eta, near = await _sea.resolve_for_caller(latitude, longitude, _sea.iso_z(target_hour), None)
                 breaking_ft, regime = _breaking_ft(
-                    latitude, longitude, wave_height_m, wave_period, wave_direction)
+                    latitude, longitude, wave_height_m, wave_period, wave_direction,
+                    water_level_m=eta, nearshore=near)
                 result["wave_height_ft"] = breaking_ft          # BREAKING — what a surfer rides
                 result["offshore_height_ft"] = meters_to_feet(wave_height_m)  # TOTAL SEA, not swell
                 result["surf_regime"] = regime                  # provenance: 'offshore_estimate' == the transform failed open
+                # O4 / CMP-6: Open-Meteo's sea through our geometry, with no quality: say so (kill: SIDE_PATHS_THROUGH_CHAIN=0).
+                from services.weather_pipeline import side_paths as _side
+                _side.label_unrated_estimate(result)
 
             # Swell is a distinct provider quantity. Missing swell must not fall back to total sea.
             result["swell_height_ft"] = meters_to_feet(swell_height_m) if swell_height_m is not None else None

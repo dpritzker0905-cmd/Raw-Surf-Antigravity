@@ -131,7 +131,8 @@ const SESSION_KEYS = ['raw-surf-user', 'raw-surf-user-original', 'impersonation_
   'isGodMode', 'isPersonaBarActive', 'activePersona',
   'godModeMinimized', 'godModeDesktopMinimized'];
 
-const clearStoredSession = () => {
+// Exported for the forecast's expired-session prompt (components/SessionExpiredPrompt.js, #782).
+export const clearStoredSession = () => {
   SESSION_KEYS.forEach((k) => localStorage.removeItem(k));
   // A refused session ends this account on this device just as a logout does.
   purgeUserScopedStorage();

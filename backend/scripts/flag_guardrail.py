@@ -23,6 +23,19 @@ reports what it WOULD do (job summary + an issue marked [dry run]) and writes no
 
 Every decision appends one line to `control/flags-actions.jsonl` in the bucket (enforce only) and prints the
 `action_ledger.py append` command for the session that records it in a ledger fragment (BRAIN_RULES section 23).
+
+WHAT IT CAN SEE (2026-11-11). The replay scores two quantities from the same two arms (#773): `hs_station` (the
+chain's Hs at a buoy's depth) and `hb_proxy` (the served BREAKING height vs a frozen Komar-Gaughan operator on
+measured CDIP Hs/Tp at the nearshore anchors); WORSE on either one strikes. A flag the replay cannot exercise used to
+come back NO_CHANGE ("inert") and read as watched; it was blind. Every guarded flag now carries a COVERAGE class, and
+a test fails when a new guarded flag has none:
+  * replay   scored on both quantities (a WORSE strikes, two strikes over >= 24 h disable);
+  * rating   replayed, but it moves the RATING only: no observed rating exists, so evidence cannot judge it (the
+             census says whether it moved); the sanity bounds still act;
+  * volume   judged by its send-volume cap (ALERTS_FORECAST_WINDOWS);
+  * blind    the replay cannot exercise it: an input v0 does not archive (`eval_replay.UNREPLAYABLE`) or a surface
+             other than the glyph (the hub, the map band, the multi-model consensus build). It is reported BLIND with
+             where its evidence lives instead, never NO_CHANGE; only the sanity sweep and the owner can turn it off.
 """
 import argparse
 import json
@@ -50,6 +63,51 @@ VOLUME_FLAGS = {"ALERTS_FORECAST_WINDOWS": "surf_alert"}
 # look, not independent evidence). A non-worse run in between resets the count. Sanity breaches act at once.
 STRIKES = 2
 STRIKE_SPAN_H = 24
+
+REPLAY, RATING, VOLUME, BLIND = "replay", "rating", "volume", "blind"
+# Every GUARDED flag (and the ones open PRs add) with what can see it. Flags in eval_replay.UNREPLAYABLE are BLIND
+# automatically (their reason is the replay's own). Pre-declared names cost nothing until they are guarded.
+COVERAGE = {
+    "SURF_TIDE_DEPTH": (REPLAY, "the replay carries the served tide (eval_replay tide)"),
+    "SURF_EXPOSURE_RECONCILED": (REPLAY, "the height exposure factor at the anchors"),
+    "SHORE_NORMAL_MOP_CALIBRATED": (REPLAY, "the height exposure normal at the calibrated anchors (#780)"),
+    "RATING_LOCAL_SIZE": (RATING, "the quality score's size reference; no observed rating exists"),
+    "RATING_BREAKER_TYPE": (RATING, "the quality score's breaker-type term; no observed rating exists"),
+    "RATING_BREAK_DEPTH_FROM_GEOMETRY": (RATING, "the quality score's oversize gate reads the height cap's depth "
+                                                 "(CMP-3); the height is unchanged, no observed rating exists"),
+    "ALERTS_FORECAST_WINDOWS": (VOLUME, "sent-alert volume per user-day against its cap"),
+    "SPOT_HUB_RATE_ONE_SPOT": (BLIND, "the spot hub's own route; the replay rates through rate_one_spot. Evidence: "
+                                      "hub = glyph parity tests (unit, offline)"),
+    "SURF_SEA_INPUTS_EVERY_CALLER": (BLIND, "the hub, conditions, surf-conditions and sim callers (#772); the glyph "
+                                            "the replay rates already took these inputs. Evidence: caller parity tests"),
+    "RATING_BAND_ONE_CHAIN": (BLIND, "the map rating band (#776). Evidence: band level = glyph level over the spot "
+                                     "asset (unit, offline)"),
+    "SIDE_PATHS_THROUGH_CHAIN": (BLIND, "the conditions preview, _breaking_ft and surf-conditions side paths (#774); "
+                                        "the replay rates rate_one_spot. Evidence: test_side_paths_through_chain.py"),
+    "MANIFEST_PRUNE_TOMBSTONES": (BLIND, "moves which products the manifest lists, not a forecast number (#770). "
+                                         "Evidence: the manifest chain harness (pruned entries stay pruned)"),
+    "CONSENSUS_DIRECTION_VECTOR": (BLIND, "acts only inside a multi-model consensus build; the replay is GFS only. "
+                                          "Evidence: the held-out NDBC MWD comparison that turned it on"),
+    "WIND_LANE_SKILL_WEIGHTS": (BLIND, "moves only the drawn /grid wind map (the HRRR lane's weight); no spot height or "
+                                       "rating reads the lane. Evidence: grade_wind_lane_ndbc.py + sweep_wind_lane_weight.py "
+                                       "(held-out NDBC vector RMSE by region x lead)"),
+}
+BLIND_EVIDENCE = {
+    "SURF_NEARSHORE_MOP": "nearshore-validation.yml mop_grid arm (archived MOP runs vs CDIP; armed off, dispatch)",
+    "SURF_BIGHT_HS_CONSENSUS": "the input-substitution arm (log 2026-11-03-claude-bight-hs-consensus.md)",
+    "RATING_OBS_GATE": "applied after rating in the precompute merge; the replay records pre-gate scores",
+}
+
+
+def coverage(flag: str):
+    """(class, why) for a guarded flag; None when it has no declared coverage (a test forbids that)."""
+    from services.weather_pipeline import eval_replay as rp
+    if flag in rp.UNREPLAYABLE:
+        why = rp.UNREPLAYABLE[flag]
+        if flag in BLIND_EVIDENCE:
+            why = f"{why}. Evidence: {BLIND_EVIDENCE[flag]}"
+        return BLIND, why
+    return COVERAGE.get(flag)
 
 
 def utc_now():
@@ -237,13 +295,26 @@ def score_flags(flags: list, now: datetime, cache_dir: str, out: str, stage=None
               "leads": "24,48,72", "step_h": 12, "cache_dir": cache_dir, "max_range_downloads": 900,
               "max_bytes": 3_000_000_000}
     results = {}
-    try:
-        ctx = (stage or dof.stage)(window, os.path.join(out, "stage"), offline=False)
-    except Exception as e:                                       # noqa: BLE001 - a scoring outage never kills a fix
-        ctx = None
-        print(f"history scoring unavailable this run ({type(e).__name__}: {e}); sanity checks still run")
+    seen = [f for f in flags if (coverage(f) or (REPLAY, ""))[0] != BLIND]
+    ctx = None
+    if seen:
+        try:
+            ctx = (stage or dof.stage)(window, os.path.join(out, "stage"), offline=False)
+        except Exception as e:                                   # noqa: BLE001 - a scoring outage never kills a fix
+            print(f"history scoring unavailable this run ({type(e).__name__}: {e}); sanity checks still run")
     for f in flags:
-        r = dof.evaluate(f, ctx) if replay is None else replay(f, ctx)
+        cls, why = coverage(f) or (REPLAY, "no declared coverage")
+        if cls == BLIND:
+            # Never replay a blind flag: it would run as the baseline and read NO_CHANGE. The sanity sweep still runs.
+            r = dof.evaluate(f, None) if replay is None else replay(f, None)
+            r.update({"verdict": gs.UNTESTABLE, "reasons": [f"BLIND to this replay: {why}"]})
+        else:
+            r = dof.evaluate(f, ctx) if replay is None else replay(f, ctx)
+            if cls == RATING and r.get("verdict") in (gs.NO_CHANGE, gs.NOT_WORSE, gs.UNTESTABLE):
+                r["reasons"] = list(r.get("reasons") or []) + [f"rating-only: {why}; the census is descriptive"]
+            elif r.get("verdict") == gs.NO_CHANGE:
+                r["reasons"] = list(r.get("reasons") or []) + ["inert in this window: no evidence either way"]
+        r["coverage"] = cls
         r["window"] = f"{window['start']}..{window['end']}"
         results[f] = r
     return results
@@ -304,10 +375,26 @@ def markdown(report: dict) -> str:
     if dry:
         lines += ["DRY RUN: nothing was written. The owner enforces it with "
                   "`gh variable set FLAG_GUARDRAIL_ENFORCE --body 1`.", ""]
-    lines += ["| flag | action | reason |", "|---|---|---|"]
+    results = report.get("results") or {}
+    lines += ["| flag | sees it | action | reason |", "|---|---|---|---|"]
     for f, d in sorted(report.get("decisions", {}).items()):
         act = d["action"] if not dry or d["action"] in ("none", "hold") else f"would {d['action']}"
-        lines.append(f"| `{f}` | {act} | {d['reason'][:500].replace('|', '/')} |")
+        cov = (results.get(f) or {}).get("coverage") or (coverage(f) or ("?",))[0]
+        lines.append(f"| `{f}` | {cov} | {act} | {d['reason'][:500].replace('|', '/')} |")
+    q = [(f, r) for f, r in sorted(results.items()) if r.get("quantities")]
+    if q:
+        lines += ["", "Per quantity (WORSE on either strikes): `hs_station` = the chain's Hs at a buoy's depth; "
+                  "`hb_proxy` = the served breaking height vs a frozen Komar-Gaughan operator on measured CDIP Hs/Tp.",
+                  "", "| flag | hs_station | hb_proxy | rating census |", "|---|---|---|---|"]
+        for f, r in q:
+            c = r.get("rating_census") or {}
+            lines.append(f"| `{f}` | {(r['quantities'].get('hs_station') or {}).get('verdict')} | "
+                         f"{(r['quantities'].get('hb_proxy') or {}).get('verdict')} | n {c.get('n')}, score moved "
+                         f"{c.get('score_changed')}, level moved {c.get('level_changed')} |")
+    blind = [f for f, r in sorted(results.items()) if r.get("coverage") == BLIND]
+    if blind:
+        lines += ["", f"BLIND to the replay (no evidence can turn these off here; sanity and the owner can): "
+                  f"{', '.join('`' + f + '`' for f in blind)}."]
     for c in report.get("ledger_commands", []):
         lines += ["", "Ledger line owed (BRAIN_RULES section 23), for the next session's fragment:", "```", c, "```"]
     return "\n".join(lines) + "\n"

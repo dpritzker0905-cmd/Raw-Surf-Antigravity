@@ -702,6 +702,8 @@ def rating_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None, win
     (rating is scalar — no direction arrows), and ``rating_level`` is set when the attribute exists. Truly
     flat cells (size gate 0 -> score 0) are left untouched/non-rendered (no wave to rate)."""
     from services.weather_pipeline.surf_transform import estimate_surf
+    from services.weather_pipeline import band_chain as _bc          # CMP-1: the band through the one chain
+    one_chain = _bc.enabled()
     n_rated = 0
     n_masked = 0
     for vec in vectors:
@@ -736,7 +738,8 @@ def rating_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None, win
             except Exception:
                 width = 0.0
         period = getattr(vec, "period", None)
-        surf, regime = estimate_surf(sp, period, depth, coastal=True, shelf_width_km=width)
+        surf, regime, brk = (_bc.surf_at(lat, lng, sp, period, getattr(vec, "direction", None)) if one_chain
+                             else (*estimate_surf(sp, period, depth, coastal=True, shelf_width_km=width), None))
         if surf is None or regime in ("open_ocean", "calm", "unknown"):
             continue
         wind_speed = wind_from = None
@@ -761,13 +764,10 @@ def rating_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None, win
                 reference = reference_fn(lat, lng)
             except Exception:
                 reference = None
-        # ⚠️ `break_depth_m` is DELIBERATELY NOT PASSED HERE. `depth_fn` supplies the SHELF depth
-        # (p50 157-234 m), which is a different quantity from the nearshore break depth (p50 ~11 m) —
-        # feeding it to the oversize gate would compute a capacity from the wrong depth and read as a
-        # ~100 m ceiling, i.e. silently inert. The band therefore uses the climatology reference when
-        # one exists and the absolute pair otherwise. A heatmap cell is a zone, not a spot.
+        # `break_depth_m`: the GEOMETRY's nearshore break depth (band_chain, CMP-1), never `depth_fn`'s SHELF depth
+        # (p50 157-234 m vs ~11 m: a ~100 m capacity, silently inert). None on the bare path, as before.
         score, level = compute_surf_rating(surf, period, wind_speed, wind_from, shore_normal, swell_from,
-                                           reference_size_m=reference)
+                                           reference_size_m=reference, break_depth_m=brk)
         if score is None or score <= 0:
             continue                                   # no rideable wave -> nothing to rate
         if gate_fn is not None:

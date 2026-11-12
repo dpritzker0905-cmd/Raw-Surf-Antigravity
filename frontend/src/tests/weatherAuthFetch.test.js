@@ -102,6 +102,61 @@ describe('weatherAuthFetch (O5 client half, one switch with the server clamp)', 
     expect(seen[0][1]).toBeUndefined();
   });
 
+  // ── accounts only (#782, owner 2026-11-12) ────────────────────────────────────────────────────────────────────
+  const refused = () => ({ ok: false, status: 401, headers: new Headers({ 'X-Raw-Tier-Clamp-On': '1', 'X-Raw-Tier-Clamp': 'account' }) });
+  function withEvents(win) {
+    const events = [];
+    win.location = { pathname: '/map', search: '' };
+    win.CustomEvent = function CE(type) { this.type = type; };
+    win.dispatchEvent = (e) => { events.push(e.type); return true; };
+    return events;
+  }
+
+  test('accounts only: a signed-in read refused before we knew the switch is re-asked with the token, no prompt', async () => {
+    const { win, seen } = makeWin({ caps: [{ tier_clamp: false }], responses: [refused(), res({ 'X-Raw-Tier-Clamp-On': '1' })] });
+    const events = withEvents(win);
+    const out = await win.fetch('/api/weather/point?lat=1&lng=2');
+    expect([auth(seen[0][1]), auth(seen[1][1])]).toEqual([null, 'Bearer tok']);
+    expect(out.status).toBeUndefined();                  // the caller gets the account's answer, not the 401
+    expect(events).toEqual([]);
+  });
+
+  test('accounts only: a read refused WITH our token is an expired session and raises the sign-in prompt', async () => {
+    const { win, seen } = makeWin({ caps: [{ tier_clamp: true }], responses: [refused()] });
+    const events = withEvents(win);
+    const out = await win.fetch('/api/weather/grid_series?model=GFS&hours=0');
+    expect(seen.length).toBe(1);                         // no retry: the token WAS sent
+    expect(out.status).toBe(401);
+    expect(events).toEqual(['raw:weather-session-expired']);
+  });
+
+  test('accounts only: the retry with the token refused too is an expired session', async () => {
+    const { win, seen } = makeWin({ caps: [{ tier_clamp: false }], responses: [refused(), refused()] });
+    const events = withEvents(win);
+    await win.fetch('/api/weather/point?lat=1&lng=2');
+    expect(seen.length).toBe(2);
+    expect(events).toEqual(['raw:weather-session-expired']);
+  });
+
+  test('accounts only: signed out, a refusal is served as is (no retry, no prompt)', async () => {
+    const { win, seen } = makeWin({ caps: [{ tier_clamp: true }], responses: [refused()] });
+    win.localStorage = { getItem: () => null };
+    const events = withEvents(win);
+    const out = await win.fetch('/api/weather/grid?x=1');
+    expect(seen.length).toBe(1);
+    expect(seen[0][1]).toBeUndefined();
+    expect(out.status).toBe(401);
+    expect(events).toEqual([]);
+  });
+
+  test('a 401 that is not the accounts-only refusal never raises the prompt', async () => {
+    const other = { ok: false, status: 401, headers: new Headers({ 'X-Raw-Tier-Clamp-On': '1' }) };
+    const { win } = makeWin({ caps: [{ tier_clamp: true }], responses: [other] });
+    const events = withEvents(win);
+    await win.fetch('/api/weather/grid?x=1');
+    expect(events).toEqual([]);
+  });
+
   test('install wraps fetch only once', () => {
     const win = { fetch: () => Promise.resolve(res()), localStorage: { getItem: () => null } };
     expect(installWeatherAuthFetch(win)).toBe(true);

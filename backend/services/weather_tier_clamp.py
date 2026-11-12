@@ -12,17 +12,24 @@ resolveForecastWindow * 24, clamped by /capabilities). `tests/test_forecast_tier
 `tests/test_weather_tier_clamp.py` pins that this module adds no number of its own. The locked 14-day horizon contract
 is untouched: premium's window is still 14 days clamped only by the model's own capability rows.
 
-THE CLAMP (a CLAMPED ANSWER, never a 403, so an older client keeps drawing):
+ACCOUNTS ONLY (owner 2026-11-12, #782): "we do not want non-account holders to access the data". A caller with no
+VERIFIED JWT gets 401 and no data on every forecast read below (ACCOUNT_PATHS: the clamped reads plus /point-tide and
+/wind_lane); the guest window is EMPTY. Any verified account is at least `free` (GFS, 3 days), even when its profile has
+no tier, no row, or the lookup fails, so a signed-in user is never sent back to sign-in by a database hiccup.
+/capabilities, /status, /products and the diagnostics routes stay public: the client reads the switch from them.
+
+THE CLAMP for an account (a CLAMPED ANSWER, never a 403, so an older client keeps drawing):
   model        not in the tier's models -> GFS (the model every tier has). CONSENSUS (/point's shadow product, which
                the frontend never requests) is left alone: the nearshore judge calls it, and it is not a tier model.
   hours        (/grid_series) each offset beyond the window -> the window's last hour, de-duplicated.
   valid_time   (/grid, /point, /spot-ratings, /point-rating) beyond now + window -> now + window, on the hour.
   subscription_tier (/spot-series) -> the RESOLVED tier: the query value was client-asserted.
 
-⚠️ SHARED CACHES. /api/* is proxied by Netlify and some weather responses are `Cache-Control: public`. A response for a
-URL that goes beyond the GUEST window depends on who asked, so it is sent `private, no-store` whatever the caller's
-tier (otherwise a premium answer cached under that URL would be served to a guest). Answers inside the guest window are
-identical for every tier and keep their own cache headers. `Vary: Authorization` is added to every clamped route.
+⚠️ SHARED CACHES. /api/* is proxied by Netlify and some weather responses are `Cache-Control: public`. With the clamp
+on, EVERY gated answer depends on who asked (a signed-out caller gets nothing), so none may sit in a shared cache keyed
+by URL: `public` becomes `private` (the browser may still keep it for its max-age). A URL beyond the FREE window
+differs by tier as well, so it is `private, no-store`. `Vary: Authorization` is added to every gated route.
+COST, for the owner: an edge cache that served one URL to many users no longer does (the box computes per user).
 
 ⚠️ HELD OFF (D-065): GUARDED["WEATHER_TIER_CLAMP"] = '0'. The map's weather fetches did not send the session token,
 so ON before the client ships would make every paying user a guest. Rollout: (1) deploy the client half of this PR
@@ -57,6 +64,11 @@ ROUTES = {
     "point-rating": ("model", "valid_time"),
 }
 SPOT_SERIES = "spot-series/"
+# Forecast reads with nothing to clamp that are still ACCOUNTS ONLY (owner 2026-11-12: "/point, /spot-ratings, tide and
+# the wind lane follow the same rule"). The wind LAYER's data is /grid and /grid_series, already above.
+ACCOUNT_ONLY = ("point-tide", "wind_lane")
+ACCOUNT_FLOOR = "free"          # what a verified account is at least, whatever its profile says
+SIGN_IN_REQUIRED = b"account"   # X-Raw-Tier-Clamp on the 401: the client's expired-session prompt keys on it
 # ONE SWITCH FOR BOTH HALVES (owner 2026-11-11 "Yes, hold both"): while the clamp is on, every /api/weather/ response
 # says so, and /capabilities rows carry `tier_clamp`; the client (lib/weatherAuthFetch.js) sends its token ONLY then,
 # so with the clamp off no Authorization header and no CORS preflight ever leave the browser. Exposed in server.py CORS.
@@ -83,6 +95,13 @@ def route_params(path: str) -> Optional[Tuple[str, ...]]:
     if rest.startswith(SPOT_SERIES):
         return ("model", "subscription_tier")
     return ROUTES.get(rest)
+
+
+def account_required(path: str) -> bool:
+    """True for a forecast read only an account may make (with the clamp on)."""
+    if route_params(path) is not None:
+        return True
+    return path.startswith(PREFIX) and path[len(PREFIX):].rstrip("/") in ACCOUNT_ONLY
 
 
 def _parse_time(s: str) -> Optional[datetime]:
@@ -169,10 +188,11 @@ def _anchor_ahead_h(params: List[Tuple[str, str]], now: datetime) -> int:
     return max(0, int(math.ceil(ahead)))
 
 
-def beyond_guest(params: List[Tuple[str, str]], names: Tuple[str, ...], now: Optional[datetime] = None) -> bool:
-    """True when this URL asks for more than a guest may see, so its answer depends on WHO asked (cache: private)."""
+def beyond_free(params: List[Tuple[str, str]], names: Tuple[str, ...], now: Optional[datetime] = None) -> bool:
+    """True when this URL asks for more than the lowest account (free) may see, so its answer depends on WHICH account
+    asked (cache: private, no-store)."""
     p = [(k, v) for k, v in params if k != "subscription_tier"]
-    return bool(clamp_params(p, tuple(n for n in names if n != "subscription_tier"), "guest", now)[1])
+    return bool(clamp_params(p, tuple(n for n in names if n != "subscription_tier"), ACCOUNT_FLOOR, now)[1])
 
 
 # ── who is asking ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -189,7 +209,8 @@ async def _profile_tier(user_id: str) -> Optional[str]:
 
 async def resolve_tier(authorization: Optional[str], lookup: Callable = None, clock: Callable[[], float] = time.monotonic) -> str:
     """The caller's canonical tier. Strict identity: only a VERIFIED JWT subject counts (get_optional_user_id); no
-    token, a bad token, or a lookup failure is GUEST (fail closed). A profile tier is cached TIER_CACHE_TTL_S."""
+    token or a bad token is GUEST (no data, fail closed). A verified account is at least ACCOUNT_FLOOR: a profile with
+    no tier, no profile row, or a failed lookup is `free` (the lowest window, never a paid one). Cached TIER_CACHE_TTL_S."""
     from core.security import get_optional_user_id
     try:
         uid = await get_optional_user_id(authorization=authorization)
@@ -204,9 +225,11 @@ async def resolve_tier(authorization: Optional[str], lookup: Callable = None, cl
     try:
         raw = await (lookup or _profile_tier)(uid)
     except Exception as e:                               # noqa: BLE001
-        logger.warning("[tier-clamp] profile tier lookup failed (guest for this request): %s", type(e).__name__)
-        return "guest"
+        logger.warning("[tier-clamp] profile tier lookup failed (free for this request): %s", type(e).__name__)
+        return ACCOUNT_FLOOR
     tier = FTW.canonical_tier(raw)
+    if tier == "guest":
+        tier = ACCOUNT_FLOOR
     _tier_cache[uid] = (clock(), tier)
     while len(_tier_cache) > TIER_CACHE_MAX:
         _tier_cache.popitem(last=False)
@@ -233,25 +256,31 @@ class WeatherTierClampMiddleware:
         if not path.startswith(PREFIX) or not enabled():
             return await self.app(scope, receive, send)
         names = route_params(path)
-        if names is None:                                # not a clamped read: only announce that the clamp is on
+        gated = names is not None or account_required(path)
+        if not gated:                                    # not a forecast read: only announce that the clamp is on
             async def send_on(message):
                 if message.get("type") == "http.response.start":
                     message = dict(message, headers=list(message.get("headers", [])) + [(ON_HEADER, b"1")])
                 await send(message)
             return await self.app(scope, receive, send_on)
-        params = parse_qsl(scope.get("query_string", b"").decode("latin-1"), keep_blank_values=True)
         auth = next((v.decode("latin-1") for k, v in scope.get("headers") or [] if k == b"authorization"), None)
         tier = await self.tier_fn(auth)
+        if tier == "guest":                              # ACCOUNTS ONLY: no verified account, no data
+            return await _sign_in_required(scope, send)
+        if names is None:                                # accounts-only, nothing to clamp (/point-tide, /wind_lane)
+            names = ()
+        params = parse_qsl(scope.get("query_string", b"").decode("latin-1"), keep_blank_values=True)
         now = datetime.now(timezone.utc)
         new, changed = clamp_params(params, names, tier, now)
         # /spot-series answers per RESOLVED tier whatever its URL says, so it is never shared-cacheable (security review).
-        private = bool(changed) or "subscription_tier" in names or beyond_guest(params, names, now)
+        private = bool(changed) or "subscription_tier" in names or beyond_free(params, names, now)
         if changed:
             scope = dict(scope, query_string=urlencode(new).encode("latin-1"))
 
         async def send_wrapped(message):
             if message.get("type") == "http.response.start":
-                headers = [(k, v) for k, v in message.get("headers", [])
+                headers = [(k, _no_shared(v) if k.lower() == b"cache-control" else v)
+                           for k, v in message.get("headers", [])
                            if not (private and k.lower() == b"cache-control")]
                 headers.append((b"vary", b"Authorization"))
                 headers.append((ON_HEADER, b"1"))
@@ -263,3 +292,24 @@ class WeatherTierClampMiddleware:
             await send(message)
 
         return await self.app(scope, receive, send_wrapped)
+
+
+def _no_shared(cache_control: bytes) -> bytes:
+    """A route's Cache-Control with `public` (and `s-maxage`) made `private`: an account's answer is never a shared one."""
+    parts = [p.strip() for p in cache_control.decode("latin-1").split(",") if p.strip()]
+    parts = [p for p in parts if p.lower() != "public" and not p.lower().startswith("s-maxage")]
+    if not any(p.lower() in ("private", "no-store") for p in parts):
+        parts.insert(0, "private")
+    return ", ".join(parts).encode("latin-1")
+
+
+async def _sign_in_required(scope, send):
+    """401 for a forecast read without a verified account. Never cacheable; marked so the client can tell this refusal
+    (sign in, or sign in AGAIN when it sent a token) from any other 401. Registered INSIDE CORSMiddleware (server.py),
+    so the browser can read it cross-origin."""
+    body = b'{"detail":"sign_in_required"}'
+    await send({"type": "http.response.start", "status": 401, "headers": [
+        (b"content-type", b"application/json"), (b"content-length", str(len(body)).encode()),
+        (b"cache-control", b"private, no-store"), (b"vary", b"Authorization"),
+        (b"www-authenticate", b'Bearer realm="raw-surf"'), (ON_HEADER, b"1"), (b"x-raw-tier-clamp", SIGN_IN_REQUIRED)]})
+    await send({"type": "http.response.body", "body": b"" if scope.get("method") == "HEAD" else body})

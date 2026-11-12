@@ -17,7 +17,8 @@ import { REAL_GFS_FRAME_GZ_BASE64 } from './marineFramePack.realFrame.fixture';
 import { buildVectors, parseFrame } from './staticFrameCodec'; // #422's own codec (on dev since 2a47fd5d8)
 
 const KEYS = ['__WEBGL_MARINE_THEME__', '__RAW_DISABLE_DIR_DILATION__', '__RAW_DISABLE_DIR_CONFIDENCE__', '__RAW_CONF_FADE_STRENGTH__',
-  '__RAW_DISABLE_DEAD_EDGE_TRIM__', '__RAW_DISABLE_WRAP_MIRROR__', 'Float16Array'];
+  '__RAW_DISABLE_DEAD_EDGE_TRIM__', '__RAW_DISABLE_WRAP_MIRROR__', 'Float16Array', '__RAW_DISABLE_FRAME_STORE_ALL_LAYERS__',
+  '__RAW_DISABLE_CONFORM_IS_VALID__', '__RAW_DISABLE_STATIC_SERIES_ALL_SETS__'];
 let saved;
 beforeEach(() => { saved = KEYS.map((k) => [k, window[k]]); jest.spyOn(console, 'log').mockImplementation(() => {}); });
 afterEach(() => { saved.forEach(([k, v]) => { if (v === undefined) delete window[k]; else window[k] = v; }); jest.restoreAllMocks(); });
@@ -171,10 +172,12 @@ describe('marineFramePack: byte-identical to the encoder on both static lanes', 
 });
 
 describe('marineFramePack: scope and signature', () => {
-  it('declines non-waves layers, rating grids and frames without a height plane', () => {
+  it('declines layers outside the marine four, rating grids and frames without a height plane', () => {
     const m = load();
     const parsed = synthetic({ seed: 3 });
-    expect(m.pack.packStaticFrame(parsed, { layer: 'swell_1' })).toBeNull();
+    expect(m.pack.packStaticFrame(parsed, { layer: 'swell_1' })).not.toBeNull();   // every marine layer since 2026-11-12
+    expect(m.pack.packStaticFrame(parsed, { layer: 'wind' })).toBeNull();
+    expect(m.pack.packStaticFrame(parsed, { layer: 'pressure' })).toBeNull();
     expect(m.pack.packStaticFrame(parsed, { ratingMode: true })).toBeNull();
     expect(m.pack.packStaticFrame({ ...parsed, fields: {} })).toBeNull();
   });
@@ -275,5 +278,70 @@ describe('non-waves layers: land survives the series lane exactly as on the /gri
       const parsed = REAL();
       expect(firstDiff(laneAFor(m, parsed, 'swell_1').bytes, laneBFor(m, parsed, 'swell_1').bytes)).not.toBe(-1);
     } finally { delete window.__RAW_DISABLE_CONFORM_IS_VALID__; }
+  });
+});
+
+// EVERY MARINE LAYER IN THE GPU FRAME STORE (2026-11-12, move 3 "all layers should be instant frames"). The store took only waves; a
+// swell_1 / swell_2 / wind_waves static frame carries the same planes, and since #456 both lanes hand the encoder the same land, so
+// the waves packer's bytes must equal the encoder's for those layers too: every frame x every setting x both lanes, plus the
+// frame's own chl/bath. Measured before the gate opened: 84/84 identical.
+describe('every marine layer: the packer equals the encoder on both lanes', () => {
+  const laneAFor = (m, parsed, layer) => {
+    const json = { grid: { vectors: buildVectors(parsed), bounds: parsed.bounds, cols: parsed.cols, rows: parsed.rows }, provider: 'static', product_id: 'p' };
+    const mapped = m.map.mapNormalizedGridToWebGL(json, parsed.bounds, 0, layer, 'GFS');
+    return encoderBytes(m, { ...mapped.grid, vectors: conform(mapped.grid.vectors, layer), __componentLayer: layer });
+  };
+  const laneBFor = (m, parsed, layer) => encoderBytes(m, { vectors: conform(buildVectors(parsed), layer), bounds: parsed.bounds,
+    cols: parsed.cols, rows: parsed.rows, __componentLayer: layer, __sourceModel: 'GFS', hourOffset: 3, productId: 'p' });
+  const auxModule = () => { let a; jest.isolateModules(() => { a = require('./marineFrameAux'); }); return a; };
+
+  ['swell_1', 'swell_2', 'wind_waves'].forEach((layer) => {
+    FRAMES.forEach(([fname, make]) => {
+      SETTINGS.forEach(([sname, env]) => {
+        it(`${layer}: ${fname}, ${sname}`, () => {
+          Object.assign(window, env);
+          const m = load();
+          const parsed = make();
+          const packed = m.pack.packStaticFrame(parsed, { layer });
+          expect(packed).not.toBeNull();
+          for (const [lane, ref] of [['A', laneAFor(m, parsed, layer)], ['B', laneBFor(m, parsed, layer)]]) {
+            expect({ lane, cols: packed.cols, rows: packed.rows }).toEqual({ lane, cols: ref.cols, rows: ref.rows });
+            expect({ lane, firstDiff: firstDiff(packed.bytes, ref.bytes) }).toEqual({ lane, firstDiff: -1 });
+          }
+        });
+      });
+    });
+    it(`${layer}: the real frame's own chl/bath equal both lanes'`, () => {
+      window.__WEBGL_MARINE_THEME__ = 'dark';
+      const m = load();
+      const parsed = REAL();
+      const aux = auxModule().auxForPack(m.pack.packStaticFrame(parsed, { layer }));
+      expect(aux).not.toBeNull();
+      for (const lane of [laneAFor(m, parsed, layer), laneBFor(m, parsed, layer)]) {
+        expect(firstDiff(Uint8Array.from(aux.chl), lane.chl)).toBe(-1);
+        expect(firstDiff(Uint8Array.from(aux.bath), lane.bath)).toBe(-1);
+      }
+    });
+  });
+
+  it.each([
+    ['__RAW_DISABLE_FRAME_STORE_ALL_LAYERS__'], ['__RAW_DISABLE_CONFORM_IS_VALID__'], ['__RAW_DISABLE_STATIC_SERIES_ALL_SETS__'],
+  ])('OFF PATH: %s = true packs waves only again, and the signature changes so held swell sets retire', (kill) => {
+    const m = load();
+    const parsed = synthetic({ seed: 4 });
+    const sigOn = m.pack.packSignature();
+    expect(m.pack.packableLayer('swell_2')).toBe(true);
+    window[kill] = true;
+    expect(m.pack.packableLayer('swell_2')).toBe(false);
+    for (const layer of ['swell_1', 'swell_2', 'wind_waves']) expect(m.pack.packStaticFrame(parsed, { layer })).toBeNull();
+    expect(m.pack.packStaticFrame(parsed, { layer: 'waves' })).not.toBeNull();
+    expect(m.pack.packSignature()).not.toBe(sigOn);
+  });
+
+  it('layerOfStoreKey reads the layer of a store set key (marineFrameStore.setKeyOf)', () => {
+    const m = load();
+    const store = require('./marineFrameStore');
+    expect(m.pack.layerOfStoreKey(store.setKeyOf({ model: 'ICON', layer: 'wind_waves', modelRunTime: 'r', signature: 's|t' }))).toBe('wind_waves');
+    expect(m.pack.layerOfStoreKey('')).toBe('waves');
   });
 });

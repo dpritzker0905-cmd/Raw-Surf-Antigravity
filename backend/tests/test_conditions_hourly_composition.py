@@ -117,9 +117,13 @@ def test_geometry_is_resolved_ONCE_not_per_hour():
     assert calls == [], f"geometry was re-resolved {len(calls)}x inside the hourly loop"
 
 
-def test_limit_and_ragged_arrays_do_not_fabricate():
+def test_limit_and_ragged_arrays_do_not_fabricate(monkeypatch):
     """Upstream arrays can disagree in length. A short period/direction array must not invent a
-    value, and `limit` must not read past the times it has."""
+    value, and `limit` must not read past the times it has. Row 1 has no period, so no transform can run: since
+    O4 / CMP-7 (2026-11-10) that is `no_data`, never the offshore Hs under the surf's name; the kill switch
+    (SIDE_PATHS_THROUGH_CHAIN=0) restores the old labelled offshore fallback."""
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")
+    monkeypatch.delenv("SIDE_PATHS_THROUGH_CHAIN", raising=False)
     geom = resolve_surf_geometry(LAT, LNG)
     h = {"time": ["t0", "t1", "t2"], "wave_height": [1.0, 1.1], "wave_period": [9.0],
          "wave_direction": []}
@@ -127,7 +131,11 @@ def test_limit_and_ragged_arrays_do_not_fabricate():
     assert len(rows) == 3
     assert rows[2]["wave_height_ft"] is None and rows[2]["status"] == "no_data"
     assert rows[0]["wave_height_ft"] is not None       # period+dir present
-    assert rows[1]["wave_height_ft"] is not None       # missing period/dir degrades, never invents
+    assert rows[1]["wave_height_ft"] is None and rows[1]["status"] == "no_data"   # no period: no height, no invention
+    assert rows[1]["offshore_height_ft"] is not None   # the offshore value stays, under its own name
+    monkeypatch.setenv("SIDE_PATHS_THROUGH_CHAIN", "0")
+    rows = hourly_breaking_forecast(LAT, LNG, h, geom, limit=6)
+    assert rows[1]["wave_height_ft"] is not None and rows[1]["surf_regime"] == "offshore_estimate"
 
 
 def test_empty_input_yields_no_rows_rather_than_a_zero_row():
