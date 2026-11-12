@@ -105,3 +105,27 @@ Everything in Part B above is aggregate-only, from that block and the consensus 
   from this report. The key was not used (advisor: reading the scored archive from a laptop is the owner's decision; options (a) local read-only vs (c) aggregates-only
   Actions job are with David).
 - Nothing new is built until that is answered. Commitment: `ledger.d/claude--eloquent-khorana-f240a0.jsonl:2`.
+
+## Route chosen (advisor, after the owner asked for a researched route): extend the shadow scoring where the rows live
+
+Not the laptop key, not a new dispatch workflow. Built `services/weather_pipeline/skill_ocf.py` (new, one function `ocf_report`) and wired it into
+`forecast_skill.run_skill_ledger` beside the MOS and consensus blocks; it publishes `forecast_skill_ocf` on the calibration report.
+
+- **Where it executes:** `buoy_calibration` (the calibration tail of the ingest workflows in Actions, which holds the service key) calls
+  `run_skill_ledger`, which reads the scored archive and runs every shadow block, then uploads the report; the backend only serves the cached report.
+  So the four-way numbers exist only after this PR merges and the next scoring run publishes them. Nothing here ran against real rows.
+- **Variants on identical pairs, held-out days, per lead, per coast, per observed band:** served; equal mean; pooled linear MOS of the served lane;
+  `ocf_pooled` (what `skill_consensus` already calls `debiased`: member bias per lead, then equal mean); `ocf_region` (bias per member x lead x coast);
+  `ocf_rolling` (bias per member x lead x coast from errors observable at issue time only, a 14-day window ending at `t - lead`, min 20 pairs, else region bias).
+  Equal weights after correction (D-006). Clipped at 0.
+- **Statistics:** MAE and bias; MAE gain over served with a day-block bootstrap 95% interval (seeded, 400 draws), with `n_days` and `n_buoys`; big swell by
+  observation (paired) and by forecast; `gate` per variant (better at every lead and no coast-lead worse); thin groups print n and a status.
+- **Shadow only.** No served number. Kill switch `FORECAST_SKILL_OCF=0` (default on, like `FORECAST_SKILL_MOS`): off adds nothing to the report,
+  every other block is byte-identical (pinned). A failure costs only this block (pinned).
+- **Not in this block:** station depth (rows carry none, so deep and shallow buoys cannot be split; `depth_split` says so); independent-station blocks (no
+  coordinates in the rows; `n_buoys` and day blocks stand in); climatology (persistence is in the MOS block).
+- **Finding from the one report read that shapes this:** the existing `debiased` variant (pooled, static) already scores the OCF idea at lead level
+  (24/48/72 h: 0.281/0.327/0.326 vs served 0.305/0.325/0.341): it helps at 24 and 72 h and is flat at 48 h. What is new here is the per-coast and rolling
+  correction, which the sign flip of GFS-Wave bias by coast (hawaii +0.108 served bias vs pacific_ne big-swell under-read) makes plausible. Unproven until the run.
+- Tests: `tests/test_skill_ocf.py` (11): per-coast bias removed where the pooled correction cannot, deterministic interval, gate logic, causal window,
+  thin-coast fallback, thin refusal, unusable rows, report wiring, kill switch byte-identity, block isolation. Chain floor fragment +11 tests, +1 file.
