@@ -238,7 +238,11 @@ jobs:
       # until retention; clients keep the client kill window.__RAW_DISABLE_RATING_FRAMES__ and fall back to /grid on any miss).
       - name: Publish rated static frames (the Surf Rating band; ON, kill FRAME_RATING_SETS=0)
         id: rated_publish
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RATING_SETS != '0' }}
+        # `(vars.X || '1') != '0'`, never `vars.X != '0'`: an UNSET variable is null, which GitHub's expression language coerces to the
+        # number 0 when compared with the string '0' (also coerced to 0), so the bare form is FALSE whenever the variable is unset. That
+        # skipped this step on every run from 2026-11-01 to 2026-11-12 (run 43101981004 and every sampled run since 11-05: "skipped"),
+        # against D-057's "ON by default"; the band then scrubbed from /grid?surf=1 on the box. The env line below already used `|| '1'`.
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RATING_SETS || '1') != '0' }}
         continue-on-error: true
         timeout-minutes: 14
         working-directory: backend
