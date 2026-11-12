@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 25,
-  "files": 2,
+  "tests": 31,
+  "files": 3,
   "branch": "claude/o5-server-tier-clamp",
   "date": "2026-11-12",
-  "note": "O5 weatherAuthFetch + expired-session prompt (#782)"
+  "note": "O5 weatherAuthFetch + expired-session prompt + rollout order (#782)"
 }

@@ -34,6 +34,8 @@ const path = require('path');
 // ---------------------------------------------------------------------------
 
 const MAP_DIR = path.resolve(__dirname, '../components/map');
+// Map-serving files outside components/map whose switches the map depends on (#782 accounts only, 2026-11-12).
+const EXTRA_FILES = ['../lib/weatherAuthFetch.js', '../lib/weatherSession.js'].map((f) => path.resolve(__dirname, f));
 
 /**
  * Switches that have a dedicated *.killSwitch.test.js covering them with
@@ -41,6 +43,10 @@ const MAP_DIR = path.resolve(__dirname, '../components/map');
  * for phantom entries.  To add: write the test file first.
  */
 const KILL_SWITCHES_TESTED = new Set([
+  // tests/weatherAuthFetch.test.js ("kill switch: never a token, never a retry") and tests/sessionExpiredPrompt.test.js
+  // ("kill switch and the auth page itself raise nothing"): #782, accounts only
+  '__RAW_DISABLE_WEATHER_AUTH__',
+  '__RAW_DISABLE_SESSION_PROMPT__',
   // components/map/oneWayCrests.test.js (one-way crests, 2026-11-12)
   '__RAW_DISABLE_ONE_WAY_CRESTS__',
   '__RAW_DISABLE_REDUCED_MOTION_BAND__',
@@ -558,9 +564,8 @@ function scanSwitches() {
   } catch (e) {
     throw new Error(`Cannot read MAP_DIR (${MAP_DIR}): ${e.message}`);
   }
-  for (const file of files) {
-    if (!file.endsWith('.js') || file.endsWith('.test.js')) continue;
-    const fullPath = path.join(MAP_DIR, file);
+  const paths = files.filter((f) => f.endsWith('.js') && !f.endsWith('.test.js')).map((f) => path.join(MAP_DIR, f));
+  for (const fullPath of [...paths, ...EXTRA_FILES]) {
     const text = fs.readFileSync(fullPath, 'utf8');
     // Global regex — must be recreated per file to reset lastIndex
     const re = /__RAW_DISABLE_[A-Z0-9_]+__/g;
