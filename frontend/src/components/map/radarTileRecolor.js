@@ -21,7 +21,8 @@
  * protocol is bypassed entirely.
  */
 import maplibregl from 'maplibre-gl';
-import { estimateMotion, advectTile, advectTileWithNeighbors, advectTileSmoothField, SMOOTH_MOTION_OPTS } from './radarAdvection';
+import { createAdvectPipeline, parseAdvectUrl, neighborTileUrl, pruneOldest, ADVECT_TTL_MS } from './radarAdvectCore';
+import { advectTileOffThread } from './radarAdvectClient';
 
 export const RADAR_RECOLOR_PROTOCOL = 'hrrr-rv';
 
@@ -400,30 +401,14 @@ export const RADAR_ADVECT_PROTOCOL = 'advect-rv';
 // is NO recolor. URL: advect-rv://<leadFactor>|<prevTileHttpsUrl>|<currTileHttpsUrl> (maplibre fills
 // the shared {z}/{x}/{y} in all). Fail-open = TRANSPARENT tile (never a stale frozen echo — the §6a
 // graveyard). Dormant unless radarForecastSources emits advect frames (__RAW_RADAR_ADVECTION__=true).
-const _advectMotion = new Map();   // 'prevUrl|currUrl' → { dx, dy, confidence, ts }
+const _advectMotion = new Map();   // 'prevUrl|currUrl' → { dx, dy, confidence, ts } (main-thread path only)
 const _advectOut = new Map();      // full advect-rv:// url → { buf, ts }
 const _advectDecoded = new Map();  // observed https tile url → { data, w, h, ts } (shared across leads + neighbors)
 const _advectInflight = new Map();
-const ADVECT_TTL_MS = 10 * 60 * 1000;
-const ADVECT_CACHE_MAX = 256;
 let _blankTileBuf = null;
 
-// Step an observed RainViewer tile URL to its (gx,gy) neighbor by editing the x/y in the
-// .../<size>/<z>/<x>/<y>/7/1_0.png path (2026-07-09, neighbor-aware advection fill). Longitude (x)
-// wraps modulo 2^z; latitude (y) out of [0,2^z) → null (grid edge: that band stays transparent).
-// Works for both proxied (/rv/...) and direct RainViewer URLs — the path tail is identical. Exported
-// for tests.
-const RV_TILE_RE = /\/(256|512)\/(\d+)\/(\d+)\/(\d+)\/7\/1_0\.png(\?|$)/;
-export function neighborTileUrl(url, gx, gy) {
-  if (!gx && !gy) return url;
-  const m = RV_TILE_RE.exec(url);
-  if (!m) return null;
-  const z = +m[2], x = +m[3], y = +m[4], n = 1 << z;
-  let nx = (x + gx) % n; if (nx < 0) nx += n;
-  const ny = y + gy;
-  if (ny < 0 || ny >= n) return null;
-  return url.replace(RV_TILE_RE, (_full, size, zz, _x, _y, tail) => `/${size}/${zz}/${nx}/${ny}/7/1_0.png${tail}`);
-}
+// neighborTileUrl moved to radarAdvectCore.js with the rest of the per-tile pipeline (2026-11-12); re-exported for its callers.
+export { neighborTileUrl };
 
 function advCanvas(w, h) {
   return typeof OffscreenCanvas !== 'undefined'
@@ -456,7 +441,7 @@ async function advGetTile(url) {
   const t = await advDecodeTile(url);
   const rec = { data: t.data, w: t.w, h: t.h, ts: now };
   _advectDecoded.set(url, rec);
-  advPrune(_advectDecoded);
+  pruneOldest(_advectDecoded);
   return rec;
 }
 async function advBlankTile(w = 256, h = 256) {
@@ -464,14 +449,22 @@ async function advBlankTile(w = 256, h = 256) {
   _blankTileBuf = await advCanvasToBuf(advCanvas(w, h)); // untouched canvas = fully transparent
   return _blankTileBuf.slice(0);
 }
-function advPrune(map) {
-  if (map.size <= ADVECT_CACHE_MAX) return;
-  const oldest = [...map.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
-  if (oldest) map.delete(oldest[0]);
-}
+
+// The main-thread pipeline (radarAdvectCore.js: motion once per observed pair, then smooth-field / neighbour-aware / rigid warp).
+const _advectMain = createAdvectPipeline({ getTile: advGetTile, motionCache: _advectMotion });
 
 function makeAdvectHandler() {
-  return async (params) => {
+  return async (params, abortController) => {
+    const win = typeof window !== 'undefined' ? window : {};
+    const flags = {
+      smoothOff: win.__RAW_RADAR_ADVECT_SMOOTH_DISABLED__ === true,
+      neighborOff: win.__RAW_RADAR_ADVECT_NEIGHBOR_DISABLED__ === true,
+    };
+    // OFF THE MAIN THREAD (2026-11-12, default ON): the worker fetches, estimates and warps, and answers with a decoded
+    // ImageBitmap that maplibre uses as is. null = no worker here (or it failed, or the kill): the main-thread path below.
+    // Kill: window.__RAW_DISABLE_RADAR_ADVECT_WORKER__ = true.
+    const off = await advectTileOffThread(params.url, flags, abortController);
+    if (off) return off;
     const now = Date.now();
     const hit = _advectOut.get(params.url);
     if (hit && now - hit.ts < ADVECT_TTL_MS) return { data: hit.buf.slice(0) };
@@ -479,91 +472,14 @@ function makeAdvectHandler() {
     if (inflight) return inflight;
     const work = (async () => {
       try {
-        const rest = params.url.replace(/^advect-rv:\/\//, '');
-        const bar = rest.indexOf('|');
-        const leadFactor = parseFloat(rest.slice(0, bar));
-        const [prevUrl, currUrl] = rest.slice(bar + 1).split('|');
-        if (!prevUrl || !currUrl || !isFinite(leadFactor)) return { data: await advBlankTile() };
-        const curr = await advGetTile(currUrl);
-        // Motion is lead-INDEPENDENT — estimate once per (prev,curr) tile pair, reuse across leads.
-        const mkey = prevUrl + '|' + currUrl;
-        let motion = _advectMotion.get(mkey);
-        if (!motion || now - motion.ts > ADVECT_TTL_MS) {
-          const prev = await advGetTile(prevUrl);
-          motion = { ...estimateMotion(prev.data, curr.data, curr.w, curr.h), ts: now };
-          _advectMotion.set(mkey, motion);
-          advPrune(_advectMotion);
-        }
-        // Warp curr forward by motion×lead. NEIGHBOR-AWARE by default (2026-07-09): fill the upwind
-        // incoming edge from the real echo of the upwind neighbor tile(s) so the warp does NOT leave
-        // the grid of blank "vertical rectangle" bands that grow toward the horizon (leadFactor≈6 at
-        // 60 min → up to a ~240px transparent band per 256px tile). |motion| stays < one tile, so at
-        // most the 3 upwind neighbors are needed; each is a proxy/decoded-cached observed tile shared
-        // across leads and adjacent advect tiles. Kill: __RAW_RADAR_ADVECT_NEIGHBOR_DISABLED__ (→ the
-        // old isolated per-tile warp).
-        const wx = motion.dx * leadFactor, wy = motion.dy * leadFactor;
-        const win = typeof window !== 'undefined' ? window : {};
-        let warped = null;
-        // SMOOTH MOTION FIELD (2026-07-11, default ON; kill __RAW_RADAR_ADVECT_SMOOTH_DISABLED__):
-        // the rigid per-tile warp made adjacent tiles slide as disagreeing blocks ("movement is
-        // very gridlike"). Estimate a HALF-RES vector for each 3×3 neighborhood tile (uniform
-        // SMOOTH_MOTION_OPTS so a physical tile yields the same vector from every neighborhood →
-        // shared edges interpolate identical vectors → field continuous across tile boundaries),
-        // then warp each pixel along its own bilinearly-interpolated vector. Neighbor estimates
-        // are cached ('sm|' keys) and shared — each observed tile is estimated once per catalog
-        // rotation for the whole layer.
-        if (win.__RAW_RADAR_ADVECT_SMOOTH_DISABLED__ !== true
-            && win.__RAW_RADAR_ADVECT_NEIGHBOR_DISABLED__ !== true) {
-          try {
-            const tiles = { '0,0': curr.data };
-            const motions = {};
-            const jobs = [];
-            for (let gy = -1; gy <= 1; gy++) for (let gx = -1; gx <= 1; gx++) {
-              const nCurrUrl = neighborTileUrl(currUrl, gx, gy);
-              const nPrevUrl = neighborTileUrl(prevUrl, gx, gy);
-              if (!nCurrUrl || !nPrevUrl) continue;
-              const k = `${gx},${gy}`;
-              jobs.push((async () => {
-                const nCurr = (gx === 0 && gy === 0) ? curr : await advGetTile(nCurrUrl);
-                if (!(gx === 0 && gy === 0)) tiles[k] = nCurr.data;
-                const smKey = 'sm|' + nPrevUrl + '|' + nCurrUrl;
-                let sm = _advectMotion.get(smKey);
-                if (!sm || now - sm.ts > ADVECT_TTL_MS) {
-                  const nPrev = await advGetTile(nPrevUrl);
-                  sm = { ...estimateMotion(nPrev.data, nCurr.data, nCurr.w, nCurr.h, SMOOTH_MOTION_OPTS), ts: now };
-                  _advectMotion.set(smKey, sm);
-                  advPrune(_advectMotion);
-                }
-                motions[k] = sm;
-              })().catch(() => {})); // missing/expired neighbor → smooth field falls back per-cell
-            }
-            await Promise.all(jobs);
-            warped = advectTileSmoothField(tiles, motions, curr.w, curr.h, leadFactor);
-          } catch (e) {
-            warped = null; // any smooth-path failure → rigid fallback below
-          }
-        }
-        if (!warped && win.__RAW_RADAR_ADVECT_NEIGHBOR_DISABLED__ !== true && (Math.abs(wx) >= 1 || Math.abs(wy) >= 1)) {
-          const tiles = { '0,0': curr.data };
-          const gxs = wx > 0 ? [-1, 0] : wx < 0 ? [0, 1] : [0];
-          const gys = wy > 0 ? [-1, 0] : wy < 0 ? [0, 1] : [0];
-          const jobs = [];
-          for (const gy of gys) for (const gx of gxs) {
-            if (gx === 0 && gy === 0) continue;
-            const nurl = neighborTileUrl(currUrl, gx, gy);
-            if (!nurl) continue;
-            jobs.push(advGetTile(nurl).then((t) => { tiles[`${gx},${gy}`] = t.data; }).catch(() => {}));
-          }
-          if (jobs.length) await Promise.all(jobs);
-          warped = advectTileWithNeighbors(tiles, curr.w, curr.h, wx, wy);
-        } else if (!warped) {
-          warped = advectTile(curr.data, curr.w, curr.h, wx, wy);
-        }
-        const canvas = advCanvas(curr.w, curr.h);
-        canvas.getContext('2d').putImageData(new ImageData(warped, curr.w, curr.h), 0, 0);
+        const parsed = parseAdvectUrl(params.url);
+        if (!parsed) return { data: await advBlankTile() };
+        const warped = await _advectMain.warp(parsed, flags);
+        const canvas = advCanvas(warped.w, warped.h);
+        canvas.getContext('2d').putImageData(new ImageData(warped.data, warped.w, warped.h), 0, 0);
         const out = await advCanvasToBuf(canvas);
         _advectOut.set(params.url, { buf: out.slice(0), ts: now });
-        advPrune(_advectOut);
+        pruneOldest(_advectOut);
         return { data: out };
       } catch (e) {
         // Observed tile 404 (expired RainViewer path) / decode failure → transparent, NOT a frozen echo.

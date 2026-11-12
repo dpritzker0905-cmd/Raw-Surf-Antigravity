@@ -47,6 +47,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_SERIES_RUN_EVICT__',
   // components/map/responsiveWeather.test.js
   '__RAW_DISABLE_RESPONSIVE_WEATHER__',
+  // components/map/radarAdvectWorker.test.js (the nowcast warp in a worker; the kill runs the main-thread warp + PNG)
+  '__RAW_DISABLE_RADAR_ADVECT_WORKER__',
   // tests/forecast-card-swell-vs-surf.test.js (CMP-4)
   '__RAW_DISABLE_UNKNOWN_DEPTH_HIDE__',
   // components/map/marineUnpatchedMaskHold.test.js
