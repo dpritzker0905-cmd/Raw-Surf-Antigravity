@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 30,
+  "tests": 31,
   "branch": "claude/o6-frame-entitlement",
   "date": "2026-11-12",
-  "note": "O6 frame entitlement, accounts only"
+  "note": "O6 frame entitlement, accounts only + signing limit"
 }

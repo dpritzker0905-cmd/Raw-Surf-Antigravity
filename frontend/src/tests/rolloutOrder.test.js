@@ -12,6 +12,8 @@
 import fs from 'fs';
 import path from 'path';
 import { installWeatherAuthFetch } from '../lib/weatherAuthFetch';
+import { _resetStaticFramesForTest, getPinnedIndex, setKeyFor } from '../components/map/staticFrames';
+import { _resetFrameSignerForTest, FRAME_URLS_PATH } from '../components/map/staticFrameSigner';
 
 const B = 'https://api.example.test';
 const READ = `${B}/api/weather/grid_series?model=EURO&hours=0,240`;
@@ -98,5 +100,52 @@ describe('rollout order: client half first, then the server switch', () => {
     const render = src.search(/\.render\(|createRoot\(/);
     expect(call).toBeGreaterThan(-1);
     expect(render === -1 || call < render).toBe(true);
+  });
+});
+
+
+describe('rollout order, static frames (#783): the signer is wired into the real index loader', () => {
+  const realFetch = global.fetch;
+  const BASE = 'https://cdn.test/weather-frames/';
+  const VT = '2026-10-23T06:00:00Z';
+  const KEY = setKeyFor('GFS', 'waves');
+  const INDEX = { path: 'v1/gfs/marine/waves/global_mid/index/20261019T180000Z-abcdefabcdef.json', encoding_version: 1,
+    transform_version: 1, frames: [{ valid_time: VT, is_estimated: false, entitlement: 'free' }] };   // path-free (public copy)
+  const SIGNED = `https://sb.test/storage/v1/object/sign/weather-frames-private/v1/f/${VT}.bin?token=T`;
+  const ok = (body) => ({ ok: true, status: 200, json: async () => JSON.parse(JSON.stringify(body)) });
+  let calls;
+  beforeEach(() => {
+    _resetStaticFramesForTest(); _resetFrameSignerForTest();
+    window.__RAW_STATIC_FRAMES_BASE__ = BASE;
+    calls = [];
+    global.fetch = jest.fn(async (url, init) => {
+      calls.push({ url, auth: init && init.headers && init.headers.Authorization });
+      if (url === `${BASE}v1/latest.json`) return ok({ version: 1, sets: { [KEY]: { index: INDEX.path, run: 'r' } } });
+      if (url === BASE + INDEX.path) return ok(INDEX);
+      if (url.includes(FRAME_URLS_PATH)) {
+        return init && init.headers && init.headers.Authorization === 'Bearer free-tok'
+          ? ok({ tier: 'free', frames: [{ valid_time: VT, class: 'free', object: `v1/f/${VT}.bin`, url: SIGNED }] })
+          : { ok: false, status: 401, headers: new Headers({ 'X-Raw-Tier-Clamp': 'account' }), json: async () => ({}) };
+      }
+      return { ok: false, status: 400, json: async () => ({}) };
+    });
+  });
+  afterEach(() => {
+    delete window.__RAW_STATIC_FRAMES_BASE__;
+    window.localStorage.removeItem('raw-surf-user');
+    global.fetch = realFetch;
+  });
+
+  test('4. switch ON: a signed-in FREE account pins an index whose free hours carry signed URLs', async () => {
+    window.localStorage.setItem('raw-surf-user', JSON.stringify({ access_token: 'free-tok' }));
+    const pinned = await getPinnedIndex(KEY);
+    expect(pinned.frames[0]).toMatchObject({ path: `v1/f/${VT}.bin`, url: SIGNED });
+    expect(calls.filter((c) => c.url.includes(FRAME_URLS_PATH)).map((c) => c.auth)).toEqual(['Bearer free-tok']);
+  });
+
+  test('4b. signed out: no signing call, every hour stays unbuilt (served nothing)', async () => {
+    const pinned = await getPinnedIndex(KEY);
+    expect(pinned.frames[0].path).toBeUndefined();
+    expect(calls.some((c) => c.url.includes(FRAME_URLS_PATH))).toBe(false);
   });
 });

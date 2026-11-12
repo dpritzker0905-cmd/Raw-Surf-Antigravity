@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 10,
+  "tests": 12,
   "files": 1,
   "branch": "claude/o6-frame-entitlement",
   "date": "2026-11-12",
-  "note": "O6 staticFrameSigner, accounts only"
+  "note": "O6 staticFrameSigner (10) + rollout order, frames (2)"
 }
