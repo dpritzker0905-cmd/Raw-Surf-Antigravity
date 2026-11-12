@@ -144,6 +144,15 @@ the test is stopped.
 - Full literature survey (latest-science OpenAlex timed out; arXiv returned nothing for the MOP query; Consensus
   returned 3 results per query).
 
+## 6. Update 2026-11-12: licences checked directly
+
+This section supersedes the status column in section 2 for PacIOOS and CDIP. The original rows are kept as written.
+
+- **PacIOOS `ww3_hawaii` (verified on the ERDDAP info page).** The global `license` attribute reads: "The data may be used and redistributed for free but is not intended for legal use, since it may contain inaccuracies." It also disclaims warranties and liability for the contributor, University of Hawaii, PacIOOS, NOAA, the State of Hawaii and the US Government. The `summary` says: "please use these data with the caution appropriate for any ocean related activity." Commercial use and derivative works are not addressed. There is no citation attribute. Source: [ww3_hawaii ERDDAP info](https://pae-paha.pacioos.hawaii.edu/erddap/info/ww3_hawaii/index.html).
+- **PacIOOS site terms (not found).** The terms-of-use URL [pacioos.hawaii.edu/terms-of-use](https://www.pacioos.hawaii.edu/terms-of-use/) returned 404. A search found no site-wide terms page. Per-dataset metadata differs: a search snippet (not fetched) says one ADCP dataset requires a citation in publications and that the PI be contacted before commercial use. Read each dataset's `license` and `distribution_statement` before redistributing anything.
+- **CDIP (still unresolved).** The homepage, [FAQ](https://cdip.ucsd.edu/m/about/faq/) and [Documents page](https://cdip.ucsd.edu/m/documents/index.html) name no licence, citation requirement or use restriction. The homepage links to a "Data Use and Acknowledgements" section of the Data Access page, but both URLs I tried returned 404 (`/m/data_access/index.html` and `/data_access.html`). The CDIP MOP licence therefore stays open.
+- **Effect on the pre-registered test (section 3).** The PacIOOS `ww3_hawaii` licence permits free use and redistribution, so the test can run on it for internal research. The disclaimer ("not intended for legal use") means it cannot back a legal or navigational claim. MOP output is not cleared for use beyond review until the CDIP terms are read.
+
 ## Sources
 
 - [Li et al. 2016, Hawaii hindcast](https://consensus.app/papers/details/w:0691cd23-a10f-4984-ae07-586d1a9627da/?utm_source=claude_code)
