@@ -22,6 +22,9 @@ const MODEL_MAP = {
 
 const MODEL_FORECAST_DAYS = { GFS: 16, EURO: 14, ICON: 7 };
 
+// Kill switch for the NO INVENTED WEATHER fix below: true restores the pre-2026-11-10 constants (0 cm snow, 0 % rain chance, 20 degC).
+export const fabricatedWeatherOn = () => typeof window !== 'undefined' && window.__RAW_DISABLE_NO_FABRICATED_WEATHER__ === true;
+
 const WEATHER_VARS = [
   'precipitation',
   'snowfall',
@@ -294,9 +297,13 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
             hourly: {
               time: [validTimeStr],
               precipitation: [precipVal],
-              snowfall: [0.0],
-              precipitation_probability: [0],
-              temperature_2m: [20.0],
+              // NO INVENTED WEATHER (2026-11-10): /point serves wind, pressure and precipitation only. These three were
+              // constants (0 cm, 0 %, 20 degC) since 2026-05, so every infobox read "Temp 68F" and "Prob 0%" and never Snow.
+              // Unknown is null: the cards show "--", Air Temp falls back to the decoded raster grid, and a measured zero
+              // (precipitation, from the backend) stays a number. Kill: window.__RAW_DISABLE_NO_FABRICATED_WEATHER__ = true.
+              snowfall: [fabricatedWeatherOn() ? 0.0 : null],
+              precipitation_probability: [fabricatedWeatherOn() ? 0 : null],
+              temperature_2m: [fabricatedWeatherOn() ? 20.0 : null],
               wind_speed_10m: [windSpeedVal],
               wind_direction_10m: [windDirVal],
               wind_gusts_10m: [windGustVal],
