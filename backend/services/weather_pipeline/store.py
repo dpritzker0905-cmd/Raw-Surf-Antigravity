@@ -11,7 +11,6 @@ from services.weather_pipeline.schemas import (
 )
 
 logger = logging.getLogger(__name__)
-
 from services.weather_pipeline.copernicus_validator import is_test_environment
 from services.weather_pipeline import manifest_tombstones as _tomb   # ING-1 (manifest tombstones)
 from services.weather_pipeline.persistence_diagnostics import PersistenceListingProbe
