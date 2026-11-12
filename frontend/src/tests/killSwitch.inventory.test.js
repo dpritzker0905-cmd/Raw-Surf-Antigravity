@@ -35,7 +35,7 @@ const path = require('path');
 
 const MAP_DIR = path.resolve(__dirname, '../components/map');
 // Map-serving files outside components/map whose switches the map depends on (#782 accounts only, 2026-11-12).
-const EXTRA_FILES = ['../lib/weatherAuthFetch.js', '../lib/weatherSession.js'].map((f) => path.resolve(__dirname, f));
+const EXTRA_FILES = ['../lib/weatherAuthFetch.js', '../lib/weatherSession.js', '../lib/weatherRateLimit.js'].map((f) => path.resolve(__dirname, f));
 
 /**
  * Switches that have a dedicated *.killSwitch.test.js covering them with
@@ -47,6 +47,8 @@ const KILL_SWITCHES_TESTED = new Set([
   // ("kill switch and the auth page itself raise nothing"): #782, accounts only
   '__RAW_DISABLE_WEATHER_AUTH__',
   '__RAW_DISABLE_SESSION_PROMPT__',
+  // tests/rateLimitNotice.test.js ("the kill switch: no hold, no event, no notice"): #815
+  '__RAW_DISABLE_RATE_LIMIT_NOTICE__',
   // components/map/oneWayCrests.test.js (one-way crests, 2026-11-12)
   '__RAW_DISABLE_ONE_WAY_CRESTS__',
   '__RAW_DISABLE_REDUCED_MOTION_BAND__',
@@ -66,6 +68,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_STATIC_EURO_SWELL__',
   // components/map/responsiveWeather.test.js
   '__RAW_DISABLE_RESPONSIVE_WEATHER__',
+  // components/map/ownRasterFrames.test.js (pressure from own frames, ON 2026-11-12; the kill is the .om path)
+  '__RAW_DISABLE_RASTER_OWN_PRESSURE__',
   // components/map/radarAdvectWorker.test.js (the nowcast warp in a worker; the kill runs the main-thread warp + PNG)
   '__RAW_DISABLE_RADAR_ADVECT_WORKER__',
   // components/map/radarRecolorWorker.test.js (HRRR / DWD / lightning tiles in the worker; the kill is the main-thread recolor)
@@ -128,6 +132,9 @@ const KILL_SWITCHES_TESTED = new Set([
   // Map-clear self-capture recorder (#744, opt-in diagnostics, no served number). marineClearRecorder.test.js:
   // the switch beats both ?diag=1 and window.__RAW_SOAK_RECORDER__ (isSoakRecorderEnabled returns false).
   '__RAW_DISABLE_SOAK_RECORDER__',
+  // O6 static-frame signer (2026-11-11). staticFrameSigner.test.js: with the switch set no /frame-urls call is made and the
+  // paid hours stay unbuilt (-> /grid, the pre-O6 path); the same index without it is signed (null control).
+  '__RAW_DISABLE_FRAME_SIGNER__',
 ]);
 
 /**

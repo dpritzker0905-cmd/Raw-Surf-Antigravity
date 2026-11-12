@@ -212,3 +212,54 @@ the chain". That was wrong. It came from a reader's inferred absence and I did n
   anything. A per-region fit needs row-level scored pairs, which the repository keeps inside Actions by design.
 - The ranking is unchanged, but item 4's expected effect is smaller than the text above implies until the
   post-flip reading exists.
+
+## 17:35Z Refresh: today's measured results and what they change in the ranking
+
+Asked for by the director session at 17:25Z. Every figure below was read by me from `SCOREBOARD.md`, `STATE.md` or a PR
+body at `dev` `14bba285b`. I re-ran no instrument. Where the director's one-line summary says more than the record
+does, the difference is stated.
+
+### What was measured (2026-11-11/12)
+
+| Area | Record | What it says | Limits |
+|---|---|---|---|
+| Direction and period (S8, #794 merged) | SCOREBOARD 2026-11-12 02:40Z | Direction MAE 24/48/72 h, n about 14,400: GFS 25.2/25.3/26.2, EURO 23.0/23.1/23.6, ICON 27.3/27.6/28.5, equal circular consensus 22.3/22.4/23.1 deg. Consensus minus EURO -0.7 [-2.4, +1.1]: not shown to beat the best member. Persistence 22.5 at 24 h ties the best member. Hawaii: persistence 24.6 vs every model 42+. Peak period MAE s: GFS 1.57/1.59/1.65, EURO 1.39/1.41/1.47; the GFS+EURO mean ties EURO. | Offline, public archives; truth is the buoy bulk direction. Move 5 reports that its own roughly 42 deg figure is mostly a train-matching artefact; whether that also explains this Hawaii row is not established. |
+| Wind lane (S9, #798 merged) | SCOREBOARD 04:50Z | The HRRR lane as drawn is worse than GFS on the West coast: +0.41/+0.62/+1.47/+1.49 kn vector RMSE at L3/12/24/36 (0 of 20 buoys better at L36). East coastal is a tie. Commitment 970's 0.3 kn rule triggers. | 100 cycles, 80 buoys, 38,709 pairs. This lane is live. |
+| Skill-weighted wind lane (#805 merged, DARK) | SCOREBOARD 06:00Z | Held out (fit on odd cycles, scored on even): 8 of 8 region x lead cells beat both GFS and today's lane, e.g. West L24 5.55 vs 5.77 / 6.75 kn. 26 of 28 published sub-cells beat both. | `WIND_LANE_SKILL_WEIGHTS` default 0; D-071 proposed. The flip is the owner's call. |
+| Big swell (#801 merged) | SCOREBOARD 05:50Z | Commitment 217's rule did NOT trigger on the ledger weeks (atlantic_se n < 30 both weeks). The null control shows observed-height binning alone gives -0.162 m on calibrated synthetic data; forecast binning gives -0.001. | The record does not say there is no big-swell bias. The public reconstruction failed its positive control, so its every-coast table is not decision-grade; its week C still reads -0.10 to -0.38 m forecast-binned on pacific_ne, CDIP and hawaii. "The 0.3-0.8 m figure came from observed-height binning" is the likely reading, not a proven one. |
+| Gap to our own source (#789 merged) | SCOREBOARD 02:12Z (two rows) | Served minus raw GFS-Wave 0.25: +0.0027 m over 65,991 pairs (was +0.0221 on 10-17). Linear MOS shadow, 7 held-out days: 0.305 -> 0.302, 0.325 -> 0.333, 0.341 -> 0.356 at 24/48/72 h: worse at 48 and 72 h, gate not met. Model-weighted consensus on the same week: 0.264/0.312/0.311, better than served at every lead. | The +0.0027 pools pre- and post-flip rows and is not a post-flip proof (commitment 1380). OCF-style and consensus scoring now runs in Actions (`skill_ocf.py`); I have not read its first run. Hosted chain lane on the merged head: collected 3,870, 3,869 passed, 1 skipped (run 43252858999, read by me). |
+| Instant frames (#802 merged) | SCOREBOARD 06:50Z; log 2026-11-12-opus-move3-static-frames | 6 of 12 layer x model cells meet step p95 <= 100 ms offline (waves x3, swell_1 GFS/EURO, swell_2 GFS). Step p50 is 8-16 ms in 11 of 12 cells. Box grid builds 1,557 -> 596 per run. | One run per arm, 11-25 steps a cell, one desktop PC, synthetic data; no phone, no live reading. The publish step already runs 15-18 min against a 960 s budget. Model toggles after: 74-189 ms (ICON swell_2 about 1 s). |
+| Animation (#796, #799 merged) | PR #799 body | No sign error found. The orbital pitch (2.5 px sway, default since 2026-07-01) moved 41-49% of dashes against the swell at any moment. Default now 0; kills `__RAW_DISABLE_ONE_WAY_CRESTS__`, `__RAW_DISABLE_REDUCED_MOTION_BAND__`. | The 41-49% is arithmetic, not an on-screen count; no real phone, no live site reading. Census (#797): `WAVES_ANIM_DOMINANT_SWELL` does not create the opposing layers (8.1% -> 7.4%), but changes the rating level on 13.9% of rows; registered by #792 with D-070. |
+| Accuracy monitor | STATE.md "Red now" and Next fixes item 7 | RED since 2026-11-10T20:25Z: Open-Meteo marine ahead by +0.075/+0.093/+0.111 m at 24/48/72 h (n 4,561/4,593/4,672, run 43093667367); +72 h is past the 0.10 m bound. | Not diagnosed. No owner in the director's ownership map. |
+
+### What this changes in the ranking (section "The map" above; append-only, that text stands as written)
+
+- **Wind moves from 8 to 1.** The old entry said higher resolution showed no gain and proposed short-range blending. The
+  measurement is worse than "no gain": the live lane costs up to 1.5 kn on the West coast, and a held-out fix exists.
+- **Item 2 (MOS and the gap to our own source) splits.** The gap to raw GFS-Wave is closed at the pooled level
+  (+0.0027 m). The linear MOS fails held out at 48 and 72 h and drops out. What is left is the gap to Open-Meteo marine,
+  which has widened and is the only red instrument.
+- **Item 1 (serve the consensus) holds for height** (better than served at every lead on the held-out week) and is still
+  blocked by the unexplained +0.09 m shadow excess in "unknown" tier rows (#788: gate not met).
+- **Item 3 (direction): the consensus buys little.** It is not shown to beat EURO, and no model beats persistence at
+  24 h. The gain, if any, is in the partitioned transform and its truth instrument, not in blending bulk directions.
+- **Big-swell calibration drops out of the top ten** until a decision-grade, forecast-binned reading triggers the rule.
+- **Item 10 (period) is cheaper than it was ranked:** EURO peak period beats GFS by about 0.18 s at every lead on
+  14,000+ pairs. It stays below the top five (period is 10% of the rating error budget).
+- **Item 7 (latency) is half done** and has a structural limit (the publish budget) that more frame sets will hit.
+
+### New top five (owners from the director's ownership map; one owner each)
+
+| # | Move | Owner | Gate |
+|---|---|---|---|
+| 1 | Decide the skill-weighted wind lane (#805, D-071) | Owner's call; the director brings it. No session needed to build it. | Default-on history filter not significantly worse in any region or season; SCOREBOARD row; kill switch `WIND_LANE_SKILL_WEIGHTS=0`; live guardrail coverage declared |
+| 2 | Explain the consensus shadow excess, then bring the consensus flip | move 4 (the attribution follow-up from #789's first scoring run) | First Actions scoring run read; the "unknown" tier split and the random-row null control account for the +0.09 m; consensus better than served at every lead with no region worse; then the owner's word |
+| 3 | Diagnose the widened Open-Meteo gap (+0.111 m at 72 h, monitor red) | UNOWNED in the map. Closest fit is move 4 after item 2, or the researcher. The director to assign; I start nothing. | Cause named with a by-region, by-lead, by-tier split from the same scoring run; monitor green, or the 0.10 m bound re-justified in DECISIONS |
+| 4 | The six remaining instant-frame cells | move 3 (asked at 16:10Z on the owner's word) | Offline step p95 <= 100 ms in all 12 cells over at least 3 runs per arm, worst step reported; a second publish step before any new frame set; one real-user timing reading |
+| 5 | Partition truth for direction, and the Hawaii row | move 5 (instrument, #795); researcher (Hawaii nearshore) | #795 green with its positive control; the Hawaii persistence-beats-models result classed as artefact or real, with the evidence; only then a shadow run of the partitioned transform |
+
+Not in the five, owned elsewhere and not double-assigned here: Safari flakes (Fable repair lead), #812 pressure frames
+(Fable animation lane), account access (Opus lead).
+
+Not done and not verified: no instrument re-run; the first `skill_ocf` Actions run not read; Move 3's and Move 5's
+numbers taken from their own logs; the animation fix not seen on the live site by me.

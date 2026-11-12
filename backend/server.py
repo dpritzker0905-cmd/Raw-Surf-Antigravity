@@ -519,7 +519,7 @@ app.add_middleware(
     # cross-origin GET preflight. Cache a URL's preflight for 2 h (Chromium's cap) instead of Starlette's 10 min.
     max_age=7200,
     # O5: the client reads these cross-origin to learn the clamp is on (and to retry a clamped answer with its token).
-    expose_headers=["X-Raw-Tier-Clamp-On", "X-Raw-Tier-Clamp"],
+    expose_headers=["X-Raw-Tier-Clamp-On", "X-Raw-Tier-Clamp", "Retry-After"],   # Retry-After: the 429 notice (#815)
 )
 
 # Request telemetry (2026-08-09, MASTER-AUDIT-11.0 §3.14): bounded in-process latency/status
