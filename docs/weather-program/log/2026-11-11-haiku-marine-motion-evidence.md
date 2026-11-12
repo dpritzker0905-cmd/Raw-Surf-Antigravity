@@ -214,3 +214,29 @@ The owner's report, "in all the marine layers", points most strongly at H1 or H2
 ## Checklist status
 
 Not yet checked against code. The checklist is the input to the director's fix. This log does not claim any item passes.
+
+---
+
+## Addendum 2026-11-11 (second pass, same session)
+
+Re-run after the director's "put the researcher online" message. Nothing above is rewritten; corrections and additions follow.
+
+**Second opinion (Reflection Beam, medium effort; question and claims only, no secrets, no repo content).** It agreed with the direction convention and the aliasing heuristic, and raised these points:
+
+1. **Deep water only.** c = gT/2π and c_g = c/2 hold only in deep water. For intermediate and shallow water, use the full dispersion relation ω² = gk·tanh(kh) and check depth per point. Correction to section 2: those formulas are deep-water limits, not general.
+2. **Particles are not always energy.** Energy packets move at c_g, but surface drifters and particle layers follow Stokes drift, which can differ from both and in some conditions opposes propagation. A particle layer labelled as "wave energy" should use c_g; one labelled as "surface water motion" should use Stokes drift. Name which one in code and legend.
+3. **Check the decoder offset against metadata**, not only by rule. Confirm the variable's standard name and attributes in each product before assuming the 180° offset is or is not applied.
+4. **Mean versus spread.** The dominant mean direction should not oppose itself; large directional spread can still mislead. Test the mean direction per partition, not every subcomponent.
+5. **Aliasing needs more inputs than the quarter-wavelength rule:** actual animation FPS, scrub deltas, spatial Nyquist, and crest phase recomputed on every time jump.
+6. **Real effects that change direction:** currents, refraction, shoaling, bathymetry and land boundaries. A synthetic test checks the renderer, not the physics; say so.
+
+**Checklist additions (items 11-14; items 1-10 stand, with item 4 read as above):**
+
+11. **Depth-aware dispersion.** Phase and group speeds come from the full dispersion relation at each point's depth (or are labelled deep-water only).
+12. **Particle layers name their velocity.** Energy (c_g) and Stokes drift are distinct, and the code and legend say which.
+13. **Wrap-around and missing data.** The 0°/360° wrap, directional spread, partition count and labels, unit metadata, and missing or invalid direction values are handled and tested.
+14. **Performance on a phone.** The fix holds frame rate on a mid-range phone, measured, not assumed; and the synthetic direction test is on record with its threshold (10°) and frame count (8+).
+
+Item 3 stays as written; the decoder check in item 1 is now "verify against metadata, once".
+
+**Status.** The checklist is still not checked against code. It is the input to the director's fix; this addendum does not claim any item passes.
