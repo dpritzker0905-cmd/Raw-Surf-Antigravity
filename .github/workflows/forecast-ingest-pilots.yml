@@ -267,7 +267,7 @@ jobs:
       # stored product, so it does not wait on the ingest. A cycle latest.json already lists uploads nothing. The client half
       # is dark (raster-instant session): publishing changes nothing a user sees. Off: repo variable FRAME_RASTER_PRESSURE=0.
       - name: Publish raster static frames (pressure; client dark)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRESSURE != '0' }}
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_PRESSURE || '1') != '0' }}
         continue-on-error: true
         timeout-minutes: 12
         working-directory: backend
