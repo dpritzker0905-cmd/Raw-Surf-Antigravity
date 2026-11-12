@@ -2,13 +2,32 @@ import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 from fastapi.testclient import TestClient
 from fastapi import HTTPException
+from sqlalchemy import event
 
 from server import app
-from database import get_db
+from database import engine, get_db
 from core.security import get_current_user_id
 from models import Profile, SocialLiveStream
 
-client = TestClient(app)
+@pytest.fixture
+def client():
+    # HTTP-only security test: preserve the existing no-lifespan setup.
+    # Every database path, including background notifications, must be mocked.
+    real_database_io = []
+
+    def record_checkout(*_args):
+        real_database_io.append(True)
+
+    test_client = TestClient(app)
+    event.listen(engine.sync_engine, "checkout", record_checkout)
+    try:
+        yield test_client
+    finally:
+        try:
+            test_client.close()
+        finally:
+            event.remove(engine.sync_engine, "checkout", record_checkout)
+        assert not real_database_io, "LiveKit security test performed unmocked database I/O"
 
 @pytest.fixture
 def clean_dependency_overrides():
@@ -39,7 +58,10 @@ def mock_livekit_sdk():
          patch("routes.live.livekit.api.LiveKitAPI", return_value=mock_lk_api):
         yield mock_api, mock_lk_api
 
-def test_livekit_endpoints_prevent_impersonation(clean_dependency_overrides, mock_livekit_configured, mock_livekit_sdk):
+def test_livekit_endpoints_prevent_impersonation(
+    client, clean_dependency_overrides, mock_livekit_configured,
+    mock_livekit_sdk, monkeypatch,
+):
     mock_api, mock_lk_api = mock_livekit_sdk
     
     # Setup database mocks
@@ -47,6 +69,7 @@ def test_livekit_endpoints_prevent_impersonation(clean_dependency_overrides, moc
     mock_db.flush = AsyncMock()
     mock_db.commit = AsyncMock()
     mock_db.refresh = AsyncMock()
+    notification_queries = []
     
     # Add side effect to assign ids to instantiated models
     def mock_add(obj):
@@ -76,6 +99,8 @@ def test_livekit_endpoints_prevent_impersonation(clean_dependency_overrides, moc
         )
         
         query_str = str(query).lower()
+        if "from follows" in query_str:
+            notification_queries.append(query)
         print(f"QUERY: {query_str}")
         if "profile" in query_str:
             print("RETURNING PROFILE")
@@ -90,6 +115,14 @@ def test_livekit_endpoints_prevent_impersonation(clean_dependency_overrides, moc
         return mock_res
         
     mock_db.execute = AsyncMock(side_effect=mock_execute)
+
+    # The real BackgroundTasks callback opens its own session independently
+    # of get_db; keep the callback, but isolate that session factory too.
+    notification_session = MagicMock()
+    notification_session.__aenter__ = AsyncMock(return_value=mock_db)
+    notification_session.__aexit__ = AsyncMock(return_value=False)
+    notification_factory = MagicMock(return_value=notification_session)
+    monkeypatch.setattr("routes.live.livekit.async_session_maker", notification_factory)
     
     app.dependency_overrides[get_db] = lambda: mock_db
     app.dependency_overrides[get_current_user_id] = lambda: "user123"
@@ -126,6 +159,7 @@ def test_livekit_endpoints_prevent_impersonation(clean_dependency_overrides, moc
         }
     )
     assert response.status_code == 200, f"Failed start_livekit_stream: {response.text}"
+    assert len(notification_queries) == 1
     
     # 4. Test start_livekit_stream mismatching user -> Should return 403
     response = client.post(
@@ -146,6 +180,7 @@ def test_livekit_endpoints_prevent_impersonation(clean_dependency_overrides, moc
         }
     )
     assert response.status_code == 200, f"Failed start_social_live: {response.text}"
+    assert len(notification_queries) == 2
     
     # 6. Test start_social_live mismatching user -> Should return 403
     response = client.post(
@@ -180,3 +215,7 @@ def test_livekit_endpoints_prevent_impersonation(clean_dependency_overrides, moc
         "/api/livekit/viewer-token/live-room-123?viewer_id=other_user"
     )
     assert response.status_code == 403
+
+    assert notification_factory.call_count == 2
+    assert notification_session.__aenter__.await_count == 2
+    assert notification_session.__aexit__.await_count == 2
