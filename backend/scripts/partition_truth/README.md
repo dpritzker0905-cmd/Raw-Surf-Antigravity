@@ -55,3 +55,4 @@ are returned as one (a heave-pitch-roll buoy cannot separate them), and MEM's sp
 - Rank matching: model slot 1 is scored against the observed primary swell. WW3 numbers partitions per node, so the slot
   is not a tracked system; the slot diagnostics measure how much that costs.
 - Offshore buoys only. This says nothing about nearshore height or the rating.
+- `mwd_decomposition.py` re-scores the same rows against the buoy MWD (the bulk-direction lane's truth) to separate the truth definition from the buoy set.

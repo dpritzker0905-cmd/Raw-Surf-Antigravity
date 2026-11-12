@@ -177,3 +177,36 @@ primary swell direction MAE model / persistence 29.6 / 26.6, 28.2 / 33.4, 30.7 /
 truth is the bulk MWD (the dominant-period direction), mine is the primary TRAIN, and the stations differ. What is comparable: both lanes find
 the GFS-Wave direction no better than persistence at +24 h. The next alignment step (owed, not done): run both on the intersection of buoys and
 join on (buoy, hour, lead) to see how much of the 29 deg is the train definition and how much is the forecast.
+
+## 8. The join with the S8 bulk lane (#794), 2026-11-12 05:10Z
+
+**What could and could not be joined.** #794's evidence folder holds the buoy list (108, with coast) and aggregates (`s8_offline.json/.md`), not its
+365,819 per-row forecasts, so a row-level join on its pairs is not possible. I joined the other way: keep MY keys (buoy, cycle, lead, verifying hour) and
+read #794's truth (the buoy's bulk MWD, standard-met column, observed Hs >= 0.3 m) at the same hours. New script
+`backend/scripts/partition_truth/mwd_decomposition.py`; rows are identical across columns. Window: targets 2026-10-19..11-09, as #794.
+**Intersection:** 18 of my 31 buoys are in #794's set (13 pacific_ne, 3 atlantic_se, 2 hawaii: 46025 46026 46042 46054 46086 46013 46014 46022 46027
+46050 46041 46029 46087 51201 51202 41004 41008 41025). The 13 others (46059 46002 46005 46006 51001-51004 51101 41002 41010 41043 41047 41049) are
+open-ocean buoys farther than 100 km from a catalogue spot, so #794 does not grade them.
+
+GFS-Wave slot-1 direction MAE (deg), identical rows, +24 / +48 / +72 h:
+
+| Set | n (buoys) | vs observed primary TRAIN | vs buoy MWD | train vs MWD (the two truths) | persistence vs MWD |
+|---|---|---|---|---|---|
+| Intersection with #794 (16 buoys with pairs, 7 blocks) | 567 / 555 / 558 | 18.2 / 18.7 / 18.3 | **23.1 / 22.9 / 22.1** | 13.6 / 13.4 / 13.7 | 24.2 / 31.1 / 34.5 |
+| All my buoys (29, 16 blocks) | 1,061 / 1,046 / 1,057 | 29.5 / 27.9 / 30.3 | 33.0 / 31.2 / 32.7 | 16.7 | 31.1 / 36.5 / 41.1 |
+| Complement (13 open-ocean buoys, derived) | about 494 at +24 h | about 42.5 at +24 h | | | |
+
+Findings (each tied to a number):
+1. **Cross-check holds.** On the shared buoys my slot-1 direction against MWD is 23.1 / 22.9 / 22.1 deg, the same band as #794's published GFS 22.3-23.1
+   (different forecast fetch and row set, so agreement to about 1 deg is a consistency check, not an identity).
+2. **The 29 deg is not the train definition.** On identical rows the model is CLOSER to the observed train than to MWD (29.5 vs 33.0 at +24 h; 18.2 vs
+   23.1 on the intersection). The two truths differ by 13-17 deg themselves, but swapping to the train does not make the model look worse.
+3. **The 29 deg is a buoy-set effect.** Open-ocean buoys that #794 excludes carry about 42 deg at +24 h (derived from the two rows: (1061 x 29.5 - 567 x
+   18.2) / 494); the buoys near catalogue spots carry 18 deg. A direction number from the near-spot set cannot stand for the open ocean the global
+   layers show. Cause not examined (mixed seas far from land, or the nearest-cell sampling, or ranking of slots).
+4. Against MWD the model is no better than persistence at +24 h on either set (all buoys +1.9 deg [-4.2, 6.5]; intersection -1.1 [-5.2, 2.9]) and better at
+   +48/+72 h on the intersection (-8.2 [-16.0, -1.0], -12.4 [-20.7, -5.0]). The block bootstrap resamples days, not the 7 / 16 spatial blocks.
+5. The primary-direction bias against the train (-5 deg intersection, -11 all) shrinks against MWD (-2, -7): part of the "-10 deg" is the
+   train-versus-bulk definition, the rest is the open-ocean set.
+
+**Not done:** a row-level join on #794's pairs (needs its per-row file, not committed); the cause of the 42 deg on open-ocean buoys.
