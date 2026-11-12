@@ -112,7 +112,10 @@
   [data-responsive-weather="true"][data-explore-open="true"] .weather-map-actions { visibility: hidden; pointer-events: none; }
   [data-responsive-weather="true"] .weather-mobile-timeline-body.opacity-100 { max-height: min(40dvh, max(72px, calc(var(--weather-height, 100dvh) - var(--weather-top) - var(--safe-bottom, 84px) - 128px))); }
   [data-responsive-weather="true"] .weather-point-body.opacity-100 { overflow: visible; flex-shrink: 0; }
-  [data-responsive-weather="true"] .weather-legend-toggle { display: block; min-height: 24px; order: 1; }
+  /* The pill stays 24px tall (no layout shift on short screens); a transparent ::before gives it a
+     44x44 minimum hit area (WCAG 2.5.5, #791 review finding 5). No colour, so all three themes match. */
+  [data-responsive-weather="true"] .weather-legend-toggle { display: block; min-height: 24px; order: 1; position: relative; }
+  [data-responsive-weather="true"] .weather-legend-toggle::before { content: ""; position: absolute; left: 50%; top: 50%; width: max(100%, 44px); height: max(100%, 44px); transform: translate(-50%, -50%); }
   [data-responsive-weather="true"] .weather-mobile-legend[data-legend-expanded="false"] { display: none; }
   [data-responsive-weather="true"] .weather-mobile-timeline-handle { gap: 0; justify-content: space-between; }
 
