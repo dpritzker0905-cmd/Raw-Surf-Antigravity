@@ -114,6 +114,9 @@ export function finerResidentHoldDecision({ disabled, prev, incoming, viewport, 
   const byCycle = pcy !== null && ncy !== null;
   const prt = byCycle ? pcy : readRunTime(prev), nrt = byCycle ? ncy : readRunTime(incoming);
   if (prt && nrt && !sameTime(prt, nrt)) return no('run');   // a new run is fresher data, however coarse
+  // CLI-6 (Fable audit 2026-11-10): a run known on ONE side only is no proof of "the same frame": the unknown side may be a newer run,
+  // and the valid-time match below used to hold it anyway. Release (the safe direction). Kill: __RAW_DISABLE_HOLD_RUN_UNKNOWN_RELEASE__.
+  if (!prt !== !nrt && !(typeof window !== 'undefined' && window.__RAW_DISABLE_HOLD_RUN_UNKNOWN_RELEASE__ === true)) return no('run_unknown');
   // The frame must be PROVABLY the same one: a known run, valid time or served instant on both sides (never hold across an unlabelled
   // refresh).
   if (!((prt && nrt) || (pvt && nvt) || sameServed)) return no('unlabelled');
