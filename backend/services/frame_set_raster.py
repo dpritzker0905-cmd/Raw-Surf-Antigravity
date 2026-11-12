@@ -231,13 +231,14 @@ class GfsGribSource:
         return f"{S3_BASE}/gfs.{cycle.strftime('%Y%m%d')}/{hh}/atmos/gfs.t{hh}z.{GRID_FILE}."
 
     def complete_cycle(self, now):
-        """The newest cycle whose f000 and f336 .idx both exist, or None."""
+        """The newest cycle whose first and last hour's .idx both exist (the set's own hours: f000 and f336), or None."""
+        hours = self.spec.get("hours", F_HOURS)
         floor6 = now.replace(minute=0, second=0, microsecond=0, hour=(now.hour // 6) * 6)
         for back in range(7):
             cyc = floor6 - timedelta(hours=6 * back)
             p = self._prefix(cyc)
             try:
-                if all(self.http.head(f"{p}f{f:03d}.idx", timeout=60).status_code == 200 for f in (F_HOURS[0], F_HOURS[-1])):
+                if all(self.http.head(f"{p}f{f:03d}.idx", timeout=60).status_code == 200 for f in (hours[0], hours[-1])):
                     return cyc
             except Exception:
                 continue

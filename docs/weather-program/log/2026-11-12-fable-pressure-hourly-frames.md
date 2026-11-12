@@ -41,3 +41,14 @@ safer than interpolating pressure systems"); ship once the client's mixed-cadenc
   blend for the far range and EURO is the next piece (2b).
 - Raised: measure a real 193-frame publish before calling it done. AGREED: still not measured.
 LongCat review of the diff: not run (its paid submit needs the owner's approval of the payload hash).
+
+## Second opinion: LongCat 2.5, 2026-11-12, on the non-test diff of #824 and #827 (the owner approved the send: "Yes, send it")
+Verdict: no defect in the hour arithmetic (121 + 72 = 193). Four points, each weighed:
+1. `complete_cycle` probed `F_HOURS`' first and last hour, not the set's own. Correct today (0 and 336 are in both lists) but
+   coupled by accident. APPLIED: it now reads the spec's own hours.
+2. Hours 121 and 122 might be unreachable if the client's 3 h window were exclusive. NOT A DEFECT: 121 is 1 h from f120 and
+   122 is 1 h from f123, and the window is inclusive (`diff <= WINDOW_MS`); pinned by the new client tests.
+3. Retrying 520-524 lengthens the worst case of one upload (three waits, 19 s, plus request time). TRUE, accepted: uploads
+   run after the build budget, inside the step's 12-minute timeout; a storm that outlasts four attempts still fails the set
+   whole, as before.
+4. The workflow default now runs the pressure step when its variable is unset. INTENDED (the owner: "Yes, publish pressure").
