@@ -73,3 +73,29 @@ once a mean-consensus arm exists in the harness (EURO/ICON replay inputs do not 
 - **In- vs out-of-sample.** The 0.196 vs 0.229 (train n 57,992) is the rule-selection set, out of sample for the hawaii/atlantic_se rule only; the hawaii 0.443->0.543 and atlantic_se 0.222->0.250 figures are a single held-out week whose per-lead n and independent-station count I did not record. They are context, not gate evidence. No held-out n per lead or independent-station count exists in this PR.
 - **'Unknown' is a data condition, not proven cause.** It is a real condition (lane answered by the direct-point path, `product_id=None`), not a labelling artefact in the sense of a missing field. But it is not shown to cause the +0.13 m: that needs removing or repairing those rows and a random-row null control of equal size, neither of which was run.
 - **-0.03 m is offline.** The ~0.03 m gain is a computed-equal-mean figure from the ledger, not a served-shadow result; the built shadow has never matched it at +48/+72 h.
+
+## Addendum 2 (advisor route note; read `log/2026-10-17-served-height-gap.md` Table 7c, §"cause NOT established")
+
+Narrowed question: why is the built product not the mean of its members at +48/+72 h (median |shadow-equal| 0.126/0.132 m,
+one-sided, bias +0.081..+0.103 m in 12 of 12 monitor reads) when it is at +24 h (0.003 m)? Acceptance instrument:
+`forecast_skill_consensus.shadow.by_lead[*].shadow_minus_equal_m` (forecast-accuracy-monitor.yml ~line 35, WARN > 0.02 m).
+Still no stored data here, so these are code-read hypotheses, ranked, none measured:
+
+1. **Different source for the same member (best fit to the 'unknown' tier).** The equal side is the members' LANE values at the
+   buoy (direct Open-Meteo when no stored frame covers it, `product_id=None`); the shadow side is a stored frame picked by
+   `manifest_point_selection.choose_for_point` (`consensus_ingest.make_chooser`). If stored EURO/ICON coverage thins with lead
+   (global_mid/coarse tier, snapped hour, estimated tail), the two sides diverge exactly where the ledger shows it.
+2. **Masked-cell fallback biases the shadow high.** `_build` runs with `unblended="mask"`: any cell a member cannot answer is set
+   invalid. At the buoy the sampler then takes `nearest_ocean_fallback` / `bilinear_ocean_masked` (sampler.py ~523-580), i.e.
+   the value of a neighbouring, usually more exposed, ocean cell. That is one-sided high and grows when member coverage near
+   the coast shrinks, as it would at longer leads. The shadow row's `interpolation_method` (not in the ledger row today) would show it.
+3. **Build-time vs pass-time members** (Oct 17 hypothesis 1): member runs at ingest time differ from those at ledger time.
+
+Discriminating read, one pass over the scored archive plus two stored +48 h shadow frames, all in `shadow_minus_equal_m` terms:
+signed shadow-minus-equal split by (EURO tier, ICON tier), by shadow `interpolation_method`, and by `frame_off_h`; and in the two
+frames `diagnostics.consensus.cells.kept_primary/masked` and `member_missing` per lead. Proof standard (advisor note 3): repair or drop
+the flagged rows, the +0.13 m must vanish, and dropping the same number of random rows must not.
+
+Ownership respected: no edit to `consensus_serve.py`, `skill_consensus.py`, `skill_mos.py` (move 4). If cause 2 holds the fix is in
+`consensus_product._build` (carry the member answer through to a cell only where the sampler's read is a real bilinear, or keep
+GFS's cell and flag it); I have not written it because the cause is unproven. CONSENSUS_SERVE untouched.
