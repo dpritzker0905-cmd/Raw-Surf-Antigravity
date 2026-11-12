@@ -45,6 +45,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_HOLD_RUN_UNKNOWN_RELEASE__',
   // components/map/marineGridSeries.runIdentity.test.js (CLI-7: a newer-run page evicts older-run sibling pages)
   '__RAW_DISABLE_SERIES_RUN_EVICT__',
+  // components/map/responsiveWeather.test.js
+  '__RAW_DISABLE_RESPONSIVE_WEATHER__',
   // tests/forecast-card-swell-vs-surf.test.js (CMP-4)
   '__RAW_DISABLE_UNKNOWN_DEPTH_HIDE__',
   // components/map/marineUnpatchedMaskHold.test.js
