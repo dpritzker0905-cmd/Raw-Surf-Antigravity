@@ -13,7 +13,7 @@ file the box's own GFS pressure product reads (noaa_gfs_pressure_fetcher, global
 equals that product's value to the 0.05 hPa quantisation. NCEP's own pgrb2.0p50 file was measured differing from 0p25[::2, ::2]
 by up to 0.01 hPa (0% of points equal at f000, cycle 2026-10-23 00Z), so it is not used.
 
-TIME. f000-f336 every 3 h (113 frames, the 14-day contract), from the newest COMPLETE cycle (f336's .idx present). An hour with
+TIME. f000-f336 every 3 h (113 frames, the 14-day contract; pressure: hourly to f120, 193 frames, PRESSURE_HOURS), from the newest COMPLETE cycle (f336's .idx present). An hour with
 no frame is listed unbuilt; a cycle is published only when FRAME_MIN_COVERAGE (default 0.9) of its hours built.
 
 PUBLISH. Frames (immutable, content-addressed), then the run index, then latest.json (no-cache) LAST, then retention (current
@@ -41,6 +41,11 @@ TARGET = {"model": "GFS", "domain": "weather", "layer": "pressure", "region_id":
 KEY = fs.set_key(TARGET)
 PREFIX = fs.set_prefix(TARGET)
 F_HOURS = tuple(range(0, 337, 3))
+# GFS PRESSURE IS HOURLY TO 120 h (2026-11-12, the owner: "focus on the 3 issues that separate it from state of the art"). The
+# pgrb2.0p25 files exist every hour to f120 and every 3 h after, so the hourly frames are NCEP's own fields (no interpolation
+# of ours): 121 hourly + 72 three-hourly = 193 frames. An hourly scrub then shows its own hour for the first five days
+# instead of the nearest 3-hourly frame. The other GFS sets keep F_HOURS.
+PRESSURE_HOURS = tuple(range(0, 121)) + tuple(range(123, 337, 3))
 COLS, ROWS = 720, 361
 BOUNDS = (-180.0, -90.0, 179.5, 90.0)          # west, south, east, north: the outer cell centres
 # The lattices a set can be published on (a spec's `grid`, default '0p5'). '0p25' is NCEP's own 0.25-degree grid, every point
@@ -72,7 +77,7 @@ SPECS = {
         "target": TARGET, "field": fb.PRESSURE_HPA, "idx": ("PRMSL", "mean sea level"), "convert": lambda a: a / 100.0,
         "valid": VALID_HPA, "clip": None, "env": "FRAME_RASTER_PRESSURE", "default_on": True,
         "value_kind": "pressure_msl", "value_unit": "hPa", "source_dataset": "gfs.pgrb2.0p25 PRMSL, every second point",
-        "hours": F_HOURS, "source": "gfs", "upstream_provider": "noaa", "credit": CREDIT, "license": LICENSE,
+        "hours": PRESSURE_HOURS, "source": "gfs", "upstream_provider": "noaa", "credit": CREDIT, "license": LICENSE,
         "source_url": SOURCE_URL,
     },
     "temperature": {
