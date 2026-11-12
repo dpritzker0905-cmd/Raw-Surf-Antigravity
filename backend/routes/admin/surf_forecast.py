@@ -474,13 +474,11 @@ _RATING_FLAGS = {
                                          "still decides wind and the rating. Held-out MSE vs MOP 0.0234 -> 0.0046. "
                                          "services/weather_pipeline/swell_exposure_normals.py; kill switch '0'",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
-    # CMP-2 (Fable audit 2026-11-10): one tide/MOP resolver for every estimate_surf_at caller; parity /point 20x3 to 1e-6.
-    "SURF_SEA_INPUTS_EVERY_CALLER": ("1", "[D-065 GUARDED, ON; accuracy not measured] hub, conditions, surf-conditions and "
-                                          "sim take /point's tide (+MOP) via sea_inputs.py; kill '0' = (0.0, None)",
+    # CMP-2 (Fable audit 2026-11-10): one tide/MOP resolver (sea_inputs.py) for every estimate_surf_at caller.
+    "SURF_SEA_INPUTS_EVERY_CALLER": ("1", "[D-065 GUARDED, ON; accuracy not measured] hub, conditions, sim take /point's tide+MOP; kill '0'",
                                      "Render env (serve-side surfaces); the sim reads the served glyph's tide, no env"),
-    # CMP-1 (Fable audit 2026-11-10): the map rating band rated a bare estimate_surf height; band_chain.py, kill '0'.
-    "RATING_BAND_ONE_CHAIN": ("1", "[D-065 GUARDED, ON] map band = estimate_surf_at on cached geometry + break depth, eta 0",
-                              "Render env AND precompute.yml env (rated static frames)"),
+    "RATING_BAND_ONE_CHAIN": ("1", "[D-065 GUARDED, ON] CMP-1: map band = estimate_surf_at on cached geometry + break depth, "
+                                   "eta 0 (band_chain.py); kill '0'", "Render env AND precompute.yml env (rated static frames)"),
     # CMP-3 (audit 2026-11-10). The rating's oversize gate read `break_depth_at` while the height's cap read the
     # geometry's depth (incl. the land-present promotion): 12 of 14 land-present coords disagreed.
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": ("1", "[D-065 GUARDED, ON] the rating reads the served response's "
