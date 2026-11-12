@@ -1,6 +1,6 @@
 {
   "lane": "guards",
-  "tests": 8,
+  "tests": 12,
   "files": 1,
   "branch": "fable/accuracy-per-buoy-split",
   "date": "2026-11-12",

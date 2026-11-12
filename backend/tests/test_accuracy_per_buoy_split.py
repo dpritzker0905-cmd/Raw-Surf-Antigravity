@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 from scripts.accuracy_per_buoy_split import (
     BEST_MATCH, PRIMARY, SAME_MODEL, day_block_interval, gap, hole_keys_view, index_rows, paired,
-    positive_control, report_lines, split,
+    detection_control, gate_window_lines, report_lines, split, wiring_check,
 )
 
 NOW = datetime(2026, 11, 12, 12, tzinfo=timezone.utc)
@@ -72,8 +72,8 @@ def test_subset_check_reports_control_keys_outside_best_match():
     assert h["subset"] is False and h["n_same_model_not_in_best_match"] == 1
 
 
-def test_positive_control_returns_its_seed_at_one_buoy_and_nothing_elsewhere():
-    rec, other = positive_control(index_rows(_world(), NOW), "B")
+def test_wiring_check_returns_its_seed_at_one_buoy_and_nothing_elsewhere():
+    rec, other = wiring_check(index_rows(_world(), NOW), "B")
     assert abs(rec - 0.05) < 1e-12 and other == 0.0
 
 
@@ -99,3 +99,39 @@ def test_report_prints_aggregates_only_and_passes_its_control():
     assert ok is True and "PASS" in text
     assert "obs_time" not in text and "obs_hs_m" not in text and "err_m" not in text
     assert "measured hole list (9)" in text
+
+
+def _noisy_world(days=12):
+    """Served errors all clearly positive (> 0.05 m), so a +0.05 m seed moves every |err| by exactly +0.05; per-day
+    spread so the interval is not degenerate."""
+    rows = []
+    for day in range(days):
+        jitter = 0.02 * (day % 3)
+        for buoy in ("A", "B"):
+            rows += [_row(PRIMARY, buoy, day, 6, 72, 0.30 + jitter), _row(BEST_MATCH, buoy, day, 6, 72, 0.20)]
+    return rows
+
+
+def test_detection_control_notices_a_seeded_regression_before_pairing():
+    base, hit, iv, excludes = detection_control(_noisy_world(), NOW, 14)
+    assert round(hit - base, 6) == 0.05 and excludes is True
+
+
+def test_detection_control_is_not_arithmetic_when_errors_straddle_the_seed():
+    rows = [_row(PRIMARY, "A", d, 6, 72, -0.04) for d in range(10)] + [_row(BEST_MATCH, "A", d, 6, 72, 0.1) for d in range(10)]
+    base, hit, _iv, _x = detection_control(rows, NOW, 14)
+    assert round(hit - base, 6) == -0.03     # |-0.04 + 0.05| = 0.01: a +0.05 seed LOWERS this row's error
+
+
+def test_three_day_blocks_need_three_blocks():
+    idx = index_rows(_world(), NOW)                      # 6 days -> two 3-day blocks: thin
+    assert split(idx, BEST_MATCH)["pooled"][72][6] is None
+    long = index_rows(_noisy_world(12), NOW)             # 12 days -> four 3-day blocks
+    assert split(long, BEST_MATCH)["pooled"][72][6] is not None
+
+
+def test_gate_window_is_the_monitors_seven_days_and_report_labels_the_wiring_check():
+    lines = gate_window_lines(_noisy_world(12), NOW)
+    assert lines[0].startswith("== gate window: pooled, 7 days") and any("3-day" in x for x in lines)
+    text = "\n".join(report_lines(index_rows(_world(), NOW), NOW, rows=_world())[0])
+    assert "wiring check (arithmetic, not detection)" in text and "detection control:" in text

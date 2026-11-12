@@ -12,9 +12,11 @@ WHAT IT PRINTS (aggregates only: no row, no observation series, no credential ev
   2. the same against the same-model control (`open_meteo:ncep_gfswave025`), plus the check that the control's paired key
      set is a subset of best_match's (the estimate assumed it);
   3. best_match's OWN MAE on the hole keys (the estimate had to assume it);
-  4. a positive control: +0.05 m added to the served absolute error at one buoy must come back as exactly +0.05 m at that
-     buoy and 0 elsewhere;
-  5. the pooled gap per lead with its interval, so +0.111 against the 0.10 m bound can be read against noise.
+  4. a WIRING check (+0.05 m on our absolute error at one buoy comes back exactly there and nowhere else: arithmetic, it
+     proves buoys do not leak into each other) and a DETECTION control (+0.05 m seeded into every served err_m BEFORE
+     pairing: does the pooled +72 h interval exclude the unseeded gap?);
+  5. the pooled gap per lead with 1-day and 3-day block intervals, and the same over the monitor's own 7-day window, so
+     +0.111 against the 0.10 m bound can be read against noise on the window that paged.
 
 PAIRING is the monitor's own (`forecast_skill.head_to_head`): the same (buoy, target hour, lead bucket) AND the same
 verifying observation (time and height). A key whose observation identity differs or is missing is excluded and counted.
@@ -34,9 +36,10 @@ BEST_MATCH = "open_meteo_marine"
 SAME_MODEL = "open_meteo:ncep_gfswave025"
 LEADS = (24, 48, 72)
 WINDOW_DAYS = 14
-BOOT_DRAWS = 400
+BOOT_DRAWS = 2000      # 400 put the 2.5% bound on the 10th value (advisor, 2026-11-12)
 BOOT_SEED = 20261112
 POSITIVE_CONTROL_M = 0.05
+GATE_WINDOW_DAYS = 7   # the monitor's paired gate grades a trailing 7 days; printed beside the longer window
 # Measured 2026-11-12 (one batched Open-Meteo call at NDBC coordinates): `ncep_gfswave025` returns null or 0.0 at all
 # 96 hours at these 9 buoys. Printed beside the DATA-DERIVED hole set (buoys with best_match pairs and no same-model
 # pairs), so a disagreement between the two shows on the page instead of being assumed away.
@@ -106,12 +109,15 @@ def gap(keys, ours, theirs, extra=None):
     return n, sum(mo) / n, sum(mt) / n, sum(mo) / n - sum(mt) / n, wins / n
 
 
-def day_block_interval(keys, ours, theirs, draws=BOOT_DRAWS, seed=BOOT_SEED, extra=None):
-    """95% interval of the paired gap, resampling whole target DAYS (errors within a day share the weather, so key
-    resampling would understate the spread). None when fewer than 3 days carry pairs."""
+def day_block_interval(keys, ours, theirs, draws=BOOT_DRAWS, seed=BOOT_SEED, extra=None, block_days=1):
+    """95% interval of the paired gap, resampling whole blocks of `block_days` consecutive target days (errors within a
+    day share the weather, so key resampling would understate the spread; a storm lasting several days makes even
+    1-day blocks understate it, hence the 3-day option). None when fewer than 3 blocks carry pairs."""
+    first = min((k[1][:10] for k in keys), default=None)
     by_day = {}
     for k in keys:
-        by_day.setdefault(k[1][:10], []).append(k)
+        offset = (datetime.fromisoformat(k[1][:10]) - datetime.fromisoformat(first)).days
+        by_day.setdefault(offset // block_days, []).append(k)
     days = sorted(by_day)
     if len(days) < 3:
         return None
@@ -134,7 +140,8 @@ def split(idx, reference, leads=LEADS):
         t = {k: v for k, v in theirs.items() if k[2] == b}
         keys, mm, miss = paired(o, t)
         out["excluded"][lead] = (mm, miss)
-        out["pooled"][lead] = gap(keys, o, t) + (day_block_interval(keys, o, t),)
+        out["pooled"][lead] = gap(keys, o, t) + (day_block_interval(keys, o, t),
+                                                 day_block_interval(keys, o, t, block_days=3))
         for buoy in sorted({k[0] for k in keys}):
             bk = [k for k in keys if k[0] == buoy]
             out["by_buoy"][(buoy, lead)] = gap(bk, o, t) + (day_block_interval(bk, o, t),)
@@ -167,7 +174,7 @@ def hole_keys_view(idx, lead):
             "buoys": sorted({k[0] for k in extra})}
 
 
-def positive_control(idx, buoy, lead=72, seeded=POSITIVE_CONTROL_M):
+def wiring_check(idx, buoy, lead=72, seeded=POSITIVE_CONTROL_M):
     """Add `seeded` to OUR absolute error at one buoy only and re-split. Returns (recovered at that buoy, max |change|
     anywhere else). A split that cannot return its own seed cannot be trusted with the real answer."""
     b = lead // 24
@@ -189,6 +196,21 @@ def positive_control(idx, buoy, lead=72, seeded=POSITIVE_CONTROL_M):
     return recovered, worst_other
 
 
+def detection_control(rows, now, days, lead=72, seeded=POSITIVE_CONTROL_M):
+    """THE DETECTION TEST (advisor, 2026-11-12). Seed +`seeded` m into EVERY served err_m BEFORE indexing and pairing,
+    re-split, and report whether the seeded pooled interval at `lead` excludes the unseeded gap. Unlike the wiring check
+    this is not arithmetic: |err + 0.05| moves a row by anything from -0.05 to +0.05 depending on the sign and size of its
+    error, so whether the split NOTICES a 0.05 m shift depends on the data and the noise.
+    Returns (unseeded gap, seeded gap, seeded 1-day interval, excludes or None when thin)."""
+    seeded_rows = [{**r, "err_m": r["err_m"] + seeded} if r.get("source") == PRIMARY and _finite(r.get("err_m")) else r
+                   for r in rows or []]
+    base = split(index_rows(rows, now, days), BEST_MATCH, leads=(lead,))["pooled"][lead]
+    hit = split(index_rows(seeded_rows, now, days), BEST_MATCH, leads=(lead,))["pooled"][lead]
+    iv = hit[5]
+    excludes = None if (iv is None or base[3] is None) else not (iv[0] <= base[3] <= iv[1])
+    return base[3], hit[3], iv, excludes
+
+
 def _fmt(v, sign=True):
     return "-" if v is None else (("%+.3f" if sign else "%.3f") % v)
 
@@ -197,7 +219,7 @@ def _ci(iv):
     return "[%+.3f, %+.3f]" % iv if iv else "[thin: < 3 days]"
 
 
-def report_lines(idx, now, days=WINDOW_DAYS):
+def report_lines(idx, now, days=WINDOW_DAYS, rows=None):
     lines = ["per-buoy split, %d days to %s, paired as head_to_head (same buoy x target x lead x observation)"
              % (days, now.strftime("%Y-%m-%dT%H:%MZ")),
              "measured hole list (9): %s" % ", ".join(MEASURED_HOLES)]
@@ -205,10 +227,11 @@ def report_lines(idx, now, days=WINDOW_DAYS):
         s = split(idx, ref)
         lines.append("== %s: pooled" % label)
         for lead in LEADS:
-            n, mo, mt, d, w, iv = s["pooled"][lead]
+            n, mo, mt, d, w, iv, iv3 = s["pooled"][lead]
             mm, miss = s["excluded"][lead]
-            lines.append("  +%dh n=%d ours=%s theirs=%s gap=%s %s win=%s  (excluded: %d obs mismatch, %d obs missing)"
-                         % (lead, n, _fmt(mo, False), _fmt(mt, False), _fmt(d), _ci(iv),
+            lines.append("  +%dh n=%d ours=%s theirs=%s gap=%s 1-day %s 3-day %s win=%s  (excluded: %d obs mismatch, "
+                         "%d obs missing)"
+                         % (lead, n, _fmt(mo, False), _fmt(mt, False), _fmt(d), _ci(iv), _ci(iv3),
                             "-" if w is None else "%.0f%%" % (100 * w), mm, miss))
         lines.append("== %s: by buoy (gap, n, 95%% day-block interval; * = measured hole)" % label)
         for buoy in sorted({b for b, _l in s["by_buoy"]}):
@@ -231,11 +254,31 @@ def report_lines(idx, now, days=WINDOW_DAYS):
             lines.append("    hole sets disagree: in data not measured=%s, measured not in data=%s"
                          % (",".join(unmeasured) or "-", ",".join(missing) or "-"))
     probe = next(iter(sorted({k[0] for k in (idx.get(PRIMARY) or {})})), None)
-    rec, other = positive_control(idx, probe) if probe else (None, None)
+    rec, other = wiring_check(idx, probe) if probe else (None, None)
     ok = rec is not None and abs(rec - POSITIVE_CONTROL_M) < 1e-9 and other is not None and other < 1e-9
-    lines.append("positive control: +%.2f m seeded on our abs error at %s (+72h) -> recovered %s, max change elsewhere %s: %s"
+    lines.append("wiring check (arithmetic, not detection): +%.2f m on our abs error at %s (+72h) -> recovered %s, max "
+                 "change elsewhere %s: %s"
                  % (POSITIVE_CONTROL_M, probe or "-", _fmt(rec), _fmt(other, False), "PASS" if ok else "FAIL"))
+    if rows is not None:
+        base, hit, iv, excl = detection_control(rows, now, days)
+        lines.append("detection control: +%.2f m seeded into every served err_m before pairing -> pooled +72h gap %s -> %s, "
+                     "seeded 1-day interval %s %s the unseeded gap"
+                     % (POSITIVE_CONTROL_M, _fmt(base), _fmt(hit), _ci(iv),
+                        "EXCLUDES" if excl else ("does NOT exclude" if excl is False else "cannot judge (thin)")))
     return lines, ok
+
+
+def gate_window_lines(rows, now, days=GATE_WINDOW_DAYS):
+    """The pooled gaps over the monitor's own 7-day window, so +0.111 is read against noise on the window that paged.
+    Per-buoy cells are not printed here: 7 days gives too few 3-day blocks for a per-buoy interval."""
+    idx = index_rows(rows, now, days)
+    lines = ["== gate window: pooled, %d days (the monitor's paired window; per-buoy intervals are thin here)" % days]
+    for ref, label in ((BEST_MATCH, "best_match"), (SAME_MODEL, "same-model control")):
+        s = split(idx, ref)
+        for lead in LEADS:
+            n, mo, mt, d, w, iv, iv3 = s["pooled"][lead]
+            lines.append("  vs %-18s +%dh n=%d gap=%s 1-day %s 3-day %s" % (label, lead, n, _fmt(d), _ci(iv), _ci(iv3)))
+    return lines
 
 
 def main():
@@ -245,7 +288,7 @@ def main():
     from scripts.forecast_accuracy_monitor import _fetch_scored_month
     now = datetime.now(timezone.utc)
     through = (now + timedelta(days=1)).date()
-    months = sorted({(now - timedelta(days=d)).strftime("%Y-%m") for d in range(args.days + 1)})
+    months = sorted({(now - timedelta(days=d)).strftime("%Y-%m") for d in range(max(args.days, GATE_WINDOW_DAYS) + 1)})
     rows = []
     for m in months:
         got = _fetch_scored_month(m, through)
@@ -254,7 +297,9 @@ def main():
             return 3
         rows += got
     idx = index_rows(rows, now, args.days)
-    lines, ok = report_lines(idx, now, args.days)
+    lines, ok = report_lines(idx, now, args.days, rows=rows)
+    if args.days != GATE_WINDOW_DAYS:
+        lines += gate_window_lines(rows, now)
     print("\n".join(lines))
     return 0 if ok else 2
 
