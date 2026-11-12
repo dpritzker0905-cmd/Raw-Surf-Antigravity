@@ -88,6 +88,16 @@ Keep the equal mean of available members as the baseline, with the member count 
 - Our ledger rows' tier schema.
 - Any gain on our data. Every number above is from another system.
 
+## 6. Second opinion (Reflection, 2026-11-12, requested by David)
+
+Reflection (Beam-1.0) reviewed section 4 and the rules in sections 2 and 3. Its points, recorded as its view, not as evidence:
+
+- **Ordering is defensible, but power is low.** About six buoys and a 30-day window can miss real gains, and the BMA/EMOS gains come from temperature, pressure, Adriatic and North Sea settings, not surf Hs. Treat them as hypotheses.
+- **Missing members.** Renormalising beats zero-imputing, but missingness may not be random: a member dropped in high seas or in one regime would shift the effective weights. Add a missingness diagnostic by regime before adopting the rule.
+- **Direction weighting.** Hs is not energy; energy scales roughly with Hs². Add an energy-weighted sensitivity run. In bimodal seas one resultant direction can mislead, so report the resultant length alongside it.
+- **Partition matching.** Thresholds on peak period and direction are arbitrary, and partition labels can flip for small differences, causing discontinuities. Add threshold sensitivity before adopting it.
+- **Overall:** proceed only as hypotheses, with energy-weighting, missingness and threshold sensitivity runs added to the test plan in section 1.6 and section 3.
+
 ## Sources
 
 - [Using Bayesian Model Averaging to Calibrate Forecast Ensembles](https://consensus.app/papers/details/w:e64bdc3e-963d-42e1-81cb-79fd66cfd182/?utm_source=claude_code) (Raftery et al., 2005)
