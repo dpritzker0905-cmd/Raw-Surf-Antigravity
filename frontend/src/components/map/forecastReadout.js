@@ -78,19 +78,50 @@ export function formatInstant(ms, timeZone) {
   return `${d.toLocaleDateString('en-US', { weekday: 'short', ...opts })} ${d.toLocaleTimeString('en-US', { hour: 'numeric', ...opts })}`;
 }
 
+// Full calendar labels distinguish repeated weekdays across the 14-day forecast.
+const datedFormatters = new Map();
+export function formatForecastInstant(ms, timeZone) {
+  if (!Number.isFinite(ms)) return '';
+  const key = timeZone || '';
+  let formatter = datedFormatters.get(key);
+  if (!formatter) {
+    formatter = new Intl.DateTimeFormat('en-US', {
+      weekday: 'short', month: 'short', day: 'numeric', year: 'numeric',
+      hour: 'numeric', minute: '2-digit', timeZoneName: 'short',
+      ...(timeZone ? { timeZone } : {}),
+    });
+    if (datedFormatters.size >= FORMATTER_CACHE_MAX) datedFormatters.clear();
+    datedFormatters.set(key, formatter);
+  }
+  return formatter.format(new Date(ms));
+}
+
+/** Forecast selection clock: UTC elapsed hours, never local wall-clock arithmetic. */
+export function forecastSelectionMs(hour) {
+  let anchor;
+  try { anchor = getSeriesAnchorMs(); } catch (e) { anchor = NaN; }
+  if (!Number.isFinite(anchor)) anchor = Math.round(Date.now() / HOUR_MS) * HOUR_MS;
+  return anchor + (Number(hour) || 0) * HOUR_MS;
+}
+
+const dayFormatter = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric' });
+export function forecastDayLabel(hour) {
+  return dayFormatter.format(new Date(forecastSelectionMs(hour)));
+}
+
 /**
- * `{ text, srText }` for the readout. `text` stays short for the 50px chip; `srText` says in words
+ * `{ text, srText }` for the readout. Full dates remain visible; `srText` says in words
  * when the display snapped to the model's nearest time step, so the snap is never conveyed only by
- * a number changing (ACCESSIBILITY mandate). Hour 0 keeps the product copy "Live".
+ * a number changing (ACCESSIBILITY mandate). Hour 0 includes the selection label and its full timestamp.
  */
 export function forecastReadout(hour, layer, model, { timeZone } = {}) {
   const { ms, requestedMs, snapped, blend } = displayedForecastTime(hour, layer, model);
-  const shown = formatInstant(ms, timeZone);
-  const text = (Number(hour) || 0) === 0 ? 'Live' : shown;
+  const shown = formatForecastInstant(ms, timeZone);
+  const text = (Number(hour) || 0) === 0 ? `Now · ${shown}` : shown;
   const srText = blend
-    ? `Showing an estimate for ${shown}, interpolated between the forecasts for ${formatInstant(blend.t0, timeZone)} and ${formatInstant(blend.t1, timeZone)}.`
+    ? `Showing an estimate for ${shown}, interpolated between the forecasts for ${formatForecastInstant(blend.t0, timeZone)} and ${formatForecastInstant(blend.t1, timeZone)}.`
     : snapped
-      ? `Showing the forecast for ${shown}, the nearest model time step to ${formatInstant(requestedMs, timeZone)}.`
+      ? `Showing the forecast for ${shown}, the nearest model time step to ${formatForecastInstant(requestedMs, timeZone)}.`
       : `Showing the forecast for ${shown}.`;
   return { text, srText, snapped: !!snapped && !blend };
 }

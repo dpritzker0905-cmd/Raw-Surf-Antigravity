@@ -2,6 +2,7 @@
  * SinglePost - View a single post with full details
  * Used when navigating directly to /post/:postId
  */
+import {goBackOr} from './routing/appHistory';
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import apiClient from '../lib/apiClient';
@@ -46,17 +47,8 @@ const SinglePost = () => {
   const [liveUsers] = useState([]);
   const [connectingToStream] = useState(null);
 
-  // Smart back navigation - uses browser history when available
-  const handleBack = () => {
-    // If we have history entries beyond the initial page load, go back
-    // window.history.length > 1 means there's at least one page to go back to
-    if (window.history.length > 1) {
-      navigate(-1);
-    } else {
-      // Only fallback to feed if there's truly no history (e.g., direct URL access)
-      navigate('/feed', { replace: true });
-    }
-  };
+  // The authenticated arrival boundary is not a usable Back destination.
+  const handleBack = () => goBackOr(navigate, '/feed');
 
   // Theme classes
   const bgClass = isLight ? 'bg-gray-50' : 'bg-black';
