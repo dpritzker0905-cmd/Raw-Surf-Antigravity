@@ -323,3 +323,22 @@ the holds ON. Candidates to test, in order:
 (b) a pan that moves the viewport off the resident (the hold releases by design);
 (c) a re-ingest that advances the model cycle mid-session.
 The fix file would be `marineFinerResidentHold.js`, a client file next to the renderer; the animation lane is asked first.
+
+## 11. Addendum 07:40Z: the census's rating path (guards lane on 137534ee0)
+
+`tests/test_sim_every_surface_reads_the_served_curve.py::test_no_surface_is_silently_missing_from_the_registry` failed because
+`scripts/dominant_swell_flag_census.py` called `sim_rating.calculate_surf_rating` directly. Part B now rates through
+`spot_ratings.rate_one_spot` with a stub point resolver (the same harness as #792's `dominant_swell_anim_census.py`), so the
+script needs no registry entry and no exemption.
+
+Which number came from which path:
+- D-070's figures (60.5% direction changed, 18.5% level changed, mean -1.60; 120 spots, real GFS wind) are #792's census,
+  which already ran through `rate_one_spot`.
+- This log's section 3 figures (58.5% direction changed, 13.9% level changed, signed mean -1.5; 1,755 spots x 5 h x 4 wind
+  scenarios) came from the `sim_rating.calculate_surf_rating` wrapper, as the SCOREBOARD row says.
+
+Are the two paths the same? No, not exactly. On 312 same rows (150 random catalogue spots, f000, the four wind scenarios, flag
+off), the scores were identical on 97.4% of rows (median difference 0, p90 0) but differed by up to 82.6 points on the rest.
+The level disagreed on 1.3% of rows, and the breaking height differed by a median of 0.02 ft. So the section 3 numbers are
+SUPERSEDED: the full census is being re-run through `rate_one_spot`, and the replacement numbers will land in a following
+addendum and SCOREBOARD correction. Until then, cite #792's `rate_one_spot` census (D-070), not section 3.
