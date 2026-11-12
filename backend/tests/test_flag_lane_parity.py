@@ -91,7 +91,10 @@ INGEST_LANES = ("forecast-ingest.yml", "precompute.yml")
 #   declared in a lane at all. Same shape as the nine undeclared science switches in `62691c88`:
 #   a flag the drift guard cannot see can hold a different value in each lane, and the same spot
 #   then faces two different directions depending on which lane wrote the frame.
-DRIFT_PREFIXES = ("RATING_", "SURF_", "MARINE_", "SPOT_RATINGS_", "SHORE_NORMAL_", "ECMWF_")
+#   `WAVES_ANIM_` added 2026-11-12: WAVES_ANIM_DOMINANT_SWELL was read from a repo variable by both ingest lanes (set to '1' since
+#   2026-07-13) yet had no prefix here and no registry entry, so no guard could see it. It changes the waves direction every
+#   point read samples, hence the rating's swell_from (audit ING-5). DRIFT scope only: the sim parity monitor grades served frames.
+DRIFT_PREFIXES = ("RATING_", "SURF_", "MARINE_", "SPOT_RATINGS_", "SHORE_NORMAL_", "ECMWF_", "WAVES_ANIM_")
 # ★ `SHORE_NORMAL_` added to COMPOSITION on 2026-08-02 (audit v5 F1), and the distinction is the
 #   whole point: it was already in DRIFT, so the two INGEST lanes were compared — but the parity
 #   MONITOR's comparator narrows to COMPOSITION, so `SHORE_NORMAL_BEARING_RADIUS_KM` was collected
@@ -132,6 +135,11 @@ LANE_EXCEPTIONS: dict = {
                                     "forecast-ingest-pilots.yml read the same repo variable",
     "ECMWF_WAVE_LAND_CENTRE_REACH": "ingest-only: precompute_ci.py imports no ecmwf module; forecast-ingest.yml and "
                                     "forecast-ingest-pilots.yml read the same repo variable",
+    # The normalizer runs in the marine ingest; precompute_ci.py runs no marine ingest, so the flag is unreadable there. It rates frames
+    # that were stamped at ingest, so the value reaches precompute through the stored grids, not through its own environment.
+    "WAVES_ANIM_DOMINANT_SWELL": "ingest-only: precompute.yml runs no marine ingest; forecast-ingest.yml and "
+                                 "forecast-ingest-pilots.yml read the same repo variable",
+    "WAVES_ANIM_SWELL_MIN_FRAC": "ingest-only: the energy gate of the flag above, same lanes, same reason",
 }
 
 
@@ -689,3 +697,21 @@ def test_the_euro_land_centre_flags_come_from_one_repo_variable_in_both_ecmwf_la
     assert code == [default], f"{flag}: the lanes fall back to {default!r}, the fetcher reads {code}"
     assert REGISTRY[flag][0] == default, f"{flag}: registry default {REGISTRY[flag][0]!r} vs lanes {default!r}"
     assert flag not in ALL_LANE_FLAGS["precompute.yml"], f"{flag} declared in precompute.yml, which reaches no ecmwf module"
+
+
+def test_the_dominant_swell_animation_flag_is_one_repo_variable_in_both_ingest_lanes_and_registered():
+    """WAVES_ANIM_DOMINANT_SWELL (ING-5): both lanes that run the marine normalizer read it from ONE repo variable of its own name
+    with the SAME fallback, that fallback is the normalizer's own code default and the registry's, and precompute (no marine ingest)
+    does not declare it. Its value in GitHub (read '1' on 2026-11-11) is not in git; this keeps the git-visible half honest."""
+    flag = "WAVES_ANIM_DOMINANT_SWELL"
+    seen = {lane: _workflow_var_flags(lane).get(flag) for lane in _ECMWF_LANES}   # forecast-ingest.yml + pilots
+    assert all(seen.values()), f"{flag} is not read from a repo variable in both ingest lanes: {seen}"
+    assert len(set(seen.values())) == 1, f"the ingest lanes read {flag} differently: {seen}"
+    var, default = next(iter(seen.values()))
+    assert var == flag
+    src = open(os.path.join(REPO, "backend", "services", "weather_pipeline", "normalizer.py"), encoding="utf-8").read()
+    code = re.findall(r'os\.environ\.get\("' + flag + r'",\s*"([^"]*)"\)', src)
+    assert code == [default], f"{flag}: the lanes fall back to {default!r}, the normalizer reads {code}"
+    assert flag in REGISTRY and REGISTRY[flag][0] == default, f"{flag} must be registered with the code default {default!r}"
+    assert "repo variable" in REGISTRY[flag][2], "the registry must say the flag is flipped by repo variable"
+    assert flag not in ALL_LANE_FLAGS["precompute.yml"], f"{flag} declared in precompute.yml, which runs no marine ingest"
