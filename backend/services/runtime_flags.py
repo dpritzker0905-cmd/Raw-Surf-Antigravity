@@ -56,6 +56,7 @@ GUARDED = {
                                         # MAE 0.250 -> 0.096 m at CDIP buoys (2026-10-09..11-04), ON; kill '0'
     "SHORE_NORMAL_MOP_CALIBRATED": "0",  # HELD OFF (D-065 WORSE): MOP says better (held-out MSE 0.0234 -> 0.0046, 77 spots)
                                          # but the nearshore arm's hb_proxy says WORSE, +0.0385 m MAE [0.0234, 0.0589]
+    "RATING_BREAK_DEPTH_FROM_GEOMETRY": "1",  # CMP-3: the rating reads the break depth the height's cap used; offline filter NO_CHANGE
 }
 
 # FIX_VERSION: bump a flag's version in the PR that changes its fix. The guardrail's 'off' records the version it

@@ -19,10 +19,11 @@ from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoPro
 
 # Import extracted helpers/services
 from services.weather_pipeline.route_helpers import (
-    filter_grid_to_bbox, compute_truth_tag, get_snapped_bbox, append_diagnostic_line, env_int
+    append_diagnostic_line, env_int
 )
 from services.weather_pipeline.viewport_service import ViewportService
 from services.weather_pipeline.point_resolution import PointResolutionService
+from services.weather_pipeline import point_product_id as _ppid, point_truth_tag as _ptt
 from services.weather_pipeline.grid_response import GridResponseRoute, own_grid_operation
 
 # P1 per-spot ratings (/spot-ratings): query surf spots + compute the rating at each precise location.
@@ -189,6 +190,8 @@ async def get_point(
     GET /api/weather/point
     Samples from the exact same cached product grid used for heatmaps, ensuring parity.
     """
+    # SRV-1: malformed id = 400, unknown id = hint dropped (it used to flow straight into a storage path).
+    grid_product_id = await _ppid.require_known_point_product(store, dynamic_index, grid_product_id)
     response = await point_resolution_service.resolve_point(
         model=model,
         domain=domain,
@@ -203,118 +206,8 @@ async def get_point(
     is_gfs_marine_waves = (model.upper() == "GFS" and domain.lower() == "marine" and layer.lower() == "waves")
     is_wind = (domain.lower() == "wind" and layer.lower() == "wind")
     if is_gfs_marine_waves or is_wind:
-        sampled_product_id = None
-        source = None
-        
-        if isinstance(response, NormalizedPointResponse):
-            sampled_product_id = response.product_id
-            source = response.source
-        elif isinstance(response, JSONResponse):
-            import json
-            try:
-                body_dict = json.loads(response.body.decode("utf-8"))
-                sampled_product_id = body_dict.get("product_id")
-                source = body_dict.get("source")
-            except Exception:
-                body_dict = {}
-        else:
-            return response
-
-        truth_tag = None
-        if sampled_product_id:
-            product = await asyncio.to_thread(store.load_product, sampled_product_id)
-            if product and product.grid:
-                # 1. Compute sourceTruthTag of the original uncropped product
-                source_truth_tag = compute_truth_tag(
-                    model=product.model,
-                    domain=product.domain,
-                    layer=product.layer,
-                    valid_time=product.valid_time,
-                    run_time=product.run_time,
-                    product_id=product.product_id,
-                    provider=product.provider,
-                    upstream_model=product.upstream_model,
-                    is_dynamic_viewport_product=product.is_dynamic_viewport_product,
-                    coverage_scope=product.coverage_scope,
-                    requested_bbox=product.requested_bbox,
-                    served_bbox=product.served_bbox,
-                    cols=product.grid.cols,
-                    rows=product.grid.rows,
-                    vectors=product.grid.vectors,
-                    source_stage="sourceResponse"
-                )
-
-                # 2. Crop the product if grid_bbox is provided and not wind
-                cropped_product = product
-                if grid_bbox and domain.lower() != "wind" and getattr(product, "coverage_mode", None) != "global_tile":
-                    cropped_product = filter_grid_to_bbox(product, get_snapped_bbox(grid_bbox, product.model))
-
-                # 3. Compute cropped truth tag
-                crop_truth_tag = compute_truth_tag(
-                    model=cropped_product.model,
-                    domain=cropped_product.domain,
-                    layer=cropped_product.layer,
-                    valid_time=cropped_product.valid_time,
-                    run_time=cropped_product.run_time,
-                    product_id=cropped_product.product_id,
-                    provider=cropped_product.provider,
-                    upstream_model=cropped_product.upstream_model,
-                    is_dynamic_viewport_product=cropped_product.is_dynamic_viewport_product,
-                    coverage_scope=cropped_product.coverage_scope,
-                    requested_bbox=cropped_product.requested_bbox,
-                    served_bbox=cropped_product.served_bbox,
-                    cols=cropped_product.grid.cols if cropped_product.grid else 0,
-                    rows=cropped_product.grid.rows if cropped_product.grid else 0,
-                    vectors=cropped_product.grid.vectors if cropped_product.grid else [],
-                    source_stage="pointResponse"
-                )
-
-                # 4. Check if hashes and bounds match
-                hashes_match = (
-                    source_truth_tag["dataHash"] == crop_truth_tag["dataHash"]
-                    and source_truth_tag["boundsHash"] == crop_truth_tag["boundsHash"]
-                )
-
-                if hashes_match:
-                    truth_tag = crop_truth_tag
-                else:
-                    truth_tag = crop_truth_tag.copy()
-                    truth_tag["sourceTruthTag"] = source_truth_tag
-                    truth_tag["sampledTruthTag"] = crop_truth_tag
-                    truth_tag["cropTruthTag"] = crop_truth_tag
-                    truth_tag["parentProductId"] = product.product_id
-
-        is_match = False
-        mismatch_reason = None
-        if grid_product_id:
-            if source == "grid_file" and sampled_product_id == grid_product_id:
-                is_match = True
-            else:
-                is_match = False
-                mismatch_reason = f"Sampled from source={source}, product={sampled_product_id} but expected grid_product_id={grid_product_id}"
-        else:
-            if source == "grid_file":
-                is_match = True
-            else:
-                is_match = False
-                mismatch_reason = f"Sampled from source={source} (no grid_product_id requested)"
-
-        grid_parity_dict = {
-            "status": "MATCH" if is_match else "MISMATCH",
-            "mismatchReason": mismatch_reason
-        }
-
-        if isinstance(response, NormalizedPointResponse):
-            response.truthTag = truth_tag
-            response.gridPointParity = grid_parity_dict
-            response.mismatchReason = mismatch_reason
-            return response
-        else:
-            body_dict["truthTag"] = truth_tag
-            body_dict["gridPointParity"] = grid_parity_dict
-            body_dict["mismatchReason"] = mismatch_reason
-            return JSONResponse(status_code=response.status_code, content=body_dict)
-
+        # SRV-4: truthTag + parity, off the event loop and memoised per product (point_truth_tag.py).
+        return await _ptt.attach_point_truth(response, store, domain, grid_product_id, grid_bbox)
     return response
 
 # ─────────────────────────────────────────────────────────────────────────────────────────────────────
@@ -464,6 +357,7 @@ async def get_spot_ratings(
     model: str = Query("GFS", pattern="^(GFS|ICON|EURO)$"),
     limit: int = Query(40, ge=1, le=200, description="max spots rated per request (serve-box bound)"),
     db: AsyncSession = Depends(get_db),
+    request: Request = None,
 ):
     """GET /api/weather/spot-ratings — per-surf-spot surf-quality ratings for the viewport's map glyphs."""
     if os.environ.get("SPOT_RATINGS_V2", "1") == "0":
@@ -520,6 +414,12 @@ async def get_spot_ratings(
     _hit = _LIVE_RATINGS_CACHE.get(ckey)
     if _hit is not None and (_time.time() - _hit[0]) < _LIVE_RATINGS_TTL_S:
         return _hit[1]
+
+    # SRV-6 (2026-11-10): one anonymous client could hold BOTH live slots indefinitely by asking for times off the
+    # precompute ladder. Per-IP sliding window on the live path ONLY (precomputed/cached answers cost nothing and are
+    # never limited). See live_ratings_limit.py.
+    from services.weather_pipeline.live_ratings_limit import check_live_ratings_ip_limit
+    check_live_ratings_ip_limit(request)
 
     # LIVE-PATH LOAD SHED (2026-07-13, melt round 4 — the box must be UNMELTABLE by ratings): each
     # live compute is 7.5-8.6 s on the 1-CPU box; concurrent pileups starve the DB pool and 500 every
