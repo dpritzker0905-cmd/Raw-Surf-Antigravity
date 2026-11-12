@@ -50,6 +50,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_SERIES_RUN_EVICT__',
   // components/map/responsiveWeather.test.js
   '__RAW_DISABLE_RESPONSIVE_WEATHER__',
+  // components/map/ownRasterFrames.test.js (pressure from own frames, ON 2026-11-12; the kill is the .om path)
+  '__RAW_DISABLE_RASTER_OWN_PRESSURE__',
   // tests/forecast-card-swell-vs-surf.test.js (CMP-4)
   '__RAW_DISABLE_UNKNOWN_DEPTH_HIDE__',
   // components/map/marineUnpatchedMaskHold.test.js
