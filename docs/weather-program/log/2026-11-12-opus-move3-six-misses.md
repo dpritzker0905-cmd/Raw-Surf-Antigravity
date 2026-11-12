@@ -74,10 +74,28 @@ refusals over a 6 s window cannot all be the 1 s `AUX_SYNC_EVERY_MS` throttle; t
 headless Chrome (`marineFrameStoreRuntime.auxShowable`). Not confirmed; that is the next instrument. If it is the tier, a real
 desktop already passes; if it is the throttle, the fix is to allow the sync aux once on a step whose resident is a foreign commit.
 
+## 23:50Z Owner's go-ahead to fix the ICON step: cause narrowed, the first fix falsified and withdrawn
+
+Probe (harness now records the store tier and the aux sync/show counts): `tier: desktop`, so the device-tier gate is ruled out;
+the refusal is the 1 s `AUX_SYNC_EVERY_MS` throttle. Per action, the J:126 key run (PageDown run from h336 back to h126) does
+2 on-the-spot chl/bath computes and 2 aux shows, then 16-18 refusals: something clears the resident between the run's stored
+steps, and the last step lands inside the throttle window. No backend ask is made during that action, so the normal path draws
+h126 from client-side data (series or static seam), not from the box.
+
+Fix tried: "a commit from an ICON blend hour re-arms the throttle" (kill `__RAW_DISABLE_FRAME_AUX_REARM__`, 2 tests, mutant check
+failed exactly the new test). Lab A/B, ICON start x swell_1/swell_2/wind_waves x z2/z4.6, 3 runs per arm interleaved, bundle hash
+asserted per run (dev `main.d63802dd.js` vs fix `main.1e659777.js`): p95 ms swell_1 163 -> 140, wind_waves 141 -> 146, swell_2
+304 -> 221 (that cell never takes this path: `no_index`, the blend); `aux_not_ready` 52 -> 50 and 51 -> 53; J:126 still `grid` in
+5 or 6 of 6 sessions per cell. **The re-arm never fired.** Reason: `WebGLMarineLayer` calls `noteCommitted` with
+`hour: timeOffsetHoursRef.current`, the CURSOR's hour, so a late blend commit lands with the cursor already under 168 h and was
+never classed as a blend commit. The premise (that late blend commits are what clear the resident) is therefore unproven too.
+Withdrawn; the diff is kept outside the repo. Next instrument: log each `noteCommitted` outcome during a key run with the
+committed grid's own time, served time and product id, to name the commit that clears the resident before changing anything.
+
 ## Still missing, plainly
 
 | Cell | Why | Route |
 |---|---|---|
 | swell_2 ICON | per-step client blend, 110-150 ms of compute before the draw | store-packed blend (~200 ms idle/frame, ~4.7 MB/run) or a published set: owner's call |
-| swell_1 ICON, wind_waves ICON | one step after a blend hour: aux path refused (`aux_not_ready`) | confirm tier vs throttle, then a small client fix |
+| swell_1 ICON, wind_waves ICON | one step after a blend hour: aux path refused by the 1 s throttle (`aux_not_ready`; tier ruled out) | name the commit that clears the resident (instrument above), then fix; the blend re-arm was tried and failed |
 | EURO in production (not the lab) | publish-budget staleness, far-edge hold | #816; the hold needs `/capabilities` to expose its rails before a client mirror |

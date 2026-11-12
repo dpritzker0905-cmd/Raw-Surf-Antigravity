@@ -235,7 +235,7 @@ async function session({ model0, layer, zoom, theme, arm }) {
       const ring0 = await page.evaluate(() => Date.now());
       // Per-action store and static-seam miss reasons (2026-11-12, the six misses): a delta of the runtime counters over the action.
       const missSnap = () => page.evaluate(() => { const f = window.__RAW_FRAME_STORE__; const sf = window.__RAW_STATIC_FRAMES__;
-        return { store: { ...((f && f.shows && f.shows.misses) || {}) }, sf: { ...((sf && sf.misses) || {}) }, deferred: (f && f.shows && f.shows.deferred) || 0, aux: { ...((f && f.shows && f.shows.auxMiss) || {}) } }; });
+        return { store: { ...((f && f.shows && f.shows.misses) || {}) }, sf: { ...((sf && sf.misses) || {}) }, deferred: (f && f.shows && f.shows.deferred) || 0, aux: { ...((f && f.shows && f.shows.auxMiss) || {}), sync: (f && f.aux && f.aux.sync) || 0, shown: (f && f.shows && f.shows.aux) || 0 } }; });
       const miss0 = await missSnap();
       const t0 = Date.now(); const req0 = log.requests.length;
       if (tok === 'M') {
@@ -282,7 +282,7 @@ async function session({ model0, layer, zoom, theme, arm }) {
     }
     await shot('after-plan');
     const counters = await page.evaluate(() => { const f = window.__RAW_FRAME_STORE__; const sf = window.__RAW_STATIC_FRAMES__;
-      return { store: f ? { shows: f.shows && f.shows.n, misses: f.shows && { ...f.shows.misses }, commits: { ...f.commits }, crop: f.crop && { window: f.crop.window && f.crop.window.key, built: f.crop.built, shows: f.crop.shows }, switches: f.switches } : null,
+      return { store: f ? { shows: f.shows && f.shows.n, misses: f.shows && { ...f.shows.misses }, commits: { ...f.commits }, crop: f.crop && { window: f.crop.window && f.crop.window.key, built: f.crop.built, shows: f.crop.shows }, switches: f.switches, tier: f.tier, aux: f.aux, auxMiss: f.shows && { ...(f.shows.auxMiss || {}) } } : null,
         sf: sf ? { hits: sf.hits, seriesFrames: sf.seriesFrames, crops: sf.crops, misses: { ...sf.misses } } : null, clears: window.__WEBGL_MARINE_CLEAR_COUNT__ || 0 }; });
     const byPath = {}; for (const q of log.requests) byPath[q.path] = (byPath[q.path] || 0) + 1;
     return { model0, layer, zoom, theme, view: VIEW, arm: arm.name, bundle, idleTwoRafMedian: idle, actions, counters, backend: byPath, errors: log.errors.slice(0, 5) };
