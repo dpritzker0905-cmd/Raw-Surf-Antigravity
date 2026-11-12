@@ -85,7 +85,8 @@ def test_the_clamp_middleware_answers_429_with_retry_after_per_account(monkeypat
     a = {"Authorization": "Bearer a"}
     assert [client.get("/api/weather/grid", headers=a).status_code for _ in range(2)] == [200, 200]
     r = client.get("/api/weather/grid", headers=a)
-    assert r.status_code == 429 and r.headers["retry-after"] == "4" and r.json() == {"detail": "rate_limited"}
+    assert r.status_code == 429 and r.headers["retry-after"] == "4"
+    assert r.json() == {"detail": "rate_limited", "retry_after_s": 4} and r.headers["x-raw-tier-clamp"] == "rate_limited"
     assert r.headers["cache-control"] == "private, no-store"
     assert client.get("/api/weather/grid", headers={"Authorization": "Bearer b"}).status_code == 200   # independent
     assert client.get("/api/weather/grid").status_code == 401                                       # signed out: 401 first
@@ -107,3 +108,11 @@ def test_held_off_the_middleware_never_limits(monkeypatch):
     app.add_middleware(C.WeatherTierClampMiddleware, identity_fn=identity)
     client = TestClient(app)
     assert {client.get("/api/weather/grid").status_code for _ in range(5)} == {200}
+
+
+def test_the_429_is_readable_cross_origin_by_the_notice():
+    """The client keys its notice on X-Raw-Tier-Clamp: rate_limited and reads Retry-After: both must be exposed."""
+    import server
+    cors = next(m for m in server.app.user_middleware if m.cls.__name__ == "CORSMiddleware")
+    exposed = {h.lower() for h in cors.kwargs.get("expose_headers", [])}
+    assert {"x-raw-tier-clamp", "retry-after"} <= exposed

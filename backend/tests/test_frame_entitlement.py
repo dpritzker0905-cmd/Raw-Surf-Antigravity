@@ -326,6 +326,7 @@ def test_signing_requests_are_limited_per_account_with_retry_after(monkeypatch):
     assert [ask("a").status_code for _ in range(2)] == [200, 200]
     r = ask("a")
     assert r.status_code == 429 and r.headers["retry-after"] == "10" and r.headers["cache-control"] == "private, no-store"
+    assert r.headers["x-raw-tier-clamp"] == "rate_limited" and r.json()["retry_after_s"] == 10
     assert ask("b").status_code == 200
     monkeypatch.setenv(RL.FLAG, "0")
     rf._reset_for_tests(lambda: None)

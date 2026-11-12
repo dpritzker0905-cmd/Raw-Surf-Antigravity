@@ -35,7 +35,7 @@ const path = require('path');
 
 const MAP_DIR = path.resolve(__dirname, '../components/map');
 // Map-serving files outside components/map whose switches the map depends on (#782 accounts only, 2026-11-12).
-const EXTRA_FILES = ['../lib/weatherAuthFetch.js', '../lib/weatherSession.js'].map((f) => path.resolve(__dirname, f));
+const EXTRA_FILES = ['../lib/weatherAuthFetch.js', '../lib/weatherSession.js', '../lib/weatherRateLimit.js'].map((f) => path.resolve(__dirname, f));
 
 /**
  * Switches that have a dedicated *.killSwitch.test.js covering them with
@@ -47,6 +47,8 @@ const KILL_SWITCHES_TESTED = new Set([
   // ("kill switch and the auth page itself raise nothing"): #782, accounts only
   '__RAW_DISABLE_WEATHER_AUTH__',
   '__RAW_DISABLE_SESSION_PROMPT__',
+  // tests/rateLimitNotice.test.js ("the kill switch: no hold, no event, no notice"): #815
+  '__RAW_DISABLE_RATE_LIMIT_NOTICE__',
   // components/map/oneWayCrests.test.js (one-way crests, 2026-11-12)
   '__RAW_DISABLE_ONE_WAY_CRESTS__',
   '__RAW_DISABLE_REDUCED_MOTION_BAND__',

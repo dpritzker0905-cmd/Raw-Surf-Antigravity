@@ -115,7 +115,8 @@ async def get_frame_urls(index: str = Query(..., max_length=200), authorization:
             "X-Raw-Tier-Clamp": "account"})
     wait = RL.retry_after("frame-urls", uid)             # per-account signing limit (owner 2026-11-12); kill: flag '0'
     if wait is not None:
-        return JSONResponse({"detail": "rate_limited"}, status_code=429, headers={
-            "Cache-Control": "private, no-store", "Vary": "Authorization", "Retry-After": str(wait)})
+        return JSONResponse({"detail": RL.RATE_LIMITED, "retry_after_s": wait}, status_code=429, headers={
+            "Cache-Control": "private, no-store", "Vary": "Authorization", "Retry-After": str(wait),
+            "X-Raw-Tier-Clamp": RL.RATE_LIMITED})
     body = await asyncio.to_thread(entitled_urls, index, tier)
     return JSONResponse(body, headers={"Cache-Control": "private, max-age=300", "Vary": "Authorization"})

@@ -333,9 +333,10 @@ async def _sign_in_required(scope, send):
 
 async def _too_many(scope, send, retry_after_s: int):
     """429 for an account over its per-account read limit (weather_account_rate_limit.py). Never cacheable."""
-    body = _RL.TOO_MANY
+    body = _RL.too_many_body(retry_after_s)
     await send({"type": "http.response.start", "status": 429, "headers": [
         (b"content-type", b"application/json"), (b"content-length", str(len(body)).encode()),
         (b"cache-control", b"private, no-store"), (b"vary", b"Authorization"),
-        (b"retry-after", str(int(retry_after_s)).encode()), (ON_HEADER, b"1")]})
+        (b"retry-after", str(int(retry_after_s)).encode()), (ON_HEADER, b"1"),
+        (b"x-raw-tier-clamp", _RL.RATE_LIMITED.encode())]})
     await send({"type": "http.response.body", "body": b"" if scope.get("method") == "HEAD" else body})

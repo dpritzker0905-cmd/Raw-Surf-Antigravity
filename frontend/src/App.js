@@ -6,6 +6,7 @@ import { PricingProvider } from './contexts/PricingContext';
 import { PersonaProvider } from './contexts/PersonaContext';
 import { Toaster } from './components/ui/sonner';
 import SessionExpiredPrompt from './components/SessionExpiredPrompt';
+import RateLimitNotice from './components/RateLimitNotice';
 import AccessCodeScreen from './components/AccessCodeScreen';
 import CookieConsentBanner from './components/ui/CookieConsentBanner';
 
@@ -229,6 +230,8 @@ function App() {
           <Toaster position="top-center" richColors />
           {/* #782: a forecast read refused WITH this user's token -> sign in again, with a return path. */}
           <SessionExpiredPrompt />
+          {/* #815: the per-account limit's 429 -> a non-modal 'try again in N s' status, auto-clearing. */}
+          <RateLimitNotice />
           <CookieConsentBanner />
           <PushNotificationInit />
           <BackButtonHandler />

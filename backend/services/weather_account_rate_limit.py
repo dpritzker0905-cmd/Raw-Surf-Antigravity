@@ -88,4 +88,9 @@ def retry_after(lane: str, user_id: Optional[str], limiter: AccountLimiter = Non
     return (limiter or LIMITER).check(lane, user_id)
 
 
-TOO_MANY = b'{"detail":"rate_limited"}'
+RATE_LIMITED = "rate_limited"   # X-Raw-Tier-Clamp on the 429: the client's too-many-requests notice keys on it
+
+
+def too_many_body(retry_after_s: int) -> bytes:
+    """The 429 body. The wait is in the body too: a cross-origin reader that cannot see Retry-After still has it."""
+    return ('{"detail":"%s","retry_after_s":%d}' % (RATE_LIMITED, int(retry_after_s))).encode()

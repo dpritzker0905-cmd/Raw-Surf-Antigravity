@@ -1,6 +1,6 @@
 {
   "lane": "guards",
-  "tests": 7,
+  "tests": 8,
   "files": 1,
   "branch": "claude/account-rate-limit",
   "date": "2026-11-12",
