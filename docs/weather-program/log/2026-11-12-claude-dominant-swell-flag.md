@@ -305,7 +305,7 @@ gate-aware costs, for the advisor to merge into D-070 or drop.
    control; 7.2 the field values); the rest say "not reproduced". Which of these the director's agent also covers is asked of
    the director.
 
-## 10. Addendum 05:50Z: the motion verdict is #796's; what 7.1 does and does not prove
+## 10. Addendum 05:48Z: the motion verdict is #796's; what 7.1 does and does not prove
 
 **Direction.** The director's diagnosis agent (draft #796) owns the motion verdict: no sign error in any layer. The "opposing"
 look is the orbital pitch sway (`__RAW_ORBITAL_PITCH__`, 2.5 px) outrunning the dash drift under troughs, so 41-49% of dashes
