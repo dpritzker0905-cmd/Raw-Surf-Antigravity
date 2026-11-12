@@ -21,6 +21,7 @@ from services.weather_pipeline.point_resolution import PointResolutionService
 from services.weather_pipeline.sampler import PointSampler
 from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
 from services.conditions_labels import get_conditions_label
+from services.weather_tier_clamp import SIGNED_OUT, withhold_signed_out
 from services.forecast_tier_window import apply_tier_window, days_allowed
 
 point_sampler = PointSampler()
@@ -466,8 +467,10 @@ async def get_surf_spots_with_conditions(
                                              spot_id=spot.id)
         return (spot.id, data)
     
-    # Fetch all conditions in parallel
-    conditions_tasks = [fetch_spot_conditions(spot) for spot in spots]
+    # Fetch all conditions in parallel. None for a caller WITHOUT an account (the tier clamp set SIGNED_OUT; owner
+    # 2026-11-12 "accounts only", flip blocker 2): it gets the spots and their community content, and costs no forecast.
+    signed_out = subscription_tier == SIGNED_OUT
+    conditions_tasks = [] if signed_out else [fetch_spot_conditions(spot) for spot in spots]
     conditions_results = await asyncio.gather(*conditions_tasks, return_exceptions=True)
     
     # Build conditions lookup map
@@ -614,7 +617,9 @@ async def get_surf_spots_with_conditions(
             spot_data["current_conditions"] = conditions_data.get("current_conditions")
             spot_data["forecast"] = conditions_data.get("forecast", [])
         apply_tier_window(spot_data, subscription_tier, model)
-        
+        if signed_out:
+            withhold_signed_out(spot_data)
+
         # Add recent reports (from batch query)
         spot_reports = reports_by_spot.get(spot.id, [])
         spot_data["recent_reports"] = [{

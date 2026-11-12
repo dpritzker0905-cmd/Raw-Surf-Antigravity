@@ -215,6 +215,56 @@ describe('apiClient', () => {
       expect(navigations).toEqual([]);
       expect(sessionStorage.getItem('raw-surf-session-rejected-at')).toBeNull();
     });
+
+    // Flip blocker 2 (2026-11-12): with the tier clamp on, the spot hub's forecast reads refuse a caller without an
+    // account. Signed out, the page must keep rendering, never be sent to /auth.
+    const clampRefusal = (config) => Promise.reject(Object.assign(new Error('status 401'), {
+      config, response: { status: 401, data: { detail: 'sign_in_required' }, headers: { 'x-raw-tier-clamp': 'account' }, config },
+    }));
+
+    it('signed out, the forecast clamp refusal is rejected quietly: no redirect, no toast, nothing cleared', async () => {
+      localStorage.removeItem('raw-surf-user');
+      const { client, toast } = loadPage('/spot/s1');
+      client.defaults.adapter = clampRefusal;
+      for (const url of ['/conditions/s1', '/tides/s1', '/conditions/forecast/s1']) {
+        await expect(client.get(url)).rejects.toMatchObject({ response: { status: 401 } });
+      }
+      jest.advanceTimersByTime(2000);
+      expect(navigations).toEqual([]);
+      expect(toast.error).not.toHaveBeenCalled();
+      expect(sessionStorage.getItem('raw-surf-session-rejected-at')).toBeNull();
+    });
+
+    it('signed in, the same refusal is a refused session (the usual sign-in flow)', async () => {
+      const { client } = loadPage('/spot/s1');
+      client.defaults.adapter = clampRefusal;
+      await client.get('/conditions/s1').catch(() => {});
+      jest.advanceTimersByTime(2000);
+      expect(navigations).toHaveLength(1);
+      expect(navigations[0].startsWith('/auth?tab=login')).toBe(true);
+    });
+
+    it('signed out, a 401 WITHOUT the clamp marker still redirects; the kill switch restores that for the clamp too', async () => {
+      localStorage.removeItem('raw-surf-user');
+      let page = loadPage('/feed');
+      page.client.defaults.adapter = respond(401);
+      await page.client.get('/me').catch(() => {});
+      jest.advanceTimersByTime(2000);
+      expect(navigations).toEqual(['/auth?tab=login']);
+
+      sessionStorage.clear();
+      navigations = [];
+      window.__RAW_DISABLE_SIGNED_OUT_FORECAST_QUIET__ = true;
+      try {
+        page = loadPage('/feed');
+        page.client.defaults.adapter = clampRefusal;
+        await page.client.get('/tides/s1').catch(() => {});
+        jest.advanceTimersByTime(2000);
+        expect(navigations).toEqual(['/auth?tab=login']);
+      } finally {
+        delete window.__RAW_DISABLE_SIGNED_OUT_FORECAST_QUIET__;
+      }
+    });
   });
 
   describe('baseURL config', () => {
