@@ -3,7 +3,7 @@ import path from 'path';
 import {
   colorAtValue, buildStepLut, opacityAtZoom, PRESSURE_OPACITY_STOPS, PRESSURE_LUT, wrapsLongitude, createOwnRasterLayer, RESIDENT_MAX,
   TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS, NO_DATA_BELOW_GLSL, FS, downscaleAt, DZ_TILES_MAX, DZ_FADE_MS, CLOUD_LUT, SATELLITE_OPACITY_STOPS, scaleForTheme,
-  RAIN_LUT, RAIN_OPACITY_STOPS,
+  RAIN_LUT, RAIN_OPACITY_STOPS, BLEND_MS, blendMs, blendEase,
 } from './ownRasterLayer';
 import { MISSING, NO_DATA_BELOW } from './ownRasterFrames';
 import { BASE_CUSTOM_COLOR_SCALES, CUSTOM_COLOR_SCALES, applyPrecipColorScale, applyThemePressureScale } from './colorScales';
@@ -11,6 +11,7 @@ import { BASE_CUSTOM_COLOR_SCALES, CUSTOM_COLOR_SCALES, applyPrecipColorScale, a
 // A recording WebGL2 stand-in: every call is logged; creators return fresh objects; the link always succeeds.
 function fakeGl() {
   const calls = [];
+  const u1 = [];      // uniform1f arguments: [uniform name, x]
   const u2 = [];      // uniform2f arguments: [uniform name, x, y]
   const u4 = [];      // uniform4f arguments: [uniform name, x, y, z, w]
   const tex = [];     // texImage2D: [internal format, width, height]
@@ -20,6 +21,7 @@ function fakeGl() {
   const gl = new Proxy({}, {
     get(t, k) {
       if (k === '__calls') return calls;
+      if (k === '__u1') return u1;
       if (k === '__u2') return u2;
       if (k === '__u4') return u4;
       if (k === '__tex') return tex;
@@ -27,6 +29,7 @@ function fakeGl() {
       if (typeof k === 'string' && /^[A-Z0-9_]+$/.test(k)) return consts[k];
       return (...args) => {
         calls.push(k);
+        if (k === 'uniform1f') u1.push([args[0] && args[0].u, args[1]]);
         if (k === 'uniform2f') u2.push([args[0] && args[0].u, args[1], args[2]]);
         if (k === 'uniform4f') u4.push([args[0] && args[0].u, args[1], args[2], args[3], args[4]]);
         if (k === 'texImage2D') tex.push([args[2], args[3], args[4]]);
@@ -235,7 +238,7 @@ describe('air temperature (2026-10-24): the library scale, its slot ramp, below-
 
 test('the antimeridian wrap uses integer columns (a float mod drew a violet stripe at 180, matrix cell 6)', () => {
   const { FS } = require('./ownRasterLayer');
-  expect(FS).toMatch(/c0 = int\(x0\) % n; if \(c0 < 0\) c0 \+= n;/);
+  expect(FS).toMatch(/c0 = int\(x0\) % n; if \(c0 < 0\) c0 = c0 \+ n;/);   // written out (the encoding-debris guard, 2026-11-12)
   expect(FS).toMatch(/c1 = c0 \+ 1; if \(c1 >= n\) c1 = 0;/);
   expect(FS).not.toMatch(/int\(mod\(x0 \+ 1\.0, u_size\.x\)\)/);
 });
@@ -394,5 +397,166 @@ describe("precipitation, the rain layer (2026-11-12): the app's own ramp, its sl
   test("the slot opacity is the .om rain slots' own (the bold pass)", () => {
     expect(RAIN_OPACITY_STOPS).toEqual([[2, 0.60], [5, 0.68], [8, 0.74], [12, 0.78]]);
     expect(opacityAtZoom(RAIN_OPACITY_STOPS, 5)).toBeCloseTo(0.68, 6);
+  });
+});
+
+describe('the value blend (2026-11-12): a step morphs the VALUES of two resident frames, then colours through the theme ramp', () => {
+  let clock;
+  const setup = (opts = {}) => {
+    const gl = fakeGl(); const map = fakeMap(); const repaints = { n: 0 };
+    map.triggerRepaint = () => { repaints.n += 1; };
+    const L = createOwnRasterLayer({ id: 'own-raster-pressure', now: () => clock, ...opts });
+    L.onAdd(map, gl);
+    L.setLut(buildStepLut({ breakpoints: [0], colors: [[1, 2, 3, 1]] }));
+    return { gl, map, L, repaints };
+  };
+  const frame = (L, gl) => { L.prerender(gl, args); L.render(gl, args); };
+  const mixOf = (gl) => { const m = gl.__u1.filter(([u]) => u === 'u_mix'); return m.length ? m[m.length - 1][1] : undefined; };
+  const twoFrames = (L, gl) => {
+    L.offerField('a', field(1000)); L.want('a'); frame(L, gl);
+    L.offerField('b', field(1010)); frame(L, gl);            // b resident, a still wanted and shown
+  };
+  beforeEach(() => { clock = 1000; });
+  afterEach(() => {
+    delete window.__RAW_DISABLE_RASTER_VALUE_BLEND__; delete window.__RAW_RASTER_BLEND_MS__; delete window.matchMedia;
+  });
+
+  test('the first frame ever is drawn as is: nothing to blend from', () => {
+    const { gl, L } = setup();
+    L.offerField('a', field(1000)); L.want('a'); frame(L, gl);
+    expect(L.shownPath()).toBe('a');
+    expect(L.blending()).toBeNull();
+    expect(mixOf(gl)).toBe(0);
+  });
+
+  test('a step: the new frame is the shown one at once; the picture reaches it over BLEND_MS and then holds still', () => {
+    const { gl, L, repaints } = setup();
+    twoFrames(L, gl);
+    L.want('b'); frame(L, gl);
+    expect(L.shownPath()).toBe('b');                         // the readout and the isobars follow at once
+    expect(L.blending()).toMatchObject({ from: 'a', to: 'b' });
+    expect(mixOf(gl)).toBeGreaterThan(0);
+    expect(mixOf(gl)).toBeLessThan(0.01);                    // the first blended frame still looks like a
+    clock += BLEND_MS / 2; frame(L, gl);
+    expect(mixOf(gl)).toBeCloseTo(0.5, 6);
+    const before = repaints.n;
+    clock += BLEND_MS / 4; frame(L, gl);
+    expect(mixOf(gl)).toBeGreaterThan(0.5);
+    expect(repaints.n).toBeGreaterThan(before);              // it asks for the next frame while blending
+    clock += BLEND_MS; frame(L, gl);
+    expect(L.blending()).toBeNull();
+    expect(mixOf(gl)).toBe(0);                               // b alone
+    const idle = repaints.n; frame(L, gl);
+    expect(repaints.n).toBe(idle);                           // and no repaint loop once it has landed
+  });
+
+  test('OFF PATH: the kill is the hard cut, as before', () => {
+    window.__RAW_DISABLE_RASTER_VALUE_BLEND__ = true;
+    const { gl, L } = setup();
+    twoFrames(L, gl);
+    L.want('b'); frame(L, gl);
+    expect(L.shownPath()).toBe('b');
+    expect(L.blending()).toBeNull();
+    expect(mixOf(gl)).toBe(0);
+    expect(blendMs()).toBe(0);
+  });
+
+  test('reduced motion: a hard cut', () => {
+    window.matchMedia = (q) => ({ matches: /prefers-reduced-motion: reduce/.test(q) });
+    expect(blendMs()).toBe(0);
+    const { gl, L } = setup();
+    twoFrames(L, gl);
+    L.want('b'); frame(L, gl);
+    expect(L.blending()).toBeNull();
+    expect(mixOf(gl)).toBe(0);
+  });
+
+  test('frames on different grids never blend (a hard cut)', () => {
+    const { gl, L } = setup();
+    L.offerField('a', field(1000)); L.want('a'); frame(L, gl);
+    L.offerField('b', { cols: 1440, rows: 721, bounds: { west: -180, south: -90, east: 179.75, north: 90 }, values: new Float32Array(1440 * 721).fill(1010) });
+    frame(L, gl);
+    L.want('b'); frame(L, gl);
+    expect(L.shownPath()).toBe('b');
+    expect(L.blending()).toBeNull();
+  });
+
+  test('a step taken mid-blend starts from the frame the picture is nearer to', () => {
+    const { gl, L } = setup();
+    twoFrames(L, gl);
+    L.offerField('c', field(1020)); frame(L, gl);
+    L.want('b'); frame(L, gl);
+    clock += BLEND_MS / 4;                                   // still nearer a
+    L.want('c'); frame(L, gl);
+    expect(L.blending()).toMatchObject({ from: 'a', to: 'c' });
+    clock += BLEND_MS * 0.75;                                // now nearer c
+    L.want('b'); frame(L, gl);
+    expect(L.blending()).toMatchObject({ from: 'c', to: 'b' });
+  });
+
+  test('the frame being blended from is never evicted', () => {
+    const { gl, L } = setup();
+    window.__RAW_RASTER_BLEND_MS__ = 60000;
+    twoFrames(L, gl);
+    L.want('b'); frame(L, gl);
+    for (let i = 0; i < RESIDENT_MAX + 3; i++) { L.offerField(`n${i}`, field(900 + i)); frame(L, gl); }
+    expect(L.isResident('a')).toBe(true);
+    expect(L.isResident('b')).toBe(true);
+    expect(L.blending()).toMatchObject({ from: 'a', to: 'b' });
+  });
+
+  test('the duration: the default, a lab override, and an eased 0..1 with no jump at either end', () => {
+    expect(blendMs()).toBe(BLEND_MS);
+    window.__RAW_RASTER_BLEND_MS__ = 4000;
+    expect(blendMs()).toBe(4000);
+    expect(blendEase(-1)).toBe(0);
+    expect(blendEase(0)).toBe(0);
+    expect(blendEase(0.5)).toBeCloseTo(0.5, 9);
+    expect(blendEase(1)).toBe(1);
+    expect(blendEase(2)).toBe(1);
+    let prev = -1;
+    for (let i = 0; i <= 100; i++) { const e = blendEase(i / 100); expect(e).toBeGreaterThanOrEqual(prev); prev = e; }
+  });
+
+  test('the shader mixes values BEFORE the palette lookup, and a no-data frame never drags the other to no data', () => {
+    const iMix = FS.indexOf('mix(v, w, u_mix)');
+    const iLut = FS.indexOf('texelFetch(u_lut');
+    expect(iMix).toBeGreaterThan(0);
+    expect(iLut).toBeGreaterThan(iMix);                      // one colour lookup, after the blend
+    expect(FS).toContain('if (v < -9000.0) v = w; else if (w > -9000.0) v = mix(v, w, u_mix);');
+    expect(FS.split('texelFetch(u_lut')).toHaveLength(2);
+  });
+
+  // Each theme morphs inside ITS OWN ramp: whatever two values a pixel holds in the two frames, every in-between colour is an
+  // entry of that theme's LUT lying between the two frames' entries. A colour crossfade could not promise that.
+  const lutIndex = ({ min, step, n }, v) => Math.min(n - 1, Math.max(0, Math.floor((v - min) / step + 1e-3)));
+  const cloud = require('@openmeteo/weather-map-layer').defaultOmProtocolSettings.colorScales.cloud_cover;
+  const CASES = [
+    ['pressure', PRESSURE_LUT, (theme) => { applyThemePressureScale(theme); return CUSTOM_COLOR_SCALES.pressure_msl; }, [[996, 1024], [1013, 1009.5], [960, 1040]]],
+    ['satellite (cloud cover)', CLOUD_LUT, (theme) => scaleForTheme(cloud, theme), [[0, 100], [35, 80], [90, 10]]],
+    ['rain', RAIN_LUT, () => { applyPrecipColorScale(); return CUSTOM_COLOR_SCALES.precipitation; }, [[0, 12], [0.4, 3.5], [45, 2]]],
+  ];
+  describe.each(['dark', 'light', 'beach'])('%s theme', (theme) => {
+    test.each(CASES)('%s: every blended value draws a colour of this theme between the two frames', (_name, map, scaleFor, pairs) => {
+      const scale = scaleFor(theme);
+      const lut = buildStepLut(scale, map);
+      for (const [a, b] of pairs) {
+        const ka = lutIndex(map, a); const kb = lutIndex(map, b);
+        for (let i = 0; i <= 20; i++) {
+          const t = blendEase(i / 20);
+          const v = a + (b - a) * t;                         // GLSL mix(a, b, t)
+          const k = lutIndex(map, v);
+          expect(k).toBeGreaterThanOrEqual(Math.min(ka, kb));
+          expect(k).toBeLessThanOrEqual(Math.max(ka, kb));
+          const c = colorAtValue(scale, Math.round((map.min + k * map.step) * 1e6) / 1e6);
+          expect([lut[k * 4], lut[k * 4 + 1], lut[k * 4 + 2]]).toEqual([c[0], c[1], c[2]]);
+        }
+      }
+    });
+  });
+
+  test('the three themes do not share a pressure ramp, so a blend must be coloured per theme', () => {
+    const luts = ['dark', 'light', 'beach'].map((theme) => { applyThemePressureScale(theme); return Array.from(buildStepLut(CUSTOM_COLOR_SCALES.pressure_msl, PRESSURE_LUT)).join(','); });
+    expect(new Set(luts).size).toBeGreaterThan(1);
   });
 });
