@@ -1,5 +1,5 @@
 import React, { useRef } from 'react';
-import { Search, ChevronDown } from 'lucide-react';
+import { Search, CloudSun } from 'lucide-react';
 import { useThemeName } from '../../contexts/ThemeContext';
 import MapHeader from './MapHeader';
 import { mapChromeTheme } from './mapChromeTheme';
@@ -17,15 +17,16 @@ export default function MapExploreRail({ open, onToggle, onClose, livePhotograph
   return <div className={`top-rail-container absolute top-0 left-0 right-0 z-[1000] pointer-events-none ${responsive ? '' : `pt-4 transition-opacity duration-300 ${isImmersiveMode ? 'opacity-0' : 'opacity-100'}`}`} inert={!responsive && isImmersiveMode || undefined}>
     <div className={`weather-map-heading ${responsive ? 'px-3' : 'px-4'}`}><MapHeader livePhotographerCount={livePhotographerCount} /></div>
     <div className="weather-explore-controls">
+      <div className="weather-mode-switch">
       <button type="button" ref={toggle} onKeyDown={closeOnEscape}
         className={`weather-explorer-toggle mx-3 px-3 py-2 rounded-xl border backdrop-blur-xl text-xs font-semibold ${c.surface} ${c.surfaceText} ${c.rowHover}`}
-        aria-expanded={open} aria-controls="map-explore-content" onClick={onToggle}>
-        <Search className="w-4 h-4 shrink-0" aria-hidden="true" />
-        <span className="min-w-0 text-left">Map Search &amp; Filters</span>
-        <ChevronDown className={`w-3 h-3 shrink-0 ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
+        aria-label={open ? 'Weather controls' : 'Explore controls'} aria-controls="map-explore-content" onClick={onToggle}>
+        {open ? <CloudSun className="w-4 h-4 shrink-0" aria-hidden="true" /> : <Search className="w-4 h-4 shrink-0" aria-hidden="true" />}
+        <span>{open ? 'Weather' : 'Explore'}</span>
       </button>
+      </div>
       {status && <div className={`weather-map-status pointer-events-auto ${responsive ? 'mx-3 mt-2' : 'mx-4'}`}>{status}</div>}
-      <div id="map-explore-content" className={`weather-explore-content ${responsive ? 'px-3' : 'px-4'}`} role="presentation" onKeyDown={closeOnEscape}>{children}</div>
+      <div inert={responsive && !open || undefined} aria-hidden={responsive && !open || undefined} id="map-explore-content" className={`weather-explore-content ${responsive ? 'px-3' : 'px-4'}`} role="presentation" onKeyDown={closeOnEscape}>{children}</div>
       {notice && <div className={`weather-map-notice pointer-events-auto ${responsive ? 'mx-3 mt-2' : 'mx-4'}`}>{notice}</div>}
     </div>
   </div>;

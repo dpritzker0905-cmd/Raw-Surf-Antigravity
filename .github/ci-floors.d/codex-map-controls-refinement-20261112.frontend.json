@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 4,
-  "files": 1,
+  "tests": 39,
+  "files": 7,
   "branch": "codex/map-controls-refinement-20261112",
-  "date": "2026-11-12",
-  "note": "Map identity, search suggestions and nested Escape across three themes, plus legacy rollback; four new cases in one new suite."
+  "date": "2026-11-13",
+  "note": "Responsive modes, toolbar lifetime, cancellable drawers, context gestures and focus ownership"
 }

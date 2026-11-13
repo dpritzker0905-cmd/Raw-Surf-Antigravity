@@ -1,4 +1,5 @@
 import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import useSheetDragDismiss from './useSheetDragDismiss';
 
 const focusVisible = node => {
   node?.focus({ preventScroll: true });
@@ -27,8 +28,14 @@ export function useWeatherPanelDisclosure(isImmersive = false) {
 }
 
 /** Non-modal layer panel: move focus in/out, without trapping page navigation. */
-export default function WeatherLayerSheet({ onClose, children, ...props }) {
+export default function WeatherLayerSheet({ onClose, children, dismissRef, ...props }) {
   const sheetRef = useRef(null);
+  const { closing, requestClose, handleProps } = useSheetDragDismiss(sheetRef, onClose);
+  useLayoutEffect(() => {
+    if (!dismissRef) return undefined;
+    dismissRef.current = requestClose;
+    return () => { dismissRef.current = null; };
+  }, [dismissRef, requestClose]);
   useEffect(() => {
     const sheet = sheetRef.current;
     if (!sheet) return undefined;
@@ -36,7 +43,7 @@ export default function WeatherLayerSheet({ onClose, children, ...props }) {
     const opener = map?.querySelector('[data-testid="weather-layers-btn"]');
     const visible = () => getComputedStyle(sheet).display !== 'none'
       && getComputedStyle(sheet).visibility !== 'hidden';
-    const focusFirst = () => focusVisible(sheet.querySelector('button'));
+    const focusFirst = () => focusVisible(sheet.querySelector('button:not([data-weather-sheet-handle])'));
     let lastFocused = document.activeElement;
     const rememberFocus = event => { lastFocused = event.target; };
     document.addEventListener('focusin', rememberFocus);
@@ -70,11 +77,16 @@ export default function WeatherLayerSheet({ onClose, children, ...props }) {
       }
     };
   }, []);
-  return <div {...props} ref={sheetRef} role="presentation" onKeyDown={event => {
+  return <div {...props} ref={sheetRef} role="presentation" data-sheet-closing={closing} inert={closing || props.inert || undefined} aria-hidden={closing || props['aria-hidden'] || undefined} onKeyDown={event => {
     if (event.key === 'Escape' && !event.defaultPrevented && onClose) {
       event.preventDefault();
       event.stopPropagation();
-      onClose();
+      requestClose();
     }
-  }}>{children}</div>;
+  }}>
+    <button type="button" data-weather-sheet-handle className="weather-sheet-grabber" aria-label="Close weather layers, or drag down" title="Drag down or tap to close weather layers" {...handleProps}>
+      <span className="weather-sheet-grip" aria-hidden="true" />
+    </button>
+    {typeof children === 'function' ? children(requestClose) : children}
+  </div>;
 }

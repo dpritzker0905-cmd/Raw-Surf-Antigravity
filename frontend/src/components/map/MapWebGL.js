@@ -14,7 +14,7 @@ import { useWeatherEngine } from './WeatherEngine';
 import { useMapRenderContract } from './useMapRenderContract';
 import { useMarineOrchestrator } from './useMarineOrchestrator';
 import { useLayerTruthDiff } from './useLayerTruthDiff';
-import TruthOverlay from './TruthOverlay';
+import MapDiagnostics from './MapDiagnostics';
 import MarineAnimTuner from './MarineAnimTuner';
 import MapInitFailureNotice from './MapInitFailureNotice';
 import BasemapFallbackNotice from './BasemapFallbackNotice';
@@ -74,6 +74,7 @@ const MapWebGL = ({
   pulsingMarkers,
   onSpotClick,
   onPhotographerClick,
+  onFriendClick,
   mapInstanceRef,
   activeDispatch,
   friendsOnMap,
@@ -86,6 +87,8 @@ const MapWebGL = ({
   onMapClick,
   onMapMoveEnd,
   onMapLongPress,
+  coordinatePinningEnabled = true,
+  exploreContextEnabled = null,
   longPressLocation,
   onMarineDataChange,
 }) => {
@@ -112,11 +115,6 @@ const MapWebGL = ({
     if (!forceWind) setWebglWindFailed(false);
     if (!forceMarine) setWebglMarineFailed(false);
   }, [activeModel, activeLayers]);
-
-  const handleMapClick = (e) => {
-    setActiveSystemPopup(null);
-    if (onMapClick) onMapClick(e);
-  };
 
   // 1. Map Initialization and Async Abort Interceptions
   const { mapInstance } = useMapInitialization({ innerMapRef, mapInstanceRef });
@@ -145,7 +143,7 @@ const MapWebGL = ({
   const { viewState, onMove, onMoveEnd } = useMapViewState({ effectiveLocation, onMapMoveEnd, innerMapRef });
 
   // 3. Map LongPress Contextmenu & Mobile touch holds
-  useMapLongPress({ mapInstance, onMapLongPress });
+  useMapLongPress({ mapInstance, onMapLongPress, enabled: coordinatePinningEnabled });
 
   // 5. Satellite background sync handling
   useSatelliteBackgroundSync({ mapInstance, activeLayers });
@@ -942,7 +940,7 @@ const MapWebGL = ({
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-      <TruthOverlay
+      <MapDiagnostics
         activeLayers={activeLayers}
         activeRenderType={activeRenderType}
         marineData={marineData}
@@ -977,7 +975,7 @@ const MapWebGL = ({
         {...viewState}
         onMove={onMove}
         onMoveEnd={onMoveEnd}
-        onClick={handleMapClick}
+        onClick={event => { setActiveSystemPopup(null); onMapClick?.(event); }}
         mapStyle={currentMapStyle}
         transformRequest={mapboxTransformRequest}
         style={{ width: '100%', height: '100%' }}
@@ -1058,6 +1056,8 @@ const MapWebGL = ({
           pulsingMarkers={pulsingMarkers}
           onSpotClick={onSpotClick}
           onPhotographerClick={onPhotographerClick}
+          onFriendClick={onFriendClick}
+          exploreContextEnabled={exploreContextEnabled}
           mapRef={innerMapRef}
           surfMode={surfMode}
           spotRatings={spotRatings}

@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import { Lock } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import MapWebGL from './map/MapWebGL';
 import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
@@ -43,8 +44,11 @@ import { useMapPhotographerState } from '../hooks/useMapPhotographerState';
 import { useMapInteractions } from '../hooks/useMapInteractions';
 import logger from '../utils/logger';
 
+const EMPTY_FRIENDS = [];
+
 var MapPageContent = () => {
   const { user, refreshUser } = useAuth();
+  const navigate = useNavigate();
 
   // Refresh user profile and preload land GeoJSON on mount
   useEffect(() => {
@@ -62,6 +66,8 @@ var MapPageContent = () => {
   const mapPageContainerRef = useRef(null);
   const [compactExploreOpen, setCompactExploreOpen] = useState(false);
   const [compactTimelineOpen, setCompactTimelineOpen] = useState(false);
+  const responsive = responsiveWeatherOn();
+  const weatherControlsVisible = !responsive || !compactExploreOpen;
   useMapChromeLayout(mapPageContainerRef);
 
   // Keep the WebGL map canvas sized to its container (2026-07-03). The container's left offset now
@@ -119,8 +125,8 @@ var MapPageContent = () => {
   const [longPressLocation, setLongPressLocation] = useState(null);
   const [renderMarineData, setRenderMarineData] = useState(null);
 
-  useEffect(() => { if (isImmersiveMode) setCompactExploreOpen(false); }, [isImmersiveMode]);
-  useEffect(() => { if (longPressLocation) setCompactExploreOpen(false); }, [longPressLocation]);
+  useEffect(() => { if (isImmersiveMode) { setCompactExploreOpen(false); setCompactTimelineOpen(false); } }, [isImmersiveMode]);
+
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -422,7 +428,8 @@ var MapPageContent = () => {
     <div
       ref={mapPageContainerRef}
       className={`fixed top-[56px] md:top-0 left-0 right-0 bottom-0 md:left-16 xl:left-[200px] ${isLight ? 'bg-gray-50' : 'bg-black'} z-[50] ${isImmersiveMode ? 'immersive' : ''}`}
-      data-responsive-weather={responsiveWeatherOn() ? "true" : undefined}
+      data-responsive-weather={responsive ? "true" : undefined}
+      data-map-control-mode={compactExploreOpen ? "explore" : "weather"}
       data-explore-open={compactExploreOpen ? "true" : "false"}
       data-compact-timeline-open={String(compactTimelineOpen)}
       data-testid="map-page-container"
@@ -439,9 +446,10 @@ var MapPageContent = () => {
           pulsingMarkers={pulsingMarkers}
           onSpotClick={handleSpotClick}
           onPhotographerClick={handlePhotographerClick}
+          onFriendClick={responsive ? friend => { if (friend.id) navigate(`/profile/${encodeURIComponent(friend.id)}`); } : undefined}
           mapInstanceRef={mapInstanceRef}
           activeDispatch={activeOnDemandRequests[0]}
-          friendsOnMap={friendsOnMap}
+          friendsOnMap={!responsive || showFriendsOnMap ? friendsOnMap : EMPTY_FRIENDS}
           activeModel={activeModel}
           activeLayers={activeLayers}
           radarFrames={radarFrames}
@@ -450,20 +458,22 @@ var MapPageContent = () => {
           onMarineDataChange={setRenderMarineData}
           userTier={user ? (user.subscription_tier || user.tier_id || 'tier_1') : 'guest'}
           onMapClick={(e) => {
-            if (e.originalEvent && !e.originalEvent.defaultPrevented) {
+            if ((!responsive || weatherControlsVisible) && e.originalEvent && !e.originalEvent.defaultPrevented) {
               // Clear long-press marker on normal click
               if (longPressLocation) { setLongPressLocation(null); }
               else { setIsImmersiveMode(prev => !prev); }
             }
           }}
           onMapMoveEnd={(center) => setMapCenter(center)}
-          onMapLongPress={(lngLat) => {
+          onMapLongPress={weatherControlsVisible ? (lngLat) => {
             if (lngLat && typeof lngLat.lat === 'number' && typeof lngLat.lng === 'number') {
               setLongPressLocation({ lat: lngLat.lat, lng: lngLat.lng });
               setSelectedSpot(null);
               setUnifiedDrawerOpen(false);
             }
-          }}
+          } : undefined}
+          coordinatePinningEnabled={weatherControlsVisible}
+          exploreContextEnabled={responsive ? compactExploreOpen : null}
           longPressLocation={longPressLocation}
         />
       </div>
@@ -520,7 +530,6 @@ var MapPageContent = () => {
               }
               setSelectedSpot(spot);
               setUnifiedDrawerOpen(true);
-              setCompactExploreOpen(false);
             }}
           />
           <RequestProButton
@@ -540,6 +549,7 @@ var MapPageContent = () => {
 
       <div className={`transition-opacity duration-300 ${isImmersiveMode ? 'opacity-0 pointer-events-none' : 'opacity-100'} right-controls-container`}>
         <MapRightControls
+          mode={responsive ? (compactExploreOpen ? 'explore' : 'weather') : 'all'}
           userLocation={userLocation}
           gpsLoading={gpsLoading}
           locationDenied={locationDenied}
@@ -559,7 +569,8 @@ var MapPageContent = () => {
       </div>
 
       {/* Desktop Weather Controls */}
-      <MapWeatherControls 
+      <MapWeatherControls
+        visible={weatherControlsVisible}
         isDesktop={true}
         activeModel={activeModel}
         onModelChange={setActiveModel}
@@ -580,7 +591,8 @@ var MapPageContent = () => {
       />
 
  {/* Mobile Weather Controls anchors itself and handles expanded/collapsed state */}
-      <MapWeatherControls 
+      <MapWeatherControls
+        visible={weatherControlsVisible}
         isDesktop={false}
         isMobileExpanded={showWeatherControls}
         isCompactTimelineOpen={compactTimelineOpen}
@@ -609,8 +621,9 @@ var MapPageContent = () => {
 
 
  {/* Forecast Data Overlay shows Open-Meteo data when layer active */}
-      {activeLayers.length > 0 && (activeLayers.length > 0 || selectedSpot || longPressLocation) && (
+      {activeLayers.length > 0 && (
         <MapForecastOverlay
+          visible={weatherControlsVisible}
           forecastData={forecastData}
           marineData={forecastMarineData}
           renderMarineData={renderMarineData}
@@ -632,7 +645,7 @@ var MapPageContent = () => {
         />
       )}
 
-      {showFeaturedPanel && (
+      {(!responsive || compactExploreOpen) && showFeaturedPanel && (
         <FeaturedPhotographersPanel
           featuredPhotographers={featuredPhotographers}
           onClose={() => setShowFeaturedPanel(false)}

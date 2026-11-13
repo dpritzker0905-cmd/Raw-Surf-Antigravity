@@ -170,7 +170,7 @@ const THEME_COLORS = {
   beach: { tick: '#1d5a4e', day: '#2f8272', label: 'rgba(127,181,170,0.9)', accent: '#00e0cc' },
 };
 
-const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScrubStart, onScrubEnd }) => {
+const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScrubStart, onScrubEnd, compact = false, interactive = true }) => {
   const boxRef = useRef(null);
   const canvasRef = useRef(null);
   const s = useRef({ hour: value || 0, vel: 0, dragging: false, coasting: false, settling: false,
@@ -371,6 +371,8 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
     return () => { if (ro) ro.disconnect(); finishOpenGesture(false, gestureCbs); };
   }, [draw, s]);
 
+  useEffect(() => { if (!interactive) finishOpenGesture(true); }, [interactive]);
+
   // Unmount: finish whatever gesture is open, a held drag included (T-01, wheelGestureNeedsFinish).
   useEffect(() => () => finishOpenGesture(true), []);
 
@@ -395,7 +397,7 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
       onPointerCancel={onPointerCancel}
       onKeyDown={onKeyDown}
       className="relative w-full rounded-lg overflow-hidden cursor-grab active:cursor-grabbing focus-visible:ring-2 focus-visible:ring-cyan-500 outline-none"
-      style={{ height: 52, touchAction: 'pan-y pinch-zoom' }}
+      style={{ height: compact ? 'var(--weather-wheel-height, 32px)' : 52, touchAction: 'pan-y pinch-zoom' }}
     >
       <canvas ref={canvasRef} className="absolute inset-0" />
       <div className="absolute top-0 bottom-0 pointer-events-none" style={{ left: 0, width: 36, background: `linear-gradient(to right, ${edgeFade}, transparent)` }} />

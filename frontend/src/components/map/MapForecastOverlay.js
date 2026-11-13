@@ -43,6 +43,7 @@ import { InfoboxSpotChart } from '../spot-hub/charts/SpotChartPanel';
 
 export const MapForecastOverlay = ({
   forecastData,
+  visible = true,
   marineData,
   renderMarineData,
   currentWeather,
@@ -659,6 +660,8 @@ export const MapForecastOverlay = ({
   // group retain their own semantics. The wrapper itself is not a new control.
   return (
     <div
+      inert={!visible || undefined}
+      aria-hidden={!visible || undefined}
       className={`weather-point-card absolute ${
         isImmersiveMode 
           ? (isTimelineCollapsed ? 'bottom-[80px]' : 'bottom-[170px]') 

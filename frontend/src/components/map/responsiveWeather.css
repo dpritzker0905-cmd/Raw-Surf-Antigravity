@@ -82,7 +82,7 @@
 
   [data-responsive-weather="true"] .weather-desktop-timeline {
     bottom: max(12px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%);
-    width: min(480px, calc(100% - 32px)); max-height: 42%; overflow-y: auto; overscroll-behavior: contain;
+    width: min(860px, calc(100% - 32px)); max-height: 42%; overflow-y: auto; overscroll-behavior: contain;
   }
   [data-responsive-weather="true"] .weather-desktop-panel {
     transition: opacity 180ms; top: var(--weather-top); max-height: max(48px, calc(100% - var(--weather-top) - var(--weather-bottom) - 8px));
@@ -104,10 +104,9 @@
 }
 @media (max-height: 600px) {
   [data-responsive-weather="true"] .weather-explorer-toggle { display: block; min-height: 44px; }
-  [data-responsive-weather="true"][data-explore-open="false"] .weather-explore-content { display: none; }
+
   [data-responsive-weather="true"][data-explore-open="true"] .weather-explore-content { margin-top: 8px; }
-  [data-responsive-weather="true"][data-explore-open="true"] .weather-point-card,
-  [data-responsive-weather="true"][data-explore-open="true"] .weather-map-actions { visibility: hidden; pointer-events: none; }
+
   [data-responsive-weather="true"] .weather-mobile-timeline-body.opacity-100 { max-height: min(40dvh, max(72px, calc(var(--weather-height, 100dvh) - var(--weather-top) - var(--safe-bottom, 84px) - 128px))); }
   [data-responsive-weather="true"] .weather-point-body.opacity-100 { overflow: visible; flex-shrink: 0; }
   /* The pill stays 24px tall (no layout shift on short screens); a transparent ::before gives it a
@@ -132,16 +131,16 @@
   [data-responsive-weather="true"] .weather-compact-timeline-header button { min-height: 44px; }
   [data-responsive-weather="true"] .weather-mobile-timeline-handle { display: none; }
   [data-responsive-weather="true"][data-compact-timeline-open="false"] .weather-mobile-timeline-body { display: none; }
-  [data-responsive-weather="true"][data-compact-timeline-open="true"] .weather-explore-controls,
+  [data-responsive-weather="true"]:not([data-map-control-mode="explore"])[data-compact-timeline-open="true"] .weather-explore-controls,
   [data-responsive-weather="true"][data-compact-timeline-open="true"] .weather-point-card,
-  [data-responsive-weather="true"][data-compact-timeline-open="true"] .weather-map-actions { display: none; }
+  [data-responsive-weather="true"][data-map-control-mode="weather"][data-compact-timeline-open="true"] .weather-map-actions[data-control-mode="explore"] { display: none; }
   [data-responsive-weather="true"][data-compact-timeline-open="true"] .weather-mobile-timeline-body.opacity-100 {
     max-height: max(44px, calc(var(--weather-height, 100dvh) - var(--safe-bottom, 84px) - var(--weather-heading, 44px) - 76px));
   }
 }
 
 @media (max-width: 767px) and (max-height: 450px) and (orientation: landscape) {
-  [data-responsive-weather="true"][data-compact-timeline-open="false"] .weather-mobile-timeline > div { padding-block: 4px; }
+  [data-responsive-weather="true"][data-compact-timeline-open="false"] .weather-mobile-timeline > div { padding-top: 4px; }
   [data-responsive-weather="true"] .weather-mobile-timeline .weather-time-readout { display: none; }
 }
 
@@ -163,11 +162,11 @@
 }
 [data-responsive-weather="true"][data-point-details-compact="true"] .weather-point-card:not([data-point-details-expanded="true"]) > .weather-point-header,
 [data-responsive-weather="true"][data-point-details-compact="true"] .weather-point-card:not([data-point-details-expanded="true"]) > .weather-point-body { display: none; }
-[data-responsive-weather="true"][data-point-details-compact="true"]:has(.weather-point-card[data-point-details-expanded="true"]) .weather-explore-controls,
-[data-responsive-weather="true"][data-point-details-compact="true"]:has(.weather-point-card[data-point-details-expanded="true"]) [data-weather-timeline],
-[data-responsive-weather="true"][data-point-details-compact="true"]:has(.weather-point-card[data-point-details-expanded="true"]) .weather-map-actions,
-[data-responsive-weather="true"][data-point-details-compact="true"]:has(.weather-point-card[data-point-details-expanded="true"]) .weather-desktop-panel,
-[data-responsive-weather="true"][data-point-details-compact="true"]:has(.weather-point-card[data-point-details-expanded="true"]) .weather-layer-sheet { visibility: hidden; pointer-events: none; }
+[data-responsive-weather="true"]:not([data-map-control-mode="explore"])[data-point-details-compact="true"]:has(.weather-point-card[data-point-details-expanded="true"]:not([hidden])) .weather-explore-controls,
+[data-responsive-weather="true"]:not([data-map-control-mode="explore"])[data-point-details-compact="true"]:has(.weather-point-card[data-point-details-expanded="true"]:not([hidden])) [data-weather-timeline],
+[data-responsive-weather="true"]:not([data-map-control-mode="explore"])[data-point-details-compact="true"]:has(.weather-point-card[data-point-details-expanded="true"]:not([hidden])) .weather-map-actions,
+[data-responsive-weather="true"]:not([data-map-control-mode="explore"])[data-point-details-compact="true"]:has(.weather-point-card[data-point-details-expanded="true"]:not([hidden])) .weather-desktop-panel,
+[data-responsive-weather="true"]:not([data-map-control-mode="explore"])[data-point-details-compact="true"]:has(.weather-point-card[data-point-details-expanded="true"]:not([hidden])) .weather-layer-sheet { visibility: hidden; pointer-events: none; }
 [data-responsive-weather="true"][data-point-details-compact="true"] .weather-point-card[data-point-details-expanded="true"] {
   bottom: var(--safe-bottom, 84px);
   width: min(460px, calc(100% - 24px));
@@ -203,7 +202,7 @@
 /* Compact chrome retains component theme tokens and forecast selection. */
 [data-responsive-weather="true"] .weather-map-heading { padding-top: 0; }
 [data-responsive-weather="true"] .weather-explorer-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; max-width: calc(100% - 1.5rem); }
-[data-responsive-weather="true"][data-explore-open="false"] .weather-explore-content { display: none; }
+
 [data-responsive-weather="true"] .weather-explore-controls { position: relative; }
 [data-responsive-weather="true"] .weather-map-status,
 [data-responsive-weather="true"] .weather-map-notice { max-width: 360px; }
@@ -213,10 +212,7 @@
   overflow-y: auto; overscroll-behavior: contain; scroll-padding: 4px; padding-block: 3px; pointer-events: auto;
 }
 [data-responsive-weather="true"] .weather-explore-content [data-map-search-results] { position: static; max-height: none; overflow: visible; }
-[data-responsive-weather="true"][data-explore-open="true"]:not(.immersive) .weather-point-card { visibility: hidden; pointer-events: none; }
-@media (max-width: 767px) {
-  [data-responsive-weather="true"][data-explore-open="true"]:not(.immersive) .weather-map-actions { visibility: hidden; pointer-events: none; }
-}
+
 [data-responsive-weather="true"].immersive .weather-explore-controls { display: none; }
 [data-responsive-weather="true"] .weather-panel-summary { width: 160px; min-height: 48px; }
 [data-responsive-weather="true"] .weather-desktop-panel button { min-height: 32px; min-width: 32px; }
@@ -258,12 +254,213 @@
   [data-responsive-weather="true"][data-enlarged-mobile-timeline="true"] .weather-compact-timeline-header button { min-height: 44px; }
   [data-responsive-weather="true"][data-enlarged-mobile-timeline="true"] .weather-mobile-timeline-handle,
   [data-responsive-weather="true"][data-enlarged-mobile-timeline="true"][data-compact-timeline-open="false"] .weather-mobile-timeline-body { display: none; }
-  [data-responsive-weather="true"][data-enlarged-mobile-timeline="true"][data-compact-timeline-open="true"] .weather-explore-controls,
+  [data-responsive-weather="true"]:not([data-map-control-mode="explore"])[data-enlarged-mobile-timeline="true"][data-compact-timeline-open="true"] .weather-explore-controls,
   [data-responsive-weather="true"][data-enlarged-mobile-timeline="true"][data-compact-timeline-open="true"] .weather-point-card,
-  [data-responsive-weather="true"][data-enlarged-mobile-timeline="true"][data-compact-timeline-open="true"] .weather-map-actions { display: none; }
+  [data-responsive-weather="true"][data-map-control-mode="weather"][data-enlarged-mobile-timeline="true"][data-compact-timeline-open="true"] .weather-map-actions[data-control-mode="explore"] { display: none; }
   [data-responsive-weather="true"][data-enlarged-mobile-timeline="true"][data-compact-timeline-open="true"] .weather-mobile-timeline-body.opacity-100 {
     max-height: max(44px, calc(var(--weather-height, 100dvh) - var(--safe-bottom, 84px) - var(--weather-heading, 44px) - 76px));
   }
-  [data-responsive-weather="true"][data-enlarged-mobile-timeline="true"][data-compact-timeline-open="false"] .weather-mobile-timeline > div { padding-block: 4px; }
+  [data-responsive-weather="true"][data-enlarged-mobile-timeline="true"][data-compact-timeline-open="false"] .weather-mobile-timeline > div { padding-top: 4px; }
   [data-responsive-weather="true"][data-enlarged-mobile-timeline="true"] .weather-mobile-timeline .weather-time-readout { display: none; }
 }
+
+/* A short desktop window at native zoom has room for columns, not stacked
+   controls. Keep the heading at left and make each reading area scrollable. */
+@media (pointer: fine) {
+  [data-responsive-weather="true"][data-short-map-columns="true"] .weather-map-heading > div > div { display: none; }
+  [data-responsive-weather="true"][data-short-map-columns="true"] .weather-map-actions {
+    top: 0; bottom: auto; left: var(--weather-search-end); right: auto;
+    width: 140px; max-height: 32px; grid-template-columns: repeat(4, 32px); gap: 4px; padding: 0;
+  }
+  [data-responsive-weather="true"][data-short-map-columns="true"] .weather-map-actions .w-12 { width: 32px; height: 32px; min-width: 32px; }
+  [data-responsive-weather="true"][data-short-map-columns="true"] .weather-point-card:not([data-point-details-expanded="true"]) {
+    left: var(--weather-search-end); width: 160px; bottom: calc(var(--safe-bottom, 84px) + 6px);
+  }
+  [data-responsive-weather="true"][data-short-map-columns="true"][data-compact-timeline-open="false"] .weather-mobile-timeline {
+    left: calc(var(--weather-search-end) + 172px); width: calc(100% - var(--weather-search-end) - 172px);
+  }
+  [data-responsive-weather="true"][data-short-map-columns="true"] .weather-point-card[data-point-details-expanded="true"],
+  [data-responsive-weather="true"][data-short-map-columns="true"][data-compact-timeline-open="true"] .weather-mobile-timeline {
+    left: var(--weather-search-end); width: calc(100% - var(--weather-search-end) - 12px);
+    max-height: calc(100% - var(--safe-bottom, 84px) - 16px); overflow-y: auto; pointer-events: auto; scroll-padding: 3px;
+  }
+  [data-responsive-weather="true"][data-short-map-columns="true"][data-compact-timeline-open="true"] .weather-mobile-timeline-body.opacity-100 { max-height: none; overflow: visible; }
+}
+
+/* Modes change chrome only; feature pins and enabled weather layers stay in MapWebGL. */
+.weather-person-popup .maplibregl-popup-content { background: transparent; box-shadow: none; padding: 0; }
+.weather-person-popup .maplibregl-popup-tip { display: none; }
+.weather-person-card { max-height: min(320px, 42dvh); overflow: auto; overscroll-behavior: contain; }
+.weather-person-card button, .weather-person-card a { min-height: 44px; min-width: 44px; }
+.weather-person-card button:focus-visible, .weather-person-card a:focus-visible { outline: 2px solid #06b6d4; outline-offset: 2px; }
+[data-responsive-weather="true"] { --weather-wheel-height: 32px; }
+[data-responsive-weather="true"] .weather-timeline { position: relative; }
+[data-responsive-weather="true"] .weather-timeline-track { padding-right: 36px; }
+[data-responsive-weather="true"] .weather-time-shortcuts { display: contents; }
+[data-responsive-weather="true"] .weather-shortcuts-toggle {
+  position: absolute; top: 0; right: 0; width: 32px; min-height: 32px;
+  display: flex; align-items: center; justify-content: center;
+}
+[data-responsive-weather="true"] .weather-shortcuts-panel { padding: 6px; margin-top: 6px; }
+[data-responsive-weather="true"] .weather-shortcuts-extra { grid-column: 1 / -1; display: flex; gap: 8px; justify-content: center; }
+[data-responsive-weather="true"] .weather-shortcuts-extra button { flex: 1; padding-inline: 8px; border-radius: 8px; }
+[data-responsive-weather="true"] .weather-desktop-timeline { padding: 6px 8px; }
+[data-responsive-weather="true"] .weather-mobile-timeline > div { padding: 6px 8px; }
+[data-responsive-weather="true"] .weather-mobile-timeline[data-timeline-collapsed="false"] .weather-mobile-timeline-handle { display: none; }
+[data-responsive-weather="true"][data-explore-open="true"] .weather-map-actions { visibility: visible; pointer-events: auto; right: 12px; }
+@media (min-width: 768px) {
+  [data-responsive-weather="true"] .weather-map-actions[data-control-mode="weather"] { display: none; }
+}
+@media (max-width: 767px) {
+  [data-responsive-weather="true"] .weather-map-actions[data-control-mode="weather"] { width: 56px; display: flex; }
+  [data-responsive-weather="true"][data-explore-open="true"] .weather-map-actions {
+    bottom: calc(var(--safe-bottom, 84px) + 8px); top: auto;
+    max-height: calc(100% - var(--weather-top) - var(--safe-bottom, 84px) - 16px);
+  }
+}
+@media (max-width: 767px) and (orientation: landscape) {
+  [data-responsive-weather="true"] .weather-map-actions[data-control-mode="explore"] { grid-template-columns: repeat(3, 48px); width: 168px; }
+}
+@media (pointer: coarse) {
+  [data-responsive-weather="true"] { --weather-wheel-height: 44px; }
+  [data-responsive-weather="true"] .weather-timeline-track { padding-right: 48px; }
+  [data-responsive-weather="true"] .weather-shortcuts-toggle { width: 44px; min-height: 44px; }
+}
+
+[data-responsive-weather="true"] .weather-mode-switch { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+
+
+
+
+/* Phone timeline is a bottom drawer; opening it never covers the persistent map identity. */
+@media (max-width: 767px) {
+  [data-responsive-weather="true"] .weather-compact-timeline-header { display: flex; gap: 8px; }
+  [data-responsive-weather="true"] .weather-compact-timeline-header button { min-height: 44px; min-width: 44px; }
+  [data-responsive-weather="true"] .weather-mobile-timeline-handle { display: none; }
+  [data-responsive-weather="true"][data-compact-timeline-open="false"] .weather-mobile-timeline-body { display: none; }
+  [data-responsive-weather="true"][data-compact-timeline-open="true"] .weather-point-card { visibility: hidden; pointer-events: none; }
+  [data-responsive-weather="true"][data-compact-timeline-open="true"] .weather-mobile-timeline {
+    left: 0; width: 100%; max-height: calc(100% - var(--weather-heading, 44px) - var(--safe-bottom, 84px) - 16px); overflow: auto; overscroll-behavior: contain;
+  }
+  [data-responsive-weather="true"][data-compact-timeline-open="true"] .weather-mobile-timeline-body.opacity-100 { max-height: none; overflow: visible; }
+  [data-responsive-weather="true"] .weather-mobile-timeline .weather-time-readout { display: none; }
+  [data-responsive-weather="true"] .weather-mobile-timeline .weather-compact-timeline-header > button:first-child { white-space: normal; overflow-wrap: anywhere; }
+  [data-responsive-weather="true"][data-short-map-columns="true"] .weather-map-actions[data-control-mode="explore"] { left: auto; right: 12px; width: 168px; grid-template-columns: repeat(3, 48px); }
+  [data-responsive-weather="true"][data-short-map-columns="true"] .weather-map-actions[data-control-mode="weather"] { left: auto; right: 12px; width: 38px; top: var(--weather-heading, 44px); bottom: auto; }
+}
+
+/* Motion is positional context: controls retract toward their map edge; identity stays fixed. */
+[data-responsive-weather="true"] { overflow: hidden; }
+[data-responsive-weather="true"] .weather-desktop-panel,
+[data-responsive-weather="true"] .weather-desktop-timeline,
+[data-responsive-weather="true"] .weather-mobile-timeline,
+[data-responsive-weather="true"] .weather-layer-sheet,
+[data-responsive-weather="true"] .weather-point-card,
+[data-responsive-weather="true"] .weather-explore-content,
+[data-responsive-weather="true"] .weather-map-actions {
+  opacity: 1; visibility: visible;
+  transition: transform 240ms cubic-bezier(.2,.8,.2,1), opacity 180ms ease, visibility 0s linear;
+}
+[data-responsive-weather="true"][data-map-control-mode="explore"] .weather-desktop-panel,
+[data-responsive-weather="true"] .weather-map-actions[data-controls-visible="false"] {
+  transform: translateX(calc(100% + 24px)); opacity: 0; visibility: hidden; pointer-events: none;
+  transition-delay: 0s, 0s, 240ms;
+}
+[data-responsive-weather="true"][data-map-control-mode="explore"] .weather-point-card,
+[data-responsive-weather="true"][data-explore-open="false"] .weather-explore-content {
+  transform: translateX(calc(-100% - 24px)); opacity: 0; visibility: hidden; pointer-events: none;
+  transition-delay: 0s, 0s, 240ms;
+}
+[data-responsive-weather="true"][data-map-control-mode="explore"] .weather-desktop-timeline {
+  transform: translate(-50%, calc(100% + 24px)); opacity: 0; visibility: hidden; pointer-events: none;
+  transition-delay: 0s, 0s, 240ms;
+}
+[data-responsive-weather="true"][data-map-control-mode="explore"] .weather-mobile-timeline,
+[data-responsive-weather="true"][data-map-control-mode="explore"] .weather-layer-sheet {
+  transform: translateY(calc(100% + var(--safe-bottom, 84px) + 24px)); opacity: 0; visibility: hidden; pointer-events: none;
+  transition-delay: 0s, 0s, 240ms;
+}
+[data-responsive-weather="true"] .weather-layer-backdrop { transition: opacity 180ms ease, visibility 0s linear; }
+[data-responsive-weather="true"][data-map-control-mode="explore"] .weather-layer-backdrop { opacity: 0; visibility: hidden; pointer-events: none; transition-delay: 0s, 180ms; }
+@media (min-width: 768px) {
+  [data-responsive-weather="true"] .weather-desktop-panel { top: max(16px, env(safe-area-inset-top)); max-height: max(48px, calc(100% - 24px - var(--weather-bottom) - 8px)); }
+  [data-responsive-weather="true"] .weather-desktop-panel.w-60 { width: 208px; }
+}
+@media (max-width: 767px) {
+  [data-responsive-weather="true"][data-compact-timeline-open="false"] .weather-mobile-timeline-body { display: block; max-height: 0; opacity: 0; overflow: hidden; transform: translateY(12px); }
+  [data-responsive-weather="true"][data-compact-timeline-open="true"] .weather-mobile-timeline-body.opacity-100 {
+    max-height: min(280px, max(44px, calc(var(--weather-height, 100dvh) - var(--weather-heading, 44px) - var(--safe-bottom, 84px) - 104px))); overflow-y: auto; transform: none;
+  }
+  [data-responsive-weather="true"] .weather-mobile-timeline-body { transition: max-height 240ms cubic-bezier(.2,.8,.2,1), opacity 180ms ease, transform 240ms cubic-bezier(.2,.8,.2,1); }
+  [data-responsive-weather="true"][data-short-map-columns="true"][data-compact-timeline-open="true"] .weather-mobile-timeline { left: var(--weather-search-end, 150px); width: calc(100% - var(--weather-search-end, 150px)); max-height: calc(100% - var(--safe-bottom, 84px) - 16px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-responsive-weather="true"] .weather-desktop-panel,
+  [data-responsive-weather="true"] .weather-desktop-timeline,
+  [data-responsive-weather="true"] .weather-mobile-timeline,
+  [data-responsive-weather="true"] .weather-mobile-timeline-body,
+  [data-responsive-weather="true"] .weather-layer-sheet,
+  [data-responsive-weather="true"] .weather-layer-backdrop,
+  [data-responsive-weather="true"] .weather-point-card,
+  [data-responsive-weather="true"] .weather-explore-content,
+  [data-responsive-weather="true"] .weather-map-actions { transition: none; }
+}
+
+@media (max-width: 767px) {
+  [data-responsive-weather="true"] .weather-compact-timeline-header { display: grid; grid-template-columns: 44px minmax(0, 1fr) 44px; align-items: center; gap: 8px; }
+  [data-responsive-weather="true"] .weather-surfboard-handle { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; }
+  [data-responsive-weather="true"] .weather-surfboard-icon { width: 40px; height: 16px; }
+  [data-responsive-weather="true"] .weather-surfboard-mirrored { transform: scaleX(-1); }
+  [data-responsive-weather="true"] .weather-drawer-time { min-width: 0; white-space: normal; overflow-wrap: anywhere; line-height: 1.35; }
+  [data-responsive-weather="true"] .weather-surfboard-handle:focus-visible,
+  [data-responsive-weather="true"] .weather-drawer-time:focus-visible { outline: 2px solid #06b6d4; outline-offset: -2px; }
+}
+
+/* Dock to the measured toolbar border. Preserve Create-button clearance INSIDE the surface. */
+@media (max-width: 767px) {
+  [data-responsive-weather="true"] .weather-mobile-timeline,
+  [data-responsive-weather="true"].immersive .weather-mobile-timeline { bottom: var(--weather-toolbar-offset, 0px) !important; }
+  [data-responsive-weather="true"][data-weather-toolbar-visible="true"] .weather-mobile-timeline > div {
+    padding-bottom: calc(6px + var(--weather-toolbar-protrude, 20px));
+    border-bottom: 0; border-bottom-left-radius: 0; border-bottom-right-radius: 0;
+  }
+  [data-responsive-weather="true"][data-compact-timeline-open="true"] .weather-mobile-timeline {
+    max-height: calc(100% - var(--weather-heading, 44px) - var(--weather-toolbar-offset, 0px) - 16px);
+  }
+  [data-responsive-weather="true"][data-compact-timeline-open="true"] .weather-mobile-timeline-body.opacity-100 {
+    max-height: min(280px, max(44px, calc(var(--weather-height, 100dvh) - var(--weather-heading, 44px) - var(--weather-toolbar-offset, 0px) - var(--weather-toolbar-protrude, 20px) - 104px)));
+  }
+  [data-responsive-weather="true"][data-short-map-columns="true"][data-compact-timeline-open="true"] .weather-mobile-timeline { max-height: calc(100% - var(--weather-toolbar-offset, 0px) - 16px); }
+}
+
+.weather-internal-diagnostics { display: contents; }
+@media (max-width: 1023px) {
+  .weather-internal-diagnostics:not([data-explicit-diag="true"]) { display: none; }
+}
+@media (max-width: 767px) {
+  [data-responsive-weather="true"] .weather-layer-sheet {
+    bottom: var(--weather-toolbar-offset, 0px) !important;
+    max-height: calc(100% - var(--weather-heading, 44px) - var(--weather-toolbar-offset, 0px) - 16px);
+    padding-bottom: var(--weather-toolbar-protrude, 20px);
+    transform: translateY(var(--weather-sheet-drag, 0px));
+  }
+  [data-responsive-weather="true"].immersive .weather-layer-sheet { bottom: var(--weather-toolbar-offset, 0px) !important; }
+  [data-responsive-weather="true"] .weather-sheet-grabber { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; touch-action: none; cursor: grab; }
+  [data-responsive-weather="true"] .weather-sheet-grip { width: 48px; height: 6px; border-radius: 999px; background: currentColor; opacity: .3; }
+  [data-responsive-weather="true"] .weather-sheet-grabber:focus-visible { outline: 2px solid #06b6d4; outline-offset: -3px; }
+  [data-responsive-weather="true"] .weather-layer-sheet[data-sheet-dragging="true"] { transition: none; }
+  [data-responsive-weather="true"] .weather-layer-sheet[data-sheet-closing="true"] {
+    transform: translateY(calc(100% + var(--weather-toolbar-offset, 0px) + 12px)); pointer-events: none;
+    transition: transform 180ms cubic-bezier(.2,.8,.2,1);
+  }
+  [data-responsive-weather="true"]:has(.weather-layer-sheet[data-sheet-closing="true"]) .weather-layer-backdrop { opacity: 0; pointer-events: none; }
+  [data-responsive-weather="true"][data-short-map-columns="true"] .weather-map-actions[data-control-mode="weather"] { top: 0; width: 44px; max-height: 44px; padding: 0; }
+  [data-responsive-weather="true"][data-short-map-columns="true"] .weather-map-actions[data-control-mode="weather"] .w-12 { width: 44px; min-width: 44px; height: 44px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-responsive-weather="true"] .weather-layer-sheet[data-sheet-closing="true"] { transition: none; }
+}
+
+.weather-sheet-grabber { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; touch-action: none; }
+.weather-sheet-grip { width: 48px; height: 6px; border-radius: 999px; background: currentColor; opacity: .3; }
+[data-responsive-weather="true"] .weather-time-readout { line-height: 1.25; max-width: 14rem; }
