@@ -1,0 +1,1108 @@
+{
+ "generated_at": "2026-11-12T23:12:30+00:00",
+ "window": {
+  "reference_years": "2018-01-01..2021-12-31",
+  "scored": "2022-01-01..2025-03-31",
+  "step_h": 2,
+  "mop_index": [
+   157800,
+   221327
+  ]
+ },
+ "wrong_ref_m": 4.0,
+ "variants": {
+  "kg_frozen": {
+   "scale": 1.0,
+   "pooled": {
+    "n_hours": 270408,
+    "n_days": 1186,
+    "a": 0.7277,
+    "b": 0.2419,
+    "diff": 0.4858,
+    "ci": [
+     0.4784,
+     0.4936
+    ]
+   },
+   "regions": {
+    "la_orange": {
+     "n_hours": 56928,
+     "n_days": 1186,
+     "a": 0.8287,
+     "b": 0.1565,
+     "diff": 0.6722,
+     "ci": [
+      0.6598,
+      0.6846
+     ]
+    },
+    "north_central": {
+     "n_hours": 85392,
+     "n_days": 1186,
+     "a": 0.6777,
+     "b": 0.0753,
+     "diff": 0.6025,
+     "ci": [
+      0.5911,
+      0.614
+     ]
+    },
+    "san_diego": {
+     "n_hours": 56928,
+     "n_days": 1186,
+     "a": 0.6815,
+     "b": 0.2042,
+     "diff": 0.4773,
+     "ci": [
+      0.4665,
+      0.4888
+     ]
+    },
+    "santa_barbara_ventura": {
+     "n_hours": 71160,
+     "n_days": 1186,
+     "a": 0.7438,
+     "b": 0.5405,
+     "diff": 0.2034,
+     "ci": [
+      0.1858,
+      0.222
+     ]
+    }
+   },
+   "seasons": {
+    "DJF": {
+     "n_hours": 75240,
+     "n_days": 330,
+     "a": 0.7346,
+     "b": 0.2305,
+     "diff": 0.504,
+     "ci": [
+      0.4888,
+      0.5191
+     ]
+    },
+    "MAM": {
+     "n_hours": 69996,
+     "n_days": 307,
+     "a": 0.7327,
+     "b": 0.2145,
+     "diff": 0.5182,
+     "ci": [
+      0.5012,
+      0.5344
+     ]
+    },
+    "JJA": {
+     "n_hours": 62928,
+     "n_days": 276,
+     "a": 0.7105,
+     "b": 0.2793,
+     "diff": 0.4312,
+     "ci": [
+      0.4186,
+      0.4433
+     ]
+    },
+    "SON": {
+     "n_hours": 62244,
+     "n_days": 273,
+     "a": 0.7311,
+     "b": 0.2488,
+     "diff": 0.4824,
+     "ci": [
+      0.4672,
+      0.4967
+     ]
+    }
+   },
+   "spots": {
+    "Blacks Beach": {
+     "n_hours": 14232,
+     "legacy": 0.0306,
+     "prior": 0.813
+    },
+    "C Street Ventura": {
+     "n_hours": 14232,
+     "legacy": 0.3793,
+     "prior": 0.7982
+    },
+    "Capitola": {
+     "n_hours": 14232,
+     "legacy": 0.2211,
+     "prior": 0.9467
+    },
+    "Carmel Beach": {
+     "n_hours": 14232,
+     "legacy": 0.035,
+     "prior": 0.4471
+    },
+    "Huntington Beach Pier": {
+     "n_hours": 14232,
+     "legacy": 0.0178,
+     "prior": 0.7722
+    },
+    "La Jolla Shores": {
+     "n_hours": 14232,
+     "legacy": 0.7619,
+     "prior": 0.5432
+    },
+    "Leadbetter Beach": {
+     "n_hours": 14232,
+     "legacy": 0.6092,
+     "prior": 0.6939
+    },
+    "Malibu First Point": {
+     "n_hours": 14232,
+     "legacy": 0.3947,
+     "prior": 0.8189
+    },
+    "Mondos": {
+     "n_hours": 14232,
+     "legacy": 0.3381,
+     "prior": 0.8467
+    },
+    "Newport Point": {
+     "n_hours": 14232,
+     "legacy": 0.2013,
+     "prior": 0.9744
+    },
+    "Ocean Beach SF": {
+     "n_hours": 14232,
+     "legacy": 0.0221,
+     "prior": 0.3069
+    },
+    "Pacifica - Linda Mar": {
+     "n_hours": 14232,
+     "legacy": 0.0256,
+     "prior": 0.571
+    },
+    "Pleasure Point": {
+     "n_hours": 14232,
+     "legacy": 0.0408,
+     "prior": 0.8372
+    },
+    "Rincon": {
+     "n_hours": 14232,
+     "legacy": 0.6095,
+     "prior": 0.7197
+    },
+    "Sands Beach": {
+     "n_hours": 14232,
+     "legacy": 0.7662,
+     "prior": 0.6606
+    },
+    "Steamer Lane": {
+     "n_hours": 14232,
+     "legacy": 0.107,
+     "prior": 0.9575
+    },
+    "Trestles": {
+     "n_hours": 14232,
+     "legacy": 0.0074,
+     "prior": 0.6575
+    },
+    "Windansea": {
+     "n_hours": 14232,
+     "legacy": 0.0168,
+     "prior": 0.7122
+    },
+    "Zuma Beach": {
+     "n_hours": 14232,
+     "legacy": 0.012,
+     "prior": 0.7492
+    }
+   },
+   "null_swap": {
+    "n_hours": 270408,
+    "n_days": 1186,
+    "a": 0.4844,
+    "b": 0.4852,
+    "diff": -0.0007,
+    "ci": [
+     -0.0298,
+     0.0288
+    ]
+   },
+   "positive_control": {
+    "n_hours": 270408,
+    "n_days": 1186,
+    "a": 0.4824,
+    "b": 0.7277,
+    "diff": -0.2453,
+    "ci": [
+     -0.2636,
+     -0.2273
+    ]
+   },
+   "surfable_only": {
+    "n_hours": 270323,
+    "n_days": 1186,
+    "a": 0.7276,
+    "b": 0.2417,
+    "diff": 0.4859,
+    "ci": [
+     0.4785,
+     0.4937
+    ]
+   },
+   "adjacent": {
+    "legacy": 0.894,
+    "prior": 0.995
+   },
+   "shifted_truth": {
+    "legacy": 0.259,
+    "prior": 0.4843
+   },
+   "confusion": {
+    "legacy": {
+     "flat": {
+      "flat": 85
+     },
+     "small": {
+      "small": 34164,
+      "fun": 66278,
+      "solid": 28660
+     },
+     "fun": {
+      "small": 5762,
+      "fun": 28464,
+      "solid": 103859
+     },
+     "solid": {
+      "solid": 2643
+     },
+     "overhead": {
+      "solid": 430,
+      "overhead": 62
+     },
+     "big": {
+      "solid": 1
+     }
+    },
+    "prior": {
+     "flat": {
+      "flat": 85
+     },
+     "small": {
+      "small": 92546,
+      "fun": 36556
+     },
+     "fun": {
+      "small": 27447,
+      "fun": 102965,
+      "solid": 6396,
+      "overhead": 1277
+     },
+     "solid": {
+      "fun": 831,
+      "solid": 971,
+      "overhead": 825,
+      "big": 16
+     },
+     "overhead": {
+      "fun": 68,
+      "solid": 84,
+      "overhead": 207,
+      "big": 133
+     },
+     "big": {
+      "overhead": 1
+     }
+    }
+   },
+   "truth_mix": {
+    "flat": 85,
+    "small": 129102,
+    "fun": 138085,
+    "solid": 2643,
+    "overhead": 492,
+    "big": 1
+   }
+  },
+  "h110_served": {
+   "scale": 1.27,
+   "pooled": {
+    "n_hours": 270408,
+    "n_days": 1186,
+    "a": 0.6004,
+    "b": 0.1145,
+    "diff": 0.4859,
+    "ci": [
+     0.4777,
+     0.4947
+    ]
+   },
+   "regions": {
+    "la_orange": {
+     "n_hours": 56928,
+     "n_days": 1186,
+     "a": 0.6278,
+     "b": 0.0077,
+     "diff": 0.6202,
+     "ci": [
+      0.6046,
+      0.6361
+     ]
+    },
+    "north_central": {
+     "n_hours": 85392,
+     "n_days": 1186,
+     "a": 0.4129,
+     "b": 0.02,
+     "diff": 0.3929,
+     "ci": [
+      0.38,
+      0.4054
+     ]
+    },
+    "san_diego": {
+     "n_hours": 56928,
+     "n_days": 1186,
+     "a": 0.5315,
+     "b": 0.2012,
+     "diff": 0.3303,
+     "ci": [
+      0.3137,
+      0.3467
+     ]
+    },
+    "santa_barbara_ventura": {
+     "n_hours": 71160,
+     "n_days": 1186,
+     "a": 0.8586,
+     "b": 0.244,
+     "diff": 0.6145,
+     "ci": [
+      0.606,
+      0.623
+     ]
+    }
+   },
+   "seasons": {
+    "DJF": {
+     "n_hours": 75240,
+     "n_days": 330,
+     "a": 0.6093,
+     "b": 0.1242,
+     "diff": 0.4851,
+     "ci": [
+      0.4683,
+      0.5015
+     ]
+    },
+    "MAM": {
+     "n_hours": 69996,
+     "n_days": 307,
+     "a": 0.642,
+     "b": 0.0972,
+     "diff": 0.5447,
+     "ci": [
+      0.5295,
+      0.56
+     ]
+    },
+    "JJA": {
+     "n_hours": 62928,
+     "n_days": 276,
+     "a": 0.5596,
+     "b": 0.1205,
+     "diff": 0.4391,
+     "ci": [
+      0.4241,
+      0.4552
+     ]
+    },
+    "SON": {
+     "n_hours": 62244,
+     "n_days": 273,
+     "a": 0.5842,
+     "b": 0.1162,
+     "diff": 0.468,
+     "ci": [
+      0.4501,
+      0.4856
+     ]
+    }
+   },
+   "spots": {
+    "Blacks Beach": {
+     "n_hours": 14232,
+     "legacy": 0.0106,
+     "prior": 0.5368
+    },
+    "C Street Ventura": {
+     "n_hours": 14232,
+     "legacy": 0.0197,
+     "prior": 0.8007
+    },
+    "Capitola": {
+     "n_hours": 14232,
+     "legacy": 0.0257,
+     "prior": 0.7222
+    },
+    "Carmel Beach": {
+     "n_hours": 14232,
+     "legacy": 0.034,
+     "prior": 0.1926
+    },
+    "Huntington Beach Pier": {
+     "n_hours": 14232,
+     "legacy": 0.0004,
+     "prior": 0.5362
+    },
+    "La Jolla Shores": {
+     "n_hours": 14232,
+     "legacy": 0.7816,
+     "prior": 0.6747
+    },
+    "Leadbetter Beach": {
+     "n_hours": 14232,
+     "legacy": 0.136,
+     "prior": 0.9871
+    },
+    "Malibu First Point": {
+     "n_hours": 14232,
+     "legacy": 0.0167,
+     "prior": 0.7839
+    },
+    "Mondos": {
+     "n_hours": 14232,
+     "legacy": 0.0218,
+     "prior": 0.8028
+    },
+    "Newport Point": {
+     "n_hours": 14232,
+     "legacy": 0.0116,
+     "prior": 0.6881
+    },
+    "Ocean Beach SF": {
+     "n_hours": 14232,
+     "legacy": 0.0203,
+     "prior": 0.0838
+    },
+    "Pacifica - Linda Mar": {
+     "n_hours": 14232,
+     "legacy": 0.0065,
+     "prior": 0.2898
+    },
+    "Pleasure Point": {
+     "n_hours": 14232,
+     "legacy": 0.0117,
+     "prior": 0.5701
+    },
+    "Rincon": {
+     "n_hours": 14232,
+     "legacy": 0.1678,
+     "prior": 0.9832
+    },
+    "Sands Beach": {
+     "n_hours": 14232,
+     "legacy": 0.8749,
+     "prior": 0.719
+    },
+    "Steamer Lane": {
+     "n_hours": 14232,
+     "legacy": 0.0217,
+     "prior": 0.6186
+    },
+    "Trestles": {
+     "n_hours": 14232,
+     "legacy": 0.0006,
+     "prior": 0.444
+    },
+    "Windansea": {
+     "n_hours": 14232,
+     "legacy": 0.0121,
+     "prior": 0.4706
+    },
+    "Zuma Beach": {
+     "n_hours": 14232,
+     "legacy": 0.002,
+     "prior": 0.5032
+    }
+   },
+   "null_swap": {
+    "n_hours": 270408,
+    "n_days": 1186,
+    "a": 0.359,
+    "b": 0.3559,
+    "diff": 0.003,
+    "ci": [
+     -0.0269,
+     0.0331
+    ]
+   },
+   "positive_control": {
+    "n_hours": 270408,
+    "n_days": 1186,
+    "a": 0.4931,
+    "b": 0.6004,
+    "diff": -0.1073,
+    "ci": [
+     -0.1288,
+     -0.0853
+    ]
+   },
+   "surfable_only": {
+    "n_hours": 270408,
+    "n_days": 1186,
+    "a": 0.6004,
+    "b": 0.1145,
+    "diff": 0.4859,
+    "ci": [
+     0.4777,
+     0.4947
+    ]
+   },
+   "adjacent": {
+    "legacy": 0.7459,
+    "prior": 0.9809
+   },
+   "shifted_truth": {
+    "legacy": 0.142,
+    "prior": 0.4662
+   },
+   "confusion": {
+    "legacy": {
+     "small": {
+      "small": 17728,
+      "fun": 42105,
+      "solid": 68719
+     },
+     "fun": {
+      "small": 871,
+      "fun": 10450,
+      "solid": 127361
+     },
+     "solid": {
+      "solid": 2613,
+      "overhead": 64
+     },
+     "overhead": {
+      "solid": 324,
+      "overhead": 172
+     },
+     "big": {
+      "overhead": 1
+     }
+    },
+    "prior": {
+     "small": {
+      "small": 51546,
+      "fun": 77006
+     },
+     "fun": {
+      "small": 8634,
+      "fun": 109810,
+      "solid": 15439,
+      "overhead": 4799
+     },
+     "solid": {
+      "fun": 338,
+      "solid": 777,
+      "overhead": 1222,
+      "big": 340
+     },
+     "overhead": {
+      "fun": 20,
+      "solid": 58,
+      "overhead": 218,
+      "big": 200
+     },
+     "big": {
+      "big": 1
+     }
+    }
+   },
+   "truth_mix": {
+    "flat": 0,
+    "small": 128552,
+    "fun": 138682,
+    "solid": 2677,
+    "overhead": 496,
+    "big": 1
+   }
+  }
+ },
+ "spots": {
+  "kg_frozen": [
+   {
+    "spot": "Ocean Beach SF",
+    "mop": "SF029",
+    "region": "north_central",
+    "depth_m": 10.01,
+    "truth_ref_m": 2.053,
+    "served_ref_m": 1.808,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 2.134
+   },
+   {
+    "spot": "Pacifica - Linda Mar",
+    "mop": "SM371",
+    "region": "north_central",
+    "depth_m": 15.01,
+    "truth_ref_m": 1.761,
+    "served_ref_m": 1.899,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.797
+   },
+   {
+    "spot": "Capitola",
+    "mop": "SC111",
+    "region": "north_central",
+    "depth_m": 15.0,
+    "truth_ref_m": 1.1,
+    "served_ref_m": 1.652,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.138
+   },
+   {
+    "spot": "Pleasure Point",
+    "mop": "SC117",
+    "region": "north_central",
+    "depth_m": 15.0,
+    "truth_ref_m": 1.268,
+    "served_ref_m": 1.682,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.303
+   },
+   {
+    "spot": "Steamer Lane",
+    "mop": "SC149",
+    "region": "north_central",
+    "depth_m": 15.0,
+    "truth_ref_m": 1.177,
+    "served_ref_m": 1.719,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.215
+   },
+   {
+    "spot": "Carmel Beach",
+    "mop": "MO638",
+    "region": "north_central",
+    "depth_m": 15.03,
+    "truth_ref_m": 1.837,
+    "served_ref_m": 1.938,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.935
+   },
+   {
+    "spot": "Leadbetter Beach",
+    "mop": "B0266",
+    "region": "santa_barbara_ventura",
+    "depth_m": 9.98,
+    "truth_ref_m": 0.898,
+    "served_ref_m": 1.255,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 0.954
+   },
+   {
+    "spot": "Sands Beach",
+    "mop": "B0415",
+    "region": "santa_barbara_ventura",
+    "depth_m": 10.01,
+    "truth_ref_m": 0.579,
+    "served_ref_m": 1.479,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 0.493
+   },
+   {
+    "spot": "Rincon",
+    "mop": "B0007",
+    "region": "santa_barbara_ventura",
+    "depth_m": 10.02,
+    "truth_ref_m": 0.896,
+    "served_ref_m": 1.33,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 0.941
+   },
+   {
+    "spot": "Mondos",
+    "mop": "VE572",
+    "region": "santa_barbara_ventura",
+    "depth_m": 10.01,
+    "truth_ref_m": 1.021,
+    "served_ref_m": 1.37,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.069
+   },
+   {
+    "spot": "C Street Ventura",
+    "mop": "VE463",
+    "region": "santa_barbara_ventura",
+    "depth_m": 10.0,
+    "truth_ref_m": 1.0,
+    "served_ref_m": 1.348,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.049
+   },
+   {
+    "spot": "Malibu First Point",
+    "mop": "L0935",
+    "region": "la_orange",
+    "depth_m": 10.0,
+    "truth_ref_m": 1.019,
+    "served_ref_m": 1.518,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.013
+   },
+   {
+    "spot": "Zuma Beach",
+    "mop": "L1071",
+    "region": "la_orange",
+    "depth_m": 10.0,
+    "truth_ref_m": 1.305,
+    "served_ref_m": 1.555,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.298
+   },
+   {
+    "spot": "Huntington Beach Pier",
+    "mop": "OC512",
+    "region": "la_orange",
+    "depth_m": 10.0,
+    "truth_ref_m": 1.311,
+    "served_ref_m": 1.718,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.317
+   },
+   {
+    "spot": "Newport Point",
+    "mop": "OC381",
+    "region": "la_orange",
+    "depth_m": 10.01,
+    "truth_ref_m": 1.125,
+    "served_ref_m": 1.667,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.126
+   },
+   {
+    "spot": "Trestles",
+    "mop": "D1204",
+    "region": "san_diego",
+    "depth_m": 10.0,
+    "truth_ref_m": 1.376,
+    "served_ref_m": 1.718,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.344
+   },
+   {
+    "spot": "Blacks Beach",
+    "mop": "D0542",
+    "region": "san_diego",
+    "depth_m": 10.01,
+    "truth_ref_m": 1.289,
+    "served_ref_m": 1.575,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.326
+   },
+   {
+    "spot": "La Jolla Shores",
+    "mop": "D0499",
+    "region": "san_diego",
+    "depth_m": 9.69,
+    "truth_ref_m": 0.666,
+    "served_ref_m": 1.487,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 0.679
+   },
+   {
+    "spot": "Windansea",
+    "mop": "D0457",
+    "region": "san_diego",
+    "depth_m": 10.01,
+    "truth_ref_m": 1.379,
+    "served_ref_m": 1.564,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.423
+   }
+  ],
+  "h110_served": [
+   {
+    "spot": "Ocean Beach SF",
+    "mop": "SF029",
+    "region": "north_central",
+    "depth_m": 10.01,
+    "truth_ref_m": 2.604,
+    "served_ref_m": 1.808,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 2.71
+   },
+   {
+    "spot": "Pacifica - Linda Mar",
+    "mop": "SM371",
+    "region": "north_central",
+    "depth_m": 15.01,
+    "truth_ref_m": 2.239,
+    "served_ref_m": 1.899,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 2.282
+   },
+   {
+    "spot": "Capitola",
+    "mop": "SC111",
+    "region": "north_central",
+    "depth_m": 15.0,
+    "truth_ref_m": 1.381,
+    "served_ref_m": 1.652,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.445
+   },
+   {
+    "spot": "Pleasure Point",
+    "mop": "SC117",
+    "region": "north_central",
+    "depth_m": 15.0,
+    "truth_ref_m": 1.598,
+    "served_ref_m": 1.682,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.654
+   },
+   {
+    "spot": "Steamer Lane",
+    "mop": "SC149",
+    "region": "north_central",
+    "depth_m": 15.0,
+    "truth_ref_m": 1.495,
+    "served_ref_m": 1.719,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.543
+   },
+   {
+    "spot": "Carmel Beach",
+    "mop": "MO638",
+    "region": "north_central",
+    "depth_m": 15.03,
+    "truth_ref_m": 2.332,
+    "served_ref_m": 1.938,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 2.458
+   },
+   {
+    "spot": "Leadbetter Beach",
+    "mop": "B0266",
+    "region": "santa_barbara_ventura",
+    "depth_m": 9.98,
+    "truth_ref_m": 1.133,
+    "served_ref_m": 1.255,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.212
+   },
+   {
+    "spot": "Sands Beach",
+    "mop": "B0415",
+    "region": "santa_barbara_ventura",
+    "depth_m": 10.01,
+    "truth_ref_m": 0.736,
+    "served_ref_m": 1.479,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 0.626
+   },
+   {
+    "spot": "Rincon",
+    "mop": "B0007",
+    "region": "santa_barbara_ventura",
+    "depth_m": 10.02,
+    "truth_ref_m": 1.13,
+    "served_ref_m": 1.33,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.195
+   },
+   {
+    "spot": "Mondos",
+    "mop": "VE572",
+    "region": "santa_barbara_ventura",
+    "depth_m": 10.01,
+    "truth_ref_m": 1.298,
+    "served_ref_m": 1.37,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.357
+   },
+   {
+    "spot": "C Street Ventura",
+    "mop": "VE463",
+    "region": "santa_barbara_ventura",
+    "depth_m": 10.0,
+    "truth_ref_m": 1.281,
+    "served_ref_m": 1.348,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.332
+   },
+   {
+    "spot": "Malibu First Point",
+    "mop": "L0935",
+    "region": "la_orange",
+    "depth_m": 10.0,
+    "truth_ref_m": 1.295,
+    "served_ref_m": 1.518,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.286
+   },
+   {
+    "spot": "Zuma Beach",
+    "mop": "L1071",
+    "region": "la_orange",
+    "depth_m": 10.0,
+    "truth_ref_m": 1.658,
+    "served_ref_m": 1.555,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.648
+   },
+   {
+    "spot": "Huntington Beach Pier",
+    "mop": "OC512",
+    "region": "la_orange",
+    "depth_m": 10.0,
+    "truth_ref_m": 1.66,
+    "served_ref_m": 1.718,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.673
+   },
+   {
+    "spot": "Newport Point",
+    "mop": "OC381",
+    "region": "la_orange",
+    "depth_m": 10.01,
+    "truth_ref_m": 1.427,
+    "served_ref_m": 1.667,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.43
+   },
+   {
+    "spot": "Trestles",
+    "mop": "D1204",
+    "region": "san_diego",
+    "depth_m": 10.0,
+    "truth_ref_m": 1.75,
+    "served_ref_m": 1.718,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.706
+   },
+   {
+    "spot": "Blacks Beach",
+    "mop": "D0542",
+    "region": "san_diego",
+    "depth_m": 10.01,
+    "truth_ref_m": 1.636,
+    "served_ref_m": 1.575,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.684
+   },
+   {
+    "spot": "La Jolla Shores",
+    "mop": "D0499",
+    "region": "san_diego",
+    "depth_m": 9.69,
+    "truth_ref_m": 0.839,
+    "served_ref_m": 1.487,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 0.863
+   },
+   {
+    "spot": "Windansea",
+    "mop": "D0457",
+    "region": "san_diego",
+    "depth_m": 10.01,
+    "truth_ref_m": 1.752,
+    "served_ref_m": 1.564,
+    "loo_prior_m": 1.1415,
+    "n_ref_hours": 17532,
+    "n_scored_hours": 14232,
+    "hb_p50_scored_m": 1.807
+   }
+  ]
+ },
+ "verdict": {
+  "verdict": "PASS",
+  "why": [],
+  "checks": {
+   "kg_frozen": {
+    "pooled_ok": true,
+    "regions_worse": [],
+    "null_ok": true,
+    "positive_ok": true
+   },
+   "h110_served": {
+    "pooled_ok": true,
+    "regions_worse": [],
+    "null_ok": true,
+    "positive_ok": true
+   }
+  }
+ }
+}

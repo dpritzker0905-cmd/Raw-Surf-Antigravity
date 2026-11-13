@@ -712,6 +712,7 @@ def get_weather_capabilities() -> List[Dict[str, Any]]:
     from services.weather_pipeline.wind_lane import box_state
     from services.weather_pipeline.regional_tile_first import tile_first_surf_enabled
     from services.weather_pipeline.rollout_675_reader import reader_fields   # #675 reader proof (adds fields, no horizon)
+    from services.weather_tier_clamp import enabled as tier_clamp_on   # O5: the client sends its token only while this is on
     mode, lane = gulf_fill_mid_mode(), box_state()
 
     def row_for(row):
@@ -722,7 +723,7 @@ def get_weather_capabilities() -> List[Dict[str, Any]]:
         if row.get("domain") == "marine" and row.get("model") == "GFS":   # item 10: surf asks rated on the stored pilot tile
             return dict(row, regional_tile_first_surf=tile_first_surf_enabled())
         return row
-    return [row_for(row) for row in WEATHER_CAPABILITIES]
+    return [dict(row_for(row), tier_clamp=tier_clamp_on()) for row in WEATHER_CAPABILITIES]
 
 def validate_capabilities_contract(capabilities: List[Dict[str, Any]]) -> None:
     """Validates the exact shape and semantic contract of capabilities."""

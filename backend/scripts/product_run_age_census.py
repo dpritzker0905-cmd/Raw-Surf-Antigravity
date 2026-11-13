@@ -35,6 +35,10 @@ import sys
 import urllib.request
 from collections import defaultdict
 from datetime import datetime, timezone
+try:
+    from _service_auth import service_headers   # the forecast clamp's job key (flip blocker 1)
+except ImportError:
+    from scripts._service_auth import service_headers
 
 DEFAULT_BASE = "https://raw-surf-antigravity.onrender.com"
 
@@ -203,14 +207,15 @@ def main():
                     help="hold ICON/EURO marine worldwide regions to the worldwide tier as well")
     args = ap.parse_args()
 
-    req = urllib.request.Request(args.base + "/api/weather/products",
-                                 headers={"User-Agent": "product-run-age-census"})
+    url = args.base + "/api/weather/products"
+    req = urllib.request.Request(url, headers=service_headers(url, {"User-Agent": "product-run-age-census"}))
     with urllib.request.urlopen(req, timeout=180) as r:
         products = json.load(r).get("products", [])
 
     gates = None   # unknown unless the audited box says so -> nothing is GATED blind
     try:
-        hreq = urllib.request.Request(args.base + "/api/health", headers={"User-Agent": "product-run-age-census"})
+        hurl = args.base + "/api/health"
+        hreq = urllib.request.Request(hurl, headers=service_headers(hurl, {"User-Agent": "product-run-age-census"}))
         with urllib.request.urlopen(hreq, timeout=60) as r:
             g = json.load(r).get("serving_gates")
         gates = g if isinstance(g, dict) else None

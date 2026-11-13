@@ -78,6 +78,7 @@ jobs:
           ACCURACY_PAIRED_GATE: ${{ vars.ACCURACY_PAIRED_GATE || '1' }}
           # Consensus construction control kill switch (WARN only; '0' removes its lines and warnings).
           ACCURACY_CONSENSUS_CONSTRUCTION: ${{ vars.ACCURACY_CONSENSUS_CONSTRUCTION || '1' }}
+          WEATHER_SERVICE_KEY: ${{ secrets.WEATHER_SERVICE_KEY }}   # the forecast clamp's job identity (services/weather_service_identity.py); unset = no key sent
         run: |
           set -o pipefail
           python3 scripts/forecast_accuracy_monitor.py \

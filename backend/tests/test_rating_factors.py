@@ -136,3 +136,10 @@ def test_irita_the_instance_that_motivated_this(ref, expect_limiter):
                        shore_normal_deg=SN, swell_from_deg=SN, reference_size_m=ref)
     assert f["limiter"] == expect_limiter, f["factors"]
     assert f["score"] is not None and math.isfinite(f["score"])
+
+
+@__import__("pytest").fixture(autouse=True)
+def _legacy_reference_curve(monkeypatch):
+    """These pins describe the reference-LESS legacy size curve. JAC-2's catalogue prior
+    (RATING_REF_PRIOR, default ON) replaces it; that path is pinned in test_reference_prior.py."""
+    monkeypatch.setenv("RATING_REF_PRIOR", "0")

@@ -106,20 +106,24 @@ def test_every_node_the_box_pressure_product_samples_equals_the_frame():
             assert plane[r, c] == a[gr, gc] / 1.0
 
 
-def test_a_cycle_publishes_113_frames_then_its_index_then_latest_last(tmp_path):
+def test_a_cycle_publishes_193_frames_then_its_index_then_latest_last(tmp_path):
+    """Pressure is hourly to f120 and 3-hourly after (PRESSURE_HOURS, 2026-11-12): 121 + 72 = 193 frames."""
     report, sink = _publish(tmp_path / "out")
-    assert (report["status"], report["built"], report["uploaded"], report["failed"]) == ("published", 113, 113, 0)
+    assert (report["status"], report["built"], report["uploaded"], report["failed"]) == ("published", 193, 193, 0)
     rec = _latest(tmp_path / "out")["sets"][fsr.KEY]
     assert fsr.KEY == "GFS/weather/pressure/global_0p5" and rec["run"] == rec["cycle"] == "2026-10-23T06:00:00Z"
     index = json.loads((tmp_path / "out" / rec["index"]).read_text())
-    assert sink.order[-1] == fs.LATEST and sink.order[-2] == rec["index"] and len(sink.order) == 115
-    assert [f["valid_time"] for f in index["frames"]][:2] == ["2026-10-23T06:00:00Z", "2026-10-23T09:00:00Z"]
-    assert index["frames"][-1]["valid_time"] == "2026-11-06T06:00:00Z" and len(index["frames"]) == 113   # f336
+    assert sink.order[-1] == fs.LATEST and sink.order[-2] == rec["index"] and len(sink.order) == 195
+    assert [f["valid_time"] for f in index["frames"]][:2] == ["2026-10-23T06:00:00Z", "2026-10-23T07:00:00Z"]
+    assert index["frames"][-1]["valid_time"] == "2026-11-06T06:00:00Z" and len(index["frames"]) == 193   # f336
+    hours = [f["source"]["forecast_hour"] for f in index["frames"]]
+    assert hours == list(fsr.PRESSURE_HOURS) and hours[:122] == list(range(121)) + [123]
+    assert {b - a for a, b in zip(hours, hours[1:])} == {1, 3}                        # never a gap wider than the old 3 h
     assert index["grid"] == {"cols": 720, "rows": 361, "bounds": {"west": -180.0, "south": -90.0, "east": 179.5, "north": 90.0},
                              "row0": "south", "col0": "west", "wrap_column": False}
     assert index["credit"].startswith("Contains modified NOAA GFS data") and index["license"] and index["source_url"]
     assert index["common_meta"]["value_unit"] == "hPa" and index["cycle"] == index["run"]
-    f = index["frames"][4]
+    f = index["frames"][12]
     assert f["path"].startswith(fsr.PREFIX + "/20261023T060000Z/20261023T180000Z-") and f["meta"] == {"forecast_hour": 12}
     assert sink.headers[f["path"]] == {"content-type": "application/octet-stream", "cache-control": fs.IMMUTABLE}
     got = fb.decode_plane((tmp_path / "out" / f["path"]).read_bytes())[1][fb.PRESSURE_HPA]
@@ -139,12 +143,12 @@ def test_failed_hours_are_listed_unbuilt_and_too_many_refuse_the_cycle(tmp_path)
     report, _sink = _publish(tmp_path / "a", _Source(fail={9, 12, 300}, poison=24))
     index = json.loads((tmp_path / "a" / _latest(tmp_path / "a")["sets"][fsr.KEY]["index"]).read_text())
     gaps = {f["source"]["forecast_hour"]: f["unbuilt"] for f in index["frames"] if not f.get("path")}
-    assert gaps == {9: "failed", 12: "failed", 300: "failed"} and report["built"] == 110
+    assert gaps == {9: "failed", 12: "failed", 300: "failed"} and report["built"] == 190
     assert report["missing_nodes"] == 1               # the impossible value at GRIB (100, 100), a kept node, became no data
     f24 = next(f for f in index["frames"] if f["source"]["forecast_hour"] == 24)
     plane = fb.decode_plane((tmp_path / "a" / f24["path"]).read_bytes())[1][fb.PRESSURE_HPA]
     assert np.isnan(plane[360 - 50, 50 + 360]) and np.isfinite(plane).sum() == plane.size - 1   # 65N 25E: row 310, column 410
-    report, sink = _publish(tmp_path / "b", _Source(fail=set(range(0, 60, 3))))   # 20 of 113 fail: coverage 0.82
+    report, sink = _publish(tmp_path / "b", _Source(fail=set(range(0, 60, 2))))   # 30 of 193 fail: coverage 0.84
     assert report["status"] == "coverage_refused" and sink.order == [] and not (tmp_path / "b" / fs.LATEST).exists()
 
 
@@ -270,9 +274,16 @@ def test_the_script_runs_one_set_and_skips_a_set_that_is_off(tmp_path, capsys):
 
 
 def test_pressure_index_and_paths_are_identical_to_the_first_publisher():
+    # On the first publisher's 3-hourly hours the bytes are still the first publisher's; the hourly hours (PRESSURE_HOURS,
+    # 2026-11-12) only add frames, so the shipped index is a new, pinned one.
+    old = dict(fsr.SPECS["pressure"], hours=fsr.F_HOURS)
+    frames, _uploads, stats = fsr.build_set(_Source(), CYCLE, log=lambda *_: None, spec=old)
+    assert fsr.make_index(CYCLE, frames, stats, old)["path"] == "v1/gfs/weather/pressure/global_0p5/index/20261023T060000Z-1a58a2171302.json"
+    three_hourly = {f["valid_time"]: f["path"] for f in frames}
     frames, _uploads, stats = fsr.build_set(_Source(), CYCLE, log=lambda *_: None)
     index = fsr.make_index(CYCLE, frames, stats)
-    assert index["path"] == "v1/gfs/weather/pressure/global_0p5/index/20261023T060000Z-1a58a2171302.json"
+    assert index["path"] == "v1/gfs/weather/pressure/global_0p5/index/20261023T060000Z-60bcf72643de.json"
+    assert {f["valid_time"]: f["path"] for f in frames if f["valid_time"] in three_hourly} == three_hourly   # same frames, same paths
     assert index["common_meta"]["source_dataset"] == "gfs.pgrb2.0p25 PRMSL, every second point"
     assert all(f["path"].startswith("v1/gfs/weather/pressure/global_0p5/20261023T060000Z/") for f in index["frames"])
 
