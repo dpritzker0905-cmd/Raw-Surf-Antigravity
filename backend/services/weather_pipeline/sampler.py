@@ -617,7 +617,7 @@ class PointSampler:
                 fine_capped = False
                 if product.domain.lower() == "marine" and product.layer.lower() in PARTITION_LAYERS:
                     max_dist = grid_res * 1.5
-                elif grid_res < FINE_GRID_RES_MAX_DEG and fine_grid_fallback_cap_on():
+                elif product.domain.lower() == "marine" and grid_res < FINE_GRID_RES_MAX_DEG and fine_grid_fallback_cap_on():
                     # ⛔ THE 1° FLOOR IS A COARSE-GRID RULE (2026-11-12, SAMPLER_FINE_GRID_FALLBACK_CAP). On a 0.25°
                     # pilot box it reaches FOUR cells, across land, into another water body: NDBC 46267 inside the
                     # Strait of Juan de Fuca (GFS-Wave 0.25° marks the inner strait land) read the strait-mouth cell
@@ -634,7 +634,7 @@ class PointSampler:
                 else:
                     max_dist = max(grid_res * 1.5, 1.0)
                 d = math.hypot(nearest.lat - lat, nearest.lng - lng)
-                if d <= max_dist + FALLBACK_REACH_EPS_DEG:
+                if d <= max_dist + (FALLBACK_REACH_EPS_DEG if fine_capped else 0.0):   # other grids: byte-identical
                     detail = NormalizedPointDetail(
                         requested_lat=lat,
                         requested_lng=lng,

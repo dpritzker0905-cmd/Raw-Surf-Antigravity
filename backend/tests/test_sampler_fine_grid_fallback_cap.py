@@ -90,6 +90,15 @@ def test_a_half_degree_grid_is_not_fine_and_keeps_the_floor(monkeypatch):
     assert resp.point.interpolation_method == "nearest_ocean_coarse_masked" and resp.point.speed == pytest.approx(1.3)
 
 
+def test_only_the_marine_domain_is_capped(monkeypatch):
+    """Wind and pressure have no land mask to cross; the cap is the marine total field's (LongCat review, 2026-11-13)."""
+    monkeypatch.delenv("SAMPLER_FINE_GRID_FALLBACK_CAP", raising=False)
+    prod = _strait()
+    prod.domain = "weather"
+    resp = PointSampler().sample_point(prod, *BUOY_46267)
+    assert resp.point.interpolation_method == "nearest_ocean_coarse_masked"
+
+
 def test_unavailable_says_why(monkeypatch):
     monkeypatch.delenv("SAMPLER_FINE_GRID_FALLBACK_CAP", raising=False)
     resp = PointSampler().sample_point(_strait(), *BUOY_46267)

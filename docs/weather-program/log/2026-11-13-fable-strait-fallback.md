@@ -45,3 +45,8 @@ Append-only. Branch `fable/strait-fallback`. Follows `2026-11-12-fable-accuracy-
   change, so NO_CHANGE is the expected reading and is not evidence about 46267. The evidence for 46267 is the split.
 - Reflection (design, before build): SOUND WITH CHANGES. Taken: inclusive comparison with epsilon; the unbounded
   sibling branches documented; a synthetic enclosed-water test. Not taken yet: an unavailable-rate guardrail and a canary.
+- LongCat (LongCat-2.5, paid, payload sha256 6414ff79...9234, the sampler diff): 4 findings. Taken: the cap is now the
+  MARINE domain's only (wind and pressure keep the old reach; pinned); the epsilon applies only on the capped path, so
+  every other grid is byte-identical. Not taken, recorded as follow-ups: the accept distance uses a plain hypot while
+  the nearest search is antimeridian-aware (pre-existing; a fix moves served points near +-180 on coarse grids, its own
+  change); `grid_res` reads latitude spacing only (the tiles are square). Chain lane now +9 tests: 3879 must be read.
