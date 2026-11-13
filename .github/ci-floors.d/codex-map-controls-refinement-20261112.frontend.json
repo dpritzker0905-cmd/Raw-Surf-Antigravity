@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 39,
+  "tests": 40,
   "files": 7,
   "branch": "codex/map-controls-refinement-20261112",
   "date": "2026-11-13",
-  "note": "Responsive modes, toolbar lifetime, cancellable drawers, context gestures and focus ownership"
+  "note": "Responsive map controls, drawer gestures, and independent landscape point scrolling"
 }

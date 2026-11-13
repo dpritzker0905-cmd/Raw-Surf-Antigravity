@@ -131,8 +131,6 @@
   [data-responsive-weather="true"] .weather-compact-timeline-header button { min-height: 44px; }
   [data-responsive-weather="true"] .weather-mobile-timeline-handle { display: none; }
   [data-responsive-weather="true"][data-compact-timeline-open="false"] .weather-mobile-timeline-body { display: none; }
-  [data-responsive-weather="true"]:not([data-map-control-mode="explore"])[data-compact-timeline-open="true"] .weather-explore-controls,
-  [data-responsive-weather="true"][data-compact-timeline-open="true"] .weather-point-card,
   [data-responsive-weather="true"][data-map-control-mode="weather"][data-compact-timeline-open="true"] .weather-map-actions[data-control-mode="explore"] { display: none; }
   [data-responsive-weather="true"][data-compact-timeline-open="true"] .weather-mobile-timeline-body.opacity-100 {
     max-height: max(44px, calc(var(--weather-height, 100dvh) - var(--safe-bottom, 84px) - var(--weather-heading, 44px) - 76px));
@@ -254,8 +252,6 @@
   [data-responsive-weather="true"][data-enlarged-mobile-timeline="true"] .weather-compact-timeline-header button { min-height: 44px; }
   [data-responsive-weather="true"][data-enlarged-mobile-timeline="true"] .weather-mobile-timeline-handle,
   [data-responsive-weather="true"][data-enlarged-mobile-timeline="true"][data-compact-timeline-open="false"] .weather-mobile-timeline-body { display: none; }
-  [data-responsive-weather="true"]:not([data-map-control-mode="explore"])[data-enlarged-mobile-timeline="true"][data-compact-timeline-open="true"] .weather-explore-controls,
-  [data-responsive-weather="true"][data-enlarged-mobile-timeline="true"][data-compact-timeline-open="true"] .weather-point-card,
   [data-responsive-weather="true"][data-map-control-mode="weather"][data-enlarged-mobile-timeline="true"][data-compact-timeline-open="true"] .weather-map-actions[data-control-mode="explore"] { display: none; }
   [data-responsive-weather="true"][data-enlarged-mobile-timeline="true"][data-compact-timeline-open="true"] .weather-mobile-timeline-body.opacity-100 {
     max-height: max(44px, calc(var(--weather-height, 100dvh) - var(--safe-bottom, 84px) - var(--weather-heading, 44px) - 76px));
@@ -338,7 +334,6 @@
   [data-responsive-weather="true"] .weather-compact-timeline-header button { min-height: 44px; min-width: 44px; }
   [data-responsive-weather="true"] .weather-mobile-timeline-handle { display: none; }
   [data-responsive-weather="true"][data-compact-timeline-open="false"] .weather-mobile-timeline-body { display: none; }
-  [data-responsive-weather="true"][data-compact-timeline-open="true"] .weather-point-card { visibility: hidden; pointer-events: none; }
   [data-responsive-weather="true"][data-compact-timeline-open="true"] .weather-mobile-timeline {
     left: 0; width: 100%; max-height: calc(100% - var(--weather-heading, 44px) - var(--safe-bottom, 84px) - 16px); overflow: auto; overscroll-behavior: contain;
   }
@@ -464,3 +459,22 @@
 .weather-sheet-grabber { display: flex; align-items: center; justify-content: center; width: 100%; min-height: 44px; touch-action: none; }
 .weather-sheet-grip { width: 48px; height: 6px; border-radius: 999px; background: currentColor; opacity: .3; }
 [data-responsive-weather="true"] .weather-time-readout { line-height: 1.25; max-width: 14rem; }
+
+/* Keep conditions in view while scrubbing. Native scrolling also supports touch,
+   trackpads and keyboard; no drag handler steals gestures from the tide chart. */
+@media (max-width: 1279px) {
+  [data-responsive-weather="true"] .weather-point-card {
+    width: min(220px, calc(100% - 84px));
+    max-height: min(240px, 32dvh, max(64px, calc(100% - var(--weather-point-top, 100px) - var(--weather-bottom) - 12px)));
+    touch-action: pan-y pinch-zoom; overflow-x: hidden; overflow-y: auto;
+  }
+  [data-responsive-weather="true"] .weather-point-card:focus-visible { outline: 2px solid #06b6d4; outline-offset: -3px; }
+  /* In landscape each control gets its own column instead of hiding its neighbour. */
+  [data-responsive-weather="true"][data-point-columns="true"] .weather-point-card {
+    left: 12px; width: 220px; bottom: calc(var(--weather-toolbar-offset, 0px) + 8px);
+    max-height: min(240px, max(64px, calc(100% - var(--weather-point-top, 100px) - var(--weather-toolbar-offset, 0px) - 20px)));
+  }
+  [data-responsive-weather="true"][data-point-columns="true"]:has(.weather-point-card) .weather-mobile-timeline {
+    left: 244px; width: calc(100% - 244px);
+  }
+}

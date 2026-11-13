@@ -656,9 +656,10 @@ export const MapForecastOverlay = ({
     return null;
   }
 
-  // This wrapper delegates Escape from its controls; the header, list and tide
-  // group retain their own semantics. The wrapper itself is not a new control.
+  // Focusable scroll region supports native keyboard scrolling. Escape delegates
+  // disclosure dismissal from descendants; it does not turn the region into a button.
   return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape delegation on a keyboard-focusable scroll region.
     <div
       inert={!visible || undefined}
       aria-hidden={!visible || undefined}
@@ -668,7 +669,7 @@ export const MapForecastOverlay = ({
           : (isTimelineCollapsed ? 'bottom-[140px]' : 'bottom-[230px]')
       } md:bottom-20 left-4 z-[900] rounded-xl border backdrop-blur-xl shadow-2xl ${bgClass} max-w-[200px] transition-all duration-300`}
       data-testid="forecast-overlay"
-      role="presentation"
+      role="region" aria-label="Selected point forecast" tabIndex={visible ? 0 : -1}
       data-point-details-expanded={detailsExpanded}
       ref={detailsRef} onKeyDown={onDetailsKeyDown}
     >

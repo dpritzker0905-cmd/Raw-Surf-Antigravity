@@ -54,6 +54,9 @@ export function useMapChromeLayout(rootRef) {
       const topHeight = (top?.getBoundingClientRect().height || 0) + 8;
       const heading = root.querySelector('.weather-map-heading');
       const headingReserve = heading ? heading.getBoundingClientRect().bottom - bounds.top + 8 : 8;
+      const pointTop = Math.max(headingReserve, searchBox?.height ? searchBox.bottom - bounds.top + 8 : 8);
+      const pointColumns = window.innerWidth >= 560 && window.innerWidth < 1024 && bounds.height < 480;
+      root.dataset.pointColumns = String(pointColumns);
       let bottom = 0;
       timelines.forEach(el => {
         if (root.dataset.mapControlMode === 'explore') return;
@@ -67,9 +70,11 @@ export function useMapChromeLayout(rootRef) {
       const fallback = window.innerWidth < 768 && !immersive
         ? (Number.isFinite(safeBottom) ? Math.max(0, safeBottom) : 84) + 8 : 80;
       const bottomReserve = bottom || fallback;
-      const available = Math.max(48, bounds.height - topHeight - bottomReserve - 8);
+      const available = Math.max(48, pointColumns
+        ? bounds.height - pointTop - toolbarOffset - 16
+        : bounds.height - topHeight - bottomReserve - 8);
       if (root.dataset.mapControlMode !== 'explore') root.dataset.pointDetailsCompact = String(available < Math.max(64, 3 * rootText));
-      const values = { '--weather-top': topHeight, '--weather-heading': headingReserve, '--weather-bottom': bottomReserve, '--weather-height': bounds.height, '--weather-search-end': searchEnd, '--weather-toolbar-offset': toolbarOffset, '--weather-toolbar-protrude': toolbarProtrude };
+      const values = { '--weather-top': topHeight, '--weather-heading': headingReserve, '--weather-point-top': pointTop, '--weather-bottom': bottomReserve, '--weather-height': bounds.height, '--weather-search-end': searchEnd, '--weather-toolbar-offset': toolbarOffset, '--weather-toolbar-protrude': toolbarProtrude };
       Object.entries(values).forEach(([name, value]) => {
         const next = `${name === '--weather-toolbar-offset' ? Math.round(value * 1000) / 1000 : Math.ceil(value)}px`;
         if (root.style.getPropertyValue(name) !== next) root.style.setProperty(name, next);

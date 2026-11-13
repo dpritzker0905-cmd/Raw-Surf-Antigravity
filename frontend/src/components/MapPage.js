@@ -494,7 +494,10 @@ var MapPageContent = () => {
       )}
 
       {/* TOP RAIL */}
-      <MapExploreRail open={compactExploreOpen} onToggle={() => setCompactExploreOpen(value => !value)}
+      <MapExploreRail open={compactExploreOpen} onToggle={() => {
+        if (!compactExploreOpen) setLongPressLocation(null);
+        setCompactExploreOpen(value => !value);
+      }}
         onClose={() => setCompactExploreOpen(false)} livePhotographerCount={livePhotographers.length} isImmersiveMode={isImmersiveMode}
         notice={showIpBanner && (cityChanged || (locationDenied && ipLocation)) ? <IPLocationBanner
           showIpBanner={showIpBanner} cityChanged={cityChanged} locationDenied={locationDenied}
