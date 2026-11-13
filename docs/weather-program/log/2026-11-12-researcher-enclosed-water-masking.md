@@ -290,3 +290,84 @@ The Fable repair lead computed section 10's rule on ETOPO 1 arc-minute, with no 
 - Default for unresolved points: "no open-ocean estimate," as section 3 proposed. This is a policy choice, not a validated result.
 
 **Next, if pursued:** a new pre-registration with a source criterion that identifies the strait mouth (for example the mouth as a gap between headlands, or a regional-model truth), and a W reading fixed before computing. Do not reuse the 1000 m depth.
+
+## 12. Buoy-truth inventory for the 472 land-crossing spots (2026-11-13, requested by the weather simulation audit)
+
+**Purpose.** The sampler's bilinear stencil crosses land at 472 of 1,250 spots, and 213 move by at least 0.05 m under land-aware weighting. The only truth so far is two Oahu buoys. This section lists candidate in-situ Hs truth near the affected regions. It is an inventory, not a validation. No served number changed.
+
+**Method.** Nearest NDBC stations via `ndbc_find_nearest_stations` (radius 150-250 km). Aquaview and ERDDAP searches for wave buoys in regional bounding boxes. Access and licence terms from WebSearch snippets and MCP metadata. Each row says what was verified and what was not.
+
+### 12.1 Verified NDBC stations (nearest-station tool)
+
+| Region | Station | Name | Position | Distance | Notes |
+|---|---|---|---|---|---|
+| Puerto Rico | 42085 | SE of Ponce [buoy] | 17.870N 66.537W | 36.9 km from 18.2N 66.5W | |
+| Puerto Rico | 41121 | Arecibo PR (249) [buoy] | 18.491N 66.701W | 38.7 km | |
+| Puerto Rico | 41053 | San Juan PR [buoy] | 18.474N 66.099W | 52.2 km | |
+| Hawaii | 51201 | Waimea Bay HI (106) [buoy] | 21.671N 158.118W | 22.6 km from 21.5N 158.0W | |
+| Hawaii | 51211 | Pearl Harbor Entrance (233) [buoy] | 21.297N 157.959W | 23.0 km | |
+| Hawaii | 51212 | Barbers Point, Kalaeloa (238) [buoy] | 21.323N 158.149W | 25.0 km | |
+| US Northeast | 44039 | Central Long Island Sound [buoy] | 41.138N 72.655W | 39.8 km from 40.8N 72.5W | |
+| US Northeast | 44017 | Montauk Point, 23 NM SSW [buoy] | 40.693N 72.049W | 39.8 km | |
+| US Northeast | 44069 | Great South Bay [buoy] | 40.699N 73.087W | 50.7 km | |
+
+NDBC data is US public domain (17 USC 105), with NWS attribution as in section 2. No account is needed.
+
+Not verified here: that each station reports Hs in the last two weeks. SeaLegs `get_buoy_observations` or `get_buoy_history` can confirm per station.
+
+### 12.2 Regions with no NDBC station inside 250 km
+
+- **Azores (38.5N 28.6W):** zero NDBC stations within 250 km. SeaLegs `get_buoy_observations` returned "no reporting buoy within 150 nm".
+- **Canaries (28.1N 15.4W):** zero NDBC stations within 250 km.
+- **Iberia west, Madeira, UK/Ireland:** not queried against NDBC. The Dominican Republic query (19.0N 69.5W) found only Mona Island 9759938 (193 km, a fixed station) and Rincon 41115 (244 km, buoy), so DR has no near buoy within 150 km.
+
+### 12.3 Candidate networks outside NDBC
+
+| Network | Station(s) | Access found | Licence / account | Status |
+|---|---|---|---|---|
+| Irish Wave Buoy Network (Marine Institute, `erddap.marine.ie`) | Dataset `IWaveBNetwork` (SignificantWaveHeight in cm), `IWaveBNetwork30Min`, `IWaveBNetwork_spectral`. Bbox 51.71-54.28N, 10.30-9.27W. Station IDs not yet listed. | ERDDAP tabledap. A data request returned HTTP 400, so the station list is unconfirmed. | Not checked | Candidate for the Ireland region. Needs one successful query. |
+| Mace Head Sentinel Met-Ocean Buoy (Marine Institute) | `compass_mace_head`: SignificantWaveHeight, MeanWavePeriod_Tm02, PeakPeriod, 2018-05 to 2026-07-14 (metadata) | ERDDAP tabledap | Not checked | Coverage ends before 2026-07. Not usable for a last-2-weeks test. |
+| Lehanagh Sentinel (Marine Institute) | `sentinel_lehanagh`, 2024 onward | ERDDAP tabledap | Not checked | Hs presence not verified |
+| CARICOOS (PR) | Arecibo and Rincon (Datawell Waverider via CDIP), PR1 Ponce, PR2 San Juan, PR3 Vieques (ODAS). | ERDDAP at `dm3.caricoos.org`, per WebSearch | Not checked | Coverage gaps: Arecibo near-real-time ends 2026-04-24; Rincon near-real-time ends 2026-02-02. Ponce, San Juan, Vieques coverage not confirmed. Rincon variable `waveHs`. PR3 Hs estimated from accelerations, twice hourly. |
+| Puertos del Estado REDEXT / REDCOS (Spain) | Outer and coastal buoy networks. Canaries example seen: Las Palmas II (Este) report for 2018-2019. No Tenerife, Gran Canaria or Lanzarote IDs verified. | Portus real-time section; bancodatos.puertos.es download service | Restrictive. The 2021 user manual requires crediting the source and prohibits transfer to third parties. That is not CC BY. Registration likely. | Hm0 is the parameter. Canaries stations unconfirmed. |
+| Azores Graciosa Waverider (SEANOE DOI 10.17882/99835) | One Datawell Waverider about 2.4 km E of Graciosa, 2013-2023, 10-minute resolution | SEANOE download, XLS/XLSX, about 17 MB | Dataset page not opened | Historical only. No real-time Azores feed found. Hs column not confirmed. |
+| Instituto Hidrografico, Azores/Madeira | Azores buoys managed by IH with regional administrations (SNIG record). Historical IH wave data 1980-2009 in BODC EDMED. | climaat.angra.uac.pt/boias (not opened) | Not checked | No live Hs feed found. Contact IH. |
+| Cefas WaveNet (UK) | WaveNet and Directional Waverider network | cefas.co.uk WaveNet data policy and download procedure | Three tiers per data policy: some OGL open, some non-commercial only, some not downloadable. Historic data needs an account; commercial users must say so at registration. | Account needed for historic data. Station IDs not verified. Licence tier per station. |
+| Copernicus Marine In Situ TAC | Delayed-mode global wave product INSITU_GLO_WAV_DISCRETE_MY_013_045 (twice-yearly delivery). | Copernicus Marine catalogue | SEANOE mirror lists CC-BY. Free account requirement NOT verified. | Delayed mode too late for a 2-week test. Real-time product needs checking. |
+| EMODnet Physics | Wave buoys incl. EU sites. ERDDAP at `er2webapps.emodnet-physics.eu`. | ERDDAP and portal | Conflicting: one catalogue entry says open access with registration; ERDDAP entry says open access, no registration. Verify on the live access page. | Station list for Iberia, Ireland, Azores not extracted. |
+
+### 12.4 Coverage by region
+
+| Region (spots in the 472) | Truth in this inventory | Gap |
+|---|---|---|
+| Puerto Rico / DR | Yes: NDBC 42085, 41121, 41053; CARICOOS Arecibo, Rincon, Ponce, San Juan, Vieques. | CARICOOS near-real-time too stale. Use NDBC 42085 and 41121. DR has no buoy within 150 km. |
+| Hawaii | Yes: NDBC 51201, 51211, 51212. | None for this test. |
+| US Northeast | Yes: NDBC 44039, 44017, 44069. | None for this test. |
+| Azores | No live buoy. Graciosa historical only. | Real-time truth absent. |
+| Canaries / Madeira | No live buoy verified. | Gap. |
+| Iberia west | Puertos REDEXT likely, unverified, restrictive licence. | Station list and licence needed. |
+| UK / Ireland | Irish Wave Buoy Network (candidate). Cefas WaveNet (account, tiered licence). | Station IDs needed. |
+
+### 12.5 Limits
+
+- Does not verify that any station reports Hs in the last two weeks. Per-station checks are needed.
+- Does not test land-aware weighting. This only identifies truth sources.
+- Reflection was **not consulted**. The Reflection tool requires David's explicit request; the earlier authorisation covered a different question. Ask David before sending.
+- The Puertos licence statement comes from a 2021 manual; no newer terms found. Unresolved. Do not redistribute Puertos data until checked.
+
+### 12.6 Decisions for David (accounts are his call)
+
+1. Free Copernicus Marine account for In Situ delayed-mode Hs (real-time product unverified).
+2. Cefas WaveNet historic-data registration (tiered licence).
+3. Puertos REDEXT or REDCOS registration (likely; restrictive licence).
+4. Whether to consult Reflection on coverage gaps.
+
+### 12.7 Next steps (not done)
+
+- List Irish Wave Buoy Network stations (retry the ERDDAP query).
+- Confirm CARICOOS Ponce and San Juan coverage in the last 14 days.
+- Confirm Puertos Canaries station IDs from the Portus real-time filter.
+- Check Copernicus In Situ and EMODnet access pages for account requirements.
+- Per-station Hs checks for the NDBC stations in 12.1 (SeaLegs `get_buoy_history`, 14 days).
+
+**Status:** inventory only. No code, no served number, no validation result.
