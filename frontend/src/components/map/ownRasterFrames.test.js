@@ -97,6 +97,29 @@ describe('frames of the index', () => {
   test('framesOf keeps only frames with a file', () => expect(framesOf(index).map((f) => f.path)).toEqual(['f000', 'f006']));
 });
 
+describe('a mixed-cadence index: hourly to f120, then 3-hourly (GFS pressure, 2026-11-12)', () => {
+  const RUN = Date.parse('2026-11-12T12:00:00Z');
+  const HOURS = [...Array(121).keys(), ...Array.from({ length: 72 }, (_, i) => 123 + 3 * i)];
+  const index = { frames: HOURS.map((h) => ({ valid_time: new Date(RUN + h * 3600000).toISOString(), path: `f${h}` })) };
+  const at = (h) => frameAt(index, RUN + h * 3600000);
+  test('193 frames; every hour of the first five days shows its own frame', () => {
+    expect(HOURS).toHaveLength(193);
+    for (let h = 0; h <= 120; h++) expect(at(h).path).toBe(`f${h}`);
+  });
+  test('past f120 an hour shows the nearer 3-hourly frame, picked by valid time and not by position', () => {
+    expect(at(121).path).toBe('f120');
+    expect(at(122).path).toBe('f123');
+    expect(at(123).path).toBe('f123');
+    expect(at(335).path).toBe('f336');
+    expect(at(340)).toBeNull();                        // more than 3 h past the last frame: a gap, nothing drawn
+  });
+  test('the window walks positions: across f120 it holds f119, f120 and the next stored frame f123', () => {
+    const frames = framesOf(index);
+    expect(planWindow(120, frames.length, 1, 2).map((i) => frames[i].path)).toEqual(['f120', 'f123', 'f126', 'f119']);
+    expect(planWindow(120, frames.length, -1, 1).map((i) => frames[i].path)).toEqual(['f120', 'f119', 'f123']);
+  });
+});
+
 describe('the window pump', () => {
   const parsedFor = (v) => ({ cols: 1, rows: 1, bounds: {}, validEpoch: 0, runEpoch: 0, fields: { 6: new Float64Array([v]) } });
   test(`at most ${MAX_IN_FLIGHT} loads at once, in window order; a frame that left the window never starts`, async () => {

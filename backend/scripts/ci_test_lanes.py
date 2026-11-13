@@ -134,6 +134,7 @@ COMPOSITION = (
     "tests/test_forecast_skill.py", "tests/test_forecast_skill_per_model.py",
     "tests/test_forecast_accuracy_monitor.py", "tests/test_forecast_accuracy_monitor_retry.py", "tests/test_height_anchors.py",
     "tests/test_forecast_accuracy_big_swell.py",    # 2026-11-12: split from the monitor file (800-line LOC limit)
+    "tests/test_accuracy_per_buoy_split.py",        # 2026-11-12: the monitor's per-buoy split (dispatch-only job)
     "tests/test_request_telemetry.py",
     "tests/test_product_run_age_census.py", "tests/test_validate_nearshore_transform.py",
     "tests/test_calibration_census.py",
