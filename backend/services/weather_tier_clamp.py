@@ -19,6 +19,8 @@ no tier, no row, or the lookup fails, so a signed-in user is never sent back to 
 /capabilities, /status, /products and the diagnostics routes stay public: the client reads the switch from them.
 The SAME rule covers the forecast served outside /api/weather/ (HUB_ROUTES, flip blocker 2): /conditions/* and
 /tides/* refuse, and the spot pages (/explore/spot-details, /explore/surf-spots) answer without their forecast.
+The scheduled jobs are the one non-human identity: X-Raw-Service-Key = env WEATHER_SERVICE_KEY reads as premium, exempt
+from the per-account limit (weather_service_identity.py). Without the key configured, there is no such identity.
 
 THE CLAMP for an account (a CLAMPED ANSWER, never a 403, so an older client keeps drawing):
   model        not in the tier's models -> GFS (the model every tier has). CONSENSUS (/point's shadow product, which
@@ -51,6 +53,7 @@ from urllib.parse import parse_qsl, urlencode
 from services import forecast_tier_window as FTW
 from services import runtime_flags as _rf
 from services import weather_account_rate_limit as _RL
+from services import weather_service_identity as _SVC
 
 logger = logging.getLogger(__name__)
 
@@ -341,8 +344,12 @@ class WeatherTierClampMiddleware:
                 await send(message)
             return await self.app(scope, receive, send_on)
         names, mode = g
-        auth = next((v.decode("latin-1") for k, v in scope.get("headers") or [] if k == b"authorization"), None)
-        uid, tier = await self._identify(auth)
+        service = _SVC.from_headers(scope.get("headers"))  # the scheduled jobs' key (weather_service_identity.py)
+        if service is not None:
+            uid, tier = service
+        else:
+            auth = next((v.decode("latin-1") for k, v in scope.get("headers") or [] if k == b"authorization"), None)
+            uid, tier = await self._identify(auth)
         params = parse_qsl(scope.get("query_string", b"").decode("latin-1"), keep_blank_values=True)
         if tier == "guest":                              # ACCOUNTS ONLY: no verified account, no data
             if mode != "withhold":
@@ -351,7 +358,7 @@ class WeatherTierClampMiddleware:
             rest = [(k, v) for k, v in _single_valued(params) if k != "subscription_tier"]
             scope = dict(scope, query_string=urlencode(rest + [("subscription_tier", SIGNED_OUT)]).encode("latin-1"))
             return await self.app(scope, receive, _wrapped_send(send, True, ["signed_out"]))
-        wait = _RL.retry_after("reads", uid)              # per-account limit (in-process, no I/O); kill: flag '0'
+        wait = None if service else _RL.retry_after("reads", uid)   # per-account limit; the jobs are exempt; kill: flag '0'
         if wait is not None:
             return await _too_many(scope, send, wait)
         now = datetime.now(timezone.utc)

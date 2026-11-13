@@ -487,7 +487,10 @@ def test_workflow_is_dispatch_only_read_only_and_bounded():
 def test_workflow_secret_names_match_the_monitors_and_hold_no_values():
     text, _ = _wf("scored-rows-gate.yml")
     monitor_text, _ = _wf("forecast-accuracy-monitor.yml")
-    assert _secret_names(text) == _secret_names(monitor_text) == {"SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"}
+    # The monitor also carries the forecast clamp's job key (#828, WEATHER_SERVICE_KEY, its backend reads only); the
+    # Supabase pair is what this gate must share with it.
+    assert _secret_names(monitor_text) - {"WEATHER_SERVICE_KEY"} == {"SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"}
+    assert _secret_names(text) == {"SUPABASE_URL", "SUPABASE_SERVICE_ROLE_KEY"}
     assert not re.search(r"eyJ[A-Za-z0-9_-]{10,}|sb_secret|sbp_|https?://[a-z0-9-]+\.supabase\.(co|in)|[A-Za-z0-9+/_-]{40,}", text)
     expressions = set(re.findall(r"\$\{\{\s*([^}]+?)\s*\}\}", text))
     assert expressions == {"secrets.SUPABASE_URL", "secrets.SUPABASE_SERVICE_ROLE_KEY", "inputs.since", "inputs.min_n",
