@@ -1,5 +1,5 @@
-import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Lock, ChevronDown, MapPin, Check, Info, AlertTriangle } from 'lucide-react';
+import React, { useMemo, useState, useEffect, useRef, useId } from 'react';
+import { Lock, ChevronDown, MapPin, AlertTriangle } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getHeightUnit } from './heightUnits';
 import { describeLayerSubstitution, describeStaleHour } from './modelProvenance';
@@ -19,9 +19,14 @@ import {
 } from './forecastSamplers';
 import { isLayerSupportedByModel, isGridLayerSupported, isInCooldown } from './marineControllerUtils';
 import { getSurfModeFlag, getSharedValidTime, getSeriesAnchorMs } from './backendWeatherServiceClient';
-import { compileForecastCards, STATUS_RENDERS } from './forecastCardCompiler';
+import { compileForecastCards } from './forecastCardCompiler';
+import { ForecastConditionRows, ForecastHeatmapStatus } from './ForecastConditionRows';
 import { modelDisplayName } from './modelDisplayName';
 import TideReadout from './TideReadout';
+import usePointDetailsDisclosure from './usePointDetailsDisclosure';
+import { infoboxTideDisabled } from './tideReadoutFormat';
+import { formatForecastInstant, forecastSelectionMs } from './forecastReadout';
+import { showPointTide } from './useMapChromeLayout';
 import { usePointRating } from './usePointRating';
 import { computeHeatmapStatus } from './forecastDiagnostics';
 import { logPressureTelemetryDiagnostics, checkIsExactPointValid, logForensicAudit } from './MapForecastOverlayDiag';
@@ -58,6 +63,8 @@ export const MapForecastOverlay = ({
 }) => {
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const { detailsExpanded, setDetailsExpanded, detailsRef, onDetailsKeyDown } = usePointDetailsDisclosure();
+  const detailsId = useId();
   const isLight = theme === 'light';
   // ⚠️ This file computed only `isLight`, so BEACH rendered with dark-mode colours -- a
   // pre-existing violation of the three-theme mandate. New elements below must not extend it,
@@ -123,9 +130,9 @@ export const MapForecastOverlay = ({
 
   const bgClass = isLight
     ? 'bg-white/90 border-gray-200'
-    : 'bg-zinc-900/90 border-zinc-800';
+    : isBeach ? 'bg-black/90 border-cyan-900/50' : 'bg-zinc-900/90 border-zinc-800';
   const textClass = isLight ? 'text-gray-900' : 'text-white';
-  const textMuted = isLight ? 'text-gray-500' : 'text-gray-400';
+  const textMuted = isLight ? 'text-gray-600' : isBeach ? 'text-cyan-200/80' : 'text-gray-400';
 
   const currentHourIndex = useMemo(() => findHourIndex(forecastData?.hourly?.time, timeOffsetHours), [forecastData, timeOffsetHours]);
   const marineHourIndex = useMemo(() => findHourIndex(marineData?.hourly?.time, timeOffsetHours), [marineData, timeOffsetHours]);
@@ -635,7 +642,12 @@ export const MapForecastOverlay = ({
   // v163: Show pin icon when displaying spot or long-press location
   const showPinIcon = !!(selectedSpot || longPressLocation);
   // P1-C: a selected spot/pin header had NO time; it now names the instant of the numbers below it.
-  const headerTimeLabel = showPinIcon ? frameView.timeLabel : '';
+  const headerTimeLabel = showPinIcon ? formatForecastInstant(frameView.refMs) : '';
+  // Tide follows the selected instant, even when weather is holding a different model frame.
+  const tideTimeMs = forecastSelectionMs(timeOffsetHours);
+  const tideTimeLabel = formatForecastInstant(tideTimeMs, 'UTC');
+  const detailsLayerLabel = { waves: 'Waves', swell_1: 'Swell', swell_2: 'Swell 2', wind_waves: 'Wind waves' }[activeLayer] || 'Forecast';
+  const detailsUnits = showPointTide(activeLayer) ? ` · ${heightUnit}` : '';
 
   // v7.1: Don't render the infobox at all when no location is selected.
   // It will appear only after a user selects a surf spot, places a marker, or taps GPS.
@@ -643,22 +655,36 @@ export const MapForecastOverlay = ({
     return null;
   }
 
+  // This wrapper delegates Escape from its controls; the header, list and tide
+  // group retain their own semantics. The wrapper itself is not a new control.
   return (
     <div
-      className={`absolute ${
+      className={`weather-point-card absolute ${
         isImmersiveMode 
           ? (isTimelineCollapsed ? 'bottom-[80px]' : 'bottom-[170px]') 
           : (isTimelineCollapsed ? 'bottom-[140px]' : 'bottom-[230px]')
       } md:bottom-20 left-4 z-[900] rounded-xl border backdrop-blur-xl shadow-2xl ${bgClass} max-w-[200px] transition-all duration-300`}
       data-testid="forecast-overlay"
+      role="presentation"
+      data-point-details-expanded={detailsExpanded}
+      ref={detailsRef} onKeyDown={onDetailsKeyDown}
     >
+      <div className={`weather-point-context ${textClass}`}>
+        {detailsLayerLabel}{detailsUnits} · {tideTimeLabel}
+      </div>
+      <button type="button" className={`weather-point-details-toggle text-left px-3 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-400 ${textClass}`}
+        aria-expanded={detailsExpanded} aria-controls={detailsId}
+        onClick={() => { setDetailsExpanded(value => !value); setIsCollapsed(false); }}>
+        {detailsExpanded ? 'Close details' : 'Details'}
+        {!detailsExpanded && <span className="block text-[10px] leading-[12px]">{detailsLayerLabel}{detailsUnits}</span>}
+      </button>
       {/* Header — a real <button> with aria-expanded (was a bare div-with-onClick: invisible to
           screen readers and keyboard-unreachable; ACCESSIBILITY mandate 2026-07-14 §0a item 2).
           The visible model/time text is the accessible name; Enter/Space toggle collapse. */}
       <button
         type="button"
         aria-expanded={!isCollapsed}
-        className={`w-full text-left bg-transparent px-3 pt-2 pb-1 border-0 border-b border-zinc-800/30 flex justify-between items-center cursor-pointer select-none transition-colors rounded-t-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${isCollapsed ? 'pb-2 border-transparent rounded-b-xl' : ''}`}
+        className={`weather-point-header w-full text-left bg-transparent px-3 pt-2 pb-1 border-0 border-b border-zinc-800/30 flex justify-between items-center cursor-pointer select-none transition-colors rounded-t-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-cyan-400 ${isCollapsed ? 'pb-2 border-transparent rounded-b-xl' : ''}`}
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
         <div>
@@ -676,7 +702,7 @@ export const MapForecastOverlay = ({
       </button>
 
       {/* Data cards */}
-      <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[420px] opacity-100'}`}>
+      <div id={detailsId} inert={isCollapsed} aria-hidden={isCollapsed || undefined} className={`weather-point-body overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[420px] opacity-100'}`}>
         {/* role=list + listitem rows: without it the cards are anonymous divs and a screen reader
             reads a run of bare numbers with no indication that 'Swell' and 'Surf' are different
             quantities in the same units (2026-07-14 accessibility mandate). */}
@@ -694,37 +720,7 @@ export const MapForecastOverlay = ({
             </div>
           ) : (
             <>
-              {cards.map((card, i) => {
-                const Icon = card.icon;
-                return (
-                  // ACCESSIBILITY (2026-07-14 mandate): each row is a listitem carrying its own
-                  // label+value as accessible text, so a screen reader hears "Surf, 2.1 feet
-                  // estimated" rather than an orphaned number. `ariaLabel` lets a card spell the
-                  // quantity out in full where the visible label is abbreviated for width — which
-                  // matters most here, since 'Swell' and 'Surf' are DIFFERENT QUANTITIES in the
-                  // same units and the distinction must survive being read aloud.
-                  <div key={i} role="listitem"
-                       aria-label={card.ariaLabel || `${card.label}: ${card.value}`}
-                       className="flex items-center gap-2">
-                    <Icon
-                      aria-hidden="true"
-                      className={`w-3.5 h-3.5 ${card.color} shrink-0 inline-block`}
-                      style={(card.rotate !== undefined && card.rotate !== null) ? { transform: `rotate(${card.rotate}deg)`, transformOrigin: 'center' } : undefined}
-                    />
-                    <span aria-hidden="true" className={`text-[10px] ${textMuted} w-12`}>{card.label}</span>
-                    {card.badgeColor ? (
-                      // Rating is conveyed by COLOR + TEXT, never colour alone (mandate): the pill's
-                      // text is the level name, and the row's aria-label repeats it.
-                      <span aria-hidden="true" className={`text-[11px] font-bold px-2 py-0.5 rounded-full${card.provisional ? ' opacity-60' : ''}`} style={{ backgroundColor: card.badgeColor, color: '#fff' }}>{card.value}</span>
-                    ) : (
-                      // Provisional (grid-sampled) values render dimmed alongside their '…' text
-                      // marker until the exact-point authority lands; works in all three themes.
-                      <span aria-hidden="true" className={`text-xs font-bold ${textClass} transition-opacity duration-300${card.provisional ? ' opacity-60' : ''}`}>{card.value}</span>
-                    )}
-                    {card.note && <span aria-hidden="true" className={`text-[9px] ${frameView.timeClass} truncate`}>{card.note}</span>}
-                  </div>
-                );
-              })}
+              <ForecastConditionRows cards={cards} textMuted={textMuted} textClass={textClass} timeClass={frameView.timeClass} />
               {(effectiveExactPointStatus === 'estimate_pending_sources' || 
                 (activeModel === 'EURO' && effectiveExactPointStatus === 'no_copernicus_coverage' && timeOffsetHours > 27)) && (
                 <div className="pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[10px] text-amber-400 font-semibold flex flex-col gap-1">
@@ -747,7 +743,10 @@ export const MapForecastOverlay = ({
                   </button>
                 </div>
               )}
-              <TideReadout lat={pointLat} lng={pointLng} heightUnit={heightUnit} isLight={isLight} isBeach={isBeach} />
+              {showPointTide(activeLayer) && !infoboxTideDisabled() && <div role="group" aria-label={`Tide at selected forecast time: ${tideTimeLabel}`}>
+                <div className={`text-[10px] font-semibold mt-2 ${textMuted}`}>Tide at {tideTimeLabel}</div>
+                <TideReadout lat={pointLat} lng={pointLng} heightUnit={heightUnit} isLight={isLight} isBeach={isBeach} atTime={tideTimeMs} />
+              </div>}
               <InfoboxSpotChart spot={selectedSpot} user={user} model={activeModel} hour={timeOffsetHours} onTimeChange={onTimeChange} isLight={isLight} />
               <InfoboxFrameWords view={frameView} />
               {!modelSubstitution && staleHour && (
@@ -778,17 +777,7 @@ export const MapForecastOverlay = ({
                   <span>Heatmap Loading...</span>
                 </div>
               )}
-              {STATUS_RENDERS[heatmapStatus] && (() => {
-                const IconComponent = heatmapStatus === 'ready' ? Check 
-                  : ['zoom_too_low', 'no_copernicus_coverage', 'no_backend_coverage'].includes(heatmapStatus) ? Info 
-                  : AlertTriangle;
-                return (
-                  <div className={`pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] ${STATUS_RENDERS[heatmapStatus].color} font-semibold flex items-center gap-1.5`}>
-                    <IconComponent className={`w-3 h-3 ${STATUS_RENDERS[heatmapStatus].color}`} />
-                    <span>{STATUS_RENDERS[heatmapStatus].text}</span>
-                  </div>
-                );
-              })()}
+              <ForecastHeatmapStatus status={heatmapStatus} />
             </>
           )}
         </div>

@@ -91,7 +91,8 @@ INGEST_LANES = ("forecast-ingest.yml", "precompute.yml")
 #   declared in a lane at all. Same shape as the nine undeclared science switches in `62691c88`:
 #   a flag the drift guard cannot see can hold a different value in each lane, and the same spot
 #   then faces two different directions depending on which lane wrote the frame.
-DRIFT_PREFIXES = ("RATING_", "SURF_", "MARINE_", "SPOT_RATINGS_", "SHORE_NORMAL_", "ECMWF_")
+# `WAVES_ANIM_` added 2026-11-12 (D-070): both ingest lanes set WAVES_ANIM_* from repo variables and nothing collected them.
+DRIFT_PREFIXES = ("RATING_", "SURF_", "MARINE_", "SPOT_RATINGS_", "SHORE_NORMAL_", "ECMWF_", "WAVES_ANIM_")
 # ★ `SHORE_NORMAL_` added to COMPOSITION on 2026-08-02 (audit v5 F1), and the distinction is the
 #   whole point: it was already in DRIFT, so the two INGEST lanes were compared — but the parity
 #   MONITOR's comparator narrows to COMPOSITION, so `SHORE_NORMAL_BEARING_RADIUS_KM` was collected
@@ -132,6 +133,9 @@ LANE_EXCEPTIONS: dict = {
                                     "forecast-ingest-pilots.yml read the same repo variable",
     "ECMWF_WAVE_LAND_CENTRE_REACH": "ingest-only: precompute_ci.py imports no ecmwf module; forecast-ingest.yml and "
                                     "forecast-ingest-pilots.yml read the same repo variable",
+    # The normalizer runs only in the marine ingest; precompute rates the stored (already stamped) grids.
+    "WAVES_ANIM_DOMINANT_SWELL": "ingest-only: precompute.yml runs no marine ingest; both ingest lanes read one repo variable",
+    "WAVES_ANIM_SWELL_MIN_FRAC": "ingest-only: the energy gate of the flag above, same lanes, same reason",
 }
 
 
@@ -689,3 +693,32 @@ def test_the_euro_land_centre_flags_come_from_one_repo_variable_in_both_ecmwf_la
     assert code == [default], f"{flag}: the lanes fall back to {default!r}, the fetcher reads {code}"
     assert REGISTRY[flag][0] == default, f"{flag}: registry default {REGISTRY[flag][0]!r} vs lanes {default!r}"
     assert flag not in ALL_LANE_FLAGS["precompute.yml"], f"{flag} declared in precompute.yml, which reaches no ecmwf module"
+
+
+# ★ WAVES_ANIM_DOMINANT_SWELL (registered 2026-11-12, D-070): an INGEST-time flag outside every scanned prefix, so none of the
+# guards above could see it, though it reaches the rating (swell_from) through the point sampler. It sat on a repo variable
+# for four months with no registry line. Pinned: one repo variable of its own name, the same '0' fallback in both ingest lanes
+# that run the normalizer, equal to the normalizer's code default and the registry's; never in precompute (it reads grids).
+_NORMALIZER_SRC = os.path.join(REPO, "backend", "services", "weather_pipeline", "normalizer.py")
+_DSA_LANES = ("forecast-ingest.yml", PILOT_LANE)
+
+
+def test_dominant_swell_anim_is_registered_and_read_the_same_way_by_both_ingest_lanes():
+    flag = "WAVES_ANIM_DOMINANT_SWELL"
+    pat = re.compile(r"\s+" + flag + r":\s*\$\{\{\s*vars\.([A-Za-z0-9_]+)\s*\|\|\s*'([^']*)'\s*\}\}")
+    seen = {}
+    for lane in _DSA_LANES:
+        with open(os.path.join(WORKFLOWS, lane), encoding="utf-8") as fh:
+            seen[lane] = tuple(pat.findall(fh.read()))
+    assert all(seen.values()), f"{flag} is not read from a repo variable in every ingest lane: {seen}"
+    assert len(set(seen.values())) == 1 and len(next(iter(seen.values()))) == 1, f"the lanes read {flag} differently: {seen}"
+    var, default = next(iter(seen.values()))[0]
+    assert var == flag, f"{flag} reads vars.{var}: a differently named variable is a second switch"
+    code = re.findall(r'os\.environ\.get\("' + flag + r'",\s*"([^"]*)"\)', open(_NORMALIZER_SRC, encoding="utf-8").read())
+    assert code == [default], f"{flag}: the lanes fall back to {default!r}, the normalizer reads {code}"
+    assert flag in REGISTRY, f"{flag} is missing from _RATING_FLAGS"
+    assert REGISTRY[flag][0] == default, f"{flag}: registry default {REGISTRY[flag][0]!r} vs lanes {default!r}"
+    assert "repo VARIABLE" in REGISTRY[flag][2], f"{flag}: 'where to flip' must name the repo variable"
+    assert "WAVES_ANIM_SWELL_MIN_FRAC" in REGISTRY, "the flag's energy gate is set by both ingest lanes and must be registered too"
+    with open(os.path.join(WORKFLOWS, "precompute.yml"), encoding="utf-8") as fh:
+        assert flag not in fh.read(), f"{flag} in precompute.yml, which rates stored grids and never normalizes"

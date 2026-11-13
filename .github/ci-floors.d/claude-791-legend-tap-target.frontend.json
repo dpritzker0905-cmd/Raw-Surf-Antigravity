@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 3,
+  "files": 1,
+  "branch": "claude/791-legend-tap-target",
+  "date": "2026-11-12",
+  "note": "legend toggle 44x44 hit area (#791 follow-up)"
+}

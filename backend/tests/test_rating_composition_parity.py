@@ -212,13 +212,11 @@ SURFACES = {
             "shore_normal_deg": SUPPLIED,
             "swell_from_deg": SUPPLIED,
             "reference_size_m": SUPPLIED,   # same RATING_LOCAL_SIZE gate as the reference
-            "break_depth_m": (
-                "DELIBERATE, and the reason is a UNIT/QUANTITY mismatch, not a gap: the band's "
-                "`depth_fn` supplies the SHELF depth (p50 157-234 m) while `break_depth_m` means the "
-                "nearshore BREAK depth (p50 ~11 m). Feeding the shelf depth to the oversize gate "
-                "computes capacity from the wrong quantity and reads as a ~100 m ceiling — i.e. "
-                "silently inert, which is worse than absent. Stated at surf_rating.py:763-767. The "
-                "band uses the climatology reference where one exists and the absolute pair otherwise."),
+            # CMP-1 (2026-11-10): SUPPLIED. The old waiver was right about the quantity (the band's `depth_fn` is the
+            # SHELF depth, p50 157-234 m, not the ~11 m break depth) and it still holds for that number: the band now
+            # passes the GEOMETRY's nearshore break depth (band_chain.surf_at), the one the glyph's height cap uses.
+            # Under RATING_BAND_ONE_CHAIN=0 it passes None, as before.
+            "break_depth_m": SUPPLIED,
             "tide_norm": (
                 "A band cell is a ZONE, not a spot: `tide_fit` needs a per-spot `best_tide` prior and "
                 "an arbitrary coastal grid cell has no spot row to read one from. Same coverage "

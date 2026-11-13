@@ -48,6 +48,7 @@ from services import frame_set as fs  # noqa: E402
 from services import frame_set_bundle as fsb  # noqa: E402
 from services import frame_set_fill as fsf  # noqa: E402
 from services import frame_set_rating as fsr  # noqa: E402
+from services import frame_entitlement as fe  # noqa: E402
 from services.frame_image import encode_png, parity  # noqa: E402
 
 FRAME_BUCKET = "weather-frames"
@@ -56,7 +57,8 @@ IMMUTABLE = fs.IMMUTABLE
 REVALIDATE = fs.REVALIDATE
 UPLOAD_WORKERS = 4
 UPLOAD_BACKOFF_S = (2.0, 5.0, 12.0)        # waits between the 4 attempts of one upload (SupabaseSink.write)
-RETRY_STATUS = (429, 500, 502, 503, 504)
+# 520-524 are the storage edge's own origin errors (run 43239161836: one HTTP 520 on a frame upload left ICON pressure unpublished)
+RETRY_STATUS = (429, 500, 502, 503, 504, 520, 521, 522, 523, 524)
 _sleep = time.sleep                        # the tests replace it
 
 
@@ -143,6 +145,30 @@ class TailDownloads:
     def product_bytes(self, filename):
         raw = self.local.product_bytes(filename)
         return raw if raw is not None else self._got.get(filename)
+
+    def fetch_dependency(self, filename):
+        """SRV-2 (frame_set_bight): ONE stored product a frame's composition reads (the EURO frame the Bight mean averages
+        in), fetched on demand under the same switch, cap and accounting as the tails, once per run. None when capped or
+        failed: that hour is then listed unbuilt and /grid serves it."""
+        if filename in self._got:
+            return self._got[filename]
+        if self.stats["downloaded"] >= self.cap:
+            self.stats["download_capped"] += 1
+            return None
+        try:
+            data, wire = self.fetch(filename)
+        except Exception as e:  # a failed download refuses that frame: /grid serves it
+            self.log(f"[frames] dependency download {filename} failed ({type(e).__name__}: {e})")
+            data, wire = None, 0
+        if data is None:
+            self.stats["download_failed"] += 1
+            return None
+        self._got[filename] = data
+        self.stats["downloaded"] += 1
+        self.stats["dependency_downloads"] = self.stats.get("dependency_downloads", 0) + 1
+        self.stats["bytes"] += len(data)
+        self.stats["wire_bytes"] += int(wire or 0)
+        return data
 
     @staticmethod
     def wants(target):
@@ -297,9 +323,10 @@ class LocalSink:
 class SupabaseSink:
     """Storage REST API on the PUBLIC frames bucket (x-upsert + cache-control, no Content-Encoding, ever)."""
 
-    def __init__(self):
+    def __init__(self, bucket=FRAME_BUCKET, public=True):
         import requests
         self.requests = requests
+        self.bucket, self.public = bucket, public   # O6: the PRIVATE paid-frames bucket reuses this class (public=False)
         self.base = os.environ.get("SUPABASE_URL", "").rstrip("/")
         key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
         if not self.base or not key:
@@ -309,21 +336,21 @@ class SupabaseSink:
 
     def ensure_bucket(self):
         resp = self.requests.post(f"{self.base}/storage/v1/bucket", headers=self.auth, timeout=30,
-                                  json={"id": FRAME_BUCKET, "name": FRAME_BUCKET, "public": True})
+                                  json={"id": self.bucket, "name": self.bucket, "public": self.public})
         if resp.status_code not in (200, 201) and "already exists" not in resp.text.lower():
-            raise RuntimeError(f"create bucket {FRAME_BUCKET}: HTTP {resp.status_code}: {resp.text[:200]}")
+            raise RuntimeError(f"create bucket {self.bucket}: HTTP {resp.status_code}: {resp.text[:200]}")
 
     def read(self, path):
         """One object's bytes, or None when it is missing; retried with backoff on 429 / 5xx / a dropped connection like
         write(). 2026-10-27 (the lead): ONE 429 on v1/latest.json at 23:15:38Z failed run 40403486736's whole publish behind
         a green continue-on-error step; reads are idempotent, so a retry is always safe."""
-        url = f"{self.base}/storage/v1/object/{FRAME_BUCKET}/{path}"
+        url = f"{self.base}/storage/v1/object/{self.bucket}/{path}"
         for attempt, wait in enumerate(UPLOAD_BACKOFF_S + (None,)):
             try:
                 resp = self.requests.get(f"{url}?cb={int(time.time() * 1000)}", headers=self.auth, timeout=60)
             except (self.requests.ConnectionError, self.requests.Timeout) as e:
                 if wait is None:
-                    raise RuntimeError(f"read {FRAME_BUCKET}/{path}: {type(e).__name__} after {attempt + 1} attempts")
+                    raise RuntimeError(f"read {self.bucket}/{path}: {type(e).__name__} after {attempt + 1} attempts")
                 _sleep(wait)
                 continue
             if resp.status_code in (400, 404):
@@ -331,27 +358,27 @@ class SupabaseSink:
             if resp.status_code == 200:
                 return resp.content
             if resp.status_code not in RETRY_STATUS or wait is None:
-                raise RuntimeError(f"read {FRAME_BUCKET}/{path}: HTTP {resp.status_code}")
+                raise RuntimeError(f"read {self.bucket}/{path}: HTTP {resp.status_code}")
             _sleep(wait)
 
     def write(self, path, data, content_type, cache_control):
         """One upload, retried with backoff on 429 / 5xx / a dropped connection (Supabase answered cold-cache bursts with
         429 on 2026-10-20). Every object is content-addressed or a whole-file upsert, so a retry is always safe."""
         headers = dict(self.auth, **{"Content-Type": content_type, "x-upsert": "true", "cache-control": cache_control})
-        url = f"{self.base}/storage/v1/object/{FRAME_BUCKET}/{path}"
+        url = f"{self.base}/storage/v1/object/{self.bucket}/{path}"
         for attempt, wait in enumerate(UPLOAD_BACKOFF_S + (None,)):
             try:
                 resp = self.requests.post(url, headers=headers, data=data, timeout=60)
             except (self.requests.ConnectionError, self.requests.Timeout) as e:
                 if wait is None:
-                    raise RuntimeError(f"upload {FRAME_BUCKET}/{path}: {type(e).__name__} after {attempt + 1} attempts")
+                    raise RuntimeError(f"upload {self.bucket}/{path}: {type(e).__name__} after {attempt + 1} attempts")
                 _sleep(wait)
                 continue
             if resp.status_code in (200, 201):
                 self.order.append(path)
                 return
             if resp.status_code not in RETRY_STATUS or wait is None:
-                raise RuntimeError(f"upload {FRAME_BUCKET}/{path}: HTTP {resp.status_code}: {resp.text[:200]}")
+                raise RuntimeError(f"upload {self.bucket}/{path}: HTTP {resp.status_code}: {resp.text[:200]}")
             _sleep(wait)
 
     def list(self, prefix):
@@ -361,10 +388,10 @@ class SupabaseSink:
             folder = todo.pop()
             offset = 0
             while True:
-                resp = self.requests.post(f"{self.base}/storage/v1/object/list/{FRAME_BUCKET}", headers=self.auth,
+                resp = self.requests.post(f"{self.base}/storage/v1/object/list/{self.bucket}", headers=self.auth,
                                           timeout=60, json={"prefix": folder + "/", "limit": 1000, "offset": offset})
                 if resp.status_code != 200:
-                    raise RuntimeError(f"list {FRAME_BUCKET}/{folder}: HTTP {resp.status_code}")
+                    raise RuntimeError(f"list {self.bucket}/{folder}: HTTP {resp.status_code}")
                 rows = resp.json() or []
                 for row in rows:
                     path = f"{folder}/{row['name']}"
@@ -377,7 +404,7 @@ class SupabaseSink:
     def delete(self, paths):
         for i in range(0, len(paths), 500):
             chunk = list(paths[i:i + 500])
-            resp = self.requests.delete(f"{self.base}/storage/v1/object/{FRAME_BUCKET}", headers=self.auth,
+            resp = self.requests.delete(f"{self.base}/storage/v1/object/{self.bucket}", headers=self.auth,
                                         json={"prefixes": chunk}, timeout=60)
             if resp.status_code not in (200, 201):
                 print(f"[frames] delete of {len(chunk)} old objects failed: HTTP {resp.status_code}", file=sys.stderr)
@@ -610,6 +637,11 @@ def main(argv=None):
             None if args.store_dir else supabase_product_fetcher())
         if fetch is not None:
             source = TailDownloads(source, fetch, cap=tail_cap())
+    if fe.enabled():
+        # O6 (held OFF): EVERY frame to the PRIVATE bucket (accounts only), public index copies stripped of their paths.
+        # The wind-lane rebuild too (security review 2026-11-12): it reads the FULL index and writes frames like a run.
+        private = LocalSink(Path(args.out_dir) / "_private") if args.store_dir else SupabaseSink(bucket=fe.PRIVATE_BUCKET, public=False)
+        sink = fe.EntitledSink(sink, private)
     sink.ensure_bucket()
     if args.wind_lane_rebuild:
         return _wind_lane_rebuild(source, sink)

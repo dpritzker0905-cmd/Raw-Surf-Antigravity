@@ -93,3 +93,9 @@ describe('band colour ramp vs the discrete legend', () => {
     }
   });
 });
+
+describe('scoreToLevel: non-finite input is never a verdict (mirror of backend score_to_level)', () => {
+  test.each([NaN, Infinity, -Infinity, null, undefined])('%s -> unknown, not epic', (bad) => {
+    expect(scoreToLevel(bad)).toBe('unknown');
+  });
+});

@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 6,
+  "files": 1,
+  "branch": "fable/swell-exposure-normals",
+  "date": "2026-11-12",
+  "note": "MOP normals held OFF (#780)"
+}

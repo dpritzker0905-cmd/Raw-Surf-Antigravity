@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 3,
+  "files": 1,
+  "branch": "claude/791-tide-round-oracle",
+  "date": "2026-11-12",
+  "note": "tide._round_key pinned to the rounding oracle fixture"
+}

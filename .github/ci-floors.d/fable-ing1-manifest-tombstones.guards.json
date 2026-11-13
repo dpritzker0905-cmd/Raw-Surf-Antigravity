@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 13,
+  "files": 1,
+  "branch": "fable/ing1-manifest-tombstones",
+  "date": "2026-11-12",
+  "note": "ING-1 manifest tombstones (#770)"
+}

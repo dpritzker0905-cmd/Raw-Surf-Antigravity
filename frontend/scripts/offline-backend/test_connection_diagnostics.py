@@ -246,7 +246,9 @@ class SeamContracts(unittest.TestCase):
                 selection.append(node)
         from types import SimpleNamespace
         for enabled in (False, True):
-            env = {"app": app, "args": SimpleNamespace(series_diagnostics=enabled)}
+            # #797 put `observed_app = install_bounce_lab(app)` first in this slice; its import sits just before the
+            # slice, so give the slice an identity stub (the lab is idle until armed; this test is about the gate).
+            env = {"app": app, "args": SimpleNamespace(series_diagnostics=enabled), "install_bounce_lab": lambda a: a}
             exec(compile(ast.Module(body=selection, type_ignores=[]), "<startup-selection>", "exec"), env)
             if enabled:
                 self.assertTrue(issubclass(env["protocol_options"]["http"], diagnostic_protocol().__bases__[0]))

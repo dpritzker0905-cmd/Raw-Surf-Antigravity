@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 34,
+  "files": 1,
+  "branch": "claude/wind-lane-skill-weights",
+  "date": "2026-11-12",
+  "note": "WIND_LANE_SKILL_WEIGHTS dark lane (tests/test_wind_lane_skill_weights.py)"
+}

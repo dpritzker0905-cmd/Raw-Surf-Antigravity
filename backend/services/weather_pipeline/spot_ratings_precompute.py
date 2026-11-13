@@ -443,6 +443,61 @@ def merge_model_frames(prev_frames, fresh_frames, replaced_models) -> list:
     return list(fresh_frames) + [f for f in (prev_frames or []) if f.get("model") not in replaced_models]
 
 
+def _git_commit_ts() -> int:
+    """Commit time (epoch s) of the checked-out code, 0 if unknown. Orderable, unlike a SHA."""
+    try:
+        import subprocess
+        out = subprocess.run(["git", "log", "-1", "--format=%ct"], capture_output=True, text=True, timeout=10,
+                             cwd=os.path.dirname(os.path.abspath(__file__)))
+        return int(out.stdout.strip()) if out.returncode == 0 and out.stdout.strip() else 0
+    except Exception:
+        return 0
+
+
+def _int_or_0(v) -> int:
+    try:
+        return int(v)
+    except (TypeError, ValueError):
+        return 0
+
+
+def build_run_stamp(env=None, now=None) -> dict:
+    """The (code version, run) stamp written into every L2 ratings object this run uploads (ING-2, 2026-11-10).
+    `code_ts` = commit time of the checkout (CODE_COMMIT_TS overrides the git read); `run_id` = GITHUB_RUN_ID,
+    which GitHub numbers at TRIGGER time (so a core ingest that started before a push-triggered precompute has
+    the smaller id even though its tail step uploads later); `started_at` = this process's start."""
+    env = os.environ if env is None else env
+    code_ts = _int_or_0(env.get("CODE_COMMIT_TS")) or _git_commit_ts()
+    return {"code_sha": env.get("GITHUB_SHA") or None, "code_ts": code_ts,
+            "run_id": _int_or_0(env.get("GITHUB_RUN_ID")),
+            "started_at": (now or datetime.now(timezone.utc)).isoformat()}
+
+
+def is_older_stamp(ours, theirs, now=None) -> bool:
+    """PURE: True only when `ours` is PROVABLY older than `theirs`. Order: run_id first (GitHub numbers runs at
+    trigger time, across workflows), then code_ts as a tie-break only, then started_at; each only when both sides
+    carry a usable value. code_ts must NOT rank first: a workflow_dispatch from a branch with a newer head commit
+    would otherwise out-rank every later scheduled run on dev and wedge the lane. A stored stamp whose started_at
+    is older than SPOT_RATINGS_STALE_TOLERANCE_S (default 6 h) never blocks (a dead owner cannot hold the lane).
+    Unstamped objects or unprovable comparisons return False (fail open)."""
+    if not isinstance(ours, dict) or not isinstance(theirs, dict):
+        return False
+    t_start = _parse_dt(theirs.get("started_at"))
+    if t_start is not None:
+        try:
+            tol = float(os.environ.get("SPOT_RATINGS_STALE_TOLERANCE_S", "21600"))
+        except ValueError:
+            tol = 21600.0
+        if ((now or datetime.now(timezone.utc)) - t_start).total_seconds() > tol:
+            return False
+    for field in ("run_id", "code_ts"):
+        a, b = _int_or_0(ours.get(field)), _int_or_0(theirs.get(field))
+        if a > 0 and b > 0 and a != b:
+            return a < b
+    a = _parse_dt(ours.get("started_at"))
+    return bool(a and t_start and a < t_start)
+
+
 def run_spot_ratings_precompute() -> tuple:
     """CI entry: read spots (Supabase REST), rate the configured frames, upload the L2 object with a
     CHECKPOINT MERGE-UPLOAD AFTER EVERY MODEL (2026-07-13): the 07-13 melt recurrence was three
@@ -450,6 +505,8 @@ def run_spot_ratings_precompute() -> tuple:
     only happened at the very end. Now each model's frames go live as soon as that model completes,
     merged with the previous object so not-yet-recomputed models keep their prior coverage (the stale
     ladder serves them). Returns (n_spots, n_frames_uploaded; 0 = every model withheld/failed).
+    A run superseded by a newer stamp before its first upload returns (n_spots, 0); precompute_ci treats
+    0 frames as a failure, so that run goes red by design (nothing was written).
     Config via env: SPOT_RATINGS_PRECOMPUTE_MODELS (csv, default GFS), SPOT_RATINGS_PRECOMPUTE_HOURS
     (csv offsets, default '0'), SPOT_RATINGS_MIN_COVERAGE (per-model guard, default 0.05)."""
     from services.weather_pipeline.store import ProductStore
@@ -469,9 +526,11 @@ def run_spot_ratings_precompute() -> tuple:
     accepted_frames = []   # fresh frames that passed the per-model guard, across models so far
     replaced = set()
     n_frames_uploaded = 0
+    run_stamp = build_run_stamp()
+    superseded = False     # a NEWER run/code already owns the L2 object: this run stops writing
 
     async def _run_all():
-        nonlocal n_frames_uploaded
+        nonlocal n_frames_uploaded, prev_frames, superseded
         for model in models:
             obj_m = await precompute_spot_ratings(resolver, spots, [model], hours)
             if obj_m.get("refused"):
@@ -487,10 +546,24 @@ def run_spot_ratings_precompute() -> tuple:
                              "the previous %s frames (are the grids warmed?).",
                              model, cov * 100, min_cov * 100, model)
                 continue
+            # ONE WRITER AT A TIME (ING-2): two lanes (core ingest tail + precompute.yml) write this object. Re-read
+            # it NOW; a newer run/code stamp means this (older) run must not publish. Otherwise merge onto the
+            # freshest object, not the copy read at start, which another lane may have replaced since.
+            # Narrows the read-then-PUT window to seconds; storage has no conditional PUT, so not atomic.
+            _cur = load_spot_ratings_l2()
+            if is_older_stamp(run_stamp, (_cur or {}).get("run_stamp")):
+                superseded = True
+                logger.warning("[spot-ratings] %s: L2 object is owned by a newer run/code (%s vs ours %s) — "
+                               "NOT uploading; stopping this run's writes.",
+                               model, (_cur or {}).get("run_stamp"), run_stamp)
+                return
+            if _cur and _cur.get("frames"):
+                prev_frames = _cur["frames"]
             accepted_frames.extend(frames_m)
             replaced.add(model)
             merged = merge_model_frames(prev_frames, accepted_frames, replaced)
             obj = build_l2_object(merged)
+            obj["run_stamp"] = run_stamp
             # OBSERVATION GATE + light report weigh-in (rating plan Step 4): scores above 'good' are
             # capped unless >=2 models agree or a fresh user report confirms. Applied to the merged
             # object BEFORE each checkpoint upload so every consumer sees one truth. Kill: RATING_OBS_GATE=0.
@@ -509,11 +582,18 @@ def run_spot_ratings_precompute() -> tuple:
 
     asyncio.run(_run_all())
 
+    if superseded:
+        # Newer lane owns ratings AND will fold its own samples: folding this older run's would double-count.
+        logger.warning("[spot-ratings] precompute superseded by a newer run: %d frames uploaded before the stop; "
+                       "size climatology fold skipped.", n_frames_uploaded)
+        return len(spots), n_frames_uploaded
     if not replaced:
         logger.error("[spot-ratings] precompute: every model withheld/failed — previous object left as-is.")
         return len(spots), 0
     # Fold this run's breaking heights into the per-spot size CLIMATOLOGY (the local-calibration reference
-    # source). Single-writer (this cron) → no CAS. NEVER fatal — a climatology hiccup must not fail the
+    # source). Two lanes run this (core ingest tail + precompute.yml); the run-stamp guard above keeps an older
+    # run from folding after a newer one, but storage has no CAS, so a same-second overlap can still lose a
+    # fold (ING-2 residual). NEVER fatal — a climatology hiccup must not fail the
     # ratings precompute or stomp the served ratings. Gate RATING_SIZE_CLIMATOLOGY (default on; it only
     # WRITES a separate blob, it doesn't change served ratings until RATING_LOCAL_SIZE reads it back).
     if os.environ.get("RATING_SIZE_CLIMATOLOGY", "1") == "1":

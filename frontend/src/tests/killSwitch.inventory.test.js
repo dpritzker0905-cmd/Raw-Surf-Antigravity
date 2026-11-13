@@ -34,6 +34,8 @@ const path = require('path');
 // ---------------------------------------------------------------------------
 
 const MAP_DIR = path.resolve(__dirname, '../components/map');
+// Map-serving files outside components/map whose switches the map depends on (#782 accounts only, 2026-11-12).
+const EXTRA_FILES = ['../lib/weatherAuthFetch.js', '../lib/weatherSession.js', '../lib/weatherRateLimit.js'].map((f) => path.resolve(__dirname, f));
 
 /**
  * Switches that have a dedicated *.killSwitch.test.js covering them with
@@ -41,6 +43,39 @@ const MAP_DIR = path.resolve(__dirname, '../components/map');
  * for phantom entries.  To add: write the test file first.
  */
 const KILL_SWITCHES_TESTED = new Set([
+  // tests/weatherAuthFetch.test.js ("kill switch: never a token, never a retry") and tests/sessionExpiredPrompt.test.js
+  // ("kill switch and the auth page itself raise nothing"): #782, accounts only
+  '__RAW_DISABLE_WEATHER_AUTH__',
+  '__RAW_DISABLE_SESSION_PROMPT__',
+  // tests/rateLimitNotice.test.js ("the kill switch: no hold, no event, no notice"): #815
+  '__RAW_DISABLE_RATE_LIMIT_NOTICE__',
+  // components/map/oneWayCrests.test.js (one-way crests, 2026-11-12)
+  '__RAW_DISABLE_ONE_WAY_CRESTS__',
+  '__RAW_DISABLE_REDUCED_MOTION_BAND__',
+  // components/map/glyphAreaEstimate.test.js (O4 / CLI-3: grid-sample glyphs labelled area estimates)
+  '__RAW_DISABLE_GLYPH_ESTIMATE_LABEL__',
+  // components/map/truthTagLazyHash.test.js, components/map/readoutDateFormat.test.js (layer animation lane, 2026-11-11)
+  '__RAW_DISABLE_TRUTH_TAG_LAZY_HASH__',
+  '__RAW_DISABLE_READOUT_FORMAT_CACHE__',
+  // components/map/marineHoldRunUnknown.test.js (CLI-6: a run known on one side only releases the hold)
+  '__RAW_DISABLE_HOLD_RUN_UNKNOWN_RELEASE__',
+  // components/map/marineGridSeries.runIdentity.test.js (CLI-7: a newer-run page evicts older-run sibling pages)
+  '__RAW_DISABLE_SERIES_RUN_EVICT__',
+  // marineFramePack.parity.test.js + marineFrameStoreRuntime.allLayers.test.js + filledWorldStore.test.js + staticFrames.test.js
+  // ("OFF PATH: ... packs waves only again"; 2026-11-12, move 3: the GPU frame store takes every marine layer)
+  '__RAW_DISABLE_FRAME_STORE_ALL_LAYERS__',
+  // staticEuroSwellSets.test.js ("OFF PATH: the kill disables every EURO swell set and nothing else"; 2026-11-12, move 3)
+  '__RAW_DISABLE_STATIC_EURO_SWELL__',
+  // components/map/responsiveWeather.test.js
+  '__RAW_DISABLE_RESPONSIVE_WEATHER__',
+  // components/map/ownRasterFrames.test.js (pressure from own frames, ON 2026-11-12; the kill is the .om path)
+  '__RAW_DISABLE_RASTER_OWN_PRESSURE__',
+  // components/map/radarAdvectWorker.test.js (the nowcast warp in a worker; the kill runs the main-thread warp + PNG)
+  '__RAW_DISABLE_RADAR_ADVECT_WORKER__',
+  // components/map/radarRecolorWorker.test.js (HRRR / DWD / lightning tiles in the worker; the kill is the main-thread recolor)
+  '__RAW_DISABLE_RADAR_RECOLOR_WORKER__',
+  // tests/forecast-card-swell-vs-surf.test.js (CMP-4)
+  '__RAW_DISABLE_UNKNOWN_DEPTH_HIDE__',
   // components/map/marineUnpatchedMaskHold.test.js
   '__RAW_DISABLE_UNPATCHED_MASK_HOLD__',
   '__RAW_DISABLE_UNRESOLVED_DIRECTION__',
@@ -97,6 +132,9 @@ const KILL_SWITCHES_TESTED = new Set([
   // Map-clear self-capture recorder (#744, opt-in diagnostics, no served number). marineClearRecorder.test.js:
   // the switch beats both ?diag=1 and window.__RAW_SOAK_RECORDER__ (isSoakRecorderEnabled returns false).
   '__RAW_DISABLE_SOAK_RECORDER__',
+  // O6 static-frame signer (2026-11-11). staticFrameSigner.test.js: with the switch set no /frame-urls call is made and the
+  // paid hours stay unbuilt (-> /grid, the pre-O6 path); the same index without it is signed (null control).
+  '__RAW_DISABLE_FRAME_SIGNER__',
 ]);
 
 /**
@@ -121,7 +159,6 @@ const KILL_SWITCHES_EXEMPT = new Set([
   '__RAW_DISABLE_BAND_RES_FADE__',
   '__RAW_DISABLE_BAND_WASH_UNDAMP__',
   '__RAW_DISABLE_BASE_AWARE_BRIDGE__',
-  '__RAW_DISABLE_BASE_COVER_GATE__',
   '__RAW_DISABLE_BASE_CRISP_MASK__',
   '__RAW_DISABLE_BASE_HOLD__',
   '__RAW_DISABLE_BASE_HOUR_SYNC__',
@@ -531,9 +568,8 @@ function scanSwitches() {
   } catch (e) {
     throw new Error(`Cannot read MAP_DIR (${MAP_DIR}): ${e.message}`);
   }
-  for (const file of files) {
-    if (!file.endsWith('.js') || file.endsWith('.test.js')) continue;
-    const fullPath = path.join(MAP_DIR, file);
+  const paths = files.filter((f) => f.endsWith('.js') && !f.endsWith('.test.js')).map((f) => path.join(MAP_DIR, f));
+  for (const fullPath of [...paths, ...EXTRA_FILES]) {
     const text = fs.readFileSync(fullPath, 'utf8');
     // Global regex — must be recreated per file to reset lastIndex
     const re = /__RAW_DISABLE_[A-Z0-9_]+__/g;

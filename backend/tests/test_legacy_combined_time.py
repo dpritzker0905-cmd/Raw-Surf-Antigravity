@@ -86,7 +86,7 @@ async def test_default_wind_still_uses_current(provider):
 @pytest.mark.asyncio
 async def test_actual_composite_replay_preserves_time_quantity_and_tide_provenance(provider, monkeypatch):
     payload, requests = provider
-    monkeypatch.setattr(sc, '_breaking_ft', lambda *args: (4.2, 'test_breaking'))
+    monkeypatch.setattr(sc, '_breaking_ft', lambda *args, **kw: (4.2, 'test_breaking'))   # CMP-2 adds water_level_m/nearshore kwargs
     payload.update(current={'wave_height': 99, 'wind_speed_10m': 99}, hourly={
         'time': ['2026-09-16T00:00'], 'wave_height': [2], 'wave_period': [12],
         'swell_wave_height': [0.5], 'wind_speed_10m': [10], 'wind_direction_10m': [0]},

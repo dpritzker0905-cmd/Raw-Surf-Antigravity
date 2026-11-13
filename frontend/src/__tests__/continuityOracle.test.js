@@ -10,7 +10,7 @@
  * This is deliberately a Jest test rather than a Playwright one: it needs no browser, so it runs on
  * every push in the fast lane, and the E2E lane is left to do the thing only it can do.
  */
-const { longestStall, stallAnatomy, isAppStall, EVENT_LEAD_MS, MIN_OFFERED_FRAMES } = require('../../e2e/continuityOracle');
+const { longestStall, stallAnatomy, isAppStall, steadyDrawStep, EVENT_LEAD_MS, MIN_OFFERED_FRAMES } = require('../../e2e/continuityOracle');
 
 const s = (at, n, label = null) => ({ at, n, label });
 
@@ -238,5 +238,44 @@ describe('continuityOracle.isAppStall — a gap counts only when the browser off
     expect(isAppStall({ ms: 1200 }, { rafTicks: 500 }, 1200)).toBe(false);
     expect(isAppStall({ ms: 0 }, null, 1200)).toBe(false);
     expect(isAppStall(null, null, 1200)).toBe(false);
+  });
+});
+
+describe('continuityOracle.steadyDrawStep (the at-rest positive control)', () => {
+  // Drive the step over a series of [at, n] polls; returns the time it first reports steady, or null.
+  const run = (polls, windowMs = 1500) => {
+    let state = null;
+    for (const [at, n] of polls) {
+      const step = steadyDrawStep(state, n, at, windowMs);
+      if (step.steady) return at;
+      state = step.state;
+    }
+    return null;
+  };
+
+  it('a counter advancing every poll is steady once one full window has passed', () => {
+    const polls = [0, 250, 500, 750, 1000, 1250, 1500, 1750].map((at, i) => [at, i + 1]);
+    expect(run(polls)).toBe(1500);
+  });
+
+  it('THE CI FLAKE: one draw, flat while the forecast loads, then drawing — steady AFTER startup, not failed', () => {
+    // 43216443158 / 43231836639 Desktop Safari: n sat at 1 for the old 1.5 s control. The new control re-anchors.
+    const polls = [[0, 1], [500, 1], [1000, 1], [1500, 1], [2000, 1], [2500, 2], [3000, 5], [3500, 9], [4000, 14], [4500, 20]];
+    expect(run(polls)).toBe(3000);   // anchored at 1500 (n=1), first full window ends at 3000 with n=5 > 1
+  });
+
+  it('NEGATIVE CONTROL: a counter that never moves is never steady (the dead engine still fails)', () => {
+    const polls = Array.from({ length: 200 }, (_, i) => [i * 250, 1]);
+    expect(run(polls)).toBeNull();
+  });
+
+  it('never steady before the first draw, and an advance inside a window does not count early', () => {
+    expect(run([[0, null], [1000, 0], [2000, null]])).toBeNull();
+    expect(run([[0, 1], [100, 50], [1400, 90]])).toBeNull();
+  });
+
+  it('a restarted counter (new engine) re-anchors instead of reading as an advance', () => {
+    const polls = [[0, 40], [1600, 3], [1700, 3], [3200, 3], [4800, 4]];
+    expect(run(polls)).toBe(4800);   // 40 -> 3 re-anchors at 1600; flat to 3200 re-anchors; 4 > 3 at 4800
   });
 });

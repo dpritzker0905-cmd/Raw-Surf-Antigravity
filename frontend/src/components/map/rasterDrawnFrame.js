@@ -18,6 +18,7 @@ import { useEffect, useSyncExternalStore } from 'react';
 import { MODEL_METADATA_CACHE } from './LayerRegistry';
 import { getEngaged } from './ownRasterFrames';
 import { ESTIMATE_WORDS } from './drawnFrameReadout';
+import { formatReadoutDate } from './readoutDateFormat';
 
 const W = () => (typeof window !== 'undefined' ? window : {});
 export const PENDING_QUIET_MS = 300;
@@ -71,8 +72,8 @@ export function useRasterDrawnPublisher(activeLayers, activeSlots, omTileUrls, t
   }, [activeLayers, activeSlots, omTileUrls, targetSlotsRef]);
 }
 
-const fmtHour = (ms) => new Date(ms).toLocaleString('en-US', { weekday: 'short', hour: 'numeric' });
-const fmtClock = (ms) => new Date(ms).toLocaleString('en-US', { hour: 'numeric', minute: '2-digit' });
+const fmtHour = (ms) => formatReadoutDate(new Date(ms), 'hour');
+const fmtClock = (ms) => formatReadoutDate(new Date(ms), 'clock');
 
 /**
  * Words for the pair, in the marine readout's states. `requestedMs` = the selected instant (now + hour; radar: its frame).
