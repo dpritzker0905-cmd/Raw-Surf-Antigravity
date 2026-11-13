@@ -238,3 +238,10 @@ def test_the_horizon_is_the_capability_horizon():
     assert SS.horizon_for("GFS") <= 336 and SS.frames_per_spot(-117.6, BASE, "GFS") == len(
         SS.spot_times(-117.6, BASE, SS.horizon_for("GFS")))
     assert (BASE + timedelta(hours=SS.horizon_for("GFS"))) >= max(SS.spot_times(-117.6, BASE, SS.horizon_for("GFS")))
+
+
+@__import__("pytest").fixture(autouse=True)
+def _legacy_reference_curve(monkeypatch):
+    """These pins describe the reference-LESS legacy size curve. JAC-2's catalogue prior
+    (RATING_REF_PRIOR, default ON) replaces it; that path is pinned in test_reference_prior.py."""
+    monkeypatch.setenv("RATING_REF_PRIOR", "0")
