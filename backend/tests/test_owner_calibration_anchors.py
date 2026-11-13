@@ -128,3 +128,10 @@ def test_epic_is_unreachable_below_9s_at_any_size():
             f"Tp {tp} s can now reach epic (best {best_possible}) — the blend ceiling moved")
     # ...and at a genuine groundswell period it is reachable, so this is a ceiling not a wall.
     assert score_to_level(max(rate(ft, 12.0, FL_REF)[0] for ft in (6, 8, 10))) == "epic"
+
+
+@__import__("pytest").fixture(autouse=True)
+def _legacy_reference_curve(monkeypatch):
+    """These pins describe the reference-LESS legacy size curve. JAC-2's catalogue prior
+    (RATING_REF_PRIOR, default ON) replaces it; that path is pinned in test_reference_prior.py."""
+    monkeypatch.setenv("RATING_REF_PRIOR", "0")

@@ -6,6 +6,7 @@
 // Long Animation Frames for both phases, the own-frames telemetry, the isobar / H-L layers present, a screenshot.
 //   PORT=4198 AB_BASE=http://127.0.0.1:3198 OWN_CDN=http://127.0.0.1:4293/ RR_DIR=<cache> OUT=<dir> VP=phone|desktop
 //   THEME=dark|light|beach MODEL=GFS|EURO|ICON ARM=own|om [RR_MODE=auto] [DRAWN=om] node scn_pressure_own.js
+// FLAGS='{"__RAW_DISABLE_ISOBAR_NEIGHBOUR_IDLE__":true}' sets window levers before load (a same-build A/B of one switch); TAG_SUFFIX names the run.
 if (process.env.AB_LIVE === '1') throw Error('scn_pressure_own is offline only');
 const fs = require('fs'); const path = require('path');
 const L = require('./ab_lib.js'); const { RR } = require('../raster-lab/rr.js');
@@ -13,7 +14,8 @@ const OUT = process.env.OUT; const VP = process.env.VP || 'desktop'; const THEME
 const ARM = process.env.ARM || 'own'; const MODEL = process.env.MODEL || 'GFS';
 const STEPS = +(process.env.STEPS || 12); const KEY_MS = +(process.env.KEY_MS || 300);
 const VIEW = (process.env.VIEW || '-55,38,3.2').split(',').map(Number);
-const TAG = `${ARM}-${MODEL}-${THEME}-${VP}`;
+const FLAGS = process.env.FLAGS ? JSON.parse(process.env.FLAGS) : {};
+const TAG = `${ARM}-${MODEL}-${THEME}-${VP}${process.env.TAG_SUFFIX || ''}`;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const drawn = (own) => {
   if (own) { const t = window.__RAW_OWN_RASTER__ || {}; return !!(t.shown && t.want && t.shown.path === t.want.path); }
@@ -28,13 +30,14 @@ const drawn = (own) => {
     ? { port: +process.env.PORT, width: 390, height: 844, dpr: 3, contextOptions: { isMobile: true, hasTouch: true } }
     : { port: +process.env.PORT, width: 1280, height: 800, dpr: 1 });
   await rr.install(page);
-  await page.addInitScript(({ theme, kill, cdn }) => {
+  await page.addInitScript(({ theme, kill, cdn, flags }) => {
+    Object.assign(window, flags);
     try { localStorage.setItem('raw-surf-theme', theme); } catch (e) { /* private mode */ }
     window.__RAW_STATIC_FRAMES_BASE__ = cdn;
     if (kill) window.__RAW_DISABLE_RASTER_OWN_PRESSURE__ = true;
     window.__LAF__ = [];
     try { new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__LAF__.push({ t: e.startTime, d: e.duration, b: e.blockingDuration || 0 }); }).observe({ type: 'long-animation-frame', buffered: true }); } catch (e) { /* no LoAF */ }
-  }, { theme: THEME, kill: ARM === 'om', cdn: process.env.OWN_CDN });
+  }, { theme: THEME, kill: ARM === 'om', cdn: process.env.OWN_CDN, flags: FLAGS });
   const cdp = await page.context().newCDPSession(page);
   if (phone) await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
   await L.openMap(page);
@@ -71,7 +74,7 @@ const drawn = (own) => {
   }, { t0, t1 });
   await page.screenshot({ path: path.join(OUT, `${TAG}.png`) });
   const log = rr.log || [];
-  Object.assign(res, { arm: ARM, model: MODEL, theme: THEME, vp: VP, steps: STEPS, toggleMs, settleMs,
+  Object.assign(res, { flags: FLAGS, arm: ARM, model: MODEL, theme: THEME, vp: VP, steps: STEPS, toggleMs, settleMs,
     omRequests: log.length, omBytes: log.reduce((s, e) => s + ((e && e.bytes) || 0), 0), rrMisses: log.filter((e) => e && e.hit === false).length });
   fs.writeFileSync(path.join(OUT, `${TAG}.json`), JSON.stringify(res, null, 1));
   console.log(JSON.stringify(res));

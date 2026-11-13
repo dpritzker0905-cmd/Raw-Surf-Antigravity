@@ -94,3 +94,10 @@ def test_compute_surf_rating_optional_inputs_are_all_keyword_reachable():
         assert expected in params, f"{expected} vanished from the rating signature"
     # break_depth_m must remain AFTER the historical positional block so old callers are unaffected.
     assert params.index("break_depth_m") > params.index("reference_size_m")
+
+
+@__import__("pytest").fixture(autouse=True)
+def _legacy_reference_curve(monkeypatch):
+    """These pins describe the reference-LESS legacy size curve. JAC-2's catalogue prior
+    (RATING_REF_PRIOR, default ON) replaces it; that path is pinned in test_reference_prior.py."""
+    monkeypatch.setenv("RATING_REF_PRIOR", "0")

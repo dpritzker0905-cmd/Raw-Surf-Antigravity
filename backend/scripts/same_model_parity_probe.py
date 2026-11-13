@@ -38,6 +38,10 @@ import time
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+try:
+    from _service_auth import service_headers   # the forecast clamp's job key (flip blocker 1)
+except ImportError:
+    from scripts._service_auth import service_headers
 
 BASE = os.environ.get("RAW_SURF_BASE_URL", "https://raw-surf-antigravity.onrender.com")
 LEADS = (24, 25, 26, 48, 72)
@@ -111,7 +115,7 @@ def summarize(rows: list) -> dict:
 
 
 def _get_json(url, timeout=60):
-    req = urllib.request.Request(url, headers={"User-Agent": "raw-surf-same-model-probe"})
+    req = urllib.request.Request(url, headers=service_headers(url, {"User-Agent": "raw-surf-same-model-probe"}))
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read().decode("utf-8"))
 

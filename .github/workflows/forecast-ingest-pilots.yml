@@ -267,7 +267,7 @@ jobs:
       # stored product, so it does not wait on the ingest. A cycle latest.json already lists uploads nothing. The client half
       # is dark (raster-instant session): publishing changes nothing a user sees. Off: repo variable FRAME_RASTER_PRESSURE=0.
       - name: Publish raster static frames (pressure; client dark)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRESSURE != '0' }}
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_PRESSURE || '1') != '0' }}
         continue-on-error: true
         timeout-minutes: 12
         working-directory: backend
@@ -327,6 +327,19 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FRAME_RASTER_CLOUD_0P25: ${{ vars.FRAME_RASTER_CLOUD_0P25 }}
         run: python scripts/publish_raster_frames.py --set cloud_cover_0p25
+      # Precipitation (the owner, 2026-11-12: "Yes, build it"): GFS APCP bucket totals differenced to the amount that fell in the
+      # step before each hour, mm/h, on the 0.25-degree grid; hourly to f120, then 3-hourly (192 frames, about 2 byte ranges
+      # each). Off unless FRAME_RASTER_PRECIP=1; the client draws it only behind a dark lever.
+      - name: Publish raster static frames (GFS precipitation; off unless FRAME_RASTER_PRECIP=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRECIP == '1' }}
+        continue-on-error: true
+        timeout-minutes: 15
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_PRECIP: ${{ vars.FRAME_RASTER_PRECIP }}
+        run: python scripts/publish_raster_frames.py --set precipitation
 
       # PER-MODEL PRESSURE (2026-10-23; the owner, 20:13 EDT: "Yes start it", answering "start the per-model pressure route?"
       # after "We want each models pressure showing"). EURO = ECMWF IFS open data msl (CC BY 4.0, attribution required), the
