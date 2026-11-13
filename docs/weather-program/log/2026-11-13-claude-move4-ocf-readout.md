@@ -73,8 +73,20 @@ made) or a one-off Actions run with it. Proposed as the next step, not started.
 - Renormalise over available members instead of requiring complete triplets: NOT built.
 - Direction weighted by energy (Hs squared), with partition matching: NOT built. The OCF block scores height only.
 
+## Reflection review (run 2026-11-13 on David's yes; aggregates only, no secrets)
+
+Reflection Beam (an external model, advisory) reviewed claims A-C. Its points, which I agree with:
+- A: only the pacific_ne-driven pooled gain is supported; "beats served" is not general. Smallest check: per-region
+  day-block intervals and a region-balanced (equal-weight) MAE comparison. It also asks about leakage in the rolling
+  correction: it is meant to use only trailing-window observations, but I have NOT re-verified that against the test
+  week in this read-out.
+- B: attributing the excess to the unknown tier alone is not established; region, difficulty and temporal clustering
+  could drive it, and a planted bias proves the instrument, not the mechanism. Smallest check: a region x tier
+  stratified or matched split and a side-specific error decomposition (needs member-level fields on scored rows).
+- C: "impossible" was too strong; a sensitivity excluding whole suspect regions (pacific_ne) is possible from the
+  existing aggregates, and I have not run it. Read "cannot do" above as "not done from aggregates".
+Reflection is a second opinion, not a replacement for the advisor's red-team.
+
 ## Not done
-- The Reflection review. The director asked for one before any claim. The Reflection tool is limited to when the
-  user asks for it, and a message from another session does not count, so I did not call it. Everything above is
-  therefore a reading of the published numbers, not a reviewed result.
+- The advisor's red-team (requested next).
 - No scoreboard row claims a fix: this is a measurement and the shadow stays off the served path.
