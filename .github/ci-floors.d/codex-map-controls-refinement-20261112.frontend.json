@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 40,
+  "tests": 47,
   "files": 7,
   "branch": "codex/map-controls-refinement-20261112",
   "date": "2026-11-13",
-  "note": "Responsive map controls, drawer gestures, and independent landscape point scrolling"
+  "note": "Responsive map controls, concise tides and deduplicated forecast status"
 }

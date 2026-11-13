@@ -478,3 +478,6 @@
     left: 244px; width: calc(100% - 244px);
   }
 }
+
+/* The open infobox owns an identical frame-status sentence. Preserve distinct notices. */
+[data-responsive-weather="true"] [data-weather-timeline] [data-duplicate-point-time] { display: none; }

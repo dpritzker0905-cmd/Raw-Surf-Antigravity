@@ -133,3 +133,23 @@ test('landscape gives point details their own column while the timeline stays op
     expect(screen.getByRole('group',{name:'Tide',exact:true})).toBeInTheDocument();
   } finally { Object.defineProperty(window,'innerWidth',{configurable:true,value:oldWidth}); }
 });
+
+
+describe('map coverage disclosure', () => {
+  afterEach(() => { delete window.__MARINE_HEATMAP_STATUS__; });
+  test.each(['GFS', 'ICON', 'EURO'])('names the %s map grid without claiming tides are missing', model => {
+    mockTheme = model === 'GFS' ? 'light' : model === 'EURO' ? 'beach' : 'dark';
+    window.__MARINE_HEATMAP_STATUS__ = { status: 'no_backend_coverage', model, layer: 'waves', hour: 0 };
+    render(<MapForecastOverlay {...props} activeModel={model} />);
+    expect(screen.getByText(`${model} waves map grid unavailable`)).toBeVisible();
+    expect(screen.getByText(`${model} waves map grid unavailable`).parentElement).toHaveClass(mockTheme === 'light' ? 'text-amber-800' : 'text-amber-400');
+    expect(screen.getByText('No usable map grid for this view/time. Tide data loads separately.')).toBeVisible();
+    expect(screen.getByTestId('tide-readout')).toBeVisible();
+  });
+  test.each([{ model: 'ICON' }, { layer: 'swell_1' }, { hour: 12 }])('does not attach another selection’s warning: %j', other => {
+    window.__MARINE_HEATMAP_STATUS__ = { status: 'no_backend_coverage', model: 'GFS', layer: 'waves', hour: 0, ...other };
+    render(<MapForecastOverlay {...props} />);
+    expect(screen.queryByText(/map grid unavailable/)).toBeNull();
+    expect(screen.getByTestId('tide-readout')).toBeVisible();
+  });
+});

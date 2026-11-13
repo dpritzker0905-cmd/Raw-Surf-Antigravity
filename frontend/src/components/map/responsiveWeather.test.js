@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { useMapChromeLayout, showPointTide } from './useMapChromeLayout';
 import WeatherLayerSheet from './WeatherLayerSheet';
 import { getHeightUnit, setHeightUnit } from './heightUnits';
+import { syncForecastStatusDuplicates } from './forecastStatusDuplicates';
 let mockTheme = 'dark';
 jest.mock('../../contexts/ThemeContext', () => ({ useTheme: () => ({ theme: mockTheme }) }));
 
@@ -374,18 +375,19 @@ test('ordinary map rerenders keep observer subscriptions and do not force chrome
   try {
     const view = render(<Chrome><span>Selection zero</span></Chrome>);
     const initialObserver = observer;
+    const initialMutationCount = global.MutationObserver.mock.calls.length;
     HTMLElement.prototype.getBoundingClientRect.mockClear();
     view.rerender(<Chrome><span>Selection one</span></Chrome>);
     view.rerender(<Chrome><span>Selection two</span></Chrome>);
     expect(global.ResizeObserver).toHaveBeenCalledTimes(1);
-    expect(global.MutationObserver).toHaveBeenCalledTimes(2);
+    expect(global.MutationObserver).toHaveBeenCalledTimes(initialMutationCount);
     expect(HTMLElement.prototype.getBoundingClientRect).not.toHaveBeenCalled();
     expect(initialObserver.disconnect).not.toHaveBeenCalled();
     act(() => resize()); act(() => scheduled());
     expect(HTMLElement.prototype.getBoundingClientRect).toHaveBeenCalled();
     view.unmount();
     expect(initialObserver.disconnect).toHaveBeenCalledTimes(1);
-    expect(mutation.disconnect).toHaveBeenCalledTimes(2);
+    expect(mutation.disconnect).toHaveBeenCalledTimes(initialMutationCount);
   } finally { global.MutationObserver = originalMutationObserver; }
 });
 
@@ -471,4 +473,33 @@ test('a late or replaced toolbar is measured without a map render and after posi
     expect(root.style.getPropertyValue('--weather-toolbar-offset')).toBe('120px');
     expect(observer.observe).toHaveBeenCalledWith(nav);
   } finally { unmount(); nav.remove(); }
+});
+
+
+test('timeline suppresses only the exact open-infobox sentence and restores it when details close', () => {
+  const message = 'Loading Fri 12 PM… still showing Fri 9 AM';
+  const {container} = render(<div>
+    <div className="weather-point-card"><div className="weather-point-body">
+      <div data-testid="forecast-overlay-frame-words" aria-label={message}>{message}</div>
+    </div></div>
+    <div data-weather-timeline="mobile"><div data-drawn-state="pending">{message}</div>
+      <div data-drawn-state="fallback">Simplified wave layer</div></div>
+  </div>);
+  const root=container.firstChild, card=root.querySelector('.weather-point-card');
+  const body=card.firstChild, line=root.querySelector('[data-drawn-state="pending"]');
+  syncForecastStatusDuplicates(root);
+  expect(line).toHaveAttribute('data-duplicate-point-time');
+  expect(root.querySelector('[data-drawn-state="fallback"]')).not.toHaveAttribute('data-duplicate-point-time');
+  body.setAttribute('aria-hidden','true');syncForecastStatusDuplicates(root);
+  expect(line).not.toHaveAttribute('data-duplicate-point-time');
+  body.removeAttribute('aria-hidden');root.dataset.pointDetailsCompact='true';syncForecastStatusDuplicates(root);
+  expect(line).not.toHaveAttribute('data-duplicate-point-time');
+  card.dataset.pointDetailsExpanded='true';syncForecastStatusDuplicates(root);
+  expect(line).toHaveAttribute('data-duplicate-point-time');
+  root.dataset.mapControlMode='explore';syncForecastStatusDuplicates(root);
+  expect(line).not.toHaveAttribute('data-duplicate-point-time');
+  root.dataset.mapControlMode='weather';body.firstChild.setAttribute('aria-label','Showing a different point forecast');syncForecastStatusDuplicates(root);
+  expect(line).not.toHaveAttribute('data-duplicate-point-time');
+  card.remove();syncForecastStatusDuplicates(root);
+  expect(line).not.toHaveAttribute('data-duplicate-point-time');
 });

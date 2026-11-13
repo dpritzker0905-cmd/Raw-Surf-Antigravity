@@ -27,7 +27,7 @@ export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, at
   const data = payload ? tideAt(payload, atMs) : null;
   if (infoboxTideDisabled() || status === 'off') return null;
   const textClass = isLight ? 'text-gray-900' : 'text-white';
-  const muted = isLight ? 'text-gray-500' : isBeach ? 'text-cyan-200/80' : 'text-gray-400';
+  const muted = isLight ? 'text-gray-600' : isBeach ? 'text-cyan-200/80' : 'text-gray-400';
   const accent = isLight ? 'text-sky-700' : isBeach ? 'text-amber-300' : 'text-cyan-400';
   const rule = isLight ? 'border-gray-200' : isBeach ? 'border-cyan-900/50' : 'border-zinc-800/20';
   const wrap = `pt-1.5 mt-1.5 border-t ${rule}`;
@@ -35,7 +35,9 @@ export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, at
     return <div className={`${wrap} text-[10px] ${muted}`} role="status">Loading modeled sea level…</div>;
   }
   if (status === 'unavailable' || (status === 'ok' && !data)) {
-    return <div className={`${wrap} text-[10px] ${muted}`} data-testid="tide-readout-unavailable" role="status">{TIDE_UNAVAILABLE}</div>;
+    return <div className={wrap}>
+      <div className={`text-[10px] ${muted}`} data-testid="tide-readout-unavailable" role="status">{TIDE_UNAVAILABLE}</div>
+    </div>;
   }
   const d = data;
   const unit = heightUnit;
@@ -68,10 +70,10 @@ export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, at
       )}
       {hi && <div className={`text-[10px] ${textClass}`}>{hi}</div>}
       {lo && <div className={`text-[10px] ${textClass}`}>{lo}</div>}
+      <div className={`text-[10px] leading-tight mt-1 ${muted}`}>{TIDE_FOOTER}</div>
       {d.tz_approx && tideUsesSolar(d.tz_offset_h, undefined, atMs) && (
         <div className={`text-[8px] leading-tight ${muted}`} data-testid="tide-solar-note">{TIDE_SOLAR_NOTE}</div>
       )}
-      <div className={`text-[8px] leading-tight mt-0.5 ${muted}`}>{TIDE_FOOTER}</div>
     </div>
   );
 }

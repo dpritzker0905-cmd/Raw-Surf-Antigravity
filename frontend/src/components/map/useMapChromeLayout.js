@@ -1,4 +1,5 @@
 import { useLayoutEffect, useRef } from 'react';
+import { syncForecastStatusDuplicates } from './forecastStatusDuplicates';
 
 // Display-only rollout. Set before mounting MapPage to restore the previous layout.
 export const responsiveWeatherOn = () => typeof window === 'undefined' || window.__RAW_DISABLE_RESPONSIVE_WEATHER__ !== true;
@@ -74,6 +75,7 @@ export function useMapChromeLayout(rootRef) {
         ? bounds.height - pointTop - toolbarOffset - 16
         : bounds.height - topHeight - bottomReserve - 8);
       if (root.dataset.mapControlMode !== 'explore') root.dataset.pointDetailsCompact = String(available < Math.max(64, 3 * rootText));
+      syncForecastStatusDuplicates(root);
       const values = { '--weather-top': topHeight, '--weather-heading': headingReserve, '--weather-point-top': pointTop, '--weather-bottom': bottomReserve, '--weather-height': bounds.height, '--weather-search-end': searchEnd, '--weather-toolbar-offset': toolbarOffset, '--weather-toolbar-protrude': toolbarProtrude };
       Object.entries(values).forEach(([name, value]) => {
         const next = `${name === '--weather-toolbar-offset' ? Math.round(value * 1000) / 1000 : Math.ceil(value)}px`;
@@ -119,6 +121,9 @@ export function useMapChromeLayout(rootRef) {
       if (records.some(record => [...record.addedNodes, ...record.removedNodes].some(node => node.nodeType === 1 && (node.matches?.('[data-testid="bottom-nav"]') || node.querySelector?.('[data-testid="bottom-nav"]'))))) schedule();
     });
     toolbarMountObserver?.observe(document.body, { childList: true, subtree: true });
+    const statusObserver = typeof MutationObserver === 'undefined' ? null : new MutationObserver(schedule);
+    statusObserver?.observe(root, { subtree: true, childList: true, characterData: true,
+      attributes: true, attributeFilter: ['aria-hidden', 'aria-label', 'data-point-details-expanded'] });
     window.visualViewport?.addEventListener('resize', schedule);
     subscription.current = {
       root, top, search, toolbar, timelines, immersiveMode, controlMode: root.dataset.mapControlMode,
@@ -131,6 +136,8 @@ export function useMapChromeLayout(rootRef) {
         observer.disconnect();
         toolbarMountObserver?.disconnect();
         safeAreaObserver?.disconnect();
+        statusObserver?.disconnect();
+        root.querySelectorAll('[data-duplicate-point-time]').forEach(el => el.removeAttribute('data-duplicate-point-time'));
         cancelAnimationFrame(raf);
         window.visualViewport?.removeEventListener('resize', schedule);
       },

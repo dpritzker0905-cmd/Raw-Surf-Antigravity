@@ -50,12 +50,19 @@ function readHeatmapCounts(webglDiag) {
   return { vectors, nonzero };
 }
 
-export function computeHeatmapStatus({ activeModel, activeLayer, renderMarineData }) {
+export function computeHeatmapStatus({ activeModel, activeLayer, timeOffsetHours, renderMarineData }) {
   if (typeof window === 'undefined') return null;
 
   if (!MARINE_LAYERS.includes(activeLayer)) return null;
 
-  const statusDiag = window.__MARINE_HEATMAP_STATUS__;
+  const published = window.__MARINE_HEATMAP_STATUS__;
+  // A previous selection's diagnostic is not evidence about this model/layer/hour.
+  // Legacy unscoped records remain visible; absence of identity is not success.
+  const mismatched = published && (
+    (published.model && published.model !== activeModel)
+    || (published.layer && published.layer !== activeLayer)
+    || (Number.isFinite(published.hour) && Number.isFinite(timeOffsetHours) && published.hour !== timeOffsetHours));
+  const statusDiag = mismatched ? null : published;
 
   // ── MODEL-AGNOSTIC DEGRADATIONS ───────────────────────────────────────────────────────────────
   // ⛔ WHY THIS BRANCH EXISTS (2026-08-09). The gate here used to be
