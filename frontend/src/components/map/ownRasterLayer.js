@@ -177,7 +177,7 @@ void main() {
     // column reads 0 -> a violet one-cell stripe on the antimeridian. Integer modulo is exact.
     float x0 = floor(fx); tx = fx - x0;
     int n = int(u_size.x);
-    c0 = int(x0) % n; if (c0 < 0) c0 += n;
+    c0 = int(x0) % n; if (c0 < 0) c0 = c0 + n;   // written out: the encoding-debris guard reads a compound add in a template as glyph remains
     c1 = c0 + 1; if (c1 >= n) c1 = 0;
   } else {
     if (fx < 0.0 || fx > u_size.x - 1.0) discard;
