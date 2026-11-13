@@ -90,3 +90,40 @@ Reflection is a second opinion, not a replacement for the advisor's red-team.
 ## Not done
 - The advisor's red-team (requested next).
 - No scoreboard row claims a fix: this is a measurement and the shadow stays off the served path.
+
+## Addendum 2026-11-13 (advisor red-team of #849: PASS WITH LIMITS). Supersedes the wording above where it differs
+
+1. **No dose-response.** Section 3's "rises with the number of unknown members" is withdrawn. At 24 h the one-member
+   group is n 1,583 (mean +0.047) and the two-member group n 1,010 (+0.605); the "EURO-unknown-only" subset is n 1,012
+   (+0.604), which is the two-member group to within two pairs. It is the same pairs, so the effect follows WHICH
+   member's tier is unknown (the EURO lane, together with ICON), not how many members are.
+2. **What 'unknown' is.** It is not a serving tier. The writer stores a tier only when the resolved point carries a
+   `product_id` (`skill_attribution.tier_of` returns None for an empty one; `buoy_calibration.py` takes the id from
+   `marine.product_id`). A row without one is read as 'unknown' by the analysis. Its share of complete triplets is 9.9%
+   at 24 h (2,593 of 26,242) but 57.0% at 48 h and 55.7% at 72 h, so it behaves like a labelling property of the point
+   resolver for the ICON and EURO lanes past the short range, or of rows written before the tier field existed. Which
+   one is NOT determined by reading the code; it needs the resolver's no-product paths or the first date a tier appears
+   in the ledger.
+3. **The +0.09 m consensus excess is a 48/72 h figure.** Recomputed from the published group counts and means: pooled
+   shadow minus equal is +0.003 m at 24 h, +0.093 at 48 h and +0.090 at 72 h.
+4. **The null is the wrong unit.** The random-row shuffle treats rows as independent; unknown-tier rows cluster by
+   buoy. A by-buoy label permutation is the needed null, and the +0.30 m planted control tests the wiring only. So
+   "is associated with", not "sits on" or "caused by". Tier and region are still confounded.
+5. **46267 and pacific_ne.** By code `region_of("46267")` is pacific_ne (`NDBC_REGIONS["46"]`), and the Fable split
+   measured it in the ledger (n about 187 in 14 days at every lead, +1.47..+1.52 m). Whether it has a complete
+   raw_surf/ICON/EURO triplet in the held-out week is NOT known from the aggregates. The advisor's arithmetic: about 91
+   pairs of about 1,900 at +1.47 m is about 0.07 m of that region's served MAE against a regional gain of 0.081.
+   **Offline sensitivity from the published region rows (no new run):** the n-weighted pooled gain reproduces
+   (rolling +0.031 / +0.008 / +0.020 m at 24 / 48 / 72 h); with pacific_ne removed it is **-0.001 / -0.029 / -0.025 m**
+   (served 0.216 / 0.227 / 0.236 m), and the equal mean is -0.010 / -0.042 / -0.034 m. So the whole pooled gain lives in
+   pacific_ne, and outside it every variant is no better than served and worse at 48 and 72 h. Do NOT quote the pooled
+   +0.031 m as a consensus improvement until a run excludes 46267.
+6. **Rolling 14-day bias is issue-time only (verified from the code, not a run).** `_forecasts` sets
+   `issue = target - lead` and calls `_Rolling.bias(region, issue - ROLL_DAYS, issue)`, which sums the errors of pairs
+   whose TARGET time is in (issue - 14 d, issue], at the same lead and coast. A pair is graded only after its target
+   hour, so every observation used was observable at issue time. The held-out row's own target (> issue) is excluded.
+   One residual: the window pairs come from the same complete-triplet filter, and the other buoys on the coast at the
+   same target hours are included (allowed, they are earlier than the issue time).
+7. **Per-region intervals for "no region worse" are not published**, and the gate's "worse" is a point comparison. The
+   scoring-run change that would publish them (and a `buoy_id` exclusion, plus a by-buoy permutation null) is a code
+   change to `skill_ocf.py`; whether to make it is David's call. Not started.
