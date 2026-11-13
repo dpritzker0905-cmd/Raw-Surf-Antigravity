@@ -100,10 +100,18 @@ describe("STALE REPLAY GUARD: a cursor move never re-uploads the layer's old gri
     expect(isStaleReplayOverShow(SHOWN, BLEND, BLEND, 144)).toBe(true);
   });
 
-  it('the same object re-delivered for a snapped hour is refused too, as the duplicate skip refuses it with no show up', () => {
+  it("the same object re-delivered for another hour: refused when the store's frame is at least as near the cursor", () => {
     const G = grid(WORLD.bounds, 181, 83, { hourOffset: 138 });     // a shared cached grid, first stamped at h138
-    expect(isStaleReplayOverShow(SHOWN, G, G, 139)).toBe(true);     // cursor h139: same object, so no new data reached the layer
-    expect(isStaleReplayOverShow(SHOWN, G, G, 138)).toBe(false);    // at its own hour it uploads (rule 1's resync)
+    const shownAt = (h) => ({ _waveData: { waveGrid: { ...WORLD, hourOffset: h, __fromFrameStore: true } } });
+    expect(isStaleReplayOverShow(shownAt(139), G, G, 139)).toBe(true);    // the store showed the cursor's own hour: keep it
+    expect(isStaleReplayOverShow(shownAt(140), G, G, 139)).toBe(true);    // equally near: keep the store's (newer) frame
+    expect(isStaleReplayOverShow(shownAt(138), G, G, 138)).toBe(false);   // at its own hour it uploads (rule 1's resync)
+  });
+
+  it("ADVISOR'S SEQUENCE: G (h138) is nearer the cursor (h139) than the store's frame (h137), so G uploads", () => {
+    const G = grid(WORLD.bounds, 181, 83, { hourOffset: 138 });
+    const shown137 = { _waveData: { waveGrid: { ...WORLD, hourOffset: 137, __fromFrameStore: true } } };
+    expect(isStaleReplayOverShow(shown137, G, G, 139)).toBe(false);
   });
 
   it("lets every other upload through: a new grid object, the cursor's own hour, no store show, missing hours", () => {

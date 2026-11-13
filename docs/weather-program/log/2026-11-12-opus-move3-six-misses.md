@@ -173,3 +173,15 @@ swell_2 never takes this path (its frames are the per-step client blend); its p9
 **Still missing after the fix:** (1) ICON swell_2, the client blend (owner's decision, sized above). (2) J:126 at z4.6: 5 of 6
 sessions still answer from /grid in 126-145 ms with `crop_only_set` x20 in BOTH arms: at mid zoom the plain ICON set shows only
 through a crop window, and none is resident after the run back from the blend hours. A separate mechanism, not touched here.
+
+## 03:35Z (11-13) Stale replay guard, refined after the advisor's re-check
+
+The advisor showed my earlier answer was wrong: refusing a same-object re-delivery is NOT equivalent to the duplicate skip, because
+with a store show up the screen holds the STORE's frame for another hour. Sequence: the normal path uploads a shared grid G
+(stamped h138); the store then shows h137; the cursor moves to h139 where the store has no frame; the normal path hands back G. The
+first guard refused G (138 != 139) and kept the h137 frame under an h139 label. Neither code reading nor a probe was needed to
+settle it: the guard now refuses a replay only when its own hour is NO NEARER the cursor than the hour the store's frame was shown
+for (`engine._waveData.waveGrid.hourOffset`); a nearer replay uploads, as before the guard. The traced case (G h336, store h168 /
+h144, cursor h144) is refused either way, so the 01:25Z lab numbers (measured with the first guard) still describe that case; the
+refinement only lets more uploads through. Tests: the advisor's sequence (uploads), the store at the cursor's hour or equally near
+(refused); mutant (no distance check): exactly the advisor's-sequence test fails. Floor fragment +6 in total.
