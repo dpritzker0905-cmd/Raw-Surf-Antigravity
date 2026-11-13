@@ -50,3 +50,8 @@ Append-only. Branch `fable/strait-fallback`. Follows `2026-11-12-fable-accuracy-
   every other grid is byte-identical. Not taken, recorded as follow-ups: the accept distance uses a plain hypot while
   the nearest search is antimeridian-aware (pre-existing; a fix moves served points near +-180 on coarse grids, its own
   change); `grid_res` reads latitude spacing only (the tiles are square). Chain lane now +9 tests: 3879 must be read.
+- SubQ (subq-snap-1.1, on the fix; the owner confirmed all three reviewers at 22:15 EST): addresses the cause 0.997;
+  default ON reasonable 0.96; no data better than the wrong number 0.98; the unmeasured AFTER blocks merging 0.45 (a
+  coin flip). The 0.373 vs 0.375 margin scored 1.66 of 3 ("material: verify before merge" 0.64): the land mask is
+  Open-Meteo's copy, so the 33 unchanged spots, Inch Beach first, must be re-checked against OUR stored tiles before
+  merge. OPEN, not done.
