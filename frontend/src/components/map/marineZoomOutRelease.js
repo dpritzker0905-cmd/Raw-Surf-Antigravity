@@ -42,6 +42,23 @@ export function layerUploadIsStale(engine, win) {
 }
 
 /**
+ * STALE REPLAY AFTER A STORE SHOW (2026-11-12, the ICON step after a blend hour; log 2026-11-12-opus-move3-six-misses.md). The upload
+ * effect re-runs on every cursor change with the layer's LAST grid (dataRef). Normally that re-run is a duplicate and skipped; after a
+ * store show `layerUploadIsStale` turns the skip off (rule 1 above), so a cursor move alone re-uploaded the old grid over the store's
+ * frame. Traced: a PageDown run from h336 back to h126 re-committed the h336 ICON blend at cursor h144 and h130 (h128, h127), the map
+ * was handed h336 data under the cursor's label, and each re-commit cleared the store's resident so its next steps waited for /grid.
+ * True only for a REPLAY: the very grid object the layer last uploaded, whose own hour is not the cursor's, while the engine holds a
+ * store show. Any new grid (a zoom-out world frame, a fresh commit, a snapped hour) still uploads.
+ * Kill: window.__RAW_DISABLE_STALE_REPLAY_GUARD__ = true.
+ */
+export function isStaleReplayOverShow(engine, grid, lastUploadedGrid, cursorHour, win) {
+  if (W(win).__RAW_DISABLE_STALE_REPLAY_GUARD__ === true || !grid || grid !== lastUploadedGrid) return false;
+  if (!layerUploadIsStale(engine, win)) return false;
+  const h = grid.hourOffset !== undefined ? grid.hourOffset : (grid.grid && grid.grid.hourOffset);
+  return typeof h === 'number' && typeof cursorHour === 'number' && h !== cursorHour;
+}
+
+/**
  * True when the guard must hold a regional `resident` against `incoming` only while it covers the whole view: `incoming` is a world
  * grid of the same model and layer, no coarser than the resident (the clip's own field), and no rating protection applies.
  */

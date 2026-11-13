@@ -4,7 +4,7 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { CLIP_FULL_COVER, clipNeedsFullCover, layerUploadIsStale } from './marineZoomOutRelease';
+import { CLIP_FULL_COVER, clipNeedsFullCover, layerUploadIsStale, isStaleReplayOverShow } from './marineZoomOutRelease';
 import { shouldRejectResolutionDowngrade, __resetRatingGraceForTests } from './marineEngineDecisions';
 import { decideMarineCommit } from './marineCommitGate';
 
@@ -22,7 +22,7 @@ const frac = (g, v) => {
   const iy = Math.max(0, Math.min(g.bounds.north, v[3]) - Math.max(g.bounds.south, v[1]));
   return (ix * iy) / ((v[2] - v[0]) * (v[3] - v[1]));
 };
-const KILLS = ['__RAW_DISABLE_CLIP_COVER_RELEASE__', '__RAW_DISABLE_STORE_SHOW_RESYNC__', '__RAW_MARINE_ARBITER__', '__SURF_MODE__'];
+const KILLS = ['__RAW_DISABLE_CLIP_COVER_RELEASE__', '__RAW_DISABLE_STORE_SHOW_RESYNC__', '__RAW_DISABLE_STALE_REPLAY_GUARD__', '__RAW_MARINE_ARBITER__', '__SURF_MODE__'];
 beforeEach(() => { __resetRatingGraceForTests(); KILLS.forEach((k) => delete window[k]); });
 afterEach(() => KILLS.forEach((k) => delete window[k]));
 
@@ -86,5 +86,41 @@ describe('wiring', () => {
   });
   it('the guard asks clipNeedsFullCover inside its coverage test', () => {
     expect(src('marineEngineDecisions.js')).toMatch(/if \(covers && clipNeedsFullCover\(resident, incoming\)\) covers = frac >= CLIP_FULL_COVER;/);
+  });
+});
+
+describe("STALE REPLAY GUARD: a cursor move never re-uploads the layer's old grid over a frame-store show", () => {
+  // The traced case (2026-11-12): the layer last uploaded the h336 ICON blend; the store then showed h168; the cursor at h144 re-ran
+  // the upload effect with that same h336 grid object.
+  const BLEND = grid(WORLD.bounds, 181, 83, { hourOffset: 336, __sourceModel: 'ICON', is_estimated: true });
+  const SHOWN = { _waveData: { waveGrid: { ...WORLD, hourOffset: 168, __fromFrameStore: true } } };
+  const UPLOADED = { _waveData: { waveGrid: { ...BLEND } } };
+
+  it("refuses the replay: same object as the last upload, its own hour is not the cursor's, the engine holds a show", () => {
+    expect(isStaleReplayOverShow(SHOWN, BLEND, BLEND, 144)).toBe(true);
+  });
+
+  it("lets every other upload through: a new grid object, the cursor's own hour, no store show, missing hours", () => {
+    expect(isStaleReplayOverShow(SHOWN, { ...BLEND }, BLEND, 144)).toBe(false);          // a fresh commit (zoom-out world frame, snapped hour)
+    expect(isStaleReplayOverShow(SHOWN, BLEND, BLEND, 336)).toBe(false);                // back at its own hour
+    expect(isStaleReplayOverShow(UPLOADED, BLEND, BLEND, 144)).toBe(false);             // the engine holds a layer upload: the old dedup applies
+    expect(isStaleReplayOverShow(SHOWN, { ...WORLD, hourOffset: undefined }, null, 144)).toBe(false);
+    expect(isStaleReplayOverShow(SHOWN, null, null, 144)).toBe(false);
+  });
+
+  it('OFF PATH: the kill (or the resync kill it rests on) lets the replay upload, as before', () => {
+    window.__RAW_DISABLE_STALE_REPLAY_GUARD__ = true;
+    expect(isStaleReplayOverShow(SHOWN, BLEND, BLEND, 144)).toBe(false);
+    delete window.__RAW_DISABLE_STALE_REPLAY_GUARD__;
+    window.__RAW_DISABLE_STORE_SHOW_RESYNC__ = true;
+    expect(isStaleReplayOverShow(SHOWN, BLEND, BLEND, 144)).toBe(false);
+  });
+
+  it('WebGLMarineLayer asks it before the duplicate check, and records the object it uploads', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'WebGLMarineLayer.js'), 'utf8');
+    const guard = src.indexOf('isStaleReplayOverShow(engine, grid, lastUploadedObjRef.current, requestedHour)');
+    expect(guard).toBeGreaterThan(-1);
+    expect(guard).toBeLessThan(src.indexOf('computeVectorDiffAndLog({'));
+    expect(src).toMatch(/lastUploadedObjRef\.current = grid;/);
   });
 });

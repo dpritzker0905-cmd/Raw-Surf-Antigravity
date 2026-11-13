@@ -24,7 +24,7 @@ import { createCustomLayer, LAYER_ID, marineRefeedCovers, marineViewportBounds }
 import { publishRenderParity, republishRenderParityAfterUpload } from './marineRenderParity';
 import { marineGridRejection } from './marineGridValidation';
 import { registerFrameStoreTarget, noteCommitted } from './marineFrameStoreRuntime'; // GPU-resident frames (behind static frames)
-import { layerUploadIsStale } from './marineZoomOutRelease';
+import { layerUploadIsStale, isStaleReplayOverShow } from './marineZoomOutRelease';
 import { loadWaveLakes } from './waveLakes';   // lakes a wave model carries (waveLakes.js)
 
 // createCustomLayer and getLongitudinalOverlap helper functions are imported from WebGLMarineCustomLayer.js
@@ -41,6 +41,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
   const onAddedChangeRef = useRef(onAddedChange);
   const onErrorRef = useRef(onError);
   const dataRef = useRef(data);
+  const lastUploadedObjRef = useRef(null);   // the grid object last uploaded (isStaleReplayOverShow)
   const glRef = useRef(null);
   const themeRef = useRef(theme);
   const beforeIdRef = useRef(beforeId);
@@ -164,6 +165,12 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
 
     const requestedHour = timeOffsetHoursRef.current;
     const renderedDataHour = grid.hourOffset !== undefined ? grid.hourOffset : (grid.grid?.hourOffset !== undefined ? grid.grid.hourOffset : null);
+    // A cursor move re-running the layer's LAST grid over a frame-store show: never put that old hour back (marineZoomOutRelease).
+    if (isStaleReplayOverShow(engine, grid, lastUploadedObjRef.current, requestedHour)) {
+      window.__WEBGL_MARINE_STALE_REPLAY_SKIP__ = (window.__WEBGL_MARINE_STALE_REPLAY_SKIP__ || 0) + 1;
+      runDiagnosticsUpdate('skipped_stale_replay_over_store_show');
+      return;
+    }
 
     const diffResult = computeVectorDiffAndLog({
       grid,
@@ -295,6 +302,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     updateMarineTruthTrace('upload', grid, activeModelRef.current, activeMarineLayer, timeOffsetHoursRef.current, 'forecast_direct', null, true);
 
     lastUploadedSignatureRef.current = uploadSigResidency;
+    lastUploadedObjRef.current = grid;
     lastUploadedGridRef.current = {
       activeModel: gridModel,
       activeMarineLayer: activeMarineLayer,

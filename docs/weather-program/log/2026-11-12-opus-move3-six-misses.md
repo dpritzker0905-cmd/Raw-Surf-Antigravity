@@ -128,3 +128,41 @@ harness's mislabel check reads 0 although the engine was handed h336 data at h14
 for 0.1-1 s during such a run the map may draw the h336 estimate under a h144 label. Not yet shown on screen (no pixel read);
 the likely route is the engine's no-downgrade stash being swapped back in after a store show (the case `supersedeStash` exists
 for), not yet proven. Next: find which call re-commits it, and refuse a commit whose own hour is not the cursor's.
+
+## 01:25Z (11-13) The fix: refuse a stale replay over a store show (owner: "fix it here")
+
+**Cause, from the code.** `WebGLMarineLayer`'s upload effect re-runs on every cursor change (`timeOffsetHours` is in its deps) with
+`dataRef.current`, the layer's LAST normal-path grid. Normally that re-run is a duplicate and skipped. After a frame-store show,
+`layerUploadIsStale` (marineZoomOutRelease rule 1, 2026-10-22) turns the duplicate skip off on purpose, so the next NEW commit always
+uploads; but a cursor move alone then re-uploaded the old grid. In the traced run that old grid was the h336 ICON blend.
+
+**Change.** `marineZoomOutRelease.isStaleReplayOverShow(engine, grid, lastUploadedGrid, cursorHour)`, asked in `safeUploadWaveData`
+before the duplicate check: refuse ONLY when the grid is the very object the layer last uploaded, its own `hourOffset` is not the
+cursor's, and the engine holds a store show. A new grid object (a zoom-out world frame, a fresh commit, a snapped hour) still
+uploads, so rule 1's zoom-out fix is untouched. The layer now records the object it uploads (`lastUploadedObjRef`). Counter
+`window.__WEBGL_MARINE_STALE_REPLAY_SKIP__`; ON, kill `window.__RAW_DISABLE_STALE_REPLAY_GUARD__` (registered in the inventory). Tests
+(`marineZoomOutRelease.test.js`, +4): the refusal, every pass-through case, the OFF path (the kill and the resync kill it rests on),
+and the wiring order in `WebGLMarineLayer`. Mutant (the helper returns false): exactly the refusal test fails. No served number
+moves: the guard only keeps a frame the store already drew for the cursor's hour instead of an older hour's frame.
+
+**Trace on the fix build (lab-only trace patch on top):** the J:126 run commits only `resident` h126; the store shows every step
+h168, h144, 143 ... 126 (20 shows), 0 refusals, in both swell_1 and wind_waves. The h336 re-commits are gone.
+
+**Lab A/B** (ICON start x swell_1/swell_2/wind_waves x z2/z4.6, 3 runs per arm INTERLEAVED, bundle hash asserted per run: dev
+`main.d63802dd.js` vs fix `main.0f1c9c77.js`; 00:38-01:23Z, shared machine):
+
+| ICON cell | arm | n | p50 | p95 | worst | per-run p95 | J:126 via store | `aux_not_ready` |
+|---|---|---|---|---|---|---|---|---|
+| swell_1 | dev | 42 | 10 | 162 | 190 | 140, 141, 162 | 0 / 6 | 50 |
+| swell_1 | fix | 42 | 6 | 50 | 142 | 18, 11, 16 | 4 / 6 (z2 3/3) | 0 |
+| wind_waves | dev | 42 | 11 | 144 | 188 | 163, 134, 135 | 0 / 6 | 49 |
+| wind_waves | fix | 42 | 9 | 126 | 145 | 17, 28, 12 | 3 / 6 (z2 3/3) | 0 |
+| swell_2 | dev | 60 | 176 | 256 | 400 | 242, 256, 229 | 0 / 6 | 0 |
+| swell_2 | fix | 60 | 193 | 305 | 452 | 292, 245, 305 | 0 / 6 | 0 |
+
+Mislabel 0 in both arms (the harness cannot see the replay's mislabel: the layer labels a commit with the cursor's hour).
+swell_2 never takes this path (its frames are the per-step client blend); its p95 difference is not separable from machine load.
+
+**Still missing after the fix:** (1) ICON swell_2, the client blend (owner's decision, sized above). (2) J:126 at z4.6: 5 of 6
+sessions still answer from /grid in 126-145 ms with `crop_only_set` x20 in BOTH arms: at mid zoom the plain ICON set shows only
+through a crop window, and none is resident after the run back from the blend hours. A separate mechanism, not touched here.

@@ -66,6 +66,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_FRAME_STORE_ALL_LAYERS__',
   // staticEuroSwellSets.test.js ("OFF PATH: the kill disables every EURO swell set and nothing else"; 2026-11-12, move 3)
   '__RAW_DISABLE_STATIC_EURO_SWELL__',
+  // marineZoomOutRelease.test.js ("OFF PATH: the kill (or the resync kill it rests on) lets the replay upload"; 2026-11-12)
+  '__RAW_DISABLE_STALE_REPLAY_GUARD__',
   // components/map/responsiveWeather.test.js
   '__RAW_DISABLE_RESPONSIVE_WEATHER__',
   // components/map/ownRasterFrames.test.js (pressure from own frames, ON 2026-11-12; the kill is the .om path)
