@@ -99,6 +99,20 @@ def test_only_the_marine_domain_is_capped(monkeypatch):
     assert resp.point.interpolation_method == "nearest_ocean_coarse_masked"
 
 
+def test_a_real_half_degree_tile_axis_is_not_fine():
+    """Copernicus regional tiles are stored at 0.5 deg (scheduler: res_to_save = 0.5). Their axis, built by the real
+    generator over a real pilot bbox, must read as NOT fine: the sampler's grid_res is the min positive latitude step."""
+    from services.noaa_gfs_wave_fetcher import _coarse_axis
+    from services.weather_pipeline.sampler import FINE_GRID_RES_MAX_DEG
+    from services.weather_pipeline.pilot_regions import WORLDWIDE_COASTAL_REGIONS
+    for name in ("hawaii", "iberia_west", "us_northeast"):          # whole-degree and fractional (-76.1, 44.6) edges
+        bb = WORLDWIDE_COASTAL_REGIONS[name]
+        lats = _coarse_axis(float(bb["south"]), float(bb["north"]), 0.5)
+        assert not (min(b - a for a, b in zip(lats, lats[1:])) < FINE_GRID_RES_MAX_DEG), name
+        fine = _coarse_axis(float(bb["south"]), float(bb["north"]), 0.25)
+        assert min(b - a for a, b in zip(fine, fine[1:])) < FINE_GRID_RES_MAX_DEG, name
+
+
 def test_unavailable_says_why(monkeypatch):
     monkeypatch.delenv("SAMPLER_FINE_GRID_FALLBACK_CAP", raising=False)
     resp = PointSampler().sample_point(_strait(), *BUOY_46267)

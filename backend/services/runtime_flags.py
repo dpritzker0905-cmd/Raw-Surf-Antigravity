@@ -77,6 +77,8 @@ GUARDED = {
     "SAMPLER_FINE_GRID_FALLBACK_CAP": "1",  # 0.25-deg boxes: the all-land-corner fallback reaches 1.5 cells, not 1 deg.
                                             # Moves 46267 (Juan de Fuca, +1.5 m) to '--' and enclosed-water map taps;
                                             # 0 of 1259 boxed spots change (measured); kill '0'
+                                            # GUARDRAIL BLIND: the filter replays spots, no unavailable-rate check,
+                                            # AFTER unmeasured. Removes 46267's rows from the monitor's score
 }
 
 # FIX_VERSION: bump a flag's version in the PR that changes its fix. The guardrail's 'off' records the version it

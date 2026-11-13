@@ -55,3 +55,27 @@ Append-only. Branch `fable/strait-fallback`. Follows `2026-11-12-fable-accuracy-
   coin flip). The 0.373 vs 0.375 margin scored 1.66 of 3 ("material: verify before merge" 0.64): the land mask is
   Open-Meteo's copy, so the 33 unchanged spots, Inch Beach first, must be re-checked against OUR stored tiles before
   merge. OPEN, not done.
+
+## Advisor red-team of #852 (PASS WITH LIMITS), answered from the code
+1. **Other marine products below 0.5 deg.** Every pilot box is 0.25 deg (`pilot_regions.py`: 19 `"resolution": 0.25`
+   entries, incl. extras and Stage B), and ICON / EURO marine pilots ride the same boxes (`get_all_pilot_regions`), so
+   their 0.25-deg tiles ARE capped too, each with its OWN land mask. Copernicus regional tiles are stored at 0.5 deg
+   (`scheduler.py`: `res_to_save = 0.5`), which the strict `< 0.5` threshold leaves on the old floor (pinned with the real
+   axis generator). World tiers are 2 and 10 deg: unchanged. **NOT measured: the blast radius on the ICON and EURO masks.**
+   The measurement covers the served default lane (GFS) only.
+2. **Our stored tile mask for the 33 unchanged spots: NOT done.** It needs a Storage read (credentialed); asked the owner
+   for an Actions job. Until then "0 spots change" rests on Open-Meteo's copy of the GFS-Wave mask.
+3. **Threshold on real coordinates:** `test_a_real_half_degree_tile_axis_is_not_fine` builds 0.5 and 0.25 axes with
+   `_coarse_axis` over real pilot bboxes (incl. the fractional us_northeast edges).
+4. **Does a served number use the sample at 46267's coordinate?** None today. The calibration residuals feed the report,
+   the skill ledger and the residual archive; the one consumer that turns them into a served number is
+   `height_quantile_map.py` (HEIGHT_QUANTILE_MAP, default OFF, a pooled fit). With the cap on, 46267 writes no model row,
+   so it leaves that pool too.
+
+## To say plainly (the advisor's words, adopted)
+- (a) The monitor will improve mostly because 46267's rows DISAPPEAR from the score, not because a forecast improved.
+  The per-buoy split does not yet print an unavailable count; it must, so removal cannot read as skill. OWED.
+- (b) The flag is GUARDED in name but the guardrail is blind to it (the filter replays spots, there is no
+  unavailable-rate check, the after-state is unmeasured). Written on the flag's line in `runtime_flags.py`.
+- (c) Enclosed-water map taps on 0.25-deg boxes now show '--'.
+- Chain lane now +10 tests: 3880 must be read.
