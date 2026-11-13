@@ -71,7 +71,7 @@ code path, measured only through the toggle); a style reload (theme switch), whi
 The basemap tile reload at the toggle (about 100 ms on the phone). The 10 m file is still downloaded and parsed on the main thread
 for the engine's own mask whenever the map is at zoom 8 or closer, marine layer or not.
 
-## Addendum (same day, 04:10 EST): the later land fill was the harness; with the browser cache ON the URL is not later
+## Addendum (same day, 03:58 EST): the later land fill was the harness; with the browser cache ON the URL is not later
 The coordinator asked for the real-cache case, outside the routing harness. The app cannot run unrouted (it would call the live
 backend), so this isolates the mechanism: `frontend/scripts/offline-backend/land-cache-lab/` is a bare page with the app's
 map-library build that reads the 10 m CDN file the way the page does (`fetch` + `json`), waits 1.5 s, then adds a GeoJSON source
