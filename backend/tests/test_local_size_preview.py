@@ -274,3 +274,10 @@ def test_no_data_is_reported_as_not_ready_never_as_sane():
     spots = [{"id": "fl", "latitude": 27.8608, "longitude": -80.4464}]
     out = LSP.sanity_check({}, spots, reference_map_fn=lambda c: {})
     assert out["verdict"] == "NOT ENOUGH DATA"
+
+
+@__import__("pytest").fixture(autouse=True)
+def _legacy_reference_curve(monkeypatch):
+    """These pins describe the reference-LESS legacy size curve. JAC-2's catalogue prior
+    (RATING_REF_PRIOR, default ON) replaces it; that path is pinned in test_reference_prior.py."""
+    monkeypatch.setenv("RATING_REF_PRIOR", "0")

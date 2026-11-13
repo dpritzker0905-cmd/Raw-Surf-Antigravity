@@ -7,7 +7,7 @@
 import {
   scopedRatingsUrl, parseValidTimeMs, selectPrecomputedFrame, selectPrecomputedLaddered,
   fetchPublicRatingsObject, ratingsCdnEnabled, __resetRatingsCdnCacheForTests,
-  CB_BUCKET_MS, isBeyondPrecomputeBound,
+  CB_BUCKET_MS, isBeyondPrecomputeBound, ratingsLane, SPOT_RATINGS_URL_PATH,
 } from './spotRatingsCdn';
 
 const FL_BBOX = [-82, 24, -79, 28];
@@ -216,5 +216,73 @@ describe('fetchPublicRatingsObject — cache + failure semantics', () => {
     } finally {
       if (saved !== undefined) process.env.REACT_APP_SUPABASE_URL = saved;
     }
+  });
+});
+
+describe('fetchPublicRatingsObject — accounts only, the signed lane (flip blocker 3, 2026-11-12)', () => {
+  const VALID = obj([frame('GFS', '2026-06-28T21:00:00Z', [IN_SPOT])]);
+  const CFG = { supabaseUrl: 'https://x.co', anonKey: 'anon-jwt' };
+  const SIGNED = 'https://sb.test/storage/v1/object/sign/weather-products/spot_ratings/tier/free.json?token=T';
+  const signIn = (token) => window.localStorage.setItem('raw-surf-user', JSON.stringify({ access_token: token }));
+
+  beforeEach(() => {
+    __resetRatingsCdnCacheForTests();
+    window.__RAW_TIER_CLAMP_ON__ = true;
+    global.fetch = jest.fn(async (url, init) => {
+      if (url.endsWith(SPOT_RATINGS_URL_PATH)) {
+        const auth = init && init.headers && init.headers.Authorization;
+        return auth === 'Bearer free-tok' || auth === 'Bearer other-tok'
+          ? { ok: true, json: async () => ({ tier: 'free', url: SIGNED }) }
+          : { ok: false, status: 401, json: async () => ({ detail: 'sign_in_required' }) };
+      }
+      if (url === SIGNED) return { ok: true, json: async () => VALID };
+      return { ok: false, status: 400, json: async () => ({}) };
+    });
+  });
+  afterEach(() => {
+    delete window.__RAW_TIER_CLAMP_ON__;
+    window.localStorage.removeItem('raw-surf-user');
+  });
+
+  it('clamp on, signed in: asks the backend for its tier URL with the token, then reads it WITHOUT the anon key', async () => {
+    signIn('free-tok');
+    expect(ratingsLane()).toBe('signed');
+    expect(await fetchPublicRatingsObject(CFG)).toEqual(VALID);
+    const calls = global.fetch.mock.calls.map(([u, i]) => [u, i && i.headers]);
+    expect(calls[0][0].endsWith(SPOT_RATINGS_URL_PATH)).toBe(true);
+    expect(calls[0][1]).toEqual({ Authorization: 'Bearer free-tok' });
+    expect(calls[1]).toEqual([SIGNED, undefined]);
+    expect(calls.some(([u]) => u.includes('/object/authenticated/'))).toBe(false);   // never the anon lane
+  });
+
+  it('clamp on, signed out: no request at all (the endpoint answers, and refuses)', async () => {
+    expect(await fetchPublicRatingsObject(CFG)).toBeNull();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('a refused token resolves null, never the anon object', async () => {
+    signIn('expired-tok');
+    expect(await fetchPublicRatingsObject(CFG)).toBeNull();
+    expect(global.fetch.mock.calls.map(([u]) => u).some((u) => u.includes('/object/authenticated/'))).toBe(false);
+  });
+
+  it('signing in as someone else never reuses the cached object', async () => {
+    signIn('free-tok');
+    await fetchPublicRatingsObject(CFG);
+    signIn('other-tok');
+    await fetchPublicRatingsObject(CFG);
+    const asked = global.fetch.mock.calls.filter(([u]) => u.endsWith(SPOT_RATINGS_URL_PATH)).map(([, i]) => i.headers.Authorization);
+    expect(asked).toEqual(['Bearer free-tok', 'Bearer other-tok']);
+  });
+
+  it('clamp off: the anon lane, exactly as before', async () => {
+    window.__RAW_TIER_CLAMP_ON__ = false;
+    signIn('free-tok');
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => VALID });
+    expect(ratingsLane()).toBe('anon');
+    await fetchPublicRatingsObject(CFG);
+    const [url, opts] = global.fetch.mock.calls[0];
+    expect(url).toContain('/storage/v1/object/authenticated/weather-products/spot_ratings/latest.json?cb=');
+    expect(opts.headers).toEqual({ apikey: 'anon-jwt', Authorization: 'Bearer anon-jwt' });
   });
 });
