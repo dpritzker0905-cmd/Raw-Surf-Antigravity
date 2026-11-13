@@ -185,3 +185,46 @@ for (`engine._waveData.waveGrid.hourOffset`); a nearer replay uploads, as before
 h144, cursor h144) is refused either way, so the 01:25Z lab numbers (measured with the first guard) still describe that case; the
 refinement only lets more uploads through. Tests: the advisor's sequence (uploads), the store at the cursor's hour or equally near
 (refused); mutant (no distance check): exactly the advisor's-sequence test fails. Floor fragment +6 in total.
+
+## 04:50Z (11-13) The z4.6 crop miss after a blend hour (owner: "fix the z4.6 crop miss next")
+
+**Cause (lab-only trace build with the crop resident's state):** at z4.6 the ICON blend is a /grid clip one lattice cell smaller on
+each side than the plain set's window (28 x 23 over -102..-48 / 8..52 against 30 x 24 over -104..-46 / 6..52). After a blend hour
+the engine's texture is that smaller box; on the first stored step `engineHolds` fails on the dims, the plain window resident is
+dropped, and every step is `crop_only_set` (x20) until the normal path commits h126. The store writes into the existing texture
+(texSubImage2D), so a 30 x 24 window cannot be shown into a 28 x 23 texture, and the only path that cuts a window to the ENGINE's box
+with its own chl/bath (`showCropSwitch`) ran on model switches only.
+
+**Change** (`marineFrameStoreRuntime.js`, ON, kill `window.__RAW_DISABLE_CROP_AFTER_FOREIGN__`, in the inventory): a clip commit that
+names no stored frame (`no_served_time`: the blend, a /grid fallback) is recorded as a FOREIGN crop resident (`CS.noteForeignCommit`,
+already used for unindexed commits), and a stored step of the SAME model and layer may then take `showCropSwitch`: this set's window
+of the engine's own box, with its own chl/bath. A step of one model never draws over another model's clip (an existing test,
+`marineFrameStoreCropShow`, caught that in my first draft; the same-model rule restores it). The plain-set parity gate
+(`servableClip`) still applies. Counter `shows.cropForeign`. Tests (`marineFrameStorePlainCrops.test.js`, +2): the fix (the encoder's
+bytes for the blend's box, own chl/bath, then the crop resident is this set's window) and the OFF path; mutant (the foreign step
+off): exactly the fix test fails. 13 frame-store and layer suites, 262 tests, pass.
+
+**Trace on the fix build:** the J:126 run commits only `resident_crop` h126; the store refuses 7-8 steps `crop_not_ready` (the
+window pack is built on demand) and draws h126 from the store.
+
+**Lab A/B** (z4.6, GFS/EURO/ICON start x swell_1/swell_2/wind_waves, 3 interleaved runs per arm, bundle hash asserted; base = this
+branch with the stale replay guard, `main.0f1c9c77.js`; fix `main.b00a08c1.js`; 03:29-04:37Z):
+
+| Cell (z4.6) | arm | n | p50 | p95 | worst | steps > 100 ms | J:126 |
+|---|---|---|---|---|---|---|---|
+| ICON swell_1 | base | 24 | 12 | 141 | 164 | 3 | grid 3/3 |
+| ICON swell_1 | fix | 24 | 10 | 25 | 47 | 0 | store 3/3 |
+| ICON wind_waves | base | 24 | 12 | 147 | 156 | 3 | grid 3/3 |
+| ICON wind_waves | fix | 22 | 7 | 11 | 15 | 0 | store 3/3 |
+| ICON swell_2 | base / fix | 30 / 30 | 157 / 157 | 219 / 210 | 228 / 227 | 27 / 28 | grid (the blend) |
+
+GFS and EURO cells: p95 16-29 ms in both arms, no step over 100 ms in either (worst 97 ms, GFS swell_1 fix).
+
+**Mislabel, checked, not caused by this change:** the fix arm read more mislabel frames (GFS swell_2 / wind_waves 0 -> 38, EURO up to
+164). All are run 3 (04:26-04:37Z, the arm that ran last), all at J:336, all labelled honestly (`mislabelSilent` 0, the "Showing ...
+the nearest" status): the lab store's tail (11-27T03Z) fell behind now + 336 h. Runs 1-2 are equal across arms (the existing honest
+J:250 nearest frames, offset 3 h). Control at 04:43Z, back to back, GFS swell_2 z4.6: base 38 and 38, fix 38 and 39 mislabel frames
+at J:336, offset 2 h, both via the store. The aged store, not the fix.
+
+**Still missing:** ICON swell_2 (the per-step client blend, p95 ~210-305 ms; owner's decision between a store-packed blend and a
+published set).
