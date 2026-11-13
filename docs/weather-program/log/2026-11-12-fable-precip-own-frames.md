@@ -50,3 +50,46 @@ entitlement and workflow-condition suites: 64 passed (a local venv that is not t
 - The client half (draw rain from these frames behind a dark lever, legend, credit, kill switch, three themes, the
   before/after): next PR. EURO and ICON precipitation: not in this set; those models stay on the present path.
 - Second opinions (Reflection, LongCat): not yet taken for this PR.
+
+# Part 2 (same day): the client draws rain from these frames, DARK
+
+## What changed
+- `ownRasterFrames.js`: `OWN_RASTER_SETS.rain` (GFS only, field 10, mm/h). DARK: drawn only behind the lever
+  `window.__RAW_RASTER_OWN_FRAMES__ = 'rain'`; kill `window.__RAW_DISABLE_RASTER_OWN_RAIN__ = true`. EURO and ICON have no
+  set, so with those picked the layer stays on the .om path.
+- `staticFrames.js`: the set key added to `STATIC_SETS` (33 sets). Without it the lever did nothing and no miss was counted
+  (found by the first offline run); `ownRasterSets.contract.test.js` now fails any own-frames set the reader does not know.
+- `ownRasterLayer.js` / `useOwnRasterFrames.js`: `RAIN_LUT` (0..60 mm/h in 0.02 steps) built from the app's own
+  `precipitation` ramp, and `RAIN_OPACITY_STOPS` = the .om rain slots' stops. `MapWebGL.js`: the hook, and rain left out of
+  the .om path while engaged. Legend credit ("NOAA GFS") and the time readout follow from the shared own-frames code.
+- `scn_pressure_own.js`: `LAYER`, `FLAGS`, `TAG_SUFFIX` (the same A/B for any own-frames layer).
+
+## Before / after (offline; 72 real frames of GFS 2026-11-12 18Z published to the local stand-in in 23 s, 13.1 MB;
+before = the .om path replayed; 12 scrub steps; phone = 390 x 844, dpr 3, CPU 4x)
+ms from the last scrub key until the wanted frame is drawn / ms from toggle until drawn:
+
+| | settle before | settle after | toggle before | toggle after |
+|---|---|---|---|---|
+| desktop dark, 3 runs | 1724 / 5652 / 5217 | 11 / 17 / 9 | 32476* / 408 / 347 | 459 / 480 / 352 |
+| desktop light, beach | 5001, 5303 | 10, 10 | 375, 363 | 567, 546 |
+| phone dark, 3 runs | 9033 / 8738 / 6619 | 71 / 81 / 26 | 554 / 965 / 697 | 1992 / 1496 / 1590 |
+| phone light, beach | 9939, 10993 | 49, 44 | 1640, 1197 | 1040, 2000 |
+
+- Bytes per run: 2.87 MB in 16 frames against 3.3-7.5 MB in 64-144 range requests.
+- Desktop long frames during the scrub: after, none in 4 of 5 runs (one 7.2 s frame in the first run, the same run whose
+  .om arm took 32 s to toggle*: the machine, not the path; not reproduced). Phone scrub long-frame blocking: 1.3-2.5 s
+  after against 2.0-7.0 s before.
+- **The phone toggle is slower on own frames in four of five pairs** (about 1.0-2.0 s against 0.55-1.6 s). Not profiled.
+- The two arms use different "drawn" tests, and show different model runs (our 18Z frames; the replayed .om tiles), so
+  the pictures are compared for palette, opacity, legend and layout, not pixel for pixel.
+
+## Look (three themes, desktop and phone; sheets sent to the owner)
+Same ramp, opacity, legend and layout in dark, light and beach; the credit reads "NOAA GFS". In BOTH arms light rain is
+faint on the light and beach basemaps (pale blue on a pale-blue sea): the ramp is not theme-varied. Not changed here.
+
+## Tests
++16 frontend tests, +1 suite (rain set contract, lever, kill, LUT, opacity; the reader contract). The twelve touched
+suites: 174 passed locally. Lint ratchet not worse.
+
+## Not measured
+A real phone; Safari and Firefox; memory; play mode; frames past 72 h (the 3-hourly range); a real publish.

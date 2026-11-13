@@ -3,9 +3,10 @@ import path from 'path';
 import {
   colorAtValue, buildStepLut, opacityAtZoom, PRESSURE_OPACITY_STOPS, PRESSURE_LUT, wrapsLongitude, createOwnRasterLayer, RESIDENT_MAX,
   TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS, NO_DATA_BELOW_GLSL, FS, downscaleAt, DZ_TILES_MAX, DZ_FADE_MS, CLOUD_LUT, SATELLITE_OPACITY_STOPS, scaleForTheme,
+  RAIN_LUT, RAIN_OPACITY_STOPS,
 } from './ownRasterLayer';
 import { MISSING, NO_DATA_BELOW } from './ownRasterFrames';
-import { BASE_CUSTOM_COLOR_SCALES, CUSTOM_COLOR_SCALES, applyThemePressureScale } from './colorScales';
+import { BASE_CUSTOM_COLOR_SCALES, CUSTOM_COLOR_SCALES, applyPrecipColorScale, applyThemePressureScale } from './colorScales';
 
 // A recording WebGL2 stand-in: every call is logged; creators return fresh objects; the link always succeeds.
 function fakeGl() {
@@ -351,5 +352,47 @@ describe('air temperature elevation downscale (2026-10-25): T + lapse * dz from 
     expect(Lr.setDownscale({ ...asset, tiles: [asset.tiles[0], asset.tiles[1], asset.tiles[0]] })).toBe(false);
     expect(Lr.setDownscale(null)).toBe(false);
     expect(Lr.downscaleReady()).toBe(false);
+  });
+});
+
+describe("precipitation, the rain layer (2026-11-12): the app's own ramp, its slot opacity", () => {
+  beforeAll(() => applyPrecipColorScale());
+  const lutAt = (lut, v) => {
+    const { min, step, n } = RAIN_LUT;
+    const k = Math.min(n - 1, Math.max(0, Math.floor((v - min) / step + 1e-3)));       // as the shader indexes it
+    return { k, rgba: [lut[k * 4], lut[k * 4 + 1], lut[k * 4 + 2], lut[k * 4 + 3]] };
+  };
+  test('the LUT spans the ramp (0 to 60 mm) at the frame resolution or coarser, and fits a texture row', () => {
+    const scale = CUSTOM_COLOR_SCALES.precipitation;
+    const { min, step, n } = RAIN_LUT;
+    expect(min).toBe(0);
+    expect(Math.max(...scale.breakpoints)).toBe(60);
+    expect(Math.max(...BASE_CUSTOM_COLOR_SCALES.precipitation.breakpoints)).toBe(60);
+    expect(min + (n - 1) * step).toBeCloseTo(60, 6);
+    expect(n).toBeLessThanOrEqual(4096);
+  });
+  test('no rain is transparent; every value takes the colour of its LUT step; 60 mm and above the last colour', () => {
+    const scale = CUSTOM_COLOR_SCALES.precipitation;
+    const lut = buildStepLut(scale, RAIN_LUT);
+    expect(lutAt(lut, 0).rgba[3]).toBe(0);
+    expect(lutAt(lut, 0.01).rgba[3]).toBe(0);                 // below the first step: still nothing drawn
+    for (let i = 0; i <= 7000; i += 7) {
+      const v = i / 100;
+      const { k, rgba } = lutAt(lut, v);
+      const c = colorAtValue(scale, Math.round(k * RAIN_LUT.step * 1e6) / 1e6);
+      expect(rgba).toEqual([c[0], c[1], c[2], Math.round(c[3] * 255)]);
+    }
+    const last = scale.colors[scale.colors.length - 1];
+    expect(lutAt(lut, 60).rgba).toEqual(lutAt(lut, 250).rgba);
+    expect(lutAt(lut, 250).rgba.slice(0, 3)).toEqual([last[0], last[1], last[2]]);
+  });
+  test('heavier rain is never more transparent than lighter rain', () => {
+    const lut = buildStepLut(CUSTOM_COLOR_SCALES.precipitation, RAIN_LUT);
+    let prev = -1;
+    for (let k = 0; k < RAIN_LUT.n; k++) { expect(lut[k * 4 + 3]).toBeGreaterThanOrEqual(prev); prev = lut[k * 4 + 3]; }
+  });
+  test("the slot opacity is the .om rain slots' own (the bold pass)", () => {
+    expect(RAIN_OPACITY_STOPS).toEqual([[2, 0.60], [5, 0.68], [8, 0.74], [12, 0.78]]);
+    expect(opacityAtZoom(RAIN_OPACITY_STOPS, 5)).toBeCloseTo(0.68, 6);
   });
 });

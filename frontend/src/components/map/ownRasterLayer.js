@@ -42,6 +42,10 @@ export const TEMPERATURE_LUT = { min: -80, step: 0.5, n: 261 };
 // Cloud cover: the tile library's own 'cloud_cover' breakpoint scale (0..90 % every 10, straight alpha), with a light and a dark
 // colour set. Every breakpoint is a multiple of 10, so a 10 % step is exact at each boundary (pinned by a test).
 export const CLOUD_LUT = { min: 0, step: 10, n: 10 };
+// Precipitation: the app's own `precipitation` scale (colorScales.js, 0..60 mm, smoothed to ~80 steps whose finest is 0.009 mm
+// below 0.1). A 0.02 mm/h step (3001 entries, under every WebGL2 device's texture width in practice, as pressure's 2200)
+// follows it to within one step; at or above 60 clamps to the last colour, as the library does.
+export const RAIN_LUT = { min: 0, step: 0.02, n: 3001 };
 
 /** The colours the .om path uses for a theme: a scale with light / dark variants resolves as the tile library does
  *  (resolveColorScale), with `dark` = the URL's dark=true, which useOpenMeteoTileUrls sets for the dark AND beach themes. */
@@ -66,6 +70,7 @@ export function buildStepLut(scale, { min, step, n } = PRESSURE_LUT) {
 export const PRESSURE_OPACITY_STOPS = [[2, 0.35], [5, 0.42], [8, 0.48], [12, 0.55]];
 export const TEMPERATURE_OPACITY_STOPS = [[2, 0.38], [5, 0.44], [8, 0.49], [12, 0.53]];
 export const SATELLITE_OPACITY_STOPS = [[2, 0.55], [5, 0.60], [8, 0.65], [12, 0.70]];
+export const RAIN_OPACITY_STOPS = [[2, 0.60], [5, 0.68], [8, 0.74], [12, 0.78]];   // MapWebGL's rainOp (the bold pass)
 // The no-data test: ownRasterFrames.MISSING (-9999) is below it, every real value of every layer above (pinned by a test).
 export const NO_DATA_BELOW_GLSL = '-9000.0';
 

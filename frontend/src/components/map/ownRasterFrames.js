@@ -28,6 +28,7 @@ import { isHandheldDevice } from './deviceTier';
 export const PRESSURE_FIELD = 6;
 export const TEMP_FIELD = 7;      // temp_c: u16, value = code * 0.05 - 100.05 (code 0 = no data); 2 m air temperature, deg C
 export const CLOUD_FIELD = 8;     // cloud_pct: u8, value = code - 1 (code 0 = no data); total cloud cover, %
+export const PRECIP_FIELD = 10;   // precip_mm_h: u16, value = code * 0.01 - 0.01 (code 0 = no data); mm/h in the step before the hour
 // PER-MODEL (2026-10-24; the owner, 2026-10-23 20:13 EDT: "Yes start it", answering "start the per-model pressure route?" after
 // "We want each models pressure showing"): one published set per model. The layer follows the model selector; past a model's
 // last frame (EURO 240 h, ICON 180 h) the GFS frame stands in, labelled as an estimate (the wave layers' extension policy).
@@ -50,6 +51,15 @@ export const OWN_RASTER_SETS = {
     // edges are not one-cell 0.5-degree steps. The shader and the wrap test take the grid from each frame.
     models: { GFS: 'GFS/weather/cloud_cover/global_0p25' },
     fallback: null, field: CLOUD_FIELD, unit: '%',
+  },
+  // PRECIPITATION (2026-11-12, the owner: "Yes, build it"): the app's 'rain' layer from GFS APCP (frame_set_raster.py,
+  // set `precipitation`): mm/h in the hour before the frame (the 3-hour mean past f120), the same meaning as the .om field,
+  // on the 0.25-degree grid, hourly to f120. GFS only: with EURO or ICON picked the layer stays on the .om path. DARK: drawn
+  // only behind the lever (window.__RAW_RASTER_OWN_FRAMES__ = 'rain') until the owner's side-by-side.
+  // Kill: window.__RAW_DISABLE_RASTER_OWN_RAIN__ = true.
+  rain: {
+    models: { GFS: 'GFS/weather/precipitation/global_0p25' },
+    fallback: null, field: PRECIP_FIELD, unit: 'mm/h',
   },
 };
 // Who the frames come from, for the legend credit and the status line.

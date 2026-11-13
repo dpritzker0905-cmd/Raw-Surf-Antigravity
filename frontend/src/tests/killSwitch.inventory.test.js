@@ -70,6 +70,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_RESPONSIVE_WEATHER__',
   // components/map/ownRasterFrames.test.js (pressure from own frames, ON 2026-11-12; the kill is the .om path)
   '__RAW_DISABLE_RASTER_OWN_PRESSURE__',
+  // components/map/ownRasterFrames.test.js ("OFF PATH: its own kill wins over the lever and touches no other layer"; 2026-11-12)
+  '__RAW_DISABLE_RASTER_OWN_RAIN__',
   // components/map/radarAdvectWorker.test.js (the nowcast warp in a worker; the kill runs the main-thread warp + PNG)
   '__RAW_DISABLE_RADAR_ADVECT_WORKER__',
   // components/map/radarRecolorWorker.test.js (HRRR / DWD / lightning tiles in the worker; the kill is the main-thread recolor)
