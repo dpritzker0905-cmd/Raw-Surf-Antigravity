@@ -79,3 +79,14 @@ Append-only. Branch `fable/strait-fallback`. Follows `2026-11-12-fable-accuracy-
   unavailable-rate check, the after-state is unmeasured). Written on the flag's line in `runtime_flags.py`.
 - (c) Enclosed-water map taps on 0.25-deg boxes now show '--'.
 - Chain lane now +10 tests: 3880 must be read.
+
+## Researcher input (draft PR #851, enclosed-water masking) and how #852 relates
+- The researcher proposes an exposure sweep (72 bearings against a ~1 km land mask; a bearing is open if it reaches
+  200 m+ water within 300 km without crossing land), serving the nearest-ocean value only for swell directions with open
+  bearings, else "no open-ocean estimate" and dropping the point from the monitor. Its constants are assumptions to tune
+  on the hole buoys with open-coast controls.
+- #852 is the smaller step: a reach cap, no direction or exposure logic. For 46267 both give the same outcome (no
+  estimate). The sweep is the fuller design for the cases the cap cannot separate: a point within 1.5 cells of water
+  that is still sheltered (the 33 borderline spots; SoCal Bight buoys). NOT built here; it belongs with #817 / #851.
+- The researcher's unverified item, the GFS-Wave wet mask at 46267, IS measured in this log (section "Cause, measured"):
+  all four corners land; nearest wet cell (48.5, -124.25), 0.729 deg away.
