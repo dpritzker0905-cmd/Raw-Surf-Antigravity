@@ -237,6 +237,7 @@ async function session({ model0, layer, zoom, theme, arm }) {
       const missSnap = () => page.evaluate(() => { const f = window.__RAW_FRAME_STORE__; const sf = window.__RAW_STATIC_FRAMES__;
         return { store: { ...((f && f.shows && f.shows.misses) || {}) }, sf: { ...((sf && sf.misses) || {}) }, deferred: (f && f.shows && f.shows.deferred) || 0, aux: { ...((f && f.shows && f.shows.auxMiss) || {}), sync: (f && f.aux && f.aux.sync) || 0, shown: (f && f.shows && f.shows.aux) || 0 } }; });
       const miss0 = await missSnap();
+      await page.evaluate(() => { if (window.__RAW_COMMIT_TRACE__) window.__RAW_COMMIT_TRACE__ = []; });   // a lab trace build only
       const t0 = Date.now(); const req0 = log.requests.length;
       if (tok === 'M') {
         await page.evaluate(() => window.__IC__.go()); await clickExact(page, to); model = to;
@@ -266,6 +267,7 @@ async function session({ model0, layer, zoom, theme, arm }) {
       const maskRebuilds = await page.evaluate((t0) => { const f = window.__RAW_FORENSIC__; const d = f && f.dump ? f.dump() : null;
         return d ? d.events.filter((e) => e.t >= t0 && e.type === 'mask_rebuild').map((e) => e.dims) : null; }, ring0);
       const miss1 = await missSnap();
+      const trace = await page.evaluate(() => (window.__RAW_COMMIT_TRACE__ ? window.__RAW_COMMIT_TRACE__.splice(0) : undefined));
       const delta = (a, b) => { const o = {}; for (const k of Object.keys(b)) if ((b[k] || 0) - (a[k] || 0) > 0) o[k] = b[k] - (a[k] || 0); return o; };
       const misses = { store: delta(miss0.store, miss1.store), sf: delta(miss0.sf, miss1.sf), deferred: miss1.deferred - miss0.deferred, aux: delta(miss0.aux, miss1.aux) };
       const status = await page.evaluate(() => [...document.querySelectorAll('[role="status"]')].filter((x) => x.offsetParent !== null).map((x) => x.textContent.trim()).join(' | ').slice(0, 160));
@@ -273,7 +275,7 @@ async function session({ model0, layer, zoom, theme, arm }) {
       actions.push({ tok, model: to, from, target, exactMs: r.exact == null ? null : Math.round(r.exact), via: r.via, end: r.end, blank: r.blank, blankAt: r.blankAt,
         regress: r.regress || 0, regressEx: r.regressEx || null, maxFrameMs: r.maxGap == null ? null : Math.round(r.maxGap), maskRebuilds,
         mislabel: r.mislabel, mislabelSilent: r.mislabelSilent, maxOffH: +(r.maxOffH || 0).toFixed(2), mislabelEx: r.mislabelEx || null, silentEx: r.silentEx || null,
-        clears: r.clears && r.clears.length ? r.clears : undefined, misses, frames: r.frames, dims: r.dims.slice(0, 12), status,
+        clears: r.clears && r.clears.length ? r.clears : undefined, misses, trace, frames: r.frames, dims: r.dims.slice(0, 12), status,
         // the backend asks made during this action (2026-10-27 regression re-run: which path answered, and how long it took)
         asks: log.requests.slice(req0).map((q) => `${q.path} ${(q.q && q.q.model) || ''} ${(q.q && q.q.layer) || ''} ${(q.q && q.q.valid_time) || ''} ${q.status || q.error || ''} ${q.ms}ms @${q.t - (t0 - log.t0)}`.replace(/\s+/g, ' ')),
         ...(drag ? { drag: { presses: r.presses.length, shown: shown.length, skipped: r.presses.filter((p) => p.skipped).length, late: shown.filter((x) => x > 33).length, maxShown: shown.length ? Math.max(...shown) : null } } : {}),

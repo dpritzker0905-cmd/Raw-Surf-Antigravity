@@ -99,3 +99,32 @@ committed grid's own time, served time and product id, to name the commit that c
 | swell_2 ICON | per-step client blend, 110-150 ms of compute before the draw | store-packed blend (~200 ms idle/frame, ~4.7 MB/run) or a published set: owner's call |
 | swell_1 ICON, wind_waves ICON | one step after a blend hour: aux path refused by the 1 s throttle (`aux_not_ready`; tier ruled out) | name the commit that clears the resident (instrument above), then fix; the blend re-arm was tried and failed |
 | EURO in production (not the lab) | publish-budget staleness, far-edge hold | #816; the hold needs `/capabilities` to expose its rails before a client mirror |
+
+## 00:10Z (11-13) The commit that clears the resident, named (owner: "instrument it")
+
+Instrument: a LAB-ONLY trace build (never committed; diff kept outside the repo) logging every `noteCommitted` outcome with the
+committed grid's OWN fields (`hourOffset`, valid/served time, product id, provider, estimated), next to every store show and refusal
+(with ms since the last chl/bath sync). The harness now saves that trace per action when the build exposes it
+(`window.__RAW_COMMIT_TRACE__`; a normal build has none, so nothing changes for it). One session each, ICON swell_1 and wind_waves,
+z2, the J:126 key run (PageDown from h336 back to h126):
+
+| t (ms) | swell_1 event |
+|---|---|
+| 0-355 | 6 asks at blend hours: `icon_blend_hour` |
+| 481 | store shows h168 with its own chl/bath (sync) |
+| **562** | **commit `no_served_time`: grid `hourOffset` 336, `is_estimated`, provider `estimated` (the h336 blend), cursor at h144** |
+| 564-1380 | 13 refusals `resident_not_this_set` / `aux_not_ready` (sync 147-963 ms ago) |
+| 1460 | store shows h131 (sync) |
+| **1537** | **the same h336 blend grid commits again, cursor at h130** |
+| 1539-1812 | 5 refusals (sync 97-370 ms ago) |
+| 2069 | normal-path commit of h126 (`resident`, product `icon_marine_swell_1_global_mid_20261118T060000Z`): the step's answer |
+
+wind_waves is the same shape: the h336 grid commits three times (cursor at h144, h128, h127) before h126.
+
+**Finding.** The resident is cleared by a STALE re-commit of the h336 blend grid after the user has left that hour; it is not a
+fresh blend answer. `WebGLMarineLayer` (the commit at line ~293) has no check that the grid's own `hourOffset` matches the cursor,
+and it labels the commit with the cursor's hour (`publishMarineDrawn(grid, { hour: timeOffsetHoursRef.current })`), so the
+harness's mislabel check reads 0 although the engine was handed h336 data at h144. That is a correctness question beyond latency:
+for 0.1-1 s during such a run the map may draw the h336 estimate under a h144 label. Not yet shown on screen (no pixel read);
+the likely route is the engine's no-downgrade stash being swapped back in after a store show (the case `supersedeStash` exists
+for), not yet proven. Next: find which call re-commits it, and refuse a commit whose own hour is not the cursor's.
