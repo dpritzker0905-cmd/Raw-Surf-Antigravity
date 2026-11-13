@@ -1,0 +1,132 @@
+"""GFS precipitation raster frames (2026-11-12): the amount that fell in the step BEFORE a forecast hour, mm/h, from NCEP's APCP
+bucket totals. Real-cycle check (2026-11-12 12Z, f007 / f008 / f126): within 0.09 mm/h of NCEP's own PRATE mean for the same
+step (docs/weather-program/log/2026-11-12-fable-precip-own-frames.md)."""
+from __future__ import annotations
+
+import json
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
+
+import numpy as np
+import pytest
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+
+import publish_frame_images as pub  # noqa: E402
+from services import frame_binary as fb  # noqa: E402
+from services import frame_set as fs  # noqa: E402
+from services import frame_set_raster as fsr  # noqa: E402
+
+CYCLE = datetime(2026, 11, 12, 12, tzinfo=timezone.utc)
+SPEC = fsr.SPECS["precipitation"]
+IDX_F007 = """592:480000000:d=2026111212:CPRAT:surface:7 hour fcst:
+593:480500000:d=2026111212:PRATE:surface:7 hour fcst:
+594:481000000:d=2026111212:CPRAT:surface:6-7 hour ave fcst:
+595:481500000:d=2026111212:PRATE:surface:6-7 hour ave fcst:
+596:482000000:d=2026111212:APCP:surface:6-7 hour acc fcst:
+597:482600000:d=2026111212:APCP:surface:0-7 hour acc fcst:
+598:483200000:d=2026111212:ACPCP:surface:6-7 hour acc fcst:
+599:483700000:d=2026111212:ACPCP:surface:0-7 hour acc fcst:
+"""
+
+
+def test_hours_are_hourly_to_f120_then_three_hourly_with_no_f000():
+    h = fsr.PRECIP_HOURS
+    assert len(h) == 192 and h[0] == 1 and h[119] == 120 and h[120] == 123 and h[-1] == 336
+    assert {b - a for a, b in zip(h, h[1:])} == {1, 3}
+
+
+def test_the_step_before_an_hour_and_its_six_hour_bucket():
+    # (bucket start, previous hour): f007 is its bucket's first step (nothing to subtract), f012 its last
+    assert [fsr.precip_step(f) for f in (1, 2, 6, 7, 12, 13, 120)] == [(0, 0), (0, 1), (0, 5), (6, 6), (6, 11), (12, 12), (114, 119)]
+    assert [fsr.precip_step(f) for f in (123, 126, 129, 336)] == [(120, 120), (120, 123), (126, 126), (330, 333)]
+    for f in fsr.PRECIP_HOURS:
+        bucket, prev = fsr.precip_step(f)
+        assert bucket <= prev < f <= bucket + 6
+    with pytest.raises(ValueError):
+        fsr.precip_step(0)
+
+
+def test_the_bucket_total_is_picked_by_its_exact_time_and_never_the_run_total():
+    rows = fsr.idx_rows(IDX_F007)
+    assert fsr.select_timed(rows, ("APCP", "surface"), "6-7 hour acc fcst") == (482000000, 482599999)
+    assert fsr.select_timed(rows, ("APCP", "surface"), "0-7 hour acc fcst") == (482600000, 483199999)
+    assert fsr.select_timed(rows, ("APCP", "surface"), "6-8 hour acc fcst") is None
+    assert fsr.select_message(rows, ("APCP", "surface")) is None          # the instantaneous selector never takes a total
+
+
+class _Totals(fsr.GfsPrecipSource):
+    """The source with its byte-range read replaced: bucket totals from a table, the asks recorded."""
+
+    def __init__(self, totals):
+        self.spec, self.totals, self.asked = SPEC, totals, []
+
+    def _total(self, cycle, f, bucket):
+        self.asked.append((f, bucket))
+        return np.array(self.totals[(f, bucket)], dtype=float)
+
+
+def test_a_step_is_this_total_minus_the_previous_one_and_noise_below_zero_is_zero():
+    src = _Totals({(7, 6): [2.0, 0.0, np.nan], (8, 6): [2.5, 0.0, np.nan], (9, 6): [2.4999, 4.0, 1.0]})
+    assert np.array_equal(src.fetch(CYCLE, 7), [2.0, 0.0, np.nan], equal_nan=True) and src.asked == [(7, 6)]   # a bucket's first step
+    assert np.allclose(src.fetch(CYCLE, 8), [0.5, 0.0, np.nan], equal_nan=True) and src.asked[1:] == [(8, 6), (7, 6)]
+    got = src.fetch(CYCLE, 9)
+    assert got[0] == 0.0 and got[1] == 4.0 and np.isnan(got[2])            # -0.0001 mm is packing noise, never negative rain
+
+
+def test_past_f120_a_step_is_three_hours_and_the_frame_is_their_mean_rate():
+    src = _Totals({(123, 120): [6.0], (126, 120): [15.0], (129, 126): [0.3]})
+    assert src.fetch(CYCLE, 123)[0] == pytest.approx(2.0)                  # 6 mm in 120-123 h
+    assert src.fetch(CYCLE, 126)[0] == pytest.approx(3.0)                  # 15 - 6 mm in 123-126 h
+    assert src.fetch(CYCLE, 129)[0] == pytest.approx(0.1)
+
+
+class _Rain:
+    """A whole-grid mm/h field per hour (GRIB order), one impossible value in it."""
+
+    def __init__(self):
+        self.fetched = []
+
+    def complete_cycle(self, now):
+        return CYCLE
+
+    def url(self, cycle, f):
+        return f"https://example.invalid/gfs.t12z.pgrb2.0p25.f{f:03d}"
+
+    def fetch(self, cycle, f):
+        self.fetched.append(f)
+        lat, lon = np.meshgrid(90.0 - 0.25 * np.arange(721), 0.25 * np.arange(1440), indexing="ij")
+        a = np.maximum(0.0, 8.0 * np.sin(np.radians(lat * 3 + f)) * np.cos(np.radians(lon * 2)) - 4.0)
+        a[100, 100] = 900.0                                               # above any real hourly rate: must become no data
+        return a
+
+
+def test_the_set_publishes_mm_per_hour_frames_on_the_quarter_degree_grid(tmp_path, monkeypatch):
+    monkeypatch.delenv("FRAME_MIN_COVERAGE", raising=False)
+    spec = dict(SPEC, hours=(1, 2, 7, 123))
+    sink = pub.LocalSink(tmp_path)
+    report = fsr.publish(_Rain(), sink, pub._uploader(sink), log=lambda *_: None, spec=spec)
+    assert (report["status"], report["built"], report["missing_nodes"]) == ("published", 4, 4)
+    key = "GFS/weather/precipitation/global_0p25"
+    rec = json.loads((tmp_path / fs.LATEST).read_text())["sets"][key]
+    index = json.loads((tmp_path / rec["index"]).read_text())
+    assert index["common_meta"]["value_unit"] == "mm/h" and index["common_meta"]["value_kind"] == "precipitation_rate"
+    assert (index["grid"]["cols"], index["grid"]["rows"]) == (1440, 721) and index["credit"].startswith("Contains modified NOAA GFS data")
+    assert [f["source"]["forecast_hour"] for f in index["frames"]] == [1, 2, 7, 123]
+    frame = (tmp_path / index["frames"][2]["path"]).read_bytes()
+    head = fb.decode_frame(frame)
+    assert head["field_mask"] == 1 << fb.PRECIP_MM_H
+    got = fb.decode_plane(frame)[1][fb.PRECIP_MM_H]
+    want = fsr.to_frame_plane(_Rain().fetch(CYCLE, 7), SPEC["valid"], SPEC["clip"], 1)
+    assert np.isnan(want).sum() == 1 and np.array_equal(np.isnan(got), np.isnan(want))
+    assert np.nanmax(np.abs(got - want)) <= 0.005 + 1e-9 and np.nanmin(got) == 0.0
+
+
+def test_the_set_is_off_until_its_variable_is_one(monkeypatch):
+    monkeypatch.delenv("FRAME_RASTER_PRECIP", raising=False)
+    assert fsr.enabled("precipitation") is False
+    monkeypatch.setenv("FRAME_RASTER_PRECIP", "1")
+    assert fsr.enabled("precipitation") is True
+    assert isinstance(fsr.make_source(SPEC, session=object()), fsr.GfsPrecipSource)
