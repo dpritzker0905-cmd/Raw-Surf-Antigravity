@@ -274,3 +274,24 @@ Reading, each with its limit:
 What this does for #817 (regional or nearshore fix): it supports a fix at the sheltered south-shore buoy (51211), where
 direction and height err together and the same cause (shadowing) explains both. It does not support one for 51202, where
 the two errors are unrelated. Both statements rest on one buoy each.
+
+## 8a. Advisor check of section 8 (eb1acc89a): corrections
+
+1. **Observed series are distinct.** obs_hs_mean_m is 2.139 at both 51202 and 51206 (n 176 each) by coincidence: the full
+   realtime2 hourly series differ (md5 of (hour, Hs, MWD) per buoy: 51201 c4d4b30512, 51202 e4e5c4b125, 51206 239d73edc1,
+   51211 a886b939bd, 51212 258e753411; latest rows 51202 3.3 m / 51 deg, 51206 2.9 m / 344 deg).
+2. **51202 argument withdrawn as worded.** The Fable lead's +0.08 m is an MAE gap (served MAE minus same-model MAE), not a
+   bias, so it has no sign to oppose the raw model's -0.17 m bias, and "the chain adds it" is true of that comparison by
+   construction. The windows also differ (here 24 h lead, 2026-10-19..11-09; the split: 14 days to 11-13, +24/48/72 h).
+   What survives: at 51202 the raw model's height error does not track its direction error (r +0.16 signed, -0.06 abs), so
+   there is no evidence here that direction explains the 51202 gap. No served bias at 51202 was cited.
+3. **Exposed class has one usable buoy.** At 51201 and 51206 the Open-Meteo sea cell reads Hs 0.00 m every hour, so their
+   directions come from cells with no modelled waves. "GFS-specific" (title, section 5, SCOREBOARD row) rested on those two
+   and is dropped. 51202 alone, bulk key, 24 h, n 176 (one buoy, no interval): GFS 29.1, EURO 14.0, ICON 24.9, consensus
+   18.4, persistence 20.6; GFS trails persistence by 8.5 deg, EURO and the consensus beat it. That is the only clean exposed
+   reading and it is n = 1.
+4. **51212 is absent from section 8** because `station_positions` returned no position for it today (its realtime2 series
+   ends 2026-11-12 04Z; cause not checked), so the height fetch skipped it; it is in the direction gate only through a cached
+   position. At 51211 the height bias (+0.53 m) equals its MAE (every row over-reads), so r = 0.59 is partly a swell-size
+   scale effect, not only a direction effect. The Fable result is an MAE gap, not a bias: "our chain reads high at 51211"
+   is not shown by it.
