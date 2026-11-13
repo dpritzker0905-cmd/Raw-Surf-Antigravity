@@ -160,6 +160,13 @@ h168, h144, 143 ... 126 (20 shows), 0 refusals, in both swell_1 and wind_waves. 
 | swell_2 | dev | 60 | 176 | 256 | 400 | 242, 256, 229 | 0 / 6 | 0 |
 | swell_2 | fix | 60 | 193 | 305 | 452 | 292, 245, 305 | 0 / 6 | 0 |
 
+**Read the fix arm plainly (advisor's check, 2026-11-13):** z2 is fixed (J:126 via the store 3/3 in both layers); z4.6 is not
+(`crop_only_set`). Pooled over n = 42, ICON swell_1 passes 100 ms at p95 by ONE sample (2 of 42 steps still over 100 ms; p95 = the
+third largest = 50 ms), and ICON wind_waves still MISSES at pooled p95 (3 of 42 over; p95 126 ms). The per-run p95s (18/11/16,
+17/28/12) are n = 14 each and hide those z4.6 steps. Same object re-delivered at another hour (the advisor's coverage question): it
+can happen (shared cached grids; `hourOffset` is stamped only when missing), and the guard refuses it on purpose, as the duplicate
+skip already does with no store show up; reasoning in the helper's comment, pinned by a test (+1, floor fragment now +5).
+
 Mislabel 0 in both arms (the harness cannot see the replay's mislabel: the layer labels a commit with the cursor's hour).
 swell_2 never takes this path (its frames are the per-step client blend); its p95 difference is not separable from machine load.
 
