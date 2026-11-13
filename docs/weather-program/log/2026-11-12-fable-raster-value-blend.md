@@ -45,15 +45,15 @@ markers switch at once (5.5-8.6 % of changed pixels already equal the end pictur
 dark. Sheets (three themes, start / middle / end, both layers) sent to the owner.
 
 Cost on the throttled phone (390 x 844, dpr 3, CPU 4x; pressure, 12 scrub steps; the blend against its own kill, same build):
-scrub long-frame total 10108 and 9366 ms with the blend, 10302 ms without; blocking 4210 and 3751 against 4407. No cost
-visible above the run-to-run scatter (two runs on, one off read at the time of writing).
+scrub long-frame total 10108 and 9366 ms with the blend, 10302 and 9186 ms without; blocking 4210 and 3751 against 4407 and
+4098. No cost visible above the run-to-run scatter (two alternating pairs).
 
 ## Tests
 +19 in `ownRasterLayer.test.js` (the step, the kill, reduced motion, different grids, mid-blend steps, eviction, the shader's
 order, and for each of dark, light and beach and each of pressure, cloud cover and rain: every blended value draws a colour
 of that theme lying between the two frames' colours); +2 in `usePressureIsobars.test.js` (the crossfade; a cut before the
 lines have loaded). The existing instant-switch test now runs under the kill, its contract unchanged. Kill in the inventory
-(TESTED). The 13 touched suites: 200 passed locally before the last isobar test was added.
+(TESTED). The 13 touched suites: 201 passed locally. Lint ratchet not worse.
 
 ## Not measured
 A real phone; Safari and Firefox; play mode; the look at the real 160 ms (only photographed held open); memory; EURO's
