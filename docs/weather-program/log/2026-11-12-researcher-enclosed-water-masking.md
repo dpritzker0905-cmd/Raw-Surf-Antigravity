@@ -212,3 +212,50 @@ The Fable repair lead tested the section 3 rule (72 bearings, ETOPO 1 arc-minute
 3. Keep "no open-ocean estimate" as the default for points where the rule is inconclusive.
 
 The enclosed-water question is therefore open. The reach cap (#852) remains the only tested gate.
+
+## 10. Proposed channel-attenuation rule (pre-registered, not fitted, 2026-11-13)
+
+Status: proposal only. Not fitted to any case, including the 46267 and spot measurements in section 9, which this author has not read. The thresholds below are assumptions with no cited source and must be set and frozen before anyone computes them on the test cases.
+
+### What the sources support, and what they do not
+
+- **Diffraction coefficients do not apply to the strait mouth.** Penney-Price and Ref/Dif models are validated for gaps smaller than about five incident wavelengths in constant depth (Wibowo et al. 2025, https://consensus.app/papers/details/w:13303093-0922-494c-8bc8-1db88ffa277d/ ). The Juan de Fuca mouth is tens of kilometres wide, far more than that for swell. Diffraction tables (Johnson 1951, https://consensus.app/papers/details/w:543abc50-eb96-4d6b-8920-f05b65497b6a/ ) are for breakwater gaps and tips. So a Penney-Price-type coefficient is the wrong proxy here. This is an inference from the gap-width condition.
+- **Bottom friction is strong on rough shelves, not established for deep straits.** Measured friction factors of 4 to 34 on rocky shelves, with about 32 % of energy flux lost over 130 m (Gon et al. 2020, https://consensus.app/papers/details/w:14ba5634-e754-464c-b30b-6f01180f753d/ ; Marques et al. 2025, https://consensus.app/papers/details/w:3f87c5e2-527e-473b-b952-699e1d86b631/ ). These are shallow, rough shelves. A deep strait has weaker friction, so friction alone may not explain 1.5 m served against 0.2 m observed. This is a limit on the mechanism, not a measurement.
+- **Narrow channels attenuate along their length.** Surge attenuation along a narrow channel depends on basin geometry and inlet width (Kiesel et al. 2024, https://consensus.app/papers/details/w:feedec21-628d-4b66-b51f-6b3c18842e0f/ ). Swell in fjords is strongly sheltered or exposed depending on geometry, and needs a phase-resolving model to capture (Wang et al. 2023, https://consensus.app/papers/details/w:e543d568-b946-436d-ad29-80205e182def/ ). These support a geometric proxy, not a specific coefficient.
+
+### The proposed rule (corridor ratio)
+
+For each point P with a valid land mask at about 1 km:
+1. Flood-fill the water cells connected to P, stopping at deep water (depth of at least 1000 m, the assumed open-ocean source). Measure L = the shortest water path length from P to deep water.
+2. Measure W = the narrowest cross-channel width along that path, taken as the minimum distance between opposite shores at points sampled every 1 km.
+3. Compute R = L / W.
+4. **Rule:** serve `nearest_ocean_fallback` only if R is below 2 **or** L is below 10 km. Otherwise return "no open-ocean estimate" and exclude the point from the accuracy monitor.
+
+The thresholds 2 and 10 km are assumptions. The depth 1000 m is also an assumption.
+
+### Why this rule, and not the sweep in section 3
+
+The sweep asked whether any open ray reaches deep water, which a strait can pass. The corridor ratio asks how far the energy must travel through a narrow water path, which is the attenuation the peer's data point to. It is a geometric proxy, not a validated physical model. It does not model friction, refraction or breaking.
+
+### Pre-registration (set before computing)
+
+- Calibration: none. The thresholds are fixed as above.
+- Test set: 46267 (window 47.75–48.5 N, 125.25–123 W), plus the seven spots the peer listed (Boca Barranca, Kells, Silverstrand, Salthill, Rossbeigh, Rathmullan, Bishopsquarter), plus the controls Inch Beach and Fort Point SF. Freeze this list before computing R.
+- Pass: the rule gives "no estimate" for 46267, and "serve" for the controls and for at least five of the seven spots. Held-out spots must be named before the run.
+- Fail: if the rule rejects more than two of the seven spots, or serves 46267, discard the corridor ratio and do not tune the thresholds to pass. Record the failure in section 9 and the log.
+- Stop rule: a second fitted threshold is not allowed. Any change to 2, 10 km or 1000 m requires a new pre-registration.
+
+### Not verified
+
+- No computation has been run. Whether 46267 has R of at least 2 is unknown until the peer computes it on the ETOPO grid.
+- Whether seven spots and three controls are enough to decide anything. Probably not on their own.
+- The friction and diffraction arguments are inferences from the cited sources, not measurements.
+
+### Sources
+
+- Wibowo et al. 2025, Penney-Price and Ref/Dif1 through breakwater gaps: https://consensus.app/papers/details/w:13303093-0922-494c-8bc8-1db88ffa277d/
+- Johnson 1951, Generalized wave diffraction diagrams: https://consensus.app/papers/details/w:543abc50-eb96-4d6b-8920-f05b65497b6a/
+- Gon et al. 2020, Wave dissipation by bottom friction on a rocky shore: https://consensus.app/papers/details/w:14ba5634-e754-464c-b30b-6f01180f753d/
+- Marques et al. 2025, Observations of wave energy dissipation by bottom friction on rocky shores: https://consensus.app/papers/details/w:3f87c5e2-527e-473b-b952-699e1d86b631/
+- Kiesel et al. 2024, Surge attenuation along a microtidal channel: https://consensus.app/papers/details/w:feedec21-628d-4b66-b51f-6b3c18842e0f/
+- Wang et al. 2023, Phase-resolved wave modelling in Norwegian fjords: https://consensus.app/papers/details/w:e543d568-b946-436d-ad29-80205e182def/
