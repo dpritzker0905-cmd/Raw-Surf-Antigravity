@@ -2016,8 +2016,16 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   effective on the next ingest cycle; no code change.
 - **Reopen if:** the partition-truth instrument reads, or the owner decides.
 
-### D-071 · The wind lane's HRRR weight is capped by region and lead from a buoy fit (WIND_LANE_SKILL_WEIGHTS, DARK, 2026-11-12, proposed)
-- **Status: PROPOSED, not decided.** Built dark on branch `claude/wind-lane-skill-weights` (default `'0'`, Render env).
+### D-071 · The wind lane's HRRR weight is capped by region and lead from a buoy fit (WIND_LANE_SKILL_WEIGHTS, 2026-11-12, decided ON 2026-11-12 19:49Z)
+- **Status: DECIDED, ON (2026-11-12).** The owner (David), 14:43 EST 2026-11-12 (19:43Z), answering "Turn on the
+  skill-weighted HRRR wind lane (WIND_LANE_SKILL_WEIGHTS=1)?": "Turn it on". The director set Render env
+  `WIND_LANE_SKILL_WEIGHTS=1` on the Render backend service at ~19:49Z, triggering deploy
+  `dep-dbr1gorrjlhs73cd7890` on dev `37b85b463`. Evidence the owner decided on: held-out (odd-cycle fit, even-cycle
+  score) the blend beat both GFS and the shipped lane in 8 of 8 table cells and 26 of 28 published cells (#798 grade,
+  #805 build; SCOREBOARD S9 rows 2026-11-12 04:50Z and 06:00Z). Commitment (ledger): re-grade the live lane against
+  NDBC (`backend/scripts/grade_wind_lane_ndbc.py`, #798's method) on >= 14 days after the flip, due 2026-11-26; revert
+  if any region x lead with n >= 300 is worse than GFS by > 0.3 kn vector RMSE.
+- **Was: PROPOSED, not decided.** Built dark on branch `claude/wind-lane-skill-weights` (default `'0'`, Render env).
   It flips only on the owner's word. It reopens D-017's "full HRRR weight inside the domain and horizon"; D-017's
   place/time lane, feather, taper and kills stand.
 - **Why it reopens:** D-017's own reopen condition fired. The >= 14-day NDBC grade (#798, log
@@ -2036,7 +2044,7 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   `/grid` (the client's `laneVerdict`); a follow-up can make the frames apply the same table.
 - **Reopen if:** a later grade (another season, or a scheduled wind truth lane) moves a cell's fitted weight by >= 0.2,
   or the held-out blend stops beating both members in a cell with n >= 300.
-- **Rollback:** `WIND_LANE_SKILL_WEIGHTS` unset or `0`.
+- **Rollback:** `WIND_LANE_SKILL_WEIGHTS` unset or `0` (Render env; setting it redeploys).
 
 ### D-072 · The accuracy monitor's reference page splits into three: a same-model regression, the hole buoys, and the best_match gap where both models score (2026-11-12, proposed)
 - **Status: PROPOSED, not decided.** Nothing is built. The owner decides. It reopens the WS-CAN-0026 rule in
