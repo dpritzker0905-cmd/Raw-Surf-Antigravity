@@ -259,3 +259,34 @@ The sweep asked whether any open ray reaches deep water, which a strait can pass
 - Marques et al. 2025, Observations of wave energy dissipation by bottom friction on rocky shores: https://consensus.app/papers/details/w:3f87c5e2-527e-473b-b952-699e1d86b631/
 - Kiesel et al. 2024, Surge attenuation along a microtidal channel: https://consensus.app/papers/details/w:feedec21-628d-4b66-b51f-6b3c18842e0f/
 - Wang et al. 2023, Phase-resolved wave modelling in Norwegian fjords: https://consensus.app/papers/details/w:e543d568-b946-436d-ad29-80205e182def/
+
+## 11. Corridor-ratio rule computed: FAIL, discarded (peer result, 2026-11-13)
+
+The Fable repair lead computed section 10's rule on ETOPO 1 arc-minute, with no constant changed. Source: `docs/weather-program/log/2026-11-13-fable-strait-fallback.md` on branch `fable/strait-fallback` (reported in its message, not read here).
+
+| Point | L (km) | W (km) | R = L/W |
+|---|---|---|---|
+| 46267 | 184 | 3.0 | 61 |
+| Salthill | 230 | 2.0 | 115 |
+| Silverstrand | 229 | 2.0 | 114 |
+| Boca Barranca | 62 | 6.0 | 10 |
+| Rossbeigh | 159 | 3.0 | 53 |
+| Rathmullan | 169 | 2.0 | 85 |
+| Bishopsquarter | 231 | 2.0 | 115 |
+| Kells | 148 | 3.0 | 49 |
+| Inch Beach (control) | 163 | 3.0 | 54 |
+| Fort Point SF (control) | 65 | 3.0 | 22 |
+
+**Result against the frozen criteria: FAIL.** Every point is rejected, including both controls and all seven spots. 46267 is rejected, but so is everything else. Section 10 says to discard the rule on this outcome. It is discarded. No threshold was tuned.
+
+**Cause (per the peer):** the 1000 m depth criterion is 60–230 km from every test point, because the shelf is wide. So L measures the distance to the shelf edge, not to the strait mouth. The rule's source criterion is wrong, not just its thresholds.
+
+**Width reading:** the peer took W as the shortest land-to-land chord along the shortest path, which prefers narrow passes. Section 10 left W open. The peer did not test a widest-path reading, and that would be tuning on the result. Any other reading needs a fresh pre-registration.
+
+**Status of the enclosed-water question:**
+- Section 3's exposure sweep: rejected (section 9).
+- Section 10's corridor ratio: rejected (this section).
+- The only tested gate is the reach cap (#852). It is coarse and cannot separate sheltered points within 1.5 cells.
+- Default for unresolved points: "no open-ocean estimate," as section 3 proposed. This is a policy choice, not a validated result.
+
+**Next, if pursued:** a new pre-registration with a source criterion that identifies the strait mouth (for example the mouth as a gap between headlands, or a regional-model truth), and a W reading fixed before computing. Do not reuse the 1000 m depth.
