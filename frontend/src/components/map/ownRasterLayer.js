@@ -73,6 +73,23 @@ export const SATELLITE_OPACITY_STOPS = [[2, 0.55], [5, 0.60], [8, 0.65], [12, 0.
 export const RAIN_OPACITY_STOPS = [[2, 0.60], [5, 0.68], [8, 0.74], [12, 0.78]];   // MapWebGL's rainOp (the bold pass)
 // The no-data test: ownRasterFrames.MISSING (-9999) is below it, every real value of every layer above (pinned by a test).
 export const NO_DATA_BELOW_GLSL = '-9000.0';
+// THE VALUE BLEND (2026-11-12, the owner: "Blend first, but make sure to take into account each themed mode"). A step no longer
+// cuts: for BLEND_MS the shader mixes the VALUES of the frame that was shown and the frame now wanted, then colours the result
+// through the theme's own LUT, so light, dark and beach each morph inside their own ramp. Both frames are already resident
+// textures, so it costs one more sampler and no upload. Off (a hard cut, as before) under prefers-reduced-motion, when the two
+// frames are not on the same grid, and with the kill: window.__RAW_DISABLE_RASTER_VALUE_BLEND__ = true.
+// window.__RAW_RASTER_BLEND_MS__ (a number) overrides the duration (the lab holds a blend open to photograph it).
+export const BLEND_MS = 160;
+export function blendMs(w = typeof window !== 'undefined' ? window : null) {
+  if (!w || w.__RAW_DISABLE_RASTER_VALUE_BLEND__ === true) return 0;
+  try { if (w.matchMedia && w.matchMedia('(prefers-reduced-motion: reduce)').matches) return 0; } catch (e) { /* no matchMedia */ }
+  const o = Number(w.__RAW_RASTER_BLEND_MS__);
+  return Number.isFinite(o) && o >= 0 ? o : BLEND_MS;
+}
+/** The blend's progress 0..1 eased (smoothstep: no velocity jump at either end). */
+export function blendEase(t) { const x = Math.min(1, Math.max(0, t)); return x * x * (3 - 2 * x); }
+const sameGrid = (a, b) => !!a && !!b && a.cols === b.cols && a.rows === b.rows && a.bounds.west === b.bounds.west
+  && a.bounds.south === b.bounds.south && a.bounds.east === b.bounds.east && a.bounds.north === b.bounds.north;
 
 // ── the elevation downscale (2026-10-25; the owner: "Go with your recommendation if that is state of the art") ───────────────
 // Air temperature is drawn as T + lapse * dz, where dz = real ground (NOAA ETOPO 2022) - the model's 0.5-degree terrain, from a
@@ -125,6 +142,8 @@ precision highp float;
 precision highp sampler2D;
 in vec2 v_merc;
 uniform sampler2D u_field;
+uniform sampler2D u_field2;  // the frame being blended TO (the value blend); unused while u_mix = 0
+uniform float u_mix;         // 0 = u_field alone; 0..1 = the VALUES of u_field and u_field2 mixed, then coloured
 uniform sampler2D u_lut;
 uniform vec4 u_grid;      // west, south, dLon, dLat (cell-centre lattice)
 uniform vec3 u_size;      // cols, rows, wraps (1 = columns wrap at the antimeridian)
@@ -140,7 +159,13 @@ uniform float u_dzCols1;  // the second tile's columns (with its overlap)
 uniform vec4 u_isoColor;  // straight rgba
 out vec4 fragColor;
 const float PI = 3.141592653589793;
-float node(int c, int r) { return texelFetch(u_field, ivec2(c, r), 0).r; }
+// One frame's value at the pixel (bilinear over its four nodes); a no-data node makes the whole sample no data.
+float sampleField(sampler2D s, int c0, int c1, int r0, int r1, float tx, float ty) {
+  float a = texelFetch(s, ivec2(c0, r0), 0).r; float b = texelFetch(s, ivec2(c1, r0), 0).r;
+  float c = texelFetch(s, ivec2(c0, r1), 0).r; float d = texelFetch(s, ivec2(c1, r1), 0).r;
+  if (min(min(a, b), min(c, d)) < ${NO_DATA_BELOW_GLSL}) return -9999.0;
+  return mix(mix(a, b, tx), mix(c, d, tx), ty);
+}
 void main() {
   float lon = fract(v_merc.x) * 360.0 - 180.0;
   float lat = degrees(atan(sinh(PI * (1.0 - 2.0 * v_merc.y))));
@@ -161,9 +186,14 @@ void main() {
   }
   float y0 = min(floor(fy), u_size.y - 2.0); float ty = fy - y0;
   int r0 = int(y0); int r1 = r0 + 1;
-  float a = node(c0, r0); float b = node(c1, r0); float c = node(c0, r1); float d = node(c1, r1);
-  if (min(min(a, b), min(c, d)) < ${NO_DATA_BELOW_GLSL}) discard;
-  float v = mix(mix(a, b, tx), mix(c, d, tx), ty);
+  float v = sampleField(u_field, c0, c1, r0, r1, tx, ty);
+  if (u_mix > 0.0) {
+    // THE VALUE BLEND: mix the two frames' VALUES, then colour once below, so every in-between pixel is a colour of this theme's
+    // own ramp (a colour crossfade would invent colours that are on no legend). Where one frame has no data the other stands.
+    float w = sampleField(u_field2, c0, c1, r0, r1, tx, ty);
+    if (v < ${NO_DATA_BELOW_GLSL}) v = w; else if (w > ${NO_DATA_BELOW_GLSL}) v = mix(v, w, u_mix);
+  }
+  if (v < ${NO_DATA_BELOW_GLSL}) discard;
   if (u_dzLat.w > 0.0) {
     float gx = mod((lon - u_dzLon.x) / u_dzLon.y, u_dzLon.z);
     float gy = clamp((lat - u_dzLat.x) / u_dzLat.y, 0.0, u_dzLat.z - 1.0);
@@ -207,6 +237,7 @@ export function createOwnRasterLayer({
     resident: new Map(),       // path -> { tex, field }
     pending: new Map(),        // path -> field waiting for upload
     wantPath: null, shown: null, onShown: null,
+    blend: null,               // { from: path, t0, ms } while a step's value blend runs (BLEND_MS), else null
     isoColor: [1, 1, 1, 0.55],
     dz: null, dzTex: [], dzNext: 0,   // the elevation downscale: the decoded asset, its textures, the next tile to upload
     dzReadyAt: null, maxTex: null,    // when the last tile landed (the fade's start); MAX_TEXTURE_SIZE, read once
@@ -238,7 +269,7 @@ export function createOwnRasterLayer({
     if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) { fail('link'); return false; }
     st.prog = prog;
     st.loc = {};
-    for (const u of ['u_matrix', 'u_field', 'u_lut', 'u_grid', 'u_size', 'u_lutMap', 'u_opacity', 'u_iso', 'u_isoColor',
+    for (const u of ['u_matrix', 'u_field', 'u_field2', 'u_mix', 'u_lut', 'u_grid', 'u_size', 'u_lutMap', 'u_opacity', 'u_iso', 'u_isoColor',
       'u_dz0', 'u_dz1', 'u_dzLat', 'u_dzLon', 'u_dzCode', 'u_dzCols1']) {
       st.loc[u] = gl.getUniformLocation(prog, u);
     }
@@ -316,7 +347,7 @@ export function createOwnRasterLayer({
   // The least useful resident texture: never the shown or the wanted one; the oldest otherwise (Map order = upload order).
   function evictOne() {
     for (const [p, r] of st.resident) {
-      if (p === st.shown || p === st.wantPath) continue;
+      if (p === st.shown || p === st.wantPath || (st.blend && p === st.blend.from)) continue;
       st.resident.delete(p);
       return r.tex;
     }
@@ -369,8 +400,14 @@ export function createOwnRasterLayer({
       if (st.lost || st.failed || !st.ready || !st.lutTex) return;
       // No stored frame within 3 h of the asked time: draw nothing rather than another hour under this label.
       if (!st.wantPath) return;
-      // The hard cut: the wanted frame the moment it is resident; until then the shown one holds.
+      // The wanted frame the moment it is resident (until then the shown one holds). It becomes the shown frame at once (the
+      // readout and the isobars follow it); the picture reaches it through the value blend when one applies, else by a hard cut.
       if (st.wantPath && st.wantPath !== st.shown && st.resident.has(st.wantPath)) {
+        const ms = blendMs();
+        // a step taken mid-blend starts from whichever frame the picture is nearer to
+        const prev = st.blend && (now() - st.blend.t0) < st.blend.ms / 2 ? st.blend.from : st.shown;
+        const a = prev && st.resident.get(prev); const b = st.resident.get(st.wantPath);
+        st.blend = ms > 0 && a && prev !== st.wantPath && sameGrid(a.field, b.field) ? { from: prev, t0: now(), ms } : null;
         st.shown = st.wantPath;
         if (st.onShown) { try { st.onShown(st.shown, st.resident.get(st.shown).field); } catch (e) { /* telemetry only */ } }
       }
@@ -379,16 +416,26 @@ export function createOwnRasterLayer({
       const m = (args && args.defaultProjectionData && args.defaultProjectionData.mainMatrix) || (args && args.mainMatrix);
       if (!m) return;
       const f = r.field;
+      let from = null; let mixT = 0;
+      if (st.blend) {
+        const fr = st.resident.get(st.blend.from);
+        const t = (now() - st.blend.t0) / st.blend.ms;
+        if (!fr || !(t < 1)) st.blend = null;
+        else { from = fr; mixT = Math.max(1e-4, blendEase(t)); if (st.map) st.map.triggerRepaint(); }   // the blend's frames
+      }
       const dLon = (f.bounds.east - f.bounds.west) / (f.cols - 1);
       const dLat = (f.bounds.north - f.bounds.south) / (f.rows - 1);
       // The shader's isoline lever is pressure's only (shaderIsobars): it would draw isotherms through air temperature.
       const iso = shaderIsobars && typeof window !== 'undefined' ? Number(window.__RAW_OWN_RASTER_ISOBARS__) || 0 : 0;
       gl.useProgram(st.prog);
       gl.bindVertexArray(st.vao);
-      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, r.tex);
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, from ? from.tex : r.tex);
+      gl.activeTexture(gl.TEXTURE4); gl.bindTexture(gl.TEXTURE_2D, r.tex);   // the frame blended to (units 2 and 3 are the dz tiles)
       gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, st.lutTex);
       gl.uniformMatrix4fv(st.loc.u_matrix, false, m);
       gl.uniform1i(st.loc.u_field, 0);
+      gl.uniform1i(st.loc.u_field2, 4);
+      gl.uniform1f(st.loc.u_mix, from ? mixT : 0);
       gl.uniform1i(st.loc.u_lut, 1);
       gl.uniform4f(st.loc.u_grid, f.bounds.west, f.bounds.south, dLon, dLat);
       gl.uniform3f(st.loc.u_size, f.cols, f.rows, wrapsLongitude(f) ? 1 : 0);
@@ -438,6 +485,8 @@ export function createOwnRasterLayer({
     want(path) { st.wantPath = path || null; if (st.map) st.map.triggerRepaint(); },
     isResident(path) { return st.resident.has(path); },
     shownPath() { return st.shown; },
+    /** The value blend in progress ({ from, to, t }: t eased 0..1), or null. Telemetry and tests. */
+    blending() { return st.blend ? { from: st.blend.from, to: st.shown, t: blendEase((now() - st.blend.t0) / st.blend.ms) } : null; },
     onShown(fn) { st.onShown = fn; },
     failed() { return st.failed; },
     disposed: false,
