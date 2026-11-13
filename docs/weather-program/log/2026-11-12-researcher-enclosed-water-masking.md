@@ -169,3 +169,14 @@ Requested by David. Reflection's points, recorded as advisory:
 - Unverified (as in section 0): GFS-Wave wet cell at 46267; NDBC and USGS licence wording. If a wet cell exists at 46267, the fallback may not apply at all.
 
 Action implied: treat the sweep as a hypothesis to test, not a settled rule. Add a sensitivity run for the 300 km and 200 m values, and a non-inferiority margin for control buoys, before default-on.
+
+## 7. Follow-up research on Reflection's gaps (2026-11-12)
+
+- **Diffraction is absent from standard spectral models.** Phase-decoupled refraction-diffraction was added to SWAN by Holthuijsen et al. (2003), and Doorn (1997) proposed a diffraction turning rate that made the model unstable in one form. Ilic et al. (2007) found the SWAN diffraction feature improved wave heights behind detached breakwaters, with swell behind breakwaters sensitive to beach reflection and transmission. Implication: a sweep that ignores diffraction can miss lee-side energy, so the gate must not be read as a physical zero. [consensus w:0d89e592, w:7c0cc5fb, w:8452fa09]
+- **Spectral models underpredict channel penetration.** Dusseljee et al. (2014) found SWAN underestimates lee-side wave conditions in a navigation channel, especially for long waves at small angles, because tunnelling and evanescent modes are missing. Groeneweg et al. (2014) found SWAN underpredicts North Sea swell penetration into tidal inlets, pointing to nonlinear triad interactions. Implication: a fallback that refuses swell may be biased **low** for strait points, not only high. The gate needs a reduced-but-nonzero path or a "no forecast" flag, not a hard zero. [consensus w:452cf9d8, w:5e3f99c8]
+- **Statistics.** Willmott et al. (1985) recommend bootstrap confidence intervals for model-comparison metrics, which supports the bootstrap plan above. It does not address small cluster counts. With nine buoys, use an explicit non-inferiority margin for controls, as Reflection suggested. [consensus w:e56d545c]
+- **Pending.** Full text of all these papers was not read (abstracts only).
+
+Revised rule implication: (a) keep the exposure sweep as a hypothesis; (b) treat "refuse" as biased low for strait swell; (c) prefer "no open-ocean estimate" over a zero or a fixed value until a regional nest validates penetration.
+
+Sources added: Holthuijsen et al. 2003 https://consensus.app/papers/details/w:0d89e592-6f99-4a50-b5b1-08f62dbbb989/ ; Doorn 1997 https://consensus.app/papers/details/w:7c0cc5fb-ce8b-4561-8b2f-a09ea34cf1c3/ ; Ilic et al. 2007 https://consensus.app/papers/details/w:8452fa09-ce8e-490a-a1c8-a711c004b3b0/ ; Dusseljee et al. 2014 https://consensus.app/papers/details/w:452cf9d8-1d33-4397-b89e-77a5165d3392/ ; Groeneweg et al. 2014 https://consensus.app/papers/details/w:5e3f99c8-8488-4227-87bf-3e8c13e13432/ ; Willmott et al. 1985 https://consensus.app/papers/details/w:e56d545c-0920-4641-966a-4985a53ae889/
