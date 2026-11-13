@@ -90,3 +90,25 @@ Append-only. Branch `fable/strait-fallback`. Follows `2026-11-12-fable-accuracy-
   that is still sheltered (the 33 borderline spots; SoCal Bight buoys). NOT built here; it belongs with #817 / #851.
 - The researcher's unverified item, the GFS-Wave wet mask at 46267, IS measured in this log (section "Cause, measured"):
   all four corners land; nearest wet cell (48.5, -124.25), 0.729 deg away.
+
+## HOLD: the blast radius does not survive NOAA's native mask (2026-11-13, the owed check)
+- Our 0.25-deg GFS tiles read NOAA's exact native cell (`REGRID_NATIVE_CELL: '1'` in forecast-ingest.yml and
+  forecast-ingest-pilots.yml), so the right mask is NOAA's, not Open-Meteo's. One public NOMADS field
+  (gfswave.t00z.global.0p25.f000, HTSGW, 2026-11-13; decoded with eccodes; no credentials) over the same 1,782 points:
+  - 1,259 in a 0.25-deg box; **76 have four land corners (Open-Meteo's copy said 34)**.
+  - Under the 1.5-cell cap, **8 change to no data: 46267 and 7 SURF SPOTS**: Salthill Beach 0.481 deg, Silverstrand
+    Beach 0.449, Boca Barranca (Costa Rica) 0.448, Rossbeigh White Strand 0.439, Rathmullan 0.404, Bishopsquarter 0.398,
+    Kells 0.396. Inch Beach stays at 0.3726.
+  - 46267's nearest wet native cell is (48.5, -124.5), 0.958 deg: (48.5, -124.25) is LAND natively and wet in
+    Open-Meteo's copy. Open-Meteo's `ncep_gfswave025` is therefore not cell-identical to NOAA's field at coasts
+    (5 of the 34 common points disagree on distance by 0.03..0.23 deg).
+- So "0 of 1,259 spots change" in the PR, the flag comment, the registry line and the first SCOREBOARD wording was WRONG
+  on the mask that matters. SubQ's flag (verify the margin against our own tiles) was right. SCOREBOARD row corrected.
+- Not settled: whether the stored tiles equal the native field at every one of those cells (one f000 field; the stored
+  tiles were not read). The served sampled cell for 46267 will be in the calibration rows once the serve-path logging
+  lands, which answers it for the buoy.
+- Options, NOT chosen here: (a) keep 1.5 cells and accept 7 spots at '--' (they are 0.4..0.48 deg from model water, so
+  today they show a cell 2 cells away); (b) a 2-cell reach (0.5 deg) keeps all 7 and still excludes 46267 (0.958), but
+  is fitted to this list with a 0.019 deg margin (Salthill); (c) the researcher's exposure sweep (#851). Owner's call.
+- D-065 history filter on this PR (run 43360118157): **SKIPPED**, "no cached history window: the replay did not run".
+  No numbers exist. AFTER: not measurable before a deploy.
