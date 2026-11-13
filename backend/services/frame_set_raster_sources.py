@@ -157,24 +157,28 @@ ICON_INVAR = "icon_global_icosahedral_time-invariant"
 LATTICE = (361, 720)
 
 
-def box_assignment(clat, clon):
-    """Node index (r * 720 + c) for every native cell, and the number of cells per node. Degrees or radians accepted."""
+def box_assignment(clat, clon, lattice=LATTICE):
+    """Node index (r * cols + c) for every native cell, and the number of cells per node. Degrees or radians accepted.
+    `lattice` = (rows, cols) of a global grid with both poles (the 0.5-degree one by default; (721, 1440) = 0.25 degrees)."""
     import numpy as np
     clat = np.asarray(clat, dtype=float)
     clon = np.asarray(clon, dtype=float)
     if np.nanmax(np.abs(clat)) <= np.pi + 0.01:
         clat, clon = np.degrees(clat), np.degrees(clon)
-    rows, cols = LATTICE
-    r = np.clip(np.rint((clat + 90.0) / 0.5).astype(np.int64), 0, rows - 1)
-    c = np.rint((((clon + 180.0) % 360.0)) / 0.5).astype(np.int64) % cols
+    rows, cols = lattice
+    step = 360.0 / cols
+    r = np.clip(np.rint((clat + 90.0) / step).astype(np.int64), 0, rows - 1)
+    c = np.rint((((clon + 180.0) % 360.0)) / step).astype(np.int64) % cols
     node = r * cols + c
     return node, np.bincount(node, minlength=rows * cols)
 
 
-def box_mean(values, node, counts):
-    """(361, 720) frame-order plane (row 0 = 90S, column 0 = 180W) from native cell values; NaN cells are left out."""
+def box_mean(values, node, counts, lattice=LATTICE):
+    """Frame-order plane (row 0 = 90S, column 0 = 180W) on `lattice` from native cell values: each node is the MEAN of the cells
+    in its box; NaN cells are left out. A pole row with no cell takes the mean of the row next to it; any other row with no cell
+    at all takes the nearest row that has one."""
     import numpy as np
-    rows, cols = LATTICE
+    rows, cols = lattice
     v = np.asarray(values, dtype=float)
     ok = np.isfinite(v)
     sums = np.bincount(node[ok], weights=v[ok], minlength=rows * cols)
@@ -195,6 +199,15 @@ def box_mean(values, node, counts):
             continue
         xs = x[good]
         plane[r] = np.interp(x, np.concatenate([xs - cols, xs, xs + cols]), np.tile(row[good], 3))
+    full = np.isfinite(plane).all(axis=1)
+    if full.any() and not full.all():
+        for pole, near in ((0, 1), (rows - 1, rows - 2)):          # a pole is one point: the mean of the ring around it
+            if not full[pole] and full[near]:
+                plane[pole, :] = plane[near].mean()
+        full = np.isfinite(plane).all(axis=1)
+        filled = np.nonzero(full)[0]
+        for r in np.nonzero(~full)[0]:
+            plane[r] = plane[filled[np.argmin(np.abs(filled - r))]]
     return plane
 
 
@@ -300,9 +313,8 @@ class IconOpenDataSource:
             self._grid[cycle] = (nearest_pick(clat, clon, node), clat.size)
         return self._grid[cycle]
 
-    def fetch(self, cycle, f):
-        """(361, 720) frame-order plane in the frame's unit (spec['frame_plane'] tells build_set it is already on the lattice)."""
-        pick, ncells = self.grid(cycle)
+    def _native(self, cycle, f, ncells):
+        """The field's native cell values at forecast hour f (the first of the spec's file tokens that exists)."""
         last = None
         for token in self.spec["idx"][1]:
             try:
@@ -314,7 +326,54 @@ class IconOpenDataSource:
             raise last or RuntimeError("no ICON file")
         if values.size != ncells:
             raise RuntimeError(f"field has {values.size} cells, the grid {ncells}")
-        return nearest_plane(self.spec["convert"](values), pick)
+        return values
+
+    def fetch(self, cycle, f):
+        """(361, 720) frame-order plane in the frame's unit (spec['frame_plane'] tells build_set it is already on the lattice)."""
+        pick, ncells = self.grid(cycle)
+        return nearest_plane(self.spec["convert"](self._native(cycle, f, ncells)), pick)
 
 
-SOURCES = {"ecmwf": EcmwfOpenDataSource, "ecmwf_precip": EcmwfPrecipSource, "icon": IconOpenDataSource}
+class IconPrecipSource(IconOpenDataSource):
+    """DWD ICON global precipitation in the step before a forecast hour, mm/h, on the spec's grid. TOT_PREC is the total since
+    the run began (kg m-2 = mm), so a step's amount is this hour's total minus the previous step's, per NATIVE cell (nothing to
+    subtract before the first hour: the total at hour 0 is zero); a difference below zero is packing noise and becomes 0.
+    REGRID: the box MEAN, not the nearest cell the pressure set takes. Rain is an amount over an area with sharp edges: one
+    cell of ~13 km standing for a 28 km box would draw a shower the model put beside the node as nothing, or one on it as the
+    whole box. Each native cell is assigned once to the box of the node it rounds to; a node is the mean of its cells (about 4.5
+    per 0.25-degree box at the equator, fewer poleward; boxes with none take the interpolation along their row)."""
+
+    def lattice(self):
+        g = fsr.grid_of(self.spec)
+        return (g["rows"], g["cols"])
+
+    def grid(self, cycle):
+        """(node per native cell, cells per node, number of cells) for this run's grid, built once per publish."""
+        if cycle not in self._grid:
+            clat = self._decode_bz2(self._invar(cycle, "CLAT"))
+            clon = self._decode_bz2(self._invar(cycle, "CLON"))
+            if clat.shape != clon.shape:
+                raise RuntimeError(f"CLAT {clat.shape} and CLON {clon.shape} differ")
+            node, counts = box_assignment(clat, clon, self.lattice())
+            self._grid[cycle] = (node, counts, clat.size)
+        return self._grid[cycle]
+
+    def previous(self, f):
+        """The step before f in this set's hours (0 before the first)."""
+        hours = self.spec["hours"]
+        i = hours.index(f)
+        return hours[i - 1] if i > 0 else 0
+
+    def fetch(self, cycle, f):
+        import numpy as np
+        node, counts, ncells = self.grid(cycle)
+        prev = self.previous(f)
+        amount = self.spec["convert"](self._native(cycle, f, ncells))
+        if prev > 0:
+            amount = amount - self.spec["convert"](self._native(cycle, prev, ncells))
+        rate = np.where(np.isfinite(amount), np.maximum(amount, 0.0) / float(f - prev), np.nan)
+        return box_mean(rate, node, counts, self.lattice())
+
+
+SOURCES = {"ecmwf": EcmwfOpenDataSource, "ecmwf_precip": EcmwfPrecipSource, "icon": IconOpenDataSource,
+           "icon_precip": IconPrecipSource}
