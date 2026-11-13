@@ -159,3 +159,13 @@ change. It must not be a second forecast path.
 18. NOAA repository, Long Island Sound / NY-NJ hydrodynamic hindcast. https://repository.library.noaa.gov/view/noaa/24529/noaa_24529_DS1.pdf (licence not read)
 19. NDBC station metadata via NDBC MCP: 46267, 44090, 44039, 44040, 44069, 46088, PTAW1 (queried 2026-11-12).
 20. GFS-Wave grid list via WW3 MCP (`ww3_list_grids`): global.0p16, global.0p25, wcoast.0p16, epacif.0p16, atlocn.0p16, arctic.9km (queried 2026-11-12).
+
+## 6. Reflection second opinion (Beam-1.0, medium effort, 2026-11-12)
+
+Requested by David. Reflection's points, recorded as advisory:
+- Weakest step: the sweep treats "open" as geometric reach to 200 m+ water within 300 km. That is line-of-sight, not propagation. It ignores refraction, diffraction, directional spreading, sills and shelves, and whether the deep water reached is a real source region.
+- Failure modes: diffraction into geometrically blocked bearings; narrow gaps missed by a 1 km mask or 5-degree spacing; one open bearing overstating exposure; long-period swell needing fetch beyond 300 km; direction convention (from vs toward) flipping sectors.
+- Power: nine bad-state clusters is likely underpowered. The "no control buoy worsens" condition is stringent. Use more buoys or windows, and a pre-specified non-inferiority margin for controls.
+- Unverified (as in section 0): GFS-Wave wet cell at 46267; NDBC and USGS licence wording. If a wet cell exists at 46267, the fallback may not apply at all.
+
+Action implied: treat the sweep as a hypothesis to test, not a settled rule. Add a sensitivity run for the 300 km and 200 m values, and a non-inferiority margin for control buoys, before default-on.
