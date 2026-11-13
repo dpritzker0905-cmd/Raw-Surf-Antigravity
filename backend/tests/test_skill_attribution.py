@@ -106,6 +106,14 @@ def test_calibration_records_the_product_and_cycle_that_answered(monkeypatch):
 
     report = asyncio.run(bc.calibrate_spots(Resolver(), [{"id": "s1", "noaa_buoy_id": "46232"}], "GFS",
                                             "2026-09-28T04:00:00Z"))
+    # 2026-11-12: HOW it answered too (the sampler path and the cell read), so a buoy's error is tied to its path.
+    assert report["spots"][0]["served"] == {
+        "product": "gfs_marine_waves_us_west_coast_socal_20260928T030000Z.json",
+        "cycle": "2026-09-26T18:00:00Z", "interp": "nearest", "sampled": [32.5, -117.5]}
+    # Kill switch: the served block is exactly what it was before the serve path was recorded.
+    monkeypatch.setenv("CALIBRATION_SERVE_PATH", "0")
+    report = asyncio.run(bc.calibrate_spots(Resolver(), [{"id": "s1", "noaa_buoy_id": "46232"}], "GFS",
+                                            "2026-09-28T04:00:00Z"))
     assert report["spots"][0]["served"] == {
         "product": "gfs_marine_waves_us_west_coast_socal_20260928T030000Z.json",
         "cycle": "2026-09-26T18:00:00Z"}
@@ -152,3 +160,18 @@ def test_the_threshold_is_the_mos_shadows_and_inclusive():
 def test_no_big_swell_is_an_empty_block_not_a_zero():
     big = same_model_attribution(_pair_hs("a", 1.0, 0.1, 0.1))["big_swell"]
     assert (big["n_paired"], big["gap_m"], big["bias_ours_m"]) == (0, None, None)
+
+
+def test_skill_rows_record_the_serve_path_and_omit_it_when_unknown():
+    """The ledger row carries HOW the point was answered (2026-11-13), so a buoy's error is tied to its serve path: NDBC
+    46267's +1.5 m was a nearest-ocean read across land, found only by elimination. Absent keys = not recorded."""
+    report = {"spots": [
+        {"buoy_id": "46267", "residual": {"model_hs_m": 2.24},
+         "served": {"product": "gfs_marine_waves_us_pacific_northwest_20261112T180000Z.json", "cycle": "2026-11-12T12:00:00Z",
+                    "interp": "nearest_ocean_coarse_masked", "sampled": [48.5, -124.25]}},
+        {"buoy_id": "46211", "residual": {"model_hs_m": 3.4},
+         "served": {"product": "gfs_marine_waves_us_pacific_northwest_20261112T180000Z.json", "cycle": "2026-11-12T12:00:00Z"}},
+    ]}
+    rows = {r["buoy_id"]: r for r in fs.rows_from_calibration_report(report, "2026-11-13T18:00:00Z", 24.0)}
+    assert rows["46267"]["interp"] == "nearest_ocean_coarse_masked" and rows["46267"]["sampled"] == [48.5, -124.25]
+    assert "interp" not in rows["46211"] and "sampled" not in rows["46211"]
