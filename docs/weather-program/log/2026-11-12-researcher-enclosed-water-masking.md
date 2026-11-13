@@ -194,3 +194,21 @@ Implication for this note: the premise that GFS-Wave 0.25 has no wet cell at 462
 Limit of the peer's cap (#852): a reach cap (marine grids finer than 0.5 degrees: 1.5 cells, otherwise no data) gives the same outcome for 46267. It cannot separate sheltered points within 1.5 cells of water, such as 33 surf spots at 0.251–0.373 degrees (e.g. Inch Beach, Fort Point) and the Southern California Bight buoys. The exposure sweep in section 3 is what would separate those. The sweep is not built.
 
 Agreed: NDBC 44090 is Cape Cod Bay, not Long Island Sound.
+
+## 9. Sweep rule tested: rejected as written (peer measurement, 2026-11-13)
+
+The Fable repair lead tested the section 3 rule (72 bearings, ETOPO 1 arc-minute bathymetry via NOAA ERDDAP `etopo180`, open = water of at least 200 m within 300 km before land, rays starting 3 km out). Source: `docs/weather-program/log/2026-11-13-fable-strait-fallback.md` on branch `fable/strait-fallback` (reported in its message, not read here).
+
+- **46267:** 4 of 72 bearings open (arcs 45–50 and 290–295 degrees). The nearest 200 m water is 38 km away, inside the strait. The rule keeps 46267 open, which is the case it was meant to stop.
+- **Surf spots the reach cap would drop:** Boca Barranca 9, Kells 2, Silverstrand 2, Salthill 1, Rossbeigh 1, Rathmullan 0, Bishopsquarter 0 open bearings. The rule rejects most of these.
+- **Controls:** Inch Beach 5, Fort Point SF 12.
+- **Causes:** (a) 200 m water is not open ocean inside a deep strait; (b) the Irish shelf puts 200 m water 87–208 km offshore, so the depth threshold does not separate shelf from open sea.
+
+**Status:** section 3's depth and visibility criterion is refuted. Do not default-on it.
+
+**What a revised rule needs (not yet built or tested):**
+1. A source-depth criterion that separates ocean basins from shelves, for example a much deeper threshold or a shelf-break distance. The value must be tested, not assumed.
+2. A channel-attenuation criterion, not a visibility criterion. Candidate: the fraction of open bearings through a gap whose width is small relative to swell wavelength, or a fetch-through-gap estimate. Either needs measurement on the 46267 window and the control spots before it is trusted.
+3. Keep "no open-ocean estimate" as the default for points where the rule is inconclusive.
+
+The enclosed-water question is therefore open. The reach cap (#852) remains the only tested gate.
