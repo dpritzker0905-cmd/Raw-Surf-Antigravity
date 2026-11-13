@@ -130,3 +130,56 @@ def test_the_set_is_off_until_its_variable_is_one(monkeypatch):
     monkeypatch.setenv("FRAME_RASTER_PRECIP", "1")
     assert fsr.enabled("precipitation") is True
     assert isinstance(fsr.make_source(SPEC, session=object()), fsr.GfsPrecipSource)
+
+
+# ── EURO: ECMWF IFS open data `tp`, the total since the run began (2026-11-12) ───────────────────────────────────────────────
+# Real-cycle check (2026-11-12 12Z, f003 / f006 / f150): world mean 0.101 / 0.105 / 0.113 mm/h (GFS, same windows: 0.094 / 0.098),
+# pattern correlation with GFS 0.54 / 0.53 (docs/weather-program/log/2026-11-12-fable-precip-euro.md).
+from services import frame_set_raster_sources as srcs  # noqa: E402
+
+EURO = fsr.SPECS["precipitation_euro"]
+
+
+def test_euro_hours_are_three_hourly_to_144_then_six_hourly_with_no_step_zero():
+    h = EURO["hours"]
+    assert len(h) == 64 and h[0] == 3 and h[47] == 144 and h[48] == 150 and h[-1] == 240
+    assert {b - a for a, b in zip(h, h[1:])} == {3, 6}
+    src = srcs.EcmwfPrecipSource(EURO, session=object())
+    assert [src.previous(f) for f in (3, 6, 144, 150, 240)] == [0, 3, 141, 144, 234]
+
+
+def test_euro_a_step_is_this_total_minus_the_previous_one_as_a_mean_rate(monkeypatch):
+    totals = {3: [0.6, 0.0, np.nan], 6: [0.9, 0.0, np.nan], 9: [0.8999, 3.0, 1.0], 144: [10.0, 0.0, 0.0], 150: [22.0, 0.0, 0.0]}
+    asked = []
+
+    def fake_total(self, cycle, f):
+        asked.append(f)
+        return np.array(totals[f], dtype=float)
+    monkeypatch.setattr(srcs.EcmwfOpenDataSource, "fetch", fake_total)
+    src = srcs.EcmwfPrecipSource(EURO, session=object())
+    assert np.allclose(src.fetch(CYCLE, 3), [0.2, 0.0, np.nan], equal_nan=True) and asked == [3]      # the first step: its total alone
+    assert np.allclose(src.fetch(CYCLE, 6), [0.1, 0.0, np.nan], equal_nan=True) and asked[1:] == [6, 3]
+    got = src.fetch(CYCLE, 9)
+    assert got[0] == 0.0 and got[1] == pytest.approx(1.0) and np.isnan(got[2])                           # packing noise is never negative rain
+    assert src.fetch(CYCLE, 150)[0] == pytest.approx(2.0)                                                # 12 mm in the 6 h after 144 h
+
+
+def test_euro_an_accumulation_message_is_accepted_by_its_window_and_the_spec_converts_metres():
+    src = srcs.EcmwfPrecipSource(EURO, session=object())
+    assert src._steps_for(6) == ("6", "0-6")
+    assert srcs.EcmwfOpenDataSource(fsr.SPECS["pressure_euro"], session=object())._steps_for(6) == ("6",)   # an instant stays strict
+    assert EURO["convert"](np.array([0.0015]))[0] == pytest.approx(1.5)                                  # metres of water -> mm
+    assert EURO["idx"] == ("tp", "sfc") and EURO["field"] == fb.PRECIP_MM_H and EURO["grid"] == "0p25"
+    assert fs.set_key(EURO["target"]) == "EURO/weather/precipitation/global_0p25"
+    assert "ECMWF" in EURO["credit"] and "CC BY 4.0" in EURO["license"]
+
+
+def test_euro_set_is_off_until_its_variable_is_one_and_the_workflow_has_its_step(monkeypatch):
+    monkeypatch.delenv("FRAME_RASTER_PRECIP_EURO", raising=False)
+    assert fsr.enabled("precipitation_euro") is False
+    monkeypatch.setenv("FRAME_RASTER_PRECIP_EURO", "1")
+    assert fsr.enabled("precipitation_euro") is True
+    assert isinstance(fsr.make_source(EURO, session=object()), srcs.EcmwfPrecipSource)
+    wf = (Path(__file__).resolve().parents[2] / ".github" / "workflows" / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
+    assert "vars.FRAME_RASTER_PRECIP_EURO == '1'" in wf and "--set precipitation_euro" in wf
+    assert "vars.FRAME_RASTER_PRECIP == '1'" in wf and "--set precipitation\n" in wf

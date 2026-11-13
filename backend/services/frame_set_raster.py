@@ -155,6 +155,21 @@ SPECS = {
         "hours": PRECIP_HOURS, "source": "gfs_precip", "upstream_provider": "noaa", "credit": CREDIT, "license": LICENSE,
         "source_url": SOURCE_URL,
     },
+    # EURO PRECIPITATION (2026-11-12, the owner: "Yes, add ICON and EURO precipitation after the blend"). ECMWF IFS open data
+    # `tp` (CC BY 4.0, attribution required), the total since the run began, differenced to the step before each hour
+    # (frame_set_raster_sources.EcmwfPrecipSource): the MEAN rate over a 3-hour step to 144 h and a 6-hour step to 240 h (ECMWF's
+    # open data has no hourly steps). Every point of its 0.25-degree grid, as the GFS set. 00/12Z cycles (06/18Z stop at 144 h).
+    "precipitation_euro": {
+        "target": {"model": "EURO", "domain": "weather", "layer": "precipitation", "region_id": "global_0p25"},
+        "field": fb.PRECIP_MM_H, "idx": ("tp", "sfc"), "convert": lambda a: a * 1000.0, "grid": "0p25",
+        "valid": VALID_MM_H, "clip": None, "env": "FRAME_RASTER_PRECIP_EURO", "default_on": False,
+        "value_kind": "precipitation_rate", "value_unit": "mm/h",
+        "source_dataset": "ECMWF IFS open data, oper fc 0p25 tp, totals differenced to the preceding step, every point",
+        "hours": tuple(range(3, 145, 3)) + tuple(range(150, 241, 6)), "source": "ecmwf_precip", "upstream_provider": "ecmwf",
+        "credit": "Copyright ECMWF; ECMWF open data, CC BY 4.0; modified (totals differenced to a rate, quantised to 0.01 mm/h)",
+        "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); attribution to ECMWF required",
+        "source_url": "https://www.ecmwf.int/en/forecasts/datasets/open-data",
+    },
 }
 
 
