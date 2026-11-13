@@ -17,6 +17,8 @@ VERIFIED JWT gets 401 and no data on every forecast read below (ACCOUNT_PATHS: t
 /wind_lane); the guest window is EMPTY. Any verified account is at least `free` (GFS, 3 days), even when its profile has
 no tier, no row, or the lookup fails, so a signed-in user is never sent back to sign-in by a database hiccup.
 /capabilities, /status, /products and the diagnostics routes stay public: the client reads the switch from them.
+The scheduled jobs are the one non-human identity: X-Raw-Service-Key = env WEATHER_SERVICE_KEY reads as premium, exempt
+from the per-account limit (weather_service_identity.py). Without the key configured, there is no such identity.
 
 THE CLAMP for an account (a CLAMPED ANSWER, never a 403, so an older client keeps drawing):
   model        not in the tier's models -> GFS (the model every tier has). CONSENSUS (/point's shadow product, which
@@ -49,6 +51,7 @@ from urllib.parse import parse_qsl, urlencode
 from services import forecast_tier_window as FTW
 from services import runtime_flags as _rf
 from services import weather_account_rate_limit as _RL
+from services import weather_service_identity as _SVC
 
 logger = logging.getLogger(__name__)
 
@@ -276,11 +279,15 @@ class WeatherTierClampMiddleware:
                     message = dict(message, headers=list(message.get("headers", [])) + [(ON_HEADER, b"1")])
                 await send(message)
             return await self.app(scope, receive, send_on)
-        auth = next((v.decode("latin-1") for k, v in scope.get("headers") or [] if k == b"authorization"), None)
-        uid, tier = await self._identify(auth)
+        service = _SVC.from_headers(scope.get("headers"))  # the scheduled jobs' key (weather_service_identity.py)
+        if service is not None:
+            uid, tier = service
+        else:
+            auth = next((v.decode("latin-1") for k, v in scope.get("headers") or [] if k == b"authorization"), None)
+            uid, tier = await self._identify(auth)
         if tier == "guest":                              # ACCOUNTS ONLY: no verified account, no data
             return await _sign_in_required(scope, send)
-        wait = _RL.retry_after("reads", uid)              # per-account limit (in-process, no I/O); kill: flag '0'
+        wait = None if service else _RL.retry_after("reads", uid)   # per-account limit; the jobs are exempt; kill: flag '0'
         if wait is not None:
             return await _too_many(scope, send, wait)
         if names is None:                                # accounts-only, nothing to clamp (/point-tide, /wind_lane)

@@ -181,6 +181,7 @@ jobs:
           # a credential in the operator's environment is not a credential in the lane.
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          WEATHER_SERVICE_KEY: ${{ secrets.WEATHER_SERVICE_KEY }}   # the forecast clamp's job identity (services/weather_service_identity.py); unset = no key sent
         run: |
           set -o pipefail
           ARGS="--json --attribute --fail-on-divergence --per-region ${PER_REGION}"

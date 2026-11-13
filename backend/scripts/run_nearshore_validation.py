@@ -49,6 +49,10 @@ from services.weather_pipeline.nwps_nearshore import attach_nwps  # noqa: E402
 from services.weather_pipeline.ndbc_nearshore import load_ndbc_pairs  # noqa: E402
 from services.weather_pipeline.nearshore_validation import GRADED_MIN_STATION_HOURS, LEGACY_SHELF_CF_SCALE  # noqa: E402
 from services.weather_pipeline.surf_transform import shelf_dissipation  # noqa: E402
+try:
+    from _service_auth import service_headers   # the forecast clamp's job key (flip blocker 1)
+except ImportError:
+    from scripts._service_auth import service_headers
 
 DEFAULT_BASE = "https://raw-surf-antigravity.onrender.com"
 UA = {"User-Agent": "raw-surf-nearshore-validation-runner"}
@@ -57,7 +61,7 @@ UA = {"User-Agent": "raw-surf-nearshore-validation-runner"}
 
 
 def _fetch_json(url: str, timeout: float = 60.0) -> dict:
-    req = urllib.request.Request(url, headers=UA)
+    req = urllib.request.Request(url, headers=service_headers(url, UA))
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.loads(r.read().decode("utf-8", "replace"))
 
