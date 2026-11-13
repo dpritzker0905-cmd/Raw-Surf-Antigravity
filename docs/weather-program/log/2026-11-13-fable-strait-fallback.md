@@ -146,3 +146,19 @@ on this sweep would keep 46267 and drop the spots. NOT built. What 46267 needs i
 underpredict strait penetration, i.e. this is model physics, not geometry.
 - Limits: one relief dataset, altitude >= 0 as land, 5-degree bearings, no islands smaller than 1 arc-minute; the seven
   spots' true exposure is not measured against any observation (no buoys there).
+
+## The researcher's pre-registered corridor ratio (#851 section 10, 3eb279831), computed as written: FAIL
+- Rule: shortest water path from P to the nearest cell at least 1000 m deep (ETOPO 1 arc-min, 8-connected); L = its length;
+  W = narrowest cross-channel width along it; R = L / W; serve if R < 2 or L < 10 km. Frozen criteria: 46267 rejected;
+  Inch Beach, Fort Point and at least 5 of the 7 spots served. No constant tuned.
+- Result (L km / W km / R): 46267 184 / 3.0 / 61; Salthill 230 / 2.0 / 115; Silverstrand 229 / 2.0 / 114; Boca Barranca
+  62 / 6.0 / 10; Rossbeigh 159 / 3.0 / 53; Rathmullan 169 / 2.0 / 85; Bishopsquarter 231 / 2.0 / 115; Kells 148 / 3.0 / 49;
+  Inch Beach 163 / 3.0 / 54; Fort Point 65 / 3.0 / 22. **Every point is rejected**: 46267 yes, controls NOT served, 0 of 7
+  spots served. By the pre-registration it is discarded.
+- Why: 1000 m water is 60-230 km from every one of these points (continental shelf), so L is large everywhere, and the
+  narrowest width along a shortest path is always a few km (the path starts in the surf zone or an inlet and cuts through
+  gaps between islands and headlands). R does not distinguish a 100 km strait from a beach behind a wide shelf.
+- My operationalisation, stated because the rule leaves it open: W is the shortest land-to-land chord through a path
+  cell over 18 directions (rays capped at 300 km), and the path is the SHORTEST one, which prefers narrow passes. A
+  widest-path reading would raise W; it was not computed, since changing the reading after seeing the result would be tuning.
+- Standing conclusion: neither geometric rule measured (exposure sweep, corridor ratio) separates 46267 from the surf spots.
