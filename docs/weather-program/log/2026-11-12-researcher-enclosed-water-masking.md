@@ -371,3 +371,46 @@ Not verified here: that each station reports Hs in the last two weeks. SeaLegs `
 - Per-station Hs checks for the NDBC stations in 12.1 (SeaLegs `get_buoy_history`, 14 days).
 
 **Status:** inventory only. No code, no served number, no validation result.
+
+
+## 13. Reflection second opinion on the coverage gaps, and a render recommendation (2026-11-13, addendum)
+
+**Status.** Advisory only. Reflection (model Beam-1.0-501B-A23B) was consulted on David's explicit yes at 08:37 EST 11-13. The prompt carried the 12.1 station list and the 12.2 and 12.3 gaps. It carried no code and no credentials. Nothing below is verified. No station ID, distance or licence in this section was checked against a catalogue.
+
+### 13.1 What Reflection said
+
+| Region | Reflection's view | Confidence (its own) | Checked here? |
+|---|---|---|---|
+| Azores | Probably no live public Hs within 30 km. Check the Portuguese Instituto Hidrografico (IH) and EMODnet for live Azores buoys. | Medium-high | No |
+| Canaries | Puertos del Estado REDEXT/REDCOS is the main missed network. Likely port- or island-centred buoys. Station IDs unknown. | High that the network exists; IDs unknown | No |
+| Dominican Republic | Probably none within 30 km from an open network. National sources (ONAMET or others) may exist. | Medium-high | No |
+| Madeira | Possible IH buoy off Madeira or Porto Santo. Unverified. | Low-medium | No |
+| Iberia west | Likely the best-covered of the five: Puertos del Estado plus Portuguese IH. 30 km coverage of every spot is spot-dependent. | High for networks; medium-low for 30 km | No |
+| Cross-cutting | EMODnet Physics may expose buoys that national pages do not show. | Medium | No |
+
+Reflection gave no station IDs. It said it would not invent them. Its port names (Leixoes, Sines, Faro) are not verified.
+
+### 13.2 Where it changes section 12
+
+- **Iberia west moves from "unknown" to "likely fillable, needs catalogue pull".** This is Reflection's view, not a check. Section 12.3 still stands on licence: Puertos is restrictive, so do not redistribute its data until checked.
+- **Portuguese IH is a new source** for Madeira and possibly Iberia, not only the Azores.
+- **Azores and Dominican Republic** stay as gaps, consistent with 12.2.
+
+### 13.3 Next step (not done)
+
+Pull station catalogues from Puertos del Estado, Portuguese IH and EMODnet Physics. Compute the real nearest-buoy distance for each spot in Canaries, Madeira, Iberia west and the Azores. Only after that can any region be called filled or unfillable.
+
+### 13.4 Render recommendation, cross-reference (log 2026-11-13-researcher-render-claims-check, PR #865)
+
+Separate work, same session. The particle draw runs six vertices per particle. Each vertex recomputes the particle index and fetches the state texture (`WebGLMarineParticleShaders.js:396-414`, draw at `WebGLMarineEngine.js:2152`). That is about 525,696 vertex-stage state fetches per frame at 296 squared. One instance per particle would cut that to 87,616.
+
+- **Proposed change:** instanced draw (one instance per particle, four corners from `gl_VertexID`). Marine first. Wind after its shader is read.
+- **Quality condition:** the change is only acceptable if the output is pixel-identical. Max per-pixel difference at most 1/255 across 10 fixed views (light, dark, beach; crests on and off; rating on).
+- **Pass:** median particle-draw GPU time drops at least 25% on one desktop GPU, and the quality condition holds.
+- **Kill:** a drop under 10%, or any pixel difference above 1/255, means do not ship.
+- **Status:** the 6x fetch count is inferred from the shader, not measured. No GPU timing has been run.
+
+### 13.5 Limits
+
+- Reflection's view is one model's opinion. It is not a source.
+- Nothing in 13.1 changes a served number.
