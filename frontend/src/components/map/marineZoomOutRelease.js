@@ -48,7 +48,13 @@ export function layerUploadIsStale(engine, win) {
  * frame. Traced: a PageDown run from h336 back to h126 re-committed the h336 ICON blend at cursor h144 and h130 (h128, h127), the map
  * was handed h336 data under the cursor's label, and each re-commit cleared the store's resident so its next steps waited for /grid.
  * True only for a REPLAY: the very grid object the layer last uploaded, whose own hour is not the cursor's, while the engine holds a
- * store show. Any new grid (a zoom-out world frame, a fresh commit, a snapped hour) still uploads.
+ * store show. Any new grid object (a zoom-out world frame, a fresh commit) still uploads.
+ * SAME OBJECT, ANOTHER HOUR (advisor's question, 2026-11-13): the normal path CAN hand back the same object for a different cursor
+ * hour (a cached grid may be shared; useMarineDataFetcherHelpers stamps `hourOffset` only when it is missing, the 53b1ec66
+ * semantics). That re-delivery does not change `data` (same object, no re-render), so it is this very re-run, and it is refused on
+ * purpose: with NO store show the same re-run is already skipped as a duplicate (computeVectorDiffAndLog,
+ * `skipped_identical_content_across_hours`), so the guard only restores that behaviour while a show is up. What stays on screen is
+ * the store's latest show, which is newer than that object (it was drawn after the object's upload).
  * Kill: window.__RAW_DISABLE_STALE_REPLAY_GUARD__ = true.
  */
 export function isStaleReplayOverShow(engine, grid, lastUploadedGrid, cursorHour, win) {

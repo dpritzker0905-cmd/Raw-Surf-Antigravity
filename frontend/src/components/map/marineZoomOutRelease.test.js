@@ -100,8 +100,14 @@ describe("STALE REPLAY GUARD: a cursor move never re-uploads the layer's old gri
     expect(isStaleReplayOverShow(SHOWN, BLEND, BLEND, 144)).toBe(true);
   });
 
+  it('the same object re-delivered for a snapped hour is refused too, as the duplicate skip refuses it with no show up', () => {
+    const G = grid(WORLD.bounds, 181, 83, { hourOffset: 138 });     // a shared cached grid, first stamped at h138
+    expect(isStaleReplayOverShow(SHOWN, G, G, 139)).toBe(true);     // cursor h139: same object, so no new data reached the layer
+    expect(isStaleReplayOverShow(SHOWN, G, G, 138)).toBe(false);    // at its own hour it uploads (rule 1's resync)
+  });
+
   it("lets every other upload through: a new grid object, the cursor's own hour, no store show, missing hours", () => {
-    expect(isStaleReplayOverShow(SHOWN, { ...BLEND }, BLEND, 144)).toBe(false);          // a fresh commit (zoom-out world frame, snapped hour)
+    expect(isStaleReplayOverShow(SHOWN, { ...BLEND }, BLEND, 144)).toBe(false);          // a new object: a fresh commit or a zoom-out world frame
     expect(isStaleReplayOverShow(SHOWN, BLEND, BLEND, 336)).toBe(false);                // back at its own hour
     expect(isStaleReplayOverShow(UPLOADED, BLEND, BLEND, 144)).toBe(false);             // the engine holds a layer upload: the old dedup applies
     expect(isStaleReplayOverShow(SHOWN, { ...WORLD, hourOffset: undefined }, null, 144)).toBe(false);
