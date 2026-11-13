@@ -97,8 +97,10 @@ COVERAGE = {
                                           "Evidence: test_weather_account_rate_limit.py"),
     "FRAME_ENTITLEMENT": (BLIND, "access, not a forecast number: which bucket a static frame lives in and who gets a signed "
                                  "URL (#783). Evidence: test_frame_entitlement.py (frame bytes unchanged)"),
-    "LOCATION_TIME_FIELD": (BLIND, "presentation only: adds civil zone and civil-day rows (#762); no height, rating or "
-                                   "forecast value reads it. Evidence: test_location_time_invariance.py (served numbers equal)"),
+    "LOCATION_TIME_FIELD": (BLIND, "adds civil zone and civil-day rows (#762); no height, rating or forecast value reads it. "
+                                   "Alerts (O2, #775): the civil clock picks which hours fall in a user's time windows, the "
+                                   "midnight split and the daily-cap day; same per-user cap, no new sends. Evidence: "
+                                   "test_location_time_invariance.py (served numbers equal), test_alert_one_clock.py"),
 }
 BLIND_EVIDENCE = {
     "SURF_NEARSHORE_MOP": "nearshore-validation.yml mop_grid arm (archived MOP runs vs CDIP; armed off, dispatch)",
