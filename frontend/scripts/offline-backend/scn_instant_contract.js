@@ -48,6 +48,31 @@ const CHIP = { waves: 'Waves', swell_1: 'Swell', swell_2: 'Swell 2', wind_waves:
 const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 if (!CDN_DIR) throw Error('CDN_DIR=<published static frames> is required');
+// ⚠️ AGED-STORE PRE-CHECK (2026-11-13, mechanised lesson: an aged lab store distorted two tables in one day, the 06:50Z "six misses"
+// and run 3 of the z4.6 crop A/B). serve_synthetic.py anchors the store to its build time, so its tail falls behind now + the plan's
+// farthest jump within hours, and those steps then read `no_frame_in_window`, nearest-frame mislabels and /grid fallbacks that have
+// nothing to do with the build under test. Refuse to start unless every global set of the asked models and layers ends at least
+// STORE_MARGIN_H (default 3, a whole matrix) past now + that jump. ALLOW_AGED_STORE=1 runs anyway, on purpose.
+(() => {
+  const far = Math.max(0, ...PLAN.map((t) => (t.startsWith('J:') ? +t.slice(2) : 0)));
+  const margin = +(process.env.STORE_MARGIN_H || 3);
+  const need = Date.now() + (far + margin) * 3600000;
+  let latest = null;
+  try { latest = JSON.parse(fs.readFileSync(path.join(CDN_DIR, 'v1', 'latest.json'), 'utf8')); } catch (e) { latest = null; }
+  if (!latest || !latest.sets) { console.warn('[store-age] no v1/latest.json under CDN_DIR: not checked'); return; }
+  const short = [];
+  for (const [key, rec] of Object.entries(latest.sets)) {
+    const [m, , l, region] = key.split('/');
+    if (!MODELS.includes(m) || !LAYERS.includes(l) || !/^global_mid/.test(region || '')) continue;
+    let last = null;
+    try { const idx = JSON.parse(fs.readFileSync(path.join(CDN_DIR, rec.index), 'utf8')); last = idx.frames[idx.frames.length - 1].valid_time; } catch (e) { last = null; }
+    if (!last || Date.parse(last) < need) short.push(`${key} ends ${last}`);
+  }
+  const msg = `[store-age] need every tail >= now + ${far} h + ${margin} h = ${new Date(need).toISOString()}`;
+  if (!short.length) { console.log(`${msg}: ok`); return; }
+  if (process.env.ALLOW_AGED_STORE === '1') { console.warn(`${msg}: ${short.length} short, ALLOW_AGED_STORE=1 runs anyway: ${short.slice(0, 3).join('; ')}`); return; }
+  throw Error(`${msg}; ${short.length} set(s) end earlier (${short.slice(0, 3).join('; ')}). Rebuild the store (serve_synthetic.py --horizon 348 or more) or set ALLOW_AGED_STORE=1.`);
+})();
 // ⚠️ AB_BASE is REQUIRED here (2026-10-26): ab_lib defaults to 127.0.0.1:3100, which another session's SPA held, so a whole matrix
 // measured someone else's build against this backend. Each session also records the bundle it loaded (`bundle`).
 if (!process.env.AB_BASE) throw Error('AB_BASE=http://127.0.0.1:<the SPA port serving the build under test> is required');

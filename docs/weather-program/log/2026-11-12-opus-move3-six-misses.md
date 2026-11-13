@@ -228,3 +228,24 @@ at J:336, offset 2 h, both via the store. The aged store, not the fix.
 
 **Still missing:** ICON swell_2 (the per-step client blend, p95 ~210-305 ms; owner's decision between a store-packed blend and a
 published set).
+
+## 05:10Z (11-13) Advisor check of the crop fix: three additions
+
+1. **EURO mislabel control** (the largest jump reported, "up to 164", was the sum over EURO's three layers in run 3). Back to back at
+   05:01-05:03Z on the same aged store, EURO swell_2 z4.6 (EURO start): base 47 / fix 41 mislabel frames, `mislabelSilent` 0 in both,
+   all at J:250 (offset 4 h) and J:336 (offset 2 h). Store age, not the fix. Only swell_2 was controlled for EURO; swell_1 and
+   wind_waves were not.
+2. **Mechanised lesson: the harness now refuses an aged store.** `scn_instant_contract.js` reads each global set's index tail for the
+   asked models and layers and refuses to start unless every tail is at least now + the plan's farthest jump + `STORE_MARGIN_H`
+   (default 3, a whole matrix). `ALLOW_AGED_STORE=1` runs anyway, on purpose (the 05:01Z control needed it, since age was what it
+   tested). Checked: it refuses the current store (GFS swell_2 ends 11-27T03Z, need 11-27T07:58Z), passes a plan without far jumps,
+   and the override runs. An aged lab store distorted two tables in one day (the 06:50Z "six misses" and run 3 here); a check that
+   only lives in a log does not stop the third.
+3. **ICON wind_waves n = 22 against 24.** The two steps that never reached the exact hour in the fix arm are both in run 3 (the aged
+   run): R h251 after the model switch from GFS and from EURO (a blend hour: the store refuses it with `icon_blend_hour` before any
+   crop logic; the screen read the honest "Showing ... nearest" status for the whole 6 s window). The same run also moved one
+   missing step from R h1 to R h3 (start hours with no stored frame in both arms). None of these steps reach the crop path. Run 3
+   of the fix arm is confounded by store age.
+   **z2 was not re-measured on this build** (`main.b00a08c1.js`). The 01:25Z z2 numbers are from `main.0f1c9c77.js`. By the code, the
+   change cannot act at z2: `noteForeignCommit` is called only for a clip (`isClip`: span < 340 deg), and a foreign step needs a
+   foreign crop resident, which only a clip sets. That is a reading, not a measurement.
