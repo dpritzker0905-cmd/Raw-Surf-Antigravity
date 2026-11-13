@@ -112,3 +112,37 @@ Append-only. Branch `fable/strait-fallback`. Follows `2026-11-12-fable-accuracy-
   is fitted to this list with a 0.019 deg margin (Salthill); (c) the researcher's exposure sweep (#851). Owner's call.
 - D-065 history filter on this PR (run 43360118157): **SKIPPED**, "no cached history window: the replay did not run".
   No numbers exist. AFTER: not measurable before a deploy.
+
+## Two more measurements (2026-11-13, #852 still HELD; advisor verdict on #852 as built: FAIL)
+**ICON and EURO masks (indicative only).** Same method on Open-Meteo's `gwam` and `ecmwf_wam025`, 1,259 boxed points:
+EURO 4 points with four land corners, ICON 0; under the cap 0 change on either. Indicative: Open-Meteo's copy of GFS-Wave
+was shown NOT cell-identical to NOAA's at coasts (34 vs 76 above), and whether our EURO / ICON pilot tiles sit on those
+native grids was not checked. The native-mask check for those lanes is NOT done.
+
+**Exposure sweep feasibility (researcher's #851 rule, measured before building anything).** 72 bearings from each point
+over ETOPO 1-arc-minute relief (NOAA ERDDAP `etopo180`); a bearing is open if it reaches water deeper than 200 m within
+300 km before land; rays start 3 km out.
+
+| Point | Open bearings of 72 | Open arc (deg) | Nearest 200 m water on an open ray |
+|---|---|---|---|
+| 46267 Juan de Fuca (the buoy to EXCLUDE) | 4 | 45-50, 290-295 | 38 km |
+| Boca Barranca | 9 | 170-210 | 40 km |
+| Kells | 2 | 270, 280 | 87 km |
+| Silverstrand Beach | 2 | 225, 235 | 201 km |
+| Salthill Beach | 1 | 230 | 208 km |
+| Rossbeigh White Strand | 1 | 265 | 94 km |
+| Rathmullan | 0 | none | none |
+| Bishopsquarter | 0 | none | none |
+| Inch Beach (control) | 5 | 235-255 | 94 km |
+| Fort Point, San Francisco (control) | 12 | 235-290 | 54 km |
+
+**The rule as specified does NOT separate them; it ranks them the wrong way.** 46267 scores MORE open than six of the
+seven surf spots. Two reasons, both physical: (1) "200 m water" is not "open ocean": the Strait of Juan de Fuca is itself
+deeper than 200 m 38 km from the buoy, and a straight ray at 290-295 deg runs down the strait to the Pacific; (2) the
+Irish spots sit behind a wide shallow shelf (200 m water is 87-208 km away) and inside bays, so few rays qualify.
+Rathmullan (Lough Swilly) and Bishopsquarter score zero, yet 46267 is the one measured wrong by 1.5 m. A served rule built
+on this sweep would keep 46267 and drop the spots. NOT built. What 46267 needs is attenuation along a 100 km channel
+(refraction and dissipation), which a visibility test does not model; the researcher's own note says spectral models
+underpredict strait penetration, i.e. this is model physics, not geometry.
+- Limits: one relief dataset, altitude >= 0 as land, 5-degree bearings, no islands smaller than 1 arc-minute; the seven
+  spots' true exposure is not measured against any observation (no buoys there).
