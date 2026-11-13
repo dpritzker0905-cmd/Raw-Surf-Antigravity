@@ -233,3 +233,44 @@ weakens any exposed-class reading further. The verdict in section 5 stands (expo
    coordinate for 51201, 51206 and 51208 (Hawaii), 46254, 46274, 46285 and LJPC1 (San Diego), 46267 (Strait of Juan de
    Fuca) and 44090 (Cape Cod Bay); 51202, 51205 and 51211 are not holes. The chain serves the holes through the sampler's
    `nearest_ocean_fallback`. Two of this gate's five Hawaii buoys (51201, 51206) are holes, as section 6 says.
+
+## 8. Height beside direction at Hawaii (peer request 2026-11-13: Fable per-buoy split, run 43339322792)
+
+Context from the Fable repair lead's per-buoy split (14-day window, SERVED chain, aggregates only): the chain beats the
+identical model everywhere it can be compared except height at **51211** (+0.11 to +0.12 m vs the same model; +0.30 to
++0.33 vs best_match) and **51202** (+0.08 m vs the same model). The question: do direction error and height error line up
+at those two? Instrument: `backend/scripts/partition_truth/hawaii_height_vs_direction.py`, evidence
+`evidence/2026-11-12-hawaii-gate/hawaii_height_vs_direction.json`. Same keys as the bulk lane (24 h lead, 3-hourly
+targets 2026-10-19..11-09, observed Hs >= 0.3 m), RAW GFS-Wave `ncep_gfswave025` Hs and direction from the Open-Meteo
+previous-runs API at the sea cell. This is the raw model, not the served chain, so it asks whether the two errors share a
+cause at the buoy and nothing more. Direction MAE reproduces section 1 (51202 29.1, 51211 64.7).
+
+| buoy | n | obs Hs | model Hs | Hs bias | dir MAE | dir bias | r(abs dir err, Hs err) | Hs bias, dir err < 30 / >= 60 |
+|---|---|---|---|---|---|---|---|---|
+| 51211 sheltered | 174 | 0.87 m | 1.40 m | **+0.53 m (+62%)** | 64.5 | +25.8 | **+0.59** | +0.28 (n 56) / +0.75 (n 58) |
+| 51202 exposed | 176 | 2.14 m | 1.97 m | -0.17 m (-7%) | 29.1 | -26.8 | +0.16 (abs-abs -0.06) | -0.24 (n 109) / -0.19 (n 30) |
+| 51201 (hole) | 176 | 1.96 m | 0.00 m | -1.96 m | 31.4 | +13.3 | - | cell reads 0.00 m |
+| 51206 (hole) | 176 | 2.14 m | 0.00 m | -2.14 m | 46.1 | -31.7 | - | cell reads 0.00 m |
+
+Reading, each with its limit:
+
+1. **51211: they line up.** The raw model reads 62% too high, and the bigger the direction miss the bigger the height
+   over-read (+0.28 m when the direction is within 30 deg, +0.75 m when it is 60 deg or more out). That is the signature of
+   open-ocean swell energy credited to a buoy the swell does not reach from that direction (the harbour entrance), so a
+   wrong-direction forecast is also a too-big forecast. This strengthens "the open-ocean value does not represent 51211" in
+   section 2 and is consistent with the Fable lead's finding that our chain reads high there. Limits: one buoy; 3-hourly
+   rows over 22 days are autocorrelated, so r = 0.59 is NOT a tested association (no interval computed); both errors also
+   move with the swell regime, which this table does not remove.
+2. **51202: they do not line up.** The raw model slightly UNDER-reads (-0.17 m) and the height error does not grow with the
+   direction error (r = +0.16 signed, -0.06 absolute). The Fable lead's +0.08 m (served chain worse than the same model)
+   has the opposite sign to the raw model's bias here, so the 51202 excess belongs to something the chain adds, not to the
+   direction error of the model. I did not test what.
+3. **The hole buoys 51201 and 51206 are a stronger confound than section 6 said.** At the cell the bulk lane reads for them
+   the raw model Hs is exactly 0.00 m for every hour (the bias equals minus the observed Hs). The bulk exposed-class GFS
+   direction (35.6 deg) therefore uses a direction that comes with zero modelled wave height at two of its three buoys.
+   Only 51202 is a clean exposed buoy. This does not change the verdict (exposed class UNRESOLVED) but it narrows the
+   exposed evidence to n = 1 clean buoy.
+
+What this does for #817 (regional or nearshore fix): it supports a fix at the sheltered south-shore buoy (51211), where
+direction and height err together and the same cause (shadowing) explains both. It does not support one for 51202, where
+the two errors are unrelated. Both statements rest on one buoy each.
