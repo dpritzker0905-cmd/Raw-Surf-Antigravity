@@ -180,3 +180,17 @@ Action implied: treat the sweep as a hypothesis to test, not a settled rule. Add
 Revised rule implication: (a) keep the exposure sweep as a hypothesis; (b) treat "refuse" as biased low for strait swell; (c) prefer "no open-ocean estimate" over a zero or a fixed value until a regional nest validates penetration.
 
 Sources added: Holthuijsen et al. 2003 https://consensus.app/papers/details/w:0d89e592-6f99-4a50-b5b1-08f62dbbb989/ ; Doorn 1997 https://consensus.app/papers/details/w:7c0cc5fb-ce8b-4561-8b2f-a09ea34cf1c3/ ; Ilic et al. 2007 https://consensus.app/papers/details/w:8452fa09-ce8e-490a-a1c8-a711c004b3b0/ ; Dusseljee et al. 2014 https://consensus.app/papers/details/w:452cf9d8-1d33-4397-b89e-77a5165d3392/ ; Groeneweg et al. 2014 https://consensus.app/papers/details/w:5e3f99c8-8488-4227-87bf-3e8c13e13432/ ; Willmott et al. 1985 https://consensus.app/papers/details/w:e56d545c-0920-4641-966a-4985a53ae889/
+
+## 8. Wet-mask item measured by the Fable repair lead (2026-11-13 note)
+
+Item 5 in section 0 is now measured, by a peer session (Fable repair lead, PR #852), using Open-Meteo `ncep_gfswave025` on the same native grid. Source: `docs/weather-program/log/2026-11-13-fable-strait-fallback.md` on branch `fable/strait-fallback` (not read by this session; reported in the message).
+
+- All four corners of 46267 are land. The inner strait has no wet cell.
+- Nearest wet cell is (48.5 N, 124.25 W), 0.729 degrees away at the strait mouth.
+- Wet cells at 48.5 N run only from 125.25 to 124.25 W in the window 47.75–48.5 N, 125.25–123 W.
+
+Implication for this note: the premise that GFS-Wave 0.25 has no wet cell at 46267 holds. Rule 3 (no open-ocean estimate) applies to 46267.
+
+Limit of the peer's cap (#852): a reach cap (marine grids finer than 0.5 degrees: 1.5 cells, otherwise no data) gives the same outcome for 46267. It cannot separate sheltered points within 1.5 cells of water, such as 33 surf spots at 0.251–0.373 degrees (e.g. Inch Beach, Fort Point) and the Southern California Bight buoys. The exposure sweep in section 3 is what would separate those. The sweep is not built.
+
+Agreed: NDBC 44090 is Cape Cod Bay, not Long Island Sound.
