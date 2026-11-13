@@ -106,6 +106,14 @@ def test_calibration_records_the_product_and_cycle_that_answered(monkeypatch):
 
     report = asyncio.run(bc.calibrate_spots(Resolver(), [{"id": "s1", "noaa_buoy_id": "46232"}], "GFS",
                                             "2026-09-28T04:00:00Z"))
+    # 2026-11-12: HOW it answered too (the sampler path and the cell read), so a buoy's error is tied to its path.
+    assert report["spots"][0]["served"] == {
+        "product": "gfs_marine_waves_us_west_coast_socal_20260928T030000Z.json",
+        "cycle": "2026-09-26T18:00:00Z", "interp": "nearest", "sampled": [32.5, -117.5]}
+    # Kill switch: the served block is exactly what it was before the serve path was recorded.
+    monkeypatch.setenv("CALIBRATION_SERVE_PATH", "0")
+    report = asyncio.run(bc.calibrate_spots(Resolver(), [{"id": "s1", "noaa_buoy_id": "46232"}], "GFS",
+                                            "2026-09-28T04:00:00Z"))
     assert report["spots"][0]["served"] == {
         "product": "gfs_marine_waves_us_west_coast_socal_20260928T030000Z.json",
         "cycle": "2026-09-26T18:00:00Z"}

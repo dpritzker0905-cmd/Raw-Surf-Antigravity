@@ -74,6 +74,9 @@ GUARDED = {
                                         # target-time height labelled an unrated estimate; kill '0'
     "RATING_BAND_ONE_CHAIN": "1",       # CMP-1: map rating band = estimate_surf_at on cached geometry + break depth;
                                         # band level == glyph level at 4,101 of 4,197 asset spot-seas, 0 unexplained
+    "SAMPLER_FINE_GRID_FALLBACK_CAP": "1",  # 0.25-deg boxes: the all-land-corner fallback reaches 1.5 cells, not 1 deg.
+                                            # Moves 46267 (Juan de Fuca, +1.5 m) to '--' and enclosed-water map taps;
+                                            # 0 of 1259 boxed spots change (measured); kill '0'
 }
 
 # FIX_VERSION: bump a flag's version in the PR that changes its fix. The guardrail's 'off' records the version it

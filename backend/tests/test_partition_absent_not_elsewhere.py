@@ -64,11 +64,22 @@ def test_absent_partition_is_not_answered_from_elsewhere(layer):
     assert resp.point.interpolation_method == "unavailable"
 
 
-def test_total_field_keeps_its_coastline_reach():
-    # The 1-deg floor is the total field's coastal behaviour (heatmap parity at a beach). Unchanged.
+def test_total_field_keeps_its_coastline_reach_when_the_fine_grid_cap_is_off(monkeypatch):
+    # The 1-deg floor is the total field's coastal behaviour (heatmap parity at a beach). Since 2026-11-12 it applies on
+    # a fine (0.25-deg) grid only with SAMPLER_FINE_GRID_FALLBACK_CAP=0 (the kill switch); see
+    # tests/test_sampler_fine_grid_fallback_cap.py for the default and why (NDBC 46267, Juan de Fuca).
+    monkeypatch.setenv("SAMPLER_FINE_GRID_FALLBACK_CAP", "0")
     resp = PointSampler().sample_point(_product("waves", {FAR_TRAIN}), *SPOT)
     assert resp.point.interpolation_method == "nearest_ocean_coarse_masked"
     assert resp.point.speed == pytest.approx(2.45)
+
+
+def test_total_field_on_a_fine_grid_keeps_the_cell_scale_reach_by_default(monkeypatch):
+    monkeypatch.delenv("SAMPLER_FINE_GRID_FALLBACK_CAP", raising=False)
+    resp = PointSampler().sample_point(_product("waves", {FAR_TRAIN}), *SPOT)
+    assert resp.point.interpolation_method == "unavailable"
+    near = PointSampler().sample_point(_product("waves", {NEAR_TRAIN}, height=1.4), *SPOT)
+    assert near.point.interpolation_method == "nearest_ocean_coarse_masked" and near.point.speed == pytest.approx(1.4)
 
 
 def test_partition_still_reads_a_cell_scale_neighbour():

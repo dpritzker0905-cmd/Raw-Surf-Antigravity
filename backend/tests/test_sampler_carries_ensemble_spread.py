@@ -189,7 +189,9 @@ def test_the_COARSE_MASKED_nearest_branch_carries_the_spread():
     for v in prod.grid.vectors:
         if 38.9 <= v.lat <= 39.6 and -9.6 <= v.lng <= -8.9:
             v.is_valid = False
-    resp = _sample(prod, 39.36, -9.38)
+    # 2026-11-12: -9.45, not -9.38. On this 0.25-deg tile the branch now reaches 1.5 cells (SAMPLER_FINE_GRID_FALLBACK_CAP);
+    # from -9.38 the nearest valid cell was 0.386 deg away, past it. From -9.45 it is 0.32 deg, corners still all masked.
+    resp = _sample(prod, 39.36, -9.45)
     pt = _detail(resp)
     assert pt is not None and pt.interpolation_method == "nearest_ocean_coarse_masked", (
         f"SETUP BROKEN: expected the coarse-masked fallback, got "

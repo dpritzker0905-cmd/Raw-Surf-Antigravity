@@ -16,6 +16,20 @@ logger = logging.getLogger(__name__)
 # "no energy in this partition here", not "land" — see the reach rule in sample_point.
 PARTITION_LAYERS = frozenset({"swell_1", "swell_2", "wind_waves"})
 
+# The all-land-corner fallback's 1° floor is a COARSE-grid rule; below this resolution a grid keeps the cell-scale reach
+# (1.5 cells). See SAMPLER_FINE_GRID_FALLBACK_CAP in sample_point.
+FINE_GRID_RES_MAX_DEG = 0.5
+# Inclusive reach comparison: the closest measured spot sits 0.373° from water against a 0.375° reach (Inch Beach), so a
+# float rounding at the boundary must not flip it.
+FALLBACK_REACH_EPS_DEG = 1e-6
+
+
+def fine_grid_fallback_cap_on() -> bool:
+    """SAMPLER_FINE_GRID_FALLBACK_CAP (2026-11-12, D-065 GUARDED, code default '1'; kill '0' restores the 1° floor on
+    every grid). Read per call through runtime_flags so the live guardrail and the manifest can turn it off."""
+    from services import runtime_flags as _rf     # lazy: keeps this module importable without the flag service
+    return _rf.on("SAMPLER_FINE_GRID_FALLBACK_CAP")
+
 
 def deduce_grid_resolution(grid) -> float:
     """Grid spacing in degrees, or 0.0 when it cannot be deduced.
@@ -600,12 +614,27 @@ class PointSampler:
                 # published primary swell 2.45 m against a 1.72 m TOTAL sea (impossible: Hs² = Σ
                 # partitions²) while upstream had no swell partition there. Partitions keep only the
                 # cell-scale reach; a farther train is somewhere else's sea, so the answer is absent.
+                fine_capped = False
                 if product.domain.lower() == "marine" and product.layer.lower() in PARTITION_LAYERS:
                     max_dist = grid_res * 1.5
+                elif grid_res < FINE_GRID_RES_MAX_DEG and fine_grid_fallback_cap_on():
+                    # ⛔ THE 1° FLOOR IS A COARSE-GRID RULE (2026-11-12, SAMPLER_FINE_GRID_FALLBACK_CAP). On a 0.25°
+                    # pilot box it reaches FOUR cells, across land, into another water body: NDBC 46267 inside the
+                    # Strait of Juan de Fuca (GFS-Wave 0.25° marks the inner strait land) read the strait-mouth cell
+                    # 0.73° away off Cape Flattery, open-Pacific swell for a sheltered buoy: +1.47..+1.52 m vs
+                    # Open-Meteo best_match over 14 days (Actions 43339322792), 27-48% of the accuracy monitor's gap.
+                    # Fine grids keep the cell-scale reach; farther water is somewhere else's sea, so the answer is
+                    # "no data" ('--'), not a wrong number. Measured blast radius (every spot in the 0.25° boxes):
+                    # 34 points take this branch, 33 spots sit 0.251..0.373° from water (inside 1.5 cells, unchanged),
+                    # only 46267 changes. Map taps in enclosed water (Puget Sound, the strait, bays) change too.
+                    # The fallbacks ABOVE (1 valid corner; corners with zero ocean weight) stay unbounded: they
+                    # start from a wet corner of the bracketing cell, so their nearest cell is local in practice.
+                    max_dist = grid_res * 1.5
+                    fine_capped = True
                 else:
                     max_dist = max(grid_res * 1.5, 1.0)
                 d = math.hypot(nearest.lat - lat, nearest.lng - lng)
-                if d <= max_dist:
+                if d <= max_dist + FALLBACK_REACH_EPS_DEG:
                     detail = NormalizedPointDetail(
                         requested_lat=lat,
                         requested_lng=lng,
@@ -626,6 +655,11 @@ class PointSampler:
                         f"{d:.1f}deg away (<= {max_dist:.1f}deg) — matches heatmap interpolation."
                     )
                     return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
+                if fine_capped:
+                    return self._build_unavailable_response(
+                        product, lat, lng, f"All bracketing corners land/masked on a {grid_res:.2f}deg grid; nearest ocean "
+                                           f"vector {d:.2f}deg away is past the fine-grid reach ({max_dist:.3f}deg): "
+                                           f"another water body, not this point's sea (SAMPLER_FINE_GRID_FALLBACK_CAP)")
             # Genuinely inland (no valid ocean within range): no data.
             return self._build_unavailable_response(product, lat, lng, "No valid ocean corners exist in grid bounding box")
 
