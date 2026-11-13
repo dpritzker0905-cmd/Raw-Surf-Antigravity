@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 4,
+  "files": 1,
+  "branch": "codex/map-controls-refinement-20261112",
+  "date": "2026-11-12",
+  "note": "Map identity, search suggestions and nested Escape across three themes, plus legacy rollback; four new cases in one new suite."
+}

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useId } from 'react';
 import { Wind, Waves, CloudRain, Snowflake, Thermometer, Lock, ChevronDown, ChevronUp, X, Cloud, Globe, Play, Pause, SkipBack, SkipForward, Sun, Loader2 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getAllowedModels, resolveForecastWindow } from './LayerAccessResolver';
@@ -52,7 +52,8 @@ export var MapWeatherControls = ({
 }) => {
   const { theme } = useTheme();
   const responsive = responsiveWeatherOn();
-  const [isCollapsed, setIsCollapsed, panelToggleRef, togglePanel] = useWeatherPanelDisclosure();
+  const summaryId = useId();
+  const [isCollapsed, panelToggleRef, togglePanel] = useWeatherPanelDisclosure(isImmersiveMode);
   const [compactLegendOpen, setCompactLegendOpen] = useState(false);
   // Remove local isTimelineCollapsed since we lift it up, or use the prop directly if provided.
   const [localTimelineCollapsed, setLocalTimelineCollapsed] = useState(false);
@@ -69,9 +70,6 @@ export var MapWeatherControls = ({
   // Wave-height display unit (ft | m) — display-only preference, data stays metric (heightUnits.js).
   const [heightUnit, toggleHeightUnit] = useHeightUnit();
 
-  useEffect(() => {
-    setIsCollapsed(isImmersiveMode);
-  }, [isImmersiveMode]);
   
   const collapsedState = onTimelineCollapseToggle ? isTimelineCollapsed : localTimelineCollapsed;
   const setCollapsedState = onTimelineCollapseToggle || setLocalTimelineCollapsed;
@@ -636,14 +634,15 @@ export var MapWeatherControls = ({
         <>
         {desktopTimeline}
         <button type="button" ref={panelToggleRef}
-          className={`${desktopClass} w-12 h-12 p-0 overflow-hidden flex flex-col items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-lg group`}
+          className={`${desktopClass} ${responsive ? 'weather-panel-summary px-3 py-2' : 'w-12 h-12 p-0 overflow-hidden flex-col'} flex items-center justify-center cursor-pointer hover:scale-105 active:scale-95 transition-all shadow-lg group`}
           onClick={() => togglePanel(false)}
-          aria-label="Expand weather controls"
+          aria-label="Expand weather controls" aria-expanded={false} aria-describedby={responsive ? summaryId : undefined}
           style={{ borderRadius: '12px' }}
         >
-          <div className="relative flex flex-col items-center justify-center w-full h-full gap-0.5">
+          <div className={`relative flex items-center justify-center w-full ${responsive ? 'gap-2' : 'flex-col h-full gap-0.5'}`}>
             <ActiveIcon className={`w-5 h-5 ${activeColor} transition-transform group-hover:rotate-12`} />
-            <ChevronDown className={`w-3.5 h-3.5 ${textMuted}`} />
+            {responsive && <span className={`min-w-0 text-left text-xs font-semibold ${textClass}`}>Weather<span id={summaryId} className={`block truncate text-[10px] font-normal ${textMuted}`}>{activeLayerObj?.label || 'Layers'} · {models.find(model => model.id === activeModel)?.label || activeModel}</span></span>}
+            <ChevronDown className={`w-3.5 h-3.5 ${textMuted}`} aria-hidden="true" />
           </div>
         </button>
         </>
@@ -656,7 +655,7 @@ export var MapWeatherControls = ({
       <div className={`${desktopClass} w-60 p-3 max-h-[calc(100vh-120px)] overflow-y-auto`}>
         <div className="flex items-center justify-between mb-2">
           <span className={`text-[10px] font-bold uppercase tracking-wider ${textMuted}`}>Weather</span>
-          <button ref={panelToggleRef} onClick={() => togglePanel(true)} className={`p-1 rounded ${btnHover}`} aria-label="Collapse weather controls">
+          <button ref={panelToggleRef} onClick={() => togglePanel(true)} className={`p-1 rounded ${btnHover}`} aria-label="Collapse weather controls" aria-expanded={true}>
             <ChevronUp className={`w-4 h-4 ${textMuted}`} />
           </button>
         </div>
@@ -773,7 +772,15 @@ export var MapWeatherControls = ({
             <button type="button" className={`weather-legend-toggle text-[11px] px-3 rounded-full border ${chipBg} ${textMuted}`} aria-expanded={compactLegendOpen} onClick={() => setCompactLegendOpen(value => !value)}>
               {compactLegendOpen ? 'Hide legend' : 'Legend'}
             </button>
-            <button 
+            {responsive ? (
+            <button type="button" className={`weather-timeline-disclosure text-xs px-2 flex items-center gap-2 ${textMuted}`}
+              onClick={() => setCollapsedState(!collapsedState)}
+              aria-expanded={!collapsedState} aria-controls="weather-mobile-timeline-body">
+              {collapsedState && <span className="sr-only">Forecast timeline, </span>}<span>{collapsedState ? formatTime() : 'Forecast timeline'}</span>
+              <ChevronDown className={`w-4 h-4 shrink-0 ${collapsedState ? '' : 'rotate-180'}`} aria-hidden="true" />
+            </button>
+            ) : (<>
+              <button
               className="py-1 px-3 -mx-3 group cursor-pointer active:scale-95 transition-transform"
               onClick={() => setCollapsedState(!collapsedState)}
               aria-label="Toggle timeline"
@@ -794,7 +801,8 @@ export var MapWeatherControls = ({
                 <path d="M 10 24 C 30 14, 90 14, 110 24 C 113 25, 113 27, 110 28 C 90 20, 30 20, 10 28 C 7 27, 7 25, 10 24 Z" className="fill-zinc-600 group-hover:fill-blue-500 transition-colors duration-300" />
                 <path d="M 10 26 C 30 17, 90 17, 110 26" className="stroke-zinc-800 group-hover:stroke-amber-600 transition-colors duration-300" strokeWidth="0.5" fill="none" />
               </svg>
-            </button>
+</button>
+            </>)}
           </div>
           <div id="weather-mobile-timeline-body" inert={collapsedState} aria-hidden={collapsedState || undefined} className={`weather-mobile-timeline-body overflow-hidden transition-all duration-300 ${collapsedState ? 'max-h-0 opacity-0' : 'max-h-[200px] opacity-100'}`}>
             {legendConfig[activeLayer] && (

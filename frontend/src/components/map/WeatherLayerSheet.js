@@ -6,9 +6,12 @@ const focusVisible = node => {
 };
 
 /** Preserve user-requested focus across replacement desktop disclosure buttons. */
-export function useWeatherPanelDisclosure() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+export function useWeatherPanelDisclosure(isImmersive = false) {
+  const [requestedCollapsed, setRequestedCollapsed] = useState(false);
+  const [immersiveExpanded, setImmersiveExpanded] = useState(false);
+  const isCollapsed = requestedCollapsed || (isImmersive && !immersiveExpanded);
   const toggleRef = useRef(null);
+  useLayoutEffect(() => { setImmersiveExpanded(false); }, [isImmersive]);
   const focusRequested = useRef(false);
   useLayoutEffect(() => {
     if (!focusRequested.current) return;
@@ -17,9 +20,10 @@ export function useWeatherPanelDisclosure() {
   }, [isCollapsed]);
   const togglePanel = collapsed => {
     focusRequested.current = true;
-    setIsCollapsed(collapsed);
+    setRequestedCollapsed(collapsed);
+    setImmersiveExpanded(isImmersive && !collapsed);
   };
-  return [isCollapsed, setIsCollapsed, toggleRef, togglePanel];
+  return [isCollapsed, toggleRef, togglePanel];
 }
 
 /** Non-modal layer panel: move focus in/out, without trapping page navigation. */

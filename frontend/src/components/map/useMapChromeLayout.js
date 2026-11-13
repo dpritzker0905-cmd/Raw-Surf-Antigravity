@@ -27,8 +27,15 @@ export function useMapChromeLayout(rootRef) {
     const measure = () => {
       raf = 0;
       const bounds = root.getBoundingClientRect();
+      const documentStyle = getComputedStyle(document.documentElement);
+      const rootText = parseFloat(documentStyle.fontSize) || 16;
+      // This mode depends on viewport and text size, never on the space it
+      // frees; opening/closing details cannot make the timeline oscillate.
+      root.dataset.enlargedMobileTimeline = String(window.innerWidth < 768 && bounds.height < 600 && rootText >= 24);
       const immersive = root.classList.contains('immersive');
-      const topHeight = immersive ? 8 : (top?.getBoundingClientRect().height || 0) + 8;
+      const topHeight = (top?.getBoundingClientRect().height || 0) + 8;
+      const heading = root.querySelector('.weather-map-heading');
+      const headingReserve = heading ? heading.getBoundingClientRect().bottom - bounds.top + 8 : 8;
       let bottom = 0;
       timelines.forEach(el => {
         const rect = el.getBoundingClientRect();
@@ -37,15 +44,13 @@ export function useMapChromeLayout(rootRef) {
       // Reserve the normal header and its focus ring as well as three root-text
       // lines for the enlarged curve. A 48px scrollport clips the 55px header.
       // Offer a separate reading area instead of clipping either keyboard target.
-      const documentStyle = getComputedStyle(document.documentElement);
-      const rootText = parseFloat(documentStyle.fontSize) || 16;
       const safeBottom = parseFloat(documentStyle.getPropertyValue('--safe-bottom'));
       const fallback = window.innerWidth < 768 && !immersive
         ? (Number.isFinite(safeBottom) ? Math.max(0, safeBottom) : 84) + 8 : 80;
       const bottomReserve = bottom || fallback;
       const available = Math.max(48, bounds.height - topHeight - bottomReserve - 8);
       root.dataset.pointDetailsCompact = String(available < Math.max(64, 3 * rootText));
-      const values = { '--weather-top': topHeight, '--weather-bottom': bottomReserve, '--weather-height': bounds.height };
+      const values = { '--weather-top': topHeight, '--weather-heading': headingReserve, '--weather-bottom': bottomReserve, '--weather-height': bounds.height };
       Object.entries(values).forEach(([name, value]) => {
         const next = `${Math.ceil(value)}px`;
         if (root.style.getPropertyValue(name) !== next) root.style.setProperty(name, next);

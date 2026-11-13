@@ -12,7 +12,7 @@ import FeaturedPhotographersPanel from './map/FeaturedPhotographersPanel';
 import PhotographerBottomSheet from './map/PhotographerBottomSheet';
 import WaveLoader from './WaveLoader';
 import { MapFilterTabs } from './map/MapFilterTabs';
-import { MapHeader } from './map/MapHeader';
+import MapExploreRail from './map/MapExploreRail';
 import MapErrorBoundary from './map/MapErrorBoundary';
 import { IPLocationBanner } from './map/IPLocationBanner';
 import { MapRightControls } from './map/MapRightControls';
@@ -118,6 +118,9 @@ var MapPageContent = () => {
   // v163: Long-press marker location (Ventusky/Windy style)
   const [longPressLocation, setLongPressLocation] = useState(null);
   const [renderMarineData, setRenderMarineData] = useState(null);
+
+  useEffect(() => { if (isImmersiveMode) setCompactExploreOpen(false); }, [isImmersiveMode]);
+  useEffect(() => { if (longPressLocation) setCompactExploreOpen(false); }, [longPressLocation]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {
@@ -481,17 +484,14 @@ var MapPageContent = () => {
       )}
 
       {/* TOP RAIL */}
-      <div 
-        className={`absolute top-0 left-0 right-0 z-[1000] pointer-events-none pt-4 transition-opacity duration-300 ${isImmersiveMode ? 'opacity-0' : 'opacity-100'} top-rail-container`} 
-      >
-        <button type="button" className={`weather-explorer-toggle mx-3 px-4 py-2 rounded-full border backdrop-blur-xl text-sm font-semibold ${isLight ? 'bg-white/90 text-gray-900 border-gray-200' : theme === 'beach' ? 'bg-black/90 text-white border-cyan-900/50' : 'bg-zinc-900/90 text-white border-zinc-700'}`}
-          aria-expanded={compactExploreOpen} aria-controls="map-explore-content"
-          onClick={() => setCompactExploreOpen(value => !value)}>
-          {compactExploreOpen ? 'Close search & filters' : 'Map search & filters'}
-        </button>
-        <div id="map-explore-content" className="weather-explore-content px-4">
-          <MapHeader livePhotographerCount={livePhotographers.length} />
-          {currentUserShooting && (
+      <MapExploreRail open={compactExploreOpen} onToggle={() => setCompactExploreOpen(value => !value)}
+        onClose={() => setCompactExploreOpen(false)} livePhotographerCount={livePhotographers.length} isImmersiveMode={isImmersiveMode}
+        notice={showIpBanner && (cityChanged || (locationDenied && ipLocation)) ? <IPLocationBanner
+          showIpBanner={showIpBanner} cityChanged={cityChanged} locationDenied={locationDenied}
+          ipLocation={ipLocation} userLocation={userLocation} onRequestGPS={getUserLocation}
+          onDismiss={() => setShowIpBanner(false)}
+        /> : null}
+        status={currentUserShooting && (
             <div className="mb-3 pointer-events-auto">
               <MapLiveFloatingIsland 
                 session={{
@@ -503,7 +503,7 @@ var MapPageContent = () => {
                 onEndSession={handleStopLiveWrapper}
               />
             </div>
-          )}
+          )}>
           <MapFilterTabs 
             filter={filter}
             onFilterChange={handleFilterChange}
@@ -520,6 +520,7 @@ var MapPageContent = () => {
               }
               setSelectedSpot(spot);
               setUnifiedDrawerOpen(true);
+              setCompactExploreOpen(false);
             }}
           />
           <RequestProButton
@@ -531,17 +532,7 @@ var MapPageContent = () => {
             getUserLocation={getUserLocation}
             setShowRequestProModal={setShowRequestProModal}
           />
-          <IPLocationBanner
-            showIpBanner={showIpBanner}
-            cityChanged={cityChanged}
-            locationDenied={locationDenied}
-            ipLocation={ipLocation}
-            userLocation={userLocation}
-            onRequestGPS={getUserLocation}
-            onDismiss={() => setShowIpBanner(false)}
-          />
-        </div>
-      </div>
+      </MapExploreRail>
 
       <div className={`transition-opacity duration-300 ${isImmersiveMode ? 'opacity-0 pointer-events-none' : 'opacity-100'}`}>
         <DispatchTrackingPanel activeDispatch={activeDispatch} onDismiss={clearDispatch} />
@@ -599,7 +590,7 @@ var MapPageContent = () => {
         activeModel={activeModel}
         onModelChange={setActiveModel}
         activeLayers={activeLayers}
-        onLayerToggle={(layerId) => { toggleLayer(layerId); setShowWeatherControls(false); }}
+        onLayerToggle={toggleLayer}
         userTier={user ? (user.subscription_tier || user.tier_id || 'tier_1') : 'guest'}
         onUpgradeClick={handleUpgradeClick}
         onClose={() => setShowWeatherControls(false)}

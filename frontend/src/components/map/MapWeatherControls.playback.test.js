@@ -1,6 +1,13 @@
 import React from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { MapWeatherControls } from './MapWeatherControls';
+// Isolate the resolver's import-time acquisition before the component loads.
+// Retain the real tier/window rules without acquiring live capabilities.
+const { MapWeatherControls } = (() => {
+  const previousFetch = global.fetch;
+  global.fetch = () => Promise.reject(new Error('Offline playback test: capabilities not acquired'));
+  try { return require('./MapWeatherControls'); }
+  finally { global.fetch = previousFetch; }
+})();
 let mockTheme = 'dark';
 jest.mock('../../contexts/ThemeContext', () => ({ useTheme: () => ({ theme: mockTheme }) }));
 beforeEach(() => {

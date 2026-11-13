@@ -121,7 +121,7 @@ test('late-mounted chrome, immersive mode and rollout kill switch retain geometr
   expect(global.ResizeObserver).not.toHaveBeenCalled();
   rerender(<Chrome immersive />);
   expect(observer.observe).toHaveBeenCalledTimes(4);
-  expect(screen.getByTestId('chrome').style.getPropertyValue('--weather-top')).toBe('8px');
+  expect(screen.getByTestId('chrome').style.getPropertyValue('--weather-top')).toBe('108px');
   unmount();
   window.__RAW_DISABLE_RESPONSIVE_WEATHER__ = true;
   render(<Chrome />);
@@ -336,6 +336,9 @@ test('desktop weather disclosure retains replacement focus without stealing it o
   rerender(view(true));
   expect(screen.getByRole('button', { name: 'Expand weather controls' })).toBeInTheDocument();
   expect(outside).toHaveFocus();
+  fireEvent.click(screen.getByRole('button', { name: 'Expand weather controls' }));
+  expect(screen.getByRole('button', { name: 'Collapse weather controls' })).toHaveFocus();
+  outside.focus();
   rerender(view(false));
   expect(screen.getByRole('button', { name: 'Collapse weather controls' })).toBeInTheDocument();
   expect(outside).toHaveFocus();
@@ -343,8 +346,20 @@ test('desktop weather disclosure retains replacement focus without stealing it o
   rerender(view(false));
   fireEvent.click(screen.getByRole('button', { name: 'Collapse weather controls' }));
   expect(screen.getByRole('button', { name: 'Expand weather controls' })).toHaveFocus();
+  outside.focus(); rerender(view(true)); rerender(view(false));
+  expect(screen.getByRole('button', { name: 'Expand weather controls' })).toHaveTextContent(/Weather.*Waves.*GFS/);
+  expect(screen.getByRole('button', { name: 'Expand weather controls' })).toHaveAccessibleDescription('Waves · GFS');
+  expect(outside).toHaveFocus();
   fireEvent.click(screen.getByRole('button', { name: 'Expand weather controls' }));
   expect(screen.getByRole('button', { name: 'Collapse weather controls' })).toHaveFocus();
+  window.__RAW_DISABLE_RESPONSIVE_WEATHER__ = true;
+  fireEvent.click(screen.getByRole('button', { name: 'Collapse weather controls' }));
+  const legacy = screen.getByRole('button', { name: 'Expand weather controls' });
+  expect(legacy).toHaveClass('w-12', 'h-12', 'p-0', 'overflow-hidden');
+  expect(legacy).not.toHaveTextContent('Weather');
+  render(<MapWeatherControls {...props} isDesktop={false} />);
+  expect(screen.getAllByRole('button', { name: 'Toggle timeline' })).toHaveLength(2);
+  delete window.__RAW_DISABLE_RESPONSIVE_WEATHER__;
 });
 
 test('ordinary map rerenders keep observer subscriptions and do not force chrome measurements', () => {
