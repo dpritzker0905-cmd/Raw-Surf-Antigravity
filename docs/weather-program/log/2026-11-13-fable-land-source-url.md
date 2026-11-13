@@ -70,3 +70,27 @@ code path, measured only through the toggle); a style reload (theme switch), whi
 ## Not done
 The basemap tile reload at the toggle (about 100 ms on the phone). The 10 m file is still downloaded and parsed on the main thread
 for the engine's own mask whenever the map is at zoom 8 or closer, marine layer or not.
+
+## Addendum (same day, 04:10 EST): the later land fill was the harness; with the browser cache ON the URL is not later
+The coordinator asked for the real-cache case, outside the routing harness. The app cannot run unrouted (it would call the live
+backend), so this isolates the mechanism: `frontend/scripts/offline-backend/land-cache-lab/` is a bare page with the app's
+map-library build that reads the 10 m CDN file the way the page does (`fetch` + `json`), waits 1.5 s, then adds a GeoJSON source
+with either the file's URL or the parsed object, plus one fill layer, at the same view (1280 x 800, zoom 3.2). System Chrome,
+headless, a persistent profile, no request routing: cold = a new profile, warm = the same profile relaunched. Two runs per cell.
+
+| ms after `addSource` | URL, cold | URL, warm | object, cold | object, warm |
+|---|---|---|---|---|
+| desktop: land drawn | 2677 / 2456 | 2593 / 2498 | 2275 / 2202 | 2249 / 2204 |
+| desktop: worst frame gap | 332 / 269 | 228 / 221 | 574 / 589 | 589 / 643 |
+| CPU 4x: land drawn | 3542 / 3187 | 3543 / 3219 | 4510 / 4105 | 4419 / 4532 |
+| CPU 4x: worst frame gap | 1062 / 920 | 1026 / 910 | 2874 / 2555 | 2768 / 2933 |
+
+- **Desktop: the URL draws the land 0.2-0.4 s later** and the worst frozen frame is about 0.25 s instead of 0.6 s.
+- **CPU 4x: the URL draws the land 0.9-1.3 s EARLIER** and the worst frozen frame is about 1.0 s instead of 2.8 s. The seconds of
+  delay in the app harness were the harness re-delivering the file with the cache off.
+- **Cold equals warm in the URL arm**, though the page's own fetch of the file took 0.8-0.9 s cold (4.57 MB transferred) and
+  0.33-0.48 s warm (0 bytes transferred): the worker's fetch right after the page's is a cache read even in a brand-new profile.
+  This is inferred from the timing; the worker's request itself was not visible to the page's network log.
+- Limits: a bare page, not the app (no basemap, no wave engine competing for the main thread); desktop Chrome only; the CPU
+  throttle may not slow the worker thread the way a real phone would; a real phone's smaller HTTP cache is not tested (the
+  entry is 4.6 MB).
