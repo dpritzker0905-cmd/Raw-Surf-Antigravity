@@ -74,6 +74,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_RASTER_OWN_RAIN__',
   // components/map/ownRasterLayer.test.js ("OFF PATH: the kill is the hard cut, as before"; the value blend, 2026-11-12)
   '__RAW_DISABLE_RASTER_VALUE_BLEND__',
+  // components/map/maskCanvasUpload.test.js ("OFF PATH: the kill uploads the mask canvas itself, as before"; 2026-11-13)
+  '__RAW_DISABLE_MASK_UPLOAD_COPY__',
   // components/map/radarAdvectWorker.test.js (the nowcast warp in a worker; the kill runs the main-thread warp + PNG)
   '__RAW_DISABLE_RADAR_ADVECT_WORKER__',
   // components/map/radarRecolorWorker.test.js (HRRR / DWD / lightning tiles in the worker; the kill is the main-thread recolor)
