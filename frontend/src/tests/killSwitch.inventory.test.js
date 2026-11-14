@@ -78,6 +78,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_LAND_SOURCE_URL__',
   // components/map/maskCanvasUpload.test.js ("OFF PATH: the kill uploads the mask canvas itself, as before"; 2026-11-13)
   '__RAW_DISABLE_MASK_UPLOAD_COPY__',
+  // components/map/windWorldCopies.test.js ("OFF PATH: the kill gives the layer's old offsets, as before"; 2026-11-13)
+  '__RAW_DISABLE_WIND_COPY_CULL__',
   // components/map/radarAdvectWorker.test.js (the nowcast warp in a worker; the kill runs the main-thread warp + PNG)
   '__RAW_DISABLE_RADAR_ADVECT_WORKER__',
   // components/map/radarRecolorWorker.test.js (HRRR / DWD / lightning tiles in the worker; the kill is the main-thread recolor)
