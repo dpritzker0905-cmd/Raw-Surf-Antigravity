@@ -14,7 +14,8 @@ the frames they name; everything else under the set's prefix is deleted.
 
 SOURCE RULE (egress): frames are built only from product files already on the ingest runner's disk (the products
 the ingest step just wrote). Nothing here downloads a product. A frame whose source identity (filename, model run,
-run time, ingested_at) matches the previous index is carried over without reading anything; a changed product that
+run time, ingested_at) matches the previous index is carried over without reading anything (one whose bytes differ only in
+run_time / ingested_at, a re-ingest of the same run, is carried after one disk read: frame_set_content); a changed product that
 is not on disk is listed with `path: null`, and the client falls back to /grid for that hour (the one exception, dark:
 publish_frame_images.TailDownloads may hand this module the ICON/EURO estimated tails from storage; they pass the same run
 check and parity gate). The GFS world products
@@ -33,6 +34,7 @@ from datetime import datetime, timezone
 
 from services import frame_binary as fb
 from services import frame_set_bight as fsb
+from services import frame_set_content as fsc
 from services import frame_set_fill as fsf
 from services import frame_set_rating as fsr
 from services import frame_set_wind as fsw
@@ -275,7 +277,7 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
             f = dict(f, meta={**prev_common, **(f.get("meta") or {})}, grid=f.get("grid") or prev_grid)
         prev_frames[(f["valid_time"], bool(f.get("is_estimated")))] = f
     stats = {"entries": 0, "built": 0, "carried": 0, "unchanged": 0, "uploaded": 0, "not_local": 0, "stale_local": 0,
-             "refused": 0, "bight_refused": 0, "bytes_uploaded": 0, "parity_bad": 0, "coverage": 0.0,
+             "refused": 0, "bight_refused": 0, "bytes_uploaded": 0, "content_carried": 0, "parity_bad": 0, "coverage": 0.0,
              "coverage_authoritative": 0.0,
              "coverage_refused": False,
              # ⬇ 2026-10-24 (the lead): every CHECKED frame's errors, refused or built, so the publish report shows how
@@ -327,6 +329,16 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
         if raw_json is None:
             unbuilt(vt, est, ident, "not_local")
             continue
+        # CONTENT CARRY (frame_set_content, FRAME_CONTENT_CARRY): the same bytes but for run_time / ingested_at (a re-ingest of
+        # the same run) carry the frame as a rebuild with an unchanged sha would write it, without the parse, fill, encode or parity.
+        content_on = fsc.enabled() and not (wind or rated or bight_on)
+        donor_raw = source.product_bytes(donor["filename"]) if content_on and donor is not None else None
+        if content_on:
+            kept = fsc.try_carry(prev, ident, raw_json, iso, filled, donor, donor_raw)
+            if kept is not None:
+                frames.append(kept)
+                stats["content_carried"] += 1
+                continue
         product = json.loads(raw_json)
         if iso(product.get("model_run_time")) != ident["model_run_time"] or iso(product.get("run_time")) != ident["run_time"]:
             unbuilt(vt, est, ident, "stale_local")   # the disk copy is not the run the manifest names: never mix runs
@@ -345,7 +357,9 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
                 unbuilt(vt, est, ident, "fill_donor_missing")
                 continue
             try:
-                product, n_filled = fsf.apply_fill(product, donor, source.product_bytes(donor["filename"]), target["layer"])
+                if donor_raw is None:
+                    donor_raw = source.product_bytes(donor["filename"])
+                product, n_filled = fsf.apply_fill(product, donor, donor_raw, target["layer"])
             except ValueError as e:            # never publish a frame /grid would not serve: this hour goes to /grid
                 log(f"[frames] {entry['filename']}: fill refused ({e})")
                 unbuilt(vt, est, ident, "fill_refused")
@@ -406,8 +420,12 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
             path, nbytes = f"{prefix}/{run_stamp}/{stamp(vt)}-{sha[:12]}.bin", len(gz)
             uploads.append((path, gz, FRAME_TYPE, IMMUTABLE))
             stats["bytes_uploaded"] += nbytes
-        frames.append({"valid_time": vt, "is_estimated": est, "path": path, "sha256": sha, "bytes": nbytes,
-                       "raw_bytes": len(raw), "grid": g, "source": ident, "meta": meta})
+        frame = {"valid_time": vt, "is_estimated": est, "path": path, "sha256": sha, "bytes": nbytes,
+                 "raw_bytes": len(raw), "grid": g, "source": ident, "meta": meta}
+        content = fsc.content_key(raw_json, filled, donor, donor_raw) if content_on else None
+        if content is not None:
+            frame["content"] = content         # what the next run's content carry compares (frame_set_content)
+        frames.append(frame)
     built = [f for f in frames if f.get("path")]
     stats["coverage"] = round(len(built) / len(entries), 4) if entries else 0.0
     # THE GATE counts AUTHORITATIVE entries: an estimated tail baked by another lane (ICON/EURO 168-336 h, the core lane)
