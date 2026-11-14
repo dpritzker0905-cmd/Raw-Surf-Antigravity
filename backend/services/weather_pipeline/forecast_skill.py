@@ -202,6 +202,9 @@ def rows_from_calibration_report(report, target_time: str, lead_h: float,
         row = {"source": source, "buoy_id": bid, "target_time": target_time,
                "lead_h": round(lead_h, 1), "hs_m": hs, "tp_s": res.get("model_tp_s"),
                **serving_provenance(served.get("product"), served.get("cycle"), target_time, lead_h)}
+        for key in ("interp", "sampled"):            # the sampler's serve path (buoy_calibration); absent = not recorded
+            if served.get(key):
+                row[key] = served[key]
         if res.get("model_dir_deg") is not None:    # S8 (skill_direction_period); absent = not recorded
             row["dir_deg"] = res["model_dir_deg"]
         wres = entry.get("wind_residual") or {}      # S9: the lane's forecast wind at the target hour (knots)

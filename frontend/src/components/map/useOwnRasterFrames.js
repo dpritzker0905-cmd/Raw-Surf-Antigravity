@@ -11,10 +11,10 @@
  * (ownRasterFrames.planWindow), already-decoded fields offered to the layer at once, the rest pumped in priority order.
  */
 import { useEffect, useRef, useState } from 'react';
-import { CUSTOM_COLOR_SCALES, applyThemePressureScale } from './colorScales';
+import { CUSTOM_COLOR_SCALES, applyPrecipColorScale, applyThemePressureScale } from './colorScales';
 import {
   createOwnRasterLayer, buildStepLut, PRESSURE_LUT, PRESSURE_OPACITY_STOPS, TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS,
-  CLOUD_LUT, SATELLITE_OPACITY_STOPS, scaleForTheme,
+  CLOUD_LUT, SATELLITE_OPACITY_STOPS, RAIN_LUT, RAIN_OPACITY_STOPS, scaleForTheme,
 } from './ownRasterLayer';
 import { getRasterDrawn, publishRasterDrawn, rasterReadoutKilled } from './rasterDrawnFrame';
 import { requestIsobars } from './isobarStore';
@@ -39,12 +39,16 @@ const SCALES = {
   temperature: () => registeredScale(LIB_SCALE.temperature),
   // cloud cover has light / dark colour sets: resolved per theme as the .om URL's dark=true does (scaleForTheme)
   satellite: (theme) => scaleForTheme(registeredScale(LIB_SCALE.satellite), theme),
+  // precipitation: the app's own ramp, the object the .om path draws (not theme-varied; applyPrecipColorScale honours its kill)
+  rain: () => { applyPrecipColorScale(); return CUSTOM_COLOR_SCALES.precipitation; },
 };
-const LUTS = { pressure: PRESSURE_LUT, temperature: TEMPERATURE_LUT, satellite: CLOUD_LUT };
+const LUTS = { pressure: PRESSURE_LUT, temperature: TEMPERATURE_LUT, satellite: CLOUD_LUT, rain: RAIN_LUT };
 // Each layer's .om slot ramp ('raster-opacity' over zoom in MapWebGL; pinned by ownRasterLayer.test.js).
 // Layers drawn terrain-adjusted (ownRasterDownscale.js): air temperature only.
 const DOWNSCALED = { temperature: true };
-const OPACITY = { pressure: PRESSURE_OPACITY_STOPS, temperature: TEMPERATURE_OPACITY_STOPS, satellite: SATELLITE_OPACITY_STOPS };
+const OPACITY = {
+  pressure: PRESSURE_OPACITY_STOPS, temperature: TEMPERATURE_OPACITY_STOPS, satellite: SATELLITE_OPACITY_STOPS, rain: RAIN_OPACITY_STOPS,
+};
 // Isobar ink per theme (only drawn with window.__RAW_OWN_RASTER_ISOBARS__ set; off by default).
 const ISO_INK = { dark: [1, 1, 1, 0.5], beach: [0.24, 0.18, 0.12, 0.5], light: [0.12, 0.16, 0.24, 0.5] };
 

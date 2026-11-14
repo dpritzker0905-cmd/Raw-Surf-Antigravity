@@ -75,6 +75,8 @@ COVERAGE = {
     "RATING_BREAKER_TYPE": (RATING, "the quality score's breaker-type term; no observed rating exists"),
     "RATING_BREAK_DEPTH_FROM_GEOMETRY": (RATING, "the quality score's oversize gate reads the height cap's depth "
                                                  "(CMP-3); the height is unchanged, no observed rating exists"),
+    "RATING_REF_PRIOR": (RATING, "the quality score's size reference for spots with no climatology (JAC-2, #771); no "
+                                 "observed rating exists. Evidence: MOP size-category agreement (#839)"),
     "ALERTS_FORECAST_WINDOWS": (VOLUME, "sent-alert volume per user-day against its cap"),
     "SPOT_HUB_RATE_ONE_SPOT": (BLIND, "the spot hub's own route; the replay rates through rate_one_spot. Evidence: "
                                       "hub = glyph parity tests (unit, offline)"),

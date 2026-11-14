@@ -76,3 +76,31 @@ own-reference agreement) if the owner wants that too.
 
 **PASS.** Under the pre-registered rule, #771 may merge (it stays held OFF at merge) and the flag may later be flipped
 through the runtime manifest. Merging and flipping are the owner's calls; this session does neither.
+
+## 2026-11-13 02:55Z: merges and the flip (owner's words in this session)
+
+The verdict section above says "this session does neither". That was true when written; the owner then asked for both, in
+this session, on 2026-11-12: "mark #839 ready once CI is green", "merge #839 too once it's green", "merge #771 once #839 is in",
+"then flip RATING_REF_PRIOR on after #771 merges", "merge #771 yourself if CI goes green first".
+
+- **#839** merged by the integrator's pinned job: squash `97d136e6e` from `a037cf64c`, 00:56Z. Hosted guards read 3,788 passed,
+  exactly the fragment's number. Its `pr_merge` line is in the integrator's fragment.
+- **#771** needed three repairs after the dev merges, all pushed by this session as the branch's only writer: `9ff5db611` (dev
+  merge; `runtime_flags.GUARDED` conflict, both sides kept; the owed chain floor fragment, +27 tests / +1 file), `99c360d3f` (the
+  guardrail `COVERAGE` entry dev now requires; `surf_forecast.py` back to 800 lines, entry text identical by `ast`), `5c209be00`
+  (dev merge carrying #839). CI: the guards job hit its 25-minute limit once (25 min 16 s, cancelled, not a test failure); the
+  rerun passed. Merged by this session: squash `394731b92`, pinned with `--match-head-commit 5c209be00`, 02:30:42Z. Render
+  deployed it at 02:33:56Z (`dep-dbr7cl61egvs73fftnfg`).
+- **The flip:** before it, Render's env (59 keys, names only) and every workflow leave `RATING_REF_PRIOR` unset, so the manifest
+  governs every lane. `gh workflow run flag-guardrail.yml --ref dev -f reenable=RATING_REF_PRIOR -f owner_words="then flip
+  RATING_REF_PRIOR on after #771 merges"` gave run 43354377100, success, enforce mode. Its artifact's manifest:
+  `{"state": "on", "reason": "owner re-enabled: then flip RATING_REF_PRIOR on after #771 merges", "set_by": "owner",
+  "set_at": "2026-11-13T02:47:53Z", "evidence": "workflow_dispatch by dpritzker0905-cmd"}`. The previous scheduled run
+  (43311056089) had read an empty manifest, so no entry was dropped.
+- **Not verified:** the served value on the live box (the admin status endpoint needs a login, and CLAUDE.md forbids load on
+  the live backend). The guardrail cannot judge a rating against observations, so it is effectively blind to a regression here.
+  The reference-less path it moves is small today (0 of 1,773 catalogue spots).
+- **Guards timeout:** not raised. The rerun passed, so no `ci.yml` change was needed (it would have waited for Codex's
+  merge-window hold).
+- **Kill:** an explicit `RATING_REF_PRIOR=0` on Render AND in the ingest/precompute workflow env (env beats manifest), or
+  remove the manifest entry (as the guardrail does, with the service key).

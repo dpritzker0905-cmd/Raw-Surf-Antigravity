@@ -17,6 +17,8 @@ VERIFIED JWT gets 401 and no data on every forecast read below (ACCOUNT_PATHS: t
 /wind_lane); the guest window is EMPTY. Any verified account is at least `free` (GFS, 3 days), even when its profile has
 no tier, no row, or the lookup fails, so a signed-in user is never sent back to sign-in by a database hiccup.
 /capabilities, /status, /products and the diagnostics routes stay public: the client reads the switch from them.
+The SAME rule covers the forecast served outside /api/weather/ (HUB_ROUTES, flip blocker 2): /conditions/* and
+/tides/* refuse, and the spot pages (/explore/spot-details, /explore/surf-spots) answer without their forecast.
 The scheduled jobs are the one non-human identity: X-Raw-Service-Key = env WEATHER_SERVICE_KEY reads as premium, exempt
 from the per-account limit (weather_service_identity.py). Without the key configured, there is no such identity.
 
@@ -71,6 +73,27 @@ SPOT_SERIES = "spot-series/"
 # Forecast reads with nothing to clamp that are still ACCOUNTS ONLY (owner 2026-11-12: "/point, /spot-ratings, tide and
 # the wind lane follow the same rule"). The wind LAYER's data is /grid and /grid_series, already above.
 ACCOUNT_ONLY = ("point-tide", "wind_lane")
+# THE SPOT HUB, CONDITIONS AND TIDES (flip blocker 2, 2026-11-12): the same forecast, served OUTSIDE /api/weather/, by
+# the hub (useSpotReadings, SpotHubTides, useSpotHubActions), the drawer and the explore page. Same rule, same window.
+# (absolute path prefix, the parameters clamped, what a caller WITHOUT an account gets), first match wins:
+#   refuse    401 sign_in_required, like every /api/weather/ forecast read.
+#   withhold  the route still answers (the page also carries the spot, photos, reports and photographers), but
+#             subscription_tier is set to SIGNED_OUT and the route empties the forecast and current conditions
+#             (withhold_signed_out). For an account, subscription_tier is the RESOLVED tier (it was client-asserted).
+HUB_ROUTES = (
+    ("/api/conditions/forecast/", ("model", "days"), "refuse"),
+    ("/api/conditions/", ("model",), "refuse"),                  # /conditions/batch and /conditions/{spot_id}
+    ("/api/tides/", (), "refuse"),
+    ("/api/explore/spot-details/", ("model", "subscription_tier"), "withhold"),
+    ("/api/explore/surf-spots", ("model", "subscription_tier"), "withhold"),
+    ("/api/surf-conditions", (), "refuse"),                      # the create-post autofill: conditions at any point
+)
+# Static metadata under a governed prefix: never gated (the create-post spot list, no forecast in it).
+HUB_PUBLIC = ("/api/surf-conditions/known-spots",)
+SIGNED_OUT = "signed_out"       # canonical_tier() reads it as guest, so a route's tier window is empty as well
+# MIRROR of the `days` default of routes/surf_data/conditions.get_spot_forecast (pinned by a test): a request without
+# `days` asks for this many daily rows, so the clamp states it explicitly when the window is shorter.
+FORECAST_DAYS_DEFAULT = 10
 ACCOUNT_FLOOR = "free"          # what a verified account is at least, whatever its profile says
 SIGN_IN_REQUIRED = b"account"   # X-Raw-Tier-Clamp on the 401: the client's expired-session prompt keys on it
 # ONE SWITCH FOR BOTH HALVES (owner 2026-11-11 "Yes, hold both"): while the clamp is on, every /api/weather/ response
@@ -79,7 +102,7 @@ SIGN_IN_REQUIRED = b"account"   # X-Raw-Tier-Clamp on the 401: the client's expi
 ON_HEADER = b"x-raw-tier-clamp-on"
 # Parameters this module gates. Each is collapsed to ONE value before it is judged (security review 2026-11-11: with
 # `model=GFS&model=EURO` the clamp read the first and FastAPI serves the LAST, a guest got EURO).
-GATED = ("model", "hours", "valid_time", "base_time", "subscription_tier")
+GATED = ("model", "hours", "valid_time", "base_time", "subscription_tier", "days")
 # MIRROR of grid_series_helper.SERIES_ANCHOR_MAX_SKEW_HOURS (Codex-reserved file; pinned by a test): /grid_series
 # honours a client `base_time` up to this far from the server clock, so a FUTURE anchor moves every hour offset later.
 ANCHOR_MAX_SKEW_H = 26
@@ -106,6 +129,33 @@ def account_required(path: str) -> bool:
     if route_params(path) is not None:
         return True
     return path.startswith(PREFIX) and path[len(PREFIX):].rstrip("/") in ACCOUNT_ONLY
+
+
+def gate(path: str) -> Optional[Tuple[Tuple[str, ...], str]]:
+    """(clamped parameters, 'refuse' | 'withhold') for every forecast read the clamp governs, else None."""
+    names = route_params(path)
+    if names is not None:
+        return names, "refuse"
+    if account_required(path):
+        return (), "refuse"
+    if path.rstrip("/") in HUB_PUBLIC:
+        return None
+    for prefix, hub_names, mode in HUB_ROUTES:
+        if path.startswith(prefix):
+            return hub_names, mode
+    return None
+
+
+def withhold_signed_out(payload: dict) -> dict:
+    """What a `withhold` route sends a caller without an account (subscription_tier == SIGNED_OUT): the spot and its
+    community content, no forecast and no current conditions. In place; returns the payload."""
+    payload["current_conditions"] = None
+    payload["forecast"] = []
+    payload["forecast_locked_dates"] = []
+    payload["forecast_days_allowed"] = 0
+    payload["forecast_horizon_hours"] = 0
+    payload["forecast_status"] = "sign_in_required"
+    return payload
 
 
 def _parse_time(s: str) -> Optional[datetime]:
@@ -157,6 +207,18 @@ def clamp_params(params: List[Tuple[str, str]], names: Tuple[str, ...], tier: st
                 changed.append("valid_time")
             new.append((k, v))
         out = new
+    if "days" in names:                                  # spot-hub daily rows: today's row plus the window's whole days
+        cap = horizon // 24 + 1
+        asked = next((v for k, v in out if k == "days"), None)
+        try:
+            want = FORECAST_DAYS_DEFAULT if asked is None else int(asked)
+        except ValueError:
+            # FAIL CLOSED (security review 2026-11-12): a value int() refuses might still be one the route's own parser
+            # accepts, so it is never passed through unclamped; it becomes the cap.
+            want = cap + 1
+        if want > cap:
+            out = [(k, v) for k, v in out if k != "days"] + [("days", str(cap))]
+            changed.append("days")
     if "subscription_tier" in names:
         if any(k == "subscription_tier" and v != tier for k, v in out) or not any(k == "subscription_tier" for k, _ in out):
             changed.append("subscription_tier")
@@ -269,52 +331,62 @@ class WeatherTierClampMiddleware:
         if scope.get("type") != "http" or scope.get("method") not in ("GET", "HEAD"):
             return await self.app(scope, receive, send)
         path = scope.get("path", "")
-        if not path.startswith(PREFIX) or not enabled():
+        if not path.startswith("/api/") or not enabled():
             return await self.app(scope, receive, send)
-        names = route_params(path)
-        gated = names is not None or account_required(path)
-        if not gated:                                    # not a forecast read: only announce that the clamp is on
-            async def send_on(message):
+        g = gate(path)
+        if g is None:
+            if not path.startswith(PREFIX):              # not a forecast read and not weather: untouched
+                return await self.app(scope, receive, send)
+
+            async def send_on(message):                  # a public weather route: only announce that the clamp is on
                 if message.get("type") == "http.response.start":
                     message = dict(message, headers=list(message.get("headers", [])) + [(ON_HEADER, b"1")])
                 await send(message)
             return await self.app(scope, receive, send_on)
+        names, mode = g
         service = _SVC.from_headers(scope.get("headers"))  # the scheduled jobs' key (weather_service_identity.py)
         if service is not None:
             uid, tier = service
         else:
             auth = next((v.decode("latin-1") for k, v in scope.get("headers") or [] if k == b"authorization"), None)
             uid, tier = await self._identify(auth)
+        params = parse_qsl(scope.get("query_string", b"").decode("latin-1"), keep_blank_values=True)
         if tier == "guest":                              # ACCOUNTS ONLY: no verified account, no data
-            return await _sign_in_required(scope, send)
+            if mode != "withhold":
+                return await _sign_in_required(scope, send)
+            # The page still renders (spot, photos, reports); its route empties the forecast for SIGNED_OUT.
+            rest = [(k, v) for k, v in _single_valued(params) if k != "subscription_tier"]
+            scope = dict(scope, query_string=urlencode(rest + [("subscription_tier", SIGNED_OUT)]).encode("latin-1"))
+            return await self.app(scope, receive, _wrapped_send(send, True, ["signed_out"]))
         wait = None if service else _RL.retry_after("reads", uid)   # per-account limit; the jobs are exempt; kill: flag '0'
         if wait is not None:
             return await _too_many(scope, send, wait)
-        if names is None:                                # accounts-only, nothing to clamp (/point-tide, /wind_lane)
-            names = ()
-        params = parse_qsl(scope.get("query_string", b"").decode("latin-1"), keep_blank_values=True)
         now = datetime.now(timezone.utc)
         new, changed = clamp_params(params, names, tier, now)
         # /spot-series answers per RESOLVED tier whatever its URL says, so it is never shared-cacheable (security review).
         private = bool(changed) or "subscription_tier" in names or beyond_free(params, names, now)
         if changed:
             scope = dict(scope, query_string=urlencode(new).encode("latin-1"))
+        return await self.app(scope, receive, _wrapped_send(send, private, changed))
 
-        async def send_wrapped(message):
-            if message.get("type") == "http.response.start":
-                headers = [(k, _no_shared(v) if k.lower() == b"cache-control" else v)
-                           for k, v in message.get("headers", [])
-                           if not (private and k.lower() == b"cache-control")]
-                headers.append((b"vary", b"Authorization"))
-                headers.append((ON_HEADER, b"1"))
-                if private:
-                    headers.append((b"cache-control", b"private, no-store"))
-                if changed:
-                    headers.append((b"x-raw-tier-clamp", ",".join(sorted(set(changed))).encode()))
-                message = dict(message, headers=headers)
-            await send(message)
 
-        return await self.app(scope, receive, send_wrapped)
+def _wrapped_send(send, private: bool, changed: List[str]):
+    """The response of a gated read: never shared-cacheable, Vary: Authorization, the switch announced, and what the
+    clamp changed named in X-Raw-Tier-Clamp."""
+    async def send_wrapped(message):
+        if message.get("type") == "http.response.start":
+            headers = [(k, _no_shared(v) if k.lower() == b"cache-control" else v)
+                       for k, v in message.get("headers", [])
+                       if not (private and k.lower() == b"cache-control")]
+            headers.append((b"vary", b"Authorization"))
+            headers.append((ON_HEADER, b"1"))
+            if private:
+                headers.append((b"cache-control", b"private, no-store"))
+            if changed:
+                headers.append((b"x-raw-tier-clamp", ",".join(sorted(set(changed))).encode()))
+            message = dict(message, headers=headers)
+        await send(message)
+    return send_wrapped
 
 
 def _no_shared(cache_control: bytes) -> bytes:

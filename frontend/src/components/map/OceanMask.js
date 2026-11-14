@@ -1,6 +1,6 @@
 /* eslint-disable no-empty */
-import { memo, useEffect, useRef, useState, useCallback } from 'react'; import { maskMapGone } from './marineQuietFailures';
-import { findMarineInsertionLayer, getSharedLandGeoJSON, getSharedLandGeoJSONHiRes } from './mapUtils';
+import { memo, useEffect, useRef, useState, useCallback } from 'react'; import { maskMapGone } from './marineQuietFailures'; import { armLandSourceFallback, landSourceData, tagLandMaskUrl } from './landMaskSource';
+import { findMarineInsertionLayer, getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, getSharedLandGeoJSONHiResUrl, getSharedLandGeoJSONUrl } from './mapUtils';
 import { findMaskInsertionPoint, planMaskFamilyOrder, resolveCoastBufferOn } from './waterTempAnchor';
 
 /**
@@ -245,7 +245,7 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
         // SHARED loader, not a bare fetch (2.76 MB was pulled 3x/load); adds a 110m fallback. Why: docs/runbooks/RATIONALE-2026-08-09-observability-and-duplicate-load-fixes.md
         const geojson = await getSharedLandGeoJSON();
         if (!geojson) throw new Error('shared land geojson unavailable');
-        const mask = buildLandMask(geojson);
+        const mask = tagLandMaskUrl(buildLandMask(geojson), geojson, getSharedLandGeoJSONUrl());
         if (mask) {
           setMaskData(mask);
           console.log('[OceanMask] Loaded local 50m land:', geojson.features.length, 'land features');
@@ -311,12 +311,12 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
       hiResUpgradedRef.current = true;
       getSharedLandGeoJSONHiRes()
         .then(geojson => {
-          const mask = geojson && buildLandMask(geojson);
+          const mask = geojson && tagLandMaskUrl(buildLandMask(geojson), geojson, getSharedLandGeoJSONHiResUrl());
           if (!mask) { hiResUpgradedRef.current = false; return; }
           setMaskData(mask);
           try {
             const src = mapInstance.getSource(MASK_SOURCE);
-            if (src && typeof src.setData === 'function') src.setData(mask);
+            if (src && typeof src.setData === 'function') { const data = landSourceData(mask); src.setData(data); armLandSourceFallback(mapInstance, MASK_SOURCE, mask, data); }
           } catch (e) { /* source not added yet — setMaskData covers the next sync */ }
           console.log(`[OceanMask] Land fill upgraded to 10m polygons for close zoom (${geojson.features?.length} features).`);
         })
@@ -397,11 +397,9 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
 
         if (!hasSrc) {
           try {
-            mapInstance.addSource(MASK_SOURCE, {
-              type: 'geojson',
-              data: maskData,
-              tolerance: 0.375,
-            });
+            const data = landSourceData(maskData); // the land file's URL when the mask is that file: no 2.7 MB copy to the worker
+            mapInstance.addSource(MASK_SOURCE, { type: 'geojson', data, tolerance: 0.375 });
+            armLandSourceFallback(mapInstance, MASK_SOURCE, maskData, data);
           } catch (e) {
             console.error('[OceanMask] Failed to add source:', e);
           }

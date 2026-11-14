@@ -230,3 +230,10 @@ def test_the_whatif_binds_the_served_reference_once_for_both_calls():
     # occurrences means `calc` and `base_calc`, which is what makes the delta composition-matched.
     assert body.count("served_reference_size_m=_served_ref") == 2, (
         "both sides of baseline_delta must grade on the same size curve (f504d52b)")
+
+
+@__import__("pytest").fixture(autouse=True)
+def _legacy_reference_curve(monkeypatch):
+    """These pins describe the reference-LESS legacy size curve. JAC-2's catalogue prior
+    (RATING_REF_PRIOR, default ON) replaces it; that path is pinned in test_reference_prior.py."""
+    monkeypatch.setenv("RATING_REF_PRIOR", "0")

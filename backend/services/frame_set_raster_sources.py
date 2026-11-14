@@ -108,9 +108,37 @@ class EcmwfOpenDataSource:
             values = np.ma.filled(np.ma.asarray(msg.values, dtype=float), np.nan)
         if round(lat0, 3) != 90.0:
             raise RuntimeError(f"unexpected grid origin {lat0}, {lon0}")
-        if step is not None and str(step) != str(f):
+        if step is not None and str(step) not in self._steps_for(f):
             raise RuntimeError(f"message step {step} != asked {f}")
         return self.spec["convert"](to_gfs_order(values, lon0))
+
+    def _steps_for(self, f):
+        """The GRIB stepRange values that mean forecast hour f: the instant itself."""
+        return (str(f),)
+
+
+class EcmwfPrecipSource(EcmwfOpenDataSource):
+    """ECMWF IFS precipitation in the step before a forecast hour, mm/h. `tp` is the total since the run began (metres of
+    water), so the step's amount is this step's total minus the previous step's (the first step has nothing to subtract: the
+    total at step 0 is zero): two byte ranges at most, both ECMWF's own fields. The steps are 3 h to 144 h and 6 h after, so a
+    frame is the MEAN rate over its step. A difference below zero is GRIB packing noise and becomes 0."""
+
+    def _steps_for(self, f):
+        return (str(f), f"0-{f}")              # an accumulation's stepRange is its window
+
+    def previous(self, f):
+        """The step before f in this set's hours (0 before the first)."""
+        hours = self.spec["hours"]
+        i = hours.index(f)
+        return hours[i - 1] if i > 0 else 0
+
+    def fetch(self, cycle, f):
+        import numpy as np
+        prev = self.previous(f)
+        amount = super().fetch(cycle, f)                         # mm since the run began (the spec converts m -> mm)
+        if prev > 0:
+            amount = amount - super().fetch(cycle, prev)
+        return np.where(np.isfinite(amount), np.maximum(amount, 0.0) / float(f - prev), np.nan)
 
 
 # ── ICON: DWD open data, icosahedral -> the 0.5-degree lattice ──────────────────────────────────────────────────────────
@@ -289,4 +317,4 @@ class IconOpenDataSource:
         return nearest_plane(self.spec["convert"](values), pick)
 
 
-SOURCES = {"ecmwf": EcmwfOpenDataSource, "icon": IconOpenDataSource}
+SOURCES = {"ecmwf": EcmwfOpenDataSource, "ecmwf_precip": EcmwfPrecipSource, "icon": IconOpenDataSource}
