@@ -214,14 +214,22 @@ def _cycle(row) -> str:
     return "unknown" if not fs._finite_number(age) else ("stale" if age >= STALE_CYCLE_H else "fresh")
 
 
+def _interp(row) -> str:
+    """HOW the sampler answered (skill_attribution.serve_path, recorded since #857). A category name only; the sampled
+    cell's coordinate is never read here. Rows older than #857 carry no key and read `not recorded`, never a guess."""
+    v = row.get("interp")
+    return v if isinstance(v, str) and v else "not recorded"
+
+
 def _worst(states, bad) -> str:
     return "unknown" if "unknown" in states else (bad if bad in states else states[0])
 
 
 def construction(rows, min_n: int = MIN_CELL_N) -> dict:
     """The built CONSENSUS shadow against the ledger's computed equal mean of its three members, on keys where all four
-    lanes scored the same observation, grouped by the three hypotheses for the +48/+72 h defect: (1) BUILD-time versus
-    PASS-time members (cycle age), (2) the tier each member answered from, (3) frame snapping. {(dim, group, lead): cell}."""
+    lanes scored the same observation, grouped by the hypotheses for the +48/+72 h defect: (1) BUILD-time versus
+    PASS-time members (cycle age), (2) the tier each member answered from, (3) frame snapping, (4) the sampler path
+    that answered for the shadow (`interp`). {(dim, group, lead): cell}."""
     by = _index(rows, MEMBERS + (SHADOW,))
     groups: Dict[tuple, list] = defaultdict(list)
     for k, s in by[SHADOW].items():
@@ -235,6 +243,11 @@ def construction(rows, min_n: int = MIN_CELL_N) -> dict:
             "member tiers": f"EURO={euro.get('tier') or 'unknown'} ICON={icon.get('tier') or 'unknown'}",
             "frames": f"shadow={_frame(s)} members={_worst([_frame(icon), _frame(euro)], 'snapped')}",
             "cycles": f"shadow={_cycle(s)} members={_worst([_cycle(icon), _cycle(euro)], 'stale')}",
+            # Hypothesis 2 for the +48/+72 h defect (2026-11-14): where a member lane found no stored product the
+            # shadow's value is the sampler's FALLBACK to a neighbouring ocean cell. `mixed` = a member tier is unknown.
+            "shadow interp": _interp(s),
+            "interp x members": f"shadow={_interp(s)} members="
+                                + ("stored" if euro.get("tier") and icon.get("tier") else "mixed"),
         }
         item = (s["hs_m"] - equal, s["hs_m"] - s["obs_hs_m"], equal - s["obs_hs_m"])
         for dim, group in features.items():

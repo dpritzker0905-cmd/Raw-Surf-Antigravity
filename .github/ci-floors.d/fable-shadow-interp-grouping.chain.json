@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 2,
+  "files": 0,
+  "branch": "fable/shadow-interp-grouping",
+  "date": "2026-11-14",
+  "note": "scored_rows_gate: construction grouped by the shadow's sampler path (2 tests)"
+}
