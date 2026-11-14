@@ -125,3 +125,34 @@ unplanted error is zero. I did not check GFS's speed bias in these rows to confi
 **Not done.** No rerun with a repaired control: these rows are now seen. A second pre-registration (C2 planted on the
 observed wind; nothing else changed) is for the director to ask for, and it should be scored by someone other than its
 author. An ECMWF arm needs a public-archive fetch that this brief did not allow.
+
+## 3. Second pre-registration, written 2026-11-14 02:57Z (the director accepted the VOID and asked for this)
+
+**What is and is not blind.** Sections 1 and 2 stand. I have now seen the section 2 table for GFS, HRRR alone, the lane
+and the blend, so for those four arms this is a RE-RUN WITH A REPAIRED CONTROL, not a blind test: its only job is to say
+whether the section 2 numbers may be quoted. The ECMWF arm is blind: no ECMWF value for these buoys has been fetched or
+read by anyone. The run is scored by another session (pr-verifier, local_ec32a6a8), not by me.
+
+**Unchanged from section 1, word for word:** the rows (file sha256 7f54c29e...56ab, the 2026-11-11 grade), the arms G,
+H, L, B and B's even-cycle rule, the rating call, the 3 x 8 grid, M1-M4, the cells and floors (300 rows, 10 days), the
+bootstrap (2000 draws, day blocks, seed 20261114), MATERIAL = interval excludes 0 and |difference| >= 1.0 point, the
+verdict rule per coast, hypotheses H1-H4, controls C0, C1 and C3, and the limits.
+
+**Changed: control C2.** +3 kn is planted on a copy of the OBSERVED wind, not on GFS. That copy's unplanted error is
+zero, so its M1 is purely the planted error. It must be > 0 with the interval clear of 0 in every testable cell. (The
+first C2 was planted on GFS, where it partly cancelled GFS's own error. That design was wrong.)
+
+**Added: the ECMWF arm (E).** Source: ECMWF open-data IFS 0.25 degree 10 m wind from the public mirror, no account or
+key, fetched on this machine only (`backend/scripts/fetch_ecmwf_wind_at_buoys.py`, written and NOT run; raw files stay
+outside git). Bilinear at the buoy position recorded by the grade. Same buoys, cycles and leads as the rows.
+- E: the ECMWF run of the same cycle hour at the same lead. Primary, because the rows pair every arm that way.
+- Ep: the ECMWF run 6 h earlier at lead + 6. ECMWF's files arrive hours after GFS's, so the same-cycle pairing
+  flatters it; Ep is what a live system would have had. Reported beside E. If E wins and Ep does not, the result is
+  "ECMWF is better only with a run we would not have had", and no recommendation follows.
+- Hypothesis H5, two-sided, no direction claimed: E against G, each cell. The same verdict rule applies with E among
+  the arms. E against B is compared on the even cycles only.
+- A cell where fewer than 300 rows have an ECMWF value is UNTESTABLE for E. If the fetch needs any account or key, or
+  the mirror does not hold the window, the E arm is UNTESTABLE and the run reports the other arms alone.
+
+**Stop conditions.** Any control failing voids the run again; there is no third design on these rows. The fetch and the
+`eccodes` package install both wait for the owner's word typed in the session that runs them.

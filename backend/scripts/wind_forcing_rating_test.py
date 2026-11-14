@@ -1,12 +1,16 @@
 """Offline, pre-registered test: which wind should the surf rating read (GFS, HRRR, the lane, the blend)?
 
-Pre-registration: docs/weather-program/log/2026-11-14-advisor-wind-forcing-prereg.md (section 1). This script
-implements that section and nothing else. It reads ONLY the matched rows `grade_wind_lane_ndbc.py --rows` wrote
+Pre-registration: docs/weather-program/log/2026-11-14-advisor-wind-forcing-prereg.md. Section 1 is the first
+registration (its run was VOID: control C2 was badly designed); section 3 is the second, which this script now
+implements: C2 is planted on the OBSERVED wind, and an optional ECMWF arm is joined from --ecmwf. It reads ONLY the matched rows `grade_wind_lane_ndbc.py --rows` wrote
 (buoy-observed wind and three forecasts at the buoy) and the checked-in skill-weight table. No network, no
 credentials, no backend.
 
 Run from backend/:
-    python scripts/wind_forcing_rating_test.py --rows <rows.jsonl> --out <result.json>
+    python scripts/wind_forcing_rating_test.py --rows <rows.jsonl> --out <result.json> [--ecmwf <ecmwf.jsonl>]
+
+--ecmwf: JSON lines {"id", "cycle", "lead", "e_kt", "e_dir", "ep_kt", "ep_dir"} written by
+fetch_ecmwf_wind_at_buoys.py (e_ = same cycle and lead; ep_ = the cycle 6 h earlier at lead + 6).
 """
 import argparse
 import inspect
@@ -106,7 +110,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--rows", required=True)
     ap.add_argument("--out", required=True)
+    ap.add_argument("--ecmwf")
     a = ap.parse_args()
+    ec = {}
+    if a.ecmwf:
+        for line in open(a.ecmwf):
+            e = json.loads(line)
+            ec[(str(e["id"]), e["cycle"], e["lead"])] = e
 
     # Breaking height: wind must not enter the height chain (pre-registered wiring fact).
     params = [p for p in inspect.signature(surf_point.estimate_surf_at).parameters if "wind" in p.lower()]
@@ -117,7 +127,7 @@ def main():
 
     rng_swap = random.Random(SEED)
     facing_idx = {c: [i for i in range(24) if NORMALS[i % 8] == f] for c, f in FACING.items() if f is not None}
-    cells = defaultdict(lambda: defaultdict(list))   # cell -> name -> list of (day, value)
+    cells = defaultdict(list)   # cell -> list of (day, even, {"arm.metric": value})
     counts = defaultdict(lambda: {"rows": 0, "days": set()})
     n_in = n_used = 0
     with open(a.rows) as fh:
@@ -139,7 +149,12 @@ def main():
             reg = "west" if coast == "west" else "east"
             arms["B"] = blend(r, wmax[reg][r["lead"]])
             arms["O"] = (r["obs_kt"], r["obs_dir"])                          # C0
-            arms["Gp3"] = (r["gfs_kt"] + 3.0, r["gfs_dir"])                  # C2
+            arms["Op3"] = (r["obs_kt"] + 3.0, r["obs_dir"])                  # C2 (second registration)
+            e = ec.get((str(r["id"]), r["cycle"], r["lead"]))
+            if e and e.get("e_kt") is not None:
+                arms["E"] = (e["e_kt"], e["e_dir"])
+            if e and e.get("ep_kt") is not None:
+                arms["Ep"] = (e["ep_kt"], e["ep_dir"])
             arms["Grot"] = (r["gfs_kt"], (r["gfs_dir"] + 180.0) % 360.0)     # C3
             swap = rng_swap.random() < 0.5                                   # C1
             arms["nG"], arms["nL"] = (arms["L"], arms["G"]) if swap else (arms["G"], arms["L"])
@@ -162,20 +177,17 @@ def main():
                 cell = (coast, r["lead"], sub)
                 counts[cell]["rows"] += 1
                 counts[cell]["days"].add(day)
-                for name, mm in row_m.items():
-                    for k, v in mm.items():
-                        cells[cell][f"{name}.{k}"].append((day, v, even))
+                cells[cell].append((day, even, {f"{name}.{k}": v for name, mm in row_m.items() for k, v in mm.items()}))
 
     def mean(cell, key, even_only=False):
-        v = [x[1] for x in cells[cell].get(key, []) if (x[2] or not even_only)]
+        v = [m[key] for (_, ev, m) in cells[cell] if key in m and (ev or not even_only)]
         return (sum(v) / len(v), len(v)) if v else (None, 0)
 
     def paired(cell, ka, kb, even_only=False):
-        xa, xb = cells[cell][ka], cells[cell][kb]
         by = defaultdict(lambda: [0.0, 0])
-        for (d, va, ev), (_, vb, _) in zip(xa, xb):
-            if ev or not even_only:
-                by[d][0] += va - vb
+        for (d, ev, m) in cells[cell]:
+            if ka in m and kb in m and (ev or not even_only):
+                by[d][0] += m[ka] - m[kb]
                 by[d][1] += 1
         if not by:
             return None
@@ -190,10 +202,10 @@ def main():
         testable = c["rows"] >= MIN_ROWS and len(c["days"]) >= MIN_DAYS and coast != "lakes"
         rec = {"coast": coast, "lead": lead, "subset": sub, "rows": c["rows"], "days": len(c["days"]),
                "testable": testable, "arms": {}, "arms_even": {}, "pairs": {}, "controls": {}}
-        for arm in ("G", "H", "L"):
+        for arm in ("G", "H", "L", "E", "Ep"):
             rec["arms"][arm] = {k: (round(mean(cell, f"{arm}.{k}")[0], 4) if mean(cell, f"{arm}.{k}")[0] is not None
                                     else None) for k in ("m1", "m2", "m1c", "m3", "miss", "false_alarm")}
-        for arm in ("G", "L", "B"):
+        for arm in ("G", "L", "B", "E"):
             v = mean(cell, f"{arm}.m1", even_only=True)
             rec["arms_even"][arm] = {"m1": round(v[0], 4) if v[0] is not None else None, "n": v[1]}
         # a positive diff means the FIRST arm has the larger rating error (is worse)
@@ -202,13 +214,18 @@ def main():
         rec["pairs"]["L_minus_G_facing"] = paired(cell, "L.m1c", "G.m1c") if FACING[coast] is not None else None
         rec["pairs"]["B_minus_G_even"] = paired(cell, "B.m1", "G.m1", even_only=True)
         rec["pairs"]["B_minus_L_even"] = paired(cell, "B.m1", "L.m1", even_only=True)
+        for nm, (ka, kb, ev) in {"E_minus_G": ("E.m1", "G.m1", False), "E_minus_H": ("E.m1", "H.m1", False),
+                                 "E_minus_L": ("E.m1", "L.m1", False), "Ep_minus_G": ("Ep.m1", "G.m1", False),
+                                 "E_minus_B_even": ("E.m1", "B.m1", True)}.items():
+            rec["pairs"][nm] = paired(cell, ka, kb, even_only=ev)
+        rec["ecmwf_rows"] = mean(cell, "E.m1")[1]
         o_m1, o_m2, o_m3 = mean(cell, "O.m1")[0], mean(cell, "O.m2")[0], mean(cell, "O.m3")[0]
         rec["controls"]["C0_obs_as_forecast"] = {"m1": o_m1, "m2": o_m2, "m3": o_m3,
                                                  "holds": o_m1 == 0.0 and o_m2 == 1.0 and o_m3 in (1.0, None)}
         null = paired(cell, "nL.m1", "nG.m1")
         rec["controls"]["C1_null_swap"] = {**null, "includes_zero": null["lo"] <= 0 <= null["hi"]}
-        pos = paired(cell, "Gp3.m1", "G.m1")
-        rec["controls"]["C2_plus3kn"] = {**pos, "detected": pos["lo"] > 0}
+        pos = paired(cell, "Op3.m1", "O.m1")
+        rec["controls"]["C2_plus3kn_on_observed"] = {**pos, "detected": pos["lo"] > 0}
         rot = mean(cell, "Grot.m3")[0]
         rec["controls"]["C3_rotated_m3"] = {"m3": round(rot, 4) if rot is not None else None,
                                             "holds": rot is None or rot < 0.40}
@@ -218,7 +235,7 @@ def main():
     out["controls_summary"] = {
         "C0_all_hold": all(c["controls"]["C0_obs_as_forecast"]["holds"] for c in main_cells),
         "C1_cells_excluding_zero": sum(1 for c in main_cells if not c["controls"]["C1_null_swap"]["includes_zero"]),
-        "C2_all_detected": all(c["controls"]["C2_plus3kn"]["detected"] for c in main_cells),
+        "C2_all_detected": all(c["controls"]["C2_plus3kn_on_observed"]["detected"] for c in main_cells),
         "C3_all_hold": all(c["controls"]["C3_rotated_m3"]["holds"] for c in main_cells),
         "testable_cells": len(main_cells)}
     cs = out["controls_summary"]
@@ -228,15 +245,16 @@ def main():
     json.dump(out, open(a.out, "w"), indent=1)
 
     print(f"rows read {n_in}, used {n_used}; run_valid={out['run_valid']}; controls {cs}")
-    print("coast lead rows days | M1 G / H / L | L-G [95%] call | H-G call | even: B-G, B-L")
+    print("coast lead rows days | M1 G / H / L / E | L-G [95%] call | H-G call | even: B-G, B-L | E-G, Ep-G")
     for c in out["cells"]:
         if c["subset"] != "all":
             continue
         p = c["pairs"]
         fmt = lambda x: "n/a" if x is None else f"{x['diff']:+.2f} [{x['lo']:+.2f}, {x['hi']:+.2f}] {x['call']}"  # noqa: E731
         print(f"{c['coast']:5s} L{c['lead']:<2d} {c['rows']:5d} {c['days']:2d} {'' if c['testable'] else 'UNTESTABLE '}| "
-              f"{c['arms']['G']['m1']} / {c['arms']['H']['m1']} / {c['arms']['L']['m1']} | {fmt(p['L_minus_G'])} | "
-              f"{fmt(p['H_minus_G'])} | {fmt(p['B_minus_G_even'])} ; {fmt(p['B_minus_L_even'])}")
+              f"{c['arms']['G']['m1']} / {c['arms']['H']['m1']} / {c['arms']['L']['m1']} / {c['arms']['E']['m1']} | "
+              f"{fmt(p['L_minus_G'])} | {fmt(p['H_minus_G'])} | {fmt(p['B_minus_G_even'])} ; {fmt(p['B_minus_L_even'])} | "
+              f"{fmt(p['E_minus_G'])} ; {fmt(p['Ep_minus_G'])}")
 
 
 if __name__ == "__main__":
