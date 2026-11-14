@@ -30,11 +30,11 @@ export const TopNavDrawerTray = ({ isOpen, onClose }) => {
   const focusWasInside = useRef(false);
   const childFocusReturn = useRef(null);
 
-  const closeChildDrawer = (setOpen, openerId, open) => {
+  const closeChildDrawer = (setOpen, openerId, open, restoreFocus = true) => {
     if (!open) return;
     const active = document.activeElement;
     const dialog = active?.closest('[role="dialog"]');
-    childFocusReturn.current = dialog || active === document.body ? { openerId, dialog } : null;
+    childFocusReturn.current = restoreFocus && (dialog || active === document.body) ? { openerId, dialog } : null;
     setOpen(false);
   };
 
@@ -297,7 +297,7 @@ export const TopNavDrawerTray = ({ isOpen, onClose }) => {
       {(isPhotographer || isGromParent) && (
         <PhotoToolsDrawer
           isOpen={photoToolsOpen}
-          onClose={() => closeChildDrawer(setPhotoToolsOpen, 'photo-tools', photoToolsOpen)}
+          onClose={options => closeChildDrawer(setPhotoToolsOpen, 'photo-tools', photoToolsOpen, options?.restoreFocus !== false)}
         />
       )}
     </>
