@@ -42,3 +42,46 @@ cases. Mutants: weight 0.6 -> 0.5 fails 16; banker's rounding in the key fails e
    ICON swell_2 instead of "unsupported", and capabilities say so. A real-product parity read before anything is served.
 3. The frame publisher picks it up as a set (after #816 and #832, which free the publish time).
 4. Client reads it (held for "UI merged"); before/after against 100 ms; not-worse filter; then the browser blend is retired.
+
+## 01:45Z (11-14) Director's decision and step 2: the stored product, its job, and a DARK serve gate
+
+Director (relaying the owner's B): B is a STORED DERIVED PRODUCT, not a frames-only set (the one-composition rule; frames stay
+byte-identical to /grid). Guardrails: whatever /grid or /point serves for ICON swell_2 today, switching them to the product goes behind a
+flag with a not-worse read and a SCOREBOARD row, and since the served bytes change, the flip is the owner's word through the director
+(D-065). Steps 3-4 held for "UI merged". ICON past 168 h and EURO's far end are parked; the "estimated from GFS/EURO" label is built
+able to show but off until the owner answers.
+
+**Correction to my own proposal:** ICON past 168 h is ALREADY a stored server product (`icon_marine_extension.py`, since 2026-07-11/15:
+persistence + GFS trend, global_coarse and global_mid; the browser blend is its fallback). The remaining browser-only pieces are ICON
+swell_2 (this PR) and EURO's per-request far-edge hold.
+
+**What /grid and /point serve for ICON swell_2 today:** "unsupported" (`grid_resolver.py`, `point_resolution.py`; capabilities
+`supports_grid=False`). The browser fetches GFS and EURO swell_2 and blends them. So any serving of the product changes those routes'
+answers: the serve gate ships DARK.
+
+**Changes:**
+- `icon_swell2_ingest.py` + scheduler stage "ICON Swell2 Blend" (core lane after ICON Marine Extended Estimates; pilots lane after EURO
+  Marine Global Mid): for each global tier (coarse, mid) and stored GFS swell_2 time, pair the nearest EURO swell_2 of that tier within
+  3 h (/grid's window; else GFS alone, 1/0, as the browser), blend (the proven port), save ICON swell_2 (provider `estimated`, the
+  browser's `estimate_basis` plus each input's `file@ingested_at`). CARRY: a time whose stored product names the same two inputs is not
+  loaded or re-uploaded. **DARK** (`ICON_SWELL2_STORED=1` arms; wired as a repo variable in forecast-ingest.yml and
+  forecast-ingest-pilots.yml, default '0'). Why dark: measured 256 ms CPU and 2.75 MB per mid-tier product, so a full mid rebuild (113
+  frames, every new GFS run) is ~29 s and ~310 MB of uploads, ~1.2 GB a day, that nothing reads until serving is approved.
+- `icon_swell2_serve.py` + the two refusal sites: with `ICON_SWELL2_SERVE=1`, /grid and /point serve the stored product where one covers
+  the asked time (the +-3 h candidate search), else "unsupported" as today (never a live upstream fetch for a layer ICON lacks); a
+  failing check fails closed. **DARK** (default '0').
+- Stored-cell mapping: the browser's unavailable cell (direction null) is stored as direction 0 with `is_valid` False (an invalid cell
+  is never drawn, so the frame is the same); `height` (= speed) and `isOcean` are not schema fields.
+
+**Fidelity limits, stated:** the browser blends whatever /grid gives it for the viewport. At world span EURO comes Gulf-filled; at a
+mid-zoom clip it is plain; so in the Gulf the browser's blend already differs by zoom. The stored product blends the stored (plain)
+inputs; served at world span it would go through the same serve-time Gulf fill as other ICON products. Whether that equals today's
+world-span browser blend byte for byte is exactly the parity read owed before any flip (next).
+
+Tests (chain lane, +29 tests, +3 files in total): the port (20), the job (5: both tiers and basis, GFS alone beyond 3 h, carry and a
+re-ingested input, dark by default and off), the serve gate (4: dark refuses even with a product, on serves only where one covers the
+time, fails closed, both routes ask the gate first). Mutants: the carry off fails exactly the carry test. 797 passed in the 31 files that
+read the ingest workflows; 204 passed in the resolver, capabilities and ICON swell_2 suites; file-size gate passes (grid_resolver.py 785).
+
+**Owed before any flip (to the director):** a real-product parity read (the stored product served by /grid vs the browser's blend of
+/grid's GFS and EURO answers, world span and mid clip, Gulf included), the not-worse read, a SCOREBOARD row, and the owner's word.
