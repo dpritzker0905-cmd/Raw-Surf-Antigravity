@@ -23,6 +23,8 @@ import datetime as dt
 import json
 import math
 import os
+import time
+import urllib.error
 import urllib.request
 
 BASE = "https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com"
@@ -30,26 +32,47 @@ MS_TO_KT = 1.943844
 LEADS = (3, 12, 24, 36)
 
 
-def url(cyc, step):
-    stream = "oper" if cyc.hour in (0, 12) else "scda"
+def url(cyc, step, stream="oper"):
     return f"{BASE}/{cyc:%Y%m%d}/{cyc:%H}z/ifs/0p25/{stream}/{cyc:%Y%m%d%H}0000-{step}h-{stream}-fc.grib2"
 
 
 def _get(u, rng=None):
+    """One GET. The mirror answers 503 SlowDown when asked too fast: wait and retry. 404 returns None."""
     req = urllib.request.Request(u, headers={"Range": f"bytes={rng[0]}-{rng[1]}"} if rng else {})
-    with urllib.request.urlopen(req, timeout=120) as r:
-        return r.read()
+    for attempt in range(8):
+        try:
+            time.sleep(0.4)
+            with urllib.request.urlopen(req, timeout=120) as r:
+                return r.read()
+        except urllib.error.HTTPError as e:
+            if e.code == 404:
+                return None
+            if e.code not in (429, 500, 503):
+                raise
+        except (urllib.error.URLError, TimeoutError):
+            pass
+        time.sleep(min(60, 3 * 2 ** attempt))
+    raise RuntimeError(f"gave up on {u}")
 
 
 def field_bytes(cache, cyc, step, param):
     path = os.path.join(cache, "ecmwf", f"{cyc:%Y%m%d%H}_{step:03d}_{param}.grib2")
     if os.path.exists(path):
         return open(path, "rb").read()
-    u = url(cyc, step)
-    for line in _get(u[:-6] + ".index").decode().splitlines():
+    # The mirror keeps 00/06/12/18Z under "oper" (checked 2026-11-14); "scda" is tried for older layouts.
+    for stream in ("oper", "scda"):
+        u = url(cyc, step, stream)
+        idx = _get(u[:-6] + ".index")
+        if idx is not None:
+            break
+    else:
+        return None
+    for line in idx.decode().splitlines():
         m = json.loads(line)
         if m.get("param") == param and m.get("levtype") == "sfc":
             blob = _get(u, (m["_offset"], m["_offset"] + m["_length"] - 1))
+            if blob is None:
+                return None
             os.makedirs(os.path.dirname(path), exist_ok=True)
             open(path, "wb").write(blob)
             return blob
@@ -135,6 +158,8 @@ def main():
                                          "e_kt": e[0] if e else None, "e_dir": e[1] if e else None,
                                          "ep_kt": p[0] if p else None, "ep_dir": p[1] if p else None}) + "\n")
             memo.clear()
+            fh.flush()
+            print(f"{cyc_s} done ({n} lines)", flush=True)
     print(f"wrote {n} lines, {missing} without a same-cycle ECMWF value")
 
 
