@@ -298,6 +298,18 @@ async function runCombo(rr, offset, vpName, layer, model, zoom, base = L.BASE, a
     res.hasWheel = hasWheel;
     // Wheel focus (desktop and phone alike: the key path is the wheel's own commit path).
     let hour = 0; let radarPrev = null;
+    // WHY (2026-11-14, the fog/temp/water_temp instant lane): per step, which path drew the frame (own frames from our CDN, or
+    // the Open-Meteo .om path) and the own-frames refusals counted during the step (ownRasterFrames.noteMiss), so a slow step
+    // carries its cause. `why.path`: 'own' | 'om' | 'other' | null (nothing drawn); `why.misses`: the counters that moved.
+    const snapWhy = () => page.evaluate(() => {
+      const o = window.__RAW_OWN_RASTER__ || {}; const d = window.__RASTER_DRAWN__ || {};
+      return { misses: { ...(o.misses || {}) }, shownUrl: (d.shown && d.shown.url) || null, ownShown: (o.shown && o.shown.path) || null };
+    });
+    const whyOf = (w0, w1) => {
+      const misses = {}; for (const k of Object.keys(w1.misses)) { const n = w1.misses[k] - (w0.misses[k] || 0); if (n > 0) misses[k] = n; }
+      const url = String(w1.shownUrl || '');
+      return { path: url.startsWith('om://') ? 'om' : (w1.ownShown && w1.ownShown !== w0.ownShown ? 'own' : (w1.ownShown ? 'own' : (url ? 'other' : null))), misses };
+    };
     const doStep = async (kind, i) => {
       const before = await page.evaluate(() => { const w = window.__RL__.wheel() || document.querySelector('[role="slider"][aria-label*="timeline wheel"]'); return { v: w ? Number(w.getAttribute('aria-valuenow')) : null, max: w ? Number(w.getAttribute('aria-valuemax')) : null, id: window.__RL__.last && window.__RL__.last.id }; });
       radarPrev = before.id;
@@ -311,6 +323,7 @@ async function runCombo(rr, offset, vpName, layer, model, zoom, base = L.BASE, a
         window.__RL__.wv += 1; return window.__RL__.wv;
       }, { target, model, prevId: radarPrev, radar: layer === 'radar' });
       const truth = await page.evaluate(TRUTH);
+      const why0 = await snapWhy();
       const wall = Date.now();
       let t;
       if (hasWheel) {
@@ -330,8 +343,9 @@ async function runCombo(rr, offset, vpName, layer, model, zoom, base = L.BASE, a
       }
       if (layer !== 'radar') hour = target;
       const ms = await waitFull(page, rr, STEP_TIMEOUT);
+      const why = whyOf(why0, await snapWhy());
       await sleep(DWELL);
-      actions.push({ kind, i, t, wall, target, timedOut: ms == null, truth, wv });
+      actions.push({ kind, i, t, wall, target, timedOut: ms == null, truth, wv, why });
     };
     for (let i = 0; i < STEPS; i++) await doStep('step', i);
     await doStep('long', STEPS);
@@ -347,7 +361,7 @@ async function runCombo(rr, offset, vpName, layer, model, zoom, base = L.BASE, a
       const net = rr.window(a.wall, next ? next.wall : wallEnd);
       const tb = next ? next.truth : truthEnd;
       return { kind: a.kind, i: a.i, target: a.target, timedOut: a.timedOut, ...c, req: net.n, bytes: net.bytes, live: net.live, refused: net.refused, byHost: net.byHost,
-        decodes: tb[0] - a.truth[0], tileCacheHits: tb[1] - a.truth[1] };
+        decodes: tb[0] - a.truth[0], tileCacheHits: tb[1] - a.truth[1], why: a.why || null };
     });
     if (RELOAD && layer !== 'radar') {
       // Same browser, new page load: the in-memory caches are gone, Cache Storage is not. Toggle the layer on at hour 0 again.
