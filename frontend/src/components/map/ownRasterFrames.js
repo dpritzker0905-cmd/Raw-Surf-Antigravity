@@ -108,11 +108,18 @@ const W = () => (typeof window !== 'undefined' ? window : {});
 // flip pressure on?". GFS, EURO and ICON each draw their own published set (a scrub step rebinds a resident texture instead of
 // decoding a whole-world .om hour), with the labelled isobars and H/L markers that ride the own-frames field.
 // Kill: window.__RAW_DISABLE_RASTER_OWN_PRESSURE__ = true (the .om colour field, no isobars, as before).
-// AIR TEMPERATURE, FOG, WATER TEMPERATURE (2026-11-14, the director's overnight lane, relaying the owner 23:35 EST: "improve the
-// fog, air temp, and water temp along with the others, so that all lanes are upgrades and instant"): client-only, ON; a layer whose
-// set is not published yet falls back to the .om path as before. Kills: __RAW_DISABLE_RASTER_OWN_TEMPERATURE__,
-// __RAW_DISABLE_RASTER_OWN_FOG__, __RAW_DISABLE_RASTER_OWN_WATER_TEMP__ (each the .om path, as before).
-export const DEFAULT_ON_LAYERS = Object.freeze(['satellite', 'pressure', 'temperature', 'fog', 'water_temp']);
+// FOG (2026-11-14, the director's overnight lane, relaying the owner 23:35 EST: "improve the fog, air temp, and water temp along with
+// the others, so that all lanes are upgrades and instant"): ON for every model; its set is the .om path's own grid (GFS 0.25 deg).
+// A set not published yet falls back to the .om path as before. Kill: __RAW_DISABLE_RASTER_OWN_FOG__.
+export const DEFAULT_ON_LAYERS = Object.freeze(['satellite', 'pressure', 'fog']);
+// PER-MODEL DEFAULTS (2026-11-14), under the director's resolution rule: a layer moves to own frames only where its set is at least
+// as fine as what the .om path draws today, or where today shows nothing.
+//  - temperature: GFS only (0.5 deg + the elevation downscale against the .om gfs013; the director's question). EURO (0.5 deg vs
+//    ifs025) and ICON (0.5 deg vs dwd_icon) stay on the .om path until sets at their native grid exist.
+//  - water_temp: EURO (ECMWF skt at 0.25 deg = ifs025) and ICON (today transparent: no ICON skin temperature; GFS's 0.25 deg set
+//    fills it). GFS stays on the .om path (gfs013, 0.117 deg, is finer than the 0.25 deg set).
+// Kills: __RAW_DISABLE_RASTER_OWN_TEMPERATURE__, __RAW_DISABLE_RASTER_OWN_WATER_TEMP__ (each the .om path, as before).
+export const DEFAULT_ON_MODELS = Object.freeze({ temperature: Object.freeze(['GFS']), water_temp: Object.freeze(['EURO', 'ICON']) });
 
 /** Is the own-frames path on for this layer and model? Synchronous, no I/O. A model without its own set (or with its set killed)
  *  stays on the .om path, which draws that model as before (never another model's frames under its label). */
@@ -126,7 +133,7 @@ export function ownFramesOn(layer, model = 'GFS') {
   if (lever === undefined || lever === null || lever === false) {
     try { lever = w.localStorage ? w.localStorage.getItem('__RAW_RASTER_OWN_FRAMES__') : null; } catch (e) { lever = null; }
   }
-  const covered = leverCovers(lever, layer) || DEFAULT_ON_LAYERS.includes(layer);
+  const covered = leverCovers(lever, layer) || DEFAULT_ON_LAYERS.includes(layer) || (DEFAULT_ON_MODELS[layer] || []).includes(up(model));
   return covered && staticFramesEnabled() && !!staticFramesBase() && staticSetEnabled(key);
 }
 

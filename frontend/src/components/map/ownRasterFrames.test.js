@@ -1,7 +1,7 @@
 import {
   planWindow, toField, ownFramesOn, ownIndex, lastIndex, frameAt, framesOf, setWanted, getField, MAX_IN_FLIGHT, MISSING, OWN_RASTER_SETS,
   combinedFrames, combinedFrameAt, setKey, TEMP_FIELD, CLOUD_FIELD, PRECIP_FIELD, NO_DATA_BELOW, leverCovers, DEFAULT_ON_LAYERS,
-  _resetOwnRasterFramesForTest, FAIL_BACKOFF_MS, FOG_FIELD, landFill, tel,
+  _resetOwnRasterFramesForTest, FAIL_BACKOFF_MS, FOG_FIELD, landFill, tel, DEFAULT_ON_MODELS,
 } from './ownRasterFrames';
 import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
 
@@ -191,6 +191,11 @@ describe('air temperature (2026-10-24)', () => {
     expect(OWN_RASTER_SETS.temperature.field).toBe(TEMP_FIELD);
     expect(TEMP_FIELD).toBe(7);
     expect(OWN_RASTER_SETS.temperature.fallback).toBeNull();
+    // default: GFS only (resolution rule: EURO / ICON sets are 0.5 deg, coarser than their .om grids); the lever reaches all three
+    expect(ownFramesOn('temperature', 'GFS')).toBe(true);
+    expect(ownFramesOn('temperature', 'EURO')).toBe(false);
+    expect(ownFramesOn('temperature', 'ICON')).toBe(false);
+    window.__RAW_RASTER_OWN_FRAMES__ = 'temperature';
     for (const m of ['GFS', 'EURO', 'ICON']) expect(ownFramesOn('temperature', m)).toBe(true);
     staticSetEnabled.mockImplementation((key) => key !== 'EURO/weather/temperature/global_0p5');
     expect(ownFramesOn('temperature', 'EURO')).toBe(false);
@@ -240,7 +245,8 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
     expect(ownFramesOn('satellite', 'GFS')).toBe(false);
   });
   test('ON by default (D-052; pressure 2026-11-12; air temp, fog, water temp 2026-11-14): no lever needed; rain stays dark', () => {
-    expect(DEFAULT_ON_LAYERS).toEqual(['satellite', 'pressure', 'temperature', 'fog', 'water_temp']);
+    expect(DEFAULT_ON_LAYERS).toEqual(['satellite', 'pressure', 'fog']);
+    expect(DEFAULT_ON_MODELS).toEqual({ temperature: ['GFS'], water_temp: ['EURO', 'ICON'] });
     expect(ownFramesOn('satellite', 'GFS')).toBe(true);
     expect(ownFramesOn('satellite', 'EURO')).toBe(false); // no EURO cloud set: the .om path draws EURO as before
     expect(ownFramesOn('temperature', 'GFS')).toBe(true);
@@ -425,14 +431,17 @@ describe('fog and water temperature (2026-11-14)', () => {
     expect(OWN_RASTER_SETS.water_temp.landFill).toBe(true);
   });
 
-  test('ON by default with no lever', () => {
-    for (const m of ['GFS', 'EURO', 'ICON']) { expect(ownFramesOn('fog', m)).toBe(true); expect(ownFramesOn('water_temp', m)).toBe(true); }
+  test('ON by default with no lever: fog for every model; water temp for EURO (skt = ifs025) and ICON (today blank), not GFS', () => {
+    for (const m of ['GFS', 'EURO', 'ICON']) expect(ownFramesOn('fog', m)).toBe(true);
+    expect(ownFramesOn('water_temp', 'GFS')).toBe(false);     // gfs013 (0.117 deg) on the .om path is finer than the 0.25 deg set
+    expect(ownFramesOn('water_temp', 'EURO')).toBe(true);
+    expect(ownFramesOn('water_temp', 'ICON')).toBe(true);
   });
 
   test('OFF PATH: __RAW_DISABLE_RASTER_OWN_FOG__ puts fog back on the .om path and touches no other layer', () => {
     window.__RAW_DISABLE_RASTER_OWN_FOG__ = true;
     for (const m of ['GFS', 'EURO', 'ICON']) expect(ownFramesOn('fog', m)).toBe(false);
-    expect(ownFramesOn('water_temp', 'GFS')).toBe(true);
+    expect(ownFramesOn('water_temp', 'EURO')).toBe(true);
     expect(ownFramesOn('temperature', 'GFS')).toBe(true);
   });
 

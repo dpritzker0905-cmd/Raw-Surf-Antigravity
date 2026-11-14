@@ -1,6 +1,6 @@
 import {
   loadDownscale, validDescriptor, downscaleKilled, setDownscaled, getDownscaled, subscribeDownscaled, DZ_DESCRIPTOR, DZ_DESCRIPTOR_LO,
-  preferredVariant,
+  preferredVariant, NOT_PUBLISHED_MS,
   _resetDownscaleForTest,
 } from './ownRasterDownscale';
 import { fetchFrameBytes, staticFramesBase } from './staticFrames';
@@ -22,6 +22,8 @@ beforeEach(() => {
 afterEach(() => {
   _resetDownscaleForTest();
   delete window.__RAW_DISABLE_RASTER_TEMP_DOWNSCALE__;
+  delete window.__RAW_DISABLE_DZ_UNPUBLISHED_CACHE__;
+  jest.restoreAllMocks();
   delete window.__RAW_OWN_RASTER__;
   delete global.fetch;
 });
@@ -39,10 +41,11 @@ test('the asset loads once per page: the descriptor (no-cache), then every tile 
   expect(window.__RAW_OWN_RASTER__.downscale.wire).toBe(18);
 });
 
-test('not published, a short tile, the kill switch: no asset (the field draws as is), and a failure retries next time', async () => {
+test('not published, a short tile, the kill switch: no asset (the field draws as is), and a load failure retries next time', async () => {
   global.fetch = okFetch({}, 404);
   expect(await loadDownscale()).toBeNull();
   expect(window.__RAW_OWN_RASTER__.misses.dz_not_published).toBe(1);
+  _resetDownscaleForTest();                                              // (the not-published answer is cached: see the next test)
   global.fetch = okFetch(desc);
   fetchFrameBytes.mockImplementation(() => Promise.resolve({ buffer: new Uint8Array(15).buffer, wire: 9 }));
   expect(await loadDownscale()).toBeNull();                             // a fresh attempt (the 404 was not cached)
@@ -50,6 +53,26 @@ test('not published, a short tile, the kill switch: no asset (the field draws as
   window.__RAW_DISABLE_RASTER_TEMP_DOWNSCALE__ = true;
   expect(downscaleKilled()).toBe(true);
   expect(await loadDownscale()).toBeNull();
+});
+
+test('NOT PUBLISHED (the owner, 2026-11-14: a 400 on every engage): asked once per 10 minutes, then again', async () => {
+  global.fetch = okFetch({}, 400);
+  const now = jest.spyOn(Date, 'now').mockReturnValue(1_000_000);
+  expect(await loadDownscale()).toBeNull();
+  expect(await loadDownscale()).toBeNull();
+  expect(await loadDownscale()).toBeNull();
+  expect(global.fetch).toHaveBeenCalledTimes(1);                         // one 400, not three
+  now.mockReturnValue(1_000_000 + NOT_PUBLISHED_MS + 1);
+  global.fetch = okFetch(desc);
+  expect(await loadDownscale()).not.toBeNull();                          // published since: the next ask finds it
+});
+
+test('OFF PATH: __RAW_DISABLE_DZ_UNPUBLISHED_CACHE__ asks on every call, as before', async () => {
+  window.__RAW_DISABLE_DZ_UNPUBLISHED_CACHE__ = true;
+  global.fetch = okFetch({}, 400);
+  expect(await loadDownscale()).toBeNull();
+  expect(await loadDownscale()).toBeNull();
+  expect(global.fetch).toHaveBeenCalledTimes(2);
 });
 
 test('the descriptor check: version, uint8, 1-2 tiles whose inner columns cover the lattice', () => {

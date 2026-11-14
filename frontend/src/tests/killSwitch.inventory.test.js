@@ -75,6 +75,8 @@ const KILL_SWITCHES_TESTED = new Set([
   // ownRasterFrames.test.js ("OFF PATH: __RAW_DISABLE_RASTER_OWN_FOG__ puts fog back on the .om path" / "...WATER_TEMP__ puts water temp back"; 2026-11-14)
   '__RAW_DISABLE_RASTER_OWN_FOG__',
   '__RAW_DISABLE_RASTER_OWN_WATER_TEMP__',
+  // components/map/ownRasterDownscale.test.js ("OFF PATH: __RAW_DISABLE_DZ_UNPUBLISHED_CACHE__ asks on every call"; 2026-11-14)
+  '__RAW_DISABLE_DZ_UNPUBLISHED_CACHE__',
   // components/map/ownRasterLayer.test.js ("OFF PATH: the kill is the hard cut, as before"; the value blend, 2026-11-12)
   '__RAW_DISABLE_RASTER_VALUE_BLEND__',
   // components/map/landMaskSource.test.js ("OFF PATH: the kill gives the object, as before"; 2026-11-13)
