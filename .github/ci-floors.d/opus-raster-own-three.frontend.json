@@ -1,6 +1,6 @@
 {
   "lane": "frontend",
-  "tests": 13,
+  "tests": 16,
   "files": 1,
   "branch": "opus/raster-own-three",
   "date": "2026-11-14",
