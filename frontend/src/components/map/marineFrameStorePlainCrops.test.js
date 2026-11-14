@@ -81,7 +81,7 @@ const landAll = async (pick = () => true) => {
 const parse = async (key, k, parsed) => { for (const fn of mockSF.hooks) fn({ key, frame: mockSF.byKey[key].frames[k], parsed, buffer: null }); await flush(); };
 const euroStep = (k) => RT.tryShowStoredFrame({ model: 'EURO', layer: 'waves', hourOffset: k * 3, requestedValidTime: vt(k) });
 const snap = () => window.__RAW_FRAME_STORE__;
-afterEach(() => { ['__RAW_DISABLE_PLAIN_SET_CROPS__', '__MARINE_DRAWN__'].forEach((k) => delete window[k]); setCachedManifest(null); });
+afterEach(() => { ['__RAW_DISABLE_PLAIN_SET_CROPS__', '__RAW_DISABLE_CROP_AFTER_FOREIGN__', '__MARINE_DRAWN__'].forEach((k) => delete window[k]); setCachedManifest(null); });
 
 describe('EURO/ICON mid-zoom clips come from the PLAIN set (a viewport /grid is never Gulf-filled)', () => {
   it('a EURO clip commit is the crop resident of the plain set, and a wheel step shows EURO\'s own window bytes from the store', async () => {
@@ -184,5 +184,54 @@ describe('EURO/ICON mid-zoom clips come from the PLAIN set (a viewport /grid is 
     expect(snap().commits.resident_crop).toBeUndefined();
     expect(mockSF.loads.filter((l) => l.key === EURO)).toHaveLength(0);
     expect(euroStep(1)).toBe(false);
+  });
+});
+
+// CROP AFTER A FOREIGN CLIP (2026-11-13, the owner's z4.6 ICON miss): past 168 h ICON is a client blend, and at mid zoom its /grid clip
+// is one lattice cell smaller on each side than the plain set's window (traced: 28 x 23 against 30 x 24). After a blend hour the engine
+// holds that box, the plain window is no longer what it holds, and every stored step was refused (`crop_only_set` x20) until the normal
+// path's commit landed. EURO stands in for ICON here (same plain-set path); the blend is a clip with no served time and no product id.
+describe("CROP AFTER A FOREIGN CLIP: a step after a blend-like clip shows this set's window of the engine's own box", () => {
+  const dLng = (IG.bounds.east - IG.bounds.west) / (IG.cols - 1); const dLat = (IG.bounds.north - IG.bounds.south) / (IG.rows - 1);
+  const SUB = { c0: W0.c0 + 1, r0: W0.r0 + 1, cols: W0.cols - 2, rows: W0.rows - 2 };
+  const SUB_BOUNDS = { west: IG.bounds.west + SUB.c0 * dLng, south: IG.bounds.south + SUB.r0 * dLat,
+    east: IG.bounds.west + (SUB.c0 + SUB.cols - 1) * dLng, north: IG.bounds.south + (SUB.r0 + SUB.rows - 1) * dLat };
+  const BLEND = { bounds: SUB_BOUNDS, cols: SUB.cols, rows: SUB.rows, __sourceModel: 'EURO', __componentLayer: 'waves', is_estimated: true };
+  const SUB_WIN = frameWindowOf(BLEND, IG);
+  const SUB_PACK = packWindow(EURO_PARSED, SUB_WIN);
+  async function afterBlend() {
+    const { calls, eng } = setup({ model: 'EURO' });
+    RT.noteCommitted(CLIP('EURO', 0), { hour: 0, model: 'EURO', layer: 'waves' });
+    await landAll((l) => l.key === EURO);
+    expect(snap().crop.resident.setKey).toMatch(/^EURO\/waves\/world\//);
+    // the blend hour commits: the engine now holds the smaller box
+    eng._texWidth = SUB_PACK.cols; eng._texHeight = SUB_PACK.rows; eng._waveData.bounds = { ...SUB_PACK.bounds };
+    eng._waveData.waveGrid = { cols: SUB_PACK.cols, rows: SUB_PACK.rows, bounds: { ...SUB_PACK.bounds }, hourOffset: 27, __sourceModel: 'EURO', __componentLayer: 'waves' };
+    RT.noteCommitted(BLEND, { hour: 27, model: 'EURO', layer: 'waves' });
+    expect(snap().commits.no_served_time).toBe(1);
+    await parse(EURO, 1, EURO_PARSED);
+    calls.length = 0;
+    return { calls, eng };
+  }
+
+  it("shows the plain set's window of the blend's box with its own chl/bath, and later steps take the crop resident", async () => {
+    const { calls, eng } = await afterBlend();
+    expect(snap().crop.resident).toMatchObject({ foreign: true, setKey: null });
+    expect(euroStep(1)).toBe(true);
+    expect(firstDiff(calls.find((c) => c[0] === eng._residentWaveTex)[1], SUB_PACK.bytes)).toBe(-1);   // the encoder's bytes, that box
+    expect(calls.some((c) => c[0] === eng._residentChlTex)).toBe(true);                                // its own chl/bath
+    expect(eng._waveData.waveGrid).toMatchObject({ served_valid_time: vt(1), productId: 'euro1', __fromFrameStore: true });
+    expect(snap().crop.resident.setKey).toMatch(/^EURO\/waves\/world\//);
+    expect(snap().crop.resident.window.key).toBe(SUB_WIN.key);
+    expect(snap().shows.cropForeign).toBe(1);
+    expect(snap().shows.misses.crop_only_set).toBeUndefined();
+  });
+
+  it('OFF PATH: with the kill the step is refused (crop_only_set) and waits for the normal path, as before', async () => {
+    window.__RAW_DISABLE_CROP_AFTER_FOREIGN__ = true;
+    await afterBlend();
+    expect(euroStep(1)).toBe(false);
+    expect(snap().shows.misses.crop_only_set).toBe(1);
+    expect(snap().shows.cropForeign).toBeUndefined();
   });
 });

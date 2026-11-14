@@ -42,6 +42,32 @@ export function layerUploadIsStale(engine, win) {
 }
 
 /**
+ * STALE REPLAY AFTER A STORE SHOW (2026-11-12, the ICON step after a blend hour; log 2026-11-12-opus-move3-six-misses.md). The upload
+ * effect re-runs on every cursor change with the layer's LAST grid (dataRef). Normally that re-run is a duplicate and skipped; after a
+ * store show `layerUploadIsStale` turns the skip off (rule 1 above), so a cursor move alone re-uploaded the old grid over the store's
+ * frame. Traced: a PageDown run from h336 back to h126 re-committed the h336 ICON blend at cursor h144 and h130 (h128, h127), the map
+ * was handed h336 data under the cursor's label, and each re-commit cleared the store's resident so its next steps waited for /grid.
+ * True only for a REPLAY: the very grid object the layer last uploaded, whose own hour is not the cursor's, while the engine holds a
+ * store show. Any new grid object (a zoom-out world frame, a fresh commit) still uploads.
+ * SAME OBJECT, ANOTHER HOUR (advisor's question, 2026-11-13): the normal path CAN hand back the same object for a different cursor
+ * hour (a cached grid may be shared; useMarineDataFetcherHelpers stamps `hourOffset` only when it is missing, the 53b1ec66
+ * semantics). That re-delivery does not change `data` (same object, no re-render), so it is this very re-run. The store's frame on
+ * screen is newer in DRAW time but not necessarily nearer the cursor in FORECAST hour (advisor's sequence: G stamped h138, the store
+ * then showed h137, the cursor moves to h139 where the store has no frame: G is the nearer frame). So the replay is refused only when
+ * its own hour is NO NEARER the cursor than the hour the store's frame was shown for (`waveGrid.hourOffset` of the show); a nearer
+ * replay uploads, as it did before. The traced case (G h336, store h168 / h144, cursor h144) is refused either way.
+ * Kill: window.__RAW_DISABLE_STALE_REPLAY_GUARD__ = true.
+ */
+export function isStaleReplayOverShow(engine, grid, lastUploadedGrid, cursorHour, win) {
+  if (W(win).__RAW_DISABLE_STALE_REPLAY_GUARD__ === true || !grid || grid !== lastUploadedGrid) return false;
+  if (!layerUploadIsStale(engine, win)) return false;
+  const h = grid.hourOffset !== undefined ? grid.hourOffset : (grid.grid && grid.grid.hourOffset);
+  if (!(typeof h === 'number' && typeof cursorHour === 'number' && h !== cursorHour)) return false;
+  const shown = engine._waveData.waveGrid.hourOffset;          // the hour the store's show was drawn for
+  return !(typeof shown === 'number' && Math.abs(h - cursorHour) < Math.abs(shown - cursorHour));
+}
+
+/**
  * True when the guard must hold a regional `resident` against `incoming` only while it covers the whole view: `incoming` is a world
  * grid of the same model and layer, no coarser than the resident (the clip's own field), and no rating protection applies.
  */

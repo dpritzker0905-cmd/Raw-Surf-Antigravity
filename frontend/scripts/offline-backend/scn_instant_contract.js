@@ -48,6 +48,31 @@ const CHIP = { waves: 'Waves', swell_1: 'Swell', swell_2: 'Swell 2', wind_waves:
 const WHEEL = '[role="slider"][aria-label*="Forecast timeline"]';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 if (!CDN_DIR) throw Error('CDN_DIR=<published static frames> is required');
+// ⚠️ AGED-STORE PRE-CHECK (2026-11-13, mechanised lesson: an aged lab store distorted two tables in one day, the 06:50Z "six misses"
+// and run 3 of the z4.6 crop A/B). serve_synthetic.py anchors the store to its build time, so its tail falls behind now + the plan's
+// farthest jump within hours, and those steps then read `no_frame_in_window`, nearest-frame mislabels and /grid fallbacks that have
+// nothing to do with the build under test. Refuse to start unless every global set of the asked models and layers ends at least
+// STORE_MARGIN_H (default 3, a whole matrix) past now + that jump. ALLOW_AGED_STORE=1 runs anyway, on purpose.
+(() => {
+  const far = Math.max(0, ...PLAN.map((t) => (t.startsWith('J:') ? +t.slice(2) : 0)));
+  const margin = +(process.env.STORE_MARGIN_H || 3);
+  const need = Date.now() + (far + margin) * 3600000;
+  let latest = null;
+  try { latest = JSON.parse(fs.readFileSync(path.join(CDN_DIR, 'v1', 'latest.json'), 'utf8')); } catch (e) { latest = null; }
+  if (!latest || !latest.sets) { console.warn('[store-age] no v1/latest.json under CDN_DIR: not checked'); return; }
+  const short = [];
+  for (const [key, rec] of Object.entries(latest.sets)) {
+    const [m, , l, region] = key.split('/');
+    if (!MODELS.includes(m) || !LAYERS.includes(l) || !/^global_mid/.test(region || '')) continue;
+    let last = null;
+    try { const idx = JSON.parse(fs.readFileSync(path.join(CDN_DIR, rec.index), 'utf8')); last = idx.frames[idx.frames.length - 1].valid_time; } catch (e) { last = null; }
+    if (!last || Date.parse(last) < need) short.push(`${key} ends ${last}`);
+  }
+  const msg = `[store-age] need every tail >= now + ${far} h + ${margin} h = ${new Date(need).toISOString()}`;
+  if (!short.length) { console.log(`${msg}: ok`); return; }
+  if (process.env.ALLOW_AGED_STORE === '1') { console.warn(`${msg}: ${short.length} short, ALLOW_AGED_STORE=1 runs anyway: ${short.slice(0, 3).join('; ')}`); return; }
+  throw Error(`${msg}; ${short.length} set(s) end earlier (${short.slice(0, 3).join('; ')}). Rebuild the store (serve_synthetic.py --horizon 348 or more) or set ALLOW_AGED_STORE=1.`);
+})();
 // ⚠️ AB_BASE is REQUIRED here (2026-10-26): ab_lib defaults to 127.0.0.1:3100, which another session's SPA held, so a whole matrix
 // measured someone else's build against this backend. Each session also records the bundle it loaded (`bundle`).
 if (!process.env.AB_BASE) throw Error('AB_BASE=http://127.0.0.1:<the SPA port serving the build under test> is required');
@@ -233,6 +258,11 @@ async function session({ model0, layer, zoom, theme, arm }) {
       const expected = await expectedFor(to, hours);
       await page.evaluate((w) => window.__IC__.arm(w), { model: to, layer, target, from, anchor, expected });
       const ring0 = await page.evaluate(() => Date.now());
+      // Per-action store and static-seam miss reasons (2026-11-12, the six misses): a delta of the runtime counters over the action.
+      const missSnap = () => page.evaluate(() => { const f = window.__RAW_FRAME_STORE__; const sf = window.__RAW_STATIC_FRAMES__;
+        return { store: { ...((f && f.shows && f.shows.misses) || {}) }, sf: { ...((sf && sf.misses) || {}) }, deferred: (f && f.shows && f.shows.deferred) || 0, aux: { ...((f && f.shows && f.shows.auxMiss) || {}), sync: (f && f.aux && f.aux.sync) || 0, shown: (f && f.shows && f.shows.aux) || 0 } }; });
+      const miss0 = await missSnap();
+      await page.evaluate(() => { if (window.__RAW_COMMIT_TRACE__) window.__RAW_COMMIT_TRACE__ = []; });   // a lab trace build only
       const t0 = Date.now(); const req0 = log.requests.length;
       if (tok === 'M') {
         await page.evaluate(() => window.__IC__.go()); await clickExact(page, to); model = to;
@@ -261,12 +291,16 @@ async function session({ model0, layer, zoom, theme, arm }) {
         return d ? d.events.filter((e) => e.t >= t0 && /clear|commit|reject/.test(e.type)).slice(0, 30).map((e) => { const o = { dt: e.t - t0, type: e.type }; for (const k of ['reason', 'model', 'hour', 'dims', 'lane', 'hadResident', 'residentDims']) if (e[k] !== undefined) o[k] = e[k]; return o; }) : null; }, ring0);
       const maskRebuilds = await page.evaluate((t0) => { const f = window.__RAW_FORENSIC__; const d = f && f.dump ? f.dump() : null;
         return d ? d.events.filter((e) => e.t >= t0 && e.type === 'mask_rebuild').map((e) => e.dims) : null; }, ring0);
+      const miss1 = await missSnap();
+      const trace = await page.evaluate(() => (window.__RAW_COMMIT_TRACE__ ? window.__RAW_COMMIT_TRACE__.splice(0) : undefined));
+      const delta = (a, b) => { const o = {}; for (const k of Object.keys(b)) if ((b[k] || 0) - (a[k] || 0) > 0) o[k] = b[k] - (a[k] || 0); return o; };
+      const misses = { store: delta(miss0.store, miss1.store), sf: delta(miss0.sf, miss1.sf), deferred: miss1.deferred - miss0.deferred, aux: delta(miss0.aux, miss1.aux) };
       const status = await page.evaluate(() => [...document.querySelectorAll('[role="status"]')].filter((x) => x.offsetParent !== null).map((x) => x.textContent.trim()).join(' | ').slice(0, 160));
       const shown = (r.presses || []).filter((p) => p.shown != null).map((p) => p.shown);
       actions.push({ tok, model: to, from, target, exactMs: r.exact == null ? null : Math.round(r.exact), via: r.via, end: r.end, blank: r.blank, blankAt: r.blankAt,
         regress: r.regress || 0, regressEx: r.regressEx || null, maxFrameMs: r.maxGap == null ? null : Math.round(r.maxGap), maskRebuilds,
         mislabel: r.mislabel, mislabelSilent: r.mislabelSilent, maxOffH: +(r.maxOffH || 0).toFixed(2), mislabelEx: r.mislabelEx || null, silentEx: r.silentEx || null,
-        clears: r.clears && r.clears.length ? r.clears : undefined, frames: r.frames, dims: r.dims.slice(0, 12), status,
+        clears: r.clears && r.clears.length ? r.clears : undefined, misses, trace, frames: r.frames, dims: r.dims.slice(0, 12), status,
         // the backend asks made during this action (2026-10-27 regression re-run: which path answered, and how long it took)
         asks: log.requests.slice(req0).map((q) => `${q.path} ${(q.q && q.q.model) || ''} ${(q.q && q.q.layer) || ''} ${(q.q && q.q.valid_time) || ''} ${q.status || q.error || ''} ${q.ms}ms @${q.t - (t0 - log.t0)}`.replace(/\s+/g, ' ')),
         ...(drag ? { drag: { presses: r.presses.length, shown: shown.length, skipped: r.presses.filter((p) => p.skipped).length, late: shown.filter((x) => x > 33).length, maxShown: shown.length ? Math.max(...shown) : null } } : {}),
@@ -275,7 +309,7 @@ async function session({ model0, layer, zoom, theme, arm }) {
     }
     await shot('after-plan');
     const counters = await page.evaluate(() => { const f = window.__RAW_FRAME_STORE__; const sf = window.__RAW_STATIC_FRAMES__;
-      return { store: f ? { shows: f.shows && f.shows.n, misses: f.shows && { ...f.shows.misses }, commits: { ...f.commits }, crop: f.crop && { window: f.crop.window && f.crop.window.key, built: f.crop.built, shows: f.crop.shows }, switches: f.switches } : null,
+      return { store: f ? { shows: f.shows && f.shows.n, misses: f.shows && { ...f.shows.misses }, commits: { ...f.commits }, crop: f.crop && { window: f.crop.window && f.crop.window.key, built: f.crop.built, shows: f.crop.shows }, switches: f.switches, tier: f.tier, aux: f.aux, auxMiss: f.shows && { ...(f.shows.auxMiss || {}) } } : null,
         sf: sf ? { hits: sf.hits, seriesFrames: sf.seriesFrames, crops: sf.crops, misses: { ...sf.misses } } : null, clears: window.__WEBGL_MARINE_CLEAR_COUNT__ || 0 }; });
     const byPath = {}; for (const q of log.requests) byPath[q.path] = (byPath[q.path] || 0) + 1;
     return { model0, layer, zoom, theme, view: VIEW, arm: arm.name, bundle, idleTwoRafMedian: idle, actions, counters, backend: byPath, errors: log.errors.slice(0, 5) };

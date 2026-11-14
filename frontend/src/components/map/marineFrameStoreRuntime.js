@@ -76,6 +76,7 @@ export const frameStoreOn = () => staticFramesEnabled() && W().__RAW_DISABLE_FRA
 // viewport /grid is never Gulf-filled: staticWorldFillGuard.plainCropsOn). Which one a call means follows what the engine holds (or
 // what was just committed): a viewport clip reads the plain set. A plain guarded set is a CROP source only, never a world resident.
 const spanOfB = (b) => ((b.east < b.west) ? b.east + 360 - b.west : b.east - b.west);
+const foreignCropOn = () => W().__RAW_DISABLE_CROP_AFTER_FOREIGN__ !== true;   // CROP AFTER A FOREIGN CLIP (commitResident)
 const isClip = (g) => !!(g && g.bounds) && spanOfB(g.bounds) < 340;
 const engineClip = () => { const e = rt.target && rt.target.getEngine ? rt.target.getEngine() : null; return isClip(e && e._waveData && e._waveData.waveGrid); };
 const keyFor = (model, layer, clip) => (clip && storeCropSetKeyFor(model, layer)) || storeSetKeyFor(model, layer);
@@ -437,7 +438,14 @@ export function noteCommitted(grid, { hour, model, layer } = {}) {
   // series frame's own valid time.
   const pidVt = grid.productId ? info.byPid.get(grid.productId) : null;
   const served = grid.served_valid_time || pidVt || (grid.__fromSeries ? grid.valid_time : null);
-  if (!served) return why('no_served_time');
+  if (!served) {
+    // CROP AFTER A FOREIGN CLIP (2026-11-13, z4.6 after an ICON blend hour): a clip that names no stored frame (the ICON blend, a
+    // /grid fallback) is still a window of this lattice the engine now holds. Remember it as a FOREIGN crop resident, so the next
+    // stored step can show this set's window of the engine's own box (showCropSwitch) instead of refusing every step until a
+    // normal commit lands (`crop_only_set`). Kill: window.__RAW_DISABLE_CROP_AFTER_FOREIGN__ = true.
+    if (clip && foreignCropOn()) CS.noteForeignCommit(grid, model || grid.__sourceModel, layer || grid.__componentLayer);
+    return why('no_served_time');
+  }
   const vt = new Date(Date.parse(served)).toISOString().replace(/\.\d{3}Z$/, 'Z');
   // Plan the prefetch around what is on screen FIRST, packed or not (at load the first frame's pack is often still out).
   noteStep({ model: model || grid.__sourceModel, layer: layer || grid.__componentLayer, hourOffset: hour, requestedValidTime: vt, commit: true });
@@ -563,11 +571,18 @@ function showStored({ model, layer, hourOffset, requestedValidTime }, switching)
     const info = setFor(key, index);
     const lakePlan = lakeShowPlan(rt.target.getEngine && rt.target.getEngine(), model);   // waveLakesShow.js
     if (lakePlan === 'decline') return miss('lake_mask');
-    if (lakePlan === 'swap' && (CS.cropResidentFor(info) || (switching && CS.cropResidentOther(info)))) return miss('lake_mask_crop');
+    // A model switch, or a step after a FOREIGN clip (the ICON blend at mid zoom): show this set's window of the engine's own box.
+    // Same model and layer only: a step of one model never draws over another model's clip (only a model switch does).
+    const fr = CS.crop.resident;
+    const foreignStep = !switching && foreignCropOn() && !!(fr && fr.foreign && String(fr.model || '').toUpperCase() === String(model || '').toUpperCase()
+      && (fr.layer || 'waves') === (layer || 'waves'));
+    if (lakePlan === 'swap' && (CS.cropResidentFor(info) || ((switching || foreignStep) && CS.cropResidentOther(info)))) return miss('lake_mask_crop');
     if (CS.cropResidentFor(info)) return CS.showCropFrame(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0);
-    if (switching && CS.cropResidentOther(info)) {
+    if ((switching || foreignStep) && CS.cropResidentOther(info)) {
       if (cropOnly(info) && !servableClip(model, layer, CS.crop.resident.bounds)) return miss('crop_only_narrow');   // the parity gate
-      return CS.showCropSwitch(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0);
+      const ok = CS.showCropSwitch(info, index, frame, { model, layer, hourOffset, requestedValidTime }, t0);
+      if (ok && foreignStep) rt.shows.cropForeign = (rt.shows.cropForeign || 0) + 1;
+      return ok;
     }
     if (cropOnly(info)) return miss('crop_only_set');      // a plain EURO/ICON set shows windows only (a world /grid is Gulf-filled)
     const e = store().lookup(info.key, frame.valid_time);
