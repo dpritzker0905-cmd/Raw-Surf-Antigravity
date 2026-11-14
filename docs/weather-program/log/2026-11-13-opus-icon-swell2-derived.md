@@ -85,3 +85,35 @@ read the ingest workflows; 204 passed in the resolver, capabilities and ICON swe
 
 **Owed before any flip (to the director):** a real-product parity read (the stored product served by /grid vs the browser's blend of
 /grid's GFS and EURO answers, world span and mid clip, Gulf included), the not-worse read, a SCOREBOARD row, and the owner's word.
+
+## 01:40Z (11-14) Real-frame parity read (director: "run the real-product parity read in the offline lab now")
+
+**Why not the lab store:** its EURO is synthetic with no masked Gulf cells (its filled and plain frames are byte-identical, found
+11-12), so it cannot show the Gulf. **Source instead:** the PUBLIC `weather-frames` CDN, read-only (no backend, live or lab): GFS
+swell_2, EURO swell_2 plain and EURO swell_2 Gulf-filled global_mid frames, all 181 x 83, byte-identical mirrors of /grid's world
+products. Sets as of 11-13 23:31Z (GFS run 12Z, EURO run 00Z), 8 valid times spread across the first 240 h (the browser blends to h240):
+11-14 03Z, 11-15 12Z, 11-17 00Z, 11-18 09Z, 11-19 18Z, 11-21 03Z, 11-22 15Z, 11-24 00Z. Everything below is the BROWSER's own code
+(`staticFrameCodec.buildVectors`, `blendIconSwell2`), script `frontend/scripts/icon-swell2/real-frame-parity.mjs`.
+
+- **A** = blend(GFS, filled EURO): what the map shows at WORLD span today (/grid fills world-span EURO grids).
+- **C** = blend(GFS, plain EURO): what the map shows in a MID-ZOOM clip today (a clip is never filled), and what the stored product
+  serves (it blends the stored plain inputs; at world span the serve-time fill has nothing left to fill, since where plain EURO is
+  masked and GFS is valid the blend already is GFS).
+- The three grids have equal vector counts, so the browser anchors on GFS in both A and C (its anchor is the fuller grid).
+
+**Result (120,184 cells):**
+| Compared with | Cells that differ | Validity flips | Height | Direction | Period |
+|---|---|---|---|---|---|
+| today's mid-zoom map (C) | **0** (the same function of the same inputs) | 0 | - | - | - |
+| today's world-span map (A) | **924 (0.77 %)**, all of them cells the fill touched (EURO masked, filled EURO present) | 0 | max 0.4 mm | identical | max 1.8e-15 s |
+
+Only 9 of the 924 are in the Gulf box (17.5-31 N, 98.5-79.5 W): the fill touches 2,607 cells per 8 times, mostly coasts and ice
+edges worldwide, only 19 in the Gulf. Where it fills, the filled EURO equals GFS exactly in 2,484 of 2,607 cells (max 1 mm otherwise),
+so A there is 0.6 GFS + 0.4 (about GFS), C is GFS alone: the 0.4 mm is that rounding. Per time: 102-170 differing cells, 0-3 in the
+Gulf, more at later hours.
+
+**So the flip question names exactly this:** serving the product makes /grid and /point answer ICON swell_2 (today "unsupported");
+against what the map draws today, the numbers equal the mid-zoom map cell for cell and differ from the world-span map in 0.77 % of
+cells (fill-touched coasts and ice edges) by at most 0.4 mm of height, with identical direction and period. The served JSON bytes
+therefore differ (the 0.4 mm), so by the director's rule the flip is the owner's word. Not read: the encoded frame bytes (step 3), and
+whether 0.4 mm moves any encoded value (frames quantize).
