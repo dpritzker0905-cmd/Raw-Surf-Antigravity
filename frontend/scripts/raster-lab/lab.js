@@ -68,7 +68,7 @@ const DATE_SHIM = (offset) => {
 };
 
 const SAMPLER = () => {
-  const R = (window.__RL__ = { on: false, layer: null, frames: [], keys: [], marks: [], want: null, wv: 0, axes: {}, last: null });
+  const R = (window.__RL__ = { on: false, layer: null, frames: [], keys: [], marks: [], want: null, wv: 0, axes: {}, last: null, post: [], postHooked: false });
   const PRECIP = { GFS: 'ncep_gfs013', ICON: 'dwd_icon', EURO: 'ecmwf_ifs025' };
   const OMM = { GFS: 'ncep_gfs025', ICON: 'dwd_icon', EURO: 'ecmwf_ifs025' };
   // useOpenMeteoTileUrls.resolveModel, mirrored (atmospheric cutovers ICON 168 h, EURO 228 h; fog pinned; water temp on ICON -> GFS).
@@ -178,6 +178,13 @@ const SAMPLER = () => {
   const loop = (t) => {
     if (R.on) {
       const m = window.__MAP_INSTANCE__ || window.map;
+      // POST-RENDER DIAGNOSTIC (2026-11-14; NOT the pre-registered gate): own frames are cut inside MapLibre's render, which runs
+      // AFTER this rAF callback in the same frame, so the sample above sees the previous frame for one sample per step even when
+      // the painted frame is right. A second reading on the map's 'render' event (after the draw) is kept apart as post*.
+      if (m && !R.postHooked && typeof m.on === 'function') {
+        R.postHooked = true;
+        m.on('render', () => { try { if (R.on && R.layer !== 'radar' && m.getLayer(`own-raster-${R.layer}`)) R.post.push([performance.now(), R.sampleOwn(m).cls, R.wv]); } catch (e) { /* diagnostic only */ } });
+      }
       if (m && m.style) {
         let s;
         try { s = R.layer === 'radar' ? R.sampleRadar(m) : (m.getLayer(`own-raster-${R.layer}`) ? R.sampleOwn(m) : R.sampleOM(m)); } catch (e) { s = { cls: 'x', err: String(e).slice(0, 80) }; }
@@ -209,6 +216,16 @@ async function waitFull(page, rr, timeout) {
     streak = cls === 'o' ? streak + 1 : 0;
     return streak >= 3;
   }, timeout);
+}
+
+// The post-render diagnostic for one action: renders under its target before the first correct one (own layers only; null
+// when the map drew none, e.g. the .om path).
+function postOf(post, t0, t1, wv) {
+  const seg = (post || []).filter((p) => p[0] >= t0 && p[0] < t1 && p[2] === wv);
+  if (!seg.length) return { postStale: null, postBlank: null };
+  const i = seg.findIndex((p) => p[1] === 'o');
+  const before = i < 0 ? seg : seg.slice(0, i);
+  return { postStale: before.filter((p) => p[1] === 's').length, postBlank: before.filter((p) => p[1] === 'b').length, postFull: i < 0 ? null : Math.round(seg[i][0] - t0) };
 }
 
 // Only frames sampled under this action's own target (want version) count: the next target is set a few frames before its key.
@@ -296,6 +313,22 @@ async function runCombo(rr, offset, vpName, layer, model, zoom, base = L.BASE, a
     // The timeline wheel mounts once a layer is on.
     hasWheel = await page.evaluate(() => !!window.__RL__.wheel());
     res.hasWheel = hasWheel;
+    // RESPONSIVE PHONE DRAWER (dev since the map UI drawers, 2026-11): the mobile timeline body is `inert` + aria-hidden until
+    // its drawer is opened, so the visible wheel cannot take focus and ArrowRight lands on <body> (every step then reads stale,
+    // in every arm). Open it once through its own handle, as a user would; a build without the drawer has no handle: no-op.
+    res.drawerOpened = await page.evaluate(() => {
+      const body = document.getElementById('weather-mobile-timeline-body');
+      if (!body || !(body.inert || body.hasAttribute('inert'))) return false;
+      const h = [...document.querySelectorAll('button[aria-controls="weather-mobile-timeline-body"][aria-expanded="false"]')]
+        .find((b) => b.offsetParent !== null && /Open timeline/.test(b.getAttribute('aria-label') || ''));
+      if (!h) return 'no_handle';
+      h.click();
+      return true;
+    });
+    if (res.drawerOpened === true) {
+      await waitFor(page, () => page.evaluate(() => { const b = document.getElementById('weather-mobile-timeline-body'); return !!b && !b.inert; }), 3000, 100);
+      await sleep(600);
+    }
     // Wheel focus (desktop and phone alike: the key path is the wheel's own commit path).
     let hour = 0; let radarPrev = null;
     // WHY (2026-11-14, the fog/temp/water_temp instant lane): per step, which path drew the frame (own frames from our CDN, or
@@ -351,7 +384,7 @@ async function runCombo(rr, offset, vpName, layer, model, zoom, base = L.BASE, a
     await doStep('long', STEPS);
     if (BACK && layer !== 'radar') await doStep('back', STEPS + 1);
     const truthEnd = await page.evaluate(TRUTH);
-    const page_ = await page.evaluate(() => ({ frames: window.__RL__.frames, keys: window.__RL__.keys }));
+    const page_ = await page.evaluate(() => ({ frames: window.__RL__.frames, keys: window.__RL__.keys, post: window.__RL__.post }));
     if (process.env.DUMP) fs.writeFileSync(path.join(OUT, `frames-${vpName}-${layer}-${model}-z${zoom}.json`), JSON.stringify({ frames: page_.frames, actions }));
     const tEnd = page_.frames.length ? page_.frames[page_.frames.length - 1][0] + 1 : 0;
     const wallEnd = Date.now();
@@ -361,7 +394,7 @@ async function runCombo(rr, offset, vpName, layer, model, zoom, base = L.BASE, a
       const net = rr.window(a.wall, next ? next.wall : wallEnd);
       const tb = next ? next.truth : truthEnd;
       return { kind: a.kind, i: a.i, target: a.target, timedOut: a.timedOut, ...c, req: net.n, bytes: net.bytes, live: net.live, refused: net.refused, byHost: net.byHost,
-        decodes: tb[0] - a.truth[0], tileCacheHits: tb[1] - a.truth[1], why: a.why || null };
+        decodes: tb[0] - a.truth[0], tileCacheHits: tb[1] - a.truth[1], why: a.why || null, ...postOf(page_.post, a.t, next ? next.t : Infinity, a.wv) };
     });
     if (RELOAD && layer !== 'radar') {
       // Same browser, new page load: the in-memory caches are gone, Cache Storage is not. Toggle the layer on at hour 0 again.
