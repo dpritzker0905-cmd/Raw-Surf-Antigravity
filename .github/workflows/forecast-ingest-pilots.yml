@@ -213,6 +213,10 @@ jobs:
           # STATIC_SETS must list them before it reads them. With FRAME_TAIL_DOWNLOAD on, their 240-336 h tails need ~3 x 40 more of
           # FRAME_TAIL_DOWNLOAD_MAX. Kill with FRAME_EURO_SWELL_SETS=0.
           FRAME_EURO_SWELL_SETS: ${{ vars.FRAME_EURO_SWELL_SETS || '1' }}
+          # ON (2026-11-12, move 3): the set whose latest.json record is oldest starts first (world before regional on ties), so a
+          # set the budget skipped leads the next run (publish_frame_images.publish_order). Kill: repo variable
+          # FRAME_PUBLISH_FAIR_ORDER = '0' (the fixed list order again).
+          FRAME_PUBLISH_FAIR_ORDER: ${{ vars.FRAME_PUBLISH_FAIR_ORDER || '1' }}
         run: python scripts/publish_frame_images.py
 
       # 2026-10-27 (the lead): the step above exits 1 on a refused set or a crash, and continue-on-error turns that green: the
