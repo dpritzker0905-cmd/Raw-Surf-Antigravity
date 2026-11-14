@@ -63,3 +63,41 @@ both, per surface. A palette that fails any line of its own block does not ship;
 - Director: is `MapWeatherControls.js` still reserved to Codex? The legend hookup lives there.
 - Move 3: which layer ids and units its frame sets for fog and water temp will use; who edits the scale maps in
   `useOwnRasterFrames.js`.
+
+## 00:20 EST. An instrument correction, made AFTER the gates above were written (the gate lines are unchanged)
+The baseline table above was measured with a checker that BLENDED between a table's stops. That is not how these tables are
+drawn: the tile library colours a value with the last breakpoint at or below it (`findLastIndexLE`), and the own-frames path
+builds a step lookup from the same breakpoints (Move 3, 00:07 EST). `check.mjs` now scores every table as the step table it
+is. Today's tables re-measured as steps (what a user actually sees):
+- water temp: the smallest 1 C step is **0** in every theme (the library's stops are 2 C apart, so neighbouring degrees share
+  a colour); mean 1 C step unchanged (2.59 / 2.69 / 3.05).
+- air temp: -1 C against +1 C is **23.1-24.8** today, not the 8.8-12.2 printed above (the library's table has a hard change of
+  colour at 0 C). The other air temp lines move little (smallest 5 C band 5.4-5.9; worst colour-blind 1.3).
+- fog: dense fog over light land **1.0** (was printed 0.9); the other fog numbers move by under 2.
+What this means for the gates: none of the thresholds is changed. Line T4 ("at least 6") was written against the wrong
+baseline and is far easier than today's real 23-25; to not ship something worse than today on that measure, the design was
+pushed until the freezing edge reads 19.7-23.7. That is reported as "close to today, slightly under in 5 of 6 cases", not
+as an improvement.
+
+## 00:20 EST. Finding: the three legends cannot match the map today
+`MapWeatherControls.js` builds the air temp, water temp and fog legends from hand-written gradients (its own comment: they
+"approximate the OM library's registered scale"). They are not computed from the table that is drawn, so the bar and the map
+agree only by coincidence, and with ANY change of table they disagree (seen: the new air temp table under the old rainbow
+bar, offline app, dark theme). The marine, rain, pressure and wind legends are already computed from their tables.
+
+## 00:20 EST. Legend gate, written BEFORE the legend block is edited
+Codex's two UI PRs (#825, #874) are merged; the director's board records the edit as approved (04:52Z) with these conditions:
+only the legend block, the same tables the map draws, all three layouts and themes, ARIA intact, a kill switch, and a re-read
+for new reservations before pushing. One old Codex draft (#755, 2026-11-09) still touches the file; flagged to the director.
+- L1. For air temp, water temp and fog, in light, beach and dark: every colour stop of the legend bar is the drawn table's
+  colour at that value (within 2/255; a test). The bar may blend between stops (the table's stops are dense); it may not
+  show a colour the table does not hold.
+- L2. Every tick sits at its value's position on the bar (a test), and no two ticks are closer than 12% of the bar.
+- L3. One legend configuration feeds every layout (read in the code and pinned by a test), and the bar is seen in the app
+  on desktop and on the phone layout in each theme.
+- L4. The diff removes no `aria-*` attribute, button or label, and adds no interactive element.
+- L5. Kill: `window.__RAW_DISABLE_RASTER_LEGENDS__ = true` gives the three hand-written bars back. A layer whose PALETTE is
+  under its kill also gets its old bar back, so the bar describes what is drawn in every combination (a test).
+- L6. No number changes: the same units and labels as today for temperature (deg F ticks); fog gains distance ticks in metres
+  and kilometres in place of "<1km / 5km / 10km / 20km", because the table ends at 10 km (the old bar named 20 km, a value the
+  table never coloured).
