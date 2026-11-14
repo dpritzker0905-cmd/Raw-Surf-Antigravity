@@ -71,6 +71,11 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
   const [gen, setGen] = useState(0);          // bumps each time the GL layer is (re)added: the step effect re-offers fields
   const ref = useRef({ layerObj: null, prevOffset: null, dir: 1, shownRec: null, wantRec: null, byPath: new Map() });
   const engaged = wanted && !failed;
+  // HANDOVER (2026-11-14): the .om path keeps drawing until OUR layer has drawn a frame of this engagement; only then does the
+  // hook report it (MapWebGL drops the layer from the .om list on that report). A cold toggle, an unpublished set or a slow
+  // index read therefore never shows a blank map. Kill: window.__RAW_DISABLE_RASTER_OWN_HANDOVER__ = true (report at once).
+  const [shown, setShown] = useState(false);
+  useEffect(() => { if (!engaged) setShown(false); }, [engaged]);
 
   useEffect(() => { if (!wanted) setFailed(false); }, [wanted]);
   useEffect(() => { setFailed(false); }, [M]);        // a model without a published set fails alone: switching back retries
@@ -158,7 +163,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
           st.shownRec = { url: path, dataMs: field ? field.validMs : NaN, model: e ? e.model : M, estimated: e ? e.estimated : null,
             nearestMaxHours: st.nearestMaxHours || 1 };
           emitOwnShown(layer, path);                     // synchronous: the isobars cut with the field, in the same frame
-          Promise.resolve().then(() => { publish(); setEngaged(layer, st.shownRec ? st.shownRec.model : M); });
+          Promise.resolve().then(() => { publish(); setEngaged(layer, st.shownRec ? st.shownRec.model : M); if (path) setShown(true); });
         });
         const before = beforeId && mapInstance.getLayer(beforeId) ? beforeId : undefined;
         mapInstance.addLayer(st.layerObj, before);
@@ -252,5 +257,6 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     setWanted(layer, win, (path, field) => { const now = ref.current.layerObj; if (now) now.offerField(path, field); if (iso) iso(path, field); });
   }, [engaged, index, fbIndex, timeOffsetHours, layer, M, gen]);
 
-  return engaged;
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_OWN_HANDOVER__ === true) return engaged;
+  return engaged && shown;
 }
