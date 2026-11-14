@@ -76,6 +76,10 @@ GUARDED = {
                                         # target-time height labelled an unrated estimate; kill '0'
     "RATING_BAND_ONE_CHAIN": "1",       # CMP-1: map rating band = estimate_surf_at on cached geometry + break depth;
                                         # band level == glyph level at 4,101 of 4,197 asset spot-seas, 0 unexplained
+    "ICON_SWELL2_SERVE": "0",           # option B (#877): /grid + /point serve the stored ICON swell_2 blend (else
+                                        # "unsupported"). Real-frame parity: = the mid-zoom map 0/120,184 cells; vs the
+                                        # world-span map 924 cells (0.77%) <= 0.4 mm, same direction/period. Owner said
+                                        # yes (11-13 20:28 EST); flipped ON through the manifest after merge; kill '0'
     "SAMPLER_UNRESOLVED_STATIONS": "1",  # NDBC 46267 BY NAME (Strait of Juan de Fuca): "no data" at the station, not
                                          # the open-Pacific cell 0.73 deg away (+1.5 m). Nothing else moves; kill '0'.
                                          # GUARDRAIL BLIND: no surf spot is within 0.6 deg, so the replay reads NO_CHANGE.

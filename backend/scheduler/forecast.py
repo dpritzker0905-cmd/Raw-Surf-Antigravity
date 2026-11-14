@@ -118,6 +118,10 @@ def ingest_marine_forecast_task():
                 # placed right after the EURO extension for the same timeout-safety reason.
                 # Kill switch ICON_MARINE_EXTEND=0.
                 ("ICON Marine Extended Estimates", weather_scheduler.ingest_icon_marine_extended_estimates),
+                # ICON swell_2 as a stored derived product (2026-11-13, option B): the browser's 60/40 GFS+EURO blend, made
+                # once per tier and time from the stored GFS/EURO swell_2 (coarse here; mid in the pilots lane). Compute-only,
+                # store-fed, carries unchanged pairs. Serves nothing until /grid's flag. DARK: arm ICON_SWELL2_STORED=1.
+                ("ICON Swell2 Blend", weather_scheduler.ingest_icon_swell2_blend),
 
                 # In-band lattice gap fill (2026-07-30, the user-reported "blank day" family):
                 # ECMWF open-data is 6-hourly past +144h while the scrubber walks 3-hourly, so
@@ -165,6 +169,9 @@ def ingest_marine_forecast_task():
                   if os.environ.get("ICON_MARINE_MID_RES_INGEST", "1") != "0" else []),
                 *([("EURO Marine Global Mid", weather_scheduler.ingest_euro_marine_global_mid)]
                   if os.environ.get("EURO_MARINE_MID_RES_INGEST", "1") != "0" else []),
+                # ICON swell_2 mid tier (2026-11-13, option B): right after the GFS and EURO mid inputs it blends. Same job as the core
+                # lane's; it carries what is unchanged. DARK: arm ICON_SWELL2_STORED=1.
+                ("ICON Swell2 Blend (mid)", weather_scheduler.ingest_icon_swell2_blend),
                 # ISLAND 0.083 deg (~9.2 km) CMEMS lane (2026-08-18, the island-halo TRUE fix). At
                 # 0.25 deg a small island is ONE cell, so its cell holds the mean of its ocean
                 # neighbours — lee averaged with windward — and bilinear spreads that onto both shores.
