@@ -52,6 +52,9 @@ encoded from a numpy plane (encode_plane / decode_plane), not from product vecto
   6 pressure_hpa    u16  code 0 = no data, else round((hPa - 800) / 0.1) + 1 (descriptor offset 799.9)   error <= 0.05 hPa
   7 temp_c          u16  code 0 = no data, else round((degC + 100) / 0.05) + 1 (offset -100.05)          error <= 0.025 degC
   8 cloud_pct       u8   code 0 = no data, else round(%) + 1 (offset -1), 0-100 %                        error <= 0.5 %
+ 11 visibility_m    u16  code 0 = no data, else round(m) + 1 (offset -1), 0-65534 m                       error <= 0.5 m
+                         (2026-11-14, GFS VIS for the fog layer: NCEP's field tops out near 24.1 km, so 1 m steps fit u16
+                         with room to spare; the 2-m and water skin temperatures reuse field 7, same unit and range)
 
 RATED frames (2026-11-01, frame_set_rating.py: the Surf Rating band as /grid?surf=1 serves it) carry fields 0-3 of the STORED
 (unrated) product plus one u32 plane (dtype 4, byte-shuffled into four byte planes), exact integer codes:
@@ -79,10 +82,11 @@ NO_MISSING = 0xFFFFFFFF
 GZIP_MAGIC = b"\x1f\x8b"
 
 HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE, SPEED, LANE_WEIGHT, PRESSURE_HPA = 0, 1, 2, 3, 4, 5, 6
-TEMP_C, CLOUD_PCT, RATING, PRECIP_MM_H = 7, 8, 9, 10
+TEMP_C, CLOUD_PCT, RATING, PRECIP_MM_H, VISIBILITY_M = 7, 8, 9, 10, 11
 FIELD_NAMES = {HEIGHT: "height_m", DIRECTION: "direction_deg", PERIOD: "period_s", DIR_CONFIDENCE: "dir_confidence",
                SPEED: "speed", LANE_WEIGHT: "lane_weight", PRESSURE_HPA: "pressure_hpa", TEMP_C: "temp_c",
-               CLOUD_PCT: "cloud_pct", RATING: "rating", PRECIP_MM_H: "precip_mm_h"}
+               CLOUD_PCT: "cloud_pct", RATING: "rating", PRECIP_MM_H: "precip_mm_h",
+               VISIBILITY_M: "visibility_m"}
 
 # (dtype bytes, layout, missing code, scale, offset). Height's offset -scale makes code 1 = 0 m and leaves 0 for no data;
 # speed (knots, the wind products' unit; the index meta carries value_unit) does the same at 0.01.
@@ -98,6 +102,7 @@ FIELD_SPECS = {
     CLOUD_PCT: (1, 0, 0, 1.0, -1.0),          # raster: code 1 = 0 %, 101 = 100 %, 0 = no data
     RATING: (4, 1, NO_MISSING, 1.0, 0.0),     # rated frames: the raw code (above), compared exactly
     PRECIP_MM_H: (2, 1, 0, 0.01, -0.01),      # raster: code 1 = 0.00 mm/h, 0 = no data; top code 655.34 mm/h
+    VISIBILITY_M: (2, 1, 0, 1.0, -1.0),       # raster (fog): code 1 = 0 m, 0 = no data; top code 65534 m
 }
 DEFAULT_FIELDS = (HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE)
 WIND_FIELDS = (DIRECTION, SPEED)
@@ -126,6 +131,7 @@ TOLERANCE = {
     CLOUD_PCT: _half_step(CLOUD_PCT),            # 1 % step        -> 0.5 %
     RATING: _half_step(RATING),                  # integer codes   -> any difference fails
     PRECIP_MM_H: _half_step(PRECIP_MM_H),        # 0.01 mm/h step  -> 0.005 mm/h
+    VISIBILITY_M: _half_step(VISIBILITY_M),      # 1 m step        -> 0.5 m
 }
 POSITION_TOL_DEG = 1e-6
 # Marine u, v rebuilt from the decoded height and direction, against the stored u, v the normalizer computed from the

@@ -54,12 +54,15 @@ export const OWN_RASTER_SETS = {
   },
   // PRECIPITATION (2026-11-12, the owner: "Yes, build it"): the app's 'rain' layer from GFS APCP (frame_set_raster.py,
   // set `precipitation`): mm/h in the hour before the frame (the 3-hour mean past f120), the same meaning as the .om field,
-  // on the 0.25-degree grid, hourly to f120. GFS only: with EURO or ICON picked the layer stays on the .om path. DARK: drawn
-  // only behind the lever (window.__RAW_RASTER_OWN_FRAMES__ = 'rain') until the owner's side-by-side.
-  // Kill: window.__RAW_DISABLE_RASTER_OWN_RAIN__ = true.
+  // on the 0.25-degree grid, hourly to f120. DARK: drawn only behind the lever (window.__RAW_RASTER_OWN_FRAMES__ = 'rain') until
+  // the owner's side-by-side. Kill: window.__RAW_DISABLE_RASTER_OWN_RAIN__ = true.
+  // EURO (2026-11-12, the owner: "Yes, add ICON and EURO precipitation after the blend"): ECMWF `tp` as the mean rate over each
+  // 3-hour step to 144 h and 6-hour step to 240 h (set `precipitation_euro`), on the same grid. Past EURO's last frame the GFS
+  // frame stands in, labelled as an estimate, as pressure does (the 14-day scrubber is never cut to a model's own range).
+  // ICON has no set: with ICON picked the layer stays on the .om path.
   rain: {
-    models: { GFS: 'GFS/weather/precipitation/global_0p25' },
-    fallback: null, field: PRECIP_FIELD, unit: 'mm/h',
+    models: { GFS: 'GFS/weather/precipitation/global_0p25', EURO: 'EURO/weather/precipitation/global_0p25' },
+    fallback: 'GFS', field: PRECIP_FIELD, unit: 'mm/h',
   },
 };
 // Who the frames come from, for the legend credit and the status line.

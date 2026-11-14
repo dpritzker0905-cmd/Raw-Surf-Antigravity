@@ -273,17 +273,17 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
   });
 });
 
-describe('precipitation, the rain layer (2026-11-12): GFS only, dark until the lever names it', () => {
+describe('precipitation, the rain layer (2026-11-12): GFS and EURO, dark until the lever names it', () => {
   afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_RAIN__; });
 
-  test('the set key and field match the publisher contract; EURO and ICON have no set', () => {
+  test('the set keys and field match the publisher contract; ICON has no set', () => {
     expect(setKey('rain', 'GFS')).toBe('GFS/weather/precipitation/global_0p25');
-    expect(setKey('rain', 'EURO')).toBeNull();
+    expect(setKey('rain', 'EURO')).toBe('EURO/weather/precipitation/global_0p25');
     expect(setKey('rain', 'ICON')).toBeNull();
     expect(OWN_RASTER_SETS.rain.field).toBe(PRECIP_FIELD);
     expect(PRECIP_FIELD).toBe(10);
     expect(OWN_RASTER_SETS.rain.unit).toBe('mm/h');
-    expect(OWN_RASTER_SETS.rain.fallback).toBeNull();
+    expect(OWN_RASTER_SETS.rain.fallback).toBe('GFS');
   });
 
   test('dark: off with no lever, and not one of the default-on layers', () => {
@@ -291,10 +291,10 @@ describe('precipitation, the rain layer (2026-11-12): GFS only, dark until the l
     expect(ownFramesOn('rain')).toBe(false);
   });
 
-  test('on when the lever names it, for GFS only', () => {
+  test('on when the lever names it, for GFS and EURO; ICON stays on the .om path', () => {
     window.__RAW_RASTER_OWN_FRAMES__ = 'rain';
     expect(ownFramesOn('rain', 'GFS')).toBe(true);
-    expect(ownFramesOn('rain', 'EURO')).toBe(false);
+    expect(ownFramesOn('rain', 'EURO')).toBe(true);
     expect(ownFramesOn('rain', 'ICON')).toBe(false);
     expect(ownFramesOn('temperature')).toBe(false);          // the lever named rain only
   });
@@ -305,5 +305,25 @@ describe('precipitation, the rain layer (2026-11-12): GFS only, dark until the l
     expect(ownFramesOn('rain')).toBe(false);
     expect(ownFramesOn('pressure')).toBe(true);
     expect(ownFramesOn('temperature')).toBe(true);
+  });
+});
+
+describe('EURO rain past its own range: the GFS frame stands in, labelled as an estimate (2026-11-12)', () => {
+  const RUN = Date.parse('2026-11-12T12:00:00Z');
+  const at = (h) => new Date(RUN + h * 3600000).toISOString();
+  const euro = { frames: [3, 6, 234, 240].map((h) => ({ valid_time: at(h), path: `e${h}` })) };
+  const gfs = { frames: [237, 240, 243, 246, 336].map((h) => ({ valid_time: at(h), path: `g${h}` })) };
+
+  test('inside EURO range its own frames win; past 240 h the scrub walks GFS frames flagged as estimates', () => {
+    const frames = combinedFrames('rain', 'EURO', euro, gfs);
+    expect(frames.map((f) => f.path)).toEqual(['e3', 'e6', 'e234', 'e240', 'g243', 'g246', 'g336']);
+    expect(frames.filter((f) => f.estimated).map((f) => f.path)).toEqual(['g243', 'g246', 'g336']);
+    expect(combinedFrameAt(frames, RUN + 240 * 3600000).path).toBe('e240');
+    expect(combinedFrameAt(frames, RUN + 246 * 3600000)).toMatchObject({ path: 'g246', model: 'GFS', estimated: 'gfs_estimated_fallback' });
+    expect(combinedFrameAt(frames, RUN + 336 * 3600000).path).toBe('g336');   // the 14-day scrubber is never cut to EURO's range
+  });
+
+  test('GFS rain has no stand-in (it is the fallback itself)', () => {
+    expect(combinedFrames('rain', 'GFS', gfs, gfs).some((f) => f.estimated)).toBe(false);
   });
 });
