@@ -175,3 +175,13 @@ def test_skill_rows_record_the_serve_path_and_omit_it_when_unknown():
     rows = {r["buoy_id"]: r for r in fs.rows_from_calibration_report(report, "2026-11-13T18:00:00Z", 24.0)}
     assert rows["46267"]["interp"] == "nearest_ocean_coarse_masked" and rows["46267"]["sampled"] == [48.5, -124.25]
     assert "interp" not in rows["46211"] and "sampled" not in rows["46211"]
+
+
+def test_the_consensus_shadow_lane_rows_carry_the_serve_path_like_any_other_lane():
+    """scored_rows_analysis.construction groups the built shadow by `interp` (2026-11-14). The key is copied for ANY
+    source, so the shadow lane's rows carry it whenever its point response does; a lane named differently loses nothing."""
+    report = {"spots": [{"buoy_id": "46267", "residual": {"model_hs_m": 2.0},
+                         "served": {"product": "consensus_marine_waves_x.json", "cycle": "2026-11-12T12:00:00Z",
+                                    "interp": "nearest_ocean_fallback", "sampled": [48.5, -124.25]}}]}
+    row = fs.rows_from_calibration_report(report, "2026-11-15T18:00:00Z", 72.0, source="raw_surf:CONSENSUS")[0]
+    assert row["source"] == "raw_surf:CONSENSUS" and row["interp"] == "nearest_ocean_fallback"
