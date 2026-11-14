@@ -15,7 +15,7 @@ export default function MapExploreRail({ open, onToggle, onClose, livePhotograph
       event.preventDefault(); event.stopPropagation(); onClose(); toggle.current?.focus();
   };
   return <div className={`top-rail-container absolute top-0 left-0 right-0 z-[1000] pointer-events-none ${responsive ? '' : `pt-4 transition-opacity duration-300 ${isImmersiveMode ? 'opacity-0' : 'opacity-100'}`}`} inert={!responsive && isImmersiveMode || undefined}>
-    <div className={`weather-map-heading ${responsive ? 'px-3' : 'px-4'}`}><MapHeader livePhotographerCount={livePhotographerCount} /></div>
+    <div className={`weather-map-heading ${responsive ? 'px-3' : 'px-4'}`}><MapHeader livePhotographerCount={livePhotographerCount} showPhotographerCount={!responsive || open} /></div>
     <div className="weather-explore-controls">
       <div className="weather-mode-switch">
       <button type="button" ref={toggle} onKeyDown={closeOnEscape}
