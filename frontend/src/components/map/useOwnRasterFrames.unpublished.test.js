@@ -7,7 +7,7 @@
  */
 import React, { useLayoutEffect } from 'react';
 import { act, render, renderHook, waitFor } from '@testing-library/react';
-import { useOwnRasterFrames } from './useOwnRasterFrames';
+import { useOwnRasterFrames, HANDOVER_LAYERS } from './useOwnRasterFrames';
 import { _resetOwnRasterFramesForTest, tel } from './ownRasterFrames';
 import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
 import { createOwnRasterLayer } from './ownRasterLayer';
@@ -130,8 +130,8 @@ describe('SAME FRAME: the layer is asked for the new frame in the commit that pa
   };
   // A sibling's LAYOUT effect declared after the hook runs right after the hook's layout effects, before the browser paints:
   // what our layer was asked for by then is what the painted frame can show next to the new label.
-  function Probe({ map, offset, seen, gl }) {
-    useOwnRasterFrames({ mapInstance: map, layer: 'fog', model: 'GFS', active: true, timeOffsetHours: offset, theme: 'dark', beforeId: undefined });
+  function Probe({ map, offset, seen, gl, layer = 'fog' }) {
+    useOwnRasterFrames({ mapInstance: map, layer, model: 'GFS', active: true, timeOffsetHours: offset, theme: 'dark', beforeId: undefined });
     useLayoutEffect(() => { seen.push([offset, gl.wants[gl.wants.length - 1] || null]); }, [offset]);
     return null;
   }
@@ -158,5 +158,44 @@ describe('SAME FRAME: the layer is asked for the new frame in the commit that pa
     act(() => { view.rerender(<Probe map={map} offset={1} seen={seen} gl={gl} />); });
     expect(seen[seen.length - 1]).toEqual([1, 'f0']);
     expect(gl.wants[gl.wants.length - 1]).toBe('f1');          // asked, but only after the layout pass
+  });
+});
+
+describe('SCOPE (the advisor, 2026-11-14): handover and same-frame apply to fog / air temp / water temp only', () => {
+  test('the scoped layers are exactly the ones this lane built', () => {
+    expect(HANDOVER_LAYERS).toEqual(['fog', 'temperature', 'water_temp']);
+  });
+
+  test('pressure and satellite (live defaults) report engaged at once, as on dev; fog waits for its first drawn frame', async () => {
+    delete window.__RAW_RASTER_OWN_FRAMES__;                    // pressure and satellite are ON by default: no lever
+    for (const layer of ['pressure', 'satellite']) {
+      const { map } = fakeGl();
+      getPinnedIndex.mockReturnValue(new Promise(() => {}));   // the index never answers: dev reported engaged regardless
+      const { result } = renderHook(() => useOwnRasterFrames({ mapInstance: map, layer, model: 'GFS', active: true, timeOffsetHours: 0, theme: 'dark', beforeId: undefined }));
+      expect(result.current).toBe(true);
+    }
+    window.__RAW_RASTER_OWN_FRAMES__ = 'fog';
+    const { map } = fakeGl();
+    getPinnedIndex.mockReturnValue(new Promise(() => {}));
+    const { result } = renderHook(() => useOwnRasterFrames({ mapInstance: map, layer: 'fog', model: 'GFS', active: true, timeOffsetHours: 0, theme: 'dark', beforeId: undefined }));
+    expect(result.current).toBe(false);
+  });
+
+  test('pressure keeps the passive step (dev): by the layout pass its layer still wants the old hour', async () => {
+    delete window.__RAW_RASTER_OWN_FRAMES__;
+    const { gl, map } = fakeGl();
+    const H = 3600000; const t0 = Date.now() + 60000;
+    getPinnedIndex.mockResolvedValue({ path: 'idx', run: 'r', frames: [-1, 0, 1, 2].map((h) => ({ valid_time: new Date(t0 + h * H).toISOString(), path: `f${h}` })) });
+    const seen = [];
+    function P({ offset }) {
+      useOwnRasterFrames({ mapInstance: map, layer: 'pressure', model: 'GFS', active: true, timeOffsetHours: offset, theme: 'dark', beforeId: undefined });
+      useLayoutEffect(() => { seen.push([offset, gl.wants[gl.wants.length - 1] || null]); }, [offset]);
+      return null;
+    }
+    const view = render(<P offset={0} />);
+    await waitFor(() => expect(gl.wants.length).toBeGreaterThan(0));
+    act(() => { view.rerender(<P offset={1} />); });
+    expect(seen[seen.length - 1]).toEqual([1, 'f0']);
+    expect(gl.wants[gl.wants.length - 1]).toBe('f1');
   });
 });

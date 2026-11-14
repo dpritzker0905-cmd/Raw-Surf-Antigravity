@@ -62,6 +62,12 @@ const opacityOf = (layer) => (typeof OPACITY[layer] === 'function' ? OPACITY[lay
 const ISO_INK = { dark: [1, 1, 1, 0.5], beach: [0.24, 0.18, 0.12, 0.5], light: [0.12, 0.16, 0.24, 0.5] };
 
 export const sameFrameOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_OWN_SAME_FRAME__ === true);
+// SCOPE (2026-11-14, the advisor's red-team of #889): the handover and the same-frame step apply ONLY to the layers this lane
+// built (default-OFF pending the owner, reachable with the lever). Pressure and satellite are live defaults with no before/after
+// measurement of either change (the handover also starts their .om path on a cold toggle: extra Open-Meteo requests and a decode
+// thrown away), so they and rain keep dev's exact behaviour until a measured batch of their own.
+export const HANDOVER_LAYERS = Object.freeze(['fog', 'temperature', 'water_temp']);
+const handoverLayer = (layer) => HANDOVER_LAYERS.includes(layer);
 
 export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffsetHours, theme, beforeId }) {
   const M = String(model || 'GFS').toUpperCase();
@@ -73,7 +79,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
   const [gen, setGen] = useState(0);          // bumps each time the GL layer is (re)added: the step effect re-offers fields
   const ref = useRef({ layerObj: null, prevOffset: null, dir: 1, shownRec: null, wantRec: null, byPath: new Map() });
   const engaged = wanted && !failed;
-  const useStepEffect = useRef(sameFrameOn() ? useLayoutEffect : useEffect).current;
+  const useStepEffect = useRef(handoverLayer(layer) && sameFrameOn() ? useLayoutEffect : useEffect).current;
   // HANDOVER (2026-11-14): the .om path keeps drawing until OUR layer has drawn a frame of this engagement; only then does the
   // hook report it (MapWebGL drops the layer from the .om list on that report). A cold toggle, an unpublished set or a slow
   // index read therefore never shows a blank map. Kill: window.__RAW_DISABLE_RASTER_OWN_HANDOVER__ = true (report at once).
@@ -263,6 +269,6 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     setWanted(layer, win, (path, field) => { const now = ref.current.layerObj; if (now) now.offerField(path, field); if (iso) iso(path, field); });
   }, [engaged, index, fbIndex, timeOffsetHours, layer, M, gen]);
 
-  if (typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_OWN_HANDOVER__ === true) return engaged;
+  if (!handoverLayer(layer) || (typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_OWN_HANDOVER__ === true)) return engaged;
   return engaged && shown;
 }
