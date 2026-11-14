@@ -126,7 +126,7 @@ unplanted error is zero. I did not check GFS's speed bias in these rows to confi
 observed wind; nothing else changed) is for the director to ask for, and it should be scored by someone other than its
 author. An ECMWF arm needs a public-archive fetch that this brief did not allow.
 
-## 3. Second pre-registration, written 2026-11-14 02:57Z (the director accepted the VOID and asked for this)
+## 3. Second pre-registration, written 2026-11-14 02:48Z (the director accepted the VOID and asked for this)
 
 **What is and is not blind.** Sections 1 and 2 stand. I have now seen the section 2 table for GFS, HRRR alone, the lane
 and the blend, so for those four arms this is a RE-RUN WITH A REPAIRED CONTROL, not a blind test: its only job is to say
