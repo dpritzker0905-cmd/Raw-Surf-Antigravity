@@ -109,12 +109,14 @@ describe('an ON default whose set is not published yet falls back to .om', () =>
   });
 });
 
-test('MapWebGL hands a disengaged fog / water layer back to the .om list (the filter reads each hook\'s return)', () => {
-  const src = require('fs').readFileSync(require('path').join(__dirname, 'MapWebGL.js'), 'utf8');
-  expect(src).toMatch(/const ownFog = useOwnRasterFrames\(\{[^}]*layer: 'fog'/);
-  expect(src).toMatch(/const ownWaterTemp = useOwnRasterFrames\(\{[^}]*layer: 'water_temp'/);
-  expect(src).toMatch(/!\(l === 'fog' && ownFog\)/);
-  expect(src).toMatch(/!\(l === 'water_temp' && ownWaterTemp\)/);
+test('MapWebGL hands a disengaged fog / water layer back to the .om list (the filter reads each hook return)', () => {
+  const read = (f) => require('fs').readFileSync(require('path').join(__dirname, f), 'utf8');
+  const hooks = read('useOwnRasterLayers.js');
+  expect(hooks).toMatch(/const ownFog = useOwnRasterFrames\(\{[^}]*layer: 'fog'/);
+  expect(hooks).toMatch(/const ownWaterTemp = useOwnRasterFrames\(\{[^}]*layer: 'water_temp'/);
+  expect(hooks).toMatch(/fog: ownFog, water_temp: ownWaterTemp/);
+  expect(hooks).toMatch(/\.filter\(\(l\) => !own\[l\]\)/);
+  expect(read('MapWebGL.js')).toMatch(/const omLayers = useOwnRasterLayers\(\{/);
 });
 
 describe('SAME FRAME: the layer is asked for the new frame in the commit that paints the new time label', () => {

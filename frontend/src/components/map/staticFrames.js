@@ -30,7 +30,8 @@ import {
   buildVectors, gridJsonFromFrame, isGzip, parseFrame, pickIndexFrame, seriesFrameFromFrame,
 } from './staticFrameCodec';
 import { packableLayer } from './marineFramePack';   // the layers the GPU frame store packs (getPinnedIndexSync)
-import { EURO_SWELL_SET_KEYS, euroSwellSetsOn, isEuroSwellSetKey } from './staticEuroSwellSets';   // EURO swell world sets (2026-11-12)
+import { EURO_SWELL_SET_KEYS, euroSwellSetsOn, isEuroSwellSetKey } from './staticEuroSwellSets';
+import { RASTER_SET_KEYS } from './staticRasterSets';   // the own-raster weather sets (2026-11-14)   // EURO swell world sets (2026-11-12)
 import { buildTruthTag } from './weatherTruthTracker';
 // MID-ZOOM CROPS (2026-10-22): a viewport box the resolver answers from global_mid is served as a crop of the same frame.
 import { cropGridJson, cropSeriesFrame, cropVectors, gridBboxParam, midCropFor, midCropRulesPass, seriesBboxParam } from './staticFrameCrop';
@@ -221,22 +222,7 @@ export const STATIC_SETS = [
   // GFS 10 m wind (2026-10-22, the wind instant scrub): read only by windStaticFrames.js. getPinnedIndexSync keeps it out of the
   // marine frame store (waves sets only).
   'GFS/wind/wind/global_mid',
-  // GFS mean-sea-level pressure (2026-10-23, the raster layers' own frames from free NOAA GRIB): read only by ownRasterFrames.js,
-  // behind window.__RAW_RASTER_OWN_FRAMES__ (default off). Not a waves set, so the marine frame store never takes it.
-  'GFS/weather/pressure/global_0p5',
-  // Per-model pressure (2026-10-24): EURO from ECMWF open data, ICON from DWD (frame_set_raster_sources). Raster sets: the marine
-  // frame store never takes them (not waves).
-  'EURO/weather/pressure/global_0p5', 'ICON/weather/pressure/global_0p5',
-  // GFS 2 m air temperature (2026-10-24, #515's set): read only by ownRasterFrames.js, behind the same lever (default off).
-  'GFS/weather/temperature/global_0p5',
-  // GFS total cloud cover (2026-10-24, the 'satellite' layer; #515's set): read only by ownRasterFrames.js, same lever.
-  'GFS/weather/cloud_cover/global_0p25',
-  'GFS/weather/precipitation/global_0p25', 'EURO/weather/precipitation/global_0p25',   // 2026-11-12: mm/h, the 'rain' layer's own frames (dark)
-  // 2026-11-14 (the fog / air temp / water temp instant lane): per-model air temperature, GFS surface visibility (fog) and model skin
-  // temperature (water temp). Raster sets read only by ownRasterFrames.js; a set not published yet misses and the .om path draws.
-  'EURO/weather/temperature/global_0p25', 'ICON/weather/temperature/global_0p5',
-  'GFS/weather/fog/global_0p25',
-  'GFS/weather/water_temp/global_0p25', 'EURO/weather/water_temp/global_0p25',
+  ...RASTER_SET_KEYS,   // the raster weather sets (staticRasterSets), read only by ownRasterFrames.js
   // EURO / ICON world frames with /grid's TARGETED Gulf fill baked in (2026-10-24, frame_set_fill.py): read only for WORLD boxes,
   // only while the server and the set agree on the mode (staticWorldFillGuard.filledWorldSetKey); crops read the plain sets.
   'ICON/marine/waves/global_mid_filled', 'EURO/marine/waves/global_mid_filled', 'ICON/marine/swell_1/global_mid_filled',
