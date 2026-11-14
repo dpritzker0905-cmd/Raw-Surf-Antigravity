@@ -4,14 +4,17 @@ Today /grid and /point answer "unsupported" for ICON swell_2 (the browser blends
 serve the stored product instead, but ONLY where one covers the asked time (the manifest's +-3 h candidate window); with none they
 still answer "unsupported", so they never fall through to a live upstream fetch for a layer ICON does not have.
 
-DARK by default: serving it changes what these routes return (from "unsupported" to numbers), so the flip is the owner's word
-through the director (D-065), with a not-worse read and a SCOREBOARD row, armed together with ICON_SWELL2_STORED=1.
+GUARDED, code default '0': serving it changes what these routes return (from "unsupported" to numbers), so the flip is the owner's
+word (given 2026-11-13 20:28 EST: "yes"), made through the runtime manifest (flag-guardrail workflow_dispatch `reenable`) with Render
+env left UNSET, armed together with ICON_SWELL2_STORED=1 (a repo variable for the ingest lanes). Real-frame parity: equal to the
+mid-zoom map in all 120,184 cells; 924 cells (0.77 %) within 0.4 mm of the world-span map, same direction and period.
 """
-import os
-
 
 def serve_on() -> bool:
-    return os.environ.get("ICON_SWELL2_SERVE", "0") == "1"
+    """A GUARDED flag (services/runtime_flags.py): env > runtime manifest > code default '0'. Keep Render env UNSET so the flag
+    guardrail and the owner's manifest re-enable can both reach it."""
+    from services import runtime_flags
+    return runtime_flags.on("ICON_SWELL2_SERVE")
 
 
 def is_icon_swell2(model, layer) -> bool:

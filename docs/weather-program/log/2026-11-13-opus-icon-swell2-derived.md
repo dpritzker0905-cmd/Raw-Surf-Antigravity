@@ -117,3 +117,21 @@ against what the map draws today, the numbers equal the mid-zoom map cell for ce
 cells (fill-touched coasts and ice edges) by at most 0.4 mm of height, with identical direction and period. The served JSON bytes
 therefore differ (the 0.4 mm), so by the director's rule the flip is the owner's word. Not read: the encoded frame bytes (step 3), and
 whether 0.4 mm moves any encoded value (frames quantize).
+
+## 02:00Z (11-14) The owner's word, and the flip made ready
+
+Owner, 2026-11-13 20:28 EST, through the director: basis label "no" (dropped; none was built); storing and serving once #877 merges
+"yes" (`ICON_SWELL2_STORED=1`, `ICON_SWELL2_SERVE=1`). Asked of this PR before the flips: a SCOREBOARD row (added), a guardrail
+COVERAGE entry, registry registration, and where each flag lives.
+
+- `ICON_SWELL2_SERVE` is now GUARDED (`services/runtime_flags.py`, code default '0'), read only through `runtime_flags.on()` (env >
+  runtime manifest > default), so the post-ship guardrail can turn it off. COVERAGE: BLIND (`scripts/flag_guardrail.py`): it moves only
+  the /grid and /point ICON swell_2 answers, which no spot height, rating or glyph reads and the replay never asks for; evidence = the
+  real-frame parity read and the port test. Registered in `_RATING_FLAGS` with its location.
+- **Where each flag lives:**
+  - `ICON_SWELL2_STORED`: GitHub **repository variable** (read by forecast-ingest.yml and forecast-ingest-pilots.yml). Not a Render var.
+  - `ICON_SWELL2_SERVE`: the **runtime manifest** `control/flags.json`, written by the flag-guardrail workflow's owner re-enable
+    (workflow_dispatch `reenable=ICON_SWELL2_SERVE`, `owner_words` = the owner's words verbatim). **Keep Render env UNSET**: an explicit
+    env value overrides the manifest, which would blind the guardrail's kill.
+  - Order: STORED first; the core lane stores the coarse tier and the pilots lane the mid tier on their next runs; then SERVE. Flipping
+    SERVE first is safe: the gate answers "unsupported" wherever no stored product covers the time.

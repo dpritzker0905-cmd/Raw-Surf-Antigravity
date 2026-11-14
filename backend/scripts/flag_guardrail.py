@@ -99,6 +99,10 @@ COVERAGE = {
                                           "Evidence: test_weather_account_rate_limit.py"),
     "FRAME_ENTITLEMENT": (BLIND, "access, not a forecast number: which bucket a static frame lives in and who gets a signed "
                                  "URL (#783). Evidence: test_frame_entitlement.py (frame bytes unchanged)"),
+    "ICON_SWELL2_SERVE": (BLIND, "/grid and /point answers for ICON swell_2 only (option B, #877); no spot height, rating or "
+                                 "glyph reads ICON swell_2, and the replay never asks for it. Evidence: the real-frame parity read "
+                                 "(frontend/scripts/icon-swell2/real-frame-parity.mjs: mid-zoom map 0/120,184 cells, world span "
+                                 "924 cells <= 0.4 mm) and test_icon_swell2_blend.py (the port = the browser blend)"),
     "LOCATION_TIME_FIELD": (BLIND, "adds civil zone and civil-day rows (#762); no height, rating or forecast value reads it. "
                                    "Alerts (O2, #775): the civil clock picks which hours fall in a user's time windows, the "
                                    "midnight split and the daily-cap day; same per-user cap, no new sends. Evidence: "

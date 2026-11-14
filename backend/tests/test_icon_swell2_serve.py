@@ -54,3 +54,15 @@ def test_both_routes_ask_the_gate_before_refusing():
         gate = src.index("_icon_swell2_refuse(")
         assert gate < src.index(f"return {unsupported}(")
         assert "_icon_swell2_serve_on()" in src[gate - 400:gate + 200]
+
+
+def test_the_serve_flag_is_guarded_off_by_default_with_blind_coverage():
+    """Read through runtime_flags.flag() (env > manifest > default) so the guardrail and the owner's manifest re-enable reach it;
+    code default '0' until the owner's word is applied through the manifest; BLIND coverage with its evidence named."""
+    import sys
+    from services import runtime_flags
+    assert runtime_flags.GUARDED["ICON_SWELL2_SERVE"] == "0"
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
+    import flag_guardrail
+    klass, why = flag_guardrail.coverage("ICON_SWELL2_SERVE")
+    assert klass == flag_guardrail.BLIND and "parity" in why
