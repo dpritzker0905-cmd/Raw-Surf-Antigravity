@@ -10,7 +10,10 @@ function requestIdFor(request) {
 function errorKind(error) {
   const message = String(error?.message || '');
   if (/ECONNRESET/.test(message)) return 'transport_reset';
-  if (/has been closed|Target closed|disposed/i.test(message)) return 'page_or_context_closed';
+  // Playwright 1.60 disposes the request client with this exact normal teardown reason.
+  if (message === 'Test ended.' || message === 'route.fetch: Test ended.') return 'page_or_context_closed';
+  // Closure wording in later call-log lines must not hide a genuine first-line failure.
+  if (/has been closed|Target closed|disposed/i.test(message.split('\n')[0])) return 'page_or_context_closed';
   if (/timeout|timed out/i.test(message)) return 'timeout';
   return 'other';
 }
