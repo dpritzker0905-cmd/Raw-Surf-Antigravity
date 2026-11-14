@@ -157,7 +157,7 @@ outside git). Bilinear at the buoy position recorded by the grade. Same buoys, c
 **Stop conditions.** Any control failing voids the run again; there is no third design on these rows. The fetch and the
 `eccodes` package install both wait for the owner's word typed in the session that runs them.
 
-### 3a. Fetch notes, appended 2026-11-14 02:59Z, before any ECMWF value was decoded
+### 3a. Fetch notes, appended 2026-11-14 02:56Z, before any ECMWF value was decoded
 - The owner approved the download and the `eccodes` install in the advisor's session at 2026-11-13 21:54 EST ("Yes,
   download"). `eccodes` 2.50.1 went into a scratch environment outside the repo.
 - Mirror layout checked on index files only: 06Z and 18Z runs sit under `oper`, not `scda` as the script first assumed;
