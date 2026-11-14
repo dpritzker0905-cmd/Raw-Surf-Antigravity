@@ -9,7 +9,7 @@ import {
 import maplibregl from 'maplibre-gl';
 import { OPEN_METEO_SPATIAL_BASE_URL } from './openMeteoEndpoints';
 import { toast } from 'sonner';
-import { applyThemeRasterScales } from './rasterPalettes';
+import { applyThemeRasterScales, rasterPaletteKey, rasterPaletteUrlTag } from './rasterPalettes';
 import { subscribeToProtocolFailure, OM_PROTOCOL_DEPENDENT_LAYERS } from './openMeteoProtocolFailure';
 import {
   OM_MODEL_MAP,
@@ -371,7 +371,7 @@ export function useOpenMeteoTileUrls({
     applyThemeWaveScale(theme);
     applyPrecipColorScale();
     applyThemeRasterScales(theme);   // air temp, water temp, fog (rasterPalettes.js)
-  }, [theme]);
+  }, [theme, rasterPaletteKey()]);   // the key: a kill set or cleared re-registers the tables on the same render the legend's memo rebuilds
 
   const fetchMetadata = useCallback(async (modelToCheck, signal) => {
     return fetchModelMetadata(
@@ -443,7 +443,7 @@ export function useOpenMeteoTileUrls({
       const cacheBuster = cacheBustRef.current ? `&_cb=${cacheBustRef.current}` : '';
       // wt-landmask heal: one-time URL rotation so cached pre-mask decodes get re-decoded masked.
       const wtHeal = (variable === 'surface_temperature' && wtLandmaskNudgeRef.current) ? '&wtlm=1' : '';
-      return `om://${OPEN_METEO_SPATIAL_BASE_URL}/${model}/latest.json?time_step=valid_times_${clampedIdx}&variable=${variable}${darkParam}&contours=true${cacheBuster}${wtHeal}`;
+      return `om://${OPEN_METEO_SPATIAL_BASE_URL}/${model}/latest.json?time_step=valid_times_${clampedIdx}&variable=${variable}${darkParam}&contours=true${cacheBuster}${wtHeal}${rasterPaletteUrlTag(variable, theme)}`;   // the tag: which colour table the tile is coloured with (rasterPalettes.js)
     };
 
     const resolveAllUrls = async () => {
@@ -706,7 +706,7 @@ export function useOpenMeteoTileUrls({
       controller.abort(); 
       if (rafRef.current) cancelAnimationFrame(rafRef.current); 
     };
-  }, [activeModel, theme, debouncedTimeOffsetHours, activeLayers, fetchMetadata, metadataRevision, userTier, webglMarineFailed]);
+  }, [activeModel, theme, debouncedTimeOffsetHours, activeLayers, fetchMetadata, metadataRevision, userTier, webglMarineFailed, rasterPaletteKey()]);
 
   useRasterDrawnPublisher(activeLayers, activeSlots, omTileUrls, targetSlotsRef);   // the status line's shown/wanted pair
   // NOTE: Imperative opacity/fade override removed. All raster paint properties

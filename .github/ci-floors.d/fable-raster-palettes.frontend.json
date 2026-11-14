@@ -1,6 +1,6 @@
 {
   "lane": "frontend",
-  "tests": 33,
+  "tests": 39,
   "files": 1,
   "branch": "fable/raster-palettes",
   "date": "2026-11-14",

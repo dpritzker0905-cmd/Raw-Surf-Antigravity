@@ -98,6 +98,20 @@ export function gates(rows, scales, theme) {
     add(`F2 ${r.theme}/${r.surf}`, all(r.fog800mVsMap) >= 10 && all(mist) >= 2 && Math.max(mist.normal, mist.protan, mist.deutan, mist.tritan) <= 8 && r.clear15kmVsMap === 0, `800 m ${all(r.fog800mVsMap)}, mist ${mist.normal}, clear ${r.clear15kmVsMap}`);
     add(`F3 ${r.theme}/${r.surf}`, r.dense200Vs800 >= 4, `dense vs 800 m = ${r.dense200Vs800}`);
   }
+  // B1 (2026-11-14 03:05): every in-range value stands off the BARE map: >= 5.0 normal, >= 3.0 in each colour-blind view.
+  const B1 = { temperature: [-30, -20, -10, -5, -1, 0, 1, 5, 10, 20, 30, 40], water_temp: [4, 8, 12, 16, 20, 24, 28, 30] };
+  for (const [layer, values] of Object.entries(B1)) {
+    for (const surf of LAYERS[layer].on) {
+      const base = SURFACES[theme][surf]; let worstN = { d: Infinity }; let worstC = { d: Infinity };
+      for (const v of values) {
+        const c = over(base, sample(scales[layer], v), LAYERS[layer].op);
+        const n = dist(base, c, 'normal'); if (n < worstN.d) worstN = { d: n, v };
+        for (const view of ['protan', 'deutan', 'tritan']) { const d = dist(base, c, view); if (d < worstC.d) worstC = { d, v, view }; }
+      }
+      add(`B1 ${layer === 'temperature' ? 'air' : 'water'} ${theme}/${surf}`, worstN.d >= 5.0 && worstC.d >= 3.0,
+        `vs bare map: normal min ${worstN.d.toFixed(2)} at ${worstN.v} C, colour-blind min ${worstC.d.toFixed(2)} at ${worstC.v} C (${worstC.view})`);
+    }
+  }
   return out.map((g) => ({ ...g, theme }));
 }
 export const CURRENT = () => {

@@ -9,7 +9,7 @@ import path from 'path';
 import { BASE_CUSTOM_COLOR_SCALES, CUSTOM_COLOR_SCALES, smoothColorScale } from './colorScales';
 import {
   RASTER_LEGEND_SPEC, RASTER_PALETTE_LAYERS, __test, applyThemeRasterScales, rasterLegend, rasterPalette, rasterPaletteOn,
-  rasterScaleFor, rememberLibraryRasterScales,
+  rasterPaletteKey, rasterPaletteUrlTag, rasterScaleFor, rememberLibraryRasterScales,
 } from './rasterPalettes';
 
 const { AIR_TEMP, WATER_TEMP, FOG, sampleScale, fToC } = __test;
@@ -146,7 +146,7 @@ describe('applying the tables', () => {
     const proto = fs.readFileSync(path.join(__dirname, 'openMeteoProtocol.js'), 'utf8');
     expect(proto).toMatch(/rememberLibraryRasterScales\(defaultOmProtocolSettings\.colorScales\); Object\.assign\(defaultOmProtocolSettings\.colorScales, CUSTOM_COLOR_SCALES\);/);
     const hook = fs.readFileSync(path.join(__dirname, 'useOpenMeteoTileUrls.js'), 'utf8');
-    expect(hook).toMatch(/applyPrecipColorScale\(\);\s*applyThemeRasterScales\(theme\);[^\n]*\n\s*\}, \[theme\]\);/);
+    expect(hook).toMatch(/applyPrecipColorScale\(\);\s*applyThemeRasterScales\(theme\);[^\n]*\n\s*\}, \[theme, rasterPaletteKey\(\)\]\);/);   // re-registered when a kill changes, not only on a theme change
   });
 });
 
@@ -213,7 +213,7 @@ describe('the legend block in the weather controls', () => {
 
   test('ONE legend configuration feeds every layout, and it is rebuilt when the theme changes', () => {
     expect(src.match(/const legendConfig = useMemo\(/g)).toHaveLength(1);
-    expect(src).toMatch(/\}, \[theme, heightUnit, windLookKey\(theme\)\]\);/);
+    expect(src).toMatch(/\}, \[theme, heightUnit, windLookKey\(theme\), rasterPaletteKey\(\)\]\);/);   // and when a kill changes (the red team's finding)
     expect(src.match(/legendConfig\[activeLayer\]/g).length).toBeGreaterThanOrEqual(4);
     expect(src).not.toMatch(/const legendConfig(Mobile|Desktop|Sheet)/);
   });
@@ -249,5 +249,72 @@ describe('rasterScaleFor: the table for a layer and theme, with no registry and 
     expect(rasterScaleFor('water_temp', 'light')).toBe(LIB.sea_surface_temperature);
     expect(rasterScaleFor('fog', 'light')).toEqual(smoothColorScale(BASE_CUSTOM_COLOR_SCALES.visibility, 80));
     expect(applyThemeRasterScales('light')).toEqual({ temperature: 'before', water_temp: 'before', fog: 'before' });
+  });
+});
+
+describe('rasterPaletteKey: the map and its bar change together when a kill is set or cleared', () => {
+  test('every one of the four kills changes the key, and clearing it puts the key back', () => {
+    const clean = rasterPaletteKey();
+    expect(clean).toBe('111L1');
+    const seen = new Set([clean]);
+    for (const kill of [...KILLS, '__RAW_DISABLE_RASTER_LEGENDS__']) {
+      window[kill] = true;
+      const k = rasterPaletteKey();
+      expect(k).not.toBe(clean); expect(seen.has(k)).toBe(false); seen.add(k);
+      delete window[kill];
+      expect(rasterPaletteKey()).toBe(clean);
+    }
+    window.__RAW_DISABLE_FOG_PALETTE__ = 'true';                                 // only exactly true is a kill
+    expect(rasterPaletteKey()).toBe(clean);
+  });
+
+  test('the key is in the dependencies of BOTH readers of the kills: the effect that registers the tables and the legend memo', () => {
+    const read = (f) => fs.readFileSync(path.join(__dirname, f), 'utf8').replace(/\r\n/g, '\n');
+    const controls = read('MapWeatherControls.js'); const hook = read('useOpenMeteoTileUrls.js');
+    // the dependency list that closes the legend memo: the first `}, [` after the last legend entry
+    const memoDeps = controls.slice(controls.indexOf("config.water_temp = {"));
+    expect(/\n {2}\}, \[([^\]]*)\]\);/.exec(memoDeps)[1]).toContain('rasterPaletteKey()');
+    // the dependency list of the effect that calls applyThemeRasterScales
+    const effectDeps = hook.slice(hook.indexOf('applyThemeRasterScales(theme);'));
+    expect(/\n {2}\}, \[([^\]]*)\]\);/.exec(effectDeps)[1]).toContain('rasterPaletteKey()');
+  });
+
+  test('what each reader does with a changed key: the registered table and the bar both become the old ones, for that layer only', () => {
+    rememberLibraryRasterScales(LIB);
+    window.__OM_PROTOCOL_SETTINGS__ = { colorScales: {} };
+    applyThemeRasterScales('light');
+    expect(rasterLegend('temperature', 'light')).not.toBeNull();
+    window.__RAW_DISABLE_TEMP_PALETTE__ = true;                                  // set in the console; the next render sees a new key
+    applyThemeRasterScales('light');                                             // the effect, re-run because its key changed
+    expect(window.__OM_PROTOCOL_SETTINGS__.colorScales.temperature).toBe(LIB.temperature);   // the map: the old table
+    expect(rasterLegend('temperature', 'light')).toBeNull();                     // the memo, rebuilt on the same key: the old bar
+    expect(window.__OM_PROTOCOL_SETTINGS__.colorScales.visibility).toBe(FOG.light);          // fog untouched
+    expect(rasterLegend('fog', 'light')).not.toBeNull();
+  });
+});
+
+describe('rasterPaletteUrlTag: a tile coloured with one table is never reused under another', () => {
+  test('the three variables carry which table coloured them; fog also carries the theme; no other variable is touched', () => {
+    expect(rasterPaletteUrlTag('temperature_2m', 'light')).toBe('&rp=p');
+    expect(rasterPaletteUrlTag('surface_temperature', 'dark')).toBe('&rp=p');
+    expect(THEMES.map((t) => rasterPaletteUrlTag('visibility', t))).toEqual(['&rp=pl', '&rp=pb', '&rp=pd']);   // dark and beach share the URL's dark=true: the tag tells them apart
+    for (const v of ['precipitation', 'pressure_msl', 'cloud_cover', 'wave_height', undefined]) expect(rasterPaletteUrlTag(v, 'dark')).toBe('');
+  });
+
+  test('a kill changes the tag of its own layer only, so that layer\'s tiles are asked for again', () => {
+    const before = ['temperature_2m', 'surface_temperature', 'visibility'].map((v) => rasterPaletteUrlTag(v, 'beach'));
+    window.__RAW_DISABLE_TEMP_PALETTE__ = true;
+    expect(['temperature_2m', 'surface_temperature', 'visibility'].map((v) => rasterPaletteUrlTag(v, 'beach'))).toEqual(['&rp=o', before[1], before[2]]);
+    delete window.__RAW_DISABLE_TEMP_PALETTE__; window.__RAW_DISABLE_FOG_PALETTE__ = true;
+    expect(THEMES.map((t) => rasterPaletteUrlTag('visibility', t))).toEqual(['&rp=o', '&rp=o', '&rp=o']);     // the old grey table is the same in every theme
+    window.__RAW_DISABLE_RASTER_LEGENDS__ = true;                                                              // the legend kill does not change what is drawn
+    expect(rasterPaletteUrlTag('temperature_2m', 'light')).toBe('&rp=p');
+  });
+
+  test('the tile URL carries the tag, and the effect that builds the URLs re-runs when a kill changes', () => {
+    const hook = fs.readFileSync(path.join(__dirname, 'useOpenMeteoTileUrls.js'), 'utf8').replace(/\r\n/g, '\n');
+    expect(hook).toMatch(/&contours=true\$\{cacheBuster\}\$\{wtHeal\}\$\{rasterPaletteUrlTag\(variable, theme\)\}`;/);
+    const from = hook.indexOf('const getUrlForIndex = (model, variable, idx) => {');
+    expect(/\n {2}\}, \[([^\]]*)\]\);/.exec(hook.slice(from))[1]).toContain('rasterPaletteKey()');
   });
 });

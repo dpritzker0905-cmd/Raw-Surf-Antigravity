@@ -9,8 +9,9 @@
  * NOW (built in OKLab by scripts/raster-color/design.mjs, checked AS DRAWN over each theme's water and land, in normal vision
  * and three colour-blind simulations, by scripts/raster-color/check.mjs; gates and numbers in
  * docs/weather-program/log/2026-11-14-fable-raster-palettes.md):
- *   - AIR TEMP diverges around 0 C / 32 F: ice blue to deep violet below, cream through gold and red to magenta above, the
- *     palest point at 0 C with a readable edge at the freezing line; lightness falls one way on each side.
+ *   - AIR TEMP diverges around 0 C / 32 F: blue to deep violet below, cream through gold and red to magenta above. The
+ *     palest colour is the first above freezing, and the freezing line is the blue / cream edge itself (there is no neutral
+ *     stop: a near-white one sank into the pale light map); lightness falls one way on each side.
  *   - WATER TEMP is sequential: lightness rises with temperature all the way (deep violet-blue to pale gold), the hue turning
  *     as it goes, so each degree is a visible step.
  *   - FOG is a veil whose colour stands off each theme's map (slate over the pale light and beach maps, near-white over the
@@ -19,7 +20,7 @@
  * pass), then `--emit`. Do not hand-edit a colour here.
  *
  * NO SERVED NUMBER MOVES: only which colour a value is drawn in. The values, units and readouts are untouched.
- * Kills (each restores what was drawn before; take effect at the next theme change or layer toggle, like the rain ramp's):
+ * Kills (each restores what was drawn before; read at the next render, e.g. a layer toggle: rasterPaletteKey):
  *   window.__RAW_DISABLE_TEMP_PALETTE__ / __RAW_DISABLE_WATER_TEMP_PALETTE__ / __RAW_DISABLE_FOG_PALETTE__ = true
  */
 import { BASE_CUSTOM_COLOR_SCALES, CUSTOM_COLOR_SCALES, smoothColorScale } from './colorScales';
@@ -29,13 +30,13 @@ const AIR_TEMP = {
   type: 'breakpoint', unit: '°C',
   breakpoints: [-80, -40, -39, -38, -37, -36, -35, -34, -33, -32, -31, -30, -29, -28, -27, -26, -25, -24, -23, -22, -21, -20, -19, -18, -17, -16, -15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, -0.5, 0, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 50],
   colors: [
-    [37, 5, 45, 1], [37, 5, 45, 1], [39, 6, 51, 1], [41, 7, 56, 1], [43, 8, 61, 1], [46, 9, 66, 1], [48, 10, 72, 1], [50, 12, 77, 1],
-    [53, 13, 83, 1], [55, 14, 89, 1], [57, 16, 94, 1], [60, 17, 100, 1], [63, 20, 113, 1], [66, 24, 126, 1], [69, 27, 139, 1], [73, 30, 152, 1],
-    [76, 33, 166, 1], [76, 40, 177, 1], [76, 48, 189, 1], [76, 54, 201, 1], [75, 61, 212, 1], [74, 68, 224, 1], [73, 81, 224, 1], [73, 93, 225, 1],
-    [72, 103, 225, 1], [72, 114, 224, 1], [71, 124, 224, 1], [76, 132, 225, 1], [80, 140, 225, 1], [85, 148, 226, 1], [91, 156, 226, 1], [96, 164, 227, 1],
-    [104, 171, 228, 1], [112, 178, 229, 1], [120, 185, 231, 1], [128, 192, 232, 1], [136, 199, 233, 1], [137, 204, 237, 1], [139, 210, 241, 1], [140, 215, 244, 1],
-    [141, 220, 248, 1], [142, 223, 250, 1], [246, 245, 242, 1], [251, 242, 163, 1], [251, 241, 161, 1], [251, 239, 157, 1], [250, 237, 153, 1], [249, 236, 149, 1],
-    [249, 234, 145, 1], [249, 229, 132, 1], [250, 224, 118, 1], [250, 219, 104, 1], [250, 214, 87, 1], [250, 209, 69, 1], [248, 201, 65, 1], [245, 192, 62, 1],
+    [28, 3, 32, 1], [28, 3, 32, 1], [30, 3, 36, 1], [32, 3, 39, 1], [34, 4, 42, 1], [36, 4, 45, 1], [38, 5, 48, 1], [40, 5, 51, 1],
+    [42, 5, 55, 1], [44, 6, 58, 1], [46, 6, 61, 1], [48, 7, 65, 1], [52, 9, 76, 1], [55, 12, 87, 1], [58, 14, 99, 1], [61, 17, 111, 1],
+    [64, 19, 123, 1], [66, 23, 135, 1], [68, 26, 147, 1], [70, 30, 159, 1], [72, 34, 171, 1], [73, 37, 184, 1], [72, 44, 192, 1], [70, 51, 201, 1],
+    [68, 58, 210, 1], [65, 65, 219, 1], [62, 71, 227, 1], [61, 81, 228, 1], [59, 90, 229, 1], [58, 98, 230, 1], [56, 107, 231, 1], [55, 115, 232, 1],
+    [57, 121, 233, 1], [60, 128, 235, 1], [63, 135, 236, 1], [66, 141, 238, 1], [69, 148, 239, 1], [75, 155, 241, 1], [81, 161, 243, 1], [87, 168, 244, 1],
+    [93, 175, 246, 1], [96, 178, 247, 1], [248, 245, 198, 1], [248, 243, 192, 1], [248, 242, 185, 1], [249, 240, 172, 1], [249, 237, 158, 1], [249, 235, 144, 1],
+    [250, 232, 129, 1], [250, 228, 118, 1], [250, 223, 107, 1], [250, 218, 96, 1], [250, 214, 83, 1], [250, 209, 69, 1], [248, 201, 65, 1], [245, 192, 62, 1],
     [243, 184, 59, 1], [241, 176, 55, 1], [238, 168, 52, 1], [235, 161, 52, 1], [233, 155, 51, 1], [230, 148, 50, 1], [227, 142, 49, 1], [224, 135, 49, 1],
     [222, 128, 48, 1], [219, 122, 47, 1], [216, 115, 46, 1], [214, 108, 45, 1], [211, 101, 44, 1], [209, 92, 42, 1], [208, 83, 41, 1], [206, 74, 39, 1],
     [204, 63, 38, 1], [202, 52, 36, 1], [194, 49, 46, 1], [187, 46, 53, 1], [179, 43, 59, 1], [172, 40, 64, 1], [164, 37, 69, 1], [156, 35, 71, 1],
@@ -50,7 +51,7 @@ const WATER_TEMP = {
   colors: [
     [9, 2, 21, 1], [9, 2, 21, 1], [11, 2, 27, 1], [13, 3, 33, 1], [15, 3, 39, 1], [17, 4, 45, 1], [19, 5, 51, 1], [21, 5, 57, 1],
     [21, 9, 73, 1], [20, 13, 89, 1], [18, 17, 106, 1], [14, 21, 123, 1], [12, 38, 119, 1], [14, 51, 115, 1], [20, 62, 110, 1], [27, 71, 105, 1],
-    [38, 79, 107, 1], [49, 87, 108, 1], [60, 95, 109, 1], [71, 102, 110, 1], [68, 114, 109, 1], [64, 126, 108, 1], [58, 137, 106, 1], [49, 149, 104, 1],
+    [31, 80, 108, 1], [34, 89, 110, 1], [39, 98, 112, 1], [43, 107, 114, 1], [44, 118, 112, 1], [46, 128, 110, 1], [47, 138, 107, 1], [49, 149, 104, 1],
     [78, 157, 96, 1], [102, 166, 87, 1], [124, 174, 75, 1], [144, 182, 59, 1], [164, 191, 78, 1], [184, 199, 95, 1], [204, 208, 112, 1], [224, 216, 128, 1],
     [233, 225, 159, 1], [242, 233, 188, 1], [244, 236, 201, 1], [246, 240, 213, 1], [248, 243, 225, 1], [250, 247, 237, 1], [250, 247, 237, 1],
   ],
@@ -104,6 +105,29 @@ export const RASTER_PALETTE_LAYERS = {
 const themeOf = (theme) => (theme === 'light' || theme === 'beach' ? theme : 'dark');
 
 export const rasterPaletteOn = (layerId) => !!RASTER_PALETTE_LAYERS[layerId] && W()[RASTER_PALETTE_LAYERS[layerId].kill] !== true;
+
+/**
+ * The state of the four kills as one string. Put it in the dependencies of everything that reads them (the effect that
+ * registers the tables, the legend's memo), so the map and its bar change on the SAME render when a kill is set or cleared:
+ * found by the red team 2026-11-14, a kill set in the console moved one and not the other until the theme changed.
+ */
+/**
+ * A tag for a layer's TILE URL, so a tile coloured with one table is never reused under another. The tile library colours a
+ * tile when it decodes it and the map keeps the coloured tile by URL: registering a different table does not repaint what is
+ * already there (seen 2026-11-14: a kill set in the console put the old bar back while the map kept the new colours). The tag
+ * says which table the tile was coloured with: 'p' (the generated palette) or 'o' (what was drawn before), and for fog the
+ * theme, because fog's colour is per theme while the URL's own `dark=true` is the same for dark and beach.
+ * `variable` is the tile variable; '' for any variable that is not one of the three.
+ */
+const VARIABLE_LAYER = { temperature_2m: 'temperature', surface_temperature: 'water_temp', visibility: 'fog' };
+export function rasterPaletteUrlTag(variable, theme) {
+  const layerId = VARIABLE_LAYER[variable];
+  if (!layerId) return '';
+  const on = rasterPaletteOn(layerId);
+  return `&rp=${on ? 'p' : 'o'}${on && layerId === 'fog' ? themeOf(theme)[0] : ''}`;
+}
+
+export const rasterPaletteKey = () => ['temperature', 'water_temp', 'fog'].map((id) => (rasterPaletteOn(id) ? '1' : '0')).join('') + (W().__RAW_DISABLE_RASTER_LEGENDS__ === true ? 'L0' : 'L1');
 
 /** The table drawn for a layer in a theme when its palette is on (the generated one). */
 export function rasterPalette(layerId, theme) {

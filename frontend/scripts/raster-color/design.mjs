@@ -28,11 +28,13 @@ const seq = (a, b, s) => { const o = []; for (let v = a; v <= b + 1e-9; v += s) 
 export function airTemp(theme) {
   const k = theme === 'dark' ? { l0: 0.97, lo: 0.30, chroma: 1.0 } : { l0: 0.97, lo: 0.24, chroma: 1.0 };
   const cold = [
-    [-40, g(0.20, 0.85, 318)], [-30, g(0.30, 0.85, 302)], [-25, g(0.40, 0.85, 289)], [-20, g(0.50, 0.80, 276)], [-15, g(0.60, 0.75, 262)],
-    [-10, g(0.70, 0.70, 248)], [-5, g(0.80, 0.65, 232)], [-0.5, g(0.86, 0.90, 222)], [0, ok(k.l0, 0.004, 100)],
+    [-40, g(0.17, 0.85, 322)], [-30, g(0.24, 0.88, 314)], [-25, g(0.33, 0.88, 296)], [-20, g(0.42, 0.85, 284)], [-15, g(0.50, 0.82, 272)],
+    [-10, g(0.58, 0.82, 262)], [-5, g(0.66, 0.85, 254)], [-0.5, g(0.74, 0.90, 246)], [0, g(0.96, 0.50, 104)],
   ];
+  // No neutral stop at 0 C: a near-white one sank into the pale light map (gate B1). 0 C is the first, palest warm colour and
+  // the freezing line is the blue / cream edge itself.
   const warm = [
-    [0, ok(k.l0, 0.004, 100)], [0.5, g(0.95, 0.80, 102)], [5, g(0.93, 0.75, 100)], [10, g(0.872, 0.88, 92)], [15, g(0.78, 0.90, 75)],
+    [0, g(0.96, 0.50, 104)], [5, g(0.925, 0.80, 100)], [10, g(0.872, 0.88, 92)], [15, g(0.78, 0.90, 75)],
     [20, g(0.705, 0.88, 60)], [25, g(0.63, 0.86, 45)], [30, g(0.555, 0.85, 30)], [35, g(0.48, 0.85, 12)], [40, g(0.395, 0.85, 352)], [45, g(0.31, 0.85, 332)],
   ];
   const bps = [-80, ...seq(-40, -1, 1), -0.5, 0, 0.5, ...seq(1, 45, 1), 50];   // every stop on the own-frames lookup's 0.5 C step (ownRasterLayer TEMPERATURE_LUT)
@@ -44,7 +46,7 @@ export function airTemp(theme) {
 // turning from violet through blue, teal, green and yellow-green to gold so each degree moves in hue as well as lightness.
 export function waterTemp(theme) {
   const anchors = [
-    [-2, g(0.12, 0.80, 302)], [4, g(0.19, 0.85, 288)], [8, g(0.29, 0.85, 268)], [12, g(0.385, 0.78, 245)], [16, g(0.49, 0.45, 215)],
+    [-2, g(0.12, 0.80, 302)], [4, g(0.19, 0.85, 288)], [8, g(0.29, 0.85, 268)], [12, g(0.385, 0.78, 245)], [16, g(0.49, 0.78, 205)],
     [20, g(0.60, 0.85, 160)], [24, g(0.725, 0.85, 125)], [28, g(0.87, 0.60, 104)], [30, g(0.93, 0.45, 98)], [34, g(0.975, 0.40, 92)],
   ];
   const a = ramp(anchors, [-80, ...seq(-2, 34, 1), 50], () => 1);

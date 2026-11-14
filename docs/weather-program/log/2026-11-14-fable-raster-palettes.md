@@ -175,3 +175,57 @@ cold water is near-black over the dark map: either could sink into the basemap.
   them again, including any that got worse.
 - What I expect before measuring, so it cannot be dressed up afterwards: the air temp table's neutral stop at 0 C over the
   light map's land is the likeliest failure.
+
+## 03:40 EST. After the red team: gate B1 measured, the tables adjusted, and fix A (which needed two rounds)
+### B1: FAILED at four places as first measured (after the threshold was fixed at 03:05), then passes
+| where | measured | cause |
+|---|---|---|
+| air temp, light land, 0 C | 0.93 | the near-white neutral stop sank into the pale map (the failure I wrote down beforehand) |
+| air temp, light water, -1 C | 3.53 normal; 2.52 colour-blind at -5 C | pale ice blue over the map's pale blue water |
+| air temp, beach water, -5 C | 3.96 normal; 2.86 colour-blind | the same |
+| water temp, dark water, 16 C | 3.52 | the grey-blue middle stop matched the dark map's own water |
+
+Changed, only at those ends: no neutral stop at 0 C (0 C is the first, palest warm colour; the freezing line is the blue /
+cream edge itself); the cold side near freezing bluer and darker; water temp's 16 C stop given more colour. The first attempt
+broke T1 (5 C bands down to 1.5-2.0), so the cold side's lightness was re-spread down to a darker end: five rounds in all.
+
+**Every gate line re-run on the final tables (all pass):**
+| gate | worst case now | before the red team | today |
+|---|---|---|---|
+| T1 5 C band step (>= 4.5 / >= 3.0) | 4.57 normal (beach land); 3.25 colour-blind | 5.63; 3.25 | 5.4; 1.3 |
+| T2 -10 vs +10 C (>= 30 / >= 20) | 39.5 normal; 25.8 colour-blind | 31.2; 24.3 | 50; 16 |
+| T3 palest at 0 C, lightness one way | at 0 C, no reversal | same | at -2 C |
+| T4 -1 vs +1 C (>= 6) | 24.1 (range 24.1-28.1) | 19.7 | 23.1-24.8 |
+| W1 lightness monotone | 0 reversals | same | not monotone |
+| W2 1 C step (>= 1.5 / >= 1.2) | 1.74; 1.37 | 1.74; 1.32 | 0 |
+| W3 mean 1 C step not below today's | 2.89 / 2.96 / 3.15 | 2.92 / 2.99 / 3.19 | 2.60 / 2.69 / 3.05 |
+| F1-F3 fog | unchanged (fog was not touched) | | |
+| B1 vs the bare map (>= 5.0 / >= 3.0) | 5.13 normal (air, beach land, 0 C); 3.09 colour-blind (water, dark, 16 C) | 0.93 | - |
+
+What got worse: T1's margin is now thin (4.57 against 4.5) and W3 slipped a little (still above today). What got better
+without being aimed at: the freezing edge is now at or above today's, and cold-against-warm in normal vision is closer to
+today's. Margins this thin on a simulated instrument are not a guarantee on a real screen.
+
+### Fix A: the bar and the map must follow a kill together. It took two rounds, and the app run found the second
+1. Round one: a key of the four kill states (`rasterPaletteKey`) in the dependencies of the legend's memo and of the effect that
+   registers the tables. Tests, and two mutants caught (the key removed from either list fails two tests each).
+2. The offline app then showed that was NOT enough: with a kill set in the console and the layer toggled, the registry and
+   the bar went back to the old table but **the map kept the new colours**. The tile library colours a tile when it decodes it
+   and the map keeps the coloured tile by URL; registering another table repaints nothing. (So my earlier note that a kill
+   "takes effect at the next layer toggle" was wrong for the map.)
+3. Round two: the tile URL of the three variables carries which table coloured the tile (`rasterPaletteUrlTag`: `&rp=p` or
+   `&rp=o`, and for fog the theme, because fog's colour is per theme while the URL's own `dark=true` is shared by dark and
+   beach), and the effect that builds the URLs re-runs on the key. A third mutant (the tag removed) is caught.
+4. Offline app, light theme, air temp, after round two: palette on -> kill set in the console (nothing changes until a render)
+   -> layer toggled: registry = the library's 46-stop table, bar = the old rainbow with its old ticks, and 90.2% of the map's
+   pixels change by more than 12/255 (Texas [245, 225, 168] -> [147, 212, 144]); kill cleared and toggled: all three back, 2.5%
+   of pixels differ from the first frame.
+   NOT run in the app: the fog kill, the water temp kill, and a dark <-> beach theme switch with fog on (unit tests only).
+- One existing wind test pinned the legend memo's exact dependency list and failed in the full run; it now requires the wind
+  key and accepts further keys after it.
+
+### Tests and checks after these changes
+`rasterPalettes.test.js`: 39 tests (floor fragment +39, +1 suite). The whole map and tests trees pass locally: 511 suites,
+7,057 tests. Lint ratchet and file-size check pass. The three themes redrawn on desktop with 0 page errors.
+NOT redone after the table changes: the phone layout draw and the frame-time check (the tables are the same size and kind; the
+earlier results are in the 01:45 section).

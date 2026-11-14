@@ -17,7 +17,7 @@ import { forecastReadout, forecastDayLabel } from './forecastReadout';
 import { responsiveWeatherOn } from './useMapChromeLayout'; import LayerDataCredit from './LayerDataCredit';
 import { marineWaveLegend } from './marineWavePalette';
 import WeatherLayerSheet, { useWeatherPanelDisclosure } from './WeatherLayerSheet';
-import { buildGradientCSS, buildStops, evenStops, HEIGHT_VARIABLES } from './weatherControlLegend'; import { rasterLegend } from './rasterPalettes';
+import { buildGradientCSS, buildStops, evenStops, HEIGHT_VARIABLES } from './weatherControlLegend'; import { rasterLegend, rasterPaletteKey } from './rasterPalettes';
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
 const SURF_TOGGLE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
 /**
@@ -228,7 +228,7 @@ export var MapWeatherControls = ({
     // NOTE: no eslint-disable here — this project's eslint config does NOT register the
     // react-hooks plugin, and naming an unknown rule in a disable comment is itself a
     // compile-failing error on the Netlify build (deploy 6a540b87, 2026-07-12).
-  }, [theme, heightUnit, windLookKey(theme)]);   // the wind look (WindColorRamp.js): light's bar follows its field, so a kill or lever that changes the look redraws the bar at the next render
+  }, [theme, heightUnit, windLookKey(theme), rasterPaletteKey()]);   // the wind look (WindColorRamp.js): light's bar follows its field, so a kill or lever that changes the look redraws the bar at the next render
 
   // Surf-quality RATING legend: 7 discrete bands (very_poor -> epic) as a hard-stop gradient, mirroring the
   // shader getRatingColor palette. Fixed colors (not theme-dependent); coarse tick labels under the bar.
