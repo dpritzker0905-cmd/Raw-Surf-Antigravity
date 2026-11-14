@@ -1,6 +1,6 @@
 import {
   planWindow, toField, ownFramesOn, ownIndex, lastIndex, frameAt, framesOf, setWanted, getField, MAX_IN_FLIGHT, MISSING, OWN_RASTER_SETS,
-  combinedFrames, combinedFrameAt, setKey, TEMP_FIELD, CLOUD_FIELD, NO_DATA_BELOW, leverCovers, DEFAULT_ON_LAYERS,
+  combinedFrames, combinedFrameAt, setKey, TEMP_FIELD, CLOUD_FIELD, PRECIP_FIELD, NO_DATA_BELOW, leverCovers, DEFAULT_ON_LAYERS,
   _resetOwnRasterFramesForTest,
 } from './ownRasterFrames';
 import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
@@ -52,7 +52,8 @@ test('toField: Float32 values, missing nodes as MISSING, the frame times in ms',
 });
 
 describe('levers (phase 1 is dark)', () => {
-  test('off by default', () => expect(ownFramesOn('pressure')).toBe(false));
+  // Pressure is ON by default since 2026-11-12 (DEFAULT_ON_LAYERS); temperature is the layer that is still dark.
+  test('off by default', () => expect(ownFramesOn('temperature')).toBe(false));
   test("on with the window lever or this browser's choice", () => {
     window.__RAW_RASTER_OWN_FRAMES__ = true;
     expect(ownFramesOn('pressure')).toBe(true);
@@ -65,7 +66,7 @@ describe('levers (phase 1 is dark)', () => {
     window.__RAW_DISABLE_RASTER_OWN_FRAMES__ = true;
     expect(ownFramesOn('pressure')).toBe(false);
     delete window.__RAW_DISABLE_RASTER_OWN_FRAMES__;
-    expect(ownFramesOn('rain')).toBe(false);
+    expect(ownFramesOn('fog')).toBe(false);
   });
   test('per model: each has its own set; a model whose set is killed stays on the .om path', () => {
     window.__RAW_RASTER_OWN_FRAMES__ = true;
@@ -96,6 +97,29 @@ describe('frames of the index', () => {
   test('framesOf keeps only frames with a file', () => expect(framesOf(index).map((f) => f.path)).toEqual(['f000', 'f006']));
 });
 
+describe('a mixed-cadence index: hourly to f120, then 3-hourly (GFS pressure, 2026-11-12)', () => {
+  const RUN = Date.parse('2026-11-12T12:00:00Z');
+  const HOURS = [...Array(121).keys(), ...Array.from({ length: 72 }, (_, i) => 123 + 3 * i)];
+  const index = { frames: HOURS.map((h) => ({ valid_time: new Date(RUN + h * 3600000).toISOString(), path: `f${h}` })) };
+  const at = (h) => frameAt(index, RUN + h * 3600000);
+  test('193 frames; every hour of the first five days shows its own frame', () => {
+    expect(HOURS).toHaveLength(193);
+    for (let h = 0; h <= 120; h++) expect(at(h).path).toBe(`f${h}`);
+  });
+  test('past f120 an hour shows the nearer 3-hourly frame, picked by valid time and not by position', () => {
+    expect(at(121).path).toBe('f120');
+    expect(at(122).path).toBe('f123');
+    expect(at(123).path).toBe('f123');
+    expect(at(335).path).toBe('f336');
+    expect(at(340)).toBeNull();                        // more than 3 h past the last frame: a gap, nothing drawn
+  });
+  test('the window walks positions: across f120 it holds f119, f120 and the next stored frame f123', () => {
+    const frames = framesOf(index);
+    expect(planWindow(120, frames.length, 1, 2).map((i) => frames[i].path)).toEqual(['f120', 'f123', 'f126', 'f119']);
+    expect(planWindow(120, frames.length, -1, 1).map((i) => frames[i].path)).toEqual(['f120', 'f119', 'f123']);
+  });
+});
+
 describe('the window pump', () => {
   const parsedFor = (v) => ({ cols: 1, rows: 1, bounds: {}, validEpoch: 0, runEpoch: 0, fields: { 6: new Float64Array([v]) } });
   test(`at most ${MAX_IN_FLIGHT} loads at once, in window order; a frame that left the window never starts`, async () => {
@@ -120,9 +144,10 @@ describe('the remembered index (prewarm: a toggle draws after one frame round tr
   test('ownIndex remembers what it pinned; nothing while the lever is off', async () => {
     const idx = { path: 'i.json', frames: [{ valid_time: '2026-10-23T06:00:00Z', path: 'f0' }] };
     getPinnedIndex.mockResolvedValue(idx);
-    expect(await ownIndex('pressure')).toBeNull();          // lever off
+    window.__RAW_DISABLE_RASTER_OWN_PRESSURE__ = true;      // pressure is on by default (2026-11-12): its kill is the "off"
+    expect(await ownIndex('pressure')).toBeNull();
     expect(lastIndex('pressure')).toBeNull();
-    window.__RAW_RASTER_OWN_FRAMES__ = true;
+    delete window.__RAW_DISABLE_RASTER_OWN_PRESSURE__;
     expect(await ownIndex('pressure')).toBe(idx);
     expect(lastIndex('pressure')).toBe(idx);
     expect(getPinnedIndex).toHaveBeenCalledWith('GFS/weather/pressure/global_0p5');
@@ -180,7 +205,7 @@ describe('air temperature (2026-10-24)', () => {
     delete window.__RAW_RASTER_OWN_FRAMES__;
     window.localStorage.setItem('__RAW_RASTER_OWN_FRAMES__', 'temperature');
     expect(ownFramesOn('temperature')).toBe(true);
-    expect(ownFramesOn('pressure')).toBe(false);
+    expect(ownFramesOn('pressure')).toBe(true);             // on by default (2026-11-12), whatever the lever names
     expect(leverCovers(false, 'pressure')).toBe(false);
     expect(leverCovers('true', 'temperature')).toBe(true);
     expect(leverCovers('pressures', 'pressure')).toBe(false);
@@ -209,12 +234,29 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
     window.__RAW_DISABLE_RASTER_OWN_SATELLITE__ = true;
     expect(ownFramesOn('satellite', 'GFS')).toBe(false);
   });
-  test('ON by default (D-052): no lever draws cloud from own frames; every other layer stays dark', () => {
-    expect(DEFAULT_ON_LAYERS).toEqual(['satellite']);
+  test('ON by default (D-052, pressure 2026-11-12): no lever draws cloud and pressure from own frames; temperature stays dark', () => {
+    expect(DEFAULT_ON_LAYERS).toEqual(['satellite', 'pressure']);
     expect(ownFramesOn('satellite', 'GFS')).toBe(true);
     expect(ownFramesOn('satellite', 'EURO')).toBe(false); // no EURO cloud set: the .om path draws EURO as before
-    expect(ownFramesOn('pressure', 'GFS')).toBe(false);
     expect(ownFramesOn('temperature', 'GFS')).toBe(false);
+  });
+  test('pressure is ON by default for each model with its own set', () => {
+    for (const m of ['GFS', 'EURO', 'ICON']) expect(ownFramesOn('pressure', m)).toBe(true);
+  });
+  test('KILL: __RAW_DISABLE_RASTER_OWN_PRESSURE__ puts pressure back on the .om path and leaves cloud alone', () => {
+    window.__RAW_DISABLE_RASTER_OWN_PRESSURE__ = true;
+    try {
+      for (const m of ['GFS', 'EURO', 'ICON']) expect(ownFramesOn('pressure', m)).toBe(false);
+      expect(ownFramesOn('satellite', 'GFS')).toBe(true);
+    } finally { delete window.__RAW_DISABLE_RASTER_OWN_PRESSURE__; }
+  });
+  test('the pressure default yields to the all-layers kill and to a per-set kill', () => {
+    window.__RAW_DISABLE_RASTER_OWN_FRAMES__ = true;
+    expect(ownFramesOn('pressure', 'GFS')).toBe(false);
+    delete window.__RAW_DISABLE_RASTER_OWN_FRAMES__;
+    staticSetEnabled.mockImplementation((key) => key !== 'EURO/weather/pressure/global_0p5');   // the per-set kill's answer
+    expect(ownFramesOn('pressure', 'EURO')).toBe(false);     // EURO alone falls back to the .om path
+    expect(ownFramesOn('pressure', 'GFS')).toBe(true);
   });
   test('the cloud default yields to both kills and to a set that is not published', () => {
     window.__RAW_DISABLE_RASTER_OWN_SATELLITE__ = true;
@@ -228,5 +270,40 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
     staticSetEnabled.mockImplementation(() => true);
     staticFramesEnabled.mockReturnValue(false);
     expect(ownFramesOn('satellite', 'GFS')).toBe(false);
+  });
+});
+
+describe('precipitation, the rain layer (2026-11-12): GFS only, dark until the lever names it', () => {
+  afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_RAIN__; });
+
+  test('the set key and field match the publisher contract; EURO and ICON have no set', () => {
+    expect(setKey('rain', 'GFS')).toBe('GFS/weather/precipitation/global_0p25');
+    expect(setKey('rain', 'EURO')).toBeNull();
+    expect(setKey('rain', 'ICON')).toBeNull();
+    expect(OWN_RASTER_SETS.rain.field).toBe(PRECIP_FIELD);
+    expect(PRECIP_FIELD).toBe(10);
+    expect(OWN_RASTER_SETS.rain.unit).toBe('mm/h');
+    expect(OWN_RASTER_SETS.rain.fallback).toBeNull();
+  });
+
+  test('dark: off with no lever, and not one of the default-on layers', () => {
+    expect(DEFAULT_ON_LAYERS).not.toContain('rain');
+    expect(ownFramesOn('rain')).toBe(false);
+  });
+
+  test('on when the lever names it, for GFS only', () => {
+    window.__RAW_RASTER_OWN_FRAMES__ = 'rain';
+    expect(ownFramesOn('rain', 'GFS')).toBe(true);
+    expect(ownFramesOn('rain', 'EURO')).toBe(false);
+    expect(ownFramesOn('rain', 'ICON')).toBe(false);
+    expect(ownFramesOn('temperature')).toBe(false);          // the lever named rain only
+  });
+
+  test('OFF PATH: its own kill wins over the lever and touches no other layer', () => {
+    window.__RAW_RASTER_OWN_FRAMES__ = true;
+    window.__RAW_DISABLE_RASTER_OWN_RAIN__ = true;
+    expect(ownFramesOn('rain')).toBe(false);
+    expect(ownFramesOn('pressure')).toBe(true);
+    expect(ownFramesOn('temperature')).toBe(true);
   });
 });

@@ -39,7 +39,7 @@ export { scaleUnitDirByConfidence, extrapolateOceanData, dilateDirectionField } 
 // unit test that pulls these from THIS module keeps resolving them — the same move this file
 // already made for WebGLMarineFieldMath above.
 export { withTextureState, createTexture, updateTexture } from './WebGLMarineTextureState';
-import { withTextureState, createTexture, updateTexture } from './WebGLMarineTextureState';
+import { withTextureState, createTexture, updateTexture } from './WebGLMarineTextureState'; import { uploadMaskCanvas } from './maskCanvasUpload';
 
 // --- Land Mask Rendering imported from WebGLMarineMaskRenderer ---
 // --- The Ocean GPU Grid Texture Compressor ---
@@ -536,7 +536,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
           gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
           gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
           gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, maskCanvas);
+          uploadMaskCanvas(gl, maskCanvas);
           gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
           gl.bindTexture(gl.TEXTURE_2D, prevTex);
         } catch (e) {
@@ -732,7 +732,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
           gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
 
           gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, maskCanvas);
+          uploadMaskCanvas(gl, maskCanvas);
           gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
           gl.bindTexture(gl.TEXTURE_2D, prevTex);
           console.log(`[WebGLMarineEngine-Forensic] High-resolution land mask texture created (${maskCanvas.width}x${maskCanvas.height})`);

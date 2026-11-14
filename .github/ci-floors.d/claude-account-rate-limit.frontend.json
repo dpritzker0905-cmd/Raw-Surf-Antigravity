@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 9,
+  "files": 1,
+  "branch": "claude/account-rate-limit",
+  "date": "2026-11-12",
+  "note": "too-many-requests notice (#815)"
+}

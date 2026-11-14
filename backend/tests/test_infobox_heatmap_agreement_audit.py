@@ -409,3 +409,10 @@ def test_point_reports_the_served_frame_and_estimate_flag_at_a_boundary(default_
     stamp_frame_honesty(r, ask, ask.strftime("%Y-%m-%dT%H:%M:%SZ"))
     assert r.is_estimated is True
     assert (r.frame_offset_hours, r.frame_substituted) == (1.0, True)
+
+
+@__import__("pytest").fixture(autouse=True)
+def _legacy_reference_curve(monkeypatch):
+    """These pins describe the reference-LESS legacy size curve. JAC-2's catalogue prior
+    (RATING_REF_PRIOR, default ON) replaces it; that path is pinned in test_reference_prior.py."""
+    monkeypatch.setenv("RATING_REF_PRIOR", "0")

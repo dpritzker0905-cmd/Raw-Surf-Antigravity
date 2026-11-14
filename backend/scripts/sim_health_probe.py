@@ -49,6 +49,10 @@ import statistics
 import sys
 import time
 import urllib.request
+try:
+    from _service_auth import service_headers   # the forecast clamp's job key (flip blocker 1)
+except ImportError:
+    from scripts._service_auth import service_headers
 
 BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BACKEND_DIR not in sys.path:
@@ -99,7 +103,7 @@ def _tide_banded_targets(catalog):
 
 
 def _fetch(url, timeout=120):
-    req = urllib.request.Request(url, headers={"User-Agent": "sim-health-probe/1"})
+    req = urllib.request.Request(url, headers=service_headers(url, {"User-Agent": "sim-health-probe/1"}))
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.load(r)
 

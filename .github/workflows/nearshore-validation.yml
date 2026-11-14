@@ -197,6 +197,7 @@ jobs:
           # ⛔ deliberately NO SURF_* here: the runner must read the serving path's own defaults;
           # a flag set only in this lane would grade a transform nobody serves (test_flag_lane_parity
           # does not cover this workflow — do not make it need to).
+          WEATHER_SERVICE_KEY: ${{ secrets.WEATHER_SERVICE_KEY }}   # the forecast clamp's job identity (services/weather_service_identity.py); unset = no key sent
         run: |
           # ⚠️ `|| rc=$?` IS LOAD-BEARING (forecast-calibration-census.yml lesson): under bash -e
           # + pipefail a non-zero pipeline aborts the step and every branch below is dead code.

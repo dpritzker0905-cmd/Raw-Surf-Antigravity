@@ -36,6 +36,7 @@ import { buildTruthTag } from './weatherTruthTracker';
 import { cropGridJson, cropSeriesFrame, cropVectors, gridBboxParam, midCropFor, midCropRulesPass, seriesBboxParam } from './staticFrameCrop';
 import { _resetRegionalForTest, bundleBackingOff, isRegionalSetKey, noteRegionalMiss, normalizeBundleIndex, pickRegionalTile, regionalBundlesOn, regionalClipWindow, regionalFrameBytes,
   regionalGridJson, regionalTelemetry } from './staticRegional';   // regional bundles at z7-9 (2026-10-23)
+import { signEntitledFrames } from './staticFrameSigner';
 import { registerLatestProbes, setIsEmpty, setIsListed } from './regionalLatestSets';
 import { filledStoreAccepts, filledStoreOn, filledWorldPossible, filledWorldSetKey, plainCropsOn, preloadFilledIndexes, serveTimeFillAtWorld } from './staticWorldFillGuard';
 import { RATED_SET_KEYS, isRatedKey, ratedCropEligible, tryStaticRatedGrid } from './staticRatingFrames';   // the Surf Rating band (2026-11-01, dark)
@@ -230,6 +231,7 @@ export const STATIC_SETS = [
   'GFS/weather/temperature/global_0p5',
   // GFS total cloud cover (2026-10-24, the 'satellite' layer; #515's set): read only by ownRasterFrames.js, same lever.
   'GFS/weather/cloud_cover/global_0p25',
+  'GFS/weather/precipitation/global_0p25',   // 2026-11-12: mm/h in the step before each hour, the 'rain' layer's own frames (dark)
   // EURO / ICON world frames with /grid's TARGETED Gulf fill baked in (2026-10-24, frame_set_fill.py): read only for WORLD boxes,
   // only while the server and the set agree on the mode (staticWorldFillGuard.filledWorldSetKey); crops read the plain sets.
   'ICON/marine/waves/global_mid_filled', 'EURO/marine/waves/global_mid_filled', 'ICON/marine/swell_1/global_mid_filled',
@@ -277,8 +279,7 @@ async function loadIndex(path) {
       throw new Error('unsupported index');
     }
     idx.path = idx.path || path;
-    normalizeBundleIndex(idx);                       // a regional bundle set: frames read slices of one object (staticRegional)
-    return idx;
+    return signEntitledFrames(normalizeBundleIndex(idx)); // bundle sets read slices (staticRegional); hours get signed URLs (O6)
   });
   _state.indexLoads.set(path, p);
   p.catch(() => _state.indexLoads.delete(path));
@@ -385,7 +386,7 @@ function sharedParsedLoad(key, frame, priority) {
     let got;
     try {
       got = frame.bundle ? await regionalFrameBytes(staticFramesBase(), frame, controller.signal, priority)
-        : await fetchFrameBytes(staticFramesBase() + frame.path, controller.signal, priority);
+        : await fetchFrameBytes(frame.url || staticFramesBase() + frame.path, controller.signal, priority);  // url: O6 signed
     } catch (e) { got = { error: 'fetch_error' }; }                      // never an unhandled rejection
     if (got.error) {
       if (got.status === 404 || got.status === 400 || got.status === 'integrity') markPinStale(key); // gone or wrong: re-pin

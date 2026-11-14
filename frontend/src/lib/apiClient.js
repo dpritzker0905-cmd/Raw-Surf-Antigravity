@@ -131,7 +131,8 @@ const SESSION_KEYS = ['raw-surf-user', 'raw-surf-user-original', 'impersonation_
   'isGodMode', 'isPersonaBarActive', 'activePersona',
   'godModeMinimized', 'godModeDesktopMinimized'];
 
-const clearStoredSession = () => {
+// Exported for the forecast's expired-session prompt (components/SessionExpiredPrompt.js, #782).
+export const clearStoredSession = () => {
   SESSION_KEYS.forEach((k) => localStorage.removeItem(k));
   // A refused session ends this account on this device just as a logout does.
   purgeUserScopedStorage();
@@ -170,6 +171,21 @@ function handleRefusedSession() {
   }, 2000);
 }
 
+/** True for the tier clamp's sign-in refusal (backend weather_tier_clamp._sign_in_required) when no session is
+ * stored. Kill switch: window.__RAW_DISABLE_SIGNED_OUT_FORECAST_QUIET__ = true (every 401 redirects, as before). */
+export const isSignedOutForecastRefusal = (response) => {
+  try {
+    if (typeof window !== 'undefined' && window.__RAW_DISABLE_SIGNED_OUT_FORECAST_QUIET__ === true) return false;
+    const h = (response && response.headers) || {};
+    const marker = typeof h.get === 'function' ? h.get('x-raw-tier-clamp') : h['x-raw-tier-clamp'];
+    if (String(marker || '').toLowerCase() !== 'account') return false;
+    const stored = localStorage.getItem('raw-surf-user');
+    return !(stored && JSON.parse(stored)?.access_token);
+  } catch {
+    return false;
+  }
+};
+
 // --- Response interceptor -- handle auth errors ---
 apiClient.interceptors.response.use(
   (response) => response,
@@ -205,6 +221,13 @@ apiClient.interceptors.response.use(
       const isAuthCall = url.includes('/auth/login') || url.includes('/auth/signup');
  // Skip admin-only endpoints -- the admin console handles these errors itself
       const isAdminCall = url.includes('/admin/');
+      // ACCOUNTS ONLY (flip blocker 2, 2026-11-12): with the tier clamp on, the spot hub's forecast reads
+      // (/conditions, /tides) refuse a caller with no account, marked `X-Raw-Tier-Clamp: account`. Signed out,
+      // that is not a lost session: the page keeps rendering without its forecast, it is never sent to /auth.
+      // Signed in, it IS a refused session, handled below like any other.
+      if (isSignedOutForecastRefusal(error.response)) {
+        return Promise.reject(error);
+      }
       if (!isAuthCall && !isAdminCall) {
         handleRefusedSession();
       }

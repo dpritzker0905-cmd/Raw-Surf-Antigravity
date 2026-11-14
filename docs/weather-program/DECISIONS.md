@@ -1981,8 +1981,51 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 - **Supersedes:** the STATE note "flip waits on spot observations", a D-001-era hold.
 - **Rollback:** `SURF_NEARSHORE_MOP=0` (env or manifest), or revert the PR.
 
-### D-071 · The wind lane's HRRR weight is capped by region and lead from a buoy fit (WIND_LANE_SKILL_WEIGHTS, DARK, 2026-11-12, proposed)
-- **Status: PROPOSED, not decided.** Built dark on branch `claude/wind-lane-skill-weights` (default `'0'`, Render env).
+### D-070 · WAVES_ANIM_DOMINANT_SWELL is registered as a rating flag; its value stays 1 pending the owner (2026-11-12, proposed)
+- **What it is:** an ingest-time rule in `normalizer.py`. For the marine/waves layer, where the larger of the two swell
+  partitions holds at least 0.35 of the total energy (H_sw^2 >= 0.35 Hs^2), and the product carries partitions on at least
+  95% of its wave cells, the cell's direction and u/v become that partition's direction. Height stays total. GFS and ICON
+  only: EURO WAM serves no partitions. The point sampler reads the same grid, so the rating's `swell_from` and the height's
+  direction terms follow it.
+- **State recorded, not changed:** code default `'0'`; the repository variable has read `1` since the 2026-07-13 A/B
+  (`docs/runbooks/HANDOFF-2026-07-13-data-truth-and-swell-animation-decision.md`), read by forecast-ingest and
+  forecast-ingest-pilots with a `'0'` fallback. It had no DECISIONS or SCOREBOARD entry and no `_RATING_FLAGS` line, so
+  the flag-parity guard could not see it (its prefixes skip `WAVES_ANIM_`). Now registered, with a test that pins one
+  repository variable, the same fallback in both lanes, equality with the normalizer's code default, and absence from
+  precompute (`tests/test_flag_lane_parity.py::test_dominant_swell_anim_is_registered_and_read_the_same_way_by_both_ingest_lanes`).
+- **Measured (sensitivity, not skill):** `backend/scripts/dominant_swell_anim_census.py`, 2026-11-12. 120 catalogue
+  spots, sampled one per 15 deg lat x 30 deg lon cell, up to 4 per cell; 93 had a sea state. GFS-Wave 0.25 deg (Open-Meteo `ncep_gfswave025`,
+  nearest sea cell) and GFS wind, every 6 h over 3 days: 1,116 spot-hours. Both lanes went through the real chain
+  (`rate_one_spot` -> `augment_with_surf` -> `compute_surf_rating`); only the direction differed. No request reached our backend.
+  - Direction changed on 60.5% of spot-hours: median 6 deg, p90 33 deg, max 130 deg; 44 rows turned >= 45 deg.
+  - Rating LEVEL changed on **18.5%** of spot-hours (61 up, 145 down); score mean -1.60, mean |d| 3.66, range -66 to +62.
+  - Breaking height: mean -0.013 m, mean |d| 0.037 m; 131 rows moved > 0.1 m.
+  - The effect grows with the turn: mean |dscore| 4.1 (0-30 deg), 20.1 (30-60 deg), 25.7 (60-90 deg).
+  - Tropics and extratropics alike (18.9% vs 18.0% level change).
+  - Null control: 40 identical re-rates gave 0 score differences.
+- **Why not decided here:** the census measures how much the flag moves the rating, not which direction is right. The
+  only direction truth we hold is the buoy's bulk mean direction, which is a TOTAL direction (S8); judging a swell-
+  partition direction needs spectral truth (gap map item 5). Physically the dominant swell is what refracts onto a
+  break, which argues for ON; the honest test is the partition-truth instrument.
+- **Also stated:** with the flag on, GFS and ICON carry a swell direction and EURO a total direction, so the consensus
+  direction averages unlike quantities (`log/2026-11-03-claude-consensus-direction-vector.md`). With the flag on, the
+  waves layer animates along a swell partition while wind-waves and other layers follow their own fields, so layers can
+  legitimately disagree over the same water (the advisor's hypothesis for the 2026-11-11 "opposing animations" report;
+  not tested here).
+- **Owner's call:** keep 1 (today's behaviour) or set the repository variable to 0. Either is one variable flip,
+  effective on the next ingest cycle; no code change.
+- **Reopen if:** the partition-truth instrument reads, or the owner decides.
+
+### D-071 · The wind lane's HRRR weight is capped by region and lead from a buoy fit (WIND_LANE_SKILL_WEIGHTS, 2026-11-12, decided ON 2026-11-12 19:49Z)
+- **Status: DECIDED, ON (2026-11-12).** The owner (David), 14:43 EST 2026-11-12 (19:43Z), answering "Turn on the
+  skill-weighted HRRR wind lane (WIND_LANE_SKILL_WEIGHTS=1)?": "Turn it on". The director set Render env
+  `WIND_LANE_SKILL_WEIGHTS=1` on the Render backend service at ~19:49Z, triggering deploy
+  `dep-dbr1gorrjlhs73cd7890` on dev `37b85b463`. Evidence the owner decided on: held-out (odd-cycle fit, even-cycle
+  score) the blend beat both GFS and the shipped lane in 8 of 8 table cells and 26 of 28 published cells (#798 grade,
+  #805 build; SCOREBOARD S9 rows 2026-11-12 04:50Z and 06:00Z). Commitment (ledger): re-grade the live lane against
+  NDBC (`backend/scripts/grade_wind_lane_ndbc.py`, #798's method) on >= 14 days after the flip, due 2026-11-26; revert
+  if any region x lead with n >= 300 is worse than GFS by > 0.3 kn vector RMSE.
+- **Was: PROPOSED, not decided.** Built dark on branch `claude/wind-lane-skill-weights` (default `'0'`, Render env).
   It flips only on the owner's word. It reopens D-017's "full HRRR weight inside the domain and horizon"; D-017's
   place/time lane, feather, taper and kills stand.
 - **Why it reopens:** D-017's own reopen condition fired. The >= 14-day NDBC grade (#798, log
@@ -2001,4 +2044,68 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
   `/grid` (the client's `laneVerdict`); a follow-up can make the frames apply the same table.
 - **Reopen if:** a later grade (another season, or a scheduled wind truth lane) moves a cell's fitted weight by >= 0.2,
   or the held-out blend stops beating both members in a cell with n >= 300.
-- **Rollback:** `WIND_LANE_SKILL_WEIGHTS` unset or `0`.
+- **Rollback:** `WIND_LANE_SKILL_WEIGHTS` unset or `0` (Render env; setting it redeploys).
+
+### D-072 · The accuracy monitor's reference page splits into three: a same-model regression, the hole buoys, and the best_match gap where both models score (2026-11-12, proposed)
+- **Status: PROPOSED, not decided.** Nothing is built. The owner decides. It reopens the WS-CAN-0026 rule in
+  `forecast-accuracy-monitor.yml` that pages when the `open_meteo_marine` (Open-Meteo `best_match`) paired MAE gap
+  passes +0.10 m. Every other gate in that workflow stands.
+- **Why it reopens:** the monitor has been RED since 2026-11-10 (+72 h gap +0.103 .. +0.111 m), and the RED says "this
+  size of gap is a regression". It is not one of ours (log `2026-11-12-fable-accuracy-monitor-red.md`):
+  - The same-model control (`open_meteo:ncep_gfswave025`, the identical GFS-Wave fetched by Open-Meteo) moved IN OUR
+    FAVOUR over the same runs: +72 h +0.006 (11-01) -> -0.019 m (11-12). Every 0.25 deg lane degraded together
+    (served 0.238 -> 0.341, the control 0.230 -> 0.325, persistence peaked 0.506); only `best_match` held (0.218 -> 0.232).
+  - The excess rose at +24, +48 and +72 h on the same 11-02 targets, so it follows the target date (weather: the first
+    North Pacific winter swell at 51201, PNW storms), not the issue date of any merge.
+  - An ESTIMATED 30-42% of the +72 h gap (the range spans two assumed values for best_match's own error on those keys,
+    which the logs do not carry; #840 measures it) sits on the 9 buoys where GFS-Wave 0.25 deg has no wet cell (Open-Meteo `ncep_gfswave025`
+    returns nothing at all 96 hours, checked 2026-11-12): 44090, 46254, 46267, 46274, 46285, 51201, 51206, 51208, LJPC1
+    (plus 41121 is a `best_match` hole). The control drops those rows, `best_match` keeps them, and our sampler serves the
+    nearest ocean cell there. Our MAE on those keys went 0.24 -> 0.58 m.
+  - The +0.10 m bound was set as ~1.24x the worst gap recorded by 2026-08-10 (+0.081 m), a summer basis.
+- **Rule (when on), three REDs instead of one, so nothing that pages today stops paging for a real defect:**
+  1. **Same-model regression.** RED when we lose to `open_meteo:ncep_gfswave025` at a lead by more than a margin AND the
+     win rate is under 50%: a regression inside our chain. The margin is set from the monitor's whole retained history
+     (2026-08 .. 11), not from the 25 runs this entry diagnoses (the first draft's +0.03 m was fitted on those 25 runs).
+  2. **Hole buoys.** The keys the control cannot score (the coverage-hole buoys) get their own paired gap against
+     `best_match`, printed per lead with n, and their own RED bound, also from the whole history. Today it would page,
+     and should: the nearest-ocean fallback reads exposed water at sheltered buoys (46267: 2.61 m served vs 0.2 m
+     observed at T+0). That is a product defect, weather-triggered or not.
+  3. **best_match where both models score.** The existing +0.10 m RED, graded only on keys the control also scores, so
+     the pooled number no longer mixes a model-resolution gap at 9 buoys into the rest.
+  The pooled `best_match` gap stays printed as today, as a WARN.
+- **Scope, stated so no rule is read as covering another:** rule 1 is meant to stay SILENT on today's episode (our chain
+  did not regress; the same-model delta improved). Today's episode is rule 2's: the hole buoys. Rule 2 is an EMPIRICAL
+  threshold on the hole-key gap; the claim that the nearest-ocean fallback causes it rests on one buoy at one T+0 (46267)
+  and is a separate, unproven claim (SubQ 0.06), to be tested per buoy on the rows. ⚠️ The same-model control DROPS the
+  hole buoys (it has no value there), so "our chain did not regress" is shown only on the keys the control scores; on
+  the hole buoys the control is silent, which is why rule 2 exists.
+- **Margins, from the retained history** (one monitor run per day, 2026-08-15 .. 10-31, n 73-74 days per lead, ALL
+  pre-onset; the same "~1.24x the worst recorded" method as the original bound). ⚠️ PROVISIONAL: these are estimates
+  from logged aggregates. The built gate computes each number exactly from the scored rows, so its bounds must be
+  re-derived from a row backfill of the same window before it can page:
+  - Rule 1: the same-model delta's basis max was +0.057 / +0.046 / +0.041 m at +24/48/72 h (p95 +0.045 / +0.044 / +0.036).
+    Proposed RED at **+0.06 m** at every lead. Since 11-01 it has not passed +0.009 m.
+  - Rule 2: the hole-key gap's basis max (estimated from aggregates) was +0.247 / +0.245 / +0.206 m. Proposed RED at
+    **+0.30 m**. Since 11-01 it reached +0.291 / +0.340 / +0.354 m: past its own history, so it pages at +48 and +72 h.
+    ⚠️ NOT BLIND: +0.30 m was proposed after seeing November's values and lands between them. The row backfill must set
+    rule 2's bound from the pre-onset window alone, without looking at November, before it can page.
+  - Rule 3: +0.10 m as today, PROVISIONAL. The original basis is stale: the POOLED gap already reached +0.097 m at
+    +72 h within Aug .. Oct, so +0.10 m is ~1.03x the pooled max, not 1.24x. Rule 3 grades the common keys only, whose
+    gap cannot be recovered from the logs; its bound is set from the row backfill like the others.
+- **Evidence:** the 25 scheduled monitor logs (public Actions), one cached read of `/api/weather/buoy-calibration`
+  (generated 2026-11-12T20:11Z; health 0.60 s before, 0.58 s after), NDBC daily summaries, one batched Open-Meteo call.
+  Estimated (aggregates only, the scored rows were not read): under rule 3 today's +72 h `best_match` gap is ~0.064 ..
+  0.077 m, under the bound; under rule 1 today is -0.019 m, green; rule 2 would be RED.
+- **Second opinions (owner approved the tools 2026-11-12 17:24 EST):** Reflection rated the first draft UNSOUND: making
+  `best_match` WARN-only removed the alarm for the hole-buoy fallback error, and the margin was fitted on the runs it
+  graded. Both points are taken above (rules 2 and 1). SubQ (probabilities): a code regression 0.02; the target-time
+  inference valid 0.997; paging on the same-model control sound 0.96; the fallback proven to be the defect 0.06 (not yet:
+  the per-buoy 7-day rows are needed). LongCat on draft 2 (five findings): Rule 1 is silent on today's gap (by design;
+  scope now stated); Rule 2's basis is pre-onset and an estimate (now labelled, re-derived from rows before paging);
+  Rule 3's +0.10 m is ~1.03x, not 1.24x, the Aug..Oct pooled max (now provisional); Rule 2's cause rests on one buoy
+  (rule reframed as empirical). All taken.
+- **Reopen if:** the same-model control stops being fetched or loses coverage beyond the 9 hole buoys, or a regression
+  is found that moved served MAE without moving the same-model delta.
+- **Rollback:** the current behaviour is the repo variables as they are today (`ACCURACY_PAIRED_REFERENCE_MARGIN_M`
+  0.10, `ACCURACY_PAIRED_GATE` 1); the change would ship behind its own kill switch.

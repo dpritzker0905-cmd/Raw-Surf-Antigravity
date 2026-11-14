@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 12,
+  "files": 1,
+  "branch": "claude/partition-truth-instrument",
+  "date": "2026-11-12",
+  "note": "partition-truth instrument controls (backend/scripts/partition_truth)"
+}

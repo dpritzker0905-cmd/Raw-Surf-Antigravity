@@ -23,6 +23,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 
 import publish_frame_images as pub  # noqa: E402
+from services import frame_entitlement as fe  # noqa: E402
 from services import frame_set_raster as fsr  # noqa: E402
 
 
@@ -36,6 +37,10 @@ def main(argv=None):
         print(f"[raster] {args.set}: off ({spec['env']}); skipped")
         return 0
     sink = pub.LocalSink(args.out_dir) if args.out_dir else pub.SupabaseSink()
+    if fe.enabled():
+        # O6 (held OFF, accounts only): raster frames are forecast data too; the same private bucket and path-free index.
+        private = pub.LocalSink(Path(args.out_dir) / "_private") if args.out_dir else pub.SupabaseSink(bucket=fe.PRIVATE_BUCKET, public=False)
+        sink = fe.EntitledSink(sink, private)
     sink.ensure_bucket()
     report = fsr.publish(fsr.make_source(spec), sink, pub._uploader(sink), log=print, spec=spec)
     print(json.dumps(report, indent=1, sort_keys=True))

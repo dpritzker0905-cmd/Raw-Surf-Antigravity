@@ -202,6 +202,9 @@ def rows_from_calibration_report(report, target_time: str, lead_h: float,
         row = {"source": source, "buoy_id": bid, "target_time": target_time,
                "lead_h": round(lead_h, 1), "hs_m": hs, "tp_s": res.get("model_tp_s"),
                **serving_provenance(served.get("product"), served.get("cycle"), target_time, lead_h)}
+        for key in ("interp", "sampled"):            # the sampler's serve path (buoy_calibration); absent = not recorded
+            if served.get(key):
+                row[key] = served[key]
         if res.get("model_dir_deg") is not None:    # S8 (skill_direction_period); absent = not recorded
             row["dir_deg"] = res["model_dir_deg"]
         wres = entry.get("wind_residual") or {}      # S9: the lane's forecast wind at the target hour (knots)
@@ -715,7 +718,7 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
     # ── SHADOW MOS (roadmap stage 5, step 1) — measurement only, after every write has landed ──
     # Its own try and its own kill switch (FORECAST_SKILL_MOS=0): a read or fit failure here costs
     # the shadow block and nothing else. See skill_mos.py.
-    mos = attribution = consensus = dirper = None
+    mos = attribution = consensus = dirper = ocf = None
     if os.environ.get("FORECAST_SKILL_MOS", "1") != "0":
         try:
             from services.weather_pipeline.skill_attribution import same_model_attribution
@@ -730,6 +733,16 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
             consensus = consensus_report(history, now)
             # The BUILT shadow (D-009) beside what it was built from: published inside the same block.
             consensus["shadow"] = consensus_shadow(history, now)
+            # Move 4: the OCF-style bias-corrected equal mean beside served/equal/MOS (skill_ocf). Its own
+            # kill switch and guard; with FORECAST_SKILL_OCF=0 nothing is added to the report.
+            if os.environ.get("FORECAST_SKILL_OCF", "1") != "0":
+                try:
+                    from services.weather_pipeline.skill_ocf import ocf_report, positive_control, tier_split_report
+                    ocf = ocf_report(history, now)
+                    ocf["positive_control"] = positive_control(history, now)
+                    ocf["tier_split"] = tier_split_report(history, now)
+                except Exception as e:
+                    logger.warning("[forecast-skill] OCF block skipped (%s)", e)
             # S7/S8: period and direction on the same history (skill_direction_period); its own guard.
             try:
                 from services.weather_pipeline.skill_direction_period import direction_period_report
@@ -746,7 +759,8 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
     return {"ledgered": len(incoming), "scored": len(scored),
             "pending_kept": len(still), "pending_evicted_cap": merge_stats.get("cap_evicted", 0),
             "summary": summary, "scoring_rejections": score_stats, "mos_shadow": mos,
-            "same_model_attribution": attribution, "consensus": consensus, "direction_period": dirper}
+            "same_model_attribution": attribution, "consensus": consensus, "direction_period": dirper,
+            **({"ocf": ocf} if ocf is not None else {})}
 
 
 def mos_history_rows(now: datetime, archives, load_rows) -> List[dict]:
@@ -782,3 +796,5 @@ def attach_to_report(report, skill) -> None:
         report["forecast_skill_consensus"] = skill["consensus"]
     if skill.get("direction_period") is not None:
         report["forecast_skill_direction_period"] = skill["direction_period"]
+    if skill.get("ocf") is not None:
+        report["forecast_skill_ocf"] = skill["ocf"]

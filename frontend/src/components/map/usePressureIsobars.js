@@ -15,6 +15,7 @@
 import { useEffect, useRef } from 'react';
 import { getOwnShown, getOwnWant, onOwnShown } from './ownRasterFrames';
 import { getIsobars, isobarsOn, onIsobarsReady } from './isobarStore';
+import { blendMs } from './ownRasterLayer';
 
 const EMPTY = { type: 'FeatureCollection', features: [] };
 const BUFS = ['a', 'b'];
@@ -67,12 +68,49 @@ export function usePressureIsobars({ mapInstance, engaged, theme, beforeId, laye
     };
     // Telemetry (window.__RAW_ISOBARS__.visiblePath): the frame whose lines are on screen, for the lab's per-frame stale count.
     const note = (path) => { if (typeof window !== 'undefined') { window.__RAW_ISOBARS__ = window.__RAW_ISOBARS__ || {}; window.__RAW_ISOBARS__.visiblePath = path; } };
-    const show = (b) => { for (const x of BUFS) setVis(x, x === b); S.visible = b; note(S.bufs[b].want); };
-    const hideAll = () => { for (const x of BUFS) setVis(x, false); S.visible = null; note(null); };
+    // THE LINES CROSSFADE WITH THE FIELD (2026-11-12, the value blend in ownRasterLayer). While the colour field morphs from one
+    // frame to the next, the outgoing frame's LINES fade out and the incoming frame's fade in over the same time (line-opacity,
+    // a paint transition): they never snap in the middle of a blend. The numbers and the H / L markers still switch at once (two
+    // sets of labels on screen would collide and flicker). No blend (the kill, reduced motion) = the instant switch, as before.
+    S.fades = S.fades || {};
+    const lineOpacity = (b, v, ms) => {
+      const id = ids(b).line;
+      try {
+        if (!mapInstance.getLayer(id)) return;
+        mapInstance.setPaintProperty(id, 'line-opacity-transition', { duration: ms, delay: 0 });
+        mapInstance.setPaintProperty(id, 'line-opacity', v);
+      } catch (e) { /* gone */ }
+    };
+    const endFade = (b) => { if (S.fades[b]) { clearTimeout(S.fades[b]); delete S.fades[b]; } };
+    // A hidden buffer's lines rest at opacity 0, so when it is next shown inside a blend they rise from nothing (a 0 then 1 set
+    // in one call is collapsed by the map into an instant appearance: measured 2026-11-12, the mid-blend picture equalled the end).
+    const hideNow = (b) => { endFade(b); setVis(b, false); lineOpacity(b, 0, 0); };
+    // The outgoing buffer: its numbers and markers go now, its lines fade out and are hidden when the fade ends.
+    const fadeOut = (x, ms) => {
+      const i = ids(x);
+      for (const id of [i.label, i.mark]) { try { if (mapInstance.getLayer(id)) mapInstance.setLayoutProperty(id, 'visibility', 'none'); } catch (e) { /* gone */ } }
+      lineOpacity(x, 0, ms);
+      endFade(x);
+      S.fades[x] = setTimeout(() => { delete S.fades[x]; if (S.visible !== x) hideNow(x); }, ms);
+    };
+    const show = (b) => {
+      const ms = blendMs();
+      const from = S.visible;
+      // the other buffer is on screen, or already fading out (the cut came before these lines had loaded): rise as it falls
+      const crossing = ms > 0 && BUFS.some((x) => x !== b && (x === from || S.fades[x]));
+      for (const x of BUFS) {
+        if (x === b) { endFade(x); setVis(x, true); lineOpacity(x, 1, crossing ? ms : 0); continue; }
+        if (ms > 0 && x === from) fadeOut(x, ms);
+        else if (!(ms > 0 && S.fades[x])) hideNow(x);
+      }
+      S.visible = b; note(S.bufs[b].want);
+    };
+    const hideAll = () => { for (const x of BUFS) hideNow(x); S.visible = null; note(null); };
     const load = (b, path) => {
       const prod = path && getIsobars(path);
       if (!prod) return false;
       const i = ids(b);
+      if (S.fades[b]) hideNow(b);            // still fading out: it is about to hold another frame's lines, so it goes now
       try {
         mapInstance.getSource(i.lines).setData(prod.lines);
         mapInstance.getSource(i.centres).setData(prod.centres);
@@ -80,7 +118,8 @@ export function usePressureIsobars({ mapInstance, engaged, theme, beforeId, laye
         return true;
       } catch (e) { return false; }
     };
-    const hidden = () => BUFS.find((b) => b !== S.visible) || 'a';
+    // the buffer to load the next frame into: not the one on screen, and not one whose lines are still fading out if there is a choice
+    const hidden = () => BUFS.find((b) => b !== S.visible && !S.fades[b]) || BUFS.find((b) => b !== S.visible) || 'a';
 
     const add = () => {
       try {
@@ -92,7 +131,7 @@ export function usePressureIsobars({ mapInstance, engaged, theme, beforeId, laye
           mapInstance.addSource(i.lines, { type: 'geojson', data: EMPTY });
           mapInstance.addSource(i.centres, { type: 'geojson', data: EMPTY });
           mapInstance.addLayer({ id: i.line, type: 'line', source: i.lines, layout: { visibility: 'none', 'line-join': 'round' },
-            paint: { 'line-color': ink.line, 'line-width': lineWidth(ink) } }, before);
+            paint: { 'line-color': ink.line, 'line-width': lineWidth(ink), 'line-opacity': 0 } }, before);
           if (font) {
             mapInstance.addLayer({ id: i.label, type: 'symbol', source: i.lines,
               layout: { visibility: 'none', 'symbol-placement': 'line', 'symbol-spacing': 320, 'text-field': ['to-string', ['get', 'hpa']],
@@ -125,7 +164,10 @@ export function usePressureIsobars({ mapInstance, engaged, theme, beforeId, laye
       if (S.visible && S.bufs[S.visible].want === path && S.bufs[S.visible].loaded === path) return;
       const ready = BUFS.find((b) => S.bufs[b].want === path && S.bufs[b].loaded === path);
       if (ready) { show(ready); return; }
-      hideAll();
+      // The new frame's lines are not loaded yet. No blend: no lines at all until they are (never a stale line). With the blend the
+      // old lines fade out as the field morphs away from them, and the new ones fade in when they land (show, above).
+      const ms = blendMs();
+      if (ms > 0 && S.visible) { fadeOut(S.visible, ms); S.visible = null; note(null); } else hideAll();
       if (!BUFS.some((b) => S.bufs[b].want === path)) load(hidden(), path);
     };
 
@@ -156,6 +198,7 @@ export function usePressureIsobars({ mapInstance, engaged, theme, beforeId, laye
       offShown(); offReady();
       mapInstance.off('style.load', add);
       mapInstance.off('sourcedata', onData);
+      for (const b of BUFS) endFade(b);
       try {
         for (const b of BUFS) {
           const i = ids(b);

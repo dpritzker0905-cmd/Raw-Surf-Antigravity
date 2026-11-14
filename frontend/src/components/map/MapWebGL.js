@@ -255,11 +255,13 @@ const MapWebGL = ({
   const ownTemperature = useOwnRasterFrames({ mapInstance, layer: 'temperature', model: activeModel, active: (activeLayers || []).includes('temperature'), timeOffsetHours, theme, beforeId: omSlotsBeforeId });
   // Cloud cover, the 'satellite' layer (2026-10-24, dark, GFS only, as air temperature).
   const ownSatellite = useOwnRasterFrames({ mapInstance, layer: 'satellite', model: activeModel, active: (activeLayers || []).includes('satellite'), timeOffsetHours, theme, beforeId: omSlotsBeforeId });
+  // Precipitation, the 'rain' layer (2026-11-12, dark, GFS only, as air temperature).
+  const ownRain = useOwnRasterFrames({ mapInstance, layer: 'rain', model: activeModel, active: (activeLayers || []).includes('rain'), timeOffsetHours, theme, beforeId: omSlotsBeforeId });
   const omLayers = useMemo(() => {
-    if (!ownPressure && !ownTemperature && !ownSatellite) return activeLayers;
+    if (!ownPressure && !ownTemperature && !ownSatellite && !ownRain) return activeLayers;
     return (activeLayers || []).filter((l) => !(l === 'pressure' && ownPressure) && !(l === 'temperature' && ownTemperature)
-      && !(l === 'satellite' && ownSatellite));
-  }, [ownPressure, ownTemperature, ownSatellite, activeLayers]);
+      && !(l === 'satellite' && ownSatellite) && !(l === 'rain' && ownRain));
+  }, [ownPressure, ownTemperature, ownSatellite, ownRain, activeLayers]);
 
   // Temporal Preloader
   useTemporalPreloader({ currentHour: timeOffsetHours, activeLayers: omLayers, mapInstance, activeModel, theme });

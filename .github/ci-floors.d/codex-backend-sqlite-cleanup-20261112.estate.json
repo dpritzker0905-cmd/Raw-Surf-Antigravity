@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 4,
+  "branch": "codex/backend-sqlite-cleanup-20261112",
+  "date": "2026-11-12",
+  "note": "Real request lifetime: success, HTTP401, reset HTTP429 and purchase HTTP400 close connections and workers"
+}

@@ -242,7 +242,11 @@ jobs:
       # until retention; clients keep the client kill window.__RAW_DISABLE_RATING_FRAMES__ and fall back to /grid on any miss).
       - name: Publish rated static frames (the Surf Rating band; ON, kill FRAME_RATING_SETS=0)
         id: rated_publish
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RATING_SETS != '0' }}
+        # `(vars.X || '1') != '0'`, never `vars.X != '0'`: an UNSET variable is null, which GitHub's expression language coerces to the
+        # number 0 when compared with the string '0' (also coerced to 0), so the bare form is FALSE whenever the variable is unset. That
+        # skipped this step on every run from 2026-11-01 to 2026-11-12 (run 43101981004 and every sampled run since 11-05: "skipped"),
+        # against D-057's "ON by default"; the band then scrubbed from /grid?surf=1 on the box. The env line below already used `|| '1'`.
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RATING_SETS || '1') != '0' }}
         continue-on-error: true
         timeout-minutes: 14
         working-directory: backend
@@ -267,7 +271,7 @@ jobs:
       # stored product, so it does not wait on the ingest. A cycle latest.json already lists uploads nothing. The client half
       # is dark (raster-instant session): publishing changes nothing a user sees. Off: repo variable FRAME_RASTER_PRESSURE=0.
       - name: Publish raster static frames (pressure; client dark)
-        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRESSURE != '0' }}
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && (vars.FRAME_RASTER_PRESSURE || '1') != '0' }}
         continue-on-error: true
         timeout-minutes: 12
         working-directory: backend
@@ -327,6 +331,32 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FRAME_RASTER_CLOUD_0P25: ${{ vars.FRAME_RASTER_CLOUD_0P25 }}
         run: python scripts/publish_raster_frames.py --set cloud_cover_0p25
+      # Precipitation (the owner, 2026-11-12: "Yes, build it"): GFS APCP bucket totals differenced to the amount that fell in the
+      # step before each hour, mm/h, on the 0.25-degree grid; hourly to f120, then 3-hourly (192 frames, about 2 byte ranges
+      # each). Off unless FRAME_RASTER_PRECIP=1; the client draws it only behind a dark lever.
+      - name: Publish raster static frames (GFS precipitation; off unless FRAME_RASTER_PRECIP=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRECIP == '1' }}
+        continue-on-error: true
+        timeout-minutes: 15
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_PRECIP: ${{ vars.FRAME_RASTER_PRECIP }}
+        run: python scripts/publish_raster_frames.py --set precipitation
+      # EURO precipitation (the owner, 2026-11-12: "Yes, add ICON and EURO precipitation after the blend"): ECMWF IFS open data tp
+      # totals differenced to the mean rate over each 3-hour (to 144 h) or 6-hour step, 00/12Z cycles, 64 frames. Off unless
+      # FRAME_RASTER_PRECIP_EURO=1; no client reads it yet.
+      - name: Publish raster static frames (EURO precipitation; off unless FRAME_RASTER_PRECIP_EURO=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRECIP_EURO == '1' }}
+        continue-on-error: true
+        timeout-minutes: 15
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_PRECIP_EURO: ${{ vars.FRAME_RASTER_PRECIP_EURO }}
+        run: python scripts/publish_raster_frames.py --set precipitation_euro
 
       # PER-MODEL PRESSURE (2026-10-23; the owner, 20:13 EDT: "Yes start it", answering "start the per-model pressure route?"
       # after "We want each models pressure showing"). EURO = ECMWF IFS open data msl (CC BY 4.0, attribution required), the

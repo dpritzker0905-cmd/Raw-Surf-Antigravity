@@ -103,3 +103,54 @@ test('bboxContains: plain boxes, the antimeridian, and nonsense', () => {
   expect(bboxContains('-180,-90,180,90', 0, 0)).toBe(true);
   expect(bboxContains('nope', 0, 0)).toBe(false);
 });
+
+// NO INVENTED WEATHER (2026-11-10): /point serves wind, pressure and precipitation only, but the stitched forecast carried
+// constants for snowfall (0 cm), rain chance (0 %) and air temperature (20 C), so every infobox read "Temp 68F" / "Prob 0%".
+describe('the stitched point forecast never invents weather', () => {
+  function stubLayers(values) {
+    asks = [];
+    global.fetch = jest.fn((url) => {
+      const q = Object.fromEntries(new URL(url, 'http://x').searchParams);
+      asks.push(q);
+      return Promise.resolve({ ok: true, status: 200, json: async () => ({ model: q.model, point: values[q.layer] || {} }) });
+    });
+  }
+  async function forecastFor(props) {
+    const { result } = renderHook(() => useOpenMeteoForecast({ isExplicit: true, ...props }));
+    await act(async () => { jest.advanceTimersByTime(3000); });
+    return result.current.forecastData;
+  }
+  afterEach(() => { delete window.__RAW_DISABLE_NO_FABRICATED_WEATHER__; });
+
+  test('missing temperature, rain chance and snowfall are null; a measured zero rain stays 0; units unchanged', async () => {
+    stubLayers({ precipitation: { value: 0 } });
+    const f = await forecastFor({ latitude: 28.3, longitude: -80.6, activeLayer: 'precipitation', activeModel: 'ICON', timeOffsetHours: 6 });
+    expect(f.hourly.temperature_2m).toEqual([null]);
+    expect(f.hourly.precipitation_probability).toEqual([null]);
+    expect(f.hourly.snowfall).toEqual([null]);
+    expect(f.hourly.precipitation).toEqual([0]);                       // actual zero from the backend: dry, not unknown
+    expect(f.hourly_units).toMatchObject({ temperature_2m: '°C', precipitation_probability: '%', snowfall: 'cm', precipitation: 'mm' });
+  });
+
+  test('the forecast is for the selected instant and model', async () => {
+    stubLayers({ precipitation: { value: 1.25 } });
+    const f = await forecastFor({ latitude: 28.31, longitude: -80.6, activeLayer: 'precipitation', activeModel: 'ICON', timeOffsetHours: 6 });
+    const want = new Date(Date.parse('2026-10-28T12:00:00Z') + 6 * H).toISOString();
+    expect(asks.map((a) => [a.model, a.layer, a.valid_time])).toEqual([['ICON', 'precipitation', want]]);
+    expect(f.hourly.time).toEqual([want]);
+    expect(f.hourly.precipitation).toEqual([1.25]);
+  });
+
+  test('a missing precipitation value is null too, never zero', async () => {
+    stubLayers({});
+    const f = await forecastFor({ latitude: 28.4, longitude: -80.6, activeLayer: 'precipitation', timeOffsetHours: 0 });
+    expect(f.hourly.precipitation).toEqual([null]);
+  });
+
+  test('kill switch: the pre-fix constants come back', async () => {
+    window.__RAW_DISABLE_NO_FABRICATED_WEATHER__ = true;
+    stubLayers({ precipitation: { value: 0 } });
+    const f = await forecastFor({ latitude: 28.5, longitude: -80.6, activeLayer: 'precipitation', timeOffsetHours: 0 });
+    expect([f.hourly.temperature_2m, f.hourly.precipitation_probability, f.hourly.snowfall]).toEqual([[20], [0], [0]]);
+  });
+});

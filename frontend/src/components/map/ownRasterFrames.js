@@ -14,7 +14,8 @@
  * window of at most +-2 frames (+-1 on handhelds) and a small LRU of decoded Float32 fields. Raster frames do NOT join any
  * idle whole-run fill (egress): only the window is fetched, on demand. ownRasterLayer.js draws; useOwnRasterFrames.js wires.
  *
- * Cloud cover (the 'satellite' layer) is ON by default since D-052 (2026-10-26, DEFAULT_ON_LAYERS). Every other layer is DARK:
+ * Cloud cover (the 'satellite' layer) is ON by default since D-052 (2026-10-26, DEFAULT_ON_LAYERS); pressure since 2026-11-12 (the
+ * owner: "Yes, publish pressure"; kill window.__RAW_DISABLE_RASTER_OWN_PRESSURE__ = true). Every other layer is DARK:
  * window.__RAW_RASTER_OWN_FRAMES__ = true (or localStorage '__RAW_RASTER_OWN_FRAMES__' = 'true') turns it on;
  * window.__RAW_DISABLE_RASTER_OWN_FRAMES__ = true, the static-frames global kill or the per-set kill
  * (__RAW_DISABLE_STATIC_FRAMES_SETS__) turn it off. Any miss (no set published, no index) falls back to the .om path.
@@ -27,6 +28,7 @@ import { isHandheldDevice } from './deviceTier';
 export const PRESSURE_FIELD = 6;
 export const TEMP_FIELD = 7;      // temp_c: u16, value = code * 0.05 - 100.05 (code 0 = no data); 2 m air temperature, deg C
 export const CLOUD_FIELD = 8;     // cloud_pct: u8, value = code - 1 (code 0 = no data); total cloud cover, %
+export const PRECIP_FIELD = 10;   // precip_mm_h: u16, value = code * 0.01 - 0.01 (code 0 = no data); mm/h in the step before the hour
 // PER-MODEL (2026-10-24; the owner, 2026-10-23 20:13 EDT: "Yes start it", answering "start the per-model pressure route?" after
 // "We want each models pressure showing"): one published set per model. The layer follows the model selector; past a model's
 // last frame (EURO 240 h, ICON 180 h) the GFS frame stands in, labelled as an estimate (the wave layers' extension policy).
@@ -50,6 +52,15 @@ export const OWN_RASTER_SETS = {
     models: { GFS: 'GFS/weather/cloud_cover/global_0p25' },
     fallback: null, field: CLOUD_FIELD, unit: '%',
   },
+  // PRECIPITATION (2026-11-12, the owner: "Yes, build it"): the app's 'rain' layer from GFS APCP (frame_set_raster.py,
+  // set `precipitation`): mm/h in the hour before the frame (the 3-hour mean past f120), the same meaning as the .om field,
+  // on the 0.25-degree grid, hourly to f120. GFS only: with EURO or ICON picked the layer stays on the .om path. DARK: drawn
+  // only behind the lever (window.__RAW_RASTER_OWN_FRAMES__ = 'rain') until the owner's side-by-side.
+  // Kill: window.__RAW_DISABLE_RASTER_OWN_RAIN__ = true.
+  rain: {
+    models: { GFS: 'GFS/weather/precipitation/global_0p25' },
+    fallback: null, field: PRECIP_FIELD, unit: 'mm/h',
+  },
 };
 // Who the frames come from, for the legend credit and the status line.
 export const MODEL_SOURCE = { GFS: 'NOAA GFS', EURO: 'ECMWF', ICON: 'DWD ICON' };
@@ -72,7 +83,11 @@ const W = () => (typeof window !== 'undefined' ? window : {});
  *  MARINE_GULF_FILL_MID_TARGETED repo variable and cloud 0.25 deg (repo var, then the client key after one publish)").
  *  Kill one layer: window.__RAW_DISABLE_RASTER_OWN_<LAYER>__ = true (cloud: __RAW_DISABLE_RASTER_OWN_SATELLITE__); kill all:
  *  __RAW_DISABLE_RASTER_OWN_FRAMES__. A miss (set not in latest.json, no index) still falls back to the .om path. */
-export const DEFAULT_ON_LAYERS = Object.freeze(['satellite']);
+// PRESSURE (2026-11-12): the owner, "Yes, publish pressure", answering "Turn on pressure frame publishing in the ingest so I can
+// flip pressure on?". GFS, EURO and ICON each draw their own published set (a scrub step rebinds a resident texture instead of
+// decoding a whole-world .om hour), with the labelled isobars and H/L markers that ride the own-frames field.
+// Kill: window.__RAW_DISABLE_RASTER_OWN_PRESSURE__ = true (the .om colour field, no isobars, as before).
+export const DEFAULT_ON_LAYERS = Object.freeze(['satellite', 'pressure']);
 
 /** Is the own-frames path on for this layer and model? Synchronous, no I/O. A model without its own set (or with its set killed)
  *  stays on the .om path, which draws that model as before (never another model's frames under its label). */
