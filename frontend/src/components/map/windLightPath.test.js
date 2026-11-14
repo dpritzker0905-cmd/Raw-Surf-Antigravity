@@ -203,7 +203,7 @@ describe('the engine\'s own call shape: no lever object, the kill on the real wi
   });
   it('the RENDERED bar follows at its next render: the controls key the legend\'s memo on the look key (it was [theme, heightUnit]: a kill set after first paint left the path\'s bar beside the old field)', () => {
     const CONTROLS = fs.readFileSync(path.join(__dirname, 'MapWeatherControls.js'), 'utf8');
-    expect(CONTROLS).toMatch(/\}, \[theme, heightUnit, windLookKey\(theme\)\]\);/);
+    expect(CONTROLS).toMatch(/\}, \[theme, heightUnit, windLookKey\(theme\)(, [^\]]+)?\]\);/);   // the look key must be there; other keys may follow it (rasterPaletteKey, 2026-11-14)
     expect(windLookKey('light', {})).not.toBe(windLookKey('light', KILL));   // so the key the memo watches does move with the kill
   });
   it('the Canvas2D fallback says it is the wind\'s renderer, and the bar is then the particle ramp its marks sample', () => {

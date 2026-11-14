@@ -80,6 +80,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_LAND_WORKER_LOADER__',
   // components/map/maskCanvasUpload.test.js ("OFF PATH: the kill uploads the mask canvas itself, as before"; 2026-11-13)
   '__RAW_DISABLE_MASK_UPLOAD_COPY__',
+  // components/map/rasterPalettes.test.js ("OFF PATH: ... puts back the tile library's own table" x2; "... puts back the grey fog table"; 2026-11-14)
+  '__RAW_DISABLE_TEMP_PALETTE__', '__RAW_DISABLE_WATER_TEMP_PALETTE__', '__RAW_DISABLE_FOG_PALETTE__', '__RAW_DISABLE_RASTER_LEGENDS__',
   // components/map/windWorldCopies.test.js ("OFF PATH: the kill gives the layer's old offsets, as before"; 2026-11-13)
   '__RAW_DISABLE_WIND_COPY_CULL__',
   // components/map/worldWrapCull.test.js ("OFF PATH: __RAW_DISABLE_WRAP_CULL_LOWZOOM__ wraps every view below zoom 4, as before ..."; 2026-11-13)
