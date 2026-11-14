@@ -88,8 +88,11 @@ def _metadata(data):
 
 
 def _format(product):
-    return (product.value_kind, product.value_unit, product.display_unit_hint,
-            tuple(product.source_variables), json.dumps(product.units, sort_keys=True))
+    # `units` (the {speed, direction, period} label dict) is NOT part of the format identity (2026-11-14): value_unit and
+    # display_unit_hint already pin the unit, so a real migration (m -> ft, kn -> m/s) is still refused. The dict was a label
+    # only, and derived marine products relabelled it from the schema default "kn" to their input's "m" (#901): with it in the
+    # identity, the first in-place rewrite of such a file was refused on every box holding the old copy until a restart.
+    return (product.value_kind, product.value_unit, product.display_unit_hint, tuple(product.source_variables))
 
 
 def _replacement_allowed(actual, expected):

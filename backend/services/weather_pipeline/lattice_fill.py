@@ -176,6 +176,7 @@ def interpolate_between(a: NormalizedProduct, b: NormalizedProduct,
         value_kind=a.value_kind,
         value_unit=a.value_unit,
         display_unit_hint=a.display_unit_hint,
+        units=dict(a.units),   # the bracket's labels (m for a wave height); omitted, the schema default said "kn" (2026-11-14)
         region_id=a.region_id,
         coverage_mode=a.coverage_mode,
         tile_id=a.tile_id,
