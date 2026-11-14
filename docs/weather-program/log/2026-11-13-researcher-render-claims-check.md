@@ -109,3 +109,21 @@ one instance per particle.
 1. **Reflection / SubQ second opinion.** Not called. The request says welcome but arrived relayed by a peer. Say yes and
    the question will go to Reflection with the verdict table only (no code, no credentials).
 2. **Draft PR.** Opened as draft against `dev`. Not merged.
+
+## Addendum 2026-11-13 20:10 EST (Fable, animation lane): the recommendation was built and measured. Gate not met
+
+Appended by the animation lane at the director's instruction; nothing above is changed.
+
+- **Outcome: gate not met, pixel-identical, 19-24%.** The instanced particle draw (PR #876, closed unmerged, branch
+  `fable/particles-instanced`) is pixel-identical to the six-vertex draw (0 pixels differ on 10 views, same-frame comparison,
+  null control 0, positive control differs in 8 of 10). The median GPU time of the particle draw fell about 24% at the world
+  view (0.286 -> 0.218 ms) and 19% at zoom 5 (0.442 -> 0.360 ms) on one integrated desktop GPU (AMD Radeon 890M). The pass line
+  was 25%; no mobile-class GPU was measured. Director's decision: not shipped. It is over the 10% kill line, so this is "not a
+  pass", not "no effect".
+- **Correction to the recommendation above.** "87,616 [vertex-stage state fetches] with one instance per particle" is wrong.
+  Instancing still runs the vertex shader once per corner of each instance: 4 runs per particle instead of 6 (350,464 at
+  296^2), a third of the vertex stage, not five sixths.
+- **A lead it turned up.** 3 of 9 page loads on the old draw ran 2.3x-4x slower for the whole load (0.66-1.09 ms against
+  0.27-0.34 ms); the instanced draw did not at the world view. Cause not known; under investigation by the animation lane.
+- Full record: `2026-11-13-fable-particles-instanced.md`. The two measurement scripts (`scn_particle_draw_gpu.js`,
+  `scn_particle_draw_pixels.js`) are on the closed branch.
