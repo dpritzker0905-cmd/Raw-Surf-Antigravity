@@ -143,10 +143,10 @@ export const PastTab = ({
     setShowReviewModal(true);
   }, []);
   
-  const handleReviewSubmitted = useCallback(() => {
+  const handleReviewSubmitted = useCallback((rating) => {
     const sessionId = reviewSessionId;
     if (sessionId) {
-      setReviewedSessions(prev => ({ ...prev, [sessionId]: true }));
+      setReviewedSessions(prev => ({ ...prev, [sessionId]: rating }));
     }
   }, [reviewSessionId]);
   
