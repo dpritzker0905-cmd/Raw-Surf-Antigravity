@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { Card, CardContent } from './ui/card';
 import { Button } from './ui/button';
@@ -48,33 +48,93 @@ export const GearHub = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [purchasing, setPurchasing] = useState(null);
   const [targetGear, setTargetGear] = useState(null);
+  const [retailer, setRetailer] = useState(null);
+  const retailerOwner = useRef(null);
+  const userId = user?.id;
+  const session = user?.access_token;
+  const progressOwner = useRef(null);
 
-  useEffect(() => {
-    fetchGearCatalog();
-    if (user?.id) {
-      fetchUserProgress();
-    }
-  }, [user?.id, selectedCategory, searchQuery]);
+  useLayoutEffect(() => {
+    const owner = { userId, session };
+    progressOwner.current = owner;
+    setUserProgress(null);
+    setTargetGear(null);
+    return () => {
+      if (progressOwner.current === owner) progressOwner.current = null;
+    };
+  }, [userId, session]);
 
-  const fetchGearCatalog = async () => {
+  useLayoutEffect(() => {
+    const owner = { userId, session, category: selectedCategory, search: searchQuery };
+    retailerOwner.current = owner;
+    setRetailer(null);
+    return () => {
+      if (retailerOwner.current === owner) retailerOwner.current = null;
+    };
+  }, [userId, session, selectedCategory, searchQuery]);
+
+  const resolveRetailer = async (item, control) => {
+    const owner = retailerOwner.current;
+    if (!owner || owner.userId !== userId || owner.session !== session
+        || owner.category !== selectedCategory || owner.search !== searchQuery) return;
+    if (owner.request?.itemId === item.id && owner.request.pending) return;
+    const request = { itemId: item.id, pending: true, control, restoreFocus: control === document.activeElement };
+    owner.request = request;
+    const isCurrent = () => retailerOwner.current === owner && owner.request === request;
+    setRetailer({ itemId: item.id, pending: true });
     try {
-      const params = new URLSearchParams();
-      if (selectedCategory) params.append('category', selectedCategory);
-      if (searchQuery) params.append('search', searchQuery);
-      
-      const res = await apiClient.get(`/gear-hub?${params}`);
-      setGearItems(res.data);
-    } catch (err) {
-      logger.error('Failed to fetch gear catalog:', err);
-      toast.error('Failed to load gear catalog');
-    } finally {
-      setLoading(false);
+      const { data } = await apiClient.get(`/gear-hub/${encodeURIComponent(item.id)}`);
+      if (!isCurrent()) return;
+      if (data?.id !== item.id || typeof data.affiliate_url !== 'string') throw new Error('Retailer link unavailable');
+      const destination = new URL(data.affiliate_url.trim());
+      if (!['https:', 'http:'].includes(destination.protocol)) throw new Error('Retailer link unavailable');
+      request.pending = false;
+      setRetailer({ itemId: item.id, url: destination.href });
+    } catch {
+      request.pending = false;
+      if (isCurrent()) setRetailer({ itemId: item.id, error: true });
     }
   };
 
+  useEffect(() => {
+    let active = true;
+    const fetchGearCatalog = async () => {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        if (selectedCategory) params.append('category', selectedCategory);
+        if (searchQuery) params.append('search', searchQuery);
+
+        const res = await apiClient.get(`/gear-hub?${params}`);
+        if (active) setGearItems(res.data);
+      } catch (err) {
+        if (active) {
+          logger.error('Failed to fetch gear catalog:', err);
+          toast.error('Failed to load gear catalog');
+        }
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    fetchGearCatalog();
+    return () => { active = false; };
+  }, [user?.id, selectedCategory, searchQuery]);
+
+  useEffect(() => {
+    if (userId) {
+      fetchUserProgress();
+    }
+  }, [userId, session, selectedCategory, searchQuery]);
+
   const fetchUserProgress = async () => {
+    const owner = progressOwner.current;
+    if (!userId || !owner || owner.userId !== userId || owner.session !== session) return;
+    const request = {};
+    owner.request = request;
+    const isCurrent = () => progressOwner.current === owner && owner.request === request;
     try {
-      const res = await apiClient.get(`/gear-hub/user/${user.id}/progress`);
+      const res = await apiClient.get(`/gear-hub/user/${userId}/progress`);
+      if (!isCurrent()) return;
       setUserProgress(res.data);
       
       // Find target gear if user has one set
@@ -83,7 +143,7 @@ export const GearHub = () => {
         setTargetGear(target);
       }
     } catch (err) {
-      logger.error('Failed to fetch user progress:', err);
+      if (isCurrent()) logger.error('Failed to fetch user progress:', err);
     }
   };
 
@@ -408,16 +468,47 @@ export const GearHub = () => {
                           Set as Goal
                         </Button>
                       )}
-                      <Button aria-label="External Link"
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => window.open(item.affiliate_url, '_blank')}
-                        className="text-zinc-400 hover:text-white"
-                        title="View on retailer site"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </Button>
+                      {retailer?.itemId === item.id && retailer.url ? (
+                        <Button asChild variant="ghost" size="icon" className="text-muted-foreground hover:text-foreground">
+                          <a href={retailer.url} target="_blank" rel="noopener noreferrer"
+                            ref={node => {
+                              const request = retailerOwner.current?.request;
+                              if (node && request?.itemId === item.id && request.restoreFocus
+                                  && [request.control, document.body].includes(document.activeElement)) {
+                                request.restoreFocus = false;
+                                node.focus();
+                              }
+                            }}
+                            aria-label={`Open ${item.name} on retailer site`} title="Open retailer site">
+                            <ExternalLink className="w-4 h-4" />
+                          </a>
+                        </Button>
+                      ) : (
+                        <Button type="button" aria-label={`View ${item.name} on retailer site`}
+                          variant="ghost" size="icon" title="View on retailer site"
+                          aria-disabled={retailer?.itemId === item.id && retailer.pending ? 'true' : undefined}
+                          aria-busy={retailer?.itemId === item.id && retailer.pending ? 'true' : undefined}
+                          onBlur={() => {
+                            const request = retailerOwner.current?.request;
+                            if (request?.itemId === item.id) request.restoreFocus = false;
+                          }}
+                          onClick={event => resolveRetailer(item, event.currentTarget)}
+                          className="text-muted-foreground hover:text-foreground">
+                          {retailer?.itemId === item.id && retailer.pending
+                            ? <Loader2 className="w-4 h-4 animate-spin" /> : <ExternalLink className="w-4 h-4" />}
+                        </Button>
+                      )}
                     </div>
+                    {retailer?.itemId === item.id && retailer.pending && (
+                      <p role="status" className="mt-2 text-sm text-muted-foreground">Loading retailer link for {item.name}...</p>
+                    )}
+                    {retailer?.itemId === item.id && retailer.error && (
+                      <div role="alert" className="mt-2 text-sm text-foreground">
+                        <p>Retailer link unavailable. Try again.</p>
+                        <Button type="button" variant="outline" size="sm" onClick={event => resolveRetailer(item, event.currentTarget)}
+                          aria-label={`Retry retailer link for ${item.name}`}>Retry retailer link</Button>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               );
