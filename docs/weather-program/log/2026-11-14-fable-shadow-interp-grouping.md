@@ -38,3 +38,20 @@ vs the computed equal mean", grouping `interp x members`, at +48 and +72 h. Only
 
 A verdict of FALLBACK IS THE CAUSE does not choose a fix. The fix (a blend that refuses a member answered by a fallback
 path, or keeps GFS for that cell) is a served-number change under D-065 with its own test.
+
+## 00:16Z Added on the director session's request: the no-served-row count, the blend-lane check, the STATE note
+
+- **Blend rows and the path field: checked in code.** `forecast_skill` runs every lane, the CONSENSUS shadow included,
+  through the same `calibrate_spots` call, which records `serve_path(marine.point)`; `rows_from_calibration_report`
+  copies `interp` for any source; scoring keeps the row's keys. No code change was needed. One test pins it
+  (`test_skill_attribution`). Still unread: whether the shadow's point response fills `interpolation_method` in
+  production. The first read shows it; `not recorded` throughout would mean UNTESTABLE by the rule above.
+- **Question 3 of #869, built:** `accuracy_per_buoy_split.unanswered` counts, per buoy and lead, the keys best_match
+  scored for which the served lane has no scored row, with the pooled count per lead. The report prints the pooled line
+  and only the buoys with a count above zero. Reading it is descriptive: no pass or fail rule. What it cannot tell apart:
+  a served answer of "no data" and a served 0.0 height (the ledger writes no row for either).
+- Two tests (planted 4 of 6 and 6 of 6 recovered; the fully scored buoys read 0 of 6; a served-only key is not counted;
+  no row field in the lines). Guards floor fragment +2; chain fragment now +3.
+- **STATE, Next fixes:** a dated note that the model mean must not go to a shadow run, and `CONSENSUS_SERVE` must not
+  flip, until the built product is fixed.
+- Local: 78 pass across the three test files; flake8 gate and the 800-line check clean.

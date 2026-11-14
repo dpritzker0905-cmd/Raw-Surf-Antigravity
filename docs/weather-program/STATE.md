@@ -2423,6 +2423,13 @@ is a claim, not a measurement.
 **Ledger head: seq 2074, sha256 83a27bd6e36d4dadbaca9a67437f7171ce2d1059b1c2c844228725c9c1d58069**
 
 ## Next fixes, in order
+**2026-11-14: DO NOT start a shadow run of the model mean, and do not flip `CONSENSUS_SERVE`, until the built product is
+fixed.** The built CONSENSUS shadow loses to the plain mean of its own members by 0.072 m (+48 h) and 0.071 m (+72 h) on all
+rows, and by 0.100 to 0.202 m where the EURO or ICON lane had no stored product at the point; it matches where both had one
+(run 43174501916, read against a rule fixed first: `log/2026-11-14-fable-archive-three-questions.md`). Cause not
+established; frame snapping and cycle age are ruled out. The test of the far-water-fallback cause is
+`log/2026-11-14-fable-shadow-interp-grouping.md`: read from 2026-11-16, on the owner's dispatch.
+
 **The 2026-09-30 audit's order (log §4; supersedes the list below where they differ):** 1 ~~merge the audit PR~~ (#189,
 done); 4 MERGED as #193 (its first graded rows: commitment 172, 2026-10-02); 5 (wind) MERGED as #194 (commitment 177); 6 (W-23) MERGED as #195 (commitment 182); commitments 79/94 checked (seq 185, 187), re-promised as 186/188; 188's instrument MERGED as #197; 186 read (seq 196): the per-region rule wins IN SAMPLE, its out-of-sample grade is #198 (merged; commitment 198); W-30 (sim tide parity) MERGED DARK as #199, its evidence lane is commitment 203;
 2 the consensus flip on commitment 79's evidence (its ledger-cap precondition is met by that PR); 3 the

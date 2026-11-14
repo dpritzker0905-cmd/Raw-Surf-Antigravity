@@ -174,6 +174,36 @@ def hole_keys_view(idx, lead):
             "buoys": sorted({k[0] for k in extra})}
 
 
+def unanswered(idx, reference, leads=LEADS):
+    """Where the reference scored a (buoy, target, lead) and the served lane has NO scored row for it: the served lane gave
+    no answer there (no height, or 0.0, so the ledger wrote no row). A paired gap cannot see these: pairing drops them.
+    {(buoy, lead): (n_no_served_row, n_reference_keys)} for every buoy the reference scored at that lead."""
+    ours, theirs = idx.get(PRIMARY) or {}, idx.get(reference) or {}
+    out = {}
+    for k in theirs:
+        lead = k[2] * 24
+        if lead not in leads:
+            continue
+        cell = out.setdefault((k[0], lead), [0, 0])
+        cell[1] += 1
+        if k not in ours:
+            cell[0] += 1
+    return {k: tuple(v) for k, v in out.items()}
+
+
+def unanswered_lines(idx, reference=BEST_MATCH, label="best_match"):
+    un = unanswered(idx, reference)
+    lines = ["== no served row where %s scored (count / %s keys; a paired gap cannot see these)" % (label, label)]
+    for lead in LEADS:
+        miss = sum(v[0] for (b, ld), v in un.items() if ld == lead)
+        total = sum(v[1] for (b, ld), v in un.items() if ld == lead)
+        lines.append("  +%dh pooled %d / %d" % (lead, miss, total))
+    for buoy in sorted({b for (b, _l), v in un.items() if v[0]}):
+        cells = ["+%dh %d/%d" % ((lead,) + un.get((buoy, lead), (0, 0))) for lead in LEADS]
+        lines.append("  %-6s%s %s" % (buoy, "*" if buoy in MEASURED_HOLES else " ", " | ".join(cells)))
+    return lines
+
+
 def wiring_check(idx, buoy, lead=72, seeded=POSITIVE_CONTROL_M):
     """Add `seeded` to OUR absolute error at one buoy only and re-split. Returns (recovered at that buoy, max |change|
     anywhere else). A split that cannot return its own seed cannot be trusted with the real answer."""
@@ -253,6 +283,7 @@ def report_lines(idx, now, days=WINDOW_DAYS, rows=None):
         if unmeasured or missing:
             lines.append("    hole sets disagree: in data not measured=%s, measured not in data=%s"
                          % (",".join(unmeasured) or "-", ",".join(missing) or "-"))
+    lines += unanswered_lines(idx)
     probe = next(iter(sorted({k[0] for k in (idx.get(PRIMARY) or {})})), None)
     rec, other = wiring_check(idx, probe) if probe else (None, None)
     ok = rec is not None and abs(rec - POSITIVE_CONTROL_M) < 1e-9 and other is not None and other < 1e-9
