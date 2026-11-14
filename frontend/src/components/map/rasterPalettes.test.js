@@ -8,7 +8,7 @@ import fs from 'fs';
 import path from 'path';
 import { BASE_CUSTOM_COLOR_SCALES, CUSTOM_COLOR_SCALES, smoothColorScale } from './colorScales';
 import {
-  RASTER_LEGEND_SPEC, RASTER_PALETTE_LAYERS, __test, applyThemeRasterScales, rasterLegend, rasterPalette, rasterPaletteOn,
+  MAP_WATER, RASTER_LEGEND_SPEC, RASTER_PALETTE_LAYERS, __test, applyThemeRasterScales, rasterLegend, rasterPalette, rasterPaletteOn,
   rasterPaletteKey, rasterPaletteUrlTag, rasterScaleFor, rememberLibraryRasterScales,
 } from './rasterPalettes';
 
@@ -21,7 +21,7 @@ const LIB = { temperature: { type: 'breakpoint', breakpoints: [-80, 50], colors:
 
 beforeEach(() => {
   for (const k of KILLS) delete window[k];
-  delete window.__RAW_DISABLE_RASTER_LEGENDS__;
+  delete window.__RAW_DISABLE_RASTER_LEGENDS__; delete window.__RAW_DISABLE_RASTER_LEGEND_SWATCH__;
   delete window.__OM_PROTOCOL_SETTINGS__; delete window.__RAW_RASTER_PALETTES__;
   for (const { key } of Object.values(RASTER_PALETTE_LAYERS)) delete CUSTOM_COLOR_SCALES[key];
 });
@@ -255,9 +255,9 @@ describe('rasterScaleFor: the table for a layer and theme, with no registry and 
 describe('rasterPaletteKey: the map and its bar change together when a kill is set or cleared', () => {
   test('every one of the four kills changes the key, and clearing it puts the key back', () => {
     const clean = rasterPaletteKey();
-    expect(clean).toBe('111L1');
+    expect(clean).toBe('111L1S1');
     const seen = new Set([clean]);
-    for (const kill of [...KILLS, '__RAW_DISABLE_RASTER_LEGENDS__']) {
+    for (const kill of [...KILLS, '__RAW_DISABLE_RASTER_LEGENDS__', '__RAW_DISABLE_RASTER_LEGEND_SWATCH__']) {
       window[kill] = true;
       const k = rasterPaletteKey();
       expect(k).not.toBe(clean); expect(seen.has(k)).toBe(false); seen.add(k);
@@ -316,5 +316,48 @@ describe('rasterPaletteUrlTag: a tile coloured with one table is never reused un
     expect(hook).toMatch(/&contours=true\$\{cacheBuster\}\$\{wtHeal\}\$\{rasterPaletteUrlTag\(variable, theme\)\}`;/);
     const from = hook.indexOf('const getUrlForIndex = (model, variable, idx) => {');
     expect(/\n {2}\}, \[([^\]]*)\]\);/.exec(hook.slice(from))[1]).toContain('rasterPaletteKey()');
+  });
+});
+
+describe('the swatch under each legend bar: the bar is seen over the map\'s own water colour, not over the panel', () => {
+  test.each(THEMES)('%s: every bar ends with a solid layer of that theme\'s water colour, under the gradient', (theme) => {
+    for (const layerId of ['temperature', 'water_temp', 'fog']) {
+      const lg = rasterLegend(layerId, theme);
+      expect(lg.swatch).toEqual(MAP_WATER[theme]);
+      expect(lg.gradientCSS.startsWith('linear-gradient(to right, rgba(')).toBe(true);               // the gradient is the top layer
+      expect(lg.gradientCSS.endsWith(`), rgb(${MAP_WATER[theme].join(', ')})`)).toBe(true);          // the swatch is the last (bottom) layer
+      expect(lg.gradientCSS.match(/linear-gradient\(/g)).toHaveLength(1);
+    }
+  });
+
+  test('the swatch colours are the bare map\'s (sampled in the app), not the wind check\'s muted ones', () => {
+    expect(MAP_WATER).toEqual({ light: [144, 223, 254], beach: [117, 207, 240], dark: [93, 117, 126] });
+    const wind = fs.readFileSync(path.join(__dirname, '../../../scripts/wind-color/check.mjs'), 'utf8');
+    expect(wind).toMatch(/water: \[168, 214, 222\]/);                                                // the muted light water: a different colour, for a different layer
+  });
+
+  test('fog\'s clear end is the swatch itself: where the table\'s alpha is 0 the bar shows the map', () => {
+    for (const theme of THEMES) {
+      const last = /rgba\((\d+),(\d+),(\d+),([\d.]+)\) 100\.0%\)/.exec(rasterLegend('fog', theme).gradientCSS);
+      expect(+last[4]).toBe(0);
+    }
+  });
+
+  test('OFF PATH: __RAW_DISABLE_RASTER_LEGEND_SWATCH__ gives the bar straight on the panel, as before; nothing else changes', () => {
+    const withSwatch = rasterLegend('fog', 'beach');
+    window.__RAW_DISABLE_RASTER_LEGEND_SWATCH__ = true;
+    const bare = rasterLegend('fog', 'beach');
+    expect(bare.swatch).toBeNull();
+    expect(bare.gradientCSS.endsWith(')')).toBe(true); expect(bare.gradientCSS).not.toMatch(/\), rgb\(/);
+    expect(withSwatch.gradientCSS.startsWith(bare.gradientCSS)).toBe(true);                           // the same gradient, one layer fewer
+    expect(bare.stops).toEqual(withSwatch.stops);
+    expect(rasterPaletteOn('fog')).toBe(true);
+    for (const v of [1, 'true', false, null]) { window.__RAW_DISABLE_RASTER_LEGEND_SWATCH__ = v; expect(rasterLegend('fog', 'beach').swatch).toEqual(MAP_WATER.beach); }
+  });
+
+  test('the controls draw the string as the bar\'s background in every layout, and add no element for it', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'MapWeatherControls.js'), 'utf8');
+    expect(src.match(/style=\{\{ background: legendConfig\[activeLayer\]\.gradientCSS/g).length).toBeGreaterThanOrEqual(1);
+    expect(src).not.toMatch(/swatch/);                                                                // nothing in the render knows about it
   });
 });
