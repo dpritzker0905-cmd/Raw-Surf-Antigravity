@@ -234,7 +234,7 @@ export const STATIC_SETS = [
   'GFS/weather/precipitation/global_0p25', 'EURO/weather/precipitation/global_0p25',   // 2026-11-12: mm/h, the 'rain' layer's own frames (dark)
   // 2026-11-14 (the fog / air temp / water temp instant lane): per-model air temperature, GFS surface visibility (fog) and model skin
   // temperature (water temp). Raster sets read only by ownRasterFrames.js; a set not published yet misses and the .om path draws.
-  'EURO/weather/temperature/global_0p5', 'ICON/weather/temperature/global_0p5',
+  'EURO/weather/temperature/global_0p25', 'ICON/weather/temperature/global_0p5',
   'GFS/weather/fog/global_0p25',
   'GFS/weather/water_temp/global_0p25', 'EURO/weather/water_temp/global_0p25',
   // EURO / ICON world frames with /grid's TARGETED Gulf fill baked in (2026-10-24, frame_set_fill.py): read only for WORLD boxes,

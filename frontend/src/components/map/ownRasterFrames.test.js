@@ -186,19 +186,18 @@ describe('air temperature (2026-10-24)', () => {
 
   test('per model since 2026-11-14: GFS, EURO and ICON each read their own set (no stand-in); an unpublished set stays on .om', () => {
     expect(setKey('temperature', 'GFS')).toBe('GFS/weather/temperature/global_0p5');
-    expect(setKey('temperature', 'EURO')).toBe('EURO/weather/temperature/global_0p5');
+    expect(setKey('temperature', 'EURO')).toBe('EURO/weather/temperature/global_0p25');
     expect(setKey('temperature', 'ICON')).toBe('ICON/weather/temperature/global_0p5');
     expect(OWN_RASTER_SETS.temperature.field).toBe(TEMP_FIELD);
     expect(TEMP_FIELD).toBe(7);
     expect(OWN_RASTER_SETS.temperature.fallback).toBeNull();
-    // default OFF for every model (the no-regression rule: 0.5 deg sets vs finer .om grids, pending the visual-parity comparison);
-    // the lever reaches all three
+    // default: EURO only (its 0.25 deg set = the .om ifs025); GFS and ICON OFF (0.5 deg vs finer .om grids); the lever reaches all
     expect(ownFramesOn('temperature', 'GFS')).toBe(false);
-    expect(ownFramesOn('temperature', 'EURO')).toBe(false);
+    expect(ownFramesOn('temperature', 'EURO')).toBe(true);
     expect(ownFramesOn('temperature', 'ICON')).toBe(false);
     window.__RAW_RASTER_OWN_FRAMES__ = 'temperature';
     for (const m of ['GFS', 'EURO', 'ICON']) expect(ownFramesOn('temperature', m)).toBe(true);
-    staticSetEnabled.mockImplementation((key) => key !== 'EURO/weather/temperature/global_0p5');
+    staticSetEnabled.mockImplementation((key) => key !== 'EURO/weather/temperature/global_0p25');
     expect(ownFramesOn('temperature', 'EURO')).toBe(false);
   });
 
@@ -249,7 +248,7 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
   });
   test('ON by default (D-052; pressure 2026-11-12; air temp, fog, water temp 2026-11-14): no lever needed; rain stays dark', () => {
     expect(DEFAULT_ON_LAYERS).toEqual(['satellite', 'pressure', 'fog']);
-    expect(DEFAULT_ON_MODELS).toEqual({ water_temp: ['EURO'] });
+    expect(DEFAULT_ON_MODELS).toEqual({ temperature: ['EURO'], water_temp: ['EURO'] });
     expect(ownFramesOn('satellite', 'GFS')).toBe(true);
     expect(ownFramesOn('satellite', 'EURO')).toBe(false); // no EURO cloud set: the .om path draws EURO as before
     expect(ownFramesOn('temperature', 'GFS')).toBe(false);
