@@ -68,6 +68,9 @@ REPLAY, RATING, VOLUME, BLIND = "replay", "rating", "volume", "blind"
 # Every GUARDED flag (and the ones open PRs add) with what can see it. Flags in eval_replay.UNREPLAYABLE are BLIND
 # automatically (their reason is the replay's own). Pre-declared names cost nothing until they are guarded.
 COVERAGE = {
+    "SAMPLER_UNRESOLVED_STATIONS": (BLIND, "one named buoy coordinate (NDBC 46267); no surf spot is within 0.6 deg, so "
+                                           "the replay cannot exercise it. Evidence: the per-buoy split's no-served-row "
+                                           "count (accuracy_per_buoy_split.unanswered)"),
     "SURF_TIDE_DEPTH": (REPLAY, "the replay carries the served tide (eval_replay tide)"),
     "SURF_EXPOSURE_RECONCILED": (REPLAY, "the height exposure factor at the anchors"),
     "SHORE_NORMAL_MOP_CALIBRATED": (REPLAY, "the height exposure normal at the calibrated anchors (#780)"),
@@ -99,6 +102,10 @@ COVERAGE = {
                                           "Evidence: test_weather_account_rate_limit.py"),
     "FRAME_ENTITLEMENT": (BLIND, "access, not a forecast number: which bucket a static frame lives in and who gets a signed "
                                  "URL (#783). Evidence: test_frame_entitlement.py (frame bytes unchanged)"),
+    "ICON_SWELL2_SERVE": (BLIND, "/grid and /point answers for ICON swell_2 only (option B, #877); no spot height, rating or "
+                                 "glyph reads ICON swell_2, and the replay never asks for it. Evidence: the real-frame parity read "
+                                 "(frontend/scripts/icon-swell2/real-frame-parity.mjs: mid-zoom map 0/120,184 cells, world span "
+                                 "924 cells <= 0.4 mm) and test_icon_swell2_blend.py (the port = the browser blend)"),
     "LOCATION_TIME_FIELD": (BLIND, "adds civil zone and civil-day rows (#762); no height, rating or forecast value reads it. "
                                    "Alerts (O2, #775): the civil clock picks which hours fall in a user's time windows, the "
                                    "midnight split and the daily-cap day; same per-user cap, no new sends. Evidence: "

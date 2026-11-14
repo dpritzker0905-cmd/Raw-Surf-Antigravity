@@ -4,6 +4,7 @@
  */
 
 import maplibregl from 'maplibre-gl';
+import { startLandWorkerLoader } from './landMaskSource';
 
 export function invalidateStaleTileRequests() {
   // Backwards compatibility stub
@@ -441,12 +442,16 @@ export function getSharedLandGeoJSON() {
   }
 
   if (!window.__LAND_GEOJSON_PROMISE__) {
+    // While the land file downloads, the map workers learn to load it without echoing it back. ensureMapLibreInit FIRST: the
+    // library builds its worker pool on the first message, and before setWorkerUrl that pool is the bundled default worker,
+    // which fails every setLayers in this build (v197; measured 2026-11-13: no basemap and no land mask at all).
+    try { ensureMapLibreInit(); startLandWorkerLoader(maplibregl); } catch (e) { /* the plain URL, as before */ }
     window.__LAND_GEOJSON_PROMISE__ = fetch('/ne_50m_land.json')
       .then(res => {
         if (!res.ok) throw new Error();
-        return res.json();
+        return res.json().then(geojson => { window.__LAND_GEOJSON_URL__ = '/ne_50m_land.json'; return geojson; });
       })
-      .catch(() => fetch('/ne_110m_land.json').then(res => res.json()))
+      .catch(() => fetch('/ne_110m_land.json').then(res => res.json()).then(geojson => { window.__LAND_GEOJSON_URL__ = '/ne_110m_land.json'; return geojson; }))
       .then(geojson => {
         window.__LAND_GEOJSON_CACHE__ = geojson;
         return geojson;
@@ -456,11 +461,17 @@ export function getSharedLandGeoJSON() {
   return window.__LAND_GEOJSON_PROMISE__;
 }
 
+/** The URL the shared land GeoJSON was actually loaded from (50 m, or the 110 m fallback); null until it has loaded. */
+export const getSharedLandGeoJSONUrl = () => (typeof window !== 'undefined' && window.__LAND_GEOJSON_URL__) || null;
+
 // 10m (high-resolution) Natural Earth land polygons — the same CDN OceanMask falls back to.
 // ~18 MB, so it is fetched LAZILY (only when a marine layer is zoomed past the hi-res threshold,
 // where the 50m mask is too coarse and wave color bleeds over barrier islands / thin coast).
 // Cached on window after the first load; a failed fetch clears the promise so it can retry.
 const NE_10M_LAND_URL = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/10m/physical/ne_10m_land.json';
+
+/** The URL the 10 m land GeoJSON was actually loaded from (a local copy, or the CDN); null until it has loaded. */
+export const getSharedLandGeoJSONHiResUrl = () => (typeof window !== 'undefined' && window.__LAND_GEOJSON_HIRES_URL__) || null;
 
 export function getSharedLandGeoJSONHiRes() {
   if (typeof window === 'undefined') return Promise.resolve(null);
@@ -473,10 +484,10 @@ export function getSharedLandGeoJSONHiRes() {
     // Prefer a locally-served copy if the deploy ships one (repo ships only 50m/110m today),
     // else the Natural Earth 10m CDN.
     window.__LAND_GEOJSON_HIRES_PROMISE__ = fetch('/ne_10m_land.json')
-      .then(res => { if (!res.ok) throw new Error(`Status ${res.status}`); return res.json(); })
+      .then(res => { if (!res.ok) throw new Error(`Status ${res.status}`); return res.json().then(geojson => { window.__LAND_GEOJSON_HIRES_URL__ = '/ne_10m_land.json'; return geojson; }); })
       .catch(() => fetch(NE_10M_LAND_URL).then(res => {
         if (!res.ok) throw new Error(`Status ${res.status}`);
-        return res.json();
+        return res.json().then(geojson => { window.__LAND_GEOJSON_HIRES_URL__ = NE_10M_LAND_URL; return geojson; });
       }))
       .then(geojson => {
         if (!geojson?.features?.length) throw new Error('empty hi-res land geojson');

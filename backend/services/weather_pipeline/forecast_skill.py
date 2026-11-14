@@ -202,6 +202,9 @@ def rows_from_calibration_report(report, target_time: str, lead_h: float,
         row = {"source": source, "buoy_id": bid, "target_time": target_time,
                "lead_h": round(lead_h, 1), "hs_m": hs, "tp_s": res.get("model_tp_s"),
                **serving_provenance(served.get("product"), served.get("cycle"), target_time, lead_h)}
+        for key in ("interp", "sampled"):            # the sampler's serve path (buoy_calibration); absent = not recorded
+            if served.get(key):
+                row[key] = served[key]
         if res.get("model_dir_deg") is not None:    # S8 (skill_direction_period); absent = not recorded
             row["dir_deg"] = res["model_dir_deg"]
         wres = entry.get("wind_residual") or {}      # S9: the lane's forecast wind at the target hour (knots)
@@ -734,10 +737,8 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
             # kill switch and guard; with FORECAST_SKILL_OCF=0 nothing is added to the report.
             if os.environ.get("FORECAST_SKILL_OCF", "1") != "0":
                 try:
-                    from services.weather_pipeline.skill_ocf import ocf_report, positive_control, tier_split_report
-                    ocf = ocf_report(history, now)
-                    ocf["positive_control"] = positive_control(history, now)
-                    ocf["tier_split"] = tier_split_report(history, now)
+                    from services.weather_pipeline.skill_ocf import ocf_block
+                    ocf = ocf_block(history, now)
                 except Exception as e:
                     logger.warning("[forecast-skill] OCF block skipped (%s)", e)
             # S7/S8: period and direction on the same history (skill_direction_period); its own guard.

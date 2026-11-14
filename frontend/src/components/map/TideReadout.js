@@ -6,6 +6,7 @@
  */
 import React, { useEffect, useState } from 'react';
 import { usePointTide } from './usePointTide';
+import { responsiveWeatherOn } from './useMapChromeLayout';
 import {
   TIDE_FOOTER, TIDE_SOLAR_NOTE, TIDE_UNAVAILABLE, tideAt, tideUsesSolar, infoboxTideDisabled, trendWord, trendGlyph, formatTideHeight,
   formatTideEvent, formatTideRate, tideAriaLabel, tideCurve,
@@ -26,7 +27,7 @@ export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, at
   const data = payload ? tideAt(payload, atMs) : null;
   if (infoboxTideDisabled() || status === 'off') return null;
   const textClass = isLight ? 'text-gray-900' : 'text-white';
-  const muted = isLight ? 'text-gray-500' : isBeach ? 'text-cyan-200/80' : 'text-gray-400';
+  const muted = isLight ? 'text-gray-600' : isBeach ? 'text-cyan-200/80' : 'text-gray-400';
   const accent = isLight ? 'text-sky-700' : isBeach ? 'text-amber-300' : 'text-cyan-400';
   const rule = isLight ? 'border-gray-200' : isBeach ? 'border-cyan-900/50' : 'border-zinc-800/20';
   const wrap = `pt-1.5 mt-1.5 border-t ${rule}`;
@@ -34,14 +35,17 @@ export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, at
     return <div className={`${wrap} text-[10px] ${muted}`} role="status">Loading modeled sea level…</div>;
   }
   if (status === 'unavailable' || (status === 'ok' && !data)) {
-    return <div className={`${wrap} text-[10px] ${muted}`} data-testid="tide-readout-unavailable" role="status">{TIDE_UNAVAILABLE}</div>;
+    return <div className={wrap}>
+      <div className={`text-[10px] ${muted}`} data-testid="tide-readout-unavailable" role="status">{TIDE_UNAVAILABLE}</div>
+    </div>;
   }
   const d = data;
   const unit = heightUnit;
   const rate = formatTideRate(d.rate_m_per_h, unit, d.trend);
   const hi = formatTideEvent('high', d.next_high, unit, d.tz_offset_h, undefined, atMs);
   const lo = formatTideEvent('low', d.next_low, unit, d.tz_offset_h, undefined, atMs);
-  const curve = tideCurve(d, d.now);
+  const curveHeight = responsiveWeatherOn() ? 56 : 40;
+  const curve = tideCurve(d, d.now, 176, curveHeight);
   return (
     <div className={wrap} data-testid="tide-readout" role="group" aria-label="Tide">
       <div className="flex items-baseline gap-1.5">
@@ -54,7 +58,7 @@ export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, at
       </div>
       {curve && (
         <svg role="img" tabIndex={0} aria-label={tideAriaLabel(d, unit)} viewBox={`0 0 ${curve.w} ${curve.h}`}
-             className={`w-full h-10 mt-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-current ${accent}`} data-testid="tide-curve">
+             style={{ height: curveHeight }} className={`w-full mt-1 focus-visible:outline focus-visible:outline-2 focus-visible:outline-current ${accent}`} data-testid="tide-curve">
           <path d={curve.path} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
           {curve.nowX != null && (
             <>
@@ -66,10 +70,10 @@ export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, at
       )}
       {hi && <div className={`text-[10px] ${textClass}`}>{hi}</div>}
       {lo && <div className={`text-[10px] ${textClass}`}>{lo}</div>}
+      <div className={`text-[10px] leading-tight mt-1 ${muted}`}>{TIDE_FOOTER}</div>
       {d.tz_approx && tideUsesSolar(d.tz_offset_h, undefined, atMs) && (
         <div className={`text-[8px] leading-tight ${muted}`} data-testid="tide-solar-note">{TIDE_SOLAR_NOTE}</div>
       )}
-      <div className={`text-[8px] leading-tight mt-0.5 ${muted}`}>{TIDE_FOOTER}</div>
     </div>
   );
 }

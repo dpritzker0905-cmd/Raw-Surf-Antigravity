@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 from scripts.accuracy_per_buoy_split import (
     BEST_MATCH, PRIMARY, SAME_MODEL, day_block_interval, gap, hole_keys_view, index_rows, paired,
-    detection_control, gate_window_lines, report_lines, split, wiring_check,
+    detection_control, gate_window_lines, report_lines, split, unanswered, unanswered_lines, wiring_check,
 )
 
 NOW = datetime(2026, 11, 12, 12, tzinfo=timezone.utc)
@@ -121,6 +121,31 @@ def test_detection_control_is_not_arithmetic_when_errors_straddle_the_seed():
     rows = [_row(PRIMARY, "A", d, 6, 72, -0.04) for d in range(10)] + [_row(BEST_MATCH, "A", d, 6, 72, 0.1) for d in range(10)]
     base, hit, _iv, _x = detection_control(rows, NOW, 14)
     assert round(hit - base, 6) == -0.03     # |-0.04 + 0.05| = 0.01: a +0.05 seed LOWERS this row's error
+
+
+def test_unanswered_counts_reference_keys_with_no_served_row_and_nothing_else():
+    """Known answer: buoy N has 6 best_match keys per lead and a served row on 2 of them at +72 h only -> 4/6 there and
+    6/6 at +24 and +48 h; the three buoys every lane scores read 0/6. A paired gap sees none of this."""
+    rows = _world()
+    for day in range(6):
+        for lead in (24, 48, 72):
+            rows.append(_row(BEST_MATCH, "N", day, 6, lead, 0.1))
+            if lead == 72 and day < 2:
+                rows.append(_row(PRIMARY, "N", day, 6, lead, 0.3))
+    un = unanswered(index_rows(rows, NOW), BEST_MATCH)
+    assert un[("N", 72)] == (4, 6) and un[("N", 24)] == (6, 6) and un[("N", 48)] == (6, 6)
+    assert all(un[(b, lead)] == (0, 6) for b in "ABH" for lead in (24, 48, 72))            # the null arm
+    assert un == unanswered(index_rows(rows + [_row(PRIMARY, "Z", 1, 6, 72, 0.2)], NOW), BEST_MATCH)   # a served-only key is not one
+
+
+def test_unanswered_lines_name_only_buoys_with_a_gap_and_carry_no_row_field():
+    rows = _world() + [_row(BEST_MATCH, "N", d, 6, 72, 0.1) for d in range(6)]
+    text = chr(10).join(unanswered_lines(index_rows(rows, NOW)))
+    assert "+72h pooled 6 / 24" in text and "+24h pooled 0 / 18" in text
+    assert "N       +24h 0/0 | +48h 0/0 | +72h 6/6" in text
+    assert all(("  %s " % b) not in text for b in "ABH")
+    assert "obs_time" not in text and "err_m" not in text and "target_time" not in text
+    assert "no served row where best_match scored" in chr(10).join(report_lines(index_rows(rows, NOW), NOW)[0])
 
 
 def test_three_day_blocks_need_three_blocks():

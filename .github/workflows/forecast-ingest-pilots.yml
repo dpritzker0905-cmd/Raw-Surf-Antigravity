@@ -81,6 +81,7 @@ jobs:
           FORECAST_JOB_STAGGER_SEC: '0'
           INGEST_PILOTS: 'only'             # pilots only — the core cycle owns the globals
           CONSENSUS_INGEST: '1'         # ARMED by the owner's merge of the arming PR (D-009; declared '0' by #164). '1' builds the equal GFS/EURO/ICON mean as the SHADOW model CONSENSUS in the pilots lane (consensus_ingest.py) and adds the `raw_surf:CONSENSUS` lane to the skill ledger that forecast-ingest.yml and precompute.yml run. Serves nothing either way. ARM ALL THREE TOGETHER: forecast-ingest-pilots.yml, forecast-ingest.yml, precompute.yml.
+          ICON_SWELL2_STORED: ${{ vars.ICON_SWELL2_STORED || '0' }}   # DARK (2026-11-13, option B): '1' stores ICON swell_2 as a derived product (icon_swell2_ingest.py). Serves nothing by itself; armed together with the /grid serve flag. ~29 s CPU and ~310 MB per full mid rebuild.
           SURF_BIGHT_HS_CONSENSUS: ''  # D-065 GUARDED, ON by code default '1' (services/runtime_flags.GUARDED); '' DEFERS to the runtime kill manifest so the flag guardrail's 'off' reaches this lane. A '0' here is a hard kill for this lane only; kill everywhere = the manifest 'off' (or '0' in every lane AND Render env). Evidence: log 2026-11-03-claude-bight-hs-consensus.md.
           SURF_BIGHT_HS_EURO_WEIGHT: '0.5'  # DECLARED AT DEFAULT (2026-11-04, dark arm option): EURO's weight in the Bight Hs while SURF_BIGHT_HS_CONSENSUS is '1' (0.5 = the equal mean). Moves only with that flag, in the same lanes and Render env together.
           SAMPLER_SCALAR_HEIGHT: '1'    # FLIPPED 2026-10-17 on the owner's word, GFS first (SAMPLER_SCALAR_HEIGHT_MODELS; evidence: ledger 1345, gate YES; declared dark at default 2026-09-30): '1' interpolates a MARINE height as the scalar it is (the corners' weighted mean) instead of sqrt(u^2+v^2) of their vector mean, which shrinks it wherever the corners' directions diverge (islands, headlands: NDBC 51202 served 0.98 m, scalar 1.45, same-model cell 1.44, buoy 2.0; 11% of rated spots read > 5% low). Direction keeps the vector mean; wind is untouched. See sampler.scalar_marine_height_enabled. Moves served heights on every surface: flip ONLY on the owner's word, in ALL of forecast-ingest.yml, forecast-ingest-pilots.yml, precompute.yml AND the Render env together.
@@ -208,11 +209,20 @@ jobs:
           # The client reads them by default. Kill: repo variable FRAME_REGIONAL_BUNDLES_EURO_ICON = '0' (with Render
           # MARINE_REGIONAL_TILE_FIRST_EURO_ICON=0 and the client's __RAW_DISABLE_REGIONAL_EURO_ICON__).
           FRAME_REGIONAL_BUNDLES_EURO_ICON: ${{ vars.FRAME_REGIONAL_BUNDLES_EURO_ICON || '1' }}
+          # ON (2026-11-12, services/frame_set_content.py): a frame whose product bytes differ from the previous build's only in
+          # run_time / ingested_at (the pilots lane re-ingests the same CMEMS run every fire) is carried as a rebuild with an unchanged
+          # sha would write it, without re-encoding; the EURO swell sets rebuilt 74-118 frames each per run before. Wind, rated and
+          # Bight frames keep the identity carry only. Kill: repo variable FRAME_CONTENT_CARRY = '0' (every changed identity rebuilds).
+          FRAME_CONTENT_CARRY: ${{ vars.FRAME_CONTENT_CARRY || '1' }}
           # ON by default, kill switch '0' (owner 2026-11-01 22:10 EST); built 2026-11-01, item 14 (published LAST, after the regional bundles): '1' adds the EURO swell_1/swell_2/wind_waves world sets (plain + Gulf-filled) after the world sets
           # (frame_set.EURO_SWELL_SETS). They have products only once EURO_MARINE_MID_CMEMS_SWELL is on in the ingest step; the client's
           # STATIC_SETS must list them before it reads them. With FRAME_TAIL_DOWNLOAD on, their 240-336 h tails need ~3 x 40 more of
           # FRAME_TAIL_DOWNLOAD_MAX. Kill with FRAME_EURO_SWELL_SETS=0.
           FRAME_EURO_SWELL_SETS: ${{ vars.FRAME_EURO_SWELL_SETS || '1' }}
+          # ON (2026-11-12, move 3): the set whose latest.json record is oldest starts first (world before regional on ties), so a
+          # set the budget skipped leads the next run (publish_frame_images.publish_order). Kill: repo variable
+          # FRAME_PUBLISH_FAIR_ORDER = '0' (the fixed list order again).
+          FRAME_PUBLISH_FAIR_ORDER: ${{ vars.FRAME_PUBLISH_FAIR_ORDER || '1' }}
         run: python scripts/publish_frame_images.py
 
       # 2026-10-27 (the lead): the step above exits 1 on a refused set or a crash, and continue-on-error turns that green: the
@@ -353,6 +363,19 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FRAME_RASTER_PRECIP_EURO: ${{ vars.FRAME_RASTER_PRECIP_EURO }}
         run: python scripts/publish_raster_frames.py --set precipitation_euro
+      # ICON precipitation (the same word of the owner): DWD ICON global TOT_PREC totals differenced per native cell to the
+      # step before each hour and box-averaged onto the 0.25-degree grid; hourly to 78 h, 3-hourly to 180 h, 00/12Z runs, 112
+      # frames (223 files of about 2 MB). Off unless FRAME_RASTER_PRECIP_ICON=1; no client reads it yet.
+      - name: Publish raster static frames (ICON precipitation; off unless FRAME_RASTER_PRECIP_ICON=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRECIP_ICON == '1' }}
+        continue-on-error: true
+        timeout-minutes: 20
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_PRECIP_ICON: ${{ vars.FRAME_RASTER_PRECIP_ICON }}
+        run: python scripts/publish_raster_frames.py --set precipitation_icon
 
       # PER-MODEL PRESSURE (2026-10-23; the owner, 20:13 EDT: "Yes start it", answering "start the per-model pressure route?"
       # after "We want each models pressure showing"). EURO = ECMWF IFS open data msl (CC BY 4.0, attribution required), the

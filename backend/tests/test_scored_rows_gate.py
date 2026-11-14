@@ -313,6 +313,37 @@ def test_construction_flags_stale_cycles_and_snapped_frames():
     assert ("frames", "shadow=snapped members=on_frame", 48) in con
 
 
+def test_construction_groups_by_the_shadows_sampler_path_and_localises_a_planted_fallback_shift():
+    fallback = _consensus_rows(lambda l: 0.20, buoy="46001")          # the planted defect: fallback answers, a member lane unknown
+    for r in fallback:
+        if r["source"] == sra.SHADOW:
+            r["interp"], r["sampled"] = "nearest_ocean_fallback", [48.0, -124.0]
+        if r["source"] == "raw_surf:EURO":
+            r["tier"] = None
+    clean = _consensus_rows(lambda l: 0.0, buoy="41001")
+    for r in clean:
+        if r["source"] == sra.SHADOW:
+            r["interp"] = "bilinear"
+    con = sra.construction(fallback + clean)
+    assert con[("shadow interp", "nearest_ocean_fallback", 48)]["signed_mean"] == pytest.approx(0.20)
+    assert con[("shadow interp", "bilinear", 48)]["signed_mean"] == pytest.approx(0.0, abs=1e-9)        # the null arm
+    assert con[("interp x members", "shadow=nearest_ocean_fallback members=mixed", 48)]["n"] == 40
+    assert con[("interp x members", "shadow=bilinear members=stored", 48)]["n"] == 40
+    text = chr(10).join(sra.render_construction(con))
+    assert "nearest_ocean_fallback" in text and "48.0" not in text and "-124.0" not in text            # category only, no cell
+
+
+def test_construction_reads_rows_older_than_the_serve_path_as_not_recorded_never_a_guess():
+    con = sra.construction(_consensus_rows(lambda l: 0.13))
+    assert con[("shadow interp", "not recorded", 48)]["n"] == 40
+    assert con[("interp x members", "shadow=not recorded members=stored", 48)]["n"] == 40
+    junk = _consensus_rows(lambda l: 0.13)
+    for r in junk:
+        if r["source"] == sra.SHADOW:
+            r["interp"] = 7                                            # a non-string is not a category
+    assert ("shadow interp", "not recorded", 48) in sra.construction(junk)
+
+
 def test_construction_below_ten_keys_is_suppressed():
     con = sra.construction(_consensus_rows(lambda l: 0.13, n=9))
     assert con and all(c == {"suppressed": True} for c in con.values())

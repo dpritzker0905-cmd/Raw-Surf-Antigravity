@@ -623,6 +623,14 @@ class WeatherPipelineScheduler:
         from services.weather_pipeline.icon_marine_extension import ingest_icon_marine_extended_estimates_impl
         return await ingest_icon_marine_extended_estimates_impl(self)
 
+    async def ingest_icon_swell2_blend(self) -> bool:
+        """
+        ICON swell_2 as a stored derived product (2026-11-13, option B): the browser's 60/40 GFS+EURO blend, made once per tier and
+        time from the stored inputs. Serves nothing until /grid's own flag. See icon_swell2_ingest.py. Dark: arm ICON_SWELL2_STORED=1.
+        """
+        from services.weather_pipeline.icon_swell2_ingest import ingest_icon_swell2_blend_impl
+        return await ingest_icon_swell2_blend_impl(self)
+
     async def ingest_lattice_inband_fill(self) -> bool:
         """
         Stage 6I.4: Interpolates the missing 3-hourly frames where a source's native cadence is

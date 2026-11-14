@@ -37,6 +37,24 @@ def tier_of(product_id: Optional[str]) -> Optional[str]:
     return "regional"
 
 
+def serve_path(point) -> Dict:
+    """PURE: HOW a calibration point was answered (2026-11-12): the sampler's `interpolation_method` and the cell it read,
+    so a buoy's error is tied to its serve path instead of inferred (NDBC 46267's +1.5 m was a nearest-ocean read 0.73 deg
+    away, found only by elimination). Only known keys. Kill: CALIBRATION_SERVE_PATH=0 returns {} (the report's `served`
+    block is then byte-identical to before)."""
+    import os
+    if os.environ.get("CALIBRATION_SERVE_PATH", "1") == "0" or point is None:
+        return {}
+    out: Dict = {}
+    interp = getattr(point, "interpolation_method", None)
+    if interp:
+        out["interp"] = interp
+    s_lat, s_lng = getattr(point, "sampled_lat", None), getattr(point, "sampled_lng", None)
+    if isinstance(s_lat, (int, float)) and isinstance(s_lng, (int, float)):
+        out["sampled"] = [round(s_lat, 3), round(s_lng, 3)]
+    return out
+
+
 def serving_provenance(product_id, cycle_iso, target_time, lead_h) -> Dict:
     """PURE: {tier, frame_off_h, cycle_age_h} for one ledger row, only the keys that are known.
 

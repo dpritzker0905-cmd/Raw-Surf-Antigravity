@@ -1833,7 +1833,18 @@ jobs:
           python scripts/ci_test_lanes.py --lane estate > /tmp/estate_files.txt
           sed 's/^/  estate: /' /tmp/estate_files.txt
           FILES=$(tr '\n' ' ' < /tmp/estate_files.txt)
-          python -m pytest $FILES -q --timeout=120 --junitxml=estate.xml
+          python -m pytest $FILES -q --timeout=120 --junitxml=estate.xml \
+            -p tests.sqlite_lifecycle_census --sqlite-lifetime-report=sqlite-lifetime.json \
+            -W error::pytest.PytestUnhandledThreadExceptionWarning \
+            -W error::pytest.PytestUnraisableExceptionWarning
+
+      - name: Preserve SQLite lifetime census
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: sqlite-lifetime-${{ github.run_id }}-${{ github.run_attempt }}
+          path: backend/sqlite-lifetime.json
+          if-no-files-found: error
 
       - name: "🔍 Assert every selected file actually produced results"
         if: always()

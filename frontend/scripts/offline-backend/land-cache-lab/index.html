@@ -1,0 +1,32 @@
+<!doctype html><meta charset="utf-8"><title>land source cache lab</title>
+<style>html,body{margin:0}#map{width:1280px;height:800px}</style><div id="map"></div>
+<script src="maplibre-gl.js"></script>
+<script>
+// The mechanism only, no app: read the 10 m land file the way the page does (fetch + json), then give a GeoJSON source
+// that file's URL (arm=url), the parsed object (arm=object), or the URL through the worker loader the app ships
+// (arm=worker: public/land-worker-loader.js, loaded into the workers before the clock starts, as the app does at startup),
+// and time how long until the source's tiles are drawn.
+const URL10 = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/10m/physical/ne_10m_land.json';
+const arm = new URLSearchParams(location.search).get('arm') || 'url';
+window.__R__ = null; let worstGap = 0; let last = performance.now(); let watch = false;
+const tick = () => { const n = performance.now(); if (watch) worstGap = Math.max(worstGap, n - last); last = n; requestAnimationFrame(tick); }; requestAnimationFrame(tick);
+window.__E__ = [];
+const map = new maplibregl.Map({ container: 'map', style: { version: 8, sources: {}, layers: [{ id: 'bg', type: 'background', paint: { 'background-color': '#123' } }] }, center: [-55, 38], zoom: 3.2 });
+map.on('error', (e) => window.__E__.push(String((e.error && e.error.message) || e)));
+map.on('load', async () => {
+  const f0 = performance.now(); const res = await fetch(URL10); const geojson = await res.json(); const pageFetchMs = performance.now() - f0;
+  const rt = performance.getEntriesByName(URL10).pop() || {};
+  const mask = { type: 'FeatureCollection', features: geojson.features.map((f) => ({ type: 'Feature', geometry: f.geometry, properties: {} })) };
+  await new Promise((r) => setTimeout(r, 1500));
+  if (arm === 'worker') await maplibregl.importScriptInWorkers(location.origin + '/land-worker-loader.js');
+  watch = true; last = performance.now(); const t0 = performance.now();
+  const data = arm === 'worker' ? 'rawland://' + encodeURIComponent(URL10) : (arm === 'url' ? URL10 : mask);
+  map.addSource('land', { type: 'geojson', data, tolerance: 0.375 });
+  const addMs = performance.now() - t0;
+  map.addLayer({ id: 'land-fill', type: 'fill', source: 'land', paint: { 'fill-color': '#586' } });
+  let loadedAt = null;
+  map.on('sourcedata', (e) => { if (e.sourceId === 'land' && e.sourceDataType === 'metadata' && loadedAt == null) loadedAt = performance.now() - t0; });
+  map.once('idle', () => { window.__R__ = { errors: window.__E__, arm, features: geojson.features.length, pageFetchMs: Math.round(pageFetchMs), pageTransferSize: rt.transferSize, pageEncoded: rt.encodedBodySize,
+    addSourceCallMs: +addMs.toFixed(1), dataLoadedMs: Math.round(loadedAt), drawnMs: Math.round(performance.now() - t0), worstFrameGapMs: Math.round(worstGap), drawnFeatures: map.queryRenderedFeatures({ layers: ['land-fill'] }).length }; });
+});
+</script>

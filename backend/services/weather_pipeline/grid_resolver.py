@@ -146,9 +146,12 @@ async def resolve_grid(
     # Parse target timestamp
     target_dt = parse_valid_time(valid_time)
 
-    # Immediate rejection for unsupported layer
+    # ICON swell_2: "unsupported" unless ICON_SWELL2_SERVE=1 and a stored derived product covers the time (icon_swell2_serve.py;
+    # dark by default: the browser blends it today).
     if model.upper() == "ICON" and layer.lower() == "swell_2":
-        return make_unsupported_icon_swell2_grid_response(domain, target_dt)
+        from services.weather_pipeline.icon_swell2_serve import refuse as _icon_swell2_refuse, serve_on as _icon_swell2_serve_on
+        if not _icon_swell2_serve_on() or _icon_swell2_refuse(await asyncio.to_thread(store.get_manifest), domain, target_dt):
+            return make_unsupported_icon_swell2_grid_response(domain, target_dt)
 
     # Parse bounding box values if provided
     req_w, req_s, req_e, req_n = None, None, None, None
