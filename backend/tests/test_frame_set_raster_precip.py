@@ -250,7 +250,7 @@ def test_icon_a_step_is_differenced_per_native_cell_then_averaged_as_a_mean_rate
     got = src.fetch(CYCLE, 1)[1]
     assert asked == [1] and got[0] == pytest.approx(0.2) and got[1] == pytest.approx(2.0)   # the first hour: its total alone; NaN left out
     got = src.fetch(CYCLE, 2)[1]
-    assert asked[1:] == [2, 1] and got[0] == pytest.approx(0.4)      # (0.6 + 0.2) / 2 cells, in the one hour
+    assert asked[1:] == [2] and got[0] == pytest.approx(0.4)         # (0.6 + 0.2) / 2 cells, in the one hour; hour 1's total is not asked for again
     assert got[1] == 0.0                                             # packing noise is never negative rain
     got = src.fetch(CYCLE, 81)[1]
     assert got[0] == pytest.approx(1.0) and got[1] == pytest.approx(0.5)   # 6 mm and 3 mm over 3 h, each averaged with a dry cell
@@ -305,3 +305,75 @@ def test_the_icon_set_publishes_quarter_degree_mm_per_hour_frames_with_dwd_credi
     assert np.isnan(got[200, 300]) and np.isnan(got).sum() == 1         # the impossible rate is no data, and only it
     want[200, 300] = np.nan
     assert np.nanmax(np.abs(got - want)) <= 0.005 + 1e-9                # the plane as given: no flip, no stride
+
+
+# ── ICON: each run total is downloaded once (2026-11-14). Before: 223 downloads for 112 frames, each total fetched by its own
+# frame and again by the next hour's, in a pool of 6 threads. ─────────────────────────────────────────────────────────────────
+def _icon_counting(monkeypatch, fail_once=()):
+    """An IconPrecipSource whose downloads are counted per hour; totals grow by 1 mm per hour in every cell."""
+    import threading
+    asked, lock, failed = {}, threading.Lock(), set()
+
+    def fake_native(self, cycle, f, ncells):
+        with lock:
+            asked[f] = asked.get(f, 0) + 1
+            if f in fail_once and f not in failed:
+                failed.add(f)
+                raise RuntimeError(f"f{f:03d} not there yet")
+        return np.full(4, float(f))
+    monkeypatch.setattr(srcs.IconOpenDataSource, "_native", fake_native)
+    node, counts = np.array([2, 2, 3, 3]), np.array([0, 0, 2, 2, 0, 0])
+    monkeypatch.setattr(srcs.IconPrecipSource, "grid", lambda self, cycle: (node, counts, 4))
+    monkeypatch.setattr(srcs.IconPrecipSource, "lattice", lambda self: (3, 2))
+    return srcs.IconPrecipSource(ICON_RAIN, session=object()), asked
+
+
+def test_icon_every_run_total_is_downloaded_once_over_the_whole_set(monkeypatch):
+    src, asked = _icon_counting(monkeypatch)
+    hours = ICON_RAIN["hours"]
+    for f in hours:
+        plane = src.fetch(CYCLE, f)
+        assert plane[1, 0] == pytest.approx(1.0) and plane[1, 1] == pytest.approx(1.0)   # 1 mm per hour, whatever the step
+    assert len(hours) == 112 and sorted(asked) == list(hours)        # hour 0 is never asked for: nothing fell before the run began
+    assert set(asked.values()) == {1}                                # 112 downloads, not 223
+    assert src._totals == {}                                         # nothing is kept once both of its frames are built
+
+
+def test_icon_six_threads_asking_at_once_share_one_download(monkeypatch):
+    from concurrent.futures import ThreadPoolExecutor
+    src, asked = _icon_counting(monkeypatch)
+    hours = ICON_RAIN["hours"]
+    with ThreadPoolExecutor(max_workers=6) as pool:                   # the publisher's pool (frame_set_raster.build_set)
+        planes = list(pool.map(lambda f: src.fetch(CYCLE, f), hours))
+    assert all(p[1, 0] == pytest.approx(1.0) for p in planes)
+    assert sorted(asked) == list(hours) and set(asked.values()) == {1}
+    assert src._totals == {}
+
+
+def test_icon_a_failed_download_is_not_cached_and_the_next_frame_tries_again(monkeypatch):
+    src, asked = _icon_counting(monkeypatch, fail_once={5})
+    for f in (1, 2, 3, 4):
+        src.fetch(CYCLE, f)
+    with pytest.raises(RuntimeError, match="f005 not there yet"):
+        src.fetch(CYCLE, 5)                                          # its own frame fails ...
+    assert src.fetch(CYCLE, 6)[1, 0] == pytest.approx(1.0)           # ... and hour 6 still gets hour 5's total, by asking again
+    assert asked[5] == 2 and asked[6] == 1 and asked[4] == 1
+
+
+def test_icon_the_grid_is_read_once_when_six_threads_start_together(monkeypatch):
+    import threading
+    from concurrent.futures import ThreadPoolExecutor
+    reads, lock = [], threading.Lock()
+
+    def fake_invar(self, cycle, name):
+        with lock:
+            reads.append(name)
+        return name
+
+    monkeypatch.setattr(srcs.IconOpenDataSource, "_invar", fake_invar, raising=False)
+    monkeypatch.setattr(srcs.IconOpenDataSource, "_decode_bz2", lambda self, raw: np.array([0.0, 10.0]) if raw == "CLAT" else np.array([0.0, 20.0]), raising=False)
+    src = srcs.IconPrecipSource(ICON_RAIN, session=object())
+    with ThreadPoolExecutor(max_workers=6) as pool:
+        grids = list(pool.map(lambda _: src.grid(CYCLE), range(12)))
+    assert sorted(reads) == ["CLAT", "CLON"]                          # one read of each, not six
+    assert all(g is grids[0] for g in grids) and grids[0][2] == 2
