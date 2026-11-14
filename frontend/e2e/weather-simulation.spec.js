@@ -434,10 +434,10 @@ test.describe('Standard Surfer Map Controls', () => {
     await expect(waveCanvas).toBeVisible({ timeout: 30000 });
 
     if (isMobile) {
-      // Re-open the bottom sheet weather layers menu because selecting the layer closed it
+      // Layer selection keeps this sheet open so users can choose the model next.
+      // A second toggle would close it and hide GFS/EURO; assert the actual disclosure state.
       const weatherBtn = page.locator('[data-testid="weather-layers-btn"]');
-      await expect(weatherBtn).toBeVisible();
-      await weatherBtn.evaluate(el => el.click());
+      await expect(weatherBtn).toHaveAttribute('aria-expanded', 'true');
     }
 
     // 2. Select "GFS" model selector button (target the visible one)
