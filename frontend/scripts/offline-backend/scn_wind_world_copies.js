@@ -24,7 +24,7 @@ const PANS = WIDE ? [] : [['east across +180 at z3', 120, 200, 0, 3, 1500], ['we
   ['east across +180 at z5', 165, 195, -17, 5, 1200], ['fast east across +180 at z2.5', 60, 240, 0, 2.5, 700]];
 
 const SPY = () => {
-  const G = (window.__WC__ = { on: false, want: false, probe: null, t: { p: {}, h: {} }, cur: { p: [], h: [] }, frames: [], rec: false, disjoint: 0 });
+  const G = (window.__WC__ = { on: false, want: false, probe: null, t: { p: {}, h: {} }, gen: 0, cur: { p: [], h: [] }, frames: [], rec: false, disjoint: 0 });
   const locs = new WeakMap();
   const wrap = (gl) => {
     const x = gl.getExtension('EXT_disjoint_timer_query_webgl2');
@@ -33,7 +33,8 @@ const SPY = () => {
     const poll = () => {
       while (x && pending.length && gl.getQueryParameter(pending[0].q, gl.QUERY_RESULT_AVAILABLE)) {
         const e = pending.shift();
-        if (gl.getParameter(x.GPU_DISJOINT_EXT)) G.disjoint += 1; else (G.t[e.kind][e.off] = G.t[e.kind][e.off] || []).push(gl.getQueryParameter(e.q, gl.QUERY_RESULT) / 1e6);
+        if (gl.getParameter(x.GPU_DISJOINT_EXT)) G.disjoint += 1;
+        else if (e.gen === G.gen) (G.t[e.kind][e.off] = G.t[e.kind][e.off] || []).push(gl.getQueryParameter(e.q, gl.QUERY_RESULT) / 1e6);   // a sample belongs to the view it was taken at
         gl.deleteQuery(e.q);
       }
     };
@@ -57,7 +58,7 @@ const SPY = () => {
       if (G.want && off === 0 && !(G.probe && G.probe[kind])) { try { G.probe = { ...(G.probe || {}), [kind]: probe(pr, loc, call) }; } catch (e) { G.probe = { ...(G.probe || {}), [kind]: { error: String(e && e.message).slice(0, 200) } }; } }
       if (!G.on || !x || pending.length >= 24 || gl.getQuery(x.TIME_ELAPSED_EXT, gl.CURRENT_QUERY)) return call();
       poll();
-      const q = gl.createQuery(); gl.beginQuery(x.TIME_ELAPSED_EXT, q); const r = call(); gl.endQuery(x.TIME_ELAPSED_EXT); pending.push({ q, kind, off }); return r;
+      const q = gl.createQuery(); gl.beginQuery(x.TIME_ELAPSED_EXT, q); const r = call(); gl.endQuery(x.TIME_ELAPSED_EXT); pending.push({ q, kind, off, gen: G.gen }); return r;
     };
     const da = gl.drawArrays;
     gl.drawArrays = function (mode, first, count) {
@@ -99,7 +100,7 @@ const needed = (w, e) => { const out = []; for (let k = Math.floor((w + 180) / 3
   await page.evaluate(() => window.toggleLayer('wind')); await sleep(10000);
   for (const [name, lng, lat, zoom] of VIEWS) {
     await L.jump(page, lng, lat, zoom); await sleep(6000);
-    await page.evaluate(() => { const G = window.__WC__; G.t = { p: {}, h: {} }; G.probe = null; G.on = true; G.want = true; });
+    await page.evaluate(() => { const G = window.__WC__; G.gen += 1; G.t = { p: {}, h: {} }; G.probe = null; G.on = true; G.want = true; });
     await sleep(6000);
     const r = await page.evaluate(() => { const G = window.__WC__; G.on = false; G.want = false; const m = window.__MAP_INSTANCE__ || window.map; const b = m.getBounds();
       return { t: G.t, last: G.last, probe: G.probe, tel: (window.__RAW_GPU__ || {}).windCopies || null, west: +b.getWest().toFixed(1), east: +b.getEast().toFixed(1), zoom: +m.getZoom().toFixed(2) }; });

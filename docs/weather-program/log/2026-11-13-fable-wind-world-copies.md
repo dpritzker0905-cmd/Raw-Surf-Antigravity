@@ -49,6 +49,28 @@ zoom 5 at 150E and zoom 4 at 140W, where the old rule drew two), desktop and pho
 z5, NZ z3, date line z2.5: the needed side is drawn (two copies, where the old rule also drew two) and lights 40k-65k particle
 pixels and 359k-414k heatmap pixels. A 3400 px window at zoom 2: three copies at 0E (73k and 73k side pixels), two at 150E.
 
+## Gate history
+### Gate 1 (sent 21:05 EST, before building). Part 1: NOT MET as written
+- "(1) at 5 mid-globe views below zoom 3.5, wind particle draws per frame go 3 -> 1 and the two skipped copies were at least 50%
+  of the wind particle pass."
+- **NOT MET as written: share 34-53%, 4 of 5 views under 50%** (desktop 46 / 34 / 47 / 52 / 47; phone 46 / 37 / 46 / 53 / 47).
+  Parts 2, 3 and 4 passed. The 50% was carried over from the marine gate (#881) without a wind measurement behind it; that is
+  why it was the wrong yardstick, and it is NOT a reason to call part 1 met. The line is not moved after seeing the data.
+
+### Gate 2 (the director, 21:33 EST). Pre-registered in this commit, BEFORE any new measurement
+The data above may not be used to pass it. Fresh page loads only.
+- **(A) Absolute saving of at least 0.40 ms per frame, median, at 4 of the 5 mid-globe views** (Atlantic z3.2, E Pacific z3,
+  Indian z2.8, mid-Atlantic z3.4, zoom 2 at 0E), desktop.
+  How it is computed, fixed here: three fresh page loads of the OLD arm (the kill). In each load, at each view, the saving is
+  the sum over the copies the new rule does not draw of that copy's median GPU time per particle draw. The view's figure is
+  the median of the three loads. Three fresh loads of the NEW arm must show one copy drawn at each of the five views.
+  The harness is changed in this same commit so a sample belongs to the view it was taken at (samples still pending from the
+  previous view are dropped); no other change to it.
+- **(B) Parts 2, 3 and 4 of gate 1 re-checked on those same fresh loads**: every copy not drawn lights zero pixels (particles
+  and heatmap) at the 7 cull views in all three new-arm loads; the antimeridian views draw the needed side and it lights
+  pixels; the four pans show 0 frames missing a needed copy. Phone profile: one fresh load per arm for (B).
+- **Fail any part and #882 closes.** If it passes it ships ON with `__RAW_DISABLE_WIND_COPY_CULL__`.
+
 ## Tests
 +27 in `windWorldCopies.test.js`: one copy mid-globe; the side in view and only that side; a sweep of 550 views checking that
 every longitude of the view and its margin lies in a drawn copy and that no drawn copy is untouched; unreadable bounds fall
