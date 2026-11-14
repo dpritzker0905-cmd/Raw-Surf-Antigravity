@@ -45,3 +45,17 @@ is not the declared CI environment). Estate floor fragment added.
   encoding-debris guard: 219 passed locally. Lint ratchet not worse.
 - NOT exercised in a browser: the offline stand-in holds no EURO precipitation frames, so the EURO path was not drawn or
   photographed. That needs either a local EURO publish or the real set.
+
+## Addendum 2026-11-14 00:00 EST: drawn in a browser (offline harness)
+The offline CDN stand-in was given a real EURO set: `publish_raster_frames`' own code with a local sink, ECMWF open data,
+run 2026-11-13 12Z, the first 60 h (20 frames; `missing_nodes` 0). Client: this branch with `dev` merged in, the lever
+`window.__RAW_RASTER_OWN_FRAMES__ = 'rain'`, model switched GFS -> EURO in the panel.
+- **Drawn.** Dark and light, desktop 1280x800: the rain field comes from `v1/euro/weather/precipitation/global_0p25/...`,
+  the legend credit reads "EURO (ECMWF) - CC BY 4.0", 0 load errors. Stepping the wheel moves along the 3-hourly frames and the
+  scrubber says "Showing Sat 10 AM: the nearest stored forecast" between them. The rain band over the western Atlantic sits
+  where GFS has it.
+- **NOT exercised:** hours past the set's end falling back to GFS (the local set stops at 60 h and the local GFS set does not
+  reach those hours either: the last EURO frame stayed up, 34 `no_frame` misses); the phone layout (the harness could not
+  press the model button in the collapsed sheet; the model state itself is not layout-dependent); the beach theme; a real
+  published set (none exists: `FRAME_RASTER_PRECIP_EURO` is unset).
+- Light rain is faint over the pale sea in the light theme, as on the GFS path (the ramp is not theme-varied).
