@@ -4,7 +4,9 @@
  */
 import fs from 'fs';
 import path from 'path';
-import { armLandSourceFallback, landSourceData, landSourceUrlOn, tagLandMaskUrl } from './landMaskSource';
+import {
+  armLandSourceFallback, landSourceData, landSourceUrlOn, landWorkerLoaderOn, resetLandWorkerLoaderForTest, startLandWorkerLoader, tagLandMaskUrl,
+} from './landMaskSource';
 import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, getSharedLandGeoJSONHiResUrl, getSharedLandGeoJSONUrl } from './mapUtils';
 
 const poly = () => ({ type: 'Feature', geometry: { type: 'Polygon', coordinates: [[[0, 0], [1, 0], [1, 1], [0, 0]]] }, properties: {} });
@@ -20,6 +22,7 @@ const fakeMap = (src) => {
 
 beforeEach(() => {
   delete window.__RAW_DISABLE_LAND_SOURCE_URL__; delete window.__RAW_LAND_SOURCE__;
+  delete window.__RAW_DISABLE_LAND_WORKER_LOADER__; resetLandWorkerLoaderForTest();
   delete window.__LAND_GEOJSON_URL__; delete window.__LAND_GEOJSON_CACHE__; delete window.__LAND_GEOJSON_PROMISE__;
   delete window.__LAND_GEOJSON_HIRES_URL__; delete window.__LAND_GEOJSON_HIRES_CACHE__; delete window.__LAND_GEOJSON_HIRES_PROMISE__;
 });
@@ -134,5 +137,130 @@ describe('the shipped land files and the mask module', () => {
     const blocks = src.split('mapInstance.addLayer({').slice(1).map((b) => b.split('}, ')[0]).filter((b) => /source: MASK_SOURCE/.test(b));
     expect(blocks).toHaveLength(3);
     for (const b of blocks) expect(b).not.toMatch(/filter:|\['get'/);
+  });
+});
+// ── The worker loader (2026-11-13): the worker's reply to the page carries no land geometry ────────────────────────────────
+// Bare page, system Chrome, HTTP cache on, CPU 4x, 10 m file: worst frame 58-102 ms against 628-713 ms with the plain URL
+// (docs/weather-program/log/2026-11-13-fable-land-worker-loader.md).
+const libThat = (result) => ({ importScriptInWorkers: jest.fn(() => result) });
+const ABS = (u) => new URL(u, window.location.href).href;
+
+describe('the land source goes through the worker loader once its script is in the workers', () => {
+  test('before the script has loaded the plain URL is used; after, rawland:// with the absolute file URL encoded', async () => {
+    const mask = tagLandMaskUrl(land(3), land(3), '/ne_50m_land.json');
+    let done; const lib = libThat(new Promise((r) => { done = r; }));
+    const started = startLandWorkerLoader(lib);
+    expect(lib.importScriptInWorkers).toHaveBeenCalledWith(ABS('/land-worker-loader.js'));
+    expect(landSourceData(mask)).toBe('/ne_50m_land.json');
+    expect(window.__RAW_LAND_SOURCE__).toMatchObject({ byUrl: 1, byWorker: 0, loader: 'loading' });
+    done([]);
+    expect(await started).toBe('ready');
+    const data = landSourceData(mask);
+    expect(data).toBe('rawland://' + encodeURIComponent(ABS('/ne_50m_land.json')));
+    expect(data.slice('rawland://'.length)).not.toMatch(/[/:]/);                 // nothing the page's URL resolver can rewrite
+    expect(window.__RAW_LAND_SOURCE__).toMatchObject({ byUrl: 1, byWorker: 1, byObject: 0, loader: 'ready', lastUrl: data });
+  });
+
+  test('the script is asked for once per page, and a CDN file keeps its own origin', async () => {
+    const lib = libThat(Promise.resolve([]));
+    await startLandWorkerLoader(lib); await startLandWorkerLoader(lib);
+    expect(lib.importScriptInWorkers).toHaveBeenCalledTimes(1);
+    const cdn = 'https://cdn.jsdelivr.net/gh/x/y@master/10m/physical/ne_10m_land.json';
+    expect(decodeURIComponent(landSourceData(tagLandMaskUrl(land(2), land(2), cdn)).slice('rawland://'.length))).toBe(cdn);
+  });
+
+  test('a script that fails to load, or a library without the call, leaves the plain URL', async () => {
+    const mask = tagLandMaskUrl(land(3), land(3), '/ne_50m_land.json');
+    expect(await startLandWorkerLoader(libThat(Promise.reject(new Error('blocked'))))).toBe('failed');
+    expect(landSourceData(mask)).toBe('/ne_50m_land.json');
+    resetLandWorkerLoaderForTest();
+    expect(await startLandWorkerLoader({})).toBe('off');
+    expect(await startLandWorkerLoader({ importScriptInWorkers: () => { throw new Error('no workers'); } })).toBe('failed');
+    expect(landSourceData(mask)).toBe('/ne_50m_land.json');
+  });
+
+  test('OFF PATH: the kill never loads the script and gives the plain URL, as before', async () => {
+    const mask = tagLandMaskUrl(land(3), land(3), '/ne_50m_land.json');
+    window.__RAW_DISABLE_LAND_WORKER_LOADER__ = true;
+    expect(landWorkerLoaderOn()).toBe(false);
+    const lib = libThat(Promise.resolve([]));
+    expect(await startLandWorkerLoader(lib)).toBe('off');
+    expect(lib.importScriptInWorkers).not.toHaveBeenCalled();
+    expect(landSourceData(mask)).toBe('/ne_50m_land.json');
+    // flipped after the script loaded: still the plain URL
+    delete window.__RAW_DISABLE_LAND_WORKER_LOADER__;
+    await startLandWorkerLoader(lib);
+    window.__RAW_DISABLE_LAND_WORKER_LOADER__ = true;
+    expect(landSourceData(mask)).toBe('/ne_50m_land.json');
+    // and the older kill still gives the object, loader or not
+    delete window.__RAW_DISABLE_LAND_WORKER_LOADER__; window.__RAW_DISABLE_LAND_SOURCE_URL__ = true;
+    expect(landSourceData(mask)).toBe(mask);
+  });
+
+  test('a worker-side failure is a source error, answered with the object like any other', async () => {
+    await startLandWorkerLoader(libThat(Promise.resolve([])));
+    const mask = tagLandMaskUrl(land(2), land(2), '/ne_50m_land.json'); const data = landSourceData(mask);
+    const src = { setData: jest.fn() }; const map = fakeMap(src);
+    armLandSourceFallback(map, 'ocean-mask-source', mask, data);
+    map.fire('error', { sourceId: 'ocean-mask-source' });
+    expect(src.setData).toHaveBeenCalledWith(mask);
+  });
+
+  test('the land file fetch is what starts it (mapUtils), AFTER the app has set its own worker file', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'mapUtils.js'), 'utf8');
+    // The library builds its worker pool on the first message. Started before setWorkerUrl, that pool was the bundled default
+    // worker and every tile of every source failed: no basemap, no land mask (offline app run, 2026-11-13).
+    expect(src).toMatch(/try \{ ensureMapLibreInit\(\); startLandWorkerLoader\(maplibregl\); \}[^\n]*\n\s*window\.__LAND_GEOJSON_PROMISE__ = fetch\('\/ne_50m_land\.json'\)/);
+    expect(src.match(/startLandWorkerLoader\(/g)).toHaveLength(1);
+    expect(src).toMatch(/export function ensureMapLibreInit\(\) \{\s*if \(_mapLibreWorkerSet\) return;\s*maplibregl\.setWorkerUrl\('\/maplibre-gl-worker\.js'\);/);
+  });
+});
+
+describe('public/land-worker-loader.js, as the worker runs it', () => {
+  const code = fs.readFileSync(path.join(__dirname, '../../../public/land-worker-loader.js'), 'utf8');
+  const load = (fetchImpl) => {
+    const protocols = {}; const self = { addProtocol: (name, fn) => { protocols[name] = fn; } };
+    // eslint-disable-next-line no-new-func
+    new Function('self', 'fetch', code)(self, fetchImpl);
+    return protocols;
+  };
+  const answer = (ok, body, status = 200) => jest.fn(() => Promise.resolve({ ok, status, json: () => Promise.resolve(body) }));
+
+  test('it fetches the decoded file URL and hands the tiler features the reply cannot see', async () => {
+    const file = land(4); const fetchImpl = answer(true, file); const signal = {};
+    const { rawland } = load(fetchImpl);
+    const url = 'https://rawsurf.example/ne_50m_land.json';
+    const { data } = await rawland({ url: 'rawland://' + encodeURIComponent(url) + '/' }, { signal });   // a resolver may add a slash
+    expect(fetchImpl).toHaveBeenCalledWith(url, { signal });
+    expect(data.type).toBe('FeatureCollection');
+    expect(data.features).toBe(file.features);                                  // what the tiler reads: all of it, untouched
+    const walked = []; for (const key in data) walked.push(key);                // what the library's reply serialiser walks
+    expect(walked).toEqual(['type']);
+    expect(Object.keys(data)).toEqual(['type']);
+    expect(JSON.parse(JSON.stringify(data))).toEqual({ type: 'FeatureCollection' });
+  });
+
+  test('anything that is not a feature collection passes through as it is', async () => {
+    const geom = { type: 'Polygon', coordinates: [] };
+    expect((await load(answer(true, geom)).rawland({ url: 'rawland://x' }, null)).data).toBe(geom);
+  });
+
+  test('a file that is not served is an error, so the page falls back to the object', async () => {
+    await expect(load(answer(false, null, 404)).rawland({ url: 'rawland://x' }, null)).rejects.toThrow('land file 404');
+  });
+
+  test('where there is no worker protocol registry it does nothing', () => {
+    // eslint-disable-next-line no-new-func
+    expect(() => new Function('self', 'fetch', code)({}, null)).not.toThrow();
+  });
+
+  test('the two library behaviours it relies on are still in the installed map library', () => {
+    const lib = path.join(__dirname, '../../../node_modules');
+    const transfer = fs.readFileSync(path.join(lib, 'maplibre-gl/src/util/web_worker_transfer.ts'), 'utf8');
+    expect(transfer).toMatch(/for \(const key in input\)/);                      // the reply walks enumerable keys only
+    const worker = fs.readFileSync(path.join(lib, 'maplibre-gl/src/source/worker.ts'), 'utf8');
+    expect(worker).toMatch(/this\.self\.addProtocol = addProtocol;/);            // workers have their own protocol registry
+    const convert = fs.readFileSync(path.join(lib, '@maplibre/geojson-vt/src/convert.ts'), 'utf8');
+    expect(convert).toMatch(/data\.features\[i\]/);                              // the tiler reads .features directly
   });
 });

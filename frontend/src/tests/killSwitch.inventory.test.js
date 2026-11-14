@@ -76,6 +76,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_RASTER_VALUE_BLEND__',
   // components/map/landMaskSource.test.js ("OFF PATH: the kill gives the object, as before"; 2026-11-13)
   '__RAW_DISABLE_LAND_SOURCE_URL__',
+  // components/map/landMaskSource.test.js ("OFF PATH: the kill never loads the script and gives the plain URL, as before"; 2026-11-13)
+  '__RAW_DISABLE_LAND_WORKER_LOADER__',
   // components/map/maskCanvasUpload.test.js ("OFF PATH: the kill uploads the mask canvas itself, as before"; 2026-11-13)
   '__RAW_DISABLE_MASK_UPLOAD_COPY__',
   // components/map/radarAdvectWorker.test.js (the nowcast warp in a worker; the kill runs the main-thread warp + PNG)

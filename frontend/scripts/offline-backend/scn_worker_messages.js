@@ -1,7 +1,7 @@
 // scn_worker_messages.js: which map-library worker messages flow when a weather layer turns on, and what each costs the main thread.
 // Offline only. For every main->worker request: type, source, an estimate of the bytes (the walk stops at 200,000 nodes, so a big
 // GeoJSON object is under-counted) and the duration of its postMessage; for every reply: bytes, decode time and handler time.
-// Usage: AB_BASE=http://127.0.0.1:<spa> RR_DIR=<cache> [VP=phone] [LAYER=waves|none] node scripts/offline-backend/scn_worker_messages.js "$PWD"
+// Usage: AB_BASE=http://127.0.0.1:<spa> RR_DIR=<cache> [VP=phone] [LAYER=waves|none] [KILL=<window flag>] node scripts/offline-backend/scn_worker_messages.js "$PWD"
 const R = process.argv[2]; const LAYER = process.env.LAYER || 'waves';
 const L = require(R + '/scripts/offline-backend/ab_lib.js'); const { RR } = require(R + '/scripts/raster-lab/rr.js');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -58,6 +58,7 @@ const SPY = () => {
   await rr.install(page);
   await page.addInitScript(SPY);
   await page.addInitScript(() => { window.__RAW_STATIC_FRAMES_BASE__ = 'http://127.0.0.1:4293/'; });
+  if (process.env.KILL) await page.addInitScript((k) => { window[k] = true; }, process.env.KILL);   // e.g. KILL=__RAW_DISABLE_LAND_WORKER_LOADER__
   const cdp = await page.context().newCDPSession(page);
   if (phone) await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 });
   await L.openMap(page); await L.jump(page, -55, 38, 3.2); await sleep(5000);
@@ -75,5 +76,6 @@ const SPY = () => {
     console.log(String(a.n).padStart(5), 'x', k.padEnd(52), 'out', (a.out / 1e6).toFixed(2).padStart(7), 'MB post ' + Math.round(a.post || 0) + ' ms  back', (a.back / 1e6).toFixed(2).padStart(7), 'MB  nodes ' + (a.nodes || 0) + ' clone ' + Math.round(a.clone || 0) + ' ms, handler ' + Math.round(a.ms || 0) + ' ms (max ' + Math.round(a.mx || 0) + ')  +' + Math.round(a.first) + '..' + Math.round(a.last) + ' ms', '[' + a.keys + ']');
   }
   console.log('unmatched back', JSON.stringify(unmatched));
+  console.log('land source', JSON.stringify(await page.evaluate(() => window.__RAW_LAND_SOURCE__ || null)), 'kill', process.env.KILL || '-');
   await browser.close();
 })().catch((e) => { console.error(e); process.exit(1); });
