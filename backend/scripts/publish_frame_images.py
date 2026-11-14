@@ -463,11 +463,47 @@ def selected_sets(sets=None):
     """FRAME_SETS (comma list of set keys, e.g. 'GFS/marine/waves/global_mid') narrows the run; default every set: the world
     sets, then the regional bundle sets (frame_set_bundle.REGIONAL_SETS, late so the budget stagger drops them first; off with
     FRAME_REGIONAL_BUNDLES=0), then the EURO swell world sets (FRAME_EURO_SWELL_SETS, ON since 2026-11-01) LAST: no client reads
-    them until staticFrames.js STATIC_SETS lists them, so they must never cost a bundle the client already draws."""
+    them until staticFrames.js STATIC_SETS lists them, so they must never cost a bundle the client already draws.
+    The client lists them since #802 (2026-11-12), and publish_order (below) now ranks every world set, these included, ahead
+    of the regional bundles, oldest-written first; this list order is only its tie-break and the FRAME_PUBLISH_FAIR_ORDER=0 order."""
     if sets is None:
         sets = tuple(fs.SETS) + (fsb.selected_regional_sets() if fsb.enabled() else ()) + fs.euro_swell_sets()
     want = [k.strip() for k in os.environ.get("FRAME_SETS", "").split(",") if k.strip()]
     return [t for t in sets if not want or fs.set_key(t) in want]
+
+
+def fair_order_enabled():
+    return os.environ.get("FRAME_PUBLISH_FAIR_ORDER", "1") != "0"
+
+
+def publish_order(sets, latest):
+    """FAIR ORDER (2026-11-12, move 3, ON; kill FRAME_PUBLISH_FAIR_ORDER=0 = the fixed list order of selected_sets).
+
+    WHY: the stagger below stops starting sets once FRAME_PUBLISH_BUDGET_S has elapsed, and the list order never changed, so the
+    same tail lost every heavy run. Measured on the 9 pilots runs 2026-11-11 00:14Z to 11-12 11:52Z (per-set times from their logs):
+    the six EURO swell sets, last in the list after the 132 regional bundles, were skipped whole in 4 runs and half in a 5th. A
+    skipped set keeps its index, so the CDN then holds a run older than the box serves, and its estimated tail ends short of
+    now + 336 h: live at 16:07Z on 11-12, EURO swell_1/wind_waves filled ended 7.1 h short (index written 03:50Z, run 11-11T12Z), so
+    h336 went to the box, and since #802 every other hour of those sets draws the older run.
+    RULE: the set whose latest.json record was written LONGEST ago goes first (a set never written first of all); on equal times a
+    world set goes before a regional bundle (the world tier draws at every zoom under z7, a bundle only inside its box), then the
+    list order (sorted() is stable). A set the budget skipped keeps its old `written_at`, so it leads the next run: no set, world or
+    regional, is skipped twice in a row while one run's budget covers the sets the last run skipped. A run after one that wrote
+    every set (all records share one `written_at`) starts in exactly today's order.
+    COST (the same 9 runs replayed on their own set times): EURO swell set skips 27 -> 2 of 54, world 27 -> 2, longest streak 2 -> 1;
+    the budget is unchanged, so on the 4 heavy runs the ~200 s the six EURO swell sets take comes out of the regional bundles:
+    regional set-runs skipped 118 -> 367 of 1,188, but no bundle is skipped twice in a row any more (today: 2).
+    """
+    sets = list(sets)
+    if not fair_order_enabled():
+        return sets
+    records = (latest or {}).get("sets") or {}
+
+    def key(target):
+        written = (records.get(fs.set_key(target)) or {}).get("written_at") or ""
+        return (written, 1 if fsb.is_bundle(target) else 0)   # "" (never written) sorts before every ISO time
+
+    return sorted(sets, key=key)
 
 
 def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=time.perf_counter):
@@ -479,6 +515,7 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
     budget = float(os.environ.get("FRAME_PUBLISH_BUDGET_S", "600")) if budget_s is None else budget_s
     raw_latest = sink.read(fs.LATEST)
     latest = json.loads(raw_latest) if raw_latest else {"version": 1, "sets": {}}
+    sets = publish_order(sets, latest)
     upload = _uploader(sink)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     report, changed, keep_by_set = {}, False, {}
