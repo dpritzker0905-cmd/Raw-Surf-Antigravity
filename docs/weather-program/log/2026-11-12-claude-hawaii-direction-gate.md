@@ -1,0 +1,297 @@
+# Hawaii direction gate: artefact or real? (move 5, 2026-11-12)
+
+Owner: move 5 session (side session of the weather advisor; task from the director, gap-map item 5's gate).
+Scope: offline, public archives only (NDBC realtime2, NOAA GFS-Wave on AWS, Open-Meteo previous runs as in S8). No served
+number changes, no flag, no env, no live backend call. Append-only; later sections add to this one.
+
+## 0. Pre-registration (written and committed BEFORE any error was computed)
+
+### Keys
+The S8 "hawaii" set is the buoys with an NDBC id starting `51` within 100 km of a catalogue spot
+(`skill_consensus.region_of` maps the id prefix, nothing else). Read from
+`docs/weather-program/evidence/2026-11-11-s8-direction-period/s8_offline.json` (`meta.buoys`): 51201, 51202, 51206,
+51211, 51212, 51214. Positions from NDBC `station_table` (not from any error): 51201 Waimea Bay (21.671, -158.118),
+51202 Mokapu Point (21.414, -157.681), 51206 Hilo (19.779, -154.970), 51211 Pearl Harbor Entrance (21.297, -157.959),
+51212 Barbers Point (21.323, -158.149), **51214 at (-14.296, -170.875), which is American Samoa, not Hawaii.** The id
+prefix puts Samoa in "hawaii". That is a membership fact, found before any score.
+
+### Classes (fixed here; not revised after seeing errors)
+Window is November, so the dominant swell is North Pacific, from N to NW (the researcher's pre-registration uses the same
+geography). Class is by whether the buoy has open ocean in the N-NW-NE sectors:
+- exposed: 51201 (north shore), 51202 (windward east Oahu), 51206 (windward Hilo);
+- sheltered: 51211 (Pearl Harbor entrance, south shore, harbour), 51212 (Barbers Point, south-west tip, Oahu shields N);
+- not Hawaii: 51214 (Samoa), reported on its own, excluded from both classes.
+
+### Instruments, same keys
+Keys are (buoy, valid hour, 24 h lead), window 2026-10-19..2026-11-09 (targets), as in S8.
+- BULK (the S8 key): GFS-Wave direction (Open-Meteo `ncep_gfswave025` previous_day1, `wave_direction` = DIRPW) against
+  buoy MWD at the valid hour; persistence = buoy MWD 24 h earlier; Hs gate 0.3 m on the observed.
+- PARTITION (this instrument): GFS-Wave swell slot 1 direction (AWS GRIB, cycle 24 h before) against the observed
+  primary swell train from the buoy spectra (Hs >= 0.5 m); persistence = observed primary train at issue time.
+- RANK-FREE: slot 1 against the closest observed swell train (the oracle that removes rank/identity error).
+Rows are identical across columns where a key has all three; unmatched keys are counted and reported.
+
+### Hypotheses and decision rules
+- H1 (the researcher's, kept verbatim): for the exposed class at 24 h, GFS direction error exceeds persistence under the
+  BULK key. Supported only if the buoy-cluster bootstrap 95% interval of (GFS - persistence) lies entirely above zero.
+  Six or five buoys cannot confirm; this can refute cheaply and can only suggest otherwise.
+- ARTEFACT, any one of: (a) the bulk result is driven by 51214 (drops out of significance or flips when it is removed);
+  (b) PARTITION or RANK-FREE ordering reverses the bulk ordering (GFS no worse than persistence on the train key);
+  (c) the effect appears equally in the sheltered class and not in the exposed (then it is not shadowing).
+- REAL (shadowing signature) needs all of: GFS worse than persistence on BULK, PARTITION and RANK-FREE for the exposed
+  class; a signed error whose sign depends on the observed direction sector (N-NW versus E) rather than on lead alone;
+  and the 180-degree control not explaining it. Otherwise report UNRESOLVED, with the missing evidence named.
+- Controls: persistence is the null that cannot be beaten by chance at long lags; a 180-degree flip control; a positive
+  control by seeding a known 30 degree rotation into the model column and recovering it; a leave-one-buoy-out table.
+- Stop rule (from the researcher): if the exposed interval includes zero, record H1 as not supported at n = 3 exposed
+  and do not add buoys to rescue it.
+
+### Amendment A (written after the BULK lane ran, before any PARTITION error was computed)
+The bulk lane ran first and reproduced #794's Hawaii row (see section 1). The partition lane then returned zero keys: the
+six buoys are PacIOOS-operated and their NDBC standard-met files carry NO wind columns (wind map empty for all six), and
+`partitioner.trains` refuses to label swell without a wind ("a period guess is not a label"). That is a limit of the
+instrument at these buoys, found before any partition score. Fix, fixed here: label wind sea by wave age with a MODELLED
+10 m wind (Open-Meteo, hourly, at the buoy coordinate, m/s) in place of the missing observation; sensitivity label: swell =
+partitions with Tp >= 10 s. Both are reported. If the two labels disagree on the ordering of GFS and persistence, the
+partition lane is UNRESOLVED and says so. The modelled wind makes the train truth softer than at the wind-equipped
+buoys; the result is a check on the bulk finding, not an independent truth of equal quality.
+
+## 1. Results (offline, 24 h lead, targets 2026-10-19..11-09; evidence `evidence/2026-11-12-hawaii-gate/`)
+
+Instruments: `backend/scripts/partition_truth/hawaii_gate.py` (bulk key = #794's, via its own `ndbc_hourly` and
+`om_previous_runs`; partition key = this instrument) and `hawaii_regional_check.py`. Tests: `tests/test_hawaii_gate.py` (5).
+Direction MAE in degrees. "pers" = buoy MWD 24 h earlier; "clim" = circular-mean MWD of the 3 weeks before the window.
+
+**Reproduction.** Six keys, n = 1,042: GFS 42.8, EURO 41.9, ICON 62.5, equal consensus 44.4, persistence 24.7, against #794's
+41.9 / 42.1 / 62.5 / 43.8 / 24.6. Same finding, same data path.
+
+| set (buoys, n) | GFS | EURO | ICON | cons | pers | clim |
+|---|---|---|---|---|---|---|
+| all six as S8 (6, 1,042) | 42.8 | 41.9 | 62.5 | 44.4 | 24.7 | - |
+| Hawaii five, Samoa out (5, 874) | 42.7 | 33.5 | 64.1 | 41.7 | 22.4 | 31.4 |
+| exposed 51201/51202/51206 (3, 528) | 35.6 | 29.3 | 33.5 | 28.2 | 23.9 | 31.8 |
+| sheltered 51211/51212 (2, 346) | 53.5 | 39.8 | 110.9 | 62.3 | 20.0 | 30.8 |
+| Samoa 51214 (1, 168) | 43.2 | 85.6 | 54.1 | 58.7 | 37.2 | - |
+
+- **Membership is not the cause.** 51214 is American Samoa (NDBC station record: "King-Poloa, American Samoa"); dropping it
+  moves GFS 42.8 to 42.7 and persistence 24.7 to 22.4. The `51` prefix rule in `region_of` mislabels it: a latent bug for any
+  "hawaii" figure, but it did not make this one.
+- **Not "every model loses".** EURO beats persistence at 51202 (14.0 vs 20.6) and ICON at 51206 (25.6 vs 30.5). GFS beats
+  it nowhere.
+- **Persistence is a strong baseline here, and GFS is worse than a constant.** Persistence beats climatology by 9 deg
+  (buoy-cluster interval -15.2..-4.6): the buoy MWD barely moves in 24 h. GFS is 11.4 deg worse than climatology on the five
+  (interval -2.7..+32.7); on the exposed three +3.8 (1.4..5.4).
+- **H1 (researcher's: consensus vs persistence, exposed class), buoy-cluster 95%:** +4.3 deg (-2.2..+15.5). The interval
+  includes zero, so by the pre-registered rule H1 is **not supported at n = 3**; the stop rule applies, no buoys added. GFS
+  alone is +11.7 (8.5..15.6) with all three buoys positive (+10.9, +8.5, +15.6); three buoys is thin (sign test p = 0.125
+  one-sided). The day-block bootstrap agrees in direction (consensus +4.3, 0.4..7.6).
+- **Sector split (exposed, bulk).** Observed MWD in N-NW (285-20): GFS 27.0 vs persistence 27.9 (bias +11.9), n = 268, so the
+  model is as good as persistence on the North Pacific swell sector. Observed MWD in E-NE-SE (20-170): GFS 44.4 vs 19.8
+  (bias -42.8), n = 260. The whole gap sits in the keys where the buoy's dominant direction is easterly.
+
+**Partition lane (this instrument).** The six PacIOOS buoys carry no wind in their NDBC files (amendment A), so wind sea is
+labelled by wave age with a modelled 10 m wind (Open-Meteo), and by a Tp >= 10 s rule as sensitivity. Keys: 211 (age) /
+165 (tp10) of the five-buoy keys that have a 00/12Z cycle and an observed primary train.
+
+| exposed (3 buoys) | label age (n 132) | label tp10 (n 104) |
+|---|---|---|
+| slot 1 vs primary train | 39.0 | 23.6 |
+| persistence of the train | 19.7 | 25.8 |
+| slot 1 vs closest observed train (rank-free) | 13.2 (null, shuffled slot 1: 19.3) | 19.4 (null 28.3) |
+| train N-NW (n 45 / 88): slot 1, rank-free, pers | 16.9, 11.2, 28.6 | 19.9, 17.9, 22.7 |
+| train E-NE-SE (n 87 / 16): slot 1, rank-free, pers | 50.5, 14.2, 15.1 | 43.5, 27.3, 42.6 |
+
+- The two labels **disagree** on exposed GFS vs persistence (age: +19.3 worse, interval 9.7..31.9; tp10: -3.1, -11.6..+2.2).
+  By the pre-registered rule the partition lane is **unresolved** for the whole class. They **agree** on one thing: on N-NW
+  swell trains slot 1 beats persistence of the train (16.9 vs 28.6, and 19.9 vs 22.7).
+- Rank-free matching beats its shuffled null in both labels (13.2 vs 19.3, 19.4 vs 28.3): model directions carry real train
+  information; the closest-of-k oracle is flattered by k, which the null accounts for.
+- Sheltered (2 buoys), both labels: slot 1 is worse than persistence by 36.7 (age) and 31.6 (tp10); rank-free is near its
+  null (37.4 vs 43.1, 44.9 vs 67.3). The model's open-ocean direction says little about the harbour and south-coast buoys.
+- Regional check (`hawaii_regional_check.py`, informational: PacIOOS `ww3_hawaii` "best" is an analysis-style splice, not a
+  24 h forecast, so it is set against GFS's own best estimate at the same hours): exposed mean MAE GFS 36.2 to regional 31.5;
+  sheltered 54.0 to 55.4. Signed biases collapse on the windward buoys (51202 -27 to +5, 51206 -33 to -3) but the scatter
+  stays; at the sheltered buoys a 0.05 deg run is no closer (51211 66 to 46, 51212 42 to 65).
+
+**Controls.** Positive: a seeded +30 deg rotation is recovered as 30.0 (circular mean). Null: shuffling GFS direction among
+days of the same buoy raises MAE (exposed 35.6 to 41.7; five-buoy 42.7 to 56.1), so GFS carries some skill. 180-degree flip:
+137-144 against 43 observed, so the convention is not reversed. Leave-one-buoy-out on the five: GFS minus persistence stays
++11.9..+23.4 with the interval above zero in all five cuts. The interpreter used is not the declared CI environment (4
+declared packages absent); the unit tests cover pure helpers only.
+
+## 2. Verdict
+
+Applying the section 0 rules as written:
+
+1. **Exposed class (windward and north shore): ARTEFACT, of the truth key and train identity, not of membership.** Rule (b)
+   fires: rank-free matching reverses the order (13.2 < 19.7 in the age label; tp10 slot 1 23.6 < 25.8), and on the N-NW
+   swell sector the model beats persistence under both labels and ties it under the bulk key (27.0 vs 27.9). The bulk
+   deficit sits in keys where the buoy's dominant direction is easterly, where GFS is rotated about 43 deg. At those keys the
+   MWD follows the dominant period at a coastal buoy (local or lee sea), which persistence tracks and a swell forecast does
+   not. "Persistence beats the models" says the key is not a swell-direction key at these buoys.
+2. **Sheltered class (Pearl Harbor entrance, Barbers Point): REAL, unsized.** GFS is worse than persistence and than
+   climatology under both keys and both labels, and the regional run does not repair it. n = 2 buoys, one at a harbour
+   entrance: what is real is that the open-ocean direction is not representative there (sheltering and refraction at the
+   buoy), not a number that transfers to spots. Rule (c) as written (effect only in the sheltered class) does not fire,
+   because GFS also trails persistence on the exposed class under the bulk key.
+3. **The pooled Hawaii row of #794 should not be read as a swell-direction failure.** It mixes a mislabelled Samoa buoy, a
+   harbour buoy, and keys whose truth is the local easterly sea.
+
+What would fix it, in order of evidence: (i) the S8 Hawaii row needs a coast key that excludes 51214, and a per-train or
+MWD-sector key, before anyone acts on it; (ii) a regional model (PacIOOS) removes the signed bias at windward buoys
+(about 25-30 deg) but not the scatter, so it is a bias fix and not a direction fix; (iii) a nearshore transfer is the only
+route that addresses the 2-buoy REAL part, and its truth needs wind-equipped spectral Hawaii buoys (CDIP stations), whose
+licence is unresolved (researcher section 6). None of these is built here.
+
+## 3. What this cannot say
+
+- Three exposed and two sheltered buoys; every interval is conditional on that. No buoy was added to rescue anything.
+- The partition truth uses a MODELLED wind for the wave-age label, with a period rule as sensitivity; the two disagree on
+  the exposed class, so that lane cannot decide it alone. The MWD is the dominant-period direction at a coastal buoy.
+- GFS is the Open-Meteo archive (bulk) and the AWS GRIB slot 1 (partition); #794's own AWS cross-check covers the
+  archive-vs-source question for the bulk key.
+- The regional check is not a 24 h forecast skill. PacIOOS licence: free use, not legal use.
+- No spot-level or rating claim; nothing here moves a served number.
+
+## 4. Second opinions and tools
+
+- **Reflection (`ask_reflection`): NOT used.** Its server instructions say to call it only when the user asks to consult
+  Reflection or Beam, and it sends selected context to an external service. The request came from the director session,
+  not from David in chat. Recorded as not done and offered to David; no Reflection output exists to quote.
+- NDBC MCP: station records for 51214 (American Samoa, PacIOOS) and 51206 (Hilo, PacIOOS) settled the membership question.
+  ERDDAP MCP: `ww3_hawaii` dataset info (coverage 2011-06-21 to now, 0.05 deg, "best" splice). The ww3 MCP compares wave
+  height with a buoy only and the SeaLegs MCP serves buoy observations already read from NDBC, so neither added direction
+  evidence and neither was used.
+
+## 5. Reflection's review and a correction to the verdict (David approved the consult: "Yes, consult it")
+
+Reflection (`ask_reflection`, model Beam-1.0, high effort; sent the numbers in sections 1-2 only, no secrets) said, in short:
+the classification is **not fully justified**; "exposed = artefact" is defensible only for GFS against bulk MWD (consensus and
+EURO beat climatology, so the truth key alone cannot explain it); the partition reversal rests on a label-unstable lane; the
+largest gap is that rank-free matching was applied to GFS but **not to persistence**; "sheltered = real" is n = 2 and should
+read "unresolved / not yet sized"; other challenges: peak-vs-mean direction mismatch, closest-train matching is generous,
+class is confounded with site, a 3-week prior climatology is not a climatology, and the PacIOOS splice is not independent.
+It named one decisive check: run persistence through the same rank-free protocol.
+
+**I ran that check** (`hawaii_gate.py`, column `p_pers_any`: persistence's issue-time primary train matched to the closest
+observed train at the valid hour, exactly as GFS slot 1 is). Direction MAE, deg, rank-free:
+
+| exposed (3 buoys) | GFS slot 1 | persistence | GFS minus pers (buoy-cluster 95%) |
+|---|---|---|---|
+| label age (n 132) | 13.2 | 8.3 | +4.9 (3.8..6.7), all 3 buoys positive |
+| label tp10 (n 104) | 19.4 | 19.1 | -0.5 (-8.4..3.5) |
+| sheltered, age (n 79) | 37.4 | 9.4 | +28.6 (11.8..45.4) |
+| sheltered, tp10 (n 61) | 44.9 | 12.7 | +33.7 (26.8..40.7) |
+
+**Correction.** Section 2 item 1 said rule (b) fired because rank-free GFS (13.2) was below persistence of the primary train
+(19.7). That compared a closest-of-k oracle with a single-candidate baseline. With persistence given the same freedom it
+improves as much (8.3, and a tie at 19.1 under tp10), so **rule (b) does not fire**, and the exposed class is **not shown to
+be an artefact of train identity**. Withdrawn: "ARTEFACT" for the exposed class.
+
+**Revised verdict (supersedes section 2 where they differ):**
+1. **Exposed class: UNRESOLVED, GFS-specific.** What survives: persistence is a strong baseline here and GFS is worse than a
+   constant (31.8) on the bulk key, while EURO (29.3) and the consensus (28.2) are better than climatology. On N-NW swell the
+   model ties persistence (27.0 vs 27.9), and loses where the buoy's dominant direction is easterly (44.4 vs 19.8). That is
+   consistent with a peak-direction forecast against a dominant-period coastal key, but the instrument has not separated that
+   from a real GFS direction error, and the two labels disagree. The researcher's H1 (consensus) stays not supported at n = 3.
+2. **Sheltered class: persistence beats GFS under every key and label, including the symmetric rank-free one (intervals above
+   zero).** Read it as "the open-ocean direction does not represent these two buoys" and call it unsized: two buoys, one at a
+   harbour entrance, class confounded with site.
+3. **Unchanged:** 51214 is American Samoa and does not drive the figure; the pooled Hawaii row of #794 should not be read as a
+   swell-direction failure of the North Pacific swell sector; no served number moves.
+
+What would decide the exposed class (not done): a one-to-one, energy-weighted train match; a physical label fixed in advance
+(the period rule) with measured wind at a wind-equipped Hawaii buoy; a multi-season window; a real climatology.
+
+## 6. Coverage-hole note (from the Fable repair lead, PR #835; peer information, not re-measured here)
+
+The repair lead measured GFS-Wave 0.25 as null at all 96 h at NDBC coordinates for **51201 and 51206** (two of my three
+exposed buoys); 51202, 51205 and 51211 are not holes. The gate's GFS columns at 51201/51206 therefore come from a
+neighbouring sea cell (Open-Meteo `cell_selection=sea` in the bulk lane; the nearest valid cell in the GRIB lane), so those
+two buoys' GFS error mixes model error with the distance to the fallback cell. Check done from the per-buoy table in
+`evidence/2026-11-12-hawaii-gate/hawaii_gate.json` (bulk key, unweighted per-buoy means, age run): at the non-hole buoys
+51202, 51211, 51212 GFS 45.4 vs persistence 20.2 (EURO 31.1); at the hole buoys 51201, 51206 GFS 38.8 vs persistence 25.5.
+GFS trails persistence at all five buoys, so the hole does not by itself produce the gap, but the
+exposed class is now one non-hole buoy (51202: GFS 29.1, persistence 20.6, EURO 14.0) plus two fallback-cell buoys, which
+weakens any exposed-class reading further. The verdict in section 5 stands (exposed unresolved).
+
+## 7. Red-team corrections (advisor review of #831, PASS WITH LIMITS; applied by appending, earlier text left as written)
+
+1. **"Buoy-cluster 95% interval" is a range, not an interval, wherever it resamples 3 or 2 buoys.** With so few clusters the
+   percentile bootstrap returns about the min..max of the per-buoy means. Read every such figure in sections 1, 2 and 5 as
+   "range across the 3 (or 2, or 5) buoys": exposed consensus minus persistence +4.3 (range -2.2..15.5), GFS minus
+   persistence +11.7 (8.5..15.6), the sheltered ones the same way, and the rank-free table in section 5. The JSON keys
+   `lo`/`hi` in the evidence file keep their name; they mean min-ish and max-ish of the per-buoy means for n_buoys <= 5. The
+   day-block intervals (22 days, one window) are the only resampled intervals, and they treat days as exchangeable.
+2. **Limits, plainly.** One window (2026-10-19..11-09), one lead (24 h), 3 exposed + 2 sheltered buoys, class confounded
+   with site. The sector split conditions on the OBSERVED direction, so it selects keys by the outcome: a model that
+   forecasts a steady direction will look worse in whichever sector the truth leaves it. It describes where the error sits;
+   it does not show a cause. The partition truth uses a modelled wind for the wave-age label and the two labels disagree.
+3. **Verdict wording (supersedes any "artefact" wording in the PR title and body):** exposed = unresolved (GFS-specific);
+   sheltered = real in the sense that persistence beats GFS under every key and label, but unsized (n = 2).
+4. **Coverage-hole context (Fable repair lead, PR #835; not re-measured here).** GFS-Wave 0.25 is null at the NDBC
+   coordinate for 51201, 51206 and 51208 (Hawaii), 46254, 46274, 46285 and LJPC1 (San Diego), 46267 (Strait of Juan de
+   Fuca) and 44090 (Cape Cod Bay); 51202, 51205 and 51211 are not holes. The chain serves the holes through the sampler's
+   `nearest_ocean_fallback`. Two of this gate's five Hawaii buoys (51201, 51206) are holes, as section 6 says.
+
+## 8. Height beside direction at Hawaii (peer request 2026-11-13: Fable per-buoy split, run 43339322792)
+
+Context from the Fable repair lead's per-buoy split (14-day window, SERVED chain, aggregates only): the chain beats the
+identical model everywhere it can be compared except height at **51211** (+0.11 to +0.12 m vs the same model; +0.30 to
++0.33 vs best_match) and **51202** (+0.08 m vs the same model). The question: do direction error and height error line up
+at those two? Instrument: `backend/scripts/partition_truth/hawaii_height_vs_direction.py`, evidence
+`evidence/2026-11-12-hawaii-gate/hawaii_height_vs_direction.json`. Same keys as the bulk lane (24 h lead, 3-hourly
+targets 2026-10-19..11-09, observed Hs >= 0.3 m), RAW GFS-Wave `ncep_gfswave025` Hs and direction from the Open-Meteo
+previous-runs API at the sea cell. This is the raw model, not the served chain, so it asks whether the two errors share a
+cause at the buoy and nothing more. Direction MAE reproduces section 1 (51202 29.1, 51211 64.7).
+
+| buoy | n | obs Hs | model Hs | Hs bias | dir MAE | dir bias | r(abs dir err, Hs err) | Hs bias, dir err < 30 / >= 60 |
+|---|---|---|---|---|---|---|---|---|
+| 51211 sheltered | 174 | 0.87 m | 1.40 m | **+0.53 m (+62%)** | 64.5 | +25.8 | **+0.59** | +0.28 (n 56) / +0.75 (n 58) |
+| 51202 exposed | 176 | 2.14 m | 1.97 m | -0.17 m (-7%) | 29.1 | -26.8 | +0.16 (abs-abs -0.06) | -0.24 (n 109) / -0.19 (n 30) |
+| 51201 (hole) | 176 | 1.96 m | 0.00 m | -1.96 m | 31.4 | +13.3 | - | cell reads 0.00 m |
+| 51206 (hole) | 176 | 2.14 m | 0.00 m | -2.14 m | 46.1 | -31.7 | - | cell reads 0.00 m |
+
+Reading, each with its limit:
+
+1. **51211: they line up.** The raw model reads 62% too high, and the bigger the direction miss the bigger the height
+   over-read (+0.28 m when the direction is within 30 deg, +0.75 m when it is 60 deg or more out). That is the signature of
+   open-ocean swell energy credited to a buoy the swell does not reach from that direction (the harbour entrance), so a
+   wrong-direction forecast is also a too-big forecast. This strengthens "the open-ocean value does not represent 51211" in
+   section 2 and is consistent with the Fable lead's finding that our chain reads high there. Limits: one buoy; 3-hourly
+   rows over 22 days are autocorrelated, so r = 0.59 is NOT a tested association (no interval computed); both errors also
+   move with the swell regime, which this table does not remove.
+2. **51202: they do not line up.** The raw model slightly UNDER-reads (-0.17 m) and the height error does not grow with the
+   direction error (r = +0.16 signed, -0.06 absolute). The Fable lead's +0.08 m (served chain worse than the same model)
+   has the opposite sign to the raw model's bias here, so the 51202 excess belongs to something the chain adds, not to the
+   direction error of the model. I did not test what.
+3. **The hole buoys 51201 and 51206 are a stronger confound than section 6 said.** At the cell the bulk lane reads for them
+   the raw model Hs is exactly 0.00 m for every hour (the bias equals minus the observed Hs). The bulk exposed-class GFS
+   direction (35.6 deg) therefore uses a direction that comes with zero modelled wave height at two of its three buoys.
+   Only 51202 is a clean exposed buoy. This does not change the verdict (exposed class UNRESOLVED) but it narrows the
+   exposed evidence to n = 1 clean buoy.
+
+What this does for #817 (regional or nearshore fix): it supports a fix at the sheltered south-shore buoy (51211), where
+direction and height err together and the same cause (shadowing) explains both. It does not support one for 51202, where
+the two errors are unrelated. Both statements rest on one buoy each.
+
+## 8a. Advisor check of section 8 (eb1acc89a): corrections
+
+1. **Observed series are distinct.** obs_hs_mean_m is 2.139 at both 51202 and 51206 (n 176 each) by coincidence: the full
+   realtime2 hourly series differ (md5 of (hour, Hs, MWD) per buoy: 51201 c4d4b30512, 51202 e4e5c4b125, 51206 239d73edc1,
+   51211 a886b939bd, 51212 258e753411; latest rows 51202 3.3 m / 51 deg, 51206 2.9 m / 344 deg).
+2. **51202 argument withdrawn as worded.** The Fable lead's +0.08 m is an MAE gap (served MAE minus same-model MAE), not a
+   bias, so it has no sign to oppose the raw model's -0.17 m bias, and "the chain adds it" is true of that comparison by
+   construction. The windows also differ (here 24 h lead, 2026-10-19..11-09; the split: 14 days to 11-13, +24/48/72 h).
+   What survives: at 51202 the raw model's height error does not track its direction error (r +0.16 signed, -0.06 abs), so
+   there is no evidence here that direction explains the 51202 gap. No served bias at 51202 was cited.
+3. **Exposed class has one usable buoy.** At 51201 and 51206 the Open-Meteo sea cell reads Hs 0.00 m every hour, so their
+   directions come from cells with no modelled waves. "GFS-specific" (title, section 5, SCOREBOARD row) rested on those two
+   and is dropped. 51202 alone, bulk key, 24 h, n 176 (one buoy, no interval): GFS 29.1, EURO 14.0, ICON 24.9, consensus
+   18.4, persistence 20.6; GFS trails persistence by 8.5 deg, EURO and the consensus beat it. That is the only clean exposed
+   reading and it is n = 1.
+4. **51212 is absent from section 8** because `station_positions` returned no position for it today (its realtime2 series
+   ends 2026-11-12 04Z; cause not checked), so the height fetch skipped it; it is in the direction gate only through a cached
+   position. At 51211 the height bias (+0.53 m) equals its MAE (every row over-reads), so r = 0.59 is partly a swell-size
+   scale effect, not only a direction effect. The Fable result is an MAE gap, not a bias: "our chain reads high at 51211"
+   is not shown by it.
