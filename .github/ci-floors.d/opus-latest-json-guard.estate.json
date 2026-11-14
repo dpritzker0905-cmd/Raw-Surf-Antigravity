@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 23,
+  "branch": "opus/latest-json-guard",
+  "date": "2026-11-14",
+  "note": "latest.json write guard"
+}

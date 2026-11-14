@@ -341,7 +341,20 @@ class IconPrecipSource(IconOpenDataSource):
     REGRID: the box MEAN, not the nearest cell the pressure set takes. Rain is an amount over an area with sharp edges: one
     cell of ~13 km standing for a 28 km box would draw a shower the model put beside the node as nothing, or one on it as the
     whole box. Each native cell is assigned once to the box of the node it rounds to; a node is the mean of its cells (about 4.5
-    per 0.25-degree box at the equator, fewer poleward; boxes with none take the interpolation along their row)."""
+    per 0.25-degree box at the equator, fewer poleward; boxes with none take the interpolation along their row).
+    EACH RUN TOTAL IS DOWNLOADED ONCE (2026-11-14). A total is needed twice: by its own hour's frame and by the next hour's,
+    as the amount to subtract. The publisher builds frames in a pool of 6 threads, so without a shared, locked cache every
+    total but the last was fetched twice: 223 downloads of about 2 MB for 112 frames. `_total` keeps one slot per (run, hour)
+    behind its own lock, so two frames asking at once share one download, and drops the slot after its second use, so at most
+    a handful of the 2.9 M-cell arrays are alive at a time. A failed download leaves the slot empty and the next asker tries
+    again. The grid (CLAT / CLON) is likewise read once, under a lock."""
+
+    def __init__(self, spec, session=None):
+        import threading
+        super().__init__(spec, session)
+        self._totals = {}
+        self._totals_lock = threading.Lock()
+        self._grid_lock = threading.Lock()
 
     def lattice(self):
         g = fsr.grid_of(self.spec)
@@ -349,14 +362,35 @@ class IconPrecipSource(IconOpenDataSource):
 
     def grid(self, cycle):
         """(node per native cell, cells per node, number of cells) for this run's grid, built once per publish."""
-        if cycle not in self._grid:
-            clat = self._decode_bz2(self._invar(cycle, "CLAT"))
-            clon = self._decode_bz2(self._invar(cycle, "CLON"))
-            if clat.shape != clon.shape:
-                raise RuntimeError(f"CLAT {clat.shape} and CLON {clon.shape} differ")
-            node, counts = box_assignment(clat, clon, self.lattice())
-            self._grid[cycle] = (node, counts, clat.size)
-        return self._grid[cycle]
+        with self._grid_lock:
+            if cycle not in self._grid:
+                clat = self._decode_bz2(self._invar(cycle, "CLAT"))
+                clon = self._decode_bz2(self._invar(cycle, "CLON"))
+                if clat.shape != clon.shape:
+                    raise RuntimeError(f"CLAT {clat.shape} and CLON {clon.shape} differ")
+                node, counts = box_assignment(clat, clon, self.lattice())
+                self._grid[cycle] = (node, counts, clat.size)
+            return self._grid[cycle]
+
+    def _total(self, cycle, f, ncells):
+        """The run total at hour f in the frame's unit, per native cell: downloaded once however many frames ask for it."""
+        import threading
+        key = (cycle, f)
+        with self._totals_lock:
+            slot = self._totals.get(key)
+            if slot is None:
+                # its own frame and the next hour's; nothing comes after the set's last hour
+                slot = self._totals[key] = {"lock": threading.Lock(), "value": None, "left": 1 if f == self.spec["hours"][-1] else 2}
+        with slot["lock"]:
+            if slot["value"] is None:
+                slot["value"] = self.spec["convert"](self._native(cycle, f, ncells))   # raises: the slot stays empty, the next asker retries
+            value = slot["value"]
+            slot["left"] -= 1
+            if slot["left"] <= 0:
+                with self._totals_lock:
+                    if self._totals.get(key) is slot:
+                        del self._totals[key]
+        return value
 
     def previous(self, f):
         """The step before f in this set's hours (0 before the first)."""
@@ -368,9 +402,9 @@ class IconPrecipSource(IconOpenDataSource):
         import numpy as np
         node, counts, ncells = self.grid(cycle)
         prev = self.previous(f)
-        amount = self.spec["convert"](self._native(cycle, f, ncells))
+        amount = self._total(cycle, f, ncells)
         if prev > 0:
-            amount = amount - self.spec["convert"](self._native(cycle, prev, ncells))
+            amount = amount - self._total(cycle, prev, ncells)
         rate = np.where(np.isfinite(amount), np.maximum(amount, 0.0) / float(f - prev), np.nan)
         return box_mean(rate, node, counts, self.lattice())
 

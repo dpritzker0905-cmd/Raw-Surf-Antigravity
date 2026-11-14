@@ -1,0 +1,234 @@
+# 2026-11-14: wind forcing for the surf rating, pre-registered offline test (advisor)
+
+Append-only. Docs plus one offline script. No code path, flag, served number, workflow dispatch or live backend call.
+Asked by the director (session local_d6b521eb) on 2026-11-13 21:34 EST, as the gap Reflection flagged on the
+state-of-the-art path (#866). All times UTC.
+
+## 1. Pre-registration, written 2026-11-14 02:37Z, BEFORE any row or result was read
+
+**What I had seen when this was written.** The published wind-vector RMSE table of the wind-lane fit (log
+2026-11-12-claude-wind-lane-skill-weights.md: HRRR's lane is worse than GFS in the west at every lead, the blend beats
+both in 8 of 8 cells). I had NOT opened the row file and had computed no rating from any row. The hypotheses below are
+therefore informed by the wind result and are not blind to it; what is untested is whether a wind error of that size
+moves the surf RATING, which nobody has measured.
+
+**Question.** Which wind should the surf rating read as its primary input on each coast: GFS, HRRR, or ECMWF?
+
+**Data, existing and local only.** The matched rows written by `backend/scripts/grade_wind_lane_ndbc.py --rows`
+(2026-11-11 run, 100 HRRR cycles 2026-10-15 00Z .. 11-08 18Z, leads 3/12/24/36 h, about 38,700 rows, on this machine
+outside the repo). Each row: buoy id, coast (WMO prefix), zone, coastal flag, cycle, lead, the buoy's observed wind
+adjusted to 10 m, and three forecasts at the buoy: `gfs`, `raw` (HRRR alone) and `lane` (the HRRR lane as drawn today).
+Rows with zone = "full" only (space weight 1), as in the fit.
+
+**Arms.**
+- G: GFS. H: HRRR alone (`raw`). L: the lane as drawn today (`lane`).
+- B: the skill-weight blend, `w*lane + (1-w)*gfs` on speed with the bearing from the blended vector, w from
+  `wind_lane_skill_weights.json` (west 0.4/0.3/0.2/0.2, east 0.5/0.6/0.5/0.5 at 3/12/24/36 h). Those weights were
+  fitted on the ODD cycles of this same window, so B is scored on the EVEN cycles only ((day of month + cycle hour / 6)
+  even), and any comparison with B uses the even cycles for every arm.
+- E: ECMWF. **Not in the rows and not on this machine: UNTESTABLE here, whatever else is found.** It needs ECMWF
+  open-data 10 m wind matched to the same buoys and hours (a public-archive fetch), which this brief does not allow.
+
+**The rating, from the real chain.** `surf_rating.compute_surf_rating(surf_h_m, tp_s, wind_speed_ms, wind_from_deg,
+shore_normal_deg, swell_from_deg=shore_normal_deg)` imported from the repo, everything else at its default. For each
+row the rating is computed with the buoy's observed wind (the reference) and with each arm's wind, for a FIXED grid of
+3 surf states x 8 shore normals: (1.0 m, 10 s), (1.5 m, 14 s), (2.5 m, 12 s); shore normal 0, 45, .. 315 degrees, swell
+head-on. Only the wind differs between the reference and an arm, so every rating difference is a wind effect.
+
+**Metrics, per row then averaged.**
+- M1 (primary): mean over the 24 grid cases of |rating(arm) - rating(observed wind)|, in rating points (0-100).
+- M2: share of the 24 cases where the arm's LEVEL (very_poor .. epic) equals the observed-wind level.
+- M3: share of rows whose wind class (offshore / cross-shore / onshore, `spot_ratings.wind_relation`) matches the
+  observed class, for a coast-facing normal (west 270, east 90, Gulf 180), rows with observed wind >= 4 kn only.
+- M4: the blown-out gate (`surf_rating.wind_gate` < 1) under the observed wind against under the arm, same
+  coast-facing normal: miss rate and false-alarm rate.
+- Secondary M1c: M1 with the coast-facing normal only (sea-breeze errors are orientation-specific).
+
+**Cells.** coast (west = 46, east = 41/44, Gulf = 42) x lead (3, 12, 24, 36). Each also split coastal / offshore by the
+row's own flag, reported, not part of the verdict. A cell needs >= 300 rows AND >= 10 distinct cycle days, else
+UNTESTABLE. Great Lakes (45) reported only.
+
+**Statistic.** Paired difference of M1 between two arms on the same rows; 2000-draw bootstrap, block = the cycle's UTC
+day, seed 20261114; 95% interval. A difference is MATERIAL when its interval excludes 0 AND |difference| >= 1.0 rating
+point. Interval excludes 0 but under 1.0: "detectable, not material". Otherwise "no difference shown".
+
+**Hypotheses.**
+- H1 (west): G beats L (lower M1) at 12, 24 and 36 h, materially. Direction fixed by the wind result.
+- H2 (east): two-sided, no direction claimed: L against G at each lead.
+- H3 (blend): on the even cycles, B is no worse than the better of G and L in every testable cell, and materially
+  better than L in the west.
+- H4 (HRRR alone): H against G, two-sided, each cell.
+
+**Verdict rule per coast.** An arm is the recommended primary input only if it materially beats every other tested arm
+in at least 3 of the 4 leads and is materially worse in none. Otherwise: "no material difference: no case to change the
+rating's wind input". A recommendation is advice for a dark build; it changes nothing served.
+
+**Controls, each must hold or the run is void.**
+- C0 wiring: the observed wind used as the forecast gives M1 = 0 exactly and M2 = M3 = 1.
+- C1 null: G and L swapped at random per row (seed 20261114); the G-minus-L interval must include 0 in every testable
+  cell but at most one.
+- C2 positive: +3 kn added to G's speed everywhere; planted-G minus G must be > 0 with the interval clear of 0 in every
+  testable cell.
+- C3 direction wiring: G's bearing rotated 180 degrees; M3 must fall below 0.40 in every testable cell.
+
+**Breaking height.** Not testable as a wind-input choice, and stated now: wind does not enter the height chain
+(`surf_point.estimate_surf_at`, `surf_transform`). The wave models' own wind forcing is fixed by their providers (GFS
+winds drive GFS-Wave, IFS winds drive ECMWF's wave model). The scored surf archive is private and is not read from this
+machine. The script asserts that `estimate_surf_at` takes no wind argument; no height number will be reported.
+
+**Limits, stated before the result.** One 25-day autumn window. Buoys sit seaward of the surf zone, where the sea
+breeze is weaker than at the beach. The buoy wind is adjusted to 10 m by a power law. The rating is exercised on a
+fixed grid of surf states, not on the surf that was running. The rating today reads the model's own wind point, not the
+lane, so this informs a design choice only. No ECMWF arm.
+
+## 2. Result (run 2026-11-14 02:42Z): VOID by the pre-registered controls. No verdict on the wind input.
+
+Instrument: `backend/scripts/wind_forcing_rating_test.py` on the 2026-11-11 rows (38,709 read, 27,820 used: zone
+"full", four leads). Evidence: `docs/weather-program/evidence/2026-11-14-wind-forcing/result.json`. The
+pre-registration commit is 5a18db20d (02:38:30Z); the row file was first opened after it.
+
+**Controls.** C0 held (observed wind as forecast: M1 = 0, M2 = M3 = 1 in all 12 testable cells). C1 held (1 cell of 12
+excludes 0, west 24 h; the rule allows one). C3 held (rotated bearing: M3 0.14-0.17). **C2 FAILED: +3 kn added to GFS
+was detected in only 5 of 12 testable cells** (all four west cells and Gulf 36 h; in the east the planted arm's M1 rose
+by 0.04-0.27 with intervals spanning 0). Section 1 says every control must hold or the run is void. It is void.
+
+**Why C2 failed (a reading made after the result, not a tested claim).** The control was badly designed, and that is my
+error. Adding 3 kn to an arm that already reads LOW moves it toward the truth before it moves it away, so the planted
+error partly cancels the arm's own. A valid positive control plants the error on a copy of the OBSERVED wind, where the
+unplanted error is zero. I did not check GFS's speed bias in these rows to confirm this.
+
+**What the table shows, for the record only (M1 in rating points, L minus G positive = the lane is worse).**
+
+| Coast | Lead | Rows | M1 GFS / HRRR / lane | lane minus GFS [95%] | HRRR minus GFS [95%] | blend minus GFS, even cycles |
+|---|---|---|---|---|---|---|
+| west | 3 | 2267 | 6.54 / 7.19 / 6.94 | +0.40 [+0.22, +0.61] | +0.65 [+0.46, +0.86] | -0.27 [-0.40, -0.15] |
+| west | 12 | 2266 | 7.78 / 8.44 / 8.10 | +0.31 [-0.02, +0.66] | +0.65 [+0.29, +1.04] | -0.41 [-0.54, -0.27] |
+| west | 24 | 2266 | 8.35 / 9.85 / 9.51 | +1.16 [+0.76, +1.59] | +1.50 [+1.08, +1.94] | -0.33 [-0.46, -0.19] |
+| west | 36 | 2265 | 8.89 / 10.62 / 10.20 | +1.32 [+0.76, +1.96] | +1.73 [+1.15, +2.41] | -0.41 [-0.58, -0.22] |
+| east | 3 | 3512 | 6.34 / 6.24 / 6.56 | +0.22 [+0.04, +0.40] | -0.11 [-0.31, +0.09] | -0.20 [-0.34, -0.08] |
+| east | 12 | 3513 | 6.85 / 6.47 / 6.65 | -0.21 [-0.42, +0.00] | -0.39 [-0.60, -0.19] | -0.49 [-0.70, -0.30] |
+| east | 24 | 3515 | 7.11 / 6.75 / 6.82 | -0.30 [-0.46, -0.11] | -0.36 [-0.61, -0.09] | -0.58 [-0.68, -0.45] |
+| east | 36 | 3515 | 7.40 / 7.13 / 7.13 | -0.28 [-0.57, +0.06] | -0.27 [-0.63, +0.08] | -0.63 [-0.81, -0.46] |
+| Gulf | 3-36 | 396-397 | 4.87-6.11 (all arms within 0.25) | every interval spans 0 | every interval spans 0 | -0.19 .. -0.59 |
+
+- Had the run been valid: H1 (west, GFS materially better than the lane at 12, 24 AND 36 h) would NOT have held as
+  written (12 h: +0.31, interval spans 0). At 24 and 36 h the difference is material, and it sits in the coastal buoys
+  (+1.33 and +1.55; offshore buoys under the 300-row floor).
+- Had the run been valid, the verdict rule would have returned "no material difference: no case to change the rating's
+  wind input" on every coast: no arm materially beats every other in 3 of 4 leads. East differences are all under half
+  a point. The blend's edge over GFS is 0.2-0.6 points everywhere, under the 1.0 threshold.
+- Sizes: a wind arm moves the rating by 6-10 points on average against the observed-wind rating, and the level agrees
+  in 50-63% of cases. The arms differ from each other by about a tenth of that.
+- ECMWF: UNTESTABLE as registered (not in the rows). Breaking height: wind is not an input (the script's assertion
+  passed).
+
+**Not done.** No rerun with a repaired control: these rows are now seen. A second pre-registration (C2 planted on the
+observed wind; nothing else changed) is for the director to ask for, and it should be scored by someone other than its
+author. An ECMWF arm needs a public-archive fetch that this brief did not allow.
+
+## 3. Second pre-registration, written 2026-11-14 02:48Z (the director accepted the VOID and asked for this)
+
+**What is and is not blind.** Sections 1 and 2 stand. I have now seen the section 2 table for GFS, HRRR alone, the lane
+and the blend, so for those four arms this is a RE-RUN WITH A REPAIRED CONTROL, not a blind test: its only job is to say
+whether the section 2 numbers may be quoted. The ECMWF arm is blind: no ECMWF value for these buoys has been fetched or
+read by anyone. The run is scored by another session (pr-verifier, local_ec32a6a8), not by me.
+
+**Unchanged from section 1, word for word:** the rows (file sha256 7f54c29e...56ab, the 2026-11-11 grade), the arms G,
+H, L, B and B's even-cycle rule, the rating call, the 3 x 8 grid, M1-M4, the cells and floors (300 rows, 10 days), the
+bootstrap (2000 draws, day blocks, seed 20261114), MATERIAL = interval excludes 0 and |difference| >= 1.0 point, the
+verdict rule per coast, hypotheses H1-H4, controls C0, C1 and C3, and the limits.
+
+**Changed: control C2.** +3 kn is planted on a copy of the OBSERVED wind, not on GFS. That copy's unplanted error is
+zero, so its M1 is purely the planted error. It must be > 0 with the interval clear of 0 in every testable cell. (The
+first C2 was planted on GFS, where it partly cancelled GFS's own error. That design was wrong.)
+
+**Added: the ECMWF arm (E).** Source: ECMWF open-data IFS 0.25 degree 10 m wind from the public mirror, no account or
+key, fetched on this machine only (`backend/scripts/fetch_ecmwf_wind_at_buoys.py`, written and NOT run; raw files stay
+outside git). Bilinear at the buoy position recorded by the grade. Same buoys, cycles and leads as the rows.
+- E: the ECMWF run of the same cycle hour at the same lead. Primary, because the rows pair every arm that way.
+- Ep: the ECMWF run 6 h earlier at lead + 6. ECMWF's files arrive hours after GFS's, so the same-cycle pairing
+  flatters it; Ep is what a live system would have had. Reported beside E. If E wins and Ep does not, the result is
+  "ECMWF is better only with a run we would not have had", and no recommendation follows.
+- Hypothesis H5, two-sided, no direction claimed: E against G, each cell. The same verdict rule applies with E among
+  the arms. E against B is compared on the even cycles only.
+- A cell where fewer than 300 rows have an ECMWF value is UNTESTABLE for E. If the fetch needs any account or key, or
+  the mirror does not hold the window, the E arm is UNTESTABLE and the run reports the other arms alone.
+
+**Stop conditions.** Any control failing voids the run again; there is no third design on these rows. The fetch and the
+`eccodes` package install both wait for the owner's word typed in the session that runs them.
+
+### 3a. Fetch notes, appended 2026-11-14 02:56Z, before any ECMWF value was decoded
+- The owner approved the download and the `eccodes` install in the advisor's session at 2026-11-13 21:54 EST ("Yes,
+  download"). `eccodes` 2.50.1 went into a scratch environment outside the repo.
+- Mirror layout checked on index files only: 06Z and 18Z runs sit under `oper`, not `scda` as the script first assumed;
+  the mirror answers 503 SlowDown to fast requests. The fetch script now tries `oper` then `scda`, waits and retries.
+- **Decode wiring check, fixed now:** the author may compare the fetched ECMWF speed with the GFS speed already in the
+  rows (model against model, no observation, no rating) to confirm the decode and the bilinear read are right: the
+  correlation over all matched rows must exceed 0.7 and the mean speed ratio must lie in 0.7-1.4, else the decode is
+  wrong and is fixed before hand-over. The author reads nothing else from the ECMWF file.
+
+## 4. Second run, step 1 (no ECMWF): VALID, scored by pr-verifier, recorded here 2026-11-14 03:14Z
+
+Scored by the pr-verifier session, not by the author, at commit `00c1662d1` from a clean checkout, rows sha256
+7f54c29e...56ab. Its note: shared notes `verifier-wind-forcing-v2-score-2026-11-14.md`; result file outside git, sha256
+2101b77d...6e01. I have read that note and re-run nothing.
+- **Controls: all four hold, 12 testable cells.** C2 (+3 kn on the observed wind) detected in 12 of 12 (+5.2 to +7.3
+  rating points, every lower bound >= +4.4). C1: one cell excludes 0 (west 24 h), which the rule allows.
+- **Section 2's table may be quoted** for GFS, HRRR, the lane and the blend: 1,284 values compared with the first run,
+  maximum difference 0. It is a re-run with a repaired control, not a blind test.
+- **Verdict by the registered rule, every coast: no material difference; no case to change the rating's wind input.**
+  West: GFS materially beats the lane and HRRR alone at 24 and 36 h only, never the blend. East: every difference under
+  0.65 points. Gulf: most intervals span 0.
+- H1 does NOT hold as written (west 12 h: +0.31 [-0.02, +0.66]). H3: the blend is never worse than the better of GFS
+  and the lane; materially better than the lane in the west at 24/36 h only. H4: HRRR alone is materially worse than
+  GFS in the west at 24/36 h only.
+- Size: a planted 3 kn speed error costs 5-7 rating points; the arms differ from each other by 0.0-1.7.
+- **ECMWF (H5): not scored yet.** The fetch started 02:57Z and is rate-limited by the mirror.
+
+### 4a. ECMWF fetch complete, recorded 2026-11-14 06:39Z (no ECMWF error or rating read by the author)
+- File (outside git): 27,820 lines, one per used row, sha256 f379ed3d...2d1c. Every row has both the same-cycle value and
+  the 6-h-earlier value. Cache 1.1 GB outside the repo. The first pass stopped at 25,936 lines when the mirror's
+  throttling outlasted the retries; the resume took three attempts and reproduced those 25,936 lines exactly.
+- Decode wiring check (section 3a), passed: ECMWF against GFS speed over all 27,820 rows, correlation 0.935, mean ratio
+  0.986 (rule: > 0.7 and 0.7-1.4).
+- One read outside what 3a declared, made on the partial file and stated here: the median absolute bearing difference
+  between ECMWF and GFS (6.1 degrees, rows with GFS >= 8 kn). Model against model; no observation, no rating.
+- Handed to the pr-verifier for H5 scoring with --ecmwf.
+
+## 5. Second run, step 2 (ECMWF, H5): VALID, scored by pr-verifier, recorded here 2026-11-14 06:51Z
+
+Scored by the pr-verifier at head `0443702af` from a clean checkout; ECMWF file sha256 f379ed3d...2d1c, rows
+7f54c29e...56ab, result outside git sha256 096a27bd...838d. Its note: shared notes
+`verifier-wind-forcing-v2-score-2026-11-14.md`. I read that note and re-ran nothing.
+- **Controls: all four hold.** Every non-ECMWF number is identical to step 1 (1,824 values, maximum difference 0).
+  ECMWF is testable in every cell (396-3,515 rows).
+- **Verdict by the registered rule, with ECMWF among the arms, every coast: no material difference; no case to change
+  the rating's wind input.** ECMWF is never materially better or worse than GFS or the blend at any lead.
+
+ECMWF minus GFS, rating points (negative = ECMWF closer to the observed-wind rating), 95% interval:
+
+| Coast | 3 h | 12 h | 24 h | 36 h |
+|---|---|---|---|---|
+| west | -0.50 [-0.75, -0.22] | -0.63 [-0.95, -0.33] | -0.66 [-1.04, -0.31] | -0.80 [-1.24, -0.43] |
+| east | -0.11 [-0.24, +0.02] | -0.13 [-0.35, +0.07] | -0.27 [-0.59, +0.06] | -0.29 [-0.56, -0.01] |
+| Gulf | -0.77 [-1.03, -0.49] | -0.73 [-1.07, -0.40] | -0.61 [-1.15, -0.04] | -0.77 [-1.20, -0.26] |
+
+- **For the record, not a verdict (an input for the regional-weights work): ECMWF has the lowest rating error of all
+  arms in the west and the Gulf at every lead, by 0.5-0.8 points over GFS, detectable but under the 1.0-point bar.**
+- The latency-matched ECMWF (the run 6 h earlier) keeps most of that edge from 12 h on (west -0.39 / -0.42 / -0.60; Gulf
+  -0.47 / -0.82 / -0.68) and is WORSE than GFS at 3 h in the west (+0.28) and the east (+0.25). Never material.
+- Against the others: ECMWF is materially better than HRRR alone in the west at all four leads (-1.16 to -2.53) and
+  than the lane in the west at 24 and 36 h (-1.82 / -2.12). Against the blend, never material.
+- Section 3's latency caveat is not triggered: ECMWF does not win.
+- The verifier reviewed the fetch script and found no defect; it did not check the GRIB decode itself, for which the
+  evidence is the 0.935 speed correlation with GFS.
+
+**Limits that still stand.** One 25-day autumn window. Buoys sit seaward of the surf zone. Ratings on a fixed grid of
+surf states, not the surf that ran. G/H/L/B were seen by the author before the second run; only ECMWF was blind. An
+earlier build that fed HRRR wind to the rating failed its own pre-registered test (#728); this result agrees with it.
+
+### 5a. CI repair, 07:39Z: the fetch script reads the shared knots constant
+`fetch_ecmwf_wind_at_buoys.py` carried its own `1.943844`, which `test_wind_unit_constant_parity.py` forbids (hosted
+sim-composition lane red on f45cd0b9f). It now reads `surf_rating.MS_TO_KT` as an attribute. The value is identical
+(1.943844), so the fetched file and every scored number are unchanged; nothing was re-fetched or re-scored. I did not
+run the test locally (no pytest in this environment); I checked both scripts against the test's two patterns by hand.

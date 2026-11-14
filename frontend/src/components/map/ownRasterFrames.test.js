@@ -1,7 +1,7 @@
 import {
   planWindow, toField, ownFramesOn, ownIndex, lastIndex, frameAt, framesOf, setWanted, getField, MAX_IN_FLIGHT, MISSING, OWN_RASTER_SETS,
   combinedFrames, combinedFrameAt, setKey, TEMP_FIELD, CLOUD_FIELD, PRECIP_FIELD, NO_DATA_BELOW, leverCovers, DEFAULT_ON_LAYERS,
-  _resetOwnRasterFramesForTest,
+  _resetOwnRasterFramesForTest, FAIL_BACKOFF_MS, tel,
 } from './ownRasterFrames';
 import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
 
@@ -325,5 +325,76 @@ describe('EURO rain past its own range: the GFS frame stands in, labelled as an 
 
   test('GFS rain has no stand-in (it is the fallback itself)', () => {
     expect(combinedFrames('rain', 'GFS', gfs, gfs).some((f) => f.estimated)).toBe(false);
+  });
+});
+
+describe('failed-load backoff (2026-11-14): the pump never re-asks a frame that just failed', () => {
+  const flush = async (n = 20) => { for (let i = 0; i < n; i += 1) await Promise.resolve(); };
+  const frame = { path: 'v1/gfs/weather/pressure/global_0p5/frames/f000.bin', valid_time: '2026-11-14T00:00:00Z' };
+  afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_FAIL_BACKOFF__; });
+
+  test('a failed load is asked once, not in a loop, and again after the backoff', async () => {
+    loadFrameParsed.mockResolvedValue(null);
+    setWanted('pressure', [frame], null);
+    await flush();
+    expect(loadFrameParsed).toHaveBeenCalledTimes(1);
+    expect(tel().misses.load_failed).toBe(1);
+    setWanted('pressure', [frame], null);                   // the next step re-offers it inside the backoff: not asked
+    await flush();
+    expect(loadFrameParsed).toHaveBeenCalledTimes(1);
+    const now = Date.now(); const spy = jest.spyOn(Date, 'now').mockReturnValue(now + FAIL_BACKOFF_MS + 1);
+    setWanted('pressure', [frame], null);                   // past the backoff: one more try
+    await flush();
+    spy.mockRestore();
+    setWanted('pressure', [], null);
+    expect(loadFrameParsed).toHaveBeenCalledTimes(2);
+  });
+
+  test('parked on the frame (no further step): the backoff ends with one re-ask, not never', async () => {
+    jest.useFakeTimers();
+    try {
+      loadFrameParsed.mockResolvedValue(null);
+      setWanted('pressure', [frame], null);
+      await flush();
+      expect(loadFrameParsed).toHaveBeenCalledTimes(1);
+      jest.advanceTimersByTime(FAIL_BACKOFF_MS - 1000);
+      await flush();
+      expect(loadFrameParsed).toHaveBeenCalledTimes(1);      // still inside the backoff
+      jest.advanceTimersByTime(2000);                         // past it, with no step at all
+      await flush();
+      expect(loadFrameParsed).toHaveBeenCalledTimes(2);
+      setWanted('pressure', [], null);                        // the layer leaves: its retry timer goes with it
+      jest.advanceTimersByTime(FAIL_BACKOFF_MS * 2);
+      await flush();
+      expect(loadFrameParsed).toHaveBeenCalledTimes(2);
+    } finally { jest.useRealTimers(); }
+  });
+
+  test('a success after a failure clears the backoff (the frame is cached, never re-asked)', async () => {
+    jest.useFakeTimers();
+    try {
+      loadFrameParsed.mockResolvedValueOnce(null).mockResolvedValue({
+        parsed: { cols: 1, rows: 1, bounds: {}, validEpoch: 0, runEpoch: 0, fields: { 6: new Float64Array([1013]) } }, wire: 10 });
+      setWanted('pressure', [frame], null);
+      await flush();
+      jest.advanceTimersByTime(FAIL_BACKOFF_MS + 1000);
+      await flush();
+      expect(loadFrameParsed).toHaveBeenCalledTimes(2);
+      expect(getField(frame.path)).not.toBeNull();
+      setWanted('pressure', [frame], null);
+      jest.advanceTimersByTime(FAIL_BACKOFF_MS * 2);
+      await flush();
+      expect(loadFrameParsed).toHaveBeenCalledTimes(2);
+    } finally { jest.useRealTimers(); setWanted('pressure', [], null); }
+  });
+
+  test('OFF PATH: __RAW_DISABLE_RASTER_OWN_FAIL_BACKOFF__ restores the re-ask (the old loop)', async () => {
+    window.__RAW_DISABLE_RASTER_OWN_FAIL_BACKOFF__ = true;
+    loadFrameParsed.mockResolvedValue(null);
+    setWanted('pressure', [frame], null);
+    await flush();
+    setWanted('pressure', [], null);                        // stop the loop
+    await flush();
+    expect(loadFrameParsed.mock.calls.length).toBeGreaterThan(1);
   });
 });

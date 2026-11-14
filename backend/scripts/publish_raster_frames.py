@@ -45,7 +45,7 @@ def main(argv=None):
     sink.ensure_bucket()
     report = fsr.publish(fsr.make_source(spec), sink, pub._uploader(sink), log=print, spec=spec)
     print(json.dumps(report, indent=1, sort_keys=True))
-    return 0
+    return 1 if report.get("status") in ("latest_unknown", "latest_refused") else 0   # visible; continue-on-error keeps the cycle
 
 
 if __name__ == "__main__":
