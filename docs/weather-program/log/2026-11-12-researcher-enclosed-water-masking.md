@@ -424,3 +424,52 @@ Correction to the line "The reach cap (#852) remains the only tested gate" (sect
 - The D-065 history filter on #852 skipped (no cached window), so the served effect is not measured.
 - #852 lists three options for the owner, none chosen: keep 1.5 cells and accept 7 spots at "--"; a 2-cell reach; or the exposure sweep in this PR.
 - Not verified here: a claim that the exposure sweep ranks 46267 above six of those seven spots. That ranking is not in #852's body. Do not cite it until a source is found.
+
+
+## 15. Account checklist for David: Copernicus Marine, Cefas WaveNet, Puertos del Estado (2026-11-13, doc only)
+
+**Who does what.** David does each sign-up himself: email, password and verification. No lane registers, types a credential, or stores a value. Env var names below are names only. Values go in a local `.env` (gitignored) or the provider's own store, never in a tracked file (CLAUDE.md, "NO SECRET VALUES").
+
+**Status of each fact.** Verified = read on the provider page or its own docs in this session. Unverified = found only in a secondary source, or not found. Each line says which.
+
+### 15.1 Copernicus Marine (In Situ, delayed-mode wave product)
+
+- **Sign-up URL:** https://marine.copernicus.eu/register (from a secondary source; the form itself not opened here, so unverified).
+- **Datasets and stations:** INSITU_GLO_WAV_DISCRETE_MY_013_045 (global wave in situ, delayed mode). Needed for historic validation of nearshore Hs, not for the two-week test (delivered twice a year; section 12.3).
+- **Licence terms that matter:**
+  - Redistribution: the SEANOE mirror lists CC-BY (section 12.3, from the mirror, not the Copernicus licence page). Verify on the Copernicus product page before relying on it.
+  - Commercial clause: a secondary source says access is free for commercial use. Unverified. Read the Copernicus terms page.
+  - Rule for us: the repo is public. Raw Copernicus files stay out of git. Only our derived metrics are committed, and only with attribution.
+- **Credential type:** username and password (the toolbox logs in with them; no API key was found).
+- **Env var names (the toolbox's own names, so no code change is needed):** `COPERNICUSMARINE_SERVICE_USERNAME`, `COPERNICUSMARINE_SERVICE_PASSWORD`. Source: toolbox docs (`toolbox-docs.marine.copernicus.eu`, environment-variables page; found via search, page not opened). Verify before code uses them.
+
+### 15.2 Cefas WaveNet (UK)
+
+- **Sign-up URL:** not confirmed. The data-policy page is https://www.cefas.co.uk/data-and-publications/wavenet/data-policy/ (verified as a URL from search; contents not opened here). The sign-up step is unverified: sources disagree (a data.gov.uk record says historic downloads need registration; a CEDA record says registered and unregistered users both have access).
+- **Datasets and stations:** WaveNet near-real-time telemetry, for UK nearshore Hs. Station IDs not yet listed (section 12.3). Needed for UK coast truth.
+- **Licence terms that matter:**
+  - The data policy has three tiers (section 12.3). Fully downloadable data is under the Open Government Licence (OGL). Some third-party data has different terms.
+  - Commercial clause: the non-commercial restriction is not confirmed. Our search found nothing that says it applies. Read the data-policy page to check.
+  - Redistribution: OGL allows it with attribution. Confirm per station, since the tier is per station.
+- **Credential type:** if any account is needed, a username and password on the Cefas portal. Unverified.
+- **Env var names (proposed; no tool reads them yet):** `CEFAS_WAVENET_USERNAME`, `CEFAS_WAVENET_PASSWORD`. Set only if the portal needs login.
+
+### 15.3 Puertos del Estado (Spain: REDEXT outer buoys, REDCOS coastal)
+
+- **Sign-up URL:** none found. The download service is at https://bancodatos.puertos.es (the manual is at bancodatos.puertos.es/BD/peticiones/Manual_Usuario_Descargaportus.pdf). Unverified whether an account exists.
+- **How data is obtained:** the user manual says requests go by email. Once a request is accepted, the email contains the download links. No API key was found.
+- **Datasets and stations:** Hm0 from REDEXT/REDCOS for the Canaries and Iberia west. Station IDs unconfirmed (section 12.3).
+- **Licence terms that matter:**
+  - The manual says data may be used only for the stated purpose, may not be transferred to third parties, and the source must always be cited (manual entries 9-4 and 9-5, from search; the page was not opened).
+  - This conflicts with a public repo. We may use the data for our own derived metrics only if we do not redistribute it. The raw data must stay out of git.
+  - The 2021 manual is the only licence source found (section 12.5). Check for a newer one before any use.
+- **Credential type:** none found. The request is by email.
+- **Env var names:** none needed unless an API appears. Do not create one for this provider.
+
+### 15.4 What David should answer, one list
+
+1. Create a Copernicus Marine account (free). Set `COPERNICUSMARINE_SERVICE_USERNAME` and `COPERNICUSMARINE_SERVICE_PASSWORD` in a local `.env`.
+2. Cefas: open the data-policy page. Tell us whether historic data needs an account. Create one only if so, and set `CEFAS_WAVENET_USERNAME` and `CEFAS_WAVENET_PASSWORD`.
+3. Puertos: no account to create. An email request is needed for each download. Confirm you are happy with the 2021 terms (no third-party transfer) before any data is pulled.
+
+**Not verified in this session:** every sign-up URL except the Puertos and Cefas data-policy URLs; Copernicus commercial terms; Cefas tier per station; the Puertos licence version; all station IDs.
