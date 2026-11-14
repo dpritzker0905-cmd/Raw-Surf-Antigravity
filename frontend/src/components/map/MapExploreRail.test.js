@@ -23,6 +23,9 @@ test.each(['dark', 'light', 'beach'])('%s keeps map identity before the search d
   expect(screen.getByRole('button', { name: 'Use precise location' }).closest('.weather-explore-content')).toBeNull();
   expect(title.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   expect(button).toHaveTextContent('Explore');
+  const photographerCount = screen.getByTestId('live-count').closest('.weather-photographer-count');
+  expect(photographerCount).toHaveAttribute('aria-hidden', 'true');
+  expect(photographerCount).toHaveAttribute('inert');
   expect(container.querySelector('#map-explore-content')).toHaveAttribute('inert');
   expect(container.querySelector('#map-explore-content')).toHaveAttribute('aria-hidden', 'true');
   expect(button).not.toHaveAttribute('aria-expanded');
@@ -33,6 +36,9 @@ test.each(['dark', 'light', 'beach'])('%s keeps map identity before the search d
   expect(screen.getByRole('button', { name: 'Weather layers' })).toBeInTheDocument();
   fireEvent.click(button);
   expect(button).toHaveTextContent('Weather');
+  expect(photographerCount).not.toHaveAttribute('aria-hidden');
+  expect(photographerCount).not.toHaveAttribute('inert');
+  expect(screen.getByTestId('live-count')).toHaveTextContent('2 shooting');
   expect(screen.queryByRole('button', { name: 'Back to Weather' })).not.toBeInTheDocument();
   expect(button).not.toHaveAttribute('aria-expanded');
   for (const name of ['Get location', 'Featured photographers', 'Friends on map']) expect(screen.getByRole('button', { name })).toBeInTheDocument();
@@ -51,6 +57,7 @@ test.each(['dark', 'light', 'beach'])('%s keeps map identity before the search d
   search.focus(); fireEvent.keyDown(search, { key: 'Escape' });
   expect(button).not.toHaveAttribute('aria-expanded');
   expect(button).toHaveFocus();
+  expect(photographerCount).toHaveAttribute('aria-hidden', 'true');
   expect(screen.queryByRole('button', { name: 'Friends on map' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Weather layers' })).toBeInTheDocument();
   expect(title).toBeInTheDocument();
@@ -65,4 +72,5 @@ test('rollout disabled restores legacy rail spacing and immersive fade without h
   expect(container.querySelector('.weather-map-heading')).toHaveClass('px-4');
   expect(container.querySelector('.weather-explore-content')).not.toHaveAttribute('hidden');
   expect(screen.getByTestId('map-title')).toHaveTextContent('Live Map');
+  expect(screen.getByTestId('live-count').closest('[aria-hidden="true"]')).toBeNull();
 });

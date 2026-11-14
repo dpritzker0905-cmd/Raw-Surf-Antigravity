@@ -88,8 +88,10 @@
     transition: opacity 180ms; top: var(--weather-top); max-height: max(48px, calc(100% - var(--weather-top) - var(--weather-bottom) - 8px));
   }
   [data-responsive-weather="true"] .weather-desktop-panel.w-60 { width: 232px; }
-  [data-responsive-weather="true"] .weather-map-actions { right: 248px; }
-  [data-responsive-weather="true"]:has(button.weather-desktop-panel) .weather-map-actions { right: 176px; }
+  /* Only the legacy combined controls need to reserve room for the weather picker.
+     Explore and Weather controls occupy the edge at different times. */
+  [data-responsive-weather="true"] .weather-map-actions[data-control-mode="all"] { right: 248px; }
+  [data-responsive-weather="true"]:has(button.weather-desktop-panel) .weather-map-actions[data-control-mode="all"] { right: 176px; }
 }
 @media (max-width: 374px) {
   /* Intentional paired rows retain Now on the exact centerline; no accidental 5+2 wrap. */
@@ -263,7 +265,8 @@
 /* A short desktop window at native zoom has room for columns, not stacked
    controls. Keep the heading at left and make each reading area scrollable. */
 @media (pointer: fine) {
-  [data-responsive-weather="true"][data-short-map-columns="true"] .weather-map-heading > div > div { display: none; }
+  /* Keep the Explore count beside the title, clear of the short-window action row. */
+  [data-responsive-weather="true"][data-short-map-columns="true"] .weather-photographer-count { margin-right: 176px; }
   [data-responsive-weather="true"][data-short-map-columns="true"] .weather-map-actions {
     top: 0; bottom: auto; left: var(--weather-search-end); right: auto;
     width: 140px; max-height: 32px; grid-template-columns: repeat(4, 32px); gap: 4px; padding: 0;
@@ -352,11 +355,13 @@
 [data-responsive-weather="true"] .weather-layer-sheet,
 [data-responsive-weather="true"] .weather-point-card,
 [data-responsive-weather="true"] .weather-explore-content,
+[data-responsive-weather="true"] .weather-photographer-count,
 [data-responsive-weather="true"] .weather-map-actions {
   opacity: 1; visibility: visible;
   transition: transform 240ms cubic-bezier(.2,.8,.2,1), opacity 180ms ease, visibility 0s linear;
 }
 [data-responsive-weather="true"][data-map-control-mode="explore"] .weather-desktop-panel,
+[data-responsive-weather="true"] .weather-photographer-count[data-controls-visible="false"],
 [data-responsive-weather="true"] .weather-map-actions[data-controls-visible="false"] {
   transform: translateX(calc(100% + 24px)); opacity: 0; visibility: hidden; pointer-events: none;
   transition-delay: 0s, 0s, 240ms;
@@ -398,6 +403,7 @@
   [data-responsive-weather="true"] .weather-layer-backdrop,
   [data-responsive-weather="true"] .weather-point-card,
   [data-responsive-weather="true"] .weather-explore-content,
+  [data-responsive-weather="true"] .weather-photographer-count,
   [data-responsive-weather="true"] .weather-map-actions { transition: none; }
 }
 

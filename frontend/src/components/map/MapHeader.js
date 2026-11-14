@@ -7,7 +7,7 @@ import { useThemeName } from '../../contexts/ThemeContext';
 import { mapChromeTheme } from './mapChromeTheme';
 import { responsiveWeatherOn } from './useMapChromeLayout';
 
-export var MapHeader = ({ livePhotographerCount = 0 }) => {
+export var MapHeader = ({ livePhotographerCount = 0, showPhotographerCount = true }) => {
   // Three themes (W-10 R4): the title was text-white in every mode, invisible on the light and beach basemaps.
   const c = mapChromeTheme(useThemeName());
   const responsive = responsiveWeatherOn();
@@ -20,7 +20,9 @@ export var MapHeader = ({ livePhotographerCount = 0 }) => {
       >
         {responsive ? 'LIVE MAP' : 'Live Map'}
       </h1>
-      <div className="flex items-center gap-2">
+      <div className="weather-photographer-count flex items-center gap-2"
+        data-controls-visible={showPhotographerCount}
+        aria-hidden={!showPhotographerCount || undefined} inert={!showPhotographerCount || undefined}>
         <div className={`flex items-center gap-1 px-3 py-1.5 ${c.surface} backdrop-blur-sm rounded-full`}>
           <div className="w-2 h-2 bg-emerald-400 rounded-full animate-pulse"></div>
           <span className={`text-xs ${c.mutedText}`} data-testid="live-count">
