@@ -170,6 +170,23 @@ SPECS = {
         "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); attribution to ECMWF required",
         "source_url": "https://www.ecmwf.int/en/forecasts/datasets/open-data",
     },
+    # ICON PRECIPITATION (2026-11-13, the same word of the owner). DWD ICON global TOT_PREC, the total since the run began,
+    # differenced per native cell to the step before each hour and box-AVERAGED onto the 0.25-degree grid
+    # (frame_set_raster_sources.IconPrecipSource: why a mean and not the pressure set's nearest cell). Hourly to 78 h, then the
+    # MEAN rate over each 3-hour step to 180 h (DWD's own steps). 00/12Z runs (06/18Z stop at 120 h).
+    "precipitation_icon": {
+        "target": {"model": "ICON", "domain": "weather", "layer": "precipitation", "region_id": "global_0p25"},
+        "field": fb.PRECIP_MM_H, "idx": ("tot_prec", ("TOT_PREC",)), "convert": lambda a: a, "grid": "0p25",
+        "valid": VALID_MM_H, "clip": None, "env": "FRAME_RASTER_PRECIP_ICON", "default_on": False, "frame_plane": True,
+        "value_kind": "precipitation_rate", "value_unit": "mm/h",
+        "source_dataset": "DWD ICON global (icosahedral R3B7) TOT_PREC, totals differenced to the preceding step, "
+                          "box mean onto 0.25 deg",
+        "hours": tuple(range(1, 79)) + tuple(range(81, 181, 3)), "source": "icon_precip", "upstream_provider": "dwd",
+        "credit": "Source: Deutscher Wetterdienst (DWD), ICON global; modified (totals differenced to a rate, "
+                  "box-averaged to 0.25 deg, quantised to 0.01 mm/h)",
+        "license": "DWD open data, free use with source attribution (GeoNutzV)",
+        "source_url": "https://opendata.dwd.de/weather/nwp/icon/grib/",
+    },
 }
 
 
