@@ -82,3 +82,8 @@ Tests 27 (estate +27).
 `GFS/weather/temperature/static/elevation_dz_v1.json` (the GFS temperature downscale asset) answers 400 on the CDN at 05:10Z. This PR does
 not publish it. It comes from its own pilots step (`publish_temp_downscale.py`), gated on `FRAME_RASTER_TEMP_DZ == '1'`, and the
 GFS temperature set was not yet in latest.json then either.
+
+## Correction (05:51Z): the addendum header's time
+
+The header 'Addendum 05:15Z: EURO 2 m temperature at 0.25 deg' was an estimate written ahead of the clock (LESSONS L-P10): the
+section was committed at 05:09:57Z (`0f9866cd3`). The work it describes ran 05:05Z-05:09Z. Ledger: ledger.d/opus--raster-fog-temp.jsonl:2.
