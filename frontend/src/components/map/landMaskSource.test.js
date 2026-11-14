@@ -220,7 +220,6 @@ describe('public/land-worker-loader.js, as the worker runs it', () => {
   const code = fs.readFileSync(path.join(__dirname, '../../../public/land-worker-loader.js'), 'utf8');
   const load = (fetchImpl) => {
     const protocols = {}; const self = { addProtocol: (name, fn) => { protocols[name] = fn; } };
-    // eslint-disable-next-line no-new-func
     new Function('self', 'fetch', code)(self, fetchImpl);
     return protocols;
   };
@@ -250,7 +249,6 @@ describe('public/land-worker-loader.js, as the worker runs it', () => {
   });
 
   test('where there is no worker protocol registry it does nothing', () => {
-    // eslint-disable-next-line no-new-func
     expect(() => new Function('self', 'fetch', code)({}, null)).not.toThrow();
   });
 
