@@ -122,3 +122,23 @@ Tests: `rasterPalettes.test.js` 39 -> 46 (floor fragment +7 tests, no new suite)
 NOT verified: a real phone, Safari, Firefox, the deployed site, and the own-frames drawing path (#889), which reads the same
 tables through `rasterScaleFor`. The palettes were not looked at again by eye on the map after the re-tune beyond the legend
 shots; the numbers in section 3 are the evidence for the map itself.
+
+## 5. The re-tuned tables looked at ON THE MAP (06:10 to 06:16 EST), asked for by the advisor's review (PASS WITH LIMITS)
+Offline app, air temp and water temp x light, dark, beach x desktop and phone x a world view (zoom 2.1, North Atlantic) and a
+coastal view (zoom 5.2, US mid-Atlantic coast): 24 screenshots, 0 page errors. Saved for the owner's morning look in the shared
+notes folder, `PR897-map-shots-2026-11-14/` (not in the repository).
+Read by eye (the lane's own read, not a measurement). Nothing is broken: in the dark theme the near-black cold end of air temp
+does not swallow the land (Canada reads blue to violet over the slate land, labels readable). Two things are WEAK and were not
+tuned (the director's instruction: no more tuning tonight):
+1. Light and beach, air temp over warm ocean: about 25 C air over the tropical Atlantic reads as a dull grey-mauve rather than
+   orange, because the warm colours at 44% over cyan water cancel toward grey. Over land the same temperatures read orange.
+   Whether #892's tables or the ones before them did the same was NOT compared.
+2. Light and beach, water temp at the cold end: Hudson Bay and the Greenland Sea are a flat dark slate grey, heavy next to the
+   pale map.
+Neither is covered by a gate: the gates score steps between neighbouring values and distance from the bare map, not whether a
+hue survives the blend.
+
+### Correction to this log's times (append-only)
+The headers in sections 2 and 3b say the legend gate was "written at 05:20 EST". The commit that carries it, `77c87d6b1`, is
+stamped 05:16:35 EST. The commit time is the record; the gate was written and committed before 05:17, and first measured at
+about 05:40.
