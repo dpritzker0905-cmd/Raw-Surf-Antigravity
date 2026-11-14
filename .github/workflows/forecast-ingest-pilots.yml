@@ -42,6 +42,11 @@ jobs:
     # ≈ 185m healthy total — the lane was ALREADY over 165 before the ICON pilot landed. 200
     # keeps 40 min under the 240-min cron interval (shared-group serialization stays safe).
     timeout-minutes: 200
+    env:
+      # ON (2026-11-14, services/frame_latest_guard.py): every static-frames publisher reads v1/latest.json strictly (a 400
+      # that is not "object not found", a 5xx or a timeout = unknown -> nothing written) and never writes it with a set record
+      # dropped. Kill: repo variable FRAME_LATEST_GUARD = '0' (the old read: any failed read = an empty document).
+      FRAME_LATEST_GUARD: ${{ vars.FRAME_LATEST_GUARD || '1' }}
     steps:
       - uses: actions/checkout@v5
 

@@ -49,6 +49,7 @@ from services import frame_set_bundle as fsb  # noqa: E402
 from services import frame_set_fill as fsf  # noqa: E402
 from services import frame_set_rating as fsr  # noqa: E402
 from services import frame_entitlement as fe  # noqa: E402
+from services import frame_latest_guard as flg  # noqa: E402
 from services.frame_image import encode_png, parity  # noqa: E402
 
 FRAME_BUCKET = "weather-frames"
@@ -301,6 +302,12 @@ class LocalSink:
         p = self.out_dir / path
         return p.read_bytes() if p.is_file() else None
 
+    read_strict = read                      # a local file is there or not: no third answer (frame_latest_guard)
+
+    def has_any(self, prefix):
+        root = self.out_dir / prefix
+        return root.exists() and any(p.is_file() for p in root.rglob("*"))
+
     def write(self, path, data, content_type, cache_control):
         dest = self.out_dir / path
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -344,6 +351,22 @@ class SupabaseSink:
         """One object's bytes, or None when it is missing; retried with backoff on 429 / 5xx / a dropped connection like
         write(). 2026-10-27 (the lead): ONE 429 on v1/latest.json at 23:15:38Z failed run 40403486736's whole publish behind
         a green continue-on-error step; reads are idempotent, so a retry is always safe."""
+        return self._read(path, strict=False)
+
+    def read_strict(self, path):
+        """As read(), but None ONLY when storage says the object does not exist (404, or a 400 whose body says NoSuchKey);
+        any other 400 raises frame_latest_guard.LatestUnknown. For latest.json, where "missing" rebuilds the document."""
+        return self._read(path, strict=True)
+
+    def has_any(self, prefix):
+        """Is there any object or folder directly under `prefix`? One list call (frame_latest_guard: is the bucket fresh?)."""
+        resp = self.requests.post(f"{self.base}/storage/v1/object/list/{self.bucket}", headers=self.auth, timeout=60,
+                                  json={"prefix": prefix.rstrip("/") + "/", "limit": 1, "offset": 0})
+        if resp.status_code != 200:
+            raise RuntimeError(f"list {self.bucket}/{prefix}: HTTP {resp.status_code}")
+        return bool(resp.json() or [])
+
+    def _read(self, path, strict):
         url = f"{self.base}/storage/v1/object/{self.bucket}/{path}"
         for attempt, wait in enumerate(UPLOAD_BACKOFF_S + (None,)):
             try:
@@ -354,6 +377,8 @@ class SupabaseSink:
                 _sleep(wait)
                 continue
             if resp.status_code in (400, 404):
+                if strict and not flg.is_not_found(resp.status_code, resp.content):
+                    raise flg.LatestUnknown(f"read {self.bucket}/{path}: HTTP {resp.status_code}: {resp.text[:200]}")
                 return None                # Supabase answers a missing object with 400 or 404
             if resp.status_code == 200:
                 return resp.content
@@ -513,8 +538,12 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
     further set is started this run; a skipped set keeps its published index and is reported `skipped_budget`."""
     sets = selected_sets() if sets is None else sets
     budget = float(os.environ.get("FRAME_PUBLISH_BUDGET_S", "600")) if budget_s is None else budget_s
-    raw_latest = sink.read(fs.LATEST)
-    latest = json.loads(raw_latest) if raw_latest else {"version": 1, "sets": {}}
+    try:                                   # absent only on a fresh bucket; any doubt -> no publish (frame_latest_guard)
+        latest, _state = flg.read_latest(sink, log)
+    except flg.LatestUnknown as e:
+        log(f"[frames] {e}; nothing published this run (the published sets stay)")
+        return {"__latest__": {"refused": True, "reason": str(e)}}
+    base_latest = json.loads(json.dumps(latest))
     sets = publish_order(sets, latest)
     upload = _uploader(sink)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -590,7 +619,14 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
             latest.setdefault("sets", {})[key] = rec
             log(f"[frames] {key}: written as explicit empty ({rec.get('reason') or 'no stored product for this layer in this box'})")
         latest.update(version=1, written_at=now, writer=_writer())
-        sink.write(fs.LATEST, json.dumps(latest, indent=1, sort_keys=True).encode("utf-8"), fs.JSON_TYPE, REVALIDATE)
+        try:
+            flg.check_write(latest, base_latest)
+        except flg.LatestRefused as e:     # never a shorter index; no pointer moved, so no retention either
+            log(f"[frames] {e}")
+            report["__latest__"] = {"refused": True, "reason": str(e)}
+            keep_by_set = {}
+        else:
+            sink.write(fs.LATEST, json.dumps(latest, indent=1, sort_keys=True).encode("utf-8"), fs.JSON_TYPE, REVALIDATE)
     if wind_lane is not None:
         _wind_lane_pointer(sink, wind_lane, log)
     for key, (target, keep) in keep_by_set.items():        # after the pointer moved, never before
