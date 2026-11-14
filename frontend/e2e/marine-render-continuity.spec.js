@@ -157,7 +157,8 @@ async function openMapAsSurfer(page) {
     window.__DISABLE_WEBGL_GUARDRAIL__ = true;
   }, E2E_USER);
   await page.goto('/map', { waitUntil: 'domcontentloaded' });
-  await expect(page.locator('[data-testid="featured-photographers-btn"]'))
+  // Map identity stays visible in Weather mode; photographer actions belong to Explore.
+  await expect(page.getByTestId('map-title'))
     .toBeVisible({ timeout: 65000 });
 }
 

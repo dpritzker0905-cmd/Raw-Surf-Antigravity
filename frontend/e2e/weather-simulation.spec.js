@@ -270,14 +270,15 @@ test.describe('Standard Surfer Map Controls', () => {
 
     await page.goto('/map', { waitUntil: 'domcontentloaded' });
 
-    // Wait for the map page to load (wait for map right controls or general map container)
+    // Wait for the map page to load (persistent map identity)
     // /map is lazily chunked and heavy. Measured at the artifact 2026-08-06: this control was NOT
     // visible 8 s after navigation at the mobile viewport and WAS visible by ~18 s, so 15 s sat
     // right on the boundary — CI 31061734287 failed here on Mobile Safari and Desktop Firefox
     // while passing on Desktop Chrome and Safari, which is exactly what a marginal bound looks
     // like. 45 s is well inside the per-test budgets set below.
-    const rightControls = page.locator('[data-testid="featured-photographers-btn"]');
-    await expect(rightControls).toBeVisible({ timeout: 45000 });
+    // Wait for map identity, not Explore-only photographer actions. Keep Weather mode unchanged.
+    const mapTitle = page.getByTestId('map-title');
+    await expect(mapTitle).toBeVisible({ timeout: 45000 });
 
     const isMobile = await page.evaluate(() => window.innerWidth < 768);
 
@@ -379,7 +380,7 @@ test.describe('Standard Surfer Map Controls', () => {
 
     await page.goto('/map', { waitUntil: 'domcontentloaded' });
 
-    // Wait for the map page to load (wait for map right controls or general map container)
+    // Wait for the map page to load (persistent map identity)
     // /map is lazily chunked and heavy. Measured at the artifact 2026-08-06: this control was NOT
     // visible 8 s after navigation at the mobile viewport and WAS visible by ~18 s, so 15 s sat
     // right on the boundary — CI 31061734287 failed here on Mobile Safari and Desktop Firefox
@@ -395,8 +396,9 @@ test.describe('Standard Surfer Map Controls', () => {
     // gated on `Promise.all` of the spots fetch AND both photographer overlays, so any one of three
     // stalling held the map. It now clears as soon as the SPOTS arrive. This bound is the backstop,
     // not the remedy — do not raise it again without re-reading that.
-    const rightControls = page.locator('[data-testid="featured-photographers-btn"]');
-    await expect(rightControls).toBeVisible({ timeout: 65000 });
+    // Wait for map identity, not Explore-only photographer actions. Keep Weather mode unchanged.
+    const mapTitle = page.getByTestId('map-title');
+    await expect(mapTitle).toBeVisible({ timeout: 65000 });
 
     // The WebGL capability probe promised above. Asks the page exactly what the marine engine asks.
     const hasWebGL = await page.evaluate(() => {
@@ -583,8 +585,9 @@ test.describe('Rendered-field pixel truth (executed GL)', () => {
     test.setTimeout(240000);
 
     await page.goto('/map', { waitUntil: 'domcontentloaded' });
-    const rightControls = page.locator('[data-testid="featured-photographers-btn"]');
-    await expect(rightControls).toBeVisible({ timeout: 65000 });
+    // Wait for map identity, not Explore-only photographer actions. Keep Weather mode unchanged.
+    const mapTitle = page.getByTestId('map-title');
+    await expect(mapTitle).toBeVisible({ timeout: 65000 });
 
     // Same capability probe as the sibling: ask the page, never name the browser.
     const hasWebGL = await page.evaluate(() => {
