@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 59,
+  "files": 3,
+  "branch": "codex/gear-repairs-20261114",
+  "date": "2026-11-14",
+  "note": "34 retailer,10 catalog-ordering,15 progress-lifetime cases"
+}

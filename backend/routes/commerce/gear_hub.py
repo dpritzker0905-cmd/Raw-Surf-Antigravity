@@ -99,6 +99,7 @@ async def get_gear_catalog(
         "price_credits": item.price_credits,
         "retail_price_usd": item.retail_price_usd,
         "affiliate_partner": item.affiliate_partner,
+        "affiliate_url": item.affiliate_url,
         "is_featured": item.is_featured,
         "stock_status": item.stock_status,
         "purchase_count": item.purchase_count
@@ -129,7 +130,7 @@ async def get_gear_item(
         "price_credits": item.price_credits,
         "retail_price_usd": item.retail_price_usd,
         "affiliate_partner": item.affiliate_partner,
-        "affiliate_url": item.affiliate_url,  # Only show in detail view
+        "affiliate_url": item.affiliate_url,
         "is_featured": item.is_featured,
         "stock_status": item.stock_status,
         "purchase_count": item.purchase_count
