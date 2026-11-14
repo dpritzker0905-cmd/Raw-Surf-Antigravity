@@ -14,16 +14,59 @@
  * IF THE WORKER CANNOT LOAD THE FILE the source reports an error; `armLandSourceFallback` then hands it the object once, so
  * the land is never left unmasked.
  * Kill: window.__RAW_DISABLE_LAND_SOURCE_URL__ = true (the object, as before). Telemetry: window.__RAW_LAND_SOURCE__.
+ *
+ * THE WORKER LOADER (2026-11-13, second step). With a URL the worker tiles the file, but maplibre-gl 5.24 then sends the
+ * fetched GeoJSON back to the page in its reply, and the page pays to decode it: about 0.65 s in one frame for the 10 m file
+ * on a 4x-throttled CPU (docs/weather-program/log/2026-11-13-fable-land-worker-loader.md). `startLandWorkerLoader` loads
+ * public/land-worker-loader.js into the map's workers once; it registers a worker-side `rawland://` protocol that fetches the
+ * file there and keeps the geometry out of the reply. Once that script has loaded, `landSourceData` gives the source
+ * `rawland://<encoded absolute file URL>` instead of the plain URL. Until then, or if the script fails to load, the plain URL
+ * is used, as before. A failure inside the worker is a source error, which `armLandSourceFallback` answers with the object.
+ * Kill: window.__RAW_DISABLE_LAND_WORKER_LOADER__ = true (the plain URL, as before).
  */
 const W = () => (typeof window !== 'undefined' ? window : {});
 const URLS = new WeakMap();
 
+export const LAND_WORKER_SCHEME = 'rawland';
+export const LAND_WORKER_SCRIPT = '/land-worker-loader.js';
+let loader = 'off'; // off -> loading -> ready | failed (per page: the workers are shared by every map on it)
+
 export const landSourceUrlOn = () => W().__RAW_DISABLE_LAND_SOURCE_URL__ !== true;
+export const landWorkerLoaderOn = () => W().__RAW_DISABLE_LAND_WORKER_LOADER__ !== true;
 
 function tel() {
   const w = W();
   if (!w.__RAW_LAND_SOURCE__) w.__RAW_LAND_SOURCE__ = { byUrl: 0, byObject: 0, fellBack: 0, lastUrl: null };
-  return w.__RAW_LAND_SOURCE__;
+  const t = w.__RAW_LAND_SOURCE__;
+  if (t.byWorker == null) t.byWorker = 0;
+  t.loader = loader;
+  return t;
+}
+
+/**
+ * Load the worker-side land loader into the map library's workers, once per page. `lib` is the maplibre-gl module.
+ * Never throws; resolves to the loader's state ('ready' | 'failed' | 'off').
+ */
+export function startLandWorkerLoader(lib) {
+  const w = W();
+  if (loader !== 'off' || !landWorkerLoaderOn() || !landSourceUrlOn()) return Promise.resolve(loader);
+  if (!lib || typeof lib.importScriptInWorkers !== 'function' || !w.location) return Promise.resolve(loader);
+  let p;
+  try {
+    loader = 'loading'; tel();
+    p = Promise.resolve(lib.importScriptInWorkers(new URL(LAND_WORKER_SCRIPT, w.location.href).href));
+  } catch (e) { loader = 'failed'; tel(); return Promise.resolve(loader); }
+  return p.then(() => { loader = 'ready'; }, () => { loader = 'failed'; }).then(() => { tel(); return loader; });
+}
+
+/** Test seam: forget that the loader was started. */
+export function resetLandWorkerLoaderForTest() { loader = 'off'; }
+
+/** `rawland://<encoded absolute URL>` for a land file URL, or null when the worker loader cannot be used for it. */
+function workerUrl(url) {
+  const w = W();
+  if (loader !== 'ready' || !landWorkerLoaderOn() || !w.location) return null;
+  try { return LAND_WORKER_SCHEME + '://' + encodeURIComponent(new URL(url, w.location.href).href); } catch (e) { return null; }
 }
 
 /** Remember that `mask` holds exactly the features of the land file at `url`. Returns `mask` unchanged. */
@@ -38,8 +81,11 @@ export function tagLandMaskUrl(mask, landGeoJSON, url) {
 export function landSourceData(mask) {
   const url = mask && landSourceUrlOn() ? URLS.get(mask) : null;
   const t = tel();
-  if (url) { t.byUrl += 1; t.lastUrl = url; } else t.byObject += 1;
-  return url || mask;
+  if (!url) { t.byObject += 1; return mask; }
+  const viaWorker = workerUrl(url);
+  if (viaWorker) t.byWorker += 1; else t.byUrl += 1;
+  t.lastUrl = viaWorker || url;
+  return viaWorker || url;
 }
 
 /**
