@@ -37,3 +37,20 @@ their within-buoy clustering but lose their link to the gaps. The statistic is t
 ## What this cannot show
 Which side of the shadow-minus-equal gap is wrong, and why a point has no `product_id` (that needs member-level fields
 on the scored rows, a scoring-writer change not in this PR).
+
+## Amendment 2026-11-13, made before any code ran on real rows (no result exists yet)
+In the by-buoy permutation null the reassigned flag sequence is read cyclically from a RANDOM offset, not from its start.
+Reason: found while writing the tests. Without the offset, buoys that share the same flag pattern keep their flags
+aligned with their gaps after reassignment, so the null collapses onto the observed difference and a real association
+could never beat it. The rule R3 itself (buoy-cluster interval excludes 0 AND diff_m above the null's 97.5th percentile)
+is unchanged.
+
+## Built (same PR, after the rules above)
+`skill_ocf.py`: `HOLE_BUOYS` (pinned equal to the Fable split's `MEASURED_HOLES` by a test), `exclude_buoys` on
+`ocf_report` and `tier_split_report`, per-region day-block gain intervals with `significantly_worse_regions` and
+`gate_met_ci` (R1), `hole_sensitivity` (R2), the by-buoy permutation null and buoy-cluster bootstrap with a `supported`
+flag (R3), and `ocf_block()` assembling it all so `forecast_skill.py` stays under the 800-line gate. New fields in
+`forecast_skill_ocf`: `without_hole_buoys`, `hole_sensitivity`, `tier_split_without_hole_buoys`, and per-region
+`gain_over_served`. Mutation checks: removing the exclusion fails 3 tests; removing the null's random offset fails 1.
+No workflow dispatched; the next scheduled calibration pass after merge publishes the fields. The read-out follows then,
+against R1-R4 as written above.

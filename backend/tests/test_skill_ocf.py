@@ -221,9 +221,113 @@ def test_positive_control_a_known_bias_is_absorbed_by_the_bias_removing_variants
 
 
 def test_report_wiring_carries_the_controls_and_the_kill_switch_still_adds_nothing(monkeypatch):
-    assert "positive_control" in inspect_run_source() and "tier_split" in inspect_run_source()
+    import inspect
+    from services.weather_pipeline import skill_ocf
+    blk = inspect.getsource(skill_ocf.ocf_block)
+    assert "ocf_block" in inspect_run_source() and "positive_control" in blk and "tier_split" in blk
 
 
 def inspect_run_source():
     import inspect
     return inspect.getsource(fs.run_skill_ledger)
+
+
+# ── sensitivity run: hole buoys, per-region intervals, by-buoy null (2026-11-13; pre-registered R1-R3) ──────
+from services.weather_pipeline.skill_ocf import HOLE_BUOYS, hole_sensitivity  # noqa: E402
+
+X, H = "46232", "46267"                        # both pacific_ne; H is a hole buoy
+
+
+def _hole_data(h_bias):
+    bias = {X: {m: 0.0 for m in MEMBERS}, H: {"raw_surf": h_bias, "raw_surf:ICON": 0.0, "raw_surf:EURO": 0.0}}
+    return _rows(range(8, 30), 3, buoys=(X, H), bias=bias) + _rows(range(0, 7), 3, buoys=(X, H), bias=bias)
+
+
+def test_the_hole_buoy_list_is_the_fable_split_list():
+    import ast
+    import os
+    src = open(os.path.join(os.path.dirname(__file__), "..", "scripts", "accuracy_per_buoy_split.py"), encoding="utf-8").read()
+    node = next(n for n in ast.parse(src).body if isinstance(n, ast.Assign) and getattr(n.targets[0], "id", "") == "MEASURED_HOLES")
+    assert tuple(ast.literal_eval(node.value)) == HOLE_BUOYS
+
+
+def test_excluding_a_buoy_removes_every_pair_of_it_and_is_recorded():
+    full, ex = ocf_report(_hole_data(1.5), NOW), ocf_report(_hole_data(1.5), NOW, exclude_buoys=(H,))
+    assert _lead(full)["gain_over_served"]["equal"]["n_buoys"] == 2
+    assert _lead(ex)["gain_over_served"]["equal"]["n_buoys"] == 1
+    assert ex["exclude_buoys"] == [H] and full["exclude_buoys"] == []
+    assert _lead(ex)["n_test"] * 2 == _lead(full)["n_test"]
+
+
+def test_a_gain_that_lives_in_one_hole_buoy_is_flagged_driven_and_a_real_gain_survives():
+    # served (raw_surf) is +1.5 m off at the hole buoy only: the equal mean "gains" there and nowhere else.
+    hs = hole_sensitivity(ocf_report(_hole_data(1.5), NOW), ocf_report(_hole_data(1.5), NOW, exclude_buoys=(H,)))
+    assert hs["48"]["equal"]["driven_by_holes"] is True and hs["48"]["equal"]["survives"] is False
+    # a bias everywhere (the existing fixture, no hole buoy in it) survives an exclusion of a buoy it does not contain
+    base = ocf_report(_data(), NOW)
+    hs2 = hole_sensitivity(base, ocf_report(_data(), NOW, exclude_buoys=(H,)))
+    assert hs2["48"]["ocf_region"]["survives"] is True and hs2["48"]["ocf_region"]["driven_by_holes"] is False
+
+
+def test_hole_sensitivity_never_gives_a_verdict_for_a_lead_that_is_unscored_in_either_run():
+    full = ocf_report(_data(), NOW)
+    assert hole_sensitivity(full, {"by_lead": []})["48"]["ocf_region"] is None
+
+
+def test_regions_carry_a_day_block_interval_and_the_ci_gate_counts_only_significant_losses():
+    rep = ocf_report(_data(), NOW, expected_leads=(48,))
+    g = rep["by_region"]["pacific_ne"]["48"]["gain_over_served"]["ocf_region"]
+    assert g["gain_m"] == pytest.approx(0.3, abs=1e-3) and g["ci95_m"][0] > 0
+    assert rep["gate"]["ocf_region"]["gate_met_ci"] is True and rep["gate"]["ocf_region"]["significantly_worse_regions"] == []
+    # served exactly right, the other two members biased: the equal mean is significantly WORSE in every region
+    bias = {X: {"raw_surf": 0.0, "raw_surf:ICON": 0.6, "raw_surf:EURO": 0.6}, A: {"raw_surf": 0.0, "raw_surf:ICON": 0.6, "raw_surf:EURO": 0.6}}
+    worse = ocf_report(_rows(range(8, 30), 3, bias=bias, buoys=(A, X)) + _rows(range(0, 7), 3, bias=bias, buoys=(A, X)),
+                       NOW, expected_leads=(48,))
+    assert worse["gate"]["equal"]["significantly_worse_regions"] and worse["gate"]["equal"]["gate_met_ci"] is False
+    assert worse["gate"]["equal"]["gate_met"] is False                    # the point-based gate is unchanged
+
+
+def _clustered_rows(flagged_buoys, gap=0.30, n_days=6, per_day=20):
+    """Flags AND gaps are set per buoy, so the unknown-tier rows are perfectly clustered by buoy."""
+    rows = []
+    for d in range(n_days):
+        for i in range(per_day):
+            t = (NOW - timedelta(days=d, hours=i)).strftime("%Y-%m-%dT%H:00:00Z")
+            for b in ("C0", "C1", "C2", "C3"):
+                unk = b in flagged_buoys
+                for src, v in {"raw_surf": 2.0, "raw_surf:EURO": 2.4, "raw_surf:ICON": 2.2}.items():
+                    r = {"source": src, "buoy_id": b, "target_time": t, "lead_h": 48.0, "hs_m": v, "obs_hs_m": 2.0}
+                    if not (src == "raw_surf:EURO" and unk):
+                        r["tier"] = "regional"
+                    rows.append(r)
+                rows.append({"source": SH, "buoy_id": b, "target_time": t, "lead_h": 48.0, "obs_hs_m": 2.0,
+                             "hs_m": 2.2 + (gap if unk else 0.0), "tier": "regional"})
+    return rows
+
+
+def test_by_buoy_null_does_not_call_a_two_buoy_coincidence_supported_while_the_row_null_would():
+    e = tier_split_report(_clustered_rows({"C0", "C1"}), NOW)["by_lead"][0]
+    assert e["diff_m"] == pytest.approx(0.30, abs=1e-6)
+    assert e["diff_m"] > e["null_ci95_m"][1]                       # the (wrong-unit) row shuffle calls it significant
+    assert e["supported"] is False                                 # 4 buoys: this exact split arises by chance 1 time in 6
+    assert e["buoy_null_ci95_m"][1] == pytest.approx(0.30, abs=1e-6)
+
+
+def test_by_buoy_null_supports_an_effect_when_flags_are_mixed_within_buoys():
+    e = tier_split_report(_tier_rows(0.30), NOW)["by_lead"][0]
+    assert e["supported"] is True and e["buoy_bootstrap_ci95_m"][0] > 0 and e["positive_control"]["recovered_m"] == pytest.approx(0.30, abs=1e-6)
+
+
+def test_tier_split_excluding_buoys_drops_them_and_names_them():
+    out = tier_split_report(_clustered_rows({"C0", "C1"}), NOW, exclude_buoys=("C0",))
+    assert out["exclude_buoys"] == ["C0"] and out["by_lead"][0]["n_buoys"] == 3
+
+
+def test_report_wiring_publishes_the_hole_sensitivity():
+    import inspect
+    from services.weather_pipeline import skill_ocf
+    src = inspect.getsource(skill_ocf.ocf_block)
+    assert "without_hole_buoys" in src and "hole_sensitivity" in src and "tier_split_without_hole_buoys" in src
+    out = skill_ocf.ocf_block(_data(), NOW)
+    assert out["without_hole_buoys"]["exclude_buoys"] == sorted(HOLE_BUOYS) and "by_band" not in out["without_hole_buoys"]
+    assert set(out) >= {"positive_control", "tier_split", "hole_sensitivity", "tier_split_without_hole_buoys"}
