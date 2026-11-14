@@ -112,14 +112,16 @@ const W = () => (typeof window !== 'undefined' ? window : {});
 // the others, so that all lanes are upgrades and instant"): ON for every model; its set is the .om path's own grid (GFS 0.25 deg).
 // A set not published yet falls back to the .om path as before. Kill: __RAW_DISABLE_RASTER_OWN_FOG__.
 export const DEFAULT_ON_LAYERS = Object.freeze(['satellite', 'pressure', 'fog']);
-// PER-MODEL DEFAULTS (2026-11-14), under the director's resolution rule: a layer moves to own frames only where its set is at least
-// as fine as what the .om path draws today, or where today shows nothing.
-//  - temperature: GFS only (0.5 deg + the elevation downscale against the .om gfs013; the director's question). EURO (0.5 deg vs
-//    ifs025) and ICON (0.5 deg vs dwd_icon) stay on the .om path until sets at their native grid exist.
-//  - water_temp: EURO (ECMWF skt at 0.25 deg = ifs025) and ICON (today transparent: no ICON skin temperature; GFS's 0.25 deg set
-//    fills it). GFS stays on the .om path (gfs013, 0.117 deg, is finer than the 0.25 deg set).
+// PER-MODEL DEFAULTS (2026-11-14, the director), under the no-regression rule: a layer moves to own frames by default only where its
+// set is at least as fine as what the .om path draws today.
+//  - water_temp EURO: ECMWF skt at 0.25 deg = the .om ifs025: ON.
+//  - water_temp ICON (today blank: DWD ICON has no skin temperature; the GFS 0.25 deg set would fill it): built, OFF until the
+//    director's overnight question (screenshot pair, attribution label, scrub numbers). The lever reaches it.
+//  - water_temp GFS: OFF (the .om gfs013, 0.117 deg, is finer than the 0.25 deg set).
+//  - temperature (every model): OFF until a pre-registered visual-parity comparison at z5 / z7 / z9 (desktop + phone) shows the GFS
+//    0.5 deg set + ETOPO downscale no coarser than the .om gfs013; EURO / ICON until sets at their native grid exist.
 // Kills: __RAW_DISABLE_RASTER_OWN_TEMPERATURE__, __RAW_DISABLE_RASTER_OWN_WATER_TEMP__ (each the .om path, as before).
-export const DEFAULT_ON_MODELS = Object.freeze({ temperature: Object.freeze(['GFS']), water_temp: Object.freeze(['EURO', 'ICON']) });
+export const DEFAULT_ON_MODELS = Object.freeze({ water_temp: Object.freeze(['EURO']) });
 
 /** Is the own-frames path on for this layer and model? Synchronous, no I/O. A model without its own set (or with its set killed)
  *  stays on the .om path, which draws that model as before (never another model's frames under its label). */
