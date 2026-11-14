@@ -248,9 +248,12 @@ class PointResolutionService:
         # Parse valid_time ISO timestamp
         target_dt = parse_valid_time(valid_time_str)
 
-        # Handle ICON swell_2 unsupported layer immediately
+        # ICON swell_2: "unsupported" unless ICON_SWELL2_SERVE=1 and a stored derived product covers the time (icon_swell2_serve.py;
+        # dark by default).
         if model.upper() == "ICON" and layer.lower() == "swell_2":
-            return make_unsupported_icon_swell2_point_response(domain, lat, lng, target_dt)
+            from services.weather_pipeline.icon_swell2_serve import refuse as _icon_swell2_refuse, serve_on as _icon_swell2_serve_on
+            if not _icon_swell2_serve_on() or _icon_swell2_refuse(await asyncio.to_thread(self.store.get_manifest), domain, target_dt):
+                return make_unsupported_icon_swell2_point_response(domain, lat, lng, target_dt)
 
         # ── PATH 1: Strict grid_product_id lookup ────────────────────────────
         if grid_product_id:
