@@ -23,12 +23,16 @@ import datetime as dt
 import json
 import math
 import os
+import sys
 import time
 import urllib.error
 import urllib.request
 
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
+
+from services.weather_pipeline import surf_rating as SR  # noqa: E402  (the ONE knots constant, read as an attribute)
+
 BASE = "https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com"
-MS_TO_KT = 1.943844
 LEADS = (3, 12, 24, 36)
 
 
@@ -118,7 +122,7 @@ def wind_at(cache, cyc, step, pts, memo):
     out = {}
     for sid, (lat, lon) in pts.items():
         u, v = bilinear(gu, lat, lon), bilinear(gv, lat, lon)
-        out[sid] = (math.hypot(u, v) * MS_TO_KT, (math.degrees(math.atan2(-u, -v)) + 360.0) % 360.0)
+        out[sid] = (math.hypot(u, v) * SR.MS_TO_KT, (math.degrees(math.atan2(-u, -v)) + 360.0) % 360.0)
     return out
 
 

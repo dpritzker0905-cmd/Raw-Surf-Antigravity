@@ -226,3 +226,9 @@ ECMWF minus GFS, rating points (negative = ECMWF closer to the observed-wind rat
 **Limits that still stand.** One 25-day autumn window. Buoys sit seaward of the surf zone. Ratings on a fixed grid of
 surf states, not the surf that ran. G/H/L/B were seen by the author before the second run; only ECMWF was blind. An
 earlier build that fed HRRR wind to the rating failed its own pre-registered test (#728); this result agrees with it.
+
+### 5a. CI repair, 07:39Z: the fetch script reads the shared knots constant
+`fetch_ecmwf_wind_at_buoys.py` carried its own `1.943844`, which `test_wind_unit_constant_parity.py` forbids (hosted
+sim-composition lane red on f45cd0b9f). It now reads `surf_rating.MS_TO_KT` as an attribute. The value is identical
+(1.943844), so the fetched file and every scored number are unchanged; nothing was re-fetched or re-scored. I did not
+run the test locally (no pytest in this environment); I checked both scripts against the test's two patterns by hand.
