@@ -332,7 +332,7 @@ const GromManageSession = ({ gromId, parentId }) => {
             <Card className={`${cardBg} border-2 border-emerald-500/30`}>
               <CardContent className="p-6 text-center">
                 <div className={`text-4xl font-bold ${textPrimary}`}>
-                  ${spendingData.monthly_spending.toFixed(0)}
+                  ${spendingData.monthly_spending.toFixed(2)}
                 </div>
                 <p className={`${textSecondary} text-sm mt-1`}>Spent This Month</p>
                 {spendingData.spending_limit && (
@@ -375,7 +375,7 @@ const GromManageSession = ({ gromId, parentId }) => {
                           {category.replace('_', ' ')}
                         </span>
                         <span className="text-emerald-400 font-bold">
-                          ${amount.toFixed(0)}
+                          ${amount.toFixed(2)}
                         </span>
                       </div>
                     ))}
