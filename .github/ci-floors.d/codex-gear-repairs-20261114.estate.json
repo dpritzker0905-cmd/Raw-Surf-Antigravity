@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 13,
+  "branch": "codex/gear-repairs-20261114",
+  "date": "2026-11-14",
+  "note": "six catalog regression cases plus seven real ASGI async SQLite GET controls"
+}
