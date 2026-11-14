@@ -102,3 +102,10 @@ def test_a_flat_but_valid_sea_still_scores_zero_not_none():
 def test_a_normal_day_is_untouched():
     """Byte-identical to the pre-guard value — the change must be inert on every real input."""
     assert rating_score(1.5, 14.0, 5.0) == 76.3
+
+
+@__import__("pytest").fixture(autouse=True)
+def _legacy_reference_curve(monkeypatch):
+    """These pins describe the reference-LESS legacy size curve. JAC-2's catalogue prior
+    (RATING_REF_PRIOR, default ON) replaces it; that path is pinned in test_reference_prior.py."""
+    monkeypatch.setenv("RATING_REF_PRIOR", "0")

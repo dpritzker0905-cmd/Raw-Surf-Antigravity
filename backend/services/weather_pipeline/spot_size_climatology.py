@@ -60,6 +60,51 @@ MIN_SAMPLES = 12                       # below this a spot has no reference yet 
 REF_CLAMP_MIN_M = 0.4                  # a reference below chest-of-a-grom is nonsense; floor it
 REF_CLAMP_MAX_M = 4.0                  # and cap it (a spot whose good day is > ~13 ft is the ceiling)
 
+# ── REFERENCE PRIOR: the reference for a spot that has none (JAC-2, 2026-11-10) ─────────────────────
+# THE DEFECT. With `reference_size_m=None`, `surf_rating.size_score` is the LEGACY absolute curve, which
+# saturates at 1.2 m, and the oversize taper (its tier 3) does not start until 8 m. Between them nothing
+# depends on height: clean 5 kt offshore, head-on swell, Tp 14 s, no break depth -> 1.2, 2, 3, 5 and 8 m
+# of breaking surf ALL score 89.5 "epic" (Fable audit 2026-11-10, JAC-2). Chest-high and 26 ft read the
+# same. Every spot with climatology escapes it; whatever has none does not: a new catalogue spot below
+# MIN_SAMPLES, an infobox point with neither a spot within 2 km nor a grid-cell reference, a band cell
+# outside the grid climatology, every spot on a lane whose blob read failed, and the eval replay
+# (`eval_replay` passes None by design).
+#
+# THE NUMBER IS LOCAL. No published source gives a reference surf size (SOTA evidence 2026-11-10,
+# Topic 2). So: the MEDIAN of the 1,821 per-spot references in the committed baseline
+# (`scripts/climatology_baseline.json`, 2026-08-01): p10 0.612, **p50 1.142**, p90 2.128 m. The median is
+# the maximum-ignorance choice ("an unknown spot is the typical catalogued spot") and it is robust: the
+# geometric mean of the same 1,821 is 1.145. `tests/test_reference_prior.py` pins it to the baseline, so
+# re-anchoring the baseline onto a different median fails a test instead of drifting silently.
+#
+# WHAT IT DOES at 1.142 m, entirely through the existing curves (no new shape):
+#   * size gate: 0.6 at 1.14 m (3.7 ft), 1.0 at 2.86 m (9.4 ft): the curve every known spot uses.
+#   * oversize taper: 4.0 m (13.1 ft) -> floor at 6.85 m (22.5 ft). ★ 3.5 x 1.142 = 4.0 m is exactly
+#     `surf_rating.OVERSIZE_MIN_START_M`, set independently as "never claim too big below ~13 ft without
+#     spot evidence": two derivations meet at one number.
+#   * TIER ORDER for the taper: climatology, then BATHYMETRY, then this prior, then the absolute pair
+#     (flag off only). Depth is evidence about THIS spot, so it outranks a catalogue-wide prior. The
+#     absolute pair was deliberately late because big-wave spots lacked depth; they all carry
+#     climatology now (1,821/1,821), so the slot holds non-catalogue coordinates, where 22 ft of
+#     breaking surf is past the paddle limit essentially everywhere.
+#
+# ⚠️ A spot WITH a reference is byte-identical: the prior is read only when the reference is absent.
+# ⚠️ GLOBAL, NOT REGIONAL, deliberately: the rating chain has no coordinate at the size gate, and the
+# regional tier already exists for coordinates (`grid_size_climatology`, 2 deg cells). A per-region prior
+# for catalogue spots below MIN_SAMPLES would have to be threaded through every batch lane's ref map.
+# ⚠️ HELD OFF (D-065, coordinator 2026-11-10): on the nearshore arm's anchor census (#773) the prior moved 480/480
+# reference-less spot-hours, 414 changed level, mean -17.9 points, with no rating truth to say that is better.
+# GUARDED["RATING_REF_PRIOR"] = '0'; turn ON through the runtime manifest once the evidence in #771 exists.
+REFERENCE_PRIOR_FLAG = "RATING_REF_PRIOR"
+REFERENCE_PRIOR_M = 1.142              # median per-spot reference, baseline 2026-08-01, n = 1,821
+
+
+def reference_prior() -> Optional[float]:
+    """The catalogue reference prior (m) when RATING_REF_PRIOR is on (env > manifest > GUARDED default, held '0'),
+    else None (the legacy absolute curve). Callers consult it ONLY for a spot with no reference."""
+    from services import runtime_flags as _rf
+    return REFERENCE_PRIOR_M if _rf.on(REFERENCE_PRIOR_FLAG) else None
+
 
 def _bin_index(h_m: float) -> int:
     i = int(h_m / BIN_WIDTH_M)

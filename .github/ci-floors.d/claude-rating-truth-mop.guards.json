@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 32,
+  "files": 1,
+  "branch": "claude/rating-truth-mop",
+  "date": "2026-11-12",
+  "note": "test_rating_truth_mop.py: pure core of the MOP rating-truth check gating #771"
+}

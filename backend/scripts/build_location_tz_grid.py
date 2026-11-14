@@ -11,6 +11,8 @@ POLICY C' (owner, 2026-11-10, DAVID-DECISIONS-2):
   * nautical   - every other sea cell keeps its Etc/GMT+-N zone.
   * near_border - a coast_snap cell with a DIFFERENT civil zone among its 8 neighbours (snapped or civil, ~1.1 km);
                  alt_iana is that other zone (smallest IANA name if several). The note is shown by the client.
+                 ALSO (O2/LT-8): a sea cell on either side of a coast/nautical line whose offsets differ by >= 3 h
+                 (see NAUTICAL EDGE below), so the 50-km snap cliff is never silent.
 
 DISTANCE: per 0.25-degree latitude band, OSM polygons and cell centres are mapped to x = lng * cos(band centre), y = lat;
 STRtree.query_nearest picks the nearest polygon and shortest_line its nearest point; the distance reported is the
@@ -268,6 +270,91 @@ def classify(grid, names, snap_zone, snap_km):
     return cls, classes, int((alt >= 0).sum())
 
 
+# ── NAUTICAL EDGE (O2 / LT-8, 2026-11-10) ───────────────────────────────────────────────────────────────────────────
+# Policy C' snaps sea cells to the coast zone out to 50 km and leaves the nautical Etc/GMT zone beyond. Where those two
+# disagree by hours, one cell (~1.1 km) moves the clock that far: 49 km north of Apia reads Pacific/Apia (+13, local date
+# 11-11) and 50 km reads Etc/GMT+11 (-11, local date 11-10): 24 h in one step, with NO note, because `near_border` was
+# set only where two COAST zones meet. The cliff itself is policy (owner, C'); a silent cliff is not.
+# RULE: a sea cell on either side of a coast(civil|coast_snap) / nautical boundary whose UTC offsets differ by
+# >= EDGE_MIN_H in January OR July gets near_border = True and alt_iana = the zone across the line (smallest name if
+# several; an existing coast-border alt is kept). 3 h: below it the gap is the ordinary political/DST distance between
+# a civil zone and its longitude band (Spain/Portugal +1-2, Argentina +1-2, Iceland/China edges), which every coast has
+# and which needs no note; at >= 3 h it is a different hour of the day or a different date. Both sides are marked so a
+# click 50 km out (nautical) is told about the coast clock and a click 49 km out about the open-sea one.
+EDGE_MIN_H = 3.0
+EDGE_SEASONS = (datetime(2026, 1, 15, 12, tzinfo=timezone.utc), datetime(2026, 7, 15, 12, tzinfo=timezone.utc))
+
+
+def _edge_offsets_h(classes):
+    """(n_cls, 2) UTC offsets in hours at EDGE_SEASONS; NaN for a zone ZoneInfo does not know."""
+    from zoneinfo import ZoneInfo
+    out = np.full((len(classes), len(EDGE_SEASONS)), np.nan)
+    cache = {}
+    for c, cl in enumerate(classes):
+        name = cl[0]
+        if name not in cache:
+            try:
+                z = ZoneInfo(name)
+                cache[name] = [t.astimezone(z).utcoffset().total_seconds() / 3600.0 for t in EDGE_SEASONS]
+            except Exception:                                  # noqa: BLE001 - unknown zone: never an edge
+                cache[name] = [np.nan] * len(EDGE_SEASONS)
+        out[c] = cache[name]
+    return out
+
+
+def mark_nautical_edges(get_row, nlat, classes, log=print):
+    """Apply the NAUTICAL EDGE rule row by row (three rows in memory, never the whole grid) and run-length encode.
+    `get_row(i)` -> the class ids of grid row i. Returns (row_ptr, starts, ids, classes, n_edge_cells); `classes`
+    is extended with the marked variants. Used by `main` and by scripts/patch_location_tz_nautical_edge.py."""
+    classes = [tuple(c) for c in classes]
+    off = _edge_offsets_h(classes)
+    src = np.array([{"civil": 0, "coast_snap": 1, "nautical": 2}.get(c[1], -1) for c in classes])
+    coast, naut = (src == 0) | (src == 1), src == 2
+    names = sorted({c[0] for c in classes})
+    rank = {n: k for k, n in enumerate(names)}
+    zone_rank = np.array([rank[c[0]] for c in classes])
+    cid = {c: k for k, c in enumerate(classes)}
+    row_ptr, starts, ids, n_edge = [0], [], [], 0
+    prev, cur = None, np.asarray(get_row(0)).astype(np.int64)
+    for i in range(nlat):
+        nxt = np.asarray(get_row(i + 1)).astype(np.int64) if i + 1 < nlat else None
+        best = np.full(cur.shape, -1, np.int64)                       # class id across the line (smallest zone name)
+        for row in (prev, cur, nxt):
+            if row is None:
+                continue
+            for dj in (-1, 0, 1):
+                if row is cur and dj == 0:
+                    continue
+                nb = np.roll(row, -dj)
+                cross = (coast[cur] & naut[nb]) | (naut[cur] & coast[nb])
+                with np.errstate(invalid="ignore"):
+                    gap = np.nanmax(np.abs(off[cur] - off[nb]), axis=1) >= EDGE_MIN_H
+                take = cross & gap & ((best < 0) | (zone_rank[nb] < zone_rank[np.maximum(best, 0)]))
+                best[take] = nb[take]
+        out = cur.copy()
+        hit = np.flatnonzero(best >= 0)
+        n_edge += len(hit)
+        if len(hit):
+            pairs = np.unique(np.stack([cur[hit], best[hit]], 1), axis=0)
+            remap = {}
+            for c, b in pairs.tolist():
+                iana, source, nb_flag, alt, band = classes[c]
+                key = (iana, source, True, alt or classes[b][0], band)
+                if key not in cid:
+                    cid[key] = len(classes)
+                    classes.append(key)
+                remap[(c, b)] = cid[key]
+            out[hit] = [remap[(c, b)] for c, b in zip(cur[hit].tolist(), best[hit].tolist())]
+        s = np.concatenate([[0], np.flatnonzero(np.diff(out)) + 1])
+        starts.extend(s.tolist())
+        ids.extend(out[s].tolist())
+        row_ptr.append(len(starts))
+        prev, cur = cur, nxt
+        if i % 3000 == 0:
+            log(f"nautical edge: row {i}/{nlat}, {n_edge} cells marked")
+    return (np.array(row_ptr, np.uint32), np.array(starts, np.uint16), np.array(ids, np.uint32), classes, n_edge)
+
+
 def rle(cls):
     row_ptr, starts, ids = [0], [], []
     for row in cls:
@@ -324,7 +411,7 @@ def main(argv=None):
         log("trial only: nothing written")
         return
     cls, classes, n_border = classify(grid, names, snap_zone, snap_km)
-    row_ptr, starts, ids = rle(cls)
+    row_ptr, starts, ids, classes, n_edge = mark_nautical_edges(lambda i: cls[i], nlat, classes, log)
     os.makedirs(args.out, exist_ok=True)
     # Runtime format v2 (location_time.write_grid_dir): uncompressed .npy arrays the server memory-maps, so its RSS
     # stays far under the 8 MB cap; uint16 ids while there are < 65,536 classes.
@@ -335,6 +422,7 @@ def main(argv=None):
         "res_deg": R_DEG, "cells": nlat * nlon, "runs": int(len(starts)), "classes": len(classes),
         "policy": "C-prime: civil on land and territorial waters; coast_snap <= 50 km to OSM land; else nautical",
         "snap_km": SNAP_KM, "coast_snap_cells": n_snap, "near_border_cells": n_border, "exact_resolves": refits,
+        "nautical_edge": {"min_h": EDGE_MIN_H, "cells": n_edge},
         "band_method_error_vs_densified_resolve": err_stats,
         "inputs": {"timezonefinder": md.version("timezonefinder"), "timezone_boundaries": tfid,
                    "osm_land_polygons": {"file": os.path.basename(args.osm_zip), "sha256": sha256_file(args.osm_zip),

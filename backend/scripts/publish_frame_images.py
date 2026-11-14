@@ -57,7 +57,8 @@ IMMUTABLE = fs.IMMUTABLE
 REVALIDATE = fs.REVALIDATE
 UPLOAD_WORKERS = 4
 UPLOAD_BACKOFF_S = (2.0, 5.0, 12.0)        # waits between the 4 attempts of one upload (SupabaseSink.write)
-RETRY_STATUS = (429, 500, 502, 503, 504)
+# 520-524 are the storage edge's own origin errors (run 43239161836: one HTTP 520 on a frame upload left ICON pressure unpublished)
+RETRY_STATUS = (429, 500, 502, 503, 504, 520, 521, 522, 523, 524)
 _sleep = time.sleep                        # the tests replace it
 
 

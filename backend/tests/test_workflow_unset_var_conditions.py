@@ -18,7 +18,6 @@ WORKFLOWS = Path(__file__).resolve().parents[2] / ".github" / "workflows"
 
 # Known bare conditions, each OFF in practice while its variable is unset. Not fixed here: turning them on is the owner's call.
 KNOWN_OFF = {
-    ("forecast-ingest-pilots.yml", "FRAME_RASTER_PRESSURE"),   # pressure raster frames; the client reads them only behind a dark lever
     ("spot-series.yml", "SPOT_SERIES_PUBLISH"),                # spot series publish: its 3 newest runs on 2026-11-12 'skipped'
 }
 
@@ -45,6 +44,13 @@ def test_the_rated_frames_step_defaults_on():
     text = (WORKFLOWS / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
     assert "(vars.FRAME_RATING_SETS || '1') != '0'" in text
     assert "&& vars.FRAME_RATING_SETS != '0'" not in text
+
+
+def test_the_pressure_frames_step_defaults_on():
+    """The owner, 2026-11-12: "Yes, publish pressure"; the client draws pressure from these frames by default since #812."""
+    text = (WORKFLOWS / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
+    assert "(vars.FRAME_RASTER_PRESSURE || '1') != '0'" in text
+    assert "&& vars.FRAME_RASTER_PRESSURE != '0'" not in text
 
 
 def test_the_detector_catches_the_bare_form_and_passes_the_safe_form(tmp_path, monkeypatch):

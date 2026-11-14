@@ -22,6 +22,7 @@ from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoPro
 from services.conditions_labels import get_conditions_label
 from services.forecast_tier_window import apply_tier_window, days_allowed, tier_horizon_enabled, tier_horizon_hours
 from services.weather_pipeline.spot_hub_composition import call_kwargs as hub_call_kwargs
+from services.weather_tier_clamp import SIGNED_OUT, withhold_signed_out
 
 point_sampler = PointSampler()
 open_meteo_provider = OpenMeteoProvider()
@@ -37,6 +38,32 @@ OPEN_METEO_MARINE_URL = "https://marine-api.open-meteo.com/v1/marine"
 
 # Opt-in metadata-first clients leave room for queries under their 15s request budget.
 SPOT_FORECAST_TIMEOUT_SECONDS = 8
+
+
+async def _fill_forecast(spot_data, spot, subscription_tier, model, api_forecast_days, allow_partial_forecast):
+    """The spot's current conditions and daily forecast, trimmed to the tier window (in place). Never raises."""
+    try:
+        forecast_request = point_resolution_service.resolve_spot_conditions(
+            model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=api_forecast_days,
+            spot_id=spot.id,
+            # Spot-hub phase 2 (SPOT_HUB_RATE_ONE_SPOT, dark): the glyph's spot dict, and the tier window so
+            # rows the window withholds are not computed. Empty while the flag is off (the call is unchanged).
+            **hub_call_kwargs(spot, tier_horizon_hours(subscription_tier, model) if tier_horizon_enabled() else None)
+        )
+        # Older clients (including the locked production frontend) retain their existing wait.
+        # Only clients that can present partial forecast availability opt into this contract.
+        conditions_data = (await asyncio.wait_for(forecast_request, SPOT_FORECAST_TIMEOUT_SECONDS)
+                           if allow_partial_forecast else await forecast_request)
+        if conditions_data:
+            spot_data["current_conditions"] = conditions_data.get("current_conditions")
+            spot_data["forecast"] = conditions_data.get("forecast", [])
+            if spot_data["current_conditions"] is not None or spot_data["forecast"]:
+                spot_data["forecast_status"] = "ready"
+            apply_tier_window(spot_data, subscription_tier, model)
+    except TimeoutError:
+        logger.warning("Forecast deadline exceeded for spot %s; returning known metadata", spot.id)
+    except Exception as e:
+        logger.error(f"Error fetching conditions for {spot.name} via service: {e}")
 
 
 @router.get("/explore/spot-details/{spot_id}")
@@ -88,30 +115,14 @@ async def get_spot_details(
         "forecast_days_allowed": forecast_days_after_today
     }
     
-    # Fetch real-time conditions and forecast using unified service
-    try:
-        forecast_request = point_resolution_service.resolve_spot_conditions(
-            model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=api_forecast_days,
-            spot_id=spot.id,
-            # Spot-hub phase 2 (SPOT_HUB_RATE_ONE_SPOT, dark): the glyph's spot dict, and the tier window so
-            # rows the window withholds are not computed. Empty while the flag is off (the call is unchanged).
-            **hub_call_kwargs(spot, tier_horizon_hours(subscription_tier, model) if tier_horizon_enabled() else None)
-        )
-        # Older clients (including the locked production frontend) retain their existing wait.
-        # Only clients that can present partial forecast availability opt into this contract.
-        conditions_data = (await asyncio.wait_for(forecast_request, SPOT_FORECAST_TIMEOUT_SECONDS)
-                           if allow_partial_forecast else await forecast_request)
-        if conditions_data:
-            spot_data["current_conditions"] = conditions_data.get("current_conditions")
-            spot_data["forecast"] = conditions_data.get("forecast", [])
-            if spot_data["current_conditions"] is not None or spot_data["forecast"]:
-                spot_data["forecast_status"] = "ready"
-            apply_tier_window(spot_data, subscription_tier, model)
-    except TimeoutError:
-        logger.warning("Forecast deadline exceeded for spot %s; returning known metadata", spot.id)
-    except Exception as e:
-        logger.error(f"Error fetching conditions for {spot.name} via service: {e}")
-    
+    # Fetch real-time conditions and forecast using unified service. A caller WITHOUT an account (the tier clamp set
+    # SIGNED_OUT; owner 2026-11-12 "accounts only", flip blocker 2) gets the spot and its community content only, and
+    # costs the box no forecast computation.
+    if subscription_tier == SIGNED_OUT:
+        withhold_signed_out(spot_data)
+    else:
+        await _fill_forecast(spot_data, spot, subscription_tier, model, api_forecast_days, allow_partial_forecast)
+
     # Get recent reports (last 48 hours)
     reports_result = await db.execute(
         select(SurfReport)
