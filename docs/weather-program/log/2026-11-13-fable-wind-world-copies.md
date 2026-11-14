@@ -4,6 +4,7 @@ Client only. Built ON with kill `window.__RAW_DISABLE_WIND_COPY_CULL__ = true` (
 Separate from #881 (marine). Gate sent to the director at 21:05 EST before building; "build it against your gate exactly as
 written" at 21:12. **Result: parts 2, 3 and 4 pass; part 1's "at least 50% of the wind particle pass" is NOT met (46-53% where
 three copies were drawn, 34-37% where two). Draft PR; the call is the director's.**
+**Later the same evening: gate 1 stays NOT MET; a second gate, pre-registered before new data, PASSED on fresh loads (see Gate history).**
 
 ## What the wind layer did
 `WebGLWindLayer.js` picked the world offsets from the map centre, an estimated span and a padding (commit `769ccac22`,
@@ -70,6 +71,30 @@ The data above may not be used to pass it. Fresh page loads only.
   and heatmap) at the 7 cull views in all three new-arm loads; the antimeridian views draw the needed side and it lights
   pixels; the four pans show 0 frames missing a needed copy. Phone profile: one fresh load per arm for (B).
 - **Fail any part and #882 closes.** If it passes it ships ON with `__RAW_DISABLE_WIND_COPY_CULL__`.
+
+### Gate 2 result (fresh page loads, run 21:35-21:58 EST, after commit `f95f5588e`): PASS
+**(A) At least 0.40 ms per frame saved, median of three old-arm loads, at 4 of 5 views: met at exactly 4 of 5.**
+
+| view | saving in each of the 3 loads (ms; copies skipped) | median | |
+|---|---|---|---|
+| Atlantic z3.2 | 0.523, 0.521, 0.447 (2 copies) | 0.521 | at or above 0.40 |
+| E Pacific z3 | 0.300, 0.267, 0.239 (1 copy) | 0.267 | BELOW 0.40 |
+| Indian z2.8 | 0.526, 0.535, 0.501 (2 copies) | 0.526 | at or above 0.40 |
+| mid-Atlantic z3.4 | 0.525, 0.520, 0.466 (2 copies) | 0.520 | at or above 0.40 |
+| zoom 2 at 0E | 0.526, NO SAMPLES, 0.482 (2 copies) | 0.482 | at or above 0.40 |
+
+- The East Pacific view misses, as could be foreseen before the run: the old rule draws only one extra copy there.
+- At "zoom 2 at 0E" the second load returned no timing samples at all for that view (cause not looked into). It was counted
+  as a saving of 0, the reading least favourable to the change; the median of (0.526, 0, 0.482) is 0.482. Had it been dropped
+  instead the figure would be the mean of two, 0.504. Either way that view is above the line, on two loads, not three.
+- New arm, three fresh loads: one copy drawn at each of the five views in every load.
+
+**(B) Parts 2, 3 and 4 on the same fresh loads: all met.**
+- Copies not drawn light zero pixels, particles and heatmap: 28 checks (7 cull views x 3 desktop loads + 1 phone load), 0 failures.
+- Antimeridian and wide-window views draw every needed copy and it lights pixels: 18 checks, 0 failures.
+- Pans: 0 frames missing a needed copy in 1,971 desktop frames (1,512 needing a side copy) and 657 phone frames (110 needing one).
+
+Not re-measured for gate 2: the old arm's lit pixels (not part of the gate). Still one GPU.
 
 ## Tests
 +27 in `windWorldCopies.test.js`: one copy mid-globe; the side in view and only that side; a sweep of 550 views checking that
