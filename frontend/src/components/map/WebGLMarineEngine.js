@@ -9,7 +9,7 @@
 import { recordTruthStage } from './weatherTruthTracker';
 import { measureMarineCpuPhase, instrumentMarineEngineCpuPhases } from './marineCpuPhaseTiming';
 import { forecastStateIdentityEnabled } from './forecastStateIdentity'; import { applyWaveSetUniforms } from './waveSetScreenBound'; import { syncParticleStateFormat, applyParticleStateUniforms } from './particleState'; import { applyCrestPhaseUniforms } from './crestLocalPhase'; import { applyCrestRankUniforms } from './crestTexelRank'; import { resolveOrbitalPitch, bandMotionScale } from './oneWayCrests';
-import { readMarineSurfMode } from './marineSurfMode'; import { crestDensityCut } from './marineCrestDensity';
+import { readMarineSurfMode } from './marineSurfMode'; import { crestDensityCut } from './marineCrestDensity'; import { worldWrapDecision } from './worldWrapCull';
 import { unpatchedMaskHold } from './marineUnpatchedMaskHold'; import { recordMarineEvent } from './marineForensics'; import { keepMaskPatch, stampMaskPatch } from './maskPatchKeep'; import { uniformLoc } from './glUniformCache'; import { seedConsumeAllowed } from './marineQuietFrames'; import { coarseMaskReuse, noteCoarseMaskUse, releaseCoarseMaskCache } from './marineCoarseMaskCache';   // __RAW_FORENSIC__ ring; 2026-10-23 jank
 import { arbiterDecide } from './marineCommitArbiter'; import { washMatchesResident } from './marineStaleHour';   // ARBITER PHASE B: shadow verdicts at the commit choke; D1 wash time
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { cachedFramebufferStatus, advTeardownNeeded } from './advFboSync';
@@ -512,16 +512,11 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   // stopped at the antimeridian — half the field blanked — while particles kept rendering (their tile spans a
   // whole world regardless). Read the array indices (object form still tolerated), and treat unknown bounds
   // as "wrap" (safe). Kill: __RAW_DISABLE_WRAP_CULL__ (forces wrap always).
-  const _vbWest = Array.isArray(viewportBounds) ? viewportBounds[0] : (viewportBounds ? viewportBounds.west : undefined);
-  const _vbEast = Array.isArray(viewportBounds) ? viewportBounds[2] : (viewportBounds ? viewportBounds.east : undefined);
-  const _vbKnown = (typeof _vbWest === 'number' && typeof _vbEast === 'number');
-  const _needWrap = (typeof window !== 'undefined' && window.__RAW_DISABLE_WRAP_CULL__ === true)
-    || !viewportBounds || !_vbKnown
-    || _vbEast < _vbWest                      // viewport crosses the antimeridian
-    || _vbWest < -170 || _vbEast > 170        // ...or is near it (unwrapped bounds run past ±180)
-    || typeof zoom !== 'number' || zoom < 4;
+  // 2026-11-13: the rule lives in worldWrapCull.js. "zoom < 4" no longer wraps by itself: a low-zoom view that reaches no
+  // world edge draws ONE copy (it drew three, two of them wholly off screen). Kill: __RAW_DISABLE_WRAP_CULL_LOWZOOM__.
+  const _wrap = worldWrapDecision(viewportBounds, zoom); const _needWrap = _wrap.needWrap;
   if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-    window.__RAW_GPU__.wrapCull = { needWrap: _needWrap, vbWest: _vbWest, vbEast: _vbEast, boundsKnown: _vbKnown };
+    window.__RAW_GPU__.wrapCull = { needWrap: _needWrap, vbWest: _wrap.vbWest, vbEast: _wrap.vbEast, boundsKnown: _wrap.boundsKnown, why: _wrap.why };
   }
 
   // ANTIMERIDIAN LNG WRAP for the particle data/mask lookups (2026-07-23) — the root of "crests only on
