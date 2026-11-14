@@ -1,0 +1,5370 @@
+{
+ "prereg": "docs/weather-program/log/2026-11-14-advisor-wind-forcing-prereg.md",
+ "rows_read": 38709,
+ "rows_used": 27820,
+ "seed": 20261114,
+ "draws": 2000,
+ "material_points": 1.0,
+ "cells": [
+  {
+   "coast": "east",
+   "lead": 3,
+   "subset": "all",
+   "rows": 3512,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 6.3427,
+     "m2": 0.6137,
+     "m1c": 6.0648,
+     "m3": 0.8218,
+     "miss": 0.3776,
+     "false_alarm": 0.0202
+    },
+    "H": {
+     "m1": 6.2362,
+     "m2": 0.6272,
+     "m1c": 6.2223,
+     "m3": 0.8065,
+     "miss": 0.3224,
+     "false_alarm": 0.0324
+    },
+    "L": {
+     "m1": 6.5616,
+     "m2": 0.6051,
+     "m1c": 6.4682,
+     "m3": 0.8097,
+     "miss": 0.3551,
+     "false_alarm": 0.0268
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 6.2402,
+     "n": 1760
+    },
+    "L": {
+     "m1": 6.4961,
+     "n": 1760
+    },
+    "B": {
+     "m1": 6.0375,
+     "n": 1760
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 0.2188,
+     "lo": 0.0425,
+     "hi": 0.4008,
+     "n": 3512,
+     "call": "detectable, not material"
+    },
+    "H_minus_G": {
+     "diff": -0.1065,
+     "lo": -0.3107,
+     "hi": 0.094,
+     "n": 3512,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": 0.4034,
+     "lo": 0.1787,
+     "hi": 0.6307,
+     "n": 3512,
+     "call": "detectable, not material"
+    },
+    "B_minus_G_even": {
+     "diff": -0.2027,
+     "lo": -0.3366,
+     "hi": -0.081,
+     "n": 1760,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.4586,
+     "lo": -0.6116,
+     "hi": -0.3039,
+     "n": 1760,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.1118,
+     "lo": -0.0057,
+     "hi": 0.2316,
+     "n": 3512,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.0375,
+     "lo": -0.4036,
+     "hi": 0.5566,
+     "n": 3512,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1556,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "east",
+   "lead": 3,
+   "subset": "coastal",
+   "rows": 2722,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 6.788,
+     "m2": 0.5922,
+     "m1c": 6.435,
+     "m3": 0.8151,
+     "miss": 0.4026,
+     "false_alarm": 0.0145
+    },
+    "H": {
+     "m1": 6.4312,
+     "m2": 0.6191,
+     "m1c": 6.4997,
+     "m3": 0.8067,
+     "miss": 0.3267,
+     "false_alarm": 0.0265
+    },
+    "L": {
+     "m1": 6.9049,
+     "m2": 0.5889,
+     "m1c": 6.8534,
+     "m3": 0.8094,
+     "miss": 0.3993,
+     "false_alarm": 0.0194
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 6.6714,
+     "n": 1366
+    },
+    "L": {
+     "m1": 6.858,
+     "n": 1366
+    },
+    "B": {
+     "m1": 6.4236,
+     "n": 1366
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 0.1168,
+     "lo": -0.081,
+     "hi": 0.3164,
+     "n": 2722,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": -0.3569,
+     "lo": -0.6131,
+     "hi": -0.1074,
+     "n": 2722,
+     "call": "detectable, not material"
+    },
+    "L_minus_G_facing": {
+     "diff": 0.4184,
+     "lo": 0.1763,
+     "hi": 0.6806,
+     "n": 2722,
+     "call": "detectable, not material"
+    },
+    "B_minus_G_even": {
+     "diff": -0.2478,
+     "lo": -0.4015,
+     "hi": -0.1033,
+     "n": 1366,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.4344,
+     "lo": -0.6102,
+     "hi": -0.2571,
+     "n": 1366,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.1295,
+     "lo": 0.0099,
+     "hi": 0.2495,
+     "n": 2722,
+     "call": "detectable, not material",
+     "includes_zero": false
+    },
+    "C2_plus3kn": {
+     "diff": -0.2319,
+     "lo": -0.6982,
+     "hi": 0.3109,
+     "n": 2722,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1582,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "east",
+   "lead": 3,
+   "subset": "offshore",
+   "rows": 790,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 4.8083,
+     "m2": 0.6877,
+     "m1c": 4.7891,
+     "m3": 0.8443,
+     "miss": 0.3369,
+     "false_alarm": 0.0431
+    },
+    "H": {
+     "m1": 5.5643,
+     "m2": 0.6553,
+     "m1c": 5.2667,
+     "m3": 0.8057,
+     "miss": 0.3155,
+     "false_alarm": 0.0564
+    },
+    "L": {
+     "m1": 5.3786,
+     "m2": 0.661,
+     "m1c": 5.1409,
+     "m3": 0.8108,
+     "miss": 0.2834,
+     "false_alarm": 0.0564
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 4.7453,
+     "n": 394
+    },
+    "L": {
+     "m1": 5.2414,
+     "n": 394
+    },
+    "B": {
+     "m1": 4.6988,
+     "n": 394
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 0.5703,
+     "lo": 0.2662,
+     "hi": 0.8595,
+     "n": 790,
+     "call": "detectable, not material"
+    },
+    "H_minus_G": {
+     "diff": 0.7561,
+     "lo": 0.422,
+     "hi": 1.1013,
+     "n": 790,
+     "call": "detectable, not material"
+    },
+    "L_minus_G_facing": {
+     "diff": 0.3518,
+     "lo": -0.083,
+     "hi": 0.7516,
+     "n": 790,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.0465,
+     "lo": -0.2246,
+     "hi": 0.1038,
+     "n": 394,
+     "call": "no difference shown"
+    },
+    "B_minus_L_even": {
+     "diff": -0.5425,
+     "lo": -0.7431,
+     "hi": -0.3404,
+     "n": 394,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.0506,
+     "lo": -0.2501,
+     "hi": 0.337,
+     "n": 790,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.9656,
+     "lo": 0.4352,
+     "hi": 1.5137,
+     "n": 790,
+     "call": "detectable, not material",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1467,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "east",
+   "lead": 12,
+   "subset": "all",
+   "rows": 3513,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 6.8548,
+     "m2": 0.5945,
+     "m1c": 6.5947,
+     "m3": 0.7981,
+     "miss": 0.2927,
+     "false_alarm": 0.0276
+    },
+    "H": {
+     "m1": 6.4687,
+     "m2": 0.6146,
+     "m1c": 6.3164,
+     "m3": 0.7928,
+     "miss": 0.3333,
+     "false_alarm": 0.0292
+    },
+    "L": {
+     "m1": 6.6472,
+     "m2": 0.5978,
+     "m1c": 6.404,
+     "m3": 0.7996,
+     "miss": 0.3654,
+     "false_alarm": 0.019
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 7.0007,
+     "n": 1761
+    },
+    "L": {
+     "m1": 6.7586,
+     "n": 1761
+    },
+    "B": {
+     "m1": 6.5082,
+     "n": 1761
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.2075,
+     "lo": -0.4171,
+     "hi": 0.0038,
+     "n": 3513,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": -0.3861,
+     "lo": -0.6023,
+     "hi": -0.1874,
+     "n": 3513,
+     "call": "detectable, not material"
+    },
+    "L_minus_G_facing": {
+     "diff": -0.1907,
+     "lo": -0.415,
+     "hi": 0.0193,
+     "n": 3513,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.4925,
+     "lo": -0.6967,
+     "hi": -0.3032,
+     "n": 1761,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.2504,
+     "lo": -0.3635,
+     "hi": -0.1367,
+     "n": 1761,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": -0.043,
+     "lo": -0.1622,
+     "hi": 0.0633,
+     "n": 3513,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.2674,
+     "lo": -0.2124,
+     "hi": 0.8366,
+     "n": 3513,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": 0.15,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "east",
+   "lead": 12,
+   "subset": "coastal",
+   "rows": 2723,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 7.3217,
+     "m2": 0.5729,
+     "m1c": 7.0239,
+     "m3": 0.7878,
+     "miss": 0.311,
+     "false_alarm": 0.0205
+    },
+    "H": {
+     "m1": 6.7239,
+     "m2": 0.6043,
+     "m1c": 6.6113,
+     "m3": 0.7829,
+     "miss": 0.3322,
+     "false_alarm": 0.0275
+    },
+    "L": {
+     "m1": 7.0291,
+     "m2": 0.5801,
+     "m1c": 6.8139,
+     "m3": 0.7913,
+     "miss": 0.4028,
+     "false_alarm": 0.0148
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 7.5111,
+     "n": 1365
+    },
+    "L": {
+     "m1": 7.2409,
+     "n": 1365
+    },
+    "B": {
+     "m1": 6.9991,
+     "n": 1365
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.2926,
+     "lo": -0.5065,
+     "hi": -0.088,
+     "n": 2723,
+     "call": "detectable, not material"
+    },
+    "H_minus_G": {
+     "diff": -0.5978,
+     "lo": -0.8122,
+     "hi": -0.3856,
+     "n": 2723,
+     "call": "detectable, not material"
+    },
+    "L_minus_G_facing": {
+     "diff": -0.2101,
+     "lo": -0.4457,
+     "hi": 0.0167,
+     "n": 2723,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.512,
+     "lo": -0.7248,
+     "hi": -0.319,
+     "n": 1365,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.2418,
+     "lo": -0.3595,
+     "hi": -0.1217,
+     "n": 1365,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": -0.0745,
+     "lo": -0.2045,
+     "hi": 0.052,
+     "n": 2723,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.0051,
+     "lo": -0.4969,
+     "hi": 0.5979,
+     "n": 2723,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": 0.151,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "east",
+   "lead": 12,
+   "subset": "offshore",
+   "rows": 790,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 5.2453,
+     "m2": 0.6689,
+     "m1c": 5.1151,
+     "m3": 0.8327,
+     "miss": 0.2649,
+     "false_alarm": 0.0562
+    },
+    "H": {
+     "m1": 5.5889,
+     "m2": 0.6502,
+     "m1c": 5.2996,
+     "m3": 0.8263,
+     "miss": 0.3351,
+     "false_alarm": 0.0364
+    },
+    "L": {
+     "m1": 5.331,
+     "m2": 0.6587,
+     "m1c": 4.9911,
+     "m3": 0.8275,
+     "miss": 0.3081,
+     "false_alarm": 0.0364
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 5.2414,
+     "n": 396
+    },
+    "L": {
+     "m1": 5.0961,
+     "n": 396
+    },
+    "B": {
+     "m1": 4.8161,
+     "n": 396
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 0.0857,
+     "lo": -0.2553,
+     "hi": 0.4089,
+     "n": 790,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": 0.3435,
+     "lo": -0.0114,
+     "hi": 0.6822,
+     "n": 790,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": -0.1239,
+     "lo": -0.478,
+     "hi": 0.192,
+     "n": 790,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.4254,
+     "lo": -0.6778,
+     "hi": -0.18,
+     "n": 396,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.28,
+     "lo": -0.5073,
+     "hi": -0.0646,
+     "n": 396,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.0654,
+     "lo": -0.1788,
+     "hi": 0.2844,
+     "n": 790,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 1.1711,
+     "lo": 0.6557,
+     "hi": 1.7356,
+     "n": 790,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1467,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "east",
+   "lead": 24,
+   "subset": "all",
+   "rows": 3515,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 7.1125,
+     "m2": 0.5813,
+     "m1c": 6.8427,
+     "m3": 0.8002,
+     "miss": 0.3197,
+     "false_alarm": 0.0269
+    },
+    "H": {
+     "m1": 6.7508,
+     "m2": 0.6082,
+     "m1c": 6.6542,
+     "m3": 0.787,
+     "miss": 0.3047,
+     "false_alarm": 0.0335
+    },
+    "L": {
+     "m1": 6.8159,
+     "m2": 0.5946,
+     "m1c": 6.5652,
+     "m3": 0.7955,
+     "miss": 0.3498,
+     "false_alarm": 0.0239
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 7.1231,
+     "n": 1750
+    },
+    "L": {
+     "m1": 6.7834,
+     "n": 1750
+    },
+    "B": {
+     "m1": 6.547,
+     "n": 1750
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.2966,
+     "lo": -0.4591,
+     "hi": -0.1136,
+     "n": 3515,
+     "call": "detectable, not material"
+    },
+    "H_minus_G": {
+     "diff": -0.3617,
+     "lo": -0.6109,
+     "hi": -0.0893,
+     "n": 3515,
+     "call": "detectable, not material"
+    },
+    "L_minus_G_facing": {
+     "diff": -0.2775,
+     "lo": -0.4815,
+     "hi": -0.0668,
+     "n": 3515,
+     "call": "detectable, not material"
+    },
+    "B_minus_G_even": {
+     "diff": -0.576,
+     "lo": -0.6808,
+     "hi": -0.4526,
+     "n": 1750,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.2364,
+     "lo": -0.4052,
+     "hi": -0.1031,
+     "n": 1750,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": -0.1198,
+     "lo": -0.2925,
+     "hi": 0.0379,
+     "n": 3515,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.2286,
+     "lo": -0.2278,
+     "hi": 0.7606,
+     "n": 3515,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": 0.157,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "east",
+   "lead": 24,
+   "subset": "coastal",
+   "rows": 2725,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 7.5524,
+     "m2": 0.5606,
+     "m1c": 7.2808,
+     "m3": 0.7879,
+     "miss": 0.3404,
+     "false_alarm": 0.0225
+    },
+    "H": {
+     "m1": 7.043,
+     "m2": 0.5975,
+     "m1c": 6.9687,
+     "m3": 0.7772,
+     "miss": 0.3085,
+     "false_alarm": 0.0303
+    },
+    "L": {
+     "m1": 7.1879,
+     "m2": 0.5777,
+     "m1c": 6.9212,
+     "m3": 0.7879,
+     "miss": 0.4043,
+     "false_alarm": 0.0188
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 7.6242,
+     "n": 1358
+    },
+    "L": {
+     "m1": 7.1751,
+     "n": 1358
+    },
+    "B": {
+     "m1": 6.9746,
+     "n": 1358
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.3645,
+     "lo": -0.5498,
+     "hi": -0.1606,
+     "n": 2725,
+     "call": "detectable, not material"
+    },
+    "H_minus_G": {
+     "diff": -0.5094,
+     "lo": -0.7966,
+     "hi": -0.2113,
+     "n": 2725,
+     "call": "detectable, not material"
+    },
+    "L_minus_G_facing": {
+     "diff": -0.3596,
+     "lo": -0.6021,
+     "hi": -0.1067,
+     "n": 2725,
+     "call": "detectable, not material"
+    },
+    "B_minus_G_even": {
+     "diff": -0.6495,
+     "lo": -0.7806,
+     "hi": -0.5076,
+     "n": 1358,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.2005,
+     "lo": -0.3759,
+     "hi": -0.0768,
+     "n": 1358,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": -0.0647,
+     "lo": -0.2749,
+     "hi": 0.1318,
+     "n": 2725,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": -0.0264,
+     "lo": -0.5359,
+     "hi": 0.5636,
+     "n": 2725,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1574,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "east",
+   "lead": 24,
+   "subset": "offshore",
+   "rows": 790,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 5.5951,
+     "m2": 0.6528,
+     "m1c": 5.3314,
+     "m3": 0.8417,
+     "miss": 0.288,
+     "false_alarm": 0.0446
+    },
+    "H": {
+     "m1": 5.7427,
+     "m2": 0.6453,
+     "m1c": 5.5694,
+     "m3": 0.8198,
+     "miss": 0.2989,
+     "false_alarm": 0.0462
+    },
+    "L": {
+     "m1": 5.533,
+     "m2": 0.653,
+     "m1c": 5.3372,
+     "m3": 0.8211,
+     "miss": 0.2663,
+     "false_alarm": 0.0446
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 5.3872,
+     "n": 392
+    },
+    "L": {
+     "m1": 5.4265,
+     "n": 392
+    },
+    "B": {
+     "m1": 5.0657,
+     "n": 392
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.0621,
+     "lo": -0.3609,
+     "hi": 0.2629,
+     "n": 790,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": 0.1475,
+     "lo": -0.176,
+     "hi": 0.4964,
+     "n": 790,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": 0.0059,
+     "lo": -0.3313,
+     "hi": 0.3363,
+     "n": 790,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.3215,
+     "lo": -0.5537,
+     "hi": -0.0993,
+     "n": 392,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.3608,
+     "lo": -0.5933,
+     "hi": -0.1289,
+     "n": 392,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": -0.3098,
+     "lo": -0.4929,
+     "hi": -0.1225,
+     "n": 790,
+     "call": "detectable, not material",
+     "includes_zero": false
+    },
+    "C2_plus3kn": {
+     "diff": 1.108,
+     "lo": 0.6418,
+     "hi": 1.5749,
+     "n": 790,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1557,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "east",
+   "lead": 36,
+   "subset": "all",
+   "rows": 3515,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 7.4045,
+     "m2": 0.5708,
+     "m1c": 7.0982,
+     "m3": 0.7938,
+     "miss": 0.3283,
+     "false_alarm": 0.0269
+    },
+    "H": {
+     "m1": 7.1298,
+     "m2": 0.5935,
+     "m1c": 7.0382,
+     "m3": 0.7893,
+     "miss": 0.3026,
+     "false_alarm": 0.0436
+    },
+    "L": {
+     "m1": 7.1276,
+     "m2": 0.5855,
+     "m1c": 6.9561,
+     "m3": 0.7867,
+     "miss": 0.3369,
+     "false_alarm": 0.0308
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 7.2635,
+     "n": 1754
+    },
+    "L": {
+     "m1": 6.9514,
+     "n": 1754
+    },
+    "B": {
+     "m1": 6.6361,
+     "n": 1754
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.277,
+     "lo": -0.5706,
+     "hi": 0.0606,
+     "n": 3515,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": -0.2747,
+     "lo": -0.6268,
+     "hi": 0.078,
+     "n": 3515,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": -0.1421,
+     "lo": -0.478,
+     "hi": 0.221,
+     "n": 3515,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.6275,
+     "lo": -0.8138,
+     "hi": -0.4583,
+     "n": 1754,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.3153,
+     "lo": -0.5556,
+     "hi": -0.0972,
+     "n": 1754,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": -0.0101,
+     "lo": -0.1688,
+     "hi": 0.1554,
+     "n": 3515,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.186,
+     "lo": -0.2893,
+     "hi": 0.7186,
+     "n": 3515,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1547,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "east",
+   "lead": 36,
+   "subset": "coastal",
+   "rows": 2725,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 7.8209,
+     "m2": 0.5529,
+     "m1c": 7.5163,
+     "m3": 0.7845,
+     "miss": 0.3546,
+     "false_alarm": 0.0237
+    },
+    "H": {
+     "m1": 7.4453,
+     "m2": 0.5825,
+     "m1c": 7.3987,
+     "m3": 0.778,
+     "miss": 0.3298,
+     "false_alarm": 0.0418
+    },
+    "L": {
+     "m1": 7.5073,
+     "m2": 0.571,
+     "m1c": 7.3495,
+     "m3": 0.7738,
+     "miss": 0.3936,
+     "false_alarm": 0.025
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 7.5767,
+     "n": 1360
+    },
+    "L": {
+     "m1": 7.2065,
+     "n": 1360
+    },
+    "B": {
+     "m1": 6.907,
+     "n": 1360
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.3135,
+     "lo": -0.679,
+     "hi": 0.117,
+     "n": 2725,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": -0.3756,
+     "lo": -0.7935,
+     "hi": 0.0767,
+     "n": 2725,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": -0.1668,
+     "lo": -0.5742,
+     "hi": 0.2914,
+     "n": 2725,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.6697,
+     "lo": -0.9012,
+     "hi": -0.4464,
+     "n": 1360,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.2994,
+     "lo": -0.5942,
+     "hi": -0.0431,
+     "n": 1360,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.0988,
+     "lo": -0.0961,
+     "hi": 0.2835,
+     "n": 2725,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": -0.0403,
+     "lo": -0.5597,
+     "hi": 0.5414,
+     "n": 2725,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1544,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "east",
+   "lead": 36,
+   "subset": "offshore",
+   "rows": 790,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 5.9685,
+     "m2": 0.6326,
+     "m1c": 5.6559,
+     "m3": 0.825,
+     "miss": 0.288,
+     "false_alarm": 0.0396
+    },
+    "H": {
+     "m1": 6.0417,
+     "m2": 0.6313,
+     "m1c": 5.7947,
+     "m3": 0.8275,
+     "miss": 0.2609,
+     "false_alarm": 0.0512
+    },
+    "L": {
+     "m1": 5.8176,
+     "m2": 0.6353,
+     "m1c": 5.5991,
+     "m3": 0.8301,
+     "miss": 0.25,
+     "false_alarm": 0.0545
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 6.1825,
+     "n": 394
+    },
+    "L": {
+     "m1": 6.0708,
+     "n": 394
+    },
+    "B": {
+     "m1": 5.7007,
+     "n": 394
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.1509,
+     "lo": -0.5075,
+     "hi": 0.1601,
+     "n": 790,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": 0.0733,
+     "lo": -0.2879,
+     "hi": 0.385,
+     "n": 790,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": -0.0568,
+     "lo": -0.432,
+     "hi": 0.265,
+     "n": 790,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.4818,
+     "lo": -0.714,
+     "hi": -0.2669,
+     "n": 394,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.3701,
+     "lo": -0.636,
+     "hi": -0.1434,
+     "n": 394,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": -0.386,
+     "lo": -0.6051,
+     "hi": -0.1652,
+     "n": 790,
+     "call": "detectable, not material",
+     "includes_zero": false
+    },
+    "C2_plus3kn": {
+     "diff": 0.9664,
+     "lo": 0.4773,
+     "hi": 1.4755,
+     "n": 790,
+     "call": "detectable, not material",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1557,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "gulf",
+   "lead": 3,
+   "subset": "all",
+   "rows": 397,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 4.8714,
+     "m2": 0.6806,
+     "m1c": 4.4178,
+     "m3": 0.8229,
+     "miss": 1.0,
+     "false_alarm": 0.0
+    },
+    "H": {
+     "m1": 4.8927,
+     "m2": 0.6882,
+     "m1c": 5.0542,
+     "m3": 0.8047,
+     "miss": 0.0,
+     "false_alarm": 0.0025
+    },
+    "L": {
+     "m1": 4.851,
+     "m2": 0.6925,
+     "m1c": 4.777,
+     "m3": 0.8099,
+     "miss": 0.0,
+     "false_alarm": 0.0025
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 4.6878,
+     "n": 199
+    },
+    "L": {
+     "m1": 4.7221,
+     "n": 199
+    },
+    "B": {
+     "m1": 4.366,
+     "n": 199
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.0204,
+     "lo": -0.3269,
+     "hi": 0.3157,
+     "n": 397,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": 0.0213,
+     "lo": -0.3151,
+     "hi": 0.3947,
+     "n": 397,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": 0.3592,
+     "lo": -0.0496,
+     "hi": 0.8158,
+     "n": 397,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.3218,
+     "lo": -0.5363,
+     "hi": -0.1018,
+     "n": 199,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.3561,
+     "lo": -0.6051,
+     "hi": -0.1297,
+     "n": 199,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": -0.0903,
+     "lo": -0.42,
+     "hi": 0.2289,
+     "n": 397,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.3595,
+     "lo": -0.2537,
+     "hi": 1.0091,
+     "n": 397,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1484,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "gulf",
+   "lead": 3,
+   "subset": "coastal",
+   "rows": 198,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 6.2253,
+     "m2": 0.6002,
+     "m1c": 5.282,
+     "m3": 0.75,
+     "miss": null,
+     "false_alarm": 0.0
+    },
+    "H": {
+     "m1": 5.5597,
+     "m2": 0.6465,
+     "m1c": 5.5956,
+     "m3": 0.7713,
+     "miss": null,
+     "false_alarm": 0.0
+    },
+    "L": {
+     "m1": 5.626,
+     "m2": 0.6446,
+     "m1c": 5.2133,
+     "m3": 0.7872,
+     "miss": null,
+     "false_alarm": 0.0
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 5.9448,
+     "n": 99
+    },
+    "L": {
+     "m1": 5.2913,
+     "n": 99
+    },
+    "B": {
+     "m1": 5.2668,
+     "n": 99
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.5993,
+     "lo": -1.1408,
+     "hi": -0.023,
+     "n": 198,
+     "call": "detectable, not material"
+    },
+    "H_minus_G": {
+     "diff": -0.6657,
+     "lo": -1.2961,
+     "hi": 0.0279,
+     "n": 198,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": -0.0687,
+     "lo": -0.6852,
+     "hi": 0.6145,
+     "n": 198,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.678,
+     "lo": -1.0237,
+     "hi": -0.317,
+     "n": 99,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.0245,
+     "lo": -0.4903,
+     "hi": 0.3646,
+     "n": 99,
+     "call": "no difference shown"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": -0.0312,
+     "lo": -0.5117,
+     "hi": 0.4621,
+     "n": 198,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": -0.0177,
+     "lo": -0.7755,
+     "hi": 0.7959,
+     "n": 198,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1702,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "gulf",
+   "lead": 3,
+   "subset": "offshore",
+   "rows": 199,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 3.5243,
+     "m2": 0.7607,
+     "m1c": 3.558,
+     "m3": 0.8929,
+     "miss": 1.0,
+     "false_alarm": 0.0
+    },
+    "H": {
+     "m1": 4.2291,
+     "m2": 0.7297,
+     "m1c": 4.5154,
+     "m3": 0.8367,
+     "miss": 0.0,
+     "false_alarm": 0.0051
+    },
+    "L": {
+     "m1": 4.0799,
+     "m2": 0.7402,
+     "m1c": 4.3429,
+     "m3": 0.8316,
+     "miss": 0.0,
+     "false_alarm": 0.0051
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 3.4432,
+     "n": 100
+    },
+    "L": {
+     "m1": 4.1587,
+     "n": 100
+    },
+    "B": {
+     "m1": 3.4742,
+     "n": 100
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 0.5555,
+     "lo": 0.1717,
+     "hi": 0.9802,
+     "n": 199,
+     "call": "detectable, not material"
+    },
+    "H_minus_G": {
+     "diff": 0.7048,
+     "lo": 0.2904,
+     "hi": 1.1654,
+     "n": 199,
+     "call": "detectable, not material"
+    },
+    "L_minus_G_facing": {
+     "diff": 0.7849,
+     "lo": 0.3268,
+     "hi": 1.2441,
+     "n": 199,
+     "call": "detectable, not material"
+    },
+    "B_minus_G_even": {
+     "diff": 0.031,
+     "lo": -0.2594,
+     "hi": 0.3326,
+     "n": 100,
+     "call": "no difference shown"
+    },
+    "B_minus_L_even": {
+     "diff": -0.6845,
+     "lo": -0.9563,
+     "hi": -0.4431,
+     "n": 100,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": -0.1491,
+     "lo": -0.5184,
+     "hi": 0.2002,
+     "n": 199,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.7349,
+     "lo": -0.1348,
+     "hi": 1.7409,
+     "n": 199,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1276,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "gulf",
+   "lead": 12,
+   "subset": "all",
+   "rows": 396,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 5.6332,
+     "m2": 0.6461,
+     "m1c": 5.5077,
+     "m3": 0.7636,
+     "miss": 1.0,
+     "false_alarm": 0.0
+    },
+    "H": {
+     "m1": 5.4621,
+     "m2": 0.6637,
+     "m1c": 5.8561,
+     "m3": 0.7688,
+     "miss": 0.5,
+     "false_alarm": 0.0
+    },
+    "L": {
+     "m1": 5.4042,
+     "m2": 0.6657,
+     "m1c": 5.5035,
+     "m3": 0.7818,
+     "miss": 0.5,
+     "false_alarm": 0.0
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 5.5408,
+     "n": 199
+    },
+    "L": {
+     "m1": 5.8021,
+     "n": 199
+    },
+    "B": {
+     "m1": 5.3542,
+     "n": 199
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.229,
+     "lo": -0.5804,
+     "hi": 0.1622,
+     "n": 396,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": -0.1711,
+     "lo": -0.5605,
+     "hi": 0.2385,
+     "n": 396,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": -0.0042,
+     "lo": -0.6125,
+     "hi": 0.6859,
+     "n": 396,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.1866,
+     "lo": -0.5531,
+     "hi": 0.182,
+     "n": 199,
+     "call": "no difference shown"
+    },
+    "B_minus_L_even": {
+     "diff": -0.4479,
+     "lo": -0.7454,
+     "hi": -0.2065,
+     "n": 199,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.0317,
+     "lo": -0.3499,
+     "hi": 0.4293,
+     "n": 396,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.6532,
+     "lo": -0.0061,
+     "hi": 1.3683,
+     "n": 396,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1455,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "gulf",
+   "lead": 12,
+   "subset": "coastal",
+   "rows": 199,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 7.3187,
+     "m2": 0.5521,
+     "m1c": 6.7538,
+     "m3": 0.6477,
+     "miss": null,
+     "false_alarm": 0.0
+    },
+    "H": {
+     "m1": 7.0313,
+     "m2": 0.5838,
+     "m1c": 7.5692,
+     "m3": 0.6684,
+     "miss": null,
+     "false_alarm": 0.0
+    },
+    "L": {
+     "m1": 6.9901,
+     "m2": 0.5825,
+     "m1c": 6.9353,
+     "m3": 0.6788,
+     "miss": null,
+     "false_alarm": 0.0
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 7.2564,
+     "n": 100
+    },
+    "L": {
+     "m1": 7.6029,
+     "n": 100
+    },
+    "B": {
+     "m1": 7.1147,
+     "n": 100
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.3286,
+     "lo": -0.846,
+     "hi": 0.2445,
+     "n": 199,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": -0.2873,
+     "lo": -0.9004,
+     "hi": 0.4097,
+     "n": 199,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": 0.1816,
+     "lo": -0.703,
+     "hi": 1.1114,
+     "n": 199,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.1417,
+     "lo": -0.7422,
+     "hi": 0.4702,
+     "n": 100,
+     "call": "no difference shown"
+    },
+    "B_minus_L_even": {
+     "diff": -0.4881,
+     "lo": -0.9737,
+     "hi": -0.0904,
+     "n": 100,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.0298,
+     "lo": -0.6057,
+     "hi": 0.6857,
+     "n": 199,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.0025,
+     "lo": -0.7948,
+     "hi": 0.8193,
+     "n": 199,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1503,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "gulf",
+   "lead": 12,
+   "subset": "offshore",
+   "rows": 197,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 3.9307,
+     "m2": 0.7411,
+     "m1c": 4.2489,
+     "m3": 0.8802,
+     "miss": 1.0,
+     "false_alarm": 0.0
+    },
+    "H": {
+     "m1": 3.8769,
+     "m2": 0.7445,
+     "m1c": 4.1257,
+     "m3": 0.8698,
+     "miss": 0.5,
+     "false_alarm": 0.0
+    },
+    "L": {
+     "m1": 3.8023,
+     "m2": 0.7498,
+     "m1c": 4.057,
+     "m3": 0.8854,
+     "miss": 0.5,
+     "false_alarm": 0.0
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 3.8079,
+     "n": 99
+    },
+    "L": {
+     "m1": 3.9831,
+     "n": 99
+    },
+    "B": {
+     "m1": 3.5758,
+     "n": 99
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.1284,
+     "lo": -0.6791,
+     "hi": 0.639,
+     "n": 197,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": -0.0538,
+     "lo": -0.6335,
+     "hi": 0.7411,
+     "n": 197,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": -0.1919,
+     "lo": -1.1044,
+     "hi": 1.0643,
+     "n": 197,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.232,
+     "lo": -0.7056,
+     "hi": 0.2645,
+     "n": 99,
+     "call": "no difference shown"
+    },
+    "B_minus_L_even": {
+     "diff": -0.4073,
+     "lo": -0.7319,
+     "hi": -0.1307,
+     "n": 99,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.0337,
+     "lo": -0.2805,
+     "hi": 0.3218,
+     "n": 197,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 1.3106,
+     "lo": 0.3563,
+     "hi": 2.4042,
+     "n": 197,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1406,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "gulf",
+   "lead": 24,
+   "subset": "all",
+   "rows": 396,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 5.9992,
+     "m2": 0.6236,
+     "m1c": 6.1673,
+     "m3": 0.7922,
+     "miss": 1.0,
+     "false_alarm": 0.0
+    },
+    "H": {
+     "m1": 6.0016,
+     "m2": 0.6409,
+     "m1c": 6.5671,
+     "m3": 0.7792,
+     "miss": 1.0,
+     "false_alarm": 0.0025
+    },
+    "L": {
+     "m1": 5.8798,
+     "m2": 0.6413,
+     "m1c": 6.1335,
+     "m3": 0.7818,
+     "miss": 1.0,
+     "false_alarm": 0.0
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 6.1436,
+     "n": 196
+    },
+    "L": {
+     "m1": 5.8247,
+     "n": 196
+    },
+    "B": {
+     "m1": 5.5537,
+     "n": 196
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.1194,
+     "lo": -0.6838,
+     "hi": 0.5043,
+     "n": 396,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": 0.0024,
+     "lo": -0.5474,
+     "hi": 0.5859,
+     "n": 396,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": -0.0338,
+     "lo": -0.5781,
+     "hi": 0.5704,
+     "n": 396,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.5899,
+     "lo": -1.0319,
+     "hi": -0.1814,
+     "n": 196,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.271,
+     "lo": -0.6222,
+     "hi": 0.0786,
+     "n": 196,
+     "call": "no difference shown"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.1234,
+     "lo": -0.2952,
+     "hi": 0.5396,
+     "n": 396,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.6596,
+     "lo": -0.0203,
+     "hi": 1.3696,
+     "n": 396,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1377,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "gulf",
+   "lead": 24,
+   "subset": "coastal",
+   "rows": 199,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 7.5213,
+     "m2": 0.5475,
+     "m1c": 7.5436,
+     "m3": 0.7098,
+     "miss": null,
+     "false_alarm": 0.0
+    },
+    "H": {
+     "m1": 7.5527,
+     "m2": 0.5649,
+     "m1c": 8.3873,
+     "m3": 0.715,
+     "miss": null,
+     "false_alarm": 0.0
+    },
+    "L": {
+     "m1": 7.42,
+     "m2": 0.5603,
+     "m1c": 7.6933,
+     "m3": 0.7098,
+     "miss": null,
+     "false_alarm": 0.0
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 7.8672,
+     "n": 99
+    },
+    "L": {
+     "m1": 7.2816,
+     "n": 99
+    },
+    "B": {
+     "m1": 7.0937,
+     "n": 99
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.1014,
+     "lo": -0.813,
+     "hi": 0.687,
+     "n": 199,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": 0.0314,
+     "lo": -0.6778,
+     "hi": 0.7662,
+     "n": 199,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": 0.1497,
+     "lo": -0.6742,
+     "hi": 0.9917,
+     "n": 199,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.7735,
+     "lo": -1.458,
+     "hi": -0.1782,
+     "n": 99,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.1879,
+     "lo": -0.7786,
+     "hi": 0.3653,
+     "n": 99,
+     "call": "no difference shown"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.1995,
+     "lo": -0.3839,
+     "hi": 0.8139,
+     "n": 199,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.0025,
+     "lo": -0.8717,
+     "hi": 0.7998,
+     "n": 199,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1606,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "gulf",
+   "lead": 24,
+   "subset": "offshore",
+   "rows": 197,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 4.4617,
+     "m2": 0.7005,
+     "m1c": 4.777,
+     "m3": 0.875,
+     "miss": 1.0,
+     "false_alarm": 0.0
+    },
+    "H": {
+     "m1": 4.4346,
+     "m2": 0.7176,
+     "m1c": 4.7284,
+     "m3": 0.8438,
+     "miss": 1.0,
+     "false_alarm": 0.0051
+    },
+    "L": {
+     "m1": 4.324,
+     "m2": 0.7231,
+     "m1c": 4.5579,
+     "m3": 0.8542,
+     "miss": 1.0,
+     "false_alarm": 0.0
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 4.3845,
+     "n": 97
+    },
+    "L": {
+     "m1": 4.3377,
+     "n": 97
+    },
+    "B": {
+     "m1": 3.9819,
+     "n": 97
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.1377,
+     "lo": -0.7268,
+     "hi": 0.5398,
+     "n": 197,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": -0.027,
+     "lo": -0.5995,
+     "hi": 0.6061,
+     "n": 197,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": -0.2191,
+     "lo": -0.7744,
+     "hi": 0.3815,
+     "n": 197,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.4026,
+     "lo": -0.8523,
+     "hi": 0.0291,
+     "n": 97,
+     "call": "no difference shown"
+    },
+    "B_minus_L_even": {
+     "diff": -0.3558,
+     "lo": -0.715,
+     "hi": -0.0214,
+     "n": 97,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.0465,
+     "lo": -0.4164,
+     "hi": 0.499,
+     "n": 197,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 1.3235,
+     "lo": 0.4428,
+     "hi": 2.3188,
+     "n": 197,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1146,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "gulf",
+   "lead": 36,
+   "subset": "all",
+   "rows": 396,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 6.1075,
+     "m2": 0.6263,
+     "m1c": 6.3827,
+     "m3": 0.763,
+     "miss": 1.0,
+     "false_alarm": 0.0
+    },
+    "H": {
+     "m1": 6.1522,
+     "m2": 0.632,
+     "m1c": 6.0735,
+     "m3": 0.7812,
+     "miss": 1.0,
+     "false_alarm": 0.0025
+    },
+    "L": {
+     "m1": 5.9697,
+     "m2": 0.6362,
+     "m1c": 5.6924,
+     "m3": 0.7891,
+     "miss": 1.0,
+     "false_alarm": 0.0
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 6.1719,
+     "n": 197
+    },
+    "L": {
+     "m1": 5.926,
+     "n": 197
+    },
+    "B": {
+     "m1": 5.734,
+     "n": 197
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.1378,
+     "lo": -0.6612,
+     "hi": 0.5129,
+     "n": 396,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": 0.0447,
+     "lo": -0.5129,
+     "hi": 0.7264,
+     "n": 396,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": -0.6902,
+     "lo": -1.183,
+     "hi": -0.161,
+     "n": 396,
+     "call": "detectable, not material"
+    },
+    "B_minus_G_even": {
+     "diff": -0.4379,
+     "lo": -0.9166,
+     "hi": 0.1807,
+     "n": 197,
+     "call": "no difference shown"
+    },
+    "B_minus_L_even": {
+     "diff": -0.1921,
+     "lo": -0.6539,
+     "hi": 0.231,
+     "n": 197,
+     "call": "no difference shown"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": -0.0076,
+     "lo": -0.3424,
+     "hi": 0.3289,
+     "n": 396,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.8309,
+     "lo": 0.1352,
+     "hi": 1.6447,
+     "n": 396,
+     "call": "detectable, not material",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.138,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "gulf",
+   "lead": 36,
+   "subset": "coastal",
+   "rows": 199,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 7.7795,
+     "m2": 0.54,
+     "m1c": 8.0045,
+     "m3": 0.6736,
+     "miss": null,
+     "false_alarm": 0.0
+    },
+    "H": {
+     "m1": 7.7028,
+     "m2": 0.5607,
+     "m1c": 7.6972,
+     "m3": 0.6788,
+     "miss": null,
+     "false_alarm": 0.005
+    },
+    "L": {
+     "m1": 7.5155,
+     "m2": 0.5616,
+     "m1c": 7.063,
+     "m3": 0.6943,
+     "miss": null,
+     "false_alarm": 0.0
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 7.6518,
+     "n": 99
+    },
+    "L": {
+     "m1": 7.3286,
+     "n": 99
+    },
+    "B": {
+     "m1": 7.1816,
+     "n": 99
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.264,
+     "lo": -0.9584,
+     "hi": 0.5207,
+     "n": 199,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": -0.0767,
+     "lo": -0.824,
+     "hi": 0.7506,
+     "n": 199,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": -0.9415,
+     "lo": -1.6202,
+     "hi": -0.2226,
+     "n": 199,
+     "call": "detectable, not material"
+    },
+    "B_minus_G_even": {
+     "diff": -0.4702,
+     "lo": -1.1577,
+     "hi": 0.3927,
+     "n": 99,
+     "call": "no difference shown"
+    },
+    "B_minus_L_even": {
+     "diff": -0.147,
+     "lo": -0.7313,
+     "hi": 0.3968,
+     "n": 99,
+     "call": "no difference shown"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": -0.043,
+     "lo": -0.5659,
+     "hi": 0.5001,
+     "n": 199,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.2286,
+     "lo": -0.7305,
+     "hi": 1.2003,
+     "n": 199,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": 0.171,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "gulf",
+   "lead": 36,
+   "subset": "offshore",
+   "rows": 197,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 4.4185,
+     "m2": 0.7134,
+     "m1c": 4.7443,
+     "m3": 0.8534,
+     "miss": 1.0,
+     "false_alarm": 0.0
+    },
+    "H": {
+     "m1": 4.5857,
+     "m2": 0.7041,
+     "m1c": 4.4333,
+     "m3": 0.8848,
+     "miss": 1.0,
+     "false_alarm": 0.0
+    },
+    "L": {
+     "m1": 4.4081,
+     "m2": 0.7115,
+     "m1c": 4.308,
+     "m3": 0.8848,
+     "miss": 1.0,
+     "false_alarm": 0.0
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 4.6769,
+     "n": 98
+    },
+    "L": {
+     "m1": 4.5091,
+     "n": 98
+    },
+    "B": {
+     "m1": 4.2715,
+     "n": 98
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.0104,
+     "lo": -0.4905,
+     "hi": 0.5471,
+     "n": 197,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": 0.1672,
+     "lo": -0.343,
+     "hi": 0.7749,
+     "n": 197,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": -0.4364,
+     "lo": -0.9979,
+     "hi": 0.088,
+     "n": 197,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.4054,
+     "lo": -0.8014,
+     "hi": 0.0156,
+     "n": 98,
+     "call": "no difference shown"
+    },
+    "B_minus_L_even": {
+     "diff": -0.2376,
+     "lo": -0.6423,
+     "hi": 0.1645,
+     "n": 98,
+     "call": "no difference shown"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.0281,
+     "lo": -0.4208,
+     "hi": 0.464,
+     "n": 197,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 1.4393,
+     "lo": 0.5482,
+     "hi": 2.4363,
+     "n": 197,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1047,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "lakes",
+   "lead": 3,
+   "subset": "all",
+   "rows": 787,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 8.3451,
+     "m2": 0.5264,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "H": {
+     "m1": 7.7685,
+     "m2": 0.5567,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "L": {
+     "m1": 8.2393,
+     "m2": 0.5244,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 8.9399,
+     "n": 395
+    },
+    "L": {
+     "m1": 8.7083,
+     "n": 395
+    },
+    "B": {
+     "m1": 8.4913,
+     "n": 395
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.1058,
+     "lo": -0.4219,
+     "hi": 0.2216,
+     "n": 787,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": -0.5766,
+     "lo": -1.141,
+     "hi": -0.0574,
+     "n": 787,
+     "call": "detectable, not material"
+    },
+    "L_minus_G_facing": null,
+    "B_minus_G_even": {
+     "diff": -0.4486,
+     "lo": -0.7508,
+     "hi": -0.149,
+     "n": 395,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.217,
+     "lo": -0.4592,
+     "hi": -0.0105,
+     "n": 395,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": null,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.1421,
+     "lo": -0.1606,
+     "hi": 0.4298,
+     "n": 787,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.7211,
+     "lo": -0.0337,
+     "hi": 1.4675,
+     "n": 787,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": null,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "lakes",
+   "lead": 3,
+   "subset": "coastal",
+   "rows": 688,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 8.7114,
+     "m2": 0.5123,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "H": {
+     "m1": 7.8405,
+     "m2": 0.5554,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "L": {
+     "m1": 8.4116,
+     "m2": 0.5171,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 9.3926,
+     "n": 345
+    },
+    "L": {
+     "m1": 8.8541,
+     "n": 345
+    },
+    "B": {
+     "m1": 8.8228,
+     "n": 345
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.2998,
+     "lo": -0.6896,
+     "hi": 0.082,
+     "n": 688,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": -0.871,
+     "lo": -1.529,
+     "hi": -0.2624,
+     "n": 688,
+     "call": "detectable, not material"
+    },
+    "L_minus_G_facing": null,
+    "B_minus_G_even": {
+     "diff": -0.5698,
+     "lo": -0.9251,
+     "hi": -0.2175,
+     "n": 345,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.0313,
+     "lo": -0.3171,
+     "hi": 0.2227,
+     "n": 345,
+     "call": "no difference shown"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": null,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.1152,
+     "lo": -0.2059,
+     "hi": 0.4273,
+     "n": 688,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.4344,
+     "lo": -0.4023,
+     "hi": 1.2696,
+     "n": 688,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": null,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "lakes",
+   "lead": 3,
+   "subset": "offshore",
+   "rows": 99,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 5.7995,
+     "m2": 0.6242,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "H": {
+     "m1": 7.2686,
+     "m2": 0.5657,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "L": {
+     "m1": 7.0419,
+     "m2": 0.5745,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 5.8163,
+     "n": 50
+    },
+    "L": {
+     "m1": 7.7022,
+     "n": 50
+    },
+    "B": {
+     "m1": 6.2036,
+     "n": 50
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 1.2423,
+     "lo": 0.3822,
+     "hi": 2.1357,
+     "n": 99,
+     "call": "MATERIAL"
+    },
+    "H_minus_G": {
+     "diff": 1.469,
+     "lo": 0.5301,
+     "hi": 2.4784,
+     "n": 99,
+     "call": "MATERIAL"
+    },
+    "L_minus_G_facing": null,
+    "B_minus_G_even": {
+     "diff": 0.3873,
+     "lo": -0.3399,
+     "hi": 1.0487,
+     "n": 50,
+     "call": "no difference shown"
+    },
+    "B_minus_L_even": {
+     "diff": -1.4986,
+     "lo": -2.1151,
+     "hi": -0.9352,
+     "n": 50,
+     "call": "MATERIAL"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": null,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.3286,
+     "lo": -0.6029,
+     "hi": 1.2103,
+     "n": 99,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 2.7139,
+     "lo": 1.762,
+     "hi": 3.671,
+     "n": 99,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": null,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "lakes",
+   "lead": 12,
+   "subset": "all",
+   "rows": 775,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 8.6892,
+     "m2": 0.5201,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "H": {
+     "m1": 8.2045,
+     "m2": 0.5506,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "L": {
+     "m1": 8.7533,
+     "m2": 0.523,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 8.185,
+     "n": 388
+    },
+    "L": {
+     "m1": 8.4245,
+     "n": 388
+    },
+    "B": {
+     "m1": 7.9917,
+     "n": 388
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 0.0641,
+     "lo": -0.3695,
+     "hi": 0.5155,
+     "n": 775,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": -0.4846,
+     "lo": -1.0495,
+     "hi": 0.0877,
+     "n": 775,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": null,
+    "B_minus_G_even": {
+     "diff": -0.1933,
+     "lo": -0.5096,
+     "hi": 0.1291,
+     "n": 388,
+     "call": "no difference shown"
+    },
+    "B_minus_L_even": {
+     "diff": -0.4329,
+     "lo": -0.7639,
+     "hi": -0.1671,
+     "n": 388,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": null,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.0216,
+     "lo": -0.2943,
+     "hi": 0.3391,
+     "n": 775,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.6928,
+     "lo": -0.0809,
+     "hi": 1.5683,
+     "n": 775,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": null,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "lakes",
+   "lead": 12,
+   "subset": "coastal",
+   "rows": 677,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 8.9126,
+     "m2": 0.5095,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "H": {
+     "m1": 8.2911,
+     "m2": 0.5475,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "L": {
+     "m1": 8.9212,
+     "m2": 0.5162,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 8.3165,
+     "n": 339
+    },
+    "L": {
+     "m1": 8.6418,
+     "n": 339
+    },
+    "B": {
+     "m1": 8.2057,
+     "n": 339
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 0.0086,
+     "lo": -0.467,
+     "hi": 0.5012,
+     "n": 677,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": -0.6215,
+     "lo": -1.2651,
+     "hi": 0.0175,
+     "n": 677,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": null,
+    "B_minus_G_even": {
+     "diff": -0.1108,
+     "lo": -0.4318,
+     "hi": 0.2135,
+     "n": 339,
+     "call": "no difference shown"
+    },
+    "B_minus_L_even": {
+     "diff": -0.4362,
+     "lo": -0.8212,
+     "hi": -0.1296,
+     "n": 339,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": null,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.0879,
+     "lo": -0.2157,
+     "hi": 0.3967,
+     "n": 677,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.376,
+     "lo": -0.467,
+     "hi": 1.3197,
+     "n": 677,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": null,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "lakes",
+   "lead": 12,
+   "subset": "offshore",
+   "rows": 98,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 7.1456,
+     "m2": 0.5935,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "H": {
+     "m1": 7.6063,
+     "m2": 0.5719,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "L": {
+     "m1": 7.5931,
+     "m2": 0.5702,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 7.2753,
+     "n": 49
+    },
+    "L": {
+     "m1": 6.921,
+     "n": 49
+    },
+    "B": {
+     "m1": 6.511,
+     "n": 49
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 0.4475,
+     "lo": -0.5009,
+     "hi": 1.3497,
+     "n": 98,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": 0.4607,
+     "lo": -0.6912,
+     "hi": 1.4946,
+     "n": 98,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": null,
+    "B_minus_G_even": {
+     "diff": -0.7644,
+     "lo": -1.8385,
+     "hi": 0.2219,
+     "n": 49,
+     "call": "no difference shown"
+    },
+    "B_minus_L_even": {
+     "diff": -0.41,
+     "lo": -0.9797,
+     "hi": 0.232,
+     "n": 49,
+     "call": "no difference shown"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": null,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": -0.4363,
+     "lo": -1.31,
+     "hi": 0.3815,
+     "n": 98,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 2.8815,
+     "lo": 1.8594,
+     "hi": 4.0406,
+     "n": 98,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": null,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "lakes",
+   "lead": 24,
+   "subset": "all",
+   "rows": 776,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 9.0575,
+     "m2": 0.5091,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "H": {
+     "m1": 8.4101,
+     "m2": 0.5387,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "L": {
+     "m1": 8.7814,
+     "m2": 0.5178,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 8.7599,
+     "n": 380
+    },
+    "L": {
+     "m1": 8.54,
+     "n": 380
+    },
+    "B": {
+     "m1": 8.2864,
+     "n": 380
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.2761,
+     "lo": -0.676,
+     "hi": 0.1161,
+     "n": 776,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": -0.6474,
+     "lo": -1.1878,
+     "hi": -0.0982,
+     "n": 776,
+     "call": "detectable, not material"
+    },
+    "L_minus_G_facing": null,
+    "B_minus_G_even": {
+     "diff": -0.4735,
+     "lo": -0.7114,
+     "hi": -0.2222,
+     "n": 380,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.2536,
+     "lo": -0.5193,
+     "hi": 0.0108,
+     "n": 380,
+     "call": "no difference shown"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": null,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.1072,
+     "lo": -0.2283,
+     "hi": 0.4376,
+     "n": 776,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.3316,
+     "lo": -0.5017,
+     "hi": 1.225,
+     "n": 776,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": null,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "lakes",
+   "lead": 24,
+   "subset": "coastal",
+   "rows": 678,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 9.2544,
+     "m2": 0.5001,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "H": {
+     "m1": 8.3138,
+     "m2": 0.543,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "L": {
+     "m1": 8.7858,
+     "m2": 0.5169,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 9.0007,
+     "n": 332
+    },
+    "L": {
+     "m1": 8.6555,
+     "n": 332
+    },
+    "B": {
+     "m1": 8.5084,
+     "n": 332
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.4685,
+     "lo": -0.9096,
+     "hi": -0.0242,
+     "n": 678,
+     "call": "detectable, not material"
+    },
+    "H_minus_G": {
+     "diff": -0.9406,
+     "lo": -1.5933,
+     "hi": -0.3089,
+     "n": 678,
+     "call": "detectable, not material"
+    },
+    "L_minus_G_facing": null,
+    "B_minus_G_even": {
+     "diff": -0.4923,
+     "lo": -0.7776,
+     "hi": -0.2031,
+     "n": 332,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.1471,
+     "lo": -0.4485,
+     "hi": 0.1543,
+     "n": 332,
+     "call": "no difference shown"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": null,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.0588,
+     "lo": -0.2919,
+     "hi": 0.4007,
+     "n": 678,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": -0.0033,
+     "lo": -0.9138,
+     "hi": 0.9302,
+     "n": 678,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": null,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "lakes",
+   "lead": 24,
+   "subset": "offshore",
+   "rows": 98,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 7.6952,
+     "m2": 0.571,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "H": {
+     "m1": 9.0766,
+     "m2": 0.5089,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "L": {
+     "m1": 8.7505,
+     "m2": 0.5238,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 7.0946,
+     "n": 48
+    },
+    "L": {
+     "m1": 7.7411,
+     "n": 48
+    },
+    "B": {
+     "m1": 6.7509,
+     "n": 48
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 1.0552,
+     "lo": -0.3191,
+     "hi": 2.2166,
+     "n": 98,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": 1.3813,
+     "lo": -0.2235,
+     "hi": 2.7119,
+     "n": 98,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": null,
+    "B_minus_G_even": {
+     "diff": -0.3438,
+     "lo": -1.3112,
+     "hi": 0.5067,
+     "n": 48,
+     "call": "no difference shown"
+    },
+    "B_minus_L_even": {
+     "diff": -0.9903,
+     "lo": -1.7027,
+     "hi": -0.1719,
+     "n": 48,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": null,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.4421,
+     "lo": -0.6429,
+     "hi": 1.6198,
+     "n": 98,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 2.649,
+     "lo": 1.3702,
+     "hi": 3.9123,
+     "n": 98,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": null,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "lakes",
+   "lead": 36,
+   "subset": "all",
+   "rows": 778,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 9.4552,
+     "m2": 0.4963,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "H": {
+     "m1": 9.269,
+     "m2": 0.5062,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "L": {
+     "m1": 9.417,
+     "m2": 0.4912,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 9.5011,
+     "n": 387
+    },
+    "L": {
+     "m1": 9.7893,
+     "n": 387
+    },
+    "B": {
+     "m1": 9.2428,
+     "n": 387
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.0382,
+     "lo": -0.6297,
+     "hi": 0.5419,
+     "n": 778,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": -0.1861,
+     "lo": -0.9481,
+     "hi": 0.5074,
+     "n": 778,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": null,
+    "B_minus_G_even": {
+     "diff": -0.2583,
+     "lo": -0.5282,
+     "hi": -0.0012,
+     "n": 387,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.5465,
+     "lo": -0.975,
+     "hi": -0.0605,
+     "n": 387,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": null,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.1403,
+     "lo": -0.2111,
+     "hi": 0.5323,
+     "n": 778,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.36,
+     "lo": -0.3687,
+     "hi": 1.0824,
+     "n": 778,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": null,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "lakes",
+   "lead": 36,
+   "subset": "coastal",
+   "rows": 680,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 9.7389,
+     "m2": 0.4842,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "H": {
+     "m1": 9.232,
+     "m2": 0.5075,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "L": {
+     "m1": 9.4163,
+     "m2": 0.4898,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 9.8259,
+     "n": 338
+    },
+    "L": {
+     "m1": 9.7761,
+     "n": 338
+    },
+    "B": {
+     "m1": 9.365,
+     "n": 338
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.3226,
+     "lo": -0.9326,
+     "hi": 0.2628,
+     "n": 680,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": -0.5069,
+     "lo": -1.2925,
+     "hi": 0.2052,
+     "n": 680,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": null,
+    "B_minus_G_even": {
+     "diff": -0.4609,
+     "lo": -0.7463,
+     "hi": -0.1902,
+     "n": 338,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.4111,
+     "lo": -0.8774,
+     "hi": 0.125,
+     "n": 338,
+     "call": "no difference shown"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": null,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.1175,
+     "lo": -0.2846,
+     "hi": 0.5529,
+     "n": 680,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 0.0044,
+     "lo": -0.8083,
+     "hi": 0.8376,
+     "n": 680,
+     "call": "no difference shown",
+     "detected": false
+    },
+    "C3_rotated_m3": {
+     "m3": null,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "lakes",
+   "lead": 36,
+   "subset": "offshore",
+   "rows": 98,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 7.4864,
+     "m2": 0.5804,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "H": {
+     "m1": 9.5256,
+     "m2": 0.497,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    },
+    "L": {
+     "m1": 9.4217,
+     "m2": 0.5004,
+     "m1c": null,
+     "m3": null,
+     "miss": null,
+     "false_alarm": null
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 7.2605,
+     "n": 49
+    },
+    "L": {
+     "m1": 9.8807,
+     "n": 49
+    },
+    "B": {
+     "m1": 8.3998,
+     "n": 49
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 1.9352,
+     "lo": 0.8065,
+     "hi": 2.9815,
+     "n": 98,
+     "call": "MATERIAL"
+    },
+    "H_minus_G": {
+     "diff": 2.0392,
+     "lo": 0.8604,
+     "hi": 3.1467,
+     "n": 98,
+     "call": "MATERIAL"
+    },
+    "L_minus_G_facing": null,
+    "B_minus_G_even": {
+     "diff": 1.1393,
+     "lo": 0.2693,
+     "hi": 2.0469,
+     "n": 49,
+     "call": "MATERIAL"
+    },
+    "B_minus_L_even": {
+     "diff": -1.4809,
+     "lo": -2.0783,
+     "hi": -0.9137,
+     "n": 49,
+     "call": "MATERIAL"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": null,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.299,
+     "lo": -0.8313,
+     "hi": 1.3173,
+     "n": 98,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 2.8279,
+     "lo": 1.9703,
+     "hi": 3.7747,
+     "n": 98,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": null,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "west",
+   "lead": 3,
+   "subset": "all",
+   "rows": 2267,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 6.5399,
+     "m2": 0.6336,
+     "m1c": 6.869,
+     "m3": 0.786,
+     "miss": 0.5495,
+     "false_alarm": 0.0144
+    },
+    "H": {
+     "m1": 7.1937,
+     "m2": 0.615,
+     "m1c": 7.4607,
+     "m3": 0.7611,
+     "miss": 0.4775,
+     "false_alarm": 0.0227
+    },
+    "L": {
+     "m1": 6.9397,
+     "m2": 0.618,
+     "m1c": 7.2132,
+     "m3": 0.7788,
+     "miss": 0.5586,
+     "false_alarm": 0.0172
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 6.2563,
+     "n": 1134
+    },
+    "L": {
+     "m1": 6.9178,
+     "n": 1134
+    },
+    "B": {
+     "m1": 5.9845,
+     "n": 1134
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 0.3997,
+     "lo": 0.2219,
+     "hi": 0.6125,
+     "n": 2267,
+     "call": "detectable, not material"
+    },
+    "H_minus_G": {
+     "diff": 0.6538,
+     "lo": 0.4623,
+     "hi": 0.8587,
+     "n": 2267,
+     "call": "detectable, not material"
+    },
+    "L_minus_G_facing": {
+     "diff": 0.3442,
+     "lo": 0.0613,
+     "hi": 0.6629,
+     "n": 2267,
+     "call": "detectable, not material"
+    },
+    "B_minus_G_even": {
+     "diff": -0.2718,
+     "lo": -0.3961,
+     "hi": -0.15,
+     "n": 1134,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.9333,
+     "lo": -1.1371,
+     "hi": -0.7542,
+     "n": 1134,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.1459,
+     "lo": -0.0743,
+     "hi": 0.3669,
+     "n": 2267,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 1.9994,
+     "lo": 1.6012,
+     "hi": 2.3915,
+     "n": 2267,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1653,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "west",
+   "lead": 3,
+   "subset": "coastal",
+   "rows": 1976,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 6.6324,
+     "m2": 0.6301,
+     "m1c": 6.9156,
+     "m3": 0.7789,
+     "miss": 0.5357,
+     "false_alarm": 0.0132
+    },
+    "H": {
+     "m1": 7.2946,
+     "m2": 0.6135,
+     "m1c": 7.4578,
+     "m3": 0.7492,
+     "miss": 0.5,
+     "false_alarm": 0.0222
+    },
+    "L": {
+     "m1": 7.0284,
+     "m2": 0.6158,
+     "m1c": 7.2111,
+     "m3": 0.7668,
+     "miss": 0.5833,
+     "false_alarm": 0.0153
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 6.3611,
+     "n": 988
+    },
+    "L": {
+     "m1": 6.947,
+     "n": 988
+    },
+    "B": {
+     "m1": 6.0444,
+     "n": 988
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 0.3961,
+     "lo": 0.1832,
+     "hi": 0.637,
+     "n": 1976,
+     "call": "detectable, not material"
+    },
+    "H_minus_G": {
+     "diff": 0.6622,
+     "lo": 0.4204,
+     "hi": 0.9099,
+     "n": 1976,
+     "call": "detectable, not material"
+    },
+    "L_minus_G_facing": {
+     "diff": 0.2955,
+     "lo": -0.0053,
+     "hi": 0.6206,
+     "n": 1976,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.3167,
+     "lo": -0.4485,
+     "hi": -0.1796,
+     "n": 988,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.9027,
+     "lo": -1.1509,
+     "hi": -0.6901,
+     "n": 988,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.2241,
+     "lo": 0.0179,
+     "hi": 0.4474,
+     "n": 1976,
+     "call": "detectable, not material",
+     "includes_zero": false
+    },
+    "C2_plus3kn": {
+     "diff": 2.0747,
+     "lo": 1.6297,
+     "hi": 2.5522,
+     "n": 1976,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1759,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "west",
+   "lead": 3,
+   "subset": "offshore",
+   "rows": 291,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 5.9122,
+     "m2": 0.6569,
+     "m1c": 6.5529,
+     "m3": 0.8315,
+     "miss": 0.5926,
+     "false_alarm": 0.0227
+    },
+    "H": {
+     "m1": 6.5087,
+     "m2": 0.6256,
+     "m1c": 7.481,
+     "m3": 0.8387,
+     "miss": 0.4074,
+     "false_alarm": 0.0265
+    },
+    "L": {
+     "m1": 6.3369,
+     "m2": 0.6329,
+     "m1c": 7.2276,
+     "m3": 0.8566,
+     "miss": 0.4815,
+     "false_alarm": 0.0303
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 5.5474,
+     "n": 146
+    },
+    "L": {
+     "m1": 6.72,
+     "n": 146
+    },
+    "B": {
+     "m1": 5.5795,
+     "n": 146
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 0.4247,
+     "lo": -0.2276,
+     "hi": 1.0471,
+     "n": 291,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": 0.5964,
+     "lo": -0.053,
+     "hi": 1.2173,
+     "n": 291,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": 0.6747,
+     "lo": -0.1865,
+     "hi": 1.5822,
+     "n": 291,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": 0.032,
+     "lo": -0.3041,
+     "hi": 0.4068,
+     "n": 146,
+     "call": "no difference shown"
+    },
+    "B_minus_L_even": {
+     "diff": -1.1405,
+     "lo": -1.7079,
+     "hi": -0.6102,
+     "n": 146,
+     "call": "MATERIAL"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": -0.3856,
+     "lo": -0.9928,
+     "hi": 0.2715,
+     "n": 291,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 1.488,
+     "lo": 0.7091,
+     "hi": 2.2261,
+     "n": 291,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.0968,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "west",
+   "lead": 12,
+   "subset": "all",
+   "rows": 2266,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 7.7837,
+     "m2": 0.5897,
+     "m1c": 8.1195,
+     "m3": 0.756,
+     "miss": 0.5082,
+     "false_alarm": 0.0205
+    },
+    "H": {
+     "m1": 8.4357,
+     "m2": 0.5709,
+     "m1c": 9.0145,
+     "m3": 0.7353,
+     "miss": 0.3852,
+     "false_alarm": 0.0317
+    },
+    "L": {
+     "m1": 8.0983,
+     "m2": 0.5788,
+     "m1c": 8.6514,
+     "m3": 0.7295,
+     "miss": 0.4426,
+     "false_alarm": 0.028
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 7.8701,
+     "n": 1141
+    },
+    "L": {
+     "m1": 8.1321,
+     "n": 1141
+    },
+    "B": {
+     "m1": 7.4577,
+     "n": 1141
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 0.3146,
+     "lo": -0.016,
+     "hi": 0.656,
+     "n": 2266,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": 0.652,
+     "lo": 0.2905,
+     "hi": 1.0366,
+     "n": 2266,
+     "call": "detectable, not material"
+    },
+    "L_minus_G_facing": {
+     "diff": 0.5319,
+     "lo": 0.019,
+     "hi": 1.0387,
+     "n": 2266,
+     "call": "detectable, not material"
+    },
+    "B_minus_G_even": {
+     "diff": -0.4125,
+     "lo": -0.5437,
+     "hi": -0.2708,
+     "n": 1141,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.6744,
+     "lo": -0.9426,
+     "hi": -0.3992,
+     "n": 1141,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.0664,
+     "lo": -0.2033,
+     "hi": 0.3454,
+     "n": 2266,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 1.7201,
+     "lo": 1.3174,
+     "hi": 2.144,
+     "n": 2266,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1596,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "west",
+   "lead": 12,
+   "subset": "coastal",
+   "rows": 1973,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 7.9179,
+     "m2": 0.5858,
+     "m1c": 8.1457,
+     "m3": 0.7458,
+     "miss": 0.4894,
+     "false_alarm": 0.0197
+    },
+    "H": {
+     "m1": 8.586,
+     "m2": 0.5676,
+     "m1c": 9.1303,
+     "m3": 0.7253,
+     "miss": 0.3723,
+     "false_alarm": 0.0298
+    },
+    "L": {
+     "m1": 8.2516,
+     "m2": 0.5751,
+     "m1c": 8.7649,
+     "m3": 0.7169,
+     "miss": 0.4362,
+     "false_alarm": 0.0245
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 8.0165,
+     "n": 993
+    },
+    "L": {
+     "m1": 8.3578,
+     "n": 993
+    },
+    "B": {
+     "m1": 7.6302,
+     "n": 993
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 0.3337,
+     "lo": -0.0686,
+     "hi": 0.7128,
+     "n": 1973,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": 0.6681,
+     "lo": 0.2406,
+     "hi": 1.0801,
+     "n": 1973,
+     "call": "detectable, not material"
+    },
+    "L_minus_G_facing": {
+     "diff": 0.6192,
+     "lo": -0.0089,
+     "hi": 1.2305,
+     "n": 1973,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.3863,
+     "lo": -0.5462,
+     "hi": -0.2274,
+     "n": 993,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.7277,
+     "lo": -0.9939,
+     "hi": -0.4326,
+     "n": 993,
+     "call": "detectable, not material"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": -0.0132,
+     "lo": -0.3334,
+     "hi": 0.3098,
+     "n": 1973,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 1.6985,
+     "lo": 1.2008,
+     "hi": 2.1925,
+     "n": 1973,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1657,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "west",
+   "lead": 12,
+   "subset": "offshore",
+   "rows": 293,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 6.8802,
+     "m2": 0.6163,
+     "m1c": 7.9429,
+     "m3": 0.8225,
+     "miss": 0.5714,
+     "false_alarm": 0.0264
+    },
+    "H": {
+     "m1": 7.4235,
+     "m2": 0.5931,
+     "m1c": 8.2348,
+     "m3": 0.8007,
+     "miss": 0.4286,
+     "false_alarm": 0.0453
+    },
+    "L": {
+     "m1": 7.0663,
+     "m2": 0.6044,
+     "m1c": 7.8871,
+     "m3": 0.8116,
+     "miss": 0.4643,
+     "false_alarm": 0.0528
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 6.888,
+     "n": 148
+    },
+    "L": {
+     "m1": 6.6173,
+     "n": 148
+    },
+    "B": {
+     "m1": 6.3001,
+     "n": 148
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 0.1861,
+     "lo": -0.5772,
+     "hi": 0.9944,
+     "n": 293,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": 0.5432,
+     "lo": -0.2097,
+     "hi": 1.3902,
+     "n": 293,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": -0.0557,
+     "lo": -1.1229,
+     "hi": 1.0666,
+     "n": 293,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.5879,
+     "lo": -0.8718,
+     "hi": -0.3128,
+     "n": 148,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.3172,
+     "lo": -0.9489,
+     "hi": 0.2933,
+     "n": 148,
+     "call": "no difference shown"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.6027,
+     "lo": -0.0303,
+     "hi": 1.2539,
+     "n": 293,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 1.8652,
+     "lo": 1.1923,
+     "hi": 2.4937,
+     "n": 293,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1196,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "west",
+   "lead": 24,
+   "subset": "all",
+   "rows": 2266,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 8.3536,
+     "m2": 0.5717,
+     "m1c": 8.6854,
+     "m3": 0.7417,
+     "miss": 0.4836,
+     "false_alarm": 0.0182
+    },
+    "H": {
+     "m1": 9.8507,
+     "m2": 0.5266,
+     "m1c": 10.7345,
+     "m3": 0.7027,
+     "miss": 0.4344,
+     "false_alarm": 0.0378
+    },
+    "L": {
+     "m1": 9.5089,
+     "m2": 0.5324,
+     "m1c": 10.3177,
+     "m3": 0.7109,
+     "miss": 0.418,
+     "false_alarm": 0.0299
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 8.1458,
+     "n": 1119
+    },
+    "L": {
+     "m1": 9.3229,
+     "n": 1119
+    },
+    "B": {
+     "m1": 7.8198,
+     "n": 1119
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 1.1553,
+     "lo": 0.7557,
+     "hi": 1.592,
+     "n": 2266,
+     "call": "MATERIAL"
+    },
+    "H_minus_G": {
+     "diff": 1.4971,
+     "lo": 1.0783,
+     "hi": 1.9355,
+     "n": 2266,
+     "call": "MATERIAL"
+    },
+    "L_minus_G_facing": {
+     "diff": 1.6322,
+     "lo": 1.1325,
+     "hi": 2.1824,
+     "n": 2266,
+     "call": "MATERIAL"
+    },
+    "B_minus_G_even": {
+     "diff": -0.3259,
+     "lo": -0.4638,
+     "hi": -0.1911,
+     "n": 1119,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -1.5031,
+     "lo": -1.9012,
+     "hi": -1.13,
+     "n": 1119,
+     "call": "MATERIAL"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.4045,
+     "lo": 0.0771,
+     "hi": 0.7139,
+     "n": 2266,
+     "call": "detectable, not material",
+     "includes_zero": false
+    },
+    "C2_plus3kn": {
+     "diff": 1.5087,
+     "lo": 1.0745,
+     "hi": 1.9574,
+     "n": 2266,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1534,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "west",
+   "lead": 24,
+   "subset": "coastal",
+   "rows": 1973,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 8.4672,
+     "m2": 0.57,
+     "m1c": 8.7021,
+     "m3": 0.7299,
+     "miss": 0.4787,
+     "false_alarm": 0.0176
+    },
+    "H": {
+     "m1": 10.1259,
+     "m2": 0.5194,
+     "m1c": 11.0203,
+     "m3": 0.6866,
+     "miss": 0.4255,
+     "false_alarm": 0.0357
+    },
+    "L": {
+     "m1": 9.7993,
+     "m2": 0.5237,
+     "m1c": 10.6178,
+     "m3": 0.6955,
+     "miss": 0.4149,
+     "false_alarm": 0.0271
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 8.2498,
+     "n": 975
+    },
+    "L": {
+     "m1": 9.5738,
+     "n": 975
+    },
+    "B": {
+     "m1": 7.9371,
+     "n": 975
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 1.3321,
+     "lo": 0.8963,
+     "hi": 1.8021,
+     "n": 1973,
+     "call": "MATERIAL"
+    },
+    "H_minus_G": {
+     "diff": 1.6586,
+     "lo": 1.1835,
+     "hi": 2.1399,
+     "n": 1973,
+     "call": "MATERIAL"
+    },
+    "L_minus_G_facing": {
+     "diff": 1.9157,
+     "lo": 1.3926,
+     "hi": 2.4828,
+     "n": 1973,
+     "call": "MATERIAL"
+    },
+    "B_minus_G_even": {
+     "diff": -0.3127,
+     "lo": -0.4702,
+     "hi": -0.1646,
+     "n": 975,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -1.6367,
+     "lo": -2.1006,
+     "hi": -1.1933,
+     "n": 975,
+     "call": "MATERIAL"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.4272,
+     "lo": 0.0291,
+     "hi": 0.8083,
+     "n": 1973,
+     "call": "detectable, not material",
+     "includes_zero": false
+    },
+    "C2_plus3kn": {
+     "diff": 1.4767,
+     "lo": 0.9243,
+     "hi": 2.0146,
+     "n": 1973,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1592,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "west",
+   "lead": 24,
+   "subset": "offshore",
+   "rows": 293,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 7.5883,
+     "m2": 0.5826,
+     "m1c": 8.5729,
+     "m3": 0.8188,
+     "miss": 0.5,
+     "false_alarm": 0.0226
+    },
+    "H": {
+     "m1": 7.9976,
+     "m2": 0.5755,
+     "m1c": 8.8099,
+     "m3": 0.808,
+     "miss": 0.4643,
+     "false_alarm": 0.0528
+    },
+    "L": {
+     "m1": 7.5535,
+     "m2": 0.5912,
+     "m1c": 8.2964,
+     "m3": 0.8116,
+     "miss": 0.4286,
+     "false_alarm": 0.0491
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 7.4413,
+     "n": 144
+    },
+    "L": {
+     "m1": 7.6241,
+     "n": 144
+    },
+    "B": {
+     "m1": 7.0259,
+     "n": 144
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.0349,
+     "lo": -1.0207,
+     "hi": 1.1082,
+     "n": 293,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": 0.4093,
+     "lo": -0.6101,
+     "hi": 1.5879,
+     "n": 293,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": -0.2766,
+     "lo": -1.7457,
+     "hi": 1.4867,
+     "n": 293,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.4155,
+     "lo": -0.7189,
+     "hi": -0.1277,
+     "n": 144,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -0.5982,
+     "lo": -1.5019,
+     "hi": 0.2036,
+     "n": 144,
+     "call": "no difference shown"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": 0.2514,
+     "lo": -0.4795,
+     "hi": 0.9722,
+     "n": 293,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 1.7245,
+     "lo": 1.0609,
+     "hi": 2.3891,
+     "n": 293,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1159,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "west",
+   "lead": 36,
+   "subset": "all",
+   "rows": 2265,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 8.8857,
+     "m2": 0.5536,
+     "m1c": 9.3057,
+     "m3": 0.731,
+     "miss": 0.5455,
+     "false_alarm": 0.021
+    },
+    "H": {
+     "m1": 10.6176,
+     "m2": 0.4958,
+     "m1c": 11.5291,
+     "m3": 0.6801,
+     "miss": 0.4711,
+     "false_alarm": 0.0378
+    },
+    "L": {
+     "m1": 10.2017,
+     "m2": 0.505,
+     "m1c": 11.0348,
+     "m3": 0.6835,
+     "miss": 0.5124,
+     "false_alarm": 0.0275
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 9.0051,
+     "n": 1124
+    },
+    "L": {
+     "m1": 10.1107,
+     "n": 1124
+    },
+    "B": {
+     "m1": 8.5992,
+     "n": 1124
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 1.316,
+     "lo": 0.7622,
+     "hi": 1.9554,
+     "n": 2265,
+     "call": "MATERIAL"
+    },
+    "H_minus_G": {
+     "diff": 1.7319,
+     "lo": 1.1514,
+     "hi": 2.4099,
+     "n": 2265,
+     "call": "MATERIAL"
+    },
+    "L_minus_G_facing": {
+     "diff": 1.7291,
+     "lo": 0.9565,
+     "hi": 2.691,
+     "n": 2265,
+     "call": "MATERIAL"
+    },
+    "B_minus_G_even": {
+     "diff": -0.4059,
+     "lo": -0.5825,
+     "hi": -0.2172,
+     "n": 1124,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -1.5114,
+     "lo": -2.0955,
+     "hi": -0.9541,
+     "n": 1124,
+     "call": "MATERIAL"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": -0.0473,
+     "lo": -0.3298,
+     "hi": 0.2535,
+     "n": 2265,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 1.2398,
+     "lo": 0.7384,
+     "hi": 1.7456,
+     "n": 2265,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1695,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "west",
+   "lead": 36,
+   "subset": "coastal",
+   "rows": 1973,
+   "days": 25,
+   "testable": true,
+   "arms": {
+    "G": {
+     "m1": 8.9576,
+     "m2": 0.5524,
+     "m1c": 9.3339,
+     "m3": 0.7227,
+     "miss": 0.5269,
+     "false_alarm": 0.0202
+    },
+    "H": {
+     "m1": 10.9445,
+     "m2": 0.4879,
+     "m1c": 11.8091,
+     "m3": 0.6652,
+     "miss": 0.4839,
+     "false_alarm": 0.0362
+    },
+    "L": {
+     "m1": 10.5106,
+     "m2": 0.4971,
+     "m1c": 11.2905,
+     "m3": 0.6691,
+     "miss": 0.5269,
+     "false_alarm": 0.0255
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 8.9963,
+     "n": 980
+    },
+    "L": {
+     "m1": 10.3363,
+     "n": 980
+    },
+    "B": {
+     "m1": 8.5856,
+     "n": 980
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": 1.5531,
+     "lo": 0.9538,
+     "hi": 2.245,
+     "n": 1973,
+     "call": "MATERIAL"
+    },
+    "H_minus_G": {
+     "diff": 1.9869,
+     "lo": 1.3657,
+     "hi": 2.7145,
+     "n": 1973,
+     "call": "MATERIAL"
+    },
+    "L_minus_G_facing": {
+     "diff": 1.9566,
+     "lo": 1.1074,
+     "hi": 3.0058,
+     "n": 1973,
+     "call": "MATERIAL"
+    },
+    "B_minus_G_even": {
+     "diff": -0.4107,
+     "lo": -0.6016,
+     "hi": -0.2114,
+     "n": 980,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": -1.7507,
+     "lo": -2.3637,
+     "hi": -1.1452,
+     "n": 980,
+     "call": "MATERIAL"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": -0.0265,
+     "lo": -0.3096,
+     "hi": 0.2939,
+     "n": 1973,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 1.2429,
+     "lo": 0.6866,
+     "hi": 1.8198,
+     "n": 1973,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.176,
+     "holds": true
+    }
+   }
+  },
+  {
+   "coast": "west",
+   "lead": 36,
+   "subset": "offshore",
+   "rows": 292,
+   "days": 25,
+   "testable": false,
+   "arms": {
+    "G": {
+     "m1": 8.3999,
+     "m2": 0.5614,
+     "m1c": 9.1153,
+     "m3": 0.7855,
+     "miss": 0.6071,
+     "false_alarm": 0.0265
+    },
+    "H": {
+     "m1": 8.4092,
+     "m2": 0.5489,
+     "m1c": 9.6366,
+     "m3": 0.7782,
+     "miss": 0.4286,
+     "false_alarm": 0.0492
+    },
+    "L": {
+     "m1": 8.1138,
+     "m2": 0.5585,
+     "m1c": 9.3073,
+     "m3": 0.7782,
+     "miss": 0.4643,
+     "false_alarm": 0.0417
+    }
+   },
+   "arms_even": {
+    "G": {
+     "m1": 9.0655,
+     "n": 144
+    },
+    "L": {
+     "m1": 8.575,
+     "n": 144
+    },
+    "B": {
+     "m1": 8.6921,
+     "n": 144
+    }
+   },
+   "pairs": {
+    "L_minus_G": {
+     "diff": -0.2861,
+     "lo": -1.2713,
+     "hi": 0.7781,
+     "n": 292,
+     "call": "no difference shown"
+    },
+    "H_minus_G": {
+     "diff": 0.0093,
+     "lo": -0.985,
+     "hi": 1.0833,
+     "n": 292,
+     "call": "no difference shown"
+    },
+    "L_minus_G_facing": {
+     "diff": 0.192,
+     "lo": -1.117,
+     "hi": 1.7371,
+     "n": 292,
+     "call": "no difference shown"
+    },
+    "B_minus_G_even": {
+     "diff": -0.3734,
+     "lo": -0.6489,
+     "hi": -0.1079,
+     "n": 144,
+     "call": "detectable, not material"
+    },
+    "B_minus_L_even": {
+     "diff": 0.117,
+     "lo": -0.8232,
+     "hi": 1.0062,
+     "n": 144,
+     "call": "no difference shown"
+    }
+   },
+   "controls": {
+    "C0_obs_as_forecast": {
+     "m1": 0.0,
+     "m2": 1.0,
+     "m3": 1.0,
+     "holds": true
+    },
+    "C1_null_swap": {
+     "diff": -0.188,
+     "lo": -0.9369,
+     "hi": 0.5375,
+     "n": 292,
+     "call": "no difference shown",
+     "includes_zero": true
+    },
+    "C2_plus3kn": {
+     "diff": 1.2186,
+     "lo": 0.4022,
+     "hi": 2.0294,
+     "n": 292,
+     "call": "MATERIAL",
+     "detected": true
+    },
+    "C3_rotated_m3": {
+     "m3": 0.1273,
+     "holds": true
+    }
+   }
+  }
+ ],
+ "controls_summary": {
+  "C0_all_hold": true,
+  "C1_cells_excluding_zero": 1,
+  "C2_all_detected": false,
+  "C3_all_hold": true,
+  "testable_cells": 12
+ },
+ "run_valid": false
+}

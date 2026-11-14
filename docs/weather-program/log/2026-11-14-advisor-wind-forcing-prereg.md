@@ -80,3 +80,48 @@ machine. The script asserts that `estimate_surf_at` takes no wind argument; no h
 breeze is weaker than at the beach. The buoy wind is adjusted to 10 m by a power law. The rating is exercised on a
 fixed grid of surf states, not on the surf that was running. The rating today reads the model's own wind point, not the
 lane, so this informs a design choice only. No ECMWF arm.
+
+## 2. Result (run 2026-11-14 02:42Z): VOID by the pre-registered controls. No verdict on the wind input.
+
+Instrument: `backend/scripts/wind_forcing_rating_test.py` on the 2026-11-11 rows (38,709 read, 27,820 used: zone
+"full", four leads). Evidence: `docs/weather-program/evidence/2026-11-14-wind-forcing/result.json`. The
+pre-registration commit is 5a18db20d (02:38:30Z); the row file was first opened after it.
+
+**Controls.** C0 held (observed wind as forecast: M1 = 0, M2 = M3 = 1 in all 12 testable cells). C1 held (1 cell of 12
+excludes 0, west 24 h; the rule allows one). C3 held (rotated bearing: M3 0.14-0.17). **C2 FAILED: +3 kn added to GFS
+was detected in only 5 of 12 testable cells** (all four west cells and Gulf 36 h; in the east the planted arm's M1 rose
+by 0.04-0.27 with intervals spanning 0). Section 1 says every control must hold or the run is void. It is void.
+
+**Why C2 failed (a reading made after the result, not a tested claim).** The control was badly designed, and that is my
+error. Adding 3 kn to an arm that already reads LOW moves it toward the truth before it moves it away, so the planted
+error partly cancels the arm's own. A valid positive control plants the error on a copy of the OBSERVED wind, where the
+unplanted error is zero. I did not check GFS's speed bias in these rows to confirm this.
+
+**What the table shows, for the record only (M1 in rating points, L minus G positive = the lane is worse).**
+
+| Coast | Lead | Rows | M1 GFS / HRRR / lane | lane minus GFS [95%] | HRRR minus GFS [95%] | blend minus GFS, even cycles |
+|---|---|---|---|---|---|---|
+| west | 3 | 2267 | 6.54 / 7.19 / 6.94 | +0.40 [+0.22, +0.61] | +0.65 [+0.46, +0.86] | -0.27 [-0.40, -0.15] |
+| west | 12 | 2266 | 7.78 / 8.44 / 8.10 | +0.31 [-0.02, +0.66] | +0.65 [+0.29, +1.04] | -0.41 [-0.54, -0.27] |
+| west | 24 | 2266 | 8.35 / 9.85 / 9.51 | +1.16 [+0.76, +1.59] | +1.50 [+1.08, +1.94] | -0.33 [-0.46, -0.19] |
+| west | 36 | 2265 | 8.89 / 10.62 / 10.20 | +1.32 [+0.76, +1.96] | +1.73 [+1.15, +2.41] | -0.41 [-0.58, -0.22] |
+| east | 3 | 3512 | 6.34 / 6.24 / 6.56 | +0.22 [+0.04, +0.40] | -0.11 [-0.31, +0.09] | -0.20 [-0.34, -0.08] |
+| east | 12 | 3513 | 6.85 / 6.47 / 6.65 | -0.21 [-0.42, +0.00] | -0.39 [-0.60, -0.19] | -0.49 [-0.70, -0.30] |
+| east | 24 | 3515 | 7.11 / 6.75 / 6.82 | -0.30 [-0.46, -0.11] | -0.36 [-0.61, -0.09] | -0.58 [-0.68, -0.45] |
+| east | 36 | 3515 | 7.40 / 7.13 / 7.13 | -0.28 [-0.57, +0.06] | -0.27 [-0.63, +0.08] | -0.63 [-0.81, -0.46] |
+| Gulf | 3-36 | 396-397 | 4.87-6.11 (all arms within 0.25) | every interval spans 0 | every interval spans 0 | -0.19 .. -0.59 |
+
+- Had the run been valid: H1 (west, GFS materially better than the lane at 12, 24 AND 36 h) would NOT have held as
+  written (12 h: +0.31, interval spans 0). At 24 and 36 h the difference is material, and it sits in the coastal buoys
+  (+1.33 and +1.55; offshore buoys under the 300-row floor).
+- Had the run been valid, the verdict rule would have returned "no material difference: no case to change the rating's
+  wind input" on every coast: no arm materially beats every other in 3 of 4 leads. East differences are all under half
+  a point. The blend's edge over GFS is 0.2-0.6 points everywhere, under the 1.0 threshold.
+- Sizes: a wind arm moves the rating by 6-10 points on average against the observed-wind rating, and the level agrees
+  in 50-63% of cases. The arms differ from each other by about a tenth of that.
+- ECMWF: UNTESTABLE as registered (not in the rows). Breaking height: wind is not an input (the script's assertion
+  passed).
+
+**Not done.** No rerun with a repaired control: these rows are now seen. A second pre-registration (C2 planted on the
+observed wind; nothing else changed) is for the director to ask for, and it should be scored by someone other than its
+author. An ECMWF arm needs a public-archive fetch that this brief did not allow.
