@@ -194,3 +194,35 @@ Scored by the pr-verifier session, not by the author, at commit `00c1662d1` from
 - One read outside what 3a declared, made on the partial file and stated here: the median absolute bearing difference
   between ECMWF and GFS (6.1 degrees, rows with GFS >= 8 kn). Model against model; no observation, no rating.
 - Handed to the pr-verifier for H5 scoring with --ecmwf.
+
+## 5. Second run, step 2 (ECMWF, H5): VALID, scored by pr-verifier, recorded here 2026-11-14 06:51Z
+
+Scored by the pr-verifier at head `0443702af` from a clean checkout; ECMWF file sha256 f379ed3d...2d1c, rows
+7f54c29e...56ab, result outside git sha256 096a27bd...838d. Its note: shared notes
+`verifier-wind-forcing-v2-score-2026-11-14.md`. I read that note and re-ran nothing.
+- **Controls: all four hold.** Every non-ECMWF number is identical to step 1 (1,824 values, maximum difference 0).
+  ECMWF is testable in every cell (396-3,515 rows).
+- **Verdict by the registered rule, with ECMWF among the arms, every coast: no material difference; no case to change
+  the rating's wind input.** ECMWF is never materially better or worse than GFS or the blend at any lead.
+
+ECMWF minus GFS, rating points (negative = ECMWF closer to the observed-wind rating), 95% interval:
+
+| Coast | 3 h | 12 h | 24 h | 36 h |
+|---|---|---|---|---|
+| west | -0.50 [-0.75, -0.22] | -0.63 [-0.95, -0.33] | -0.66 [-1.04, -0.31] | -0.80 [-1.24, -0.43] |
+| east | -0.11 [-0.24, +0.02] | -0.13 [-0.35, +0.07] | -0.27 [-0.59, +0.06] | -0.29 [-0.56, -0.01] |
+| Gulf | -0.77 [-1.03, -0.49] | -0.73 [-1.07, -0.40] | -0.61 [-1.15, -0.04] | -0.77 [-1.20, -0.26] |
+
+- **For the record, not a verdict (an input for the regional-weights work): ECMWF has the lowest rating error of all
+  arms in the west and the Gulf at every lead, by 0.5-0.8 points over GFS, detectable but under the 1.0-point bar.**
+- The latency-matched ECMWF (the run 6 h earlier) keeps most of that edge from 12 h on (west -0.39 / -0.42 / -0.60; Gulf
+  -0.47 / -0.82 / -0.68) and is WORSE than GFS at 3 h in the west (+0.28) and the east (+0.25). Never material.
+- Against the others: ECMWF is materially better than HRRR alone in the west at all four leads (-1.16 to -2.53) and
+  than the lane in the west at 24 and 36 h (-1.82 / -2.12). Against the blend, never material.
+- Section 3's latency caveat is not triggered: ECMWF does not win.
+- The verifier reviewed the fetch script and found no defect; it did not check the GRIB decode itself, for which the
+  evidence is the 0.935 speed correlation with GFS.
+
+**Limits that still stand.** One 25-day autumn window. Buoys sit seaward of the surf zone. Ratings on a fixed grid of
+surf states, not the surf that ran. G/H/L/B were seen by the author before the second run; only ECMWF was blind. An
+earlier build that fed HRRR wind to the rating failed its own pre-registered test (#728); this result agrees with it.
