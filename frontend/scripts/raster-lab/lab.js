@@ -116,6 +116,10 @@ const SAMPLER = () => {
   // Is a "Loading ... still showing ..." line on screen (the status under the timeline, any layout)? 1 = a stale frame ADMITTED.
   R.admitted = () => ([...document.querySelectorAll('[role="status"][data-drawn-state="pending"]')].some((el) => el.offsetParent !== null) ? 1 : 0);
   R.wheel = () => [...document.querySelectorAll('[role="slider"][aria-label*="timeline wheel"]')].find((el) => el.offsetParent !== null) || null;
+  // ASK TIME (2026-11-14): the expected frame is the nearest to (the clock WHEN the target was set) + hour, as the app picks
+  // once per step; recomputing it from the running clock flipped the expectation mid-step whenever the clock crossed an
+  // axis midpoint (EURO's 3-hourly 07:30), reading a correct frame as stale until timeout. Both arms alike.
+  const askOf = (W) => (W.askAt != null ? W.askAt : Date.now()) + W.hour * 3600000;
   R.sampleOM = (m) => {
     const L = R.layer; let vis = -1;
     for (let i = 0; i < 3; i++) {
@@ -131,7 +135,7 @@ const SAMPLER = () => {
     const W = R.want; let ok = false; let exp = null;
     if (W) {
       const em = R.expModel(L, W.model, W.hour); const vt = R.axes[em];
-      const ei = vt ? closest(vt, Date.now() + W.hour * 3600000) : null; exp = em + ':' + ei;
+      const ei = vt ? closest(vt, askOf(W)) : null; exp = em + ':' + ei;
       ok = p.model === em && p.idx === ei;
     }
     // The tiles on screen belong to the URL only if the source's tile template does (an aborted TileJSON leaves a source
@@ -154,7 +158,7 @@ const SAMPLER = () => {
     const sh = t.shown; const wt = t.want; const vms = (t.pin && t.pin.validMs) || [];
     const W = R.want; let exp = null;
     if (W && vms.length) {
-      const ask = Date.now() + W.hour * 3600000; let best = null; let bd = Infinity;
+      const ask = askOf(W); let best = null; let bd = Infinity;
       for (const v of vms) { const d = Math.abs(v - ask); if (d <= 3 * 3600000 && d < bd) { bd = d; best = v; } }
       exp = best;
     }
@@ -304,7 +308,7 @@ async function runCombo(rr, offset, vpName, layer, model, zoom, base = L.BASE, a
     const wall0 = Date.now();
     const truth0 = await page.evaluate(TRUTH);
     const tToggle = await page.evaluate(({ layer, model }) => {
-      const R = window.__RL__; R.layer = layer; R.want = { hour: 0, model }; R.wv = 1; R.on = true;
+      const R = window.__RL__; R.layer = layer; R.want = { hour: 0, model, askAt: Date.now() }; R.wv = 1; R.on = true;
       const t = performance.now(); R.marks.push([t, 'toggle']); window.toggleLayer(layer); return t;
     }, { layer, model });
     const msToggle = await waitFull(page, rr, TOGGLE_TIMEOUT);
@@ -352,7 +356,7 @@ async function runCombo(rr, offset, vpName, layer, model, zoom, base = L.BASE, a
       if (layer === 'radar') target = kind === 'long' ? before.max : (before.v == null ? null : before.v + RADAR_DIR);
       else target = kind === 'long' ? hour + LONG_JUMP_H : kind === 'back' ? 0 : hour + 1;
       const wv = await page.evaluate(({ target, model, prevId, radar }) => {
-        window.__RL__.want = radar ? { prevId, model } : { hour: target, model };
+        window.__RL__.want = radar ? { prevId, model } : { hour: target, model, askAt: Date.now() };
         window.__RL__.wv += 1; return window.__RL__.wv;
       }, { target, model, prevId: radarPrev, radar: layer === 'radar' });
       const truth = await page.evaluate(TRUTH);
@@ -406,7 +410,7 @@ async function runCombo(rr, offset, vpName, layer, model, zoom, base = L.BASE, a
       await sleep(1500);
       const w1 = Date.now();
       const t1 = await page.evaluate(({ layer, model }) => {
-        const R = window.__RL__; R.layer = layer; R.want = { hour: 0, model }; R.wv = 1; R.on = true;
+        const R = window.__RL__; R.layer = layer; R.want = { hour: 0, model, askAt: Date.now() }; R.wv = 1; R.on = true;
         const t = performance.now(); window.toggleLayer(layer); return t;
       }, { layer, model });
       const ms1 = await waitFull(page, rr, TOGGLE_TIMEOUT);
