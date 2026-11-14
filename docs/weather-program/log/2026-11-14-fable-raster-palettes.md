@@ -155,3 +155,23 @@ NORMAL vision -10 C against +10 C is 31-39 where today's rainbow gives 50. It pa
 Codex's own entry (coordination file in the main checkout, 03:44Z): "No Codex source file reservations remain for this
 completed batch." Re-read at 01:45 EST before pushing: nothing newer than the director's 04:52Z notice. #755 is a stale Codex
 draft superseded by #874 (the director, 00:40 EST).
+
+## 03:05 EST. The advisor's red team: PASS WITH LIMITS. Two fixes before merge
+**A (a defect).** The legend's memo does not depend on the palette kills, and the tables are re-registered only when the
+theme changes. So a kill set in the console does not move the bar and the map together. Fix: one key holding the four kill
+states, in the legend memo's dependencies AND in the effect that registers the tables, with a test and a mutant.
+
+**B (a missing gate).** No line checks a table against the BARE map. Air temp is palest at 0 C over the pale light map, and
+cold water is near-black over the dark map: either could sink into the basemap.
+
+### Gate B1, written at 03:05 EST BEFORE measuring it (same instrument, tables scored as steps)
+- For every theme, and every surface the layer covers, the drawn colour differs from that surface's bare colour by
+  **at least 5.0 in normal vision and at least 3.0 in each colour-blind view**, at each of these values:
+  air temp -30, -20, -10, -5, -1, 0, 1, 5, 10, 20, 30, 40 C; water temp 4, 8, 12, 16, 20, 24, 28, 30 C.
+  (Fog already has its own lines against the bare map, F1 and F2.)
+- 5.0 because it is a tint a viewer sees without looking for it (about five just-noticeable differences); it is fixed here and
+  not moved after the measurement.
+- If a value fails: change only the failing end of that table, then re-run EVERY gate line (T, W, F, B) and report all of
+  them again, including any that got worse.
+- What I expect before measuring, so it cannot be dressed up afterwards: the air temp table's neutral stop at 0 C over the
+  light map's land is the likeliest failure.
