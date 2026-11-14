@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 6,
+  "tests": 13,
   "branch": "codex/gear-repairs-20261114",
   "date": "2026-11-14",
-  "note": "six Gear catalog affiliate URL regression cases"
+  "note": "six catalog regression cases plus seven real ASGI async SQLite GET controls"
 }
