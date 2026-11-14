@@ -229,3 +229,43 @@ today's. Margins this thin on a simulated instrument are not a guarantee on a re
 7,057 tests. Lint ratchet and file-size check pass. The three themes redrawn on desktop with 0 page errors.
 NOT redone after the table changes: the phone layout draw and the frame-time check (the tables are the same size and kind; the
 earlier results are in the 01:45 section).
+
+## 05:00 EST. The re-checks the director asked for, on the final tables. #892 was merged (09:04Z) while they ran
+All in the offline app, on the build of the pushed code (`17186104c`).
+- **Fog kill (light theme):** kill set in the console and the layer toggled: the registry is the old 81-stop grey table, the bar
+  is the old one with its old ticks, the tile URL tag goes `pl` -> `o`, and 24.8% of map pixels change by more than 12/255.
+  Kill cleared and toggled: all back; 0.0% of pixels differ from the first frame.
+- **Water temp kill (light theme):** the same: the library's 46-stop table, the old bar, tag `p` -> `o`, 55.1% of map pixels
+  change; cleared: 0.0% differ.
+- **Dark to beach with fog on.** The theme is changed on its own page (`/theme`), not inside the map, so the real flow is: fog
+  on in dark, open the theme page, choose Beach, return to the map, all in one page session. After it: the registered fog table
+  is beach's slate ([41, 54, 71] at 300 m; dark's is [235, 243, 249]), the bar is beach's, and the tile tag is `pb` where it was
+  `pd`. The fog layer is not kept on across the page change (the script turned it back on), so a tile coloured for dark could
+  only be reused through the tile library's own cache; the tag rules that out either way.
+- **Phone layout (390x844, dpr 3), light, dark and beach:** the three layers draw with 0 page errors; in the weather sheet each
+  legend is 350 px wide with the computed gradient and ticks.
+- **Frame time (C2), three page loads per arm, GPU ms per drawn frame while scrubbing:** air temp 0.43 / 0.39 / 0.40 new
+  against 0.39 / 0.82 / 0.38 kill (medians 0.40 vs 0.39); water temp 0.85 / 0.96 / 0.96 against 1.66 / 1.16 / 0.86 (0.96 vs
+  1.16); fog 0.40 / 0.47 / 0.35 against 0.38 / 0.36 / 0.37 (0.40 vs 0.37, +8%). Within the 10% line; the load-to-load spread
+  is larger than any difference.
+
+### A limit seen in these runs, not fixed
+In the BEACH theme the fog legend bar is hard to see: the bar is the fog table's slate fading to clear, and the beach theme's
+weather panel is dark, so slate sits on near-black. The bar is truthful to the map (beach's map is pale, and the veil is slate
+there); it is the panel behind the bar that hides it. No gate covered a bar's contrast against its own panel. Fixing it means
+drawing the bar over a swatch of the map's colour, which is in the legend's render, outside the block cleared for editing.
+Recorded for the owner; `__RAW_DISABLE_RASTER_LEGENDS__` gives the old grey bar back meanwhile.
+
+### Still not verified
+A real phone, Safari, Firefox; a deploy; the own-frames path for these layers (#889).
+
+## Addendum, 05:15 to 06:05 EST: the light and beach results in this log were measured on the wrong map colours
+The checker's light and beach basemap colours came from the wind checker (the map as muted under the wind layer). These three
+layers are drawn over the bare map. Sampled from the bare map in the offline app: light water [144, 223, 254], land
+[252, 252, 252]; beach water [117, 207, 240], land [239, 233, 225]; dark unchanged. On those colours the tables merged in
+#892 FAIL 7 of this log's gate lines (T1 light / beach water 4.06 / 4.11; T2 colour-blind 17.8 / 16.2; W2 1.35 / 1.27; B1 air
+temp over beach land, colour-blind, 1.96). Every dark line and every fog line passes. So "every gate line passes" in this
+log holds for dark only. The director decided not to revert (the tables still beat the ones before them on those measures).
+The corrected checker, the re-tuned tables that pass every unchanged line, and the full before / after are in #897 and
+`2026-11-14-fable-raster-legend-swatch.md`.
+Lesson: verify an instrument's constants against the real rendering surface before a gate is trusted.
