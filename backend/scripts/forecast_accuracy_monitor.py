@@ -61,6 +61,10 @@ import urllib.error
 import urllib.request
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
+try:
+    from _service_auth import service_headers   # the forecast clamp's job key (flip blocker 1)
+except ImportError:
+    from scripts._service_auth import service_headers
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -586,7 +590,7 @@ def big_swell_by_region_lines(report):
 
 def _fetch_json(url, timeout=60):
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "raw-surf-accuracy-monitor"})
+        req = urllib.request.Request(url, headers=service_headers(url, {"User-Agent": "raw-surf-accuracy-monitor"}))
         with urllib.request.urlopen(req, timeout=timeout) as r:
             return json.load(r)
     except Exception as e:

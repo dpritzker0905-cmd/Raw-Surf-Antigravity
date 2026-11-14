@@ -1,6 +1,6 @@
 import {
   planWindow, toField, ownFramesOn, ownIndex, lastIndex, frameAt, framesOf, setWanted, getField, MAX_IN_FLIGHT, MISSING, OWN_RASTER_SETS,
-  combinedFrames, combinedFrameAt, setKey, TEMP_FIELD, CLOUD_FIELD, NO_DATA_BELOW, leverCovers, DEFAULT_ON_LAYERS,
+  combinedFrames, combinedFrameAt, setKey, TEMP_FIELD, CLOUD_FIELD, PRECIP_FIELD, NO_DATA_BELOW, leverCovers, DEFAULT_ON_LAYERS,
   _resetOwnRasterFramesForTest,
 } from './ownRasterFrames';
 import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
@@ -66,7 +66,7 @@ describe('levers (phase 1 is dark)', () => {
     window.__RAW_DISABLE_RASTER_OWN_FRAMES__ = true;
     expect(ownFramesOn('pressure')).toBe(false);
     delete window.__RAW_DISABLE_RASTER_OWN_FRAMES__;
-    expect(ownFramesOn('rain')).toBe(false);
+    expect(ownFramesOn('fog')).toBe(false);
   });
   test('per model: each has its own set; a model whose set is killed stays on the .om path', () => {
     window.__RAW_RASTER_OWN_FRAMES__ = true;
@@ -270,5 +270,40 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
     staticSetEnabled.mockImplementation(() => true);
     staticFramesEnabled.mockReturnValue(false);
     expect(ownFramesOn('satellite', 'GFS')).toBe(false);
+  });
+});
+
+describe('precipitation, the rain layer (2026-11-12): GFS only, dark until the lever names it', () => {
+  afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_RAIN__; });
+
+  test('the set key and field match the publisher contract; EURO and ICON have no set', () => {
+    expect(setKey('rain', 'GFS')).toBe('GFS/weather/precipitation/global_0p25');
+    expect(setKey('rain', 'EURO')).toBeNull();
+    expect(setKey('rain', 'ICON')).toBeNull();
+    expect(OWN_RASTER_SETS.rain.field).toBe(PRECIP_FIELD);
+    expect(PRECIP_FIELD).toBe(10);
+    expect(OWN_RASTER_SETS.rain.unit).toBe('mm/h');
+    expect(OWN_RASTER_SETS.rain.fallback).toBeNull();
+  });
+
+  test('dark: off with no lever, and not one of the default-on layers', () => {
+    expect(DEFAULT_ON_LAYERS).not.toContain('rain');
+    expect(ownFramesOn('rain')).toBe(false);
+  });
+
+  test('on when the lever names it, for GFS only', () => {
+    window.__RAW_RASTER_OWN_FRAMES__ = 'rain';
+    expect(ownFramesOn('rain', 'GFS')).toBe(true);
+    expect(ownFramesOn('rain', 'EURO')).toBe(false);
+    expect(ownFramesOn('rain', 'ICON')).toBe(false);
+    expect(ownFramesOn('temperature')).toBe(false);          // the lever named rain only
+  });
+
+  test('OFF PATH: its own kill wins over the lever and touches no other layer', () => {
+    window.__RAW_RASTER_OWN_FRAMES__ = true;
+    window.__RAW_DISABLE_RASTER_OWN_RAIN__ = true;
+    expect(ownFramesOn('rain')).toBe(false);
+    expect(ownFramesOn('pressure')).toBe(true);
+    expect(ownFramesOn('temperature')).toBe(true);
   });
 });

@@ -80,3 +80,10 @@ def test_the_oversize_taper_start_also_switches_branch():
     assert local_start < legacy_start, (
         "a local reference must be able to start the taper EARLIER than the know-nothing absolute "
         "pair — otherwise the capacity tiers are decorative")
+
+
+@__import__("pytest").fixture(autouse=True)
+def _legacy_reference_curve(monkeypatch):
+    """These pins describe the reference-LESS legacy size curve. JAC-2's catalogue prior
+    (RATING_REF_PRIOR, default ON) replaces it; that path is pinned in test_reference_prior.py."""
+    monkeypatch.setenv("RATING_REF_PRIOR", "0")

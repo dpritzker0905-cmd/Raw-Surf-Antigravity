@@ -427,7 +427,7 @@ async def calibrate_spots(resolver, spots, model: str, valid_time: str, client=N
 
     Model resolves are cached per buoy: many spots share a station, and the answer at a given buoy is
     the same for all of them. Never raises per spot (a bad buoy/resolve just yields a null residual)."""
-    from services.weather_pipeline.schemas import NormalizedPointResponse
+    from services.weather_pipeline.schemas import NormalizedPointResponse; from services.weather_pipeline.skill_attribution import serve_path  # noqa: E702 (800-line cap)
     coords = await fetch_ndbc_station_coords(client=client)
     rows = []
     _resolved = {}                      # buoy_id -> (model_hs, model_tp, resolved_at)
@@ -451,7 +451,7 @@ async def calibrate_spots(resolver, spots, model: str, valid_time: str, client=N
                     model_hs = marine.point.speed      # offshore significant wave height (m)
                     model_tp = marine.point.period
                     model_dir = marine.point.direction   # mean wave direction FROM (deg), graded by S8
-                    served = {"product": marine.product_id, "cycle": marine.model_run_time.strftime("%Y-%m-%dT%H:%M:%SZ") if marine.model_run_time else None}  # WHICH product/cycle answered (skill_attribution)
+                    served = {"product": marine.product_id, "cycle": marine.model_run_time.strftime("%Y-%m-%dT%H:%M:%SZ") if marine.model_run_time else None, **serve_path(marine.point)}  # WHICH product/cycle answered, and HOW (skill_attribution)
             except Exception as e:
                 logger.debug(f"[buoy-calibration] resolve failed for buoy {bid}: {e}")
             # WIND residual (2026-08-09): same coordinates, same per-buoy cache, zero upstream

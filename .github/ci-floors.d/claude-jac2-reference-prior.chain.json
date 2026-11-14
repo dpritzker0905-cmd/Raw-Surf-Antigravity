@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 27,
+  "files": 1,
+  "branch": "claude/jac2-reference-prior",
+  "date": "2026-11-13",
+  "note": "test_reference_prior.py: JAC-2 reference prior (#771), owed per its PR body"
+}

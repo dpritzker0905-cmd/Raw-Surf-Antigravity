@@ -16,7 +16,7 @@ function fakeMap() {
     getLayer: (id) => layers[id],
     removeLayer: (id) => { delete layers[id]; },
     setLayoutProperty: (id, k, v) => { if (k === 'visibility') layers[id].visibility = v; },
-    setPaintProperty: () => {},
+    setPaintProperty: (id, k, v) => { if (layers[id]) { layers[id].set = layers[id].set || {}; layers[id].set[k] = v; } },
     on: (e, fn) => { (handlers[e] = handlers[e] || []).push(fn); },
     off: (e, fn) => { handlers[e] = (handlers[e] || []).filter((f) => f !== fn); },
     fire: (e, arg) => (handlers[e] || []).forEach((fn) => fn(arg)),
@@ -33,8 +33,10 @@ const field = (shift) => {
 };
 
 beforeEach(() => { _resetOwnRasterFramesForTest(); _resetIsobarStoreForTest(); delete window.__RAW_DISABLE_RASTER_ISOBARS__; });
+afterEach(() => { delete window.__RAW_DISABLE_RASTER_VALUE_BLEND__; jest.useRealTimers(); });
 
-test('the lines never outlive their frame: hidden-buffer prepare, same-call swap at the cut, nothing when not ready', async () => {
+test('no blend (the kill, reduced motion): the lines never outlive their frame; same-call swap at the cut, nothing when not ready', async () => {
+  window.__RAW_DISABLE_RASTER_VALUE_BLEND__ = true;                 // the hard cut's contract, unchanged
   const m = fakeMap();
   await act(async () => { await requestIsobars('p1', field(-30)); await requestIsobars('p2', field(-20)); });
   renderHook(() => usePressureIsobars({ mapInstance: m, engaged: true, theme: 'dark' }));
@@ -82,4 +84,72 @@ test('dark draws the denser V2 ink; its kill switch restores V1; light is untouc
   const ml = fakeMap();
   renderHook(() => usePressureIsobars({ mapInstance: ml, engaged: true, theme: 'light' }));
   expect(ml.layers['own-raster-pressure-isobar-line-a'].paint['line-color']).toBe('rgba(15,23,42,0.50)');
+});
+
+test('with the value blend the outgoing LINES fade out as the incoming fade in; numbers and markers switch at once', async () => {
+  const m = fakeMap();
+  await act(async () => { await requestIsobars('p1', field(-30)); await requestIsobars('p2', field(-20)); await requestIsobars('p3', field(-10)); });
+  jest.useFakeTimers();
+  renderHook(() => usePressureIsobars({ mapInstance: m, engaged: true, theme: 'beach' }));
+  const line = (b) => m.layers[`own-raster-pressure-isobar-line-${b}`];
+  const load = (b) => act(() => m.fire('sourcedata', { sourceId: `own-raster-pressure-isobars-${b}`, isSourceLoaded: true }));
+  act(() => emitOwnWant('pressure', 'p1'));
+  const first = ['a', 'b'].find((b) => m.sources[`own-raster-pressure-isobars-${b}`].data.features.length);
+  const second = first === 'a' ? 'b' : 'a';
+  load(first);
+  act(() => emitOwnShown('pressure', 'p1'));
+  expect(vis(m, first)).toEqual(['visible', 'visible', 'visible']);
+  expect(line(first).set['line-opacity']).toBe(1);
+  expect(line(first).set['line-opacity-transition'].duration).toBe(0);      // the first lines appear at once: nothing to fade from
+
+  act(() => emitOwnWant('pressure', 'p2'));
+  load(second);
+  act(() => emitOwnShown('pressure', 'p2'));                                // the step lands: the blend begins
+  expect(vis(m, second)).toEqual(['visible', 'visible', 'visible']);
+  expect(line(second).set['line-opacity']).toBe(1);
+  expect(line(second).set['line-opacity-transition'].duration).toBeGreaterThan(0);
+  expect(vis(m, first)).toEqual(['visible', 'none', 'none']);               // old numbers and H / L gone; old lines still fading
+  expect(line(first).set['line-opacity']).toBe(0);
+  expect(line(first).set['line-opacity-transition'].duration).toBe(line(second).set['line-opacity-transition'].duration);
+  act(() => { jest.advanceTimersByTime(line(second).set['line-opacity-transition'].duration + 1); });
+  expect(vis(m, first)).toEqual(['none', 'none', 'none']);                  // the fade ended: the old lines are off the map
+  expect(vis(m, second)).toEqual(['visible', 'visible', 'visible']);
+
+  // a second step before the fade ends: the fading buffer is about to hold p1's lines again, so it is hidden at once
+  act(() => emitOwnWant('pressure', 'p3'));
+  load(first);
+  act(() => emitOwnShown('pressure', 'p3'));
+  expect(vis(m, second)[0]).toBe('visible');                                // p2's lines fading out
+  act(() => emitOwnWant('pressure', 'p1'));                                 // p1 prepares into the buffer that is still fading
+  expect(vis(m, second)).toEqual(['none', 'none', 'none']);
+  expect(vis(m, first)).toEqual(['visible', 'visible', 'visible']);         // p3's lines stay
+});
+
+test('with the blend, a cut that comes before the new lines have loaded fades the old lines out and the new ones in', async () => {
+  const m = fakeMap();
+  await act(async () => { await requestIsobars('p1', field(-30)); await requestIsobars('p2', field(-20)); });
+  jest.useFakeTimers();
+  renderHook(() => usePressureIsobars({ mapInstance: m, engaged: true, theme: 'light' }));
+  const line = (b) => m.layers[`own-raster-pressure-isobar-line-${b}`];
+  const load = (b) => act(() => m.fire('sourcedata', { sourceId: `own-raster-pressure-isobars-${b}`, isSourceLoaded: true }));
+  act(() => emitOwnWant('pressure', 'p1'));
+  const first = ['a', 'b'].find((b) => m.sources[`own-raster-pressure-isobars-${b}`].data.features.length);
+  const second = first === 'a' ? 'b' : 'a';
+  load(first);
+  act(() => emitOwnShown('pressure', 'p1'));
+  act(() => emitOwnWant('pressure', 'p2'));                                 // p2 prepares in the other buffer...
+  act(() => emitOwnShown('pressure', 'p2'));                                // ...but the cut comes before it has loaded
+  expect(vis(m, first)).toEqual(['visible', 'none', 'none']);               // p1's numbers go; its lines fade with the field
+  expect(line(first).set['line-opacity']).toBe(0);
+  const ms = line(first).set['line-opacity-transition'].duration;
+  expect(ms).toBeGreaterThan(0);
+  expect(vis(m, second)).toEqual(['none', 'none', 'none']);                 // p2's lines are not on screen until they are p2's
+  load(second);                                                             // they land mid-fade
+  expect(vis(m, second)).toEqual(['visible', 'visible', 'visible']);
+  expect(line(second).set['line-opacity']).toBe(1);
+  expect(line(second).set['line-opacity-transition'].duration).toBe(ms);    // and rise as the old ones fall
+  expect(vis(m, first)[0]).toBe('visible');                                 // the old lines are still fading, not cut
+  act(() => { jest.advanceTimersByTime(ms + 1); });
+  expect(vis(m, first)).toEqual(['none', 'none', 'none']);
+  expect(vis(m, second)).toEqual(['visible', 'visible', 'visible']);
 });

@@ -1,0 +1,21 @@
+-- Storage RLS: END the anonymous read of the precomputed spot ratings (flip blocker 3, 2026-11-12).
+-- NOT APPLIED. An OWNER ACTION, run at the accounts-only flip (WEATHER_TIER_CLAMP on), on prod (jnfbxcvcbtndtsvscppt)
+-- and dev (weewaulkwfwlbhqemxma). It reverses `anon_read_spot_ratings_latest_only`
+-- (storage_rls_spot_ratings_scoped_read.sql, 2026-07-14).
+--
+-- WHY. That policy let anyone holding the public anon key read spot_ratings/latest.json, every model's ratings. With the
+-- accounts-only clamp on (owner 2026-11-12: "we do not want non-account holders to access the data"), the map reads its
+-- tier's copy (spot_ratings/tier/<tier>.json, or latest.json for premium) through a signed URL from
+-- GET /api/weather/spot-ratings-url (services/spot_ratings_entitlement.py). The app's login tokens are not Supabase
+-- tokens, so no policy could tell an account from a guest: after this, the whole weather-products bucket is
+-- service-role only again, and only a signature opens an object.
+--
+-- ORDER (each step safe on its own):
+--   1. Deploy the backend and client that carry the signed-URL lane (the client uses it only while the clamp is on).
+--   2. Confirm a precompute cycle wrote spot_ratings/tier/free.json and basic.json.
+--   3. Flip WEATHER_TIER_CLAMP on.
+--   4. Run this. Until then the old anon lane still works for clients that have not reloaded; after it, they fall back
+--      to the clamped /spot-ratings endpoint (spotRatingsCdn.js returns null on any failure).
+-- ROLLBACK: re-run storage_rls_spot_ratings_scoped_read.sql.
+
+DROP POLICY IF EXISTS "anon read spot_ratings latest only" ON storage.objects;

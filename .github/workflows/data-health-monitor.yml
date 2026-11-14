@@ -103,6 +103,7 @@ jobs:
         env:
           BASE: ${{ vars.HEALTH_BASE || 'https://raw-surf-antigravity.onrender.com' }}
           PAGING: ${{ vars.REGION_HEALTH_PAGING || '1' }}
+          WEATHER_SERVICE_KEY: ${{ secrets.WEATHER_SERVICE_KEY }}   # the forecast clamp's job identity (services/weather_service_identity.py); unset = no key sent
         working-directory: backend
         run: |
           set -o pipefail

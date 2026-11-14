@@ -235,6 +235,9 @@ def upload_spot_ratings_l2(store, obj) -> None:
     object anonymously readable — no mirror, no second bucket."""
     data = json.dumps(obj, separators=(",", ":")).encode("utf-8")
     store._upload_to_supabase(SPOT_RATINGS_L2_KEY, data)
+    # Flip blocker 3 (2026-11-12): each tier's own copy beside it, for the signed-URL lane (spot_ratings_entitlement).
+    from services import spot_ratings_entitlement as _SRE
+    _SRE.upload_tier_objects(store, obj)
 
 
 _l2_cache = {"obj": None, "ts": None}

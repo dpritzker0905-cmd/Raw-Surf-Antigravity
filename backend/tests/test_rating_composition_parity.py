@@ -614,3 +614,10 @@ def test_the_post_step_guard_can_actually_fail(innocent):
     assert not _references(innocent, POST_STEPS["observation_gate"]), (
         f"{innocent} appears to reference the observation gate, so the post-step guard cannot "
         f"distinguish a gating surface from a non-gating one. Pick a different control module.")
+
+
+@__import__("pytest").fixture(autouse=True)
+def _legacy_reference_curve(monkeypatch):
+    """These pins describe the reference-LESS legacy size curve. JAC-2's catalogue prior
+    (RATING_REF_PRIOR, default ON) replaces it; that path is pinned in test_reference_prior.py."""
+    monkeypatch.setenv("RATING_REF_PRIOR", "0")

@@ -188,6 +188,8 @@ jobs:
       - name: "4. Point lane serves the per-SPOT reference (E#1)"
         if: always()
         working-directory: backend
+        env:
+          WEATHER_SERVICE_KEY: ${{ secrets.WEATHER_SERVICE_KEY }}   # the forecast clamp's job identity (services/weather_service_identity.py); unset = no key sent
         run: |
           set -o pipefail
           python3 scripts/verify_point_spot_reference.py 2>&1 | tee e1_acceptance.txt | tail -24

@@ -4,6 +4,11 @@ Codex/root acceptance (2026-11-10): rated frame instants and per-frame rating ca
 window's sent/withheld split, alert eligibility, local-midnight splitting and the daily cap, and the tide fetch must be
 identical with LOCATION_TIME_FIELD on and off. Grouping, labels, partial days and presentation cache identity are tested
 separately and must not feed back into any of those.
+
+⚠️ O2 (2026-11-10, LT-4) RE-SPECIFIED THE ALERT PART: alert eligibility, the local-midnight split, the daily cap and the
+message now share ONE clock, civil when location_time is on (phase 1 checked on solar and printed on civil, so the
+printed window was not the one checked). The alert tests below pin that rule; tests/test_alert_one_clock.py pins it
+at Lisbon, Apia and Chatham. Everything else in this file is unchanged.
 """
 import asyncio
 from datetime import datetime, timedelta, timezone
@@ -229,28 +234,36 @@ def _series(start, hours=60):
 
 
 @pytest.mark.parametrize("name", ["honolulu", "new_york", "kathmandu"])
-def test_alert_windows_are_identical_on_and_off_except_added_civil_labels(grid, monkeypatch, name):
+def test_alert_windows_choose_and_print_on_one_clock(grid, monkeypatch, name):
+    """Off = solar, as before; on = the civil zone decides the hours CHECKED and the hours PRINTED."""
     lat, lng = SPOTS[name]
     spot = SimpleNamespace(latitude=lat, longitude=lng)
     alert = SimpleNamespace(min_wave_height=None, max_wave_height=None, time_windows=["morning", "afternoon"],
                             tide_states=[], preferred_conditions=[])
     series = _series(NOW.replace(minute=0))
-    _flag(monkeypatch, False)
-    off = saw.find_windows(alert, spot, series, NOW, 48)
-    _flag(monkeypatch, True)
-    on = saw.find_windows(alert, spot, series, NOW, 48)
-    assert off["windows"], "fixture must produce windows"
-    assert len(on["windows"]) == len(off["windows"]) and on["reason"] == off["reason"]
-    for a, b in zip(on["windows"], off["windows"]):
-        assert {k: v for k, v in a.items() if not k.startswith("civil_")} == b
-        assert a["civil_iana"] == lt.describe(lat, lng)["iana"]
-        z_start = datetime.fromisoformat(a["start"].replace("Z", "+00:00")).astimezone(ZoneInfo(a["civil_iana"]))
-        assert a["civil_start"] == z_start.strftime("%H:%M")
-        assert saw.window_message("X", a).split(": ", 1)[1].startswith(f"{a['civil_day']} {a['civil_start']}-")
-        assert saw.window_message("X", b) == saw.window_message("X", {k: v for k, v in b.items()})
+    for on in (False, True):
+        _flag(monkeypatch, on)
+        found = saw.find_windows(alert, spot, series, NOW, 48)
+        assert found["windows"], "fixture must produce windows"
+        zone = ZoneInfo(lt.describe(lat, lng)["iana"]) if on else None
+        for w in found["windows"]:
+            assert w["clock"] == ("civil" if on else "solar")
+            assert ("civil_iana" in w) is on
+            a = datetime.fromisoformat(w["start"].replace("Z", "+00:00"))
+            b = datetime.fromisoformat(w["end"].replace("Z", "+00:00"))
+            wall = (lambda t: t.astimezone(zone)) if on else (lambda t: t + timedelta(hours=saw.local_offset_h(lng)))
+            assert (w["local_day"], w["local_start"], w["local_end"]) == (
+                wall(a).strftime("%a"), wall(a).strftime("%H:%M"), wall(b).strftime("%H:%M"))
+            t = a
+            while t < b:                                   # every hour CHECKED is inside the band on that clock
+                assert saw.in_time_windows(wall(t).hour, alert.time_windows), (name, on, w)
+                t += timedelta(hours=1)
+            assert saw.window_message("X", w).split(": ", 1)[1].startswith(
+                f"{w['local_day']} {w['local_start']}-{w['local_end']}")
 
 
-def test_daily_cap_and_dedupe_read_only_the_solar_fields(grid, monkeypatch):
+def test_daily_cap_and_dedupe_agree_where_civil_equals_solar(grid, monkeypatch):
+    # Honolulu: civil -10 == solar -10, so the one-clock rule must not move the cap or the dedupe there.
     lat, lng = SPOTS["honolulu"]
     spot = SimpleNamespace(latitude=lat, longitude=lng)
     alert = SimpleNamespace(min_wave_height=None, max_wave_height=None, time_windows=[], tide_states=[],

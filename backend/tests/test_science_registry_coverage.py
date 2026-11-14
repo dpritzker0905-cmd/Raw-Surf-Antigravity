@@ -145,6 +145,8 @@ GRANDFATHERED = {
     (CLIMATOLOGY, "MIN_SAMPLES"): (STRUCTURAL, "bootstrap threshold before a spot has a reference"),
     (CLIMATOLOGY, "SCHEMA_VERSION"): (STRUCTURAL, "blob schema version"),
     (CLIMATOLOGY, "_MERGED_BATCH_IDS_KEEP"): (STRUCTURAL, "dedupe cap for consumed inbox batches"),
+    (CLIMATOLOGY, "REFERENCE_PRIOR_M"): (DEBT, "JAC-2 prior: median of climatology_baseline.json (n=1,821), "
+                                               "pinned by test_reference_prior; no published source exists"),
     # -- wave_physics ----------------------------------------------------------------------------
     (WAVE_PHYSICS, "DIRECTIONAL_CONFLICT_MIN"): (DEBT, "swell-conflict threshold, unsourced"),
 }
