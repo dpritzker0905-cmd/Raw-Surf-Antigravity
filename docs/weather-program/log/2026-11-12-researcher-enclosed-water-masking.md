@@ -414,3 +414,13 @@ Separate work, same session. The particle draw runs six vertices per particle. E
 
 - Reflection's view is one model's opinion. It is not a source.
 - Nothing in 13.1 changes a served number.
+
+
+## 14. Dated correction: #852 is on HOLD (2026-11-13)
+
+Correction to the line "The reach cap (#852) remains the only tested gate" (sections 3 and 4 above, written 2026-11-12). Source: #852's own body (`fable/strait-fallback`, PR body marked "HOLD — do not merge (2026-11-13)"), not re-run here.
+
+- On NOAA's native mask the cap sends NDBC 46267 and 7 surf spots to no data: Salthill Beach, Silverstrand Beach, Rossbeigh White Strand, Rathmullan, Bishopsquarter, Kells, Boca Barranca.
+- The D-065 history filter on #852 skipped (no cached window), so the served effect is not measured.
+- #852 lists three options for the owner, none chosen: keep 1.5 cells and accept 7 spots at "--"; a 2-cell reach; or the exposure sweep in this PR.
+- Not verified here: a claim that the exposure sweep ranks 46267 above six of those seven spots. That ranking is not in #852's body. Do not cite it until a source is found.
