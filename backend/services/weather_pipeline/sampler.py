@@ -589,6 +589,16 @@ class PointSampler:
             # "0 ft / 0 dir" where the map shows waves. Fall back to the nearest valid ocean vector IF it's
             # within ~1.5 grid cells; deep-inland points (nearest ocean farther) stay unavailable.
             valid_vectors = self._valid_vectors(product)
+            # A NAMED station the grid cannot represent (unresolved_stations, SAMPLER_UNRESOLVED_STATIONS): NDBC 46267
+            # in the Strait of Juan de Fuca read the open-Pacific cell 0.73 deg away, +1.5 m. Its answer is "no data".
+            # Only here, where no bracketing corner is wet; every other point takes the unchanged fallback below.
+            if valid_vectors and product.domain.lower() == "marine":
+                from services.weather_pipeline import unresolved_stations as _us
+                named = _us.station_at(lat, lng)
+                if named is not None and _us.enabled():
+                    return self._build_unavailable_response(
+                        product, lat, lng, f"{named['id']} ({named['name']}) is not represented by this grid: "
+                                           f"{named['reason']} (SAMPLER_UNRESOLVED_STATIONS)")
             if valid_vectors:
                 nearest = self._find_nearest_vector(valid_vectors, lat, lng)
                 pos_diffs = [lats[i + 1] - lats[i] for i in range(len(lats) - 1)]

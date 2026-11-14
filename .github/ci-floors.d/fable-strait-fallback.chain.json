@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 9,
+  "files": 1,
+  "branch": "fable/strait-fallback",
+  "date": "2026-11-14",
+  "note": "sampler: NDBC 46267 by name returns no data (9 tests, 1 file)"
+}
