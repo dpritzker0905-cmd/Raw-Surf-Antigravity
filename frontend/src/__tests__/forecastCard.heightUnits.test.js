@@ -3,6 +3,9 @@ import { spotGlyphAriaLabel } from '../components/map/MapMarkerLayers';
 import { mToFt } from '../components/map/forecastHelpers';
 import { M_TO_FT, formatHeightFromMeters } from '../components/map/heightUnits';
 
+// CRA's Jest resolver needs the same real-router alias as MapPersonContext.test.js.
+jest.mock('react-router-dom', () => jest.requireActual('react-router'), { virtual: true });
+
 // R11-11 item 6 (2026-08-09): "the ft/m toggle reaches legends and marker tooltips but NOT the
 // infobox cards (which also carry a second, drifted conversion constant)".
 //

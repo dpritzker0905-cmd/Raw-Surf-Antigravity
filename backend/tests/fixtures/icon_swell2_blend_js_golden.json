@@ -1,0 +1,834 @@
+{
+ "generator": "frontend/scripts/icon-swell2/golden.mjs (runs iconSwell2Blend.js unchanged)",
+ "edge": [
+  {
+   "name": "both, same cell",
+   "g": [
+    {
+     "lat": 10,
+     "lng": 20,
+     "u": 1.2,
+     "v": 2.2043642384652356e-16,
+     "speed": 1.2,
+     "direction": 270,
+     "period": 9,
+     "is_valid": true
+    }
+   ],
+   "e": [
+    {
+     "lat": 10,
+     "lng": 20,
+     "u": 0.7517540966287268,
+     "v": -0.27361611466053454,
+     "speed": 0.8,
+     "direction": 290,
+     "period": 11,
+     "is_valid": true
+    }
+   ],
+   "out": [
+    {
+     "lat": 10,
+     "lng": 20,
+     "u": 1.0340723351299026,
+     "v": -0.11088014122912455,
+     "speed": 1.04,
+     "height": 1.04,
+     "period": 9.8,
+     "direction": 276.1202515951961,
+     "isOcean": true,
+     "is_valid": true
+    }
+   ],
+   "weights": [
+    0.6,
+    0.4
+   ]
+  },
+  {
+   "name": "cancelling directions",
+   "g": [
+    {
+     "lat": 0,
+     "lng": 0,
+     "u": -1,
+     "v": -6.123233995736766e-17,
+     "speed": 1,
+     "direction": 90,
+     "period": 10,
+     "is_valid": true
+    }
+   ],
+   "e": [
+    {
+     "lat": 0,
+     "lng": 0,
+     "u": 1.5,
+     "v": 2.755455298081545e-16,
+     "speed": 1.5,
+     "direction": 270,
+     "period": 12,
+     "is_valid": true
+    }
+   ],
+   "out": [
+    {
+     "lat": 0,
+     "lng": 0,
+     "u": 0,
+     "v": 0,
+     "speed": 0,
+     "height": 0,
+     "period": 0,
+     "direction": null,
+     "isOcean": false,
+     "is_valid": false
+    }
+   ],
+   "weights": [
+    0.6,
+    0.4
+   ]
+  },
+  {
+   "name": "exact cancel 0.6/0.4",
+   "g": [
+    {
+     "lat": 0,
+     "lng": 0,
+     "u": 0,
+     "v": -1,
+     "speed": 1,
+     "direction": 0,
+     "period": 10,
+     "is_valid": true
+    }
+   ],
+   "e": [
+    {
+     "lat": 0,
+     "lng": 0,
+     "u": -1.8369701987210297e-16,
+     "v": 1.5,
+     "speed": 1.5,
+     "direction": 180,
+     "period": 12,
+     "is_valid": true
+    }
+   ],
+   "out": [
+    {
+     "lat": 0,
+     "lng": 0,
+     "u": 0,
+     "v": 0,
+     "speed": 0,
+     "height": 0,
+     "period": 0,
+     "direction": null,
+     "isOcean": false,
+     "is_valid": false
+    }
+   ],
+   "weights": [
+    0.6,
+    0.4
+   ]
+  },
+  {
+   "name": "gfs masked",
+   "g": [
+    {
+     "lat": 5,
+     "lng": 5,
+     "u": -0.7071067811865475,
+     "v": -0.7071067811865476,
+     "speed": 1,
+     "direction": 45,
+     "period": 8,
+     "is_valid": false
+    }
+   ],
+   "e": [
+    {
+     "lat": 5,
+     "lng": 5,
+     "u": -1.7320508075688772,
+     "v": -1.0000000000000002,
+     "speed": 2,
+     "direction": 60,
+     "period": 9,
+     "is_valid": true
+    }
+   ],
+   "out": [
+    {
+     "lat": 5,
+     "lng": 5,
+     "u": -1.7320508075688772,
+     "v": -1.0000000000000002,
+     "speed": 2,
+     "height": 2,
+     "period": 9,
+     "direction": 60,
+     "isOcean": true,
+     "is_valid": true
+    }
+   ],
+   "weights": [
+    0.6,
+    0.4
+   ]
+  },
+  {
+   "name": "euro land",
+   "g": [
+    {
+     "lat": 5,
+     "lng": 5,
+     "u": -0.7071067811865475,
+     "v": -0.7071067811865476,
+     "speed": 1,
+     "direction": 45,
+     "period": 8,
+     "is_valid": true
+    }
+   ],
+   "e": [
+    {
+     "lat": 5,
+     "lng": 5,
+     "u": -1.7320508075688772,
+     "v": -1.0000000000000002,
+     "speed": 2,
+     "direction": 60,
+     "period": 9,
+     "is_valid": true,
+     "isOcean": false
+    }
+   ],
+   "out": [
+    {
+     "lat": 5,
+     "lng": 5,
+     "u": -0.7071067811865475,
+     "v": -0.7071067811865476,
+     "speed": 1,
+     "height": 1,
+     "period": 8,
+     "direction": 45,
+     "isOcean": true,
+     "is_valid": true
+    }
+   ],
+   "weights": [
+    0.6,
+    0.4
+   ]
+  },
+  {
+   "name": "calm gfs",
+   "g": [
+    {
+     "lat": 5,
+     "lng": 5,
+     "u": 0,
+     "v": 0,
+     "speed": 0,
+     "direction": 45,
+     "period": 8,
+     "is_valid": true
+    }
+   ],
+   "e": [
+    {
+     "lat": 5,
+     "lng": 5,
+     "u": -1.7320508075688772,
+     "v": -1.0000000000000002,
+     "speed": 2,
+     "direction": 60,
+     "period": 9,
+     "is_valid": true
+    }
+   ],
+   "out": [
+    {
+     "lat": 5,
+     "lng": 5,
+     "u": -1.7320508075688772,
+     "v": -1.0000000000000002,
+     "speed": 2,
+     "height": 2,
+     "period": 9,
+     "direction": 60,
+     "isOcean": true,
+     "is_valid": true
+    }
+   ],
+   "weights": [
+    0.6,
+    0.4
+   ]
+  },
+  {
+   "name": "both calm",
+   "g": [
+    {
+     "lat": 5,
+     "lng": 5,
+     "u": 0,
+     "v": 0,
+     "speed": 0,
+     "direction": 45,
+     "period": 8,
+     "is_valid": true
+    }
+   ],
+   "e": [
+    {
+     "lat": 5,
+     "lng": 5,
+     "u": 0,
+     "v": 0,
+     "speed": 0,
+     "direction": 60,
+     "period": 9,
+     "is_valid": true
+    }
+   ],
+   "out": [
+    {
+     "lat": 5,
+     "lng": 5,
+     "u": 0,
+     "v": 0,
+     "speed": 0,
+     "height": 0,
+     "period": 8,
+     "direction": 45,
+     "isOcean": true,
+     "is_valid": true
+    }
+   ],
+   "weights": [
+    0.6,
+    0.4
+   ]
+  },
+  {
+   "name": "gfs only",
+   "g": [
+    {
+     "lat": 1,
+     "lng": 1,
+     "u": 0.3762221576582356,
+     "v": 1.0336618828644994,
+     "speed": 1.1,
+     "direction": 200,
+     "period": 7,
+     "is_valid": true
+    },
+    {
+     "lat": 1,
+     "lng": 3,
+     "u": 0.20000000000000007,
+     "v": 0.34641016151377546,
+     "speed": 0.4,
+     "direction": 210,
+     "period": 6,
+     "is_valid": true
+    }
+   ],
+   "e": [],
+   "out": [
+    {
+     "lat": 1,
+     "lng": 1,
+     "u": 0.3762221576582356,
+     "v": 1.0336618828644994,
+     "speed": 1.1,
+     "height": 1.1,
+     "period": 7,
+     "direction": 200,
+     "isOcean": true,
+     "is_valid": true
+    },
+    {
+     "lat": 1,
+     "lng": 3,
+     "u": 0.20000000000000007,
+     "v": 0.34641016151377546,
+     "speed": 0.4,
+     "height": 0.4,
+     "period": 6,
+     "direction": 210,
+     "isOcean": true,
+     "is_valid": true
+    }
+   ],
+   "weights": [
+    1,
+    0
+   ]
+  },
+  {
+   "name": "euro only",
+   "g": [],
+   "e": [
+    {
+     "lat": 1,
+     "lng": 1,
+     "u": 0.3762221576582356,
+     "v": 1.0336618828644994,
+     "speed": 1.1,
+     "direction": 200,
+     "period": 7,
+     "is_valid": true
+    }
+   ],
+   "out": [
+    {
+     "lat": 1,
+     "lng": 1,
+     "u": 0.3762221576582356,
+     "v": 1.0336618828644994,
+     "speed": 1.1,
+     "height": 1.1,
+     "period": 7,
+     "direction": 200,
+     "isOcean": true,
+     "is_valid": true
+    }
+   ],
+   "weights": [
+    0,
+    1
+   ]
+  },
+  {
+   "name": "euro fuller anchors",
+   "g": [
+    {
+     "lat": 1,
+     "lng": 1,
+     "u": -0.17364817766693033,
+     "v": -0.984807753012208,
+     "speed": 1,
+     "direction": 10,
+     "period": 7,
+     "is_valid": true
+    }
+   ],
+   "e": [
+    {
+     "lat": 1,
+     "lng": 1,
+     "u": -0.6840402866513374,
+     "v": -1.8793852415718169,
+     "speed": 2,
+     "direction": 20,
+     "period": 8,
+     "is_valid": true
+    },
+    {
+     "lat": 1,
+     "lng": 1.4,
+     "u": -1.4999999999999998,
+     "v": -2.598076211353316,
+     "speed": 3,
+     "direction": 30,
+     "period": 9,
+     "is_valid": true
+    }
+   ],
+   "out": [
+    {
+     "lat": 1,
+     "lng": 1,
+     "u": -0.3792185574480538,
+     "v": -1.3476621556187651,
+     "speed": 1.4,
+     "height": 1.4,
+     "period": 7.4,
+     "direction": 15.71606716966204,
+     "isOcean": true,
+     "is_valid": true
+    },
+    {
+     "lat": 1,
+     "lng": 1.4,
+     "u": -1.4999999999999998,
+     "v": -2.598076211353316,
+     "speed": 3,
+     "height": 3,
+     "period": 9,
+     "direction": 30,
+     "isOcean": true,
+     "is_valid": true
+    }
+   ],
+   "weights": [
+    0.6,
+    0.4
+   ]
+  },
+  {
+   "name": "half-degree key rounding",
+   "g": [
+    {
+     "lat": 10.25,
+     "lng": -20.25,
+     "u": -0.984807753012208,
+     "v": 0.1736481776669303,
+     "speed": 1,
+     "direction": 100,
+     "period": 9,
+     "is_valid": true
+    }
+   ],
+   "e": [
+    {
+     "lat": 10.2,
+     "lng": -20.3,
+     "u": -1.7320508075688774,
+     "v": 0.9999999999999996,
+     "speed": 2,
+     "direction": 120,
+     "period": 10,
+     "is_valid": true
+    }
+   ],
+   "out": [
+    {
+     "lat": 10.25,
+     "lng": -20.25,
+     "u": -0.984807753012208,
+     "v": 0.1736481776669303,
+     "speed": 1,
+     "height": 1,
+     "period": 9,
+     "direction": 100,
+     "isOcean": true,
+     "is_valid": true
+    }
+   ],
+   "weights": [
+    0.6,
+    0.4
+   ]
+  },
+  {
+   "name": "half-up key boundary (JS rounds 20.5 up; banker rounding would not)",
+   "g": [
+    {
+     "lat": 10.2,
+     "lng": 0,
+     "u": -0.984807753012208,
+     "v": 0.1736481776669303,
+     "speed": 1,
+     "direction": 100,
+     "period": 9,
+     "is_valid": true
+    }
+   ],
+   "e": [
+    {
+     "lat": 10.25,
+     "lng": 0,
+     "u": -1.7320508075688774,
+     "v": 0.9999999999999996,
+     "speed": 2,
+     "direction": 120,
+     "period": 10,
+     "is_valid": true
+    }
+   ],
+   "out": [
+    {
+     "lat": 10.2,
+     "lng": 0,
+     "u": -0.984807753012208,
+     "v": 0.1736481776669303,
+     "speed": 1,
+     "height": 1,
+     "period": 9,
+     "direction": 100,
+     "isOcean": true,
+     "is_valid": true
+    }
+   ],
+   "weights": [
+    0.6,
+    0.4
+   ]
+  },
+  {
+   "name": "negative half key",
+   "g": [
+    {
+     "lat": -10.25,
+     "lng": -0.25,
+     "u": -0.984807753012208,
+     "v": 0.1736481776669303,
+     "speed": 1,
+     "direction": 100,
+     "period": 9,
+     "is_valid": true
+    }
+   ],
+   "e": [
+    {
+     "lat": -10.25,
+     "lng": -0.25,
+     "u": -1.7320508075688774,
+     "v": 0.9999999999999996,
+     "speed": 2,
+     "direction": 120,
+     "period": 10,
+     "is_valid": true
+    }
+   ],
+   "out": [
+    {
+     "lat": -10.25,
+     "lng": -0.25,
+     "u": -1.3030948426147866,
+     "v": 0.5118044852780644,
+     "speed": 1.4,
+     "height": 1.4,
+     "period": 9.399999999999999,
+     "direction": 111.4429508333065,
+     "isOcean": true,
+     "is_valid": true
+    }
+   ],
+   "weights": [
+    0.6,
+    0.4
+   ]
+  },
+  {
+   "name": "missing period",
+   "g": [
+    {
+     "lat": 2,
+     "lng": 2,
+     "u": -0.984807753012208,
+     "v": 0.1736481776669303,
+     "speed": 1,
+     "direction": 100,
+     "period": 0,
+     "is_valid": true
+    }
+   ],
+   "e": [
+    {
+     "lat": 2,
+     "lng": 2,
+     "u": -1.7320508075688774,
+     "v": 0.9999999999999996,
+     "speed": 2,
+     "direction": 120,
+     "period": null,
+     "is_valid": true
+    }
+   ],
+   "out": [
+    {
+     "lat": 2,
+     "lng": 2,
+     "u": -1.3030948426147866,
+     "v": 0.5118044852780644,
+     "speed": 1.4,
+     "height": 1.4,
+     "period": 0,
+     "direction": 111.4429508333065,
+     "isOcean": true,
+     "is_valid": true
+    }
+   ],
+   "weights": [
+    0.6,
+    0.4
+   ]
+  },
+  {
+   "name": "u/v without direction",
+   "g": [
+    {
+     "lat": 3,
+     "lng": 3,
+     "u": -1,
+     "v": 0,
+     "speed": 1,
+     "period": 9
+    }
+   ],
+   "e": [
+    {
+     "lat": 3,
+     "lng": 3,
+     "u": 0,
+     "v": -1,
+     "speed": 1,
+     "period": 9
+    }
+   ],
+   "out": [
+    {
+     "lat": 3,
+     "lng": 3,
+     "u": -0.8320502943378438,
+     "v": -0.5547001962252288,
+     "speed": 1,
+     "height": 1,
+     "period": 9,
+     "direction": 56.30993247402023,
+     "isOcean": true,
+     "is_valid": true
+    }
+   ],
+   "weights": [
+    0.6,
+    0.4
+   ]
+  },
+  {
+   "name": "null u",
+   "g": [
+    {
+     "lat": 3,
+     "lng": 3,
+     "u": null,
+     "v": 0,
+     "speed": 1,
+     "direction": 90,
+     "period": 9
+    }
+   ],
+   "e": [
+    {
+     "lat": 3,
+     "lng": 3,
+     "u": -0.984807753012208,
+     "v": 0.1736481776669303,
+     "speed": 1,
+     "direction": 100,
+     "period": 9,
+     "is_valid": true
+    }
+   ],
+   "out": [
+    {
+     "lat": 3,
+     "lng": 3,
+     "u": 0,
+     "v": 0,
+     "speed": 0,
+     "height": 0,
+     "period": 0,
+     "direction": null,
+     "isOcean": false,
+     "is_valid": false
+    }
+   ],
+   "weights": [
+    0.6,
+    0.4
+   ]
+  },
+  {
+   "name": "wrap 350/10",
+   "g": [
+    {
+     "lat": 4,
+     "lng": 4,
+     "u": 0.17364817766693127,
+     "v": -0.9848077530122079,
+     "speed": 1,
+     "direction": 350,
+     "period": 9,
+     "is_valid": true
+    }
+   ],
+   "e": [
+    {
+     "lat": 4,
+     "lng": 4,
+     "u": -0.17364817766693033,
+     "v": -0.984807753012208,
+     "speed": 1,
+     "direction": 10,
+     "period": 9,
+     "is_valid": true
+    }
+   ],
+   "out": [
+    {
+     "lat": 4,
+     "lng": 4,
+     "u": 0.03524348770177032,
+     "v": -0.9993787553148281,
+     "speed": 1,
+     "height": 1,
+     "period": 9,
+     "direction": 357.98027863498805,
+     "isOcean": true,
+     "is_valid": true
+    }
+   ],
+   "weights": [
+    0.6,
+    0.4
+   ]
+  },
+  {
+   "name": "NaN height",
+   "g": [
+    {
+     "lat": 4,
+     "lng": 4,
+     "u": 0,
+     "v": 0,
+     "speed": {
+      "__nonfinite": "NaN"
+     },
+     "direction": 10,
+     "period": 9
+    }
+   ],
+   "e": [
+    {
+     "lat": 4,
+     "lng": 4,
+     "u": -0.17364817766693033,
+     "v": -0.984807753012208,
+     "speed": 1,
+     "direction": 10,
+     "period": 9,
+     "is_valid": true
+    }
+   ],
+   "out": [
+    {
+     "lat": 4,
+     "lng": 4,
+     "u": -0.17364817766693033,
+     "v": -0.984807753012208,
+     "speed": 1,
+     "height": 1,
+     "period": 9,
+     "direction": 10,
+     "isOcean": true,
+     "is_valid": true
+    }
+   ],
+   "weights": [
+    0.6,
+    0.4
+   ]
+  }
+ ]
+}

@@ -737,10 +737,8 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
             # kill switch and guard; with FORECAST_SKILL_OCF=0 nothing is added to the report.
             if os.environ.get("FORECAST_SKILL_OCF", "1") != "0":
                 try:
-                    from services.weather_pipeline.skill_ocf import ocf_report, positive_control, tier_split_report
-                    ocf = ocf_report(history, now)
-                    ocf["positive_control"] = positive_control(history, now)
-                    ocf["tier_split"] = tier_split_report(history, now)
+                    from services.weather_pipeline.skill_ocf import ocf_block
+                    ocf = ocf_block(history, now)
                 except Exception as e:
                     logger.warning("[forecast-skill] OCF block skipped (%s)", e)
             # S7/S8: period and direction on the same history (skill_direction_period); its own guard.

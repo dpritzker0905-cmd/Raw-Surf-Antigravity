@@ -65,7 +65,12 @@ export var MapFilterTabs = ({
   return (
     <div className="flex flex-col gap-2 pointer-events-auto">
       {/* Search Bar */}
-      <div className="relative" ref={searchRef}>
+      <div className="relative" ref={searchRef} role="presentation" onKeyDown={event => {
+        if (event.key === 'Escape' && showResults && searchResults.length > 0) {
+          event.preventDefault(); event.stopPropagation(); setShowResults(false);
+          searchRef.current?.querySelector('input')?.focus();
+        }
+      }}>
         <div className="relative">
           <Search className={`absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 ${c.subtleText}`} />
           <input aria-label="Search surf spots..."
@@ -94,7 +99,7 @@ export var MapFilterTabs = ({
         
         {/* Search Results Dropdown */}
         {showResults && searchResults.length > 0 && (
-          <div className={`absolute top-full mt-1 left-0 right-0 ${c.dropdown} backdrop-blur-md border rounded-lg shadow-xl z-50 max-h-[300px] overflow-y-auto`}>
+          <div data-map-search-results className={`absolute top-full mt-1 left-0 right-0 ${c.dropdown} backdrop-blur-md border rounded-lg shadow-xl z-50 max-h-[300px] overflow-y-auto`}>
             {searchResults.map((spot) => (
               <button
                 key={spot.id}

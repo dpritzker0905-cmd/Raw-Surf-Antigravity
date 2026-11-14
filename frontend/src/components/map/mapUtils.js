@@ -4,6 +4,7 @@
  */
 
 import maplibregl from 'maplibre-gl';
+import { startLandWorkerLoader } from './landMaskSource';
 
 export function invalidateStaleTileRequests() {
   // Backwards compatibility stub
@@ -441,6 +442,10 @@ export function getSharedLandGeoJSON() {
   }
 
   if (!window.__LAND_GEOJSON_PROMISE__) {
+    // While the land file downloads, the map workers learn to load it without echoing it back. ensureMapLibreInit FIRST: the
+    // library builds its worker pool on the first message, and before setWorkerUrl that pool is the bundled default worker,
+    // which fails every setLayers in this build (v197; measured 2026-11-13: no basemap and no land mask at all).
+    try { ensureMapLibreInit(); startLandWorkerLoader(maplibregl); } catch (e) { /* the plain URL, as before */ }
     window.__LAND_GEOJSON_PROMISE__ = fetch('/ne_50m_land.json')
       .then(res => {
         if (!res.ok) throw new Error();

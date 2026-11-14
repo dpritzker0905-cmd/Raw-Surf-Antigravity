@@ -408,6 +408,9 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
       // the wind texture's u/v bytes round on a zero-aligned lattice (windEncoderRound.js, 2026-11-03): the DATA a texel decodes to moves by under
       // half a byte step (calm decodes as 0 instead of ~0.3 kn), never a table, ramp, rule or ground
       '__RAW_DISABLE_WIND_ENCODER_ROUND__',
+      // which WORLD COPIES the heatmap and the marks are drawn for (windWorldCopies.js, 2026-11-13): the same draw at offsets -360 / 0 / +360,
+      // and a copy it leaves out lights no pixel on screen; never a table, ramp, rule or ground
+      '__RAW_DISABLE_WIND_COPY_CULL__',
     ];
     const files = fs.readdirSync(__dirname).filter((f) => /^(WebGLWind|wind|WindColorRamp)/.test(f) && f.endsWith('.js') && !f.endsWith('.test.js'));
     expect(files.length).toBeGreaterThan(12);

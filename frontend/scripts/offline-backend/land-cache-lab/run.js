@@ -1,14 +1,15 @@
 // land-cache-lab/run.js: cold and warm runs of index.html in system Chrome with the HTTP cache ON (no request routing).
-// Reaches only 127.0.0.1 and the public CDN that serves the 10 m land file. Usage (from frontend/): [THROTTLE=4] node scripts/offline-backend/land-cache-lab/run.js "$PWD"
+// Reaches only 127.0.0.1 and the public CDN that serves the 10 m land file. Usage (from frontend/): [THROTTLE=4] [ARMS=worker,url,object] node scripts/offline-backend/land-cache-lab/run.js "$PWD"
 const http = require('http'); const fs = require('fs'); const path = require('path');
 const { chromium } = require(process.argv[2] + '/node_modules/playwright-core');
-const DIR = __dirname; const PORT = 4311; const LIB = path.join(process.argv[2], 'node_modules/maplibre-gl/dist/maplibre-gl.js');
-const srv = http.createServer((q, s) => { const name = q.url.split('?')[0] === '/' ? 'index.html' : path.basename(q.url.split('?')[0]); const p = name === 'maplibre-gl.js' ? LIB : path.join(DIR, name);
+const crypto = require('crypto');
+const DIR = __dirname; const PORT = 4311; const LOADER = path.join(process.argv[2], 'public/land-worker-loader.js'); const LIB = path.join(process.argv[2], 'node_modules/maplibre-gl/dist/maplibre-gl.js');
+const srv = http.createServer((q, s) => { const name = q.url.split('?')[0] === '/' ? 'index.html' : path.basename(q.url.split('?')[0]); const p = name === 'maplibre-gl.js' ? LIB : (name === 'land-worker-loader.js' ? LOADER : path.join(DIR, name));
   if (!fs.existsSync(p)) { s.writeHead(404); return s.end(); } s.writeHead(200, { 'content-type': p.endsWith('.js') ? 'text/javascript' : 'text/html', 'cache-control': 'no-store' }); fs.createReadStream(p).pipe(s); });
 (async () => {
   await new Promise((r) => srv.listen(PORT, '127.0.0.1', r));
   const throttle = +(process.env.THROTTLE || 1);
-  for (const arm of ['url', 'object', 'url', 'object']) {
+  for (const arm of (process.env.ARMS || 'worker,url,object,worker,url,object').split(',')) {
     const prof = fs.mkdtempSync(path.join(DIR, 'prof-'));
     for (const temp of ['cold', 'warm']) {
       const ctx = await chromium.launchPersistentContext(prof, { channel: 'chrome', headless: true, viewport: { width: 1280, height: 800 } });
@@ -23,6 +24,7 @@ const srv = http.createServer((q, s) => { const name = q.url.split('?')[0] === '
       await page.goto(`http://127.0.0.1:${PORT}/?arm=${arm}`);
       await page.waitForFunction(() => window.__R__, null, { timeout: 180000 });
       const r = await page.evaluate(() => window.__R__);
+      r.pixels = crypto.createHash('sha1').update(await page.screenshot()).digest('hex').slice(0, 12);   // a still page: equal hash = equal pixels
       console.log(temp, 'x' + throttle, JSON.stringify(r), 'landRequestsSeen', JSON.stringify(land), 'hosts', [...hosts].join(','));
       await ctx.close();
     }
