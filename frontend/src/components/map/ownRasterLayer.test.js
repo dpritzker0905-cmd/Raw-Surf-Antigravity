@@ -4,6 +4,7 @@ import {
   colorAtValue, buildStepLut, opacityAtZoom, PRESSURE_OPACITY_STOPS, PRESSURE_LUT, wrapsLongitude, createOwnRasterLayer, RESIDENT_MAX,
   TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS, NO_DATA_BELOW_GLSL, FS, downscaleAt, DZ_TILES_MAX, DZ_FADE_MS, CLOUD_LUT, SATELLITE_OPACITY_STOPS, scaleForTheme,
   RAIN_LUT, RAIN_OPACITY_STOPS, BLEND_MS, blendMs, blendEase,
+  FOG_LUT, FOG_OPACITY_STOPS, WATER_TEMP_LUT, WATER_TEMP_OPACITY_STOPS, WATER_TEMP_HIGHZOOM_FADE, waterTempOpacityStops,
 } from './ownRasterLayer';
 import { MISSING, NO_DATA_BELOW } from './ownRasterFrames';
 import { BASE_CUSTOM_COLOR_SCALES, CUSTOM_COLOR_SCALES, applyPrecipColorScale, applyThemePressureScale } from './colorScales';
@@ -558,5 +559,56 @@ describe('the value blend (2026-11-12): a step morphs the VALUES of two resident
   test('the three themes do not share a pressure ramp, so a blend must be coloured per theme', () => {
     const luts = ['dark', 'light', 'beach'].map((theme) => { applyThemePressureScale(theme); return Array.from(buildStepLut(CUSTOM_COLOR_SCALES.pressure_msl, PRESSURE_LUT)).join(','); });
     expect(new Set(luts).size).toBeGreaterThan(1);
+  });
+});
+
+// FOG, WATER TEMP (2026-11-14): each own-frames LUT is the colour the .om path draws, at the shader's lookup; each ramp is MapWebGL's.
+describe('fog (2026-11-14): the smoothed visibility scale the .om path draws, and its slot ramp', () => {
+  const scale = CUSTOM_COLOR_SCALES.visibility;
+  test('the .om path draws the SMOOTHED scale; every one of its breakpoints sits on the 31.25 m LUT step, inside the range', () => {
+    expect(scale.breakpoints.length).toBeGreaterThan(BASE_CUSTOM_COLOR_SCALES.visibility.breakpoints.length);
+    const { min, step, n } = FOG_LUT;
+    for (const b of scale.breakpoints) {
+      expect(Math.abs((b - min) / step - Math.round((b - min) / step))).toBeLessThan(1e-9);
+      expect(b).toBeLessThanOrEqual(min + (n - 1) * step);
+    }
+  });
+  test('the LUT, read as the shader reads it, is the colour rule at every 5 m from 0 to 12 km', () => {
+    const lut = buildStepLut(scale, FOG_LUT);
+    const { min, step, n } = FOG_LUT;
+    for (let v = 0; v <= 12000; v += 5) {
+      const k = Math.min(n - 1, Math.max(0, Math.floor((v - min) / step + 1e-3)));
+      const c = colorAtValue(scale, v);
+      expect([lut[k * 4], lut[k * 4 + 1], lut[k * 4 + 2], lut[k * 4 + 3]]).toEqual([c[0], c[1], c[2], Math.round(c[3] * 255)]);
+    }
+  });
+  test('pinned to the ramp MapWebGL paints the fog slots with', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'MapWebGL.js'), 'utf8');
+    for (const [z, o] of FOG_OPACITY_STOPS) expect(src).toMatch(new RegExp(`\\n\\s*${z}, layerKey === 'satellite' .* : layerKey === 'fog' \\? ${o.toFixed(2)} :`));
+  });
+});
+
+describe('water temperature (2026-11-14): the library SST scale on the air temperature LUT, its ramp and street-zoom fade', () => {
+  const { defaultOmProtocolSettings, getColor } = require('@openmeteo/weather-map-layer');
+  const scale = defaultOmProtocolSettings.colorScales.sea_surface_temperature;
+  test('the SST scale has the air temperature breakpoints, so the air temperature LUT map is exact for it', () => {
+    expect(WATER_TEMP_LUT).toBe(TEMPERATURE_LUT);
+    expect(scale.breakpoints).toEqual(defaultOmProtocolSettings.colorScales.temperature.breakpoints);
+    const lut = buildStepLut(scale, WATER_TEMP_LUT);
+    const { min, step, n } = WATER_TEMP_LUT;
+    for (let i = -100; i <= 800; i++) {
+      const v = i / 20;                                       // -5 .. 40 deg C every 0.05: the sea range
+      const k = Math.min(n - 1, Math.max(0, Math.floor((v - min) / step + 1e-3)));
+      const lib = getColor(scale, v);
+      expect([lut[k * 4], lut[k * 4 + 1], lut[k * 4 + 2], lut[k * 4 + 3]]).toEqual([lib[0], lib[1], lib[2], Math.round(lib[3] * 255)]);
+    }
+  });
+  test('pinned to the ramp and the street-zoom fade MapWebGL paints the water temp slots with; the fade has its own kill', () => {
+    const src = fs.readFileSync(path.join(__dirname, 'MapWebGL.js'), 'utf8');
+    for (const [z, o] of WATER_TEMP_OPACITY_STOPS) expect(src).toMatch(new RegExp(`\\n\\s*${z}, layerKey === 'satellite' .* : layerKey === 'water_temp' \\? ${o.toFixed(2)} :`));
+    expect(src).toContain(`? [${WATER_TEMP_HIGHZOOM_FADE.map(([z, o]) => `${z}, ${o.toFixed(2)}`).join(', ')}] : []`);
+    expect(waterTempOpacityStops({})).toEqual([...WATER_TEMP_OPACITY_STOPS, ...WATER_TEMP_HIGHZOOM_FADE]);
+    expect(waterTempOpacityStops({ __RAW_WT_HIGHZOOM_FADE_DISABLED__: true })).toEqual(WATER_TEMP_OPACITY_STOPS);
+    expect(opacityAtZoom(waterTempOpacityStops({}), 15)).toBeCloseTo(0.12, 5);
   });
 });

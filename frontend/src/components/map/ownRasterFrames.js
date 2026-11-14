@@ -24,11 +24,13 @@
 import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
 import { pickIndexFrame } from './staticFrameCodec';
 import { isHandheldDevice } from './deviceTier';
+import { applyWaterTempLandFill } from './waterTempLandFill';
 
 export const PRESSURE_FIELD = 6;
 export const TEMP_FIELD = 7;      // temp_c: u16, value = code * 0.05 - 100.05 (code 0 = no data); 2 m air temperature, deg C
 export const CLOUD_FIELD = 8;     // cloud_pct: u8, value = code - 1 (code 0 = no data); total cloud cover, %
 export const PRECIP_FIELD = 10;   // precip_mm_h: u16, value = code * 0.01 - 0.01 (code 0 = no data); mm/h in the step before the hour
+export const FOG_FIELD = 11;      // visibility_m: u16, value = code - 1 (code 0 = no data); surface visibility, metres (GFS VIS)
 // PER-MODEL (2026-10-24; the owner, 2026-10-23 20:13 EDT: "Yes start it", answering "start the per-model pressure route?" after
 // "We want each models pressure showing"): one published set per model. The layer follows the model selector; past a model's
 // last frame (EURO 240 h, ICON 180 h) the GFS frame stands in, labelled as an estimate (the wave layers' extension policy).
@@ -40,9 +42,25 @@ export const OWN_RASTER_SETS = {
   // AIR TEMPERATURE (2026-10-24, the lead's order after per-model pressure): GFS TMP 2 m only (#515's set, f000-f336 every 3 h).
   // EURO and ICON have no own set yet, so with those picked the layer stays on the .om path, which draws that model as before
   // (no GFS frames under a EURO or ICON label, and so no stand-in tail either).
+  // PER MODEL since 2026-11-14 (the overnight instant lane): ECMWF 2t and DWD ICON T_2M sets, as pressure. A model whose set is
+  // not published yet misses (no index) and stays on the .om path, which draws that model as before.
   temperature: {
-    models: { GFS: 'GFS/weather/temperature/global_0p5' },
+    models: { GFS: 'GFS/weather/temperature/global_0p5', EURO: 'EURO/weather/temperature/global_0p5', ICON: 'ICON/weather/temperature/global_0p5' },
     fallback: null, field: TEMP_FIELD, unit: '°C',
+  },
+  // FOG (2026-11-14): GFS surface visibility, the field the .om path draws for EVERY model (it pins ncep_gfs025 for fog,
+  // openMeteoEndpoints.js), so every model reads the GFS set here too: the same field under the same label as before.
+  fog: {
+    models: { GFS: 'GFS/weather/fog/global_0p25', EURO: 'GFS/weather/fog/global_0p25', ICON: 'GFS/weather/fog/global_0p25' },
+    fallback: null, field: FOG_FIELD, unit: 'm',
+  },
+  // WATER TEMPERATURE (2026-11-14): the model's SKIN temperature, as the .om path's surface_temperature: GFS for GFS and for ICON
+  // (DWD ICON has no skin temperature; the .om path makes the same cross-fall), ECMWF skt for EURO when its set is published.
+  // Land is covered as on the .om path: an ocean fill against the Natural Earth land mask at decode (landFill), and the layer
+  // anchored below the ocean mask's land fill (MapWebGL).
+  water_temp: {
+    models: { GFS: 'GFS/weather/water_temp/global_0p25', EURO: 'EURO/weather/water_temp/global_0p25', ICON: 'GFS/weather/water_temp/global_0p25' },
+    fallback: null, field: TEMP_FIELD, unit: '°C', landFill: true,
   },
   // CLOUD COVER (2026-10-24): the app's 'satellite' layer draws forecast total cloud cover (Satellite IR was discontinued,
   // useWeatherState). GFS TCDC, the instantaneous entire-atmosphere message (#515's set). GFS only, as air temperature.
@@ -90,7 +108,11 @@ const W = () => (typeof window !== 'undefined' ? window : {});
 // flip pressure on?". GFS, EURO and ICON each draw their own published set (a scrub step rebinds a resident texture instead of
 // decoding a whole-world .om hour), with the labelled isobars and H/L markers that ride the own-frames field.
 // Kill: window.__RAW_DISABLE_RASTER_OWN_PRESSURE__ = true (the .om colour field, no isobars, as before).
-export const DEFAULT_ON_LAYERS = Object.freeze(['satellite', 'pressure']);
+// AIR TEMPERATURE, FOG, WATER TEMPERATURE (2026-11-14, the director's overnight lane, relaying the owner 23:35 EST: "improve the
+// fog, air temp, and water temp along with the others, so that all lanes are upgrades and instant"): client-only, ON; a layer whose
+// set is not published yet falls back to the .om path as before. Kills: __RAW_DISABLE_RASTER_OWN_TEMPERATURE__,
+// __RAW_DISABLE_RASTER_OWN_FOG__, __RAW_DISABLE_RASTER_OWN_WATER_TEMP__ (each the .om path, as before).
+export const DEFAULT_ON_LAYERS = Object.freeze(['satellite', 'pressure', 'temperature', 'fog', 'water_temp']);
 
 /** Is the own-frames path on for this layer and model? Synchronous, no I/O. A model without its own set (or with its set killed)
  *  stays on the .om path, which draws that model as before (never another model's frames under its label). */
@@ -195,6 +217,29 @@ export function planWindow(cur, n, dir, radius) {
   return out;
 }
 
+/** WATER TEMP's land cover at decode, as the .om path's (openMeteoProtocol -> waterTempLandFill): land-contaminated skin-temperature
+ *  cells take their clean water neighbours' mean against the Natural Earth land mask of THIS lattice (rows south first, the same
+ *  orientation as the .om grids the mask was written for). The mask builds once per lattice; the first frame waits for it so no
+ *  frame is ever drawn with land heat at the coast. No mask (no OffscreenCanvas): the field draws as is, noted, and the ocean
+ *  mask's land fill still covers the interior. Kills: the .om path's own (__RAW_WT_LANDMASK_DISABLED__, __RAW_WT_COASTAL_QC_DISABLED__). */
+export async function landFill(field) {
+  const g = typeof globalThis !== 'undefined' ? globalThis : {};
+  if (g.__RAW_WT_LANDMASK_DISABLED__ === true) return;
+  const b = field.bounds || {};
+  const bounds = Array.isArray(b) ? b : [b.west, b.south, b.east, b.north];
+  let mask = null;
+  try { const om = await import('./openMeteoProtocol'); mask = await om.landCellMaskReady(field.cols, field.rows, bounds); } catch (e) { mask = null; }
+  if (!mask || mask.length !== field.values.length) { noteMiss('wt_landfill_skipped'); return; }
+  const v = field.values;
+  for (let i = 0; i < v.length; i++) if (v[i] === MISSING) v[i] = NaN;
+  applyWaterTempLandFill(v, mask, field.cols, field.rows, g.__RAW_WT_COASTAL_QC_DISABLED__ === true);
+  let min = Infinity; let max = -Infinity;
+  for (let i = 0; i < v.length; i++) {
+    if (Number.isFinite(v[i])) { if (v[i] < min) min = v[i]; if (v[i] > max) max = v[i]; } else v[i] = MISSING;
+  }
+  field.min = min; field.max = max;
+}
+
 /** A decoded frame's one field as the renderer uploads it: Float32 values, MISSING for no data. */
 export function toField(parsed, fieldId) {
   const src = parsed && parsed.fields && parsed.fields[fieldId];
@@ -262,6 +307,7 @@ export function loadField(layer, frame, priority) {
       if (!got) { t.loadErrors += 1; noteMiss('load_failed'); noteFailed(frame.path); return null; }
       const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       const field = toField(got.parsed, set.field);
+      if (field && set.landFill) await landFill(field);
       const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       if (!field) { noteMiss('no_field'); noteFailed(frame.path); return null; }
       _failedAt.delete(frame.path);

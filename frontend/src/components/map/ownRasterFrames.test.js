@@ -1,10 +1,12 @@
 import {
   planWindow, toField, ownFramesOn, ownIndex, lastIndex, frameAt, framesOf, setWanted, getField, MAX_IN_FLIGHT, MISSING, OWN_RASTER_SETS,
   combinedFrames, combinedFrameAt, setKey, TEMP_FIELD, CLOUD_FIELD, PRECIP_FIELD, NO_DATA_BELOW, leverCovers, DEFAULT_ON_LAYERS,
-  _resetOwnRasterFramesForTest, FAIL_BACKOFF_MS, tel,
+  _resetOwnRasterFramesForTest, FAIL_BACKOFF_MS, FOG_FIELD, landFill, tel,
 } from './ownRasterFrames';
 import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
 
+import { landCellMaskReady } from './openMeteoProtocol';
+jest.mock('./openMeteoProtocol', () => ({ landCellMaskReady: jest.fn() }));
 jest.mock('./staticFrames', () => ({
   getPinnedIndex: jest.fn(),
   loadFrameParsed: jest.fn(),
@@ -52,8 +54,9 @@ test('toField: Float32 values, missing nodes as MISSING, the frame times in ms',
 });
 
 describe('levers (phase 1 is dark)', () => {
-  // Pressure is ON by default since 2026-11-12 (DEFAULT_ON_LAYERS); temperature is the layer that is still dark.
-  test('off by default', () => expect(ownFramesOn('temperature')).toBe(false));
+  // Pressure is ON by default since 2026-11-12, air temperature, fog and water temp since 2026-11-14 (DEFAULT_ON_LAYERS); rain is
+  // the layer that is still dark.
+  test('off by default', () => expect(ownFramesOn('rain')).toBe(false));
   test("on with the window lever or this browser's choice", () => {
     window.__RAW_RASTER_OWN_FRAMES__ = true;
     expect(ownFramesOn('pressure')).toBe(true);
@@ -66,7 +69,7 @@ describe('levers (phase 1 is dark)', () => {
     window.__RAW_DISABLE_RASTER_OWN_FRAMES__ = true;
     expect(ownFramesOn('pressure')).toBe(false);
     delete window.__RAW_DISABLE_RASTER_OWN_FRAMES__;
-    expect(ownFramesOn('fog')).toBe(false);
+    expect(ownFramesOn('radar')).toBe(false);                 // radar has no own set
   });
   test('per model: each has its own set; a model whose set is killed stays on the .om path', () => {
     window.__RAW_RASTER_OWN_FRAMES__ = true;
@@ -181,23 +184,25 @@ describe("past a model's range: the GFS stand-in, labelled (the wave layers' ext
 describe('air temperature (2026-10-24)', () => {
   afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__; });
 
-  test('the temperature set is GFS only: with EURO or ICON picked the layer stays on the .om path', () => {
-    window.__RAW_RASTER_OWN_FRAMES__ = true;
+  test('per model since 2026-11-14: GFS, EURO and ICON each read their own set (no stand-in); an unpublished set stays on .om', () => {
     expect(setKey('temperature', 'GFS')).toBe('GFS/weather/temperature/global_0p5');
+    expect(setKey('temperature', 'EURO')).toBe('EURO/weather/temperature/global_0p5');
+    expect(setKey('temperature', 'ICON')).toBe('ICON/weather/temperature/global_0p5');
     expect(OWN_RASTER_SETS.temperature.field).toBe(TEMP_FIELD);
     expect(TEMP_FIELD).toBe(7);
     expect(OWN_RASTER_SETS.temperature.fallback).toBeNull();
-    expect(ownFramesOn('temperature', 'GFS')).toBe(true);
+    for (const m of ['GFS', 'EURO', 'ICON']) expect(ownFramesOn('temperature', m)).toBe(true);
+    staticSetEnabled.mockImplementation((key) => key !== 'EURO/weather/temperature/global_0p5');
     expect(ownFramesOn('temperature', 'EURO')).toBe(false);
-    expect(ownFramesOn('temperature', 'ICON')).toBe(false);
   });
 
   test('the lever can name its layers; each layer has its own kill', () => {
     window.__RAW_RASTER_OWN_FRAMES__ = 'pressure';
     expect(ownFramesOn('pressure')).toBe(true);
-    expect(ownFramesOn('temperature')).toBe(false);
-    window.__RAW_RASTER_OWN_FRAMES__ = 'pressure, temperature';
-    expect(ownFramesOn('temperature')).toBe(true);
+    expect(ownFramesOn('rain')).toBe(false);
+    window.__RAW_RASTER_OWN_FRAMES__ = 'pressure, rain';
+    expect(ownFramesOn('rain')).toBe(true);
+    expect(ownFramesOn('temperature')).toBe(true);             // on by default (2026-11-14), whatever the lever names
     window.__RAW_DISABLE_RASTER_OWN_TEMPERATURE__ = true;
     expect(ownFramesOn('temperature')).toBe(false);
     expect(ownFramesOn('pressure')).toBe(true);
@@ -230,15 +235,16 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
     expect(CLOUD_FIELD).toBe(8);
     expect(ownFramesOn('satellite', 'GFS')).toBe(true);
     expect(ownFramesOn('satellite', 'EURO')).toBe(false);
-    expect(ownFramesOn('temperature', 'GFS')).toBe(false);
+    expect(ownFramesOn('rain', 'GFS')).toBe(false);
     window.__RAW_DISABLE_RASTER_OWN_SATELLITE__ = true;
     expect(ownFramesOn('satellite', 'GFS')).toBe(false);
   });
-  test('ON by default (D-052, pressure 2026-11-12): no lever draws cloud and pressure from own frames; temperature stays dark', () => {
-    expect(DEFAULT_ON_LAYERS).toEqual(['satellite', 'pressure']);
+  test('ON by default (D-052; pressure 2026-11-12; air temp, fog, water temp 2026-11-14): no lever needed; rain stays dark', () => {
+    expect(DEFAULT_ON_LAYERS).toEqual(['satellite', 'pressure', 'temperature', 'fog', 'water_temp']);
     expect(ownFramesOn('satellite', 'GFS')).toBe(true);
     expect(ownFramesOn('satellite', 'EURO')).toBe(false); // no EURO cloud set: the .om path draws EURO as before
-    expect(ownFramesOn('temperature', 'GFS')).toBe(false);
+    expect(ownFramesOn('temperature', 'GFS')).toBe(true);
+    expect(ownFramesOn('rain', 'GFS')).toBe(false);
   });
   test('pressure is ON by default for each model with its own set', () => {
     for (const m of ['GFS', 'EURO', 'ICON']) expect(ownFramesOn('pressure', m)).toBe(true);
@@ -296,7 +302,7 @@ describe('precipitation, the rain layer (2026-11-12): GFS and EURO, dark until t
     expect(ownFramesOn('rain', 'GFS')).toBe(true);
     expect(ownFramesOn('rain', 'EURO')).toBe(true);
     expect(ownFramesOn('rain', 'ICON')).toBe(false);
-    expect(ownFramesOn('temperature')).toBe(false);          // the lever named rain only
+    expect(leverCovers('rain', 'temperature')).toBe(false);  // the lever named rain only
   });
 
   test('OFF PATH: its own kill wins over the lever and touches no other layer', () => {
@@ -396,5 +402,72 @@ describe('failed-load backoff (2026-11-14): the pump never re-asks a frame that 
     setWanted('pressure', [], null);                        // stop the loop
     await flush();
     expect(loadFrameParsed.mock.calls.length).toBeGreaterThan(1);
+  });
+});
+
+// FOG, WATER TEMP (2026-11-14, the overnight instant lane): own frames ON by default, each with its own kill; the .om path's land
+// cover for water temp reproduced at decode.
+describe('fog and water temperature (2026-11-14)', () => {
+  afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_FOG__; delete window.__RAW_DISABLE_RASTER_OWN_WATER_TEMP__; delete globalThis.__RAW_WT_LANDMASK_DISABLED__; });
+
+  test('fog reads the GFS visibility set for every model (the .om path pins GFS for fog); field 11, metres', () => {
+    for (const m of ['GFS', 'EURO', 'ICON']) expect(setKey('fog', m)).toBe('GFS/weather/fog/global_0p25');
+    expect(FOG_FIELD).toBe(11);
+    expect(OWN_RASTER_SETS.fog.field).toBe(FOG_FIELD);
+    expect(OWN_RASTER_SETS.fog.unit).toBe('m');
+  });
+
+  test('water temp: GFS skin temperature for GFS and ICON (ICON has none; the .om cross-fall), EURO its own; land filled', () => {
+    expect(setKey('water_temp', 'GFS')).toBe('GFS/weather/water_temp/global_0p25');
+    expect(setKey('water_temp', 'ICON')).toBe('GFS/weather/water_temp/global_0p25');
+    expect(setKey('water_temp', 'EURO')).toBe('EURO/weather/water_temp/global_0p25');
+    expect(OWN_RASTER_SETS.water_temp.field).toBe(TEMP_FIELD);
+    expect(OWN_RASTER_SETS.water_temp.landFill).toBe(true);
+  });
+
+  test('ON by default with no lever', () => {
+    for (const m of ['GFS', 'EURO', 'ICON']) { expect(ownFramesOn('fog', m)).toBe(true); expect(ownFramesOn('water_temp', m)).toBe(true); }
+  });
+
+  test('OFF PATH: __RAW_DISABLE_RASTER_OWN_FOG__ puts fog back on the .om path and touches no other layer', () => {
+    window.__RAW_DISABLE_RASTER_OWN_FOG__ = true;
+    for (const m of ['GFS', 'EURO', 'ICON']) expect(ownFramesOn('fog', m)).toBe(false);
+    expect(ownFramesOn('water_temp', 'GFS')).toBe(true);
+    expect(ownFramesOn('temperature', 'GFS')).toBe(true);
+  });
+
+  test('OFF PATH: __RAW_DISABLE_RASTER_OWN_WATER_TEMP__ puts water temp back on the .om path and touches no other layer', () => {
+    window.__RAW_DISABLE_RASTER_OWN_WATER_TEMP__ = true;
+    for (const m of ['GFS', 'EURO', 'ICON']) expect(ownFramesOn('water_temp', m)).toBe(false);
+    expect(ownFramesOn('fog', 'GFS')).toBe(true);
+  });
+
+  // 3 x 3 grid, the centre is land holding 40 deg C of land skin heat; its water neighbours read 20 (one is no data).
+  const field = () => ({ cols: 3, rows: 3, bounds: { west: 0, south: 0, east: 2, north: 2 },
+    values: Float32Array.from([20, 20, 20, 20, 40, 20, 20, 20, MISSING]), min: 20, max: 40 });
+  const MASK = Uint8Array.from([0, 0, 0, 0, 1, 0, 0, 0, 0]);
+
+  test('landFill: a land cell takes its clean water neighbours mean (no data never counts), as the .om path', async () => {
+    landCellMaskReady.mockResolvedValue(MASK);
+    const f = field();
+    await landFill(f);
+    expect(landCellMaskReady).toHaveBeenCalledWith(3, 3, [0, 0, 2, 2]);
+    expect(f.values[4]).toBeCloseTo(20, 5);
+    expect(f.values[8]).toBe(MISSING);                         // no data stays no data
+    expect([f.min, f.max]).toEqual([20, 20]);
+  });
+
+  test('landFill: no mask (no OffscreenCanvas) draws the field as is and says so; the .om kill skips it', async () => {
+    landCellMaskReady.mockResolvedValue(null);
+    const f = field();
+    await landFill(f);
+    expect(f.values[4]).toBe(40);
+    expect(tel().misses.wt_landfill_skipped).toBe(1);
+    globalThis.__RAW_WT_LANDMASK_DISABLED__ = true;
+    landCellMaskReady.mockClear();
+    const g = field();
+    await landFill(g);
+    expect(landCellMaskReady).not.toHaveBeenCalled();
+    expect(g.values[4]).toBe(40);
   });
 });
