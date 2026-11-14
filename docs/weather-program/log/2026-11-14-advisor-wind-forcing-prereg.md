@@ -166,3 +166,21 @@ outside git). Bilinear at the buoy position recorded by the grade. Same buoys, c
   rows (model against model, no observation, no rating) to confirm the decode and the bilinear read are right: the
   correlation over all matched rows must exceed 0.7 and the mean speed ratio must lie in 0.7-1.4, else the decode is
   wrong and is fixed before hand-over. The author reads nothing else from the ECMWF file.
+
+## 4. Second run, step 1 (no ECMWF): VALID, scored by pr-verifier, recorded here 2026-11-14 03:14Z
+
+Scored by the pr-verifier session, not by the author, at commit `00c1662d1` from a clean checkout, rows sha256
+7f54c29e...56ab. Its note: shared notes `verifier-wind-forcing-v2-score-2026-11-14.md`; result file outside git, sha256
+2101b77d...6e01. I have read that note and re-run nothing.
+- **Controls: all four hold, 12 testable cells.** C2 (+3 kn on the observed wind) detected in 12 of 12 (+5.2 to +7.3
+  rating points, every lower bound >= +4.4). C1: one cell excludes 0 (west 24 h), which the rule allows.
+- **Section 2's table may be quoted** for GFS, HRRR, the lane and the blend: 1,284 values compared with the first run,
+  maximum difference 0. It is a re-run with a repaired control, not a blind test.
+- **Verdict by the registered rule, every coast: no material difference; no case to change the rating's wind input.**
+  West: GFS materially beats the lane and HRRR alone at 24 and 36 h only, never the blend. East: every difference under
+  0.65 points. Gulf: most intervals span 0.
+- H1 does NOT hold as written (west 12 h: +0.31 [-0.02, +0.66]). H3: the blend is never worse than the better of GFS
+  and the lane; materially better than the lane in the west at 24/36 h only. H4: HRRR alone is materially worse than
+  GFS in the west at 24/36 h only.
+- Size: a planted 3 kn speed error costs 5-7 rating points; the arms differ from each other by 0.0-1.7.
+- **ECMWF (H5): not scored yet.** The fetch started 02:57Z and is rate-limited by the mirror.
