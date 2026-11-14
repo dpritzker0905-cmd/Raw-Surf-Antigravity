@@ -546,8 +546,12 @@ def publish(source, sink, uploader, log=print, budget_s=None, now=None, clock=ti
     if cycle is None:
         log("[raster] no complete GFS cycle on AWS; the published set stays")
         return {"status": "no_cycle"}
-    raw_latest = sink.read(fs.LATEST)
-    latest = json.loads(raw_latest) if raw_latest else {"version": 1, "sets": {}}
+    from services import frame_latest_guard as flg
+    try:                                               # absent only on a fresh bucket; any doubt -> no publish
+        latest, _state = flg.read_latest(sink, log)
+    except flg.LatestUnknown as e:
+        log(f"[raster] {key}: {e}; nothing published (the published set stays)")
+        return {"status": "latest_unknown", "reason": str(e)}
     entry = latest.get("sets", {}).get(key)
     if entry and entry.get("run") == iso(cycle):
         log(f"[raster] {key}: cycle {iso(cycle)} already published")
@@ -568,12 +572,21 @@ def publish(source, sink, uploader, log=print, budget_s=None, now=None, clock=ti
         prev_index = json.loads(prev_raw) if prev_raw else None
     now_s = iso(datetime.now(timezone.utc))
     writer = f"gh-run-{os.environ['GITHUB_RUN_ID']}" if os.environ.get("GITHUB_RUN_ID") else "local"
-    raw_latest = sink.read(fs.LATEST)                  # re-read: change only this set's record
-    latest = json.loads(raw_latest) if raw_latest else {"version": 1, "sets": {}}
+    try:                                               # re-read: change only this set's record
+        latest, _state = flg.read_latest(sink, log)
+    except flg.LatestUnknown as e:                     # frames + index are up but unnamed; the next run's retention takes them
+        log(f"[raster] {key}: {e}; latest.json not written (the published set stays)")
+        return {"status": "latest_unknown", "run": iso(cycle), "reason": str(e), **stats}
+    base_latest = json.loads(json.dumps(latest))
     rec = fs.latest_record(index, entry, now_s, writer)
     rec["cycle"] = index["cycle"]
     latest.setdefault("sets", {})[key] = rec
     latest.update(version=1, written_at=now_s, writer=writer)
+    try:
+        flg.check_write(latest, base_latest)
+    except flg.LatestRefused as e:
+        log(f"[raster] {key}: {e}")
+        return {"status": "latest_refused", "run": iso(cycle), "reason": str(e), **stats}
     sink.write(fs.LATEST, json.dumps(latest, indent=1, sort_keys=True).encode("utf-8"), fs.JSON_TYPE, fs.REVALIDATE)
     deleted = 0
     if prev_index is not None:                         # retention only when the previous index was actually read

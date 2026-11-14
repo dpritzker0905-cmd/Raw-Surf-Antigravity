@@ -205,6 +205,15 @@ class EntitledSink:
             return self.public.read(path)
         return self.private.read(path)
 
+    def read_strict(self, path):
+        """read() for latest.json (frame_latest_guard): the strict read of the bucket that holds `path`."""
+        if path in PUBLIC_POINTERS:
+            return getattr(self.public, "read_strict", self.public.read)(path)
+        return self.read(path)
+
+    def has_any(self, prefix):
+        return any(getattr(s, "has_any", lambda p, s=s: bool(s.list(p)))(prefix) for s in (self.public, self.private))
+
     def list(self, prefix):
         return sorted(set(self.public.list(prefix) or []) | set(self.private.list(prefix) or []))
 
