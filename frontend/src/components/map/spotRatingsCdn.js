@@ -21,6 +21,9 @@
  * '__RAW_DISABLE_RATINGS_CDN__' = 'true'), or build-time REACT_APP_RATINGS_CDN=0.
  */
 
+import { BACKEND_URL } from '../../lib/apiClient';
+import { storedAccessToken, tierClampOn } from '../../lib/weatherAuthFetch';
+
 export const SPOT_RATINGS_BUCKET = 'weather-products';
 export const SPOT_RATINGS_KEY = 'spot_ratings/latest.json';
 // Backend parity: SELECT_TOLERANCE_S / SPOT_RATINGS_STALE_TOLERANCE_S defaults in spot_ratings.py.
@@ -140,40 +143,76 @@ export function isBeyondPrecomputeBound(obj, model, validTime) {
 // Module-level object cache: one download serves every viewport/model/scrub within the CB bucket.
 // An in-flight promise dedups concurrent callers; failures cache null briefly so a dropped policy
 // doesn't refetch on every pan (NEG_TTL_MS), then the endpoint fallback carries the feature.
-const _cache = { obj: null, ts: 0, promise: null };
+const _cache = { obj: null, ts: 0, promise: null, key: 'anon' };
 const NEG_TTL_MS = 60 * 1000;
 
 export function __resetRatingsCdnCacheForTests() {
-  _cache.obj = null; _cache.ts = 0; _cache.promise = null;
+  _cache.obj = null; _cache.ts = 0; _cache.promise = null; _cache.key = 'anon';
+}
+
+// ACCOUNTS ONLY (flip blocker 3, 2026-11-12). While the server's tier clamp is on, the object comes from a SIGNED URL
+// for the caller's tier (GET /api/weather/spot-ratings-url; backend services/spot_ratings_entitlement.py), never with the
+// anon key: the anon policy is dropped at the flip, and the per-tier copy holds only that tier's models. Signed out,
+// there is no request at all (null -> the endpoint, which refuses a caller without an account). Clamp off: the anon
+// lane above, unchanged.
+export const SPOT_RATINGS_URL_PATH = '/api/weather/spot-ratings-url';
+
+const W = () => (typeof window !== 'undefined' ? window : undefined);
+
+/** 'signed' while the server's clamp is on, else 'anon'. */
+export function ratingsLane(win = W()) {
+  return tierClampOn(win) ? 'signed' : 'anon';
+}
+
+async function signedRatingsUrlFor(token) {
+  const res = await fetch(`${BACKEND_URL}${SPOT_RATINGS_URL_PATH}`, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res || !res.ok) throw new Error(`ratings-url ${res && res.status}`);
+  const body = await res.json();
+  if (!body || typeof body.url !== 'string' || !body.url) throw new Error('ratings-url malformed');
+  return body.url;
 }
 
 /**
- * Fetch (with TTL cache + in-flight dedup) the RLS-scoped precomputed ratings object using the
- * anon key. Resolves to the parsed object or null — NEVER rejects (null routes to the endpoint).
+ * Fetch (with TTL cache + in-flight dedup) the precomputed ratings object: the RLS-scoped object with the anon key, or,
+ * with the clamp on, the caller's tier copy through a signed URL. Resolves to the parsed object or null, NEVER rejects
+ * (null routes to the endpoint). The cache is per lane and per account, so signing in or out never serves the object
+ * fetched for someone else.
  */
 export async function fetchPublicRatingsObject({ supabaseUrl, anonKey, nowMs = Date.now() } = {}) {
   if (!ratingsCdnEnabled()) return null;
+  const win = W();
+  const lane = ratingsLane(win);
+  const token = lane === 'signed' ? storedAccessToken(win && win.localStorage) : null;
+  const cacheKey = lane === 'signed' ? `signed:${token || ''}` : 'anon';
+  if (_cache.key !== cacheKey) {
+    _cache.obj = null; _cache.ts = 0; _cache.promise = null; _cache.key = cacheKey;
+  }
   const url = scopedRatingsUrl(supabaseUrl || process.env.REACT_APP_SUPABASE_URL, nowMs);
   const key = anonKey || process.env.REACT_APP_SUPABASE_ANON_KEY;
-  if (!url || !key) return null;
+  if (lane === 'anon' && (!url || !key)) return null;
+  if (lane === 'signed' && !token) return null;
   const ttl = _cache.obj !== null ? CB_BUCKET_MS : NEG_TTL_MS;
   if (_cache.ts && (nowMs - _cache.ts) < ttl) return _cache.obj;
   if (_cache.promise) return _cache.promise;
-  _cache.promise = (async () => {
+  const promise = (async () => {
+    let obj = null;
     try {
-      const res = await fetch(url, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
+      const res = lane === 'signed'
+        ? await fetch(await signedRatingsUrlFor(token))
+        : await fetch(url, { headers: { apikey: key, Authorization: `Bearer ${key}` } });
       if (!res.ok) throw new Error(`ratings-cdn ${res.status}`);
-      const obj = await res.json();
+      obj = await res.json();
       if (!obj || !Array.isArray(obj.frames)) throw new Error('ratings-cdn malformed object');
-      _cache.obj = obj;
-      return obj;
     } catch (e) {
-      _cache.obj = null;                    // negative-cache: retry at most once per NEG_TTL_MS
-      return null;
-    } finally {
+      obj = null;                           // negative-cache: retry at most once per NEG_TTL_MS
+    }
+    if (_cache.key === cacheKey) {          // the account did not change while this was in flight
+      _cache.obj = obj;
       _cache.ts = Date.now();
       _cache.promise = null;
     }
+    return obj;
   })();
-  return _cache.promise;
+  _cache.promise = promise;
+  return promise;
 }

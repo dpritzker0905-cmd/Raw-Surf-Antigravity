@@ -79,10 +79,10 @@ NO_MISSING = 0xFFFFFFFF
 GZIP_MAGIC = b"\x1f\x8b"
 
 HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE, SPEED, LANE_WEIGHT, PRESSURE_HPA = 0, 1, 2, 3, 4, 5, 6
-TEMP_C, CLOUD_PCT, RATING = 7, 8, 9
+TEMP_C, CLOUD_PCT, RATING, PRECIP_MM_H = 7, 8, 9, 10
 FIELD_NAMES = {HEIGHT: "height_m", DIRECTION: "direction_deg", PERIOD: "period_s", DIR_CONFIDENCE: "dir_confidence",
                SPEED: "speed", LANE_WEIGHT: "lane_weight", PRESSURE_HPA: "pressure_hpa", TEMP_C: "temp_c",
-               CLOUD_PCT: "cloud_pct", RATING: "rating"}
+               CLOUD_PCT: "cloud_pct", RATING: "rating", PRECIP_MM_H: "precip_mm_h"}
 
 # (dtype bytes, layout, missing code, scale, offset). Height's offset -scale makes code 1 = 0 m and leaves 0 for no data;
 # speed (knots, the wind products' unit; the index meta carries value_unit) does the same at 0.01.
@@ -97,6 +97,7 @@ FIELD_SPECS = {
     TEMP_C: (2, 1, 0, 0.05, -100.05),         # raster: code 1 = -100.00 degC, 0 = no data (0.05: 17% smaller than 0.01)
     CLOUD_PCT: (1, 0, 0, 1.0, -1.0),          # raster: code 1 = 0 %, 101 = 100 %, 0 = no data
     RATING: (4, 1, NO_MISSING, 1.0, 0.0),     # rated frames: the raw code (above), compared exactly
+    PRECIP_MM_H: (2, 1, 0, 0.01, -0.01),      # raster: code 1 = 0.00 mm/h, 0 = no data; top code 655.34 mm/h
 }
 DEFAULT_FIELDS = (HEIGHT, DIRECTION, PERIOD, DIR_CONFIDENCE)
 WIND_FIELDS = (DIRECTION, SPEED)
@@ -124,6 +125,7 @@ TOLERANCE = {
     TEMP_C: _half_step(TEMP_C),                  # 0.05 degC step  -> 0.025 degC
     CLOUD_PCT: _half_step(CLOUD_PCT),            # 1 % step        -> 0.5 %
     RATING: _half_step(RATING),                  # integer codes   -> any difference fails
+    PRECIP_MM_H: _half_step(PRECIP_MM_H),        # 0.01 mm/h step  -> 0.005 mm/h
 }
 POSITION_TOL_DEG = 1e-6
 # Marine u, v rebuilt from the decoded height and direction, against the stored u, v the normalizer computed from the

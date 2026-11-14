@@ -1,8 +1,8 @@
 {
  "built_utc": "2026-11-11T00:05:27Z",
  "cells": 648000000,
- "runs": 1504065,
- "classes": 3019,
+ "runs": 1539437,
+ "classes": 3101,
  "policy": "C-prime: civil on land and territorial waters; coast_snap <= 50 km to OSM land; else nautical",
  "snap_km": 50.0,
  "coast_snap_cells": 12219571,
@@ -44,13 +44,20 @@
    "npz -> v2 uncompressed .npy + classes.json for memory mapping, identical values"
   ]
  },
+ "nautical_edge": {
+  "min_h": 3.0,
+  "cells": 109917,
+  "applied_by": "scripts/patch_location_tz_nautical_edge.py",
+  "base_grid_sha256": "bdf48d291d0550b0b6550003abd24bcdadd02562ac0b415992a786ddd9175eee"
+ },
+ "patched_utc": "2026-11-11T02:46:58Z",
  "schema": "raw-surf/location-time-grid/2",
  "res_deg": 0.01,
  "files": {
-  "row_ptr": "96c5512e5b76c97b93e219ee35e267759b021281533c0f67dc059f48394a1bb0",
-  "starts": "688d633b26eaf059221161fe76ff7b20c9cba97cdef5199a8a7a9da387c6a705",
-  "ids": "b3015848176b32db310369414cd1198e37dba18528308c574f6a072d4f532b28",
-  "classes.json": "80cc1a1872113a6fb824017142a51a3270962d8b13876d7e7d84d72b00c76b1c"
+  "row_ptr": "35b55dd7e3133b1a99450619790828b392c314e4919755af26067d668e152f0e",
+  "starts": "6c4c4e7717b9754ae46c98efce0fbe7e1430006051298cf263b63c5e2c16c48e",
+  "ids": "5bcac1294765894eb86279a9b89924dd95a724bd9f1d3ad886dc09704621f738",
+  "classes.json": "5805d29f1f4ed441f5d6e1c4bb6295c61c262aa0faee2cf50da33fbacfb89c6b"
  },
- "grid_sha256": "bdf48d291d0550b0b6550003abd24bcdadd02562ac0b415992a786ddd9175eee"
+ "grid_sha256": "00fa3d349ad1f9cb1e3322f29fb14d5e0c43a47e050564b03fe31b1e6c8057c5"
 }

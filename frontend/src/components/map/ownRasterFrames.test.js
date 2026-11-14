@@ -1,6 +1,6 @@
 import {
   planWindow, toField, ownFramesOn, ownIndex, lastIndex, frameAt, framesOf, setWanted, getField, MAX_IN_FLIGHT, MISSING, OWN_RASTER_SETS,
-  combinedFrames, combinedFrameAt, setKey, TEMP_FIELD, CLOUD_FIELD, NO_DATA_BELOW, leverCovers, DEFAULT_ON_LAYERS,
+  combinedFrames, combinedFrameAt, setKey, TEMP_FIELD, CLOUD_FIELD, PRECIP_FIELD, NO_DATA_BELOW, leverCovers, DEFAULT_ON_LAYERS,
   _resetOwnRasterFramesForTest,
 } from './ownRasterFrames';
 import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
@@ -66,7 +66,7 @@ describe('levers (phase 1 is dark)', () => {
     window.__RAW_DISABLE_RASTER_OWN_FRAMES__ = true;
     expect(ownFramesOn('pressure')).toBe(false);
     delete window.__RAW_DISABLE_RASTER_OWN_FRAMES__;
-    expect(ownFramesOn('rain')).toBe(false);
+    expect(ownFramesOn('fog')).toBe(false);
   });
   test('per model: each has its own set; a model whose set is killed stays on the .om path', () => {
     window.__RAW_RASTER_OWN_FRAMES__ = true;
@@ -95,6 +95,29 @@ describe('frames of the index', () => {
     expect(frameAt(index, Date.parse('2026-10-23T11:00:00Z'))).toBeNull();
   });
   test('framesOf keeps only frames with a file', () => expect(framesOf(index).map((f) => f.path)).toEqual(['f000', 'f006']));
+});
+
+describe('a mixed-cadence index: hourly to f120, then 3-hourly (GFS pressure, 2026-11-12)', () => {
+  const RUN = Date.parse('2026-11-12T12:00:00Z');
+  const HOURS = [...Array(121).keys(), ...Array.from({ length: 72 }, (_, i) => 123 + 3 * i)];
+  const index = { frames: HOURS.map((h) => ({ valid_time: new Date(RUN + h * 3600000).toISOString(), path: `f${h}` })) };
+  const at = (h) => frameAt(index, RUN + h * 3600000);
+  test('193 frames; every hour of the first five days shows its own frame', () => {
+    expect(HOURS).toHaveLength(193);
+    for (let h = 0; h <= 120; h++) expect(at(h).path).toBe(`f${h}`);
+  });
+  test('past f120 an hour shows the nearer 3-hourly frame, picked by valid time and not by position', () => {
+    expect(at(121).path).toBe('f120');
+    expect(at(122).path).toBe('f123');
+    expect(at(123).path).toBe('f123');
+    expect(at(335).path).toBe('f336');
+    expect(at(340)).toBeNull();                        // more than 3 h past the last frame: a gap, nothing drawn
+  });
+  test('the window walks positions: across f120 it holds f119, f120 and the next stored frame f123', () => {
+    const frames = framesOf(index);
+    expect(planWindow(120, frames.length, 1, 2).map((i) => frames[i].path)).toEqual(['f120', 'f123', 'f126', 'f119']);
+    expect(planWindow(120, frames.length, -1, 1).map((i) => frames[i].path)).toEqual(['f120', 'f119', 'f123']);
+  });
 });
 
 describe('the window pump', () => {
@@ -247,5 +270,40 @@ describe('cloud cover, the satellite layer (2026-10-24)', () => {
     staticSetEnabled.mockImplementation(() => true);
     staticFramesEnabled.mockReturnValue(false);
     expect(ownFramesOn('satellite', 'GFS')).toBe(false);
+  });
+});
+
+describe('precipitation, the rain layer (2026-11-12): GFS only, dark until the lever names it', () => {
+  afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_RAIN__; });
+
+  test('the set key and field match the publisher contract; EURO and ICON have no set', () => {
+    expect(setKey('rain', 'GFS')).toBe('GFS/weather/precipitation/global_0p25');
+    expect(setKey('rain', 'EURO')).toBeNull();
+    expect(setKey('rain', 'ICON')).toBeNull();
+    expect(OWN_RASTER_SETS.rain.field).toBe(PRECIP_FIELD);
+    expect(PRECIP_FIELD).toBe(10);
+    expect(OWN_RASTER_SETS.rain.unit).toBe('mm/h');
+    expect(OWN_RASTER_SETS.rain.fallback).toBeNull();
+  });
+
+  test('dark: off with no lever, and not one of the default-on layers', () => {
+    expect(DEFAULT_ON_LAYERS).not.toContain('rain');
+    expect(ownFramesOn('rain')).toBe(false);
+  });
+
+  test('on when the lever names it, for GFS only', () => {
+    window.__RAW_RASTER_OWN_FRAMES__ = 'rain';
+    expect(ownFramesOn('rain', 'GFS')).toBe(true);
+    expect(ownFramesOn('rain', 'EURO')).toBe(false);
+    expect(ownFramesOn('rain', 'ICON')).toBe(false);
+    expect(ownFramesOn('temperature')).toBe(false);          // the lever named rain only
+  });
+
+  test('OFF PATH: its own kill wins over the lever and touches no other layer', () => {
+    window.__RAW_RASTER_OWN_FRAMES__ = true;
+    window.__RAW_DISABLE_RASTER_OWN_RAIN__ = true;
+    expect(ownFramesOn('rain')).toBe(false);
+    expect(ownFramesOn('pressure')).toBe(true);
+    expect(ownFramesOn('temperature')).toBe(true);
   });
 });

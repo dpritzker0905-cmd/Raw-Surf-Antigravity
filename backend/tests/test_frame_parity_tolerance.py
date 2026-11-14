@@ -47,7 +47,8 @@ def _check(product, tamper=None):
 
 
 # ── every field's tolerance is its own step ─────────────────────────────────────────────────────────────────────────
-@pytest.mark.parametrize("fid", [fb.HEIGHT, fb.DIRECTION, fb.PERIOD, fb.DIR_CONFIDENCE, fb.SPEED, fb.PRESSURE_HPA, fb.TEMP_C, fb.CLOUD_PCT])
+@pytest.mark.parametrize("fid", [fb.HEIGHT, fb.DIRECTION, fb.PERIOD, fb.DIR_CONFIDENCE, fb.SPEED, fb.PRESSURE_HPA, fb.TEMP_C, fb.CLOUD_PCT,
+                                 fb.PRECIP_MM_H])
 def test_every_field_tolerance_is_half_its_own_encoding_step(fid):
     assert fb.TOLERANCE[fid] == fb.FIELD_SPECS[fid][3] / 2.0 + fb.FLOAT_SLACK
 

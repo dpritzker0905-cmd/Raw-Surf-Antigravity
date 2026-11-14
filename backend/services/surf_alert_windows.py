@@ -22,8 +22,9 @@ daylight windows that satisfy EVERY saved preference, and picks the earliest one
 `rate_one_spot` produced (with the observation gate applied, as the glyphs are). The wind classes reuse the
 engine's own definitions (`surf_rating.offshoreness`, the 0.34 split of `spot_ratings.rating_why`).
 
-⚠️ LOCAL TIME IS APPROXIMATE. Spots carry no timezone (models/spots.py) and the backend has no tz database for
-coordinates, so the alert's clock windows use the nautical zone round(lng / 15) h, which equals the standard
+⚠️ LOCAL TIME: ONE CLOCK (AlertClock, O2 2026-11-10). With location_time on, the spot's civil zone decides the
+time windows, the midnight split, the daily cap AND the message. With it off (or no grid) the alert's clock windows
+use the nautical zone round(lng / 15) h, which equals the standard
 civil zone along most surf coasts (US East -5, US West -8, Bali +8, Gold Coast +10) but can be 1-2 h off under
 DST or a political zone (Portugal, Spain, Hawaii -11 vs -10). Daylight itself uses the true sun, so a window is
 never in the dark. A stored spot timezone is the follow-up that removes this caveat.
@@ -257,6 +258,43 @@ def local_offset_h(lng: float) -> int:
     return int(max(-12, min(14, round(float(lng) / 15.0))))
 
 
+class AlertClock:
+    """ONE clock per (alert, spot) for everything a user reads as "local time" (LT-4, O2 2026-11-10):
+    time-window membership, the local-midnight split, the daily cap and the message text.
+
+    THE DEFECT IT REMOVES. Phase 1 chose windows on the SOLAR clock (round(lng/15)) and printed them on the CIVIL
+    one, so in Lisbon in winter (solar -1, civil 0) a "dawn 06-09" window chosen on solar 06-09 was sent as
+    "07:00-10:00", outside the band the user picked. Two clocks in one sentence cannot both be right.
+
+    THE RULE. Civil when location_time answers a zone for the spot (LOCATION_TIME_FIELD on, grid present): DST-
+    correct per instant, including half/quarter-hour and dateline zones. Else solar, exactly as before (flag off =
+    byte-identical). A user's "dawn" means their wall clock, so civil is the target and solar the fallback when the
+    zone is unknown. Daylight is always the true sun and never depends on this.
+    """
+
+    def __init__(self, lng: float, iana: Optional[str] = None, solar_h: Optional[int] = None):
+        self.solar_h = local_offset_h(lng) if solar_h is None else int(solar_h)
+        self.iana = iana or None
+        self._zone = None
+        if self.iana:
+            from zoneinfo import ZoneInfo
+            self._zone = ZoneInfo(self.iana)
+
+    @property
+    def kind(self) -> str:
+        return "civil" if self._zone is not None else "solar"
+
+    def local(self, t) -> datetime:
+        """Wall time of an instant on this clock (callers read .hour, .date() and strftime)."""
+        t = parse_time(t)
+        return t.astimezone(self._zone) if self._zone is not None else t + timedelta(hours=self.solar_h)
+
+
+def clock_of_window(window: Dict[str, Any]) -> AlertClock:
+    """The clock a window was chosen on: the cap and the merge relabel must read that SAME clock."""
+    return AlertClock(0.0, window.get("civil_iana"), int(window.get("local_offset_h") or 0))
+
+
 def parse_time(value) -> Optional[datetime]:
     if isinstance(value, datetime):
         return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
@@ -323,8 +361,7 @@ def find_windows(alert, spot, series, now: datetime, horizon_hours: int, step_h:
         return {"windows": [], "reason": err}
     if not series:
         return {"windows": [], "reason": "no_forecast_for_spot"}
-    off_h = local_offset_h(lng)
-    civil = _civil_zone(lat, lng)   # PRESENTATION ONLY (location_time phase 1): labels, never eligibility or splitting
+    clock = AlertClock(lng, _civil_zone(lat, lng))   # ONE clock: eligibility, midnight split, cap and message
     hold_s = max(1800.0, float(step_h) * 1800.0)
     tw = _as_list(getattr(alert, "time_windows", None))
     tides = _as_list(getattr(alert, "tide_states", None))
@@ -339,7 +376,7 @@ def find_windows(alert, spot, series, now: datetime, horizon_hours: int, step_h:
         entry = nearest(series, slot + timedelta(minutes=30), hold_s)
         if entry is not None:
             known += 1
-        local = slot + timedelta(hours=off_h)
+        local = clock.local(slot)
         ok = (entry is not None and slot + timedelta(hours=1) > now
               and daylit(lat, lng, slot)
               and in_time_windows(local.hour, tw)
@@ -347,15 +384,15 @@ def find_windows(alert, spot, series, now: datetime, horizon_hours: int, step_h:
               and level_ok(entry, floor)
               and tide_ok(entry, tides)
               and conditions_ok(entry, conds))
-        if ok and (not run or local.date() == (run[-1][0] + timedelta(hours=off_h)).date()):
+        if ok and (not run or local.date() == clock.local(run[-1][0]).date()):
             run.append((slot, entry))
         else:
             if len(run) >= min_window_hours():
-                windows.append(_summarize(run, off_h, civil))
+                windows.append(_summarize(run, clock))
             run = [(slot, entry)] if ok else []
         slot += timedelta(hours=1)
     if len(run) >= min_window_hours():
-        windows.append(_summarize(run, off_h, civil))
+        windows.append(_summarize(run, clock))
     if not known:
         return {"windows": [], "reason": "no_forecast_in_horizon"}
     unevaluated = sorted(set(conds) & set(UNEVALUATED_CONDITIONS))
@@ -364,8 +401,8 @@ def find_windows(alert, spot, series, now: datetime, horizon_hours: int, step_h:
 
 
 def _civil_zone(lat, lng) -> Optional[str]:
-    """The spot's civil IANA zone for LABELS (location_time phase 1), or None (flag off / no grid). The solar
-    `local_offset_h` keeps deciding time-window membership, the local-midnight split and the daily cap."""
+    """The spot's civil IANA zone, or None (flag off / no grid / lookup failure). With a zone the alert's ONE clock
+    is civil (AlertClock); None keeps the solar clock, byte-identical to before."""
     try:
         from services.weather_pipeline import location_time
         lt = location_time.describe(lat, lng)
@@ -384,18 +421,19 @@ def _civil_labels(start: datetime, end: datetime, iana: str) -> Dict[str, Any]:
             "civil_end": le.strftime("%H:%M"), "civil_utc_offset_min": offset_minutes(iana, start)}
 
 
-def _summarize(run, off_h: int, civil: Optional[str] = None) -> Dict[str, Any]:
+def _summarize(run, clock: AlertClock) -> Dict[str, Any]:
     heights = [e["surf_height_m"] * M_TO_FT for _s, e in run]
     peak = max(run, key=lambda p: (p[1].get("score") if _finite(p[1].get("score")) else -1))[1]
     start, end = run[0][0], run[-1][0] + timedelta(hours=1)
-    ls, le = start + timedelta(hours=off_h), end + timedelta(hours=off_h)
+    ls, le = clock.local(start), clock.local(end)
     out = {"start": start.strftime("%Y-%m-%dT%H:%M:%SZ"), "end": end.strftime("%Y-%m-%dT%H:%M:%SZ"),
+           "clock": clock.kind,
            "local_day": ls.strftime("%a"), "local_start": ls.strftime("%H:%M"), "local_end": le.strftime("%H:%M"),
-           "local_offset_h": off_h, "height_ft_min": round(min(heights), 1), "height_ft_max": round(max(heights), 1),
+           "local_offset_h": clock.solar_h, "height_ft_min": round(min(heights), 1), "height_ft_max": round(max(heights), 1),
            "rating": peak.get("score"), "rating_level": peak.get("level"), "period_s": peak.get("period_s"),
            "hours": len(run)}
-    if civil:
-        out.update(_civil_labels(start, end, civil))
+    if clock.iana:   # same instants, same clock: civil_* == local_* (kept for phase-1 readers)
+        out.update(_civil_labels(start, end, clock.iana))
     return out
 
 
@@ -428,7 +466,7 @@ def collapse_windows(windows: Sequence[Dict[str, Any]], gap_h: int) -> List[Dict
             m = dict(out[-1])
             if parse_time(w["end"]) > parse_time(m["end"]):
                 m["end"] = w["end"]
-                m["local_end"] = (parse_time(w["end"]) + timedelta(hours=m["local_offset_h"])).strftime("%H:%M")
+                m["local_end"] = clock_of_window(m).local(w["end"]).strftime("%H:%M")
                 if m.get("civil_iana"):
                     m["civil_end"] = _civil_labels(parse_time(m["start"]), parse_time(m["end"]), m["civil_iana"])["civil_end"]
             m["height_ft_min"] = min(m["height_ft_min"], w["height_ft_min"])
@@ -442,10 +480,12 @@ def collapse_windows(windows: Sequence[Dict[str, Any]], gap_h: int) -> List[Dict
     return out
 
 
-def sends_today(sent_times: Iterable[datetime], now: datetime, offset_h: int) -> int:
-    """How many of a user's sends fall on today's local day (in the zone `offset_h` of the spot being sent)."""
-    day = (now + timedelta(hours=offset_h)).date()
-    return sum(1 for t in sent_times if t is not None and (parse_time(t) + timedelta(hours=offset_h)).date() == day)
+def sends_today(sent_times: Iterable[datetime], now: datetime, offset_h: int, iana: Optional[str] = None) -> int:
+    """How many of a user's sends fall on today's local day, on the clock of the spot being sent: its civil zone when
+    the window carries one (DST-correct per send), else the solar `offset_h` (unchanged)."""
+    clk = AlertClock(0.0, iana, offset_h)
+    day = clk.local(now).date()
+    return sum(1 for t in sent_times if t is not None and clk.local(t).date() == day)
 
 
 def admit(window: Dict[str, Any], same_spot_sent: Iterable[Tuple[datetime, datetime]],
@@ -457,7 +497,8 @@ def admit(window: Dict[str, Any], same_spot_sent: Iterable[Tuple[datetime, datet
     if same_window(window, same_spot_sent, merge_gap_h()):
         return False, "already_notified_same_spot"
     cap = max_per_user_day()
-    if cap and sends_today(user_sent_times, now, int(window.get("local_offset_h") or 0)) >= cap:
+    offset_h = int(window.get("local_offset_h") or 0)
+    if cap and sends_today(user_sent_times, now, offset_h, window.get("civil_iana")) >= cap:
         return False, "daily_cap"
     return True, "ok"
 
@@ -478,10 +519,9 @@ def window_message(spot_name: str, window: Dict[str, Any]) -> str:
     """The brief's format: "Good window at {spot}: {day} {start}-{end}, {height}, {rating level}"."""
     level = (window.get("rating_level") or "").replace("_", " ").strip() or "quality unavailable"
     height = format_height(window["height_ft_min"], window["height_ft_max"])
-    if window.get("civil_iana"):   # location_time phase 1: the spot's real local time
-        when = f"{window['civil_day']} {window['civil_start']}-{window['civil_end']}"
-    else:
-        when = f"{window['local_day']} {window['local_start']}-{window['local_end']}"
+    # ONE clock: local_* are on the clock the window was chosen on (civil when known), so the hours printed are
+    # exactly the hours that were checked (LT-4).
+    when = f"{window['local_day']} {window['local_start']}-{window['local_end']}"
     return f"Good window at {spot_name}: {when}, {height}, {level}"
 
 

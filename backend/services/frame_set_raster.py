@@ -13,7 +13,7 @@ file the box's own GFS pressure product reads (noaa_gfs_pressure_fetcher, global
 equals that product's value to the 0.05 hPa quantisation. NCEP's own pgrb2.0p50 file was measured differing from 0p25[::2, ::2]
 by up to 0.01 hPa (0% of points equal at f000, cycle 2026-10-23 00Z), so it is not used.
 
-TIME. f000-f336 every 3 h (113 frames, the 14-day contract), from the newest COMPLETE cycle (f336's .idx present). An hour with
+TIME. f000-f336 every 3 h (113 frames, the 14-day contract; pressure: hourly to f120, 193 frames, PRESSURE_HOURS), from the newest COMPLETE cycle (f336's .idx present). An hour with
 no frame is listed unbuilt; a cycle is published only when FRAME_MIN_COVERAGE (default 0.9) of its hours built.
 
 PUBLISH. Frames (immutable, content-addressed), then the run index, then latest.json (no-cache) LAST, then retention (current
@@ -41,6 +41,15 @@ TARGET = {"model": "GFS", "domain": "weather", "layer": "pressure", "region_id":
 KEY = fs.set_key(TARGET)
 PREFIX = fs.set_prefix(TARGET)
 F_HOURS = tuple(range(0, 337, 3))
+# GFS PRESSURE IS HOURLY TO 120 h (2026-11-12, the owner: "focus on the 3 issues that separate it from state of the art"). The
+# pgrb2.0p25 files exist every hour to f120 and every 3 h after, so the hourly frames are NCEP's own fields (no interpolation
+# of ours): 121 hourly + 72 three-hourly = 193 frames. An hourly scrub then shows its own hour for the first five days
+# instead of the nearest 3-hourly frame. The other GFS sets keep F_HOURS.
+PRESSURE_HOURS = tuple(range(0, 121)) + tuple(range(123, 337, 3))
+# GFS PRECIPITATION (2026-11-12, the owner: "Yes, build it", answering "Build precipitation on our own published frames next,
+# as we did for pressure?"). No f000 (nothing has fallen yet at the analysis); hourly to f120, then 3-hourly, as pressure.
+PRECIP_HOURS = tuple(range(1, 121)) + tuple(range(123, 337, 3))
+VALID_MM_H = (0.0, 500.0)                      # above any hourly world record (305 mm); a larger value is a bad decode
 COLS, ROWS = 720, 361
 BOUNDS = (-180.0, -90.0, 179.5, 90.0)          # west, south, east, north: the outer cell centres
 # The lattices a set can be published on (a spec's `grid`, default '0p5'). '0p25' is NCEP's own 0.25-degree grid, every point
@@ -72,7 +81,7 @@ SPECS = {
         "target": TARGET, "field": fb.PRESSURE_HPA, "idx": ("PRMSL", "mean sea level"), "convert": lambda a: a / 100.0,
         "valid": VALID_HPA, "clip": None, "env": "FRAME_RASTER_PRESSURE", "default_on": True,
         "value_kind": "pressure_msl", "value_unit": "hPa", "source_dataset": "gfs.pgrb2.0p25 PRMSL, every second point",
-        "hours": F_HOURS, "source": "gfs", "upstream_provider": "noaa", "credit": CREDIT, "license": LICENSE,
+        "hours": PRESSURE_HOURS, "source": "gfs", "upstream_provider": "noaa", "credit": CREDIT, "license": LICENSE,
         "source_url": SOURCE_URL,
     },
     "temperature": {
@@ -134,7 +143,42 @@ SPECS = {
         "license": "DWD open data, free use with source attribution (GeoNutzV)",
         "source_url": "https://opendata.dwd.de/weather/nwp/icon/grib/",
     },
+    # PRECIPITATION: the amount that fell in the hour BEFORE the frame's time, in mm/h (past f120: the mean over the 3 h
+    # before it), the same meaning as the Open-Meteo `precipitation` field the layer drew. From NCEP's own APCP totals
+    # (GfsPrecipSource below); every point of the 0.25-degree grid, as cloud cover (rain edges are sharp per cell).
+    "precipitation": {
+        "target": {"model": "GFS", "domain": "weather", "layer": "precipitation", "region_id": "global_0p25"},
+        "field": fb.PRECIP_MM_H, "idx": ("APCP", "surface"), "convert": lambda a: a, "grid": "0p25",
+        "valid": VALID_MM_H, "clip": None, "env": "FRAME_RASTER_PRECIP", "default_on": False,
+        "value_kind": "precipitation_rate", "value_unit": "mm/h",
+        "source_dataset": "gfs.pgrb2.0p25 APCP surface, bucket totals differenced to the preceding step, every point",
+        "hours": PRECIP_HOURS, "source": "gfs_precip", "upstream_provider": "noaa", "credit": CREDIT, "license": LICENSE,
+        "source_url": SOURCE_URL,
+    },
+    # EURO PRECIPITATION (2026-11-12, the owner: "Yes, add ICON and EURO precipitation after the blend"). ECMWF IFS open data
+    # `tp` (CC BY 4.0, attribution required), the total since the run began, differenced to the step before each hour
+    # (frame_set_raster_sources.EcmwfPrecipSource): the MEAN rate over a 3-hour step to 144 h and a 6-hour step to 240 h (ECMWF's
+    # open data has no hourly steps). Every point of its 0.25-degree grid, as the GFS set. 00/12Z cycles (06/18Z stop at 144 h).
+    "precipitation_euro": {
+        "target": {"model": "EURO", "domain": "weather", "layer": "precipitation", "region_id": "global_0p25"},
+        "field": fb.PRECIP_MM_H, "idx": ("tp", "sfc"), "convert": lambda a: a * 1000.0, "grid": "0p25",
+        "valid": VALID_MM_H, "clip": None, "env": "FRAME_RASTER_PRECIP_EURO", "default_on": False,
+        "value_kind": "precipitation_rate", "value_unit": "mm/h",
+        "source_dataset": "ECMWF IFS open data, oper fc 0p25 tp, totals differenced to the preceding step, every point",
+        "hours": tuple(range(3, 145, 3)) + tuple(range(150, 241, 6)), "source": "ecmwf_precip", "upstream_provider": "ecmwf",
+        "credit": "Copyright ECMWF; ECMWF open data, CC BY 4.0; modified (totals differenced to a rate, quantised to 0.01 mm/h)",
+        "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); attribution to ECMWF required",
+        "source_url": "https://www.ecmwf.int/en/forecasts/datasets/open-data",
+    },
 }
+
+
+def precip_step(f):
+    """(bucket start, previous hour) for forecast hour f. NCEP's APCP totals restart every 6 h (f007 carries "6-7 hour acc",
+    f012 "6-12 hour acc"); the previous hour is one back to f120 and three back after it."""
+    if f < 1:
+        raise ValueError("no precipitation step before f001")
+    return 6 * ((f - 1) // 6), (f - 1 if f <= 120 else f - 3)
 
 
 def make_source(spec, session=None):
@@ -142,6 +186,8 @@ def make_source(spec, session=None):
     kind = spec.get("source", "gfs")
     if kind == "gfs":
         return GfsGribSource(spec, session)
+    if kind == "gfs_precip":
+        return GfsPrecipSource(spec, session)
     try:
         from services import frame_set_raster_sources as srcs
     except ImportError:  # pragma: no cover
@@ -200,6 +246,14 @@ def idx_rows(text):
     return [tuple(r) for r in rows]
 
 
+def select_timed(rows, var_level, when):
+    """(start, end) of the message with this (variable, level) and exactly this time column (e.g. "6-7 hour acc fcst"), or None."""
+    for start, end, var, lvl, t in rows:
+        if (var, lvl) == tuple(var_level) and t == when:
+            return start, end
+    return None
+
+
 def select_message(rows, var_level):
     """(start, end) of the first message with this (variable, level) that is not a mean or an accumulation, or None."""
     for start, end, var, lvl, when in rows:
@@ -226,13 +280,14 @@ class GfsGribSource:
         return f"{S3_BASE}/gfs.{cycle.strftime('%Y%m%d')}/{hh}/atmos/gfs.t{hh}z.{GRID_FILE}."
 
     def complete_cycle(self, now):
-        """The newest cycle whose f000 and f336 .idx both exist, or None."""
+        """The newest cycle whose first and last hour's .idx both exist (the set's own hours: f000 and f336), or None."""
+        hours = self.spec.get("hours", F_HOURS)
         floor6 = now.replace(minute=0, second=0, microsecond=0, hour=(now.hour // 6) * 6)
         for back in range(7):
             cyc = floor6 - timedelta(hours=6 * back)
             p = self._prefix(cyc)
             try:
-                if all(self.http.head(f"{p}f{f:03d}.idx", timeout=60).status_code == 200 for f in (F_HOURS[0], F_HOURS[-1])):
+                if all(self.http.head(f"{p}f{f:03d}.idx", timeout=60).status_code == 200 for f in (hours[0], hours[-1])):
                     return cyc
             except Exception:
                 continue
@@ -243,11 +298,15 @@ class GfsGribSource:
 
     def fetch(self, cycle, f):
         """(721, 1440) hPa for one forecast hour. Raises on a missing message, a wrong-length range or a bad decode."""
+        return self._message(cycle, f, lambda rows: select_message(rows, self.spec["idx"]))
+
+    def _message(self, cycle, f, pick):
+        """One message of forecast hour f's file, picked from its .idx rows by `pick`, decoded and converted."""
         import numpy as np
         import pygrib
         from services.noaa_gfs_pressure_fetcher import _fetch_message_bytes
         url = self.url(cycle, f)
-        rng = select_message(idx_rows(self.http.get(url + ".idx", timeout=60).text), self.spec["idx"])
+        rng = pick(idx_rows(self.http.get(url + ".idx", timeout=60).text))
         if rng is None:
             raise RuntimeError(f"idx has no {':'.join(self.spec['idx'])} message")
         data = _fetch_message_bytes(self.http, url, rng[0], rng[1])
@@ -258,6 +317,27 @@ class GfsGribSource:
         if (round(lat0, 3), round(lon0, 3)) != (90.0, 0.0):
             raise RuntimeError(f"unexpected grid origin {lat0}, {lon0}")
         return self.spec["convert"](values)   # the GRIB unit -> the frame's (Pa -> hPa, K -> degC)
+
+
+class GfsPrecipSource(GfsGribSource):
+    """GFS precipitation in the step before a forecast hour, mm/h. APCP is a running total inside a 6-hour bucket, so the
+    step's amount is this hour's bucket total minus the previous hour's (nothing to subtract on a bucket's first step):
+    two byte ranges at most, both NCEP's own fields. A difference below zero is GRIB packing noise and becomes 0."""
+
+    def __init__(self, spec=None, session=None):
+        super().__init__(spec or SPECS["precipitation"], session)
+
+    def _total(self, cycle, f, bucket):
+        when = f"{bucket}-{f} hour acc fcst"
+        return self._message(cycle, f, lambda rows: select_timed(rows, self.spec["idx"], when))
+
+    def fetch(self, cycle, f):
+        import numpy as np
+        bucket, prev = precip_step(f)
+        amount = self._total(cycle, f, bucket)                   # kg/m2 = mm since the bucket began
+        if prev > bucket:
+            amount = amount - self._total(cycle, prev, bucket)
+        return np.where(np.isfinite(amount), np.maximum(amount, 0.0) / float(f - prev), np.nan)
 
 
 class GfsPrmslSource(GfsGribSource):

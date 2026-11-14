@@ -30,6 +30,10 @@ import sys
 import urllib.parse
 import urllib.request
 from datetime import datetime, timezone
+try:
+    from _service_auth import service_headers   # the forecast clamp's job key (flip blocker 1)
+except ImportError:
+    from scripts._service_auth import service_headers
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -66,7 +70,9 @@ def _served_reference(lat, lng, valid_time):
     qs = urllib.parse.urlencode({"model": "GFS", "domain": "marine", "layer": "waves",
                                  "lat": lat, "lng": lng, "valid_time": valid_time})
     try:
-        with urllib.request.urlopen(f"{BASE}/api/weather/point?{qs}", timeout=TIMEOUT) as r:
+        url = f"{BASE}/api/weather/point?{qs}"
+        with urllib.request.urlopen(urllib.request.Request(url, headers=service_headers(url)),
+                                    timeout=TIMEOUT) as r:
             return json.loads(r.read().decode("utf-8")).get("reference_size_m")
     except Exception as e:
         print(f"    [warn] point fetch failed at ({lat},{lng}): {e}")

@@ -41,6 +41,10 @@ import sys
 import time
 import urllib.request
 from datetime import datetime, timedelta, timezone
+try:
+    from _service_auth import service_headers   # the forecast clamp's job key (flip blocker 1)
+except ImportError:
+    from scripts._service_auth import service_headers
 
 DEFAULT_BASE = "https://raw-surf-antigravity.onrender.com"
 LATTICE_H = 3
@@ -74,7 +78,7 @@ def get_point(base, model, lat, lng, vt, pid=None, timeout=90):
          f"&lat={lat}&lng={lng}&valid_time={vt}")
     if pid:
         u += f"&grid_product_id={pid}"
-    req = urllib.request.Request(u, headers={"User-Agent": "tier-resolution-delta"})
+    req = urllib.request.Request(u, headers=service_headers(u, {"User-Agent": "tier-resolution-delta"}))
     with urllib.request.urlopen(req, timeout=timeout) as r:
         return json.load(r)
 

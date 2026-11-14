@@ -165,3 +165,10 @@ def test_the_explanation_does_not_change_the_score(monkeypatch):
     assert "why" not in off
     for key in off:
         assert on[key] == off[key], f"{key} changed when the explanation was enabled"
+
+
+@__import__("pytest").fixture(autouse=True)
+def _legacy_reference_curve(monkeypatch):
+    """These pins describe the reference-LESS legacy size curve. JAC-2's catalogue prior
+    (RATING_REF_PRIOR, default ON) replaces it; that path is pinned in test_reference_prior.py."""
+    monkeypatch.setenv("RATING_REF_PRIOR", "0")

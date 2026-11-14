@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 20,
+  "branch": "codex/backend-sqlite-fixture-teardown-20261112",
+  "date": "2026-11-12",
+  "note": "Twenty real SQLite fixture lifetime, cancellation and failure-reporting contracts; no runtime changes."
+}
