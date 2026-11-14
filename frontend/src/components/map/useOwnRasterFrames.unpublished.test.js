@@ -4,7 +4,8 @@
  * the layer, so MapWebGL hands it back to the .om path, and never leave it drawn by nobody.
  * Contract: the hook returns `engaged`; MapWebGL drops a layer from the .om list only while that is true.
  */
-import { act, renderHook, waitFor } from '@testing-library/react';
+import React, { useLayoutEffect } from 'react';
+import { act, render, renderHook, waitFor } from '@testing-library/react';
 import { useOwnRasterFrames } from './useOwnRasterFrames';
 import { _resetOwnRasterFramesForTest, tel } from './ownRasterFrames';
 import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
@@ -28,12 +29,12 @@ beforeEach(() => {
   staticSetEnabled.mockReturnValue(true);
   loadFrameParsed.mockResolvedValue(null);
 });
-afterEach(() => { _resetOwnRasterFramesForTest(); getPinnedIndex.mockReset(); delete window.__RAW_DISABLE_RASTER_OWN_HANDOVER__; });
+afterEach(() => { _resetOwnRasterFramesForTest(); getPinnedIndex.mockReset(); delete window.__RAW_DISABLE_RASTER_OWN_HANDOVER__; delete window.__RAW_DISABLE_RASTER_OWN_SAME_FRAME__; });
 
 function fakeGl() {
-  const gl = { shown: null };
+  const gl = { shown: null, wants: [] };
   createOwnRasterLayer.mockImplementation(() => ({
-    onShown: (fn) => { gl.shown = fn; }, setLut: jest.fn(), want: jest.fn(), offerField: jest.fn(), isResident: () => false,
+    onShown: (fn) => { gl.shown = fn; }, setLut: jest.fn(), want: jest.fn((p) => { gl.wants.push(p); }), offerField: jest.fn(), isResident: () => false,
     setIsobarColor: jest.fn(), setDownscale: jest.fn(),
   }));
   const map = { getLayer: () => undefined, addLayer: jest.fn(), removeLayer: jest.fn(), on: jest.fn(), off: jest.fn() };
@@ -114,4 +115,43 @@ test('MapWebGL hands a disengaged fog / water layer back to the .om list (the fi
   expect(src).toMatch(/const ownWaterTemp = useOwnRasterFrames\(\{[^}]*layer: 'water_temp'/);
   expect(src).toMatch(/!\(l === 'fog' && ownFog\)/);
   expect(src).toMatch(/!\(l === 'water_temp' && ownWaterTemp\)/);
+});
+
+describe('SAME FRAME: the layer is asked for the new frame in the commit that paints the new time label', () => {
+  const H = 3600000;
+  const hourly = () => {
+    const t0 = Date.now() + 60000;   // a minute ahead: hour h is always nearest to frame fh
+    return { path: 'idx', run: 'r', frames: [-1, 0, 1, 2, 3, 4].map((h) => ({ valid_time: new Date(t0 + h * H).toISOString(), path: `f${h}` })) };
+  };
+  // A sibling's LAYOUT effect declared after the hook runs right after the hook's layout effects, before the browser paints:
+  // what our layer was asked for by then is what the painted frame can show next to the new label.
+  function Probe({ map, offset, seen, gl }) {
+    useOwnRasterFrames({ mapInstance: map, layer: 'fog', model: 'GFS', active: true, timeOffsetHours: offset, theme: 'dark', beforeId: undefined });
+    useLayoutEffect(() => { seen.push([offset, gl.wants[gl.wants.length - 1] || null]); }, [offset]);
+    return null;
+  }
+  const mount = async () => {
+    const { gl, map } = fakeGl();
+    getPinnedIndex.mockResolvedValue(hourly());
+    const seen = [];
+    const view = render(<Probe map={map} offset={0} seen={seen} gl={gl} />);
+    await waitFor(() => expect(gl.wants.length).toBeGreaterThan(0));
+    return { gl, map, seen, view };
+  };
+
+  test('each step: by the pre-paint layout pass the layer already wants the new hour', async () => {
+    const { gl, map, seen, view } = await mount();
+    for (const h of [1, 2, 3]) {
+      act(() => { view.rerender(<Probe map={map} offset={h} seen={seen} gl={gl} />); });
+      expect(seen[seen.length - 1]).toEqual([h, `f${h}`]);
+    }
+  });
+
+  test('OFF PATH: __RAW_DISABLE_RASTER_OWN_SAME_FRAME__ asks after the paint (the layer still wants the old hour then)', async () => {
+    window.__RAW_DISABLE_RASTER_OWN_SAME_FRAME__ = true;
+    const { gl, map, seen, view } = await mount();
+    act(() => { view.rerender(<Probe map={map} offset={1} seen={seen} gl={gl} />); });
+    expect(seen[seen.length - 1]).toEqual([1, 'f0']);
+    expect(gl.wants[gl.wants.length - 1]).toBe('f1');          // asked, but only after the layout pass
+  });
 });

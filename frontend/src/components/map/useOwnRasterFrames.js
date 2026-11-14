@@ -10,7 +10,7 @@
  * Per scrub step: the frame for Date.now() + offset (the .om path's own clock), the window around it in the scrub direction
  * (ownRasterFrames.planWindow), already-decoded fields offered to the layer at once, the rest pumped in priority order.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CUSTOM_COLOR_SCALES, applyPrecipColorScale, applyThemePressureScale } from './colorScales';
 import {
   createOwnRasterLayer, buildStepLut, PRESSURE_LUT, PRESSURE_OPACITY_STOPS, TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS,
@@ -61,6 +61,8 @@ const opacityOf = (layer) => (typeof OPACITY[layer] === 'function' ? OPACITY[lay
 // Isobar ink per theme (only drawn with window.__RAW_OWN_RASTER_ISOBARS__ set; off by default).
 const ISO_INK = { dark: [1, 1, 1, 0.5], beach: [0.24, 0.18, 0.12, 0.5], light: [0.12, 0.16, 0.24, 0.5] };
 
+export const sameFrameOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_OWN_SAME_FRAME__ === true);
+
 export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffsetHours, theme, beforeId }) {
   const M = String(model || 'GFS').toUpperCase();
   const FB = (OWN_RASTER_SETS[layer] && OWN_RASTER_SETS[layer].fallback) || null;
@@ -71,6 +73,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
   const [gen, setGen] = useState(0);          // bumps each time the GL layer is (re)added: the step effect re-offers fields
   const ref = useRef({ layerObj: null, prevOffset: null, dir: 1, shownRec: null, wantRec: null, byPath: new Map() });
   const engaged = wanted && !failed;
+  const useStepEffect = useRef(sameFrameOn() ? useLayoutEffect : useEffect).current;
   // HANDOVER (2026-11-14): the .om path keeps drawing until OUR layer has drawn a frame of this engagement; only then does the
   // hook report it (MapWebGL drops the layer from the .om list on that report). A cold toggle, an unpublished set or a slow
   // index read therefore never shows a blank map. Kill: window.__RAW_DISABLE_RASTER_OWN_HANDOVER__ = true (report at once).
@@ -218,7 +221,10 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
   }, [engaged, layer, gen, M]);
 
   // 4. Each step: the frame for the asked time, the window around it, the hard cut when it is resident.
-  useEffect(() => {
+  // SAME FRAME (2026-11-14): a LAYOUT effect, so the layer is told the new frame in the same commit that paints the new time
+  // label, before that paint (a passive effect ran after it: the label led the field by one painted frame on every step).
+  // Kill: window.__RAW_DISABLE_RASTER_OWN_SAME_FRAME__ = true (read once per mount: the effect kind never changes mid-life).
+  useStepEffect(() => {
     const st = ref.current;
     const L = st.layerObj;
     if (!engaged || !index || !L) return;
