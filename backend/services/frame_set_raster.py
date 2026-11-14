@@ -187,6 +187,68 @@ SPECS = {
         "license": "DWD open data, free use with source attribution (GeoNutzV)",
         "source_url": "https://opendata.dwd.de/weather/nwp/icon/grib/",
     },
+    # FOG, WATER TEMPERATURE, PER-MODEL AIR TEMPERATURE (2026-11-14; the owner, 23:35 EST 11-13: "make fog, air temp and water
+    # temp instant", relayed by the director to the move-3 lane). Each set is DARK until its own repo variable is '1'.
+    # FOG: NCEP's own surface visibility (VIS, m; the field the layer drew from Open-Meteo ncep_gfs025), every point of the
+    # 0.25-degree grid and every hour PRESSURE has, in field 11 visibility_m (1 m steps; GFS tops out near 24.1 km).
+    "fog": {
+        "target": {"model": "GFS", "domain": "weather", "layer": "fog", "region_id": "global_0p25"},
+        "field": fb.VISIBILITY_M, "idx": ("VIS", "surface"), "convert": lambda a: a, "grid": "0p25",
+        "valid": (0.0, 65534.0), "clip": None, "env": "FRAME_RASTER_FOG", "default_on": False,
+        "value_kind": "visibility", "value_unit": "m",
+        "source_dataset": "gfs.pgrb2.0p25 VIS surface (instantaneous), every point",
+        "hours": PRESSURE_HOURS, "source": "gfs", "upstream_provider": "noaa", "credit": CREDIT, "license": LICENSE,
+        "source_url": SOURCE_URL,
+    },
+    # WATER TEMPERATURE: the model SKIN temperature (TMP:surface), which over the ocean is GFS's sea-surface temperature (the
+    # Open-Meteo `surface_temperature` field the layer drew; over land it is land skin temperature and the client covers land,
+    # as today). 0.25 deg: Open-Meteo served it from gfs013 (0.117 deg), the sflux Gaussian grid, which would need our own
+    # regrid and ~4x the bytes (see the log). Field 7 temp_c: same unit and a range that holds every skin temperature.
+    "water_temp": {
+        "target": {"model": "GFS", "domain": "weather", "layer": "water_temp", "region_id": "global_0p25"},
+        "field": fb.TEMP_C, "idx": ("TMP", "surface"), "convert": lambda a: a - 273.15, "grid": "0p25",
+        "valid": (-95.0, 90.0), "clip": None, "env": "FRAME_RASTER_WATER_TEMP", "default_on": False,
+        "value_kind": "skin_temperature", "value_unit": "degC",
+        "source_dataset": "gfs.pgrb2.0p25 TMP surface (skin temperature; SST over the ocean), every point",
+        "hours": F_HOURS, "source": "gfs", "upstream_provider": "noaa", "credit": CREDIT, "license": LICENSE,
+        "source_url": SOURCE_URL,
+    },
+    # EURO 2 m temperature: ECMWF open data 2t on pressure_euro's lattice and steps (00/12Z cycles).
+    "temperature_euro": {
+        "target": {"model": "EURO", "domain": "weather", "layer": "temperature", "region_id": "global_0p5"},
+        "field": fb.TEMP_C, "idx": ("2t", "sfc"), "convert": lambda a: a - 273.15,
+        "valid": (-95.0, 65.0), "clip": None, "env": "FRAME_RASTER_TEMPERATURE_EURO", "default_on": False,
+        "value_kind": "temperature_2m", "value_unit": "degC",
+        "source_dataset": "ECMWF IFS open data, oper fc 0p25 2t, every second point",
+        "hours": tuple(range(0, 145, 3)) + tuple(range(150, 241, 6)), "source": "ecmwf", "upstream_provider": "ecmwf",
+        "credit": "Copyright ECMWF; ECMWF open data, CC BY 4.0; modified (regridded to 0.5 deg, quantised to 0.05 degC)",
+        "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); attribution to ECMWF required",
+        "source_url": "https://www.ecmwf.int/en/forecasts/datasets/open-data",
+    },
+    # ICON 2 m temperature: DWD ICON global T_2M, regridded as pressure_icon is (frame_set_raster_sources.IconOpenDataSource).
+    "temperature_icon": {
+        "target": {"model": "ICON", "domain": "weather", "layer": "temperature", "region_id": "global_0p5"},
+        "field": fb.TEMP_C, "idx": ("t_2m", ("T_2M",)), "convert": lambda a: a - 273.15,
+        "valid": (-95.0, 65.0), "clip": None, "env": "FRAME_RASTER_TEMPERATURE_ICON", "default_on": False, "frame_plane": True,
+        "value_kind": "temperature_2m", "value_unit": "degC",
+        "source_dataset": "DWD ICON global (icosahedral R3B7) T_2M, onto 0.5 deg as pressure_icon",
+        "hours": tuple(range(0, 181, 3)), "source": "icon", "upstream_provider": "dwd",
+        "credit": "Source: Deutscher Wetterdienst (DWD), ICON global; modified (regridded to 0.5 deg, quantised to 0.05 degC)",
+        "license": "DWD open data, free use with source attribution (GeoNutzV)",
+        "source_url": "https://opendata.dwd.de/weather/nwp/icon/grib/",
+    },
+    # EURO water temperature: ECMWF open data skt (skin temperature; SST over the ocean), every point of its 0.25-degree grid.
+    "water_temp_euro": {
+        "target": {"model": "EURO", "domain": "weather", "layer": "water_temp", "region_id": "global_0p25"},
+        "field": fb.TEMP_C, "idx": ("skt", "sfc"), "convert": lambda a: a - 273.15, "grid": "0p25",
+        "valid": (-95.0, 90.0), "clip": None, "env": "FRAME_RASTER_WATER_TEMP_EURO", "default_on": False,
+        "value_kind": "skin_temperature", "value_unit": "degC",
+        "source_dataset": "ECMWF IFS open data, oper fc 0p25 skt (skin temperature; SST over the ocean), every point",
+        "hours": tuple(range(0, 145, 3)) + tuple(range(150, 241, 6)), "source": "ecmwf", "upstream_provider": "ecmwf",
+        "credit": "Copyright ECMWF; ECMWF open data, CC BY 4.0; modified (quantised to 0.05 degC)",
+        "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); attribution to ECMWF required",
+        "source_url": "https://www.ecmwf.int/en/forecasts/datasets/open-data",
+    },
 }
 
 

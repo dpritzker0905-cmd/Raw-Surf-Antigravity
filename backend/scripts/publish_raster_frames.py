@@ -4,7 +4,8 @@ Runs as its own step in forecast-ingest-pilots.yml, after the marine/wind frames
 latest.json has one writer at a time), with its own budget (FRAME_RASTER_BUDGET_S, default 420 s) and timeout. The GRIB comes
 from NOAA's AWS Open Data bucket by byte range; nothing is read from weather-products and the serve box is never called.
 See services/frame_set_raster.py for the frame contract. Kill: FRAME_RASTER_PRESSURE=0.
-`--set` picks the set (pressure, the default; temperature; cloud_cover; pressure_euro; pressure_icon): each runs as its own workflow step with its own budget,
+`--set` picks the set (pressure, the default; temperature; cloud_cover; pressure_euro; pressure_icon; fog; water_temp;
+temperature_euro; temperature_icon; water_temp_euro; ...): each runs as its own workflow step with its own budget,
 and the new sets publish only when switched on (FRAME_RASTER_TEMPERATURE=1, FRAME_RASTER_CLOUD=1,
 FRAME_RASTER_PRESSURE_EURO=1, FRAME_RASTER_PRESSURE_ICON=1).
 
