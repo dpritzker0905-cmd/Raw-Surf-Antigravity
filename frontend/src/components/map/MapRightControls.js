@@ -25,15 +25,13 @@ export var MapRightControls = ({
   showWeatherControls,
   onToggleWeatherControls,
   activeLayers = [],
+  mode = 'all',
 }) => {
   const bottomStyle = activeLayers.length > 0 ? 'bottom-[150px] md:bottom-20' : 'bottom-20';
   // Three themes (W-10 R4): these buttons were zinc-800 / text-white in every mode.
   const c = mapChromeTheme(useThemeName());
 
-  return (
-    <div
-      className={`weather-map-actions absolute right-4 z-[1000] flex flex-col gap-2 transition-all duration-300 ${bottomStyle}`}
-    >
+  const exploreButtons = <>
       {/* Low-accuracy location fix button */}
       {userLocation?.accuracy && userLocation.accuracy > 1000 && (
         <button
@@ -57,6 +55,7 @@ export var MapRightControls = ({
               : c.fab
           }`}
           data-testid="gps-location-btn"
+          aria-label="Get location"
           title={userLocation?.accuracy ? `Accuracy: ${Math.round(userLocation.accuracy)}m` : 'Get location'}
         >
           {gpsLoading ? (
@@ -102,7 +101,14 @@ export var MapRightControls = ({
         <Users className={`w-5 h-5 ${showFriendsOnMap ? c.activeYellow : ''}`} />
       </Button>
 
-      {/* Mobile Weather Layers Toggle */}
+      {/* Friend count badge */}
+      {showFriendsOnMap && friendsOnMap.length > 0 && (
+        <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center text-xs text-black font-bold">
+          {friendsOnMap.length}
+        </div>
+      )}
+  </>;
+  const weatherButton = <>
       <Button
         aria-label="Weather layers"
         aria-expanded={showWeatherControls}
@@ -113,12 +119,11 @@ export var MapRightControls = ({
         <Layers className={`w-5 h-5 ${showWeatherControls ? c.activeCyan : ''}`} />
       </Button>
 
-      {/* Friend count badge */}
-      {showFriendsOnMap && friendsOnMap.length > 0 && (
-        <div className="absolute -top-1 -right-1 w-5 h-5 bg-yellow-400 rounded-full flex items-center justify-center text-xs text-black font-bold">
-          {friendsOnMap.length}
-        </div>
-      )}
-    </div>
-  );
+  </>;
+  const group = (content, kind) => <div key={kind}
+    className={`weather-map-actions absolute right-4 z-[1000] flex flex-col gap-2 ${bottomStyle} ${kind === 'weather' ? 'md:hidden' : ''}`}
+    data-control-mode={kind} data-controls-visible={mode === 'all' || mode === kind}
+    aria-hidden={mode !== 'all' && mode !== kind || undefined} inert={mode !== 'all' && mode !== kind || undefined}>{content}</div>;
+  return mode === 'all' ? group(<>{exploreButtons}{weatherButton}</>, 'all')
+    : <>{group(exploreButtons, 'explore')}{group(weatherButton, 'weather')}</>;
 };

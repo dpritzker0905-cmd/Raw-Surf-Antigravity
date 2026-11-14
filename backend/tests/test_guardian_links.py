@@ -13,6 +13,8 @@ Cast
 import sqlite3
 from datetime import date, datetime, timedelta, timezone
 
+from contextlib import contextmanager
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -44,8 +46,8 @@ def years_ago(n):
     return date(TODAY.year - n, 1, 1)
 
 
-@pytest.fixture
-def env(tmp_path, monkeypatch):
+@contextmanager
+def _env_context(tmp_path, monkeypatch):
     monkeypatch.delenv('RENDER', raising=False)
     path = tmp_path / 'guardian.sqlite'
     sync_engine = create_engine(f'sqlite:///{path}')
@@ -88,7 +90,16 @@ def env(tmp_path, monkeypatch):
     with TestClient(app, raise_server_exceptions=False) as client:
         client.db_path = str(path)
         client.maker = maker
-        yield client
+        try:
+            yield client
+        finally:
+            client.portal.call(engine.dispose)
+
+
+@pytest.fixture
+def env(tmp_path, monkeypatch):
+    with _env_context(tmp_path, monkeypatch) as value:
+        yield value
 
 
 def sql(client, statement, *params):

@@ -82,6 +82,7 @@ const compactReflow=()=>{
 
 test.each(['light','dark','beach'])('%s compact reflow moves hidden-header focus to Details and Escape from the real tide curve returns it',theme=>{
   mockTheme=theme;render(<Chrome/>);
+  expect(screen.getByRole('region', {name:'Selected point forecast'})).toHaveAttribute('tabindex','0');
   const root=screen.getByTestId('chrome-root');expect(root).toHaveAttribute('data-point-details-compact','false');
   const header=document.querySelector('.weather-point-header');header.focus();expect(header).toHaveFocus();
   const tide=screen.getByRole('group',{name:'Tide',exact:true});const text=tide.textContent;
@@ -114,4 +115,41 @@ test('a reading area already opened by the user retains real curve focus through
 test('compact reflow does not steal focus from outside the forecast card',()=>{
   render(<Chrome/>);const outside=screen.getByRole('button',{name:'Outside weather'});outside.focus();compactReflow();
   expect(screen.getByTestId('chrome-root')).toHaveAttribute('data-point-details-compact','true');expect(outside).toHaveFocus();
+});
+
+test('landscape gives point details their own column while the timeline stays open',()=>{
+  const oldWidth=window.innerWidth;
+  Object.defineProperty(window,'innerWidth',{configurable:true,value:667});
+  try {
+    mapHeight=319;timelineTop=170;
+    render(<Chrome/>);
+    const root=screen.getByTestId('chrome-root');
+    expect(root).toHaveAttribute('data-point-columns','true');
+    expect(root).toHaveAttribute('data-point-details-compact','false');
+    const header=document.querySelector('.weather-point-header');header.focus();
+    timelineTop=108;act(()=>resize());act(()=>scheduled());
+    expect(root).toHaveAttribute('data-point-details-compact','false');
+    expect(header).toHaveFocus();
+    expect(screen.getByRole('group',{name:'Tide',exact:true})).toBeInTheDocument();
+  } finally { Object.defineProperty(window,'innerWidth',{configurable:true,value:oldWidth}); }
+});
+
+
+describe('map coverage disclosure', () => {
+  afterEach(() => { delete window.__MARINE_HEATMAP_STATUS__; });
+  test.each(['GFS', 'ICON', 'EURO'])('names the %s map grid without claiming tides are missing', model => {
+    mockTheme = model === 'GFS' ? 'light' : model === 'EURO' ? 'beach' : 'dark';
+    window.__MARINE_HEATMAP_STATUS__ = { status: 'no_backend_coverage', model, layer: 'waves', hour: 0 };
+    render(<MapForecastOverlay {...props} activeModel={model} />);
+    expect(screen.getByText(`${model} waves map grid unavailable`)).toBeVisible();
+    expect(screen.getByText(`${model} waves map grid unavailable`).parentElement).toHaveClass(mockTheme === 'light' ? 'text-amber-800' : 'text-amber-400');
+    expect(screen.getByText('No usable map grid for this view/time. Tide data loads separately.')).toBeVisible();
+    expect(screen.getByTestId('tide-readout')).toBeVisible();
+  });
+  test.each([{ model: 'ICON' }, { layer: 'swell_1' }, { hour: 12 }])('does not attach another selection’s warning: %j', other => {
+    window.__MARINE_HEATMAP_STATUS__ = { status: 'no_backend_coverage', model: 'GFS', layer: 'waves', hour: 0, ...other };
+    render(<MapForecastOverlay {...props} />);
+    expect(screen.queryByText(/map grid unavailable/)).toBeNull();
+    expect(screen.getByTestId('tide-readout')).toBeVisible();
+  });
 });

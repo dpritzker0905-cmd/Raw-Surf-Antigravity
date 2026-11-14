@@ -10,6 +10,8 @@ Cast (all Groms are linked and approved, so a refusal here is the guardian's swi
   grom_nochan  can_message_grom_channel False             adult        a surfer with stray Grom-style switches
   peer         a linked Grom to message                   owner        a surfer with an open and a closed post
 """
+from contextlib import contextmanager
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -45,8 +47,8 @@ def auth(user):
     return {'Authorization': f'Bearer {create_access_token({"sub": user})}'}
 
 
-@pytest.fixture
-def client(tmp_path, monkeypatch):
+@contextmanager
+def _client_context(tmp_path, monkeypatch):
     path = tmp_path / 'parental.sqlite'
     sync_engine = create_engine(f'sqlite:///{path}')
     for table in Base.metadata.sorted_tables:
@@ -90,7 +92,16 @@ def client(tmp_path, monkeypatch):
         app.include_router(router, prefix='/api')
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app, raise_server_exceptions=False) as test_client:
-        yield test_client
+        try:
+            yield test_client
+        finally:
+            test_client.portal.call(engine.dispose)
+
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    with _client_context(tmp_path, monkeypatch) as value:
+        yield value
 
 
 def comment(client, user, post='post-open', **body):

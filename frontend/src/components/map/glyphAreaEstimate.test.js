@@ -7,6 +7,9 @@
 import { computeSpotRatings, ratingsShallowEqual, glyphEstimateLabelEnabled } from './useSpotRatings';
 import { spotGlyphAriaLabel } from './MapMarkerLayers';
 
+// CRA's Jest resolver needs the same real-router alias as MapPersonContext.test.js.
+jest.mock('react-router-dom', () => jest.requireActual('react-router'), { virtual: true });
+
 function ratingGrid() {
   const cols = 5; const rows = 5;
   const vectors = Array.from({ length: cols * rows }, () => ({ speed: 0 }));

@@ -16,6 +16,8 @@ Cast (age on TODAY = 2026-10-25; guardians: g1 = unverified adult, g2 = age-veri
 import sqlite3
 from datetime import date, timedelta
 
+from contextlib import contextmanager
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -63,8 +65,8 @@ CAST = {   # id: (age in years or None, guardian)
 }
 
 
-@pytest.fixture
-def env(tmp_path, monkeypatch):
+@contextmanager
+def _env_context(tmp_path, monkeypatch):
     monkeypatch.delenv('RENDER', raising=False)
     path = tmp_path / 'levels.sqlite'
     sync_engine = create_engine(f'sqlite:///{path}')
@@ -108,7 +110,16 @@ def env(tmp_path, monkeypatch):
     with TestClient(app, raise_server_exceptions=False) as client:
         client.db_path = str(path)
         client.maker = maker
-        yield client
+        try:
+            yield client
+        finally:
+            client.portal.call(engine.dispose)
+
+
+@pytest.fixture
+def env(tmp_path, monkeypatch):
+    with _env_context(tmp_path, monkeypatch) as value:
+        yield value
 
 
 def count(client, table):

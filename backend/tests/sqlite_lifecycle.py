@@ -1,4 +1,6 @@
 """Real request-engine lifetime checks for the pinned aiosqlite test driver."""
+import asyncio
+from collections import Counter
 from contextlib import contextmanager
 import threading
 
@@ -14,6 +16,24 @@ def _sqlite_workers():
 
 @contextmanager
 def assert_request_engines_closed(client, monkeypatch, module):
+    """Check request cleanup while its owning TestClient portal is still live."""
+    with _assert_engines_closed(monkeypatch, module,
+                                lambda engine: client.portal.call(engine.dispose), ordered=True):
+        yield
+
+
+@contextmanager
+def assert_fixture_engines_closed(monkeypatch, module):
+    """Check a complete fixture scope; bound red-run cleanup on a fresh loop."""
+    def cleanup(engine):
+        asyncio.run(asyncio.wait_for(engine.dispose(), timeout=5))
+
+    with _assert_engines_closed(monkeypatch, module, cleanup, ordered=False):
+        yield
+
+
+@contextmanager
+def _assert_engines_closed(monkeypatch, module, cleanup_engine, *, ordered):
     """Observe real connections and wait for their workers; do not fake database cleanup."""
     original = module.create_async_engine
     before = _sqlite_workers()
@@ -36,17 +56,17 @@ def assert_request_engines_closed(client, monkeypatch, module):
     try:
         yield
         assert engines and opened and workers, 'The control must open real SQLite connections and workers'
-        assert closed == opened, 'Request returned with live SQLite connections'
-        assert disposed == {id(engine) for engine in engines}, 'Request returned without disposing its engine'
+        assert (closed == opened if ordered else Counter(closed) == Counter(opened)), 'Scope ended with live SQLite connections'
+        assert disposed == {id(engine) for engine in engines}, 'Scope ended without disposing its engine'
         for worker in workers:
             worker.join(timeout=1)
         assert not any(worker.is_alive() for worker in workers), 'SQLite workers survived request cleanup'
     except BaseException as primary:
-        # The TestClient context is still open. Preserve the primary failure if cleanup also fails.
+        # Preserve the primary failure if bounded cleanup also fails.
         for engine in engines:
             if id(engine) not in disposed:
                 try:
-                    client.portal.call(engine.dispose)
+                    cleanup_engine(engine)
                 except Exception as cleanup:
                     primary.add_note(f'Additional engine cleanup failed: {type(cleanup).__name__}')
         raise

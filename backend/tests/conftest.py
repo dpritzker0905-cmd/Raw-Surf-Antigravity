@@ -10,7 +10,7 @@ from pathlib import Path
 
 import pytest
 import pytest_asyncio
-from httpx import AsyncClient, ASGITransport
+from tests.sqlite_client_fixture import async_client_context
 
 # Set test environment variables BEFORE importing the app
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///test_dev.db")
@@ -53,21 +53,24 @@ def pytest_collection_modifyitems(config, items):
 
 @pytest_asyncio.fixture
 async def client():
-    """
-    Provides an async httpx client wired to the FastAPI app via ASGITransport.
-    Each test gets a fresh client instance. No real DB connections are made.
-    """
+    """Run manual app startup and close its pool before this fixture's loop ends."""
     try:
         from server import app, ensure_database_tables
-        # ASGITransport does NOT run the app lifespan, so the startup schema migration never
-        # fires and newer tables (galleries, reviews, ...) are missing from the sqlite test DB
-        # ('no such table: galleries', 2026-07-02). ensure_database_tables() is idempotent.
-        await ensure_database_tables()
-        transport = ASGITransport(app=app)
-        async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
-            yield ac
-    except Exception as e:
-        pytest.skip(f"App import failed (expected in CI without DB): {e}")
+    except Exception as exc:
+        pytest.skip(f"App import failed (expected in CI without DB): {exc}")
+    # Missing ownership metadata is a real error, never an app-unavailable skip.
+    from server import engine
+
+    async def initialize():
+        # ASGITransport does not run lifespan. Preserve the existing unavailable
+        # setup skip, but never turn client close/disposal failures into skips.
+        try:
+            await ensure_database_tables()
+        except Exception as exc:
+            pytest.skip(f"App initialization failed (expected in CI without DB): {exc}")
+
+    async with async_client_context(app, initialize, engine) as ac:
+        yield ac
 
 
 @pytest_asyncio.fixture

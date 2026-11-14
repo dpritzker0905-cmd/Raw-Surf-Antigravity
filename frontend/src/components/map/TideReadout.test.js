@@ -80,7 +80,9 @@ describe('TideReadout', () => {
     expect(await screen.findByTestId('tide-readout')).toBeTruthy();
     expect(screen.getByText('Rising')).toBeTruthy();
     expect(screen.getByTestId('tide-curve').getAttribute('aria-label')).toMatch(/^Tide rising, 0\.0 m at selected time/);
-    expect(screen.getByText(/not an official tide table/)).toBeTruthy();
+    expect(screen.getByText('Modeled sea level · MSL')).toBeVisible();
+    expect(screen.queryByRole('button', { name: 'About tide data' })).toBeNull();
+    expect(screen.queryByText(/Open-Meteo|not an official tide table/)).toBeNull();
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
@@ -181,7 +183,7 @@ describe('time-aware readout', () => {
     render(<TideReadout lat={7} lng={8} heightUnit="m" atTime={Date.parse(NOW)} />);
     await screen.findByTestId('tide-readout');
     expect(screen.queryByTestId('tide-solar-note')).toBeNull();
-    expect(screen.getByText(/event times UTC/)).toBeTruthy();
+    expect(screen.getByText(/Next high/)).toHaveTextContent('UTC');
   });
 
   test('no caveat when the browser zone agrees', async () => {
