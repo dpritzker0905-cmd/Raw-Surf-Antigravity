@@ -4,6 +4,7 @@ The URL names the user (`/ws/crew-chat/{booking}/{user}`), and the handler used 
 member's id could read the booking's live messages and presence and type as that member. Real JWT + a real
 websocket handshake through Starlette's test client + an ephemeral SQLite file; nothing leaves the process.
 """
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -15,6 +16,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 import database
+from tests.sqlite_client_fixture import FixtureSessions, dispose_fixture_engine
 from core.security import create_access_token
 from database import Base
 from models import Booking, BookingParticipant, Profile, RoleEnum
@@ -28,8 +30,8 @@ def token_for(subject, **kwargs):
     return create_access_token({'sub': subject}, **kwargs)
 
 
-@pytest.fixture
-def client(tmp_path, monkeypatch):
+@contextmanager
+def _client_context(tmp_path, monkeypatch):
     path = tmp_path / 'sec02.sqlite'
     sync_engine = create_engine(f'sqlite:///{path}')
     for table in Base.metadata.sorted_tables:
@@ -53,14 +55,25 @@ def client(tmp_path, monkeypatch):
         db.commit()
     sync_engine.dispose()
 
-    def session_maker():
-        # A fresh engine per call: the handler runs on the test client's own event loop.
-        return async_sessionmaker(create_async_engine(f'sqlite+aiosqlite:///{path}'), expire_on_commit=False)()
+    engine = create_async_engine(f'sqlite+aiosqlite:///{path}')
+    maker = async_sessionmaker(engine, expire_on_commit=False)
+
+    session_maker = FixtureSessions(maker)
 
     monkeypatch.setattr(database, 'async_session_maker', session_maker)
     app = FastAPI()
     app.include_router(crew_chat_reactions.router, prefix='/api')
     with TestClient(app) as test_client:
+        try:
+            yield test_client
+        finally:
+            assert test_client.portal is not None, 'Fixture cleanup requires its live TestClient portal'
+            test_client.portal.call(dispose_fixture_engine, engine, session_maker)
+
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    with _client_context(tmp_path, monkeypatch) as test_client:
         yield test_client
 
 

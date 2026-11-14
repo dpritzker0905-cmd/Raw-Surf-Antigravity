@@ -5,6 +5,8 @@ role "Admin" returned 200 with that role stored (is_admin stayed false and /admi
 passes role-name gates and shows admin UI). Real handler + ephemeral SQLite file through Starlette's test client;
 a refused request must leave no profile behind.
 """
+from contextlib import contextmanager
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -20,8 +22,8 @@ REFUSED = ["Admin", "ADMIN", "admin", "Pro", "Comp Surfer", "Wave Pool", "Destin
 UNKNOWN = ["Superuser", "", " Admin", "Surfer; DROP TABLE", "Grom_Parent_X"]  # " Admin" normalises to "_ADMIN"
 
 
-@pytest.fixture
-def client(tmp_path, monkeypatch):
+@contextmanager
+def _client_context(tmp_path, monkeypatch):
     path = tmp_path / "signup.sqlite"
     sync_engine = create_engine(f"sqlite:///{path}")
     for table in Base.metadata.sorted_tables:
@@ -43,7 +45,16 @@ def client(tmp_path, monkeypatch):
     app.dependency_overrides[get_db] = override
     with TestClient(app) as test_client:
         test_client.sqlite_path = path
-        yield test_client
+        try:
+            yield test_client
+        finally:
+            test_client.portal.call(engine.dispose)
+
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    with _client_context(tmp_path, monkeypatch) as value:
+        yield value
 
 
 def signup(client, role, n=0):

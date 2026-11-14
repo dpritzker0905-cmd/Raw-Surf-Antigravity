@@ -8,6 +8,8 @@ Cast: alice blocked bob; carol has no block with anybody. Actions are refused 40
 404 to the blocked viewer only (the blocker can still open the page to unblock), lists hide the pair both ways,
 and carol (the control) gets exactly the behaviour she had before.
 """
+from contextlib import contextmanager
+
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -32,8 +34,8 @@ def auth(user):
     return {'Authorization': f'Bearer {create_access_token({"sub": user})}'}
 
 
-@pytest.fixture
-def client(tmp_path, monkeypatch):
+@contextmanager
+def _client_context(tmp_path, monkeypatch):
     path = tmp_path / 'blocks.sqlite'
     sync_engine = create_engine(f'sqlite:///{path}')
     for table in Base.metadata.sorted_tables:
@@ -79,7 +81,16 @@ def client(tmp_path, monkeypatch):
         app.include_router(router, prefix='/api')
     app.dependency_overrides[get_db] = override_get_db
     with TestClient(app) as test_client:
-        yield test_client
+        try:
+            yield test_client
+        finally:
+            test_client.portal.call(engine.dispose)
+
+
+@pytest.fixture
+def client(tmp_path, monkeypatch):
+    with _client_context(tmp_path, monkeypatch) as value:
+        yield value
 
 
 # The two directions of the one block: alice->bob (the blocker acts) and bob->alice (the blocked acts).
