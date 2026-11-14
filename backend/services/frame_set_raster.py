@@ -548,7 +548,7 @@ def publish(source, sink, uploader, log=print, budget_s=None, now=None, clock=ti
         return {"status": "no_cycle"}
     from services import frame_latest_guard as flg
     try:                                               # absent only on a fresh bucket; any doubt -> no publish
-        latest, _state = flg.read_latest(sink, log)
+        latest, first_state = flg.read_latest(sink, log)
     except flg.LatestUnknown as e:
         log(f"[raster] {key}: {e}; nothing published (the published set stays)")
         return {"status": "latest_unknown", "reason": str(e)}
@@ -573,7 +573,7 @@ def publish(source, sink, uploader, log=print, budget_s=None, now=None, clock=ti
     now_s = iso(datetime.now(timezone.utc))
     writer = f"gh-run-{os.environ['GITHUB_RUN_ID']}" if os.environ.get("GITHUB_RUN_ID") else "local"
     try:                                               # re-read: change only this set's record
-        latest, _state = flg.read_latest(sink, log)
+        latest, _state = flg.read_latest(sink, log, was_fresh=first_state == "absent")
     except flg.LatestUnknown as e:                     # frames + index are up but unnamed; the next run's retention takes them
         log(f"[raster] {key}: {e}; latest.json not written (the published set stays)")
         return {"status": "latest_unknown", "run": iso(cycle), "reason": str(e), **stats}

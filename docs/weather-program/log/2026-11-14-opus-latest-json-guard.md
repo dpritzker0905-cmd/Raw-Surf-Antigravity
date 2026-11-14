@@ -65,3 +65,16 @@ Mutants, each alone, then restored:
 | raster re-read back to the loose read | 1 fail (this mutant first SURVIVED; the re-read test was added for it) |
 
 Not done: no live read of the bucket beyond the public not-found probe. The pilots run after merge is the first real use.
+
+## 06:53Z: a fresh bucket's raster re-read, and one existing test
+
+The full local run of the frame and entitlement suites (815 tests) found 15 failures in 7 tests. Two causes:
+- **My design gap.** frame_set_raster.publish re-reads latest.json AFTER uploading its frames and index, so on a fresh bucket
+  the re-read saw "absent beside objects" (its own uploads) and refused. `read_latest(..., was_fresh=...)` now accepts an absent
+  re-read only when this run's first read found the bucket fresh. If latest.json was there for the first read and is gone for the
+  re-read, that is still refused. Pinned by `test_a_fresh_bucket_rereads_absent_but_a_vanished_latest_json_is_refused`; mutants
+  "was_fresh always" (1 fail) and "never" (3 fail).
+- **A contract change, on purpose.** `test_retention_deletes_nothing_when_the_previous_index_cannot_be_read` deletes latest.json
+  beside published frames and expected a rebuild. The guard now refuses that by default, so the test sets FRAME_LATEST_REBUILD=1
+  and still pins its own point: retention deletes nothing. The default refusal is pinned in test_frame_latest_guard.py.
+Tests now 23 (estate +23).

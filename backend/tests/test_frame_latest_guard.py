@@ -255,6 +255,31 @@ def test_the_raster_writer_rereads_strictly_before_it_writes(tmp_path):
     assert report["status"] == "latest_unknown" and (tmp_path / "o" / fs.LATEST).read_bytes() == before
 
 
+class _VanishesOnReread(pub.LocalSink):
+    """latest.json is there for the first read and gone (absent) for the re-read, beside published objects."""
+
+    def __init__(self, out):
+        super().__init__(out)
+        self.n = 0
+
+    def read_strict(self, path):
+        if path == fs.LATEST:
+            self.n += 1
+            if self.n > 1:
+                return None
+        return super().read(path)
+
+
+def test_a_fresh_bucket_rereads_absent_but_a_vanished_latest_json_is_refused(tmp_path):
+    assert _raster(pub.LocalSink(tmp_path / "fresh"))["status"] == "published"            # its own uploads are no fault
+    assert fsr.KEY in json.loads((tmp_path / "fresh" / fs.LATEST).read_text())["sets"]
+    _seed(tmp_path / "o")
+    before = (tmp_path / "o" / fs.LATEST).read_bytes()
+    report = _raster(_VanishesOnReread(tmp_path / "o"))
+    assert report["status"] == "latest_unknown" and "not a first run" in report["reason"]
+    assert (tmp_path / "o" / fs.LATEST).read_bytes() == before
+
+
 def test_the_raster_writer_checks_the_reread_before_it_writes(tmp_path, monkeypatch):
     _seed(tmp_path / "o")
     monkeypatch.setattr(flg, "check_write", lambda new, base: (_ for _ in ()).throw(flg.LatestRefused("drop")))

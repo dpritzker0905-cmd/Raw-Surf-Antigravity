@@ -215,7 +215,10 @@ def test_the_publisher_runs_only_in_the_pilots_lane_after_its_ingest():
     assert core.index("scripts/ingest_forecast_ci.py") < core.index("scripts/publish_frame_images.py --wind-lane-rebuild")
 
 
-def test_retention_deletes_nothing_when_the_previous_index_cannot_be_read(tmp_path):
+def test_retention_deletes_nothing_when_the_previous_index_cannot_be_read(tmp_path, monkeypatch):
+    # 2026-11-14 (frame_latest_guard): a missing latest.json beside published objects is now REFUSED by default (nothing is
+    # published); the operator's rebuild switch restores the path this test pins: rebuild, and retention deletes nothing.
+    monkeypatch.setenv("FRAME_LATEST_REBUILD", "1")
     store, out = tmp_path / "store", tmp_path / "out"
     _write_store(store)
     _publish(store, out)

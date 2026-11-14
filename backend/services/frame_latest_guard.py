@@ -59,9 +59,10 @@ def _has_any(sink, prefix):
     return bool(sink.list(prefix))
 
 
-def read_latest(sink, log=print):
+def read_latest(sink, log=print, was_fresh=False):
     """(document, state) with state 'ok' or 'absent'. Raises LatestUnknown when the read is not certain. With the guard off,
-    any failed read is the empty document (the old behaviour)."""
+    any failed read is the empty document (the old behaviour). `was_fresh`: this run's earlier read found the bucket fresh,
+    so the objects under v1/ now are its own uploads (frame_set_raster re-reads after uploading) and absent is still a first run."""
     if not enabled():
         raw = sink.read(LATEST)
         return (json.loads(raw) if raw else json.loads(json.dumps(EMPTY))), ("ok" if raw else "absent")
@@ -73,6 +74,8 @@ def read_latest(sink, log=print):
     except Exception as e:
         raise LatestUnknown(f"{LATEST} read failed: {type(e).__name__}: {e}"[:300])
     if raw is None:
+        if was_fresh:
+            return json.loads(json.dumps(EMPTY)), "absent"
         try:
             fresh = not _has_any(sink, "v1")
         except Exception as e:
