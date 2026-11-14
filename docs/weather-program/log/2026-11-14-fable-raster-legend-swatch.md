@@ -50,3 +50,75 @@ backgrounds sampled from app screenshots (the most common colour of the panel ar
   that row.
 - If a line fails, the swatch or the failing table end is changed and every gate line (palette and legend) is re-run.
 - The advisor reviews this gate's result independently before merge (Reflection's condition, relayed by the director).
+
+## 3. Results (05:55 EST). Instrument: `node scripts/raster-color/design.mjs --all` (CIEDE2000, tables scored as the step tables they are)
+The director's decision (05:48 EST): #892 is not reverted, since on the real colours its tables still beat the ones before it on
+the failing measures; continue with the plan above.
+
+### 3a. The palette gates on the REAL map colours: before (the tables merged in #892) and after (this PR). No gate line was changed.
+| line | threshold | #892 tables | this PR |
+|---|---|---|---|
+| T1 air temp 5 C step, light water | >= 4.5 | 4.06 FAIL | 5.37 |
+| T1 air temp 5 C step, beach water | >= 4.5 | 4.11 FAIL | 5.48 |
+| T2 -10 vs +10 C, colour-blind, light water | >= 20 | 17.8 FAIL | 23.3 |
+| T2 -10 vs +10 C, colour-blind, beach water | >= 20 | 16.2 FAIL | 20.9 |
+| W2 water temp 1 C step, normal, light | >= 1.5 | 1.35 FAIL | 1.64 |
+| W2 water temp 1 C step, normal, beach | >= 1.5 | 1.27 FAIL | 1.52 |
+| B1 air temp vs bare beach land, colour-blind | >= 3.0 | 1.96 FAIL | 5.06 |
+
+Every other line passes in both. Worst values after, over all themes and surfaces: T1 normal 5.37, colour-blind 3.34 (light
+land, tritan); T2 normal 44.3, colour-blind 20.9; T3 no lightness reversal; T4 17.5 to 26.6; W1 0 reversals; W2 normal 1.52,
+colour-blind 1.32; W3 mean step 2.80 / 2.82 / 3.24 against 2.69 / 2.60 / 3.05 before #892; F1 22.1; F3 4.4; B1 normal 5.21
+(air temp, beach land, 0 C), colour-blind 3.09 (water temp, dark water, 16 C, protan).
+**Thin margins, stated plainly:** W2 beach 1.52 on a line of 1.5; T2 beach water colour-blind 20.9 on 20; B1 3.09 and 3.10 on 3.0.
+
+What changed in the tables: air temp, the stops from -40 to +15 C (found by a random search with refinement over the anchor
+lightness, chroma and hue, after hand tuning did not converge; the first colour above freezing is now a pale apricot rather
+than cream, because cream sank into beach land); water temp, the three coldest anchors (-2, 4, 8 C). Fog is unchanged.
+
+### 3b. The legend gate (written at 05:20 EST, first measured at 05:40 EST)
+First measurement, with the re-tuned tables of 3a: 17 of 18 lines passed; **LG1 water temp, beach, FAILED: 8.9 at 35 F** (line:
+10). The cold end of the water temp bar is a near-black violet on beach's near-black panel; the swatch cannot help there
+because the temperature tables are opaque (the swatch shows only through fog's alpha). As the gate said, the failing table end
+was changed (water temp -2 C lightness 0.10 -> 0.115, 4 C 0.165 -> 0.185) and every palette and legend line was run again. Two
+lighter tries (0.125 / 0.195 and 0.135 / 0.205) passed LG1 but failed W2 beach (1.39), so they were not used.
+
+Final, all 18 pass (minimum over the ticks; "bare" = the same bar without the swatch, no threshold):
+| bar | theme | LG1 bar vs panel (>= 10) | bare | LG2 bar vs swatch, normal (>= 5) | LG2 colour-blind (>= 3) |
+|---|---|---|---|---|---|
+| air temp | light | 16.6 | 16.6 | 32.4 | 30.4 |
+| air temp | beach | 20.8 | 20.8 | 34.0 | 32.0 |
+| air temp | dark | 22.2 | 22.2 | 16.3 | 13.0 |
+| water temp | light | 21.9 | 21.9 | 35.1 | 21.2 |
+| water temp | beach | 12.1 | 12.1 | 32.1 | 19.0 |
+| water temp | dark | 13.7 | 13.7 | 17.4 | 4.5 |
+| fog | light | 19.3 | **0.0** | 7.5 | 7.2 |
+| fog | beach | 10.8 | **0.0** | 6.8 | 6.5 |
+| fog | dark | 29.7 | **0.0** | 9.9 | 9.7 |
+
+What the swatch does and does not do: it changes the FOG bar only (its clear end was the panel itself, 0.0; it is now the map's
+water colour). The air temp and water temp bars are opaque, so the swatch is under them and not seen; their numbers are the
+same with and without it. Thin margin: fog beach LG1 10.8 on a line of 10 (the dense end, slate on a near-black panel).
+
+### Lesson (for LESSONS.md when the director batches it)
+**Verify an instrument's constants against the real rendering surface before a gate is trusted.** The palette checker borrowed
+its basemap colours from the wind checker; they described a different surface (the map as muted under wind). Every light and
+beach number in #892 was computed correctly and was about the wrong map. One sample of the bare map in the app would have
+caught it before the gate was written.
+
+## 4. In the app, and tests (06:05 EST)
+Offline harness only (synthetic backend, built client; nothing asked of the live backend). The legend bar as the browser draws
+it, read from computed style, for fog, air temp and water temp x light, dark, beach x desktop (1280 x 800) and phone
+(390 x 844, in the weather sheet): 18 of 18 bars have one gradient layer over a background colour equal to that theme's water
+colour (light rgb(144, 223, 254), dark rgb(93, 117, 126), beach rgb(117, 207, 240)); the bar has no child element, no role and
+no aria attribute, and its tick labels are unchanged. With `window.__RAW_DISABLE_RASTER_LEGEND_SWATCH__ = true` and a layer
+toggle, the fog bar's background colour is transparent again in all six theme and layout cases (the bar as merged in #892).
+Seen by eye on the beach phone sheet: the fog bar now runs from slate to the map's water blue; with the kill it fades into the
+panel as before.
+
+Tests: `rasterPalettes.test.js` 39 -> 46 (floor fragment +7 tests, no new suite); the kill is in
+`killSwitch.inventory.test.js`. The whole map and tests trees pass locally: 7,106 tests. Lint ratchet and file-size check pass.
+
+NOT verified: a real phone, Safari, Firefox, the deployed site, and the own-frames drawing path (#889), which reads the same
+tables through `rasterScaleFor`. The palettes were not looked at again by eye on the map after the re-tune beyond the legend
+shots; the numbers in section 3 are the evidence for the map itself.

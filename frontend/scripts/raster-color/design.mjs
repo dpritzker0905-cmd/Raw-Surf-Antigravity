@@ -4,7 +4,7 @@
 //   node scripts/raster-color/design.mjs            # scores
 //   node scripts/raster-color/design.mjs --emit     # prints the tables as JS for src/components/map/rasterPalettes.js
 import { interpolate, formatRgb, converter, clampChroma } from 'culori';
-import { report, gates } from './check.mjs';
+import { report, gates, legendGate } from './check.mjs';
 const toRgb = converter('rgb');
 const ok = (l, c, h) => ({ mode: 'oklch', l, c, h });
 // g(l, f, h): lightness l, hue h, chroma = fraction f of the most the sRGB gamut holds there (anchors stay in gamut, so the ramp does not kink).
@@ -27,14 +27,19 @@ const seq = (a, b, s) => { const o = []; for (let v = a; v <= b + 1e-9; v += s) 
 // Lightness falls away from 0 C on both sides; the two stops beside 0 are already tinted, so the freezing line reads.
 export function airTemp(theme) {
   const k = theme === 'dark' ? { l0: 0.97, lo: 0.30, chroma: 1.0 } : { l0: 0.97, lo: 0.24, chroma: 1.0 };
+  // The stops below -0.5 C and the first four above 0 C were found by a random search with refinement (30,000 candidates,
+  // 2026-11-14) for the largest smallest-margin over every air temp gate line on the REAL map colours of the three themes; by
+  // hand the 5 C band line and the colour-blind cold-against-warm line kept trading against each other over the light and
+  // beach maps' bright cyan water.
   const cold = [
-    [-40, g(0.17, 0.85, 322)], [-30, g(0.24, 0.88, 314)], [-25, g(0.33, 0.88, 296)], [-20, g(0.42, 0.85, 284)], [-15, g(0.50, 0.82, 272)],
-    [-10, g(0.58, 0.82, 262)], [-5, g(0.66, 0.85, 254)], [-0.5, g(0.74, 0.90, 246)], [0, g(0.96, 0.50, 104)],
+    [-40, g(0.11, 0.85, 332.2)], [-30, g(0.17, 0.88, 324.2)], [-25, g(0.281, 0.88, 319.5)], [-20, g(0.402, 0.85, 303.3)], [-15, g(0.485, 0.82, 280.2)],
+    [-10, g(0.562, 0.82, 264.4)], [-5, g(0.67, 0.85, 240.3)], [-0.5, g(0.715, 0.90, 237.0)], [0, g(0.928, 0.791, 81.0)],
   ];
-  // No neutral stop at 0 C: a near-white one sank into the pale light map (gate B1). 0 C is the first, palest warm colour and
-  // the freezing line is the blue / cream edge itself.
+  // No neutral stop at 0 C: a near-white one sank into the pale light map (gate B1). 0 C is the first, palest warm colour (a pale
+  // apricot, not a cream: a blue-blind viewer cannot tell cream from the beach map's warm white) and the freezing line is the
+  // blue / apricot edge itself.
   const warm = [
-    [0, g(0.96, 0.50, 104)], [5, g(0.925, 0.80, 100)], [10, g(0.872, 0.88, 92)], [15, g(0.78, 0.90, 75)],
+    [0, g(0.928, 0.791, 81.0)], [5, g(0.875, 0.716, 90.4)], [10, g(0.831, 1.0, 83.3)], [15, g(0.776, 0.90, 82.0)],
     [20, g(0.705, 0.88, 60)], [25, g(0.63, 0.86, 45)], [30, g(0.555, 0.85, 30)], [35, g(0.48, 0.85, 12)], [40, g(0.395, 0.85, 352)], [45, g(0.31, 0.85, 332)],
   ];
   const bps = [-80, ...seq(-40, -1, 1), -0.5, 0, 0.5, ...seq(1, 45, 1), 50];   // every stop on the own-frames lookup's 0.5 C step (ownRasterLayer TEMPERATURE_LUT)
@@ -46,7 +51,7 @@ export function airTemp(theme) {
 // turning from violet through blue, teal, green and yellow-green to gold so each degree moves in hue as well as lightness.
 export function waterTemp(theme) {
   const anchors = [
-    [-2, g(0.12, 0.80, 302)], [4, g(0.19, 0.85, 288)], [8, g(0.29, 0.85, 268)], [12, g(0.385, 0.78, 245)], [16, g(0.49, 0.78, 205)],
+    [-2, g(0.115, 0.80, 318)], [4, g(0.185, 0.85, 306)], [8, g(0.295, 0.85, 268)], [12, g(0.385, 0.78, 245)], [16, g(0.49, 0.78, 205)],
     [20, g(0.60, 0.85, 160)], [24, g(0.725, 0.85, 125)], [28, g(0.87, 0.60, 104)], [30, g(0.93, 0.45, 98)], [34, g(0.975, 0.40, 92)],
   ];
   const a = ramp(anchors, [-80, ...seq(-2, 34, 1), 50], () => 1);
@@ -77,7 +82,7 @@ if (isMain) {
     for (const theme of ['light', 'beach', 'dark']) {
       const scales = build(theme); const rows = report(scales, 'new').filter((x) => x.theme === theme);
       if (process.argv.includes('--rows')) for (const r of rows) console.log(JSON.stringify(r));
-      for (const g of gates(rows, scales, theme)) { if (!g.ok) fails += 1; if (!g.ok || process.argv.includes('--all')) console.log(g.ok ? 'pass' : 'FAIL', g.gate.padEnd(18), g.detail); }
+      for (const g of [...gates(rows, scales, theme), ...legendGate(scales, theme)]) { if (!g.ok) fails += 1; if (!g.ok || process.argv.includes('--all')) console.log(g.ok ? 'pass' : 'FAIL', g.gate.padEnd(18), g.detail); }
     }
     console.log(fails ? `${fails} gate line(s) FAIL` : 'every gate line passes');
   }

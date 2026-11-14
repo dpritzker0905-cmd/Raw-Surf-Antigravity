@@ -10,8 +10,8 @@
  * and three colour-blind simulations, by scripts/raster-color/check.mjs; gates and numbers in
  * docs/weather-program/log/2026-11-14-fable-raster-palettes.md):
  *   - AIR TEMP diverges around 0 C / 32 F: blue to deep violet below, cream through gold and red to magenta above. The
- *     palest colour is the first above freezing, and the freezing line is the blue / cream edge itself (there is no neutral
- *     stop: a near-white one sank into the pale light map); lightness falls one way on each side.
+ *     palest colour is the first above freezing (a pale apricot), and the freezing line is the blue / apricot edge itself
+ *     (there is no neutral stop: a near-white one sank into the pale light map); lightness falls one way on each side.
  *   - WATER TEMP is sequential: lightness rises with temperature all the way (deep violet-blue to pale gold), the hue turning
  *     as it goes, so each degree is a visible step.
  *   - FOG is a veil whose colour stands off each theme's map (slate over the pale light and beach maps, near-white over the
@@ -30,14 +30,14 @@ const AIR_TEMP = {
   type: 'breakpoint', unit: '°C',
   breakpoints: [-80, -40, -39, -38, -37, -36, -35, -34, -33, -32, -31, -30, -29, -28, -27, -26, -25, -24, -23, -22, -21, -20, -19, -18, -17, -16, -15, -14, -13, -12, -11, -10, -9, -8, -7, -6, -5, -4, -3, -2, -1, -0.5, 0, 0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 50],
   colors: [
-    [28, 3, 32, 1], [28, 3, 32, 1], [30, 3, 36, 1], [32, 3, 39, 1], [34, 4, 42, 1], [36, 4, 45, 1], [38, 5, 48, 1], [40, 5, 51, 1],
-    [42, 5, 55, 1], [44, 6, 58, 1], [46, 6, 61, 1], [48, 7, 65, 1], [52, 9, 76, 1], [55, 12, 87, 1], [58, 14, 99, 1], [61, 17, 111, 1],
-    [64, 19, 123, 1], [66, 23, 135, 1], [68, 26, 147, 1], [70, 30, 159, 1], [72, 34, 171, 1], [73, 37, 184, 1], [72, 44, 192, 1], [70, 51, 201, 1],
-    [68, 58, 210, 1], [65, 65, 219, 1], [62, 71, 227, 1], [61, 81, 228, 1], [59, 90, 229, 1], [58, 98, 230, 1], [56, 107, 231, 1], [55, 115, 232, 1],
-    [57, 121, 233, 1], [60, 128, 235, 1], [63, 135, 236, 1], [66, 141, 238, 1], [69, 148, 239, 1], [75, 155, 241, 1], [81, 161, 243, 1], [87, 168, 244, 1],
-    [93, 175, 246, 1], [96, 178, 247, 1], [248, 245, 198, 1], [248, 243, 192, 1], [248, 242, 185, 1], [249, 240, 172, 1], [249, 237, 158, 1], [249, 235, 144, 1],
-    [250, 232, 129, 1], [250, 228, 118, 1], [250, 223, 107, 1], [250, 218, 96, 1], [250, 214, 83, 1], [250, 209, 69, 1], [248, 201, 65, 1], [245, 192, 62, 1],
-    [243, 184, 59, 1], [241, 176, 55, 1], [238, 168, 52, 1], [235, 161, 52, 1], [233, 155, 51, 1], [230, 148, 50, 1], [227, 142, 49, 1], [224, 135, 49, 1],
+    [12, 1, 10, 1], [12, 1, 10, 1], [13, 1, 12, 1], [15, 1, 14, 1], [17, 1, 16, 1], [18, 1, 18, 1], [20, 1, 21, 1], [22, 2, 23, 1],
+    [24, 2, 25, 1], [25, 2, 27, 1], [27, 2, 30, 1], [29, 2, 32, 1], [36, 3, 40, 1], [43, 5, 49, 1], [50, 6, 58, 1], [57, 8, 67, 1],
+    [65, 10, 77, 1], [70, 15, 90, 1], [76, 19, 104, 1], [82, 23, 119, 1], [88, 26, 134, 1], [94, 30, 149, 1], [92, 36, 163, 1], [90, 41, 178, 1],
+    [88, 45, 193, 1], [85, 49, 208, 1], [81, 53, 224, 1], [78, 66, 225, 1], [74, 77, 227, 1], [69, 87, 228, 1], [63, 97, 229, 1], [56, 106, 231, 1],
+    [55, 117, 229, 1], [55, 128, 227, 1], [55, 138, 226, 1], [55, 149, 224, 1], [56, 158, 221, 1], [55, 162, 225, 1], [54, 166, 229, 1], [53, 169, 233, 1],
+    [51, 173, 237, 1], [50, 175, 239, 1], [250, 228, 191, 1], [249, 227, 184, 1], [249, 225, 178, 1], [247, 221, 164, 1], [246, 218, 150, 1], [245, 214, 135, 1],
+    [243, 211, 119, 1], [245, 206, 105, 1], [247, 202, 90, 1], [249, 197, 72, 1], [251, 192, 49, 1], [252, 188, 0, 1], [247, 184, 21, 1], [242, 181, 32, 1],
+    [237, 178, 40, 1], [232, 175, 46, 1], [228, 172, 52, 1], [227, 165, 51, 1], [227, 157, 51, 1], [226, 150, 50, 1], [225, 143, 49, 1], [224, 135, 49, 1],
     [222, 128, 48, 1], [219, 122, 47, 1], [216, 115, 46, 1], [214, 108, 45, 1], [211, 101, 44, 1], [209, 92, 42, 1], [208, 83, 41, 1], [206, 74, 39, 1],
     [204, 63, 38, 1], [202, 52, 36, 1], [194, 49, 46, 1], [187, 46, 53, 1], [179, 43, 59, 1], [172, 40, 64, 1], [164, 37, 69, 1], [156, 35, 71, 1],
     [147, 33, 73, 1], [138, 31, 75, 1], [130, 28, 77, 1], [121, 25, 78, 1], [113, 24, 77, 1], [104, 22, 77, 1], [96, 20, 76, 1], [88, 18, 75, 1],
@@ -49,8 +49,8 @@ const WATER_TEMP = {
   type: 'breakpoint', unit: '°C',
   breakpoints: [-80, -2, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 50],
   colors: [
-    [9, 2, 21, 1], [9, 2, 21, 1], [11, 2, 27, 1], [13, 3, 33, 1], [15, 3, 39, 1], [17, 4, 45, 1], [19, 5, 51, 1], [21, 5, 57, 1],
-    [21, 9, 73, 1], [20, 13, 89, 1], [18, 17, 106, 1], [14, 21, 123, 1], [12, 38, 119, 1], [14, 51, 115, 1], [20, 62, 110, 1], [27, 71, 105, 1],
+    [11, 1, 15, 1], [11, 1, 15, 1], [14, 2, 20, 1], [16, 2, 25, 1], [19, 2, 30, 1], [22, 3, 35, 1], [25, 3, 41, 1], [28, 4, 46, 1],
+    [27, 9, 65, 1], [26, 14, 84, 1], [22, 18, 105, 1], [15, 22, 126, 1], [13, 39, 121, 1], [15, 51, 116, 1], [20, 62, 111, 1], [27, 71, 105, 1],
     [31, 80, 108, 1], [34, 89, 110, 1], [39, 98, 112, 1], [43, 107, 114, 1], [44, 118, 112, 1], [46, 128, 110, 1], [47, 138, 107, 1], [49, 149, 104, 1],
     [78, 157, 96, 1], [102, 166, 87, 1], [124, 174, 75, 1], [144, 182, 59, 1], [164, 191, 78, 1], [184, 199, 95, 1], [204, 208, 112, 1], [224, 216, 128, 1],
     [233, 225, 159, 1], [242, 233, 188, 1], [244, 236, 201, 1], [246, 240, 213, 1], [248, 243, 225, 1], [250, 247, 237, 1], [250, 247, 237, 1],
@@ -127,7 +127,8 @@ export function rasterPaletteUrlTag(variable, theme) {
   return `&rp=${on ? 'p' : 'o'}${on && layerId === 'fog' ? themeOf(theme)[0] : ''}`;
 }
 
-export const rasterPaletteKey = () => ['temperature', 'water_temp', 'fog'].map((id) => (rasterPaletteOn(id) ? '1' : '0')).join('') + (W().__RAW_DISABLE_RASTER_LEGENDS__ === true ? 'L0' : 'L1');
+export const rasterPaletteKey = () => ['temperature', 'water_temp', 'fog'].map((id) => (rasterPaletteOn(id) ? '1' : '0')).join('')
+  + (W().__RAW_DISABLE_RASTER_LEGENDS__ === true ? 'L0' : 'L1') + (rasterLegendSwatchOn() ? 'S1' : 'S0');
 
 /** The table drawn for a layer in a theme when its palette is on (the generated one). */
 export function rasterPalette(layerId, theme) {
@@ -180,6 +181,16 @@ export function applyThemeRasterScales(theme) {
 }
 
 // ── LEGENDS: computed from the table that is drawn, so the bar cannot disagree with the map. ───────────────────────────────
+// THE SWATCH (2026-11-14). A bar is the table's colours at the table's own alpha. On the weather panel that hid the fog bar
+// in the beach theme: slate fading to clear on a near-black panel. So each bar is drawn over a swatch of the MAP'S OWN water
+// colour in that theme, as a second, solid background layer under the gradient: the bar then shows what the layer looks like
+// on the map. Water, not land: it is the surface a surf map always shows, and the light theme's land is white on a white
+// panel. The colours were sampled from the bare basemap in the app (the most common pixel over open ocean, 96-97% of the
+// patch; docs/weather-program/log/2026-11-14-fable-raster-legend-swatch.md). They are NOT the wind check's colours, which
+// describe the map as muted under the wind layer.
+// Kill: window.__RAW_DISABLE_RASTER_LEGEND_SWATCH__ = true (the bar straight on the panel, as before).
+export const MAP_WATER = { light: [144, 223, 254], beach: [117, 207, 240], dark: [93, 117, 126] };
+export const rasterLegendSwatchOn = () => W().__RAW_DISABLE_RASTER_LEGEND_SWATCH__ !== true;
 const cToF = (c) => c * 9 / 5 + 32;
 const fToC = (f) => (f - 32) * 5 / 9;
 function sampleScale(scale, v) {
@@ -221,6 +232,9 @@ export function rasterLegend(layerId, theme, tempUnit = 'F') {
       const shown = tempUnit === 'C' ? Math.round(fToC(f)) : f;
       return { label: `${shown}°${i === all.length - 1 ? '+' : ''}`, pct: +(pos(fToC(f)) * 100).toFixed(2) };
     });
-  return { gradientCSS: `linear-gradient(to right, ${parts.join(', ')})`, stops, unit: layerId === 'fog' ? 'm' : `°${tempUnit === 'C' ? 'C' : 'F'}` };
+  const swatch = rasterLegendSwatchOn() ? MAP_WATER[themeOf(theme)] : null;
+  // two background layers in one value: the gradient, and under it the solid swatch (a colour is allowed as the last layer)
+  const gradientCSS = `linear-gradient(to right, ${parts.join(', ')})${swatch ? `, rgb(${swatch.join(', ')})` : ''}`;
+  return { gradientCSS, stops, unit: layerId === 'fog' ? 'm' : `°${tempUnit === 'C' ? 'C' : 'F'}`, swatch };
 }
 export const __test = { AIR_TEMP, WATER_TEMP, FOG, sampleScale, cToF, fToC };

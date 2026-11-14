@@ -8,9 +8,11 @@ const lib = require('@openmeteo/weather-map-layer');
 const LIB = lib.COLOR_SCALES_WITH_ALIASES || lib.COLOR_SCALES;
 const dE = differenceCiede2000(); const lab = converter('lab65');
 const VIEWS = { normal: (c) => c, protan: filterDeficiencyProt(1), deutan: filterDeficiencyDeuter(1), tritan: filterDeficiencyTrit(1) };
-// Basemap surfaces: light / beach / dark water from scripts/wind-color/check.mjs; dark land sampled from an app screenshot.
+// Basemap surfaces, SAMPLED from the bare map in the offline app on 2026-11-14 (the most common pixel of a 550 x 400 patch: open
+// ocean for water, the Sahara for land). Until then the light and beach rows held scripts/wind-color/check.mjs's colours, which
+// are the map as MUTED UNDER THE WIND LAYER; these three layers are drawn over the map as it is. Dark was the same in both.
 export const SURFACES = {
-  light: { water: [168, 214, 222], land: [236, 236, 232] }, beach: { water: [150, 190, 200], land: [222, 208, 180] }, dark: { water: [93, 117, 126], land: [66, 77, 92] },
+  light: { water: [144, 223, 254], land: [252, 252, 252] }, beach: { water: [117, 207, 240], land: [239, 233, 225] }, dark: { water: [93, 117, 126], land: [66, 77, 92] },
 };
 // Layer opacity at zoom 5 (MapWebGL.js raster-opacity stops) and which surfaces the layer covers.
 export const LAYERS = {
@@ -113,6 +115,32 @@ export function gates(rows, scales, theme) {
     }
   }
   return out.map((g) => ({ ...g, theme }));
+}
+// ── The legend contrast gate (docs/weather-program/log/2026-11-14-fable-raster-legend-swatch.md). ─────────────────────────────
+// A bar's colour at a value = the table's colour at its own alpha over what is behind the bar: the swatch (the map's water) or,
+// without the swatch, the weather panel. Panel backgrounds sampled from app screenshots.
+export const PANEL = { light: [249, 253, 255], dark: [28, 29, 32], beach: [11, 16, 24] };
+const F = (f) => (f - 32) * 5 / 9;
+export const LEGEND_TICKS = { temperature: [-10, 10, 32, 50, 70, 90, 110].map(F), water_temp: [35, 45, 55, 65, 75, 85].map(F), fog: [100, 300, 1000, 3000, 10000] };
+const blend = (under, c) => [0, 1, 2].map((k) => under[k] * (1 - c[3]) + c[k] * c[3]);
+export function legendGate(scales, theme) {
+  const out = []; const panel = PANEL[theme]; const swatch = SURFACES[theme].water;
+  for (const [layer, ticks] of Object.entries(LEGEND_TICKS)) {
+    let lg1 = { d: Infinity }; let lg2n = { d: Infinity }; let lg2c = { d: Infinity }; let bare = { d: Infinity };
+    for (const v of ticks) {
+      const c = sample(scales[layer], v); const onSwatch = blend(swatch, c); const onPanel = blend(panel, c);
+      const a = dist(onSwatch, panel); if (a < lg1.d) lg1 = { d: a, v };
+      const b0 = dist(onPanel, panel); if (b0 < bare.d) bare = { d: b0, v };
+      if (c[3] > 0) {
+        const n = dist(onSwatch, swatch); if (n < lg2n.d) lg2n = { d: n, v };
+        for (const view of ['protan', 'deutan', 'tritan']) { const x = dist(onSwatch, swatch, view); if (x < lg2c.d) lg2c = { d: x, v, view }; }
+      }
+    }
+    const name = layer === 'temperature' ? 'air' : layer === 'water_temp' ? 'water' : 'fog';
+    out.push({ gate: `LG1 ${name} ${theme}`, ok: lg1.d >= 10, detail: `bar vs panel min ${lg1.d.toFixed(1)} at ${+lg1.v.toFixed(1)} (without the swatch: ${bare.d.toFixed(1)} at ${+bare.v.toFixed(1)})` });
+    out.push({ gate: `LG2 ${name} ${theme}`, ok: lg2n.d >= 5 && lg2c.d >= 3, detail: `bar vs swatch min ${lg2n.d.toFixed(1)} at ${+lg2n.v.toFixed(1)}, colour-blind min ${lg2c.d.toFixed(1)} at ${+lg2c.v.toFixed(1)} (${lg2c.view})` });
+  }
+  return out;
 }
 export const CURRENT = () => {
   const app = require(process.cwd() + '/scripts/raster-color/current-fog.json');
