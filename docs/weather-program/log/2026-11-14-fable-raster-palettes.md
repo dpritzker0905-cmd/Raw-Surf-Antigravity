@@ -101,3 +101,57 @@ for new reservations before pushing. One old Codex draft (#755, 2026-11-09) stil
 - L6. No number changes: the same units and labels as today for temperature (deg F ticks); fog gains distance ticks in metres
   and kilometres in place of "<1km / 5km / 10km / 20km", because the table ends at 10 km (the old bar named 20 km, a value the
   table never coloured).
+
+## 01:45 EST. Results against the gates (tables scored as the step tables they are drawn as)
+Design: `scripts/raster-color/design.mjs` builds each table from OKLCH anchors (interpolated in OKLab, chroma held inside the
+sRGB gamut). It took seven rounds to pass every line; the anchors were tuned AGAINST the gate measures, which is the point of
+writing the gates first, and means the tables are fitted to this instrument and its flat basemap colours.
+
+| gate | result | worst case over themes and surfaces | today, for comparison |
+|---|---|---|---|
+| T1 air temp 5 C band step (>= 4.5 normal, >= 3.0 colour-blind) | PASS | 5.63 normal; 3.25 colour-blind | 5.4 normal; 1.3 colour-blind |
+| T2 -10 C vs +10 C (>= 30 normal, >= 20 colour-blind) | PASS | 31.2 normal; 24.3 colour-blind | 50 normal; 16 colour-blind |
+| T3 palest at 0 C, lightness one way on each side | PASS | palest at 0 C; no reversal | palest at -2 C |
+| T4 -1 C vs +1 C (>= 6) | PASS | 19.7 (range 19.7-23.7) | 23.1-24.8 (about equal; slightly under in 5 of 6) |
+| W1 water temp lightness monotone, 4..30 C | PASS | 0 reversals | not monotone |
+| W2 smallest 1 C step (>= 1.5 normal, >= 1.2 colour-blind) | PASS | 1.74 normal; 1.32 colour-blind | 0 (stops 2 C apart) |
+| W3 mean 1 C step not below today's | PASS | 2.92 / 2.99 / 3.19 | 2.60 / 2.69 / 3.05 |
+| F1 dense fog vs bare map (>= 15) | PASS | 22.1 | 1.0 (light land) |
+| F2 800 m >= 10; mist 3 km between 2 and 8; clear = 0 | PASS | 15.0; 3.2-6.2; 0 | 0.8 (light land) |
+| F3 dense vs 800 m (>= 4) | PASS | 4.4 | 0.2 (light land) |
+
+Note on T2: the new air temp table keeps cold and warm apart for every colour-blind view (24.3 against today's 16.3) but in
+NORMAL vision -10 C against +10 C is 31-39 where today's rainbow gives 50. It passes the line; it is lower than today.
+
+- **C1 (legend = table): PASS.** `rasterLegend` samples the drawn table; tests pin every colour stop of each bar against the
+  table in the three themes, the tick positions, and a 12% minimum gap. L1, L2, L5 are those tests.
+- **C2 (no frame-time regression): PASS, with wide spread.** `scn_gpu_cost.js`, desktop, three page loads per arm, GPU time per
+  drawn frame while scrubbing (the layers draw no frame when the map is still, in either arm): air temp 0.41 / 0.41 / 0.79 ms
+  new against 0.42 / 0.72 / 0.72 kill; water temp 0.93 / 1.32 / 2.54 against 1.34 / 0.93 / 1.87; fog 0.43 / 0.40 / 0.42
+  against 0.40 / 0.38 / 0.71. Medians 0.41 vs 0.72, 1.32 vs 1.34, 0.42 vs 0.40 (+5%). Frame interval 16.7 ms in every run.
+  The load-to-load spread is larger than any difference; the tables are the same kind of lookup, so none was expected.
+- **C3 (no served number): PASS.** The diff holds colour tables, legend data and their wiring; no value, unit or readout.
+- **C4 / L3 (seen in the app): PASS for the offline harness.** Light, dark and beach, desktop 1280x800 and the phone layout
+  (390x844, dpr 3): the three layers draw with 0 page errors and the registered tables are the generated ones. Desktop: the bar
+  and ticks beside the map match. Phone: the legend is in the weather sheet ("Weather layers" button); opened in all three
+  themes, the bar is 350 px wide with the computed gradient and ticks ("<100 m 300 m 1 km 3 km Clear", "-10 ... 110+",
+  "35 ... 85+"). With the kills set (light, desktop) the old tables and the old bars come back; dense fog over land is then
+  invisible, as the baseline said.
+- **L4 (ARIA): PASS.** The legend block's diff is 7 lines in, 8 out, inside the legend configuration; it contains no
+  `aria-*`, button or label change. **L6:** temperature bars keep deg F ticks; fog names distances to 10 km.
+- Tests: +33 in `rasterPalettes.test.js` (+1 suite); the four kills are in the inventory. The whole map and tests trees pass
+  locally: 511 suites, 7,048 tests. Lint ratchet and file-size check pass.
+
+## What this does NOT show
+- A real phone, Safari, Firefox. Real basemap texture: the instrument uses one flat colour per surface, one zoom's opacity,
+  and simulated colour blindness.
+- The own-frames path for fog and water temp (Move 3's #889 is not merged); its hook will call `rasterScaleFor(layerId,
+  theme)` so that a theme change cannot leave the previous theme's fog colours in place.
+- Whether people prefer it. The new fog is a strong slate veil and blocky where the data is coarse; that is a taste call for
+  the owner, with `__RAW_DISABLE_FOG_PALETTE__` as the way back.
+- Opacity was not touched (`MapWebGL.js` owns it), so each palette is seen through the layer's existing 38-65% opacity.
+
+## Coordination
+Codex's own entry (coordination file in the main checkout, 03:44Z): "No Codex source file reservations remain for this
+completed batch." Re-read at 01:45 EST before pushing: nothing newer than the director's 04:52Z notice. #755 is a stale Codex
+draft superseded by #874 (the director, 00:40 EST).

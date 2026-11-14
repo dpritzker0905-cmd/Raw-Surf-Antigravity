@@ -17,7 +17,7 @@ import { forecastReadout, forecastDayLabel } from './forecastReadout';
 import { responsiveWeatherOn } from './useMapChromeLayout'; import LayerDataCredit from './LayerDataCredit';
 import { marineWaveLegend } from './marineWavePalette';
 import WeatherLayerSheet, { useWeatherPanelDisclosure } from './WeatherLayerSheet';
-import { buildGradientCSS, buildStops, evenStops, HEIGHT_VARIABLES } from './weatherControlLegend';
+import { buildGradientCSS, buildStops, evenStops, HEIGHT_VARIABLES } from './weatherControlLegend'; import { rasterLegend } from './rasterPalettes';
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
 const SURF_TOGGLE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
 /**
@@ -195,10 +195,11 @@ export var MapWeatherControls = ({
       gradientCSS: 'linear-gradient(to right, transparent, rgba(200,200,200,0.4), rgba(180,180,180,0.6), rgba(240,240,240,0.8), white)',
       stops: evenStops(['0%', '25%', '50%', '75%', '100%']),
     };
+    // Fog, air temp and water temp: the bar is COMPUTED from the table that is drawn (rasterPalettes.rasterLegend), so it cannot
+    // disagree with the map. The hand-written bars stay for a layer whose palette is under its kill, and under __RAW_DISABLE_RASTER_LEGENDS__.
     config.fog = {
       label: LEGEND_LABELS.fog,
-      gradientCSS: 'linear-gradient(to right, rgba(120,120,120,0.8), rgba(160,160,160,0.6), rgba(200,200,200,0.4), transparent)',
-      stops: evenStops(['<1km', '5km', '10km', '20km', 'Clear']),
+      ...(rasterLegend('fog', theme) || { gradientCSS: 'linear-gradient(to right, rgba(120,120,120,0.8), rgba(160,160,160,0.6), rgba(200,200,200,0.4), transparent)', stops: evenStops(['<1km', '5km', '10km', '20km', 'Clear']) }),
     };
     // DERIVED from WindColorRamp — never duplicated. The hand-maintained CSS that stood here was a
     // byte-exact copy of the LEGACY 8-stop 0-50 kn ramp, so calm (now vivid magenta) read as
@@ -213,16 +214,14 @@ export var MapWeatherControls = ({
       gradientCSS: 'linear-gradient(to right, rgba(200,200,200,0.3), rgba(96,165,250,0.6), rgba(99,102,241,0.7), rgba(147,51,234,0.85), rgba(219,39,119,0.95))',
       stops: evenStops(['0', '.1', '.3', '.5', '2+']),
     };
-    // Temperature legends approximate the OM library's registered scale in °F.
+    // The hand-written temperature bars below only approximate the OM library's registered scale in °F (what a palette kill draws).
     config.temperature = {
       label: LEGEND_LABELS.temperature,
-      gradientCSS: 'linear-gradient(to right, rgba(145,80,220,0.9), rgba(64,110,235,0.9), rgba(70,190,225,0.9), rgba(90,200,110,0.9), rgba(235,205,70,0.9), rgba(235,120,50,0.9), rgba(200,40,40,0.9))',
-      stops: evenStops(['0°', '20°', '40°', '60°', '80°', '100°+']),
+      ...(rasterLegend('temperature', theme) || { gradientCSS: 'linear-gradient(to right, rgba(145,80,220,0.9), rgba(64,110,235,0.9), rgba(70,190,225,0.9), rgba(90,200,110,0.9), rgba(235,205,70,0.9), rgba(235,120,50,0.9), rgba(200,40,40,0.9))', stops: evenStops(['0°', '20°', '40°', '60°', '80°', '100°+']) }),
     };
     config.water_temp = {
       label: LEGEND_LABELS.water_temp,
-      gradientCSS: 'linear-gradient(to right, rgba(145,80,220,0.9), rgba(64,110,235,0.9), rgba(70,190,225,0.9), rgba(90,200,110,0.9), rgba(235,205,70,0.9), rgba(235,120,50,0.9))',
-      stops: evenStops(['35°', '45°', '55°', '65°', '75°', '85°+']),
+      ...(rasterLegend('water_temp', theme) || { gradientCSS: 'linear-gradient(to right, rgba(145,80,220,0.9), rgba(64,110,235,0.9), rgba(70,190,225,0.9), rgba(90,200,110,0.9), rgba(235,205,70,0.9), rgba(235,120,50,0.9))', stops: evenStops(['35°', '45°', '55°', '65°', '75°', '85°+']) }),
     };
 
     return config;

@@ -17,12 +17,12 @@ export const LAYERS = {
   temperature: { op: 0.44, on: ['water', 'land'], unit: 'C' }, water_temp: { op: 0.52, on: ['water'], unit: 'C' }, fog: { op: 0.52, on: ['water', 'land'], unit: 'm' },
 };
 const rgb = (c) => ({ mode: 'rgb', r: c[0] / 255, g: c[1] / 255, b: c[2] / 255 });
+// AS DRAWN: a 'breakpoint' scale is a STEP table. The tile library colours a value with the last breakpoint at or below it
+// (findLastIndexLE), and the own-frames path builds a step lookup from the same breakpoints. No blending between stops.
 export function sample(scale, v) {
   const b = scale.breakpoints; const c = scale.colors;
-  if (v <= b[0]) return c[0]; if (v >= b[b.length - 1]) return c[c.length - 1];
-  let i = 0; while (v > b[i + 1]) i += 1;
-  const t = (v - b[i]) / (b[i + 1] - b[i]);
-  return [0, 1, 2, 3].map((k) => c[i][k] + (c[i + 1][k] - c[i][k]) * t);
+  let i = 0; while (i < b.length - 1 && b[i + 1] <= v) i += 1;
+  return c[i];
 }
 export const over = (base, c, op) => { const a = c[3] * op; return [0, 1, 2].map((k) => base[k] * (1 - a) + c[k] * a); };
 export const dist = (a, b, view = 'normal') => dE(VIEWS[view](rgb(a)), VIEWS[view](rgb(b)));
@@ -72,6 +72,33 @@ export function report(scales, label) {
     }
   }
   return rows;
+}
+// The gates of docs/weather-program/log/2026-11-14-fable-raster-palettes.md, applied to report() rows. Returns [{gate, ok, detail}].
+export const TODAY_MEAN_1C = { light: 2.60, beach: 2.69, dark: 3.05 };
+export function gates(rows, scales, theme) {
+  const out = []; const add = (gate, ok, detail) => out.push({ gate, ok, detail });
+  const cb = (o) => Math.min(o.protan, o.deutan, o.tritan);
+  for (const r of rows.filter((x) => x.layer === 'temperature')) {
+    add(`T1 ${r.theme}/${r.surf}`, r.minStep5C.normal >= 4.5 && cb(r.minStep5C) >= 3.0, `normal ${r.minStep5C.normal}, colour-blind min ${cb(r.minStep5C)} (protan ${r.minStep5C.protan} at ${r.minStepAt.protan}, deutan ${r.minStep5C.deutan} at ${r.minStepAt.deutan}, tritan ${r.minStep5C.tritan})`);
+    add(`T2 ${r.theme}/${r.surf}`, r.minus10VsPlus10.normal >= 30 && cb(r.minus10VsPlus10) >= 20, `normal ${r.minus10VsPlus10.normal}, colour-blind min ${cb(r.minus10VsPlus10)}`);
+    const base = SURFACES[r.theme][r.surf]; const Lat = (v) => lab(rgb(over(base, sample(scales.temperature, v), LAYERS.temperature.op))).l;
+    const side = (vals) => { const l = vals.map(Lat); const d = l.slice(1).map((x, i) => x - l[i]); const s0 = Math.sign(d.reduce((a, c) => a + c, 0)); return Math.max(0, ...d.map((x) => -s0 * x)); };
+    const rev = Math.max(side([0, -1, -2.5, -5, -10, -15, -20, -25, -30]), side([0, 1, 2.5, 5, 10, 15, 20, 25, 30, 35, 40]));
+    add(`T3 ${r.theme}/${r.surf}`, Math.abs(r.leastChromaAtC) <= 1 && rev <= 0.5, `least chroma at ${r.leastChromaAtC} C, worst lightness reversal ${rev.toFixed(2)}`);
+    add(`T4 ${r.theme}/${r.surf}`, r.freezeEdge >= 6, `-1 vs +1 = ${r.freezeEdge}`);
+  }
+  for (const r of rows.filter((x) => x.layer === 'water_temp')) {
+    add(`W1 ${r.theme}`, r.lightnessReversals === 0, `${r.lightnessReversals} reversals`);
+    add(`W2 ${r.theme}`, r.minStep1C.normal >= 1.5 && cb(r.minStep1C) >= 1.2, `normal ${r.minStep1C.normal}, colour-blind min ${cb(r.minStep1C)} (protan ${r.minStep1C.protan} at ${r.minStepAt.protan}, deutan ${r.minStep1C.deutan} at ${r.minStepAt.deutan}, tritan ${r.minStep1C.tritan} at ${r.minStepAt.tritan})`);
+    add(`W3 ${r.theme}`, r.meanStep1C >= TODAY_MEAN_1C[r.theme], `mean ${r.meanStep1C} against today's ${TODAY_MEAN_1C[r.theme]}`);
+  }
+  for (const r of rows.filter((x) => x.layer === 'fog')) {
+    const all = (o) => Math.min(o.normal, o.protan, o.deutan, o.tritan); const mist = r.mist3kmVsMap;
+    add(`F1 ${r.theme}/${r.surf}`, all(r.dense200mVsMap) >= 15, `dense vs map min ${all(r.dense200mVsMap)}`);
+    add(`F2 ${r.theme}/${r.surf}`, all(r.fog800mVsMap) >= 10 && all(mist) >= 2 && Math.max(mist.normal, mist.protan, mist.deutan, mist.tritan) <= 8 && r.clear15kmVsMap === 0, `800 m ${all(r.fog800mVsMap)}, mist ${mist.normal}, clear ${r.clear15kmVsMap}`);
+    add(`F3 ${r.theme}/${r.surf}`, r.dense200Vs800 >= 4, `dense vs 800 m = ${r.dense200Vs800}`);
+  }
+  return out.map((g) => ({ ...g, theme }));
 }
 export const CURRENT = () => {
   const app = require(process.cwd() + '/scripts/raster-color/current-fog.json');

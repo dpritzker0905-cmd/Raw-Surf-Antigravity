@@ -9,6 +9,7 @@ import {
 import maplibregl from 'maplibre-gl';
 import { OPEN_METEO_SPATIAL_BASE_URL } from './openMeteoEndpoints';
 import { toast } from 'sonner';
+import { applyThemeRasterScales } from './rasterPalettes';
 import { subscribeToProtocolFailure, OM_PROTOCOL_DEPENDENT_LAYERS } from './openMeteoProtocolFailure';
 import {
   OM_MODEL_MAP,
@@ -369,6 +370,7 @@ export function useOpenMeteoTileUrls({
     applyThemePressureScale(theme);
     applyThemeWaveScale(theme);
     applyPrecipColorScale();
+    applyThemeRasterScales(theme);   // air temp, water temp, fog (rasterPalettes.js)
   }, [theme]);
 
   const fetchMetadata = useCallback(async (modelToCheck, signal) => {

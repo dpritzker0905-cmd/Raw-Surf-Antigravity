@@ -1,4 +1,4 @@
-import { CUSTOM_COLOR_SCALES, aliasSurfaceTemperature } from './colorScales';
+import { CUSTOM_COLOR_SCALES, aliasSurfaceTemperature } from './colorScales'; import { rememberLibraryRasterScales } from './rasterPalettes';
 import { WeatherTelemetry } from './WeatherTelemetry';
 import { traceOmUrl, traceOmBlock, traceOmServed } from './omUrlTrace';
 import { LIVE_FETCHED_MODELS } from './openMeteoMetadata';
@@ -403,7 +403,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
   import('@openmeteo/weather-map-layer').then(({ omProtocol, defaultOmProtocolSettings, GridFactory }) => {
     // Forceful mutation so custom scales win everywhere; then alias surface_temperature ->
     // the library's sea_surface_temperature (colorScales.aliasSurfaceTemperature says why).
-    Object.assign(defaultOmProtocolSettings.colorScales, CUSTOM_COLOR_SCALES);
+    rememberLibraryRasterScales(defaultOmProtocolSettings.colorScales); Object.assign(defaultOmProtocolSettings.colorScales, CUSTOM_COLOR_SCALES);   // remember FIRST: the library's own temperature tables are what rasterPalettes' kills restore
     aliasSurfaceTemperature(defaultOmProtocolSettings.colorScales);
 
     const settings = {
