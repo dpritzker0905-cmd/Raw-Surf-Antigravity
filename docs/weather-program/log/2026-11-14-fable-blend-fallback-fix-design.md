@@ -101,3 +101,28 @@ is read only by `GET /api/weather/buoy-calibration` (diagnostic) and measurement
 `height_quantile_map.apply_height_quantile_map` has no caller in `services/` or `routes/`; the skill ledger's scored rows
 are read only by the skill modules and scripts. What moves when 46267 returns "no data" is measurement only: the
 calibration summary, the skill ledger's served lane, the shadows' fits. A search for readers, not a run.
+
+## 03:12Z Handoff: what this lane owes next, and who must act
+
+Batch wrapped on the director's word (owner, 2026-11-13 22:05 EST, relayed). No new scope. State at writing: #866, #869,
+#870 merged; #852 (46267 by name) and #880 (this log) open, the director merges both; no fix for the blend is written.
+
+1. **The 2026-11-16 read (blend defect by sampler path).** Rule: `log/2026-11-14-fable-shadow-interp-grouping.md`. What
+   each verdict leads to: the table above. Needs dispatch A. Read it from the job's public log, write the verdict in a
+   new log, and only then start fix 1 or the instrument for cause (A).
+2. **Two dispatches the owner must type in the repair lead's own session** (a relayed approval is refused by that
+   session's permission check; the director asks him):
+   - A. `scored-rows-gate.yml` on dev, no earlier than 2026-11-16 (the first +48 h rows written after #857 score on 11-15).
+   - B. `accuracy-per-buoy-split.yml` on dev, after #852 is merged AND deployed and at least 72 h of rows exist after
+     the deploy. One run serves two purposes: the per-buoy no-served-row count (#870) and the 46267 AFTER below.
+   Each dispatch gets a `workflow_dispatch` ledger line citing his words.
+3. **The 46267 AFTER measurement, owed.** From dispatch B. Expected, stated now: 46267 shows a no-served-row count
+   near its best_match key count at every lead and no paired gap; the pooled +72 h gap to best_match falls; no other
+   buoy's count changes. Write it as a SCOREBOARD row in the words already used: the monitor improves because the
+   buoy's rows leave the score, not because any forecast got better. If 46267 still has paired rows after the deploy,
+   the exclusion is not reaching the calibration path: say so, do not explain it away.
+4. **Already in the ledger:** the Hawaii shore-split scoring, due 2026-11-27T12:00Z
+   (`ledger.d/fable--hawaii-shore-split-prereg.jsonl`). Items 1 and 3 are added as commitments with this commit.
+5. **Still open, nobody's yet:** the 7 surf spots and the other all-land-corner points read far water, unvalidated; our
+   stored EURO, ICON and Copernicus masks are unread (needs a dispatch-only tile job, not built); the skill-weights
+   test is scorable from 2026-11-30 (pre-registered 2026-11-05, not this lane's).
