@@ -110,20 +110,24 @@ const W = () => (typeof window !== 'undefined' ? window : {});
 // decoding a whole-world .om hour), with the labelled isobars and H/L markers that ride the own-frames field.
 // Kill: window.__RAW_DISABLE_RASTER_OWN_PRESSURE__ = true (the .om colour field, no isobars, as before).
 // FOG (2026-11-14, the director's overnight lane, relaying the owner 23:35 EST: "improve the fog, air temp, and water temp along with
-// the others, so that all lanes are upgrades and instant"): ON for every model; its set is the .om path's own grid (GFS 0.25 deg).
-// A set not published yet falls back to the .om path as before. Kill: __RAW_DISABLE_RASTER_OWN_FOG__.
-export const DEFAULT_ON_LAYERS = Object.freeze(['satellite', 'pressure', 'fog']);
+// the others, so that all lanes are upgrades and instant"): built for every model on the .om path's own grid (GFS 0.25 deg).
+// DEFAULT-OFF PENDING THE OWNER (2026-11-14, vote split 08:31Z): the pre-registered gate was not met in full (desktop and phone
+// numbers: docs/weather-program/log/2026-11-14-opus-raster-own-three.md), so Reflection said no and SubQ yes; David's rule needs
+// both. Turning it on is one line: add 'fog' here. Until then the lever reaches it (window.__RAW_RASTER_OWN_FRAMES__ = 'fog').
+// Kill: __RAW_DISABLE_RASTER_OWN_FOG__.
+export const DEFAULT_ON_LAYERS = Object.freeze(['satellite', 'pressure']);
 // PER-MODEL DEFAULTS (2026-11-14, the director), under the no-regression rule: a layer moves to own frames by default only where its
 // set is at least as fine as what the .om path draws today.
-//  - water_temp EURO: ECMWF skt at 0.25 deg = the .om ifs025: ON.
+//  - water_temp EURO: ECMWF skt at 0.25 deg = the .om ifs025: built, DEFAULT-OFF pending the owner (vote split 08:31Z, as fog).
 //  - water_temp ICON (today blank: DWD ICON has no skin temperature; the GFS 0.25 deg set would fill it): built, OFF until the
 //    director's overnight question (screenshot pair, attribution label, scrub numbers). The lever reaches it.
 //  - water_temp GFS: OFF (the .om gfs013, 0.117 deg, is finer than the 0.25 deg set).
-//  - temperature EURO: ECMWF 2t at 0.25 deg = the .om ifs025: ON (#888, 2026-11-14).
+//  - temperature EURO: ECMWF 2t at 0.25 deg = the .om ifs025 (#888): built, DEFAULT-OFF pending the owner (as fog).
 //  - temperature GFS: OFF until a pre-registered visual-parity comparison at z5 / z7 / z9 (desktop + phone) shows the 0.5 deg set +
 //    ETOPO downscale no coarser than the .om gfs013. ICON: OFF (0.5 deg vs dwd_icon ~0.125 deg; a 0.125 deg set is not built).
 // Kills: __RAW_DISABLE_RASTER_OWN_TEMPERATURE__, __RAW_DISABLE_RASTER_OWN_WATER_TEMP__ (each the .om path, as before).
-export const DEFAULT_ON_MODELS = Object.freeze({ temperature: Object.freeze(['EURO']), water_temp: Object.freeze(['EURO']) });
+// Turning them on: { temperature: ['EURO'], water_temp: ['EURO'] } here. The lever reaches every model meanwhile.
+export const DEFAULT_ON_MODELS = Object.freeze({});
 
 /** Is the own-frames path on for this layer and model? Synchronous, no I/O. A model without its own set (or with its set killed)
  *  stays on the .om path, which draws that model as before (never another model's frames under its label). */

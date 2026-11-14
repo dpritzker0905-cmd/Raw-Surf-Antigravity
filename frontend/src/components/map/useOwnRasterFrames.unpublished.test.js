@@ -1,7 +1,8 @@
 /**
- * The ON defaults (fog for every model, EURO water and air temp) ship before their frame sets are published: the
- * publish variables are staged one per ingest run after merge. Until a set is in latest.json, the hook must let go of
- * the layer, so MapWebGL hands it back to the .om path, and never leave it drawn by nobody.
+ * Fog (every model) and EURO water / air temp: built, OFF by default pending the owner (vote split 2026-11-14 08:31Z), reachable
+ * with the lever (window.__RAW_RASTER_OWN_FRAMES__), which these tests set; their sets publish one per ingest run after merge.
+ * Until a set is in latest.json, the hook must let go of the layer, so MapWebGL hands it back to the .om path, and never leave
+ * it drawn by nobody.
  * Contract: the hook returns `engaged`; MapWebGL drops a layer from the .om list only while that is true.
  */
 import React, { useLayoutEffect } from 'react';
@@ -28,8 +29,9 @@ beforeEach(() => {
   staticFramesEnabled.mockReturnValue(true);
   staticSetEnabled.mockReturnValue(true);
   loadFrameParsed.mockResolvedValue(null);
+  window.__RAW_RASTER_OWN_FRAMES__ = 'fog,water_temp,temperature';   // the owner's preview path while the defaults are OFF
 });
-afterEach(() => { _resetOwnRasterFramesForTest(); getPinnedIndex.mockReset(); delete window.__RAW_DISABLE_RASTER_OWN_HANDOVER__; delete window.__RAW_DISABLE_RASTER_OWN_SAME_FRAME__; });
+afterEach(() => { _resetOwnRasterFramesForTest(); getPinnedIndex.mockReset(); delete window.__RAW_RASTER_OWN_FRAMES__; delete window.__RAW_DISABLE_RASTER_OWN_HANDOVER__; delete window.__RAW_DISABLE_RASTER_OWN_SAME_FRAME__; });
 
 function fakeGl() {
   const gl = { shown: null, wants: [] };
@@ -46,7 +48,7 @@ const run = (layer, model, mapInstance = null) => renderHook(() => useOwnRasterF
   mapInstance, layer, model, active: true, timeOffsetHours: 0, theme: 'dark', beforeId: undefined,
 }));
 
-describe('an ON default whose set is not published yet falls back to .om', () => {
+describe('a layer whose set is not published yet falls back to .om (lever on)', () => {
   test.each([['fog', 'GFS'], ['fog', 'EURO'], ['fog', 'ICON'], ['water_temp', 'EURO'], ['temperature', 'EURO']])(
     '%s / %s: no index in latest.json -> disengaged, miss counted', async (layer, model) => {
       getPinnedIndex.mockResolvedValue(null);              // what staticFrames answers for a set missing from latest.json
@@ -101,8 +103,9 @@ describe('an ON default whose set is not published yet falls back to .om', () =>
     expect(result.current).toBe(false);                      // re-toggled: no stale "shown" from the last engagement
   });
 
-  test('defaults that are OFF never engage (GFS and ICON water, GFS and ICON air temp)', () => {
-    for (const [layer, model] of [['water_temp', 'GFS'], ['water_temp', 'ICON'], ['temperature', 'GFS'], ['temperature', 'ICON']]) {
+  test('without the lever none of them engages on any model (default-OFF pending the owner): the .om path draws', () => {
+    delete window.__RAW_RASTER_OWN_FRAMES__;
+    for (const layer of ['fog', 'water_temp', 'temperature']) for (const model of ['GFS', 'EURO', 'ICON']) {
       expect(run(layer, model).result.current).toBe(false);
     }
     expect(getPinnedIndex).not.toHaveBeenCalled();
