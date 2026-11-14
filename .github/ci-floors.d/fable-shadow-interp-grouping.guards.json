@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 2,
+  "files": 0,
+  "branch": "fable/shadow-interp-grouping",
+  "date": "2026-11-14",
+  "note": "accuracy_per_buoy_split: count of reference keys with no served row (2 tests)"
+}

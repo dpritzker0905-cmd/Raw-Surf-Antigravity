@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 12,
+  "branch": "opus/frame-carry-content-key",
+  "date": "2026-11-12",
+  "note": "content-keyed frame carry (frame_set_content)"
+}
