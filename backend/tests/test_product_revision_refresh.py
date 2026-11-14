@@ -337,3 +337,24 @@ def test_a_cold_download_older_than_its_registration_is_refused_not_certified(re
     served = store.load_product(filename)
     assert served.grid.vectors[0].speed == 4
     assert served.stale and served.staleReason == 'product_revision_refresh_refused'
+
+
+def test_a_units_label_only_change_is_accepted_and_the_values_are_unchanged(replacement):
+    """#901 relabels derived marine products' `units` from the schema default "kn" to their input's "m" in place (the names
+    are valid-time keyed). The label is not part of the format identity: the refresh accepts the newer copy, the values are
+    the published ones, and the box is not left serving the old bytes until a restart. A value_unit change is still refused
+    (test_bad_replacement_preserves_bytes_and_actual_provenance['unit'])."""
+    store, storage, filename, old, new, reads = replacement
+    on_disk = json.loads((store.cache_dir / filename).read_bytes())
+    on_disk['units'] = {'speed': 'kn', 'direction': 'degrees', 'period': 'seconds'}      # the pre-#901 label
+    (store.cache_dir / filename).write_text(json.dumps(on_disk))
+    assert store.load_product(filename).units['speed'] == 'kn'
+    new.units = {'speed': 'm', 'direction': 'degrees', 'period': 'seconds'}
+    new.grid.vectors[0].speed = old.grid.vectors[0].speed                                # the same value, relabelled
+    publish(replacement)
+    served = store.load_product(filename)
+    assert not served.stale
+    assert served.units['speed'] == 'm' and served.model_run_time == new.model_run_time
+    assert served.grid.vectors[0].speed == old.grid.vectors[0].speed == 4
+    assert json.loads((store.cache_dir / filename).read_bytes())['units']['speed'] == 'm'
+    assert reads == [filename]
