@@ -54,3 +54,16 @@ flag (R3), and `ocf_block()` assembling it all so `forecast_skill.py` stays unde
 `gain_over_served`. Mutation checks: removing the exclusion fails 3 tests; removing the null's random offset fails 1.
 No workflow dispatched; the next scheduled calibration pass after merge publishes the fields. The read-out follows then,
 against R1-R4 as written above.
+
+## Handoff 2026-11-13 22:15 EST (lane wrapped; PR #875 marked ready, 19/19 green)
+- **When the R1-R4 fields appear:** after #875 merges, the next scheduled calibration pass (`forecast-calibration-census.yml`,
+  cron 02/08/14/20 :35 UTC) publishes `forecast_skill_ocf.without_hole_buoys`, `hole_sensitivity`,
+  `tier_split_without_hole_buoys`, and per-region `gain_over_served`/`gate_met_ci` at `/api/weather/buoy-calibration`
+  (one cached GET, `/api/health` before and after). Nothing is dispatched.
+- **Who reads them:** whoever picks this up reads them against R1-R4 exactly as written above (no rule moves after the
+  data). Quote the pooled gain only at leads where `hole_sensitivity` says it survives; quote the unknown-tier
+  association only if R3 holds and the +0.30 m control returns 0.30 +- 0.01. Add a SCOREBOARD row only for a real finding.
+- **Commitment due 2026-11-19:** ledger commitment "move4 post-flip gap and per-region fit" is still open. This PR
+  delivers the per-region intervals; the post-flip same-model gap is not addressed by it.
+- **Not built (needs the director's reconciliation):** renormalising over available members (#826), energy-weighted
+  direction, member-level fields on scored rows (why a point has no product_id), region x tier stratified split.
