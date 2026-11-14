@@ -258,3 +258,14 @@ Recorded for the owner; `__RAW_DISABLE_RASTER_LEGENDS__` gives the old grey bar 
 
 ### Still not verified
 A real phone, Safari, Firefox; a deploy; the own-frames path for these layers (#889).
+
+## Addendum, 05:15 to 06:05 EST: the light and beach results in this log were measured on the wrong map colours
+The checker's light and beach basemap colours came from the wind checker (the map as muted under the wind layer). These three
+layers are drawn over the bare map. Sampled from the bare map in the offline app: light water [144, 223, 254], land
+[252, 252, 252]; beach water [117, 207, 240], land [239, 233, 225]; dark unchanged. On those colours the tables merged in
+#892 FAIL 7 of this log's gate lines (T1 light / beach water 4.06 / 4.11; T2 colour-blind 17.8 / 16.2; W2 1.35 / 1.27; B1 air
+temp over beach land, colour-blind, 1.96). Every dark line and every fog line passes. So "every gate line passes" in this
+log holds for dark only. The director decided not to revert (the tables still beat the ones before them on those measures).
+The corrected checker, the re-tuned tables that pass every unchanged line, and the full before / after are in #897 and
+`2026-11-14-fable-raster-legend-swatch.md`.
+Lesson: verify an instrument's constants against the real rendering surface before a gate is trusted.
