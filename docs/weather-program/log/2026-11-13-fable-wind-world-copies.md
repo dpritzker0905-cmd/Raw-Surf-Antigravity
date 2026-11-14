@@ -1,0 +1,117 @@
+# 2026-11-13 Fable (animation lane): wind world copies from the frame's bounds. Three gate parts pass; the 50% share does not
+
+Client only. Built ON with kill `window.__RAW_DISABLE_WIND_COPY_CULL__ = true` (the layer's old offsets). No served number.
+Separate from #881 (marine). Gate sent to the director at 21:05 EST before building; "build it against your gate exactly as
+written" at 21:12. **Result: parts 2, 3 and 4 pass; part 1's "at least 50% of the wind particle pass" is NOT met (46-53% where
+three copies were drawn, 34-37% where two). Draft PR; the call is the director's.**
+**Later the same evening: gate 1 stays NOT MET; a second gate, pre-registered before new data, PASSED on fresh loads (see Gate history).**
+
+## What the wind layer did
+`WebGLWindLayer.js` picked the world offsets from the map centre, an estimated span and a padding (commit `769ccac22`,
+2026-06-10, "seamless wrapping"; no reason recorded for the padding):
+- below zoom 3.5 the padding is 180 degrees on each side ("pre-render adjacent worlds"): two or three copies for any view;
+- the span is `canvas.width * 360 / (256 * 2^zoom)`: device pixels over 256-pixel tiles where the map uses CSS pixels and
+  512-pixel tiles, so 2x too wide at devicePixelRatio 1 and 6x at 3; above zoom 3.5 a second copy is drawn well before an
+  edge is in view.
+
+## The change (`windWorldCopies.js`)
+The offsets come from the map's own bounds of the frame: every copy the view, widened by 10 degrees, touches. An edge in view
+draws that side only. Unreadable bounds, or the kill, give the old offsets unchanged. The span is no longer used, so its
+factor-of-2-to-6 error goes with it (the old computation stays in the layer as the fallback).
+
+## Gate and results (`scn_wind_world_copies.js`; offline app, wind on, AMD Radeon 890M, 147,456 particles)
+**(4, done first) Does the padding prevent a visible pop-in? No pop-in was found without it. PASS.** The map was eased across
+the date line four times (zoom 3 east and west, zoom 5, and 180 degrees in 0.7 s at zoom 2.5). For every frame, the copies
+that frame's true bounds need were compared with the copies drawn in that frame: 0 frames missing a copy in 656 desktop
+frames (504 of them needing a side copy) and 658 phone frames (108 needing one). The offsets are recomputed in the same
+callback that draws, from that frame's bounds, so there is nothing to pre-render.
+
+**(1) Draws per frame 3 -> 1 and the skipped copies at least 50% of the wind particle pass. Draws: yes. Share: NO.**
+GPU ms per wind particle draw by offset, all copies timed in one page load of the old arm:
+
+| view | old arm draws | main / skipped copies (ms) | share on the skipped copies | new arm draws |
+|---|---|---|---|---|
+| Atlantic z3.2 | 3 | 0.591 / 0.216 + 0.287 | 46% | 1 |
+| E Pacific z3 | 2 | 0.567 / 0.287 | 34% | 1 |
+| Indian z2.8 | 3 | 0.578 / 0.218 + 0.291 | 47% | 1 |
+| mid-Atlantic z3.4 | 3 | 0.474 / 0.218 + 0.290 | 52% | 1 |
+| zoom 2 at 0E | 3 | 0.584 / 0.218 + 0.291 | 47% | 1 |
+
+Phone profile (dpr 3, CPU 4x, same GPU): 46%, 37%, 46%, 53%, 47%. The absolute saving is about 0.5 ms per frame where three
+were drawn (0.29 ms where two): close to the marine figure in #881, but the wind's main copy costs more (it fills trails), so
+the share is lower than the 50% I carried over from the marine gate.
+Heatmap copies: 0.001-0.005 ms each against 0.06 ms for the main one. Negligible.
+
+**(2) Every copy not drawn lights zero pixels, particles and heatmap. PASS.** 7 views (the 5 above and two span-bug views,
+zoom 5 at 150E and zoom 4 at 140W, where the old rule drew two), desktop and phone: 0 and 0. Positive control: the main copy lit
+84k-165k particle pixels (desktop).
+
+**(3) Near +-180 and with more than a world on screen, every needed copy is drawn and lights pixels. PASS.** Fiji z4, Bering
+z5, NZ z3, date line z2.5: the needed side is drawn (two copies, where the old rule also drew two) and lights 40k-65k particle
+pixels and 359k-414k heatmap pixels. A 3400 px window at zoom 2: three copies at 0E (73k and 73k side pixels), two at 150E.
+
+## Gate history
+### Gate 1 (sent 21:05 EST, before building). Part 1: NOT MET as written
+- "(1) at 5 mid-globe views below zoom 3.5, wind particle draws per frame go 3 -> 1 and the two skipped copies were at least 50%
+  of the wind particle pass."
+- **NOT MET as written: share 34-53%, 4 of 5 views under 50%** (desktop 46 / 34 / 47 / 52 / 47; phone 46 / 37 / 46 / 53 / 47).
+  Parts 2, 3 and 4 passed. The 50% was carried over from the marine gate (#881) without a wind measurement behind it; that is
+  why it was the wrong yardstick, and it is NOT a reason to call part 1 met. The line is not moved after seeing the data.
+
+### Gate 2 (the director, 21:33 EST). Pre-registered in this commit, BEFORE any new measurement
+The data above may not be used to pass it. Fresh page loads only.
+- **(A) Absolute saving of at least 0.40 ms per frame, median, at 4 of the 5 mid-globe views** (Atlantic z3.2, E Pacific z3,
+  Indian z2.8, mid-Atlantic z3.4, zoom 2 at 0E), desktop.
+  How it is computed, fixed here: three fresh page loads of the OLD arm (the kill). In each load, at each view, the saving is
+  the sum over the copies the new rule does not draw of that copy's median GPU time per particle draw. The view's figure is
+  the median of the three loads. Three fresh loads of the NEW arm must show one copy drawn at each of the five views.
+  The harness is changed in this same commit so a sample belongs to the view it was taken at (samples still pending from the
+  previous view are dropped); no other change to it.
+- **(B) Parts 2, 3 and 4 of gate 1 re-checked on those same fresh loads**: every copy not drawn lights zero pixels (particles
+  and heatmap) at the 7 cull views in all three new-arm loads; the antimeridian views draw the needed side and it lights
+  pixels; the four pans show 0 frames missing a needed copy. Phone profile: one fresh load per arm for (B).
+- **Fail any part and #882 closes.** If it passes it ships ON with `__RAW_DISABLE_WIND_COPY_CULL__`.
+
+### Gate 2 result (fresh page loads, run 21:35-21:58 EST, after commit `f95f5588e`): PASS
+**(A) At least 0.40 ms per frame saved, median of three old-arm loads, at 4 of 5 views: met at exactly 4 of 5.**
+
+| view | saving in each of the 3 loads (ms; copies skipped) | median | |
+|---|---|---|---|
+| Atlantic z3.2 | 0.523, 0.521, 0.447 (2 copies) | 0.521 | at or above 0.40 |
+| E Pacific z3 | 0.300, 0.267, 0.239 (1 copy) | 0.267 | BELOW 0.40 |
+| Indian z2.8 | 0.526, 0.535, 0.501 (2 copies) | 0.526 | at or above 0.40 |
+| mid-Atlantic z3.4 | 0.525, 0.520, 0.466 (2 copies) | 0.520 | at or above 0.40 |
+| zoom 2 at 0E | 0.526, NO SAMPLES, 0.482 (2 copies) | 0.482 | at or above 0.40 |
+
+- The East Pacific view misses, as could be foreseen before the run: the old rule draws only one extra copy there.
+- At "zoom 2 at 0E" the second load returned no timing samples at all for that view (cause not looked into). It was counted
+  as a saving of 0, the reading least favourable to the change; the median of (0.526, 0, 0.482) is 0.482. Had it been dropped
+  instead the figure would be the mean of two, 0.504. Either way that view is above the line, on two loads, not three.
+- New arm, three fresh loads: one copy drawn at each of the five views in every load.
+
+**(B) Parts 2, 3 and 4 on the same fresh loads: all met.**
+- Copies not drawn light zero pixels, particles and heatmap: 28 checks (7 cull views x 3 desktop loads + 1 phone load), 0 failures.
+- Antimeridian and wide-window views draw every needed copy and it lights pixels: 18 checks, 0 failures.
+- Pans: 0 frames missing a needed copy in 1,971 desktop frames (1,512 needing a side copy) and 657 phone frames (110 needing one).
+
+Not re-measured for gate 2: the old arm's lit pixels (not part of the gate). Still one GPU.
+
+## Tests
++27 in `windWorldCopies.test.js`: one copy mid-globe; the side in view and only that side; a sweep of 550 views checking that
+every longitude of the view and its margin lies in a drawn copy and that no drawn copy is untouched; unreadable bounds fall
+back; the kill; the order of the layer's steps. Three of my first expectations were wrong arithmetic in the examples and were
+corrected; the rule did not change.
+
+## Limits
+- One integrated GPU, headless Chromium; times under 1 ms per draw (one view of the wide window aside).
+- Some per-offset times in later rows of a page load carry samples from the previous view; the shares above use only rows
+  where every listed copy was being drawn.
+- Pitch and rotation not exercised (the bounds are then a wider bounding box). Frame rate not measured.
+
+## Follow-up (not a blocker): the harness returned no timing samples for one view in one load
+`scn_wind_world_copies.js`, gate 2, old arm, load 2, view "zoom 2 at 0E": zero timer-query results for the particle draw, while
+the same load gave samples at the other ten views and the draws themselves were counted. Both readings of the gap pass the gate
+(counted as 0: median 0.482; dropped: 0.504 from two loads). Cause NOT investigated. Candidates, untested: the query queue
+still full of the previous view's queries when the 6 s window closed (results of an older generation are now dropped, so a
+window can end with none of its own), or disjoint results. To fix when the script is next used: wait for the queue to drain
+before opening a view's window, and report the per-view sample count so an empty window is visible instead of reading as 0.

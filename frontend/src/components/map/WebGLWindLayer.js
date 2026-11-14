@@ -19,6 +19,7 @@ import { getWindParticleRes } from './deviceTier';
 import { registerWindEngine, unregisterWindEngine } from '../../engine/RenderPlanDispatcher';
 import { publishWindDrawn, clearWindDrawn } from './marineDrawnFrame';
 import { BATCH } from './WebGLProgramBatch';
+import { windWorldOffsets } from './windWorldCopies';
 
 var LAYER_ID = 'webgl-wind-particles';
 
@@ -181,6 +182,9 @@ export function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, 
         } catch (vbErr) {
           // Fallback: global bounds
         }
+        // 2026-11-13: the copies actually in view, from this frame's bounds (windWorldCopies.js). The offsets computed above
+        // (180 degrees of padding below zoom 3.5, a span 2-6x too wide) stay as the fallback and the kill path.
+        worldOffsets = windWorldOffsets(worldOffsets, viewportBounds);
 
         engine._trailMatrix = _matrix64 || _matrix;
         engine._mapGLContext = (map.painter && map.painter.context) || null;   // the GL state shadow the capture reads
