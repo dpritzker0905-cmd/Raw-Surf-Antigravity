@@ -45,6 +45,17 @@ no edge is on screen). The case that clause stood for is "more than a world on s
 than 2048 px: with a 3400 px window the bounds read -281..281 and -131..431, the rule wraps ("near-edge"), and the side copies
 light 160k-531k particle pixels. `map.getBounds()` equalled the unprojected screen edges in all 15 views checked.
 
+### Gate history: one clause was changed AFTER the gate was written
+- **As written before building (20:30 EST, sent to the director):** "(3) at 5 views near +-180 and at zoom < 1.5 the rule still
+  wraps."
+- **What was found:** the app's `minZoom` is 2 (`MapWebGL.js`), so a view below zoom 1.5 cannot occur. The harness asked for
+  zoom 1.2 and silently got zoom 2; the first reading of that row ("the rule did not wrap at z1.2") was a harness error, not a
+  failure of the rule: at zoom 2 centred on 0E the true view is -94.9..94.9 and no edge is on screen.
+- **Replacement, accepted by the director (20:59 EST):** the clause stood for "more than one world on screen". Tested as a
+  3400 px wide window at zoom 2 (bounds -281..281 and -131..431): the rule wraps and the side copies light 160k-531k pixels.
+- **What this does and does not show:** the unreachable zoom range is covered only by unit tests (bounds past both edges; a view
+  300 degrees wide), not by an app run. If `minZoom` is ever lowered, re-run the scenario at the new minimum.
+
 ### Tests
 +25 in `worldWrapCull.test.js`: one copy for mid-globe views at any zoom; the 2026-07-23 cases (bounds as an array and as an
 object, straddling +-180 in unwrapped and in wrapped form, the 10 degree margin on both sides, the same below zoom 4); views
@@ -57,7 +68,9 @@ layer passes the map's own bounds of the frame. Kill listed in the inventory.
   toward wrapping).
 - The harness left a few samples of the previous view in two "new arm" rows (copies -1 / +1 show a time where 1 draw per frame
   was counted); the draw count and the telemetry are the evidence there, not those times.
-- Not looked at: the wind engine's world copies.
+- The wind engine has its own rule (`WebGLWindLayer.js`): below zoom 3.5 it pads the view by 180 degrees on each side, which
+  gives three world copies at any centre. Read in the code only; NOT measured. Filed as the next item with its own gate, not
+  part of this change.
 
 ## Part B. The "slow load" lead from the instanced-draw work: cause not found, not shown to be ours. Parked
 Seen in `2026-11-13-fable-particles-instanced.md`: on some page loads the particle draw's GPU time is about double for the
