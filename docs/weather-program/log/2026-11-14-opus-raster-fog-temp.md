@@ -69,3 +69,16 @@ Water temperature over land is LAND skin temperature (up to 74 degC in GFS, 68 i
   **regular Gaussian grid**, 3072 x 1536 (4.7 M points, 2.5 MB per message). Our frames need a regular lat/lon lattice, so it
   would need our own interpolation in latitude and ~4.5x the bytes (~2.8 MB a frame, ~320 MB a run). Not done; 0.25 deg ships.
 - No client reads these keys yet (move 3's half). No SCOREBOARD row while dark (the lane's instruction).
+
+## Addendum 05:15Z: EURO 2 m temperature at 0.25 deg
+
+Move 3 relayed the director's resolution rule: a layer moves to own frames only where the set is at least as fine as today's .om
+grid. Open-Meteo serves EURO 2t from ifs025, so the 0.5-degree EURO set would not be read by default. Added
+`temperature_euro_0p25` (EURO/weather/temperature/global_0p25, every point, FRAME_RASTER_TEMPERATURE_EURO_0P25, dark). The 0.5-degree set
+stays under its own switch. Offline, cycle 2026-11-13 12Z: 65/65 frames, 31.5 MB per run, 484 KB per frame, 14.6 s, parity max
+0.0246 degC, no-data nodes 0. Independent eccodes read at f063: max 0.0021 degC over 3000 points; range -48.40 .. 46.00 degC.
+Tests 27 (estate +27).
+
+`GFS/weather/temperature/static/elevation_dz_v1.json` (the GFS temperature downscale asset) answers 400 on the CDN at 05:10Z. This PR does
+not publish it. It comes from its own pilots step (`publish_temp_downscale.py`), gated on `FRAME_RASTER_TEMP_DZ == '1'`, and the
+GFS temperature set was not yet in latest.json then either.

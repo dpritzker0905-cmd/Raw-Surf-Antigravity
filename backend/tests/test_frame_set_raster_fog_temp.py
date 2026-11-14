@@ -29,6 +29,8 @@ NEW = {   # set -> (key, env, field, grid cols, hours, source, idx)
                    ("TMP", "surface")),
     "temperature_euro": ("EURO/weather/temperature/global_0p5", "FRAME_RASTER_TEMPERATURE_EURO", fb.TEMP_C, 720, EURO_STEPS,
                          "ecmwf", ("2t", "sfc")),
+    "temperature_euro_0p25": ("EURO/weather/temperature/global_0p25", "FRAME_RASTER_TEMPERATURE_EURO_0P25", fb.TEMP_C, 1440,
+                              EURO_STEPS, "ecmwf", ("2t", "sfc")),
     "temperature_icon": ("ICON/weather/temperature/global_0p5", "FRAME_RASTER_TEMPERATURE_ICON", fb.TEMP_C, 720,
                          tuple(range(0, 181, 3)), "icon", ("t_2m", ("T_2M",))),
     "water_temp_euro": ("EURO/weather/water_temp/global_0p25", "FRAME_RASTER_WATER_TEMP_EURO", fb.TEMP_C, 1440, EURO_STEPS,

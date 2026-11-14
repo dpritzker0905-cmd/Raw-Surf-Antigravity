@@ -225,6 +225,20 @@ SPECS = {
         "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); attribution to ECMWF required",
         "source_url": "https://www.ecmwf.int/en/forecasts/datasets/open-data",
     },
+    # EURO 2 m temperature at 0.25 deg, EVERY point (2026-11-14, move 3 / the director's resolution rule: a layer moves to own
+    # frames only where the set is at least as fine as today's .om grid, and Open-Meteo serves EURO 2t from ifs025). The
+    # 0.5-degree set above stays publishable under its own switch.
+    "temperature_euro_0p25": {
+        "target": {"model": "EURO", "domain": "weather", "layer": "temperature", "region_id": "global_0p25"},
+        "field": fb.TEMP_C, "idx": ("2t", "sfc"), "convert": lambda a: a - 273.15, "grid": "0p25",
+        "valid": (-95.0, 65.0), "clip": None, "env": "FRAME_RASTER_TEMPERATURE_EURO_0P25", "default_on": False,
+        "value_kind": "temperature_2m", "value_unit": "degC",
+        "source_dataset": "ECMWF IFS open data, oper fc 0p25 2t, every point",
+        "hours": tuple(range(0, 145, 3)) + tuple(range(150, 241, 6)), "source": "ecmwf", "upstream_provider": "ecmwf",
+        "credit": "Copyright ECMWF; ECMWF open data, CC BY 4.0; modified (quantised to 0.05 degC)",
+        "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); attribution to ECMWF required",
+        "source_url": "https://www.ecmwf.int/en/forecasts/datasets/open-data",
+    },
     # ICON 2 m temperature: DWD ICON global T_2M, regridded as pressure_icon is (frame_set_raster_sources.IconOpenDataSource).
     "temperature_icon": {
         "target": {"model": "ICON", "domain": "weather", "layer": "temperature", "region_id": "global_0p5"},
