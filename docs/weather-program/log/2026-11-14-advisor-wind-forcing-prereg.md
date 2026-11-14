@@ -184,3 +184,13 @@ Scored by the pr-verifier session, not by the author, at commit `00c1662d1` from
   GFS in the west at 24/36 h only.
 - Size: a planted 3 kn speed error costs 5-7 rating points; the arms differ from each other by 0.0-1.7.
 - **ECMWF (H5): not scored yet.** The fetch started 02:57Z and is rate-limited by the mirror.
+
+### 4a. ECMWF fetch complete, recorded 2026-11-14 06:39Z (no ECMWF error or rating read by the author)
+- File (outside git): 27,820 lines, one per used row, sha256 f379ed3d...2d1c. Every row has both the same-cycle value and
+  the 6-h-earlier value. Cache 1.1 GB outside the repo. The first pass stopped at 25,936 lines when the mirror's
+  throttling outlasted the retries; the resume took three attempts and reproduced those 25,936 lines exactly.
+- Decode wiring check (section 3a), passed: ECMWF against GFS speed over all 27,820 rows, correlation 0.935, mean ratio
+  0.986 (rule: > 0.7 and 0.7-1.4).
+- One read outside what 3a declared, made on the partial file and stated here: the median absolute bearing difference
+  between ECMWF and GFS (6.1 degrees, rows with GFS >= 8 kn). Model against model; no observation, no rating.
+- Handed to the pr-verifier for H5 scoring with --ecmwf.
