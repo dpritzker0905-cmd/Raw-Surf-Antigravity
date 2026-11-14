@@ -9,7 +9,7 @@
 import { recordTruthStage } from './weatherTruthTracker';
 import { measureMarineCpuPhase, instrumentMarineEngineCpuPhases } from './marineCpuPhaseTiming';
 import { forecastStateIdentityEnabled } from './forecastStateIdentity'; import { applyWaveSetUniforms } from './waveSetScreenBound'; import { syncParticleStateFormat, applyParticleStateUniforms } from './particleState'; import { applyCrestPhaseUniforms } from './crestLocalPhase'; import { applyCrestRankUniforms } from './crestTexelRank'; import { resolveOrbitalPitch, bandMotionScale } from './oneWayCrests';
-import { readMarineSurfMode } from './marineSurfMode'; import { crestDensityCut } from './marineCrestDensity';
+import { readMarineSurfMode } from './marineSurfMode'; import { crestDensityCut } from './marineCrestDensity'; import { drawParticles } from './particleInstancedDraw';
 import { unpatchedMaskHold } from './marineUnpatchedMaskHold'; import { recordMarineEvent } from './marineForensics'; import { keepMaskPatch, stampMaskPatch } from './maskPatchKeep'; import { uniformLoc } from './glUniformCache'; import { seedConsumeAllowed } from './marineQuietFrames'; import { coarseMaskReuse, noteCoarseMaskUse, releaseCoarseMaskCache } from './marineCoarseMaskCache';   // __RAW_FORENSIC__ ring; 2026-10-23 jank
 import { arbiterDecide } from './marineCommitArbiter'; import { washMatchesResident } from './marineStaleHour';   // ARBITER PHASE B: shadow verdicts at the commit choke; D1 wash time
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation'; import { cachedFramebufferStatus, advTeardownNeeded } from './advFboSync';
@@ -2149,7 +2149,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       const worldOffsets = _needWrap ? [0.0, -1.0, 1.0] : [0.0];
       for (let wi = 0; wi < worldOffsets.length; wi++) {
         gl.uniform1f(mercOffsetLoc, worldOffsets[wi]);
-        gl.drawArrays(gl.TRIANGLES, 0, numQuadVerts);
+        drawParticles(this, gl, numQuadVerts);   // one instanced quad per particle on WebGL2; the six-vertex draw otherwise
         if (typeof window !== 'undefined' && window.__RAW_GPU__) {
           window.__RAW_GPU__.drawCallsPerFrame++;
         }

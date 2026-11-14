@@ -18,6 +18,7 @@ import { recordChurn } from './marineTransitionCoordinator';
 import { startProgramBatch, pollEngineBatch, publishBatch, BATCH } from './WebGLProgramBatch';
 import { freeMaskStash } from './maskTextureStash';
 import { createParticleStateTexture, reseedParticleStateTextures } from './particleState';
+import { chooseParticleDrawVs, createParticleDrawBuffers, finishParticleDrawVao, deleteParticleDrawBuffers } from './particleInstancedDraw';
 
 // --- Particle Texture Init Helper ---
 // The state texture: RGBA32F where the context renders to float, else the old RGBA8 packing (particleState.js; the kill there).
@@ -74,7 +75,7 @@ export function initEngine(engine, gl) {
   // ASYNC SHADER COMPILE (WebGLProgramBatch.js): with KHR_parallel_shader_compile the batch may still be compiling when
   // this returns. Buffers, textures and the framebuffer are allocated now; the vertex arrays (getAttribLocation would
   // block until the link finishes) wait for pollPrograms to report the batch ready, and render() draws nothing until then.
-  const batch = startProgramBatch(gl, [[ADVECT_VS, ADVECT_FS], [DRAW_VS, DRAW_FS], [HEATMAP_VS, HEATMAP_FS]]);
+  const batch = startProgramBatch(gl, [[ADVECT_VS, ADVECT_FS], [chooseParticleDrawVs(engine, gl, DRAW_VS), DRAW_FS], [HEATMAP_VS, HEATMAP_FS]]);
   if (!batch) {
     console.error('[WebGLMarine] Failed to compile or link shaders');
     return;
@@ -88,13 +89,7 @@ export function initEngine(engine, gl) {
 
   const numParticles = engine.particleRes * engine.particleRes;
   const numVertices = numParticles * 6;
-  const vertexIds = new Float32Array(numVertices);
-  for (let i = 0; i < numVertices; i++) {
-    vertexIds[i] = i;
-  }
-  engine.vertexIdBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, engine.vertexIdBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, vertexIds, gl.STATIC_DRAW);
+  createParticleDrawBuffers(engine, gl, numParticles);   // six ids per particle, or (instanced) one id per particle + a quad
   engine._numQuadVertices = numVertices;
 
   const pointSizeRange = gl.getParameter(gl.ALIASED_POINT_SIZE_RANGE);
@@ -175,6 +170,7 @@ function initVertexArrays(engine, gl) {
       gl.enableVertexAttribArray(idLoc);
       gl.vertexAttribPointer(idLoc, 1, gl.FLOAT, false, 0, 0);
     }
+    finishParticleDrawVao(engine, gl, idLoc);
 
     engine.advectVAO = gl.createVertexArray();
     gl.bindVertexArray(engine.advectVAO);
@@ -235,6 +231,7 @@ export function disposeEngine(engine, gl) {
   if (engine.heatmapProgram) deleteAttachedShaders(gl, engine.heatmapProgram);
   if (engine.quadBuffer) gl.deleteBuffer(engine.quadBuffer);
   if (engine.vertexIdBuffer) gl.deleteBuffer(engine.vertexIdBuffer);
+  deleteParticleDrawBuffers(engine, gl);
   if (engine.gridUVBuffer) gl.deleteBuffer(engine.gridUVBuffer);
   if (engine.gridIndexBuffer) gl.deleteBuffer(engine.gridIndexBuffer);
   if (engine.advFBO) gl.deleteFramebuffer(engine.advFBO);
