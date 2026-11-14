@@ -214,6 +214,22 @@ export function toField(parsed, fieldId) {
 // ── decoded fields: one load per path, shared; an LRU over the window ────────────────────────────────────────────
 const _fields = new Map();
 const _inflight = new Map();
+// FAILED-LOAD BACKOFF (2026-11-14): a frame whose load failed (404, CORS, offline, undecodable) is not asked again by the pump
+// for FAIL_BACKOFF_MS. Before this, pump() re-started the same failed load from its own .then: an endless request loop, and a
+// near-hot one offline (fetch rejects at once). Kill: window.__RAW_DISABLE_RASTER_OWN_FAIL_BACKOFF__ = true.
+export const FAIL_BACKOFF_MS = 30000;
+const _failedAt = new Map();
+const backoffOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_OWN_FAIL_BACKOFF__ === true);
+const inBackoff = (path, now = Date.now()) => backoffOn() && _failedAt.has(path) && now - _failedAt.get(path) < FAIL_BACKOFF_MS;
+// One re-pump per failed frame when its backoff ends, so a viewer parked on that frame (no further step) still gets it after a
+// blip. Deduped per path; all cleared when nothing is wanted (the layer's unmount sets an empty window) and by the test reset.
+const _retryTimers = new Map();
+function noteFailed(path) {
+  _failedAt.set(path, Date.now());
+  if (!backoffOn() || _retryTimers.has(path)) return;
+  _retryTimers.set(path, setTimeout(() => { _retryTimers.delete(path); pump(); }, FAIL_BACKOFF_MS + 1));
+}
+function clearRetryTimers() { for (const t of _retryTimers.values()) clearTimeout(t); _retryTimers.clear(); }
 
 /** The decoded field for a frame path, if held (no I/O; refreshes its LRU place). */
 export function getField(path) {
@@ -243,11 +259,12 @@ export function loadField(layer, frame, priority) {
       t.loads += 1;
       // Fetch priority (staticFrames, #479): 'high' for the frame the step wants, 'low' for the rest of the window.
       const got = await loadFrameParsed(key, frame, undefined, priority ? { priority } : undefined);
-      if (!got) { t.loadErrors += 1; noteMiss('load_failed'); return null; }
+      if (!got) { t.loadErrors += 1; noteMiss('load_failed'); noteFailed(frame.path); return null; }
       const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
       const field = toField(got.parsed, set.field);
       const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
-      if (!field) { noteMiss('no_field'); return null; }
+      if (!field) { noteMiss('no_field'); noteFailed(frame.path); return null; }
+      _failedAt.delete(frame.path);
       t.bytes += got.wire || 0;
       t.decodeMs.push(Math.round((t1 - t0) * 10) / 10);
       if (t.decodeMs.length > 50) t.decodeMs.shift();
@@ -268,6 +285,7 @@ export function setWanted(layer, frames, onField) {
   _pump.layer = layer;
   _pump.wanted = (frames || []).filter((f) => f && f.path);
   _pump.onField = onField || null;
+  if (!_pump.wanted.length) clearRetryTimers();
   pump();
 }
 
@@ -275,7 +293,7 @@ function pump() {
   const { layer, wanted } = _pump;
   wanted.forEach((f, i) => {
     if (_inflight.size >= MAX_IN_FLIGHT) return;
-    if (_fields.has(f.path) || _inflight.has(f.path)) return;
+    if (_fields.has(f.path) || _inflight.has(f.path) || inBackoff(f.path)) return;
     loadField(layer, f, i === 0 ? 'high' : 'low').then((field) => {
       if (field && _pump.onField && _pump.wanted.some((w) => w.path === f.path)) _pump.onField(f.path, field);
       pump();
@@ -319,6 +337,8 @@ export function noteStep(path, hit, at = Date.now()) {
 export function _resetOwnRasterFramesForTest() {
   _fields.clear();
   _inflight.clear();
+  _failedAt.clear();
+  clearRetryTimers();
   _pump.layer = null; _pump.wanted = []; _pump.onField = null;
   _engaged = Object.freeze({});
   for (const k of Object.keys(_shown)) delete _shown[k];
