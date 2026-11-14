@@ -1,6 +1,6 @@
 {
   "lane": "frontend",
-  "tests": 2,
+  "tests": 4,
   "files": 0,
   "branch": "opus/raster-fail-backoff",
   "date": "2026-11-14",

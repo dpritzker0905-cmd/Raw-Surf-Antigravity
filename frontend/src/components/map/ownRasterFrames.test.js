@@ -350,6 +350,44 @@ describe('failed-load backoff (2026-11-14): the pump never re-asks a frame that 
     expect(loadFrameParsed).toHaveBeenCalledTimes(2);
   });
 
+  test('parked on the frame (no further step): the backoff ends with one re-ask, not never', async () => {
+    jest.useFakeTimers();
+    try {
+      loadFrameParsed.mockResolvedValue(null);
+      setWanted('pressure', [frame], null);
+      await flush();
+      expect(loadFrameParsed).toHaveBeenCalledTimes(1);
+      jest.advanceTimersByTime(FAIL_BACKOFF_MS - 1000);
+      await flush();
+      expect(loadFrameParsed).toHaveBeenCalledTimes(1);      // still inside the backoff
+      jest.advanceTimersByTime(2000);                         // past it, with no step at all
+      await flush();
+      expect(loadFrameParsed).toHaveBeenCalledTimes(2);
+      setWanted('pressure', [], null);                        // the layer leaves: its retry timer goes with it
+      jest.advanceTimersByTime(FAIL_BACKOFF_MS * 2);
+      await flush();
+      expect(loadFrameParsed).toHaveBeenCalledTimes(2);
+    } finally { jest.useRealTimers(); }
+  });
+
+  test('a success after a failure clears the backoff (the frame is cached, never re-asked)', async () => {
+    jest.useFakeTimers();
+    try {
+      loadFrameParsed.mockResolvedValueOnce(null).mockResolvedValue({
+        parsed: { cols: 1, rows: 1, bounds: {}, validEpoch: 0, runEpoch: 0, fields: { 6: new Float64Array([1013]) } }, wire: 10 });
+      setWanted('pressure', [frame], null);
+      await flush();
+      jest.advanceTimersByTime(FAIL_BACKOFF_MS + 1000);
+      await flush();
+      expect(loadFrameParsed).toHaveBeenCalledTimes(2);
+      expect(getField(frame.path)).not.toBeNull();
+      setWanted('pressure', [frame], null);
+      jest.advanceTimersByTime(FAIL_BACKOFF_MS * 2);
+      await flush();
+      expect(loadFrameParsed).toHaveBeenCalledTimes(2);
+    } finally { jest.useRealTimers(); setWanted('pressure', [], null); }
+  });
+
   test('OFF PATH: __RAW_DISABLE_RASTER_OWN_FAIL_BACKOFF__ restores the re-ask (the old loop)', async () => {
     window.__RAW_DISABLE_RASTER_OWN_FAIL_BACKOFF__ = true;
     loadFrameParsed.mockResolvedValue(null);
