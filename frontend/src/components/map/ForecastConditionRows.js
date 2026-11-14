@@ -40,16 +40,23 @@ export function ForecastConditionRows({ cards, textMuted, textClass, timeClass }
   </>);
 }
 
-export function ForecastHeatmapStatus({ status }) {
+export function ForecastHeatmapStatus({ status, model, layer, isLight }) {
+  const tone = isLight ? (status === 'ready' ? 'text-emerald-800'
+    : STATUS_RENDERS[status]?.color === 'text-rose-400' ? 'text-rose-800' : 'text-amber-800') : STATUS_RENDERS[status]?.color;
+  const coverageMissing = ['no_backend_coverage', 'no_copernicus_coverage'].includes(status);
+  const layerName = { waves: 'waves', swell_1: 'swell', swell_2: 'swell 2', wind_waves: 'wind waves' }[layer] || 'weather';
+  const coverageLabel = `${model ? `${model} ` : ''}${layerName} map grid unavailable`;
   return (<>
 {STATUS_RENDERS[status] && (() => {
   const IconComponent = status === 'ready' ? Check
     : ['zoom_too_low', 'no_copernicus_coverage', 'no_backend_coverage'].includes(status) ? Info
     : AlertTriangle;
   return (
-    <div className={`pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] ${STATUS_RENDERS[status].color} font-semibold flex items-center gap-1.5`}>
-      <IconComponent className={`w-3 h-3 ${STATUS_RENDERS[status].color}`} />
-      <span>{STATUS_RENDERS[status].text}</span>
+    <div className={`pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[10px] ${tone} font-semibold flex items-center gap-1.5`}>
+      <IconComponent aria-hidden="true" className={`w-3 h-3 shrink-0 ${tone}`} />
+      <span>{coverageMissing ? coverageLabel : STATUS_RENDERS[status].text}
+        {coverageMissing && <span className="block font-normal mt-0.5">No usable map grid for this view/time. Tide data loads separately.</span>}
+      </span>
     </div>
   );
 })()}

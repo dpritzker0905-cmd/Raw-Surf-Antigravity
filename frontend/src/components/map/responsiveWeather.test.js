@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { useMapChromeLayout, showPointTide } from './useMapChromeLayout';
 import WeatherLayerSheet from './WeatherLayerSheet';
 import { getHeightUnit, setHeightUnit } from './heightUnits';
+import { syncForecastStatusDuplicates } from './forecastStatusDuplicates';
 let mockTheme = 'dark';
 jest.mock('../../contexts/ThemeContext', () => ({ useTheme: () => ({ theme: mockTheme }) }));
 
@@ -121,7 +122,7 @@ test('late-mounted chrome, immersive mode and rollout kill switch retain geometr
   expect(global.ResizeObserver).not.toHaveBeenCalled();
   rerender(<Chrome immersive />);
   expect(observer.observe).toHaveBeenCalledTimes(4);
-  expect(screen.getByTestId('chrome').style.getPropertyValue('--weather-top')).toBe('8px');
+  expect(screen.getByTestId('chrome').style.getPropertyValue('--weather-top')).toBe('108px');
   unmount();
   window.__RAW_DISABLE_RESPONSIVE_WEATHER__ = true;
   render(<Chrome />);
@@ -133,11 +134,12 @@ test('tides are limited to the four wave layers', () => {
 });
 test.each(['light', 'dark', 'beach'].flatMap(theme => [[theme, true], [theme, false]]))('%s desktop=%s retains symmetric steps and a dated readout', (theme, isDesktop) => {
   mockTheme = theme;
-  const { container } = render(<MapWeatherControls activeModel="GFS" activeLayers={['waves']} isDesktop={isDesktop}
+  const { container } = render(<MapWeatherControls activeModel="GFS" activeLayers={['waves']} isDesktop={isDesktop} isCompactTimelineOpen
     onTogglePlay={() => {}} onTimeChange={() => {}} onModelChange={() => {}} onLayerToggle={() => {}} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Time shortcuts' }));
   const steps = container.querySelector('.weather-time-steps');
   expect(steps).not.toBeNull();
-  const buttons = within(steps).getAllByRole('button');
+  const buttons = within(steps).getAllByRole('button').slice(0, 7);
   expect(buttons.map(button => button.textContent)).toEqual(['−1d', '−3h', '−1h', 'Now', '+1h', '+3h', '+1d']);
   expect(container.querySelector('.weather-time-readout')).toHaveTextContent(/\d{4}/);
   expect(container.querySelector('[data-weather-timeline]')).toHaveAttribute('data-weather-timeline', isDesktop ? 'desktop' : 'mobile');
@@ -145,7 +147,7 @@ test.each(['light', 'dark', 'beach'].flatMap(theme => [[theme, true], [theme, fa
 });
 
 test('collapsed mobile timeline hides controls from accessibility and disables interaction', () => {
-  const props = { activeModel: 'GFS', activeLayers: ['waves'], isDesktop: false,
+  const props = { activeModel: 'GFS', activeLayers: ['waves'], isDesktop: false, isCompactTimelineOpen: true,
     onTimeChange: () => {}, onModelChange: () => {}, onLayerToggle: () => {}, onTimelineCollapseToggle: () => {} };
   const { container, rerender } = render(<MapWeatherControls {...props} isTimelineCollapsed />);
   const body = container.querySelector('.weather-mobile-timeline-body');
@@ -164,7 +166,7 @@ test('document safe-bottom style changes remeasure position-only movement and cl
   const originalSafe = document.documentElement.style.getPropertyValue('--safe-bottom');
   let mutate;
   const mutation = { observe: jest.fn(), disconnect: jest.fn() };
-  global.MutationObserver = jest.fn(callback => { mutate = callback; return mutation; });
+  global.MutationObserver = jest.fn(callback => { if (!mutate) { mutate = callback; return mutation; } return { observe: jest.fn(), disconnect: jest.fn() }; });
   try {
     const { unmount } = render(<Chrome />);
     const root = screen.getByTestId('chrome');
@@ -221,17 +223,20 @@ test.each(['light', 'dark', 'beach'])('%s compact timeline preserves selection a
   expect(body).not.toHaveAttribute('inert');
   expect(body).not.toHaveAttribute('aria-hidden');
   expect(screen.getByRole('slider')).toHaveAttribute('aria-valuenow', '48');
-  expect(within(container.querySelector('.weather-time-steps')).getAllByRole('button')).toHaveLength(7);
+  fireEvent.click(screen.getByRole('button', { name: 'Time shortcuts' }));
+  expect(within(container.querySelector('.weather-time-steps')).getAllByRole('button').slice(0, 7)).toHaveLength(7);
   expect(changeTime).not.toHaveBeenCalled();
-  fireEvent.click(within(header).getByRole('button', { name: 'Legend' }));
+  fireEvent.click(within(container.querySelector('.weather-time-steps')).getByRole('button', { name: 'Legend' }));
   expect(legend).toHaveAttribute('data-legend-expanded', 'true');
-  expect(within(header).getByRole('button', { name: 'Hide legend' })).toHaveAttribute('aria-expanded', 'true');
+  fireEvent.click(screen.getByRole('button', { name: 'Time shortcuts' }));
+  expect(within(container.querySelector('.weather-time-steps')).getByRole('button', { name: 'Hide legend' })).toHaveAttribute('aria-expanded', 'true');
   fireEvent.click(disclosure);
   expect(disclosure).toHaveTextContent(dateBefore);
   fireEvent.click(disclosure);
   expect(screen.getByRole('slider')).toHaveAttribute('aria-valuenow', '48');
   expect(legend).toHaveAttribute('data-legend-expanded', 'true');
   expect(changeTime).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Time shortcuts' }));
   fireEvent.click(screen.getByRole('button', { name: 'Step forward 1 hour' }));
   expect(changeTime).toHaveBeenLastCalledWith(49);
   fireEvent.click(disclosure);
@@ -282,7 +287,8 @@ test('mobile layer sheet focuses its controls, preserves focus on theme updates 
   screen.getByRole('slider', { name: 'Desktop time' }).blur();
   fireEvent.resize(window);
   expect(mobileTime).toHaveFocus();
-  fireEvent.keyDown(mobileTime, { key: 'Escape' });
+  jest.useFakeTimers();
+  try { fireEvent.keyDown(mobileTime, { key: 'Escape' }); act(() => jest.advanceTimersByTime(180)); } finally { jest.useRealTimers(); }
   expect(screen.queryByRole('button', { name: 'Layer option' })).toBeNull();
   expect(opener).toHaveFocus();
   fireEvent.click(opener);
@@ -336,6 +342,9 @@ test('desktop weather disclosure retains replacement focus without stealing it o
   rerender(view(true));
   expect(screen.getByRole('button', { name: 'Expand weather controls' })).toBeInTheDocument();
   expect(outside).toHaveFocus();
+  fireEvent.click(screen.getByRole('button', { name: 'Expand weather controls' }));
+  expect(screen.getByRole('button', { name: 'Collapse weather controls' })).toHaveFocus();
+  outside.focus();
   rerender(view(false));
   expect(screen.getByRole('button', { name: 'Collapse weather controls' })).toBeInTheDocument();
   expect(outside).toHaveFocus();
@@ -343,8 +352,20 @@ test('desktop weather disclosure retains replacement focus without stealing it o
   rerender(view(false));
   fireEvent.click(screen.getByRole('button', { name: 'Collapse weather controls' }));
   expect(screen.getByRole('button', { name: 'Expand weather controls' })).toHaveFocus();
+  outside.focus(); rerender(view(true)); rerender(view(false));
+  expect(screen.getByRole('button', { name: 'Expand weather controls' })).toHaveTextContent(/Weather.*Waves.*GFS/);
+  expect(screen.getByRole('button', { name: 'Expand weather controls' })).toHaveAccessibleDescription('Waves · GFS');
+  expect(outside).toHaveFocus();
   fireEvent.click(screen.getByRole('button', { name: 'Expand weather controls' }));
   expect(screen.getByRole('button', { name: 'Collapse weather controls' })).toHaveFocus();
+  window.__RAW_DISABLE_RESPONSIVE_WEATHER__ = true;
+  fireEvent.click(screen.getByRole('button', { name: 'Collapse weather controls' }));
+  const legacy = screen.getByRole('button', { name: 'Expand weather controls' });
+  expect(legacy).toHaveClass('w-12', 'h-12', 'p-0', 'overflow-hidden');
+  expect(legacy).not.toHaveTextContent('Weather');
+  render(<MapWeatherControls {...props} isDesktop={false} />);
+  expect(screen.getAllByRole('button', { name: 'Toggle timeline' })).toHaveLength(2);
+  delete window.__RAW_DISABLE_RESPONSIVE_WEATHER__;
 });
 
 test('ordinary map rerenders keep observer subscriptions and do not force chrome measurements', () => {
@@ -354,18 +375,19 @@ test('ordinary map rerenders keep observer subscriptions and do not force chrome
   try {
     const view = render(<Chrome><span>Selection zero</span></Chrome>);
     const initialObserver = observer;
+    const initialMutationCount = global.MutationObserver.mock.calls.length;
     HTMLElement.prototype.getBoundingClientRect.mockClear();
     view.rerender(<Chrome><span>Selection one</span></Chrome>);
     view.rerender(<Chrome><span>Selection two</span></Chrome>);
     expect(global.ResizeObserver).toHaveBeenCalledTimes(1);
-    expect(global.MutationObserver).toHaveBeenCalledTimes(1);
+    expect(global.MutationObserver).toHaveBeenCalledTimes(initialMutationCount);
     expect(HTMLElement.prototype.getBoundingClientRect).not.toHaveBeenCalled();
     expect(initialObserver.disconnect).not.toHaveBeenCalled();
     act(() => resize()); act(() => scheduled());
     expect(HTMLElement.prototype.getBoundingClientRect).toHaveBeenCalled();
     view.unmount();
     expect(initialObserver.disconnect).toHaveBeenCalledTimes(1);
-    expect(mutation.disconnect).toHaveBeenCalledTimes(1);
+    expect(mutation.disconnect).toHaveBeenCalledTimes(initialMutationCount);
   } finally { global.MutationObserver = originalMutationObserver; }
 });
 
@@ -400,4 +422,84 @@ test.each(['transitionend', 'transitioncancel'])('timeline %s refreshes position
   view.unmount();
   expect(removed).toHaveBeenCalledWith('transitionend', expect.any(Function));
   expect(removed).toHaveBeenCalledWith('transitioncancel', expect.any(Function));
+});
+
+
+test('drawer docking measures the actual toolbar border and follows safe-area/text resizing', () => {
+  const originalRect = HTMLElement.prototype.getBoundingClientRect.getMockImplementation();
+  let navTop = 724;
+  let shown = true;
+  HTMLElement.prototype.getBoundingClientRect.mockImplementation(function () {
+    if (this.dataset.testid === 'bottom-nav') return { top: navTop, bottom: 800, width: shown ? 800 : 0, height: shown ? 800 - navTop : 0 };
+    if (this.dataset.testid === 'bottomnav-create') return { top: navTop - 20, bottom: 790, width: 56, height: 56 };
+    return originalRect.call(this);
+  });
+  render(<><nav data-testid="bottom-nav"><button data-testid="bottomnav-create">Create</button></nav><Chrome /></>);
+  const root = screen.getByTestId('chrome');
+  expect(root).toHaveAttribute('data-weather-toolbar-visible', 'true');
+  expect(root.style.getPropertyValue('--weather-toolbar-offset')).toBe('76px');
+  expect(root.style.getPropertyValue('--weather-toolbar-protrude')).toBe('20px');
+  navTop = 700;
+  act(() => resize()); act(() => scheduled());
+  expect(root.style.getPropertyValue('--weather-toolbar-offset')).toBe('100px');
+  shown = false;
+  act(() => resize()); act(() => scheduled());
+  expect(root).toHaveAttribute('data-weather-toolbar-visible', 'false');
+  expect(root.style.getPropertyValue('--weather-toolbar-offset')).toBe('0px');
+});
+
+test('a late or replaced toolbar is measured without a map render and after position transitions', async () => {
+  const originalRect = HTMLElement.prototype.getBoundingClientRect.getMockImplementation();
+  let navTop = 724;
+  HTMLElement.prototype.getBoundingClientRect.mockImplementation(function () {
+    if (this.dataset.testid === 'bottom-nav') return { top: navTop, bottom: 800, width: 800, height: 800 - navTop };
+    return originalRect.call(this);
+  });
+  const { unmount } = render(<Chrome />);
+  const root = screen.getByTestId('chrome');
+  expect(root.style.getPropertyValue('--weather-toolbar-offset')).toBe('0px');
+  let nav = document.createElement('nav'); nav.dataset.testid = 'bottom-nav';
+  try {
+    await act(async () => { document.body.appendChild(nav); await Promise.resolve(); });
+    act(() => scheduled());
+    expect(root.style.getPropertyValue('--weather-toolbar-offset')).toBe('76px');
+    navTop = 700;
+    fireEvent.transitionEnd(nav); act(() => scheduled());
+    expect(root.style.getPropertyValue('--weather-toolbar-offset')).toBe('100px');
+    const replacement = nav.cloneNode();
+    navTop = 680;
+    await act(async () => { nav.replaceWith(replacement); nav = replacement; await Promise.resolve(); });
+    act(() => scheduled());
+    expect(root.style.getPropertyValue('--weather-toolbar-offset')).toBe('120px');
+    expect(observer.observe).toHaveBeenCalledWith(nav);
+  } finally { unmount(); nav.remove(); }
+});
+
+
+test('timeline suppresses only the exact open-infobox sentence and restores it when details close', () => {
+  const message = 'Loading Fri 12 PM… still showing Fri 9 AM';
+  const {container} = render(<div>
+    <div className="weather-point-card"><div className="weather-point-body">
+      <div data-testid="forecast-overlay-frame-words" aria-label={message}>{message}</div>
+    </div></div>
+    <div data-weather-timeline="mobile"><div data-drawn-state="pending">{message}</div>
+      <div data-drawn-state="fallback">Simplified wave layer</div></div>
+  </div>);
+  const root=container.firstChild, card=root.querySelector('.weather-point-card');
+  const body=card.firstChild, line=root.querySelector('[data-drawn-state="pending"]');
+  syncForecastStatusDuplicates(root);
+  expect(line).toHaveAttribute('data-duplicate-point-time');
+  expect(root.querySelector('[data-drawn-state="fallback"]')).not.toHaveAttribute('data-duplicate-point-time');
+  body.setAttribute('aria-hidden','true');syncForecastStatusDuplicates(root);
+  expect(line).not.toHaveAttribute('data-duplicate-point-time');
+  body.removeAttribute('aria-hidden');root.dataset.pointDetailsCompact='true';syncForecastStatusDuplicates(root);
+  expect(line).not.toHaveAttribute('data-duplicate-point-time');
+  card.dataset.pointDetailsExpanded='true';syncForecastStatusDuplicates(root);
+  expect(line).toHaveAttribute('data-duplicate-point-time');
+  root.dataset.mapControlMode='explore';syncForecastStatusDuplicates(root);
+  expect(line).not.toHaveAttribute('data-duplicate-point-time');
+  root.dataset.mapControlMode='weather';body.firstChild.setAttribute('aria-label','Showing a different point forecast');syncForecastStatusDuplicates(root);
+  expect(line).not.toHaveAttribute('data-duplicate-point-time');
+  card.remove();syncForecastStatusDuplicates(root);
+  expect(line).not.toHaveAttribute('data-duplicate-point-time');
 });

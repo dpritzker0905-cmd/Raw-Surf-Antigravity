@@ -22,6 +22,11 @@
  */
 import { SPOT_GEOFENCE_RADIUS, SPOT_GEOFENCE_MIN_ZOOM } from './MapWebGL';
 
+// CRA's Jest resolver needs the same real-router alias as MapPersonContext.test.js.
+jest.mock('react-router-dom', () => jest.requireActual('react-router'), { virtual: true });
+// This constants-only suite must not start the unrelated capabilities request on import.
+jest.mock('./LayerAccessResolver', () => ({}));
+
 // Mirror of Mapbox's zoom-interpolate clamping: below the first stop and above the last, the value
 // is CLAMPED to the nearest stop rather than extrapolated.
 function radiusAtZoom(ramp, zoom) {

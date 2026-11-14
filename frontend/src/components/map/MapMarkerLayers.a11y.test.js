@@ -5,10 +5,19 @@
  * card must open on keyboard focus too. These tests pin that contract.
  */
 import React from 'react';
+jest.mock('react-router-dom', () => jest.requireActual('react-router'), { virtual: true });
 import { render, screen, fireEvent } from '@testing-library/react';
 import MapMarkerLayers, {
   spotGlyphAriaLabel, clusterBubbleAriaLabel, photographerAriaLabel,
 } from './MapMarkerLayers';
+import { getCachedTideState } from './tideClient';
+
+// Accessibility checks do not acquire remote tide data on focus. The real client has
+// separate contract coverage; a completed empty cache keeps this boundary offline.
+jest.mock('./tideClient', () => ({
+  ...jest.requireActual('./tideClient'), getCachedTideState: jest.fn(() => null),
+}));
+beforeEach(() => getCachedTideState.mockReturnValue(null));
 
 // react-map-gl/maplibre resolves to src/testMocks/reactMapGlMaplibre.js (moduleNameMapper in
 // craco.config.js) — Marker renders as a passthrough div in jsdom.

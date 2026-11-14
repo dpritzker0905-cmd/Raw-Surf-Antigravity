@@ -10,6 +10,8 @@
  */
 import fs from 'fs';
 import path from 'path';
+import { parse } from '@babel/parser';
+import traverse from '@babel/traverse';
 import { WIND_OPAQUE_CANVAS_KILL, windKeepsCanvasOpaque, blendIntoMap } from './windCanvasAlpha';
 
 const { APP_PAGE, pageOf, alphaOf, foldAlpha, alphaWarning } = require('../../../scripts/wind-bench/page-colour');
@@ -63,10 +65,16 @@ describe('the facts the finding rests on', () => {
     const page = read(FRONTEND, 'src', 'components', 'MapPage.js'), webgl = read(MAP, 'MapWebGL.js');
     expect(page).toMatch(/<div className="absolute inset-0 z-0" data-testid="map-container">\s*<MapWebGL/);
     expect(page.match(/<MapWebGL\b/g)).toHaveLength(1);                                             // one host of the map, so one page
-    expect(webgl).toMatch(/return \(\s*<div style=\{\{ position: 'relative', width: '100%', height: '100%' \}\}>\s*<TruthOverlay/);
-    const map = webgl.slice(webgl.search(/<Map\r?\n/));
-    expect(map.slice(0, map.indexOf('>'))).toContain('style={{ width: \'100%\', height: \'100%\' }}');
-    expect(map.slice(0, map.indexOf('>'))).not.toMatch(/background/i);
+    // The transparent host is the invariant; diagnostic children may be extracted or gated.
+    expect(webgl).toMatch(/return \(\s*<div style=\{\{ position: 'relative', width: '100%', height: '100%' \}\}>/);
+    // Parse JSX so an inline callback's => cannot truncate the opening tag.
+    const maps = [];
+    traverse(parse(webgl, { sourceType: 'module', plugins: ['jsx'] }), {
+      JSXOpeningElement({ node }) { if (node.name.name === 'Map') maps.push(webgl.slice(node.start, node.end)); },
+    });
+    expect(maps).toHaveLength(1);
+    expect(maps[0]).toContain('style={{ width: \'100%\', height: \'100%\' }}');
+    expect(maps[0]).not.toMatch(/background/i);
   });
 });
 

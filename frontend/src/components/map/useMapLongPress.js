@@ -1,6 +1,6 @@
 import { useEffect, useRef } from 'react';
 
-export function useMapLongPress({ mapInstance, onMapLongPress }) {
+export function useMapLongPress({ mapInstance, onMapLongPress, enabled = true }) {
   const longPressRef = useRef(onMapLongPress);
 
   // Avoid stale closures in listeners
@@ -9,10 +9,12 @@ export function useMapLongPress({ mapInstance, onMapLongPress }) {
   }, [onMapLongPress]);
 
   useEffect(() => {
-    if (!mapInstance) return;
+    if (!mapInstance || !enabled) return;
 
     // Desktop: Context menu right click
     const handleContextMenu = (e) => {
+      // MapLibre suppresses the browser menu before some delayed contextmenu events.
+      // Feature pins stop DOM propagation in capture; native defaultPrevented is not a mode gate.
       e.preventDefault();
       if (e && e.lngLat) {
         let lat = undefined;
@@ -37,6 +39,8 @@ export function useMapLongPress({ mapInstance, onMapLongPress }) {
     let touchStartPos = null;
 
     const handleTouchStart = (e) => {
+      clearTimeout(touchTimer);
+      touchStartPos = null;
       if (e.touches.length !== 1) return;
       const t = e.touches[0];
       touchStartPos = { x: t.clientX, y: t.clientY };
@@ -62,12 +66,16 @@ export function useMapLongPress({ mapInstance, onMapLongPress }) {
     canvas.addEventListener('touchstart', handleTouchStart, { passive: true });
     canvas.addEventListener('touchmove', handleTouchMove, { passive: true });
     canvas.addEventListener('touchend', handleTouchEnd, { passive: true });
+    canvas.addEventListener('touchcancel', handleTouchMove, { passive: true });
 
     return () => {
+      clearTimeout(touchTimer);
+      touchStartPos = null;
       mapInstance.off('contextmenu', handleContextMenu);
       canvas.removeEventListener('touchstart', handleTouchStart);
       canvas.removeEventListener('touchmove', handleTouchMove);
       canvas.removeEventListener('touchend', handleTouchEnd);
+      canvas.removeEventListener('touchcancel', handleTouchMove);
     };
-  }, [mapInstance]);
+  }, [mapInstance, enabled]);
 }

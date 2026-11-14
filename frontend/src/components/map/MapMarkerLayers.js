@@ -8,12 +8,13 @@
  *   - Dispatch tracking (photographer + surfer)
  *   - Friends on map
  */
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 // ContentMarker, not react-map-gl's Marker: the wrapper is positioning, the inner <button> is the control
 // (MapLibre's wrapper role=button around it was axe nested-interactive, W-10 R5).
 import { ContentMarker as Marker } from './ContentMarker';
 import { getHeightUnit, formatHeightFromMeters } from './heightUnits';
 import { getCachedTideState, ensureTideState, formatTideLine, trendArrow } from './tideClient';
+import { MapPersonContextCard, useExplorePinContext } from './MapPersonContext';
 
 /**
  * ACCESSIBILITY (user mandate 2026-07-14, §0a item 1): the rating glyph is the map's core data
@@ -86,11 +87,22 @@ var MapMarkerLayers = ({
   pulsingMarkers,
   onSpotClick,
   onPhotographerClick,
+  onFriendClick,
   mapRef,
   surfMode = false,
   spotRatings = null,
   clusterRatings = null,
+  exploreContextEnabled = null,
 }) => {
+  const personContext = useExplorePinContext(exploreContextEnabled);
+  const FriendMarker = onFriendClick || exploreContextEnabled != null ? 'button' : 'div';
+  const contextPerson = useMemo(() => {
+    const selected = personContext.person;
+    if (!selected) return null;
+    const value = (selected.kind === 'friend' ? friendsOnMap : livePhotographers)?.find(person => person.id === selected.value.id);
+    return value ? { ...selected, value } : null;
+  }, [personContext.person, friendsOnMap, livePhotographers]);
+  useEffect(() => { if (personContext.person && !contextPerson) personContext.close('if-focused'); }, [personContext, contextPerson]);
   const [hoveredSpotId, setHoveredSpotId] = useState(null);
   // ft/m display preference (the heightUnits.js event pattern) so the detail card's readouts
   // follow the preference-row pill live, without a remount.
@@ -186,6 +198,10 @@ var MapMarkerLayers = ({
               onMouseLeave={() => setHoveredSpotId(null)}
               onFocus={() => { setHoveredSpotId(cluster.id); if (rating && !rating.tide) requestFallbackTide(lat, lng); }}
               onBlur={() => setHoveredSpotId(null)}
+              onContextMenuCapture={exploreContextEnabled == null ? undefined : event => {
+                event.preventDefault(); event.stopPropagation(); onSpotClick?.(cluster.spot);
+                mapRef.current.flyTo({ center: [lng, lat], zoom: 14, pitch: 45, duration: 1500 });
+              }}
               onClick={(e) => {
                 e.stopPropagation();
                 e.preventDefault();
@@ -325,6 +341,7 @@ var MapMarkerLayers = ({
               type="button"
               className={`relative w-12 h-12 cursor-pointer rounded-full ${BUTTON_RESET} ${FOCUS_RING}`}
               aria-label={photographerAriaLabel(p)}
+              {...personContext.handlers(p, 'photographer')}
               onClick={(e) => {
                 e.stopPropagation();
                 if (onPhotographerClick) onPhotographerClick(p);
@@ -394,11 +411,14 @@ var MapMarkerLayers = ({
       {/* Friends on Map */}
       {friendsOnMap && friendsOnMap.length > 0 && friendsOnMap.map(friend => (
         <Marker key={`friend-${friend.id}`} longitude={friend.longitude} latitude={friend.latitude} anchor="bottom">
-          <div className="relative cursor-pointer hover:scale-110 transition-transform motion-reduce:transition-none">
+          <FriendMarker type={FriendMarker === 'button' ? 'button' : undefined} role={FriendMarker === 'div' ? 'img' : undefined} aria-label={`${friend.full_name || 'Friend'} — friend on map`}
+            {...personContext.handlers(friend, 'friend')}
+            onClick={event => { event.stopPropagation(); onFriendClick?.(friend); }}
+            className={`relative cursor-pointer hover:scale-110 transition-transform motion-reduce:transition-none rounded-full ${BUTTON_RESET} ${FOCUS_RING}`}>
             <div className="w-10 h-10 rounded-full p-[2px] bg-gradient-to-r from-pink-500 to-rose-400 shadow-lg">
               <div className="w-full h-full rounded-full bg-black overflow-hidden border border-zinc-800">
                 {friend.avatar_url ? (
-                  <img src={friend.avatar_url} alt={friend.full_name || 'Friend'} className="w-full h-full object-cover" />
+                  <img src={friend.avatar_url} alt="" className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-white bg-zinc-800">
                     {friend.full_name?.charAt(0) || '?'}
@@ -406,9 +426,10 @@ var MapMarkerLayers = ({
                 )}
               </div>
             </div>
-          </div>
+          </FriendMarker>
         </Marker>
       ))}
+      <MapPersonContextCard person={contextPerson} onClose={personContext.close} onPhotographerClick={onPhotographerClick} />
     </>
   );
 };

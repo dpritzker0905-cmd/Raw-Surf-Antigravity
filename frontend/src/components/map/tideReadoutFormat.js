@@ -5,7 +5,7 @@
  */
 import { formatHeightFromMeters } from './heightUnits';
 
-export const TIDE_FOOTER = 'Open-Meteo model sea level (MSL), ~11 km cell, not an official tide table; event times UTC';
+export const TIDE_FOOTER = 'Modeled sea level · MSL';
 export const TIDE_SOLAR_NOTE = 'times approx. (local solar time)';
 export const TIDE_UNAVAILABLE = 'Modeled sea level unavailable for selected time';
 

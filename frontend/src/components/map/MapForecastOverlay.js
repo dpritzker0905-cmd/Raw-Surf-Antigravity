@@ -43,6 +43,7 @@ import { InfoboxSpotChart } from '../spot-hub/charts/SpotChartPanel';
 
 export const MapForecastOverlay = ({
   forecastData,
+  visible = true,
   marineData,
   renderMarineData,
   currentWeather,
@@ -614,7 +615,7 @@ export const MapForecastOverlay = ({
   }
 
   // `timeOffsetHours` dep added 2026-08-09: computeHeatmapStatus reads MUTABLE GLOBALS no dep can track, and the producer (publishRenderParity in marineRenderParity.js, called from WebGLMarineLayer.js) keys on [timeOffsetHours, revision, active, activeModel] — so an HOUR SCRUB, the exact action that produces a retained-stale hour, re-ran the producer and NOT this consumer.
-  const heatmapStatus = useMemo(() => reconcileStaleBadge(computeHeatmapStatus({ activeModel, activeLayer, renderMarineData }),
+  const heatmapStatus = useMemo(() => reconcileStaleBadge(computeHeatmapStatus({ activeModel, activeLayer, timeOffsetHours: Number(timeOffsetHours), renderMarineData }),
     { model: activeModel, layer: activeLayer, hour: Number(timeOffsetHours), nearestMaxHours: latticeNearestMaxHours(activeModel, Number(timeOffsetHours), { selectedMs: getSeriesAnchorMs() + Number(timeOffsetHours) * 3600000, runMs: drawnFrame && drawnFrame.runMs, layer: activeLayer }), instantMs: (() => { try { return Date.parse(getSharedValidTime(Number(timeOffsetHours), activeLayer, activeModel, { readOnly: true })); } catch (e) { return null; } })() }, drawnFrame),
   [renderMarineData, activeModel, activeLayer, timeOffsetHours, drawnFrame]);
 
@@ -655,17 +656,20 @@ export const MapForecastOverlay = ({
     return null;
   }
 
-  // This wrapper delegates Escape from its controls; the header, list and tide
-  // group retain their own semantics. The wrapper itself is not a new control.
+  // Focusable scroll region supports native keyboard scrolling. Escape delegates
+  // disclosure dismissal from descendants; it does not turn the region into a button.
   return (
+    // eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions -- Escape delegation on a keyboard-focusable scroll region.
     <div
+      inert={!visible || undefined}
+      aria-hidden={!visible || undefined}
       className={`weather-point-card absolute ${
         isImmersiveMode 
           ? (isTimelineCollapsed ? 'bottom-[80px]' : 'bottom-[170px]') 
           : (isTimelineCollapsed ? 'bottom-[140px]' : 'bottom-[230px]')
       } md:bottom-20 left-4 z-[900] rounded-xl border backdrop-blur-xl shadow-2xl ${bgClass} max-w-[200px] transition-all duration-300`}
       data-testid="forecast-overlay"
-      role="presentation"
+      role="region" aria-label="Selected point forecast" tabIndex={visible ? 0 : -1}
       data-point-details-expanded={detailsExpanded}
       ref={detailsRef} onKeyDown={onDetailsKeyDown}
     >
@@ -777,7 +781,7 @@ export const MapForecastOverlay = ({
                   <span>Heatmap Loading...</span>
                 </div>
               )}
-              <ForecastHeatmapStatus status={heatmapStatus} />
+              <ForecastHeatmapStatus status={heatmapStatus} model={activeModel} layer={activeLayer} isLight={isLight} />
             </>
           )}
         </div>
