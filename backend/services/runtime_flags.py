@@ -76,6 +76,10 @@ GUARDED = {
                                         # target-time height labelled an unrated estimate; kill '0'
     "RATING_BAND_ONE_CHAIN": "1",       # CMP-1: map rating band = estimate_surf_at on cached geometry + break depth;
                                         # band level == glyph level at 4,101 of 4,197 asset spot-seas, 0 unexplained
+    "SAMPLER_UNRESOLVED_STATIONS": "1",  # NDBC 46267 BY NAME (Strait of Juan de Fuca): "no data" at the station, not
+                                         # the open-Pacific cell 0.73 deg away (+1.5 m). Nothing else moves; kill '0'.
+                                         # GUARDRAIL BLIND: no surf spot is within 0.6 deg, so the replay reads NO_CHANGE.
+                                         # The monitor improves because the station's rows LEAVE the score
 }
 
 # FIX_VERSION: bump a flag's version in the PR that changes its fix. The guardrail's 'off' records the version it
