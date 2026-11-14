@@ -65,6 +65,7 @@ def build_product(gfs, euro, sources=(None, None)):
         is_forecast_authoritative=False, is_estimated=True, estimate_basis=basis, coverage=anchor.coverage,
         grid=NormalizedGrid(bounds=anchor.grid.bounds, cols=anchor.grid.cols, rows=anchor.grid.rows, vectors=[_stored_vector(v) for v in vectors]),
         value_kind=gfs.value_kind, value_unit=gfs.value_unit, display_unit_hint=gfs.display_unit_hint, region_id=gfs.region_id,
+        units=dict(gfs.units),   # the input's labels (m for a wave height); omitted, the schema default said "kn" (2026-11-14)
         coverage_mode=gfs.coverage_mode, tile_id=gfs.tile_id, source_variables=gfs.source_variables, freshness_sec=gfs.freshness_sec,
         source_dataset="estimated_blend")
 
