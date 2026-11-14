@@ -49,6 +49,8 @@ function combo(r) {
     staleAdmitted: sum(moved, 'staleAdmitted'), staleSilentLate: sum(moved, 'staleSilentLate'),
     mixedFrames: sum(all, 'mixed'), fadingFrames: sum(all, 'fadingFrames'), decodeErrors: (r.decodeErrors || []).length,
     stepReqMed: med(changing.map((a) => a.req || 0)), stepBytesMed: med(changing.map((a) => a.bytes || 0)),
+    // WHY (2026-11-14): the cause of every slow step (> 100 ms or timed out): the path that drew it and the own-frames refusals.
+    slowWhy: changing.filter((a) => a.msFull == null || a.msFull > 100).map((a) => `${(a.why && a.why.path) || 'none'}${a.why && Object.keys(a.why.misses || {}).length ? ':' + Object.keys(a.why.misses).sort().join('+') : ''}`),
   };
 }
 
@@ -79,7 +81,12 @@ for (const c of out) {
     + `${fmtMs(c.longMs)}${c.longTimedOut ? ' (to)' : ''} | ${fmtMs(c.backMs)} | ${fmtMs(c.reloadToggleMs)} | ${c.staleFrames} | ${c.blankFrames} | ${c.mixedFrames} | ${c.toggleReq} / ${fmtB(c.toggleBytes)} | ${c.stepReqMed} / ${fmtB(c.stepBytesMed)} |`
     + (c.error ? ` ERROR ${c.error.slice(0, 60)}` : '') + '\n';
 }
-const mdAll = `## Per layer and arm (all models and zooms)\n\n${md2}\n## Per combo\n\n${md}`;
+// SLOW-STEP CAUSES (2026-11-14): per vp, layer and arm, how many slow steps each cause produced (path: own-frames refusals).
+const why = {};
+for (const c of out) for (const w of c.slowWhy || []) { const k = `${c.vp} | ${c.layer} | ${c.arm} | ${w}`; why[k] = (why[k] || 0) + 1; }
+const md3 = '| vp | layer | arm | cause (path: refusals) | slow steps |\n|---|---|---|---|---|\n'
+  + Object.entries(why).sort((x, y) => y[1] - x[1]).map(([k, n]) => `| ${k} | ${n} |`).join('\n') + '\n';
+const mdAll = `## Per layer and arm (all models and zooms)\n\n${md2}\n## Per combo\n\n${md}\n## Slow-step causes\n\n${md3}`;
 if (opt('--md')) fs.writeFileSync(opt('--md'), mdAll);
 if (opt('--json')) {
   fs.writeFileSync(opt('--json'), JSON.stringify({ combos: out.map(({ stepList, ...c }) => c), rollup: rolls.map((g) => ({ vp: g.vp, layer: g.layer, arm: g.arm, n: g.n,

@@ -46,6 +46,12 @@ export function validDescriptor(d) {
 }
 
 const _asset = { hi: null, lo: null };
+// NOT PUBLISHED (2026-11-14, the owner's dev test: GET elevation_dz_v1.json -> 400 on every engage while the GFS temperature set had
+// never been published). The field already drew without the correction; the asset is now asked at most once per NOT_PUBLISHED_MS
+// after a 400/404, so a re-engage, a model switch or a theme change does not ask again. Any other failure retries next time.
+// Kill: window.__RAW_DISABLE_DZ_UNPUBLISHED_CACHE__ = true (every call asks again, as before).
+export const NOT_PUBLISHED_MS = 10 * 60 * 1000;
+const _notPublishedAt = { hi: 0, lo: 0 };
 /** The decoded asset ({ lattice, offset, step, lapse, variant, tiles: [{ col0, cols, rows, data }] }), or null (killed, no CDN,
  *  not published, a bad tile). `variant`: 'hi' (1/16 deg) or 'lo' (the 1/8 fallback). One load per page and variant, shared;
  *  a failure is retried on the next call. */
@@ -55,10 +61,16 @@ export function loadDownscale(variant = preferredVariant()) {
   if (_asset[v]) return _asset[v];
   const base = staticFramesBase();
   if (!base) return Promise.resolve(null);
+  if (_notPublishedAt[v] && Date.now() - _notPublishedAt[v] < NOT_PUBLISHED_MS
+    && !(typeof window !== 'undefined' && window.__RAW_DISABLE_DZ_UNPUBLISHED_CACHE__ === true)) return Promise.resolve(null);
   const t0 = typeof performance !== 'undefined' ? performance.now() : Date.now();
   _asset[v] = (async () => {
     const res = await fetch(base + (v === 'lo' ? DZ_DESCRIPTOR_LO : DZ_DESCRIPTOR), { cache: 'no-cache', credentials: 'omit' });
-    if (!res.ok) { miss(res.status === 404 || res.status === 400 ? 'not_published' : `http_${res.status}`); return null; }
+    if (!res.ok) {
+      const unpublished = res.status === 404 || res.status === 400;
+      if (unpublished) _notPublishedAt[v] = Date.now();
+      miss(unpublished ? 'not_published' : `http_${res.status}`); return null;
+    }
     const d = await res.json();
     if (!validDescriptor(d)) { miss('bad_descriptor'); return null; }
     let wire = 0;
@@ -91,4 +103,4 @@ export function setDownscaled(layer, on) {
 export const getDownscaled = () => _on;
 export function subscribeDownscaled(fn) { _subs.add(fn); return () => _subs.delete(fn); }
 
-export function _resetDownscaleForTest() { _asset.hi = null; _asset.lo = null; _on = Object.freeze({}); _subs.clear(); }
+export function _resetDownscaleForTest() { _asset.hi = null; _asset.lo = null; _notPublishedAt.hi = 0; _notPublishedAt.lo = 0; _on = Object.freeze({}); _subs.clear(); }

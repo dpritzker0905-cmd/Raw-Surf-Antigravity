@@ -68,7 +68,7 @@ const DATE_SHIM = (offset) => {
 };
 
 const SAMPLER = () => {
-  const R = (window.__RL__ = { on: false, layer: null, frames: [], keys: [], marks: [], want: null, wv: 0, axes: {}, last: null });
+  const R = (window.__RL__ = { on: false, layer: null, frames: [], keys: [], marks: [], want: null, wv: 0, axes: {}, last: null, post: [], postHooked: false });
   const PRECIP = { GFS: 'ncep_gfs013', ICON: 'dwd_icon', EURO: 'ecmwf_ifs025' };
   const OMM = { GFS: 'ncep_gfs025', ICON: 'dwd_icon', EURO: 'ecmwf_ifs025' };
   // useOpenMeteoTileUrls.resolveModel, mirrored (atmospheric cutovers ICON 168 h, EURO 228 h; fog pinned; water temp on ICON -> GFS).
@@ -116,6 +116,10 @@ const SAMPLER = () => {
   // Is a "Loading ... still showing ..." line on screen (the status under the timeline, any layout)? 1 = a stale frame ADMITTED.
   R.admitted = () => ([...document.querySelectorAll('[role="status"][data-drawn-state="pending"]')].some((el) => el.offsetParent !== null) ? 1 : 0);
   R.wheel = () => [...document.querySelectorAll('[role="slider"][aria-label*="timeline wheel"]')].find((el) => el.offsetParent !== null) || null;
+  // ASK TIME (2026-11-14): the expected frame is the nearest to (the clock WHEN the target was set) + hour, as the app picks
+  // once per step; recomputing it from the running clock flipped the expectation mid-step whenever the clock crossed an
+  // axis midpoint (EURO's 3-hourly 07:30), reading a correct frame as stale until timeout. Both arms alike.
+  const askOf = (W) => (W.askAt != null ? W.askAt : Date.now()) + W.hour * 3600000;
   R.sampleOM = (m) => {
     const L = R.layer; let vis = -1;
     for (let i = 0; i < 3; i++) {
@@ -131,7 +135,7 @@ const SAMPLER = () => {
     const W = R.want; let ok = false; let exp = null;
     if (W) {
       const em = R.expModel(L, W.model, W.hour); const vt = R.axes[em];
-      const ei = vt ? closest(vt, Date.now() + W.hour * 3600000) : null; exp = em + ':' + ei;
+      const ei = vt ? closest(vt, askOf(W)) : null; exp = em + ':' + ei;
       ok = p.model === em && p.idx === ei;
     }
     // The tiles on screen belong to the URL only if the source's tile template does (an aborted TileJSON leaves a source
@@ -154,7 +158,7 @@ const SAMPLER = () => {
     const sh = t.shown; const wt = t.want; const vms = (t.pin && t.pin.validMs) || [];
     const W = R.want; let exp = null;
     if (W && vms.length) {
-      const ask = Date.now() + W.hour * 3600000; let best = null; let bd = Infinity;
+      const ask = askOf(W); let best = null; let bd = Infinity;
       for (const v of vms) { const d = Math.abs(v - ask); if (d <= 3 * 3600000 && d < bd) { bd = d; best = v; } }
       exp = best;
     }
@@ -178,6 +182,13 @@ const SAMPLER = () => {
   const loop = (t) => {
     if (R.on) {
       const m = window.__MAP_INSTANCE__ || window.map;
+      // POST-RENDER DIAGNOSTIC (2026-11-14; NOT the pre-registered gate): own frames are cut inside MapLibre's render, which runs
+      // AFTER this rAF callback in the same frame, so the sample above sees the previous frame for one sample per step even when
+      // the painted frame is right. A second reading on the map's 'render' event (after the draw) is kept apart as post*.
+      if (m && !R.postHooked && typeof m.on === 'function') {
+        R.postHooked = true;
+        m.on('render', () => { try { if (R.on && R.layer !== 'radar' && m.getLayer(`own-raster-${R.layer}`)) R.post.push([performance.now(), R.sampleOwn(m).cls, R.wv]); } catch (e) { /* diagnostic only */ } });
+      }
       if (m && m.style) {
         let s;
         try { s = R.layer === 'radar' ? R.sampleRadar(m) : (m.getLayer(`own-raster-${R.layer}`) ? R.sampleOwn(m) : R.sampleOM(m)); } catch (e) { s = { cls: 'x', err: String(e).slice(0, 80) }; }
@@ -209,6 +220,16 @@ async function waitFull(page, rr, timeout) {
     streak = cls === 'o' ? streak + 1 : 0;
     return streak >= 3;
   }, timeout);
+}
+
+// The post-render diagnostic for one action: renders under its target before the first correct one (own layers only; null
+// when the map drew none, e.g. the .om path).
+function postOf(post, t0, t1, wv) {
+  const seg = (post || []).filter((p) => p[0] >= t0 && p[0] < t1 && p[2] === wv);
+  if (!seg.length) return { postStale: null, postBlank: null };
+  const i = seg.findIndex((p) => p[1] === 'o');
+  const before = i < 0 ? seg : seg.slice(0, i);
+  return { postStale: before.filter((p) => p[1] === 's').length, postBlank: before.filter((p) => p[1] === 'b').length, postFull: i < 0 ? null : Math.round(seg[i][0] - t0) };
 }
 
 // Only frames sampled under this action's own target (want version) count: the next target is set a few frames before its key.
@@ -287,7 +308,7 @@ async function runCombo(rr, offset, vpName, layer, model, zoom, base = L.BASE, a
     const wall0 = Date.now();
     const truth0 = await page.evaluate(TRUTH);
     const tToggle = await page.evaluate(({ layer, model }) => {
-      const R = window.__RL__; R.layer = layer; R.want = { hour: 0, model }; R.wv = 1; R.on = true;
+      const R = window.__RL__; R.layer = layer; R.want = { hour: 0, model, askAt: Date.now() }; R.wv = 1; R.on = true;
       const t = performance.now(); R.marks.push([t, 'toggle']); window.toggleLayer(layer); return t;
     }, { layer, model });
     const msToggle = await waitFull(page, rr, TOGGLE_TIMEOUT);
@@ -296,8 +317,36 @@ async function runCombo(rr, offset, vpName, layer, model, zoom, base = L.BASE, a
     // The timeline wheel mounts once a layer is on.
     hasWheel = await page.evaluate(() => !!window.__RL__.wheel());
     res.hasWheel = hasWheel;
+    // RESPONSIVE PHONE DRAWER (dev since the map UI drawers, 2026-11): the mobile timeline body is `inert` + aria-hidden until
+    // its drawer is opened, so the visible wheel cannot take focus and ArrowRight lands on <body> (every step then reads stale,
+    // in every arm). Open it once through its own handle, as a user would; a build without the drawer has no handle: no-op.
+    res.drawerOpened = await page.evaluate(() => {
+      const body = document.getElementById('weather-mobile-timeline-body');
+      if (!body || !(body.inert || body.hasAttribute('inert'))) return false;
+      const h = [...document.querySelectorAll('button[aria-controls="weather-mobile-timeline-body"][aria-expanded="false"]')]
+        .find((b) => b.offsetParent !== null && /Open timeline/.test(b.getAttribute('aria-label') || ''));
+      if (!h) return 'no_handle';
+      h.click();
+      return true;
+    });
+    if (res.drawerOpened === true) {
+      await waitFor(page, () => page.evaluate(() => { const b = document.getElementById('weather-mobile-timeline-body'); return !!b && !b.inert; }), 3000, 100);
+      await sleep(600);
+    }
     // Wheel focus (desktop and phone alike: the key path is the wheel's own commit path).
     let hour = 0; let radarPrev = null;
+    // WHY (2026-11-14, the fog/temp/water_temp instant lane): per step, which path drew the frame (own frames from our CDN, or
+    // the Open-Meteo .om path) and the own-frames refusals counted during the step (ownRasterFrames.noteMiss), so a slow step
+    // carries its cause. `why.path`: 'own' | 'om' | 'other' | null (nothing drawn); `why.misses`: the counters that moved.
+    const snapWhy = () => page.evaluate(() => {
+      const o = window.__RAW_OWN_RASTER__ || {}; const d = window.__RASTER_DRAWN__ || {};
+      return { misses: { ...(o.misses || {}) }, shownUrl: (d.shown && d.shown.url) || null, ownShown: (o.shown && o.shown.path) || null };
+    });
+    const whyOf = (w0, w1) => {
+      const misses = {}; for (const k of Object.keys(w1.misses)) { const n = w1.misses[k] - (w0.misses[k] || 0); if (n > 0) misses[k] = n; }
+      const url = String(w1.shownUrl || '');
+      return { path: url.startsWith('om://') ? 'om' : (w1.ownShown && w1.ownShown !== w0.ownShown ? 'own' : (w1.ownShown ? 'own' : (url ? 'other' : null))), misses };
+    };
     const doStep = async (kind, i) => {
       const before = await page.evaluate(() => { const w = window.__RL__.wheel() || document.querySelector('[role="slider"][aria-label*="timeline wheel"]'); return { v: w ? Number(w.getAttribute('aria-valuenow')) : null, max: w ? Number(w.getAttribute('aria-valuemax')) : null, id: window.__RL__.last && window.__RL__.last.id }; });
       radarPrev = before.id;
@@ -307,10 +356,11 @@ async function runCombo(rr, offset, vpName, layer, model, zoom, base = L.BASE, a
       if (layer === 'radar') target = kind === 'long' ? before.max : (before.v == null ? null : before.v + RADAR_DIR);
       else target = kind === 'long' ? hour + LONG_JUMP_H : kind === 'back' ? 0 : hour + 1;
       const wv = await page.evaluate(({ target, model, prevId, radar }) => {
-        window.__RL__.want = radar ? { prevId, model } : { hour: target, model };
+        window.__RL__.want = radar ? { prevId, model } : { hour: target, model, askAt: Date.now() };
         window.__RL__.wv += 1; return window.__RL__.wv;
       }, { target, model, prevId: radarPrev, radar: layer === 'radar' });
       const truth = await page.evaluate(TRUTH);
+      const why0 = await snapWhy();
       const wall = Date.now();
       let t;
       if (hasWheel) {
@@ -330,14 +380,15 @@ async function runCombo(rr, offset, vpName, layer, model, zoom, base = L.BASE, a
       }
       if (layer !== 'radar') hour = target;
       const ms = await waitFull(page, rr, STEP_TIMEOUT);
+      const why = whyOf(why0, await snapWhy());
       await sleep(DWELL);
-      actions.push({ kind, i, t, wall, target, timedOut: ms == null, truth, wv });
+      actions.push({ kind, i, t, wall, target, timedOut: ms == null, truth, wv, why });
     };
     for (let i = 0; i < STEPS; i++) await doStep('step', i);
     await doStep('long', STEPS);
     if (BACK && layer !== 'radar') await doStep('back', STEPS + 1);
     const truthEnd = await page.evaluate(TRUTH);
-    const page_ = await page.evaluate(() => ({ frames: window.__RL__.frames, keys: window.__RL__.keys }));
+    const page_ = await page.evaluate(() => ({ frames: window.__RL__.frames, keys: window.__RL__.keys, post: window.__RL__.post }));
     if (process.env.DUMP) fs.writeFileSync(path.join(OUT, `frames-${vpName}-${layer}-${model}-z${zoom}.json`), JSON.stringify({ frames: page_.frames, actions }));
     const tEnd = page_.frames.length ? page_.frames[page_.frames.length - 1][0] + 1 : 0;
     const wallEnd = Date.now();
@@ -347,7 +398,7 @@ async function runCombo(rr, offset, vpName, layer, model, zoom, base = L.BASE, a
       const net = rr.window(a.wall, next ? next.wall : wallEnd);
       const tb = next ? next.truth : truthEnd;
       return { kind: a.kind, i: a.i, target: a.target, timedOut: a.timedOut, ...c, req: net.n, bytes: net.bytes, live: net.live, refused: net.refused, byHost: net.byHost,
-        decodes: tb[0] - a.truth[0], tileCacheHits: tb[1] - a.truth[1] };
+        decodes: tb[0] - a.truth[0], tileCacheHits: tb[1] - a.truth[1], why: a.why || null, ...postOf(page_.post, a.t, next ? next.t : Infinity, a.wv) };
     });
     if (RELOAD && layer !== 'radar') {
       // Same browser, new page load: the in-memory caches are gone, Cache Storage is not. Toggle the layer on at hour 0 again.
@@ -359,7 +410,7 @@ async function runCombo(rr, offset, vpName, layer, model, zoom, base = L.BASE, a
       await sleep(1500);
       const w1 = Date.now();
       const t1 = await page.evaluate(({ layer, model }) => {
-        const R = window.__RL__; R.layer = layer; R.want = { hour: 0, model }; R.wv = 1; R.on = true;
+        const R = window.__RL__; R.layer = layer; R.want = { hour: 0, model, askAt: Date.now() }; R.wv = 1; R.on = true;
         const t = performance.now(); window.toggleLayer(layer); return t;
       }, { layer, model });
       const ms1 = await waitFull(page, rr, TOGGLE_TIMEOUT);

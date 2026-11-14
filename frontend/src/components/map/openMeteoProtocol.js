@@ -187,6 +187,26 @@ function getLandGeoJSONOnce() {
   return LAND_GEOJSON_PROMISE;
 }
 
+/** The land mask for an nx x ny lattice (rows south first), once built: the own-frames water temperature path (ownRasterFrames.
+ *  landFill) waits for it so its first frame is never drawn with coastal land heat. null when it cannot be built (no
+ *  OffscreenCanvas, a failed build) or after `timeoutMs`. */
+export function landCellMaskReady(nx, ny, bounds, { timeoutMs = 8000 } = {}) {
+  const m = ensureLandCellMask(nx, ny, bounds);
+  if (m) return Promise.resolve(m);
+  if (typeof OffscreenCanvas === 'undefined') return Promise.resolve(null);
+  const key = `${nx}x${ny}`;
+  const t0 = Date.now();
+  return new Promise((resolve) => {
+    const tick = () => {
+      const e = LAND_CELL_MASKS[key];
+      if (e && e.mask) { resolve(e.mask); return; }
+      if (!e || e.failed || Date.now() - t0 > timeoutMs) { resolve(null); return; }
+      setTimeout(tick, 50);
+    };
+    tick();
+  });
+}
+
 function ensureLandCellMask(nx, ny, bounds) {
   const key = `${nx}x${ny}`;
   const existing = LAND_CELL_MASKS[key];
@@ -241,6 +261,7 @@ function ensureLandCellMask(nx, ny, bounds) {
         try { window.dispatchEvent(new CustomEvent('rawsurf:wt-landmask-ready')); } catch (e) { /* noop */ }
       }
     } catch (err) {
+      entry.failed = true;
       console.warn('[OM-Protocol] Water-temp land mask build failed (halo fix inactive):', err && err.message);
     }
   })();

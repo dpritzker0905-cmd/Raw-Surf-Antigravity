@@ -10,11 +10,12 @@
  * Per scrub step: the frame for Date.now() + offset (the .om path's own clock), the window around it in the scrub direction
  * (ownRasterFrames.planWindow), already-decoded fields offered to the layer at once, the rest pumped in priority order.
  */
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CUSTOM_COLOR_SCALES, applyPrecipColorScale, applyThemePressureScale } from './colorScales';
 import {
   createOwnRasterLayer, buildStepLut, PRESSURE_LUT, PRESSURE_OPACITY_STOPS, TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS,
-  CLOUD_LUT, SATELLITE_OPACITY_STOPS, RAIN_LUT, RAIN_OPACITY_STOPS, scaleForTheme,
+  CLOUD_LUT, SATELLITE_OPACITY_STOPS, RAIN_LUT, RAIN_OPACITY_STOPS, FOG_LUT, FOG_OPACITY_STOPS, WATER_TEMP_LUT, waterTempOpacityStops,
+  scaleForTheme,
 } from './ownRasterLayer';
 import { getRasterDrawn, publishRasterDrawn, rasterReadoutKilled } from './rasterDrawnFrame';
 import { requestIsobars } from './isobarStore';
@@ -29,7 +30,7 @@ export const ownLayerId = (layer) => `own-raster-${layer}`;
 // The colour scale the .om path draws for each layer, theme applied (the same object openMeteoProtocol hands the library).
 // Air temperature has no app override: the .om path draws the tile library's own 'temperature' scale (not theme-varied), read
 // from the settings openMeteoProtocol registered (window.__OM_PROTOCOL_SETTINGS__), else from the library itself (step 3).
-const LIB_SCALE = { temperature: 'temperature', satellite: 'cloud_cover' };
+const LIB_SCALE = { temperature: 'temperature', satellite: 'cloud_cover', water_temp: 'sea_surface_temperature' };
 const registeredScale = (name) => {
   const s = typeof window !== 'undefined' ? window.__OM_PROTOCOL_SETTINGS__ : null;
   return (s && s.colorScales && s.colorScales[name]) || null;
@@ -41,16 +42,32 @@ const SCALES = {
   satellite: (theme) => scaleForTheme(registeredScale(LIB_SCALE.satellite), theme),
   // precipitation: the app's own ramp, the object the .om path draws (not theme-varied; applyPrecipColorScale honours its kill)
   rain: () => { applyPrecipColorScale(); return CUSTOM_COLOR_SCALES.precipitation; },
+  // fog: the app's forced custom `visibility` scale (the object the .om path registers), not theme-varied
+  fog: () => registeredScale('visibility') || CUSTOM_COLOR_SCALES.visibility || null,
+  // water temp: the .om path's surface_temperature = the library's sea_surface_temperature (colorScales.aliasSurfaceTemperature)
+  water_temp: () => registeredScale('surface_temperature') || registeredScale(LIB_SCALE.water_temp),
 };
-const LUTS = { pressure: PRESSURE_LUT, temperature: TEMPERATURE_LUT, satellite: CLOUD_LUT, rain: RAIN_LUT };
+const LUTS = { pressure: PRESSURE_LUT, temperature: TEMPERATURE_LUT, satellite: CLOUD_LUT, rain: RAIN_LUT, fog: FOG_LUT, water_temp: WATER_TEMP_LUT };
 // Each layer's .om slot ramp ('raster-opacity' over zoom in MapWebGL; pinned by ownRasterLayer.test.js).
-// Layers drawn terrain-adjusted (ownRasterDownscale.js): air temperature only.
+// Layers drawn terrain-adjusted (ownRasterDownscale.js): air temperature only, and GFS only: the elevation asset is real ground
+// minus GFS's own 0.5-degree terrain, so it would mis-correct ECMWF or ICON temperatures (their model terrain differs).
 const DOWNSCALED = { temperature: true };
+const downscaled = (layer, model) => !!DOWNSCALED[layer] && model === 'GFS';
 const OPACITY = {
   pressure: PRESSURE_OPACITY_STOPS, temperature: TEMPERATURE_OPACITY_STOPS, satellite: SATELLITE_OPACITY_STOPS, rain: RAIN_OPACITY_STOPS,
+  fog: FOG_OPACITY_STOPS, water_temp: waterTempOpacityStops,
 };
+const opacityOf = (layer) => (typeof OPACITY[layer] === 'function' ? OPACITY[layer]() : OPACITY[layer]);
 // Isobar ink per theme (only drawn with window.__RAW_OWN_RASTER_ISOBARS__ set; off by default).
 const ISO_INK = { dark: [1, 1, 1, 0.5], beach: [0.24, 0.18, 0.12, 0.5], light: [0.12, 0.16, 0.24, 0.5] };
+
+export const sameFrameOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_OWN_SAME_FRAME__ === true);
+// SCOPE (2026-11-14, the advisor's red-team of #889): the handover and the same-frame step apply ONLY to the layers this lane
+// built (default-OFF pending the owner, reachable with the lever). Pressure and satellite are live defaults with no before/after
+// measurement of either change (the handover also starts their .om path on a cold toggle: extra Open-Meteo requests and a decode
+// thrown away), so they and rain keep dev's exact behaviour until a measured batch of their own.
+export const HANDOVER_LAYERS = Object.freeze(['fog', 'temperature', 'water_temp']);
+const handoverLayer = (layer) => HANDOVER_LAYERS.includes(layer);
 
 export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffsetHours, theme, beforeId }) {
   const M = String(model || 'GFS').toUpperCase();
@@ -62,6 +79,12 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
   const [gen, setGen] = useState(0);          // bumps each time the GL layer is (re)added: the step effect re-offers fields
   const ref = useRef({ layerObj: null, prevOffset: null, dir: 1, shownRec: null, wantRec: null, byPath: new Map() });
   const engaged = wanted && !failed;
+  const useStepEffect = useRef(handoverLayer(layer) && sameFrameOn() ? useLayoutEffect : useEffect).current;
+  // HANDOVER (2026-11-14): the .om path keeps drawing until OUR layer has drawn a frame of this engagement; only then does the
+  // hook report it (MapWebGL drops the layer from the .om list on that report). A cold toggle, an unpublished set or a slow
+  // index read therefore never shows a blank map. Kill: window.__RAW_DISABLE_RASTER_OWN_HANDOVER__ = true (report at once).
+  const [shown, setShown] = useState(false);
+  useEffect(() => { if (!engaged) setShown(false); }, [engaged]);
 
   useEffect(() => { if (!wanted) setFailed(false); }, [wanted]);
   useEffect(() => { setFailed(false); }, [M]);        // a model without a published set fails alone: switching back retries
@@ -137,7 +160,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
       try {
         if (mapInstance.getLayer(id)) return;
         st.layerObj = createOwnRasterLayer({
-          id, lutMap: LUTS[layer], opacityStops: OPACITY[layer], shaderIsobars: layer === 'pressure',
+          id, lutMap: LUTS[layer], opacityStops: opacityOf(layer), shaderIsobars: layer === 'pressure',
           // the full elevation asset cannot be held on this device: the 1/8-deg fallback (ownRasterDownscale.js)
           onDownscaleFail: (why) => { noteMiss(`dz_${why}`); st.dzVariant = 'lo'; setGen((g) => g + 1); },
           onFail: (why) => { noteMiss(`gl_${why}`); setFailed(true); },
@@ -149,7 +172,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
           st.shownRec = { url: path, dataMs: field ? field.validMs : NaN, model: e ? e.model : M, estimated: e ? e.estimated : null,
             nearestMaxHours: st.nearestMaxHours || 1 };
           emitOwnShown(layer, path);                     // synchronous: the isobars cut with the field, in the same frame
-          Promise.resolve().then(() => { publish(); setEngaged(layer, st.shownRec ? st.shownRec.model : M); });
+          Promise.resolve().then(() => { publish(); setEngaged(layer, st.shownRec ? st.shownRec.model : M); if (path) setShown(true); });
         });
         const before = beforeId && mapInstance.getLayer(beforeId) ? beforeId : undefined;
         mapInstance.addLayer(st.layerObj, before);
@@ -192,17 +215,22 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
   // field draws as is until then. Kill: window.__RAW_DISABLE_RASTER_TEMP_DOWNSCALE__ = true.
   useEffect(() => {
     const L = ref.current.layerObj;
-    if (!engaged || !L || !DOWNSCALED[layer]) return undefined;
+    if (!engaged || !L || !downscaled(layer, M)) return undefined;
     let alive = true;
     loadDownscale(ref.current.dzVariant).then((asset) => {
       if (!alive || ref.current.layerObj !== L || !asset) return;
       if (L.setDownscale(asset)) setDownscaled(layer, true);
     });
-    return () => { alive = false; setDownscaled(layer, false); };
-  }, [engaged, layer, gen]);
+    // The layer outlives a model switch (its GL effect does not depend on the model): clear the correction on the way out, so a
+    // switch to EURO or ICON never keeps GFS's terrain correction on another model's field.
+    return () => { alive = false; setDownscaled(layer, false); if (ref.current.layerObj === L) L.setDownscale(null); };
+  }, [engaged, layer, gen, M]);
 
   // 4. Each step: the frame for the asked time, the window around it, the hard cut when it is resident.
-  useEffect(() => {
+  // SAME FRAME (2026-11-14): a LAYOUT effect, so the layer is told the new frame in the same commit that paints the new time
+  // label, before that paint (a passive effect ran after it: the label led the field by one painted frame on every step).
+  // Kill: window.__RAW_DISABLE_RASTER_OWN_SAME_FRAME__ = true (read once per mount: the effect kind never changes mid-life).
+  useStepEffect(() => {
     const st = ref.current;
     const L = st.layerObj;
     if (!engaged || !index || !L) return;
@@ -241,5 +269,6 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     setWanted(layer, win, (path, field) => { const now = ref.current.layerObj; if (now) now.offerField(path, field); if (iso) iso(path, field); });
   }, [engaged, index, fbIndex, timeOffsetHours, layer, M, gen]);
 
-  return engaged;
+  if (!handoverLayer(layer) || (typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_OWN_HANDOVER__ === true)) return engaged;
+  return engaged && shown;
 }

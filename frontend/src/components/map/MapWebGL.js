@@ -55,8 +55,7 @@ import { useSpotRatings, computeClusterRatings } from './useSpotRatings';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
 import { useSatelliteBackgroundSync } from './useSatelliteBackgroundSync';
 import { useOpenMeteoTileUrls } from './useOpenMeteoTileUrls';
-import { useOwnRasterFrames } from './useOwnRasterFrames';
-import { usePressureIsobars } from './usePressureIsobars';
+import { useOwnRasterLayers } from './useOwnRasterLayers';
 import { useMapObservability } from './useMapObservability';
 import { useMapDebugTools } from './useMapDebugTools';
 import { useWebGLGuardrail } from './useWebGLGuardrail';
@@ -245,21 +244,8 @@ const MapWebGL = ({
 
   const animFrameRef = useRef(null);
   
-  // Own raster frames (2026-10-23, DARK: window.__RAW_RASTER_OWN_FRAMES__): pressure drawn from our CDN frames (free NOAA GRIB);
-  // while engaged the layer is left out of the .om path below, so Open-Meteo is never asked for it (useOwnRasterFrames.js).
-  const ownPressure = useOwnRasterFrames({ mapInstance, layer: 'pressure', model: activeModel, active: (activeLayers || []).includes('pressure'), timeOffsetHours, theme, beforeId: omSlotsBeforeId });
-  usePressureIsobars({ mapInstance, engaged: ownPressure, theme, beforeId: omSlotsBeforeId });   // isobars + H/L over it (same lever)
-  // Air temperature (2026-10-24, dark, GFS only: with EURO or ICON picked it stays on the .om path for that model).
-  const ownTemperature = useOwnRasterFrames({ mapInstance, layer: 'temperature', model: activeModel, active: (activeLayers || []).includes('temperature'), timeOffsetHours, theme, beforeId: omSlotsBeforeId });
-  // Cloud cover, the 'satellite' layer (2026-10-24, dark, GFS only, as air temperature).
-  const ownSatellite = useOwnRasterFrames({ mapInstance, layer: 'satellite', model: activeModel, active: (activeLayers || []).includes('satellite'), timeOffsetHours, theme, beforeId: omSlotsBeforeId });
-  // Precipitation, the 'rain' layer (2026-11-12, dark, GFS only, as air temperature).
-  const ownRain = useOwnRasterFrames({ mapInstance, layer: 'rain', model: activeModel, active: (activeLayers || []).includes('rain'), timeOffsetHours, theme, beforeId: omSlotsBeforeId });
-  const omLayers = useMemo(() => {
-    if (!ownPressure && !ownTemperature && !ownSatellite && !ownRain) return activeLayers;
-    return (activeLayers || []).filter((l) => !(l === 'pressure' && ownPressure) && !(l === 'temperature' && ownTemperature)
-      && !(l === 'satellite' && ownSatellite) && !(l === 'rain' && ownRain));
-  }, [ownPressure, ownTemperature, ownSatellite, ownRain, activeLayers]);
+  // Own raster frames (useOwnRasterLayers.js): a layer drawn from our CDN frames is left out of the .om path below.
+  const omLayers = useOwnRasterLayers({ mapInstance, activeModel, activeLayers, timeOffsetHours, theme, omSlotsBeforeId, marineBeforeId });
 
   // Temporal Preloader
   useTemporalPreloader({ currentHour: timeOffsetHours, activeLayers: omLayers, mapInstance, activeModel, theme });
