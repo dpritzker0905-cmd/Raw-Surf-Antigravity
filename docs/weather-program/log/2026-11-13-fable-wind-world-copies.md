@@ -107,3 +107,11 @@ corrected; the rule did not change.
 - Some per-offset times in later rows of a page load carry samples from the previous view; the shares above use only rows
   where every listed copy was being drawn.
 - Pitch and rotation not exercised (the bounds are then a wider bounding box). Frame rate not measured.
+
+## Follow-up (not a blocker): the harness returned no timing samples for one view in one load
+`scn_wind_world_copies.js`, gate 2, old arm, load 2, view "zoom 2 at 0E": zero timer-query results for the particle draw, while
+the same load gave samples at the other ten views and the draws themselves were counted. Both readings of the gap pass the gate
+(counted as 0: median 0.482; dropped: 0.504 from two loads). Cause NOT investigated. Candidates, untested: the query queue
+still full of the previous view's queries when the 6 s window closed (results of an older generation are now dropped, so a
+window can end with none of its own), or disjoint results. To fix when the script is next used: wait for the queue to drain
+before opening a view's window, and report the per-view sample count so an empty window is visible instead of reading as 0.
