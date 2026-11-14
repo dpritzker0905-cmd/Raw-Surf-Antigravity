@@ -49,3 +49,73 @@ status line and legend show for it (the model credit must name GFS for the fill)
 
 Each layer's question to the director carries: scrub before/after (desktop + phone), the screenshot pairs, the numeric parity read, and
 the kill tested (the kill's OFF-path unit test, and the before arm itself is the kill set).
+
+## 2026-11-14 08:34Z: final measurement, gate as written, vote split: DEFAULT-OFF pending David
+
+Instrument: raster lab (`frontend/scripts/raster-lab/lab.js`), offline only.
+- Synthetic backend; #889's build `main.cdfc1a8e`. The later commits only move code (LOC split) and flip the defaults.
+- Frame-carry's #888 offline publish served as the frame CDN; replay cache clock pinned at 05:16:50Z.
+- Own arm vs the same build with `__RAW_DISABLE_RASTER_OWN_FRAMES__` (the kill = the .om path).
+- Fresh load per combo, z2 and z6, frame-changing steps only.
+- "pre" = the PRE-REGISTERED rAF sampler. "post" = a post-render diagnostic, added and kept apart: own frames are cut inside
+  MapLibre's draw, which runs after the rAF sample in the same frame.
+
+Lab defects found and fixed, both arms alike, disclosed:
+- The phone timeline drawer is inert until opened (the lab opens it).
+- The expected frame was computed from the running clock (now: the clock when the target was set).
+
+**Desktop.** Own vs kill.
+
+| ON candidate | toggle | step p50 / p95 | long jump |
+|---|---|---|---|
+| fog | 322-355 ms vs 3.8-4.1 s | 29 / 69 vs 88 / 917 ms | 129-146 ms vs 1.5-1.7 s |
+| EURO air temp | 308-429 ms vs 5.1-5.2 s | **53** / 71 vs 75 / 96 ms (n=6) | 156-249 ms vs 1.5-1.6 s |
+| EURO water | 834-935 ms vs 4.3-4.9 s | 46 / 59 vs 76 / 120 ms (n=6) | 304-333 ms vs 1.8-1.9 s |
+
+| ON candidate | stale on steps, pre / post (kill, pre) | cold-load frames before the first own frame (pre / post) |
+|---|---|---|
+| fog | 20 / 0 (kill 227) | 12 / 10 |
+| EURO air temp | 4 / 0 (kill 17) | 13 / 11 |
+| EURO water | 5 / 0 (kill 17) | 17 / 15 |
+
+**Phone** (4x CPU). Own vs kill.
+
+| ON candidate | toggle | step p50 / p95 | long jump |
+|---|---|---|---|
+| fog | 1.7-1.9 s vs 6.0-6.5 s | 281 / 342 vs 331 / 1312 ms | 454-466 ms vs 2.5-2.7 s |
+| EURO air temp | 1.9-2.4 s vs 7.4-8.2 s | 269 / 410 vs 292 / 399 ms | 420-492 ms vs 2.7-2.8 s |
+| EURO water | 2.5-3.7 s vs 8.7-9.5 s | 214 / 289 vs 319 / 332 ms | 864-953 ms vs 3.7-4.1 s |
+
+| ON candidate | stale on steps, pre / post (kill, pre) | cold-load frames before the first own frame (pre / post) |
+|---|---|---|
+| fog | 17 / 0 (kill 114) | 4 / 2 |
+| EURO air temp | 5 / 0 (kill 22) | 4 / 2 |
+| EURO water | 6 / 0 (kill 21) | 4 / 2 |
+
+Blank frames 0 and timeouts 0 in every row.
+
+The null control (GFS and ICON, OFF, identical code in both arms) holds on desktop, e.g. GFS air temp step p50 945 vs 950 ms. On
+phone it is noisy, up to about +-40% on slow .om steps (GFS water 2.7 vs 4.1 s): the phone step-p50 differences of 10-30% are not
+outside the noise, while the toggle (3-4x) and long-jump (4-6x) gains are.
+
+**Gate, as written (comparison 1):**
+- Step p50 <= 50 ms: NOT met by EURO air temp on desktop (53 ms, n=6); NOT met by any layer on phone, in either arm.
+- p95 <= 100 ms: met on desktop, not on phone.
+- 0 stale: NOT met by the pre-registered sampler (1 per frame-changing step); the post-render reading is 0.
+- 0 cold-load frames: NOT met (desktop 10-17, phone 2-4 post).
+
+Comparisons 2-4 (visual parity, GFS air temp coastal, ICON fill) were not run tonight. The GFS one waits for `elevation_dz_v1.json`.
+
+**Vote (the director, 08:31Z):** Reflection "no" (the pre-registered gate is not fully met; ship default-off and wait for the
+owner); SubQ "yes" (0.93). David's rule needs both, so fog, EURO air temp and EURO water ship **DEFAULT-OFF pending David**:
+- `DEFAULT_ON_LAYERS` = satellite, pressure; `DEFAULT_ON_MODELS` = {}.
+- Kept: the per-layer kills, the lever (preview: `__RAW_RASTER_OWN_FRAMES__ = 'fog,water_temp,temperature'`), the handover, the
+  same-frame commit and the unpublished-set fallback.
+- Turning them on is one line each in `ownRasterFrames.js`.
+
+**Phone profile (for the next batch):**
+- Each step re-renders a large part of the app tree (spot markers, location name, toLocaleTimeString chips). The .om path pays this
+  too: the kill-arm key task is 90-150 ms.
+- Our readout publish runs ahead of our draw: key-to-shown 180-265 ms, 105-165 ms with the readout killed.
+- EURO water decode plus land fill: 570-960 ms per frame on the main thread.
+- Filed as next-batch items: take non-critical re-renders off the scrub step; move raster decode and land fill into a worker.
