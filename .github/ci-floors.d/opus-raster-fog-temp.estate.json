@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 27,
+  "branch": "opus/raster-fog-temp",
+  "date": "2026-11-14",
+  "note": "fog, water temp, per-model temperature raster sets"
+}
