@@ -546,3 +546,53 @@ David is right: two controls would confuse. The design is one user control and o
 4. Run the 12.4 gate.
 
 Nothing here changes a served number. Nothing was merged.
+
+
+## 13. On or off: the SOTA answer (2026-11-15 11:25 EST). Supersedes the default-off part of section 12
+
+**Owner direction (David, 11:21 EST):** no default-off toggle. Decide ON or OFF, based on SOTA only.
+
+### 13.1 What the leaders do when a forecast steps from hour to hour (public evidence)
+
+| Product | Between-hour behaviour | Evidence | Default |
+|---|---|---|---|
+| Xweather timeline | Frames are separate tile sets shown in sequence. The only smoothing is a raster opacity transition ("a smoother change between layers") | Vendor blog and timeline docs, fetched 2026-11-15. Interpolation of data is not discussed | Opacity transition on; the default value is not stated |
+| MapLibre (raster source) | `raster-fade-duration` controls cross-fade between tiles or frames. Its own radar-frame example sets it to 0 | Context7, MapLibre docs and example | Default fade 300 ms; the animation example uses 0 |
+| Ventusky | On/off key for map interpolation | User guide | Default not stated (unverified) |
+| earth.nullschool | Spatial interpolation only | README | No temporal smoothing described |
+| Meteoblue (radar) | Source at 15 min, displayed at 1 min by synchronised interpolation | Blog snippet (unverified in full) | Radar only |
+
+**Reading.** The documented public pattern is stepped frames with a short cross-fade on the step. No leader documents
+interpolating the field itself between model hours by default.
+
+### 13.2 Research frontier: learned interpolation of the field between hours (not a default today)
+
+- **ModAFNO, Leinonen et al., 2024 (arXiv):** a learned model reconstructs hourly states between 6-hourly points, with about 50% lower RMSE than linear interpolation for the intermediate steps. [Modulated Adaptive Fourier Neural Operators for Temporal Interpolation of Weather Forecasts](https://consensus.app/papers/details/w:ba34a18c-a102-47cd-abeb-3bc10cbe84a7/?utm_source=claude_code). This is a new model, not a display of the NWP field, so it is out of scope for a display default.
+- **TemDeep, Wang et al., 2025:** self-supervised temporal downscaling with a flow module; restoration rate 53.7% reported. [TemDeep](https://consensus.app/papers/details/w:45d81f74-cfa5-4e72-9435-24ccf69917ed/?utm_source=claude_code). Research only.
+- **FLINT, Gadirov et al., 2025:** flow estimation and temporal interpolation for scientific ensembles. [FLINT](https://consensus.app/papers/details/w:ed639384-d8b5-4b3b-a85d-f9707fcffcc1/?utm_source=claude_code). Research only.
+
+### 13.3 Our own precedent (this decides it)
+
+- The **own-frame raster** layers (pressure, rain, temperature, satellite) already run a **160 ms value blend on each step**, owner-approved 2026-11-12 (`ownRasterLayer.js:91-105`). That is the same cross-fade pattern the leaders use, and it blends two adjacent hours during the 160 ms step.
+- The **wind rule** ("never blend two hours", `WebGLWindEngine.js:96-100`) is therefore stricter than our own raster practice, and stricter than the leaders' public pattern. Its cross-model part is still right. Its cross-hour part is not supported by the evidence.
+
+### 13.4 Decision (SOTA-only recommendation): ON, short cross-fade on each step, no user toggle
+
+1. **ON by default** for marine crests, wind and the tile-path layers, as a **short cross-fade on each hour step** (about 160 ms, the existing own-raster duration). This is the documented leader pattern and our own raster practice.
+2. **No user toggle.** The cross-fade is a display detail, like the existing own-raster blend. Nothing is added to the layer panel.
+3. **Kill switch for developers only**, following the house rule for shipped fixes (D-065 and the visual-changes-default-on rule). It is a code and runtime flag, not a user control.
+4. **Cross-model blending stays banned** (`WebGLWindEngine.js:96-100`, the `windGridsCompatible` model check). The rule is narrowed from "never two hours or two models" to "never two models".
+5. **Not built now:** full in-hour field interpolation (ModAFNO, TemDeep, FLINT). These are research items and would change what the map shows, so they need their own owner decision.
+
+### 13.5 Gate (pre-registered before any build)
+
+- Same as section 12.4, minus the toggle: same fixed 24-hour scrub, same views and renderer, both arms from the same commit.
+- Pass: the luminance step across each hour boundary falls by at least 50% against the hard cut, and frame time is within 90% to 110% of baseline.
+- Correctness: the decoded frames are byte-identical with and without the cross-fade (display only), and the cross-model check still refuses to blend two models.
+- If the gate fails, the kill switch restores the hard cut. The decision is revisited, not silently dropped.
+
+### 13.6 What this needs from David
+
+A one-line policy change: "Narrow the blend rule: cross-fade adjacent hours of the same model on each step, ON by default; never blend across models." Once that is written, the build goes through the normal PR path.
+
+Nothing here changes a served number. Nothing was merged.
