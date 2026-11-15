@@ -784,3 +784,60 @@ Not ranked here:
 Nothing here changes a served number. Nothing was merged.
 
 **Consensus notice:** Create or connect a free Consensus account to return more than 3 results per search in Claude Code: https://consensus.app/sign-up/?utm_source=claude_code&auth=claude_code
+
+
+## 19. Path forward to state of the art (2026-11-15 13:55 EST), with the second-opinion results
+
+**Basis.** Mem0 (our recorded history and lessons), Context7 (MapLibre custom-layer and GPU rendering), Consensus (verification
+toolkits, CRPS, multi-model blending, NBM and Met Office blends), a light WebFetch (NBM home: 404, not read), and second
+opinions from Reflection, SubQ and LongCat (paid, one call, approved by the owner's request). SubQ chat was refused (403 on
+`subq-preview`); `subq_decide` was used instead.
+
+### 19.1 Public reference systems and what they show
+
+- **NOAA National Blend of Models (NBM):** blends roughly 30 models and ensembles for temperature, wind, gusts and more, with statistical post-processing (Craven et al., 2020). [National Blend of Models](https://consensus.app/papers/details/w:350837c1-325f-4c31-b906-a31adb08196b/?utm_source=claude_code). The blend is the operational consensus reference.
+- **Met Office seamless blend:** five ensembles blended into one forecast; objectively verified over six years as at least as good as, if not better than, the best single model (Neal et al., 2024). [Seamless blended multi-model ensemble](https://consensus.app/papers/details/w:ee9a255f-3386-46cb-88b3-9b57ecedd19c/?utm_source=claude_code). Implication: a blend must not lose to its best member, which is our current defect.
+- **Dynamic performance weighting (Abellán et al., 2026):** RMSE-based weights beat equal and static weights, and approached an operational calibrated product, on ACCESS and ECMWF atmospheric runs. [Performance-based weighting](https://consensus.app/papers/details/w:8dd2c4cc-732c-461f-afa2-1d482cf8354d/?utm_source=claude_code). **Single study, 0 citations, atmospheric models, not waves.** A hypothesis, not a standard.
+- **Verification toolkit:** the NCI `scores` package (Python, xarray) implements CRPS, threshold-weighted CRPS, reliability diagrams and the Diebold-Mariano test, each with a tutorial (Leeuwenburg et al., 2024). [scores](https://consensus.app/papers/details/w:0d56f435-190d-4c06-b732-0db5f00f23b1/?utm_source=claude_code). A candidate shared toolkit.
+- **Rendering pattern:** MapLibre custom layers and StyleImage interfaces render on the GPU inside the map's own context (Context7, MapLibre docs). Supports the custom-layer route for animation.
+
+### 19.2 Our memory and history (mem0)
+
+- Merge rules from 2026-11-12: a merge needs 15 or more checks, none pending or failed, and `--match-head-commit`, never `--admin`. A merge needs the owner's own words, and the merger names whose word it acted on.
+- D-065 (owner, 2026-11-04): fixes ship on by default with a kill switch, a scoreboard row and a "not worse" filter.
+- SCOREBOARD rows stay in timestamp order; one owner per task.
+
+### 19.3 Second-opinion results (what changed in the plan)
+
+| Source | Result | Change to the plan |
+|---|---|---|
+| Reflection | Agrees with all four tracks and governance. Ground truth must be buoys or validated camera, not surfer ride logs alone. Abellán study needs verification. Fix the consensus fallback first | Camera or surfer data is a supplement, not the sole truth. Fallback fix is first |
+| SubQ `subq_decide` | Camera or surfer truth alone is **not** sufficient: p(sufficient) 0.42. Hidden-middle-frame gate is valid: p 0.90. Adopting dynamic weighting without a local test: p 0.003 (no) | Camera truth paired with buoys. Weighting needs a local test on our wave data |
+| LongCat (paid, one call) | (1) Gate can pass by chance on 2 to 3 spots: add a pre-registered effect size and a negative control (a corrupted frame must fail). (2) Default-on cross-fade ships with no user measurement: add a small proxy test before default-on. (3) The fallback fix must be a hard prerequisite for weighting, not just a sequence note. (4) Gusts and visibility need a named station set and metric. (5) "Owner's own words" needs a written approval record per merge | All five adopted as conditions. Item 2 conflicts with the owner's default-on decision (section 16): flagged for the owner, not overridden |
+
+### 19.4 Path forward (ranked)
+
+**Track A. Surf rating accuracy and the consensus.**
+1. **Fix the fallback defect first (hard prerequisite).** A blend must not lose to its plain member mean. Kill switch and scoreboard row. Pre-registered: blend RMSE at or below the best member at every lead.
+2. **Ground truth: buoys plus validated camera or surfer rides** at 2 to 3 California spots, paired by spot-hour with the rating. Pre-registered effect size and a negative control.
+3. **Dynamic weighting, only after step 1, and only with a local test** on our wave members (NBM-style comparison against equal and static weights).
+4. **Adopt `scores` as the shared verification toolkit** (CRPS, reliability, Diebold-Mariano) so every gate uses the same definitions.
+
+**Track B. Animation (hour steps).**
+5. **Cross-fade on each step, default on, with a developer kill switch** (owner decision, section 16). Gate: hidden-middle-frame plus ghosting, with a corrupted-frame negative control, pre-registered effect size.
+6. **Render through a MapLibre custom layer on the GPU**, as the render path for the cross-fade.
+7. **Perception proxy before the default is final:** a small recruited A/B on the same sequence, pre-registered. The full panel test (section 15) stays parked. Owner to confirm this step.
+
+**Track C. Missing lanes.**
+8. **Gusts and visibility:** name the station sets and metrics first (gust peak error and bias; visibility hit rate and CSI below 1 km against airport METAR). No default before station verification.
+
+**Governance.**
+9. One owner per lane. Merges only on a written owner approval recorded per PR. Fixes ship on with a kill switch and a scoreboard row.
+
+### 19.5 Open decisions for the owner
+
+- Confirm step 7: a small perception proxy before the cross-fade default is final, or ship default-on now and measure after.
+- Confirm the camera or surfer truth source and the two or three spots.
+- Confirm the written-approval record format (LongCat item 5).
+
+Nothing here changes a served number. Nothing was merged.
