@@ -78,3 +78,26 @@ Pass lines, written before the run:
   per station; median r >= 0.5 = "carries surge", < 0.3 = "does not", else "weakly".
 - **P3 day-roll step** (offset of day d+1 minus day d, |m|, every station-day): accept the window if median <= 0.03 m and
   p90 <= 0.06 m. **Switch to 74.5 h** if it cuts the median step by >= 30% and its P1 RMSE is not worse by > 0.01 m.
+
+## Results of the pre-registered checks (run 2026-11-15 ~21:40Z, `tide_datum_observed.py`; raw JSON in notes
+`datum-observed-P1-P3.json`). 26 stations scored (Galveston returned no observations); 7 past days vs OBSERVED water.
+| median RMSE vs observed (p90, max) | raw | demean72 (shipped) | demean74.5 | fitted offset (yardstick) |
+|---|---|---|---|---|
+| m | 0.456 (0.712, 1.278) | 0.346 (0.579, 1.329) | 0.346 (0.575, 1.322) | 0.120 (0.389, 1.247) |
+- **P1: FAIL.** demean72 is below raw at the median (first clause met, so by the registered rule the flag is NOT set to
+  '0'), but 0.226 m worse than the yardstick (second clause failed). Worse than raw at 9/26 stations: the whole US West
+  Coast (La Jolla 0.122 -> 0.469, Monterey 0.115 -> 0.440, Neah Bay 0.414 -> 0.579), the Caribbean and Anchorage. THE
+  ADVISOR WAS RIGHT: on the West Coast the real water ran ~0.4 m above the station datum this season and the raw model
+  carried it; the 72 h mean removed real water, and scoring against predictions had called that a gain.
+- **P2: the model CARRIES surge.** Median r = 0.958 between the 25 h low-passed (model - prediction) and (observed -
+  prediction); 24/26 stations r >= 0.9. (Observed non-tidal sd 0.02-0.19 m.)
+- **P3: FAIL on p90.** Day-roll step demean72: median 0.020, p90 0.080, max 0.178 m (n = 364 station-days); demean74.5:
+  0.019 / 0.074 / 0.167 m. 74.5 h cuts the median by 5% (< 30%): no switch.
+
+## Exploratory (NOT pre-registered; chosen after seeing the above): the model's own 1-year mean as the datum
+`tide_datum_climatology.py`, raw JSON `datum-climatology.json`: per cell, the mean of the model over the 365 days BEFORE
+the scored week (out of sample), subtracted from the raw level. Median RMSE vs observed **0.211 m** (p90 0.391), beats
+demean72 at 23/26 and raw at 21/26, gives back little on the West Coast (La Jolla 0.169 vs raw 0.122), and has NO
+day-roll step (a fixed number per cell). It removes only the model's permanent offset (Hawaii +0.57, Northeast -0.50 m)
+and keeps real seasonal and surge water. Because it was selected after the fact, it needs a fresh held-out week and
+the owner's word before it replaces demean72; proposed gate in the reply to the advisor.
