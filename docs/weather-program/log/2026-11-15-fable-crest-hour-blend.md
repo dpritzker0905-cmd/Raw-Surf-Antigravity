@@ -389,3 +389,38 @@ Thresholds are the ones already registered; what changes is how each test gets v
    bytes rounded DOWN and from bytes rounded UP (if rounding is the cause, the held picture lies between the two and the two
    differ by about as much as the held picture differs from either), and the same real hour read twice at rest (the noise of
    reading a picture). Reported; no verdict is drawn from it without the advisor.
+
+## 14. The three reruns (11:56-12:11 EST, recorded 12:13 EST): the reference line and H9 PASS; H8 is VOID again, by 3 triples
+Build `e2c6b7ebb`, instrument `a569d5a84`, registered in section 13 (`be76d3ed2`). Every view drew its own layer; 0 page errors.
+- **H8 VOID: 27 of 40 triples scored, 30 required.** Views 8 (swell_2, -30, 0, z3.0... listed as the first swell_2 view, 115, -10)
+  and 10 (wind_waves, -5, 50, z3.5) gave no triple at all and two others lost 5: the engine's grid at rest still changed from
+  hour to hour there. On the 27, for the record and NOT as a pass: ERROR(blend) 4.66 against ERROR(cut) 9.98 = **46.7%**
+  (first run: 45.8% on 22); no view worse than the cut; per view 43-53% and 26% for swell_2. Flat control 113% of the cut (so
+  the measure does not reward a washed-out picture here). Value space: height error 0.139 m against 0.342 m = **40.5%** (the
+  first run gave 40.5% too; the store predicts about 40%); height contrast against the real middle hour 0.921.
+  Correction of the line above: the two views with no triple were the eighth in the list (swell_2 at 115, -10) and the tenth.
+- **H5 against the exact reference: PASS.** 27 held pictures: largest mean absolute luminance difference 0.487 (line 0.5), mean
+  0.385; largest retention difference 0.0045 (line 0.03). Section 12's two failures (0.51, 0.81) were in coastal views not in
+  this set; they stay on record.
+  Diagnosis (section 13.3): the held picture differs from the reference rounded DOWN by 0.384 and from the one rounded UP by
+  0.385, and those two references differ from each other by 0.756. The same picture read twice at rest differs by 0.000. So
+  the held picture sits half-way between the two roundings: the difference is the size of byte rounding in the lab's
+  reference, and the reading itself adds none. This explains the size; it is not a proof that nothing else contributes.
+- **H9 PASS (forced earlier grid).** 40 of 40 swaps scored. HELD against FINE 4.47, COARSE against FINE 7.85 = **57.0%** (band
+  35% to 65%); per swap 46-64%; in no swap is HELD further from FINE than COARSE. Positive control (the earlier grid moved one
+  coarse cell east): error 8.81; at least 25% above the unshifted HELD in **32 of 40** swaps, exactly the 80% required. The 8
+  that did not trip are the two swell_2 views, whose synthetic pattern does not vary from west to east at all, so an eastward
+  shift cannot change it (shifted and unshifted errors are equal to four digits). Grids: 16 x 6 over 46 x 21, and 46 x 42 over
+  181 x 83. FINE read again after the lab: differs by 0.000.
+  Limits as registered: this is the shader's reading of an earlier grid at its own place, on a lab-made coarse copy.
+
+## 15. H8 a third time: the view selection rule, registered BEFORE the run
+H8 has been void twice for the same reason: not enough views keep one grid at rest. The errors measured so far play no part in
+what follows; the selection is by grid stability only, decided before any blend picture of a view is taken.
+- Candidates, in this order per layer; waves: (-40, 35, z2.5), (-140, 20, z3.0), (20, -40, z3.5), (150, -20, z3.0), (-100, -30,
+  z2.5); swell_1: (-60, 30, z3.5), (-150, 35, z3.0), (60, -30, z3.5), (-20, -20, z2.5); swell_2: (-30, 0, z3.0), (115, -10,
+  z2.5), (-150, 0, z2.5), (60, 10, z2.5); wind_waves: (-5, 50, z2.5), (-140, 40, z2.5), (80, -30, z2.5), (-30, 20, z3.0).
+- A candidate is USED if, with the kill set, the engine's grid at rest is the same at all 8 hours of the real-frame pass;
+  otherwise it is skipped (and listed). Quota: 4 waves, 3 swell_1, 2 swell_2, 1 wind_waves = 10 views, 40 triples.
+- H8's lines are unchanged: at most 60% pooled, void below 25%, no view worse, at least 30 triples, mixed textures h and h+6.
+- Only H8 is scored from this run. Section 14's reference and H9 results stand and are not run again.
