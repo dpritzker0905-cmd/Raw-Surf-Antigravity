@@ -12,6 +12,7 @@ import routes.weather_point_tide as R
 @pytest.fixture(autouse=True)
 def _budget():
     R._overlay_bucket.update(tokens=R.OVERLAY_COLD_PER_MIN)
+    R._overlay_day.update(day=None, count=0)
     yield
 
 
@@ -42,6 +43,16 @@ def test_cold_cells_spend_the_budget_then_defer(monkeypatch):
     out, calls, resp = _call(monkeypatch, "cold")
     assert not calls and out["reason"] == "overlay_deferred" and out["available"] is False
     assert resp.headers["Cache-Control"] == "no-store"
+
+
+def test_the_daily_ceiling_defers_even_with_minute_tokens(monkeypatch):
+    out, calls, _ = _call(monkeypatch, "cold")
+    assert calls
+    R._overlay_day["count"] = R.OVERLAY_COLD_PER_DAY
+    R._overlay_bucket.update(tokens=R.OVERLAY_COLD_PER_MIN)
+    out, calls, _ = _call(monkeypatch, "cold")
+    assert not calls and out["reason"] == "overlay_deferred"
+    assert R.OVERLAY_COLD_PER_DAY * 5 <= 10000          # leaves >= 80% of the free tier's day to the rest
 
 
 def test_a_cooldown_defers_the_overlay_even_with_budget(monkeypatch):

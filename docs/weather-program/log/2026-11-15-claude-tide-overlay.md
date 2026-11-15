@@ -147,3 +147,10 @@ pairs at 390x844, 4x CPU, warm-up run and first 8 steps per run discarded. Paire
 +47, +76, -36, -68, +1, +10, +51, -77, -96. **Median +5.2 ms against the bound max(2, 10% x 184.1) = 18.4 ms: PASS as
 registered.** The spread is wide (pairs swing +-100 ms on 49-267 ms steps), so this bounds the overlay's cost, it does
 not measure it precisely. 0 `/point-tide` requests during scrub in all 24 runs. Raw: notes `results-phone4x-ABBA12.json`.
+
+**Daily ceiling (advisor re-check of 3b2903849):** the per-minute bucket did not bound the day (12/min saturated =
+17,280/day, above the 10,000/day free tier quoted above). Added `OVERLAY_COLD_PER_DAY = 2000` per process (leaves >= 80%
+of the day's free-tier quota to the rating, the prewarm and the infobox) with a counter in the log
+(`[point-tide] overlay cold cells today: N/2000`, every 100 and at the ceiling, and the day's total at rollover) so the
+first live day can be read. Test: the ceiling defers even with minute tokens. **Licence (for the owner, not solved
+here):** Open-Meteo's free tier is non-commercial; that is a licence question whatever the volume.

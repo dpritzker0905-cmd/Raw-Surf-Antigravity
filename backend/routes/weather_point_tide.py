@@ -111,16 +111,31 @@ def _with_location_time(out, lat, lng, now):
 # (purpose=overlay) are served from the warm cache freely, but a cold cell is fetched only while this budget has a
 # token and no cooldown runs; otherwise the answer is a non-cached "deferred" the client retries later.
 OVERLAY_COLD_PER_MIN = 12.0
+# A per-minute bucket does not bound the DAY (12/min saturated = 17,280/day, above Open-Meteo's 10,000/day free tier):
+# the daily ceiling leaves most of the day's quota to the rating's tide, the prewarm and the infobox (advisor, #923).
+OVERLAY_COLD_PER_DAY = 2000
 _overlay_bucket = {"tokens": OVERLAY_COLD_PER_MIN, "t": time.monotonic()}
+_overlay_day = {"day": None, "count": 0}
 
 
 def _overlay_may_go_cold() -> bool:
+    today = datetime.now(timezone.utc).date()
+    if _overlay_day["day"] != today:
+        if _overlay_day["day"] is not None:
+            logger.info("[point-tide] overlay cold cells %s: %d/%d", _overlay_day["day"], _overlay_day["count"],
+                        OVERLAY_COLD_PER_DAY)
+        _overlay_day.update(day=today, count=0)
+    if _overlay_day["count"] >= OVERLAY_COLD_PER_DAY:
+        return False
     now = time.monotonic()
     b = _overlay_bucket
     b["tokens"] = min(OVERLAY_COLD_PER_MIN, b["tokens"] + (now - b["t"]) * OVERLAY_COLD_PER_MIN / 60.0)
     b["t"] = now
     if b["tokens"] >= 1.0:
         b["tokens"] -= 1.0
+        _overlay_day["count"] += 1
+        if _overlay_day["count"] % 100 == 0 or _overlay_day["count"] == OVERLAY_COLD_PER_DAY:
+            logger.info("[point-tide] overlay cold cells today: %d/%d", _overlay_day["count"], OVERLAY_COLD_PER_DAY)
         return True
     return False
 
