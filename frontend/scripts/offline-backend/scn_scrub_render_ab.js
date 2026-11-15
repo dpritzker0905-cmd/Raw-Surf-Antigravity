@@ -11,6 +11,7 @@ const SESSIONS = +(process.env.SESSIONS || 3);
 const KILLS = (process.env.KILLS || '__RAW_DISABLE_SLOT_URL_BAILOUT__,__RAW_DISABLE_DERIVED_SCRUBBING__').split(',').filter(Boolean);
 const OUT_DIR = process.env.OUT_DIR || '.';
 const arms = { on: {}, kill: Object.fromEntries(KILLS.map((k) => [k, true])) };
+if (process.env.AA === '1') arms.on = arms.kill;   // A/A pair (Brief 3): both arms are the KILL arm
 const runs = { on: [], kill: [] };
 for (let s = 0; s < SESSIONS; s += 1) {
   for (const arm of ['on', 'kill']) {
