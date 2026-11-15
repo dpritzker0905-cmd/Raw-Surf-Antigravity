@@ -139,3 +139,65 @@ camera and nearshore-buoy sites. Results go to the shared notes folder as `resea
 - One OVERDUE commitment in the audit (HRRR wind lane re-grade, due 11-14) is not this lane's; noted for the director.
 
 Nothing here changes a served number. Nothing was merged.
+
+## 21:01Z ICON and EURO wind and gusts past the native horizon (David 15:19 EST: "Looping is unacceptable. We need real science.")
+
+Asked by the director and, separately, by the gusts lane (`local_7f199b18`). The recommendation went to both by SendMessage.
+The director assigns. Docs only; nothing built.
+
+**Read.** `viewport_helper.extend_icon_wind_to_14d` replays whole days of ICON's own valid hours. Its basis
+`icon_loop_extrapolation` also appears in `wind_ingestion.py`, `viewport_upstream.py` and `pressure_ingestion.py`.
+`euro_wind_extension.py` clones stored GFS wind past 240 h, labelled `gfs_fallback` / estimated. BRAIN_RULES' 14-day
+contract locks the MARINE ICON/EURO extensions ("never rebuild the blends"). The wind loop is not in that table, so a wind
+change must leave the marine blends untouched.
+
+**Checked.**
+- ECMWF open-data ENS (`enfo`, 0.25 deg, 00/12Z) steps 0-144 h by 3 and 144-360 h by 6. Types cf/pf/em/es/ep.
+- Single-level parameters include 10u/10v and NOT 10fg. Gusts exist only as daily exceedance probabilities
+  (10fgg10/15/25). Source: Context7, `/ecmwf/ecmwf-opendata` README.
+- Literature: the GEFS ensemble mean cuts U10 scatter RMSE about 5 -> 3 m/s beyond day 7 versus the control run, but
+  under-reads extremes beyond day 5
+  ([Campos 2019](https://consensus.app/papers/details/w:d5c20d1a-1ec7-4a00-bfe7-77ce81fe12f7/?utm_source=claude_code)).
+- The ensemble mean converges toward climatology from about day 10
+  ([Froude 2013](https://consensus.app/papers/details/w:ee75c826-5160-48af-8a53-2b7a082bd93e/?utm_source=claude_code)).
+- No own-data skill number exists for any arm yet.
+
+**Ranked.**
+1. Hand off ICON 180-336 h and EURO 240-336 h to the ECMWF ENS mean 10u/10v.
+   - Time-interpolate within one run (cross-hour).
+   - De-bias speed by lead with one multiplicative factor on (u,v), which keeps direction.
+   - GEFS mean is the fallback.
+   - Label: "Days 8-14: ECMWF ensemble mean (estimate)".
+   - Served: yes.
+2. Seam taper or per-cell offset: a policy question for David.
+   - SubQ: taper 0.95.
+   - Reflection: any taper or offset is a cross-model blend under the 15:07Z ban.
+   - Default until he rules: hard hand-off plus the label.
+3. Gusts: never average across models (GFS is instantaneous; ECMWF/ICON are window maxima).
+   - Native hours keep each model's own gust.
+   - Extension: gust = max(wind x GF, wind), with GF fitted on NDBC GST + ASOS by lead and surface class.
+4. Clip gust >= wind of the same composition. Fail above 1% of cells clipped. Wind and gust share one composition
+   per hour.
+5. No climatology relaxation in the product. Climatology is a gate baseline.
+6. Interim: a labelled GFS stand-in replaces the loop (the EURO precedent). This is a served change, so it needs David.
+
+**Gate (pre-registered, offline hindcast).**
+- Sample: >= 60 runs over >= 30 days. Stations: >= 30 coastal NDBC/C-MAN with GST and >= 30 coastal ASOS.
+- Lead bins: 180-216, 216-264, 264-336 h.
+- Arms: loop, GFS stand-in, ENS em raw, ENS em + de-bias, ENS cf, GEFS mean, climatology, 180 h persistence.
+- PASS: beat the loop AND the GFS stand-in on speed MAE in every bin (day-block CI upper < 0); gust MAE beats the
+  loop; the seam's |delta speed| is no larger than the 95th percentile of within-native 3 h changes.
+- A bin that fails climatology is reported and labelled "low skill".
+- Negative control: a +48 h shifted arm must lose to climatology.
+- Positive control: a seeded +1 m/s bias is detected.
+
+**Cross-checks.**
+- SubQ: retire the loop 0.997; ensemble mean beats deterministic at 240-336 h 0.998; scalar speed blend 0.99;
+  taper 0.95; gust = wind x factor 0.998; gate can fail 0.995; overall 2.84 of 3.
+- Reflection (high effort): changes on 1 and 3; disagrees on 2 (the ban); agrees on 4-6. It called the cf arm
+  unavailable, but the README lists `cf` as an ENS type, so the arm stays.
+
+**Owed.** The helper's ASK 3, sent at this time:
+- the ICON-EPS horizon;
+- GUST in the GEFS mean inventory;
+- the ECMWF open-data archive depth (needed for the 30-day hindcast).
