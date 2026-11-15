@@ -146,3 +146,56 @@ What is wrong is the comparison, so only the comparison changes:
    worse. The blended-only figure is reported beside it and is not the gate. If H1 fails because of the grid swaps, that is the
    result, and blending across a grid swap is a separate design with its own registration.
 6. H2, H4, H6 unchanged, now on interleaved scrubs.
+
+## 7. The registered re-run (10:34-10:47 EST, recorded 10:50 EST): four lines pass, H1 FAILS, H5 is VOID. Nothing tuned.
+Instrument as registered in section 6 (commit `c4d672f1a`, before the run). Store: `--layers waves,swell_1,swell_2,wind_waves
+--moving-swell 0.9`. Every view drew its own layer in both arms. 80 boundaries per arm, both arms in one page, interleaved.
+
+| view | layer | zoom | A step (hard swap) | B step (blend) | B / A | blended in B |
+|---|---|---|---|---|---|---|
+| 1 | waves | 5.0 | 13.93 | 10.74 | 0.77 | 4 of 8 |
+| 2 | waves | 5.0 | 7.87 | 4.32 | 0.55 | 6 of 8 |
+| 3 | waves | 5.0 | 6.44 | 3.75 | 0.58 | 6 of 8 |
+| 4 | waves | 2.5 | 10.17 | 6.88 | 0.68 | 4 of 8 |
+| 5 | waves | 3.0 | 14.46 | 6.10 | 0.42 | 6 of 8 |
+| 6 | waves | 3.5 | 10.18 | 4.39 | 0.43 | 6 of 8 |
+| 7 | swell_1 | 5.0 | 5.51 | 3.23 | 0.59 | 6 of 8 |
+| 8 | swell_1 | 3.5 | 9.30 | 5.29 | 0.57 | 6 of 8 |
+| 9 | swell_2 | 4.0 | 1.72 | 0.68 | 0.40 | 6 of 8 |
+| 10 | wind_waves | 4.5 | 1.84 | 0.99 | 0.54 | 6 of 8 |
+
+(Step = luminance units, 0-255, above the floor; floors 0.006-0.029.)
+- **H1 FAIL.** Pooled step A 8.14 -> B 4.64: **57.0% of A; the line is 50%.** No view is worse in B. No view left out.
+  Why, from the same data: 56 of 80 boundaries were blended, and on those the step fell from 6.24 to 1.24 (**19.9%** of the hard
+  swap). The other 24 were GRID SWAPS: the engine changed the grid it holds (a 46 x 21 world grid, a 181 x 83 world grid, a
+  regional grid) between one step and the next. The design does not blend those (section 2), and their step is the same in
+  both arms: 12.57 against 12.56, twice the hour pop itself. With 30% of boundaries untouched at that size, the pooled figure
+  cannot reach 50%. The blended-only figure is NOT the gate and is not offered as a pass.
+- **H2 PASS.** GPU ms per frame, median over the 10 views: whole scrub A 3.762, B 3.790 (+0.7%); frames inside the blend
+  windows A 3.938, B 3.962 (+0.6%); line +10%. Timer query available. Frame interval 16.7 ms in both arms.
+- **H3 PASS.** 80 of 80 (grid, valid time) pairs resident in both arms hold identical wave-texture bytes.
+- **H4 PASS.** 80 of 80 steps at rest 420 ms later: no blend object, the shader's mix uniform 0.
+- **H5 VOID: the instrument cannot see doubling at all.** With the threshold at 50% of the 99th percentile the positive control
+  (a frame averaged with itself moved 12 px) scored 0.39-0.98 in all 10 views, BELOW 1: averaging halves the contrast of every
+  edge, so fewer pixels clear the threshold. At 8% (the first run) the count was saturated. Counting edge pixels above a
+  threshold is the wrong measure for doubling at either setting. H5 is therefore NOT MEASURED. What can be said without it:
+  the blend mixes values before colouring, so one contour moves between its two positions (it is not two contours drawn at
+  half strength), and the particles are one set (525,696 or 1,577,088 vertices per frame, constant through every step). That
+  is an argument from the design, not a measurement.
+- **H6 PASS.** Drag, one step per 100 ms: A 8.12, B 5.41 (66.6% of A).
+- **H7:** the unit tests (`marineHourBlend.test.js`, with the three shader pin suites: 106 pass) cover the kill, reduced
+  motion, the shader source and the call sites. The pixel-identity check of the off path against the build before this change
+  was NOT run.
+- Arm B's telemetry over the whole run: 309 blends started, 261 ended, 39 restarted inside a running blend, 0 errors.
+- NOT done: the light and beach runs, the phone layout, the whole Jest trees, the lint ratchet, the file-size check, the floor
+  fragment, a PR. They wait on the director's decision below.
+
+### What this means, and what is asked of the director
+The blend does what it was designed to do on the steps it covers (the pop falls to a fifth, at no measurable GPU cost, with
+identical bytes), and the gate as registered is NOT met. Two things stand between this and a pass, and neither is tuning:
+1. **Grid swaps during a scrub** are a bigger pop than the hour change and are outside the registered design. Covering them
+   means blending two textures on different grids (the earlier hour drawn with its own bounds and its own land flags). That
+   is a new design and needs its own registration. Separately: whether production alternates grids like this harness does is
+   not known from here (it depends on which products are stored and how fast /grid answers); the harness may overstate it.
+2. **A doubling check that works.** Proposal for a new registration: count COLOUR-BAND CROSSINGS along fixed scanlines of the
+   colour field (a doubled front crosses each band twice), with the same positive control required to trip first.

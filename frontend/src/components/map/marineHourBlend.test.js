@@ -39,7 +39,7 @@ const engineWith = (g = grid(), extra = {}) => { const tex = { id: 'resident' };
 
 beforeEach(() => {
   delete window.__RAW_DISABLE_CREST_HOUR_BLEND__; delete window.__RAW_CREST_BLEND_MS__; delete window.__RAW_CREST_BLEND_HOLD__; delete window.__RAW_CREST_HOUR_BLEND__;
-  window.matchMedia = undefined; createTexture.mockClear(); safeDeleteTexture.mockClear();
+  window.matchMedia = undefined; createTexture.mockReset(); createTexture.mockImplementation(() => ({ id: 'prev' })); safeDeleteTexture.mockReset();   // CRA resets mocks between tests
 });
 
 describe('crestBlendMs / crestBlendEase', () => {
@@ -193,8 +193,8 @@ describe('hourBlendPrevMix: how much of the earlier hour is drawn', () => {
 });
 
 describe('setHourBlendUniforms: the colour pass', () => {
-  const loc = (gl, p, name) => name; const bind = jest.fn();
-  beforeEach(() => bind.mockClear());
+  const loc = (gl, p, name) => name; let bind;
+  beforeEach(() => { bind = jest.fn(); });
   test('at rest the mix is 0 and the earlier hour is NOT bound', () => {
     const { gl, calls } = fakeGl(); setHourBlendUniforms(gl, engineWith(), 'prog', loc, bind);
     expect(calls).toEqual([['uniform1f', 'u_hourPrevMix', 0]]); expect(bind).not.toHaveBeenCalled();
