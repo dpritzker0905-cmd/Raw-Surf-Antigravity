@@ -135,3 +135,17 @@ painted ON in 300 ms: fixed by item 4.) Screenshots: shared notes `rating-band-s
 - The span dead zone (views 9.5-40 deg wide show no band) is a product call.
 - G3: give the nearshore judge a bulk-Hs null arm, and look at the systematic low bias (repair lead).
 - `marineFrameStoreRegional.test.js` "fail closed ..." timed out once under the full suite and passes alone.
+
+## 7. LongCat review (2026-11-15 ~18:50 EST; David approved the paid submit of the exact excerpt, payload sha256 1939d6f5...)
+
+Excerpt: `staticRatedMosaic.js` (current, after the independent review's fixes) plus `coarseRatedForView`, 17.3 KB, no secrets.
+Five findings returned; each was checked against the code. None is a defect, so nothing changed:
+1. HIGH "a coastal cell outside every box aborts the mosaic": by design. Only the server rates a coast no box holds; padding it
+   would hide a real band. The miss sends the ask to /grid as before.
+2. MEDIUM "readiness says not-ready for a coastal-uncovered view": correct. The mosaic would miss there too (the world frame never
+   rates coasts), so the 50 ms lane must not be taken.
+3. MEDIUM "rows outside the mask count as coastal": a deliberate fail-safe (ask the server). No pilot box is near a pole, and map
+   bounds stop short of +-90.
+4. LOW "the world grid is not lattice-checked": `padNode` reads it through its own bounds and size (2 deg), so it needs no 0.25 lattice.
+5. LOW "the metadata frame changes after the area sort": every frame already shares the valid time, run and estimated flag (checked
+   in `pickBoxFrame`); only the stamped product id differs (one box's), which is cosmetic.
