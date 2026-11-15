@@ -52,7 +52,21 @@ the official tide. The breaking-depth cap (`SURF_TIDE_DEPTH`, eta) arguably want
 - (B) display = harmonic, eta = harmonic + the model's non-tidal residual (model local MSL minus its own tidal fit).
   Physically best; two derived numbers from one door; more to validate.
 - (C) display = harmonic, eta = model local MSL (as after #926). Breaks "the tide shown is the tide used".
-Recommendation: (A) for v1, measured by the history filter; (B) as a follow-up if surge days show up in buoy misses.
+Recommendation was (A) for v1. **OWNER DECISION 2026-11-15 14:44 EST: (B) "Tide + Surge".** So the door serves two
+levels from one payload, both on the local MSL:
+- `level` (displayed tide, infobox / overlay / glyph / hub): harmonic where a station is within D, else the model.
+- `water_level` (eta, the breaking-depth cap): `level` + the model's non-tidal residual, where residual = model local
+  MSL minus the model's own astronomical fit at that cell (a least-squares fit of the main constituents M2, S2, N2,
+  K1, O1 over the 72 h series is too short for S2/N2 separation, so the fit uses the CO-OPS station's published
+  harmonic constants applied to the model series' phase where a station exists, and the model total level as-is where
+  none does: there eta = level, as today after #926).
+Added gate items:
+- **G9 residual sanity:** over the 14-day CO-OPS window, the residual's mean is within +-0.05 m of 0 and its sd is
+  below the station's observed-minus-predicted sd (CO-OPS `water_level` minus `predictions`, 6-min) at >= 80% of
+  stations; a planted 0.5 m surge on a synthetic series comes back as residual 0.5 +- 0.02 m.
+- **G10 eta truth (informative, then gating once measured):** at stations with observations, `water_level` vs observed
+  water level (CO-OPS `water_level` product, MSL) must beat both `level` alone and the model alone on RMSE.
+- **G6 changes:** the history filter judges the eta change of (B) against today's eta.
 
 ## Pre-registered gate (written before any code)
 - **G1 parity:** infobox == Tides overlay == glyph card == hub tide at hours 0, 6, 30, 100, 300 for one harmonic point
