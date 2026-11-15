@@ -393,3 +393,69 @@ covers waves only. A station verification for gusts and visibility would be a ne
 3. Pre-register: gust bias and skill (MAE, hit rate for gusts above 15 m/s) per model; visibility hit rate and CSI for below 1 km, per model, against airport METAR.
 
 Consensus notice (required): Create or connect a free Consensus account to return more than 3 results per search in Claude Code: https://consensus.app/sign-up/?utm_source=claude_code&auth=claude_code
+
+
+## 10. Tools run on David's request (2026-11-15 11:00 EST): SubQ, Reflection, LongCat (paid, once), Context7, Consensus
+
+**Basis.** David asked in his own words to use SubQ, LongCat (paid), Context7, Consensus and Reflection. That is his request, so
+the tools below were used. The peer relays had not been enough for SubQ or Reflection. Context was condensed: no secrets, no
+credentials, no raw data. The repo is public.
+
+**How to read SubQ.** `subq_decide` returns a `noul` probability for each question. Read it as the probability the statement
+is true. Values near 0 mean false.
+
+### 10.1 What each tool returned
+
+| Tool | Item tested | Result | Verdict |
+|---|---|---|---|
+| SubQ `subq_decide` | Crest blend ranked first, given the wind never-blend rule | p(sound) 0.82 | Agree |
+| SubQ | Gate for moving a decode off the main thread: byte-identical arrays plus ≥50% less blocking | p(correct) 0.98 | Agree |
+| SubQ | Linear MOS as a default, given the regional gate fails | p(yes, make default) 0.004 | Disagree (not a default) |
+| SubQ | Holding back an AIFS source for the wind-heavy EURO lane | p(right call) 0.97 | Agree |
+| Reflection (Beam-1.0, high effort) | Crest blend ranked first | Disagree: it is a display seam fix, and should follow the policy decision on the cross-hour blend rule | Disagree on order |
+| Reflection | Decode gate | Agree: the gate covers correctness and the benefit; the open question is user-visible frame time | Agree |
+| Reflection | Linear MOS default | Disagree: pooled gain small, regionally negative, leans on one buoy | Disagree |
+| Reflection | AIFS held back | Unsure: shadow-test it rather than accept or dismiss | Unsure |
+| Reflection | Strongest missing measurement | A region-stratified head-to-head on marine skill and visible transition smoothness under production load | Recorded |
+| Context7 (MapLibre) | Raster tile fade behaviour | MapLibre's own frame-animation example sets `raster-fade-duration: 0` to avoid fades between frames. This supports our tile-path hard cut as a standard choice, not a bug. Default fade is 300 ms (`fadeDuration`) | Supports the hard-cut policy |
+| LongCat (paid, one call, sha256 `eec1ef8c…`) | Pre-registered gates for the crest blend and decode | Five-plus findings, below | Gates amended before any measurement (no data exists yet) |
+
+### 10.2 LongCat findings, and the amendments they force
+
+No data has been collected, so these are changes to the plan, not post-hoc changes.
+
+1. **Crest blend, baseline.** The hard-swap baseline must be measured in the same run, on the same 24-hour scrub, views and renderer. A stale baseline can fake a 50% drop.
+2. **Crest blend, byte-identity.** Name the exact stream compared (decoded pixel buffer or decoded frame arrays) and the frames it covers. Without that, the identity check cannot fail.
+3. **Crest blend, frame time.** "No more than 10% worse" has no lower bound. Use a band: 90% to 110% of baseline, plus a check that frame count and content match.
+4. **Decode, blocking metric.** Define it: total main-thread task time, the aggregation, and the exact 48-frame load and scrub protocol.
+5. **Decode, fixture.** One fixture is too weak. Cover empty arrays, nulls, large arrays and schema variants, and compare full arrays and types.
+6. **Decode, worker path.** Include worker startup and the full frame sequence in the measured window, and assert no dropped or duplicated frames.
+
+### 10.3 Top-10 items, all tools (section 7 numbering)
+
+| # | Item | SubQ | Reflection | LongCat | Context7 | Consensus |
+|---|---|---|---|---|---|---|
+| 1 | Scrub: React re-render off the scrub step | Not run (no gate tested) | Not run | Not run | Not run | Not run |
+| 2 | Water decode to a worker | Decode gate: agree (0.98). Water-specific gate not tested | Agree (decode gate) | Gate fixes 4–6 apply | Not run | Not run |
+| 3 | Marine crest blend | Agree (0.82) | **Disagree on order**: after the policy decision | Gate fixes 1–3 apply | Supports tile hard cut (raster-fade 0) | Not run |
+| 4 | Linear MOS 48–72 h | **Not a default** (0.004) | **Disagree as default** | Not run | Not run | Agree in direction (earlier) |
+| 5 | Exposure sweep for 46267 | Not run | Not run | Not run | Not run | Not run |
+| 6 | Hawaii south/east downscale | Not run | Not run | Not run | Not run | Not run |
+| 7 | Bias line beside MAE | Not run | Not run | Not run | Not run | Agree (earlier) |
+| 8 | AIFS source for EURO | **Hold back** (0.97) | **Unsure**: shadow-test | Not run | Not run | Disagree on wind (earlier) |
+| 9 | Own-frame pump backoff | Not run | Not run | Not run | Not run | Not run |
+| 10 | EURO/ICON z7 missing frames | Not run | Not run | Not run | Not run | Not run |
+
+**Reflection's ordering point changes the plan.** The wind never-blend rule and the tile hard-cut policy (section 7 #5) must be
+settled before the crest blend (#3). Otherwise the crest blend sets a precedent the owner has not chosen.
+
+**Routing note for the director.** Items 1, 2, 9 and 10 are internal and were not put to outside tools. Items 4 to 8 are the
+ones where outside tools disagreed or were unsure.
+
+### 10.4 Limits
+
+- SubQ returns a probability per question, not a justification. Treat 0.82 and 0.98 as signals, not proof.
+- Reflection answers are advisory model output (Beam-1.0). Its disagreements are recorded, not adopted.
+- LongCat returned five-plus findings for a six-line request. Its fixes are proposals; each was checked against the gate text.
+- Context7 documented MapLibre behaviour in general, not our code. It does not show our tile path is correct.
+- Nothing here changes a served number. Nothing was merged.
