@@ -19,11 +19,16 @@ const fs = require('fs'); const path = require('path');
 const L = require('./ab_lib.js'); const { RR } = require('../raster-lab/rr.js');
 const OUT = process.env.OUT; const THEME = process.env.THEME || 'dark';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const VIEWS = [   // zoom 3.5 or lower: the engine keeps one grid from hour to hour there (log, section 13.1)
-  ['waves', -40.0, 35.0, 2.5], ['waves', -140.0, 20.0, 3.0], ['waves', 20.0, -40.0, 3.5], ['waves', 150.0, -20.0, 3.0], ['swell_1', -60.0, 30.0, 3.5],
-  ['swell_1', -150.0, 35.0, 3.0], ['swell_1', 60.0, -30.0, 3.5], ['swell_2', 115.0, -10.0, 3.0], ['swell_2', -30.0, 0.0, 3.0], ['wind_waves', -5.0, 50.0, 3.5],
-];
-const PICK = process.env.VIEWS ? process.env.VIEWS.split(',').map(Number) : VIEWS.map((_, i) => i);
+// Section 15 of the log: candidates in order per layer; a candidate is USED only if, with the kill set, the engine's grid at
+// rest is the same at all 8 hours of the real-frame pass (decided before any blend picture of the view is taken).
+const CANDIDATES = {
+  waves: [[-40, 35, 2.5], [-140, 20, 3.0], [20, -40, 3.5], [150, -20, 3.0], [-100, -30, 2.5]],
+  swell_1: [[-60, 30, 3.5], [-150, 35, 3.0], [60, -30, 3.5], [-20, -20, 2.5]],
+  swell_2: [[-30, 0, 3.0], [115, -10, 2.5], [-150, 0, 2.5], [60, 10, 2.5]],
+  wind_waves: [[-5, 50, 2.5], [-140, 40, 2.5], [80, -30, 2.5], [-30, 20, 3.0]],
+};
+const QUOTA = { waves: 4, swell_1: 3, swell_2: 2, wind_waves: 1 };
+const SWAPS = process.env.SWAPS !== '0';
 
 const SPY = () => {
   const H = (window.__HM__ = { hide: true, R: {}, T: {} });
@@ -152,9 +157,9 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
   const ev = (fn, arg) => page.evaluate(fn, arg);
   const home = async () => { await ev(() => window.__HM__.key('Home', 1)); await sleep(2500); };
   const stepTo = async (n) => { for (let i = 0; i < n; i++) { await ev(() => window.__HM__.key('ArrowRight', 3)); await sleep(700); } };
-  let on = null;
-  for (const vi of PICK) {
-    const [layer, lng, lat, z] = VIEWS[vi];
+  let on = null; let vi = -1; const used = {}; const skipped = [];
+  for (const [layer, list] of Object.entries(CANDIDATES)) for (const [lng, lat, z] of list) {
+    if ((used[layer] || 0) >= QUOTA[layer]) continue;
     if (on && on !== layer) { await ev((l) => window.toggleLayer(l), on); await sleep(1500); on = null; }
     await L.jump(page, lng, lat, z); await sleep(1500);
     if (!on) { await ev((l) => window.toggleLayer(l), layer); on = layer; }
@@ -163,6 +168,9 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
     await ev(() => { window.__HM__.R = {}; window.__HM__.T = {}; });
     const real = {};
     for (let j = 1; j <= 8; j++) { await stepTo(1); await sleep(600); real[j] = await ev(async (k) => { const H = window.__HM__; H.R[k] = await H.shot(); H.T[k] = H.tex(); return H.state(); }, j); }
+    const stable = Object.values(real).every((x) => x.dims === real[1].dims && x.layer === layer);
+    if (!stable) { skipped.push(`${layer}@${lng},${lat},z${z}:${[...new Set(Object.values(real).map((x) => x.dims))].join('/')}`); console.log(`skipped ${skipped[skipped.length - 1]}`); await home(); continue; }
+    used[layer] = (used[layer] || 0) + 1; vi += 1;
     const triples = [];
     for (let j = 1; j <= 4; j++) {
       let got = null;
@@ -207,14 +215,14 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
     }
     // H9 (forced, section 13.2): four hours per view
     const swaps = [];
-    for (let j = 1; j <= 4; j++) {
+    for (let j = 1; SWAPS && j <= 4; j++) {
       await home(); await ev(() => window.__HM__.kill(true)); await stepTo(j); await sleep(900);
       const r = await ev(() => window.__HM__.forced());
       if (r.miss) { swaps.push({ j, miss: r.miss }); continue; }
       const okMix = r.mixes[0] === 1 && r.mixes[1] === 0.5;
       swaps.push({ j, coarse: r.coarse, fine: r.fine, eHeld: r4(r.eHeld), eCoarse: r4(r.eCoarse), eShift: r4(r.eShift), retHeld: r4(r.retHeld), restNoise: r4(r.restNoise), ...(r.stable && okMix ? {} : { miss: !r.stable ? 'engine_changed' : 'mix_not_held' }) });
     }
-    const out = { view: vi, layer, lng, lat, z, theme: THEME, drawnLayer: real[1].layer, triples, swaps, errors: errs.slice(0, 4) };
+    const out = { view: vi, layer, lng, lat, z, theme: THEME, drawnLayer: real[1].layer, skippedSoFar: [...skipped], triples, swaps, errors: errs.slice(0, 4) };
     fs.appendFileSync(path.join(OUT, `hm-${THEME}.jsonl`), JSON.stringify(out) + '\n');
     console.log(`view ${vi} ${layer}: H8 ` + triples.map((t) => (t.leftOut ? `[out:${t.leftOut}]` : `${t.eBlend}/${t.eCut}`)).join(' ') + ' | H9 ' + swaps.map((s) => (s.miss ? `[${s.miss}]` : `${s.eHeld}/${s.eCoarse}/${s.eShift}`)).join(' '));
     await home();
