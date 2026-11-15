@@ -71,3 +71,15 @@ partial files sit in `scratchpad/m3/g3b/` and are not used. Re-run B now runs fr
 - **(c) Why kill reads 0, verified:** each session records when its series pages landed (`pagesAt`) and when the first step began
   (`firstStepAt`), so the log states how many pages landed inside a step window in each arm.
 - The 20:24Z load-void rule applies unchanged.
+
+## 21:30Z: re-run B result: INCOMPLETE under the registered void rule (34 of 36 sessions VOID); not scored
+
+Raw: `scratchpad/m3/g3b2/runs.jsonl`; summary script `scratchpad/m3/g3b_summary.py` (seeded bootstrap, the void rule).
+- Lowest calibration 56.1 ms; void bar 70.1 ms. **34 of 36 sessions VOID** (calibrations 94.6-250.4 ms; machine CPU 56-100% busy
+  across the run, from other processes). The only valid sessions are 2 kill-arm sessions at z2. Re-running the voids at the end
+  (the rule) would run under the same load, so per the rule every arm runs short: **re-run B is INCOMPLETE and is not scored.**
+- (c), descriptive only (all 36 sessions, unscored): in every arm, 0 series pages landed after the first step began; the kill arm
+  had 5 steps with any decode-path ms (vs 47 worker, 45 noric). This supports the reading that the kill arm's per-step 0 comes from
+  its pages decoding before the steps, as asked, but it is not a scored result.
+- What it needs: a machine that is actually quiet (no other session's builds, tests or browsers). That is a coordination call above
+  this lane.
