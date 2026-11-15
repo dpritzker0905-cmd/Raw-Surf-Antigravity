@@ -48,9 +48,9 @@ GUARDED = {
                                         # supported), shape-guarded, stale -> model; else the model. Kill '0'
     "TIDE_SURGE_RESIDUAL": "0",         # 2026-11-15 owner option B (eta = tide + model surge): HELD OFF by gate G10, median
                                         # RMSE vs observed 0.284 m vs the tide alone 0.248 (won NE surge, lost SE)
-    "TIDE_LOCAL_DATUM": "0",            # 2026-11-15 HELD OFF: the 72 h de-mean beat raw vs NOAA predictions but, vs OBSERVED
-                                        # water, was worse than raw at 9/26 stations (whole US West Coast, e.g. La Jolla
-                                        # 0.122 -> 0.469 m): it removes real seasonal water. Advisor verdict FAIL.
+    "TIDE_LOCAL_DATUM": "1",            # 2026-11-15: tide minus the model's own 1-year mean per cell (tide_datum.py): held-out vs
+                                        # OBSERVED water, 26 stations x 4 weeks, median 0.414 -> 0.177 m, West Coast <= +0.015 m
+                                        # vs raw. (The 72 h de-mean tried first was rejected: removed real water.) Kill '0'
     "CONSENSUS_DIRECTION_VECTOR": "1",  # D-065: +5.6 deg [4.9, 6.3] better vs NDBC MWD held out, ON
     "RATING_OBS_GATE": "1",             # D-065: ON in every lane since 2026-07-30; the code default now agrees
     "RATING_LOCAL_SIZE": "1",           # D-065: ON in every lane; the code default now agrees

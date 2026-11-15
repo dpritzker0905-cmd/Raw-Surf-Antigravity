@@ -1,0 +1,40 @@
+name: Tide model datum (1-year mean per spot cell)
+# WHY (owner 2026-11-15; pre-registered held-out test in docs/weather-program/log/2026-11-15-claude-tide-local-datum.md):
+# the tide model's level is relative to a global reference; TIDE_LOCAL_DATUM subtracts the model's own 1-year mean per
+# 0.1-degree cell, read by Render from tides/model_datum.json. This job builds that table for the catalogued spots'
+# cells, rolling (at most 300 cells a run, each rebuilt weekly), so it stays far inside Open-Meteo's daily quota.
+# Render never builds it. Public read-only GETs; the only write is tides/model_datum.json.
+# Off switch: repository variable TIDE_DATUM_INGEST = '0' (unset = on). Serving kill: TIDE_LOCAL_DATUM=0.
+on:
+  schedule:
+    - cron: '41 4 * * *'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "At most N cells this run"
+        required: false
+        default: '300'
+permissions:
+  contents: read
+concurrency:
+  group: tide-datum
+  cancel-in-progress: false
+jobs:
+  build:
+    if: github.event_name == 'workflow_dispatch' || (vars.TIDE_DATUM_INGEST || '1') != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+      - name: Build the datum table
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/tide_datum_ingest.py --limit "${{ inputs.limit || '300' }}"

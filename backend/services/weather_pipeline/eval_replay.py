@@ -163,29 +163,6 @@ class TideSeries:
         return got
 
 
-def _local_datum_window(series, valid_time, tide):
-    """The replay twin of production's datum: the 72 h series from 00Z of the valid day through
-    tide.to_local_datum (flag-gated there), so the history filter sees TIDE_LOCAL_DATUM's arms differ."""
-    from datetime import datetime as _dt, timezone as _tz
-    vt = valid_time if isinstance(valid_time, _dt) else tide._parse_iso(valid_time)
-    if vt is None:
-        return series
-    if vt.tzinfo is None:
-        vt = vt.replace(tzinfo=_tz.utc)
-    day0 = vt.astimezone(_tz.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    idx = []
-    for i, t in enumerate(series["time"]):
-        d = tide._parse_iso(t)
-        if d is not None and d.tzinfo is None:
-            d = d.replace(tzinfo=_tz.utc)
-        if d is not None and day0 <= d < day0 + timedelta(hours=72):
-            idx.append(i)
-    if not idx:
-        return series
-    win = {"time": [series["time"][i] for i in idx], "level": [series["level"][i] for i in idx]}
-    return tide.to_local_datum(win)
-
-
 @contextlib.contextmanager
 def replay_patches(tides: Optional[TideSeries], gaps: Dict[str, int]):
     """Route the two offline-unreachable lookups through RECORDERS (named gaps), and make any other tide fetch fail
@@ -198,9 +175,6 @@ def replay_patches(tides: Optional[TideSeries], gaps: Dict[str, int]):
             gaps["tide_missing"] += 1
             return None
         gaps["tide_replayed"] += 1
-        # Same datum as production (tide.to_local_datum, TIDE_LOCAL_DATUM): the 72 h window production serves is
-        # the 3 days from 00Z of the serving day; replay anchors it at 00Z of the valid day (exact for lead < 24 h).
-        s = _local_datum_window(s, valid_time, tide)
         return tide.tide_state_at(s["time"], s["level"], valid_time)
 
     async def local_reference_at(lat, lng):

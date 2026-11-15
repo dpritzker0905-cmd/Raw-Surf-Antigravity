@@ -134,3 +134,33 @@ observed - predicted); P2 median r over TESTABLE station-weeks only (max >= 0.10
 with |observed non-tidal| > 0.15 m, RMSE of demean72 vs the chosen candidate vs the yardstick; the 72 h day-roll step
 per station incl. Anchorage and Eastport (either alone > 0.10 m would have counted toward a 74.5 h switch; moot while
 demean72 is off).
+
+## Held-out result (run as registered above; raw JSON notes `datum-heldout.json`)
+103 station-weeks (Anchorage 2026-03-15 had 18 observed hours: excluded by the rule). Median RMSE vs OBSERVED water:
+raw 0.414 · demean72 0.180 · **clim1y 0.177** · climAll 0.181 · yardstick 0.127 m.
+- **clim1y: PASS** - H1 (0.177 < 0.414 and < 0.180), H2 (West Coast 4-week median minus raw: Neah Bay -0.007, Point
+  Reyes +0.014, Los Angeles +0.014, Crescent City +0.001, Monterey +0.015, South Beach -0.001, La Jolla +0.003 m; all
+  <= 0.05), H3 (0.050 <= 0.10).
+- **climAll: FAIL on H1** (0.181 vs demean72 0.180), passes H2/H3. By the registered choice rule **clim1y ships** and
+  replaces demean72 in this PR, ON. (Over these four weeks demean72 itself did well, 0.180: its West Coast failure in
+  November is the season's anomaly, which the 1-year mean keeps.)
+- P2 (advisor's addition): 38 testable station-weeks (observed non-tidal max >= 0.10 m): **median r 0.925**, the model
+  carries surge. P2b, surge hours (|observed non-tidal| > 0.15 m, 25 station-weeks): demean72 0.297, climAll 0.294,
+  clim1y 0.284, yardstick 0.244 m: demean72 is 0.053 m worse than the yardstick there (> 0.05: the 72 h stop-gap
+  under-reads surge, as the advisor expected; it no longer ships). clim1y keeps more of it (0.040 m worse than yardstick).
+- P3 per station is moot: clim1y is one fixed number per cell (no day-roll step); the yearly table refresh moves it by
+  the drift of a 365-day mean (tiny, weekly).
+
+## Built (2026-11-15 ~23:10Z): the 1-year model mean replaces the 72 h de-mean in this PR, ON
+- `services/weather_pipeline/tide_datum.py`: reads `tides/model_datum.json` (6 h cache, 5 min failure cooldown); exact
+  0.1-degree cell, else the nearest table cell within 0.5 degree, else None. `tide.fetch_tide_hourly` subtracts it
+  (`to_local_datum(series, offset)`, datum `local_msl_1y`); no entry / storage failure / kill -> the model level as
+  today (`model_msl`). The 72 h code, its replay twin and the client-side de-mean are removed (the browser cannot
+  read the table; #931 retires that fallback); this PR no longer touches the frontend.
+- `scripts/tide_datum_ingest.py` + `.github/workflows/tide-datum.yml` (daily 04:41Z, off switch repo var
+  TIDE_DATUM_INGEST=0): the catalogued spots' cells, 365-day mean, >= 330 days of hours required, rolling refresh
+  (missing first, then older than 7 days, <= 300 cells a run).
+- Guardrail coverage BLIND (no table offline, buoys offshore): the evidence is the held-out test above.
+- Tests `test_tide_local_datum.py` 9 (mutation: no subtraction -> 3 red); tide/flag/guardrail suites 144 passed.
+- **After merge:** the table is empty until the first `tide-datum.yml` run (dispatch it, then again over ~5 days or
+  with a larger limit to cover every cell); until a cell has an entry it serves the model level, unchanged.

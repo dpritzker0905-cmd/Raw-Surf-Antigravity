@@ -77,9 +77,9 @@ COVERAGE = {
                              "(log 2026-11-15 tide-harmonic)"),
     "TIDE_SURGE_RESIDUAL": (BLIND, "eta = tide + model surge (option B) at NOAA points; the replay has no NOAA series. "
                                    "Evidence: G10 vs CO-OPS observed water level (log 2026-11-15 tide-harmonic)"),
-    "TIDE_LOCAL_DATUM": (REPLAY, "the replay's tide takes the same local datum (eval_replay._local_datum_window); "
-                                 "the height moves only where the tide reaches the breaking cap. Evidence for the "
-                                 "displayed tide: NOAA CO-OPS MSL, 25 stations (log 2026-11-15 tide-local-datum)"),
+    "TIDE_LOCAL_DATUM": (BLIND, "the replay has no datum table (bucket) and its buoys are offshore, so it cannot see the "
+                                "displayed tide or eta at a spot. Evidence: the pre-registered held-out test vs OBSERVED "
+                                "water, 26 stations x 4 weeks (log 2026-11-15 tide-local-datum)"),
     "SURF_EXPOSURE_RECONCILED": (REPLAY, "the height exposure factor at the anchors"),
     "SHORE_NORMAL_MOP_CALIBRATED": (REPLAY, "the height exposure normal at the calibrated anchors (#780)"),
     "RATING_LOCAL_SIZE": (RATING, "the quality score's size reference; no observed rating exists"),

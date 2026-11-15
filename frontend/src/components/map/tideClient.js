@@ -73,23 +73,6 @@ export function tideStateFromSeries(times, levels, nowMs) {
   return { height_m: Math.round(height * 1000) / 1000, trend };
 }
 
-/**
- * PURE: levels relative to the LOCAL mean sea level, the backend's tide.to_local_datum rule (TIDE_LOCAL_DATUM): minus
- * the mean of the first 72 finite hours when there are at least 48. The model's own "msl" sits 0.2-0.55 m off the local
- * mean at the coast (NOAA CO-OPS check, 2026-11-15). HELD OFF like the backend flag (worse than raw vs OBSERVED water on
- * the US West Coast): applies only with window.__RAW_ENABLE_TIDE_LOCAL_DATUM__ = true; the kill
- * window.__RAW_DISABLE_TIDE_LOCAL_DATUM__ = true still wins.
- */
-export function toLocalDatum(levels) {
-  if (!Array.isArray(levels)) return levels;
-  if (typeof window === 'undefined' || window.__RAW_ENABLE_TIDE_LOCAL_DATUM__ !== true) return levels;
-  if (window.__RAW_DISABLE_TIDE_LOCAL_DATUM__ === true) return levels;
-  const head = levels.slice(0, 72).filter((v) => typeof v === 'number' && Number.isFinite(v));
-  if (head.length < 48) return levels;
-  const mean = head.reduce((a, b) => a + b, 0) / head.length;
-  return levels.map((v) => (typeof v === 'number' && Number.isFinite(v) ? v - mean : v));
-}
-
 /** Synchronous cache read — the render path's lookup. Undefined = never fetched, null = fetched+unusable. */
 export function getCachedTideState(lat, lng) {
   const hit = cache.get(tideCellKey(lat, lng));
@@ -109,12 +92,12 @@ export function ensureTideState(lat, lng) {
   if (inflight.has(key)) return inflight.get(key);
   const [klat, klng] = key.split(',');
   const url = `${OPEN_METEO_MARINE_API}?latitude=${klat}&longitude=${klng}`
-    + '&hourly=sea_level_height_msl&forecast_days=3&timezone=GMT';   // 3 days: the backend's local-datum window
+    + '&hourly=sea_level_height_msl&forecast_days=2&timezone=GMT';
   const p = fetch(url)
     .then((r) => (r.ok ? r.json() : null))
     .then((d) => {
       const h = (d && d.hourly) || {};
-      const state = tideStateFromSeries(h.time, toLocalDatum(h.sea_level_height_msl), Date.now());
+      const state = tideStateFromSeries(h.time, h.sea_level_height_msl, Date.now());
       cache.set(key, { ts: Date.now(), ok: state != null, state });
       return state;
     })

@@ -171,7 +171,10 @@ def combine(model: Optional[dict], doc: dict, station: dict, now: Optional[datet
     shape = shape_agrees(harm, model_raw)
     if shape is not None and not shape["ok"]:
         return None                                   # the station's water is not this cell's (e.g. a bay vs an outer coast)
-    resid = lowpass_residual(parsed, model_raw, harm, doc.get("model_offset_m")) if surge_on() else {}
+    # The model's permanent offset: its own 1-year mean at the cell when the door applied it (TIDE_LOCAL_DATUM,
+    # tide_datum.py; keeps a season-long anomaly, advisor #931 point 6), else the CI's 14-day offset vs the predictions.
+    off_resid = model.get("datum_offset_m") if model and model.get("datum") == "local_msl_1y" else doc.get("model_offset_m")
+    resid = lowpass_residual(parsed, model_raw, harm, off_resid) if surge_on() else {}
     water = [None if lv is None else round(lv + resid.get(t, 0.0), 4) for t, lv in zip(parsed, levels)]
     events = []
     for e in doc.get("events") or []:
