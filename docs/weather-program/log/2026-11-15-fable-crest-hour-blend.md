@@ -698,3 +698,55 @@ the blend, not for it.
    (the held picture's contrast was 4-10% low; a late range or scale value is one guess, untested).
 5. The two per-view extremes of section 24: 14% is swell_2 at (115, -10, z4.0), whose synthetic pattern changes almost evenly
    in time; 77% is wind_waves at (-5, 50, z4.5).
+
+## 28. The three runs of section 25 (13:57-14:45 EST, recorded 14:47 EST). Repeat visits pass; the first visit does not. Nothing tuned.
+Build `1c1a13f28`, instrument `c3fa7d8bf`. Registered in sections 23, 25, 26, 27. 0 page errors in all three.
+
+### 1. Coastal views, cache settled, held picture read 3 s after the jump (colour view)
+- **H8 PASS.** 40 of 40 triples; ERROR(blend) 5.48 against ERROR(cut) 11.81 = **46.4%** (line 60%, floor 25%); no view worse than
+  the cut; per view 46, 47, 50, 51, 43, 43, 46, 49, 14, 47%. One grid in all five places in all 40. Value space 40.5%.
+  The wind_waves view that read 77% in section 24 reads 47% now: that 77% was the jump's transient in the held picture.
+- **The truth and cut pictures are clean on all ten views** (section 27.1): each h+6 picture read 600 ms after a +3 h step
+  against the same hour read more than 4 s after the jump: **0.000** in all 40. The truth read twice: 0.000.
+- **Reference line (0.5, colour): FAIL on one picture.** Regional grids now read 0.29-0.40 like the world grids (so sections 20
+  and 24 were the transient), but one picture in the coastal waves view (-158, 21.6) reads **0.795**; mean 0.385; retention
+  agrees to 0.017. This is the view that gave 0.81 in section 12.
+- Bracket, colour view (not the registered view): 0.1% of pixels outside with the one-level widening, up to **9.4%** without.
+  In the colour view the widening carries it, as the advisor warned.
+
+### 2. The grey (value) view, six views, 24 held pictures: the registered rounding-proof line
+- **BRACKET PASS.** The share of pixels whose value lies outside [reference rounded down, reference rounded up]: **0.00%** in all
+  24 pictures, WITH the one-level widening and WITHOUT it. Regional grids included (24 x 21, 25 x 20), and the coastal view
+  that fails the colour line included.
+- Reference difference in the grey view: 0.25-0.35 (largest 0.349; the old line 0.5 is met here); 0.284 from each rounding, the
+  two roundings 0.568 apart.
+- So at every pixel the value the shader draws lies between the two roundings of the exact average: the mix is the exact
+  average. The one colour picture at 0.795 is where the colour table turns that sub-step difference into a larger luminance
+  difference. The colour line as registered is failed by that picture; the value line registered to replace it is passed.
+
+### 3. H8f, the FIRST visit: VOID (15 of 40 triples; 30 required), and not good where it could be scored
+- 25 triples were not scorable: in the world and mid-zoom views the jump landed on the fine grid directly (no stand-in was
+  showing when the pictures were read), and in two coastal views the stand-in state did not meet every condition of the rule.
+  Which grids each triple used is in the run's record.
+- On the 15 scored (waves at -158; swell_1 at -123; swell_2; wind_waves), NOT as a result: ERROR(blend) 6.51 against
+  ERROR(cut) 7.22 = **90.1%**; the blend is WORSE than the hard cut in two views (swell_2 141%, wind_waves 110%), 85% and 91%
+  in the other two. Pooled, fine h alone is 7.51 from the truth and the stand-in of h+6 alone 9.73; the half-way mix, 6.51,
+  is better than either alone on average but not better than the nearer of the two in each triple.
+- Read as registered in section 27.3: void; and the scored part shows no truth gain from mixing a fine field with the coarse
+  stand-in of another hour. The transient may be in those figures (not separated).
+
+### Standing after section 28
+| line | state |
+|---|---|
+| H1 smoothness (23%), H2 GPU time, H3 bytes, H4 at rest, H6 drag | pass (section 11) |
+| self-mix: the earlier field at its own place, exact | pass, 0.000 in 16 cases (section 24.1) |
+| H8 hidden middle hour, REPEAT visits, coastal and world | pass twice as registered: 47.1%, 46.4%; truth and cut pictures clean |
+| value line (bracket, grey view) | pass, 0.00% of pixels outside |
+| colour reference line (0.5) | failed by one picture (0.795); explained by the value line, not met |
+| H8f, FIRST visit (fine field mixed with the coarse stand-in of another hour) | void; 90% where scored; worse than a cut in 2 of 4 views |
+| water-only weighting; real frames | not tested |
+**Not ready for a PR.** The same-grid blend is shown correct and truthful. The blend of a fine field with the stand-in of
+ANOTHER hour is smooth and shows no truth gain. The advisor's product answer applies: decide whether to blend only where both
+fields are true to their own hour on comparable grids (the same grid; and the stand-in sharpening into the fine grid of the
+SAME hour) and cut on a step that changes hour and grid together. That is a change of design and needs the owner's word and
+its own registration.
