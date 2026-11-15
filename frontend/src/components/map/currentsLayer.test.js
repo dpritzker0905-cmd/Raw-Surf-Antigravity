@@ -2,7 +2,7 @@
 // legend in the user's unit, the Copernicus credit, and the frame's direction field in the wind layout.
 import { CURRENTS_LUT, MS_PER_KN, currentsColor, currentsLegend, currentsScale } from './currentsPalette';
 import { toOklch } from './WindColorRamp';
-import { DEFAULT_ON_LAYERS, OWN_ONLY_LAYERS, OWN_RASTER_SETS, SPEED_FIELD, ownFramesOn, setKey, sourceModel } from './ownRasterFrames';
+import { DEFAULT_ON_LAYERS, OWN_ONLY_LAYERS, OWN_RASTER_SETS, SPEED_FIELD, ownFramesOn, ownWindowRadius, setKey, sourceModel, windowRadius } from './ownRasterFrames';
 import { RASTER_SET_KEYS } from './staticRasterSets';
 import { buildStepLut, colorAtValue } from './ownRasterLayer';
 import { RASTER_STATUS_LAYERS, describeRasterFrame } from './rasterDrawnFrame';
@@ -82,8 +82,6 @@ test('a currents frame (speed + direction TOWARD, uv convention 1) rebuilds flow
 
 jest.mock('./deviceTier', () => ({ ...jest.requireActual('./deviceTier'), isHandheldDevice: () => true }));
 describe('phone prefetch for the own-only layers', () => {
-  // eslint-disable-next-line global-require
-  const { ownWindowRadius, windowRadius } = require('./ownRasterFrames');
   afterEach(() => { delete window.__RAW_DISABLE_OWN_ONLY_PREFETCH2__; });
   test('handhelds keep two frames ahead for gusts and currents; the live lanes keep their radius', () => {
     expect(windowRadius()).toBe(1);
