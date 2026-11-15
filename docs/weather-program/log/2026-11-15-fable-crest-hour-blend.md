@@ -76,3 +76,31 @@ References read: #912 section 6.2 (the researcher's draft); the Khronos WebGL 2 
 (`copyTexSubImage2D` reads the read framebuffer's colour attachment into the bound texture: the GPU copy of the earlier hour);
 the Blender manual's Ocean modifier page (its surface is animated by ONE continuous Time value, so a crest moves and is never
 cross-faded; that is the visual standard H5 holds the blend to).
+
+## 4. The gate is VOID on the harness's stock data; the data is registered again BEFORE any gate measurement (10:05 EST)
+Built first (the code of section 2 and the instrument `frontend/scripts/offline-backend/scn_hour_blend.js`), then ONE shakedown
+run of the instrument: view 4 of the list (waves, world, z2.5), arm B only, on the stock synthetic store. What it showed:
+- The stock synthetic ocean (`serve_synthetic.py`, `field()`) is the SAME every hour except one slow vortex near 14 N, 106 W and
+  the swell_2 pattern. A +3 h step changed the picture by 0.02-0.04 luminance units against a floor of 0.013 (the moving
+  crests). 8 of the 10 registered views look at water that does not change at all. By the gate's own rule (a view whose arm-A
+  step is below 2 x its floor carries no pop; more than 3 such views void the gate) the gate is void on this data. This is read
+  from the generator's code, not from an arm-A run; no arm-A number exists yet.
+- The step from the present hour to +3 h changed the engine's grid size in the harness (the resident was reallocated), so it is
+  a hard swap by design in both arms (4.3 luminance units in the shakedown). It stays in the count.
+- Instrument facts fixed by the shakedown: the GPU timer query is available; frames are drawn at 16.7 ms; the blend started and
+  ended on every same-grid step (20 starts, 20 ends, 0 errors); the positive control of H5 FAILS the check as it must (ratio 1.273
+  against the 1.15 line), so the check can see doubling.
+- Disclosure: this one arm-B view was seen before the re-registration below. Its steps carried no pop, so it says nothing about
+  the 50% line either way.
+
+**Registered again, nothing else changed (same 10 views, same thresholds, same arms, same build):**
+- Data: the same synthetic backend with a new option, `--moving-swell 0.9`: swell trains of 0.9 m, 14 degrees long, travelling
+  0.6 degrees an hour (1.8 degrees per 3 h step) across the whole ocean, so every view's consecutive hours differ. Off by
+  default, so no other harness user changes. The void rule still applies to this data.
+- Two details of the instrument, fixed here because the first text contradicted itself: (a) a step's window is the 600 ms to
+  the next step (the text said 800 ms after a step and one step every 600 ms; the blend is 160 ms, so nothing is cut off);
+  for the drag (H6) it is the 100 ms to the next step. (b) H3 compares arm A with arm B (hash of the wave texture read back
+  from the GPU after every step, and the drawn record). Arm A is the upload path as it was, so equality with A is equality
+  with what was handed over; the handed-over bytes are not hashed a second time on the CPU.
+- Every boundary counts in H1, including the ones that are hard swaps by design (a grid change); how many were blended is
+  reported beside the result.
