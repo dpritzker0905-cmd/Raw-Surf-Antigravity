@@ -155,3 +155,20 @@ the frame a step shows. In the kill arm that work happens when the page lands, n
 - Gate 3 is re-run below on a rebuild, same instrument and same settings.
 - Correction (15:56Z): the fix commit is `1a66cd4cf` (the two searches); `96f2033e8` only moves the test's import. The "6c…." above is
   a typo.
+
+## 16:13Z: amended gate 3, second run (build main.9252db50, with 1a66cd4cf): FAIL at z6 p95 by 0.2 ms; a second fix; third run follows
+
+| zoom | worker: ms added per step, p50 / p95 / max | kill: ms added per step, p50 / p95 / max |
+|---|---|---|
+| z2 | 0 / 12.8 / 34.4 | 0 / 0 / 0 |
+| z6 | 0 / **15.2** / 33.5 | 0 / 98.2 / 122.7 |
+
+Gate 1 again holds on this run: decode median z2 81.1 vs 306.6 ms, z6 100.2 vs 224.4 ms.
+
+**What remained on the step:** the first-read build of a frame not yet built, such as a new page's first frame or the next hour.
+
+**Fix (the next commit):** build ahead in idle time, one frame per idle callback, so never a long task:
+- the page's first frame when the page lands;
+- the two neighbours of each frame that is read.
+
+Kill: `__RAW_DISABLE_SERIES_BUILD_AHEAD__`. Test and mutant included. Same instrument and settings for the third run.
