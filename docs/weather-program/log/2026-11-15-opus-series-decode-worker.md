@@ -172,3 +172,36 @@ Gate 1 again holds on this run: decode median z2 81.1 vs 306.6 ms, z6 100.2 vs 2
 - the two neighbours of each frame that is read.
 
 Kill: `__RAW_DISABLE_SERIES_BUILD_AHEAD__`. Test and mutant included. Same instrument and settings for the third run.
+
+## 16:47Z: gate 3, third and fourth runs; gate 3 FAILS as written; default decided by Reflection + SubQ (David's standing rule)
+
+**Third run (build-ahead, 797697bad):**
+
+| zoom | worker p50 / p95 / max | kill p50 / p95 / max |
+|---|---|---|
+| z2 | 0 / 8.9 / 34.4 | 0 / 0 / 0 |
+| z6 | 1.9 / **17.1** / 18.5 | 0 / 148.1 / 235.2 |
+
+The registered metric counts every decode ms inside the 900 ms window, so since build-ahead it also counts the idle-callback
+builds that land in the window. Those builds are off the step path. A SECONDARY split was therefore added (not gating;
+telemetry `idleDecodeMs`, probe `stepSyncMs`).
+
+**Fourth run (same settings, with the split):**
+
+| zoom | worker, registered p50 / p95 / max | worker, step-sync only p50 / p95 / max | kill p50 / p95 / max |
+|---|---|---|---|
+| z2 | 0 / 11.5 / 18.1 | 0 / 6.3 / 18.1 | 0 / 0 / 0 |
+| z6 | 0.2 / **18.1** / 18.4 | 0 / 2.7 / 11.4 | 0 / 178.9 / 208.4 |
+
+- Decode-path medians (gate 1 holds): z2 83.7 vs 468.2 ms; z6 71.1 vs 433.8 ms.
+- **Gate 3 verdict, as written: FAIL at z6 p95 in all four runs** (19.0, 15.2, 17.1, 18.1 ms). z2 passes in all four.
+- The p95 step-sync work is 2.7 ms at z6 and 6.3 ms at z2. Today's path adds 98-179 ms at p95 on the same steps.
+
+**Default decision, under David's standing word (10:52 EST: "If there is confusion if a change we make is in the right
+direction, lets run it by reflection and subq").** Both reviewers were given every result above, failures included.
+- **Reflection (Beam-1.0): YES.** Paraphrased: gate 1 and data identity show a large, clear main-thread reduction with no
+  output change; gate 3's miss is small and driven by counted idle build-ahead work, not synchronous step work; today's code is
+  far worse on the same metric; fallback and two kills keep it safe; the direction toward state of the art is clear.
+- **SubQ (snap-1.1):** ship default-ON 0.978; direction clear 0.995.
+- **Both agree: ships DEFAULT-ON**, with kills `__RAW_DISABLE_SERIES_DECODE_WORKER__` and `__RAW_DISABLE_SERIES_BUILD_AHEAD__`.
+  Gate 3 stays recorded as FAILED as written.
