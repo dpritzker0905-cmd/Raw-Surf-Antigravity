@@ -48,7 +48,7 @@ def test_a_hole_buoy_episode_passes_all_four_checks():
     assert verdict == "PASS", res
     assert not res["P1_rule1_silent_on_episode"]
     assert len(res["P3_rule2_fires_on_episode"]) >= 3
-    assert all(rate <= R.NULL_MAX_RATE for rate in res["P4_null_fire_rate"].values()), res["P4_null_fire_rate"]
+    assert all(v["pages_per_30d"] <= R.NULL_MAX_PAGES_30D for v in res["P4_null_fire_rate"].values()), res["P4_null_fire_rate"]
     # the lead permutation keeps the hole gap (lead-independent), so rule 2 still fires there: a diagnostic, not a null
     assert res["diag_lead_permutation_fires"][2] > 0
 
@@ -103,8 +103,9 @@ def test_printed_lines_carry_no_row_fields():
 
 def test_the_swap_null_fails_a_rule_whose_bound_sits_inside_its_noise():
     """A cell with a large real gap re-signed by the null spreads around 0 by ~sd/sqrt(n): a 0.03 m bound on n=40 pairs of
-    +-0.4 m differences is crossed on far more than 5% of draws, so the gate must fail it."""
-    pairs = {"2026-11-10": {(2, 24): [(0.6, 0.2)] * 40}}
+    +-0.4 m differences pages on many null days, far above 1 per 30 days, so the gate must fail it."""
+    pairs = {"2026-11-%02d" % d: {(2, 24): [(0.6, 0.2)] * 40} for d in range(1, 31)}
     rates = A.swap_null_fire_rates(pairs, {1: 0.06, 2: 0.03, 3: 0.10}, draws=400, seed=1)
-    assert rates[2] > R.NULL_MAX_RATE
-    assert A.swap_null_fire_rates(pairs, {1: 0.06, 2: 0.30, 3: 0.10}, draws=400, seed=1)[2] <= R.NULL_MAX_RATE
+    assert rates[2]["pages_per_30d"] > R.NULL_MAX_PAGES_30D
+    calm = A.swap_null_fire_rates(pairs, {1: 0.06, 2: 0.30, 3: 0.10}, draws=400, seed=1)[2]
+    assert calm["pages_per_30d"] <= R.NULL_MAX_PAGES_30D and calm["draws_with_any_page"] <= calm["pages_per_30d"] + 1

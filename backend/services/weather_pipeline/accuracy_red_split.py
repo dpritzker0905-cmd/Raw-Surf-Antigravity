@@ -138,13 +138,18 @@ def rule_pairs(win: dict) -> Dict[Tuple[int, int], List[Tuple[float, float]]]:
 
 
 def swap_null_fire_rates(daily_pairs: Dict[str, Dict[Tuple[int, int], List[Tuple[float, float]]]],
-                         bounds: Dict[int, float], draws: int, seed: int) -> Dict[int, float]:
-    """{rule: share of independent null draws in which the rule fires on >= 1 (day, lead)}. Every draw re-signs every
-    pair on every day afresh (numpy; one sign matrix per day x cell, rows = draws)."""
+                         bounds: Dict[int, float], draws: int, seed: int) -> Dict[int, dict]:
+    """{rule: {"pages_per_30d", "draws_with_any_page"}} under the swap null. A replay day PAGES a rule when it fires at
+    any lead that day (one page a day, like the monitor). pages_per_30d = the mean over draws of (paging days / replay
+    days) x 30, the operational rate the gate reads; draws_with_any_page = the share of draws with >= 1 page anywhere in
+    the history (family-wise over ~270 chances, a diagnostic). Every draw re-signs every pair on every day afresh
+    (numpy; one sign matrix per day x cell, rows = draws)."""
     import numpy as np
     rng = np.random.default_rng(seed)
-    fired = {r: np.zeros(draws, dtype=bool) for r in (1, 2, 3)}
+    page_days = {r: np.zeros(draws, dtype=int) for r in (1, 2, 3)}
+    n_days = len(daily_pairs)
     for day in sorted(daily_pairs):
+        today = {r: np.zeros(draws, dtype=bool) for r in (1, 2, 3)}
         for (rule, _lead), pairs in sorted(daily_pairs[day].items()):
             n = len(pairs)
             if n < MIN_N[rule]:
@@ -154,8 +159,11 @@ def swap_null_fire_rates(daily_pairs: Dict[str, Dict[Tuple[int, int], List[Tuple
             swap = rng.random((draws, n)) < 0.5
             delta = np.where(swap, b - a, a - b).sum(axis=1) / n
             win = np.where(swap, b < a, a < b).sum(axis=1) / n
-            fired[rule] |= (delta > bounds[rule]) & (win < 0.50)
-    return {r: float(f.mean()) for r, f in fired.items()}
+            today[rule] |= (delta > bounds[rule]) & (win < 0.50)
+        for r in (1, 2, 3):
+            page_days[r] += today[r]
+    return {r: {"pages_per_30d": float(page_days[r].mean()) * 30.0 / max(n_days, 1),
+                "draws_with_any_page": float((page_days[r] > 0).mean())} for r in (1, 2, 3)}
 
 
 def permute_leads(idx: dict, rng: random.Random) -> dict:

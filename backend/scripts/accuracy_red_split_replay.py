@@ -25,7 +25,7 @@ SEEDED = ("2026-11-01", "2026-11-14")
 SEED_M = 0.08
 SEED = 20261115
 NULL_DRAWS = 200           # the senior lead (2026-11-15): >= 200 independent re-draws
-NULL_MAX_RATE = 0.05       # a rule fails the null if it fires on more than 5% of the draws
+NULL_MAX_PAGES_30D = 1.0   # a rule fails the null if it falsely pages more than once per 30 days (amendment 1a)
 NAMED_HOLES = ("44090", "46254", "46267", "46274", "46285", "51201", "51206", "51208", "LJPC1")
 
 
@@ -78,7 +78,7 @@ def checks(idx):
     ok = (not res["P1_rule1_silent_on_episode"]
           and len(res["P2_rule1_fires_on_seeded"]) >= 0.8 * len(seeded_days)
           and len(res["P3_rule2_fires_on_episode"]) >= 3
-          and all(rate <= NULL_MAX_RATE for rate in null_rates.values()))
+          and all(v["pages_per_30d"] <= NULL_MAX_PAGES_30D for v in null_rates.values()))
     gradeable_basis = sum(1 for d in basis for (r, _), s in daily[d].items() if s and s["n"] >= A.MIN_N[r])
     if gradeable_basis == 0:
         return bounds, res, daily, "VOID (no gradeable basis day)"
@@ -136,8 +136,11 @@ def lines_for(bounds, res, daily, verdict):
             % (SEED_M, res["n_seeded"], len(res["P2_rule1_fires_on_seeded"])),
             "  P3 rule 2 fires on the episode: %d of %d days (need >= 3)" % (len(res["P3_rule2_fires_on_episode"]),
                                                                             res["n_episode"]),
-            "  P4 per-key swap null, %d independent draws (re-signed every day): false-fire rate per rule %s (need <= %.0f%%)"
-            % (NULL_DRAWS, {r: "%.1f%%" % (100 * v) for r, v in res["P4_null_fire_rate"].items()}, 100 * NULL_MAX_RATE),
+            "  P4 per-key swap null, %d independent draws (re-signed every day): false pages per 30 days per rule %s "
+            "(need <= %.1f)" % (NULL_DRAWS, {r: "%.2f" % v["pages_per_30d"] for r, v in res["P4_null_fire_rate"].items()},
+                                NULL_MAX_PAGES_30D),
+            "  diagnostic (not gating): share of draws with >= 1 false page anywhere in the history %s"
+            % {r: "%.1f%%" % (100 * v["draws_with_any_page"]) for r, v in res["P4_null_fire_rate"].items()},
             "  diagnostic (not gating): leads permuted within each buoy x target, days fired per rule %s"
             % res["diag_lead_permutation_fires"],
             "== VERDICT: %s" % verdict]

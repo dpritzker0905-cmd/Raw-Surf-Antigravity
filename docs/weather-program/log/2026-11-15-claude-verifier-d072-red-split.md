@@ -90,3 +90,12 @@ to keep firing there, because the hole gap does not depend on lead.
 of the paired differences, and the case is a bound at the +0.03 m floor over a large real gap.
 `tests/test_accuracy_red_split.py::test_the_swap_null_fails_a_rule_whose_bound_sits_inside_its_noise` pins that the gate
 catches it.
+
+**1a, refined 2026-11-15 ~22:25Z (still before any row was read), on the senior lead's check.** "Fires at any lead on
+any day" across the whole replay is family-wise over ~270 chances per draw. A rule that pages falsely on 0.1% of days
+would fail it in ~24% of draws, yet be operationally fine. The monitor pages at most once a day, so the gate reads the
+operational rate:
+- A null draw **pages a rule on a replay day** when the rule fires at any lead that day.
+- **false pages per 30 days** = mean over the 200 draws of (paging days / replay days) x 30.
+- **P4 holds when every rule's rate is <= 1.0 per 30 days.**
+- The family-wise share (draws with >= 1 false page anywhere in the history) is printed as a diagnostic, not gating.
