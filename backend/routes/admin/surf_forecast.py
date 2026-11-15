@@ -266,7 +266,7 @@ _RATING_FLAGS = {"SAMPLER_UNRESOLVED_STATIONS": ("1", "[D-065 GUARDED, ON, guard
     "SURF_TIDE_DEPTH":             ("1", "[D-065 default ON; guardrail-watched] Let the tide (sea_level_height_msl) move the depth-limited "
                                          "breaking cap — binds only where a shallow break meets surf "
                                          "big enough to feel bottom", "Render env"),
-    "TIDE_LOCAL_DATUM":            ("0", "[11-15 HELD OFF: worse than raw vs observed water at 9/26, West Coast] tide minus its 72 h mean",
+    "TIDE_LOCAL_DATUM":            ("1", "[11-15 ON; guardrail BLIND] tide minus the model's 1-year mean per cell (held-out 0.414 -> 0.177 m)",
                                          "Render env"),
     "SURF_RATING":                 ("1", "Rating overlay (vs raw surf-height band) on surf=1 grids", "Render env"),
     "SURF_TRANSFORM":              ("1", "Whole surf/rating band transform on marine grids", "Render env"),

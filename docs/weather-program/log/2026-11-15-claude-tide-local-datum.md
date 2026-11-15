@@ -150,3 +150,17 @@ raw 0.414 · demean72 0.180 · **clim1y 0.177** · climAll 0.181 · yardstick 0.
   under-reads surge, as the advisor expected; it no longer ships). clim1y keeps more of it (0.040 m worse than yardstick).
 - P3 per station is moot: clim1y is one fixed number per cell (no day-roll step); the yearly table refresh moves it by
   the drift of a 365-day mean (tiny, weekly).
+
+## Built (2026-11-15 ~23:10Z): the 1-year model mean replaces the 72 h de-mean in this PR, ON
+- `services/weather_pipeline/tide_datum.py`: reads `tides/model_datum.json` (6 h cache, 5 min failure cooldown); exact
+  0.1-degree cell, else the nearest table cell within 0.5 degree, else None. `tide.fetch_tide_hourly` subtracts it
+  (`to_local_datum(series, offset)`, datum `local_msl_1y`); no entry / storage failure / kill -> the model level as
+  today (`model_msl`). The 72 h code, its replay twin and the client-side de-mean are removed (the browser cannot
+  read the table; #931 retires that fallback); this PR no longer touches the frontend.
+- `scripts/tide_datum_ingest.py` + `.github/workflows/tide-datum.yml` (daily 04:41Z, off switch repo var
+  TIDE_DATUM_INGEST=0): the catalogued spots' cells, 365-day mean, >= 330 days of hours required, rolling refresh
+  (missing first, then older than 7 days, <= 300 cells a run).
+- Guardrail coverage BLIND (no table offline, buoys offshore): the evidence is the held-out test above.
+- Tests `test_tide_local_datum.py` 9 (mutation: no subtraction -> 3 red); tide/flag/guardrail suites 144 passed.
+- **After merge:** the table is empty until the first `tide-datum.yml` run (dispatch it, then again over ~5 days or
+  with a larger limit to cover every cell); until a cell has an entry it serves the model level, unchanged.
