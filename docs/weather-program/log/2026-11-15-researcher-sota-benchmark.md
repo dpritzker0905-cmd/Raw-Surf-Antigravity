@@ -711,3 +711,40 @@ Nothing here changes a served number. Nothing was merged.
 **Limits.** The decision rests on cartographic evidence (Łucjan 2018, Fish 2011) and the leaders' public stepped-frame pattern. No weather-specific user study exists yet.
 
 Nothing here changes a served number. Nothing was merged.
+
+## 17. Dated correction (director, 2026-11-15 18:20Z): advisor red-team fixes applied
+
+Source: the advisor's red-team of #912 (shared notes `redteam-912-914-915-2026-11-15.md`, 16:20Z). David asked the director to apply these fixes.
+Sections 1-16 above stay as written (append-only). Where they conflict with this section, this section supersedes them.
+
+1. **Crest blend gate (7.D rank 3) could not fail.** Any crossfade halves the luminance step. It is replaced by a hidden-middle-frame test:
+   - Hide each interior hourly frame and build the blend from its neighbours.
+   - Score the blend against the REAL frame and against the hard swap.
+   - Count ghosting: two crest maxima where the truth has one.
+   - The luminance step becomes a secondary display metric only.
+   - Status at writing: the animation lane's H8 hidden-hour line has been VOID three times. The coastal (grid-change) case has no truth line yet. The blend is NOT ready for default ON.
+2. **Linear MOS (rank 4) is removed from the ranking.** Its gain leans on the region holding 46267, which is now excluded by name (#852). It must be re-scored without 46267 before it is ranked again, and stays shadow-only until then. The "0.01-0.02 m pooled" figure is withdrawn.
+3. **Exposure sweep (rank 5) is removed from the ranking.** The named exclusion already removes 46267, and the sweep ranks 46267 above six of the seven affected spots. The "up to 37%" figure is not an expected gain.
+4. **The 7.A "labelling issue" claim is withdrawn.** The blend's excess error is a build and definition defect (#869, #880), as section 11.1 already says.
+5. **Scrub gate (rank 1) gets a relative pass rule:** phone p95 at least 50% lower than the same-build baseline. The 50 ms absolute stays as the goal. Both arms in #889 missed it by about 6×.
+   - Move 3's corrected census, for scale: per scrub step there are about 10 commits, 67 components and about 152 ms of render time.
+6. **Pump backoff (rank 9) is already merged (#890)** and is removed from the open list.
+
+### Open ranking after corrections
+
+| Rank | Item | Owner | Status |
+|---|---|---|---|
+| 1 | Phone scrub re-render | Move 3 | census done; fix gate being registered |
+| 2 | JSON series decode off the main thread | Move 3 | #921 |
+| 3 | Water decode to a worker | Move 3 | queued after #921 |
+| 4 | EURO/ICON z7 missing frames | Move 3 | queued |
+| 5 | Crest hour blend | animation lane | coastal truth line and real-frame H8 owed before ON |
+
+Owner decision on blending (David, 15:07Z): blending ACROSS HOURS is allowed. Blending ACROSS MODELS stays BANNED.
+
+Not ranked here:
+- Hawaii: deferred until the shore-split read (2026-11-27).
+- Bias line: measured in #915.
+- AIFS: stays a shadow measurement. Consensus disagrees on wind (Kocsis 2026).
+- Perception test: parked (needs a panel).
+- 46267 record: the nearest NOAA native water cell is 0.958 deg away, not 0.729 (corrected in #919).
