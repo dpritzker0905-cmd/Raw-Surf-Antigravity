@@ -189,3 +189,58 @@ The Chesapeake stations share one baseline, so four flags there are one finding 
 **Data that expires.** NOMADS keeps about ten days of fields. The 11-16 fields must be fetched by 11-24 and the rest by
 11-27 (the Hawaii shore-split commitment needs fields from 11-14 on, on the same clock, so its first fetch is due by
 11-22). Scoring: no earlier than 2026-11-26, recorded in a log by 2026-11-28T12:00Z (ledger commitment).
+
+## 16:42Z Reworded verdict, a missing limit, and two follow-up checks (advisor red-team, via the director)
+
+**The verdict, said plainly.** The census is INVALID BY ITS OWN CONTROLS and NAMES NO STATION. Both controls failed:
+the known-answer check missed a range I mis-specified, and the baseline check failed outright. The earlier heading
+"no further station qualifies" understates that: it reads as a negative finding, and an invalid test finds nothing
+either way. **The control range was my error.** I set +1.0 to +2.0 m from a figure measured against best_match on
+other dates, when the census measures against the buoy, and I had the wrong cell distance in mind (0.729 deg). An
+upper bound was never justified. The relative rule above has none.
+
+**A limit I left out: sea ice.** NOAA's wave field has no value where the model has sea ice, so on this mask an
+ice-covered cell is indistinguishable from land. The census calls a cell water only if the last field has a value
+there. In November that can turn a high-latitude station `partial`, `none` or `unanswered` for reasons that are not
+coastline, and the class would change with the season. None of the six `none` stations is at an ice latitude
+(Juan de Fuca, Chesapeake Bay, and 46181 at 53.8 N in a British Columbia inlet), but the 25 `unanswered` stations
+were not checked for it, and the relative test must report the latitude of every `none` and `partial` station it
+judges and exclude any poleward of 55 degrees from candidacy. That exclusion is added to the relative rule now,
+before its window opens.
+
+**Follow-up (a): do the flagged stations feed calibration or the accuracy monitor?** Read from the public log of the
+per-buoy split (run 43339322792, 14 days to 2026-11-13), which lists every buoy the monitor paired:
+- In the monitor's set: **46215 Diablo Canyon** only (and 46267 and 51211, already known).
+- Not in it: the four Chesapeake Bay stations (44042, 44058, 44072, 44087) and 46286 Avila Beach Nearshore.
+- So the Chesapeake over-read does not touch the accuracy monitor or the calibration report today. Limit: that list is
+  the buoys with paired rows in one run; the spot-to-buoy mapping itself lives in the database and was not read.
+
+**Follow-up (b): do catalogue surf spots sit in cells like these?** All 1,773 spots of the 2026-08-12 catalogue,
+classified on the same native mask:
+
+| class | in a box | outside boxes |
+|---|---|---|
+| `open` (four water cells) | 126 | 100 |
+| `partial` (one to three) | 1,049 | 402 |
+| `none` (no water cell) | 75 | 21 |
+
+- **`partial` is the normal case for a surf spot** (82% of the catalogue): a spot is on a coast. It is not a defect
+  class, and no rule that flags `partial` as such can be right.
+- **75 spots in our boxes have no water cell** and are read from a neighbour, all within 1.0 deg; the farthest is
+  0.481 deg (Salthill), then Silverstrand 0.449, Boca Barranca 0.448, Rossbeigh 0.439, Rathmullan 0.404, Bishopsquarter
+  0.398, Kells 0.396: the same seven the reach cap would have blanked. By box: mexico_centralamerica_pac 18,
+  uk_ireland 16, iberia_west 11, canaries_madeira_morocco 9, florida_east_coast 7, hawaii 5, us_west_coast_socal 4,
+  indonesia 2, and one each in three others. None has truth.
+- **Sharing the four cells of a flagged station: one spot.** Pismo Beach Pier shares its cells with 46286 Avila Beach
+  Nearshore (one water corner; the buoy read +1.177 m high). That is not evidence the spot is wrong: the buoy sits in
+  the lee of Point San Luis and the pier is open to the west. It is the one place where a spot and a flagged buoy read
+  the same single cell.
+- **Chesapeake Bay: no catalogue spot is inside the bay.** The five spots in that area are the Virginia Beach
+  oceanfront, outside the bay mouth.
+
+**The 46267 served read.** Which cell the served lane read was never read. The per-buoy split now prints, for each
+station excluded by name, the counts of served rows by sampler path and model cell (`serve_path_lines`; a grid node,
+not an observation). Rows written between #857 (2026-11-13 04:45Z) and #852 (2026-11-14 04:18Z) carry it and stay
+inside the 14-day window until 2026-11-27. The 2026-11-17 dispatch will show it. Two tests; guards fragment +2.
+
+**Also in this PR:** a test pinning the 46267 `reason` string, since the client receives it (chain fragment +1).

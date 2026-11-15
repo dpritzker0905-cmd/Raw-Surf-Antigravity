@@ -148,6 +148,27 @@ def test_unanswered_lines_name_only_buoys_with_a_gap_and_carry_no_row_field():
     assert "no served row where best_match scored" in chr(10).join(report_lines(index_rows(rows, NOW), NOW)[0])
 
 
+def test_serve_path_lines_count_the_path_and_cell_at_a_named_station_and_print_nothing_else():
+    from scripts.accuracy_per_buoy_split import serve_path_lines
+    rows = []
+    for day in range(4):
+        rows.append({**_row(PRIMARY, "46267", day, 6, 72, 1.5), "interp": "nearest_ocean_coarse_masked", "sampled": [48.5, -124.5]})
+    rows.append(_row(PRIMARY, "46267", 5, 6, 72, 1.4))                                   # written before #857: no key
+    rows.append({**_row(PRIMARY, "A", 1, 6, 72, 0.2), "interp": "bilinear", "sampled": [1.0, 2.0]})       # not a named station
+    rows.append({**_row(BEST_MATCH, "46267", 1, 6, 72, 0.1), "interp": "bilinear", "sampled": [9.0, 9.0]})  # not the served lane
+    rows.append({**_row(PRIMARY, "46267", 40, 6, 72, 1.5), "interp": "bilinear", "sampled": [7.0, 7.0]})   # outside the window
+    lines = serve_path_lines(rows, NOW, 14)
+    assert "  46267  path=nearest_ocean_coarse_masked cell=48.500,-124.500 n=4" in lines
+    assert "  46267  path=not recorded cell=- n=1" in lines and len(lines) == 3
+    text = chr(10).join(lines)
+    assert "obs_time" not in text and "err_m" not in text and "target_time" not in text and "1.5" not in text
+
+
+def test_serve_path_lines_say_so_when_a_named_station_has_no_served_row():
+    from scripts.accuracy_per_buoy_split import serve_path_lines
+    assert serve_path_lines(_world(), NOW, 14)[1] == "  46267  no served row in the window"
+
+
 def test_three_day_blocks_need_three_blocks():
     idx = index_rows(_world(), NOW)                      # 6 days -> two 3-day blocks: thin
     assert split(idx, BEST_MATCH)["pooled"][72][6] is None

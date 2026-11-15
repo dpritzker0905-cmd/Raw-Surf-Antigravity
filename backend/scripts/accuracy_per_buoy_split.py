@@ -299,6 +299,35 @@ def report_lines(idx, now, days=WINDOW_DAYS, rows=None):
     return lines, ok
 
 
+# Stations excluded by name (services/weather_pipeline/unresolved_stations.py). The split prints WHICH sampler path and
+# WHICH model cell the served lane read there, from the serve-path fields the ledger rows carry since #857: the record
+# said 0.729 deg for 46267 from another provider's mask, NOAA's own field says 0.958, and the served read was never read.
+NAMED_PATH_STATIONS = ("46267",)
+
+
+def serve_path_lines(rows, now, days=WINDOW_DAYS, stations=NAMED_PATH_STATIONS):
+    """Per named station: counts of served scored rows by (sampler path, model cell read). A model cell is a public grid
+    node, not an observation; no row, time or height is printed. `not recorded` = a row written before #857."""
+    lo = now - timedelta(days=days)
+    lines = ["== served path at named stations (sampler path and the model cell it read; counts of served scored rows)"]
+    for station in stations:
+        seen = {}
+        for r in rows or []:
+            t = _parse(r.get("target_time"))
+            if r.get("source") != PRIMARY or str(r.get("buoy_id")).upper() != station or t is None or not (lo <= t):
+                continue
+            cell = r.get("sampled")
+            ok = isinstance(cell, (list, tuple)) and len(cell) == 2 and all(_finite(x) for x in cell)
+            key = (r.get("interp") if isinstance(r.get("interp"), str) and r.get("interp") else "not recorded",
+                   "%.3f,%.3f" % (cell[0], cell[1]) if ok else "-")
+            seen[key] = seen.get(key, 0) + 1
+        if not seen:
+            lines.append("  %-6s no served row in the window" % station)
+        for (path, cell), n in sorted(seen.items(), key=lambda kv: -kv[1]):
+            lines.append("  %-6s path=%s cell=%s n=%d" % (station, path, cell, n))
+    return lines
+
+
 def gate_window_lines(rows, now, days=GATE_WINDOW_DAYS):
     """The pooled gaps over the monitor's own 7-day window, so +0.111 is read against noise on the window that paged.
     Per-buoy cells are not printed here: 7 days gives too few 3-day blocks for a per-buoy interval."""
@@ -331,6 +360,7 @@ def main():
     lines, ok = report_lines(idx, now, args.days, rows=rows)
     if args.days != GATE_WINDOW_DAYS:
         lines += gate_window_lines(rows, now)
+    lines += serve_path_lines(rows, now, args.days)
     print("\n".join(lines))
     return 0 if ok else 2
 
