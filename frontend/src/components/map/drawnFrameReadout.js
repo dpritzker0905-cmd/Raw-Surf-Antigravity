@@ -65,6 +65,9 @@ export const ESTIMATE_WORDS = {
   euro_persistence_gfs_blend: 'beyond EURO’s range, blended with GFS',
   icon_extended_estimate: 'beyond ICON’s native range',
   icon_loop_extrapolation: 'beyond ICON’s native range',
+  // 2026-11-15: ICON wind past ~180 h is GFS at the same hour (the day-loop is retired); EURO wind past 240 h likewise.
+  gfs_wind_standin: 'GFS stand-in beyond ICON’s native range',
+  gfs_wind_fallback: 'GFS stand-in beyond EURO’s range',
   coarser_grid_fallback: 'from a coarser stored grid',
   gfs_derived_fallback: 'GFS stand-in',
   ecmwf_ifs_derived_fallback: 'ECMWF stand-in',

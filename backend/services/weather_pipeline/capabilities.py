@@ -357,7 +357,7 @@ WEATHER_CAPABILITIES: List[Dict[str, Any]] = [
         "backend_owned": True,
         "frontend_visual_tile_only": False,
         "unsupported_reason": None,
-        "source_docs_note": "DWD ICON global weather model. Native 5-day (120h) wind forecast; beyond 120h is loop-extrapolated and marked estimated.",
+        "source_docs_note": "DWD ICON global weather model. Native wind to ~180h (DWD-direct); beyond it serves the stored GFS wind at the same valid time, labelled gfs_wind_standin / estimated (2026-11-15; the day-loop is retired, kill ICON_WIND_GFS_STANDIN=0).",
         "fallback_sources": []
     },
     # EURO Wind

@@ -46,7 +46,10 @@ def _scheduler():
 
 @pytest.mark.asyncio
 async def test_dwd_path_saves_natives_plus_extended_estimated_tail(monkeypatch):
+    """The KILLED stand-in (ICON_WIND_GFS_STANDIN=0) restores this loop tail exactly; the default since 2026-11-15
+    is the GFS stand-in (tests/test_icon_wind_gfs_standin.py)."""
     monkeypatch.delenv("ICON_WIND_EXTEND", raising=False)
+    monkeypatch.setenv("ICON_WIND_GFS_STANDIN", "0")
     monkeypatch.setenv("ICON_WIND_DWD_DIRECT", "1")
     sched = _scheduler()
     save_calls = []

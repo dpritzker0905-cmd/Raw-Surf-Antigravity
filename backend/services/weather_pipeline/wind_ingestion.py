@@ -589,12 +589,20 @@ async def ingest_icon_wind_global_impl(scheduler) -> bool:
                 if times:
                     native_max = _parse_om_time(times[-1])
                     break
-            from services.weather_pipeline.viewport_helper import extend_icon_wind_to_14d
-            extend_icon_wind_to_14d(results)  # mutates: day-looped hourly arrays out to 336h
+            # 2026-11-15 (owner 16:14 EST): the tail is the stored GFS wind at the same valid time (labelled
+            # gfs_wind_standin), not ICON's own days looped. Kill ICON_WIND_GFS_STANDIN=0 -> the old loop below.
+            from services.weather_pipeline.euro_wind_extension import extend_icon_wind_from_gfs, icon_gfs_standin_on
+            standin = icon_gfs_standin_on()
+            if standin:
+                ext_count = await extend_icon_wind_from_gfs(scheduler, run_time, native_max)
+                logger.info(f"[Pipeline Scheduler] Ingested {ext_count} ICON wind tail files (GFS stand-in, beyond {native_max}).")
+            else:
+                from services.weather_pipeline.viewport_helper import extend_icon_wind_to_14d
+                extend_icon_wind_to_14d(results)  # mutates: day-looped hourly arrays out to 336h
             # align_step_h=3: tail entries snap to the 3-hourly UTC lattice (00/03/06...), so the
             # slice below is already 3-hourly → save with step=1. The old blind step=3 from the
             # slice start produced native_max+1h/+4h/+7h — permanently off the scrub lattice.
-            ext_results = _slice_hours_after(results, native_max, align_step_h=3)
+            ext_results = _slice_hours_after(results, native_max, align_step_h=3) if not standin else None
             if ext_results:
                 native_h = None
                 try:

@@ -115,3 +115,22 @@ the owner before it stays on.
 
 The verifier (`local_ec32a6a8`) re-scores the result from the saved paired rows. Rows are saved per arm as CSV in the
 Actions artifact (no secrets; public station data and public model data only).
+
+## 22:40Z Interim built (item 6): ICON's wind loop replaced by a labelled GFS stand-in
+
+- `euro_wind_extension.clone_gfs_wind_tail` is now shared: EURO keeps `gfs_wind_fallback` (labels unchanged, test
+  pins them); ICON gets `extend_icon_wind_from_gfs`, basis `gfs_wind_standin`, native horizon from the run (~180 h).
+- Ingest (`wind_ingestion.ingest_icon_wind_global_impl`, DWD-direct path): the tail is the GFS clone; the loop runs
+  only when the kill switch is '0'. `scheduler/forecast.py` now runs GFS wind before ICON wind, so ICON clones THIS
+  cycle's GFS (before, ICON ran first and would have cloned the previous cycle's).
+- Dynamic path: `viewport_service` no longer loops ICON wind; past ICON's native times it raises
+  `ICON_BEYOND_NATIVE`, and `grid_resolver` serves GFS relabelled ICON with basis `gfs_wind_standin` (the same
+  fallback block EURO wind already used). Inside native, nothing changes.
+- Kill switch `ICON_WIND_GFS_STANDIN` (GUARDED, code default '1', registered in `_RATING_FLAGS`).
+- Client words: `drawnFrameReadout` reads `gfs_wind_standin` as "GFS stand-in beyond ICON's native range" and
+  `gfs_wind_fallback` as "GFS stand-in beyond EURO's range" (EURO's had no words of its own before).
+- Not changed: ICON PRESSURE still loops (`pressure_ingestion.py`, `icon_loop_extrapolation`); out of this brief,
+  listed as a follow-up. Gusts past the horizon: the gusts lane owns them (interface proposed to `local_7f199b18`).
+- Tests: `test_icon_wind_gfs_standin.py` (4) + the loop test pinned to the kill path; 69 passed locally in the
+  wind/ingest/flag-parity files. Local Jest cannot collect from a `.claude` worktree path, so the frontend suites are
+  read on hosted CI.

@@ -424,8 +424,9 @@ class ViewportService:
 
             raw_list = raw_data if isinstance(raw_data, list) else [raw_data]
 
-            if model.upper() == "ICON" and domain.lower() == "wind":
-                logger.info("[Dynamic Viewport] Dynamically extending ICON wind raw results to 14 days (336 hours) via loop extrapolation.")
+            _icon_wind = model.upper() == "ICON" and domain.lower() == "wind"
+            from services.weather_pipeline.euro_wind_extension import icon_gfs_standin_on
+            if _icon_wind and not icon_gfs_standin_on():  # kill '0' only: the old day-loop
                 extend_icon_wind_to_14d(raw_list)
 
             first_point = raw_list[0]
@@ -437,6 +438,9 @@ class ViewportService:
                 raise Exception("Upstream fetch returned no time array.")
 
             target_idx = WeatherNormalizer.find_closest_time_index(times, target_dt)
+            if target_idx is None and _icon_wind and icon_gfs_standin_on():
+                # Past ICON's native times: the resolver serves the labelled GFS stand-in (grid_resolver).
+                raise Exception(f"ICON_BEYOND_NATIVE: target_dt {target_dt} past ICON's native wind times.")
             if target_idx is None:
                 logger.error(f"[Dynamic Viewport] target_dt {target_dt} is not covered by the fetched times.")
                 raise Exception(f"target_dt {target_dt} is not covered by the fetched times.")

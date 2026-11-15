@@ -12,6 +12,9 @@ wind becomes instant. No upstream fetches here at all — raw-results reuse acro
 premise that died in audit finding #15, so this reads ONLY the store.
 
 Kill switch: EURO_WIND_EXTEND=0.
+
+2026-11-15: the same clone now also serves ICON past its native horizon (`extend_icon_wind_from_gfs`,
+basis gfs_wind_standin, kill ICON_WIND_GFS_STANDIN=0), replacing the ICON day-loop.
 """
 import os
 import asyncio
@@ -32,10 +35,35 @@ async def extend_euro_wind_from_gfs(scheduler, run_time, euro_native_max) -> int
     failure as 'natives unaffected'."""
     if os.environ.get("EURO_WIND_EXTEND", "1") == "0":
         return 0
-    if not euro_native_max or not run_time:
+    return await clone_gfs_wind_tail(scheduler, run_time, euro_native_max, model="EURO", basis_type="gfs_wind_fallback",
+                                     default_native_h=240)
+
+
+async def extend_icon_wind_from_gfs(scheduler, run_time, icon_native_max) -> int:
+    """Interim (2026-11-15, owner 16:14 EST "Yes to all, hard hand-off"): ICON wind past its native horizon
+    (~180 h) is the stored GFS wind at the SAME valid time, labelled estimated with basis `gfs_wind_standin`,
+    replacing the day-loop (`icon_loop_extrapolation`, no skill: it replays ICON's own earlier days). Same
+    mechanics as the EURO tail above. A hard hand-off: no taper, no per-cell offset (the owner ruled).
+    Kill switch: ICON_WIND_GFS_STANDIN=0 (the caller then keeps the old loop tail)."""
+    return await clone_gfs_wind_tail(scheduler, run_time, icon_native_max, model="ICON", basis_type="gfs_wind_standin",
+                                     default_native_h=180)
+
+
+def icon_gfs_standin_on() -> bool:
+    """D-065: ships ON; kill '0' restores the loop tail on the next ICON cycle."""
+    try:
+        from services import runtime_flags
+        return runtime_flags.on("ICON_WIND_GFS_STANDIN")
+    except Exception:  # a manifest read failure must not change what ships: the env/code default decides
+        return os.environ.get("ICON_WIND_GFS_STANDIN", "1") != "0"
+
+
+async def clone_gfs_wind_tail(scheduler, run_time, native_max, model, basis_type, default_native_h) -> int:
+    """Clone stored GFS global_coarse wind for valid hours in (native_max, run+336h] relabelled `model`."""
+    if not native_max or not run_time:
         return 0
     ceiling = run_time + timedelta(hours=_EXT_CEILING_HOURS)
-    if euro_native_max >= ceiling:
+    if native_max >= ceiling:
         return 0
 
     manifest = await asyncio.to_thread(scheduler.store.get_manifest)
@@ -47,7 +75,7 @@ async def extend_euro_wind_from_gfs(scheduler, run_time, euro_native_max) -> int
             and p.layer == "wind"
             and p.region_id == "global_coarse"
             and not p.is_estimated
-            and p.valid_time_start > euro_native_max
+            and p.valid_time_start > native_max
             and p.valid_time_start <= ceiling
             and p.valid_time_start.hour % _TAIL_STEP_HOURS == 0
         ):
@@ -56,20 +84,20 @@ async def extend_euro_wind_from_gfs(scheduler, run_time, euro_native_max) -> int
             by_valid_time[p.valid_time_start] = p
 
     if not by_valid_time:
-        logger.info("[Pipeline Scheduler] EURO wind tail: no GFS global_coarse sources beyond "
-                    f"{euro_native_max.isoformat()} — skipping (GFS job may not have run yet this cycle).")
+        logger.info(f"[Pipeline Scheduler] {model} wind tail: no GFS global_coarse sources beyond "
+                    f"{native_max.isoformat()} — skipping (GFS job may not have run yet this cycle).")
         return 0
 
     basis_native_h = None
     try:
-        basis_native_h = int((euro_native_max - run_time).total_seconds() // 3600)
+        basis_native_h = int((native_max - run_time).total_seconds() // 3600)
     except Exception:
         pass
     estimate_basis = {
-        "type": "gfs_wind_fallback",
+        "type": basis_type,
         "method": "gfs_relabel_prebake",
         "source_model": "gfs_seamless",
-        "native_horizon_hours": basis_native_h if basis_native_h is not None else 240,
+        "native_horizon_hours": basis_native_h if basis_native_h is not None else default_native_h,
     }
 
     products_to_save = []
@@ -79,7 +107,7 @@ async def extend_euro_wind_from_gfs(scheduler, run_time, euro_native_max) -> int
         if not gfs or not gfs.grid or not gfs.grid.vectors:
             continue
         clone = gfs.model_copy()
-        clone.model = "EURO"
+        clone.model = model
         clone.provider = "gfs_fallback"
         clone.is_estimated = True
         clone.is_forecast_authoritative = False
