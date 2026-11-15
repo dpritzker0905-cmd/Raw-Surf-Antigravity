@@ -41,7 +41,7 @@ import { signEntitledFrames } from './staticFrameSigner';
 import { registerLatestProbes, setIsEmpty, setIsListed } from './regionalLatestSets';
 import { filledStoreAccepts, filledStoreOn, filledWorldPossible, filledWorldSetKey, plainCropsOn, preloadFilledIndexes, serveTimeFillAtWorld } from './staticWorldFillGuard';
 import { RATED_SET_KEYS, askOffsetServed, isRatedKey, ratedCropEligible, tryStaticRatedGrid } from './staticRatingFrames';   // the Surf Rating band (2026-11-01, dark)
-import { coastMask, composeMosaic, frameRunOf, mosaicBoxes, onMosaicLattice, ratedMosaicOn } from './staticRatedMosaic';
+import { ratedReadySync } from './staticRatedMosaic';
 export { serveTimeFillAtWorld };   // moved to staticWorldFillGuard.js (the 800-line cap); the callers import it from here
 
 export const FRAME_BUCKET = 'weather-frames';
@@ -791,28 +791,6 @@ export function _resetStaticFramesForTest() {
   if (typeof window !== 'undefined') delete window.__RAW_STATIC_FRAMES__;
 }
 
-/** Surf mode: the rated mosaic can answer this view from MEMORY now (every overlapping box pinned, its frame for this instant decoded,
- *  the coast mask loaded), so the moveend takes the cached 50 ms lane instead of 900 + 300 ms (rating band lane, 2026-11-15; measured:
- *  a prefetched pan still waited ~1.3 s). `validTimeOf(hour, layer, model)` = getSharedValidTime. No I/O. Kill: __RAW_DISABLE_RATED_READY_FAST__. */
-export function staticRatedReadySync(bounds, model, hour, layer, validTimeOf) {
-  try {
-    if (typeof window === 'undefined' || window.__RAW_DISABLE_RATED_READY_FAST__ === true || !ratedMosaicOn() || !bounds || !coastMask()) return false;
-    // The SAME checks the mosaic makes (review 2026-11-15: an LRU-only check sent fast pans the mosaic would refuse straight to /grid
-    // on the 50 ms lane): the view's boxes pinned, frame built, served at this ask, on the lattice, one run, decoded; then the exact
-    // view composed against the coast mask must not miss.
-    const askMs = Date.parse(validTimeOf(hour, layer, model, { readOnly: true }));
-    const boxes = mosaicBoxes({ model, layer, bbox: bounds }).filter((b) => staticSetEnabled(b.key));
-    if (!boxes.length || !Number.isFinite(askMs)) return false;
-    const frames = [];
-    for (const box of boxes) {
-      const p = _state.pins.get(box.key);
-      const fr = p && !p.stale && pickIndexFrame(p.index, askMs);
-      const grid = fr && (fr.grid || p.index.grid);
-      const vectors = fr && fr.path && _lru.get(fr.path);
-      if (!vectors || !askOffsetServed(p.index, fr, askMs) || !onMosaicLattice(grid)) return false;
-      if (frames.length && (frames[0].frame.valid_time !== fr.valid_time || frameRunOf(frames[0].index, frames[0].frame) !== frameRunOf(p.index, fr))) return false;
-      frames.push({ box, index: p.index, frame: fr, grid, vectors });
-    }
-    return !composeMosaic(bounds, frames, null, coastMask()).miss;
-  } catch (e) { return false; }
-}
+/** Surf mode: the rated mosaic can answer this view from MEMORY now (staticRatedMosaic.ratedReadySync): the moveend takes the cached 50 ms lane. */
+export const staticRatedReadySync = (bounds, model, hour, layer, validTimeOf) => ratedReadySync({ bounds, model, hour, layer, validTimeOf },
+  { pin: (key) => _state.pins.get(key), decoded: (p) => _lru.get(p), setEnabled: staticSetEnabled, askOffsetServed });

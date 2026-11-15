@@ -260,6 +260,34 @@ export async function tryRatedMosaic({ model, layer, validTimeStr, clampedBbox, 
 }
 
 /**
+ * Surf mode: the rated mosaic can answer this view from MEMORY now, so the moveend takes the cached 50 ms lane instead of 900 + 300 ms
+ * (measured: a prefetched pan still waited ~1.3 s). The SAME checks the mosaic makes (review 2026-11-15: an LRU-only check sent fast
+ * pans the mosaic would refuse straight to /grid on the 50 ms lane): the view's boxes pinned, frame built, served at this ask, on the
+ * lattice, one run, decoded; then the exact view composed against the coast mask must not miss. No I/O.
+ * `validTimeOf(hour, layer, model, opts)` = getSharedValidTime; `d` = { pin(key) -> {index, stale}, decoded(path) -> vectors, setEnabled,
+ * askOffsetServed } (staticFrames' state, passed in: staticFrames imports this module). Kill: __RAW_DISABLE_RATED_READY_FAST__.
+ */
+export function ratedReadySync({ bounds, model, hour, layer, validTimeOf }, d) {
+  try {
+    if (W().__RAW_DISABLE_RATED_READY_FAST__ === true || !ratedMosaicOn() || !bounds || !coastMask()) return false;
+    const askMs = Date.parse(validTimeOf(hour, layer, model, { readOnly: true }));
+    const boxes = mosaicBoxes({ model, layer, bbox: bounds }).filter((b) => d.setEnabled(b.key));
+    if (!boxes.length || !Number.isFinite(askMs)) return false;
+    const frames = [];
+    for (const box of boxes) {
+      const p = d.pin(box.key);
+      const fr = p && !p.stale && pickIndexFrame(p.index, askMs);
+      const grid = fr && (fr.grid || p.index.grid);
+      const vectors = fr && fr.path && d.decoded(fr.path);
+      if (!vectors || !d.askOffsetServed(p.index, fr, askMs) || !onMosaicLattice(grid)) return false;
+      if (frames.length && (frames[0].frame.valid_time !== fr.valid_time || frameRunOf(frames[0].index, frames[0].frame) !== frameRunOf(p.index, fr))) return false;
+      frames.push({ box, index: p.index, frame: fr, grid, vectors });
+    }
+    return !composeMosaic(bounds, frames, null, coastMask()).miss;
+  } catch (e) { return false; }
+}
+
+/**
  * PREFETCH (the owner, 2026-11-15: "make sure the tile that we're panning to loads the rating band in advance"): warm the rated
  * bundles of every pilot box within one viewport of this one (in every direction), at this valid time, at low priority. CDN only:
  * nothing reaches the box. Returns the keys warmed. Kill: window.__RAW_DISABLE_RATED_PREFETCH__ = true.
