@@ -21,7 +21,8 @@
  * (__RAW_DISABLE_STATIC_FRAMES_SETS__) turn it off. Any miss (no set published, no index) falls back to the .om path.
  * Telemetry: window.__RAW_OWN_RASTER__.
  */
-import { getPinnedIndex, loadFrameParsed, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
+import { fetchFrameBytes, getPinnedIndex, loadFrameParsed, markStaticPinStale, staticFramesBase, staticFramesEnabled, staticSetEnabled } from './staticFrames';
+import { decodeOwnField, decodeWorkerKilled } from './ownRasterDecode';
 import { pickIndexFrame } from './staticFrameCodec';
 import { isHandheldDevice } from './deviceTier';
 import { applyWaterTempLandFill } from './waterTempLandFill';
@@ -373,6 +374,9 @@ export function loadField(layer, frame, priority) {
     p = (async () => {
       const t = tel();
       t.loads += 1;
+      // OWN-ONLY LAYERS (gusts, currents; 2026-11-15): fetch + inflate in staticFrames' worker, then decode ONLY the drawn field
+      // to Float32 in ownRasterDecode's worker (no main-thread parse of every field). The live lanes keep the shared path.
+      if (set.ownOnly && !decodeWorkerKilled()) return loadOwnOnly(key, frame, priority, set, t);
       // Fetch priority (staticFrames, #479): 'high' for the frame the step wants, 'low' for the rest of the window.
       const got = await loadFrameParsed(key, frame, undefined, priority ? { priority } : undefined);
       if (!got) { t.loadErrors += 1; noteMiss('load_failed'); noteFailed(frame.path); return null; }
@@ -391,6 +395,31 @@ export function loadField(layer, frame, priority) {
     _inflight.set(frame.path, p);
   }
   return p;
+}
+
+/** The own-only layers' load: worker fetch + inflate, worker decode of the one field; the same checks and telemetry as the
+ *  shared path (a frame whose valid time is not its index entry's is refused; 404 / 400 re-pins the set). */
+async function loadOwnOnly(key, frame, priority, set, t) {
+  const got = await fetchFrameBytes(frame.url || staticFramesBase() + frame.path, undefined, priority);
+  if (!got || got.error) {
+    if (got && (got.status === 404 || got.status === 400 || got.status === 'integrity')) markStaticPinStale(key);
+    t.loadErrors += 1; noteMiss(got && got.status ? `http_${got.status}` : 'load_failed'); noteFailed(frame.path); return null;
+  }
+  const t0 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  let field = null;
+  try { field = await decodeOwnField(got.buffer, set.field, MISSING); } catch (e) { field = null; }
+  const t1 = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+  if (!field || Math.abs(field.validMs - Date.parse(frame.valid_time)) > 1000) {
+    noteMiss(field ? 'valid_time_mismatch' : 'no_field'); noteFailed(frame.path); return null;
+  }
+  _failedAt.delete(frame.path);
+  t.bytes += got.wire || 0;
+  t.decodeMs.push(Math.round((t1 - t0) * 10) / 10);
+  if (t.decodeMs.length > 50) t.decodeMs.shift();
+  t.decodeOffThread = (t.decodeOffThread || 0) + (field.offThread ? 1 : 0);
+  delete field.offThread;
+  keep(frame.path, field);
+  return field;
 }
 
 // ── the window pump: at most MAX_IN_FLIGHT loads, started in the wanted order; a frame that left the window is never started ──
