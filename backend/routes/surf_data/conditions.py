@@ -432,7 +432,7 @@ async def get_spot_tides(spot_id: str, db: AsyncSession = Depends(get_db)):
                 fetch_tide_hourly, tide_extrema, tide_trend_at)
             series = await fetch_tide_hourly(spot.latitude, spot.longitude)
             if series:
-                events = tide_extrema(series.get("time"), series.get("level"))
+                events = series.get("events") or tide_extrema(series.get("time"), series.get("level"))
                 now_utc = datetime.now(timezone.utc)
                 tides = [{
                     "time": e["time"].strftime("%Y-%m-%dT%H:%M:%SZ"),

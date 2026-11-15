@@ -72,6 +72,11 @@ COVERAGE = {
                                            "the replay cannot exercise it. Evidence: the per-buoy split's no-served-row "
                                            "count (accuracy_per_buoy_split.unanswered)"),
     "SURF_TIDE_DEPTH": (REPLAY, "the replay carries the served tide (eval_replay tide)"),
+    "TIDE_HARMONIC": (BLIND, "the replay's cached window carries no NOAA predictions (a pull_request run never downloads). "
+                             "Evidence: station truth G2, leave-one-out radius G3, eta vs observed water level G10 "
+                             "(log 2026-11-15 tide-harmonic)"),
+    "TIDE_SURGE_RESIDUAL": (BLIND, "eta = tide + model surge (option B) at NOAA points; the replay has no NOAA series. "
+                                   "Evidence: G10 vs CO-OPS observed water level (log 2026-11-15 tide-harmonic)"),
     "TIDE_LOCAL_DATUM": (REPLAY, "the replay's tide takes the same local datum (eval_replay._local_datum_window); "
                                  "the height moves only where the tide reaches the breaking cap. Evidence for the "
                                  "displayed tide: NOAA CO-OPS MSL, 25 stations (log 2026-11-15 tide-local-datum)"),

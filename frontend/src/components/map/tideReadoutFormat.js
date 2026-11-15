@@ -6,6 +6,17 @@
 import { formatHeightFromMeters } from './heightUnits';
 
 export const TIDE_FOOTER = 'Modeled sea level · MSL';
+
+/** The footer names the tide's SOURCE in text (TIDE_HARMONIC): an official NOAA prediction at a named station, or the
+ *  model. The payload's `tide_source` / `station` come from /point-tide and survive tideAt (it spreads the payload). */
+export function tideSourceFooter(d) {
+  const st = d && d.station;
+  if (d && d.tide_source === 'noaa_coops_harmonic' && st && st.name) {
+    const km = Number.isFinite(Number(st.distance_km)) ? ` (${Math.round(Number(st.distance_km))} km)` : '';
+    return `NOAA tide prediction · ${st.name}${km} · MSL`;
+  }
+  return TIDE_FOOTER;
+}
 export const TIDE_SOLAR_NOTE = 'times approx. (local solar time)';
 export const TIDE_UNAVAILABLE = 'Modeled sea level unavailable for selected time';
 

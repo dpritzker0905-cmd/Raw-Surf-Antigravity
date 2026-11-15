@@ -63,7 +63,11 @@ def build_point_tide(series, lat, lng, now):
     state = None
     selected_end = None
     for part in usable:
-        events.extend(_tide.tide_extrema([t.isoformat() for t, _ in part], [h for _, h in part]))
+        if isinstance((series or {}).get("events"), list) and series["events"]:
+            # NOAA's own high/low times (6-min precision) where the door serves a harmonic station
+            events.extend(e for e in series["events"] if part[0][0] <= e["time"] <= part[-1][0])
+        else:
+            events.extend(_tide.tide_extrema([t.isoformat() for t, _ in part], [h for _, h in part]))
         for (a, h0), (b, h1) in zip(part, part[1:]):
             if a <= now < b or (now == b == part[-1][0]):
                 selected_end = part[-1][0]
@@ -83,11 +87,16 @@ def build_point_tide(series, lat, lng, now):
         "now": now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "coverage": [{"start": part[0][0].strftime("%Y-%m-%dT%H:%M:%SZ"),
                       "end": part[-1][0].strftime("%Y-%m-%dT%H:%M:%SZ")} for part in usable],
-        "timezone": "UTC", "datum": "MSL", "quantity": "modeled_sea_level",
-        "provider": "Open-Meteo Marine", "source_url": _tide.OPEN_METEO_MARINE_API,
+        "timezone": "UTC", "datum": "MSL",
+        **({"quantity": "predicted_tide", "provider": "NOAA CO-OPS",
+            "source_url": "https://tidesandcurrents.noaa.gov/stationhome.html?id=%s" % ((series or {}).get("station") or {}).get("id", "")}
+           if (series or {}).get("source") == "noaa_coops_harmonic" else
+           {"quantity": "modeled_sea_level", "provider": "Open-Meteo Marine", "source_url": _tide.OPEN_METEO_MARINE_API}),
         # Retained for older clients. New clients use explicit UTC, never a guessed civil zone.
         "tz_offset_h": round(float(lng) / 15.0), "tz_approx": True,
         "source": SOURCE, "cell_km": CELL_KM,
+        # Which tide this is (tide_harmonic.py): an official NOAA prediction at a named station, or the model.
+        "tide_source": (series or {}).get("source", "model_local_msl"), "station": (series or {}).get("station"),
     }
 
 

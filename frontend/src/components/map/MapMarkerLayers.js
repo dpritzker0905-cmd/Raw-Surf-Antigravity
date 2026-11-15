@@ -13,7 +13,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 // (MapLibre's wrapper role=button around it was axe nested-interactive, W-10 R5).
 import { ContentMarker as Marker } from './ContentMarker';
 import { getHeightUnit, formatHeightFromMeters } from './heightUnits';
-import { getCachedTideState, ensureTideState, formatTideLine, trendArrow } from './tideClient';
+import { formatTideLine, trendArrow } from './tideClient';
+import { getGlyphTide, ensureGlyphTide } from './glyphTide';   // the one tide door (not browser-direct Open-Meteo)
 import { MapPersonContextCard, useExplorePinContext } from './MapPersonContext';
 
 /**
@@ -117,8 +118,8 @@ var MapMarkerLayers = ({
   const [, setTideFetchVersion] = useState(0);
   const requestFallbackTide = (lat, lng) => {
     if (typeof window !== 'undefined' && window.__RAW_DISABLE_TIDE_FALLBACK__) return;
-    if (getCachedTideState(lat, lng) !== undefined) return;
-    ensureTideState(lat, lng).then(() => setTideFetchVersion((v) => v + 1));
+    if (getGlyphTide(lat, lng) !== undefined) return;
+    ensureGlyphTide(lat, lng).then(() => setTideFetchVersion((v) => v + 1));
   };
   return (
     <>
@@ -175,7 +176,7 @@ var MapMarkerLayers = ({
         // fallback cell (display-only). Null when Rating is off / no data yet.
         const tideState = rating
           ? (rating.tide || (typeof window !== 'undefined' && window.__RAW_DISABLE_TIDE_FALLBACK__
-              ? null : getCachedTideState(lat, lng)) || null)
+              ? null : getGlyphTide(lat, lng)) || null)
           : null;
         const tideLine = tideState ? formatTideLine(tideState, heightUnit) : null;
         return (

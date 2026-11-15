@@ -1,0 +1,39 @@
+name: NOAA harmonic tide ingest
+# WHY (owner 2026-11-15, harmonic tide plan docs/weather-program/log/2026-11-15-claude-tide-harmonic-plan.md): official
+# NOAA CO-OPS tide predictions where a harmonic station is within 100 km of a catalogued spot, written to the
+# weather-products bucket once a day. Render only READS that bucket (services/weather_pipeline/tide_harmonic.py): the
+# 1-CPU box never calls NOAA. Public read-only GETs to NOAA and Open-Meteo; the only write is tides/coops/*.
+# Off switch: repository variable TIDE_HARMONIC_INGEST = '0' (unset = on). Serving kill: TIDE_HARMONIC=0.
+on:
+  schedule:
+    - cron: '23 5 * * *'
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: "At most N stations (0 = every station a spot needs)"
+        required: false
+        default: '0'
+permissions:
+  contents: read
+concurrency:
+  group: tide-harmonic
+  cancel-in-progress: false
+jobs:
+  ingest:
+    if: github.event_name == 'workflow_dispatch' || (vars.TIDE_HARMONIC_INGEST || '1') != '0'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+      - name: Ingest NOAA harmonic predictions into the bucket
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: python scripts/tide_harmonic_ingest.py --limit "${{ inputs.limit || '0' }}"

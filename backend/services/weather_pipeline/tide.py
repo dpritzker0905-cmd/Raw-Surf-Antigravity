@@ -418,7 +418,21 @@ async def fetch_tide_hourly(lat, lng, client=None, forecast_days: int = 3) -> Op
     key = _round_key(lat, lng)
     series = await _within_budget(_fetch_point(key, client, forecast_days), [key],
                                   _TIDE_POINT_TIMEOUT_S, None)
-    return to_local_datum(series)
+    model = to_local_datum(series)
+    # NOAA CO-OPS harmonic where a station is near (tide_harmonic.py, TIDE_HARMONIC): the displayed level is the
+    # official prediction and water_level adds the model's non-tidal residual (owner's eta option B). Else the model.
+    try:
+        from services.weather_pipeline import tide_harmonic as _harm
+    except ImportError:                                   # pragma: no cover - fetcher subprocess context
+        import tide_harmonic as _harm
+    hit = await _harm.harmonic_for(lat, lng)
+    if hit is not None:
+        served = _harm.combine(model, hit[1], hit[0])
+        if served is not None:
+            return served
+    if model:
+        model["source"] = "model_local_msl"
+    return model
 
 
 async def _within_budget(operation, keys, seconds, unavailable):
@@ -512,7 +526,14 @@ async def tide_norm_at(lat, lng, valid_time, client=None) -> Optional[dict]:
     series = await fetch_tide_hourly(lat, lng, client=client)
     if not series:
         return None
-    return tide_state_at(series["time"], series["level"], valid_time)
+    state = tide_state_at(series["time"], series["level"], valid_time)
+    if state is not None:
+        state["source"] = series.get("source", "model_local_msl")
+        # eta for the breaking-depth cap (sea_inputs.resolve): tide + surge where the door has it (option B)
+        wl = series.get("water_level")
+        wl_state = tide_state_at(series["time"], wl, valid_time) if isinstance(wl, list) else None
+        state["water_level_m"] = wl_state["height_m"] if wl_state else state["height_m"]
+    return state
 
 
 def _reset_tide_cache_for_test():

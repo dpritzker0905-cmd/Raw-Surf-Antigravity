@@ -43,7 +43,7 @@ async def resolve(lat, lng, valid_time_str, model) -> Tuple[float, Optional[dict
             from services.weather_pipeline.tide import tide_norm_at
             ts = await tide_norm_at(lat, lng, valid_time_str)
             if ts and ts.get("height_m") is not None:
-                eta = float(ts["height_m"])
+                eta = float(ts.get("water_level_m", ts["height_m"]))   # tide + surge (TIDE_HARMONIC, option B)
         except Exception as te:
             logger.debug(f"[Sea Inputs] tide resolve failed at ({lat},{lng}); eta=0: {te!r}")
     near = None

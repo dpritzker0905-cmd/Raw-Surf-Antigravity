@@ -266,6 +266,8 @@ _RATING_FLAGS = {"SAMPLER_UNRESOLVED_STATIONS": ("1", "[D-065 GUARDED, ON, guard
     "SURF_TIDE_DEPTH":             ("1", "[D-065 default ON; guardrail-watched] Let the tide (sea_level_height_msl) move the depth-limited "
                                          "breaking cap — binds only where a shallow break meets surf "
                                          "big enough to feel bottom", "Render env"),
+    "TIDE_HARMONIC":               ("1", "[11-15 ON] NOAA CO-OPS harmonic tide within 100 km (bucket); else the model", "Render env"),
+    "TIDE_SURGE_RESIDUAL":         ("0", "[11-15 HELD OFF by G10] eta = tide + model surge residual (owner option B)", "Render env"),
     "TIDE_LOCAL_DATUM":            ("1", "[2026-11-15 ON; guardrail-watched] Tide levels vs the LOCAL mean sea level (72 h series mean), "
                                          "not the model's global reference; moves every tide height and eta", "Render env"),
     "SURF_RATING":                 ("1", "Rating overlay (vs raw surf-height band) on surf=1 grids", "Render env"),

@@ -65,7 +65,7 @@ async def test_real_http_eight_cold_callers_make_one_request(monkeypatch, status
         assert len(seen) == 1, f'{len(seen)} actual HTTP requests for eight identical callers'
         # 12 hours < tide._MIN_DATUM_SAMPLES, so to_local_datum leaves the model level and says so.
         expected = {'time': payload()['hourly']['time'], 'level': payload()['hourly']['sea_level_height_msl'],
-                    'datum': 'model_msl', 'datum_offset_m': None}
+                    'datum': 'model_msl', 'datum_offset_m': None, 'source': 'model_local_msl'}
         assert results == ([expected] * 8 if status == 200 else [None] * 8)
 
 

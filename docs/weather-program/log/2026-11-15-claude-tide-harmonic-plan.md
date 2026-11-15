@@ -85,3 +85,7 @@ Added gate items:
 - **G7 house rules:** labels per source in text (ARIA), three themes x desktop/phone screenshots, kill switch tested
   and in the inventory, tiers only via LayerAccessResolver, ledger fragment, never load-test live.
 - **G8 coverage census (informative):** share of catalogued spots served by a harmonic station at the chosen D.
+
+## Outcome (built 2026-11-15, see `2026-11-15-claude-tide-harmonic.md`)
+G3 set D = 100 km; G2 passed 20/20; **G10 failed for option B** (median 0.284 m vs the tide alone 0.248 m against
+observed water level), so `TIDE_SURGE_RESIDUAL` ships held OFF and eta at NOAA points is the NOAA tide.

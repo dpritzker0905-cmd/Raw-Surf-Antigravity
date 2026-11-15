@@ -10,14 +10,12 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import MapMarkerLayers, {
   spotGlyphAriaLabel, clusterBubbleAriaLabel, photographerAriaLabel,
 } from './MapMarkerLayers';
-import { getCachedTideState } from './tideClient';
+import { getGlyphTide } from './glyphTide';
 
-// Accessibility checks do not acquire remote tide data on focus. The real client has
-// separate contract coverage; a completed empty cache keeps this boundary offline.
-jest.mock('./tideClient', () => ({
-  ...jest.requireActual('./tideClient'), getCachedTideState: jest.fn(() => null),
-}));
-beforeEach(() => getCachedTideState.mockReturnValue(null));
+// Accessibility checks do not acquire remote tide data on focus. The glyph fallback reads the one tide door
+// (glyphTide -> /point-tide), covered by its own tests; a completed empty cache keeps this boundary offline.
+jest.mock('./glyphTide', () => ({ getGlyphTide: jest.fn(() => null), ensureGlyphTide: jest.fn(() => Promise.resolve(null)) }));
+beforeEach(() => getGlyphTide.mockReturnValue(null));
 
 // react-map-gl/maplibre resolves to src/testMocks/reactMapGlMaplibre.js (moduleNameMapper in
 // craco.config.js) — Marker renders as a passthrough div in jsdom.

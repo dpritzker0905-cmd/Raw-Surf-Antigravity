@@ -8,7 +8,7 @@ import React, { useEffect, useState } from 'react';
 import { usePointTide } from './usePointTide';
 import { responsiveWeatherOn } from './useMapChromeLayout';
 import {
-  TIDE_FOOTER, TIDE_SOLAR_NOTE, TIDE_UNAVAILABLE, tideAt, tideUsesSolar, infoboxTideDisabled, trendWord, trendGlyph, formatTideHeight,
+  tideSourceFooter, TIDE_SOLAR_NOTE, TIDE_UNAVAILABLE, tideAt, tideUsesSolar, infoboxTideDisabled, trendWord, trendGlyph, formatTideHeight,
   formatTideEvent, formatTideRate, tideAriaLabel, tideCurve,
 } from './tideReadoutFormat';
 
@@ -70,7 +70,7 @@ export default function TideReadout({ lat, lng, heightUnit, isLight, isBeach, at
       )}
       {hi && <div className={`text-[10px] ${textClass}`}>{hi}</div>}
       {lo && <div className={`text-[10px] ${textClass}`}>{lo}</div>}
-      <div className={`text-[10px] leading-tight mt-1 ${muted}`}>{TIDE_FOOTER}</div>
+      <div className={`text-[10px] leading-tight mt-1 ${muted}`} data-testid="tide-source">{tideSourceFooter(d)}</div>
       {d.tz_approx && tideUsesSolar(d.tz_offset_h, undefined, atMs) && (
         <div className={`text-[8px] leading-tight ${muted}`} data-testid="tide-solar-note">{TIDE_SOLAR_NOTE}</div>
       )}
