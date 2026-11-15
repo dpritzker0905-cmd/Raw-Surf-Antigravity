@@ -54,3 +54,33 @@ synthetic backend and replay cache, no live traffic.
    tests, plus a mutant.
 
 Anything that misses a gate line is reported as written, and the default stays ON only if 1-3 pass.
+
+## 14:45Z: AMENDMENT to gate 1, made before any after-arm number exists (no worker code written yet)
+
+Gate 1's metric was wrong for this change, so it is replaced here, in the open, before measuring.
+
+**What was wrong:** long-task time over a whole cold load plus 10 scrub steps is dominated by work this change does not touch:
+map and style init, React mount, and the ~150-250 ms per-step React re-render already profiled on the throttled phone
+(next-batch item (b)). Removing the series decode entirely could not halve it, so it cannot judge this change.
+
+**Second bench, made while deciding the design** (`series-path-bench.js`). Today's whole decode path per page is the body's
+UTF-8 decode plus `JSON.parse` (world 1.6 + 25.1 ms; regional 0.4 + 4.3 ms). An EAGER rebuild from transferred columns would
+leave 10.1 ms (0.38x) for a world page and 3.0 ms (0.63x) for a regional one. Eager fails 50% on regional pages, which are
+the common case at close zoom. So the design is LAZY:
+- A page's frames are kept packed; a frame is built (its vectors, then `frameToMarineData`, then the truth-tag mint on the
+  real vectors) when it is first read.
+- The two all-frame readers in `marineGridSeries.js` (the newest verified cycle and the coarse-preview check) read frame
+  metadata without building frames.
+
+**Gate 1 (replaces the version above):**
+- **Metric:** main-thread milliseconds in the series DECODE PATH, summed per session.
+  - Kill arm: `JSON.parse` of each page plus its frame loop (`frameToMarineData` for every frame).
+  - Worker arm: the page's message handling plus every frame build, wherever it happens. A frame materialised later by a
+    scrub or the frame store is counted.
+  - Instrumented in both arms by the same in-app telemetry: `window.__MARINE_SERIES_DIAG__.decodeMs` / `.decodes`.
+  - Session: a cold map load, the three series pages landing, then a 10-step scrub, on the throttled phone profile.
+    GFS waves, z2 and z6, 5 fresh loads per arm per zoom.
+- **Pass:** median(worker) <= 0.5 x median(kill) at both zooms.
+- **Secondary, reported but not gating:** long tasks (> 50 ms) that overlap a series page's arrival, per arm.
+
+Gates 2-4 are unchanged.
