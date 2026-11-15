@@ -1,5 +1,6 @@
 // The hour blend's gate instrument (2026-11-15, Fable animation lane). Gate: docs/weather-program/log/2026-11-15-fable-crest-hour-blend.md.
-// Offline only: built client over serve_synthetic.py. Two arms on the SAME build: ARM=A (the kill set: hard swap), ARM=B (blend).
+// Offline only: built client over serve_synthetic.py. Two arms in the SAME page: A (the kill set: hard swap) and B (blend), one scrub
+// each per phase, A first on even views and B first on odd views (the kill is read on every step).
 //
 // Per view, in one page: the layer on, then three 24 h scrubs in +3 h steps (three ArrowRight keydowns in one task = one step):
 //   warm   : nothing measured (the frames become resident)
@@ -125,7 +126,6 @@ const r3 = (x) => (x == null ? null : +x.toFixed(3));
   await page.addInitScript(({ theme, arm }) => {
     try { localStorage.setItem('raw-surf-theme', theme); } catch (e) { /* private mode */ }
     window.__RAW_STATIC_FRAMES_BASE__ = 'http://127.0.0.1:4293/';
-    if (arm === 'A') window.__RAW_DISABLE_CREST_HOUR_BLEND__ = true;
   }, { theme: THEME, arm: ARM });
   const errs = []; page.on('pageerror', (e) => errs.push(String(e).slice(0, 160).replace(/access_token=[^&\s"']+/g, 'access_token=REDACTED')));
   await L.openMap(page);
@@ -139,6 +139,68 @@ const r3 = (x) => (x == null ? null : +x.toFixed(3));
     await sleep(900);
     return marks;
   };
+  // Both arms in ONE page (registered 2026-11-15, section 6 of the log): the kill is read on every step.
+  const setArm = (arm) => page.evaluate((kill) => { if (kill) window.__RAW_DISABLE_CREST_HOUR_BLEND__ = true; else delete window.__RAW_DISABLE_CREST_HOUR_BLEND__; }, arm === 'A');
+  const timing = async () => {
+    await page.evaluate(() => { const H = window.__HB__; H.gpu = []; H.dts = []; H.timing = true; });
+    const tm = await scrub(STEP_MS, false);
+    const T = await page.evaluate(() => { const H = window.__HB__; H.timing = false; return { gpu: H.gpu, dts: H.dts, ext: H.hasExt }; });
+    const inBlend = (t) => tm.some((m) => t >= m && t <= m + 220);
+    await home();
+    return { ext: T.ext, gpuN: T.gpu.length, gpuMedian: r3(med(T.gpu.map((g) => g.ms))), gpuMedianInBlend: r3(med(T.gpu.filter((g) => inBlend(g.t)).map((g) => g.ms))),
+      gpuNInBlend: T.gpu.filter((g) => inBlend(g.t)).length, frameMsMedian: r3(med(T.dts.map((d) => d.dt))), frameMsMedianInBlend: r3(med(T.dts.filter((d) => inBlend(d.t)).map((d) => d.dt))) };
+  };
+  const capture = async () => {
+    await page.evaluate(() => { const H = window.__HB__; H.frames = []; H.lum = null; H.capture = true; });
+    await sleep(600);
+    const cm = await scrub(STEP_MS, true);
+    const F = await page.evaluate(() => { const H = window.__HB__; H.capture = false; return H.frames; });
+    const steps = cm.map((m, i) => {
+      const end = i + 1 < cm.length ? cm[i + 1].t : m.t + 800;
+      const before = F.filter((f) => f.d != null && f.t >= m.t - 400 && f.t < m.t).map((f) => f.d);
+      const after = F.filter((f) => f.d != null && f.t >= m.t && f.t < Math.min(end, m.t + 800));
+      const floor = med(before); const peak = after.length ? Math.max(...after.map((f) => f.d)) : null;
+      return { floor: r3(floor), peak: r3(peak), step: r3(peak != null && floor != null ? peak - floor : null), framesAfter: after.length, framesBefore: before.length,
+        mixSeen: r3(Math.max(0, ...after.map((f) => f.mix || 0))), hash: m.st.hash, rec: m.st.rec, dims: m.st.dims, endBlendObj: m.st.blendObj, endUni: m.st.uni, endMix: m.st.tel ? m.st.tel.mix : 0, prevTex: m.st.prevTex };
+    });
+    await home();
+    return { steps, tel: cm.length ? cm[cm.length - 1].st.tel : null };
+  };
+  const drag = async () => {
+    await page.evaluate(() => { const H = window.__HB__; H.frames = []; H.lum = null; H.capture = true; });
+    await sleep(600);
+    const dm = await scrub(100, false);
+    const D = await page.evaluate(() => { const H = window.__HB__; H.capture = false; return H.frames; });
+    const dBefore = med(D.filter((f) => f.d != null && f.t < dm[0]).map((f) => f.d));
+    await home();
+    return { dragFloor: r3(dBefore), drag: dm.map((m, i) => { const end = i + 1 < dm.length ? dm[i + 1] : m + 800; const a = D.filter((f) => f.d != null && f.t >= m && f.t < end).map((f) => f.d);
+      return r3(a.length ? Math.max(...a) - dBefore : null); }) };
+  };
+  const edges = async () => {
+    const res = await page.evaluate(async (steps) => {
+      const H = window.__HB__; const wait = (ms) => new Promise((r) => setTimeout(r, ms)); const out = [];
+      H.hideParticles = true; await wait(400);
+      for (let i = 0; i < steps; i++) {
+        const f0 = await H.shot(); const g0 = H.sobel(f0); const thr = 0.5 * H.p99(g0); const e0 = H.edges(g0, thr);
+        let control = null;
+        if (i === 0) {   // positive control: the frame averaged with itself moved 12 px must read as doubled
+          const dbl = new Float32Array(f0.lum.length); for (let y = 0; y < f0.h; y++) for (let x = 0; x < f0.w; x++) dbl[y * f0.w + x] = 0.5 * (f0.lum[y * f0.w + x] + f0.lum[y * f0.w + Math.max(0, x - 12)]);
+          control = H.edges(H.sobel({ lum: dbl, w: f0.w, h: f0.h }), thr) / Math.max(1, e0);
+        }
+        window.__RAW_CREST_BLEND_HOLD__ = 0.5; H.key('ArrowRight', 3); await wait(500);
+        const f5 = await H.shot(); const e5 = H.edges(H.sobel(f5), thr); const mixHeld = (window.__RAW_CREST_HOUR_BLEND__ || {}).mix;
+        let d05 = 0; for (let k = 0; k < f0.lum.length; k++) d05 += Math.abs(f5.lum[k] - f0.lum[k]); d05 /= f0.lum.length;
+        window.__RAW_CREST_BLEND_HOLD__ = null; await wait(450);
+        const f1 = await H.shot(); const e1 = H.edges(H.sobel(f1), thr);
+        let d01 = 0; for (let k = 0; k < f0.lum.length; k++) d01 += Math.abs(f1.lum[k] - f0.lum[k]); d01 /= f0.lum.length;
+        out.push({ e0, e5, e1, pixels: f0.lum.length, ratio: +(e5 / Math.max(1, Math.max(e0, e1))).toFixed(4), mixHeld, d05: +d05.toFixed(3), d01: +d01.toFixed(3), control: control == null ? null : +control.toFixed(3) });
+      }
+      H.hideParticles = false;
+      return out;
+    }, STEPS);
+    await home();
+    return res;
+  };
   let on = null;
   for (const vi of PICK) {
     const [layer, lng, lat, z] = VIEWS[vi];
@@ -147,72 +209,21 @@ const r3 = (x) => (x == null ? null : +x.toFixed(3));
     if (!on) { await page.evaluate((l) => window.toggleLayer(l), layer); on = layer; }
     await sleep(9000); await home();
     await page.evaluate(() => window.__HB__.hook());
-    const out = { arm: ARM, theme: THEME, view: vi, layer, lng, lat, z };
-    await scrub(STEP_MS, false); await home();                                    // warm
-    // timing
-    await page.evaluate(() => { const H = window.__HB__; H.gpu = []; H.dts = []; H.timing = true; });
-    const tm = await scrub(STEP_MS, false);
-    const T = await page.evaluate(() => { const H = window.__HB__; H.timing = false; return { gpu: H.gpu, dts: H.dts, ext: H.hasExt }; });
-    const inBlend = (t) => tm.some((m) => t >= m && t <= m + 220);
-    out.timing = { ext: T.ext, gpuN: T.gpu.length, gpuMedian: r3(med(T.gpu.map((g) => g.ms))), gpuMedianInBlend: r3(med(T.gpu.filter((g) => inBlend(g.t)).map((g) => g.ms))),
-      gpuNInBlend: T.gpu.filter((g) => inBlend(g.t)).length, frameMsMedian: r3(med(T.dts.map((d) => d.dt))), frameMsMedianInBlend: r3(med(T.dts.filter((d) => inBlend(d.t)).map((d) => d.dt))) };
-    await home();
-    // capture
-    await page.evaluate(() => { const H = window.__HB__; H.frames = []; H.lum = null; H.capture = true; });
-    await sleep(600);
-    const cm = await scrub(STEP_MS, true);
-    const F = await page.evaluate(() => { const H = window.__HB__; H.capture = false; return H.frames; });
-    out.steps = cm.map((m, i) => {
-      const end = i + 1 < cm.length ? cm[i + 1].t : m.t + 800;
-      const before = F.filter((f) => f.d != null && f.t >= m.t - 400 && f.t < m.t).map((f) => f.d);
-      const after = F.filter((f) => f.d != null && f.t >= m.t && f.t < Math.min(end, m.t + 800));
-      const floor = med(before); const peak = after.length ? Math.max(...after.map((f) => f.d)) : null;
-      return { floor: r3(floor), peak: r3(peak), step: r3(peak != null && floor != null ? peak - floor : null), framesAfter: after.length, framesBefore: before.length,
-        mixSeen: r3(Math.max(0, ...after.map((f) => f.mix || 0))), hash: m.st.hash, rec: m.st.rec, dims: m.st.dims, endBlendObj: m.st.blendObj, endUni: m.st.uni, endMix: m.st.tel ? m.st.tel.mix : 0, prevTex: m.st.prevTex };
-    });
-    out.tel = cm.length ? cm[cm.length - 1].st.tel : null;
-    await home();
-    // drag
-    await page.evaluate(() => { const H = window.__HB__; H.frames = []; H.lum = null; H.capture = true; });
-    await sleep(600);
-    const dm = await scrub(100, false);
-    const D = await page.evaluate(() => { const H = window.__HB__; H.capture = false; return H.frames; });
-    const dBefore = med(D.filter((f) => f.d != null && f.t < dm[0]).map((f) => f.d));
-    out.drag = dm.map((m, i) => { const end = i + 1 < dm.length ? dm[i + 1] : m + 800; const a = D.filter((f) => f.d != null && f.t >= m && f.t < end).map((f) => f.d);
-      return r3(a.length ? Math.max(...a) - dBefore : null); });
-    out.dragFloor = r3(dBefore);
-    await home();
-    // edges (arm B): particles not drawn, the blend held at 0.5
-    if (ARM === 'B') {
-      out.edges = await page.evaluate(async (steps) => {
-        const H = window.__HB__; const wait = (ms) => new Promise((r) => setTimeout(r, ms)); const res = [];
-        H.hideParticles = true; await wait(400);
-        for (let i = 0; i < steps; i++) {
-          const f0 = await H.shot(); const g0 = H.sobel(f0); const thr = 0.08 * H.p99(g0); const e0 = H.edges(g0, thr);
-          let control = null;
-          if (i === 0) {   // positive control: the frame averaged with itself moved 12 px must read as doubled
-            const dbl = new Float32Array(f0.lum.length); for (let y = 0; y < f0.h; y++) for (let x = 0; x < f0.w; x++) dbl[y * f0.w + x] = 0.5 * (f0.lum[y * f0.w + x] + f0.lum[y * f0.w + Math.max(0, x - 12)]);
-            control = H.edges(H.sobel({ lum: dbl, w: f0.w, h: f0.h }), thr) / Math.max(1, e0);
-          }
-          window.__RAW_CREST_BLEND_HOLD__ = 0.5; H.key('ArrowRight', 3); await wait(500);
-          const f5 = await H.shot(); const e5 = H.edges(H.sobel(f5), thr); const mixHeld = (window.__RAW_CREST_HOUR_BLEND__ || {}).mix;
-          let d05 = 0; for (let k = 0; k < f0.lum.length; k++) d05 += Math.abs(f5.lum[k] - f0.lum[k]); d05 /= f0.lum.length;
-          window.__RAW_CREST_BLEND_HOLD__ = null; await wait(450);
-          const f1 = await H.shot(); const e1 = H.edges(H.sobel(f1), thr);
-          let d01 = 0; for (let k = 0; k < f0.lum.length; k++) d01 += Math.abs(f1.lum[k] - f0.lum[k]); d01 /= f0.lum.length;
-          res.push({ e0, e5, e1, ratio: +(e5 / Math.max(1, Math.max(e0, e1))).toFixed(4), mixHeld, d05: +d05.toFixed(3), d01: +d01.toFixed(3), control: control == null ? null : +control.toFixed(3) });
-        }
-        H.hideParticles = false;
-        return res;
-      }, STEPS);
-      await home();
+    const order = vi % 2 === 0 ? ['A', 'B'] : ['B', 'A'];
+    const outs = { A: { arm: 'A', theme: THEME, view: vi, layer, lng, lat, z, order: order.join('') }, B: { arm: 'B', theme: THEME, view: vi, layer, lng, lat, z, order: order.join('') } };
+    await setArm('B'); await scrub(STEP_MS, false); await home();                 // warm, unmeasured
+    for (const arm of order) { await setArm(arm); outs[arm].timing = await timing(); }
+    for (const arm of order) { await setArm(arm); Object.assign(outs[arm], await capture()); }
+    for (const arm of order) { await setArm(arm); Object.assign(outs[arm], await drag()); }
+    await setArm('B'); outs.B.edges = await edges();
+    const pv = await page.evaluate(() => { const v = window.__HB__.particleVerts.filter((n) => n > 0); return { frames: v.length, min: Math.min(...v), max: Math.max(...v) }; });
+    for (const arm of ['A', 'B']) {
+      const o = outs[arm]; o.particleVerts = pv; o.errors = errs.slice(0, 4);
+      fs.appendFileSync(path.join(OUT, `hb-${arm}-${THEME}.jsonl`), JSON.stringify(o) + '\n');
+      const st = o.steps.map((s) => s.step).filter((x) => x != null);
+      console.log(`view ${vi} ${layer} arm ${arm} (${o.order}): step mean ${r3(mean(st))} floor ${r3(mean(o.steps.map((s) => s.floor)))} gpu ${o.timing.gpuMedian} (blend ${o.timing.gpuMedianInBlend}) drag ${r3(mean(o.drag.filter((x) => x != null)))} rec ${o.steps[0].rec}`
+        + (o.edges ? ` edges max ${Math.max(...o.edges.map((e) => e.ratio))} control ${o.edges[0].control}` : ''));
     }
-    out.particleVerts = await page.evaluate(() => { const v = window.__HB__.particleVerts.filter((n) => n > 0); return { frames: v.length, min: Math.min(...v), max: Math.max(...v) }; });
-    out.errors = errs.slice(0, 4);
-    fs.appendFileSync(path.join(OUT, `hb-${ARM}-${THEME}.jsonl`), JSON.stringify(out) + '\n');
-    const st = out.steps.map((s) => s.step).filter((x) => x != null);
-    console.log(`view ${vi} ${layer} arm ${ARM}: step mean ${r3(mean(st))} floor ${r3(mean(out.steps.map((s) => s.floor)))} gpu ${out.timing.gpuMedian} (blend ${out.timing.gpuMedianInBlend}) drag ${r3(mean(out.drag.filter((x) => x != null)))}`
-      + (out.edges ? ` edges max ${Math.max(...out.edges.map((e) => e.ratio))} control ${out.edges[0].control}` : '') + ` tel ${JSON.stringify(out.tel && { s: out.tel.starts, k: out.tel.kept, e: out.tel.ends, skips: out.tel.skips })}`);
   }
   await browser.close();
 })().catch((e) => { console.error(String(e && e.stack || e).replace(/access_token=[^&\s"']+/g, 'access_token=REDACTED')); process.exit(1); });
