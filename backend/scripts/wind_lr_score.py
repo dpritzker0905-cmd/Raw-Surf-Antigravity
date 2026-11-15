@@ -200,8 +200,10 @@ def main_score(session, cache, stations, out_dir) -> int:
     # ---- TEST half rows
     cols = {a: {k: [] for k in ("u", "v", "s", "g")} for a in ARMS}
     meta = {k: [] for k in ("run", "station", "kind", "hawaii", "lead", "valid", "day", "os", "od", "og")}
-    shift = {b: {"shift": [], "clim": []} for b in BINS}
-    seam_d, within_d = [], []
+    # C1 is recorded for BOTH ENS arms; the chosen arm's rows are read once the arm is chosen (fix 2026-11-16 00:20Z:
+    # it always read the raw arm)
+    shift = {arm: {b: {"shift": [], "clim": []} for b in BINS} for arm in ("ens_mean_raw", "ens_mean_debias")}
+    seam_raw, seam_deb, within_d = [], [], []
     for fn in test_runs:
         z = np.load(os.path.join(run_dir, fn))
         run_dt = datetime.strptime(fn[:10], "%Y%m%d%H").replace(tzinfo=timezone.utc)
@@ -226,17 +228,18 @@ def main_score(session, cache, stations, out_dir) -> int:
                 V2 = V + timedelta(hours=48)
                 w2 = obs.wind_at(st_obs[i], V2)
                 c2 = clim[i].get((V2.month, V2.hour))
-                ch = af["ens_mean_raw"]
                 if w2 and c2:
-                    shift[bin_of(L)]["shift"].append(abs(float(ch[2][i]) - w2[0]))
-                    shift[bin_of(L)]["clim"].append(abs(c2[0] - w2[0]))
+                    for arm in shift:
+                        shift[arm][bin_of(L)]["shift"].append(abs(float(af[arm][2][i]) - w2[0]))
+                        shift[arm][bin_of(L)]["clim"].append(abs(c2[0] - w2[0]))
         # P4 EURO seam: HRES 240 vs the ENS arm at 243 (same run, interpolated 240..246), station cells
         if "hres_10u_240" in z:
             f0 = ec.reduce_members(z["ens_10u_240"], z["ens_10v_240"])
             f1 = ec.reduce_members(z["ens_10u_246"], z["ens_10v_246"])
             mid = ec.interp_step(f0, f1, 240, 246, 243)
             hres240 = np.hypot(z["hres_10u_240"], z["hres_10v_240"])
-            seam_d.extend(np.abs(mid["speed"] * k_by_bin["B2_216_264"] - hres240).tolist())
+            seam_raw.append(np.abs(mid["speed"] - hres240))
+            seam_deb.append(np.abs(mid["speed"] * k_by_bin["B2_216_264"] - hres240))
             for L in range(222, 241, 6):
                 if f"hres_10u_{L}" in z and f"hres_10u_{L - 6}" in z:
                     a = np.hypot(z[f"hres_10u_{L}"], z[f"hres_10v_{L}"])
@@ -251,7 +254,9 @@ def main_score(session, cache, stations, out_dir) -> int:
     chosen = "ens_mean_debias" if hi < 0 else "ens_mean_raw"
     E_shift = {b: {"shift_mae": float(np.mean(v["shift"])) if v["shift"] else float("nan"),
                    "clim_mae": float(np.mean(v["clim"])) if v["clim"] else float("nan"), "n": len(v["shift"])}
-               for b, v in shift.items()}
+               for b, v in shift[chosen].items()}
+    # the seam of the CHOSEN arm: the de-bias factor only when the de-biased arm was chosen (fix 2026-11-16 00:20Z)
+    seam_d = np.concatenate(seam_deb if chosen == "ens_mean_debias" else seam_raw).tolist() if seam_raw else []
     seam = {"seam_p95": float(np.nanpercentile(seam_d, 95)) if seam_d else float("nan"),
             "within_p95": float(np.nanpercentile(within_d, 95)) if within_d else float("nan"),
             "n_seam": len(seam_d), "n_within": len(within_d)}
