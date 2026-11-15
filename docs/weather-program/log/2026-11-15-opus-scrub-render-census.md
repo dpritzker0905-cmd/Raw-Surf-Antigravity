@@ -71,3 +71,22 @@ previous commit (by hook index) and whether the new value is shallow-equal to th
 - **`MapPageContent`:** a GeoJSON state (`{type, features, hourOffset, stale}`) and a counter, a few steps out of 10.
 - Radix `Presence` / `DialogContent` (11 closed dialogs) and `MapMarkerLayers` re-render through context; lever 3 (memoise
   hour-independent children) to be sized after levers 1 and 2.
+
+## 18:25Z: amendment, before any ON number exists (instrument definitions, and what dev runs are)
+
+- **Development runs are diagnostic.** A single-session census of a fix build while building it is NOT a gate run and cannot pass
+  or fail anything; each one is logged here anyway. The gate is judged only on the registered A/B: 3 sessions per arm,
+  alternating ON / KILL, from ONE build.
+- **The A/B probe** is `scn_render_census.js` with `ARMS` (the KILL arm sets every new kill before boot) and these in-page
+  instruments, all in the page's clock, per step:
+  - *render ms, commits:* as in the census;
+  - *input responsiveness:* the keydown's Event Timing entry (`PerformanceObserver`, type `event`, `durationThreshold` 16), its
+    `duration` (input to next paint, 8 ms granularity);
+  - *key-to-shown:* from the keydown's `startTime` to the first animation frame where the marine engine's drawn grid has
+    `hourOffset` equal to the step's target hour (the wheel's hour after the press);
+  - *blank:* an animation frame while the layer is on where the engine holds no grid;
+  - *mislabel:* at the end of the dwell, the engine's drawn hour differs from the wheel's `aria-valuenow`;
+  - *labels reach the target:* at the end of the dwell, the wheel's `aria-valuenow` equals the target hour and the
+    `ForecastTimeStatus` text differs from the previous step's.
+- This narrows gate 3's "exact-shown" (the instant-contract's product check) to the drawn hour, because this change touches no
+  data path; the full exact-product check stays with `scn_instant_contract.js`.
