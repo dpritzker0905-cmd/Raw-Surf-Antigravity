@@ -28,8 +28,9 @@ if (tn.length) console.log(`     TRUTH READ TWICE (${tn.length} triples): the re
 console.log(`     per view: ${perView.map((v) => `${v.view}:${Number.isFinite(v.r) ? (100 * v.r).toFixed(0) + '%' : 'n/a'}(${v.n})`).join(' ')}`);
 console.log(`     the two textures mixed were h and h+6 in every scored triple (checked per triple; a triple that mixed anything else is left out as mixed_wrong_hours)`);
 // flat control
-const flat = sum(ok, 'eFlat') / sum(ok, 'eCut');
-console.log(`     FLAT CONTROL: the 12 h-apart average scores ${pc(flat)} of the cut. ${flat < 0.6 ? 'It is UNDER 60%, so H8 cannot be read alone: read it with the retention figures below.' : 'It is not under 60%: mean absolute error does not reward the washed-out picture here.'}`);
+const hasFlat = ok.some((t) => t.eFlat != null);
+const flat = hasFlat ? sum(ok, 'eFlat') / sum(ok, 'eCut') : NaN;
+if (hasFlat) console.log(`     FLAT CONTROL: the 12 h-apart average scores ${pc(flat)} of the cut. ${flat < 0.6 ? 'It is UNDER 60%, so H8 cannot be read alone: read it with the retention figures below.' : 'It is not under 60%: mean absolute error does not reward the washed-out picture here.'}`);
 console.log(`     contrast against the REAL middle hour (std of luminance, held / real): mean ${f(sum(ok, 'retTruth') / ok.length)}, min ${f(Math.min(...ok.map((t) => t.retTruth)))}; the flat control's: mean ${f(sum(ok, 'flatRetTruth') / ok.length)}`);
 // value space
 const v = ok.filter((t) => t.values);
@@ -39,6 +40,10 @@ if (v.length) {
   console.log(`                  height contrast of the mix against the real middle hour (std ratio): mean ${f(sum(v, (t) => t.values.hRetTruth) / v.length)}, min ${f(Math.min(...v.map((t) => t.values.hRetTruth)))} (the moving train alone would keep 0.69 at 6 h; parts that do not move raise it)`);
 }
 
+if (ok.some((t) => t.eCutB != null)) console.log(`     H8f detail: the hard cut's two choices against the truth, pooled: fine h ${f(sum(ok, 'eCutA') / ok.length)}, the stand-in of h+6 ${f(sum(ok, 'eCutB') / ok.length)}; the held mix ${f(sum(ok, 'eBlend') / ok.length)}`);
+// the rounding bracket (section 23.2), same-grid held pictures
+const br = ok.filter((t) => t.outside != null && t.grids && new Set(t.grids).size === 1);
+if (br.length) verdict('BRACKET', Math.max(...br.map((t) => t.outside)) <= 0.01 ? 'PASS' : 'FAIL', `${br.length} same-grid held pictures: share of pixels outside the rounding bracket, largest ${pc(Math.max(...br.map((t) => t.outside)))}, mean ${pc(sum(br, 'outside') / br.length)} (line 1%; the registered line applies to the grey view)`);
 // H5 two-sided, against the exact reference
 const ref = ok.filter((t) => t.refDiff != null);
 const worstDiff = Math.max(...ref.map((t) => t.refDiff)); const worstRet = Math.max(...ref.map((t) => Math.abs(t.retM - t.retRef)));

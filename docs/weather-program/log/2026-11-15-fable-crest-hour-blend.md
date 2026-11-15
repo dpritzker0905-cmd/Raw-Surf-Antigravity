@@ -623,3 +623,46 @@ so. Section 22 as registered covers only REPEAT visits. Registered now, for runs
    and section 14's 113-120% are that: a washed-out picture is WORSE than a hard cut by this measure here, so the measure
    does not reward blur and H8-type results can be read alone.
 5. Passed to the director by the advisor: the fine grid's request goes out about 1.5 s after a step.
+
+## 24. Section 22's run (13:06-13:27 EST) and three diagnoses of the reference difference (recorded 13:50 EST). Nothing tuned.
+### H8c with the cache settled: the hidden-middle-hour line PASSES as registered; the reference line FAILS on regional grids
+Build `1c1a13f28`, instrument `fc1b32bef`, registered in section 22. Section 23's additions (H8f, the bracket line,
+condition-based settling) arrived during this run and are not in it. Every view drew its own layer; 0 page errors.
+- **H8 (coastal views, settled cache): PASS.** 40 of 40 triples. ERROR(blend) 5.57 against ERROR(cut) 11.82 luminance units =
+  **47.1%** (line 60%, floor 25%); no view worse than the cut (per view 42, 51, 49, 51, 43, 43, 47, 49, 14, 77%). The same grid
+  in all five places in all 40 (regional 24 x 21, 25 x 20, 24 x 20, 30 x 21 at the coast; 181 x 83 elsewhere), so the
+  mixed-grid part is empty. The truth picture read twice: difference 0.000 in all 40. The two fields mixed were h and h+6.
+  Flat control 122% of the cut (section 23.4 expected about 128%). Value space: 0.139 m against 0.344 m = 40.5%.
+  This is the REPEAT-visit case only (section 23.1).
+- **Reference line: FAIL.** 40 held pictures: the 20 on the world grid differ from the exact reference by 0.23-0.49 (as
+  before); the 20 on REGIONAL grids by **2.2 to 4.7**, with the held picture's contrast 4-10% below the reference's.
+
+### Why regional grids differ from the reference: three diagnoses, each a measurement
+1. **The earlier field is read at exactly the right place.** The lab gave the blend an exact copy of the CURRENT field as the
+   earlier one (16 cases: regional 24 x 21 and 25 x 20, and 181 x 83). Held at 0 and at 0.5 the picture is the picture at
+   rest: difference **0.000** in all 16. Moved one cell: 7.8-16.3. A mix of a field with itself can only reproduce the
+   picture if bounds, registration and sampling are exact, so this is a zero-tolerance registration check, stronger than H9
+   (whose 50% is guaranteed by the arithmetic wherever the earlier grid is placed; noted here against section 20).
+2. **The shader mixes exactly the bytes the reference averages.** Read back during 8 held pictures on two coastal views: the
+   kept texture against hour h's bytes, 0 bytes differ; the resident against hour h+6's, 0 differ; height scale 10 for both;
+   bounds and size identical.
+3. **A 6-hour jump itself draws a regional grid differently for a while, with the blend KILLED.** Four cases, coastal waves
+   view, 24 x 21: after the jump the picture differs from the SAME hour at rest by **4.08-4.11** at 250 ms and at 900 ms, and
+   by **0.000** at 2.5 s and 5 s. Same grid, same valid time, no blend. The held pictures were read 900 ms after such a jump
+   and the reference pictures seconds later, so the reference comparison at the coast was comparing a picture inside this
+   transient with one after it. That is the size of the difference (4.4-4.7 against 4.1 plus rounding).
+   What is still in the picture during those 2.5 s is NOT identified (the wave texture is the new hour's; something else the
+   colour pass draws lags). It is the engine's, it exists without this change, and a user who scrubs several hours at once
+   at a coastal zoom sees a late correction of about 4 luminance units. Follow-up for the director; not fixed here.
+Consequence: section 20's and this section's reference failures on regional grids are an instrument fault (the held picture
+was read too early), and H8's coastal figures above carry the same transient inside the blend's error, which counts AGAINST
+the blend, not for it.
+
+## 25. Registered BEFORE the next three runs
+1. **The held picture is read 3 s after the jump** (the blend stays held), past the transient of section 24.3; everything else
+   as section 22 (cache settled by the condition of section 23.3, the truth picture twice). Scored: H8 again (same lines), the
+   reference line (0.5, colour, same-grid pictures), and, in the grey view on the six views of section 17, the bracket line of
+   section 23.2 (at most 1% of pixels outside, every same-grid held picture).
+2. **H8f** as registered in section 23.1, unchanged. Its two pictures are read inside the stand-in's lifetime (within about
+   0.3 s of the jump) and so inside the transient, both of them alike.
+3. The self-mix check of section 24.1 is kept as a standing line: difference at most 0.01 in every case.
