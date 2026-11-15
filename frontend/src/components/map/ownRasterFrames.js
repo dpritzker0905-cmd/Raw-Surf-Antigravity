@@ -30,7 +30,8 @@ export const PRESSURE_FIELD = 6;
 export const TEMP_FIELD = 7;      // temp_c: u16, value = code * 0.05 - 100.05 (code 0 = no data); 2 m air temperature, deg C
 export const CLOUD_FIELD = 8;     // cloud_pct: u8, value = code - 1 (code 0 = no data); total cloud cover, %
 export const PRECIP_FIELD = 10;   // precip_mm_h: u16, value = code * 0.01 - 0.01 (code 0 = no data); mm/h in the step before the hour
-export const FOG_FIELD = 11;      // visibility_m: u16, value = code - 1 (code 0 = no data); surface visibility, metres (GFS VIS)
+export const SPEED_FIELD = 4;     // speed: u16, value = code * 0.01 - 0.01 (code 0 = no data); knots (gusts; the wind frames' field)
+export const FOG_FIELD = 11;     // visibility_m: u16, value = code - 1 (code 0 = no data); surface visibility, metres (GFS VIS)
 // PER-MODEL (2026-10-24; the owner, 2026-10-23 20:13 EDT: "Yes start it", answering "start the per-model pressure route?" after
 // "We want each models pressure showing"): one published set per model. The layer follows the model selector; past a model's
 // last frame (EURO 240 h, ICON 180 h) the GFS frame stands in, labelled as an estimate (the wave layers' extension policy).
@@ -83,10 +84,42 @@ export const OWN_RASTER_SETS = {
     models: { GFS: 'GFS/weather/precipitation/global_0p25', EURO: 'EURO/weather/precipitation/global_0p25' },
     fallback: 'GFS', field: PRECIP_FIELD, unit: 'mm/h',
   },
+  // GUSTS (2026-11-15, the owner approved Gusts as a new picker layer; "these lanes need to serve instantly from real GFS, EURO,
+  // and ICON lanes from GRIB"): EACH MODEL'S OWN gust, in KNOTS (the wind layer's unit), 0.25 deg (frame_set_raster.py sets
+  // `gust`, `gust_euro`, `gust_icon`): GFS GUST (instantaneous, hourly to 120 h), ECMWF 10fg (max since the previous step, 3/6 h)
+  // and DWD ICON VMAX_10M (max since the previous output, hourly to 78 h). The credit says which definition is on screen
+  // (LayerDataCredit). Past EURO's 240 h / ICON's 180 h the GFS frame stands in, labelled as an estimate (pressure's policy).
+  // OWN-FRAMES ONLY (`ownOnly`): there is no .om path behind it, so a miss draws nothing and the status line says so.
+  // ON by default (DEFAULT_ON_LAYERS); kill: window.__RAW_DISABLE_RASTER_OWN_GUSTS__ = true.
+  gusts: {
+    models: { GFS: 'GFS/weather/gust/global_0p25', EURO: 'EURO/weather/gust/global_0p25', ICON: 'ICON/weather/gust/global_0p25' },
+    // PAST EACH MODEL'S RANGE, THE WIND LAYER'S OWN RULES (the owner, 2026-11-15: "Wind gust should match that logic"): EURO wind
+    // past 240 h is the GFS field labelled "GFS stand-in beyond this model's range" (euro_wind_extension.py) = `fallback` above;
+    // ICON wind past 180 h is ICON's OWN data looped over its whole days, labelled "beyond ICON's native range"
+    // (viewport_helper.extend_icon_wind_to_14d, basis icon_loop_extrapolation) = `loop` below, 3-hourly as the wind tail.
+    fallback: 'GFS', loop: { ICON: true }, field: SPEED_FIELD, unit: 'kn', ownOnly: true,
+  },
+  // OCEAN CURRENTS (2026-11-15, the owner approved Currents as a new picker layer): Copernicus Marine's global ocean model,
+  // surface current SPEED in knots (field 4) every 6 h to 240 h on 0.25 deg (frame_set_raster.py set `currents`); each frame
+  // also carries the direction the water flows TOWARD (field 1, the wind frames' layout, uv_convention 1) for a flow overlay.
+  // One ocean model for every picked model (the credit names Copernicus Marine). Own frames only; ON with a kill:
+  // window.__RAW_DISABLE_RASTER_OWN_CURRENTS__ = true. Past day 10 there is no frame: the status line says so.
+  currents: {
+    models: { GFS: 'CMEMS/marine/currents/global_0p25', EURO: 'CMEMS/marine/currents/global_0p25', ICON: 'CMEMS/marine/currents/global_0p25' },
+    fallback: null, field: SPEED_FIELD, unit: 'kn', ownOnly: true,
+  },
 };
+/** Layers drawn ONLY from our own frames (no .om path behind them): the picker shows them, a miss shows nothing. */
+export const OWN_ONLY_LAYERS = Object.freeze(Object.keys(OWN_RASTER_SETS).filter((l) => OWN_RASTER_SETS[l].ownOnly));
 // Who the frames come from, for the legend credit and the status line.
-export const MODEL_SOURCE = { GFS: 'NOAA GFS', EURO: 'ECMWF', ICON: 'DWD ICON' };
+export const MODEL_SOURCE = { GFS: 'NOAA GFS', EURO: 'ECMWF', ICON: 'DWD ICON', CMEMS: 'Copernicus Marine' };
 const up = (m) => String(m || 'GFS').toUpperCase();
+/** The model whose data a layer's set for `model` really holds (the set key's first part): GFS for fog and gusts under any picked
+ *  model, so the credit and the status line never name ECMWF or DWD over NOAA's field. */
+export function sourceModel(layer, model = 'GFS') {
+  const key = setKey(layer, model);
+  return key ? key.split('/')[0] : up(model);
+}
 /** The set key for a layer and model, or null when that model has no own set. */
 export function setKey(layer, model = 'GFS') {
   const set = OWN_RASTER_SETS[layer];
@@ -115,7 +148,10 @@ const W = () => (typeof window !== 'undefined' ? window : {});
 // numbers: docs/weather-program/log/2026-11-14-opus-raster-own-three.md), so Reflection said no and SubQ yes; David's rule needs
 // both. Turning it on is one line: add 'fog' here. Until then the lever reaches it (window.__RAW_RASTER_OWN_FRAMES__ = 'fog').
 // Kill: __RAW_DISABLE_RASTER_OWN_FOG__.
-export const DEFAULT_ON_LAYERS = Object.freeze(['satellite', 'pressure']);
+// GUSTS (2026-11-15): a NEW layer, own frames only, ships ON (CLAUDE.md: new layers ship ON with a kill switch). Kill:
+// __RAW_DISABLE_RASTER_OWN_GUSTS__ (the picker then hides the layer, MapWeatherControls). CURRENTS (2026-11-15), the same:
+// kill __RAW_DISABLE_RASTER_OWN_CURRENTS__.
+export const DEFAULT_ON_LAYERS = Object.freeze(['satellite', 'pressure', 'gusts', 'currents']);
 // PER-MODEL DEFAULTS (2026-11-14, the director), under the no-regression rule: a layer moves to own frames by default only where its
 // set is at least as fine as what the .om path draws today.
 //  - water_temp EURO: ECMWF skt at 0.25 deg = the .om ifs025: built, DEFAULT-OFF pending the owner (vote split 08:31Z, as fog).
@@ -184,13 +220,36 @@ export async function ownIndex(layer, model = 'GFS') {
  */
 export function combinedFrames(layer, model, index, fallbackIndex) {
   const m = up(model);
-  const own = framesOf(index).map((f) => ({ ...f, setKey: setKey(layer, m), model: m, estimated: null }));
-  const fb = OWN_RASTER_SETS[layer] && OWN_RASTER_SETS[layer].fallback;
+  const own = framesOf(index).map((f) => ({ ...f, setKey: setKey(layer, m), model: sourceModel(layer, m), estimated: null }));
+  const set = OWN_RASTER_SETS[layer] || {};
+  if (set.loop && set.loop[m] && own.length) return own.concat(loopTail(own, index));
+  const fb = set.fallback;
   if (!fallbackIndex || !fb || fb === m || !own.length) return own;
   const last = Date.parse(own[own.length - 1].valid_time);
   const tail = framesOf(fallbackIndex).filter((f) => Date.parse(f.valid_time) > last)
     .map((f) => ({ ...f, setKey: setKey(layer, fb), model: fb, estimated: 'gfs_estimated_fallback' }));
   return own.concat(tail);
+}
+
+export const LOOP_STEP_H = 3;
+export const LOOP_CEILING_H = 336;
+/** ICON's tail past its last frame, as the ICON WIND tail is built (viewport_helper.extend_icon_wind_to_14d): the model's own frames
+ *  over its WHOLE days from the first frame (span floored to 24 h) repeat, so hour t shows the frame at first + ((t - first) mod
+ *  span), on the 3-hourly UTC lattice to run + 336 h, each labelled `icon_loop_extrapolation` ("beyond ICON's native range").
+ *  The tail entries load the SAME frame files (no extra bytes); their valid_time is the asked hour, `loopedFrom` the source's. */
+export function loopTail(own, index) {
+  const H = 3600000;
+  const first = Date.parse(own[0].valid_time); const last = Date.parse(own[own.length - 1].valid_time);
+  const span = Math.floor((last - first) / (24 * H)) * 24 * H;
+  const run = Date.parse((index && (index.run_time || index.run)) || own[0].valid_time);
+  if (!(span > 0) || !Number.isFinite(run)) return [];
+  const tail = [];
+  for (let t = Math.ceil((last + 1) / (LOOP_STEP_H * H)) * LOOP_STEP_H * H; t <= run + LOOP_CEILING_H * H; t += LOOP_STEP_H * H) {
+    const src = pickIndexFrame({ frames: own }, first + ((t - first) % span));
+    if (!src || !src.path) continue;
+    tail.push({ ...src, valid_time: new Date(t).toISOString().replace(/\.\d{3}Z$/, 'Z'), loopedFrom: src.valid_time, estimated: 'icon_loop_extrapolation' });
+  }
+  return tail;
 }
 
 /** The entry to show for an asked time in a combined list: the nearest within 3 h of the model's own, else (past its range)
@@ -217,6 +276,15 @@ export function frameAt(index, validMs) {
 }
 
 export function windowRadius() { return isHandheldDevice() ? 1 : 2; }
+/** PHONE PREFETCH (2026-11-15, the gusts/currents gate): handhelds keep +-1 frame, and at a brisk scrub (a step every ~250 ms) the
+ *  next hourly 0.25-deg frame (~0.9 MB, ~230 ms to fetch at 150 ms latency) was not there yet: GFS gusts' phone step p50 was
+ *  361 ms, almost all window misses. The own-only layers keep TWO frames ahead in the scrub direction on every device (one
+ *  behind). Scoped to them, so the live lanes keep their measured behaviour. Kill: __RAW_DISABLE_OWN_ONLY_PREFETCH2__. */
+export function ownWindowRadius(layer) {
+  const base = windowRadius();
+  if (!OWN_ONLY_LAYERS.includes(layer) || W().__RAW_DISABLE_OWN_ONLY_PREFETCH2__ === true) return base;
+  return Math.max(2, base);
+}
 
 /**
  * The frame positions to hold, in fetch priority: the shown one, then up to `radius` ahead in the scrub direction, then one

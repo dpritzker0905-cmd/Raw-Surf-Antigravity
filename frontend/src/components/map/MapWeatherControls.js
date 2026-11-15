@@ -6,7 +6,7 @@ import { BASE_CUSTOM_COLOR_SCALES, applyThemePressureScale, applyThemeWaveScale 
 import { setSurfModeFlag } from './backendWeatherServiceClient'; import { useSurfModeFlagState } from './useSurfModeFlagState';   // D6: one band state for every panel
 import { RATING_LEVELS, RATING_COLOR } from './surfRating';
 import useHeightUnit from './useHeightUnit';
-import { windLegendGradientCSS, windLegendStops, windLookKey } from './WindColorRamp';
+import { windLegendGradientCSS, windLegendStops, windLookKey } from './WindColorRamp'; import { gustLegend } from './gustPalette'; import { currentsLegend } from './currentsPalette';
 import { evenTicks, LegendTicks } from './legendTicks';
 import { activeCadenceHours, stepHour } from './cadenceStep';
 import ForecastWheel, { shouldUseClassicScrubber } from './ForecastWheel';
@@ -18,6 +18,8 @@ import { responsiveWeatherOn } from './useMapChromeLayout'; import LayerDataCred
 import { marineWaveLegend } from './marineWavePalette';
 import WeatherLayerSheet, { useWeatherPanelDisclosure } from './WeatherLayerSheet';
 import { buildGradientCSS, buildStops, evenStops, HEIGHT_VARIABLES } from './weatherControlLegend'; import { rasterLegend, rasterPaletteKey } from './rasterPalettes';
+const ownLayerKilled = (name) => typeof window !== 'undefined' && (window[`__RAW_DISABLE_RASTER_OWN_${name}__`] === true || window.__RAW_DISABLE_RASTER_OWN_FRAMES__ === true);
+const gustsKilled = () => ownLayerKilled('GUSTS');
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
 const SURF_TOGGLE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
 /**
@@ -125,10 +127,14 @@ export var MapWeatherControls = ({
     { id: 'radar', label: 'Radar', icon: CloudRain, color: 'text-indigo-400' },
     { id: 'satellite', label: 'Satellite', icon: Globe, color: 'text-sky-400' },
     { id: 'wind', label: 'Wind', icon: Wind, color: 'text-teal-400' },
+    // Gusts (2026-11-15): own frames only; hidden under its kill (window.__RAW_DISABLE_RASTER_OWN_GUSTS__ = true).
+    ...(gustsKilled() ? [] : [{ id: 'gusts', label: 'Gusts', icon: Wind, color: 'text-amber-500' }]),
     { id: 'waves', label: 'Waves', icon: Waves, color: 'text-blue-300' },
     { id: 'swell_1', label: 'Swell', icon: Waves, color: 'text-cyan-400' },
     { id: 'swell_2', label: 'Swell 2', icon: Waves, color: 'text-purple-400' },
     { id: 'wind_waves', label: 'Wind Waves', icon: Wind, color: 'text-emerald-400' },
+    // Ocean currents (2026-11-15): own frames only; hidden under its kill (window.__RAW_DISABLE_RASTER_OWN_CURRENTS__ = true).
+    ...(ownLayerKilled('CURRENTS') ? [] : [{ id: 'currents', label: 'Currents', icon: Waves, color: 'text-teal-500' }]),
     { id: 'fog', label: 'Fog', icon: Cloud, color: 'text-gray-400' },
     { id: 'pressure', label: 'Pressure', icon: Thermometer, color: 'text-rose-400' },
     { id: 'temperature', label: 'Air Temp', icon: Thermometer, color: 'text-orange-400' },
@@ -163,6 +169,7 @@ export var MapWeatherControls = ({
     satellite: 'Cloud Cover (%)',
     fog: 'Visibility / Fog',
     wind: 'Wind Speed (kts)',
+    gusts: 'Wind Gusts (kts)',
     pressure: 'Pressure (hPa)',
     temperature: 'Air Temp (°F)',
     water_temp: 'Water Temp (°F)',
@@ -209,6 +216,12 @@ export var MapWeatherControls = ({
       gradientCSS: windLegendGradientCSS(theme),
       stops: evenStops(windLegendStops(theme)),
     };
+    // Gusts: the wind legend's own table and ticks (gustPalette.js), so a knot reads the same colour on both layers.
+    const gl = gustLegend(theme);
+    config.gusts = { label: LEGEND_LABELS.gusts, gradientCSS: gl.gradientCSS, stops: evenStops(gl.ticks) };
+    // Currents: viridis by speed, ticks in the user's unit (ft -> kts, m -> m/s), currentsPalette.js.
+    const cl = currentsLegend(theme, heightUnit);
+    config.currents = { label: cl.label, gradientCSS: cl.gradientCSS, stops: evenStops(cl.ticks) };
     config.radar = {
       label: LEGEND_LABELS.radar,
       gradientCSS: 'linear-gradient(to right, rgba(200,200,200,0.3), rgba(96,165,250,0.6), rgba(99,102,241,0.7), rgba(147,51,234,0.85), rgba(219,39,119,0.95))',

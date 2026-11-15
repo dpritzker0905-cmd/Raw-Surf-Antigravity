@@ -14,15 +14,17 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { CUSTOM_COLOR_SCALES, applyPrecipColorScale, applyThemePressureScale } from './colorScales';
 import {
   createOwnRasterLayer, buildStepLut, PRESSURE_LUT, PRESSURE_OPACITY_STOPS, TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS,
-  CLOUD_LUT, SATELLITE_OPACITY_STOPS, RAIN_LUT, RAIN_OPACITY_STOPS, FOG_LUT, FOG_OPACITY_STOPS, WATER_TEMP_LUT, waterTempOpacityStops,
+  CLOUD_LUT, SATELLITE_OPACITY_STOPS, RAIN_LUT, RAIN_OPACITY_STOPS, FOG_LUT, FOG_OPACITY_STOPS, WATER_TEMP_LUT, waterTempOpacityStops, GUST_OPACITY_STOPS, CURRENTS_OPACITY_STOPS,
   scaleForTheme,
 } from './ownRasterLayer';
-import { getRasterDrawn, publishRasterDrawn, rasterReadoutKilled } from './rasterDrawnFrame';
+import { RASTER_NAMES, getRasterDrawn, publishRasterDrawn, rasterReadoutKilled } from './rasterDrawnFrame';
 import { requestIsobars } from './isobarStore';
+import { GUST_LUT, gustScale } from './gustPalette';
+import { CURRENTS_LUT, currentsScale } from './currentsPalette';
 import { loadDownscale, setDownscaled } from './ownRasterDownscale';
 import {
-  combinedFrameAt, combinedFrames, emitOwnShown, emitOwnWant, framesOf, getField, lastIndex, noteMiss, noteStep, OWN_RASTER_SETS, ownFramesOn, ownIndex,
-  planWindow, setEngaged, setWanted, tel, windowRadius,
+  OWN_ONLY_LAYERS, sourceModel, combinedFrameAt, combinedFrames, emitOwnShown, emitOwnWant, framesOf, getField, lastIndex, noteMiss, noteStep, OWN_RASTER_SETS, ownFramesOn, ownIndex,
+  planWindow, setEngaged, setWanted, tel, ownWindowRadius,
 } from './ownRasterFrames';
 
 export const ownLayerId = (layer) => `own-raster-${layer}`;
@@ -46,8 +48,12 @@ const SCALES = {
   fog: () => registeredScale('visibility') || CUSTOM_COLOR_SCALES.visibility || null,
   // water temp: the .om path's surface_temperature = the library's sea_surface_temperature (colorScales.aliasSurfaceTemperature)
   water_temp: () => registeredScale('surface_temperature') || registeredScale(LIB_SCALE.water_temp),
+  // gusts (2026-11-15): the wind layer's own legend ramp per theme (gustPalette.js), so a knot reads the same on both layers
+  gusts: (theme) => gustScale(theme),
+  // currents (2026-11-15): viridis by speed, alpha per theme (currentsPalette.js)
+  currents: (theme) => currentsScale(theme),
 };
-const LUTS = { pressure: PRESSURE_LUT, temperature: TEMPERATURE_LUT, satellite: CLOUD_LUT, rain: RAIN_LUT, fog: FOG_LUT, water_temp: WATER_TEMP_LUT };
+const LUTS = { pressure: PRESSURE_LUT, temperature: TEMPERATURE_LUT, satellite: CLOUD_LUT, rain: RAIN_LUT, fog: FOG_LUT, water_temp: WATER_TEMP_LUT, gusts: GUST_LUT, currents: CURRENTS_LUT };
 // Each layer's .om slot ramp ('raster-opacity' over zoom in MapWebGL; pinned by ownRasterLayer.test.js).
 // Layers drawn terrain-adjusted (ownRasterDownscale.js): air temperature only, and GFS only: the elevation asset is real ground
 // minus GFS's own 0.5-degree terrain, so it would mis-correct ECMWF or ICON temperatures (their model terrain differs).
@@ -55,7 +61,7 @@ const DOWNSCALED = { temperature: true };
 const downscaled = (layer, model) => !!DOWNSCALED[layer] && model === 'GFS';
 const OPACITY = {
   pressure: PRESSURE_OPACITY_STOPS, temperature: TEMPERATURE_OPACITY_STOPS, satellite: SATELLITE_OPACITY_STOPS, rain: RAIN_OPACITY_STOPS,
-  fog: FOG_OPACITY_STOPS, water_temp: waterTempOpacityStops,
+  fog: FOG_OPACITY_STOPS, water_temp: waterTempOpacityStops, gusts: GUST_OPACITY_STOPS, currents: CURRENTS_OPACITY_STOPS,
 };
 const opacityOf = (layer) => (typeof OPACITY[layer] === 'function' ? OPACITY[layer]() : OPACITY[layer]);
 // Isobar ink per theme (only drawn with window.__RAW_OWN_RASTER_ISOBARS__ set; off by default).
@@ -91,7 +97,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
   // The legend credit names the source only once a frame set is pinned (before that nothing is drawn from it), and then the
   // model of the frame ON SCREEN (a GFS stand-in past EURO's range is NOAA's data): set from onShown below.
   const drawing = engaged && !!index;
-  useEffect(() => { setEngaged(layer, drawing ? M : false); return () => setEngaged(layer, false); }, [layer, drawing, M]);
+  useEffect(() => { setEngaged(layer, drawing ? sourceModel(layer, M) : false); return () => setEngaged(layer, false); }, [layer, drawing, M]);
 
   // 0. PREWARM (the toggle's latest.json + index round trips, before the toggle): with the lever on and the layer off, pin the
   // index once the map is idle. Two small JSON reads per map load, NO frames (raster frames never join an idle fill).
@@ -130,7 +136,8 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
 
   // 1b. The stand-in's index (GFS) for hours past the picked model's last frame: never capped, labelled as an estimate.
   useEffect(() => {
-    if (!wanted || !FB || FB === M) { setFbIndex(null); return undefined; }
+    const looped = !!(OWN_RASTER_SETS[layer] && OWN_RASTER_SETS[layer].loop && OWN_RASTER_SETS[layer].loop[M]);   // ICON gusts: own loop
+    if (!wanted || !FB || FB === M || looped) { setFbIndex(null); return undefined; }
     let alive = true;
     const memo = lastIndex(layer, FB);
     setFbIndex(memo && framesOf(memo).length ? memo : null);
@@ -151,6 +158,16 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     if (cur && cur.layer === layer) publishRasterDrawn(null);
   }, [layer, drawing]);
 
+  // 1c. OWN-ONLY layers (gusts): no .om path behind them, so a miss (killed, set not published, no index) draws nothing. Say so
+  // on the status line rather than show an unexplained empty map.
+  const ownOnly = OWN_ONLY_LAYERS.includes(layer);
+  useEffect(() => {
+    if (!ownOnly || !active || drawing || rasterReadoutKilled()) return undefined;
+    const name = RASTER_NAMES[layer] || layer;
+    publishRasterDrawn({ layer, shown: null, want: null, unavailable: `${name}: no published forecast yet` });
+    return () => { const cur = getRasterDrawn(); if (cur && cur.layer === layer && cur.unavailable) publishRasterDrawn(null); };
+  }, [ownOnly, active, drawing, layer]);
+
   // 2. The GL layer: added below the wind particles (the .om slots' anchor), re-added after a style reload.
   useEffect(() => {
     if (!engaged || !mapInstance) return undefined;
@@ -168,11 +185,12 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
         st.layerObj.onShown((path, field) => {
           tel().shown = { path, at: Date.now(), validMs: field ? field.validMs : null };
           // Called from MapLibre's render: publish after it (subscribers re-render React).
-          const e = st.byPath.get(path);
+          // the entry the step asked for when it is this file (an ICON loop entry shares its file with a native hour)
+          const e = st.wantEntry && st.wantEntry.path === path ? st.wantEntry : st.byPath.get(path);
           st.shownRec = { url: path, dataMs: field ? field.validMs : NaN, model: e ? e.model : M, estimated: e ? e.estimated : null,
             nearestMaxHours: st.nearestMaxHours || 1 };
           emitOwnShown(layer, path);                     // synchronous: the isobars cut with the field, in the same frame
-          Promise.resolve().then(() => { publish(); setEngaged(layer, st.shownRec ? st.shownRec.model : M); if (path) setShown(true); });
+          Promise.resolve().then(() => { publish(); setEngaged(layer, st.shownRec ? st.shownRec.model : sourceModel(layer, M)); if (path) setShown(true); });
         });
         const before = beforeId && mapInstance.getLayer(beforeId) ? beforeId : undefined;
         mapInstance.addLayer(st.layerObj, before);
@@ -235,7 +253,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     const L = st.layerObj;
     if (!engaged || !index || !L) return;
     const frames = combinedFrames(layer, M, index, fbIndex);
-    st.byPath = new Map(frames.map((x) => [x.path, x]));
+    st.byPath = new Map(frames.slice().reverse().map((x) => [x.path, x]));   // a file's native entry wins over a loop entry
     const offset = Number(timeOffsetHours) || 0;
     if (st.prevOffset !== null && offset !== st.prevOffset) st.dir = offset > st.prevOffset ? 1 : -1;
     st.prevOffset = offset;
@@ -244,7 +262,10 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     if (!f) {
       L.want(null);
       emitOwnWant(layer, null);
-      st.wantRec = null; publish();
+      st.wantRec = null;
+      if (ownOnly && !rasterReadoutKilled()) {   // own-only: nothing else draws this hour (past the set's last frame)
+        publishRasterDrawn({ layer, shown: null, want: null, unavailable: `${RASTER_NAMES[layer] || layer}: no forecast for this hour` });
+      } else publish();
       noteMiss('no_frame');
       tel().want = { validMs, path: null, at: Date.now() };
       setWanted(layer, [], null);
@@ -255,10 +276,11 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     const at = (i) => (frames[i] ? Date.parse(frames[i].valid_time) : NaN);
     const gaps = [at(cur) - at(cur - 1), at(cur + 1) - at(cur)].filter((g) => Number.isFinite(g) && g > 0);
     st.nearestMaxHours = Math.floor((gaps.length ? Math.max(...gaps) / 3600000 : 1) / 2);
+    st.wantEntry = f;
     st.wantRec = { url: f.path, dataMs: Date.parse(f.valid_time), model: f.model, estimated: f.estimated, nearestMaxHours: st.nearestMaxHours };
     if (st.shownRec) st.shownRec = { ...st.shownRec, nearestMaxHours: st.shownRec.url === f.path ? st.nearestMaxHours : st.shownRec.nearestMaxHours };
     publish();
-    const win = planWindow(cur, frames.length, st.dir, windowRadius()).map((i) => frames[i]);
+    const win = planWindow(cur, frames.length, st.dir, ownWindowRadius(layer)).map((i) => frames[i]);
     // Isobars (pressure): asked of the worker as a frame lands, never computed in this step (isobarStore caches per path).
     const iso = layer === 'pressure' ? requestIsobars : null;
     for (const w of win) { const got = getField(w.path); if (got) { L.offerField(w.path, got); if (iso) iso(w.path, got); } }

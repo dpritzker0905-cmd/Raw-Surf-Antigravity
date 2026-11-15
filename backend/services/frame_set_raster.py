@@ -63,7 +63,8 @@ GRIDS = {
 
 def grid_of(spec):
     return GRIDS[(spec or {}).get("grid", "0p5")]
-VALID_HPA = (800.0, 1100.0)                    # noaa_gfs_pressure_fetcher._sanitize_pressure_hpa's physical range
+KN_PER_MS = 3600.0 / 1852.0                    # exact: 1 kn = 1852 m per hour
+VALID_HPA = (800.0, 1100.0)                  # noaa_gfs_pressure_fetcher._sanitize_pressure_hpa's physical range
 S3_BASE = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
 GRID_FILE = "pgrb2.0p25"
 CREDIT = "Contains modified NOAA GFS data, via NOAA Open Data Dissemination (NODD)"
@@ -263,6 +264,70 @@ SPECS = {
         "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); attribution to ECMWF required",
         "source_url": "https://www.ecmwf.int/en/forecasts/datasets/open-data",
     },
+    # GUSTS (2026-11-15; the owner approved Gusts and Currents as new picker layers). NCEP's own surface wind gust (GUST:surface,
+    # m/s), the INSTANTANEOUS value at the frame's hour (the .idx row "N hour fcst"; f000 is "anl"), every point of the
+    # 0.25-degree grid and every hour pressure has (hourly to f120). Stored in field 4 `speed` in KNOTS (0.01 kn steps), the unit
+    # the wind layer draws and labels, so a 30 kn gust and a 30 kn wind take the same colour. Why GFS only: ECMWF open data's
+    # 10fg and DWD ICON's VMAX_10M are MAXIMA over the window since the previous output (3 / 6 h), a different quantity from an
+    # instantaneous gust; publishing them under the same label would mix meanings (log 2026-11-15-opus-gusts-currents.md).
+    "gust": {
+        "target": {"model": "GFS", "domain": "weather", "layer": "gust", "region_id": "global_0p25"},
+        "field": fb.SPEED, "idx": ("GUST", "surface"), "convert": lambda a: a * KN_PER_MS, "grid": "0p25",
+        "valid": (0.0, 250.0), "clip": None, "env": "FRAME_RASTER_GUST", "default_on": False,
+        "value_kind": "wind_gust_surface", "value_unit": "kn",
+        "source_dataset": "gfs.pgrb2.0p25 GUST surface (instantaneous), m/s -> kn, every point",
+        "hours": PRESSURE_HOURS, "source": "gfs", "upstream_provider": "noaa", "credit": CREDIT, "license": LICENSE,
+        "source_url": SOURCE_URL,
+    },
+    # PER-MODEL GUSTS (2026-11-15; the owner: "these lanes need to serve instantly from real GFS, EURO, and ICON lanes from
+    # GRIB"). Each model's OWN gust product, as that model publishes it: ECMWF open data (CC BY 4.0) gives the MAXIMUM 10 m gust
+    # over the hours before each step, named by lead time (decoded 2026-11-15 00Z): `10fg` over the past 1 h to 90 h ("89-90"),
+    # `10fg3` over the past 3 h to 144 h ("141-144"), `10fg` over the past 6 h to 240 h ("234-240"); every point of its 0.25-deg
+    # grid; DWD ICON `VMAX_10M` is the maximum 10 m gust since the previous output (hourly to 78 h, 3-hourly to 180 h; 00/12Z),
+    # the nearest native cell to each 0.25-degree node (IconGridSource). GFS's is instantaneous (above). The legend credit says
+    # which definition is on screen (LayerDataCredit). Knots in field 4, as the GFS set.
+    "gust_euro": {
+        "target": {"model": "EURO", "domain": "weather", "layer": "gust", "region_id": "global_0p25"},
+        "field": fb.SPEED, "idx": ("10fg", "sfc"), "params": ("10fg", "10fg3"), "window_max": True,
+        "convert": lambda a: a * KN_PER_MS, "grid": "0p25",
+        "valid": (0.0, 250.0), "clip": None, "env": "FRAME_RASTER_GUST_EURO", "default_on": False,
+        "value_kind": "wind_gust_10m_max_since_previous_step", "value_unit": "kn",
+        "source_dataset": "ECMWF IFS open data, oper fc 0p25 10fg / 10fg3 (max 10 m gust over the past 1 h to 90 h, 3 h to 144 h, "
+                          "6 h to 240 h), m/s -> kn, every point",
+        "hours": tuple(range(3, 145, 3)) + tuple(range(150, 241, 6)), "source": "ecmwf", "upstream_provider": "ecmwf",
+        "credit": "Copyright ECMWF; ECMWF open data, CC BY 4.0; modified (converted to knots, quantised to 0.01 kn)",
+        "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); attribution to ECMWF required",
+        "source_url": "https://www.ecmwf.int/en/forecasts/datasets/open-data",
+    },
+    "gust_icon": {
+        "target": {"model": "ICON", "domain": "weather", "layer": "gust", "region_id": "global_0p25"},
+        "field": fb.SPEED, "idx": ("vmax_10m", ("VMAX_10M",)), "convert": lambda a: a * KN_PER_MS, "grid": "0p25",
+        "valid": (0.0, 250.0), "clip": None, "env": "FRAME_RASTER_GUST_ICON", "default_on": False, "frame_plane": True,
+        "value_kind": "wind_gust_10m_max_since_previous_output", "value_unit": "kn",
+        "source_dataset": "DWD ICON global (icosahedral R3B7) VMAX_10M (max since the previous output), nearest cell onto 0.25 deg",
+        "hours": tuple(range(1, 79)) + tuple(range(81, 181, 3)), "source": "icon_grid", "upstream_provider": "dwd",
+        "credit": "Source: Deutscher Wetterdienst (DWD), ICON global; modified (nearest cell onto 0.25 deg, knots, 0.01 kn)",
+        "license": "DWD open data, free use with source attribution (GeoNutzV)",
+        "source_url": "https://opendata.dwd.de/weather/nwp/icon/grib/",
+    },
+    # OCEAN SURFACE CURRENTS (2026-11-15; the owner approved Currents as a new picker layer). Copernicus Marine's global 1/12-deg
+    # ocean model, instantaneous surface uo/vo every 6 h to 240 h (frame_set_raster_currents: source, 3 x 3 vector mean onto the
+    # 0.25-degree lattice, why). TWO fields per frame, the wind frame layout: field 4 speed (kn) + field 1 direction the water
+    # flows TOWARD (uv_convention 1). The cycle is the bulletin day (00Z); Copernicus publishes once a day.
+    "currents": {
+        "target": {"model": "CMEMS", "domain": "marine", "layer": "currents", "region_id": "global_0p25"},
+        "field": fb.SPEED, "fields": (fb.SPEED, fb.DIRECTION), "uv_convention": 1, "idx": ("uo", "vo"), "grid": "0p25",
+        "frame_plane": True, "convert": lambda a: a, "valid": (0.0, 20.0), "clip": None,
+        "env": "FRAME_RASTER_CURRENTS", "default_on": False,
+        "value_kind": "sea_surface_current", "value_unit": "kn",
+        "source_dataset": "Copernicus Marine GLOBAL_ANALYSISFORECAST_PHY_001_024 cmems_mod_glo_phy-cur_anfc_0.083deg_PT6H-i "
+                          "uo/vo at -0.494 m (instantaneous), 3 x 3 vector mean onto 0.25 deg; speed kn + direction toward",
+        "hours": tuple(range(0, 241, 6)), "source": "cmems_currents", "upstream_provider": "copernicus_marine",
+        "credit": "Generated using E.U. Copernicus Marine Service Information; https://doi.org/10.48670/moi-00016",
+        "license": "Copernicus Marine Service licence: free, any purpose incl. commercial, attribution required "
+                   "(https://marine.copernicus.eu/user-corner/service-commitments-and-licence)",
+        "source_url": "https://data.marine.copernicus.eu/product/GLOBAL_ANALYSISFORECAST_PHY_001_024",
+    },
 }
 
 
@@ -281,6 +346,12 @@ def make_source(spec, session=None):
         return GfsGribSource(spec, session)
     if kind == "gfs_precip":
         return GfsPrecipSource(spec, session)
+    if kind == "cmems_currents":
+        try:
+            from services.frame_set_raster_currents import CmemsCurrentsSource
+        except ImportError:  # pragma: no cover
+            from frame_set_raster_currents import CmemsCurrentsSource
+        return CmemsCurrentsSource(spec, session)
     try:
         from services import frame_set_raster_sources as srcs
     except ImportError:  # pragma: no cover
@@ -456,6 +527,33 @@ def build_frame(plane, valid, run, fid=fb.PRESSURE_HPA, bounds=BOUNDS):
                      "missing": int(np.sum(~src_ok))}
 
 
+def build_frame_multi(planes, valid, run, sp):
+    """(raw, gzip, parity) for a several-field frame (spec 'fields'). The main field's physical range applies to it and every
+    field with it (out of range: no data everywhere); a field without a no-data code (direction) is compared only where the
+    main field is valid, on the circle."""
+    import numpy as np
+    main = sp["field"]
+    p = {fid: np.asarray(planes[fid], dtype=float) for fid in sp["fields"]}
+    bad_main = ~((p[main] >= sp["valid"][0]) & (p[main] <= sp["valid"][1]))
+    for fid in p:
+        p[fid] = np.where(bad_main, np.nan, p[fid])
+    raw = fb.encode_planes(p, grid_of(sp)["bounds"], iso(valid), iso(run), uv_convention=sp.get("uv_convention", 0))
+    gz = fb.gzip_frame(raw)
+    _head, fields = fb.decode_plane(gz)
+    ok = np.isfinite(p[main])
+    missing_mismatch = int(np.sum(ok != np.isfinite(fields[main])))
+    bad, err = missing_mismatch, 0.0
+    for fid in p:
+        d = np.abs(fields[fid][ok] - p[fid][ok])
+        if fid == fb.DIRECTION:
+            d = np.minimum(d, 360.0 - d)
+        if d.size:
+            err = max(err, float(d.max()))
+            bad += int(np.sum(d > fb.TOLERANCE[fid] + 1e-9))
+    return raw, gz, {"nodes": int(ok.size), "bad": bad, "missing_mismatch": missing_mismatch, "max_abs_err": round(err, 6),
+                     "missing": int(np.sum(~ok))}
+
+
 def build_set(source, cycle, log=print, workers=6, deadline=None, clock=time.monotonic, spec=None):
     """(frames, uploads, stats) for one cycle. Fetch + encode + parity per hour on a small pool; an hour that fails, or is
     not started before `deadline`, is listed unbuilt (path None + reason)."""
@@ -474,13 +572,16 @@ def build_set(source, cycle, log=print, workers=6, deadline=None, clock=time.mon
             return dict(entry, path=None, unbuilt="skipped_budget"), None
         try:
             got = source.fetch(cycle, f)
-            if sp.get("frame_plane"):                      # already on the lattice (ICON's regrid): range checks only
+            if sp.get("fields"):                           # several fields per frame (currents): {fid: plane on the lattice}
+                raw, gz, check = build_frame_multi(got, valid, cycle, sp)
+            elif sp.get("frame_plane"):                      # already on the lattice (ICON's regrid): range checks only
                 import numpy as np
                 got = np.where((got >= sp["valid"][0]) & (got <= sp["valid"][1]), got, np.nan)
                 plane = np.clip(got, *sp["clip"]) if sp["clip"] else got
             else:
                 plane = to_frame_plane(got, sp["valid"], sp["clip"], grid_of(sp)["stride"])
-            raw, gz, check = build_frame(plane, valid, cycle, sp["field"], grid_of(sp)["bounds"])
+            if not sp.get("fields"):
+                raw, gz, check = build_frame(plane, valid, cycle, sp["field"], grid_of(sp)["bounds"])
         except Exception as e:
             log(f"[raster] f{f:03d}: {type(e).__name__}: {e}")
             return dict(entry, path=None, unbuilt="failed"), None

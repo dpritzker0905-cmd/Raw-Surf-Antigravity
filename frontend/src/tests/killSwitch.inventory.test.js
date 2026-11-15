@@ -78,6 +78,12 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_RASTER_OWN_RAIN__',
   // ownRasterFrames.test.js ("OFF PATH: __RAW_DISABLE_RASTER_OWN_FOG__ puts fog back on the .om path" / "...WATER_TEMP__ puts water temp back"; 2026-11-14)
   '__RAW_DISABLE_RASTER_OWN_FOG__',
+  // gustsLayer.test.js ("ships ON, and its kill turns it off"; 2026-11-15, the new Gusts layer)
+  '__RAW_DISABLE_RASTER_OWN_GUSTS__',
+  // currentsLayer.test.js ("ships ON, and its kill turns it off"; 2026-11-15, the new Currents layer)
+  '__RAW_DISABLE_RASTER_OWN_CURRENTS__',
+  // currentsLayer.test.js ("its kill restores the handheld radius"; 2026-11-15, own-only phone prefetch)
+  '__RAW_DISABLE_OWN_ONLY_PREFETCH2__',
   '__RAW_DISABLE_RASTER_OWN_WATER_TEMP__',
   '__RAW_DISABLE_RASTER_OWN_HANDOVER__',
   '__RAW_DISABLE_RASTER_OWN_SAME_FRAME__',

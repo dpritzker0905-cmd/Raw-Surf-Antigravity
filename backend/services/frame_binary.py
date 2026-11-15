@@ -350,27 +350,45 @@ def encode_plane(values, bounds, valid_time, model_run_time, fid):
     """Raw frame bytes for ONE scalar field from a (rows, cols) float array, row 0 = SOUTH, column 0 = WEST, NaN = no data;
     `bounds` = (west, south, east, north), the outer cell centres. The same layout encode_frame writes (header, one
     descriptor, one plane), vectorised: a 720 x 361 raster encodes in milliseconds instead of a per-node loop."""
-    import numpy as np
-    arr = np.asarray(values, dtype=float)
-    rows, cols = arr.shape
-    nb, layout, missing, scale, offset = FIELD_SPECS[fid]
-    if nb not in (1, 2) or missing != 0:
+    if FIELD_SPECS[fid][2] != 0:
         raise ValueError(f"encode_plane handles u8/u16 fields with code 0 = no data, not field {fid}")
-    top = 0xFF if nb == 1 else 0xFFFF
-    ok = np.isfinite(arr)
-    codes = np.zeros(arr.shape, dtype=np.int64)
-    codes[ok] = np.rint((arr[ok] - offset) / scale).astype(np.int64)
-    if ok.any() and (codes[ok].min() < 1 or codes[ok].max() > top):
-        raise ValueError(f"field {fid}: values outside the u{8 * nb} range of its quantisation")
-    header_bytes = HEADER_FIXED + DESCRIPTOR.size
+    return encode_planes({fid: values}, bounds, valid_time, model_run_time)
+
+
+def encode_planes(planes, bounds, valid_time, model_run_time, uv_convention=0):
+    """Raw frame bytes for SEVERAL fields ({field id: (rows, cols) float array}, one grid) in field-id order; encode_plane is
+    the one-field case (byte for byte). A field with code 0 = no data takes NaN as no data; a field with no missing code
+    (direction, 2026-11-15: the currents set's flow direction) is written 0 where NaN, its validity carried by the frame's
+    speed field. `uv_convention` (header byte 19): 1 = u = +s sin d, v = +s cos d (direction is where the flow goes TO)."""
+    import numpy as np
+    fids = sorted(planes)
+    arrs = [np.asarray(planes[f], dtype=float) for f in fids]
+    rows, cols = arrs[0].shape
+    if any(a.shape != (rows, cols) for a in arrs):
+        raise ValueError("encode_planes: every field must share one grid")
+    header_bytes = HEADER_FIXED + DESCRIPTOR.size * len(fids)
     head = bytearray(MAGIC)
-    head += struct.pack("<HHHHIBBBBI", ENCODING_VERSION, TRANSFORM_VERSION, cols, rows, 1 << fid, 0, 0, 1, 0, header_bytes)
+    mask = sum(1 << f for f in fids)
+    head += struct.pack("<HHHHIBBBBI", ENCODING_VERSION, TRANSFORM_VERSION, cols, rows, mask, 0, 0, len(fids), uv_convention,
+                        header_bytes)
     head += struct.pack("<4d", *bounds)
     head += struct.pack("<2d", _epoch(valid_time), _epoch(model_run_time))
-    head += DESCRIPTOR.pack(fid, nb, layout, 0, missing, scale, offset)
-    raw = codes.astype("<u2" if nb == 2 else "u1").tobytes()
-    plane = raw[0::2] + raw[1::2] if (layout == 1 and nb == 2) else raw
-    return bytes(head) + plane
+    body = []
+    for fid, arr in zip(fids, arrs):
+        nb, layout, missing, scale, offset = FIELD_SPECS[fid]
+        if nb not in (1, 2) or missing not in (0, NO_MISSING):
+            raise ValueError(f"encode_planes handles u8/u16 fields, not field {fid}")
+        top = 0xFF if nb == 1 else 0xFFFF
+        lowest = 1 if missing == 0 else 0
+        ok = np.isfinite(arr)
+        codes = np.zeros(arr.shape, dtype=np.int64)
+        codes[ok] = np.rint((arr[ok] - offset) / scale).astype(np.int64)
+        if ok.any() and (codes[ok].min() < lowest or codes[ok].max() > top):
+            raise ValueError(f"field {fid}: values outside the u{8 * nb} range of its quantisation")
+        head += DESCRIPTOR.pack(fid, nb, layout, 0, missing, scale, offset)
+        raw = codes.astype("<u2" if nb == 2 else "u1").tobytes()
+        body.append(raw[0::2] + raw[1::2] if (layout == 1 and nb == 2) else raw)
+    return bytes(head) + b"".join(body)
 
 
 def decode_plane(data):
