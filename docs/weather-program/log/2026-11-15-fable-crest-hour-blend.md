@@ -750,3 +750,36 @@ ANOTHER hour is smooth and shows no truth gain. The advisor's product answer app
 fields are true to their own hour on comparable grids (the same grid; and the stand-in sharpening into the fine grid of the
 SAME hour) and cut on a step that changes hour and grid together. That is a change of design and needs the owner's word and
 its own registration.
+
+## 29. The advisor on section 28 (14:53 EST): a correction to the first-visit baseline, and H8f registered again BEFORE it is run
+The advisor accepts the repeat-visit pass and the value bracket, keeps the colour line failed on its one picture, and corrects
+its own earlier advice on H8f, which this log had followed:
+- **ERROR(cut) as the SMALLER of "fine h" and "the stand-in of h+6" is an oracle no hard cut can be.** A real hard cut on a first
+  visit shows the stand-in of the new hour. Section 28.3's scored part, with both baselines (15 triples, a void run):
+  | view | held mix | real cut (stand-in of h+6) | fine h | mix / real cut | mix / oracle |
+  |---|---|---|---|---|---|
+  | waves (-158, 21.6, z5.0) | 17.16 | 24.55 | 20.25 | 70% | 85% |
+  | swell_1 (-123, 37.5, z5.0) | 8.04 | 13.11 | 8.84 | 61% | 91% |
+  | swell_2 (115, -10, z4.0) | 0.66 | 0.47 | 1.57 | 141% | 141% |
+  | wind_waves (-5, 50, z4.5) | 2.83 | 4.49 | 2.58 | 63% | 110% |
+  | pooled | 6.51 | 9.73 | 7.51 | **67%** | 90% |
+  So "worse than a cut in 2 of 4 views" (section 28.3) holds against the oracle only. Against what a cut actually displays the
+  mix is closer to the truth in three of the four views and further in one (swell_2, where the stand-in happens to sit within
+  half a unit of the truth). The run is void either way.
+- **Consequence for what was put to the owner:** the recommendation to narrow the design (cut when hour and grid change
+  together) rested on the oracle baseline. On this evidence the narrowing is NOT forced; it is an option. That is said to the
+  owner in this session at once.
+- The two coastal views rejected in section 28.3: when the pictures were read, 250 ms after the six key steps, the engine had
+  reached only h+3 (it was showing the stand-in of the hidden hour). The rule rejected them correctly; the reading was too early.
+
+### H8f again: registered before the run
+- Views: only where a stand-in appears (zoom 4 and above). waves (-158.0, 21.6, z5.0), (-9.5, 39.0, z5.0), (150.0, -34.0, z5.0),
+  (-122.0, 36.0, z5.0), (115.0, -9.0, z5.0); swell_1 (-123.0, 37.5, z5.0), (-70.0, 40.0, z5.0), (18.0, -35.0, z5.0); swell_2
+  (115.0, -10.0, z4.0); wind_waves (-5.0, 50.0, z4.5). Four triples each.
+- The held and stand-in pictures are read as soon as the engine shows the stand-in of h+6 (polled, up to 1.2 s after the key
+  steps), not at a fixed 250 ms. Everything else as section 23.1 (h and h+3 settled on the fine grid by section 26's rule,
+  truth read twice, a triple scored only while the stand-in is resident for both pictures).
+- **The baseline that DECIDES is the real cut: the stand-in of h+6 against the truth.** Lines unchanged: pooled ERROR(blend) at
+  most **60%** of it, void below 25%, no view where the blend is worse than it, at least 30 of 40 triples. The oracle (the
+  smaller of the two inputs) and fine h alone are reported beside it and decide nothing.
+- Reading, as section 27.3: the transient of section 24.3 may sit in both first-visit pictures alike.
