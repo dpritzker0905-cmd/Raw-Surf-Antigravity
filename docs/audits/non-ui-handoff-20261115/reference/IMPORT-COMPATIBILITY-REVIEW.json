@@ -1,0 +1,24 @@
+{
+  "allowed_nonstdlib_top_names": [
+    "__main__",
+    "policy",
+    "verify_install",
+    "pip (installer role only)"
+  ],
+  "consequence": "The IPv6 allowance alone cannot qualify the full pip import path; preserve denial pending a separate contract review.",
+  "except_ImportError_handler_does_not_catch_guard_os_exit": true,
+  "finding": "CBR-02",
+  "guard_import_rule_AST_sha256": "d65f495f8e3b5a4b5222f1c8e316a6153645a744fb271605acdf593a4256fb9f",
+  "guard_import_rule_line": 132,
+  "guard_sha256": "b18e40990a86decd2d32d7975769da690838e76a4eacc7c56b8bb45157802f36",
+  "import_line": 27,
+  "import_name": "urllib3_secure_extra",
+  "importing_member": "pip/_vendor/urllib3/__init__.py",
+  "kind": "adjacent static import-policy conflict; not a production bug count or runtime reproduction",
+  "member_sha256": "8972dc6222724a7d0635b58e3990c30298012f52603f8e0467c8b5efad12f0c7",
+  "proposed_import_allowlist_expansion": false,
+  "resolved_or_closed": false,
+  "target_runtime_membership_queried_this_turn": false,
+  "upstream_reference_contains_optional_name": false,
+  "upstream_stdlib_reference": "https://raw.githubusercontent.com/python/cpython/v3.12.14/Python/stdlib_module_names.h"
+}
