@@ -123,3 +123,62 @@ the same hours twice; sampled every 40 ms for 7 s beside the /api/weather reques
 - **Settled, for wind:** the base's valid time is no longer the one before the step, and base and overlay have not changed for
   1.5 s; 10 s limit; an hour that does not settle is listed. (The rule first written into the instrument, "unchanged for
   1.5 s", would have called the HELD previous hour settled; corrected before any run.)
+
+## 5. Registered BEFORE any gate number exists (17:30 EST): the owner's decision, and the advisor's seven changes
+**State of measurement when this is written:** no gate line has a number. One single-view shakedown of the instrument was run
+(not a gate result, not to be quoted as one). A full scrub run was started 17:08 and STOPPED by me at about 17:20 with 3 of 10
+views done, because another lane needs the machine quiet; its partial output is discarded unread and W1-W4, W8b, W9 will be
+run whole, later.
+
+**The owner's decision (relayed by the director, 16:14 EST), binding on this lane:** "The hour blend is ONE behaviour
+everywhere, and it stays OFF until both of these are done": (1) a hidden-hour test on REAL forecast frames from the public
+CDN, replayed offline: the blend's error against the real frame at most the hard swap's, ghosting no worse; negative control,
+a corrupted middle frame must fail; positive control, identical neighbours give zero error; (2) a blinded 5-minute look by the
+owner, 10 randomized pairs of hard cut against cross-fade. For wind: "blend u/v, keep within one model, cross-hour only."
+- So the blend ships **OFF by default**. It runs only when `window.__RAW_ENABLE_HOUR_BLEND__ === true` is set before the app
+  loads (one name for the marine and the wind blend: one behaviour). The kill `__RAW_DISABLE_WIND_HOUR_BLEND__` stays and
+  wins over it. With the flag unset the three wind shaders are the text they were, byte for byte, and no texture is kept.
+  **Merging the PR does not turn anything on.** Turning it on is a later, separate change, at the owner's word.
+- "Cross-hour only", as built: a blend needs the same model and a different valid time or grid; base and fine overlay of
+  different hours still never composite (section 1).
+
+**The advisor's seven changes to section 3, taken as they stand. Thresholds already written are not moved.**
+1. **W7 is relabelled**: a second ARITHMETIC check on a synthetic field (it can show the mix is the mix; it cannot show the
+   mix is nearer the truth on real weather). Truth for wind rests on **W13** below.
+2. **W7's baseline stays** "the smaller of the two end hours", and the report prints the error of h alone and of h+6 alone
+   beside it, per view and pooled.
+3. **W8a is fixed to the step the app blends**: the pair is (h, h+3), the scrubber's step on this fixture, not (h, h+6); and
+   the ratio is taken where the moving wave dominates: nodes where the wave's own speed is at least half the node's speed
+   in both hours (the fixture's wave term is known, so the mask is computed from the generator, not from the result). The
+   0.85 line and the 12 h positive control are unchanged and use the same mask.
+4. **Particles, two more lines.** **W8c**: W1's step measure with the particles DRAWN (colour field and particles together):
+   arm B's mean step not larger than arm A's, and no view worse by more than 10%. **W8d**: during a blend (the 160 ms after
+   each step, arm B), the count of particles dropped or respawned per frame and the mean particle speed stay within the range
+   spanned by the same two quantities at rest in the two end hours, widened by 10% of that range (or of the larger value when
+   the range is under 1%); 80 steps; a step outside is listed, more than 4 outside fails.
+5. **W14, the HRRR lane** (the fine overlay, on by default over CONUS). Two views inside CONUS added for this line only:
+   (-98, 39, z4.5) and (-122, 37, z5.5). Per drawn frame the instrument logs the base mix weight and the overlay's valid
+   time. Assert: **no frame draws an overlay whose valid time differs from the base's while the mix weight is above 0**, and
+   no frame draws an overlay of hour X over a base that is not wholly hour X. W5 (self-mix) is run in these two views too. If
+   the offline backend cannot serve an HRRR overlay the line is VOID, said so, and stays owed.
+6. **W15, device limits.** At init the engine reads MAX_COMBINED_TEXTURE_IMAGE_UNITS and MAX_VERTEX_TEXTURE_IMAGE_UNITS. Below
+   what the blend needs (unit 7 in use: 8 combined; the particle-draw vertex shader samples 4 textures: 4 vertex units), or
+   when the blended shaders fail to compile or link, the engine uses the OLD shaders (the kill path), does not blend, and
+   counts it in the telemetry (`fallbacks`, with the reason). Unit tests for both branches. This is a code line, not a
+   measured one.
+7. **Clean-truth check, for every real picture or field the gate reads at 600 ms**: the same hour is read again at 4 s; a
+   reading whose two samples differ by more than 0.5 luminance units (pictures) or 0.1 kn mean (fields) is dropped and
+   listed; more than 10% dropped voids the line that used them.
+- **W13, truth on real frames (the owner's test, for wind).** Real GFS wind frames from the public CDN, fetched ONCE, slowly,
+  outside the app, into a local folder and replayed by the offline backend; nothing is asked of the live backend. For hours
+  h, h+3, h+6 of one run, at least 8 triples over at least 2 runs: ERROR(blend) = mean vector difference in knots between
+  the half-way u/v mix of h and h+6 and the real h+3; ERROR(cut) = the smaller of the same for h alone and h+6 alone (both
+  printed). Pass: pooled ERROR(blend) at most **100%** of ERROR(cut) (the owner's line: not worse than the hard swap) and in
+  at least 80% of triples; ghosting no worse: W8a's retention on these frames reported, with the count of nodes where the mix
+  loses more than half the mean of the two speeds. A hard cut loses none, so no pass line is set for that count: it is
+  reported and judged by the owner's blinded look, not by a line invented after seeing it. Negative control: the
+  middle frame replaced by one from another day must FAIL the pass line, or W13 is void. Positive control: h+6 replaced by a
+  copy of h gives ERROR(blend) = ERROR(cut) = the h-to-(h+3) difference exactly and a self-mix difference of zero.
+  To be run only in the quiet window the director names.
+- **W2 is a desktop GPU figure.** A real phone is unmeasured and is listed as not covered.
+- The PR's first line will say whether merging turns the blend on (it does not).
