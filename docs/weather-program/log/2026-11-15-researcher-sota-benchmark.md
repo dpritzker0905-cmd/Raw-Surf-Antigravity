@@ -841,3 +841,7 @@ opinions from Reflection, SubQ and LongCat (paid, one call, approved by the owne
 - Confirm the written-approval record format (LongCat item 5).
 
 Nothing here changes a served number. Nothing was merged.
+
+## 20. Correction to section 17's header time (director)
+
+Section 17's header says "18:20Z". That was an estimate, not a clock reading. The section was committed at 2026-11-15T18:08:28Z. The content of section 17 is unchanged; only its stated time was wrong. (LESSONS L-P10)
