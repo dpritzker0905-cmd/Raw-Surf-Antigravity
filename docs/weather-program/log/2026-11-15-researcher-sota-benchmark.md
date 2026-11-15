@@ -128,3 +128,50 @@ independent of the GPU work; 4 needs a verification step before it is a move.
 - Gaps 1-4 are from code reads, not from a run.
 - Blender: the bundled manual covers the Ocean modifier. Fog and volume were not found.
 - Nothing in this log changes a served number, a SCOREBOARD row, or a merged PR. No merge was attempted.
+
+
+## 6. Corrections (2026-11-15, 09:40 EST). These supersede sections 2, 4 and 5 above where they differ.
+
+**Why this section exists.** The logs are append-only. The earlier top 5 (section 4) listed instancing and a between-hours
+blend for every layer. Both were wrong for this lane, as the checks below show.
+
+### 6.1 Instancing (old gap 1) is dropped
+
+- #876 (instanced particle draw) is CLOSED, not merged. Its gate was not met: 19-24% GPU drop against the 25% bar. Recorded in #878 (MERGED 2026-11-14 02:07Z).
+- Merged instead: #881, one marine world copy at low zoom when no world edge is in view (ON, kill switch; merged 2026-11-14 04:10Z). #882, wind world copies from the frame's bounds (ON, kill switch; merged 2026-11-14 04:55Z).
+- Director's board figure for the two culls: about 0.5-0.6 ms saved per frame. Not re-measured here; cited from the board and #882's gate (0.48-0.53 ms in 4 of 5 views).
+- Result: the particle-draw move from section 2 is closed. The vertex count is not a current gap.
+
+### 6.2 Time blend, checked layer by layer (file and line on origin/dev 9001096dc)
+
+| Layer group | Transition now | Evidence | Gap? |
+|---|---|---|---|
+| Own-frame raster: pressure, rain (GFS), temperature (GFS), satellite (GFS) | **Value blend over 160 ms on a step**, smoothstep. Mixes the shown frame with the wanted frame, then colours through the theme LUT. Off under reduced motion, on different grids, or with `__RAW_DISABLE_RASTER_VALUE_BLEND__`. | `ownRasterLayer.js:91-105` (BLEND_MS = 160, blendEase); shader mix at `:209` | Partly. A short step blend exists. There is no continuous blend across the hour. |
+| Wind particle field (GFS) | **No blend, by rule.** Two grids may composite only when they share model and committed hour: "never blend two hours or two models". | `WebGLWindEngine.js:96-100` (windGridsCompatible) | Not a gap. Changing it is an owner decision (truth-first rule). |
+| Marine crests: waves, swell_1, swell_2, wind_waves | **Hard swap.** The wave texture is replaced on commit; no value blend found. The only ease is an opacity glide on a resident sharpen swap. | Texture bind on frame change `WebGLMarineEngine.js:3110`; opacity ease referenced `:329`; no blend function found in `WebGLMarineShaders.js` or `WebGLMarineParticleShaders.js` | **Yes. This is the real time-blend gap.** |
+| Tile-path layers (rain, radar, satellite, fog, water_temp, tile fallbacks) | **Hard cut by policy.** Raster fade 0, "one hour on screen per frame". Legacy 300 ms crossfade behind a flag. | `rasterFrameSwap.js:7-13`; `radarFrameHold.js:7-30`; `MapWebGL.js:788` (`raster-fade-duration: 0`) | Policy, not an oversight. A change needs an owner decision and an A/B on the same scrub. |
+
+**Restated gain and test, marine crests only.**
+- Change: in-shader blend between two adjacent marine frames, mixed by the fraction between their valid times. Two texture samples per fragment. The fraction comes from frame times, not a new forecast, so served values do not change.
+- Gain (estimate): removes the hour pop on wave and swell crests. Not measured.
+- Pre-registered test: over a 24-hour scrub at 3-hourly frames, 10 fixed views, mean absolute luminance step across hour boundaries, blended vs hard swap. Pass: step reduced by at least 50%, and frame time no more than 10% worse. Reference: an offline half-hour frame built from the two neighbours.
+- Served-value check: decoded frames byte-identical before and after (the blend is display-only).
+
+### 6.3 Competitor facts, verified in light reads (one page each, no load)
+
+- **earth.nullschool / cambecc/earth (GitHub README, MIT).** Verified: MIT licence; GFS at 1° resolution, wind from the 1000 hPa level; animation drawn on an HTML5 Canvas over an SVG map, with a second Canvas for the colour overlay; spatial bilinear interpolation between grid points. Not stated in the README: particle count, and whether the canvas is 2D or WebGL. No temporal interpolation between forecast hours is described. The source code was not read.
+- **Ventusky (published user guide, my.ventusky.com).** Verified: a keyboard key "turns off / on weather map interpolation", so an interpolation option exists. The method is not described. Time moves in forecast periods with the timeline or arrow keys. No animation-smoothness claim.
+- **Windy (public API page, api.windy.com).** Verified: public APIs are Point Forecast, Map Forecast and Webcams. No plugin docs were listed on that page. Nothing on rendering or hour interpolation. Plugin docs and any rendering description: unverified.
+- **Meteoblue, Surfline, Apple Weather, Xweather.** Not re-read in this pass. The earlier search snippets stand as cited but unverified: Meteoblue radar at 1-minute steps (search snippet); Apple precipitation 3 h history and 1 h future (search snippet); Surfline and Apple rendering: no source.
+
+### 6.4 Corrected top 5 (replaces section 4)
+
+| Rank | Move | Gain (estimate) | Risk | Pre-registered success test |
+|---|---|---|---|---|
+| 1 | Marine crest blend between adjacent hours (section 6.2) | Removes the hour pop on wave and swell crests | Medium: two texture samples | Luminance step across hour boundaries cut by at least 50%; frame time at most +10%; decoded frames byte-identical |
+| 2 | Move the JSON series decode off the main thread (`marineGridSeries.js:340, :526`; worker pattern at `staticFrames.js:141`) | Main-thread blocking during scrub | Medium: parity | Blocking time at least 50% lower on a throttled profile; decoded arrays byte-identical |
+| 3 | Verify, then decide, mipmaps for static frame textures (none found in `staticFrames.js`; `ownRasterLayer.js` not checked) | Less aliasing at z2-z4 | Low to medium: memory | SSIM up at least 0.02 at z2-z3; texture memory at most +20% |
+| 4 | Phone scrub re-render census (Move 3) | Scrub latency on phones | Owned by Move 3 | Move 3's own pre-registration |
+| 5 | Owner decision: revisit the wind "never blend two hours" rule and the tile-path hard-cut policy | Smoother scrub on those layers, if the owner agrees | Policy change, not code | A/B on the same fixed scrub, both arms on the same build; pass only if the owner accepts the truth-first trade-off |
+
+**Blender** is unchanged from section 3: reference renders and golden images only, never a served value.
