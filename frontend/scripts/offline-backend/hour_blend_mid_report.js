@@ -15,12 +15,16 @@ const ok = all.filter((t) => !t.leftOut); const out = all.filter((t) => t.leftOu
 const ratio = sum(ok, 'eBlend') / sum(ok, 'eCut');
 const perView = rows.map((r) => { const t = r.triples.filter((x) => !x.leftOut); return { view: r.view, n: t.length, r: t.length ? sum(t, 'eBlend') / sum(t, 'eCut') : NaN }; });
 const worse = perView.filter((v) => v.r > 1).map((v) => v.view);
-const h8 = ok.length < 30 ? 'VOID' : ratio < 0.25 ? 'VOID' : (ratio <= 0.6 && worse.length === 0 ? 'PASS' : 'FAIL');
+const partOk = (a) => !a.length || sum(a, 'eBlend') / sum(a, 'eCut') <= 0.6;   // section 19.4: the same-grid and the mixed-grid parts must each hold
+const parts = partOk(ok.filter((t) => t.grids && new Set(t.grids).size === 1)) && partOk(ok.filter((t) => t.grids && new Set(t.grids).size > 1));
+const h8 = ok.length < 30 ? 'VOID' : ratio < 0.25 ? 'VOID' : (ratio <= 0.6 && worse.length === 0 && parts ? 'PASS' : 'FAIL');
 verdict('H8', h8, `${ok.length} of ${all.length} triples scored (30 required; left out: ${out.length ? out.map((t) => `v${t.view}j${t.j}:${t.leftOut}`).join(' ') : 'none'}). ERROR(blend) ${f(sum(ok, 'eBlend') / ok.length)} against ERROR(cut) ${f(sum(ok, 'eCut') / ok.length)} luminance units = ${pc(ratio)} (pass at most 60%, void below 25%). Views where the blend is worse than the cut: ${worse.length ? worse.join(',') : 'none'}`);
 const gridsUsed = {}; for (const t of ok) if (t.grids) { const k = t.grids.join(' | '); gridsUsed[k] = (gridsUsed[k] || 0) + 1; }
 const mixedGrid = ok.filter((t) => t.grids && new Set(t.grids).size > 1).length;
 console.log(`     grids (h | hidden h+3 | h+6 at rest | earlier field mixed | resident mixed): ${Object.entries(gridsUsed).map(([k, n]) => `${n}x [${k}]`).join('; ')}. Triples in which the grid changed: ${mixedGrid} of ${ok.length}`);
 if (mixedGrid) { const mg = ok.filter((t) => new Set(t.grids).size > 1); const sg = ok.filter((t) => new Set(t.grids).size === 1); console.log(`     grid-change triples alone: ${pc(sum(mg, 'eBlend') / sum(mg, 'eCut'))} of the cut (${mg.length}); same-grid triples: ${sg.length ? pc(sum(sg, 'eBlend') / sum(sg, 'eCut')) : 'n/a'} (${sg.length})`); }
+const tn = ok.filter((t) => t.truthNoise != null);
+if (tn.length) console.log(`     TRUTH READ TWICE (${tn.length} triples): the real middle hour's picture, read again after the held picture, differs by mean ${f(sum(tn, 'truthNoise') / tn.length)}, largest ${f(Math.max(...tn.map((t) => t.truthNoise)))} luminance units; on another grid the second time in ${tn.filter((t) => t.truthGrid2 !== t.grids[1]).length}; triples not scored for a noise floor above the cut-blend gap: ${out.filter((t) => t.leftOut === 'truth_noise').length}`);
 console.log(`     per view: ${perView.map((v) => `${v.view}:${Number.isFinite(v.r) ? (100 * v.r).toFixed(0) + '%' : 'n/a'}(${v.n})`).join(' ')}`);
 console.log(`     the two textures mixed were h and h+6 in every scored triple (checked per triple; a triple that mixed anything else is left out as mixed_wrong_hours)`);
 // flat control

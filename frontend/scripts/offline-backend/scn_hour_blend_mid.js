@@ -43,6 +43,7 @@ if (MODE === 'grey') {
   Object.assign(QUOTA, { waves: 6, swell_1: 0, swell_2: 0, wind_waves: 0 });
 }
 const ANYGRID = MODE === 'h8c' || MODE === 'grey';
+const WARM_MS = +(process.env.WARM_MS || 700);   // 5000 = every hour's fine grid arrives and is cached before anything is measured
 
 const SPY = () => {
   const H = (window.__HM__ = { hide: true, R: {}, T: {} });
@@ -178,7 +179,7 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
   const ev = (fn, arg) => page.evaluate(fn, arg);
   if (MODE === 'grey') await ev(() => { window.__GPU_DEBUG__ = { mode: 'value' }; });
   const home = async () => { await ev(() => window.__HM__.key('Home', 1)); await sleep(2500); };
-  const stepTo = async (n) => { for (let i = 0; i < n; i++) { await ev(() => window.__HM__.key('ArrowRight', 3)); await sleep(700); } };
+  const stepTo = async (n, wait = 700) => { for (let i = 0; i < n; i++) { await ev(() => window.__HM__.key('ArrowRight', 3)); await sleep(wait); } };
   let on = null; let vi = -1; const used = {}; const skipped = [];
   for (const [layer, list] of Object.entries(CANDIDATES)) for (const [lng, lat, z] of list) {
     if ((used[layer] || 0) >= QUOTA[layer]) continue;
@@ -186,7 +187,7 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
     await L.jump(page, lng, lat, z); await sleep(1500);
     if (!on) { await ev((l) => window.toggleLayer(l), layer); on = layer; }
     await sleep(9000); await home();
-    await ev(() => window.__HM__.kill(true)); await stepTo(9); await home();          // warm: every hour used below becomes resident
+    await ev(() => window.__HM__.kill(true)); await stepTo(9, WARM_MS); await home();          // warm: every hour used below becomes resident
     await ev(() => { window.__HM__.R = {}; window.__HM__.T = {}; });
     const real = {};
     for (let j = 1; j <= 8; j++) { await stepTo(1); await sleep(600); real[j] = await ev(async (k) => { const H = window.__HM__; H.R[k] = await H.shot(); H.T[k] = H.tex(); return H.state(); }, j); }
@@ -221,6 +222,9 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
             retTruth: H.std(M) / H.std(R[k + 1]), flatRetTruth: H.std(flat) / H.std(R[k + 1]),
             values: (T[k].b.length === T[k + 1].b.length && T[k + 2].b.length === T[k + 1].b.length) ? H.values(T[k], T[k + 2], T[k + 1]) : null };
         }, j);
+        // the truth picture a second time (section 19.3a / 22): back to hour j+1, read again
+        await home(); await ev(() => window.__HM__.kill(true)); await stepTo(j + 1); await sleep(900);
+        const again = await ev(async (k) => { const H = window.__HM__; const lum = await H.shot(); return { noise: H.mad(lum, H.R[k + 1]), st: H.state() }; }, j);
         const sameGridAll = [real[j], real[j + 1], real[j + 2], before, held.st].every((s) => s.dims === real[j].dims);
         const rightHours = before.valid === real[j].valid && held.st.valid === real[j + 2].valid;
         const mixedRight = held.st.prevValid === real[j].valid && held.st.valid === real[j + 2].valid;      // the two textures the shader mixed: h and h+6, never h+3
@@ -230,10 +234,12 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
           refDiff: held.ref ? r4(held.ref.diff) : null, retM: held.ref ? r4(held.ref.retM) : null, retRef: held.ref ? r4(held.ref.retRef) : null,
           diag: held.ref ? { toLo: r4(held.ref.toLo), toHi: r4(held.ref.toHi), loHi: r4(held.ref.loHi), noise: r4(held.ref.noise), restVsReal: r4(held.ref.restVsReal) } : null,
           values: held.values && Object.fromEntries(Object.entries(held.values).map(([k2, v]) => [k2, r4(v)])), startsDelta: held.st.starts - before.starts, mix: held.st.mix };
+        t.truthNoise = r4(again.noise); t.truthGrid2 = again.st.dims; t.truthSameHour = again.st.valid === real[j + 1].valid;
         t.grids = [real[j].dims, real[j + 1].dims, real[j + 2].dims, held.st.prevDims, held.st.dims];   // h, the hidden h+3, h+6 at rest; the two fields mixed
         const gridOk = ANYGRID || sameGridAll;
-        if (gridOk && rightHours && mixedRight && oneBlend) got = t;
-        else if (attempt === 1) got = { ...t, leftOut: !gridOk ? 'grid' : !rightHours ? 'hours' : !mixedRight ? 'mixed_wrong_hours' : 'in_between_drawn' };
+        const quiet = !(t.truthNoise > (t.eCut - t.eBlend)) || t.eCut <= t.eBlend;   // a noise floor above the cut-blend gap: not scored
+        if (gridOk && rightHours && mixedRight && oneBlend && quiet) got = t;
+        else if (attempt === 1) got = { ...t, leftOut: !gridOk ? 'grid' : !rightHours ? 'hours' : !mixedRight ? 'mixed_wrong_hours' : !oneBlend ? 'in_between_drawn' : 'truth_noise' };
       }
       triples.push(got);
     }
