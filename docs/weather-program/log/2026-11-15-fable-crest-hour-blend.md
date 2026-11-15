@@ -496,3 +496,65 @@ this harness. A same-grid H8 cannot be made to hold still here; no weight is put
    prints this split). A pass that comes only from the mixed-grid triples is not a pass: both parts must be at most 60%.
 Standing, as the advisor has it: not ready for default ON. Owed: H8c, the coastal reference retake, the grey-view H9 with the
 two-axis control, H8 on real frames, water-only weighting.
+
+## 20. H8c and the grey-view runs (12:31-12:50 EST, recorded 12:53 EST). H8c FAILS as registered. Grey-view H9 PASSES. Nothing tuned.
+Build `1c1a13f28`. Registered in sections 16, 17 and 19 (reading rule fixed before the results were opened). 0 page errors.
+
+### H8c, the coastal case, scored regardless of grid: FAIL
+40 of 40 triples scored. ERROR(blend) 5.24 against ERROR(cut) 7.80 luminance units = **67.1%** (line 60%). The blend is worse
+than the hard cut in 4 views (the three coastal waves views and wind_waves: 125%, 108%, 101%, 142%). By section 19's rule both
+parts must be at most 60%:
+| part | triples | blend / cut |
+|---|---|---|
+| the same grid in all five places (three real pictures, two fields mixed) | 25 | **45.4%** (zoom 4 and above: 40.4% on 9; below: 46.7% on 16) |
+| a grid differs somewhere | 15 | **152.3%** |
+| of those: the three REAL pictures share a grid, but the blend mixed a field on another grid | 10 | 170.5% |
+What the 15 show, and what they do not: in 10 of them the real pictures of h, h+3 and h+6 were all drawn on one grid (the
+46 x 21 world grid) while, in the held pass minutes later, the engine was holding hour h on a DIFFERENT grid (a regional
+24 x 21, 25 x 20 or 30 x 21 grid, or the 181 x 83 one). The held picture then mixes a fine regional field with a coarse world
+field and is compared with a coarse truth picture; the difference between a regional and a world picture of the same hour is
+in the error. The instrument cannot separate that from an error of the blend: the noise floor the advisor asked for (the
+truth picture taken twice, with its grid) was registered in section 19 but is not in this run. So: **the blend is NOT shown
+to be right on a step that changes grid, and by the registered rule H8c fails.** The flat control scored 130% of the cut.
+Value space on the 35 triples whose texture sizes allowed it: 0.143 m against 0.353 m = 40.6%.
+
+### The reference at the coast (section 17.1)
+- Colour view (H8c run), triples with the same grid in all five places: 25 pictures, mean difference 0.394, largest **0.638**
+  (line 0.5); 2 of the 9 coastal ones are over the line (0.638, 0.508), none of the 16 low-zoom ones (largest 0.488). Reading
+  the same picture twice: 0.000. The held picture is 0.397 from the reference rounded down and 0.394 from the one rounded up,
+  and those two are 0.778 apart: half-way between, as in section 14. The 0.81 of section 12 did not recur on a same-grid triple.
+- Where the grids differ (9 pictures) the reference is not a reference: it averages bytes of grids the blend did not mix
+  (mean 5.1, largest 11.9). Those pictures say nothing about the blend and are excluded from the line.
+- Grey view (the registered diagnosis), same-grid triples: 15 pictures, mean **0.278**, largest 0.321 grey units; 0.278 from each
+  rounding, the two roundings 0.556 apart. By the reading registered in section 16.3 (within 0.15 = band edges and rounding;
+  more = a real drawing difference) this is OVER 0.15. But that reading was badly set: the grey view removes colour-band edges,
+  not the rounding of the reference's bytes, and the held picture again sits exactly half-way between the two roundings. What
+  the evidence supports: the difference is the reference's own rounding. What it does not do: meet the number I registered.
+  The colour line (0.5) stands failed at the coast by up to 0.14 units in 2 of 9 pictures.
+- In the grey run one coastal picture read twice at rest differed by 11.4 units: the engine changed what it drew between two
+  reads with nothing asked of it. That is the grid-at-rest instability of section 19 seen directly.
+
+### H9 in the value view, with the two-axis control (section 17.2): PASS
+23 of 24 forced swaps scored (one left out: the engine changed grid during it). HELD against FINE 3.124, COARSE against FINE
+6.251 grey units = **50.0%** (band 45% to 55%), and 50% in every single swap; in no swap is HELD further from FINE than COARSE.
+The control (the earlier grid moved one coarse cell east and one north): 10.93, at least 25% above the unshifted HELD in 23 of
+23. Grids: 9 x 8 over 24 x 21, 9 x 7 over 25 x 20 (regional), 16 x 8 over 46 x 21, 61 x 28 over 181 x 83.
+So the shader reads an earlier grid at its own place correctly, regional grids included, and a one-cell misplacement is seen.
+
+### Where the marine hour blend stands
+| line | state |
+|---|---|
+| H1 smoothness, H2 GPU time, H3 bytes, H4 at rest, H6 drag | pass (section 11) |
+| H9 an earlier grid at its own place (forced; value view, two-axis control) | pass |
+| exact reference, low zoom | pass (largest 0.488 of 0.5) |
+| exact reference, coast, same-grid triples | FAIL in 2 of 9 (0.638, 0.508); the evidence points to rounding, the line is not met |
+| H8 hidden middle hour, same grid | void three times; 40-47% on every same-grid subset measured (22, 27, 25, 15 triples) |
+| H8c hidden middle hour at the coast, any grid | FAIL: 67.1% pooled, 152% where a grid differs |
+| water-only weighting; real frames | not tested |
+**Not ready for a PR, and not ready to be ON.** What blocks it is no longer the blend's arithmetic, which every same-grid and
+forced test agrees on. It is that the engine holds different grids for the same hour and view from one pass to the next, so
+at the coast neither the truth picture nor the blend's inputs hold still. Owed next, in this order:
+1. Find out whether the grid at rest changing by itself is the harness (settle time, the mock backend) or the engine. If it is
+   the engine, it is a user-visible defect on its own and should be fixed before any blend is judged at the coast.
+2. H8c again with the truth picture taken twice and its grid recorded (registered in section 19).
+3. H8 on real frames replayed offline.
