@@ -19,9 +19,9 @@ const fs = require('fs'); const path = require('path');
 const L = require('./ab_lib.js'); const { RR } = require('../raster-lab/rr.js');
 const OUT = process.env.OUT; const THEME = process.env.THEME || 'dark';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const VIEWS = [
-  ['waves', -158.0, 21.6, 5.0], ['waves', -9.5, 39.0, 5.0], ['waves', 150.0, -34.0, 5.0], ['waves', -40.0, 35.0, 2.5], ['waves', -140.0, 20.0, 3.0],
-  ['waves', 20.0, -40.0, 3.5], ['swell_1', -123.0, 37.5, 5.0], ['swell_1', -60.0, 30.0, 3.5], ['swell_2', 115.0, -10.0, 4.0], ['wind_waves', -5.0, 50.0, 4.5],
+const VIEWS = [   // zoom 3.5 or lower: the engine keeps one grid from hour to hour there (log, section 13.1)
+  ['waves', -40.0, 35.0, 2.5], ['waves', -140.0, 20.0, 3.0], ['waves', 20.0, -40.0, 3.5], ['waves', 150.0, -20.0, 3.0], ['swell_1', -60.0, 30.0, 3.5],
+  ['swell_1', -150.0, 35.0, 3.0], ['swell_1', 60.0, -30.0, 3.5], ['swell_2', 115.0, -10.0, 3.0], ['swell_2', -30.0, 0.0, 3.0], ['wind_waves', -5.0, 50.0, 3.5],
 ];
 const PICK = process.env.VIEWS ? process.env.VIEWS.split(',').map(Number) : VIEWS.map((_, i) => i);
 
@@ -78,6 +78,35 @@ const SPY = () => {
     if (!el) return false; el.focus(); for (let i = 0; i < n; i++) el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })); return true; };
   H.kill = (on) => { if (on) window.__RAW_DISABLE_CREST_HOUR_BLEND__ = true; else delete window.__RAW_DISABLE_CREST_HOUR_BLEND__; };
   H.wait = (ms) => new Promise((r) => setTimeout(r, ms));
+  // H9 (forced): the lab hands the blend a COARSER copy of the resident field as the earlier one, at the same bounds
+  H.forced = async () => {
+    const e = eng(); const gl = map().painter.context.gl; const t = H.tex(); const g = e._waveData && e._waveData.waveGrid;
+    if (!g || !g.bounds || e._waveData.u_waveScoreTexture) return { miss: 'no_grid' };
+    const pick = (n) => [4, 3, 2, 5].find((k) => (n - 1) % k === 0 && (n - 1) / k >= 3) || 0;
+    const kx = pick(t.w); const ky = pick(t.h); if (!kx || !ky) return { miss: 'no_factor', dims: `${t.w}x${t.h}` };
+    const cw = (t.w - 1) / kx + 1; const ch = (t.h - 1) / ky + 1; const cb = new Uint8Array(cw * ch * 4);
+    for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) { const si = ((y * ky) * t.w + x * kx) * 4; const di = (y * cw + x) * 4; cb[di] = t.b[si]; cb[di + 1] = t.b[si + 1]; cb[di + 2] = t.b[si + 2]; cb[di + 3] = t.b[si + 3]; }
+    const t0 = gl.getParameter(gl.TEXTURE_BINDING_2D); const flip = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL); const tex = gl.createTexture();
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.bindTexture(gl.TEXTURE_2D, tex);
+    for (const [k, v] of [[gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE], [gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, cw, ch, 0, gl.RGBA, gl.UNSIGNED_BYTE, cb);
+    gl.bindTexture(gl.TEXTURE_2D, t0); gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, !!flip);
+    const before = H.state(); const FINE = await H.shot();
+    const b = g.bounds; const prev = { wave: tex, adopted: false, cols: cw, rows: ch, bounds: { ...b }, reg: [-1 / cw, -1 / ch, 0.5 / cw, 0.5 / ch], scale: t.scale, landAware: false, validTime: 'lab' };
+    let out;
+    try {
+      H.kill(false); e._hourPrev = prev; e._hourBlend = { t0: 0, ms: 160 };
+      window.__RAW_CREST_BLEND_HOLD__ = 0; const COARSE = await H.shot(); const m0 = H.state().mix;
+      window.__RAW_CREST_BLEND_HOLD__ = 0.5; const HELD = await H.shot(); const m5 = H.state().mix;
+      const dx = (b.east - b.west) / (cw - 1);
+      e._hourPrev = { ...prev, bounds: { ...b, west: b.west + dx, east: b.east + dx } }; const SHIFT = await H.shot();
+      out = { coarse: `${cw}x${ch}`, fine: `${t.w}x${t.h}`, mixes: [m0, m5], eHeld: H.mad(HELD, FINE), eCoarse: H.mad(COARSE, FINE), eShift: H.mad(SHIFT, FINE), retHeld: H.std(HELD) / H.std(FINE) };
+    } finally {
+      window.__RAW_CREST_BLEND_HOLD__ = null; e._hourBlend = null; e._hourPrev = null; H.kill(true); gl.deleteTexture(tex);
+    }
+    const after = H.state(); const REST = await H.shot();
+    return { ...out, stable: after.dims === before.dims && after.valid === before.valid, restNoise: H.mad(REST, FINE) };
+  };
   // H9, kill set: after a step, the first picture on the coarse grid and the first on a finer grid of the SAME valid time
   H.swapRest = async (ms) => {
     const t0 = performance.now(); let coarse = null; let fine = null;
@@ -149,8 +178,13 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
           let ref = null; const now = H.tex();
           if (T[k].b.length === now.b.length && T[k + 2].b.length === now.b.length) {
             const mid = new Uint8Array(now.b.length); for (let i = 0; i < mid.length; i++) mid[i] = Math.round(0.5 * (T[k].b[i] + T[k + 2].b[i]));
-            H.put(mid); const REF = await H.shot(); H.put(now.b); await H.shot();
-            const base = Math.min(H.std(R[k]), H.std(R[k + 2])); ref = { diff: H.mad(M, REF), retM: H.std(M) / base, retRef: H.std(REF) / base };
+            H.put(mid); const REF = await H.shot();
+            const lo = new Uint8Array(now.b.length); const hi = new Uint8Array(now.b.length);
+            for (let i = 0; i < lo.length; i++) { const v = 0.5 * (T[k].b[i] + T[k + 2].b[i]); lo[i] = Math.floor(v); hi[i] = Math.ceil(v); }
+            H.put(lo); const LO = await H.shot(); H.put(hi); const HI = await H.shot();
+            H.put(now.b); const N1 = await H.shot(); const N2 = await H.shot();
+            const base = Math.min(H.std(R[k]), H.std(R[k + 2]));
+            ref = { diff: H.mad(M, REF), retM: H.std(M) / base, retRef: H.std(REF) / base, toLo: H.mad(M, LO), toHi: H.mad(M, HI), loHi: H.mad(LO, HI), noise: H.mad(N1, N2), restVsReal: H.mad(N1, R[k + 2]) };
           }
           const flat = H.avg(R[k], R[k + 4]);
           return { st, ref, eBlend: H.mad(M, R[k + 1]), eCutA: H.mad(R[k], R[k + 1]), eCutB: H.mad(R[k + 2], R[k + 1]), eFlat: H.mad(flat, R[k + 1]),
@@ -164,31 +198,25 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
         const t = { j, attempt, sameGridAll, rightHours, mixedRight, oneBlend, dims: real[j].dims, mixed: [held.st.prevValid, held.st.valid], hidden: real[j + 1].valid,
           eBlend: r4(held.eBlend), eCut: r4(Math.min(held.eCutA, held.eCutB)), eFlat: r4(held.eFlat), retTruth: r4(held.retTruth), flatRetTruth: r4(held.flatRetTruth),
           refDiff: held.ref ? r4(held.ref.diff) : null, retM: held.ref ? r4(held.ref.retM) : null, retRef: held.ref ? r4(held.ref.retRef) : null,
+          diag: held.ref ? { toLo: r4(held.ref.toLo), toHi: r4(held.ref.toHi), loHi: r4(held.ref.loHi), noise: r4(held.ref.noise), restVsReal: r4(held.ref.restVsReal) } : null,
           values: held.values && Object.fromEntries(Object.entries(held.values).map(([k2, v]) => [k2, r4(v)])), startsDelta: held.st.starts - before.starts, mix: held.st.mix };
         if (sameGridAll && rightHours && mixedRight && oneBlend) got = t;
         else if (attempt === 1) got = { ...t, leftOut: !sameGridAll ? 'grid' : !rightHours ? 'hours' : !mixedRight ? 'mixed_wrong_hours' : 'in_between_drawn' };
       }
       triples.push(got);
     }
-    // H9: grid swaps inside one hour, up to 4 hours per view
+    // H9 (forced, section 13.2): four hours per view
     const swaps = [];
     for (let j = 1; j <= 4; j++) {
-      await home(); await ev(() => window.__HM__.kill(true)); await stepTo(j - 1); await sleep(400);
-      await ev(() => window.__HM__.key('ArrowRight', 3));
-      const rest = await ev(() => window.__HM__.swapRest(4000));
-      if (!rest.coarse || !rest.fine) { swaps.push({ j, miss: 'no_swap_at_rest', rest }); continue; }
-      await home(); await stepTo(j - 1); await sleep(400);
-      await ev(() => window.__HM__.kill(false)); await sleep(50);
-      await ev(() => window.__HM__.key('ArrowRight', 3));
-      const held = await ev((a) => window.__HM__.swapHeld(4000, a.c, a.f), { c: rest.coarse.dims, f: rest.fine.dims });
-      await ev(() => { window.__RAW_CREST_BLEND_HOLD__ = null; window.__HM__.kill(true); }); await sleep(400);
-      if (held.miss) { swaps.push({ j, miss: held.miss, coarse: rest.coarse.dims, fine: rest.fine.dims }); continue; }
-      const sameHour = held.s.prevValid === held.s.valid && held.s.valid === rest.fine.valid;
-      swaps.push({ j, coarse: rest.coarse.dims, fine: rest.fine.dims, valid: rest.fine.valid, prev: [held.s.prevDims, held.s.prevValid, held.s.prevAdopted], sameHour, eHeld: r4(held.eHeld), eCoarse: r4(held.eCoarse), retHeld: r4(held.retHeld), ...(sameHour ? {} : { miss: 'not_same_hour' }) });
+      await home(); await ev(() => window.__HM__.kill(true)); await stepTo(j); await sleep(900);
+      const r = await ev(() => window.__HM__.forced());
+      if (r.miss) { swaps.push({ j, miss: r.miss }); continue; }
+      const okMix = r.mixes[0] === 1 && r.mixes[1] === 0.5;
+      swaps.push({ j, coarse: r.coarse, fine: r.fine, eHeld: r4(r.eHeld), eCoarse: r4(r.eCoarse), eShift: r4(r.eShift), retHeld: r4(r.retHeld), restNoise: r4(r.restNoise), ...(r.stable && okMix ? {} : { miss: !r.stable ? 'engine_changed' : 'mix_not_held' }) });
     }
     const out = { view: vi, layer, lng, lat, z, theme: THEME, drawnLayer: real[1].layer, triples, swaps, errors: errs.slice(0, 4) };
     fs.appendFileSync(path.join(OUT, `hm-${THEME}.jsonl`), JSON.stringify(out) + '\n');
-    console.log(`view ${vi} ${layer}: H8 ` + triples.map((t) => (t.leftOut ? `[out:${t.leftOut}]` : `${t.eBlend}/${t.eCut}`)).join(' ') + ' | H9 ' + swaps.map((s) => (s.miss ? `[${s.miss}]` : `${s.eHeld}/${s.eCoarse}`)).join(' '));
+    console.log(`view ${vi} ${layer}: H8 ` + triples.map((t) => (t.leftOut ? `[out:${t.leftOut}]` : `${t.eBlend}/${t.eCut}`)).join(' ') + ' | H9 ' + swaps.map((s) => (s.miss ? `[${s.miss}]` : `${s.eHeld}/${s.eCoarse}/${s.eShift}`)).join(' '));
     await home();
   }
   await browser.close();

@@ -37,12 +37,17 @@ const worstDiff = Math.max(...ref.map((t) => t.refDiff)); const worstRet = Math.
 verdict('H5-reference', !ref.length ? 'VOID' : (worstDiff <= 0.5 && worstRet <= 0.03 ? 'PASS' : 'FAIL'),
   `${ref.length} held pictures against the exact average of the two hours' bytes drawn at rest: largest mean absolute luminance difference ${f(worstDiff)} (line 0.5), mean ${f(sum(ref, 'refDiff') / ref.length)}; largest retention difference ${f(worstRet, 4)} (line 0.03). Retention of the held picture mean ${f(sum(ref, 'retM') / ref.length)}, of the reference ${f(sum(ref, 'retRef') / ref.length)}`);
 
+// the diagnosis of the reference difference (section 13.3): reported, no verdict
+const dg = ok.filter((t) => t.diag);
+if (dg.length) console.log(`     DIAGNOSIS (${dg.length} pictures): held against the reference rounded DOWN ${f(sum(dg, (t) => t.diag.toLo) / dg.length)}, rounded UP ${f(sum(dg, (t) => t.diag.toHi) / dg.length)}, nearest ${f(sum(dg, 'refDiff') / dg.length)}; the DOWN and UP references differ by ${f(sum(dg, (t) => t.diag.loHi) / dg.length)}; the same picture read twice at rest differs by ${f(sum(dg, (t) => t.diag.noise) / dg.length)}; the hour at rest after the lab restored its bytes against the first reading of it ${f(sum(dg, (t) => t.diag.restVsReal) / dg.length)}`);
+
 // H9
 const sw = rows.flatMap((r) => (r.swaps || []).map((s) => ({ ...s, view: r.view })));
 const sok = sw.filter((s) => !s.miss); const miss = {}; for (const s of sw.filter((x) => x.miss)) miss[s.miss] = (miss[s.miss] || 0) + 1;
-const sr = sum(sok, 'eHeld') / sum(sok, 'eCoarse'); const over = sok.filter((s) => s.eHeld > s.eCoarse);
-const h9 = sok.length < 12 ? 'VOID' : (over.length === 0 && sr >= 0.35 && sr <= 0.65 ? 'PASS' : 'FAIL');
-verdict('H9', h9, `${sok.length} of ${sw.length} grid swaps inside one hour scored (12 required; not scored: ${JSON.stringify(miss)}). Held picture against the fine grid ${f(sum(sok, 'eHeld') / Math.max(1, sok.length))}, coarse picture against the fine grid ${f(sum(sok, 'eCoarse') / Math.max(1, sok.length))} = ${pc(sr)} (band 35% to 65%); swaps where the held picture is further from the fine grid than the coarse one: ${over.length}`);
-if (sok.length) console.log(`     per swap %: ${sok.map((s) => `v${s.view}:${(100 * s.eHeld / s.eCoarse).toFixed(0)}`).join(' ')}; grids ${[...new Set(sok.map((s) => `${s.coarse}>${s.fine}`))].join(' ')}`);
+const sr = sum(sok, 'eHeld') / sum(sok, 'eCoarse'); const over = sok.filter((x) => x.eHeld > x.eCoarse);
+const ctl = sok.filter((x) => x.eShift >= 1.25 * x.eHeld).length; const ctlOk = sok.length > 0 && ctl >= 0.8 * sok.length;
+const h9 = sok.length < 12 || !ctlOk ? 'VOID' : (over.length === 0 && sr >= 0.35 && sr <= 0.65 ? 'PASS' : 'FAIL');
+verdict('H9', h9, `${sok.length} of ${sw.length} forced swaps scored (12 required; not scored: ${JSON.stringify(miss)}). HELD against FINE ${f(sum(sok, 'eHeld') / Math.max(1, sok.length))}, COARSE against FINE ${f(sum(sok, 'eCoarse') / Math.max(1, sok.length))} = ${pc(sr)} (band 35% to 65%); swaps where HELD is further from FINE than COARSE: ${over.length}. POSITIVE CONTROL (earlier grid moved one coarse cell east): error ${f(sum(sok, 'eShift') / Math.max(1, sok.length))}, at least 25% above the unshifted HELD in ${ctl} of ${sok.length} swaps (80% required)`);
+if (sok.length) console.log(`     per swap HELD/COARSE %: ${sok.map((x) => `v${x.view}:${(100 * x.eHeld / x.eCoarse).toFixed(0)}`).join(' ')}; grids ${[...new Set(sok.map((x) => `${x.coarse}>${x.fine}`))].join(' ')}; FINE read again after the lab: differs by ${f(sum(sok, 'restNoise') / sok.length)}`);
 console.log(`     page errors: ${rows.flatMap((r) => r.errors).length}`);
 console.log(fail ? `${fail} line(s) not passed` : 'every truth line passes');
