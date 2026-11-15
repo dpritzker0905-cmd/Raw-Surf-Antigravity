@@ -165,3 +165,14 @@ coarse series frame is never upgraded to the fine grid on a first visit.
   fix is scored WITHOUT the mislabel count (it is a property of today's code, present in the KILL arm). The mislabel count is still
   measured and reported in run 2. Every other part of gate 3 (key-to-shown p50/p95, blank frames, labels reach the target) stands.
 - The 1.5 s first-visit coarse-to-fine wait stays queued in this lane.
+
+## 19:25Z: lever 3 built; dev run 3 (diagnostic); run 2 started
+
+Lever 3: `MapPageModals` is wrapped in `React.memo` with `modalsStayClosed`: no re-render while every modal flag is false before
+AND after; opening or closing any modal renders with fresh props. Kill `__RAW_DISABLE_CLOSED_MODALS_SKIP__`. Jest: 14 pass.
+
+Dev run 3 (one ON session, diagnostic): 53 components per step (67 before; the closed modals are gone), but every component's
+own time roughly doubled vs dev run 2 (e.g. `MapWeatherControls` 28 ms vs 9 ms), 140.6 ms total. Read as machine load during
+the run (other sessions share this machine), not the build; the alternating ON / KILL design of the gate is what absorbs it.
+
+Run 2 (unseen, the same gate, KILL arm = all three kills) started 19:26Z.
