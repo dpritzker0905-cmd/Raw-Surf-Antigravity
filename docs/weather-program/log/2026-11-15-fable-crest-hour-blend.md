@@ -360,3 +360,32 @@ Owed before any PR is called ready, each needing a registration first:
 3. The cause of the 0.3-0.8 unit difference from the exact reference.
 4. The advisor's condition for ON by default: H8 on real frames replayed offline.
 Also not done: the whole Jest trees, lint ratchet, file size, floor fragment, light and beach, the phone layout, LongCat.
+
+## 13. The owner's word (11:53 EST, in this session: "Yes, rerun first") and the three reruns, registered BEFORE they are run
+Asked whether to register and rerun the three truth tests before starting wind, David answered "Yes, rerun first".
+Thresholds are the ones already registered; what changes is how each test gets valid data.
+1. **H8 again, on views that keep one grid.** Section 12 showed that above zoom 3.5 the engine's grid at rest changes from hour
+   to hour, so a same-grid triple does not exist there. Ten views at zoom 3.5 or lower, four layers:
+   waves (-40.0, 35.0, z2.5), (-140.0, 20.0, z3.0), (20.0, -40.0, z3.5), (150.0, -20.0, z3.0); swell_1 (-60.0, 30.0, z3.5),
+   (-150.0, 35.0, z3.0), (60.0, -30.0, z3.5); swell_2 (115.0, -10.0, z3.0), (-30.0, 0.0, z3.0); wind_waves (-5.0, 50.0, z3.5).
+   Same lines: pooled ERROR(blend) at most 60% of ERROR(cut), void below 25%, no view worse, at least 30 of 40 triples, the two
+   mixed textures h and h+6. The flat control and the value-space figures are reported as before.
+   Stated limit: H8 then says nothing about coastal zooms, where a step is a grid change; that case is H9's.
+2. **H9 with a FORCED earlier grid.** The harness gives no same-hour swap, so the lab makes one, in each of the same ten views
+   and at four hours each (40 swaps): with the fine grid at rest (picture FINE), the lab builds a COARSER copy of the resident
+   wave texture (every 2nd to 5th sample on each axis, chosen so the sample extents, and so the bounds, are unchanged), and
+   hands it to the blend as the earlier field with those bounds, its own size, its own point registration (-1/n, 0.5/n, the
+   formula of gridPointRegistration.js) and the same height scale. Held at 0 the shader draws the coarse field alone (COARSE);
+   held at 0.5 it draws the half-way mix (HELD).
+   Pass, as registered in section 10: at every swap mean |HELD - FINE| is no larger than mean |COARSE - FINE|, and pooled it is
+   35% to 65% of it; at least 12 swaps scored.
+   **Positive control, required:** the same HELD picture with the earlier grid's bounds moved one coarse cell east. Its error
+   against FINE must exceed the unshifted HELD error by at least 25% in at least 80% of the swaps; otherwise H9 cannot see a
+   misregistration and is void.
+   Stated limit: this exercises the shader's reading of an earlier grid at its own place. The keeping and freeing of the real
+   outgoing texture is exercised by the scrub runs (142 grid swaps, 0 errors, no kept texture at rest) and the unit tests.
+3. **The difference from the exact reference: a diagnosis, not a new line.** The 0.5 line of section 10 stands, and the two
+   pictures over it stay recorded as failures. To find the cause, three more pictures per held triple: the reference drawn from
+   bytes rounded DOWN and from bytes rounded UP (if rounding is the cause, the held picture lies between the two and the two
+   differ by about as much as the held picture differs from either), and the same real hour read twice at rest (the noise of
+   reading a picture). Reported; no verdict is drawn from it without the advisor.
