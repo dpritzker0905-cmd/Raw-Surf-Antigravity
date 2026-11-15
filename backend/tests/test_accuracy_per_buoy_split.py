@@ -203,6 +203,24 @@ def test_bias_null_arm_is_not_flagged_and_the_full_seed_is_only_an_identity():
     assert round(full[1] - full[0], 9) == 0.05
 
 
+def test_the_null_arm_is_net_zero_at_the_judged_lead_when_keys_under_read_at_other_leads_too():
+    """Advisor red-team, 2026-11-15: alternating the sign along ONE sequence across leads gives every +72 h row the same
+    sign wherever a (buoy, hour) under-reads at exactly two leads. Here every key under-reads at +48 and +72 h and not at
+    +24 h: the old sequence put the same sign on all twelve +72 h rows, a 0.05 m one-signed shift called a null."""
+    rows = []
+    for day in range(12):
+        j = 0.02 * (day % 3)
+        for lead, err in ((24, 0.20), (48, -0.30), (72, -0.30)):
+            rows += [_row(PRIMARY, "A", day, 6, lead, err + j), _row(BEST_MATCH, "A", day, 6, lead, 0.10)]
+    null = bias_control(rows, NOW, 14, net_zero=True)
+    assert abs(null["bias"][1] - null["bias"][0]) < 1e-9 and null["bias"][3] is False       # the +72 h mean is unchanged
+    assert abs(null["mae"][1] - null["mae"][0]) < 1e-9
+    ctl = bias_control(rows, NOW, 14)                                 # and the seed lands on the judged lead only
+    assert ctl["share"] == 1.0 and round(ctl["bias"][1] - ctl["bias"][0], 9) == 0.05
+    at48 = bias_control(rows, NOW, 14, lead=48, net_zero=True)        # the same holds when another lead is the judged one
+    assert abs(at48["bias"][1] - at48["bias"][0]) < 1e-9
+
+
 def test_the_bias_gate_can_fail_when_the_noise_is_larger_than_the_seeded_share():
     """Day-to-day drift of +/-0.5 m swamps a 0.025 m shift: the control must say so, not pass."""
     rows = []

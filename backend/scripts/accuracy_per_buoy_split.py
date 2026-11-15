@@ -283,10 +283,11 @@ def bias_control(rows, now, days, lead=72, seeded=POSITIVE_CONTROL_M, only_under
     order), so the errors move and the mean does not. A bias line that flags that is reading noise as bias.
     `share` is always the UNSEEDED under-reading fraction of the paired keys: the keys the seed lands on.
     Returns {share, bias: (unseeded, seeded, seeded 1-day interval, excludes), mae: (same four for the MAE gap)}."""
-    def hit(r):
-        return (r.get("source") == PRIMARY and _finite(r.get("err_m")) and (r["err_m"] < 0 or not only_under))
+    def hit(r):       # ONLY rows of the judged lead: a sequence alternated across leads is one-signed at any single lead
+        return (r.get("source") == PRIMARY and _finite(r.get("err_m")) and _bucket(r.get("lead_h")) == lead // 24
+                and (r["err_m"] < 0 or not only_under))
     order = sorted((i for i, r in enumerate(rows or []) if hit(r)),
-                   key=lambda i: (str(rows[i].get("buoy_id")), str(rows[i].get("target_time")), rows[i].get("lead_h") or 0))
+                   key=lambda i: (str(rows[i].get("buoy_id")), str(rows[i].get("target_time"))))
     sign = {i: (-1.0 if (net_zero and n % 2) else 1.0) for n, i in enumerate(order)}
     seeded_rows = [{**r, "err_m": r["err_m"] + seeded * sign[i]} if i in sign else r for i, r in enumerate(rows or [])]
     o, t, keys = _lead_slices(index_rows(rows, now, days), BEST_MATCH, lead)

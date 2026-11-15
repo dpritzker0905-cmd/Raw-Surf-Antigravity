@@ -99,3 +99,23 @@ Sent: measured aggregates and the proposed gates only. No row, coordinate or sec
   opposite way, on a count far too small to weigh.
 - **Next:** one more dispatch of this job once +72 h has rows, from 2026-11-17, the same day as the per-buoy split run.
   The 2026-11-18 commitment stands.
+
+## 16:02Z A defect in the null arm, found by the advisor's red-team, fixed before any real-row read
+
+- **Defect (mine).** `bias_control(net_zero=True)` alternated the sign along ONE sequence of all under-reading served
+  rows, across leads, and was then judged at +72 h only. Where a (buoy, hour) under-reads at exactly two leads, its
+  +72 h row gets the same sign every time. So the "net-zero" disturbance was a one-signed shift at the judged lead.
+  The full-seed and subset-seed arms had the same reach across leads, harmlessly. My test passed only because its
+  world held +72 h rows alone. Source: `redteam-912-914-915-2026-11-15.md` (shared notes), verdict PASS WITH LIMITS.
+- **Fix.** Every arm now seeds only rows of the judged lead, and the alternation runs within that lead.
+- **Proof the test bites.** New test: every key under-reads at +48 and +72 h and not at +24 h. Against the old script
+  it fails with a 0.050 m shift at +72 h under the "null"; against the fix the +72 h mean and MAE are unchanged to
+  1e-9, at +48 h as the judged lead too. 20 pass in the file. Guards floor fragment now +6.
+- **No real-row read was made with the defective null:** the per-buoy split has not been dispatched since this code
+  was written.
+
+**What NOT MET will mean, stated before the dispatch.** If about half of the +72 h pairs under-read, the seed moves the
+bias gap by about 0.025 m. Against day-to-day spread in the real ledger, the gate will very likely read NOT MET. That
+would mean: this split cannot resolve a bias change that small on 14 days of rows. It would not mean there is no bias.
+The bias line and its intervals are still printed and still readable; only the claim "a 0.05 m shift on under-readers
+would be noticed" would be unsupported. A PASS would mean that claim holds on those rows.
