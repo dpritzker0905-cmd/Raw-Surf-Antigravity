@@ -1,0 +1,141 @@
+# 2026-11-15 · senior research lead · one ranked SOTA plan, checked against our own records
+
+Session: the senior research lead (Opus, worktree `senior-research-lead-b49745`), approved by David on 2026-11-15 to own
+the ranked state-of-the-art plan and the quality of its evidence. The Haiku researcher (`local_80e6193e`, #912) is the
+legwork helper. Docs only: no code, flag, served number, workflow dispatch or live backend call. Nothing merged.
+This plan supersedes #912's section 7.D, section 17's "open ranking" and section 19.4 as THE ranked list, where they
+differ. #912 stays the record of how those were reached.
+
+## 20:25Z What was read, and how each number was checked
+
+- Read at `origin/dev` `02a5c5cb1`: `memory_audit.py --docs-only` (0 FAIL, 90 WARN, 67 NOTE; one OVERDUE: the HRRR wind
+  lane re-grade, ledger `claude--state-reconciliation-20261111.jsonl:17`), STATE "Now" and "Next fixes", DECISIONS
+  D-065 .. D-072, the SCOREBOARD tail, and the logs `2026-11-12-advisor-sota-gap-map`, `2026-11-13-claude-move4-ocf-readout`,
+  `2026-11-13-fable-sota-path-review`, `2026-11-14-fable-blend-fallback-fix-design`, `2026-11-14-opus-raster-own-three`,
+  `2026-11-15-opus-series-decode-worker`.
+- Read on branch `docs/sota-benchmark-2026-11-15` (#912, open): the whole log, especially sections 7, 11, 17 and 19.
+- Read in the shared notes folder: `DIRECTOR-BOARD.md` (to its 19:00Z entry) and `redteam-912-914-915-2026-11-15.md`.
+- Code checked (read only): `skill_ocf.py` (`HOLE_BUOYS`, `without_hole_buoys`), `accuracy_per_buoy_split.py`
+  (`MEASURED_HOLES`, `NAMED_PATH_STATIONS`).
+- **Rule I held to:** a gain counts only if a SCOREBOARD row or a named log measured it on our data. A paper number is
+  context, never an expected gain. Where a figure appears in two places I quote the newer one and say so.
+
+## Corrections this pass makes to earlier records (each one checked against the source)
+
+1. **The model-mean gain is smaller than the advisor's gap map says.** The map (2026-11-12, item 1) gives "about
+   -0.03 m offshore MAE (13%)" from an older out-of-sample read (0.229 -> 0.196 m). The newer held-out week
+   (`2026-11-13-claude-move4-ocf-readout.md` §1, 56 buoys, cutoff 11-05) gives the equal mean over served
+   **+0.021 [0.015, 0.028] m at 24 h, -0.010 [-0.029, 0.018] at 48 h, +0.007 [-0.015, 0.031] at 72 h**. Only 24 h is
+   distinguishable from zero. Expected gain from serving a FIXED mean: 0 to +0.03 m, most likely at 24 h only.
+2. **"Re-score the bias correction without 46267" is a read, not a build.** `skill_ocf.py` already publishes a
+   `without_hole_buoys` rerun of every variant (pre-registered rule R2, all nine hole buoys out, 46267 included).
+   #912 §17 item 2 and the advisor's review treat it as owed work. The brief asks Move 4 to read that field and to
+   confirm the exclusion covers the fit as well as the score (Reflection's point; not yet verified from code).
+3. **The water decode item is not covered by #921.** #921 moved the `/grid_series` JSON decode for marine layers. The
+   570-960 ms is the EURO water-temperature RASTER decode plus land fill (`2026-11-14-opus-raster-own-three.md:120`).
+   Reflection proposed dropping the item as a duplicate of #921; the source shows it is a separate cost, so it stays.
+4. **The 46267 check against the raw NOAA wave model is still owed.** I ran `ww3_compare_forecast_with_buoy` (46267,
+   48.171 N, -123.6 W, grid `wcoast.0p16`, 24 h). It timed out after 1,800 s, as the helper's run did. No result.
+
+## The ranked plan
+
+Columns: **gain** is from our own records with its interval or range; **gate** is pre-registered here, and each one names
+a negative control (must NOT fire) and a positive control (must fire). **Served** = changes a number a user sees.
+
+| # | Item | Evidence (ours) | Expected gain | Gate (can fail) | Owner lane | Served |
+|---|---|---|---|---|---|---|
+| 1 | **Fix the model blend's missing-member defect** (shadow only) | Shadow loses to its own members' plain mean by 0.072 / 0.071 m at +48 / +72 h, and 0.100-0.202 m where a member had no stored product (run 43174501916). Excess on unknown-tier rows +0.24-0.29 m vs a null of +-0.008 (OCF readout §3). Cause decided by the 11-16/11-18 read (`2026-11-14-fable-blend-fallback-fix-design.md`) | vs today's shadow: about -0.07 m at 48-72 h. vs SERVED: 0 to +0.03 m (correction 1) | **Rewritten after Reflection** (the old "shadow equals the member mean" check is near-circular once the fix lands). Pass: on held-out buoy rows, the fixed shadow's MAE is no worse than its best single member at every lead (upper CI <= +0.01 m), pooled AND on missing-member rows. The NBM / Met Office standard: a blend must not lose to its best member (Neal et al. 2024, #912 §19.1). Negative control: rows where every member answered are unchanged (abs diff < 0.005 m). Positive control: a planted +0.30 m on one member is recovered (the instrument already does this) | repair lead (`local_ff1641e7`) | No (shadow). Serving it later is a served flip |
+| 2 | **Split the accuracy monitor's RED into three** (D-072, proposed) | RED since 11-10 at +0.103-0.111 m vs `best_match` at +72 h. The same-model control moved our way (+0.006 -> -0.019 m). An estimated 30-42% of the gap sits on 9 hole buoys, where our MAE went 0.24 -> 0.58 m | No served gain. It turns one alarm that cannot tell a regression from a resolution gap into three that can | Replay the retained history from 2026-08-15 to 11-14 from rows. Pass: rule 1 stays silent on the 11-10 episode AND fires on a seeded +0.08 m same-model regression (positive control); rule 2 fires on the hole-buoy rows; a lead-shuffled null fires none (negative). Add Reflection's step: audit the 9 hole buoys' 0.24 -> 0.58 m jump for a data or build defect before calling it weather | verifier (`local_ec32a6a8`) after David decides D-072 | No |
+| 3 | **Phone scrub: cut the per-step re-render** | Per step: about 10 commits, 67 components, about 152 ms of render. A/B run 1: p95 648 -> 256 ms, but the render gate was 0.70x vs 0.5x, so it failed | **Range, not a point: 0 to -60% p95.** The -60% is one run. SubQ gave "supported" 0.22 | p95 at least 50% lower than the same build's baseline over 3 interleaved runs; an A/A pair must differ by < 10% (negative); served values byte-identical. The absolute 50 ms stays the goal | Move 3 (`local_05078d22`) | No |
+| 4 | **EURO/ICON z7 missing frames, and the 1.5-4 s coarse-to-fine wait** | 112 of 188 slow steps are EURO/ICON at z7; 147 never showed the asked hour within 6 s (Move 3 census). On a first coastal visit the coarse grid shows 1.5-4 s; the fine request leaves about 1.5 s after a step (board 18:45Z) | Up to 60% of slow steps (112/188) if every z7 miss is fixed. Not measured | Census re-run: slow steps -50% AND never-shown <= 10% of before (Reflection: keep this absolute cap); A/A census pair within 10% (negative); a deliberately removed set must show up as a miss (positive) | Move 3 | No |
+| 5 | **Hour cross-fade, on same-grid steps only** | David chose ON with a short decay (11:30 EST); cross-model stays banned (15:07Z). Coastal hidden-hour test FAILED: 67% vs a 60% line, 152% where the grid changes between hours (board 18:45Z). Cross-fades of moving fronts leave two faint crests ("ghosting"); perception-oriented interpolation work treats ghosting as the main failure ([PerVFI](https://consensus.app/papers/details/w:bbf97903-3018-4273-99cd-ddef3be0f5f1/?utm_source=claude_code)) | Removes the hour "pop" on same-grid steps. Not measured | Hide each interior hourly frame, blend its neighbours. Pass on same-grid steps: blend error vs the REAL frame <= the hard swap's error, and ghost count (two crest maxima where the truth has one) not above the hard swap's. Negative control: a corrupted middle frame (rows shuffled) must fail. Positive control: identical neighbours give zero error. Grid-changing steps keep the hard cut | animation (`local_080da416`) | No |
+| 6 | **EURO water-temperature raster decode off the main thread** | 570-960 ms per frame on the main thread (decode plus land fill) | Removes most of that block. Not measured | Long tasks > 50 ms during water first paint at least 50% lower (phone profile, 3 runs); decoded arrays hash-identical (negative: a byte flip must change the hash); A/A within 10% | Move 3 | No |
+| 7 | **More nearshore breaking-height truth, before any refit** | Nearshore Validation WARN: served surf height 28% low, ratio 1.382, n 169 spot-hours / 11 stations, worst 42098 x3.85 (run 43108259188). SubQ (11-13): nearshore is the biggest gain for the number a surfer sees, 0.97; n 169 enough for a global refit, 0.02 | Unknown. 28% is the size of the bias it might confirm, not a gain | No refit until n >= 1,000 spot-hours, >= 20 stations, >= 3 coast types. Then per coast type, the served/observed ratio CI must exclude 1.0 before it counts. Negative: shuffled station-hour pairing gives no coast-type signal. Positive: a seeded x1.2 is recovered | repair lead, with the helper's station list | No (measurement). A refit later is served |
+| 8 | **Per-region and rolling bias correction, read without the hole buoys** | Pooled gain: rolling +0.031 [0.026, 0.037] m at 24 h, +0.019 [0.001, 0.042] at 72 h, carried by pacific_ne (where 46267 sits). Hawaii is worse at every lead (0.401 -> 0.501 m at 48 h) | Unknown until the hole-free read (correction 2). Bound: 0 to +0.03 m | The pre-registered test (fit 10-06..11-04, test 11-06..11-26, scorable 11-30), ranked on the `without_hole_buoys` copy: better pooled at every lead with CI > 0 AND no region worse by > 0.01 m; GFS kept in Hawaii. Negative: the published shuffled null. Positive: the published +0.30 m member injection | Move 4 (`local_1b7a2ed1`) | Yes, if ever served |
+| 9 | **Surf-rating quality truth: buoys first, video at 2-3 sites** | Today the rating is checked only for size category against a model: CDIP MOP, prior 0.728 vs legacy 0.242 (SCOREBOARD 11-12 23:12Z). The prior loses at the two small-wave spots (Sands, La Jolla Shores). Video breaker-height estimators: 18% NRMSE over about 900 records at five sites ([Andriolo 2020](https://consensus.app/papers/details/w:f1ab7b7b-e7b5-4a13-a90a-f8aced6d6a76/?utm_source=claude_code)); 9% mean error in a wave basin ([Almar 2011](https://consensus.app/papers/details/w:f1763324-c825-4de0-904c-0aef722add8f/?utm_source=claude_code)) | Unknown. It makes a quality claim testable at all | Category agreement with the observed truth, rating vs legacy, paired by spot-hour, day-block bootstrap, small-wave stratum separate. Negative: shuffled spot-hours. Positive: a seeded category shift. First, audit the small-wave loss for a build defect (Reflection) | research lead plus helper (site list), then repair lead | No until a gate passes |
+| 10 | **Gust and visibility lanes, with named station sets** | NDBC 41009 reports gust (4.0 m/s at 18:50Z today); 46026's latest record carries waves only. Neither reports visibility, so visibility truth has to come from airport METAR. HRRR gusts were verified against ASOS with a simple gust parameterization ([Fovell 2022](https://consensus.app/papers/details/w:30280700-1c1a-47cc-b95d-f9a157860cf0/?utm_source=claude_code)) | Unknown. A new lane | 14 days, >= 30 coastal stations per variable. Gust: MAE and signed bias must beat raw GFS gust AND persistence. Visibility: CSI below 1 km must beat raw GFS. Negative: a 24 h time-shifted forecast must lose. Positive: a seeded bias is found. Separate station sets for gust (NDBC/C-MAN with GST, ASOS) and visibility (coastal ASOS/METAR) | gusts/currents (`local_7f199b18`) | Yes (new numbers) |
+
+**Dropped or held, with the reason from our records.**
+- Linear MOS: significantly worse than served at 48 and 72 h (-0.012, -0.019 m).
+- Exposure sweep for 46267: ranks 46267 above six of the seven real spots; the named exclusion (#852) already holds that gain.
+- Hawaii downscale: held until the shore-split read on 2026-11-27, so the same buoys are not spent twice.
+- AIFS as the EURO source: shadow only. Consensus papers disagree on wind (Kocsis 2026, per #912).
+- Changing the rating's wind input: the v2 wind-forcing test found no case (board 02:54Z).
+- Dynamic weighting: only after item 1, and only with a local test (SubQ 0.003 for adopting without one, #912 §19.3).
+- Machine-learned post-processing: deferred (SubQ 0.996, 11-13).
+- Pump backoff (#890) and the JSON series decode worker (#921): merged. Instanced particles: failed their gate (#876).
+
+## Cross-checks, per item
+
+SubQ `subq_decide` (subq-snap-1.1, one call, the table above as text). Reflection (Beam-1.0, effort high, one call, the
+same text). LongCat: not run. No item in this pass is code or a prototype. Context7: not run. No item rests on a library
+API claim. The MapLibre custom-layer claim in #912 §19.1 was already checked there. Science: Consensus, 3 searches
+(frame interpolation, video breaker height, gust verification). Data: ndbc 3 calls (46026, 41009, 46267 metadata), ww3 1
+call (timed out). erddap and coops: not needed for this pass.
+
+| # | SubQ: gate can fail | SubQ: other | Reflection | Change made |
+|---|---|---|---|---|
+| 1 | 0.988 | gain honest 0.996; rank first 0.947 | AGREE WITH CHANGE: the member-mean gate becomes circular once the fix lands | Gate rewritten against buoys and the best member |
+| 2 | 0.991 | | AGREE WITH CHANGE: audit the hole-buoy jump for a defect | Audit added |
+| 3 | 0.992 | gain supported **0.22** | AGREE | Gain stated as a range, 0 to -60% |
+| 4 | 0.999 | | AGREE; keep an absolute never-shown cap | Already in; kept |
+| 5 | 0.992 | same-grid default-on now **0.42** | AGREE WITH CHANGE: add a blinded visual check before default-on | No default-on until the same-grid gate passes. Panel question: see below |
+| 6 | 0.994 | | Drop unless separate from #921 | Kept: the source shows a separate cost (correction 3) |
+| 7 | 0.992 | | AGREE | none |
+| 8 | 0.997 | | AGREE WITH CHANGE: exclude 46267 from the fit too | Read the existing hole-free copy; confirm the fit exclusion |
+| 9 | not asked | | AGREE WITH CHANGE: MOP is a comparator, not truth; small-wave loss may be a build defect | Audit added; MOP called a comparator |
+| 10 | 0.997 | | AGREE WITH CHANGE: separate station sets | Already separate; kept |
+| plan | quality score 2.83 of 3 | | Order: 1, 7, 2, 4, 6(blend), 10, 3, 9, 8; drop water decode | See "order" below |
+
+**Order.** The two reviewers differ on items 3, 6 and 7. I keep the table's order for assignment, because items 3, 4
+and 6 belong to one lane (Move 3) that is already running, and their gates are cheap and offline. Reflection's order
+is the right one for accuracy lanes: 1, then 7, then 2. That matches the table for the accuracy-only items (1, 2, 7, 8).
+SubQ is generous: 9 of 9 gates scored >= 0.988. Its two low scores (items 3 and 5) are the ones I acted on.
+
+## Owner questions, answered from evidence (for the director to put to David)
+
+1. **Perception check before the cross-fade goes default-on.** The reviewers split. SubQ prefers the objective gate
+   with a kill switch, and a human A/B after shipping (0.998). Reflection wants a small blinded visual check before
+   default-on. LongCat (#912 §19.3) asked for a proxy before default-on. **Recommendation:** no recruited panel. The
+   objective hidden-frame and ghosting gate (item 5) is required before default-on. Add one blinded look: the director
+   and David each view 10 same-grid step pairs (hard cut vs cross-fade, order randomized) before the flip, which takes
+   about 5 minutes. This keeps David's ON decision and D-065, and costs no panel. Not a served number.
+2. **Ground truth for nearshore height and rating quality.** Both reviewers and SubQ (0.997) agree: nearshore buoys are
+   the primary truth, validated video breaker height at 2-3 sites is a supplement, and CDIP MOP is a comparator only.
+   Surfer logs alone: no. Candidate sites (to be confirmed by the helper's legwork, asked 19:40Z): USACE FRF Duck NC
+   (pier gauges and Argus cameras), USGS CoastCam sites, and CDIP nearshore buoys within 2 km of a catalogue spot.
+3. **Gust and visibility station sets.** Gust: NDBC/C-MAN stations whose records carry GST (41009 confirmed today;
+   46026 did not carry it) plus coastal ASOS. Visibility: coastal ASOS/METAR only (SubQ 0.999; buoys do not report it).
+   The two sets do not need to overlap. The named list is the helper's ASK 1 (pending).
+
+## Briefs sent to the director
+
+Sent at about 20:35Z by SendMessage to the director (`local_d6b521eb`): ten briefs, one per row above, with lane, gate,
+negative and positive control and the served flag; the four corrections; and the three owner answers as one question
+for David. The director assigns. This session directed no lane.
+
+| Brief | To lane (proposed) | Needs David? |
+|---|---|---|
+| 1 blend missing-member fix (shadow) | repair lead | No (shadow) |
+| 2 monitor split (D-072) | verifier | Yes: D-072 is proposed |
+| 3 scrub re-render | Move 3 | No |
+| 4 z7 misses + coarse-to-fine wait | Move 3 | No |
+| 5 same-grid cross-fade | animation | Blinded look before default-on |
+| 6 water raster decode worker | Move 3 | No |
+| 7 nearshore truth | repair lead + helper | No (measurement) |
+| 8 bias correction, hole-free read | Move 4 | Yes before any serve |
+| 9 rating quality truth | research lead + helper, then repair lead | No until a gate passes |
+| 10 gust + visibility lanes | gusts/currents | Yes (new served numbers) |
+
+Helper legwork asked 19:40Z (`local_80e6193e`): ASK 1 gust/visibility stations near 11 US spots; ASK 2 public surf-zone
+camera and nearshore-buoy sites. Results go to the shared notes folder as `researcher-legwork-2026-11-15.md`.
+
+## Limits
+
+- Nothing was measured today except three buoy reads. Every other number is quoted from the logs and rows named in
+  each row.
+- SubQ and Reflection saw the plan text only: no rows, no code, no secret.
+- The helper's two legwork asks (station sets, camera sites) had not returned at writing.
+- One OVERDUE commitment in the audit (HRRR wind lane re-grade, due 11-14) is not this lane's; noted for the director.
+
+Nothing here changes a served number. Nothing was merged.
