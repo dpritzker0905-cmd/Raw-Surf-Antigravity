@@ -267,7 +267,7 @@ _RATING_FLAGS = {"SAMPLER_UNRESOLVED_STATIONS": ("1", "[D-065 GUARDED, ON, guard
                                          "breaking cap — binds only where a shallow break meets surf "
                                          "big enough to feel bottom", "Render env"),
     "TIDE_HARMONIC":               ("1", "[11-15 ON] NOAA CO-OPS harmonic tide within 10 km, shape-guarded (bucket); else the model", "Render env"),
-    "TIDE_SURGE_RESIDUAL":         ("0", "[11-15 HELD OFF by G10] eta = tide + model surge residual (owner option B)", "Render env"),
+    "TIDE_SURGE_RESIDUAL":         ("1", "[11-15 ON, held-out 0.132 vs 0.147 m] eta = NOAA tide + model surge (option B)", "Render env"),
     "TIDE_LOCAL_DATUM":            ("1", "[11-15 ON; guardrail BLIND] tide minus the model's 1-year mean per cell (held-out 0.414 -> 0.177 m)",
                                          "Render env"),
     "SURF_RATING":                 ("1", "Rating overlay (vs raw surf-height band) on surf=1 grids", "Render env"),

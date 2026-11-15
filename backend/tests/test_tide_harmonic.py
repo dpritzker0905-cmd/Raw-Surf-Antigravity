@@ -14,6 +14,7 @@ import pytest
 
 from services.weather_pipeline import tide as T
 from services.weather_pipeline import tide_harmonic as H
+from services.weather_pipeline import tide_datum as D
 
 T0 = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)   # file starts yesterday
 NOW_DAY = T0 + timedelta(days=1)
@@ -38,7 +39,7 @@ def model_series(surge=0.0, offset=0.54, tidal_err=0.03):
     """tide.py's local-datum model output: raw = harmonic + offset + surge + a small tidal-band error."""
     times = [NOW_DAY + timedelta(hours=h) for h in range(72)]
     raw = [harm_at(t) + offset + surge + tidal_err * math.sin(2 * math.pi * h / 12.42 + 1.0) for h, t in enumerate(times)]
-    out = T.to_local_datum({"time": [t.strftime("%Y-%m-%dT%H:%M") for t in times], "level": raw})
+    out = T.to_local_datum({"time": [t.strftime("%Y-%m-%dT%H:%M") for t in times], "level": raw}, offset)
     return out
 
 
@@ -46,10 +47,15 @@ def model_series(surge=0.0, offset=0.54, tidal_err=0.03):
 def _clean(monkeypatch):
     monkeypatch.delenv("TIDE_HARMONIC", raising=False)
     monkeypatch.delenv("TIDE_LOCAL_DATUM", raising=False)
-    monkeypatch.setenv("TIDE_SURGE_RESIDUAL", "1")       # the surge tests exercise option B; its default is pinned below
+    monkeypatch.delenv("TIDE_SURGE_RESIDUAL", raising=False)
+
+    async def table():
+        return {"cells": {"21.3,-157.9": {"mean_m": 0.54}}}            # the cell's 1-year model mean (tide_datum)
+    D._reset_for_tests(table)
     H._reset_for_tests()
     yield
     H._reset_for_tests()
+    D._reset_for_tests()
 
 
 def _inject(index_stations=None, doc=None, fail=False):
@@ -88,12 +94,17 @@ def test_no_offset_no_residual():
     assert H.lowpass_residual(times, {t: 1.0 for t in times}, {t: 0.0 for t in times}, None) == {}
 
 
-def test_surge_is_held_off_by_default_so_eta_is_the_official_tide(monkeypatch):
-    monkeypatch.delenv("TIDE_SURGE_RESIDUAL", raising=False)
+def test_surge_ships_on_and_needs_the_one_year_datum(monkeypatch):
     from services import runtime_flags as rf
-    assert rf.GUARDED["TIDE_SURGE_RESIDUAL"] == "0" and rf.GUARDED["TIDE_HARMONIC"] == "1"
-    out = H.combine(model_series(surge=0.4), station_doc(), dict(STATION, distance_km=2.0))
-    assert out["water_level"] == out["level"] and out["surge_hours"] == 0
+    assert rf.GUARDED["TIDE_SURGE_RESIDUAL"] == "1" and rf.GUARDED["TIDE_HARMONIC"] == "1"
+    raw = model_series(surge=0.4)
+    no_datum = {"time": raw["time"], "level": [v + raw["datum_offset_m"] for v in raw["level"]], "datum": "model_msl",
+                "datum_offset_m": None}
+    out = H.combine(no_datum, station_doc(), dict(STATION, distance_km=2.0))
+    assert out["water_level"] == out["level"] and out["surge_hours"] == 0     # never the failed 14-day variant
+    monkeypatch.setenv("TIDE_SURGE_RESIDUAL", "0")
+    out = H.combine(raw, station_doc(), dict(STATION, distance_km=2.0))
+    assert out["water_level"] == out["level"]                                  # kill: eta = the official tide
 
 
 def test_combine_serves_the_prediction_and_adds_surge_only_to_water_level():

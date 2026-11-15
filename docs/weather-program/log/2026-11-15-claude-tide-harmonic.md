@@ -78,3 +78,12 @@ predictions); model minus its 1-year mean (what #926 serves); **B** = harmonic +
   Pensacola) B's 4-week median is not worse than the harmonic alone by more than 0.05 m;
 - **B3** on surge hours (|observed - predicted, 25 h low-pass| > 0.15 m), B's median RMSE below the harmonic alone's.
 All three pass -> TIDE_SURGE_RESIDUAL default '1' in this PR. Otherwise it stays '0' and the result is recorded.
+
+## Option B held-out result (run as registered above; notes `harmonic-heldout-B.json`)
+103 station-weeks (Anchorage 2026-03-15: 18 observed hours, excluded). Median RMSE vs OBSERVED water: harmonic alone
+0.147, model minus its 1-year mean 0.177, **B 0.132 m**. **B1 PASS** (below both). **B2 PASS**: Southeast/Gulf 4-week
+median B minus harmonic: Charleston +0.002, Clearwater -0.037, Wrightsville +0.014, Virginia Key -0.028, Pensacola
+-0.014, Fernandina 0.000, Lake Worth -0.031 m (all <= 0.05). **B3 PASS**: surge hours (72 station-weeks) B 0.147 vs
+harmonic 0.211. => **TIDE_SURGE_RESIDUAL ships ON** (the owner's option B). The surge term applies only where the cell
+has its 1-year datum (the tested variant); without one, eta is the NOAA tide (the 14-day variant that failed G10 is
+never used). Kill '0'. Tests: `test_tide_harmonic.py` 20.

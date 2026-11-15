@@ -46,8 +46,8 @@ GUARDED = {
     "SURF_TIDE_DEPTH": "1",             # D-065: not worse (inert in the 10-day replay window), ON
     "TIDE_HARMONIC": "1",               # 2026-11-15: NOAA CO-OPS harmonic tide within 10 km (gate G3; advisor: wider not
                                         # supported), shape-guarded, stale -> model; else the model. Kill '0'
-    "TIDE_SURGE_RESIDUAL": "0",         # 2026-11-15 owner option B (eta = tide + model surge): HELD OFF by gate G10, median
-                                        # RMSE vs observed 0.284 m vs the tide alone 0.248 (won NE surge, lost SE)
+    "TIDE_SURGE_RESIDUAL": "1",         # 2026-11-15 owner option B, eta = NOAA tide + model surge (1-year offset): held-out
+                                        # vs observed 0.132 m vs the tide alone 0.147 (26 stations x 4 weeks). Kill '0'
     "TIDE_LOCAL_DATUM": "1",            # 2026-11-15: tide minus the model's own 1-year mean per cell (tide_datum.py): held-out vs
                                         # OBSERVED water, 26 stations x 4 weeks, median 0.414 -> 0.177 m, West Coast <= +0.015 m
                                         # vs raw. (The 72 h de-mean tried first was rejected: removed real water.) Kill '0'

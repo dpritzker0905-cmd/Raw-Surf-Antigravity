@@ -60,11 +60,11 @@ def harmonic_on() -> bool:
 
 
 def surge_on() -> bool:
-    """TIDE_SURGE_RESIDUAL (owner's eta option B), HELD OFF by its own pre-registered gate G10 (2026-11-15): against CO-OPS
-    observed water level, 20 stations x 7 days, tide + residual 0.284 m median RMSE vs the tide alone 0.248 m (it won
-    big where a real surge ran, Sandy Hook 0.350 -> 0.126 m, and lost in the Southeast, Charleston 0.106 -> 0.351 m).
-    OFF: water_level = level (eta = the official tide, itself better than the model's 0.354 m)."""
-    return _rf is not None and _rf.flag("TIDE_SURGE_RESIDUAL") == "1"
+    """TIDE_SURGE_RESIDUAL (owner's eta option B: tide + the model's surge), ON since 2026-11-15. History: with a 14-day
+    offset it FAILED G10 (0.284 m vs the tide alone 0.248); with the model's 1-year mean as the offset it PASSED a
+    pre-registered held-out test vs OBSERVED water, 26 stations x 4 weeks: B 0.132, tide alone 0.147, model 0.177 m;
+    every Southeast station within +0.014 m of the tide alone; surge hours 0.147 vs 0.211. Kill '0' (eta = the tide)."""
+    return _rf is None or _rf.flag("TIDE_SURGE_RESIDUAL") != "0"
 
 
 def km(lat1, lng1, lat2, lng2) -> float:
@@ -171,10 +171,11 @@ def combine(model: Optional[dict], doc: dict, station: dict, now: Optional[datet
     shape = shape_agrees(harm, model_raw)
     if shape is not None and not shape["ok"]:
         return None                                   # the station's water is not this cell's (e.g. a bay vs an outer coast)
-    # The model's permanent offset: its own 1-year mean at the cell when the door applied it (TIDE_LOCAL_DATUM,
-    # tide_datum.py; keeps a season-long anomaly, advisor #931 point 6), else the CI's 14-day offset vs the predictions.
-    off_resid = model.get("datum_offset_m") if model and model.get("datum") == "local_msl_1y" else doc.get("model_offset_m")
-    resid = lowpass_residual(parsed, model_raw, harm, off_resid) if surge_on() else {}
+    # The model's permanent offset = its own 1-year mean at the cell, as the door applied it (TIDE_LOCAL_DATUM). That is
+    # the variant the pre-registered held-out test passed (B 0.132 m vs the tide alone 0.147, 103 station-weeks); the
+    # 14-day offset absorbed season-long anomalies and FAILED (G10). No 1-year datum for the cell -> no surge term.
+    ok_datum = bool(model) and model.get("datum") == "local_msl_1y"
+    resid = lowpass_residual(parsed, model_raw, harm, model.get("datum_offset_m")) if (surge_on() and ok_datum) else {}
     water = [None if lv is None else round(lv + resid.get(t, 0.0), 4) for t, lv in zip(parsed, levels)]
     events = []
     for e in doc.get("events") or []:
