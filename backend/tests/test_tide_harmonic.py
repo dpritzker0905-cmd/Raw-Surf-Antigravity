@@ -113,8 +113,12 @@ def test_combine_serves_the_prediction_and_adds_surge_only_to_water_level():
     assert out["level"] == station_doc()["series"]["level"]                  # displayed = NOAA, untouched
     i = 24 + 36                                                              # NOW_DAY + 36 h: inside the model
     assert out["water_level"][i] == pytest.approx(out["level"][i] + 0.4, abs=0.02)
-    j = 24 * 10                                                              # day 10: past the model
-    assert out["water_level"][j] == out["level"][j]
+    j = 24 * 10                                                              # day 10: past the model's horizon
+    held = out["water_level"][j] - out["level"][j]
+    assert held == pytest.approx(0.4, abs=0.03)                              # the last residual is HELD, no +72 h step
+    k = 24 + 71                                                              # the last model hour vs the first one after
+    assert (out["water_level"][k + 2] - out["level"][k + 2]) == pytest.approx(out["water_level"][k] - out["level"][k], abs=0.03)
+    assert out["water_level"][0] == out["level"][0]                          # before the model's span: tide only
     assert out["events"][0]["type"] == "High" and out["events"][0]["level_m"] == 0.31
     assert len(out["time"]) == 16 * 24                                       # the full scrubber horizon and more
 
@@ -258,3 +262,12 @@ def test_g4_registered_no_noaa_host_on_the_real_http_path(monkeypatch):
     T._reset_tide_cache_for_test()
     assert any("storage.invalid" in u for u in seen), seen          # the bucket was asked (the real path ran)
     assert not any("tidesandcurrents" in u or "noaa.gov" in u for u in seen), seen
+
+
+def test_residual_is_held_past_the_horizon_and_zero_before_it():
+    t0 = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    resid = {t0 + timedelta(hours=h): 0.1 * h for h in range(5)}
+    assert H.residual_at(resid, t0 + timedelta(hours=2)) == pytest.approx(0.2)
+    assert H.residual_at(resid, t0 + timedelta(days=9)) == pytest.approx(0.4)      # held
+    assert H.residual_at(resid, t0 - timedelta(hours=3)) == 0.0
+    assert H.residual_at({}, t0) == 0.0

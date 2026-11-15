@@ -150,6 +150,20 @@ def covers(times, now: datetime, ahead_h: int = STALE_AHEAD_H) -> bool:
     return bool(parsed) and parsed[0] <= now and parsed[-1] >= now + timedelta(hours=ahead_h)
 
 
+def residual_at(resid: Dict[datetime, float], t: Optional[datetime]) -> float:
+    """PURE: the surge residual at t. Inside the model's span, its low-passed value; AFTER the span (the model's ~72 h
+    horizon) the LAST residual is HELD constant, so eta does not step at +72 h (advisor, #931: with this season's +0.4 m
+    on the US West Coast, dropping to the bare tide would cut the breaking-depth cap by ~0.4 m between +72 and +73 h).
+    Holding (not decaying) because most of what it carries past a few days is the slow seasonal anomaly. Before the
+    span (the past day): 0."""
+    if not resid or t is None:
+        return 0.0
+    if t in resid:
+        return resid[t]
+    last = max(resid)
+    return resid[last] if t > last else 0.0
+
+
 def combine(model: Optional[dict], doc: dict, station: dict, now: Optional[datetime] = None) -> Optional[dict]:
     """PURE: the served series for a harmonic point. `model` is tide.py's local-datum model series (or None);
     `doc` the station object from the bucket. Shape = fetch_tide_hourly's, plus water_level, events, source, station."""
@@ -176,7 +190,7 @@ def combine(model: Optional[dict], doc: dict, station: dict, now: Optional[datet
     # 14-day offset absorbed season-long anomalies and FAILED (G10). No 1-year datum for the cell -> no surge term.
     ok_datum = bool(model) and model.get("datum") == "local_msl_1y"
     resid = lowpass_residual(parsed, model_raw, harm, model.get("datum_offset_m")) if (surge_on() and ok_datum) else {}
-    water = [None if lv is None else round(lv + resid.get(t, 0.0), 4) for t, lv in zip(parsed, levels)]
+    water = [None if lv is None else round(lv + residual_at(resid, t), 4) for t, lv in zip(parsed, levels)]
     events = []
     for e in doc.get("events") or []:
         dt = _parse(e.get("time"))

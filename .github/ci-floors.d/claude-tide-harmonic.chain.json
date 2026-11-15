@@ -4,5 +4,5 @@
   "files": 0,
   "branch": "claude/tide-harmonic",
   "date": "2026-11-15",
-  "note": "TIDE_HARMONIC: radius, surge G9 x3, shape guard x2, stale, served shape, door, eta, fallbacks, kill, G4 x2, point-tide, ingest"
+  "note": "TIDE_HARMONIC: radius, surge G9 x3, shape guard x2, stale, served shape + hold, residual_at, door, eta, fallbacks, kill, G4 x2, point-tide, ingest"
 }

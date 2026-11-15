@@ -87,3 +87,21 @@ median B minus harmonic: Charleston +0.002, Clearwater -0.037, Wrightsville +0.0
 harmonic 0.211. => **TIDE_SURGE_RESIDUAL ships ON** (the owner's option B). The surge term applies only where the cell
 has its 1-year datum (the tested variant); without one, eta is the NOAA tide (the 14-day variant that failed G10 is
 never used). Kill '0'. Tests: `test_tide_harmonic.py` 20.
+
+## Advisor re-check (2026-11-15 ~23:40Z, notes `redteam-926-931-923-recheck-2026-11-15.md`): responses
+- **DEFECT fixed - the surge term ended at the model's ~72 h horizon** (water_level fell back to the bare tide), so with
+  this season's +0.4 m on the US West Coast eta would drop ~0.4 m between +72 and +73 h and the breaking-depth cap would
+  step in every forecast. Now `residual_at` HOLDS the last low-passed residual past the model's span (constant, no
+  decay: past a few days most of what it carries is the slow seasonal anomaly); before the span (the past day) it is 0.
+  Tests: held value at day 10, no step across +72 h, zero before the span (mutation: no hold -> 2 red).
+- **G2 re-run of the transient:** Virginia Key now exact (0.000 m, 0 min, 65 events, 408 h). So **19/20 exact + 1
+  refused by the shape guard (Pensacola), by design**: against the registered ">= 20" the honest reading is 19 served
+  exactly and one deliberately not served.
+- **The shape guard's thresholds (r >= 0.8, sd ratio 0.6-1.6, lag <= 1 h) were chosen AFTER Pensacola (r 0.645) was
+  seen.** They are not pre-registered; they are a conservative serve-or-fall-back rule whose fallback is the model.
+- **The held-out B test used the archive (a hindcast).** In production the surge at +24..+72 h is a FORECAST and B's
+  median edge was 0.015 m. OWED (not blocking): a dispatch-only shadow read, two weeks, of served eta at NOAA points
+  against OBSERVED water by lead (0-24 / 24-48 / 48-72 / 72+ h held), since the guardrail is BLIND to it. Design: a
+  daily CI job records, per station, the production combine's water_level for the next 72 h from the bucket documents
+  and the live model forecast (no Render call); a scoring step after 14 days compares each lead with CO-OPS
+  water_level. Pass line to write before scoring: B not worse than the tide alone at any lead bucket by > 0.02 m.
