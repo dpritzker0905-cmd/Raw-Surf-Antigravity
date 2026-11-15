@@ -84,3 +84,30 @@ the common case at close zoom. So the design is LAZY:
 - **Secondary, reported but not gating:** long tasks (> 50 ms) that overlap a series page's arrival, per arm.
 
 Gates 2-4 are unchanged.
+
+## 15:31Z: results, gates 1 and 2 (build cddf778ea; offline; host audit "ok" on every session)
+
+**Gate 1 (as amended): PASS at both zooms.**
+- Setup: `scn_series_decode.js`, phone 390x844 @3x, 4x CPU, GFS waves, 5 fresh sessions per arm per zoom, alternating order.
+- Metric: decode-path main-thread ms per session (cold load, the pages landing, a 10-step scrub).
+
+| zoom | worker, median (runs) | kill, median (runs) | ratio | pass at 0.5x |
+|---|---|---|---|---|
+| z2 | 83.7 ms (142, 86, 68, 75, 84) | 322.7 ms (565, 455, 323, 320, 220) | 0.26 | yes |
+| z6 | 82.3 ms (57, 98, 102, 79, 82) | 213.7 ms (171, 433, 214, 253, 212) | 0.39 | yes |
+
+- Pages decoded: the worker arm decoded every page in the worker (z2 4, z6 8 per session; 0 on the main thread). The kill arm
+  decoded all of them on the main thread.
+- Secondary (not gating): long tasks within 1 s of a page arrival, median ms, worker vs kill: z2 58 vs 433; z6 60 vs 69.
+- Whole-session long-task totals were 6-42 s per session in BOTH arms. That confirms the amendment: the whole-session metric
+  could not have judged this change.
+
+**Gate 2: PASS where comparable.**
+- Jest, against recorded offline pages (world, regional, a swell_2 page with null periods): pack then rebuild equals
+  JSON.parse for every frame, by `JSON.stringify` (key order) and `Object.is` per cell. Edge values (-0, 1e-300, max double,
+  null vs absent) and the raw fallback are tested. Mutants: dropping the null branch fails 7.
+- In the app (`series-identity-probe.js`, desktop): every hour the engine drew FROM A SERIES FRAME in both arms was fingerprinted
+  (FNV-1a of the drawn waveGrid's vectors, cols, rows and bounds).
+  - z2: h3, h6 and h9 IDENTICAL across arms (3/3).
+  - z6: no hour was series-drawn in both arms (the store or /grid drew the others), so z6 is INCONCLUSIVE, not a pass.
+  - z6, at fixed samples: hour 0 and hour 3 (both /grid-drawn) were identical across arms.
