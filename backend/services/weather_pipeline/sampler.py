@@ -590,7 +590,7 @@ class PointSampler:
             # within ~1.5 grid cells; deep-inland points (nearest ocean farther) stay unavailable.
             valid_vectors = self._valid_vectors(product)
             # A NAMED station the grid cannot represent (unresolved_stations, SAMPLER_UNRESOLVED_STATIONS): NDBC 46267
-            # in the Strait of Juan de Fuca read the open-Pacific cell 0.73 deg away, +1.5 m. Its answer is "no data".
+            # in the Strait of Juan de Fuca read the open-Pacific cell 0.96 deg away, +1.5 m. Its answer is "no data".
             # Only here, where no bracketing corner is wet; every other point takes the unchanged fallback below.
             if valid_vectors and product.domain.lower() == "marine":
                 from services.weather_pipeline import unresolved_stations as _us
