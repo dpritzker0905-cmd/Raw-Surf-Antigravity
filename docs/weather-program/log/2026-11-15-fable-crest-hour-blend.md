@@ -477,3 +477,22 @@ Of 17 candidate views 16 were skipped by the registered rule: with the kill set,
 the 8 hours and the 181 x 83 grid at others. The one view used gave 2 triples (53% and 49% of the cut). The same views held
 one grid through section 14's run an hour earlier, so which grid is at rest 600 ms after a step differs from run to run in
 this harness. A same-grid H8 cannot be made to hold still here; no weight is put on this run, as the advisor said beforehand.
+
+## 19. The advisor on section 18 (12:41 EST), and what is added. H8c (section 16.1) had been running since 12:31 when this arrived.
+1. **The skipped views of section 15's run, as owed** (layer@lng,lat,zoom: the grids seen at rest over the 8 hours):
+   waves@-140,20,z3:46x21/181x83; waves@20,-40,z3.5:46x21/181x83; waves@150,-20,z3:46x21/181x83; waves@-100,-30,z2.5:46x21/181x83; swell_1@-60,30,z3.5:181x83/46x21; swell_1@-150,35,z3:181x83/46x21; swell_1@60,-30,z3.5:181x83/46x21; swell_1@-20,-20,z2.5:181x83/46x21; swell_2@-30,0,z3:46x21/181x83; swell_2@115,-10,z2.5:46x21/181x83; swell_2@-150,0,z2.5:46x21/181x83; swell_2@60,10,z2.5:46x21/181x83; wind_waves@-5,50,z2.5:181x83/46x21; wind_waves@-140,40,z2.5:181x83/46x21; wind_waves@80,-30,z2.5:181x83/46x21; wind_waves@-30,20,z3:181x83/46x21.
+2. **Stated plainly: H8 has been void three times** (22, 27 and 2 triples against 30). The claim that the blend is right on
+   same-grid steps rests on the exact reference (section 14, low zoom) and the forced H9, NOT on H8. The 46-47% readings come
+   from void runs.
+3. **Which grid is at rest 600 ms after a step differs from run to run on the same views.** Whether this is the harness (settle
+   time, the mock backend's latency) or the engine is NOT known. If the engine does it in the app, a user sees the grid change
+   at rest, which would be a defect of its own and not the blend's. It is owed an answer and is listed as a follow-up.
+   Registered for a REPEAT of H8c (the run in progress cannot be changed and is scored as section 16.1 registered it): the real
+   h+3 picture is taken twice per triple, before and after the held picture; their difference is the noise floor, reported with
+   the grid each used; a triple whose two truth pictures differ by more than the gap between the cut's and the blend's errors is
+   listed and not scored.
+4. **Reading rule for H8c, fixed before its result is opened:** the pooled result is also reported split into triples with the
+   same grid on all three real pictures and triples with mixed grids (the scorer committed in `1c1a13f28`, before the run,
+   prints this split). A pass that comes only from the mixed-grid triples is not a pass: both parts must be at most 60%.
+Standing, as the advisor has it: not ready for default ON. Owed: H8c, the coastal reference retake, the grey-view H9 with the
+two-axis control, H8 on real frames, water-only weighting.
