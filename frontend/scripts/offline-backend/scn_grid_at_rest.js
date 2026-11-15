@@ -15,7 +15,7 @@ const PICK = process.env.VIEWS ? process.env.VIEWS.split(',').map(Number) : VIEW
   const rr = new RR(process.env.RR_DIR, { mode: process.env.RR_MODE || 'auto' });
   const { browser, page } = await L.launch({ port: +(process.env.PORT || 4201), width: 1280, height: 800, dpr: 1 });
   await rr.install(page);
-  await page.addInitScript(() => { try { localStorage.setItem('raw-surf-theme', 'dark'); } catch (e) { /* private mode */ } window.__RAW_STATIC_FRAMES_BASE__ = 'http://127.0.0.1:4293/'; window.__RAW_DISABLE_CREST_HOUR_BLEND__ = true; });
+  await page.addInitScript(() => { try { localStorage.setItem('raw-surf-theme', 'dark'); } catch (e) { /* private mode */ } window.__RAW_ENABLE_HOUR_BLEND__ = true; /* opt-in: the lab loads the blended shader */ window.__RAW_STATIC_FRAMES_BASE__ = 'http://127.0.0.1:4293/'; window.__RAW_DISABLE_CREST_HOUR_BLEND__ = true; });
   const reqs = []; const t0 = Date.now();
   page.on('request', (r) => { const u = r.url(); if (/\/api\/weather\/(grid|grid_series|point|capabilities)/.test(u)) r.__t = Date.now(); });
   page.on('requestfinished', (r) => { const u = r.url(); if (r.__t && /\/api\/weather\/(grid|grid_series)/.test(u)) {

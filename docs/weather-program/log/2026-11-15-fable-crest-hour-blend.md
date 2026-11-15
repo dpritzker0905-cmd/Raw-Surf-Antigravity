@@ -853,3 +853,31 @@ one picture over the colour line, and the owner seeing blend and cut moving side
   when run alone, three times of three (72 tests), on a machine running several hundred other processes. Hosted CI decides.
 - Lint ratchet: passes. File-size check: 0 violations.
 - NOT done: light and beach themes, the phone layout, the LongCat review, anything on a real device or the deployed site.
+
+## 33. The owner's decision, and the blend made OPT-IN (18:05 EST). No new measurement in this section.
+**The owner (relayed by the director, 16:14 EST):** "The hour blend is ONE behaviour everywhere, and it stays OFF until both of
+these are done": (1) a hidden-hour test on REAL forecast frames from the public CDN, replayed offline: the blend's error
+against the real frame at most the hard swap's, ghosting no worse; negative control, a corrupted middle frame must fail;
+positive control, identical neighbours give zero error; (2) a blinded 5-minute look by the owner, 10 randomized pairs of hard
+cut against cross-fade. The director: this PR must not turn the blend on by merging; a string-identity test against the gate
+build's shader and a self-mix re-check before any merge; light, beach and phone; the real-frame run held to a quiet window.
+- **Now OFF by default.** The blend runs only with `window.__RAW_ENABLE_HOUR_BLEND__ === true` set before the app loads (the
+  same name as the wind blend: one behaviour). Unset, `withHourBlend` returns the colour shader as it came (the same string),
+  `crestBlendMs()` is 0, no texture is copied or kept, and setting the opt-in later in the console starts nothing (the shader
+  text was not loaded). The kill `__RAW_DISABLE_CREST_HOUR_BLEND__` stays and wins. **Merging this PR turns nothing on.**
+- **Gate identity, closed.** Today's composed shader against the gate build's (`1c1a13f28`, its `WebGLMarineShaders.js` loaded
+  and composed the same way in Jest): 733 lines each, two lines differed, both comments ("field" for "hour"). The two words
+  are restored. The enabled shader is now the gate build's string for string: length 46,424, sha256 `d9336568...fb915`, pinned
+  in `marineHourBlend.test.js` ("GATE IDENTITY"). So the shader the gate measured is the shader that ships under the opt-in.
+  The ENGINE-side edits made after the gate runs (hooks, uniform setter) are not covered by this pin: the self-mix re-check
+  on this build is still owed and is not run here (a browser job; the machine is being kept quiet for another lane).
+- Tests: `marineHourBlend.test.js` 55 (floor fragment now +55 tests, +1 suite). With the two shader-pin suites and the
+  kill-switch inventory: 4 suites, 91 tests pass. Lint ratchet passes. The whole trees are NOT re-run on this commit (owed).
+- The lab instruments set the opt-in in their init script; both arms load the blended shader and arm A is the kill at run
+  time, as in every gate run so far (the gate build had the text in the shader unconditionally).
+- A device note: the blend uses fragment texture unit 7; WebGL guarantees 8 fragment units, so no limit check is needed for
+  the colour shader. A driver that refuses the blended shader fails the engine's init as any shader error does; with the
+  blend off by default no user is exposed to that. A fall-back to the bare shader is owed before the default flips.
+- Still owed before the default may flip: the self-mix re-check on this build; light and beach themes and the phone layout;
+  the real-frame hidden-hour test with its two controls; the owner's blinded look; the whole-tree run on `dev` for the two
+  frame-store timeouts; the colour-band-edge check; water-only weighting; the LongCat review.

@@ -9,7 +9,11 @@
  * metres, period) and colours the result as before. At rest exactly one served field is drawn and the shader does not read
  * the earlier one. Display only: no byte of any frame changes and no served number is touched.
  *
- * No blend (the hard swap, as before) when: the kill is set; the visitor prefers reduced motion; the model or the layer
+ * OFF BY DEFAULT (the owner, 2026-11-15: "it stays OFF until" the hidden-hour test on real frames and his blinded look are
+ * done). It runs only with window.__RAW_ENABLE_HOUR_BLEND__ === true set BEFORE the app loads (the shader text is added at
+ * load: marineHourBlendGLSL.js). One opt-in name for the marine and the wind blend: one behaviour. Merging turns nothing on.
+ *
+ * No blend (the hard swap, as before) when: the opt-in is not set; the kill is set; the visitor prefers reduced motion; the model or the layer
  * changes; ratings are drawn (the score texture is not blended); the scrub shows a frame whose land / no-data mask differs
  * (its exact-mask path); the same hour is committed again on the same grid.
  *
@@ -26,6 +30,7 @@ import { safeDeleteTexture } from './WebGLWindUtils';
 import { heightScaleOf } from './marineHeightEncoding';
 import { gridPointReg } from './gridPointRegistration';
 import { resolveLandAwareFetch } from './marineLandAwareFetch';
+import { hourBlendEnabled, hourBlendShaderLoaded } from './marineHourBlendGLSL';
 
 export const CREST_BLEND_MS = 160;   // the same as the own-frame rasters (ownRasterLayer BLEND_MS): every layer steps alike
 export const HOUR_BLEND_UNIT = 7;    // the colour program's texture unit for the earlier field (0-4 are in use there)
@@ -35,7 +40,7 @@ const nowMs = () => (typeof performance !== 'undefined' && performance.now ? per
 
 /** The blend's duration in ms; 0 = no blend. */
 export function crestBlendMs(w = W()) {
-  if (!w || w.__RAW_DISABLE_CREST_HOUR_BLEND__ === true) return 0;
+  if (!hourBlendEnabled(w) || !hourBlendShaderLoaded()) return 0;   // opt-in, and only with the blend's shader text loaded
   try { if (w.matchMedia && w.matchMedia('(prefers-reduced-motion: reduce)').matches) return 0; } catch (e) { /* no matchMedia */ }
   const o = Number(w.__RAW_CREST_BLEND_MS__);
   return w.__RAW_CREST_BLEND_MS__ != null && Number.isFinite(o) && o >= 0 ? o : CREST_BLEND_MS;

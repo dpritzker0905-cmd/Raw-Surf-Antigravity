@@ -188,7 +188,7 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
   const rr = new RR(process.env.RR_DIR, { mode: process.env.RR_MODE || 'auto' });
   const { browser, page } = await L.launch({ port: +(process.env.PORT || 4201), width: 1280, height: 800, dpr: 1 });
   await rr.install(page); await page.addInitScript(SPY);
-  await page.addInitScript((theme) => { try { localStorage.setItem('raw-surf-theme', theme); } catch (e) { /* private mode */ } window.__RAW_STATIC_FRAMES_BASE__ = 'http://127.0.0.1:4293/'; }, THEME);
+  await page.addInitScript((theme) => { try { localStorage.setItem('raw-surf-theme', theme); } catch (e) { /* private mode */ } window.__RAW_ENABLE_HOUR_BLEND__ = true; /* opt-in: the lab loads the blended shader */ window.__RAW_STATIC_FRAMES_BASE__ = 'http://127.0.0.1:4293/'; }, THEME);
   const errs = []; page.on('pageerror', (e) => errs.push(String(e).slice(0, 160).replace(/access_token=[^&\s"']+/g, 'access_token=REDACTED')));
   await L.openMap(page);
   const ev = (fn, arg) => page.evaluate(fn, arg);

@@ -1,7 +1,9 @@
+import './marineHourBlendOn.testsupport';   // the blend is opt-in: this file tests it enabled, and its off-by-default path by name
 /**
  * The hour blend of the marine colour field (marineHourBlend.js). Gate: docs/weather-program/log/2026-11-15-fable-crest-hour-blend.md.
  */
 import fs from 'fs';
+import { createHash } from 'crypto';
 import path from 'path';
 import {
   CREST_BLEND_MS, HOUR_BLEND_UNIT, beforeWaveOverwrite, beforeWaveRealloc, cancelHourBlend, crestBlendEase, crestBlendMs, disposeHourBlend,
@@ -41,11 +43,20 @@ const engineWith = (g = grid(), extra = {}) => { const tex = { id: 'resident' };
 
 beforeEach(() => {
   delete window.__RAW_DISABLE_CREST_HOUR_BLEND__; delete window.__RAW_CREST_BLEND_MS__; delete window.__RAW_CREST_BLEND_HOLD__; delete window.__RAW_CREST_HOUR_BLEND__;
-  window.matchMedia = undefined; createTexture.mockReset(); createTexture.mockImplementation(() => ({ id: 'prev' })); safeDeleteTexture.mockReset();   // CRA resets mocks between tests
+  window.__RAW_ENABLE_HOUR_BLEND__ = true; window.matchMedia = undefined; createTexture.mockReset(); createTexture.mockImplementation(() => ({ id: 'prev' })); safeDeleteTexture.mockReset();   // CRA resets mocks between tests
 });
 
 describe('crestBlendMs / crestBlendEase', () => {
-  test('160 ms by default, the same as the own-frame rasters', () => {
+  test('OFF BY DEFAULT: with the opt-in unset there is no blend, nothing is kept, and only the literal true opts in', () => {
+    delete window.__RAW_ENABLE_HOUR_BLEND__; expect(crestBlendMs()).toBe(0);
+    const { gl, calls } = fakeGl(); const e = engineWith();
+    expect(beforeWaveOverwrite(e, gl, next())).toBe(false); expect(beforeWaveRealloc(e, gl, next({ cols: 90 }))).toBe(false);
+    expect(e._hourPrev == null).toBe(true); expect(e._hourBlend == null).toBe(true); expect(calls).toEqual([]);
+    for (const v of [1, 'true', false, null]) { window.__RAW_ENABLE_HOUR_BLEND__ = v; expect(crestBlendMs()).toBe(0); }
+    window.__RAW_ENABLE_HOUR_BLEND__ = true; expect(crestBlendMs()).toBe(160);
+    window.__RAW_DISABLE_CREST_HOUR_BLEND__ = true; expect(crestBlendMs()).toBe(0);   // the kill wins over the opt-in
+  });
+  test('160 ms when enabled, the same as the own-frame rasters', () => {
     expect(CREST_BLEND_MS).toBe(160); expect(crestBlendMs()).toBe(160);
     expect(read('ownRasterLayer.js')).toMatch(/export const BLEND_MS = 160;/);
   });
@@ -295,19 +306,39 @@ describe('beforeWaveRealloc (v2): a grid of another size is KEPT, not freed, and
 
 describe('withHourBlend: the shader text is a wrapper, and the kill at load takes all of it away', () => {
   const { withHourBlend } = require('./marineHourBlendGLSL');
-  const BARE = (() => { let out; jest.isolateModules(() => { window.__RAW_DISABLE_CREST_HOUR_BLEND__ = true; try { out = require('./WebGLMarineShaders').HEATMAP_FS; } finally { delete window.__RAW_DISABLE_CREST_HOUR_BLEND__; } }); return out; })();
-  test('OFF PATH: with the kill set before the shaders load, the colour shader has none of the blend', () => {
+  const ON = { __RAW_ENABLE_HOUR_BLEND__: true };
+  const loadFresh = (set) => { let out; const keep = window.__RAW_ENABLE_HOUR_BLEND__; jest.isolateModules(() => { set(); try { out = { fs: require('./WebGLMarineShaders').HEATMAP_FS, loaded: require('./marineHourBlendGLSL').hourBlendShaderLoaded(), ms: require('./marineHourBlend').crestBlendMs } ; } finally { delete window.__RAW_DISABLE_CREST_HOUR_BLEND__; window.__RAW_ENABLE_HOUR_BLEND__ = keep; } }); return out; };
+  const DEFAULT = loadFresh(() => { delete window.__RAW_ENABLE_HOUR_BLEND__; });
+  const BARE = DEFAULT.fs;
+  test('OFF BY DEFAULT: loaded with nothing set, the colour shader has none of the blend and no blend can start, even if the opt-in is set later', () => {
+    expect(DEFAULT.loaded).toBe(false);
+    expect(DEFAULT.ms()).toBe(0);   // window has the opt-in again here (beforeEach), but the shader text was not loaded
+  });
+  test('the kill set before load, with the opt-in, gives the same bare shader', () => {
+    const killed = loadFresh(() => { window.__RAW_ENABLE_HOUR_BLEND__ = true; window.__RAW_DISABLE_CREST_HOUR_BLEND__ = true; });
+    expect(killed.fs).toBe(BARE); expect(killed.loaded).toBe(false);
+  });
+  test('GATE IDENTITY: the enabled shader is, string for string, the one the gate runs measured (build 1c1a13f28)', () => {
+    // The blend's lines were moved into the wrapper AFTER the gate runs. This pins the composed text to the gate build's
+    // HEATMAP_FS (sha256 and length taken from that commit's file, composed the same way). If an unrelated shader change moves
+    // this pin, the gate's self-mix check (log section 24) must be re-run on the new text before the pin is updated.
+    expect(HEATMAP_FS.length).toBe(46424);
+    expect(createHash('sha256').update(HEATMAP_FS).digest('hex')).toBe('d9336568d96ca424d0d8835febbfc23b33436f4e5a528a333c89d238686fb915');
+  });
+  test('OFF PATH: the bare shader has none of the blend', () => {
     expect(BARE).not.toMatch(/u_hourPrevMix|u_wavePrevTexture|sampleWavePrev|u_prevBounds|u_prev_reg|u_prevTexel|u_prevHeightRatio|'value' -> 6\.0/);
     expect(BARE.length).toBeLessThan(HEATMAP_FS.length);
   });
   test('the blend\'s shader is the bare shader plus the four insertions, and nothing else', () => {
-    expect(withHourBlend(BARE, {})).toBe(HEATMAP_FS);
-    expect(withHourBlend(BARE, { __RAW_DISABLE_CREST_HOUR_BLEND__: true })).toBe(BARE);
-    for (const v of [1, 'true', false, null]) expect(withHourBlend(BARE, { __RAW_DISABLE_CREST_HOUR_BLEND__: v })).toBe(HEATMAP_FS);
+    expect(withHourBlend(BARE, ON)).toBe(HEATMAP_FS);
+    expect(withHourBlend(BARE, {})).toBe(BARE);
+    expect(withHourBlend(BARE, { ...ON, __RAW_DISABLE_CREST_HOUR_BLEND__: true })).toBe(BARE);
+    for (const v of [1, 'true', false, null]) expect(withHourBlend(BARE, { ...ON, __RAW_DISABLE_CREST_HOUR_BLEND__: v })).toBe(HEATMAP_FS);
+    for (const v of [1, 'true', false, null]) expect(withHourBlend(BARE, { __RAW_ENABLE_HOUR_BLEND__: v })).toBe(BARE);
   });
   test('a shader that lost an anchor throws at load instead of drawing without the mix', () => {
-    expect(() => withHourBlend(BARE.replace('  vec4 waveData = sampleWaveLandAware(data_uv);\n', ''), {})).toThrow(/withHourBlend/);
-    expect(() => withHourBlend(BARE + BARE, {})).toThrow(/withHourBlend/);
+    expect(() => withHourBlend(BARE.replace('  vec4 waveData = sampleWaveLandAware(data_uv);\n', ''), ON)).toThrow(/withHourBlend/);
+    expect(() => withHourBlend(BARE + BARE, ON)).toThrow(/withHourBlend/);
   });
   test('the suites that pin an older shader stand the blend down first', () => {
     for (const f of ['marineWaveSpectrum.test.js', 'marineHeightEncoding.test.js']) expect(read(f).split('\n')[0]).toContain("import './marineHourBlendKill.testsupport';");

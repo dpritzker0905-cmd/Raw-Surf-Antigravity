@@ -1,8 +1,10 @@
 /**
- * THE HOUR BLEND's shader text (marineHourBlend.js), added to the marine colour shader as a wrapper so that with the kill set
- * BEFORE the shaders load the colour shader is returned as it came, byte for byte (the suites that pin an older shader import
- * marineHourBlendKill.testsupport first). Set later, in the console, the kill works through the uniform: u_hourPrevMix stays 0
- * and the earlier field is never read.
+ * THE HOUR BLEND's shader text (marineHourBlend.js), added to the marine colour shader as a wrapper.
+ * The blend is OFF BY DEFAULT (the owner, 2026-11-15: off until the real-frame hidden-hour test and his blinded look): the text
+ * is added only when window.__RAW_ENABLE_HOUR_BLEND__ === true BEFORE the shaders load and the kill is not set. Otherwise the
+ * colour shader is returned as it came, byte for byte, and marineHourBlend.js never starts a blend. With the text loaded, the
+ * kill set later in the console works through the uniform: u_hourPrevMix stays 0 and the earlier field is never read.
+ * The composed shader is pinned, string for string, to the one the gate runs measured (marineHourBlend.test.js).
  *
  * Four insertions, each on an anchor that must occur exactly once (a throw at module load otherwise, as withHeightScale does):
  *   1. the uniforms, after the wave texture's own
@@ -11,7 +13,7 @@
  *   4. the lab's 'value' debug view (window.__GPU_DEBUG__.mode = 'value'): the height byte as grey, no colour table
  */
 const UNIFORMS_AT = 'uniform sampler2D u_waveTexture;\n';
-const UNIFORMS = `uniform sampler2D u_wavePrevTexture; // THE HOUR BLEND (marineHourBlend.js): the field that was on screen before the step
+const UNIFORMS = `uniform sampler2D u_wavePrevTexture; // THE HOUR BLEND (marineHourBlend.js): the hour that was on screen before the step
 uniform float u_hourPrevMix;         // how much of it to draw: 1 at the step, 0 at rest (then it is not read)
 uniform highp vec2 u_prevBounds_min; // the earlier field's OWN bounds [west, south] / [east, north]: it may be another grid
 uniform highp vec2 u_prevBounds_max;
@@ -43,7 +45,7 @@ vec4 sampleWavePrev(GEO_P vec2 uv) {
 
 `;
 const MIX_AT = '  vec4 waveData = sampleWaveLandAware(data_uv);\n';
-const MIX = `  // THE HOUR BLEND: for a moment after a step, the VALUES of the earlier field and this one are mixed, then coloured below.
+const MIX = `  // THE HOUR BLEND: for a moment after a step, the VALUES of the earlier hour and this one are mixed, then coloured below.
   if (u_hourPrevMix > 0.0) {
     GEO_P float pu = u_prevBounds_min.x > u_prevBounds_max.x
       ? mod(lng - u_prevBounds_min.x, 360.0) / max((u_prevBounds_max.x + 360.0) - u_prevBounds_min.x, 0.0001)
@@ -64,9 +66,19 @@ const DEBUG = `  if (u_debug_mode > 0.5) {
     } else if (u_debug_mode < 1.5) { // 'uv' -> 1.0
 `;
 
-/** `src` (the marine colour shader) with the hour blend's text; under the kill at load, `src` as it came. */
+/** Is the hour blend asked for (the opt-in set to exactly true, the kill not)? Pure. One opt-in name for marine and wind. */
+export function hourBlendEnabled(win = (typeof window !== 'undefined' ? window : {})) {
+  return !!win && win.__RAW_ENABLE_HOUR_BLEND__ === true && win.__RAW_DISABLE_CREST_HOUR_BLEND__ !== true;
+}
+
+let loaded = false;
+/** Did the colour shader get the blend's text when it loaded? False by default: then nothing can blend. */
+export const hourBlendShaderLoaded = () => loaded;
+
+/** `src` (the marine colour shader) with the hour blend's text when it is enabled at load; else `src` as it came. */
 export function withHourBlend(src, win = (typeof window !== 'undefined' ? window : {})) {
-  if (win && win.__RAW_DISABLE_CREST_HOUR_BLEND__ === true) return src;
+  if (!hourBlendEnabled(win)) return src;
+  if (typeof window !== 'undefined' && win === window) loaded = true;
   for (const anchor of [UNIFORMS_AT, FETCH_AT, MIX_AT, DEBUG_AT]) {
     if (src.split(anchor).length !== 2) throw new Error(`withHourBlend: expected exactly one "${anchor.trim().slice(0, 48)}"`);
   }
