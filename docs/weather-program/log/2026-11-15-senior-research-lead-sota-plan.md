@@ -358,3 +358,15 @@ The helper's answers to my four questions (its log, F6 RESOLVED and the controls
    flips with the hour set). Neither is quoted as a gain.
 
 The ranked plan is unchanged.
+
+## 22:10Z Hindcast window for the wind-long-range lane (archive continuity checked)
+
+- **Continuity.** The `ecmwf-forecasts` mirror lists 319 date folders from 2026-01-01 to 2026-11-15: one per day,
+  none missing. The 00Z and 12Z `-336h-enfo-ef.index` objects return 200 on 2026-09-20, 2026-10-20 and 2026-11-10.
+  Folder presence does not prove every step exists.
+- **Window told to the lane:** 2026-09-01..2026-10-31 (122 runs).
+  - Recent, so it matches the current IFS cycle.
+  - It ends by 2026-11-01, because a run's 336 h lead verifies 14 days after the run starts.
+  - A run with any missing step is dropped and logged. The gate is VOID if more than 10% of runs are dropped.
+- **De-bias arm:** kept as an extra, non-primary arm, split into contiguous blocks (fit September, test October), not
+  odd/even days, which leak through day-to-day autocorrelation.
