@@ -1,6 +1,6 @@
 {
   "lane": "frontend",
-  "tests": 17,
+  "tests": 25,
   "files": 1,
   "branch": "opus/series-decode-worker",
   "date": "2026-11-15",
