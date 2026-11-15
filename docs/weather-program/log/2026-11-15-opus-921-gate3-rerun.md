@@ -50,3 +50,10 @@ Per-step decode-path ms added (`stepBuildMs`), pooled, and per session (p50 / p9
   "0 / 98.2 / 122.7" (p50 / p95 / max). So the 98-179 ms figure is measured, not unsupported. In this run the kill arm adds 0, most
   likely because the kill arm's page decodes now land before the first step rather than inside a step's 900 ms window; that is not
   yet verified. What stands: the original wording's pass rested on the kill arm's in-window decodes, which did not occur this time.
+
+## 20:24Z: re-run B on a quiet machine (the director folds it into the quiet-machine session); registered before it runs
+
+Same instrument, build, arms (worker, kill, noric), zooms, sessions and both wordings as 19:55Z. Added, decided now: the load record
+and void rule of `2026-11-15-opus-scrub-render-census.md` 20:20Z (a fixed 20,000,000-iteration in-page calibration before the first
+and after the last step; a session is VOID above 1.25x the run's lowest calibration, re-run once at the end, else the arm runs short
+and the run is INCOMPLETE; `typeperf` total CPU recorded). Per-session values are reported.
