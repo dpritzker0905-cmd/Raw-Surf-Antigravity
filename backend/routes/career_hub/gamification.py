@@ -1,16 +1,20 @@
 """Gamification API endpoints for badges and XP"""
 
+import uuid
+from dataclasses import dataclass
+
 from fastapi import APIRouter, Depends, HTTPException
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_current_user_id
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
-from pydantic import BaseModel
+from sqlalchemy.exc import IntegrityError
+from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
 
 from database import get_db
 from models import Badge, XPTransaction, Profile
-from models import CreditTransaction, LiveSession, LiveSessionParticipant
+from models import CreditTransaction, LiveSession, LiveSessionParticipant, Review
 
 router = APIRouter()
 
@@ -93,43 +97,103 @@ async def get_user_gamification_stats(
     }
 
 
+class XPClaim(BaseModel):
+    """What a client may send: WHICH action, and WHICH of its own records earned it. Never an amount."""
+    model_config = ConfigDict(extra="forbid")   # a client-sent `amount` / `reason` is a 422, not silently used
+
+    action: str = Field(..., min_length=1, max_length=50)
+    reference_id: str = Field(..., min_length=1, max_length=36)
+
+
+@dataclass(frozen=True)
+class XPAction:
+    amount: int            # decided here, on the server
+    reason: str            # the reason code the inline grant writes
+    reference_type: str    # the reference_type the inline grant writes (the idempotency key)
+    model: type            # the row that earned the XP
+    owner_column: str      # the column on that row that must equal the caller
+    live_statuses: tuple = ()   # when set, the row's status must be one of these (a cancelled join earns nothing)
+
+
+# 2026-11-15 (security): the ONLY actions a client can claim XP for, with server-decided amounts that mirror the
+# inline grants (reviews.py: review_given 10; sessions/join.py: live session join 25). Every action is tied to a
+# real row the caller owns, and one reference grants at most once per user, so a claim can never exceed what the
+# server flow itself pays. Adding an action = a row here plus an owner check, never an amount from the request.
+XP_ACTIONS = {
+    "review_given": XPAction(10, "review_given", "review", Review, "reviewer_id"),
+    "live_session_joined": XPAction(25, "Joined a live session", "live_session", LiveSessionParticipant, "surfer_id",
+                                    live_statuses=("active", "completed")),
+}
+
+
 @router.post("/gamification/award-xp")
 async def award_xp(
-    amount: int,
-    reason: str,
-    reference_type: Optional[str] = None,
-    reference_id: Optional[str] = None,
+    claim: XPClaim,
     db: AsyncSession = Depends(get_db),
-    user_id: str = Depends(get_user_id_from_jwt_or_query)
+    current_user_id: str = Depends(get_current_user_id),
 ):
-    """Award XP to a user for an action"""
-    import uuid
-    
-    # Create XP transaction
-    xp_transaction = XPTransaction(
-        id=str(uuid.uuid4()),
-        user_id=user_id,
-        amount=amount,
-        reason=reason,
-        reference_type=reference_type,
-        reference_id=reference_id
+    """Claim the server-defined XP for an action the caller performed (idempotent per reference)."""
+    rule = XP_ACTIONS.get(claim.action)
+    if rule is None:
+        raise HTTPException(status_code=400, detail="Unknown XP action")
+
+    # Ownership + lock: the row must exist and belong to the caller. FOR UPDATE serializes concurrent replays of
+    # the same reference on Postgres: a second claim waits here until the first commits, and under READ COMMITTED
+    # (the engine default; database.py sets no isolation level) its next statement sees the committed XP row, so
+    # the check-then-insert below cannot double-award. At any isolation level the partial unique index
+    # uq_xp_transactions_claim_ref (alembic xp_claim_unique_001) is the backstop, handled at the flush below.
+    owned_query = (
+        select(rule.model.id)
+        .where(rule.model.id == claim.reference_id)
+        .where(getattr(rule.model, rule.owner_column) == current_user_id)
     )
-    db.add(xp_transaction)
-    
-    # Check and award badges based on XP milestones
-    await check_badge_milestones(user_id, db)
-    
-    await db.commit()
-    
-    return {"message": "XP awarded", "amount": amount, "reason": reason}
+    if rule.live_statuses:
+        owned_query = owned_query.where(rule.model.status.in_(rule.live_statuses))
+    owned = await db.execute(owned_query.with_for_update())
+    if owned.first() is None:
+        raise HTTPException(status_code=404, detail="Nothing to claim for this reference")
+
+    # Idempotency: any XP row for this (user, reference) — including the inline grant, whatever its reason text.
+    already = await db.execute(
+        select(XPTransaction.id)
+        .where(XPTransaction.user_id == current_user_id)
+        .where(XPTransaction.reference_type == rule.reference_type)
+        .where(XPTransaction.reference_id == claim.reference_id)
+        .limit(1)
+    )
+    if already.first() is not None:
+        await db.rollback()
+        return {"granted": 0, "action": claim.action, "already_granted": True}
+
+    db.add(XPTransaction(
+        id=str(uuid.uuid4()),
+        user_id=current_user_id,
+        amount=rule.amount,
+        reason=rule.reason,
+        reference_type=rule.reference_type,
+        reference_id=claim.reference_id,
+    ))
+    try:
+        # Flush first: a concurrent grant that slipped past the lock (e.g. under REPEATABLE READ) hits the partial
+        # unique index uq_xp_transactions_claim_ref here, before any badge work, and is answered as a replay.
+        await db.flush()
+        await check_badge_milestones(current_user_id, db)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        return {"granted": 0, "action": claim.action, "already_granted": True}
+    return {"granted": rule.amount, "action": claim.action, "already_granted": False}
 
 
 @router.post("/gamification/check-badges/{user_id}")
 async def check_and_award_badges(
     user_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Check and award any earned badges based on current stats"""
+    """Check and award any earned badges based on current stats (your own only; harvested from draft #527)"""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     badges_awarded = await check_badge_milestones(user_id, db)
     await db.commit()
     return {"badges_awarded": badges_awarded}

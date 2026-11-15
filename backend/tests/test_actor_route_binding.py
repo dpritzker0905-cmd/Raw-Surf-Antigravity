@@ -56,7 +56,6 @@ TOKEN_IDENTITY = [
     ("POST", "/api/promo-codes/validate"),
     ("POST", "/api/support/tickets"),
     ("PATCH", "/api/bookings/{booking_id}"),
-    ("POST", "/api/gamification/award-xp"),
     ("POST", "/api/impact/instant-shakas/{shaka_id}/view"),
     ("POST", "/api/ads/impression"),
     ("POST", "/api/ads/click"),
@@ -153,6 +152,8 @@ NAMED_ACTOR = [
     # Phase 0 (2026-10-26): the dispatch completion and the captain's crew reminder trusted a plain id.
     ("POST", "/api/dispatch/{dispatch_id}/complete", "query", "photographer_id"),
     ("POST", "/api/dispatch/{dispatch_id}/remind-crew", "body", "captain_id"),
+    # 2026-11-15 (#920, harvested from draft #527): badges are recomputed for the caller only.
+    ("POST", "/api/gamification/check-badges/{user_id}", "path", "user_id"),
 ]
 # Login required; ownership is by RESOURCE (the notification, the booking), proved against a real database in
 # tests/test_batch5_resource_ownership.py. The broadcast channel allow-list is in the same file.
@@ -164,6 +165,8 @@ LOGIN_ONLY = [
     ("POST", "/api/bookings/{booking_id}/nudge-all"),
     ("POST", "/api/bookings/{booking_id}/update-splits"),
     ("POST", "/api/bookings/{booking_id}/crew-hub/handle-expiry"),
+    # Strict JWT; ownership by the referenced review/join row (tests/test_xp_award_server_authoritative.py).
+    ("POST", "/api/gamification/award-xp"),
 ]
 ALL = TOKEN_IDENTITY + [(m, p) for m, p, _w, _f in NAMED_ACTOR] + LOGIN_ONLY
 

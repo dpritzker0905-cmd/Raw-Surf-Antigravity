@@ -1,5 +1,5 @@
 """Gamification: badges, XP, challenges, leaderboards, sponsorships, surf passport."""
-from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Date, Enum, Text, Index, JSON
+from sqlalchemy import Column, String, Integer, Float, Boolean, ForeignKey, DateTime, Date, Enum, Text, Index, JSON, text
 from sqlalchemy.orm import relationship, backref
 from database import Base
 from datetime import datetime, timezone
@@ -399,7 +399,18 @@ class XPTransaction(Base):
     reference_id = Column(String(36), nullable=True)
     
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
-    
+
+    # 2026-11-15 (security): one XP grant per (user, claimable reference). Partial on purpose: only the reference
+    # types /gamification/award-xp can claim. A gallery purchase references the ITEM, which a buyer may buy twice,
+    # so a full constraint would break checkout. Migration: alembic/versions/xp_claim_unique_001.py.
+    __table_args__ = (
+        Index(
+            'uq_xp_transactions_claim_ref', 'user_id', 'reference_type', 'reference_id', unique=True,
+            postgresql_where=text("reference_type IN ('review', 'live_session')"),
+            sqlite_where=text("reference_type IN ('review', 'live_session')"),
+        ),
+    )
+
     user = relationship('Profile', backref='xp_transactions')
 
 
