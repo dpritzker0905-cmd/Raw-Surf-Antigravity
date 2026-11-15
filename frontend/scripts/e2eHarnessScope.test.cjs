@@ -190,3 +190,27 @@ test('CI correction opt-in refuses metadata lookalikes and actual guardian or we
     assert.throws(() => selectScope({ ...marked, files: [...ciCorrectionHarness, other] }), /refusing browser execution/);
   }
 });
+
+const cancellationRepairHarness = ['frontend/scripts/offline-backend/weather_route.js',
+  'frontend/scripts/offline-backend/series_diagnostics.cjs',
+  'frontend/scripts/offlineWeatherRoute.test.cjs', 'frontend/scripts/seriesDiagnostics.test.cjs',
+  'frontend/scripts/e2eHarnessScope.cjs', 'frontend/scripts/e2eHarnessScope.test.cjs'];
+
+test('exact cancellation repair selects Chromium in selector and CLI; unmarked stays normal', () => {
+  assert.deepEqual(selectScope({ ...marked, files: cancellationRepairHarness }),
+    { project: 'Desktop Chrome', scope: 'harness-chromium' });
+  const cli = runCli({ before: 'a'.repeat(40), head_commit: { message: marked.message } },
+    { files: cancellationRepairHarness });
+  assert.equal(cli.writes[0].text, 'project=Desktop Chrome\nscope=harness-chromium\n');
+  assert.deepEqual(selectScope({ eventName: 'push', message: 'normal cancellation repair', files: cancellationRepairHarness }),
+    { project: '', scope: 'normal-regression' });
+});
+
+test('cancellation repair refuses test-path lookalikes, folders and mixed runtime or weather changes', () => {
+  for (const other of ['frontend/scripts/offlineWeatherRoute.test.cjs.extra',
+    'frontend/scripts/offlineWeatherRoute.test.js', 'frontend/scripts/',
+    'frontend/src/App.js', 'frontend/src/services/weather.js',
+    'backend/routes/weather.py', 'docs/weather-program/STATE.md']) {
+    assert.throws(() => selectScope({ ...marked, files: [...cancellationRepairHarness, other] }), /refusing browser execution/);
+  }
+});
