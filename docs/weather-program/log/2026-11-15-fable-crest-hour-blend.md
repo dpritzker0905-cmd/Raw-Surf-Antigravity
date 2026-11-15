@@ -424,3 +424,30 @@ what follows; the selection is by grid stability only, decided before any blend 
   otherwise it is skipped (and listed). Quota: 4 waves, 3 swell_1, 2 swell_2, 1 wind_waves = 10 views, 40 triples.
 - H8's lines are unchanged: at most 60% pooled, void below 25%, no view worse, at least 30 triples, mixed textures h and h+6.
 - Only H8 is scored from this run. Section 14's reference and H9 results stand and are not run again.
+
+## 16. The advisor's second review (12:20 EST; it read sections 10-13 at `a569d5a84`, before section 14's results existed)
+The advisor agreed with the verdicts of rounds 1 and 2 and asked for three things before the reruns of section 13 were run.
+The message arrived AFTER those reruns had been run and recorded (section 14) and while section 15's third H8 run was in
+progress; that order is stated here and nothing is back-dated. What is accepted, and when it is registered:
+1. **H8c, the common case: accepted, registered now, not yet run.** Above zoom 3.5 the grid at rest changes from hour to hour,
+   so at coastal zooms, where surfers look, nearly every step is a grid-change blend; neither H8 on low-zoom views nor the
+   forced H9 tests an HOUR change that comes WITH a grid change against truth. H8c: the ORIGINAL ten views of section 3 (six
+   of them at zoom 4.0 to 5.0), four triples each, scored REGARDLESS of grid, luminance only: the held half-way picture of h
+   and h+6 against the real h+3 picture at rest, whatever grid drew each. Same lines as H8: pooled at most 60% of the cut,
+   void below 25%, no view worse than the cut, at least 30 of 40 triples; a triple still needs the two mixed fields to be h
+   and h+6 and one blend. The flat control is reported the same way, and the grids each triple used are listed.
+2. **H9's signal floor: accepted, applied after the fact, and said to be so.** The rule: a swap is scored only if mean
+   |COARSE - FINE| is at least 3 luminance units. H9 had already been run (section 14) when this arrived. Applied to that run
+   as it stands: 34 of 40 swaps clear the floor (the six that do not are swell_2 swaps, 0.16-0.33); on the 34, HELD is 57% of
+   COARSE pooled, never above it, and the shifted control trips in 32 of 34. Because the floor was applied after the data,
+   section 14's unfiltered result (40 swaps, 32 of 40) remains the registered one; the filtered figures are a reading.
+   The land flags, as asked: the lab's coarse copy carries NONE. Water-only weighting is opt-in in this build
+   (`__RAW_ENABLE_LAND_AWARE_FETCH__`, default off), so both grids are fetched plainly and H9 did NOT test water-only
+   weighting at the coast. That part of the blend is untested against truth.
+3. **A grey-ramp picture for the reference difference: accepted, registered now, not yet run.** The held picture and the exact
+   reference are both drawn with the colour table replaced by the raw height value as grey (a debug view added to the colour
+   shader for this, `window.__GPU_DEBUG__.mode = 'value'`), so no colour-band edge can move a pixel. Reading: if the two then
+   agree to within 0.15 luminance units on average, the 0.3-0.8 difference of sections 12 and 14 belongs to band edges and
+   rounding; a larger remaining difference is a real drawing difference and is reported as one. Twelve pictures, the first
+   three one-grid waves views of section 15.
+Still owed before ON by default: H8 on real frames from the public CDN, replayed offline.
