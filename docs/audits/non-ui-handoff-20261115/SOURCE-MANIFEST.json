@@ -7,9 +7,9 @@
       "sha256": "d7ca6b0f8ff58705ec2622a2772e29b391a27f30c4b535287e3aeeaa9040fe2f"
     },
     {
-      "bytes": 623,
+      "bytes": 606,
       "path": "CLOSURE-STATUS.json",
-      "sha256": "c17b5d44647328441f99e09c07e8ecc569864fb20058d7eaee0ab61aa9352049"
+      "sha256": "2db5ae2ded34e127bea65c484439e7d70df050b08036afce9ff657ae6cb12d54"
     },
     {
       "bytes": 2539,
@@ -52,9 +52,9 @@
       "sha256": "755c40f546f56c89dcecee6f8bf1132920433a8b93c40c37725d5a06fd3a2660"
     },
     {
-      "bytes": 4245,
+      "bytes": 4216,
       "path": "README.md",
-      "sha256": "9ea9cad7ed5757f0421dc75162664a8f2f4435aa32555804351d5a82e5c413fc"
+      "sha256": "81df50aab0f7bbdf9410930d1f98cbf3244a315493362cd435a254cb15303a9a"
     },
     {
       "bytes": 1196,
@@ -92,6 +92,11 @@
       "sha256": "99f06ca3f56e00edd011a1c0298e935a1c627487c1e9791827b34cfc7b60ab59"
     }
   ],
+  "publication_correction": {
+    "reason": "New README and closure-status were staged with CRLF but published with LF. Payload hashes now bind actual published LF bytes. All seven source copies were and remain byte-identical.",
+    "supersedes_manifest_at_commit": "6be63e765f8c44af5998c9fdeddfac7a75c3f47b"
+  },
+  "publication_encoding": "UTF-8, LF",
   "release": false,
   "source_copy_bindings": [
     {
