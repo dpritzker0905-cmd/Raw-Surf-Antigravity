@@ -951,3 +951,5 @@ The recorder is a browser job and has NOT been run; only syntax and the unblindi
 - **Not covered, said before he looks:** the ocean and wind are synthetic and move more evenly than real weather; the clips
   are recordings at up to 960 px wide, not the live app on his device; a recording drops some frames of a 160 ms blend (the
   page plays each frame at its recorded time).
+- Correction, append-only: the time in this section's heading was written from memory. The clock (`date`) read 18:26 EST when
+  the section was committed; it was written in the minutes before that, not at 18:32.
