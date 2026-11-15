@@ -99,3 +99,7 @@ operational rate:
 - **false pages per 30 days** = mean over the 200 draws of (paging days / replay days) x 30.
 - **P4 holds when every rule's rate is <= 1.0 per 30 days.**
 - The family-wise share (draws with >= 1 false page anywhere in the history) is printed as a diagnostic, not gating.
+
+**Correction, 2026-11-15 23:20Z.** Section 1's header says "written 2026-11-15 ~21:55Z". That is an estimate, not a
+clock reading: section 1 was committed at 21:51:26Z (`ffe6ec99e`), before any code or row, so the true time is no later
+than 21:51:26Z. Nothing else in section 1 changes.
