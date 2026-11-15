@@ -11,8 +11,12 @@
  * This is NOT the base / fine-overlay rule (windGridsCompatible: "never blend two hours or two models"), which stands: a base
  * and an overlay of different hours never composite. It is a short blend between the OUTGOING base and the NEW base.
  *
- * No blend (the hard swap, as before) when: the kill is set; the visitor prefers reduced motion; the model changes; there was
- * no base; the same hour is committed again on the same grid.
+ * OFF BY DEFAULT (the owner, 2026-11-15: "it stays OFF until" the real-frame hidden-hour test and his blinded look are done).
+ * It runs only with window.__RAW_ENABLE_HOUR_BLEND__ === true set before the app loads (one name for the marine and the wind
+ * blend: one behaviour). Merging this turns nothing on.
+ * No blend (the hard swap, as before) when: the opt-in is not set; the kill is set; the visitor prefers reduced motion; the
+ * device is below the blend's texture limits or its driver refused the blended shaders (the plain shaders are compiled, and
+ * it is counted: fallbacks); the model changes; there was no base; the same hour is committed again on the same grid.
  * Several commits before one drawn frame keep the field that is ON SCREEN. A step inside a running blend restarts it from the
  * field being replaced.
  *
@@ -21,6 +25,7 @@
  * Telemetry: window.__RAW_WIND_HOUR_BLEND__. Gate: docs/weather-program/log/2026-11-15-fable-wind-hour-blend.md.
  */
 import { gridPointReg } from './gridPointRegistration';
+import { windHourBlendEnabled } from './windHourBlendGLSL';
 
 export const WIND_BLEND_MS = 160;      // the rasters' and the marine blend's: every layer steps alike
 export const WIND_PREV_UNIT = 7;       // the earlier field's texture unit in all three programs (0-3 are in use there)
@@ -30,7 +35,7 @@ const nowMs = () => (typeof performance !== 'undefined' && performance.now ? per
 
 /** The blend's duration in ms; 0 = no blend. */
 export function windBlendMs(w = W()) {
-  if (!w || w.__RAW_DISABLE_WIND_HOUR_BLEND__ === true) return 0;
+  if (!windHourBlendEnabled(w)) return 0;
   try { if (w.matchMedia && w.matchMedia('(prefers-reduced-motion: reduce)').matches) return 0; } catch (e) { /* no matchMedia */ }
   const o = Number(w.__RAW_WIND_BLEND_MS__);
   return w.__RAW_WIND_BLEND_MS__ != null && Number.isFinite(o) && o >= 0 ? o : WIND_BLEND_MS;
@@ -41,7 +46,7 @@ export function windBlendEase(t) { const x = Math.min(1, Math.max(0, t)); return
 
 const tel = () => {
   const w = W();
-  return w.__RAW_WIND_HOUR_BLEND__ || (w.__RAW_WIND_HOUR_BLEND__ = { starts: 0, gridSwaps: 0, restarts: 0, kept: 0, ends: 0, errors: 0, skips: {}, mix: 0, last: null });
+  return w.__RAW_WIND_HOUR_BLEND__ || (w.__RAW_WIND_HOUR_BLEND__ = { starts: 0, gridSwaps: 0, restarts: 0, kept: 0, ends: 0, errors: 0, fallbacks: 0, fallbackWhy: null, skips: {}, mix: 0, last: null });
 };
 const skip = (why) => { const t = tel(); t.skips[why] = (t.skips[why] || 0) + 1; return why; };
 
@@ -58,6 +63,25 @@ export function windBlendVerdict(old, next) {
   if (sameGrid(old, next) && timeOf(old) === timeOf(next)) return 'same_hour';
   return null;
 }
+
+export const WIND_BLEND_VERTEX_UNITS = 4;   // the particle draw's VERTEX shader samples particles, base, overlay and the earlier base
+
+/**
+ * Why this device cannot run the blended shaders, or null when it can. Unit WIND_PREV_UNIT must exist, and the particle
+ * draw samples WIND_BLEND_VERTEX_UNITS textures in its vertex shader (WebGL2 guarantees 16 vertex units; WebGL1 may have 0).
+ */
+export function windBlendDeviceVerdict(gl) {
+  try {
+    const combined = Number(gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS));
+    const vertex = Number(gl.getParameter(gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS));
+    if (!(combined > WIND_PREV_UNIT)) return 'combined_units';
+    if (!(vertex >= WIND_BLEND_VERTEX_UNITS)) return 'vertex_units';
+    return null;
+  } catch (e) { return 'limits_unreadable'; }
+}
+
+/** The engine compiled the PLAIN shaders although the blend was asked for: count it, with the reason. */
+export function noteWindBlendFallback(why) { const t = tel(); t.fallbacks += 1; t.fallbackWhy = why; }
 
 /** Free the kept texture and forget the earlier field. */
 export function releaseWindPrev(engine, gl) {
@@ -85,6 +109,7 @@ export function keepOutgoingWindBase(engine, gl, nextGrid) {
     const ms = windBlendMs();
     const old = engine && engine._windData;
     if (!ms) { engine._windBlend = null; t.mix = 0; skip('off'); return false; }
+    if (engine._windBlendShaders !== true) { engine._windBlend = null; t.mix = 0; skip('no_shaders'); return false; }   // the plain shaders are compiled
     if (!gl || !old || !old.texture || !old.windGrid) { disposeWindBlend(engine, gl); skip('no_base'); return false; }
     const why = windBlendVerdict(old.windGrid, nextGrid);
     if (why) { engine._windBlend = null; t.mix = 0; skip(why); return false; }
@@ -133,6 +158,7 @@ export function windPrevUvMap(cur, prev) {
  * and say where it lies and how it is scaled. `mix` may be forced (the fine overlay's own pass draws with 0).
  */
 export function setWindBlendUniforms(gl, engine, program, forceMix) {
+  if (engine._windBlendShaders !== true) return;   // the plain shaders: no such uniforms, nothing kept
   const p = engine._windPrev; const base = engine._windData;
   const mix = forceMix != null ? forceMix : (p && base ? windPrevMix(engine) : 0);
   gl.uniform1f(gl.getUniformLocation(program, 'u_windPrevMix'), mix);

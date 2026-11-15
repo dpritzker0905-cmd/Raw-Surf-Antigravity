@@ -93,7 +93,7 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
   const rr = new RR(process.env.RR_DIR, { mode: process.env.RR_MODE || 'auto' });
   const { browser, page } = await L.launch(PHONE ? { port: +(process.env.PORT || 4203), width: 390, height: 844, dpr: 2, contextOptions: { isMobile: true, hasTouch: true } } : { port: +(process.env.PORT || 4203), width: 1280, height: 800, dpr: 1 });
   await rr.install(page); await page.addInitScript(SPY);
-  await page.addInitScript((theme) => { try { localStorage.setItem('raw-surf-theme', theme); } catch (e) { /* private mode */ } window.__RAW_STATIC_FRAMES_BASE__ = 'http://127.0.0.1:4293/'; }, THEME);
+  await page.addInitScript((theme) => { try { localStorage.setItem('raw-surf-theme', theme); } catch (e) { /* private mode */ } window.__RAW_ENABLE_HOUR_BLEND__ = true; /* the blend is opt-in: both arms load the blended shaders, arm A sets the kill */ window.__RAW_STATIC_FRAMES_BASE__ = 'http://127.0.0.1:4293/'; }, THEME);
   const errs = []; page.on('pageerror', (e) => errs.push(String(e).slice(0, 160).replace(/access_token=[^&\s"']+/g, 'access_token=REDACTED')));
   await L.openMap(page);
   const ev = (fn, arg) => page.evaluate(fn, arg);

@@ -386,6 +386,9 @@ describe('every older kill keeps its meaning: set, it draws what it drew before 
       // the f120+ tail blend: WHICH field an in-between tail hour draws (a labelled PCHIP estimate or the nearest frame), drawn
       // through the same tables, ramps and rules either way (windTimeBlend.js)
       '__RAW_DISABLE_WIND_TIME_BLEND__',
+      // the hour blend (windHourBlend.js, opt-in, off by default): WHICH field is drawn for 160 ms after a step (a u/v mix of two
+      // served hours of one model), through the same tables, ramps and rules
+      '__RAW_DISABLE_WIND_HOUR_BLEND__',
       // WHEN the prefetch plans (after the next paint) and when the truth tag's census is counted: never what is drawn
       '__RAW_DISABLE_WIND_PREFETCH_REPLAN_AFTER_PAINT__', '__RAW_DISABLE_TRUTH_TAG_LAZY_CENSUS__',
       // WHEN the truth tag's data hash is computed (first read, not build): the same hash, never what is drawn (2026-11-11)

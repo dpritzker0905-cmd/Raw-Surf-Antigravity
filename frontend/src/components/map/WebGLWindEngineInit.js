@@ -1,4 +1,5 @@
-import { disposeWindBlend } from './windHourBlend';
+import { disposeWindBlend, windBlendDeviceVerdict, noteWindBlendFallback } from './windHourBlend';
+import { windBlendShadersLoaded, windPlainShader } from './windHourBlendGLSL';
 import {
   ADVECT_VS,
   ADVECT_FS,
@@ -36,12 +37,26 @@ export function reinitParticles(engine, gl, opts) {
     : '[WebGLWind] Particles re-initialized and FBOs cleared due to bounds change');
 }
 
+// The five programs' sources. `blend` false = the three base-reading shaders as they were before the hour blend's wrapper.
+const windSources = (blend) => [[ADVECT_VS, blend ? ADVECT_FS : windPlainShader('advect')], [blend ? DRAW_VS : windPlainShader('draw'), DRAW_FS],
+  [SCREEN_VS, SCREEN_FS], [SCREEN_VS, FADE_FS], [HEATMAP_VS, blend ? HEATMAP_FS : windPlainShader('field')]];
+
+// THE HOUR BLEND's shaders (windHourBlend.js) only when they were loaded (the opt-in) AND this device has the texture units
+// they need; a refused compile or link falls back to the plain set once. Either fallback is counted. { batch, blend }.
+export function startWindPrograms(gl) {
+  let blend = windBlendShadersLoaded();
+  if (blend) { const why = windBlendDeviceVerdict(gl); if (why) { blend = false; noteWindBlendFallback(why); } }
+  let batch = startProgramBatch(gl, windSources(blend));
+  if (!batch && blend) { blend = false; noteWindBlendFallback('link_failed'); batch = startProgramBatch(gl, windSources(false)); }
+  return { batch, blend };
+}
+
 export function initEngine(engine, gl) {
   if (engine._initialized) return;
   // ASYNC SHADER COMPILE (WebGLProgramBatch.js): the batch may still be compiling when this returns; buffers and textures
   // are allocated now, the vertex arrays (getAttribLocation blocks until the link finishes) wait for pollPrograms.
-  const batch = startProgramBatch(gl, [[ADVECT_VS, ADVECT_FS], [DRAW_VS, DRAW_FS],
-    [SCREEN_VS, SCREEN_FS], [SCREEN_VS, FADE_FS], [HEATMAP_VS, HEATMAP_FS]]);
+  const { batch, blend } = startWindPrograms(gl);
+  engine._windBlendShaders = blend;
   if (!batch) {
     console.error('[WebGLWind] Failed to compile or link shaders'); return;
   }
@@ -160,11 +175,25 @@ function initVertexArrays(engine, gl) {
 // 'failed' once, with the batch's programs and shaders released by the batch and everything else here, exactly the
 // state a failed init leaves; 'ready' otherwise.
 export function pollPrograms(engine, gl) {
-  return pollEngineBatch(engine, () => initVertexArrays(engine, gl), () => {
+  let recovered = null;   // the state to report when a failed BLENDED batch was replaced by the plain one
+  const state = pollEngineBatch(engine, () => initVertexArrays(engine, gl), () => {
+    // The BLENDED set failed to link on the async path: compile the plain set once before giving up (the failed batch has
+    // released its own programs and shaders). Counted (windHourBlend.js: fallbacks).
+    if (engine._windBlendShaders === true) {
+      engine._windBlendShaders = false; noteWindBlendFallback('link_failed');
+      const plain = startProgramBatch(gl, windSources(false));
+      if (plain) {
+        [engine.advectProgram, engine.drawProgram, engine.screenProgram, engine.fadeProgram, engine.heatmapProgram] = plain.programs;
+        if (plain.state === BATCH.READY) { publishBatch(engine, plain); initVertexArrays(engine, gl); recovered = BATCH.READY; }
+        else { engine._programBatch = plain; recovered = BATCH.PENDING; }
+        return;
+      }
+    }
     engine.advectProgram = engine.drawProgram = engine.screenProgram = engine.fadeProgram = engine.heatmapProgram = null;
     console.error('[WebGLWind] Failed to compile or link shaders');
     disposeEngine(engine, gl);
   });
+  return recovered || state;
 }
 
 var deleteAttachedShaders = function(gl, prog) {

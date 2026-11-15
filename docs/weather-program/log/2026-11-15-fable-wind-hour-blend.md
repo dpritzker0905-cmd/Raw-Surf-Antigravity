@@ -182,3 +182,21 @@ owner, 10 randomized pairs of hard cut against cross-fade. For wind: "blend u/v,
   To be run only in the quiet window the director names.
 - **W2 is a desktop GPU figure.** A real phone is unmeasured and is listed as not covered.
 - The PR's first line will say whether merging turns the blend on (it does not).
+
+## 6. Built after section 5 (17:51 EST). Code and unit tests only; still no gate number.
+- **Opt-in.** `windHourBlendEnabled` (`windHourBlendGLSL.js`): `window.__RAW_ENABLE_HOUR_BLEND__ === true` and the kill not
+  set. Unset, `withWindHourBlend` returns each shader as it came (the same string) and `windBlendMs()` is 0.
+- **W15 built.** `windBlendDeviceVerdict(gl)` reads the two limits; `startWindPrograms` (`WebGLWindEngineInit.js`) compiles the
+  blended set only when it was loaded and the device passes, falls back to the plain set once on a refused compile or link
+  (at once, or later on the async path in `pollPrograms`, which then reports "pending", not "failed"), sets
+  `engine._windBlendShaders`, and counts every fallback with its reason (`__RAW_WIND_HOUR_BLEND__.fallbacks`,
+  `.fallbackWhy`). With the plain set compiled nothing is kept and the uniform setter makes no GL call.
+- **W11 and W15 unit tests:** `windHourBlend.test.js`, 43 tests, pass. The kill is listed in `killSwitch.inventory.test.js`
+  and classified in `windDarkRules.test.js`. Those two and `WebGLWindShaders.test.js` pass with it (4 suites, 145 tests).
+  Lint ratchet pass, file size 0 violations. Floor fragment: frontend +43 tests, +1 suite. The WHOLE map and tests trees have
+  not been run on this commit (a heavy job; owed before the PR, in the quiet window or at the director's word).
+- **A consequence for the gate, stated before measuring:** the lab pages load WITH the opt-in, so both arms run the blended
+  shader text and arm A is the kill set at run time (mix 0). W2 therefore compares blend against kill on the same shaders; it
+  does not measure the cost of the added text against the plain shaders. Added now as **W2b**: one further arm-A scrub in a
+  page loaded WITHOUT the opt-in (the plain shaders, what every user gets by default), reported beside W2; the at-rest GPU
+  time of the blended text with mix 0 must be within **5%** of the plain shaders'.

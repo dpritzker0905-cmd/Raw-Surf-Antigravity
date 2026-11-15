@@ -1,8 +1,11 @@
 /**
- * THE WIND HOUR BLEND's shader text (windHourBlend.js), added to the three wind shaders that read the base field as a wrapper,
- * so that with the kill set BEFORE the shaders load each is returned as it came, byte for byte (the suites that pin an older
- * wind shader import windHourBlendKill.testsupport first). Set later, in the console, the kill works through the uniform:
- * u_windPrevMix stays 0 and the earlier field is never read.
+ * THE WIND HOUR BLEND's shader text (windHourBlend.js), added to the three wind shaders that read the base field as a wrapper.
+ * The blend is OFF BY DEFAULT (the owner, 2026-11-15: off until the real-frame test and his blinded look): the text is added
+ * only when window.__RAW_ENABLE_HOUR_BLEND__ === true BEFORE the shaders load and the kill is not set. Otherwise each shader is
+ * returned as it came, byte for byte. The plain text is kept either way (windPlainShader): a device below the blend's texture
+ * limits, or one whose driver refuses the blended shaders, compiles the plain ones (WebGLWindEngineInit.js).
+ * With the text loaded, the kill set later in the console works through the uniform: u_windPrevMix stays 0 and the earlier
+ * field is never read.
  *
  * Two insertions per shader, each on an anchor that must occur exactly once (a throw at module load otherwise):
  *   1. the uniforms, after the base field's own range
@@ -41,11 +44,25 @@ const SITES = {
   field: { max: 'uniform vec2 u_wind_max;\n', decode: '  vec2 wind = mix(u_wind_min, u_wind_max, encoded.rg);\n', uv: 'v_uv' },
 };
 
-/** `src` (one of the wind shaders: 'advect', 'draw' or 'field') with the hour blend's text; under the kill at load, as it came. */
+/** Is the hour blend asked for (the opt-in set, the kill not)? Pure. */
+export function windHourBlendEnabled(win = (typeof window !== 'undefined' ? window : {})) {
+  return !!win && win.__RAW_ENABLE_HOUR_BLEND__ === true && win.__RAW_DISABLE_WIND_HOUR_BLEND__ !== true;
+}
+
+const PLAIN = {};
+let loaded = false;
+/** The shader as it was before the wrapper ('advect' | 'draw' | 'field'). */
+export const windPlainShader = (which) => PLAIN[which];
+/** Did any wind shader get the blend's text at load? False by default: then nothing can blend. */
+export const windBlendShadersLoaded = () => loaded;
+
+/** `src` (one of the wind shaders: 'advect', 'draw' or 'field') with the hour blend's text when it is enabled at load; else as it came. */
 export function withWindHourBlend(src, which, win = (typeof window !== 'undefined' ? window : {})) {
-  if (win && win.__RAW_DISABLE_WIND_HOUR_BLEND__ === true) return src;
   const s = SITES[which];
   if (!s) throw new Error(`withWindHourBlend: unknown shader "${which}"`);
+  PLAIN[which] = src;
+  if (!windHourBlendEnabled(win)) return src;
+  loaded = true;
   for (const anchor of [s.max, s.decode]) {
     if (src.split(anchor).length !== 2) throw new Error(`withWindHourBlend(${which}): expected exactly one "${anchor.trim().slice(0, 56)}"`);
   }
