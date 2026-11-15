@@ -99,7 +99,8 @@ export function disposeHourBlend(engine, gl) {
 function metaOf(engine) {
   const wd = engine._waveData; const g = wd.waveGrid;
   const la = resolveLandAwareFetch(g);
-  return { cols: g.cols, rows: g.rows, bounds: { ...g.bounds }, reg: gridPointReg(g), scale: heightScaleOf(wd), landAware: !!la.on };
+  return { cols: g.cols, rows: g.rows, bounds: { ...g.bounds }, reg: gridPointReg(g), scale: heightScaleOf(wd), landAware: !!la.on,
+    validTime: String(g.served_valid_time ?? g.valid_time ?? g.hourOffset) };   // which hour is kept (read by the lab)
 }
 
 /** Shared entry: may this replacement be blended? Returns the reason it may not, 'keep' (the field on screen is already kept), or null. */

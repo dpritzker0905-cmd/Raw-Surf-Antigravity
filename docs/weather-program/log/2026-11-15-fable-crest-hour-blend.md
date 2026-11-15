@@ -295,3 +295,30 @@ of section 8 has finished or is finishing; its output has NOT been opened.
    nearest hour's. The gate stays on luminance as registered; both are reported.
 Not in this run, and owed before the blend is ON by default (the advisor's condition, accepted): **H8 on real frames**, replayed
 offline with the middle frame hidden. A synthetic store's answer is fixed by its phase speed.
+
+## 11. The v2 run of section 8's lines (11:08-11:21 EST, recorded 11:25 EST; its output was first opened after section 10 was committed)
+Build `f20875f3a`. Both arms interleaved in one page, the four-layer moving-swell store, every view drew its own layer.
+| view | layer | zoom | A step (hard swap) | B step (blend) | B / A | blended in B |
+|---|---|---|---|---|---|---|
+| 1 | waves | 5.0 | 14.14 | 2.87 | 0.20 | 8 of 8 |
+| 2 | waves | 5.0 | 7.86 | 1.58 | 0.20 | 8 of 8 |
+| 3 | waves | 5.0 | 6.44 | 1.24 | 0.19 | 8 of 8 |
+| 4 | waves | 2.5 | 7.29 | 1.28 | 0.18 | 8 of 8 |
+| 5 | waves | 3.0 | 11.52 | 2.50 | 0.22 | 8 of 8 |
+| 6 | waves | 3.5 | 7.88 | 1.90 | 0.24 | 8 of 8 |
+| 7 | swell_1 | 5.0 | 7.51 | 1.85 | 0.25 | 8 of 8 |
+| 8 | swell_1 | 3.5 | 15.83 | 4.77 | 0.30 | 8 of 8 |
+| 9 | swell_2 | 4.0 | 1.85 | 0.49 | 0.26 | 8 of 8 |
+| 10 | wind_waves | 4.5 | 2.60 | 0.56 | 0.22 | 8 of 8 |
+- **H1 PASS** as registered: pooled step A 8.29 -> B 1.90, **23.0%** of A (line 50%); no view worse; all 80 boundaries blended
+  (142 of arm B's 436 blends over the whole run were grid swaps). Read with section 9: this line measures smoothness only.
+- **H2 PASS.** GPU ms per frame, median over views: whole scrub A 4.105, B 4.090 (-0.4%); inside the blend windows A 4.232,
+  B 4.374 (+3.4%); line +10%. Per view the two arms differ by -47% to +31% (which grid is resident varies), so the medians
+  carry the result and single views do not.
+- **H3 PASS.** 80 of 80 (grid, valid time) pairs identical. **H4 PASS.** 80 of 80 at rest, no kept texture.
+- **H5 VOID.** The positive control (the average of a view's real pictures 12 h apart) had to fall below 0.85 and did so in 1
+  view of 10 (0.82, 0.92, 0.95, 0.94, 0.86, 0.89, 0.94, 0.92, 1.04, 1.00). The standard deviation of whole-frame luminance is
+  carried by what does not move (the basemap, land, the still part of the field), so it barely notices the moving trains
+  cancelling. The held pictures read 0.95-1.00, which therefore means nothing. Luminance contrast of the whole frame is the
+  wrong domain for this check; section 10's exact-reference comparison and the value-space figures replace it in what follows.
+- **H6 PASS.** Drag: A 8.28, B 3.44 (41.5%). 0 page errors, 0 blend errors, 436 blends started and 369 ended (66 restarted).
