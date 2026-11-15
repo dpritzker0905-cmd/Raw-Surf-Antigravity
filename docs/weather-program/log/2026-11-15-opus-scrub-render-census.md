@@ -53,3 +53,21 @@ record on Pressure and Satellite (the director's ask).
 
 **Not allowed:** changing a gate, an arm, the view or the step count after the first ON number exists without an amendment
 here that says why, before the re-run; every run is logged, failures included.
+
+## 18:20Z: why one step makes about 10 commits (trace, before any fix)
+
+The census now records, for every component that re-renders on its own (a "root"), which state hooks hold a new value vs the
+previous commit (by hook index) and whether the new value is shallow-equal to the old one (`[SAME]`). Same lab, same view.
+
+- **`MapWebGL`, a wasted commit on every step (10 of 10):** `useOpenMeteoTileUrls`'s `setOmTileUrls(prev => ({...filtered,
+  ...newUrls}))` always returns a NEW object, and on a Waves view its content is shallow-equal to the old one every time. React
+  cannot bail out, so `MapWebGL` re-renders and its 36 raster `Source` + 36 `Layer` wrappers re-render with it. Fix lever 1:
+  return `prev` when the merged map is shallow-equal (React's own bail-out; no behaviour change).
+- **`MapWebGL`, also:** `debouncedTimeOffsetHours` (the debounced hour, intended) and store/context subscriptions (15 per 10 steps).
+- **`MapForecastOverlay`, 2 commits per step:** `setIsScrubbing(true)` in a passive effect right after the hour change, then 200 ms
+  later `setIsScrubbing(false)` + `setSettledOffset`. Lever 2 candidate: derive `isScrubbing` as `timeOffsetHours !==
+  settledOffset` (one commit fewer per step); one semantic difference, a return to the settled hour within 200 ms reads not-scrubbing
+  at once, to be pinned by a test.
+- **`MapPageContent`:** a GeoJSON state (`{type, features, hourOffset, stale}`) and a counter, a few steps out of 10.
+- Radix `Presence` / `DialogContent` (11 closed dialogs) and `MapMarkerLayers` re-render through context; lever 3 (memoise
+  hour-independent children) to be sized after levers 1 and 2.

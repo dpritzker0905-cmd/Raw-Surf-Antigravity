@@ -55,6 +55,22 @@ const HOOK = () => {
           e.roots += 1;
           const pn = pc ? (nameOf(pc.type) || '(anonymous)') : '(root)';
           e.under = e.under || {}; e.under[pn] = (e.under[pn] || 0) + 1;
+          // WHY it re-rendered on its own: which state hooks (by index in call order) hold a new value vs the alternate.
+          // Only hooks with an update queue (useState / useReducer); none changed = a context or store subscription.
+          const why = [];
+          let h = f.memoizedState; let a = f.alternate && f.alternate.memoizedState; let i = 0;
+          while (h && i < 200) {
+            if (h.queue && a && !Object.is(h.memoizedState, a.memoizedState)) {
+              const v = h.memoizedState;
+              const s = v === null ? 'null' : typeof v === 'object' ? (Array.isArray(v) ? `arr${v.length}` : `{${Object.keys(v).slice(0, 4).join(',')}}`) : String(v).slice(0, 24);
+              const o = a.memoizedState;
+              const shallowSame = v && o && typeof v === 'object' && typeof o === 'object' && Object.keys(v).length === Object.keys(o).length && Object.keys(v).every((kk) => Object.is(v[kk], o[kk]));
+              why.push(`h${i}=${s}${shallowSame ? '[SAME]' : ''}`);
+            }
+            h = h.next; a = a && a.next; i += 1;
+          }
+          const k = why.length ? why.join(' ') : '(ctx/store)';
+          e.why = e.why || {}; e.why[k] = (e.why[k] || 0) + 1;
         }
       }
       if (f.sibling) stack.push(f.sibling);
@@ -115,6 +131,7 @@ const HOOK = () => {
       rendersPerStep: med(out.steps.map((s) => (s[n] ? s[n].renders : 0))),
       rootsPerStep: med(out.steps.map((s) => (s[n] ? s[n].roots : 0))),
       under: Object.assign({}, ...out.steps.map((s) => (s[n] && s[n].under) || {})),
+      why: out.steps.reduce((w, s) => { for (const [k, c] of Object.entries((s[n] && s[n].why) || {})) w[k] = (w[k] || 0) + c; return w; }, {}),
       selfMsPerStep: +med(out.steps.map((s) => (s[n] ? s[n].selfMs : 0))).toFixed(2) }))
       .sort((a, b) => b.selfMsPerStep - a.selfMsPerStep || b.rendersPerStep - a.rendersPerStep);
     out.commitsPerStep = med(out.steps.map((s) => s.__commits || 0));
@@ -128,5 +145,6 @@ const HOOK = () => {
   console.log('RE-RENDER ROOTS per step (a component that rendered while its parent component did not), under which parent:');
   for (const r of [...(out.table || [])].filter((x) => x.rootsPerStep > 0).sort((a, b) => b.rootsPerStep - a.rootsPerStep).slice(0, 25)) {
     console.log(`  x${String(r.rootsPerStep).padStart(3)}  ${r.name}   under ${Object.keys(r.under || {}).slice(0, 3).join(', ')}`);
+    for (const [k, c] of Object.entries(r.why || {}).sort((a, b) => b[1] - a[1]).slice(0, 6)) console.log(`         ${String(c).padStart(3)} / ${STEPS} steps  ${k}`);
   }
 })();
