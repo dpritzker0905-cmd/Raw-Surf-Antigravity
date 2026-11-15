@@ -232,3 +232,26 @@ ended 15Z / 13Z at run time). Caveat: radar sees the top ~1 m with tide, wind dr
 level without them, which is in the direction error.
 Evidence (raw pairs, station list, scripts): kept outside the repo with the session's scratch (g6_pairs.csv 468,003 rows,
 g7_pairs.csv 2,184 rows); available to the advisor on request.
+
+### 7d. The director's gate line (17:00Z rules): "at every scrub step, the label names the stored hour that was actually drawn"
+
+Full 14-day scrub, one hour per key, real frames, offline harness. Per step: frame drawn = frame wanted (else STALE), drawn hour
+= asked hour (EXACT) or the status line says "the nearest stored forecast" (the readout wind uses; the raster lanes' shared
+`describeRasterFrame`), "Estimated forecast" on stand-in hours, "no forecast for this hour" past the set's end.
+
+| run | steps | exact | nearest (labelled) | stand-in hours | no frame | stale | blank | mislabelled |
+|---|---|---|---|---|---|---|---|---|
+| gusts GFS desktop | 340 | 175 | 147 | 0 | 18 | 0 | 0 | 0 |
+| gusts GFS phone 4x | 340 | 175 | 147 | 0 | 18 | 0 | 0 | 0 |
+| gusts EURO desktop | 340 | 91 | 231 | 102 | 18 | 0 | 0 | 0 |
+| gusts ICON desktop | 340 | 152 | 170 | 150 | 18 | 0 | 0 | 0 |
+| currents desktop | 340 | 37 | 183 | 0 | 120 | 0 | 0 | 0 |
+
+The first pass found 1 mislabelled step each for GFS and ICON gusts: a frame drawn 2 h from the asked hour with no note, at
+a set's last frame and at the ICON / GFS stand-in seam (the note's bound was half the gap to a neighbour that does not
+exist there). Fixed in the shared own-raster code, so pressure and satellite gain it too: at a set's first / last frame and
+at the own / stand-in seam the note covers the whole 3 h pick window. Kill `__RAW_DISABLE_RASTER_EDGE_NEAREST_NOTE__`.
+"No frame" hours: the scrubber runs to now + 14 days; these offline sets were 7-15 h old (GFS 06Z, CMEMS bulletin 00Z, 6-hourly
+to 240 h), so the last hours have no frame and say so. Phone decode worker: 177 / 177 loads off the main thread; phone step
+p50 after it: GFS 228, EURO 324, ICON 192, currents 182 ms (unchanged within the measured +-40 % phone noise; the per-hour
+app re-render is the cost).

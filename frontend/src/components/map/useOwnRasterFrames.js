@@ -277,10 +277,13 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     const at = (i) => (frames[i] ? Date.parse(frames[i].valid_time) : NaN);
     const gaps = [at(cur) - at(cur - 1), at(cur + 1) - at(cur)].filter((g) => Number.isFinite(g) && g > 0);
     st.nearestMaxHours = Math.floor((gaps.length ? Math.max(...gaps) / 3600000 : 1) / 2);
-    // AT A SET'S EDGE (2026-11-15, the gusts/currents 14-day scrub: the last frame drawn 2 h before the asked hour with no note):
+    // AT A SET'S EDGE (2026-11-15, the gusts/currents 14-day scrub: the last frame drawn 2 h from the asked hour with no note):
     // there is no neighbour beyond the first / last frame, so half a gap is not the bound; the pick reaches a whole 3-hour
     // window (pickIndexFrame), and the note must cover all of it.
-    if ((cur === 0 || cur === frames.length - 1) && edgeNoteOn()) st.nearestMaxHours = Math.max(st.nearestMaxHours, 3);
+    // The seam between a model's last own frame and the stand-in after it is an edge too: own frames win up to 3 h past the
+    // model's range (combinedFrameAt), so its last frame can be drawn 2 h from the asked hour with the stand-in nearer in the list.
+    const seam = !!(frames[cur + 1] && frames[cur + 1].estimated && !frames[cur].estimated);
+    if ((cur === 0 || cur === frames.length - 1 || seam) && edgeNoteOn()) st.nearestMaxHours = Math.max(st.nearestMaxHours, 3);
     st.wantEntry = f;
     st.wantRec = { url: f.path, dataMs: Date.parse(f.valid_time), model: f.model, estimated: f.estimated, nearestMaxHours: st.nearestMaxHours };
     if (st.shownRec) st.shownRec = { ...st.shownRec, nearestMaxHours: st.shownRec.url === f.path ? st.nearestMaxHours : st.shownRec.nearestMaxHours };
