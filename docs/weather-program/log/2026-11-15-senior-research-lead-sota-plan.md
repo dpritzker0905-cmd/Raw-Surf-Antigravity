@@ -379,3 +379,19 @@ The ranked plan is unchanged.
 - Still not a forecast gain, and it does not reach spots.
 - Whether offsets travel to places with no buoy is the helper's optional next test: a leave-one-out spatial offset,
   with the same null.
+
+## 22:31Z Leave-one-out spatial offset: PASS; amendment to brief 8
+
+The helper's pre-registered test predicted each buoy's lead-0 offset from its neighbours on the same coast, by
+inverse-distance-squared weighting (Atlantic 4, Pacific 12). Result:
+- held-out gain 0.0362 m [0.0319, 0.0403], which is 76% of the per-station 0.0476 m;
+- null mean -0.004 m, null 95th percentile +0.020 m; 0.1% of draws reach the gain.
+
+So the analysis bias is spatially smooth at buoy spacing.
+
+**Amendment to brief 8**, sent to the director, who assigns: add one arm to Move 4's existing test, a buoy-fitted
+inverse-distance bias field applied to the FORECAST at 24/48/72 h, under the same rule.
+
+**Owed by the helper:** gain against distance to the nearest buoy, before anyone claims the field reaches surf spots.
+
+No served change.
