@@ -191,3 +191,44 @@ next-batch item); a fast path around React would draw the field before the hour 
 so it is not taken here. G4: 14 screenshots (2 layers x 3 themes x desktop/phone + the phone sheet) read: real fields, legend
 and credit visible, land and labels readable after the veil fix. G5: backend raster tests 94 + 9 pass; frontend map + src/tests
 trees pass except two mirror-only artefacts (a missing `program/` folder; one 64 s timeout that passes alone).
+
+### 7c. G6 / G7 observation check (pre-registered §6b; scored to valid time 2026-11-15 20Z; protocol unchanged after the results)
+
+G6 gusts vs every realtime2 station reporting GST (552 stations, 70% coastal fixed; 468,003 pairs), m/s (kn):
+
+| model | lead h | n | bias | MAE | RMSE | hit / FAR (>= 15 m/s) |
+|---|---|---|---|---|---|---|
+| GFS | 0-23 | 164,189 | +0.02 | 2.58 (5.01 kn) | 3.50 | 0.49 / 0.41 |
+| GFS | 24-47 | 121,503 | -0.00 | 2.73 | 3.73 | 0.50 / 0.42 |
+| GFS | 48-71 | 73,482 | -0.16 | 2.89 | 4.00 | 0.49 / 0.42 |
+| GFS | 72-119 | 23,887 | -0.19 | 3.00 | 4.21 | 0.48 / 0.43 |
+| EURO | 0-23 | 21,956 | +1.80 | 2.74 | 3.61 | 0.66 / 0.58 |
+| EURO | 24-47 | 17,478 | +1.75 | 2.82 | 3.72 | 0.62 / 0.58 |
+| EURO | 48-71 | 9,458 | +1.87 | 2.94 | 3.95 | 0.65 / 0.53 |
+| EURO | 72-80 | 1,586 | +2.12 | 3.18 | 4.25 | 0.58 / 0.63 |
+| ICON | 0-23 | 33,262 | +1.09 | 2.80 | 4.01 | 0.64 / 0.54 |
+| ICON | 24-26 | 1,202 | +1.45 | 2.89 | 4.03 | 0.67 / 0.53 |
+
+Same pairs (4,242 station-hours at 536 stations, each model's shortest lead): GFS bias +0.05 / MAE 2.75 / RMSE 3.91 / hit 0.61 /
+FAR 0.36; EURO +1.79 / 2.78 / 3.75 / 0.69 / 0.50; ICON +1.07 / 2.77 / 3.96 / 0.64 / 0.52. Reading: MAE is equal within
+0.03 m/s; GFS is unbiased against buoys, EURO and ICON read 1-2 m/s high. Part of that high bias is the comparison, not the
+models: their 1-hour MAXIMUM is scored against one ~8-minute peak per hour, and buoy anemometers (~4 m) read ~8% low vs 10 m
+(+0.6-0.8 m/s to every model's bias). Not a bias correction target until both are separated (a follow-up). No confidence
+intervals (pairs autocorrelated).
+Deviations: ECMWF 00Z 11-12 had aged off data.ecmwf.int (7 cycles 12Z 11-12 .. 12Z 11-15 used; every EURO pair is a 1-hour
+window, leads <= 80); DWD keeps ~1 day (4 ICON cycles, leads <= 26).
+
+G7 currents vs NOAA IOOS HF radar (`ucsdHfrW6`, `ucsdHfrE6`), CMEMS bulletin 2026-11-15, 3 x 3 box pairs:
+
+| hour | n | speed bias m/s | vector RMSE m/s | complex corr | direction MAE (obs >= 0.2 m/s) |
+|---|---|---|---|---|---|
+| 00Z | 707 | -0.004 | 0.243 | 0.63 | 39.4 deg (361) |
+| 06Z | 729 | -0.003 | 0.283 | 0.56 | 36.4 deg (386) |
+| 12Z | 748 | +0.000 | 0.244 | 0.56 | 42.6 deg (367) |
+| pooled | 2,184 | -0.002 | 0.257 | 0.58 | 39.4 deg (1,114) |
+
+The pooled speed bias hides two of opposite sign: East/Gulf 0.032 m/s slow, West 0.021 m/s fast. 18Z not scored (radar data
+ended 15Z / 13Z at run time). Caveat: radar sees the top ~1 m with tide, wind drift and Stokes drift; CMEMS is the -0.494 m
+level without them, which is in the direction error.
+Evidence (raw pairs, station list, scripts): kept outside the repo with the session's scratch (g6_pairs.csv 468,003 rows,
+g7_pairs.csv 2,184 rows); available to the advisor on request.
