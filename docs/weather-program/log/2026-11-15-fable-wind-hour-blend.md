@@ -200,3 +200,21 @@ owner, 10 randomized pairs of hard cut against cross-fade. For wind: "blend u/v,
   does not measure the cost of the added text against the plain shaders. Added now as **W2b**: one further arm-A scrub in a
   page loaded WITHOUT the opt-in (the plain shaders, what every user gets by default), reported beside W2; the at-rest GPU
   time of the blended text with mix 0 must be within **5%** of the plain shaders'.
+
+## 7. W13's controls restated BEFORE any frame is fetched or scored (18:30 EST). No number exists.
+Writing the marine real-frame test (the marine log, section 34) showed a fault in W13's negative control as section 5 worded
+it ("the middle frame replaced by one from another day must FAIL the pass line"). It could not fail that way: the average of
+two fields is usually CLOSER to an unrelated field than either one is, so against a wrong truth the blend-to-cut ratio would
+still read under 100%. The control is replaced, before data, by the two the marine test registers, and the same instrument
+(`real_frames_hidden_hour.mjs`, set `wind`; now on this branch, not run) scores it:
+- **N1, a wrong truth:** scored against the frame 48 h later in place of the real h+3, ERROR(blend) must be at least **2 x**
+  its value against the real h+3 in at least 90% of triples. If not, W13 cannot tell a right middle from a wrong one: VOID.
+- **N2, a wrong blend:** the mix built from h and h+54 in place of h+6 must FAIL W13's pooled line against the real h+3
+  (above 100% of the cut). If it passes, W13 is VOID.
+- **P** is unchanged in meaning and made exact: with both neighbours and the middle the same frame, every error is exactly 0.
+- W13's pass line, triples and runs are as section 5 wrote them, with one thing made definite: triples are h = 0, 6, ... 114
+  of each run (20 a run), at least 2 runs, and the result is NOT reported until two runs are in.
+- Units: the instrument reports the wind frames' own speed unit and says so; if that is not knots the 0.1 kn figure of the
+  clean-truth check (section 5, item 7) is converted, not re-chosen.
+- The owner's wording of the negative control ("a corrupted middle frame must fail") is ambiguous between N1 and N2; both are
+  run and the reading is put to the director.
