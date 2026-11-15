@@ -200,3 +200,21 @@ at upload).
   drops the new branch fails.
 - The render-fix numbers (render ms, input-to-paint, key-to-shown) are reported for this fix too, and must not be worse than KILL by
   more than 5 ms p50 / 15 ms p95 on key-to-shown.
+
+## 19:31Z: run 2 (unseen, levers 1 + 2 + 3, the same gate): gate 1 FAILS again; gates 2 and 3 pass
+
+Raw files: `scratchpad/m3/ab2/`. KILL arm = all three kills.
+
+| | ON | KILL | gate |
+|---|---|---|---|
+| own render ms / step, p50 | 53.0 | 81.4 | 1: ON <= 0.5x KILL. **0.65x, FAIL** |
+| sessions (in run order: on1, kill1, on2, kill2, on3, kill3) | 56.6, 22.9, 127.2 | 159.8, 70.5, 58.9 | |
+| components / step | 53 | 67 | secondary |
+| keydown input-to-paint p95 / p50 | 224 / 120 ms | 408 / 160 ms | 2: **0.55x, PASS** |
+| key-to-shown p50 / p95 (changed steps) | 326 / 898 ms (n 7) | 876 / 987 ms (n 4) | 3: **PASS** |
+| blank / labels reached / mislabel (reported, not scored) | 0 / 30 of 30 / 0 | 0 / 30 of 30 / 0 | |
+
+Reading, not a re-judgement: the session totals swing 3x within an arm (22.9 to 127.2 ON; 58.9 to 159.8 KILL) on a machine shared
+with other sessions; the paired sessions read 0.35x, 0.32x and 2.16x (the third ON session ran under load). The pooled p50 is
+0.65x and the gate as registered fails. Run 1 (FAIL) and run 2 (FAIL on gate 1) both stand. Whether to re-run on a quiet machine,
+or to change the render metric (a gate change), is the director's decision; nothing ships ON on this gate as is.
