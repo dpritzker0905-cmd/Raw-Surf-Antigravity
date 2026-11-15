@@ -231,3 +231,15 @@ The gate, arms, view, steps and metric are unchanged (run 2's KILL arm: all thre
   INCOMPLETE (not scored). Void sessions are listed with their numbers, never dropped silently.
 - *Quiet:* before the run, no build, Jest or other lab run of mine is going; other sessions on this machine are outside my control,
   which is what the void rule is for.
+
+## 21:40Z: Brief 3 (senior research lead #929, approved by David 16:14 EST via the director): a NEW gate for a future run
+
+Runs 1 and 2 stay FAIL on record; run 3 (the old gate, quiet machine) still runs when a quiet window exists. Brief 3 is registered
+as a separate gate, not a change to the old one:
+- **Metric (my reading of "phone p95", stated now; the director may correct it before the run):** the keydown's Event Timing
+  input-to-paint duration, p95 over all steps, phone 4x, z6, Waves, GFS, 10 steps, 900 ms dwell.
+- **Arms:** ON (all three levers) vs KILL (the three kills), same build, 3 interleaved runs of 3 sessions per arm.
+- **Pass:** ON p95 <= 0.5x KILL p95 in the pooled run AND in each of the 3 runs; an **A/A pair** (two KILL-arm runs on the same
+  build) agree within 10% on the same p95, else the run is INCOMPLETE; **served values byte-identical:** the marine engine's drawn
+  grid fingerprint (FNV-1a of vectors, cols, rows, bounds) per step identical across ON and KILL for every step drawing the same
+  hour; the 20:20Z load-void rule applies.

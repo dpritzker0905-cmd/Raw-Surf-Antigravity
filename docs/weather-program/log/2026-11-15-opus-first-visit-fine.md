@@ -87,3 +87,15 @@ network `/grid`. A prefetch therefore passes `noSideWarm` (its own `/grid` only)
    `/grid` frame at the same view by design; the mock's 5x3 has the same cause. Production frames carry the stride
    (`__decimatedStride`), so R now counts a strided regional series frame too (it only excludes WORLD frames, which the existing
    upgrade owns); R still asks only when the series cells are > 1.5x the last fine grid's.
+
+## 21:42Z: Brief 4 (#929, approved 16:14 EST): z7 misses + the coarse-to-fine wait; added to the 19:45Z gate, before any run
+
+On top of F1-F4 (unchanged), the change also has to pass:
+- **Census slow steps -50%:** in the slow scenario at z7 (the brief's zoom; same place), steps whose time-to-fine exceeds 1,500 ms,
+  PR arm <= 0.5x the none arm.
+- **Never-shown <= 10% of before:** steps where no fine grid is drawn within the dwell, PR <= 0.1x none.
+- **A/A:** two none-arm runs agree within 10% on the slow-step count, else INCOMPLETE.
+- **A planted miss registers:** one extra session in the PR arm with the slow scenario's 4th hour removed from the mock's store
+  (the backend answers 404 for it); the probe must count that step as never-shown. If it does not, the instrument is broken and
+  the run is void.
+- The load-void rule (census log 20:20Z) applies.
