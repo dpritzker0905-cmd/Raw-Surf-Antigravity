@@ -123,6 +123,9 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_SLOT_URL_BAILOUT__',
   '__RAW_DISABLE_DERIVED_SCRUBBING__',
   '__RAW_DISABLE_CLOSED_MODALS_SKIP__',
+  // components/map/marineFinePrefetch.test.js ("OFF PATH: __RAW_DISABLE_FINE_PREFETCH_NEXT__ asks nothing" / "...FINE_UPGRADE_REGIONAL__ leaves a coarse regional series frame alone"; 2026-11-15)
+  '__RAW_DISABLE_FINE_PREFETCH_NEXT__',
+  '__RAW_DISABLE_FINE_UPGRADE_REGIONAL__',
   // marineSeriesFrame.killSwitch.test.js
   '__RAW_DISABLE_SERIES_MINT_STAGE__',
   '__RAW_DISABLE_SERIES_ESTIMATE_PROVENANCE__',

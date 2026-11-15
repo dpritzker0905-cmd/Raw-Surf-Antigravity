@@ -55,3 +55,14 @@ at the step's target hour; every `/api/weather/grid` request (count, bytes recei
 network `/grid`. A prefetch therefore passes `noSideWarm` (its own `/grid` only). F2 is widened to count EVERY
 `/api/weather/*` request and its bytes (`/grid` and `/grid_series` separately), not `/grid` alone; the bounds are unchanged
 (drag ON <= KILL; slow and back ON <= KILL + 1 `/grid`, and `/grid_series` ON <= KILL).
+
+## 20:15Z: the A/B driver, how each gate is computed (before any run)
+
+`scn_first_visit_fine_ab.js` (one build; desktop and phone; slow, drag, back; 3 sessions per arm, alternating):
+- F1 over the slow scenario's steps 2-6: time-to-fine p50 ON <= 0.5x KILL and p95 ON <= KILL; and ON has no more steps where no fine
+  grid was drawn within the dwell than KILL (a never-shown fine grid is a miss, not a fast step).
+- F2 per scenario, summed over the sessions: `/grid` ON <= KILL (drag) or <= KILL + 3 (slow, back: one unused prefetch per session),
+  and `/grid_series` ON <= KILL. Bytes reported.
+- F3 step time: the keydown to the first change of what the engine draws (this probe's own clock; the census probe is not run in this
+  A/B), p50 / p95 not worse than KILL by more than 5 / 15 ms; 0 stale fine frames (a fine grid of another hour drawn after the
+  target hour was drawn) and 0 blank frames in ON.

@@ -493,6 +493,8 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
 
 export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forceFetch = false, model = null, activeLayer = 'waves', isPrefetch = false, fetchOpts = null) {
   if (!bounds) return getModelSafeMarine(model, hourOffset, activeLayer);
+  // FINE PREFETCH (marineFinePrefetch.js): a next-hour prefetch fetches and caches ONLY its own /grid, no sibling or world warms.
+  const _noSideWarm = !!(fetchOpts && fetchOpts.noSideWarm);
 
   let west = bounds.west, east = bounds.east;
   if (east < west) east += 360;
@@ -609,8 +611,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       // the !forceFetch block above is NOT in scope. Measured before this: 19 exact-key checks,
       // 0 hits (100% miss) — see T2PRIME_STEP3_MISS_RATE_MEASUREMENT.md.
       _cacheMarineResult('GFS', hourOffset, result, activeLayer, false, clampRes.selectedTileId || 'outside');
-      prewarmSiblingMarineSeries('GFS', hourOffset, bounds, activeLayer, signal);
-      prewarmGlobalMarineGrid('GFS', hourOffset, bounds, activeLayer);
+      if (!_noSideWarm) { prewarmSiblingMarineSeries('GFS', hourOffset, bounds, activeLayer, signal); prewarmGlobalMarineGrid('GFS', hourOffset, bounds, activeLayer); }
       return result;
     } catch (err) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
@@ -630,7 +631,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       // switch INTO EURO at a regional zoom left blend-both's base on the previous model (wash off —
       // same disease as the ICON report). Sibling-series prewarm stays deliberately absent for EURO
       // (per-hour cost class); the single world-coarse fetch here is cheap and cached.
-      prewarmGlobalMarineGrid('EURO', hourOffset, bounds, activeLayer);
+      if (!_noSideWarm) prewarmGlobalMarineGrid('EURO', hourOffset, bounds, activeLayer);
       return result;
     } catch (err) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
@@ -644,8 +645,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     try {
       const result = await fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, activeLayer, 'ICON');
       _cacheMarineResult('ICON', hourOffset, result, activeLayer, false, clampRes.selectedTileId || 'outside');
-      prewarmSiblingMarineSeries('ICON', hourOffset, bounds, activeLayer, signal);
-      prewarmGlobalMarineGrid('ICON', hourOffset, bounds, activeLayer);
+      if (!_noSideWarm) { prewarmSiblingMarineSeries('ICON', hourOffset, bounds, activeLayer, signal); prewarmGlobalMarineGrid('ICON', hourOffset, bounds, activeLayer); }
       return result;
     } catch (err) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {

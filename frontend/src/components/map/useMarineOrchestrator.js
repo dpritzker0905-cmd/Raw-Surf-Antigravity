@@ -815,7 +815,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   useMarineScrubSettle({
     mapInstance, marineData, setMarineData,
     timeOffsetRef, activeModelRef, activeMarineLayerRef, activeMarineLayersRef,
-    marineFetchLocksRef, updateMarineGridRef, marineRevision, lastCommittedSigRef,
+    marineFetchLocksRef, updateMarineGridRef, marineRevision, lastCommittedSigRef, hour: timeOffsetHours,
   });
 
   useMarineSeriesWarm({ mapInstance, activeModel, activeMarineLayer,

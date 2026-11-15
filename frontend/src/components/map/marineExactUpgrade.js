@@ -73,6 +73,34 @@ export function isThinnedWorldGrid(grid) {
   return lngSpan(grid.bounds) >= WORLD_MIN_SPAN_DEG;
 }
 
+/**
+ * REGIONAL UPGRADE (2026-11-15, the first-visit fine finding; log 2026-11-15-opus-first-visit-fine.md): a coarse SERIES frame at a
+ * regional view (not thinned, not world: the offline lab's 5x3 series page at z8) never armed the upgrade, so on a first visit the
+ * coarse frame stayed up. It counts as a placeholder only when its cells are more than COARSE_RATIO times the size of the last
+ * FINE (non-series, non-decimated) grid drawn, so it never asks for a /grid that would not be sharper; nothing known, no upgrade.
+ * Same 1500 ms settle wait and the same attempt bounds as the world case. Kill: window.__RAW_DISABLE_FINE_UPGRADE_REGIONAL__ = true.
+ */
+export const COARSE_RATIO = 1.5;
+let _lastFineCellDeg = null;
+const cellDeg = (g) => (g && g.bounds && g.cols > 1 ? lngSpan(g.bounds) / g.cols : null);
+export const regionalUpgradeOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_FINE_UPGRADE_REGIONAL__ === true);
+/** Remember the cell size of a fine grid (non-series, non-decimated); called for every resident grid. */
+export function noteFineGrid(g) {
+  if (!g || g.__fromSeries || Number(g.__decimatedStride) > 1) return;
+  const c = cellDeg(g);
+  if (c && Number.isFinite(c)) _lastFineCellDeg = c;
+}
+export function isCoarseRegionalSeries(grid) {
+  if (!regionalUpgradeOn() || !grid || !grid.__fromSeries || !grid.bounds || Number(grid.__decimatedStride) > 1) return false;
+  if (lngSpan(grid.bounds) >= WORLD_MIN_SPAN_DEG) return false;
+  const c = cellDeg(grid);
+  return !!(c && _lastFineCellDeg && c > COARSE_RATIO * _lastFineCellDeg);
+}
+/** A drawn placeholder the settled upgrade replaces: a thinned world frame, or (REGIONAL UPGRADE) a coarse regional series frame. */
+export function isUpgradablePlaceholder(grid) {
+  return isThinnedWorldGrid(grid) || isCoarseRegionalSeries(grid);
+}
+
 export function exactUpgradeKey(model, layer, hour) {
   return `${model || 'GFS'}|${layer || 'waves'}|${hour}`;
 }
@@ -85,18 +113,19 @@ export function planExactUpgrade(ctx) {
   const { marineData, currentHour, scrubbing, wideView, fetchPendingForHour, attempts, nowMs, disabled, engineGrid } = ctx;
   if (disabled) return { upgrade: false, reason: 'disabled' };
   const grid = marineData && marineData.grid;
-  if (!isThinnedWorldGrid(grid)) return { upgrade: false, reason: 'resident_not_thinned_world' };
+  const regional = !isThinnedWorldGrid(grid) && isCoarseRegionalSeries(grid);
+  if (!isThinnedWorldGrid(grid) && !regional) return { upgrade: false, reason: 'resident_not_thinned_world' };
   if (scrubbing) return { upgrade: false, reason: 'scrubbing' };
   const rendered = grid.hourOffset ?? marineData.hourOffset;
   if (!(Math.abs(rendered - currentHour) <= EXACT_UPGRADE_HOUR_TOLERANCE)) return { upgrade: false, reason: 'hour_mismatch' };   // that branch owns it
-  if (!wideView) return { upgrade: false, reason: 'not_wide_view' };                   // zoomed in: the gate hides a world frame
+  if (!wideView && !regional) return { upgrade: false, reason: 'not_wide_view' };      // zoomed in: the gate hides a world frame (a regional one is the view's own)
   if (fetchPendingForHour) return { upgrade: false, reason: 'fetch_pending' };
   if (engineHoldsExactOf(engineGrid, grid)) return { upgrade: false, reason: 'engine_has_exact' };
   if (attempts && (nowMs - attempts.lastAt) < EXACT_UPGRADE_FORGET_MS) {
     if (attempts.count >= EXACT_UPGRADE_MAX_ATTEMPTS) return { upgrade: false, reason: 'attempts_exhausted' };
     if (nowMs - attempts.lastAt < EXACT_UPGRADE_MIN_GAP_MS) return { upgrade: false, reason: 'too_soon' };
   }
-  return { upgrade: true, reason: 'thinned_world_frame_settled' };
+  return { upgrade: true, reason: regional ? 'coarse_regional_series_settled' : 'thinned_world_frame_settled' };
 }
 
 /**
@@ -191,6 +220,7 @@ let _lastTriggerAt = 0;                // the last trigger for ANY key (the glob
 export function _resetExactUpgradeForTest() {
   _attempts.clear();
   _lastTriggerAt = 0;
+  _lastFineCellDeg = null;
   if (typeof window !== 'undefined') delete window.__MARINE_EXACT_UPGRADE__;
 }
 
@@ -220,7 +250,7 @@ export function tryExactUpgrade(ctx) {
     const model = activeModelRef && activeModelRef.current;
     const layer = (activeMarineLayerRef && activeMarineLayerRef.current) || 'waves';
     const key = exactUpgradeKey(model, layer, currentHour);
-    if (marineData && marineData.grid && !isThinnedWorldGrid(marineData.grid)) _attempts.delete(key);   // upgraded: forget
+    if (marineData && marineData.grid && !isUpgradablePlaceholder(marineData.grid)) _attempts.delete(key);   // upgraded: forget
     if (Date.now() - _lastTriggerAt < EXACT_UPGRADE_GLOBAL_GAP_MS) return false;
     const pending = w && w.__MARINE_FETCH_PENDING__;
     const plan = planExactUpgrade({
@@ -270,7 +300,8 @@ export function useMarineExactUpgrade(marineData, checkRef, timeOffsetRef) {
     // erratic zoom (thin placeholder, upgrade, zoom in, zoom out, thin again, ...) spent the budget of an hour whose exact
     // frame was already in hand, and the last thin placeholder then stayed drawn.
     if (g && g.bounds && !(Number(g.__decimatedStride) > 1) && lngSpan(g.bounds) >= WORLD_MIN_SPAN_DEG) _attempts.clear();
-    if (!isThinnedWorldGrid(g)) return undefined;
+    noteFineGrid(g);
+    if (!isUpgradablePlaceholder(g)) return undefined;
     const timers = [];
     const hourNow = () => (timeOffsetRef ? timeOffsetRef.current : undefined);
     let armedHour = hourNow();

@@ -16,7 +16,8 @@ const CPU = +(process.env.CPU || (VIEW === 'phone' ? 4 : 1));
 const ZOOM = +(process.env.ZOOM || 8);
 const MODEL = process.env.MODEL || 'GFS';
 const STEPS = +(process.env.STEPS || 6);
-const DWELL = +(process.env.DWELL || 5000);
+const DWELL = +(process.env.DWELL || 3000);
+const SCEN = process.env.SCEN || 'slow';   // slow | drag | back (the 19:45Z registration)
 const FLAGS = process.env.FLAGS ? JSON.parse(process.env.FLAGS) : {};
 const [CLNG, CLAT] = (process.env.CENTER || '-80.05,28.45').split(',').map(Number);
 const VP = {
@@ -59,9 +60,20 @@ const PROBE = () => {
 (async () => {
   const vp = VP[VIEW];
   const { browser, page } = await L.launch({ port: PORT, width: vp.width, height: vp.height, dpr: vp.dpr, contextOptions: vp.contextOptions });
-  const out = { view: VIEW, cpu: CPU, zoom: ZOOM, center: [CLNG, CLAT], model: MODEL, flags: FLAGS, at: new Date().toISOString(), steps: [] };
+  const out = { scen: SCEN, dwell: DWELL, view: VIEW, cpu: CPU, zoom: ZOOM, center: [CLNG, CLAT], model: MODEL, flags: FLAGS, at: new Date().toISOString(), steps: [] };
   try {
     await page.addInitScript(PROBE);
+    const net = { grid: 0, gridBytes: 0, series: 0, seriesBytes: 0, other: 0, gridMs: [] };
+    out.net = net; let counting = false;
+    page.on('requestfinished', async (req) => {
+      if (!counting) return;
+      const u = req.url(); if (!/\/api\/weather\//.test(u)) return;
+      let bytes = 0; try { bytes = (await req.sizes()).responseBodySize || 0; } catch (e) { /* none */ }
+      const t = req.timing(); const ms = t && t.responseEnd > 0 ? t.responseEnd : null;
+      if (/\/api\/weather\/grid_series/.test(u)) { net.series += 1; net.seriesBytes += bytes; }
+      else if (/\/api\/weather\/grid(\?|$)/.test(u)) { net.grid += 1; net.gridBytes += bytes; if (ms != null) net.gridMs.push(Math.round(ms)); }
+      else net.other += 1;
+    });
     await page.addInitScript((flags) => { for (const [k, v] of Object.entries(flags)) window[k] = v; }, FLAGS);
     if (CPU > 1) { const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU }); }
     await page.goto(L.BASE + '/map', { waitUntil: 'domcontentloaded' });
@@ -79,10 +91,15 @@ const PROBE = () => {
       if (h) h.click();
     });
     await sleep(1500);
-    for (let i = 0; i < STEPS; i += 1) {
+    counting = true;
+    const plan = SCEN === 'drag' ? [{ key: 'ArrowRight', presses: 12, gap: 150 }]
+      : SCEN === 'back' ? [...Array(STEPS)].map(() => ({ key: 'ArrowRight' })).concat([...Array(3)].map(() => ({ key: 'ArrowLeft' })))
+        : [...Array(STEPS)].map(() => ({ key: 'ArrowRight' }));
+    for (let i = 0; i < plan.length; i += 1) {
       const w = page.locator('[role="slider"][aria-label*="timeline wheel"]').filter({ visible: true }).first();
       await w.focus().catch(() => {});
-      await page.keyboard.press('ArrowRight');
+      const n = plan[i].presses || 1;
+      for (let k = 0; k < n; k += 1) { await page.keyboard.press(plan[i].key); if (k < n - 1) await sleep(plan[i].gap); }
       await sleep(DWELL);
       const s = await page.evaluate(() => {
         const F = window.__FV__; const k = F.key;
@@ -94,12 +111,15 @@ const PROBE = () => {
       const fine = s.ev.find((e) => e.k === 'draw' && new RegExp(`^h${s.target} `).test(e.sig) && !/series|dec/.test(e.sig));
       const firstDraw = s.ev.find((e) => e.k === 'draw');
       const grid = s.ev.filter((e) => e.k === 'grid');
-      s.summary = { target: s.target, firstDrawMs: firstDraw ? firstDraw.at : null, firstDraw: firstDraw ? firstDraw.sig : null,
+      const stale = s.ev.filter((e) => e.k === 'draw' && !/series|dec|none/.test(e.sig) && !new RegExp(`^h${s.target} `).test(e.sig)
+        && s.ev.some((d) => d.k === 'draw' && d.at < e.at && new RegExp(`^h${s.target} `).test(d.sig))).length;
+      s.summary = { stale, target: s.target, firstDrawMs: firstDraw ? firstDraw.at : null, firstDraw: firstDraw ? firstDraw.sig : null,
         fineMs: fine ? fine.at : null, fine: fine ? fine.sig : null, gridSentMs: grid.length ? grid[0].sent : null, gridDoneMs: grid.length ? grid[0].done : null, gridCount: grid.length };
-      console.log(`step ${i + 1} -> h${s.target}: first draw ${s.summary.firstDrawMs} ms (${s.summary.firstDraw}); /grid sent ${s.summary.gridSentMs} done ${s.summary.gridDoneMs} (${grid.length}); fine ${s.summary.fineMs} ms (${s.summary.fine})`);
+      console.log(`${SCEN} step ${i + 1} -> h${s.target}: first draw ${s.summary.firstDrawMs} ms (${s.summary.firstDraw}); /grid sent ${s.summary.gridSentMs} done ${s.summary.gridDoneMs} (${grid.length}); fine ${s.summary.fineMs} ms (${s.summary.fine})`);
       out.steps.push(s);
     }
   } catch (e) { out.error = String(e && e.message || e).slice(0, 200); console.log('ERROR', out.error); }
   await browser.close();
+  console.log(`net ${SCEN}: grid ${out.net && out.net.grid} (${out.net && out.net.gridBytes} B), grid_series ${out.net && out.net.series} (${out.net && out.net.seriesBytes} B), mock /grid ms ${JSON.stringify(out.net && out.net.gridMs)}`);
   fs.writeFileSync(OUT, JSON.stringify(out, null, 1));
 })();

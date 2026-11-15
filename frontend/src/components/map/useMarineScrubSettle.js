@@ -8,6 +8,7 @@ import { MARINE_PENDING_LEASE_MS, STRANDED_PENDING_RECORD_MS, evaluateStrandedPe
 import { runSettleCheckLive, settleArmKey } from './marineSettleLiveMap';   // SETTLE_LIVE_MAP / SETTLE_ARM_ON_ACTIVATE
 import { MARINE_ZOOMED_OUT_MAX_ZOOM, alignedCoverFrac } from './marineZoomThresholds';
 import { keepExactResident, tryExactUpgrade, useMarineExactUpgrade } from './marineExactUpgrade';
+import { useFineDwellPrefetch } from './marineFinePrefetch';
 import { useMarineWorldWarmOnSettle } from './marineWorldWarmOnSettle';
 import { frameServesSelectedHour } from './marineHourInstant';
 import { paintSeriesWhilePending, useSeriesPaintWhilePending } from './marineSeriesWhilePending';   // SERIES_PAINT_WHILE_PENDING (request diet)
@@ -413,7 +414,7 @@ export function runScrubSettleCheck(ctx) {
 export function useMarineScrubSettle({
   mapInstance, marineData, setMarineData,
   timeOffsetRef, activeModelRef, activeMarineLayerRef, activeMarineLayersRef,
-  marineFetchLocksRef, updateMarineGridRef, marineRevision, lastCommittedSigRef,
+  marineFetchLocksRef, updateMarineGridRef, marineRevision, lastCommittedSigRef, hour,
 }) {
   const scrubSettleTimerRef = useRef(null);
   // Caps safety-net refetches per {hour,model,layer} so a fetch that keeps failing can't re-fire
@@ -441,7 +442,8 @@ export function useMarineScrubSettle({
   // blank streak before it ever reaches the threshold).
   const checkScrubSettleRef = useRef(checkScrubSettle);
   checkScrubSettleRef.current = checkScrubSettle;
-  useMarineExactUpgrade(marineData, checkScrubSettleRef, timeOffsetRef);   // re-drives the check shortly after a thinned world frame lands
+  useMarineExactUpgrade(marineData, checkScrubSettleRef, timeOffsetRef);
+  useFineDwellPrefetch({ mapInstance, timeOffsetRef, activeModelRef, activeMarineLayerRef, activeMarineLayersRef, hour });   // the next hour's fine grid on a dwell (marineFinePrefetch.js)   // re-drives the check shortly after a thinned world frame lands
   useSeriesPaintWhilePending(checkScrubSettleRef, activeMarineLayerRef);   // a series landing while a /grid is pending re-runs the check
   useMarineWorldWarmOnSettle({ marineData, mapInstance, timeOffsetRef, activeModelRef, activeMarineLayerRef, activeMarineLayersRef });   // F-21: the base follows the selected hour
 
