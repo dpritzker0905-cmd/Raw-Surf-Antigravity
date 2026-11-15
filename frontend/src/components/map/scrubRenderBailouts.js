@@ -35,3 +35,16 @@ export function keepSlotUrlsIfSame(prev, next) {
 export function scrubbingFlag(timeOffsetHours, settledOffset, legacyState) {
   return derivedScrubbingOn() ? timeOffsetHours !== settledOffset : legacyState;
 }
+
+// 3. Closed-modals skip. MapPageModals re-rendered on every scrub step (RequestProModal, Radix Dialog / Presence wrappers: about
+//    10 ms a step on the throttled phone) although every modal was closed and nothing it renders is visible. While every modal is
+//    closed before AND after, React.memo skips it; opening (or closing) any modal re-renders it with fresh props, so a handler is
+//    never stale when it can be used. Kill: window.__RAW_DISABLE_CLOSED_MODALS_SKIP__ = true.
+export const MODAL_OPEN_FLAGS = ['showJumpInModal', 'showRequestProModal', 'showRequestProSelfieModal', 'showEndSessionModal',
+  'showConditionsModal', 'showPermissionNudge', 'showGPSGuide', 'showLocationPicker'];
+export const closedModalsSkipOn = () => !killed('__RAW_DISABLE_CLOSED_MODALS_SKIP__');
+const allClosed = (p) => MODAL_OPEN_FLAGS.every((k) => !p[k]);
+// React.memo comparator: true = skip the render.
+export function modalsStayClosed(prev, next) {
+  return closedModalsSkipOn() && allClosed(prev) && allClosed(next);
+}

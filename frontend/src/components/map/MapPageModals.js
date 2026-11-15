@@ -13,6 +13,7 @@ import { GPSSettingsGuide } from '../GPSSettingsGuide';
 import { LocationPicker } from '../LocationPicker';
 import { isValidLatLng } from './mapUtils';
 import { toast } from 'sonner';
+import { modalsStayClosed } from './scrubRenderBailouts';
 
 var MapPageModals = ({
   // JumpIn
@@ -134,4 +135,5 @@ var MapPageModals = ({
   </>
 );
 
-export default MapPageModals;
+// Closed-modals skip (scrubRenderBailouts.js): no re-render while every modal stays closed. Kill __RAW_DISABLE_CLOSED_MODALS_SKIP__.
+export default React.memo(MapPageModals, modalsStayClosed);

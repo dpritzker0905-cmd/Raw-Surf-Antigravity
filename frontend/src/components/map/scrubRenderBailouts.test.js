@@ -2,7 +2,7 @@
 // kill's off path. The census that motivated them: docs/weather-program/log/2026-11-15-opus-scrub-render-census.md.
 import React, { useState } from 'react';
 import { act, render } from '@testing-library/react';
-import { shallowSameMap, keepSlotUrlsIfSame, scrubbingFlag } from './scrubRenderBailouts';
+import { shallowSameMap, keepSlotUrlsIfSame, scrubbingFlag, modalsStayClosed, MODAL_OPEN_FLAGS } from './scrubRenderBailouts';
 
 const mockExactArgs = [];
 jest.mock('../../contexts/ThemeContext', () => ({ useTheme: () => ({ theme: 'dark' }) }));
@@ -23,6 +23,7 @@ const { MapForecastOverlay } = (() => {
 afterEach(() => {
   delete window.__RAW_DISABLE_SLOT_URL_BAILOUT__;
   delete window.__RAW_DISABLE_DERIVED_SCRUBBING__;
+  delete window.__RAW_DISABLE_CLOSED_MODALS_SKIP__;
   mockExactArgs.length = 0;
   jest.useRealTimers();
 });
@@ -114,5 +115,41 @@ describe('derived scrubbing flag', () => {
     expect(atStep.length).toBeGreaterThanOrEqual(2);
     act(() => { jest.advanceTimersByTime(250); });
     expect(mockExactArgs[mockExactArgs.length - 1]).toEqual({ isScrubbing: false, settledOffset: 3, hour: 3 });
+  });
+});
+
+describe('closed-modals skip', () => {
+  const closed = Object.fromEntries(MODAL_OPEN_FLAGS.map((k) => [k, false]));
+  test('skips only while every modal stays closed; any opening or closing renders', () => {
+    expect(modalsStayClosed({ ...closed, user: 1 }, { ...closed, user: 2, onX: () => {} })).toBe(true);
+    for (const k of MODAL_OPEN_FLAGS) {
+      expect(modalsStayClosed(closed, { ...closed, [k]: true })).toBe(false);   // opening renders with fresh props
+      expect(modalsStayClosed({ ...closed, [k]: true }, closed)).toBe(false);   // closing renders (exit)
+      expect(modalsStayClosed({ ...closed, [k]: true }, { ...closed, [k]: true })).toBe(false);   // open: props flow as before
+    }
+  });
+
+  test('MapPageModals: a closed set does not re-render on an unrelated prop change; opening one does', () => {
+    const React2 = require('react');
+    let renders = 0;
+    const Inner = (p) => { renders += 1; return null; };
+    const Memo = React2.memo(Inner, modalsStayClosed);
+    const { rerender } = render(<Memo {...closed} user={1} />);
+    rerender(<Memo {...closed} user={2} />);
+    expect(renders).toBe(1);
+    rerender(<Memo {...closed} showRequestProModal user={3} />);
+    expect(renders).toBe(2);
+  });
+
+  test('OFF PATH: __RAW_DISABLE_CLOSED_MODALS_SKIP__ re-renders on every parent render', () => {
+    window.__RAW_DISABLE_CLOSED_MODALS_SKIP__ = true;
+    expect(modalsStayClosed(closed, closed)).toBe(false);
+  });
+
+  test('the flag list covers every isOpen / show flag MapPageModals reads', () => {
+    const src = require('fs').readFileSync(require('path').join(__dirname, 'MapPageModals.js'), 'utf8');
+    // every show* name in the component's props (setShow* setters and the local alias showSelfie excluded)
+    const flags = [...new Set((src.match(/[^A-Za-z]show[A-Z][A-Za-z]*/g) || []).map((n) => n.slice(1)).filter((n) => n !== 'showSelfie'))];
+    expect(flags.sort()).toEqual([...MODAL_OPEN_FLAGS].sort());
   });
 });
