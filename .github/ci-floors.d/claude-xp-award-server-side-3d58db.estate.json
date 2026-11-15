@@ -1,7 +1,7 @@
 {
   "lane": "estate",
-  "tests": 6,
+  "tests": 13,
   "branch": "claude/xp-award-server-side-3d58db",
   "date": "2026-11-15",
-  "note": "award-xp server-authoritative: +7 tests in test_xp_award_server_authoritative.py, -1 actor-binding TOKEN_IDENTITY case (moved to LOGIN_ONLY)"
+  "note": "award-xp server-authoritative + partial unique index + check-badges caller binding: +11 tests in test_xp_award_server_authoritative.py, +3 check-badges NAMED_ACTOR cases, -1 award-xp TOKEN_IDENTITY case"
 }

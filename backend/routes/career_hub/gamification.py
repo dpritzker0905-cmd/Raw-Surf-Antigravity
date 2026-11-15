@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from core.security import get_current_user_id
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
+from sqlalchemy.exc import IntegrityError
 from pydantic import BaseModel, ConfigDict, Field
 from typing import Optional, List
 from datetime import datetime
@@ -139,7 +140,8 @@ async def award_xp(
     # Ownership + lock: the row must exist and belong to the caller. FOR UPDATE serializes concurrent replays of
     # the same reference on Postgres: a second claim waits here until the first commits, and under READ COMMITTED
     # (the engine default; database.py sets no isolation level) its next statement sees the committed XP row, so
-    # the check-then-insert below cannot double-award. Under REPEATABLE READ this would need a unique constraint.
+    # the check-then-insert below cannot double-award. At any isolation level the partial unique index
+    # uq_xp_transactions_claim_ref (alembic xp_claim_unique_001) is the backstop, handled at the flush below.
     owned_query = (
         select(rule.model.id)
         .where(rule.model.id == claim.reference_id)
@@ -171,17 +173,27 @@ async def award_xp(
         reference_type=rule.reference_type,
         reference_id=claim.reference_id,
     ))
-    await check_badge_milestones(current_user_id, db)
-    await db.commit()
+    try:
+        # Flush first: a concurrent grant that slipped past the lock (e.g. under REPEATABLE READ) hits the partial
+        # unique index uq_xp_transactions_claim_ref here, before any badge work, and is answered as a replay.
+        await db.flush()
+        await check_badge_milestones(current_user_id, db)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        return {"granted": 0, "action": claim.action, "already_granted": True}
     return {"granted": rule.amount, "action": claim.action, "already_granted": False}
 
 
 @router.post("/gamification/check-badges/{user_id}")
 async def check_and_award_badges(
     user_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Check and award any earned badges based on current stats"""
+    """Check and award any earned badges based on current stats (your own only; harvested from draft #527)"""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     badges_awarded = await check_badge_milestones(user_id, db)
     await db.commit()
     return {"badges_awarded": badges_awarded}
