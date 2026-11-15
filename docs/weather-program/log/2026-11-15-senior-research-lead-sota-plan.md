@@ -370,3 +370,12 @@ The ranked plan is unchanged.
   - A run with any missing step is dropped and logged. The gate is VOID if more than 10% of runs are dropped.
 - **De-bias arm:** kept as an extra, non-primary arm, split into contiguous blocks (fit September, test October), not
   odd/even days, which leak through day-to-day autocorrelation.
+
+## 22:16Z The helper's station-label swap null: PASS
+
+1,000 derangements, seed 2026, pre-registered. True gain 0.0476 m; null mean -0.0039 m; null 95th percentile
++0.0178 m; null maximum +0.033 m. No draw reached the true gain (p < 0.001).
+- The per-station offset is informative at lead 0 on 16 offshore buoys.
+- Still not a forecast gain, and it does not reach spots.
+- Whether offsets travel to places with no buoy is the helper's optional next test: a leave-one-out spatial offset,
+  with the same null.
