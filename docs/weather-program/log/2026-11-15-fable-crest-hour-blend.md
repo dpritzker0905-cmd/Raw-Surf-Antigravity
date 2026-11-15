@@ -322,3 +322,41 @@ Build `f20875f3a`. Both arms interleaved in one page, the four-layer moving-swel
   cancelling. The held pictures read 0.95-1.00, which therefore means nothing. Luminance contrast of the whole frame is the
   wrong domain for this check; section 10's exact-reference comparison and the value-space figures replace it in what follows.
 - **H6 PASS.** Drag: A 8.28, B 3.44 (41.5%). 0 page errors, 0 blend errors, 436 blends started and 369 ended (66 restarted).
+
+## 12. The truth lines, run 11:28-11:46 EST (recorded 11:48 EST): none passes as registered. Nothing tuned.
+Build `e2c6b7ebb`. Instruments `scn_hour_blend_mid.js`, `hour_blend_mid_report.js`. Sent to the advisor first (section 9);
+the advisor's five additions registered first (section 10). Every view drew its own layer. 0 page errors.
+- **H8 (hidden middle hour): VOID. 22 of 40 triples scored; 30 were required.** 18 triples were left out because the engine's
+  grid at rest differed among the frames of the triple (the four coastal zoom-5 views and the swell_2 and wind_waves views
+  gave 1 scorable triple each; the world and mid-zoom views gave 4 each). On the 22 scored, for the record and NOT as a pass:
+  ERROR(blend) 4.67 against ERROR(cut) 10.20 luminance units = **45.8%** (band: at most 60%, void below 25%); no view where the
+  blend is worse than the cut; per view 35-51%, except swell_2 at 2% (its synthetic pattern changes almost evenly in time, so
+  the half-way mix is nearly exact there). The two textures mixed were h and h+6 in all 22.
+  - Flat control: the 12 h-apart average scored **119.6%** of the cut, so mean absolute error does not reward a washed-out
+    picture in this data and H8 could be read alone, had it been valid.
+  - Value space, the same 22 triples, from the texture bytes: height error of the mix 0.153 m against the nearest hour's
+    0.377 m = **40.5%** (the store predicts about 40%); direction error 0.02 degrees for both (the synthetic direction hardly
+    changes); height contrast of the mix against the real middle hour 0.914 on average (minimum 0.907).
+- **H5 against the exact reference: FAIL.** 22 held pictures against the exact average of the two hours' bytes drawn at rest.
+  Retention agrees (largest difference 0.017; line 0.03; both 1.009 on average). But the mean absolute luminance difference
+  is 0.32-0.49 in 19 pictures, 0.51 in one and **0.81** in one (line 0.5; mean 0.40). Two of 22 are over the line. The cause is
+  NOT established. Candidates, none tested: the reference's bytes are rounded to whole steps while the shader mixes unrounded
+  values, which moves pixels across colour-band edges; or a real difference in how the held picture is drawn. Until one is
+  shown, this line stands as failed.
+- **H9 (truth for a grid swap): VOID. 0 of 40 scored; 12 were required.** With the kill set, no step in this harness produced
+  a coarse grid followed by a finer grid of the SAME hour (38 of 40: no such swap within 4 s; 2: the finer grid came first).
+  The grid swaps seen in the scrub runs are swaps that come WITH an hour change, not a sharpening inside one hour. So the
+  grid-swap blend, the new part of v2, still has no truth line: it is smooth (section 11, H1) and nothing here shows it is
+  registered correctly on the map.
+
+### Where the gate stands after sections 11 and 12
+Passed as registered: H1 (smoothness, 23%), H2 (GPU time), H3 (bytes), H4 (at rest), H6 (drag).
+Not passed: H5 (void in luminance; its exact-reference form fails by up to 0.31 units in 2 of 22), H8 (void: 22 of 30
+triples; 45.8% and 40.5% in value space on those), H9 (void: not measurable this way).
+Owed before any PR is called ready, each needing a registration first:
+1. H8 with enough valid triples: either world and mid-zoom views only, or triples scored across a grid change.
+2. H9 with a FORCED swap: the lab commits a coarser copy of the resident grid and then the fine one, so the test does not
+   wait on the harness; plus a shifted-bounds positive control that must fail.
+3. The cause of the 0.3-0.8 unit difference from the exact reference.
+4. The advisor's condition for ON by default: H8 on real frames replayed offline.
+Also not done: the whole Jest trees, lint ratchet, file size, floor fragment, light and beach, the phone layout, LongCat.
