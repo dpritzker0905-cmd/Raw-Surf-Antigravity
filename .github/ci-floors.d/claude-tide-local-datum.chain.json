@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 7,
+  "files": 0,
+  "branch": "claude/tide-local-datum",
+  "date": "2026-11-15",
+  "note": "TIDE_LOCAL_DATUM: offset, gaps, fallback, kill, invariance, eta reach, replay twin"
+}

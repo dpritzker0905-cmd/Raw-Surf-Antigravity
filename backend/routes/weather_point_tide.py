@@ -113,6 +113,9 @@ async def get_point_tide(response: Response,
     try:
         series = await _tide.fetch_tide_hourly(lat, lng)
         out = build_point_tide(series, lat, lng, now)
+        if out is not None:   # which mean sea level the heights are relative to (TIDE_LOCAL_DATUM)
+            out["datum_basis"] = series.get("datum", "model_msl")
+            out["datum_offset_m"] = series.get("datum_offset_m")
     except Exception as e:  # a lookup that threw is "unavailable", never a 5xx the client toasts
         logger.warning("[point-tide] lookup failed: %s", e)
         out = None

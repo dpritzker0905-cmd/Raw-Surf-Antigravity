@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 4,
+  "files": 1,
+  "branch": "claude/tide-local-datum",
+  "date": "2026-11-15",
+  "note": "tide client fallback on the local datum + kill switch"
+}

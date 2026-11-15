@@ -63,7 +63,9 @@ async def test_real_http_eight_cold_callers_make_one_request(monkeypatch, status
     async with upstream(monkeypatch, status) as seen:
         results = await asyncio.gather(*(T.fetch_tide_hourly(37.5, -122.5) for _ in range(8)))
         assert len(seen) == 1, f'{len(seen)} actual HTTP requests for eight identical callers'
-        expected = {'time': payload()['hourly']['time'], 'level': payload()['hourly']['sea_level_height_msl']}
+        # 12 hours < tide._MIN_DATUM_SAMPLES, so to_local_datum leaves the model level and says so.
+        expected = {'time': payload()['hourly']['time'], 'level': payload()['hourly']['sea_level_height_msl'],
+                    'datum': 'model_msl', 'datum_offset_m': None}
         assert results == ([expected] * 8 if status == 200 else [None] * 8)
 
 

@@ -7,7 +7,14 @@ LAT/LNG). This deliberately sidesteps the NOAA CO-OPS path (US stations only + n
 a lat/lng source covers every spot worldwide with no schema change. Open-Meteo stays our FALLBACK provider, so
 using it for a variable the direct sources don't carry (tide) is consistent.
 
-Pure helpers (normalize / tide_state_at) are unit-tested. Acquisition shares a horizon-aware cache and
+LOCAL DATUM (TIDE_LOCAL_DATUM, default ON, 2026-11-15): the model's "msl" is relative to a GLOBAL reference, so at
+the coast it sits a stable per-place offset away from the local mean sea level (vs NOAA CO-OPS station MSL, 25
+stations x 14 days: +0.54 m all Hawaii, +0.36..0.45 m US West Coast, -0.45..-0.51 m Northeast, ~-0.2 m Florida;
+daily sd median 0.048 m). `fetch_tide_hourly` therefore serves every level relative to the mean of its own 72 h
+series (`to_local_datum`): median error vs CO-OPS 0.459 -> 0.117 m. Every consumer reads through it (point-tide,
+/tides, the rating's tide, the surf breaking depth eta), so they all move together. Kill: TIDE_LOCAL_DATUM=0.
+
+Pure helpers (normalize / tide_state_at / to_local_datum) are unit-tested. Acquisition shares a horizon-aware cache and
 per-cell locks across point requests and batch prewarming. Failures return unavailable with a timed
 cooldown; cancellation propagates. No retry loop or detached request is started.
 """
@@ -19,6 +26,11 @@ import time
 from datetime import datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from typing import Optional
+
+try:
+    from services import runtime_flags as _rf   # D-065 guarded flags: env > manifest > code default
+except ImportError:                             # pragma: no cover - script context without the package root
+    _rf = None
 
 logger = logging.getLogger(__name__)
 
@@ -348,13 +360,65 @@ def tide_state_at(times, levels, valid_time, window_h: int = 12) -> Optional[dic
     return {"height_m": round(height, 3), "norm": round(norm, 3), "trend": trend}
 
 
+TIDE_DATUM_WINDOW_H = 72      # the served payload's own span (every production caller fetches 3 days)
+_MIN_DATUM_SAMPLES = 48       # fewer finite hours than this and the mean is not trusted: serve the model level
+
+
+def local_datum_on() -> bool:
+    return _rf is None or _rf.flag("TIDE_LOCAL_DATUM") != "0"
+
+
+def local_datum_offset(times, levels, window_h: int = TIDE_DATUM_WINDOW_H) -> Optional[float]:
+    """PURE: the mean of the finite levels in the first ``window_h`` hours of the series (from its first parsable
+    time). That mean is the local mean sea level as the model sees it; None when fewer than _MIN_DATUM_SAMPLES."""
+    if not times or not levels or len(times) != len(levels):
+        return None
+    t0 = None
+    vals = []
+    for t, v in zip(times, levels):
+        dt = _parse_iso(t) if isinstance(t, str) else t
+        if dt is None:
+            continue
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        if t0 is None:
+            t0 = dt
+        if dt - t0 >= timedelta(hours=window_h):
+            break
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
+            vals.append(float(v))
+    if len(vals) < _MIN_DATUM_SAMPLES:
+        return None
+    return sum(vals) / len(vals)
+
+
+def to_local_datum(series: Optional[dict]) -> Optional[dict]:
+    """PURE (flag-gated): the series with every level relative to its local mean sea level. Adds ``datum``
+    ('local_msl' or 'model_msl') and ``datum_offset_m`` (what was subtracted, None when nothing was). Shapes, gaps
+    (None), extrema timing, trend and the normalized position are unchanged; only the level shifts."""
+    if not series:
+        return series
+    out = {"time": series.get("time"), "level": series.get("level"), "datum": "model_msl", "datum_offset_m": None}
+    if not local_datum_on():
+        return out
+    off = local_datum_offset(out["time"], out["level"])
+    if off is None:
+        return out
+    out["level"] = [v - off if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) else v
+                    for v in out["level"]]
+    out["datum"], out["datum_offset_m"] = "local_msl", round(off, 4)
+    return out
+
+
 async def fetch_tide_hourly(lat, lng, client=None, forecast_days: int = 3) -> Optional[dict]:
     """Fetch the hourly tide series (sea_level_height_msl) for (lat,lng) from Open-Meteo Marine, TTL-cached by
-    rounded coords. Returns {"time":[...], "level":[...]} or None. Uses an injected async client when given
+    rounded coords. Returns {"time":[...], "level":[...], "datum", "datum_offset_m"} or None; levels are relative
+    to the LOCAL mean sea level (to_local_datum) unless TIDE_LOCAL_DATUM=0. Uses an injected async client when given
     (tests). Unavailable data returns None; caller cancellation propagates."""
     key = _round_key(lat, lng)
-    return await _within_budget(_fetch_point(key, client, forecast_days), [key],
-                                _TIDE_POINT_TIMEOUT_S, None)
+    series = await _within_budget(_fetch_point(key, client, forecast_days), [key],
+                                  _TIDE_POINT_TIMEOUT_S, None)
+    return to_local_datum(series)
 
 
 async def _within_budget(operation, keys, seconds, unavailable):
