@@ -160,3 +160,35 @@ test('the nearest-frame search builds ONE frame on a lazy page, not every frame 
   expect(hit.frame.hourOffset).toBe(30);
   expect(frames._packed.size).toBe(11);                             // only h30 was built
 });
+
+describe('BUILD AHEAD: idle time builds the frames a step is about to need (gate 3, 2026-11-15)', () => {
+  const lazyPage = () => {
+    const base = JSON.parse(JSON.stringify(PAGES.regional.frames[0]));
+    const page = Array.from({ length: 6 }, (_, i) => packSeriesFrame({ ...JSON.parse(JSON.stringify(base)), hour_offset: i * 3 }, SERIES_NUM_KEYS));
+    return seriesPageFrames({ packed: page, json: null }, 'GFS', 'waves').frames;
+  };
+  afterEach(() => { jest.useRealTimers(); delete window.__RAW_DISABLE_SERIES_BUILD_AHEAD__; });
+
+  test('the page\'s first frame is built in idle time; reading a frame builds its two neighbours next, one per idle turn', () => {
+    jest.useFakeTimers();
+    const frames = lazyPage();
+    expect(frames._packed.has(0)).toBe(true);
+    jest.runOnlyPendingTimers();
+    expect(frames._packed.has(0)).toBe(false);                    // h0 built ahead
+    frames.get(9);
+    expect(frames._packed.has(6) || frames._packed.has(12)).toBe(true);   // not on the read itself
+    jest.runOnlyPendingTimers();
+    expect(frames._packed.has(6)).toBe(false);
+    expect(frames._packed.has(12)).toBe(false);
+    expect(frames._packed.has(15)).toBe(true);                    // only the neighbours, not the whole page
+  });
+
+  test('OFF PATH: __RAW_DISABLE_SERIES_BUILD_AHEAD__ builds only on first read', () => {
+    window.__RAW_DISABLE_SERIES_BUILD_AHEAD__ = true;
+    jest.useFakeTimers();
+    const frames = lazyPage();
+    frames.get(9);
+    jest.runOnlyPendingTimers();
+    expect(frames._packed.size).toBe(5);                          // only h9
+  });
+});

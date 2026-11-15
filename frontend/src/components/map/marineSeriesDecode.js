@@ -117,13 +117,38 @@ export const packedVectorCount = (p) => (p.cols ? p.n : (Array.isArray(p.raw) ? 
  * one. `metaValues()` yields each frame's metadata (the marineData's top-level cycle fields and the grid bounds) WITHOUT
  * building it, for the page's own all-frame readers.
  */
+// BUILD AHEAD (2026-11-15, gate 3): a step whose frame is not built yet pays its build on the step. So in idle time, one frame
+// per idle callback (never a long task), the page's first frame is built when the page lands, and the neighbours of a frame that
+// was just read are built next. Kill: window.__RAW_DISABLE_SERIES_BUILD_AHEAD__ = true (build on first read only).
+export const buildAheadOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_SERIES_BUILD_AHEAD__ === true);
+function whenIdle(fn) {
+  if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') window.requestIdleCallback(fn, { timeout: 2000 });
+  else setTimeout(fn, 50);
+}
+
 export class LazySeriesFrames extends Map {
   constructor(packedByHour, model, layer) {
     super();
     this._packed = packedByHour;   // Map hour -> packed frame
     this._model = model;
     this._layer = layer;
+    this._order = [...packedByHour.keys()].sort((a, b) => a - b);
+    this._ahead = new Set();
     for (const h of packedByHour.keys()) super.set(h, undefined);
+    if (this._order.length) this._buildAhead(this._order[0]);
+  }
+
+  _buildAhead(h) {
+    if (!buildAheadOn() || !this._packed.has(h) || this._ahead.has(h)) return;
+    this._ahead.add(h);
+    whenIdle(() => { this._ahead.delete(h); if (this._packed.has(h)) this._build(h); });
+  }
+
+  _neighbours(h) {
+    const i = this._order.indexOf(h);
+    if (i < 0) return;
+    if (i + 1 < this._order.length) this._buildAhead(this._order[i + 1]);
+    if (i > 0) this._buildAhead(this._order[i - 1]);
   }
 
   _build(h) {
@@ -137,7 +162,11 @@ export class LazySeriesFrames extends Map {
     return md;
   }
 
-  get(h) { return this._packed.has(h) ? this._build(h) : super.get(h); }
+  get(h) {
+    const md = this._packed.has(h) ? this._build(h) : super.get(h);
+    if (md !== undefined) this._neighbours(h);
+    return md;
+  }
 
   set(h, v) { this._packed.delete(h); return super.set(h, v); }
 

@@ -124,6 +124,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_SERIES_ESTIMATE_PROVENANCE__',
   // components/map/marineSeriesDecode.test.js ("OFF PATH: __RAW_DISABLE_SERIES_DECODE_WORKER__ never builds a worker"; 2026-11-15)
   '__RAW_DISABLE_SERIES_DECODE_WORKER__',
+  // components/map/marineSeriesDecode.test.js ("OFF PATH: __RAW_DISABLE_SERIES_BUILD_AHEAD__ builds only on first read"; 2026-11-15)
+  '__RAW_DISABLE_SERIES_BUILD_AHEAD__',
   // useSpotRatings.killSwitch.test.js (via ratingsShallowEqual mechanism)
   '__RAW_DISABLE_RATINGS_STABLE_MEMO__',
   // marineCalmWashHold.test.js (via CALM_WASH_HOLD_KILL constant)
