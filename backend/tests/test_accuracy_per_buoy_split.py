@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 from scripts.accuracy_per_buoy_split import (
     BEST_MATCH, PRIMARY, SAME_MODEL, day_block_interval, gap, hole_keys_view, index_rows, paired,
+    bias_control, bias_gap, bias_lines, bias_split,
     detection_control, gate_window_lines, report_lines, split, unanswered, unanswered_lines, wiring_check,
 )
 
@@ -160,3 +161,82 @@ def test_gate_window_is_the_monitors_seven_days_and_report_labels_the_wiring_che
     assert lines[0].startswith("== gate window: pooled, 7 days") and any("3-day" in x for x in lines)
     text = "\n".join(report_lines(index_rows(_world(), NOW), NOW, rows=_world())[0])
     assert "wiring check (arithmetic, not detection)" in text and "detection control:" in text
+
+
+def test_bias_gap_recovers_the_planted_signed_gaps_and_is_not_the_mae_gap():
+    """_world: A ours +0.2 vs best_match -0.1 -> +0.3 (MAE gap +0.1); B -0.1 vs +0.1 -> -0.2 (MAE gap 0.0); H +0.4."""
+    s = bias_split(index_rows(_world(), NOW), BEST_MATCH)
+    got = {b: round(s["by_buoy"][(b, 72)][3], 6) for b in "ABH"}
+    assert got == {"A": 0.3, "B": -0.2, "H": 0.4}
+    n, bo, bt, d, iv, iv3 = s["pooled"][72]
+    assert n == 18 and round(d, 6) == round((0.3 - 0.2 + 0.4) / 3, 6) and round(bo - bt, 9) == round(d, 9)
+    assert round(split(index_rows(_world(), NOW), BEST_MATCH)["by_buoy"][("B", 72)][3], 6) == 0.0     # MAE sees no gap at B
+
+
+def _straddling_world(days=12, noise=0.02):
+    """Half the served keys under-read by 0.30, half over-read by 0.30, with a small per-day drift. A +0.05 m seed on the
+    under-readers LOWERS their |error|, so the MAE gap falls while the bias rises by 0.05 x 1/2."""
+    rows = []
+    for day in range(days):
+        j = noise * (day % 3)
+        rows += [_row(PRIMARY, "A", day, 6, 72, -0.30 + j), _row(BEST_MATCH, "A", day, 6, 72, 0.10),
+                 _row(PRIMARY, "B", day, 6, 72, 0.30 + j), _row(BEST_MATCH, "B", day, 6, 72, 0.10)]
+    return rows
+
+
+def test_bias_control_sees_the_shift_the_mae_gap_reads_as_an_improvement():
+    ctl = bias_control(_straddling_world(), NOW, 14)
+    base, after, iv, excludes = ctl["bias"]
+    assert ctl["share"] == 0.5 and round(after - base, 6) == 0.025 and excludes is True
+    m_base, m_after, _iv, _x = ctl["mae"]
+    assert round(m_after - m_base, 6) == -0.025                      # the MAE gap calls a new bias an improvement
+
+
+def test_bias_null_arm_is_not_flagged_and_the_full_seed_is_only_an_identity():
+    rows = _straddling_world()
+    null = bias_control(rows, NOW, 14, net_zero=True)
+    assert null["bias"][3] is False and abs(null["bias"][1] - null["bias"][0]) < 1e-9     # 12 under-readers: +6 / -6
+    odd = [r for r in rows if not (r["source"] == PRIMARY and r["buoy_id"] == "A" and r["target_time"] == rows[0]["target_time"])]
+    shifted = bias_control(odd, NOW, 14, net_zero=True)["bias"]      # 11 under-readers: one +seed is left unpaired
+    assert round(shifted[1] - shifted[0], 6) == round(0.05 / 23, 6)  # so the null really moves errors, and they cancel
+    full = bias_control(rows, NOW, 14, only_under=False)["bias"]
+    assert round(full[1] - full[0], 9) == 0.05
+
+
+def test_the_null_arm_is_net_zero_at_the_judged_lead_when_keys_under_read_at_other_leads_too():
+    """Advisor red-team, 2026-11-15: alternating the sign along ONE sequence across leads gives every +72 h row the same
+    sign wherever a (buoy, hour) under-reads at exactly two leads. Here every key under-reads at +48 and +72 h and not at
+    +24 h: the old sequence put the same sign on all twelve +72 h rows, a 0.05 m one-signed shift called a null."""
+    rows = []
+    for day in range(12):
+        j = 0.02 * (day % 3)
+        for lead, err in ((24, 0.20), (48, -0.30), (72, -0.30)):
+            rows += [_row(PRIMARY, "A", day, 6, lead, err + j), _row(BEST_MATCH, "A", day, 6, lead, 0.10)]
+    null = bias_control(rows, NOW, 14, net_zero=True)
+    assert abs(null["bias"][1] - null["bias"][0]) < 1e-9 and null["bias"][3] is False       # the +72 h mean is unchanged
+    assert abs(null["mae"][1] - null["mae"][0]) < 1e-9
+    ctl = bias_control(rows, NOW, 14)                                 # and the seed lands on the judged lead only
+    assert ctl["share"] == 1.0 and round(ctl["bias"][1] - ctl["bias"][0], 9) == 0.05
+    at48 = bias_control(rows, NOW, 14, lead=48, net_zero=True)        # the same holds when another lead is the judged one
+    assert abs(at48["bias"][1] - at48["bias"][0]) < 1e-9
+
+
+def test_the_bias_gate_can_fail_when_the_noise_is_larger_than_the_seeded_share():
+    """Day-to-day drift of +/-0.5 m swamps a 0.025 m shift: the control must say so, not pass."""
+    rows = []
+    for day in range(6):
+        j = 0.5 if day % 2 else -0.5
+        rows += [_row(PRIMARY, "A", day, 6, 72, -0.30 + j), _row(BEST_MATCH, "A", day, 6, 72, 0.10),
+                 _row(PRIMARY, "B", day, 6, 72, 0.30 + j), _row(BEST_MATCH, "B", day, 6, 72, 0.10)]
+    lines, ok = bias_lines(index_rows(rows, NOW), rows, NOW, 14)
+    assert ok is False and "bias gate" in lines[-1] and "NOT MET" in lines[-1]
+
+
+def test_bias_lines_are_in_the_report_carry_no_row_field_and_pass_on_clean_data():
+    rows = _straddling_world()
+    lines, ok = bias_lines(index_rows(rows, NOW), rows, NOW, 14)
+    text = chr(10).join(lines)
+    assert ok is True and "PASS" in lines[-1] and "signed bias beside the MAE" in text
+    assert "obs_time" not in text and "err_m" not in text and "target_time" not in text
+    assert "signed bias beside the MAE" in chr(10).join(report_lines(index_rows(rows, NOW), NOW, rows=rows)[0])
+    assert bias_gap([], {}, {}) == (0, None, None, None)
