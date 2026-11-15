@@ -153,3 +153,5 @@ the frame a step shows. In the kill arm that work happens when the page lands, n
 - **Fix (96f2033e8 + 6c….):** keep the nearest (entry, hour) and read it once. Same result.
 - **Test:** a 12-frame lazy page, nearest h30, builds 1. Mutant: get on every improvement fails it.
 - Gate 3 is re-run below on a rebuild, same instrument and same settings.
+- Correction (15:56Z): the fix commit is `1a66cd4cf` (the two searches); `96f2033e8` only moves the test's import. The "6c…." above is
+  a typo.
