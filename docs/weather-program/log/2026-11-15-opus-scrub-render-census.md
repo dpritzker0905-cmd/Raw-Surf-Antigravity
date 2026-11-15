@@ -176,3 +176,27 @@ own time roughly doubled vs dev run 2 (e.g. `MapWeatherControls` 28 ms vs 9 ms),
 the run (other sessions share this machine), not the build; the alternating ON / KILL design of the gate is what absorbs it.
 
 Run 2 (unseen, the same gate, KILL arm = all three kills) started 19:26Z.
+
+## 19:30Z: pre-registration, the STATUS-LAG fix (separate from the render fix; before any status code or status run)
+
+**The defect (from run 1, both arms):** at the end of a 900 ms dwell the engine still draws the previous hour (e.g. wheel 8, drawn 7),
+and the status line carries no time words at all (only the coastline notice), so nothing on screen says the picture is not the
+selected hour. The status line is `ForecastTimeStatus` (`describeDrawnFrame` over the drawn-frame record WebGLMarineLayer publishes
+at upload).
+
+**Rule (the director):** the status must never let the selected hour stand as the shown hour while another hour is drawn.
+
+**Instrument:** the census probe, sampling every animation frame of each step: the engine's drawn hour, the wheel's
+`aria-valuenow`, and the visible `[role=status]` text. Phone (4x) and desktop, z6, Waves, GFS, 10 steps, 900 ms dwell,
+3 sessions per arm, alternating ON / KILL (the fix's own kill), from one build.
+
+**Gates (all must pass):**
+- **S1, no silent mismatch:** a frame is a violation when it is more than 300 ms after the keydown, the drawn hour differs from the
+  wheel's hour by more than the stored lattice's half-step (1.5 h), or differs at all with no "nearest stored" wording, and the
+  status carries none of "nearest stored", "still showing", "Loading". ON: 0 violating steps in all sessions, both views.
+- **S2, no false alarm:** a frame is a false alarm when the drawn hour has equalled the wheel's hour for more than 300 ms and the
+  status says "still showing" or "Loading". ON: not more false-alarm steps than KILL.
+- **S3, unit:** Jest pins the readout for (drawn = previous hour, no pending fetch) and the kill's off path; the mutant that
+  drops the new branch fails.
+- The render-fix numbers (render ms, input-to-paint, key-to-shown) are reported for this fix too, and must not be worse than KILL by
+  more than 5 ms p50 / 15 ms p95 on key-to-shown.
