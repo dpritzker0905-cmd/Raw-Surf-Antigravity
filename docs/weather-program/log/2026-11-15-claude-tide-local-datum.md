@@ -57,3 +57,24 @@ say "mean sea level"; they are now true locally.
    suites 57/57. flake8 gate clean; file sizes under 800.
 3. Pending: runs on the PR.
 4. As measured above.
+
+## Advisor red-team follow-up (2026-11-15 ~21:30Z) - PRE-REGISTERED before the run below
+The advisor (PASS WITH LIMITS, notes `redteam-926-923-tide-2026-11-15.md`) asked for three gaps closed. Corrections first:
+- Gate 3 "Pending" -> **SKIPPED**: the filter's verdict line on the PR is `TIDE_LOCAL_DATUM | SKIPPED | no cached history
+  window: the replay did not run`. Neither the history filter nor the 6-hourly guardrail can see a wrong eta at a surf
+  spot (buoys are offshore; the cap binds on ~1.7% of spot-hours). The eta evidence is the station comparison alone.
+- "replay twin == production" was too strong: they are equal only for leads under 24 h (the replay anchors at 00Z of
+  the VALID day, production at 00Z of the SERVING day), as the code comment says. The unit test pins the lead-0 case.
+
+Run (`backend/scripts/tide_datum_observed.py`): 27 CO-OPS stations (the 25 + Anchorage 9455920 + Eastport 8410140), the
+7 past days scored against OBSERVED water level (`water_level`, MSL, preliminary, on the hour); offsets fitted on the
+14 days before. Arms: raw model; demean72 (production: 72 h from 00Z); demean74.5 (74.5 h = 3 lunar days = 6.00 M2
+cycles, from 00Z, needs a 4-day fetch); fitted offset (median model - observed over the prior 14 days; US-only, a
+yardstick, not shippable worldwide).
+Pass lines, written before the run:
+- **P1 keep de-meaning:** the shipped window's median RMSE vs observed is below raw's median AND within 0.03 m of the
+  fitted-offset yardstick. If it fails the first, TIDE_LOCAL_DATUM is set to '0' in this PR.
+- **P2 does the model carry surge:** r between the 25 h low-passed (model raw - prediction) and (observed - prediction)
+  per station; median r >= 0.5 = "carries surge", < 0.3 = "does not", else "weakly".
+- **P3 day-roll step** (offset of day d+1 minus day d, |m|, every station-day): accept the window if median <= 0.03 m and
+  p90 <= 0.06 m. **Switch to 74.5 h** if it cuts the median step by >= 30% and its P1 RMSE is not worse by > 0.01 m.
