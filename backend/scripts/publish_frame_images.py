@@ -548,6 +548,7 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
     upload = _uploader(sink)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     report, changed, keep_by_set = {}, False, {}
+    this_run = {}        # set key -> the index published this run (a filled set patches its plain set's frames)
     pending_empty = {}   # explicit-empty records (frame_set_bundle.empty_record), applied only when latest.json is written anyway
     started = clock()
     # The HRRR lane the serve box blends into GFS wind (frame_set_wind.py): read once, applied to every wind frame.
@@ -576,10 +577,11 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
         else:
             fetched = source.prefetch(target, prev_index) if isinstance(source, TailDownloads) else 0
             index, stats = fs.publish_set(source, sink, target, prev_index, upload, log=log, wind_lane=wind_lane,
-                                          rating_inputs=rating_inputs)
+                                          rating_inputs=rating_inputs, plain_index=_plain_index(target, this_run, latest, sink))
             if isinstance(source, TailDownloads):
                 stats["tail_downloaded"] = fetched
         if index is not None:
+            this_run[key] = index
             sink.write(index["path"], fs.index_bytes(index), fs.JSON_TYPE, IMMUTABLE)
             latest.setdefault("sets", {})[key] = (fsb.latest_record if bundled else fs.latest_record)(index, entry, now, _writer())
             changed = True
@@ -635,6 +637,24 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
             sink.delete(gone)
         report[key]["deleted"] = len(gone)
     return report
+
+
+def _plain_index(target, this_run, latest, sink):
+    """A FILLED set's plain set index (frame_set_fill_patch): the one published this run, else the one latest.json names; None
+    when there is none, or it cannot be read (the filled set then rebuilds every frame in full, as before)."""
+    from services import frame_set_fill as fsf
+    from services import frame_set_fill_patch as fsfp
+    if not fsf.is_filled(target) or not fsfp.enabled():
+        return None
+    key = fs.set_key(fsfp.plain_target(target))
+    if key in this_run:
+        return this_run[key]
+    path = ((latest.get("sets") or {}).get(key) or {}).get("index")
+    try:
+        raw = sink.read(path) if path else None
+        return json.loads(raw) if raw else None
+    except Exception:
+        return None
 
 
 def _wind_lane_pointer(sink, wind_lane, log):

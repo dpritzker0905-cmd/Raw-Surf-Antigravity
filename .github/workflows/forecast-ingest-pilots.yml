@@ -222,6 +222,12 @@ jobs:
           # sha would write it, without re-encoding; the EURO swell sets rebuilt 74-118 frames each per run before. Wind, rated and
           # Bight frames keep the identity carry only. Kill: repo variable FRAME_CONTENT_CARRY = '0' (every changed identity rebuilds).
           FRAME_CONTENT_CARRY: ${{ vars.FRAME_CONTENT_CARRY || '1' }}
+          # ON (2026-11-15, services/frame_set_fill_patch.py): a Gulf-filled world frame is its plain frame (same product, proven
+          # by the content key) with only the filled nodes rewritten and parity-checked, and an EURO/ICON pair shares each GFS
+          # donor. Byte-identical to the full rebuild. Kill: repo variable FRAME_FILLED_PATCH = '0'. FRAME_FILLED_PATCH_VERIFY = '1'
+          # also builds every patched frame in full and publishes the full one on any difference (a live check; costs the time back).
+          FRAME_FILLED_PATCH: ${{ vars.FRAME_FILLED_PATCH || '1' }}
+          FRAME_FILLED_PATCH_VERIFY: ${{ vars.FRAME_FILLED_PATCH_VERIFY || '0' }}
           # ON by default, kill switch '0' (owner 2026-11-01 22:10 EST); built 2026-11-01, item 14 (published LAST, after the regional bundles): '1' adds the EURO swell_1/swell_2/wind_waves world sets (plain + Gulf-filled) after the world sets
           # (frame_set.EURO_SWELL_SETS). They have products only once EURO_MARINE_MID_CMEMS_SWELL is on in the ingest step; the client's
           # STATIC_SETS must list them before it reads them. With FRAME_TAIL_DOWNLOAD on, their 240-336 h tails need ~3 x 40 more of
