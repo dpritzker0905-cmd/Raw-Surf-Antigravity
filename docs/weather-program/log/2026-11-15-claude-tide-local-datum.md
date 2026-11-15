@@ -164,3 +164,57 @@ raw 0.414 · demean72 0.180 · **clim1y 0.177** · climAll 0.181 · yardstick 0.
 - Tests `test_tide_local_datum.py` 9 (mutation: no subtraction -> 3 red); tide/flag/guardrail suites 144 passed.
 - **After merge:** the table is empty until the first `tide-datum.yml` run (dispatch it, then again over ~5 days or
   with a larger limit to cover every cell); until a cell has an entry it serves the model level, unchanged.
+
+## Limits (advisor re-check, PASS WITH LIMITS, 2026-11-15 ~23:40Z)
+- On the four held-out weeks the de-meaning arms differ by 0.001-0.004 m (72 h 0.180, 1-year 0.177, all-archive
+  0.181): the choice of the 1-year mean rests on the registered rule, the November week (where 72 h failed the whole
+  West Coast) and having no day-roll step, NOT on the held-out medians themselves.
+- Rollout is mixed until the table fills: a cell with no entry serves the raw model level, which can sit up to ~0.5 m
+  from a neighbouring corrected cell. At merge, dispatch `tide-datum.yml` wide (a larger --limit, or several runs) so
+  every spot cell has an entry before users compare neighbours.
+- #926 alone leaves the glyph card's browser-direct fallback (`tideClient.ensureTideState`) on the raw level beside a
+  corrected infobox; #931 retires that fallback (`glyphTide.js` reads the door). Merge #926 together with #931.
+
+## OWNER DECISION 2026-11-15 18:14 EST ("Yes, before merge", in the senior research lead's session, relayed by the
+director) and the change it made
+#926 serves a FIXED long-term datum: the model's own `sea_level_height_msl` mean over the 365 days before the table
+build (the series family `tide_datum_climatology.py` reads), a static per-cell asset rebuilt at most monthly
+(`tide-datum.yml`, --max-age-days 30). /point-tide reports `datum_basis = "model_mean_365d"`. Where no datum exists:
+the 72 h de-mean, `datum_basis = "window_72h"`; the ingest's summary counts the spots on that fallback
+(`spots_on_window_72h_fallback`). TIDE_LOCAL_DATUM stays the kill switch; eta stays relative to local MSL. MLLW display
+is NOT in #926 (the CO-OPS PR's follow-up).
+
+## PRE-REGISTERED (before the rerun) - the owner's gate (a)-(d)
+Script `backend/scripts/tide_datum_gate_fixed.py`. The same 25 CO-OPS stations as the first check (IDS of
+`tide_datum_vs_coops.py`; Boston 8443970 returned no data then and is reported if it fails again). Window: the 14 UTC
+days before today 00Z. Arms: **A72** = raw minus the mean of the 72 h window from 00Z of each day (the fallback);
+**M365** = raw minus the model's mean over the 365 days before the window. Truth: (a) CO-OPS harmonic PREDICTIONS (MSL,
+hourly); (b)-(d) CO-OPS OBSERVED water (`water_level`, MSL, on the hour). Per-station 95% intervals: day-block bootstrap
+(resample the 14 days with replacement, 1000 draws, seeded).
+- **(a)** median over stations of RMSE vs predictions: M365 minus A72 <= +0.01 m.
+- **(b)** per station d = RMSE(M365) - RMSE(A72) vs observed; the station counts when the 95% interval's upper bound < 0;
+  PASS when >= 60% of the scored stations count.
+- **(c) negative control:** 200 seeded random derangements give each station another station's 365-day mean; PASS when
+  the swapped arm's median RMSE vs observed exceeds BOTH A72's and M365's medians in >= 95% of draws (>= 190).
+- **(d) positive control:** M365 shifted by +0.10 m vs M365, same bootstrap; DETECTED when the 95% interval of the RMSE
+  difference excludes 0 at >= 80% of stations, and the mean signed error moves by 0.100 +- 0.005 m at every station.
+Also recorded: the 0.211 vs 0.346 m reading (7 days, 26 stations, vs observed) is restated with its truth defined.
+Outcome rule: all four pass -> #926 is ready as built (M365 ON, A72 fallback). Any failure is reported to the owner
+before merge; nothing is flipped automatically.
+
+## Owner's gate (a)-(d): RESULT (run as registered above; raw JSON notes `datum-owner-gate-a-d.json`)
+Window 2026-11-01 .. 2026-11-15 (14 days). 24 stations scored; Boston (no model history at its cell) and Galveston (no
+observations) failed to load.
+- **(a) FAIL.** vs CO-OPS PREDICTIONS: median RMSE A72 0.132, M365 0.197 m (+0.065 > +0.01).
+- **(b) PASS.** vs OBSERVED water: median A72 0.335, M365 0.193 m; M365 beats A72 with the 95% interval below 0 at
+  22/24 stations (Honolulu tie [-0.003, +0.007]; Nawiliwili A72 better [+0.014, +0.025]).
+- **(c) PASS.** Negative control: the label-swapped datum lost to both arms in 193/200 draws.
+- **(d) PASS.** Positive control: the +0.10 m datum shift detected at 24/24 stations; the mean signed error moved by
+  exactly 0.100 m at every station.
+- ALL_PASS: false -> per the rule, reported to the owner before merge; nothing flipped.
+Reading of (a) vs (b): the two truths disagree by construction. Predictions are astronomical tide only; M365 keeps the
+real non-tidal water (US West Coast this month: observed - predicted +0.31..+0.41 m), so it MUST read worse against
+predictions exactly where it reads better against what the water did (La Jolla: vs predictions A72 0.125 / M365 0.306,
+vs observed A72 0.452 / M365 0.173). A72 scores well against predictions because it removes that water too. For the
+displayed tide AND eta the target is the water the surfer stands in, i.e. (b). Restated with its truth: the earlier
+"0.211 vs 0.346 m" (7 days) and this "0.193 vs 0.335 m" (14 days) are RMSE against OBSERVED water.

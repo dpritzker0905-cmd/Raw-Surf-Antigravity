@@ -52,7 +52,7 @@ def test_lookup_exact_cell_then_nearest_within_half_a_degree_else_none():
 def test_levels_shift_by_the_cell_mean_and_gaps_stay_gaps():
     s = _series(gaps=(10,))
     out = T.to_local_datum(s, OFFSET)
-    assert out["datum"] == "local_msl_1y" and out["datum_offset_m"] == OFFSET
+    assert out["datum"] == "model_mean_365d" and out["datum_offset_m"] == OFFSET
     assert out["level"][10] is None
     for raw, new in zip(s["level"], out["level"]):
         if raw is not None:
@@ -60,10 +60,11 @@ def test_levels_shift_by_the_cell_mean_and_gaps_stay_gaps():
     assert s["level"][0] == pytest.approx(OFFSET)                       # the input is not mutated
 
 
-def test_no_table_entry_serves_the_model_level_and_says_so():
+def test_no_fixed_datum_falls_back_to_the_72h_window_and_says_so():
     s = _series()
     out = T.to_local_datum(s, None)
-    assert out["level"] == s["level"] and out["datum"] == "model_msl" and out["datum_offset_m"] is None
+    assert out["datum"] == "window_72h" and out["datum_offset_m"] == pytest.approx(OFFSET, abs=0.03)
+    assert T.to_local_datum(_series(hours=40), None)["datum"] == "model_msl"   # too short for a window
 
 
 def test_timing_trend_and_normalized_position_do_not_move():
@@ -85,7 +86,7 @@ def test_every_consumer_gets_it_through_fetch_tide_hourly_including_eta(monkeypa
         return _series()
     monkeypatch.setattr(T, "_fetch_point", fake_fetch_point)
     got = asyncio.run(T.fetch_tide_hourly(21.31, -157.87))
-    assert got["datum"] == "local_msl_1y" and got["datum_offset_m"] == OFFSET
+    assert got["datum"] == "model_mean_365d" and got["datum_offset_m"] == OFFSET
     at = T0 + timedelta(hours=3)
     state = asyncio.run(T.tide_norm_at(21.31, -157.87, at))
     raw = T.tide_state_at(_series()["time"], _series()["level"], at)
@@ -111,7 +112,18 @@ def test_storage_failure_serves_the_model_level(monkeypatch):
         return _series()
     monkeypatch.setattr(T, "_fetch_point", fake_fetch_point)
     got = asyncio.run(T.fetch_tide_hourly(21.31, -157.87))
-    assert got["datum"] == "model_msl" and got["level"] == _series()["level"]
+    assert got["datum"] == "window_72h"                                      # storage down: the 72 h fallback
+
+
+def test_point_tide_reports_the_datum_basis(monkeypatch):
+    from fastapi import Response
+    from routes.weather_point_tide import get_point_tide
+
+    async def fake_fetch_point(key, client, forecast_days):
+        return _series()
+    monkeypatch.setattr(T, "_fetch_point", fake_fetch_point)
+    out = asyncio.run(get_point_tide(Response(), lat=21.31, lng=-157.87))
+    assert out["datum_basis"] == "model_mean_365d" and out["datum_offset_m"] == OFFSET
 
 
 def test_ingest_refreshes_missing_cells_first_then_the_oldest():
