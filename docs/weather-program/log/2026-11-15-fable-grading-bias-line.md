@@ -71,3 +71,31 @@ Sent: measured aggregates and the proposed gates only. No row, coordinate or sec
   related rule is pre-registered and is being scored on 2026-11-14 .. 11-27
   (`log/2026-11-13-fable-hawaii-regional-and-shore-split.md`); building a second Hawaii change before that read would
   spend the same two buoys twice. After 11-27: a shadow lane only, with a gate on a window not yet seen.
+
+## 15:55Z A dispatch of the scored-rows gate, on the owner's word, and what was and was not read
+
+- The owner typed in this session (2026-11-15 10:52 EST): "dispatch scored-rows-gate.yml". One `gh workflow run
+  scored-rows-gate.yml --ref dev`: run 43732344499, dev `3b5240622`, 15:53:05Z to 15:54:17Z, success. Window 2026-10-03 ..
+  now; 647,146 rows read, 512,401 graded. Read-only, aggregates only. Ledger: this branch's fragment.
+- **The verdict was NOT read.** The rule in `log/2026-11-14-fable-shadow-interp-grouping.md` says no earlier than
+  2026-11-16, and needs n >= 100 in a mixed cell at BOTH +48 and +72 h. I extracted only the group labels and counts of
+  the two new groupings; the MAE and bias columns of those groupings were not printed or read.
+- **Settled today (it was unchecked): the blend's rows carry the sampler path.** Labels seen: `bilinear`,
+  `nearest_ocean_coarse_masked`, `not recorded` (rows written before #857).
+- **Counts with a recorded path** (pairs; `mixed` = a member lane had no stored product at the point):
+
+  | lead | bilinear, stored | bilinear, mixed | nearest_ocean_coarse_masked, mixed | not recorded |
+  |---|---|---|---|---|
+  | +24 h | 847 | 0 (no cell) | 13 | 27,069 |
+  | +48 h | 165 | 67 | under 10 | 26,208 |
+  | +72 h | 0 | 0 | 0 | 24,651 |
+
+- So today the rule reads **not yet readable**: no mixed cell reaches 100 at +48 h and +72 h has no recorded row (the
+  first score from 2026-11-16 04:45Z).
+- **An early indication from the counts alone, not a verdict.** Condition (a) of FALLBACK IS THE CAUSE needs at least
+  80% of the mixed pairs on fallback paths. At +48 h, 67 of at most 76 mixed pairs are on `bilinear`, a plain path. If
+  that share holds, cause (B) of the design log (the shadow's masked cell read through a neighbour) is not what the
+  mixed rows are, and the question moves to cause (A) or to REFUTED. At +24 h the 13 mixed pairs are all fallback, the
+  opposite way, on a count far too small to weigh.
+- **Next:** one more dispatch of this job once +72 h has rows, from 2026-11-17, the same day as the per-buoy split run.
+  The 2026-11-18 commitment stands.
