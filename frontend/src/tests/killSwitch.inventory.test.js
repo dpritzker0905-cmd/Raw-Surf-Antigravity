@@ -43,6 +43,13 @@ const EXTRA_FILES = ['../lib/weatherAuthFetch.js', '../lib/weatherSession.js', '
  * for phantom entries.  To add: write the test file first.
  */
 const KILL_SWITCHES_TESTED = new Set([
+  // components/map/staticRatedMosaic.test.js and marineRatingBandRes.test.js (the rating band SOTA lane, 2026-11-15): the rated
+  // mosaic, its neighbour prefetch, overscan and in-memory fast lane, and the coarse-rated cache skip
+  '__RAW_DISABLE_RATED_MOSAIC__',
+  '__RAW_DISABLE_RATED_PREFETCH__',
+  '__RAW_DISABLE_RATED_OVERSCAN__',
+  '__RAW_DISABLE_RATED_READY_FAST__',
+  '__RAW_DISABLE_COARSE_RATED_CACHE_SKIP__',
   // tests/weatherAuthFetch.test.js ("kill switch: never a token, never a retry") and tests/sessionExpiredPrompt.test.js
   // ("kill switch and the auth page itself raise nothing"): #782, accounts only
   '__RAW_DISABLE_WEATHER_AUTH__',

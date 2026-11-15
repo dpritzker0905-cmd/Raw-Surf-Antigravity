@@ -104,3 +104,50 @@ describe('edgeUncoveredMs: how long the view has stayed uncovered', () => {
     expect(edgeUncoveredMs(undefined, 4300)).toBe(0);           // unknown coverage (a world resident): not counted
   });
 });
+
+describe('coarseRatedForView (2026-11-15): a rating grid the band cannot paint here is not a cache hit', () => {
+  const { coarseRatedForView } = require('./marineRatingBandRes');
+  const world2 = { ratingMode: true, bounds: { west: -90, south: 24, east: -70, north: 40 }, cols: 11, rows: 9 };
+  const fine = { ratingMode: true, bounds: { west: -84, south: 26, east: -79, north: 30 }, cols: 21, rows: 17 };
+  const pan = { west: -80, south: 29, east: -77.7, north: 31 };
+  test('a 2-deg rated crop at a z9 view is coarse (the measured stuck pan)', () => {
+    expect(coarseRatedForView(world2, pan, {})).toBe(true);
+  });
+  test('a 0.25-deg rated grid is not', () => { expect(coarseRatedForView(fine, pan, {})).toBe(false); });
+  test('an honest (unrated) grid is never coarse-rated', () => { expect(coarseRatedForView({ ...world2, ratingMode: false }, pan, {})).toBe(false); });
+  test('a wide view (band span-held anyway) keeps the coarse grid', () => {
+    expect(coarseRatedForView(world2, { west: -90, south: 20, east: -78, north: 34 }, {})).toBe(false);
+  });
+  test('kill switch and unknown inputs fail open', () => {
+    expect(coarseRatedForView(world2, pan, { __RAW_DISABLE_COARSE_RATED_CACHE_SKIP__: true })).toBe(false);
+    expect(coarseRatedForView(null, pan, {})).toBe(false);
+    expect(coarseRatedForView(world2, null, {})).toBe(false);
+  });
+});
+
+describe('coarseRatedForView 2x leg: the cache never offers what the no-downgrade guard refuses', () => {
+  const { coarseRatedForView } = require('./marineRatingBandRes');
+  const half = { ratingMode: true, bounds: { west: -82, south: 28, east: -77.5, north: 32 }, cols: 10, rows: 9 };   // 0.5 deg
+  const pan = { west: -81.5, south: 28.3, east: -78.5, north: 31 };
+  test('a 0.5-deg rated grid is not a hit while a 0.25-deg rated grid of the ask overlaps the view (the measured stuck pan)', () => {
+    expect(coarseRatedForView(half, pan, {}, 0.25)).toBe(true);
+  });
+  test('without a finer overlapping rated grid it stays a hit', () => {
+    expect(coarseRatedForView(half, pan, {}, null)).toBe(false);
+    expect(coarseRatedForView(half, pan, {}, 0.5)).toBe(false);
+  });
+  test('kill switch', () => { expect(coarseRatedForView(half, pan, { __RAW_DISABLE_COARSE_RATED_CACHE_SKIP__: true }, 0.25)).toBe(false); });
+});
+
+describe('coarseRatedForView unrated leg: the honest bridge under the surf key is not a hit over a rated resident', () => {
+  const { coarseRatedForView } = require('./marineRatingBandRes');
+  const honest = { ratingMode: false, bounds: { west: -90, south: 24, east: -70, north: 40 }, cols: 11, rows: 9 };
+  const pan = { west: -81.5, south: 28.75, east: -78.5, north: 31 };
+  test('skipped while a rated grid of the ask overlaps the view (the measured global_coarse hit)', () => {
+    expect(coarseRatedForView(honest, pan, {}, 0.25)).toBe(true);
+  });
+  test('kept with no rated grid around (the band bridge before any rating lands) or at a wide view', () => {
+    expect(coarseRatedForView(honest, pan, {}, null)).toBe(false);
+    expect(coarseRatedForView(honest, { west: -95, south: 20, east: -70, north: 40 }, {}, 0.25)).toBe(false);
+  });
+});

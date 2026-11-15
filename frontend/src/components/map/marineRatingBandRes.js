@@ -53,6 +53,41 @@ export function resolveBandResolutionEdge(win, cov) {
   return { fade, resFade, edgeFade, heldBy };
 }
 
+/**
+ * A cached RATING grid the band cannot paint at this view (2026-11-15, rating band SOTA lane; measured offline in
+ * scn_band_zoom_stability.js): its lattice spacing is at or past the resolution leg's HI (1.0 deg: the band is held off on it)
+ * while the view is narrower than the span leg's HI (9.5 deg: the band would otherwise show). Before this, a 2-deg world crop
+ * cached on a zoom-out answered the next zoomed-in pan as a CACHE HIT: the engine rejected it as a downgrade (or held the band
+ * for resolution) and, the cache having "answered", no fine grid was ever asked: the band stayed off for as long as one looked.
+ * Such an entry is not a hit (the predicate) and is not served (the selector): the fetch asks for a fine grid instead.
+ * Unknown inputs fail OPEN (not coarse). Kill: window.__RAW_DISABLE_COARSE_RATED_CACHE_SKIP__ = true.
+ */
+// The second leg (measured the same day, the stuck PAN): after a pan at z9 the lookup took a 0.5-deg rated grid that contained the
+// view while the 0.25-deg resident still covered most of it, and the engine's no-downgrade guard (marineEngineDecisions
+// .shouldRejectResolutionDowngrade: >= 2x coarser over a regional resident covering >= 0.6) rejected it: the cache "answered", the
+// engine refused, nothing fine was asked, and the band stayed held at the edge. So a rated entry >= 2x coarser than the finest
+// rated entry of the same ask that overlaps the view (`finestCell`, the cache's own resident: ratedFinestCellDeg) is not a hit.
+export const ratedCellDeg = (grid) => {
+  if (!grid || !grid.bounds || !(grid.cols > 1)) return null;
+  const b = grid.bounds;
+  const span = b.east >= b.west ? b.east - b.west : b.east + 360 - b.west;
+  return span > 0 ? span / (grid.cols - 1) : null;
+};
+export function coarseRatedForView(grid, view, win, finestCell) {
+  const w = win || (typeof window !== 'undefined' ? window : {});
+  if (w.__RAW_DISABLE_COARSE_RATED_CACHE_SKIP__ === true || !grid || !view || !grid.bounds) return false;
+  const viewW = view.east >= view.west ? view.east - view.west : view.east + 360 - view.west;
+  if (!(viewW < num(w, '__RAW_RATING_SPAN_FADE_HI__', 9.5))) return false;
+  // An UNRATED grid under the surf key (the honest-swell bridge: global_coarse, the mid tier) while a rated grid of the same ask
+  // overlaps the view: the guard refuses rated -> unrated over that resident (measured: the stuck pan's real "hit" was a 2-deg
+  // unrated global_coarse entry), so it is not a hit either. finestCell is non-null only in surf mode (ratedFinestCellDeg).
+  if (!(grid.ratingMode || grid.rating_mode)) return typeof finestCell === 'number' && finestCell > 0;
+  const cell = ratedCellDeg(grid);
+  if (cell === null) return false;
+  if (cell >= num(w, '__RAW_BAND_RES_CELL_HI__', 1.0)) return true;
+  return typeof finestCell === 'number' && finestCell > 0 && cell >= 2 * finestCell - 1e-9;
+}
+
 /** The line ForecastTimeStatus shows while the band is held (words, so the state is never colour alone). */
 export function ratingBandHeldText(heldBy) {
   if (heldBy === 'resolution') return 'Surf ratings paused: the detailed rating grid for this view is still loading.';

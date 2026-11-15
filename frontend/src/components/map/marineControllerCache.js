@@ -19,6 +19,7 @@ import {
 import { recordTruthStage } from './weatherTruthTracker';
 import { extractMarineAtOffset } from './marineControllerExtractor';
 import { rollOffsetCache } from './offsetCacheAnchor';
+import { coarseRatedForView, ratedCellDeg } from './marineRatingBandRes';
 import { noteRequestDiet, requestDietOn } from './marineRequestDiet';
 
 // --- CACHES ---
@@ -477,6 +478,24 @@ export function hasTimeCoverage(cache, hourOffset) {
   return targetMs <= lastCachedMs + 2 * 3600000;
 }
 
+/** The finest lattice spacing (deg) of the cached RATED grids of this ask (key prefix + hour) that overlap `view`, or null.
+ *  The cache's view of the band's resident, for coarseRatedForView's 2x leg (marineRatingBandRes.js). Surf mode only. */
+export function ratedFinestCellDeg(prefix, hourOffset, view) {
+  if (!view || !getSurfModeFlag()) return null;
+  let best = null;
+  const now = Date.now();
+  for (const [key, entry] of _perModelHourCache.entries()) {
+    if (!key.startsWith(prefix) || !key.endsWith(`_${hourOffset}`) || now - entry.timestamp >= PER_MODEL_HOUR_CACHE_TTL) continue;
+    const g = entry.data && entry.data.grid;
+    if (!g || !g.ratingMode || !g.bounds || !(g.vectors && g.vectors.length)) continue;
+    const b = g.bounds;
+    if (b.east < b.west || Math.min(b.east, view.east) <= Math.max(b.west, view.west) || Math.min(b.north, view.north) <= Math.max(b.south, view.south)) continue;
+    const c = ratedCellDeg(g);
+    if (c !== null && (best === null || c < best)) best = c;
+  }
+  return best;
+}
+
 export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 'waves') {
   const isGfsBackend = getBackendWeatherFlag() && (model === 'GFS' || !model);
   const isIconBackend = getBackendIconMarineFlag() && model === 'ICON';
@@ -491,6 +510,7 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
     aliasMarineHourByInstant(model, layer, tileId, hourOffset);   // GRID_INSTANT_KEY: same request instant = same grid
     const lookupKey = `${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`;
     const missDetail = { model: model || 'GFS', layer, hourOffset, tileId, lookupKey };
+    const finestRated = ratedFinestCellDeg(`${model || 'GFS'}_${layerPart}_`, hourOffset, bounds);
     const exact = _perModelHourCache.get(lookupKey);
     if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
       if (exact.data?.stale || exact.data?.grid?.stale) {
@@ -512,10 +532,12 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
             sig.cols === (g.cols || 0) &&
             sig.rows === (g.rows || 0) &&
             sig.vectorsLength === (g.vectors?.length || 0)) {
-          recordMarineCacheLookup('hit', missDetail);
-          return true;
-        }
-        recordMarineCacheLookup('signature_mismatch', missDetail);
+          if (!coarseRatedForView(g, bounds, undefined, finestRated)) {
+            recordMarineCacheLookup('hit', missDetail);
+            return true;
+          }
+          recordMarineCacheLookup('coarse_rated', missDetail);   // the band cannot paint it here: ask for a fine grid
+        } else recordMarineCacheLookup('signature_mismatch', missDetail);
       }
     } else if (exact) {
       recordMarineCacheLookup('expired', missDetail);
@@ -554,8 +576,8 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
                     sig.boundsStr === bStr &&
                     sig.cols === (g.cols || 0) &&
                     sig.rows === (g.rows || 0) &&
-                    sig.vectorsLength === (g.vectors?.length || 0)) {
-                  recordMarineCacheLookup('hit_fallback', missDetail);
+                    sig.vectorsLength === (g.vectors?.length || 0) && !coarseRatedForView(g, bounds, undefined, finestRated)) {
+                  recordMarineCacheLookup('hit_fallback', { ...missDetail, entryKey: key, entryCellDeg: ratedCellDeg(g), finestRated });
                   return true;
                 }
               }
