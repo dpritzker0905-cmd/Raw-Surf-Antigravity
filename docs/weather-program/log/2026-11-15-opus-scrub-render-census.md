@@ -262,3 +262,10 @@ the counts; if it finds some, the fix is built against the 19:30Z gate.
 Chained, one at a time: #921 re-run B (as registered 20:42Z), render run 3 (the old gate) = Brief 3's run 1, Brief 3's runs 2 and 3,
 the A/A pair (both arms KILL), then the fine-grid A/B (none / R / PR; Brief 4's z7 and planted-miss additions are NOT in this run,
 the probe does not support them yet). The 20:20Z void rule decides every session; results are written as they fall.
+
+## 22:12Z: the 22:00Z chain stopped unread; rescheduled into the director's quiet window (03:00-05:30Z)
+
+The director called a quiet window, 22:00-00:30 EST (03:00-05:30Z), with the heavy lanes told not to build, test or drive browsers.
+The chain started at 22:00Z under ~80% load was stopped about 12 minutes in, inside #921 re-run B's first sessions, before any of
+its output was read; its partial files (`scratchpad/m3/g3c/`) are not used. The same chain, unchanged, starts at 03:00Z, and the
+registered void rule still decides every session.
