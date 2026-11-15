@@ -92,12 +92,33 @@ const HOOK = () => {
   };
 };
 
+// Runs in the page: the A/B instruments (the log's 18:25Z amendment). Keydown time (capture phase), its Event Timing entry, and
+// per animation frame the marine engine's drawn hour (changes only) and blank frames, while window.__AB__.on.
+const PROBE = () => {
+  const A = (window.__AB__ = { on: false, key: null, ev: [], hours: [], blank: 0 });
+  window.addEventListener('keydown', (e) => { if (A.on && A.key == null) A.key = e.timeStamp; }, true);
+  try { new PerformanceObserver((l) => { for (const e of l.getEntries()) if (e.name === 'keydown') A.ev.push({ start: e.startTime, dur: e.duration }); })
+    .observe({ type: 'event', durationThreshold: 16, buffered: true }); } catch (e) { A.noEventTiming = true; }
+  let last;
+  const loop = (t) => {
+    if (A.on) {
+      const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; const g = d && d.waveGrid;
+      if (!g) A.blank += 1;
+      const h = g ? g.hourOffset : null;
+      if (h !== last) { A.hours.push([t, h]); last = h; }
+    }
+    requestAnimationFrame(loop);
+  };
+  requestAnimationFrame(loop);
+};
+
 (async () => {
   const vp = VP[VIEW];
   const { browser, page } = await L.launch({ port: PORT, width: vp.width, height: vp.height, dpr: vp.dpr, contextOptions: vp.contextOptions });
   const out = { view: VIEW, cpu: CPU, zoom: ZOOM, layer: LAYER, model: MODEL, flags: FLAGS, at: new Date().toISOString(), steps: [] };
   try {
     await page.addInitScript(HOOK);
+    await page.addInitScript(PROBE);
     await page.addInitScript((flags) => { for (const [k, v] of Object.entries(flags)) window[k] = v; }, FLAGS);
     if (VIEW === 'phone' && CPU > 1) { const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: CPU }); }
     await page.goto(L.BASE + '/map', { waitUntil: 'domcontentloaded' });
@@ -117,15 +138,29 @@ const HOOK = () => {
     await sleep(1500);
     out.hookSeen = await page.evaluate(() => !!window.__RC__);
     for (let i = 0; i < STEPS; i += 1) {
-      await page.evaluate(() => { window.__RC__.cur = {}; window.__RC__.on = true; });
       const w = page.locator('[role="slider"][aria-label*="timeline wheel"]').filter({ visible: true }).first();
-      if (await w.count()) { await w.focus().catch(() => {}); await page.keyboard.press('ArrowRight'); }
+      if (await w.count()) await w.focus().catch(() => {});
+      await page.evaluate(() => { window.__RC__.cur = {}; window.__RC__.on = true; const A = window.__AB__; A.on = true; A.key = null; A.ev = []; A.hours = []; A.blank = 0; });
+      if (await w.count()) await page.keyboard.press('ArrowRight');
       await sleep(DWELL);
       const step = await page.evaluate(() => { const s = window.__RC__.cur; window.__RC__.on = false; window.__RC__.cur = null; return s; });
+      const ab = await page.evaluate(() => {
+        const A = window.__AB__; A.on = false;
+        const wh = [...document.querySelectorAll('[role="slider"][aria-label*="timeline wheel"]')].find((x) => x.offsetParent !== null);
+        const status = [...document.querySelectorAll('[role="status"]')].filter((x) => x.offsetParent !== null).map((x) => x.textContent.trim()).join(' | ').slice(0, 200);
+        const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; const g = d && d.waveGrid;
+        return { key: A.key, ev: A.ev.slice(), hours: A.hours.slice(), blank: A.blank, noEventTiming: !!A.noEventTiming,
+          target: wh ? Number(wh.getAttribute('aria-valuenow')) : null, status, drawnHour: g ? g.hourOffset : null };
+      });
+      const evt = ab.key == null ? null : ab.ev.find((e) => Math.abs(e.start - ab.key) < 2);
+      const shownAt = ab.key == null ? null : ab.hours.find(([t, h]) => t >= ab.key && h === ab.target);
+      step.__ab = { target: ab.target, inputMs: ab.key == null ? null : (evt ? evt.dur : 16), shownMs: shownAt ? +(shownAt[0] - ab.key).toFixed(1) : null,
+        blank: ab.blank, mislabel: ab.drawnHour != null && ab.target != null && ab.drawnHour !== ab.target, status: ab.status,
+        labelMoved: i === 0 ? true : ab.status !== (out.steps[i - 1].__ab || {}).status, noEventTiming: ab.noEventTiming };
       out.steps.push(step);
     }
     // per component: renders per step (median) and own ms per step (median)
-    const names = new Set(out.steps.flatMap((s) => Object.keys(s).filter((k) => k !== '__commits')));
+    const names = new Set(out.steps.flatMap((s) => Object.keys(s).filter((k) => k !== '__commits' && k !== '__ab')));
     const med = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[s.length >> 1] : 0; };
     out.table = [...names].map((n) => ({ name: n,
       rendersPerStep: med(out.steps.map((s) => (s[n] ? s[n].renders : 0))),
@@ -135,8 +170,8 @@ const HOOK = () => {
       selfMsPerStep: +med(out.steps.map((s) => (s[n] ? s[n].selfMs : 0))).toFixed(2) }))
       .sort((a, b) => b.selfMsPerStep - a.selfMsPerStep || b.rendersPerStep - a.rendersPerStep);
     out.commitsPerStep = med(out.steps.map((s) => s.__commits || 0));
-    out.totalSelfMsPerStep = +med(out.steps.map((s) => Object.entries(s).filter(([k]) => k !== '__commits').reduce((t, [, e]) => t + e.selfMs, 0))).toFixed(1);
-    out.componentsPerStep = med(out.steps.map((s) => Object.keys(s).filter((k) => k !== '__commits').length));
+    out.totalSelfMsPerStep = +med(out.steps.map((s) => Object.entries(s).filter(([k]) => k !== '__commits' && k !== '__ab').reduce((t, [, e]) => t + e.selfMs, 0))).toFixed(1);
+    out.componentsPerStep = med(out.steps.map((s) => Object.keys(s).filter((k) => k !== '__commits' && k !== '__ab').length));
   } catch (e) { out.error = String(e && e.message || e).slice(0, 200); }
   await browser.close();
   fs.writeFileSync(OUT, JSON.stringify(out, null, 1));
