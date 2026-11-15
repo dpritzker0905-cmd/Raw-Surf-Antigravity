@@ -25,6 +25,16 @@ const VP = {
     userAgent: 'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Mobile Safari/537.36' } },
 };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// Load record (census log 20:20Z): the machine's total CPU %, 1 s samples, for the session.
+function cpuSampler() {
+  // The machine's total CPU busy %, from os.cpus() tick deltas every 1 s (typeperf has no valid counters on this machine).
+  const os = require('os'); const xs = [];
+  const snap = () => os.cpus().reduce((a, c) => { const t = c.times; a.busy += t.user + t.nice + t.sys + t.irq; a.all += t.user + t.nice + t.sys + t.irq + t.idle; return a; }, { busy: 0, all: 0 });
+  let last = snap();
+  const iv = setInterval(() => { const n = snap(); const d = n.all - last.all; if (d > 0) xs.push(+(100 * (n.busy - last.busy) / d).toFixed(1)); last = n; }, 1000);
+  return { stop() { clearInterval(iv); const s = [...xs].sort((a, b) => a - b); return { n: s.length, mean: s.length ? +(s.reduce((a, b) => a + b, 0) / s.length).toFixed(1) : null, p90: s.length ? s[Math.floor(0.9 * (s.length - 1))] : null }; } };
+}
+const CALIBRATE = () => { const t0 = performance.now(); let h = 0x811c9dc5; for (let i = 0; i < 20000000; i += 1) { h ^= i; h = Math.imul(h, 0x01000193) >>> 0; } window.__CAL_SINK__ = h; return +(performance.now() - t0).toFixed(1); };
 
 // Runs in the page before React: a minimal DevTools hook that tallies each commit while window.__RC__.on is true.
 const HOOK = () => {
@@ -137,6 +147,7 @@ const PROBE = () => {
     });
     await sleep(1500);
     out.hookSeen = await page.evaluate(() => !!window.__RC__);
+    const cpu = cpuSampler(); const calBefore = await page.evaluate(CALIBRATE);
     for (let i = 0; i < STEPS; i += 1) {
       const w = page.locator('[role="slider"][aria-label*="timeline wheel"]').filter({ visible: true }).first();
       if (await w.count()) await w.focus().catch(() => {});
@@ -165,6 +176,7 @@ const PROBE = () => {
         labelMoved: !prev || (ab.target === prev.target + 1 && ab.valuetext !== prev.valuetext), noEventTiming: ab.noEventTiming };
       out.steps.push(step);
     }
+    const calAfter = await page.evaluate(CALIBRATE); out.load = { calBefore, calAfter, cal: Math.max(calBefore, calAfter), cpu: cpu.stop() };
     // per component: renders per step (median) and own ms per step (median)
     const names = new Set(out.steps.flatMap((s) => Object.keys(s).filter((k) => k !== '__commits' && k !== '__ab')));
     const med = (a) => { const s = [...a].sort((x, y) => x - y); return s.length ? s[s.length >> 1] : 0; };
@@ -181,7 +193,7 @@ const PROBE = () => {
   } catch (e) { out.error = String(e && e.message || e).slice(0, 200); }
   await browser.close();
   fs.writeFileSync(OUT, JSON.stringify(out, null, 1));
-  console.log(`census ${VIEW} z${ZOOM} ${LAYER}: ${out.commitsPerStep} commits / step, ${out.componentsPerStep} components / step, ${out.totalSelfMsPerStep} ms own render / step${out.error ? ' ERROR ' + out.error : ''}`);
+  console.log(`census ${VIEW} z${ZOOM} ${LAYER} cal ${out.load && out.load.cal} ms cpu ${out.load && out.load.cpu.mean}%: ${out.commitsPerStep} commits / step, ${out.componentsPerStep} components / step, ${out.totalSelfMsPerStep} ms own render / step${out.error ? ' ERROR ' + out.error : ''}`);
   for (const r of (out.table || []).slice(0, 25)) console.log(`  ${String(r.selfMsPerStep).padStart(7)} ms  x${String(r.rendersPerStep).padStart(3)}  ${r.name}`);
   console.log('RE-RENDER ROOTS per step (a component that rendered while its parent component did not), under which parent:');
   for (const r of [...(out.table || [])].filter((x) => x.rootsPerStep > 0).sort((a, b) => b.rootsPerStep - a.rootsPerStep).slice(0, 25)) {

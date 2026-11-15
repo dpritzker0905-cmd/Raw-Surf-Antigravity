@@ -17,7 +17,7 @@ const ZOOM = +(process.env.ZOOM || 8);
 const MODEL = process.env.MODEL || 'GFS';
 const STEPS = +(process.env.STEPS || 6);
 const DWELL = +(process.env.DWELL || 3000);
-const SCEN = process.env.SCEN || 'slow';   // slow | drag | back (the 19:45Z registration)
+const SCEN = process.env.SCEN || 'slow';   // slow | drag | back | browse (19:45Z, 20:22Z)
 const FLAGS = process.env.FLAGS ? JSON.parse(process.env.FLAGS) : {};
 const [CLNG, CLAT] = (process.env.CENTER || '-80.05,28.45').split(',').map(Number);
 const VP = {
@@ -92,14 +92,16 @@ const PROBE = () => {
     });
     await sleep(1500);
     counting = true;
-    const plan = SCEN === 'drag' ? [{ key: 'ArrowRight', presses: 12, gap: 150 }]
+    const plan = SCEN === 'browse' ? [[120, 0], [0, 120], [-120, 0], [0, -120], [200, 60], [-200, -60]].map((d) => ({ pan: d })).concat([{ zoom: 1 }, { zoom: -1 }])
+      : SCEN === 'drag' ? [{ key: 'ArrowRight', presses: 12, gap: 150 }]
       : SCEN === 'back' ? [...Array(STEPS)].map(() => ({ key: 'ArrowRight' })).concat([...Array(3)].map(() => ({ key: 'ArrowLeft' })))
         : [...Array(STEPS)].map(() => ({ key: 'ArrowRight' }));
     for (let i = 0; i < plan.length; i += 1) {
       const w = page.locator('[role="slider"][aria-label*="timeline wheel"]').filter({ visible: true }).first();
       await w.focus().catch(() => {});
-      const n = plan[i].presses || 1;
-      for (let k = 0; k < n; k += 1) { await page.keyboard.press(plan[i].key); if (k < n - 1) await sleep(plan[i].gap); }
+      if (plan[i].pan) await page.evaluate((d) => (window.__MAP_INSTANCE__ || window.map).panBy(d, { duration: 0 }), plan[i].pan);
+      else if (plan[i].zoom) await page.evaluate((z) => { const m = window.__MAP_INSTANCE__ || window.map; m.setZoom(m.getZoom() + z); }, plan[i].zoom);
+      else { const n = plan[i].presses || 1; for (let k = 0; k < n; k += 1) { await page.keyboard.press(plan[i].key); if (k < n - 1) await sleep(plan[i].gap); } }
       await sleep(DWELL);
       const s = await page.evaluate(() => {
         const F = window.__FV__; const k = F.key;
