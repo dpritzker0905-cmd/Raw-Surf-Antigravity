@@ -70,7 +70,12 @@ self.onmessage = (e) => {
   } catch (err) { self.postMessage({ id, error: String(err && err.message || err) }); }
 };`;
 
-let _worker = null; let _failed = false; let _seq = 0;
+// FAILURE RULES (the series decode worker's, #921, as Move 3 asked): only a DECODE-stage failure falls back to the main thread,
+// and the fallback LATCHES after WORKER_FAIL_LATCH worker deaths (a single crash restarts the worker); a bad frame (the decoder
+// throws: stage 'parse') rejects to the caller, whose own backoff retries later. This module never fetches, so no failure here
+// can cause a second fetch.
+export const WORKER_FAIL_LATCH = 2;
+let _worker = null; let _failed = false; let _seq = 0; let _deaths = 0;
 const _pending = new Map();
 const W = () => (typeof window !== 'undefined' ? window : {});
 export const decodeWorkerKilled = () => W().__RAW_DISABLE_RASTER_DECODE_WORKER__ === true;
@@ -84,11 +89,12 @@ function worker() {
       const p = _pending.get(e.data.id);
       if (!p) return;
       _pending.delete(e.data.id);
-      if (e.data.error) p.reject(new Error(e.data.error)); else p.resolve(e.data.out);
+      if (e.data.error) { const err = new Error(e.data.error); err.stage = 'parse'; p.reject(err); } else p.resolve(e.data.out);
     };
-    _worker.onerror = () => {   // the worker died: every waiter falls back to the main thread, later loads too
-      _failed = true;
-      for (const p of _pending.values()) p.reject(new Error('raster decode worker failed'));
+    _worker.onerror = () => {   // the worker died (stage 'decode'): its waiters decode on the main thread; latch after 2 deaths
+      _deaths += 1;
+      if (_deaths >= WORKER_FAIL_LATCH) _failed = true;
+      for (const p of _pending.values()) p.fallback();
       _pending.clear();
       try { _worker.terminate(); } catch (e) { /* gone */ }
       _worker = null;
@@ -104,11 +110,13 @@ export function decodeOwnField(buf, fieldId, missingValue) {
   const w = decodeWorkerKilled() ? null : worker();
   if (!w) return Promise.resolve().then(() => { const out = decodeFieldCore(buf, fieldId, missingValue); return out && { ...out, offThread: false }; });
   const id = ++_seq;
+  // The buffer is transferred to the worker; keep a copy only for the fallback a worker death needs (a decode on the main thread).
+  const keep = buf.slice(0);
+  const mainThread = (resolve, reject) => {
+    try { const out = decodeFieldCore(keep, fieldId, missingValue); resolve(out && { ...out, offThread: false }); } catch (e2) { e2.stage = 'parse'; reject(e2); }
+  };
   return new Promise((resolve, reject) => {
-    _pending.set(id, { resolve: (out) => resolve(out && { ...out, offThread: true }), reject });
-    try { w.postMessage({ id, buf, fieldId, missingValue }, [buf]); } catch (e) {
-      _pending.delete(id);
-      try { const out = decodeFieldCore(buf, fieldId, missingValue); resolve(out && { ...out, offThread: false }); } catch (e2) { reject(e2); }
-    }
+    _pending.set(id, { resolve: (out) => resolve(out && { ...out, offThread: true }), reject, fallback: () => mainThread(resolve, reject) });
+    try { w.postMessage({ id, buf, fieldId, missingValue }, [buf]); } catch (e) { _pending.delete(id); mainThread(resolve, reject); }
   });
 }
