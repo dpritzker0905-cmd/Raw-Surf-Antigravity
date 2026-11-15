@@ -199,3 +199,42 @@ identical bytes), and the gate as registered is NOT met. Two things stand betwee
    not known from here (it depends on which products are stored and how fast /grid answers); the harness may overstate it.
 2. **A doubling check that works.** Proposal for a new registration: count COLOUR-BAND CROSSINGS along fixed scanlines of the
    colour field (a doubled front crosses each band twice), with the same positive control required to trip first.
+
+## 8. The owner's decision (10:55 EST, in this session: "Yes, extend it") and the second design, registered BEFORE it is built
+Asked whether to extend the blend to cover grid swaps under a new registered gate, David answered "Yes, extend it".
+
+### 8a. Design (v2)
+- **Grid swaps are blended too.** When a commit replaces the engine's grid with one of another size or bounds (same model, same
+  layer, no ratings on either side), the engine keeps the outgoing wave texture and its land-flag texture instead of freeing
+  them, with the outgoing grid's bounds, point registration and height scale. For BLEND_MS (160, unchanged) the colour shader
+  reads the earlier grid AT ITS OWN PLACE ON THE MAP (its own bounds, its own water-only weights) and mixes the VALUES with the
+  new grid's, then colours. Where the earlier grid has no coverage the new one is drawn alone. This covers a swap that also
+  changes the hour and a swap inside one hour (the finer grid arriving over the coarse one).
+- **Heights are mixed in metres.** A grid's height byte has its own scale (10 m or 16 m per upload); the earlier hour's height
+  is rescaled to the new grid's scale before the mix. (This also closes a fault in v1: two hours on one grid with different
+  scales would have been mixed as raw bytes. It did not occur in the gate data; v1 was not shipped.)
+- Unchanged from v1: no blend under the kill, reduced motion, ratings, a change of model or layer, an exact-mask show; one
+  hour at rest with the earlier textures not read; the particles untouched; the kill `__RAW_DISABLE_CREST_HOUR_BLEND__`.
+- The kept textures are freed when the blend ends. Cost while a blend runs: one more wave texture and one more flag texture.
+
+### 8b. Gate (v2). Thresholds as before; H5 is replaced because the edge count could not measure doubling.
+Instrument and data as registered in section 6 (one page, both arms interleaved, the four-layer moving-swell store, the same
+10 views, 80 boundaries per arm).
+- **H1** pooled step of arm B at most 50% of arm A's, every boundary counted, no view worse in B. Unchanged.
+- **H2** GPU ms per frame at most +10% (whole scrub, and inside the blend windows). Unchanged.
+- **H3** identical wave-texture bytes per (grid, valid time) resident in both arms, at least 40 pairs. Unchanged.
+- **H4** at rest 420 ms after each step: no blend, the shader's mix uniform 0. Added: no kept earlier-grid texture remains
+  (they are freed when the blend ends).
+- **H5 (new): contrast kept through the blend.** A cross-fade of two fields whose features have moved loses contrast in the
+  middle (two half-strength copies); a field that merely changes does not. With the particles not drawn and the blend held at
+  0.5: RETENTION = the standard deviation of luminance of the held frame divided by the smaller of the standard deviations of
+  the frame before (f = 0) and after (f = 1). Pass: retention at least **0.85** at every held boundary, and at least 0.92 on
+  average. Positive control per view, from real frames: the average of the view's f = 0 frames 12 h apart (the swell trains
+  are then in near-opposite phase) must FAIL (retention below 0.85); a view whose control does not fail is not scorable; fewer
+  than 6 scorable views of 10 voids H5.
+  What H5 can and cannot say, stated before the data: the blend IS a cross-fade of values, so a feature that moves by more
+  than its own width between two hours WOULD show twice at half strength for 160 ms. H5 measures how far this data is from
+  that. It says nothing about real model runs with fast, narrow features; that needs real frames and is NOT covered here.
+- **H6** drag: arm B's mean step not larger than arm A's. Unchanged.
+- **H7** off path: unit tests for the kill, reduced motion and the shader source. Unchanged.
+- A failed line is recorded as it is. Nothing is tuned against this data without another dated registration.
