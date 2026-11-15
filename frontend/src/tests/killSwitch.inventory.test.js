@@ -86,6 +86,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_OWN_ONLY_PREFETCH2__',
   // ownRasterDecode.test.js ("without a Worker (and under its kill) the same function runs on the main thread"; 2026-11-15)
   '__RAW_DISABLE_RASTER_DECODE_WORKER__',
+  // gustsLayer.test.js ("its kill restores the half-gap rule"; 2026-11-15, the edge nearest note)
+  '__RAW_DISABLE_RASTER_EDGE_NEAREST_NOTE__',
   '__RAW_DISABLE_RASTER_OWN_WATER_TEMP__',
   '__RAW_DISABLE_RASTER_OWN_HANDOVER__',
   '__RAW_DISABLE_RASTER_OWN_SAME_FRAME__',

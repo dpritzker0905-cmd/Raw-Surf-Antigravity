@@ -7,6 +7,7 @@ import { RASTER_SET_KEYS } from './staticRasterSets';
 import { buildStepLut, colorAtValue } from './ownRasterLayer';
 import { describeRasterFrame, RASTER_STATUS_LAYERS } from './rasterDrawnFrame';
 import { creditFor } from './LayerDataCredit';
+import { edgeNoteOn } from './useOwnRasterFrames';
 
 const THEMES = ['light', 'dark', 'beach'];
 afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_GUSTS__; });
@@ -96,5 +97,20 @@ describe("past each model's range: a GFS stand-in, labelled (no looping)", () =>
     const frames = combinedFrames('gusts', 'EURO', idx([3, 6, 240], 'euro/'), idx([240, 243, 336], 'gfs/'));
     expect(frames.filter((f) => f.estimated).map((f) => [f.path, f.estimated, f.model]))
       .toEqual([['gfs/243.bin', 'gfs_estimated_fallback', 'GFS'], ['gfs/336.bin', 'gfs_estimated_fallback', 'GFS']]);
+  });
+});
+
+describe("the nearest-stored-forecast note at a set's edge", () => {
+  afterEach(() => { delete window.__RAW_DISABLE_RASTER_EDGE_NEAREST_NOTE__; });
+  test('a frame drawn 2 h from the asked hour at the end of a set says so (the note covers the whole 3 h pick window)', () => {
+    expect(edgeNoteOn()).toBe(true);
+    const asked = Date.parse('2026-11-29T08:00:00Z');
+    const shown = { url: 'gfs/336.bin', dataMs: asked - 2 * 3600000, nearestMaxHours: 3 };
+    expect(describeRasterFrame({ layer: 'gusts', shown, want: shown }, 'gusts', asked)).toMatchObject({ state: 'nearest' });
+    expect(describeRasterFrame({ layer: 'gusts', shown: { ...shown, nearestMaxHours: 1 }, want: shown }, 'gusts', asked)).toBeNull();
+  });
+  test('its kill restores the half-gap rule', () => {
+    window.__RAW_DISABLE_RASTER_EDGE_NEAREST_NOTE__ = true;
+    expect(edgeNoteOn()).toBe(false);
   });
 });

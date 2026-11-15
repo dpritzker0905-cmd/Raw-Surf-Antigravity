@@ -67,6 +67,8 @@ const opacityOf = (layer) => (typeof OPACITY[layer] === 'function' ? OPACITY[lay
 // Isobar ink per theme (only drawn with window.__RAW_OWN_RASTER_ISOBARS__ set; off by default).
 const ISO_INK = { dark: [1, 1, 1, 0.5], beach: [0.24, 0.18, 0.12, 0.5], light: [0.12, 0.16, 0.24, 0.5] };
 
+/** The edge note's kill (the half-gap rule everywhere, as before): window.__RAW_DISABLE_RASTER_EDGE_NEAREST_NOTE__ = true. */
+export const edgeNoteOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_EDGE_NEAREST_NOTE__ === true);
 export const sameFrameOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_OWN_SAME_FRAME__ === true);
 // SCOPE (2026-11-14, the advisor's red-team of #889): the handover and the same-frame step apply ONLY to the layers this lane
 // built (default-OFF pending the owner, reachable with the lever). Pressure and satellite are live defaults with no before/after
@@ -275,6 +277,10 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     const at = (i) => (frames[i] ? Date.parse(frames[i].valid_time) : NaN);
     const gaps = [at(cur) - at(cur - 1), at(cur + 1) - at(cur)].filter((g) => Number.isFinite(g) && g > 0);
     st.nearestMaxHours = Math.floor((gaps.length ? Math.max(...gaps) / 3600000 : 1) / 2);
+    // AT A SET'S EDGE (2026-11-15, the gusts/currents 14-day scrub: the last frame drawn 2 h before the asked hour with no note):
+    // there is no neighbour beyond the first / last frame, so half a gap is not the bound; the pick reaches a whole 3-hour
+    // window (pickIndexFrame), and the note must cover all of it.
+    if ((cur === 0 || cur === frames.length - 1) && edgeNoteOn()) st.nearestMaxHours = Math.max(st.nearestMaxHours, 3);
     st.wantEntry = f;
     st.wantRec = { url: f.path, dataMs: Date.parse(f.valid_time), model: f.model, estimated: f.estimated, nearestMaxHours: st.nearestMaxHours };
     if (st.shownRec) st.shownRec = { ...st.shownRec, nearestMaxHours: st.shownRec.url === f.path ? st.nearestMaxHours : st.shownRec.nearestMaxHours };
