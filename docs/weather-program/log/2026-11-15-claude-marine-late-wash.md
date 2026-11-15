@@ -28,3 +28,55 @@ no wash; when that grid lands, the picture becomes the at-rest picture exactly.
   view measured, never draw a wash of another hour (`other_time` drawn = 0), add no backend asks against the kill arm, and keep the
   at-rest picture identical (difference <= 0.05).
 - **Scope**: reported per layer (waves, swell_1) and per zoom (a regional coastal view and a world view), dark theme, desktop.
+
+## 1. Instrument and the first runs (2026-11-15 ~17:15-17:50 EST)
+
+`frontend/scripts/offline-backend/scn_hour_jump_wash.js`: the synthetic store (GFS waves + wind; florida_east_coast and
+us_southeast_midatlantic tiles, `--dynamic 1`), the publisher's frames as the CDN, a dev build. The first run had a 2.4-4.2 unit
+NULL floor (the animated crests); the particle draws are now skipped exactly as the hour-blend lane's instrument skips them
+(programs whose shader has `u_trochoidal`): NULL floor 0.000 at every offset afterwards. A second, cached pass was added (Home,
+settle, the same jump again), because the first visit also swaps a coarse resident stand-in for the fine grid (Move 3's delay).
+
+## 2. Cause gate: H1 CONFIRMED (cached pass, Florida z7.5, waves, dark, desktop)
+
+| after the +6 h jump | 250 ms | 900 ms | 2500 ms | 5000 ms |
+|---|---|---|---|---|
+| luminance difference from the same hour at rest | 13.19 | 13.19 | 0.000 | 0.000 |
+| wash decision | refused, `other_time` | refused | drawn, `same` | drawn |
+| wash base valid time | old hour | old hour | new hour | new hour |
+| NULL control (no step) | 0.000 | 0.000 | 0.000 | 0.000 |
+
+The resident was the same fine grid at every sample. (a), (b) and (c) hold.
+
+Where the delay comes from (a first guess was wrong and was reverted, not shipped): the timeline was NOT scrubbing at +250 ms
+(`isScrubbingTimeline` false) and the refusal re-ask never ran in the cached pass, so the prewarm's scrub gate was not it. The new
+hour's world seed IS staged at once (`_pendingCoarseBaseGrid`), but the engine consumes a seed only on a "quiet" frame:
+`marineQuietFrames.seedConsumeAllowed` = no keydown / pointer / wheel input for `QUIET_MS` (1000 ms), a rule from 2026-10-23
+that keeps a ~140 ms upload off the next scrub key. For that second the old-hour base is refused by the time rule (D1), so the sea
+around the regional grid has no wash; the picture "corrects itself" when the quiet second ends.
+
+## 3. The fix and its gate
+
+`seedConsumeAllowed(zoom, urgent)`: when the staged seed REPAIRS a refused wash (`marineStaleHour.seedRepairsWash`: the seed is
+the resident's hour and the current base is not), it waits `URGENT_QUIET_MS` = 150 ms of quiet instead of 1000 ms. A held key at
+30/s still never gets an upload mid-burst; every other seed keeps the 1 s rule. Kill: `__RAW_DISABLE_URGENT_WASH_SEED__`.
+
+Fix arm against its own kill, same build (`scn_hour_jump_wash.js`, ARMS=fix,kill):
+
+| view | pass | kill: 250 / 900 ms | fix: 250 / 900 ms | cut |
+|---|---|---|---|---|
+| Florida z7.5, waves | cached (the registered case) | 13.19 / 13.19 (refused) | **0.000 / 0.000** (drawn) | 100 % |
+| Carolinas z7.5, waves | cached | 12.97 / 12.97 (refused) | **0.000 / 0.000** (drawn) | 100 % |
+| Florida z7.5, waves | first visit | 75.06 / 75.06 | 24.05 / 24.05 | 68 % |
+| Carolinas z7.5, waves | first visit | 71.83 / 71.83 | 30.26 / 30.26 | 58 % |
+| world z2.5, waves | both | 0 / 0 | 0 / 0 | (no regional grid: nothing to repair) |
+
+- Another hour's wash drawn: 0 samples in either arm.
+- Backend asks (per session): fix 11 / 11 / 3, kill 13 / 10 / 3. The change issues no request (it only moves when an already
+  staged seed is consumed); the +1 in one view is timing noise, recorded as measured.
+- At rest: every arm's picture equals its own rest by construction; a cross-arm rest comparison was NOT made.
+- **Verdict, by the letter of section 0:** PASS on the registered case (the cache-settled jump the hour-blend lane measured), in
+  every view measured there. FAIL on the first visit (68 % and 58 % against 75 %): what is left there is the coarse resident
+  stand-in (7 x 6 before the fine grid), which is Move 3's 1.5 s coarse-to-fine delay, not the wash.
+- Scope not measured: swell_1 (the synthetic store has no swell layers), light and beach themes, phone.
+- The Surf Rating band draws the same wash under its masked open-ocean cells (the RATING-MODE WASH), so it shares this path and the fix.
