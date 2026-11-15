@@ -1,0 +1,147 @@
+{
+  "candidate_imported_or_executed": false,
+  "files": [
+    {
+      "bytes": 1359,
+      "path": "BINDINGS-TEMPLATE.json",
+      "sha256": "d7ca6b0f8ff58705ec2622a2772e29b391a27f30c4b535287e3aeeaa9040fe2f"
+    },
+    {
+      "bytes": 623,
+      "path": "CLOSURE-STATUS.json",
+      "sha256": "c17b5d44647328441f99e09c07e8ecc569864fb20058d7eaee0ab61aa9352049"
+    },
+    {
+      "bytes": 2539,
+      "path": "implementation/absence_policy.py.txt",
+      "sha256": "8f897449c3c5807e34078f65134ebe98d9341b575d086fd77c17786b5ae42a76"
+    },
+    {
+      "bytes": 11198,
+      "path": "implementation/attestation.py.txt",
+      "sha256": "5c6d9abe8a9ade058f9fe6d6970703c6efc502c947c22f638fcd0c375b2426ed"
+    },
+    {
+      "bytes": 4976,
+      "path": "implementation/combined_guard.py.txt",
+      "sha256": "55eea18d3325a80a85d6054918177092265fa28f9b477fec9f47e634b12d0cbd"
+    },
+    {
+      "bytes": 1795,
+      "path": "implementation/fingerprints.py.txt",
+      "sha256": "ebf275a32b4d724526a078688abeb009ffce40364b71878814a0aabcfb8c4cec"
+    },
+    {
+      "bytes": 1590,
+      "path": "implementation/inactive_entry.py.txt",
+      "sha256": "1180a206aee06e655c393d4a32390452b7c953f33e3c33b3ddf1fa9a2b6eba16"
+    },
+    {
+      "bytes": 9429,
+      "path": "implementation/review_bindings.py.txt",
+      "sha256": "8dc3f61c5d3b119c9c0c09fd0a50e429a0320c61c0fccf9586f4e6942890c376"
+    },
+    {
+      "bytes": 2708,
+      "path": "implementation/source_catalog.py.txt",
+      "sha256": "dc66eb092cacd72f1593ffbbaa7ef40d48e0e65e7787283b56ec42ed9512617f"
+    },
+    {
+      "bytes": 3165,
+      "path": "PERMISSION-DIFF.md",
+      "sha256": "755c40f546f56c89dcecee6f8bf1132920433a8b93c40c37725d5a06fd3a2660"
+    },
+    {
+      "bytes": 4245,
+      "path": "README.md",
+      "sha256": "9ea9cad7ed5757f0421dc75162664a8f2f4435aa32555804351d5a82e5c413fc"
+    },
+    {
+      "bytes": 1196,
+      "path": "reference/IMPORT-COMPATIBILITY-REVIEW.json",
+      "sha256": "08c7a9d9eb3d77188b335743cbb3baf0d79ddf3a49199e7c366a33753060bf0c"
+    },
+    {
+      "bytes": 8664,
+      "path": "reference/POLICY-CONTRACT.json",
+      "sha256": "ff335cab6ad68515c3940616dc7369b1e801fb9d45e6a8cdbccece41031d391d"
+    },
+    {
+      "bytes": 15238,
+      "path": "reference/POLICY-PROPOSAL.md",
+      "sha256": "0c574df0caf79f6499f7c48d91fc9d0e9f9cb9ed59d7b5cf7562c5da26ac6625"
+    },
+    {
+      "bytes": 4676,
+      "path": "reference/SOURCE-ATTESTATION.json",
+      "sha256": "678e3c2d5d90e5a510cb9a5559556a75f3a6722d8cf47ec6db0a3a8185dbd21c"
+    },
+    {
+      "bytes": 2028,
+      "path": "reference/UNRESOLVED-GATES.json",
+      "sha256": "59f7f244b31b29b497ae7282931bcb8c4dc191fee66236f9c1e63b1529b6bb13"
+    },
+    {
+      "bytes": 3344,
+      "path": "REQUIRED-QUALIFICATION.md",
+      "sha256": "183bac8673b78e43b21c469d6a71fdb9fe28b51e75d9460eddc555818f515a3f"
+    },
+    {
+      "bytes": 7649,
+      "path": "REVIEW.md",
+      "sha256": "99f06ca3f56e00edd011a1c0298e935a1c627487c1e9791827b34cfc7b60ab59"
+    }
+  ],
+  "release": false,
+  "source_copy_bindings": [
+    {
+      "changed_bytes": false,
+      "interpretation": "inert source text; not an executable module",
+      "original": "implementation/absence_policy.py",
+      "published": "implementation/absence_policy.py.txt",
+      "sha256": "8f897449c3c5807e34078f65134ebe98d9341b575d086fd77c17786b5ae42a76"
+    },
+    {
+      "changed_bytes": false,
+      "interpretation": "inert source text; not an executable module",
+      "original": "implementation/attestation.py",
+      "published": "implementation/attestation.py.txt",
+      "sha256": "5c6d9abe8a9ade058f9fe6d6970703c6efc502c947c22f638fcd0c375b2426ed"
+    },
+    {
+      "changed_bytes": false,
+      "interpretation": "inert source text; not an executable module",
+      "original": "implementation/combined_guard.py",
+      "published": "implementation/combined_guard.py.txt",
+      "sha256": "55eea18d3325a80a85d6054918177092265fa28f9b477fec9f47e634b12d0cbd"
+    },
+    {
+      "changed_bytes": false,
+      "interpretation": "inert source text; not an executable module",
+      "original": "implementation/fingerprints.py",
+      "published": "implementation/fingerprints.py.txt",
+      "sha256": "ebf275a32b4d724526a078688abeb009ffce40364b71878814a0aabcfb8c4cec"
+    },
+    {
+      "changed_bytes": false,
+      "interpretation": "inert source text; not an executable module",
+      "original": "implementation/inactive_entry.py",
+      "published": "implementation/inactive_entry.py.txt",
+      "sha256": "1180a206aee06e655c393d4a32390452b7c953f33e3c33b3ddf1fa9a2b6eba16"
+    },
+    {
+      "changed_bytes": false,
+      "interpretation": "inert source text; not an executable module",
+      "original": "implementation/review_bindings.py",
+      "published": "implementation/review_bindings.py.txt",
+      "sha256": "8dc3f61c5d3b119c9c0c09fd0a50e429a0320c61c0fccf9586f4e6942890c376"
+    },
+    {
+      "changed_bytes": false,
+      "interpretation": "inert source text; not an executable module",
+      "original": "implementation/source_catalog.py",
+      "published": "implementation/source_catalog.py.txt",
+      "sha256": "dc66eb092cacd72f1593ffbbaa7ef40d48e0e65e7787283b56ec42ed9512617f"
+    }
+  ]
+}

@@ -1,0 +1,52 @@
+"""CBR-02 draft: one metadata-only, negative resolution. Never supplies a module."""
+import sys
+
+from attestation import fatal
+from source_catalog import PARENT
+
+OPTIONAL_NAME='urllib3_secure_extra'
+
+
+class AbsenceFinder:
+    def __init__(self,witness):
+        self.witness=witness;self.pending=False;self.spent=False;self.resolving=False
+        witness.absence_finder=self
+
+    def context(self):
+        w=self.witness;w.observers_check()
+        frame=w.frames.get(PARENT)
+        if (frame is None or frame.f_lineno!=27 or PARENT in w.completed or
+            w.state!='RETIRED' or w.receipt is None or OPTIONAL_NAME in sys.modules):
+            fatal('optional_import_context')
+        w.identities(PARENT);w.bindings.validate_import_surface(self)
+
+    def admit_import_event(self,args):
+        # Uses cached observer frame; no _getframe on this non-socket audit path.
+        if (len(args)!=5 or args[0]!=OPTIONAL_NAME or args[1] is not None or
+            self.pending or self.spent or self.resolving):fatal('optional_import_event')
+        self.context();self.pending=True
+
+    def find_spec(self,fullname,path=None,target=None):
+        if fullname!=OPTIONAL_NAME:return None
+        try:
+            if not self.pending or self.spent or path is not None or target is not None:fatal('optional_finder_invocation')
+            self.context()
+            # This is a resolver callback, not an audit callback. Every intermediate
+            # frame must have a separately reviewed importlib code identity.
+            frame=sys._getframe(1);parent=self.witness.frames[PARENT]
+            while frame is not parent:
+                if frame is None or not any(frame.f_code is c for c in self.witness.bindings.import_frame_codes):
+                    fatal('optional_resolver_caller')
+                frame=frame.f_back
+            self.pending=False;self.spent=True;self.resolving=True
+            for resolver in self.witness.bindings.resolvers:
+                resolver.validate()
+                if resolver.lookup(fullname,path,target) is not None:fatal('optional_module_found')
+                self.witness.bindings.validate_import_surface(self)
+            self.resolving=False
+            # A newly admitted *real absence* outcome, not conversion of a generic
+            # policy denial. Nothing is returned for import machinery to execute.
+            error=ModuleNotFoundError(name=OPTIONAL_NAME)
+            self.witness.absence=error
+        except BaseException:fatal('optional_resolution_failure')
+        raise error

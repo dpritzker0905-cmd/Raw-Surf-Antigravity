@@ -1,0 +1,68 @@
+{
+  "approval_or_attempt_budget_reused": false,
+  "items": [
+    {
+      "id": "G01",
+      "requirement": "Explicit policy decision for implementation only",
+      "satisfied": false
+    },
+    {
+      "id": "G02",
+      "requirement": "New inactive guard/observer implementation and exact source/config hashes",
+      "satisfied": false
+    },
+    {
+      "id": "G03",
+      "requirement": "New release archive/staging/virtual-origin identities frozen",
+      "satisfied": false
+    },
+    {
+      "id": "G04",
+      "requirement": "Actual Linux stdlib socket and native _socket/callable identities pinned",
+      "satisfied": false
+    },
+    {
+      "id": "G05",
+      "requirement": "Expected and actual code-object attestation derived/qualified in pinned3.12.14",
+      "satisfied": false
+    },
+    {
+      "id": "G06",
+      "requirement": "Observer exception/cleanup/thread integrity and recursion qualification",
+      "satisfied": false
+    },
+    {
+      "id": "G07",
+      "requirement": "New guard inert admission, tamper/exhaustion and retained-denial controls",
+      "satisfied": false
+    },
+    {
+      "id": "G08",
+      "requirement": "Separate concrete native-scope decision and current namespace proof",
+      "satisfied": false
+    },
+    {
+      "id": "G09",
+      "requirement": "Adequate native-context/API-outcome/cleanup evidence within approved scope",
+      "satisfied": false
+    },
+    {
+      "id": "G10",
+      "requirement": "Supervisor production-path and installation-oracle qualification",
+      "satisfied": false
+    },
+    {
+      "id": "G11",
+      "requirement": "New construction bundle review and explicit transfer/execution approval",
+      "satisfied": false
+    },
+    {
+      "id": "G12",
+      "requirement": "Adjacent CBR-02 optional-import contract resolved before any native/full-import scope; no automatic allow-list expansion",
+      "satisfied": false
+    }
+  ],
+  "missing_is_blocking": true,
+  "native_or_construction_scope_implied": false,
+  "policy_enabled": false
+}
