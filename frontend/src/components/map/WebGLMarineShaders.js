@@ -59,6 +59,11 @@ varying highp vec2 v_mercator_xy;
 uniform sampler2D u_waveTexture;
 uniform sampler2D u_wavePrevTexture; // THE HOUR BLEND (marineHourBlend.js): the hour that was on screen before the step
 uniform float u_hourPrevMix;         // how much of it to draw: 1 at the step, 0 at rest (then it is not read)
+uniform highp vec2 u_prevBounds_min; // the earlier field's OWN bounds [west, south] / [east, north]: it may be another grid
+uniform highp vec2 u_prevBounds_max;
+uniform GEO_P vec4 u_prev_reg;       // its point registration
+uniform GEO_P vec2 u_prevTexel;      // 1/cols, 1/rows when it shares this grid's land flags; 0 = plain fetch
+uniform float u_prevHeightRatio;     // its height scale / this grid's: heights are mixed in metres
 uniform sampler2D u_chlorophyllTexture;
 uniform sampler2D u_bathymetryTexture;
 uniform sampler2D u_oceanMaskTexture;
@@ -173,16 +178,17 @@ vec4 sampleWaveLandAware(GEO_P vec2 uv) {
   return (s00 * w00 + s10 * w10 + s01 * w01 + s11 * w11) / wsum;
 }
 
-// THE HOUR BLEND's fetch of the earlier hour: the SAME water-only weights as sampleWaveLandAware above (both hours sit on one
-// grid with one land flag, or the step is not blended), so the two hours meet cell for cell at the coast.
-vec4 sampleWavePrevLandAware(GEO_P vec2 uv) {
+// THE HOUR BLEND's fetch of the earlier field, at ITS OWN place: uv is in the earlier grid's own texture space. On an
+// unchanged grid (u_prevTexel > 0) it uses the SAME water-only weights as sampleWaveLandAware above, so the two hours meet
+// cell for cell at the coast; a grid that was replaced is fetched plainly (its land flags went with it).
+vec4 sampleWavePrev(GEO_P vec2 uv) {
   vec4 plain = texture2D(u_wavePrevTexture, uv);
-  if (u_landAwareFetch < 0.5 || u_waveTexel.x <= 0.0 || u_waveTexel.y <= 0.0) return plain;
-  GEO_P vec2 tc = uv / u_waveTexel - 0.5;
+  if (u_landAwareFetch < 0.5 || u_prevTexel.x <= 0.0 || u_prevTexel.y <= 0.0) return plain;
+  GEO_P vec2 tc = uv / u_prevTexel - 0.5;
   vec2 f = fract(tc);
-  GEO_P vec2 c0 = (floor(tc) + 0.5) * u_waveTexel;
-  vec2 cx = vec2(u_waveTexel.x, 0.0);
-  vec2 cy = vec2(0.0, u_waveTexel.y);
+  GEO_P vec2 c0 = (floor(tc) + 0.5) * u_prevTexel;
+  vec2 cx = vec2(u_prevTexel.x, 0.0);
+  vec2 cy = vec2(0.0, u_prevTexel.y);
   float w00 = (1.0 - f.x) * (1.0 - f.y) * step(0.5, texture2D(u_chlorophyllTexture, c0).a);
   float w10 = f.x * (1.0 - f.y) * step(0.5, texture2D(u_chlorophyllTexture, c0 + cx).a);
   float w01 = (1.0 - f.x) * f.y * step(0.5, texture2D(u_chlorophyllTexture, c0 + cy).a);
@@ -511,7 +517,17 @@ void main() {
   }
   vec4 waveData = sampleWaveLandAware(data_uv);
   // THE HOUR BLEND: for a moment after a step, the VALUES of the earlier hour and this one are mixed, then coloured below.
-  if (u_hourPrevMix > 0.0) waveData = mix(waveData, sampleWavePrevLandAware(data_uv), u_hourPrevMix);
+  if (u_hourPrevMix > 0.0) {
+    GEO_P float pu = u_prevBounds_min.x > u_prevBounds_max.x
+      ? mod(lng - u_prevBounds_min.x, 360.0) / max((u_prevBounds_max.x + 360.0) - u_prevBounds_min.x, 0.0001)
+      : (lng - u_prevBounds_min.x) / max(u_prevBounds_max.x - u_prevBounds_min.x, 0.0001);
+    GEO_P float pv = (lat - u_prevBounds_min.y) / max(u_prevBounds_max.y - u_prevBounds_min.y, 0.0001);
+    if (pu >= 0.0 && pu <= 1.0 && pv >= 0.0 && pv <= 1.0) {   // outside the earlier grid, this field is drawn alone
+      vec4 prevData = sampleWavePrev(ptReg(vec2(pu, pv), u_prev_reg));
+      prevData.b *= u_prevHeightRatio;
+      waveData = mix(waveData, prevData, u_hourPrevMix);
+    }
+  }
   float depthFactor = texture2D(u_bathymetryTexture, data_uv).r;
   float waveHeight = waveData.b * 10.0;
   

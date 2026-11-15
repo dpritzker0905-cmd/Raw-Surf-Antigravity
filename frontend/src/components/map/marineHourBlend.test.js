@@ -4,7 +4,7 @@
 import fs from 'fs';
 import path from 'path';
 import {
-  CREST_BLEND_MS, HOUR_BLEND_UNIT, beforeWaveOverwrite, cancelHourBlend, crestBlendEase, crestBlendMs, disposeHourBlend,
+  CREST_BLEND_MS, HOUR_BLEND_UNIT, beforeWaveOverwrite, beforeWaveRealloc, cancelHourBlend, crestBlendEase, crestBlendMs, disposeHourBlend,
   hourBlendPrevMix, hourBlendVerdict, setHourBlendUniforms,
 } from './marineHourBlend';
 import { HEATMAP_FS } from './WebGLMarineShaders';
@@ -32,6 +32,8 @@ function fakeGl({ complete = true, throwOnCopy = false } = {}) {
     copyTexSubImage2D: (...a) => { if (throwOnCopy) throw new Error('lost'); calls.push(['copy', ...a]); },
     uniform1f: (loc, v) => calls.push(['uniform1f', loc, v]),
     uniform1i: (loc, v) => calls.push(['uniform1i', loc, v]),
+    uniform2f: (loc, a, b) => calls.push(['uniform2f', loc, a, b]),
+    uniform4f: (loc, ...v) => calls.push(['uniform4f', loc, ...v]),
   };
   return { gl, calls };
 }
@@ -69,10 +71,11 @@ describe('crestBlendMs / crestBlendEase', () => {
 
 describe('hourBlendVerdict: which steps may be blended', () => {
   test('another hour on the same grid, model and layer may', () => { expect(hourBlendVerdict(grid(), next(), false)).toBeNull(); });
+  test('another GRID may too (v2), in the same hour or another: size or bounds', () => {
+    for (const nx of [next({ cols: 181 }), next({ rows: 81 }), next({ bounds: { ...BOUNDS, west: -170 } }), next({ cols: 181, validTime: '2026-11-15T12:00:00Z' })]) expect(hourBlendVerdict(grid(), nx, false)).toBeNull();
+    expect(hourBlendVerdict(grid({ bounds: undefined }), next(), false)).toBe('no_grid');
+  });
   test.each([
-    ['grid_differs', grid(), next({ cols: 181 })],
-    ['grid_differs', grid(), next({ rows: 81 })],
-    ['grid_differs', grid(), next({ bounds: { ...BOUNDS, west: -170 } })],
     ['model_differs', grid(), next({ model: 'EURO' })],
     ['layer_differs', grid(), next({ layer: 'swell_1' })],
     ['rating', grid(), next({ rating: true })],
@@ -101,6 +104,7 @@ describe('beforeWaveOverwrite: the hour on screen is copied before it is overwri
     expect(calls.filter((c) => c[0] === 'bindTexture').pop()).toEqual(['bindTexture', 'tex-before']);
     expect(e._hourBlend).toEqual({ t0: 0, ms: 160 });
     expect(window.__RAW_CREST_HOUR_BLEND__.starts).toBe(1);
+    expect(e._hourPrev).toMatchObject({ wave: e._hourCopyTex, adopted: false, cols: 46, rows: 21, bounds: BOUNDS, scale: 10 });
   });
   test('the texture is made once and reused', () => {
     const e = engineWith(); const { gl } = fakeGl();
@@ -130,7 +134,7 @@ describe('beforeWaveOverwrite: the hour on screen is copied before it is overwri
     ['off', () => { window.__RAW_DISABLE_CREST_HOUR_BLEND__ = true; return [engineWith(), next()]; }],
     ['no_resident', () => { const e = engineWith(); e._waveData.u_waveTexture = { id: 'standalone' }; return [e, next()]; }],
     ['no_resident', () => [{ _residentWaveTex: null, _waveData: null }, next()]],
-    ['grid_differs', () => [engineWith(), next({ cols: 90 })]],
+    ['model_differs', () => [engineWith(), next({ model: 'ICON' })]],
     ['rating', () => [engineWith(grid(), { u_waveScoreTexture: {} }), next()]],
     ['mask_differs', () => [engineWith(), next({ maskDiffers: true })]],
   ])('OFF PATH %s: no copy, no texture, and a running blend is dropped', (why, make) => {
@@ -151,7 +155,7 @@ describe('beforeWaveOverwrite: the hour on screen is copied before it is overwri
   test('a resident of another size frees the old earlier-hour texture first', () => {
     const e = engineWith(); const { gl } = fakeGl();
     beforeWaveOverwrite(e, gl, next()); hourBlendPrevMix(e, 0.001); hourBlendPrevMix(e, 5000);
-    e._waveData.waveGrid = grid({ cols: 90, rows: 40 }); const first = e._hourPrevTex;
+    e._waveData.waveGrid = grid({ cols: 90, rows: 40 }); const first = e._hourCopyTex;
     beforeWaveOverwrite(e, gl, next({ cols: 90, rows: 40 }));
     expect(safeDeleteTexture).toHaveBeenCalledWith(gl, first, null); expect(createTexture).toHaveBeenLastCalledWith(gl, gl.LINEAR, null, 90, 40);
   });
@@ -186,8 +190,8 @@ describe('hourBlendPrevMix: how much of the earlier hour is drawn', () => {
     expect(hourBlendPrevMix(e, 100000)).toBe(1); expect(hourBlendPrevMix(e, 100160)).toBe(0);
   });
   test('cancel and dispose drop the blend; dispose frees the texture', () => {
-    const e = started(); cancelHourBlend(e); expect(e._hourBlend).toBeNull(); expect(e._hourPrevTex).toBeTruthy();
-    const tex = e._hourPrevTex; disposeHourBlend(e, {}); expect(safeDeleteTexture).toHaveBeenCalledWith({}, tex, null); expect(e._hourPrevTex).toBeNull();
+    const e = started(); cancelHourBlend(e); expect(e._hourBlend).toBeNull(); expect(e._hourCopyTex).toBeTruthy();
+    const tex = e._hourCopyTex; disposeHourBlend(e, {}); expect(safeDeleteTexture).toHaveBeenCalledWith({}, tex, null); expect(e._hourCopyTex).toBeNull(); expect(e._hourPrev).toBeNull();
     expect(() => disposeHourBlend(null, {})).not.toThrow();
   });
 });
@@ -203,7 +207,10 @@ describe('setHourBlendUniforms: the colour pass', () => {
     const e = engineWith(); beforeWaveOverwrite(e, fakeGl().gl, next());
     const { gl, calls } = fakeGl(); setHourBlendUniforms(gl, e, 'prog', loc, bind);
     expect(calls).toContainEqual(['uniform1f', 'u_hourPrevMix', 1]); expect(calls).toContainEqual(['uniform1i', 'u_wavePrevTexture', HOUR_BLEND_UNIT]);
-    expect(bind).toHaveBeenCalledWith(gl, e._hourPrevTex, HOUR_BLEND_UNIT);
+    expect(bind).toHaveBeenCalledWith(gl, e._hourPrev.wave, HOUR_BLEND_UNIT);
+    expect(calls).toContainEqual(['uniform2f', 'u_prevBounds_min', -180, -80]); expect(calls).toContainEqual(['uniform2f', 'u_prevBounds_max', 180, 80]);
+    expect(calls).toContainEqual(['uniform2f', 'u_prevTexel', 0, 0]);                 // land-aware fetch is off by default: plain fetch
+    expect(calls).toContainEqual(['uniform1f', 'u_prevHeightRatio', 1]);
   });
   test('ratings: the score texture is drawn and never blended', () => {
     const e = engineWith(); beforeWaveOverwrite(e, fakeGl().gl, next()); e._waveData.u_waveScoreTexture = {};
@@ -213,28 +220,33 @@ describe('setHourBlendUniforms: the colour pass', () => {
 });
 
 describe('the shader and the call sites', () => {
-  test('the colour shader mixes VALUES before colouring, and reads the earlier hour only when the mix is above 0', () => {
-    expect(HEATMAP_FS).toContain('uniform sampler2D u_wavePrevTexture;');
-    expect(HEATMAP_FS).toContain('uniform float u_hourPrevMix;');
-    const at = HEATMAP_FS.indexOf('vec4 waveData = sampleWaveLandAware(data_uv);');
-    const mixLine = '  if (u_hourPrevMix > 0.0) waveData = mix(waveData, sampleWavePrevLandAware(data_uv), u_hourPrevMix);';
-    expect(HEATMAP_FS.slice(at).split('\n')[2]).toBe(mixLine);
-    expect(HEATMAP_FS.split('sampleWavePrevLandAware(').length - 1).toBe(2);                          // its definition and this one call
-    expect(HEATMAP_FS.indexOf('float waveHeight = waveData.b')).toBeGreaterThan(HEATMAP_FS.indexOf(mixLine));   // the height is read after the mix
-    const body = HEATMAP_FS.slice(HEATMAP_FS.indexOf('vec4 sampleWavePrevLandAware('), HEATMAP_FS.indexOf('GEO_P float mercatorYToLat('));
+  test('the colour shader mixes VALUES before colouring, and reads the earlier field only when the mix is above 0', () => {
+    for (const u of ['uniform sampler2D u_wavePrevTexture;', 'uniform float u_hourPrevMix;', 'uniform highp vec2 u_prevBounds_min;', 'uniform highp vec2 u_prevBounds_max;', 'uniform GEO_P vec4 u_prev_reg;', 'uniform GEO_P vec2 u_prevTexel;', 'uniform float u_prevHeightRatio;']) expect(HEATMAP_FS).toContain(u);
+    const at = HEATMAP_FS.indexOf('vec4 waveData = sampleWaveLandAware(data_uv);'); const open = HEATMAP_FS.indexOf('  if (u_hourPrevMix > 0.0) {', at);
+    expect(open).toBeGreaterThan(at); expect(HEATMAP_FS.slice(at, open).split('\n').length).toBe(3);    // the very next statement (one comment line between)
+    const block = HEATMAP_FS.slice(open, HEATMAP_FS.indexOf('float depthFactor', open));
+    expect(block).toContain('if (pu >= 0.0 && pu <= 1.0 && pv >= 0.0 && pv <= 1.0) {');                 // outside the earlier grid, this field alone
+    expect(block).toContain('vec4 prevData = sampleWavePrev(ptReg(vec2(pu, pv), u_prev_reg));');        // at ITS OWN place
+    expect(block).toContain('prevData.b *= u_prevHeightRatio;');                                        // heights in metres
+    expect(block).toContain('waveData = mix(waveData, prevData, u_hourPrevMix);');
+    expect(HEATMAP_FS.split('sampleWavePrev(').length - 1).toBe(2);                                     // its definition and this one call
+    expect(HEATMAP_FS.indexOf('float waveHeight = waveData.b')).toBeGreaterThan(open);                  // the height is read after the mix
+    const body = HEATMAP_FS.slice(HEATMAP_FS.indexOf('vec4 sampleWavePrev('), HEATMAP_FS.indexOf('GEO_P float mercatorYToLat('));
     expect(HEATMAP_FS.split('texture2D(u_wavePrevTexture').length - 1).toBe(body.split('texture2D(u_wavePrevTexture').length - 1);   // read nowhere else
   });
-  test('the earlier hour is fetched with the same water-only weights as this hour', () => {
-    const cur = HEATMAP_FS.slice(HEATMAP_FS.indexOf('vec4 sampleWaveLandAware('), HEATMAP_FS.indexOf('vec4 sampleWavePrevLandAware('));
-    const prev = HEATMAP_FS.slice(HEATMAP_FS.indexOf('vec4 sampleWavePrevLandAware('), HEATMAP_FS.indexOf('GEO_P float mercatorYToLat('));
-    for (const s of ['u_landAwareFetch < 0.5', 'uv / u_waveTexel - 0.5', '(floor(tc) + 0.5) * u_waveTexel', 'wsum < 0.0001']) { expect(cur).toContain(s); expect(prev).toContain(s); }
-    expect(prev.split('texture2D(u_chlorophyllTexture').length - 1).toBe(4);                              // the four land flags
+  test('on an unchanged grid the earlier hour is fetched with the same water-only weights as this hour', () => {
+    const cur = HEATMAP_FS.slice(HEATMAP_FS.indexOf('vec4 sampleWaveLandAware('), HEATMAP_FS.indexOf('vec4 sampleWavePrev('));
+    const prev = HEATMAP_FS.slice(HEATMAP_FS.indexOf('vec4 sampleWavePrev('), HEATMAP_FS.indexOf('GEO_P float mercatorYToLat('));
+    for (const s2 of ['u_landAwareFetch < 0.5', 'wsum < 0.0001']) { expect(cur).toContain(s2); expect(prev).toContain(s2); }
+    expect(prev).toContain('uv / u_prevTexel - 0.5'); expect(prev.split('texture2D(u_chlorophyllTexture').length - 1).toBe(4);
   });
   test('both upload paths keep the hour on screen BEFORE they overwrite it', () => {
     const enc = read('WebGLMarineTextureEncoder.js');
     const a = enc.indexOf('beforeWaveOverwrite(engine, gl, {'); const b = enc.indexOf('updateTexture(gl, waveTex, dataWave, cols, rows);');
     expect(a).toBeGreaterThan(0); expect(b).toBeGreaterThan(a); expect(enc.slice(a, b)).toContain('rating: !!dataWaveScore');
-    expect(enc).toContain('disposeHourBlend(engine, gl);');
+    const r = enc.indexOf('beforeWaveRealloc(engine, gl, {'); expect(r).toBeGreaterThan(0);
+    expect(enc.indexOf('safeDeleteTexture(gl, engine._residentWaveTex, engine);')).toBeGreaterThan(r);              // kept BEFORE the old grid is freed
+    expect(read('WebGLWindUtils.js')).toContain('if (engine._hourPrev && engine._hourPrev.adopted && tex === engine._hourPrev.wave) return;');
     const rt = read('marineFrameStoreRuntime.js');
     const c = rt.indexOf('beforeWaveOverwrite(engine, gl, {'); const d = rt.indexOf('ok = rt.pool.copyToTexture(info.key, e.layer, tex);');
     expect(c).toBeGreaterThan(0); expect(d).toBeGreaterThan(c); expect(rt.slice(c, d)).toContain('maskDiffers: !!aux || maskCells > 0');
@@ -248,5 +260,35 @@ describe('the shader and the call sites', () => {
   });
   test('the particle shaders are not touched by the blend', () => {
     expect(read('WebGLMarineParticleShaders.js')).not.toMatch(/u_hourPrevMix|u_wavePrevTexture/);
+  });
+});
+
+describe('beforeWaveRealloc (v2): a grid of another size is KEPT, not freed, and drawn at its own place', () => {
+  test('the outgoing texture is adopted with its own bounds, size and height scale; nothing is copied', () => {
+    const e = engineWith(grid({ cols: 181, rows: 83 })); const old = e._residentWaveTex; const { gl, calls } = fakeGl();
+    expect(beforeWaveRealloc(e, gl, next())).toBe(true);
+    expect(e._hourPrev).toMatchObject({ wave: old, adopted: true, cols: 181, rows: 83, bounds: BOUNDS, landAware: false });
+    expect(calls.filter((c) => c[0] === 'copy')).toHaveLength(0); expect(createTexture).not.toHaveBeenCalled();
+    expect(window.__RAW_CREST_HOUR_BLEND__.gridSwaps).toBe(1); expect(e._hourBlend).toEqual({ t0: 0, ms: 160 });
+  });
+  test('a swap inside ONE hour (the finer grid arriving) blends too', () => {
+    const e = engineWith(); expect(beforeWaveRealloc(e, fakeGl().gl, next({ cols: 181, rows: 83, validTime: '2026-11-15T12:00:00Z' }))).toBe(true);
+  });
+  test('the kept texture is freed when the blend ends', () => {
+    const e = engineWith(grid({ cols: 181, rows: 83 })); const old = e._residentWaveTex; const { gl } = fakeGl();
+    beforeWaveRealloc(e, gl, next()); e._residentWaveTex = { id: 'new' }; e._waveData = { u_waveTexture: e._residentWaveTex, waveGrid: grid({ valid_time: '2026-11-15T15:00:00Z' }) };
+    hourBlendPrevMix(e, 1000); hourBlendPrevMix(e, 2000);                 // the blend is over
+    setHourBlendUniforms(gl, e, 'prog', (g, p2, n) => n, jest.fn());
+    expect(safeDeleteTexture).toHaveBeenCalledWith(gl, old, null); expect(e._hourPrev).toBeNull();
+  });
+  test('OFF PATH: the kill, ratings or another model keep nothing', () => {
+    const makes = [() => { window.__RAW_DISABLE_CREST_HOUR_BLEND__ = true; return [engineWith(), next()]; }, () => [engineWith(grid(), { u_waveScoreTexture: {} }), next()], () => [engineWith(), next({ model: 'EURO' })]];
+    for (const make of makes) { const [e, nx] = make(); expect(beforeWaveRealloc(e, fakeGl().gl, nx)).toBe(false); expect(e._hourPrev == null).toBe(true); delete window.__RAW_DISABLE_CREST_HOUR_BLEND__; }
+  });
+  test('heights are mixed in metres: the earlier grid scale over this one', () => {
+    const e = engineWith(grid({ cols: 181, rows: 83 }), { u_heightScale: 16 }); const { gl } = fakeGl();
+    beforeWaveRealloc(e, gl, next()); e._residentWaveTex = { id: 'new' }; e._waveData = { u_waveTexture: e._residentWaveTex, waveGrid: grid({ valid_time: '2026-11-15T15:00:00Z' }) };
+    const g2 = fakeGl(); setHourBlendUniforms(g2.gl, e, 'prog', (g, p2, n) => n, jest.fn());
+    expect(g2.calls).toContainEqual(['uniform1f', 'u_prevHeightRatio', 1.6]);
   });
 });

@@ -91,6 +91,7 @@ const SPY = () => {
     }
     return g;
   };
+  H.std = (a) => { let m = 0; for (let i = 0; i < a.length; i++) m += a[i]; m /= a.length; let v = 0; for (let i = 0; i < a.length; i++) v += (a[i] - m) * (a[i] - m); return Math.sqrt(v / a.length); };
   H.p99 = (g) => { const s = Float32Array.from(g).sort(); return s[Math.floor(0.99 * (s.length - 1))]; };
   H.edges = (g, thr) => { let n = 0; for (let i = 0; i < g.length; i++) if (g[i] > thr) n += 1; return n; };
   H.shot = () => new Promise((res) => { const m = window.__MAP_INSTANCE__ || window.map; m.once('render', () => res(H.read(1))); m.triggerRepaint(); });
@@ -107,7 +108,7 @@ const SPY = () => {
     let uni = null; try { uni = gl.getUniform(e.heatmapProgram, gl.getUniformLocation(e.heatmapProgram, 'u_hourPrevMix')); } catch (err) { uni = 'n/a'; }
     const t = window.__RAW_CREST_HOUR_BLEND__ || null;
     return { hash, rec: g ? [g.__sourceModel || 'GFS', g.__componentLayer || 'waves', g.hourOffset, String(g.served_valid_time || g.valid_time || ''), g.productId || null].join('|') : null,
-      dims: e ? `${e._texWidth}x${e._texHeight}` : null, blendObj: !!(e && e._hourBlend), prevTex: !!(e && e._hourPrevTex), uni, tel: t ? JSON.parse(JSON.stringify(t)) : null };
+      dims: e ? `${e._texWidth}x${e._texHeight}` : null, blendObj: !!(e && e._hourBlend), prevTex: !!(e && e._hourPrev), uni, tel: t ? JSON.parse(JSON.stringify(t)) : null };
   };
   H.key = (key, n) => { const el = [...document.querySelectorAll('[role="slider"]')].find((x) => /timeline wheel/.test(x.getAttribute('aria-label') || '') && x.offsetParent !== null);
     if (!el) return false; el.focus(); for (let i = 0; i < n; i++) el.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true })); return performance.now(); };
@@ -178,7 +179,7 @@ const r3 = (x) => (x == null ? null : +x.toFixed(3));
   };
   const edges = async () => {
     const res = await page.evaluate(async (steps) => {
-      const H = window.__HB__; const wait = (ms) => new Promise((r) => setTimeout(r, ms)); const out = [];
+      const H = window.__HB__; const wait = (ms) => new Promise((r) => setTimeout(r, ms)); const out = []; const zero = [];
       H.hideParticles = true; await wait(400);
       for (let i = 0; i < steps; i++) {
         const f0 = await H.shot(); const g0 = H.sobel(f0); const thr = 0.5 * H.p99(g0); const e0 = H.edges(g0, thr);
@@ -193,7 +194,11 @@ const r3 = (x) => (x == null ? null : +x.toFixed(3));
         window.__RAW_CREST_BLEND_HOLD__ = null; await wait(450);
         const f1 = await H.shot(); const e1 = H.edges(H.sobel(f1), thr);
         let d01 = 0; for (let k = 0; k < f0.lum.length; k++) d01 += Math.abs(f1.lum[k] - f0.lum[k]); d01 /= f0.lum.length;
-        out.push({ e0, e5, e1, pixels: f0.lum.length, ratio: +(e5 / Math.max(1, Math.max(e0, e1))).toFixed(4), mixHeld, d05: +d05.toFixed(3), d01: +d01.toFixed(3), control: control == null ? null : +control.toFixed(3) });
+        // H5 (v2): contrast kept through the blend, and the frames for the positive control (two hours 12 h apart, averaged)
+        const s0 = H.std(f0.lum); const s5 = H.std(f5.lum); const s1 = H.std(f1.lum); if (i === 0 || i === 4) zero.push(Float32Array.from(f0.lum));
+        let ctl = null; if (zero.length === 2 && i === 4) { const a = zero[0]; const b = zero[1]; const avg = new Float32Array(a.length); for (let k = 0; k < a.length; k++) avg[k] = 0.5 * (a[k] + b[k]); ctl = H.std(avg) / Math.min(H.std(a), H.std(b)); }
+        out.push({ s0: +s0.toFixed(3), s5: +s5.toFixed(3), s1: +s1.toFixed(3), retention: +(s5 / Math.min(s0, s1)).toFixed(4), retentionControl: ctl == null ? null : +ctl.toFixed(4), gridSwap: !!((window.__RAW_CREST_HOUR_BLEND__ || {}).last || {}).gridSwap,
+          e0, e5, e1, pixels: f0.lum.length, ratio: +(e5 / Math.max(1, Math.max(e0, e1))).toFixed(4), mixHeld, d05: +d05.toFixed(3), d01: +d01.toFixed(3), control: control == null ? null : +control.toFixed(3) });
       }
       H.hideParticles = false;
       return out;

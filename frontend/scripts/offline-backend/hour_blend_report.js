@@ -15,6 +15,7 @@ const wrong = [...A, ...B].filter((r) => r.steps.some((x) => (x.rec || '').split
 verdict('LAYER', wrong.length === 0, wrong.length ? `the drawn record names another layer in: ${wrong.join(' ')} (the run is void)` : 'every view drew its own layer in both arms');
 
 // H1
+const swaps = B.reduce((n, r) => n + ((r.tel && r.tel.gridSwaps) || 0), 0);
 say('view  layer       z    A step  A floor  B step  B/A    blended(B)  left out');
 const rows = A.map((a) => {
   const b = B.find((x) => x.view === a.view); const sa = a.steps.map((s) => s.step); const sb = b.steps.map((s) => s.step);
@@ -50,17 +51,19 @@ for (const r of rows) {
 verdict('H3', pairs >= 40 && equal === pairs, `${equal} of ${pairs} (grid, valid time) pairs resident in both arms have identical wave-texture bytes (at least 40 pairs required)${diffs.length ? '; first differences: ' + diffs.slice(0, 3).join(' ; ') : ''}`);
 
 // H4
-const ends = B.flatMap((r) => r.steps); const okEnd = ends.filter((s) => s.endBlendObj === false && s.endUni === 0 && s.endMix === 0).length;
-verdict('H4', okEnd === ends.length, `${okEnd} of ${ends.length} steps at rest 420 ms later: no blend object, shader mix uniform 0, telemetry mix 0`);
+const ends = B.flatMap((r) => r.steps); const okEnd = ends.filter((s) => s.endBlendObj === false && s.endUni === 0 && s.endMix === 0 && s.prevTex === false).length;
+verdict('H4', okEnd === ends.length, `${okEnd} of ${ends.length} steps at rest 420 ms later: no blend object, shader mix uniform 0, telemetry mix 0, no kept earlier-field texture`);
 
-// H5: a view is scored only if ITS positive control trips; fewer than 6 scorable views voids the check.
-const scorable = B.filter((r) => r.edges && r.edges[0].control > 1.15);
+// H5 (v2): contrast kept through the blend. A view is scored only if ITS positive control FAILS (retention below 0.85).
+const ctlOf = (r) => { const e = (r.edges || []).find((x) => x.retentionControl != null); return e ? e.retentionControl : null; };
+const scorable = B.filter((r) => ctlOf(r) != null && ctlOf(r) < 0.85);
 const E = scorable.flatMap((r) => r.edges.map((e) => ({ ...e, view: r.view })));
-const held = E.filter((e) => e.mixHeld === 0.5); const worst = held.length ? Math.max(...held.map((e) => e.ratio)) : NaN;
-const controls = B.map((r) => `${r.view}:${r.edges ? r.edges[0].control : 'n/a'}`).join(' ');
-if (scorable.length < 6) verdict('H5', false, `VOID: the positive control tripped in only ${scorable.length} of ${B.length} views (controls ${controls})`);
-else verdict('H5', held.length > 0 && worst <= 1.15 && mean(held.map((e) => e.ratio)) <= 1.05,
-  `${scorable.length} of ${B.length} views scorable (positive controls ${controls}; must exceed 1.15); ${held.length} boundaries held at 0.5 (of ${E.length}; the rest were hard swaps by design): edge ratio worst ${f(worst, 4)} (line 1.15), mean ${f(mean(held.map((e) => e.ratio)), 4)} (line 1.05); edge pixels are ${f(100 * mean(E.map((e) => e.e0 / e.pixels)), 1)}% of the frame`);
+const held = E.filter((e) => e.mixHeld === 0.5); const worst = held.length ? Math.min(...held.map((e) => e.retention)) : NaN;
+const controls = B.map((r) => `${r.view}:${ctlOf(r)}`).join(' ');
+const perViewRet = B.map((r) => { const h = (r.edges || []).filter((e) => e.mixHeld === 0.5); return `${r.view}:${h.length ? Math.min(...h.map((e) => e.retention)).toFixed(3) : 'n/a'}`; }).join(' ');
+if (scorable.length < 6) verdict('H5', false, `VOID: the positive control failed (as it must) in only ${scorable.length} of ${B.length} views (control retention ${controls}; must be below 0.85). Held retention, worst per view, all views: ${perViewRet}`);
+else verdict('H5', held.length > 0 && worst >= 0.85 && mean(held.map((e) => e.retention)) >= 0.92,
+  `${scorable.length} of ${B.length} views scorable (control retention ${controls}; must be below 0.85); ${held.length} boundaries held at 0.5 (${held.filter((e) => e.gridSwap).length} of them grid swaps): contrast retention worst ${f(worst, 3)} (line 0.85), mean ${f(mean(held.map((e) => e.retention)), 3)} (line 0.92). Worst per view, all views: ${perViewRet}`);
 say(`     mean change of the picture f=0 -> 0.5: ${f(mean(held.map((e) => e.d05)))}, f=0 -> 1: ${f(mean(held.map((e) => e.d01)))} (the held frame sits ${f(100 * mean(held.map((e) => e.d05)) / mean(held.map((e) => e.d01)), 0)}% of the way)`);
 say(`     particle draw vertices per frame, arm B, per view (min-max): ${B.map((r) => `${r.particleVerts.min}-${r.particleVerts.max}`).join(' ')}`);
 
