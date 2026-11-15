@@ -52,6 +52,7 @@ describe('marineQuietFrames', () => {
 
   it('wiring: the render callback asks every frame, then consumes the seed only when seedConsumeAllowed says so', () => {
     const src = fs.readFileSync(path.join(__dirname, 'WebGLMarineEngine.js'), 'utf8');
-    expect(src).toMatch(/if \(seedConsumeAllowed\(zoom\) && this\._pendingCoarseBaseGrid\) \{/);
+    // the late wash (2026-11-15): the second argument says whether the seed repairs a refused wash (marineLateWash.test.js)
+    expect(src).toMatch(/if \(seedConsumeAllowed\(zoom, !!this\._pendingCoarseBaseGrid && seedRepairsWash\(this\._coarseBaseData, this\._pendingCoarseBaseGrid, this\._waveData && this\._waveData\.waveGrid\)\)\s*&& this\._pendingCoarseBaseGrid\) \{/);
   });
 });

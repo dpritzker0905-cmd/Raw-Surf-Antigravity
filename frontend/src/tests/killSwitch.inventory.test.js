@@ -43,6 +43,8 @@ const EXTRA_FILES = ['../lib/weatherAuthFetch.js', '../lib/weatherSession.js', '
  * for phantom entries.  To add: write the test file first.
  */
 const KILL_SWITCHES_TESTED = new Set([
+  // components/map/marineLateWash.test.js (the late wash, 2026-11-15): a seed that repairs a refused wash waits 150 ms, not 1 s
+  '__RAW_DISABLE_URGENT_WASH_SEED__',
   // tests/weatherAuthFetch.test.js ("kill switch: never a token, never a retry") and tests/sessionExpiredPrompt.test.js
   // ("kill switch and the auth page itself raise nothing"): #782, accounts only
   '__RAW_DISABLE_WEATHER_AUTH__',

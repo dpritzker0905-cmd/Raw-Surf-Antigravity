@@ -40,9 +40,21 @@ export function quietFrame(zoom, ms = QUIET_MS) {
   return nowMs() - _lastInput >= ms;
 }
 
-/** Whether the render callback may consume a staged coarse-base seed on this frame. */
-export function seedConsumeAllowed(zoom) {
+/**
+ * THE LATE WASH (2026-11-15, docs/weather-program/log/2026-11-15-claude-marine-late-wash.md). After a multi-hour jump the new hour's
+ * world seed is staged at once, but the old base is REFUSED by the time rule (marineStaleHour.washMatchesResident), so for the whole
+ * QUIET_MS the sea around a regional grid drew no wash, and the picture "corrected itself" when the quiet second ended. Measured
+ * offline (scn_hour_jump_wash.js, cached pass): 13.0-13.2 luminance units off the same hour at rest at 250 / 900 ms, 0.000 at 2.5 s
+ * (the hour-blend lane's live-shaped read: ~4.1). When the seed REPAIRS a refused wash (`urgent`: marineStaleHour.seedRepairsWash),
+ * it waits URGENT_QUIET_MS instead: a held key (30/s) still never gets an upload mid-burst; a burst's end gets the wash back at once.
+ * Kill: window.__RAW_DISABLE_URGENT_WASH_SEED__ = true (QUIET_MS for every seed again).
+ */
+export const URGENT_QUIET_MS = 150;
+
+/** Whether the render callback may consume a staged coarse-base seed on this frame (`urgent`: the seed repairs a refused wash). */
+export function seedConsumeAllowed(zoom, urgent = false) {
   if (typeof window !== 'undefined' && window.__RAW_DISABLE_QUIET_SEED__ === true) return true;
+  if (urgent && !(typeof window !== 'undefined' && window.__RAW_DISABLE_URGENT_WASH_SEED__ === true)) return quietFrame(zoom, URGENT_QUIET_MS);
   return quietFrame(zoom);
 }
 
