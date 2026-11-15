@@ -86,18 +86,27 @@ def g10(st_meta, today):
     off = st.median(pre)
     times = sorted(t for t in raw if t in pred)
     resid = H.lowpass_residual(times, raw, pred, off)
+    # advisor (#931 point 6): the 14-day offset absorbs a season-long anomaly; re-score B with the model's own 1-year
+    # mean as the offset (the station's predictions average ~0 on MSL over a year), taken from the year before w0
+    yr = _get(S, f"{OPEN_METEO}?latitude={round(st_meta['lat'], 1)}&longitude={round(st_meta['lng'], 1)}"
+                 f"&hourly=sea_level_height_msl&start_date={(w0 - timedelta(days=365)):%Y-%m-%d}"
+                 f"&end_date={(w0 - timedelta(days=1)):%Y-%m-%d}&timezone=GMT", "model year") or {}
+    yv = [v for v in (yr.get("hourly") or {}).get("sea_level_height_msl", []) if v is not None]
+    resid_clim = H.lowpass_residual(times, raw, pred, sum(yv) / len(yv)) if len(yv) > 24 * 300 else {}
     served_model = {}
     for t in raw:                                     # the model as served: minus the mean of its 72 h window
         d0 = t.replace(hour=0)
         win = [raw[u] for u in raw if d0 <= u < d0 + timedelta(hours=72)]
         if len(win) >= 48:
             served_model[t] = raw[t] - sum(win) / len(win)
-    ts = [t for t in obs if t in pred and t in resid and t in served_model and w0 <= t < w1]
+    ts = [t for t in obs if t in pred and t in resid and t in served_model and t in resid_clim and w0 <= t < w1]
     if len(ts) < 24 * 4:
         return None
     r = lambda f: math.sqrt(sum((f(t) - obs[t]) ** 2 for t in ts) / len(ts))   # noqa: E731
     return {"hours": len(ts), "rmse_harmonic": round(r(lambda t: pred[t]), 3), "rmse_model": round(r(lambda t: served_model[t]), 3),
-            "rmse_tide_plus_surge": round(r(lambda t: pred[t] + resid[t]), 3), "offset_m": round(off, 3)}
+            "rmse_tide_plus_surge": round(r(lambda t: pred[t] + resid[t]), 3), "offset_m": round(off, 3),
+            "rmse_tide_plus_surge_clim1y": round(r(lambda t: pred[t] + resid_clim[t]), 3),
+            "rmse_model_minus_clim1y": round(r(lambda t: raw[t] - sum(yv) / len(yv)), 3)}
 
 
 def main():
@@ -113,9 +122,10 @@ def main():
     g10s = [r["g10"] for r in rows if r["g10"]]
     summ = {"g2_pass": sum(bool(r["g2"].get("ok")) for r in rows), "g2_n": len(rows), "g10_n": len(g10s)}
     if g10s:
-        for k in ("rmse_harmonic", "rmse_model", "rmse_tide_plus_surge"):
+        for k in ("rmse_harmonic", "rmse_model", "rmse_tide_plus_surge", "rmse_tide_plus_surge_clim1y", "rmse_model_minus_clim1y"):
             summ[f"median_{k}"] = round(st.median(x[k] for x in g10s), 3)
         summ["b_beats_both"] = sum(x["rmse_tide_plus_surge"] < min(x["rmse_harmonic"], x["rmse_model"]) for x in g10s)
+        summ["b_clim_beats_harmonic"] = sum(x["rmse_tide_plus_surge_clim1y"] < x["rmse_harmonic"] for x in g10s)
     print(json.dumps({"summary": summ, "rows": rows}, indent=1, default=str))
 
 

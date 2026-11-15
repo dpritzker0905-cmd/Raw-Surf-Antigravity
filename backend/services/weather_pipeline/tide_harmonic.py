@@ -22,7 +22,7 @@ import logging
 import math
 import os
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Callable, Dict, Optional
 
 try:
@@ -34,7 +34,14 @@ logger = logging.getLogger(__name__)
 
 INDEX_KEY = "tides/coops/index.json"
 STATION_KEY = "tides/coops/{sid}.json"
-RADIUS_KM = 100.0            # gate G3 (2026-11-15): largest bucket where the neighbour's median error beat the model's
+RADIUS_KM = 10.0             # gate G3 as REVIEWED (advisor, 2026-11-15): the LOO sample was first-30-by-ID per bucket (bays,
+                             # little Pacific coast); on the open coast the model scored 0.117 m and a neighbour beyond 5 km
+                             # 0.12-0.16. Only <= 5-10 km was a clear win (5 km: 0.064 vs 0.244, 28/28). Widen only after a
+                             # region-stratified LOO passes. The shape guard below also keeps a bay station off an outer coast.
+SHAPE_MIN_R = 0.8            # the station's tide must move with the spot cell's model: correlation over the overlap,
+SHAPE_RANGE = (0.6, 1.6)     # a similar range (sd ratio model/station),
+SHAPE_MAX_LAG_H = 1          # and no phase shift beyond 1 h; else the cell is not that station's water: serve the model
+STALE_AHEAD_H = 72           # a station file that does not cover now .. +72 h is stale (ingest stopped): serve the model
 SOURCE = "noaa_coops_harmonic"
 _TTL_S = 6 * 3600.0
 _FAIL_S = 300.0
@@ -43,6 +50,7 @@ _LOWPASS_H = 25              # one tidal day: removes the diurnal and semidiurna
 _LOWPASS_MIN = 13
 
 _cache: Dict[str, dict] = {}       # key -> {"ts", "doc", "fail_until"}
+_ALLOW_STORAGE_IN_TESTS = False    # the G4 test opens the real HTTP path (patched client) to prove where it goes
 _locks: Dict[str, asyncio.Lock] = {}
 _fetch: Optional[Callable] = None  # tests inject an async (key) -> dict | None
 
@@ -111,7 +119,38 @@ def lowpass_residual(times, model_raw, harmonic, model_offset_m) -> Dict[datetim
     return out
 
 
-def combine(model: Optional[dict], doc: dict, station: dict) -> Optional[dict]:
+def shape_agrees(harm: Dict[datetime, float], model_raw: Dict[datetime, float]) -> Optional[dict]:
+    """PURE: does the station's tide move with the spot cell's model? {r, sd_ratio, lag_h, ok} over their overlap
+    (both de-meaned), or None when they overlap < 48 h (nothing to check against: the station is trusted)."""
+    keys = sorted(t for t in harm if t in model_raw)
+    if len(keys) < 48:
+        return None
+    h = [harm[t] for t in keys]
+    m = [model_raw[t] for t in keys]
+    mh, mm = sum(h) / len(h), sum(m) / len(m)
+    h = [x - mh for x in h]
+    m = [x - mm for x in m]
+
+    def corr(a, b):
+        den = math.sqrt(sum(x * x for x in a) * sum(y * y for y in b))
+        return sum(x * y for x, y in zip(a, b)) / den if den else 0.0
+    lags = {lag: corr(h[max(0, lag):len(h) + min(0, lag)], m[max(0, -lag):len(m) + min(0, -lag)]) for lag in range(-3, 4)}
+    best = max(lags, key=lags.get)
+    sd_h = math.sqrt(sum(x * x for x in h) / len(h))
+    sd_m = math.sqrt(sum(x * x for x in m) / len(m))
+    ratio = sd_m / sd_h if sd_h else float("inf")
+    out = {"r": round(lags[0], 3), "sd_ratio": round(ratio, 3), "lag_h": best}
+    out["ok"] = (lags[0] >= SHAPE_MIN_R and SHAPE_RANGE[0] <= ratio <= SHAPE_RANGE[1] and abs(best) <= SHAPE_MAX_LAG_H)
+    return out
+
+
+def covers(times, now: datetime, ahead_h: int = STALE_AHEAD_H) -> bool:
+    """PURE: the station file spans now .. now + ahead_h (else the ingest has stopped and the model must serve)."""
+    parsed = [t for t in (_parse(x) for x in times or []) if t is not None]
+    return bool(parsed) and parsed[0] <= now and parsed[-1] >= now + timedelta(hours=ahead_h)
+
+
+def combine(model: Optional[dict], doc: dict, station: dict, now: Optional[datetime] = None) -> Optional[dict]:
     """PURE: the served series for a harmonic point. `model` is tide.py's local-datum model series (or None);
     `doc` the station object from the bucket. Shape = fetch_tide_hourly's, plus water_level, events, source, station."""
     ser = (doc or {}).get("series") or {}
@@ -119,6 +158,8 @@ def combine(model: Optional[dict], doc: dict, station: dict) -> Optional[dict]:
     if not isinstance(times, list) or not isinstance(levels, list) or len(times) != len(levels) or len(times) < 2:
         return None
     parsed = [_parse(t) for t in times]
+    if not covers(times, now or datetime.now(timezone.utc)):
+        return None                                   # stale: the ingest stopped; the model serves (advisor, #931)
     harm = {t: v for t, v in zip(parsed, levels) if t is not None and isinstance(v, (int, float))}
     model_raw = {}
     if model and isinstance(model.get("time"), list):
@@ -127,6 +168,9 @@ def combine(model: Optional[dict], doc: dict, station: dict) -> Optional[dict]:
             dt = _parse(t)
             if dt is not None and isinstance(v, (int, float)) and math.isfinite(v):
                 model_raw[dt] = v + off
+    shape = shape_agrees(harm, model_raw)
+    if shape is not None and not shape["ok"]:
+        return None                                   # the station's water is not this cell's (e.g. a bay vs an outer coast)
     resid = lowpass_residual(parsed, model_raw, harm, doc.get("model_offset_m")) if surge_on() else {}
     water = [None if lv is None else round(lv + resid.get(t, 0.0), 4) for t, lv in zip(parsed, levels)]
     events = []
@@ -135,13 +179,13 @@ def combine(model: Optional[dict], doc: dict, station: dict) -> Optional[dict]:
         if dt is not None and isinstance(e.get("height_m"), (int, float)) and e.get("type") in ("High", "Low"):
             events.append({"time": dt, "level_m": float(e["height_m"]), "type": e["type"]})
     return {"time": times, "level": levels, "water_level": water, "events": events, "datum": "station_msl", "datum_offset_m": None,
-            "source": SOURCE, "station": station, "surge_hours": len(resid)}
+            "source": SOURCE, "station": station, "surge_hours": len(resid), "shape": shape}
 
 
 async def _bucket_json(key: str) -> Optional[dict]:
     if _fetch is not None:
         return await _fetch(key)
-    if os.environ.get("PYTEST_CURRENT_TEST"):
+    if os.environ.get("PYTEST_CURRENT_TEST") and not _ALLOW_STORAGE_IN_TESTS:
         return None                                   # unit tests never reach storage unless they inject _fetch
     base = os.environ.get("SUPABASE_URL", "").rstrip("/")
     svc = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")

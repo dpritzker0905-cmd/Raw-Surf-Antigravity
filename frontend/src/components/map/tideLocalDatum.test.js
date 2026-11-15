@@ -5,7 +5,13 @@ import { toLocalDatum, tideStateFromSeries } from './tideClient';
 const OFFSET = 0.54;
 const LEVELS = Array.from({ length: 72 }, (_, h) => OFFSET + 0.4 * Math.sin((2 * Math.PI * h) / 12.42));
 
-afterEach(() => { delete window.__RAW_DISABLE_TIDE_LOCAL_DATUM__; });
+beforeEach(() => { window.__RAW_ENABLE_TIDE_LOCAL_DATUM__ = true; });
+afterEach(() => { delete window.__RAW_DISABLE_TIDE_LOCAL_DATUM__; delete window.__RAW_ENABLE_TIDE_LOCAL_DATUM__; });
+
+test('held off by default like the backend flag (worse than raw vs observed water, US West Coast)', () => {
+  delete window.__RAW_ENABLE_TIDE_LOCAL_DATUM__;
+  expect(toLocalDatum(LEVELS)).toBe(LEVELS);
+});
 
 test('levels become relative to their own 72 h mean; gaps stay gaps', () => {
   const withGap = LEVELS.slice(); withGap[10] = null;

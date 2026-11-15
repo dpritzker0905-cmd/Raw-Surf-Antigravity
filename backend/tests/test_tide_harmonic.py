@@ -15,7 +15,7 @@ import pytest
 from services.weather_pipeline import tide as T
 from services.weather_pipeline import tide_harmonic as H
 
-T0 = datetime(2026, 11, 14, tzinfo=timezone.utc)      # the station file starts "yesterday"
+T0 = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0) - timedelta(days=1)   # file starts yesterday
 NOW_DAY = T0 + timedelta(days=1)
 STATION = {"id": "1612340", "name": "Honolulu", "lat": 21.3067, "lng": -157.867}
 
@@ -67,15 +67,15 @@ def test_nearest_station_within_the_radius_only():
     idx = {"stations": {"a": {"name": "A", "lat": 21.30, "lng": -157.87}, "b": {"name": "B", "lat": 21.95, "lng": -159.36}}}
     s = H.nearest_station(idx, 21.32, -157.90)
     assert s["id"] == "a" and s["distance_km"] < 5
-    assert H.nearest_station(idx, 30.0, -150.0) is None          # > 100 km from both
-    assert H.RADIUS_KM == 100.0                                   # gate G3's pre-registered rule, 2026-11-15
+    assert H.nearest_station(idx, 21.45, -157.87) is None        # ~17 km: beyond the 10 km radius
+    assert H.RADIUS_KM == 10.0           # G3 as reviewed: wider was not supported (advisor, 2026-11-15)
 
 
 @pytest.mark.parametrize("surge", [0.0, 0.5, -0.3])
 def test_g9_a_planted_surge_comes_back(surge):
     m = model_series(surge=surge)
     times = [H._parse(t) for t in m["time"]]
-    raw = {t: v + m["datum_offset_m"] for t, v in zip(times, m["level"])}
+    raw = {t: v + (m["datum_offset_m"] or 0) for t, v in zip(times, m["level"])}
     harm = {t: harm_at(t) for t in times}
     res = H.lowpass_residual(times, raw, harm, 0.54)
     mid = [v for t, v in res.items() if 12 <= (t - NOW_DAY).total_seconds() / 3600 <= 60]
@@ -110,7 +110,7 @@ def test_combine_serves_the_prediction_and_adds_surge_only_to_water_level():
 
 def _fake_model(monkeypatch, surge=0.0):
     raw = model_series(surge=surge)
-    raw_levels = [v + raw["datum_offset_m"] for v in raw["level"]]
+    raw_levels = [v + (raw["datum_offset_m"] or 0) for v in raw["level"]]
 
     async def fake_fetch_point(key, client, forecast_days):
         return {"time": raw["time"], "level": raw_levels}
@@ -175,7 +175,8 @@ def test_point_tide_uses_noaa_events_and_names_the_source(monkeypatch):
     out = build_point_tide(series, 21.31, -157.87, NOW_DAY + timedelta(hours=1))
     assert out["tide_source"] == H.SOURCE and out["provider"] == "NOAA CO-OPS"
     assert out["quantity"] == "predicted_tide" and out["station"]["name"] == "Honolulu"
-    assert any(e["time"] == "2026-11-14T03:06:00Z" and e["type"] == "High" for e in out["events"])
+    want = (T0 + timedelta(hours=3, minutes=6)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    assert any(e["time"] == want and e["type"] == "High" for e in out["events"])
 
 
 def test_ingest_picks_each_spots_nearest_station_within_the_radius():
@@ -184,3 +185,65 @@ def test_ingest_picks_each_spots_nearest_station_within_the_radius():
                 {"id": "c", "lat": 21.31, "lng": -157.86}]
     spots = [{"latitude": 21.312, "longitude": -157.858}, {"latitude": 45.0, "longitude": -30.0}]
     assert set(stations_for_spots(stations, spots)) == {"c"}
+
+
+def test_shape_guard_refuses_a_station_whose_water_moves_differently():
+    m = model_series()
+    times = [H._parse(t) for t in m["time"]]
+    raw = {t: v + (m["datum_offset_m"] or 0) for t, v in zip(times, m["level"])}
+    harm_same = {t: harm_at(t) for t in times}
+    assert H.shape_agrees(harm_same, raw)["ok"]
+    harm_lagged = {t: harm_at(t - timedelta(hours=3)) for t in times}           # a bay 3 h behind the outer coast
+    assert not H.shape_agrees(harm_lagged, raw)["ok"]
+    harm_big = {t: 3 * harm_at(t) for t in times}                                # a macro-tidal inlet
+    assert not H.shape_agrees(harm_big, raw)["ok"]
+    assert H.shape_agrees({}, raw) is None
+
+
+def test_a_station_disagreeing_in_shape_serves_the_model(monkeypatch):
+    _fake_model(monkeypatch)
+    doc = station_doc()
+    doc["series"]["level"] = [3 * v for v in doc["series"]["level"]]
+    _inject(doc=doc)
+    assert asyncio.run(T.fetch_tide_hourly(21.31, -157.87))["source"] == "model_local_msl"
+
+
+def test_a_stale_station_file_serves_the_model(monkeypatch):
+    _fake_model(monkeypatch)
+    doc = station_doc()
+    n = len(doc["series"]["time"])
+    doc["series"] = {"time": doc["series"]["time"][: 24 + 48], "level": doc["series"]["level"][: 24 + 48]}   # ends +48 h
+    assert n > 72
+    _inject(doc=doc)
+    assert asyncio.run(T.fetch_tide_hourly(21.31, -157.87))["source"] == "model_local_msl"
+    assert H.covers(station_doc()["series"]["time"], NOW_DAY)
+
+
+def test_g4_registered_no_noaa_host_on_the_real_http_path(monkeypatch):
+    """G4 as registered: open the real serve path (bucket read + model fetch) with the HTTP client patched, and record
+    every URL it asks for. None may be NOAA's."""
+    import httpx
+    seen = []
+
+    class FakeResp:
+        def __init__(self, url):
+            self.status_code, self.headers, self._url = 404, {}, url
+
+        def json(self):
+            return None
+
+        def raise_for_status(self):
+            return None
+
+    async def fake_get(self, url, *a, **k):
+        seen.append(str(url))
+        return FakeResp(url)
+    monkeypatch.setattr(httpx.AsyncClient, "get", fake_get)
+    monkeypatch.setenv("SUPABASE_URL", "https://storage.invalid")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "test-only-not-a-key")
+    monkeypatch.setattr(H, "_ALLOW_STORAGE_IN_TESTS", True)
+    T._reset_tide_cache_for_test()
+    asyncio.run(T.fetch_tide_hourly(21.31, -157.87))
+    T._reset_tide_cache_for_test()
+    assert any("storage.invalid" in u for u in seen), seen          # the bucket was asked (the real path ran)
+    assert not any("tidesandcurrents" in u or "noaa.gov" in u for u in seen), seen

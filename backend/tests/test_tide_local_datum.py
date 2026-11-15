@@ -28,8 +28,18 @@ def _series(hours=72, offset=OFFSET, gaps=()):
 
 @pytest.fixture(autouse=True)
 def _flag(monkeypatch):
-    monkeypatch.delenv("TIDE_LOCAL_DATUM", raising=False)
+    monkeypatch.setenv("TIDE_LOCAL_DATUM", "1")       # these exercise the rule; its default is pinned below
     yield
+
+
+def test_held_off_by_default_after_the_observed_water_check(monkeypatch):
+    """2026-11-15: vs OBSERVED water the 72 h de-mean was worse than raw at 9/26 stations (US West Coast)."""
+    monkeypatch.delenv("TIDE_LOCAL_DATUM", raising=False)
+    from services import runtime_flags as rf
+    assert rf.GUARDED["TIDE_LOCAL_DATUM"] == "0"
+    s = _series()
+    out = T.to_local_datum(s)
+    assert out["level"] == s["level"] and out["datum"] == "model_msl"
 
 
 def test_offset_is_the_mean_of_the_first_72h_and_ignores_gaps():
