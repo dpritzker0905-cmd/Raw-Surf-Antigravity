@@ -24,6 +24,8 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v5
+      - name: numpy for the 200-draw swap null
+        run: python3 -m pip install --quiet numpy
       - name: Three-rule replay and hole-buoy audit (aggregates only)
         working-directory: backend
         env:

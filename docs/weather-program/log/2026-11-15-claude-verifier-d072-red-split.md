@@ -63,3 +63,30 @@ change, rather than as a rise in both our error and best_match's.
   D-072's aggregate estimates.
 - One autumn: the basis is summer and early autumn, and the episode is the first winter swell.
 - Rule 2 is empirical. The audit can show a defect but cannot prove the nearest-ocean fallback causes the gap.
+
+### 1a. Amendment, written 2026-11-15 ~22:15Z, still BEFORE any scored row was read
+
+The senior research lead (local_ae420832) answered the null question at 22:06Z:
+- pre-register (b), the per-key label swap re-drawn every replay day;
+- (a), the lead permutation, keeps the real gap, so it is a non-gating diagnostic;
+- run >= 200 independent re-draws, record each rule's false-fire rate, and fail the gate when any rule fires on more
+  than 5% of the draws.
+
+**P4 now reads:**
+- **200 independent null draws**, seed 20261115. Each draw re-signs every paired value on every replay day afresh: a
+  numpy sign matrix per day and per (rule, lead) cell, one row per draw. The paired values are computed once.
+- A draw "fires" a rule when the rule fires at any lead on any replay day, under the same bounds, n floors and
+  win-rate test.
+- The **false-fire rate** of a rule is the share of draws that fire it.
+- **P4 holds when every rule's rate is <= 5%.**
+
+This replaces section 1's "fires on no day under one re-drawn swap". Nothing else in section 1 changes.
+
+**Diagnostic, reported and not gating:** one lead permutation (seed 20261115). Within each (buoy, target), the lead
+labels are permuted jointly across all three lanes, and the replay prints the days each rule fires. Rule 2 is expected
+to keep firing there, because the hole gap does not depend on lead.
+
+**A sensitivity stated now:** a rule whose bound sits inside its own null noise fails P4. The noise is roughly sd/sqrt(n)
+of the paired differences, and the case is a bound at the +0.03 m floor over a large real gap.
+`tests/test_accuracy_red_split.py::test_the_swap_null_fails_a_rule_whose_bound_sits_inside_its_noise` pins that the gate
+catches it.

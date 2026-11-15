@@ -122,6 +122,58 @@ def rule_stats(win: dict, seed_m: float = 0.0, swap_rng: Optional[random.Random]
     return out
 
 
+def rule_pairs(win: dict) -> Dict[Tuple[int, int], List[Tuple[float, float]]]:
+    """{(rule, lead): [(|ours err|, |their err|)]} for one window: the paired values a swap null re-signs."""
+    ours, bm, sm = win[OURS], win[BEST_MATCH], win[SAME_MODEL]
+    out = {}
+    for lead in LEADS:
+        b = lead // 24
+        r1 = paired_keys(ours, sm, (k for k in ours if k[2] == b))
+        bm_keys = [k for k in ours if k[2] == b and k in bm]
+        r2 = paired_keys(ours, bm, (k for k in bm_keys if k not in sm))
+        r3 = paired_keys(ours, bm, (k for k in bm_keys if k in sm))
+        for rule, keys, theirs in ((1, r1, sm), (2, r2, bm), (3, r3, bm)):
+            out[(rule, lead)] = [(abs(ours[k]["err_m"]), abs(theirs[k]["err_m"])) for k in keys]
+    return out
+
+
+def swap_null_fire_rates(daily_pairs: Dict[str, Dict[Tuple[int, int], List[Tuple[float, float]]]],
+                         bounds: Dict[int, float], draws: int, seed: int) -> Dict[int, float]:
+    """{rule: share of independent null draws in which the rule fires on >= 1 (day, lead)}. Every draw re-signs every
+    pair on every day afresh (numpy; one sign matrix per day x cell, rows = draws)."""
+    import numpy as np
+    rng = np.random.default_rng(seed)
+    fired = {r: np.zeros(draws, dtype=bool) for r in (1, 2, 3)}
+    for day in sorted(daily_pairs):
+        for (rule, _lead), pairs in sorted(daily_pairs[day].items()):
+            n = len(pairs)
+            if n < MIN_N[rule]:
+                continue
+            a = np.fromiter((p[0] for p in pairs), float, n)
+            b = np.fromiter((p[1] for p in pairs), float, n)
+            swap = rng.random((draws, n)) < 0.5
+            delta = np.where(swap, b - a, a - b).sum(axis=1) / n
+            win = np.where(swap, b < a, a < b).sum(axis=1) / n
+            fired[rule] |= (delta > bounds[rule]) & (win < 0.50)
+    return {r: float(f.mean()) for r, f in fired.items()}
+
+
+def permute_leads(idx: dict, rng: random.Random) -> dict:
+    """Diagnostic (not a null): within each (buoy, target), permute the lead labels JOINTLY across all lanes. Pairing
+    survives, so a real gap that does not depend on lead (rule 2's hole buoys) still shows."""
+    groups = {}
+    for lane in idx.values():
+        for k in lane:
+            groups.setdefault((k[0], k[1]), set()).add(k[2])
+    perm = {}
+    for g, leads in groups.items():
+        src = sorted(leads)
+        dst = src[:]
+        rng.shuffle(dst)
+        perm[g] = dict(zip(src, dst))
+    return {s: {(k[0], k[1], perm[(k[0], k[1])][k[2]]): r for k, r in lane.items()} for s, lane in idx.items()}
+
+
 def bounds_from_basis(daily: Dict[str, Dict[Tuple[int, int], dict]], basis_days: List[str]) -> Dict[int, float]:
     """One bound per rule: BOUND_FACTOR x the worst gradeable delta over the basis days and all leads, floored."""
     out = {}

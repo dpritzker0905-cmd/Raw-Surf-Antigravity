@@ -24,6 +24,8 @@ EPISODE = ("2026-11-10", "2026-11-14")
 SEEDED = ("2026-11-01", "2026-11-14")
 SEED_M = 0.08
 SEED = 20261115
+NULL_DRAWS = 200           # the senior lead (2026-11-15): >= 200 independent re-draws
+NULL_MAX_RATE = 0.05       # a rule fails the null if it fires on more than 5% of the draws
 NAMED_HOLES = ("44090", "46254", "46267", "46274", "46285", "51201", "51206", "51208", "LJPC1")
 
 
@@ -35,13 +37,16 @@ def days(first, last):
         d += timedelta(days=1)
 
 
-def replay(idx, seed_m=0.0, null_seed=None):
-    """{day: {(rule, lead): stat}} for every replay day; null_seed re-draws the per-key swap on every day."""
+def replay(idx, seed_m=0.0, pairs_out=None):
+    """{day: {(rule, lead): stat}} for every replay day. pairs_out, if given, collects each day's paired values for the
+    swap null (computed once, re-signed by every draw)."""
     out = {}
     buckets = A.by_day(idx)
     for d in days(REPLAY_FIRST, REPLAY_LAST):
-        rng = random.Random(f"{null_seed}-{d:%Y%m%d}") if null_seed is not None else None
-        out[f"{d:%Y-%m-%d}"] = A.rule_stats(A.window(idx, d, buckets=buckets), seed_m=seed_m, swap_rng=rng)
+        win = A.window(idx, d, buckets=buckets)
+        out[f"{d:%Y-%m-%d}"] = A.rule_stats(win, seed_m=seed_m)
+        if pairs_out is not None:
+            pairs_out[f"{d:%Y-%m-%d}"] = A.rule_pairs(win)
     return out
 
 
@@ -53,24 +58,27 @@ def fired(daily, bounds, rule, day_set):
 
 def checks(idx):
     """The pre-registered verdict: (bounds, results dict, verdict string)."""
-    daily = replay(idx)
+    pairs = {}
+    daily = replay(idx, pairs_out=pairs)
     basis = [d for d in daily if d <= BASIS_LAST]
     bounds = A.bounds_from_basis(daily, basis)
     episode = [d for d in daily if EPISODE[0] <= d <= EPISODE[1]]
     seeded_days = [d for d in daily if SEEDED[0] <= d <= SEEDED[1]]
     seeded = replay(idx, seed_m=SEED_M)
-    null = replay(idx, null_seed=SEED)
+    null_rates = A.swap_null_fire_rates(pairs, bounds, NULL_DRAWS, SEED)
+    permuted = replay(A.permute_leads(idx, random.Random(SEED)))
     res = {
         "P1_rule1_silent_on_episode": fired(daily, bounds, 1, episode),
         "P2_rule1_fires_on_seeded": fired(seeded, bounds, 1, seeded_days),
         "P3_rule2_fires_on_episode": fired(daily, bounds, 2, episode),
-        "P4_null_fires": {r: fired(null, bounds, r, list(daily)) for r in (1, 2, 3)},
+        "P4_null_fire_rate": null_rates,
+        "diag_lead_permutation_fires": {r: len(fired(permuted, bounds, r, list(daily))) for r in (1, 2, 3)},
         "n_episode": len(episode), "n_seeded": len(seeded_days),
     }
     ok = (not res["P1_rule1_silent_on_episode"]
           and len(res["P2_rule1_fires_on_seeded"]) >= 0.8 * len(seeded_days)
           and len(res["P3_rule2_fires_on_episode"]) >= 3
-          and not any(res["P4_null_fires"].values()))
+          and all(rate <= NULL_MAX_RATE for rate in null_rates.values()))
     gradeable_basis = sum(1 for d in basis for (r, _), s in daily[d].items() if s and s["n"] >= A.MIN_N[r])
     if gradeable_basis == 0:
         return bounds, res, daily, "VOID (no gradeable basis day)"
@@ -128,7 +136,10 @@ def lines_for(bounds, res, daily, verdict):
             % (SEED_M, res["n_seeded"], len(res["P2_rule1_fires_on_seeded"])),
             "  P3 rule 2 fires on the episode: %d of %d days (need >= 3)" % (len(res["P3_rule2_fires_on_episode"]),
                                                                             res["n_episode"]),
-            "  P4 per-key swap null (re-drawn daily) fired: %s" % {r: len(v) for r, v in res["P4_null_fires"].items()},
+            "  P4 per-key swap null, %d independent draws (re-signed every day): false-fire rate per rule %s (need <= %.0f%%)"
+            % (NULL_DRAWS, {r: "%.1f%%" % (100 * v) for r, v in res["P4_null_fire_rate"].items()}, 100 * NULL_MAX_RATE),
+            "  diagnostic (not gating): leads permuted within each buoy x target, days fired per rule %s"
+            % res["diag_lead_permutation_fires"],
             "== VERDICT: %s" % verdict]
     return out
 
