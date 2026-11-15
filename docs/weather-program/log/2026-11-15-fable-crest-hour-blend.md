@@ -881,3 +881,42 @@ build's shader and a self-mix re-check before any merge; light, beach and phone;
 - Still owed before the default may flip: the self-mix re-check on this build; light and beach themes and the phone layout;
   the real-frame hidden-hour test with its two controls; the owner's blinded look; the whole-tree run on `dev` for the two
   frame-store timeouts; the colour-band-edge check; water-only weighting; the LongCat review.
+
+## 34. THE REAL-FRAME HIDDEN-HOUR TEST, registered before the instrument is written and before any frame is fetched (18:12 EST)
+The owner's test (section 33). No threshold moves after data; a failed or void line is recorded as it is.
+**Instrument:** `frontend/scripts/offline-backend/real_frames_hidden_hour.mjs`, Node only, no browser, no GPU. Step 1 fetches
+frames ONCE from the public frame CDN (static files in the public bucket, not the backend), one request at a time with a
+pause, into a local folder with a manifest. Step 2 scores from that folder, offline. Nothing is asked of the live backend.
+**What it measures and what it rests on:** it works in VALUE space on the frame's own grid (the 2-degree world field the app
+draws at world zoom). It computes the mix the shader computes (height in metres averaged; direction as unit vectors
+averaged; period averaged). That the shader DRAWS that mix was measured on synthetic fields (the grey-view bracket,
+0.00% of pixels outside, section 30) and is not re-measured here. It does not cover the first-visit coarse stand-in, regional
+grids or a real phone.
+**Data, fixed now:** GFS sets `waves`, `swell_1`, `swell_2`, `wind_waves` (the four layers the blend applies to), world
+`global_mid`. Triples (h, h+3, h+6) for h = 0, 6, ... 114 of each run index available, using only frames the index does not
+mark estimated; at least 2 model runs (the CDN keeps the current and the previous index; if only one is there, a second
+fetch after the next run, and the result is NOT reported until both are in). Nodes: those with a value in all three frames.
+- **R1 truth, height (the deciding line).** Per triple: E(blend) = mean |0.5 (H(h) + H(h+6)) - H(h+3)| in metres;
+  E(cut) = the SMALLER of mean |H(h) - H(h+3)| and mean |H(h+6) - H(h+3)| (a hard swap shows one of the two; both are
+  printed). Pass, per set and pooled: pooled E(blend) at most **100%** of pooled E(cut) (the owner's line: not worse than the
+  hard swap), AND E(blend) <= E(cut) in at least **80%** of triples. Also reported, no line: the same on the tenth of nodes
+  where |H(h+6) - H(h)| is largest (where the sea is moving).
+- **R2 ghosting no worse.** A cross-fade of a moving front shows it twice at half strength. Measure: the L1 error of the
+  height GRADIENT field (central differences, both axes) against the real h+3 gradient, per triple, for the blend and for
+  each end hour. Pass: pooled gradient error of the blend at most **100%** of the smaller end hour's, per set and pooled.
+  Stated before data: for two well-separated sharp fronts this measure is EQUAL for blend and cut, so it can fail only if the
+  blend adds structure the cut does not have; it is a "not worse" line, not evidence the blend looks better.
+- **R3 direction and period**, reported with R1's two lines (direction: mean angle in degrees between the mixed unit vector
+  and the real one, on nodes above 0.25 m; period: mean |difference| in seconds). A set where the blend is worse than the cut
+  pooled on either is recorded as a failed R3 for that set.
+- **Negative controls: the test must be able to fail.** The owner's words are "a corrupted middle frame must fail". Read two
+  ways, both run, and the reading is put to the director:
+  **N1, a wrong truth:** scored against the frame 48 h later in place of the real h+3, E(blend) must be at least **2 x** its
+  value against the real h+3 in at least 90% of triples. (Why not "R1 must fail": an average of two fields is usually closer
+  to an UNRELATED field than either one is, so R1's ratio alone would still read under 100% against a wrong truth. Stated
+  before data; if N1 does not hold, R1 cannot tell a right middle from a wrong one and is VOID.)
+  **N2, a wrong blend:** the mix built from h and h+54 in place of h+6 must FAIL R1 against the real h+3 (pooled above 100%).
+  If it passes, R1 is VOID.
+- **Positive control P:** with h+6 replaced by a copy of h and the middle by the same frame, E(blend), E(cut) and both gradient
+  errors are exactly 0 for every triple.
+- **To be run only in the quiet window the director names** (22:00-00:30 EST), or earlier at the director's word.
