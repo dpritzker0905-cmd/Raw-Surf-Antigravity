@@ -174,3 +174,30 @@ raw 0.414 · demean72 0.180 · **clim1y 0.177** · climAll 0.181 · yardstick 0.
   every spot cell has an entry before users compare neighbours.
 - #926 alone leaves the glyph card's browser-direct fallback (`tideClient.ensureTideState`) on the raw level beside a
   corrected infobox; #931 retires that fallback (`glyphTide.js` reads the door). Merge #926 together with #931.
+
+## OWNER DECISION 2026-11-15 18:14 EST ("Yes, before merge", in the senior research lead's session, relayed by the
+director) and the change it made
+#926 serves a FIXED long-term datum: the model's own `sea_level_height_msl` mean over the 365 days before the table
+build (the series family `tide_datum_climatology.py` reads), a static per-cell asset rebuilt at most monthly
+(`tide-datum.yml`, --max-age-days 30). /point-tide reports `datum_basis = "model_mean_365d"`. Where no datum exists:
+the 72 h de-mean, `datum_basis = "window_72h"`; the ingest's summary counts the spots on that fallback
+(`spots_on_window_72h_fallback`). TIDE_LOCAL_DATUM stays the kill switch; eta stays relative to local MSL. MLLW display
+is NOT in #926 (the CO-OPS PR's follow-up).
+
+## PRE-REGISTERED (before the rerun) - the owner's gate (a)-(d)
+Script `backend/scripts/tide_datum_gate_fixed.py`. The same 25 CO-OPS stations as the first check (IDS of
+`tide_datum_vs_coops.py`; Boston 8443970 returned no data then and is reported if it fails again). Window: the 14 UTC
+days before today 00Z. Arms: **A72** = raw minus the mean of the 72 h window from 00Z of each day (the fallback);
+**M365** = raw minus the model's mean over the 365 days before the window. Truth: (a) CO-OPS harmonic PREDICTIONS (MSL,
+hourly); (b)-(d) CO-OPS OBSERVED water (`water_level`, MSL, on the hour). Per-station 95% intervals: day-block bootstrap
+(resample the 14 days with replacement, 1000 draws, seeded).
+- **(a)** median over stations of RMSE vs predictions: M365 minus A72 <= +0.01 m.
+- **(b)** per station d = RMSE(M365) - RMSE(A72) vs observed; the station counts when the 95% interval's upper bound < 0;
+  PASS when >= 60% of the scored stations count.
+- **(c) negative control:** 200 seeded random derangements give each station another station's 365-day mean; PASS when
+  the swapped arm's median RMSE vs observed exceeds BOTH A72's and M365's medians in >= 95% of draws (>= 190).
+- **(d) positive control:** M365 shifted by +0.10 m vs M365, same bootstrap; DETECTED when the 95% interval of the RMSE
+  difference excludes 0 at >= 80% of stations, and the mean signed error moves by 0.100 +- 0.005 m at every station.
+Also recorded: the 0.211 vs 0.346 m reading (7 days, 26 stations, vs observed) is restated with its truth defined.
+Outcome rule: all four pass -> #926 is ready as built (M365 ON, A72 fallback). Any failure is reported to the owner
+before merge; nothing is flipped automatically.

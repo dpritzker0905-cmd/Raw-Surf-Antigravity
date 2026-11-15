@@ -2,7 +2,7 @@
 
 The local datum for TIDE_LOCAL_DATUM (services/weather_pipeline/tide_datum.py). For every active catalogued spot's cell:
 the mean of Open-Meteo `sea_level_height_msl` over the 365 days before today (one archive request per cell). Rolling
-refresh: cells older than --max-age-days are rebuilt, at most --limit per run (default 300), oldest first, so the daily
+refresh: cells older than --max-age-days (30: at most monthly) are rebuilt, at most --limit per run (default 300), oldest first, so the daily
 job stays far inside Open-Meteo's daily quota. Render only reads the table. Public read-only GETs to Open-Meteo; the
 only write is the bucket object. --out FILE writes locally instead.
 Run: python scripts/tide_datum_ingest.py [--limit N] [--max-age-days D] [--out FILE]
@@ -52,7 +52,7 @@ def plan_refresh(cells, table, today, max_age_days, limit):
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--limit", type=int, default=300)
-    ap.add_argument("--max-age-days", type=int, default=7)
+    ap.add_argument("--max-age-days", type=int, default=30)   # rebuilt at most monthly (owner decision)
     ap.add_argument("--out", default="")
     args = ap.parse_args()
     import requests
@@ -94,8 +94,12 @@ def main():
         w = session.post(f"{base}/storage/v1/object/weather-products/{DATUM_KEY}", data=body, timeout=60,
                          headers=dict(hdr, **{"Content-Type": "application/json", "x-upsert": "true"}))
         ok = w.status_code in (200, 201)
+    from services.weather_pipeline.tide_datum import lookup
+    fallback = sum(1 for sp in spots if sp.get("latitude") is not None and sp.get("longitude") is not None
+                   and lookup(table, sp["latitude"], sp["longitude"]) is None)
     print(json.dumps({"spot_cells": len(cells), "planned": len(todo), "built": built, "too_short": short,
-                      "rate_limited": limited, "table_cells": len(table["cells"]), "written": ok}))
+                      "rate_limited": limited, "table_cells": len(table["cells"]), "written": ok,
+                      "spots": len(spots), "spots_on_window_72h_fallback": fallback}))
     if not ok:
         raise SystemExit(1)
 

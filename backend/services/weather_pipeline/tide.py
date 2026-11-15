@@ -364,19 +364,48 @@ def local_datum_on() -> bool:
     return _rf is None or _rf.flag("TIDE_LOCAL_DATUM") != "0"
 
 
+WINDOW_FALLBACK_H = 72        # owner decision 2026-11-15: a cell with no fixed datum falls back to its 72 h mean
+_WINDOW_MIN_SAMPLES = 48
+
+
+def window_mean(times, levels, window_h: int = WINDOW_FALLBACK_H) -> Optional[float]:
+    """PURE: mean of the finite levels in the first ``window_h`` hours of the series; None under _WINDOW_MIN_SAMPLES."""
+    if not times or not levels or len(times) != len(levels):
+        return None
+    t0, vals = None, []
+    for t, v in zip(times, levels):
+        dt = _parse_iso(t) if isinstance(t, str) else t
+        if dt is None:
+            continue
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        t0 = t0 or dt
+        if dt - t0 >= timedelta(hours=window_h):
+            break
+        if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v):
+            vals.append(float(v))
+    return sum(vals) / len(vals) if len(vals) >= _WINDOW_MIN_SAMPLES else None
+
+
 def to_local_datum(series: Optional[dict], offset_m: Optional[float] = None) -> Optional[dict]:
-    """PURE: the series with every level relative to the LOCAL mean sea level: minus ``offset_m``, the model's own
-    1-year mean at the cell (tide_datum.py). Adds ``datum`` ('local_msl_1y' or 'model_msl') and ``datum_offset_m``
-    (what was subtracted, None when nothing was). Shapes, gaps (None), extrema timing, trend and the normalized position
-    are unchanged; only the level shifts."""
+    """PURE: the series with every level relative to the LOCAL mean sea level. ``offset_m`` = the FIXED per-cell datum,
+    the model's own mean over the 365 days before the table build (tide_datum.py) -> datum 'model_mean_365d'. A cell
+    with no fixed datum falls back to the mean of its own 72 h series -> 'window_72h' (owner decision 2026-11-15; known
+    limits: it also removes real seasonal water and surge, and steps at each 00Z roll). Kill / too short -> the model
+    level, 'model_msl'. Adds ``datum`` and ``datum_offset_m``; timing, trend and the normalized position never move."""
     if not series:
         return series
     out = {"time": series.get("time"), "level": series.get("level"), "datum": "model_msl", "datum_offset_m": None}
-    if offset_m is None or not isinstance(offset_m, (int, float)) or not math.isfinite(offset_m) or not local_datum_on():
+    if not local_datum_on():
         return out
+    basis = "model_mean_365d"
+    if offset_m is None or not isinstance(offset_m, (int, float)) or not math.isfinite(offset_m):
+        offset_m, basis = window_mean(out["time"], out["level"]), "window_72h"
+        if offset_m is None:
+            return out
     out["level"] = [v - offset_m if isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v) else v
                     for v in out["level"]]
-    out["datum"], out["datum_offset_m"] = "local_msl_1y", round(float(offset_m), 4)
+    out["datum"], out["datum_offset_m"] = basis, round(float(offset_m), 4)
     return out
 
 

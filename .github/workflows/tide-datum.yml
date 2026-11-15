@@ -2,7 +2,8 @@ name: Tide model datum (1-year mean per spot cell)
 # WHY (owner 2026-11-15; pre-registered held-out test in docs/weather-program/log/2026-11-15-claude-tide-local-datum.md):
 # the tide model's level is relative to a global reference; TIDE_LOCAL_DATUM subtracts the model's own 1-year mean per
 # 0.1-degree cell, read by Render from tides/model_datum.json. This job builds that table for the catalogued spots'
-# cells, rolling (at most 300 cells a run, each rebuilt weekly), so it stays far inside Open-Meteo's daily quota.
+# cells, rolling (at most 300 cells a run, each rebuilt at most monthly; the summary counts spots still on the
+# 72 h fallback), so it stays far inside Open-Meteo's daily quota.
 # Render never builds it. Public read-only GETs; the only write is tides/model_datum.json.
 # Off switch: repository variable TIDE_DATUM_INGEST = '0' (unset = on). Serving kill: TIDE_LOCAL_DATUM=0.
 on:

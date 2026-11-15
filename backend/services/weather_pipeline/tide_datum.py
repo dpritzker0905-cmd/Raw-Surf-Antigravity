@@ -11,7 +11,7 @@ of raw (docs/weather-program/log/2026-11-15-claude-tide-local-datum.md). The SOT
 The table `tides/model_datum.json` is built by CI (`scripts/tide_datum_ingest.py`, `.github/workflows/tide-datum.yml`)
 for the cells the catalogued spots need; Render only READS it (6 h cache, 5 min failure cooldown). A cell not in the
 table takes the nearest table cell within NEAREST_DEG (the offset varies over hundreds of km); else None, and tide.py
-serves the model level unchanged (the status quo) and says so (`datum: model_msl`).
+falls back to the 72 h mean of the served series (`datum: window_72h`, owner decision 2026-11-15).
 """
 import asyncio
 import logging
