@@ -150,13 +150,19 @@ const PROBE = () => {
         const status = [...document.querySelectorAll('[role="status"]')].filter((x) => x.offsetParent !== null).map((x) => x.textContent.trim()).join(' | ').slice(0, 200);
         const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; const g = d && d.waveGrid;
         return { key: A.key, ev: A.ev.slice(), hours: A.hours.slice(), blank: A.blank, noEventTiming: !!A.noEventTiming,
-          target: wh ? Number(wh.getAttribute('aria-valuenow')) : null, status, drawnHour: g ? g.hourOffset : null };
+          target: wh ? Number(wh.getAttribute('aria-valuenow')) : null, valuetext: wh ? wh.getAttribute('aria-valuetext') : null, status, drawnHour: g ? g.hourOffset : null };
       });
       const evt = ab.key == null ? null : ab.ev.find((e) => Math.abs(e.start - ab.key) < 2);
-      const shownAt = ab.key == null ? null : ab.hours.find(([t, h]) => t >= ab.key && h === ab.target);
-      step.__ab = { target: ab.target, inputMs: ab.key == null ? null : (evt ? evt.dur : 16), shownMs: shownAt ? +(shownAt[0] - ab.key).toFixed(1) : null,
-        blank: ab.blank, mislabel: ab.drawnHour != null && ab.target != null && ab.drawnHour !== ab.target, status: ab.status,
-        labelMoved: i === 0 ? true : ab.status !== (out.steps[i - 1].__ab || {}).status, noEventTiming: ab.noEventTiming };
+      // key-to-shown (18:45Z amendment): keydown to the first frame drawing the dwell's FINAL drawn hour, on steps where it changed.
+      const after = ab.key == null ? [] : ab.hours.filter(([t]) => t >= ab.key);
+      const changed = after.length > 0 && ab.drawnHour != null;
+      const shownAt = changed ? after.find(([, h]) => h === ab.drawnHour) : null;
+      const prev = i > 0 ? (out.steps[i - 1].__ab || {}) : null;
+      step.__ab = { target: ab.target, drawn: ab.drawnHour, inputMs: ab.key == null ? null : (evt ? evt.dur : 16),
+        shownMs: shownAt ? +(shownAt[0] - ab.key).toFixed(1) : null, held: !changed,
+        blank: ab.blank, mislabel: ab.drawnHour != null && ab.target != null && ab.drawnHour !== ab.target && !/nearest stored|still showing/i.test(ab.status),
+        status: ab.status, valuetext: ab.valuetext,
+        labelMoved: !prev || (ab.target === prev.target + 1 && ab.valuetext !== prev.valuetext), noEventTiming: ab.noEventTiming };
       out.steps.push(step);
     }
     // per component: renders per step (median) and own ms per step (median)

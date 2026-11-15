@@ -90,3 +90,23 @@ previous commit (by hook index) and whether the new value is shallow-equal to th
     `ForecastTimeStatus` text differs from the previous step's.
 - This narrows gate 3's "exact-shown" (the instant-contract's product check) to the drawn hour, because this change touches no
   data path; the full exact-product check stays with `scn_instant_contract.js`.
+
+## 18:45Z: dev run 1 (diagnostic, ON build, one session), and a second amendment before the A/B
+
+Dev run 1 (fix build, kills unset, one phone session): 71.1 ms own render per step (the census before the fix read 152-165 ms
+on the old build), commits per step still about 10, keydown input-to-paint 40-216 ms. This is NOT a gate number.
+
+It showed two of the 18:25Z definitions are wrong for this lab:
+- **mislabel:** the lab's store holds 3-hourly frames, so on most steps the engine draws the nearest stored hour while the wheel
+  is on the in-between hour, and the status line says so ("Showing Sun 4 PM: the nearest stored forecast", "Loading Sun 6 PM...
+  still showing Sun 4 PM"). That is the honest, intended display; "drawn hour != wheel hour" flagged it as a mislabel on 8 of 10
+  steps.
+- **key-to-shown:** "the engine draws the wheel's hour" happened on only 1 of 10 steps, for the same reason.
+
+Amended, before any A/B run:
+- *key-to-shown:* on steps where the drawn hour changes during the dwell, keydown to the first frame drawing the dwell's final
+  drawn hour. Steps where the drawn hour does not change are counted ("held") per arm and reported.
+- *mislabel:* the drawn hour at the end of the dwell differs from the wheel's hour AND the status line carries no disclosure
+  ("nearest stored" or "still showing").
+- *labels reach the target:* the wheel's `aria-valuenow` advanced by one hour and its `aria-valuetext` changed on every step.
+- Gate thresholds, arms, view and step count are unchanged.

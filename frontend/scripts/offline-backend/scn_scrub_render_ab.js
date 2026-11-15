@@ -31,7 +31,7 @@ const sum = (arm) => {
   return {
     steps: steps.length, ownMsP50: q(own, 0.5), commitsP50: q(steps.map((s) => s.__commits || 0), 0.5),
     inputP50: q(ab.map((a) => a.inputMs), 0.5), inputP95: q(ab.map((a) => a.inputMs), 0.95),
-    shownP50: q(ab.map((a) => a.shownMs), 0.5), shownP95: q(ab.map((a) => a.shownMs), 0.95), shownMissing: ab.filter((a) => a.shownMs == null).length,
+    shownP50: q(ab.map((a) => a.shownMs), 0.5), shownP95: q(ab.map((a) => a.shownMs), 0.95), held: ab.filter((a) => a.held).length, shownMissing: ab.filter((a) => !a.held && a.shownMs == null).length,
     blank: ab.reduce((t, a) => t + (a.blank || 0), 0), mislabel: ab.filter((a) => a.mislabel).length,
     labelsStuck: ab.filter((a) => !a.labelMoved).length, noEventTiming: ab.some((a) => a.noEventTiming),
   };
