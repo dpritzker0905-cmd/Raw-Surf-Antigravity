@@ -395,3 +395,20 @@ inverse-distance bias field applied to the FORECAST at 24/48/72 h, under the sam
 **Owed by the helper:** gain against distance to the nearest buoy, before anyone claims the field reaches surf spots.
 
 No served change.
+
+## 23:16Z Owner decision on #926 (David, 18:14 EST, in this session): "Yes, before merge"
+
+The question it answers: "Should #926 switch to a fixed long-term tide reference before it merges?"
+
+Relayed to the director with a ready-to-assign brief for the tide lane:
+- a fixed per-cell datum, the model's own 365+ day mean, stored as a static asset rebuilt at most monthly;
+- the 72 h de-mean only as a labelled fallback;
+- the same kill switch.
+
+Pre-registered gate on the same 25 CO-OPS stations:
+- vs predictions: no worse than the 72 h arm by more than 0.01 m;
+- vs observed water levels: better, CI upper < 0, at >= 60% of stations;
+- negative control: a label-swap datum must lose to both arms;
+- positive control: a seeded +0.10 m shift is detected.
+
+The MLLW display goes in the later CO-OPS PR. Served change: SCOREBOARD row required.
