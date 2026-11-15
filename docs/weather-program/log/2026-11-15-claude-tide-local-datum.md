@@ -164,3 +164,13 @@ raw 0.414 · demean72 0.180 · **clim1y 0.177** · climAll 0.181 · yardstick 0.
 - Tests `test_tide_local_datum.py` 9 (mutation: no subtraction -> 3 red); tide/flag/guardrail suites 144 passed.
 - **After merge:** the table is empty until the first `tide-datum.yml` run (dispatch it, then again over ~5 days or
   with a larger limit to cover every cell); until a cell has an entry it serves the model level, unchanged.
+
+## Limits (advisor re-check, PASS WITH LIMITS, 2026-11-15 ~23:40Z)
+- On the four held-out weeks the de-meaning arms differ by 0.001-0.004 m (72 h 0.180, 1-year 0.177, all-archive
+  0.181): the choice of the 1-year mean rests on the registered rule, the November week (where 72 h failed the whole
+  West Coast) and having no day-roll step, NOT on the held-out medians themselves.
+- Rollout is mixed until the table fills: a cell with no entry serves the raw model level, which can sit up to ~0.5 m
+  from a neighbouring corrected cell. At merge, dispatch `tide-datum.yml` wide (a larger --limit, or several runs) so
+  every spot cell has an entry before users compare neighbours.
+- #926 alone leaves the glyph card's browser-direct fallback (`tideClient.ensureTideState`) on the raw level beside a
+  corrected infobox; #931 retires that fallback (`glyphTide.js` reads the door). Merge #926 together with #931.
