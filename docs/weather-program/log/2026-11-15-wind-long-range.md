@@ -157,3 +157,31 @@ Implementation details the 21:45Z text left open, fixed now; none is chosen by s
    `.missing.json`, never filled.
 8. Instrument: `backend/scripts/wind_lr_hindcast.py` (+ `wind_lr_obs.py`, `wind_lr_score.py`), workflow
    `.github/workflows/wind-lr-hindcast.yml`. Scorer unit tests include both controls on synthetic rows.
+
+## 23:55Z Main (item 1) built: the ENS member-mean hand-off; hindcast running
+
+- **Hindcast** (instrument committed after the 23:30Z amendment): Actions run 43773419409 on
+  `claude/wind-ens-extension` (stations freeze -> 24 collect shards over the 122 runs -> score). Smoke-read
+  locally before the push: one ENS step (51 members x 10u/10v/10fg, 2025-10-15 00Z +300 h, eccodes 2.50, template
+  5.42; Waimea 8.3 m/s mean of member speeds, gust 12.9, spread 2.1), and one step each of HRES oper, GFS 0.25,
+  GEFS geavg 0.5, NDBC 46026 2025 (100% hourly in the window, anemometer 4.1 m). Archive: AWS mirror answers for
+  2025-09-15 and 2025-11-14 (the window's ends).
+- **Operational producer** `scripts/ens_wind_extension_ci.py` in its OWN workflow `wind-ens-extension.yml`
+  (08:30 and 20:30 UTC, after 00Z/12Z ENS completes; not the pilots job): newest complete run from data.ecmwf.int,
+  steps 144..360, member mean on a 1-degree subsample, one file pair `ens_wind/latest.npz` + `.json` in the bucket
+  (~8 GB of byte ranges read per run on the runner; nothing on Render; no manifest or product writes).
+- **Ingest** `ens_wind_extension.extend_wind_tail`: ICON past its native max and EURO past 240 h read that file,
+  sample the coarse points, interpolate 6 h -> 3 h inside the ENS run, clip gust >= wind, and save with basis
+  `ens_mean_extension` (label "Days 8-14: ECMWF ensemble mean (estimate)", `ens_run`, 51 members). A stale ENS run
+  (> 36 h older than the deterministic run) or one that does not cover the WHOLE tail is not served at all: the GFS
+  stand-in serves instead. Hard hand-off, no taper, no offset.
+- **De-bias**: applied only if the gate chooses `ens_mean_debias`; its k per bin then goes into
+  `SPEED_FACTOR_BY_BIN` in the PR that records the result. Empty now (raw member mean, the pre-registered primary).
+- **Kill switches**: `ENS_WIND_EXTENSION=0` (GUARDED; the producer writes nothing and ingest uses the GFS stand-in),
+  then `ICON_WIND_GFS_STANDIN=0` (ICON back to the loop). ENS ships ON in code, and **the PR must not merge before
+  the gate PASSES** (a served-number flip needs the met gate as well as the owner's word).
+- **Gusts lane** (`local_7f199b18`): the interface was proposed at 21:50Z by message; the reduced file carries
+  `gust` (member median of 10fg, 6 h window max) and `spread` per step, and the saved points carry
+  `wind_gusts_10m` (clipped >= wind) and `ens_speed_spread`. No reply yet at writing.
+- Tests: `test_ens_wind_extension.py` (7: label, lattice, within-run interpolation, gust clip, stale/short never
+  partial, de-bias by bin, fallback order ENS -> GFS -> loop). 45 passed locally in the wind/ingest/flag files.

@@ -91,6 +91,7 @@ def _dwd_results():
 async def test_ingest_uses_standin_and_never_loops(monkeypatch):
     monkeypatch.delenv("ICON_WIND_GFS_STANDIN", raising=False)
     monkeypatch.delenv("ICON_WIND_EXTEND", raising=False)
+    monkeypatch.setenv("ENS_WIND_EXTENSION", "0")  # the ENS-first path is pinned in test_ens_wind_extension.py
     monkeypatch.setenv("ICON_WIND_DWD_DIRECT", "1")
     sched = MagicMock()
     sched._cleanup_and_pause = AsyncMock()

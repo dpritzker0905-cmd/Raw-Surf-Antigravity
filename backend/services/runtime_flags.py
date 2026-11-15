@@ -80,6 +80,8 @@ GUARDED = {
                                         # "unsupported"). Real-frame parity: = the mid-zoom map 0/120,184 cells; vs the
                                         # world-span map 924 cells (0.77%) <= 0.4 mm, same direction/period. Owner said
                                         # yes (11-13 20:28 EST); flipped ON through the manifest after merge; kill '0'
+    "ENS_WIND_EXTENSION": "1",          # ICON 180-336 h / EURO 240-336 h wind = ECMWF ENS member mean (hard hand-off);
+                                        # gate: log 2026-11-15-wind-long-range.md; kill '0' -> the GFS stand-in
     "ICON_WIND_GFS_STANDIN": "1",       # ICON wind past ~180 h = stored GFS at the same valid time (was the day-loop,
                                         # no skill). Owner yes 2026-11-15 16:14 EST; hindcast gate in log
                                         # 2026-11-15-wind-long-range.md; kill '0' restores the loop tail

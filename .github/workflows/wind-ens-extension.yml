@@ -1,0 +1,54 @@
+name: ENS wind extension (long-range wind producer)
+
+# WHY: ICON 180-336 h and EURO 240-336 h wind hand off to the ECMWF ENS member mean (owner 2026-11-15 16:14 EST,
+# "Yes to all, hard hand-off"; gate: docs/weather-program/log/2026-11-15-wind-long-range.md). Reading 51 members x
+# 3 fields x 37 steps (~8 GB of byte ranges) is too heavy for forecast-ingest-pilots (near its 200 min limit) and
+# never belongs on Render, so it is its OWN job. It writes ONE file pair to the weather bucket (ens_wind/latest.npz
+# + .json); the ingest lanes read it. It never writes a manifest or a product. Kill: ENS_WIND_EXTENSION=0 (repo
+# variable or the runtime manifest) -> nothing is written and the GFS stand-in keeps serving.
+
+on:
+  schedule:
+    - cron: '30 8 * * *'    # 00Z ENS is complete on data.ecmwf.int by ~07:40 UTC
+    - cron: '30 20 * * *'   # 12Z ENS by ~19:40 UTC
+  workflow_dispatch:
+    inputs:
+      run:
+        description: 'ENS run YYYYMMDDHH (default: newest complete)'
+        required: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wind-ens-extension
+  cancel-in-progress: false
+
+jobs:
+  produce:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      ENS_WIND_EXTENSION: ${{ vars.ENS_WIND_EXTENSION || '1' }}
+      L2_WRITER: '1'
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+      PYTHONUNBUFFERED: '1'
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+          cache: pip
+      - run: pip install -r backend/requirements.txt
+      - name: Reduce the newest complete ENS run and publish ens_wind/latest
+        working-directory: backend
+        run: |
+          ARGS=""
+          if [ -n "${{ github.event.inputs.run }}" ]; then ARGS="--run ${{ github.event.inputs.run }}"; fi
+          python scripts/ens_wind_extension_ci.py $ARGS --out "$RUNNER_TEMP/ens"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ens-wind-latest
+          path: ${{ runner.temp }}/ens/latest.json

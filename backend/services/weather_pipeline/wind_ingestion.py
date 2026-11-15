@@ -390,10 +390,11 @@ async def ingest_euro_wind_global_impl(scheduler) -> bool:
                 if times:
                     native_max = _parse_om_time(times[-1])
                     break
-            from services.weather_pipeline.euro_wind_extension import extend_euro_wind_from_gfs
-            ext_count = await extend_euro_wind_from_gfs(scheduler, run_time, native_max)
+            from services.weather_pipeline.ens_wind_extension import extend_wind_tail  # ENS first, else GFS clones
+            ext_count = await extend_wind_tail(scheduler, "EURO", run_time, native_max, global_region, resolution,
+                                               env["is_test_env"]) or 0
             if ext_count:
-                logger.info(f"[Pipeline Scheduler] Ingested {ext_count} EURO wind extended-tail files (gfs_fallback clones, beyond {native_max}).")
+                logger.info(f"[Pipeline Scheduler] Ingested {ext_count} EURO wind extended-tail files (ENS/GFS, beyond {native_max}).")
         except Exception as _ee:
             logger.error(f"[Pipeline Scheduler] EURO wind extended-tail save failed (natives unaffected): {_ee}")
 
@@ -591,11 +592,13 @@ async def ingest_icon_wind_global_impl(scheduler) -> bool:
                     break
             # 2026-11-15 (owner 16:14 EST): the tail is the stored GFS wind at the same valid time (labelled
             # gfs_wind_standin), not ICON's own days looped. Kill ICON_WIND_GFS_STANDIN=0 -> the old loop below.
-            from services.weather_pipeline.euro_wind_extension import extend_icon_wind_from_gfs, icon_gfs_standin_on
-            standin = icon_gfs_standin_on()
+            # 2026-11-15 later: ENS member mean first (ens_wind_extension.py, kill ENS_WIND_EXTENSION=0), else GFS.
+            from services.weather_pipeline.ens_wind_extension import extend_wind_tail
+            tail = await extend_wind_tail(scheduler, "ICON", run_time, native_max, global_region, resolution, env["is_test_env"])
+            standin = tail is not None
             if standin:
-                ext_count = await extend_icon_wind_from_gfs(scheduler, run_time, native_max)
-                logger.info(f"[Pipeline Scheduler] Ingested {ext_count} ICON wind tail files (GFS stand-in, beyond {native_max}).")
+                ext_count = tail
+                logger.info(f"[Pipeline Scheduler] Ingested {ext_count} ICON wind tail files (ENS/GFS, beyond {native_max}).")
             else:
                 from services.weather_pipeline.viewport_helper import extend_icon_wind_to_14d
                 extend_icon_wind_to_14d(results)  # mutates: day-looped hourly arrays out to 336h
