@@ -110,3 +110,31 @@ Amended, before any A/B run:
   ("nearest stored" or "still showing").
 - *labels reach the target:* the wheel's `aria-valuenow` advanced by one hour and its `aria-valuetext` changed on every step.
 - Gate thresholds, arms, view and step count are unchanged.
+
+## 18:47Z: the registered A/B, run 1 (levers 1 + 2 only): FAILS gates 1 and 3, passes gate 2
+
+One profiling build, phone 4x, z6, Waves, GFS, 3 sessions per arm alternating ON / KILL, 10 steps each (30 steps per arm).
+Raw files: `scratchpad/m3/ab1/` (one JSON per session + `ab-summary.json`).
+
+| | ON | KILL | gate |
+|---|---|---|---|
+| own render ms / step, p50 | 98.0 | 140.7 | 1: ON <= 0.5x KILL. **0.70x, FAIL** |
+| sessions | 98.0, 111.9, 97.8 | 176.6, 138.9, 161.2 | |
+| keydown input-to-paint p95 / p50 | 256 / 176 ms | 648 / 216 ms | 2: p95 <= 0.75x, p50 not worse. **0.40x, PASS** |
+| key-to-shown p50 / p95 (steps where the drawn hour changed) | 411 / 1077 ms (n 9) | 837 / 1030 ms (n 7) | 3: p95 +47 ms > +15. **FAIL** |
+| held steps (drawn hour unchanged) | 21 | 23 | |
+| blank frames | 0 | 0 | |
+| mislabel (drawn != wheel hour, no disclosure at dwell end) | 3 | 2 | 3: 0 in both arms. **FAIL (both arms)** |
+| labels reached the target | 30 / 30 | 30 / 30 | |
+| commits / step, p50 | 9 | 8 | secondary |
+
+Reading, not a re-judgement:
+- Gate 1: the two levers cut own render time by about 30%, not 50%. Lever 3 (memoising hour-independent children) is not built.
+- Gate 3: the key-to-shown p95 rests on 9 vs 7 steps; one ON step at 1077 ms vs KILL's worst at 1030 ms decides it.
+- Gate 3's mislabels occur in BOTH arms (KILL 2, ON 3), always the same pattern: the engine still draws the previous hour at the
+  end of the 900 ms dwell and the status line has not yet said "still showing". Pre-existing in today's code, not caused by
+  the change; the gate as registered still fails on it.
+- Gate 2 passes clearly: the slow end of keypress-to-paint drops from 648 ms to 256 ms.
+
+Per the registration this does NOT ship ON as is. Next decisions go to the director: build lever 3 and re-run the same gate,
+and whether the pre-existing status lag behind gate 3's mislabels is its own fix.
