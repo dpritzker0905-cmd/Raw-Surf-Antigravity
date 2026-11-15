@@ -51,11 +51,8 @@ async def extend_icon_wind_from_gfs(scheduler, run_time, icon_native_max) -> int
 
 def icon_gfs_standin_on() -> bool:
     """D-065: ships ON; kill '0' restores the loop tail on the next ICON cycle."""
-    try:
-        from services import runtime_flags
-        return runtime_flags.on("ICON_WIND_GFS_STANDIN")
-    except Exception:  # a manifest read failure must not change what ships: the env/code default decides
-        return os.environ.get("ICON_WIND_GFS_STANDIN", "1") != "0"
+    from services import runtime_flags  # env > manifest > code default; never read around it (test_runtime_flags)
+    return runtime_flags.on("ICON_WIND_GFS_STANDIN")
 
 
 async def clone_gfs_wind_tail(scheduler, run_time, native_max, model, basis_type, default_native_h) -> int:
