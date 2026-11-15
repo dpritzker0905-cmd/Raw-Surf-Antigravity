@@ -674,3 +674,27 @@ the blend, not for it.
 - The bracket line is also reported WITHOUT the one-level widening, so the widening is seen not to carry a pass.
 - H8f records the grid of all four pictures per triple.
 - The flat control's expected 128% (section 23.4) was derived AFTER 130% had been seen: it is post hoc and labelled so.
+
+## 27. The advisor on section 24 (13:58 EST): PASS WITH LIMITS, repeat visits only. What is answered from data in hand, and what is registered for the runs now in progress (restarted 13:57, results not opened)
+1. **Are the truth and cut pictures inside the transient?** The advisor's point: truth read twice at the same delay proves
+   nothing, because both readings would share a transient. Evidence already recorded, for what it covers: in section 24.3 the
+   6-hour jump's picture was compared with the picture of the SAME hour taken in the real pass, 600 ms after a +3 h step. At
+   2.5 s and at 5 s after the jump the difference was 0.000 in all four cases. A picture taken 600 ms after a +3 h step is
+   therefore identical to that hour seconds after everything has stopped: the +3 h step pictures (truth and cut) were OUTSIDE
+   the transient, and the held picture alone was inside it. So in section 24 the transient was in the blend's error only, and
+   47.1% does not flatter the blend. Limits: four cases, one view (waves, coast, 24 x 21).
+   Registered for the run in progress: its "the hour at rest ... against the first reading of it" figure now compares every
+   triple's h+6 picture read 600 ms after a +3 h step with the same hour read more than 4 s after the jump, on all ten views.
+   If that is not 0 on a view, that view's truth or cut pictures carry a transient and the view's result is not quoted.
+2. **The run in progress** reads the held picture 3 s after the jump and settles by section 26's corrected rule.
+3. **How H8f will be read, written before it runs.** Its held and stand-in pictures are read about 0.3 s after a 6-hour jump,
+   inside the window in which section 24.3 saw the transient on a regional grid; its truth and its fine-h cut picture are
+   outside. Whether the transient exists when the resident is the stand-in is not known. So: a PASS is a pass with the
+   transient counted against the blend (it can only raise the blend's error). A FAIL does not show the blend wrong until the
+   transient is identified or measured in that state; it will be recorded as "fails, cause not separated from the transient".
+4. **Scope of the transient, for the director:** seen on a 6-hour jump (six one-hour key steps in one task) at one coastal view
+   on a regional 24 x 21 grid, four cases: about 4.1 luminance units at 250 ms and 900 ms, 0 at 2.5 s. NOT seen 600 ms after a
+   +3 h step (same four cases). One-hour steps, other views and the world grids are not measured. What lags is not identified
+   (the held picture's contrast was 4-10% low; a late range or scale value is one guess, untested).
+5. The two per-view extremes of section 24: 14% is swell_2 at (115, -10, z4.0), whose synthetic pattern changes almost evenly
+   in time; 77% is wind_waves at (-5, 50, z4.5).
