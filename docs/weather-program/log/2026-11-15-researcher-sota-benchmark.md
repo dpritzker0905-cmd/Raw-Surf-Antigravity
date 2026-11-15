@@ -686,3 +686,28 @@ participants per arm, about 660 in total. These numbers are the standard two-pro
 - Users may prefer the cross-fade even if accuracy is equal. Preference is recorded as a secondary outcome, not used for the pass rule.
 
 Nothing here changes a served number. Nothing was merged.
+
+
+## 16. Owner decision (David, 11:30 EST 2026-11-15): ON with a short decay on each hour step; no full-hour smooth tween
+
+**Decision (owner's words, relayed in this session): "ON with a short decay on each hour step, not a full-hour smooth tween."**
+
+**What it means.**
+- Default ON, on marine crests, wind and the tile-path layers: a short cross-fade (about 160 ms, the existing own-raster duration) when the displayed hour changes.
+- Not chosen: a full-hour smooth tween between hours.
+- No user toggle, per the earlier direction. Developer kill switch only, per the house rule (D-065 and visual-changes-default-on).
+- Cross-model blending stays banned (`WebGLWindEngine.js:96-100`). The wind rule is narrowed to cross-model only, which is the policy line the director needs to write.
+
+**Gate, unchanged, and still to run.**
+- The perception test in section 15 is pre-registered. It is not yet run. The owner's decision is taken before it, so the test becomes a post-decision check, not a gate on the decision.
+- Its pass rule still applies. If it fails, the default falls back to hard cut, which is one switch in code, not a redesign.
+- Display-only: served values stay byte-identical with and without the cross-fade.
+
+**Next steps.**
+1. Director writes the one-line policy change (narrow the blend rule; cross-fade adjacent hours of the same model on each step; never blend across models).
+2. Build the cross-fade behind the developer kill switch, default ON, through the normal PR path.
+3. Run the section 15 perception test on the built sequence, with a fixed sample and the pre-registered margin.
+
+**Limits.** The decision rests on cartographic evidence (Łucjan 2018, Fish 2011) and the leaders' public stepped-frame pattern. No weather-specific user study exists yet.
+
+Nothing here changes a served number. Nothing was merged.
