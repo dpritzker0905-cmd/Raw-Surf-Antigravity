@@ -90,7 +90,7 @@ export function useFineDwellPrefetch({ mapInstance, timeOffsetRef, activeModelRe
       } catch (e) { /* best effort */ }
     }, FINE_PREFETCH_DWELL_MS);
     return () => clearTimeout(timer);
-  }, [hour, mapInstance]);   // eslint-disable-line react-hooks/exhaustive-deps
+  }, [hour, mapInstance]);
 }
 
 export function _resetFinePrefetchForTest() {
