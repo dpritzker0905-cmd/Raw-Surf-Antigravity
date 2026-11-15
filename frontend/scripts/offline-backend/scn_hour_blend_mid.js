@@ -188,6 +188,7 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
   const ev = (fn, arg) => page.evaluate(fn, arg);
   if (MODE === 'grey') await ev(() => { window.__GPU_DEBUG__ = { mode: 'value' }; });
   if (process.env.SELF === '1') await ev(() => { window.__HM_SELF__ = true; });
+  if (process.env.HELDWAIT) await ev((ms) => { window.__HM_HELDWAIT__ = ms; }, +process.env.HELDWAIT);
   const home = async () => { await ev(() => window.__HM__.key('Home', 1)); await sleep(2500); };
   const stepTo = async (n, wait = 700) => { for (let i = 0; i < n; i++) { await ev(() => window.__HM__.key('ArrowRight', 3)); await sleep(wait); } };
   let on = null; let vi = -1; const used = {}; const skipped = [];
@@ -234,7 +235,9 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
       await home();
       continue;
     }
-    await ev(() => window.__HM__.kill(true)); await stepTo(9, WARM_MS); await home();          // warm: every hour used below becomes resident
+    await ev(() => window.__HM__.kill(true));
+    if (process.env.SETTLE === '1') { for (let i = 0; i < 9; i++) { await ev(() => window.__HM__.key('ArrowRight', 3)); await ev(() => window.__HM__.settle()); } await home(); }   // section 23.3: settled by condition
+    else { await stepTo(9, WARM_MS); await home(); }          // warm: every hour used below becomes resident
     await ev(() => { window.__HM__.R = {}; window.__HM__.T = {}; });
     const real = {};
     for (let j = 1; j <= 8; j++) { await stepTo(1); await sleep(600); real[j] = await ev(async (k) => { const H = window.__HM__; H.R[k] = await H.shot(); H.T[k] = H.tex(); return H.state(); }, j); }
@@ -254,7 +257,7 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
         const before = await ev(() => window.__HM__.state());
         const held = await ev(async (k) => {
           const H = window.__HM__; const R = H.R; const T = H.T;
-          H.kill(false); window.__RAW_CREST_BLEND_HOLD__ = 0.5; H.key('ArrowRight', 6); await H.wait(900);
+          H.kill(false); window.__RAW_CREST_BLEND_HOLD__ = 0.5; H.key('ArrowRight', 6); await H.wait(window.__HM_HELDWAIT__ || 900);   // 3000: past the 6 h jump's transient (log 24.3)
           const M = await H.shot(); const st = H.state();
           // what the shader is mixing, read back: the kept texture's bytes against T[h], the resident's against T[h+6], and the scales
           let probe = null;
