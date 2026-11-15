@@ -41,7 +41,10 @@ jobs:
     # + ICON marine pilot 29m (now bounded to ~10m: flagship-only + 2d) + wind pilots ~50m+
     # ≈ 185m healthy total — the lane was ALREADY over 165 before the ICON pilot landed. 200
     # keeps 40 min under the 240-min cron interval (shared-group serialization stays safe).
-    timeout-minutes: 200
+    # 200 -> 300 (2026-11-15): runs measured 135-195 min (11-13/14) before any new raster set; the six #888 raster sets
+    # (fog, water_temp, temperature_euro/_0p25/_icon, water_temp_euro; each its own step timeout) add up to ~93 min worst
+    # case. Cron is now 3x/day (480-min interval) in this OWN concurrency group, so 300 still leaves 180 min of slack.
+    timeout-minutes: 300
     env:
       # ON (2026-11-14, services/frame_latest_guard.py): every static-frames publisher reads v1/latest.json strictly (a 400
       # that is not "object not found", a 5xx or a timeout = unknown -> nothing written) and never writes it with a set record
