@@ -596,3 +596,52 @@ interpolating the field itself between model hours by default.
 A one-line policy change: "Narrow the blend rule: cross-fade adjacent hours of the same model on each step, ON by default; never blend across models." Once that is written, the build goes through the normal PR path.
 
 Nothing here changes a served number. Nothing was merged.
+
+
+## 14. Deeper research on ON versus OFF for the hour-step blend (2026-11-15 11:30 EST)
+
+**Why this section exists.** David asked for the decision to rest on deeper research, not on the first pass in section 13.
+Research was run on the perception and artifact questions. Results below. Where the evidence is about choropleth maps, not
+weather, that is marked.
+
+### 14.1 Evidence
+
+| Source | What it found | Bearing on our choice |
+|---|---|---|
+| Łucjan et al., 2018, Polish Cartographical Review: [Continuous or discontinuous? Empirical study on animated maps](https://consensus.app/papers/details/w:f627f598-276c-4630-9bf5-b546e4d7430f/?utm_source=claude_code) | For **discrete** changes, the transition mode changes the reading. Smooth transitions were **less effective** than abrupt transitions and abrupt-with-decay | Our forecasts are discrete hourly steps. This argues against a long smooth tween and for a **short decay** |
+| Fish et al., 2011, CaGIS: [Change Blindness in Animated Choropleth Maps](https://consensus.app/papers/details/w:b8278b9d-e405-4918-86c1-78b423acb191/?utm_source=claude_code) (66 citations) | Map readers miss changes between frames and **over-estimate** their own detection. Tweening (in-betweening) **changes the legibility** of change, in either direction | Smoothing can hide the change users need to see. Any blend must not hide the hour-to-hour change |
+| Pauly, 2026, KN: [How Viewers Structure and Describe Animated Thematic Maps](https://consensus.app/papers/details/w:b803b04d-190c-4fb9-b0c2-0db7de33b356/?utm_source=claude_code) (N = 538) | Stepwise and continuous animation styles change how viewers segment and describe the map | The blend changes what users take away, so it must be tested with users, not assumed |
+| Stein et al., 2023: [The Effect of Smoothing on the Interpretation of Time Series Data](https://consensus.app/papers/details/w:945b1668-25b7-45a8-a732-c1677a4f7bcf/?utm_source=claude_code) | Smoothing reduces distraction from periodic patterns and changes the predicted trend; window size shapes perceived patterns | Smoothing changes interpretation. A short cross-fade is a much smaller change than a multi-hour average |
+| Padilla et al., 2026, CHI: [Interpretation Strategies for Multiple Forecast Visualizations](https://consensus.app/papers/details/w:938c5d00-21f5-4fc0-8a17-d3aad757b842/?utm_source=claude_code) | Visual artifacts (intersection points, end caps) drive how people interpret forecasts | A blend creates new visual artifacts; these need a check |
+| arXiv search (latest-science, "weather forecast map animation temporal interpolation") | **0 papers** | No arXiv evidence on weather-map animation perception |
+
+### 14.2 What the evidence says about the choice
+
+1. **Full smooth tween across the hour: evidence against as a default.** For discrete change it reduces effectiveness (Łucjan)
+   and can hide the change users need to see (Fish). Our hourly steps are discrete.
+2. **Short decay or cross-fade on each step: consistent with the evidence.** Łucjan's best-performing modes were abrupt and
+   abrupt-with-decay. A ~160 ms cross-fade is close to abrupt-with-decay, and it is the pattern the leaders and our own
+   raster layers use.
+3. **Hard cut only: consistent with the evidence, and the choice most likely to keep change legible.** It is also the current
+   wind and tile behaviour.
+4. **Neither option has weather-specific user evidence.** All of the perception studies use choropleth or time-series maps.
+   Weather fronts moving across a map are a different case.
+
+### 14.3 Recommendation, now with the evidence behind it
+
+- **Default ON: a short decay on each hour step (the 160 ms cross-fade), on marine crests, wind and the tile-path layers.**
+  This is the pattern the evidence favours over a long tween, and it matches the leaders and our own raster layers.
+- **No full-hour tween by default.** Evidence against it for discrete change.
+- **No user toggle.** Consistent with David's direction.
+- **Pre-registered perception test before the default is final.** Show the same hour sequence with hard cut and with the 160 ms
+  cross-fade to users, and ask them to name where the wind or swell changed most between two hours. Pass means the cross-fade
+  arm is not worse at identifying the change (non-inferiority margin set before the test). If it fails, the default is hard cut.
+- **Developer kill switch** only, as in section 13.4.
+
+### 14.4 Limits
+
+- The studies are cartographic, not weather. The perception test above is the missing weather-specific evidence.
+- arXiv returned nothing on this question.
+- The Łucjan and Fish results are single studies; their sample sizes were not read in this pass.
+
+Nothing here changes a served number. Nothing was merged.
