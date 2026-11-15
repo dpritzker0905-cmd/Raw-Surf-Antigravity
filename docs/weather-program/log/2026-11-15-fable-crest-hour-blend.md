@@ -558,3 +558,40 @@ at the coast neither the truth picture nor the blend's inputs hold still. Owed n
    the engine, it is a user-visible defect on its own and should be fixed before any blend is judged at the coast.
 2. H8c again with the truth picture taken twice and its grid recorded (registered in section 19).
 3. H8 on real frames replayed offline.
+
+## 21. Why the grid "at rest" differed from run to run: measured (13:04 EST). It is the two-stage draw plus the cache, not a fault.
+Asked by the advisor (section 19.3) and by David in this session ("Yes, investigate"). Instrument:
+`frontend/scripts/offline-backend/scn_grid_at_rest.js` (blend killed; after each +3 h step the engine's grid is sampled every
+40 ms for 8 s, beside the /api/weather requests of that window; the same hours stepped through twice). Three views.
+| view | FIRST visit to an hour | SECOND visit (same session) |
+|---|---|---|
+| waves, coast, z5.0 | the 46 x 21 world grid at 41-48 ms, then the regional 24 x 21 grid at 2.2-2.7 s | the 24 x 21 grid at 40-49 ms; no request |
+| waves, world, z2.5 | 46 x 21 at 43-48 ms, then 181 x 83 at 1.4-3.3 s | 181 x 83 at 53-57 ms; no request |
+| wind_waves, coast, z4.5 | 46 x 21 at 41-47 ms, then the regional 30 x 21 at 1.6-4.2 s | 30 x 21 at 46-52 ms; no request |
+- On a first visit the engine draws the coarse world grid at once and replaces it with the finer grid when that grid's own
+  request returns. The request is SENT about 1.5 s after the step (0.4-1.6 s) and takes 0.4-3.3 s on the offline backend.
+  On a later visit the finer grid is in the client's cache and is drawn at once.
+- In no case did the grid go back from fine to coarse by itself, and nothing changed after the fine grid arrived.
+- So the "grid at rest 600 ms after a step" of sections 12-20 was the coarse stand-in on a first visit and the cached fine grid
+  on a later one. The instruments' warm-up pass stepped every 700 ms, too fast for the fine grid of each hour to arrive, so
+  which hours were cached depended on timing. That is the whole of the run-to-run difference. It is a fault of the
+  instruments' waiting times, not of the engine and not of the blend.
+- What a user gets: the first time through, every step shows the coarse grid for about 1.5 to 4 s and then sharpens. That
+  sharpening is a grid swap inside one hour, which the v2 blend covers. Whether about 1.5 s before the request is even sent is
+  intended is NOT examined here (it is outside this lane); it is listed as a follow-up for the director.
+- Consequence for section 20: its "a grid differs somewhere" triples (152%) compared pictures taken in different cache
+  states. They do not show a blend error. They do not show the blend right either.
+
+## 22. H8c again, with the cache settled: registered BEFORE the run
+- The same ten views as H8c (section 16.1). In each view every hour used is first visited with **5 s** of settling per step,
+  so each hour's fine grid is cached; then, as before, the real pictures (now 900 ms after a step that lands on the cached
+  fine grid) and the held pictures.
+- **The truth picture twice** (section 19.3a): after each held picture the engine returns to hour h+3 and its picture is read
+  again; the difference from the first reading is the triple's noise floor, recorded with its grid. A triple whose noise
+  floor exceeds the gap between the cut's and the blend's errors is listed and not scored.
+- Lines unchanged: pooled ERROR(blend) at most **60%** of ERROR(cut), void below 25%, no view worse than the cut, at least 30
+  of 40 triples scored, the two mixed fields h and h+6; reported split into same-grid and mixed-grid triples, both of which
+  must be at most 60% (if the cache is settled no mixed-grid triple is expected; any that occur are listed).
+- The reference comparison is taken again on the same triples (line 0.5 in colour, as before).
+- Not covered, stated before the run: the FIRST-visit step (fine grid of hour h to the coarse stand-in of hour h+3). There is no
+  truth picture for a mix of a fine field and a coarse stand-in of another hour other than the forced test H9, which passed.
