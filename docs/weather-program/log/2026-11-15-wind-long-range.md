@@ -1,0 +1,117 @@
+# 2026-11-15 wind long-range lane (session `local_0d0d332f`, branch `claude/wind-long-range-fb64f9`)
+
+Task from the director (`local_d6b521eb`): replace the looped ICON wind past its native horizon, and the EURO wind
+GFS clones past 240 h, with real science. Owner words: "Looping is unacceptable. We need real science." (15:19 EST);
+plan approved 16:14 EST: "Yes to all, hard hand-off". Source plan: senior research lead, PR #929,
+`log/2026-11-15-senior-research-lead-sota-plan.md` §21:01Z, §21:17Z and the 21:33Z CORRECTION.
+
+## 21:45Z PRE-REGISTERED GATE (committed before any code; changes after this commit are dated amendments below)
+
+### What is being decided
+
+Which wind source serves ICON 180->336 h and EURO 240->336 h, and whether it ships. The marine ICON/EURO extension
+blends are LOCKED (BRAIN_RULES "14-Day Forecast Horizon") and are not touched. The scrubber is never capped.
+
+### Adopted correction (21:33Z, measured by the senior lead)
+
+The open-data `em` (ensemble-mean) stream has NO 10 m wind past 240 h. The "ENS mean" arm is therefore the mean we
+compute from the 51 member fields (`cf` + 50 `pf`, stream `enfo`, type `ef` files, 0.25 deg):
+- vector `(u_bar, v_bar)` = member mean of `(10u, 10v)`; direction from it;
+- speed = mean of member speeds (no vector-mean shrinkage); served `(u, v)` = `(u_bar, v_bar)` rescaled to that speed;
+- gust = per-cell member median of `10fg` (max in the 6 h ending at the step);
+- spread = member standard deviation of speed (recorded; not served by this gate).
+Steps past 144 h are 6-hourly. 3-hourly served steps are linear in `(u, v)` and speed between the SAME run's two
+neighbouring steps (cross-hour, same model; never cross-model).
+
+### Hindcast sample (offline; never the live box, never Render)
+
+- Runs: ECMWF 00Z and 12Z, run dates 2025-09-15 .. 2025-11-14 inclusive (61 days, 122 runs), from the public AWS
+  mirror `ecmwf-forecasts` (archive depth reported by the senior lead 21:33Z; confirmed by listing before the run;
+  any missing run is listed, never filled).
+- Split: runs on ODD day-of-month = FIT half (de-bias fitting only); EVEN day-of-month = TEST half. Every PASS line
+  below is scored on the TEST half only (about 60 runs over about 30 days; if the test half has < 60 runs or < 30
+  days after missing runs are dropped, the gate is VOID, not failed).
+- Verification valid times: every 6 h (00/06/12/18Z). Leads 186..336 h by 6 h.
+- Lead bins: B1 = 180-216 h, B2 = 216-264 h, B3 = 264-336 h (bin by lead, left-open: (180,216], (216,264], (264,336]).
+- Stations (truth):
+  - >= 30 coastal NDBC/C-MAN stations with WSPD and GST, >= 70% of hourly records present in the window,
+    anemometer height known from NDBC metadata; adjusted to 10 m by the neutral log law with z0 = 2e-4 m.
+  - >= 30 coastal ASOS stations (Iowa Environmental Mesonet archive; within 10 km of the coast; `sknt`, `gust`,
+    `drct`), >= 70% hourly present. Treated as 10 m.
+  - Hawaii stations are reported as their own stratum as well as pooled.
+  - The station list is frozen in `wind_lr_stations.json` before any arm is scored; stations are chosen by these
+    rules only, never by skill.
+- Truth matching: wind = the station's 10-min/hourly mean nearest the valid time (within 30 min); gust = the max
+  station GST/gust in (V-6 h, V], matching the 6 h window of ENS `10fg`.
+- Model value at a station: bilinear from the 0.25 deg (GEFS 0.5 deg) grid; a station whose four cells are not all
+  sea (for NDBC) is moved to the nearest all-sea cell and flagged.
+
+### Arms (all scored on the identical station/valid-time/lead set)
+
+1. **loop**: today's served method. ICON has no public archive, so the loop is rebuilt from the ECMWF HRES (`oper`)
+   run's own native whole days with `extend_icon_wind_to_14d`'s rule (lead L > 180 h replays lead
+   `L mod (whole-day native length)`). Declared a PROXY: the loop's skill comes from replaying a different valid
+   day, not from the model's identity.
+2. **gfs_standin**: GFS 0.25 deg deterministic (`noaa-gfs-bdp-pds`), same run time, same valid time. GFS gust = `GUST`.
+3. **ens_mean_raw**: as above, from the 51 members.
+4. **ens_mean_debias**: arm 3 with one multiplicative speed factor per lead bin `k_b = sum(obs*f)/sum(f*f)` fitted on
+   the FIT half (wind stations pooled), applied to `(u, v)` (direction unchanged).
+5. **ens_cf**: the control member only.
+6. **gefs_mean**: GEFS `geavg` 0.5 deg 10 m U/V (`noaa-gefs-pds`). No gust record (helper ASK 3b), so gust =
+   max(wind x GF, wind) with GF fitted on the FIT half.
+7. **climatology**: per station, per calendar month and hour of day, mean speed and mean vector over 2016-2024 from
+   the same station archive.
+8. **persist180**: the HRES run's own 180 h field held constant for every lead > 180 h.
+
+### Chosen arm (fixed now)
+
+Primary = `ens_mean_raw`. It is replaced by `ens_mean_debias` only if, on the TEST half, debias minus raw pooled speed
+MAE has a day-block CI upper < 0. If the ENS members cannot be ingested operationally, the fallback is `gefs_mean`,
+and that arm must pass the same lines.
+
+### Metrics (per arm, per bin, pooled and per stratum: NDBC, ASOS, Hawaii)
+
+Speed MAE; speed signed bias (forecast minus obs); vector RMSE; direction MAE where obs speed >= 3 m/s (circular
+difference); gust MAE and signed bias. n and station count printed beside every number.
+
+### Statistics
+
+Paired differences on the same (station, valid time, lead). Day-block bootstrap: blocks = valid-time UTC dates,
+2000 resamples, seed 20261115, 95% percentile interval.
+
+### PASS (all must hold for a ship)
+
+P1. Chosen arm minus `loop` speed MAE: CI upper < 0 in EVERY bin.
+P2. Chosen arm minus `gfs_standin` speed MAE: CI upper < 0 in EVERY bin.
+P3. Chosen arm gust MAE minus `loop` gust MAE: CI upper < 0, pooled over bins.
+P4. Seam (hard hand-off, no taper, no offset; owner 16:14 EST): at the station cells, the p95 over cell-runs of
+    `|speed(chosen arm, first extension step) - speed(native, last native step)|` is <= the p95 of within-native
+    3 h changes `|speed(L) - speed(L-3)|` over the last 24 native hours of the same runs and cells. EURO: native =
+    HRES 240 h, arm at 243 h (interpolated within the ENS run). ICON: no archive, so P4-ICON is read forward on the
+    first >= 10 live ICON runs from STORED products (bucket read, not the API), and the ship of the ICON half waits
+    for it; P4-EURO is read in the hindcast.
+
+### Reported, never hidden
+
+- R1. Any bin where the chosen arm does not beat `climatology` (CI upper < 0) is labelled "low skill" in the log, the
+  SCOREBOARD row and the PR body. It does not block (the owner chose real model wind over a climatology relaxation).
+- R2. Every arm's numbers, including the ones that win.
+
+### Controls
+
+- C1 negative: the chosen arm with its valid time shifted +48 h (the forecast for V scored against obs at V+48 h)
+  must have a HIGHER speed MAE than `climatology` in every bin (point estimate). If not, the instrument is VOID.
+- C2 positive: the chosen arm with +1 m/s added to speed must show a signed-bias difference vs the unseeded arm whose
+  CI contains +1.0 and excludes 0, in every bin. If not, VOID.
+
+### Interim (item 6) under this gate
+
+The GFS stand-in replaces the ICON loop now (owner yes 16:14 EST), ON with kill switch `ICON_WIND_GFS_STANDIN=0`,
+label `gfs_wind_standin`. The hindcast's arm 1 vs arm 2 rows are its measured check; if `gfs_standin` is
+significantly WORSE than `loop` on speed MAE in any bin (CI lower > 0), the interim is reported to the director and
+the owner before it stays on.
+
+### Independent scoring
+
+The verifier (`local_ec32a6a8`) re-scores the result from the saved paired rows. Rows are saved per arm as CSV in the
+Actions artifact (no secrets; public station data and public model data only).
