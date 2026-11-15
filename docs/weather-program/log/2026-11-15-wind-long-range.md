@@ -134,3 +134,26 @@ Actions artifact (no secrets; public station data and public model data only).
 - Tests: `test_icon_wind_gfs_standin.py` (4) + the loop test pinned to the kill path; 69 passed locally in the
   wind/ingest/flag-parity files. Local Jest cannot collect from a `.claude` worktree path, so the frontend suites are
   read on hosted CI.
+
+## 23:30Z AMENDMENT to the pre-registration (before any station is frozen or any arm scored)
+
+Implementation details the 21:45Z text left open, fixed now; none is chosen by skill:
+1. **NDBC "coastal"** = within 50 km of a GFS 0.25 deg LAND cell (f000 of 2025-10-15 00Z). ASOS within 10 km of a
+   GFS sea cell. **ASOS cap**: if more than 60 qualify, keep 60 nearest the sea (ties by id), to bound the IEM
+   archive load. NDBC has no cap.
+2. **NDBC gust** is adjusted to 10 m by the same log-law factor as the wind.
+3. **ASOS gust window**: a METAR carries a gust group only while gusting, so a record without one counts its
+   sustained speed in the 6 h maximum. A window needs >= 1 record per 2 h.
+4. **Within-native 3 h changes for P4-EURO**: open-data HRES is 6-hourly past 144 h, and the served 3-hourly EURO
+   frame between two 6-hourly ones is their linear mean (`native_time_interpolation`), so a served within-native
+   3 h change = |speed(L) - speed(L-6)| / 2 for L in 222..240. The seam = |ENS arm at 243 h (interpolated 240..246
+   within the ENS run, de-bias factor of B2 when the chosen arm is de-biased) - HRES 240 h|.
+5. **Loop arm** at lead L uses HRES lead L mod 168 (`extend_icon_wind_to_14d` keeps 168 whole hours of a ~180 h
+   native). At L = 336 that is step 0, which has no 10fg: the loop gust is missing there (the row drops from gust
+   lines only), never filled.
+6. **Climatology**: NDBC 2016-2024 annual files; ASOS one IEM request per station for 2016-01-01..2024-12-31;
+   a (month, hour) cell needs >= 20 records.
+7. **Shards**: the 122 runs are collected in 24 Actions shards; a missing run (no 336 h index) is listed in a
+   `.missing.json`, never filled.
+8. Instrument: `backend/scripts/wind_lr_hindcast.py` (+ `wind_lr_obs.py`, `wind_lr_score.py`), workflow
+   `.github/workflows/wind-lr-hindcast.yml`. Scorer unit tests include both controls on synthetic rows.
