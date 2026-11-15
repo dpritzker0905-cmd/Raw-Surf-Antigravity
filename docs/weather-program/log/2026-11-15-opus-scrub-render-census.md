@@ -256,3 +256,9 @@ of 60 by the LABEL comparison, which can flag a frame whose data time is honest.
 Decision for this lane: no status-lag fix code until the registered S1 instrument (every animation frame, >300 ms after the key,
 by instant) finds a violation on a quiet-window run of today's code. If S1 finds none, the item closes as "not reproduced" with
 the counts; if it finds some, the fix is built against the 19:30Z gate.
+
+## 22:00Z: runs started at David's word ("report back when the runs finish"), machine ~80% busy at start (10 s sample)
+
+Chained, one at a time: #921 re-run B (as registered 20:42Z), render run 3 (the old gate) = Brief 3's run 1, Brief 3's runs 2 and 3,
+the A/A pair (both arms KILL), then the fine-grid A/B (none / R / PR; Brief 4's z7 and planted-miss additions are NOT in this run,
+the probe does not support them yet). The 20:20Z void rule decides every session; results are written as they fall.
