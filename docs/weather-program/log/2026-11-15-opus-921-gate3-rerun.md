@@ -46,3 +46,7 @@ Per-step decode-path ms added (`stepBuildMs`), pooled, and per session (p50 / p9
   the earlier runs' raw files before anyone relies on it; until then the "passes its original wording" claim in #921 is unsupported.
 - This run recorded no machine load (the director's quiet-machine rule came after it started). It stays on record as run A; the
   quiet-machine run under the registered void rule follows.
+- **Correction to the bullet above (20:08Z):** the earlier runs DID record it: the series log's 16:13Z table has the kill arm at z6
+  "0 / 98.2 / 122.7" (p50 / p95 / max). So the 98-179 ms figure is measured, not unsupported. In this run the kill arm adds 0, most
+  likely because the kill arm's page decodes now land before the first step rather than inside a step's 900 ms window; that is not
+  yet verified. What stands: the original wording's pass rested on the kill arm's in-window decodes, which did not occur this time.
