@@ -119,10 +119,11 @@ async function routeWeatherToLocal(target, { liveOrigin, local, timeoutMs = 1200
           backend_request_id: validId(backendId) ? backendId : null, backend_id_match: backendId === trace.id });
       }
     } catch (error) {
-      trace?.event('fetch_error', { error_kind: errorKind(error) });
+      const kind = errorKind(error);
+      trace?.event('fetch_error', { error_kind: kind });
       const message = String(error && error.message).split('\n')[0];
       // The page, context or browser closed under an in-flight request (a test ending): not a backend failure.
-      if (/has been closed|Target closed|disposed/i.test(message)) { stats.cancelled += 1; return route.abort().catch(() => {}); }
+      if (kind === 'page_or_context_closed') { stats.cancelled += 1; return route.abort().catch(() => {}); }
       stats.failed += 1;
       if (stats.failedExamples.length < 5) stats.failedExamples.push(`${ep}: ${message.slice(0, 120)}`);
       return route.fulfill({

@@ -136,3 +136,21 @@ test('the leak watch counts weather responses without the marker, and nothing el
   fire(resp(`${LIVE}/api/explore/trending`, {}));
   assert.deepEqual(read(), { leaked: 1, examples: ['grid_series'] });
 });
+
+test('test-ended cancellation without correlation aborts locally even if native abort is already closed', async () => {
+  for (const message of ['Test ended.', 'route.fetch: Test ended.']) {
+    const target = fakeTarget();
+    const stats = await routeWeatherToLocal(target, { liveOrigin: LIVE, local: LOCAL });
+    const r = fakeRoute({ url: `${LIVE}/api/weather/grid_series?model=GFS`,
+      fetchImpl: async () => { throw new Error(message); } });
+    r.abort = async () => { r.calls.aborted = true; throw new Error('Target closed'); };
+    await target.routes[0].handle(r);
+    assert.equal(r.calls.network, 0);
+    assert.equal(r.calls.aborted, true);
+    assert.deepEqual(r.calls.fulfill, []);
+    assert.deepEqual([stats.local, stats.failed, stats.cancelled], [0, 0, 1]);
+    assert.deepEqual(stats.failedExamples, []);
+    assert.equal(r.calls.fetch[0].timeout, 120000);
+    assert.deepEqual(await stats.lifecycle.drain(), { complete: true, pending: 0, handlerErrors: 0 });
+  }
+});
