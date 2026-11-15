@@ -748,3 +748,39 @@ Not ranked here:
 - AIFS: stays a shadow measurement. Consensus disagrees on wind (Kocsis 2026).
 - Perception test: parked (needs a panel).
 - 46267 record: the nearest NOAA native water cell is 0.958 deg away, not 0.729 (corrected in #919).
+
+
+## 18. Surf rating accuracy: what we measure, what is missing, and the state-of-the-art bar (2026-11-15 13:40 EST)
+
+**Scope.** Read-only: the scoreboard on `origin/dev` and one literature search. No live call, no merge.
+
+### 18.1 What we measure today (scoreboard, dev)
+
+- **Size-category agreement vs a model truth, CA only** (2026-11-12 23:12Z, 2026-11-13 02:48Z; PR #839, #771). Truth = CDIP MOP v1.1 alongshore hindcast, not buoys. Prior (catalogue) 0.728 vs legacy 0.242 (+0.486, CI [0.478, 0.494]). No region worse (smallest +0.203, santa_barbara_ventura). Legacy sits at chance. The prior **loses** at two small-wave spots (Sands, La Jolla Shores). Scope: 19 CA spots, 270,408 spot-hours, 2022-01 to 2025-03.
+- **Live value not read back.** The guardrail watches the flag every 6 h; the admin status endpoint needs a login (scoreboard 2026-11-13 02:48Z).
+- **Forecast-wave accuracy** (per-buoy split, 2026-11-13): tracked in 7.D and 17 (not repeated here).
+
+### 18.2 What is missing for a state-of-the-art claim
+
+1. **No observed breaking truth.** MOP is a model; the 0.728 agreement is model-to-classifier agreement, not a surfer or camera outcome.
+2. **No quality truth at all.** The rating is a 0-100 quality score, but the only check is size category. Quality depends on the wave, not only its height.
+3. **Small-wave failure is known and unfixed.** The prior loses at the two small-wave spots (above).
+4. **Live result unverified.** The served value of the new prior has not been read back.
+
+### 18.3 State-of-the-art bar (literature, Consensus)
+
+- **Breaker intensity is not set by height alone.** Breaker fraction depends on wave steepness, and intense breakers still occur in mild wave fields (Brown et al., 2018, SWIFT buoys, Oregon storms; compared against WaveWatch III). [Kinematics and Statistics of Breaking Waves Observed Using SWIFT Buoys](https://consensus.app/papers/details/w:b79881b6-ec17-4492-a253-0f73dd0f5aa1/?utm_source=claude_code). Implication: the rating needs steepness or period, not only height.
+- **Surf amenity measured from video, validated against surfers.** Wave-peel tracking gives per-wave ride length, duration and speed, checked against GPS-tracked surfers at a Gold Coast reef (Thompson et al., 2021). [Wave Peel Tracking: A New Approach for Assessing Surf Amenity](https://consensus.app/papers/details/w:1b399e6a-bc47-43eb-8e13-2acc6a3f44a9/?utm_source=claude_code). This is the closest published model of a real quality truth.
+- **Hybrid surf-zone surrogates** reach high accuracy for short wave height and currents, with lower accuracy for infragravity waves and breaking fraction (Echevarría et al., 2025). [Computationally Efficient Hybrid Downscaling of Surf Zone Hydrodynamics](https://consensus.app/papers/details/w:d2031c1d-2966-4749-acf7-5a6f17f7d80f/?utm_source=claude_code). Relevant to nearshore transform; breaking fraction is the weak spot.
+
+### 18.4 Proposed next step (not built)
+
+- **Ground truth:** wave-peel tracking (or surfer-logged ride quality) at 2 to 3 CA spots, over the same hours as the rating.
+- **Pre-registered gate:** category agreement with the ride truth, rating vs legacy, paired by spot-hour, with a day-block bootstrap; a small-wave stratum reported separately.
+- **Pass:** the rating beats legacy on the ride truth, and the small-wave stratum is no worse than legacy.
+- **Also:** add a steepness or period term and test it on the same truth before any change.
+- **Served change:** none of this changes a served number until a gate passes; any change to the rating goes to David.
+
+Nothing here changes a served number. Nothing was merged.
+
+**Consensus notice:** Create or connect a free Consensus account to return more than 3 results per search in Claude Code: https://consensus.app/sign-up/?utm_source=claude_code&auth=claude_code
