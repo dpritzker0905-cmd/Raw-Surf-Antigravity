@@ -920,3 +920,34 @@ fetch after the next run, and the result is NOT reported until both are in). Nod
 - **Positive control P:** with h+6 replaced by a copy of h and the middle by the same frame, E(blend), E(cut) and both gradient
   errors are exactly 0 for every triple.
 - **To be run only in the quiet window the director names** (22:00-00:30 EST), or earlier at the director's word.
+- Built 18:20 EST: `real_frames_hidden_hour.mjs` (fetch / score / `--selftest`). Only its self-test has been run (the scorer's
+  arithmetic on made-up fields: a field moving linearly in time is recovered exactly by the mix; identical frames give zero).
+  No frame has been fetched and no result exists.
+
+## 35. THE OWNER'S BLINDED LOOK, registered before any clip is recorded (18:32 EST)
+The owner's second condition (section 33): "a blinded 5-minute look by David: 10 randomized pairs of hard cut vs cross-fade".
+**Built, not run:** `scn_blend_look.js` (recorder), `blend_look.html` (the page he uses), `blend_look_score.js` (unblinding).
+The recorder is a browser job and has NOT been run; only syntax and the unblinding arithmetic were checked.
+- **What a pair is.** The app itself, offline, in one page loaded with the opt-in. The cache is settled by two silent passes.
+  The SAME 8-step scrub (700 ms a step) is then recorded twice from the compositor's own frames: once with the kill set (hard
+  cut), once without (cross-fade); which is recorded first alternates by pair. A clip is used only if it is what it claims:
+  the hard-cut clip started 0 blends and the cross-fade clip started at least one per step (read from the blend's own
+  counters); otherwise the pair is listed as not usable and recorded again.
+- **The ten, fixed now:** waves at (-140, 20, z3) dark; (-158, 21.6, z5) dark; (-9.5, 39, z5) light; (150, -34, z5) beach on
+  the phone layout (390 x 844); swell_1 at (-40, 35, z2.5) dark; (-123, 37.5, z5) beach; wind at (-140, 20, z3) dark;
+  (-5, 50, z4.5) light; (-106, 14, z4) dark on the phone layout; (150, -20, z3) beach. Desktop 1280 x 800 unless said.
+  Six marine, four wind: this needs ONE local build holding both blends (the two branches merged locally, never pushed), on
+  the moving synthetic ocean and wind (`--moving-swell 0.9`, `--moving-wind 8`) so that a step changes the picture.
+- **Blinding.** For each pair a random draw decides which clip is stored as "x"; a second draw decides which side "x" is shown
+  on; a third shuffles the order of the pairs. The page and the file it loads hold only x / y and the frames. Which is the
+  hard cut is written only to `key.json`, outside the folder the page is opened from. I will not open `key.json` between
+  recording and receiving his answers, and the answers come back as a code of slots (for example `p03:x`), not of treatments.
+- **What he is asked:** per pair, "Left looks better", "Right looks better" or "No difference". He may pause or play at half
+  speed. Nothing tells him what differs.
+- **How it is read, fixed now:** the cross-fade is PREFERRED at 8 or more of 10; the hard cut is PREFERRED at 8 or more of
+  10; anything else is NO CLEAR PREFERENCE (by chance alone, 8 or more of 10 for one named side happens about 5% of the time;
+  "no difference" counts for neither). The count is reported by layer, theme and layout as well, without a line. His answer
+  is the result; this reading only names it. A hard-cut preference or no clear preference means the blend stays off.
+- **Not covered, said before he looks:** the ocean and wind are synthetic and move more evenly than real weather; the clips
+  are recordings at up to 960 px wide, not the live app on his device; a recording drops some frames of a 160 ms blend (the
+  page plays each frame at its recorded time).
