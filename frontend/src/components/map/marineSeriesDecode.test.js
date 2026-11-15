@@ -150,3 +150,14 @@ describe('FALLBACK: no Worker, or the kill switch: the main thread decodes as be
     await expect(loadSeriesJson('http://x', {})).rejects.toMatchObject({ name: 'AbortError' });
   });
 });
+
+test('the nearest-frame search builds ONE frame on a lazy page, not every frame it passes on the way (gate 3, 2026-11-15)', () => {
+  // eslint-disable-next-line global-require
+  const { nearestFrameInEntry } = require('./marineSeriesFinerEntry');
+  const base = JSON.parse(JSON.stringify(PAGES.regional.frames[0]));
+  const page = Array.from({ length: 12 }, (_, i) => packSeriesFrame({ ...JSON.parse(JSON.stringify(base)), hour_offset: i * 3 }, SERIES_NUM_KEYS));
+  const { frames, hours } = seriesPageFrames({ packed: page, json: null }, 'GFS', 'waves');
+  const hit = nearestFrameInEntry({ hours, frames }, 30);
+  expect(hit.frame.hourOffset).toBe(30);
+  expect(frames._packed.size).toBe(11);                             // only h30 was built
+});

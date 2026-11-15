@@ -656,7 +656,7 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
   const vWid = (bounds.east < bounds.west) ? (bounds.east + 360) - bounds.west : bounds.east - bounds.west;
   const isRegionalViewport = vWid < 60;
   let best = null;
-  let bestDiff = Infinity;
+  let bestDiff = Infinity; let bestAt = null;   // the nearest (entry, hour); its frame is read ONCE below (a lazy page builds on get)
   for (const cand of [page, page + 1, page - 1]) {
     if (cand < 0 || cand > lastPageFor(model)) continue;
     const entry = _seriesCache.get(pageKey(model, layer, bounds, cand));
@@ -675,11 +675,9 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
     const _eb = entry.bounds;
     const _eWid = (_eb.east < _eb.west) ? (_eb.east + 360 - _eb.west) : (_eb.east - _eb.west);
     if (isRegionalViewport && _eWid >= 340) continue;
-    for (const h of entry.hours) {
-      const d = Math.abs(h - hourOffset);
-      if (d < bestDiff) { bestDiff = d; best = entry.frames.get(h) || null; }
-    }
+    for (const h of entry.hours) { const d = Math.abs(h - hourOffset); if (d < bestDiff) { bestDiff = d; bestAt = [entry, h]; } }
   }
+  if (bestAt) best = bestAt[0].frames.get(bestAt[1]) || null;
   // An exact-key hit is not the end of the search: a coarse tile forced under this key must not beat a finer covering one
   // (the paused churn's series-entry half, marineSeriesFinerEntry.js).
   if (best !== null && bestDiff <= 1.5 && isRegionalViewport) {
