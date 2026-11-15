@@ -185,3 +185,32 @@ Implementation details the 21:45Z text left open, fixed now; none is chosen by s
   `wind_gusts_10m` (clipped >= wind) and `ens_speed_spread`. No reply yet at writing.
 - Tests: `test_ens_wind_extension.py` (7: label, lattice, within-run interpolation, gust clip, stale/short never
   partial, de-bias by bin, fallback order ENS -> GFS -> loop). 45 passed locally in the wind/ingest/flag files.
+
+## 2026-11-16 00:45Z Reviews, two scorer fixes, and the first hindcast run lost to S3 throttling
+
+**Scorer fixes (found reading the code before the LongCat review; both made the scorer disagree with the 21:45Z
+pre-registration, neither changes a PASS line):**
+1. P4-EURO always multiplied the ENS speed at 243 h by the B2 de-bias factor, even when the raw mean is the chosen
+   arm. Now the seam is the CHOSEN arm's.
+2. C1 always scored the raw mean. Now it scores the chosen arm.
+Plus `tests/test_wind_lr_score_e2e.py`: `main_score` end to end on a synthetic cache (8 arms, report + rows).
+
+**LongCat** (LongCat-2.5, scorer test loop + bootstrap + builder excerpt, payload sha256 4ac85ded...): 5 findings,
+checked against the full code: (1) C1 reads raw for the de-biased arm: VOID, `_arm_fields` already scales it;
+(2) C2 missing: VOID, it lives in `verdict`, outside the excerpt; (3) NaN pools in the seam p95: handled by
+`nanpercentile`, and the two pools are different quantities by design; (4) ratio estimator in the day-block
+bootstrap: the standard pooled-mean cluster bootstrap, kept; (5) builder partial-tail guard off by one: VOID, step
+360 is archived. It found no fit/test leakage and a consistent direction convention. No code change from it.
+
+**SubQ** (snap-1.1): HRES-rebuilt loop is a fair proxy 0.98; C2 informative 0.95; **C1 sound 0.12**.
+**Reflection** (Beam, medium): label the loop arm an HRES PROXY and treat its margin as proxy-dependent; C2 passes by
+construction, add a noisy seeded control as a reported-only diagnostic. Done: `D_C2_noisy_<bin>` (+1 m/s plus
+N(0, 2) per row) is reported, not a PASS line. **Risk recorded before any result:** at 8-14 days the ENS mean sits
+near climatology, so C1 (+48 h shift must lose to climatology in every bin) may fail and VOID the run. The
+pre-registered rule is not changed; if it voids, that is the result.
+
+**Run 43773419409**: stations froze (354 NDBC/C-MAN, 60 ASOS; committed under `evidence/`), then 4 of 24 collect
+shards died on one S3 `503` each (`ecmwf-forecasts`, 20250919 00Z +180 h, 24 shards in parallel). Fix: backoff with
+jitter up to ~6 min per request, a failing run is recorded and retried once at the end (never filled), max 12
+shards in parallel, shard artifacts uploaded even on failure, and the stations job reuses the committed frozen
+list. Pushed; the push supersedes the run (same concurrency group).

@@ -30,7 +30,10 @@ def ef_url(base: str, run: datetime, step: int, ext: str = "grib2", stream: str 
     return f"{base}/{d}/{h}z/ifs/0p25/{stream}/{d}{h}0000-{int(step)}h-{stream}-{typ}.{ext}"
 
 
-def _get(session, url: str, headers: Optional[dict] = None, tries: int = 4, timeout: int = 120):
+def _get(session, url: str, headers: Optional[dict] = None, tries: int = 8, timeout: int = 120):
+    """GET with exponential backoff + jitter. S3 answers 503 SlowDown under parallel range reads (hindcast run
+    43773419409 lost 4 of 24 shards to one 503 each), so 429/5xx and network errors are retried up to ~6 min."""
+    import random
     last = None
     for k in range(tries):
         try:
@@ -42,7 +45,7 @@ def _get(session, url: str, headers: Optional[dict] = None, tries: int = 4, time
             last = RuntimeError(f"HTTP {r.status_code} {url}")
         except Exception as e:  # noqa: BLE001 - network; retried
             last = e
-        time.sleep(2 * (k + 1))
+        time.sleep(min(60.0, 2.0 ** (k + 1)) + random.uniform(0.0, 2.0))
     raise last if last else RuntimeError(url)
 
 

@@ -171,6 +171,10 @@ def main(argv=None):
     s = requests.Session()
     st_path = a.stations or os.path.join(a.cache, "wind_lr_stations.json")
     if a.cmd == "stations":
+        if os.path.exists(st_path):             # the committed frozen list wins: a rerun never re-selects stations
+            print(f"stations already frozen: {st_path}")
+            obs.gfs_land(s, a.cache)
+            return 0
         doc = obs.select_stations(s, a.cache, WINDOW[0], WINDOW[1] + timedelta(days=14), st_path)
         print(f"stations frozen: {len(doc['ndbc'])} NDBC/C-MAN, {len(doc['asos'])} ASOS -> {st_path}")
         return 0
@@ -183,8 +187,20 @@ def main(argv=None):
         runs = [r for k, r in enumerate(runs_in_window()) if k % n == i]
         out_dir = os.path.join(a.cache, "runs")
         os.makedirs(out_dir, exist_ok=True)
-        for r in runs:
-            print(r.isoformat(), collect_run(s, r, lats, lons, out_dir), flush=True)
+        failed = []
+        for attempt in (1, 2):                  # a run that fails is retried once at the end, never filled
+            for r in (runs if attempt == 1 else failed[:]):
+                try:
+                    print(r.isoformat(), collect_run(s, r, lats, lons, out_dir), flush=True)
+                    if r in failed:
+                        failed.remove(r)
+                except Exception as e:  # noqa: BLE001 - recorded per run; the shard goes on
+                    print(r.isoformat(), f"FAILED attempt {attempt}: {e}", flush=True)
+                    if r not in failed:
+                        failed.append(r)
+        for r in failed:
+            json.dump({"run": r.isoformat(), "failed": "collect raised twice"},
+                      open(os.path.join(out_dir, f"{r:%Y%m%d%H}.npz.failed.json"), "w"))
         return 0
     import wind_lr_score as score
     return score.main_score(s, a.cache, stations, a.out or os.path.join(a.cache, "report"))

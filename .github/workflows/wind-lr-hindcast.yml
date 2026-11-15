@@ -38,9 +38,13 @@ jobs:
         with:
           python-version: '3.12'
       - run: pip install numpy requests==2.31.0 eccodes==2.50.0
-      - name: Freeze the station list (rule-based; before any arm is scored)
+      - name: Freeze the station list (rule-based; the committed frozen list wins on a rerun)
         working-directory: backend
-        run: python scripts/wind_lr_hindcast.py stations --cache "$RUNNER_TEMP/wlr"
+        run: |
+          mkdir -p "$RUNNER_TEMP/wlr"
+          F=../docs/weather-program/evidence/wind-long-range-2026-11-15/wind_lr_stations.json
+          if [ -f "$F" ]; then cp "$F" "$RUNNER_TEMP/wlr/"; fi
+          python scripts/wind_lr_hindcast.py stations --cache "$RUNNER_TEMP/wlr"
       - uses: actions/upload-artifact@v4
         with:
           name: wind-lr-stations
@@ -55,6 +59,7 @@ jobs:
     timeout-minutes: 300
     strategy:
       fail-fast: false
+      max-parallel: 12          # 24 at once drew S3 503 SlowDown (run 43773419409)
       matrix:
         shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
     steps:
@@ -71,6 +76,7 @@ jobs:
         working-directory: backend
         run: python scripts/wind_lr_hindcast.py collect --cache "$RUNNER_TEMP/wlr" --shard ${{ matrix.shard }}/24
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: wind-lr-runs-${{ matrix.shard }}
           path: ${{ runner.temp }}/wlr/runs/

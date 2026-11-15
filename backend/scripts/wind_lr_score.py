@@ -109,6 +109,12 @@ def verdict(rows: dict, chosen: str, seam: dict) -> dict:
         m2, lo2, hi2 = paired(seeded, E[chosen], "err", mask, days)
         c2 = lo2 <= 1.0 <= hi2 and lo2 > 0
         out["lines"][f"C2_{name}"] = {"bias_diff": m2, "ci": [lo2, hi2], "pass": c2}
+        # REPORTED ONLY (not a PASS line; Reflection 2026-11-16: C2 passes by construction): +1 m/s plus N(0, 2) noise
+        # per row must still be found (CI excludes 0 and contains 1)
+        noise = np.random.default_rng(SEED + 1).normal(0.0, 2.0, E[chosen]["err"].shape)
+        md, lod, hid = paired(dict(E[chosen], err=E[chosen]["err"] + 1.0 + noise), E[chosen], "err", mask, days)
+        out["lines"][f"D_C2_noisy_{name}"] = {"bias_diff": md, "ci": [lod, hid], "found": bool(lod > 0 and lod <= 1.0 <= hid),
+                                              "reported_only": True}
     allmask = np.isin(b, list(BINS))
     m, lo, hi = paired(E[chosen], E["loop"], "gae", allmask, days)
     out["lines"]["P3_gust_pooled"] = {"diff_gust_mae": m, "ci": [lo, hi], "pass": hi < 0}
