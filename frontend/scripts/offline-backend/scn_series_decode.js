@@ -73,11 +73,16 @@ async function session(arm, zoom, run) {
     await sleep(800);
     const before = await page.evaluate(() => ({ ...(window.__MARINE_SERIES_DIAG__ || {}) }));
     let stepped = 0;
+    const stepBuildMs = [];   // gate 3 (amended): the decode-path ms each step added (the first-read build of the frame it shows)
+    const readDecode = () => page.evaluate(() => (window.__MARINE_SERIES_DIAG__ || {}).decodeMs || 0);
     for (let i = 0; i < STEPS; i += 1) {
       const w = page.locator('[role="slider"][aria-label*="timeline wheel"]').filter({ visible: true }).first();
+      const d0 = await readDecode();
       if (await w.count()) { await w.focus().catch(() => {}); await page.keyboard.press('ArrowRight'); stepped += 1; }
       await sleep(900);
+      stepBuildMs.push(+((await readDecode()) - d0).toFixed(2));
     }
+    res.stepBuildMs = stepBuildMs;
     const d = await page.evaluate(() => ({ diag: { ...(window.__MARINE_SERIES_DIAG__ || {}) }, lt: window.__SD__.lt, pages: window.__SD__.pages }));
     const overlap = (t) => d.pages.some((p) => t[0] <= p + 1000 && t[0] + t[1] >= p - 1000);   // a long task within 1 s of an arrival
     Object.assign(res, {
@@ -100,6 +105,7 @@ async function session(arm, zoom, run) {
         const r = await session(arm, zoom, run);
         fs.appendFileSync(OUT, JSON.stringify(r) + '\n');
         console.log(`[${arm}] ${VIEW} z${zoom} run ${run}: decode ${r.decodeMs} ms (${r.decodes} decodes; worker ${r.workerPages} / main ${r.mainPages} pages; ${r.loads} loads)`
+          + ` | step build ms [${(r.stepBuildMs || []).join(',')}]`
           + ` | long tasks ${r.longTasks} (${r.longTaskMs} ms), near arrival ${r.longTasksNearArrival} (${r.longTaskMsNearArrival} ms) | stepped ${r.stepped}${r.error ? ' ERROR ' + r.error : ''}`);
       }
     }

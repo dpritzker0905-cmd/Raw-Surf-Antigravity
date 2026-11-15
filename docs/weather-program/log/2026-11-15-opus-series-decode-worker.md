@@ -111,3 +111,28 @@ Gates 2-4 are unchanged.
   - z2: h3, h6 and h9 IDENTICAL across arms (3/3).
   - z6: no hour was series-drawn in both arms (the store or /grid drew the others), so z6 is INCONCLUSIVE, not a pass.
   - z6, at fixed samples: hour 0 and hour 3 (both /grid-drawn) were identical across arms.
+
+## 15:37Z: gate 3, first run INCONCLUSIVE; AMENDMENT of its instrument (made AFTER seeing that run, disclosed)
+
+**Run:** `scn_instant_contract.js`, desktop, GFS waves, z2 and z4.6, 10 single steps plus one jump, one session per arm. Static
+frames were killed in both arms to force the series path.
+
+| arm | z2 step p50 / p95 | z4.6 step p50 / p95 | z4.6 steps missed |
+|---|---|---|---|
+| worker | 12 / 4884 ms | 1655 / 2259 ms | 6 of 11 |
+| kill | 11 / 2538 ms | 1551 / 1902 ms | 6 of 11 |
+
+Neither arm had a blank or mislabelled frame. In BOTH arms, 10 of 11 steps were drawn via /grid and only 1 via series. That is
+the harness's documented limit: a series frame carries no product id, so it is never timed as exact. So this run did not
+measure the series step path. Its p95 rests on one session per arm (a single slow /grid step decides it).
+
+**Why amend.** As written, gate 3 named "the raster lab's marine scrub", and the raster lab does not measure marine layers. So the
+pre-registered instrument did not exist. The only way this change can add step latency is the synchronous first-read build of
+the frame a step shows. In the kill arm that work happens when the page lands, not on the step.
+
+**Amended gate 3:**
+- Metric: the decode-path ms each scrub step adds, i.e. `__MARINE_SERIES_DIAG__.decodeMs` read just before and 900 ms after
+  each ArrowRight (`scn_series_decode.js`, stepBuildMs).
+- Profile: phone 4x CPU, the gate 1 sessions' setup, 3 sessions per arm per zoom, z2 and z6.
+- Pass: in the worker arm, per-step added ms p50 <= 5 and p95 <= 15. The kill arm is reported alongside (expected about 0).
+- The inconclusive harness run above stays in the record.
