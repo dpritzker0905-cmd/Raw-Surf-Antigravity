@@ -266,3 +266,37 @@ capability: 51201 is a wave-only buoy.
 - every coastal ASOS station with gust and visibility history.
 
 Hawaii's gust truth is weak and must be reported as its own stratum.
+
+## 21:33Z CORRECTION, measured: what ECMWF open data really holds past 240 h (supersedes my earlier claims in this log)
+
+The helper's ASK 3 answers:
+- (a) ICON-EPS ends at 180 h, so no ICON-family source exists past 180 h.
+- (b) The GEFS mean (`geavg`, pgrb2a 0.5 deg, f024) has no GUST record.
+- (c) ecmwf.int keeps about 2-3 days of open data.
+
+I then read the public AWS mirror myself (`ecmwf-forecasts` bucket, read-only listing and two `.index` files, run
+2025-10-15 00Z):
+- **The archive is deep enough.** `enfo` listings exist for 2025-06-01 and 2025-10-15, so a 30-day hindcast from
+  open data IS possible. (c) holds for ecmwf.int only, not for the mirror.
+- **CORRECTION 1: the ensemble-mean product has no 10 m wind past 240 h.** `…-360h-enfo-ep.index` (520 records,
+  `type em/es`, steps 246-360) holds pressure-level fields (for example `t` at 850 hPa) and **0** `10u` records.
+  So "ENS mean 10u/10v from `type=em`" (my earlier recommendation) is not possible. We must average the members.
+- **CORRECTION 2: the member files DO carry gusts.** `…-300h-enfo-ef.index` (8,007 records) holds **51** `10u`,
+  51 `10v` and **51** `10fg`: the control plus 50 perturbed members, about 1 MB a field. My earlier "no 10fg in
+  open data" came from the README's parameter list, and the file shows it is wrong. Real ENSEMBLE gusts exist to 360 h.
+
+**What this changes (better, not worse).**
+1. Compute the extension ourselves from the 51 members, using byte-range reads of the three fields named in the index.
+   - Speed = the MEAN OF MEMBER SPEEDS, which removes the shrinkage a vector mean causes. No de-bias factor is needed.
+   - Direction = from the member-mean vector.
+   - Spread = the member standard deviation. That is the confidence cue.
+2. Gusts: per cell, a member-gust quantile (median for the map, p90 as the risk cue) from `10fg`. The `10fg` window
+   at these steps is the max since the previous step (6 h), so the label says "max gust in the 6 h to this time".
+   - The wind-x-factor fallback stays only for any source without gusts (GEFS mean has none).
+   - The gate's gust lines score the ensemble gust directly.
+3. Cost, measured from the index (about 1 MB a field): 3 fields x 51 members = about 150 MB per 6-hourly step.
+   - ICON's extension, 186-336 h (26 steps): about 4 GB per run.
+   - Cheaper option for the gate to test: 00Z runs only. Never on the Render box. Not the pilots job, which is at
+     about 194 of 200 min.
+   - Hindcast: about 30 runs x 14 twelve-hourly steps ≈ 64 GB of reads in Actions, over several jobs.
+4. Unchanged: the gate, the seam policy question, the grand-ensemble question.
