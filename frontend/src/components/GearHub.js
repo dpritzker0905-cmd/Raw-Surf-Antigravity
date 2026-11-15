@@ -326,7 +326,7 @@ export const GearHub = () => {
           {Object.entries(CATEGORY_LABELS).map(([key, label]) => {
             const Icon = CATEGORY_ICONS[key];
             return (
-              <button aria-label="Icon"
+              <button
                 key={key}
                 onClick={() => setSelectedCategory(key)}
                 className={`px-4 py-2 rounded-full text-sm font-medium transition-all flex items-center gap-2 ${
