@@ -66,3 +66,24 @@ network `/grid`. A prefetch therefore passes `noSideWarm` (its own `/grid` only)
 - F3 step time: the keydown to the first change of what the engine draws (this probe's own clock; the census probe is not run in this
   A/B), p50 / p95 not worse than KILL by more than 5 / 15 ms; 0 stale fine frames (a fine grid of another hour drawn after the
   target hour was drawn) and 0 blank frames in ON.
+
+## 20:22Z: amendments from the advisor's review (before any run; P and R built, no gate number yet)
+
+1. **Arms, so P and R are scored separately:** `none` (both kills), `R` (`__RAW_DISABLE_FINE_PREFETCH_NEXT__` only), `PR` (neither).
+   R is scored R vs none; P is scored PR vs R. Each default rests on its own result.
+2. **R's own load line** (it adds requests by design where KILL never upgrades): at most one fine `/grid` per hour settled
+   >= 1.5 s, none during a drag, and `/grid_series` R <= none. F1 for R: the share of slow-scenario steps 2-6 with a fine grid
+   drawn within the dwell, R > none, and time-to-fine reported.
+3. **P's view:** P is scored on top of R (PR vs R), so on the z8 view its "KILL upgrades" baseline is the R arm. F1 for P: slow
+   steps 2-6 time-to-fine p50 PR <= 0.5x R, p95 PR <= R. F2 for P: `/grid` PR <= R + 1 per session (slow, back), <= R (drag).
+4. **New scenario BROWSE** (the biggest load risk): 6 pans and 2 zooms, no hour change, 3 s apart. Line: every weather request
+   count PR = R = none (P is armed only after the session's first hour step; built that way before any run).
+5. **Pace:** the slow scenario is also run with a 1 s dwell and reported: there P must show no gain AND no extra request
+   (PR = R `/grid`).
+6. **Cache:** prefetched grids go into the existing per-hour marine cache (`marineControllerCache`: capacity-bounded LRU with
+   eviction tombstones, cleared on the hourly roll); no new cache, no new size.
+7. **Is the regional series frame production's shape?** From code: `grid_series_helper._series_build_stride` strides every series
+   frame by `stride_for(cols, rows, hours)` (the series vector budget), so a production regional series page is coarser than the
+   `/grid` frame at the same view by design; the mock's 5x3 has the same cause. Production frames carry the stride
+   (`__decimatedStride`), so R now counts a strided regional series frame too (it only excludes WORLD frames, which the existing
+   upgrade owns); R still asks only when the series cells are > 1.5x the last fine grid's.

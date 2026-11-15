@@ -91,7 +91,8 @@ export function noteFineGrid(g) {
   if (c && Number.isFinite(c)) _lastFineCellDeg = c;
 }
 export function isCoarseRegionalSeries(grid) {
-  if (!regionalUpgradeOn() || !grid || !grid.__fromSeries || !grid.bounds || Number(grid.__decimatedStride) > 1) return false;
+  // A production series page is strided by its build (grid_series_helper._series_build_stride), so a decimated regional frame counts.
+  if (!regionalUpgradeOn() || !grid || !grid.__fromSeries || !grid.bounds) return false;
   if (lngSpan(grid.bounds) >= WORLD_MIN_SPAN_DEG) return false;
   const c = cellDeg(grid);
   return !!(c && _lastFineCellDeg && c > COARSE_RATIO * _lastFineCellDeg);

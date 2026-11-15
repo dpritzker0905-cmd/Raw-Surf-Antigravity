@@ -6,7 +6,8 @@
  * the fine /grid is only asked once the hour has held still for 1500 ms (marineExactUpgrade.EXACT_UPGRADE_DELAY_MS, kept: it stops
  * a click burst sending one /grid per hour passed). A repeat visit is sharp at once because the fine grid is in the client cache.
  *
- * WHAT. Once the selected hour has held still for FINE_PREFETCH_DWELL_MS (the same 1500 ms), ask the fine grid of the NEXT hour in
+ * WHAT. Only after the session's first hour step (plain browsing, pans and zooms with no hour change, never prefetches; the direction
+ * is the last step's). Once the selected hour has held still for FINE_PREFETCH_DWELL_MS (the same 1500 ms), ask the fine grid of the NEXT hour in
  * the last step's direction through fetchMarineData's cache-only path (isPrefetch, noSideWarm: it caches that one /grid and draws
  * nothing; no sibling or world warms). At most one prefetch per dwell; never while the timeline moves, a fetch is pending, the tab
  * is hidden, or in surf mode (a surf /grid runs the rating chain per node on the 1-CPU box); never for an hour already cached or
@@ -53,10 +54,13 @@ export function planFinePrefetch({ on, hour, dir, scrubbing, pending, hidden, su
 export function useFineDwellPrefetch({ mapInstance, timeOffsetRef, activeModelRef, activeMarineLayerRef, activeMarineLayersRef, hour }) {
   const lastHourRef = useRef(hour);
   const dirRef = useRef(1);
+  const steppedRef = useRef(false);   // ARMED ONLY AFTER A STEP (the advisor's review): no hour step yet = plain browsing, no prefetch
   useEffect(() => {
-    if (Number.isFinite(lastHourRef.current) && Number.isFinite(hour) && hour !== lastHourRef.current) dirRef.current = hour < lastHourRef.current ? -1 : 1;
+    if (Number.isFinite(lastHourRef.current) && Number.isFinite(hour) && hour !== lastHourRef.current) {
+      dirRef.current = hour < lastHourRef.current ? -1 : 1; steppedRef.current = true;
+    }
     lastHourRef.current = hour;
-    if (!mapInstance || !finePrefetchOn()) return undefined;
+    if (!mapInstance || !finePrefetchOn() || !steppedRef.current) return undefined;
     const armed = hour;
     const timer = setTimeout(() => {
       try {

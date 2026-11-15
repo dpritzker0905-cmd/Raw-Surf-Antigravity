@@ -29,8 +29,8 @@ describe('planFinePrefetch', () => {
     expect(planFinePrefetch(base)).toEqual({ go: true, next: 5, reason: 'dwelt' });
     expect(planFinePrefetch({ ...base, dir: -1 })).toEqual({ go: true, next: 3, reason: 'dwelt' });
   });
-  test.each([['scrubbing'], ['pending', 'fetch_pending'], ['hidden'], ['surf'], ['cached'], ['asked']])('%s: no prefetch', (k, reason) => {
-    expect(planFinePrefetch({ ...base, [k]: true })).toEqual({ go: false, reason: reason || k });
+  test.each([['scrubbing', 'scrubbing'], ['pending', 'fetch_pending'], ['hidden', 'hidden'], ['surf', 'surf'], ['cached', 'cached'], ['asked', 'asked']])('%s: no prefetch', (k, reason) => {
+    expect(planFinePrefetch({ ...base, [k]: true })).toEqual({ go: false, reason });
   });
   test('never before hour 0; off when killed', () => {
     expect(planFinePrefetch({ ...base, hour: 0, dir: -1 }).reason).toBe('before_start');
@@ -41,8 +41,15 @@ describe('planFinePrefetch', () => {
 describe('useFineDwellPrefetch', () => {
   const mount = (hour, r) => renderHook((p) => useFineDwellPrefetch({ mapInstance: map, ...r, hour: p.hour }), { initialProps: { hour } });
 
+  test('no step yet (plain browsing: mount, pans, zooms): no prefetch at all', () => {
+    mount(4, refs(4));
+    act(() => { jest.advanceTimersByTime(20000); });
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
   test('one prefetch after a 1.5 s dwell, cache-only (isPrefetch, noSideWarm), for the next hour', () => {
-    const r = refs(4); mount(4, r);
+    const r = refs(3); const { rerender } = mount(3, r);
+    r.timeOffsetRef.current = 4; rerender({ hour: 4 });
     act(() => { jest.advanceTimersByTime(FINE_PREFETCH_DWELL_MS - 1); });
     expect(mockFetch).not.toHaveBeenCalled();
     act(() => { jest.advanceTimersByTime(1); });
@@ -73,15 +80,17 @@ describe('useFineDwellPrefetch', () => {
   });
 
   test('no prefetch while the timeline is being dragged, or in surf mode', () => {
-    window.isScrubbingTimeline = true; mount(4, refs(4));
+    const step = (h) => { const r = refs(h - 1); const m = mount(h - 1, r); r.timeOffsetRef.current = h; m.rerender({ hour: h }); };
+    window.isScrubbingTimeline = true; step(4);
     act(() => { jest.advanceTimersByTime(FINE_PREFETCH_DWELL_MS); });
-    delete window.isScrubbingTimeline; mockSurf = true; mount(7, refs(7));
+    delete window.isScrubbingTimeline; mockSurf = true; step(7);
     act(() => { jest.advanceTimersByTime(FINE_PREFETCH_DWELL_MS); });
     expect(mockFetch).not.toHaveBeenCalled();
   });
 
   test('OFF PATH: __RAW_DISABLE_FINE_PREFETCH_NEXT__ asks nothing', () => {
-    window.__RAW_DISABLE_FINE_PREFETCH_NEXT__ = true; mount(4, refs(4));
+    window.__RAW_DISABLE_FINE_PREFETCH_NEXT__ = true; const r = refs(3); const { rerender } = mount(3, r);
+    r.timeOffsetRef.current = 4; rerender({ hour: 4 });
     act(() => { jest.advanceTimersByTime(10000); });
     expect(mockFetch).not.toHaveBeenCalled();
   });
@@ -101,6 +110,13 @@ describe('regional coarse-series upgrade', () => {
     expect(planExactUpgrade(ctx(veryCoarse))).toEqual({ upgrade: true, reason: 'coarse_regional_series_settled' });
     expect(planExactUpgrade({ ...ctx(veryCoarse), scrubbing: true }).upgrade).toBe(false);
     expect(planExactUpgrade(ctx(fine)).upgrade).toBe(false);
+  });
+
+  test('a build-strided (decimated) regional series frame still counts (production pages are strided)', () => {
+    noteFineGrid(fine);
+    expect(isCoarseRegionalSeries({ ...veryCoarse, __decimatedStride: 2 })).toBe(true);
+    noteFineGrid({ ...fine, cols: 200, __decimatedStride: 3 });   // a decimated grid is not a fine reference
+    expect(isCoarseRegionalSeries(coarse)).toBe(false);
   });
 
   test('a series grid does not count as the fine reference', () => {

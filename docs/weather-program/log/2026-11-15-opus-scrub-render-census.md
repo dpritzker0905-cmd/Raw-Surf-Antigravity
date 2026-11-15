@@ -218,3 +218,16 @@ Reading, not a re-judgement: the session totals swing 3x within an arm (22.9 to 
 with other sessions; the paired sessions read 0.35x, 0.32x and 2.16x (the third ON session ran under load). The pooled p50 is
 0.65x and the gate as registered fails. Run 1 (FAIL) and run 2 (FAIL on gate 1) both stand. Whether to re-run on a quiet machine,
 or to change the render metric (a gate change), is the director's decision; nothing ships ON on this gate as is.
+
+## 20:20Z: the director's call (a): run 3 = the SAME gate on a quiet machine; the load-void rule, registered before run 3
+
+The gate, arms, view, steps and metric are unchanged (run 2's KILL arm: all three kills). Runs 1 and 2 stay FAIL on record.
+**Load record and void rule (decided now, before any run-3 number):**
+- *Calibration:* in every session, the page times a fixed CPU workload (a 20,000,000-iteration integer loop, the same code in
+  every session) once right before the first step and once right after the last; the session's calibration is the larger of the two.
+  The machine's total CPU % (Windows `typeperf "\Processor(_Total)\% Processor Time"`, 1 s samples) is recorded for the session too.
+- *Void:* a session is VOID when its calibration exceeds 1.25x the lowest calibration of any session in the run (all arms). A void
+  session is re-run once in the same arm at the end; if the re-run is also void the arm runs short and the run is reported as
+  INCOMPLETE (not scored). Void sessions are listed with their numbers, never dropped silently.
+- *Quiet:* before the run, no build, Jest or other lab run of mine is going; other sessions on this machine are outside my control,
+  which is what the void rule is for.
