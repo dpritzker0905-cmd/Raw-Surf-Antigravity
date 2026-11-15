@@ -21,3 +21,28 @@ the decode-path ms each step adds (`__MARINE_SERIES_DIAG__.decodeMs` read just b
 - *Amended (absolute):* per-step added ms p50 <= 5 and p95 <= 15.
 
 The secondary `stepSyncMs` (the step's own synchronous builds) is reported too.
+
+## 20:05Z: re-run A (as registered at 19:55Z; machine load NOT recorded): worker FAILS both wordings at z6 p95 by 0.3 ms; noric passes
+
+Raw: `scratchpad/m3/g3re/runs.jsonl`. Production build of `origin/dev` 02a5c5cb1, phone 4x, 3 sessions per arm per zoom, 10 steps.
+Per-step decode-path ms added (`stepBuildMs`), pooled, and per session (p50 / p95):
+
+| zoom | arm | p50 | p95 | max | sessions (p50 / p95) | sync p95 (secondary) |
+|---|---|---|---|---|---|---|
+| z2 | worker | 0 | 5.7 | 19.8 | 0/5.7, 0/19.8, 0/3.9 | 5.4 |
+| z2 | kill | 0 | 0 | 0 | 0/0 x3 | 0 |
+| z2 | noric | 0 | 10.6 | 11.9 | 0/7.4, 0/10.6, 0/11.9 | 10.6 |
+| z6 | worker | 0 | **15.3** | 17.8 | 2.1/17.8, 0.2/3.2, 0/14.5 | 11.4 |
+| z6 | kill | 0 | 0 | 0 | 0/0 x3 | 0 |
+| z6 | noric | 0.2 | 13.9 | 20.2 | 0.3/8.8, 0.9/13.9, 0.2/20.2 | 13.9 |
+
+- **Original (relative) wording**, not worse than kill by > 5 ms p50 / 15 ms p95: worker z2 PASS, **z6 FAIL (+15.3 ms p95)**; noric PASS both.
+- **Amended (absolute)**, p50 <= 5 and p95 <= 15: worker z2 PASS, **z6 FAIL (15.3)**; noric PASS both.
+- Build-ahead that runs later than the 900 ms window is outside `stepBuildMs` by design; the noric arm has none at all, so its
+  step cost is the first-read build (its p95 13.9 ms at z6).
+- **A discrepancy I must flag:** the kill arm reads 0 per step here (the series pages are decoded on the main thread at ARRIVAL,
+  before the steps, and frames are not built per step). The #921 body says the kill arm "adds p95 98-179 ms on the same steps" and
+  that the original wording passed because of it. That does not reproduce in this run. The 98-179 ms figure needs re-checking against
+  the earlier runs' raw files before anyone relies on it; until then the "passes its original wording" claim in #921 is unsupported.
+- This run recorded no machine load (the director's quiet-machine rule came after it started). It stays on record as run A; the
+  quiet-machine run under the registered void rule follows.
