@@ -1,3 +1,4 @@
+import { disposeWindBlend } from './windHourBlend';
 import {
   ADVECT_VS,
   ADVECT_FS,
@@ -200,7 +201,7 @@ export function disposeEngine(engine, gl) {
   if (engine.advFBO) gl.deleteFramebuffer(engine.advFBO);
   if (engine.particleStateA) gl.deleteTexture(engine.particleStateA);
   if (engine.particleStateB) gl.deleteTexture(engine.particleStateB);
-  if (engine._windData?.texture) gl.deleteTexture(engine._windData.texture);
+  disposeWindBlend(engine, gl); if (engine._windData?.texture) gl.deleteTexture(engine._windData.texture);
   if (engine._windFine?.texture) gl.deleteTexture(engine._windFine.texture);
   if (engine._colorRamp) gl.deleteTexture(engine._colorRamp); if (engine._fieldRamp) gl.deleteTexture(engine._fieldRamp);
   if (engine.screenA) { gl.deleteFramebuffer(engine.screenA.fbo); gl.deleteTexture(engine.screenA.tex); }

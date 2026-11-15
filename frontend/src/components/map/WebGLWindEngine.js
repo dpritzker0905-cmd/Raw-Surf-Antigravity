@@ -12,6 +12,7 @@
  * 5. Final composite: render trail texture to screen canvas
  */
 
+import { keepOutgoingWindBase, setWindBlendUniforms, disposeWindBlend } from './windHourBlend';
 import { buildFieldRampTexture, drawnMarkRampData, windLookKey, windDarkRulesOn, windWhiteStrength } from './WindColorRamp'; import { bindLandMask } from './windLandMask'; import { bindCalmAir } from './windCalmAir'; import { syncParticleStateFormat, applyParticleStateUniforms } from './particleState';
 import { baseClipKeepsFine } from './windOverlayKeep'; import { tierMosaic, tierKeepsOver, tierOuter } from './windTierMosaic';
 import { windTrailFrame, bindTrailUv, TRAIL_IDENTITY } from './windTrailAnchor'; import { windInk, bindInk, clearTrails } from './windInk'; import { blendIntoMap } from './windCanvasAlpha'; import { trailVeilUniform } from './windTrailVeil';
@@ -278,7 +279,8 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
       : 'replaced coarse resident preview (dropped, no overlay)'));
     verdict = _keepAsFine ? 'base_promote' : 'base';
   } else {
-    if (this._windData?.texture) gl.deleteTexture(this._windData.texture);
+    // THE HOUR BLEND (windHourBlend.js): another hour of the same model keeps the outgoing base for a moment instead of freeing it
+    if (this._windData?.texture && !keepOutgoingWindBase(this, gl, windGrid)) gl.deleteTexture(this._windData.texture);
     this._windData = encodeWindTexture(gl, windGrid);
     if (this._windData) {
       this._windData.truthTag = windGrid.truthTag;
@@ -324,6 +326,7 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
  * _windData directly; routed here so the fine overlay can never leak a GL texture.
  */
 WebGLWindEngine.prototype.clearWindData = function(gl) {
+  disposeWindBlend(this, gl);   // the hour blend's kept base goes too
   if (gl && this._windData?.texture) gl.deleteTexture(this._windData.texture);
   if (gl && this._windFine?.texture) gl.deleteTexture(this._windFine.texture);
   this._windData = null;
@@ -640,10 +643,10 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     if (mode === 'uv') debugModeVal = 1.0;
     else if (mode === 'mask') debugModeVal = 2.0;
     else if (mode === 'grid') debugModeVal = 3.0;
-    else if (mode === 'mercator') debugModeVal = 4.0;
+    else if (mode === 'mercator') debugModeVal = 4.0; else if (mode === 'value') debugModeVal = 10.0;   // u, v as red, green (windHourBlendGLSL.js; the lab)
   }
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_debug_mode'), debugModeVal);
-  bindTexture(gl, this._windData.texture, 0);
+  bindTexture(gl, this._windData.texture, 0); setWindBlendUniforms(gl, this, this.heatmapProgram);   // the hour blend: the earlier base while a step blends
   if (this._colorRamp) bindTexture(gl, (_ft > 0 && this._fieldRamp) || this._colorRamp, 1); // tinted themes: the field's own ramp
     var heatOffsetLoc = gl.getUniformLocation(this.heatmapProgram, 'u_lng_offset');
     if (this.heatmapVAO) {
@@ -678,7 +681,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
       gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_debug_mode'), _vortexDebug);
       gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_fine_texel'), this._fineTexel[0], this._fineTexel[1]);
       gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_fine_cell_km'), this._fineCellKm[0], this._fineCellKm[1]);
-      bindTexture(gl, fine.texture, 0);
+      bindTexture(gl, fine.texture, 0); setWindBlendUniforms(gl, this, this.heatmapProgram, 0);   // the overlay's own pass is never hour-blended
       for (var fhi = 0; fhi < heatOffsets.length; fhi++) {
         gl.uniform1f(heatOffsetLoc, heatOffsets[fhi]);
         gl.drawElements(gl.TRIANGLES, this.heatmapIndexCount, gl.UNSIGNED_SHORT, 0);
@@ -762,7 +765,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0); this._advAttached = true;
   gl.viewport(0, 0, this.particleRes, this.particleRes);
   bindTexture(gl, this.particleStateA, 0);
-  bindTexture(gl, this._windData.texture, 1);
+  bindTexture(gl, this._windData.texture, 1); setWindBlendUniforms(gl, this, this.advectProgram);
   if (fine) bindTexture(gl, fine.texture, 2);
   if (this.advectVAO) {
     gl.bindVertexArray(this.advectVAO);
@@ -893,7 +896,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_fine_feather_frac'), fineFeatherFrac);
   }
   bindTexture(gl, this.particleStateA, 0);
-  bindTexture(gl, this._windData.texture, 1);
+  bindTexture(gl, this._windData.texture, 1); setWindBlendUniforms(gl, this, this.drawProgram);
   if (this._colorRamp) bindTexture(gl, this._colorRamp, 2);
   if (fine) bindTexture(gl, fine.texture, 3);
   var lngOffsetLoc = gl.getUniformLocation(this.drawProgram, 'u_lng_offset');

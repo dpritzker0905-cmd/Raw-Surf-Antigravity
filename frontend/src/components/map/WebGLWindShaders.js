@@ -2,6 +2,7 @@
  * WebGLWindShaders.js
  * GPU-native shaders for raw wind particle simulation.
  */
+import { withWindHourBlend } from './windHourBlendGLSL';
 import { GLSL_PT_REG } from './gridPointRegistration'; import { STATE_SPLICE } from './particleState'; import { WIND_RK2_GLSL, WIND_RK2_STEP } from './particleRk2'; import { GLSL_TRAIL_UV } from './windTrailAnchor'; import { GLSL_INK_MARK, GLSL_INK_COVER } from './windInk'; import { GLSL_LAND_FS } from './windLandMask'; import { GLSL_TRAIL_VEIL } from './windTrailVeil';
 
 export const ADVECT_VS = `
@@ -12,7 +13,7 @@ void main() {
   gl_Position = vec4(a_pos, 0.0, 1.0);
 }`;
 
-export const ADVECT_FS = `
+export const ADVECT_FS = withWindHourBlend(`
 precision highp float;
 uniform sampler2D u_particles;    // current particle positions (RGBA = x_hi,x_lo,y_hi,y_lo)
 uniform sampler2D u_wind;         // wind field texture (RG = u, BA = v)
@@ -359,9 +360,9 @@ void main() {
   }
 
   gl_FragColor = ${STATE_SPLICE.encode};
-}`;
+}`, 'advect');
 
-export const DRAW_VS = `
+export const DRAW_VS = withWindHourBlend(`
 attribute float a_index;
 uniform sampler2D u_particles;
 uniform float u_particles_res;
@@ -651,7 +652,7 @@ void main() {
   } else {
     v_debug_color = vec4(0.0);
   }
-}`;
+}`, 'draw');
 
 export const DRAW_FS = `precision mediump float;
 varying float v_speed;
@@ -783,7 +784,7 @@ void main() {
   }
 }`;
 
-export const HEATMAP_FS = `
+export const HEATMAP_FS = withWindHourBlend(`
 precision mediump float;
 uniform sampler2D u_wind;
 uniform vec2 u_wind_min;
@@ -969,7 +970,7 @@ void main() {
     ? texture2D(u_color_ramp, vec2(t, 0.5)).rgb
     : ramp(t, u_theme);
   gl_FragColor = u_field_tint > 0.0 ? vec4(mix(vec3(1.0), fieldRgb, clamp(alpha * u_field_tint, 0.0, 1.0)), 1.0) : vec4(fieldRgb * alpha, alpha);
-}`;
+}`, 'field');   // + the hour blend's text (windHourBlendGLSL.js) in the three shaders that read the base field
 
 export const SCREEN_VS = `
 attribute vec2 a_pos;

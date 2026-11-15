@@ -103,3 +103,23 @@ into this log before the gate runs.
   Nothing is tuned against this data without a new dated registration.
 - The advisor is sent this text before anything is measured. NOT covered: real model runs (owed before default-on, as for
   marine), EURO and ICON wind, the fine overlay's own arrival, Safari, Firefox, a real phone, the deployed site.
+
+## 4. Built, and the probe the gate asked for, BEFORE any gate line is measured (17:02 EST)
+Built as designed in section 2: `windHourBlend.js` (the engine side), `windHourBlendGLSL.js` (the text added to the three
+shaders by a wrapper; under the kill at load each shader is the text it was), four hooks in `WebGLWindEngine.js`, one in
+`WebGLWindEngineInit.js`, a `value` debug view of the colour field for the lab (u, v as red, green), and
+`--moving-wind` in the offline backend. No gate number exists yet.
+
+**What the wind engine holds after a step** (`scn_wind_blend.js` with PROBE=1, blend killed; a world view and a coastal view,
+the same hours twice; sampled every 40 ms for 7 s beside the /api/weather requests):
+- FIRST visit to an hour: the base stays the PREVIOUS hour until the new hour's own request returns, 3.1 to 3.5 s after the
+  step in the world view (the request took 2.7-3.3 s on the offline backend). There is NO coarse stand-in of the new hour, as
+  the marine engine has. When the new hour arrives it may come as a regional grid that replaces the base (85 x 56), followed
+  by the world grid (181 x 83) with the regional one moved to the overlay.
+- REPEAT visit: the new hour's world grid (181 x 83) is the base 41-56 ms after the step, with no request; the fine overlay is
+  dropped at the step.
+- So: **W10 does not apply** (there is no stand-in to mix with), and that is recorded here as section 3 said it would be. On a
+  first visit the picture simply waits; the blend then runs when the new hour lands.
+- **Settled, for wind:** the base's valid time is no longer the one before the step, and base and overlay have not changed for
+  1.5 s; 10 s limit; an hour that does not settle is listed. (The rule first written into the instrument, "unchanged for
+  1.5 s", would have called the HELD previous hour settled; corrected before any run.)

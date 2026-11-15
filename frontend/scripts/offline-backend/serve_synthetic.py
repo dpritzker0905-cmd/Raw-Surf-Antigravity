@@ -71,6 +71,11 @@ def regional_tiers(region_ids):
 VORTEX_LAT0, VORTEX_LNG0, VORTEX_DLAT, VORTEX_DLNG = 14.0, -106.0, 0.05, -0.08
 # The vortex's added height at its eye (m). --vortex-peak raises it (the wave palette A/B uses 11, so the eye crosses 10 m).
 VORTEX_PEAK = 6.5
+# MOVING WIND (2026-11-15, `--moving-wind <kn>`; the wind hour blend's lab): wind_field() is the same every hour except the
+# vortex, so a step changed almost nothing and no hour-to-hour effect could be measured. With the flag, a wind wave of this
+# amplitude (kn), 14 deg long, travels 0.6 deg an hour (1.8 deg per 3 h step), u and v a quarter wave apart, so speed and
+# direction both change everywhere. 0 = off (unchanged).
+MOVING_WIND = 0.0
 # LAND MASK (2026-10-22, `--land-mask 1`): a synthetic store with NO masked cells hides every serve-time transform that only touches
 # masked cells. /grid runs coarse_gulf_fill on EURO/ICON world-span grids and rewrites masked (land) cells with GFS values; #453's
 # parity passed over an all-ocean store while real world frames carry ~4,850 masked cells of 15,023. With the mask on, every marine
@@ -183,6 +188,9 @@ def wind_field(lat, lng, h):
     on the SAME known track as the wave storm (vortex_center), so the lab has a truth for both field and particle motion."""
     zonal = -12.0 * math.cos(math.radians(lat * 3.0))            # east wind (negative u) in the trades, west wind in mid-latitudes
     u_kn, v_kn = zonal, 2.0 * math.sin(math.radians(lng))
+    if MOVING_WIND:
+        ph = 2.0 * math.pi * ((lng * 0.8 + lat * 0.6) / 14.0 - 0.6 * h / 14.0)
+        u_kn, v_kn = u_kn + MOVING_WIND * math.sin(ph), v_kn + MOVING_WIND * math.cos(ph)
     clat, clng = vortex_center(h)
     dlat, dlng = lat - clat, ((lng - clng + 180.0) % 360.0 - 180.0) * math.cos(math.radians(lat))
     r = math.hypot(dlat, dlng)
@@ -623,6 +631,7 @@ def main():
     ap.add_argument("--regions", default="", help="comma list of pilot_regions ids (0.25-deg regional tiles), or flagship / all")
     ap.add_argument("--dynamic", choices=["0", "1"], default="0",
                     help="1 = answer the dynamic viewport lane (narrow zooms) with the synthetic field instead of failing it")
+    ap.add_argument("--moving-wind", type=float, default=0.0, help="a travelling wind wave of this amplitude, kn (MOVING WIND above); 0 = off")
     ap.add_argument("--vortex-peak", type=float, default=6.5, help="the vortex's added height at its eye, m (6.5: an ~8 m storm)")
     ap.add_argument("--stale-seconds", type=float, default=0.0,
                     help="answer matching marine /grid requests STALE (coarse, swr_revalidation_pending) for N s from the first one, "
@@ -657,8 +666,9 @@ def main():
                     help="EURO swell_1/swell_2/wind_waves also at global_mid, as production stores them since D-059 (2026-11-01)")
     ap.add_argument("--build-only", action="store_true")
     args = ap.parse_args()
-    global VORTEX_PEAK, LAND_MASK, WAVE_LAKES, ENCLOSED_SEAS, EURO_REGIONAL_ESTIMATED_AFTER, EURO_MID_SWELL
+    global MOVING_WIND, VORTEX_PEAK, LAND_MASK, WAVE_LAKES, ENCLOSED_SEAS, EURO_REGIONAL_ESTIMATED_AFTER, EURO_MID_SWELL
     VORTEX_PEAK = args.vortex_peak
+    MOVING_WIND = args.moving_wind
     EURO_MID_SWELL = args.euro_mid_swell == "1"
     EURO_REGIONAL_ESTIMATED_AFTER = args.euro_regional_estimated_after
     LAND_MASK = args.land_mask == "1"
