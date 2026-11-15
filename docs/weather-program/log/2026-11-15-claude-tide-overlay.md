@@ -141,3 +141,9 @@ owner confirmed no charge, resent once)
 3. **Codex's reserved files** (`MapWeatherControls.js`, `usePointTide.js`) while #755 is open: additive edits only;
    merge order flagged to the director.
 4. **First live look owed:** every gate ran on a stub tide and eight fixture spots.
+
+**G6 re-run result (as registered above; build at 3b2903849, offline harness, host audit ok):** 12 counterbalanced
+pairs at 390x844, 4x CPU, warm-up run and first 8 steps per run discarded. Paired (ON - OFF) medians, ms: -40, +54, +61,
++47, +76, -36, -68, +1, +10, +51, -77, -96. **Median +5.2 ms against the bound max(2, 10% x 184.1) = 18.4 ms: PASS as
+registered.** The spread is wide (pairs swing +-100 ms on 49-267 ms steps), so this bounds the overlay's cost, it does
+not measure it precisely. 0 `/point-tide` requests during scrub in all 24 runs. Raw: notes `results-phone4x-ABBA12.json`.
