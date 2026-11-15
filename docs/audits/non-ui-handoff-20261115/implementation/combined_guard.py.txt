@@ -1,0 +1,88 @@
+"""Versioned, unexecuted callback; never layered after the frozen fatal callback."""
+import os
+from pathlib import Path
+import sys
+
+from absence_policy import OPTIONAL_NAME
+from attestation import fatal
+
+WRITE_NAMES=('venv','tmp','home','config','cache','receipts')
+
+
+class CombinedGuard:
+    def __init__(self,witness,finder):
+        self.witness=witness;self.finder=finder
+        self.bindings=witness.bindings;self.nonce=object();self.acknowledged=False
+        self.audit_callback=self.audit
+        names=WRITE_NAMES if self.bindings.role=='installer' else ('tmp','receipts')
+        self.roots=tuple(self.bindings.root/name for name in names)
+        # This draft is worker-only. It never admits child creation.
+
+    def allowed(self,path):
+        try:
+            if isinstance(path,int):path=os.readlink('/proc/self/fd/'+str(path))
+            file=Path(os.fsdecode(path))
+            if not file.is_absolute():file=Path.cwd()/file
+            resolved=file.resolve()
+            return any(resolved==r or resolved.is_relative_to(r) for r in self.roots)
+        except (OSError,TypeError,ValueError):return False
+
+    def audit(self,event,args):
+        try:
+            self.witness.observers_check()
+            if event=='raw_surf.inactive_draft.guard_liveness':
+                if len(args)!=1 or args[0] is not self.nonce or self.acknowledged:fatal('guard_liveness')
+                self.acknowledged=True;return
+            if not self.acknowledged:fatal('guard_not_acknowledged')
+            if event in ('sys.setprofile','sys.settrace','sys.addaudithook'):fatal('observer_or_hook_replacement')
+            if event.startswith('socket.'):
+                # The only frame lookup in an audit callback. Nested frame audit
+                # events reach the non-socket branch and cannot reenter this lookup.
+                self.witness.socket_event(event,args,sys._getframe(1));return
+            self.non_socket(event,args)
+        except BaseException:fatal('audit_callback_failure')
+
+    def non_socket(self,event,args):
+        b=self.bindings
+        if self.finder.resolving and event in ('compile','exec','import'):fatal('resolver_execution_fence')
+        if event=='exec':
+            if len(args)!=1:fatal('exec_arguments')
+            self.witness.audit_exec(args[0])
+        if event.startswith(('sqlite3.','ctypes.')):fatal('database_or_ctypes')
+        if event in ('os.system','os.exec','os.posix_spawn','os.fork','os.forkpty','os.chdir','subprocess.Popen'):
+            fatal('process_or_cwd')
+        if event in ('os.putenv','os.unsetenv'):
+            if b.role!='installer' or os.fsdecode(args[0])!='PIP_BUILD_TRACKER':fatal('environment')
+            if event=='os.putenv' and not Path(os.fsdecode(args[1])).resolve().is_relative_to(b.root/'tmp'):
+                fatal('build_tracker_path')
+        if event=='import':
+            if args[0]==OPTIONAL_NAME:
+                self.finder.admit_import_event(args);return
+            top=args[0].split('.',1)[0]
+            if top not in sys.stdlib_module_names and top not in ('__main__','policy','verify_install','pip'):
+                fatal('import')
+            # pip is allowed solely for the separately attested normal-initializer
+            # worker or installer worker. It grants neither role to another process.
+        if event=='open':
+            if len(args)!=3 or type(args[2]) is not int:fatal('open_arguments')
+            path,_,flags=args
+            writing=flags&(os.O_WRONLY|os.O_RDWR|os.O_APPEND|os.O_CREAT|os.O_TRUNC)
+            if writing and not self.allowed(path):fatal('open_write')
+            if not isinstance(path,int):
+                name=Path(os.fsdecode(path)).name
+                if name.startswith('.env') or name in ('environ','cmdline'):fatal('secret_or_process_file_read')
+        one_path={'os.mkdir':0,'os.remove':0,'os.rmdir':0,'os.chmod':0,'os.chown':0,'os.truncate':0,'os.utime':0}
+        if event in one_path:
+            if not self.allowed(args[one_path[event]]):fatal('single_path_write')
+            index={'os.mkdir':2,'os.remove':1,'os.rmdir':1,'os.chmod':2,'os.chown':3}.get(event)
+            if index is not None and len(args)>index and args[index] not in (-1,None):fatal('dir_fd')
+        if event in ('os.rename','os.link'):
+            if not self.allowed(args[0]) or not self.allowed(args[1]):fatal('two_path_write')
+            if any(fd not in (-1,None) for fd in args[2:4]):fatal('two_path_dir_fd')
+        if event=='os.symlink':
+            if not self.allowed(args[1]):fatal('symlink_destination')
+            destination=Path(os.fsdecode(args[0]))
+            if not destination.is_absolute():destination=Path(os.fsdecode(args[1])).parent/destination
+            if not self.allowed(destination) or (len(args)>2 and args[2] not in (-1,None)):fatal('symlink_target_or_fd')
+        if event in ('os.mknod','os.mkfifo','os.setxattr','os.removexattr','os.kill','os.killpg'):
+            fatal('special_file_xattr_or_signal')
