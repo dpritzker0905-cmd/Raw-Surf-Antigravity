@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 5,
+  "files": 0,
+  "branch": "claude/tide-overlay-cf8266",
+  "date": "2026-11-15",
+  "note": "overlay tide budget: warm, cold budget, cooldown, no-purpose unchanged, acquisition_state"
+}

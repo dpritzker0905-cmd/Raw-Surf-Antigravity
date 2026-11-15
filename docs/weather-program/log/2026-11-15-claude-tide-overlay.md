@@ -116,3 +116,28 @@ owner confirmed no charge, resent once)
 | 3 | `toggle` not wrapped in `useCallback` | Rejected: no consumer uses it as a dependency. |
 | 4 | Height missing for screen readers (`aria-hidden` text) | Rejected: the `aria-label` already carries the height ("falling, 1.4 ft at selected time"). |
 | 5 | "High in now" wording when the turn is under a minute away | Accepted: now reads "High now"; test added. |
+
+## 6. Advisor red-team (2026-11-15 20:25Z, notes `redteam-926-923-tide-2026-11-15.md`): PASS WITH LIMITS. Responses
+1. **G6 (phone 4x) is INCONCLUSIVE, not a pass.** The registered measurement (paired ON-OFF medians +107, -66, +27, +8,
+   +165 ms; median +27 ms, ~15% of a ~175 ms step, order effect ~60 ms) did not meet max(2 ms, 10%), and "pass by
+   attribution" substituted a jsdom estimate made after the result. Withdrawn. Re-run registered here before it ran:
+   12 counterbalanced pairs (OFF/ON, ON/OFF alternating), one whole warm-up run discarded, first 8 steps of every run
+   discarded, 4x CPU, 390x844, same offline harness; PASS if the median of the 12 paired (ON - OFF) medians is
+   <= max(2 ms, 10% of the median OFF step) - otherwise reported as measured. Result appended below when it lands.
+2. **Backend load fixed, not argued.** A cold tide cell costs an Open-Meteo call and a 429 starts tide.py's PROCESS-WIDE
+   cooldown, during which the rating's tide and eta drop out. Now:
+   - `/point-tide?purpose=overlay` (the overlay's only request) serves WARM cells freely; a cold cell is fetched only
+     while the overlay's own budget has a token (12 cold cells/min/process) and no cooldown runs, else it answers a
+     non-cached `overlay_deferred` (`tide.acquisition_state`, `routes/weather_point_tide.py`). The infobox (no purpose)
+     is unchanged. So a display overlay can no longer spend the quota a served number depends on.
+   - Client (`usePointTide.loadPointTideForOverlay`): joins an infobox request in flight or a fresh cache entry; a
+     deferral is never written to the shared cache (the infobox cannot be blanked by it); deferred cells retry after
+     60 s; the overlay waits 600 ms for the view to rest before asking (a moving view changes the cell list per frame).
+   - Upstream budget statement: worst case the overlay adds 12 cold Open-Meteo calls per minute per process (17,280/day
+     if saturated; each cell then stays warm 3 h), against Open-Meteo's free-tier limits of 600/min, 5,000/h and
+     10,000/day (non-commercial). A sustained cold-burst still trips no cooldown on the overlay's behalf: it is
+     refused before the call. Tests: `test_point_tide_overlay_budget.py` (5), 3 client tests (mutation: caching a
+     deferral -> 2 red).
+3. **Codex's reserved files** (`MapWeatherControls.js`, `usePointTide.js`) while #755 is open: additive edits only;
+   merge order flagged to the director.
+4. **First live look owed:** every gate ran on a stub tide and eight fixture spots.

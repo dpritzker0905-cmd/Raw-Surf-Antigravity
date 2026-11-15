@@ -87,6 +87,16 @@ def _cooling_down(key):
     return now < max(until, _TIDE_RATE_LIMIT_UNTIL)
 
 
+def acquisition_state(lat, lng, forecast_days: int = 3) -> str:
+    """'warm' = served from this process's cache (no upstream call); 'cooling' = acquisition refused (a cell or the
+    process-wide 429 cooldown); 'cold' = serving it would call Open-Meteo. Lets a DISPLAY-only caller (the map Tides
+    overlay, /point-tide?purpose=overlay) avoid spending the quota that the rating's tide and eta depend on."""
+    key = _round_key(lat, lng)
+    if _cached_series(key, forecast_days, time.time()) is not None:
+        return "warm"
+    return "cooling" if _cooling_down(key) else "cold"
+
+
 def _record_failure(keys, response=None):
     """Refuse new acquisition for 30s, or a longer finite server Retry-After on HTTP429.
 

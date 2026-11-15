@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 28,
+  "tests": 31,
   "files": 2,
   "branch": "claude/tide-overlay-cf8266",
   "date": "2026-11-15",
-  "note": "tide overlay (18) + Tides beside Surf Rating x layouts x themes (8) + tide follows the ft/m button in the infobox Tide row and the hub chart (2)"
+  "note": "tide overlay (18) + Tides toggle (8) + ft/m tide (2) + overlay load safety (3)"
 }

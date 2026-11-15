@@ -19,6 +19,7 @@ import { clearPointTideCache } from './usePointTide';
 import { forecastSelectionMs } from './forecastReadout';
 import { selectTideCells, tideMarkerModel, formatTimeUntil, TIDE_OVERLAY_STORAGE_KEY, getTideOverlayFlag } from './tideOverlayModel';
 import { canUseAddOn } from './LayerAccessResolver';
+import { SETTLE_MS, DEFERRED_RETRY_MS } from './useTideOverlay';
 import { tideAt, formatTideHeight } from './tideReadoutFormat';
 
 const NOW = Date.parse('2026-11-15T12:00:00Z');
@@ -175,4 +176,43 @@ test.each(['light', 'dark', 'beach'])('theme %s: marker has its own palette and 
   tideMarkerClasses(theme).box.split(' ').forEach((cls) => expect(el.className).toContain(cls));
   expect(el.textContent).toMatch(/Rising|Falling|Slack/);
   expect(el.textContent).toMatch(/ft/);
+});
+
+describe('load safety (advisor red-team 2026-11-15): the overlay never spends the quota the rating and eta need', () => {
+  const overlayCalls = () => fetchMock.mock.calls.filter(([u]) => String(u).includes('purpose=overlay')).length;
+
+  test('a deferred cell is not cached, so the infobox still gets the tide', async () => {
+    fetchMock.mockImplementation((u) => Promise.resolve({ ok: true, json: () => Promise.resolve(
+      String(u).includes('purpose=overlay') ? { available: false, reason: 'overlay_deferred' } : payload) }));
+    render(<TideOverlayLayer spotClusters={[spot]} timeOffsetHours={0} userTier="guest" />);
+    await act(async () => { jest.advanceTimersByTime(700); await Promise.resolve(); await Promise.resolve(); });
+    expect(overlayCalls()).toBe(1);
+    expect(screen.queryByTestId('tide-marker')).toBeNull();          // deferred: draw nothing, never a guess
+    render(<TideReadout lat={LAT} lng={LNG} heightUnit="m" isLight={false} isBeach={false} atTime={forecastSelectionMs(2)} />);
+    await waitFor(() => expect(screen.getByTestId('tide-readout')).toBeTruthy());   // not blanked by the deferral
+  });
+
+  test('a deferred cell is asked again after DEFERRED_RETRY_MS, then drawn', async () => {
+    let defer = true;
+    fetchMock.mockImplementation(() => Promise.resolve({ ok: true, json: () => Promise.resolve(
+      defer ? { available: false, reason: 'overlay_deferred' } : payload) }));
+    render(<TideOverlayLayer spotClusters={[spot]} timeOffsetHours={0} userTier="guest" />);
+    await act(async () => { jest.advanceTimersByTime(700); await Promise.resolve(); await Promise.resolve(); });
+    defer = false;
+    await act(async () => { jest.advanceTimersByTime(DEFERRED_RETRY_MS + 10); await Promise.resolve(); await Promise.resolve(); });
+    await waitFor(() => expect(screen.queryByTestId('tide-marker')).not.toBeNull());
+    expect(overlayCalls()).toBe(2);
+  });
+
+  test('a view that keeps moving asks nothing until it rests SETTLE_MS', async () => {
+    const other = { ...spot, id: 's2', latitude: 21.9, longitude: -159.4 };
+    const { rerender } = render(<TideOverlayLayer spotClusters={[spot]} timeOffsetHours={0} userTier="guest" />);
+    for (let i = 0; i < 5; i++) {
+      await act(async () => { jest.advanceTimersByTime(SETTLE_MS - 100); });
+      rerender(<TideOverlayLayer spotClusters={i % 2 ? [spot] : [other]} timeOffsetHours={0} userTier="guest" />);
+    }
+    expect(fetchMock).not.toHaveBeenCalled();
+    await act(async () => { jest.advanceTimersByTime(SETTLE_MS + 10); await Promise.resolve(); });
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
 });
