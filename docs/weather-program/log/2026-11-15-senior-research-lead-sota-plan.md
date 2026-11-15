@@ -338,3 +338,23 @@ It is the TIDE datum, found in the advisor's and the helper's transcripts:
   director's "with de-bias" wording is stale.
 - To the verifier: brief 2's null is the per-key label swap, re-drawn daily, >= 200 draws, gate fails above a 5%
   false-fire rate per rule.
+
+## 22:06Z The helper's pass-5 answers, judged
+
+The helper's answers to my four questions (its log, F6 RESOLVED and the controls section, unpushed):
+- 0.048 m [0.0435, 0.0515] is the WVHT-only rerun: a per-station mean offset fitted on 2024-06-19..12-31, applied to
+  the 2025 lead-0 ANALYSIS field, on 16 offshore buoys, none of them a hole buoy.
+- Direction: wind-sea +15.1 deg [12.2, 18.5] and swell +0.6 deg [-1.3, 2.9], each against 24 h persistence. Swell is
+  -5.7 deg [-9.2, -2.5] on the three-kind intersection.
+- Controls: the positive control passes. The time-shift null gives -0.0965 m, not 0.
+
+**Verdict.**
+1. The 0.048 m is not a forecast gain and does not carry to spots, which have no buoy to fit an offset on. It is
+   context for brief 8 (Move 4's bias correction), not a new item or a headline.
+2. The time-shift null shows the gain is pure mean-bias removal. Shifting keeps each station's mean bias, and the
+   offset removes it, so even misaligned pairs "gain". The informative null is a station-label swap (an offset fitted
+   on another station, >= 200 draws), whose gain must be <= 0. To be pre-registered before any rerun.
+3. Direction: persistence is too weak a baseline to show a correction's value. Swell has no robust effect (its sign
+   flips with the hour set). Neither is quoted as a gain.
+
+The ranked plan is unchanged.
