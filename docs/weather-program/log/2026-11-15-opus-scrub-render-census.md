@@ -138,3 +138,21 @@ Reading, not a re-judgement:
 
 Per the registration this does NOT ship ON as is. Next decisions go to the director: build lever 3 and re-run the same gate,
 and whether the pre-existing status lag behind gate 3's mislabels is its own fix.
+
+## 19:05Z: new item (the director, from the advisor + animation lane): first-visit coarse-then-fine delay at coastal zooms
+
+**Why the fine request waits (code):** `marineExactUpgrade.js` `useMarineExactUpgrade`. When the resident grid is a thinned WORLD
+frame (`__decimatedStride > 1`, span >= 340 deg), it re-runs the scrub-settle check (which sends the `/grid` request for the fine
+grid) only after the hour has been stable for `EXACT_UPGRADE_DELAY_MS = 1500` ms, with a retry at `EXACT_UPGRADE_RETRY_MS = 4500` ms;
+every hour change re-arms the 1500 ms wait. That is the reported 1.5 s first request and 1.5-4 s of coarse picture. Repeat visits
+are instant because the fine grid is then in the client cache. The wait exists to keep a scrub from sending one `/grid` per hour
+it passes through (the 1-CPU backend).
+
+**Offline lab (`scn_first_visit_fine.js`, desktop, z8 at (-80.05, 28.45), GFS Waves, 8 steps, 6 s dwell):** the lab does NOT
+reproduce the world-frame case. Its series page at z8 is a regional 5x3 frame (not thinned, not world), so the upgrade never arms,
+and on steps 2-8 no fine `/grid` was requested at all within 6 s; the coarse series frame stayed. Step 1 (no series yet) fetched
+`/grid` at once and drew it at 2.3 s (the synthetic server's own latency). So the lab shows a second, related gap: a regional
+coarse series frame is never upgraded to the fine grid on a first visit.
+
+**Not yet pre-registered:** the time-to-fine gate waits on the director's load decision (any earlier request is one more
+`/grid` per hour the user dwells on between the new and the old wait).
