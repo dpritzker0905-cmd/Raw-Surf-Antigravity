@@ -8,6 +8,8 @@
 # repo variable SPOT_SERIES_PUBLISH unset or '1' = automatic runs rate and publish; '0' = (1) the plan job's `if`
 # skips every automatic run (no runner time) and (2) the publish step never runs. A dispatched run publishes only
 # when it rated every spot (limit 0), so the default dispatch (40 spots a job) is always a dry run.
+# The gates read `(vars.SPOT_SERIES_PUBLISH || '1') != '0'`: an UNSET variable is null, which GitHub coerces to 0, so the
+# bare `vars.X != '0'` was false when unset and skipped all 98 automatic runs 2026-11-05..11-15 (fixed 2026-11-15).
 #   Dry run:  Actions -> "Spot Forecast Series" -> Run workflow (defaults: 40 spots a job, 10 hub-parity spots).
 # Measured offline (synthetic catalogue, 1,773 spots, scripts/spot_series_ci.py synthetic): 102,834 frames a model,
 # 192 shards, 2.24 MB gzipped in all, mean 11.7 KB, max 17.9 KB. At CI's measured ~54 ms a frame that is ~93 min a
@@ -43,7 +45,7 @@ concurrency:
 jobs:
   plan:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || vars.SPOT_SERIES_PUBLISH != '0'
+    if: github.event_name == 'workflow_dispatch' || (vars.SPOT_SERIES_PUBLISH || '1') != '0'
     outputs:
       base_time: ${{ steps.t.outputs.base_time }}
     steps:
@@ -144,7 +146,7 @@ jobs:
           path: series-out/
           retention-days: 7
       - name: Publish (unless the kill switch SPOT_SERIES_PUBLISH is '0'; only a run that rated every spot)
-        if: ${{ vars.SPOT_SERIES_PUBLISH != '0' && (github.event_name == 'workflow_run' || inputs.limit == '0') && needs.rate.result == 'success' }}
+        if: ${{ (vars.SPOT_SERIES_PUBLISH || '1') != '0' && (github.event_name == 'workflow_run' || inputs.limit == '0') && needs.rate.result == 'success' }}
         working-directory: backend
         env:
           SPOT_SERIES_PUBLISH: ${{ vars.SPOT_SERIES_PUBLISH || '1' }}

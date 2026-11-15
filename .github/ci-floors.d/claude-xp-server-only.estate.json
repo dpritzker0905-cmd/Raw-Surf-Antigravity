@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 9,
+  "branch": "claude/xp-server-only",
+  "date": "2026-11-15",
+  "note": "#527 rebuilt on #920 (2026-11-15): +9 test_xp_single_path; award-xp/check-badges/photographer route changes dropped (#920 has them)"
+}
