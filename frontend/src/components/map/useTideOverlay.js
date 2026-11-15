@@ -35,10 +35,10 @@ export function useTidePayloads(cells, enabled) {
     const list = key.split('|');
     const run = () => {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
-      list.forEach((cell) => {
-        loadPointTide(cell).then((value) => {
-          if (live) setLoaded((prev) => (prev[cell] === value ? prev : { ...prev, [cell]: value }));
-        });
+      // One state update for the whole view (not one re-render per cell); loadPointTide never rejects.
+      Promise.all(list.map((cell) => loadPointTide(cell).then((value) => [cell, value]))).then((pairs) => {
+        if (!live) return;
+        setLoaded((prev) => (pairs.every(([cell, value]) => prev[cell] === value) ? prev : { ...prev, ...Object.fromEntries(pairs) }));
       });
     };
     run();

@@ -105,3 +105,14 @@ infobox/overlay at the same instant.
 Jest (dot-free mirror of `frontend/`): map + tests 7124 passed; 5 suites fail ONLY in the mirror because they read
 backend files from the repo root (ENOENT `pilot_regions.py`, `normalizer.py`, ...). `check_eslint` passes (shrink).
 Frontend floor fragment: +25 tests, +2 suites (lane must read 9245).
+
+## 5. LongCat review (owner approved the paid send, payload sha256 032e7cd7...2643; first send failed on the network,
+owner confirmed no charge, resent once)
+
+| # | LongCat finding | Verdict |
+|---|---|---|
+| 1 | Stale tide / "No tide" past short coverage; refresh only every 5 min | Rejected: coverage ends where the backend's own 3-day series ends; refetching cannot extend it. Intended. |
+| 2 | One `setLoaded` (re-render) per cell on view change | Accepted (minor; view change only, never scrub): batched into one update via `Promise.all`. |
+| 3 | `toggle` not wrapped in `useCallback` | Rejected: no consumer uses it as a dependency. |
+| 4 | Height missing for screen readers (`aria-hidden` text) | Rejected: the `aria-label` already carries the height ("falling, 1.4 ft at selected time"). |
+| 5 | "High in now" wording when the turn is under a minute away | Accepted: now reads "High now"; test added. |

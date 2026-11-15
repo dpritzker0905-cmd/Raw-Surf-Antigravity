@@ -104,10 +104,10 @@ export function tideMarkerModel(payload, atMs, unit, name = 'Surf spot') {
   const word = trendWord(d.trend);
   const turn = nextTurn(d);
   const until = turn ? formatTimeUntil(Date.parse(turn.time) - atMs) : null;
-  const nextText = turn && until ? `${turn.kind} in ${until}` : null;
+  const nextText = turn && until ? (until === 'now' ? `${turn.kind} now` : `${turn.kind} in ${until}`) : null;
   const turnHeight = turn ? formatTideHeight(turn.height_m, unit) : null;
   let ariaLabel = `Tide near ${name}: ${word.toLowerCase()}, ${height} at selected time`;
-  if (nextText) ariaLabel += `, ${turn.kind.toLowerCase()} ${turnHeight} in ${until}`;
+  if (nextText) ariaLabel += `, ${turn.kind.toLowerCase()} ${turnHeight} ${until === 'now' ? 'now' : `in ${until}`}`;
   return {
     available: true, height_m: d.height_m, trend: d.trend, heightText: height, trendWord: word,
     glyph: trendGlyph(d.trend), nextText, next: turn ? { kind: turn.kind, time: turn.time, height_m: turn.height_m } : null,

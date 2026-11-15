@@ -149,6 +149,17 @@ test('cells: one per tide cell, clusters skipped, nearest first, capped', () => 
   expect(selectTideCells(many, null)).toHaveLength(12);
 });
 
+test('a turn under a minute away reads "High now", never "High in now" (LongCat finding 5)', () => {
+  const t0 = Date.parse('2026-11-15T00:00:00Z');
+  const iso = (ms) => new Date(ms).toISOString().replace('.000Z', 'Z');
+  const ser = [0, 0.4, 0.8].map((h, i) => ({ t: iso(t0 + i * 3600e3), h }));
+  const rising = { series: ser, coverage: [{ start: ser[0].t, end: ser[2].t }],
+    events: [{ type: 'High', time: iso(t0 + 3600e3 + 30e3), height_m: 0.8 }] };
+  const m = tideMarkerModel(rising, t0 + 3600e3 + 10e3, 'm', 'Pipeline');
+  expect(m.nextText).toBe('High now');
+  expect(m.ariaLabel).toMatch(/high 0\.8 m now$/);
+});
+
 test('time-until formatting', () => {
   expect(formatTimeUntil(130 * 60e3)).toBe('2h 10m');
   expect(formatTimeUntil(45 * 60e3)).toBe('45m');

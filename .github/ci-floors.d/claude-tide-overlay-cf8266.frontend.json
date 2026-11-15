@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 25,
+  "tests": 26,
   "files": 2,
   "branch": "claude/tide-overlay-cf8266",
   "date": "2026-11-15",
-  "note": "tide overlay: parity / no-scrub-fetch / kill / tier gate (17) + Tides beside Surf Rating in desktop + sheet x 3 themes (8)"
+  "note": "tide overlay: parity / no-scrub-fetch / kill / tier gate / turn wording (18) + Tides beside Surf Rating in desktop + sheet x 3 themes (8)"
 }
