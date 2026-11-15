@@ -5,7 +5,7 @@
  */
 import {
   LazySeriesFrames, SERIES_NUM_KEYS, firstFrameBounds, loadSeriesJson, packSeriesFrame, packedBuffers, packedVectorCount,
-  seriesMiniFrame, seriesPageFrames, unpackSeriesFrame, _resetSeriesDecodeWorkerForTest,
+  seriesMiniFrame, seriesPageFrames, unpackSeriesFrame, _resetSeriesDecodeWorkerForTest, PACK_FAILS_MAX,
 } from './marineSeriesDecode';
 import { frameToMarineData } from './marineSeriesFrame';
 import { nearestFrameInEntry } from './marineSeriesFinerEntry';
@@ -161,34 +161,100 @@ test('the nearest-frame search builds ONE frame on a lazy page, not every frame 
   expect(frames._packed.size).toBe(11);                             // only h30 was built
 });
 
-describe('BUILD AHEAD: idle time builds the frames a step is about to need (gate 3, 2026-11-15)', () => {
+describe('BUILD AHEAD: idle time builds the frames a step is about to need (gate 3; truly idle, the advisor 2026-11-15)', () => {
   const lazyPage = () => {
     const base = JSON.parse(JSON.stringify(PAGES.regional.frames[0]));
     const page = Array.from({ length: 6 }, (_, i) => packSeriesFrame({ ...JSON.parse(JSON.stringify(base)), hour_offset: i * 3 }, SERIES_NUM_KEYS));
     return seriesPageFrames({ packed: page, json: null }, 'GFS', 'waves').frames;
   };
-  afterEach(() => { jest.useRealTimers(); delete window.__RAW_DISABLE_SERIES_BUILD_AHEAD__; });
+  let queue; let left;
+  const runIdle = () => { const q = queue; queue = []; for (const cb of q) cb({ timeRemaining: () => left, didTimeout: false }); };
+  beforeEach(() => { queue = []; left = 50; window.requestIdleCallback = jest.fn((cb, opts) => { queue.push(cb); expect(opts).toBeUndefined(); return queue.length; }); });
+  afterEach(() => { delete window.requestIdleCallback; delete window.__RAW_DISABLE_SERIES_BUILD_AHEAD__; });
 
-  test('the page\'s first frame is built in idle time; reading a frame builds its two neighbours next, one per idle turn', () => {
-    jest.useFakeTimers();
+  test('the first frame of the page is built in an idle period; reading a frame builds its two neighbours next, never on the read', () => {
     const frames = lazyPage();
     expect(frames._packed.has(0)).toBe(true);
-    jest.runOnlyPendingTimers();
+    runIdle();
     expect(frames._packed.has(0)).toBe(false);                    // h0 built ahead
     frames.get(9);
-    expect(frames._packed.has(6) || frames._packed.has(12)).toBe(true);   // not on the read itself
-    jest.runOnlyPendingTimers();
+    expect(frames._packed.has(6) && frames._packed.has(12)).toBe(true);   // not on the read itself
+    runIdle();
     expect(frames._packed.has(6)).toBe(false);
     expect(frames._packed.has(12)).toBe(false);
     expect(frames._packed.has(15)).toBe(true);                    // only the neighbours, not the whole page
   });
 
+  test('a short idle period builds nothing and waits for the next one (no forced timeout)', () => {
+    const frames = lazyPage();
+    left = 2;                                                     // < IDLE_MIN_MS
+    runIdle();
+    expect(frames._packed.has(0)).toBe(true);
+    expect(queue.length).toBe(1);                                 // rescheduled
+    left = 30;
+    runIdle();
+    expect(frames._packed.has(0)).toBe(false);
+  });
+
+  test('no requestIdleCallback (Safari on iOS): no build-ahead at all, never a timer that can land on a step', () => {
+    delete window.requestIdleCallback;
+    jest.useFakeTimers();
+    try {
+      const frames = lazyPage();
+      frames.get(9);
+      jest.runOnlyPendingTimers();
+      expect(frames._packed.size).toBe(5);                        // only h9, built on its read
+    } finally { jest.useRealTimers(); }
+  });
+
   test('OFF PATH: __RAW_DISABLE_SERIES_BUILD_AHEAD__ builds only on first read', () => {
     window.__RAW_DISABLE_SERIES_BUILD_AHEAD__ = true;
-    jest.useFakeTimers();
     const frames = lazyPage();
     frames.get(9);
-    jest.runOnlyPendingTimers();
-    expect(frames._packed.size).toBe(5);                          // only h9
+    runIdle();
+    expect(frames._packed.size).toBe(5);
+    expect(window.requestIdleCallback).not.toHaveBeenCalled();
+  });
+});
+
+describe('WORKER FAILURES (the advisor 2026-11-15): one request per failure; genuine pack failures latch the worker off', () => {
+  let posted; let reply; let made;
+  class FakeWorker {
+    constructor() { made += 1; this.onmessage = null; }
+    postMessage(m) { if (m.abort) return; posted.push(m); const d = reply(m); setTimeout(() => this.onmessage({ data: { id: m.id, ...d } }), 0); }
+    terminate() {}
+  }
+  beforeEach(() => {
+    posted = []; made = 0;
+    global.Worker = FakeWorker;
+    global.URL.createObjectURL = jest.fn(() => 'blob:x');
+    global.fetch = jest.fn(async () => ({ ok: true, status: 200, text: async () => '{"frames":[]}' }));
+  });
+  afterEach(() => { delete global.Worker; delete global.URL.createObjectURL; delete global.fetch; });
+
+  test('the fetch in the worker rejects: the caller sees an error, and NO second request is made', async () => {
+    reply = () => ({ error: 'net:Failed to fetch' });
+    await expect(loadSeriesJson('http://x/grid_series', {})).rejects.toThrow('net:');
+    expect(posted.length).toBe(1);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('a body that is not JSON: an error to the caller, no second request', async () => {
+    reply = () => ({ error: 'parse:Unexpected token' });
+    await expect(loadSeriesJson('http://x/grid_series', {})).rejects.toThrow('parse:');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  test('a genuine pack failure falls back for that page; after PACK_FAILS_MAX the worker stays off', async () => {
+    reply = () => ({ error: 'pack:boom' });
+    for (let i = 0; i < PACK_FAILS_MAX; i += 1) {
+      const out = await loadSeriesJson('http://x/grid_series', {});
+      expect(out.packed).toBeNull();                              // decoded on the main thread
+    }
+    expect(posted.length).toBe(PACK_FAILS_MAX);
+    expect(global.fetch).toHaveBeenCalledTimes(PACK_FAILS_MAX);
+    await loadSeriesJson('http://x/grid_series', {});            // latched: straight to the main thread
+    expect(posted.length).toBe(PACK_FAILS_MAX);
+    expect(made).toBe(1);
   });
 });

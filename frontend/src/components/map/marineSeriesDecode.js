@@ -120,10 +120,18 @@ export const packedVectorCount = (p) => (p.cols ? p.n : (Array.isArray(p.raw) ? 
 // BUILD AHEAD (2026-11-15, gate 3): a step whose frame is not built yet pays its build on the step. So in idle time, one frame
 // per idle callback (never a long task), the page's first frame is built when the page lands, and the neighbours of a frame that
 // was just read are built next. Kill: window.__RAW_DISABLE_SERIES_BUILD_AHEAD__ = true (build on first read only).
-export const buildAheadOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_SERIES_BUILD_AHEAD__ === true);
+// TRULY IDLE (the advisor's red-team, 2026-11-15): no requestIdleCallback (Safari on iOS) -> no build-ahead at all (a timer can
+// land on a scrub step); with it, no forced timeout, and a frame is built only when the idle period still has IDLE_MIN_MS left,
+// else it waits for the next idle period.
+export const IDLE_MIN_MS = 4;
+const hasIdleCallback = () => typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function';
+export const buildAheadOn = () => hasIdleCallback() && !(window.__RAW_DISABLE_SERIES_BUILD_AHEAD__ === true);
 function whenIdle(fn) {
-  if (typeof window !== 'undefined' && typeof window.requestIdleCallback === 'function') window.requestIdleCallback(fn, { timeout: 2000 });
-  else setTimeout(fn, 50);
+  const tick = (deadline) => {
+    if (deadline && typeof deadline.timeRemaining === 'function' && deadline.timeRemaining() < IDLE_MIN_MS) { window.requestIdleCallback(tick); return; }
+    fn();
+  };
+  window.requestIdleCallback(tick);
 }
 
 export class LazySeriesFrames extends Map {
@@ -235,12 +243,15 @@ self.onmessage = async function (e) {
   var m = e.data;
   if (m.abort) { var c0 = ctl.get(m.id); if (c0) c0.abort(); return; }
   var c = new AbortController(); ctl.set(m.id, c);
+  var stage = 'net:';
   try {
     var init = { signal: c.signal };
     if (m.priority) init.priority = m.priority;
     var res = await fetch(m.url, init);
     if (!res.ok) { self.postMessage({ id: m.id, status: res.status }); return; }
+    stage = 'parse:';
     var json = await res.json();
+    stage = 'pack:';
     var frames = Array.isArray(json && json.frames) ? json.frames : null;
     var top = {}; for (var k in json) if (k !== 'frames') top[k] = json[k];
     var packed = null; var transfer = [];
@@ -254,17 +265,22 @@ self.onmessage = async function (e) {
     }
     self.postMessage({ id: m.id, status: res.status, top: top, packed: packed }, transfer);
   } catch (err) {
-    self.postMessage({ id: m.id, error: (err && err.name === 'AbortError') ? 'aborted' : ('pack:' + String((err && err.message) || err)) });
+    self.postMessage({ id: m.id, error: (err && err.name === 'AbortError') ? 'aborted' : (stage + String((err && err.message) || err)) });
   } finally { ctl.delete(m.id); }
 };`;
 
 let _worker = null;
 let _workerFailed = false;
+// PACK FAILURES (the advisor, 2026-11-15): a genuine pack failure falls back to the main thread for that page; after
+// PACK_FAILS_MAX of them the worker is latched off for the session (no page is fetched twice forever).
+export const PACK_FAILS_MAX = 2;
+let _packFails = 0;
 let _seq = 0;
 const _pending = new Map();
 
 function getWorker() {
-  if (_worker || _workerFailed) return _worker;
+  if (_workerFailed) return null;   // latched off (a worker error, or PACK_FAILS_MAX pack failures): the main thread decodes
+  if (_worker) return _worker;
   try {
     if (typeof Worker === 'undefined' || typeof Blob === 'undefined' || typeof URL === 'undefined' || !URL.createObjectURL) {
       _workerFailed = true;
@@ -309,7 +325,15 @@ export function fetchSeriesPage(url, init) {
       if (signal && onAbort) { try { signal.removeEventListener('abort', onAbort); } catch (e) { /* ignore */ } }
       if (d.error === 'aborted') { resolve({ aborted: true }); return; }
       if (d.error) {
-        if (String(d.error).startsWith('pack:') || d.error === 'worker_error') { _workerFailed = _workerFailed || d.error === 'worker_error'; resolve({ fallback: d.error }); return; }
+        // net: / parse: -> the caller's own error path and retry rules: NO second fetch now (the worker already made the one).
+        // pack: / worker_error -> this page falls back to the main thread; a worker error, or PACK_FAILS_MAX pack failures, latch.
+        if (String(d.error).startsWith('pack:')) {
+          _packFails += 1;
+          if (_packFails >= PACK_FAILS_MAX && !_workerFailed) { _workerFailed = true; try { if (_worker) _worker.terminate(); } catch (e) { /* ignore */ } _worker = null; }
+          resolve({ fallback: d.error });
+          return;
+        }
+        if (d.error === 'worker_error') { _workerFailed = true; resolve({ fallback: d.error }); return; }
         resolve({ error: d.error });
         return;
       }
@@ -373,5 +397,5 @@ export function seriesMiniFrame({ json, packed }) {
 
 export function _resetSeriesDecodeWorkerForTest() {
   if (_worker) { try { _worker.terminate(); } catch (e) { /* ignore */ } }
-  _worker = null; _workerFailed = false; _seq = 0; _pending.clear();
+  _worker = null; _workerFailed = false; _seq = 0; _pending.clear(); _packFails = 0;
 }
