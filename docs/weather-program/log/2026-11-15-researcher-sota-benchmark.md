@@ -494,3 +494,55 @@ The 7.A sentence in section 7 is therefore wrong, and this section supersedes it
 - Row 7 (bias line): built as a measurement, not yet a result.
 
 Nothing in this section changes a served number.
+
+
+## 12. Decision: route 2 (split the rule, one user toggle), with the SOTA test and the user-facing design (2026-11-15 11:10 EST)
+
+**Owner decision (David, 11:09 EST): go with route 2.** He also asked for the SOTA test first, and whether users can toggle it, since two controls would be confusing.
+
+### 12.1 SOTA test (what the public record supports, and what it does not)
+
+| Question | Evidence | Supports route 2? |
+|---|---|---|
+| Do leaders let users switch smoothing on and off? | Ventusky: a documented on/off key for map interpolation (user guide, read 2026-11-15) | **Yes** |
+| What is Ventusky's default? | The guide does not say (**unverified**) | Unknown |
+| Do leaders blend across models? | No public source found. Xweather and Ventusky document same-product interpolation only (vendor claims) | **Yes**: no leader blends across models |
+| Is hard-cut frame animation standard? | MapLibre's own frame-animation example sets `raster-fade-duration: 0` (Context7) | **Yes** |
+| Do leaders blend between hours by default? | Not established. Xweather says client-side interpolation (vendor claim); Meteoblue radar 1-minute steps (search snippet) | Unknown |
+
+**Verdict.** Route 2 matches what the public record shows: a user-facing smoothing option, and no cross-model blending. The
+record does not show which default the leaders use, so route 2 is consistent with SOTA, not proven as the best default. The
+A/B gate in section 12.4 is the test that decides the default.
+
+### 12.2 Users and the toggle: yes, but one control, not two
+
+David is right: two controls would confuse. The design is one user control and one invisible truth rule.
+
+- **User control: "Smooth between hours"** (on or off). Off by default until the A/B passes. Ventusky has the same kind of switch.
+- **Truth rule, not a control: "never blend across models".** It is always on and is never offered as a choice. A user cannot turn it off, so there is nothing to confuse.
+- **Where the control lives:** one switch in the layer panel, applying to the wind and tile layers that the rule currently blocks. Marine crests follow the same switch once their blend is built.
+- **Label and note:** "Smooth between hours: shows in-between frames from the same forecast run. Off shows the model's own hours only."
+- **Desktop and mobile:** the same single switch in every control layout (CLAUDE.md, three-layout rule for MapWeatherControls).
+- **Accessibility:** a real button or switch with `aria-pressed` (CLAUDE.md accessibility rule).
+
+### 12.3 What changes, and what does not
+
+- Served values are unchanged. The smoothing is display only, from two frames of the same run.
+- The cross-model rule stays (`WebGLWindEngine.js:96-100`), and the same-model check stays. Only the hour check is relaxed, and only behind the switch.
+- The rule change is an owner decision. It goes to the director as a written policy change, not as a code change.
+
+### 12.4 Gate (pre-registered before any measurement)
+
+- A/B on the same fixed 24-hour scrub, same views and renderer, both arms built from the same commit.
+- Pass: the luminance step across hour boundaries falls by at least 50% with the switch on, and frame time is within 90% to 110% of the switch-off baseline.
+- Correctness: the decoded frames are byte-identical with the switch on and off, and frame count and content are unchanged.
+- Default: stays off unless a later pre-registered test shows the smoothed view is preferred on a user test.
+
+### 12.5 Order of work
+
+1. Owner policy written (this section, once the director agrees).
+2. Build the switch behind a flag, default off.
+3. Build the crest blend under the same switch.
+4. Run the 12.4 gate.
+
+Nothing here changes a served number. Nothing was merged.
