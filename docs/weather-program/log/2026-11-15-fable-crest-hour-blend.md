@@ -666,3 +666,11 @@ the blend, not for it.
 2. **H8f** as registered in section 23.1, unchanged. Its two pictures are read inside the stand-in's lifetime (within about
    0.3 s of the jump) and so inside the transient, both of them alike.
 3. The self-mix check of section 24.1 is kept as a standing line: difference at most 0.01 in every case.
+
+## 26. The advisor on the settle condition (13:56 EST): fixed BEFORE the runs of section 25 (they were stopped a minute in and restarted)
+- Section 23.3's condition (grid unchanged for 1.5 s and at least 2 s since the step) is true at 2.0 s on a first visit while
+  the coarse stand-in is still showing. Corrected: an hour is settled when the engine's grid is NOT the stand-in's (46 x 21)
+  and has not changed for 1.5 s; 10 s limit; an hour that does not settle is listed.
+- The bracket line is also reported WITHOUT the one-level widening, so the widening is seen not to carry a pass.
+- H8f records the grid of all four pictures per triple.
+- The flat control's expected 128% (section 23.4) was derived AFTER 130% had been seen: it is post hoc and labelled so.

@@ -101,10 +101,11 @@ const SPY = () => {
   // settled (log section 23.3): the grid unchanged for 1.5 s and at least 2 s since the call; 10 s limit
   H.settle = async (limit = 10000) => { const s0 = performance.now(); let last = H.state().dims; let since = s0;
     while (performance.now() - s0 < limit) { await H.wait(60); const d = H.state().dims; if (d !== last) { last = d; since = performance.now(); }
-      if (performance.now() - s0 >= 2000 && performance.now() - since >= 1500) return { ok: true, dims: last, ms: Math.round(performance.now() - s0) }; }
+      // never the coarse STAND-IN (46 x 21): on a first visit it shows from about 45 ms until the fine grid arrives at 1.4-4.2 s (log 21, 26)
+      if (last !== '46x21' && performance.now() - since >= 1500) return { ok: true, dims: last, ms: Math.round(performance.now() - s0) }; }
     return { ok: false, dims: last, ms: limit }; };
   // the rounding bracket (section 23.2): the share of pixels whose value is outside [reference rounded down, rounded up] widened by one level
-  H.outside = (M, LO, HI) => { let n = 0; for (let i = 0; i < M.length; i++) { const lo = Math.min(LO[i], HI[i]) - 1; const hi = Math.max(LO[i], HI[i]) + 1; if (M[i] < lo || M[i] > hi) n += 1; } return n / M.length; };
+  H.outside = (M, LO, HI, widen = 1) => { let n = 0; for (let i = 0; i < M.length; i++) { const lo = Math.min(LO[i], HI[i]) - widen; const hi = Math.max(LO[i], HI[i]) + widen; if (M[i] < lo || M[i] > hi) n += 1; } return n / M.length; };
   H.F = {};
   // H9 (forced): the lab hands the blend a COARSER copy of the resident field as the earlier one, at the same bounds
   H.forced = async () => {
@@ -277,7 +278,7 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
             H.put(lo); const LO = await H.shot(); H.put(hi); const HI = await H.shot();
             H.put(now.b); const N1 = await H.shot(); const N2 = await H.shot();
             const base = Math.min(H.std(R[k]), H.std(R[k + 2]));
-            ref = { outside: H.outside(M, LO, HI), diff: H.mad(M, REF), retM: H.std(M) / base, retRef: H.std(REF) / base, toLo: H.mad(M, LO), toHi: H.mad(M, HI), loHi: H.mad(LO, HI), noise: H.mad(N1, N2), restVsReal: H.mad(N1, R[k + 2]) };
+            ref = { outside: H.outside(M, LO, HI), outside0: H.outside(M, LO, HI, 0), diff: H.mad(M, REF), retM: H.std(M) / base, retRef: H.std(REF) / base, toLo: H.mad(M, LO), toHi: H.mad(M, HI), loHi: H.mad(LO, HI), noise: H.mad(N1, N2), restVsReal: H.mad(N1, R[k + 2]) };
           }
           const flat = H.avg(R[k], R[k + 4]);
           return { st, ref, probe, eBlend: H.mad(M, R[k + 1]), eCutA: H.mad(R[k], R[k + 1]), eCutB: H.mad(R[k + 2], R[k + 1]), eFlat: H.mad(flat, R[k + 1]),
@@ -294,7 +295,7 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
         const t = { j, attempt, sameGridAll, rightHours, mixedRight, oneBlend, dims: real[j].dims, mixed: [held.st.prevValid, held.st.valid], hidden: real[j + 1].valid,
           eBlend: r4(held.eBlend), eCut: r4(Math.min(held.eCutA, held.eCutB)), eFlat: r4(held.eFlat), retTruth: r4(held.retTruth), flatRetTruth: r4(held.flatRetTruth),
           refDiff: held.ref ? r4(held.ref.diff) : null, retM: held.ref ? r4(held.ref.retM) : null, retRef: held.ref ? r4(held.ref.retRef) : null,
-          outside: held.ref ? +held.ref.outside.toFixed(5) : null,
+          outside: held.ref ? +held.ref.outside.toFixed(5) : null, outside0: held.ref ? +held.ref.outside0.toFixed(5) : null,
           diag: held.ref ? { toLo: r4(held.ref.toLo), toHi: r4(held.ref.toHi), loHi: r4(held.ref.loHi), noise: r4(held.ref.noise), restVsReal: r4(held.ref.restVsReal) } : null,
           values: held.values && Object.fromEntries(Object.entries(held.values).map(([k2, v]) => [k2, r4(v)])), startsDelta: held.st.starts - before.starts, mix: held.st.mix };
         t.truthNoise = r4(again.noise); t.truthGrid2 = again.st.dims; t.truthSameHour = again.st.valid === real[j + 1].valid;

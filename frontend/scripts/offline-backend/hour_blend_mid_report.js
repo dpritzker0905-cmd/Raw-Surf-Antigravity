@@ -43,7 +43,7 @@ if (v.length) {
 if (ok.some((t) => t.eCutB != null)) console.log(`     H8f detail: the hard cut's two choices against the truth, pooled: fine h ${f(sum(ok, 'eCutA') / ok.length)}, the stand-in of h+6 ${f(sum(ok, 'eCutB') / ok.length)}; the held mix ${f(sum(ok, 'eBlend') / ok.length)}`);
 // the rounding bracket (section 23.2), same-grid held pictures
 const br = ok.filter((t) => t.outside != null && t.grids && new Set(t.grids).size === 1);
-if (br.length) verdict('BRACKET', Math.max(...br.map((t) => t.outside)) <= 0.01 ? 'PASS' : 'FAIL', `${br.length} same-grid held pictures: share of pixels outside the rounding bracket, largest ${pc(Math.max(...br.map((t) => t.outside)))}, mean ${pc(sum(br, 'outside') / br.length)} (line 1%; the registered line applies to the grey view)`);
+if (br.length) verdict('BRACKET', Math.max(...br.map((t) => t.outside)) <= 0.01 ? 'PASS' : 'FAIL', `${br.length} same-grid held pictures: share of pixels outside the rounding bracket, largest ${pc(Math.max(...br.map((t) => t.outside)))}, mean ${pc(sum(br, 'outside') / br.length)} (line 1%; the registered line applies to the grey view). WITHOUT the one-level widening: largest ${pc(Math.max(...br.map((t) => t.outside0)))}, mean ${pc(sum(br, 'outside0') / br.length)}`);
 // H5 two-sided, against the exact reference
 const ref = ok.filter((t) => t.refDiff != null);
 const worstDiff = Math.max(...ref.map((t) => t.refDiff)); const worstRet = Math.max(...ref.map((t) => Math.abs(t.retM - t.retRef)));
