@@ -201,3 +201,36 @@ change must leave the marine blends untouched.
 - the ICON-EPS horizon;
 - GUST in the GEFS mean inventory;
 - the ECMWF open-data archive depth (needed for the 30-day hindcast).
+
+## 21:17Z Path to state of the art for days 8-14 wind and gusts (David 16:14 EST: "Research the best path toward state of the art here")
+
+Read as the long-range wind/gust question above. This section adds to the 21:17Z-earlier recommendation and does not replace it.
+
+**What the leaders and the literature show.**
+- A multi-model grand ensemble beats any single ensemble (TIGGE: [Swinbank 2015](https://consensus.app/papers/details/w:431279e6-1b77-422c-90ca-66fc7bcb8f18/?utm_source=claude_code)).
+  A multi-model mean improves 10 m wind, with the biggest gain at longer leads
+  ([Lyu 2022](https://consensus.app/papers/details/w:e7939b7d-07d7-4658-b80c-49b3826bdf4a/?utm_source=claude_code)).
+- GenCast beats ECMWF ENS on 97.2% of 1,320 targets out to 15 days, but needs accelerator compute and publishes no
+  operational open feed ([Price 2024](https://consensus.app/papers/details/w:ef5d8792-795d-422a-9fe9-3d87f9df220d/?utm_source=claude_code)).
+- Gust post-processing against stations (EMOS, neural nets) is the standard
+  ([Schulz 2021](https://consensus.app/papers/details/w:28e00458-7ba9-4062-ae3d-b26a9b79b8b6/?utm_source=claude_code)).
+- ECMWF open data serves AIFS-ENS (`model="aifs-ens"`, cf/pf) beside IFS ENS. The README (via Context7) does not state
+  its step range. Daily gust exceedance probabilities (`10fgg10/15/25`) run 0-360 h.
+
+**Staged path (SubQ: order right 0.997).**
+1. IFS ENS mean hand-off with its hindcast gate, as above.
+2. Gate arms: the GEFS mean and AIFS-ENS (AIFS-ENS arm: SubQ 0.83). If a grand-ensemble mean (IFS ENS + GEFS) beats IFS
+   ENS alone, put it to David as a FORECAST COMPOSITION question. That is separate from his display-blend ban
+   (SubQ 0.99; Reflection agrees), and needs his explicit approval.
+3. Gusts at days 8-14, changed after Reflection: a gust built from the mean wind smooths peaks and under-states
+   high-wind risk.
+   - Calibrate gusts with predictors from the ensemble mean AND spread (`em`, `es`), not the mean alone.
+   - Show ECMWF's ensemble gust probability (chance of gusts >= 15 m/s) as the risk cue.
+   - Add a gust-peak metric to the gate: Brier score and CSI for gusts >= 15 m/s against NDBC GST/ASOS. It must
+     beat the loop and the GFS stand-in.
+4. Wind and gust calibration (EMOS) by lead against stations, once n allows (SubQ 0.99).
+5. Ensemble spread as a confidence cue on the scrubber at days 8-14 (SubQ 0.98).
+6. Deferred: self-run GenCast and other ML models (compute; SubQ 0.998).
+
+**Verdict.** No design for a "state of the art" claim exists until step 1's gate has run on our stations. Step 2's
+grand ensemble is the most likely SOTA end state under our constraints, and it needs David's word.
