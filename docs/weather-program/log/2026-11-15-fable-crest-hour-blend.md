@@ -471,3 +471,9 @@ at coastal zooms, where one failure is still unexplained; not ready for default 
 3. H8 on low-zoom views has been seen twice (46-47% in luminance, 40.5% in metres); a third run "adds a tick, not information".
    Section 15's run was already under way when this arrived. It is recorded as it ends and no weight is put on it.
 4. **H8c** (section 16.1) is the informative test and runs next.
+
+## 18. Section 15's third H8 run (12:16-12:27 EST, recorded 12:30 EST): VOID, 2 triples
+Of 17 candidate views 16 were skipped by the registered rule: with the kill set, the engine held the 46 x 21 grid at some of
+the 8 hours and the 181 x 83 grid at others. The one view used gave 2 triples (53% and 49% of the cut). The same views held
+one grid through section 14's run an hour earlier, so which grid is at rest 600 ms after a step differs from run to run in
+this harness. A same-grid H8 cannot be made to hold still here; no weight is put on this run, as the advisor said beforehand.

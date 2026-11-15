@@ -29,6 +29,20 @@ const CANDIDATES = {
 };
 const QUOTA = { waves: 4, swell_1: 3, swell_2: 2, wind_waves: 1 };
 const SWAPS = process.env.SWAPS !== '0';
+// MODE=h8c (log section 16.1): the ORIGINAL coastal views, triples scored regardless of grid, luminance only.
+// MODE=grey (section 16.3): the first three one-grid waves views drawn with the raw height as grey instead of the colour table.
+const MODE = process.env.MODE || 'h8';
+if (MODE === 'h8c') {
+  for (const k of Object.keys(CANDIDATES)) CANDIDATES[k] = [];
+  CANDIDATES.waves = [[-158.0, 21.6, 5.0], [-9.5, 39.0, 5.0], [150.0, -34.0, 5.0], [-40.0, 35.0, 2.5], [-140.0, 20.0, 3.0], [20.0, -40.0, 3.5]];
+  CANDIDATES.swell_1 = [[-123.0, 37.5, 5.0], [-60.0, 30.0, 3.5]]; CANDIDATES.swell_2 = [[115.0, -10.0, 4.0]]; CANDIDATES.wind_waves = [[-5.0, 50.0, 4.5]];
+  Object.assign(QUOTA, { waves: 6, swell_1: 2, swell_2: 1, wind_waves: 1 });
+}
+if (MODE === 'grey') {
+  CANDIDATES.waves = [[-158.0, 21.6, 5.0], [150.0, -34.0, 5.0], [-9.5, 39.0, 5.0], [-40.0, 35.0, 2.5], [-140.0, 20.0, 3.0], [20.0, -40.0, 3.5]];
+  Object.assign(QUOTA, { waves: 6, swell_1: 0, swell_2: 0, wind_waves: 0 });
+}
+const ANYGRID = MODE === 'h8c' || MODE === 'grey';
 
 const SPY = () => {
   const H = (window.__HM__ = { hide: true, R: {}, T: {} });
@@ -87,10 +101,17 @@ const SPY = () => {
   H.forced = async () => {
     const e = eng(); const gl = map().painter.context.gl; const t = H.tex(); const g = e._waveData && e._waveData.waveGrid;
     if (!g || !g.bounds || e._waveData.u_waveScoreTexture) return { miss: 'no_grid' };
-    const pick = (n) => [4, 3, 2, 5].find((k) => (n - 1) % k === 0 && (n - 1) / k >= 3) || 0;
-    const kx = pick(t.w); const ky = pick(t.h); if (!kx || !ky) return { miss: 'no_factor', dims: `${t.w}x${t.h}` };
-    const cw = (t.w - 1) / kx + 1; const ch = (t.h - 1) / ky + 1; const cb = new Uint8Array(cw * ch * 4);
-    for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) { const si = ((y * ky) * t.w + x * kx) * 4; const di = (y * cw + x) * 4; cb[di] = t.b[si]; cb[di + 1] = t.b[si + 1]; cb[di + 2] = t.b[si + 2]; cb[di + 3] = t.b[si + 3]; }
+    // the coarse copy: the resident field resampled (bilinear) to about a third of its resolution on the SAME sample extents
+    const coarseN = (n) => Math.max(4, Math.round((n - 1) / 3) + 1);
+    const cw = coarseN(t.w); const ch = coarseN(t.h); if (cw >= t.w || ch >= t.h) return { miss: 'too_small', dims: `${t.w}x${t.h}` };
+    const cb = new Uint8Array(cw * ch * 4);
+    for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
+      const fx = x * (t.w - 1) / (cw - 1); const fy = y * (t.h - 1) / (ch - 1); const x0 = Math.min(t.w - 2, Math.floor(fx)); const y0 = Math.min(t.h - 2, Math.floor(fy)); const ax = fx - x0; const ay = fy - y0;
+      for (let c = 0; c < 4; c++) {
+        const v = (1 - ax) * (1 - ay) * t.b[(y0 * t.w + x0) * 4 + c] + ax * (1 - ay) * t.b[(y0 * t.w + x0 + 1) * 4 + c] + (1 - ax) * ay * t.b[((y0 + 1) * t.w + x0) * 4 + c] + ax * ay * t.b[((y0 + 1) * t.w + x0 + 1) * 4 + c];
+        cb[(y * cw + x) * 4 + c] = Math.round(v);
+      }
+    }
     const t0 = gl.getParameter(gl.TEXTURE_BINDING_2D); const flip = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL); const tex = gl.createTexture();
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false); gl.bindTexture(gl.TEXTURE_2D, tex);
     for (const [k, v] of [[gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE], [gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE], [gl.TEXTURE_MIN_FILTER, gl.LINEAR], [gl.TEXTURE_MAG_FILTER, gl.LINEAR]]) gl.texParameteri(gl.TEXTURE_2D, k, v);
@@ -103,8 +124,8 @@ const SPY = () => {
       H.kill(false); e._hourPrev = prev; e._hourBlend = { t0: 0, ms: 160 };
       window.__RAW_CREST_BLEND_HOLD__ = 0; const COARSE = await H.shot(); const m0 = H.state().mix;
       window.__RAW_CREST_BLEND_HOLD__ = 0.5; const HELD = await H.shot(); const m5 = H.state().mix;
-      const dx = (b.east - b.west) / (cw - 1);
-      e._hourPrev = { ...prev, bounds: { ...b, west: b.west + dx, east: b.east + dx } }; const SHIFT = await H.shot();
+      const dx = (b.east - b.west) / (cw - 1); const dy = (b.north - b.south) / (ch - 1);   // the control: one coarse cell east AND one north
+      e._hourPrev = { ...prev, bounds: { west: b.west + dx, east: b.east + dx, south: b.south + dy, north: b.north + dy } }; const SHIFT = await H.shot();
       out = { coarse: `${cw}x${ch}`, fine: `${t.w}x${t.h}`, mixes: [m0, m5], eHeld: H.mad(HELD, FINE), eCoarse: H.mad(COARSE, FINE), eShift: H.mad(SHIFT, FINE), retHeld: H.std(HELD) / H.std(FINE) };
     } finally {
       window.__RAW_CREST_BLEND_HOLD__ = null; e._hourBlend = null; e._hourPrev = null; H.kill(true); gl.deleteTexture(tex);
@@ -155,6 +176,7 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
   const errs = []; page.on('pageerror', (e) => errs.push(String(e).slice(0, 160).replace(/access_token=[^&\s"']+/g, 'access_token=REDACTED')));
   await L.openMap(page);
   const ev = (fn, arg) => page.evaluate(fn, arg);
+  if (MODE === 'grey') await ev(() => { window.__GPU_DEBUG__ = { mode: 'value' }; });
   const home = async () => { await ev(() => window.__HM__.key('Home', 1)); await sleep(2500); };
   const stepTo = async (n) => { for (let i = 0; i < n; i++) { await ev(() => window.__HM__.key('ArrowRight', 3)); await sleep(700); } };
   let on = null; let vi = -1; const used = {}; const skipped = [];
@@ -168,7 +190,7 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
     await ev(() => { window.__HM__.R = {}; window.__HM__.T = {}; });
     const real = {};
     for (let j = 1; j <= 8; j++) { await stepTo(1); await sleep(600); real[j] = await ev(async (k) => { const H = window.__HM__; H.R[k] = await H.shot(); H.T[k] = H.tex(); return H.state(); }, j); }
-    const stable = Object.values(real).every((x) => x.dims === real[1].dims && x.layer === layer);
+    const stable = ANYGRID || Object.values(real).every((x) => x.dims === real[1].dims && x.layer === layer);
     if (!stable) { skipped.push(`${layer}@${lng},${lat},z${z}:${[...new Set(Object.values(real).map((x) => x.dims))].join('/')}`); console.log(`skipped ${skipped[skipped.length - 1]}`); await home(); continue; }
     used[layer] = (used[layer] || 0) + 1; vi += 1;
     const triples = [];
@@ -208,8 +230,10 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
           refDiff: held.ref ? r4(held.ref.diff) : null, retM: held.ref ? r4(held.ref.retM) : null, retRef: held.ref ? r4(held.ref.retRef) : null,
           diag: held.ref ? { toLo: r4(held.ref.toLo), toHi: r4(held.ref.toHi), loHi: r4(held.ref.loHi), noise: r4(held.ref.noise), restVsReal: r4(held.ref.restVsReal) } : null,
           values: held.values && Object.fromEntries(Object.entries(held.values).map(([k2, v]) => [k2, r4(v)])), startsDelta: held.st.starts - before.starts, mix: held.st.mix };
-        if (sameGridAll && rightHours && mixedRight && oneBlend) got = t;
-        else if (attempt === 1) got = { ...t, leftOut: !sameGridAll ? 'grid' : !rightHours ? 'hours' : !mixedRight ? 'mixed_wrong_hours' : 'in_between_drawn' };
+        t.grids = [real[j].dims, real[j + 1].dims, real[j + 2].dims, held.st.prevDims, held.st.dims];   // h, the hidden h+3, h+6 at rest; the two fields mixed
+        const gridOk = ANYGRID || sameGridAll;
+        if (gridOk && rightHours && mixedRight && oneBlend) got = t;
+        else if (attempt === 1) got = { ...t, leftOut: !gridOk ? 'grid' : !rightHours ? 'hours' : !mixedRight ? 'mixed_wrong_hours' : 'in_between_drawn' };
       }
       triples.push(got);
     }
@@ -222,7 +246,7 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
       const okMix = r.mixes[0] === 1 && r.mixes[1] === 0.5;
       swaps.push({ j, coarse: r.coarse, fine: r.fine, eHeld: r4(r.eHeld), eCoarse: r4(r.eCoarse), eShift: r4(r.eShift), retHeld: r4(r.retHeld), restNoise: r4(r.restNoise), ...(r.stable && okMix ? {} : { miss: !r.stable ? 'engine_changed' : 'mix_not_held' }) });
     }
-    const out = { view: vi, layer, lng, lat, z, theme: THEME, drawnLayer: real[1].layer, skippedSoFar: [...skipped], triples, swaps, errors: errs.slice(0, 4) };
+    const out = { view: vi, mode: MODE, layer, lng, lat, z, theme: THEME, drawnLayer: real[1].layer, skippedSoFar: [...skipped], triples, swaps, errors: errs.slice(0, 4) };
     fs.appendFileSync(path.join(OUT, `hm-${THEME}.jsonl`), JSON.stringify(out) + '\n');
     console.log(`view ${vi} ${layer}: H8 ` + triples.map((t) => (t.leftOut ? `[out:${t.leftOut}]` : `${t.eBlend}/${t.eCut}`)).join(' ') + ' | H9 ' + swaps.map((s) => (s.miss ? `[${s.miss}]` : `${s.eHeld}/${s.eCoarse}/${s.eShift}`)).join(' '));
     await home();

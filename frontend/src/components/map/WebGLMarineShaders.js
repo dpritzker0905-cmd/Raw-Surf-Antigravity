@@ -537,7 +537,10 @@ void main() {
   }
 
   if (u_debug_mode > 0.5) {
-    if (u_debug_mode < 1.5) { // 'uv' -> 1.0
+    if (u_debug_mode > 5.5) { // 'value' -> 6.0: the height byte as grey, no colour table (after the hour blend's mix)
+      gl_FragColor = vec4(vec3(waveData.b), u_opacity);
+      return;
+    } else if (u_debug_mode < 1.5) { // 'uv' -> 1.0
       gl_FragColor = vec4(grid_uv.x, grid_uv.y, 0.0, u_opacity);
       return;
     } else if (u_debug_mode < 2.5) { // 'mask' -> 2.0
