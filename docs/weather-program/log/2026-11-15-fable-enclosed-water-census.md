@@ -125,3 +125,67 @@ distance into text that says "NOAA's native mask": the #852 log, its SCOREBOARD 
   row are append-only and stay as written; this section and the ledger correction line supersede them.
 - What it changes in understanding: the read was barely inside the reach. A grid shift of one cell would have
   produced "no data" by itself.
+
+## 16:24Z The relative test: rule fixed now, to be scored on a window not yet seen
+
+The owner typed in this session (2026-11-15 11:21 EST): "write the rule for the relative test". This section is the
+rule only. Nothing below has been computed. No field or observation dated 2026-11-16 or later exists yet.
+
+**What I already know, and how it bears on this rule (disclosed, because a rule written after a look can be bent).**
+From the 11-04..11-13 census I have seen: the five judged no-water stations all read high; four are in Chesapeake Bay;
+open-water stations mostly read low; Southern California's open stations disagree with each other. I expect the four
+Chesapeake stations to be flagged. Two choices below are informed by that look and are marked **[informed]**. The
+threshold is not: 0.30 m is the line the first rule already used.
+
+**Question.** Does a station our sampler answers from a neighbouring cell read differently from open water in the same
+box, in the same hours, by more than open-water stations in that box differ from each other?
+
+**Window.** NOAA GFS-Wave analysis fields (f000) every 6 h from 2026-11-16 00Z to 2026-11-25 18Z: 40 fields, 10 days,
+none overlapping the census. NDBC `realtime2` for the same days. Population and classes exactly as in the census rule
+above (stations reporting a wave height at the pull; `open` / `partial` / `none` on the native mask of the last field).
+
+**Box.** The station's pilot box, from all four box groups in `pilot_regions.py`. Stations outside every box are
+listed and not judged: they are not on our 0.25 degree served path.
+
+**Baseline, per field time.** The median of (model - buoy) over the box's `open` stations that have a pair at that
+time. A time counts only if at least 3 open stations have a pair. **[informed]** A box with fewer than 3 judged open
+stations gives its stations the verdict NO BASELINE.
+
+**Statistic.** For a station, r(t) = (model - buoy) at the station minus the box baseline at t. R = the mean of r(t).
+Interval: day-block bootstrap over the days of r(t), 2,000 draws, seed 20261128, 95%.
+
+**Flag.** |R| >= 0.30 m, the interval excludes 0, at least 20 times over at least 7 distinct days.
+
+**Null arm, per box.** Each `open` station of the box is judged the same way against the OTHER open stations of its box
+(leave one out; needs at least 3 others, so a box needs at least 4 judged open stations). The box is USABLE only if at
+most 10% of its open stations are flagged; with fewer than 10 open stations that means none. **[informed]** The null
+is per box and not pooled, because boxes differ in how alike their open water is. This makes naming possible in one
+box when another box's null fails, which favours the result I expect; so the pooled flag rate is printed beside it,
+and if the pooled rate exceeds 10% the report says so in its first line.
+A box that is judgeable but has fewer than 4 open stations is NULL NOT RUNNABLE: its stations are reported with their
+numbers and none is a candidate.
+
+**Positive control.** 46267 judged against the open stations of `us_pacific_northwest`. That box had two judged open
+stations in the census, so for this control only the baseline may use 2. It must be flagged with R of at least
++1.0 m. No upper bound this time: the bound in the first rule was the error in that rule, not a property of the
+buoy. If the control is not flagged the test is INVALID. The census replays the sampler without the #852 exclusion,
+so the control still exercises the old read.
+
+**Verdicts, per `none` or `partial` station.** CANDIDATE (flagged, in a USABLE box), NOT SHOWN, NO BASELINE, NULL NOT
+RUNNABLE, TOO FEW PAIRS. Sign is reported: a positive R is a more exposed read, a negative R a more sheltered one.
+
+**What a CANDIDATE is, and is not.** It is evidence that the station's value comes from other water. It is not a
+served change. Naming a station in `unresolved_stations.py` is a served-number change at that point under D-065, needs
+the owner's word, and first needs: (1) which sampler path the station takes in production (`interp`, from the scored
+rows, for a `none` station; a `partial` station reads its own cell's wet corners and may need a different remedy than
+"no data"); (2) whether any catalogue surf spot shares the station's four cells.
+
+**Limits, stated now.** Ten days in one season. Analysis fields, not the served forecast. The global field stands in
+for our regional tiles. About 45 `none` and `partial` stations will be tested at once with no multiplicity correction:
+the 0.30 m floor and the box null are the guards, and the count of candidates is to be read against that. A box whose
+open stations are few or clustered gives a weak baseline; the number of open stations behind each baseline is printed.
+The Chesapeake stations share one baseline, so four flags there are one finding about one water body, not four.
+
+**Data that expires.** NOMADS keeps about ten days of fields. The 11-16 fields must be fetched by 11-24 and the rest by
+11-27 (the Hawaii shore-split commitment needs fields from 11-14 on, on the same clock, so its first fetch is due by
+11-22). Scoring: no earlier than 2026-11-26, recorded in a log by 2026-11-28T12:00Z (ledger commitment).
