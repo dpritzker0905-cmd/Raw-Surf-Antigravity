@@ -48,3 +48,33 @@ before any code). Stacked on PR #926 (TIDE_LOCAL_DATUM). Raw results: notes fold
 Backend `test_tide_harmonic.py` 16 (mutation: residual zeroed -> 4 red); tide/flag/guardrail/sea-input/replay suites
 147 and a 93-file sweep 1629 passed (one expectation updated: the model result now carries `source`). Frontend
 `tideSource.test.js` 2, map tide/marker/overlay/kill suites 88/88. Lint and size gates clean.
+
+## Advisor/director review of #931 (2026-11-15 evening): responses
+- **Radius: 10 km** (was 100). The G3 sample was first-30-by-ID per bucket (75/127 in two bays, little Pacific coast);
+  on the open coast the model scored 0.117 m vs a neighbour's 0.12-0.16 beyond 5 km. Only <= 5 km was a clear win.
+  A region-stratified LOO (Hawaii / Pacific / Gulf of Alaska / Northeast / Southeast / Gulf / Caribbean, open-coast
+  stations only, both directions of every pair) is REGISTERED as the condition to widen: D = the largest bucket where
+  the neighbour's median beats the model on the local datum in EVERY region with >= 5 pairs. Not run yet.
+- **Shape guard:** a station serves only if its tide moves with the spot cell's model over their overlap (r >= 0.8,
+  sd ratio 0.6-1.6, best lag within 1 h); else the model. Pensacola (diurnal, r 0.65) is refused by it.
+- **Staleness fallback:** a station file that does not cover now .. +72 h serves the model (the ingest stopped).
+- **G4 as registered:** the real serve path runs with the HTTP client patched and every URL recorded; none is NOAA's
+  (the grep test stays as a second guard).
+- **G2 re-run (code at 09918fd68):** 18/20: Virginia Key's ingest fetch failed transiently (no document); Pensacola is
+  refused by the shape guard (by design). The other 18 exact.
+- **Option B re-scored (advisor point 6):** with the model's own 1-year mean as the residual's offset (instead of the 14
+  past days, which absorb a season-long anomaly), same 20 stations x 168 h vs OBSERVED: harmonic alone 0.248, model as
+  served 0.354, B (14-day offset) 0.284, **B (1-year offset) 0.157 m**, model minus its 1-year mean 0.211; B-1y beats the
+  harmonic alone at 12/20 (still worse in the Southeast: Charleston 0.106 -> 0.179, Fernandina 0.094 -> 0.178). Post
+  hoc, so it does not flip the flag. The code now takes the 1-year offset when the door applied it (#926 merged in).
+
+## PRE-REGISTERED (before the run): held-out test of option B with the 1-year offset
+Script `backend/scripts/tide_harmonic_heldout_b.py`: the 26 stations x 4 held-out weeks of the #926 test (7 days from
+2025-12-15, 2026-03-15, 2026-06-15, 2026-09-15), vs OBSERVED water (MSL, on the hour). Arms: harmonic alone (CO-OPS
+predictions); model minus its 1-year mean (what #926 serves); **B** = harmonic + (25 h low-pass of (model minus its
+1-year mean) minus harmonic). Pass lines for TIDE_SURGE_RESIDUAL to ship ON:
+- **B1** B's median station-week RMSE below BOTH other arms' medians;
+- **B2** at every Southeast/Gulf station (Wrightsville, Charleston, Fernandina, Lake Worth, Virginia Key, Clearwater,
+  Pensacola) B's 4-week median is not worse than the harmonic alone by more than 0.05 m;
+- **B3** on surge hours (|observed - predicted, 25 h low-pass| > 0.15 m), B's median RMSE below the harmonic alone's.
+All three pass -> TIDE_SURGE_RESIDUAL default '1' in this PR. Otherwise it stays '0' and the result is recorded.
