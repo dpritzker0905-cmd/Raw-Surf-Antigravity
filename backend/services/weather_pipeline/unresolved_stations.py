@@ -20,7 +20,7 @@ MATCH_RADIUS_DEG = 0.02
 UNRESOLVED_STATIONS = (
     {"id": "NDBC-46267", "name": "Angeles Point, WA (Strait of Juan de Fuca)", "lat": 48.171, "lng": -123.600,
      "reason": "a 0.25-degree global wave model does not resolve the Strait of Juan de Fuca: all four cells around the "
-               "station are land on NOAA's native GFS-Wave mask, and the nearest wet cell, 0.729 degrees away, is open "
+               "station are land on NOAA's native GFS-Wave mask, and the nearest wet cell, 0.958 degrees away, is open "
                "Pacific off Cape Flattery",
      "evidence": "served minus Open-Meteo best_match +1.47..+1.52 m over 14 days (Actions run 43339322792); the same "
                  "model's public copy returns null here; no operational wave forecast resolves the strait (#851)"},
