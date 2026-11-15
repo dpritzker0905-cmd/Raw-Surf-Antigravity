@@ -33,7 +33,7 @@ function diag() {
   return d;
 }
 const now = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
-export function noteDecodeMs(ms) { const d = diag(); d.decodeMs += ms; d.decodes += 1; }
+export function noteDecodeMs(ms, idle) { const d = diag(); d.decodeMs += ms; d.decodes += 1; if (idle) d.idleDecodeMs = (d.idleDecodeMs || 0) + ms; }
 
 // ONE frame -> its columns. Runs INSIDE the worker (stringified into WORKER_SRC) and in tests. It must stay self-contained,
 // ES5-shaped code: no closure references (the minifier renames them), no rest/spread or for..of (Babel would turn them into
@@ -141,7 +141,7 @@ export class LazySeriesFrames extends Map {
   _buildAhead(h) {
     if (!buildAheadOn() || !this._packed.has(h) || this._ahead.has(h)) return;
     this._ahead.add(h);
-    whenIdle(() => { this._ahead.delete(h); if (this._packed.has(h)) this._build(h); });
+    whenIdle(() => { this._ahead.delete(h); if (this._packed.has(h)) this._build(h, true); });
   }
 
   _neighbours(h) {
@@ -151,12 +151,12 @@ export class LazySeriesFrames extends Map {
     if (i > 0) this._buildAhead(this._order[i - 1]);
   }
 
-  _build(h) {
+  _build(h, idle) {
     const p = this._packed.get(h);
     if (!p) return super.get(h);
     const t0 = now();
     const md = frameToMarineData(unpackSeriesFrame(p), this._model, this._layer);
-    noteDecodeMs(now() - t0);
+    noteDecodeMs(now() - t0, idle);   // idle: built ahead, off the step path (counted apart as idleDecodeMs too)
     this._packed.delete(h);
     super.set(h, md);
     return md;

@@ -75,14 +75,19 @@ async function session(arm, zoom, run) {
     let stepped = 0;
     const stepBuildMs = [];   // gate 3 (amended): the decode-path ms each step added (the first-read build of the frame it shows)
     const readDecode = () => page.evaluate(() => (window.__MARINE_SERIES_DIAG__ || {}).decodeMs || 0);
+    const readIdle = () => page.evaluate(() => (window.__MARINE_SERIES_DIAG__ || {}).idleDecodeMs || 0);
+    const stepSyncMs = [];   // SECONDARY (not gating, 2026-11-15): stepBuildMs minus the idle-time builds in the same window
     for (let i = 0; i < STEPS; i += 1) {
       const w = page.locator('[role="slider"][aria-label*="timeline wheel"]').filter({ visible: true }).first();
-      const d0 = await readDecode();
+      const d0 = await readDecode(); const i0 = await readIdle();
       if (await w.count()) { await w.focus().catch(() => {}); await page.keyboard.press('ArrowRight'); stepped += 1; }
       await sleep(900);
-      stepBuildMs.push(+((await readDecode()) - d0).toFixed(2));
+      const added = (await readDecode()) - d0;
+      stepBuildMs.push(+added.toFixed(2));
+      stepSyncMs.push(+(added - ((await readIdle()) - i0)).toFixed(2));
     }
     res.stepBuildMs = stepBuildMs;
+    res.stepSyncMs = stepSyncMs;
     const d = await page.evaluate(() => ({ diag: { ...(window.__MARINE_SERIES_DIAG__ || {}) }, lt: window.__SD__.lt, pages: window.__SD__.pages }));
     const overlap = (t) => d.pages.some((p) => t[0] <= p + 1000 && t[0] + t[1] >= p - 1000);   // a long task within 1 s of an arrival
     Object.assign(res, {
