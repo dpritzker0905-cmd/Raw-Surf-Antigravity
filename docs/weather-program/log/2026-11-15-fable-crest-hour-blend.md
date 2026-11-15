@@ -825,3 +825,18 @@ was the 46 x 21 stand-in for both pictures in all 35.
 | water-only weighting; real frames | not tested |
 Not ready to be ON by default (the advisor's standing condition: real frames). Whether a PR is opened with the first-visit line
 recorded as failed is the owner's decision.
+
+## 31. The advisor on section 30 (15:22 EST): the fail stands; four readings added, none changes a verdict
+1. The 60% line for H8f was carried over from the same-grid test without thought for a mix that has one coarse input; it cannot
+   be reached. It stays failed. It is not evidence of harm: the direction is the same in 8 of 9 views (61-78% of a real cut's
+   error).
+2. The one worse view (swell_2: 0.63 against 0.48) is a difference of 0.15 units on pictures half a unit from the truth, below
+   the 0.38 rounding scale measured in section 14. H8f should have carried a signal floor like H9's. That is said POST HOC; the
+   view is not dropped and the "no view worse" line stays failed.
+3. **What a user gets on a first visit:** the blend is a 160 ms transition. After it, blend and hard cut show the SAME stand-in
+   until the fine grid arrives 1.5 to 4 s later. So on a first visit the blend changes 160 ms of picture, and the truth figures
+   say those 160 ms are not worse than a cut. The cure for the first visit is the fine grid's delay, which is another lane's.
+4. The transient of section 24.3, if it sits in both first-visit pictures and not in the truth, raises both errors and pulls
+   the ratio toward 100%, against the blend. A likely direction, not shown.
+Still owed before the blend may be ON by default: H8 on real frames, water-only weighting, the colour-band-edge check for the
+one picture over the colour line, and the owner seeing blend and cut moving side by side.
