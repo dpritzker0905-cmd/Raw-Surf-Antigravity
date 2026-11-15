@@ -8,6 +8,7 @@ import {
   seriesMiniFrame, seriesPageFrames, unpackSeriesFrame, _resetSeriesDecodeWorkerForTest,
 } from './marineSeriesDecode';
 import { frameToMarineData } from './marineSeriesFrame';
+import { nearestFrameInEntry } from './marineSeriesFinerEntry';
 
 const PAGES = require('./__fixtures__/seriesPages.sample.json');   // world / regional / swell_2 slices of offline pages
 
@@ -152,8 +153,6 @@ describe('FALLBACK: no Worker, or the kill switch: the main thread decodes as be
 });
 
 test('the nearest-frame search builds ONE frame on a lazy page, not every frame it passes on the way (gate 3, 2026-11-15)', () => {
-  // eslint-disable-next-line global-require
-  const { nearestFrameInEntry } = require('./marineSeriesFinerEntry');
   const base = JSON.parse(JSON.stringify(PAGES.regional.frames[0]));
   const page = Array.from({ length: 12 }, (_, i) => packSeriesFrame({ ...JSON.parse(JSON.stringify(base)), hour_offset: i * 3 }, SERIES_NUM_KEYS));
   const { frames, hours } = seriesPageFrames({ packed: page, json: null }, 'GFS', 'waves');
