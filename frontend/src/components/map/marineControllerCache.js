@@ -489,7 +489,13 @@ export function ratedFinestCellDeg(prefix, hourOffset, view) {
     const g = entry.data && entry.data.grid;
     if (!g || !g.ratingMode || !g.bounds || !(g.vectors && g.vectors.length)) continue;
     const b = g.bounds;
-    if (b.east < b.west || Math.min(b.east, view.east) <= Math.max(b.west, view.west) || Math.min(b.north, view.north) <= Math.max(b.south, view.south)) continue;
+    if (b.east < b.west || view.east < view.west) continue;
+    // COVERS >= 0.6 of the view (the no-downgrade guard's own threshold): a finer grid that merely overlaps is no resident the guard
+    // would keep, so it must not make a coarser answer "not a hit" (review 2026-11-15: an endless refetch at a box edge).
+    const ox = Math.min(b.east, view.east) - Math.max(b.west, view.west);
+    const oy = Math.min(b.north, view.north) - Math.max(b.south, view.south);
+    const va = (view.east - view.west) * (view.north - view.south);
+    if (!(ox > 0 && oy > 0 && va > 0 && (ox * oy) / va >= 0.6)) continue;
     const c = ratedCellDeg(g);
     if (c !== null && (best === null || c < best)) best = c;
   }

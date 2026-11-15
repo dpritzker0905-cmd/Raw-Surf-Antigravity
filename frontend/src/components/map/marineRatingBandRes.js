@@ -81,11 +81,14 @@ export function coarseRatedForView(grid, view, win, finestCell) {
   // An UNRATED grid under the surf key (the honest-swell bridge: global_coarse, the mid tier) while a rated grid of the same ask
   // overlaps the view: the guard refuses rated -> unrated over that resident (measured: the stuck pan's real "hit" was a 2-deg
   // unrated global_coarse entry), so it is not a hit either. finestCell is non-null only in surf mode (ratedFinestCellDeg).
-  if (!(grid.ratingMode || grid.rating_mode)) return typeof finestCell === 'number' && finestCell > 0;
+  // REVIEW 2026-11-15: every leg needs `finestCell` = a finer rated grid of the ask that COVERS >= 0.6 of the view (the guard's own
+  // rule, ratedFinestCellDeg). A standalone ">= 1 deg is never a hit" leg made every narrow surf view outside the pilot boxes (where
+  // the 2-deg world set is the best there is) refetch on every moveend; an "overlaps" finest made a box-edge view refetch forever.
+  if (!(typeof finestCell === 'number' && finestCell > 0)) return false;
+  if (!(grid.ratingMode || grid.rating_mode)) return true;
   const cell = ratedCellDeg(grid);
   if (cell === null) return false;
-  if (cell >= num(w, '__RAW_BAND_RES_CELL_HI__', 1.0)) return true;
-  return typeof finestCell === 'number' && finestCell > 0 && cell >= 2 * finestCell - 1e-9;
+  return cell >= 2 * finestCell - 1e-9;
 }
 
 /** The line ForecastTimeStatus shows while the band is held (words, so the state is never colour alone). */

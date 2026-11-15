@@ -220,7 +220,7 @@ describe('overscanBox', () => {
   });
   test('capped so the mosaic stays regional', () => {
     const o = overscanBox({ west: -90, south: 20, east: -78, north: 30 });
-    expect(o.east - o.west).toBeCloseTo(15.5);
+    expect(o.east - o.west).toBeCloseTo(15.0);   // pick_surf_regional_override's 15 deg exactly
   });
 });
 
@@ -271,5 +271,30 @@ describe('kill switches (inventory)', () => {
     setMask(new Uint8Array(Math.ceil((1440 * 721) / 8)));
     window.__RAW_DISABLE_RATED_READY_FAST__ = true;
     expect(staticRatedReadySync(view, 'GFS', 0, 'waves', vt)).toBe(false);
+  });
+});
+describe('review fixes 2026-11-15', () => {
+  const { tryRatedMosaic, pickBoxFrame, _setCoastMaskForTest: setMask, MOSAIC_STEP: S } = require('./staticRatedMosaic');
+  afterEach(() => setMask(null));
+  const VT = '2026-11-15T18:00:00Z';
+  const fl = { west: -83, south: 26, east: -79, north: 31 };
+  const cols = (fl.east - fl.west) / S + 1; const rows = (fl.north - fl.south) / S + 1;
+  const vectors = [];
+  for (let r = 0; r < rows; r++) for (let c = 0; c < cols; c++) vectors.push({ lat: fl.south + r * S, lng: fl.west + c * S, speed: 5, is_valid: true, phys_speed: 1 });
+  const idx = (run) => ({ run, frames: [{ valid_time: VT, path: `p-${run}`, grid: { bounds: fl, cols, rows } }] });
+  test('a box that only reaches the overscan margin and fails drops the margin, not the ask', async () => {
+    setMask(new Uint8Array(Math.ceil((1440 * 721) / 8)));
+    const misses = [];
+    const d = { getPinnedIndex: async (k) => (k.includes('florida') ? idx('06Z') : null),   // us_southeast (margin only) has no index
+      loadFrameVectors: async () => vectors, setEnabled: () => true, askOffsetServed: () => true, worldKey: 'w', noteMiss: (r) => { misses.push(r); return null; } };
+    const json = await tryRatedMosaic({ model: 'GFS', layer: 'waves', validTimeStr: VT, clampedBbox: { west: -81, south: 29.5, east: -79.5, north: 30.5 } }, d);   // overscan reaches 31.5: us_southeast's margin
+    expect(misses).toEqual([]);
+    expect(json.grid.bounds).toEqual({ west: -81, south: 29.5, east: -79.5, north: 30.5 });
+  });
+  test('two boxes on different runs: refused (one run per mosaic)', async () => {
+    const first = { box: { id: 'a' }, index: idx('06Z'), frame: idx('06Z').frames[0] };
+    const d = { getPinnedIndex: async () => idx('00Z'), askOffsetServed: () => true };
+    expect(await pickBoxFrame({ id: 'b', key: 'k' }, Date.parse(VT), d, first)).toBe('mosaic_mixed_run');
+    expect(typeof await pickBoxFrame({ id: 'b', key: 'k' }, Date.parse(VT), { ...d, getPinnedIndex: async () => idx('06Z') }, first)).toBe('object');
   });
 });

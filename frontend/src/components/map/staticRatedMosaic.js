@@ -19,7 +19,7 @@ import { PILOT_BOXES, regionalSetKey } from './staticRegional';
 import { gridJsonFromFrame, pickIndexFrame, ratingCounts } from './staticFrameCodec';
 
 export const MOSAIC_STEP = 0.25;
-export const MOSAIC_MAX_SPAN = 15.5;          // pick_surf_regional_override's 15 deg plus margin: wider views are not regional
+export const MOSAIC_MAX_SPAN = 15.0;          // pick_surf_regional_override's max_span_deg exactly (review: 15.5 diverged from the server)
 export const MOSAIC_MAX_CELLS = 12000;
 const EPS = 1e-6;
 const W = () => (typeof window !== 'undefined' ? window : {});
@@ -73,7 +73,7 @@ function nodeAt(grid, vectors, lat, lng) {
   return vectors[r * grid.cols + c] || null;
 }
 
-// THE COAST TEST (exact, not a heuristic): the server masks every node athymetry.is_coastalathymetry.is_coastal calls non-coastal (rating_transform_grid's
+// THE COAST TEST (exact, not a heuristic): the server masks every node `bathymetry.is_coastal` calls non-coastal (rating_transform_grid's
 // coastal_fn), and that function is geography only. backend/scripts/build_coastal_node_mask.py bakes it on the 0.25-deg lattice into
 // /data/coastal-nodes-025.bin (parity: backend/tests/test_coastal_node_mask.py). Bit 1 = coastal (the band may paint: ask the server).
 export const COAST_MASK_URL = '/data/coastal-nodes-025.bin';
@@ -168,24 +168,53 @@ export function overscanBox(b) {
   return { west: Math.max(-180, b.west - mx), east: Math.min(180, b.east + mx), south: Math.max(-85, b.south - my), north: Math.min(85, b.north + my) };
 }
 
+/** The run a box frame came from (its own meta, then the index's), or null. */
+export const frameRunOf = (index, frame) => (frame && frame.meta && frame.meta.run_time)
+  || (index && index.common_meta && index.common_meta.run_time) || (index && index.run) || null;
+
+/**
+ * One box's frame for this ask, or the miss reason (a string). Every box of one mosaic must share the valid time, the RUN and the
+ * estimated flag of the first (review 2026-11-15: each box set is pinned on its own, so two boxes can sit on different runs with
+ * the same valid time, and the mosaic would have stamped one run on a grid built from two).
+ */
+export async function pickBoxFrame(box, askMs, d, first) {
+  const index = await d.getPinnedIndex(box.key);
+  if (!index) return 'mosaic_no_index';
+  const frame = pickIndexFrame(index, askMs);
+  if (!frame || !frame.path) return 'mosaic_unbuilt_frame';
+  if (!d.askOffsetServed(index, frame, askMs)) return 'mosaic_ask_offset';
+  const grid = frame.grid || index.grid;
+  if (!onMosaicLattice(grid)) return 'mosaic_off_lattice';
+  if (first) {
+    if (first.frame.valid_time !== frame.valid_time) return 'mosaic_valid_time';
+    if (frameRunOf(first.index, first.frame) !== frameRunOf(index, frame)) return 'mosaic_mixed_run';
+    if (!!first.frame.is_estimated !== !!frame.is_estimated) return 'mosaic_mixed_estimated';
+  }
+  return { box, index, frame, grid };
+}
+
 export async function tryRatedMosaic({ model, layer, validTimeStr, clampedBbox, signal }, d) {
   if (!ratedMosaicOn()) return null;
-  const areas = W().__RAW_DISABLE_RATED_OVERSCAN__ === true ? [clampedBbox] : [overscanBox(clampedBbox), clampedBbox];
-  const boxes = mosaicBoxes({ model, layer, bbox: areas[0] }).filter((b) => d.setEnabled(b.key));
-  if (!boxes.length) return d.noteMiss('mosaic_no_box');
+  let areas = W().__RAW_DISABLE_RATED_OVERSCAN__ === true ? [clampedBbox] : [overscanBox(clampedBbox), clampedBbox];
+  const inView = new Set(mosaicBoxes({ model, layer, bbox: clampedBbox }).map((b) => b.id));
+  // The boxes that hold the VIEW first (they must all succeed); a box that only reaches the overscan margin may fail, and then the
+  // margin is dropped (the exact view is served) instead of the whole ask (review 2026-11-15).
+  const boxes = mosaicBoxes({ model, layer, bbox: areas[0] }).filter((b) => d.setEnabled(b.key))
+    .sort((a, b) => Number(inView.has(b.id)) - Number(inView.has(a.id)));
+  if (!boxes.some((b) => inView.has(b.id))) return d.noteMiss('mosaic_no_box');
   const askMs = Date.parse(validTimeStr);
   const frames = [];
+  let marginDropped = false;
   for (const box of boxes) {
-    const index = await d.getPinnedIndex(box.key);
-    if (!index) return d.noteMiss('mosaic_no_index');
-    const frame = pickIndexFrame(index, askMs);
-    if (!frame || !frame.path) return d.noteMiss('mosaic_unbuilt_frame');
-    if (!d.askOffsetServed(index, frame, askMs)) return d.noteMiss('mosaic_ask_offset');
-    const grid = frame.grid || index.grid;
-    if (!onMosaicLattice(grid)) return d.noteMiss('mosaic_off_lattice');
-    if (frames.length && frames[0].frame.valid_time !== frame.valid_time) return d.noteMiss('mosaic_valid_time');
-    frames.push({ box, index, frame, grid });
+    const got = await pickBoxFrame(box, askMs, d, frames[0]);
+    if (typeof got === 'string') {
+      if (inView.has(box.id)) return d.noteMiss(got);
+      marginDropped = true;
+      continue;
+    }
+    frames.push(got);
   }
+  if (marginDropped) areas = [clampedBbox];
   // Smallest box first: two boxes share an edge node, and a node is read from one frame only (deterministic).
   frames.sort((a, b) => (a.grid.bounds.east - a.grid.bounds.west) * (a.grid.bounds.north - a.grid.bounds.south)
     - (b.grid.bounds.east - b.grid.bounds.west) * (b.grid.bounds.north - b.grid.bounds.south));
