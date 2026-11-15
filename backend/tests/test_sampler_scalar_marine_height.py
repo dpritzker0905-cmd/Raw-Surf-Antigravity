@@ -292,15 +292,15 @@ def test_master_dark_no_model_reads_the_scalar_whatever_the_list_says(monkeypatc
     assert (four, masked) == (base_four, base_masked)
 
 
-def test_flag_on_with_the_default_list_gfs_reads_the_scalar_and_euro_and_icon_stay_the_vector(monkeypatch):
+def test_flag_on_with_the_default_list_gfs_and_euro_read_the_scalar_and_icon_stays_the_vector(monkeypatch):
     base_four, base_masked = _vector_baseline(monkeypatch)
     monkeypatch.setenv(MASTER, "1")
-    four, masked = _both_call_sites("GFS")
-    assert four.speed == pytest.approx(SCALAR_M, abs=1e-4)
-    assert masked.speed == pytest.approx(_masked_scalar_expected(), abs=1e-4)
-    for model in ("EURO", "ICON"):
-        # the WHOLE point, not just the height: EURO and ICON are identical to the dark answer
-        assert _both_call_sites(model) == (base_four, base_masked), model
+    for model in ("GFS", "EURO"):                                  # EURO joins (D-073, decided 2026-11-01)
+        four, masked = _both_call_sites(model)
+        assert four.speed == pytest.approx(SCALAR_M, abs=1e-4), model
+        assert masked.speed == pytest.approx(_masked_scalar_expected(), abs=1e-4), model
+    # the WHOLE point, not just the height: ICON is identical to the dark answer until its own lane grades
+    assert _both_call_sites("ICON") == (base_four, base_masked)
 
 
 def test_star_applies_the_scalar_to_every_model_at_both_call_sites(monkeypatch):
@@ -325,7 +325,7 @@ def test_a_list_that_names_icon_alone_moves_icon_only(monkeypatch):
 def test_the_products_model_is_matched_without_regard_to_case_or_padding(monkeypatch):
     monkeypatch.setenv(MASTER, "1")
     assert _both_call_sites("gfs")[0].speed == pytest.approx(SCALAR_M, abs=1e-4)
-    assert _both_call_sites("euro")[0].speed == pytest.approx(VECTOR_M, abs=1e-4)      # not listed, whatever its case
+    assert _both_call_sites("icon")[0].speed == pytest.approx(VECTOR_M, abs=1e-4)      # not listed, whatever its case
     monkeypatch.setenv(LIST, "euro")
     assert _both_call_sites("EURO")[0].speed == pytest.approx(SCALAR_M, abs=1e-4)
     assert _both_call_sites(" Euro ")[0].speed == pytest.approx(SCALAR_M, abs=1e-4)
@@ -427,7 +427,7 @@ def test_every_lane_declares_the_model_list_equal_and_at_the_code_default():
     """The master switch is pinned equal across the three lanes for a reason: a flip in one alone serves two
     interpolations of the same sea. The model list has the same hazard, so it is declared in the same three places."""
     from services.weather_pipeline.sampler import SCALAR_HEIGHT_MODELS_DEFAULT
-    assert SCALAR_HEIGHT_MODELS_DEFAULT == "GFS"                  # GFS first; ICON/EURO join after their own lanes grade
+    assert SCALAR_HEIGHT_MODELS_DEFAULT == "GFS,EURO"             # GFS 10-17, EURO (D-073); ICON after its lane grades
     values = {}
     for wf in ("forecast-ingest.yml", "forecast-ingest-pilots.yml", "precompute.yml"):
         d = yaml.safe_load((BACKEND.parent / ".github" / "workflows" / wf).read_text(encoding="utf-8"))
@@ -478,8 +478,10 @@ def test_named_models_get_a_shadow_beside_their_raw_lane(ledger_env, monkeypatch
 
 def test_production_today_gfs_retired_euro_and_icon_graded(ledger_env, monkeypatch):
     """Master on, model list GFS (the 2026-10-17 flip): the GFS shadow would double-count and retires; EURO and ICON,
-    still served as the vector mean, are graded."""
+    still served as the vector mean, are graded. The list is pinned to 'GFS': the code default became 'GFS,EURO' with
+    D-073, where EURO_SCALAR retires too (test_each_shadow_retires_when_its_own_model_serves_the_scalar)."""
     monkeypatch.setenv(MASTER, "1")
+    monkeypatch.setenv(LIST, "GFS")
     monkeypatch.setenv(LEDGER_LIST, "GFS,EURO,ICON")
     assert _shadows(ledger_env) == ["EURO_SCALAR", "ICON_SCALAR"]
 
@@ -505,7 +507,8 @@ def test_the_euro_and_icon_shadows_resolve_their_own_model_with_a_scalar_sampler
     import asyncio
     from services.weather_pipeline import buoy_calibration as bc
     fs = ledger_env
-    monkeypatch.setenv(MASTER, "1")                                 # production: GFS serves the scalar
+    monkeypatch.setenv(MASTER, "1")                                 # the 2026-10-17 state: GFS serves the scalar
+    monkeypatch.setenv(LIST, "GFS")                                 # pinned: D-073 makes the default GFS,EURO (EURO_SCALAR retires)
     monkeypatch.setenv(LEDGER_LIST, "GFS,EURO,ICON")
     monkeypatch.setenv("FORECAST_SKILL_PERSISTENCE", "0")
     seen = []
