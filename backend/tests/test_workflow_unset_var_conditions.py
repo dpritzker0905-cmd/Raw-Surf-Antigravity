@@ -17,9 +17,9 @@ from pathlib import Path
 WORKFLOWS = Path(__file__).resolve().parents[2] / ".github" / "workflows"
 
 # Known bare conditions, each OFF in practice while its variable is unset. Not fixed here: turning them on is the owner's call.
-KNOWN_OFF = {
-    ("spot-series.yml", "SPOT_SERIES_PUBLISH"),                # spot series publish: its 3 newest runs on 2026-11-12 'skipped'
-}
+# Retired 2026-11-15: ("spot-series.yml", "SPOT_SERIES_PUBLISH") - #918 writes `(vars.SPOT_SERIES_PUBLISH || '1') != '0'` on
+# the owner's go-live (all 98 automatic runs 2026-11-05..11-15 had skipped; the dispatched dry run 43734665312 passed 14/14).
+KNOWN_OFF: set = set()
 
 
 def _bare_conditions():
