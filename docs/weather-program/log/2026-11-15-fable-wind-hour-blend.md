@@ -218,3 +218,16 @@ still read under 100%. The control is replaced, before data, by the two the mari
   clean-truth check (section 5, item 7) is converted, not re-chosen.
 - The owner's wording of the negative control ("a corrupted middle frame must fail") is ambiguous between N1 and N2; both are
   run and the reading is put to the director.
+
+## 8. W13: first fetch, the controls only; the truth line NOT read (18:55 EST)
+At the director's word (18:40 EST: the Node-only test may run now; every browser job is held until 00:30 EST).
+- **Fetch** 18:40-18:47 EST: 581 requests to the public frame CDN at one per 600 ms, 31.1 MB, static files only. Five sets (the
+  four marine layers and `wind`), 57 frames each (3-hourly to f168) from each of the two indexes the CDN lists.
+- **Found before scoring:** the two indexes are two PUBLISHES of the same model run (GFS 2026-11-15 12Z; index `run_time`
+  18:33Z and 21:14Z for wind), not two runs. So ONE run is in hand. As registered, the result is not reportable until two runs
+  are in; I go further and do not read it: the scorer has a `--controls-only` mode that withholds the truth lines, and that is
+  all that was run. The scorer now counts one model run once (the current index; the second publish is listed as skipped).
+  Without that fix the same 20 triples would have been counted twice.
+- **Controls, wind, 20 triples, one run:** N1 (a wrong truth) holds in 20 of 20; N2 (a wrong blend) fails the pass line, as
+  it must; P (identical neighbours) is exactly zero. So the instrument can fail and can read zero on this data.
+- **Owed:** a second fetch after the next GFS run is published, then the truth line for both runs together.
