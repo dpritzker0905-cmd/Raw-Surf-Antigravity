@@ -102,6 +102,9 @@ def test_surge_ships_on_and_needs_the_one_year_datum(monkeypatch):
                 "datum_offset_m": None}
     out = H.combine(no_datum, station_doc(), dict(STATION, distance_km=2.0))
     assert out["water_level"] == out["level"] and out["surge_hours"] == 0     # never the failed 14-day variant
+    window = dict(raw, datum="window_72h")                                     # the 72 h fallback datum
+    out = H.combine(window, station_doc(), dict(STATION, distance_km=2.0))
+    assert out["water_level"] == out["level"] and out["surge_hours"] == 0     # B only on the fixed 365-day datum
     monkeypatch.setenv("TIDE_SURGE_RESIDUAL", "0")
     out = H.combine(raw, station_doc(), dict(STATION, distance_km=2.0))
     assert out["water_level"] == out["level"]                                  # kill: eta = the official tide

@@ -188,7 +188,7 @@ def combine(model: Optional[dict], doc: dict, station: dict, now: Optional[datet
     # The model's permanent offset = its own 1-year mean at the cell, as the door applied it (TIDE_LOCAL_DATUM). That is
     # the variant the pre-registered held-out test passed (B 0.132 m vs the tide alone 0.147, 103 station-weeks); the
     # 14-day offset absorbed season-long anomalies and FAILED (G10). No 1-year datum for the cell -> no surge term.
-    ok_datum = bool(model) and model.get("datum") == "local_msl_1y"
+    ok_datum = bool(model) and model.get("datum") == "model_mean_365d"   # never on the 72 h fallback
     resid = lowpass_residual(parsed, model_raw, harm, model.get("datum_offset_m")) if (surge_on() and ok_datum) else {}
     water = [None if lv is None else round(lv + residual_at(resid, t), 4) for t, lv in zip(parsed, levels)]
     events = []

@@ -105,3 +105,14 @@ never used). Kill '0'. Tests: `test_tide_harmonic.py` 20.
   daily CI job records, per station, the production combine's water_level for the next 72 h from the bucket documents
   and the live model forecast (no Render call); a scoring step after 14 days compares each lead with CO-OPS
   water_level. Pass line to write before scoring: B not worse than the tide alone at any lead bucket by > 0.02 m.
+
+## Shadow read built (director: "add a shadow read of B by lead"); #926's fixed datum merged in
+- `scripts/tide_eta_shadow.py` + `.github/workflows/tide-eta-shadow.yml` (daily 06:17Z record; dispatch mode=score;
+  off switch repo var TIDE_ETA_SHADOW=0): per day, 20 NOAA stations, production's own `combine` on the CI ingest's
+  documents and the live model forecast on the fixed 365-day datum -> `tides/shadow/eta-<date>.json` (water_level and
+  level, leads 0-96 h). Never calls Render. Local dry run 2026-11-15: 20/20 recorded; La Jolla surge +0.26 m held from
+  +70 h to +80 h (no step).
+- **Pass line (written before any scoring):** after >= 14 daily records, B's median band RMSE vs OBSERVED water is not
+  worse than the tide alone's by more than 0.02 m in ANY lead band (0-24, 24-48, 48-72, 72-96 h held).
+- The surge term now requires `datum == "model_mean_365d"` (#926's fixed datum); on the `window_72h` fallback eta is
+  the NOAA tide (test).
