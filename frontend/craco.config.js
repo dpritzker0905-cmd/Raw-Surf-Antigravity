@@ -29,6 +29,15 @@ let webpackConfig = {
       '@': path.resolve(__dirname, 'src'),
     },
     configure: (webpackConfig) => {
+      // PROFILING BUILD (2026-11-15, the render census; only with RAW_PROFILE_BUILD=1 and `craco build --profile`). CRA's --profile
+      // aliases react-dom$ to react-dom/profiling, but React 19's profiling bundle itself requires 'react-dom' for its shared
+      // internals, so that alias resolves to itself and the app crashes at boot ("reading 'd'"). Instead: plain react-dom stays,
+      // and react-dom/client (what index.js mounts through) gets the profiling renderer. Never set for a deployed build.
+      if (process.env.RAW_PROFILE_BUILD === '1') {
+        const alias = (webpackConfig.resolve.alias = webpackConfig.resolve.alias || {});
+        delete alias['react-dom$'];
+        alias['react-dom/client$'] = 'react-dom/profiling';
+      }
 
       // Add ignored patterns to reduce watched directories
         webpackConfig.watchOptions = {
