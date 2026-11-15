@@ -300,3 +300,41 @@ I then read the public AWS mirror myself (`ecmwf-forecasts` bucket, read-only li
      about 194 of 200 min.
    - Hindcast: about 30 runs x 14 twelve-hourly steps ≈ 64 GB of reads in Actions, over several jobs.
 4. Unchanged: the gate, the seam policy question, the grand-ensemble question.
+
+## 22:03Z The "1-year mean" (David 16:34 EST: "Is the 1-year mean the best path to state of the art?")
+
+**Where it comes from.** Not the wind/gust plan, #928, or the wind-long-range lane: all three were grepped, with no hit.
+It is the TIDE datum, found in the advisor's and the helper's transcripts:
+- the idea: per cell, the tide model's own mean over the 365 days before the scored week, as an alternative to #926's
+  "subtract the served 72 h mean";
+- quoted there: 0.211 m median vs 0.346 m for the 72 h de-mean, better at 23 of 26 stations;
+- status: not in any log yet, and its truth is not stated, so it is not used here as a number.
+
+**Checked.**
+- CO-OPS datums: MSL minus MLLW is 0.251 m at Honolulu (1612340) and 0.849 m at Santa Monica (9410840). At Santa
+  Monica, NAVD88 sits 0.792 m below MSL.
+- Our bathymetry is ETOPO (`bathymetry.py`: ETOPO1 0.25 deg), referenced to about mean sea level (the geoid), not
+  to NAVD88.
+- #926's own table: 72 h de-mean 0.117 m median RMSE vs CO-OPS predictions on the station MSL datum.
+
+**Answer.**
+- A FIXED long-term per-cell mean is a better datum than a rolling 72 h mean (SubQ 0.98). A 72 h window does not span
+  the 14.8-day spring-neap cycle, so its mean drifts, and it strips real surge and seasonal level.
+- A 1-year model mean is not state of the art on its own (SubQ 0.04; Reflection: "No").
+- The path (SubQ 0.996; Reflection agrees):
+  1. Near a CO-OPS station: harmonic predictions on the station datum, with the model as fallback.
+  2. Elsewhere: a fixed per-cell long-term model mean (>= 1 year, longer if available).
+  3. Display on MLLW in the US (the tide-table convention; SubQ 0.996) and LAT elsewhere, computed from the same long
+     series and labelled.
+  4. Keep the eta fed to the breaking-depth cap relative to local MSL. Reflection's NAVD88 warning does not apply to
+     our ETOPO grid.
+- Recommendation for #926 (open, a served number): swap the 72 h window for the fixed long-term mean before merge, and
+  log the 0.211 / 0.346 reading with its truth defined.
+- In the wind plan, climatology is a gate baseline only. It must be seasonal (day-of-year), multi-year, never a flat
+  annual mean.
+
+**Also sent.**
+- To the wind-long-range lane (`local_162f460b`): the measured ECMWF facts. Member-mean speeds need no de-bias; the
+  director's "with de-bias" wording is stale.
+- To the verifier: brief 2's null is the per-key label swap, re-drawn daily, >= 200 draws, gate fails above a 5%
+  false-fire rate per rule.
