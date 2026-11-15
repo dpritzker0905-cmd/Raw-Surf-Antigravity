@@ -329,3 +329,67 @@ Consensus notice (required): Create or connect a free Consensus account to retur
 - **Owed:** a re-run of the ww3 46267 check when the server is responsive (with a shorter window); Reflection and SubQ only on David's own typed request.
 - **Blocked:** ww3 comparison (server timeout, 1800 s, not retried). Reflection and SubQ not called, pending David's own request.
 - **Not used, by choice:** LongCat (no prototype), Logfire (no timing run), latest-science and HF (Consensus covered the question).
+
+
+## 9. Follow-ups from the director (2026-11-15 10:55 EST): per-tool column, competitor rows, gusts and fog
+
+### 9.a Per-tool agree or disagree for the section 7 top 10 (the column the section 7 table lacked)
+
+Tools: **C7** = Context7 (library docs), **SQ** = SubQ, **RF** = Reflection, **LC** = LongCat, **CS** = Consensus (papers).
+"Not run" means the tool was not called for that item. Nothing was called without a basis.
+
+| # | Item (section 7.D) | C7 | SQ | RF | LC | CS |
+|---|---|---|---|---|---|---|
+| 1 | React re-render off scrub | Not run (no library question) | Not run (no David request) | Not run | Not run (no prototype) | Not run (internal measure) |
+| 2 | Water decode to a worker | Not run | Not run | Not run | Not run | Not run |
+| 3 | Crest blend between hours | Not run (MapLibre check was done earlier, section 6) | Not run | Not run | Not run | Not run |
+| 4 | Linear MOS on 48–72 h | Not run | Not run | Not run | Not run | **Agree in direction**: wave bias correction cuts error 13–46% (Zhang 2023; Wang 2026). Regional gate fails |
+| 5 | Exposure sweep for 46267 | Not run | Not run | Not run | Not run | Not run (ww3 check failed; no paper found) |
+| 6 | Hawaii south/east downscale | Not run | Not run | Not run | Not run | Not run |
+| 7 | Bias line beside MAE | Not run | Not run | Not run | Not run | **Agree**: post-processing changes the ranking (Kocsis 2026) |
+| 8 | AIFS source for EURO | Not run | Not run | Not run | Not run | **Disagree on wind**: raw IFS beats raw AIFS at all horizons (Kocsis 2026). Marine gain is the authors' claim (Hahner 2026) |
+| 9 | Own-frame pump backoff | Not run | Not run | Not run | Not run | Not run (internal bug) |
+| 10 | EURO/ICON z7 missing frames | Not run | Not run | Not run | Not run | Not run |
+
+**Why most cells are "not run".** Context7 applies to library questions, and none of these items asks one. SubQ is dev-only and
+needs David to name it. Reflection needs David's own typed request. LongCat reviews code, and no prototype exists yet.
+Consensus was the only tool with evidence for these items. If the director wants Reflection or SubQ on any row, David must
+type that request here.
+
+### 9.b Competitor rows (public evidence, light reads, one page each)
+
+| Product | Rendering | Time interpolation | Result |
+|---|---|---|---|
+| **Meteoblue** | Output is PNG raster tiles or protobuf vector tiles. Raster render types: contour steps, colour-blurred rasters, UV coding. Vector: contour lines, line steps, wind arrows, pressure labels; client-side styling implied. WebGL not mentioned | Not stated on the tile API page. Radar 1-minute steps from the earlier blog (search snippet only) | **Verified** (tile API docs) for rendering; interpolation of model hours **unverified** |
+| **Windy** | Community beta post for v11 "WebGL particles": user reports only ("animation very smooth"). No technical details, no particle counts | Not stated | **Partly verified**: a WebGL particle layer is announced (community post). Internals unverified |
+| **Apple Weather** | WeatherKit maps page returned HTTP 404 | Unverified | **Unverified** (no public page reached) |
+| **Surfline** | Public forecast page returned HTTP 403 | Unverified | **Unverified** (blocked to automated reads) |
+
+Rows left unverified stay marked as such. No load testing was done.
+
+### 9.c Next deep dive: gusts and fog beyond GFS-only
+
+**What we have today (code).**
+- Gusts: `wind_gusts_10m` is in the forecast variable list (`LayerRegistry.js:349`), but there is no gust map layer. The map shows gusts only as a variable, not as a layer. (Not verified: whether any gust value is drawn in the UI.)
+- Fog: the `fog` layer uses Open-Meteo `visibility` on `ncep_gfs025` only (`LayerRegistry.js:116-128`). EURO and ICON have no fog source. The layer has no capability row and is frontend-only (`capabilities.py:578-594`).
+
+**Sources to consider (not yet checked against our code or a feed).**
+- Gusts from the same model families we already use: GFS, ICON and ECMWF each publish a gust field in their open data. Whether our pipeline fetches them is **unverified** (not checked in this pass).
+- Visibility or fog from the same families: GFS gives visibility (current source). ICON and ECMWF visibility availability is **unverified**.
+
+**Accuracy evidence found (Consensus).**
+- Gusts, HRRR: sustained wind and gust forecasts evaluated against ASOS and NYSM stations. Forecasts are underdispersive; a simple gust parameterization reduces systematic bias and gives good hourly maximum-gust predictions. [An Evaluation of Surface Wind and Gust Forecasts from the High-Resolution Rapid Refresh Model](https://consensus.app/papers/details/w:30280700-1c1a-47cc-b95d-f9a157860cf0/?utm_source=claude_code) (Fovell et al., 2022).
+- Gusts, post-processing: MOS and neural-network postprocessing of gusts at 170 German stations compared on calibration, accuracy, reliability and resolution. [Comparison of Model Output Statistics and Neural Networks to Postprocess Wind Gusts](https://consensus.app/papers/details/w:05978d35-c63a-4356-890c-1e7b4701cb93/?utm_source=claude_code) (Primo et al., 2026). Result numbers not read in the abstract.
+- Gust factor curves: the Durst curve is found to disagree with modern observations and is adjusted by filtering. [Exploring environmental and methodological sensitivities of forecasted and observed surface winds and gusts using underutilized datasets](https://consensus.app/papers/details/w:536b770f-ec96-49b8-ad5e-5fdf3536bae6/?utm_source=claude_code) (Gallagher, 2021; a dissertation).
+- Fog and visibility, NCUM: the diagnostic fog scheme shows good skill for fog/no-fog events against METAR and MODIS, but the same model is weak in poor-visibility categories at Delhi. [Verification of visibility forecasts from NWP model with satellite and surface observations](https://consensus.app/papers/details/w:ae9662f4-87b9-46c3-8dcb-a1c53296cdd4/?utm_source=claude_code) (Aditi et al., 2015) and [Assessment of Forecast Skill of High- and Coarse-Resolution Numerical Weather Prediction Models in Predicting Visibility/ Fog Over Delhi, India](https://consensus.app/papers/details/w:8290c171-fadc-4e90-9bb0-1cfe17d82e32/?utm_source=claude_code) (Aditi et al., 2021): poor-visibility skill is low; very poor visibility is not predicted by either model.
+- Fog, ensemble: a WRF ensemble with 21 members gives a hit rate of 0.95 and CSI of 0.55 at a 50% threshold at one airport, with onset and dissipation error of 1 h. [Operational Probabilistic Fog Prediction Based on Ensemble Forecast System](https://consensus.app/papers/details/w:b8648b89-9864-4032-b8d7-d20564983027/?utm_source=claude_code) (Parde et al., 2022). Single-airport result; not transferable without a test.
+
+**Accuracy evidence we have for our own lanes.** None found in this pass for gusts or visibility (uncertain). Our buoy verification
+covers waves only. A station verification for gusts and visibility would be a new measurement.
+
+**Next steps, not done.**
+1. Check whether our pipeline already fetches gust and visibility fields from GFS, ICON and ECMWF (read-only, code and capability rows).
+2. Pick one station set for gusts and one for visibility, using the same NDBC or ASOS sites the wind lane already uses.
+3. Pre-register: gust bias and skill (MAE, hit rate for gusts above 15 m/s) per model; visibility hit rate and CSI for below 1 km, per model, against airport METAR.
+
+Consensus notice (required): Create or connect a free Consensus account to return more than 3 results per search in Claude Code: https://consensus.app/sign-up/?utm_source=claude_code&auth=claude_code
