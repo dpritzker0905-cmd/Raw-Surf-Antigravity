@@ -1,0 +1,184 @@
+"""Review-bound runtime objects. Nothing is captured or activated at import time."""
+from dataclasses import dataclass
+import hashlib
+import os
+from pathlib import Path
+import sys
+import types
+import _thread
+
+from fingerprints import fingerprint
+
+PYTHON_SHA='fa67443527ed9647f760d807e2a38f26340757123e643c4639cf273ed15d5ea7'
+
+
+def fail(reason):raise ValueError(reason)
+def digest(path):
+    h=hashlib.sha256()
+    with Path(path).open('rb') as f:
+        for block in iter(lambda:f.read(65536),b''):h.update(block)
+    return h.hexdigest()
+def function_code(fn):return getattr(getattr(fn,'__func__',fn),'__code__',None)
+def identical(a,b):return len(a)==len(b) and all(x is y for x,y in zip(a,b))
+
+
+@dataclass(frozen=True)
+class ResolverBinding:
+    finder:object
+    lookup:object
+    expected_code_sha256:str
+
+    def validate(self):
+        current=getattr(self.finder,'find_spec',None)
+        code=function_code(current)
+        if (function_code(self.lookup) is not code or code is None or fingerprint(code)!=self.expected_code_sha256 or
+            getattr(current,'__self__',None) is not getattr(self.lookup,'__self__',None)):
+            fail('resolver_identity_or_code')
+
+
+@dataclass(frozen=True)
+class CacheBinding:
+    finder_class:type
+    expected_find_spec_sha256:str
+
+    def validate(self,value):
+        code=function_code(getattr(value,'find_spec',None))
+        if type(value) is not self.finder_class or code is None or fingerprint(code)!=self.expected_find_spec_sha256:
+            fail('path_cache_provider')
+
+
+@dataclass(frozen=True)
+class NativeBindings:
+    socket_module:object
+    extension_module:object
+    socket_class:type
+    native_class:type
+    init:object
+    bind:object
+    close:object
+    fileno:object
+    real_close:object
+    native_close:object
+    expected_has_ipv6:bool
+    expected_init_code_sha256:str
+    expected_close_code_sha256:str
+    expected_real_close_code_sha256:str
+    reviewed_files:tuple
+
+    def validate(self,check_files=False):
+        s=self.socket_module;n=self.extension_module
+        if (type(s) is not types.ModuleType or type(n) is not types.ModuleType or
+            sys.modules.get('socket') is not s or sys.modules.get('_socket') is not n or
+            s.socket is not self.socket_class or n.socket is not self.native_class or
+            self.socket_class.__init__ is not self.init or self.socket_class.close is not self.close or
+            self.socket_class._real_close is not self.real_close or self.native_class.bind is not self.bind or
+            self.native_class.fileno is not self.fileno or self.native_class.close is not self.native_close or
+            self.socket_class.bind is not self.bind or self.socket_class.fileno is not self.fileno or
+            s.has_ipv6 is not self.expected_has_ipv6 or n.has_ipv6 is not self.expected_has_ipv6):
+            fail('socket_call_target_identity')
+        for fn,expected in ((self.init,self.expected_init_code_sha256),(self.close,self.expected_close_code_sha256),
+                            (self.real_close,self.expected_real_close_code_sha256)):
+            code=function_code(fn)
+            if code is None or fingerprint(code)!=expected:fail('socket_wrapper_code')
+        if not self.reviewed_files:fail('missing_native_file_bindings')
+        if check_files:
+            for path,expected in self.reviewed_files:
+                if not expected or digest(path)!=expected:fail('native_file_hash')
+
+
+@dataclass(frozen=True)
+class RuntimeBindings:
+    role:str
+    root:Path
+    input_dir:Path
+    archive:Path
+    expected_env:tuple
+    expected_argv:tuple
+    launcher_file:Path
+    launcher_sha256:str
+    scope_manifest_sha256:str
+    scope_manifest_file:Path
+    reviewed_bindings_sha256:str
+    reviewed_bindings_file:Path
+    cb01_adopted:bool
+    cb02_adopted:bool
+    native:NativeBindings
+    import_paths:tuple
+    path_hooks:tuple
+    path_hook_code_digests:tuple
+    resolvers:tuple
+    cache_classes:tuple
+    import_frame_codes:tuple
+    expected_import_frame_digests:tuple
+    socket_wrapper_codes:tuple
+    expected_socket_wrapper_digests:tuple
+    parent_user_namespace:str
+    parent_net_namespace:str
+
+    def validate(self):
+        if self.role not in ('initializer-only','installer'):fail('role')
+        if self.cb01_adopted is not True or self.cb02_adopted is not True:fail('separate_contract_adoption_missing')
+        if (sys.platform!='linux' or sys.version.split()[0]!='3.12.14' or not sys.flags.isolated or
+            not sys.flags.dont_write_bytecode or sys.flags.optimize!=0):fail('runtime')
+        if digest(Path(sys.executable).resolve())!=PYTHON_SHA:fail('interpreter_hash')
+        if tuple(sys.argv)!=self.expected_argv or dict(os.environ)!=dict(self.expected_env):fail('launcher_argv_environment')
+        if not self.launcher_sha256 or digest(self.launcher_file)!=self.launcher_sha256:fail('launcher_source')
+        for value in (self.scope_manifest_sha256,self.reviewed_bindings_sha256):
+            if type(value) is not str or len(value)!=64 or any(c not in '0123456789abcdef' for c in value):fail('review_binding_missing')
+        if (digest(self.scope_manifest_file)!=self.scope_manifest_sha256 or
+            digest(self.reviewed_bindings_file)!=self.reviewed_bindings_sha256):fail('review_record_hash')
+        for path in (self.root,self.input_dir,self.archive):
+            if not path.is_absolute() or path.resolve()!=path or path.is_symlink():fail('canonical_scope_path')
+        if self.root==self.input_dir or self.input_dir.is_relative_to(self.root):fail('input_write_overlap')
+        if not self.archive.is_relative_to(self.input_dir):fail('archive_outside_reviewed_inputs')
+        expected_environment={'PATH':'/usr/bin:/bin','HOME':str(self.root/'home'),
+                              'XDG_CONFIG_HOME':str(self.root/'config'),'XDG_CACHE_HOME':str(self.root/'cache'),
+                              'TMPDIR':str(self.root/'tmp'),'PYTHONDONTWRITEBYTECODE':'1',
+                              'PIP_CONFIG_FILE':'/dev/null','LC_ALL':'C'}
+        if dict(self.expected_env)!=expected_environment:fail('fixed_environment_contract')
+        if any(name=='pip' or name.startswith('pip.') for name in sys.modules):fail('preloaded_pip')
+        if 'urllib3_secure_extra' in sys.modules:fail('preloaded_optional_module')
+        if sys.getprofile() is not None or sys.gettrace() is not None:fail('preexisting_observer')
+        if len(os.listdir('/proc/self/task'))!=1:fail('single_thread_required')
+        self.native.validate(check_files=True);self.validate_import_surface(None)
+        for codes,expected in ((self.import_frame_codes,self.expected_import_frame_digests),
+                               (self.socket_wrapper_codes,self.expected_socket_wrapper_digests)):
+            if not codes or len(codes)!=len(expected) or any(fingerprint(c)!=d for c,d in zip(codes,expected)):
+                fail('reviewed_stack_code_bindings')
+        return _thread.get_ident()
+
+    def validate_import_surface(self,first_finder):
+        expected=[r.finder for r in self.resolvers]
+        if first_finder is not None:expected.insert(0,first_finder)
+        if not identical(sys.meta_path,expected) or tuple(sys.path)!=self.import_paths or not identical(sys.path_hooks,self.path_hooks):
+            fail('resolver_surface_changed')
+        if len(self.path_hooks)!=len(self.path_hook_code_digests):fail('path_hook_bindings_missing')
+        for hook,expected_digest in zip(self.path_hooks,self.path_hook_code_digests):
+            code=function_code(hook)
+            # Opaque native hooks are deliberately not auto-trusted by this draft.
+            if code is None or fingerprint(code)!=expected_digest:fail('path_hook_code_unqualified')
+        if not self.resolvers or not self.cache_classes:fail('empty_resolver_binding_set')
+        for resolver in self.resolvers:resolver.validate()
+        for key,value in sys.path_importer_cache.items():
+            if key not in self.import_paths:continue
+            if value is not None:
+                matches=[b for b in self.cache_classes if type(value) is b.finder_class]
+                if len(matches)!=1:fail('unreviewed_path_cache')
+                matches[0].validate(value)
+
+    def namespace_facts(self):
+        current={k:os.readlink('/proc/self/ns/'+k) for k in ('user','net')}
+        if not self.parent_user_namespace or not self.parent_net_namespace:fail('parent_namespace_id_missing')
+        if current['user']==self.parent_user_namespace or current['net']==self.parent_net_namespace:fail('namespace_not_fresh')
+        if os.getuid()!=0 or os.getgid()!=0:fail('private_root_mapping')
+        for kind in ('uid','gid'):
+            rows=[row.split() for row in Path('/proc/self/'+kind+'_map').read_text().splitlines()]
+            if len(rows)!=1 or len(rows[0])!=3 or rows[0][0]!='0' or rows[0][2]!='1':fail('single_id_mapping')
+        if sorted(os.listdir('/sys/class/net'))!=['lo'] or int(Path('/sys/class/net/lo/flags').read_text(),16)&1:
+            fail('namespace_interfaces')
+        if Path('/proc/net/route').read_text().splitlines()[1:] or Path('/proc/net/if_inet6').read_text().strip():
+            fail('namespace_routes_or_addresses')
+        for line in Path('/proc/net/ipv6_route').read_text().splitlines():
+            fields=line.split()
+            if len(fields)!=10 or fields[-1]!='lo' or int(fields[8],16)&1:fail('usable_ipv6_route')
+        return current

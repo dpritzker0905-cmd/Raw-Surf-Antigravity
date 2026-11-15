@@ -1,0 +1,16 @@
+# Requirements before proposing a future executable scope
+
+No cases or suite are executable or authorized in this packet. No earlier approval, inert22 baseline or historical IPv6 probe transfers to this implementation. All counts below are categories, not a test count or attempt budget.
+
+1. Resolve IR-02/03/08 in source: exact six-finder registration, approved native/path providers, mutable resolver state and complete effective search-surface coverage. Never trust a post-import snapshot as its own approval.
+2. Obtain exact runtime metadata and reviewed bindings under separately approved read-only scope. The target remains CPython3.12.14 with its pinned executable hash. Local AST parsing derives no target fingerprint or ABI/native identity.
+3. Review separately adopted CBR-01 and CBR-02 contracts, initializer-only versus installer context, source permission delta, trusted launcher and current owner/allocation. Preserve the held constructor until a later integration decision.
+4. Freeze source-bound inert qualification cases for constructor/bind pre-reservation and retirement, foreign/repeated objects/callers/threads, exact integer/tuple shapes, no hostname exception, observer replacement/failure/liveness/reentry, wrong module/loader/code/globals/host, clones/reload and explicit incomplete outcomes.
+5. Add CBR-02 cases for wrong source/caller/name/repeat, module present, None-only resolution, resolver error or returned spec, changed finder/path/cache/global state, direct finder calls, registration transition, compile/exec/import fence and actual caught-absence witness. Positive absence must never hide an available module.
+6. Requalify every retained non-socket denial and relevant allowed marker of this exact new callback. Keep the original all-socket guard and old control receipts unchanged. Do not launch old scopes again.
+7. After source/inert gates and a separate explicit native scope, qualify actual profile/trace/audit ordering, original normal full import, source-bound native argument shapes and outcomes, normal return versus unwind, partial constructor, short circuit, bind failure/success, cleanup leak/exception/emergency-close failure, timeout and process-level unknown receipts. No extracted body, fake event or count-only success substitutes for this.
+8. Freeze independent disconnected-namespace prerequisites, parent/child IDs, private mapping, interfaces/routes/addresses, fixed empty-inherited environment, immutable source/files and CPU/memory/fd/file/core/wall-clock/attempt limits. Never silently create namespaces or resources from the policy library.
+9. Freeze a truthful receipt and classifier: API attempts versus outcomes, S1 identity only, no descriptors/ports/repr/frame/traceback/environment dumps, kernel telemetry null without separately approved tracing, no clean pass on missing/null/unknown/timeout/error/cleanup failure.
+10. Only after evidence meets those exact gates consider a separately versioned construction bundle and approval. Construction is not collection or application acceptance. Session-payment, refund/funding invariants, Gear mounted/admin/concurrency and hosted acceptance keep their own scopes and owners; shared floors remain held.
+
+Prepare each next scope as a concrete, bounded, hashed artifact for review. This file grants no approval and schedules nothing.

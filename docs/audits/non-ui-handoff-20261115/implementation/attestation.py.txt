@@ -1,0 +1,186 @@
+"""Unexecuted observer adapter. No observer is installed by importing this file."""
+import _thread
+import os
+import sys
+import types
+import zipimport
+
+from fingerprints import fingerprint
+from source_catalog import HELPER,PARENT,APPENGINE
+
+
+def fatal(reason):
+    # Fixed labels only; never repr(args), exception text, frames or globals.
+    os.write(2,('DENIED inactive-policy-draft: '+reason+'\n').encode('ascii'))
+    os._exit(91)
+
+
+class Witness:
+    def __init__(self,bindings,catalog,owner):
+        self.bindings=bindings;self.catalog=catalog;self.owner=owner
+        self.actual={};self.frames={};self.globals={};self.completed=set()
+        self.helper_code=None;self.helper_frame=None;self.helper_calls=0
+        self.state='DISABLED';self.socket=None;self.constructor_attempts=0;self.bind_attempts=0
+        self.exceptions=[];self.return_value=None;self.closed=None;self.cleanup_attempts=0
+        self.absence=None;self.absence_exception_seen=False;self.absence_caught=False
+        self.profile_callback=self.profile;self.trace_callback=self.trace
+        self.ready=False;self.cleanup_phase=False;self.receipt=None
+
+    def owner_check(self):
+        if _thread.get_ident()!=self.owner:fatal('owner_thread')
+
+    def observers_check(self):
+        self.owner_check()
+        if self.ready and (sys.getprofile() is not self.profile_callback or sys.gettrace() is not self.trace_callback):
+            fatal('observer_changed')
+
+    def identities(self,name):
+        g=self.globals[name];module=sys.modules.get(name);spec=g.get('__spec__');loader=g.get('__loader__')
+        if (type(module) is not types.ModuleType or module.__dict__ is not g or g.get('__name__')!=name or
+            spec is None or spec.name!=name or spec.origin!=self.catalog.origins[name] or
+            type(loader) is not zipimport.zipimporter or spec.loader is not loader or
+            loader.archive!=str(self.catalog.archive) or g.get('__file__')!=self.catalog.origins[name]):
+            fatal('actual_module_identity')
+
+    def audit_exec(self,code):
+        # No frame lookup: actual exec code is supplied by the audit event.
+        names=[n for n,origin in self.catalog.origins.items() if code.co_filename==origin]
+        if not names:return
+        name=names[0]
+        if name in self.actual or fingerprint(code)!=self.catalog.digests[name]:fatal('module_exec_or_fingerprint')
+        self.actual[name]=code
+        if name==HELPER:
+            candidates=[c for c in code.co_consts if type(c) is types.CodeType and c.co_qualname=='_has_ipv6']
+            if len(candidates)!=1 or fingerprint(candidates[0])!=self.catalog.helper_digest:fatal('actual_helper_constant')
+            self.helper_code=candidates[0]
+
+    def helper_enter(self,frame):
+        self.observers_check()
+        if (self.helper_calls or HELPER not in self.frames or frame.f_globals is not self.globals[HELPER] or
+            frame.f_back is not self.frames[HELPER] or frame.f_back.f_lineno!=149 or
+            frame.f_locals.get('host')!='::1' or type(frame.f_locals.get('host')) is not str or
+            getattr(self.globals[HELPER].get('_has_ipv6'),'__code__',None) is not self.helper_code):
+            fatal('helper_entry_provenance')
+        for name in (HELPER,APPENGINE):self.identities(name)
+        self.bindings.native.validate()
+        g=self.globals[HELPER];s=self.bindings.native.socket_module;a=sys.modules.get(APPENGINE)
+        if g.get('socket') is not s or g.get('_appengine_environ') is not a or APPENGINE not in self.completed:
+            fatal('helper_dependency_binding')
+        for name,expected in self.catalog.appengine_functions.items():
+            actual=getattr(a,name,None)
+            if not isinstance(actual,types.FunctionType) or actual.__globals__ is not self.globals[APPENGINE] or fingerprint(actual.__code__)!=fingerprint(expected):
+                fatal('appengine_function_binding')
+        if (type(s.has_ipv6) is not bool or s.has_ipv6 is not self.bindings.native.extension_module.has_ipv6 or
+            'APPENGINE_RUNTIME' in os.environ or 'SERVER_SOFTWARE' in os.environ):fatal('capability_or_environment_override')
+        self.helper_calls=1;self.helper_frame=frame;self.state='ARMED'
+
+    def socket_event(self,event,args,caller):
+        self.observers_check()
+        if self.state not in ('ARMED','CONSTRUCTOR_RESERVED') or self.helper_frame is None:fatal('socket_token_inactive')
+        self.identities(HELPER);self.bindings.native.validate()
+        frame=caller
+        # Supplied by the socket-only audit branch; never search arbitrary frames.
+        while frame is not self.helper_frame:
+            if frame is None or not any(frame.f_code is c for c in self.bindings.socket_wrapper_codes):fatal('socket_wrapper_chain')
+            frame=frame.f_back
+        h=self.helper_frame
+        if event=='socket.__new__':
+            if (self.state!='ARMED' or self.constructor_attempts or h.f_lineno!=138 or len(args)!=4 or
+                type(args[0]) is not self.bindings.native.socket_class or
+                any(type(v) is not int for v in args[1:]) or args[1:]!=(10,1,0)):
+                fatal('constructor_contract')
+            self.constructor_attempts=1;self.socket=args[0];self.state='CONSTRUCTOR_RESERVED';return
+        if event=='socket.bind':
+            if (self.state!='CONSTRUCTOR_RESERVED' or self.bind_attempts or h.f_lineno!=139 or len(args)!=2 or
+                args[0] is not self.socket or h.f_locals.get('sock') is not self.socket or
+                type(args[1]) is not tuple or len(args[1])!=2 or type(args[1][0]) is not str or
+                type(args[1][1]) is not int or args[1]!=('::1',0)):fatal('bind_contract')
+            self.bind_attempts=1;self.state='BIND_RESERVED';return
+        fatal('other_socket_operation')
+
+    def helper_return(self,frame,arg):
+        self.state='RETIRED'  # Retire before fileno, validation or emergency close.
+        valid=(frame.f_lasti in self.catalog.helper_returns and type(arg) is bool)
+        self.return_value=arg if type(arg) is bool else None
+        if self.socket is not None:
+            try:
+                self.cleanup_phase=True
+                self.closed=self.bindings.native.fileno(self.socket)==-1
+                if not self.closed:
+                    # Bind witness proves completed initialization; never clean an unknown object.
+                    if self.bind_attempts==1:
+                        self.cleanup_attempts=1;self.bindings.native.close(self.socket)
+                        self.closed=self.bindings.native.fileno(self.socket)==-1
+                    valid=False
+            except BaseException:
+                self.closed=None;valid=False
+            finally:self.cleanup_phase=False
+        if not valid:fatal('helper_outcome_or_cleanup')
+        if self.constructor_attempts==0:
+            if arg is not False or self.bind_attempts or self.exceptions:fatal('short_circuit_outcome')
+            outcome='attested_no_native_operation'
+        elif self.bind_attempts==0:
+            if arg is not False or not any(e['site']==138 for e in self.exceptions) or self.closed is not True:
+                fatal('constructor_exception_outcome')
+            outcome='constructor_branch_only'
+        else:
+            if self.closed is not True or any(e['site']!=139 for e in self.exceptions):fatal('bind_outcome')
+            if bool(self.exceptions)==arg:fatal('bind_return_mismatch')
+            outcome='bounded_bind_success' if arg else 'bounded_bind_exception'
+        self.receipt={'state':self.state,'outcome':outcome,'constructor_api_attempts':self.constructor_attempts,
+                      'bind_api_attempts':self.bind_attempts,'object_label':'S1' if self.socket is not None else None,
+                      'helper_return':arg,'exceptions':list(self.exceptions),'closed':self.closed,
+                      'emergency_close_attempts':self.cleanup_attempts,'kernel_socket_telemetry':None,
+                      'application_acceptance':False}
+        self.helper_frame=None
+
+    def profile(self,frame,event,arg):
+        try:
+            self.owner_check()
+            if event=='call':
+                for name,code in self.actual.items():
+                    if frame.f_code is code:
+                        if name in self.frames:fatal('repeated_module_frame')
+                        self.frames[name]=frame;self.globals[name]=frame.f_globals;self.identities(name)
+                if self.helper_code is not None and frame.f_code is self.helper_code:self.helper_enter(frame)
+                if frame.f_code is getattr(self.bindings.native.close,'__code__',None):
+                    if frame.f_locals.get('self') is not self.socket:fatal('foreign_close')
+                    if not self.cleanup_phase and (frame.f_back is not self.helper_frame or frame.f_back.f_lineno!=145):
+                        fatal('close_caller')
+            if event=='return':
+                if frame is self.helper_frame:self.helper_return(frame,arg)
+                for name,module_frame in self.frames.items():
+                    if frame is module_frame:
+                        if frame.f_lasti not in self.catalog.returns[name]:fatal('abnormal_module_exit')
+                        self.identities(name);self.completed.add(name)
+                        if name==HELPER and (self.receipt is None or self.globals[name].get('HAS_IPV6') is not self.return_value):
+                            fatal('initializer_assignment')
+                        if name==PARENT and (self.absence is None or not self.absence_caught):fatal('missing_absence_outcome')
+        except BaseException:fatal('profile_callback_failure')
+
+    def trace(self,frame,event,arg):
+        try:
+            self.owner_check()
+            if frame is self.helper_frame and event=='exception':
+                kind,value,_=arg
+                if frame.f_lineno not in (138,139,145):fatal('unexpected_helper_exception_site')
+                errno=getattr(value,'errno',None)
+                self.exceptions.append({'site':frame.f_lineno,'class_module':kind.__module__,'class_name':kind.__name__,
+                                        'errno':errno if type(errno) is int else None})
+            if frame is self.frames.get(PARENT):
+                if event=='exception' and frame.f_lineno==27:
+                    if self.absence is None or arg[1] is not self.absence:fatal('optional_exception_identity')
+                    self.absence_exception_seen=True
+                if event=='line' and frame.f_lineno==29:
+                    if not self.absence_exception_seen:fatal('optional_handler_without_absence')
+                    self.absence_caught=True
+            return self.trace_callback
+        except BaseException:fatal('trace_callback_failure')
+
+    def finish(self):
+        self.observers_check()
+        self.bindings.validate_import_surface(self.absence_finder)
+        self.bindings.native.validate(check_files=True)
+        if (self.completed!=set(self.catalog.expected) or self.receipt is None or
+            not self.absence_caught or not self.catalog.unchanged()):fatal('incomplete_final_witness')
+        return dict(self.receipt,optional_import='verified_absent_and_caught')
