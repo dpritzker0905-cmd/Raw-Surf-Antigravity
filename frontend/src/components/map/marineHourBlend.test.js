@@ -292,3 +292,26 @@ describe('beforeWaveRealloc (v2): a grid of another size is KEPT, not freed, and
     expect(g2.calls).toContainEqual(['uniform1f', 'u_prevHeightRatio', 1.6]);
   });
 });
+
+describe('withHourBlend: the shader text is a wrapper, and the kill at load takes all of it away', () => {
+  const { withHourBlend } = require('./marineHourBlendGLSL');
+  const BARE = (() => { let out; jest.isolateModules(() => { window.__RAW_DISABLE_CREST_HOUR_BLEND__ = true; try { out = require('./WebGLMarineShaders').HEATMAP_FS; } finally { delete window.__RAW_DISABLE_CREST_HOUR_BLEND__; } }); return out; })();
+  test('OFF PATH: with the kill set before the shaders load, the colour shader has none of the blend', () => {
+    expect(BARE).not.toMatch(/u_hourPrevMix|u_wavePrevTexture|sampleWavePrev|u_prevBounds|u_prev_reg|u_prevTexel|u_prevHeightRatio|'value' -> 6\.0/);
+    expect(BARE.length).toBeLessThan(HEATMAP_FS.length);
+  });
+  test('the blend\'s shader is the bare shader plus the four insertions, and nothing else', () => {
+    expect(withHourBlend(BARE, {})).toBe(HEATMAP_FS);
+    expect(withHourBlend(BARE, { __RAW_DISABLE_CREST_HOUR_BLEND__: true })).toBe(BARE);
+    for (const v of [1, 'true', false, null]) expect(withHourBlend(BARE, { __RAW_DISABLE_CREST_HOUR_BLEND__: v })).toBe(HEATMAP_FS);
+  });
+  test('a shader that lost an anchor throws at load instead of drawing without the mix', () => {
+    expect(() => withHourBlend(BARE.replace('  vec4 waveData = sampleWaveLandAware(data_uv);\n', ''), {})).toThrow(/withHourBlend/);
+    expect(() => withHourBlend(BARE + BARE, {})).toThrow(/withHourBlend/);
+  });
+  test('the suites that pin an older shader stand the blend down first', () => {
+    for (const f of ['marineWaveSpectrum.test.js', 'marineHeightEncoding.test.js']) expect(read(f).split('\n')[0]).toContain("import './marineHourBlendKill.testsupport';");
+    expect(HEATMAP_FS).toContain("if (u_debug_mode > 5.5) { // 'value' -> 6.0");
+    expect(read('WebGLMarineEngine.js')).toContain("else if (mode === 'value') debugModeVal = 6.0;");
+  });
+});

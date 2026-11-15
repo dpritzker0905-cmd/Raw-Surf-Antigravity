@@ -5,6 +5,7 @@
  */
 
 import { MARINE_WAVE_PALETTE_GLSL, MARINE_WAVE_PALETTE_CALL_GLSL, withWaveSpectrum } from './marineWavePalette';   // + light's spectrum terms (D-037)
+import { withHourBlend } from './marineHourBlendGLSL';   // the hour blend: the earlier field mixed in for a moment after a step
 import { withHeightScale } from './marineHeightEncoding';   // the height byte's per-upload decode (16 m on light/beach v2)
 
 export const HEATMAP_VS = `
@@ -41,7 +42,7 @@ void main() {
 }
 `;
 
-export const HEATMAP_FS = withHeightScale(withWaveSpectrum(`
+export const HEATMAP_FS = withHourBlend(withHeightScale(withWaveSpectrum(`
 precision mediump float;
 // A15-13 (audit 15.0): GEOGRAPHY AT HIGH PRECISION. mediump's guaranteed minimum is fp16 (10-bit
 // mantissa); many phone GPUs honour exactly that. At fp16 this shader's lng would step 0.0625°
@@ -57,13 +58,6 @@ precision mediump float;
 #endif
 varying highp vec2 v_mercator_xy;
 uniform sampler2D u_waveTexture;
-uniform sampler2D u_wavePrevTexture; // THE HOUR BLEND (marineHourBlend.js): the hour that was on screen before the step
-uniform float u_hourPrevMix;         // how much of it to draw: 1 at the step, 0 at rest (then it is not read)
-uniform highp vec2 u_prevBounds_min; // the earlier field's OWN bounds [west, south] / [east, north]: it may be another grid
-uniform highp vec2 u_prevBounds_max;
-uniform GEO_P vec4 u_prev_reg;       // its point registration
-uniform GEO_P vec2 u_prevTexel;      // 1/cols, 1/rows when it shares this grid's land flags; 0 = plain fetch
-uniform float u_prevHeightRatio;     // its height scale / this grid's: heights are mixed in metres
 uniform sampler2D u_chlorophyllTexture;
 uniform sampler2D u_bathymetryTexture;
 uniform sampler2D u_oceanMaskTexture;
@@ -176,27 +170,6 @@ vec4 sampleWaveLandAware(GEO_P vec2 uv) {
   if (wsum < 0.0001) return plain;           // all four are land: masked pixel, do not invent a value
 
   return (s00 * w00 + s10 * w10 + s01 * w01 + s11 * w11) / wsum;
-}
-
-// THE HOUR BLEND's fetch of the earlier field, at ITS OWN place: uv is in the earlier grid's own texture space. On an
-// unchanged grid (u_prevTexel > 0) it uses the SAME water-only weights as sampleWaveLandAware above, so the two hours meet
-// cell for cell at the coast; a grid that was replaced is fetched plainly (its land flags went with it).
-vec4 sampleWavePrev(GEO_P vec2 uv) {
-  vec4 plain = texture2D(u_wavePrevTexture, uv);
-  if (u_landAwareFetch < 0.5 || u_prevTexel.x <= 0.0 || u_prevTexel.y <= 0.0) return plain;
-  GEO_P vec2 tc = uv / u_prevTexel - 0.5;
-  vec2 f = fract(tc);
-  GEO_P vec2 c0 = (floor(tc) + 0.5) * u_prevTexel;
-  vec2 cx = vec2(u_prevTexel.x, 0.0);
-  vec2 cy = vec2(0.0, u_prevTexel.y);
-  float w00 = (1.0 - f.x) * (1.0 - f.y) * step(0.5, texture2D(u_chlorophyllTexture, c0).a);
-  float w10 = f.x * (1.0 - f.y) * step(0.5, texture2D(u_chlorophyllTexture, c0 + cx).a);
-  float w01 = (1.0 - f.x) * f.y * step(0.5, texture2D(u_chlorophyllTexture, c0 + cy).a);
-  float w11 = f.x * f.y * step(0.5, texture2D(u_chlorophyllTexture, c0 + cx + cy).a);
-  float wsum = w00 + w10 + w01 + w11;
-  if (wsum < 0.0001) return plain;
-  return (texture2D(u_wavePrevTexture, c0) * w00 + texture2D(u_wavePrevTexture, c0 + cx) * w10
-        + texture2D(u_wavePrevTexture, c0 + cy) * w01 + texture2D(u_wavePrevTexture, c0 + cx + cy) * w11) / wsum;
 }
 
 GEO_P float mercatorYToLat(GEO_P float y) {
@@ -516,18 +489,6 @@ void main() {
     oceanAlpha = 0.0;
   }
   vec4 waveData = sampleWaveLandAware(data_uv);
-  // THE HOUR BLEND: for a moment after a step, the VALUES of the earlier hour and this one are mixed, then coloured below.
-  if (u_hourPrevMix > 0.0) {
-    GEO_P float pu = u_prevBounds_min.x > u_prevBounds_max.x
-      ? mod(lng - u_prevBounds_min.x, 360.0) / max((u_prevBounds_max.x + 360.0) - u_prevBounds_min.x, 0.0001)
-      : (lng - u_prevBounds_min.x) / max(u_prevBounds_max.x - u_prevBounds_min.x, 0.0001);
-    GEO_P float pv = (lat - u_prevBounds_min.y) / max(u_prevBounds_max.y - u_prevBounds_min.y, 0.0001);
-    if (pu >= 0.0 && pu <= 1.0 && pv >= 0.0 && pv <= 1.0) {   // outside the earlier grid, this field is drawn alone
-      vec4 prevData = sampleWavePrev(ptReg(vec2(pu, pv), u_prev_reg));
-      prevData.b *= u_prevHeightRatio;
-      waveData = mix(waveData, prevData, u_hourPrevMix);
-    }
-  }
   float depthFactor = texture2D(u_bathymetryTexture, data_uv).r;
   float waveHeight = waveData.b * 10.0;
   
@@ -537,10 +498,7 @@ void main() {
   }
 
   if (u_debug_mode > 0.5) {
-    if (u_debug_mode > 5.5) { // 'value' -> 6.0: the height byte as grey, no colour table (after the hour blend's mix)
-      gl_FragColor = vec4(vec3(waveData.b), u_opacity);
-      return;
-    } else if (u_debug_mode < 1.5) { // 'uv' -> 1.0
+    if (u_debug_mode < 1.5) { // 'uv' -> 1.0
       gl_FragColor = vec4(grid_uv.x, grid_uv.y, 0.0, u_opacity);
       return;
     } else if (u_debug_mode < 2.5) { // 'mask' -> 2.0
@@ -747,4 +705,4 @@ void main() {
 
   gl_FragColor = vec4(finalColor * alpha, alpha);
 }
-`), 'u_heightScale.x');   // THE HEIGHT BYTE: the bound wave texture's per-upload scale (marineHeightEncoding.js); light spectrum: marineWavePalette.js
+`), 'u_heightScale.x'));   // + the hour blend's text (marineHourBlendGLSL.js). THE HEIGHT BYTE: the bound wave texture's per-upload scale (marineHeightEncoding.js); light spectrum: marineWavePalette.js

@@ -1,3 +1,4 @@
+import './marineHourBlendKill.testsupport';   // the hour blend stands down here: this suite pins an older HEATMAP_FS byte for byte
 import './motionFixesKill.testsupport';   // the 2026-11-03 motion fixes stand down here: this suite pins an older DRAW_VS / ADVECT_FS byte for byte
 // THE HEIGHT BYTE (2026-10-20): the per-upload scale, its kill, and the byte-identity of everything that must not move.
 // Baselines: hashed at #411's head c40cbe67f before any file here changed (dev f550d2502, #411's squash, has the same tree).

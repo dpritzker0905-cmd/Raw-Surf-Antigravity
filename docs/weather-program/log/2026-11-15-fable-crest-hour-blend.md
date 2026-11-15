@@ -840,3 +840,16 @@ recorded as failed is the owner's decision.
    the ratio toward 100%, against the blend. A likely direction, not shown.
 Still owed before the blend may be ON by default: H8 on real frames, water-only weighting, the colour-band-edge check for the
 one picture over the colour line, and the owner seeing blend and cut moving side by side.
+
+## 32. The draft PR (16:07 EST), opened at the owner's word in this session ("Yes, open draft")
+- **The shader text is now added by a wrapper** (`marineHourBlendGLSL.js`, `withHourBlend`), not written into the colour shader:
+  two suites pin that shader byte for byte against an older baseline, and the repo's rule is that a later addition vanishes
+  under its kill at load. With the kill set before the shaders load, the colour shader is the text it was. The code the wrapper
+  inserts is the code the gate build (`1c1a13f28`) ran: 41 of its 43 added lines are found verbatim in the wrapper; the two
+  that differ are comments. The gate was NOT run again on the restructured build.
+- Tests: `marineHourBlend.test.js`, 51 tests (floor fragment +51 tests, +1 suite); the kill is in the kill-switch inventory.
+- The whole map and tests trees, locally, twice: 7,163 of 7,165 pass on the second run. The two that fail are timeouts
+  ("Exceeded timeout of 5000 ms") in `marineFrameStoreCrop.test.js` and `marineFrameStoreRegional.test.js`; both suites pass
+  when run alone, three times of three (72 tests), on a machine running several hundred other processes. Hosted CI decides.
+- Lint ratchet: passes. File-size check: 0 violations.
+- NOT done: light and beach themes, the phone layout, the LongCat review, anything on a real device or the deployed site.
