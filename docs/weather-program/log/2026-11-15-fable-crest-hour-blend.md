@@ -238,3 +238,30 @@ Instrument and data as registered in section 6 (one page, both arms interleaved,
 - **H6** drag: arm B's mean step not larger than arm A's. Unchanged.
 - **H7** off path: unit tests for the kill, reduced motion and the shader source. Unchanged.
 - A failed line is recorded as it is. Nothing is tuned against this data without another dated registration.
+
+## 9. The advisor's finding on the gate (11:12 EST, relayed by the director) and two lines added BEFORE they are measured
+State when this was written: the v2 run registered in section 8 had been started at 11:08 and was still running; no v2 number
+had been seen. That run is scored under section 8 as registered and is disclosed as started before this section.
+**The finding, accepted:** H1 cannot fail on its own. Any cross-fade spreads a step over several frames, so the largest
+frame-to-frame change falls whatever is drawn in between; and nothing in sections 3-8 compares the blended picture with
+what the model actually says for the time in between. H1 measures smoothness, not truth. Two lines are added; no existing
+threshold changes.
+- **H8 (new): the hidden middle hour.** The store has a real frame every 3 h. For hours h, h+3, h+6: the engine shows h, then
+  steps straight to h+6 with the blend HELD at 0.5 (the picture half-way between h and h+6, particles not drawn), and that
+  picture is compared with the REAL frame of h+3 drawn at rest, which the blend never saw. ERROR(blend) = mean absolute
+  difference of luminance between the held picture and the real h+3 picture. ERROR(cut) = the smaller of the same measure for
+  the real h picture and the real h+6 picture against the real h+3 picture (a hard cut shows the nearest hour). Four triples
+  per view (h = 0, 3, 6, 9 h from the first step), the same 10 views, same-grid triples only (a triple in which the engine
+  changed grid is repeated once, then left out and counted).
+  Pass: pooled ERROR(blend) at most **60%** of pooled ERROR(cut), AND no view where the blend's error exceeds the cut's. At
+  least 30 of the 40 triples must be scored, or H8 is void.
+  Why 60%: for a field that changes evenly the half-way mix is exact (0%); for the moving swell of this store the half-way
+  mix of two trains 92 degrees of phase apart keeps 69% of the amplitude at the right phase, an expected error near 40% of the
+  cut's. 60% leaves room for the colour ramp's non-linearity and fails a blend that is no better than the nearest hour.
+- **H5 (section 8b) stands as the ghosting line**, with its positive control: the plain average of the same view's real
+  frames 12 h apart (the trains in near-opposite phase: a cross-fade of a feature that has moved) must FAIL the retention line
+  for the view to be scored. Added to H5: retention is ALSO taken for H8's held picture (h against h+6, a 6 h jump, twice the
+  motion of a normal step) and reported beside the 3 h figure; it is not gated, because a 6 h jump is not what a step draws.
+- What H8 does NOT show: the blend lasts 160 ms at a step and is not a continuous interpolation between hours, so H8 scores
+  the mix as an interpolant at its mid-point only; and the store is synthetic. Real model runs are not covered.
+- The gate text of sections 8b and 9 is sent to the advisor before H8 is run.
