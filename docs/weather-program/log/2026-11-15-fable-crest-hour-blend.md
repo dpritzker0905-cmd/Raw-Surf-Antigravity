@@ -451,3 +451,23 @@ progress; that order is stated here and nothing is back-dated. What is accepted,
    rounding; a larger remaining difference is a real drawing difference and is reported as one. Twelve pictures, the first
    three one-grid waves views of section 15.
 Still owed before ON by default: H8 on real frames from the public CDN, replayed offline.
+
+## 17. The advisor's third review (12:23 EST; it read sections 14-15) and what is registered from it, BEFORE the next runs
+The advisor's reading, accepted: the blend is shown to do correct arithmetic on low-zoom, world-grid steps; it is not shown
+at coastal zooms, where one failure is still unexplained; not ready for default ON. Its four points:
+1. **The reference line at the coast stands FAILED, cause unknown.** Section 14's pass was on views at zoom 3.5 or lower; the
+   two failures (0.51, 0.81) were coastal. Rounding explains about 0.38, not 0.81. Registered: the coastal views
+   (-158.0, 21.6, z5.0), (150.0, -34.0, z5.0), (-9.5, 39.0, z5.0) are taken again with the rounded-down and rounded-up
+   references, and in the grey view of section 16.3, together with the three low-zoom waves views. Line (colour): 0.5 as before.
+   Reading (grey): agreement within 0.15 on average means band edges and rounding; more is a real drawing difference.
+2. **H9 again, in the grey (value) view, on those six views.** The control moves the earlier grid one coarse cell east AND one
+   north (an eastward shift alone had no power where the field does not vary west to east). The coarse copy is made by
+   resampling the resident field to about a third of its resolution on the same sample extents (bilinear), so regional grids
+   of any size can be used, not only world grids. Four hours per view, 24 swaps.
+   Pass: HELD against FINE pooled **45% to 55%** of COARSE against FINE (in the value view a correct half-way mix gives 50%), in
+   no swap above it; the control at least 25% above the unshifted HELD in at least 80% of the swaps; a swap is scored only if
+   COARSE against FINE is at least 1.0 grey unit; at least 12 swaps scored or void.
+   Still not covered: water-only weighting (off by default in this build).
+3. H8 on low-zoom views has been seen twice (46-47% in luminance, 40.5% in metres); a third run "adds a tick, not information".
+   Section 15's run was already under way when this arrived. It is recorded as it ends and no weight is put on it.
+4. **H8c** (section 16.1) is the informative test and runs next.
