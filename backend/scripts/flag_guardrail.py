@@ -68,6 +68,8 @@ REPLAY, RATING, VOLUME, BLIND = "replay", "rating", "volume", "blind"
 # Every GUARDED flag (and the ones open PRs add) with what can see it. Flags in eval_replay.UNREPLAYABLE are BLIND
 # automatically (their reason is the replay's own). Pre-declared names cost nothing until they are guarded.
 COVERAGE = {
+    "ENS_WIND_EXTENSION": (BLIND, "ICON 180-336 h / EURO 240-336 h 10 m wind only; no surf height or rating replay reads "
+                                  "it. Evidence: the pre-registered long-range wind hindcast (wind-lr-hindcast.yml)"),
     "ICON_WIND_GFS_STANDIN": (BLIND, "ICON 10 m wind past ~180 h only; no surf height or rating replay reads it. Evidence: "
                                      "the pre-registered long-range wind hindcast (log 2026-11-15-wind-long-range.md)"),
     "SAMPLER_UNRESOLVED_STATIONS": (BLIND, "one named buoy coordinate (NDBC 46267); no surf spot is within 0.6 deg, so "

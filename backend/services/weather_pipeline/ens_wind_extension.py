@@ -35,11 +35,8 @@ STEP_H = 3
 
 
 def ens_extension_on() -> bool:
-    try:
-        from services import runtime_flags
-        return runtime_flags.on("ENS_WIND_EXTENSION")
-    except Exception:  # manifest unreadable: the env/code default decides
-        return os.environ.get("ENS_WIND_EXTENSION", "1") != "0"
+    from services import runtime_flags  # env > manifest > code default; never read around it (test_runtime_flags)
+    return runtime_flags.on("ENS_WIND_EXTENSION")
 
 
 # ---------------------------------------------------------------------------------------------- reduced-field file
