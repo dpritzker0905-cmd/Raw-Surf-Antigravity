@@ -80,8 +80,10 @@ class PlainFrames:
                     self.raw[key] = raw
 
 
-def try_patch(plain, vt, est, raw_json, unfilled, filled, fields):
-    """(raw, parity check) of the filled frame by patching the plain one, or (None, reason) when it cannot be proven equal."""
+def try_patch(plain, vt, est, raw_json, unfilled, filled, fields, n_filled=None):
+    """(raw, parity check) of the filled frame by patching the plain one, or (None, reason) when it cannot be proven equal.
+    `n_filled`: the cells apply_fill reports it filled. The changed nodes must agree with it (the advisor's red-team of #922: a
+    fill that wrote into the SAME dicts would leave `changed` empty, and the "patched" frame would be the unfilled one)."""
     entry = plain.entries.get((vt, est))
     if entry is None:
         return None, "no_plain"
@@ -103,9 +105,18 @@ def try_patch(plain, vt, est, raw_json, unfilled, filled, fields):
     if any(unfilled.get(k) != filled.get(k) for k in ("valid_time", "model_run_time")):
         return None, "times"
     changed = {i: v for i, (a, v) in enumerate(zip(base, vectors)) if a != v}
+    stamped = ((filled.get("coarse_fill") or {}).get("filled_idx")) or []
+    if (n_filled and not changed) or (n_filled is not None and len(changed) < n_filled) or any(i not in changed for i in stamped):
+        return None, "fill_disagrees"
     if any((v.get("lat"), v.get("lng")) != (base[i].get("lat"), base[i].get("lng")) for i, v in changed.items()):
         return None, "position"
     if fb.uv_convention(vectors) != head["uv_convention"]:
         return None, "header"
     raw = fb.patch_nodes(raw0, head["header_bytes"], fids, len(vectors), changed)
     return (raw, fb.parity(filled, fb.decode_frame(raw), only=set(changed))), "patched"
+
+
+def header_matches(raw, filled, fields):
+    """VERIFY mode's extra check: the header encode_header writes for the filled product equals the patched frame's."""
+    head, _fids, _vecs = fb.encode_header(filled, fields)
+    return raw[:len(head)] == head

@@ -267,3 +267,34 @@ def test_the_kill_switch_and_the_workflow():
     assert "FRAME_FILLED_PATCH: ${{ vars.FRAME_FILLED_PATCH || '1' }}" in step
     assert "FRAME_FILLED_PATCH_VERIFY: ${{ vars.FRAME_FILLED_PATCH_VERIFY || '0' }}" in step
     assert fsfp.enabled() and not fsfp.verify_mode()
+
+
+def test_a_fill_that_disagrees_with_the_changed_nodes_falls_back(tmp_path, monkeypatch):
+    """The advisor's red-team of #922: a fill writing into the SAME dicts would leave no node 'changed', and the patched frame
+    would be the unfilled one. The changed nodes must agree with what the fill reports, or the frame is rebuilt in full."""
+    store, out, idx = _plain_frames(tmp_path, monkeypatch)
+    plain = fsfp.PlainFrames(idx, pub.LocalSink(out))
+    plain.prefetch()
+    raw_json, unfilled, filled = _inputs(store)
+    n = sum(1 for a, b in zip(unfilled["grid"]["vectors"], filled["grid"]["vectors"]) if a != b)
+    assert fsfp.try_patch(plain, VALIDS[0], False, raw_json, unfilled, filled, fb.DEFAULT_FIELDS, n)[1] == "patched"
+    assert fsfp.try_patch(plain, VALIDS[0], False, raw_json, unfilled, unfilled, fb.DEFAULT_FIELDS, n)[1] == "fill_disagrees"
+    assert fsfp.try_patch(plain, VALIDS[0], False, raw_json, unfilled, filled, fb.DEFAULT_FIELDS, n + 1)[1] == "fill_disagrees"
+    stamped = dict(filled, coarse_fill={"filled_idx": [0]})                        # node 0 (a land node) is not among the changed
+    assert unfilled["grid"]["vectors"][0] == filled["grid"]["vectors"][0]
+    assert fsfp.try_patch(plain, VALIDS[0], False, raw_json, unfilled, stamped, fb.DEFAULT_FIELDS, n)[1] == "fill_disagrees"
+
+
+def test_a_filled_set_without_a_plain_index_is_counted_not_silent(tmp_path):
+    _write(tmp_path / "s")
+    rep = _run(tmp_path / "s", tmp_path / "o", [EURO_FILLED])                       # no plain set published: no index to patch from
+    st = rep[fs.set_key(EURO_FILLED)]
+    assert st["built"] == 3 and st["patch_fallback_no_index"] == 3
+
+
+def test_verify_mode_also_compares_the_header(tmp_path, monkeypatch):
+    monkeypatch.setenv(fsfp.VERIFY, "1")
+    monkeypatch.setattr(fsfp, "header_matches", lambda raw, filled, fields: False)
+    _write(tmp_path / "s")
+    st = _run(tmp_path / "s", tmp_path / "o", [EURO_PLAIN, EURO_FILLED])[fs.set_key(EURO_FILLED)]
+    assert st["patched"] == st["patch_mismatch"] == 3                              # the full frame was published each time

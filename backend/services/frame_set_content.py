@@ -55,7 +55,7 @@ _KEY_RX = {k: re.compile(rb'"' + k.encode("ascii") + rb'"\s*:\s*(?:' + _VALUE + 
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 CODE_FILES = tuple(os.path.join(_HERE, f) for f in (
-    "frame_binary.py", "frame_set.py", "frame_set_fill.py", "frame_set_content.py",
+    "frame_binary.py", "frame_set.py", "frame_set_fill.py", "frame_set_content.py", "frame_set_fill_patch.py",
     os.path.join("weather_pipeline", "coarse_gulf_fill.py")))
 _code = None
 

@@ -302,7 +302,9 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
     fill_store = fsf._ManifestStore(products) if filled else None
     # A FILLED frame is the plain frame of the same product with the filled nodes rewritten (frame_set_fill_patch): fetch the
     # plain set's frames once, in parallel; any frame not provably equal falls back to the full rebuild.
-    plain = None
+    plain, no_plain_index = None, False
+    if filled and fsfp.enabled() and sink is not None and not plain_index:
+        no_plain_index = True                  # counted per frame below: the full rebuild is not silent
     if filled and plain_index and sink is not None and fsfp.enabled():
         plain = fsfp.PlainFrames(plain_index, sink)
         plain.prefetch()
@@ -393,9 +395,9 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
             stats["rated_nodes"] += counts["rated"]
             stats["masked_nodes"] += counts["masked"]
         try:
-            patched, why = (None, None)
+            patched, why = (None, "no_index" if no_plain_index else None)
             if plain is not None and not bight_on:
-                patched, why = fsfp.try_patch(plain, vt, est, raw_json, unfilled, product, fields_for(target))
+                patched, why = fsfp.try_patch(plain, vt, est, raw_json, unfilled, product, fields_for(target), n_filled)
             if patched is None:
                 if why:
                     stats[f"patch_fallback_{why}"] = stats.get(f"patch_fallback_{why}", 0) + 1
@@ -405,7 +407,7 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
                 stats["patched"] += 1
                 if fsfp.verify_mode():         # the first live run's check: the full rebuild must write the same bytes
                     full, full_check = build_frame(product, entry, fields_for(target, touched > 0))
-                    if full != raw:
+                    if full != raw or not fsfp.header_matches(raw, product, fields_for(target)):
                         stats["patch_mismatch"] += 1
                         log(f"[frames] {entry['filename']}: patched frame differs from the full rebuild; the full one is used")
                         raw, check = full, full_check

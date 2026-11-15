@@ -59,3 +59,21 @@ identity**, NOT the pre-registered 50%. The 50% line is recorded here as missed.
 **Context for the cut:** in the 5 pilots runs after #832 no frame set was skipped for budget, and the frames step took 18 of the job's
 130 minutes. The ~130-200 s this returns per run goes to the frames step's own budget (the regional bundles), not to the raster
 steps.
+
+## 18:01Z: the advisor's red-team (PASS WITH LIMITS), conditions done
+
+Verdict at 8ed5b1c96: header, thread pool and memory sound (shared notes, redteam-922-filled-frame-patch-2026-11-15.md).
+
+Conditions, all done:
+1. **The one silent route to a wrong frame** was a future fill writing into the same dicts: no node "changed", so the patched frame
+   would be the unfilled one. `try_patch` now checks the changed nodes against the fill's own count (`n_filled`) and
+   `coarse_fill.filled_idx`, and falls back (`fill_disagrees`) on any disagreement.
+2. A missing or unreadable plain index is counted (`patch_fallback_no_index`), not silent.
+3. Also asked for: VERIFY mode compares `encode_header(filled)` with the patched header too; `frame_set_fill_patch.py` joins the
+   content-key code fingerprint. This PR edits five fingerprint files, so every content-carried set (#832) rebuilds once after merge.
+
+3 tests added (12 in total); mutants for each new guard red (11 of 11 in total).
+
+Rollout condition, the director's call: run the first live pilots run with repo variable `FRAME_FILLED_PATCH_VERIFY=1`, read
+`patched > 0` and `patch_mismatch == 0` in the frames report, then clear it. The advisor also noted that the live saving will be below
+46-51%: the ~118 plain-frame GETs per filled set are not in the offline benchmark (local sink).
