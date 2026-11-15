@@ -1,0 +1,65 @@
+# 2026-11-15: D-072, the accuracy monitor's RED split into three rules; pre-registered replay (pr-verifier)
+
+Append-only. D-072 was approved by the owner on 2026-11-15 at 16:14 EST ("Yes to all"). This is brief 2 of the senior
+research lead's plan (#929), assigned to this session by the director. All times UTC.
+
+## 1. Pre-registration, written 2026-11-15 ~21:55Z, BEFORE any scored row was read
+
+**What I had seen.** D-072's text and its estimates from logged aggregates:
+- rule-1 basis max +0.057 / +0.046 / +0.041 m;
+- rule-2 basis max about +0.25 m;
+- the hole-key gap since 11-01 at +0.291 / +0.340 / +0.354 m;
+- our hole-key MAE going from 0.24 to 0.58 m.
+
+I have read no scored row. The scored segments are in private Storage and this machine holds no key. The replay runs
+only in a dispatch-only Actions job that prints aggregates, the per-buoy split's pattern, dispatched on the owner's word.
+
+**Instrument.** The pure rules are in `services/weather_pipeline/accuracy_red_split.py`. The replay and audit are in
+`scripts/accuracy_red_split_replay.py`.
+
+**Pairing.** Exactly `forecast_skill.head_to_head`: the same buoy, target time and lead bucket (+24 / +48 / +72 h), AND the
+same verifying observation (time and height). Rows need a finite `err_m`.
+
+**Rules.** Each fires at a lead when the paired table is gradeable, delta = MAE(ours) - MAE(theirs) exceeds the rule's
+bound, and the win rate is under 50%. These are the monitor's `_gradeable` floor and `_loses` test.
+
+| Rule | Ours against | Keys | n floor |
+|---|---|---|---|
+| 1, same-model regression | `open_meteo:ncep_gfswave025` | the keys it scores | 200 |
+| 2, hole buoys | `open_meteo_marine` (best_match) | best_match keys with NO same-model row | 30 |
+| 3, best_match where both score | `open_meteo_marine` | best_match keys the same-model control also scores | 200 |
+
+**Replay.** One simulated monitor run per day at 00:00Z, from 2026-08-15 to 2026-11-14. Each run uses the monitor's
+trailing paired window: targets with 0 <= run - target <= 7 days.
+
+**Bounds, set blind to November.** Each rule gets one bound across all leads: 1.24 x the worst gradeable delta over the
+basis days 2026-08-15 .. 10-31, floored at +0.03 m and rounded up to the centimetre. That is D-072's "~1.24x the worst
+recorded" method. The script computes the bounds from the basis days alone, before it grades any later day.
+
+**The four checks (brief 2). All must hold for PASS.**
+- **P1 negative, our chain did not regress.** Rule 1 fires on NONE of the episode days, 2026-11-10 .. 11-14.
+- **P2 positive.** With +0.08 m added to our absolute error on every rule-1 key, rule 1 fires on >= 80% of the days
+  2026-11-01 .. 11-14. Those days are outside the basis, so the bound is not fitted on the seeded data.
+- **P3.** Rule 2 fires on >= 3 of the 5 episode days.
+- **P4 null.** None of the three rules fires on any replay day under a per-key label swap: ours and the reference trade
+  places at random, with the swap RE-DRAWN for every replay day (seed 20261115 plus the day). The brief calls this the
+  "lead-shuffled null"; I asked the senior lead which construction is meant. A lead permutation keeps the real gap and
+  so cannot be a null, which is why the swap is registered. A fixed swap set is what voided my EURO read
+  (`2026-11-15-claude-verifier-euro-scalar-read.md` section 2), so it is re-drawn here.
+- **VOID** if no basis day is gradeable for any rule.
+
+**Hole-buoy audit (Reflection's step, reported, not part of PASS).** For each data-derived hole buoy (best_match rows
+with no same-model row), before (08-15 .. 10-31) against November (11-01 .. 11-14):
+- n, our MAE and best_match's MAE;
+- observations <= 0.05 m and > 15 m;
+- "frozen" predictions: the same served height on consecutive targets at the same lead;
+- duplicate keys.
+
+A data or build defect would show as a jump in obs anomalies, frozen predictions or duplicates at the November
+change, rather than as a rise in both our error and best_match's.
+
+**Limits stated before the result.**
+- The replay recomputes the rules from rows. It is not a re-read of the monitor's logs, so its bounds can differ from
+  D-072's aggregate estimates.
+- One autumn: the basis is summer and early autumn, and the episode is the first winter swell.
+- Rule 2 is empirical. The audit can show a defect but cannot prove the nearest-ocean fallback causes the gap.
