@@ -11,6 +11,7 @@ import {
 import {
   safeDeleteTexture
 } from './WebGLWindUtils';
+import { disposeHourBlend } from './marineHourBlend';
 import {
   createTexture
 } from './WebGLMarineTextureEncoder';
@@ -247,6 +248,7 @@ export function disposeEngine(engine, gl) {
   safeDeleteTexture(gl, engine.particleStateA, null);
   safeDeleteTexture(gl, engine.particleStateB, null);
 
+  disposeHourBlend(engine, gl); if (engine._hourBlendFbo) { gl.deleteFramebuffer(engine._hourBlendFbo); engine._hourBlendFbo = null; }   // the hour blend's earlier-hour texture
   safeDeleteTexture(gl, engine._residentWaveTex, null);
   safeDeleteTexture(gl, engine._residentChlTex, null);
   safeDeleteTexture(gl, engine._residentBathTex, null);

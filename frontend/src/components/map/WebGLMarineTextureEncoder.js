@@ -39,6 +39,7 @@ export { scaleUnitDirByConfidence, extrapolateOceanData, dilateDirectionField } 
 // unit test that pulls these from THIS module keeps resolving them — the same move this file
 // already made for WebGLMarineFieldMath above.
 export { withTextureState, createTexture, updateTexture } from './WebGLMarineTextureState';
+import { beforeWaveOverwrite, disposeHourBlend } from './marineHourBlend';
 import { withTextureState, createTexture, updateTexture } from './WebGLMarineTextureState'; import { uploadMaskCanvas } from './maskCanvasUpload';
 
 // --- Land Mask Rendering imported from WebGLMarineMaskRenderer ---
@@ -457,6 +458,9 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
       waveTex = engine._residentWaveTex;
       chlTex = engine._residentChlTex;
       bathTex = engine._residentBathTex;
+      // the hour on screen is kept for the hour blend before it is overwritten (marineHourBlend.js)
+      beforeWaveOverwrite(engine, gl, { cols, rows, bounds: waveGrid.bounds, model: waveGrid.__sourceModel, layer: waveGrid.__componentLayer,
+        validTime: waveGrid.served_valid_time ?? waveGrid.valid_time ?? waveGrid.hourOffset, rating: !!dataWaveScore });
       updateTexture(gl, waveTex, dataWave, cols, rows);
       updateTexture(gl, chlTex, dataChl, cols, rows);
       updateTexture(gl, bathTex, dataBath, cols, rows);
@@ -474,6 +478,7 @@ export function _encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
       }
     } else {
       if (!standalone && engine) {
+        disposeHourBlend(engine, gl);   // a resident of another size: the earlier hour's texture goes with it
         if (engine._residentWaveTex) {
           // ⚠️ NO MANUAL DECREMENT (2026-08-04): `safeDeleteTexture` now accounts for every caller
           // from each texture's RECORDED dims, so these three subtract 3 x (w*h*4) themselves —

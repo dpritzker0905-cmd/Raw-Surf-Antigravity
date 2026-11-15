@@ -43,7 +43,7 @@ import {
   shouldCarryParticlesOnGridSwap,
   initEngine,
   disposeEngine, pollPrograms
-} from './WebGLMarineEngineInit';
+} from './WebGLMarineEngineInit'; import { setHourBlendUniforms } from './marineHourBlend';
 
 // ── THE PURE DECISION LAYER MOVED OUT (2026-07-29) ───────────────────────────────────────────────
 // This file was 3,845 lines against the repo's 800-line limit. Its first 663 lines were pure,
@@ -1840,6 +1840,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // use it (the main texture is honest heights then). The feature kill switch lives at the
     // ENCODER (__RAW_DISABLE_ANIM_PHYS__ → no score texture, score back in the shared channel).
     bindTexture(gl, this._waveData.u_waveScoreTexture || this._waveData.u_waveTexture, 0); setWaveHeightScale(gl, this.heatmapProgram, this._waveData.u_waveScoreTexture ? null : this._waveData);
+    setHourBlendUniforms(gl, this, this.heatmapProgram, uniformLoc, bindTexture);   // the hour blend: the earlier hour on its own unit while a step blends (marineHourBlend.js)
     bindTexture(gl, this._waveData.u_chlorophyllTexture, 1);
     bindTexture(gl, this._waveData.u_bathymetryTexture, 2);
     bindTexture(gl, this._waveData.u_oceanMaskTexture, 3);
@@ -3093,6 +3094,7 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
   gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_is_estimated'), 0.0);
   gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_surfMode'), 0.0);
   gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_ribbonRadiusDeg'), 0.0); // honest wash: never ring-sample
+  gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_hourPrevMix'), 0.0);     // the wash is never hour-blended (its base is its own snapshot)
   gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_bandInlandGate'), 0.0);  // (inert here — band branch never runs on the wash)
   gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_time'), time);
   gl.uniform1f(uniformLoc(gl, this.heatmapProgram, 'u_heightAlphaEnabled'), 0.0);

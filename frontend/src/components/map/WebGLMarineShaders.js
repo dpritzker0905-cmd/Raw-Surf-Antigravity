@@ -57,6 +57,8 @@ precision mediump float;
 #endif
 varying highp vec2 v_mercator_xy;
 uniform sampler2D u_waveTexture;
+uniform sampler2D u_wavePrevTexture; // THE HOUR BLEND (marineHourBlend.js): the hour that was on screen before the step
+uniform float u_hourPrevMix;         // how much of it to draw: 1 at the step, 0 at rest (then it is not read)
 uniform sampler2D u_chlorophyllTexture;
 uniform sampler2D u_bathymetryTexture;
 uniform sampler2D u_oceanMaskTexture;
@@ -169,6 +171,26 @@ vec4 sampleWaveLandAware(GEO_P vec2 uv) {
   if (wsum < 0.0001) return plain;           // all four are land: masked pixel, do not invent a value
 
   return (s00 * w00 + s10 * w10 + s01 * w01 + s11 * w11) / wsum;
+}
+
+// THE HOUR BLEND's fetch of the earlier hour: the SAME water-only weights as sampleWaveLandAware above (both hours sit on one
+// grid with one land flag, or the step is not blended), so the two hours meet cell for cell at the coast.
+vec4 sampleWavePrevLandAware(GEO_P vec2 uv) {
+  vec4 plain = texture2D(u_wavePrevTexture, uv);
+  if (u_landAwareFetch < 0.5 || u_waveTexel.x <= 0.0 || u_waveTexel.y <= 0.0) return plain;
+  GEO_P vec2 tc = uv / u_waveTexel - 0.5;
+  vec2 f = fract(tc);
+  GEO_P vec2 c0 = (floor(tc) + 0.5) * u_waveTexel;
+  vec2 cx = vec2(u_waveTexel.x, 0.0);
+  vec2 cy = vec2(0.0, u_waveTexel.y);
+  float w00 = (1.0 - f.x) * (1.0 - f.y) * step(0.5, texture2D(u_chlorophyllTexture, c0).a);
+  float w10 = f.x * (1.0 - f.y) * step(0.5, texture2D(u_chlorophyllTexture, c0 + cx).a);
+  float w01 = (1.0 - f.x) * f.y * step(0.5, texture2D(u_chlorophyllTexture, c0 + cy).a);
+  float w11 = f.x * f.y * step(0.5, texture2D(u_chlorophyllTexture, c0 + cx + cy).a);
+  float wsum = w00 + w10 + w01 + w11;
+  if (wsum < 0.0001) return plain;
+  return (texture2D(u_wavePrevTexture, c0) * w00 + texture2D(u_wavePrevTexture, c0 + cx) * w10
+        + texture2D(u_wavePrevTexture, c0 + cy) * w01 + texture2D(u_wavePrevTexture, c0 + cx + cy) * w11) / wsum;
 }
 
 GEO_P float mercatorYToLat(GEO_P float y) {
@@ -488,6 +510,8 @@ void main() {
     oceanAlpha = 0.0;
   }
   vec4 waveData = sampleWaveLandAware(data_uv);
+  // THE HOUR BLEND: for a moment after a step, the VALUES of the earlier hour and this one are mixed, then coloured below.
+  if (u_hourPrevMix > 0.0) waveData = mix(waveData, sampleWavePrevLandAware(data_uv), u_hourPrevMix);
   float depthFactor = texture2D(u_bathymetryTexture, data_uv).r;
   float waveHeight = waveData.b * 10.0;
   

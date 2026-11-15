@@ -54,6 +54,7 @@ import { createIntent, createPrefetcher, idleSlice, planWant } from './marineFra
 import { createFrameArrays, isWebGL2, uploadBytesTo2D } from './marineFrameStoreGpu';
 import { auxForPack } from './marineFrameAux';
 import { publishMarineDrawn } from './marineDrawnFrame';
+import { beforeWaveOverwrite, cancelHourBlend } from './marineHourBlend';
 import { isHandheldDevice, isWeakDevice } from './deviceTier';
 import { createCropShow } from './marineFrameStoreCropShow';   // the crop show (2026-10-22)
 import { lakeShowPlan, applyLakeSwap } from './waveLakesShow';   // a lake model's mask under a non-lake frame (2026-10-23)
@@ -615,11 +616,13 @@ function showStored({ model, layer, hourOffset, requestedValidTime }, switching)
     if (engine._texWidth !== e.pack.cols || engine._texHeight !== e.pack.rows || wg.cols !== e.pack.cols || wg.rows !== e.pack.rows) return miss('dims_differ');
     if (aux && !(uploadBytesTo2D(gl, engine._residentChlTex, aux.chl, aux.cols, aux.rows)
       && uploadBytesTo2D(gl, engine._residentBathTex, aux.bath, aux.cols, aux.rows))) { rt.resident = null; return miss('copy_failed'); }
+    // the hour on screen is kept for the hour blend before it is overwritten (marineHourBlend.js); an exact-mask show is a hard swap
+    beforeWaveOverwrite(engine, gl, { cols: e.pack.cols, rows: e.pack.rows, bounds: wg.bounds, model, layer, validTime: frame.valid_time, maskDiffers: !!aux || maskCells > 0 });
     let ok = false;
     if (e.layer !== null && rt.pool && rt.pool.has(info.key)) ok = rt.pool.copyToTexture(info.key, e.layer, tex);
     if (!ok) dropDeadPool();                       // a lost context: never trust the array again; the CPU bytes below are exact
     if (!ok && e.packed) ok = uploadBytesTo2D(gl, tex, e.packed, e.pack.cols, e.pack.rows);
-    if (!ok) { if (aux) rt.resident = null; return miss('copy_failed'); }   // chl/bath already moved: no resident is known
+    if (!ok) { cancelHourBlend(engine); if (aux) rt.resident = null; return miss('copy_failed'); }   // chl/bath already moved: no resident is known
     if (lakePlan === 'swap') applyLakeSwap(gl, engine);   // same show, before the draw: never GFS bytes under a lake cut
     const meta = frameMeta(index, frame);
     const ask = requestedValidTime;

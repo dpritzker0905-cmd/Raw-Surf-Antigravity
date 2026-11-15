@@ -104,3 +104,45 @@ run of the instrument: view 4 of the list (waves, world, z2.5), arm B only, on t
   with what was handed over; the handed-over bytes are not hashed a second time on the CPU.
 - Every boundary counts in H1, including the ones that are hard swaps by design (a grid change); how many were blended is
   reported beside the result.
+
+## 5. First gate run on the moving-swell data: NOT PASSED, mostly because the instrument was not fit (recorded 10:28 EST)
+(Time correction, append-only: section 4's header says 10:05 EST; its commit `3b4b8eb4d` is stamped 09:58:31 EST. The commit is the record.)
+Run: arm A 10:00-10:08, arm B 10:08-10:18, then a control, arm A again, 10:18-10:27 (`scn_hour_blend.js`, scored by
+`hour_blend_report.js`). As measured, against the gate as registered:
+- **H1 VOID.** Views 7-10 (swell_1 x2, swell_2, wind_waves) carried no pop: step 0.007-0.055 against floors 0.009-0.057. Cause,
+  found afterwards: the store was built with waves only, so those layers never drew; the engine held waves at hour 0 through the
+  whole scrub. 4 of 10 views left out is more than 3, so H1 is void. The six waves views, for the record: pooled step A 7.55 ->
+  B 4.88 (65% of A). Inside that: 37 of 48 boundaries were blended, A 6.23 -> B 1.96 (31%); the other 11 were grid swaps
+  (the engine alternates between a 46 x 21 world grid and a finer 181 x 83 or regional grid from one step to the next), hard
+  swaps by design, with steps of 12-15 in BOTH arms. Those grid swaps are larger than the hour pop itself.
+- **H2 FAIL as measured, and the measurement is confounded.** GPU ms per frame, median over views: A 1.95, B 4.10 (+110%).
+  Control: arm A run again after B: 3.85, 2.95, 3.61, 4.90, 6.34, 3.99 on the six waves views against B's 3.95, 2.75, 4.11,
+  4.50, 5.49, 4.25. So the doubling follows RUN ORDER (the first arm ran on a cold backend and held the coarse grid; warm runs
+  hold the finer grid and draw more), not the blend. No statement about the blend's cost can be made from this run.
+- **H3 FAIL as measured, same confound.** 64 of 80 hashes equal between A and B. Arm A against arm A (the control): 35 of 48
+  equal on the waves views. Which product is resident 420 ms after a step differs from run to run with no change in code, so
+  a step-by-step comparison of arms cannot be the test.
+- **H4 PASS.** 80 of 80 steps at rest: no blend object, the shader's mix uniform 0.
+- **H5 not usable.** Held boundaries: edge ratio worst 1.002, mean 0.879. But the positive control did not trip in every view
+  (ratio 0.97-1.46): in textured coastal views 65-80% of all pixels already count as edges at the registered threshold (8% of
+  the 99th percentile), so the count is saturated and cannot rise. The check as registered cannot see doubling there.
+  Read beside it: the held frame sat 53% of the way from the earlier hour to the new one; particle vertices per frame constant.
+- **H6 PASS as measured** (drag: A 4.48, B 3.46), under the same confound as H1.
+- A telemetry fault found and fixed (the mix value stayed stale when the earlier-hour texture was freed); it did not enter any gate line.
+Nothing in the blend was changed in response to these numbers.
+
+## 6. The instrument, registered again BEFORE it is run (same thresholds, same 10 views, same design under test)
+What is wrong is the comparison, so only the comparison changes:
+1. **One page, both arms, interleaved.** The kill is read on every step, so each view runs arm A and arm B in the SAME page on
+   the same warm backend: for every phase (timing, capture, drag) one scrub with the kill set and one without, A first on even
+   views and B first on odd views. A full unmeasured scrub comes first in each view, as before.
+2. **The store holds all four layers** (`--layers waves,swell_1,swell_2,wind_waves`, with `--moving-swell 0.9`). A view whose
+   drawn record does not name its own layer is an instrument failure and voids the run.
+3. **H3 per product.** For every (grid size, valid time) that both arms had resident after a step, the texture hashes must be
+   equal; at least 40 such pairs are required. (Which product is resident varies from run to run in arm A alone.)
+4. **H5's threshold** is 50% of the 99th percentile of the f = 0 frame's gradient (was 8%, which saturated). A view is scored
+   only if ITS positive control exceeds 1.15; fewer than 6 scorable views of 10 voids H5. Pass lines unchanged (1.15, 1.05).
+5. **H1 is unchanged**: all boundaries count, grid swaps included; pass = arm B's pooled step at most 50% of arm A's and no view
+   worse. The blended-only figure is reported beside it and is not the gate. If H1 fails because of the grid swaps, that is the
+   result, and blending across a grid swap is a separate design with its own registration.
+6. H2, H4, H6 unchanged, now on interleaved scrubs.
