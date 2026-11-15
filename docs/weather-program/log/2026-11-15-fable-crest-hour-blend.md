@@ -595,3 +595,31 @@ Asked by the advisor (section 19.3) and by David in this session ("Yes, investig
 - The reference comparison is taken again on the same triples (line 0.5 in colour, as before).
 - Not covered, stated before the run: the FIRST-visit step (fine grid of hour h to the coarse stand-in of hour h+3). There is no
   truth picture for a mix of a fine field and a coarse stand-in of another hour other than the forced test H9, which passed.
+
+## 23. The advisor on sections 19-22 (13:24 EST). Section 22's run had been going since 13:06 and its result is NOT opened yet.
+The advisor's verdict, accepted: H8c stands FAILED; section 21 is a credible measured cause, post hoc, three views, offline
+latency, and it does not turn the 152% into a pass; the "40-47%" figures are subsets of void or failed runs and stay labelled
+so. Section 22 as registered covers only REPEAT visits. Registered now, for runs after the one in progress:
+1. **H8f, the FIRST visit: what every user sees the first time they scrub, and the case that scored 152-170%.** The cache state
+   is controllable (section 21), so there IS a fair test. Per triple: hours h and h+3 are settled on their fine grid; h+6 has
+   not been visited. Truth = the fine h+3 picture at rest, read twice (before and after). The engine shows fine h, then steps
+   straight to h+6 with the blend held at 0.5: the held picture mixes the fine field of h with the COARSE STAND-IN of h+6, as a
+   first-time scrub does. Still inside the stand-in's lifetime, the blend is then held at 1 to read the stand-in alone.
+   ERROR(blend) = held against truth. ERROR(cut) = the smaller of fine h against truth and the stand-in of h+6 against truth
+   (what a hard cut shows). A triple is scored only if the resident was still the stand-in when both pictures were read.
+   Lines as H8c: pooled at most **60%**, void below 25%, no view worse than the cut, at least 30 of 40 triples, noise-floor rule.
+   If it fails, the honest product answer may be: blend only when both fields are on the same grid, cut otherwise. That
+   would be a change of design with its own registration.
+2. **A rounding-proof reference line, in the grey view.** (One correction for the record: the lab's reference averages the two
+   hours' BYTES and draws them through the same shader; it does not average colours. The advisor's remedy stands all the
+   same.) Per pixel, the held picture's grey value must lie inside the bracket made by the reference rounded down and the
+   reference rounded up, widened by one grey level for the 8-bit read-back. Line: at most **1%** of pixels outside, in every
+   same-grid held picture. 0.638 and 0.508 stay on record as failed against the old 0.5 line.
+3. **Settling on a condition, not a fixed time**: an hour counts as settled when the engine's grid has not changed for 1.5 s and
+   at least 2 s have passed since the step (10 s limit; an hour that does not settle is listed).
+4. **What the flat control should score, said before more data:** the 12 h-apart average has the moving trains nearly cancelled.
+   Against the real middle hour its error is about the train's full amplitude, while the nearest hour is off by 46 degrees of
+   phase, 2 sin(23 deg) = 0.78 of the amplitude. So the flat picture should score about **128%** of the cut. Section 20's 130%
+   and section 14's 113-120% are that: a washed-out picture is WORSE than a hard cut by this measure here, so the measure
+   does not reward blur and H8-type results can be read alone.
+5. Passed to the director by the advisor: the fine grid's request goes out about 1.5 s after a step.
