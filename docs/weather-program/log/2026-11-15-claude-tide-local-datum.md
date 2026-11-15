@@ -201,3 +201,20 @@ hourly); (b)-(d) CO-OPS OBSERVED water (`water_level`, MSL, on the hour). Per-st
 Also recorded: the 0.211 vs 0.346 m reading (7 days, 26 stations, vs observed) is restated with its truth defined.
 Outcome rule: all four pass -> #926 is ready as built (M365 ON, A72 fallback). Any failure is reported to the owner
 before merge; nothing is flipped automatically.
+
+## Owner's gate (a)-(d): RESULT (run as registered above; raw JSON notes `datum-owner-gate-a-d.json`)
+Window 2026-11-01 .. 2026-11-15 (14 days). 24 stations scored; Boston (no model history at its cell) and Galveston (no
+observations) failed to load.
+- **(a) FAIL.** vs CO-OPS PREDICTIONS: median RMSE A72 0.132, M365 0.197 m (+0.065 > +0.01).
+- **(b) PASS.** vs OBSERVED water: median A72 0.335, M365 0.193 m; M365 beats A72 with the 95% interval below 0 at
+  22/24 stations (Honolulu tie [-0.003, +0.007]; Nawiliwili A72 better [+0.014, +0.025]).
+- **(c) PASS.** Negative control: the label-swapped datum lost to both arms in 193/200 draws.
+- **(d) PASS.** Positive control: the +0.10 m datum shift detected at 24/24 stations; the mean signed error moved by
+  exactly 0.100 m at every station.
+- ALL_PASS: false -> per the rule, reported to the owner before merge; nothing flipped.
+Reading of (a) vs (b): the two truths disagree by construction. Predictions are astronomical tide only; M365 keeps the
+real non-tidal water (US West Coast this month: observed - predicted +0.31..+0.41 m), so it MUST read worse against
+predictions exactly where it reads better against what the water did (La Jolla: vs predictions A72 0.125 / M365 0.306,
+vs observed A72 0.452 / M365 0.173). A72 scores well against predictions because it removes that water too. For the
+displayed tide AND eta the target is the water the surfer stands in, i.e. (b). Restated with its truth: the earlier
+"0.211 vs 0.346 m" (7 days) and this "0.193 vs 0.335 m" (14 days) are RMSE against OBSERVED water.
