@@ -48,3 +48,10 @@ at the step's target hour; every `/api/weather/grid` request (count, bytes recei
 - **F4, unit:** Jest pins: the prefetch fires once per >= 1.5 s dwell and never during a drag; R arms on a coarse series frame and
   not on a fine one; both kills' off paths; the mutants that drop the dwell test or ignore a kill fail.
 - Default ON only if F1-F4 pass as written; otherwise it stays off by default or is not shipped, and the result is logged as it falls.
+
+## 20:05Z: amendment before any ON number (found while building, not from a measurement)
+
+`fetchMarineData` (the cache-only path the prefetch uses) also starts sibling-layer series warms and a world warm after every
+network `/grid`. A prefetch therefore passes `noSideWarm` (its own `/grid` only). F2 is widened to count EVERY
+`/api/weather/*` request and its bytes (`/grid` and `/grid_series` separately), not `/grid` alone; the bounds are unchanged
+(drag ON <= KILL; slow and back ON <= KILL + 1 `/grid`, and `/grid_series` ON <= KILL).
