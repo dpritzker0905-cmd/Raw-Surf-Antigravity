@@ -783,3 +783,45 @@ its own earlier advice on H8f, which this log had followed:
   most **60%** of it, void below 25%, no view where the blend is worse than it, at least 30 of 40 triples. The oracle (the
   smaller of the two inputs) and fine h alone are reported beside it and decide nothing.
 - Reading, as section 27.3: the transient of section 24.3 may sit in both first-visit pictures alike.
+
+## 30. H8f, the first visit, run as registered in section 29 (14:56-15:13 EST, recorded 15:15 EST): a valid run, and it FAILS its line
+Build `1c1a13f28`, instrument `ce99db80e`. 0 page errors. 35 of 40 triples scored (30 required). Not scored: one waves view
+(-122, 36) whose four jumps landed on the fine grid directly (no stand-in showed), and one swell_2 triple whose first hour had
+not settled on the fine grid. The truth read twice: 0.000 in all 35. The two fields mixed were h and h+6 in all 35; the resident
+was the 46 x 21 stand-in for both pictures in all 35.
+| view | held mix | REAL CUT: stand-in of h+6 | fine h alone | mix / real cut |
+|---|---|---|---|---|
+| waves (-158, 21.6, z5) | 17.72 | 25.33 | 20.36 | 70% |
+| waves (-9.5, 39, z5) | 9.46 | 15.29 | 11.01 | 62% |
+| waves (150, -34, z5) | 11.01 | 15.09 | 12.99 | 73% |
+| waves (115, -9, z5) | 19.81 | 25.43 | 21.05 | 78% |
+| swell_1 (-123, 37.5, z5) | 8.03 | 13.11 | 8.84 | 61% |
+| swell_1 (-70, 40, z5) | 10.49 | 14.92 | 10.44 | 70% |
+| swell_1 (18, -35, z5) | 11.17 | 16.17 | 13.82 | 69% |
+| swell_2 (115, -10, z4) | 0.63 | 0.48 | 1.47 | **133%** |
+| wind_waves (-5, 50, z4.5) | 2.81 | 4.47 | 2.57 | 63% |
+| pooled | 10.40 | 14.88 | 11.68 | **69.9%** |
+- **By the registered lines (the real cut decides): FAIL.** 69.9% pooled against a line of 60%; and one view where the blend is
+  worse than the cut (swell_2, by 0.15 luminance units on pictures that differ from the truth by about half a unit).
+- Beside it, deciding nothing: against fine h alone 89%; against the oracle (the smaller of the two inputs) 90%.
+- What the numbers say in plain terms: on a first visit the half-way mix of the fine field with the coarse stand-in of the next
+  hours is closer to the truth than what a hard cut puts on screen in 8 of 9 views (61-78% of its error), and it is not as good
+  as the same blend between two fine fields (46%). It cannot be: one of its two inputs is the stand-in.
+- What it means for the design choice of section 28: cutting on a step that changes hour and grid would put the stand-in on
+  screen at once, which is the "real cut" column. On this measure that is WORSE than the mix in 8 of 9 views. So narrowing the
+  design is not supported by the truth figures either; the cure for the first visit is not to have a stand-in (the fine grid's
+  request leaves about 1.5 s after the step; section 21), which is outside this change.
+- The transient of section 24.3 may sit in both first-visit pictures alike (section 27.3); not separated.
+
+### Standing after section 30
+| line | state |
+|---|---|
+| H1 smoothness (23%), H2 GPU time, H3 bytes, H4 at rest, H6 drag | pass |
+| self-mix (the earlier field at its own place) | pass, exact |
+| H8, repeat visits | pass twice (47.1%, 46.4%) |
+| value bracket (grey view) | pass, 0.00% outside |
+| colour reference line (0.5) | failed by one picture (0.795); the value bracket explains it; the hypothesis that those pixels sit at colour-band edges is not yet checked |
+| H8f, first visit | **FAIL as registered**: 69.9% against 60%, one view worse than the cut; better than the cut in 8 of 9 views |
+| water-only weighting; real frames | not tested |
+Not ready to be ON by default (the advisor's standing condition: real frames). Whether a PR is opened with the first-visit line
+recorded as failed is the owner's decision.
