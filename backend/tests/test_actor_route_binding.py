@@ -56,7 +56,6 @@ TOKEN_IDENTITY = [
     ("POST", "/api/promo-codes/validate"),
     ("POST", "/api/support/tickets"),
     ("PATCH", "/api/bookings/{booking_id}"),
-    ("POST", "/api/gamification/award-xp"),
     ("POST", "/api/impact/instant-shakas/{shaka_id}/view"),
     ("POST", "/api/ads/impression"),
     ("POST", "/api/ads/click"),
@@ -164,6 +163,8 @@ LOGIN_ONLY = [
     ("POST", "/api/bookings/{booking_id}/nudge-all"),
     ("POST", "/api/bookings/{booking_id}/update-splits"),
     ("POST", "/api/bookings/{booking_id}/crew-hub/handle-expiry"),
+    # Strict JWT; ownership by the referenced review/join row (tests/test_xp_award_server_authoritative.py).
+    ("POST", "/api/gamification/award-xp"),
 ]
 ALL = TOKEN_IDENTITY + [(m, p) for m, p, _w, _f in NAMED_ACTOR] + LOGIN_ONLY
 
