@@ -8,6 +8,10 @@
 //       Static files only: nothing is asked of the live backend. Frames already in <dir> are not fetched again.
 //   node real_frames_hidden_hour.mjs score --dir <dir> [--json <file>]
 //       Scores offline from <dir>. `--selftest` scores a synthetic folder-free case (the positive control's arithmetic).
+//       `--controls-only` prints N1, N2 and P and withholds R1-R3 (used while fewer than 2 model runs are in: the result is
+//       not reportable then, and is not looked at either).
+//       One model run counts ONCE: the CDN's current and previous index can be two publishes of the same run (found
+//       2026-11-15), so per set and run only the first index listed (the current one) is scored.
 //
 // It works in VALUE space on each frame's own grid and computes the mix the shaders compute: marine height in metres,
 // direction as unit vectors, period; wind as u/v vectors. That the shaders DRAW that mix is the grey-view bracket's result.
@@ -192,7 +196,9 @@ async function doScore() {
   for (const name of [...new Set(manifest.runs.map((r) => r.set))]) {
     const kind = name === 'wind' ? 'wind' : 'marine'; const score = kind === 'wind' ? scoreWind : scoreMarine;
     const rows = []; const skipped = [];
+    const seenRun = new Set();
     for (const run of manifest.runs.filter((r) => r.set === name)) {
+      const runKey = String(run.run || run.t0); if (seenRun.has(runKey)) { skipped.push(`${runKey} (a second publish of the same run: not scored)`); continue; } seenRun.add(runKey);
       for (let h = 0; h <= 114; h += 6) {
         const a = load(run, h, kind); const m = load(run, h + 3, kind); const b = load(run, h + 6, kind);
         if (!a || !m || !b) { skipped.push(`${run.run || run.t0} f${h}`); continue; }
@@ -230,6 +236,13 @@ async function doScore() {
     report.sets[name] = out;
     const unit = kind === 'wind' ? 'frame speed units' : 'm';
     console.log(`\n== ${name} (${kind}): ${rows.length} triples over ${runsSeen} run(s), ${skipped.length} skipped`);
+    if (has('controls-only')) {
+      console.log(`N1 wrong truth: blend error at least doubled in ${n1ok} of ${n1rows.length}  -> ${n1 ? 'holds' : 'DOES NOT HOLD'}`);
+      console.log(`N2 wrong blend: ${n2 ? 'fails R1, as it must' : 'PASSES R1: THE TEST CANNOT FAIL'} (over ${n2rows.length})`);
+      console.log(`P identical neighbours: ${pZero ? 'exactly zero' : 'NOT ZERO'}`);
+      console.log('R1-R3 withheld (--controls-only)');
+      continue;
+    }
     console.log(`R1 truth: blend ${f3(blend)} ${unit}, cut ${f3(cut)} (h alone ${f3(out.R1.endA)}, h+6 alone ${f3(out.R1.endB)}) = ${pct(blend, cut)} of the cut; blend <= cut in ${wins} of ${rows.length}  -> ${r1 ? 'pass' : 'FAIL'}`);
     if (kind === 'marine') {
       console.log(`   where the sea moves most (top tenth of nodes): blend ${f3(out.moving.blend)}, cut ${f3(out.moving.cut)} = ${pct(out.moving.blend, out.moving.cut)}`);
@@ -243,7 +256,7 @@ async function doScore() {
     console.log(`P identical neighbours: ${pZero ? 'exactly zero' : 'NOT ZERO'}`);
     console.log(`VERDICT ${name}: ${out.verdict}`);
   }
-  const jsonOut = opt('json'); if (jsonOut) fs.writeFileSync(jsonOut, JSON.stringify(report, null, 1));
+  const jsonOut = opt('json'); if (jsonOut && !has('controls-only')) fs.writeFileSync(jsonOut, JSON.stringify(report, null, 1));
 }
 
 // A check of the scorer's own arithmetic with no data: a field that moves linearly in time is recovered exactly by the mix.
