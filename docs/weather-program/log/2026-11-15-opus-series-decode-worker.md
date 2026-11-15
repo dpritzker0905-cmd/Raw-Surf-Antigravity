@@ -136,3 +136,20 @@ the frame a step shows. In the kill arm that work happens when the page lands, n
 - Profile: phone 4x CPU, the gate 1 sessions' setup, 3 sessions per arm per zoom, z2 and z6.
 - Pass: in the worker arm, per-step added ms p50 <= 5 and p95 <= 15. The kill arm is reported alongside (expected about 0).
 - The inconclusive harness run above stays in the record.
+
+## 15:55Z: amended gate 3, first run: FAIL at z6 p95; cause found and fixed; re-run on the fixed build follows
+
+`scn_series_decode.js` (stepBuildMs), phone 4x CPU, 3 sessions per arm per zoom, 10 steps each (30 steps per cell), build cddf778ea.
+
+| zoom | worker: ms added per step, p50 / p95 / max | kill: ms added per step, p50 / p95 / max | registered pass? |
+|---|---|---|---|
+| z2 | 0 / 11.7 / 15.9 | 0 / 0 / 0 | yes |
+| z6 | 0 / **19.0** / 27.5 | 0 / 158.2 / 171.7 | **no** (p95 > 15) |
+
+- At z6 the kill arm adds far more to a step: when stepping into a new page, the whole page decodes on the main thread. But the
+  registered threshold is absolute, so this is a FAIL as written.
+- **Cause:** `getMarineSeriesFrame` and `nearestFrameInEntry` called `entry.frames.get(h)` on every closer hour. On a lazy page
+  that builds every frame from the page start to the target hour.
+- **Fix (96f2033e8 + 6c….):** keep the nearest (entry, hour) and read it once. Same result.
+- **Test:** a 12-frame lazy page, nearest h30, builds 1. Mutant: get on every improvement fails it.
+- Gate 3 is re-run below on a rebuild, same instrument and same settings.
