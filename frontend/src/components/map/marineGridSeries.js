@@ -24,7 +24,7 @@
 import { API_BASE } from '../../lib/apiClient';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
 import { seriesAnchorTag, seriesAnchorParam, seriesGridPhase, alignToCadenceGrid } from './seriesAnchor';
-import { frameToMarineData } from './marineSeriesFrame';
+import { frameToMarineData } from './marineSeriesFrame'; import { firstFrameBounds, loadSeriesJson, seriesMiniFrame, seriesPageFrames } from './marineSeriesDecode';
 import { blendIconSwell2Frames, iconSwell2SeriesBlendOn } from './iconSwell2SeriesBlend';
 import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { exactGfsPlaybackEnabled } from './marinePlaybackPolicy';
@@ -328,7 +328,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
     }
     timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 45000);
     try {
-      const res = await fetch(url, seriesFetchInit(localController.signal, gotSlot));
+      const res = await loadSeriesJson(url, seriesFetchInit(localController.signal, gotSlot));   // decode in a worker (marineSeriesDecode)
       if (!res.ok) {
         // §4.3(b): a failed page (deploy-window 500/502) retries bounded instead of
         // silently vanishing until the next gesture. Entries that already hold frames skip it.
@@ -337,7 +337,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
         }
         return;
       }
-      const json = await res.json();
+      const json = res.json;
       if (localController.signal.aborted || marineSeriesCallerAborted(signal)) return;
       if (!json || !Array.isArray(json.frames) || json.frames.length === 0) {
         // COLD-START retry (2026-07-06, chip task_e618f9ff): an empty series marked `warming`
@@ -358,13 +358,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
         }
         return;
       }
-      const frames = new Map();
-      const hoursList = [];
-      for (const f of json.frames) {
-        if (typeof f.hour_offset !== 'number' || !f.vectors || f.vectors.length === 0) continue;
-        frames.set(f.hour_offset, frameToMarineData(f, model, layer));
-        hoursList.push(f.hour_offset);
-      }
+      const { frames, hours: hoursList } = seriesPageFrames(res, model, layer);   // packed frames build on first read
       if (frames.size === 0) return;
       hoursList.sort((a, b) => a - b);
       // Coarse-preview detection: the backend served a GLOBAL frame for a REGIONAL request (a cold SWR
@@ -372,8 +366,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false,
       // the regional grid lands, instead of caching the coarse/clamped frame.
       const reqW = (bounds.east < bounds.west) ? (bounds.east + 360 - bounds.west) : (bounds.east - bounds.west);
       const reqH = Math.abs(bounds.north - bounds.south);
-      const sf = frames.values().next().value;
-      const sfb = sf && sf.grid && sf.grid.bounds;
+      const sfb = firstFrameBounds(frames);
       const frameW = sfb ? ((sfb.east < sfb.west) ? (sfb.east + 360 - sfb.west) : (sfb.east - sfb.west)) : 0;
       const isCoarsePreview = reqW < 15.0 && reqH < 15.0 && frameW >= 340.0;
       const revalCount = isCoarsePreview ? (((existing && existing.revalCount) || 0) + 1) : 0;
@@ -442,7 +435,7 @@ function boundSeriesCache(key) {
 // Only VERIFIED zoned cycles compare; an unknown cycle never evicts anything. Kill: window.__RAW_DISABLE_SERIES_RUN_EVICT__.
 function newestVerifiedCycle(frames) {
   let best = null;
-  for (const f of frames.values()) {
+  for (const f of (frames.metaValues ? frames.metaValues() : frames.values())) {   // metadata only: builds no packed frame
     const t = f && f.model_run_time_status === 'known' && typeof f.model_run_time === 'string'
       && /(?:Z|[+-]\d{2}:\d{2})$/i.test(f.model_run_time) ? Date.parse(f.model_run_time) : NaN;
     if (Number.isFinite(t) && (best === null || t > best)) best = t;
@@ -521,12 +514,12 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal, backgro
       lane = await acquireMiniSlot(localController.signal, background);
       if (!lane || localController.signal.aborted || marineSeriesCallerAborted(signal)) return;
       timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 15000);
-      const res = await fetch(url, seriesFetchInit(localController.signal, lane));
+      const res = await loadSeriesJson(url, seriesFetchInit(localController.signal, lane));
       if (!res.ok) return;                                   // silent: the full page is coming anyway
-      const json = await res.json();
+      const json = res.json;
       if (localController.signal.aborted || marineSeriesCallerAborted(signal)) return;
       if (!json || !Array.isArray(json.frames) || json.frames.length === 0) return;
-      const f = json.frames.find((x) => typeof x.hour_offset === 'number' && x.vectors && x.vectors.length > 0);
+      const f = seriesMiniFrame(res);
       if (!f) return;
       const md = frameToMarineData(f, model, layer);
       const sfb = md && md.grid && md.grid.bounds;
@@ -663,7 +656,7 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
   const vWid = (bounds.east < bounds.west) ? (bounds.east + 360) - bounds.west : bounds.east - bounds.west;
   const isRegionalViewport = vWid < 60;
   let best = null;
-  let bestDiff = Infinity;
+  let bestDiff = Infinity; let bestAt = null;   // the nearest (entry, hour); its frame is read ONCE below (a lazy page builds on get)
   for (const cand of [page, page + 1, page - 1]) {
     if (cand < 0 || cand > lastPageFor(model)) continue;
     const entry = _seriesCache.get(pageKey(model, layer, bounds, cand));
@@ -682,11 +675,9 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
     const _eb = entry.bounds;
     const _eWid = (_eb.east < _eb.west) ? (_eb.east + 360 - _eb.west) : (_eb.east - _eb.west);
     if (isRegionalViewport && _eWid >= 340) continue;
-    for (const h of entry.hours) {
-      const d = Math.abs(h - hourOffset);
-      if (d < bestDiff) { bestDiff = d; best = entry.frames.get(h) || null; }
-    }
+    for (const h of entry.hours) { const d = Math.abs(h - hourOffset); if (d < bestDiff) { bestDiff = d; bestAt = [entry, h]; } }
   }
+  if (bestAt) best = bestAt[0].frames.get(bestAt[1]) || null;
   // An exact-key hit is not the end of the search: a coarse tile forced under this key must not beat a finer covering one
   // (the paused churn's series-entry half, marineSeriesFinerEntry.js).
   if (best !== null && bestDiff <= 1.5 && isRegionalViewport) {
