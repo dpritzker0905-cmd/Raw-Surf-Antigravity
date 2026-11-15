@@ -395,6 +395,8 @@ export function seriesMiniFrame({ json, packed }) {
   return f;
 }
 
+export const _WORKER_SRC_FOR_TEST = WORKER_SRC;
+
 export function _resetSeriesDecodeWorkerForTest() {
   if (_worker) { try { _worker.terminate(); } catch (e) { /* ignore */ } }
   _worker = null; _workerFailed = false; _seq = 0; _pending.clear(); _packFails = 0;

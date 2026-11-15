@@ -5,7 +5,7 @@
  */
 import {
   LazySeriesFrames, SERIES_NUM_KEYS, firstFrameBounds, loadSeriesJson, packSeriesFrame, packedBuffers, packedVectorCount,
-  seriesMiniFrame, seriesPageFrames, unpackSeriesFrame, _resetSeriesDecodeWorkerForTest, PACK_FAILS_MAX,
+  seriesMiniFrame, seriesPageFrames, unpackSeriesFrame, _resetSeriesDecodeWorkerForTest, PACK_FAILS_MAX, _WORKER_SRC_FOR_TEST,
 } from './marineSeriesDecode';
 import { frameToMarineData } from './marineSeriesFrame';
 import { nearestFrameInEntry } from './marineSeriesFinerEntry';
@@ -256,5 +256,31 @@ describe('WORKER FAILURES (the advisor 2026-11-15): one request per failure; gen
     await loadSeriesJson('http://x/grid_series', {});            // latched: straight to the main thread
     expect(posted.length).toBe(PACK_FAILS_MAX);
     expect(made).toBe(1);
+  });
+});
+
+describe('the REAL worker source labels each failure by its stage (the advisor 2026-11-15)', () => {
+  const runWorker = async (fetchImpl) => {
+    const posted = [];
+    const self = { postMessage: (m) => posted.push(m) };
+    const boot = new Function('self', 'fetch', 'AbortController', `${_WORKER_SRC_FOR_TEST}; return self;`);
+    boot(self, fetchImpl, AbortController);
+    await self.onmessage({ data: { id: 7, url: 'http://x/grid_series' } });
+    return posted;
+  };
+  test('a rejected fetch posts net:', async () => {
+    const posted = await runWorker(async () => { throw new TypeError('Failed to fetch'); });
+    expect(posted).toEqual([{ id: 7, error: 'net:Failed to fetch' }]);
+  });
+  test('a body that is not JSON posts parse:', async () => {
+    const posted = await runWorker(async () => ({ ok: true, status: 200, json: async () => { throw new SyntaxError('Unexpected token'); } }));
+    expect(posted).toEqual([{ id: 7, error: 'parse:Unexpected token' }]);
+  });
+  test('a good page posts its packed frames', async () => {
+    const page = JSON.parse(JSON.stringify(PAGES.regional));
+    const posted = await runWorker(async () => ({ ok: true, status: 200, json: async () => page }));
+    expect(posted[0].status).toBe(200);
+    expect(posted[0].packed.length).toBe(2);
+    expect(posted[0].packed[0].cols).toBeTruthy();
   });
 });
