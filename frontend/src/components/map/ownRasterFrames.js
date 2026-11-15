@@ -93,11 +93,11 @@ export const OWN_RASTER_SETS = {
   // ON by default (DEFAULT_ON_LAYERS); kill: window.__RAW_DISABLE_RASTER_OWN_GUSTS__ = true.
   gusts: {
     models: { GFS: 'GFS/weather/gust/global_0p25', EURO: 'EURO/weather/gust/global_0p25', ICON: 'ICON/weather/gust/global_0p25' },
-    // PAST EACH MODEL'S RANGE, THE WIND LAYER'S OWN RULES (the owner, 2026-11-15: "Wind gust should match that logic"): EURO wind
-    // past 240 h is the GFS field labelled "GFS stand-in beyond this model's range" (euro_wind_extension.py) = `fallback` above;
-    // ICON wind past 180 h is ICON's OWN data looped over its whole days, labelled "beyond ICON's native range"
-    // (viewport_helper.extend_icon_wind_to_14d, basis icon_loop_extrapolation) = `loop` below, 3-hourly as the wind tail.
-    fallback: 'GFS', loop: { ICON: true }, field: SPEED_FIELD, unit: 'kn', ownOnly: true,
+    // PAST EACH MODEL'S RANGE (EURO 240 h, ICON 180 h): the GFS gust frames, labelled "GFS stand-in beyond this model's range"
+    // and credited to NOAA GFS. NO LOOPING (the owner, 2026-11-15 15:19 EST: "Looping is unacceptable. We need real science"):
+    // the senior research lead is choosing the real long-range method (hand-off to a longer-range model, a bias-corrected seam,
+    // ...); it plugs in as a new BEYOND strategy named here per model, with no other change.
+    fallback: 'GFS', beyond: { EURO: 'gfs_standin', ICON: 'gfs_standin' }, field: SPEED_FIELD, unit: 'kn', ownOnly: true,
   },
   // OCEAN CURRENTS (2026-11-15, the owner approved Currents as a new picker layer): Copernicus Marine's global ocean model,
   // surface current SPEED in knots (field 4) every 6 h to 240 h on 0.25 deg (frame_set_raster.py set `currents`); each frame
@@ -222,35 +222,23 @@ export function combinedFrames(layer, model, index, fallbackIndex) {
   const m = up(model);
   const own = framesOf(index).map((f) => ({ ...f, setKey: setKey(layer, m), model: sourceModel(layer, m), estimated: null }));
   const set = OWN_RASTER_SETS[layer] || {};
-  if (set.loop && set.loop[m] && own.length) return own.concat(loopTail(own, index));
   const fb = set.fallback;
   if (!fallbackIndex || !fb || fb === m || !own.length) return own;
-  const last = Date.parse(own[own.length - 1].valid_time);
-  const tail = framesOf(fallbackIndex).filter((f) => Date.parse(f.valid_time) > last)
-    .map((f) => ({ ...f, setKey: setKey(layer, fb), model: fb, estimated: 'gfs_estimated_fallback' }));
-  return own.concat(tail);
+  const strategy = BEYOND[(set.beyond && set.beyond[m]) || 'gfs_standin'];
+  return own.concat(strategy ? strategy({ layer, model: m, own, fallback: fb, fallbackIndex }) : []);
 }
 
-export const LOOP_STEP_H = 3;
-export const LOOP_CEILING_H = 336;
-/** ICON's tail past its last frame, as the ICON WIND tail is built (viewport_helper.extend_icon_wind_to_14d): the model's own frames
- *  over its WHOLE days from the first frame (span floored to 24 h) repeat, so hour t shows the frame at first + ((t - first) mod
- *  span), on the 3-hourly UTC lattice to run + 336 h, each labelled `icon_loop_extrapolation` ("beyond ICON's native range").
- *  The tail entries load the SAME frame files (no extra bytes); their valid_time is the asked hour, `loopedFrom` the source's. */
-export function loopTail(own, index) {
-  const H = 3600000;
-  const first = Date.parse(own[0].valid_time); const last = Date.parse(own[own.length - 1].valid_time);
-  const span = Math.floor((last - first) / (24 * H)) * 24 * H;
-  const run = Date.parse((index && (index.run_time || index.run)) || own[0].valid_time);
-  if (!(span > 0) || !Number.isFinite(run)) return [];
-  const tail = [];
-  for (let t = Math.ceil((last + 1) / (LOOP_STEP_H * H)) * LOOP_STEP_H * H; t <= run + LOOP_CEILING_H * H; t += LOOP_STEP_H * H) {
-    const src = pickIndexFrame({ frames: own }, first + ((t - first) % span));
-    if (!src || !src.path) continue;
-    tail.push({ ...src, valid_time: new Date(t).toISOString().replace(/\.\d{3}Z$/, 'Z'), loopedFrom: src.valid_time, estimated: 'icon_loop_extrapolation' });
-  }
-  return tail;
-}
+/** PAST A MODEL'S RANGE: how the hours after its last own frame are filled, one named strategy per (layer, model) in a set's
+ *  `beyond` map (default 'gfs_standin', the pressure / rain / EURO wind rule). A strategy returns the tail entries, each
+ *  { ...frame, setKey, model, estimated: <basis the status line words> }. The long-range method the senior research lead is
+ *  choosing (2026-11-15) plugs in here as a new entry; looping a model's own days is deliberately NOT one of them. */
+export const BEYOND = {
+  gfs_standin: ({ layer, own, fallback, fallbackIndex }) => {
+    const last = Date.parse(own[own.length - 1].valid_time);
+    return framesOf(fallbackIndex).filter((f) => Date.parse(f.valid_time) > last)
+      .map((f) => ({ ...f, setKey: setKey(layer, fallback), model: fallback, estimated: 'gfs_estimated_fallback' }));
+  },
+};
 
 /** The entry to show for an asked time in a combined list: the nearest within 3 h of the model's own, else (past its range)
  *  of the stand-in tail. pickIndexFrame's rule on each part, so own frames always win inside the model's range. */

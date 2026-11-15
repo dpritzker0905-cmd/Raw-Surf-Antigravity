@@ -2,7 +2,7 @@
 import { GUST_LUT, gustLegend, gustScale } from './gustPalette';
 import { huePathStops, resolveDrawnField, resolveThemeRamp, sampleRamp } from './WindColorRamp';
 const field = (theme) => huePathStops(resolveDrawnField(theme) || resolveThemeRamp(theme));
-import { DEFAULT_ON_LAYERS, OWN_ONLY_LAYERS, OWN_RASTER_SETS, SPEED_FIELD, ownFramesOn, setKey, sourceModel, combinedFrames, combinedFrameAt } from './ownRasterFrames';
+import { DEFAULT_ON_LAYERS, OWN_ONLY_LAYERS, OWN_RASTER_SETS, SPEED_FIELD, ownFramesOn, setKey, sourceModel, combinedFrames, combinedFrameAt, BEYOND } from './ownRasterFrames';
 import { RASTER_SET_KEYS } from './staticRasterSets';
 import { buildStepLut, colorAtValue } from './ownRasterLayer';
 import { describeRasterFrame, RASTER_STATUS_LAYERS } from './rasterDrawnFrame';
@@ -74,20 +74,23 @@ describe('status line for an own-only layer', () => {
   });
 });
 
-describe("past each model's range: the wind layer's rules", () => {
+describe("past each model's range: a GFS stand-in, labelled (no looping)", () => {
   const H = 3600000; const RUN = Date.parse('2026-11-15T00:00:00Z');
   const iso = (h) => new Date(RUN + h * H).toISOString().replace(/\.\d{3}Z$/, 'Z');
   const idx = (hours, pre) => ({ run_time: iso(0), frames: hours.map((h) => ({ valid_time: iso(h), path: `${pre}${h}.bin` })) });
   const iconHours = [...Array.from({ length: 78 }, (_, i) => i + 1), ...Array.from({ length: 34 }, (_, i) => 81 + 3 * i)];   // 1..78, 81..180
-  test("ICON loops its own whole days to 336 h, 3-hourly, labelled as beyond ICON's native range (no GFS)", () => {
-    const frames = combinedFrames('gusts', 'ICON', idx(iconHours, 'icon/'), idx([0, 3, 300], 'gfs/'));
+  test("ICON takes the GFS stand-in past 180 h, labelled and credited as GFS; nothing is looped", () => {
+    const frames = combinedFrames('gusts', 'ICON', idx(iconHours, 'icon/'), idx([177, 180, 183, 300, 336], 'gfs/'));
     const tail = frames.filter((f) => f.estimated);
-    expect(tail.every((f) => f.estimated === 'icon_loop_extrapolation' && f.path.startsWith('icon/') && f.model === 'ICON')).toBe(true);
-    expect(tail[0].valid_time).toBe(iso(183));
-    expect(tail[tail.length - 1].valid_time).toBe(iso(336));
-    // span = whole days of 1..180 h = 168 h: hour 200 shows the frame of hour 1 + (199 mod 168) = 32
-    expect(combinedFrameAt(frames, RUN + 201 * H).path).toBe('icon/33.bin');
-    expect(combinedFrameAt(frames, RUN + 90 * H).estimated).toBeNull();   // inside the native range: the native frame
+    expect(tail.map((f) => [f.path, f.estimated, f.model])).toEqual([
+      ['gfs/183.bin', 'gfs_estimated_fallback', 'GFS'], ['gfs/300.bin', 'gfs_estimated_fallback', 'GFS'], ['gfs/336.bin', 'gfs_estimated_fallback', 'GFS']]);
+    expect(frames.some((f) => f.path.startsWith('icon/') && Date.parse(f.valid_time) > RUN + 180 * H)).toBe(false);
+    expect(combinedFrameAt(frames, RUN + 90 * H).estimated).toBeNull();   // inside the native range: ICON's own frame
+    expect(creditFor('gusts', { gusts: 'GFS' }, {}).text).toBe('NOAA GFS · instantaneous');
+  });
+  test("the post-horizon source is pluggable per model (the research lead's method drops in as a BEYOND strategy)", () => {
+    expect(OWN_RASTER_SETS.gusts.beyond).toEqual({ EURO: 'gfs_standin', ICON: 'gfs_standin' });
+    expect(Object.keys(BEYOND)).toEqual(['gfs_standin']);
   });
   test('EURO takes the GFS stand-in past its range, labelled as such (the EURO wind tail)', () => {
     const frames = combinedFrames('gusts', 'EURO', idx([3, 6, 240], 'euro/'), idx([240, 243, 336], 'gfs/'));

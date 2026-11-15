@@ -136,8 +136,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
 
   // 1b. The stand-in's index (GFS) for hours past the picked model's last frame: never capped, labelled as an estimate.
   useEffect(() => {
-    const looped = !!(OWN_RASTER_SETS[layer] && OWN_RASTER_SETS[layer].loop && OWN_RASTER_SETS[layer].loop[M]);   // ICON gusts: own loop
-    if (!wanted || !FB || FB === M || looped) { setFbIndex(null); return undefined; }
+    if (!wanted || !FB || FB === M) { setFbIndex(null); return undefined; }
     let alive = true;
     const memo = lastIndex(layer, FB);
     setFbIndex(memo && framesOf(memo).length ? memo : null);
@@ -185,7 +184,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
         st.layerObj.onShown((path, field) => {
           tel().shown = { path, at: Date.now(), validMs: field ? field.validMs : null };
           // Called from MapLibre's render: publish after it (subscribers re-render React).
-          // the entry the step asked for when it is this file (an ICON loop entry shares its file with a native hour)
+          // the entry the step asked for when it is this file (two entries may share one file)
           const e = st.wantEntry && st.wantEntry.path === path ? st.wantEntry : st.byPath.get(path);
           st.shownRec = { url: path, dataMs: field ? field.validMs : NaN, model: e ? e.model : M, estimated: e ? e.estimated : null,
             nearestMaxHours: st.nearestMaxHours || 1 };
@@ -253,7 +252,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     const L = st.layerObj;
     if (!engaged || !index || !L) return;
     const frames = combinedFrames(layer, M, index, fbIndex);
-    st.byPath = new Map(frames.slice().reverse().map((x) => [x.path, x]));   // a file's native entry wins over a loop entry
+    st.byPath = new Map(frames.slice().reverse().map((x) => [x.path, x]));   // a file's own-model entry wins over a stand-in entry
     const offset = Number(timeOffsetHours) || 0;
     if (st.prevOffset !== null && offset !== st.prevOffset) st.dir = offset > st.prevOffset ? 1 : -1;
     st.prevOffset = offset;
