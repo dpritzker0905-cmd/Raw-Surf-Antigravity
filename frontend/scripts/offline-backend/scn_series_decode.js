@@ -38,6 +38,17 @@ async function waitFor(fn, timeout, every = 200) {
   return null;
 }
 
+// Load record (census log 20:20Z): the machine's total CPU %, 1 s samples, for the session.
+function cpuSampler() {
+  // The machine's total CPU busy %, from os.cpus() tick deltas every 1 s (typeperf has no valid counters on this machine).
+  const os = require('os'); const xs = [];
+  const snap = () => os.cpus().reduce((a, c) => { const t = c.times; a.busy += t.user + t.nice + t.sys + t.irq; a.all += t.user + t.nice + t.sys + t.irq + t.idle; return a; }, { busy: 0, all: 0 });
+  let last = snap();
+  const iv = setInterval(() => { const n = snap(); const d = n.all - last.all; if (d > 0) xs.push(+(100 * (n.busy - last.busy) / d).toFixed(1)); last = n; }, 1000);
+  return { stop() { clearInterval(iv); const s = [...xs].sort((a, b) => a - b); return { n: s.length, mean: s.length ? +(s.reduce((a, b) => a + b, 0) / s.length).toFixed(1) : null, p90: s.length ? s[Math.floor(0.9 * (s.length - 1))] : null }; } };
+}
+const CALIBRATE = () => { const t0 = performance.now(); let h = 0x811c9dc5; for (let i = 0; i < 20000000; i += 1) { h ^= i; h = Math.imul(h, 0x01000193) >>> 0; } window.__CAL_SINK__ = h; return +(performance.now() - t0).toFixed(1); };
+
 async function session(arm, zoom, run) {
   const vp = VP[VIEW];
   const { browser, page } = await L.launch({ port: PORT, width: vp.width, height: vp.height, dpr: vp.dpr, contextOptions: vp.contextOptions });
@@ -75,6 +86,7 @@ async function session(arm, zoom, run) {
     await sleep(800);
     const before = await page.evaluate(() => ({ ...(window.__MARINE_SERIES_DIAG__ || {}) }));
     let stepped = 0;
+    const cpu = cpuSampler(); const calBefore = await page.evaluate(CALIBRATE);
     const stepBuildMs = [];   // gate 3 (amended): the decode-path ms each step added (the first-read build of the frame it shows)
     const readDecode = () => page.evaluate(() => (window.__MARINE_SERIES_DIAG__ || {}).decodeMs || 0);
     const readIdle = () => page.evaluate(() => (window.__MARINE_SERIES_DIAG__ || {}).idleDecodeMs || 0);
@@ -88,6 +100,7 @@ async function session(arm, zoom, run) {
       stepBuildMs.push(+added.toFixed(2));
       stepSyncMs.push(+(added - ((await readIdle()) - i0)).toFixed(2));
     }
+    const calAfter = await page.evaluate(CALIBRATE); res.load = { calBefore, calAfter, cal: Math.max(calBefore, calAfter), cpu: cpu.stop() };
     res.stepBuildMs = stepBuildMs;
     res.stepSyncMs = stepSyncMs;
     const d = await page.evaluate(() => ({ diag: { ...(window.__MARINE_SERIES_DIAG__ || {}) }, lt: window.__SD__.lt, pages: window.__SD__.pages }));
@@ -112,7 +125,7 @@ async function session(arm, zoom, run) {
         const r = await session(arm, zoom, run);
         fs.appendFileSync(OUT, JSON.stringify(r) + '\n');
         console.log(`[${arm}] ${VIEW} z${zoom} run ${run}: decode ${r.decodeMs} ms (${r.decodes} decodes; worker ${r.workerPages} / main ${r.mainPages} pages; ${r.loads} loads)`
-          + ` | step build ms [${(r.stepBuildMs || []).join(',')}]`
+          + ` | cal ${r.load && r.load.cal} ms cpu ${r.load && r.load.cpu.mean}%` + ` | step build ms [${(r.stepBuildMs || []).join(',')}]`
           + ` | long tasks ${r.longTasks} (${r.longTaskMs} ms), near arrival ${r.longTasksNearArrival} (${r.longTaskMsNearArrival} ms) | stepped ${r.stepped}${r.error ? ' ERROR ' + r.error : ''}`);
       }
     }
