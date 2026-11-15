@@ -96,7 +96,9 @@ def try_patch(plain, vt, est, raw_json, unfilled, filled, fields):
         return None, "fields"
     g0, g1 = unfilled.get("grid") or {}, filled.get("grid") or {}
     base, vectors = g0.get("vectors") or [], g1.get("vectors") or []
-    if (g0.get("cols"), g0.get("rows"), len(base)) != (g1.get("cols"), g1.get("rows"), len(vectors)) or             (head["cols"], head["rows"]) != (g1.get("cols"), g1.get("rows")) or head["cols"] * head["rows"] != len(vectors):
+    same_grid = (g0.get("cols"), g0.get("rows"), len(base)) == (g1.get("cols"), g1.get("rows"), len(vectors))
+    same_frame = (head["cols"], head["rows"]) == (g1.get("cols"), g1.get("rows")) and head["cols"] * head["rows"] == len(vectors)
+    if not (same_grid and same_frame):
         return None, "shape"
     if any(unfilled.get(k) != filled.get(k) for k in ("valid_time", "model_run_time")):
         return None, "times"

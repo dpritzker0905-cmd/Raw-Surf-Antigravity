@@ -23,3 +23,39 @@ In five pilots runs after #832, the three EURO swell `global_mid_filled` sets ca
 The parity gate stays on every frame written (no frame is published unchecked), and no served number moves.
 
 Reviews: LongCat review of the diff; the advisor red-teams the PR. No merge from this session.
+
+## 17:33Z: what was built, the gate result, and the owner's decision
+
+**Built** (`services/frame_set_fill_patch.py`, ON; kill switch `FRAME_FILLED_PATCH=0`):
+- **The patch path.** When the plain set's frame for the same hour is PROVABLY the encode of the same product, the filled frame is
+  that frame with only the nodes the fill changed rewritten (`frame_binary.patch_nodes`), and the parity gate checks exactly
+  those nodes. The proof:
+  1. the plain frame's `content` record (#832) equals this product's content key, code fingerprint included;
+  2. the downloaded bytes' sha256 equals the index's;
+  3. shape, times and field mask are equal, every changed node keeps its exact lat/lng, and the one value-dependent header byte
+     (the uv convention) is recomputed and compared;
+  4. the changed nodes are every node whose vector the fill changed.
+
+  Any failure falls back to the full rebuild. `FRAME_FILLED_PATCH_VERIFY=1` also builds the full frame and publishes it on any
+  difference (`patch_mismatch`).
+- **The donor cache.** `frame_set_fill._donor`: an EURO and an ICON filled set of the same layer share each GFS donor, keyed on
+  filename + sha256(bytes) + resolution.
+- **The scan memo.** `frame_set_content.masked` is memoised on the bytes object.
+
+**Gate:**
+- **1. Byte-identical: MET.** 96 of 96 frames and their index entries are identical to the full rebuild, across two GFS donor
+  cycles plus a new EURO run, on single sets and on EURO+ICON pairs. 9 tests; 8 of 8 mutants red.
+- **2. >= 50% time cut: NOT MET.** CPU seconds, minimum of 5 interleaved repeats, both switches off vs on: single set
+  20.53 -> 10.16 s (51%; wall 49%); EURO+ICON pair 38.89 -> 20.98 s (46%).
+- **3. Kill switch: MET.**
+
+**Why it stops there:** the remaining cost is stdlib JSON parsing of the product and donor plus per-node dict work in the fill. A
+numpy donor build was bit-identical but not faster (loop 54 ms vs 60 ms; `log/2026-11-15-opus-fast-compact-donor.md`).
+
+**Owner's decision** (David, 12:30 EST in this session, after the recommendation to ship at ~46-51% with byte identity, skip orjson
+and stop optimising publish time): "go ahead, open the filled-rebuild PR". The bar this PR ships on is therefore **>= 45% with byte
+identity**, NOT the pre-registered 50%. The 50% line is recorded here as missed.
+
+**Context for the cut:** in the 5 pilots runs after #832 no frame set was skipped for budget, and the frames step took 18 of the job's
+130 minutes. The ~130-200 s this returns per run goes to the frames step's own budget (the regional bundles), not to the raster
+steps.
