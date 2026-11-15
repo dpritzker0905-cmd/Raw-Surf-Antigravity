@@ -57,3 +57,17 @@ Same instrument, build, arms (worker, kill, noric), zooms, sessions and both wor
 and void rule of `2026-11-15-opus-scrub-render-census.md` 20:20Z (a fixed 20,000,000-iteration in-page calibration before the first
 and after the last step; a session is VOID above 1.25x the run's lowest calibration, re-run once at the end, else the arm runs short
 and the run is INCOMPLETE; `typeperf` total CPU recorded). Per-session values are reported.
+
+## 20:42Z: re-run B re-registered (the advisor's additions), before it runs; the first start of B was stopped unread
+
+The 20:24Z start of re-run B was stopped about 10 minutes in, before any of its output was read, to register these first; its
+partial files sit in `scratchpad/m3/g3b/` and are not used. Re-run B now runs from scratch with:
+- **(a) 6 sessions per arm per zoom** (worker, kill, noric; z2 and z6; 72 sessions). Beside each p95 point value: the count of steps
+  over 15 ms, and a bootstrap 95% interval for p95 (10,000 resamples of the pooled steps, seeded). **What decides:** the point values
+  scored against both wordings, exactly as registered at 19:55Z; the interval and the count are reported beside it and do not change
+  the verdict. Where the interval straddles 15 ms the line says so.
+- **(b) The arrival cost in both arms**, reported (not gating): main-thread long-task ms within 1 s of a series page landing
+  (`longTaskMsNearArrival`), per session and pooled.
+- **(c) Why kill reads 0, verified:** each session records when its series pages landed (`pagesAt`) and when the first step began
+  (`firstStepAt`), so the log states how many pages landed inside a step window in each arm.
+- The 20:24Z load-void rule applies unchanged.

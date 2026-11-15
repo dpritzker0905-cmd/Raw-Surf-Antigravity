@@ -87,6 +87,7 @@ async function session(arm, zoom, run) {
     const before = await page.evaluate(() => ({ ...(window.__MARINE_SERIES_DIAG__ || {}) }));
     let stepped = 0;
     const cpu = cpuSampler(); const calBefore = await page.evaluate(CALIBRATE);
+    res.firstStepAt = await page.evaluate(() => performance.now());   // (c) verify: are the pages decoded before the first step?
     const stepBuildMs = [];   // gate 3 (amended): the decode-path ms each step added (the first-read build of the frame it shows)
     const readDecode = () => page.evaluate(() => (window.__MARINE_SERIES_DIAG__ || {}).decodeMs || 0);
     const readIdle = () => page.evaluate(() => (window.__MARINE_SERIES_DIAG__ || {}).idleDecodeMs || 0);
@@ -110,6 +111,7 @@ async function session(arm, zoom, run) {
       decodeMs: +(d.diag.decodeMs || 0).toFixed(1), decodes: d.diag.decodes || 0,
       decodeMsAtLand: +(before.decodeMs || 0).toFixed(1), workerPages: d.diag.workerPages || 0, mainPages: d.diag.mainPages || 0,
       longTasks: d.lt.length, longTaskMs: Math.round(d.lt.reduce((s, t) => s + t[1], 0)),
+      pagesAt: d.pages.map((x) => Math.round(x)),
       longTasksNearArrival: d.lt.filter(overlap).length, longTaskMsNearArrival: Math.round(d.lt.filter(overlap).reduce((s, t) => s + t[1], 0)),
     });
   } catch (e) { res.error = String(e && e.message || e).slice(0, 200); }
