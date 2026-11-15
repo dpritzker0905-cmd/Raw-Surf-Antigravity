@@ -42,6 +42,11 @@ if (MODE === 'grey') {
   CANDIDATES.waves = [[-158.0, 21.6, 5.0], [150.0, -34.0, 5.0], [-9.5, 39.0, 5.0], [-40.0, 35.0, 2.5], [-140.0, 20.0, 3.0], [20.0, -40.0, 3.5]];
   Object.assign(QUOTA, { waves: 6, swell_1: 0, swell_2: 0, wind_waves: 0 });
 }
+if (MODE === 'h8f') {   // log section 29: only views where a stand-in appears
+  CANDIDATES.waves = [[-158.0, 21.6, 5.0], [-9.5, 39.0, 5.0], [150.0, -34.0, 5.0], [-122.0, 36.0, 5.0], [115.0, -9.0, 5.0]];
+  CANDIDATES.swell_1 = [[-123.0, 37.5, 5.0], [-70.0, 40.0, 5.0], [18.0, -35.0, 5.0]]; CANDIDATES.swell_2 = [[115.0, -10.0, 4.0]]; CANDIDATES.wind_waves = [[-5.0, 50.0, 4.5]];
+  Object.assign(QUOTA, { waves: 5, swell_1: 3, swell_2: 1, wind_waves: 1 });
+}
 const ANYGRID = MODE === 'h8c' || MODE === 'grey' || MODE === 'h8f';
 const WARM_MS = +(process.env.WARM_MS || 700);   // 5000 = every hour's fine grid arrives and is cached before anything is measured
 
@@ -210,22 +215,26 @@ const r4 = (x) => (x == null || !Number.isFinite(x) ? null : +x.toFixed(4));
         await home(); await stepTo(j, 900); const stA = await ev(async () => { const H = window.__HM__; H.F.A = await H.shot(); return H.state(); });
         await stepTo(1, 900); const stT = await ev(async () => { const H = window.__HM__; H.F.T = await H.shot(); return H.state(); });
         await home(); await stepTo(j, 900); const before = await ev(() => window.__HM__.state());
-        const held = await ev(async () => {
-          const H = window.__HM__; H.kill(false); window.__RAW_CREST_BLEND_HOLD__ = 0.5; H.key('ArrowRight', 6); await H.wait(250);
+        const wantValid = new Date(Date.parse(stT.valid) + 3 * 3600e3).toISOString().replace('.000Z', 'Z');
+        const held = await ev(async (want) => {
+          const H = window.__HM__; H.kill(false); window.__RAW_CREST_BLEND_HOLD__ = 0.5; H.key('ArrowRight', 6);
+          // read as soon as the engine shows h+6 (the stand-in on a first visit), polled up to 1.2 s (log section 29)
+          const s0 = performance.now(); while (performance.now() - s0 < 1200 && H.state().valid !== want) await H.wait(20);
+          const waited = Math.round(performance.now() - s0);
           const M = await H.shot(); const stM = H.state();
           window.__RAW_CREST_BLEND_HOLD__ = 1; const C = await H.shot(); const stC = H.state();     // the stand-in alone
           window.__RAW_CREST_BLEND_HOLD__ = null; H.kill(true);
-          return { stM, stC, eBlend: H.mad(M, H.F.T), eCutA: H.mad(H.F.A, H.F.T), eCutB: H.mad(C, H.F.T), retTruth: H.std(M) / H.std(H.F.T) };
-        });
+          return { stM, stC, waited, eBlend: H.mad(M, H.F.T), eCutA: H.mad(H.F.A, H.F.T), eCutB: H.mad(C, H.F.T), retTruth: H.std(M) / H.std(H.F.T) };
+        }, wantValid);
         const settled = await ev(() => window.__HM__.settle());                                   // hour j+2 gets its fine grid: settled for the next triple
         await home(); await stepTo(j + 1, 900);
         const again = await ev(async () => { const H = window.__HM__; const lum = await H.shot(); return { noise: H.mad(lum, H.F.T), st: H.state() }; });
         const want = new Date(Date.parse(stT.valid) + 3 * 3600e3).toISOString().replace('.000Z', 'Z');
         const fineOk = stA.dims === stT.dims && before.dims === stA.dims && before.valid === stA.valid;
         const standIn = held.stM.dims !== stA.dims && held.stC.dims === held.stM.dims && held.stM.valid === want && held.stM.prevValid === stA.valid && held.stM.mix === 0.5 && held.stC.mix === 0;
-        const eCut = Math.min(held.eCutA, held.eCutB);
+        const eCut = held.eCutB;   // THE DECIDING BASELINE (section 29): what a hard cut shows on a first visit, the stand-in of h+6
         const t = { j, dims: stA.dims, grids: [stA.dims, stT.dims, held.stM.dims, held.stM.prevDims, held.stC.dims], mixed: [held.stM.prevValid, held.stM.valid], hidden: stT.valid,
-          eBlend: r4(held.eBlend), eCut: r4(eCut), eCutA: r4(held.eCutA), eCutB: r4(held.eCutB), retTruth: r4(held.retTruth), truthNoise: r4(again.noise), truthGrid2: again.st.dims,
+          eBlend: r4(held.eBlend), eCut: r4(eCut), eOracle: r4(Math.min(held.eCutA, held.eCutB)), eCutA: r4(held.eCutA), eCutB: r4(held.eCutB), waited: held.waited, retTruth: r4(held.retTruth), truthNoise: r4(again.noise), truthGrid2: again.st.dims,
           settledAfter: settled, startsDelta: held.stM.starts - before.starts };
         const quiet = !(again.noise > (eCut - held.eBlend)) || eCut <= held.eBlend;
         triples.push(fineOk && standIn && quiet ? t : { ...t, leftOut: !fineOk ? 'fine_not_settled' : !standIn ? 'not_the_stand_in' : 'truth_noise' });

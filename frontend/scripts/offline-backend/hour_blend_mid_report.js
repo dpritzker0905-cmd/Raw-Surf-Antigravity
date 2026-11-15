@@ -40,6 +40,8 @@ if (v.length) {
   console.log(`                  height contrast of the mix against the real middle hour (std ratio): mean ${f(sum(v, (t) => t.values.hRetTruth) / v.length)}, min ${f(Math.min(...v.map((t) => t.values.hRetTruth)))} (the moving train alone would keep 0.69 at 6 h; parts that do not move raise it)`);
 }
 
+if (ok.some((t) => t.eOracle != null)) { console.log(`     H8f: the baseline that DECIDES is the real cut (the stand-in of h+6). Reported beside it: against fine h alone ${pc(sum(ok, 'eBlend') / sum(ok, 'eCutA'))}; against the oracle (the smaller of the two) ${pc(sum(ok, 'eBlend') / sum(ok, 'eOracle'))}`);
+  console.log(`     per view (mix / stand-in / fine h): ${rows.map((r) => { const t = r.triples.filter((x) => !x.leftOut); return t.length ? `${r.view}:${f(sum(t, 'eBlend') / t.length, 2)}/${f(sum(t, 'eCutB') / t.length, 2)}/${f(sum(t, 'eCutA') / t.length, 2)}` : `${r.view}:n/a`; }).join(' ')}`); }
 if (ok.some((t) => t.eCutB != null)) console.log(`     H8f detail: the hard cut's two choices against the truth, pooled: fine h ${f(sum(ok, 'eCutA') / ok.length)}, the stand-in of h+6 ${f(sum(ok, 'eCutB') / ok.length)}; the held mix ${f(sum(ok, 'eBlend') / ok.length)}`);
 // the rounding bracket (section 23.2), same-grid held pictures
 const br = ok.filter((t) => t.outside != null && t.grids && new Set(t.grids).size === 1);
