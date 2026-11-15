@@ -279,3 +279,53 @@ Served column: **yes** means it changes a served number and needs David's word.
 animation options (one page each); earth.nullschool README (one page). Not verified: the Aurora 86% figure (Microsoft
 coverage), the EMOS wind-speed percentage, the independent IFS-vs-AIFS preprint's peer-review status, Windy and Ventusky
 internals, Meteoblue and Surfline rendering.
+
+
+## 8. Second-opinion pass on the top 10 (2026-11-15 10:30 EST): tools used, agree or disagree per item, status
+
+### 8.1 Which tools were used, and which were not (and why)
+
+| Tool | Status | Reason |
+|---|---|---|
+| Consensus (paper search) | **Used.** 2 queries, 3 results each (free plan cap) | Bias correction and AIFS-vs-IFS evidence (below) |
+| ww3 `ww3_compare_forecast_with_buoy` (46267, 48 h) | **Failed: no response for 1800 s, aborted.** Not retried | Server silence; a retry would be another long wait. The 46267 GFS-Wave check is **not done** |
+| Reflection (`ask_reflection`) | **Not called** | Needs David's own typed request. A peer relay does not count, and the earlier yes covered a different question |
+| SubQ (`subq_decide` / `subq_chat`) | **Not called** | Dev-use only, and only when David asks for it by name. Not done |
+| LongCat reviewer | **Not called** | No code change or prototype is proposed in this log |
+| Logfire | **Not called** | No timing run exists to explain |
+| Context7 | Not needed | No library question arose beyond the MapLibre custom-layer check already recorded |
+| ndbc, erddap, coops, sealegs | **Not called** | The 46267 check was the only buoy item needed; the ww3 timeout blocked it. Other buoy reads would repeat the per-buoy split already on the board |
+| latest-science, HF papers | Not called | Consensus covered the question; no second search needed |
+
+### 8.2 Papers found (Consensus, read from abstracts)
+
+- **AIFS surface-ocean extension (Hahner et al., 2026, arXiv).** Joint atmosphere-ocean ML model that includes waves. Authors report about one day of extra skill at medium range for most marine variables against physics-based models. Authors' claim, not independently checked. [Representing the Surface Ocean in ECMWF's data-driven forecasting system AIFS](https://consensus.app/papers/details/w:f2332dcd-22a1-47f1-8066-5b8e3c754034/?utm_source=claude_code)
+- **AIFS (Lang et al., 2024, arXiv).** AIFS trained on ERA5 and operational analyses; highly skilled upper-air and surface forecasts; open data. [AIFS -- ECMWF's data-driven forecasting system](https://consensus.app/papers/details/w:90186cec-733b-4770-9446-5784a7f4cc9a/?utm_source=claude_code)
+- **AI vs physics, 9,000+ stations (Kocsis et al., 2026, arXiv).** Raw IFS ensemble is clearly better than raw AIFS at all horizons for 10 m wind speed (July–November 2025). EMOS post-processing narrows the gap; at short lead times IFS stays ahead after post-processing. Covers wind speed, not waves. [AI and physics-based weather forecasting: A comparative study](https://consensus.app/papers/details/w:0116b31f-2253-484d-91ab-ac78dcc18b0b/?utm_source=claude_code)
+- **Deep-learning bias correction of WAVEWATCH III SWH (Wang et al., 2026, Oceans).** RMSE vs reanalysis down 28.2%, 26.1%, 24.7% at 24, 48, 72 h; buoy check shows a systematic positive bias corrected, mostly for 0.5–2 m waves. [Deep Learning-Based Bias Correction Model for Spatiotemporal Significant Wave Height Prediction Using Multi-Channel VMRNN](https://consensus.app/papers/details/w:758e3a3a-5e8a-4ff4-8abf-94cb64833e5f/?utm_source=claude_code)
+- **Real-time bias correction of ECMWF-IFS SWH, Western North Pacific (Zhang et al., 2023, Ocean Modelling).** MAE down 13–46% by season; worst in winter (13.8–39.0%). [A deep-learning real-time bias correction method for significant wave height forecasts in the Western North Pacific](https://consensus.app/papers/details/w:3f30d067-5e5f-4b4f-bbed-cdaeb748ca54/?utm_source=claude_code)
+- **Australian wave forecast with statistical wind correction (Zieger, 2025).** Mean RMSE of SWH 0.29 m across 84 buoy locations; a statistical wind bias correction superseded flux scaling. [The Australian wave forecast system with statistical wind correction](https://consensus.app/papers/details/w:a5378f2b-20d9-49d2-ad40-ef11a6f03fe7/?utm_source=claude_code)
+
+Consensus notice (required): Create or connect a free Consensus account to return more than 3 results per search in Claude Code: https://consensus.app/sign-up/?utm_source=claude_code&auth=claude_code
+
+### 8.3 Agree or disagree, per top-10 item
+
+| # | Item | Tool evidence | Agree? |
+|---|---|---|---|
+| 1 | React re-render off scrub step | None external (internal measure, board 07:38Z) | Not checked |
+| 2 | Water decode to a worker | None external | Not checked |
+| 3 | Crest blend between hours | AIFS paper is about a joint model, not blending | Not checked |
+| 4 | Linear MOS on 48–72 h | Wang 2026 and Zhang 2023: bias correction of wave forecasts cuts error 13–46%; direction agrees. Our shadow gate fails on hawaii and atlantic | **Agree in direction; our regional gate says not yet** |
+| 5 | Exposure sweep for 46267 | No paper found in the two searches; ww3 check failed | Not checked |
+| 6 | Hawaii south/east downscale | None | Not checked |
+| 7 | Bias line beside MAE | Kocsis 2026 and EMOS: post-processing changes the ranking; bias matters | **Agree** |
+| 8 | AIFS source for the EURO lane | Kocsis 2026: raw IFS beats raw AIFS for 10 m wind at all horizons (9,000 stations). AIFS-ocean paper claims marine gain (authors' claim) | **Disagree on the wind lane, mixed on marine.** Do not switch on this evidence alone |
+| 9 | Own-frame pump backoff | None (internal bug) | Not checked |
+| 10 | EURO/ICON z7 missing frames | None | Not checked |
+
+### 8.4 Status line (for the director)
+
+- **Open:** #912 (draft, no merge): sections 1–8. Nothing merged.
+- **Owed:** a re-run of the ww3 46267 check when the server is responsive (with a shorter window); Reflection and SubQ only on David's own typed request.
+- **Blocked:** ww3 comparison (server timeout, 1800 s, not retried). Reflection and SubQ not called, pending David's own request.
+- **Not used, by choice:** LongCat (no prototype), Logfire (no timing run), latest-science and HF (Consensus covered the question).
