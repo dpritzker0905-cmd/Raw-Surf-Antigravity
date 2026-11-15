@@ -266,8 +266,8 @@ _RATING_FLAGS = {"SAMPLER_UNRESOLVED_STATIONS": ("1", "[D-065 GUARDED, ON, guard
     "SURF_TIDE_DEPTH":             ("1", "[D-065 default ON; guardrail-watched] Let the tide (sea_level_height_msl) move the depth-limited "
                                          "breaking cap — binds only where a shallow break meets surf "
                                          "big enough to feel bottom", "Render env"),
-    "TIDE_LOCAL_DATUM":            ("1", "[2026-11-15 ON; guardrail-watched] Tide levels vs the LOCAL mean sea level (72 h series mean), "
-                                         "not the model's global reference; moves every tide height and eta", "Render env"),
+    "TIDE_LOCAL_DATUM":            ("0", "[11-15 HELD OFF: worse than raw vs observed water at 9/26, West Coast] tide minus its 72 h mean",
+                                         "Render env"),
     "SURF_RATING":                 ("1", "Rating overlay (vs raw surf-height band) on surf=1 grids", "Render env"),
     "SURF_TRANSFORM":              ("1", "Whole surf/rating band transform on marine grids", "Render env"),
     # ⚠️⚠️ THE DOCUMENTED KILL SWITCH DOES NOT KILL THE HUB. `SURF_TRANSFORM=0` gates the map band

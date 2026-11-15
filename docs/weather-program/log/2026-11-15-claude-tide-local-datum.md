@@ -101,3 +101,36 @@ demean72 at 23/26 and raw at 21/26, gives back little on the West Coast (La Joll
 day-roll step (a fixed number per cell). It removes only the model's permanent offset (Hawaii +0.57, Northeast -0.50 m)
 and keeps real seasonal and surge water. Because it was selected after the fact, it needs a fresh held-out week and
 the owner's word before it replaces demean72; proposed gate in the reply to the advisor.
+
+## 2026-11-15 ~22:50Z: decisions after the observed-water results + the SOTA research
+- **TIDE_LOCAL_DATUM is now held OFF (code default '0')** in this PR: the advisor's verdict on merging demean72 is
+  FAIL (served-number regression on the whole US West Coast, displayed tide and eta). With it off the served level is
+  today's raw model, the status quo. The client fallback mirrors it (`window.__RAW_ENABLE_TIDE_LOCAL_DATUM__`).
+- **Datum check (advisor 4), `tide_datum_check_obs.py`:** CO-OPS preliminary `water_level` honours datum=MSL: the mean
+  observed MSL - MLLW gap equals the published MSL - MLLW (mdapi datums) exactly at La Jolla 0.832, Honolulu 0.251,
+  Anchorage 5.020, Sandy Hook 0.785 m. Mean observed - predicted this week: La Jolla +0.405, Monterey +0.372, Crescent
+  City +0.313, Sandy Hook +0.245, Lake Worth +0.201, Anchorage +0.248, Charleston +0.085, Honolulu +0.044 m: the water
+  really is above the station datum, most on the West Coast.
+- **SOTA research** (sota-researcher, notes `tide-datum-sota-2026-11-15.md`): operational datums are station-anchored
+  where stations exist (VDatum); elsewhere a static geoid-referenced MDT (CNES-CLS22, 1993-2012); display = astronomical
+  tide, physics = still water (tide + surge) - two levels; a model-mean datum needs >= 12 complete months, 19-20 years
+  preferred. Open-Meteo's marine archive starts ~2022-12 (probed: 2022-12-01 has data, 2022-10-01 none).
+
+## PRE-REGISTERED (before the run): held-out test of the long-term model mean as the datum
+Script `backend/scripts/tide_datum_heldout.py`. 26 CO-OPS stations x 4 held-out weeks (7 days from 2025-12-15,
+2026-03-15, 2026-06-15, 2026-09-15), each scored against OBSERVED water (`water_level`, MSL, on the hour). Arms:
+raw; demean72; **clim1y** = raw minus the model's mean over the 365 days before the week; **climAll** = raw minus the
+model's mean over 2022-12-01 .. the week (the whole archive, ~3-4 years); yardstick = raw minus median(model -
+observed) over the 14 days before the week (US-only, not shippable).
+Pass lines (advisor's, per candidate), on station-week RMSE:
+- **H1** median below raw's median AND below demean72's median;
+- **H2** at every US West Coast station (La Jolla, Los Angeles, Monterey, Point Reyes, Crescent City, South Beach, Neah
+  Bay) the candidate's 4-week median RMSE is not worse than raw's by more than 0.05 m;
+- **H3** median within 0.10 m of the yardstick's median.
+Choice: a candidate that passes all three replaces demean72 in this PR (ON); if both pass, **climAll** ships (the
+research: longer is better); if neither passes, TIDE_LOCAL_DATUM stays OFF and the served level stays raw.
+Reported alongside (advisor's additions, not gating): per station-week the max |observed non-tidal| (25 h low-pass of
+observed - predicted); P2 median r over TESTABLE station-weeks only (max >= 0.10 m; "not answered" if < 5); P2b on hours
+with |observed non-tidal| > 0.15 m, RMSE of demean72 vs the chosen candidate vs the yardstick; the 72 h day-roll step
+per station incl. Anchorage and Eastport (either alone > 0.10 m would have counted toward a 74.5 h switch; moot while
+demean72 is off).

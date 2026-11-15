@@ -11,8 +11,10 @@ LOCAL DATUM (TIDE_LOCAL_DATUM, default ON, 2026-11-15): the model's "msl" is rel
 the coast it sits a stable per-place offset away from the local mean sea level (vs NOAA CO-OPS station MSL, 25
 stations x 14 days: +0.54 m all Hawaii, +0.36..0.45 m US West Coast, -0.45..-0.51 m Northeast, ~-0.2 m Florida;
 daily sd median 0.048 m). `fetch_tide_hourly` therefore serves every level relative to the mean of its own 72 h
-series (`to_local_datum`): median error vs CO-OPS 0.459 -> 0.117 m. Every consumer reads through it (point-tide,
-/tides, the rating's tide, the surf breaking depth eta), so they all move together. Kill: TIDE_LOCAL_DATUM=0.
+series (`to_local_datum`): median error vs CO-OPS PREDICTIONS 0.459 -> 0.117 m. ⚠️ HELD OFF (code default '0'): vs
+OBSERVED water it was worse than raw at 9/26 stations, the whole US West Coast (La Jolla 0.122 -> 0.469 m): a 72 h mean
+removes real seasonal water and multi-day surge with the model's offset (log 2026-11-15-claude-tide-local-datum.md).
+Enable: TIDE_LOCAL_DATUM=1. The replacement under test is the model's own long-term mean per cell.
 
 Pure helpers (normalize / tide_state_at / to_local_datum) are unit-tested. Acquisition shares a horizon-aware cache and
 per-cell locks across point requests and batch prewarming. Failures return unavailable with a timed
@@ -365,7 +367,7 @@ _MIN_DATUM_SAMPLES = 48       # fewer finite hours than this and the mean is not
 
 
 def local_datum_on() -> bool:
-    return _rf is None or _rf.flag("TIDE_LOCAL_DATUM") != "0"
+    return _rf is not None and _rf.flag("TIDE_LOCAL_DATUM") == "1"
 
 
 def local_datum_offset(times, levels, window_h: int = TIDE_DATUM_WINDOW_H) -> Optional[float]:
