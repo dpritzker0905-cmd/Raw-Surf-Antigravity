@@ -62,27 +62,9 @@ class TestGamificationAPI:
         print(f"  - Badges count: {len(data['badges'])}")
         print(f"  - Recent XP transactions: {len(data['recent_xp_transactions'])}")
     
-    @pytest.mark.skip(reason="Badge checking has pre-existing model issue: LiveSessionParticipant.payment_status not found")
-    def test_award_xp_endpoint(self):
-        """Test POST /api/gamification/award-xp"""
-        response = self.session.post(
-            f"{BASE_URL}/api/gamification/award-xp",
-            params={
-                "user_id": self.user_id,
-                "amount": 5,
-                "reason": "TEST_xp_award_endpoint_test",
-                "reference_type": "test"
-            }
-        )
-        
-        assert response.status_code == 200, f"Award XP failed: {response.text}"
-        data = response.json()
-        
-        assert "message" in data, "Missing message in response"
-        assert data.get("amount") == 5, "Amount mismatch"
-        
-        print(f"✓ Award XP endpoint working")
-    
+    # test_award_xp_endpoint was removed 2026-10-24 with the route: no endpoint takes an XP amount from the
+    # client any more (tests/test_xp_single_path.py pins that).
+
     @pytest.mark.skip(reason="Badge checking has pre-existing model issue: LiveSessionParticipant.payment_status not found")
     def test_check_badges_endpoint(self):
         """Test POST /api/gamification/check-badges/{user_id}"""

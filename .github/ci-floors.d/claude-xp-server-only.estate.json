@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 8,
+  "branch": "claude/xp-server-only",
+  "date": "2026-11-15",
+  "note": "#527 rebased 2026-11-15: +9 test_xp_single_path, -1 test_xp_rewards_iter56 (award-xp route removed); actor-route binding net 0"
+}

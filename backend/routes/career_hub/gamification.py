@@ -1,7 +1,7 @@
 """Gamification API endpoints for badges and XP"""
 
 from fastapi import APIRouter, Depends, HTTPException
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_current_user_id
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from pydantic import BaseModel
@@ -93,43 +93,20 @@ async def get_user_gamification_stats(
     }
 
 
-@router.post("/gamification/award-xp")
-async def award_xp(
-    amount: int,
-    reason: str,
-    reference_type: Optional[str] = None,
-    reference_id: Optional[str] = None,
-    db: AsyncSession = Depends(get_db),
-    user_id: str = Depends(get_user_id_from_jwt_or_query)
-):
-    """Award XP to a user for an action"""
-    import uuid
-    
-    # Create XP transaction
-    xp_transaction = XPTransaction(
-        id=str(uuid.uuid4()),
-        user_id=user_id,
-        amount=amount,
-        reason=reason,
-        reference_type=reference_type,
-        reference_id=reference_id
-    )
-    db.add(xp_transaction)
-    
-    # Check and award badges based on XP milestones
-    await check_badge_milestones(user_id, db)
-    
-    await db.commit()
-    
-    return {"message": "XP awarded", "amount": amount, "reason": reason}
+# No "award XP" route here either: the old one let any signed-in user write an XP transaction of ANY size for
+# themselves (amount, reason and reference all from the query string). XP is granted only by server actions
+# through services/xp.py (removed 2026-10-24).
 
 
 @router.post("/gamification/check-badges/{user_id}")
 async def check_and_award_badges(
     user_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Check and award any earned badges based on current stats"""
+    """Check and award any earned badges based on current stats (your own; badges come from the ledger)"""
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot act on behalf of another user")
     badges_awarded = await check_badge_milestones(user_id, db)
     await db.commit()
     return {"badges_awarded": badges_awarded}
