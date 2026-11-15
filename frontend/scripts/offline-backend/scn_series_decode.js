@@ -7,7 +7,7 @@
 //   node frontend/scripts/offline-backend/serve_spa.js <build> 3299
 //   AB_BASE=http://127.0.0.1:3299 PORT=4298 OUT=out.jsonl node frontend/scripts/offline-backend/scn_series_decode.js
 // Env: VIEW (phone | desktop), CPU (4: the CPU throttle), ZOOMS (2,6), RUNS (5 per arm per zoom), STEPS (10), CENTER (-75,30),
-// MODEL (GFS), PAGES (3: series pages to wait for), ARMS (worker,kill).
+// MODEL (GFS), PAGES (3: series pages to wait for), ARMS (worker,kill; noric = worker with no requestIdleCallback).
 if (process.env.AB_LIVE === '1') throw Error('scn_series_decode is offline only (never load the live box)');
 const fs = require('fs');
 const L = require('./ab_lib.js');
@@ -23,7 +23,8 @@ const PAGES = +(process.env.PAGES || 3);
 const MODEL = process.env.MODEL || 'GFS';
 const [CLNG, CLAT] = (process.env.CENTER || '-75,30').split(',').map(Number);
 const ARMS = (process.env.ARMS || 'worker,kill').split(',');
-const FLAGS = { worker: {}, kill: { __RAW_DISABLE_SERIES_DECODE_WORKER__: true } };
+// noric (2026-11-15, the advisor): the worker arm with requestIdleCallback removed before boot (Safari on iOS has none), so no build-ahead.
+const FLAGS = { worker: {}, kill: { __RAW_DISABLE_SERIES_DECODE_WORKER__: true }, noric: { __NO_RIC__: true } };
 const VP = {
   desktop: { width: 1280, height: 800, dpr: 1, contextOptions: {} },
   phone: { width: 390, height: 844, dpr: 3, contextOptions: { isMobile: true, hasTouch: true,
@@ -44,6 +45,7 @@ async function session(arm, zoom, run) {
   try {
     await page.addInitScript((flags) => {
       for (const [k, v] of Object.entries(flags)) window[k] = v;
+      if (flags.__NO_RIC__) { try { delete window.requestIdleCallback; delete window.cancelIdleCallback; window.requestIdleCallback = undefined; } catch (e) { /* none */ } }
       window.__SD__ = { lt: [], pages: [] };
       try { new PerformanceObserver((l) => { for (const e of l.getEntries()) window.__SD__.lt.push([e.startTime, e.duration]); }).observe({ type: 'longtask', buffered: true }); } catch (e) { /* none */ }
     }, FLAGS[arm] || {});
