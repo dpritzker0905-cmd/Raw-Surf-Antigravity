@@ -156,3 +156,12 @@ coarse series frame is never upgraded to the fine grid on a first visit.
 
 **Not yet pre-registered:** the time-to-fine gate waits on the director's load decision (any earlier request is one more
 `/grid` per hour the user dwells on between the new and the old wait).
+
+## 19:10Z: the director's decisions after run 1 (recorded before any further build or run)
+
+- Run 1 stays on record as FAIL (gates 1 and 3).
+- Build lever 3 (memoise hour-independent children), then re-run the SAME gate, unchanged, as an unseen run 2.
+- The status lag behind gate 3's mislabel count is its own fix with its own gate. By the director's word, gate 3 for the RENDER
+  fix is scored WITHOUT the mislabel count (it is a property of today's code, present in the KILL arm). The mislabel count is still
+  measured and reported in run 2. Every other part of gate 3 (key-to-shown p50/p95, blank frames, labels reach the target) stands.
+- The 1.5 s first-visit coarse-to-fine wait stays queued in this lane.
