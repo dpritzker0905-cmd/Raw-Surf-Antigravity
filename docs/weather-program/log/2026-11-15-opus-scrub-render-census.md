@@ -243,3 +243,16 @@ as a separate gate, not a change to the old one:
   build) agree within 10% on the same p95, else the run is INCOMPLETE; **served values byte-identical:** the marine engine's drawn
   grid fingerprint (FNV-1a of vectors, cols, rows, bounds) per step identical across ON and KILL for every step drawing the same
   hour; the 20:20Z load-void rule applies.
+
+## 21:55Z: status-lag diagnostic (one session, not a gate run): the silent case did not reproduce; measure before building
+
+The probe now also records the drawn-frame record's data time and the selection's label time and compares them BY INSTANT (the
+app's own identity rule: the valid time is the data's identity, the hour label is the request's). One phone session, 15 steps,
+the fix build (`scratchpad/m3/diag-status.json`): every step where the drawn data time differed from the selection (14 of 15) carried
+words ("Showing <t>: the nearest stored forecast" at -1 h, "Loading <t>... still showing <t>" beyond), and the one silent step
+had the drawn data time equal to the selection (dh 0). So 0 silent mismatches here, and run 2 had 0 in 60 steps per arm; run 1 had 5
+of 60 by the LABEL comparison, which can flag a frame whose data time is honest.
+
+Decision for this lane: no status-lag fix code until the registered S1 instrument (every animation frame, >300 ms after the key,
+by instant) finds a violation on a quiet-window run of today's code. If S1 finds none, the item closes as "not reproduced" with
+the counts; if it finds some, the fix is built against the 19:30Z gate.

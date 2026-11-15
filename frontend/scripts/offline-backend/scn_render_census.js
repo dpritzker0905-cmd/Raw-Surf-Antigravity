@@ -161,7 +161,9 @@ const PROBE = () => {
         const status = [...document.querySelectorAll('[role="status"]')].filter((x) => x.offsetParent !== null).map((x) => x.textContent.trim()).join(' | ').slice(0, 200);
         const d = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData; const g = d && d.waveGrid;
         return { key: A.key, ev: A.ev.slice(), hours: A.hours.slice(), blank: A.blank, noEventTiming: !!A.noEventTiming,
-          target: wh ? Number(wh.getAttribute('aria-valuenow')) : null, valuetext: wh ? wh.getAttribute('aria-valuetext') : null, status, drawnHour: g ? g.hourOffset : null };
+          target: wh ? Number(wh.getAttribute('aria-valuenow')) : null, valuetext: wh ? wh.getAttribute('aria-valuetext') : null, status, drawnHour: g ? g.hourOffset : null,
+          rec: window.__MARINE_DRAWN__ ? { hour: window.__MARINE_DRAWN__.hour, dataMs: window.__MARINE_DRAWN__.dataMs } : null,
+          sel: window.__RAW_SELECTED_FRAME__ ? { hour: window.__RAW_SELECTED_FRAME__.hour, labelMs: window.__RAW_SELECTED_FRAME__.labelMs, instantMs: window.__RAW_SELECTED_FRAME__.instantMs } : null };
       });
       const evt = ab.key == null ? null : ab.ev.find((e) => Math.abs(e.start - ab.key) < 2);
       // key-to-shown (18:45Z amendment): keydown to the first frame drawing the dwell's FINAL drawn hour, on steps where it changed.
@@ -172,7 +174,9 @@ const PROBE = () => {
       step.__ab = { target: ab.target, drawn: ab.drawnHour, inputMs: ab.key == null ? null : (evt ? evt.dur : 16),
         shownMs: shownAt ? +(shownAt[0] - ab.key).toFixed(1) : null, held: !changed,
         blank: ab.blank, mislabel: ab.drawnHour != null && ab.target != null && ab.drawnHour !== ab.target && !/nearest stored|still showing/i.test(ab.status),
-        status: ab.status, valuetext: ab.valuetext,
+        status: ab.status, valuetext: ab.valuetext, rec: ab.rec, sel: ab.sel,
+        // by INSTANT (the app's own identity rule): the drawn record's data time vs the selection's label time, in hours
+        dhInstant: ab.rec && ab.sel && Number.isFinite(ab.rec.dataMs) && Number.isFinite(ab.sel.labelMs) ? Math.round((ab.rec.dataMs - ab.sel.labelMs) / 3600000) : null,
         labelMoved: !prev || (ab.target === prev.target + 1 && ab.valuetext !== prev.valuetext), noEventTiming: ab.noEventTiming };
       out.steps.push(step);
     }
