@@ -645,3 +645,44 @@ weather, that is marked.
 - The Łucjan and Fish results are single studies; their sample sizes were not read in this pass.
 
 Nothing here changes a served number. Nothing was merged.
+
+
+## 15. Pre-registered perception test: protocol (2026-11-15 11:30 EST). Not yet run
+
+**Status.** The test has NOT been run. I cannot recruit or show stimuli to participants from this session. This section fixes
+the design, the pass rule and the sample size before any data exists, so the default cannot be chosen after seeing results.
+
+**Question.** When forecast hours step, does a short 160 ms cross-fade make it harder for a user to see where the wind or
+swell changed, compared with a hard cut?
+
+**Stimuli.** A fixed 24-hour sequence at 3-hourly steps for wind and for wave crests, from one committed build. Two arms:
+- Arm H: hard cut on each step (current wind and tile behaviour).
+- Arm C: 160 ms cross-fade on each step (the proposed default).
+- Same views, same frames, same renderer. Rendered once to video so both arms are identical except for the transition.
+
+**Task.** Each participant watches one arm, then answers: which hour step showed the largest change in the wind or swell
+pattern, and in which region. Scored as correct when the named step matches the largest computed change between adjacent
+frames (measured from the frame data, not from the render).
+
+**Primary outcome.** Proportion of correct answers, C minus H.
+
+**Pass rule (non-inferiority, set before data).**
+- Non-inferiority margin: 10 percentage points. The cross-fade passes if its accuracy is not more than 10 points below the hard cut (one-sided 97.5% lower bound of the difference is above -10 points).
+- Also required: participants in Arm C report no more confusion than Arm H (a 5-point rating, same scale in both arms).
+
+**Sample size.** Assumes accuracy about 70% in both arms, margin 10 points, alpha 0.025 one-sided, power 0.8. About 330
+participants per arm, about 660 in total. These numbers are the standard two-proportion approximation, not a simulation.
+
+**Decision rule.**
+- Pass: ON with a 160 ms cross-fade becomes the default, with the developer kill switch from section 13.4.
+- Fail: hard cut stays the default. The cross-fade is not shipped as default. The result is recorded, not dropped.
+- Inconclusive (bound inside the margin): keep the hard cut and re-run with a larger sample. No default change on an inconclusive result.
+
+**Who runs it.** Not decided. Options for David: an online panel, or an internal panel of raters who do not work on the weather code.
+
+**Limits.**
+- The cartographic studies (Łucjan 2018, Fish 2011) are not weather studies. This test is the first weather-specific evidence.
+- The margin of 10 points is a judgement, set before data. A stricter margin needs a larger sample.
+- Users may prefer the cross-fade even if accuracy is equal. Preference is recorded as a secondary outcome, not used for the pass rule.
+
+Nothing here changes a served number. Nothing was merged.
