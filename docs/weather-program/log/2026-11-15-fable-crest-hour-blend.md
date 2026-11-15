@@ -265,3 +265,33 @@ threshold changes.
 - What H8 does NOT show: the blend lasts 160 ms at a step and is not a continuous interpolation between hours, so H8 scores
   the mix as an interpolant at its mid-point only; and the store is synthetic. Real model runs are not covered.
 - The gate text of sections 8b and 9 is sent to the advisor before H8 is run.
+
+## 10. Five additions from the advisor's review of the gate text, registered BEFORE H8 is run and before any v2 number is read (11:18 EST)
+The advisor read sections 8b and 9 (nothing run) and asked for these; none changes an existing threshold. State: the v2 run
+of section 8 has finished or is finishing; its output has NOT been opened.
+1. **H5 read two-sided, against an exact reference.** The store fixes what a correct value mix must give. For the moving
+   train alone: a 3 h step is 46 degrees of phase, so a half-way mix keeps cos(23 deg) = **0.92** of its amplitude; H8's 6 h
+   picture keeps cos(46 deg) = **0.69**; the 12 h control keeps |cos(92.6 deg)| = **0.05**. (The whole field also has parts
+   that do not move, so a view's figure sits above these; they are the floor for the moving part, written down before data.)
+   Because 0.92 is exactly the registered average line, pass or fail by 0.01 would say nothing about the implementation. So:
+   for every held same-grid picture a REFERENCE picture is drawn: the exact arithmetic average of the two hours' texture
+   bytes, written into the wave texture by the lab and drawn at rest through the unchanged path. The held picture must match
+   it: mean absolute luminance difference at most **0.5** (of 255), and its retention within **+-0.03** of the reference's.
+   Lower retention than the reference = extra blur or misregistration; higher = the values are not being mixed.
+2. **H8 gets a floor.** Pass stays at most 60% of the cut's error; **below 25% the line is VOID** (the held picture is not at
+   0.5, or the hidden hour leaked into it). For every triple the valid times of the two textures the shader mixed are recorded
+   (the kept one and the resident one): they must be h and h+6, never h+3.
+3. **A flat control for H8.** Mean absolute error rewards a washed-out picture. The view's 12 h-apart average (H5's control
+   frame, nearly flat in the moving part) is scored against the real h+3 the same way. If that washed-out picture also comes
+   in under 60% of the cut, H8 cannot be read alone and its verdict is stated jointly with the retention of the same held
+   picture against the real middle hour.
+4. **H9 (new): truth for the grid-swap blend.** A grid swap INSIDE one hour (the coarse grid, then the finer grid, same valid
+   time), blend held at 0.5, compared with the finer grid's picture at rest. Pass: at every swap the held picture's error
+   against the fine picture is no larger than the coarse picture's error against it, and pooled it is **35% to 65%** of the
+   coarse picture's error (a correct half-way mix gives about half; a shifted or mis-scaled earlier grid does not). At least 12
+   swaps over the 10 views must be scored or H9 is void (the harness decides when a finer grid arrives).
+5. **Value space beside luminance.** H8 and H9 are also reported on the decoded values read back from the textures (height in
+   metres, direction as mean angular error): the mix of the two hours' values against the real middle hour's values, and the
+   nearest hour's. The gate stays on luminance as registered; both are reported.
+Not in this run, and owed before the blend is ON by default (the advisor's condition, accepted): **H8 on real frames**, replayed
+offline with the middle frame hidden. A synthetic store's answer is fixed by its phase speed.
