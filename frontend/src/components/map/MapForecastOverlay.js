@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef, useId } from 'react';
+import { derivedScrubbingOn, scrubbingFlag } from './scrubRenderBailouts';
 import { Lock, ChevronDown, MapPin, AlertTriangle } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getHeightUnit } from './heightUnits';
@@ -95,17 +96,21 @@ export const MapForecastOverlay = ({
   const isPrecipBackendActive = (activeLayer === 'rain' || activeLayer === 'precipitation') && typeof getBackendPrecipitationFlag === 'function' && getBackendPrecipitationFlag();
   const isExactPointRequired = isMarineLayer || isPressureBackendActive || isPrecipBackendActive;
 
-  const [isScrubbing, setIsScrubbing] = useState(false);
+  // Derived scrubbing flag (scrubRenderBailouts.js): `hour !== settled hour` in the same render instead of a state set in an
+  // effect after every hour change (one commit fewer per scrub step). Kill __RAW_DISABLE_DERIVED_SCRUBBING__ keeps the state.
+  const [isScrubbingState, setIsScrubbing] = useState(false);
   const [settledOffset, setSettledOffset] = useState(timeOffsetHours);
 
   useEffect(() => {
-    setIsScrubbing(true);
+    const legacy = !derivedScrubbingOn();
+    if (legacy) setIsScrubbing(true);
     const handler = setTimeout(() => {
-      setIsScrubbing(false);
+      if (legacy) setIsScrubbing(false);
       setSettledOffset(timeOffsetHours);
     }, 200);
     return () => clearTimeout(handler);
   }, [timeOffsetHours]);
+  const isScrubbing = scrubbingFlag(timeOffsetHours, settledOffset, isScrubbingState);
 
   const {
     exactPoint: effectiveExactPoint,

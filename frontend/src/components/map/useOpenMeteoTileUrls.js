@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { keepSlotUrlsIfSame } from './scrubRenderBailouts';
 import { LIVE_FETCHED_MODELS } from './mapUtils';
 import {
   ICON_WIND_CUTOVER_H, EURO_WIND_CUTOVER_H,
@@ -666,7 +667,7 @@ export function useOpenMeteoTileUrls({
                 filtered[key] = prev[key];
               }
             });
-            return { ...filtered, ...newUrls };
+            return keepSlotUrlsIfSame(prev, { ...filtered, ...newUrls });
           });
           targetSlotsRef.current = newActiveSlots;
           

@@ -119,6 +119,9 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_INFOBOX_TIDE__',
   // hudResidentTruth.test.js
   '__RAW_DISABLE_HUD_RESIDENT_TRUTH__',
+  // components/map/scrubRenderBailouts.test.js ("OFF PATH: __RAW_DISABLE_SLOT_URL_BAILOUT__ commits every resolve" / "...DERIVED_SCRUBBING__ keeps the state"; 2026-11-15)
+  '__RAW_DISABLE_SLOT_URL_BAILOUT__',
+  '__RAW_DISABLE_DERIVED_SCRUBBING__',
   // marineSeriesFrame.killSwitch.test.js
   '__RAW_DISABLE_SERIES_MINT_STAGE__',
   '__RAW_DISABLE_SERIES_ESTIMATE_PROVENANCE__',
