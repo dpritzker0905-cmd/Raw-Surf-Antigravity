@@ -459,3 +459,38 @@ ones where outside tools disagreed or were unsure.
 - LongCat returned five-plus findings for a six-line request. Its fixes are proposals; each was checked against the gate text.
 - Context7 documented MapLibre behaviour in general, not our code. It does not show our tile path is correct.
 - Nothing here changes a served number. Nothing was merged.
+
+
+## 11. Status of section 7.D rows 4 to 7, from the repair lead (2026-11-15 11:01 EST), and a correction to 7.A
+
+**Source.** The repair lead's log `docs/weather-program/log/2026-11-15-fable-grading-bias-line.md` on branch
+`fable/grading-bias-line` (draft #915). Its text is not copied here; the status below is taken from it and from the
+repair lead's message to the researcher. This section records status only. No row below was built by the researcher.
+
+| Row (7.D) | Item | Status | Reason (from the repair lead) | Second opinions |
+|---|---|---|---|---|
+| 4 | Linear MOS on 48–72 h | **Not built in the repair lane.** The shadow already runs | Gate not met as the researcher wrote it. Next step: a per-region fit with shrinkage, in shadow, on a held-out window, in `skill_mos.py` (Move 4's file) | Both reviewers: shadow only. SubQ 0.91 |
+| 5 | Exposure sweep replaces the 46267 exclusion | **Not built. Do not build.** | Measured 2026-11-13: 46267 has 4 of 72 open bearings; the seven real surf spots in the same fallback have 0 to 9. The sweep ranks the bad buoy as more open than spots it must keep. The pre-registered corridor ratio rejected every point. The #883 gate needs three buoys per class, and the strait class has one with truth, so the gate cannot run. The "up to ~37% of the pooled gap" figure is already taken by the named exclusion (#852, merged and deployed 2026-11-14 04:21Z), so the sweep would add nothing to it | Reflection: do not build yet. SubQ: not yet, 0.64 earlier; evidence shows it cannot separate, 0.99 |
+| 6 | Hawaii south/east downscale | **Not built, not before 2026-11-27** | Cause measured: bilinear interpolation across the island. The nearest wet cell is better by 0.119 m at 51202 and 0.066 m at 51211, and not at other islands. The gate tested the same two buoys the cause was found on, so it was in-sample. A pre-registered shore-split rule is being scored on 2026-11-14 to 11-27 (log `2026-11-13-fable-hawaii-regional-and-shore-split.md`). A second Hawaii change before that read would spend the same buoys twice | SubQ 0.999 (in-sample). Reflection: not a valid out-of-sample gate |
+| 7 | Bias line beside MAE | **Built, draft #915, measurement only** | The gate as the researcher wrote it ("a seeded +0.05 m bias is detected") is an identity: seeding every key moves a mean signed difference by exactly the seed, so it cannot fail. The built control seeds +0.05 m only on keys where the served lane under-reads, with a net-zero null arm that must not be flagged. Status: met on synthetic rows only. The real reading is the next `accuracy-per-buoy-split.yml` dispatch (earliest fully useful: 2026-11-17 12:00Z) and can come back NOT MET | SubQ 0.99 that the original gate was an identity. Reflection agrees |
+
+**Gate wording to use from now on.** For row 7, the gate is the built control, not the original text. Row 4 keeps its
+failing gate as written; the repair lane's per-region shrinkage fit replaces it before any shadow read.
+
+### 11.1 Correction to section 7.A ("consensus-shadow excess is a labelling issue")
+
+The repair lead's record shows the opposite. The consensus shadow is a **build and definition defect**, not a labelling
+issue:
+- It loses to the plain mean of its members by 0.100 to 0.202 m where a member lane had no stored product (#869).
+- It masks an unanswered cell where the served product would keep GFS (#880).
+
+The 7.A sentence in section 7 is therefore wrong, and this section supersedes it.
+
+### 11.2 Effect on the top 10 (section 7.D)
+
+- Row 4 (MOS): the default is not made. Shadow only, with a per-region fit.
+- Row 5 (exposure sweep): dropped from the list. The 46267 fallback stays on the named exclusion (#852).
+- Row 6 (Hawaii): deferred until after 2026-11-27.
+- Row 7 (bias line): built as a measurement, not yet a result.
+
+Nothing in this section changes a served number.
