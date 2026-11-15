@@ -234,3 +234,35 @@ Read as the long-range wind/gust question above. This section adds to the 21:17Z
 
 **Verdict.** No design for a "state of the art" claim exists until step 1's gate has run on our stations. Step 2's
 grand ensemble is the most likely SOTA end state under our constraints, and it needs David's word.
+
+## 21:21Z The helper's legwork (ASK 1-2), checked, and what it changes
+
+Source: the helper's message, and `researcher-legwork-2026-11-15.md` in the shared notes folder (read-only, unranked).
+
+**What it changes.**
+1. **No CDIP nearshore buoy sits within 2 km of any of the 11 points.** The nearest is Capistrano at 10.7 km from Lower
+   Trestles. Three of them, 46254, 46274 and 46285, are on our hole-buoy list (no wet 0.25 deg cell). So the buoys are
+   truth for nearshore FORCING (the transform's input), not for BREAKING height.
+   - **Correction to my 20:35Z owner answer 2** ("nearshore buoys as primary truth"): for breaking height and rating
+     quality, the primary truth has to be a surf-zone instrument.
+   - The only candidate found is USACE FRF Duck NC (pier gauges and an Argus tower, 0.2 km from Duck Pier). Its pages
+     failed to open (DNS), so it is UNCONFIRMED.
+   - Second candidate: a video breaker-height estimator on a USGS CoastCam, Santa Cruz only, distance UNCONFIRMED.
+   - Brief 7's gate (n >= 1,000, >= 20 stations) can therefore only be met for FORCING truth, not breaking truth.
+     Keep the two apart. The 28%-low nearshore reading (11 stations) must say which of the two it measured before it
+     is used.
+2. **Hole buoys are not usable for offshore grading.** Any nearshore study that reuses 46254, 46274 or 46285 must keep
+   them out of offshore grading. That is the same double-count risk as 46267.
+
+**Method flaw in ASK 1 (no fault in the facts read).** "Gust UNCONFIRMED" at KSNA, KMRY and KMTP came from one latest
+METAR. A METAR carries a gust group only while it is gusting, and a visibility field only as reported. One calm
+observation therefore says nothing about whether the station reports gusts. Station capability must come from ASOS
+station metadata or a 30-day history, not from one observation. The NDBC "no gust field" at 51201 and MTKN6 is a real
+capability: 51201 is a wave-only buoy.
+
+**Station set for the wind/gust gate.** The 11 nearest-to-spot points give about 11 GST stations, many far away
+(Pipeline: Pearl Harbor at 34 km, a sheltered harbour). The gate needs >= 30 per variable, so build it coast-wide:
+- every coastal NDBC/C-MAN station with a 30-day GST record;
+- every coastal ASOS station with gust and visibility history.
+
+Hawaii's gust truth is weak and must be reported as its own stratum.
