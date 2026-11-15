@@ -175,3 +175,107 @@ blend for every layer. Both were wrong for this lane, as the checks below show.
 | 5 | Owner decision: revisit the wind "never blend two hours" rule and the tile-path hard-cut policy | Smoother scrub on those layers, if the owner agrees | Policy change, not code | A/B on the same fixed scrub, both arms on the same build; pass only if the owner accepts the truth-first trade-off |
 
 **Blender** is unchanged from section 3: reference renders and golden images only, never a served value.
+
+
+## 7. Wider research brief (director, 2026-11-15 10:12 EST): accuracy, animation, instant, ranked
+
+**Scope and limits.** Read-only: code and docs on origin/dev `9001096dc`, and the board and per-buoy notes. No live load, no
+merge. Uncertain items are marked **(uncertain)**. Served numbers are marked: a served change needs David's word.
+
+### 7.A Accuracy: where the error is largest (ours, from the logged results)
+
+- **One buoy dominates the +72 h hole.** NDBC 46267 (Strait of Juan de Fuca) runs +1.47 to +1.52 m against best_match at
+  every lead, CI about [+1.0, +2.0], n about 187. That is about 37% of the pooled 14-day +72 h gap by itself. Source:
+  per-buoy split, Actions 43339322792, 2026-11-13 00:45Z. A named exclusion is shipped (#852; board 079866eb7). Served: yes.
+- **Hawaii south and east shore.** 51211 (Pearl Harbor) is +0.11 to +0.12 m worse than the identical model (CI excludes 0),
+  and 51202 is +0.08. Our chain is worse than the same model only there. Source: per-buoy split. Served: yes (the chain).
+- **Pooled, our chain beats the identical model.** 7-day control gap is -0.034 / -0.031 / -0.022 m at 24 / 48 / 72 h, all CIs
+  below 0. Source: per-buoy split.
+- **SoCal Bight and Oregon shelf.** We trail best_match by 0.1-0.3 m, but the identical model shows about 0 or negative.
+  The gap is the GFS-Wave 0.25° model in the island shadow, not our chain. Source: per-buoy split.
+- **Blind spot: bias.** MAE cannot see a +0.05 m bias shift on under-reading keys (detection control failed). A bias line
+  beside MAE is needed. Source: per-buoy split, "Detection control". Served: no (a grading change).
+
+### 7.A upgrades that buy skill (with cited numbers and what applies to us)
+
+| Upgrade | Cited evidence | What it means for us | Applies? |
+|---|---|---|---|
+| AI global models (GraphCast) | Lam et al., Science 2023: GraphCast better than HRES on 90% of 1,380 targets (variables, levels, lead times together; 69 of 227 variable-levels in the HRES comparison) [eurekalert / arXiv 2212.12794] | Global model replacement; not a nearshore fix | Partly: a candidate source, not a nearshore upgrade. Served: yes if adopted |
+| ECMWF AIFS (operational Feb 2025 single, Jul 2025 ENS) | ECMWF newsletter 187: medium-range error reduction 5-15% typical, up to 25% for AIFS-ENS; 2m temperature better at all leads vs SYNOP. An independent 9,000-station preprint (not peer-reviewed, unverified) finds raw IFS better than AIFS, shrinking after post-processing | Our EURO lane is ECMWF IFS-based; an AIFS source would change the EURO lane | Yes for EURO. Verify with our buoy set before adoption (uncertain) |
+| Aurora (Nature 2025) | Abstract says it beats operational forecasts for ocean waves; the coverage cites 86% of comparisons over a test year (Microsoft framing); SWH skill metrics not found (uncertain) | Relevant to swell; the wave data start only in 2016 | Uncertain. Read the paper's wave section before any use |
+| EMOS calibration (Gneiting et al., MWR 2005) | Method confirmed: Gaussian EMOS fitted by minimum CRPS. The wind-speed percentage was not found (uncertain). Wind speed uses truncated normal (Thorarinsdottir and Gneiting 2010) | Our bias and calibration work (OCF shadow) is this family | Yes. Gain not number-verified here |
+| Bias correction / linear MOS (ours, shadow) | Scoreboard 2026-11-13 02:33Z: rolling 14-day, 56 buoys. Linear MOS: 24 h -0.000, 48 h **-0.012 [-0.018, -0.007]**, 72 h **-0.019 [-0.028, -0.011]**. Gate not met: hawaii worse at every lead, atlantic_ne/se worse at 48/72 h. Pooled gain from pacific_ne only | Real gain at 48-72 h in pooled terms; fails the per-region gate | Yes, uncertain as a default. Served: yes if shipped |
+| Multi-model consensus and weighting (ours) | Consensus product exists (`consensus_product.py`); shadow excess is tied to pairs with no stored tier (scoreboard 02:33Z) | The consensus-shadow excess is a labelling issue, to fix first | Yes. Served: yes |
+| Nearshore transform (ours, #852, #851) | Exposure sweep proposed in #851 (not built); named exclusion of 46267 shipped | Fixes the one-buoy hole; the bake-off (#883) tests coast types | Yes. Served: yes |
+| Downscaling | No measured number in the repo for our grids (uncertain) | Would help Hawaii and Bight shadows | Uncertain |
+
+### 7.B Animation and rendering: what the leaders do (verified where stated)
+
+| Product | Time interpolation | Particles | Colour ramps | Verified from |
+|---|---|---|---|---|
+| earth.nullschool / cambecc/earth | Spatial bilinear only; no temporal interpolation described | Canvas 2D over SVG map; count not stated | Speed ramp | GitHub README, MIT (fetched 09:4x) |
+| Ventusky | On/off key for map interpolation; method not described | Streamlines (wind) | Not checked | User guide, my.ventusky.com |
+| Windy | Not described | WebGL particles (community posts, unverified) | Not checked | api.windy.com page: no rendering docs |
+| RainViewer | Weather Maps API gives past 2 h plus nowcast frames, refresh every 5 min; no interpolation or motion compensation stated | n/a (radar tiles) | Not checked | rainviewer.com/api.html |
+| Zoom Earth | Animation options: precipitation on/off, speed slow/medium/fast, satellite loop 3-24 h, satellite style "Fast" or "Smooth"; no method stated | n/a | Not checked | zoom.earth |
+| Meteoblue radar | 15-min source displayed at 1-min steps by synchronising and interpolating networks | n/a | Not checked | Meteoblue blog (search snippet) |
+
+**Our code, with file:line.**
+- **Marine crests:** hard swap per hour (`WebGLMarineEngine.js:3110`). No value blend (section 6.2 of #912).
+- **Own-frame raster:** 160 ms value blend on a step, smoothstep (`ownRasterLayer.js:91-105`).
+- **Tile path:** hard cut by policy (`rasterFrameSwap.js:7-13`).
+- **Wind:** no blend across hours or models by rule (`WebGLWindEngine.js:96-100`).
+- **Colour checks:** colour-blind and palette law checks exist as scripts: `frontend/scripts/wind-color/` (README and `check.mjs`, cited in CLAUDE.md) and `frontend/scripts/raster-color/check.mjs`. Whether they test colour-blind simulation for every layer: uncertain.
+- **Antialiasing:** no `antialias` or MSAA setting found in `MapWebGL.js` or `mapUtils.js`. MapLibre's default applies (uncertain).
+- **Frame pacing:** the marine and wind layers run through MapLibre's custom-layer render loop; no separate `requestAnimationFrame` loop was found in `WebGLMarineLayer.js`, `WebGLWindLayer.js` or `ownRasterLayer.js`.
+- **Phone tier:** marine particles 192 on handheld, 296 otherwise (`deviceTier.js:36-38`); wind 192 handheld, 384 desktop (`deviceTier.js:45-47`).
+- **Lighting and shading:** the crest shader has a shimmer term (`WebGLMarineShaders.js:546-549`), no physically based lighting.
+- **Radar motion compensation:** none in code (radar is RainViewer tiles, hard cut, `radarFrameHold.js`).
+
+Blender: no look prototyped in this pass. The Ocean modifier spectra stay the reference for crest shape (section 3 of this log).
+
+### 7.C Instant: remaining first-paint and scrub latency, by measured cause
+
+Board 07:38Z (#889, phone profile, dev harness): own-frame beats the tile path (fog p95 337 ms vs 1.26 s; toggle 1.2-2.0 s vs
+5.7-6.7 s), but neither meets the 50 ms gate. Measured causes:
+1. **App-wide React re-render per step: 90-150 ms.** Next batch: take non-critical re-renders off the scrub step.
+2. **Main-thread water decode: 570-960 ms.** Next batch: worker decode.
+3. **Own-frame pump retry loop** (board 05:45Z, live bug): endless re-request on a failed frame; fix is a 30 s backoff already
+   in flight.
+4. **Missing frames:** the census (Move 3, partial) found 112 of 188 slow steps are EURO and ICON at z7, and 147 never showed the
+   asked hour within 6 s. Source: board, Move 3 census.
+First paint and per-layer first paint are not measured in this pass (uncertain).
+
+### 7.D One ranked table, A + B + C (top 10, then long tail)
+
+Served column: **yes** means it changes a served number and needs David's word.
+
+| # | Upgrade | Evidence | Expected gain | Cost | Risk | Pre-registered gate | Served? |
+|---|---|---|---|---|---|---|---|
+| 1 | Scrub: take React re-renders off the scrub step (C1) | Board 07:38Z: 90-150 ms per step | Toward the 50 ms gate; not measured | Medium | Medium (UI, themes) | Phone p95 scrub step ≤50 ms; desktop unchanged; 0 blank frames | No |
+| 2 | Water decode to a worker (C2) | Board 07:38Z: 570-960 ms | Removes most water first-paint cost | Medium | Medium (parity) | Blocking ≥50% lower; decoded arrays byte-identical | No |
+| 3 | Marine crest blend between hours (B; #912 section 6.2) | Hard swap at `WebGLMarineEngine.js:3110` | Removes hour pop on crests; not measured | Medium | Medium (2× texture) | Luminance step at hour boundaries −50%; frame time ≤+10% | No |
+| 4 | Linear MOS / bias correction on the 48-72 h keys | Scoreboard 02:33Z: -0.012 and -0.019 m (48/72 h) | About 0.01-0.02 m pooled | Low (shadow exists) | Hawaii and Atlantic regress | Per-region gate: no region worse at any lead, CI excludes 0 | **Yes** |
+| 5 | Exposure sweep replaces the named exclusion for 46267 (nearshore transform) | Per-buoy split: 37% of pooled +72 h gap | Up to ~37% of the pooled gap | High (#851 design, #883 bake-off) | Coast-type errors | Bake-off gate in #883 (≥3 buoys per class; ΔRMSE ≤-0.05 m) | **Yes** |
+| 6 | Hawaii south/east shore over-read (downscaling or transform) | 51211 +0.11 m vs identical model | Hawaii only | Medium | Hawaii regress | 51211 and 51202 MAE vs identical model: CI includes 0 or better | **Yes** |
+| 7 | Add a bias line beside MAE in grading | Per-buoy split detection control | Grading fidelity (no served gain) | Low | None | Seeded +0.05 m bias detected at CI excluding 0 | No |
+| 8 | EURO lane: AIFS source comparison | ECMWF newsletter 187: 5-15% medium-range error reduction (conflicting independent preprint) | Uncertain | High | Source change | Buoy MAE at 24/48/72 h beats current EURO with CI below 0 | **Yes** |
+| 9 | Own-frame pump backoff (C3) | Board 05:45Z live bug | Stops retry storm | Low | Low | No endless re-request in a 60 s run | No |
+| 10 | Missing-frame census fix for EURO and ICON z7 (C4) | Board census: 112/188 slow steps | Toward the instant gate | Medium | Medium | Census re-run: slow-step count down ≥50% | No |
+
+**Long tail.**
+- Lanes we lack (grep of `LayerRegistry.js`): gusts exist in the forecast variable list (`LayerRegistry.js:349`) but not as a
+  map layer. Not in the registry: UV, CAPE, lightning, ocean currents, tide overlay, visibility as its own layer (visibility is
+  used only for fog). Each is a new lane, with a served-number decision.
+- Fog: GFS only, no capability row (gap matrix #887).
+- Zoom Earth and RainViewer: no interpolation described; our radar is a hard cut by policy.
+- Surfline and Apple: no rendering source (unverified).
+- Antialiasing setting and frame pacing: not found in our code (uncertain).
+- Colour-blind coverage of every layer's palette: uncertain (the scripts exist; coverage not checked).
+- Physically based shading: none in the crest shader; Blender reference renders only (section 3), never a served value.
+
+**Cite-check.** Verified in this pass: GraphCast 90% of 1,380 targets (search of the paper and arXiv); AIFS error reduction
+5-15% (ECMWF newsletter 187, via search); Aurora's wave abstract claim (search); EMOS method (search); RainViewer and Zoom Earth
+animation options (one page each); earth.nullschool README (one page). Not verified: the Aurora 86% figure (Microsoft
+coverage), the EMOS wind-speed percentage, the independent IFS-vs-AIFS preprint's peer-review status, Windy and Ventusky
+internals, Meteoblue and Surfline rendering.
