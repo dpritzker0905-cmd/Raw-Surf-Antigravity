@@ -217,13 +217,13 @@ def render(rows, meta) -> str:
         out.append("| %s | %d | %s |" % (kind, len(v), _cell(float(mid))))
     out += ["", "One reading is one sea state. A class median here is a description, not a factor."]
     groups = shared_cells(rows)
-    out += ["", "### Spots sharing a model cell (same sea in; the spread is the spot alone)", ""]
+    out += ["", "### Spots sharing a model cell (same model, same hour, same cell: the same sea in, so the difference is the spot alone)", ""]
     if groups:
-        out += ["| model cell | spots (class, surf / offshore) | largest over smallest |", "|---|---|---|"]
+        out += ["| model cell | spots | spots (class, surf / offshore) | largest over smallest |", "|---|---|---|---|"]
         for g in groups:
             spots = "; ".join("%s (%s, %s)" % (n, k, _cell(float(r)) if r is not None else "no ratio") for n, k, r in g["spots"])
-            out.append("| %s, %s | %s | %s |" % (_cell(float(g["cell"][0])), _cell(float(g["cell"][1])), spots.replace("|", "/"),
-                                              _cell(float(g["spread"])) if g["spread"] is not None else ""))
+            out.append("| %.3f, %.3f | %d | %s | %s |" % (g["cell"][0], g["cell"][1], len(g["spots"]), spots.replace("|", "/"),
+                                                      _cell(float(g["spread"])) if g["spread"] is not None else ""))
     else:
         out.append("none this run")
     missing = no_break_depth(rows)
@@ -240,8 +240,12 @@ def health_ok(base, get) -> str:
         return "failed %s" % type(e).__name__
 
 
-def run(base: str, now: datetime, get=None, sleep=time.sleep, panel=PANEL) -> dict:
-    """Read the panel. `get(url)` returns (status, text, seconds); injected in tests so nothing is sent."""
+def run(base: str, now: datetime, get=None, sleep=time.sleep, panel=PANEL, clock=time.monotonic) -> dict:
+    """Read the panel. `get(url)` returns (status, text, seconds); injected in tests so nothing is sent.
+
+    EVERY read is timed by the wall clock around the call, so a read that raises (a timeout is the slowest read there
+    is) or answers non-200 still has a time. That time counts toward "slowest read" and toward the SLOW_S stop BEFORE
+    the payload is looked at: one slow failure stops the run instead of waiting 10 s and asking the box again."""
     get = get or (lambda url: fetch(url, base))
     valid_time = now.replace(minute=0, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M:%SZ")
     meta = {"read_at": now.strftime("%Y-%m-%dT%H:%MZ"), "valid_time": valid_time, "panel_size": len(panel),
@@ -260,25 +264,30 @@ def run(base: str, now: datetime, get=None, sleep=time.sleep, panel=PANEL) -> di
     for i, spot in enumerate(panel):
         if i:
             sleep(SPACING_S)
+        t0 = clock()
         try:
             status, text, secs = get(point_url(base, spot[1], spot[2], valid_time))
             payload = json.loads(text) if status == 200 else None
         except Exception:
             status, payload, secs = None, None, 0.0
-        if payload is None:
+        secs = max(float(secs or 0.0), clock() - t0)          # the wall clock holds even when the read raised
+        failed = payload is None
+        if secs >= slowest[0]:
+            slowest = (secs, spot[0])
+            meta["slowest_read"] = "%.1f s at '%s'%s" % (secs, spot[0], " (that read FAILED)" if failed else "")
+        if not failed:
+            rows.append(panel_row(spot, payload, nearest_buoy(spot[1], spot[2], stations), read_s=round(secs, 1)))
+        if secs > SLOW_S:                                     # before the payload check: a slow failure stops the run too
+            meta["stopped"] = "a read took %.0fs at '%s'%s; the backend is busy" % (
+                secs, spot[0], " and failed" if failed else "")
+            break
+        if failed:
             failures += 1
             if failures >= 2:
                 meta["stopped"] = "two failed reads in a row at '%s'" % spot[0]
                 break
             continue
         failures = 0
-        rows.append(panel_row(spot, payload, nearest_buoy(spot[1], spot[2], stations), read_s=round(secs, 1)))
-        if secs >= slowest[0]:
-            slowest = (secs, spot[0])
-            meta["slowest_read"] = "%.1f s at '%s'" % slowest
-        if secs > SLOW_S:
-            meta["stopped"] = "a read took %.0fs at '%s'; the backend is busy" % (secs, spot[0])
-            break
     meta["health_after"] = health_ok(base, get)
     return {"meta": meta, "rows": rows}
 
