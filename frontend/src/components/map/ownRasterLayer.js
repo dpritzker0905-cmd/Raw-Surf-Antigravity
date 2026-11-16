@@ -24,19 +24,24 @@
 export const RESIDENT_MAX = 6;
 // TEXTURE FIT + GPU BUDGET (2026-11-16, the 0.125-deg flip precondition; log 2026-11-16-opus-raster-0125-texture-gate.md). A 0.125-deg
 // global field is 2880 x 1441 (16.6 MB as R32F; ~100 MB at RESIDENT_MAX), and WebGL2 only guarantees a 2048 texture. A field larger
-// than the device's MAX_TEXTURE_SIZE is drawn DOWNSAMPLED by a whole factor (every k-th node; a wrapping grid keeps an exact wrap), and
+// than the device's MAX_TEXTURE_SIZE (or than FRAME_BYTES_MAX) is drawn DOWNSAMPLED by a whole factor (every k-th node; a wrapping grid keeps an exact wrap), and
 // the status line says so; residency is also capped by BYTES per layer. The readout and the blend's grid match keep the full field.
 // Kill: window.__RAW_DISABLE_RASTER_TEX_FIT__ = true (one full-size upload per frame, the count cap only, as before).
 export const RESIDENT_BYTES_MAX = 48 * 1024 * 1024;
 export const texFitOn = (w = (typeof window !== 'undefined' ? window : {})) => w.__RAW_DISABLE_RASTER_TEX_FIT__ !== true;
 /** The field to draw within a `maxTex` limit: itself (factor 1), or every k-th node with its bounds re-derived. */
-export function fitFieldToLimit(field, maxTex) {
+// Each frame is also kept within FRAME_BYTES_MAX (a third of the layer's budget), so the three frames that can never be evicted (shown,
+// wanted, a running blend's source) always fit under RESIDENT_BYTES_MAX together. A 0.125-deg global frame (2880 x 1441, 15.8 MiB) fits.
+export const FRAME_BYTES_MAX = Math.floor(RESIDENT_BYTES_MAX / 3);
+export function fitFieldToLimit(field, maxTex, maxBytes = Infinity) {
   const { cols, rows } = field;
-  if (!(maxTex > 1) || (cols <= maxTex && rows <= maxTex)) return { field, factor: 1 };
+  const fits = (c, r) => c <= maxTex && r <= maxTex && c * r * 4 <= maxBytes;
+  if (!(maxTex > 1) || fits(cols, rows)) return { field, factor: 1 };
   const wraps = wrapsLongitude(field);
   const colsOf = (k) => (wraps ? cols / k : Math.floor((cols - 1) / k) + 1);
   let k = Math.max(2, Math.ceil(Math.max(cols, rows) / maxTex));
-  while ((wraps && cols % k !== 0) || colsOf(k) > maxTex || Math.floor((rows - 1) / k) + 1 > maxTex) k += 1;
+  k = Math.max(2, k);
+  while ((wraps && cols % k !== 0) || !fits(colsOf(k), Math.floor((rows - 1) / k) + 1)) k += 1;
   const c2 = colsOf(k); const r2 = Math.floor((rows - 1) / k) + 1;
   const values = new Float32Array(c2 * r2);
   for (let r = 0; r < r2; r += 1) { const src = r * k * cols; const dst = r * c2; for (let c = 0; c < c2; c += 1) values[dst + c] = field.values[src + c * k]; }
@@ -347,18 +352,12 @@ export function createOwnRasterLayer({
     let draw = field; let factor = 1;
     if (fit) {
       if (st.maxTex === null) st.maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 4096;
-      ({ field: draw, factor } = fitFieldToLimit(field, st.maxTex));
+      ({ field: draw, factor } = fitFieldToLimit(field, st.maxTex, FRAME_BYTES_MAX));
     }
     const bytes = draw.cols * draw.rows * 4;
     const reuse = st.resident.size >= RESIDENT_MAX ? evictOne() : null;
     if (fit) {   // the byte budget: free the oldest until this one fits (never the shown, wanted or blend-from frame)
-      while (st.residentBytes + bytes > RESIDENT_BYTES_MAX) {
-        let t = evictOne();
-        // Only protected frames left: a running value blend gives way (a hard cut) so its source frame can go and the cap holds.
-        if (!t && st.blend) { st.blend = null; t = evictOne(); texTelemetry().blendDropped = (texTelemetry().blendDropped || 0) + 1; }
-        if (!t) break;
-        gl.deleteTexture(t); texTelemetry().budgetEvictions += 1;
-      }
+      while (st.residentBytes + bytes > RESIDENT_BYTES_MAX) { const t = evictOne(); if (!t) break; gl.deleteTexture(t); texTelemetry().budgetEvictions += 1; }
     }
     const tex = reuse || gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, tex);

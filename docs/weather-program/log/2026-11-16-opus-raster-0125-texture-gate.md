@@ -40,3 +40,7 @@ wrapping grid keeps an exact wrap), with words in the status line ("<layer> draw
 readout and the blend's grid match keep the full field. The byte cap is 48 MB per layer; when only protected frames remain over it, a
 running value blend gives way (a hard cut) so its source frame can be freed. The one existing test that counted synchronous reads now
 expects two (the link status, and `MAX_TEXTURE_SIZE` once per layer, as the registration states).
+**Design correction found by a test (07:45Z), before any gate run:** with fields above 0.125 deg, the two frames that can never be
+evicted (shown and wanted) could exceed the 48 MiB cap on their own. Each frame is now also kept within `FRAME_BYTES_MAX` = 48 MiB / 3,
+so shown + wanted + a running blend's source always fit; a 0.125-deg frame (15.8 MiB) still fits whole. The blend give-way written
+first could then never trigger and was removed (dead code).

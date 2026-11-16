@@ -3,7 +3,7 @@ import path from 'path';
 import {
   colorAtValue, buildStepLut, opacityAtZoom, PRESSURE_OPACITY_STOPS, PRESSURE_LUT, wrapsLongitude, createOwnRasterLayer, RESIDENT_MAX,
   TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS, NO_DATA_BELOW_GLSL, FS, downscaleAt, DZ_TILES_MAX, DZ_FADE_MS, CLOUD_LUT, SATELLITE_OPACITY_STOPS, scaleForTheme,
-  RAIN_LUT, RAIN_OPACITY_STOPS, BLEND_MS, blendMs, blendEase, fitFieldToLimit, RESIDENT_BYTES_MAX,
+  RAIN_LUT, RAIN_OPACITY_STOPS, BLEND_MS, blendMs, blendEase, fitFieldToLimit, RESIDENT_BYTES_MAX, FRAME_BYTES_MAX,
   FOG_LUT, FOG_OPACITY_STOPS, WATER_TEMP_LUT, WATER_TEMP_OPACITY_STOPS, WATER_TEMP_HIGHZOOM_FADE, waterTempOpacityStops,
 } from './ownRasterLayer';
 import { MISSING, NO_DATA_BELOW } from './ownRasterFrames';
@@ -675,17 +675,19 @@ describe('texture fit and the GPU byte budget', () => {
     expect(L.shownPath()).toBe('h29');
   });
 
-  test('T2: with a value blend running and only protected frames left, the blend gives way so the cap holds (frozen clock)', () => {
-    const gl = fakeGl(); gl.__ctl.maxTex = 4096; const map = fakeMap();
+  test('T2: a field too heavy for a third of the budget is downsampled, so shown + wanted + a running blend fit (frozen clock)', () => {
+    const gl = fakeGl(); gl.__ctl.maxTex = 8192; const map = fakeMap();
+    const mm = window.matchMedia; window.matchMedia = () => ({ matches: false });   // motion allowed: the value blend runs
     const L = createOwnRasterLayer({ id: 'own-raster-rain', now: () => 0 });   // time never moves: a started blend stays running
     L.onAdd(map, gl); L.setLut(buildStepLut({ breakpoints: [0], colors: [[1, 2, 3, 1]] }));
-    const f = big(); const g = { ...f, values: f.values.slice() }; const h = { ...f, values: f.values.slice() };
-    L.offerField('a', f); L.want('a'); frame(L, gl);
-    L.offerField('b', g); L.want('b'); frame(L, gl);          // shown b, blending from a (both protected)
-    L.offerField('c', h); L.want('c'); frame(L, gl);          // c wanted: a + b + c = 49.8 MB > 48 MB
-    expect(window.__RAW_OWN_RASTER_TEX__.residentBytes).toBeLessThanOrEqual(RESIDENT_BYTES_MAX);
-    expect(window.__RAW_OWN_RASTER_TEX__.blendDropped).toBe(1);
-    expect(L.shownPath()).toBe('c');
+    // 0.1 deg, 3600 x 1801 (24.7 MiB as R32F, over FRAME_BYTES_MAX): drawn at 1/2 (1800 x 901).
+    const mk = () => ({ cols: 3600, rows: 1801, bounds: { west: -180, south: -90, east: 179.9, north: 90 }, values: new Float32Array(3600 * 1801) });
+    for (const p of ['a', 'b', 'c', 'd']) { L.offerField(p, mk()); L.want(p); frame(L, gl);
+      expect(window.__RAW_OWN_RASTER_TEX__.residentBytes).toBeLessThanOrEqual(RESIDENT_BYTES_MAX); }
+    expect(window.__RAW_OWN_RASTER_TEX__.lastFactor).toBe(2);
+    expect(gl.__tex.filter((t) => t[0] === 'GL_R32F').every((t) => t[1] === 1800 && t[2] === 901)).toBe(true);
+    expect(fitFieldToLimit(big(), 8192, FRAME_BYTES_MAX).factor).toBe(1);   // a 0.125-deg frame still fits whole
+    window.matchMedia = mm;
   });
 
   test('T2: the 0.25-deg sets keep RESIDENT_MAX frames (1 MB each is far under the budget)', () => {
