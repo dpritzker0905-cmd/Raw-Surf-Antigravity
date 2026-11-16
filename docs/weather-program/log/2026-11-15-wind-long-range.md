@@ -214,3 +214,40 @@ shards died on one S3 `503` each (`ecmwf-forecasts`, 20250919 00Z +180 h, 24 sha
 jitter up to ~6 min per request, a failing run is recorded and retried once at the end (never filled), max 12
 shards in parallel, shard artifacts uploaded even on failure, and the stations job reuses the committed frozen
 list. Pushed; the push supersedes the run (same concurrency group).
+
+## 2026-11-16 00:10Z AMENDMENT 2 (director + senior lead, 23:59-00:01Z; BEFORE any result was read)
+
+No hindcast result exists: run 43773419409 was force-cancelled after S3 503s, and run 43776801544 was cancelled at
+collection (no run file was scored). These changes come from the director's correction and the senior lead's
+00:01Z message. Each replaces the line it names.
+
+1. **Window**: ECMWF runs **2026-09-01 00Z .. 2026-10-31 12Z** (61 days, 122 runs), on the current model cycle and
+   station set. The last run's 336 h lead verifies on 2026-11-14, which has been observed. (Replaces 2025-09-15..11-14.)
+2. **Fit/test split**: contiguous blocks, not odd/even days. Adjacent days are correlated, so odd/even leaks test
+   errors into the fit. **FIT = runs started in September; TEST = runs started in October** (62 runs over 31 days,
+   meeting the >= 60 runs / >= 30 days floor).
+3. **Missing steps**: a run with ANY missing step is dropped and logged, never filled. **VOID if more than 10% of the
+   122 runs are dropped.**
+4. **Climatology**: seasonal by day of year: the station's records within +-15 days of the valid day of year, same
+   UTC hour, over 2016-2025. A cell needs >= 20 records. (Replaces the flat calendar-month mean.)
+5. **New arm `aifs_ens_mean`**: ECMWF AIFS-ENS (`aifs-ens`, enfo `cf` + `pf`, 51 members, 10u/10v), reduced the
+   same way as the IFS ENS arm. It has NO 10fg in open data (index read 2026-11-16 00:05Z), so its gust is
+   max(speed x GF, speed), with GF fitted on the FIT half (as for the GEFS mean). Reported; it is not the chosen arm.
+6. **Gust p90**: every ENS reduction also yields the member p90 of 10fg (the risk cue). The gust label is "max gust
+   in the 6 h to this time".
+7. **New PASS line P5, gust peak**: event = observed gust >= 15 m/s in the 6 h window. Brier score of the chosen
+   arm, probability = fraction of IFS members with 10fg >= 15. The deterministic arms (`loop`, `gfs_standin`) score
+   0/1. **P5 PASSES if the Brier difference vs `loop` AND vs `gfs_standin` has a day-block CI upper < 0**, pooled
+   over bins. CSI is reported for every arm (event forecast = served gust >= 15). **If the TEST half has fewer than
+   30 observed events, P5 is reported UNDERPOWERED and does not block.**
+8. **Truth, NDBC**: NDBC has not yet published September 2026 monthly files (August exists; September's directory
+   is empty), and `realtime2` keeps 45 days (2026-10-02 onward at writing). NDBC truth = the September 2026 monthly
+   file if it exists, else nothing, plus a `realtime2` snapshot taken by the stations job and kept as its artifact.
+   The TEST half (valid 10-08..11-14) is fully covered. The FIT half has ASOS truth throughout but NDBC only from
+   10-02. **Station coverage (>= 70% hourly) is measured over 2026-10-02..11-14.** The 2025-window station list is
+   kept as `wind_lr_stations-2025-window-superseded.json`; the stations job freezes a new list by the same rules.
+9. **De-bias arm**: remains an extra, non-primary arm (the senior lead's correction): the member-mean speed does
+   not shrink. The chosen-arm rule stays as registered (de-bias only if its TEST CI vs raw is < 0). Its k is fitted
+   on the September block.
+Unchanged: lead bins, the 8 original arms, P1-P4, R1, C1, C2, day-block bootstrap, the hard seam. The C1 risk noted
+at 00:45Z stands.
