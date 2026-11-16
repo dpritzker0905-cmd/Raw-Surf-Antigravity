@@ -289,8 +289,10 @@ def test_every_wired_batch_reduction_is_actually_reached(monkeypatch):
                 m.setattr(V, n, wrap(getattr(V, n), n))
                 # the fetcher imported them by value, so rebind there too
                 import services.noaa_gfs_wave_fetcher as F
-                if hasattr(F, n):
-                    m.setattr(F, n, getattr(V, n))
+                import services._fetch_region_reduce as R   # the loop's reductions live here since 2026-11-16
+                for mod in (F, R):
+                    if hasattr(mod, n):
+                        m.setattr(mod, n, getattr(V, n))
             _run(m, "1", part_conf=part_conf)
 
     never = [n for n, c in calls.items() if c == 0]
