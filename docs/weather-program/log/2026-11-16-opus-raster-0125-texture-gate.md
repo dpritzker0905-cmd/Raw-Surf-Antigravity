@@ -70,3 +70,15 @@ Raw `scratchpad/m3/texfit.json`.
 3. With the fit ON, today's sets also read `MAX_TEXTURE_SIZE` once per layer per context: one synchronous `getParameter`, at the
    first upload, never per frame; not separately timed on a phone.
 4. T3 stays owed before any 0.125-deg client flip.
+
+## 08:16Z: CORRECTION of two headers in this log (clock estimates, not readings; the advisor and the `verify` check)
+
+- The header "07:30Z: amendment by the director, before any code ran" is wrong: that section was written into commit `b9b160796`
+  at 07:14:40Z. The director's "build it now" message (the amendment) reached this session at **07:05Z** (02:05 EST).
+- The header "08:00Z: results" is wrong: the real-page run happened at about 07:51Z and was committed in `7a4ead94d` at **07:52:37Z**.
+- **What git can and cannot show.** On THIS branch the registration text, the amendment and the first code share ONE commit
+  (`b9b160796`, 07:14:40Z), so their order here is my statement, not something git shows. The registration WAS committed alone
+  first, on another branch: `726038a3b` on `opus/scrub-render-census` at 07:05:02Z (2026-11-16T02:05:02-05:00), before any code,
+  the 07:10Z-headed section copied here verbatim. (Its own "07:10Z" header is also later than that commit, by the same mistake.)
+  The amendment reached me at 07:05Z, the same minute; it is recorded only by the 07:14:40Z commit.
+- Next time: the registration is committed alone on the PR's own branch first, and every header time is read from the clock.
