@@ -62,6 +62,14 @@ OM_UNITS = {om: u for _, om, u in IDX_TO_OM}
 OM_ORDER = [om for _, om, _ in IDX_TO_OM]
 
 
+def _world():
+    try:
+        import world_tiles_0p5 as w  # script-by-path
+    except ImportError:
+        from services import world_tiles_0p5 as w  # package
+    return w
+
+
 def _vector_blockmean() -> bool:
     """Is the vectorized regrid path on? Read PER CALL, never at import — a module-level read freezes
     the environment as of process start, and this repo's recorded scar is a flag holding a different
@@ -425,6 +433,8 @@ def fetch_global_coarse(payload):
     # the deadline lived OUTSIDE the process where it could only kill, never salvage.
     # Hours are fetched ASCENDING, so a truncation drops the FAR hours and keeps the near-term surf —
     # the half users actually read. Kill switch NOAA_FETCH_BUDGET_S=0 -> legacy all-or-nothing.
+    # 0.5-deg WORLD TIER (option B, dark: services/world_tiles_0p5.py): tiles from each decoded hour, no second download
+    world_dir, world_state = payload.get("world_tiles_dir"), {}
     budget_s = float(os.environ.get("NOAA_FETCH_BUDGET_S", "2400"))
     t_start = time.time()
     truncated_at = None
@@ -599,6 +609,12 @@ def fetch_global_coarse(payload):
                             x = arr[r, c]
                         series[pi][om].append(round(float(x), 4) if x == x else None)  # x==x drops NaN
             grbs.close()
+            if world_dir:   # never fatal: a failure stops the tier for this pass and leaves the served path as it was
+                try:
+                    _world().write_hour(world_dir, arrs, lat1d, lon1d, cycle_dt, cycle_dt + timedelta(hours=f), world_state)
+                except Exception as _we:
+                    sys.stderr.write(f"[noaa_gfs_wave_fetcher] world tier stopped at f{f:03d}: {type(_we).__name__}: {_we}\n")
+                    world_dir = None
 
             times.append((cycle_dt + timedelta(hours=f)).strftime("%Y-%m-%dT%H:%M:%SZ"))
             steps_ok += 1
