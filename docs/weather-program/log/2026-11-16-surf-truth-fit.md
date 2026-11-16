@@ -40,3 +40,11 @@ row of held-out spots plus held-out anchor targets. M1 tau shrink and M2 diagnos
 fits are recorded. Guard (amendment 3.1): any physical-reference row refuses the run.
 Tests: 30 pass in the fit environment (27 numpy rule tests, also in CI; 3 model tests). M3 (4 x 1000 on a realistic
 synthetic world) is running and is owed BEFORE the first real run; its result is appended here when it lands.
+
+## 2026-11-16 23:40Z (from `date -u`) M3: the registered 4 x 1000 converges on a realistic synthetic world
+
+`synthetic.world(spots=10, days=20, seed=21)`: 3,200 rows, 800 cells, 8 observers (4 anchors). At the registered
+4 chains x 1000 warmup x 1000 samples (seed 20261116): R-hat max 1.006 (< 1.01), bulk ESS min 799 (> 400), divergent
+fraction 0.000 (<= 0.001): CONVERGED by amendment 2 D. Wall time 445 s on this laptop (CPU). LIMIT: 8 observers; a
+real stream has many more per-observer parameters (b_j, sigma_j), which costs sampling time and may lower ESS, so the
+first real run's own diagnostics decide (VOID if they fail), and run time should be re-measured then.
