@@ -195,3 +195,5 @@ ahead (lesson L-P10). Corrected here, append-only:
 The authoritative time of every section is its git commit time. Both amendments were still registered BEFORE any data
 or fit (no blind observation existed at either commit). From here on, every header time in this lane is read from
 `date -u` at the moment of writing.
+
+2026-11-16 23:00Z (from `date -u`) DEFINITION, before any data: for gate item 1, a range or bucket TARGET is scored at its geometric centre in the target's declared scale, as the baseline does; "Flat" at the midpoint of [0, 0.5] ft; "8ft+" at its floor, 8 ft. MAE is therefore defined for every target. (Both amendment header times are corrected above, at e8157765f: amendment 1 committed 22:46:55Z, amendment 2 committed 22:52:09Z.)
