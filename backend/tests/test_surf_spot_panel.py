@@ -41,7 +41,7 @@ class Backend:
         self.points += 1
         if self.fail_from is not None and self.points >= self.fail_from:
             raise TimeoutError("x")
-        return 200, json.dumps(POINT), (30.0 if self.points == self.slow_at else 0.5)
+        return 200, json.dumps(POINT), (9.0 if self.points == self.slow_at else 0.5)
 
 
 def test_the_panel_is_the_fixed_one():
@@ -91,6 +91,7 @@ def test_a_slow_read_or_two_failures_in_a_row_stop_the_run():
     slow = Backend(slow_at=3)
     out = sp.run(BASE, NOW, get=slow, sleep=lambda s: None)
     assert slow.points == 3 and len(out["rows"]) == 3 and "backend is busy" in out["meta"]["stopped"]
+    assert sp.SLOW_S <= 8.0                                           # a 9 s read stops it; 20 s was far too patient
     assert slow.urls[-1] == BASE + "/api/health"                       # health is still read at the end
     failing = Backend(fail_from=5)
     out = sp.run(BASE, NOW, get=failing, sleep=lambda s: None)
@@ -120,9 +121,12 @@ def test_the_table_names_the_offshore_height_as_offshore_and_gives_no_factor():
     assert sp.render([], {"panel_size": 30, "stopped": "x"}).startswith("## Surf spot panel")
 
 
-def test_the_workflow_is_dispatch_only_and_holds_no_secret():
+def test_the_workflow_runs_four_times_a_day_or_on_dispatch_and_holds_no_secret():
     path = os.path.join(os.path.dirname(__file__), "..", "..", ".github", "workflows", "surf-spot-panel.yml")
     text = open(path, encoding="utf-8").read()
     body = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
-    assert "workflow_dispatch" in body and "schedule" not in body and "pull_request" not in body and "push:" not in body
+    assert "workflow_dispatch" in body and "pull_request" not in body and "push:" not in body
+    # every 6 hours and no oftener: ONE cron line, off the hour. A tighter schedule is a load on the one live box.
+    crons = [line.split("cron:")[1].strip().strip("'\"") for line in body.splitlines() if "cron:" in line]
+    assert crons == ["17 */6 * * *"] and "cancel-in-progress: false" in body and "timeout-minutes: 12" in body
     assert "secrets." not in body and "contents: read" in body and "scripts/surf_spot_panel.py" in body
