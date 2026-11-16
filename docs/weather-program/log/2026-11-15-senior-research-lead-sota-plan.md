@@ -1314,3 +1314,27 @@ default 0.997):
   breaking-sea statistic.
 - That is one served change, gated on truth with the perception term modelled. It never fits the forecast down to
   perceived heights.
+
+## 2026-11-16 15:20Z Correction to the 14:23Z section (mine): the 1.27 was removed twice
+
+Reported by the repair lead (`log/2026-11-16-fable-surf-face-range-gate.md`, 15:08Z, PR #973). Checked against
+`log/2026-11-16-fable-surf-transect-a1.md` section (f) on dev: "significant height on the line with no highest-tenth
+factor: 1.08 m, 0.96 of the offshore height, 3.5 ft". That figure already has the x 0.79 (no H1/10) in it.
+
+- **Wrong at 14:23Z:** "Corrected outer-break H1/10 ≈ 1.06 m, so H1/3 ≈ 0.84 m; x 0.70 ≈ 0.59 m ≈ 1.9 ft, matching the
+  owner's under 2 ft." The 1.06-1.08 m is the H1/3-type figure. Dividing by 1.27 again was my error.
+- **Redone (model only, one hour, n = 1):** H1/3-type 1.08 m (3.5 ft) -> x 0.70 = 0.76 m (2.5 ft). H1/10 1.37 m
+  (4.5 ft) -> x 0.70 = 0.96 m (3.1 ft). Owner: under 2 ft (0.61 m).
+- **So the gap is NOT closed.** Perception at 0.70 plus the statistic takes the factor of ~1.8 to ~1.25 at the low end
+  (~1.6 at the high end). The rest is unexplained (which wave was named, one hour, no measurement). Withdrawn:
+  "the residual is mostly observer perception", and the SubQ 0.961 "explains the gap" score, which was scored on the
+  wrong number.
+- **Also corrected:** "the breaking-sea statistic" is an empty term at the outer breaker (A1: truncated-distribution
+  H1/10 agrees with x 1.27 within 0.01). "The corrected period" was the buoy MEAN period (4.8 s); the served chain has
+  no buoy, and which model mean-period field would stand in is unmeasured.
+- **What the range would have shown that hour:** about 4.1-5.2 ft from the range alone, about 3.5-4.4 ft with the
+  period part, against the owner's under 2 ft. He sees these figures before any flip is asked.
+- **Unchanged:** the target definition (physical peak-face range H1/3-H1/10, NWS Honolulu/NESDIS convention), the
+  perception term in the truth model, and no perceived number by default. None of these depended on explaining one hour.
+- **Lesson (L-S27 family):** when chaining another lane's figure, read what its multipliers already include before
+  applying one again.
