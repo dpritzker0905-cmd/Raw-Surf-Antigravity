@@ -31,7 +31,8 @@ def test_pack_keeps_only_station_values_per_lead():
     f = {"10u": np.ones((51, 3)), "10v": np.zeros((51, 3)), "10fg": np.full((51, 3), 7.0)}
     blob = C.pack_run({192: f, 324: f})
     with np.load(io.BytesIO(blob)) as z:
-        assert sorted(z.files) == ["g_192", "g_324", "u_192", "u_324", "v_192", "v_324"]
+        assert sorted(z.files) == ["g_192", "g_324", "has_cf", "u_192", "u_324", "v_192", "v_324"]
+        assert int(z["has_cf"]) == 1                      # amendment 5: 51 members when 1, 50 when 0
         assert z["u_192"].shape == (51, 3) and z["g_324"].dtype == np.float32
 
 

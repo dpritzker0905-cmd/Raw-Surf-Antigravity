@@ -129,10 +129,13 @@ def collect_run(session, run, lats, lons, out_dir):
     def at_stations(arr, meta):
         return ec.bilinear(arr, meta, lats, lons)
     arrays, notes = {}, {"run": run.isoformat(), "errors": []}
+    has_cf = []
     for step in ENS_STEPS:
-        f, _meta = ef.fetch_step(session, run, step, at_stations)
+        f, fmeta = ef.fetch_step(session, run, step, at_stations)
+        has_cf.append(bool(fmeta.get("has_cf")))
         for p in ef.PARAMS:
-            arrays[f"ens_{p}_{step}"] = f[p].astype(np.float32)         # [51, nst]
+            arrays[f"ens_{p}_{step}"] = f[p].astype(np.float32)         # [51 or 50, nst] (amendment 5)
+    arrays["ens_has_cf"] = np.array(1 if all(has_cf) else 0, dtype=np.int8)     # member 0 is the control only if 1
     for step in HRES_LEADS:
         try:
             h = _ecmwf_det(session, run, step, lats, lons)
