@@ -173,6 +173,29 @@ export const frameRunOf = (index, frame) => (frame && frame.meta && frame.meta.r
   || (index && index.common_meta && index.common_meta.run_time) || (index && index.run) || null;
 
 /**
+ * RUN AGE (advisor red-team 2026-11-16): the publisher can skip a RATED set for budget while the box's plain bundle moves on
+ * (124 regional sets skipped in one verify run). Measured on the public CDN index 2026-11-15 ~20:10 EST: EVERY rated regional waves
+ * bundle read was one run behind its plain sibling (rated 06Z, plain 12Z: Florida, Carolinas, SoCal, Hawaii, Indonesia), so the
+ * single-box rated path live since D-057 has been drawing the previous run. A strict "never older" rule would send every rated ask
+ * back to the 1-CPU box. RULE: a rated frame up to __RAW_RATED_RUN_AGE_MAX_H__ (default 6 h, one GFS cycle) older than the run its
+ * plain sibling is pinned on (the server's run for the box) is served and LABELLED (`rated_run_lag_h` on the grid JSON, telemetry
+ * `__RAW_STATIC_FRAMES_RATED__.lagH`); older than that it is refused and the ask goes to /grid (miss `mosaic_run_behind` /
+ * `regional_run_behind`). Unknown either side: served, lag unknown (fail open, as before). `plainRunMs(plainKey)` = the plain
+ * sibling's pinned run in ms, or NaN. Kill: window.__RAW_DISABLE_RATED_RUN_AGE__ = true (no refusal, no label).
+ */
+export function ratedRunLagH(ratedKey, index, frame, plainRunMs) {
+  if (W().__RAW_DISABLE_RATED_RUN_AGE__ === true || typeof plainRunMs !== 'function') return null;
+  const plain = plainRunMs(String(ratedKey || '').replace(/_rated$/, ''));
+  const rated = Date.parse(frameRunOf(index, frame) || '');
+  return Number.isFinite(plain) && Number.isFinite(rated) ? Math.max(0, (plain - rated) / 3600000) : null;
+}
+export function ratedRunBehind(ratedKey, index, frame, plainRunMs) {
+  const lag = ratedRunLagH(ratedKey, index, frame, plainRunMs);
+  const max = typeof W().__RAW_RATED_RUN_AGE_MAX_H__ === 'number' ? W().__RAW_RATED_RUN_AGE_MAX_H__ : 6;
+  return lag !== null && lag > max + 1e-9;
+}
+
+/**
  * One box's frame for this ask, or the miss reason (a string). Every box of one mosaic must share the valid time, the RUN and the
  * estimated flag of the first (review 2026-11-15: each box set is pinned on its own, so two boxes can sit on different runs with
  * the same valid time, and the mosaic would have stamped one run on a grid built from two).
@@ -183,6 +206,7 @@ export async function pickBoxFrame(box, askMs, d, first) {
   const frame = pickIndexFrame(index, askMs);
   if (!frame || !frame.path) return 'mosaic_unbuilt_frame';
   if (!d.askOffsetServed(index, frame, askMs)) return 'mosaic_ask_offset';
+  if (ratedRunBehind(box.key, index, frame, d.plainRunMs)) return 'mosaic_run_behind';
   const grid = frame.grid || index.grid;
   if (!onMosaicLattice(grid)) return 'mosaic_off_lattice';
   if (first) {
@@ -256,6 +280,9 @@ export async function tryRatedMosaic({ model, layer, validTimeStr, clampedBbox, 
       mosaic: { boxes: m.fromBoxes, padded: m.padded } },
   };
   json.static_frame = { ...json.static_frame, mosaic: frames.map((f) => f.frame.path) };
+  // RUN AGE LABEL: hours this band trails the server's run for its boxes (the largest), null when unknown (ratedRunLagH).
+  const lags = frames.map((f) => ratedRunLagH(f.box.key, f.index, f.frame, d.plainRunMs)).filter((x) => x !== null);
+  json.rated_run_lag_h = lags.length ? Math.max(...lags) : null;
   return json;
 }
 
@@ -279,7 +306,7 @@ export function ratedReadySync({ bounds, model, hour, layer, validTimeOf }, d) {
       const fr = p && !p.stale && pickIndexFrame(p.index, askMs);
       const grid = fr && (fr.grid || p.index.grid);
       const vectors = fr && fr.path && d.decoded(fr.path);
-      if (!vectors || !d.askOffsetServed(p.index, fr, askMs) || !onMosaicLattice(grid)) return false;
+      if (!vectors || !d.askOffsetServed(p.index, fr, askMs) || !onMosaicLattice(grid) || ratedRunBehind(box.key, p.index, fr, d.plainRunMs)) return false;
       if (frames.length && (frames[0].frame.valid_time !== fr.valid_time || frameRunOf(frames[0].index, frames[0].frame) !== frameRunOf(p.index, fr))) return false;
       frames.push({ box, index: p.index, frame: fr, grid, vectors });
     }
@@ -304,6 +331,13 @@ export function prefetchRatedNeighbours({ model, layer, validTimeStr, bbox, worl
     .filter((key) => d.setEnabled(key));
   if (worldKey) boxes.push(worldKey);                            // the pad's honest sea: the rated world frame of this instant
   if (String(model || 'GFS').toUpperCase() !== 'GFS') return [];
+  // BYTES (advisor red-team 2026-11-16): a rated bundle is a whole run, 0.28-2.07 MB on the live CDN (Florida 417 KB, Indonesia 2.07 MB),
+  // so the neighbour ring is skipped when the browser says the link is metered or slow (Save-Data, 2g/3g). The bundles a view itself
+  // needs still load when it is asked for, as before.
+  try {
+    const c = typeof navigator !== 'undefined' && navigator.connection;
+    if (c && (c.saveData || /(^|-)(2g|3g)$/.test(String(c.effectiveType || '')))) return [];
+  } catch (e) { /* no Network Information API: prefetch as usual */ }
   const askMs = Date.parse(validTimeStr);
   for (const key of boxes) {
     Promise.resolve(d.getPinnedIndex(key)).then((index) => {

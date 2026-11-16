@@ -28,7 +28,7 @@ import { cropGridJson, cropVectors, gridBboxParam, midCropFor, midCropRulesPass,
 import { getAvailableTilesFromManifest } from './backendWeatherServiceClientCoverage';
 import { buildTruthTag } from './weatherTruthTracker';
 import { pickRegionalTile } from './staticRegional';
-import { coastMask, mosaicBoxes, prefetchRatedNeighbours, ratedMosaicOn, tryRatedMosaic } from './staticRatedMosaic';
+import { coastMask, mosaicBoxes, prefetchRatedNeighbours, ratedMosaicOn, ratedRunBehind, ratedRunLagH, tryRatedMosaic } from './staticRatedMosaic';
 
 export const RATED_TIER = 'global_mid_rated';
 // The publisher's frame_set_rating.RATED_LAYERS (the world sets the band can be asked of).
@@ -147,7 +147,7 @@ export async function tryStaticRatedGrid({ model, layer, validTimeStr, clampedBb
   }
   if (mosaicFirst) {
     const deps = { getPinnedIndex: d.getPinnedIndex, loadFrameVectors: d.loadFrameVectors, setEnabled: d.setEnabled,
-      askOffsetServed, worldKey: key, noteMiss };
+      askOffsetServed, worldKey: key, noteMiss, plainRunMs: d.plainRunMs };
     try {
       const m = await tryRatedMosaic({ model, layer, validTimeStr, clampedBbox, signal }, deps);
       prefetchRatedNeighbours({ model, layer, validTimeStr, bbox: clampedBbox, worldKey: key }, deps);
@@ -196,6 +196,7 @@ function stampOverlay(json, cropped, key, frame, validTimeStr) {
   const t = telemetry();
   t.hits += 1;
   t.last = { hit: key, valid_time: frame.valid_time, ask: validTimeStr, at: Date.now() };
+  t.lagH = json.rated_run_lag_h ?? null;   // the run-age label (staticRatedMosaic.ratedRunLagH): hours behind the server's run
 }
 
 /** A pilot-box surf ask from its rated bundle: the frame must be built and rated for this ask, then the regional seam crops it. */
@@ -208,7 +209,9 @@ async function tryRatedRegional(tile, validTimeStr, d) {
     if (!frame) return noteMiss('regional_no_frame_in_window');
     if (!frame.path) return noteMiss('regional_unbuilt_frame');
     if (!askOffsetServed(index, frame, askMs)) return noteMiss('regional_ask_offset');
+    if (ratedRunBehind(tile.key, index, frame, d.plainRunMs)) return noteMiss('regional_run_behind');   // more than one run behind
     const json = d.regionalGrid ? await d.regionalGrid(tile) : null;
+    if (json) json.rated_run_lag_h = ratedRunLagH(tile.key, index, frame, d.plainRunMs);              // the label (staticRatedMosaic)
     if (!json) return noteMiss('regional_seam');                     // partial cover, window, bundle: the seam recorded why
     stampOverlay(json, json.grid.vectors, tile.key, frame, validTimeStr);
     return json;                                                       // the regional seam minted its truth tag

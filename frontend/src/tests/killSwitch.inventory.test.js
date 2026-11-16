@@ -50,6 +50,7 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_RATED_OVERSCAN__',
   '__RAW_DISABLE_RATED_READY_FAST__',
   '__RAW_DISABLE_COARSE_RATED_CACHE_SKIP__',
+  '__RAW_DISABLE_RATED_RUN_AGE__',
   // tests/weatherAuthFetch.test.js ("kill switch: never a token, never a retry") and tests/sessionExpiredPrompt.test.js
   // ("kill switch and the auth page itself raise nothing"): #782, accounts only
   '__RAW_DISABLE_WEATHER_AUTH__',

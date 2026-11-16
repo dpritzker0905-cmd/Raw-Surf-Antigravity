@@ -41,7 +41,7 @@ import { signEntitledFrames } from './staticFrameSigner';
 import { registerLatestProbes, setIsEmpty, setIsListed } from './regionalLatestSets';
 import { filledStoreAccepts, filledStoreOn, filledWorldPossible, filledWorldSetKey, plainCropsOn, preloadFilledIndexes, serveTimeFillAtWorld } from './staticWorldFillGuard';
 import { RATED_SET_KEYS, askOffsetServed, isRatedKey, ratedCropEligible, tryStaticRatedGrid } from './staticRatingFrames';   // the Surf Rating band (2026-11-01, dark)
-import { ratedReadySync } from './staticRatedMosaic';
+import { frameRunOf, ratedReadySync } from './staticRatedMosaic';
 export { serveTimeFillAtWorld };   // moved to staticWorldFillGuard.js (the 800-line cap); the callers import it from here
 
 export const FRAME_BUCKET = 'weather-frames';
@@ -628,7 +628,7 @@ export function staticSeriesEligible(args) {
  */
 export async function tryStaticWorldGrid({ model, layer, validTimeStr, clampedBbox, surf, signal }) {
   if (!staticEligible({ model, layer, bbox: clampedBbox, surf })) return null;
-  if (surf) return tryStaticRatedGrid({ model, layer, validTimeStr, clampedBbox, signal }, { getPinnedIndex, loadFrameVectors, setEnabled: staticSetEnabled, regionalGrid: (tile) => tryStaticRegionalGrid({ tile, model, validTimeStr, clampedBbox, signal }) });
+  if (surf) return tryStaticRatedGrid({ model, layer, validTimeStr, clampedBbox, signal }, { getPinnedIndex, loadFrameVectors, setEnabled: staticSetEnabled, plainRunMs, regionalGrid: (tile) => tryStaticRegionalGrid({ tile, model, validTimeStr, clampedBbox, signal }) });
   const tile = regionalTileFor({ model, layer, bbox: clampedBbox, surf, param: gridBboxParam });
   if (tile) {
     try { return await tryStaticRegionalGrid({ tile, model, validTimeStr, clampedBbox, signal }); } catch (e) { noteRegionalMiss('error'); return null; }
@@ -793,4 +793,6 @@ export function _resetStaticFramesForTest() {
 
 /** Surf mode: the rated mosaic can answer this view from MEMORY now (staticRatedMosaic.ratedReadySync): the moveend takes the cached 50 ms lane. */
 export const staticRatedReadySync = (bounds, model, hour, layer, validTimeOf) => ratedReadySync({ bounds, model, hour, layer, validTimeOf },
-  { pin: (key) => _state.pins.get(key), decoded: (p) => _lru.get(p), setEnabled: staticSetEnabled, askOffsetServed });
+  { pin: (key) => _state.pins.get(key), decoded: (p) => _lru.get(p), setEnabled: staticSetEnabled, askOffsetServed, plainRunMs });
+/** The run (ms) a set is pinned on, or NaN: the rated band's run-age rule compares a rated bundle with its plain sibling (staticRatedMosaic). */
+function plainRunMs(key) { const p = _state.pins.get(key); return p && !p.stale && p.index ? Date.parse(frameRunOf(p.index, null) || '') : NaN; }

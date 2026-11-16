@@ -298,3 +298,48 @@ describe('review fixes 2026-11-15', () => {
     expect(typeof await pickBoxFrame({ id: 'b', key: 'k' }, Date.parse(VT), { ...d, getPinnedIndex: async () => idx('06Z') }, first)).toBe('object');
   });
 });
+describe('run age (advisor 2026-11-16): a rated bundle older than its plain sibling is never served', () => {
+  const { ratedRunBehind, ratedRunLagH, pickBoxFrame } = require('./staticRatedMosaic');
+  const VT = '2026-11-15T18:00:00Z';
+  const rated = { common_meta: { run_time: '2026-11-15T00:00:00Z' }, frames: [{ valid_time: VT, path: 'p', grid: { bounds: { west: -83, south: 26, east: -79, north: 31 }, cols: 17, rows: 21 } }] };
+  const plainAt = (iso) => (key) => (key === 'GFS/marine/waves/florida_east_coast' ? Date.parse(iso) : NaN);
+  afterEach(() => { delete window.__RAW_DISABLE_RATED_RUN_AGE__; });
+  test('one run behind (6 h, what the live CDN showed on 11-15): served and labelled', () => {
+    expect(ratedRunBehind('GFS/marine/waves/florida_east_coast_rated', rated, rated.frames[0], plainAt('2026-11-15T06:00:00Z'))).toBe(false);
+    expect(ratedRunLagH('GFS/marine/waves/florida_east_coast_rated', rated, rated.frames[0], plainAt('2026-11-15T06:00:00Z'))).toBe(6);
+  });
+  test('two runs behind (12 h): refused', () => {
+    expect(ratedRunBehind('GFS/marine/waves/florida_east_coast_rated', rated, rated.frames[0], plainAt('2026-11-15T12:00:00Z'))).toBe(true);
+  });
+  test('same run or older plain: served', () => {
+    expect(ratedRunBehind('GFS/marine/waves/florida_east_coast_rated', rated, rated.frames[0], plainAt('2026-11-15T00:00:00Z'))).toBe(false);
+  });
+  test('unknown either side, or killed: served (fail open)', () => {
+    expect(ratedRunBehind('GFS/marine/waves/florida_east_coast_rated', rated, rated.frames[0], () => NaN)).toBe(false);
+    expect(ratedRunBehind('GFS/marine/waves/florida_east_coast_rated', {}, {}, plainAt('2026-11-15T06:00:00Z'))).toBe(false);
+    window.__RAW_DISABLE_RATED_RUN_AGE__ = true;
+    expect(ratedRunBehind('GFS/marine/waves/florida_east_coast_rated', rated, rated.frames[0], plainAt('2026-11-15T12:00:00Z'))).toBe(false);
+    expect(ratedRunLagH('GFS/marine/waves/florida_east_coast_rated', rated, rated.frames[0], plainAt('2026-11-15T12:00:00Z'))).toBe(null);
+  });
+  test('the mosaic refuses a box whose rated run is behind, and names it', async () => {
+    const d = { getPinnedIndex: async () => rated, askOffsetServed: () => true, plainRunMs: plainAt('2026-11-15T12:00:00Z') };
+    expect(await pickBoxFrame({ id: 'florida_east_coast', key: 'GFS/marine/waves/florida_east_coast_rated' }, Date.parse(VT), d, null)).toBe('mosaic_run_behind');
+  });
+});
+describe('prefetch bytes: no neighbour ring on a metered or slow link', () => {
+  const { prefetchRatedNeighbours } = require('./staticRatedMosaic');
+  const desc = Object.getOwnPropertyDescriptor(window.navigator, 'connection');
+  afterEach(() => { if (desc) Object.defineProperty(window.navigator, 'connection', desc); else delete window.navigator.connection; });
+  const d = { getPinnedIndex: jest.fn(async () => null), loadFrameVectors: jest.fn(), setEnabled: () => true };
+  const bbox = { west: -81, south: 29, east: -79, north: 31 };
+  test('Save-Data: nothing warmed', () => {
+    Object.defineProperty(window.navigator, 'connection', { configurable: true, value: { saveData: true, effectiveType: '4g' } });
+    expect(prefetchRatedNeighbours({ model: 'GFS', layer: 'waves', validTimeStr: 'x', bbox }, d)).toEqual([]);
+  });
+  test('3g: nothing warmed; 4g: the ring', () => {
+    Object.defineProperty(window.navigator, 'connection', { configurable: true, value: { saveData: false, effectiveType: '3g' } });
+    expect(prefetchRatedNeighbours({ model: 'GFS', layer: 'waves', validTimeStr: 'x', bbox }, d)).toEqual([]);
+    Object.defineProperty(window.navigator, 'connection', { configurable: true, value: { saveData: false, effectiveType: '4g' } });
+    expect(prefetchRatedNeighbours({ model: 'GFS', layer: 'waves', validTimeStr: 'x', bbox }, d).length).toBeGreaterThan(0);
+  });
+});
