@@ -26,7 +26,9 @@ from services.weather_pipeline import eval_grib2 as g2  # noqa: E402
 
 import wind_lr_obs as obs  # noqa: E402
 
-WINDOW = (datetime(2025, 9, 15, tzinfo=timezone.utc), datetime(2025, 11, 14, 12, tzinfo=timezone.utc))
+# Amendment 2 (2026-11-16 00:10Z): the current ECMWF cycle; the last run's 336 h lead verifies 2026-11-14
+WINDOW = (datetime(2026, 9, 1, tzinfo=timezone.utc), datetime(2026, 10, 31, 12, tzinfo=timezone.utc))
+OBS_END = WINDOW[1] + timedelta(days=15)
 ENS_STEPS = list(range(180, 337, 6))                       # 180 and 240 bracket the seams; 186..336 are scored
 SCORED_LEADS = list(range(186, 337, 6))
 LOOP_DAYS_H = 168                                           # extend_icon_wind_to_14d: whole native days of ~180 h
@@ -153,6 +155,13 @@ def collect_run(session, run, lats, lons, out_dir):
             arrays[f"gefs_u_{L}"], arrays[f"gefs_v_{L}"] = m["UGRD:10m"].astype(np.float32), m["VGRD:10m"].astype(np.float32)
         except Exception as e:  # noqa: BLE001
             notes["errors"].append(f"gefs +{L}: {e}")
+    for L in SCORED_LEADS:                     # the reported AIFS-ENS arm (amendment 2): 51 members, 10u/10v only
+        try:
+            f, _m = ef.fetch_step(session, run, L, at_stations, params=("10u", "10v"), model="aifs-ens",
+                                  file_types=("cf", "pf"))
+            arrays[f"aifs_10u_{L}"], arrays[f"aifs_10v_{L}"] = f["10u"].astype(np.float32), f["10v"].astype(np.float32)
+        except Exception as e:  # noqa: BLE001 - a reported arm; its gap is logged, the run is kept
+            notes["errors"].append(f"aifs +{L}: {e}")
     np.savez_compressed(path, **arrays)
     json.dump(notes, open(path + ".json", "w"))
     return "ok"
@@ -175,7 +184,7 @@ def main(argv=None):
             print(f"stations already frozen: {st_path}")
             obs.gfs_land(s, a.cache)
             return 0
-        doc = obs.select_stations(s, a.cache, WINDOW[0], WINDOW[1] + timedelta(days=14), st_path)
+        doc = obs.select_stations(s, a.cache, WINDOW[0], OBS_END, st_path)
         print(f"stations frozen: {len(doc['ndbc'])} NDBC/C-MAN, {len(doc['asos'])} ASOS -> {st_path}")
         return 0
     doc = json.load(open(st_path))

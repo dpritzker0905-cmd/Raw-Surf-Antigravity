@@ -24,6 +24,8 @@ GFS_BASE = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
 Z0 = 2e-4
 KT = 0.514444
 ASOS_CAP = 60
+# Amendment 2: coverage is measured where NDBC truth exists for the TEST half (realtime2 from 10-02; Sep unpublished)
+COVER = (datetime(2026, 10, 2, tzinfo=timezone.utc), datetime(2026, 11, 14, tzinfo=timezone.utc))
 # Coastal US/territory ASOS networks scanned (IEM network ids). Rule-based list; no station is picked by name.
 ASOS_NETWORKS = ["ME_ASOS", "NH_ASOS", "MA_ASOS", "RI_ASOS", "CT_ASOS", "NY_ASOS", "NJ_ASOS", "DE_ASOS", "MD_ASOS",
                  "VA_ASOS", "NC_ASOS", "SC_ASOS", "GA_ASOS", "FL_ASOS", "AL_ASOS", "MS_ASOS", "LA_ASOS", "TX_ASOS",
@@ -131,6 +133,33 @@ def ndbc_year(s, cache, sid, year) -> Dict[datetime, Tuple[float, float, float]]
     return parse_ndbc_stdmet(open(path, encoding="utf-8").read())
 
 
+MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+
+def ndbc_window(s, cache, sid, months=((2026, 9),)) -> Dict[datetime, Tuple[float, float, float]]:
+    """2026 window truth (amendment 2): the NDBC monthly stdmet file of each listed month IF published, plus the
+    `realtime2` snapshot (45 days). Both are cached on first read; the stations job keeps the cache as its artifact
+    so a later score reads the SAME records after realtime2 rolls on."""
+    out: Dict[datetime, Tuple[float, float, float]] = {}
+    for y, m in months:
+        path = os.path.join(cache, "ndbc", f"{sid}_{y}{m:02d}.txt")
+        if not os.path.exists(path):
+            r = _get(s, f"{NDBC}/data/stdmet/{MONTHS[m - 1]}/{sid.lower()}{m}{y}.txt.gz", tries=3)
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            text = gzip.decompress(r.content).decode("utf-8", "replace") if r.status_code == 200 else ""
+            open(path, "w", encoding="utf-8").write(text)
+        out.update(parse_ndbc_stdmet(open(path, encoding="utf-8").read()))
+    path = os.path.join(cache, "ndbc", f"{sid}_realtime2.txt")
+    if not os.path.exists(path):
+        r = _get(s, f"{NDBC}/data/realtime2/{sid.upper()}.txt", tries=3)
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        open(path, "w", encoding="utf-8").write(r.text if r.status_code == 200 else "")
+    rt = parse_ndbc_stdmet(open(path, encoding="utf-8").read())
+    for t, rec in rt.items():
+        out.setdefault(t, rec)          # a published monthly (QC'd) record wins over realtime
+    return out
+
+
 def parse_iem_csv(text: str) -> Dict[datetime, Tuple[float, float, float]]:
     """{UTC time: (sknt m/s, gust m/s or NaN, drct)} from IEM asos.py onlycomma output."""
     out = {}
@@ -208,14 +237,35 @@ def gust_window(obs: Dict[datetime, tuple], valid: datetime, hours: int = 6, gus
     return max(vals) if vals and n >= 0.5 * expected else None
 
 
-def climatology(obs_years: List[Dict[datetime, tuple]], z_fix=lambda x: x) -> Dict[Tuple[int, int], Tuple[float, float, float]]:
-    """{(month, hour): (mean speed, mean u, mean v)} from earlier years' records (no window data)."""
+class SeasonalClim:
+    """Seasonal climatology (amendment 2): for a valid time V, the mean of the station's records within +-HALF days
+    of V's day of year at V's UTC hour, over earlier years. `.get(V)` -> (mean speed, mean u, mean v) or None
+    (< MIN_N records)."""
+    HALF, MIN_N = 15, 20
+
+    def __init__(self, acc):
+        self.acc = acc       # {(doy, hour): [sum speed, sum u, sum v, n]}
+
+    def get(self, V: datetime):
+        doy, h = V.timetuple().tm_yday, V.hour
+        tot = [0.0, 0.0, 0.0, 0]
+        for d in range(doy - self.HALF, doy + self.HALF + 1):
+            a = self.acc.get((((d - 1) % 366) + 1, h))
+            if a:
+                for k in range(4):
+                    tot[k] += a[k]
+        return (tot[0] / tot[3], tot[1] / tot[3], tot[2] / tot[3]) if tot[3] >= self.MIN_N else None
+
+
+def climatology(obs_years: List[Dict[datetime, tuple]], z_fix=lambda x: x) -> "SeasonalClim":
+    """Seasonal (day-of-year +-15 d, UTC hour) climatology from earlier years' records (no window data)."""
     acc: Dict[Tuple[int, int], List[float]] = {}
     for obs in obs_years:
         for t, (w, _g, d) in obs.items():
             if w != w or d != d or t.minute > 10 and t.minute < 50:
                 continue
-            key = (t.month, t.hour)
+            tt = t + timedelta(minutes=30)          # :50-:59 records belong to the next hour
+            key = (tt.timetuple().tm_yday, tt.hour)
             sp = float(z_fix(w))
             u, v = -sp * math.sin(math.radians(d)), -sp * math.cos(math.radians(d))
             a = acc.setdefault(key, [0.0, 0.0, 0.0, 0])
@@ -223,7 +273,7 @@ def climatology(obs_years: List[Dict[datetime, tuple]], z_fix=lambda x: x) -> Di
             a[1] += u
             a[2] += v
             a[3] += 1
-    return {k: (a[0] / a[3], a[1] / a[3], a[2] / a[3]) for k, a in acc.items() if a[3] >= 20}
+    return SeasonalClim(acc)
 
 
 # ---------------------------------------------------------------------------------------------- station selection
@@ -263,8 +313,8 @@ def select_stations(s, cache, start: datetime, end: datetime, out_path: str) -> 
         dk = _distance_to(land_b, meta, c["lat"], c["lon"])
         if dk > 50.0:
             continue
-        obs = ndbc_year(s, cache, c["id"], start.year)
-        if hourly_coverage(obs, start, end, need_gust=True) < 0.70:
+        obs = ndbc_window(s, cache, c["id"])
+        if hourly_coverage(obs, COVER[0], COVER[1], need_gust=True) < 0.70:
             continue
         z = anemometer_m(s, c["id"])
         if not z:
@@ -275,15 +325,15 @@ def select_stations(s, cache, start: datetime, end: datetime, out_path: str) -> 
         if dk > 10.0:
             continue
         obs = asos_range(s, cache, c["id"], start, end)
-        if hourly_coverage(obs, start, end, need_gust=False) < 0.70:
+        if hourly_coverage(obs, COVER[0], COVER[1], need_gust=False) < 0.70:
             continue
         asos.append({**c, "sea_km": round(dk, 1), "kind": "asos"})
     # Amendment 23:30Z: at most ASOS_CAP ASOS stations, nearest the sea first (ties by id): a deterministic rule that
     # bounds the IEM archive load; never chosen by skill.
     asos = sorted(asos, key=lambda x: (x["sea_km"], x["id"]))[:ASOS_CAP]
     doc = {"frozen_at": datetime.now(timezone.utc).isoformat(), "window": [start.isoformat(), end.isoformat()],
-           "rules": "NDBC/C-MAN met=y within 50 km of GFS land, >=70% hourly WSPD+GST, anemometer height known; "
-                    "ASOS (IEM, open) within 10 km of GFS sea, >=70% hourly sknt",
+           "rules": "NDBC/C-MAN met=y within 50 km of GFS land, >=70% hourly WSPD+GST over 2026-10-02..11-14, anemometer "
+                    "height known; ASOS (IEM, open) within 10 km of GFS sea, >=70% hourly sknt; <=60 ASOS nearest the sea",
            "ndbc": ndbc, "asos": asos}
     json.dump(doc, open(out_path, "w"), indent=1)
     return doc

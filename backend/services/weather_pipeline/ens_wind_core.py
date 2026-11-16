@@ -10,7 +10,7 @@ The open-data ensemble-MEAN product has no 10 m wind past 240 h (senior lead 21:
   - vector (u_bar, v_bar) = member mean; direction from it;
   - speed = MEAN OF MEMBER SPEEDS (a vector mean shrinks speed where members disagree in direction);
   - served (u, v) = (u_bar, v_bar) rescaled to that speed; if |vector mean| ~ 0, the control member's direction;
-  - gust = member MEDIAN of 10fg (max in the 6 h ending at the step past 144 h);
+  - gust = member MEDIAN of 10fg ("max gust in the 6 h to this time" past 144 h); p90 = the risk cue;
   - spread = member standard deviation of speed (a confidence cue; not served by this gate).
 Time: steps past 144 h are 6-hourly. A 3-hourly step is linear in (u, v) and in speed between the SAME run's two
 neighbouring steps (cross-hour inside one run; never cross-model).
@@ -49,6 +49,7 @@ def reduce_members(u: np.ndarray, v: np.ndarray, g: Optional[np.ndarray] = None)
         if g.shape != u.shape:
             raise ValueError(f"gust members {g.shape} != wind {u.shape}")
         out["gust"] = np.nanmedian(g, axis=0)
+        out["gust_p90"] = np.nanpercentile(g, 90, axis=0)     # the risk cue (senior lead 21:33Z)
     return out
 
 
@@ -58,6 +59,7 @@ def control_only(u: np.ndarray, v: np.ndarray, g: Optional[np.ndarray] = None) -
     out = {"u": u0, "v": v0, "speed": np.hypot(u0, v0), "spread": np.zeros_like(u0)}
     if g is not None:
         out["gust"] = np.asarray(g, dtype=np.float64)[0]
+        out["gust_p90"] = out["gust"]
     return out
 
 

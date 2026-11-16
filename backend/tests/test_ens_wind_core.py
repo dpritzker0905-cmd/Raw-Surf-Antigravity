@@ -33,6 +33,7 @@ def test_gust_is_member_median_and_control_arm():
     g = np.array([[1.0, 9], [2, 9], [3, 9], [40, 9], [50, 9]])
     out = ec.reduce_members(u, v, g)
     assert out["gust"].tolist() == [3.0, 9.0]
+    assert out["gust_p90"][0] == pytest.approx(46.0) and out["gust_p90"][1] == 9.0
     cf = ec.control_only(u, v, g)
     assert cf["gust"].tolist() == [1.0, 9.0]
     with pytest.raises(ValueError):

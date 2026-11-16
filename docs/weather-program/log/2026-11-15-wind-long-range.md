@@ -251,3 +251,20 @@ collection (no run file was scored). These changes come from the director's corr
    on the September block.
 Unchanged: lead bins, the 8 original arms, P1-P4, R1, C1, C2, day-block bootstrap, the hard seam. The C1 risk noted
 at 00:45Z stands.
+
+## 2026-11-16 00:40Z Amendment 2 implemented; hindcast relaunched on the 2026 window
+
+- `wind_lr_hindcast.py`: window 2026-09-01..10-31; the AIFS-ENS arm is collected from `aifs-ens` `cf` + `pf`
+  (10u/10v, 51 members; a missing AIFS step is logged and the run kept, because AIFS is a reported arm). A run with
+  ANY missing IFS ENS step is dropped.
+- `wind_lr_obs.py`: `ndbc_window` = the September 2026 monthly file if published, plus a `realtime2` snapshot. The
+  stations job keeps both as artifact `wind-lr-truth-snapshot` (90 days), so the score reads the records seen at
+  freeze time. Seasonal climatology `SeasonalClim` (day of year +-15 d, UTC hour, 2016-2025, >= 20 records).
+  Coverage is measured over 10-02..11-14.
+- `wind_lr_score.py`: September FIT / October TEST; VOID if > 10% of the 122 runs are dropped; P5 = Brier for gust
+  >= 15 m/s vs `loop` and `gfs_standin` (UNDERPOWERED under 30 events, not blocking); CSI per arm; the AIFS gust
+  factor is fitted on September.
+- Served side: the reduced file and the saved points carry `gust_p90` (`wind_gusts_p90_10m`), and the basis carries
+  `gust_label` "max gust in the 6 h to this time".
+- Tests: 26 instrument tests (P5 pass, fail and underpowered; CSI counts; seasonal climatology; end to end on the 2026
+  layout with AIFS) + 15 served-side tests, all passing locally.

@@ -84,3 +84,26 @@ def test_direction_error_only_counted_at_or_above_3_ms():
     e = S.errors(np.array([0.0, 0.0]), np.array([-5.0, -5.0]), np.array([5.0, 5.0]), np.array([1.0, 1.0]),
                  np.array([2.0, 4.0]), np.array([90.0, 90.0]), np.array([1.0, 1.0]))
     assert np.isnan(e["dae"][0]) and e["dae"][1] == pytest.approx(90.0)
+
+
+def test_gust_peak_line_blocks_only_with_enough_events():
+    rows = _rows()
+    n = len(rows["days"])
+    rng = np.random.default_rng(7)
+    obs_ev = (rng.uniform(0, 1, n) < 0.1).astype(float)
+    good = np.clip(obs_ev * 0.8 + 0.05, 0, 1)
+    for a, p in (("ens_mean_raw", good), ("loop", 1 - obs_ev), ("gfs_standin", np.zeros(n))):
+        rows["E"][a]["brier"] = (p - obs_ev) ** 2
+    rows["n_events"] = int(obs_ev.sum())
+    rep = S.verdict(rows, "ens_mean_raw", {"seam_p95": 1.0, "within_p95": 1.5})
+    assert rep["lines"]["P5_gust_peak"]["pass"] and rep["verdict"] == "PASS"
+    rows["E"]["ens_mean_raw"]["brier"] = (1 - obs_ev - obs_ev) ** 2 * 0 + 1.0   # always wrong
+    assert S.verdict(rows, "ens_mean_raw", {"seam_p95": 1.0, "within_p95": 1.5})["verdict"] == "FAIL"
+    rows["n_events"] = 5
+    rep2 = S.verdict(rows, "ens_mean_raw", {"seam_p95": 1.0, "within_p95": 1.5})
+    assert rep2["lines"]["P5_gust_peak"]["status"].startswith("UNDERPOWERED") and rep2["verdict"] == "PASS"
+
+
+def test_csi_counts():
+    c = S.csi(np.array([16.0, 16.0, 10.0, np.nan]), np.array([20.0, 5.0, 18.0, 30.0]))
+    assert (c["hits"], c["false_alarms"], c["misses"]) == (1, 1, 1) and c["csi"] == pytest.approx(1 / 3)

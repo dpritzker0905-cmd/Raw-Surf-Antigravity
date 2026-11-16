@@ -19,7 +19,8 @@ def _fields(speed_of_step):
     out = {}
     for s in STEPS:
         sp = np.full((181, 360), float(speed_of_step(s)))
-        out[s] = {"u": -sp, "v": np.zeros_like(sp), "speed": sp, "gust": sp * 0.5, "spread": np.ones_like(sp)}
+        out[s] = {"u": -sp, "v": np.zeros_like(sp), "speed": sp, "gust": sp * 0.5, "gust_p90": sp * 2.0,
+                  "spread": np.ones_like(sp)}
     return out
 
 
@@ -52,6 +53,7 @@ def test_points_interpolate_within_the_ens_run_and_clip_gust_to_wind():
     assert h["wind_speed_10m"][0] == pytest.approx(19.5, abs=1e-3)
     assert h["wind_direction_10m"][0] == pytest.approx(90.0)       # u < 0: blowing west, FROM the east
     assert all(g >= s for g, s in zip(h["wind_gusts_10m"], h["wind_speed_10m"]))   # gust 0.5 x speed clipped up
+    assert h["wind_gusts_p90_10m"][0] == pytest.approx(39.0, abs=1e-3)              # p90 = 2 x speed, interpolated
 
 
 def test_stale_or_short_ens_run_is_never_served_partially():

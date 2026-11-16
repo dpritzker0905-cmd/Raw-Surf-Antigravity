@@ -13,7 +13,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(
 import wind_lr_hindcast as H  # noqa: E402
 import wind_lr_score as S  # noqa: E402
 
-RUNS = [datetime(2025, 10, d, h, tzinfo=timezone.utc) for d in (14, 15) for h in (0, 12)]
+RUNS = [datetime(2026, m, 15, h, tzinfo=timezone.utc) for m in (9, 10) for h in (0, 12)]
 
 
 def _ndbc_text(start, hours, speed, gust, wdir):
@@ -38,21 +38,26 @@ def test_main_score_runs_end_to_end(tmp_path):
                 {"id": "TST", "lat": 21.3, "lon": -157.9, "kind": "asos"}]
     os.makedirs(os.path.join(cache, "ndbc"))
     os.makedirs(os.path.join(cache, "asos"))
-    t25 = datetime(2025, 9, 1, tzinfo=timezone.utc)
-    open(os.path.join(cache, "ndbc", "TB001h2025.txt"), "w").write(_ndbc_text(t25, 24 * 120, 6.0, 8.0, 270))
-    for y in range(2016, 2025):
+    t25 = datetime(2026, 9, 1, tzinfo=timezone.utc)
+    open(os.path.join(cache, "ndbc", "TB001_202609.txt"), "w").write(_ndbc_text(t25, 24 * 30, 6.0, 8.0, 270))
+    open(os.path.join(cache, "ndbc", "TB001_realtime2.txt"), "w").write(
+        _ndbc_text(t25 + timedelta(days=30), 24 * 90, 6.0, 16.0, 270))
+    for y in range(2016, 2026):
         open(os.path.join(cache, "ndbc", f"TB001h{y}.txt"), "w").write(
             _ndbc_text(datetime(y, 9, 1, tzinfo=timezone.utc), 24 * 120, 5.0, 7.0, 270))
-    s, e = H.WINDOW[0], H.WINDOW[1] + timedelta(days=15)
+    s, e = H.WINDOW[0], H.OBS_END
     open(os.path.join(cache, "asos", f"TST_{s:%Y%m%d}_{e:%Y%m%d}.csv"), "w").write(_asos_csv(t25, 24 * 120, 12.0))
-    open(os.path.join(cache, "asos", "TST_20160101_20241231.csv"), "w").write(
+    open(os.path.join(cache, "asos", "TST_20160101_20251231.csv"), "w").write(
         "".join("".join(_asos_csv(datetime(y, 9, 1, tzinfo=timezone.utc), 24 * 120, 10.0).splitlines(True)[(1 if y > 2016 else 0):])
-                for y in range(2016, 2025)))
+                for y in range(2016, 2026)))
     run_dir = os.path.join(cache, "runs")
     os.makedirs(run_dir)
     rng = np.random.default_rng(0)
     for run in RUNS:
         arr = {}
+        for L in H.SCORED_LEADS:
+            arr[f"aifs_10u_{L}"] = (-5.0 + rng.normal(0, 1, (51, 2))).astype(np.float32)
+            arr[f"aifs_10v_{L}"] = rng.normal(0, 1, (51, 2)).astype(np.float32)
         for step in H.ENS_STEPS:
             arr[f"ens_10u_{step}"] = (-6.0 + rng.normal(0, 1, (51, 2))).astype(np.float32)
             arr[f"ens_10v_{step}"] = rng.normal(0, 1, (51, 2)).astype(np.float32)
@@ -73,5 +78,8 @@ def test_main_score_runs_end_to_end(tmp_path):
     assert set(rep["metrics"]["pooled"]["B1_180_216"]) == set(S.ARMS)
     assert rep["metrics"]["pooled"]["B2_216_264"]["ens_mean_raw"]["n"] > 0
     assert rep["lines"]["P4_seam_euro"]["n_seam"] == 4                  # 2 test runs x 2 stations
+    assert "P5_gust_peak" in rep["lines"] and "aifs_ens_mean" in rep["csi_ge15"]
+    assert rep["metrics"]["pooled"]["B3_264_336"]["aifs_ens_mean"]["n"] > 0
+    assert rep["metrics"]["pooled"]["B1_180_216"]["climatology"]["n"] > 0
     rows = open(os.path.join(out, "rows.csv")).read().splitlines()
     assert len(rows) > 1 and rows[0].startswith("run,station")

@@ -27,7 +27,8 @@ logger = logging.getLogger(__name__)
 
 KEY_NPZ = "ens_wind/latest.npz"
 KEY_META = "ens_wind/latest.json"
-FIELDS = ("u", "v", "speed", "gust", "spread")
+FIELDS = ("u", "v", "speed", "gust", "gust_p90", "spread")     # m/s; gust = member median of 10fg, p90 = risk cue
+GUST_LABEL = "max gust in the 6 h to this time"
 GRID_1DEG = {"ni": 360, "nj": 181, "lat_south": -90.0, "lat_north": 90.0, "lon_west": 0.0, "dlat": 1.0, "dlon": 1.0}
 MAX_ENS_AGE_H = 36          # an ENS run older than this vs the deterministic run is not served
 CEILING_H = 336
@@ -118,7 +119,7 @@ def build_points(meta: dict, arrays: dict, run_time: datetime, native_max: datet
         if step not in sampled:
             sampled[step] = {n: ec.bilinear(arrays[f"{n}_{step}"], GRID_1DEG, grid_lat, grid_lon) for n in FIELDS}
         return sampled[step]
-    spd_rows, dir_rows, gust_rows, spread_rows = [], [], [], []
+    spd_rows, dir_rows, gust_rows, p90_rows, spread_rows = [], [], [], [], []
     for lead in leads:
         L = int(round(lead))
         lo, hi = ec.native_bracket(L, steps)
@@ -130,6 +131,7 @@ def build_points(meta: dict, arrays: dict, run_time: datetime, native_max: datet
         spd_rows.append(s)
         dir_rows.append(d)
         gust_rows.append(np.maximum(f["gust"], s))      # a gust is never below the wind of the same composition
+        p90_rows.append(np.maximum(f["gust_p90"], s))
         spread_rows.append(f["spread"])
     times = [vt.strftime("%Y-%m-%dT%H:%M") for vt in vts]
     points = []
@@ -142,6 +144,7 @@ def build_points(meta: dict, arrays: dict, run_time: datetime, native_max: datet
                        "wind_speed_10m": [round(float(r[n]), 3) for r in spd_rows],
                        "wind_direction_10m": [round(float(r[n]), 2) for r in dir_rows],
                        "wind_gusts_10m": [round(float(r[n]), 3) for r in gust_rows],
+                       "wind_gusts_p90_10m": [round(float(r[n]), 3) for r in p90_rows],
                        "ens_speed_spread": [round(float(r[n]), 3) for r in spread_rows]},
         })
     return points
@@ -164,7 +167,7 @@ def _factor_for(lead_h: int, k_by_bin: dict) -> float:
 def estimate_basis(meta: dict, native_h: Optional[int]) -> dict:
     return {"type": ec.BASIS_TYPE, "method": "ecmwf_ens_member_mean_hard_handoff", "source_model": "ecmwf_ens",
             "members": int(meta.get("members", ec.MEMBERS_EXPECTED)), "ens_run": meta.get("run"),
-            "label": ec.LABEL, "native_horizon_hours": native_h}
+            "label": ec.LABEL, "gust_label": GUST_LABEL, "native_horizon_hours": native_h}
 
 
 async def extend_wind_tail(scheduler, model: str, run_time: datetime, native_max: datetime, bbox: dict,

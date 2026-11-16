@@ -49,12 +49,15 @@ def test_iem_asos_gust_absent_counts_sustained():
     assert math.isnan(o[t][1]) and o[t][0] == pytest.approx(10 * O.KT)
 
 
-def test_climatology_needs_20_records_per_cell():
+def test_seasonal_climatology_uses_day_of_year_window_and_needs_20_records():
     t0 = datetime(2020, 10, 1, 6, tzinfo=timezone.utc)
     yrs = [{t0 + timedelta(days=d): (4.0, float("nan"), 90.0) for d in range(25)}]
-    sp, u, v = O.climatology(yrs)[(10, 6)]
+    c = O.climatology(yrs)
+    sp, u, v = c.get(datetime(2026, 10, 10, 6, tzinfo=timezone.utc))
     assert sp == pytest.approx(4.0) and u == pytest.approx(-4.0) and abs(v) < 1e-9
-    assert O.climatology([{t0: (4.0, 1.0, 90.0)}]) == {}
+    assert c.get(datetime(2026, 10, 10, 7, tzinfo=timezone.utc)) is None      # other hour
+    assert c.get(datetime(2026, 6, 10, 6, tzinfo=timezone.utc)) is None       # out of season
+    assert O.climatology([{t0: (4.0, 1.0, 90.0)}]).get(t0) is None
 
 
 def test_hawaii_box():

@@ -25,9 +25,10 @@ ECMWF_BASE = "https://data.ecmwf.int/forecasts"
 PARAMS = ("10u", "10v", "10fg")
 
 
-def ef_url(base: str, run: datetime, step: int, ext: str = "grib2", stream: str = "enfo", typ: str = "ef") -> str:
+def ef_url(base: str, run: datetime, step: int, ext: str = "grib2", stream: str = "enfo", typ: str = "ef",
+           model: str = "ifs") -> str:
     d, h = run.strftime("%Y%m%d"), run.strftime("%H")
-    return f"{base}/{d}/{h}z/ifs/0p25/{stream}/{d}{h}0000-{int(step)}h-{stream}-{typ}.{ext}"
+    return f"{base}/{d}/{h}z/{model}/0p25/{stream}/{d}{h}0000-{int(step)}h-{stream}-{typ}.{ext}"
 
 
 def _get(session, url: str, headers: Optional[dict] = None, tries: int = 8, timeout: int = 120):
@@ -57,22 +58,35 @@ def run_available(session, run: datetime, last_step: int = 336, base: str = AWS_
 
 def fetch_step(session, run: datetime, step: int, reduce_fn: Callable[[np.ndarray, dict], np.ndarray],
                params: Sequence[str] = PARAMS, base: str = AWS_BASE, prefer: str = "auto",
-               members_expected: int = ec.MEMBERS_EXPECTED, max_gap: int = 0) -> Tuple[Dict[str, np.ndarray], dict]:
+               members_expected: int = ec.MEMBERS_EXPECTED, max_gap: int = 0, model: str = "ifs",
+               file_types: Sequence[str] = ("ef",)) -> Tuple[Dict[str, np.ndarray], dict]:
     """{param: array[members, ...reduced]} for one step of one run, member 0 = control. Raises when any member of
-    any wanted param is missing (a partial ensemble is never averaged)."""
-    idx = _get(session, ef_url(base, run, step, "index"))
-    if idx.status_code != 200:
-        raise FileNotFoundError(ef_url(base, run, step, "index"))
-    sel = ec.select_members(ec.parse_ecmwf_index(idx.text), params, step)
+    any wanted param is missing (a partial ensemble is never averaged). IFS ENS ships all members in one `ef` file;
+    AIFS-ENS (model="aifs-ens") ships `cf` and `pf` files: pass file_types=("cf", "pf")."""
+    sel_by_file = {}
+    for typ in file_types:
+        iurl = ef_url(base, run, step, "index", typ=typ, model=model)
+        idx = _get(session, iurl)
+        if idx.status_code != 200:
+            raise FileNotFoundError(iurl)
+        sel_by_file[typ] = ec.select_members(ec.parse_ecmwf_index(idx.text), params, step)
     want = [(p, m) for p in params for m in range(members_expected)]
-    missing = [k for k in want if k not in sel]
+    owner = {k: typ for typ, sel in sel_by_file.items() for k in sel}
+    missing = [k for k in want if k not in owner]
     if missing:
-        raise ValueError(f"run {run:%Y%m%d%H} step {step}: {len(missing)} member fields missing, e.g. {missing[:3]}")
-    keys = list(want)
-    ranges = [sel[k] for k in keys]
+        raise ValueError(f"{model} run {run:%Y%m%d%H} step {step}: {len(missing)} member fields missing, e.g. {missing[:3]}")
     out: Dict[str, list] = {p: [None] * members_expected for p in params}
     meta_seen: dict = {}
-    url = ef_url(base, run, step, "grib2")
+    for typ in file_types:
+        keys = [k for k in want if owner[k] == typ]
+        if keys:
+            meta_seen = _read_file(session, ef_url(base, run, step, "grib2", typ=typ, model=model), keys,
+                                   [sel_by_file[typ][k] for k in keys], out, reduce_fn, prefer, max_gap) or meta_seen
+    return {p: np.stack(v) for p, v in out.items()}, meta_seen
+
+
+def _read_file(session, url, keys, ranges, out, reduce_fn, prefer, max_gap) -> dict:
+    meta_seen: dict = {}
     for start, end, ids in ec.coalesce(ranges, max_gap=max_gap):
         r = _get(session, url, headers={"Range": f"bytes={start}-{end - 1}"})
         if r.status_code not in (200, 206):
@@ -93,7 +107,7 @@ def fetch_step(session, run: datetime, step: int, reduce_fn: Callable[[np.ndarra
             meta_seen = meta
             p, m = keys[i]
             out[p][m] = reduce_fn(arr, meta)
-    return {p: np.stack(v) for p, v in out.items()}, meta_seen
+    return meta_seen
 
 
 def subsample_1deg(arr: np.ndarray, meta: dict) -> np.ndarray:

@@ -52,11 +52,19 @@ jobs:
             ${{ runner.temp }}/wlr/wind_lr_stations.json
             ${{ runner.temp }}/wlr/gfs_land.npy
             ${{ runner.temp }}/wlr/gfs_land.npy.json
+      # amendment 2: NDBC realtime2 keeps 45 days, so the truth read at freeze time is kept and scored as-is
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wind-lr-truth-snapshot
+          retention-days: 90
+          path: |
+            ${{ runner.temp }}/wlr/ndbc/
+            ${{ runner.temp }}/wlr/asos/
 
   collect:
     needs: stations
     runs-on: ubuntu-latest
-    timeout-minutes: 300
+    timeout-minutes: 360
     strategy:
       fail-fast: false
       max-parallel: 12          # 24 at once drew S3 503 SlowDown (run 43773419409)
@@ -95,6 +103,10 @@ jobs:
       - uses: actions/download-artifact@v4
         with:
           name: wind-lr-stations
+          path: ${{ runner.temp }}/wlr
+      - uses: actions/download-artifact@v4
+        with:
+          name: wind-lr-truth-snapshot
           path: ${{ runner.temp }}/wlr
       - uses: actions/download-artifact@v4
         with:
