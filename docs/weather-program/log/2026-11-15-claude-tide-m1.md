@@ -469,3 +469,49 @@ changed.
 - Run **43950822962** (ref tide-gate-G2, head 8b5149149), created 20:32:25Z.
 - Reading order, as recorded at 15:19 EST: controls first (VOID means nothing else is quoted); item 1; the tidal-band
   line; the per-arm SA/SSA constants; arm B twice; then the advisor, before the owner.
+
+## 15:43 EST 2026-11-16 (`date`) - G2 RESULT, run 43950822962 at 8b5149149: **FAIL** (controls behaved; a valid result)
+Read in the registered order. Job 20:33-20:39Z; peak RSS 2806 MB. Artifact `tide-fes-gate`; copy in notes
+`tide-overlay-2026-11-15/g2-result-run-43950822962.json`. Window 2026-09-29 00Z .. 10-12 23Z; 16 FES constituents.
+**Pending the advisor's read before it goes to the owner as a result.**
+
+**1. Controls - all behaved, so NOT VOID:**
+- Positive (NOAA's constants, our synthesis): **0.0025 m** (<= 0.01).
+- Label swap: **0.547 m** (> 0.3).
+- +6 h shift: no extremum matched (fails timing, as it must).
+
+**2. Items (rules as registered):**
+
+| arm | 1 RMSE (<= 0.08 and < C 0.154) | 2 no gauge worse than C | 3 High/Low | 4 MLLW | pass |
+|---|---|---|---|---|---|
+| A FES2022b | 0.0893 FAIL | pass | 7.7 min | 0.0135 m | no |
+| B EOT20 | 0.0878 FAIL | FAIL (coverage: 1615680 9410230 9410660 8452660 8720030; Boston has no C) | 9.4 min | 0.0161 m | no |
+
+Arm choice (none passes): B's median is within 0.01 m of A's, so A by the tie rule. **Verdict FAIL.**
+
+**3. Tidal band (REPORTED, not gating; truth minus NOAA's SA/SSA):** **A 0.024 m, B 0.046 m.** Both are well under the
+0.08 m line once NOAA's seasonal cycle is removed. As registered, item 1's failure is attributed to the seasonal
+component, not the tidal model.
+
+**4. Seasonal constants (REPORTED):**
+- **A (FES2022b): SA amplitude ~0.0003 m at every gauge, vs NOAA's 0.046-0.122 m** (median ratio 0.00). FES2022b
+  carries essentially NO seasonal cycle, so its "-25 deg" median phase is the phase of a near-zero term and means
+  nothing. This is the empirical answer the documentation could not give: the convention question is moot for A,
+  because there is nothing there.
+- **B (EOT20): SA at median 0.37 of NOAA's amplitude, phase +17 deg (median).** The convention matches; the amplitude
+  is short.
+
+**5. Arm B twice (as set at 15:19 EST):**
+- As registered: FAIL on items 1 and 2 (item 2 on coverage).
+- On its 20 defined gauges (reported only): items 2, 3 and 4 pass; item 1 0.0878 vs C 0.1542, FAIL. On the same 20
+  gauges arm A reads 0.1077, so **B beats A by 0.020 m there**.
+
+**6. Per-gauge notes (reported):**
+- A's tidal-band error stays large where the gauge sits in an estuary, river mouth or bay: Fernandina 0.202 (St Marys
+  River), Pensacola 0.102, South Beach 0.101 (Yaquina), Duck 0.098, Sandy Hook 0.093, Virginia Key 0.092.
+- B is poor at Neah Bay (0.248, tidal band 0.233).
+- Strata medians A / B / C: Hawaii 0.051 / 0.038 / 0.082; Pacific 0.066 / 0.046 / 0.141; Atlantic 0.138 / 0.109 /
+  0.205; Gulf 0.142 / 0.106 / 0.154; PR 0.075 / 0.055 / 0.084.
+- Arm D median 0.165. Observed water (T2, informative): A 0.31, B 0.28, C 0.35, D 0.19.
+
+**Nothing served changes.** #926 and #931 stay held (their hold was conditioned on G2 passing).
