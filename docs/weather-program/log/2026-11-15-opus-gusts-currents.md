@@ -346,3 +346,11 @@ build beyond a prototype.
 §2.4); under ICON: "ICON has no sea temperature; showing Copernicus ocean model".
 **Not built before:** the director's go on the resolution arm after the bytes table; David's word on bucket growth (with the
 SMOC question).
+
+### 11b. G4 decisions (the director, 2026-11-15 22:22 and 22:41 EST)
+- Resolution arm R2 chosen; bytes table (estimated from the measured water-temp density, 0.6 B/node gz; the 19 pilot boxes):
+  1/12 deg regional tiles 0.28 M nodes, 0.17 MB/frame; 1/6 deg world 2.21 M nodes, 1.37 MB/frame.
+- APPROVED under the director's line: 1/12 deg regional tiles HOURLY + 1/6 deg world 3-HOURLY (~0.15 GB/run, ~0.3 GB stored,
+  ~110 MB per full world scrub; comparable to today's water-temp set). Built behind the §11 gate; prototype after 00:30.
+- Queued after #928 and G4 (the director, from the research lead's brief): the HEIGHT-SCALE display (face H1/10 by default,
+  Hawaiian default in Hawaii, a user toggle, the scale always labelled; ratings and size labels from the physical height).
