@@ -223,3 +223,73 @@ planar bed sampled every 20 m and is unaffected.
 
 **Still true.** Model only, no truth. Nothing here says whether the breaker height, from this arm or from today's
 chain, is right.
+
+## 2026-11-16 10:30Z Two more model-only arms REGISTERED, NOT RUN: a slope-dependent breaker index, and directional spread
+
+The research lead sent open sources for both (2026-11-16 05:28 EST, peer messages). This section is the rule for
+each, written before either is run. Nothing below has been computed by me.
+
+**A question about the source that is the owner's to answer, and why neither arm is run yet.** Both sources are pages
+of the Coastal Engineering Manual, a public-domain publication of the US Army Corps of Engineers. The owner's
+decision of 2026-11-15 was "Skip using USACE and innovate free ways to figure it out". The director read that as
+being about USACE DATA (the FRF gauges, whose terms forbid commercial use) and confirmed that a published open
+method (SWAN) is fine. A formula printed in a USACE manual is a published method, and the breaker index is Weggel's
+(1972), reproduced there; but the publisher is USACE, which is closer to the owner's words than SWAN was. I have not
+opened either page. **Both arms stay NOT RUN until the owner, or the director relaying him, says a USACE manual is
+an acceptable source for a published formula.** If not, the same formulas need a non-USACE open source, or the arms
+are dropped.
+
+### Arm `bj_transect_weggel`: the breaker index depends on the bed slope
+
+- **What it is.** In the march above, H_max = gamma d with gamma = 0.73 everywhere. Here gamma is the breaker index
+  as relayed from the manual's equations II-4-5 to II-4-7: gamma_b = b - a H_b / (g T^2), with
+  a = 43.8 (1 - e^(-19 tan(beta))) and b = 1.56 / (1 + e^(-19.5 tan(beta))), tan(beta) the bed slope.
+- **Before any run:** the equation is an image on the page and the text extraction swaps a and b; the order is fixed
+  by the flat-bed limit (slope 0 gives a = 0 and b = 0.78). I must read the page image myself and record what I read.
+- **Stated validity:** slope up to 0.1 and deep-water steepness up to 0.06; for an uneven bed the average slope from
+  the break point to one wavelength offshore. H_b appears on both sides, so it is solved by iteration.
+- **What it is NOT:** it is an individual-wave, regular-wave breaker index. Using it as the gamma in H_max = gamma d
+  of a random-wave model is a substitution, consistent in spirit and not a derivation. Registered as that.
+- **Slope used:** the slope fitted from the ETOPO transect over 1 m depth to the break depth, the same bed as above,
+  with the same warning that a 463 m grid gives a large-scale plane.
+- **Predictions written before the run, so they can fail.** The research lead's: at the owner's point (slope about
+  1 in 250, 4.8 s, breaker about 1.1 m) a is about 3.2, b about 0.81, gamma about 0.79, so this arm should NOT close
+  the north-east Florida gap; at a steep bed (slope 0.05, 10 s, 2 m) gamma is about 1.08, taller breakers. If my run
+  gives a gamma at the owner's point more than 0.03 from 0.79, one of us has the form wrong: stop and check, do not
+  report. Mine: because the largest wave on the line is reached before saturation (the 10:21Z section), a larger
+  gamma moves the onset of breaking shoreward and should RAISE the breaker somewhat on steep beds and leave gentle
+  beds nearly unchanged; I expect the panel's spread to widen from the present 1.38 to 1.47 mainly at the reef and
+  point spots.
+
+### Arm `spread`: a broad sea refracts differently from a single direction
+
+- **What it is.** Today's chain and the march treat the sea as one direction. A real sea is spread over directions,
+  a wind sea much more than a swell. Each direction refracts by Snell's law and conserves its energy flux, so on
+  straight parallel contours a component arriving at angle theta0 to the shore normal has height ratio
+  sqrt(cos(theta0) / cos(theta)). For a spread sea the components combine by ENERGY:
+  K_eff^2 = integral of (cos(theta0) / cos(theta)) x G(theta0 - theta_mean) d(theta0), with components heading
+  offshore contributing nothing.
+- **This is a DERIVATION from linear superposition,** not an equation from a paper. The research lead found no
+  opened source that prints an energy-weighted refraction factor for a spread sea. Registered as derived.
+- **Spreading shape:** G proportional to cos^(2s) of half the angle from the mean direction (relayed from the
+  manual's equation II-1-166), normalised numerically so its integral is 1.
+- **Spread parameter s, as relayed, none of it fitted:** swell 25 where a steep wind sea is present, 75 where the
+  wind sea is of small steepness; wind sea from the manual's II-1-168, which needs the wind speed and the peak
+  frequency. **That last one is a problem for this lane's rule that wind is never a height input.** So the wind-sea
+  s is NOT taken from the wind: it is run as a band, s in {5, 10, 25}, and reported as a sensitivity. The manual
+  itself notes its wind-sea relation is not validated against field data.
+- **Applied per partition** (wind sea, swell), with the chain's exposure factor OFF in this arm, since the exposure
+  factor is the chain's own stand-in for the same effect and the two would double-count.
+- **Prediction, written before the run:** the sign is NOT known in advance and I will not guess it into the rule.
+  For a mean direction near the shore normal, spreading puts energy at larger angles, which refract more and arrive
+  smaller: the factor falls. For an oblique mean direction, the components nearer the normal refract less, and the
+  factor can RISE. So this arm is not guaranteed to lower anything. The research lead's reading is that the
+  remaining factor of about 1.8 at the owner's point is either spread or the observation-convention question; I
+  expect spread to be worth at most ten to fifteen percent for a broad wind sea near the normal, far short of 1.8.
+  If it comes out near 1.8 I will suspect the arm before I believe it.
+
+### For both
+
+Model only. Scored on breaking truth later, by the gate's rules, when a truth source has data. Neither is fitted to
+the owner's one expectation at one hour. Offline modules the serving path does not import. No wind input. Each gets
+the guardrails of the second addendum to the gate: monotone in the offshore height, coverage printed, a range.
