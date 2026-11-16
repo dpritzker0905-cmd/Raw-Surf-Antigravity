@@ -170,3 +170,17 @@ Coverage (`routes/surf_data/surf_truth_monitor.py`). No view or response shows a
 Shared ui primitives + semantic tokens only. Rendered at 375 px in light, dark and beach mode (notes:
 `t1-p1-blind-observation/admin-surf-truth-3-themes-375px.jpg`); the audit card's phone stacking was adjusted after
 that render and not re-rendered. Tests: backend 6, frontend 4 (90 admin Jest pass); lint ratchet passes.
+
+## 23:20Z T1 P4 export built (stacked on anchors C): private, pseudonymized rows for the offline fit
+
+The research lead recommended I build both the export and the fit, with the research lead reviewing the fit before
+any run (builder and checker kept apart); the director assigns. The export is the safe next step either way.
+`POST /api/admin/surf-truth/export` (admin, logged) writes `surf-truth/exports/<date>/<run>.jsonl` + manifest to the
+PRIVATE `weather-products` bucket (create-only), the bucket #948's private rows use. Rows carry the raw entry, scale,
+typical/sets, flags, distances/ages, quality and XP status, role, anchor status AT received_at (event log), the spot
+(public id, coordinates, region) and received_at. Identities only as HMAC-SHA256 pseudonyms under the env var
+`SURF_TRUTH_EXPORT_KEY` (fails closed without it, 503). Never exported: names, profile ids, device or photo positions,
+photo URLs, face_m. Only flow='blind_v1'. Correction to my own pre-registration wording: the export is ROW-LEVEL
+(pseudonymized, private), not aggregate; "aggregate-only" applies to anything shown outside private storage.
+7 tests (one mutation: a pseudonym returning the raw id fails the no-identity test); surf-truth suites 96 pass.
+Owed by David: set SURF_TRUTH_EXPORT_KEY (>= 32 random bytes) on the Render service before the first export.
