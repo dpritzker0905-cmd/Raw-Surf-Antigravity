@@ -316,3 +316,44 @@ source question as the slope arm above, so it waits with it.
   point, not lower, because each large wave is carried further in before it breaks. If so, it moves the model's
   outer breaker further from the owner's expectation, and strengthens the reading that his number is about a
   different wave from the one the product names.
+
+## 2026-11-16 10:42Z The spread arm's rule AMENDED before its run: a non-USACE source, and no wind
+
+The 10:30Z section registered the spread arm with values from a USACE manual and held it. The research lead has since
+found a non-USACE, open-access source that prints the same quantities, so the source question no longer applies to
+THIS arm (it still applies to the slope arm, which stays held). This section replaces the spread arm's inputs. It is
+written before the arm is built or run.
+
+**Source, read by me on the page.** Y. Goda, "Overview on the applications of random wave concept in coastal
+engineering", Proc. Japan Academy Ser. B 84(9), 374 to 385 (2008), open at PubMed Central (PMC3721201).
+- Its equation [5]: the directional spreading function is G = G0 cos^(2s)((theta - theta0) / 2), G0 set so that G
+  integrates to one over the full circle, theta0 the principal direction. READ.
+- Its equation [6]: s = s_max (f / f_p)^5 below the peak frequency and s_max (f / f_p)^(-2.5) above it. READ.
+- Its text: Goda and Suzuki "proposed the values of s_max = 10, 25 and 75 for wind waves, swell with short decay
+  distance, and swell with long decay distance, respectively". READ.
+
+**Inputs, fixed now.**
+- Wind sea: s = 10. Swell: run at BOTH 25 and 75 and report both, because the decay distance is not among our
+  inputs and I will not invent a proxy for it after seeing a result.
+- **No wind.** The value for wind waves is a constant from the paper; nothing in the arm takes a wind speed or
+  direction. The band {5, 10, 25} of the 10:30Z section is dropped as the arm's input and kept only as a printed
+  sensitivity for the wind sea.
+- **s is taken as s_max at every frequency.** Equation [6] makes the sea BROADER away from the peak, so a bulk arm
+  with s = s_max UNDERSTATES the spreading of a real sea. Stated so the arm's effect is read as a lower bound on
+  the size of the effect, whichever its sign.
+
+**The arm, a derivation and not a paper's equation.** The sea's energy is divided among directions by G. Each
+direction refracts by Snell's law and conserves its own energy flux; the directions are summed by energy. Breaking
+removes energy from every direction in proportion to the energy it holds, which is how SWAN distributes its
+dissipation over the spectrum (its equation 2.69, read on the page: the dissipation of a component is D_tot / E_tot
+times that component's energy). Components heading away from the shore are dropped, and the share dropped is
+printed. With a single direction the arm must reproduce the existing march exactly; a test pins that.
+
+**What is reported.** The surf (both highest-tenth numbers) with spread, beside the same without, at the panel's
+four sea states, head-on and at 30 and 60 degrees off the shore normal; the wind-sea state at s = 10, the swell
+states at 25 and at 75.
+
+**Predictions, unchanged from 10:30Z and restated so they can fail.** The sign is not known in advance. Near the
+normal I expect spreading to LOWER the surf, by at most ten to fifteen percent for s = 10; at a large mean angle I
+expect it to RAISE the surf relative to a single direction. Nowhere near the factor of 1.8 still unexplained at the
+owner's point. If it comes out near 1.8, I will suspect the arm.
