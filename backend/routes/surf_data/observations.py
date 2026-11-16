@@ -29,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.security import get_current_user_id
 from database import get_db
 from models import CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport, SurfSpot
+from services import observation_rewards
 from services.surf_observation_scale import SCALE_VERSION, ObservationError, normalise, region_default_scale
 
 router = APIRouter()
@@ -80,6 +81,7 @@ class ObservationIn(BaseModel):
     longitude: Optional[float] = Field(None, ge=-180, le=180)
     observed_at_device: Optional[datetime] = None
     client_build: Optional[str] = Field(None, max_length=40, pattern=r"^[A-Za-z0-9._-]+$")
+    device_id: Optional[str] = Field(None, pattern=r"^[0-9a-fA-F-]{32,36}$")  # random install id (a claim)
 
 
 def _distance_m(lat1, lon1, lat2, lon2) -> float:
@@ -168,6 +170,8 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
         flags.add("range_only")
     if no_parent:
         flags.add("no_parent")
+    if not data.device_id:
+        flags.add("no_device")
 
     # GPS: the device position the client reports, against the spot. Recorded and flagged, never trusted alone.
     gps_distance = None
@@ -225,9 +229,14 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
         latitude=data.latitude, longitude=data.longitude, gps_distance_m=gps_distance, gps_check=gps_check,
         media_url=media_url, media_sha256=sha, exif_distance_m=exif_distance, exif_age_s=exif_age,
         exif_check=exif_check, duplicate_of=duplicate_of, flags=",".join(sorted(flags)),
+        device_hash=observation_rewards.device_hash(data.device_id), xp_status="none", corroborated=False,
+        audit_selected=False,
     )
     db.add(obs)
     try:
+        await db.flush()
+        # P2: quality-gated, capped, audited XP; bonuses only after independent corroboration. Never value-based.
+        await observation_rewards.assess(db, obs)
         await db.commit()
     except IntegrityError as exc:  # a concurrent duplicate for the same report won the unique index
         await db.rollback()

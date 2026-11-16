@@ -210,7 +210,7 @@ async def test_spot_page_report_is_recorded_as_not_blind(world):
     assert r.status_code == 200, r.text
     (row,) = await world.rows()
     assert row.forecast_shown_before is True
-    assert set(row.flags.split(",")) == {"gps_missing", "range_only"}
+    assert set(row.flags.split(",")) == {"gps_missing", "no_device", "range_only"}
 
 
 async def test_hawaii_default_and_override(world):
@@ -221,7 +221,7 @@ async def test_hawaii_default_and_override(world):
     assert r.json()["scale_default"] == "hawaiian"
     (row,) = await world.rows()
     assert row.face_m == pytest.approx(12 * FT_TO_M, abs=1e-3) and row.scale_overridden is False
-    assert (row.exif_check, row.flags) == ("ok", "")
+    assert (row.exif_check, row.flags) == ("ok", "no_device")  # P2: a row without a device id earns no XP
     assert row.media_sha256 and abs(row.exif_age_s) < 120
 
     # Face in Hawaii is an override; with a verified photo it is not flagged as unsupported.
