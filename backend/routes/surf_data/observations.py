@@ -122,6 +122,10 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
         raise HTTPException(status_code=422, detail="ref_id is required for this screen")
 
     ref = await _resolve_ref(db, surface, data.ref_id, user_id)
+    # A check-in observation may arrive without a parent row (today's check-in already existed). Then the spot is
+    # the client's word, there is no freshness check and the per-report unique index cannot apply, so the row is
+    # marked for the aggregator to drop or down-weight.
+    no_parent = ref is None
     spot_id, ref_created, media_url = ref if ref else (data.spot_id, None, None)
     if ref and data.spot_id and data.spot_id != spot_id:
         raise HTTPException(status_code=422, detail="spot_id does not match the report")
@@ -159,6 +163,8 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
     overridden = data.height_scale != scale_default
     if face.input_kind == "bucket":
         flags.add("range_only")
+    if no_parent:
+        flags.add("no_parent")
 
     # GPS: the device position the client reports, against the spot. Recorded and flagged, never trusted alone.
     gps_distance = None
@@ -223,16 +229,9 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
     except IntegrityError as exc:  # a concurrent duplicate for the same report won the unique index
         await db.rollback()
         raise HTTPException(status_code=409, detail="This report already has an observation") from exc
-    return {
-        "id": obs.id,
-        "surface": surface,
-        "observer_role": obs.observer_role,
-        "height_scale": obs.height_scale,
-        "scale_default": scale_default,
-        "face_m": obs.face_m,
-        "forecast_shown_before": shown,
-        "flags": sorted(flags),
-    }
+    # The reply names the stored row and its scale only. Quality flags, the converted height and the provenance
+    # verdicts stay server-side: returning them would tell anyone gaming the checks which one fired.
+    return {"id": obs.id, "height_scale": obs.height_scale, "scale_default": scale_default}
 
 
 @router.get("/surf-observations/scale-default/{spot_id}")

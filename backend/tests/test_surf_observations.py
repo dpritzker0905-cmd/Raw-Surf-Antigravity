@@ -235,13 +235,13 @@ async def test_hawaii_default_and_override(world):
 async def test_scale_override_without_photo_is_flagged(world):
     r = await world.client.post(URL, json=_checkin(height_scale="hawaiian"), headers=_token("surfer"))
     assert r.status_code == 200
-    assert "scale_override_no_photo" in r.json()["flags"]
+    assert "scale_override_no_photo" in (await world.rows())[0].flags
 
 
 async def test_far_gps_is_flagged_not_refused(world):
     r = await world.client.post(URL, json=_checkin(latitude=NSB[0] + 1.0), headers=_token("surfer"))
     assert r.status_code == 200
-    assert "gps_far" in r.json()["flags"]
+    assert "gps_far" in (await world.rows())[0].flags
 
 
 @pytest.mark.parametrize("ref,status", [("cr-other", 404), ("cr-old", 409), ("nope", 404)])
@@ -316,13 +316,14 @@ async def test_server_sets_flow_role_and_keeps_device_time_as_a_claim(world, mon
     monkeypatch.setenv(observations.ANCHOR_ENV, "photog")
     skewed = (NOW - timedelta(hours=2)).isoformat()
     r = await world.client.post(URL, json=_checkin(observed_at_device=skewed), headers=_token("surfer"))
-    assert r.status_code == 200 and r.json()["observer_role"] == "surfer"
-    assert "device_clock_skew" in r.json()["flags"]
+    assert r.status_code == 200
     r2 = await world.client.post(URL, json=dict(entry_screen="golive_conditions_modal", ref_id="cr-1", height_value=6,
                                                  height_unit="ft", height_scale="hawaiian", set_or_avg="sets"),
                                  headers=_token("photog"))
-    assert r2.json()["observer_role"] == "anchor"
+    assert r2.status_code == 200
     first, second = await world.rows()
+    assert (first.observer_role, second.observer_role) == ("surfer", "anchor")
+    assert "device_clock_skew" in first.flags
     assert (first.flow, second.flow) == ("blind_v1", "blind_v1")
     assert first.normalization_version == "norm_v1"
     assert first.observed_at_device is not None and first.received_at > first.observed_at_device.replace(
@@ -332,3 +333,18 @@ async def test_server_sets_flow_role_and_keeps_device_time_as_a_claim(world, mon
 @pytest.mark.parametrize("forged", [{"flow": "legacy_report"}, {"observer_role": "anchor"}])
 async def test_client_cannot_claim_flow_or_role(world, forged):
     assert (await world.client.post(URL, json=_checkin(**forged), headers=_token("surfer"))).status_code == 422
+
+
+async def test_reply_reveals_no_check_verdicts(world):
+    r = await world.client.post(URL, json=_checkin(latitude=NSB[0] + 1.0), headers=_token("surfer"))
+    assert r.status_code == 200
+    assert set(r.json()) == {"id", "height_scale", "scale_default"}  # no flags, face_m or provenance verdicts
+
+
+async def test_parentless_checkin_observation_is_flagged(world):
+    with_parent = await world.client.post(URL, json=_checkin(), headers=_token("surfer"))
+    without = await world.client.post(URL, json=_checkin(ref_id=None, spot_id="nsb"), headers=_token("surfer"))
+    assert with_parent.status_code == 200 and without.status_code == 200
+    first, second = await world.rows()
+    assert "no_parent" not in first.flags.split(",")
+    assert "no_parent" in second.flags.split(",") and second.ref_id is None

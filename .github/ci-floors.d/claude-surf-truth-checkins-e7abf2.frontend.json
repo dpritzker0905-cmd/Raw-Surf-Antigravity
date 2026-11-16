@@ -1,6 +1,6 @@
 {
   "lane": "frontend",
-  "tests": 7,
+  "tests": 8,
   "files": 1,
   "branch": "claude/surf-truth-checkins-e7abf2",
   "date": "2026-11-16",

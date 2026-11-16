@@ -554,16 +554,16 @@ const ConditionsModal = ({
               defaultScale={defaultScaleFor(spot)} />
           )}
 
-          {/* Spot Notes */}
+          {/* Spot Notes. Its placeholder carries no example size: a number here would anchor the blind height. */}
           <div className="space-y-2">
             <label className="text-muted-foreground text-sm flex items-center gap-2">
               <FileText className="w-4 h-4" />
               Spot Notes <span className="text-muted-foreground/60">(optional)</span>
             </label>
-            <Textarea aria-label="E.g., Clean 3-4ft sets, offshore winds, best at mid-tide..."
+            <Textarea aria-label="Spot notes"
               value={spotNotes}
               onChange={(e) => setSpotNotes(e.target.value)}
-              placeholder="E.g., Clean 3-4ft sets, offshore winds, best at mid-tide..."
+              placeholder="E.g., clean lines, offshore wind, best at mid-tide..."
               className="bg-card border-border text-foreground placeholder-muted-foreground resize-none h-20"
               maxLength={200}
               data-testid="spot-notes-input"

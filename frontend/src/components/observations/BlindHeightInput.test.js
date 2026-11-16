@@ -24,10 +24,17 @@ describe('BlindHeightInput (T1 blind observation)', () => {
     expect(screen.queryByText(/\d+(\.\d+)?\s*ft\b.*forecast/i)).toBeNull();
   });
 
+  test('no number is shown before the answer: the height placeholder is a word, not an anchor', () => {
+    render(<Harness />);
+    expect(screen.getByLabelText(/wave height/i).getAttribute('placeholder')).not.toMatch(/\d/);
+    // nor anywhere in the help text: the only digits on screen are the legacy range labels, shown only on request
+    expect(screen.getByRole('region').textContent).not.toMatch(/\d/);
+  });
+
   test('the region default preselects Hawaiian and names the scale in words', () => {
     render(<Harness defaultScale="hawaiian" />);
     expect(screen.getByRole('radio', { name: /hawaiian/i })).toBeChecked();
-    expect(screen.getByText(/about half the face height/i)).toBeInTheDocument();
+    expect(screen.getByText(/about half the full face height/i)).toBeInTheDocument();
     expect(screen.getByText(/usual here/i)).toBeInTheDocument();
   });
 

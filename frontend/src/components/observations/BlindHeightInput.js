@@ -5,7 +5,8 @@
  * they mean (face vs Hawaiian: an unlabelled "4 ft" is ambiguous by about x2), and typical vs sets. The server, not
  * this component, converts it to face metres and decides `source` and `forecast_shown_before`.
  *
- * This component must never show a forecast number. It renders no forecast and takes none as a prop.
+ * This component must never show a forecast number, nor ANY example number (an anchor): it renders no forecast,
+ * takes none as a prop, and its placeholder is a word, not a value.
  *
  * Accessibility: native radio groups inside fieldset/legend (arrow keys move within a group, one Tab stop each),
  * a labelled number input, and the scale named in words, never by colour. Themes: semantic tokens only
@@ -58,7 +59,7 @@ export function observationLabel(obs) {
 
 const SCALE_HELP = {
   face: 'Face: the full height of the wave face, bottom to top.',
-  hawaiian: 'Hawaiian: about half the face height (a 6 ft Hawaiian wave has a 12 ft face).',
+  hawaiian: 'Hawaiian: about half the full face height.',
 };
 
 function Segmented({ name, legend, options, value, onChange, help }) {
@@ -111,7 +112,7 @@ const BlindHeightInput = ({ value, onChange, idPrefix = 'obs', defaultScale = 'f
               value={obs.height_value}
               onChange={(e) => set({ height_value: e.target.value })}
               className={`flex-1 min-w-0 h-10 rounded-md border border-border ${fieldBg} px-3 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring`}
-              placeholder="e.g. 3" data-testid="obs-height-value" />
+              placeholder="height" data-testid="obs-height-value" />
             <Segmented name={`${idPrefix}-unit`} legend={<span className="sr-only">Unit</span>}
               value={obs.height_unit} onChange={(u) => set({ height_unit: u })}
               options={[{ value: 'ft', label: 'ft' }, { value: 'm', label: 'm' }]} />

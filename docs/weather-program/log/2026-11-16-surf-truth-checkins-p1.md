@@ -69,3 +69,30 @@ Deliberately NOT in P1, by agreement of roles: the typical->H1/10 factor, scale 
 terms or derived flags of the OFFLINE aggregator (P4), which reads the raw columns. `face_m` stays "face metres in the
 declared scale and sense". Consent / blur fields are P3. The analysis-only forecast snapshot is better joined offline
 from archived runs than computed on the 1-CPU box at write time.
+
+## 00:50Z Advisor's three conditions (PASS WITH LIMITS at 526f5659a) closed
+
+1. Anchor: the height field's placeholder was "e.g. 3", a number shown before a blind answer. Now "height". Found the
+   same kind of anchor in two more places and removed them too: the Hawaiian help text ("a 6 ft Hawaiian wave has a
+   12 ft face") and the go-live Spot Notes placeholder ("Clean 3-4ft sets..."). A Jest test now asserts that the
+   input region shows no digit before the answer (the legacy range labels appear only on request).
+2. The POST reply returned the quality flags, which would tell anyone gaming the checks which one fired. It now
+   returns only `id`, `height_scale` and `scale_default`; flags, face_m and provenance verdicts stay server-side
+   (test).
+3. Parent-less check-in observations (today's check-in already existed): the spot is the client's word, there is no
+   freshness check and the per-report unique index cannot apply. They are now flagged `no_parent` so P4 can drop or
+   down-weight them (test).
+
+Backend 37 -> 39 tests, frontend 7 -> 8; floor fragments updated.
+
+Limits the advisor asked to state (not conditions):
+- Fixing the 422s REVIVES two routes dead since March/April: `POST /check-in` again writes `check_ins` rows and
+  updates `user_streaks` (current/longest streak, total check-ins); `POST /surf-reports` again writes `surf_reports`,
+  which the spot page's public "today's reports" list shows to other users.
+- `surf_observations` and `observation_media` are created by the startup bootstrap on the shared database at the
+  next deploy.
+- A range is scored at the geometric centre of its interval and "8ft+" at its floor; 'typical' vs 'sets' is stored
+  but not mapped to the chain's H1/10. Both are P4's; every analysis must keep `input_kind` and `set_or_avg`.
+- The daily cap is a count then an insert, so two concurrent posts can pass 20. Harmless at this volume.
+- For David (not blocking): the private rows store each user's device position and the photo's EXIF position, and
+  go-live photos still sit in the public `conditions` bucket with EXIF until P3.
