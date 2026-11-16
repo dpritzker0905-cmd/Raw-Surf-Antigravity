@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 9,
+  "tests": 11,
   "files": 1,
   "branch": "claude/marine-late-wash",
   "date": "2026-11-15",
-  "note": "the late wash: urgent seed consume"
+  "note": "the late wash: urgent seed consume + 400 ms no-key guard (2 tests)"
 }
