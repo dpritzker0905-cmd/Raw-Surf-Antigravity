@@ -52,7 +52,8 @@ def ntde_dates():
     return np.arange(NTDE[0], NTDE[1], np.timedelta64(NTDE_STEP_MIN, "m"))
 
 
-def score_arm(series_h, truth, hours, fine=None, fine_vals=None, events=None, ntde_vals=None, datum=None, obs=None):
+def score_arm(series_h, truth, hours, fine=None, fine_vals=None, events=None, ntde_vals=None, datum=None, obs=None,
+              truth_tb=None):
     """One arm at one station. series_h: values aligned with `hours` (None allowed)."""
     idx = [i for i, t in enumerate(hours) if t in truth and series_h[i] is not None]
     if len(idx) < 240:
@@ -71,6 +72,10 @@ def score_arm(series_h, truth, hours, fine=None, fine_vals=None, events=None, nt
         off = M.mllw_offset(list(ntde_vals), NTDE_STEP_MIN / 60.0)
         row["msl_minus_mllw"] = round(off, 4) if off is not None else None
         row["mllw_err"] = round(off - datum, 4) if off is not None else None
+    if truth_tb:                                              # REPORTED, not gating (G2): NOAA's SA/SSA removed from truth
+        tb = [i for i in idx if hours[i] in truth_tb]
+        if len(tb) >= 240:
+            row["rmse_tidal_band"] = round(M.rmse([series_h[i] for i in tb], [truth_tb[hours[i]] for i in tb]), 4)
     if obs:
         oi = [i for i in idx if hours[i] in obs]
         if len(oi) >= 120:
@@ -118,6 +123,9 @@ def main():
             row["error"] = "no metadata"
             continue
         truth = S.coops_series(sid, "predictions", START, END, "h")
+        hc = S.coops_harcon(sid)
+        seasonal = M.noaa_long_period(hc, hours) if hc else None    # NOAA's own SA + SSA at each hour
+        truth_tb = {t: truth[t] - seasonal[i] for i, t in enumerate(hours) if t in truth} if seasonal else None
         events = [e for e in S.coops_hilo(sid, START, END) if START <= e[0] <= END]
         obs = {t: v for t, v in S.coops_series(sid, "water_level", START, END, key="data").items() if t.minute == 0}
         datum = S.coops_msl_minus_mllw(sid)
@@ -137,14 +145,13 @@ def main():
                 row[arm] = {"error": "undefined at this point"}
                 continue
             vh, vf, vn = v[:cut[0]], v[cut[0]:cut[1]], v[cut[1]:]
-            row[arm] = score_arm(list(vh), truth, hours, fine, vf, events, vn, datum, obs)
+            row[arm] = score_arm(list(vh), truth, hours, fine, vf, events, vn, datum, obs, truth_tb)
             series[arm] = (list(vh), list(vf))
         om = S.om_sea_level(lat, lng, START.date(), (END + timedelta(days=3)).date())
         om_year = S.om_sea_level(lat, lng, (START - timedelta(days=365)).date(), (START - timedelta(days=1)).date())
         year_mean = st.mean(om_year.values()) if len(om_year) >= 330 * 24 else None
         row["C"] = score_arm(arms.om_demean72(om, hours), truth, hours, obs=obs)
         row["D"] = score_arm(arms.om_minus_year(om, hours, year_mean), truth, hours, obs=obs)
-        hc = S.coops_harcon(sid)
         try:
             p = arms.harcon_eval(hc, h_np) if hc else None
         except Exception as e:                                # noqa: BLE001
@@ -205,6 +212,8 @@ def decide(rows, keep, hours, fine):
             "controls": {"items": controls, "positive_median_rmse_m": positive, "swap_median_rmse_m": swap,
                          "shift6h_median_hilo_min": shifted},
             "median_rmse_D_m": M.median_or_none([(r.get("D") or {}).get("rmse") for r in rows]),
+            "median_rmse_tidal_band_reported": {a: M.median_or_none([(r.get(a) or {}).get("rmse_tidal_band") for r in rows])
+                                                for a in ("A", "B")},
             "median_rmse_obs": {a: M.median_or_none([(r.get(a) or {}).get("rmse_obs") for r in rows])
                                 for a in ("A", "B", "C", "D")},
             "strata_median_rmse_m": strata}
@@ -224,6 +233,7 @@ def markdown(rows, rep):
                      f"{fmt(v['median_abs_mllw_err_m'])} | {', '.join(i for i, ok in v['items'].items() if not ok) or 'all pass'} |")
     lines += ["", f"Controls: positive {fmt(c['positive_median_rmse_m'], 4)} m, label swap {fmt(c['swap_median_rmse_m'])} m, "
               f"+6 h shift {fmt(c['shift6h_median_hilo_min'], 1)} min -> {c['items']}. Arm D median {fmt(rep['median_rmse_D_m'])} m. "
+              f"Tidal band (truth minus NOAA's SA/SSA; reported, NOT gating): {rep['median_rmse_tidal_band_reported']}. "
               f"Observed water (informative): {rep['median_rmse_obs']}. Strata: {rep['strata_median_rmse_m']}", "",
               "| station | stratum | A | B | C | D | P | A hilo | A MLLW err |", "|---|---|---|---|---|---|---|---|---|"]
     for r in rows:

@@ -91,10 +91,10 @@ def coops_msl_minus_mllw(sid):
 
 
 def coops_harcon(sid):
-    """[(number, name, amplitude_m, phase_GMT_deg)] - the station's published harmonic constants."""
+    """[(number, name, amplitude_m, phase_GMT_deg, speed_deg_per_h)] - the station's published harmonic constants."""
     rows = get_json(f"{COOPS}/mdapi/prod/webapi/stations/{sid}/harcon.json?units=metric").get("HarmonicConstituents", [])
-    return [(r["number"], r["name"], float(r["amplitude"]), float(r["phase_GMT"])) for r in rows
-            if r.get("amplitude") not in (None, "") and r.get("phase_GMT") not in (None, "")]
+    return [(r["number"], r["name"], float(r["amplitude"]), float(r["phase_GMT"]), float(r["speed"])) for r in rows
+            if r.get("amplitude") not in (None, "") and r.get("phase_GMT") not in (None, "") and r.get("speed") not in (None, "")]
 
 
 # ---------------------------------------------------------------- Open-Meteo (TEST-ONLY arms C and D)

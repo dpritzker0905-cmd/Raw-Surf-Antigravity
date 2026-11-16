@@ -79,22 +79,81 @@ def mllw_offset(values, step_h):
     return st.mean(values) - st.mean(lows)
 
 
-def sun_mean_longitude_deg(t):
-    """The sun's mean longitude h (deg) at an aware UTC datetime, Schureman: 279.69668 + 36000.76892 T + 0.0003025 T^2,
-    T in Julian centuries from 1899-12-31 12:00 UTC. NOAA publishes SA / SSA phases for the arguments h / 2h."""
+NOAA_TERMS = ("SA", "SSA", "M1", "M3", "S1")
+
+
+def schureman_astro(t):
+    """Mean longitudes (deg) of the moon s, sun h, lunar perigee p and the moon's node N at an aware UTC datetime
+    (Schureman 1958, SP 98; T in Julian centuries from 1899-12-31 12:00 UTC)."""
     from datetime import datetime, timezone
     T = (t - datetime(1899, 12, 31, 12, tzinfo=timezone.utc)).total_seconds() / 86400.0 / 36525.0
-    return 279.69668 + 36000.76892 * T + 0.0003025 * T * T
+    return (270.43416 + 481267.88314 * T + 0.00199 * T * T, 279.69668 + 36000.76892 * T + 0.0003025 * T * T,
+            334.32956 + 4069.03403 * T - 0.01032 * T * T, 259.18328 - 1934.14201 * T + 0.00208 * T * T)
+
+
+def sun_mean_longitude_deg(t):
+    """The sun's mean longitude h (deg). NOAA publishes SA / SSA phases for the arguments h / 2h."""
+    return schureman_astro(t)[1]
+
+
+def _nodal(N_deg):
+    """Schureman's I, nu, xi (radians) from the node longitude."""
+    w, i, n = math.radians(23.452), math.radians(5.145), math.radians(N_deg % 360)
+    I = math.acos(math.cos(w) * math.cos(i) - math.sin(w) * math.sin(i) * math.cos(n))
+
+    def near(x):                                              # the branch continuous with N/2
+        while x - n / 2 > math.pi / 2:
+            x -= math.pi
+        while x - n / 2 < -math.pi / 2:
+            x += math.pi
+        return x
+    a = near(math.atan(1.01883 * math.tan(n / 2)))            # (N - xi + nu) / 2
+    b = near(math.atan(0.64412 * math.tan(n / 2)))            # (N - xi - nu) / 2
+    return I, a - b, n - (a + b)
+
+
+def noaa_year_terms(year):
+    """NOAA's predictor convention for the terms pyTMD defines differently: V0 at 00:00 UTC Jan 1, f and u at mid-year.
+    M1 is Schureman's: V + u = T - s + h - 90 + xi - nu + Q, f = f(O1) / Ra. M3: 3(T - s + h), u = 3(xi - nu),
+    f = cos^6(I/2) / 0.8840. S1: V = T. SA / SSA: V = h / 2h, f = 1, u = 0. Calibrated (P only, calendar 2025, 26
+    stations): median 0.0031 m, max 0.0092 m (log 2026-11-16)."""
+    from datetime import datetime, timezone
+    s, h, p, N = schureman_astro(datetime(year, 1, 1, tzinfo=timezone.utc))
+    _, _, pm, Nm = schureman_astro(datetime(year, 7, 2, 12, tzinfo=timezone.utc))
+    I, nu, xi = _nodal(Nm)
+    P = math.radians(pm % 360) - xi
+    cI, c2 = math.cos(I), math.cos(I / 2) ** 2
+    inv_ra = math.sqrt(0.25 + 1.5 * (cI / c2) * math.cos(2 * P) + 2.25 * (cI / c2) ** 2)
+    Q = math.atan2((5 * cI - 1) * math.sin(P), (7 * cI + 1) * math.cos(P))
+    T0 = 180.0                                                # hour angle of the mean sun at 00:00 UTC
+    return {
+        "M1": (math.sin(I) * c2 / 0.3800 * inv_ra, T0 - s + h - 90 + math.degrees(xi - nu + Q)),
+        "M3": (math.cos(I / 2) ** 6 / 0.8840, 3 * (T0 - s + h) + math.degrees(3 * (xi - nu))),
+        "S1": (1.0, T0),
+        "SA": (1.0, h),
+        "SSA": (1.0, 2 * h),
+    }
+
+
+def noaa_terms(harcon, times):
+    """Sum of NOAA_TERMS at aware UTC datetimes. harcon: [(num, name, amp_m, G_deg)] or with speed as a 5th item;
+    the speed is required for M1/M3/S1/SA/SSA and falls back to NOAA's published speeds."""
+    from datetime import datetime, timezone
+    speed = {"SA": 0.0410686, "SSA": 0.0821373, "M1": 14.4966939, "M3": 43.4761563, "S1": 15.0}
+    terms = [(r[1], r[2], r[3], (r[4] if len(r) > 4 else speed[r[1]])) for r in harcon if r[1] in NOAA_TERMS and r[2] > 0]
+    years, out = {}, []
+    for t in times:
+        if t.year not in years:
+            years[t.year] = (noaa_year_terms(t.year), datetime(t.year, 1, 1, tzinfo=timezone.utc))
+        yt, t0 = years[t.year]
+        hrs = (t - t0).total_seconds() / 3600.0
+        out.append(sum(yt[n][0] * a * math.cos(math.radians(sp * hrs + yt[n][1] - g)) for n, a, g, sp in terms))
+    return out
 
 
 def noaa_long_period(harcon, times):
-    """G2: NOAA's SA and SSA terms (f = 1, u = 0): A cos(h - G), A cos(2h - G). harcon: [(num, name, amp_m, G_deg)]."""
-    terms = [(1 if n == "SA" else 2, a, g) for _, n, a, g in harcon if n in ("SA", "SSA") and a > 0]
-    out = []
-    for t in times:
-        h = sun_mean_longitude_deg(t)
-        out.append(sum(a * math.cos(math.radians(k * h - g)) for k, a, g in terms))
-    return out
+    """Kept for the earlier test: the SA + SSA part only."""
+    return noaa_terms([r for r in harcon if r[1] in ("SA", "SSA")], times)
 
 
 def derangements(n, count=DERANGEMENTS, seed=20261015):

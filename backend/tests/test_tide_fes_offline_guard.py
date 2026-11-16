@@ -102,3 +102,23 @@ def test_extrema_timing_and_mllw_on_a_known_tide():
     want = 0.05 * math.cos(math.radians(h)) + 0.02 * math.cos(math.radians(2 * h - 90.0))           # M2 is ignored
     assert abs(M.noaa_long_period(hc, [t1])[0] - want) < 1e-12
     assert M.stratum("1612340") == "Hawaii" and M.stratum("8771510") == "Gulf" and M.stratum("8443970") == "Atlantic"
+
+
+def test_reported_tidal_band_score_and_noaa_terms():
+    """G2 (advisor 11:46Z): a REPORTED tidal-band score (truth minus NOAA's SA/SSA) beside the gating one; and the
+    control's NOAA-convention terms (calibrated on calendar 2025, 26 stations, median 0.0030 m, max 0.0092 m)."""
+    from scripts.tide_fes import fes_gate as F, metrics as M
+    t0 = datetime(2026, 9, 29, tzinfo=timezone.utc)
+    hours = [t0 + timedelta(hours=k) for k in range(300)]
+    seasonal = [0.1] * 300
+    truth = {t: math.sin(k / 2) + 0.1 for k, t in enumerate(hours)}
+    truth_tb = {t: truth[t] - seasonal[k] for k, t in enumerate(hours)}
+    arm = [math.sin(k / 2) for k in range(300)]                     # a perfect tide with no seasonal term
+    row = F.score_arm(arm, truth, hours, truth_tb=truth_tb)
+    assert abs(row["rmse"] - 0.1) < 1e-9 and row["rmse_tidal_band"] == 0.0     # the gap is attributed to the season
+    yt = M.noaa_year_terms(2025)
+    assert set(yt) == set(M.NOAA_TERMS) and all(0.4 < f < 2.2 for f, _ in yt.values())   # M1 1/Ra swings: 1.81 in 2025
+    hc = [(18, "M1", 0.02, 10.0, 14.4966939), (1, "M2", 1.0, 0.0, 28.984104)]
+    v = M.noaa_terms(hc, [datetime(2025, 1, 1, tzinfo=timezone.utc)])[0]
+    f, arg = yt["M1"]
+    assert abs(v - f * 0.02 * math.cos(math.radians(arg - 10.0))) < 1e-12           # M2 is pyTMD's, not here

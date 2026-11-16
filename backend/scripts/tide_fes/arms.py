@@ -14,9 +14,9 @@ from datetime import datetime, timedelta, timezone
 import numpy as np
 
 try:
-    from scripts.tide_fes.metrics import noaa_long_period
+    from scripts.tide_fes.metrics import NOAA_TERMS, noaa_terms
 except ImportError:                                           # run by path from the workflow
-    from metrics import noaa_long_period
+    from metrics import NOAA_TERMS, noaa_terms
 
 
 def to_np(times):
@@ -63,20 +63,21 @@ def eot20_eval(root, lat, lng, dates):
 def harcon_eval(harcon, dates):
     """Positive control: CO-OPS's published constants (number, name, amplitude m, phase_GMT deg), pyTMD synthesis
     with the GOT nodal corrections (pyTMD's own Compare-NOAA-Tides recipe), no inferred minors (NOAA infers none).
-    G2: SA and SSA are NOT given to pyTMD (its SA argument is Doodson's h - p1; NOAA's phases are for h / 2h - the
-    M1 control's ~77-day seasonal error, log 06:41 EST); they are added in NOAA's convention (metrics.noaa_long_period)."""
+    G2: SA, SSA, M1, M3 and S1 are NOT given to pyTMD, whose conventions for them differ from NOAA's (SA: Doodson's
+    h - p1 vs NOAA's h, the M1 control's ~77-day error); they are added in NOAA's predictor convention
+    (metrics.noaa_terms; calibrated on calendar 2025, P only, log 2026-11-16)."""
     import pandas as pd
     import timescale.time  # noqa: F401 - registers timescale.from_datetime
     import timescale
     import pyTMD.constituents
     import pyTMD.io.NOAA  # noqa: F401 - registers the pandas `tmd` accessor
     rows = []
-    for num, name, amp, phase in harcon:
+    for num, name, amp, phase, *_ in harcon:
         try:
             c = pyTMD.constituents._parse_name(name)
         except Exception:                                     # noqa: BLE001 - a name pyTMD does not know is dropped
             c = None
-        if c and amp > 0 and name not in ("SA", "SSA"):
+        if c and amp > 0 and name not in NOAA_TERMS:
             rows.append({"constNum": num, "name": name, "amplitude": amp, "phase": phase, "constituent": c})
     if not rows:
         return None
@@ -84,7 +85,7 @@ def harcon_eval(harcon, dates):
     ts = timescale.from_datetime(dates.astype("datetime64[ns]"))
     short = np.asarray(df.tmd.predict(ts.tide, deltat=ts.tt_ut1, corrections="GOT"), dtype=float).reshape(-1)
     aware = [datetime.fromtimestamp(x.astype("datetime64[s]").astype(int), tz=timezone.utc) for x in dates]
-    return short + np.array(noaa_long_period(harcon, aware))
+    return short + np.array(noaa_terms(harcon, aware))
 
 
 def om_demean72(om, times):
