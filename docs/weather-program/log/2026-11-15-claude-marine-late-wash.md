@@ -201,3 +201,8 @@ read "06:2x EST, before the commit at 06:23:17". The advisor's five gaps (read o
 5. This header is from the clock (above); a ledger line records the amendment.
 Caution, reported once: the first frame-changing step of each block (after Home and the 6 s settle) is also reported apart, to see
 whether it carries the difference. It stays in the statistics.
+
+### 6c. A/A run 1 DISCARDED (2026-11-16 08:19 EST by the clock), decided from the two load numbers alone, before its rows were opened
+CPU before 62.5 % (06:24 EST), after 41.5 % (08:19 EST). The before reading is above the registered 60 % line (6b, point 4), so the
+run is discarded and repeated. Its output file was renamed unread (2-AA-DISCARDED-cpu62.json) and is not used for anything. The
+repeat starts only after a load reading under 60 %.
