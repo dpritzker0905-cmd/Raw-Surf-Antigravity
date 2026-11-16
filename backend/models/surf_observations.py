@@ -76,7 +76,7 @@ class SurfObservation(Base):
 
     # Rewards (P2, services/observation_rewards.py). None of these depends on the height.
     quality_ok = Column(Boolean, nullable=True)
-    xp_status = Column(String(16), nullable=False, default='none')  # not_eligible|capped|held_audit|granted|audit_failed
+    xp_status = Column(String(16), nullable=False, default='none')  # not_eligible|paused|capped|held_audit|granted|audit_failed
     bonus_eligible = Column(String(64), nullable=True)  # first_of_day,quiet_spot: paid only on corroboration
     corroborated = Column(Boolean, nullable=False, default=False)
     audit_selected = Column(Boolean, nullable=False, default=False)
