@@ -1528,6 +1528,14 @@ A stored estimate can be estimated again in a browser branch with different sour
   - A change after a result is a NEW registration on NEW data, never an amendment.
   - Say in the log, with clock times, which came first.
 
+### 2026-11-16 — L-S28 · A model agreeing with a claim is not a check of the arithmetic under it
+- What happened: the research lead's 14:23Z section took the A1 figure (1.06-1.08 m, already WITHOUT the 1.27) as an
+  H1/10 and divided by 1.27 again. That made perception at 0.70 "match" the owner's under 2 ft. SubQ scored the claim
+  0.961 as an explanation. The repair lead caught it from the A1 log; the advisor verified it (#972, 15:20Z correction).
+- Rule: before chaining another lane's number, read which multipliers it already contains, and recompute it yourself.
+  A cross-check model scores the claim as worded; it does not redo the sums. Send it the numbers and their provenance,
+  not the conclusion.
+
 ### 2026-11-15 — L-O9 · Relay timing: an owner reversal can arrive after the brief it reverses
 - What happened:
   - David said "yes usace use it, research on" at 22:12 EST and "Skip using USACE ..." at 22:15 EST. The first was
