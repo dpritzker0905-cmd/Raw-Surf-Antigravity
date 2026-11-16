@@ -244,3 +244,20 @@ regional waves first) trails the plain publish by a full cycle on the live CDN. 
 in the Actions logs. Then either raise its budget or move the rated regional sets ahead of the world sets' tail, so the rated
 bundle lands in the SAME run as its plain sibling. Gate: on the public index, rated and plain runs equal for every pilot box over
 4 consecutive cycles. Until then this label is what keeps the band honest.
+
+## 11. The rated publisher was not publishing the band (2026-11-16, branch `claude/rated-publish-paint-first`; the director's (b))
+Measured on the public index (`v1/latest.json`, a static file) at 15:30Z: all 84 rated sets trailed their plain siblings (6 h: 6,
+12 h: 55, 18 h: 23); the 20 GFS regional WAVES bundles, the only rating grids the band paints from, were all 18 h behind (rated
+11-15 06Z, plain 11-16 00Z): three GFS cycles with no republish. Since #933, a rated bundle more than one cycle behind is refused, so
+every pilot-box band ask went to `/grid?surf=1` on the box until this is fixed.
+Cause, from run 43803432374's rated step (its full log, not the 10 MB-truncated view): the step built 21 of 84 sets in its 600 s
+budget (10 min 48 s), and NONE of them was a waves bundle. The publisher's fair order (`publish_order`, 2026-11-12: the set written
+longest ago first) also ran the rated step and overrode `rated_publish_sets`' "the bundles that paint go first"; with more rated
+work than one budget, the stalest swell / wind-wave sets went first every run and the waves bundles were cut.
+Fix (`frame_set_rating.paint_tier`, ON, kill `FRAME_RATING_PAINT_FIRST=0`): a tier in front of the fair-order key, for rated sets
+only. 0 = GFS regional waves bundles, 1 = GFS world waves, 2 = the rest (fair order inside each tier; plain sets untouched).
+Budget check from the same report: regional bundles 7.5-33 s each (~11 s typical), so ~250-300 s for the 20, plus 105 s for the
+world set, inside the 600 s budget. +2 tests (the tiers; paint-first beats a never-written rated set, plain sets unchanged, killed
+= the plain fair order). GATE after merge: on the public index, every GFS regional rated waves bundle on the same run as its plain
+sibling (lag 0) in at least 3 of the next 4 pilot runs; the other rated sets reported, not gated (they still compete for the rest
+of the budget).
