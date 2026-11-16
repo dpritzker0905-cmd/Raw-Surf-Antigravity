@@ -70,7 +70,7 @@ Operational multi-model blends (for example NOAA's NBM) rest on the same princip
 Serving: a PASS goes to the director and David with the numbers. Display: the confidence band is step 5 and uses the
 raw spread until a calibrated one passes.
 
-## 2026-11-16 03:05Z AMENDMENT 1 (advisor red-team of #950; before any fit)
+## 2026-11-16 03:00Z AMENDMENT 1 (advisor red-team of #950; before any fit)
 
 1. **Climatology reference.** G1 compares EMOS with the raw members, which are under-dispersive, so EMOS almost
    surely wins. Added **G5**: CRPS of EMOS minus CRPS of the station's seasonal climatology as a distribution (day of
@@ -92,7 +92,7 @@ raw spread until a calibrated one passes.
    schedule and runs off the Actions queue's busiest hours. Not started until David says so.
 
 
-## 2026-11-16 03:30Z AMENDMENT 2: historical backfill (David 22:04 EST via the director; BEFORE any data is collected or fitted)
+## 2026-11-16 03:17Z AMENDMENT 2: historical backfill (David 22:04 EST via the director; BEFORE any data is collected or fitted)
 
 David, typed in the director's session at 22:04 EST: "Start it, off-peak daily, but use historical data to help us
 eliminate wait time for calibrations". No backfilled data exists yet and nothing has been fitted. These changes
@@ -127,9 +127,9 @@ replace the lines they name.
 8. **The first read.** It reports coverage only (runs x stations x leads, missing runs, missing truth) to the director.
    The fit and the test verdict follow, once, as one dated read.
 
-**03:40Z correction to amendment 2 item 7:** the daily job runs at **10:07 UTC**, not 09:17. A job already runs at 09:20 (cron `20 3,9,15,21`). Nothing else is scheduled between 08:15 and 12:15 except :20 and :40 minutes; 00Z ENS is complete by about 07:40 UTC.
+**03:18Z correction to amendment 2 item 7:** the daily job runs at **10:07 UTC**, not 09:17. A job already runs at 09:20 (cron `20 3,9,15,21`). Nothing else is scheduled between 08:15 and 12:15 except :20 and :40 minutes; 00Z ENS is complete by about 07:40 UTC.
 
-## 2026-11-16 04:10Z AMENDMENT 3: limits stated before any data (advisor review of #950 at 66d520bfe)
+## 2026-11-16 03:48Z AMENDMENT 3: limits stated before any data (advisor review of #950 at 66d520bfe)
 
 (a) **IFS cycle changes.** ECMWF may change the IFS cycle inside 2025-06..2026-10, which shifts ensemble bias and
     spread. The rolling window adapts within about 45 days; the fixed-split line does not. An UNSTABLE label may
