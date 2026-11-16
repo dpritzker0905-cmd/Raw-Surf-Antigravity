@@ -424,6 +424,29 @@ def match(preds: list, obs: list, tolerance_s: float = 1800.0) -> list:
     return out
 
 
+FACTOR_ROW_KEYS = ("station", "spot", "valid_time", "offshore_hs_m", "tp_s", "swell_from_deg", "model_hs_m", "obs_hs_m")
+
+
+def factor_rows(matched: list) -> list:
+    """PURE: the matched rows a per-factor attribution needs, and nothing else (2026-11-16, S0 ablation gate).
+
+    `build_report` keeps only the MEDIAN of each transform factor, and a median total does not divide like rows do,
+    so the low reading could not be attributed to friction, shoaling, exposure or Kr. One entry per matched
+    spot-hour: the WHITELISTED keys above plus that row's `factors`. Everything else a prediction row carries (the
+    arms, the upstream provider, the trains) is left out on purpose. The observation is a public CDIP / NDBC buoy
+    height. A row without factors is skipped."""
+    out = []
+    for m in matched or []:
+        f = m.get("factors")
+        if not isinstance(f, dict):
+            continue
+        row = {k: m.get(k) for k in FACTOR_ROW_KEYS}
+        row["factors"] = {k: f.get(k) for k in ("friction", "shoaling", "exposure", "kr", "total")}
+        out.append(row)
+    out.sort(key=lambda r: (str(r["station"]), str(r["valid_time"]), str(r["spot"])))
+    return out
+
+
 def build_report(matched: list, n_stations: int, n_obs: int, n_preds: int,
                  min_matched: int = None, min_station_hours: int = 0) -> dict:
     """The banked report. REFUSES (available:false + reason + counters) below the match floor —

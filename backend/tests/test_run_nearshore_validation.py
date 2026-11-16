@@ -43,3 +43,42 @@ def test_timeout_is_infra():
 def test_generic_exception_is_infra_not_a_skip():
     # A parse crash or anything unexpected must never be mistaken for "station has no deployment".
     assert classify_station_failure(ValueError("garbled ascii")) == "infra"
+
+
+# ── per-row transform factors (2026-11-16, S0 ablation gate): the report keeps only their median ──────────
+def _matched_row(**over):
+    row = {"station": "143p1", "spot": "A", "valid_time": "2026-11-17T06:00:00Z", "offshore_hs_m": 1.5, "tp_s": 9.0,
+           "swell_from_deg": 280.0, "model_hs_m": 1.05, "obs_hs_m": 1.6, "obs_time": "2026-11-17T06:10:00Z",
+           "factors": {"friction": 1.0, "shoaling": 0.94, "exposure": 0.85, "kr": 0.873, "total": 0.6975},
+           "upstream_provider": "x", "model_hs_legacy_friction_m": 0.9, "n_trains": 2}
+    row.update(over)
+    return row
+
+
+def test_factor_rows_carry_the_whitelist_and_the_factors_and_nothing_else():
+    from services.weather_pipeline.nearshore_validation import FACTOR_ROW_KEYS, factor_rows
+    rows = factor_rows([_matched_row(station="b", spot="Z"), _matched_row(station="a"),
+                        _matched_row(factors=None), _matched_row(station="a", valid_time="2026-11-17T03:00:00Z")])
+    assert [(r["station"], r["valid_time"]) for r in rows] == [
+        ("a", "2026-11-17T03:00:00Z"), ("a", "2026-11-17T06:00:00Z"), ("b", "2026-11-17T06:00:00Z")]   # sorted; no-factor row skipped
+    assert set(rows[0]) == set(FACTOR_ROW_KEYS) | {"factors"}
+    assert set(rows[0]["factors"]) == {"friction", "shoaling", "exposure", "kr", "total"}
+    assert "upstream_provider" not in rows[0] and "model_hs_legacy_friction_m" not in rows[0] and "obs_time" not in rows[0]
+    # a row is enough to undo a factor: model / kr is the model with the refraction constant off
+    assert rows[0]["model_hs_m"] / rows[0]["factors"]["kr"] == 1.05 / 0.873 and rows[0]["obs_hs_m"] == 1.6
+    assert factor_rows([]) == [] and factor_rows(None) == []
+
+
+def test_the_runner_writes_the_rows_only_when_asked_and_the_report_is_untouched():
+    src = inspect.getsource(R.main)
+    assert '"--rows-json", default=""' in src and "if args.rows_json:" in src and "factor_rows(matched)" in src
+    # the rows file is written AFTER the report and from the same matched list; the report dump itself is unchanged
+    assert src.index("json.dump(report, f, indent=1)") < src.index("factor_rows(matched)")
+
+
+def test_the_workflow_asks_for_the_rows_and_uploads_them():
+    import os
+    path = os.path.join(os.path.dirname(__file__), "..", "..", ".github", "workflows", "nearshore-validation.yml")
+    text = open(path, encoding="utf-8").read()
+    assert "--json nearshore_report.json --rows-json nearshore_rows.json" in text
+    assert "backend/nearshore_rows.json" in text and "backend/nearshore_report.json" in text
