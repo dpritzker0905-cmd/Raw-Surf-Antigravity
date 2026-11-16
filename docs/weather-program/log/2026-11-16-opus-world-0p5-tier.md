@@ -39,3 +39,24 @@ Branch `opus/world-0p5-tier` from dev. Written 07:12Z, before any code.
     100 ms after the index is loaded.
 
 Order: after G3, G2 and G1(a) (all built as dark PRs: #955, #956, #957, #958).
+
+## 07:23Z: CORRECTION before any code: gate (1) as written cannot hold, by construction
+
+Reading the GFS-Wave pass (`noaa_gfs_wave_fetcher.fetch_global_coarse`) before building: a region's node is NOT a point sample of
+the 0.25-degree grid. Each node is the pass's own REDUCTION over a block of native cells whose half-width depends on the region's
+resolution (`half = max(1, round(res / 0.25 / 2))`: 2 degrees gives a 9 x 9 block; 0.5 degree a 2 x 2). The reductions are block-mean
+heights and periods (NOAA_COARSE_SCALAR_BLOCKMEAN), energy-weighted partition directions, the coherence-gated total-sea
+direction blend, and a direction confidence. At 0.25 degree with REGRID_NATIVE_CELL a node reads its exact cell.
+So gate (1)'s "equals the 0.25-degree GFS-Wave value at that point" and "equals today's 2-degree world frame ... at shared nodes
+within quantisation" cannot both hold for ANY 0.5-degree reduction. They contradict the pipeline's own semantics: a 2-degree block
+mean and a 0.5-degree block mean differ by construction. That was my error in writing the gate; it is caught here, before any code.
+
+**Proposed corrected gate (1), for the director's approval BEFORE any build:**
+- (1a) **Parity with the pipeline's own reduction:** every 0.5-degree node equals what the existing multi-region path produces
+  for a 0.5-degree region on the same decoded hour (the same functions, half = 1), after quantisation (fb.parity bad = 0). The
+  reference is the existing path run on a few sample bboxes (it cannot run world-wide through JSON: about 19 GB). It proves the
+  vectorized world encoder changes nothing but the packaging.
+- (1b) **Agreement with the other tiers, REPORTED, not gated:** at shared nodes against the 2-degree world frame and inside the
+  pilot boxes against the 0.25-degree frames: bias and RMS per field (height, period, direction as a circular difference). They
+  differ by construction (block width), so a number is reported, not a pass line.
+Gates (2)-(4) stand as written.
