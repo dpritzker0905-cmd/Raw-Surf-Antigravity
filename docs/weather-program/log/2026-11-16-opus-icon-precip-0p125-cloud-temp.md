@@ -105,6 +105,41 @@ Options for the director:
 - (b) 0.25 degree as a middle step: about 4x the bytes, half of .om's resolution.
 - (c) Keep .om for ICON air temperature until (a).
 
+## 05:51Z: G3, EURO cloud built (`cloud_cover_euro`, dark) and gated; ICON cloud waits on the resolution question
+
+**Built.** `frame_set_raster.SPECS["cloud_cover_euro"]`: ECMWF open data `tcc` (levtype sfc, type fc), 0.25 degree every point
+(1440 x 721), hours 0-144 by 3 and 150-240 by 6, field 8 `cloud_pct`, clipped to 0-100 %. Units checked before writing the
+conversion: the decoded GRIB of 2026-11-15 12Z +24 h says `(0 - 1)`, range 0.0-1.0, mean 0.675, so it is x 100, as the research
+lead wrote. There is a pilots step gated on `FRAME_RASTER_CLOUD_EURO == '1'` (unset = never runs). The CLIENT key is NOT added:
+`satellite` is a default-on own-frames layer, so listing the EURO set would draw it the moment it publishes. As D-052 did for GFS
+cloud, the client key follows one publish and the director's flip. Tests: +4 in `test_frame_set_raster_fog_temp.py` (estate; key,
+grid, hours, field and source; dark until its variable; one gated workflow step; fraction to %, clip, and the fc-not-ef index
+pick).
+
+**Gate (offline, run 2026-11-15 12Z, `g3_euro.py` scratch).** The frame is built, encoded and decoded exactly as the publisher
+does (`build_set`). ECMWF's message is decoded independently by its own latitude/longitude keys:
+
+| hour | domain mean, ours / source (pp) | 20 random cells, max abs | all 1,038,240 nodes, max abs | corr vs GFS cloud by column shift -2 / -1 / 0 / +1 / +2 | gate |
+|---|---|---|---|---|---|
+| f000 | 62.912 / 62.926 (-0.015) | 0.50 | 0.50 | 0.596 / 0.604 / **0.609** / 0.606 / 0.598 | PASS |
+| f072 | 62.263 / 62.279 (-0.015) | 0.375 | 0.50 | 0.458 / 0.461 / **0.464** / 0.464 / 0.462 | PASS |
+| f180 | 60.826 / 60.840 (-0.014) | 0.50 | 0.50 | 0.301 / 0.302 / **0.303** / 0.303 / 0.303 | PASS |
+
+The 0.5 pp maximum is the frame's own quantisation (0.5 %). Registration: the correlation with GFS cloud at the same valid time peaks
+at no shift at f000 and f072. By f180 the two models' clouds have diverged, so the peak is flat there and says little.
+**Departures from what was pre-registered, said plainly:**
+- Gate item (iii) was registered as a VISUAL comparison with GFS cloud. It was measured numerically instead, by the correlation
+  peak over shifts. No screenshot pairs exist yet.
+- The registered GFS positive control was not run. The source-of-truth decode (lat/lon keys, independent of the publisher's
+  grid order) stands in for it.
+Both are open for the advisor to call insufficient.
+
+**Size.** 3 frames 1,394,179 bytes gzipped (about 465 KB a frame): about 30 MB a run for 65 hours.
+
+**ICON cloud, NOT built.** The research lead's design regrids DWD `clct` by box mean to 0.25 degree. But today's .om `dwd_icon` is
+0.125 degree, the same resolution gap as G1, so a 0.25-degree ICON cloud set fails the director's resolution rule. It waits on the
+director's answer to G1 (0.125-degree ICON sets), and shares G2's 0.125-degree sub-point remap and frame-format work.
+
 ## 06:14Z: G2, ICON precipitation at 0.125 degree built (`precipitation_icon_0p125`, dark) and gated: PASS on all five hours
 
 **Found while building.** DWD publishes its own remap weights from ICON's grid to a 0.125-degree world grid
@@ -230,6 +265,31 @@ Both need handling before a 0.125 set is drawn.
 index stays as it was, and the pilots step (continue-on-error) shows the error in its log. The same happens if a later cycle
 packs CLAT / CLON beyond the 0.01-degree check. Neither is alerted today. Caching the 50 MB file (or the derived 37 M-entry pick
 map) between runs is a follow-up.
+
+## 07:17Z: #955 (EURO cloud) after the advisor's review (PASS WITH LIMITS): negative controls, and how the nodes were placed
+
+- **How the comparison placed our nodes:** by the frame's own DECLARED grid. `g3_euro.py` reads the bounds from the decoded frame
+  header (`decode_plane`) and maps each ECMWF GRIB point (its own latitude/longitude keys) to the node those bounds put it at. That
+  is the client's placement (it draws by the header's bounds), so the all-node agreement within 0.5 pp also proves registration.
+  It was not done by array index.
+- **Seeded negative controls (in place of the skipped GFS positive control):** the same correlation check against GFS cloud, run on
+  our frame rolled 180 degrees in longitude and flipped north-south (2026-11-15 12Z, `g3_neg.py` scratch). Correlation at shifts
+  -2..+2:
+
+| hour | as published | rolled 180 deg | flipped N-S |
+|---|---|---|---|
+| f000 | 0.596 / 0.604 / **0.609** / 0.606 / 0.598: PASS | 0.101-0.104: FAIL | 0.150-0.153: FAIL |
+| f072 | 0.458 / 0.461 / **0.464** / 0.464 / 0.462: PASS | 0.085-0.086: FAIL | 0.131-0.132: FAIL |
+
+  The check passes only with the peak at no shift AND a level above 0.3. As the advisor said, the discrimination comes from the
+  LEVEL (0.46-0.61 against 0.09-0.15): it rules out a gross roll or flip. It does not settle a one-column shift. The all-node
+  agreement with ECMWF, placed by the declared grid, does.
+- **Still before the CLIENT flip** (not built here; the client key is not in this PR): the registered visual pairs against GFS cloud
+  (coast, the 0/180 seam, three themes, desktop and phone).
+- **Limits to state at the flip:**
+  - EURO steps are 3-hourly to 144 h, then 6-hourly to 240 h. Between frames the layer draws what the own-frames path draws for
+    every raster layer (the nearest stored frame, or the blend), labelled with that frame's valid time.
+  - The cloud is instantaneous total cloud cover, as GFS's TCDC set is labelled.
 
 ## 07:56Z: #956 after the advisor's re-read (PASS WITH LIMITS): the poles, a guard in CI, the k = 5 numbers, the label, a stale alert
 

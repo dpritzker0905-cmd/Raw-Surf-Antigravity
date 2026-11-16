@@ -110,6 +110,7 @@ jobs:
           # adds its line here (tests/test_raster_set_freshness.py refuses a set whose switch is missing).
           FRAME_RASTER_CLOUD: ${{ vars.FRAME_RASTER_CLOUD }}
           FRAME_RASTER_CLOUD_0P25: ${{ vars.FRAME_RASTER_CLOUD_0P25 }}
+          FRAME_RASTER_CLOUD_EURO: ${{ vars.FRAME_RASTER_CLOUD_EURO }}
           FRAME_RASTER_FOG: ${{ vars.FRAME_RASTER_FOG }}
           FRAME_RASTER_PRECIP: ${{ vars.FRAME_RASTER_PRECIP }}
           FRAME_RASTER_PRECIP_EURO: ${{ vars.FRAME_RASTER_PRECIP_EURO }}

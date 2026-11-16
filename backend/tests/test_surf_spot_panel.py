@@ -130,3 +130,100 @@ def test_the_workflow_runs_four_times_a_day_or_on_dispatch_and_holds_no_secret()
     crons = [line.split("cron:")[1].strip().strip("'\"") for line in body.splitlines() if "cron:" in line]
     assert crons == ["17 */6 * * *"] and "cancel-in-progress: false" in body and "timeout-minutes: 12" in body
     assert "secrets." not in body and "contents: read" in body and "scripts/surf_spot_panel.py" in body
+
+
+# ── cuts asked for by the spot-class lane, and the slowest read (2026-11-16) ──────────────────────────────
+def _payload(lat, lng, off, surf, break_depth=5.9):
+    return {"point": {"speed": off, "period": 8.0, "direction": 80.0, "sampled_lat": lat, "sampled_lng": lng},
+            "surf_height_m": surf, "surf_regime": "shoaling", "break_depth_m": break_depth}
+
+
+def test_spots_sharing_a_model_cell_are_grouped_with_the_spot_only_spread():
+    inlet, beach, far = sp.PANEL[7], sp.PANEL[8], sp.PANEL[12]
+    rows = [sp.panel_row(inlet, _payload(29.0, -80.75, 1.0, 2.19, break_depth=None), None),
+            sp.panel_row(beach, _payload(29.0, -80.75, 1.0, 1.57), None),
+            sp.panel_row(far, _payload(36.25, -75.5, 1.0, 0.93, break_depth=None), None),
+            sp.panel_row(sp.PANEL[0], {"point": {"speed": 1.0}, "surf_height_m": 1.4}, None)]      # no sampled cell
+    assert rows[0]["cell"] == rows[1]["cell"] == (29.0, -80.75) and rows[3]["cell"] is None
+    (g,) = sp.shared_cells(rows)
+    assert g["cell"] == (29.0, -80.75) and [n for n, _k, _r in g["spots"]] == [inlet[0], beach[0]]
+    assert g["spread"] == round(2.19 / 1.57, 2)                           # same sea in: this is the spot alone
+    assert sp.shared_cells(rows[1:3]) == []                               # no two spots share a cell
+    text = sp.render(rows, {"panel_size": 30})
+    assert "### Spots sharing a model cell (same model, same hour, same cell" in text and "largest over smallest" in text
+    assert "| 29.000, -80.750 | 2 |" in text and "| 1.39 |" in text      # the cell to 3 decimals, and how many spots share it
+    odd = sp.panel_row(inlet, _payload(21.625, -158.125, 1.0, 1.5), None), sp.panel_row(beach, _payload(21.625, -158.125, 1.0, 1.2), None)
+    assert "| 21.625, -158.125 | 2 |" in sp.render(list(odd), {"panel_size": 30})        # a 0.125 grid is not rounded away
+    assert "none this run" in sp.render(rows[1:3], {"panel_size": 30})
+
+
+def test_the_spots_with_no_break_depth_are_listed_every_run():
+    rows = [sp.panel_row(sp.PANEL[7], _payload(29.0, -80.75, 1.0, 2.19, break_depth=None), None),
+            sp.panel_row(sp.PANEL[8], _payload(29.0, -80.75, 1.0, 1.57), None),
+            sp.panel_row(sp.PANEL[12], _payload(36.25, -75.5, 1.0, 0.93, break_depth=None), None)]
+    assert sp.no_break_depth(rows) == sorted([sp.PANEL[7][0], sp.PANEL[12][0]])
+    text = sp.render(rows, {"panel_size": 30})
+    assert "### No break depth this run (2 of 3 read)" in text and "Duck, New Smyrna Beach - Inlet" in text
+    assert "### No break depth this run (0 of 1 read)" in sp.render(rows[1:2], {"panel_size": 30})
+
+
+def test_the_slowest_read_is_printed_so_the_threshold_can_be_checked_from_the_log():
+    slow = Backend(slow_at=3)
+    out = sp.run(BASE, NOW, get=slow, sleep=lambda s: None)
+    assert out["meta"]["slowest_read"] == "9.0 s at '%s'" % sp.PANEL[2][0] and out["rows"][2]["read_s"] == 9.0
+    quick = sp.run(BASE, NOW, get=Backend(), sleep=lambda s: None)
+    assert quick["meta"]["slowest_read"].startswith("0.5 s at ") and all(r["read_s"] == 0.5 for r in quick["rows"])
+    text = sp.render(quick["rows"], quick["meta"])
+    assert "- slowest read: 0.5 s at " in text and "(the run stops above 8 s)" in text
+    assert "- slowest read: not recorded" in sp.render([], {"panel_size": 30, "stopped": "x"})
+
+
+class FakeClock:
+    """A wall clock the fake backend advances, so a read that RAISES still takes time."""
+
+    def __init__(self):
+        self.now = 0.0
+
+    def __call__(self):
+        return self.now
+
+
+def test_a_read_that_raises_after_the_limit_is_the_slowest_and_stops_the_run():
+    clock = FakeClock()
+
+    class TimesOut(Backend):
+        def __call__(self, url):
+            if "/api/weather/point" in url and self.points == 2:
+                self.points += 1
+                clock.now += 30.0                                       # the read hangs for 30 s, then raises
+                raise TimeoutError("read timed out")
+            return super().__call__(url)
+    be = TimesOut()
+    out = sp.run(BASE, NOW, get=be, sleep=lambda s: None, clock=clock)
+    # ONE slow failure stops it: no 10 s wait and no second ask of a box that just took 30 s to fail
+    assert be.points == 3 and len(out["rows"]) == 2
+    assert out["meta"]["stopped"] == "a read took 30s at '%s' and failed; the backend is busy" % sp.PANEL[2][0]
+    assert out["meta"]["slowest_read"] == "30.0 s at '%s' (that read FAILED)" % sp.PANEL[2][0]
+    assert be.urls[-1] == BASE + "/api/health"                          # health is still read at the end
+
+
+def test_a_slow_non_200_read_also_counts_and_stops_and_a_quick_failure_does_not():
+    class Slow503(Backend):
+        def __call__(self, url):
+            if "/api/weather/point" in url and self.points == 1:
+                self.points += 1
+                return 503, "busy", 12.0
+            return super().__call__(url)
+    out = sp.run(BASE, NOW, get=Slow503(), sleep=lambda s: None)
+    assert len(out["rows"]) == 1 and "a read took 12s" in out["meta"]["stopped"] and "and failed" in out["meta"]["stopped"]
+    assert out["meta"]["slowest_read"].startswith("12.0 s at ") and out["meta"]["slowest_read"].endswith("(that read FAILED)")
+
+    class Quick503(Backend):
+        def __call__(self, url):
+            if "/api/weather/point" in url and self.points == 1:
+                self.points += 1
+                return 503, "busy", 0.4
+            return super().__call__(url)
+    ok = sp.run(BASE, NOW, get=Quick503(), sleep=lambda s: None)
+    assert len(ok["rows"]) == 29 and ok["meta"]["stopped"] is None      # one quick failure is skipped, as before
+

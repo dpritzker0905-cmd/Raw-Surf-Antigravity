@@ -405,3 +405,14 @@ Director 21:22 EST asks for the top DECILE of observed wind as well. Added: `bia
 observed speed on rows whose observed speed is in the top 10%, per arm and bin), reported beside the top-third
 bias and the sd ratio. Labelled in the report as how light each arm reads on windy days. Reported only; no PASS line.
 Items (1) and (2) of the same message were already in amendment 4 (C1 replaced by C3/C4; 5-day blocks + FRAGILE).
+
+## 2026-11-16 09:37Z Merge authority for #946, #951 and #950 (director request)
+
+All three were merged by this lane on David's words typed in THIS session (`local_0d0d332f`) at 2026-11-15 20:32 EST:
+"push and merge what logically can be". Each was merged under the standing rules the director relayed at 20:33 EST:
+own PR, non-draft, every check green, the advisor passed, not held, `--squash --match-head-commit`.
+- #946: squash 2db995629.
+- #951: squash e28cec79a.
+- #950: squash ae4fe47e1.
+Their pr_merge lines: #946 and #951 in `ledger.d/claude--wind-emos-prereg.jsonl` (landed with #950); #950 in
+`ledger.d/claude--wind-merge-ledger.jsonl` (this docs-only PR). #939 (served) stays HELD on its hindcast gate.

@@ -21,6 +21,7 @@ import {
   clampViewportBbox
 } from './backendWeatherServiceClient';
 import { fetchBackendCopernicusGrid } from './backendCopernicusServiceClient';
+import { coarseRatedForView } from './marineRatingBandRes';
 import { recordTruthStage } from './weatherTruthTracker';
 
 import {
@@ -38,7 +39,8 @@ import {
   hasTimeCoverage,
   isContainedInMarineCache,
   recordSelectorLookup,
-  aliasMarineHourByInstant
+  aliasMarineHourByInstant,
+  ratedFinestCellDeg,
 } from './marineControllerCache';
 
 import { extractMarineAtOffset } from './marineControllerExtractor';
@@ -195,6 +197,7 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
   // (the plain/surf frame-mixing family). Folded into layerPart so every key template AND the
   // prefix-scan fallbacks inherit it.
   const layerPart = (_isAllVarModel(wanted) ? 'all' : wantedLayer) + (getSurfModeFlag() ? '~surf' : '');
+  const _finestRated = bounds ? ratedFinestCellDeg(`${wanted}_${layerPart}_`, wantedHour, bounds) : null;   // coarseRatedForView's 2x leg
   let exact = null;
   if (bounds) {
     const clampRes = clampViewportBbox(bounds, wantedLayer, wanted, 'marine');
@@ -216,7 +219,8 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
             sig.boundsStr === bStr &&
             sig.cols === (g.cols || 0) &&
             sig.rows === (g.rows || 0) &&
-            sig.vectorsLength === (g.vectors?.length || 0)) {
+            sig.vectorsLength === (g.vectors?.length || 0) &&
+            !coarseRatedForView(g, bounds, undefined, _finestRated)) {   // a rating grid the band cannot paint here is not served (marineRatingBandRes)
           hitData = exact.data;
           cacheSource = 'per_model_hour_cache_exact';
         }
@@ -280,7 +284,7 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
                     sig.boundsStr === bStr &&
                     sig.cols === (g.cols || 0) &&
                     sig.rows === (g.rows || 0) &&
-                    sig.vectorsLength === (g.vectors?.length || 0)) {
+                    sig.vectorsLength === (g.vectors?.length || 0) && !coarseRatedForView(g, bounds, undefined, _finestRated)) {
                   if (_tightestOff) {
                     hitData = entry.data;
                     cacheSource = 'per_model_hour_cache_contained';
@@ -351,7 +355,7 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
               sig.boundsStr === bStr &&
               sig.cols === (g.cols || 0) &&
               sig.rows === (g.rows || 0) &&
-              sig.vectorsLength === (g.vectors?.length || 0)) {
+              sig.vectorsLength === (g.vectors?.length || 0) && !coarseRatedForView(g, bounds, undefined, _finestRated)) {
             hitData = v.data;
             cacheSource = 'per_model_hour_cache_prefix';
             break;
@@ -515,6 +519,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   if (!forceFetch) {
     // Mode-keyed like getModelSafeMarine (surf/plain frames must never cross-hit).
     const layerPart = (_isAllVarModel(model) ? 'all' : activeLayer) + (getSurfModeFlag() ? '~surf' : '');
+  const _finestRated = bounds ? ratedFinestCellDeg(`${model || 'GFS'}_${layerPart}_`, hourOffset, bounds) : null;   // coarseRatedForView's 2x leg
     const tileId = clampRes.selectedTileId || 'outside';
     aliasMarineHourByInstant(model, activeLayer, tileId, hourOffset);   // GRID_INSTANT_KEY (marineControllerCache.js): no refetch of a held instant
     const exact = _perModelHourCache.get(`${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`);
@@ -536,7 +541,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
               sig.boundsStr === bStr &&
               sig.cols === (g.cols || 0) &&
               sig.rows === (g.rows || 0) &&
-              sig.vectorsLength === (g.vectors?.length || 0)) {
+              sig.vectorsLength === (g.vectors?.length || 0) && !coarseRatedForView(g, bounds, undefined, _finestRated)) {
             _updateDiagnosticsOnCacheHit(exact.data, model || 'GFS', hourOffset, activeLayer, bounds);
             _rewarmWashBaseIfStale(model || 'GFS', hourOffset, bounds, activeLayer);
             return exact.data;
@@ -582,7 +587,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
                   sig.boundsStr === bStr &&
                   sig.cols === (g.cols || 0) &&
                   sig.rows === (g.rows || 0) &&
-                  sig.vectorsLength === (g.vectors?.length || 0)) {
+                  sig.vectorsLength === (g.vectors?.length || 0) && !coarseRatedForView(g, bounds, undefined, _finestRated)) {
                 _updateDiagnosticsOnCacheHit(entry.data, model || 'GFS', hourOffset, activeLayer, bounds);
                 _rewarmWashBaseIfStale(model || 'GFS', hourOffset, bounds, activeLayer);
                 return entry.data;

@@ -6,7 +6,7 @@ import { describeDrawnFrame, describeCoarseGrid, describeNothingDrawn, latticeNe
 import { getSeriesAnchorMs, getSharedValidTime } from './backendWeatherServiceClient';
 import { HOLD_INDICATOR_MS, holdNoDimKilled } from './marineStaleHour';
 import { useRasterDrawnFrame, describeRasterFrame, RASTER_STATUS_LAYERS, PENDING_QUIET_MS } from './rasterDrawnFrame';
-import { ratingBandHeldText } from './marineRatingBandRes';
+import { ratingBandHeldText, ratedRunText } from './marineRatingBandRes';
 import { ratingBandLoadingText } from './marineFlavorToggle';
 import { useColdVeilState, describeColdVeil } from './marineColdVeil';
 
@@ -81,6 +81,13 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
     return ratingBandLoadingText(rb && rb.forcedOff, window.__RAW_BAND_TOGGLE_AT__) ? 'loading' : null;   // just switched ON, the rating grid still on its way
   };
   const [heldBy, setHeldBy] = useState(readHeldBy);
+  // The band's RUN AGE (marineRatingBandRes.ratedRunText): read off the grid the engine is painting, only while the band is painted.
+  const readRatedRun = () => {
+    if (typeof window === 'undefined' || !window.__RAW_GPU__ || !window.__RAW_GPU__.ratingBand || !window.__RAW_GPU__.ratingBand.active) return null;
+    const e = window.__MARINE_ENGINE__; const g = e && e._waveData && e._waveData.waveGrid;
+    return g && g.ratingMode && g.ratedRun ? ratedRunText(g.ratedRun) : null;
+  };
+  const [ratedRunLine, setRatedRunLine] = useState(readRatedRun);
   const pendingKey = readout && readout.state === 'pending' ? readout.text : null;
   const [longPending, setLongPending] = useState(false);
   useEffect(() => {
@@ -91,7 +98,7 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
   }, [pendingKey]);
   useEffect(() => {
     setStatus(readStatus());
-    const timer = setInterval(() => { setStatus(readStatus()); setHeldBy(readHeldBy()); }, 500);
+    const timer = setInterval(() => { setStatus(readStatus()); setHeldBy(readHeldBy()); setRatedRunLine(readRatedRun()); }, 500);
     return () => clearInterval(timer);
   }, [readStatus]);
 
@@ -111,7 +118,11 @@ export default function ForecastTimeStatus({ model, layer, hour, theme, radarMs 
   const coarseLine = coarse ? (
     <div role="status" aria-live="polite" data-coarse-grid={coarse.deg} className={`mt-1 text-xs ${quiet}`}>{coarse.text}</div>
   ) : null;
-  const heldLine = bandLine || coarseLine ? <>{bandLine}{coarseLine}</> : null;
+  // The run-age words, quiet (not a warning), all three themes; only while the band is painted and not held (the held line says more).
+  const runLine = !isRaster && !heldText && ratedRunLine ? (
+    <div role="status" aria-live="polite" data-rated-run-label="on" className={`mt-1 text-xs ${quiet}`}>{ratedRunLine}</div>
+  ) : null;
+  const heldLine = bandLine || runLine || coarseLine ? <>{bandLine}{runLine}{coarseLine}</> : null;
   if (readout) {
     return (
       <>
