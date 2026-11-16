@@ -801,3 +801,10 @@ advisor first. Its checklist:
    pre-window-demeaned residual), and the window was kept because the counts met the minimums. That truth was fetched
    BEFORE the S1 preflight; the P1 / P1' choice stays mechanical, by S1 availability only. **No further truth-only
    looks at this window before the run.**
+
+## 17:06 EST 2026-11-16 (`date`) - G3 registration closed (advisor 22:07Z: no open point at beab9f76c)
+- **Label carried, not a condition:** with 3 storm units, the bootstrap has only 27 possible resamples, and one storm is
+  a single gauge for 21 h. Whatever item 3 returns is reported as **"on 3 storms, low power"**, in the result and in
+  the scoreboard row, and is never cited alone as evidence about surge skill.
+- Remaining before the owner's word: build the code (the owner's call), then send its head to the advisor with the
+  21:30Z checklist.
