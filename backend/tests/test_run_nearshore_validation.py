@@ -55,17 +55,22 @@ def _matched_row(**over):
     return row
 
 
-def test_factor_rows_carry_the_whitelist_and_the_factors_and_nothing_else():
+def test_factor_rows_publish_a_ratio_and_the_factors_and_no_forecast_value():
     from services.weather_pipeline.nearshore_validation import FACTOR_ROW_KEYS, factor_rows
     rows = factor_rows([_matched_row(station="b", spot="Z"), _matched_row(station="a"),
-                        _matched_row(factors=None), _matched_row(station="a", valid_time="2026-11-17T03:00:00Z")])
-    assert [(r["station"], r["valid_time"]) for r in rows] == [
-        ("a", "2026-11-17T03:00:00Z"), ("a", "2026-11-17T06:00:00Z"), ("b", "2026-11-17T06:00:00Z")]   # sorted; no-factor row skipped
-    assert set(rows[0]) == set(FACTOR_ROW_KEYS) | {"factors"}
+                        _matched_row(factors=None), _matched_row(station="a", valid_time="2026-11-16T03:00:00Z"),
+                        _matched_row(model_hs_m=0.0), _matched_row(obs_hs_m=None)])
+    # sorted; the no-factor row and the rows without a positive model and observation are skipped
+    assert [(r["station"], r["day"]) for r in rows] == [("a", "2026-11-16"), ("a", "2026-11-17"), ("b", "2026-11-17")]
+    assert all(tuple(r) == FACTOR_ROW_KEYS for r in rows)
     assert set(rows[0]["factors"]) == {"friction", "shoaling", "exposure", "kr", "total"}
-    assert "upstream_provider" not in rows[0] and "model_hs_legacy_friction_m" not in rows[0] and "obs_time" not in rows[0]
-    # a row is enough to undo a factor: model / kr is the model with the refraction constant off
-    assert rows[0]["model_hs_m"] / rows[0]["factors"]["kr"] == 1.05 / 0.873 and rows[0]["obs_hs_m"] == 1.6
+    assert rows[0]["model_over_obs"] == round(1.05 / 1.6, 4)
+    # a row is enough to undo a factor: ratio / kr is the ratio with the refraction constant off
+    assert rows[0]["model_over_obs"] / rows[0]["factors"]["kr"] == round(1.05 / 1.6, 4) / 0.873
+    # NO served forecast value, and no hour, leaves the run: this file is a public-repo artifact
+    text = repr(rows)
+    for leak in ("model_hs_m", "offshore_hs_m", "tp_s", "swell_from_deg", "obs_hs_m", "valid_time", "T06:00", "upstream_provider", "spot"):
+        assert leak not in text
     assert factor_rows([]) == [] and factor_rows(None) == []
 
 
