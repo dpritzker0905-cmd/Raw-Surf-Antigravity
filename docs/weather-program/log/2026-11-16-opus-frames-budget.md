@@ -47,3 +47,27 @@ Over the 4 pilots runs after the change is live, in at least 3 of 4:
 
 Fail = a timeout, or skips over the line in 2 of 4 runs: revert the variables. Rollback: the two numbers back (repo variable or
 revert).
+
+## 23:48Z: addendum before any code: the rated step's own numbers (the rating-band session), and two corrections
+
+The rating-band session (PR #991, its log section 13) read the rated step of run 43950205417 (the first run with #975) by tier:
+- **Tier 0**, the 19 GFS regional waves bundles: 19 built, 290 s.
+- **Tier 1**, GFS world waves: 96 s.
+- **Tier 2**, the other 64 rated sets (swell_1 / swell_2 / wind_waves regional bundles plus the EURO / ICON / GFS world rated
+  sets): 5 built in 202 s, 59 skipped. Their per-set cost: regional 8-33 s, world 36-105 s. All 64 would take about 900-1,100 s on
+  top of tiers 0-1.
+- **Tier 2 on the public index at 23:14Z:** 8 equal to their plain sibling, 34 behind by 6 h, 13 by 12 h, 9 by 18 h. Under #933's
+  bound, the 22 sets more than one cycle behind send their rated asks to /grid on the box. **So the rated backlog also loads the
+  serve box**, not only staleness.
+- In the same run the plain step skipped 14 of the 19 plain GFS regional waves bundles, so in those boxes the rated band was one run
+  NEWER than the plain wave layer.
+
+**Corrections to the proposal above:**
+1. The rated step's budget is `FRAME_RATING_BUDGET_S` (600 s; its step timeout allows about 780 s), not FRAME_PUBLISH_BUDGET_S.
+2. The rated raise must cover tiers 0-2: about 390 s + 900-1,100 s, so about 1,300-1,500 s. The proposal is **FRAME_RATING_BUDGET_S
+   600 -> 1,800 s** with the rated step timeout 14 -> 35 min, not 1,500 s. The frames-step proposal (960 -> 1,260 s, timeout 22 ->
+   27 min) stands; it also covers the 14 skipped plain GFS waves bundles (about 2 s each).
+3. Cost, restated: at most about +25 min of job time a run (+300 s frames, +1,200 s rated), so about 190-200 min against the 300-min
+   timeout.
+4. The gate gains one line: **5. no rated set more than one cycle behind its plain sibling at the end of the run** (so #933's
+   bound sends nothing to /grid on the box).
