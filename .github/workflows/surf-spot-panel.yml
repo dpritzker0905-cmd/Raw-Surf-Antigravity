@@ -13,13 +13,15 @@
 # healthy, and stops early if a read is slow or two fail in a row: ONE 1-CPU box serves production and dev, and this
 # must never become a load test.
 #
-# WHEN IT RUNS: workflow_dispatch ONLY. There is NO schedule here on purpose: a run every 6 h is the brief's intent,
-# and turning that on is the OWNER'S word, recorded as a ledger line, in a PR of its own. GitHub runs a
-# workflow_dispatch file only once it is on the default branch (dev), so merging this file is the first word and each
-# dispatch the second.
+# WHEN IT RUNS: every 6 hours (17 minutes past 00, 06, 12 and 18 UTC, off the hour so it does not land on the
+# ingest and monitor jobs), and on workflow_dispatch. The schedule is the OWNER'S word (2026-11-15 19:49 EST, relayed
+# by the director: continuous live verification), added in a PR of its own after the first dispatch. Four runs a day,
+# about 30 spaced reads each. To stop it, delete the `schedule:` block; nothing else depends on it.
 name: Surf Spot Panel
 
 on:
+  schedule:
+    - cron: '17 */6 * * *'
   workflow_dispatch:
     inputs:
       base:

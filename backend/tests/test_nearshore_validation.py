@@ -161,3 +161,51 @@ def test_without_a_floor_the_report_is_unchanged_for_library_callers():
     """CONTROL: the floor is the runner's policy (passed explicitly), not a new default for every caller."""
     rep = NV.build_report(_rows(1, spots_per_hour=1), n_stations=1, n_obs=1, n_preds=1)
     assert rep["available"] is True and rep["n_station_hours"] == 1
+
+
+# ── per-row transform factors (2026-11-16, S0 ablation gate): the report keeps only their median ──────────
+# These live HERE, not in test_run_nearshore_validation.py: importing a chain module there moves that whole file
+# from the estate lane to the chain lane (ci_test_lanes.CHAIN_IMPORTS), and the estate floor loses its tests.
+def _factor_matched_row(**over):
+    row = {"station": "143p1", "spot": "A", "valid_time": "2026-11-17T06:00:00Z", "offshore_hs_m": 1.5, "tp_s": 9.0,
+           "swell_from_deg": 280.0, "model_hs_m": 1.05, "obs_hs_m": 1.6, "obs_time": "2026-11-17T06:10:00Z",
+           "factors": {"friction": 1.0, "shoaling": 0.94, "exposure": 0.85, "kr": 0.873, "total": 0.6975},
+           "upstream_provider": "x", "model_hs_legacy_friction_m": 0.9, "n_trains": 2}
+    row.update(over)
+    return row
+
+
+def test_factor_rows_publish_a_ratio_and_the_factors_and_no_forecast_value():
+    from services.weather_pipeline.nearshore_validation import FACTOR_ROW_KEYS, factor_rows
+    rows = factor_rows([_factor_matched_row(station="b", spot="Z"), _factor_matched_row(station="a"),
+                        _factor_matched_row(factors=None), _factor_matched_row(station="a", valid_time="2026-11-16T03:00:00Z"),
+                        _factor_matched_row(model_hs_m=0.0), _factor_matched_row(obs_hs_m=None)])
+    # sorted; the no-factor row and the rows without a positive model and observation are skipped
+    assert [(r["station"], r["day"]) for r in rows] == [("a", "2026-11-16"), ("a", "2026-11-17"), ("b", "2026-11-17")]
+    assert all(tuple(r) == FACTOR_ROW_KEYS for r in rows)
+    assert set(rows[0]["factors"]) == {"friction", "shoaling", "exposure", "kr", "total"}
+    assert rows[0]["model_over_obs"] == round(1.05 / 1.6, 4)
+    # a row is enough to undo a factor: ratio / kr is the ratio with the refraction constant off
+    assert rows[0]["model_over_obs"] / rows[0]["factors"]["kr"] == round(1.05 / 1.6, 4) / 0.873
+    # NO served forecast value, and no hour, leaves the run: this file is a public-repo artifact
+    text = repr(rows)
+    for leak in ("model_hs_m", "offshore_hs_m", "tp_s", "swell_from_deg", "obs_hs_m", "valid_time", "T06:00", "upstream_provider", "spot"):
+        assert leak not in text
+    assert factor_rows([]) == [] and factor_rows(None) == []
+
+
+def test_the_runner_writes_the_rows_only_when_asked_and_the_report_is_untouched():
+    import inspect
+    from scripts import run_nearshore_validation as R
+    src = inspect.getsource(R.main)
+    assert '"--rows-json", default=""' in src and "if args.rows_json:" in src and "factor_rows(matched)" in src
+    # the rows file is written AFTER the report and from the same matched list; the report dump itself is unchanged
+    assert src.index("json.dump(report, f, indent=1)") < src.index("factor_rows(matched)")
+
+
+def test_the_workflow_asks_for_the_rows_and_uploads_them():
+    import os
+    path = os.path.join(os.path.dirname(__file__), "..", "..", ".github", "workflows", "nearshore-validation.yml")
+    text = open(path, encoding="utf-8").read()
+    assert "--json nearshore_report.json --rows-json nearshore_rows.json" in text
+    assert "backend/nearshore_rows.json" in text and "backend/nearshore_report.json" in text
