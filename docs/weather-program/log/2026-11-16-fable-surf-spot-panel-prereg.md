@@ -3,7 +3,7 @@
 Session: Fable repair lead (`e372475c`). Branch `fable/surf-spot-panel`, cut from `dev` `90d16bd2d`.
 Changes no served number and no flag. Adds a dispatch-only workflow that cannot run until the owner says so.
 
-## 2026-11-16 00:50Z Where this comes from
+## 2026-11-16 00:37Z Where this comes from
 
 The director relayed a brief (2026-11-15 19:26 EST) built on the owner's field report in the senior research lead's
 session (19:07 to 19:12 EST). I did not see the owner's words; what follows is the relay.
