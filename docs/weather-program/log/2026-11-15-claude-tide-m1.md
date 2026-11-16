@@ -415,3 +415,30 @@ changed.
     Honolulu, for the full arm and for SA alone. Boston is undefined on both paths.
   - Memory: peak RSS **4526 MB**, flat after the first (single) atlas load.
   - A 19-year 10-min synthesis (999,360 times) takes **5.1 s**. The old path took ~2.4 s and a full atlas load per call.
+
+## 15:12 EST 2026-11-16 (`date`) - arm B identity at all 26 gauges; gate hardened (before a third start)
+- **Correction (advisor 20:01Z).** The earlier line "plumbing only, no arm touched" was wrong for 43a710922. Accurate:
+  **arm B's evaluation path was rewritten and shown numerically identical to pyTMD's one-call path.**
+- **Identity at ALL 26 gauges** (advisor's condition). Run 43945722463, check branch `5dbe3d38d`, calendar 2025,
+  public data. Raw JSON: notes `tide-overlay-2026-11-15/eot20-equivalence-26-gauges-2025.json`.
+  - Definedness agrees at every gauge: 20 defined on both paths, 6 undefined on both. None is defined on one path only.
+  - Max |diff| over 8760 hours, full arm and SA alone: **0.0 m** at 18 of the 20 defined gauges; 2.2e-16 m (Atlantic
+    City) and 8.3e-17 m (Charlotte Amalie) are floating-point rounding.
+  - **EOT20 is UNDEFINED within 10 km at 6 gauges:** Kahului 1615680, La Jolla 9410230, Los Angeles 9410660, Boston
+    8443970, Newport 8452660, Fernandina Beach 8720030. Under item 2 those count against arm B, so **arm B is expected
+    to fail item 2 on coverage**. Recorded before the run; the 10 km cutoff is unchanged.
+  - **Seen-list addition:** arm B (EOT20) on calendar 2025 at all 26 gauges. Evaluator identity only; no truth scored.
+- **Memory.**
+  - The check process peaked at 7757 MB, but it also ran pyTMD's one-call reference path 52 times.
+  - Arm B alone (the gate's path) sat flat at 4526 MB.
+  - In the gate, FES2022b is subset (one global grid at a time, written as small per-station boxes) BEFORE EOT20 is
+    opened, and PyFES then reads only those small boxes, so the arms' peaks do not stack.
+  - The hosted runner for a public repository has 16 GB.
+  - The gate now prints peak RSS at each stage, so the combined figure will be measured, not inferred.
+- **Evidence if it dies.** One flushed line per stage and per gauge, showing the stage name and peak RSS ONLY
+  (`stage station <id> arm A|B`, `stage station <id> done`, the subset and download stages). The per-station
+  score line is gone: scores reach only the final summary and the artifact. Pinned by
+  `test_the_gate_logs_stages_and_memory_never_scores`.
+- **Versions pinned:** pyfes 2026.5.2, pyTMD 3.1.0, **timescale 0.1.3** (new), so the identity cannot break silently on
+  a version bump; the test checks the pins.
+- A third start needs the owner's word.

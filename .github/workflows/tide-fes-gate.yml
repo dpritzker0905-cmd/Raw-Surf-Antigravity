@@ -32,7 +32,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install (offline-only dependencies; pyfes pinned to a release with a binary wheel)
-        run: pip install "pyfes==2026.5.2" "pyTMD==3.1.0" "paramiko==5.1.0" netCDF4 numpy pyyaml pandas lxml
+        run: pip install "pyfes==2026.5.2" "pyTMD==3.1.0" "timescale==0.1.3" "paramiko==5.1.0" netCDF4 numpy pyyaml pandas lxml
       # AVISO SFTP ran ~160 KB/s per connection on the first run (17 min per 160 MB file; 8 of 16 files when the
       # 150-min limit cancelled it, and nothing was cached). So: 4 connections, a large SSH window, a download step of
       # its own, and caches restored from the newest run and SAVED EVEN WHEN THE DOWNLOAD FAILS, so progress carries over.

@@ -139,3 +139,15 @@ def test_seasonal_refit_recovers_a_known_constant():
     vals = [0.05 * math.cos(math.radians(M.sun_mean_longitude_deg(t) - 150.0)) + 0.01 for t in times]
     a, g = arms.fit_seasonal(times, vals, 1)
     assert abs(a - 0.05) < 1e-3 and abs(g - 150.0) < 0.5
+
+
+def test_the_gate_logs_stages_and_memory_never_scores():
+    """Advisor 20:01Z: a dead runner must leave a trail (stage + memory per gauge), and a partial log must never leak a
+    partial result: scores reach only the final summary and the artifact."""
+    src = (BACKEND / "scripts" / "tide_fes" / "fes_gate.py").read_text(encoding="utf-8")
+    assert "log(json.dumps" not in src and 'stage(f"station {sid} done")' in src
+    for line in src.splitlines():
+        if line.strip().startswith("log(") or " log(f" in line:
+            assert not re.search(r"rmse|row\[|score|hilo|mllw", line), line
+    wf = (BACKEND.parent / ".github" / "workflows" / "tide-fes-gate.yml").read_text(encoding="utf-8")
+    assert '"pyTMD==3.1.0"' in wf and '"timescale==0.1.3"' in wf and '"pyfes==2026.5.2"' in wf   # the identity is version-bound
