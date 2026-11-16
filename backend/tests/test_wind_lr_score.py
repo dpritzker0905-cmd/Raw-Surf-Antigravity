@@ -122,6 +122,7 @@ def test_metrics_report_sd_ratio_and_top_third_bias():
     e = S.errors(-fc, np.zeros_like(fc), fc, fc, obs, np.full_like(obs, 90.0), obs)
     m = S.metrics(e, np.ones(obs.size, bool))
     assert m["sd_ratio"] == pytest.approx(0.5, abs=0.01) and m["bias_top_third_obs"] < -1.0
+    assert m["bias_top_decile_obs"] < m["bias_top_third_obs"]          # lighter still on the windiest days
 
 
 def test_positive_control_finds_the_seeded_bias():

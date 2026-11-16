@@ -398,3 +398,10 @@ would be a forking path. Changed before, it is a design correction, and it is re
 - `wind-lr-hindcast.yml`: dispatch-only. The hindcast is dispatched once from dev after #946 merges.
 - Tests: 31 instrument tests (C3 pass/void, C4 pass/void, C1 reported, shared P1/P2 rows, FRAGILE under
   persistent errors, sd ratio and top-third bias on a smoothed field).
+
+## 2026-11-16 02:55Z Amendment 4, director addendum (BEFORE any result)
+
+Director 21:22 EST asks for the top DECILE of observed wind as well. Added: `bias_top_decile_obs` (forecast minus
+observed speed on rows whose observed speed is in the top 10%, per arm and bin), reported beside the top-third
+bias and the sd ratio. Labelled in the report as how light each arm reads on windy days. Reported only; no PASS line.
+Items (1) and (2) of the same message were already in amendment 4 (C1 replaced by C3/C4; 5-day blocks + FRAGILE).

@@ -95,15 +95,17 @@ def metrics(e: Dict[str, np.ndarray], mask: np.ndarray) -> dict:
         return float(x.mean()) if x.size else float("nan"), int(x.size)
     ae, n = m(e["ae"])
     vs, _ = m(e["vsq"])
-    sd_ratio, top_bias = float("nan"), float("nan")
+    sd_ratio, top_bias, dec_bias = float("nan"), float("nan"), float("nan")
     if "fs" in e and "os" in e:
         ok = mask & np.isfinite(e["fs"]) & np.isfinite(e["os"])
         if ok.sum() > 2 and np.std(e["os"][ok]) > 0:
             sd_ratio = float(np.std(e["fs"][ok]) / np.std(e["os"][ok]))     # < 1: the forecast is too smooth
             top = ok & (e["os"] >= np.percentile(e["os"][ok], 100 * 2 / 3))
             top_bias = float(np.mean(e["fs"][top] - e["os"][top])) if top.any() else float("nan")
+            dec = ok & (e["os"] >= np.percentile(e["os"][ok], 90))       # director 2026-11-16: the windiest decile
+            dec_bias = float(np.mean(e["fs"][dec] - e["os"][dec])) if dec.any() else float("nan")
     return {"speed_mae": ae, "n": n, "speed_bias": m(e["err"])[0], "vector_rmse": math.sqrt(vs) if vs == vs else vs,
-            "sd_ratio": sd_ratio, "bias_top_third_obs": top_bias,
+            "sd_ratio": sd_ratio, "bias_top_third_obs": top_bias, "bias_top_decile_obs": dec_bias,
             "dir_mae_ge3": m(e["dae"])[0], "n_dir": m(e["dae"])[1], "gust_mae": m(e["gae"])[0],
             "gust_bias": m(e["gerr"])[0], "n_gust": m(e["gae"])[1]}
 
