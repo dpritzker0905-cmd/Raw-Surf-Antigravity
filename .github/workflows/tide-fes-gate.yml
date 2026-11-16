@@ -1,0 +1,48 @@
+name: Tide M1 gate (FES2022b via PyFES vs NOAA CO-OPS)
+# WHY (director 2026-11-15 21:23 EST, owner: "nothing depending on open-meteo", "best path toward state of the art"):
+# M1 replaces model sea level with an astronomical tide. This job is the PRE-REGISTERED gate
+# (docs/weather-program/log/2026-11-15-claude-tide-m1.md): FES2022b extrapolated ocean tide, evaluated with PyFES at
+# 26 CO-OPS stations, scored against CO-OPS predictions, High/Low times and observed water.
+# PyFES is GPL: it runs ONLY here, never in the served backend. Measurement only: no bucket write, no live backend call.
+# AVISO credentials come from the AVISO_USERNAME / AVISO_PASSWORD secrets, read by the script from the environment and
+# never printed. Public CO-OPS GETs only.
+on:
+  workflow_dispatch:
+  push:
+    branches: [claude/tide-m1]
+    paths:
+      - backend/scripts/tide_fes/**
+      - .github/workflows/tide-fes-gate.yml
+permissions:
+  contents: read
+concurrency:
+  group: tide-fes-gate
+  cancel-in-progress: true
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install (offline-only dependencies; pyfes pinned to a release with a binary wheel)
+        run: pip install "pyfes==2026.5.2" "paramiko==5.1.0" netCDF4 numpy pyyaml
+      - name: Cache the FES2022b constituent downloads (compressed)
+        uses: actions/cache@v4
+        with:
+          path: fes_cache
+          key: fes2022b-extrapolated-v1-${{ hashFiles('backend/scripts/tide_fes/fes_gate.py') }}
+          restore-keys: fes2022b-extrapolated-v1-
+      - name: Run the gate
+        env:
+          AVISO_USERNAME: ${{ secrets.AVISO_USERNAME }}
+          AVISO_PASSWORD: ${{ secrets.AVISO_PASSWORD }}
+        run: python backend/scripts/tide_fes/fes_gate.py --cache fes_cache --work fes_work > fes_gate.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tide-fes-gate
+          path: fes_gate.json
+          retention-days: 30

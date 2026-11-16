@@ -36,3 +36,16 @@ evaluated at the station's own coordinate, hourly, over the 14 UTC days before t
   miss surge; this checks that FES adds no error of its own beyond NOAA's.
 - **Shadow then cutover:** served beside today's values (a shadow field) first; cutover behind a kill switch with a
   SCOREBOARD row. No served number moves in the gate PR.
+
+## 21:39 EST (`date`) - the gate job, written (not yet run)
+- `backend/scripts/tide_fes/fes_gate.py` + `.github/workflows/tide-fes-gate.yml` (runs on push to `claude/tide-m1`
+  and on dispatch). PyFES pinned `2026.5.2` (the newest release with a cp312 manylinux wheel; 2026.10.0 is sdist-only).
+  AVISO over SFTP (paramiko, port 2221) with the secrets read from the environment; the PUBLIC host key fingerprint
+  is logged on the first run so a later run can pin it (first run does not verify it: recorded gap).
+- Memory: each global grid is decompressed one at a time, a 0.5 deg box around each station is cut out, the global
+  file deleted; PyFES then loads only the boxes.
+- **Note on the baseline:** #926's 0.117 m is the model DE-MEANED over the served 72 h window. FES is gated on its RAW
+  RMSE (no de-mean) against the same truth, the stricter reading; the de-meaned figure is reported beside it.
+- Guard: `tests/test_tide_fes_offline_guard.py` - no `pyfes` / `tide_fes` import under `server.py`, `services/`,
+  `routes/`, and no pyfes in `requirements.txt`.
+- Not yet: EOT20 arm, the per-spot precompute + bucket write, the serving reader, MLLW/LAT. Those follow the gate.
