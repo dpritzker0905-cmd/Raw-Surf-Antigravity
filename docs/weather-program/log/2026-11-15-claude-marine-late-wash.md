@@ -212,3 +212,26 @@ CPU before 45.6 % (08:20 EST), after 64.2 % (10:15 EST): the after reading is ab
 2-AA2-DISCARDED-cpu64.json). Two of two runs are lost to load from other sessions sharing this machine, which cannot be stopped
 from here. Next: the advisor is asked whether to move the A/A and the A/B to a GitHub-hosted runner (6 b point 4 allows a hosted
 runner, but it changes the registered machine). Nothing runs until the advisor answers.
+
+### 6e. Amendment: a GitHub-hosted runner (2026-11-16 10:44 EST by the clock; before any hosted run, and before the workflow exists)
+After two local A/A runs were discarded unread by the CPU rule (6c, 6d), and with the advisor's agreement (15:23Z), the A/A and the
+A/B ALSO run on a GitHub-hosted runner. Everything in sections 6, 6a and 6b applies unchanged except as written here.
+1. **What it measures: "hosted runner, software GL".** A hosted runner has no GPU, so Chrome draws WebGL in software. The ~140 ms
+   texture upload #937 is about becomes a CPU memory copy with different timing, and there is no GPU process to stall. A hosted
+   result speaks to main-thread scheduling, long tasks and censoring. It may say little about the upload on a real GPU, least of all
+   on a phone's. Every hosted result is labelled "software GL". A hosted PASS is NECESSARY, NOT SUFFICIENT, for shipping ON; a hosted
+   FAIL is a FAIL.
+2. **The line is unchanged** (5 / 15 / 15 ms, censored-share 2 pp). The hosted A/A decides whether this instrument resolves it there;
+   if R is far above the line, the outcome is UNRESOLVED, which is an acceptable answer.
+3. **Noise on the runner.** Hosted runners are shared virtual machines (2-4 cores) whose neighbours are not visible in a CPU reading.
+   The CPU before / after is still recorded for consistency, but the 60 % rule does not decide a hosted run: there, the A/A is the
+   noise check. The job records the runner image, core count, Chrome version and the GL renderer string in its output.
+4. **Plumbing.** One job, no matrix. It starts ONLY on a pushed tag steptime-937-* (a one-shot tag; the workflow file is on this
+   branch, not on dev, so workflow_dispatch is not available). No branch push and no pull_request event can start it. It holds NO
+   secret. It talks only to processes it starts itself: serve_synthetic, serve_spa and the lab CDN on localhost, built in the job from
+   the synthetic store. Never the live backend (the scenario throws on AB_LIVE=1). A/A first, then A/B, in that one job. The A/B rows
+   are uploaded but not opened until the A/A has been read and sent to the advisor.
+5. **Starting it** is the director's call (a measurement-only job with no secrets and no served effect). The first run waits for the
+   director's word.
+6. **The local run stays owed** for the GPU half: the same v2 instrument, in quiet hours on this machine, under the same blind
+   discard rule. Until it exists, every verdict reads "on software GL".
