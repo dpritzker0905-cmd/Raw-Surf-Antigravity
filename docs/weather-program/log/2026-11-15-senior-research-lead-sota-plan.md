@@ -819,3 +819,46 @@ Access: Actions needs the AVISO login as GitHub secrets, which the owner enters 
 
 For the surf tide, only the main constituents are needed (about 8-17 of 34), which keeps the download to a few GB at
 most.
+
+## 02:08Z Two director asks: the breaker-index equation for arm A, and the D-072 rule 1 redesign
+
+### 1. Breaker index (arm A). The paywalled equations are NOT transcribed.
+- **Not available:** Zhang 2021 (ScienceDirect HTTP 403) and Ruessink 2003 (Semantic Scholar: not open access). The
+  Power 2013 full text was not tried. I will not quote coefficients from memory.
+- **Open and verifiable path (SWAN documentation):**
+  - Battjes & Janssen (1978) breaking dissipation: D_tot = -alpha Q_b sigma H_max^2 / (8 pi) (eq. 2.65).
+  - (1 - Q_b) / ln Q_b = -8 E_tot / H_max^2 (eq. 2.66), with Q_b piecewise in H_rms/H_max (eq. 2.68).
+  - H_max = gamma d. Thornton & Guza (1983) alternative: Q_b = (H_rms / gamma d)^n, n = 4 (eq. 2.73).
+  - gamma values: Battjes-Janssen 0.8; Battjes-Stive 0.6-0.83 (mean 0.73, SWAN's CONSTANT default);
+    Kaminsky-Kraus 0.6-1.59.
+  - SWAN BKD option (gamma scales with bottom slope and kd): defaults gamma0 0.54, a1 7.59, a2 -8.06, a3 8.09 (SWAN
+    user manual, BREAKING command). Its functional form is in Salmon et al. 2015, or SWAN's open source; derive it
+    from those, do not copy code.
+- **Key design point** (Ruessink 2003 and Apotsos 2007 abstracts): gamma is a parameter of a CROSS-SHORE energy
+  balance, not a direct breaker/depth ratio. So arm A is a 1-D Battjes-Janssen (or Thornton-Guza) transect model,
+  stepping H_rms from the model point to shore.
+  - The surf height is the maximum H1/10 along the transect: H1/10 = 1.27 H_s and H_s = 1.414 H_rms (Rayleigh; the
+    chain already has the H1/10 factor).
+  - This is exactly the missing dissipation on gentle beaches.
+  - Arms: gamma 0.73 constant; BKD (slope, kd); and the current Komar path.
+- **Bed slope per spot:** a shore-normal TRANSECT from ETOPO 2022 15 arc-second (finer national or satellite-derived
+  bathymetry where the stack allows), sampled every ~100 m from shore to the 20 m contour or 3 km. The slope is a
+  least-squares fit over the 1 m to break-depth band. NOT depth over shelf width, which is contaminated at islands.
+
+### 2. D-072 rule 1 v2 (new pre-registration; scorer to be someone other than the verifier)
+- **Why P2 missed.** The bound is 1.24 x the worst basis delta (about 0.07 m). The unseeded delta drifted to about
+  -0.019 m on the test days, so a seeded +0.08 reached only about 0.06 m. An absolute level fails whenever the
+  baseline drifts.
+- **Statistic:** CHANGE = the 7-day paired delta minus its median over the previous 28 days, per lead.
+- **Bound:** max(basis p99 of CHANGE, per-day swap-null p99), both frozen from 08-15..10-31 before any test day is
+  read.
+- **Win rate:** diagnostic only (SubQ 0.95).
+- **P2':** seeded +0.08 fires on >= 12/14 of 11-01..11-14. +0.04 is reported as a sensitivity point, not gating.
+- **P1:** silent on the unseeded episode. **Null:** <= 1 page per 30 days.
+- **Rule 2:** keyed on the NAMED hole buoys (MEASURED_HOLES minus NAMED_PATH_STATIONS).
+- **Reference: no Open-Meteo.** The same-model control becomes NOAA's own GFS-Wave station point output
+  (`noaa-gfs-bdp-pds`: `gfs.YYYYMMDD/HH/wave/station/bulls.tHHz/gfswave.<buoy>.bull` and `.spec`). Checked on
+  2026-11-15 00Z: 41117, 46026, 51201, 51211 and 44090 exist; 46267 does not.
+  - SubQ rejected using our own pipeline's GFS read as the reference (0.12): it is not independent.
+  - With these changes SubQ scores the v2 design 2.19 of 3 (change statistic 0.997; gate can fail 0.997; rule 2
+    named 0.993).
