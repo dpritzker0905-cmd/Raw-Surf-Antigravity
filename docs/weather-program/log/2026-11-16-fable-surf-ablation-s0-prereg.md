@@ -622,3 +622,43 @@ write the same table. Public outputs carry aggregates only. The reader is not bu
 - Measured forcing removes our wave model from the test on purpose. It therefore says nothing about the served
   number's total error at Duck, only about the breaking step.
 - Scoring recorded by 2026-11-30T12:00Z (ledger commitment); the arm must be built first.
+
+## 2026-11-16 03:49Z FRF Duck WITHDRAWN as a truth source (owner's decision)
+
+The director relayed the owner's words of 2026-11-15 22:15 EST: "Skip using USACE and innovate free ways to figure it
+out in the SOTA methodology, innovate dig deeper". The section above (03:39Z) registered FRF Duck as breaking-truth
+source 1 at the director's request of 22:30 EST; the owner's decision predates that request and had not reached me.
+
+**Withdrawn in full.** FRF Duck is not a truth source for this gate. Nothing will be read from it, fitted to it or
+gated on it. The 03:39Z section stays in the log as written (append-only) and has no force: its T1 and T2, its
+window, its arms list, its controls and its ledger commitment (fragment line 4) are void.
+
+**What was touched, for the record.** Catalog folder and file names with their modification times, and the
+structure description (variable names and array sizes) of four files. No wave height, period, direction, water level
+or bed elevation was requested or read. Nothing from the FRF is in the repository. The catalog listings I saved to
+this session's scratch folder are deleted.
+
+**Breaking truth for this gate is now, from the research lead's plan (PR #929's log), all free and licence-clean:**
+1. Blind in-app observations, scale-labelled (face or Hawaiian). Built by another lane.
+2. Sentinel-2 surf-zone detection per spot: the offshore hindcast paired with the breaking-zone width and the slope.
+   Built by another lane.
+3. The Oahu lifeguard record (CC0), reef class; access is being retried by the research helper.
+4. The owner's labelled observations (`OWNER_OBSERVATIONS.md`): eyes-on, scale stated.
+Shallow buoys remain FORCING truth only, as before.
+
+**None of these has n today.** So every breaking-truth verdict in this gate stays NOT RUNNABLE, as the 02:31Z
+amendment says: Komar, H1/10, the cap, the magnets, the two pairs with refraction, the period arms through the full
+chain, every per-class verdict, and the transect arm. When a source above reaches 30 observations per class on at
+least 7 days, it needs its own dated section here BEFORE its values are read: what the observation is (a face
+height is not a significant height; a surf-zone width is not a height at all), how it maps to the chain's number,
+and its controls.
+
+**The transect arm (`bj_transect`) stays registered as a MODEL-ONLY run on the 30-spot panel:** does it tell a flat
+beach from a reef, which today's chain cannot; is it monotone in the offshore height; what does it give at the
+owner's hour. Its equations come from the open SWAN technical documentation, transcribed with their numbers before
+the run; that is a published method, not USACE data, and the owner's decision does not touch it. If the owner
+would rather the method not come from there either, say so and it is dropped too.
+
+**The season limit returns.** Duck's ten months were what answered it. With Duck gone, the buoy window (2026-11-17
+to 12-07) and the winter window (2027-01-11 to 02-01) are the only ones, both cool-season, and "not tested in
+summer" stands on any served change that rests on them.
