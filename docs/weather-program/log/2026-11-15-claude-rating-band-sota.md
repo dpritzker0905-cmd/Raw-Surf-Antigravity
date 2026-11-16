@@ -149,3 +149,48 @@ Five findings returned; each was checked against the code. None is a defect, so 
 4. LOW "the world grid is not lattice-checked": `padNode` reads it through its own bounds and size (2 deg), so it needs no 0.25 lattice.
 5. LOW "the metadata frame changes after the area sort": every frame already shares the valid time, run and estimated flag (checked
    in `pickBoxFrame`); only the stamped product id differs (one box's), which is cosmetic.
+
+## 8. The advisor's conditions (red-team 2026-11-16 00:50Z, PASS WITH LIMITS)
+
+### 8.1 Surf asks to the backend per scenario, fix vs nofix (the load table)
+Offline, the synthetic store with prod flags, desktop dark, `scn_band_zoom_stability.js` (load, zoom out, zoom in, three pans), the
+same build per arm (nofix = the five kills), 2026-11-15 ~20:10-20:25 EST. Every surf ask the client sent (`out.asks`):
+
+| scenario | arm | `/grid` | `/grid_series` | total | band visible + covering at step end |
+|---|---|---|---|---|---|
+| Florida z8, the view reaches Grand Bahama (an uncovered coast) | fix | 5 | 11 | 16 | 5/6 |
+| | nofix | 3 | 9 | 12 | 5/6 |
+| Florida/Georgia z8.3 (inside boxes) | fix | 2 | 10 | 12 | 6/6 |
+| | nofix | 2 | 11 | 13 | 2/6 |
+| Carolinas z8 (inside a box) | fix | 2 | 8 | 10 | 6/6 |
+| | nofix | 8 | 8 | 16 | 1/6 |
+| Texas Gulf z8 (OUTSIDE all 19 boxes) | fix | 6 | 6 | 12 | 5/6 |
+| | nofix | 4 | 6 | 10 | 4/6 |
+| **all four** | fix | **15** | 35 | **50** | 22/24 |
+| | nofix | **17** | 34 | **51** | 12/24 |
+
+Reading: as the advisor expected, fewer `/grid` asks inside the boxes (Carolinas 8 -> 2) and +2 each where the CDN cannot help (the
+uncovered-coast overhang, outside the boxes). Those extra asks are the cache-skip rule refusing a coarse grid the engine would
+refuse anyway: they are what un-sticks the band (visible 22/24 vs 12/24). Net 50 vs 51. Live, each `/grid?surf=1` is 4-22 s of
+box CPU (offline ~1-2 s, so the offline server-ms are not a live estimate). Surf series pages are unchanged (35 vs 34): they never
+come from the CDN.
+
+### 8.2 Run age (freshness)
+Measured on the public CDN index (`v1/latest.json`, a static file) 2026-11-15 ~20:10 EST: EVERY rated regional waves bundle read is
+ONE RUN behind its plain sibling (rated 06Z, plain 12Z: florida_east_coast, us_southeast_midatlantic, us_west_coast_socal, hawaii,
+indonesia). So the single-box rated path live since D-057 has been drawing the previous run, and a strict "never older" rule would
+send every rated ask back to the box. Rule added (`staticRatedMosaic.ratedRunLagH` / `ratedRunBehind`): up to
+`__RAW_RATED_RUN_AGE_MAX_H__` (6 h) behind the run the plain sibling is pinned on is served AND labelled (`rated_run_lag_h` on the
+grid JSON, `__RAW_STATIC_FRAMES_RATED__.lagH`); older is refused (`mosaic_run_behind` / `regional_run_behind`) and goes to /grid.
+Kill `__RAW_DISABLE_RATED_RUN_AGE__`. Finding for the director: the rated publish trails the plain publish by a full cycle (the
+rated step's budget); fixing the publisher is the real cure. The label is in the data and telemetry; a user-visible label in the
+status line is NOT done.
+
+### 8.3 Prefetch bytes
+Rated bundles are whole runs: 0.28-2.07 MB each on the live CDN (Florida 417 KB, Carolinas 364 KB, SoCal 508 KB, Indonesia
+2.07 MB), plus the 130 KB coast mask once. The neighbour ring is now skipped under Save-Data or a 2g/3g link
+(`navigator.connection`); the bundles a view itself needs still load when it is asked for.
+
+### 8.4 Not claimed
+The zoom colour flip (David's first symptom) is NOT reproduced and NOT claimed fixed (section 2). Lab only; a dev-site read is owed
+(ledger commitment). One stray live request this evening: a mistaken HEAD to `/api/weather/capabilities` (405, no work done).

@@ -1,8 +1,8 @@
 {
   "lane": "frontend",
-  "tests": 39,
+  "tests": 46,
   "files": 1,
   "branch": "claude/rating-band-sota-51340a",
-  "date": "2026-11-15",
-  "note": "rating band SOTA: rated mosaic + coarse-rated cache skip + review fixes"
+  "date": "2026-11-16",
+  "note": "rating band SOTA: mosaic, cache skip, review + advisor fixes"
 }
