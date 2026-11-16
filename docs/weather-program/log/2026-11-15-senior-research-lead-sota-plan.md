@@ -1364,3 +1364,19 @@ abstracts only (full texts not opened):
 - **Abstracts only.** Before "surfers typically call about half to two-thirds of measured height" reaches David, either
   open the full texts or say in that sentence that it rests on two abstracts from one UK study group.
 - Lesson recorded as L-S28 (a model's agreement is not a check of the arithmetic).
+## 2026-11-16 16:10 EST Review of the tide lane's G3 draft (`log/2026-11-15-claude-tide-m1.md`, de82e6c18)
+
+Sent to the tide lane. Items marked [verify] are from memory and are to be confirmed in G3 step 3.
+- **Sources:**
+  - STOFS-2D-Global (non-tidal = cwl − htp; archive on AWS [verify]) is the only free global operational surge forecast
+    I know of.
+  - Add STOFS-3D-Atlantic as a US regional arm for the estuary gauges.
+  - CMEMS GLO12 likely keeps no past forecast runs [verify]. If so, N1 cannot be scored at lead on a past window: label
+    it an upper bound or collect it prospectively. Its zos must be used as an anomaly.
+  - S1 is fine with N2 (STOFS-2D is barotropic, no steric).
+- **Pass lines:**
+  - A paired per-gauge CI versus D, in addition to the 0.02 m median.
+  - A bias/SD split of every RMSE (epoch-MSL offset).
+  - A minimum surge-hour count, else item 3 is INCONCLUSIVE.
+  - Confirm D's fitting data do not overlap the window.
+  - Run the +24 h shift negative on surge hours.
