@@ -877,3 +877,39 @@ for its use".
   recommended primary, because they are independent and primary-source.
 - **Guard to add** (test-only boundary): a CI check that no served route or browser bundle references an Open-Meteo
   host, with an allow-list for tests, scripts and the grading modules.
+
+## 02:26Z EURO and ICON sources: primary-source audit (David 21:16 EST: "making sure EURO and ICON come from EWMCF or other free govt sources grib or raw cmem or something like that, just like we have been for a while previously")
+
+**Already primary-source (read from code on origin/dev):**
+- EURO wind and pressure: `ecmwf_opendata_fetcher` (the `ecmwf.opendata` client).
+- ICON wind and pressure: DWD open data. ICON waves: DWD GWAM (`opendata.dwd.de/.../gwam`).
+- EURO swell partitions: Copernicus CMEMS MFWAM.
+- Own raster sets in `frame_set_raster.py`: EURO from ECMWF open data, ICON from `opendata.dwd.de/weather/nwp/icon`.
+  ON (repo variables): pressure EURO/ICON, precip EURO, temperature EURO 0.25, water-temp EURO.
+
+**Gaps that still reach users through Open-Meteo:**
+- G1 ICON air temperature: set built (`temperature_icon`, DWD), flag NOT set. Flip after parity.
+- G2 ICON precipitation: set built (`precipitation_icon`, DWD), flag NOT set. The earlier blocker: peaks 19-26%
+  lower than the `.om` path. The DWD field is the primary truth, so explain the gap (accumulation de-summing), then
+  flip.
+- G3 EURO and ICON cloud cover: NO own set. Build from ECMWF `tcc` and DWD `CLCT`.
+- G4 Water temperature for ICON (and an upgrade for all): the CMEMS global ocean physics forecast (SST, 1/12 deg),
+  labelled.
+- G5 EURO/ICON point and grid fallbacks via Open-Meteo: stored products only (M4).
+- G6 EURO total-sea fallback when Copernicus fails: from Open-Meteo `ecmwf_wam025` to ECMWF open-data wave fields.
+- G7 Labels: `provider='open-meteo'` / `ecmwf_wam025` on native data become the true source names.
+- G8 Remove the browser `.om` path once G1-G3 are on.
+
+**Measured source contents** (index and listing reads, 2026-11-15):
+- ECMWF open-data `wave` stream: swh, mwd, mwp, pp1d, mp2, cdww, wmb, plus significant height in period bands
+  `h1012`, `h1214`, `h1417`, `h1721`, `h2125` and `h2530`. No swell/wind-sea partitions with direction.
+  So EURO partitions stay on CMEMS MFWAM, labelled "MFWAM (ECMWF-forced)".
+- DWD GWAM: swh, mwd, tm10, wind sea (shww/mdww/mpww/ppww), total swell (shts/mdts/mpts/ppts), wind. No swell 2.
+  Regional EWAM and CWAM models also exist.
+
+**SubQ:** MFWAM partitions with an ECMWF-open-data fallback 0.999; CMEMS SST for water temperature 0.993; period
+bands as a groundswell cue 0.968; EWAM for Europe behind a parity gate 0.85.
+
+**Extras (SOTA):**
+- ECMWF period-band heights as a EURO groundswell cue.
+- DWD EWAM for European spots, gated.
