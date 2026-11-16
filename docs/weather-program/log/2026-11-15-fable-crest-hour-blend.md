@@ -1010,3 +1010,8 @@ number for any arm has been seen by me. The advection arm is added to the same s
   field that did not move): that number is printed as the arm's cost on a still field, and is not a control.
 - Not covered: shallow water (group velocity falls near the coast), regional grids, what a shader would actually draw (no
   advection shader exists; this is the arithmetic only, to decide whether one is worth building).
+- Correction, append-only: this section's heading says 19:50; the clock read 19:47 EST when it was committed.
+- Built 19:51 EST (clock): `advect` and `ghostCounts` in `real_frames_hidden_hour.mjs`, with a self-test (zero hours is the
+  identity; a uniform field carried along itself is unchanged; a ramp moves the right way). Run with `--controls-only` on
+  the one run in hand: for the advection arm, in all five sets, N1 holds in 20 of 20, N2 fails as it must, and P with no
+  motion is exactly zero. A1-A3 and R1-R3 remain unread until the second run is in.
