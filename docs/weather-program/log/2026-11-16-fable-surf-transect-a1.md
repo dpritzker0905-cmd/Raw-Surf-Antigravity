@@ -109,3 +109,48 @@ inside after a wide zone of spilling whitewater.
 A1 with a constant gamma, scored as "largest H1/10 on the line", is so close to the Komar path that breaking truth
 would have little to choose between them. Before truth arrives, two things would make the arm worth scoring: the
 slope-and-depth gamma from a source that can be read, and a decision on what height the product is naming.
+
+## 2026-11-16 10:07Z The unverified step is verified, and the inputs alone do not reach the owner's number
+
+**Equation 2.49, read.** The research lead found it and I then read it on the page I had saved: E_tot is the
+integral of the spectrum E(sigma, theta) over frequency and direction, with no rho g. So E_tot is the variance and
+H_rms^2 = 8 E_tot holds. The one unverified step above is closed.
+
+**The slope-dependent gamma stays NOT RUNNABLE.** The research lead reports that SWAN's user manual gives only its
+default coefficients and no formula on any SWAN page. Until the formula is transcribed from an open page, no arm.
+
+**The research lead's point, tested model-only:** a constant gamma fixes where dissipation happens, not the breaker
+height, so if the owner's "under 2 ft" is about the outer breaker, the over-read must come from the INPUTS. Checked
+at the owner's point (offshore 1.12 m, head-on, the spot's own geometry for today's chain, a 1 in 250 planar bed for
+A1, which is the slope ETOPO gives there):
+
+| period fed in | today's chain | A1 | A1, Hs in 1 m of water |
+|---|---|---|---|
+| 7.28 s (the model's peak) | 1.64 m, 1.47 x | 1.61 m, 1.44 x | 0.53 m |
+| 6.0 s | 1.52 m, 1.36 x | 1.47 m, 1.31 x | 0.52 m |
+| 4.8 s (the buoy's mean) | 1.39 m, 1.24 x | 1.37 m, 1.22 x | 0.50 m |
+| 4.5 s | 1.36 m, 1.21 x | 1.38 m, 1.24 x | 0.49 m |
+
+And today's chain at 4.8 s with the H1/10 conversion off: 1.10 m, 0.98 x offshore. With Komar off instead: 1.24 m.
+With all six factors off: 1.12 m.
+
+- **The period accounts for about 15%** (1.47 down to 1.24), in both today's chain and A1.
+- **The H1/10 conversion accounts for another 21%** (1.24 down to 0.98), if it should not be applied to a wind sea.
+- **Together they bring the breaker to about the offshore height, 1.1 m (3.6 ft).** The owner expected under 2 ft
+  (0.6 m). So the two input corrections the research lead names, taken together, close roughly half the gap and
+  leave a factor of about 1.8.
+- **The only number in any run that sits at his expectation is the height inside the surf zone:** A1's significant
+  height in 1 m of water is 0.49 to 0.53 m (1.6 to 1.7 ft) at every period tried. It barely moves with the period
+  because at that depth the height is set by the water depth, not by the sea.
+- Directional spread, the research lead's third input, is not tested: neither arm carries a spread.
+
+**What this does to the question for the owner.** The research lead's evidence is that the published surf-forecast
+convention is the breaking height in the surf zone at H1/10, which is the outer breaker and what the product names
+today. On that convention, fixing the inputs gets to about 3.6 ft at his point that hour, not under 2 ft. Either the
+breaker really was about 3.6 ft and smaller waves were what was being ridden inside, or something else is missing
+(spread, a dissipation the model point has not seen, an offshore height that was itself too high: the buoy 30 km away
+read 1.4 m, higher than the model, so not that). This is one expectation at one hour, not a measurement, and nothing
+here can choose between those. A timed look at the water with the scale stated is what would.
+
+**Limits.** Model only. One point, one hour's sea, a planar bed for A1. The 21% from H1/10 assumes the conversion is
+simply absent; the physically argued alternative (a narrowed distribution at a saturated break) is not modelled.
