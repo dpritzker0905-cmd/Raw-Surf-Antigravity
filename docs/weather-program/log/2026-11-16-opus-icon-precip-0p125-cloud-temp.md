@@ -70,3 +70,37 @@ share at 0.25 deg reported (10.6 % for precip, all poleward).
 
 After 05:30Z: G1 (a read, no code), then G3 (two specs, mirroring existing sources), then G2 (the new remap). Each ships as its own
 PR to dev, dark, with the director flipping.
+
+## 05:40Z: G1 numeric result: identical values, a coarser grid
+
+Instrument: `g1_parity.py` and `g1_controls.py` (scratch). Our `temperature_icon` plane is built from DWD's files exactly as the
+publisher does (`IconOpenDataSource.fetch`, quantised to the frame's 0.05 degC). It is compared with Open-Meteo's
+`data_spatial/dwd_icon/2026/11/16/0000Z/<valid>.om` `temperature_2m` (read with the app's own `@openmeteo/file-reader`), taken
+at each of our 0.5-degree nodes (an exact .om grid point: 0.5 = 4 x 0.125). Run 2026-11-16 00Z. Sample points: seed 16,
+cos-latitude weighted, |lat| <= 85, land/ocean split by DWD's FR_LAND >= 0.5 at the same nodes.
+
+| hour | land (200): median / p95 / max abs, degC | ocean (200): median / p95 / max | all nodes, area-weighted median / p95 | gate |
+|---|---|---|---|---|
+| f006 | 0.00 / 0.00 / 2.90 | 0.00 / 0.00 / 0.20 | 0.00 / 0.00 (land 81,031, ocean 164,489 nodes) | PASS |
+| f024 | 0.00 / 0.00 / 1.50 | 0.00 / 0.00 / 0.10 | 0.00 / 0.00 | PASS |
+| f060 | 0.00 / 0.00 / 2.70 | 0.00 / 0.00 / 0.05 | 0.00 / 0.00 | PASS |
+
+Mean signed difference within +/-0.01 degC at every hour. 93.4 % of nodes (f006) are EQUAL to .om: Open-Meteo's dwd_icon is the
+same DWD cells, also taken by nearest cell and also stored at 0.05 degC. The few land maxima (up to 2.9 degC) are nodes where the
+two nearest-cell rules pick different cells, in steep terrain.
+**Controls (positive; the harness sees a difference when one exists):**
+- the .om of another hour (f024 against our f006): median 0.80, p95 5.50, equal 2.0 %;
+- .om moved one 0.125-degree column: median 0.05, p95 0.90, equal 40 %;
+- .om moved one 0.5-degree node: median 0.20, p95 2.10, equal 10 %.
+
+The EURO positive control I had planned is moot, since the controls above already show the harness discriminates.
+
+**What the numbers do not settle: resolution.** .om `dwd_icon` is a 0.125-degree grid (2879 x 1441); `temperature_icon` is 0.5
+degree (720 x 361), a quarter of the resolution in each direction. Values agree at our nodes, but the map would draw ICON air
+temperature 4x coarser than today at street zoom. The director's resolution rule (2026-11-14: a layer moves to own frames only
+where the set is at least as fine as today's .om grid) is NOT met. Visual check: not run, because it would only show this.
+Options for the director:
+- (a) Build `temperature_icon` at 0.125 degree (nearest cell, as .om does; the G2 sub-point map is not needed for an intensive
+  field). That is about 16x the 0.5-degree set's bytes; measure before deciding.
+- (b) 0.25 degree as a middle step: about 4x the bytes, half of .om's resolution.
+- (c) Keep .om for ICON air temperature until (a).
