@@ -7,7 +7,7 @@ bodies have no such field and refuse unknown ones.
 """
 import json
 from datetime import datetime, timedelta, timezone
-from typing import Literal
+from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -86,13 +86,14 @@ async def admin_actions(limit: int = 100, db: AsyncSession = Depends(get_db),
 
 
 @router.post("/admin/surf-truth/export")
-async def export_observations(db: AsyncSession = Depends(get_db), admin: Profile = Depends(get_current_admin)):
+async def export_observations(since: Optional[datetime] = None, db: AsyncSession = Depends(get_db),
+                              admin: Profile = Depends(get_current_admin)):
     """Write the pseudonymized blind-observation export to PRIVATE storage for the offline truth model (T1 P4).
     Fails closed (503) without the pseudonym key or private storage; every export is logged."""
     from services import surf_truth_export as ste
     try:
         key = ste.export_key()
-        rows, manifest = await ste.build_export(db, key)
+        rows, manifest = await ste.build_export(db, key, since=since)
         written = await ste.write_export(rows, manifest)
     except ste.ExportUnavailable as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc

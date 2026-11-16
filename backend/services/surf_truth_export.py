@@ -6,13 +6,25 @@ private nearshore rows use), under `surf-truth/exports/<YYYY-MM-DD>/<run_id>.jso
   normalization version, entry screen, forecast_shown_before, the quality flags, distances and ages, quality/XP
   status, the observer ROLE and the anchor status AT `received_at` (read from the append-only event log, not today's
   row), the spot (a public catalogue id plus its public coordinates and region, needed for local time and class),
-  and `received_at`.
+  and `received_at` ROUNDED DOWN TO THE MINUTE (the model needs 3-hour cells; seconds would only aid re-linking).
 - identities only as HMAC-SHA256 pseudonyms (`observer_key`, `device_key`, `row_key`) under the key in the
   environment variable SURF_TRUTH_EXPORT_KEY. The key never enters the repo or the export; without it the export
   refuses to run (fail closed), so a missing key can never produce raw ids.
 NEVER exported: names, profile ids, device or photo positions (only distances), photo URLs, the converted `face_m`
 (the model fits from the raw entry), and any row the model's own outputs produced (there are none: outputs are not
 observations).
+
+PSEUDONYMOUS IS NOT ANONYMOUS. Each row keeps a spot, a minute and a stable observer key, so anyone holding the
+database can re-identify rows by joining on spot and time, and a regular at one break is recognisable from the pattern.
+The export is PERSONAL DATA in private storage and is handled as such: private bucket only, service-role access only,
+never published, never copied into the repo or an artifact. Retention and deletion are P3's (see the log): until P3,
+no real export runs without David's answer on retention and consent.
+KEY ROTATION: a new SURF_TRUTH_EXPORT_KEY gives every observer a new key, so b_j does not carry across the change.
+A rotation therefore means a FULL re-export, and fits never mix exports made under different keys (the manifest
+records a key fingerprint for exactly that check).
+ORPHANS: the data object is written first, then the manifest, then the admin log line. A failure in between leaves a
+data object with no manifest (or no log line). The fit reads ONLY exports that have a manifest, so an orphan is ignored
+and harmless; it is removed by the retention rule.
 
 Pure functions build the rows; `write_export` does the one create-only upload. The caller (an admin route) logs it.
 """
@@ -64,18 +76,37 @@ def pseudonym(key: bytes, kind: str, value: Optional[str]) -> Optional[str]:
     return hmac.new(key, f"{kind}:{value}".encode(), hashlib.sha256).hexdigest()[:24]
 
 
-def anchor_status_at(events: Iterable[SurfTruthAnchorEvent], profile_id: str, when: datetime) -> Optional[str]:
+def _aware(ts: datetime) -> datetime:
+    return ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
+
+
+def index_events(events: Iterable[SurfTruthAnchorEvent]) -> dict:
+    """profile_id -> [(at, to_status)] in time order, so a lookup costs one profile's events, not all of them."""
+    by_profile: dict = {}
+    for e in events:
+        by_profile.setdefault(e.profile_id, []).append((_aware(e.at), e.to_status))
+    for history in by_profile.values():
+        history.sort(key=lambda t: t[0])
+    return by_profile
+
+
+def anchor_status_at(index: dict, profile_id: str, when: datetime) -> Optional[str]:
     """The anchor's status in force at `when` (the last event at or before it), or None if never an anchor then."""
     status = None
-    for e in events:
-        at = e.at if e.at.tzinfo else e.at.replace(tzinfo=timezone.utc)
-        if e.profile_id == profile_id and at <= when:
-            status = e.to_status
+    for at, to_status in index.get(profile_id, ()):
+        if at > when:
+            break
+        status = to_status
     return status
 
 
+def key_fingerprint(key: bytes) -> str:
+    """A short, non-reversible id of the pseudonym key, so a fit can refuse to mix exports made under two keys."""
+    return hmac.new(key, b"fingerprint", hashlib.sha256).hexdigest()[:12]
+
+
 def export_row(key: bytes, obs: SurfObservation, spot: Optional[SurfSpot], anchor_status: Optional[str]) -> dict:
-    received = obs.received_at if obs.received_at.tzinfo else obs.received_at.replace(tzinfo=timezone.utc)
+    received = _aware(obs.received_at).replace(second=0, microsecond=0)
     row = {
         "row_key": pseudonym(key, "row", obs.id),
         "observer_key": pseudonym(key, "observer", obs.user_id),
@@ -106,16 +137,18 @@ async def build_export(db, key: bytes, since: Optional[datetime] = None) -> tupl
     rows = (await db.execute(q)).scalars().all()
     spots = {s.id: s for s in (await db.execute(select(SurfSpot).where(
         SurfSpot.id.in_({r.spot_id for r in rows if r.spot_id})))).scalars().all()} if rows else {}
-    events = (await db.execute(select(SurfTruthAnchorEvent).order_by(SurfTruthAnchorEvent.at))).scalars().all()
+    users = {r.user_id for r in rows}
+    events = index_events((await db.execute(select(SurfTruthAnchorEvent).where(
+        SurfTruthAnchorEvent.profile_id.in_(users)))).scalars().all()) if users else {}
     out = []
     for r in rows:
-        received = r.received_at if r.received_at.tzinfo else r.received_at.replace(tzinfo=timezone.utc)
-        out.append(export_row(key, r, spots.get(r.spot_id), anchor_status_at(events, r.user_id, received)))
+        out.append(export_row(key, r, spots.get(r.spot_id), anchor_status_at(events, r.user_id, _aware(r.received_at))))
     manifest = {
         "schema": SCHEMA, "rows": len(out), "since": since.isoformat() if since else None,
         "cut_at": datetime.now(timezone.utc).isoformat(), "fields": list(FIELDS),
         "observers": len({o["observer_key"] for o in out}), "spots": len({o["spot_id"] for o in out}),
         "pseudonyms": "HMAC-SHA256 under " + KEY_ENV + " (key not in the export)",
+        "key_fingerprint": key_fingerprint(key), "received_at_resolution": "minute",
     }
     return out, manifest
 

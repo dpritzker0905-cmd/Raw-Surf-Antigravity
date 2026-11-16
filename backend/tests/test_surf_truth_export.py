@@ -178,3 +178,31 @@ async def test_route_is_admin_only_logged_and_fails_closed(world, monkeypatch):
     async with world.maker() as db:
         log = (await db.execute(select(SurfTruthAdminAction))).scalars().all()
     assert [(a.action, a.target_id) for a in log] == [("export", "run123")]   # the refused one logged nothing
+
+
+async def test_received_at_is_rounded_to_the_minute_and_the_key_is_fingerprinted(world):
+    rows, manifest = await _build(world)
+    for r in rows:
+        stamp = datetime.fromisoformat(r["received_at"])
+        assert stamp.second == 0 and stamp.microsecond == 0
+    _, other = await _build(world, key=b"z" * 40)
+    assert manifest["received_at_resolution"] == "minute"
+    assert manifest["key_fingerprint"] != other["key_fingerprint"] and KEY not in json.dumps(manifest)
+
+
+async def test_since_limits_the_export(world):
+    async with world.maker() as db:
+        rows, manifest = await ste.build_export(db, KEY.encode(), since=NOW - timedelta(hours=2))
+    assert manifest["rows"] == 1 and len(rows) == 1
+
+
+def test_status_lookup_uses_each_profiles_own_history():
+    t0 = datetime(2026, 11, 16, 10, tzinfo=timezone.utc)
+    events = [SurfTruthAnchorEvent(profile_id="a", to_status="probation", at=t0),
+              SurfTruthAnchorEvent(profile_id="b", to_status="active", at=t0),
+              SurfTruthAnchorEvent(profile_id="a", to_status="active", at=t0 + timedelta(hours=2))]
+    index = ste.index_events(events)
+    assert ste.anchor_status_at(index, "a", t0 - timedelta(minutes=1)) is None
+    assert ste.anchor_status_at(index, "a", t0 + timedelta(hours=1)) == "probation"
+    assert ste.anchor_status_at(index, "a", t0 + timedelta(hours=3)) == "active"
+    assert ste.anchor_status_at(index, "c", t0 + timedelta(hours=3)) is None
