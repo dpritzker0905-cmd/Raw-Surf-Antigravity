@@ -22,7 +22,9 @@ import numpy as np
 
 BASIS_TYPE = "ens_mean_extension"
 LABEL = "Days 8–14: ECMWF ensemble mean (estimate)"
-MEMBERS_EXPECTED = 51            # cf + 50 pf
+MEMBERS_EXPECTED = 51            # cf + 50 pf, through 2026-05-12 00Z
+PERTURBED = 50                   # pf 1..50: always required. The control (cf) left the open-data ef files on
+                                 # 2026-05-13 00Z (amendment 5): it is included when the run's index carries it
 _CALM = 1e-6
 
 
