@@ -224,3 +224,12 @@ Asked in session: "Your check (a) failed. Does #926 still merge with its fixed d
 So #926 ships with the fixed 365-day datum despite (a), on the reading above: (a) scores against astronomical
 predictions, which the fixed datum must miss wherever the real water departs from them; (b)-(d) pass against observed
 water. The merge itself stays with the director, after hosted CI is green on the head.
+
+## Correction (2026-11-16 01:11Z): header times written ahead of the clock (LESSONS L-P10)
+These headers carried an ESTIMATED time later than the moment they were written; the true times are the commit
+times below. The order of registrations and results is unchanged (each registration's commit precedes its run's).
+- 'Advisor red-team follow-up (2026-11-15 ~21:30Z) - PRE-REGISTERED before the run below' -> written 2026-11-15T21:19:08Z
+- 'Results of the pre-registered checks (run 2026-11-15 ~21:40Z, `tide_datum_observed.py`; raw JSON in notes' -> written 2026-11-15T21:31:37Z
+- '2026-11-15 ~22:50Z: decisions after the observed-water results + the SOTA research' -> written 2026-11-15T22:36:24Z
+- 'Built (2026-11-15 ~23:10Z): the 1-year model mean replaces the 72 h de-mean in this PR, ON' -> written 2026-11-15T23:00:30Z
+
