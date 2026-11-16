@@ -2,6 +2,7 @@ import { toast } from 'sonner';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 import { calculateDistance, metersToMiles } from '../components/on-demand/dutyStationConstants';
+import postObservation from '../components/observations/postObservation';
 
 export const useDutyStationActions = ({
   user,
@@ -219,8 +220,14 @@ export const useDutyStationActions = ({
           // 20s: a go-live is a small JSON POST plus a session write. It is not a slow endpoint,
           // and the old 120s only meant the photographer watched a spinner for two minutes at the
           // beach before learning it had failed.
-          await apiClient.post(`/photographer/${user.id}/go-live`, goLivePayload, { timeout: 20000 });
+          const goLiveRes = await apiClient.post(`/photographer/${user.id}/go-live`, goLivePayload, { timeout: 20000 });
           toast.dismiss('go-live-warmup');
+          // T1: the blind height, attached to the condition report this go-live just wrote. Best effort.
+          await postObservation({
+            obs: conditionsData?.observation, entryScreen: 'golive_conditions_modal',
+            refId: goLiveRes?.data?.condition_report_id,
+            latitude: userLocation?.lat ?? null, longitude: userLocation?.lng ?? null,
+          });
           setLiveActive(true);
           setShowConditionsModal(false);
           toast.success(`Now live at ${selectedSpot.name}!`);
