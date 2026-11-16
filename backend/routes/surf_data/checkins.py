@@ -41,7 +41,11 @@ class StreakResponse(BaseModel):
     checked_in_today: bool
 
 @router.post("/check-in", response_model=CheckInResponse)
-async def create_check_in(user_id: str, data: CheckInRequest, db: AsyncSession = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
+async def create_check_in(data: CheckInRequest, user_id: Optional[str] = None, db: AsyncSession = Depends(get_db), current_user_id: str = Depends(get_current_user_id)):
+    # The client never sent `user_id` (it posts the body only), so a REQUIRED query param made every check-in a 422
+    # (no row written since 2026-04-18). Identity is the JWT's; a `user_id` that is sent must still match it.
+    if user_id is None:
+        user_id = current_user_id
     if user_id != current_user_id:
         raise HTTPException(
             status_code=403,

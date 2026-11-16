@@ -6,6 +6,8 @@
 import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
+import postObservation from '../../components/observations/postObservation';
+import { observationLabel } from '../../components/observations/BlindHeightInput';
 
 const useFeedCheckInActions = ({
   user, spots, nearestSpot, checkInData, streak,
@@ -152,6 +154,15 @@ const useFeedCheckInActions = ({
     const spotName = spotId
       ? (spots.find(s => s.id === spotId)?.name || nearestSpot?.name || 'Unknown Spot')
       : 'Custom Location';
+    // T1 blind observation: the height the surfer entered, with its scale. The legacy free-text column keeps a
+    // scale-named label; the structured row goes to /surf-observations once the check-in exists.
+    const obs = checkInData.observation;
+    const waveHeightLabel = observationLabel(obs) || checkInData.wave_height || null;
+    const sendObservation = (checkInId) => postObservation({
+      obs, entryScreen: 'checkin_modal', refId: checkInId || null, spotId,
+      latitude: checkInData.use_gps ? checkInData.latitude : null,
+      longitude: checkInData.use_gps ? checkInData.longitude : null,
+    });
 
     try {
       if (checkInData.use_gps && checkInData.latitude && checkInData.longitude && spotId) {
@@ -175,12 +186,13 @@ const useFeedCheckInActions = ({
             spot_id: spotId,
             spot_name: spotName,
             conditions: checkInData.conditions || null,
-            wave_height: checkInData.wave_height || null,
+            wave_height: waveHeightLabel,
             notes: checkInData.notes || null,
             latitude: checkInData.latitude,
             longitude: checkInData.longitude,
             use_gps: true
           });
+          await sendObservation(streakResponse.data.id);
           setStreak({
             current_streak: streakResponse.data.current_streak,
             longest_streak: streakResponse.data.longest_streak,
@@ -191,6 +203,8 @@ const useFeedCheckInActions = ({
           if (streakError.response?.data?.detail !== 'Already checked in today') {
             logger.warn('Legacy streak update failed:', streakError);
           }
+          // Already checked in today: the observation still counts, against the spot instead of a check-in row.
+          await sendObservation(null);
           setStreak(prev => ({ ...prev, checked_in_today: true }));
         }
 
@@ -210,13 +224,14 @@ const useFeedCheckInActions = ({
           spot_id: spotId || null,
           spot_name: spotName,
           conditions: checkInData.conditions || null,
-          wave_height: checkInData.wave_height || null,
+          wave_height: waveHeightLabel,
           notes: checkInData.notes || null,
           latitude: checkInData.latitude,
           longitude: checkInData.longitude,
           use_gps: checkInData.use_gps
         });
 
+        await sendObservation(response.data.id);
         setStreak({
           current_streak: response.data.current_streak,
           longest_streak: response.data.longest_streak,
@@ -227,7 +242,7 @@ const useFeedCheckInActions = ({
         toast.success(`Checked in! ${response.data.current_streak} day streak!`);
         // Close immediately for manual check-in
         setShowCheckInModal(false);
-        setCheckInData({ spot_id: '', conditions: '', wave_height: '', notes: '', latitude: null, longitude: null, use_gps: false });
+        setCheckInData({ spot_id: '', conditions: '', wave_height: '', notes: '', latitude: null, longitude: null, use_gps: false, observation: null });
         setNearestSpot(null);
         setSelectedCountry('');
         setSelectedState('');
@@ -236,6 +251,7 @@ const useFeedCheckInActions = ({
 
     } catch (error) {
       if (error.response?.data?.detail === 'Already checked in today') {
+        await sendObservation(null);
         toast.info('You already checked in today!');
         setStreak(prev => ({ ...prev, checked_in_today: true }));
       } else {
@@ -250,7 +266,7 @@ const useFeedCheckInActions = ({
   const closeCheckInModal = () => {
     setShowCheckInModal(false);
     setCheckInReward(null);
-    setCheckInData({ spot_id: '', conditions: '', wave_height: '', notes: '', latitude: null, longitude: null, use_gps: false });
+    setCheckInData({ spot_id: '', conditions: '', wave_height: '', notes: '', latitude: null, longitude: null, use_gps: false, observation: null });
     setNearestSpot(null);
     setSelectedCountry('');
     setSelectedState('');
