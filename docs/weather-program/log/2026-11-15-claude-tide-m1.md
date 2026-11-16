@@ -111,3 +111,9 @@ by `tests/test_tide_fes_offline_guard.py` (written during the 22:00-00:30 quiet 
   doi:10.17882/79489; only `*_ocean_eot20.nc` members are taken, by plain file name.
 - **Push timing:** the commit waits for the end of the quiet window (00:30 EST), since a push to this branch starts
   the gate job.
+
+## 00:32 EST 2026-11-16 (`date`) - tests run after the quiet window; push
+- First local run of the 6 tests: 5 passed, 1 failed. The failing check was `eot20_member_ok("/abs/...")`: on Windows,
+  `Path("/abs/x")` is not absolute, so the check let it through. It was not exploitable, since extraction writes by
+  bare file name only. Fixed with `PurePosixPath` (zip names are POSIX on every OS) and a backslash refusal. Now 6
+  passed; flake8 clean. Pushed; the gate job runs on the push.

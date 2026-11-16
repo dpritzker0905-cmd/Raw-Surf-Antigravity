@@ -18,7 +18,7 @@ import sys
 import urllib.request
 import zipfile
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 COOPS = "https://api.tidesandcurrents.noaa.gov"
 OM_MARINE = "https://marine-api.open-meteo.com/v1/marine"
@@ -189,8 +189,9 @@ def subset_fes(xz_path, name, points, out_root, scratch):
 # ---------------------------------------------------------------- SEANOE: EOT20 ocean tides
 def eot20_member_ok(member):
     """PURE: an EOT20 ocean-tide constituent file inside the archive (no '..', no absolute path)."""
-    p = Path(member)
-    return bool(EOT20_MEMBER.search(member)) and not p.is_absolute() and ".." not in p.parts and "load" not in member.lower()
+    p = PurePosixPath(member)                                  # zip names are POSIX on every OS
+    return (bool(EOT20_MEMBER.search(member)) and not p.is_absolute() and "\\" not in member and ".." not in p.parts
+            and "load" not in member.lower())
 
 
 def download_eot20(root):
