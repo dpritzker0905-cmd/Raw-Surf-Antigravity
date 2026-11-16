@@ -140,6 +140,132 @@ Both are open for the advisor to call insufficient.
 0.125 degree, the same resolution gap as G1, so a 0.25-degree ICON cloud set fails the director's resolution rule. It waits on the
 director's answer to G1 (0.125-degree ICON sets), and shares G2's 0.125-degree sub-point remap and frame-format work.
 
+## 06:14Z: G2, ICON precipitation at 0.125 degree built (`precipitation_icon_0p125`, dark) and gated: PASS on all five hours
+
+**Found while building.** DWD publishes its own remap weights from ICON's grid to a 0.125-degree world grid
+(`opendata.dwd.de/weather/lib/cdo/ICON_GLOBAL2WORLD_0125_EASY.tar.bz2`, CDO SCRIP file, 2017, read 2026-11-16). They are
+`map_method = "Nearest neighbor"`, one link per target point, on 2879 x 1441 points (it stops at 179.75E). So DWD's own regular
+ICON products, and Open-Meteo's `dwd_icon` (G1: 93 % of nodes exactly equal), are nearest-cell samples, not area means.
+
+**Built.**
+- `services/frame_set_raster_icon125.py`: the k x k sub-point area mean (k = 3). A sub-point's nearest cell is searched among
+  every cell whose centre lies in the 3 x 3 boxes around it, plus those nodes' nearest cells from DWD's map, which is the only
+  candidate near the poles, where boxes are smaller than cells. This needs no KD-tree and no new dependency.
+- DWD's map is refused unless it is nearest-neighbour, on 2879 x 1441, every target once and in order. It is also refused unless
+  its cells are this run's GRIB cells in the same order. The GRIB's CLAT / CLON are packed: every cell is within 0.00195 deg of
+  latitude and 0.0039 of longitude of DWD's map and of the grid-0026 file, so the tolerance is 0.01 deg, against a cell spacing
+  of ~0.12.
+- The 2880th column (179.875E), which DWD's map lacks, takes the nearer of its neighbours' cells, so the frame wraps.
+- `IconPrecip0p125Source`: the same rates as `IconPrecipSource` (now split out as `rate`), with the pick map built once per
+  publish.
+- `GRIDS["0p125"]` is 2880 x 1441. A pilots step is gated on `FRAME_RASTER_PRECIP_ICON_0P125 == '1'`. The 0.25-degree set is
+  unchanged.
+- First design flaw caught by a test: candidates from the nodes' nearest cells alone skip a cell that is no node's nearest
+  (cells are denser than nodes near the equator). The box cells were added for that.
+
+**Gate (pre-registered 03:55Z), run 2026-11-16 00Z.** Instrument: `g2_gate.py` (scratch). Exact cell areas come from DWD's grid
+file 0026 (`cell_area`; the smallest cell is 0.647 of the largest, cv 4.1 %, so equal areas would not do). Mass is area-weighted
+against spherical box areas. The 0.125 numbers are read from the ENCODED-then-DECODED frame, as a client reads it.
+
+| hour | mass error 0.125 / 0.25 | peaks 0.125: median / p10 / global max | peaks 0.25: median / p10 / global max | gz bytes 0.125 / 0.25 (ratio) | gate |
+|---|---|---|---|---|---|
+| f006 | -0.09 % / -0.02 % | 0.928 / 0.735 / 0.940 | 0.779 / 0.449 / 0.664 | 1,166,271 / 336,705 (3.46) | PASS |
+| f024 | +0.00 % / +0.02 % | 0.946 / 0.835 / 0.915 | 0.821 / 0.596 / 0.775 | 1,178,807 / 339,457 (3.47) | PASS |
+| f048 | +0.08 % / +0.05 % | 0.946 / 0.845 / 0.941 | 0.821 / 0.599 / 0.906 | 1,198,952 / 346,339 (3.46) | PASS |
+| f078 | -0.09 % / +0.03 % | 0.914 / 0.763 / 0.902 | 0.747 / 0.520 / 0.692 | 1,178,704 / 336,870 (3.50) | PASS |
+| f120 | -0.05 % / +0.01 % | 0.958 / 0.854 / 0.898 | 0.902 / 0.678 / 0.855 | 1,179,460 / 341,345 (3.46) | PASS |
+
+Peaks are the 100 highest native cells at least 1 degree apart; each ratio is the highest lattice value within one lattice step
+of the cell. Null control: a uniform field gives mass error 0.0 at both resolutions.
+**Positive control, partly met, said plainly.** The 0.25-degree arm reproduces the logged peak loss: the median peak keeps 0.75
+to 0.90 and the global maximum 0.66 to 0.91, against "19-26 % lower" in the 2026-11-13 log. It does NOT reproduce that log's +1
+% mass: with exact cell areas the 0.25-degree mass error is within 0.05 %, and the logged +1 % came from comparing an unweighted
+native mean with a cos-latitude lattice mean. The registered "within 2 points" therefore fails on mass, because the old
+number was an artefact of how it was measured, not because the harness differs. The advisor may judge this.
+
+**Cost.**
+- Storage: 3.46-3.50 x the 0.25-degree set (gate at most 4.5 x): about 1.18 MB a frame, about 132 MB a run for 112 frames,
+  against about 38 MB.
+- Time: the pick map is built once, in 26 s, plus about 50 MB from DWD. Each hour costs 0.5 s for the area mean and 1.4 s to
+  encode and check parity, against about 0.4 s at 0.25. Estimated at about +170 s of CPU per run across 112 hours, about +30-60
+  s wall time on the step's 6 workers. Not measured as a full publish: gate item 3's time half is OPEN until the first live
+  publish. The set runs in its own pilots step (timeout 30 min), not inside the frames step's 960 s budget.
+
+**Tests:** `tests/test_frame_set_raster_icon125.py`, 15 (estate, +15 floor fragment):
+- a box filled by one cell keeps its value;
+- a box over k x k cells is their mean;
+- no box is empty when cells are sparser than boxes;
+- the last column takes the nearer neighbour (both directions);
+- NaN handling;
+- the cell-order check, including the packing tolerance;
+- DWD's map is read zero-based and anything but it is refused;
+- lattice and encoder agree;
+- the set's key, dark switch and one gated step;
+- the map is refused when its cells are not this run's;
+- a frame is the area mean of the rate.
+
+Mutants: 7 of 8 red. The survivor (the pad fill) is equivalent: a pad can only ever stand for a cell that a real candidate beats.
+
+## 06:59Z: G2 corrections after the advisor's review (#956, PASS WITH LIMITS), a pick-map defect found and fixed, re-measured
+
+**Corrections to the G2 section above** (the log is append-only, so they are written here):
+- The heading "PASS on all five hours" overstated it. As registered: item 1 (mass) and item 2 (peaks) pass, and the storage half of
+  item 3 passes. **The time half of item 3 is OPEN** until the first publish, so the gate is not passed yet. Fallback (b) still
+  applies if time fails.
+- The positive control is **NOT MET as written**: the mass half holds within 2 points, but the peak half does not at f120 (0.902
+  kept, about 10 % low, against the logged 19-26 %). The old +1 % mass came from an unweighted native mean; that explains a number
+  and does not make the control pass. Nothing leans on it.
+- The registered null control ("constant per native cell, every peak ratio 1.0") was run as a UNIFORM field without saying so,
+  and a uniform field cannot see a misplaced map. The control run now is the advisor's seeded single-cell spike (below).
+
+**A defect in the pick map, found by the ICON cloud gate's brute-force check and fixed.** Two causes, both measured:
+1. Float32. The publisher passed cell positions as float32, and float32 cannot separate two cells ~0.001 deg apart in distance (1 -
+   cos of 0.05 deg is ~4e-7). Example: ICON cloud f072, node 80.25N 82.0E, sub-point 0. Our pick was cell 10167, but brute force
+   gives 10166, which is 0.00098 deg nearer and was in the node's own box; float32 flips the comparison. Positions and dot products
+   are now float64.
+2. A fixed 3 x 3 window. Boxes narrow with latitude, so the candidate window now widens to ceil(1 / cos(lat)) columns each side
+   (`REACH_DEG`, measured to be enough).
+
+Pick accuracy of the publisher's own map against a brute force over all 2,949,120 cells, 800 random sub-points per band (both
+hemispheres): 0, 45, 60, 75 and 85 degrees, each 800/800 exact. The fullest box holds 3 cells, and a box over the cap (12) now
+raises instead of dropping cells silently. Map build: 72 s (was 26 s with the defect).
+
+**G2 re-measured with the fixed map** (same harness, 2026-11-16 00Z):
+
+| hour | mass error | peaks: median / p10 / global max | gz bytes (ratio to 0.25) |
+|---|---|---|---|
+| f006 | -0.095 % | 0.923 / 0.735 / 0.940 | 1,160,929 (3.45) |
+| f024 | +0.008 % | 0.944 / 0.828 / 0.915 | 1,173,288 (3.46) |
+| f048 | +0.075 % | 0.947 / 0.845 / 0.941 | 1,191,704 (3.44) |
+| f078 | -0.085 % | 0.920 / 0.755 / 0.902 | 1,176,038 (3.49) |
+| f120 | -0.056 % | 0.959 / 0.851 / 0.883 | 1,176,991 (3.45) |
+
+Items 1 and 2 and the storage half of item 3 pass; time is still open.
+
+**Null control: a seeded single-cell spike on the real grid** (60 cells, seed 7, |lat| < 85; one cell = 1, all else 0):
+- Placement: the peak lands within one node of the cell in 60 of 60. With the pick map rolled 8 columns (a misplaced map), 0 of
+  20: the control sees a misplaced map.
+- No cell is lost: every one of the 2,949,120 cells is taken by at least one sub-point.
+- Single-cell mass: the advisor's 0.1 % is **NOT MET**. |error| median 5.8 %, p90 17 %, max 34 %. Nine sub-points per box estimate
+  each cell's share of a box, so one cell's area is sampled with that noise. Over a field the errors average out, which is why
+  global mass holds to 0.1 %. So the set is an area mean with sampled areas, not an exact conservative remap. It must not be
+  called "conservative" in a legend or a SCOREBOARD row. Exact per-cell conservation would need the cells' polygons (the grid
+  file has them) intersected with each box: a larger change, the director's call.
+
+**Client decoder test (registered, now added):** `frontend/src/components/map/ownRasterGrid0p125.test.js`. A real backend-encoded
+2880 x 1441 frame (fixture, 8 KB gzipped) goes through parseFrame, toField and wrapsLongitude: the grid, the bounds and values at
+south-west / equator / the filled 179.875E column / no-data all land, and the shader wraps it. 3 tests (frontend lane, +3 tests
++1 suite fragment).
+**Risks for the CLIENT flip, not in this PR (ownRasterLayer, Move 3's lane):**
+- A 2880 x 1441 R32F texture is 16.6 MB, and up to 6 stay resident (RESIDENT_MAX), so about 100 MB of GPU memory.
+- The main field upload does not check MAX_TEXTURE_SIZE. WebGL2 guarantees only 2048, below 2880.
+Both need handling before a 0.125 set is drawn.
+
+**When DWD's weights file is unreachable:** `fetch_dwd_nn` raises, every hour of the set fails, nothing uploads, the published
+index stays as it was, and the pilots step (continue-on-error) shows the error in its log. The same happens if a later cycle
+packs CLAT / CLON beyond the 0.01-degree check. Neither is alerted today. Caching the 50 MB file (or the derived 37 M-entry pick
+map) between runs is a follow-up.
+
 ## 07:17Z: #955 (EURO cloud) after the advisor's review (PASS WITH LIMITS): negative controls, and how the nodes were placed
 
 - **How the comparison placed our nodes:** by the frame's own DECLARED grid. `g3_euro.py` reads the bounds from the decoded frame
@@ -164,3 +290,49 @@ director's answer to G1 (0.125-degree ICON sets), and shares G2's 0.125-degree s
   - EURO steps are 3-hourly to 144 h, then 6-hourly to 240 h. Between frames the layer draws what the own-frames path draws for
     every raster layer (the nearest stored frame, or the blend), labelled with that frame's valid time.
   - The cloud is instantaneous total cloud cover, as GFS's TCDC set is labelled.
+
+## 07:56Z: #956 after the advisor's re-read (PASS WITH LIMITS): the poles, a guard in CI, the k = 5 numbers, the label, a stale alert
+
+- **The gate table measured on the defective map** (the 06:14Z G2 section) stays in this log, SUPERSEDED by the 06:59Z re-measure.
+  It is not replaced.
+- **Poles.** The advisor: MAX_HALF_COLS = 64 truncates the window poleward of about 89.1 deg, and the bands stopped at 85. Measured:
+  784/800 exact at 89.5N, worst miss 0.062 deg. Fixed: a row whose window would exceed the cap takes every cell of its polar cap
+  as candidates. It is exact by construction: the cap widens until every pick is nearer than any cell left out. Re-measured on
+  the real grid: 0, 60, 85, 89.5 and 89.9 deg, each 800/800 exact.
+- **Guarded in CI now, no longer only offline:**
+  - `test_every_pick_is_the_true_nearest_cell_on_a_random_mesh`: an irregular random mesh, brute force over ALL cells, every
+    sub-point, pole rows included. Mutants: a 1-column cap and a zero-row window both go red.
+  - `test_a_real_near_tie_is_decided_in_float64`: the 80.25N cells 10166 / 10167. Float32 positions flip it, and that mutant
+    goes red. The comparison is now one helper, `nearest_among`.
+- **k = 5, reported once (the advisor), k = 3 stands as registered** (the global mass did not fail). Real grid, 60 seeded spikes:
+
+| k | map build | area mean an hour | pick map | single-cell mass error: median / p90 / max |
+|---|---|---|---|---|
+| 3 | 75 s | 0.64 s | 149 MB | 5.8 % / 17.0 % / 34.5 % |
+| 5 | 182 s | 1.12 s | 415 MB | 4.2 % / 9.4 % / 16.2 % |
+
+  k = 5 halves the worst single-cell error for about 2.4 x the build, 1.75 x the per-hour time and 2.8 x the memory. It is still
+  not conservative per cell. The director's call; k = 3 ships.
+- **Label:** the spec says "area mean (sampled) ... not conservative per cell"; the credit says "area-averaged (sampled)"; the module
+  docstring states the known limit. Never "conservative".
+- **A failed raster publish is now visible** (the director):
+  - `publish_raster_frames.py` prints an `::error` annotation and exits 1 on coverage_refused / latest_unknown / latest_refused.
+    'no_cycle' (upstream not ready) is not a failure.
+  - New `scripts/raster_set_freshness.py` on the Data Health Monitor (every 30 min) reads the PUBLIC latest.json. For every
+    raster set whose repo variable is '1', it fails when the set is missing or its run is older than RASTER_STALE_HOURS (default
+    30 h). So an unreachable DWD weights file shows as a red monitor within a day, not only in one step's log.
+  - +4 tests (`test_raster_set_freshness.py`).
+- Still open, unchanged: time is measured at the first publish; the client flip needs time, a throttled phone step, the texture
+  checks (with Move 3), a legend note and the owner's word.
+
+## 08:25Z: #956, the advisor's condition at d949afcd7 (a public-log leak) fixed, and the monitor's first live read
+
+- **Condition (fixed):** the monitor step passed every repo variable (the whole vars context). A step's env is printed in its log,
+  repo variables are not masked, and this repository's Actions logs are public, so every repo variable would have been published
+  on every run. Now each raster switch is passed BY NAME, one env line each (16 lines). The test refuses the whole-vars form
+  anywhere in the workflow, and requires every raster set's switch to be passed, so a new set must add its line.
+- **Grace for a new set:** a set switched on but not yet published is now a WARNING annotation, not a failure (its first publish
+  is a few hours away). A STALE set (listed, run older than the bound) fails the monitor. One 30 h bound for every set, for now.
+- **Read-only against the LIVE public latest.json, with today's switch values** (2026-11-16 ~08:25Z): the 10 raster sets switched
+  on today (cloud 0.25, fog, precipitation GFS / EURO, pressure GFS / EURO / ICON, temperature GFS, EURO temperature 0.25, EURO
+  water temperature) are all ok, each run 2026-11-16 00Z, 8.4 h old; exit 0. Merging this does not turn the monitor red.
