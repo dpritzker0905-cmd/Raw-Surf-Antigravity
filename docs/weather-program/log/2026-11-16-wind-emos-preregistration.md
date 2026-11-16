@@ -90,3 +90,39 @@ raw spread until a calibrated one passes.
    (ASOS) ones. Outside the four regions nothing calibrated is served.
 5. **Forward collection** is a new scheduled job reading every 00Z run's members. It needs the owner's word for the
    schedule and runs off the Actions queue's busiest hours. Not started until David says so.
+
+
+## 2026-11-16 03:30Z AMENDMENT 2: historical backfill (David 22:04 EST via the director; BEFORE any data is collected or fitted)
+
+David, typed in the director's session at 22:04 EST: "Start it, off-peak daily, but use historical data to help us
+eliminate wait time for calibrations". No backfilled data exists yet and nothing has been fitted. These changes
+replace the lines they name.
+
+1. **Period.** ECMWF IFS ENS **00Z** runs from **2025-06-01 to 2026-10-31** (518 runs) from the AWS mirror. The
+   endpoints were checked at 03:20Z: 2025-06-01, 2025-09-01, 2026-01-01, 2026-03-01 and 2026-06-01 all answer.
+   12Z is left out to halve the cost. Rationale: 00Z vs 12Z mainly changes the diurnal phase at a fixed lead.
+2. **Leads (cost).** Six leads, two per bin: **192 and 210 h** (B1), **228 and 252 h** (B2), **288 and 324 h** (B3).
+   Fields: 10u, 10v, 10fg for the 51 members, by byte range. That is about 1.3 GB per run, read in monthly slices
+   over several dispatches. Only the station values are kept (51 x stations x leads), never a field.
+3. **Truth.**
+   - NDBC: the 2025 annual stdmet files; the 2026 monthly files for Jan-Aug (published; checked for 41009); the
+     realtime2 snapshot from 2026-10-02.
+   - September 2026 NDBC is unpublished, so those rows lack NDBC truth (ASOS only). That is reported, not filled.
+   - ASOS: IEM, the whole period.
+   - Climatology for G5: 2016-2024 only, so no year overlaps the evaluated period.
+4. **Windows (unchanged definition, made explicit).** Every evaluated run T is fitted on runs issued in
+   [T - 59 d, T - 14 d] (amendment 1, issue dates). That is a rolling-origin, out-of-sample forecast by
+   construction. **The evaluated (TEST) runs are those issued 2026-01-01 .. 2026-10-31** (304 days, >= 90). Runs from
+   2025-06-01 to 2025-12-31 only train. Earlier test runs train only on earlier runs; no test observation reaches a
+   fit.
+5. **Held-out robustness line (reported, not gating).** One FIXED fit on all runs issued 2025-06-01 .. 2025-12-17,
+   scored on the same 2026 TEST runs. Reported beside the rolling result. If it disagrees in sign with the rolling
+   one in any bin, that bin is labelled UNSTABLE.
+6. **Stations.** The same rules as the hindcast (NDBC/C-MAN within 50 km of GFS land with anemometer height known;
+   ASOS within 10 km of GFS sea, at most 60). Coverage >= 70% hourly over 2026-01-01..2026-08-31 for NDBC and over the
+   whole TEST period for ASOS. Frozen once, before any fit, and kept with the collection.
+7. **Daily collection.** One job a day at **09:17 UTC** reads the newest complete 00Z run at the same six leads. 00Z
+   ENS completes about 07:40 UTC. 09:17 avoids :00/:30 and the forecast-ingest, precompute and pilots cron minutes.
+   Storage: the weather bucket under `calibration/emos/` (namespaced; no manifest or product writes). Actions only.
+8. **The first read.** It reports coverage only (runs x stations x leads, missing runs, missing truth) to the director.
+   The fit and the test verdict follow, once, as one dated read.
