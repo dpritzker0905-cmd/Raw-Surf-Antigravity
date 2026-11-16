@@ -369,3 +369,11 @@ starts nothing. The run is the `tide-gate-G2` tag, pushed only on the owner's wo
   - A re-run on the same tag restores this tag's cache (K1 so far) and resumes.
 - **A re-run needs the tag deleted and pushed again on the fixed commit, which is the owner's call.** The
   "start G2" word was used for this run; it produced no number.
+
+## 09:21 EST 2026-11-16 (`date`) - login load cut to 2 connections, at most 3 tries each
+The advisor (14:21Z) asked for the retry load against a licensed service to be stated in the log. I cannot confirm
+AVISO's terms on concurrent sessions or lockout, so I took the conservative option: **2 parallel connections**, each
+at most **3 login attempts** (waits 90 s, then 180 s). The worst case is 6 attempts in about 5 minutes. The previous
+setting was 3 x 5, and the first G2 run used 4 connections. A download that still fails stops; it does not keep
+retrying. The advisor's acceptance of the design carries to this commit, since no rule, arm, metric or window file
+changed.

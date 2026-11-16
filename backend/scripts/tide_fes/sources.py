@@ -136,7 +136,7 @@ def _aviso_sftp():
     return t, paramiko.SFTPClient.from_transport(t)
 
 
-def _aviso_sftp_retry(tries=5, wait_s=60):
+def _aviso_sftp_retry(tries=3, wait_s=90):
     """_aviso_sftp with backoff on AuthenticationException. G2 run 43879148124 (2026-11-16) failed when AVISO refused
     one of 4 parallel logins after the first file; the host-key check still runs before every attempt."""
     import time
@@ -151,7 +151,7 @@ def _aviso_sftp_retry(tries=5, wait_s=60):
             time.sleep(wait_s * (k + 1))
 
 
-def download_fes(names, cache, workers=3):
+def download_fes(names, cache, workers=2):
     """Fetch each constituent's .nc.xz into `cache` unless already there, `workers` connections in parallel.
     Each file lands as .part and is renamed only when complete, so a timed-out run still leaves its finished files
     for the cache step (the workflow saves the cache even when this step fails). Returns {name: path}."""
