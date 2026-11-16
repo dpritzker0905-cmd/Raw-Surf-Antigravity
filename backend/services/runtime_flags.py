@@ -81,7 +81,7 @@ GUARDED = {
                                         # world-span map 924 cells (0.77%) <= 0.4 mm, same direction/period. Owner said
                                         # yes (11-13 20:28 EST); flipped ON through the manifest after merge; kill '0'
     "SAMPLER_UNRESOLVED_STATIONS": "1",  # NDBC 46267 BY NAME (Strait of Juan de Fuca): "no data" at the station, not
-                                         # the open-Pacific cell 0.73 deg away (+1.5 m). Nothing else moves; kill '0'.
+                                         # the open-Pacific cell 0.96 deg away (+1.5 m). Nothing else moves; kill '0'.
                                          # GUARDRAIL BLIND: no surf spot is within 0.6 deg, so the replay reads NO_CHANGE.
                                          # The monitor improves because the station's rows LEAVE the score
 }

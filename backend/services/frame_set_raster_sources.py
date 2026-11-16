@@ -398,16 +398,48 @@ class IconPrecipSource(IconOpenDataSource):
         i = hours.index(f)
         return hours[i - 1] if i > 0 else 0
 
-    def fetch(self, cycle, f):
+    def rate(self, cycle, f, ncells):
+        """mm/h per NATIVE cell in the step before hour f (the run totals differenced; below zero is packing noise -> 0)."""
         import numpy as np
-        node, counts, ncells = self.grid(cycle)
         prev = self.previous(f)
         amount = self._total(cycle, f, ncells)
         if prev > 0:
             amount = amount - self._total(cycle, prev, ncells)
-        rate = np.where(np.isfinite(amount), np.maximum(amount, 0.0) / float(f - prev), np.nan)
-        return box_mean(rate, node, counts, self.lattice())
+        return np.where(np.isfinite(amount), np.maximum(amount, 0.0) / float(f - prev), np.nan)
+
+    def fetch(self, cycle, f):
+        node, counts, ncells = self.grid(cycle)
+        return box_mean(self.rate(cycle, f, ncells), node, counts, self.lattice())
+
+
+class IconPrecip0p125Source(IconPrecipSource):
+    """The same rates on the 0.125-degree lattice by the supersampled area mean (frame_set_raster_icon125, G2 2026-11-16): each
+    box is the mean over k x k sub-points of the cell nearest each, so no box is empty and a shower filling a box keeps its
+    value. The pick map is built once per publish from the run's CLAT / CLON and DWD's own 0.125-degree nearest-neighbour map,
+    refused unless DWD's cells are the GRIB's cells in the same order."""
+
+    def grid(self, cycle):
+        import numpy as np
+        try:
+            from services import frame_set_raster_icon125 as i125
+        except ImportError:  # pragma: no cover
+            import frame_set_raster_icon125 as i125
+        with self._grid_lock:
+            if "pick" not in self._grid:                     # the grid (R3B7, 0026) does not change between runs
+                clat = self._decode_bz2(self._invar(cycle, "CLAT"))
+                clon = self._decode_bz2(self._invar(cycle, "CLON"))
+                nn, slat, slon = i125.fetch_dwd_nn(self.http)
+                if not i125.same_grid(slat, slon, clat, clon):
+                    raise RuntimeError("DWD's 0.125-degree map is not this run's ICON grid (cells or their order differ)")
+                xyz = i125._unit(clat, clon)   # float64: float32 cell positions flip near-ties (2026-11-16, 80.25N)
+                self._grid["pick"] = (i125.subpoint_pick(i125.extend_nn(nn, xyz), xyz, clat, clon), clat.size)
+            return self._grid["pick"]
+
+    def fetch(self, cycle, f):
+        from services import frame_set_raster_icon125 as i125
+        pick, ncells = self.grid(cycle)
+        return i125.area_mean(self.rate(cycle, f, ncells), pick)
 
 
 SOURCES = {"ecmwf": EcmwfOpenDataSource, "ecmwf_precip": EcmwfPrecipSource, "icon": IconOpenDataSource,
-           "icon_precip": IconPrecipSource}
+           "icon_precip": IconPrecipSource, "icon_precip_0p125": IconPrecip0p125Source}

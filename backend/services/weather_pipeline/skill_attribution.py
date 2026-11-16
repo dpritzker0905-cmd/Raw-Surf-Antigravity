@@ -39,7 +39,7 @@ def tier_of(product_id: Optional[str]) -> Optional[str]:
 
 def serve_path(point) -> Dict:
     """PURE: HOW a calibration point was answered (2026-11-12): the sampler's `interpolation_method` and the cell it read,
-    so a buoy's error is tied to its serve path instead of inferred (NDBC 46267's +1.5 m was a nearest-ocean read 0.73 deg
+    so a buoy's error is tied to its serve path instead of inferred (NDBC 46267's +1.5 m was a nearest-ocean read 0.96 deg
     away, found only by elimination). Only known keys. Kill: CALIBRATION_SERVE_PATH=0 returns {} (the report's `served`
     block is then byte-identical to before)."""
     import os

@@ -17,9 +17,9 @@ from pathlib import Path
 WORKFLOWS = Path(__file__).resolve().parents[2] / ".github" / "workflows"
 
 # Known bare conditions, each OFF in practice while its variable is unset. Not fixed here: turning them on is the owner's call.
-KNOWN_OFF = {
-    ("spot-series.yml", "SPOT_SERIES_PUBLISH"),                # spot series publish: its 3 newest runs on 2026-11-12 'skipped'
-}
+# Retired 2026-11-15: ("spot-series.yml", "SPOT_SERIES_PUBLISH") - #918 writes `(vars.SPOT_SERIES_PUBLISH || '1') != '0'` on
+# the owner's go-live (all 98 automatic runs 2026-11-05..11-15 had skipped; the dispatched dry run 43734665312 passed 14/14).
+KNOWN_OFF: set = set()
 
 
 def _bare_conditions():
@@ -44,6 +44,15 @@ def test_the_rated_frames_step_defaults_on():
     text = (WORKFLOWS / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
     assert "(vars.FRAME_RATING_SETS || '1') != '0'" in text
     assert "&& vars.FRAME_RATING_SETS != '0'" not in text
+
+
+def test_the_rated_step_passes_the_paint_first_kill_switch_defaulting_on():
+    """#975 (2026-11-16, the advisor's condition): FRAME_RATING_PAINT_FIRST must reach the scheduled rated step as a repository
+    variable defaulting to '1', so it can be turned off without a commit."""
+    text = (WORKFLOWS / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
+    step = text[text.index("Publish rated static frames"):]
+    step = step[:step.index("run: python scripts/publish_frame_images.py --only rated")]
+    assert "FRAME_RATING_PAINT_FIRST: ${{ vars.FRAME_RATING_PAINT_FIRST || '1' }}" in step
 
 
 def test_the_pressure_frames_step_defaults_on():

@@ -1,0 +1,51 @@
+"""Dormant source loader/compile-for-inspection. No module execution or import."""
+import hashlib
+from pathlib import Path
+import sys
+import zipfile
+
+from fingerprints import fingerprint,nested,normal_returns
+
+WHEEL_SHA='c46efd13b6aa8279f33f2864459c8ce587ea6a1a59ee20de055868d8f7688f7f'
+MEMBERS={
+    'pip._vendor.urllib3.util.connection':('pip/_vendor/urllib3/util/connection.py','e4bc760753d6dbd2b1067d93d3190dd420604416b780654904aa10a11a201159'),
+    'pip._vendor.urllib3':('pip/_vendor/urllib3/__init__.py','8972dc6222724a7d0635b58e3990c30298012f52603f8e0467c8b5efad12f0c7'),
+    'pip._vendor.urllib3.contrib._appengine_environ':('pip/_vendor/urllib3/contrib/_appengine_environ.py','6c36f2384856d8228b25c42a00a032ac41cdf9a925b321c52aaeaf17c645b269')}
+HELPER='pip._vendor.urllib3.util.connection'
+PARENT='pip._vendor.urllib3'
+APPENGINE='pip._vendor.urllib3.contrib._appengine_environ'
+
+
+def file_sha(path):
+    h=hashlib.sha256()
+    with Path(path).open('rb') as f:
+        for block in iter(lambda:f.read(65536),b''):h.update(block)
+    return h.hexdigest()
+
+
+class SourceCatalog:
+    def __init__(self,path):
+        if sys.version.split()[0]!='3.12.14' or sys.flags.optimize!=0:
+            raise ValueError('pinned_compiler_required')
+        self.archive=Path(path)
+        if self.archive.is_symlink() or not self.archive.is_absolute() or self.archive.resolve()!=self.archive:
+            raise ValueError('canonical_archive_required')
+        if file_sha(self.archive)!=WHEEL_SHA:raise ValueError('wheel_hash')
+        self.expected={};self.origins={};self.digests={};self.returns={}
+        with zipfile.ZipFile(self.archive) as z:
+            if len(z.namelist())!=len(set(z.namelist())):raise ValueError('duplicate_wheel_members')
+            for name,(member,digest) in MEMBERS.items():
+                blob=z.read(member)
+                if hashlib.sha256(blob).hexdigest()!=digest:raise ValueError('member_hash')
+                origin=str(self.archive)+'/'+member
+                # Inspection only. These code objects are never exec'd here.
+                code=compile(blob,origin,'exec',dont_inherit=True,optimize=0)
+                self.expected[name]=code;self.origins[name]=origin
+                self.digests[name]=fingerprint(code);self.returns[name]=normal_returns(code)
+        self.helper=nested(self.expected[HELPER],'_has_ipv6')
+        self.helper_digest=fingerprint(self.helper);self.helper_returns=normal_returns(self.helper)
+        self.appengine_functions={q:nested(self.expected[APPENGINE],q) for q in
+            ('is_appengine','is_appengine_sandbox','is_local_appengine','is_prod_appengine')}
+
+    def unchanged(self):
+        return file_sha(self.archive)==WHEEL_SHA

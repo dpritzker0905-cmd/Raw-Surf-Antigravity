@@ -207,6 +207,10 @@ jobs:
           # 320 (was 240, 2026-10-26): a cycle re-bakes every tail product (new identity), and at run + 348 h (D-053) that is
           # 232 a run (ICON 64 x waves/swell_1/wind_waves + EURO 40 waves); 240 left 8 spare.
           FRAME_TAIL_DOWNLOAD_MAX: ${{ vars.FRAME_TAIL_DOWNLOAD_MAX || '320' }}
+          # ON (2026-11-15, services/frame_set_tail_stale.py): a tail product on this disk from ANOTHER run than the manifest names
+          # (restored by a pilots job that reads it, before the core lane re-baked it) is re-downloaded instead of refused as
+          # stale_local, inside FRAME_TAIL_DOWNLOAD_MAX. Kill: FRAME_TAIL_REFETCH_STALE=0.
+          FRAME_TAIL_REFETCH_STALE: ${{ vars.FRAME_TAIL_REFETCH_STALE || '1' }}
           # The EURO/ICON world sets with the targeted Gulf fill baked in (services/frame_set_fill.py) publish only while the mode
           # read from these two is 'targeted', the way the box reads them. Keep them EQUAL to the Render env (the box's mode): the
           # client serves a filled set only while /capabilities reports the same mode, so a mismatch costs speed, never a number.
@@ -222,6 +226,12 @@ jobs:
           # sha would write it, without re-encoding; the EURO swell sets rebuilt 74-118 frames each per run before. Wind, rated and
           # Bight frames keep the identity carry only. Kill: repo variable FRAME_CONTENT_CARRY = '0' (every changed identity rebuilds).
           FRAME_CONTENT_CARRY: ${{ vars.FRAME_CONTENT_CARRY || '1' }}
+          # ON (2026-11-15, services/frame_set_fill_patch.py): a Gulf-filled world frame is its plain frame (same product, proven
+          # by the content key) with only the filled nodes rewritten and parity-checked, and an EURO/ICON pair shares each GFS
+          # donor. Byte-identical to the full rebuild. Kill: repo variable FRAME_FILLED_PATCH = '0'. FRAME_FILLED_PATCH_VERIFY = '1'
+          # also builds every patched frame in full and publishes the full one on any difference (a live check; costs the time back).
+          FRAME_FILLED_PATCH: ${{ vars.FRAME_FILLED_PATCH || '1' }}
+          FRAME_FILLED_PATCH_VERIFY: ${{ vars.FRAME_FILLED_PATCH_VERIFY || '0' }}
           # ON by default, kill switch '0' (owner 2026-11-01 22:10 EST); built 2026-11-01, item 14 (published LAST, after the regional bundles): '1' adds the EURO swell_1/swell_2/wind_waves world sets (plain + Gulf-filled) after the world sets
           # (frame_set.EURO_SWELL_SETS). They have products only once EURO_MARINE_MID_CMEMS_SWELL is on in the ingest step; the client's
           # STATIC_SETS must list them before it reads them. With FRAME_TAIL_DOWNLOAD on, their 240-336 h tails need ~3 x 40 more of
@@ -269,6 +279,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FRAME_RATING_SETS: ${{ vars.FRAME_RATING_SETS || '1' }}
           FRAME_RATING_BUDGET_S: ${{ vars.FRAME_RATING_BUDGET_S || '600' }}
+          FRAME_RATING_PAINT_FIRST: ${{ vars.FRAME_RATING_PAINT_FIRST || '1' }}   # band first (frame_set_rating.paint_tier); KILL: repo variable '0'
           RATING_LOCAL_SIZE: '1'                 # = precompute.yml / forecast-ingest.yml / Render (ONE FORECAST COMPOSITION)
           RATING_OBS_GATE: '1'                   # = precompute.yml / Render
           SHORE_NORMAL_BEARING_RADIUS_KM: '3.0'  # = precompute.yml / forecast-ingest.yml / Render
@@ -385,6 +396,19 @@ jobs:
           FRAME_RASTER_PRECIP_ICON: ${{ vars.FRAME_RASTER_PRECIP_ICON }}
         run: python scripts/publish_raster_frames.py --set precipitation_icon
 
+      # ICON precipitation at 0.125 deg (G2, 2026-11-16): the same rates by a supersampled area mean onto ICON's own resolution
+      # (DWD's 0.125-degree nearest-neighbour map, about 50 MB, read once per publish). Off unless FRAME_RASTER_PRECIP_ICON_0P125=1.
+      - name: Publish raster static frames (ICON precipitation 0.125 deg; off unless FRAME_RASTER_PRECIP_ICON_0P125=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRECIP_ICON_0P125 == '1' }}
+        continue-on-error: true
+        timeout-minutes: 30
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_PRECIP_ICON_0P125: ${{ vars.FRAME_RASTER_PRECIP_ICON_0P125 }}
+        run: python scripts/publish_raster_frames.py --set precipitation_icon_0p125
+
       # PER-MODEL PRESSURE (2026-10-23; the owner, 20:13 EDT: "Yes start it", answering "start the per-model pressure route?"
       # after "We want each models pressure showing"). EURO = ECMWF IFS open data msl (CC BY 4.0, attribution required), the
       # same stream the box's ecmwf_opendata_fetcher reads, 00/12Z cycles (0-240 h; 3-hourly to 144 h, then 6-hourly), onto
@@ -465,6 +489,18 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FRAME_RASTER_TEMPERATURE_EURO_0P25: ${{ vars.FRAME_RASTER_TEMPERATURE_EURO_0P25 }}
         run: python scripts/publish_raster_frames.py --set temperature_euro_0p25
+
+      # EURO total cloud cover (ECMWF open data tcc, 0.25 deg every point; G3, 2026-11-16). Off unless FRAME_RASTER_CLOUD_EURO=1.
+      - name: Publish raster static frames (EURO cloud cover; off unless FRAME_RASTER_CLOUD_EURO=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CLOUD_EURO == '1' }}
+        continue-on-error: true
+        timeout-minutes: 12
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_CLOUD_EURO: ${{ vars.FRAME_RASTER_CLOUD_EURO }}
+        run: python scripts/publish_raster_frames.py --set cloud_cover_euro
 
       - name: Publish raster static frames (ICON temperature; off unless FRAME_RASTER_TEMPERATURE_ICON=1)
         if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_TEMPERATURE_ICON == '1' }}

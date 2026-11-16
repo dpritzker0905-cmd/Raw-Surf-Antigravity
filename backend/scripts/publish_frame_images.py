@@ -47,6 +47,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from services import frame_set as fs  # noqa: E402
 from services import frame_set_bundle as fsb  # noqa: E402
 from services import frame_set_fill as fsf  # noqa: E402
+from services import frame_set_tail_stale as fts  # noqa: E402
 from services import frame_set_rating as fsr  # noqa: E402
 from services import frame_entitlement as fe  # noqa: E402
 from services import frame_latest_guard as flg  # noqa: E402
@@ -137,15 +138,22 @@ class TailDownloads:
 
     def __init__(self, local, fetch, cap=320, log=print):
         self.local, self.fetch, self.cap, self.log = local, fetch, int(cap), log
-        self._got = {}
-        self.stats = {"downloaded": 0, "download_failed": 0, "download_capped": 0, "wire_bytes": 0, "bytes": 0}
+        self._got, self.last_stale, self.last_check_s = {}, 0, 0.0
+        self.stats = {"downloaded": 0, "download_failed": 0, "download_capped": 0, "wire_bytes": 0, "bytes": 0, "stale_refetched": 0}
 
     def manifest(self):
         return self.local.manifest()
 
     def product_bytes(self, filename):
-        raw = self.local.product_bytes(filename)
-        return raw if raw is not None else self._got.get(filename)
+        got = self._got.get(filename)   # a download first: it replaces a disk copy of another run (frame_set_tail_stale)
+        return got if got is not None else self.local.product_bytes(filename)
+
+    def _stale(self, raw, entry):
+        t0 = time.perf_counter()   # the full parse costs time in a budgeted step: reported per set as stale_check_s
+        try:
+            return fts.is_stale(raw, entry)
+        finally:
+            self.last_check_s += time.perf_counter() - t0
 
     def fetch_dependency(self, filename):
         """SRV-2 (frame_set_bight): ONE stored product a frame's composition reads (the EURO frame the Bight mean averages
@@ -178,11 +186,12 @@ class TailDownloads:
     def prefetch(self, target, previous_index=None):
         """Download, TAIL_WORKERS at a time, the tail entries of `target` that are neither on disk nor carried from
         `previous_index` (same source identity). Returns the number downloaded for this set."""
+        self.last_stale, self.last_check_s = 0, 0.0
         if not self.wants(target):
             return 0
         carried = {(f.get("valid_time"), bool(f.get("is_estimated"))): f.get("source")
                    for f in (previous_index or {}).get("frames", []) if f.get("path")}
-        todo = []
+        todo, stale, refetch = [], set(), fts.enabled()
         products = self.manifest().get("products")
         # A FILLED world set (frame_set_fill) reads the same tails as its plain set: a tail the plain set already fetched this run is
         # never fetched again, and its frame identity carries the GFS donor, as publish_set builds it.
@@ -194,8 +203,13 @@ class TailDownloads:
             ident = fs.source_identity(e)
             if fill_store is not None:
                 ident["fill_donor"] = fsf.donor_identity(fsf.donor_entry(products, vt, target["layer"], store=fill_store))
-            if carried.get((vt, True)) == ident or e["filename"] in self._got or self.local.product_bytes(e["filename"]) is not None:
+            if carried.get((vt, True)) == ident or e["filename"] in self._got:
                 continue
+            disk = self.local.product_bytes(e["filename"])
+            if disk is not None and not (refetch and self._stale(disk, e)):
+                continue
+            if disk is not None:
+                stale.add(e["filename"])   # another run than the manifest names: download the current one (FRAME_TAIL_REFETCH_STALE)
             todo.append(e["filename"])
         room = max(0, self.cap - self.stats["downloaded"])
         if len(todo) > room:
@@ -220,6 +234,8 @@ class TailDownloads:
             self.stats["bytes"] += len(data)
             self.stats["wire_bytes"] += int(wire or 0)
             n += 1
+            self.last_stale += name in stale
+        self.stats["stale_refetched"] += self.last_stale
         return n
 
 
@@ -526,7 +542,7 @@ def publish_order(sets, latest):
 
     def key(target):
         written = (records.get(fs.set_key(target)) or {}).get("written_at") or ""
-        return (written, 1 if fsb.is_bundle(target) else 0)   # "" (never written) sorts before every ISO time
+        return (fsr.paint_tier(target), written, 1 if fsb.is_bundle(target) else 0)   # rated band first (fsr.paint_tier); "" sorts first
 
     return sorted(sets, key=key)
 
@@ -548,6 +564,7 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
     upload = _uploader(sink)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     report, changed, keep_by_set = {}, False, {}
+    this_run = {}        # set key -> the index published this run (a filled set patches its plain set's frames)
     pending_empty = {}   # explicit-empty records (frame_set_bundle.empty_record), applied only when latest.json is written anyway
     started = clock()
     # The HRRR lane the serve box blends into GFS wind (frame_set_wind.py): read once, applied to every wind frame.
@@ -576,10 +593,12 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
         else:
             fetched = source.prefetch(target, prev_index) if isinstance(source, TailDownloads) else 0
             index, stats = fs.publish_set(source, sink, target, prev_index, upload, log=log, wind_lane=wind_lane,
-                                          rating_inputs=rating_inputs)
+                                          rating_inputs=rating_inputs, plain_index=_plain_index(target, this_run, latest, sink))
             if isinstance(source, TailDownloads):
-                stats["tail_downloaded"] = fetched
+                stats["tail_downloaded"], stats["stale_refetched"] = fetched, source.last_stale
+                stats["stale_check_s"] = round(source.last_check_s, 2)
         if index is not None:
+            this_run[key] = index
             sink.write(index["path"], fs.index_bytes(index), fs.JSON_TYPE, IMMUTABLE)
             latest.setdefault("sets", {})[key] = (fsb.latest_record if bundled else fs.latest_record)(index, entry, now, _writer())
             changed = True
@@ -635,6 +654,24 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
             sink.delete(gone)
         report[key]["deleted"] = len(gone)
     return report
+
+
+def _plain_index(target, this_run, latest, sink):
+    """A FILLED set's plain set index (frame_set_fill_patch): the one published this run, else the one latest.json names; None
+    when there is none, or it cannot be read (the filled set then rebuilds every frame in full, as before)."""
+    from services import frame_set_fill as fsf
+    from services import frame_set_fill_patch as fsfp
+    if not fsf.is_filled(target) or not fsfp.enabled():
+        return None
+    key = fs.set_key(fsfp.plain_target(target))
+    if key in this_run:
+        return this_run[key]
+    path = ((latest.get("sets") or {}).get(key) or {}).get("index")
+    try:
+        raw = sink.read(path) if path else None
+        return json.loads(raw) if raw else None
+    except Exception:
+        return None
 
 
 def _wind_lane_pointer(sink, wind_lane, log):

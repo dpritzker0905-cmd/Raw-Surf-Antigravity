@@ -36,6 +36,7 @@ from services import frame_binary as fb
 from services import frame_set_bight as fsb
 from services import frame_set_content as fsc
 from services import frame_set_fill as fsf
+from services import frame_set_fill_patch as fsfp
 from services import frame_set_rating as fsr
 from services import frame_set_wind as fsw
 
@@ -244,7 +245,7 @@ def min_coverage():
 
 
 def publish_set(source, sink, target, previous_index, uploader, log=print, coverage_floor=None, wind_lane=None,
-                rating_inputs=None):
+                rating_inputs=None, plain_index=None):
     """Build, check and upload one set's frames; return (index or None, stats).
 
     `source.product_bytes(filename)` returns local bytes or None and never downloads. `uploader(jobs)` uploads
@@ -299,6 +300,15 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
     entries = select_entries(products, target)
     stats["entries"] = len(entries)
     fill_store = fsf._ManifestStore(products) if filled else None
+    # A FILLED frame is the plain frame of the same product with the filled nodes rewritten (frame_set_fill_patch): fetch the
+    # plain set's frames once, in parallel; any frame not provably equal falls back to the full rebuild.
+    plain, no_plain_index = None, False
+    if filled and fsfp.enabled() and sink is not None and not plain_index:
+        no_plain_index = True                  # counted per frame below: the full rebuild is not silent
+    if filled and plain_index and sink is not None and fsfp.enabled():
+        plain = fsfp.PlainFrames(plain_index, sink)
+        plain.prefetch()
+        stats.update(patched=0, patch_mismatch=0)
     bight_view = None                          # SRV-2: the Bight composition /grid serves, baked (frame_set_bight)
 
     def unbuilt(vt, est, ident, reason):
@@ -356,6 +366,7 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
                 log(f"[frames] {entry['filename']}: no same-layer GFS global_mid within 3 h; /grid serves this hour")
                 unbuilt(vt, est, ident, "fill_donor_missing")
                 continue
+            unfilled = product
             try:
                 if donor_raw is None:
                     donor_raw = source.product_bytes(donor["filename"])
@@ -384,7 +395,22 @@ def publish_set(source, sink, target, previous_index, uploader, log=print, cover
             stats["rated_nodes"] += counts["rated"]
             stats["masked_nodes"] += counts["masked"]
         try:
-            raw, check = build_frame(product, entry, fields_for(target, touched > 0))
+            patched, why = (None, "no_index" if no_plain_index else None)
+            if plain is not None and not bight_on:
+                patched, why = fsfp.try_patch(plain, vt, est, raw_json, unfilled, product, fields_for(target), n_filled)
+            if patched is None:
+                if why:
+                    stats[f"patch_fallback_{why}"] = stats.get(f"patch_fallback_{why}", 0) + 1
+                raw, check = build_frame(product, entry, fields_for(target, touched > 0))
+            else:
+                raw, check = patched
+                stats["patched"] += 1
+                if fsfp.verify_mode():         # the first live run's check: the full rebuild must write the same bytes
+                    full, full_check = build_frame(product, entry, fields_for(target, touched > 0))
+                    if full != raw or not fsfp.header_matches(raw, product, fields_for(target)):
+                        stats["patch_mismatch"] += 1
+                        log(f"[frames] {entry['filename']}: patched frame differs from the full rebuild; the full one is used")
+                        raw, check = full, full_check
         except ValueError as e:
             log(f"[frames] {entry['filename']}: refused ({e})")
             unbuilt(vt, est, ident, "refused")

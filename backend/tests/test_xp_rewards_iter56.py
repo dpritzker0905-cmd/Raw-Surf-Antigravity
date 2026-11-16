@@ -62,7 +62,7 @@ class TestGamificationAPI:
         print(f"  - Badges count: {len(data['badges'])}")
         print(f"  - Recent XP transactions: {len(data['recent_xp_transactions'])}")
     
-    @pytest.mark.skip(reason="Badge checking has pre-existing model issue: LiveSessionParticipant.payment_status not found")
+    @pytest.mark.skip(reason="Obsolete since 2026-11-15: award-xp no longer takes a client amount; covered by tests/test_xp_award_server_authoritative.py")
     def test_award_xp_endpoint(self):
         """Test POST /api/gamification/award-xp"""
         response = self.session.post(

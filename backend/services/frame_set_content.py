@@ -55,7 +55,7 @@ _KEY_RX = {k: re.compile(rb'"' + k.encode("ascii") + rb'"\s*:\s*(?:' + _VALUE + 
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
 CODE_FILES = tuple(os.path.join(_HERE, f) for f in (
-    "frame_binary.py", "frame_set.py", "frame_set_fill.py", "frame_set_content.py",
+    "frame_binary.py", "frame_set.py", "frame_set_fill.py", "frame_set_content.py", "frame_set_fill_patch.py",
     os.path.join("weather_pipeline", "coarse_gulf_fill.py")))
 _code = None
 
@@ -80,11 +80,28 @@ def code_sha12():
     return _code
 
 
+_MEMO = []          # [(bytes object, result)]: the last few scans; one frame scans its product and donor up to three times
+_MEMO_MAX = 4
+
+
 def masked(raw):
     """(sha256[:32] of `raw` with every VOLATILE value blanked, {key: value or None}), or None when that is not provably safe:
-    a key absent or repeated, or not at the top level of the JSON object. PURE."""
-    if not isinstance(raw, (bytes, bytearray)):
+    a key absent or repeated, or not at the top level of the JSON object. PURE (memoised on the bytes OBJECT, which the memo
+    holds, so its identity cannot be reused; bytes are immutable)."""
+    if isinstance(raw, bytearray):
+        return _masked(bytes(raw))           # mutable: never memoised
+    if not isinstance(raw, bytes):
         return None
+    for obj, res in _MEMO:
+        if obj is raw:
+            return res
+    res = _masked(raw)
+    _MEMO.insert(0, (raw, res))
+    del _MEMO[_MEMO_MAX:]
+    return res
+
+
+def _masked(raw):
     vals, spans = {}, []
     for k, rx in _KEY_RX.items():
         found = list(rx.finditer(raw))

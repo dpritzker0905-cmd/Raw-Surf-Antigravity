@@ -38,7 +38,7 @@ class PostCreate(BaseModel):
     wind_direction: Optional[str] = None
     tide_status: Optional[str] = None
     tide_height_ft: Optional[float] = None
-    conditions_source: Optional[str] = 'manual'
+    conditions_source: Optional[str] = None      # a hint only: the server decides (services/conditions_provenance)
     visibility: Literal['public', 'followers', 'guardian_only'] = 'public'
 
 class CommentCreate(BaseModel):

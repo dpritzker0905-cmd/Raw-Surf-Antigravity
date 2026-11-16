@@ -1,0 +1,41 @@
+# EURO scalar-height SHADOW READ (2026-11-15). MEASUREMENT ONLY, DISPATCH ONLY.
+#
+# WHY: #663 / D-073 would serve EURO marine heights as the scalar (SAMPLER_SCALAR_HEIGHT_MODELS GFS -> GFS,EURO). Since
+# 2026-11-01 the skill ledger grades a shadow lane, raw_surf:EURO_SCALAR, beside raw_surf:EURO on the same buoys, hours,
+# leads and observations, to decide exactly that flip. This job reads it by the rule pre-registered in
+# docs/weather-program/log/2026-11-15-claude-verifier-euro-scalar-read.md (commit 5098df3c8, before any row was read).
+#
+# ⛔ PRINTS AGGREGATES ONLY: per lead and per region x lead n, MAE, bias, the paired difference and its day-block
+#   interval, the controls and the verdict. No row, observation series or credential reaches the log; no artifact.
+#   tests/test_euro_scalar_shadow_read.py pins that no buoy id or row field is printed.
+# ⛔ NO SCHEDULE: the owner names each dispatch. Not running it is the kill switch.
+# ⛔ Reads only (Storage GET with the monitor's read pair); never writes Storage, never calls the serve box.
+name: EURO Scalar Shadow Read
+on:
+  workflow_dispatch:
+    inputs:
+      since:
+        description: "First target day (UTC, YYYY-MM-DD; pre-registered 2026-11-02)"
+        required: false
+        default: "2026-11-02"
+permissions:
+  contents: read
+concurrency:
+  group: euro-scalar-shadow-read
+  cancel-in-progress: true
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: EURO scalar vs vector, paired (aggregates only)
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          SINCE: ${{ github.event.inputs.since || '2026-11-02' }}
+        run: |
+          set -o pipefail
+          case "$SINCE" in [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]) ;; *) echo "since must be YYYY-MM-DD"; exit 2;; esac
+          python3 scripts/euro_scalar_shadow_read.py --since "$SINCE"

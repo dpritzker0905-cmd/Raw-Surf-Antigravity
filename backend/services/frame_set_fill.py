@@ -25,7 +25,10 @@ frame then carries the runner's donor run. The client pins one index per scrub s
 """
 from __future__ import annotations
 
+import hashlib
 import json
+import os
+from collections import OrderedDict
 from types import SimpleNamespace
 
 from services.weather_pipeline import coarse_gulf_fill as cgf
@@ -68,6 +71,40 @@ def donor_identity(entry):
     return {k: entry.get(k) for k in ("filename", "model_run_time", "run_time", "ingested_at")}
 
 
+# DONOR CACHE (2026-11-15, frame_set_fill_patch; FRAME_FILLED_PATCH=0 turns it off with the patch path). An EURO and an ICON filled
+# set of the same layer fill from the SAME GFS donor product at each hour, and building its _CompactDonor (immutable once built)
+# is the single largest cost of a filled frame. Keyed on the donor's filename, the sha256 of its BYTES and the resolution the
+# fill uses, so a hit is a donor built from byte-identical input; (model_run_time, run_time) of the bytes ride along for
+# coarse_gulf_fill._same_run. ~330 KB a donor (5 float32 planes); bounded.
+_DONOR_CACHE = OrderedDict()
+DONOR_CACHE_MAX = 480
+
+
+def _cache_on():
+    return os.environ.get("FRAME_FILLED_PATCH", "1") != "0"
+
+
+def _donor(donor_entry_, donor_bytes):
+    """(the donor product's {model_run_time, run_time}, its _CompactDonor). Raises ValueError as apply_fill always has."""
+    key = None
+    if _cache_on():
+        key = (donor_entry_["filename"], hashlib.sha256(donor_bytes).hexdigest(), donor_entry_.get("resolution"))
+        hit = _DONOR_CACHE.get(key)
+        if hit is not None:
+            _DONOR_CACHE.move_to_end(key)
+            return hit
+    data = json.loads(donor_bytes)
+    g = data.get("grid") or {}
+    donor = cgf._CompactDonor(donor_entry_["filename"], g.get("vectors") or [], g.get("cols"), g.get("rows"),
+                              donor_entry_.get("resolution") or data.get("resolution"))
+    out = ({"model_run_time": data.get("model_run_time"), "run_time": data.get("run_time")}, donor)
+    if key is not None:
+        _DONOR_CACHE[key] = out
+        while len(_DONOR_CACHE) > DONOR_CACHE_MAX:
+            _DONOR_CACHE.popitem(last=False)
+    return out
+
+
 def _ns(vectors):
     return [SimpleNamespace(**v) for v in vectors]
 
@@ -78,12 +115,9 @@ def apply_fill(product, donor_entry_, donor_bytes, layer):
     `product` is the stored product JSON (dict); it is not modified. Returns (new product dict, cells filled)."""
     if donor_bytes is None:
         raise ValueError(f"donor {donor_entry_['filename']} is not on this runner's disk")
-    data = json.loads(donor_bytes)
-    if not cgf._same_run(SimpleNamespace(**donor_entry_), data):
+    runs, donor = _donor(donor_entry_, donor_bytes)
+    if not cgf._same_run(SimpleNamespace(**donor_entry_), runs):
         raise ValueError(f"donor {donor_entry_['filename']} on disk is not the run its manifest entry names")
-    g = data.get("grid") or {}
-    donor = cgf._CompactDonor(donor_entry_["filename"], g.get("vectors") or [], g.get("cols"), g.get("rows"),
-                              donor_entry_.get("resolution") or data.get("resolution"))
     if not donor.has_sea():
         raise ValueError(f"donor {donor_entry_['filename']} has no sea node")
     grid = product.get("grid") or {}

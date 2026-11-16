@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, render, screen } from '@testing-library/react';
 import ForecastTimeStatus from './ForecastTimeStatus';
+import { formatRunLocal } from './readoutDateFormat';
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -93,5 +94,36 @@ describe('the rating band held off (marineRatingBandRes.js): said in words, neve
     window.__RAW_GPU__ = { ratingBandFade: { heldBy: null } };
     render(<ForecastTimeStatus model="ICON" layer="waves" hour={0} theme="dark" />);
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+});
+
+describe('the rated band run age (#933): a quiet polite status line while the band is painted', () => {
+  afterEach(() => { delete window.__RAW_GPU__; delete window.__MARINE_ENGINE__; });
+  const painting = (ratedRun) => {
+    window.__RAW_GPU__ = { ratingBand: { active: true } };
+    window.__MARINE_ENGINE__ = { _waveData: { waveGrid: { ratingMode: true, ratedRun } } };
+  };
+  it.each(['light', 'dark', 'beach'])('one run behind: said in words in %s theme', (theme) => {
+    painting({ lagH: 6, runTime: '2026-11-16T06:00:00Z' });
+    render(<ForecastTimeStatus model="ICON" layer="waves" hour={0} theme={theme} />);
+    const el = screen.getByRole('status');
+    expect(el).toHaveTextContent(`Surf ratings from the ${formatRunLocal(Date.parse('2026-11-16T06:00:00Z'))} run, 6 h older than the wave heights`);
+    expect(el).toHaveAttribute('aria-live', 'polite');
+    expect(el).toHaveAttribute('data-rated-run-label', 'on');
+  });
+  it('same run, band not painted, or a held band: no run-age line', () => {
+    painting({ lagH: 0, runTime: '2026-11-16T06:00:00Z' });
+    const { unmount } = render(<ForecastTimeStatus model="ICON" layer="waves" hour={0} theme="dark" />);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    unmount();
+    painting({ lagH: 6, runTime: '2026-11-16T06:00:00Z' });
+    window.__RAW_GPU__.ratingBand.active = false;
+    const r2 = render(<ForecastTimeStatus model="ICON" layer="waves" hour={0} theme="dark" />);
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+    r2.unmount();
+    painting({ lagH: 6, runTime: '2026-11-16T06:00:00Z' });
+    window.__RAW_GPU__.ratingBandFade = { heldBy: 'edge' };
+    render(<ForecastTimeStatus model="ICON" layer="waves" hour={0} theme="dark" />);
+    expect(screen.getByRole('status')).toHaveAttribute('data-rating-band-held', 'edge');
   });
 });

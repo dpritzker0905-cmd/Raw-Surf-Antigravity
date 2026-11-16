@@ -67,6 +67,23 @@ def rated_publish_sets():
     regional = rated_regional_sets()
     waves = [t for t in regional if t["layer"] == "waves"]
     return tuple(waves) + RATED_SETS[:1] + tuple(t for t in regional if t["layer"] != "waves") + RATED_SETS[1:]
+
+
+def paint_tier(target):
+    """PAINT FIRST (2026-11-16, the rating-band lane; ON, kill FRAME_RATING_PAINT_FIRST=0). The publisher's FAIR ORDER (publish_order:
+    the set written longest ago first, 2026-11-12) also ran the rated step, and overrode the list order above. With ~84 rated sets
+    against one 600 s budget the GFS regional WAVES bundles (the only rating grids the band paints from) lost every run: measured on
+    the public index 2026-11-16 15:30Z, all 20 were 18 h behind their plain siblings (rated 11-15 06Z, plain 11-16 00Z), and in run
+    43803432374 the rated step built 21 of 84 sets, none of them a waves bundle. Since #933 the client refuses a rated bundle more than
+    one cycle behind, so those asks went to /grid on the box. RULE: within the fair order, tier 0 = the GFS regional waves bundles,
+    tier 1 = the GFS world waves set, tier 2 = every other set (and every non-rated set). Measured cost of tiers 0-1 in that run's
+    report: regional bundles 7.5-33 s each (~11 s typical), so ~250-300 s for the 20, plus 105 s for the world set: inside 600 s. The
+    other rated sets keep the fair order among themselves in the remaining budget."""
+    if not is_rated(target) or os.environ.get("FRAME_RATING_PAINT_FIRST", "1") == "0":
+        return 2
+    if target.get("model") != "GFS" or target.get("layer") != "waves":
+        return 2
+    return 1 if target.get("region_id") == "global_mid" else 0
 SPLIT_LNG = 0.0   # the two halves: lng < 0 and lng >= 0 (each well under the overlay's 350-deg skip)
 # Every env value the rating chain reads (grid_resolver_surf, surf_rating, surf_transform, surf_point, bathymetry, shore normal,
 # the point selection the wind sampler uses). Recorded in the index; a value that differs from Render's is a different band.

@@ -29,11 +29,13 @@ export function seriesFrameCellDeg(frame) {
 
 // Nearest frame (within ±1.5h, 3-hourly) for an hour within one cache entry, or null.
 export function nearestFrameInEntry(entry, hourOffset) {
-  let best = null, bestDiff = Infinity;
+  let bestH = null, bestDiff = Infinity;
   for (const h of entry.hours) {
     const d = Math.abs(h - hourOffset);
-    if (d < bestDiff) { bestDiff = d; best = entry.frames.get(h) || null; }
+    if (d < bestDiff) { bestDiff = d; bestH = h; }
   }
+  // Read the nearest frame ONCE: a lazy series page (marineSeriesDecode.LazySeriesFrames) builds a frame on get (2026-11-15).
+  const best = bestH === null ? null : (entry.frames.get(bestH) || null);
   return (best !== null && bestDiff <= 1.5) ? { frame: best, diff: bestDiff } : null;
 }
 
