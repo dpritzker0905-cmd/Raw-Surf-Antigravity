@@ -95,3 +95,36 @@ at 150 ms, ordinary stepping (one key every 200-800 ms) may take that upload on 
   at p50** and **15 ms at p95** of step time, and long-task total per step is not worse by more than 15 ms at p95.
 - **If it fails**: the urgent path gets a 400 ms no-key guard (the advisor's option) and the same instrument is re-run with the
   same line; nothing ships ON until a cell-complete pass.
+
+## 5. STEP-TIME RESULTS (2026-11-16, offline, `scn_scrub_step_time.js`; raw rows in `evidence/late-wash-steptime-2026-11-16/`)
+
+Run 1, the fix as merged on this branch (urgent seed after 150 ms of no input): **FAIL, 3 of 6 cells.**
+| cell | step p50 fix / kill (d) | step p95 fix / kill (d) | long p95 d | verdict |
+|---|---|---|---|---|
+| desktop 200 | 33.7 / 34.2 (-0.5) | 113.2 / 96.8 (**+16.4**) | 0 | FAIL |
+| desktop 400 | 37.7 / 36.5 (+1.2) | 113.1 / 98.4 (+14.7) | -59 | pass |
+| desktop 800 | 45.6 / 39.6 (**+6.0**) | 1718 / 125 (**+1593**) | -2 | FAIL |
+| phone 200 | 261.5 / 312.4 (-50.9) | 403 / 443.5 (-40.5) | 0 | pass |
+| phone 400 | 281.3 / 326.7 (-45.4) | 1625 / 2043 (-418) | -25.8 | pass |
+| phone 800 | 248.2 / 303.8 (-55.6) | 905.5 / 1417.8 (-512) | **+35.0** | FAIL |
+
+Run 2, after the pre-registered fallback (an urgent seed also waits 400 ms after the last KEY; `ba4348d17`): **FAIL, 2 of 6 cells.**
+| cell | step p50 d | step p95 d | long p95 d | verdict |
+|---|---|---|---|---|
+| desktop 200 | +3.0 | +0.6 | 0 | pass |
+| desktop 400 | +4.0 | **+17.2** | 0 | FAIL |
+| desktop 800 | -6.9 | +8.6 | 0 | pass |
+| phone 200 | **+68.1** | -26.8 | 0 | FAIL |
+| phone 400 | -11.0 | -57.1 | -20.1 | pass |
+| phone 800 | -29.0 | -1178.5 | -19.8 | pass |
+
+What this does and does not show:
+- The cells that fail MOVE between runs. In run 2 at 200 ms the guard means the urgent seed cannot be consumed mid-burst (every key is
+  under 400 ms after the last), so both arms run the same code during the burst; the +68 ms p50 there is therefore the measurement's
+  own spread, not the fix. Only 10-14 of 40 steps change the frame (the data are 3-hourly), so n is 20-28 per arm-cell and p95 is the
+  second-largest value; ~2 s outlier steps occur in BOTH arms (kill: 1878, 2043, 2371 ms).
+- Deviation from section 4: long tasks were summed over [keydown, keydown + cadence), not the 1 s after the keydown (overlapping windows
+  at 200-800 ms would count the same task several times).
+- By the letter of section 4, **neither run passes; nothing ships ON.** Proposed (needs the advisor's word, since it changes the line
+  after seeing data): an A/A null (kill against kill, same build, same instrument) to measure this instrument's own spread, then either
+  REPS 6 so p95 is not one step, or a line stated against the A/A spread. Not run yet.
