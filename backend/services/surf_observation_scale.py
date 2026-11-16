@@ -19,7 +19,7 @@ import math
 from dataclasses import dataclass
 from typing import Optional
 
-SCALE_VERSION = "scale_v1"
+SCALE_VERSION = "norm_v1"  # stored as surf_observations.normalization_version
 SCALES = ("face", "hawaiian")
 UNITS = ("ft", "m")
 SET_OR_AVG = ("typical", "sets")

@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import math
 from datetime import datetime, timedelta, timezone
+import os
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -27,7 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.security import get_current_user_id
 from database import get_db
-from models import CheckIn, ConditionReport, ObservationMedia, SurfObservation, SurfReport, SurfSpot
+from models import CheckIn, ConditionReport, ObservationMedia, Profile, RoleEnum, SurfObservation, SurfReport, SurfSpot
 from services.surf_observation_scale import SCALE_VERSION, ObservationError, normalise, region_default_scale
 
 router = APIRouter()
@@ -48,6 +49,18 @@ GPS_OK_M, GPS_NEAR_M = 500.0, 10_000.0    # 500 m matches the passport check-in 
 EXIF_OK_M = 1_000.0                       # a photo of the break is often taken from a car park or headland
 EXIF_MAX_AGE = timedelta(hours=3)
 EXIF_MAX_FUTURE = timedelta(minutes=10)
+FLOW = "blind_v1"
+# Anchor observers (the owner and named trusted photographers) calibrate everyone else in the aggregator. The list is
+# profile ids in this environment variable, comma-separated; ids are configuration, kept out of this public repo.
+ANCHOR_ENV = "SURF_TRUTH_ANCHOR_IDS"
+_PHOTOGRAPHER_ROLES = {RoleEnum.GROM_PARENT, RoleEnum.HOBBYIST, RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO}
+
+
+def observer_role(user_id: str, role) -> str:
+    anchors = {x.strip() for x in os.environ.get(ANCHOR_ENV, "").split(",") if x.strip()}
+    if user_id in anchors:
+        return "anchor"
+    return "photographer" if role in _PHOTOGRAPHER_ROLES else "surfer"
 
 
 class ObservationIn(BaseModel):
@@ -63,6 +76,7 @@ class ObservationIn(BaseModel):
     set_or_avg: Literal["typical", "sets"]
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
+    observed_at_device: Optional[datetime] = None
 
 
 def _distance_m(lat1, lon1, lat2, lon2) -> float:
@@ -137,6 +151,10 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
     flags = set()
+    role = (await db.execute(select(Profile.role).where(Profile.id == user_id))).scalar_one_or_none()
+    device_time = _aware(data.observed_at_device)
+    if device_time is not None and abs((device_time - now).total_seconds()) > 900:
+        flags.add("device_clock_skew")
     scale_default = region_default_scale(spot.latitude, spot.longitude, spot.state_province, spot.country)
     overridden = data.height_scale != scale_default
     if face.input_kind == "bucket":
@@ -188,12 +206,13 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
         flags.add("scale_override_no_photo")
 
     obs = SurfObservation(
-        user_id=user_id, spot_id=spot_id, surface=surface, entry_screen=data.entry_screen, ref_id=data.ref_id,
+        user_id=user_id, observer_role=observer_role(user_id, role), flow=FLOW, spot_id=spot_id, surface=surface,
+        entry_screen=data.entry_screen, ref_id=data.ref_id,
         height_value=data.height_value, height_unit=data.height_unit if data.height_value is not None else None,
         height_bucket=data.height_bucket, height_scale=data.height_scale, set_or_avg=data.set_or_avg,
-        scale_default=scale_default, scale_overridden=overridden, scale_version=SCALE_VERSION,
+        scale_default=scale_default, scale_overridden=overridden, normalization_version=SCALE_VERSION,
         face_m=face.face_m, face_m_low=face.face_m_low, face_m_high=face.face_m_high, input_kind=face.input_kind,
-        source="observed", forecast_shown_before=shown, received_at=now,
+        source="observed", forecast_shown_before=shown, received_at=now, observed_at_device=device_time,
         latitude=data.latitude, longitude=data.longitude, gps_distance_m=gps_distance, gps_check=gps_check,
         media_url=media_url, media_sha256=sha, exif_distance_m=exif_distance, exif_age_s=exif_age,
         exif_check=exif_check, duplicate_of=duplicate_of, flags=",".join(sorted(flags)),
@@ -207,6 +226,7 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
     return {
         "id": obs.id,
         "surface": surface,
+        "observer_role": obs.observer_role,
         "height_scale": obs.height_scale,
         "scale_default": scale_default,
         "face_m": obs.face_m,

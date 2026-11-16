@@ -55,3 +55,17 @@ has no parent row for an observation (follow-up, not fixed here).
 - EXIF is read by the server but lives in the file; it catches carelessness and reuse, not a determined forger.
 - No XP is paid (P2). Photos are still stored with EXIF in the PUBLIC conditions bucket (P3 strips/blurs).
 - Nothing here changes a served number; no SCOREBOARD row.
+
+## 00:20Z Schema aligned with the research lead's P4 spec (before merge)
+
+The research lead (owner of the latent-truth aggregator, David 23:23 EST) sent the fields P1 must store. Added, all
+server-set: `observer_role` ('anchor' from the `SURF_TRUTH_ANCHOR_IDS` allowlist of profile ids, else photographer /
+surfer from the profile role), `flow` ('blind_v1'), `observed_at_device` (the device clock, kept as a claim; flag
+`device_clock_skew` beyond 15 min), and `normalization_version` ('norm_v1', replacing `scale_version`). Clients cannot
+send `flow` or `observer_role` (422). Tests 34 -> 37.
+
+Deliberately NOT in P1, by agreement of roles: the typical->H1/10 factor, scale and set uncertainty (log-sd),
+'unknown' scale for legacy rows, censored intervals, the size-dependent bias and the spatial-consensus flag are model
+terms or derived flags of the OFFLINE aggregator (P4), which reads the raw columns. `face_m` stays "face metres in the
+declared scale and sense". Consent / blur fields are P3. The analysis-only forecast snapshot is better joined offline
+from archived runs than computed on the 1-CPU box at write time.

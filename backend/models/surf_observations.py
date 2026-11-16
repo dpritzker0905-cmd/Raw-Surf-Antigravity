@@ -27,7 +27,13 @@ class SurfObservation(Base):
     user_id = Column(String(36), ForeignKey('profiles.id', ondelete='CASCADE'), nullable=False, index=True)
     spot_id = Column(String(36), ForeignKey('surf_spots.id', ondelete='SET NULL'), nullable=True, index=True)
 
+    # Who: 'anchor' (a named trusted observer, server allowlist), 'photographer' or 'surfer' (from the profile role).
+    observer_role = Column(String(16), nullable=False)
+
     # Where it was entered and which parent row it belongs to ('checkin' | 'condition_report' | 'surf_report').
+    # `flow` names the capture path: 'blind_v1' for this form. Legacy rows imported later get 'legacy_report' or
+    # 'legacy_composer' (never truth: the composer could prefill OUR forecast).
+    flow = Column(String(24), nullable=False, default='blind_v1')
     surface = Column(String(32), nullable=False)
     entry_screen = Column(String(48), nullable=False)
     ref_id = Column(String(36), nullable=True, index=True)
@@ -39,17 +45,20 @@ class SurfObservation(Base):
     height_scale = Column(String(16), nullable=False)
     set_or_avg = Column(String(16), nullable=False)
 
-    # Server-derived.
+    # Server-derived. face_m* is the entry converted to metres of FACE height in the observer's DECLARED scale and
+    # sense (typical or sets), with no typical-to-H1/10 factor and no scale uncertainty applied: those are model terms
+    # in the offline aggregator (P4), which reads the raw columns above. `normalization_version` names the rule.
     scale_default = Column(String(16), nullable=False)
     scale_overridden = Column(Boolean, nullable=False, default=False)
-    scale_version = Column(String(16), nullable=False)
+    normalization_version = Column(String(16), nullable=False)
     face_m = Column(Float, nullable=False)
     face_m_low = Column(Float, nullable=False)
     face_m_high = Column(Float, nullable=True)
     input_kind = Column(String(8), nullable=False)
     source = Column(String(16), nullable=False, default='observed')
     forecast_shown_before = Column(Boolean, nullable=True)
-    received_at = Column(DateTime(timezone=True), nullable=False, default=_now, index=True)
+    received_at = Column(DateTime(timezone=True), nullable=False, default=_now, index=True)  # authoritative time
+    observed_at_device = Column(DateTime(timezone=True), nullable=True)  # the device clock's word; never trusted alone
 
     # Provenance (server-checked).
     latitude = Column(Float, nullable=True)

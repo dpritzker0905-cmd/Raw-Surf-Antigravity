@@ -10,7 +10,8 @@ import { observationPayload, observationReady } from './BlindHeightInput';
 export default async function postObservation({ obs, entryScreen, refId = null, spotId = null, latitude = null,
   longitude = null }) {
   if (!observationReady(obs)) return null;
-  const body = { entry_screen: entryScreen, ...observationPayload(obs) };
+  // The device clock is recorded as a claim beside the server's own receive time (which is authoritative).
+  const body = { entry_screen: entryScreen, ...observationPayload(obs), observed_at_device: new Date().toISOString() };
   if (refId) body.ref_id = refId;
   else if (spotId) body.spot_id = spotId;
   if (Number.isFinite(latitude) && Number.isFinite(longitude)) {

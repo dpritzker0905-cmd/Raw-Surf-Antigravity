@@ -310,3 +310,25 @@ async def test_scale_default_endpoint_is_the_servers(world):
     assert (await world.client.get("/api/surf-observations/scale-default/pipe")).json()["scale_default"] == "hawaiian"
     assert (await world.client.get("/api/surf-observations/scale-default/nsb")).json()["scale_default"] == "face"
     assert (await world.client.get("/api/surf-observations/scale-default/nope")).status_code == 404
+
+
+async def test_server_sets_flow_role_and_keeps_device_time_as_a_claim(world, monkeypatch):
+    monkeypatch.setenv(observations.ANCHOR_ENV, "photog")
+    skewed = (NOW - timedelta(hours=2)).isoformat()
+    r = await world.client.post(URL, json=_checkin(observed_at_device=skewed), headers=_token("surfer"))
+    assert r.status_code == 200 and r.json()["observer_role"] == "surfer"
+    assert "device_clock_skew" in r.json()["flags"]
+    r2 = await world.client.post(URL, json=dict(entry_screen="golive_conditions_modal", ref_id="cr-1", height_value=6,
+                                                 height_unit="ft", height_scale="hawaiian", set_or_avg="sets"),
+                                 headers=_token("photog"))
+    assert r2.json()["observer_role"] == "anchor"
+    first, second = await world.rows()
+    assert (first.flow, second.flow) == ("blind_v1", "blind_v1")
+    assert first.normalization_version == "norm_v1"
+    assert first.observed_at_device is not None and first.received_at > first.observed_at_device.replace(
+        tzinfo=first.received_at.tzinfo)
+
+
+@pytest.mark.parametrize("forged", [{"flow": "legacy_report"}, {"observer_role": "anchor"}])
+async def test_client_cannot_claim_flow_or_role(world, forged):
+    assert (await world.client.post(URL, json=_checkin(**forged), headers=_token("surfer"))).status_code == 422
