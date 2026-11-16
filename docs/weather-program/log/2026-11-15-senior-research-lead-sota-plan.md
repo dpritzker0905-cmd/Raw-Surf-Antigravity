@@ -913,3 +913,162 @@ bands as a groundswell cue 0.968; EWAM for Europe behind a parity gate 0.85.
 **Extras (SOTA):**
 - ECMWF period-band heights as a EURO groundswell cue.
 - DWD EWAM for European spots, gated.
+
+## 02:58Z Five briefs for the director (director's priority list, 2026-11-15 21:50 EST)
+
+Read-only research; nothing built, run or merged. Mirrored into my log
+(`docs/weather-program/log/2026-11-15-senior-research-lead-sota-plan.md`, PR #929 + follow-up).
+
+## 1. M1 tide parity gate: runnable pre-registration (the tide lane builds against it)
+
+**Stations.** The 26 CO-OPS IDs in `backend/scripts/tide_datum_vs_coops.py` (on #926's branch):
+1612340 1615680 1617760 1611400 9410230 9410660 9413450 9415020 9419750 9435380 9443090 8443970 8452660 8531680
+8534720 8651370 8658163 8665530 8720030 8722670 8723214 8726724 8729840 8771510 9755371 9751639.
+**Window.** Frozen and already observed: 2026-10-15 00Z .. 2026-10-28 23Z, hourly (14 days spans a full spring-neap cycle).
+Written before any arm is computed.
+
+**Arms (all heights relative to MSL).**
+- A: FES2022b extrapolated via PyFES (offline Actions job; AVISO secrets).
+- B: EOT20 via pyTMD.
+- C: today's Open-Meteo `sea_level_height_msl` de-meaned over 72 h. Test-only reference, allowed by the owner.
+- D: Open-Meteo minus its fixed 365-day mean (the #926 variant).
+
+**Truths.**
+- T1: CO-OPS harmonic PREDICTIONS on the station MSL datum (astronomical).
+- T2: CO-OPS OBSERVED water level, MSL datum. It includes surge, so it is reported for M1b and does not gate M1.
+
+**Metrics per station vs T1.**
+- RMSE.
+- High- and low-water TIME error (minutes; extrema matched within Â±3 h).
+- Range error (high minus low).
+- MSL-to-MLLW offset error vs the CO-OPS datum sheet, computed from each arm's own 19-year-equivalent constituent
+  synthesis (for A and B).
+
+**PASS (the chosen global arm, A or B):**
+1. median RMSE vs T1 â‰¤ 0.08 m AND below arm C's (today 0.117 m in #926's table);
+2. no station worse than arm C by more than 0.05 m;
+3. median |extremum time error| â‰¤ 20 min;
+4. median |MLLW offset error| â‰¤ 0.05 m.
+
+If both A and B pass, pick the lower median RMSE. Ties within 0.01 m go to A (finer grid, coastal extrapolation).
+
+**Controls.**
+- Positive: the pipeline's own CO-OPS-constituent synthesis vs CO-OPS predictions has RMSE â‰¤ 0.01 m. Proves the
+  harness and datum handling.
+- Negative 1: station-label swap (each station scored against another station's truth, â‰¥ 200 derangements) must
+  fail, median RMSE > 0.3 m.
+- Negative 2: a +6 h time shift of the chosen arm must fail item 3.
+
+**Strata reported:** Hawaii (4), Pacific coast, Atlantic, Gulf, Alaska/PR if present.
+**Served change:** yes (tide, rating tide, surf-cap water level). Kill switch plus a SCOREBOARD row; ships ON per
+D-065 after PASS.
+
+## 2. G2: ICON precip peaks "19-26% below .om". The framing is wrong; the cause is known
+
+From `log/2026-11-13-fable-precip-icon.md`:
+- The 19-26% is our 0.25 deg AREA MEAN vs ICON's own native ~13 km CELL peaks. It is not a comparison with .om, and
+  not a de-summing error.
+- The mean is preserved to about 1%. Peaks drop because an area mean spreads a shower over the box ("which is what an
+  area mean does").
+- De-summing (accumulated TOT_PREC differenced per native cell, clamped at 0, then averaged; 3-hourly after 78 h) is
+  pinned by tests.
+
+**Science.**
+- Precipitation is an area quantity. A box mean is the conservative, mass-preserving way to put icosahedral cells on
+  a regular grid.
+- Showing a cell maximum as the box value would over-state rain over the box.
+- The visual gap comes from the display resolution, not from DWD.
+
+**Recommendation** (in order):
+- (a) Publish ICON precip on a 0.125 deg lattice (about 1.1 cells per box at the equator), so peaks are kept with no
+  interpolation artefacts. Gate: mass within Â±1% of native, peak retention â‰¥ 90% of native cell maxima.
+  Storage: about 4x the 0.25 deg set, so check the pilots budget.
+- (b) If storage forbids it, keep 0.25 deg and flip it with a legend note "area-mean, 0.25 deg".
+- Optional and test-only: one offline frame compared with .om, just to document what Open-Meteo shows. That would
+  only be a note.
+
+Owner decision needed only for (a) vs (b).
+
+## 3. G3: cloud-cover sets for EURO and ICON (ready for frame-carry)
+
+Add two specs to `frame_set_raster.py`, mirroring the GFS `cloud_cover_0p25` set:
+- **`cloud_cover_euro`**:
+  - ECMWF open data, `stream=oper`, `type=fc`, param `tcc` (total cloud cover, 0-1 fraction; multiply by 100 for %).
+  - 0.25 deg native, served at 0.25 (stride 1). Lon from 180W, same as the `pressure_euro` handling.
+  - Hours 0-144 by 3, 150-240 by 6 (00/12Z).
+  - `value_kind cloud_cover`, `%`, clip [0, 100].
+  - Credit: ECMWF open data, CC BY 4.0.
+- **`cloud_cover_icon`**:
+  - DWD ICON global `clct` (total cloud cover, %) from `opendata.dwd.de/weather/nwp/icon/grib/HH/clct/`.
+  - Icosahedral to 0.25 deg by BOX MEAN (the `IconPrecipSource` path; cloud is an area fraction, so a mean is right).
+  - Hours 0-78 hourly, then 81-180 by 3. Clip [0, 100]. Credit: DWD.
+- **Flags** (dark first): `FRAME_RASTER_CLOUD_EURO`, `FRAME_RASTER_CLOUD_ICON`.
+- **Client:** these sets replace the .om path for EURO/ICON cloud, and the .om path is removed in M2/G8.
+- **Parity gate** (offline):
+  - (i) Domain-mean cloud within Â±2 percentage points of the source field at 3 hours (00, 72, 180).
+  - (ii) Value check at 20 random cells: the published node equals the source cell (EURO) or the box mean (ICON)
+    within 0.5 pp.
+  - (iii) Visual check against GFS cloud at the same valid time for gross misregistration (coastlines and lon
+    0/180 seam).
+- No served-number semantics change beyond the source swap. Kill switch is the flag.
+
+## 4. NOAA GFS-Wave station-bulletin fetcher + reference ledger lane (D-072 independent reference; for the verifier)
+
+**Source.**
+- `https://noaa-gfs-bdp-pds.s3.amazonaws.com/gfs.YYYYMMDD/HH/wave/station/bulls.tHHz/gfswave.<STATION>.bull`
+  (also `.cbull`, `.spec`).
+- Checked 2026-11-15 00Z: present for 41117, 46026, 51201, 51211, 44090; absent for 46267.
+- Format (read from 41117's file): header `Location`, `Cycle`. Hourly rows `| DD HH | Hst n x | Hs Tp dir | ...`
+  with up to 6 partitions per row (`*` marks a flagged partition). Hst is the total significant height.
+
+**Fetcher** (Actions only; never Render):
+- After each GFS-Wave cycle, for every NDBC station in the skill ledger's station set, download the `.bull`.
+  This is about 300 small text files, so it can run in the core ingest job or a tiny separate job.
+- Parse the cycle, then valid time = cycle + row's day/hour (handle month rollover), Hst, n partitions, and the
+  partition triples.
+- Store one row per (station, cycle, lead) in a new ledger lane `noaa:gfswave_station`: `value = Hst`,
+  `source_url`, `fetched_at`.
+- Missing station: log, no row.
+
+**Use.** D-072 v2 rule 1's same-model reference: `ours` vs `noaa:gfswave_station` on the same (buoy, target, lead)
+keys, against NDBC observations. Partition triples are kept for later swell-direction work (S8).
+
+**Tests:**
+- a parser fixture from a real `.bull` (41117, 2026-11-15 00Z, committed as a fixture: public NOAA data);
+- month/year rollover;
+- a missing file;
+- a row with 0 partitions;
+- `*` flags.
+
+**Controls for the lane** (it is a reference, so prove it independent):
+- a row-level spot check of 10 keys vs the raw file;
+- the lane must NOT be fed by our own sampler (an import guard test).
+
+## 5. B1 review (#942) and the breaking-truth source that unlocks the most arms
+
+**#942's split is honest and right.**
+- Komar, H1/10, the cap and the magnets act at the break, so they are untestable on forcing truth.
+- The `breaker_steepness_kh` arm is correctly NOT RUNNABLE without a citable equation.
+- Unblock for that arm: use the OPEN Battjes-Janssen 1978 transect formulation (SWAN tech doc eqs. 2.65-2.69:
+  `H_max = Î³ d`, the implicit Q_b, D = âˆ’Î± Q_b Ïƒ H_maxÂ²/(8Ï€)) with Î³ = 0.73 (Battjes-Stive mean, the SWAN default) as
+  arm A1. Register the slope- and kd-dependent Î³ (SWAN BKD defaults 0.54 / 7.59 / âˆ’8.06 / 8.09, functional form
+  from Salmon et al. 2015 or the SWAN source) as A2, runnable once the form is read from an open source.
+
+**Breaking-truth source that unlocks the most arms soonest:**
+1. **USACE FRF Duck, NC.**
+   - The CHL THREDDS catalog is public (no login) and lists `frf/oceanography/waves` and `waveSurfTs`.
+   - This gives continuous surf-zone wave measurements on a barrier beach: the BEACH (intermediate/dissipative)
+     class, the closest proxy for the owner's NE Florida case.
+   - With hourly data over years it gives â‰¥ 30 rows per arm within days, unlocking Komar / H1/10 / cap / A1 for the
+     beach class.
+   - Next step: list the instruments inside `waves/` (the connection dropped on my read) and pick gauges inside the
+     surf zone (cross-shore < ~300 m, depth < ~6 m).
+2. **Oahu North Shore lifeguard archive** (Caldwell 2005: daily 1968-2002, Hawaiian scale x2 = face).
+   - Thousands of rows for the REEF/steep class, replayed through the transform with OBSERVED offshore forcing
+     (NDBC 51001 / Waimea 51201), which isolates the transform from forecast error.
+   - Availability is UNCONFIRMED: the UHSLC page did not resolve. A helper task.
+3. Owner observations (Florida face height): slow, about 1 per day, but they are the target class. Keep collecting.
+
+**So:** FRF Duck first (it is confirmed public, and it is the beach class), then the Oahu archive (reef class) once
+availability is confirmed. Those two classes together let the repair lead run every break-acting arm in two classes.
+
