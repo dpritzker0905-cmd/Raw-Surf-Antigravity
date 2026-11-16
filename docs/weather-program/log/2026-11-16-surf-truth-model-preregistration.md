@@ -197,3 +197,35 @@ or fit (no blind observation existed at either commit). From here on, every head
 `date -u` at the moment of writing.
 
 2026-11-16 23:00Z (from `date -u`) DEFINITION, before any data: for gate item 1, a range or bucket TARGET is scored at its geometric centre in the target's declared scale, as the baseline does; "Flat" at the midpoint of [0, 0.5] ft; "8ft+" at its floor, 8 ft. MAE is therefore defined for every target. (Both amendment header times are corrected above, at e8157765f: amendment 1 committed 22:46:55Z, amendment 2 committed 22:52:09Z.)
+
+## 2026-11-16 23:27Z AMENDMENT 3: what the fit's code review settled (from `date -u`; BEFORE any data or run)
+
+The research lead reviewed the fit code (#992 at dd10ee260) against this registration and accepted four choices on
+condition they are registered; this amendment does that and registers the review's required readings. No blind
+observation exists. Where this differs from the text above, this governs.
+
+1. P and u. Without physical-reference rows the model samples the identified u = log(T x P) ("anchor-scale face
+   height") and does not sample P; P's posterior is its prior. Amendment 2 D's R-hat/ESS rule on P is therefore
+   VACUOUS while P is prior-only (it applies to mu, tau and the scale and set factors). HARD GUARD: a run that finds
+   ANY physical-reference row refuses until a model that samples P is registered by a further amendment.
+2. Cell clock. Cells use local SOLAR time (UTC + longitude/15 h) instead of "local spot time": the export carries no
+   time zone, and solar time gives every spot the same daylight rule.
+3. Anchor group. An observer belongs to the anchor group (whose mean b is 0) iff ANY of its fit rows was filed while
+   it was an ACTIVE anchor: bias is a property of the person, so rows filed before activation share its b. Scored
+   targets remain only rows filed while ACTIVE (status at received_at). Changes of bias over time are the drift
+   monitor's job.
+4. Independence, STRICT reading: two reports are independent only if their accounts differ AND both device keys are
+   KNOWN and differ. An unknown device cannot satisfy "different device"; if that starves the floor, the run says so.
+5. Scoring update (amendment 2 B). For a held-out target, the baseline AND the model's update on the cell's T use ONLY
+   the cell's other reports that are independent of the target (strict reading above). The update is a per-draw
+   Gaussian update on u from those reports at their declared scale; it IGNORES the random walk to neighbouring cells
+   (conservative: no borrowing across cells at scoring). Right-censored "8ft+" reports are DROPPED from the update
+   (they never enter as a point); a bounded range enters at its scoring point with variance (log-width)^2/12;
+   "Flat" enters at 0.25 ft with the variance of a log-uniform on [0.125, 0.5] ft, i.e. (ln 4)^2/12.
+6. Gate item 1 is applied PER SPOT CLASS, as registered: each class needs improvement >= 10% AND the governing (wider
+   of day-block and anchor) bootstrap 95% CI's lower bound > 0. The pooled figure is reported.
+7. Sensitivity (edit 6), reported, not gating: the gate re-run with same-spot reports within 30 minutes collapsed to
+   one. Also reported, not gating: the negative control's tau shrink, and the convergence diagnostics of the
+   shuffled and synthetic fits.
+8. Before the FIRST real run (not before the code merges): a synthetic world of realistic size must reach R-hat
+   < 1.01 and bulk ESS > 400 at the registered 4 x 1000, recorded in the fit log.
