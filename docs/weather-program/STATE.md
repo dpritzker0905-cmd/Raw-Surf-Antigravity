@@ -37,7 +37,7 @@ is a claim, not a measurement.
     - #938 ocf_idw arm (measurement).
     - #912 the researcher's benchmark (a record; superseded as the plan by the roadmap).
   - **In flight, per lane (PR numbers):**
-    - Tide: #923 overlay (phone gate inconclusive), #926 1-year datum, #931 harmonic.
+    - Tide: #923, #926 and #931 are held (see below).
     - Gusts/currents: #928 (phone scrub fails; decode to the worker).
     - Blend: #930 (draft, OFF).
     - Rating band: #933.
@@ -45,13 +45,15 @@ is a claim, not a measurement.
     - Frames: #937 late wash, #940 stale tail refetch.
     - Repair lead: #941/#943 surf spot panel, #942 S0 ablation, #947/#948 nearshore rows.
     - Skill: #944 ML residual shadow.
-    - Verifier: #945 (D-072 v1 FAILS P2), #949 v2 (amend 1c), #952 NOAA bulletin lane.
+    - Verifier: #945 (D-072 v1 FAILS P2), #949 v2 (amend 1d), #952 NOAA bulletin lane.
     - Posts: #953 conditions provenance (server-set `conditions_source`).
     - Research lead: #929.
   - **Held, and why:**
-    - #926: superseded by M1 harmonic tide (D-074), and the advisor's gaps are open.
+    - #926 (1-year datum), #931 (harmonic) and #923 (Tides overlay): held by the director under David's Open-Meteo rule
+      (D-074; the tide moves to M1). The advisor has no open condition on any of the three. #923's phone gate re-run
+      passed (12 ABBA pairs).
     - #930: OFF until David's blind look (D-076).
-    - #935: withdrawn (no GFS stand-in for ICON; D-075).
+    - #935: withdrawn by decision (no GFS stand-in for ICON; D-075). It is still an open draft, not closed.
     - #663: the EURO scalar read was VOID.
     - #944: needs David's dispatch.
   - **Decided tonight:** D-074 .. D-079 (Open-Meteo test-only; long-range ECMWF ensemble with a hard hand-off; hour

@@ -1515,7 +1515,7 @@ A stored estimate can be estimated again in a browser branch with different sour
   - A gate passed only on synthetic data is a measurement, not a reason to ship.
 
 ### 2026-11-15 — L-S27 · Pre-register before reading the data; amend only before any result exists
-- What held: #949's amendments 1a-1c (2026-11-15/16) all landed before any v2 row was read, and each says so.
+- What held: #949's amendments 1a-1d (2026-11-15/16) all landed before any v2 row was read, and each says so.
 - What failed earlier: gates were amended after failing (the advisor's SOTA warnings, director board 2026-11-15 17:40Z).
 - Rule: commit the rule (data window, metrics, thresholds, controls) before the first read.
   - A change after a result is a NEW registration on NEW data, never an amendment.

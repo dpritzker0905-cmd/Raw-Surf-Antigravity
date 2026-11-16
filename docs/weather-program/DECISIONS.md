@@ -2145,7 +2145,8 @@ Superseded for beach by D-035 (2026-10-20): beach draws v1 at 10 m; light stands
 ### D-076 · Hour blend: across hours only, never across models; OFF until the owner's blind look (2026-11-15)
 - **Owner, verbatim:**
   - 11:30 EST (#912 §16): "ON with a short decay on each hour step, not a full-hour smooth tween."
-  - 15:07Z (director board): blending ACROSS HOURS is allowed; blending ACROSS MODELS stays BANNED.
+- **Director's summary, not verbatim** (board, 15:07Z): blending ACROSS HOURS is allowed; blending ACROSS MODELS stays
+  BANNED.
 - **Status:** #930 ships the blend OFF by default (opt-in flag). The coastal hidden-hour test failed, and the repeat
   visits passed. The default stays OFF until David's blind look (the director's summary, not verbatim).
 - Physics advection between a model's own hours is a cross-hour method, not a cross-model blend (SubQ 0.002 that it
