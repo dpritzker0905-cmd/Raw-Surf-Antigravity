@@ -1380,3 +1380,16 @@ Sent to the tide lane. Items marked [verify] are from memory and are to be confi
   - A minimum surge-hour count, else item 3 is INCONCLUSIVE.
   - Confirm D's fitting data do not overlap the window.
   - Run the +24 h shift negative on surge hours.
+
+## 2026-11-16 17:45 EST Sign-off with edits: surf-truth model pre-registration (`log/2026-11-16-surf-truth-model-preregistration.md`, draft)
+
+Signed off on condition the lane applies seven edits:
+1. Gates 1 and 2 score the posterior-predictive REPORT (with P, b_j, sigma_j), not T.
+2. State that a pass certifies the anchor scale only; physical-reference holdout reported.
+3. Widen k_hawaiian (0.5-0.67 span).
+4. A size-dependent P is a candidate term only with ≥ 20 physical rows.
+5. The positive control also checks that P is unmoved.
+6. Session clustering in the independence rule.
+7. Cite the P prior's sources as abstracts from one group.
+
+The holdout rule moves from a quantile to a fixed hash threshold, so membership cannot shift between runs.
