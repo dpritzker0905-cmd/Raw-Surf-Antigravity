@@ -303,3 +303,33 @@ estimation." This supersedes item 6 (interim) of the 16:14 plan.
 - The interim's 22:40Z SCOREBOARD row is superseded by the withdrawal row below it (append-only).
 - The hindcast is unaffected: its arms still include `gfs_standin` as a COMPARATOR. P2 (beat the GFS stand-in) stands
   as pre-registered.
+
+
+## 2026-11-16 00:50Z AMENDMENT 3 (director's ruling; David 19:40 EST "lets let the director help make the decision here"; BEFORE any result)
+
+Director 00:44Z: (a) lagged ensemble for ICON; (b) the grand ensemble as a reported-only arm; (c) order after #939:
+uncertainty display, then EMOS calibration, then serving the grand ensemble (only on a win and David's yes).
+Run 43780240793 was cancelled before collecting anything (its stations job was still queued); no result exists.
+
+**Hindcast, new REPORTED-ONLY arms** (no PASS line, no effect on the chosen arm):
+1. `grand_ifs_gefs`: speed = the mean of the two systems' speeds (IFS member-mean speed, GEFS |mean vector|).
+   Direction from the mean of their two mean vectors. Gust = the IFS member median (GEFS has none).
+2. `grand_ifs_gefs_aifs`: the same over three systems (AIFS member-mean speed added; gust still from IFS).
+3. `ens_lag24` / `ens_lag48`: the IFS member mean of the run 24 h / 48 h EARLIER, at lead L+24 / L+48 (only where
+   that is <= 360 h). These score the lagged fallback (a). IFS ENS steps are now collected to 360 h (were 336).
+The weights are equal and fixed now; none is fitted on any data. Each arm is reported against `loop`,
+`gfs_standin`, `ens_mean_raw` and `climatology` per bin, with the same day-block CI.
+
+**Served (#939), the lagged fallback (a):**
+- The ENS tail uses the newest reduced run if it is <= 48 h older than the deterministic run.
+- A run more than 24 h older carries `older_run: true` and the label "Days 8-14: ECMWF ensemble mean (estimate,
+  older run, N h)".
+- An older run covers valid times only up to its own +360 h. Hours past that get NO ICON tail, never filled.
+- With no usable run, no new ICON tail is written. The last ENS generation keeps serving until its hours pass,
+  because estimates are superseded only by a newer estimated generation. After that there is no ICON tail.
+- **Never the loop, never GFS.** The loop runs only under the kill switch `ENS_WIND_EXTENSION=0`, which restores
+  today's behaviour. While the flag is on, the on-demand dynamic path no longer loops ICON wind.
+- EURO without ENS keeps today's GFS clones (unchanged).
+
+**EMOS record (c-4):** the hindcast's `rows.csv` (paired forecast/observation rows per arm) starts the matched-data
+record. Its own gate will be pre-registered before any fit.
