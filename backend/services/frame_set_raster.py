@@ -249,7 +249,7 @@ SPECS = {
         "value_kind": "cloud_cover", "value_unit": "%",
         "source_dataset": "ECMWF IFS open data, oper fc 0p25 tcc (total cloud cover, x 100), every point",
         "hours": tuple(range(0, 145, 3)) + tuple(range(150, 241, 6)), "source": "ecmwf", "upstream_provider": "ecmwf",
-        "credit": "Copyright ECMWF; ECMWF open data, CC BY 4.0; modified (fraction to %, quantised to 0.5 %)",
+        "credit": "Copyright ECMWF; ECMWF open data, CC BY 4.0; modified (fraction to %, quantised to 1 %)",
         "license": "CC BY 4.0 (https://creativecommons.org/licenses/by/4.0/); attribution to ECMWF required",
         "source_url": "https://www.ecmwf.int/en/forecasts/datasets/open-data",
     },
