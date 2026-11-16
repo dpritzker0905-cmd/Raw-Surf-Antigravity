@@ -1492,6 +1492,13 @@ A stored estimate can be estimated again in a browser branch with different sour
   CI passed the same check.
 - Rule: when the staleness check names a floor below "observed" on a PR that touched no tests, merge the latest dev into
   the branch. Do not add a fragment for a test you did not write.
+- **Update 2026-11-16 10:35Z:**
+  - #929 went red this way three times in one night, because each chain test file that landed on dev during its CI run
+    re-broke it.
+  - The director's merge loop now runs every 20 minutes over its queue. When a PR's ONLY failing check is
+    `backend-floor-staleness`, it runs update-branch itself.
+  - Docs PRs: the director's loop does update-branch on floor-only red; authors don't chase dev.
+  - If dev's OWN floor job fails, a lane added a chain test file without its fragment, and that lane fixes it.
 
 ### 2026-11-15 — L-P46 · A test that imports chain modules can move between CI lanes
 - Reported by the director (2026-11-15, overnight brief). Not reproduced here.
