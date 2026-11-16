@@ -274,3 +274,24 @@ GATE (the advisor's six points, now this lane's; all must hold, measured offline
 5. No overlap or clipping at 360, 390 and 430 px phone widths, in all three themes, with before and after screenshots (the lab CDN
    with the rated bundles one run behind).
 6. Desktop and the expanded drawer are unchanged: no chip there, and a screenshot comparison of both before and after.
+GATE RESULTS (2026-11-16 ~11:30 EST; offline, `scn_stale_chip.js`, serve_synthetic, the lab CDN with the rated bundles one run
+behind; the chip build against the #933 build as "before"; screenshots and JSON in the shared notes `rating-band-sota-2026-11-15/chip-*`):
+1. Contrast: the chip's text is the header's own muted colour, measured in the page as rgb(75,85,99) on light and rgb(156,163,175)
+   on dark and beach. Worst case over any map behind the translucent panel: light 6.8:1, dark 6.1:1, beach 6.9:1. PASS.
+2. Absent in every control case: unit tests cover zero and unknown lag, band not painted, band held, not a rating grid, the chip
+   kill, the label kill, nothing painted, wind off, wind exact, and both lagging (one chip). In the browser, 15 cells were checked
+   against one rule: a chip exactly when the painted grid lags (band painted, not held, ratedRun.lagH > 0). All 15 consistent, including the
+   cells where the lab served the current run (no lag, no chip) and every open-drawer and desktop cell (lag present, no chip). NOT
+   exercised in the browser: the kill switch WITH a lag present. In three tries the lab served the current run in those cells; that
+   case is unit-tested only.
+3. A real button: named with the status line's sentence, focusable, with aria-controls and aria-expanded, and a click opens the
+   drawer (unit tests). PASS.
+4. One source: a unit test renders ForecastTimeStatus and the chip over the same painted grid and asserts the chip's accessible name
+   equals the line's text. PASS.
+5. No overlap or clipping at 360 / 390 / 430 px, in all three themes: in every cell where the chip showed (all 9 width x theme cells
+   across the two passes), never clipped, and no intersection with any other visible control in the drawer. PASS.
+6. Desktop and the open drawer unchanged: no chip in any of the 6 cells, with a lag present. The "before" build shows no chip anywhere
+   (15/15). PASS.
+Lab note, not a chip defect: the first pass missed one chip (beach 390). Re-probing showed a probe race (the grid committed less than
+the chip's 500 ms poll before the read) and lab runs served from /grid (no lag, so no chip due). The probe now waits 1.2 s and checks
+the rule above.

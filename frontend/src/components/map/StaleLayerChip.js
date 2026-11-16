@@ -1,0 +1,48 @@
+import React, { useEffect, useState } from 'react';
+import { Clock } from 'lucide-react';
+import { readRatedRunState, readWindStaleState } from './staleLayerState';
+
+/**
+ * THE STALE-LAYER CHIP on the COLLAPSED phone timeline header (2026-11-16; David approved it 08:54 EST via the advisor, and gave it
+ * to the rating-band lane 10:31 EST via the director; gate: log 2026-11-15-claude-rating-band-sota.md section 12).
+ * With the drawer collapsed a phone shows no status line, so "the surf ratings are a run old" was invisible there. This chip says it
+ * where the reader is looking: a clock icon plus a few words ("Ratings 6 h old"; wind: "Wind: nearest stored time"), only while the
+ * painted layer lags. Its accessible name is the status line's own full sentence, and a tap opens the drawer where that line is.
+ * ONE SOURCE: staleLayerState.js (the same reader ForecastTimeStatus uses), so the chip and the line can never disagree.
+ * Informational, never a warning colour, never colour alone. Kill: window.__RAW_DISABLE_STALE_CHIP__ = true.
+ */
+export const staleChipKilled = () => typeof window !== 'undefined' && window.__RAW_DISABLE_STALE_CHIP__ === true;
+
+/** What the chip says now, or null: the rating band's run age first, then (wind on) wind's nearest stored / held state. */
+export function readStaleChip({ model, hour, windOn } = {}) {
+  if (staleChipKilled()) return null;
+  const rated = readRatedRunState();
+  if (rated) return { kind: 'ratings', short: rated.short, text: rated.text };
+  if (windOn) {
+    const wind = readWindStaleState({ model, hour });
+    if (wind) return { kind: 'wind', short: wind.short, text: wind.text };
+  }
+  return null;
+}
+
+export default function StaleLayerChip({ stale, onOpen, textClass = '' }) {
+  const { model, layer, hour, windOn } = stale || {};
+  const read = () => (stale ? readStaleChip({ model, layer, hour, windOn }) : null);
+  const [state, setState] = useState(read);
+  useEffect(() => {
+    setState(read());
+    const timer = setInterval(() => setState(read()), 500);   // the engine publishes the painted grid; polled like the status line
+    return () => clearInterval(timer);
+  }, [model, layer, hour, windOn]);
+  if (!state) return null;
+  return (
+    <div className="weather-stale-chip-row flex justify-center pb-1">
+      <button type="button" data-stale-chip={state.kind} aria-label={state.text} title={state.text}
+        aria-expanded={false} aria-controls="weather-mobile-timeline-body" onClick={onOpen}
+        className={`weather-stale-chip inline-flex items-center gap-1 max-w-full truncate text-[11px] leading-4 px-2 py-0.5 rounded-full border border-current focus:outline-none focus-visible:ring-2 focus-visible:ring-current ${textClass}`}>
+        <Clock className="w-3 h-3 shrink-0" aria-hidden="true" focusable="false" />
+        <span className="truncate">{state.short}</span>
+      </button>
+    </div>
+  );
+}
