@@ -46,3 +46,31 @@ catalogue `wave_type` > name/description keywords > ETOPO / CUDEM slope (beach s
   within 2 km, else `unknown`). In B2 nothing reads it for a served number (no `SCOREBOARD` row needed); B3 and any class
   factor will, under their own gates (fitted shoreward of the buoy, on breaking truth only).
 - OSM and slope extraction run in GitHub Actions or offline, never on the Render box. Repo PUBLIC: no secrets.
+
+## 0b. DECISION RULES (2026-11-16 ~05:10 EST, written before any OSM evidence exists and before the classifier has run once)
+
+Deviations from section 0, said first:
+- The validation set is **109** spots, not 120 (the river-mouth stratum has only 4 catalogue candidates). Blind labels:
+  46 beach, 20 reef, 11 inlet_jetty, **6 point_headland**, 4 river_mouth, 22 unknown (20 %), committed `a9008c6c4`.
+  With 6 point labels, the point precision interval will be wide; it is reported, not hidden.
+- I read the labeller's SUMMARY (counts, and that five "pier" spots were labelled beach) before writing these rules. To keep
+  the rules blind to it, the structure tier keeps piers exactly as section 0 registered them; nothing below was tuned on labels.
+
+The classifier (`backend/scripts/build_spot_class.py`): the first tier that matches wins.
+| tier | evidence (`spot_osm_evidence.json`, snapshot) | class | confidence |
+|---|---|---|---|
+| 1 | OSM breakwater / groyne / jetty / pier within 1,000 m | `inlet_jetty` | 0.85 if <= 500 m, else 0.70 |
+| 1 | else an OSM river mouth within 1,000 m | `river_mouth` | 0.80 if <= 500 m, else 0.70 |
+| 2 | catalogue `wave_type` (beach / sandbar -> beach; reef / slab -> reef; point -> point_headland; jetty -> inlet_jetty; river -> river_mouth) | that class | 0.70 |
+| 3 | name / description keyword classes: one class | that class | 0.60 |
+| 3 | several keyword classes: the first in the order inlet_jetty, river_mouth, reef, point_headland, beach | that class | 0.55 |
+| 4 | OSM natural=reef within 500 m | `reef` | 0.55 |
+| 4 | else OSM natural=cape / peninsula within 1,000 m | `point_headland` | 0.55 |
+| 5 | `shore_normal_spread_deg` >= 60 | `point_headland` | 0.50 |
+| - | none of the above | `unknown` | 0.0 |
+Beach subtypes (dissipative / intermediate / reflective) are a later slope step; until then the beach group is reported as `beach`.
+
+Scoring (`backend/scripts/score_spot_class.py`): precision and recall per class with Wilson 95 % intervals over labelled spots whose
+label is not `unknown`; a classifier `unknown` counts toward the unknown share (gate: <= 30 %) and as a miss for recall, never for
+precision. NULL: the classifier's outputs shuffled within country, 1,000 seeded shuffles, mean precision per gated class (gate: < 0.5).
+POSITIVE comparator: the catalogue tag alone (tier 2 only), scored the same way on the spots it covers.
