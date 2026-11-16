@@ -505,3 +505,120 @@ Part 1 showed today's chain cannot; is it monotone in offshore height on the `mo
 it give at the owner's hour).
 
 **Guardrails:** all five of the second addendum, unchanged.
+
+## 2026-11-16 03:39Z Breaking truth source 1: the USACE Field Research Facility at Duck (registered before any value is read)
+
+The director relayed the research lead's finding (2026-11-15 22:30 EST): the FRF's THREDDS catalog is public, no
+login, and carries continuous surf-zone wave gauges on a sandy, barred, open beach. That is breaking truth for the
+`open_beach` class, with thousands of hours, where the owner's log has none. This section is the rule. **No wave
+height, period, direction, water level or bed elevation from the FRF has been read by me.**
+
+**What I have looked at, exactly (disclosed).** The catalog listings at `chldata.erdc.dren.mil/thredds` (folder and
+file NAMES and their modification times), and the structure description (`.dds`: variable names and array sizes) of
+four November 2026 files. That is how I know which gauges are live and what they are called. No data request was
+made. I know nothing about how any arm performs there.
+
+### What is there (from the listings)
+
+Live in 2026, monthly files, modified within the hour I looked: `8m-array`, `awac-11m`, `waverider-17m`,
+`waverider-26m` (seaward of the surf zone in most seas), and the dune-lidar products `lidarWaveGauge080`, `090`,
+`100`, `110`, `140` and `lidarHydrodynamics` (the inner surf zone; the last one carries a wave height along a
+cross-shore line). The cross-shore pressure gauges (`xp100m` to `xp200m`) and the shallow `adop` and `awac` gauges
+stopped between 2014 and 2024 and are not used.
+
+### What Duck can and cannot be truth for
+
+- **T1, the height INSIDE the surf zone.** The sea-swell significant height (`waveHs`) at each of the five lidar
+  gauges, hourly, where the file's own quality flags pass. This is the height AFTER breaking and dissipation at a
+  fixed place. It is direct truth for an arm that predicts a height along a transect (`bj_transect`). The served
+  chain gives one number, a breaker height, and has no value at a place inside the surf zone: on T1 the served chain
+  is NOT COMPARABLE, with one exception that is a sanity bound, not a score: a served breaking H1/10 below the
+  measured inner-surf H1/10 at the same hour is counted and reported.
+- **T2, the breaker height.** The largest sea-swell `waveHs` along the `lidarHydrodynamics` cross-shore line in an
+  hour, times 1.27 for H1/10, **only in hours when that largest value lies INSIDE the lidar's cross-shore coverage
+  and not at its seaward end.** When it sits at the seaward end, the waves broke farther out than the lidar sees and
+  the breaker height was NOT OBSERVED that hour. The share of such hours is printed, per season and for the largest
+  seas. I expect it to be large in big seas, which would leave T2 blind exactly where it matters; that is a limit of
+  the instrument and is stated now.
+- **Not truth for:** a reef, a point, an inlet or a pier. One site, one beach, mid-Atlantic. It is the nearest proxy
+  for the owner's north-east Florida beach, not that beach.
+
+### Forcing: measured, not modelled
+
+Every arm at Duck is driven by the MEASURED sea at the `8m-array` (significant height, peak period, peak direction;
+the `waverider-17m` where the array has no value that hour). So the test isolates the breaking physics from our wave
+model's error: the same measured sea goes into every arm. A second, separate comparison driven by OUR offshore
+values at Duck is NOT RUNNABLE until the spot panel has run for the window; it is named so it is not forgotten.
+
+### Bed and water level
+
+- **Bed, primary:** the FRF's own surveyed profile along the lidar line, the most recent survey before each hour
+  (the facility publishes them under `frf/geomorphology`; the exact product is named in the log BEFORE it is read,
+  once its listing has been looked at). The arm's physics is judged on the true bed.
+- **Bed, secondary:** the ETOPO 2022 15 arc-second transect the arm would use anywhere else. The difference between
+  the two runs is the cost of our bathymetry, reported separately from the cost of the physics.
+- **Water level:** the FRF tide gauge that hour, added to the bed for the transect arm. The served chain's tide term
+  is off in production and stays off here.
+
+### Arms scored at Duck (the list is closed)
+
+`served` (today's chain at the Duck spot's geometry, driven by the measured sea); each of the six factors off; all
+six off; `bj_transect` with a constant gamma of 0.73; `bj_transect` with the SWAN slope-and-depth gamma;
+`bj_transect` with the Thornton and Guza breaking fraction. No other arm, now or after a result.
+
+### Window: retrospective, on data that already exists and that I have not read
+
+- **Test set: 2026-01-01 00:00Z to 2026-10-31 23:00Z**, ten complete months, every season. This is what answers the
+  season limit of the buoy window.
+- **Held back: 2026-11-01 onward.** November to the present is not read until the ten months are scored and logged;
+  then 2026-11-17 to 2026-12-07 is a forward check on the same rule.
+- **No parameter is fitted.** Gamma is 0.73 or the manual's defaults; nothing is tuned to Duck. If anyone later
+  wants to tune anything on Duck, the rule is fixed now: tune on odd days of the month, score on even days, and say
+  so.
+
+### Score, unit and intervals
+
+- Per hour: log(predicted / measured). Hours are strongly autocorrelated, so every statistic is on DAY medians, with
+  a day-block bootstrap (2,000 draws, seed 20261116).
+- Reported: the median ratio and the median absolute log ratio, per gauge (T1) and for the breaker height (T2), by
+  season (Jan to Feb, Mar to May, Jun to Aug, Sep to Oct), for the top tenth of measured 8 m heights, and for hours
+  with 8 m height of 3 m or more. A cell under 30 days prints its n and no number.
+
+### What a result means
+
+- `bj_transect` is SHOWN at Duck when, on T1, its median absolute log ratio is under 0.20 pooled and in every season,
+  AND, on T2, it is better than `served` with the paired interval excluding 0 pooled and not worse by more than 0.02
+  in any season or in either extreme cell.
+- `served` and its factor-off variants are judged on T2 only. A factor is a REMOVE CANDIDATE for the open-beach class
+  if switching it off is better with the interval excluding 0 and no season or extreme cell worse by more than 0.02;
+  KEEP if switching it off is worse with the interval excluding 0; otherwise UNDECIDED, which changes nothing.
+- All five guardrails of the second addendum apply: own arm, monotone in the offshore height, a range with scored
+  coverage, by region and season and extremes (region is one here), no wind in the height.
+
+### Controls
+
+- **Null (must show no skill):** the measured sea and the surf-zone truth re-paired at random within each calendar
+  month (seed 20261116, 200 times). Every arm's median absolute log ratio on real pairs must be below the 2.5th
+  percentile of its shuffled values, or that arm's result is NOT SHOWN: an arm that does as well with the wrong
+  hour's sea is fitting the climate, not the hour.
+- **Positive control (the advisor's: a planted dissipation the arm must recover):** on a fixed third of the days
+  (day of month divisible by 3), the measured inner-surf heights are multiplied by 0.70. The analysis must report the
+  arm reading high on those days by a factor of 1.38 to 1.48 relative to the other days' ratio. If it does not, the
+  whole Duck test is INVALID.
+
+### How it is run
+
+Offline, on public data, by a reader that makes only GET requests to the FRF's THREDDS host, spaced, with a stated
+user agent. It can run in Actions (dispatch needs the owner's word typed in this session) or on a workstation; both
+write the same table. Public outputs carry aggregates only. The reader is not built.
+
+### Limits, stated now
+
+- One beach. A result here is about the open-beach class at one barred, sandy, micro-tidal site.
+- T2 is blind in hours when the waves break seaward of the lidar; the test may end up judging the breaker height
+  only in small and moderate seas.
+- The lidar measures the water surface from the dune; its quality flags decide which hours count, and the share
+  dropped is printed.
+- Measured forcing removes our wave model from the test on purpose. It therefore says nothing about the served
+  number's total error at Duck, only about the breaking step.
+- Scoring recorded by 2026-11-30T12:00Z (ledger commitment); the arm must be built first.
