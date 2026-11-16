@@ -113,3 +113,20 @@ of about 4).
 - **Reported:** n of basis CHANGE day-leads. CHANGE needs 35 days of history, so the first computable basis day is about
   09-19 and there are about 40-45 autocorrelated basis days. Their "p99" is effectively the max, and the null p99 is
   expected to set B1.
+
+### 1d. Amendment, 2026-11-16 03:28Z, on the advisor's read of 1c, BEFORE any v2 result exists
+
+The advisor (local_b2fa8830, ~03:20Z) cleared `cfaa483d6` with no open condition and asked for three limits in the
+registration. One is now a code change; two are reported lines and stated limits:
+1. **Rule 1's page rate comes from independent draws (gating).** The draws that set B1 exceed it about 1% of the time
+   by construction (roughly 0.5-0.9 pages per 30 days against the line of 1.0), so a Null pass on those draws is not
+   evidence. Rule 1's false-page rate is now computed on a second set of 200 key-consistent draws (seed + 3), not used
+   for B1. The same-draw rate is printed beside it, not gating. B1 itself is unchanged.
+2. **Mean-vs-median offset (reported).** The 7-day statistic is a pooled mean and the reference is a median of daily
+   deltas. On skewed days the mean sits above the median, so real CHANGE carries a positive offset that the sign-flip
+   null lacks. The basis p99 absorbs it into B1. The basis CHANGE median and the null CHANGE median are printed side by
+   side so the offset can be seen.
+3. **Restatement (limit).** Rule 1 was restated three times (1a, 1b, 1c) within an hour, and its Null check once more
+   here, by people who had seen v1's November output. Each change predates any v2 result and each is reasoned, but a
+   PASS is in-sample for the design. The SCOREBOARD row written with the result must say so; the next real month is
+   the test.

@@ -224,12 +224,18 @@ def checks(idx):
         return None, None, {}, "VOID (B1 cannot be computed)"
     b1 = round(max(float(np.percentile(basis_ch, 99)), float(np.percentile(basis_null, 99))) + 0.00049, 3)
     replay_cols = [i for i, d in enumerate(dlist) if REPLAY_FIRST <= d <= REPLAY_LAST]
-    paged1 = np.zeros((NULL_DRAWS, len(replay_cols)), dtype=bool)
-    for lead in A.LEADS:
-        paged1 |= np.nan_to_num(nul[lead][:, replay_cols], nan=-1.0) > b1
+
+    def pages_per_30d(m):
+        paged = np.zeros((NULL_DRAWS, len(replay_cols)), dtype=bool)
+        for lead in A.LEADS:
+            paged |= np.nan_to_num(m[lead][:, replay_cols], nan=-1.0) > b1
+        return float(paged.sum(axis=1).mean()) * 30.0 / max(len(replay_cols), 1)
+
+    rule1_same_draws = pages_per_30d(nul)                    # 1d: reported only; these draws set B1
+    nul_ind, _ = rule1_null(dd, dt, draws=NULL_DRAWS, seed=SEED + 3)                         # 1d: independent draws
     rates, _ = null_draws(dd, None, b23, draws=NULL_DRAWS, seed=SEED + 1)                    # rules 2 and 3 (registered)
     rates_key, _ = null_draws(dd, None, b23, draws=NULL_DRAWS, seed=SEED + 2, key_consistent=True)
-    rates[1] = rates_key[1] = float(paged1.sum(axis=1).mean()) * 30.0 / max(len(replay_cols), 1)
+    rates[1] = rates_key[1] = pages_per_30d(nul_ind)
 
     def fired1(series, day_lo, day_hi):
         return sorted({d for (d, _l), v in series.items() if day_lo <= d <= day_hi and v > b1})
@@ -257,7 +263,9 @@ def checks(idx):
            "first_fire": (fired1(seeded[SEEDS[0]], *TEST) or [None])[0],
            "P3_rule2_on_episode": fired_rule(2, *EPISODE),
            "null_pages_per_30d": rates, "n_test": len(test_days),
-           "basis_change_p99": float(np.percentile(basis_ch, 99)), "basis_null_p99": float(np.percentile(basis_null, 99))}
+           "basis_change_p99": float(np.percentile(basis_ch, 99)), "basis_null_p99": float(np.percentile(basis_null, 99)),
+           "rule1_same_draw_pages": rule1_same_draws,                                          # 1d (1)
+           "basis_change_median": float(np.median(basis_ch)), "basis_null_median": float(np.median(basis_null))}  # 1d (2)
     ok = (not res["P1_rule1_on_episode"] and len(res["P2_full_days"][SEEDS[0]]) >= len(full_days) - 1   # 1b: all but one
           and res["first_fire"] is not None and res["first_fire"] <= FIRST_FIRE_BY                    # 1c: timeliness
           and len(res["P3_rule2_on_episode"]) >= P3_MIN and all(v <= NULL_MAX_PAGES_30D for v in rates.values()))
@@ -274,6 +282,10 @@ def lines_for(dd, ch, res, verdict):
                                       res["B2"], res["B3"]),
            "-- rule-1 reference (1c): median of DAILY deltas over targets d-%d..d-%d (never the current window)"
            % (GUARD_FAR, GUARD_NEAR),
+           "-- 1d: basis CHANGE median %+.3f vs null CHANGE median %+.3f (mean-vs-median offset); rule-1 pages/30d on"
+           " the draws that set B1 %.2f (reported), on independent draws %.2f (gating)"
+           % (res["basis_change_median"], res["basis_null_median"], res["rule1_same_draw_pages"],
+              res["null_pages_per_30d"][1]),
            "-- November: rule-1 CHANGE per lead (! = fires) | rule-2 v2 delta [n, win%] per lead"]
     for d in sorted(dd):
         if d < TEST[0]:

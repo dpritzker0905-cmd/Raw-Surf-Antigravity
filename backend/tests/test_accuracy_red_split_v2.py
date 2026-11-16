@@ -118,3 +118,12 @@ def test_the_guarded_reference_does_not_erode_a_late_step():
 def test_timeliness_is_part_of_the_gate():
     _dd, _ch, res, verdict = _default()
     assert verdict == "PASS" and res["first_fire"] is not None and res["first_fire"] <= R.FIRST_FIRE_BY
+
+
+def test_rule1_page_rate_comes_from_draws_independent_of_b1():
+    """Advisor (2026-11-16, amendment 1d): the draws that set B1 exceed it about 1% of the time by construction, so the
+    gating page rate uses a second, independent draw set; the same-draw rate is printed beside it."""
+    dd, ch, res, verdict = _default()
+    assert "rule1_same_draw_pages" in res and res["null_pages_per_30d"][1] >= 0.0
+    text = "\n".join(R.lines_for(dd, ch, res, verdict))
+    assert "on independent draws" in text and "mean-vs-median offset" in text
