@@ -762,3 +762,25 @@ arm. Observed minus CO-OPS predictions, 25 h low-pass, at the 26 gauges over the
   mean level against the 1993-2012 altimetry reference); the bias/SD split will show whether it does.
 
 Also: the G2 result is recorded on dev in its own docs-only PR #987 (director).
+
+## 16:57 EST 2026-11-16 (`date`) - advisor accepts the G3 FINAL (21:30Z); three clarifications (no rule changes)
+**Advisor (21:30Z):** "the G3 FINAL registration at dabe5b7d7 is acceptable from me as the test design".
+
+Added before code:
+1. **Named outcome for the datum.** Observed water sits on the gauge's 1983-2001 mean, S1 on altimetry's 1993-2012
+   mean, and gauges move with the land (Gulf subsidence: millimetres a year). A **raw FAIL beside a mean-removed
+   PASS** is called **"a datum finding: the level needs a per-place reference"**. It is NOT read as the non-tidal
+   term failing, and the verdict stays the raw one (raw gates).
+2. **If N3 (STOFS total water level) beats P1:** nothing changes in this run. N3 is a reported line, and switching
+   the primary to it would be a NEW registration on a NEW unseen window.
+3. **Item 2 is deliberately strict:** a point value at each of 26 gauges, so one noisy gauge can fail the gate.
+   That strictness is intended.
+
+**Before the owner's word is used:** the code head (the new workflow with the one-shot `tide-gate-G3` tag) goes to the
+advisor first. Its checklist:
+- the trigger is that tag only;
+- the Copernicus and AVISO credentials are set only on the steps that fetch, and are never echoed;
+- the log shows stages and memory, never a score;
+- versions are pinned;
+- the S1 preflight runs before any truth fetch;
+- every lead L at valid hour t is built only from cycles issued at or before t - L.
