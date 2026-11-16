@@ -340,3 +340,16 @@ seasonal phase error; the constants can.
 
 Order: this addendum is pushed ALONE; then the code (dfe35107f, e6670491f, 0322983b5, 7d53ae2ff) in one push, which
 starts nothing. The run is the `tide-gate-G2` tag, pushed only on the owner's word typed in this session.
+
+## 08:49 EST 2026-11-16 (`date`) - G2 STARTED on the owner's word (recorded before any output is opened)
+- **Owner, typed in this session, 08:46 EST: "Yes, start G2".** Advisor (13:13Z): acceptable to dispatch as designed at
+  7f20c12c9. That was design advice; the start is the owner's word.
+- Tag **`tide-gate-G2`** -> commit **7f20c12c99b3455a612a9fd7ca6558d51aa6bb3c**. The tag was absent on the remote
+  before the push and was pushed at 13:47:22Z.
+- Run **43879148124** (workflow "Tide M1 gate", ref tide-gate-G2, head 7f20c12c99b3), created 13:47:17Z.
+- Reading order (advisor 13:13Z):
+  - Controls first. If any of the positive, label-swap or +6 h controls misbehaves, the run is VOID and nothing else
+    is quoted.
+  - If the arms fail item 1, the tidal-band line and the per-arm SA/SSA constants are reported first, before any
+    interpretation.
+  - The advisor reads the output before it goes to the owner as a result.
