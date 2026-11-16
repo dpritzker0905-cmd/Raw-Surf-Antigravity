@@ -476,6 +476,18 @@ jobs:
           FRAME_RASTER_TEMPERATURE_EURO_0P25: ${{ vars.FRAME_RASTER_TEMPERATURE_EURO_0P25 }}
         run: python scripts/publish_raster_frames.py --set temperature_euro_0p25
 
+      # EURO total cloud cover (ECMWF open data tcc, 0.25 deg every point; G3, 2026-11-16). Off unless FRAME_RASTER_CLOUD_EURO=1.
+      - name: Publish raster static frames (EURO cloud cover; off unless FRAME_RASTER_CLOUD_EURO=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CLOUD_EURO == '1' }}
+        continue-on-error: true
+        timeout-minutes: 12
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_CLOUD_EURO: ${{ vars.FRAME_RASTER_CLOUD_EURO }}
+        run: python scripts/publish_raster_frames.py --set cloud_cover_euro
+
       - name: Publish raster static frames (ICON temperature; off unless FRAME_RASTER_TEMPERATURE_ICON=1)
         if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_TEMPERATURE_ICON == '1' }}
         continue-on-error: true
