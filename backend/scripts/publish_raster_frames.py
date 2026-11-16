@@ -28,6 +28,10 @@ from services import frame_entitlement as fe  # noqa: E402
 from services import frame_set_raster as fsr  # noqa: E402
 
 
+# Statuses where nothing new was published although the set is on ('no_cycle' is upstream not ready yet: not a failure).
+FAILED = ("latest_unknown", "latest_refused", "coverage_refused")
+
+
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out-dir", help="offline: write the public objects here instead of the bucket")
@@ -45,7 +49,15 @@ def main(argv=None):
     sink.ensure_bucket()
     report = fsr.publish(fsr.make_source(spec), sink, pub._uploader(sink), log=print, spec=spec)
     print(json.dumps(report, indent=1, sort_keys=True))
-    return 1 if report.get("status") in ("latest_unknown", "latest_refused") else 0   # visible; continue-on-error keeps the cycle
+    status = report.get("status")
+    if status in FAILED:
+        # A failed publish KEEPS the published index (the map draws the last good run), so say so where it is seen: an error
+        # annotation on the step (continue-on-error keeps the cycle going) and a non-zero exit; raster_set_freshness.py on the
+        # data-health monitor pages if the set then goes stale (2026-11-16, the director).
+        print(f"::error title=Raster set {args.set} not published::status {status}; the published index stays. "
+              f"{report.get('reason') or ''}".strip())
+        return 1
+    return 0
 
 
 if __name__ == "__main__":

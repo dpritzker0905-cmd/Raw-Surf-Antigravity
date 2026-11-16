@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 0,
+  "files": 2,
+  "branch": "claude/chain-floor-files-2",
+  "date": "2026-11-16",
+  "note": "dev chain MIN_FILES 237 vs 239 observed (run 43874191596): two chain test files merged without a files fragment"
+}
