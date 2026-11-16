@@ -4,7 +4,7 @@ Session: Fable repair lead (`e372475c`). Branch `fable/surf-ablation-s0`, stacke
 Changes no served number, no flag, no workflow. Two things are in this file and they are kept apart: a RULE for a test
 against truth that has not been run, and a MEASUREMENT of what the chain's multipliers do, which needs no truth.
 
-## 2026-11-16 01:15Z Where this comes from
+## 2026-11-16 00:48Z Where this comes from
 
 The director relayed brief B1 from the research lead's worldwide surf-transform plan (2026-11-15 19:39 EST; a peer
 message, not the owner's words in this session). It extends the St. Augustine field report (`log/2026-11-16-fable-surf-
