@@ -126,3 +126,5 @@ replace the lines they name.
    Storage: the weather bucket under `calibration/emos/` (namespaced; no manifest or product writes). Actions only.
 8. **The first read.** It reports coverage only (runs x stations x leads, missing runs, missing truth) to the director.
    The fit and the test verdict follow, once, as one dated read.
+
+**03:40Z correction to amendment 2 item 7:** the daily job runs at **10:07 UTC**, not 09:17. A job already runs at 09:20 (cron `20 3,9,15,21`). Nothing else is scheduled between 08:15 and 12:15 except :20 and :40 minutes; 00Z ENS is complete by about 07:40 UTC.
