@@ -377,3 +377,18 @@ at most **3 login attempts** (waits 90 s, then 180 s). The worst case is 6 attem
 setting was 3 x 5, and the first G2 run used 4 connections. A download that still fails stops; it does not keep
 retrying. The advisor's acceptance of the design carries to this commit, since no rule, arm, metric or window file
 changed.
+
+## 10:02 EST 2026-11-16 (`date`) - G2 RE-RUN started on the owner's word (recorded before any output is opened)
+- **Owner, typed in this session, 09:59 EST: "Yes, re-run G2".** This is a second start on purpose.
+- **The first run produced nothing:** run 43879148124 (tag on 7f20c12c9) failed in the download step, the gate step
+  was skipped and there was no artifact. The advisor checked this itself (14:21Z), so no G2 number existed before
+  this run.
+- **The tag was moved on purpose:** `tide-gate-G2` was deleted on the remote, re-created on
+  **bd41572d821b108578a8d62dd294ee2389dc01ab**, and pushed at 15:00:36Z.
+  - The commits since 7f20c12c9 are plumbing only (advisor 14:21Z: "the same test with working plumbing"): AVISO login
+    retry with 2 connections, at most 3 tries each; prune only after a complete download.
+  - The workflow at bd41572d8 triggers only on that tag (checked before the push).
+- Run **43891805830** (ref tide-gate-G2, head bd41572d8), created 15:00:36Z. It restores the tag's own cache
+  `fes2022b-v2-43879148124` (K1, 159 MB) and downloads the other 15 files.
+- Reading order is unchanged: controls first; VOID means nothing else is quoted; then item 1, the tidal-band line and
+  the per-arm SA/SSA constants. The advisor reads the output before it goes to the owner.
