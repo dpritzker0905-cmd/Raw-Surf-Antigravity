@@ -1399,3 +1399,29 @@ The holdout rule moves from a quantile to a fixed hash threshold, so membership 
 The lane's choices for C, D, F, G, H, I and J are signed off; E, K, L and M are as the advisor wrote them. Two edits:
 (a) also VOID on more than 0.1% divergent transitions; (b) the rounding width for coverage is set by the precision as typed, and
 the PIT and bootstrap seed is fixed at 20261116.
+
+## 2026-11-16 18:40 EST Review of #992 (surf-truth fit code, dd10ee260) against #989: CHANGES REQUESTED
+
+The builder (surf-truth lane) and the checker (research lead) are kept apart, per the director's assignment. I read
+every file in full; nothing was run on real data.
+
+**Accepted (to be recorded as amendment 3 before any run):**
+- Sample u = log(T·P) with P unsampled while there are no physical rows. Add a hard refusal if a physical row appears.
+- The Gaussian scoring update.
+- Local SOLAR cells.
+- An observer is in the anchor group if any of its fit rows was filed while it was an active anchor.
+
+**Required:**
+- R1: item 1 gated per spot class, with the governing CI.
+- R2: an unknown device is not independent (or register the permissive reading with counts).
+- R3: run the session-clustering sensitivity.
+- R4: scoring inputs for both the baseline and the model are only the rows independent of the target.
+- R5: 8ft+ and Flat handled explicitly in the scoring update.
+- R6: the leak check covers every held-out-spot row.
+
+**Minor:**
+- Report the tau shrink.
+- Record diagnostics for the control fits.
+- Show a synthetic convergence run at 4×1000 before the first real run.
+
+The review reference the runner requires is given only after R1-R6 are verified.
