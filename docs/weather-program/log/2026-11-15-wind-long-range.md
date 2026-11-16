@@ -448,3 +448,24 @@ No `-enfo-cf` file exists beside the `ef` file after the switch (2026-09-13 +180
    per bin: CRPS(EMOS) - CRPS(raw), for TEST runs before vs after 2026-05-13 (reported, not gating).
 5. The served extension (#939) uses the same rule (`pf` 1..50 required, `cf` if present). The label stays "ECMWF
    ensemble mean (estimate)"; `members` in the basis carries 50 or 51.
+
+## 2026-11-16 18:28Z CORRECTION to amendment 5 (advisor read of #982)
+
+1. **Corrected:** amendment 5 said of run 43920372184: "The run was cancelled; no report was opened, and the score had
+   no rows." That is wrong. Its score job (133492806819) ran to completion, 17:49-18:24Z, and printed the
+   registered verdict in its public log:
+   `{"verdict": "VOID", "chosen": "ens_mean_raw", "void_reasons": ["test half 0 runs over 0 days", "122 of 122 runs dropped (> 10%)"]}`.
+   A `wind-lr-report` artifact (3.4 KB) exists. My cancel landed after that. The true record: the instrument returned
+   VOID by its own rule, as designed, with zero scored rows, so nothing about any arm's skill was in it. The
+   dropped-run VOID rule worked. I have not downloaded the artifact.
+2. **Dispatch authority for 43920372184:** David, 2026-11-15 23:04 EST, typed in the director's session and relayed
+   verbatim: "Yes", to running the back-test once the Actions queue was quiet. Ledger:
+   `ledger.d/claude--wind-merge-ledger-2.jsonl:1` (PR #979).
+3. **Rule 2's reason, restated (advisor):** the control is NOT exchangeable with a perturbed member. It starts from the
+   unperturbed analysis and is usually a little more skilful than any single perturbed member. What makes 50 vs 51
+   immaterial is arithmetic: the control's weight in the mean is 1/51, so dropping it moves the mean by about 2% of
+   the control's distance from the mean. And the hindcast window is 50-member throughout, which is exactly what
+   #939 would serve today, so the tested population matches the product.
+4. Amending the member rule is still "before any result" in the sense that matters: a VOID with zero rows says
+   nothing about any arm. The docs commit (8ff2cdfc5, 18:18Z) precedes the code (29c1f2282, 18:22Z).
+5. The rerun is a NEW dispatch and needs the owner's word, in the session that dispatches it, for one run.
