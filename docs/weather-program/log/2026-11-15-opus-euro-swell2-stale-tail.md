@@ -74,3 +74,32 @@ product /grid already serves for those hours.
 Fail = any exposed run with `stale_local` > 0 on a covered set, or a regression on unexposed runs: turn the switch off and record it.
 
 Reviews: the advisor red-teams the PR. Draft PR to dev; no merge from this session.
+
+## 2026-11-16 00:17Z: the ICON waves case traced, and the fix built (the director's go-ahead, 2026-11-15 18:59 EST)
+
+**ICON waves, pilots 43676991030 (`stale_local` 19): the same mechanism through another reader.** The pilots job `Consensus Marine
+Shadow` (started 06:09Z) restored 56 `icon_marine_waves_global_mid_*_estimated.json` to the runner's disk from 06:15:21Z to
+06:21:36Z. Core run 43679104625 saved the re-baked ICON tail at 06:17:01Z ("ICON Marine Extended Estimate job completed. Saved 366").
+Of the 56 restores, 16 came before that log line and 40 after; 19 were refused. 16 of the 19 are accounted for by the timing. The
+other 3 were restored just after the "completed" line yet were still the older run, which points to a read racing the core lane's
+upload and not to a third mechanism. Not traced further. The fix covers both cases. A refetch that is still stale is refused as before
+(the test `test_a_download_that_is_still_another_run_is_still_refused`).
+
+**Built** (`services/frame_set_tail_stale.py`, ON; kill switch `FRAME_TAIL_REFETCH_STALE=0`, declared in the pilots publish step):
+`TailDownloads.prefetch` asks `is_stale` of a tail product on disk (publish_set's own run check: `model_run_time` and `run_time`
+against the manifest entry; unreadable bytes count as stale). It then downloads the current product in its place, under the same
+FRAME_TAIL_DOWNLOAD_MAX cap and accounting. `product_bytes` reads a download before the disk copy. New stats: `stale_refetched` per
+set and in `__tail_downloads__`. No served number moves: those hours become frames of the same stored product /grid already
+serves, so no SCOREBOARD row.
+
+**Gate item 1 (offline), met:** `tests/test_frame_set_tail_stale.py`, 9 tests, estate lane (+9 floor fragment). A stale copy is
+refetched and built (7 built, `stale_local` 0, `stale_refetched` 3). Null control: with the switch off, today's refusal (4 built,
+`stale_local` 3, nothing downloaded). A current copy is never downloaded. Only the stale hours are refetched beside plain missing
+ones. A still-stale download is still refused. The cap holds. Download before disk. `is_stale` matches publish_set's check. The
+switch is on and declared. Mutants: 9 of 9 red (the default flipped, unreadable bytes counted current, either run field dropped,
+disk read before download, the stale test skipped, the per-set and running counts dropped, the stale set never filled).
+Neighbouring suites (day14_end, publish_frame_sets, frame_set_fill, frame_set_bight): the same 16 failures on dev `a6fd3d53e`
+without this change as with it. They are this machine's missing packages (fastapi, requests, dotenv); hosted CI is the
+authority.
+
+Gate items 2 (3 consecutive exposed runs) and 3 (cost) are live, after merge: ledger commitment `opus--euro-swell2-stale-tail.jsonl:1`.

@@ -47,6 +47,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from services import frame_set as fs  # noqa: E402
 from services import frame_set_bundle as fsb  # noqa: E402
 from services import frame_set_fill as fsf  # noqa: E402
+from services import frame_set_tail_stale as fts  # noqa: E402
 from services import frame_set_rating as fsr  # noqa: E402
 from services import frame_entitlement as fe  # noqa: E402
 from services import frame_latest_guard as flg  # noqa: E402
@@ -137,15 +138,15 @@ class TailDownloads:
 
     def __init__(self, local, fetch, cap=320, log=print):
         self.local, self.fetch, self.cap, self.log = local, fetch, int(cap), log
-        self._got = {}
-        self.stats = {"downloaded": 0, "download_failed": 0, "download_capped": 0, "wire_bytes": 0, "bytes": 0}
+        self._got, self.last_stale = {}, 0
+        self.stats = {"downloaded": 0, "download_failed": 0, "download_capped": 0, "wire_bytes": 0, "bytes": 0, "stale_refetched": 0}
 
     def manifest(self):
         return self.local.manifest()
 
     def product_bytes(self, filename):
-        raw = self.local.product_bytes(filename)
-        return raw if raw is not None else self._got.get(filename)
+        got = self._got.get(filename)   # a download first: it replaces a disk copy of another run (frame_set_tail_stale)
+        return got if got is not None else self.local.product_bytes(filename)
 
     def fetch_dependency(self, filename):
         """SRV-2 (frame_set_bight): ONE stored product a frame's composition reads (the EURO frame the Bight mean averages
@@ -178,11 +179,12 @@ class TailDownloads:
     def prefetch(self, target, previous_index=None):
         """Download, TAIL_WORKERS at a time, the tail entries of `target` that are neither on disk nor carried from
         `previous_index` (same source identity). Returns the number downloaded for this set."""
+        self.last_stale = 0
         if not self.wants(target):
             return 0
         carried = {(f.get("valid_time"), bool(f.get("is_estimated"))): f.get("source")
                    for f in (previous_index or {}).get("frames", []) if f.get("path")}
-        todo = []
+        todo, stale, refetch = [], set(), fts.enabled()
         products = self.manifest().get("products")
         # A FILLED world set (frame_set_fill) reads the same tails as its plain set: a tail the plain set already fetched this run is
         # never fetched again, and its frame identity carries the GFS donor, as publish_set builds it.
@@ -194,8 +196,13 @@ class TailDownloads:
             ident = fs.source_identity(e)
             if fill_store is not None:
                 ident["fill_donor"] = fsf.donor_identity(fsf.donor_entry(products, vt, target["layer"], store=fill_store))
-            if carried.get((vt, True)) == ident or e["filename"] in self._got or self.local.product_bytes(e["filename"]) is not None:
+            if carried.get((vt, True)) == ident or e["filename"] in self._got:
                 continue
+            disk = self.local.product_bytes(e["filename"])
+            if disk is not None and not (refetch and fts.is_stale(disk, e)):
+                continue
+            if disk is not None:
+                stale.add(e["filename"])   # another run than the manifest names: download the current one (FRAME_TAIL_REFETCH_STALE)
             todo.append(e["filename"])
         room = max(0, self.cap - self.stats["downloaded"])
         if len(todo) > room:
@@ -220,6 +227,8 @@ class TailDownloads:
             self.stats["bytes"] += len(data)
             self.stats["wire_bytes"] += int(wire or 0)
             n += 1
+            self.last_stale += name in stale
+        self.stats["stale_refetched"] += self.last_stale
         return n
 
 
@@ -579,7 +588,7 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
             index, stats = fs.publish_set(source, sink, target, prev_index, upload, log=log, wind_lane=wind_lane,
                                           rating_inputs=rating_inputs, plain_index=_plain_index(target, this_run, latest, sink))
             if isinstance(source, TailDownloads):
-                stats["tail_downloaded"] = fetched
+                stats["tail_downloaded"], stats["stale_refetched"] = fetched, source.last_stale
         if index is not None:
             this_run[key] = index
             sink.write(index["path"], fs.index_bytes(index), fs.JSON_TYPE, IMMUTABLE)
