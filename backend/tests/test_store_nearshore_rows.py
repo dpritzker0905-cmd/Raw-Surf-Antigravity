@@ -103,9 +103,46 @@ def test_nothing_here_raises_or_fails_the_job(tmp_path, capsys):
     assert S.main([str(tmp_path / "missing.json")]) == 0 and "PRIVATE_ROWS status=no_file" in capsys.readouterr().out
 
 
-def test_the_runner_writes_the_private_file_only_when_asked():
+def test_the_runner_writes_the_private_file_only_when_asked_and_says_whether_the_run_was_graded():
     src = inspect.getsource(R.main)
     assert '"--private-rows-json", default=""' in src and "if args.private_rows_json:" in src and "private_rows(matched)" in src
+    # a refused run still stores its rows; the object says so, so a reader never mixes them with a graded run's
+    assert '"graded": bool(report.get("available"))' in src
+
+
+def test_the_process_that_holds_the_key_imports_the_standard_library_and_nothing_else():
+    import ast
+    import sys as _sys
+    tree = ast.parse(open(S.__file__, encoding="utf-8").read())
+    names = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            names.update(a.name.split(".")[0] for a in node.names)
+        elif isinstance(node, ast.ImportFrom):
+            assert node.level == 0, "no relative import beside the service-role key"
+            names.add((node.module or "").split(".")[0])
+    assert names == {"json", "os", "re", "sys", "urllib"}
+    assert names <= set(_sys.stdlib_module_names)
+    src = open(S.__file__, encoding="utf-8").read()
+    assert "sys.path" not in src and "services." not in src.split('"""', 2)[2] and "requests" not in names
+    # the inlined key rule is the service module's rule, exactly
+    for gen in (GEN, "2026-12-07T00:00:00+00:00", "20270111T235959Z"):
+        assert S.rows_key(gen) == private_rows_key(gen)
+    assert S.PREFIX == PRIVATE_ROWS_PREFIX
+    with pytest.raises(ValueError):
+        S.rows_key("x")
+
+
+def test_the_status_line_also_reaches_the_step_summary(tmp_path, monkeypatch, capsys):
+    summary = tmp_path / "summary.md"
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
+    monkeypatch.delenv("SUPABASE_URL", raising=False)
+    monkeypatch.delenv("SUPABASE_SERVICE_ROLE_KEY", raising=False)
+    assert S.main([_file(tmp_path)]) == 0
+    assert summary.read_text(encoding="utf-8") == "`PRIVATE_ROWS status=not_configured n=1`\n"
+    assert "PRIVATE_ROWS status=not_configured n=1" in capsys.readouterr().out
+    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(tmp_path / "no" / "such" / "dir" / "x.md"))
+    assert S.main([_file(tmp_path)]) == 0                                    # an unwritable summary changes nothing
 
 
 def test_the_workflow_keeps_the_key_out_of_the_grading_step_and_the_rows_out_of_the_artifact():
@@ -117,7 +154,8 @@ def test_the_workflow_keeps_the_key_out_of_the_grading_step_and_the_rows_out_of_
     assert "SUPABASE" not in grade and "--private-rows-json nearshore_rows_private.json" in grade
     # the store step is the only place the credential names appear in this workflow, by NAME, from secrets
     assert text.count("SUPABASE_SERVICE_ROLE_KEY") == 2 and "secrets.SUPABASE_SERVICE_ROLE_KEY" in store
-    assert "store_nearshore_rows.py nearshore_rows_private.json || true" in store and "rm -f nearshore_rows_private.json" in store
+    assert "python3 -I -S scripts/store_nearshore_rows.py nearshore_rows_private.json || true" in store
+    assert "rm -f nearshore_rows_private.json" in store
     assert "if: always()" in store
     # the artifact lists its files one by one and the private file is not among them
     assert "nearshore_rows_private" not in upload and "backend/nearshore_rows.json" in upload

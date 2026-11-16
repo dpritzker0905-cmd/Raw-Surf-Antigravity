@@ -296,7 +296,9 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
-          python3 scripts/store_nearshore_rows.py nearshore_rows_private.json || true
+          # -I -S: no user site, no site-packages, no PYTHON* variables. The process that holds the key can
+          # import the standard library and nothing that pip installed earlier in this job.
+          python3 -I -S scripts/store_nearshore_rows.py nearshore_rows_private.json || true
           rm -f nearshore_rows_private.json
 
       - name: Upload the report series

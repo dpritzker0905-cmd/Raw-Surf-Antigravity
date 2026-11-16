@@ -358,6 +358,7 @@ def main() -> int:
         from services.weather_pipeline.nearshore_validation import private_rows
         with open(args.private_rows_json, "w", encoding="utf-8") as f:
             json.dump({"version": 1, "quantity": report.get("quantity"), "generated_at": report.get("generated_at"),
+                       "graded": bool(report.get("available")),       # False = the run refused to grade: do not mix
                        "rows": private_rows(matched)}, f)
     if args.rows_json:                # per-row factors: the report keeps only their median (see factor_rows)
         from services.weather_pipeline.nearshore_validation import factor_rows
