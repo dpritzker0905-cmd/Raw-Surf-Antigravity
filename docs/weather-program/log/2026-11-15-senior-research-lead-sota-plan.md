@@ -1093,3 +1093,30 @@ The helper's ASK 8 (metadata opened):
 3. FRF Duck only with written USACE permission (owner action: request it).
 
 Until then FRF may be used for nothing that shapes the product.
+
+## 03:14Z Owner decisions and the two questions settled by research (David, 22:12-22:13 EST)
+
+**David, verbatim:**
+- "yes usace use it, research on"
+- "the other two questions need to be answered by researching the SOTA path forward"
+
+**USACE FRF.** The owner directs use. Recorded risk: FRF metadata says "Use or reproduction of these data for
+commercial purposes is prohibited". The owner has decided. My recommendation stays to also request written permission;
+a draft was offered and paused by the owner.
+
+**Q1, ICON precipitation display. SOTA = a conservative remap to 0.125 deg (about native).**
+- Regridding distorts precipitation most at the high quantiles, and the difference shrinks as the target approaches
+  native resolution
+  ([Rajulapati 2021](https://consensus.app/papers/details/w:3ea27266-1ca1-4be7-ae44-fe7d1e4294f0/?utm_source=claude_code)).
+- Conservative smoothing shifts the intensity distribution toward weak rain
+  ([Chen 2026](https://consensus.app/papers/details/w:284016e5-6d76-4c41-b2d6-6ddc745f9388/?utm_source=claude_code)).
+- SubQ: 0.125 deg 0.985.
+- Gate: mass within ±1% of native, peak retention ≥ 90% of native cell maxima, storage within the pilots budget.
+
+**Q2, height-scale defaults. SOTA = one physical quantity, face by default everywhere except Hawaii (Hawaiian), a
+user toggle, and the scale always labelled.**
+- SubQ 0.971.
+- A region's default changes only when labelled local observations show its convention (SubQ 0.993).
+- Evidence: Caldwell 2007 (x2, 10-20%); Vasconcellos 2007 (two scales confuse the public).
+
+**FES timing:** now. The secrets exist, and M1 runs FES2022 and EOT20 together in its gate.
