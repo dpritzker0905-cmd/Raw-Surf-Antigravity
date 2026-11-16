@@ -230,3 +230,37 @@ Both need handling before a 0.125 set is drawn.
 index stays as it was, and the pilots step (continue-on-error) shows the error in its log. The same happens if a later cycle
 packs CLAT / CLON beyond the 0.01-degree check. Neither is alerted today. Caching the 50 MB file (or the derived 37 M-entry pick
 map) between runs is a follow-up.
+
+## 07:56Z: #956 after the advisor's re-read (PASS WITH LIMITS): the poles, a guard in CI, the k = 5 numbers, the label, a stale alert
+
+- **The gate table measured on the defective map** (the 06:14Z G2 section) stays in this log, SUPERSEDED by the 06:59Z re-measure.
+  It is not replaced.
+- **Poles.** The advisor: MAX_HALF_COLS = 64 truncates the window poleward of about 89.1 deg, and the bands stopped at 85. Measured:
+  784/800 exact at 89.5N, worst miss 0.062 deg. Fixed: a row whose window would exceed the cap takes every cell of its polar cap
+  as candidates. It is exact by construction: the cap widens until every pick is nearer than any cell left out. Re-measured on
+  the real grid: 0, 60, 85, 89.5 and 89.9 deg, each 800/800 exact.
+- **Guarded in CI now, no longer only offline:**
+  - `test_every_pick_is_the_true_nearest_cell_on_a_random_mesh`: an irregular random mesh, brute force over ALL cells, every
+    sub-point, pole rows included. Mutants: a 1-column cap and a zero-row window both go red.
+  - `test_a_real_near_tie_is_decided_in_float64`: the 80.25N cells 10166 / 10167. Float32 positions flip it, and that mutant
+    goes red. The comparison is now one helper, `nearest_among`.
+- **k = 5, reported once (the advisor), k = 3 stands as registered** (the global mass did not fail). Real grid, 60 seeded spikes:
+
+| k | map build | area mean an hour | pick map | single-cell mass error: median / p90 / max |
+|---|---|---|---|---|
+| 3 | 75 s | 0.64 s | 149 MB | 5.8 % / 17.0 % / 34.5 % |
+| 5 | 182 s | 1.12 s | 415 MB | 4.2 % / 9.4 % / 16.2 % |
+
+  k = 5 halves the worst single-cell error for about 2.4 x the build, 1.75 x the per-hour time and 2.8 x the memory. It is still
+  not conservative per cell. The director's call; k = 3 ships.
+- **Label:** the spec says "area mean (sampled) ... not conservative per cell"; the credit says "area-averaged (sampled)"; the module
+  docstring states the known limit. Never "conservative".
+- **A failed raster publish is now visible** (the director):
+  - `publish_raster_frames.py` prints an `::error` annotation and exits 1 on coverage_refused / latest_unknown / latest_refused.
+    'no_cycle' (upstream not ready) is not a failure.
+  - New `scripts/raster_set_freshness.py` on the Data Health Monitor (every 30 min) reads the PUBLIC latest.json. For every
+    raster set whose repo variable is '1', it fails when the set is missing or its run is older than RASTER_STALE_HOURS (default
+    30 h). So an unreachable DWD weights file shows as a red monitor within a day, not only in one step's log.
+  - +4 tests (`test_raster_set_freshness.py`).
+- Still open, unchanged: time is measured at the first publish; the client flip needs time, a throttled phone step, the texture
+  checks (with Move 3), a legend note and the owner's word.

@@ -219,3 +219,37 @@ def test_a_single_cell_spike_is_found_in_its_own_box_and_its_mass_is_kept():
     r, c = np.unravel_index(np.argmax(plane), plane.shape)
     assert (int(r), int(c)) == (5, 6)                               # the spike stays in its own box
     assert np.count_nonzero(plane) >= 1 and plane.max() < 90.0      # shared with the centre cell: an area mean
+
+
+def test_every_pick_is_the_true_nearest_cell_on_a_random_mesh():
+    """The advisor's guard for the offline 800/800-per-band measurement: on an irregular random mesh about as dense as the boxes,
+    the pick map equals a brute force over ALL cells for every sub-point, at every latitude including the pole rows."""
+    rows, cols, step = 37, 72, 5.0
+    rng = np.random.default_rng(11)
+    n = 3000
+    z = rng.uniform(-1, 1, n)
+    lon = rng.uniform(-180, 180, n)
+    lat = np.degrees(np.arcsin(z))                                  # uniform on the sphere
+    xyz = i125._unit(lat, lon)
+    nlat, nlon = _nodes(rows, cols, step)
+    nodes = i125._unit(nlat, nlon).reshape(-1, 3)
+    nn = np.argmax(nodes @ xyz.T, 1).astype(np.int32).reshape(rows, cols)       # each node's true nearest
+    pick = i125.subpoint_pick(nn, xyz, lat, lon, k=3, rows=rows, cols=cols, step=step, reach_deg=step)
+    off = (np.arange(3) - 1) * (step / 3)
+    slat = np.clip((-90.0 + step * np.arange(rows))[:, None] + off, -90, 90)
+    slon = (-180.0 + step * np.arange(cols))[:, None] + off
+    sub = i125._unit(slat[:, None, :, None], slon[None, :, None, :]).reshape(rows, cols, 9, 3)
+    brute = np.argmax(sub @ xyz.T, 3)
+    d = lambda idx: np.take_along_axis(sub @ xyz.T, idx[..., None], 3)[..., 0]   # noqa: E731
+    assert np.array_equal(pick, brute) or np.allclose(d(pick), d(brute), atol=0, rtol=0)
+
+
+def test_a_real_near_tie_is_decided_in_float64():
+    """ICON grid 0026, 2026-11-16: cells 10166 (80.29393, 81.99219) and 10167 (80.22362, 82.46094) from the sub-point (80.20833,
+    81.95833). 10166 is 0.00098 deg nearer; float32 positions pick 10167."""
+    cells = i125._unit(np.array([80.29393005371094, 80.22361755371094]), np.array([81.9921875, 82.4609375]))
+    sub = i125._unit(np.array([80.25 - 0.125 / 3]), np.array([82.0 - 0.125 / 3]))                  # (1 sub-point, 3)
+    cands = np.array([1, 0])
+    assert int(i125.nearest_among(sub, cells, cands)[0]) == 0
+    rounded = cells.astype(np.float32).astype(np.float64)          # the defect: cell positions held in float32
+    assert int(i125.nearest_among(sub, rounded, cands)[0]) == 1     # ... flips the pick to the farther cell

@@ -1,5 +1,8 @@
 """ICON on the 0.125-degree lattice by a supersampled area mean (G2, 2026-11-16; the owner, 22:13 EST 11-15, via the director).
 
+LABEL: "area mean (sampled)", never "conservative" (the director, 2026-11-16). Measured on the real grid: global mass within 0.1 %,
+but ONE cell's mass within a median 5.8 % (max 34 %), because k x k sub-points sample each cell's share of a box. A known limit.
+
 WHY. ICON global's cells are ~13 km; Open-Meteo's `dwd_icon` and DWD's own regular-grid products are 0.125 degree, both by
 NEAREST cell (DWD's official CDO weights `ICON_GLOBAL2WORLD_0125_EASY`, read 2026-11-16: map_method "Nearest neighbor", one
 link per target point). Our ICON precipitation set was a 0.25-degree box mean of the cells whose centres fall in each box:
@@ -117,7 +120,8 @@ def box_cells(cell_lat, cell_lon, rows=ROWS, cols=COLS, step=STEP, cap=12):
 # sub-points, every latitude band): 100 % the true nearest cell, in float64; 0.22 deg gave the same at twice the build time
 # (142 s vs 66 s).
 REACH_DEG = 0.125
-MAX_HALF_COLS = 64  # near the poles a box is far narrower than a cell: DWD's nearest cells are the candidates there
+MAX_HALF_COLS = 64  # past this window (poleward of ~89.1 deg) a row takes every cell of its polar cap as a candidate instead
+POLAR_MARGIN_DEG = 1.0   # a polar row's candidates: every cell within this of the row's latitude, poleward (nearest is ~0.1 away)
 
 
 def subpoint_pick(nn_full, cell_xyz, cell_lat, cell_lon, k=K, rows=ROWS, cols=COLS, step=STEP, reach_deg=REACH_DEG,
@@ -134,16 +138,42 @@ def subpoint_pick(nn_full, cell_xyz, cell_lat, cell_lon, k=K, rows=ROWS, cols=CO
     per_node = np.concatenate([nn_full[:, :, None], box_cells(cell_lat, cell_lon, rows, cols, step)], 2)   # (rows, cols, 1+m)
     m1 = per_node.shape[2]
     hr = int(np.ceil(reach_deg / step))                                                      # rows each side
+    row_lat = -90.0 + step * np.arange(rows)
+    cell_lat = np.asarray(cell_lat, dtype=float)
+
+    def need_hc(lo, hi):          # the column window rows lo..hi need, at their most poleward row (cos shrinks poleward)
+        lat_far = min(89.99, max(abs(row_lat[max(0, lo - hr)]), abs(row_lat[min(rows - 1, hi + hr)])))
+        return int(np.ceil(reach_deg / (step * np.cos(np.radians(lat_far)))))
+
+    polar = np.array([need_hc(i, i) > MAX_HALF_COLS for i in range(rows)])
     r0 = 0
     while r0 < rows:
-        lat_far = min(89.9, max(abs(-90.0 + step * max(0, r0 - hr)), abs(-90.0 + step * min(rows - 1, r0 + hr))))
-        hc = int(min(MAX_HALF_COLS, np.ceil(reach_deg / (step * np.cos(np.radians(lat_far))))))
+        if polar[r0]:
+            # POLAR ROW: a box is far narrower than a cell, so no column window reaches; every cell of that polar cap is a
+            # candidate instead (a few hundred within 1.5 deg of a pole on R3B7). Measured 2026-11-16: the capped window was
+            # 784/800 exact at 89.5N; the cap is exact by construction (it holds every cell that can be nearest).
+            slat = np.clip(row_lat[r0] + off, -90.0, 90.0)
+            sxyz = _unit(slat[None, :, None], (lon[:, None] + off[None, :])[:, None, :]).reshape(cols, k * k, 3)
+            margin = max(POLAR_MARGIN_DEG, 4.0 * reach_deg)
+            hemi = np.sign(cell_lat) == (1.0 if row_lat[r0] >= 0 else -1.0)
+            while True:
+                cap = np.flatnonzero(hemi & (np.abs(cell_lat) >= abs(row_lat[r0]) - margin))
+                if cap.size:
+                    got = nearest_among(sxyz, cell_xyz, np.broadcast_to(cap, (cols, cap.size)))
+                    far = np.degrees(np.arccos(np.clip(np.einsum("csx,csx->cs", sxyz, np.asarray(cell_xyz, float)[got]), -1, 1))).max()
+                    # exact when every pick is nearer than any cell left out (those lie > margin - |sub-point offset| away)
+                    if far < margin - step or margin >= 180.0:
+                        break
+                margin *= 2.0
+            pick[r0] = got
+            r0 += 1
+            continue
+        hc = min(MAX_HALF_COLS, need_hc(r0, r0))
         ncand = (2 * hr + 1) * (2 * hc + 1) * m1
         n = max(1, int(budget // (cols * ncand)))
         r = np.arange(r0, min(rows, r0 + n))
-        # the window at the row nearest the pole in this chunk is the widest it needs (cos shrinks poleward)
-        lat_far = min(89.9, max(abs(-90.0 + step * max(0, r[0] - hr)), abs(-90.0 + step * min(rows - 1, r[-1] + hr))))
-        hc = int(min(MAX_HALF_COLS, np.ceil(reach_deg / (step * np.cos(np.radians(lat_far))))))
+        r = r[:int(np.argmax(polar[r])) if polar[r].any() else r.size]                       # a chunk never holds a polar row
+        hc = need_hc(int(r[0]), int(r[-1]))                                                   # never above the cap: no polar row
         ncand = (2 * hr + 1) * (2 * hc + 1) * m1
         row_idx = np.clip(r[:, None] + np.arange(-hr, hr + 1)[None, :], 0, rows - 1)          # (nr, 2hr+1)
         col_idx = (np.arange(cols)[:, None] + np.arange(-hc, hc + 1)[None, :]) % cols         # (cols, 2hc+1), wraps the date line
@@ -155,12 +185,18 @@ def subpoint_pick(nn_full, cell_xyz, cell_lat, cell_lon, k=K, rows=ROWS, cols=CO
         slon = lon[:, None] + off[None, :]                                                     # (cols, k)
         sxyz = _unit(slat[:, None, :, None], slon[None, :, None, :])                           # (nr, cols, k, k, 3)
         sxyz = sxyz.reshape(r.size, cols, k * k, 3)
-        # float64: two cells ~0.005 deg apart in distance are a tie in float32 (1 - cos of 0.05 deg is ~4e-7); measured
-        # 2026-11-16, float32 picked a not-nearest cell for ~3 % of sub-points
-        dots = np.einsum("rcsx,rcnx->rcsn", sxyz, np.asarray(cell_xyz, dtype=np.float64)[cands])   # (nr, cols, k*k, ncand)
-        pick[r] = np.take_along_axis(cands, np.argmax(dots, 3), 2)                           # (nr, cols, k*k)
+        pick[r] = nearest_among(sxyz, cell_xyz, cands)                                      # (nr, cols, k*k)
         r0 = r[-1] + 1
     return pick
+
+
+def nearest_among(sub_xyz, cell_xyz, cands):
+    """(..., s) cell index: for each sub-point (..., s, 3), the candidate (..., n) whose unit vector is nearest. In FLOAT64: two cells
+    ~0.001 deg apart in distance are a tie in float32 (1 - cos of 0.05 deg is ~4e-7). Measured 2026-11-16: float32 picked a
+    not-nearest cell for ~3 % of sub-points (e.g. 80.25N 82.0E, ICON cells 10166 / 10167)."""
+    import numpy as np
+    dots = np.einsum("...sx,...nx->...sn", np.asarray(sub_xyz, dtype=np.float64), np.asarray(cell_xyz, dtype=np.float64)[cands])
+    return np.take_along_axis(cands, np.argmax(dots, -1), -1)
 
 
 def area_mean(values, pick):

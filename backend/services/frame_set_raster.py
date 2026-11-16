@@ -199,10 +199,10 @@ SPECS = {
         "valid": VALID_MM_H, "clip": None, "env": "FRAME_RASTER_PRECIP_ICON_0P125", "default_on": False, "frame_plane": True,
         "value_kind": "precipitation_rate", "value_unit": "mm/h",
         "source_dataset": "DWD ICON global (icosahedral R3B7) TOT_PREC, totals differenced to the preceding step, "
-                          "area mean onto 0.125 deg (3 x 3 sub-points per box, nearest cell each)",
+                          "area mean (sampled) onto 0.125 deg: 3 x 3 sub-points per box, nearest cell each; not conservative per cell",
         "hours": tuple(range(1, 79)) + tuple(range(81, 181, 3)), "source": "icon_precip_0p125", "upstream_provider": "dwd",
         "credit": "Source: Deutscher Wetterdienst (DWD), ICON global; modified (totals differenced to a rate, "
-                  "area-averaged to 0.125 deg, quantised to 0.01 mm/h)",
+                  "area-averaged (sampled) to 0.125 deg, quantised to 0.01 mm/h)",
         "license": "DWD open data, free use with source attribution (GeoNutzV)",
         "source_url": "https://opendata.dwd.de/weather/nwp/icon/grib/",
     },

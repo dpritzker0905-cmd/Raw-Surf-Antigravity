@@ -97,6 +97,21 @@ jobs:
       # Thresholds are per-TIER (global 4h cadence / flagship 8h / worldwide ~32h) because one fixed
       # bound either cry-wolfs on the rotation or goes blind on the globals.
       # Set repo Actions variable REGION_HEALTH_PAGING=0 to downgrade this to a warning annotation.
+      # RASTER FRAME SETS (2026-11-16, the director): a raster publish that fails keeps its old index, so the map silently draws
+      # the last good run (e.g. DWD's 0.125-degree weights file unreachable). For every raster set whose repo variable is '1',
+      # the PUBLIC latest.json must list it with a run younger than RASTER_STALE_HOURS (default 30 h).
+      - name: Raster frame-set freshness
+        if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          RASTER_VARS_JSON: ${{ toJSON(vars) }}
+          RASTER_STALE_HOURS: ${{ vars.RASTER_STALE_HOURS || '30' }}
+        working-directory: backend
+        run: |
+          set -o pipefail
+          if [ -z "$SUPABASE_URL" ]; then echo "::warning::SUPABASE_URL unset: raster freshness not checked"; exit 0; fi
+          python3 scripts/raster_set_freshness.py --base "${SUPABASE_URL%/}/storage/v1/object/public/weather-frames" --fail-on-stale
+
       - name: Regional product run-age census
         # Global paging must not hide the finer regional diagnosis (run 34849338600).
         if: ${{ !cancelled() && steps.checkout.outcome == 'success' }}
