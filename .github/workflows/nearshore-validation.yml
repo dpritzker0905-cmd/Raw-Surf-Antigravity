@@ -204,6 +204,7 @@ jobs:
           set -o pipefail
           rc=0
           python3 scripts/run_nearshore_validation.py --json nearshore_report.json --rows-json nearshore_rows.json \
+            --private-rows-json nearshore_rows_private.json \
             2>&1 | tee nearshore.txt | tail -40 || rc=$?
           echo "── decision lines (tail-proof) ──"
           grep -E "^VERDICT|^GEOMETRY|^NO_FRICTION_AB|^LEGACY_FRICTION_AB|^NEARSHORE_INPUT_AB|^CONSENSUS_AB|^SHADOW_AB|^MEMBER_AB|^PAIR_AB|^TRAINS_AB|^MOP_AB|^MOP_GRID_AB|^NWPS_AB|^REFUSED|^STATIONS|^BUDGET|^INFRA|^WARNING" nearshore.txt || true
@@ -284,6 +285,19 @@ jobs:
                   print(f"  - where used: bulk {o['bulk']['mae_m']} m (bias {o['bulk']['bias_m']:+}) vs trains {o['trains']['mae_m']} m (bias {o['trains']['bias_m']:+}); trains closer on {o['trains_closer_share']:.0%}")
           print(f"- budget wall {r['budget']['wall_s']} s · point calls {r['point_api']['calls']} ({r['point_api']['failed']} failed)")
           PY
+
+      # The FULL rows (hour, forecast heights) go to PRIVATE Storage, never to the artifact below (owner's word
+      # 2026-11-15 21:10 EST). This is its OWN step so the grading step above never holds a Storage credential.
+      # It never fails the job, and the local file is removed whatever happens.
+      - name: Store the full rows privately
+        if: always()
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python3 scripts/store_nearshore_rows.py nearshore_rows_private.json || true
+          rm -f nearshore_rows_private.json
 
       - name: Upload the report series
         if: always()
