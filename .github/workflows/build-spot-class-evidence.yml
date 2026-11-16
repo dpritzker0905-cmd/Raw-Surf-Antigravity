@@ -38,10 +38,17 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: python3 -I -S scripts/spot_class_snapshot.py --out data/spot_catalogue_snapshot.json
-      - name: OpenStreetMap evidence (no credential)
-        run: python3 -I scripts/spot_class_osm.py --snapshot data/spot_catalogue_snapshot.json --out data/spot_osm_evidence.json
+      - name: Upload the snapshot at once (a later timeout must not lose it)
+        uses: actions/upload-artifact@v4
+        with:
+          name: spot-catalogue-snapshot
+          path: backend/data/spot_catalogue_snapshot.json
+          retention-days: 14
+      - name: OpenStreetMap evidence (no credential; stops at its budget and writes what is done)
+        timeout-minutes: 100
+        run: python3 -I scripts/spot_class_osm.py --snapshot data/spot_catalogue_snapshot.json --out data/spot_osm_evidence.json --budget-s 5400
       - uses: actions/upload-artifact@v4
-        if: ${{ !cancelled() }}
+        if: always()
         with:
           name: spot-class-evidence
           path: |

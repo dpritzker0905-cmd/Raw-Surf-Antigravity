@@ -15,7 +15,9 @@ import time
 import urllib.parse
 import urllib.request
 
-OVERPASS = "https://overpass-api.de/api/interpreter"
+# Public mirrors, rotated on failure (the first run, 2026-11-16, lost 2 h to one throttled endpoint from a shared runner IP).
+OVERPASS = ("https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter",
+            "https://overpass.private.coffee/api/interpreter")
 TILE_DEG = 0.5
 PAD_DEG = 0.012
 QUERY = """[out:json][timeout:90];
@@ -82,17 +84,19 @@ def features(elements):
     return out
 
 
-def overpass(bbox, tries=4):
+def overpass(bbox, tries=6):
     q = QUERY.format(b=",".join(f"{v:.5f}" for v in bbox))
     data = urllib.parse.urlencode({"data": q}).encode()
     for i in range(tries):
+        url = OVERPASS[i % len(OVERPASS)]   # rotate mirrors
         try:
-            req = urllib.request.Request(OVERPASS, data=data, headers={"User-Agent": "raw-surf-spot-class/1 (B2 validation)"})
+            req = urllib.request.Request(url, data=data, headers={"User-Agent": "raw-surf-spot-class/1 (B2 validation)"})
             with urllib.request.urlopen(req, timeout=120) as r:
                 return json.load(r).get("elements", [])
-        except Exception as e:   # 429 / 504 from a busy mirror: back off and retry
-            print(f"  overpass retry {i + 1}: {type(e).__name__}", file=sys.stderr)
-            time.sleep(20 * (i + 1))
+        except Exception as e:   # 429 / 504 from a busy mirror: next mirror, back off
+            code = getattr(e, "code", "")
+            print(f"  overpass retry {i + 1} ({url.split('/')[2]}): {type(e).__name__} {code}", file=sys.stderr, flush=True)
+            time.sleep(10 * (i + 1))
     raise RuntimeError("overpass failed")
 
 
@@ -116,11 +120,23 @@ def main():
     ap.add_argument("--snapshot", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--pause", type=float, default=2.0)
+    ap.add_argument("--budget-s", type=float, default=0, help="stop after this many seconds and write what is done (0 = no limit)")
+    ap.add_argument("--resume", help="an earlier evidence file: its spots are kept and not fetched again")
     a = ap.parse_args()
     spots = json.load(open(a.snapshot, encoding="utf-8"))["spots"]
-    out, failed = {}, 0
-    groups = tiles(spots)
+    out, failed, t0 = {}, 0, time.time()
+    if a.resume:
+        try:
+            out = json.load(open(a.resume, encoding="utf-8")).get("evidence", {})
+            print(f"resume: {len(out)} spots kept", flush=True)
+        except (OSError, ValueError):
+            print("resume: no usable earlier file", flush=True)
+    groups = tiles([s for s in spots if s["id"] not in out])
+    stopped = False
     for i, (key, members) in enumerate(sorted(groups.items())):
+        if a.budget_s and time.time() - t0 > a.budget_s:
+            stopped = True
+            break
         bbox = (min(s["lat"] for s in members) - PAD_DEG, min(s["lng"] for s in members) - PAD_DEG,
                 max(s["lat"] for s in members) + PAD_DEG, max(s["lng"] for s in members) + PAD_DEG)
         try:
@@ -130,15 +146,15 @@ def main():
             continue
         for s in members:
             out[s["id"]] = evidence_for(s, feats)
-        if i % 25 == 0:
-            print(f"tile {i + 1}/{len(groups)}: {len(out)} spots")
+        if i % 10 == 0:
+            print(f"tile {i + 1}/{len(groups)}: {len(out)} spots, {failed} in failed tiles, {int(time.time() - t0)} s", flush=True)
         time.sleep(a.pause)
     with open(a.out, "w", encoding="utf-8", newline="\n") as f:
         json.dump({"version": 1, "source": "OpenStreetMap (ODbL) via Overpass", "n": len(out), "failed": failed,
-                   "evidence": dict(sorted(out.items()))}, f, indent=0)
+                   "complete": len(out) == len(spots), "evidence": dict(sorted(out.items()))}, f, indent=0)
         f.write("\n")
-    print(f"osm evidence: {len(out)} spots, {failed} in failed tiles")
-    return 0 if failed == 0 else 1
+    print(f"osm evidence: {len(out)}/{len(spots)} spots, {failed} in failed tiles{', stopped at the budget' if stopped else ''}", flush=True)
+    return 0
 
 
 if __name__ == "__main__":
