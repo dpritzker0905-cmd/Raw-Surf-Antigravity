@@ -442,3 +442,19 @@ changed.
 - **Versions pinned:** pyfes 2026.5.2, pyTMD 3.1.0, **timescale 0.1.3** (new), so the identity cannot break silently on
   a version bump; the test checks the pins.
 - A third start needs the owner's word.
+
+## 15:19 EST 2026-11-16 (`date`) - advisor accepts G2 at 8b5149149; one reporting rule added BEFORE any run
+- **Advisor (20:19Z):** "G2 is acceptable to start from me, as designed, at 8b5149149". That is design advice; the
+  start is the owner's word typed in this session.
+- **Reported, not gating - arm B is reported twice:**
+  1. As registered: likely an item-2 fail on coverage, since six gauges are outside EOT20's 10 km reach.
+  2. On the 20 gauges where EOT20 is defined: items 1-4 recomputed on that subset, for information only.
+
+  That way a coverage fail is not read as a statement about the atlas. This changes no rule and no verdict; it is a
+  reading added before the run.
+- **Reading order:**
+  1. Log the tagged commit and run id first.
+  2. Controls first; VOID means nothing else is quoted.
+  3. Then item 1, the tidal-band line and the per-arm SA/SSA constants.
+  4. Then B twice.
+  5. The output goes to the advisor before the owner.
