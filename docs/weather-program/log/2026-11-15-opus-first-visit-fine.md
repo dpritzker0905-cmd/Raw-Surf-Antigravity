@@ -145,3 +145,17 @@ recorded while the page booted (before the layer was switched on) was counted ag
 "time" measured from page start. No scenario that presses a key had any. Fix: a browse action now resets the list and stamps its own
 time, as a key does. Re-check on the unchanged fine build (browse, one session per arm, ON and both kills): 0 blank draws in 8
 steps in each. The 05:45Z F3 verdicts stand as recorded (scored as written); the artifact only means "blank" was not a real failure.
+
+## 2026-11-16 06:20Z: measured first: inside a pilot box the first visit is ALREADY exact; C is DROPPED as redundant
+
+Lab: `serve_synthetic.py --models GFS --layers waves --regions florida_east_coast --land-mask 1 --dynamic 1` (port 4299, store6),
+published with `publish_frame_images.py --only frames` (the Florida bundle: 38 KB in this lab; 324 KB live), today's `dev` build,
+`scn_zoom_scrub.js` desktop, z8 at (-80.6, 28.1) inside florida_east_coast, 10 one-hour steps to hours not yet visited
+(`scratchpad/m3/boxfine-desktop.json`):
+- **cur (bundles on, today):** ms to the exact frame on the GPU per step: 0, 10, 0, 0, 0, 5, 17, 8, 0, 6. Every first visit exact, <= 17 ms.
+- **noregional (bundles off):** 0 (the opening hour), then 9 of 10 steps never exact inside the window (one at 37 ms).
+- Phone not measured: the scenario's phone run failed to find the Waves chip in the mobile layout (a harness gap, not a result).
+
+So a next-hour CDN prefetch has nothing to add inside the boxes: the bundle already holds the whole run and each hour is a slice
+decode. **C is dropped; no code written.** The coarse-then-fine wait lives outside the boxes and on partial covers; sizing of the
+zero-box-load routes for those is sent to the director and the frame-carry lane (publisher budget).
