@@ -386,8 +386,8 @@ def test_the_cap_holds_headroom_over_the_documented_production_demand(monkeypatc
     assert {"CONSENSUS", GFS_RAW, GFS_SCALAR, "EURO_SCALAR", "ICON_SCALAR"} <= set(compare_models("GFS"))
     # ours + compares (ICON, EURO, CONSENSUS, GFS_RAW, GFS_SCALAR, EURO_SCALAR, ICON_SCALAR) + Open-Meteo marine + its
     # same-model control
-    # + persistence
-    lanes = 1 + len(compare_models("GFS")) + 1 + 1 + 1
+    # + persistence + the NOAA station-bulletin reference (2026-11-16)
+    lanes = 1 + len(compare_models("GFS")) + 1 + 1 + 1 + 1
     buoys, runs_per_day = 60, 12                      # NDBC map size; forecast-ingest 6 + precompute 6
     demand = buoys * lanes * runs_per_day * sum(h // 24 for h in LEADS_H)
     assert PENDING_MAX_ENTRIES >= demand * 1.3, (
