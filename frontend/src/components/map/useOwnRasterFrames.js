@@ -23,7 +23,7 @@ import { GUST_LUT, gustScale } from './gustPalette';
 import { CURRENTS_LUT, currentsScale } from './currentsPalette';
 import { loadDownscale, setDownscaled } from './ownRasterDownscale';
 import {
-  OWN_ONLY_LAYERS, sourceModel, combinedFrameAt, combinedFrames, emitOwnShown, emitOwnWant, framesOf, getField, lastIndex, noteMiss, noteStep, OWN_RASTER_SETS, ownFramesOn, ownIndex,
+  OWN_ONLY_LAYERS, endNoteText, sourceModel, combinedFrameAt, combinedFrames, emitOwnShown, emitOwnWant, framesOf, getField, lastIndex, noteMiss, noteStep, OWN_RASTER_SETS, ownFramesOn, ownIndex,
   planWindow, setEngaged, setWanted, tel, ownWindowRadius,
 } from './ownRasterFrames';
 
@@ -265,7 +265,10 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
       emitOwnWant(layer, null);
       st.wantRec = null;
       if (ownOnly && !rasterReadoutKilled()) {   // own-only: nothing else draws this hour (past the set's last frame)
-        publishRasterDrawn({ layer, shown: null, want: null, unavailable: `${RASTER_NAMES[layer] || layer}: no forecast for this hour` });
+        const last = frames.length ? Date.parse(frames[frames.length - 1].valid_time) : NaN;
+        const runMs = Date.parse(index.run_time || index.run || '');
+        const end = validMs > last ? endNoteText(layer, M, last, runMs) : null;   // past the model's range: say whose range ended
+        publishRasterDrawn({ layer, shown: null, want: null, unavailable: end || `${RASTER_NAMES[layer] || layer}: no forecast for this hour` });
       } else publish();
       noteMiss('no_frame');
       tel().want = { validMs, path: null, at: Date.now() };

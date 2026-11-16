@@ -94,11 +94,11 @@ export const OWN_RASTER_SETS = {
   // ON by default (DEFAULT_ON_LAYERS); kill: window.__RAW_DISABLE_RASTER_OWN_GUSTS__ = true.
   gusts: {
     models: { GFS: 'GFS/weather/gust/global_0p25', EURO: 'EURO/weather/gust/global_0p25', ICON: 'ICON/weather/gust/global_0p25' },
-    // PAST EACH MODEL'S RANGE (EURO 240 h, ICON 180 h): the GFS gust frames, labelled "GFS stand-in beyond this model's range"
-    // and credited to NOAA GFS. NO LOOPING (the owner, 2026-11-15 15:19 EST: "Looping is unacceptable. We need real science"):
-    // the senior research lead is choosing the real long-range method (hand-off to a longer-range model, a bias-corrected seam,
-    // ...); it plugs in as a new BEYOND strategy named here per model, with no other change.
-    fallback: 'GFS', beyond: { EURO: 'gfs_standin', ICON: 'gfs_standin' }, field: SPEED_FIELD, unit: 'kn', ownOnly: true,
+    // PAST EACH MODEL'S RANGE (EURO 240 h, ICON 180 h): NO GUSTS, and the status line says so (`endNote`). The owner, 2026-11-15
+    // 19:27 EST: "I dont want icon wind past 7.5 days switched to gfs, we need a scientific estimation" (the same for gusts):
+    // never another model's field, never a loop. The ECMWF ensemble gust (member median, p90 risk cue; log §8, PR #939) plugs
+    // in later as a BEYOND strategy named here per model (`beyond: { ICON: 'ens_mean_extension', ... }` + a `fallback`).
+    fallback: null, endNote: true, field: SPEED_FIELD, unit: 'kn', ownOnly: true,
   },
   // OCEAN CURRENTS (2026-11-15, the owner approved Currents as a new picker layer): Copernicus Marine's global ocean model,
   // surface current SPEED in knots (field 4) every 6 h to 240 h on 0.25 deg (frame_set_raster.py set `currents`); each frame
@@ -110,6 +110,16 @@ export const OWN_RASTER_SETS = {
     fallback: null, field: SPEED_FIELD, unit: 'kn', ownOnly: true,
   },
 };
+/** The status line past a model's own frames for a layer with `endNote` (gusts): "ICON gusts end at day 7.5; ensemble estimate
+ *  coming" (the owner's word, 2026-11-15 19:27 EST; the director's wording). `lastMs` = the model's last frame, `runMs` its run. */
+export function endNoteText(layer, model, lastMs, runMs) {
+  const set = OWN_RASTER_SETS[layer];
+  // GFS gusts run the whole 14 days: past its last frame only a newer run is missing, not a model's range.
+  if (!set || !set.endNote || up(model) === 'GFS' || !Number.isFinite(lastMs) || !Number.isFinite(runMs)) return null;
+  const days = Math.round(((lastMs - runMs) / 86400000) * 10) / 10;
+  const name = { gusts: 'gusts' }[layer] || layer;
+  return `${up(model)} ${name} end at day ${days}; ensemble estimate coming`;
+}
 /** Layers drawn ONLY from our own frames (no .om path behind them): the picker shows them, a miss shows nothing. */
 export const OWN_ONLY_LAYERS = Object.freeze(Object.keys(OWN_RASTER_SETS).filter((l) => OWN_RASTER_SETS[l].ownOnly));
 // Who the frames come from, for the legend credit and the status line.

@@ -2,7 +2,7 @@
 import { GUST_LUT, gustLegend, gustScale } from './gustPalette';
 import { huePathStops, resolveDrawnField, resolveThemeRamp, sampleRamp } from './WindColorRamp';
 const field = (theme) => huePathStops(resolveDrawnField(theme) || resolveThemeRamp(theme));
-import { DEFAULT_ON_LAYERS, OWN_ONLY_LAYERS, OWN_RASTER_SETS, SPEED_FIELD, ownFramesOn, setKey, sourceModel, combinedFrames, combinedFrameAt, BEYOND } from './ownRasterFrames';
+import { DEFAULT_ON_LAYERS, OWN_ONLY_LAYERS, OWN_RASTER_SETS, SPEED_FIELD, ownFramesOn, setKey, sourceModel, combinedFrames, combinedFrameAt, endNoteText } from './ownRasterFrames';
 import { RASTER_SET_KEYS } from './staticRasterSets';
 import { buildStepLut, colorAtValue } from './ownRasterLayer';
 import { describeRasterFrame, RASTER_STATUS_LAYERS } from './rasterDrawnFrame';
@@ -13,9 +13,9 @@ const THEMES = ['light', 'dark', 'beach'];
 afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_GUSTS__; });
 
 describe('gusts set and switches', () => {
-  test('each model reads its OWN gust set (GFS stands in past its range), field 4 in knots, own frames only', () => {
+  test('each model reads its OWN gust set, field 4 in knots, own frames only', () => {
     for (const m of ['GFS', 'EURO', 'ICON']) expect(setKey('gusts', m)).toBe(`${m}/weather/gust/global_0p25`);
-    expect(OWN_RASTER_SETS.gusts).toMatchObject({ field: SPEED_FIELD, unit: 'kn', fallback: 'GFS', ownOnly: true });
+    expect(OWN_RASTER_SETS.gusts).toMatchObject({ field: SPEED_FIELD, unit: 'kn', fallback: null, ownOnly: true });
     for (const m of ['EURO', 'ICON']) expect(RASTER_SET_KEYS).toContain(`${m}/weather/gust/global_0p25`);
     expect(SPEED_FIELD).toBe(4);
     expect(OWN_ONLY_LAYERS).toContain('gusts');
@@ -75,28 +75,25 @@ describe('status line for an own-only layer', () => {
   });
 });
 
-describe("past each model's range: a GFS stand-in, labelled (no looping)", () => {
+describe("past each model's range: NO gusts, an honest end note (never GFS, never a loop)", () => {
   const H = 3600000; const RUN = Date.parse('2026-11-15T00:00:00Z');
   const iso = (h) => new Date(RUN + h * H).toISOString().replace(/\.\d{3}Z$/, 'Z');
   const idx = (hours, pre) => ({ run_time: iso(0), frames: hours.map((h) => ({ valid_time: iso(h), path: `${pre}${h}.bin` })) });
   const iconHours = [...Array.from({ length: 78 }, (_, i) => i + 1), ...Array.from({ length: 34 }, (_, i) => 81 + 3 * i)];   // 1..78, 81..180
-  test("ICON takes the GFS stand-in past 180 h, labelled and credited as GFS; nothing is looped", () => {
-    const frames = combinedFrames('gusts', 'ICON', idx(iconHours, 'icon/'), idx([177, 180, 183, 300, 336], 'gfs/'));
-    const tail = frames.filter((f) => f.estimated);
-    expect(tail.map((f) => [f.path, f.estimated, f.model])).toEqual([
-      ['gfs/183.bin', 'gfs_estimated_fallback', 'GFS'], ['gfs/300.bin', 'gfs_estimated_fallback', 'GFS'], ['gfs/336.bin', 'gfs_estimated_fallback', 'GFS']]);
-    expect(frames.some((f) => f.path.startsWith('icon/') && Date.parse(f.valid_time) > RUN + 180 * H)).toBe(false);
-    expect(combinedFrameAt(frames, RUN + 90 * H).estimated).toBeNull();   // inside the native range: ICON's own frame
-    expect(creditFor('gusts', { gusts: 'GFS' }, {}).text).toBe('NOAA GFS · instantaneous');
+  test('ICON and EURO gusts carry no stand-in: their own frames only', () => {
+    expect(OWN_RASTER_SETS.gusts.fallback).toBeNull();
+    const icon = combinedFrames('gusts', 'ICON', idx(iconHours, 'icon/'), idx([183, 300], 'gfs/'));
+    expect(icon.every((f) => f.path.startsWith('icon/') && !f.estimated)).toBe(true);
+    expect(combinedFrameAt(icon, RUN + 200 * H)).toBeNull();          // past ICON's range: nothing is drawn
+    expect(combinedFrameAt(icon, RUN + 90 * H).path).toBe('icon/90.bin');
+    const euro = combinedFrames('gusts', 'EURO', idx([3, 6, 240], 'euro/'), idx([243, 336], 'gfs/'));
+    expect(euro.map((f) => f.path)).toEqual(['euro/3.bin', 'euro/6.bin', 'euro/240.bin']);
   });
-  test("the post-horizon source is pluggable per model (the research lead's method drops in as a BEYOND strategy)", () => {
-    expect(OWN_RASTER_SETS.gusts.beyond).toEqual({ EURO: 'gfs_standin', ICON: 'gfs_standin' });
-    expect(Object.keys(BEYOND)).toEqual(['gfs_standin']);
-  });
-  test('EURO takes the GFS stand-in past its range, labelled as such (the EURO wind tail)', () => {
-    const frames = combinedFrames('gusts', 'EURO', idx([3, 6, 240], 'euro/'), idx([240, 243, 336], 'gfs/'));
-    expect(frames.filter((f) => f.estimated).map((f) => [f.path, f.estimated, f.model]))
-      .toEqual([['gfs/243.bin', 'gfs_estimated_fallback', 'GFS'], ['gfs/336.bin', 'gfs_estimated_fallback', 'GFS']]);
+  test('the status line names whose range ended (EURO / ICON); GFS keeps the plain words', () => {
+    expect(endNoteText('gusts', 'ICON', RUN + 180 * H, RUN)).toBe('ICON gusts end at day 7.5; ensemble estimate coming');
+    expect(endNoteText('gusts', 'EURO', RUN + 240 * H, RUN)).toBe('EURO gusts end at day 10; ensemble estimate coming');
+    expect(endNoteText('gusts', 'GFS', RUN + 336 * H, RUN)).toBeNull();
+    expect(endNoteText('pressure', 'ICON', RUN + 180 * H, RUN)).toBeNull();
   });
 });
 
