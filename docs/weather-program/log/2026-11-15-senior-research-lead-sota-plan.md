@@ -862,3 +862,18 @@ most.
   - SubQ rejected using our own pipeline's GFS read as the reference (0.12): it is not independent.
   - With these changes SubQ scores the v2 design 2.19 of 3 (change statistic 0.997; gate can fail 0.997; rule 2
     named 0.993).
+
+## 02:10Z Owner clarification on Open-Meteo (David, 21:09 EST, in this session)
+
+Verbatim: "We can use open-meteo in our tests, but not for our users to use on a basis that would require us to pay
+for its use".
+
+**Effect on the removal plan.**
+- **A6 (grading benchmark, best_match comparisons, accuracy monitor reference) and A7 (offline research scripts)
+  STAY.** They are tests, not user-serving. S7 is answered: keep, as test-only.
+- **A1-A5 (tide, spot surfaces, browser raster, on-demand fallbacks, ingest fallbacks) still migrate.** They serve
+  users.
+- **D-072 rule 1** may keep Open-Meteo's GFS-Wave copy as a test reference. NOAA's station bulletins stay the
+  recommended primary, because they are independent and primary-source.
+- **Guard to add** (test-only boundary): a CI check that no served route or browser bundle references an Open-Meteo
+  host, with an allow-list for tests, scripts and the grading modules.
