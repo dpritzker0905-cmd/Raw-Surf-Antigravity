@@ -46,6 +46,8 @@ reference window under BOTH conventions (they differ by exactly this factor, whi
 consistency check). The owner's anchors are stated on DISPLAYED feet: change what a foot means and
 the anchors point at a different wave.
 """
+import contextlib
+import contextvars
 import os
 
 # Rayleigh ratio of the mean-highest-tenth to the mean-highest-third.
@@ -55,7 +57,29 @@ H110_OVER_HS = 1.27
 _CONVERTIBLE = ("shelf", "shoaling")
 
 
+# SURF_FACE_RANGE (dark, 2026-11-16): True only inside `significant_statistic()`. A ContextVar, so the switch is
+# scoped to one call chain in one task or thread and can never leak into another request's served height.
+_SIGNIFICANT_ONLY = contextvars.ContextVar("surf_significant_only", default=False)
+
+
+@contextlib.contextmanager
+def significant_statistic():
+    """Inside this block the chain publishes the SIGNIFICANT height (factor 1.0) through the SAME cap.
+
+    The only caller is `surf_point.surf_face_range_at`, which uses it for the LOW end of the face range
+    (gate: docs/weather-program/log/2026-11-16-fable-surf-face-range-gate.md). With the seam repair on, the
+    block publishes min(H, cap); with it off, cap where H >= cap else H: the same value. Outside the block
+    nothing changes, so every served height is byte-identical whether or not anyone ever enters it."""
+    token = _SIGNIFICANT_ONLY.set(True)
+    try:
+        yield
+    finally:
+        _SIGNIFICANT_ONLY.reset(token)
+
+
 def enabled() -> bool:
+    if _SIGNIFICANT_ONLY.get():
+        return False
     # ★★★ DEFAULT FLIPPED TO ON, 2026-08-05 — AND ONLY BECAUSE ITS PARTNER SHIPPED IN THE SAME
     # COMMIT. The paragraph above says "DEFAULT OFF ... must be flipped together with"; the missing
     # half was never the size reference alone, it was REFRACTION. Two measured errors of opposite

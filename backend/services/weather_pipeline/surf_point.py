@@ -255,6 +255,34 @@ def _swell_exposure_normal(lat, lng):
         return None
 
 
+_FACE_RANGE_REGIMES = ("shelf", "shoaling", "breaking")   # regimes whose value is surf, so a face range means something
+
+
+def surf_face_range_at(lat: float, lng: float, Hs_m, Tp_s, served_height_m, served_regime, **chain_kwargs):
+    """(low_m, high_m) of the surf face at a coordinate, or None. DARK: None unless SURF_FACE_RANGE is '1'.
+
+    HIGH is DEFINED as the height already served (`served_height_m`, the published H1/10 or the cap): it is passed
+    in, never recomputed, so the range can not disagree with the headline. LOW is the SAME chain (`estimate_surf_at`
+    with the same `chain_kwargs`: geometry, partitions, tide, nearshore sea) with the highest-tenth factor at 1.0,
+    through the same cap, and never above HIGH. Additive: nothing here changes a served height or a rating.
+    The gate that decides whether this ever turns on needs physical breaker truth and is NOT RUNNABLE today:
+    docs/weather-program/log/2026-11-16-fable-surf-face-range-gate.md. Kill: SURF_FACE_RANGE=0 (the default)."""
+    from services import runtime_flags as _rf
+    if _rf.flag("SURF_FACE_RANGE") != "1":
+        return None
+    if served_height_m is None or served_regime not in _FACE_RANGE_REGIMES:
+        return None
+    high = float(served_height_m)
+    if not high > 0.0:                      # also rejects NaN
+        return None
+    from services.weather_pipeline import surf_height_convention as _conv
+    with _conv.significant_statistic():
+        low, _regime = estimate_surf_at(lat, lng, Hs_m, Tp_s, **chain_kwargs)
+    if low is None or not float(low) > 0.0:
+        return None
+    return min(float(low), high), high
+
+
 def estimate_surf_at(lat: float, lng: float, Hs_m, Tp_s, swell_from_deg=None,
                      geometry: Optional[SurfGeometry] = None, partitions=None,
                      water_level_m: float = 0.0, nearshore=None):

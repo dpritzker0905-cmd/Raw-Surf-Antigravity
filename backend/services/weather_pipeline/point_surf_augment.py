@@ -166,6 +166,19 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
                 logger.debug(f"[Surf v3] magnet '{_geo.magnet_name}' x{_geo.magnet_factor} at ({lat},{lng})")
             response.surf_height_m = round(surf, 4) if surf is not None else None
             response.surf_regime = regime
+            # SURF_FACE_RANGE (dark, default OFF): the face range beside the height, at the height's own birthplace
+            # and from the same inputs. HIGH is the number just served; LOW is the same chain with no highest-tenth
+            # factor. Its own try: a failure costs the range and nothing else. Flag off: no call, no fields.
+            try:
+                from services.weather_pipeline.surf_point import surf_face_range_at
+                _rng = surf_face_range_at(lat, lng, response.point.speed, response.point.period,
+                                          response.surf_height_m, regime,
+                                          swell_from_deg=response.point.direction, geometry=_geo,
+                                          partitions=_parts, water_level_m=_eta, nearshore=_near)
+                if _rng:
+                    response.surf_face_low_m, response.surf_face_high_m = round(_rng[0], 4), round(_rng[1], 4)
+            except Exception as _fe:
+                logger.warning(f"[Surf v3] face range failed at ({lat},{lng}); surf_height_m is UNAFFECTED: {_fe!r}")
             response.shelf_depth_m = round(_geo.depth_m, 1) if _geo.depth_m is not None else None
             # ── SAY WHAT THIS NUMBER IS STANDING ON ────────────────────────────────────────
             # The geometry is already resolved and already gradeable; both were being dropped,

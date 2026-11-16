@@ -211,3 +211,41 @@ the pre-breaking chain low at 11 of 11 buoys (observed over model 1.59), which c
 Measure the candidate model mean-type period against buoy mean period, at the nearshore validation stations, in an
 Actions job printing aggregates only: median ratio and spread, by station. Rule: the period part of the target is
 not built unless the median ratio is within 10% at three quarters of the stations. Not started. No look yet.
+
+## 2026-11-16 15:51Z The build: SURF_FACE_RANGE, default OFF. What was written and what the tests pin
+
+The advisor cleared the amended gate at `f78161547` (PASS WITH LIMITS, no open condition) and said the code for the
+default-off flag may be written. Branch `fable/surf-face-range-build`, on top of the gate branch.
+
+**What the flag does when on, exactly as amendment 2 says.**
+- `surf_height_convention.significant_statistic()`: a scoped switch (a ContextVar) under which the chain publishes the
+  significant height through the same cap. Outside the block nothing changes.
+- `surf_point.surf_face_range_at(...)`: HIGH is the served height, passed in and never recomputed. LOW is
+  `estimate_surf_at` again, same geometry, partitions, tide and nearshore sea, inside that block, and never above HIGH.
+- `point_surf_augment`: the range is produced at the one site where the height is produced, in its own try.
+- `schemas.NormalizedPointResponse`: two fields with `exclude=True`, so the `/point` JSON gains no key, flag on or off.
+- `spot_ratings.rate_one_spot`: two keys, `surf_face_low_m` and `surf_face_high_m`, present only when the range exists.
+- The rating is computed from the existing height field. Nothing reads the new keys.
+- Registered: `runtime_flags.GUARDED` ("0"), `_RATING_FLAGS`, `flag_guardrail.COVERAGE` (BLIND). No workflow or Render
+  env sets it.
+
+**What the 17 tests pin** (`backend/tests/test_surf_face_range.py`, guards lane, must read 3930):
+- Flag off: no range, and the chain is not called a second time.
+- The served height and regime at the sweep point are exactly equal flag off, flag on, and after a low end was
+  computed, at 48 offshore heights from 0.25 to 12 m.
+- HIGH equals the served height. LOW equals HIGH over 1.27 where the cap does not bind; deep in the cap both ends are
+  the cap. The sweep is required to cross the cap.
+- Both ends are monotone in 0.01 m steps from 0.01 to 12 m.
+- The switch is restored on an exception and is invisible to another thread.
+- `/point` serializes byte-identical JSON flag off and flag on.
+- The rating row with the range equals the row without it on every other key.
+- Mutation check, run by hand: with the switch disabled in `enabled()`, 3 of the 17 fail. Restored.
+
+**Cost when on:** one more pass through the chain's arithmetic per point (the geometry is reused). Not measured on
+the live box, and it must be before any flip: the 1-CPU box serves production.
+
+**Not done, and not claimed.**
+- The gate has not run and cannot: no physical truth source is approved.
+- Precomputed frames would carry the two keys only after a lane runs with the flag on. No lane does.
+- No frontend change. No alert, glyph or hub reads the keys.
+- The period part of the target is not in this build.

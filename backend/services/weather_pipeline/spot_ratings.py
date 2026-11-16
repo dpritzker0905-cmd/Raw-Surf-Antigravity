@@ -102,6 +102,15 @@ def _persist_inputs(spot_id: str, surf_height_m=None) -> bool:
     return (int(hashlib.md5(spot_id.encode("utf-8")).hexdigest()[:8], 16) % 100) < pct
 
 
+def _face_range_fields(marine) -> dict:
+    """The face range read off the marine response (produced beside the height in `point_surf_augment`), or {}.
+    Never re-derived here: one composition. The score and level above do not read it."""
+    low, high = getattr(marine, "surf_face_low_m", None), getattr(marine, "surf_face_high_m", None)
+    if low is None or high is None:
+        return {}
+    return {"surf_face_low_m": round(low, 3), "surf_face_high_m": round(high, 3)}
+
+
 async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None) -> dict:
     """Resolve a single spot's marine + wind point and compute its rating. `spot` is a dict with
     id/name/latitude/longitude/accuracy_flag/is_verified_peak (from the DB or Supabase REST). `resolver`
@@ -316,6 +325,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         "level": level,
         "confidence": spot_confidence(spot.get("accuracy_flag"), spot.get("is_verified_peak")),
         "surf_height_m": round(surf_h, 3) if surf_h is not None else None,
+        **_face_range_fields(marine),   # SURF_FACE_RANGE (dark): no key at all unless the flag is on
         "period_s": round(period, 1) if period is not None else None,
         # ★ THE TWO BATCH FIELDS (WS-CAN-0064): /conditions/batch now serves from these frames,
         # and its frozen per-spot shape needs the swell bearing and the OFFSHORE height beside
