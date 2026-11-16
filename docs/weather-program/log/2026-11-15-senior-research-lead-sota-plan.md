@@ -1393,3 +1393,9 @@ Signed off on condition the lane applies seven edits:
 7. Cite the P prior's sources as abstracts from one group.
 
 The holdout rule moves from a quantile to a fixed hash threshold, so membership cannot shift between runs.
+
+## 2026-11-16 17:51 EST (22:51Z) Sign-off: surf-truth amendment 2 (advisor red-team items A-M)
+
+The lane's choices for C, D, F, G, H, I and J are signed off; E, K, L and M are as the advisor wrote them. Two edits:
+(a) also VOID on more than 0.1% divergent transitions; (b) the rounding width for coverage is set by the precision as typed, and
+the PIT and bootstrap seed is fixed at 20261116.
