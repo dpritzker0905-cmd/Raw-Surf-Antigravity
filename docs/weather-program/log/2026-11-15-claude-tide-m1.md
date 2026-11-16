@@ -49,3 +49,11 @@ evaluated at the station's own coordinate, hourly, over the 14 UTC days before t
 - Guard: `tests/test_tide_fes_offline_guard.py` - no `pyfes` / `tide_fes` import under `server.py`, `services/`,
   `routes/`, and no pyfes in `requirements.txt`.
 - Not yet: EOT20 arm, the per-spot precompute + bucket write, the serving reader, MLLW/LAT. Those follow the gate.
+
+## 21:52 EST (`date`) - security review: credentials only to a pinned host
+- The automated commit review flagged the first version (MEDIUM): it authenticated before checking the SSH host key.
+  Valid. The push-triggered run 43793891985 was cancelled while still queued (no step ran, so no credential was sent).
+- Fixed: AVISO's two PUBLIC host keys (ed25519, ecdsa-nistp256; `ssh-keyscan -p 2221` at 21:48 EST from this machine,
+  off the runner network) are pinned in `fes_gate.py`; the job compares the presented key BEFORE `auth_password` and
+  stops otherwise. Remote file names must fully match `[a-z0-9]+_fes2022.nc.xz` (no path parts, no trailing newline;
+  `re.match` with `$` would have let `"...xz\n"` through - the test caught it). Guard tests: 3 passed locally.

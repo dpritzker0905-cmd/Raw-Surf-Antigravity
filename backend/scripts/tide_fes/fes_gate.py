@@ -15,6 +15,7 @@ import json
 import lzma
 import math
 import os
+import re
 import shutil
 import statistics as st
 import sys
@@ -34,6 +35,14 @@ BOX_DEG = 0.5
 AVISO_HOST = os.environ.get("AVISO_SFTP_HOST", "ftp-access.aviso.altimetry.fr")
 AVISO_PORT = int(os.environ.get("AVISO_SFTP_PORT", "2221"))
 AVISO_DIR = os.environ.get("AVISO_FES_DIR", "/auxiliary/tide_model/fes2022b/ocean_tide_extrapolated")
+# AVISO's PUBLIC SSH host keys (ssh-keyscan -p 2221, 2026-11-15 21:48 EST, from a machine off the runner network).
+# The job refuses to send credentials unless the server presents one of these. Rotate by editing this set.
+AVISO_HOST_KEYS = {
+    ("ssh-ed25519", "AAAAC3NzaC1lZDI1NTE5AAAAIOCYlZy1SE8b7Gkd8Lmyp3dc3eiRrhTSgvBbJCKhRvOG"),
+    ("ecdsa-sha2-nistp256", "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBNPdJIgZTD27oP/GipftYIMofQ0AjNtY9HzuR1FFJDYmVBC"
+                            "JfSrBX3dR6eyg+edSl9SBBMlfj+HoMSzA1ERqFw0="),
+}
+REMOTE_NAME = re.compile(r"^[a-z0-9]+_fes2022\.nc\.xz$")
 COOPS = "https://api.tidesandcurrents.noaa.gov"
 
 
@@ -81,15 +90,19 @@ def download(names, cache):
         if not user or not pw:
             raise SystemExit("AVISO_USERNAME / AVISO_PASSWORD are not set (Actions secrets)")
         t = paramiko.Transport((AVISO_HOST, AVISO_PORT))
-        t.connect(username=user, password=pw)
-        key = t.get_remote_server_key()   # PUBLIC host key, logged so a later run can pin it (first run: not verified)
-        log(f"AVISO host key {key.get_name()} SHA256:{base64.b64encode(hashlib.sha256(key.asbytes()).digest()).decode().rstrip('=')}")
+        t.start_client(timeout=60)
+        key = t.get_remote_server_key()
+        if not host_key_ok(key.get_name(), key.get_base64()):
+            t.close()                                         # BEFORE any credential is sent
+            raise SystemExit(f"AVISO host key not pinned: {key.get_name()} "
+                             f"SHA256:{base64.b64encode(hashlib.sha256(key.asbytes()).digest()).decode().rstrip('=')}")
+        t.auth_password(user, pw)
         sftp = paramiko.SFTPClient.from_transport(t)
         listing = sftp.listdir(AVISO_DIR)
         for n in missing:
-            match = [f for f in listing if f.lower().startswith(n.lower() + "_") and f.endswith(".nc.xz")]
+            match = [f for f in listing if remote_name_ok(f) and f.startswith(n.lower() + "_")]
             if not match:
-                log(f"{n}: not in {AVISO_DIR} (listing has {len(listing)} files)")
+                log(f"{n}: not in {AVISO_DIR}; public listing sample: {sorted(listing)[:40]}")
                 continue
             dest = cache / match[0]
             sftp.get(f"{AVISO_DIR}/{match[0]}", str(dest))
@@ -98,6 +111,16 @@ def download(names, cache):
         sftp.close()
         t.close()
     return {n: p for n, p in have.items() if p is not None}
+
+
+def host_key_ok(kind, b64):
+    """PURE: the server's key is one of the pinned AVISO keys."""
+    return (kind, b64) in AVISO_HOST_KEYS
+
+
+def remote_name_ok(name):
+    """PURE: a plain FES2022 constituent file name (no path parts), so a listing cannot steer a write elsewhere."""
+    return bool(REMOTE_NAME.fullmatch(name)) and Path(name).name == name
 
 
 # ---------------------------------------------------------------- subset: one small grid per station per constituent
