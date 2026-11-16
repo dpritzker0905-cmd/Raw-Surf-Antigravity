@@ -281,3 +281,12 @@ GATE (revised): in at least 3 of the next 4 pilot runs, on the public index: (a)
 against their plain siblings; (b) the GFS world rated waves set at lag 0; (c) reported, not gated: the seconds tiers 0-1 took per
 run, and the lag of every other rated set. Plus, offline (not the live box): surf asks reaching /grid from a pilot-area view with
 the bundles 18 h behind against 0 h behind (below).
+Offline evidence for the gate's last line (2026-11-16 ~11:00 EST; `scn_band_zoom_stability.js`, the #933 build, serve_synthetic,
+Florida pilot view: load, zoom out, zoom in, three pans; ONE run per arm; lab, not the live box). The same lab CDN in two states:
+| rated regional bundles | `/grid` surf asks | their server time | `/grid_series` | band visible at step end | first paint |
+|---|---|---|---|---|---|
+| 18 h behind (the live state today) | 9 | 29.9 s | 10 | 2/6 | never |
+| 0 h behind (what #975 should give) | 5 | 9.9 s | 10 | 4/6 | 6.3 s |
+Lab server times are not live times (each live `/grid?surf=1` is 4-22 s of box CPU), so the ratio, not the seconds, is the reading:
+with the bundles three cycles behind, this view sends the box ~1.8x the surf `/grid` asks and ~3x their server time, and loses
+most of the band. Raw rows: shared notes `rating-band-sota-2026-11-15/asks-cdn*.json`.
