@@ -41,7 +41,7 @@ class Backend:
         self.points += 1
         if self.fail_from is not None and self.points >= self.fail_from:
             raise TimeoutError("x")
-        return 200, json.dumps(POINT), (30.0 if self.points == self.slow_at else 0.5)
+        return 200, json.dumps(POINT), (9.0 if self.points == self.slow_at else 0.5)
 
 
 def test_the_panel_is_the_fixed_one():
@@ -91,6 +91,7 @@ def test_a_slow_read_or_two_failures_in_a_row_stop_the_run():
     slow = Backend(slow_at=3)
     out = sp.run(BASE, NOW, get=slow, sleep=lambda s: None)
     assert slow.points == 3 and len(out["rows"]) == 3 and "backend is busy" in out["meta"]["stopped"]
+    assert sp.SLOW_S <= 8.0                                           # a 9 s read stops it; 20 s was far too patient
     assert slow.urls[-1] == BASE + "/api/health"                       # health is still read at the end
     failing = Backend(fail_from=5)
     out = sp.run(BASE, NOW, get=failing, sleep=lambda s: None)
