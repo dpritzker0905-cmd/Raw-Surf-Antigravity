@@ -1072,3 +1072,24 @@ keys, against NDBC observations. Partition triples are kept for later swell-dire
 **So:** FRF Duck first (it is confirmed public, and it is the beach class), then the Oahu archive (reef class) once
 availability is confirmed. Those two classes together let the repair lead run every break-acting arm in two classes.
 
+
+## 03:11Z CORRECTION to brief 5: FRF licence blocks commercial use
+
+The helper's ASK 8 (metadata opened):
+- FRF data "may be redistributed and used without restriction", BUT "Use or reproduction of these data for commercial
+  purposes is prohibited."
+- Raw Surf is commercial, so calibrating or validating its served surf chain on FRF data is likely prohibited without
+  USACE permission.
+
+**What the helper found.**
+- 36 instrument folders (awac-4.5/5/6m, adop-2m, xp100-200m, lidarWaveGauge080-140, ...).
+- awac-5m covers 2008-2014, with hourly waveHs/Tp/direction, depth and water level.
+- OPeNDAP works with no login. `waveSurfTs` returns 404.
+
+**Revised order for breaking truth:**
+1. Owner observations: clean, ours.
+2. The Caldwell Oahu surf record: NCEI catalog says 1968-2020 and CC0, but its access field says "non-public", which
+   conflicts. The landing page returned 503, so it needs a retry.
+3. FRF Duck only with written USACE permission (owner action: request it).
+
+Until then FRF may be used for nothing that shapes the product.
