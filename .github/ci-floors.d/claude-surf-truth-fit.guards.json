@@ -1,0 +1,8 @@
+{
+  "lane": "guards",
+  "tests": 21,
+  "files": 1,
+  "branch": "claude/surf-truth-fit",
+  "date": "2026-11-16",
+  "note": "T1 P4 surf-truth fit: numpy-only rules (model tests skip in CI)"
+}
