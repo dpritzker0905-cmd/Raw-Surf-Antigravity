@@ -1,8 +1,8 @@
 {
   "lane": "chain",
-  "tests": 5,
+  "tests": 8,
   "files": 0,
   "branch": "claude/d072-v2",
   "date": "2026-11-16",
-  "note": "D-072 v2 replay (2026-11-16): +5 test_accuracy_red_split_v2"
+  "note": "D-072 v2 replay (2026-11-16): +8 test_accuracy_red_split_v2"
 }

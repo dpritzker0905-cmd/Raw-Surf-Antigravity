@@ -49,3 +49,26 @@ from the day it starts. It is a separate build; v2 keeps `open_meteo:ncep_gfswav
 
 **Correction, 2026-11-16 02:27Z.** Section 1's header says "written 2026-11-16 02:30Z". That is an estimate, not a clock
 reading: section 1 was committed at 02:23:13Z (`3c2d6ce1b`), so it was written no later than that. Nothing else changes.
+
+### 1a. Amendment, 2026-11-16 02:55Z, on the advisor's pre-run review, BEFORE any v2 result exists
+
+The advisor (local_b2fa8830) reviewed the script against section 1 before any run. Changes:
+- **Printing (privacy):** rule-2 and rule-3 cells print "n/a" below their n floor (30 / 200). A named-buoy cell with a
+  handful of keys would sit close to a private scored row in a public job log.
+- **VOID as registered:** a rule with no gradeable basis day now returns VOID, instead of a bound that falls silently to
+  the +0.03 m floor.
+- **P2' gates on the fully seeded days.** The seed applies to targets >= 11-01, and each day's statistic is a trailing
+  7-day window, so the seeded share ramps: none on 11-01, about 1/7 on 11-02, full only from 11-08. "12 of 14" would
+  then demand detection of about +0.023 m on 11-03, which turns "cannot see +0.08 m" into "cannot see it within three
+  days". **P2' now passes when rule 1 v2 fires on all 7 fully seeded days, 11-08 .. 11-14.** The original 12-of-14
+  count and the day of first fire are reported beside it, as is the +0.04 m sensitivity on both counts. (v1's P2 did not
+  have this geometry: v1 seeded every rule-1 key on every day, so its failure is not this.)
+- **Two reported lines, not gating:**
+  - Rule 1 v2's fires on the UNSEEDED test days 11-01 .. 11-09. These are the only out-of-sample look at false pages:
+    B1 is a basis p99, so it pages about once per 30 days in-sample by construction.
+  - A key-consistent null: one swap sign per key per draw, reused on every day the key appears. The registered null
+    re-signs every pair every day, which whitens a strongly autocorrelated series (a pair sits in seven consecutive
+    windows) and so can understate false pages.
+
+**Limit, stated now:** the design was fixed by people who had seen v1's November output, so a PASS is in-sample for the
+design. The next real month is the test.

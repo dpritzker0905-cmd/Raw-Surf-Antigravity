@@ -46,7 +46,7 @@ def test_a_hole_episode_with_no_chain_regression_passes():
     _dd, _ch, res, verdict = _default()
     assert verdict == "PASS", res
     assert not res["P1_rule1_on_episode"]
-    assert len(res["P2_seeded"][0.08]) >= R.P2_MIN
+    assert len(res["P2_full_days"][0.08]) == res["n_full"] == 7           # amendment 1a: every fully seeded day
     assert len(res["P3_rule2_on_episode"]) >= R.P3_MIN
 
 
@@ -72,3 +72,26 @@ def test_printed_lines_carry_no_row_fields():
     dd, ch, res, verdict = _default()
     text = "\n".join(R.lines_for(dd, ch, res, verdict))
     assert "err_m" not in text and "obs_hs_m" not in text and "T00Z" not in text and "VERDICT: PASS" in text
+
+
+def test_a_rule_with_no_gradeable_basis_day_is_void(monkeypatch):
+    """Section 1: VOID, never a silent fall to the +0.03 m floor."""
+    monkeypatch.setattr(R, "NAMED_HOLES", ("XXXXX",))
+    monkeypatch.setattr(R, "NULL_DRAWS", 10)
+    _dd, _ch, res, verdict = R.checks(_ledger())
+    assert verdict.startswith("VOID") and "rule 2" in verdict and res == {}
+
+
+def test_cells_below_the_n_floor_print_as_na(monkeypatch):
+    """Advisor (2026-11-16): a named-buoy cell with a handful of keys is close to a private row; never print it."""
+    dd, ch, res, verdict = _default()
+    monkeypatch.setitem(A.MIN_N, 2, 10 ** 6)
+    text = "\n".join(R.lines_for(dd, ch, res, verdict))
+    assert "| r2 n/a n/a n/a" in text and "%" not in text.split("-- checks")[0].split("r2")[-1]
+
+
+def test_the_reported_lines_are_present():
+    dd, ch, res, verdict = _default()
+    text = "\n".join(R.lines_for(dd, ch, res, verdict))
+    assert "UNSEEDED pre-episode" in text and "key-consistent null" in text and "first fire" in text
+    assert set(res["null_key_consistent"]) == {1, 2, 3}

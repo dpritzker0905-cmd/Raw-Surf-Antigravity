@@ -22,6 +22,7 @@ EPISODE = ("2026-11-10", "2026-11-14")
 TEST = ("2026-11-01", "2026-11-14")
 SEED_FROM = "2026-11-01"               # the seeded regression is a step that starts with the test window
 SEEDS = (0.08, 0.04)                   # +0.08 gates (P2'); +0.04 is the sensitivity
+FULL_SEED = ("2026-11-08", "2026-11-14")  # amendment 1a: the days whose whole 7-day window is seeded; P2' gates on these
 TRAIL, TRAIL_MIN = 28, 14
 NULL_DRAWS, SEED = 200, 20261116
 NULL_MAX_PAGES_30D = 1.0
@@ -53,7 +54,7 @@ def daily(idx):
             k2 = A.paired_keys(ours, bm, (k for k in ours if k[2] == b and k[0] in holes))
             k3 = A.paired_keys(ours, bm, (k for k in ours if k[2] == b and k in bm and k in sm))
             for rule, keys, theirs in ((1, k1, sm), (2, k2, bm), (3, k3, bm)):
-                cell[(rule, lead)] = [(abs(ours[k]["err_m"]), abs(theirs[k]["err_m"]), k[1][:10]) for k in keys]
+                cell[(rule, lead)] = [(abs(ours[k]["err_m"]), abs(theirs[k]["err_m"]), k[1][:10], k) for k in keys]
         out[f"{d:%Y-%m-%d}"] = cell
     return out
 
@@ -62,8 +63,8 @@ def delta_of(pairs, seed_m=0.0):
     """(n, delta, win) with seed_m added to OUR |error| on pairs whose target day >= SEED_FROM."""
     if not pairs:
         return 0, None, None
-    eo = [a + (seed_m if t >= SEED_FROM else 0.0) for a, _b, t in pairs]
-    et = [b for _a, b, _t in pairs]
+    eo = [p[0] + (seed_m if p[2] >= SEED_FROM else 0.0) for p in pairs]
+    et = [p[1] for p in pairs]
     n = len(pairs)
     return n, (sum(eo) - sum(et)) / n, sum(1 for a, b in zip(eo, et) if a < b) / n
 
@@ -87,11 +88,19 @@ def change_series(dd, seed_m=0.0):
     return out
 
 
-def null_draws(dd, b1, bounds23, draws=NULL_DRAWS, seed=SEED, basis_only=False):
+def null_draws(dd, b1, bounds23, draws=NULL_DRAWS, seed=SEED, basis_only=False, key_consistent=False):
     """Per rule: (pages per 30 replay days, mean over draws; rule-1 swap-null deltas over the basis for B1's floor).
-    Each draw re-signs every pair on every day; rule 1's CHANGE uses that draw's own trailing median."""
+    The registered null re-signs every pair on every day. key_consistent (amendment 1a, REPORTED): one swap sign per key
+    per draw, reused on every day the key appears, so the null keeps the windows' autocorrelation. Rule 1's CHANGE uses
+    each draw's own trailing median either way."""
     import numpy as np
     rng = np.random.default_rng(seed)
+    ksign, kpos = {}, {}
+    if key_consistent:
+        for rl in [(r, lead) for r in (1, 2, 3) for lead in A.LEADS]:
+            keys = sorted({p[3] for d in dd for p in dd[d][rl]})
+            kpos[rl] = {k: j for j, k in enumerate(keys)}
+            ksign[rl] = rng.random((draws, len(keys))) < 0.5
     dlist = sorted(dd)
     replay = [i for i, d in enumerate(dlist) if REPLAY_FIRST <= d <= REPLAY_LAST]
     basis = [i for i, d in enumerate(dlist) if REPLAY_FIRST <= d <= BASIS_LAST]
@@ -109,7 +118,10 @@ def null_draws(dd, b1, bounds23, draws=NULL_DRAWS, seed=SEED, basis_only=False):
                     continue
                 a = np.fromiter((p[0] for p in pairs), float, n)
                 b = np.fromiter((p[1] for p in pairs), float, n)
-                swap = rng.random((draws, n)) < 0.5
+                if key_consistent:
+                    swap = ksign[(rule, lead)][:, [kpos[(rule, lead)][p[3]] for p in pairs]]
+                else:
+                    swap = rng.random((draws, n)) < 0.5
                 de = np.where(swap, b - a, a - b).sum(axis=1) / n
                 if rule == 1:
                     deltas[:, i] = de
@@ -139,12 +151,15 @@ def checks(idx):
     for rule in (2, 3):
         worst = [delta_of(dd[d][(rule, lead)])[1] for d in basis_days for lead in A.LEADS
                  if len(dd[d][(rule, lead)]) >= A.MIN_N[rule]]
-        b23[rule] = round(max(A.BOUND_FACTOR * max(worst or [0.0]), A.BOUND_FLOOR_M) + 0.0049, 2)
+        if not worst:                                  # section 1: VOID when no basis day is gradeable for a rule
+            return None, None, {}, "VOID (rule %d has no gradeable basis day)" % rule
+        b23[rule] = round(max(A.BOUND_FACTOR * max(worst), A.BOUND_FLOOR_M) + 0.0049, 2)
     _rates0, basis_null = null_draws(dd, None, b23, draws=NULL_DRAWS, basis_only=True)
     if not basis_ch or not basis_null:
         return None, None, {}, "VOID (B1 cannot be computed)"
     b1 = round(max(float(np.percentile(basis_ch, 99)), float(np.percentile(basis_null, 99))) + 0.00049, 3)
     rates, _ = null_draws(dd, b1, b23, draws=NULL_DRAWS, seed=SEED + 1)
+    rates_key, _ = null_draws(dd, b1, b23, draws=NULL_DRAWS, seed=SEED + 2, key_consistent=True)
 
     def fired1(series, day_lo, day_hi):
         return sorted({d for (d, _l), v in series.items() if day_lo <= d <= day_hi and v > b1})
@@ -161,13 +176,18 @@ def checks(idx):
         return sorted(out)
 
     test_days = [d for d in dd if TEST[0] <= d <= TEST[1]]
+    full_days = [d for d in dd if FULL_SEED[0] <= d <= FULL_SEED[1]]
+    seeded = {s: change_series(dd, seed_m=s) for s in SEEDS}
     res = {"B1": b1, "B2": b23[2], "B3": b23[3],
            "P1_rule1_on_episode": fired1(ch, *EPISODE),
-           "P2_seeded": {s: fired1(change_series(dd, seed_m=s), *TEST) for s in SEEDS},
+           "rule1_unseeded_pre_episode": fired1(ch, TEST[0], "2026-11-09"),
+           "P2_seeded": {s: fired1(seeded[s], *TEST) for s in SEEDS},
+           "P2_full_days": {s: fired1(seeded[s], *FULL_SEED) for s in SEEDS}, "n_full": len(full_days),
+           "null_key_consistent": rates_key,
            "P3_rule2_on_episode": fired_rule(2, *EPISODE),
            "null_pages_per_30d": rates, "n_test": len(test_days),
            "basis_change_p99": float(np.percentile(basis_ch, 99)), "basis_null_p99": float(np.percentile(basis_null, 99))}
-    ok = (not res["P1_rule1_on_episode"] and len(res["P2_seeded"][SEEDS[0]]) >= P2_MIN
+    ok = (not res["P1_rule1_on_episode"] and len(res["P2_full_days"][SEEDS[0]]) == len(full_days)
           and len(res["P3_rule2_on_episode"]) >= P3_MIN and all(v <= NULL_MAX_PAGES_30D for v in rates.values()))
     return dd, ch, res, ("PASS" if ok else "FAIL")
 
@@ -188,18 +208,26 @@ def lines_for(dd, ch, res, verdict):
         c2 = []
         for lead in A.LEADS:
             n, de, wi = delta_of(dd[d][(2, lead)])
-            c2.append("n/a" if not n else "%+.3f[%d,%.0f%%]" % (de, n, 100 * wi))
+            c2.append("n/a" if n < A.MIN_N[2] else "%+.3f[%d,%.0f%%]" % (de, n, 100 * wi))   # never below the floor
         out.append("  %s  r1 %s | r2 %s" % (d, c1, " ".join(c2)))
     s0, s1 = SEEDS
     out += ["-- checks",
             "  P1  rule 1 v2 on the unseeded episode: fired on %s" % (res["P1_rule1_on_episode"] or "none"),
-            "  P2' +%.2f m seeded from %s: rule 1 v2 fired on %d of %d test days (need >= %d)"
-            % (s0, SEED_FROM, len(res["P2_seeded"][s0]), res["n_test"], P2_MIN),
-            "      sensitivity +%.2f m: fired on %d of %d" % (s1, len(res["P2_seeded"][s1]), res["n_test"]),
+            "  P2' +%.2f m seeded from %s: rule 1 v2 fired on %d of %d fully seeded days %s..%s (need all, amendment 1a)"
+            % (s0, SEED_FROM, len(res["P2_full_days"][s0]), res["n_full"], FULL_SEED[0], FULL_SEED[1]),
+            "      reported: %d of %d test days (the original >= %d line); first fire %s"
+            % (len(res["P2_seeded"][s0]), res["n_test"], P2_MIN, (res["P2_seeded"][s0] or ["none"])[0]),
+            "      sensitivity +%.2f m: %d of %d fully seeded days, %d of %d test days; first fire %s"
+            % (s1, len(res["P2_full_days"][s1]), res["n_full"], len(res["P2_seeded"][s1]), res["n_test"],
+               (res["P2_seeded"][s1] or ["none"])[0]),
+            "  reported: rule 1 v2 on the UNSEEDED pre-episode test days 11-01..11-09 (out of sample): fired on %s"
+            % (res["rule1_unseeded_pre_episode"] or "none"),
             "  P3  rule 2 v2 (named holes) on the episode: %d of 5 days (need >= %d)"
             % (len(res["P3_rule2_on_episode"]), P3_MIN),
             "  Null  %d draws, false pages per 30 days: %s (need <= %.1f)"
             % (NULL_DRAWS, {r: "%.2f" % v for r, v in res["null_pages_per_30d"].items()}, NULL_MAX_PAGES_30D),
+            "  reported: key-consistent null (one sign per key, reused across days): %s per 30 days"
+            % {r: "%.2f" % v for r, v in res["null_key_consistent"].items()},
             "== VERDICT: %s" % verdict]
     return out
 
