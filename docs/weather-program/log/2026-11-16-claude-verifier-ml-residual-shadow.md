@@ -73,3 +73,43 @@ with the hole buoys excluded. The served lane minus its own rolling per-region b
 - NDBC buoys are offshore, so this corrects offshore significant wave height, not the breaking height.
 - Forward blocks train on 4-14 weeks.
 - A PASS is a shadow result only: serving needs its own build, a kill switch, the D-065 filter and the owner's word.
+
+## 2. Result, written 2026-11-16 07:24Z: FAIL (G1 and G2)
+
+One dispatch on the owner's word ("Yes, run it once"), from `dev` `3c2d89329` (#944) at 06:45:29Z: Actions run
+43818971908. The job exits non-zero on a FAIL verdict by design. It printed aggregates only. dMAE = MAE(ML) -
+MAE(`ocf_rolling`); a negative value would mean ML is better.
+
+**Pairs:** 131,474 (hole buoys excluded), 122,508 predicted out of sample. 51 buoys, 82 target days.
+
+| lead | n | MAE ML | MAE ocf_rolling | dMAE [3-day 95%] | 1-day | shuffled-label null dMAE | ML vs served-rolling |
+|---|---|---|---|---|---|---|---|
+| +24 h | 42,190 | 0.236 | 0.213 | **+0.023** [+0.019, +0.027] | [+0.020, +0.027] | +0.029 [+0.020, +0.038] | +0.008 [+0.002, +0.014] |
+| +48 h | 41,002 | 0.253 | 0.237 | **+0.016** [+0.011, +0.022] | [+0.011, +0.021] | +0.024 [+0.011, +0.038] | +0.000 [-0.008, +0.008] |
+| +72 h | 39,316 | 0.264 | 0.246 | **+0.018** [+0.012, +0.025] | [+0.013, +0.023] | +0.032 [+0.019, +0.046] | -0.006 [-0.016, +0.003] |
+
+**Gate.**
+- **G1 fails at every lead.** The ML correction is significantly WORSE than `ocf_rolling`, not better.
+- **G2 fails** in 13 of 18 testable region x lead cells (significantly worse):
+  - all three leads in atlantic_ne, pacific_ne, hawaii and other;
+  - gulf at +24 h.
+  - The largest losses: hawaii +24 h +0.098 m [+0.079, +0.118] and other +24 h +0.071 m.
+  - atlantic_se is the only region with no significant loss (-0.005 / -0.001 / +0.004).
+- **N passes:** the shuffled-label null does not meet G1 at any lead.
+- **P passes:** the +0.30 m plant on tp >= 12 s was recovered as +0.306 m on 36,926 pairs; the other pairs moved +0.005 m
+  on 85,582 (within +-0.05).
+- **Coverage passes:** >= 39,316 pairs from 51 buoys at every lead.
+
+The controls pass, so this is a verdict, not a VOID: **FAIL.**
+
+**Reading, kept to what the numbers show.**
+- The instrument works: P shows the model learns a real, planted, feature-linked residual.
+- What it learns from the true labels barely beats a model fitted to shuffled labels: dMAE +0.023 against the null's
+  +0.029 at +24 h.
+- Against the served lane's own rolling bias correction, ML is a wash: +0.008 / +0.000 / -0.006, with only +24 h
+  significantly worse.
+- So on three months of offshore pairs, the features above carry little residual signal beyond a per-region rolling
+  bias, and the extra freedom costs accuracy, most in Hawaii.
+- The literature's 13-46% gains (section 1) were not reproduced here, under leave-buoy-out forward blocks.
+- Within section 1's limits (one season pair, offshore Hs, 4-14 weeks of training), the nonlinear residual correction is
+  closed. `ocf_rolling` stays the stronger correction. Nothing serves, and nothing was changed.

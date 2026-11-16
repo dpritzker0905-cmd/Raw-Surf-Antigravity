@@ -455,6 +455,35 @@ def factor_rows(matched: list) -> list:
     return out
 
 
+PRIVATE_ROW_KEYS = ("station", "spot", "valid_time", "offshore_hs_m", "tp_s", "swell_from_deg", "model_hs_m",
+                    "obs_hs_m", "obs_time")
+PRIVATE_ROWS_PREFIX = "calibration/nearshore/rows/"
+
+
+def private_rows(matched: list) -> list:
+    """PURE: the FULL matched rows (hour, forecast heights, period, direction, observation, factors) for PRIVATE
+    Storage only (owner's word 2026-11-15 21:10 EST). They are our served forecasts at named stations and times, so
+    they must never reach a public artifact or a job log: `factor_rows` is the public form. Whitelisted keys only."""
+    out = []
+    for m in matched or []:
+        f = m.get("factors")
+        if not isinstance(f, dict):
+            continue
+        row = {k: m.get(k) for k in PRIVATE_ROW_KEYS}
+        row["factors"] = {k: f.get(k) for k in ("friction", "shoaling", "exposure", "kr", "total")}
+        out.append(row)
+    out.sort(key=lambda r: (str(r["station"]), str(r["valid_time"]), str(r["spot"])))
+    return out
+
+
+def private_rows_key(generated_at: str) -> str:
+    """The Storage key for one run's private rows: one object per run under its day, never overwritten."""
+    stamp = re.sub(r"[^0-9]", "", str(generated_at or ""))[:14]
+    if len(stamp) < 14:
+        raise ValueError("generated_at has no usable timestamp")
+    return f"{PRIVATE_ROWS_PREFIX}{stamp[:4]}-{stamp[4:6]}-{stamp[6:8]}/{stamp}.json"
+
+
 def build_report(matched: list, n_stations: int, n_obs: int, n_preds: int,
                  min_matched: int = None, min_station_hours: int = 0) -> dict:
     """The banked report. REFUSES (available:false + reason + counters) below the match floor —
