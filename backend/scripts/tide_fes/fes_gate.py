@@ -39,6 +39,21 @@ FINE_STEP_MIN = 6
 log = S.log
 
 
+def rss_mb():
+    """Peak resident memory of this process, MB (Linux runner; None where `resource` is missing)."""
+    try:
+        import resource
+        return round(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024.0)
+    except Exception:                                         # noqa: BLE001
+        return None
+
+
+def stage(name):
+    """One flushed line per stage and per gauge: the stage name and memory ONLY, never a score (advisor 20:01Z), so a
+    runner death says where it happened and a partial log cannot leak a partial result."""
+    log(f"stage {name} | peak RSS {rss_mb()} MB")
+
+
 def hourly_times():
     n = int((END - START).total_seconds() // 3600) + 1
     return [START + timedelta(hours=k) for k in range(n)]
@@ -109,11 +124,14 @@ def main():
 
     files = S.download_fes(FES_CONSTITUENTS, Path(args.cache))
     log(f"FES constituents: {sorted(files)}")
+    stage("fes files present")
     boxes, scratch = work / "boxes", work / "scratch"
     scratch.mkdir(parents=True, exist_ok=True)
     for name, path in files.items():
         S.subset_fes(path, name, points, boxes, scratch)
+        stage(f"fes subset {name}")
     eot_root = S.download_eot20(Path(args.eot20))
+    stage("eot20 present")
 
     rows, keep = [], {}
     for sid in IDS:
@@ -147,6 +165,7 @@ def main():
                 continue
             vh, vf, vn = v[:cut[0]], v[cut[0]:cut[1]], v[cut[1]:]
             row[arm] = score_arm(list(vh), truth, hours, fine, vf, events, vn, datum, obs, truth_tb)
+            stage(f"station {sid} arm {arm}")
             series[arm] = (list(vh), list(vf))
         om = S.om_sea_level(lat, lng, START.date(), (END + timedelta(days=3)).date())
         om_year = S.om_sea_level(lat, lng, (START - timedelta(days=365)).date(), (START - timedelta(days=1)).date())
@@ -161,9 +180,11 @@ def main():
         row["P"] = score_arm(list(p), truth, hours) if p is not None else {"error": "no harmonic constants"}
         row["seasonal_constants"] = seasonal_constants(boxes / sid, eot_root, lat, lng, hc)
         keep[sid] = {"truth": truth, "events": events, "series": series}
-        log(json.dumps({k: row[k] for k in row if k in ("id", "A", "B", "C", "P")}, default=str)[:600])
+        stage(f"station {sid} done")
 
+    stage("all stations scored")
     report = decide(rows, keep, hours, fine)
+    stage("decided")
     print(json.dumps({"registration": REGISTRATION, "window": [START.isoformat(), END.isoformat()], "fes_constituents": sorted(files),
                       **report, "stations": rows}, indent=1, default=str))
     if args.summary:

@@ -17,7 +17,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parent))
 import arms                                                  # noqa: E402
 from tide_eot20_convention_check import COOPS, eot20, get   # noqa: E402  (the SEANOE download + extraction)
 
-POINTS = {"8771510": "Galveston", "1612340": "Honolulu", "8443970": "Boston"}
+from fes_gate import IDS                                      # noqa: E402  (the gate's 26 stations)
+
+POINTS = {sid: sid for sid in IDS}
 
 
 def rss_mb():
@@ -32,17 +34,17 @@ def main():
     for sid, name in POINTS.items():
         meta = get(f"{COOPS}/mdapi/prod/webapi/stations/{sid}.json")["stations"][0]
         lat, lng = meta["lat"], meta["lng"]
-        row = {"name": name, "lat": lat, "lng": lng}
+        row = {"name": meta.get("name", name), "lat": lat, "lng": lng}
         t0 = time.time()
         new = arms.eot20_eval(root, lat, lng, d)
         row["new_s"] = round(time.time() - t0, 1)
         t0 = time.time()
         ref = arms.eot20_eval_reference(root, lat, lng, d)
         row["reference_s"] = round(time.time() - t0, 1)
-        if new is None:
-            row["new"] = "undefined"
-            row["reference_finite"] = bool(np.isfinite(ref).any())
-        else:
+        row["defined_new"] = new is not None
+        row["defined_reference"] = bool(np.isfinite(ref).all())
+        row["agree_on_definedness"] = row["defined_new"] == row["defined_reference"]
+        if new is not None and row["defined_reference"]:
             row["max_abs_diff_full_m"] = float(np.nanmax(np.abs(new - ref)))
             sa_new = arms.eot20_eval(root, lat, lng, d, ["sa"])
             sa_ref = arms.eot20_eval_reference(root, lat, lng, d, ["sa"])
@@ -56,6 +58,12 @@ def main():
     v = arms.eot20_eval(root, lat, lng, nd)
     out["ntde_19y_10min"] = {"n": int(len(nd)), "seconds": round(time.time() - t0, 1), "finite": bool(np.isfinite(v).all()),
                              "rss_mb": round(rss_mb())}
+    rows = [v for k, v in out.items() if k in POINTS]
+    out["summary"] = {"gauges": len(rows), "defined_both": sum(r["defined_new"] and r["defined_reference"] for r in rows),
+                      "undefined_both": sum((not r["defined_new"]) and (not r["defined_reference"]) for r in rows),
+                      "disagree_on_definedness": [k for k, v in out.items() if k in POINTS and not v["agree_on_definedness"]],
+                      "max_abs_diff_any_m": max([r.get("max_abs_diff_full_m", 0.0) for r in rows] +
+                                                [r.get("max_abs_diff_sa_m", 0.0) for r in rows])}
     print(json.dumps(out, indent=1))
 
 
