@@ -154,7 +154,8 @@ Five findings returned; each was checked against the code. None is a defect, so 
 
 ### 8.1 Surf asks to the backend per scenario, fix vs nofix (the load table)
 Offline, the synthetic store with prod flags, desktop dark, `scn_band_zoom_stability.js` (load, zoom out, zoom in, three pans), the
-same build per arm (nofix = the five kills), 2026-11-15 ~20:10-20:25 EST. Every surf ask the client sent (`out.asks`):
+same build per arm (nofix = the five kills), 2026-11-15 ~20:10-20:25 EST, ONE RUN PER ARM per scenario (no repeat runs; the
+counts carry no spread). Every surf ask the client sent (`out.asks`):
 
 | scenario | arm | `/grid` | `/grid_series` | total | band visible + covering at step end |
 |---|---|---|---|---|---|
@@ -183,14 +184,63 @@ send every rated ask back to the box. Rule added (`staticRatedMosaic.ratedRunLag
 `__RAW_RATED_RUN_AGE_MAX_H__` (6 h) behind the run the plain sibling is pinned on is served AND labelled (`rated_run_lag_h` on the
 grid JSON, `__RAW_STATIC_FRAMES_RATED__.lagH`); older is refused (`mosaic_run_behind` / `regional_run_behind`) and goes to /grid.
 Kill `__RAW_DISABLE_RATED_RUN_AGE__`. Finding for the director: the rated publish trails the plain publish by a full cycle (the
-rated step's budget); fixing the publisher is the real cure. The label is in the data and telemetry; a user-visible label in the
-status line is NOT done.
+rated step's budget); fixing the publisher is the real cure. The user-visible label is now done: section 9.
 
 ### 8.3 Prefetch bytes
 Rated bundles are whole runs: 0.28-2.07 MB each on the live CDN (Florida 417 KB, Carolinas 364 KB, SoCal 508 KB, Indonesia
 2.07 MB), plus the 130 KB coast mask once. The neighbour ring is now skipped under Save-Data or a 2g/3g link
-(`navigator.connection`); the bundles a view itself needs still load when it is asked for.
+(`navigator.connection`); the bundles a view itself needs still load when it is asked for. LIMIT (advisor 2026-11-16):
+`navigator.connection` does not exist in Safari or Firefox, so on an iPhone this guard does nothing and the ring always loads.
+A byte cap that does not depend on it (for example a per-session prefetch budget) is a follow-up, not done here.
 
 ### 8.4 Not claimed
 The zoom colour flip (David's first symptom) is NOT reproduced and NOT claimed fixed (section 2). Lab only; a dev-site read is owed
 (ledger commitment). One stray live request this evening: a mistaken HEAD to `/api/weather/capabilities` (405, no work done).
+
+## 9. The second advisor round (2026-11-16 ~05:10 EST; advisor + director: both conditions must close in THIS PR)
+
+### 9.1 The run age, visible (condition 1)
+The director's word, from David's standing rule ("label hours the same honest way"): a 6-h-old band with no label beside glyphs from
+a newer run is not accepted; the status line must say so on all three layouts and in all three themes, with aria text, the way wind
+says "nearest stored forecast". Done:
+- `ratedRun = { lagH, runTime }` carried on the grid. Both field-by-field rebuilds carry it, like `ratingMode`
+  (`backendWeatherServiceClientHelpers`, `useMarineWindData`). The rated run's own time is stamped beside the lag:
+  `rated_run_time`, from the mosaic's single run or the regional frame's.
+- `marineRatingBandRes.ratedRunText`: "Surf ratings from the Sun 00Z run, 6 h older than the wave heights (a newer rating run is
+  not published yet)." It says nothing when the lag is 0 or unknown. Kill `__RAW_DISABLE_RATED_RUN_LABEL__`.
+- `ForecastTimeStatus` shows it as a quiet `role="status"`, `aria-live="polite"` line. The source is the grid the ENGINE is painting
+  (`__MARINE_ENGINE__._waveData.waveGrid`), read only while the band is painted (`__RAW_GPU__.ratingBand.active`) and not held.
+  So it describes what is on screen, not the last fetch. The words are the whole status, never colour.
+- Tests: +8 frontend. The words, the kill and the unknown run; a render in light / dark / beach; no line when the lag is 0, when the
+  band is not painted, or when the band is held. Full `src/components/map` + `src/tests`: 7,193 passed / 514 suites. ESLint
+  ratchet clean.
+
+Offline end to end (`scn_rated_run_label.js`, this build, serve_synthetic; a copy of the lab CDN with the two rated regional bundles
+moved one run back, 00Z against the plain 06Z, which is the live CDN's state on 11-15). Florida z8.5, band on, the line read in the
+page (`checkVisibility`) and screenshotted. Screenshots and JSON are in the shared notes, `rating-band-sota-2026-11-15/label-*`.
+| layout | light | dark | beach |
+|---|---|---|---|
+| desktop panel | visible, correct words | visible | visible |
+| phone, timeline drawer open | visible | visible | visible |
+| phone, timeline drawer collapsed | not shown | not shown | not shown |
+| phone, layers sheet open | not shown | not shown | not shown |
+The phone's status lines all live in the timeline drawer. With it collapsed, NO status line shows: wind's "nearest stored forecast"
+and the band's held line included. This label mirrors them and does not add a collapsed-header marker. Whether the collapsed header
+should carry one is a design question for David, not decided here. Text colour: slate-600 on white/95 (light), slate-300 on
+zinc-900/95 (dark) and on black/90 (beach).
+Controls: the kill switch shows no line with the band painted and a 6 h lag. A CDN with no lag gives `lagH 0`, no line.
+A view reaching an uncovered coast goes to `/grid` (the current run) and correctly shows no line (`mosaic_uncovered_coast`).
+
+### 9.2 Which models have rated regional bundles (condition 2)
+Only GFS. `frame_set_rating.rated_regional_sets` keeps `model == "GFS"` (since 2026-11-02: `/grid?surf=1` rates on the stored tile
+only for GFS). EURO and ICON have world `global_mid_rated` sets only, and the run-age rule is on the regional / mosaic path, so it
+never refuses an EURO or ICON ask today. The bound is now per model anyway: one cycle of THAT model (`ratedCycleH`: GFS 6 h,
+EURO 12 h, ICON 12 h), so a future 12-hourly rated bundle one run behind is served and labelled, not sent to the box. The window
+override `__RAW_RATED_RUN_AGE_MAX_H__` still wins. +2 tests.
+
+### 9.3 Next item (not this PR): the rated publish budget
+The real cure is the publisher. The rated step (`forecast-ingest-pilots.yml`, "Publish rated static frames", 600 s budget,
+regional waves first) trails the plain publish by a full cycle on the live CDN. The next PR: measure the rated step's per-set time
+in the Actions logs. Then either raise its budget or move the rated regional sets ahead of the world sets' tail, so the rated
+bundle lands in the SAME run as its plain sibling. Gate: on the public index, rated and plain runs equal for every pilot box over
+4 consecutive cycles. Until then this label is what keeps the band honest.

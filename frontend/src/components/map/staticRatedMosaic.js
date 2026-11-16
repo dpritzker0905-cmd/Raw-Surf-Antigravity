@@ -189,9 +189,13 @@ export function ratedRunLagH(ratedKey, index, frame, plainRunMs) {
   const rated = Date.parse(frameRunOf(index, frame) || '');
   return Number.isFinite(plain) && Number.isFinite(rated) ? Math.max(0, (plain - rated) / 3600000) : null;
 }
+// PER MODEL (advisor 2026-11-16): one run behind is one cycle of THAT model, so a 12-hourly model's lagging bundle is not refused by a
+// GFS-sized bound. Today only GFS has rated REGIONAL bundles (frame_set_rating.rated_regional_sets), so EURO / ICON never reach here.
+export const RATED_CYCLE_H = { GFS: 6, EURO: 12, ICON: 12 };
+export const ratedCycleH = (key) => RATED_CYCLE_H[String(key || '').split('/')[0]] || 6;
 export function ratedRunBehind(ratedKey, index, frame, plainRunMs) {
   const lag = ratedRunLagH(ratedKey, index, frame, plainRunMs);
-  const max = typeof W().__RAW_RATED_RUN_AGE_MAX_H__ === 'number' ? W().__RAW_RATED_RUN_AGE_MAX_H__ : 6;
+  const max = typeof W().__RAW_RATED_RUN_AGE_MAX_H__ === 'number' ? W().__RAW_RATED_RUN_AGE_MAX_H__ : ratedCycleH(ratedKey);
   return lag !== null && lag > max + 1e-9;
 }
 
@@ -283,6 +287,7 @@ export async function tryRatedMosaic({ model, layer, validTimeStr, clampedBbox, 
   // RUN AGE LABEL: hours this band trails the server's run for its boxes (the largest), null when unknown (ratedRunLagH).
   const lags = frames.map((f) => ratedRunLagH(f.box.key, f.index, f.frame, d.plainRunMs)).filter((x) => x !== null);
   json.rated_run_lag_h = lags.length ? Math.max(...lags) : null;
+  json.rated_run_time = frameRunOf(frames[0].index, frames[0].frame) || null;   // one run for every box (mosaic_mixed_run)
   return json;
 }
 

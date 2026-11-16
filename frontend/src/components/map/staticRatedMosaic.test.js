@@ -343,3 +343,19 @@ describe('prefetch bytes: no neighbour ring on a metered or slow link', () => {
     expect(prefetchRatedNeighbours({ model: 'GFS', layer: 'waves', validTimeStr: 'x', bbox }, d).length).toBeGreaterThan(0);
   });
 });
+describe('run age is per model (advisor 2026-11-16): one cycle of THAT model', () => {
+  const { ratedRunBehind, ratedCycleH } = require('./staticRatedMosaic');
+  const VT = '2026-11-15T18:00:00Z';
+  const idx = { common_meta: { run_time: '2026-11-15T00:00:00Z' }, frames: [{ valid_time: VT, path: 'p' }] };
+  const plainAt = (iso) => () => Date.parse(iso);
+  test('GFS 6 h, EURO and ICON 12 h', () => {
+    expect(ratedCycleH('GFS/marine/waves/x_rated')).toBe(6);
+    expect(ratedCycleH('EURO/marine/waves/x_rated')).toBe(12);
+    expect(ratedCycleH('ICON/marine/waves/x_rated')).toBe(12);
+  });
+  test('a 12-hourly model one run behind is served; two runs behind is refused', () => {
+    expect(ratedRunBehind('EURO/marine/waves/x_rated', idx, idx.frames[0], plainAt('2026-11-15T12:00:00Z'))).toBe(false);
+    expect(ratedRunBehind('EURO/marine/waves/x_rated', idx, idx.frames[0], plainAt('2026-11-16T00:00:00Z'))).toBe(true);
+    expect(ratedRunBehind('GFS/marine/waves/x_rated', idx, idx.frames[0], plainAt('2026-11-15T12:00:00Z'))).toBe(true);
+  });
+});

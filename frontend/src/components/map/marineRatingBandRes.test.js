@@ -175,3 +175,17 @@ describe('ratedFinestCellDeg: only a finer rated grid that COVERS >= 0.6 of the 
     expect(C.ratedFinestCellDeg('GFS_waves~surf_', 0, view)).toBe(null);
   });
 });
+describe('ratedRunText: the band run age in words (#933, David: "label hours the same honest way")', () => {
+  const { ratedRunText } = require('./marineRatingBandRes');
+  afterEach(() => { delete window.__RAW_DISABLE_RATED_RUN_LABEL__; });
+  test('one run behind names the run and the hours', () => {
+    expect(ratedRunText({ lagH: 6, runTime: '2026-11-16T06:00:00Z' })).toBe('Surf ratings from the Mon 06Z run, 6 h older than the wave heights (a newer rating run is not published yet).');
+  });
+  test('no lag, unknown lag, or killed: nothing', () => {
+    expect(ratedRunText({ lagH: 0, runTime: '2026-11-16T06:00:00Z' })).toBe(null);
+    expect(ratedRunText(null)).toBe(null);
+    expect(ratedRunText({ lagH: 6, runTime: null })).toMatch(/from an earlier run, 6 h older/);
+    window.__RAW_DISABLE_RATED_RUN_LABEL__ = true;
+    expect(ratedRunText({ lagH: 6, runTime: '2026-11-16T06:00:00Z' })).toBe(null);
+  });
+});

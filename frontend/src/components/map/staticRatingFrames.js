@@ -28,7 +28,7 @@ import { cropGridJson, cropVectors, gridBboxParam, midCropFor, midCropRulesPass,
 import { getAvailableTilesFromManifest } from './backendWeatherServiceClientCoverage';
 import { buildTruthTag } from './weatherTruthTracker';
 import { pickRegionalTile } from './staticRegional';
-import { coastMask, mosaicBoxes, prefetchRatedNeighbours, ratedMosaicOn, ratedRunBehind, ratedRunLagH, tryRatedMosaic } from './staticRatedMosaic';
+import { coastMask, frameRunOf, mosaicBoxes, prefetchRatedNeighbours, ratedMosaicOn, ratedRunBehind, ratedRunLagH, tryRatedMosaic } from './staticRatedMosaic';
 
 export const RATED_TIER = 'global_mid_rated';
 // The publisher's frame_set_rating.RATED_LAYERS (the world sets the band can be asked of).
@@ -211,7 +211,7 @@ async function tryRatedRegional(tile, validTimeStr, d) {
     if (!askOffsetServed(index, frame, askMs)) return noteMiss('regional_ask_offset');
     if (ratedRunBehind(tile.key, index, frame, d.plainRunMs)) return noteMiss('regional_run_behind');   // more than one run behind
     const json = d.regionalGrid ? await d.regionalGrid(tile) : null;
-    if (json) json.rated_run_lag_h = ratedRunLagH(tile.key, index, frame, d.plainRunMs);              // the label (staticRatedMosaic)
+    if (json) { json.rated_run_lag_h = ratedRunLagH(tile.key, index, frame, d.plainRunMs); json.rated_run_time = frameRunOf(index, frame) || null; }   // the label
     if (!json) return noteMiss('regional_seam');                     // partial cover, window, bundle: the seam recorded why
     stampOverlay(json, json.grid.vectors, tile.key, frame, validTimeStr);
     return json;                                                       // the regional seam minted its truth tag

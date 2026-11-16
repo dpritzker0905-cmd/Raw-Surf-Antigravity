@@ -91,6 +91,22 @@ export function coarseRatedForView(grid, view, win, finestCell) {
   return cell >= 2 * finestCell - 1e-9;
 }
 
+/**
+ * THE RUN-AGE LABEL (advisor + director 2026-11-16, #933; David: "label hours the same honest way"). When the painted rating grid came
+ * from a rated bundle that trails the run its wave heights are on (staticRatedMosaic RUN AGE, `ratedRun` on the grid), the status line
+ * says so in words, like wind's "nearest stored forecast". `ratedRun` = { lagH, runTime }; nothing when the lag is 0 or unknown.
+ * Kill: window.__RAW_DISABLE_RATED_RUN_LABEL__ = true.
+ */
+const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+export function ratedRunText(ratedRun) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_RATED_RUN_LABEL__ === true) return null;
+  const lag = ratedRun && Number(ratedRun.lagH);
+  if (!(lag > 0)) return null;
+  const t = ratedRun.runTime ? new Date(ratedRun.runTime) : null;
+  const run = t && Number.isFinite(t.getTime()) ? `the ${DAYS[t.getUTCDay()]} ${String(t.getUTCHours()).padStart(2, '0')}Z run` : 'an earlier run';
+  return `Surf ratings from ${run}, ${Math.round(lag)} h older than the wave heights (a newer rating run is not published yet).`;
+}
+
 /** The line ForecastTimeStatus shows while the band is held (words, so the state is never colour alone). */
 export function ratingBandHeldText(heldBy) {
   if (heldBy === 'resolution') return 'Surf ratings paused: the detailed rating grid for this view is still loading.';
