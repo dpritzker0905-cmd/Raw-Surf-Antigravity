@@ -255,3 +255,22 @@ bundle lands in the SAME run as its plain sibling. Gate: on the public index, ra
   disagree with the status line, whoever builds it. The chip itself lives in a reserved header file: not built here.
 - Contrast (the advisor's limit on #933), WCAG 2.1 ratio, worst case over ANY map showing through the translucent panel (black or white):
   light 6.8:1 (slate-600 on white/95), dark 10.5:1 (slate-300 on zinc-900/95), beach 11.8:1 (slate-300 on black/90). All >= 4.5:1.
+
+## 12. The stale-layer chip on the collapsed phone header: GATE, registered before any chip code (2026-11-16 10:48 EST by the clock)
+David approved the chip (08:54 EST via the advisor: "Yes, build it") and gave it to this lane (10:31 EST via the director: "Rating-band
+lane builds it"). Scope: the collapsed phone timeline header only (TimelineDrawerHeader.js plus one prop at its call site in
+MapWeatherControls.js; checked against the open PRs touching that file, #755 (Codex draft), #923 and #928: no hunk within 50 lines of
+the call site). What it is: a small text chip, a clock icon plus "Ratings 6 h old" (or wind's "Wind: nearest stored time"), shown only
+while the painted layer lags. It reads staleLayerState.js. Informational colours, not a warning colour, and never colour alone. A tap opens
+the drawer, where the status line says it in full. Ships ON; kill switch window.__RAW_DISABLE_STALE_CHIP__ = true.
+GATE (the advisor's six points, now this lane's; all must hold, measured offline before the PR leaves draft):
+1. Contrast >= 4.5:1 in light, dark and beach, worst case over any map behind the translucent panel.
+2. Absent in every control case: zero lag, unknown lag, band not painted, band held, not a rating grid, the drawer open, and the
+   kill switch. Wind: absent when the drawn wind is the exact selected hour or nothing is drawn.
+3. A real button: the accessible name is the full sentence (the status line's), it is reachable by keyboard with a visible focus ring,
+   and activating it opens the drawer (aria-expanded and aria-controls like the header's own buttons).
+4. The same source as the status line: both read staleLayerState.readRatedRunState / readWindStaleState, with a unit test that asserts
+   the chip's accessible name equals the status line's text for the same painted grid.
+5. No overlap or clipping at 360, 390 and 430 px phone widths, in all three themes, with before and after screenshots (the lab CDN
+   with the rated bundles one run behind).
+6. Desktop and the expanded drawer are unchanged: no chip there, and a screenshot comparison of both before and after.
