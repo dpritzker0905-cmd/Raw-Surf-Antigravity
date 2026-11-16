@@ -73,8 +73,11 @@ jobs:
         with:
           path: eot20_cache
           key: eot20-ocean-v2-${{ github.run_id }}
+      # Prune ONLY after a complete download: G2 run 43879148124 failed mid-download and the old if: always() deleted
+      # the full branch cache. (Caches are scoped to the ref that saved them: a tag run sees only its own tag's caches
+      # and the default branch's, so a re-run on the same tag resumes from what this tag saved.)
       - name: Prune superseded tide-data caches
-        if: always()
+        if: steps.dl.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}

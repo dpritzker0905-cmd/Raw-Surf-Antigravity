@@ -353,3 +353,19 @@ starts nothing. The run is the `tide-gate-G2` tag, pushed only on the owner's wo
   - If the arms fail item 1, the tidal-band line and the per-arm SA/SSA constants are reported first, before any
     interpretation.
   - The advisor reads the output before it goes to the owner as a result.
+
+## 09:14 EST 2026-11-16 (`date`) - G2 run 43879148124: FAILED IN THE DOWNLOAD, the gate never ran, no G2 number exists
+- The "Run the gate" step was **skipped**; no artifact. **No arm was computed on the G2 window**, so it remains unseen.
+- **Fault 1, cache scope.** GitHub caches are scoped to the ref that saved them. A run on the tag
+  `refs/tags/tide-gate-G2` sees only that tag's caches and the default branch's, so the full FES cache saved by branch
+  run 43836918731 was invisible and every file was downloaded again.
+- **Fault 2, cache prune.** The `if: always()` prune then deleted that branch cache.
+- **Fault 3, login refused.** After K1 (159 MB, 22 min), AVISO refused one of the 4 parallel logins
+  (`paramiko AuthenticationException`). The pinned host key had matched; no credential appears in the log.
+- **Fix (plumbing only, no rule changed):**
+  - Each AVISO login retries with backoff (5 tries, 60/120/... s), still checking the host key before every attempt.
+  - 3 connections instead of 4.
+  - Pruning runs only after a complete download.
+  - A re-run on the same tag restores this tag's cache (K1 so far) and resumes.
+- **A re-run needs the tag deleted and pushed again on the fixed commit, which is the owner's call.** The
+  "start G2" word was used for this run; it produced no number.
