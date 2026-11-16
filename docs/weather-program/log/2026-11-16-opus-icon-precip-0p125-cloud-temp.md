@@ -139,3 +139,28 @@ Both are open for the advisor to call insufficient.
 **ICON cloud, NOT built.** The research lead's design regrids DWD `clct` by box mean to 0.25 degree. But today's .om `dwd_icon` is
 0.125 degree, the same resolution gap as G1, so a 0.25-degree ICON cloud set fails the director's resolution rule. It waits on the
 director's answer to G1 (0.125-degree ICON sets), and shares G2's 0.125-degree sub-point remap and frame-format work.
+
+## 07:17Z: #955 (EURO cloud) after the advisor's review (PASS WITH LIMITS): negative controls, and how the nodes were placed
+
+- **How the comparison placed our nodes:** by the frame's own DECLARED grid. `g3_euro.py` reads the bounds from the decoded frame
+  header (`decode_plane`) and maps each ECMWF GRIB point (its own latitude/longitude keys) to the node those bounds put it at. That
+  is the client's placement (it draws by the header's bounds), so the all-node agreement within 0.5 pp also proves registration.
+  It was not done by array index.
+- **Seeded negative controls (in place of the skipped GFS positive control):** the same correlation check against GFS cloud, run on
+  our frame rolled 180 degrees in longitude and flipped north-south (2026-11-15 12Z, `g3_neg.py` scratch). Correlation at shifts
+  -2..+2:
+
+| hour | as published | rolled 180 deg | flipped N-S |
+|---|---|---|---|
+| f000 | 0.596 / 0.604 / **0.609** / 0.606 / 0.598: PASS | 0.101-0.104: FAIL | 0.150-0.153: FAIL |
+| f072 | 0.458 / 0.461 / **0.464** / 0.464 / 0.462: PASS | 0.085-0.086: FAIL | 0.131-0.132: FAIL |
+
+  The check passes only with the peak at no shift AND a level above 0.3. As the advisor said, the discrimination comes from the
+  LEVEL (0.46-0.61 against 0.09-0.15): it rules out a gross roll or flip. It does not settle a one-column shift. The all-node
+  agreement with ECMWF, placed by the declared grid, does.
+- **Still before the CLIENT flip** (not built here; the client key is not in this PR): the registered visual pairs against GFS cloud
+  (coast, the 0/180 seam, three themes, desktop and phone).
+- **Limits to state at the flip:**
+  - EURO steps are 3-hourly to 144 h, then 6-hourly to 240 h. Between frames the layer draws what the own-frames path draws for
+    every raster layer (the nearest stored frame, or the blend), labelled with that frame's valid time.
+  - The cloud is instantaneous total cloud cover, as GFS's TCDC set is labelled.
