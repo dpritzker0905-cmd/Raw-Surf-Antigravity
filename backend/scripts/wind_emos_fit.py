@@ -375,18 +375,9 @@ def main(argv=None) -> int:
     ap.add_argument("--cache", required=True)
     ap.add_argument("--runs", required=True)
     ap.add_argument("--out", default=None)
-    ap.add_argument("--from-bucket", action="store_true", help="download stations + calibration/emos/runs/* first")
     a = ap.parse_args(argv)
-    s = requests.Session()
-    os.makedirs(a.runs, exist_ok=True)
-    if a.from_bucket:
-        for name in sorted(C._bucket_keys(f"{C.PREFIX}/runs")):
-            path = os.path.join(a.runs, name)
-            if name.endswith(".npz") and not os.path.exists(path):
-                blob = C._download_safe(f"{C.PREFIX}/runs/{name}")
-                if blob:
-                    open(path, "wb").write(blob)
-    stations = C.load_stations(a.cache, use_bucket=a.from_bucket)
+    s = requests.Session()        # no credential: runs and stations were fetched by the storage-only step
+    stations = C.load_stations(a.cache)
     st_obs, clim = load_truth(s, a.cache, stations)
     R = build_rows(a.runs, stations, st_obs, clim)
     rep = {"coverage": coverage(R, stations, a.runs)}

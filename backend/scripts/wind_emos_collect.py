@@ -5,9 +5,14 @@ Pre-registration: docs/weather-program/log/2026-11-16-wind-emos-preregistration.
 calibrations". Reads PUBLIC data only (ECMWF open data on AWS, NDBC, IEM ASOS). It never calls the Raw Surf backend
 and writes no manifest or product: only namespaced objects under `calibration/emos/` in the weather bucket.
 
-  python scripts/wind_emos_collect.py stations --cache C [--upload]           # freeze the station list once
-  python scripts/wind_emos_collect.py backfill --cache C --start 2025-06-01 --end 2025-06-30 [--shard 0/4] [--upload]
-  python scripts/wind_emos_collect.py daily    --cache C [--upload]           # the newest complete 00Z run
+  python scripts/wind_emos_collect.py stations --cache C                     # freeze the station list once
+  python scripts/wind_emos_collect.py backfill --cache C --start 2025-06-01 --end 2025-06-30 [--shard 0/4]
+  python scripts/wind_emos_collect.py daily    --cache C                      # the newest complete 00Z run
+
+NO CREDENTIAL (advisor condition on #951): this process never touches the bucket. A storage-only step
+(`python3 -I -S scripts/emos_bucket_io.py fetch`) first puts emos_stations.json and existing_runs.json in the cache;
+this script writes `<cache>/runs/<run>.npz.new` (and `emos_stations.json.new` when it freezes the list); a second
+storage-only step uploads those, create-only.
 
 Per run it keeps ONLY the station values of the 51 IFS ENS members (10u, 10v, 10fg) at the six registered leads:
 `{run}.npz` with arrays u_<L>, v_<L>, g_<L> shaped [51, stations]. About 1.3 GB of byte ranges are read per run.
@@ -74,42 +79,14 @@ def collect_run(session, run: datetime, lats, lons, leads=LEADS) -> bytes:
     return pack_run(out)
 
 
-def _store():
-    from services.weather_pipeline.store import ProductStore
-    return ProductStore()
+def existing_runs(cache: str) -> set:
+    """Run files already stored (written by the storage-only fetch step); empty when absent."""
+    p = os.path.join(cache, "existing_runs.json")
+    return set(json.load(open(p))) if os.path.exists(p) else set()
 
 
-def _bucket_keys(prefix: str):
-    """Names already stored under `prefix` (for skip-if-done)."""
-    try:
-        from services.weather_pipeline.store import WEATHER_BUCKET, _get_supabase_storage
-        sb = _get_supabase_storage()
-        if sb is None:
-            return set()
-        names, offset = set(), 0
-        while True:
-            page = sb.storage.from_(WEATHER_BUCKET).list(prefix, {"limit": 1000, "offset": offset})
-            names |= {p["name"] for p in page or []}
-            if not page or len(page) < 1000:
-                return names
-            offset += 1000
-    except Exception as e:  # noqa: BLE001 - listing failure only costs a re-read
-        print(f"bucket listing failed ({e}); nothing skipped")
-        return set()
-
-
-def _download(key: str):
-    from services.weather_pipeline.store import WEATHER_BUCKET, _get_supabase_storage
-    sb = _get_supabase_storage()
-    return None if sb is None else sb.storage.from_(WEATHER_BUCKET).download(key)
-
-
-def load_stations(cache: str, use_bucket: bool):
+def load_stations(cache: str):
     path = os.path.join(cache, "emos_stations.json")
-    if not os.path.exists(path) and use_bucket:
-        b = _download(f"{PREFIX}/stations.json")
-        if b:
-            open(path, "wb").write(b)
     if not os.path.exists(path):
         raise SystemExit("no frozen EMOS station list: run `stations` first")
     doc = json.load(open(path))
@@ -124,22 +101,19 @@ def main(argv=None) -> int:
     ap.add_argument("--start")
     ap.add_argument("--end")
     ap.add_argument("--shard", default="0/1")
-    ap.add_argument("--upload", action="store_true")
     a = ap.parse_args(argv)
-    os.makedirs(a.cache, exist_ok=True)
+    os.makedirs(os.path.join(a.cache, "runs"), exist_ok=True)
     s = requests.Session()
     if a.cmd == "stations":
-        path = os.path.join(a.cache, "emos_stations.json")
-        if a.upload and _download_safe(f"{PREFIX}/stations.json"):
-            print("EMOS stations already frozen in the bucket; not re-selected")
+        if os.path.exists(os.path.join(a.cache, "emos_stations.json")):
+            print("EMOS stations already frozen; not re-selected")
             return 0
+        path = os.path.join(a.cache, "emos_stations.json.new")
         doc = obs.select_stations(s, a.cache, PERIOD[0], PERIOD[1], path, cover=NDBC_COVER, ndbc_months=NDBC_MONTHS,
                                   asos_cover=ASOS_COVER)
         print(f"EMOS stations frozen: {len(doc['ndbc'])} NDBC/C-MAN, {len(doc['asos'])} ASOS")
-        if a.upload:
-            _store()._upload_to_supabase(f"{PREFIX}/stations.json", open(path, "rb").read(), strict=True)
         return 0
-    stations = load_stations(a.cache, a.upload)
+    stations = load_stations(a.cache)
     land, meta = obs.gfs_land(s, a.cache)
     lats, lons = H.sample_points(stations, land, meta)
     if a.cmd == "daily":
@@ -149,8 +123,7 @@ def main(argv=None) -> int:
         start = datetime.fromisoformat(a.start).replace(tzinfo=timezone.utc)
         end = datetime.fromisoformat(a.end).replace(tzinfo=timezone.utc)
         runs = shard(runs_between(max(start, PERIOD[0]), end), a.shard)
-    done = _bucket_keys(f"{PREFIX}/runs") if a.upload else set()
-    st = _store() if a.upload else None
+    done = existing_runs(a.cache)
     report = {"runs": [], "dropped": [], "skipped": [], "stations": len(stations), "leads": list(LEADS)}
     for r in runs:
         name = f"{r:%Y%m%d%H}.npz"
@@ -163,22 +136,13 @@ def main(argv=None) -> int:
             report["dropped"].append({"run": name, "why": str(e)[:200]})
             print(f"{name}: DROPPED {e}", flush=True)
             continue
-        open(os.path.join(a.cache, name), "wb").write(blob)
-        if st:
-            st._upload_to_supabase(f"{PREFIX}/runs/{name}", blob, strict=True, timeout=120)
+        open(os.path.join(a.cache, "runs", name + ".new"), "wb").write(blob)     # the storage step uploads it
         report["runs"].append(name)
         print(f"{name}: ok ({len(blob) / 1e6:.1f} MB)", flush=True)
     report["retries"] = dict(ef.RETRY_STATS)
     json.dump(report, open(os.path.join(a.cache, f"collect_report_{a.cmd}_{a.shard.replace('/', 'of')}.json"), "w"), indent=1)
     print(json.dumps({k: (len(v) if isinstance(v, list) else v) for k, v in report.items()}))
     return 0
-
-
-def _download_safe(key):
-    try:
-        return _download(key)
-    except Exception:  # noqa: BLE001 - absent object
-        return None
 
 
 if __name__ == "__main__":
