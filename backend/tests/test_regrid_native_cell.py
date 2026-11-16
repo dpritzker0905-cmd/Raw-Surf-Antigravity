@@ -264,18 +264,21 @@ def test_under_the_flag_every_batch_reduction_runs_at_half_1(monkeypatch, fetche
     quantized copy of this harness did NOT catch the old code), so the guard is structural: spy on every batch
     reduction the fetcher calls and require half == 1 whenever the flag is on at native resolution."""
     import importlib
-    mod = importlib.import_module(f"services.{fetcher_name}")
+    mods = [importlib.import_module(f"services.{fetcher_name}")]
+    if fetcher_name == "noaa_gfs_wave_fetcher":       # its reductions moved to _fetch_region_reduce (2026-11-16)
+        mods.append(importlib.import_module("services._fetch_region_reduce"))
     halves = []
-    for name in ("multi_dir_conf_batch", "partition_dir_conf_batch", "direction_block_batch", "height_block_batch",
-                 "scalar_block_batch"):
-        if not hasattr(mod, name):
-            continue
-        orig = getattr(mod, name)
+    for mod in mods:
+        for name in ("multi_dir_conf_batch", "partition_dir_conf_batch", "direction_block_batch", "height_block_batch",
+                     "scalar_block_batch"):
+            if not hasattr(mod, name):
+                continue
+            orig = getattr(mod, name)
 
-        def spy(*a, _orig=orig, _name=name, **k):
-            halves.append((_name, a[3] if _name == "height_block_batch" else a[4]))
-            return _orig(*a, **k)
-        monkeypatch.setattr(mod, name, spy)
+            def spy(*a, _orig=orig, _name=name, **k):
+                halves.append((_name, a[3] if _name == "height_block_batch" else a[4]))
+                return _orig(*a, **k)
+            monkeypatch.setattr(mod, name, spy)
     (_run if fetcher_name == "noaa_gfs_wave_fetcher" else _gw_run)(monkeypatch, "1", vector="1")
     assert halves, "SETUP BROKEN: no batch reduction was called"
     assert {h for _n, h in halves} == {1}, sorted(set(halves))
