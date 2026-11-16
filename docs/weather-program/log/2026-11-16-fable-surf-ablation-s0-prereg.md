@@ -402,3 +402,106 @@ it alone. The director's answer (2026-11-15 20:42 EST): register a second window
   two windows must say "not tested in summer" in its SCOREBOARD row, and a summer window (2027-07) is owed before a
   class factor for flat beaches is called settled.
 - Scoring of window 2: no earlier than 2027-02-01, recorded by 2027-02-03T12:00Z (ledger commitment).
+
+## 2026-11-16 02:31Z Amendment before the window: what the saved rows can and cannot compute (advisor's condition)
+
+The advisor's review of #942 found a real hole: the gate crosses every factor-off configuration with three period
+choices, and those arms re-run the chain per row, which needs each row's height, period and direction. The public
+rows file (#947) deliberately does not carry them. So the gate as written promised verdicts no saved data could
+produce. This section fixes that before 2026-11-17 00:00Z. It REMOVES promises; it adds no new freedom.
+
+**Which rows the gate reads.** The private full rows (#948, owner's word 2026-11-15 21:10 EST): per spot-hour the
+station, the hour, offshore height, PEAK period, direction, the chain's height at the station, the observation, and
+the four factors. They are read only by a scoring job that prints aggregates (no row, no station-hour, cells under
+10 hidden); that job is not built, and its dispatch needs the owner's word. **Fallback** if #948 is not on dev or its
+writes are refused: the public rows (#947): station, day, model over observed, the four factors.
+A day counts only if rows exist for it. Runs before #947 and #948 are on dev left medians only, so the window's
+effective start is the first run that wrote rows, and the report states that date.
+
+**The unit of analysis is the STATION-DAY, not the row.** A row is a spot-hour; several spots share one station and
+one hour, so rows are not independent, and the public file cannot tell two spots in an hour from two hours. Every
+statistic is computed on station-day medians. Intervals: day-block bootstrap over days. "30 rows" in the earlier
+sections is replaced by **30 station-days over at least 7 days and at least 3 stations**; a cell under that prints
+its n and no number.
+
+**Held out by STATION**, not by spot, on forcing truth: the truth is at stations. Leave-one-station-out, and whole
+regions held out.
+
+### Forcing truth (nearshore buoys): what is RUNNABLE
+
+The quantity scored is the chain's height at the station: friction x linear shoaling x exposure x refraction, "no
+cap, no H1/10". A factor is switched off by dividing the model by that row's factor; no cap can bind in this
+quantity, so the division is exact.
+
+| configuration | private rows (#948) | public rows only (#947) |
+|---|---|---|
+| served | RUNNABLE | RUNNABLE |
+| friction off | RUNNABLE (it is 1.00 at the served setting, so expect no difference) | RUNNABLE |
+| shoaling off | RUNNABLE | RUNNABLE |
+| exposure off | RUNNABLE | RUNNABLE |
+| refraction off | RUNNABLE | RUNNABLE |
+| exposure off and refraction off | RUNNABLE | RUNNABLE |
+| sea-state split (wind sea / swell by the buoy's own periods) | RUNNABLE: the hour joins the buoy's public record | **NOT RUNNABLE**: no hour |
+| period taken as mean, or as the wind-sea partition's | **NOT RUNNABLE** | **NOT RUNNABLE** |
+| Komar off, H1/10 off, cap off, magnet off | **NOT RUNNABLE on this truth** | **NOT RUNNABLE on this truth** |
+| refraction off with Komar off; refraction off with H1/10 off | **NOT RUNNABLE on this truth** | **NOT RUNNABLE on this truth** |
+| per spot CLASS | **NOT RUNNABLE on this truth** | **NOT RUNNABLE on this truth** |
+
+- **The period arms are NOT RUNNABLE, in either file.** The rows carry the peak period only. The model's mean period
+  and its partitions are not fetched by the validation runner, and fetching them is more reads of the one live box
+  per row. I am not adding them. H1 (the period overstates a wind-sea spectrum) is therefore not judged by this gate
+  at the buoys; what Part 1 measured about it (on the 4.8 s mean period the owner's hour reads 1.338 m against
+  1.581 m) stays a model-only fact.
+- **Komar, H1/10, the cap and the magnets are not in the scored quantity**, so no buoy row can judge them, alone or
+  paired. They wait for breaking truth.
+- **Spot class is not defined at a buoy.** Forcing-truth verdicts are per REGION and pooled. Class verdicts exist only
+  on breaking truth.
+
+### Breaking truth (the owner's timed looks, FRF Duck): NOT RUNNABLE today
+
+Everything that acts shoreward of the buoy: Komar off, H1/10 off, cap off, magnet off, the two pairs with
+refraction, the period arms re-run through the full chain, every per-class verdict, and the new transect arm below.
+Each is NOT RUNNABLE until breaking truth has at least 30 eyes-on, scale-stated observations per class on at least 7
+days. Today it has none: the log's two rows are an expectation with no scale. **The gate will therefore deliver, in
+this window, a verdict on exposure and refraction at the buoys, and nothing on the factors Part 1 points at.** That
+is the honest size of it, said before the window opens.
+
+### Verdict words, unchanged
+
+KEEP, REMOVE CANDIDATE, CLASS-DEPENDENT (breaking truth only now), UNDECIDED, UNTESTABLE, and NOT RUNNABLE for a
+configuration no saved data can compute. Nulls, the positive control, the guardrails and the second window are as
+written above; the shuffled null is over station-days.
+
+## 2026-11-16 02:31Z Arm A replaced: a cross-shore dissipation transect (registered; not built)
+
+The director relayed the research lead's answer (2026-11-15 21:28 EST): the Zhang and Ruessink coefficients are
+paywalled and are NOT to be quoted, and arm A can be built from open sources instead. This REPLACES the
+`breaker_steepness_kh` arm of the second addendum, which stays NOT RUNNABLE and is withdrawn.
+
+**`bj_transect`.** A one-dimensional Battjes and Janssen energy balance along a shore-normal transect from the model
+point to the shore: wave energy is shoaled linearly cell to cell and dissipated by depth-induced breaking, with the
+fraction of breaking waves set by the ratio of wave height to the local maximum height (gamma times depth). The
+served surf is the LARGEST H1/10 along the transect. This is the gentle-beach dissipation the chain does not have:
+on a flat beach in short-period sea the waves break early and lose height across a wide surf zone.
+
+**Equations.** As relayed, from the SWAN technical documentation (open): the Battjes and Janssen dissipation and
+breaking-fraction relations (its equations 2.65, 2.66 and 2.68), the maximum height as gamma times depth, and the
+Thornton and Guza breaking fraction (2.73) as an alternative. **I have not read the SWAN documentation myself.**
+Before the arm is scored, each equation is transcribed from that document with its number into this log, and the
+implementation is derived from the equations, never copied from code.
+
+**Gamma arms, fixed now:** a constant 0.73; the slope-and-depth form the SWAN manual gives (the relayed defaults are
+0.54, 7.59, -8.06 and 8.09, to be VERIFIED against the manual before use); and today's Komar path as the comparison.
+
+**Bed slope per spot:** a shore-normal transect on ETOPO 2022 15 arc-second (a finer stack where one exists),
+sampled about every 100 m out to 20 m depth or 3 km, the slope fitted over the band from 1 m depth to the break
+depth. NEVER depth over shelf width. The transect's coverage is printed: a spot whose transect has fewer than 5
+wet samples has no slope and the arm is NOT RUNNABLE there.
+
+**Where it lives:** an offline module the serving path does not import, with a test pinning that; no wind input.
+**Which truth judges it:** breaking truth only, so it is NOT RUNNABLE against truth today. What CAN be done before
+then, and is committed here: the model-only run on the 30-spot panel (does it tell a flat beach from a reef, which
+Part 1 showed today's chain cannot; is it monotone in offshore height on the `monotone_violations` grid; what does
+it give at the owner's hour).
+
+**Guardrails:** all five of the second addendum, unchanged.
