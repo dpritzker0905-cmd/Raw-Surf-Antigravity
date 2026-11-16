@@ -108,12 +108,12 @@ function planes(parsed, kind) {
     const S = parsed.fields[FIELD.SPEED]; if (!S || !D) throw new Error('not a wind frame');
     const u = new Float64Array(n); const v = new Float64Array(n);
     for (let i = 0; i < n; i++) { if (Number.isNaN(S[i]) || Number.isNaN(D[i])) { u[i] = NaN; v[i] = NaN; } else { u[i] = S[i] * Math.sin(D[i] * D2R); v[i] = S[i] * Math.cos(D[i] * D2R); } }
-    return { cols: parsed.cols, rows: parsed.rows, u, v };
+    return { cols: parsed.cols, rows: parsed.rows, bounds: parsed.bounds, u, v };
   }
   const H = parsed.fields[FIELD.HEIGHT]; const P = parsed.fields[FIELD.PERIOD]; if (!H) throw new Error('not a marine frame');
   const dx = new Float64Array(n); const dy = new Float64Array(n);
   for (let i = 0; i < n; i++) { const d = D ? D[i] : NaN; dx[i] = Number.isNaN(d) ? NaN : Math.sin(d * D2R); dy[i] = Number.isNaN(d) ? NaN : Math.cos(d * D2R); }
-  return { cols: parsed.cols, rows: parsed.rows, h: H, dx, dy, p: P || null };
+  return { cols: parsed.cols, rows: parsed.rows, bounds: parsed.bounds, h: H, dx, dy, p: P || null };
 }
 const mean = (sum, n) => (n ? sum / n : NaN);
 
@@ -179,6 +179,55 @@ export function scoreWind(a, b, m) {
   return { nodes: k, blend: mean(eB, k), endA: mean(eA, k), endB: mean(eZ, k), cut: Math.min(mean(eA, k), mean(eZ, k)), retention: sEnds ? sMix / sEnds : NaN, lostHalf: lost };
 }
 
+// THE ADVECTION ARM (log section 37). `hours` > 0 carries the frame FORWARD in time, < 0 BACKWARD, 0 leaves it as it is.
+// Semi-Lagrangian, first order: each node reads (bilinear, wrapping in longitude) from where its own motion came from; a read
+// that touches a missing node keeps the node's own value. Waves move toward (direction + 180) at c_g = 0.78 T m/s; wind along
+// its own vector (knots). The planes hold the FROM unit vector (dx, dy) and the FROM wind vector (u, v), so motion = minus those.
+export function advect(pl, kind, hours) {
+  if (!hours) return pl;
+  const { cols, rows, bounds } = pl; const n = cols * rows;
+  const dLat = (bounds.north - bounds.south) / (rows - 1); const dLng = (bounds.east - bounds.west) / (cols - 1);
+  const wraps = Math.abs((bounds.east - bounds.west) - 360) < 1e-6; const period = cols - 1;
+  const names = kind === 'wind' ? ['u', 'v'] : ['h', 'dx', 'dy', 'p'].filter((k) => pl[k]);
+  const out = { cols, rows, bounds }; for (const k of names) out[k] = new Float64Array(pl[k]); if (kind !== 'wind' && !pl.p) out.p = null;
+  const secs = hours * 3600;
+  for (let r = 0; r < rows; r++) {
+    const lat = bounds.south + r * dLat; if (Math.abs(lat) > 80) continue;
+    const mPerLng = 111320 * Math.cos(lat * Math.PI / 180);
+    for (let c = 0; c < cols; c++) {
+      const i = r * cols + c; let vx; let vy;   // motion in m/s, east and north
+      if (kind === 'wind') { if (Number.isNaN(pl.u[i])) continue; vx = -pl.u[i] * 0.5144; vy = -pl.v[i] * 0.5144; }
+      else { if (!pl.p || Number.isNaN(pl.p[i]) || Number.isNaN(pl.dx[i]) || Number.isNaN(pl.h[i])) continue; const cg = 0.78 * pl.p[i]; vx = -pl.dx[i] * cg; vy = -pl.dy[i] * cg; }
+      let fc = c - (vx * secs / mPerLng) / dLng; const fr = r - (vy * secs / 111320) / dLat;
+      if (fr < 0 || fr > rows - 1) continue;
+      if (wraps) fc = ((fc % period) + period) % period; else if (fc < 0 || fc > cols - 1) continue;
+      const c0 = Math.floor(fc); const r0 = Math.floor(fr); const c1 = Math.min(cols - 1, c0 + 1); const r1 = Math.min(rows - 1, r0 + 1); const tx = fc - c0; const ty = fr - r0;
+      const i00 = r0 * cols + c0; const i01 = r0 * cols + c1; const i10 = r1 * cols + c0; const i11 = r1 * cols + c1;
+      let ok = true; for (const k of names) { if (Number.isNaN(pl[k][i00]) || Number.isNaN(pl[k][i01]) || Number.isNaN(pl[k][i10]) || Number.isNaN(pl[k][i11])) { ok = false; break; } }
+      if (!ok) continue;
+      for (const k of names) { const a = pl[k]; out[k][i] = (a[i00] * (1 - tx) + a[i01] * tx) * (1 - ty) + (a[i10] * (1 - tx) + a[i11] * tx) * ty; }
+    }
+  }
+  return out;
+}
+
+/** A2: ghost nodes of a mix of x and y, and of each END hour a and b, against truth m: off by more than 0.3 m (height) or 3 kn (vector). */
+export function ghostCounts(x, y, a, b, m, kind) {
+  const n = m.cols * m.rows; let k = 0; let mix = 0; let endA = 0; let endB = 0;
+  for (let i = 0; i < n; i++) {
+    if (kind === 'wind') {
+      if ([a.u[i], b.u[i], m.u[i]].some(Number.isNaN)) continue; k += 1;
+      if (Math.hypot(0.5 * (x.u[i] + y.u[i]) - m.u[i], 0.5 * (x.v[i] + y.v[i]) - m.v[i]) > 3) mix += 1;
+      if (Math.hypot(a.u[i] - m.u[i], a.v[i] - m.v[i]) > 3) endA += 1; if (Math.hypot(b.u[i] - m.u[i], b.v[i] - m.v[i]) > 3) endB += 1;
+    } else {
+      if ([a.h[i], b.h[i], m.h[i]].some(Number.isNaN)) continue; k += 1;
+      if (Math.abs(0.5 * (x.h[i] + y.h[i]) - m.h[i]) > 0.3) mix += 1;
+      if (Math.abs(a.h[i] - m.h[i]) > 0.3) endA += 1; if (Math.abs(b.h[i] - m.h[i]) > 0.3) endB += 1;
+    }
+  }
+  return { nodes: k, mix, cut: Math.min(endA, endB) };
+}
+
 const pct = (x, y) => (y > 0 ? `${(100 * x / y).toFixed(1)}%` : 'n/a');
 const f3 = (x) => (Number.isFinite(x) ? x.toFixed(3) : 'n/a');
 
@@ -207,6 +256,13 @@ async function doScore() {
         const wrongTruth = load(run, h + 3 + 48, kind); if (wrongTruth) row.n1 = score(a, b, wrongTruth);          // N1: a wrong truth
         const wrongEnd = load(run, h + 54, kind); if (wrongEnd) row.n2 = score(a, wrongEnd, m);                    // N2: a wrong blend
         row.p = score(a, a, a);                                                                                    // P: identical neighbours
+        // the advection arm: h carried forward 3 h, h+6 backward 3 h, then mixed (log section 37)
+        const aF = advect(a, kind, 3); const bB = advect(b, kind, -3);
+        row.adv = score(aF, bB, m); row.gBlend = ghostCounts(a, b, a, b, m, kind); row.gAdv = ghostCounts(aF, bB, a, b, m, kind);
+        if (wrongTruth) row.n1a = score(aF, bB, wrongTruth);
+        if (wrongEnd) row.n2a = score(aF, advect(wrongEnd, kind, -3), m);
+        row.pa = score(advect(a, kind, 0), advect(a, kind, 0), a);          // P for the arm: identical neighbours, no motion
+        row.still = score(aF, advect(a, kind, -3), a).blend;                // the arm's cost on a field that did not move (printed, not a control)
         rows.push(row);
       }
     }
@@ -231,6 +287,20 @@ async function doScore() {
     } else {
       out.retention = pool((r) => r.real.retention); out.lostHalfNodes = rows.reduce((s, r) => s + r.real.lostHalf, 0);
     }
+    // ---- the advection arm's lines (A1-A3) and its controls
+    const adv = pool((r) => r.adv.blend); const advVsBlend = rows.filter((r) => r.adv.blend < r.real.blend).length; const advVsCut = rows.filter((r) => r.adv.blend <= r.real.cut).length;
+    const sum = (get) => rows.reduce((t, r) => t + get(r), 0);
+    const G = { nodes: sum((r) => r.gBlend.nodes), blend: sum((r) => r.gBlend.mix), adv: sum((r) => r.gAdv.mix), cut: sum((r) => r.gBlend.cut) };
+    const gSignal = Math.max(G.blend, G.adv, G.cut) >= 0.01 * G.nodes;
+    const n1aRows = rows.filter((r) => r.n1a); const n1aOk = n1aRows.filter((r) => r.n1a.blend >= 2 * r.adv.blend).length; const n1a = n1aRows.length > 0 && n1aOk >= 0.9 * n1aRows.length;
+    const n2aBlend = pool((r) => (r.n2a ? r.n2a.blend : NaN)); const n2a = rows.some((r) => r.n2a) && n2aBlend > n2cut;
+    const paZero = rows.every((r) => r.pa.blend === 0 && r.pa.cut === 0);
+    out.A = { controls: { n1: n1a, n1held: n1aOk, n1triples: n1aRows.length, n2failsAsItMust: n2a, pZero: paZero }, stillFieldCost: pool((r) => r.still),
+      A1: { adv, ofBlend: adv / blend, ofCut: adv / cut, smallerThanBlendIn: advVsBlend, notWorseThanCutIn: advVsCut,
+        vsCrossFade: adv <= 0.95 * blend && advVsBlend >= 0.7 * rows.length ? 'BETTER' : adv > 1.05 * blend ? 'WORSE' : (adv >= 0.95 * blend ? 'NO DIFFERENCE' : 'smaller pooled, but not in 70% of triples: NO DIFFERENCE'),
+        ownerLine: adv <= cut && advVsCut >= 0.8 * rows.length },
+      A2: { ...G, signal: gSignal, pass: gSignal ? (G.adv <= G.blend && G.adv <= G.cut && G.blend <= G.cut) : null } };
+    if (kind === 'marine') { const ga = pool((r) => r.adv.grad.blend); out.A.A3 = { adv: ga, cut: pool((r) => r.real.grad.cut), pass: ga <= pool((r) => r.real.grad.cut) }; }
     const void1 = !n1 || !n2 || !pZero;
     out.verdict = runsSeen < 2 ? 'NOT REPORTABLE (fewer than 2 runs)' : void1 ? 'VOID (a control did not hold)' : (out.R1.pass && (kind === 'wind' || out.R2.pass) ? 'PASS' : 'FAIL');
     report.sets[name] = out;
@@ -240,7 +310,8 @@ async function doScore() {
       console.log(`N1 wrong truth: blend error at least doubled in ${n1ok} of ${n1rows.length}  -> ${n1 ? 'holds' : 'DOES NOT HOLD'}`);
       console.log(`N2 wrong blend: ${n2 ? 'fails R1, as it must' : 'PASSES R1: THE TEST CANNOT FAIL'} (over ${n2rows.length})`);
       console.log(`P identical neighbours: ${pZero ? 'exactly zero' : 'NOT ZERO'}`);
-      console.log('R1-R3 withheld (--controls-only)');
+      console.log(`advection arm: N1 held in ${n1aOk} of ${n1aRows.length} -> ${n1a ? 'holds' : 'DOES NOT HOLD'}; N2 ${n2a ? 'fails, as it must' : 'PASSES: CANNOT FAIL'}; P (no motion) ${paZero ? 'exactly zero' : 'NOT ZERO'}`);
+      console.log('R1-R3 and A1-A3 withheld (--controls-only)');
       continue;
     }
     console.log(`R1 truth: blend ${f3(blend)} ${unit}, cut ${f3(cut)} (h alone ${f3(out.R1.endA)}, h+6 alone ${f3(out.R1.endB)}) = ${pct(blend, cut)} of the cut; blend <= cut in ${wins} of ${rows.length}  -> ${r1 ? 'pass' : 'FAIL'}`);
@@ -254,6 +325,11 @@ async function doScore() {
     console.log(`N1 wrong truth: blend error at least doubled in ${n1ok} of ${n1rows.length}  -> ${n1 ? 'holds' : 'DOES NOT HOLD'}`);
     console.log(`N2 wrong blend: ${f3(n2blend)} vs cut ${f3(n2cut)} over ${n2rows.length}  -> ${n2 ? 'fails R1, as it must' : 'PASSES R1: THE TEST CANNOT FAIL'}`);
     console.log(`P identical neighbours: ${pZero ? 'exactly zero' : 'NOT ZERO'}`);
+    const unitA = kind === 'wind' ? 'kn' : 'm';
+    console.log(`A1 advection: ${f3(adv)} ${unitA} = ${pct(adv, blend)} of the cross-fade, ${pct(adv, cut)} of the cut; smaller than the cross-fade in ${advVsBlend} of ${rows.length}, not worse than the cut in ${advVsCut}  -> vs cross-fade: ${out.A.A1.vsCrossFade}; owner's line: ${out.A.A1.ownerLine ? 'pass' : 'FAIL'}`);
+    console.log(`A2 ghost nodes of ${G.nodes}: advection ${G.adv}, cross-fade ${G.blend}, hard swap ${G.cut}  -> ${out.A.A2.pass == null ? 'VOID (under 1% for every arm)' : out.A.A2.pass ? 'pass' : 'FAIL'}`);
+    if (out.A.A3) console.log(`A3 gradient error: advection ${f3(out.A.A3.adv)} vs cut ${f3(out.A.A3.cut)}  -> ${out.A.A3.pass ? 'pass' : 'FAIL'}`);
+    console.log(`   advection controls: N1 ${n1aOk} of ${n1aRows.length} ${n1a ? 'holds' : 'DOES NOT HOLD'}; N2 ${n2a ? 'fails, as it must' : 'PASSES: CANNOT FAIL'}; P ${paZero ? 'zero' : 'NOT ZERO'}; cost on a still field ${f3(out.A.stillFieldCost)} ${unitA}`);
     console.log(`VERDICT ${name}: ${out.verdict}`);
   }
   const jsonOut = opt('json'); if (jsonOut && !has('controls-only')) fs.writeFileSync(jsonOut, JSON.stringify(report, null, 1));
@@ -270,6 +346,16 @@ function selftest() {
   const sw = scoreWind(w(0), w(2), w(1));
   const ok = Math.abs(s.blend) < 1e-12 && Math.abs(s.cut - 0.2) < 1e-12 && s.grad.blend < 1e-12 && zero.blend === 0 && zero.cut === 0 && Math.abs(sw.blend) < 1e-12 && Math.abs(sw.cut - 1) < 1e-12
     && Math.abs(sw.retention - Math.hypot(4, 1) / (0.5 * (Math.hypot(3, 1) + Math.hypot(5, 1)))) < 1e-12;   // 0.998: a mix of two speeds of one direction keeps almost all
+  const id = advect(mk(0), 'marine', 0) === undefined ? false : advect(w(1), 'wind', 0).u[5] === w(1).u[5];
+  // a uniform wind field carried along itself is unchanged (nothing to move), and a still sea (no period) does not move
+  const b0 = { west: -180, south: -40, east: 180, north: 40 };
+  const uni = { cols: 181, rows: 41, bounds: b0, u: new Float64Array(181 * 41).fill(10), v: new Float64Array(181 * 41).fill(0) };
+  const carried = advect(uni, 'wind', 3); const sameUni = carried.u.every((x) => Math.abs(x - 10) < 1e-12);
+  // a ramp in longitude under a uniform wind FROM the west (u = +10 in the planes' FROM convention means motion toward -x)
+  const ramp = { cols: 181, rows: 41, bounds: b0, u: new Float64Array(181 * 41), v: new Float64Array(181 * 41).fill(0) };
+  for (let i = 0; i < ramp.u.length; i++) ramp.u[i] = 10 + 0.01 * (i % 181);
+  const moved = advect(ramp, 'wind', 3); const mid = 20 * 181 + 90; const shifted = moved.u[mid] > ramp.u[mid];   // motion toward -x: the value arrives from +x, where the ramp is larger
+  if (!(id && sameUni && shifted)) { console.log(`selftest FAILED (advect) ${JSON.stringify({ id, sameUni, shifted })}`); process.exitCode = 1; return; }
   console.log(ok ? 'selftest ok' : `selftest FAILED ${JSON.stringify({ s, zero, sw })}`);
   process.exitCode = ok ? 0 : 1;
 }
