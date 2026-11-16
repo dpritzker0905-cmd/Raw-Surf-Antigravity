@@ -125,3 +125,19 @@ def test_a_helper_mutant_that_restores_manual_fails_the_laundering_test():
     assert ns["server_conditions_source"]("manual", True) == "manual"          # the mutant launders
     with pytest.raises(AssertionError):
         assert ns["server_conditions_source"]("manual", True) == "unverified"  # ... and the real test catches it
+
+
+def test_a_bare_hint_never_relabels_a_post():
+    """Advisor (2026-11-16), for P1: once the server sets 'observed', a client must not be able to erase it by sending a
+    hint, or the same values again. Only a changed condition value recomputes the label."""
+    observed = _post(wave_height_ft=4.0, conditions_source="observed")
+    assert _update(observed, conditions_source="auto").conditions_source == "observed"               # hint alone
+    assert _update(observed, wave_height_ft=4.0, conditions_source="manual").conditions_source == "observed"  # same value
+    changed = _post(wave_height_ft=4.0, conditions_source="observed")
+    assert _update(changed, wave_height_ft=5.0, conditions_source="edited").conditions_source == "edited"
+
+
+def test_a_stored_legacy_manual_reads_as_unverified():
+    assert P.read_conditions_source("manual") == "unverified"
+    for v in ("auto", "auto_current", "edited", "unverified", "observed", None):
+        assert P.read_conditions_source(v) == v

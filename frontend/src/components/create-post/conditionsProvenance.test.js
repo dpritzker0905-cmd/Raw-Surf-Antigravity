@@ -11,7 +11,7 @@ describe('conditions provenance in the composer', () => {
   });
 
   test('an edit with no prefill keeps its claim (the server stores it as unverified)', () => {
-    expect(sourceAfterEdit('manual')).toBe('manual');
+    expect(sourceAfterEdit('unclaimed')).toBe('unclaimed');
     expect(sourceAfterEdit('unavailable')).toBe('unavailable');
   });
 
@@ -30,6 +30,11 @@ describe('conditions provenance in the composer', () => {
     const src = fs.readFileSync(path.join(__dirname, file), 'utf8');
     const handlers = src.split('\n').filter((l) => /on(Value)?Change=/.test(l) && /setConditionsSource\('manual'\)/.test(l));
     expect(handlers).toEqual([]);
+  });
+
+  test.each(['../CreatePostModal.js', '../CreatePost.js'])('%s never starts or resets the source as manual', (file) => {
+    const src = fs.readFileSync(path.join(__dirname, file), 'utf8');
+    expect(src).not.toMatch(/useState\('manual'\)|setConditionsSource\('manual'\)/);
   });
 
   test('the guard catches the old handler line', () => {

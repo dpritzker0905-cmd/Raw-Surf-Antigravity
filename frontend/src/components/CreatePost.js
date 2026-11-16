@@ -88,7 +88,7 @@ export const CreatePost = () => {
   const [tideStatus, setTideStatus] = useState('');
   const [tideHeightFt, setTideHeightFt] = useState('');
   const [conditionsLoading, setConditionsLoading] = useState(false);
-  const [conditionsSource, setConditionsSource] = useState('manual');
+  const [conditionsSource, setConditionsSource] = useState('unclaimed');   // no claim until a prefill (P0)
   const [knownSpots, setKnownSpots] = useState([]);
   const [selectedSpot, setSelectedSpot] = useState('');
   const [recentLocations, setRecentLocations] = useState([]);

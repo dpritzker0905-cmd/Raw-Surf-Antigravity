@@ -14,7 +14,7 @@ import json
 
 from database import get_db
 from core.security import get_user_id_from_jwt_or_query
-from services.conditions_provenance import has_condition_values, server_conditions_source
+from services.conditions_provenance import condition_values_differ, has_condition_values, server_conditions_source
 from models import (
     Profile, Post, PostCollaboration, Notification, SurfSpot
 )
@@ -160,7 +160,8 @@ async def update_post_session_metadata(
     if data.session_label:
         post.session_label = data.session_label
     
-    # Update conditions
+    # Update conditions. Whether a value CHANGES is read before any is written (services/conditions_provenance).
+    conditions_changed = condition_values_differ(data, post)
     if data.wave_height_ft is not None:
         post.wave_height_ft = data.wave_height_ft
     if data.wave_period_sec is not None:
@@ -173,9 +174,10 @@ async def update_post_session_metadata(
         post.tide_height_ft = data.tide_height_ft
     if data.tide_status:
         post.tide_status = data.tide_status
-    # Provenance is the server's word (services/conditions_provenance, P0 2026-11-16): the client's string is a hint,
-    # recomputed whenever the request touches conditions at all.
-    if data.conditions_source is not None or has_condition_values(data):
+    # The server decides which client claims are admissible (services/conditions_provenance, P0 2026-11-16). The label
+    # is recomputed only when a condition VALUE changes: a bare hint can never relabel a post, so it can never erase a
+    # server-set 'observed' (P1).
+    if conditions_changed:
         post.conditions_source = server_conditions_source(data.conditions_source, has_condition_values(post))
     
     await db.commit()

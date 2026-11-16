@@ -1,6 +1,6 @@
 {
   "lane": "frontend",
-  "tests": 6,
+  "tests": 8,
   "files": 1,
   "branch": "claude/conditions-provenance",
   "date": "2026-11-16",
