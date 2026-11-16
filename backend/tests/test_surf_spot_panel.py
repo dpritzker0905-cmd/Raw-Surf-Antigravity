@@ -130,3 +130,47 @@ def test_the_workflow_runs_four_times_a_day_or_on_dispatch_and_holds_no_secret()
     crons = [line.split("cron:")[1].strip().strip("'\"") for line in body.splitlines() if "cron:" in line]
     assert crons == ["17 */6 * * *"] and "cancel-in-progress: false" in body and "timeout-minutes: 12" in body
     assert "secrets." not in body and "contents: read" in body and "scripts/surf_spot_panel.py" in body
+
+
+# ── cuts asked for by the spot-class lane, and the slowest read (2026-11-16) ──────────────────────────────
+def _payload(lat, lng, off, surf, break_depth=5.9):
+    return {"point": {"speed": off, "period": 8.0, "direction": 80.0, "sampled_lat": lat, "sampled_lng": lng},
+            "surf_height_m": surf, "surf_regime": "shoaling", "break_depth_m": break_depth}
+
+
+def test_spots_sharing_a_model_cell_are_grouped_with_the_spot_only_spread():
+    inlet, beach, far = sp.PANEL[7], sp.PANEL[8], sp.PANEL[12]
+    rows = [sp.panel_row(inlet, _payload(29.0, -80.75, 1.0, 2.19, break_depth=None), None),
+            sp.panel_row(beach, _payload(29.0, -80.75, 1.0, 1.57), None),
+            sp.panel_row(far, _payload(36.25, -75.5, 1.0, 0.93, break_depth=None), None),
+            sp.panel_row(sp.PANEL[0], {"point": {"speed": 1.0}, "surf_height_m": 1.4}, None)]      # no sampled cell
+    assert rows[0]["cell"] == rows[1]["cell"] == (29.0, -80.75) and rows[3]["cell"] is None
+    (g,) = sp.shared_cells(rows)
+    assert g["cell"] == (29.0, -80.75) and [n for n, _k, _r in g["spots"]] == [inlet[0], beach[0]]
+    assert g["spread"] == round(2.19 / 1.57, 2)                           # same sea in: this is the spot alone
+    assert sp.shared_cells(rows[1:3]) == []                               # no two spots share a cell
+    text = sp.render(rows, {"panel_size": 30})
+    assert "### Spots sharing a model cell" in text and "largest over smallest" in text and "| 1.39 |" in text
+    assert "none this run" in sp.render(rows[1:3], {"panel_size": 30})
+
+
+def test_the_spots_with_no_break_depth_are_listed_every_run():
+    rows = [sp.panel_row(sp.PANEL[7], _payload(29.0, -80.75, 1.0, 2.19, break_depth=None), None),
+            sp.panel_row(sp.PANEL[8], _payload(29.0, -80.75, 1.0, 1.57), None),
+            sp.panel_row(sp.PANEL[12], _payload(36.25, -75.5, 1.0, 0.93, break_depth=None), None)]
+    assert sp.no_break_depth(rows) == sorted([sp.PANEL[7][0], sp.PANEL[12][0]])
+    text = sp.render(rows, {"panel_size": 30})
+    assert "### No break depth this run (2 of 3 read)" in text and "Duck, New Smyrna Beach - Inlet" in text
+    assert "### No break depth this run (0 of 1 read)" in sp.render(rows[1:2], {"panel_size": 30})
+
+
+def test_the_slowest_read_is_printed_so_the_threshold_can_be_checked_from_the_log():
+    slow = Backend(slow_at=3)
+    out = sp.run(BASE, NOW, get=slow, sleep=lambda s: None)
+    assert out["meta"]["slowest_read"] == "9.0 s at '%s'" % sp.PANEL[2][0] and out["rows"][2]["read_s"] == 9.0
+    quick = sp.run(BASE, NOW, get=Backend(), sleep=lambda s: None)
+    assert quick["meta"]["slowest_read"].startswith("0.5 s at ") and all(r["read_s"] == 0.5 for r in quick["rows"])
+    text = sp.render(quick["rows"], quick["meta"])
+    assert "- slowest read: 0.5 s at " in text and "(the run stops above 8 s)" in text
+    assert "- slowest read: not recorded" in sp.render([], {"panel_size": 30, "stopped": "x"})
+
