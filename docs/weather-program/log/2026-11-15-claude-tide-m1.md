@@ -392,3 +392,26 @@ changed.
   `fes2022b-v2-43879148124` (K1, 159 MB) and downloads the other 15 files.
 - Reading order is unchanged: controls first; VOID means nothing else is quoted; then item 1, the tidal-band line and
   the per-arm SA/SSA constants. The advisor reads the output before it goes to the owner.
+
+## 14:53 EST 2026-11-16 (`date`) - G2 re-run 43891805830: the runner DIED in the gate step, no G2 number exists
+- Download: 15:10:50Z -> 18:50:53Z, success (2 AVISO connections; no login refused). Both caches were saved under
+  the tag ref (`fes2022b-v2-43891805830`, `eot20-ocean-v2-43891805830`).
+- Gate step: started 18:51:26Z, never completed. GitHub's annotation: "The hosted runner lost communication with the
+  server. Anything in your workflow that terminates the runner process, starves it for CPU/Memory, or blocks its
+  network access can cause this error." The job ended 19:44:30Z.
+- **No artifact, and the incomplete step left no log lines at all** (0 lines retrievable). No score was seen, so the
+  G2 window remains unseen.
+- **Likely cause, the new part since M1:** M1's gate ran to completion in minutes, but its arm B errored at once
+  (the nested-zip bug), so this run was the first where arm B actually evaluated. `pyTMD.compute.tide_elevations`
+  re-opens and loads all 17 global EOT20 grids on every call (`chunks=None` reads them eagerly). The gate called it
+  per 200k-time chunk, per station (19-year synthesis and seasonal refits included): hundreds of full-atlas loads.
+- **Fix (plumbing; same computation):** `arms.eot20_eval` now follows pyTMD's own steps (open, crop, interp,
+  predict, infer), but opens the atlas ONCE per process and interpolates ONCE per point; prediction stays in chunks.
+  Its equality with pyTMD's one-call path and its memory are being proved on calendar 2025, public data only, on the
+  check branch (run 43943815300), before any further G2 start.
+- A third start needs the owner's word again.
+- **Equivalence proved (run 43943815300, calendar 2025, public data, check branch `da3937d1d`):**
+  - New `eot20_eval` vs pyTMD's one-call `tide_elevations`, 8760 hours: max |diff| **0.0 m** at Galveston and
+    Honolulu, for the full arm and for SA alone. Boston is undefined on both paths.
+  - Memory: peak RSS **4526 MB**, flat after the first (single) atlas load.
+  - A 19-year 10-min synthesis (999,360 times) takes **5.1 s**. The old path took ~2.4 s and a full atlas load per call.

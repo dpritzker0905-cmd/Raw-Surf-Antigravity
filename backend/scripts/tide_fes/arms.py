@@ -45,21 +45,60 @@ def fes_eval(sid_dir, lat, lng, dates, exclude=()):
     return out
 
 
+_EOT20 = {}
+
+
+def _eot20_local(root, lat, lng):
+    """EOT20's constants interpolated to one point (pyTMD's own steps: open, crop, interp; extrapolate <= 10 km).
+    The atlas is opened ONCE per process: pyTMD.compute.tide_elevations re-reads all 17 global grids on every call,
+    which G2 run 43891805830 did per 200k-time chunk, per station (19-year synthesis included) until the runner was
+    starved ("lost communication with the server", 2026-11-16 19:44Z)."""
+    import pyTMD.io
+    if "ds" not in _EOT20:
+        m = pyTMD.io.model(str(root)).from_database("EOT20")
+        _EOT20["m"], _EOT20["ds"] = m, m.open_dataset(group="z", chunks=None, append_node=False)
+    key = (round(float(lat), 6), round(float(lng), 6))
+    if key not in _EOT20:
+        ds = _EOT20["ds"]
+        X, Y = ds.tmd.coords_as(np.float64(lng), np.float64(lat))
+        sub = ds.tmd.crop([lng - 1.0, lng + 1.0, lat - 1.0, lat + 1.0], buffer=0)
+        _EOT20[key] = sub.tmd.interp(X, Y, method="linear", extrapolate=True, cutoff=10.0)
+    return _EOT20["m"], _EOT20[key]
+
+
 def eot20_eval(root, lat, lng, dates, constituents=None):
-    """Arm B. None where EOT20 has no value within 10 km. `constituents`: a subset, minors not inferred."""
-    import pyTMD.compute
-    kw = {"constituents": constituents, "infer_minor": False} if constituents else {}
+    """Arm B, exactly as pyTMD.compute.tide_elevations computes it (major constituents + inferred minors, the model's
+    nodal corrections), from constants interpolated once per point. None where EOT20 has no value within 10 km.
+    `constituents`: a subset, minors not inferred."""
+    import timescale.time  # noqa: F401 - registers timescale.from_datetime
+    import timescale
+    m, local = _eot20_local(root, lat, lng)
+    if constituents:
+        local = local.tmd.subset(constituents)
+    corr = m.corrections
     out = np.empty(len(dates))
     for i in range(0, len(dates), 200_000):
         d = dates[i:i + 200_000].astype("datetime64[ns]")
-        v = pyTMD.compute.tide_elevations(np.array([lng]), np.array([lat]), d, directory=str(root), model="EOT20",
-                                          type="time series", standard="datetime", crop=True, buffer=1.0,
-                                          extrapolate=True, cutoff=10.0, **kw)
+        ts = timescale.from_datetime(d)
+        deltat = np.zeros_like(ts.tt_ut1) if corr in ("OTIS", "ATLAS", "TMD3", "netcdf") else ts.tt_ut1
+        v = local.tmd.predict(ts.tide, deltat=deltat, corrections=corr)
+        if not constituents:
+            v = v + local.tmd.infer(ts.tide, deltat=deltat, corrections=corr, minor=m.minor)
         v = np.asarray(v, dtype=float).reshape(-1)
         if i == 0 and not np.isfinite(v[0]):
             return None
         out[i:i + len(d)] = v
     return out
+
+
+def eot20_eval_reference(root, lat, lng, dates, constituents=None):
+    """pyTMD's own one-call path (the pre-fix code), kept ONLY to prove eot20_eval equal on a short series."""
+    import pyTMD.compute
+    kw = {"constituents": constituents, "infer_minor": False} if constituents else {}
+    v = pyTMD.compute.tide_elevations(np.array([lng]), np.array([lat]), dates.astype("datetime64[ns]"), directory=str(root),
+                                      model="EOT20", type="time series", standard="datetime", crop=True, buffer=1.0,
+                                      extrapolate=True, cutoff=10.0, **kw)
+    return np.asarray(v, dtype=float).reshape(-1)
 
 
 def fit_seasonal(times, vals, k):
