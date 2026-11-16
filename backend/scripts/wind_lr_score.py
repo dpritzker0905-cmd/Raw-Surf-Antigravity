@@ -1,12 +1,14 @@
 """wind_lr_score.py - score the long-range wind hindcast against the PRE-REGISTERED gate. Serves nothing.
 
-Gate: docs/weather-program/log/2026-11-15-wind-long-range.md, 21:45Z (+ amendment 23:30Z). Every PASS line is read
-on the TEST half (runs on EVEN day-of-month); the FIT half (ODD days) only fits the de-bias factor k per lead bin and
-the GEFS gust factor. Paired differences on identical (station, run, lead) rows; day-block bootstrap over valid-time
-UTC dates, 2000 resamples, seed 20261115, 95% percentile interval.
+Gate: docs/weather-program/log/2026-11-15-wind-long-range.md, 21:45Z + amendments 1-4. Every PASS line is read on the
+TEST block (runs started in October 2026); the FIT block (runs started 09-01..09-24, amendment 4) only fits the
+non-primary de-bias factor k and the GEFS/AIFS gust factors. P1 and P2 share ONE row set (amendment 4). Day-block
+bootstrap over valid-time UTC dates (1-day blocks decide; 5-day blocks are reported, and a line that passes at 1 day
+but fails at 5 is labelled FRAGILE), 2000 resamples, seed 20261115, 95% percentile interval. VOID controls: C2
+(seeded +1 m/s), C3 (stations shuffled), C4 (+48 h time shift); C1 is reported only (amendment 4).
 
 The pure scoring functions (`bins_of`, `day_block_ci`, `metrics`, `verdict`) are unit-tested on synthetic rows
-(tests/test_wind_lr_score.py), including both controls.
+(tests/test_wind_lr_score.py), including every control.
 """
 import csv
 import json
@@ -47,10 +49,19 @@ def bins_of(leads) -> List[Optional[str]]:
     return [bin_of(L) for L in leads]
 
 
-def day_block_ci(diff: np.ndarray, days: np.ndarray, reps: int = REPS, seed: int = SEED):
-    """(mean, lo, hi) of the mean of `diff` with whole valid-days resampled. NaN rows dropped."""
+def _block_ids(days: np.ndarray, block_days: int) -> np.ndarray:
+    """Valid-date strings (YYYYMMDD) -> block ids of `block_days` consecutive calendar days."""
+    if block_days <= 1:
+        return days
+    ords = np.array([datetime.strptime(str(d), "%Y%m%d").toordinal() if len(str(d)) == 8 else int(d) for d in days])
+    return ords // int(block_days)
+
+
+def day_block_ci(diff: np.ndarray, days: np.ndarray, reps: int = REPS, seed: int = SEED, block_days: int = 1):
+    """(mean, lo, hi) of the mean of `diff` with whole valid-days (or `block_days`-day blocks) resampled. NaN rows
+    dropped."""
     ok = np.isfinite(diff)
-    diff, days = diff[ok], days[ok]
+    diff, days = diff[ok], _block_ids(np.asarray(days)[ok], block_days) if ok.any() else np.asarray(days)[ok]
     if diff.size == 0:
         return (float("nan"),) * 3
     uniq, inv = np.unique(days, return_inverse=True)
@@ -72,7 +83,8 @@ def errors(fc_u, fc_v, fc_spd, fc_gust, ob_spd, ob_dir, ob_gust):
     ob_v = -ob_spd * np.cos(np.radians(ob_dir))
     _, fdir = ec.to_speed_dir(fc_u, fc_v)
     dir_err = np.where(ob_spd >= 3.0, circ_diff(fdir, ob_dir), np.nan)
-    return {"ae": np.abs(fc_spd - ob_spd), "err": fc_spd - ob_spd,
+    return {"fs": np.asarray(fc_spd, dtype=float), "os": np.asarray(ob_spd, dtype=float),
+            "ae": np.abs(fc_spd - ob_spd), "err": fc_spd - ob_spd,
             "vsq": (fc_u - ob_u) ** 2 + (fc_v - ob_v) ** 2, "dae": dir_err,
             "gae": np.abs(fc_gust - ob_gust), "gerr": fc_gust - ob_gust}
 
@@ -83,7 +95,15 @@ def metrics(e: Dict[str, np.ndarray], mask: np.ndarray) -> dict:
         return float(x.mean()) if x.size else float("nan"), int(x.size)
     ae, n = m(e["ae"])
     vs, _ = m(e["vsq"])
+    sd_ratio, top_bias = float("nan"), float("nan")
+    if "fs" in e and "os" in e:
+        ok = mask & np.isfinite(e["fs"]) & np.isfinite(e["os"])
+        if ok.sum() > 2 and np.std(e["os"][ok]) > 0:
+            sd_ratio = float(np.std(e["fs"][ok]) / np.std(e["os"][ok]))     # < 1: the forecast is too smooth
+            top = ok & (e["os"] >= np.percentile(e["os"][ok], 100 * 2 / 3))
+            top_bias = float(np.mean(e["fs"][top] - e["os"][top])) if top.any() else float("nan")
     return {"speed_mae": ae, "n": n, "speed_bias": m(e["err"])[0], "vector_rmse": math.sqrt(vs) if vs == vs else vs,
+            "sd_ratio": sd_ratio, "bias_top_third_obs": top_bias,
             "dir_mae_ge3": m(e["dae"])[0], "n_dir": m(e["dae"])[1], "gust_mae": m(e["gae"])[0],
             "gust_bias": m(e["gerr"])[0], "n_gust": m(e["gae"])[1]}
 
@@ -93,25 +113,49 @@ def paired(ea, eb, key, mask, days):
     return day_block_ci(np.where(mask, d, np.nan), days)
 
 
+def _line(ea, eb, key, mask, days, value_key):
+    """A PASS line: 1-day blocks decide; 5-day blocks reported; FRAGILE when it passes at 1 day but not at 5."""
+    d = np.where(mask, ea[key] - eb[key], np.nan)
+    n = int(np.isfinite(d).sum())
+    m, lo, hi = day_block_ci(d, days)
+    _m5, lo5, hi5 = day_block_ci(d, days, block_days=5)
+    passed = bool(hi < 0)
+    return {value_key: m, "ci": [lo, hi], "ci_5day": [lo5, hi5], "n": n, "pass": passed,
+            "fragile": bool(passed and not hi5 < 0)}
+
+
 def verdict(rows: dict, chosen: str, seam: dict) -> dict:
-    """Apply P1-P4, R1, C1, C2 to the error columns in `rows` (TEST half only)."""
+    """Apply P1-P5, R1, C2-C4 (+ reported C1) to the error columns in `rows` (TEST block only)."""
     E, days, b = rows["E"], rows["days"], rows["bin"]
     out = {"chosen": chosen, "lines": {}}
     ok_all = True
     for name in BINS:
         mask = b == name
-        for comp, line in (("loop", "P1"), ("gfs_standin", "P2")):
-            m, lo, hi = paired(E[chosen], E[comp], "ae", mask, days)
-            passed = hi < 0
-            out["lines"][f"{line}_{name}"] = {"diff_mae": m, "ci": [lo, hi], "pass": passed}
-            ok_all &= passed
+        # R1 first: the SKILL line (amendment 4); P1/P2 are easy for any smooth field
         m, lo, hi = paired(E[chosen], E["climatology"], "ae", mask, days)
         out["lines"][f"R1_{name}"] = {"diff_mae_vs_clim": m, "ci": [lo, hi],
                                       "label": "skill" if hi < 0 else "low skill"}
-        # C1: shifted +48 h vs climatology at the same (shifted) obs rows: point estimate must be worse
+        # P1 and P2 on ONE row set: chosen, loop and gfs_standin all present (amendment 4)
+        common = mask & np.isfinite(E[chosen]["ae"]) & np.isfinite(E["loop"]["ae"]) & np.isfinite(E["gfs_standin"]["ae"])
+        for comp, line in (("loop", "P1"), ("gfs_standin", "P2")):
+            out["lines"][f"{line}_{name}"] = _line(E[chosen], E[comp], "ae", common, days, "diff_mae")
+            ok_all &= out["lines"][f"{line}_{name}"]["pass"]
+        assert out["lines"][f"P1_{name}"]["n"] == out["lines"][f"P2_{name}"]["n"], "P1/P2 row sets differ"
+        # C1 REPORTED only (amendment 4): shifted +48 h vs climatology
         sh = rows["E_shift"][name]
-        c1 = sh["shift_mae"] > sh["clim_mae"]
-        out["lines"][f"C1_{name}"] = {**sh, "pass": c1}
+        out["lines"][f"R_C1_{name}"] = {**sh, "shift_loses_to_clim": bool(sh["shift_mae"] > sh["clim_mae"]),
+                                         "reported_only": True}
+        # C3 VOID control: stations shuffled within (run, lead) must be WORSE (CI lower > 0)
+        if "ae_shuffled" in rows:
+            d3 = np.where(mask, rows["ae_shuffled"] - E[chosen]["ae"], np.nan)
+            m3, lo3, hi3 = day_block_ci(d3, days)
+            out["lines"][f"C3_{name}"] = {"diff_mae_shuffled": m3, "ci": [lo3, hi3], "pass": bool(lo3 > 0)}
+        # C4 VOID control: the +48 h shifted arm must NOT be significantly better than unshifted
+        if "ae_shift48" in rows:
+            d4 = np.where(mask, rows["ae_shift48"] - E[chosen]["ae"], np.nan)
+            m4, lo4, hi4 = day_block_ci(d4, days)
+            out["lines"][f"C4_{name}"] = {"diff_mae_shift48": m4, "ci": [lo4, hi4], "n": int(np.isfinite(d4).sum()),
+                                          "pass": not bool(hi4 < 0)}
         # C2: a seeded +1 m/s speed bias must be found: bias difference CI contains 1.0 and excludes 0
         seeded = dict(E[chosen], err=E[chosen]["err"] + 1.0)
         m2, lo2, hi2 = paired(seeded, E[chosen], "err", mask, days)
@@ -124,16 +168,15 @@ def verdict(rows: dict, chosen: str, seam: dict) -> dict:
         out["lines"][f"D_C2_noisy_{name}"] = {"bias_diff": md, "ci": [lod, hid], "found": bool(lod > 0 and lod <= 1.0 <= hid),
                                               "reported_only": True}
     allmask = np.isin(b, list(BINS))
-    m, lo, hi = paired(E[chosen], E["loop"], "gae", allmask, days)
-    out["lines"]["P3_gust_pooled"] = {"diff_gust_mae": m, "ci": [lo, hi], "pass": hi < 0}
-    ok_all &= hi < 0
+    out["lines"]["P3_gust_pooled"] = _line(E[chosen], E["loop"], "gae", allmask, days, "diff_gust_mae")
+    ok_all &= out["lines"]["P3_gust_pooled"]["pass"]
     # P5 gust peak (amendment 2): Brier for gust >= 15 m/s vs loop AND gfs_standin, pooled; UNDERPOWERED < 30 events
     n_ev = int(rows.get("n_events", 0))
     p5 = {}
     for comp in ("loop", "gfs_standin"):
         if "brier" in E[chosen] and "brier" in E[comp]:
-            mb, lb, hb = paired(E[chosen], E[comp], "brier", allmask, days)
-            p5[comp] = {"diff_brier": mb, "ci": [lb, hb], "beats": hb < 0}
+            ln = _line(E[chosen], E[comp], "brier", allmask, days, "diff_brier")
+            p5[comp] = dict(ln, beats=ln["pass"])
     if n_ev < EVENTS_MIN:
         out["lines"]["P5_gust_peak"] = {"vs": p5, "n_events": n_ev, "pass": True, "status": "UNDERPOWERED (not blocking)"}
     else:
@@ -143,9 +186,12 @@ def verdict(rows: dict, chosen: str, seam: dict) -> dict:
     p4 = seam.get("seam_p95", float("nan")) <= seam.get("within_p95", float("nan"))
     out["lines"]["P4_seam_euro"] = {**seam, "pass": bool(p4)}
     ok_all &= bool(p4)
-    controls_ok = all(v["pass"] for k, v in out["lines"].items() if k.startswith(("C1_", "C2_")))
+    controls_ok = all(v["pass"] for k, v in out["lines"].items() if k.startswith(("C2_", "C3_", "C4_")))
     out["controls_ok"] = controls_ok
     out["verdict"] = "VOID" if not controls_ok else ("PASS" if ok_all else "FAIL")
+    out["fragile_lines"] = sorted(k for k, v in out["lines"].items() if isinstance(v, dict) and v.get("fragile"))
+    if out["verdict"] == "PASS" and out["fragile_lines"]:
+        out["verdict_label"] = "PASS (FRAGILE: " + ", ".join(out["fragile_lines"]) + ")"
     out["note"] = "P4 is the EURO seam only; the ICON seam is read forward on >= 10 live runs (pre-registered)."
     return out
 
@@ -255,7 +301,7 @@ def main_score(session, cache, stations, out_dir) -> int:
     run_dir = os.path.join(cache, "runs")
     runs = sorted(f for f in os.listdir(run_dir) if f.endswith(".npz"))
     # amendment 2: contiguous blocks, FIT = runs started in September, TEST = October
-    fit_runs = [r for r in runs if r[4:6] == "09"]
+    fit_runs = [r for r in runs if r[4:6] == "09" and int(r[6:8]) <= 24]   # amendment 4: no shared observations
     test_runs = [r for r in runs if r[4:6] == "10"]
     dropped = sorted(f.split(".")[0] for f in os.listdir(run_dir) if f.endswith((".failed.json", ".missing.json")))
 
@@ -294,6 +340,7 @@ def main_score(session, cache, stations, out_dir) -> int:
     # C1 is recorded for BOTH ENS arms; the chosen arm's rows are read once the arm is chosen (fix 2026-11-16 00:20Z:
     # it always read the raw arm)
     shift = {arm: {b: {"shift": [], "clim": []} for b in BINS} for arm in ("ens_mean_raw", "ens_mean_debias")}
+    shift_rows = {arm: [] for arm in shift}        # per row, aligned with meta (C4, amendment 4)
     seam_raw, seam_deb, within_d = [], [], []
     def _lagged(run_dt, lag):
         fn_l = f"{run_dt - timedelta(hours=lag):%Y%m%d%H}.npz"
@@ -324,6 +371,8 @@ def main_score(session, cache, stations, out_dir) -> int:
                 V2 = V + timedelta(hours=48)
                 w2 = obs.wind_at(st_obs[i], V2)
                 c2 = clim[i].get(V2)
+                for arm in shift:
+                    shift_rows[arm].append(abs(float(af[arm][2][i]) - w2[0]) if w2 else float("nan"))
                 if w2 and c2:
                     for arm in shift:
                         shift[arm][bin_of(L)]["shift"].append(abs(float(af[arm][2][i]) - w2[0]))
@@ -360,7 +409,18 @@ def main_score(session, cache, stations, out_dir) -> int:
     for a in ARMS:
         E[a]["brier"] = (np.array(cols[a]["p"], dtype=float) - oev) ** 2
     n_events = int(np.nansum(oev))
-    rows = {"E": E, "days": days, "bin": bins, "E_shift": E_shift, "n_events": n_events}
+    # C3: observations permuted across stations within each (run, lead), seeded (amendment 4)
+    rng = np.random.default_rng(SEED + 3)
+    perm = np.arange(len(days))
+    groups: dict = {}
+    for n_, key in enumerate(zip(meta["run"], meta["lead"])):
+        groups.setdefault(key, []).append(n_)
+    for idx in groups.values():
+        idx = np.asarray(idx)
+        perm[idx] = idx[rng.permutation(len(idx))]
+    fs_chosen = np.array(cols[chosen]["s"], dtype=float)
+    rows = {"E": E, "days": days, "bin": bins, "E_shift": E_shift, "n_events": n_events,
+            "ae_shuffled": np.abs(fs_chosen - os_[perm]), "ae_shift48": np.array(shift_rows[chosen], dtype=float)}
     rep = verdict(rows, chosen, seam)
     n_ndbc = sum(1 for s in stations if s["kind"] == "ndbc")
     n_asos = len(stations) - n_ndbc

@@ -74,7 +74,7 @@ def test_main_score_runs_end_to_end(tmp_path):
     out = os.path.join(cache, "report")
     assert S.main_score(None, cache, stations, out) == 0
     rep = json.load(open(os.path.join(out, "report.json")))
-    assert rep["fit_runs"] == 2 and rep["test_runs"] == 4
+    assert rep["fit_runs"] == 2 and rep["test_runs"] == 4          # 09-15 runs are inside the 09-01..09-24 fit block
     assert rep["verdict"] == "VOID" and rep["void_reasons"]          # 2 stations / 2 test runs: VOID, never PASS
     assert set(rep["metrics"]["pooled"]["B1_180_216"]) == set(S.ARMS)
     assert rep["metrics"]["pooled"]["B2_216_264"]["ens_mean_raw"]["n"] > 0
@@ -83,6 +83,8 @@ def test_main_score_runs_end_to_end(tmp_path):
         assert rep["metrics"]["pooled"]["B1_180_216"][arm]["n"] > 0, arm
         assert "vs_loop_B2_216_264" in rep["reported_arms"][arm]
     assert "P5_gust_peak" in rep["lines"] and "aifs_ens_mean" in rep["csi_ge15"]
+    assert all(f"C3_{b}" in rep["lines"] and f"C4_{b}" in rep["lines"] and f"R_C1_{b}" in rep["lines"] for b in S.BINS)
+    assert rep["lines"]["P1_B2_216_264"]["n"] == rep["lines"]["P2_B2_216_264"]["n"]
     assert set(rep["debias_by_network"]) == {f"{n}_{b}" for n in ("asos", "ndbc") for b in S.BINS}
     assert rep["metrics"]["pooled"]["B3_264_336"]["aifs_ens_mean"]["n"] > 0
     assert rep["metrics"]["pooled"]["B1_180_216"]["climatology"]["n"] > 0

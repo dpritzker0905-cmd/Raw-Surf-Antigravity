@@ -387,3 +387,14 @@ would be a forking path. Changed before, it is a design correction, and it is re
    #946 merges, because each push queued up to 24 shards and the Actions queue was backed up. The hindcast is
    dispatched once from `dev` after the merge.
 8. The loop rebuilt from HRES stays a declared proxy (advisor: fine).
+
+## 2026-11-16 02:40Z Amendment 4 implemented (on #946)
+
+- `wind_lr_score.py`: fit block 09-01..09-24; R1 reported first; P1/P2 on ONE row set (asserted, n on every line);
+  every PASS line with 1-day (deciding) and 5-day blocks, `fragile` flag and `verdict_label` "PASS (FRAGILE: ...)";
+  C1 -> `R_C1_*` reported; VOID controls C2, C3 (stations permuted within each (run, lead), seed 20261118, CI lower
+  > 0) and C4 (+48 h shifted minus unshifted, per row, must not have CI upper < 0); `sd_ratio` and
+  `bias_top_third_obs` per arm and bin. Header fixed (it said odd/even).
+- `wind-lr-hindcast.yml`: dispatch-only. The hindcast is dispatched once from dev after #946 merges.
+- Tests: 31 instrument tests (C3 pass/void, C4 pass/void, C1 reported, shared P1/P2 rows, FRAGILE under
+  persistent errors, sd ratio and top-third bias on a smoothed field).
