@@ -12,6 +12,7 @@ import json
 import math
 import os
 import re
+import sys
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
@@ -22,7 +23,12 @@ NDBC = "https://www.ndbc.noaa.gov"
 IEM = "https://mesonet.agron.iastate.edu"
 GFS_BASE = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
 Z0 = 2e-4
-KT = 0.514444
+# knots -> m/s: read surf_rating's constant as an ATTRIBUTE (tests/test_wind_unit_constant_parity.py), never a copy
+try:
+    from services.weather_pipeline import surf_rating as SR
+except ImportError:  # run by path from backend/scripts
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from services.weather_pipeline import surf_rating as SR
 ASOS_CAP = 60
 # Amendment 2: coverage is measured where NDBC truth exists for the TEST half (realtime2 from 10-02; Sep unpublished)
 COVER = (datetime(2026, 10, 2, tzinfo=timezone.utc), datetime(2026, 11, 14, tzinfo=timezone.utc))
@@ -179,7 +185,7 @@ def parse_iem_csv(text: str) -> Dict[datetime, Tuple[float, float, float]]:
                 return float(rec.get(k, "M")) * scale
             except ValueError:
                 return float("nan")
-        out[t] = (f("sknt", KT), f("gust", KT), f("drct"))
+        out[t] = (f("sknt", SR.KT_TO_MS), f("gust", SR.KT_TO_MS), f("drct"))
     return out
 
 
