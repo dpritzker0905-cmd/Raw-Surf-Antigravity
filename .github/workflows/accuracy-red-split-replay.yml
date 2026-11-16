@@ -13,6 +13,11 @@
 name: Accuracy RED Split Replay
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: "v1 (the 2026-11-15 registration) or v2 (rule 1 on CHANGE, rule 2 on the named holes; 2026-11-16)"
+        required: false
+        default: "v1"
 permissions:
   contents: read
 concurrency:
@@ -31,6 +36,11 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          VERSION: ${{ github.event.inputs.version || 'v1' }}
         run: |
           set -o pipefail
-          python3 scripts/accuracy_red_split_replay.py
+          case "$VERSION" in
+            v1) python3 scripts/accuracy_red_split_replay.py ;;
+            v2) python3 scripts/accuracy_red_split_replay_v2.py ;;
+            *) echo "version must be v1 or v2"; exit 2 ;;
+          esac

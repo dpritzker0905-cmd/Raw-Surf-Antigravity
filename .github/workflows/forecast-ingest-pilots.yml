@@ -207,6 +207,10 @@ jobs:
           # 320 (was 240, 2026-10-26): a cycle re-bakes every tail product (new identity), and at run + 348 h (D-053) that is
           # 232 a run (ICON 64 x waves/swell_1/wind_waves + EURO 40 waves); 240 left 8 spare.
           FRAME_TAIL_DOWNLOAD_MAX: ${{ vars.FRAME_TAIL_DOWNLOAD_MAX || '320' }}
+          # ON (2026-11-15, services/frame_set_tail_stale.py): a tail product on this disk from ANOTHER run than the manifest names
+          # (restored by a pilots job that reads it, before the core lane re-baked it) is re-downloaded instead of refused as
+          # stale_local, inside FRAME_TAIL_DOWNLOAD_MAX. Kill: FRAME_TAIL_REFETCH_STALE=0.
+          FRAME_TAIL_REFETCH_STALE: ${{ vars.FRAME_TAIL_REFETCH_STALE || '1' }}
           # The EURO/ICON world sets with the targeted Gulf fill baked in (services/frame_set_fill.py) publish only while the mode
           # read from these two is 'targeted', the way the box reads them. Keep them EQUAL to the Render env (the box's mode): the
           # client serves a filled set only while /capabilities reports the same mode, so a mismatch costs speed, never a number.
