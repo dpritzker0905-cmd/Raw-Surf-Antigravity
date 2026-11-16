@@ -46,7 +46,7 @@ def test_a_hole_episode_with_no_chain_regression_passes():
     _dd, _ch, res, verdict = _default()
     assert verdict == "PASS", res
     assert not res["P1_rule1_on_episode"]
-    assert len(res["P2_full_days"][0.08]) == res["n_full"] == 7           # amendment 1a: every fully seeded day
+    assert res["n_full"] == 7 and len(res["P2_full_days"][0.08]) >= res["n_full"] - 1   # amendment 1b: all but one
     assert len(res["P3_rule2_on_episode"]) >= R.P3_MIN
 
 
@@ -94,4 +94,5 @@ def test_the_reported_lines_are_present():
     dd, ch, res, verdict = _default()
     text = "\n".join(R.lines_for(dd, ch, res, verdict))
     assert "UNSEEDED pre-episode" in text and "key-consistent null" in text and "first fire" in text
+    assert "partial-window days" in text and "need all but one" in text
     assert set(res["null_key_consistent"]) == {1, 2, 3}

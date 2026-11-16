@@ -187,7 +187,7 @@ def checks(idx):
            "P3_rule2_on_episode": fired_rule(2, *EPISODE),
            "null_pages_per_30d": rates, "n_test": len(test_days),
            "basis_change_p99": float(np.percentile(basis_ch, 99)), "basis_null_p99": float(np.percentile(basis_null, 99))}
-    ok = (not res["P1_rule1_on_episode"] and len(res["P2_full_days"][SEEDS[0]]) == len(full_days)
+    ok = (not res["P1_rule1_on_episode"] and len(res["P2_full_days"][SEEDS[0]]) >= len(full_days) - 1   # 1b: all but one
           and len(res["P3_rule2_on_episode"]) >= P3_MIN and all(v <= NULL_MAX_PAGES_30D for v in rates.values()))
     return dd, ch, res, ("PASS" if ok else "FAIL")
 
@@ -213,8 +213,10 @@ def lines_for(dd, ch, res, verdict):
     s0, s1 = SEEDS
     out += ["-- checks",
             "  P1  rule 1 v2 on the unseeded episode: fired on %s" % (res["P1_rule1_on_episode"] or "none"),
-            "  P2' +%.2f m seeded from %s: rule 1 v2 fired on %d of %d fully seeded days %s..%s (need all, amendment 1a)"
+            "  P2' +%.2f m seeded from %s: rule 1 v2 fired on %d of %d fully seeded days %s..%s (need all but one, 1b)"
             % (s0, SEED_FROM, len(res["P2_full_days"][s0]), res["n_full"], FULL_SEED[0], FULL_SEED[1]),
+            "      diagnostic, partial-window days 11-01..11-07 fired: %s" % (
+                [d for d in res["P2_seeded"][s0] if d < FULL_SEED[0]] or "none"),
             "      reported: %d of %d test days (the original >= %d line); first fire %s"
             % (len(res["P2_seeded"][s0]), res["n_test"], P2_MIN, (res["P2_seeded"][s0] or ["none"])[0]),
             "      sensitivity +%.2f m: %d of %d fully seeded days, %d of %d test days; first fire %s"

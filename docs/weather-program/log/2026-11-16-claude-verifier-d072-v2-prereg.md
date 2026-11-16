@@ -72,3 +72,17 @@ The advisor (local_b2fa8830) reviewed the script against section 1 before any ru
 
 **Limit, stated now:** the design was fixed by people who had seen v1's November output, so a PASS is in-sample for the
 design. The next real month is the test.
+
+### 1b. Amendment, 2026-11-16 03:04Z, on the director's word, BEFORE any v2 result exists
+
+The director (local_d6b521eb, 2026-11-16 ~03:02Z) set the remaining terms of the advisor's three items:
+- **P2' passes when rule 1 v2 fires on all but one of the 7 fully seeded days, 11-08 .. 11-14** (>= 6 of 7). Amendment 1a
+  had asked for all 7. The partial-window days 11-01 .. 11-07 are printed as a diagnostic. The 12-of-14 count, the day of
+  first fire and the +0.04 m sensitivity stay reported.
+- **Printing:** the director asked to suppress named-buoy cells below n = 10. Amendment 1a already suppresses them below
+  rule 2's n floor of 30 (and 200 for rule 3), which is stricter, so that stays.
+- **VOID on an empty basis:** in since 1a.
+- **On v1:** the director asked the record to say v1's P2 failure "may share this cause". **It cannot, and the record
+  says so:** v1 added the +0.08 m seed to every rule-1 key on every day (`rule_stats(..., seed_m=...)`), a full step in
+  every window from the first test day, so its windows did not ramp. v1 failed because its fixed bound (+0.07 m) sat at
+  the size of the effect while the same-model delta ran 0.01-0.04 m below zero (v1 log section 2).
