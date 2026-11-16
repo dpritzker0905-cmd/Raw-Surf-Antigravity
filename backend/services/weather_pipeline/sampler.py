@@ -55,7 +55,11 @@ def resolution_or_none(grid):
 # lane (raw_surf:GFS_SCALAR) was the only one graded. The scalar is one-sided upward while ICON already leans high, so
 # EURO and ICON each join only after their own shadow lane (raw_surf:EURO_SCALAR / ICON_SCALAR, skill_scalar_lanes.py,
 # armed by SAMPLER_SCALAR_LEDGER_MODELS) has been read.
-SCALAR_HEIGHT_MODELS_DEFAULT = "GFS"
+# EURO JOINS (D-073, owner 2026-11-01: "flip euro"; rebased 2026-11-15). Paired evidence: the scalar equals the heat map's
+# own value in 100% of 14,104 EURO samples, while the vector read > 5% below it in 22%; NDBC on the 0.25-deg tier (59% of
+# spots) MAE 0.169 -> 0.158 m; the 2-deg tier at coastal buoys +0.004 m (n=100). The raw_surf:EURO_SCALAR read is the
+# gate before this merges. ICON waits for raw_surf:ICON_SCALAR.
+SCALAR_HEIGHT_MODELS_DEFAULT = "GFS,EURO"
 
 
 def scalar_marine_height_enabled(domain: str, model: Optional[str] = None) -> bool:
