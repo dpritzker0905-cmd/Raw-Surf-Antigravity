@@ -461,3 +461,81 @@ Known limits:
 - AWS 503 SlowDown is intermittent. The lane uses backoff, caps at 12 shards and logs 503s per shard.
 
 Run: `wind-lr-hindcast.yml` on `claude/wind-ens-extension` (d31e8f964).
+
+## 00:32Z Per-spot surf transform for every spot worldwide (David 19:27 EST: "we need the surf estimates fixed too, the researcher needs to research how to do this for each surf spot worldwide")
+
+**What the chain does today** (`surf_transform.estimate_surf`, read at dev `02a5c5cb1`). Offshore bulk Hs/Tp:
+1. shelf friction (`SHELF_CF_SCALE_DEFAULT = 0.0`, so OFF);
+2. **Komar & Gaughan breaker height, ON by default** (`SURF_V3_KOMAR`; capped at 2x Hs);
+3. exposure factor;
+4. one global refraction constant Kr 0.797;
+5. per-segment magnet factor;
+6. H1/10 x1.27;
+7. depth cap gamma x break depth.
+
+**Measured at the St. Augustine point** (code functions run offline on the live read's inputs):
+- Komar turns 1.12 m at 7.28 s into a 1.48 m breaker (x1.32).
+- Friction factor exactly 1.0.
+- Without Komar the chain gives about 1.1 m (3.6 ft).
+- So Komar is about HALF the excess over the owner's < 0.6 m. The rest is missing dissipation for short-period seas
+  on gentle beaches, and H1/10 applied to wind sea.
+- The buoy says Hs 1.4 m, and the owner says < 0.6 m, which implies an observed surf/offshore ratio near 0.4. No term
+  in today's chain can produce that.
+- Reviewers split: SubQ calls Komar the "likely main cause" (0.99); Reflection calls it major but not sufficient. The
+  arithmetic sides with Reflection.
+
+**Literature.**
+- Breaker formulas are slope- and steepness-dependent. Most were fitted on lab or plane beaches
+  ([Rattanapitikon 2000](https://consensus.app/papers/details/w:d03a233d-d579-41eb-a0e9-63718b701648/?utm_source=claude_code),
+  24 formulas, 574 cases;
+  [Zhang 2021](https://consensus.app/papers/details/w:1c05faf3-5792-4c44-ac84-ba94be97ca83/?utm_source=claude_code):
+  breaker index depends on offshore steepness and kh, 19% lower error).
+- A slope-dependent breaking coefficient corrects shelf over-dissipation
+  ([Pezerat 2020](https://consensus.app/papers/details/w:39744fde-eac2-441e-9e43-61ab38ff5c96/?utm_source=claude_code)).
+- Scalable method: hybrid downscaling per spectral PARTITION with lookups
+  ([HyWaves 2023](https://consensus.app/papers/details/w:0f3a5e6c-6ddf-401a-aed2-74f7ae5d3626/?utm_source=claude_code)),
+  with fast offshore-to-nearshore runs applicable on open coasts worldwide
+  ([SnapWave 2025](https://consensus.app/papers/details/w:24e13b0d-1e62-404c-af1d-d632a040a840/?utm_source=claude_code)).
+  CDIP MOP is the regional precedent.
+- Surf-break classes (headland/point, beach, river or estuary bar, reef, ledge) and spot attributes (bottom type,
+  break type, optimal swell direction) appear in
+  [Scarfe 2009](https://consensus.app/papers/details/w:ab69226f-bc8f-49b1-b918-cd67c590eca0/?utm_source=claude_code)
+  and [Boque-Ciurana 2020](https://consensus.app/papers/details/w:009ae9e5-563c-4188-9bf8-ed8ffdbcd644/?utm_source=claude_code)
+  (which also uses citizen-science session data).
+
+**Ranked plan** (SubQ: order right 0.95; partition K is SOTA 0.996; double-count risk real 0.998; ETOPO alone enough
+0.01; hierarchical needed 0.998; held-out spots 0.997. Reflection reordered: ablation first, classes before K,
+pooling last).
+1. **S0 ablation, now and offline.** Switch each factor (Komar, exposure, Kr, magnet, H1/10, cap) off and on
+   separately, plus an all-off pass-through, per coast type.
+   - Truth: nearshore buoys for forcing; FRF Duck and owner observations for breaking.
+   - Also test the H1 period choice (mean or wind-sea partition vs peak).
+   - Report per-factor contributions with CIs. This decides which multipliers survive.
+2. **S1 classify every spot.** Beach (dissipative / intermediate / reflective by nearshore slope, Iribarren),
+   point/headland, reef, inlet/jetty, river mouth, from catalogue tags, OSM (breakwater, groyne, reef, river mouth)
+   and ETOPO slope. Cheap. Every later step needs it, and it gives a per-class first-order factor.
+3. **S2 per-spot spectral transfer K(direction, period)**, precomputed offline (SnapWave-type, or MOP-style backward
+   ray tracing) to a break-depth contour.
+   - Applied per model PARTITION (swell_1, swell_2, wind sea) and energy-summed.
+   - Where K exists, the global exposure factor and Kr 0.797 are switched OFF, to avoid double-counting refraction.
+   - Bathymetry: national high-resolution where open (NOAA CUDEM in the US, EMODnet in Europe, AusSeabed), ETOPO
+     elsewhere. Reef, point and sandbar spots keep a class correction, because ETOPO cannot resolve them.
+4. **S3 hierarchical partial-pooling correction** of served/observed by class and region, LAST. Only on
+   independently validated truth, with uncertainty reported (a range, not a point). It is never fitted to sparse
+   owner observations alone.
+
+**Gate, every stage.**
+- Held-out SPOTS (leave-one-spot-out or regional blocks), by class and region.
+- Negative control: shuffled class labels give no gain. Positive control: a seeded x1.3 is recovered.
+- No class may get worse.
+- Breaking truth and forcing truth are kept separate.
+
+**Chain changes (ONE FORECAST COMPOSITION).**
+- `surf_point.resolve_surf_geometry` gains `spot_class` and a K-table key (a new offline asset).
+- `estimate_surf` takes partitions where available and applies K instead of exposure x Kr.
+- The class factor applies once, before `publish_surf_height`.
+- `compute_surf_rating` is unchanged.
+- Each step is a served change: D-065 flag default ON with a kill switch, a SCOREBOARD row, and the history filter.
+
+**Pending.** The helper's ASK 4 (Surfline LOTUS, Stormglass, MOP, NWPS and global methods): to be added when it
+returns.
