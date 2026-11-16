@@ -145,3 +145,12 @@ server-verified photo evidence before XP ever becomes redeemable.
 statement-level BEFORE TRUNCATE trigger; the docstring says exactly what remains (an owner acting outside the app
 could drop the triggers). Owed after deploy: UPDATE, DELETE and TRUNCATE each attempted in a rolled-back
 transaction must raise. Pushed as a merge of #980's branch (no history rewrite).
+
+## 19:10Z Anchors B built locally (stacked on anchors A): admin API + append-only admin action log
+
+`/api/admin/surf-truth/anchors` (list, with 30-day observation counts), `.../anchors/{profile_id}/status` (status +
+required reason; writes the anchor event log AND the admin action log in one transaction; self-appointment allowed
+and marked), `.../anchors/{profile_id}/events`, `/api/admin/surf-truth/actions`. Strict JWT + admin role on all.
+New `surf_truth_admin_actions`, locked like the anchor log (RLS, SELECT/INSERT grant, UPDATE/DELETE/TRUNCATE
+triggers). P2's audit verdicts now also write it. No admin body can carry a reported number (extra='forbid', no
+height field; tested). 14 tests; all surf-truth suites 80 pass; route-identity check: none new.
