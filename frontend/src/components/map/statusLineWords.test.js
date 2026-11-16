@@ -13,6 +13,7 @@ import ForecastTimeStatus from './ForecastTimeStatus';
 import { publishMarineDrawn, getMarineDrawn, latestKnownRunMs, _resetMarineDrawnForTest } from './marineDrawnFrame';
 import { describeDrawnFrame, describeCoarseGrid, formatInstant, reconcileStaleBadge } from './drawnFrameReadout';
 import { setCachedManifest } from './backendWeatherServiceClientCoverage';
+import { formatRunLocal } from './readoutDateFormat';
 
 const H = 3600000;
 const KILLS = ['DRAWN_ESTIMATE_WORDS', 'DRAWN_HOLD_REASON', 'COARSE_GRID_WORDS'];
@@ -122,7 +123,11 @@ describe('2. a held frame names the clock and the run, not range', () => {
     ] });
     expect(latestKnownRunMs('EURO', 'waves')).toBe(RUN + 12 * H);                // verified cycles only
     expect(describeDrawnFrame(requested({ latestRunMs: latestKnownRunMs('EURO', 'waves') }), drawn).text)
+      .toBe(`Holding ${formatInstant(DATA, true)}’s EURO forecast: drawn 10 h ago from the older ${formatRunLocal(RUN)} run, and the selected time has moved on`);
+    window.__RAW_DISABLE_LOCAL_RUN_TIME__ = true;   // the kill: the previous words, no run named
+    expect(describeDrawnFrame(requested({ latestRunMs: latestKnownRunMs('EURO', 'waves') }), drawn).text)
       .toBe(`Holding ${formatInstant(DATA, true)}’s EURO forecast: drawn 10 h ago from an older run, and the selected time has moved on`);
+    delete window.__RAW_DISABLE_LOCAL_RUN_TIME__;
   });
 
   test('an older run alone (no roll) replaces only the generic range words; a basis with its own reason keeps it', () => {
@@ -130,7 +135,7 @@ describe('2. a held frame names the clock and the run, not range', () => {
     publishMarineDrawn(grid({ __sourceModel: 'EURO', hourOffset: 156, served_valid_time: iso(DATA), is_estimated: true,
       model_run_time: iso(RUN), model_run_time_status: 'known' }));
     const r = requested({ latestRunMs: RUN + 12 * H });
-    expect(describeDrawnFrame(r, getMarineDrawn()).text).toBe(`Holding ${formatInstant(DATA, true)}’s EURO forecast: from an older EURO run`);
+    expect(describeDrawnFrame(r, getMarineDrawn()).text).toBe(`Holding ${formatInstant(DATA, true)}’s EURO forecast: from the older ${formatRunLocal(RUN)} EURO run`);
     publishMarineDrawn(grid({ __sourceModel: 'EURO', hourOffset: 156, served_valid_time: iso(DATA), is_estimated: true,
       estimate_basis: { type: 'far_edge_hold' }, model_run_time: iso(RUN), model_run_time_status: 'known' }));
     expect(describeDrawnFrame(r, getMarineDrawn()).text).toBe(`Holding ${formatInstant(DATA, true)}’s EURO forecast: the 14-day estimate ends there`);
