@@ -382,3 +382,23 @@ as an excuse.
 stated for the forcing-truth half: `exposure_off` and `refraction_off` are each judged at the stations on their own
 and together (`exposure_off_and_refraction_off`). That makes three paired configurations in all, with the two from
 01:24Z. The list is closed.
+
+## 2026-11-16 01:44Z A second window, registered now (the director's answer to the season limit)
+
+The second addendum said season is UNTESTABLE in one three-week window and that no arm is eligible to be served on
+it alone. The director's answer (2026-11-15 20:42 EST): register a second window now, a winter one.
+
+- **Window 2: target times 2027-01-11 00:00Z to 2027-02-01 00:00Z.** Same truth sets, same configurations (the list
+  is closed), same score, same held-out spots, same nulls, same positive control, same guardrails. Seeds: 20270201
+  where window 1 uses 20261207. Nothing about the rule may be changed between the two windows because of what
+  window 1 shows; a change needs a dated addendum BEFORE 2027-01-11 that says what window 1 showed and why.
+- **Eligibility to be served:** an arm must reach its verdict in BOTH windows with the same sign. A factor that is a
+  REMOVE CANDIDATE in one window and KEEP or CLASS-DEPENDENT in the other is SEASON-DEPENDENT, which is a finding and
+  not a licence to change the served number.
+- **What two windows do not cover, stated now.** Late November and January are both the cool season in the northern
+  hemisphere: the same hemisphere's storm track, stronger in window 2. They differ in swell size and period, which is
+  what the extremes guardrail needs. They do NOT cover summer: small short-period seas, trade-wind and south-swell
+  regimes, and the east Florida summer the owner's report is most like in size. Any served change that rests on these
+  two windows must say "not tested in summer" in its SCOREBOARD row, and a summer window (2027-07) is owed before a
+  class factor for flat beaches is called settled.
+- Scoring of window 2: no earlier than 2027-02-01, recorded by 2027-02-03T12:00Z (ledger commitment).
