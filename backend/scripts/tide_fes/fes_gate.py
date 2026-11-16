@@ -27,8 +27,11 @@ IDS = ["1612340", "1615680", "1617760", "1611400", "9410230", "9410660", "941345
        "9443090", "8443970", "8452660", "8531680", "8534720", "8651370", "8658163", "8665530", "8720030", "8722670",
        "8723214", "8726724", "8729840", "8771510", "9755371", "9751639"]
 FES_CONSTITUENTS = ["M2", "S2", "N2", "K2", "K1", "O1", "P1", "Q1", "2N2", "M4", "MS4", "MN4", "Mf", "Mm", "Sa", "Ssa"]
-START = datetime(2026, 10, 15, 0, tzinfo=timezone.utc)
-END = datetime(2026, 10, 28, 23, tzinfo=timezone.utc)          # inclusive
+# G2 (docs/weather-program/log/2026-11-15-claude-tide-m1.md, 06:41 EST): M1's window 2026-10-15..28 was VOID and is
+# SEEN, as are the windows listed there; G2 runs on this unseen window, no offset anywhere.
+REGISTRATION = "G2"
+START = datetime(2026, 9, 29, 0, tzinfo=timezone.utc)
+END = datetime(2026, 10, 12, 23, tzinfo=timezone.utc)          # inclusive
 NTDE = (np.datetime64("1983-01-01T00:00", "us"), np.datetime64("2002-01-01T00:00", "us"))
 NTDE_STEP_MIN = 10
 FINE_STEP_MIN = 6
@@ -152,7 +155,7 @@ def main():
         log(json.dumps({k: row[k] for k in row if k in ("id", "A", "B", "C", "P")}, default=str)[:600])
 
     report = decide(rows, keep, hours, fine)
-    print(json.dumps({"window": [START.isoformat(), END.isoformat()], "fes_constituents": sorted(files),
+    print(json.dumps({"registration": REGISTRATION, "window": [START.isoformat(), END.isoformat()], "fes_constituents": sorted(files),
                       **report, "stations": rows}, indent=1, default=str))
     if args.summary:
         with open(args.summary, "a", encoding="utf-8") as fh:
@@ -214,7 +217,7 @@ def fmt(x, nd=3):
 def markdown(rows, rep):
     a, b = rep["arms"]["A"], rep["arms"]["B"]
     c = rep["controls"]
-    lines = [f"## M1 tide gate: **{rep['verdict']}** (chosen arm {rep['chosen_arm']})", "",
+    lines = [f"## M1 tide gate {REGISTRATION}: **{rep['verdict']}** (chosen arm {rep['chosen_arm']})", "",
              "| arm | median RMSE vs CO-OPS | vs C | High/Low min | MLLW err | items |", "|---|---|---|---|---|---|"]
     for k, v in (("A FES2022b", a), ("B EOT20", b)):
         lines.append(f"| {k} | {fmt(v['median_rmse_m'])} | {fmt(v['median_rmse_C_m'])} | {fmt(v['median_hilo_min'], 1)} | "

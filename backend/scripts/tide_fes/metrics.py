@@ -79,6 +79,24 @@ def mllw_offset(values, step_h):
     return st.mean(values) - st.mean(lows)
 
 
+def sun_mean_longitude_deg(t):
+    """The sun's mean longitude h (deg) at an aware UTC datetime, Schureman: 279.69668 + 36000.76892 T + 0.0003025 T^2,
+    T in Julian centuries from 1899-12-31 12:00 UTC. NOAA publishes SA / SSA phases for the arguments h / 2h."""
+    from datetime import datetime, timezone
+    T = (t - datetime(1899, 12, 31, 12, tzinfo=timezone.utc)).total_seconds() / 86400.0 / 36525.0
+    return 279.69668 + 36000.76892 * T + 0.0003025 * T * T
+
+
+def noaa_long_period(harcon, times):
+    """G2: NOAA's SA and SSA terms (f = 1, u = 0): A cos(h - G), A cos(2h - G). harcon: [(num, name, amp_m, G_deg)]."""
+    terms = [(1 if n == "SA" else 2, a, g) for _, n, a, g in harcon if n in ("SA", "SSA") and a > 0]
+    out = []
+    for t in times:
+        h = sun_mean_longitude_deg(t)
+        out.append(sum(a * math.cos(math.radians(k * h - g)) for k, a, g in terms))
+    return out
+
+
 def derangements(n, count=DERANGEMENTS, seed=20261015):
     """`count` distinct random permutations of range(n) with no fixed point (deterministic seed)."""
     rng, seen, out = random.Random(seed), set(), []

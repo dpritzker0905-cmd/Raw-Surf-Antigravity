@@ -9,9 +9,14 @@ OFFLINE ONLY (PyFES is GPL; pyTMD is MIT; both run only in .github/workflows/tid
 Times are numpy datetime64[us] arrays (naive, UTC).
 """
 import statistics as st
-from datetime import timedelta, timezone
+from datetime import datetime, timedelta, timezone
 
 import numpy as np
+
+try:
+    from scripts.tide_fes.metrics import noaa_long_period
+except ImportError:                                           # run by path from the workflow
+    from metrics import noaa_long_period
 
 
 def to_np(times):
@@ -57,7 +62,9 @@ def eot20_eval(root, lat, lng, dates):
 
 def harcon_eval(harcon, dates):
     """Positive control: CO-OPS's published constants (number, name, amplitude m, phase_GMT deg), pyTMD synthesis
-    with the GOT nodal corrections (pyTMD's own Compare-NOAA-Tides recipe), no inferred minors (NOAA infers none)."""
+    with the GOT nodal corrections (pyTMD's own Compare-NOAA-Tides recipe), no inferred minors (NOAA infers none).
+    G2: SA and SSA are NOT given to pyTMD (its SA argument is Doodson's h - p1; NOAA's phases are for h / 2h - the
+    M1 control's ~77-day seasonal error, log 06:41 EST); they are added in NOAA's convention (metrics.noaa_long_period)."""
     import pandas as pd
     import timescale.time  # noqa: F401 - registers timescale.from_datetime
     import timescale
@@ -69,13 +76,15 @@ def harcon_eval(harcon, dates):
             c = pyTMD.constituents._parse_name(name)
         except Exception:                                     # noqa: BLE001 - a name pyTMD does not know is dropped
             c = None
-        if c and amp > 0:
+        if c and amp > 0 and name not in ("SA", "SSA"):
             rows.append({"constNum": num, "name": name, "amplitude": amp, "phase": phase, "constituent": c})
     if not rows:
         return None
     df = pd.DataFrame(rows).set_index("constNum")
     ts = timescale.from_datetime(dates.astype("datetime64[ns]"))
-    return np.asarray(df.tmd.predict(ts.tide, deltat=ts.tt_ut1, corrections="GOT"), dtype=float).reshape(-1)
+    short = np.asarray(df.tmd.predict(ts.tide, deltat=ts.tt_ut1, corrections="GOT"), dtype=float).reshape(-1)
+    aware = [datetime.fromtimestamp(x.astype("datetime64[s]").astype(int), tz=timezone.utc) for x in dates]
+    return short + np.array(noaa_long_period(harcon, aware))
 
 
 def om_demean72(om, times):

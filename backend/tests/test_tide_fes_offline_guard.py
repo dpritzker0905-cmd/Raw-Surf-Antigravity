@@ -95,4 +95,10 @@ def test_extrema_timing_and_mllw_on_a_known_tide():
     assert abs(M.mllw_offset(vals, 10 / 60) - 1.0) < 0.01                                      # MSL - MLLW of cos = 1
     d = M.derangements(26)
     assert len(d) == 200 == len({tuple(p) for p in d}) and all(i != v for p in d for i, v in enumerate(p))
+    assert abs(M.sun_mean_longitude_deg(datetime(2000, 1, 1, 12, tzinfo=timezone.utc)) % 360 - 280.466) < 0.01   # J2000
+    t1 = datetime(2026, 1, 1, tzinfo=timezone.utc)
+    hc = [(21, "SA", 0.05, 0.0), (22, "SSA", 0.02, 90.0), (1, "M2", 1.0, 0.0)]
+    h = M.sun_mean_longitude_deg(t1)
+    want = 0.05 * math.cos(math.radians(h)) + 0.02 * math.cos(math.radians(2 * h - 90.0))           # M2 is ignored
+    assert abs(M.noaa_long_period(hc, [t1])[0] - want) < 1e-12
     assert M.stratum("1612340") == "Hawaii" and M.stratum("8771510") == "Gulf" and M.stratum("8443970") == "Atlantic"
