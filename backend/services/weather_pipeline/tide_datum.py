@@ -97,6 +97,25 @@ async def _table() -> Optional[dict]:
         return _state["doc"]
 
 
+def table_ready(doc: Optional[dict]) -> bool:
+    """PURE: the table has been built at least once (it holds cells). Until then the 72 h fallback stays OFF and
+    every spot keeps today's raw level (owner, 2026-11-15 20:46 EST: "Raw until first fill"), so the deploy never
+    serves the 72 h de-mean to every spot while the table fills (advisor: La Jolla 0.452 vs 0.173 m vs observed)."""
+    return bool(((doc or {}).get("cells")) or {})
+
+
+async def datum_state(lat, lng):
+    """(offset or None, table_ready). Never raises."""
+    try:
+        doc = await _table()
+        return lookup(doc, lat, lng), table_ready(doc)
+    except asyncio.CancelledError:
+        raise
+    except Exception as e:                           # noqa: BLE001
+        logger.warning(f"[tide-datum] state failed at ({lat},{lng}): {e}"[:200])
+        return None, False
+
+
 async def datum_offset(lat, lng) -> Optional[float]:
     """The point's local datum offset (the model's 1-year mean at its cell), or None. Never raises."""
     try:
