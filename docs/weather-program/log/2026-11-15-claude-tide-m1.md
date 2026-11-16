@@ -303,3 +303,40 @@ Nothing else changes. Order: this addendum is pushed ALONE; the code follows (45
 96736a72e window, a5580b290 calibration + tidal band), pushed only after the advisor's read. The G2 dispatch itself
 waits for the owner's word typed in this session (director 06:49 EST: relayed authority withdrawn for the credentialed
 run).
+
+## 08:08 EST 2026-11-16 (`date`) - G2 ADDENDUM 2: one-shot start, reported seasonal constants (before any G2 number)
+The advisor read 19195e449 (13:00Z): "That is the registration I would want." It set ONE condition before the code is
+pushed and asked for ONE reported addition.
+
+**Condition - a branch push never starts the gate.** Until now `tide-fes-gate.yml` ran on any push to `claude/tide-m1`
+touching `backend/scripts/tide_fes/**` or the workflow. So pushing the code WAS the run, and so would be any later
+fix, re-running the credentialed gate on the same window and letting the result be read twice.
+- The advisor asked for workflow_dispatch only. That cannot work here: GitHub dispatches only workflows that exist on
+  the default branch (`dev`), and this one does not.
+- So the trigger is now **only a push of the tag `tide-gate-G2`** (plus workflow_dispatch, inert until the file
+  reaches `dev`). That is one named run, pushed on the owner's word typed in this session.
+- No branch push and no schedule can start it. A second run needs that tag deleted and pushed again, on purpose.
+- Pinned by `test_the_credentialed_gate_starts_only_from_its_one_shot_tag`; adding a branch trigger back fails it.
+- The code is pushed with this trigger already in place, so the push starts nothing (GitHub reads the trigger from
+  the workflow file at the pushed commit).
+
+**Addition - REPORTED, NOT GATING: each arm's seasonal constants at every gauge.** A 14-day window cannot show a
+seasonal phase error; the constants can.
+- Inside the gated run, each arm's own SA and SSA are isolated at every gauge over calendar 2025 (not a test
+  window): FES2022b as the full PyFES series minus the series without that file; EOT20 as pyTMD restricted to
+  that constituent, without inferred minors.
+- Each is refit as A cos(k h - G) in NOAA's convention and printed beside NOAA's published SA / SSA (A, G), with
+  `{arm}_SA_phase_minus_NOAA_deg` and its median.
+- Reading: near 0 (EOT20 measured +14 / +15 deg) means the convention is right and any shortfall is amplitude.
+  About -77 deg means the evaluator. This is the first EMPIRICAL check of FES2022b's convention; until now it came
+  from documentation.
+- It changes no rule.
+
+**For the PR text (advisor; not conditions):**
+- The control is now partly a hand-built emulator of NOAA's predictor, calibrated on 2025 and tested on the 2026
+  window, where M1's node factor is 1.065 against 2025's 1.81. That difference is what makes it a real control.
+- Arm B is expected to fail item 2 on coverage at Boston 8443970 and La Jolla 9410230 (EOT20 undefined within
+  10 km). A B fail there says nothing about EOT20 where it is defined.
+
+Order: this addendum is pushed ALONE; then the code (dfe35107f, e6670491f, 0322983b5, 7d53ae2ff) in one push, which
+starts nothing. The run is the `tide-gate-G2` tag, pushed only on the owner's word typed in this session.
