@@ -57,3 +57,33 @@ evaluated at the station's own coordinate, hourly, over the 14 UTC days before t
   off the runner network) are pinned in `fes_gate.py`; the job compares the presented key BEFORE `auth_password` and
   stops otherwise. Remote file names must fully match `[a-z0-9]+_fes2022.nc.xz` (no path parts, no trailing newline;
   `re.match` with `$` would have let `"...xz\n"` through - the test caught it). Guard tests: 3 passed locally.
+
+## 22:25 EST (`date`) - RECONCILED pre-registration (supersedes the gate above; written before any result exists)
+Director 22:22 EST: David at 22:01 EST, "We can use open-meteo for testing against our system, but our system must put
+out NOAA, EURO, ICON from free grib and cmem etc"; #926/#931 stay held. The research lead pre-registered M1 in the
+shared notes (`research-lead-briefs-2026-11-16.md` section 1); reconcile with mine, the stricter rule wins.
+No gate run has produced a number: run 43793891985 was cancelled while queued, and run 43795079865 (93262a190) was
+cancelled while queued at 22:24 EST. Nothing was read.
+
+Taken item by item (S = stricter, adopted):
+- **Window:** the lead's FROZEN, already-observed window 2026-10-15 00Z .. 2026-10-28 23Z, hourly (S: fixed before any
+  arm is computed, and it holds a full spring-neap cycle). My rolling "14 days before the run" is dropped.
+- **Stations:** the same 26 CO-OPS IDs. Strata reported: Hawaii, Pacific, Atlantic, Gulf, Alaska/PR.
+- **Arms:** A FES2022b (PyFES, offline). B EOT20 (pyTMD, offline). C Open-Meteo `sea_level_height_msl` de-meaned over
+  its 72 h window. D Open-Meteo minus its own 365-day mean. C and D are TEST-ONLY references (owner 22:01 EST) and are
+  never served.
+- **Truth:** T1 CO-OPS harmonic predictions (MSL) gates. T2 CO-OPS observed water (MSL) is reported for M1b only.
+- **PASS for the chosen arm (A or B), all four:**
+  1. median RMSE vs T1 <= **0.08 m** AND below arm C's median, computed in the SAME run on the SAME window. A and B
+     are scored raw, with no de-mean. (S: the lead's 0.08 is stricter than my 0.117.)
+  2. no station worse than arm C by more than 0.05 m (lead's; new).
+  3. median |High/Low time error| <= 20 min, extrema matched within +/-3 h (same in both).
+  4. median |MSL-to-MLLW offset error| <= 0.05 m against the CO-OPS datum sheet. The arm's MLLW comes from its own
+     19-year synthesis over the 1983-2001 NTDE: the mean of each tidal day's lower low (lead's; new).
+- **Choice:** if both A and B pass, the lower median RMSE wins; within 0.01 m, A wins.
+- **Controls (the result is VOID, not PASS, if any control misbehaves):**
+  - Positive: our CO-OPS-constituent synthesis vs CO-OPS predictions, RMSE <= 0.01 m.
+  - Negative 1: station-label swap over >= 200 derangements; the median RMSE must be > 0.3 m.
+  - Negative 2: the chosen arm shifted +6 h must FAIL item 3.
+- **Reported, not gating:** range ratio, de-meaned RMSE, T2 RMSE for each arm and for CO-OPS predictions.
+- **Served change:** none in the gate PR. After PASS the change ships ON (D-065) with a kill switch and a SCOREBOARD row.
