@@ -154,3 +154,72 @@ here can choose between those. A timed look at the water with the scale stated i
 
 **Limits.** Model only. One point, one hour's sea, a planar bed for A1. The 21% from H1/10 assumes the conversion is
 simply absent; the physically argued alternative (a narrowed distribution at a saturated break) is not modelled.
+
+## 2026-11-16 10:21Z The advisor's review: the headline restated with the model's own highest-tenth, diagnostics, and a correction
+
+The advisor's condition on this PR: "surf" was the largest 1.27 x Hs on the line, and 1.27 is the open-sea Rayleigh
+factor. Battjes and Janssen's model is a Rayleigh distribution TRUNCATED at H_max = gamma d, so no wave and no mean of
+the highest tenth can exceed gamma d; where the sea is breaking, 1.27 x Hs reports more wave than the model allows.
+That is correct, and the metric was wrong in principle.
+
+**Order of events, for the record.** The first run (09:55Z) reported only 1.27 x Hs. The truncated highest-tenth
+(`h110_truncated`) was added AFTER that model-only result had been seen, on the advisor's review. No truth was
+involved at either point, so nothing is contaminated; the order is stated so it is not mistaken for a pre-registered
+metric.
+
+**The headline, both ways** (surf over offshore, geometric mean over the 29 runnable spots, head-on):
+
+| sea state | truncated highest-tenth | 1.27 x Hs (first run) | today's chain |
+|---|---|---|---|
+| wind sea, 1.0 m at 5 s | 1.26 | 1.26 | 1.34 |
+| the report's state, 1.12 m at 7.28 s | 1.41 | 1.41 | 1.52 |
+| swell, 1.5 m at 12 s | 1.60 | 1.61 | 1.74 |
+| groundswell, 2.0 m at 16 s | 1.63 | 1.64 | 1.80 |
+
+At the owner's point: 1.47 truncated, 1.47 by 1.27 x Hs, 1.47 from today's chain.
+
+- **The two metrics agree to within 0.01 at every sea state, so both headlines stand: A1 gives almost the same
+  breaker height as today's chain, and it does not lower the owner's number.**
+- **Why the correction barely moves it.** The advisor's worked example put the maximum in 1.2 to 1.7 m of water,
+  where the truncation binds hard. The march puts it in 2.5 to 3.2 m: the largest highest-tenth occurs where the wave
+  has shoaled but only a fraction of a percent of waves are breaking (H_rms about 0.4 of H_max), and shoreward of
+  that the dissipation takes more than shoaling adds. So the maximum is set by the onset of breaking, not by
+  saturation. On planar beds from 1 in 250 to 1 in 10 the truncated number is 1.39 to 1.45; it differs from
+  1.27 x Hs by at most 3% (on the steepest bed).
+- That also answers the advisor's (e): with the truncated metric the maximum is still not tied to gamma d at the
+  break point, because it is reached before saturation. The comparison with Komar does not change.
+
+**The advisor's other points.**
+- **(a) E_tot as the variance:** closed twice over. The advisor's derivation (Battjes and Janssen's dissipation
+  divided by rho g is exactly equation 2.65) and the page's equation 2.49, which I read.
+- **(b) Is the clip doing the physics? No.** The march now counts the steps where the saturation limit, not the
+  dissipation term, set the energy. At the report's state: 0 of 8,862 steps over the 29 spots; wind sea 0; swell 6;
+  groundswell 20. At a QUARTER of the step the result moves by at most 0.23% (0.10% to 0.23% across the four sea
+  states). The term is doing the work. The earlier test "the inner surf zone is depth-limited" could have passed on
+  the clip alone; a new test pins zero clipped steps on three planar beds and a quarter-step answer within 0.5%.
+- **(c) Mean frequency.** With the mean period taken as 0.8 of the peak (in the dissipation only; the wave still
+  shoals on the peak), the result is 0.996 to 1.000 of the base across all spots and sea states. The choice of
+  sigma_mean is worth at most 0.4% on the breaker height. It matters inside the surf zone, not for the maximum.
+- **(d) The bed is a plane fitted to coarse data,** and the first paragraph of this log should have said so: on a
+  463 m grid the surf zone is one or two nodes. The shoreline rule takes the most SEAWARD dry sample, so a bar,
+  islet or jetty tip becomes the shore. The bed now reports `water_landward_of_shore`; it is non-zero at Ponce Inlet
+  North Jetty (2 samples) and Duck (3). Those two beds may have dropped an inner profile.
+- **Which spots resolved a surf zone at all.** Twenty have a wet sample in 2 m of water or less; on those the
+  truncated number at the report's state is 1.38 to 1.47. Six have nothing shallower than 2.1 to 4.6 m (St.
+  Augustine Inlet North Jetty, Steamer Lane, Rincon, Blacks Beach, Galveston, Port Aransas Jetty), so their maximum
+  is at or near the innermost sample and may be understated. Three never shoal within 3 km (Crescent Beach, Rodanthe
+  Pier, Pensacola Beach Pier: shallowest wet sample 11.8 to 12.2 m); their 1.21 to 1.26 is the offshore wave, not a
+  breaker. Waikiki Queens has no number.
+
+**A CORRECTION to the first result section (mine; the advisor's (f) caught it).** I wrote that the significant height
+"at 1 m of water" was 0.46 to 1.13 times offshore. That was wrong. I took the innermost sample at or below 1 m, which
+on beds with no shallow sample is 2 to 12 m deep; every value above about 0.8 was at such a depth, and 1.1 times
+offshore in 1 m of water is above the model's own limit there. Restated on the 13 spots that have a sample within
+0.2 m of 1 m depth: **0.53 to 0.76 times offshore.** The owner's point has no sample that shallow; its nearest is at
+1.24 m, where the height is 0.75 times offshore. The 10:07Z section's "0.49 to 0.53 m in 1 m of water" is from a
+planar bed sampled every 20 m and is unaffected.
+- The observation stands in weaker form: inside the surf zone the model's height is roughly half to three quarters
+  of the offshore height, which is where the owner's expectation sits; and it is still an observation, not evidence.
+
+**Still true.** Model only, no truth. Nothing here says whether the breaker height, from this arm or from today's
+chain, is right.

@@ -32,8 +32,11 @@ CHOICES THE EQUATIONS LEAVE OPEN, fixed here before any run:
     spectrum's mean frequency, which is higher than the peak for a real sea; using the peak gives LESS dissipation.
   - The model's height is taken to hold at the model point's depth; flux is conserved (no breaking) from there to the
     seaward end of the transect.
-  - Surf = the largest H1/10 on the transect, with H1/10 = 1.27 * Hs and Hs = sqrt(2) * H_rms (Rayleigh), the same
-    1.27 the served chain uses.
+  - Surf = the largest H1/10 on the transect. TWO are returned: the highest-tenth mean of the model's own truncated
+    distribution (`h110_truncated`, the consistent one), and 1.27 * Hs with Hs = sqrt(2) * H_rms, the open-sea Rayleigh
+    factor the served chain uses, kept for comparison. The first run reported only the second; the advisor's review
+    showed it exceeds the model's own largest wave (gamma d) where the sea is breaking, and the truncated one was added
+    AFTER that model-only result had been seen. No truth was involved at either point.
   - Step 10 m, shortened where the bed is steep so no step crosses more than 0.1 m of depth (never under 0.5 m); the
     transect ends where the depth falls under 0.2 m."""
 import math
@@ -93,6 +96,35 @@ def breaking_fraction(e_tot: float, h_max: float) -> float:
     return 0.5 * (lo + hi)
 
 
+_SQRT_LN10 = math.sqrt(math.log(10.0))
+
+
+def h110_truncated(e_tot: float, h_max: float) -> float:
+    """The mean of the highest tenth of waves in the model's OWN distribution (added 2026-11-16 on the advisor's review).
+
+    Battjes and Janssen's model is a Rayleigh distribution TRUNCATED at H_max = gamma d: every wave that would be higher
+    is a breaking wave of height H_max, so no wave, and no mean of the highest tenth, can exceed H_max. Multiplying Hs
+    by the open-sea Rayleigh factor 1.27 ignores that and reports more wave than the model allows where it is breaking.
+
+    With Q_b the breaking fraction and S the scale of the underlying Rayleigh (exp(-(H_max/S)^2) = Q_b):
+      Q_b >= 0.1      the whole highest tenth is breaking: H1/10 = H_max
+      0 < Q_b < 0.1   H1/10 = h10 + 5 sqrt(pi) S (erf(H_max/S) - erf(sqrt(ln 10))), h10 = S sqrt(ln 10), never above H_max
+      Q_b = 0         the untruncated value, 1.800 H_rms (= 1.273 Hs), which is the 1.27 the served chain uses"""
+    if e_tot <= 0.0:
+        return 0.0
+    h_rms = math.sqrt(8.0 * e_tot)
+    open_sea = (_SQRT_LN10 + 5.0 * math.sqrt(math.pi) * math.erfc(_SQRT_LN10)) * h_rms
+    if h_max <= 0.0:
+        return 0.0
+    qb = breaking_fraction(e_tot, h_max)
+    if qb <= 0.0:
+        return min(open_sea, h_max)
+    if qb >= 0.1:
+        return h_max
+    scale = h_max / math.sqrt(-math.log(qb))
+    return min(h_max, scale * _SQRT_LN10 + 5.0 * math.sqrt(math.pi) * scale * (math.erf(h_max / scale) - math.erf(_SQRT_LN10)))
+
+
 def dissipation(e_tot: float, depth_m: float, period_s: float, gamma: float = GAMMA_BS, alpha: float = ALPHA_BJ) -> float:
     """D_tot from (2.65), in m^2/s of variance (negative or zero)."""
     h_max = gamma * depth_m
@@ -101,14 +133,21 @@ def dissipation(e_tot: float, depth_m: float, period_s: float, gamma: float = GA
 
 
 def march(hs_m: float, period_s: float, angle_off_normal_deg: float, model_depth_m: float, bed, gamma: float = GAMMA_BS,
-          alpha: float = ALPHA_BJ, step_m: float = STEP_M) -> dict:
+          alpha: float = ALPHA_BJ, step_m: float = STEP_M, mean_period_s=None) -> dict:
     """March the flux balance shoreward over `bed`, a list of (distance_from_shore_m, depth_m) with depth positive down.
 
-    Returns the profile and the surf: {"surf_m" (largest H1/10), "surf_at_m", "surf_depth_m", "profile": [(x, depth, Hs)],
-    "hs_at_start_m", "broke"}; "surf_m" is None when the bed has too few wet samples or the inputs are unusable."""
+    Returns the profile and TWO surf numbers, each the largest value on the line:
+      "surf_truncated_m"  the highest-tenth mean of the model's own truncated distribution (`h110_truncated`): the
+                          number that is consistent with the model, never above gamma d where it is taken;
+      "surf_m"            1.27 x Hs, the open-sea Rayleigh factor the served chain applies. Kept for comparison only:
+                          where the sea is breaking it exceeds the model's own largest wave.
+    Also "steps" and "clipped_steps" (how often the saturation limit, not the dissipation term, set the energy), so a
+    reader can tell which one did the physics. `mean_period_s` sets the mean frequency in the dissipation only; the
+    wave still shoals on `period_s`. A number is None when the bed has too few wet samples or the inputs are unusable."""
     wet = sorted(((float(x), float(d)) for x, d in (bed or []) if d is not None and d > MIN_DEPTH_M), reverse=True)
-    out = {"surf_m": None, "surf_at_m": None, "surf_depth_m": None, "profile": [], "hs_at_start_m": None, "broke": False,
-           "wet_samples": len(wet)}
+    out = {"surf_m": None, "surf_at_m": None, "surf_depth_m": None, "surf_truncated_m": None, "surf_truncated_at_m": None,
+           "surf_truncated_depth_m": None, "profile": [], "hs_at_start_m": None, "broke": False, "wet_samples": len(wet),
+           "steps": 0, "clipped_steps": 0}
     if hs_m is None or period_s is None or not hs_m > 0 or not period_s > 0 or len(wet) < MIN_WET_SAMPLES:
         return out
     theta0 = math.radians(min(abs(angle_off_normal_deg or 0.0), 89.0))
@@ -126,6 +165,8 @@ def march(hs_m: float, period_s: float, angle_off_normal_deg: float, model_depth
 
     x = wet[0][0]
     best = (0.0, None, None)
+    best_t = (0.0, None, None)
+    sigma_period = float(mean_period_s) if (mean_period_s and mean_period_s > 0) else period_s
     while x >= wet[-1][0]:
         d = at(x)
         if d <= MIN_DEPTH_M:
@@ -134,17 +175,22 @@ def march(hs_m: float, period_s: float, angle_off_normal_deg: float, model_depth
         cos_t = math.sqrt(max(1e-6, 1.0 - min(0.999999, (snell * c) ** 2)))
         e = flux / (cg * cos_t)
         h_max = gamma * d
+        out["steps"] += 1
         if 8.0 * e > h_max * h_max:                                          # saturation: no more wave than the water holds
             e = h_max * h_max / 8.0
             flux = e * cg * cos_t
             out["broke"] = True
+            out["clipped_steps"] += 1
         hs = 4.0 * math.sqrt(e)
         if out["hs_at_start_m"] is None:
             out["hs_at_start_m"] = hs
         out["profile"].append((round(x, 1), round(d, 2), round(hs, 4)))
         if hs > best[0]:
             best = (hs, x, d)
-        dis = dissipation(e, d, period_s, gamma, alpha)
+        h110 = h110_truncated(e, h_max)
+        if h110 > best_t[0]:
+            best_t = (h110, x, d)
+        dis = dissipation(e, d, sigma_period, gamma, alpha)
         if dis < 0.0:
             out["broke"] = True
         # Adaptive step: never more than `step_m`, and never more than MAX_DEPTH_CHANGE_M of depth per step, so a steep
@@ -155,6 +201,9 @@ def march(hs_m: float, period_s: float, angle_off_normal_deg: float, model_depth
         x -= dx
     if best[1] is not None:
         out.update({"surf_m": H110_OVER_HS * best[0], "surf_at_m": round(best[1], 1), "surf_depth_m": round(best[2], 2)})
+    if best_t[1] is not None:
+        out.update({"surf_truncated_m": best_t[0], "surf_truncated_at_m": round(best_t[1], 1),
+                    "surf_truncated_depth_m": round(best_t[2], 2)})
     return out
 
 
@@ -177,7 +226,7 @@ def bed_from_grid(lat: float, lng: float, seaward_bearing_deg: float, elevation_
         s += sample_m
     known = [(s, z) for s, z in pts if z is not None]
     out = {"bed": [], "slope": None, "samples": len(pts), "known": len(known), "wet": 0, "shore_at_m": None,
-           "deepest_m": None, "reached_max_depth": False}
+           "deepest_m": None, "reached_max_depth": False, "water_landward_of_shore": 0}
     shore = None
     for i, (s, z) in enumerate(known):
         if z >= 0.0 and any(z2 < 0.0 for _s2, z2 in known[i + 1:]):
@@ -186,6 +235,9 @@ def bed_from_grid(lat: float, lng: float, seaward_bearing_deg: float, elevation_
         shore = known[0][0] - sample_m if known and all(z < 0.0 for _s, z in known) else None   # spot and reach all water
     if shore is None:
         return out
+    # The shoreline is the most SEAWARD dry sample, so an offshore bar, islet or jetty tip becomes the shore and the
+    # water behind it is dropped. Counted, so such a spot can be flagged instead of trusted.
+    out["water_landward_of_shore"] = sum(1 for s, z in known if s < shore and z < 0.0)
     bed = []
     for s, z in known:
         if s <= shore or z >= 0.0:

@@ -76,11 +76,12 @@ def test_the_surf_never_drops_as_the_offshore_height_rises():
     # a gentle beach, a steep one, and a barred one (the bar is where a non-monotone answer would hide)
     for bed in (planar(0.005), planar(0.1), [(x, 0.5 + 3.0 * math.sin(x / 300.0) ** 2 + x * 0.006) for x in range(20, 3001, 20)]):
         for tp in (5.0, 7.28, 14.0):
-            prev = 0.0
+            prev = prev_t = 0.0
             for i in range(1, 31):
-                surf = st.march(0.2 * i, tp, 0.0, 20.0, bed)["surf_m"]
-                assert surf >= prev - 1e-9, (tp, 0.2 * i, prev, surf)
-                prev = surf
+                r = st.march(0.2 * i, tp, 0.0, 20.0, bed)
+                assert r["surf_m"] >= prev - 1e-9, (tp, 0.2 * i, prev, r["surf_m"])
+                assert r["surf_truncated_m"] >= prev_t - 1e-9, (tp, 0.2 * i, prev_t, r["surf_truncated_m"])   # both numbers
+                prev, prev_t = r["surf_m"], r["surf_truncated_m"]
 
 
 def test_oblique_waves_refract_and_arrive_smaller():
@@ -131,3 +132,67 @@ def test_the_arm_takes_no_wind_and_is_outside_the_serving_import_path():
                             hits.append(os.path.join(folder, name))
     assert hits == [], "the offline transect arm must not be imported by the serving path"
     assert "surf_transect" not in open(os.path.join(BACKEND, "server.py"), encoding="utf-8", errors="replace").read()
+
+
+# ── the advisor's review (2026-11-16): H1/10 from the model's own truncated distribution, and diagnostics ──
+def test_the_truncated_highest_tenth_never_exceeds_the_models_largest_wave():
+    # far from breaking it is the open-sea Rayleigh value, 1.800 H_rms = 1.273 Hs: the served chain's 1.27
+    assert st.h110_truncated(1.0 / 8.0, 1e9) == pytest.approx(1.800, abs=1e-3)
+    assert st.h110_truncated(1.0 / 8.0, 1e9) / math.sqrt(2) == pytest.approx(1.27, abs=0.005)
+    prev = 0.0
+    for i in range(1, 200):
+        beta = i / 100.0                                                    # H_rms / H_max from 0.01 to 1.99
+        e = beta * beta / 8.0
+        h = st.h110_truncated(e, 1.0)
+        assert h <= 1.0 + 1e-12 and h >= prev - 1e-9                        # capped at H_max; never falls as the sea grows
+        assert h <= 1.8001 * beta + 1e-9                                    # and never above the untruncated value
+        if st.breaking_fraction(e, 1.0) >= 0.1:
+            assert h == 1.0                                                 # the whole highest tenth is breaking
+        prev = h
+    # the open-sea factor would have reported 1.26 x H_max at H_rms / H_max = 0.7: more wave than the water holds
+    assert 1.8 * 0.7 > 1.0 and st.h110_truncated(0.7 * 0.7 / 8.0, 1.0) == 1.0
+    assert st.h110_truncated(0.0, 1.0) == 0.0 and st.h110_truncated(1.0, 0.0) == 0.0
+
+
+def test_the_march_reports_both_numbers_and_the_truncated_one_respects_the_depth():
+    for slope in (0.004, 0.02, 0.1):
+        for hs, tp in ((1.12, 7.28), (2.0, 16.0)):
+            r = st.march(hs, tp, 0.0, 20.0, planar(slope))
+            assert r["surf_truncated_m"] <= st.GAMMA_BS * r["surf_truncated_depth_m"] + 0.01   # never above gamma d there
+            assert r["surf_truncated_m"] <= r["surf_m"] * 1.003                                 # 1.273 against 1.27
+            assert r["steps"] > 0 and 0 <= r["clipped_steps"] <= r["steps"]
+    # a wave that never breaks: the two agree to the 1.273 / 1.27 difference
+    calm = st.march(0.1, 10.0, 0.0, 20.0, [(x, 8.0 + x * 0.004) for x in range(100, 3001, 100)])
+    assert calm["surf_truncated_m"] == pytest.approx(calm["surf_m"] * 1.2727 / 1.27, rel=2e-3) and calm["clipped_steps"] == 0
+
+
+def test_the_dissipation_term_does_the_physics_not_the_clip_or_the_step():
+    for slope in (0.004, 0.02, 0.1):
+        full = st.march(1.12, 7.28, 0.0, 20.0, planar(slope))
+        fine = st.march(1.12, 7.28, 0.0, 20.0, planar(slope), step_m=2.5)
+        assert full["clipped_steps"] == 0                                    # the saturation limit never had to act
+        assert fine["surf_truncated_m"] == pytest.approx(full["surf_truncated_m"], rel=0.005)   # a quarter step: same answer
+
+
+def test_a_shorter_mean_period_only_changes_the_dissipation_and_only_downward():
+    base = st.march(1.5, 12.0, 0.0, 20.0, planar(0.01))
+    mean = st.march(1.5, 12.0, 0.0, 20.0, planar(0.01), mean_period_s=0.8 * 12.0)
+    assert mean["surf_truncated_m"] <= base["surf_truncated_m"] + 1e-9       # a higher mean frequency dissipates more
+    assert mean["hs_at_start_m"] == base["hs_at_start_m"]                    # the wave still shoals on the peak period
+    assert st.march(1.5, 12.0, 0.0, 20.0, planar(0.01), mean_period_s=0)["surf_truncated_m"] == base["surf_truncated_m"]
+
+
+def test_water_behind_the_chosen_shore_is_counted():
+    # a sandbar: water, then a dry bar 300 m out, then the sea. The bar becomes the shore and the lagoon is dropped.
+    def elev(lat, lng):
+        north_m = (lat - 30.0) * 111_195.0
+        if north_m <= 0:
+            return 2.0
+        if 250 <= north_m <= 350:
+            return 0.5
+        return -1.0 - max(0.0, north_m - 350) / 50.0
+    out = st.bed_from_grid(30.0, -81.0, 0.0, elev)
+    assert out["water_landward_of_shore"] >= 1 and out["shore_at_m"] >= 250
+    plain = st.bed_from_grid(29.999, -81.0, 0.0, lambda lat, lng: 2.0 if lat <= 30.0 else -(lat - 30.0) * 111_195.0 / 50.0)
+    assert plain["water_landward_of_shore"] == 0
+
