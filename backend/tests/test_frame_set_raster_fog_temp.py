@@ -35,6 +35,8 @@ NEW = {   # set -> (key, env, field, grid cols, hours, source, idx)
                          tuple(range(0, 181, 3)), "icon", ("t_2m", ("T_2M",))),
     "water_temp_euro": ("EURO/weather/water_temp/global_0p25", "FRAME_RASTER_WATER_TEMP_EURO", fb.TEMP_C, 1440, EURO_STEPS,
                         "ecmwf", ("skt", "sfc")),
+    "cloud_cover_euro": ("EURO/weather/cloud_cover/global_0p25", "FRAME_RASTER_CLOUD_EURO", fb.CLOUD_PCT, 1440, EURO_STEPS,
+                         "ecmwf", ("tcc", "sfc")),
 }
 
 
@@ -182,3 +184,13 @@ def test_the_gfs_selector_takes_the_instantaneous_vis_and_skin_tmp():
     rows = fsr.idx_rows(idx)
     assert fsr.select_message(rows, fsr.SPECS["fog"]["idx"]) == (0, 99)
     assert fsr.select_message(rows, fsr.SPECS["water_temp"]["idx"]) == (200, 299)
+
+
+def test_euro_cloud_is_ecmwf_tcc_fraction_to_percent_clipped_to_0_100():
+    """G3 (2026-11-16): ECMWF open data's tcc GRIB is a 0-1 fraction (decoded 2026-11-15 12Z +24 h: units '(0 - 1)', 0.0..1.0)."""
+    sp = fsr.SPECS["cloud_cover_euro"]
+    assert sp["convert"](np.array([0.0, 0.4, 1.0])).tolist() == pytest.approx([0.0, 40.0, 100.0])
+    assert (sp["valid"], sp["clip"], sp["value_unit"]) == ((-0.5, 100.5), (0.0, 100.0), "%")
+    lines = [{"param": "tcc", "levtype": "sfc", "type": "ef", "_offset": 1, "_length": 2},
+             {"param": "tcc", "levtype": "sfc", "type": "fc", "_offset": 40, "_length": 9}]
+    assert srcs.index_entry("\n".join(json.dumps(x) for x in lines), *sp["idx"]) == (40, 9)

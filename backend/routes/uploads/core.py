@@ -40,7 +40,8 @@ except ImportError:
 from database import get_db
 from .identity import uploader_id
 from core.security import get_current_user_id
-from models import Profile, GalleryItem
+from models import Profile, GalleryItem, ObservationMedia
+from services.observation_media import inspect_media
 from utils.video_processor import (
     get_video_info, 
     needs_transcoding, 
@@ -491,7 +492,8 @@ async def upload_story_media(
 @router.post("/upload/conditions")
 async def upload_conditions_media(
     file: UploadFile = File(...),
-    user_id: str = Depends(uploader_id)
+    user_id: str = Depends(uploader_id),
+    db: AsyncSession = Depends(get_db),
 ):
     """
     Upload conditions check media (photo or video) for a live session go-live.
@@ -544,6 +546,19 @@ async def upload_conditions_media(
         logger.info(f"Condition media persisted to Supabase: {supabase_url}")
     else:
         logger.warning(f"Condition media saved to ephemeral disk only: {local_url}")
+
+    # T1 crowd truth: the server's own record of this media (hash, EXIF position and time), read from the bytes it
+    # received, so a blind surf observation that cites this photo is checked against facts the client cannot set.
+    # Best effort: a failure here must never fail the go-live upload.
+    try:
+        facts = inspect_media(content, is_image=not is_video)
+        db.add(ObservationMedia(user_id=user_id, media_url=media_url, media_type=media_type, sha256=facts.sha256,
+                                exif_latitude=facts.exif_latitude, exif_longitude=facts.exif_longitude,
+                                exif_taken_at=facts.exif_taken_at))
+        await db.commit()
+    except Exception as exc:  # noqa: BLE001
+        await db.rollback()
+        logger.warning(f"Condition media provenance not recorded: {type(exc).__name__}")
 
     return {
         "media_url": media_url,
