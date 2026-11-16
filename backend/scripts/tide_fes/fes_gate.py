@@ -1,306 +1,227 @@
-"""M1 tide gate: FES2022b (PyFES) vs NOAA CO-OPS, pre-registered in docs/weather-program/log/2026-11-15-claude-tide-m1.md.
+"""M1 tide gate, RECONCILED pre-registration (docs/weather-program/log/2026-11-15-claude-tide-m1.md, 22:25 EST).
 
-OFFLINE ONLY. PyFES is GPL: this module runs in .github/workflows/tide-fes-gate.yml and is never imported by the served
-backend (guard: tests/test_tide_fes_offline_guard.py). Nothing here writes to the bucket or touches the live backend.
+OFFLINE ONLY. PyFES is GPL: this package runs in .github/workflows/tide-fes-gate.yml and is never imported by the
+served backend (guard: tests/test_tide_fes_offline_guard.py). Measurement only: no bucket write, no live backend call.
 
-Steps: (1) download the FES2022b extrapolated ocean-tide constituents over AVISO SFTP with the AVISO_USERNAME /
-AVISO_PASSWORD secrets (read from the environment, never printed); (2) cut a small box around each station out of
-each global grid, so memory stays small; (3) evaluate PyFES at each station; (4) score against CO-OPS predictions,
-High/Low times and observed water. Output: JSON on stdout + a Markdown table for $GITHUB_STEP_SUMMARY.
+Frozen window 2026-10-15 00Z .. 2026-10-28 23Z, hourly, 26 CO-OPS stations. Arms A FES2022b, B EOT20, C/D Open-Meteo
+(test-only references). Truth T1 CO-OPS predictions (MSL); T2 observed water is reported only. Rules and controls:
+scripts/tide_fes/metrics.py. Output: JSON on stdout + Markdown for $GITHUB_STEP_SUMMARY.
 """
 import argparse
-import base64
-import hashlib
 import json
-import lzma
-import math
 import os
-import re
-import shutil
 import statistics as st
-import sys
-import urllib.request
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-# The same CO-OPS stations as #926's checks (tide_datum_vs_coops.py IDS): HI, CA, WA, NE, SE, Gulf, PR.
+import numpy as np
+
+try:
+    from scripts.tide_fes import arms, metrics as M, sources as S
+except ImportError:                                           # run by path from the workflow
+    import arms
+    import metrics as M
+    import sources as S
+
 IDS = ["1612340", "1615680", "1617760", "1611400", "9410230", "9410660", "9413450", "9415020", "9419750", "9435380",
        "9443090", "8443970", "8452660", "8531680", "8534720", "8651370", "8658163", "8665530", "8720030", "8722670",
        "8723214", "8726724", "8729840", "8771510", "9755371", "9751639"]
-CONSTITUENTS = ["M2", "S2", "N2", "K2", "K1", "O1", "P1", "Q1", "2N2", "M4", "MS4", "MN4", "Mf", "Mm", "Sa", "Ssa"]
-BASELINE_M = 0.117          # #926's best (72 h de-meaned model) median vs the same truth; FES is gated RAW (stricter)
-TIMING_MAX_MIN = 20.0
-OBS_MARGIN_M = 0.05
-BOX_DEG = 0.5
-AVISO_HOST = os.environ.get("AVISO_SFTP_HOST", "ftp-access.aviso.altimetry.fr")
-AVISO_PORT = int(os.environ.get("AVISO_SFTP_PORT", "2221"))
-AVISO_DIR = os.environ.get("AVISO_FES_DIR", "/auxiliary/tide_model/fes2022b/ocean_tide_extrapolated")
-# AVISO's PUBLIC SSH host keys (ssh-keyscan -p 2221, 2026-11-15 21:48 EST, from a machine off the runner network).
-# The job refuses to send credentials unless the server presents one of these. Rotate by editing this set.
-AVISO_HOST_KEYS = {
-    ("ssh-ed25519", "AAAAC3NzaC1lZDI1NTE5AAAAIOCYlZy1SE8b7Gkd8Lmyp3dc3eiRrhTSgvBbJCKhRvOG"),
-    ("ecdsa-sha2-nistp256", "AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBNPdJIgZTD27oP/GipftYIMofQ0AjNtY9HzuR1FFJDYmVBC"
-                            "JfSrBX3dR6eyg+edSl9SBBMlfj+HoMSzA1ERqFw0="),
-}
-REMOTE_NAME = re.compile(r"^[a-z0-9]+_fes2022\.nc\.xz$")
-COOPS = "https://api.tidesandcurrents.noaa.gov"
+FES_CONSTITUENTS = ["M2", "S2", "N2", "K2", "K1", "O1", "P1", "Q1", "2N2", "M4", "MS4", "MN4", "Mf", "Mm", "Sa", "Ssa"]
+START = datetime(2026, 10, 15, 0, tzinfo=timezone.utc)
+END = datetime(2026, 10, 28, 23, tzinfo=timezone.utc)          # inclusive
+NTDE = (np.datetime64("1983-01-01T00:00", "us"), np.datetime64("2002-01-01T00:00", "us"))
+NTDE_STEP_MIN = 10
+FINE_STEP_MIN = 6
+log = S.log
 
 
-def log(msg):
-    print(msg, file=sys.stderr, flush=True)
+def hourly_times():
+    n = int((END - START).total_seconds() // 3600) + 1
+    return [START + timedelta(hours=k) for k in range(n)]
 
 
-# ---------------------------------------------------------------- CO-OPS (public, read-only)
-def get_json(url):
-    req = urllib.request.Request(url, headers={"User-Agent": "raw-surf-tide-m1-gate"})
-    try:
-        with urllib.request.urlopen(req, timeout=60) as r:
-            return json.loads(r.read().decode("utf-8"))
-    except Exception as e:                                   # noqa: BLE001 - one station failing must not end the run
-        log(f"GET failed {url[:120]}: {e}")
-        return {}
+def fine_times():
+    a, b = START - timedelta(hours=3), END + timedelta(hours=3)
+    return [a + timedelta(minutes=FINE_STEP_MIN * k) for k in range(int((b - a).total_seconds() // (60 * FINE_STEP_MIN)) + 1)]
 
 
-def coops(sid, product, begin, end, interval=None):
-    q = (f"{COOPS}/api/prod/datagetter?product={product}&application=raw_surf_tide_m1&station={sid}"
-         f"&begin_date={begin:%Y%m%d}&end_date={end:%Y%m%d}&datum=MSL&units=metric&time_zone=gmt&format=json")
-    if interval:
-        q += f"&interval={interval}"
-    return get_json(q)
+def ntde_dates():
+    return np.arange(NTDE[0], NTDE[1], np.timedelta64(NTDE_STEP_MIN, "m"))
 
 
-def parse_t(s):
-    return datetime.strptime(s, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
-
-
-def station_meta(sid):
-    m = (get_json(f"{COOPS}/mdapi/prod/webapi/stations/{sid}.json").get("stations") or [{}])[0]
-    return m.get("lat"), m.get("lng"), m.get("name", sid)
-
-
-# ---------------------------------------------------------------- AVISO SFTP (credentials from env, never printed)
-def download(names, cache):
-    """Fetch each constituent's .nc.xz into `cache` unless already there. Returns {name: path}."""
-    cache.mkdir(parents=True, exist_ok=True)
-    have = {n: next(iter(cache.glob(f"{n.lower()}_*.nc.xz")), None) for n in names}
-    missing = [n for n, p in have.items() if p is None]
-    if missing:
-        import paramiko                                       # offline dependency (workflow installs it)
-        user, pw = os.environ.get("AVISO_USERNAME"), os.environ.get("AVISO_PASSWORD")
-        if not user or not pw:
-            raise SystemExit("AVISO_USERNAME / AVISO_PASSWORD are not set (Actions secrets)")
-        t = paramiko.Transport((AVISO_HOST, AVISO_PORT))
-        t.start_client(timeout=60)
-        key = t.get_remote_server_key()
-        if not host_key_ok(key.get_name(), key.get_base64()):
-            t.close()                                         # BEFORE any credential is sent
-            raise SystemExit(f"AVISO host key not pinned: {key.get_name()} "
-                             f"SHA256:{base64.b64encode(hashlib.sha256(key.asbytes()).digest()).decode().rstrip('=')}")
-        t.auth_password(user, pw)
-        sftp = paramiko.SFTPClient.from_transport(t)
-        listing = sftp.listdir(AVISO_DIR)
-        for n in missing:
-            match = [f for f in listing if remote_name_ok(f) and f.startswith(n.lower() + "_")]
-            if not match:
-                log(f"{n}: not in {AVISO_DIR}; public listing sample: {sorted(listing)[:40]}")
-                continue
-            dest = cache / match[0]
-            sftp.get(f"{AVISO_DIR}/{match[0]}", str(dest))
-            have[n] = dest
-            log(f"{n}: {dest.stat().st_size / 1e6:.0f} MB")
-        sftp.close()
-        t.close()
-    return {n: p for n, p in have.items() if p is not None}
-
-
-def host_key_ok(kind, b64):
-    """PURE: the server's key is one of the pinned AVISO keys."""
-    return (kind, b64) in AVISO_HOST_KEYS
-
-
-def remote_name_ok(name):
-    """PURE: a plain FES2022 constituent file name (no path parts), so a listing cannot steer a write elsewhere."""
-    return bool(REMOTE_NAME.fullmatch(name)) and Path(name).name == name
-
-
-# ---------------------------------------------------------------- subset: one small grid per station per constituent
-def subset(xz_path, name, points, out_root, scratch):
-    """Decompress one global grid, cut a BOX_DEG box around each point, delete the global file."""
-    import netCDF4
-    import numpy as np
-    nc_path = scratch / (name + ".nc")
-    with lzma.open(xz_path) as src, open(nc_path, "wb") as dst:
-        shutil.copyfileobj(src, dst, 1 << 24)
-    with netCDF4.Dataset(nc_path) as ds:
-        vn = ds.variables
-        lat = vn["lat" if "lat" in vn else "latitude"][:]
-        lon = vn["lon" if "lon" in vn else "longitude"][:]
-        for sid, (plat, plng) in points.items():
-            x = plng % 360.0
-            if x - BOX_DEG < lon.min() or x + BOX_DEG > lon.max():
-                log(f"{sid}: box crosses the grid seam, skipped")
-                continue
-            iy = np.where(np.abs(lat - plat) <= BOX_DEG)[0]
-            ix = np.where(np.abs(lon - x) <= BOX_DEG)[0]
-            out = out_root / sid
-            out.mkdir(parents=True, exist_ok=True)
-            with netCDF4.Dataset(out / (name + ".nc"), "w") as o:
-                o.createDimension("lat", len(iy))
-                o.createDimension("lon", len(ix))
-                o.createVariable("lat", "f8", ("lat",))[:] = lat[iy]
-                o.createVariable("lon", "f8", ("lon",))[:] = lon[ix]
-                for var in ("amplitude", "phase"):
-                    v = ds.variables[var]
-                    w = o.createVariable(var, "f4", ("lat", "lon"), fill_value=np.float32(1.8446744e19))
-                    w[:] = v[iy.min():iy.max() + 1, ix.min():ix.max() + 1]
-                    if hasattr(v, "units"):
-                        w.units = v.units
-    nc_path.unlink()
-
-
-# ---------------------------------------------------------------- PyFES evaluation
-def fes_series(sid_dir, plat, plng, times):
-    """FES2022b tide + long-period equilibrium (m) at one point. `times`: list of aware UTC datetimes."""
-    import numpy as np
-    import pyfes                                              # GPL - offline job only
-    paths = {p.stem: str(p) for p in sorted(sid_dir.glob("*.nc"))}
-    cfg = sid_dir / "fes.yaml"
-    body = ["engine: darwin", "tide:", "  cartesian:", "    latitude: lat", "    longitude: lon",
-            "    amplitude: amplitude", "    phase: phase", "    paths:"]
-    body += [f"      {k}: {v}" for k, v in paths.items()]
-    cfg.write_text("\n".join(body) + "\n", encoding="utf-8")
-    config = pyfes.config.load(str(cfg))
-    dates = np.array([np.datetime64(t.replace(tzinfo=None), "us") for t in times])
-    lon = np.full(dates.shape, plng % 360.0)
-    lat = np.full(dates.shape, plat)
-    tide, lp, flags = pyfes.evaluate_tide(config.models["tide"], dates, lon, lat, settings=config.settings)
-    if int(np.min(flags)) == 0:
-        return None                                           # undefined at this point
-    return [float(a + b) / 100.0 for a, b in zip(tide, lp)]  # cm -> m
-
-
-def extrema(times, vals):
-    """Local max/min with a parabolic refinement of the time. Returns [(time, 'H'|'L')]."""
-    out = []
-    for i in range(1, len(vals) - 1):
-        a, b, c = vals[i - 1], vals[i], vals[i + 1]
-        if (b > a and b >= c) or (b < a and b <= c):
-            den = a - 2 * b + c
-            off = 0.5 * (a - c) / den if den else 0.0
-            step = (times[i + 1] - times[i]).total_seconds()
-            out.append((times[i] + timedelta(seconds=off * step), "H" if b > a else "L"))
-    return out
-
-
-def rmse(x, y):
-    return math.sqrt(sum((p - q) ** 2 for p, q in zip(x, y)) / len(x))
-
-
-def score_station(sid, plat, plng, name, sid_dir, start, end):
-    row = {"id": sid, "name": name, "lat": plat, "lng": plng}
-    pred = coops(sid, "predictions", start, end, "h").get("predictions", [])
-    pmap = {parse_t(p["t"]): float(p["v"]) for p in pred if p.get("v") not in (None, "")}
-    ts = sorted(t for t in pmap if start <= t < end)
-    if len(ts) < 240:
-        row["error"] = f"CO-OPS predictions {len(ts)} h"
-        return row
-    fes = fes_series(sid_dir, plat, plng, ts)
-    if fes is None:
-        row["error"] = "FES undefined here"
-        return row
-    co = [pmap[t] for t in ts]
-    row["rmse_pred_m"] = round(rmse(fes, co), 4)
-    mf, mc = st.mean(fes), st.mean(co)
-    row["rmse_pred_demeaned_m"] = round(rmse([v - mf for v in fes], [v - mc for v in co]), 4)
-    row["range_ratio"] = round((max(fes) - min(fes)) / (max(co) - min(co)), 3) if max(co) > min(co) else None
-    # G-M1b timing: FES at 6 min vs CO-OPS hilo, same type, nearest within 3 h
-    fine = [start + timedelta(minutes=6 * k) for k in range(int((end - start).total_seconds() // 360))]
-    ex = extrema(fine, fes_series(sid_dir, plat, plng, fine) or [])
-    errs = []
-    for h in coops(sid, "predictions", start, end, "hilo").get("predictions", []):
-        t0, kind = parse_t(h["t"]), h.get("type")
-        cand = [abs((t - t0).total_seconds()) / 60 for t, k in ex if k == kind and abs((t - t0).total_seconds()) <= 3 * 3600]
-        if cand:
-            errs.append(min(cand))
-    row["hilo_n"] = len(errs)
-    row["hilo_mae_min"] = round(st.median(errs), 1) if errs else None
-    # G-M1c observed water, on the hour (informative)
-    obs = coops(sid, "water_level", start, min(end, datetime.now(timezone.utc))).get("data", [])
-    omap = {parse_t(o["t"]): float(o["v"]) for o in obs if o.get("v") not in (None, "") and o["t"].endswith(":00")}
-    both = [i for i, t in enumerate(ts) if t in omap]
-    if len(both) >= 120:
-        ob = [omap[ts[i]] for i in both]
-        row["obs_n"] = len(both)
-        row["rmse_obs_fes_m"] = round(rmse([fes[i] for i in both], ob), 4)
-        row["rmse_obs_coops_m"] = round(rmse([co[i] for i in both], ob), 4)
+def score_arm(series_h, truth, hours, fine=None, fine_vals=None, events=None, ntde_vals=None, datum=None, obs=None):
+    """One arm at one station. series_h: values aligned with `hours` (None allowed)."""
+    idx = [i for i, t in enumerate(hours) if t in truth and series_h[i] is not None]
+    if len(idx) < 240:
+        return {"error": f"overlap {len(idx)} h"}
+    a = [series_h[i] for i in idx]
+    b = [truth[hours[i]] for i in idx]
+    ma, mb = st.mean(a), st.mean(b)
+    row = {"rmse": round(M.rmse(a, b), 4), "rmse_demeaned": round(M.rmse([v - ma for v in a], [v - mb for v in b]), 4),
+           "range_ratio": round((max(a) - min(a)) / (max(b) - min(b)), 3) if max(b) > min(b) else None, "n": len(idx)}
+    if fine_vals is not None and events:
+        errs = M.hilo_errors(events, M.extrema(fine, list(fine_vals)))
+        row["hilo_med"] = st.median(errs) if errs else None
+        row["hilo_unmatched"] = sum(1 for e in errs if e == float("inf"))
+        row["hilo_n"] = len(errs)
+    if ntde_vals is not None and datum is not None:
+        off = M.mllw_offset(list(ntde_vals), NTDE_STEP_MIN / 60.0)
+        row["msl_minus_mllw"] = round(off, 4) if off is not None else None
+        row["mllw_err"] = round(off - datum, 4) if off is not None else None
+    if obs:
+        oi = [i for i in idx if hours[i] in obs]
+        if len(oi) >= 120:
+            row["rmse_obs"] = round(M.rmse([series_h[i] for i in oi], [obs[hours[i]] for i in oi]), 4)
     return row
-
-
-def summarize(rows):
-    ok = [r for r in rows if "rmse_pred_m" in r]
-    med = lambda k: round(st.median([r[k] for r in ok if r.get(k) is not None]), 4) if ok else None
-    s = {"stations": len(rows), "scored": len(ok), "median_rmse_pred_m": med("rmse_pred_m"),
-         "median_rmse_pred_demeaned_m": med("rmse_pred_demeaned_m"), "median_hilo_mae_min": med("hilo_mae_min"),
-         "median_rmse_obs_fes_m": med("rmse_obs_fes_m"), "median_rmse_obs_coops_m": med("rmse_obs_coops_m"),
-         "baseline_m": BASELINE_M}
-    s["G_M1a_parity"] = s["median_rmse_pred_m"] is not None and s["median_rmse_pred_m"] < BASELINE_M
-    s["G_M1b_timing"] = s["median_hilo_mae_min"] is not None and s["median_hilo_mae_min"] <= TIMING_MAX_MIN
-    o_f, o_c = s["median_rmse_obs_fes_m"], s["median_rmse_obs_coops_m"]
-    s["G_M1c_observed_informative"] = (o_f is not None and o_c is not None and o_f - o_c <= OBS_MARGIN_M)
-    s["PASS"] = bool(s["G_M1a_parity"] and s["G_M1b_timing"])
-    return s
-
-
-def markdown(rows, s):
-    lines = ["## M1 tide gate: FES2022b vs NOAA CO-OPS", "",
-             f"Median RMSE vs predictions **{s['median_rmse_pred_m']} m** (gate < {BASELINE_M}; de-meaned "
-             f"{s['median_rmse_pred_demeaned_m']}), High/Low timing **{s['median_hilo_mae_min']} min** (gate <= "
-             f"{TIMING_MAX_MIN:g}), observed water FES {s['median_rmse_obs_fes_m']} vs CO-OPS {s['median_rmse_obs_coops_m']} m. "
-             f"**{'PASS' if s['PASS'] else 'FAIL'}** ({s['scored']}/{s['stations']} stations scored).", "",
-             "| station | name | RMSE pred | de-meaned | range ratio | hilo min (n) | obs FES / CO-OPS |",
-             "|---|---|---|---|---|---|---|"]
-    for r in rows:
-        if "error" in r:
-            lines.append(f"| {r['id']} | {r.get('name', '')} | {r['error']} | | | | |")
-            continue
-        lines.append(f"| {r['id']} | {r['name']} | {r['rmse_pred_m']} | {r['rmse_pred_demeaned_m']} | {r['range_ratio']} | "
-                     f"{r.get('hilo_mae_min')} ({r.get('hilo_n')}) | {r.get('rmse_obs_fes_m')} / {r.get('rmse_obs_coops_m')} |")
-    lines += ["", "Credits: FES2022 - \"The FES2022 Tide product was funded by CNES, produced by LEGOS, NOVELTIS and CLS "
-              "and made freely available by AVISO\" (DOI 10.24400/527896/A01-2024.004). NOAA CO-OPS predictions and observations."]
-    return "\n".join(lines) + "\n"
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--cache", default="fes_cache")
+    ap.add_argument("--eot20", default="eot20_cache")
     ap.add_argument("--work", default="fes_work")
     ap.add_argument("--summary", default=os.environ.get("GITHUB_STEP_SUMMARY"))
     args = ap.parse_args()
-    cache, work = Path(args.cache), Path(args.work)
-    end = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-    start = end - timedelta(days=14)
-    meta = {sid: station_meta(sid) for sid in IDS}
+    work = Path(args.work)
+    hours, fine = hourly_times(), fine_times()
+    nd = ntde_dates()
+    h_np, f_np = arms.to_np(hours), arms.to_np(fine)
+    meta = {sid: S.station_meta(sid) for sid in IDS}
     points = {sid: (m[0], m[1]) for sid, m in meta.items() if m[0] is not None}
-    files = download(CONSTITUENTS, cache)
-    log(f"constituents: {sorted(files)}")
+
+    files = S.download_fes(FES_CONSTITUENTS, Path(args.cache))
+    log(f"FES constituents: {sorted(files)}")
     boxes, scratch = work / "boxes", work / "scratch"
     scratch.mkdir(parents=True, exist_ok=True)
     for name, path in files.items():
-        subset(path, name, points, boxes, scratch)
-    rows = []
+        S.subset_fes(path, name, points, boxes, scratch)
+    eot_root = S.download_eot20(Path(args.eot20))
+
+    rows, keep = [], {}
     for sid in IDS:
         lat, lng, name = meta[sid]
-        if lat is None or not (boxes / sid).is_dir():
-            rows.append({"id": sid, "name": name, "error": "no metadata or no FES box"})
+        row = {"id": sid, "name": name, "stratum": M.stratum(sid), "lat": lat, "lng": lng}
+        rows.append(row)
+        if lat is None:
+            row["error"] = "no metadata"
             continue
-        rows.append(score_station(sid, lat, lng, name, boxes / sid, start, end))
-        log(json.dumps(rows[-1]))
-    s = summarize(rows)
-    print(json.dumps({"window": [start.isoformat(), end.isoformat()], "constituents": sorted(files),
-                      "summary": s, "stations": rows}, indent=1))
+        truth = S.coops_series(sid, "predictions", START, END, "h")
+        events = [e for e in S.coops_hilo(sid, START, END) if START <= e[0] <= END]
+        obs = {t: v for t, v in S.coops_series(sid, "water_level", START, END, key="data").items() if t.minute == 0}
+        datum = S.coops_msl_minus_mllw(sid)
+        row["coops_msl_minus_mllw"] = datum
+        both = np.concatenate([h_np, f_np, nd])
+        cut = (len(h_np), len(h_np) + len(f_np))
+        series = {}
+        for arm, fn in (("A", lambda d: arms.fes_eval(boxes / sid, lat, lng, d) if (boxes / sid).is_dir() else None),
+                        ("B", lambda d: arms.eot20_eval(eot_root, lat, lng, d))):
+            try:
+                v = fn(both)
+            except Exception as e:                            # noqa: BLE001 - recorded per station, never silent
+                log(f"{sid} arm {arm}: {e}")
+                row[arm] = {"error": str(e)[:200]}
+                continue
+            if v is None:
+                row[arm] = {"error": "undefined at this point"}
+                continue
+            vh, vf, vn = v[:cut[0]], v[cut[0]:cut[1]], v[cut[1]:]
+            row[arm] = score_arm(list(vh), truth, hours, fine, vf, events, vn, datum, obs)
+            series[arm] = (list(vh), list(vf))
+        om = S.om_sea_level(lat, lng, START.date(), (END + timedelta(days=3)).date())
+        om_year = S.om_sea_level(lat, lng, (START - timedelta(days=365)).date(), (START - timedelta(days=1)).date())
+        year_mean = st.mean(om_year.values()) if len(om_year) >= 330 * 24 else None
+        row["C"] = score_arm(arms.om_demean72(om, hours), truth, hours, obs=obs)
+        row["D"] = score_arm(arms.om_minus_year(om, hours, year_mean), truth, hours, obs=obs)
+        hc = S.coops_harcon(sid)
+        try:
+            p = arms.harcon_eval(hc, h_np) if hc else None
+        except Exception as e:                                # noqa: BLE001
+            log(f"{sid} positive control: {e}")
+            p = None
+        row["P"] = score_arm(list(p), truth, hours) if p is not None else {"error": "no harmonic constants"}
+        keep[sid] = {"truth": truth, "events": events, "series": series}
+        log(json.dumps({k: row[k] for k in row if k in ("id", "A", "B", "C", "P")}, default=str)[:600])
+
+    report = decide(rows, keep, hours, fine)
+    print(json.dumps({"window": [START.isoformat(), END.isoformat()], "fes_constituents": sorted(files),
+                      **report, "stations": rows}, indent=1, default=str))
     if args.summary:
         with open(args.summary, "a", encoding="utf-8") as fh:
-            fh.write(markdown(rows, s))
+            fh.write(markdown(rows, report))
+
+
+def arm_table(rows, arm):
+    return {r["id"]: {"rmse": (r.get(arm) or {}).get("rmse"), "hilo_med": (r.get(arm) or {}).get("hilo_med"),
+                      "mllw_err": (r.get(arm) or {}).get("mllw_err")} for r in rows if "error" not in r}
+
+
+def decide(rows, keep, hours, fine):
+    base_c = arm_table(rows, "C")
+    verdicts = {arm: M.arm_verdict(arm_table(rows, arm), base_c) for arm in ("A", "B")}
+    chosen = M.choose(verdicts)
+    positive = M.median_or_none([(r.get("P") or {}).get("rmse") for r in rows])
+    swap = shifted = None
+    if chosen:
+        sids = [s for s in keep if chosen in keep[s]["series"] and len(keep[s]["truth"]) >= 240]
+        meds = []
+        for perm in M.derangements(len(sids)):
+            per = []
+            for i, j in enumerate(perm):
+                vh, truth = keep[sids[i]]["series"][chosen][0], keep[sids[j]]["truth"]
+                idx = [k for k, t in enumerate(hours) if t in truth]
+                per.append(M.rmse([vh[k] for k in idx], [truth[hours[k]] for k in idx]))
+            meds.append(st.median(per))
+        swap = st.median(meds) if meds else None
+        shifted_meds = []
+        for s in sids:
+            vf = keep[s]["series"][chosen][1]
+            ex = [(t + timedelta(hours=6), k) for t, k in M.extrema(fine, vf)]
+            errs = M.hilo_errors(keep[s]["events"], ex)
+            if errs:
+                shifted_meds.append(st.median(errs))
+        shifted = st.median(shifted_meds) if shifted_meds else None
+    controls, ok = M.controls_ok(positive, swap, shifted)
+    chosen, verdict = M.final(verdicts, ok)
+    strata = {}
+    for arm in ("A", "B", "C", "D", "P"):
+        for r in rows:
+            v = (r.get(arm) or {}).get("rmse")
+            if v is not None:
+                strata.setdefault(arm, {}).setdefault(r["stratum"], []).append(v)
+    strata = {a: {k: round(st.median(v), 4) for k, v in d.items()} for a, d in strata.items()}
+    return {"verdict": verdict, "chosen_arm": chosen, "arms": verdicts,
+            "controls": {"items": controls, "positive_median_rmse_m": positive, "swap_median_rmse_m": swap,
+                         "shift6h_median_hilo_min": shifted},
+            "median_rmse_D_m": M.median_or_none([(r.get("D") or {}).get("rmse") for r in rows]),
+            "median_rmse_obs": {a: M.median_or_none([(r.get(a) or {}).get("rmse_obs") for r in rows])
+                                for a in ("A", "B", "C", "D")},
+            "strata_median_rmse_m": strata}
+
+
+def fmt(x, nd=3):
+    return "-" if x is None else (f"{x:.{nd}f}" if isinstance(x, float) else str(x))
+
+
+def markdown(rows, rep):
+    a, b = rep["arms"]["A"], rep["arms"]["B"]
+    c = rep["controls"]
+    lines = [f"## M1 tide gate: **{rep['verdict']}** (chosen arm {rep['chosen_arm']})", "",
+             "| arm | median RMSE vs CO-OPS | vs C | High/Low min | MLLW err | items |", "|---|---|---|---|---|---|"]
+    for k, v in (("A FES2022b", a), ("B EOT20", b)):
+        lines.append(f"| {k} | {fmt(v['median_rmse_m'])} | {fmt(v['median_rmse_C_m'])} | {fmt(v['median_hilo_min'], 1)} | "
+                     f"{fmt(v['median_abs_mllw_err_m'])} | {', '.join(i for i, ok in v['items'].items() if not ok) or 'all pass'} |")
+    lines += ["", f"Controls: positive {fmt(c['positive_median_rmse_m'], 4)} m, label swap {fmt(c['swap_median_rmse_m'])} m, "
+              f"+6 h shift {fmt(c['shift6h_median_hilo_min'], 1)} min -> {c['items']}. Arm D median {fmt(rep['median_rmse_D_m'])} m. "
+              f"Observed water (informative): {rep['median_rmse_obs']}. Strata: {rep['strata_median_rmse_m']}", "",
+              "| station | stratum | A | B | C | D | P | A hilo | A MLLW err |", "|---|---|---|---|---|---|---|---|---|"]
+    for r in rows:
+        g = lambda k, f="rmse": (r.get(k) or {}).get(f)                     # noqa: E731
+        lines.append(f"| {r['id']} {r.get('name', '')} | {r['stratum']} | {fmt(g('A'))} | {fmt(g('B'))} | {fmt(g('C'))} | "
+                     f"{fmt(g('D'))} | {fmt(g('P'), 4)} | {fmt(g('A', 'hilo_med'), 1)} | {fmt(g('A', 'mllw_err'))} |")
+    lines += ["", "Credits: FES2022 - \"The FES2022 Tide product was funded by CNES, produced by LEGOS, NOVELTIS and CLS "
+              "and made freely available by AVISO\" (DOI 10.24400/527896/A01-2024.004). EOT20 - DGFI-TUM, CC BY 4.0 "
+              "(doi:10.17882/79489). NOAA CO-OPS predictions, observations, datums and harmonic constants."]
+    return "\n".join(lines) + "\n"
 
 
 if __name__ == "__main__":

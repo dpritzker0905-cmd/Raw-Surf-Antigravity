@@ -1,8 +1,9 @@
 name: Tide M1 gate (FES2022b via PyFES vs NOAA CO-OPS)
 # WHY (director 2026-11-15 21:23 EST, owner: "nothing depending on open-meteo", "best path toward state of the art"):
-# M1 replaces model sea level with an astronomical tide. This job is the PRE-REGISTERED gate
-# (docs/weather-program/log/2026-11-15-claude-tide-m1.md): FES2022b extrapolated ocean tide, evaluated with PyFES at
-# 26 CO-OPS stations, scored against CO-OPS predictions, High/Low times and observed water.
+# M1 replaces model sea level with an astronomical tide. This job is the PRE-REGISTERED gate, reconciled with the
+# research lead's (docs/weather-program/log/2026-11-15-claude-tide-m1.md, 22:25 EST): frozen window 2026-10-15..28,
+# 26 CO-OPS stations, arms A FES2022b (PyFES) and B EOT20 (pyTMD) against test-only Open-Meteo references C/D,
+# plus a 19-year MLLW synthesis and three controls.
 # PyFES is GPL: it runs ONLY here, never in the served backend. Measurement only: no bucket write, no live backend call.
 # AVISO credentials come from the AVISO_USERNAME / AVISO_PASSWORD secrets, read by the script from the environment and
 # never printed. Public CO-OPS GETs only.
@@ -21,25 +22,30 @@ concurrency:
 jobs:
   gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
         with:
           python-version: '3.12'
       - name: Install (offline-only dependencies; pyfes pinned to a release with a binary wheel)
-        run: pip install "pyfes==2026.5.2" "paramiko==5.1.0" netCDF4 numpy pyyaml
+        run: pip install "pyfes==2026.5.2" "pyTMD==3.1.0" "paramiko==5.1.0" netCDF4 numpy pyyaml pandas lxml
       - name: Cache the FES2022b constituent downloads (compressed)
         uses: actions/cache@v4
         with:
           path: fes_cache
           key: fes2022b-extrapolated-v1-${{ hashFiles('backend/scripts/tide_fes/fes_gate.py') }}
           restore-keys: fes2022b-extrapolated-v1-
+      - name: Cache the EOT20 ocean tide files (SEANOE, CC BY 4.0)
+        uses: actions/cache@v4
+        with:
+          path: eot20_cache
+          key: eot20-ocean-v1
       - name: Run the gate
         env:
           AVISO_USERNAME: ${{ secrets.AVISO_USERNAME }}
           AVISO_PASSWORD: ${{ secrets.AVISO_PASSWORD }}
-        run: python backend/scripts/tide_fes/fes_gate.py --cache fes_cache --work fes_work > fes_gate.json
+        run: python backend/scripts/tide_fes/fes_gate.py --cache fes_cache --eot20 eot20_cache --work fes_work > fes_gate.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:

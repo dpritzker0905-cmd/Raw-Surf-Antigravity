@@ -87,3 +87,27 @@ Taken item by item (S = stricter, adopted):
   - Negative 2: the chosen arm shifted +6 h must FAIL item 3.
 - **Reported, not gating:** range ratio, de-meaned RMSE, T2 RMSE for each arm and for CO-OPS predictions.
 - **Served change:** none in the gate PR. After PASS the change ships ON (D-065) with a kill switch and a SCOREBOARD row.
+
+## 22:41 EST (`date`) - how the reconciled rules are computed (written before any run; ties go to the stricter reading)
+Code: `backend/scripts/tide_fes/{metrics,sources,arms,fes_gate}.py`. The rules are pure functions in `metrics.py`, pinned
+by `tests/test_tide_fes_offline_guard.py` (written during the 22:00-00:30 quiet window: NOT run locally yet).
+- **Medians are across stations:** item 1 is the median of the per-station RMSEs; item 3 is the median of the
+  per-station medians of |time error|; item 4 is the median of per-station |MLLW error|.
+- **Unmatched extremum:** a CO-OPS High/Low with no same-type extremum of the arm within +/-3 h counts as +infinity
+  (not dropped).
+- **Item 2:** a station that arm C scores but the arm cannot (undefined or failed) counts as "worse than C".
+- **Arm C:** each hour minus the mean of the 72 h window from 00Z of its day (as `tide_datum_vs_coops.py` did), at
+  the served 0.1 deg cell. **Arm D:** minus the mean over 2025-10-15 .. 2026-10-14, only with >= 330 days of hours.
+- **MLLW:** the arm synthesised every 10 min over 1983-01-01 .. 2001-12-31. MSL is the series mean; MLLW is the mean
+  of the minimum of each full 24.8412 h tidal day. Compared with the CO-OPS datum sheet's MSL - MLLW.
+- **Positive control:** CO-OPS's published constants (`harcon.json`) synthesised by pyTMD with the GOT nodal
+  corrections and no inferred minors (pyTMD's Compare-NOAA-Tides recipe). PASS needs median RMSE <= 0.01 m.
+- **Negative 1:** the chosen arm at station i scored against the truth of station perm(i), 200 deterministic
+  derangements (seed 20261015). The median over derangements of the median over stations must exceed 0.3 m.
+- **Negative 2:** the chosen arm's extrema shifted +6 h, scored by item 3's rule, must give a median > 20 min.
+- **Chosen arm:** of the arms that pass, the lower median RMSE, with A winning within 0.01 m. If none passes, the
+  same rule runs over all scored arms, for the controls and the report only.
+- **Arm B (EOT20):** pyTMD 3.1.0 database model "EOT20", extrapolation cutoff 10 km. The archive is SEANOE
+  doi:10.17882/79489; only `*_ocean_eot20.nc` members are taken, by plain file name.
+- **Push timing:** the commit waits for the end of the quiet window (00:30 EST), since a push to this branch starts
+  the gate job.
