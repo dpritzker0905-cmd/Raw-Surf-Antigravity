@@ -1,0 +1,37 @@
+# ML RESIDUAL-CORRECTION SHADOW READ (2026-11-16). MEASUREMENT ONLY, DISPATCH ONLY, SERVES NOTHING.
+#
+# WHY: the senior research lead's brief (#929): a gradient-boosted correction of the served offshore height's residual
+# (lead, Hs, Tp, direction, wind, season, region, model spread), graded against Move 4's ocf_rolling by the gate
+# pre-registered in docs/weather-program/log/2026-11-16-claude-verifier-ml-residual-shadow.md (fe5a9143f, before any
+# row was read): leave-buoy-out x forward 7-day blocks, a shuffled-label null, a seeded-shift positive control, hole
+# buoys out of the fit and the score.
+#
+# ⛔ PRINTS AGGREGATES ONLY: per lead and per region x lead n, MAE, dMAE and intervals; the null; the planted shift; the
+#   verdict. No row, observation series or credential reaches the log; no artifact.
+#   tests/test_skill_ml_residual.py pins that no buoy id or row field is printed.
+# ⛔ NO SCHEDULE: the owner names each dispatch. Not running it is the kill switch.
+# ⛔ Reads only (Storage GET with the monitor's read pair); never writes Storage, never calls the serve box.
+name: ML Residual Shadow
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ml-residual-shadow
+  cancel-in-progress: true
+jobs:
+  read:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - name: Pinned learners (scikit-learn is not a backend dependency)
+        run: python3 -m pip install --quiet scikit-learn==1.7.2 numpy
+      - name: GBT residual correction vs ocf_rolling (aggregates only)
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -o pipefail
+          python3 scripts/ml_residual_shadow.py
