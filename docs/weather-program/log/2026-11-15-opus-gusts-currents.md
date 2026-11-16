@@ -305,3 +305,44 @@ and 10 frame-changing single-key steps per row, gusts GFS / EURO / ICON and curr
 Also (the advisor's condition-1 follow-up, written the same minute): a remembered gusts / currents layer whose sets are not
 published falls back to wind / currents -> waves once the availability answer is known (ownLayerAvailability.fallbackFor),
 never an empty map. Built 21:50, tested after the 22:00-00:30 quiet window.
+
+## 11. G4 PRE-REGISTRATION: Copernicus SST as water temperature (the director's assignment, 2026-11-15 21:59 EST)
+
+Written before any CMEMS SST value was read. Assignment: CMEMS global ocean physics SST (1/12 deg) as ICON's water-temp source
+(DWD ICON has no skin temperature; today ICON's water temp is blank on own frames, GFS skin on the .om path) and as an upgrade for
+all models, labelled.
+
+**Source (metadata read 21:58 EST, no values):** GLOBAL_ANALYSISFORECAST_PHY_001_024. Candidate A:
+`cmems_mod_glo_phy_anfc_0.083deg_PT1H-m` (hourly MEAN, surface level: so, thetao, uo, vo, zos; ARCO
+`mdl-arco-time-014/.../timeChunked.zarr`). Candidate B: `cmems_mod_glo_phy-thetao_anfc_0.083deg_PT6H-i` (6-hourly
+instantaneous, 50 levels; `mdl-arco-time-013`). Pre-chosen: A (hourly, surface only, one level to read), unless its
+`thetao` is not the top level (checked from `.zattrs` / the elevation coordinate before any value), then B.
+
+**Resolution tension, both arms measured before choosing:** the director's rule moves a layer to own frames only where the set
+is at least as fine as today's .om grid (GFS water temp = gfs013, 0.117 deg). Arm R1: 1/6 deg (every second 1/12 cell,
+2160 x 1021, no interpolation: point values at the 1/12 cells) - finer than 0.117? No (0.167): FAILS the rule by itself, so
+R1 is only the ICON source (blank today). Arm R2: full 1/12 deg (4320 x 2041) published as regional tiles over the pilot
+boxes + 1/6 deg world: passes the rule where tiles exist. Bytes per frame and per run reported for both before any
+build beyond a prototype.
+
+**Parity gate (pass/fail):** every published node equals the source cell value within the frame's 0.025 degC tolerance at
+>= 7 independent points (xarray + zarr reader, not the publisher's), including two coastal cells and one antimeridian cell.
+
+**Observation check (reported, plus one pass line):**
+- Truth: NDBC realtime2 `WTMP` (hull / ~1 m sensor) at every station reporting it between 60S and 65N (no hand-picking),
+  hourly, matched to the nearest valid hour; CMEMS's hourly MEAN paired with the mean of the station's obs in that hour.
+- Paired arms on the SAME station-hours: CMEMS thetao; GFS TMP:surface (skin; the served GFS water temp); ECMWF skt (EURO's
+  water temp); persistence (the station's own value 24 h earlier); a NEGATIVE control (CMEMS shifted +48 h).
+- Leads: 0-23 h and 24-47 h from the bulletins available at run time (CMEMS replaces past steps with analyses, so older
+  forecasts cannot be fetched back; a 14-day forward collection starts at build time - one bulletin a day - and is reported
+  when 14 days exist, as the director's truth rule asks).
+- Metrics: n, bias, MAE, RMSE degC per arm and lead bin; bootstrap 95% CI on the paired MAE difference (station blocks).
+- PASS line for "upgrade for all models": CMEMS paired MAE lower than BOTH GFS skin and ECMWF skt with the CI upper bound < 0,
+  in the 0-23 h bin; the negative control must lose to persistence. For ICON (blank today) the bar is beating persistence.
+- Stated caveats in advance: hull sensors read ~1 m down, skin temperature (GFS/ECMWF) differs from bulk SST by a diurnal
+  warm layer (largest in calm, sunny afternoons): reported by local hour.
+
+**Label:** "Water temp: Copernicus ocean model (1/12°, top 0.5 m, hourly mean)" with the Copernicus credit and DOI (licence
+§2.4); under ICON: "ICON has no sea temperature; showing Copernicus ocean model".
+**Not built before:** the director's go on the resolution arm after the bytes table; David's word on bucket growth (with the
+SMOC question).
