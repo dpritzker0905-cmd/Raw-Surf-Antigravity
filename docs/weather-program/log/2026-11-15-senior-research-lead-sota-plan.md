@@ -1209,3 +1209,16 @@ FRF is DROPPED (this supersedes the owner's 22:12 "use it").
 7. **Aggregation:** hierarchical latent truth (per-observer bias and noise, spot-day effect) with uncertainty.
    - An untouched independent test set with metrics registered before any fit.
    - Model outputs never feed the truth (Reflection).
+
+## 04:55Z Overnight consolidation (director's brief; David 23:41 EST: "sort through all our work tonight, in all of our subs and learning, organizing and improving toward SOTA while I sleep")
+
+Written in this PR (docs only, no served change):
+- `SOTA-ROADMAP.md`: new file, one ranked list (1-15 plus a watch list) with owner, gate and status.
+- `STATE.md`: a new top bullet in "Now" (landed, in flight per lane, held and why) and a pointer at the top of "Next
+  fixes". Both are exact-string inserts.
+- `DECISIONS.md`: D-074 .. D-079, appended. David's words are quoted where a verbatim record exists; the director's
+  summaries are labelled as such. D-073 is left to its open branch (`claude/euro-scalar-height-flip`).
+- `LESSONS.md`: L-P44 .. L-P46, L-S26, L-S27, L-O9, appended. L-P46 is as the director reported it; not reproduced.
+
+Sources: `gh pr list` (merged since 2026-11-15, open >= #900) read at about 04:45Z; the director board to 20:35Z; and
+this log.
