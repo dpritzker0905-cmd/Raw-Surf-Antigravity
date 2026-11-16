@@ -1425,3 +1425,6 @@ every file in full; nothing was run on real data.
 - Show a synthetic convergence run at 4×1000 before the first real run.
 
 The review reference the runner requires is given only after R1-R6 are verified.
+
+- Clock correction (18:30 -0500): the heading above says 18:40 EST, but the section was committed at 18:28 EST (3b3cd51e4). The
+  heading time was ahead of the clock (L-P10); 18:28 governs.
