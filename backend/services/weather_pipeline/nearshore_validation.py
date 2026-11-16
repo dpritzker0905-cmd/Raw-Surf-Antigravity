@@ -424,6 +424,37 @@ def match(preds: list, obs: list, tolerance_s: float = 1800.0) -> list:
     return out
 
 
+FACTOR_ROW_KEYS = ("station", "day", "model_over_obs", "factors")
+
+
+def factor_rows(matched: list) -> list:
+    """PURE: the least a per-factor attribution needs from the matched rows (2026-11-16, S0 ablation gate).
+
+    `build_report` keeps only the MEDIAN of each transform factor, and a median total does not divide like rows do,
+    so the low reading could not be attributed to friction, shoaling, exposure or Kr. One entry per matched
+    spot-hour: the station, the DAY, the ratio model / observed, and that row's five factors. Undoing a factor is
+    then `model_over_obs / factors[name]`.
+
+    ⚠️ NO forecast height, period, direction or hour is written. This file goes into a PUBLIC repository's artifact
+    and those are our served forecasts at named stations and times; whether past rows fall under the owner's
+    accounts-only decision is his call, so the default is not to publish them. The ratio and the day are enough for
+    the gate (day-block intervals). A row without factors, or without a positive model and observation, is skipped."""
+    out = []
+    for m in matched or []:
+        f = m.get("factors")
+        try:
+            model, obs = float(m.get("model_hs_m")), float(m.get("obs_hs_m"))
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(f, dict) or not model > 0 or not obs > 0:
+            continue
+        out.append({"station": m.get("station"), "day": str(m.get("valid_time") or "")[:10],
+                    "model_over_obs": round(model / obs, 4),
+                    "factors": {k: f.get(k) for k in ("friction", "shoaling", "exposure", "kr", "total")}})
+    out.sort(key=lambda r: (str(r["station"]), r["day"], r["model_over_obs"]))
+    return out
+
+
 def build_report(matched: list, n_stations: int, n_obs: int, n_preds: int,
                  min_matched: int = None, min_station_hours: int = 0) -> dict:
     """The banked report. REFUSES (available:false + reason + counters) below the match floor —
