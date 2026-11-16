@@ -98,10 +98,12 @@ async def _table() -> Optional[dict]:
 
 
 def table_ready(doc: Optional[dict]) -> bool:
-    """PURE: the table has been built at least once (it holds cells). Until then the 72 h fallback stays OFF and
-    every spot keeps today's raw level (owner, 2026-11-15 20:46 EST: "Raw until first fill"), so the deploy never
-    serves the 72 h de-mean to every spot while the table fills (advisor: La Jolla 0.452 vs 0.173 m vs observed)."""
-    return bool(((doc or {}).get("cells")) or {})
+    """PURE: the FIRST FULL fill is done - the ingest set `complete` once every spot cell had been attempted (an entry,
+    or a recorded too-short archive). Until then the 72 h fallback stays OFF and every spot keeps today's raw level
+    (owner, 2026-11-15 20:46 EST: "Raw until first fill"; advisor: "until the fill is complete" - a partly filled table
+    would otherwise put most spots on the 72 h de-mean, La Jolla 0.452 vs 0.173 m vs observed). Once set, it stays set
+    through the monthly refreshes."""
+    return bool((doc or {}).get("complete") is True and (doc or {}).get("cells"))
 
 
 async def datum_state(lat, lng):

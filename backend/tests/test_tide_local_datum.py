@@ -17,7 +17,8 @@ from services.weather_pipeline import tide_datum as D
 
 T0 = datetime(2026, 11, 15, tzinfo=timezone.utc)
 OFFSET = 0.567   # Honolulu's 1-year model mean
-TABLE = {"cells": {"21.3,-157.9": {"mean_m": OFFSET, "hours": 8760}, "40.5,-74.0": {"mean_m": -0.507, "hours": 8760}}}
+TABLE = {"complete": True,
+         "cells": {"21.3,-157.9": {"mean_m": OFFSET, "hours": 8760}, "40.5,-74.0": {"mean_m": -0.507, "hours": 8760}}}
 
 
 def _series(hours=72, offset=OFFSET, gaps=()):
@@ -142,6 +143,21 @@ def test_raw_until_the_table_is_first_built_then_the_window_fallback(monkeypatch
     got = asyncio.run(T.fetch_tide_hourly(30.0, -150.0))                  # a cell the built table lacks
     assert got["datum"] == "window_72h"
     assert D.table_ready(TABLE) and not D.table_ready({"cells": {}}) and not D.table_ready(None)
+
+
+def test_a_partly_filled_table_without_the_complete_marker_serves_raw(monkeypatch):
+    """Advisor: 'raw until first fill' means until the fill is COMPLETE. After the first 300-cell run the table holds
+    some cells; every other spot must stay raw, not drop onto the 72 h fallback."""
+    async def fake_fetch_point(key, client, forecast_days):
+        return _series()
+    monkeypatch.setattr(T, "_fetch_point", fake_fetch_point)
+    partial = {"cells": {"21.3,-157.9": {"mean_m": OFFSET}}}                 # no `complete`
+    D._reset_for_tests(lambda: _async(partial))
+    assert asyncio.run(T.fetch_tide_hourly(30.0, -150.0))["datum"] == "model_msl"       # uncovered: raw
+    assert asyncio.run(T.fetch_tide_hourly(21.31, -157.87))["datum"] == "model_mean_365d"   # covered: its datum
+    from scripts.tide_datum_ingest import is_complete
+    assert not is_complete(["a", "b"], {"cells": {"a": {"mean_m": 0.1}}})
+    assert is_complete(["a", "b"], {"cells": {"a": {"mean_m": 0.1}, "b": {"mean_m": None}}})   # short archive counts
 
 
 async def _async(v):

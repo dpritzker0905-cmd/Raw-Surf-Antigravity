@@ -49,6 +49,12 @@ def plan_refresh(cells, table, today, max_age_days, limit):
     return due[:limit]
 
 
+def is_complete(cells, table):
+    """PURE: every spot cell has been attempted (an entry, with or without a mean)."""
+    have = table.get("cells") or {}
+    return bool(cells) and all(k in have for k in cells)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--limit", type=int, default=300)
@@ -79,12 +85,17 @@ def main():
             limited = True
             break
         if mean is None:
-            short += 1
+            short += 1        # recorded with no mean: attempted (counts toward `complete`), never served, retried monthly
+            table["cells"][k] = {"mean_m": None, "hours": max(hours, 0), "built": today.isoformat()}
             continue
         table["cells"][k] = {"mean_m": round(mean, 4), "hours": hours, "built": today.isoformat()}
         built += 1
         time.sleep(0.3)
     table.update(schema="raw-surf/tide-model-datum/1", window_days=365, updated_at=datetime.now(timezone.utc).isoformat())
+    # `complete` = the first full fill is done: every spot cell attempted. The server serves the 72 h fallback only
+    # after this (tide_datum.table_ready); until then every spot keeps the raw level. Once set it stays set.
+    if table.get("complete") is not True and is_complete(cells, table):
+        table["complete"], table["completed_at"] = True, datetime.now(timezone.utc).isoformat()
     body = json.dumps(table, separators=(",", ":")).encode("utf-8")
     if args.out:
         with open(args.out, "wb") as fh:
@@ -99,7 +110,8 @@ def main():
                    and lookup(table, sp["latitude"], sp["longitude"]) is None)
     print(json.dumps({"spot_cells": len(cells), "planned": len(todo), "built": built, "too_short": short,
                       "rate_limited": limited, "table_cells": len(table["cells"]), "written": ok,
-                      "spots": len(spots), "spots_on_window_72h_fallback": fallback}))
+                      "spots": len(spots), "spots_on_window_72h_fallback": fallback,
+                      "complete": table.get("complete") is True}))
     if not ok:
         raise SystemExit(1)
 
