@@ -28,8 +28,8 @@ describe('currents set and switches', () => {
   test('credits Copernicus Marine with the product DOI (its licence asks for it)', () => {
     for (const engaged of [{ currents: 'CMEMS' }, {}]) {
       const c = creditFor('currents', engaged, {});
-      expect(c.text).toBe('© Copernicus Marine · large-scale; no tides');   // the advisor's condition 2: what the field is NOT
-      expect(c.label).toMatch(/tides and nearshore currents are not included/);
+      expect(c.text).toBe('© Copernicus Marine · open-ocean current; no tides, not a nearshore / rip current');   // the director's wording
+      expect(c.label).toMatch(/no tides, and not a nearshore or rip current/);
       expect(c.href).toBe('https://doi.org/10.48670/moi-00016');
       expect(c.label).toMatch(/Copernicus Marine Service Information/);
     }

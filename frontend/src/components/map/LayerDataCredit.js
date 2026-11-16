@@ -39,7 +39,7 @@ const OWN_NOTE = {
   // Every model's gust misses thunderstorm downbursts (NWS states it for its own gust grids): said in the accessible label.
   // Currents (2026-11-15, the advisor's red-team of #928): what the field is NOT, on screen. Copernicus' global model at -0.5 m
   // on 1/12 deg, 6-hourly, mapped to 0.25 deg; no tide, no surf-zone or rip current (the HF-radar check: direction off ~39 deg).
-  currents: { text: ' · large-scale; no tides', label: 'Large-scale ocean currents (Copernicus global model, half a metre down, every 6 hours, about 28 km cells); tides and nearshore currents are not included.' },
+  currents: { text: ' · open-ocean current; no tides, not a nearshore / rip current', label: 'Open-ocean current from the Copernicus global model (half a metre down, every 6 hours, about 28 km cells): no tides, and not a nearshore or rip current.' },
   gusts: (model) => withStormCaveat(model === 'GFS'
     ? { text: ' · instantaneous', label: 'GFS surface wind gust at the valid time (instantaneous).' }
     : { text: ' · peak since last step', label: model === 'EURO'

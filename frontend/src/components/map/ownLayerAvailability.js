@@ -12,6 +12,14 @@ import { getPinnedIndex, staticFramesEnabled } from './staticFrames';
 import { OWN_ONLY_LAYERS, OWN_RASTER_SETS } from './ownRasterFrames';
 
 export const RECHECK_MS = 10 * 60 * 1000;
+/** A REMEMBERED layer that is hidden (route memory, a shared link): the nearest visible relative takes its place, never an empty
+ *  map (the advisor, 2026-11-15). Gusts -> wind (the same palette and unit), currents -> waves (the other ocean field). */
+export const OWN_ONLY_FALLBACK = Object.freeze({ gusts: 'wind', currents: 'waves' });
+/** The layer to switch to when the active one is an own-only layer known to be unpublished; null otherwise (unknown: wait). */
+export function fallbackFor(activeLayer, avail) {
+  if (!activeLayer || !OWN_ONLY_FALLBACK[activeLayer] || !avail || !avail.checked) return null;
+  return avail[activeLayer] ? null : OWN_ONLY_FALLBACK[activeLayer];
+}
 const W = () => (typeof window !== 'undefined' ? window : {});
 export const availabilityCheckKilled = () => W().__RAW_DISABLE_OWN_LAYER_AVAILABILITY__ === true;
 
@@ -34,12 +42,14 @@ export async function publishedOwnOnlyLayers(pin = getPinnedIndex) {
 /** The own-only layers the picker may offer now: { gusts: bool, currents: bool }. */
 export function useOwnOnlyLayersAvailable() {
   const killed = availabilityCheckKilled();
-  const [avail, setAvail] = useState(() => Object.fromEntries(OWN_ONLY_LAYERS.map((l) => [l, killed])));
+  const [avail, setAvail] = useState(() => ({ ...Object.fromEntries(OWN_ONLY_LAYERS.map((l) => [l, killed])), checked: killed }));
   useEffect(() => {
     if (killed) return undefined;
-    if (!staticFramesEnabled()) { setAvail(Object.fromEntries(OWN_ONLY_LAYERS.map((l) => [l, false]))); return undefined; }
+    if (!staticFramesEnabled()) { setAvail({ ...Object.fromEntries(OWN_ONLY_LAYERS.map((l) => [l, false])), checked: true }); return undefined; }
     let alive = true;
-    const check = () => publishedOwnOnlyLayers().then((a) => { if (alive) setAvail((prev) => (OWN_ONLY_LAYERS.every((l) => prev[l] === a[l]) ? prev : a)); });
+    const check = () => publishedOwnOnlyLayers().then((a) => {
+      if (alive) setAvail((prev) => (prev.checked && OWN_ONLY_LAYERS.every((l) => prev[l] === a[l]) ? prev : { ...a, checked: true }));
+    });
     check();
     const id = setInterval(check, RECHECK_MS);
     return () => { alive = false; clearInterval(id); };

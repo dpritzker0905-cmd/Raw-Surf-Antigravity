@@ -7,7 +7,7 @@ import { setSurfModeFlag } from './backendWeatherServiceClient'; import { useSur
 import { RATING_LEVELS, RATING_COLOR } from './surfRating';
 import useHeightUnit from './useHeightUnit';
 import { windLegendGradientCSS, windLegendStops, windLookKey } from './WindColorRamp'; import { gustLegend } from './gustPalette'; import { currentsLegend } from './currentsPalette';
-import { useOwnOnlyLayersAvailable } from './ownLayerAvailability';
+import { fallbackFor, useOwnOnlyLayersAvailable } from './ownLayerAvailability';
 import { evenTicks, LegendTicks } from './legendTicks';
 import { activeCadenceHours, stepHour } from './cadenceStep';
 import ForecastWheel, { shouldUseClassicScrubber } from './ForecastWheel';
@@ -149,6 +149,10 @@ export var MapWeatherControls = ({
   };
 
   const activeLayer = activeLayers[0] || null;
+  // A remembered gusts / currents layer whose frames are not published: switch to its visible relative (wind / waves), never
+  // leave an empty map under a hidden chip (ownLayerAvailability.fallbackFor; waits for the first availability answer).
+  const ownFallback = fallbackFor(activeLayer, ownAvail);
+  useEffect(() => { if (ownFallback) onLayerToggle(ownFallback); }, [ownFallback]);   // onLayerToggle: the parent toggle; only a new fallback re-runs
 
   // Map layer IDs to their omVariable names for color scale lookup
   const LAYER_TO_VARIABLE = {
