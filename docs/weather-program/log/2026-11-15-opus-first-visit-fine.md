@@ -136,3 +136,12 @@ covers the view, today's behaviour. Kill `__RAW_DISABLE_FINE_PREFETCH_CDN__`. R 
 - **C4:** Jest: C never calls `/grid`; fires once per dwell; armed only after a step; the kill's off path; mutants fail.
 - **Blank-frame check first:** the 24 blank frames in every arm of the 05:45Z run are investigated before C runs; either shown to be
   an instrument artifact (with the probe corrected and re-checked on the unchanged build) or fixed.
+
+## 2026-11-16 06:00Z: the 24 blank frames are an instrument artifact (proved); probe corrected and re-checked
+
+All 24 blank frames per arm sit in the BROWSE scenario (desktop 9 x 8 steps, phone 8 x 8, across 3 sessions), at 342-582 ms from
+page start. The browse scenario presses no key, so the probe never reset its event list or its key time: the single "none" draw
+recorded while the page booted (before the layer was switched on) was counted again in every one of the 8 browse steps, with
+"time" measured from page start. No scenario that presses a key had any. Fix: a browse action now resets the list and stamps its own
+time, as a key does. Re-check on the unchanged fine build (browse, one session per arm, ON and both kills): 0 blank draws in 8
+steps in each. The 05:45Z F3 verdicts stand as recorded (scored as written); the artifact only means "blank" was not a real failure.

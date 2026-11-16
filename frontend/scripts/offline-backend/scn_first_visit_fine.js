@@ -99,6 +99,8 @@ const PROBE = () => {
     for (let i = 0; i < plan.length; i += 1) {
       const w = page.locator('[role="slider"][aria-label*="timeline wheel"]').filter({ visible: true }).first();
       await w.focus().catch(() => {});
+      // Browse actions start a step like a key does (blank-frame fix, 2026-11-16): reset the event list and stamp the action time.
+      if (plan[i].pan || plan[i].zoom) await page.evaluate(() => { window.__FV__.key = performance.now(); window.__FV__.ev = []; });
       if (plan[i].pan) await page.evaluate((d) => (window.__MAP_INSTANCE__ || window.map).panBy(d, { duration: 0 }), plan[i].pan);
       else if (plan[i].zoom) await page.evaluate((z) => { const m = window.__MAP_INSTANCE__ || window.map; m.setZoom(m.getZoom() + z); }, plan[i].zoom);
       else { const n = plan[i].presses || 1; for (let k = 0; k < n; k += 1) { await page.keyboard.press(plan[i].key); if (k < n - 1) await sleep(plan[i].gap); } }
