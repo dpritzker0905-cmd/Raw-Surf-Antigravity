@@ -281,3 +281,12 @@ Void rule per driver run (all arms; bar 1.25x the run's lowest calibration). Raw
 - **A/A pair:** kill #1 VOID (154.7 vs bar 148.6): **INCOMPLETE**.
 - **Verdict:** the old gate's run 3 INCOMPLETE; Brief 3 INCOMPLETE (needs 3 complete runs + A/A). The one complete run shows no
   render or input gain under this load. Nothing ships ON.
+
+## 2026-11-16 05:50Z: CLOSED as measured, no ship (the director's ruling)
+
+Levers 1-3 (slot-URL bail-out, derived scrubbing flag, closed-modals skip) are closed without shipping: runs 1 and 2 FAIL gate 1,
+run 3 and Brief 3 INCOMPLETE, and the one complete Brief 3 run shows no render or input gain (0.99x; p95 240 vs 240 ms). The code
+stays on this branch only; no PR. **What remains true:** the app-wide re-render on every scrub step (about 9-10 React commits, 53-67
+components, the hour state held in `MapPage` so `MapPageContent` re-renders everything not memoised) is still the main phone cost of
+a scrub step; a future attempt should move the hour out of `MapPage` state (a store the hour-dependent leaves subscribe to) rather
+than trim individual commits.

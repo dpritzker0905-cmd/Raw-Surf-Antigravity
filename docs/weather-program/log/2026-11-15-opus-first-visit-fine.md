@@ -123,3 +123,16 @@ Mock `/grid` latency p50 735-1101 ms, p95 5.7-12.2 s (the mock's, single process
   grid PR delivers is an added request; the registered F2 bound assumed a baseline that fetches one per settled hour. As written,
   P costs about 3-5x the `/grid` requests of R in step scenarios: on the 1-CPU box that is the load the director ruled out.
   **Neither P nor R ships ON.** Both stay behind their kills; the PR is not opened until the director decides.
+
+## 2026-11-16 05:52Z: the director's ruling; a fresh gate for a ZERO-box-load prefetch (pre-registered, before any code)
+
+P via `/grid` is NOT shipped. New change under test (**C**): when the user has dwelt >= 1.5 s after a step, prefetch the NEXT hour's
+fine data from the static CDN regional frame bundles the client already reads (pilot-box bundles), never `/grid`; where no bundle
+covers the view, today's behaviour. Kill `__RAW_DISABLE_FINE_PREFETCH_CDN__`. R is not part of C.
+**Gate (all as written; desktop and phone; offline lab with the mock CDN; the census void rule applies):**
+- **C1:** fine shown on slow first-visit steps 2-6 >= 13 of 15 (the P arm's count), in a view a bundle covers.
+- **C2:** `/grid` and `/grid_series` count per scenario (slow, slow1, back, drag, browse) <= the baseline (C killed).
+- **C3:** first-draw p95 <= baseline p95; 0 stale fine frames; blank frames <= baseline (after the blank-frame check below).
+- **C4:** Jest: C never calls `/grid`; fires once per dwell; armed only after a step; the kill's off path; mutants fail.
+- **Blank-frame check first:** the 24 blank frames in every arm of the 05:45Z run are investigated before C runs; either shown to be
+  an instrument artifact (with the probe corrected and re-checked on the unchanged build) or fixed.
