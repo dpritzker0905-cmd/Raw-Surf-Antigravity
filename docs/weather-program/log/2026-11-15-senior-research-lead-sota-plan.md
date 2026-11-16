@@ -1222,3 +1222,145 @@ Written in this PR (docs only, no served change):
 
 Sources: `gh pr list` (merged since 2026-11-15, open >= #900) read at about 04:45Z; the director board to 20:35Z; and
 this log.
+
+## 10:53Z The NE-Florida over-read: the physics arms are now exhausted at the owner's point (repair lead, #969, model-only)
+
+Measured at the owner's point (offshore 1.12 m; the owner expects < 0.6 m face):
+- Arm A1, Battjes-Janssen with a constant gamma: unchanged (the breaker height is set where breaking begins).
+- The truncated-distribution H1/10 agrees with x1.27 within 0.01.
+- Period (buoy mean 4.8 s vs model peak 7.28 s): x0.85.
+- No H1/10 on a breaking wind sea: x0.79.
+- Directional spread (Goda 2008, wind sea s = 10): x0.97. Across 20 beds, wind sea 0.92-0.99 and swell 0.98-1.00.
+- Combined: about 0.95 of offshore, 1.06 m (3.5 ft). The owner's < 0.6 m leaves a factor of about 1.8 unexplained.
+- The offshore input is NOT the suspect: buoy 41117 read 1.4 m against the model's 1.11 m, so the gap is larger.
+
+**Reading.** What remains is either the observation convention (what "surf height" names: the outer breaker vs the
+inside; how face height is judged on a short-period wind sea) or a process none of the arms model.
+- This cannot be settled by more model arms or by fitting to one hour.
+- It needs breaking truth (T1 blind check-in reports with the in-frame scale reference, T2 Sentinel-2) and the owner's
+  answer on which height the product names.
+- The Weggel slope arm is held for the owner's word on USACE-published formulas. Its prediction at this point
+  (gamma ≈ 0.79) means it would not close the gap either.
+
+## 14:08Z Slope arm (#971): predictions held; the slope is not the NE-Florida gap; finer bathymetry is the steep-spot unlock
+
+- Predictions written before the run (Weggel index via the USACE CEM II-4-5..7): gamma ≈ 0.79 at the owner's point,
+  ≈ 1.08 at tanβ 0.05 / 10 s / 2 m.
+- Measured: 0.795 and 1.078. On 20 panel beds the arm reads +1-2% over a constant gamma (owner's point 1.49 vs 1.47).
+- ETOPO's 463 m grid makes every panel bed gentle (1:82 .. 1:1,084), so the slope term cannot act in the product today.
+  On real steep beds it does: +6% at 1:20, +12% for groundswell at 1:10, with the index reaching 1.30.
+- **Plan consequence:** for steep, reef and point spots, finer bathymetry (B3: CUDEM, Sentinel-2 SDB, S2Shores)
+  unlocks more than further breaker physics. Re-score the slope arm once a finer bed exists there.
+- NE Florida: period, H1/10, spread and slope are all measured; about 1.8 remains. Next inputs: the owner's answer on
+  which wave the product names, and T1/T2 breaking truth.
+
+## 14:20Z Owner, 09:16 EST 2026-11-16: the surf-height definition, and anchors with an admin area
+
+**David, verbatim:** "1) I think the published standard could be the choice, but research this further please just to
+make sure its the SOTA choice 2) yes, but this concept needs to be researched deeper, and if its a tool we're to use
+permanently, we need any area in the admin to control and monitor this, right?"
+
+**(1) Interim answer, final after the helper's ASK 12 (exact NWS 10-320 and Surfline text).**
+- Headline: face height (trough to crest) at the outer breaker, H1/10 (sets). This is the Hawaii observation
+  convention (Caldwell 2007, "nominally represent the H1/10") and the consumer set-face practice. SubQ 0.937 (H1/3
+  0.062; inside 0.001).
+- Reflection agrees, and adds: show a RANGE (typical about H1/3 to sets about H1/10, and possibly the inside estimate),
+  because a single value misleads where H1/10/H1/3 = 1.27 and inside/offshore = 0.5-0.75. SubQ on showing a range:
+  0.852.
+- The NWS glossary (opened) defines the surf zone but no statistic, and the 10-320 PDF is a scanned image.
+
+**(2) Anchors and the admin area** (design sent to the director):
+- Anchors move from an env var to a DB table with an audit log.
+- The model constrains the MEAN anchor bias to 0, estimates each anchor's own bias, and treats reliability as
+  time-varying.
+- Reflection's flaw: a COMMON anchor bias is invisible to relative checks. Fix: periodic anchor audits against
+  independent physical references (in-frame scale photos, Sentinel-2 pairs, shallow buoys), with a drift alert.
+- The admin "Surf truth" area: anchors, observers, coverage, quality queue, model runs and rollback,
+  consent/privacy. Admin auth; 3 themes, mobile, ARIA; no editing of reported numbers.
+- Sources: Daniel 2018 (crowdsourcing QC); Donmez 2010 (time-varying annotator accuracy). SubQ: admin 0.957, mean
+  constraint 0.982, time-varying 0.962.
+
+## 14:23Z Surf-height definition SETTLED by research, and the NE-Florida gap explained (owner's 09:16 EST request)
+
+**The standard (opened and verified):**
+- NOAA NWS Honolulu + NESDIS collaborative surf table (quoted on uhslc.soest.hawaii.edu/outreach/vary/why_surf_varies.html):
+  "Surf height refers to peak face."
+- Heights are given as a range from H1/3 to H1/10, in zones of high refraction.
+- The empirical output was "designed to match the observing scheme, so visual reports can be used as validation."
+
+**Observer perception (opened abstracts):**
+- [Stokes et al. 2014](https://consensus.app/papers/details/w:b70ac080-f77b-4687-9b3b-8cdb72f3249e/?utm_source=claude_code),
+  354 participants: visual height averages about 0.70 x measured breaker height (0.5-3.5 m, 3-15 s). Expert users and
+  surfers under-predict the most, "especially for small and/or short period waves".
+- [Pitman & Lee 2019](https://consensus.app/papers/details/w:06500eae-7556-4722-b279-7b61ee8064d3/?utm_source=claude_code),
+  1,566 lifeguard observations: a consistent under-call, mean −0.48 m.
+
+**NE-Florida gap:**
+- Corrected outer-break H1/10 ≈ 1.06 m, so H1/3 ≈ 0.84 m.
+- x 0.70 ≈ 0.59 m ≈ 1.9 ft, matching the owner's "under 2 ft".
+- The residual factor of about 1.8 is mostly observer perception plus the statistic.
+- SubQ: explains the gap 0.961.
+
+**Recommendation** (SubQ: physical range 0.998; calibrate reports to physical references 0.999; no perceived number by
+default 0.997):
+1. The product shows PHYSICAL peak face as the range H1/3-H1/10 (the NWS Honolulu convention).
+2. The crowd-truth model keeps observer under-perception as an explicit bias term, calibrated by the anchor audits
+   against physical references. This is the common-mode anchor bias Reflection warned about, now quantified at about
+   0.7.
+3. No perception-adjusted "local feel" number by default; the owner may opt in later.
+
+**Consequence for the surf-transform work:**
+- The served chain's served number should be the H1/3-H1/10 face range, computed with the corrected period and the
+  breaking-sea statistic.
+- That is one served change, gated on truth with the perception term modelled. It never fits the forecast down to
+  perceived heights.
+
+## 2026-11-16 15:20Z Correction to the 14:23Z section (mine): the 1.27 was removed twice
+
+Reported by the repair lead (`log/2026-11-16-fable-surf-face-range-gate.md`, 15:08Z, PR #973). Checked against
+`log/2026-11-16-fable-surf-transect-a1.md` section (f) on dev: "significant height on the line with no highest-tenth
+factor: 1.08 m, 0.96 of the offshore height, 3.5 ft". That figure already has the x 0.79 (no H1/10) in it.
+
+- **Wrong at 14:23Z:** "Corrected outer-break H1/10 ≈ 1.06 m, so H1/3 ≈ 0.84 m; x 0.70 ≈ 0.59 m ≈ 1.9 ft, matching the
+  owner's under 2 ft." The 1.06-1.08 m is the H1/3-type figure. Dividing by 1.27 again was my error.
+- **Redone (model only, one hour, n = 1):** H1/3-type 1.08 m (3.5 ft) -> x 0.70 = 0.76 m (2.5 ft). H1/10 1.37 m
+  (4.5 ft) -> x 0.70 = 0.96 m (3.1 ft). Owner: under 2 ft (0.61 m).
+- **So the gap is NOT closed.** Perception at 0.70 plus the statistic takes the factor of ~1.8 to ~1.25 at the low end
+  (~1.6 at the high end). The rest is unexplained (which wave was named, one hour, no measurement). Withdrawn:
+  "the residual is mostly observer perception", and the SubQ 0.961 "explains the gap" score, which was scored on the
+  wrong number.
+- **Also corrected:** "the breaking-sea statistic" is an empty term at the outer breaker (A1: truncated-distribution
+  H1/10 agrees with x 1.27 within 0.01). "The corrected period" was the buoy MEAN period (4.8 s); the served chain has
+  no buoy, and which model mean-period field would stand in is unmeasured.
+- **What the range would have shown that hour:** about 4.1-5.2 ft from the range alone, about 3.5-4.4 ft with the
+  period part, against the owner's under 2 ft. He sees these figures before any flip is asked.
+- **Unchanged:** the target definition (physical peak-face range H1/3-H1/10, NWS Honolulu/NESDIS convention), the
+  perception term in the truth model, and no perceived number by default. None of these depended on explaining one hour.
+- **Lesson (L-S27 family):** when chaining another lane's figure, read what its multipliers already include before
+  applying one again.
+
+## 2026-11-16 15:25Z What the 0.70 is and is not (advisor's request, 15:15Z)
+
+The advisor verified the 15:20Z correction independently and asked how much weight 0.70 can carry. Read from the
+abstracts only (full texts not opened):
+
+- **Stokes et al. 2014 (JCR SI 70):** 354 participants, Cornwall. 0.70 is the MEAN observed/measured ratio over all of
+  them (0.5-3.5 m, 3-15 s). The abstract says perceptions were "highly varied" and gives no SD or interval. Experts and
+  surfers under-called most, on small or short-period waves.
+- **Stokes 2015 PhD thesis** (same programme, 403 water users, buoy at 14 m): mean under-estimate **48%**, i.e. a ratio of
+  about 0.52, not 0.70. The two figures from one group bracket the likely mean at roughly 0.5-0.7.
+- **Therefore:** 0.70 is a population mean, not a correction for one observer or one report. Its spread is unknown to us
+  and visibly large. At 0.52 the owner's hour would read 0.56-0.71 m (1.8-2.3 ft), so a lower perception ratio could
+  close the gap. On n = 1 that is not evidence either way.
+- **For David and the truth model:** shown as "surfers typically call waves about half to two-thirds of their measured
+  height (one UK study group, highly variable)". In the P4 model the perception term is a per-observer random effect
+  with a wide prior centred in 0.5-0.7, to be estimated from physical anchor audits. It is never a fixed 0.70.
+
+## 2026-11-16 15:35Z Advisor review of #972: PASS WITH LIMITS (15:29Z), and how to quote this log
+
+- **Quote 15:20Z, not 14:23Z.** The 14:23Z heading ("SETTLED by research ... gap explained") stays under append-only,
+  but it is superseded. "Settled" means the research lead RECOMMENDS a physical H1/3-H1/10 face range. David asked for
+  that research and has not yet confirmed the choice.
+- **Abstracts only.** Before "surfers typically call about half to two-thirds of measured height" reaches David, either
+  open the full texts or say in that sentence that it rests on two abstracts from one UK study group.
+- Lesson recorded as L-S28 (a model's agreement is not a check of the arithmetic).
