@@ -131,3 +131,29 @@ by `tests/test_tide_fes_offline_guard.py` (written during the 22:00-00:30 quiet 
     a timeout. Superseded keys are pruned (`actions: write`) to protect the shared 10 GB cache limit.
   - The gate step runs only after a complete download.
 - Tests: 6 passed; flake8 clean.
+
+## 06:22 EST 2026-11-16 (`date`) - run 43836918731: verdict **VOID** (positive control failed)
+Run 43836918731 at bd8aa9a55: all 16 FES2022b files downloaded (parallel SFTP), and the gate ran on the frozen window
+2026-10-15 00Z .. 10-28 23Z. Artifact `tide-fes-gate`, JSON `fes_gate.json`.
+- **Verdict VOID.** The positive control failed: our synthesis of NOAA's own constants vs NOAA's predictions had a
+  median RMSE of **0.083 m** (rule <= 0.01). Negative 1 behaved (label swap 0.489 m > 0.3). Negative 2 behaved (+6 h
+  shift: no extremum matched).
+- **Arm B (EOT20) did not run, a harness bug.** The SEANOE archive nests `ocean_tides.zip`/`load_tides.zip`; the
+  extractor looked for top-level `.nc` files and found none. Fixed in the next commit (pinned by a test). B has no number.
+- **Arm A numbers (INFORMATIVE ONLY - a VOID run passes nothing):**
+  - Median RMSE 0.0831 m vs arm C 0.1478 (item 1 fails narrowly: <= 0.08).
+  - No station worse than C (item 2 holds).
+  - High/Low 8.5 min (item 3 holds).
+  - |MLLW err| 0.0135 m (item 4 holds).
+  - Arm D median 0.2218 m.
+  - Strata, A / C: Hawaii 0.046 / 0.073; Pacific 0.054 / 0.131; Atlantic 0.135 / 0.202; Gulf 0.138 / 0.162;
+    PR 0.071 / 0.081.
+  - Observed water (T2): A 0.29, C 0.37, D 0.18.
+- **Diagnosis - a datum offset, not a shape error.** The positive control's de-meaned median is **0.0089 m** (max
+  0.020) and its range ratio is 0.976..1.004, so the synthesis shape is right. Its raw error is a constant per-station
+  offset of 0.02..0.15 m, largest on the Atlantic and Gulf. NOAA's MSL-datum predictions carry a mean-level constant
+  that a zero-mean synthesis of the published constants lacks (plausibly sea-level change since the 1983-2001 datum
+  epoch). Arm A carries the same offset: its de-meaned median is 0.026 m.
+- This is what the positive control exists to catch, so VOID stands. The rules are NOT changed after seeing numbers,
+  and this window is now SEEN: any re-run needs a new pre-registration on an unseen window. That proposal is for the
+  director / research lead; nothing proposed here is adopted yet.
