@@ -1,0 +1,246 @@
+{
+  "all_approvals_remain_separate": true,
+  "all_terminal_states_retire_token": true,
+  "approved": false,
+  "attestation": {
+    "actual_module_exec_code_reference_required": true,
+    "actual_module_globals_spec_loader_and_virtual_filename_required": true,
+    "arbitrary_extra_python_frame_allowed": false,
+    "contiguous_frozen_guard_and_stdlib_wrapper_chain_only": true,
+    "direct_initialization_caller_required": true,
+    "global_function_code_identity_required": true,
+    "helper_code_must_be_actual_attested_module_constant": true,
+    "native_origin_bit_assumed": false,
+    "source_record": "SOURCE-ATTESTATION.json",
+    "synthetic_event_sufficient_for_native_acceptance": false
+  },
+  "baseline_22_controls_qualify_this_new_policy": false,
+  "bind_rule": {
+    "address_tuple_length": 2,
+    "argument_count": 2,
+    "event": "socket.bind",
+    "helper_sock_local_same_object_required": true,
+    "host": "::1",
+    "host_type": "exact str",
+    "port": 0,
+    "port_type": "exact int, never bool",
+    "reserve_counter_before_returning_permission": true,
+    "same_constructor_object_required": true,
+    "second_bind_or_other_object_allowed": false
+  },
+  "construction_release": false,
+  "constructor_rule": {
+    "argument_count": 4,
+    "event": "socket.__new__",
+    "extra_flag_bits_allowed": false,
+    "numeric_type": "exact int, never bool",
+    "numeric_values": [
+      10,
+      1,
+      0
+    ],
+    "original_exact_socket_type_required": true,
+    "reserve_counter_before_returning_permission": true,
+    "strong_reference_label": "S1",
+    "uninitialized_attribute_access_allowed": false
+  },
+  "current_execution_authorizations": {
+    "cloud_transfer": false,
+    "collection": false,
+    "environment_creation": false,
+    "guard_or_observer_registration": false,
+    "installs": false,
+    "namespace_creation": false,
+    "pip_imports": false,
+    "retries": false,
+    "socket_APIs": false,
+    "tests": false
+  },
+  "enabled": false,
+  "fingerprint_contract": {
+    "code_fields": [
+      "co_argcount",
+      "co_posonlyargcount",
+      "co_kwonlyargcount",
+      "co_nlocals",
+      "co_stacksize",
+      "co_flags",
+      "co_code",
+      "co_consts",
+      "co_names",
+      "co_varnames",
+      "co_filename",
+      "co_name",
+      "co_qualname",
+      "co_firstlineno",
+      "co_linetable",
+      "co_exceptiontable",
+      "co_freevars",
+      "co_cellvars"
+    ],
+    "compile_mode": "exec",
+    "compile_verified_bytes_for_inspection_without_exec": true,
+    "dont_inherit": true,
+    "encoding": "typed tagged values; ensure_ascii JSON, compact separators; SHA-256; freeze serialization in implementation",
+    "optimize": 0,
+    "pattern_reference": {
+      "path": "C:\\Users\\David\\.codex\\visualizations\\2026\\11\\10\\01a1c796-8ccd-7580-b6ba-646af7d6791a\\closure-qualification-20261114\\collection-only-v6\\import_scope.py",
+      "permission_reuse": false,
+      "sha256": "16b6a94345a96653a56034cf10ce6a974f553b1d2514c310f8bbeefbcb4ed57c"
+    },
+    "target_runtime_only": true,
+    "typed_constants": [
+      "None",
+      "Ellipsis",
+      "str",
+      "int",
+      "bool",
+      "bytes.hex",
+      "float.hex",
+      "complex(real.hex,imag.hex)",
+      "tuple.recursive",
+      "frozenset.canonical_sorted",
+      "CodeType.recursive"
+    ],
+    "unknown_type_action": "fail closed"
+  },
+  "implementation_exists": false,
+  "integration": {
+    "additional_constraints": [
+      "deny observer replacement while active",
+      "owner-thread/interpreter/context restrictions"
+    ],
+    "all_other_old_decisions_and_budgets_preserved": true,
+    "append_allow_hook_to_existing_fatal_deny_hook": false,
+    "branch_to_change_in_new_version": "socket decision branch only",
+    "fresh_worker_required": true,
+    "modify_existing_frozen_guard": false,
+    "new_versioned_guard_required": true,
+    "old_hostname_exception_carried_forward": false
+  },
+  "namespace_contract": {
+    "fresh_user_and_net_namespace_identities_required": true,
+    "historical_namespace_or_tool_presence_is_sufficient": false,
+    "interface_address_or_route_configuration_allowed": false,
+    "ipv4_routes_allowed": false,
+    "ipv6_addresses_or_usable_routes_allowed": false,
+    "loopback_up": false,
+    "only_loopback_interface": true,
+    "private_root_mapping_required": true
+  },
+  "observer_contract": {
+    "actual_owner_thread_only": true,
+    "api_exception_observer_implementation": null,
+    "audit_callback_frame_lookup_only_for_socket_events": true,
+    "bounded_emergency_cleanup": "trusted post-helper validator only, same fully initialized owned object, once, then abort regardless of success",
+    "fatal_callback_cleanup": "terminate immediately, no discretionary native cleanup; preserve unknowns",
+    "install_before_replacement_denial": true,
+    "live_socket_outcome_inference_from_audit_count_allowed": false,
+    "non_socket_audit_frame_walk_allowed": false,
+    "observer_code_object_and_config_bound": true,
+    "profile_trace_use_supplied_frame": true,
+    "remain_until_worker_exit": true,
+    "silent_error_or_unset_acceptable": false,
+    "sys_setprofile_or_sys_settrace_replacement_allowed": false
+  },
+  "outcomes": [
+    {
+      "audit_admissions": [
+        0,
+        0
+      ],
+      "evidence": "attestation-only; native allowance unexercised",
+      "helper_return": false,
+      "name": "attested_short_circuit"
+    },
+    {
+      "audit_admissions": [
+        1,
+        0
+      ],
+      "evidence": "constructor branch only; bind unqualified; actual site/outcome/closure required",
+      "helper_return": false,
+      "name": "constructor_exception"
+    },
+    {
+      "audit_admissions": [
+        1,
+        1
+      ],
+      "evidence": "bounded API outcome only with observed site/error and closure",
+      "helper_return": false,
+      "name": "bind_exception"
+    },
+    {
+      "audit_admissions": [
+        1,
+        1
+      ],
+      "evidence": "bounded API outcome only with observed completion and closure",
+      "helper_return": true,
+      "name": "bind_success"
+    },
+    {
+      "audit_admissions": null,
+      "evidence": "incomplete/failed; stop, preserve unknowns, no retry",
+      "helper_return": null,
+      "name": "unknown_or_violation"
+    }
+  ],
+  "permission_scope": {
+    "bind_audit_admissions_max": 1,
+    "direct_module_to_helper_calls_max": 1,
+    "emergency_post_helper_close_calls_max": 1,
+    "installer_entry": "Its own separately reviewed pip CLI and worker, never inferred from qualification approval",
+    "launcher_source_argv_archive_path_and_scope_binding_required_for_each_role": true,
+    "module": "pip._vendor.urllib3.util.connection",
+    "module_executions_max": 1,
+    "normal_source_close_calls_max": 1,
+    "owned_object_fileno_observations_max": 2,
+    "per_process_token_rearming": false,
+    "qualification_permission_transfers_to_installation": false,
+    "qualifier_entry": "Normal import of the exact qualified module; actual module/helper caller preserved; no pip CLI/install, extracted body or direct helper call",
+    "reuse_across_process_thread_module_reload_or_attempt": false,
+    "role_label_alone_is_authorization": false,
+    "role_launchers_and_runtime_bindings": null,
+    "roles": [
+      "separately approved initializer-only qualifier",
+      "separately approved installer worker"
+    ],
+    "socket_constructor_audit_admissions_max": 1
+  },
+  "proposal_version": "pip-initializer-policy-v1-rev2-20261114",
+  "receipt_contract": {
+    "attempt_counters_distinct_from_API_outcome": true,
+    "count_only_or_collector_zero_or_false_return_is_acceptance": false,
+    "helper_return_type": "exact bool",
+    "kernel_syscall_telemetry": null,
+    "missing_fields": "unknown/null and unqualified, never fabricated zero",
+    "no_object_closure_value": "not_applicable, not true",
+    "redacted_fields": [
+      "object repr",
+      "memory addresses",
+      "live descriptor values",
+      "assigned ports",
+      "exception text",
+      "tracebacks",
+      "frame/global/env dumps"
+    ],
+    "required_closed_object_observation_for_created_socket": true,
+    "required_fields": [
+      "policy/source/runtime/namespace/observer identities",
+      "module/helper counts",
+      "owner match",
+      "state transitions",
+      "constructor/bind audit admissions and violations",
+      "opaque same-object labels",
+      "selected API result/exception class and errno/site",
+      "helper return bool",
+      "post-helper closure verdict",
+      "emergency cleanup attempted/outcome if any",
+      "actual child exit/termination",
+      "input hashes before/after"
+    ]
+  },
+  "status": "inactive_for_review"
+}

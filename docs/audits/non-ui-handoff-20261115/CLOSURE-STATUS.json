@@ -1,0 +1,17 @@
+{
+  "CBR01_closed": false,
+  "CBR02_closed": false,
+  "additional_audit_work": "pause_after_handoff",
+  "application_source_changed": false,
+  "candidate_tests_or_collection_ran": false,
+  "integration_state": "handoff_prepared_not_merged",
+  "new_behavioral_retests": 0,
+  "new_test_floor_change": false,
+  "new_whole_feature_closures": 0,
+  "policy_activated": false,
+  "private_register_rows": 120,
+  "private_register_sha256": "ffbb8f514ed4bb47ac222ce6c8826897d2d2a21ab1cbd4543a95afbd9d5eb4d3",
+  "record_count_is_bug_count": false,
+  "runtime_qualified": false,
+  "source_files_archived_as_text": 7
+}

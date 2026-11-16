@@ -1,0 +1,38 @@
+"""REVIEW ONLY. This artifact cannot activate the draft through any public entry."""
+
+IMPLEMENTATION_ACTIVE=False
+CBR01_ADOPTED=False
+CBR02_ADOPTED=False
+
+
+def activate(bindings):
+    # First executable statement. No configuration, flag, env or operator JSON
+    # can override these source literals. A different released artifact is needed.
+    if not (IMPLEMENTATION_ACTIVE and CBR01_ADOPTED and CBR02_ADOPTED):
+        raise SystemExit('REVIEW_HOLD: inactive unqualified policy draft')
+    # Delayed imports intentionally occur AFTER the inactive gate.
+    from absence_policy import AbsenceFinder
+    from attestation import Witness,fatal
+    from combined_guard import CombinedGuard
+    from source_catalog import SourceCatalog
+    import sys
+    owner=bindings.validate()
+    namespace=bindings.namespace_facts()
+    catalog=SourceCatalog(bindings.archive)
+    witness=Witness(bindings,catalog,owner)
+    finder=AbsenceFinder(witness)
+    guard=CombinedGuard(witness,finder)
+    sys.meta_path.insert(0,finder)
+    sys.setprofile(witness.profile_callback)
+    sys.settrace(witness.trace_callback)
+    witness.ready=True
+    sys.addaudithook(guard.audit_callback)
+    sys.audit('raw_surf.inactive_draft.guard_liveness',guard.nonce)
+    if not guard.acknowledged:fatal('guard_registration_missing')
+    # No import/install command is included. A separately frozen launcher would
+    # own a future normal import, final witness, receipt and process termination.
+    return witness,namespace
+
+
+if __name__=='__main__':
+    raise SystemExit('REVIEW_HOLD: no runnable launcher is supplied')

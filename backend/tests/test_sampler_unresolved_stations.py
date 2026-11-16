@@ -95,3 +95,13 @@ def test_every_entry_carries_its_reason_and_evidence_and_the_radius_is_the_stati
         assert all(isinstance(s.get(k), str) and len(s[k]) > 20 for k in ("reason", "evidence")) and s["name"]
         assert us.station_at(s["lat"], s["lng"]) is s
     assert us.station_at(53.27, -9.07) is None                                   # Galway Bay: a real spot's water, untouched
+
+
+def test_the_46267_reason_is_served_text_and_states_the_measured_facts():
+    """The reason reaches the client in the "no data" response, so its facts are pinned. 0.958 deg is the nearest water
+    cell on NOAA's native field (48.5 N, 124.5 W; census 2026-11-15); 0.729 was another provider's mask and was wrong here."""
+    reason = us.UNRESOLVED_STATIONS[0]["reason"]
+    assert "0.958 degrees" in reason and "0.729" not in reason
+    assert "NOAA's native GFS-Wave mask" in reason and "Strait of Juan de Fuca" in reason and "all four cells" in reason
+    resp = PointSampler().sample_point(_strait(), *BUOY_46267)
+    assert "0.958 degrees" in str(resp)

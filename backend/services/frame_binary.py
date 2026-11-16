@@ -322,8 +322,10 @@ def _codes_of(plane, n, nb, layout):
     return list(struct.unpack(f"<{n}{'I' if nb == 4 else 'H'}", plane))
 
 
-def encode_frame(product, fields=DEFAULT_FIELDS):
-    """Raw (uncompressed) frame bytes for one stored product dict. Raises ValueError on an unencodable grid."""
+def encode_header(product, fields=DEFAULT_FIELDS):
+    """(header bytes, the sorted field ids, the vectors) of the frame encode_frame writes for `product`: every byte before
+    the planes (magic, versions, shape, field mask, uv convention, bounds, times, descriptors). Raises ValueError as
+    encode_frame does."""
     check_regular(product)
     cols, rows, vectors, bounds = _grid_of(product)
     fields = tuple(sorted(set(fields)))
@@ -336,13 +338,49 @@ def encode_frame(product, fields=DEFAULT_FIELDS):
                         uv_convention(vectors), header_bytes)
     head += struct.pack("<4d", *bounds)
     head += struct.pack("<2d", _epoch(product.get("valid_time")), _epoch(product.get("model_run_time")))
-    planes = []
     for fid in fields:
         nb, layout, missing, scale, offset = FIELD_SPECS[fid]
         head += DESCRIPTOR.pack(fid, nb, layout, 0, missing, scale, offset)
-        planes.append(_plane_bytes([field_code(fid, v) for v in vectors], nb, layout))
     assert len(head) == header_bytes
-    return bytes(head) + b"".join(planes)
+    return bytes(head), fields, vectors
+
+
+def encode_frame(product, fields=DEFAULT_FIELDS):
+    """Raw (uncompressed) frame bytes for one stored product dict. Raises ValueError on an unencodable grid."""
+    head, fields, vectors = encode_header(product, fields)
+    planes = []
+    for fid in fields:
+        nb, layout, _missing, _scale, _offset = FIELD_SPECS[fid]
+        planes.append(_plane_bytes([field_code(fid, v) for v in vectors], nb, layout))
+    return head + b"".join(planes)
+
+
+def read_header(data):
+    """The fixed header fields of an uncompressed frame: shape, field mask, uv convention, header length. PURE."""
+    if data[:4] != MAGIC:
+        raise ValueError("not a frame: bad magic")
+    enc, tfm, cols, rows, mask, _ro, _co, nfields, uv_conv, header_bytes = struct.unpack_from("<HHHHIBBBBI", data, 4)
+    return {"encoding_version": enc, "transform_version": tfm, "cols": cols, "rows": rows, "mask": mask, "nfields": nfields,
+            "uv_convention": uv_conv, "header_bytes": header_bytes}
+
+
+def patch_nodes(raw, header_len, fields, n, updates):
+    """`raw` (an uncompressed frame of `n` nodes whose planes start at `header_len`, fields in encode_frame's sorted order)
+    with the codes of the nodes in `updates` ({node index: vector}) rewritten as encode_frame writes them. Every other byte
+    is kept, so the result equals encode_frame of a product that differs from raw's only at those nodes. PURE."""
+    out = bytearray(raw)
+    start = header_len
+    for fid in fields:
+        nb, layout, _missing, _scale, _offset = FIELD_SPECS[fid]
+        for i, vec in updates.items():
+            code = field_code(fid, vec)
+            for j in range(nb):
+                byte = (code >> (8 * j)) & 0xFF
+                out[start + (j * n + i if (layout == 1 and nb > 1) else nb * i + j)] = byte
+        start += nb * n
+    if start != len(out):
+        raise ValueError(f"frame length {len(out)} is not header {header_len} + planes {start - header_len}")
+    return bytes(out)
 
 
 
@@ -467,8 +505,9 @@ def decode_frame(data):
     return out
 
 
-def parity(product, decoded):
-    """Compare a decoded frame with its source product, node by node.
+def parity(product, decoded, only=None):
+    """Compare a decoded frame with its source product, node by node (`only`: a set of node indices, the rest skipped and
+    not counted; frame_set_fill_patch checks the nodes it rewrote, the others are byte-for-byte a frame that passed).
 
     Returns {nodes, bad, missing_mismatch, max_abs_err: {field: err}, uv_max_err, by_region: {region: {nodes, bad,
     max_abs_err, uv_max_err}}} (+ uv_by_height_m for marine, why for bad nodes). A node is bad when validity differs,
@@ -502,6 +541,8 @@ def parity(product, decoded):
         return regions.setdefault(name, {"nodes": 0, "bad": 0, "errs": {FIELD_NAMES[k]: 0.0 for k in f}, "uv": 0.0})
 
     for i, vec in enumerate(vectors):
+        if only is not None and i not in only:
+            continue
         fails, node_errs, node_uv = [], {}, None
         here = [region(r) for r in frame_regions(vec.get("lat"), vec.get("lng"))]
         for reg in here:
@@ -572,7 +613,7 @@ def parity(product, decoded):
         if fails:
             bad += 1
             explain(i, vec, fails)
-    out = {"nodes": len(vectors), "bad": bad, "missing_mismatch": missing_mismatch,
+    out = {"nodes": len(vectors) if only is None else len(only), "bad": bad, "missing_mismatch": missing_mismatch,
            "max_abs_err": {k: round(v, 6) for k, v in errs.items()}, "uv_max_err": round(uv_err, 6)}
     if uv_bands:
         out["uv_by_height_m"] = {k: round(v, 6) for k, v in sorted(uv_bands.items(), key=lambda kv: int(kv[0].split("-")[0]))}

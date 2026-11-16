@@ -418,15 +418,18 @@ async def join_session(
         )
         db.add(surfer_xp)
         
-        # Photographer gets XP for hosting (15 XP per participant)
-        photographer_xp = XPTransaction(
-            user_id=data.photographer_id,
-            amount=15,
-            reason='Participant joined live session',
-            reference_type='live_session',
-            reference_id=str(participant.id) if participant.id else None
-        )
-        db.add(photographer_xp)
+        # Photographer gets XP for hosting (15 XP per participant). Not for joining their own session (a shooting
+        # Hobbyist is also a surfer role): that earns no host XP, and a second row for the same (user, participant)
+        # would hit the partial unique index uq_xp_transactions_claim_ref and fail the join after payment.
+        if data.photographer_id != surfer_id:
+            photographer_xp = XPTransaction(
+                user_id=data.photographer_id,
+                amount=15,
+                reason='Participant joined live session',
+                reference_type='live_session',
+                reference_id=str(participant.id) if participant.id else None
+            )
+            db.add(photographer_xp)
         
         # Commit all changes
         await db.commit()

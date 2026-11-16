@@ -1,0 +1,129 @@
+{
+  "archive_member": "pip/_vendor/urllib3/util/connection.py",
+  "canonical_archive_path_at_release": null,
+  "expected_virtual_origin_at_release": null,
+  "helper": {
+    "AST_sha256": "1168790d1b13018c5744920b9f29659d1eefb8a4eb4ee0ca81018e4274f13b49",
+    "definition_line": 119,
+    "name": "_has_ipv6",
+    "source_segment_sha256": "43d366e0838c6f70bcd690597e64a278a580136c6384b01730695843bd545ca2"
+  },
+  "initializer": {
+    "AST_sha256": "a5b78211ea94a4b34c7e59a9a411e3d604dc0341a79bc8ad5e6286fd2fbfa6ce",
+    "line": 149,
+    "requires_direct_actual_module_caller": true,
+    "source_segment_sha256": "c600a8298fbd73a931423d71410ac578ea33563f5210fd9ff165e85e7602156f",
+    "target": "HAS_IPV6"
+  },
+  "module_AST_sha256": "ca679c1982498a3ea85e74fa67c86af8b3cc09017bbf4087e63cc680592606f4",
+  "module_compiled_or_imported_for_this_proposal": false,
+  "module_sha256": "e4bc760753d6dbd2b1067d93d3190dd420604416b780654904aa10a11a201159",
+  "native_socket_extension_sha256": null,
+  "null_fields_are_required_release_blocks": true,
+  "operation_source_sites": {
+    "bind": 139,
+    "close": 145,
+    "constructor": 138
+  },
+  "parser_python_version": "3.12.10",
+  "pip_module_provenance": [
+    {
+      "archive_member": "pip/__main__.py",
+      "bytes": 854,
+      "sha256": "5b36e11d74db484ea0058d7d98d37d9b8b39a3fdfae4b3af4d84a0aa06dd0611"
+    },
+    {
+      "archive_member": "pip/_internal/cli/main.py",
+      "bytes": 2817,
+      "sha256": "04365e7fe6d67bd83d269af8395b387437fef38e4726c2b0f37e53ec0a849c07"
+    },
+    {
+      "archive_member": "pip/_internal/commands/__init__.py",
+      "bytes": 3882,
+      "sha256": "e6844ef4eddd336bc6ba1d1b170e0739595eb6bcabcf91c732698f5b026b1fd5"
+    },
+    {
+      "archive_member": "pip/_internal/commands/install.py",
+      "bytes": 29390,
+      "sha256": "af7c87414c6fc6dee00f98fd9facd10ec940bedc7d093ff084bb9025c92da7a3"
+    },
+    {
+      "archive_member": "pip/_internal/cli/req_command.py",
+      "bytes": 12250,
+      "sha256": "0ea78586650cb3aa3a12ff2a6b001c3a860d74066c7f2292d0c648e63b096304"
+    },
+    {
+      "archive_member": "pip/_internal/network/session.py",
+      "bytes": 18771,
+      "sha256": "9ac3387acd7a2e698d118364ad8ca0f1f4dcee00076ca165b5ac1f28fdbb2ce2"
+    },
+    {
+      "archive_member": "pip/_vendor/urllib3/__init__.py",
+      "bytes": 3333,
+      "sha256": "8972dc6222724a7d0635b58e3990c30298012f52603f8e0467c8b5efad12f0c7"
+    },
+    {
+      "archive_member": "pip/_vendor/urllib3/util/__init__.py",
+      "bytes": 1155,
+      "sha256": "2449929a6aaa2f26b0f0fe75814226661f06c20f62d7349ef83a2a022b67da77"
+    },
+    {
+      "archive_member": "pip/_vendor/urllib3/util/connection.py",
+      "bytes": 4901,
+      "sha256": "e4bc760753d6dbd2b1067d93d3190dd420604416b780654904aa10a11a201159"
+    },
+    {
+      "DEBUNDLED": false,
+      "archive_member": "pip/_vendor/__init__.py",
+      "bytes": 4873,
+      "sha256": "258b805ef0a58489f122b036153a79a7ebae5952fb595ebebc4a53b38ebe421e"
+    },
+    {
+      "archive_member": "pip/_vendor/urllib3/contrib/_appengine_environ.py",
+      "bytes": 957,
+      "functions": [
+        {
+          "AST_sha256": "f70ebad13b5563ab77b253396a7119b7aeb14afcf4bb57b146fb4efe0c60b1a4",
+          "line": 8,
+          "name": "is_appengine"
+        },
+        {
+          "AST_sha256": "8659b1f30cf1b4a36836a5decdc8825a23f1f3aae076a6ec579c8ae202badf63",
+          "line": 12,
+          "name": "is_appengine_sandbox"
+        },
+        {
+          "AST_sha256": "5ca7f81e7731c2ae43966f21caedb0b44720b89821eb7cce3f6b40523c277779",
+          "line": 22,
+          "name": "is_local_appengine"
+        },
+        {
+          "AST_sha256": "fed62a103e4dec38b2d29e3a770dd58c3f69723a3bf9b9734bc5e3be5c161ee1",
+          "line": 28,
+          "name": "is_prod_appengine"
+        },
+        {
+          "AST_sha256": "d84674abeec99843a5b3d9d74525726f3b5bec7f15f8481020502409cb827e9a",
+          "line": 34,
+          "name": "is_prod_appengine_mvms"
+        }
+      ],
+      "sha256": "6c36f2384856d8228b25c42a00a032ac41cdf9a925b321c52aaeaf17c645b269"
+    }
+  ],
+  "qualified_module": "pip._vendor.urllib3.util.connection",
+  "runtime_helper_code_fingerprint": null,
+  "runtime_module_code_fingerprint": null,
+  "status": "static_source_identity_only_not_runtime_attestation",
+  "stdlib_callable_identity_attestation": null,
+  "stdlib_socket_source_sha256": null,
+  "target_interpreter": {
+    "sha256": "fa67443527ed9647f760d807e2a38f26340757123e643c4639cf273ed15d5ea7",
+    "version": "3.12.14"
+  },
+  "wheel": {
+    "bytes": 1841526,
+    "filename": "pip-25.0.1-py3-none-any.whl",
+    "sha256": "c46efd13b6aa8279f33f2864459c8ce587ea6a1a59ee20de055868d8f7688f7f"
+  }
+}

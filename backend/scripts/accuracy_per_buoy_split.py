@@ -16,7 +16,10 @@ WHAT IT PRINTS (aggregates only: no row, no observation series, no credential ev
      proves buoys do not leak into each other) and a DETECTION control (+0.05 m seeded into every served err_m BEFORE
      pairing: does the pooled +72 h interval exclude the unseeded gap?);
   5. the pooled gap per lead with 1-day and 3-day block intervals, and the same over the monitor's own 7-day window, so
-     +0.111 against the 0.10 m bound can be read against noise on the window that paged.
+     +0.111 against the 0.10 m bound can be read against noise on the window that paged;
+  6. the SIGNED BIAS beside the MAE (2026-11-15): our mean error minus the reference's on the same paired keys, pooled
+     and per buoy, with the same day-block intervals, and its own control. An MAE gap cannot see a small bias shift on
+     under-reading keys (it LOWERS their |error|); the detection control above showed exactly that.
 
 PAIRING is the monitor's own (`forecast_skill.head_to_head`): the same (buoy, target hour, lead bucket) AND the same
 verifying observation (time and height). A key whose observation identity differs or is missing is excluded and counted.
@@ -109,7 +112,18 @@ def gap(keys, ours, theirs, extra=None):
     return n, sum(mo) / n, sum(mt) / n, sum(mo) / n - sum(mt) / n, wins / n
 
 
-def day_block_interval(keys, ours, theirs, draws=BOOT_DRAWS, seed=BOOT_SEED, extra=None, block_days=1):
+def bias_gap(keys, ours, theirs):
+    """(n, bias_ours, bias_theirs, delta) on the SIGNED error over the same paired keys. delta > 0: we read higher than
+    the reference does against the same observations. Not a skill number: a biased lane can have the lower MAE."""
+    if not keys:
+        return 0, None, None, None
+    n = len(keys)
+    bo = sum(ours[k]["err_m"] for k in keys) / n
+    bt = sum(theirs[k]["err_m"] for k in keys) / n
+    return n, bo, bt, bo - bt
+
+
+def day_block_interval(keys, ours, theirs, draws=BOOT_DRAWS, seed=BOOT_SEED, extra=None, block_days=1, stat=None):
     """95% interval of the paired gap, resampling whole blocks of `block_days` consecutive target days (errors within a
     day share the weather, so key resampling would understate the spread; a storm lasting several days makes even
     1-day blocks understate it, hence the 3-day option). None when fewer than 3 blocks carry pairs."""
@@ -125,7 +139,7 @@ def day_block_interval(keys, ours, theirs, draws=BOOT_DRAWS, seed=BOOT_SEED, ext
     stats = []
     for _ in range(draws):
         sample = [k for _d in range(len(days)) for k in by_day[days[rng.randrange(len(days))]]]
-        stats.append(gap(sample, ours, theirs, extra)[3])
+        stats.append(stat(sample, ours, theirs)[3] if stat else gap(sample, ours, theirs, extra)[3])
     stats.sort()
     return stats[int(0.025 * draws)], stats[min(draws - 1, int(0.975 * draws))]
 
@@ -241,6 +255,90 @@ def detection_control(rows, now, days, lead=72, seeded=POSITIVE_CONTROL_M):
     return base[3], hit[3], iv, excludes
 
 
+def _lead_slices(idx, reference, lead):
+    b = lead // 24
+    ours = {k: v for k, v in (idx.get(PRIMARY) or {}).items() if k[2] == b}
+    theirs = {k: v for k, v in (idx.get(reference) or {}).items() if k[2] == b}
+    return ours, theirs, paired(ours, theirs)[0]
+
+
+def bias_split(idx, reference, leads=LEADS):
+    """The signed-bias twin of `split`: pooled per lead (with 1-day and 3-day block intervals) and per (buoy, lead)."""
+    out = {"pooled": {}, "by_buoy": {}}
+    for lead in leads:
+        o, t, keys = _lead_slices(idx, reference, lead)
+        out["pooled"][lead] = bias_gap(keys, o, t) + (day_block_interval(keys, o, t, stat=bias_gap),
+                                                      day_block_interval(keys, o, t, block_days=3, stat=bias_gap))
+        for buoy in sorted({k[0] for k in keys}):
+            out["by_buoy"][(buoy, lead)] = bias_gap([k for k in keys if k[0] == buoy], o, t)
+    return out
+
+
+def bias_control(rows, now, days, lead=72, seeded=POSITIVE_CONTROL_M, only_under=True, net_zero=False):
+    """Can the bias line see what the MAE gap cannot? Seed +`seeded` m into the served err_m BEFORE pairing, by default
+    ONLY on keys where the served lane under-reads (err < 0): the case the MAE gap misses, because the seed LOWERS those
+    |errors|. Seeding every key would move a mean signed difference by exactly the seed, an identity that proves
+    nothing; seeding a subset moves it by seed x share, which the interval may or may not resolve.
+    `net_zero` is the NULL arm: the same keys are disturbed by the same size, +seed and -seed alternately (in key
+    order), so the errors move and the mean does not. A bias line that flags that is reading noise as bias.
+    `share` is always the UNSEEDED under-reading fraction of the paired keys: the keys the seed lands on.
+    Returns {share, bias: (unseeded, seeded, seeded 1-day interval, excludes), mae: (same four for the MAE gap)}."""
+    def hit(r):       # ONLY rows of the judged lead: a sequence alternated across leads is one-signed at any single lead
+        return (r.get("source") == PRIMARY and _finite(r.get("err_m")) and _bucket(r.get("lead_h")) == lead // 24
+                and (r["err_m"] < 0 or not only_under))
+    order = sorted((i for i, r in enumerate(rows or []) if hit(r)),
+                   key=lambda i: (str(rows[i].get("buoy_id")), str(rows[i].get("target_time"))))
+    sign = {i: (-1.0 if (net_zero and n % 2) else 1.0) for n, i in enumerate(order)}
+    seeded_rows = [{**r, "err_m": r["err_m"] + seeded * sign[i]} if i in sign else r for i, r in enumerate(rows or [])]
+    o, t, keys = _lead_slices(index_rows(rows, now, days), BEST_MATCH, lead)
+    so, st, skeys = _lead_slices(index_rows(seeded_rows, now, days), BEST_MATCH, lead)
+    share = (sum(1 for k in keys if o[k]["err_m"] < 0) / len(keys)) if keys else None
+
+    def arm(stat, boot_stat):
+        base, after = stat(keys, o, t)[3], stat(skeys, so, st)[3]
+        iv = day_block_interval(skeys, so, st, stat=boot_stat)
+        return base, after, iv, (None if iv is None or base is None else not (iv[0] <= base <= iv[1]))
+    return {"share": share if only_under else 1.0, "bias": arm(bias_gap, bias_gap), "mae": arm(gap, None)}
+
+
+def _excl(x):
+    return "EXCLUDES" if x else ("does NOT exclude" if x is False else "cannot judge (thin)")
+
+
+def bias_lines(idx, rows=None, now=None, days=WINDOW_DAYS):
+    """The bias section of the report and, when the rows are given, its gate: (lines, True / False / None)."""
+    lines = ["== signed bias beside the MAE (paired; ours minus the reference; + = we read higher). Not a skill number"]
+    for ref, label in ((BEST_MATCH, "best_match"), (SAME_MODEL, "same-model control")):
+        s = bias_split(idx, ref)
+        for lead in LEADS:
+            n, bo, bt, d, iv, iv3 = s["pooled"][lead]
+            lines.append("  vs %-18s +%dh n=%d ours=%s theirs=%s bias gap=%s 1-day %s 3-day %s"
+                         % (label, lead, n, _fmt(bo), _fmt(bt), _fmt(d), _ci(iv), _ci(iv3)))
+    s = bias_split(idx, BEST_MATCH)
+    lines.append("  by buoy vs best_match (bias gap; * = measured hole)")
+    for buoy in sorted({b for b, _l in s["by_buoy"]}):
+        cells = ["+%dh %s" % (lead, _fmt((s["by_buoy"].get((buoy, lead)) or (0, None, None, None))[3])) for lead in LEADS]
+        lines.append("  %-6s%s %s" % (buoy, "*" if buoy in MEASURED_HOLES else " ", " | ".join(cells)))
+    if rows is None:
+        return lines, None
+    ctl = bias_control(rows, now, days)
+    null = bias_control(rows, now, days, net_zero=True)
+    full = bias_control(rows, now, days, only_under=False)
+    b, m = ctl["bias"], ctl["mae"]
+    lines.append("bias control: +%.2f m seeded on under-reading served keys only (%s of +72h pairs) -> bias gap %s -> %s, "
+                 "interval %s %s the unseeded value | the MAE gap on the same seed %s -> %s, interval %s %s it"
+                 % (POSITIVE_CONTROL_M, "-" if ctl["share"] is None else "%.0f%%" % (100 * ctl["share"]), _fmt(b[0]),
+                    _fmt(b[1]), _ci(b[2]), _excl(b[3]), _fmt(m[0]), _fmt(m[1]), _ci(m[2]), _excl(m[3])))
+    lines.append("bias null: the same keys moved +/-%.2f m alternately (net zero) -> bias gap %s -> %s, interval %s %s the "
+                 "unseeded value (must not exclude) | every key seeded -> bias gap moves by %s (an identity, not a test)"
+                 % (POSITIVE_CONTROL_M, _fmt(null["bias"][0]), _fmt(null["bias"][1]), _ci(null["bias"][2]),
+                    _excl(null["bias"][3]),
+                    _fmt(None if full["bias"][0] is None else full["bias"][1] - full["bias"][0])))
+    ok = b[3] is True and null["bias"][3] is False
+    lines.append("bias gate (seeded +%.2f m detected, null not flagged): %s" % (POSITIVE_CONTROL_M, "PASS" if ok else "NOT MET"))
+    return lines, ok
+
+
 def _fmt(v, sign=True):
     return "-" if v is None else (("%+.3f" if sign else "%.3f") % v)
 
@@ -284,6 +382,7 @@ def report_lines(idx, now, days=WINDOW_DAYS, rows=None):
             lines.append("    hole sets disagree: in data not measured=%s, measured not in data=%s"
                          % (",".join(unmeasured) or "-", ",".join(missing) or "-"))
     lines += unanswered_lines(idx)
+    lines += bias_lines(idx, rows, now, days)[0]
     probe = next(iter(sorted({k[0] for k in (idx.get(PRIMARY) or {})})), None)
     rec, other = wiring_check(idx, probe) if probe else (None, None)
     ok = rec is not None and abs(rec - POSITIVE_CONTROL_M) < 1e-9 and other is not None and other < 1e-9
@@ -297,6 +396,35 @@ def report_lines(idx, now, days=WINDOW_DAYS, rows=None):
                      % (POSITIVE_CONTROL_M, _fmt(base), _fmt(hit), _ci(iv),
                         "EXCLUDES" if excl else ("does NOT exclude" if excl is False else "cannot judge (thin)")))
     return lines, ok
+
+
+# Stations excluded by name (services/weather_pipeline/unresolved_stations.py). The split prints WHICH sampler path and
+# WHICH model cell the served lane read there, from the serve-path fields the ledger rows carry since #857: the record
+# said 0.729 deg for 46267 from another provider's mask, NOAA's own field says 0.958, and the served read was never read.
+NAMED_PATH_STATIONS = ("46267",)
+
+
+def serve_path_lines(rows, now, days=WINDOW_DAYS, stations=NAMED_PATH_STATIONS):
+    """Per named station: counts of served scored rows by (sampler path, model cell read). A model cell is a public grid
+    node, not an observation; no row, time or height is printed. `not recorded` = a row written before #857."""
+    lo = now - timedelta(days=days)
+    lines = ["== served path at named stations (sampler path and the model cell it read; counts of served scored rows)"]
+    for station in stations:
+        seen = {}
+        for r in rows or []:
+            t = _parse(r.get("target_time"))
+            if r.get("source") != PRIMARY or str(r.get("buoy_id")).upper() != station or t is None or not (lo <= t):
+                continue
+            cell = r.get("sampled")
+            ok = isinstance(cell, (list, tuple)) and len(cell) == 2 and all(_finite(x) for x in cell)
+            key = (r.get("interp") if isinstance(r.get("interp"), str) and r.get("interp") else "not recorded",
+                   "%.3f,%.3f" % (cell[0], cell[1]) if ok else "-")
+            seen[key] = seen.get(key, 0) + 1
+        if not seen:
+            lines.append("  %-6s no served row in the window" % station)
+        for (path, cell), n in sorted(seen.items(), key=lambda kv: -kv[1]):
+            lines.append("  %-6s path=%s cell=%s n=%d" % (station, path, cell, n))
+    return lines
 
 
 def gate_window_lines(rows, now, days=GATE_WINDOW_DAYS):
@@ -331,6 +459,7 @@ def main():
     lines, ok = report_lines(idx, now, args.days, rows=rows)
     if args.days != GATE_WINDOW_DAYS:
         lines += gate_window_lines(rows, now)
+    lines += serve_path_lines(rows, now, args.days)
     print("\n".join(lines))
     return 0 if ok else 2
 

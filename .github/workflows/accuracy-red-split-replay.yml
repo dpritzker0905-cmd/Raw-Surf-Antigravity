@@ -1,0 +1,36 @@
+# D-072 THREE-RULE REPLAY (2026-11-15). MEASUREMENT ONLY, DISPATCH ONLY.
+#
+# WHY: D-072 (owner approved 2026-11-15 16:14 EST) splits the accuracy monitor's one best_match RED into three rules: a
+# same-model regression, the hole buoys, and best_match where both models score. Before any rule may page, this replays
+# the retained history (2026-08-15 .. 11-14) from the scored rows and applies the four checks pre-registered in
+# docs/weather-program/log/2026-11-15-claude-verifier-d072-red-split.md, plus the hole-buoy audit.
+#
+# ⛔ PRINTS AGGREGATES ONLY: bounds, per-day per-lead deltas with n and win rate, the checks, the verdict, and per-buoy
+#   audit aggregates. No row, observation series or credential reaches the log; no artifact.
+#   tests/test_accuracy_red_split.py pins that no row field is printed.
+# ⛔ NO SCHEDULE: the owner names each dispatch. Not running it is the kill switch.
+# ⛔ Reads only (Storage GET with the monitor's read pair); never writes Storage, never calls the serve box.
+name: Accuracy RED Split Replay
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: accuracy-red-split-replay
+  cancel-in-progress: true
+jobs:
+  replay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: numpy for the 200-draw swap null
+        run: python3 -m pip install --quiet numpy
+      - name: Three-rule replay and hole-buoy audit (aggregates only)
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -o pipefail
+          python3 scripts/accuracy_red_split_replay.py

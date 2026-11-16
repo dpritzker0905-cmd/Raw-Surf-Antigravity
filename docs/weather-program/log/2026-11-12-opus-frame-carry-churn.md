@@ -81,3 +81,32 @@ byte-identical to the frame a rebuild would publish, and the parity gate ran whe
    for this churn.
 2. `TailDownloads.prefetch` could skip downloading a re-ingested tail whose previous frame has `content`, but it cannot know the
    bytes without downloading them; left as is (dark lane).
+
+## 2026-11-15 15:41Z: measured live, and a correction to the estimate above
+
+**How:** the per-set JSON report (`{"frame_sets": ...}`) IS printed into the pilots frames step log. `gh run view --log` cuts
+the job log at about 10 MB (in run 43709308169 it stopped mid-frames-step, before every raster step). The full job log from
+`gh api --allow-escape-sequences repos/<owner>/<repo>/actions/jobs/<job id>/logs` holds it (49,803 lines). My 11-15 status note
+to the director ("the step log never prints the report") was wrong. No code change is needed to attribute per set.
+
+**Measured,** five pilots runs after #832 merged (11-14 17:18Z .. 11-15 11:31Z), the six EURO swell sets:
+
+| run | plain sets (3): built / content_carried / identity carried, s | filled sets (3): built / content_carried, s | total s |
+|---|---|---|---|
+| 43620395353 | 1 / 116 / 0 each, ~7 s each | 117 / 0 each, 38-40 s | 139.6 |
+| 43637758695 | 118, 78, 118 built / 0 / 0, 19-36 s | 118, 78, 118 / 0, 27-40 s | 195.1 |
+| 43653114830 | 0, 40, 0 / 75 / 42, 2, 42; 0.7-14 s | 117 / 0 each, 58-75 s | 219.0 |
+| 43676991030 | 45 / 73 / 0 each, 19-21 s | 118 / 0 each, 47-51 s | 205.2 |
+| 43709308169 | 79 / 0 / 37 each, 17-18 s | 111 / 0 each, 45-52 s | 198.8 |
+
+- **The plain sets carry as designed.** A fully carried set took ~7 s instead of ~35 s, and every rebuilt frame had new content
+  (`unchanged` 0 in every run: no rebuild wrote an identical frame).
+- **The filled sets never carried:** 111-118 frames rebuilt in every run, `unchanged` 0, so their bytes really change each run:
+  the GFS donor (a new GFS cycle per pilots fire) rewrites the masked nodes. That is a real content change, and the content key
+  correctly refuses to carry it.
+
+**Correction (ledger.d/opus--frame-carry-measured.jsonl:1):** the estimate in "Saving" above (~110 of ~190 s a run, filled sets
+carrying "about one run in three") was wrong on the filled half. The donor changes every run, not every other. Measured saving: the
+plain sets only, about 0-85 s a run depending on whether the CMEMS run rolled (full carry once in five runs, partial twice).
+The six sets still cost 140-219 s a run; the filled half (~45-75 s a set) is now most of it. A filled frame can only get cheaper
+by making the rebuild itself cheaper, not by carrying it.
