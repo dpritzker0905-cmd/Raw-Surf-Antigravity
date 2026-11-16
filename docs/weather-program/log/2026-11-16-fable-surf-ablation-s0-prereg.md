@@ -292,3 +292,51 @@ An arm that fails any of these is DISQUALIFIED whatever its score.
 
 Parts 1 and 1b, and the zero-violation monotonicity run above. Nothing about how a steepness-and-kh index performs:
 it has never been run here. The 19% figure is the research lead's citation, not a measurement of mine.
+
+## 2026-11-16 01:24Z The tension is resolved, and a correction to Part 1b
+
+**The nearshore validation scores the chain BEFORE the breaking factors.** The rating-band lane pointed at the code
+and I read it: `nearshore_validation.model_hs_at_station` multiplies shelf friction, LINEAR shoaling to the station
+depth, the exposure factor and the same refraction constant, and says of itself "no cap, no H1/10". Komar is not in
+it. So the two findings are about different halves of the chain and do not contradict:
+- up to the buoy (friction, linear shoaling, exposure, refraction): reported LOW at 9 of 11 stations;
+- shoreward of the buoy (Komar, H1/10, cap, magnet): never scored by anything, and Part 1 shows them raising every
+  spot.
+
+**What the pre-breaking half does, measured from the code** (`transform_factors`, head-on, shelf 21 m by 120 km,
+friction at the served setting):
+
+| period | station at 10 m | at 15 m | at 20 m |
+|---|---|---|---|
+| 5 s | 0.82 | 0.85 | 0.87 |
+| 7.3 s | 0.80 | 0.80 | 0.81 |
+| 10 s | 0.86 | 0.82 | 0.80 |
+| 14 s | 0.97 | 0.90 | 0.86 |
+| 16 s | 1.02 | 0.94 | 0.89 |
+
+Friction is 1.00 in every cell (it is off by default), so this is linear shoaling times the constant 0.873, and off
+the shore normal the exposure factor lowers it further. **The chain takes 13 to 20% off the offshore height on the
+way to a 10 to 20 m buoy for every period up to 10 s.** On a 1 to 2.5 m sea that is 0.13 to 0.5 m, the same size as
+the reported low bias (-0.15 to -0.51 m). That is arithmetic and a coincidence of size, NOT an attribution: I have
+not read the validation's rows or its per-factor columns, and a low offshore input would produce the same bias.
+
+**A reading that fits both halves, not proven.** The pre-breaking half removes too much (the 0.873 constant is the
+only candidate that is not physics: friction is off and linear shoaling is textbook), and the breaking half then adds
+it back and more with Komar and H1/10, the same amount at every spot. Net high where the real surf zone dissipates
+(a flat beach in wind sea), net low or right where it does not. If so, the two errors were tuned against each other,
+and removing one alone would make the served number worse. The gate's "no class gets worse" condition is what
+protects against that, and it is a reason to test the factors in PAIRS as well as singly.
+
+**Added to the gate, before the window:** one paired configuration, `refraction_off_and_komar_off`, and one,
+`refraction_off_and_h110_off`, scored like the others. No other pair is added, now or later.
+
+**What it changes for the truth split.** The forcing-truth half of the gate CAN judge the refraction constant, the
+exposure factor and linear shoaling, at the validation's stations, per factor. That part is runnable as soon as the
+window has rows and the per-factor columns are read (the rating-band lane could not see them in the artifacts it
+downloaded; the workflow may carry them).
+
+**Correction to Part 1b, mine.** I wrote that the partitioned path is "the path the live point lane takes when
+partitions exist". It is not on in production: `SURF_PARTITIONS` defaults to off
+(`point_resolution.py`: `os.environ.get("SURF_PARTITIONS", "0") != "1"`), so the live readout uses the bulk path.
+Part 1b's numbers stand; they describe what the served number WOULD do with that flag on, not what it does today.
+The bulk tables in Part 1 are the ones that describe today's readout.
