@@ -125,6 +125,9 @@ async def world(monkeypatch):
             await connection.run_sync(lambda conn, table=model.__table__: table.create(conn))
     maker = async_sessionmaker(engine, expire_on_commit=False)
     async with maker() as db:
+        # Taken HERE, not at import: CI's guards lane runs for many minutes before this fixture, and a photo stamped
+        # at import time would read as minutes old by then (it failed hosted CI at 620 s against a 120 s check).
+        now = datetime.now(timezone.utc)
         for pid in ("surfer", "other", "photog"):
             db.add(Profile(id=pid, user_id=pid, email=pid + "@example.invalid", full_name=pid,
                            role=RoleEnum.PHOTOGRAPHER if pid == "photog" else RoleEnum.SURFER))
@@ -136,12 +139,12 @@ async def world(monkeypatch):
                                 ("cr-2", "photog", "https://cdn.invalid/c2.jpg"),
                                 ("cr-other", "other", "https://cdn.invalid/c3.jpg")):
             db.add(ConditionReport(id=rid, photographer_id=owner, spot_id="pipe", media_url=url,
-                                   expires_at=NOW + timedelta(hours=24), created_at=NOW))
+                                   expires_at=now + timedelta(hours=24), created_at=now))
         db.add(ConditionReport(id="cr-old", photographer_id="photog", spot_id="pipe", media_url="https://cdn.invalid/o",
-                               expires_at=NOW + timedelta(hours=24), created_at=NOW - timedelta(hours=7)))
-        db.add(SurfReport(id="sr-1", user_id="surfer", spot_id="nsb", created_at=NOW))
-        db.add(CheckIn(id="ci-1", user_id="surfer", spot_id="nsb", spot_name="New Smyrna", created_at=NOW))
-        same = observation_media.inspect_media(_jpeg(*PIPE, when=NOW.replace(microsecond=0)), is_image=True)
+                               expires_at=now + timedelta(hours=24), created_at=now - timedelta(hours=7)))
+        db.add(SurfReport(id="sr-1", user_id="surfer", spot_id="nsb", created_at=now))
+        db.add(CheckIn(id="ci-1", user_id="surfer", spot_id="nsb", spot_name="New Smyrna", created_at=now))
+        same = observation_media.inspect_media(_jpeg(*PIPE, when=now.replace(microsecond=0)), is_image=True)
         for url in ("https://cdn.invalid/c1.jpg", "https://cdn.invalid/c2.jpg"):  # the same photo uploaded twice
             db.add(ObservationMedia(user_id="photog", media_url=url, media_type="image", sha256=same.sha256,
                                     exif_latitude=same.exif_latitude, exif_longitude=same.exif_longitude,
@@ -314,7 +317,7 @@ async def test_scale_default_endpoint_is_the_servers(world):
 
 async def test_server_sets_flow_role_and_keeps_device_time_as_a_claim(world, monkeypatch):
     monkeypatch.setenv(observations.ANCHOR_ENV, "photog")
-    skewed = (NOW - timedelta(hours=2)).isoformat()
+    skewed = (datetime.now(timezone.utc) - timedelta(hours=2)).isoformat()
     r = await world.client.post(URL, json=_checkin(observed_at_device=skewed), headers=_token("surfer"))
     assert r.status_code == 200
     r2 = await world.client.post(URL, json=dict(entry_screen="golive_conditions_modal", ref_id="cr-1", height_value=6,
