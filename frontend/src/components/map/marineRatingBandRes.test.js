@@ -179,7 +179,12 @@ describe('ratedRunText: the band run age in words (#933, David: "label hours the
   const { ratedRunText } = require('./marineRatingBandRes');
   afterEach(() => { delete window.__RAW_DISABLE_RATED_RUN_LABEL__; });
   test('one run behind names the run and the hours', () => {
+    const { formatRunLocal } = require('./readoutDateFormat');
+    expect(ratedRunText({ lagH: 6, runTime: '2026-11-16T06:00:00Z' })).toBe(`Surf ratings from the ${formatRunLocal(Date.parse('2026-11-16T06:00:00Z'))} run, 6 h older than the wave heights (a newer rating run is not published yet).`);
+    expect(formatRunLocal(Date.parse('2026-11-16T06:00:00Z'))).toMatch(/^(Sunday|Monday|Tuesday|Wednesday|Thursday|Friday|Saturday) \d{1,2} (AM|PM)$/);   // the reader's time, a full weekday
+    window.__RAW_DISABLE_LOCAL_RUN_TIME__ = true;
     expect(ratedRunText({ lagH: 6, runTime: '2026-11-16T06:00:00Z' })).toBe('Surf ratings from the Mon 06Z run, 6 h older than the wave heights (a newer rating run is not published yet).');
+    delete window.__RAW_DISABLE_LOCAL_RUN_TIME__;
   });
   test('no lag, unknown lag, or killed: nothing', () => {
     expect(ratedRunText({ lagH: 0, runTime: '2026-11-16T06:00:00Z' })).toBe(null);
