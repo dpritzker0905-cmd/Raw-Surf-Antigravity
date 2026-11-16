@@ -1,0 +1,8 @@
+{
+  "lane": "frontend",
+  "tests": 6,
+  "files": 1,
+  "branch": "claude/conditions-provenance",
+  "date": "2026-11-16",
+  "note": "conditions_source provenance P0 (2026-11-16)"
+}
