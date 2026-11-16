@@ -675,6 +675,19 @@ describe('texture fit and the GPU byte budget', () => {
     expect(L.shownPath()).toBe('h29');
   });
 
+  test('T2: with a value blend running and only protected frames left, the blend gives way so the cap holds (frozen clock)', () => {
+    const gl = fakeGl(); gl.__ctl.maxTex = 4096; const map = fakeMap();
+    const L = createOwnRasterLayer({ id: 'own-raster-rain', now: () => 0 });   // time never moves: a started blend stays running
+    L.onAdd(map, gl); L.setLut(buildStepLut({ breakpoints: [0], colors: [[1, 2, 3, 1]] }));
+    const f = big(); const g = { ...f, values: f.values.slice() }; const h = { ...f, values: f.values.slice() };
+    L.offerField('a', f); L.want('a'); frame(L, gl);
+    L.offerField('b', g); L.want('b'); frame(L, gl);          // shown b, blending from a (both protected)
+    L.offerField('c', h); L.want('c'); frame(L, gl);          // c wanted: a + b + c = 49.8 MB > 48 MB
+    expect(window.__RAW_OWN_RASTER_TEX__.residentBytes).toBeLessThanOrEqual(RESIDENT_BYTES_MAX);
+    expect(window.__RAW_OWN_RASTER_TEX__.blendDropped).toBe(1);
+    expect(L.shownPath()).toBe('c');
+  });
+
   test('T2: the 0.25-deg sets keep RESIDENT_MAX frames (1 MB each is far under the budget)', () => {
     const { gl, L } = setup(4096);
     for (let i = 0; i < RESIDENT_MAX + 2; i += 1) { L.offerField(`p${i}`, field(1000 + i)); frame(L, gl); }
