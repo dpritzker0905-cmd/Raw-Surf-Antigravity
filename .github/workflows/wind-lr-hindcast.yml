@@ -1,0 +1,129 @@
+name: Long-range wind hindcast (offline evidence, serves nothing)
+
+# WHY: the pre-registered gate for ICON 180-336 h / EURO 240-336 h wind (docs/weather-program/log/
+# 2026-11-15-wind-long-range.md). Reads PUBLIC data only (ECMWF open data and NOAA GFS/GEFS on AWS, NDBC, IEM ASOS);
+# never calls the Raw Surf backend, never writes Storage, a manifest or a product; uses no secret. ~700 GB of
+# byte-range reads over 122 ECMWF runs, so it is sharded. Dispatch-only from dev (amendment 4).
+
+on:
+  workflow_dispatch:   # dispatch-only (amendment 4): each push queued up to 24 shards and backed up the Actions queue
+
+permissions:
+  contents: read
+
+concurrency:
+  group: wind-lr-hindcast
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: '1'
+
+jobs:
+  stations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install numpy requests==2.31.0 eccodes==2.50.0
+      - name: Freeze the station list (rule-based; the committed frozen list wins on a rerun)
+        working-directory: backend
+        run: |
+          mkdir -p "$RUNNER_TEMP/wlr"
+          F=../docs/weather-program/evidence/wind-long-range-2026-11-15/wind_lr_stations.json
+          if [ -f "$F" ]; then cp "$F" "$RUNNER_TEMP/wlr/"; fi
+          python scripts/wind_lr_hindcast.py stations --cache "$RUNNER_TEMP/wlr"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wind-lr-stations
+          path: |
+            ${{ runner.temp }}/wlr/wind_lr_stations.json
+            ${{ runner.temp }}/wlr/gfs_land.npy
+            ${{ runner.temp }}/wlr/gfs_land.npy.json
+      # amendment 2: NDBC realtime2 keeps 45 days, so the truth read at freeze time is kept and scored as-is
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wind-lr-truth-snapshot
+          retention-days: 90
+          path: |
+            ${{ runner.temp }}/wlr/ndbc/
+            ${{ runner.temp }}/wlr/asos/
+
+  collect:
+    needs: stations
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    strategy:
+      fail-fast: false
+      max-parallel: 12          # 24 at once drew S3 503 SlowDown (run 43773419409)
+      matrix:
+        shard: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23]
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install numpy requests==2.31.0 eccodes==2.50.0
+      - uses: actions/download-artifact@v4
+        with:
+          name: wind-lr-stations
+          path: ${{ runner.temp }}/wlr
+      - name: Model values at the stations, one shard of runs
+        working-directory: backend
+        run: python scripts/wind_lr_hindcast.py collect --cache "$RUNNER_TEMP/wlr" --shard ${{ matrix.shard }}/24
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wind-lr-runs-${{ matrix.shard }}
+          path: ${{ runner.temp }}/wlr/runs/
+
+  score:
+    needs: collect
+    if: always() && needs.stations.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - run: pip install numpy requests==2.31.0 eccodes==2.50.0
+      - uses: actions/download-artifact@v4
+        with:
+          name: wind-lr-stations
+          path: ${{ runner.temp }}/wlr
+      - uses: actions/download-artifact@v4
+        with:
+          name: wind-lr-truth-snapshot
+          path: ${{ runner.temp }}/wlr
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: wind-lr-runs-*
+          path: ${{ runner.temp }}/wlr/runs
+          merge-multiple: true
+      - name: Score against the pre-registered gate
+        working-directory: backend
+        run: python scripts/wind_lr_hindcast.py score --cache "$RUNNER_TEMP/wlr" --out "$RUNNER_TEMP/wlr/report"
+      - name: Step summary
+        if: always()
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json, os
+          p = os.path.join(os.environ["RUNNER_TEMP"], "wlr", "report", "report.json")
+          if not os.path.exists(p):
+              print("no report"); raise SystemExit
+          r = json.load(open(p))
+          print(f"## Long-range wind gate: **{r['verdict']}** (chosen {r['chosen']})")
+          print(f"stations {r['stations']}, test runs {r['test_runs']} over {r['test_days']} days; k {r['k_by_bin']}")
+          print("| line | value | CI | pass/label |\n|---|---|---|---|")
+          for k, v in r["lines"].items():
+              val = next((v[x] for x in v if x.startswith(("diff", "bias", "seam_p95", "shift"))), "")
+              print(f"| {k} | {val} | {v.get('ci', '')} | {v.get('pass', v.get('label', ''))} |")
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: wind-lr-report
+          path: ${{ runner.temp }}/wlr/report/

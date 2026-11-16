@@ -176,6 +176,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       // the Rating toggle is on" report. Live-proven: flag true + surf=1 on every request +
       // backend transform present in the response + engine waveGrid.ratingMode false.
       ratingMode: !!marineData.grid.ratingMode,
+      ratedRun: marineData.grid.ratedRun || null,   // the band's run age (status line), carried like ratingMode
       activeMarineLayer,
       activeModel,
       valid_time: marineData.valid_time || marineData.grid.valid_time,
