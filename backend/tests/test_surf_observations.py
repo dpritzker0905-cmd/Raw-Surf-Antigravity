@@ -118,6 +118,7 @@ def test_inspect_media_without_exif_or_unreadable_is_hash_only():
 @pytest_asyncio.fixture
 async def world(monkeypatch):
     monkeypatch.setattr(security, "SECRET_KEY", secrets.token_urlsafe(48))
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")  # the XP kill switch reads runtime_flags: no network in tests
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
         for model in (Profile, SurfSpot, CheckIn, UserStreak, ConditionReport, SurfReport, SurfObservation,

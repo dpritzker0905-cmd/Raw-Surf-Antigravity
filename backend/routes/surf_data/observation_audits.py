@@ -30,10 +30,12 @@ async def list_pending_audits(limit: int = 50, db: AsyncSession = Depends(get_db
                               admin: Profile = Depends(get_current_admin)):
     rows = (await db.execute(select(SurfObservation).where(SurfObservation.xp_status == "held_audit")
                              .order_by(SurfObservation.received_at).limit(max(1, min(limit, 200))))).scalars().all()
+    # NO height, unit, range, scale or typical/sets (advisor condition on #980): an auditor who saw "12 ft" at a small
+    # beach would fail it, which is value-based selection through the back door and removes exactly the surprising
+    # reports the truth stream exists to keep. The photo, place, time and flags are what judging "genuine" needs.
     return [{
         "id": r.id, "spot_id": r.spot_id, "surface": r.surface, "received_at": r.received_at.isoformat(),
-        "height_value": r.height_value, "height_unit": r.height_unit, "height_bucket": r.height_bucket,
-        "height_scale": r.height_scale, "set_or_avg": r.set_or_avg, "media_url": r.media_url,
+        "media_url": r.media_url,
         "gps_distance_m": r.gps_distance_m, "exif_distance_m": r.exif_distance_m, "exif_age_s": r.exif_age_s,
         "flags": [f for f in (r.flags or "").split(",") if f],
     } for r in rows]

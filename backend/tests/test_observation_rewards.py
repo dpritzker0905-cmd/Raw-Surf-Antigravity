@@ -38,6 +38,7 @@ def _token(sub):
 @pytest_asyncio.fixture
 async def world(monkeypatch):
     monkeypatch.setattr(security, "SECRET_KEY", secrets.token_urlsafe(48))
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")  # the XP kill switch reads runtime_flags: no network in tests
     monkeypatch.setattr(observation_rewards, "audit_draw", lambda: False)
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
@@ -226,3 +227,33 @@ async def test_the_reply_still_reveals_no_verdict(world):
                                                latitude=SPOTS["s0"][0], longitude=SPOTS["s0"][1],
                                                device_id=DEV["ana"]), headers=_token("ana"))
     assert set(r.json()) == {"id", "height_scale", "scale_default"}
+
+
+async def test_the_audit_queue_shows_no_height(world, monkeypatch):
+    monkeypatch.setattr(observation_rewards, "audit_draw", lambda: True)
+    await _post(world, "ana", "s0", height=12)
+    (item,) = (await world.client.get("/api/admin/surf-observations/audits", headers=_token("admin"))).json()
+    assert not {"height_value", "height_unit", "height_bucket", "height_scale", "set_or_avg", "face_m"} & set(item)
+    assert "12" not in str({k: v for k, v in item.items() if k not in ("id", "received_at", "media_url")})
+
+
+async def test_kill_switch_stops_payment_but_keeps_the_truth(world, monkeypatch):
+    monkeypatch.setenv(observation_rewards.KILL_FLAG, "0")
+    a = await _post(world, "ana", "s0")
+    b = await _post(world, "ben", "s0")       # would corroborate a, but nothing pays while paused
+    assert [(await world.row(i)).xp_status for i in (a, b)] == ["paused", "paused"]
+    assert (await world.row(a)).quality_ok is True   # still assessed, still truth
+    assert await world.xp("ana") == [] and await world.xp("ben") == []
+    monkeypatch.setenv(observation_rewards.KILL_FLAG, "1")
+    c = await _post(world, "cai", "s0")       # back on: paused rows are never paid later, and do not corroborate
+    assert await world.xp("ana") == [] and (await world.row(c)).xp_status == "granted"
+    assert await world.xp("cai") == [("surf_observation", 5)]
+
+
+async def test_an_audit_pass_while_paused_pays_nothing(world, monkeypatch):
+    monkeypatch.setattr(observation_rewards, "audit_draw", lambda: True)
+    held = await _post(world, "ana", "s0")
+    monkeypatch.setenv(observation_rewards.KILL_FLAG, "0")
+    r = await world.client.post(f"/api/admin/surf-observations/{held}/audit", json={"verdict": "pass"},
+                                headers=_token("admin"))
+    assert r.json()["xp_status"] == "paused" and await world.xp("ana") == []

@@ -26,9 +26,18 @@ from typing import Optional
 from sqlalchemy import func, select
 
 from models import SurfObservation
+from services import runtime_flags as _rf
 from services.xp import grant_xp
 
 REFERENCE_TYPE = "surf_observation"
+# KILL SWITCH (advisor condition on #980). '0' stops PAYMENT within minutes (Render env SURF_OBS_XP=0, a restart, or a
+# runtime-manifest 'off' entry) while observations are still stored and assessed: rows are marked 'paused' and are
+# never paid later, so turning it back on cannot release a backlog a farmer built while it was off.
+KILL_FLAG = "SURF_OBS_XP"
+
+
+def paying() -> bool:
+    return _rf.flag(KILL_FLAG, "1") == "1"
 BLOCKING_FLAGS = frozenset({"no_parent", "duplicate_media", "gps_far", "exif_far", "exif_stale",
                             "device_clock_skew", "media_unverified", "no_device"})
 ACCOUNT_DAY_CAP = 3
@@ -106,6 +115,8 @@ async def _pay_bonuses(db, obs: SurfObservation) -> None:
 
 async def corroborate(db, obs: SurfObservation) -> None:
     """Pay corroboration (and pending bonuses) to `obs` and to every independent paying observation near it."""
+    if not paying():
+        return
     others = (await db.execute(select(SurfObservation).where(
         SurfObservation.spot_id == obs.spot_id, SurfObservation.id != obs.id,
         SurfObservation.user_id != obs.user_id, SurfObservation.device_hash != obs.device_hash,
@@ -135,6 +146,9 @@ async def assess(db, obs: SurfObservation) -> None:
     if not obs.quality_ok:
         obs.xp_status = "not_eligible"
         return
+    if not paying():
+        obs.xp_status = "paused"
+        return
     if await _capped(db, obs):
         obs.xp_status = "capped"
         return
@@ -151,7 +165,9 @@ async def resolve_audit(db, obs: SurfObservation, verdict: str, admin_id: str) -
     obs.audit_verdict = verdict
     obs.audited_by = admin_id
     obs.audited_at = datetime.now(timezone.utc)
-    if verdict == "pass":
+    if verdict == "pass" and not paying():
+        obs.xp_status = "paused"
+    elif verdict == "pass":
         obs.xp_status = "granted"
         await pay(db, obs)
     else:
