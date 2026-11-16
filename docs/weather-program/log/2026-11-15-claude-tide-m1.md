@@ -244,3 +244,62 @@ If an arm fails item 1 on the seasonal term, the fix is a separately gated seaso
 
 Sequence (director): this registration is pushed ALONE. The advisor reads it before anything is dispatched. The code
 (EOT20 nested-zip fix, P's SA/SSA, the window) is committed after it and pushed only after the advisor's read.
+
+## 07:54 EST 2026-11-16 (`date`) - G2 ADDENDUM: control calibrated, reported tidal-band score, EOT20 convention (before any G2 number)
+The advisor's read of 2a1434b83 (11:46Z / 11:50Z): acceptable on integrity, but not to dispatch until (1) the control
+is calibrated so it isn't expected to fail, (2) a reported tidal-band score is registered, and (3) EOT20's seasonal
+convention is checked. The director (06:49 EST) and the research lead agreed. None of this touches the G2 window.
+Evidence is in the notes folder `tide-overlay-2026-11-15/` (`g2-control-calibration-2025-26stations.txt`,
+`cal_*.py`, `noaa_m1m3.py`, `eot20-convention-2025-4gauges.json`).
+
+**(1) Control calibration** (calendar 2025, P only - NOAA's constants against NOAA's own predictions, no arm, all 26
+stations; iterated freely, as instrument calibration). After the SA/SSA fix, P read median 0.0096 m, max 0.021 m,
+with 12 stations over 0.01. A least-squares fit of the residual on NOAA's constituent speeds put almost all of it in
+**M1** (up to 0.027 m, West Coast) and **M3** (up to 0.027 m, East Coast), then S1. pyTMD defines all three
+differently from NOAA's predictor. These five terms are now computed in NOAA's convention, from Schureman (SP 98)
+and with nothing fitted to the data:
+- V0 at 00:00 UTC Jan 1; f and u at mid-year.
+- M1: V + u = T - s + h - 90 + xi - nu + Q, f = f(O1)/Ra. My first form also added p, which Q already accounts for;
+  the standard variants were compared on four gauges and the textbook form was best.
+- M3: 3(T - s + h), u = 3(xi - nu), f = cos^6(I/2)/0.8840.
+- S1: V = T.
+- SA / SSA: h / 2h.
+
+Result through the gate's own code (`arms.harcon_eval` + `metrics.noaa_terms`), by station (m):
+1611400 0.0022, 1612340 0.0022, 1615680 0.0026, 1617760 0.0025, 8443970 0.0092, 8452660 0.0025, 8531680 0.0033,
+8534720 0.0031, 8651370 0.0025, 8658163 0.0031, 8665530 0.0055, 8720030 0.0066, 8722670 0.0019, 8723214 0.0017,
+8726724 0.0030, 8729840 0.0025, 8771510 0.0030, 9410230 0.0052, 9410660 0.0053, 9413450 0.0055, 9415020 0.0057,
+9419750 0.0062, 9435380 0.0072, 9443090 0.0075, 9751639 0.0013, 9755371 0.0016.
+**Median 0.0030, max 0.0092 (Boston: L2/LAM2 left), 0 stations over 0.01.** The control's line stays at <= 0.01 m
+median raw RMSE with no de-meaning, unchanged. Note: M1's node factor is 1.81 in 2025 and 1.065 in 2026; it is
+computed per year.
+
+**(2) REPORTED, NOT GATING: the tidal-band score.** Beside item 1, each arm (A and B) is also scored against CO-OPS
+predictions MINUS NOAA's own SA + SSA (NOAA convention) at each hour. The arms are not altered. The JSON carries
+`rmse_tidal_band` per station and `median_rmse_tidal_band_reported` per arm; the summary prints it beside the gating
+score. Reading: if item 1 fails but the tidal band is well below 0.08 m, the failure is the seasonal cycle, not the
+tidal model. The next registration (a seasonal component, e.g. NOAA monthly MSL or a CMEMS / AVISO altimetry
+climatology) starts from that number. It changes no rule.
+
+**(3) Seasonal conventions of the arms.**
+- **B (EOT20 through pyTMD), measured** on calendar 2025 at the four check gauges. Run 43867649888 on branch
+  `claude/tide-m1-eot20-check`, which cannot start the gate; public data, no credentials.
+  - **Convention matches.** EOT20's SA as pyTMD evaluates it, refit as A cos(h - G), sits **+15 deg (Galveston) and
+    +14 deg (Honolulu)** from NOAA's SA phase, not the ~-77 deg a convention mismatch would show. pyTMD's h - p1
+    default is the convention EOT20's phases assume.
+  - **The seasonal amplitude is short:** EOT20 SA 0.044 vs NOAA 0.077 m (Galveston) and 0.014 vs 0.048 m
+    (Honolulu). So CO-OPS - B carries a yearly wave (+-0.10 m Galveston, +-0.035 m Honolulu; RMSE 0.072 / 0.040 m).
+    The tidal-band score above is what separates it.
+  - **Boston 8443970 and La Jolla 9410230: EOT20 is UNDEFINED** within the registered 10 km extrapolation cutoff (NaN
+    at the gauge). Under item 2, arm B counts every such station as worse than C. B may therefore fail G2 on coverage
+    alone. That is recorded here BEFORE the run as a known limit of the registered cutoff; the cutoff is not changed.
+  - Arm B on calendar 2025 at these four gauges joins the seen list.
+- **A (FES2022b through PyFES), by documentation only.** PyFES's Darwin engine uses Darwin/Schureman notation with
+  Schureman's nodal corrections (the PyFES docs, "Darwin versus Doodson notation"), the convention NOAA uses for SA
+  (h). An empirical check needs the licensed FES files, which live only in the Actions cache, and running it there
+  would start the gate. G2's tidal-band line will show A's seasonal shortfall either way.
+
+Nothing else changes. Order: this addendum is pushed ALONE; the code follows (45c360654 EOT20 extraction,
+96736a72e window, a5580b290 calibration + tidal band), pushed only after the advisor's read. The G2 dispatch itself
+waits for the owner's word typed in this session (director 06:49 EST: relayed authority withdrawn for the credentialed
+run).
