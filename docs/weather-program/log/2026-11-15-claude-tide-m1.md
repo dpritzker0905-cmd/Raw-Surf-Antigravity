@@ -515,3 +515,18 @@ component, not the tidal model.
 - Arm D median 0.165. Observed water (T2, informative): A 0.31, B 0.28, C 0.35, D 0.19.
 
 **Nothing served changes.** #926 and #931 stay held (their hold was conditioned on G2 passing).
+
+## 15:56 EST 2026-11-16 (`date`) - advisor read G2 at 20:55Z; result released to the owner
+- The advisor checked the run itself: tag at 8b5149149, gate step succeeded, one artifact, public log stage/memory
+  only. It **recomputed every median from the 26 per-gauge rows** (A 0.0893, B 0.0878 n=20, C 0.154, D 0.1645,
+  P 0.0025; tidal band A 0.0244, B 0.0455; T2 A 0.3123, B 0.2848, C 0.3467, D 0.1856), all matching. Note: notes
+  `advisor-tide-g2-read-2026-11-16.md`.
+- **Verdict as registered: FAIL, not VOID.** The attribution to the missing seasonal sea level stands.
+- Stressed for the owner:
+  1. Six estuary / bay / inlet gauges stay above 0.08 m even in the tidal band. A seasonal term does not fix them.
+  2. Against OBSERVED water a pure astronomical tide is no better than today's served value (A 0.31 vs C 0.35) and
+     worse than the held #926 datum (D 0.19). M1 needs a free primary source for the non-tidal level (surge,
+     sea-level anomaly), or it is a step back from #926 against real water.
+  3. B edges A only through its partial seasonal term; its tide is the poorer, so the tie rule naming A is right.
+- **Next (registered; nothing re-tuned on this now-seen window):** a separately gated seasonal component AND a
+  non-tidal level, on a new unseen window, each pre-registered first.
