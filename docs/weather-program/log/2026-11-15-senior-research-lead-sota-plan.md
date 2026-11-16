@@ -412,3 +412,39 @@ Pre-registered gate on the same 25 CO-OPS stations:
 - positive control: a seeded +0.10 m shift is detected.
 
 The MLLW display goes in the later CO-OPS PR. Served change: SCOREBOARD row required.
+
+## 00:13Z Owner field report: NE Florida surf estimate too high (David, 19:07-19:12 EST)
+
+**Owner report.** At 29.77, -81.25 (between St. Augustine and Volusia), the infobox surf estimate reads too high. The sea
+is wind swell on a gently sloping (dissipative) east-Florida beach, and the owner expects under 2 ft, maybe 2-3 ft on
+the sets. The owner adds that some spots amplify ("x factor": New Smyrna, Ponce Inlet) and others reduce, so the surf
+estimate must vary by spot type.
+
+**Measured (one live `/point` read, GFS waves, valid 2026-11-16 00Z; `/api/health` 200 before and after):**
+- Offshore: 1.12 m (3.7 ft), 7.28 s, from 52 deg.
+- **Served surf height 1.58 m (5.2 ft), x1.41 the offshore height.** Regime `shoaling`, `surf_source parametric`,
+  shelf depth 21 m, `break_depth_m` null.
+- `geometry_missing: [borrowed_shore_normal, break_depth]`: the geometry at this point is incomplete.
+- NDBC 41117 (St. Augustine, about 30 km offshore), 22:56Z: Hs 1.4 m, dominant period 10 s, **mean period 4.8 s**,
+  ENE. The energy is mostly short-period wind sea, with a small 10 s component.
+- Code: the H1/10 factor (1.27) and refraction (0.797) nearly cancel (x1.01). Linear shoaling for 7.3 s is 0.93 at
+  21 m, rising to 1.18 at 2 m and 1.25 at 1.5 m. So most of the x1.41 is shoaling toward a very shallow assumed
+  depth. The chain was not fully decomposed: stopped at the owner's request.
+
+**Hypotheses (not yet tested).**
+- H1: the period fed to shoaling (7.3 s) overstates a wind-sea-dominated spectrum. The buoy's mean period is 4.8 s, and
+  a partition- or mean-period input would lower the shoaling gain.
+- H2: dissipative beaches lose energy across a wide surf zone, which the linear chain does not model.
+- H3: missing break depth plus a borrowed shore normal sends the point down a fallback path that over-shoals.
+- H4 (owner): spot-type transfer factors, inlet and jetty focusing (+) vs flat dissipative beach (-). Existing hooks:
+  `surf_magnets.py` (per-segment factor), the exposure factor, and California's dark `SURF_SPECTRAL_K` (#706).
+
+**State of the art (to be confirmed with evidence before any build).** Operational surf forecasters apply a
+per-spot transfer from offshore to breaking height, calibrated against observations by spot class. The published
+academic form is the spectral transfer coefficient (CDIP MOP K). Our gap is FL truth: no surf-zone instrument was
+found in Florida (the helper's ASK 2).
+
+**Brief sent to the director:**
+- a fixed live-dev spot panel;
+- owner observations as a labelled truth stream;
+- a hypothesis test H1-H4 per coast type.
