@@ -398,3 +398,36 @@ Levers measured offline on the real frames (5 frames each), BEFORE any build, pe
 | gusts ICON | 1237 KB | 561 KB (45 %) | 329 KB (27 %) |
 | currents | 1728 KB | speed 0.02 kn = the currents LUT step: 406 KB (23 %) if the not-yet-drawn direction field is left out until particles (it is 1214 KB of the frame) | 136 KB (8 %) |
 (§4's "quantisation alone 3-25 %" measured rounding inside the u16 field; a real 1-byte field is the bigger lever.)
+
+### 10c. On §10b (the advisor, 2026-11-16 22:10Z), appended
+- READING THE PASSES: EURO gusts (n 3-4 frame-changing steps) and currents (6-hourly) pass Fast 4G because most scrub steps
+  fetch nothing (the hour maps to a frame already held), NOT because 1.0-1.7 MB frames are cheap. These sizes are not "fine".
+- WHAT THE SCREEN SAID in the old phone "EURO" / "ICON" rows (§7b, §9): the app's pinned index in every one of them was GFS's
+  (audit `pin.model` = GFS in gate-full, gate-phone2, gate-phone3: the model selector never left GFS), so the screen said GFS
+  (model button, frames and the NOAA GFS credit agree). A HARNESS mislabel only; no product label defect; the phone
+  "0 mislabelled" of §7d stands.
+
+## 12. PRE-REGISTRATION: lever A, one-byte fields (written 2026-11-16 22:20Z, before any build; the SAME line and run as §10)
+
+Change: gusts store speed in a NEW one-byte field at 0.5 kn (the gust LUT step); currents store speed in a NEW one-byte field
+at 0.02 kn (the currents LUT step) and drop the direction field. The 2-byte field 4 stays for the wind sets and old frames.
+- CODES: 0 = no data; 1..254 = band k (value floor(v / step)); 255 = SATURATED (v >= 254 x step: gusts >= 127 kn, currents
+  >= 5.08 kn). DECODE to the band centre ((k - 1) x step + step / 2) so the value error is <= half a step AND the colour band
+  never changes (a value and its decode share floor(v / step), and every LUT breakpoint sits on a multiple of the step from 0);
+  code 255 decodes to the top band (drawn as the ramp's last colour, which both palettes already hold above 75 kn / 4 kn). No
+  readout or surf-chain code reads these frames (display only; checked: the own-raster path is the only reader), so no number
+  is printed from a saturated cell. The publisher counts saturated cells per frame into the build log and the index.
+- PARITY (re-done, tolerance stated now): decoded vs source <= 0.25 kn (gusts) / 0.01 kn (currents) at the §5 points per
+  model, plus a full-frame band check: 0 cells whose LUT band differs between source and decode.
+- LABEL: currents become speed only: the legend reads "Ocean current speed (kts)"; the credit note stays. When particles
+  bring direction back (as u / v, the animation lane's request) its bytes return and condition 3 is re-read then.
+- PREDICTION (mine, written before measuring; the advisor's arithmetic agrees): wire time at 9 Mbit/s ~0.4 s (GFS 472 KB) /
+  ~0.5 s (ICON 561 KB). Scaling today's excess over the unthrottled p50 by the byte ratio: GFS ~265 ms vs its 282 ms line
+  (borderline PASS), ICON ~490 ms vs 268 ms (FAIL). If ICON fails again that is a SECOND recorded FAIL and lever B (0.5-degree
+  world tier) follows; the line is not moved.
+- SAME RUN: §10b's harness, arms (unthrottled +150 ms; Fast 4G; Fast 4G + metered; Slow 4G reported), 5 cold toggles, 10
+  frame-changing steps, pinned-set check; first paint reported beside §10b's rows (first-frame-first is in this build).
+- COST STATED: frame_binary.py changes again, so every content-carried set rebuilds once on the next pilots run (the
+  content-key fingerprint); that one run's static-frames step can take up to its own budget (600 / 960 s with tails), and
+  nothing more after it.
+- SLOW 4G (19-26 s first paint, currents never painted in 5 tries) goes to David in plain words as a product question.
