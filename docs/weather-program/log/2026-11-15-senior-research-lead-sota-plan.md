@@ -1253,3 +1253,29 @@ inside; how face height is judged on a short-period wind sea) or a process none 
   unlocks more than further breaker physics. Re-score the slope arm once a finer bed exists there.
 - NE Florida: period, H1/10, spread and slope are all measured; about 1.8 remains. Next inputs: the owner's answer on
   which wave the product names, and T1/T2 breaking truth.
+
+## 14:20Z Owner, 09:16 EST 2026-11-16: the surf-height definition, and anchors with an admin area
+
+**David, verbatim:** "1) I think the published standard could be the choice, but research this further please just to
+make sure its the SOTA choice 2) yes, but this concept needs to be researched deeper, and if its a tool we're to use
+permanently, we need any area in the admin to control and monitor this, right?"
+
+**(1) Interim answer, final after the helper's ASK 12 (exact NWS 10-320 and Surfline text).**
+- Headline: face height (trough to crest) at the outer breaker, H1/10 (sets). This is the Hawaii observation
+  convention (Caldwell 2007, "nominally represent the H1/10") and the consumer set-face practice. SubQ 0.937 (H1/3
+  0.062; inside 0.001).
+- Reflection agrees, and adds: show a RANGE (typical about H1/3 to sets about H1/10, and possibly the inside estimate),
+  because a single value misleads where H1/10/H1/3 = 1.27 and inside/offshore = 0.5-0.75. SubQ on showing a range:
+  0.852.
+- The NWS glossary (opened) defines the surf zone but no statistic, and the 10-320 PDF is a scanned image.
+
+**(2) Anchors and the admin area** (design sent to the director):
+- Anchors move from an env var to a DB table with an audit log.
+- The model constrains the MEAN anchor bias to 0, estimates each anchor's own bias, and treats reliability as
+  time-varying.
+- Reflection's flaw: a COMMON anchor bias is invisible to relative checks. Fix: periodic anchor audits against
+  independent physical references (in-frame scale photos, Sentinel-2 pairs, shallow buoys), with a drift alert.
+- The admin "Surf truth" area: anchors, observers, coverage, quality queue, model runs and rollback,
+  consent/privacy. Admin auth; 3 themes, mobile, ARIA; no editing of reported numbers.
+- Sources: Daniel 2018 (crowdsourcing QC); Donmez 2010 (time-varying annotator accuracy). SubQ: admin 0.957, mean
+  constraint 0.982, time-varying 0.962.
