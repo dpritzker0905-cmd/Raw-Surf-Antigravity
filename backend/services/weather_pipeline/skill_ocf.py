@@ -27,6 +27,7 @@ FORECAST_SKILL_OCF=0 (read in forecast_skill.run_skill_ledger), and the off path
 FORECAST_SKILL_MOS gate, so FORECAST_SKILL_MOS=0 also turns it off.
 """
 import bisect
+import os
 import random
 from datetime import datetime, timedelta
 from typing import Dict, List, Optional
@@ -432,7 +433,7 @@ def tier_split_report(rows, now: datetime, members=MEMBERS, shadow: str = SHADOW
             "by_lead": out}
 
 
-def ocf_block(history, now: datetime) -> Dict:
+def ocf_block(history, now: datetime, coords=None) -> Dict:
     """PURE: everything published as `forecast_skill_ocf`: the report, the controls, the tier split, and the hole-buoy
     sensitivity (pre-registered R2/R3: the same report and tier split with HOLE_BUOYS out). Bands and big-swell are dropped
     from the hole-buoy copy to keep the cached report small."""
@@ -446,4 +447,12 @@ def ocf_block(history, now: datetime) -> Dict:
     ocf["without_hole_buoys"] = ex
     ocf["hole_sensitivity"] = hole_sensitivity(ocf, ex)
     ocf["tier_split_without_hole_buoys"] = tier_split_report(history, now, exclude_buoys=HOLE_BUOYS)
+    # The late `ocf_idw` arm (skill_ocf_idw, rule 2026-11-15): needs station positions, costs only its own key, and has
+    # its own kill switch FORECAST_SKILL_OCF_IDW=0 (about 45 s of CPU on 260k rows; CI jobs only, measurement only).
+    if coords and os.environ.get("FORECAST_SKILL_OCF_IDW", "1") != "0":
+        try:
+            from services.weather_pipeline.skill_ocf_idw import idw_report
+            ocf["idw_arm"] = idw_report(history, now, coords)
+        except Exception as e:
+            ocf["idw_arm"] = {"status": "failed", "error": type(e).__name__}
     return ocf

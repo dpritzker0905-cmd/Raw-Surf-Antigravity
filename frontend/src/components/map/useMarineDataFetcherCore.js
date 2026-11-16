@@ -3,6 +3,7 @@ import { fetchMarineData, getRemainingCooldown, getModelSafeMarine, isContainedI
 import { getMarineSeriesFrame } from './marineGridSeries';   // flavor-toggle instant cache commit
 import { fetchCopernicusComponentGrid, mergeComponentGrid, COMPONENT_LAYERS } from './copernicusGridFetcher';
 import { getBackendCopernicusFlag, getSharedValidTime, getBackendIconMarineFlag, getBackendWeatherFlag, getSurfModeFlag } from './backendWeatherServiceClient';
+import { staticRatedReadySync } from './staticFrames';   // the rated mosaic in memory: the cached 50 ms lane (2026-11-15)
 import { updateDeprecationDiag } from './forecastSamplers';
 import { isInCooldown, clearCooldown } from './marineControllerUtils';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
@@ -878,7 +879,7 @@ export function useMarineDataFetcherCore({
     let isCached = false;
     try {
       const b = mapInstance.getBounds(), bounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
-      isCached = isContainedInMarineCache(bounds, activeModelRef.current, timeOffsetRef.current, activeMarineLayerRef.current || 'waves');
+      isCached = isContainedInMarineCache(bounds, activeModelRef.current, timeOffsetRef.current, activeMarineLayerRef.current || 'waves') || (getSurfModeFlag() && staticRatedReadySync(bounds, activeModelRef.current, timeOffsetRef.current, activeMarineLayerRef.current || 'waves', getSharedValidTime));
     } catch (e) {
       isCached = false;
     }

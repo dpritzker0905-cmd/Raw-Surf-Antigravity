@@ -207,6 +207,10 @@ jobs:
           # 320 (was 240, 2026-10-26): a cycle re-bakes every tail product (new identity), and at run + 348 h (D-053) that is
           # 232 a run (ICON 64 x waves/swell_1/wind_waves + EURO 40 waves); 240 left 8 spare.
           FRAME_TAIL_DOWNLOAD_MAX: ${{ vars.FRAME_TAIL_DOWNLOAD_MAX || '320' }}
+          # ON (2026-11-15, services/frame_set_tail_stale.py): a tail product on this disk from ANOTHER run than the manifest names
+          # (restored by a pilots job that reads it, before the core lane re-baked it) is re-downloaded instead of refused as
+          # stale_local, inside FRAME_TAIL_DOWNLOAD_MAX. Kill: FRAME_TAIL_REFETCH_STALE=0.
+          FRAME_TAIL_REFETCH_STALE: ${{ vars.FRAME_TAIL_REFETCH_STALE || '1' }}
           # The EURO/ICON world sets with the targeted Gulf fill baked in (services/frame_set_fill.py) publish only while the mode
           # read from these two is 'targeted', the way the box reads them. Keep them EQUAL to the Render env (the box's mode): the
           # client serves a filled set only while /capabilities reports the same mode, so a mismatch costs speed, never a number.
@@ -471,6 +475,18 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FRAME_RASTER_TEMPERATURE_EURO_0P25: ${{ vars.FRAME_RASTER_TEMPERATURE_EURO_0P25 }}
         run: python scripts/publish_raster_frames.py --set temperature_euro_0p25
+
+      # EURO total cloud cover (ECMWF open data tcc, 0.25 deg every point; G3, 2026-11-16). Off unless FRAME_RASTER_CLOUD_EURO=1.
+      - name: Publish raster static frames (EURO cloud cover; off unless FRAME_RASTER_CLOUD_EURO=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CLOUD_EURO == '1' }}
+        continue-on-error: true
+        timeout-minutes: 12
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_CLOUD_EURO: ${{ vars.FRAME_RASTER_CLOUD_EURO }}
+        run: python scripts/publish_raster_frames.py --set cloud_cover_euro
 
       - name: Publish raster static frames (ICON temperature; off unless FRAME_RASTER_TEMPERATURE_ICON=1)
         if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_TEMPERATURE_ICON == '1' }}

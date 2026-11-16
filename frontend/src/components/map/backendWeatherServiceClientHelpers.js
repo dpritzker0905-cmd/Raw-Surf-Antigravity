@@ -191,6 +191,8 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
       // the run) — the commit short-circuit refuses to skip without it. Must be carried
       // explicitly: this mapper rebuilds the result field-by-field, so unknown fields are dropped.
       run_time: json.run_time || null,
+      // The rated band's run age (staticRatedMosaic RUN AGE): what the status line says when the band trails the wave run.
+      ratedRun: json.rated_run_lag_h != null ? { lagH: json.rated_run_lag_h, runTime: json.rated_run_time || null } : null,
       // Diagnostic envelope only: do not alter the legacy frame-selection/run identity fields.
       frameReceipt: readMarineFrameReceipt(json),
       // §0c SERVING HONESTY: valid_time above ECHOES the ask; these carry the frame actually
