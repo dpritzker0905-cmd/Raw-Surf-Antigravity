@@ -9,6 +9,7 @@ import { Textarea } from './ui/textarea';
 import { Badge } from './ui/badge';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
+import BlindHeightInput, { defaultScaleFor } from './observations/BlindHeightInput';
 
 /**
  * ConditionsModal - Mandatory "Go Live" Gatekeeper
@@ -24,13 +25,19 @@ const ConditionsModal = ({
   onClose, 
   onConfirm, 
   spotName, 
-  isLoading = false 
+  isLoading = false,
+  // T1 blind observation. Only callers whose go-live writes a condition report pass collectObservation: the
+  // observation needs that row as its parent, and asking for a height that is then dropped would waste the surfer's
+  // effort. `spot` sets the initial scale (Hawaiian in Hawaii, face elsewhere).
+  collectObservation = false,
+  spot = null,
 }) => {
   // State
   const [conditionMedia, setConditionMedia] = useState(null);
   const [mediaPreview, setMediaPreview] = useState(null);
   const [mediaType, setMediaType] = useState(null); // 'image' | 'video'
   const [spotNotes, setSpotNotes] = useState('');
+  const [observation, setObservation] = useState(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraMode, setCameraMode] = useState('photo'); // 'photo' | 'video'
   const [cameraFacing, setCameraFacing] = useState('environment'); // 'environment' = rear, 'user' = front
@@ -62,6 +69,7 @@ const ConditionsModal = ({
       setMediaType(null);
       setConditionMedia(null);
       setSpotNotes('');
+      setObservation(null);
       setCameraActive(false);
       setUploadMode('capture');
     }
@@ -327,7 +335,8 @@ const ConditionsModal = ({
     onConfirm({
       media: conditionMedia,
       mediaType,
-      spotNotes: spotNotes.trim()
+      spotNotes: spotNotes.trim(),
+      observation: collectObservation ? observation : null,
     });
   };
 
@@ -538,6 +547,12 @@ const ConditionsModal = ({
               </div>
             )}
           </div>
+
+          {/* Blind height: asked here, where no forecast is shown, before going live. */}
+          {collectObservation && (
+            <BlindHeightInput idPrefix="golive-obs" value={observation} onChange={setObservation}
+              defaultScale={defaultScaleFor(spot)} />
+          )}
 
           {/* Spot Notes */}
           <div className="space-y-2">

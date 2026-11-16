@@ -5,6 +5,7 @@ from sqlalchemy import and_, desc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 from database import get_db
+from core.security import get_current_user_id
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from models import ConditionReport, LiveSession, Post, Profile, RoleEnum, Story, SurfSpot
@@ -23,7 +24,8 @@ router = APIRouter()
 async def create_condition_report(
     photographer_id: str,
     data: ConditionReportCreate,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """
     Create a new condition report. Called automatically when photographer goes live
@@ -34,6 +36,10 @@ async def create_condition_report(
     2. Create a Post on photographer's feed
     3. Pin to the map (via spot_id)
     """
+    # Strict JWT identity: this route had none, so anyone could post a report (and a story and a feed post) as any
+    # photographer. A condition report is now also a parent of a blind surf observation, so it must be the caller's.
+    if photographer_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot create a condition report for another user")
     # Verify photographer
     result = await db.execute(
         select(Profile).where(Profile.id == photographer_id)

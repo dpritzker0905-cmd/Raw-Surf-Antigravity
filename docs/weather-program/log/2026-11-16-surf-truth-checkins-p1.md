@@ -1,0 +1,57 @@
+# 2026-11-16 · surf-truth-checkins · T1 crowd truth, P1: blind, scale-labelled observations
+
+Task (director, for David 2026-11-16 23:19 EST, per the research lead's T1 brief in the senior-research-lead log,
+03:28Z section): turn the app's own check-ins and reports into licence-clean breaking-height truth. P1 = blind
+observation; P2 gamification, P3 privacy, P4 aggregate export follow as their own PRs.
+
+## Measured before building (read-only, Supabase "Raw Surf App Antigravity", 2026-11-16)
+
+| table | rows | last write | rows with a height |
+|---|---|---|---|
+| check_ins | 9 | 2026-04-18 | 6 (free text, no scale) |
+| surf_reports | 4 | 2026-03-19 | 3 (free text, no scale) |
+| condition_reports | 189 | 2026-06-22 | 3 (`wave_height_ft`, no scale) |
+| surf_passport_checkins | 9 | 2026-04-03 | 0 |
+
+Why so few: `POST /api/check-in` and `POST /api/surf-reports` declared `user_id` as a REQUIRED query parameter,
+and the client never sends one (it posts the body; identity is the JWT), so every call was a 422. There is no legacy
+truth to import: the stream starts clean with this PR.
+
+Also found: `POST /api/condition-reports` had NO authentication (anyone could post a report, a story and a feed post
+as any photographer). The map go-live route (`/photographers/{id}/go-live`) writes no condition report at all, so it
+has no parent row for an observation (follow-up, not fixed here).
+
+## What P1 does
+
+- New private tables `surf_observations` and `observation_media` (RLS on, anon/authenticated revoked, the
+  strava_oauth_states pattern). One observation per parent report (DB unique on surface + ref_id).
+- `POST /api/surf-observations`: the client sends only what was seen (number or legacy range, unit, scale,
+  typical vs sets) and the entry screen. The server sets `source='observed'`, `forecast_shown_before` (from its audit
+  of the screen: check-in and go-live modals show no forecast -> false; the spot page shows forecast rows -> TRUE, so
+  those reports are recorded as not blind), converts to face metres (Hawaiian x2, Caldwell 2007), computes the
+  region default scale (Hawaiian in Hawaii, face elsewhere) and whether the user overrode it, GPS distance to the
+  spot, and the photo's hash and EXIF position/age as read by the upload route from the bytes. Unknown fields are
+  refused (422), so `source` etc. cannot even be attempted.
+- `/upload/conditions` records the server's own hash + EXIF of each go-live photo.
+- Fixes: `/check-in` and `/surf-reports` take identity from the JWT (a sent `user_id` must still match);
+  `/condition-reports` now requires JWT identity; go-live returns `condition_report_id`.
+- UI: one shared `BlindHeightInput` (native radio groups in fieldsets, labelled number input, scale named in words,
+  ✓ marks selection; semantic tokens; beach-mode field per the global beach input rule). In CheckInModal (also moved
+  off hardcoded zinc to theme tokens), the duty-station ConditionsModal, and the spot page's report modal.
+
+## Evidence
+
+- Backend: `tests/test_surf_observations.py`, 34 pass (real HTTP + JWT, SQLite). Mutations: dropping
+  `extra="forbid"` fails 4 tests; Hawaiian factor 1.0 fails 3.
+- Frontend: `BlindHeightInput.test.js` 7 pass; touched suites 82/82; eslint ratchet passes (a11y debt -6);
+  `craco build` exit 0. Three-theme render at 375 px: shared notes `t1-p1-blind-observation/`.
+- LongCat (paid, one call): 5 findings, none needing code (screen->surface is 1:1 and the parent row fixes the
+  surface; EXIF is forgeable by design and documented as a consistency check; no per-spot scale field exists; the
+  daily window is UTC). Recorded in the PR.
+
+## Limits
+
+- `forecast_shown_before` is per entry screen, not per impression: a user may have seen a forecast elsewhere earlier.
+- EXIF is read by the server but lives in the file; it catches carelessness and reuse, not a determined forger.
+- No XP is paid (P2). Photos are still stored with EXIF in the PUBLIC conditions bucket (P3 strips/blurs).
+- Nothing here changes a served number; no SCOREBOARD row.
