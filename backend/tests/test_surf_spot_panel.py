@@ -120,9 +120,12 @@ def test_the_table_names_the_offshore_height_as_offshore_and_gives_no_factor():
     assert sp.render([], {"panel_size": 30, "stopped": "x"}).startswith("## Surf spot panel")
 
 
-def test_the_workflow_is_dispatch_only_and_holds_no_secret():
+def test_the_workflow_runs_four_times_a_day_or_on_dispatch_and_holds_no_secret():
     path = os.path.join(os.path.dirname(__file__), "..", "..", ".github", "workflows", "surf-spot-panel.yml")
     text = open(path, encoding="utf-8").read()
     body = "\n".join(line for line in text.splitlines() if not line.lstrip().startswith("#"))
-    assert "workflow_dispatch" in body and "schedule" not in body and "pull_request" not in body and "push:" not in body
+    assert "workflow_dispatch" in body and "pull_request" not in body and "push:" not in body
+    # every 6 hours and no oftener: ONE cron line, off the hour. A tighter schedule is a load on the one live box.
+    crons = [line.split("cron:")[1].strip().strip("'\"") for line in body.splitlines() if "cron:" in line]
+    assert crons == ["17 */6 * * *"] and "cancel-in-progress: false" in body and "timeout-minutes: 12" in body
     assert "secrets." not in body and "contents: read" in body and "scripts/surf_spot_panel.py" in body
