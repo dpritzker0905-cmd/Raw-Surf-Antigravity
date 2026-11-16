@@ -16,13 +16,14 @@ on:
       - .github/workflows/tide-fes-gate.yml
 permissions:
   contents: read
+  actions: write        # only to prune superseded tide-data caches (repo cache limit is 10 GB, shared)
 concurrency:
   group: tide-fes-gate
-  cancel-in-progress: true
+  cancel-in-progress: false
 jobs:
   gate:
     runs-on: ubuntu-latest
-    timeout-minutes: 150
+    timeout-minutes: 355
     steps:
       - uses: actions/checkout@v5
       - uses: actions/setup-python@v6
@@ -30,25 +31,63 @@ jobs:
           python-version: '3.12'
       - name: Install (offline-only dependencies; pyfes pinned to a release with a binary wheel)
         run: pip install "pyfes==2026.5.2" "pyTMD==3.1.0" "paramiko==5.1.0" netCDF4 numpy pyyaml pandas lxml
-      - name: Cache the FES2022b constituent downloads (compressed)
-        uses: actions/cache@v4
+      # AVISO SFTP ran ~160 KB/s per connection on the first run (17 min per 160 MB file; 8 of 16 files when the
+      # 150-min limit cancelled it, and nothing was cached). So: 4 connections, a large SSH window, a download step of
+      # its own, and caches restored from the newest run and SAVED EVEN WHEN THE DOWNLOAD FAILS, so progress carries over.
+      - name: Restore FES2022b downloads
+        uses: actions/cache/restore@v4
         with:
           path: fes_cache
-          key: fes2022b-extrapolated-v1-${{ hashFiles('backend/scripts/tide_fes/fes_gate.py') }}
-          restore-keys: fes2022b-extrapolated-v1-
-      - name: Cache the EOT20 ocean tide files (SEANOE, CC BY 4.0)
-        uses: actions/cache@v4
+          key: fes2022b-v2-${{ github.run_id }}
+          restore-keys: fes2022b-v2-
+      - name: Restore EOT20 ocean tides
+        uses: actions/cache/restore@v4
         with:
           path: eot20_cache
-          key: eot20-ocean-v1
-      - name: Run the gate
+          key: eot20-ocean-v2-${{ github.run_id }}
+          restore-keys: eot20-ocean-v2-
+      - name: Download FES2022b (AVISO, pinned host key) and EOT20 (SEANOE)
+        id: dl
+        timeout-minutes: 280
         env:
           AVISO_USERNAME: ${{ secrets.AVISO_USERNAME }}
           AVISO_PASSWORD: ${{ secrets.AVISO_PASSWORD }}
+        run: python backend/scripts/tide_fes/fes_gate.py --download-only --cache fes_cache --eot20 eot20_cache
+      - name: Drop partial files before saving
+        if: always()
+        run: |
+          mkdir -p fes_cache eot20_cache
+          rm -f fes_cache/*.part eot20_cache/eot20.zip
+          ls -la fes_cache eot20_cache/EOT20/ocean_tides 2>/dev/null | tail -40 || true
+      - name: Save FES2022b downloads
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: fes_cache
+          key: fes2022b-v2-${{ github.run_id }}
+      - name: Save EOT20 ocean tides
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: eot20_cache
+          key: eot20-ocean-v2-${{ github.run_id }}
+      - name: Prune superseded tide-data caches
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          for prefix in fes2022b-v2- eot20-ocean-v2- fes2022b-extrapolated-v1- eot20-ocean-v1; do
+            gh cache list --key "$prefix" --limit 50 --json key -q '.[].key'               | grep -v -- "-${{ github.run_id }}$" | xargs -r -n1 gh cache delete || true
+          done
+      - name: Run the gate
+        if: steps.dl.outcome == 'success'
+        timeout-minutes: 60
         run: python backend/scripts/tide_fes/fes_gate.py --cache fes_cache --eot20 eot20_cache --work fes_work > fes_gate.json
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: tide-fes-gate
           path: fes_gate.json
+          if-no-files-found: ignore
           retention-days: 30

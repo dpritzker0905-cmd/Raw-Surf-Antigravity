@@ -117,3 +117,17 @@ by `tests/test_tide_fes_offline_guard.py` (written during the 22:00-00:30 quiet 
   `Path("/abs/x")` is not absolute, so the check let it through. It was not exploitable, since extraction writes by
   bare file name only. Fixed with `PurePosixPath` (zip names are POSIX on every OS) and a backslash refusal. Now 6
   passed; flake8 clean. Pushed; the gate job runs on the push.
+
+## 04:07 EST 2026-11-16 (`date`) - run 43810952503: timed out downloading, no gate number
+- The pinned host key matched and AVISO accepted the credentials. The SFTP download ran ~160 KB/s on one connection
+  (17-18 min per ~160 MB constituent). 8 of 16 files (M2 S2 N2 K2 K1 O1 P1 Q1) had arrived when the 150-min job limit
+  cancelled the run. `actions/cache` saves only at a normal job end, so nothing carried over. **No gate number was
+  computed or read.**
+- Changes:
+  - 4 parallel SFTP connections, each checking the pinned key before auth, with a 128 MB SSH window.
+  - Files land as `.part` and are renamed only when complete.
+  - The download runs as its own step (`--download-only`, 280 min).
+  - The caches are restored from the newest run and saved `if: always()` under a per-run key, so progress survives
+    a timeout. Superseded keys are pruned (`actions: write`) to protect the shared 10 GB cache limit.
+  - The gate step runs only after a complete download.
+- Tests: 6 passed; flake8 clean.

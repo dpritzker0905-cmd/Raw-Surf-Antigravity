@@ -118,37 +118,63 @@ def remote_name_ok(name):
     return bool(REMOTE_NAME.fullmatch(name)) and Path(name).name == name
 
 
-def download_fes(names, cache):
-    """Fetch each constituent's .nc.xz into `cache` unless already there. Returns {name: path}."""
+def _aviso_sftp():
+    """An authenticated SFTP client. The server's host key is checked against the pins BEFORE any credential is sent.
+    A large SSH window: the first run moved ~160 KB/s on the default window (17 min per 160 MB file)."""
+    import paramiko                                           # offline dependency (workflow installs it)
+    user, pw = os.environ.get("AVISO_USERNAME"), os.environ.get("AVISO_PASSWORD")
+    if not user or not pw:
+        raise SystemExit("AVISO_USERNAME / AVISO_PASSWORD are not set (Actions secrets)")
+    t = paramiko.Transport((AVISO_HOST, AVISO_PORT), default_window_size=1 << 27, default_max_packet_size=1 << 15)
+    t.start_client(timeout=60)
+    key = t.get_remote_server_key()
+    if not host_key_ok(key.get_name(), key.get_base64()):
+        t.close()                                             # BEFORE any credential is sent
+        raise SystemExit(f"AVISO host key not pinned: {key.get_name()} "
+                         f"SHA256:{base64.b64encode(hashlib.sha256(key.asbytes()).digest()).decode().rstrip('=')}")
+    t.auth_password(user, pw)
+    return t, paramiko.SFTPClient.from_transport(t)
+
+
+def download_fes(names, cache, workers=4):
+    """Fetch each constituent's .nc.xz into `cache` unless already there, `workers` connections in parallel.
+    Each file lands as .part and is renamed only when complete, so a timed-out run still leaves its finished files
+    for the cache step (the workflow saves the cache even when this step fails). Returns {name: path}."""
+    from concurrent.futures import ThreadPoolExecutor
     cache.mkdir(parents=True, exist_ok=True)
     have = {n: next(iter(cache.glob(f"{n.lower()}_*.nc.xz")), None) for n in names}
     missing = [n for n, p in have.items() if p is None]
-    if missing:
-        import paramiko                                       # offline dependency (workflow installs it)
-        user, pw = os.environ.get("AVISO_USERNAME"), os.environ.get("AVISO_PASSWORD")
-        if not user or not pw:
-            raise SystemExit("AVISO_USERNAME / AVISO_PASSWORD are not set (Actions secrets)")
-        t = paramiko.Transport((AVISO_HOST, AVISO_PORT))
-        t.start_client(timeout=60)
-        key = t.get_remote_server_key()
-        if not host_key_ok(key.get_name(), key.get_base64()):
-            t.close()                                         # BEFORE any credential is sent
-            raise SystemExit(f"AVISO host key not pinned: {key.get_name()} "
-                             f"SHA256:{base64.b64encode(hashlib.sha256(key.asbytes()).digest()).decode().rstrip('=')}")
-        t.auth_password(user, pw)
-        sftp = paramiko.SFTPClient.from_transport(t)
-        listing = sftp.listdir(AVISO_DIR)
-        for n in missing:
-            match = [f for f in listing if remote_name_ok(f) and f.startswith(n.lower() + "_")]
-            if not match:
-                log(f"{n}: not in {AVISO_DIR}; public listing sample: {sorted(listing)[:40]}")
-                continue
-            dest = cache / match[0]
-            sftp.get(f"{AVISO_DIR}/{match[0]}", str(dest))
-            have[n] = dest
+    if not missing:
+        return have
+    t, sftp = _aviso_sftp()
+    listing = sftp.listdir(AVISO_DIR)
+    sftp.close()
+    t.close()
+    jobs = {}
+    for n in missing:
+        match = [f for f in listing if remote_name_ok(f) and f.startswith(n.lower() + "_")]
+        if match:
+            jobs[n] = match[0]
+        else:
+            log(f"{n}: not in {AVISO_DIR}; public listing sample: {sorted(listing)[:40]}")
+
+    def fetch(item):
+        n, fname = item
+        tt, sf = _aviso_sftp()
+        try:
+            part = cache / (fname + ".part")
+            sf.get(f"{AVISO_DIR}/{fname}", str(part))
+            dest = cache / fname
+            part.rename(dest)
             log(f"{n}: {dest.stat().st_size / 1e6:.0f} MB")
-        sftp.close()
-        t.close()
+            return n, dest
+        finally:
+            sf.close()
+            tt.close()
+
+    with ThreadPoolExecutor(max_workers=workers) as ex:
+        for n, dest in ex.map(fetch, jobs.items()):
+            have[n] = dest
     return {n: p for n, p in have.items() if p is not None}
 
 

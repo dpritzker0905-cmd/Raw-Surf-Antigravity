@@ -81,7 +81,16 @@ def main():
     ap.add_argument("--eot20", default="eot20_cache")
     ap.add_argument("--work", default="fes_work")
     ap.add_argument("--summary", default=os.environ.get("GITHUB_STEP_SUMMARY"))
+    ap.add_argument("--download-only", action="store_true", help="fetch FES2022b + EOT20 into the caches and stop")
     args = ap.parse_args()
+    if args.download_only:
+        files = S.download_fes(FES_CONSTITUENTS, Path(args.cache))
+        S.download_eot20(Path(args.eot20))
+        log(f"downloaded FES: {sorted(files)}")
+        missing = sorted(set(FES_CONSTITUENTS) - set(files))
+        if missing:
+            raise SystemExit(f"FES constituents still missing: {missing}")
+        return
     work = Path(args.work)
     hours, fine = hourly_times(), fine_times()
     nd = ntde_dates()
