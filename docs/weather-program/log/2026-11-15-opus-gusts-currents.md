@@ -271,3 +271,14 @@ BEYOND strategy already matches):
   strategy `ens_mean_extension` for ICON / EURO; label "Days 8-14: ECMWF ensemble mean (estimate) · max gust in the 6 h to
   this time", accessible label adds "extremes are under-read". The p90 risk cue's UI: with the director.
 - Fallback when ENS is absent: the GFS stand-in (as now). max(wind x GF, wind) only for a source without gusts.
+
+### 7e. Honest-label gate re-run after the owner's 19:27 EST decision (no GFS stand-in past ICON / EURO range)
+
+| run | steps | exact | nearest (labelled) | no frame | end note seen | stale | blank | mislabelled |
+|---|---|---|---|---|---|---|---|---|
+| gusts ICON desktop | 340 | 99 | 71 | 170 | "ICON gusts end at day 7.5; ensemble estimate coming" | 0 | 0 | 0 |
+| gusts EURO desktop | 340 | 56 | 162 | 122 | "EURO gusts end at day 10; ensemble estimate coming" | 0 | 0 | 0 |
+| gusts ICON phone 4x | 340 | 99 | 71 | 170 | "ICON gusts end at day 7.5; ensemble estimate coming" | 0 | 0 | 0 |
+
+No frame from another model is drawn past a model's range (no stand-in entries: "estimated" 0). GFS gusts and currents are
+unchanged from §7d.
