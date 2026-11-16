@@ -86,3 +86,30 @@ The director (local_d6b521eb, 2026-11-16 ~03:02Z) set the remaining terms of the
   says so:** v1 added the +0.08 m seed to every rule-1 key on every day (`rule_stats(..., seed_m=...)`), a full step in
   every window from the first test day, so its windows did not ramp. v1 failed because its fixed bound (+0.07 m) sat at
   the size of the effect while the same-model delta ran 0.01-0.04 m below zero (v1 log section 2).
+
+### 1c. Amendment, 2026-11-16 03:14Z, on the senior research lead's check, BEFORE any v2 result exists
+
+The research lead (local_ae420832) found an error in my reasoning for 1a/1b. "The trailing median holds while under half
+of its 28 values are seeded" is not safe. With k of 28 values raised by about +0.08 m, the median sits near the
+(14.5 / (28 - k)) quantile of the unseeded ones: about p69 on 11-08 and p97 on 11-14. So CHANGE loses 0.03-0.04 m on
+exactly the late days the gate scores. The overlapping 7-day values also make the reference autocorrelated (effective n
+of about 4).
+
+**Changes:**
+- **Guarded, non-overlapping reference.** The reference is the median of DAILY deltas: one target date each, each key
+  in exactly one. They are taken over targets d-35 .. d-8, so the reference never overlaps the current 7-day window,
+  and need >= 14 of the 28 dates gradeable at n >= 30 pairs. **The reference values are daily deltas, not 7-day
+  deltas.** With the seed from 11-01, the reference first contains seeded dates on 11-09, and on 11-14 holds 6 of 28
+  (about p61): negligible erosion. A test pins that CHANGE recovers >= +0.06 of a +0.08 m step on 11-14.
+- **Timeliness, gating:** the first fire under the +0.08 m seed must come on or before 2026-11-10 (<= 3 days after the
+  window is fully seeded). This sits alongside the 1b gate of >= 6 of the 7 fully seeded days. Any adaptive detector
+  stops firing some weeks after a step, so the operational claim is fast detection.
+- **Rule 1's null is key-consistent and recomputes CHANGE in each draw:**
+  - one swap sign per key per draw, applied to the 7-day AND the daily deltas;
+  - each draw's own guarded reference;
+  - B1 = max(basis CHANGE p99, this null's CHANGE p99 over the basis days);
+  - rule 1's false-page rate comes from this null.
+  Rules 2 and 3 keep the registered per-day re-signed null, with the key-consistent one reported.
+- **Reported:** n of basis CHANGE day-leads. CHANGE needs 35 days of history, so the first computable basis day is about
+  09-19 and there are about 40-45 autocorrelated basis days. Their "p99" is effectively the max, and the null p99 is
+  expected to set B1.

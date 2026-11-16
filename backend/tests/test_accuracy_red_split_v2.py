@@ -96,3 +96,25 @@ def test_the_reported_lines_are_present():
     assert "UNSEEDED pre-episode" in text and "key-consistent null" in text and "first fire" in text
     assert "partial-window days" in text and "need all but one" in text
     assert set(res["null_key_consistent"]) == {1, 2, 3}
+
+
+def test_the_reference_never_overlaps_the_current_window():
+    ref = R._ref_dates("2026-11-14")
+    assert ref[0] == "2026-11-06" and ref[-1] == "2026-10-10" and len(ref) == 28
+    assert all(r < "2026-11-07" for r in ref)                     # the 7-day window covers targets 11-07 .. 11-14
+
+
+def test_the_guarded_reference_does_not_erode_a_late_step():
+    """Research lead (2026-11-16): an overlapping reference climbs toward its upper tail as seeded days enter it. With the
+    guard, CHANGE on the last fully seeded day recovers nearly the whole +0.08 m step."""
+    dd = _default()[0]
+    dt = R.daily_targets(dd)
+    clean = R.change_series_v2(dd, dt)
+    seeded = R.change_series_v2(dd, dt, seed_m=0.08)
+    lifts = [seeded[("2026-11-14", lead)] - clean[("2026-11-14", lead)] for lead in A.LEADS]
+    assert all(0.06 <= x <= 0.085 for x in lifts), lifts
+
+
+def test_timeliness_is_part_of_the_gate():
+    _dd, _ch, res, verdict = _default()
+    assert verdict == "PASS" and res["first_fire"] is not None and res["first_fire"] <= R.FIRST_FIRE_BY
