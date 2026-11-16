@@ -64,9 +64,9 @@ export default function AnchorsTab() {
             <ul className="space-y-2" aria-label="Admin actions, newest first">
               {(actions.data || []).map((a) => (
                 <li key={a.id} className="rounded-lg border border-border p-2 text-sm">
-                  <span className="font-medium text-foreground">{a.action.replace('_', ' ')}</span>
-                  <span className="text-muted-foreground"> · {a.target_type} {a.target_id} · by {a.admin_id}
-                    · {formatWhen(a.at)}</span>
+                  <span className="font-medium text-foreground">{a.action.replaceAll('_', ' ')}</span>
+                  <span className="text-muted-foreground"> · {a.target_type.replaceAll('_', ' ')}{' '}
+                    {a.target_name || a.target_id} · by {a.admin_name || a.admin_id} · {formatWhen(a.at)}</span>
                   {a.detail && (
                     <span className="block text-xs text-muted-foreground">
                       {Object.entries(a.detail).map(([k, v]) => `${k}: ${v ?? '—'}`).join(' · ')}

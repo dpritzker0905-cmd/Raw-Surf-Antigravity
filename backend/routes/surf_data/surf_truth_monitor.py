@@ -64,7 +64,12 @@ async def coverage(days: int = Query(30, ge=1, le=365), limit: int = Query(300, 
               "observers": people, "quality_ok": ok, "anchor_observations": anchor, "blind": blind,
               "last_at": _iso(last)}
              for sid, name, country, region, n, people, ok, anchor, blind, last in rows]
-    return {"days": days, "spots": spots,
-            "totals": {"spots": len(spots), "observations": sum(s["observations"] for s in spots),
-                       "quality_ok": sum(s["quality_ok"] for s in spots),
-                       "multi_observer_spots": sum(1 for s in spots if s["observers"] >= 2)}}
+    # Totals over the WHOLE window in SQL (advisor, #988): the list above is capped at `limit` spots.
+    total_n, total_ok = (await db.execute(select(func.count(o.id), _n(o.quality_ok.is_(True)))
+                                          .where(o.received_at >= since))).one()
+    per_spot = (select(o.spot_id.label("spot_id"), func.count(func.distinct(o.user_id)).label("people"))
+                .where(o.received_at >= since).group_by(o.spot_id).subquery())
+    n_spots, multi = (await db.execute(select(func.count(), _n(per_spot.c.people >= 2)).select_from(per_spot))).one()
+    return {"days": days, "spots": spots, "listed": len(spots),
+            "totals": {"spots": n_spots, "observations": total_n, "quality_ok": total_ok,
+                       "multi_observer_spots": multi}}

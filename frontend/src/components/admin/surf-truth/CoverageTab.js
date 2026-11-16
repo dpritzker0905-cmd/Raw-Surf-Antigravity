@@ -12,6 +12,11 @@ export default function CoverageTab() {
     <Card className="bg-card border-border">
       <CardHeader><CardTitle className="text-base text-foreground">Coverage, last 30 days</CardTitle></CardHeader>
       <CardContent>
+        {coverage.data && coverage.data.listed < totals?.spots && (
+          <p className="mb-2 text-xs text-muted-foreground">
+            Totals cover every spot; the table lists the {coverage.data.listed} busiest.
+          </p>
+        )}
         {totals && (
           <dl className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
             {[['Spots', totals.spots], ['Reports', totals.observations], ['Passed gate', totals.quality_ok],

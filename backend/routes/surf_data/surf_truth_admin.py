@@ -76,6 +76,10 @@ async def admin_actions(limit: int = 100, db: AsyncSession = Depends(get_db),
                         admin: Profile = Depends(get_current_admin)):
     rows = (await db.execute(select(SurfTruthAdminAction).order_by(SurfTruthAdminAction.at.desc())
                              .limit(max(1, min(limit, 500))))).scalars().all()
-    return [{"id": r.id, "admin_id": r.admin_id, "action": r.action, "target_type": r.target_type,
-             "target_id": r.target_id, "reason": r.reason, "detail": json.loads(r.detail) if r.detail else None,
-             "at": r.at.isoformat()} for r in rows]
+    # Names for display (admins and anchor targets are profiles); ids stay in the payload as the record.
+    ids = {r.admin_id for r in rows} | {r.target_id for r in rows if r.target_type == "anchor"}
+    names = dict((await db.execute(select(Profile.id, Profile.full_name).where(Profile.id.in_(ids)))).all())         if ids else {}
+    return [{"id": r.id, "admin_id": r.admin_id, "admin_name": names.get(r.admin_id), "action": r.action,
+             "target_type": r.target_type, "target_id": r.target_id,
+             "target_name": names.get(r.target_id) if r.target_type == "anchor" else None, "reason": r.reason,
+             "detail": json.loads(r.detail) if r.detail else None, "at": r.at.isoformat()} for r in rows]

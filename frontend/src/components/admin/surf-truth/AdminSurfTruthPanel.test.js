@@ -64,3 +64,17 @@ test('audit queue hides the height and records a verdict', async () => {
   await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/admin/surf-observations/o9/audit',
     { verdict: 'pass' }));
 });
+
+test('failing an audit asks for a reason and sends it; no reason, no request', async () => {
+  render(<QualityQueueTab />);
+  const fail = await screen.findByRole('button', { name: /fail report/i });
+  const prompt = jest.spyOn(window, 'prompt');
+  prompt.mockReturnValueOnce('');
+  fireEvent.click(fail);
+  expect(apiClient.post).not.toHaveBeenCalled();
+  prompt.mockReturnValueOnce('photo of another beach');
+  fireEvent.click(fail);
+  await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/admin/surf-observations/o9/audit',
+    { verdict: 'fail', reason: 'photo of another beach' }));
+  prompt.mockRestore();
+});

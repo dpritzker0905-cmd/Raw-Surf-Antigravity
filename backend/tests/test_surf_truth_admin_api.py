@@ -131,10 +131,11 @@ async def test_audit_verdicts_are_logged_and_never_touch_the_number(world, monke
         entry_screen="checkin_modal", ref_id="ci-ana", height_value=3, height_unit="ft", height_scale="face",
         set_or_avg="sets", latitude=29.0, longitude=-80.9, device_id=str(uuid.uuid4())), headers=_token("ana"))
     obs_id = r.json()["id"]
-    await world.client.post(f"/api/admin/surf-observations/{obs_id}/audit", json={"verdict": "fail"},
+    await world.client.post(f"/api/admin/surf-observations/{obs_id}/audit", json={"verdict": "fail", "reason": "photo of another beach"},
                             headers=_token("boss"))
     (action,) = await _actions(world)
     assert (action["action"], action["target_id"], action["detail"]["verdict"]) == ("audit_verdict", obs_id, "fail")
+    assert action["reason"] == "photo of another beach" and action["admin_name"] == "boss"
     async with world.maker() as db:
         obs = await db.get(SurfObservation, obs_id)
     assert obs.height_value == 3 and obs.face_m > 0   # a verdict changes a status, never the reported number
@@ -155,3 +156,25 @@ def test_the_admin_log_is_append_only_on_postgres():
                    "ENABLE ROW LEVEL SECURITY", "GRANT SELECT, INSERT ON TABLE"):
         assert needed in ddl, needed
     assert "BEFORE TRUNCATE" in admin_models.NO_TRUNCATE_TRIGGER
+
+
+async def test_a_failed_audit_needs_a_reason(world, monkeypatch):
+    monkeypatch.setattr(observation_rewards, "audit_draw", lambda: True)
+    r = await world.client.post("/api/surf-observations", json=dict(
+        entry_screen="checkin_modal", ref_id="ci-ana", height_value=3, height_unit="ft", height_scale="face",
+        set_or_avg="sets", latitude=29.0, longitude=-80.9, device_id=str(uuid.uuid4())), headers=_token("ana"))
+    obs_id = r.json()["id"]
+    for body in ({"verdict": "fail"}, {"verdict": "fail", "reason": "   "}):
+        refused = await world.client.post(f"/api/admin/surf-observations/{obs_id}/audit", json=body,
+                                          headers=_token("boss"))
+        assert refused.status_code == 422
+    assert await _actions(world) == []
+    ok = await world.client.post(f"/api/admin/surf-observations/{obs_id}/audit", json={"verdict": "pass"},
+                                 headers=_token("boss"))
+    assert ok.status_code == 200   # a pass needs no reason
+
+
+async def test_action_log_names_the_admin_and_the_anchor(world):
+    await _change(world, "pho", "probation")
+    (action,) = await _actions(world)
+    assert (action["admin_name"], action["target_name"]) == ("boss", "pho")

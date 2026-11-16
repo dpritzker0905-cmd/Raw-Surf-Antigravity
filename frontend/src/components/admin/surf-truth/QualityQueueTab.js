@@ -25,10 +25,16 @@ export default function QualityQueueTab() {
   const queue = useAdminGet('/admin/surf-observations/audits');
   const [busy, setBusy] = useState(null);
   const decide = async (id, verdict) => {
-    if (verdict === 'fail' && !window.confirm('Fail this report? It will earn no XP. It stays in the record.')) return;
+    let body = { verdict };
+    if (verdict === 'fail') {
+      // A fail withholds XP, so it needs a reason (the server refuses one without); the report stays in the record.
+      const reason = window.prompt('Why is this report not genuine? (required; it earns no XP but stays recorded)');
+      if (!reason || !reason.trim()) return;
+      body = { verdict, reason: reason.trim().slice(0, 500) };
+    }
     setBusy(id);
     try {
-      await apiClient.post(`/admin/surf-observations/${encodeURIComponent(id)}/audit`, { verdict });
+      await apiClient.post(`/admin/surf-observations/${encodeURIComponent(id)}/audit`, body);
       toast.success(verdict === 'pass' ? 'Passed.' : 'Failed.');
       queue.reload();
     } catch (err) {
@@ -44,7 +50,7 @@ export default function QualityQueueTab() {
       <CardContent>
         <p className="mb-3 text-xs text-muted-foreground">
           Is this a real, current look at this spot? Judge the photo, place and time. The reported height is hidden on
-          purpose. You cannot audit your own report.
+          purpose. Failing a report needs a reason. You cannot audit your own report.
         </p>
         <ViewState loading={queue.loading} error={queue.error} empty={!items.length}
           emptyText="Nothing waiting for audit.">

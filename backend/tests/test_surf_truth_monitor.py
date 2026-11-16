@@ -110,3 +110,9 @@ async def test_no_reported_height_anywhere(world, path):
     body = (await world.client.get(path, headers=_token("boss"))).json()
     rows = body["spots"] if isinstance(body, dict) else body
     assert rows and all(not HEIGHT_KEYS & set(r) for r in rows)
+
+
+async def test_totals_cover_the_whole_window_even_past_the_row_limit(world):
+    body = (await world.client.get("/api/admin/surf-truth/coverage?limit=1", headers=_token("boss"))).json()
+    assert body["listed"] == 1 and len(body["spots"]) == 1
+    assert body["totals"] == {"spots": 2, "observations": 4, "quality_ok": 3, "multi_observer_spots": 1}
