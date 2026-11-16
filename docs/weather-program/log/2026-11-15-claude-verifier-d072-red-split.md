@@ -103,3 +103,43 @@ operational rate:
 **Correction, 2026-11-15 23:20Z.** Section 1's header says "written 2026-11-15 ~21:55Z". That is an estimate, not a
 clock reading: section 1 was committed at 21:51:26Z (`ffe6ec99e`), before any code or row, so the true time is no later
 than 21:51:26Z. Nothing else in section 1 changes.
+
+## 2. Result (run 2026-11-16 00:28Z): FAIL by the pre-registered rule (P2). The rules are not fit to page as built.
+
+Instrument: `scripts/accuracy_red_split_replay.py` at dev `b8240e341` (#934 merged 00:27:00Z), one dispatch of
+`accuracy-red-split-replay.yml` on the owner's word (2026-11-15 18:14 EST: "Yes, run it once"), Actions run 43780547160
+(00:28:13-01:23:46Z). The job exits 2 on anything but PASS.
+
+**Bounds (basis 08-15 .. 10-31, never November):** rule 1 +0.07, rule 2 +0.28, rule 3 +0.11 m.
+
+**Checks:**
+- **P1 holds.** Rule 1 fired on none of the episode days, 11-10 .. 11-14. The same-model delta was -0.008 .. -0.038 m
+  there, meaning we were ahead of the control.
+- **P2 FAILS.** With +0.08 m seeded, rule 1 fired on 10 of 14 days (11-01 .. 11-14); 80% needs >= 12.
+- **P3 holds.** Rule 2 fired on 5 of 5 episode days, at +48/+72 h from 11-10 and at +24 h too from 11-12, with deltas
+  +0.30 .. +0.39 m and win rates 20-33%.
+- **P4 holds.** Under 200 independent swap draws, 0.00 false pages per 30 days for every rule; the family-wise share
+  was 0% for each.
+
+**Why P2 failed (a reading after the result, not a tested claim).** On the days rule 1 missed, we were already beating
+the same-model control by 0.01-0.04 m. A seeded +0.08 m regression then lifts the delta only to about +0.05 .. +0.07 m,
+at or under the +0.07 m bound. Rule 1 as built cannot reliably see a 0.08 m regression of our chain while we lead the
+control: its bound (1.24 x the basis max, +0.057 m) is about as large as the effect it is meant to catch.
+
+**Hole-buoy audit (reported, not part of PASS).**
+- No data defect showed: 0 observations <= 0.05 m or > 15 m, and 0 duplicate keys, at every buoy in both periods.
+- The "frozen prediction" count was 25-35% of rows everywhere, before and after the onset alike, so it does not
+  discriminate. Repeated served heights on consecutive targets are normal and not a defect signal.
+- The jump sits in 46267 above all: our MAE went 0.668 -> 1.925 m while best_match improved 0.300 -> 0.126 m. That is the
+  nearest-ocean fallback at a sheltered buoy, which #852 (SAMPLER_UNRESOLVED_STATIONS, merged 11-14) now answers with
+  "no data".
+- The other named hole buoys moved modestly. 46254 went 0.192 -> 0.301 m, LJPC1 0.205 -> 0.294 m and 46274 0.112 -> 0.205
+  m; 44090, 46285, 51201 and 51206 improved or held.
+- **A definitional finding:** the data-derived "hole" set is 59 buoys, not 9. Many buoys have sporadic keys where the
+  same-model lane has no row, and rule 2 as built grades every such key (n ~700-800 per lead a day). It still fired on
+  the episode, but a rule meant for the 9 unresolved buoys should key on those buoys (or on a per-buoy coverage share),
+  not on sporadic missing rows.
+
+**Consequence.** The three-rule split does not go into the monitor as built. Rule 2 and the null behaved as intended.
+Rule 1 needs a bound that can see a 0.08 m regression; rule 2 needs its key set narrowed to the named hole buoys. Both
+are design changes for a new pre-registration, scored by someone other than this author. These rows are now seen.
