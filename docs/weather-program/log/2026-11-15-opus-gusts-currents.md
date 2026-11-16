@@ -441,3 +441,21 @@ at 0.02 kn (the currents LUT step) and drop the direction field. The 2-byte fiel
 - THE BAND CLAIM is about CELL VALUES: 0 cells whose decoded value falls in a different LUT band from the source value. The
   shader still interpolates between cells and between frames (the value blend), so a rendered pixel near a band edge can differ
   from today's by up to half a step: harmless, and not what the check claims.
+
+### 12c. Lever A as built (appended 2026-11-16, before the re-run; §12 / §12b are not edited)
+- ONE CHANGE TO THE REGISTERED CODE, found while writing the palette test and made BEFORE any measurement: the client shader takes
+  a cell's LUT entry as floor((v - min) / step + 1e-3), so a value within 0.001 step under a band edge already draws the next
+  band. The encoder now takes the band by the SAME rule, k = floor(v / step + 1e-3) + 1 (frame_binary.BAND_INDEX_EPS), so every
+  cell's palette entry equals its source value's. Cost: the decode error bound is half a step + 0.001 step (0.2505 kn gusts,
+  0.01002 kn currents), not exactly half a step as §12 said. Saturation uses the same rule.
+- THE PALETTE CLAIM, exactly: every cell draws the palette entry of its SOURCE value, byte for byte (bandFields.test.js, all three
+  themes, both layers, a dense sweep). It is NOT byte-identical to today's two-byte frames everywhere: those round to 0.01 kn
+  first, so a source value within 0.005 kn under a band edge was drawn one band UP; such cells now draw their true band. On real
+  frames that difference is measured (both formats published from the same cycle) and reported with the re-run.
+- FORMAT / ROLLOUT: new field ids 12 (gusts, 0.5 kn) and 13 (current speed, 0.02 kn), u8, descriptor scale = step,
+  offset = -step / 2 (every existing generic decoder reads the band centre with no new code); 255 = saturated, counted per frame
+  (`saturated_cells` in the publish report, `band_encoding` in the index). The client lists [band field, field 4] per set, so
+  frames published before the change still decode (pinned by a test). Kill: repo variable FRAME_RASTER_ONE_BYTE=0 on the four
+  pilots steps (the old two-byte frames; currents speed + direction). Currents become speed only: legend "Ocean current speed".
+- READERS (the director's condition 2): no infobox, point readout or legend reads these frames (grep: only ownRasterFrames /
+  useOwnRasterFrames / ownLayerAvailability read the sets; no backend route); the legend is built from the palette, not frames.

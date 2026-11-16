@@ -15,7 +15,7 @@ afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_CURRENTS__; });
 describe('currents set and switches', () => {
   test('one Copernicus set for every model, speed field in knots, own frames only', () => {
     for (const m of ['GFS', 'EURO', 'ICON']) expect(setKey('currents', m)).toBe('CMEMS/marine/currents/global_0p25');
-    expect(OWN_RASTER_SETS.currents).toMatchObject({ field: SPEED_FIELD, unit: 'kn', fallback: null, ownOnly: true });
+    expect(OWN_RASTER_SETS.currents).toMatchObject({ field: [13, SPEED_FIELD], unit: 'kn', fallback: null, ownOnly: true });
     expect(OWN_ONLY_LAYERS).toEqual(['gusts', 'currents']);
     expect(RASTER_SET_KEYS).toContain('CMEMS/marine/currents/global_0p25');
     expect(sourceModel('currents', 'EURO')).toBe('CMEMS');

@@ -64,5 +64,6 @@ export function currentsLegend(theme, heightUnit) {
     const v = metric ? (kn * MS_PER_KN).toFixed(1) : String(kn);
     return i === a.length - 1 ? `${v}+` : v;
   });
-  return { label: `Ocean Currents (${metric ? 'm/s' : 'kts'})`, gradientCSS: `linear-gradient(to right, ${css.join(', ')})`, ticks };
+  // Speed only (lever A, 2026-11-16: the frames carry no direction until particles bring it back as u / v).
+  return { label: `Ocean current speed (${metric ? 'm/s' : 'kts'})`, gradientCSS: `linear-gradient(to right, ${css.join(', ')})`, ticks };
 }

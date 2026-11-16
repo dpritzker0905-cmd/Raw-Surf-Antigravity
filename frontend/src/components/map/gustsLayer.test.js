@@ -15,7 +15,7 @@ afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_GUSTS__; });
 describe('gusts set and switches', () => {
   test('each model reads its OWN gust set, field 4 in knots, own frames only', () => {
     for (const m of ['GFS', 'EURO', 'ICON']) expect(setKey('gusts', m)).toBe(`${m}/weather/gust/global_0p25`);
-    expect(OWN_RASTER_SETS.gusts).toMatchObject({ field: SPEED_FIELD, unit: 'kn', fallback: null, ownOnly: true });
+    expect(OWN_RASTER_SETS.gusts).toMatchObject({ field: [12, SPEED_FIELD], unit: 'kn', fallback: null, ownOnly: true });
     for (const m of ['EURO', 'ICON']) expect(RASTER_SET_KEYS).toContain(`${m}/weather/gust/global_0p25`);
     expect(SPEED_FIELD).toBe(4);
     expect(OWN_ONLY_LAYERS).toContain('gusts');

@@ -305,7 +305,7 @@ SPECS = {
     # instantaneous gust; publishing them under the same label would mix meanings (log 2026-11-15-opus-gusts-currents.md).
     "gust": {
         "target": {"model": "GFS", "domain": "weather", "layer": "gust", "region_id": "global_0p25"},
-        "field": fb.SPEED, "idx": ("GUST", "surface"), "convert": lambda a: a * KN_PER_MS, "grid": "0p25",
+        "field": fb.SPEED, "band_field": fb.GUST_KN_BAND, "idx": ("GUST", "surface"), "convert": lambda a: a * KN_PER_MS, "grid": "0p25",
         "valid": (0.0, 250.0), "clip": None, "env": "FRAME_RASTER_GUST", "default_on": False,
         "value_kind": "wind_gust_surface", "value_unit": "kn",
         "source_dataset": "gfs.pgrb2.0p25 GUST surface (instantaneous), m/s -> kn, every point",
@@ -321,7 +321,7 @@ SPECS = {
     # which definition is on screen (LayerDataCredit). Knots in field 4, as the GFS set.
     "gust_euro": {
         "target": {"model": "EURO", "domain": "weather", "layer": "gust", "region_id": "global_0p25"},
-        "field": fb.SPEED, "idx": ("10fg", "sfc"), "params": ("10fg", "10fg3"), "window_max": True,
+        "field": fb.SPEED, "band_field": fb.GUST_KN_BAND, "idx": ("10fg", "sfc"), "params": ("10fg", "10fg3"), "window_max": True,
         "convert": lambda a: a * KN_PER_MS, "grid": "0p25",
         "valid": (0.0, 250.0), "clip": None, "env": "FRAME_RASTER_GUST_EURO", "default_on": False,
         "value_kind": "wind_gust_10m_max_since_previous_step", "value_unit": "kn",
@@ -334,7 +334,7 @@ SPECS = {
     },
     "gust_icon": {
         "target": {"model": "ICON", "domain": "weather", "layer": "gust", "region_id": "global_0p25"},
-        "field": fb.SPEED, "idx": ("vmax_10m", ("VMAX_10M",)), "convert": lambda a: a * KN_PER_MS, "grid": "0p25",
+        "field": fb.SPEED, "band_field": fb.GUST_KN_BAND, "idx": ("vmax_10m", ("VMAX_10M",)), "convert": lambda a: a * KN_PER_MS, "grid": "0p25",
         "valid": (0.0, 250.0), "clip": None, "env": "FRAME_RASTER_GUST_ICON", "default_on": False, "frame_plane": True,
         "value_kind": "wind_gust_10m_max_since_previous_output", "value_unit": "kn",
         "source_dataset": "DWD ICON global (icosahedral R3B7) VMAX_10M (max since the previous output), nearest cell onto 0.25 deg",
@@ -349,7 +349,8 @@ SPECS = {
     # flows TOWARD (uv_convention 1). The cycle is the bulletin day (00Z); Copernicus publishes once a day.
     "currents": {
         "target": {"model": "CMEMS", "domain": "marine", "layer": "currents", "region_id": "global_0p25"},
-        "field": fb.SPEED, "fields": (fb.SPEED, fb.DIRECTION), "uv_convention": 1, "idx": ("uo", "vo"), "grid": "0p25",
+        "field": fb.SPEED, "fields": (fb.SPEED, fb.DIRECTION), "band_field": fb.CURRENT_KN_BAND, "uv_convention": 1,
+        "idx": ("uo", "vo"), "grid": "0p25",
         "frame_plane": True, "convert": lambda a: a, "valid": (0.0, 20.0), "clip": None,
         "env": "FRAME_RASTER_CURRENTS", "default_on": False,
         "value_kind": "sea_surface_current", "value_unit": "kn",
@@ -553,11 +554,37 @@ def build_frame(plane, valid, run, fid=fb.PRESSURE_HPA, bounds=BOUNDS):
     got = fields[fid]
     src_ok, got_ok = np.isfinite(plane), np.isfinite(got)
     missing_mismatch = int(np.sum(src_ok != got_ok))
-    both = src_ok & got_ok
+    sat = _saturated_mask(fid, plane, src_ok)
+    both = src_ok & got_ok & ~sat                      # a saturated band cell is counted, not compared (its value is ">= top")
     err = float(np.max(np.abs(got[both] - plane[both]))) if both.any() else 0.0
     bad = missing_mismatch + int(np.sum(np.abs(got[both] - plane[both]) > fb.TOLERANCE[fid]))
     return raw, gz, {"nodes": int(plane.size), "bad": bad, "missing_mismatch": missing_mismatch, "max_abs_err": round(err, 6),
-                     "missing": int(np.sum(~src_ok))}
+                     "missing": int(np.sum(~src_ok)), "saturated": int(sat.sum())}
+
+
+def _saturated_mask(fid, plane, ok):
+    """Cells a one-byte band field stores as SATURATED (frame_binary.BAND_FIELDS); none for any other field."""
+    import numpy as np
+    if fid not in fb.BAND_FIELDS:
+        return np.zeros(np.shape(plane), dtype=bool)
+    return ok & (np.floor(np.nan_to_num(plane, nan=-1.0) / fb.FIELD_SPECS[fid][3] + fb.BAND_INDEX_EPS) >= fb.BAND_SATURATED - 1)
+
+
+def one_byte_on():
+    """Lever A of #928 (log §12): the gust and currents sets publish their one-byte BAND field. Kill (the old two-byte frames,
+    speed + direction for currents): repo variable FRAME_RASTER_ONE_BYTE=0 on the pilots steps."""
+    return os.environ.get("FRAME_RASTER_ONE_BYTE", "1") != "0"
+
+
+def effective_spec(sp):
+    """The spec as published now: a spec with a `band_field` publishes it (alone) while one_byte_on(), else as before."""
+    if not sp or "band_field" not in sp or not one_byte_on():
+        return sp
+    out = dict(sp, field=sp["band_field"])
+    if sp.get("fields"):                               # currents: the band speed alone (direction returns as u / v with particles)
+        out["fields"] = (sp["band_field"],)
+        out["plane_alias"] = {sp["band_field"]: sp["field"]}
+    return out
 
 
 def build_frame_multi(planes, valid, run, sp):
@@ -566,7 +593,8 @@ def build_frame_multi(planes, valid, run, sp):
     main field is valid, on the circle."""
     import numpy as np
     main = sp["field"]
-    p = {fid: np.asarray(planes[fid], dtype=float) for fid in sp["fields"]}
+    alias = sp.get("plane_alias") or {}
+    p = {fid: np.asarray(planes[fid] if fid in planes else planes[alias[fid]], dtype=float) for fid in sp["fields"]}
     bad_main = ~((p[main] >= sp["valid"][0]) & (p[main] <= sp["valid"][1]))
     for fid in p:
         p[fid] = np.where(bad_main, np.nan, p[fid])
@@ -575,16 +603,18 @@ def build_frame_multi(planes, valid, run, sp):
     _head, fields = fb.decode_plane(gz)
     ok = np.isfinite(p[main])
     missing_mismatch = int(np.sum(ok != np.isfinite(fields[main])))
+    sat = _saturated_mask(main, p[main], ok)
     bad, err = missing_mismatch, 0.0
     for fid in p:
-        d = np.abs(fields[fid][ok] - p[fid][ok])
+        cmp = ok & ~sat
+        d = np.abs(fields[fid][cmp] - p[fid][cmp])
         if fid == fb.DIRECTION:
             d = np.minimum(d, 360.0 - d)
         if d.size:
             err = max(err, float(d.max()))
             bad += int(np.sum(d > fb.TOLERANCE[fid] + 1e-9))
     return raw, gz, {"nodes": int(ok.size), "bad": bad, "missing_mismatch": missing_mismatch, "max_abs_err": round(err, 6),
-                     "missing": int(np.sum(~ok))}
+                     "missing": int(np.sum(~ok)), "saturated": int(sat.sum())}
 
 
 def build_set(source, cycle, log=print, workers=6, deadline=None, clock=time.monotonic, spec=None):
@@ -594,7 +624,7 @@ def build_set(source, cycle, log=print, workers=6, deadline=None, clock=time.mon
     prefix = fs.set_prefix(sp["target"])
     hours = sp.get("hours", F_HOURS)
     stats = {"entries": len(hours), "built": 0, "failed": 0, "refused": 0, "skipped_budget": 0, "bytes": 0,
-             "parity_max_abs_err": 0.0, "missing_nodes": 0}
+             "parity_max_abs_err": 0.0, "missing_nodes": 0, "saturated_cells": 0}
     run_stamp = fs.stamp(iso(cycle))
 
     def one(f):
@@ -637,6 +667,7 @@ def build_set(source, cycle, log=print, workers=6, deadline=None, clock=time.mon
             stats["bytes"] += frame["bytes"]
             stats["parity_max_abs_err"] = max(stats["parity_max_abs_err"], check["max_abs_err"])
             stats["missing_nodes"] += check["missing"]
+            stats["saturated_cells"] += check.get("saturated", 0)
         else:
             stats[frame["unbuilt"]] += 1
         frames.append(frame)
@@ -658,6 +689,10 @@ def make_index(cycle, frames, stats, spec=None):
         "selection": "the frame whose valid_time equals the hour; none within 3 h -> no frame (no time interpolation)",
         "quantisation": {fname: {"tolerance": fb.TOLERANCE[sp["field"]]}},
         "parity_max_abs_err": {fname: stats["parity_max_abs_err"]},
+        **({"band_encoding": {"field": fname, "step": fb.FIELD_SPECS[sp["field"]][3], "saturated_code": fb.BAND_SATURATED,
+                              "saturated_cells": stats.get("saturated_cells", 0),
+                              "rule": "k = floor(v / step) + 1 (v < 254 step), 255 = saturated, 0 = no data; decode (k - 1) step + step / 2"}}
+           if sp["field"] in fb.BAND_FIELDS else {}),
         "common_meta": {"model": sp["target"]["model"], "layer": sp["target"]["layer"], "value_kind": sp["value_kind"],
                         "value_unit": sp["value_unit"], "model_run_time": iso(cycle), "source_dataset": sp["source_dataset"],
                         "upstream_provider": sp.get("upstream_provider", "noaa")},
@@ -671,7 +706,7 @@ def make_index(cycle, frames, stats, spec=None):
 
 def publish(source, sink, uploader, log=print, budget_s=None, now=None, clock=time.monotonic, coverage_floor=None, spec=None):
     """One raster set's publish. Returns a report dict; never raises for a missing cycle or a coverage refusal."""
-    sp = spec or SPECS["pressure"]
+    sp = effective_spec(spec or SPECS["pressure"])
     key, prefix = fs.set_key(sp["target"]), fs.set_prefix(sp["target"])
     budget = float(os.environ.get("FRAME_RASTER_BUDGET_S", "420")) if budget_s is None else budget_s
     floor = fs.min_coverage() if coverage_floor is None else coverage_floor

@@ -31,6 +31,11 @@ export const PRESSURE_FIELD = 6;
 export const TEMP_FIELD = 7;      // temp_c: u16, value = code * 0.05 - 100.05 (code 0 = no data); 2 m air temperature, deg C
 export const CLOUD_FIELD = 8;     // cloud_pct: u8, value = code - 1 (code 0 = no data); total cloud cover, %
 export const PRECIP_FIELD = 10;   // precip_mm_h: u16, value = code * 0.01 - 0.01 (code 0 = no data); mm/h in the step before the hour
+// ONE-BYTE BAND fields (2026-11-16, lever A of #928's 4G gate; backend frame_binary.BAND_FIELDS): u8, code k -> the band centre
+// (k - 1) x step + step / 2 through the generic descriptor; 255 = saturated (the top band). A set lists its fields in preference
+// order, so frames published before the change (field 4) still decode during the rollout.
+export const GUST_BAND_FIELD = 12;     // gusts, 0.5 kn bands
+export const CURRENT_BAND_FIELD = 13;  // ocean current speed, 0.02 kn bands
 export const SPEED_FIELD = 4;     // speed: u16, value = code * 0.01 - 0.01 (code 0 = no data); knots (gusts; the wind frames' field)
 export const FOG_FIELD = 11;     // visibility_m: u16, value = code - 1 (code 0 = no data); surface visibility, metres (GFS VIS)
 // PER-MODEL (2026-10-24; the owner, 2026-10-23 20:13 EDT: "Yes start it", answering "start the per-model pressure route?" after
@@ -98,7 +103,7 @@ export const OWN_RASTER_SETS = {
     // 19:27 EST: "I dont want icon wind past 7.5 days switched to gfs, we need a scientific estimation" (the same for gusts):
     // never another model's field, never a loop. The ECMWF ensemble gust (member median, p90 risk cue; log §8, PR #939) plugs
     // in later as a BEYOND strategy named here per model (`beyond: { ICON: 'ens_mean_extension', ... }` + a `fallback`).
-    fallback: null, endNote: true, field: SPEED_FIELD, unit: 'kn', ownOnly: true,
+    fallback: null, endNote: true, field: [GUST_BAND_FIELD, SPEED_FIELD], unit: 'kn', ownOnly: true,
   },
   // OCEAN CURRENTS (2026-11-15, the owner approved Currents as a new picker layer): Copernicus Marine's global ocean model,
   // surface current SPEED in knots (field 4) every 6 h to 240 h on 0.25 deg (frame_set_raster.py set `currents`); each frame
@@ -107,7 +112,7 @@ export const OWN_RASTER_SETS = {
   // window.__RAW_DISABLE_RASTER_OWN_CURRENTS__ = true. Past day 10 there is no frame: the status line says so.
   currents: {
     models: { GFS: 'CMEMS/marine/currents/global_0p25', EURO: 'CMEMS/marine/currents/global_0p25', ICON: 'CMEMS/marine/currents/global_0p25' },
-    fallback: null, field: SPEED_FIELD, unit: 'kn', ownOnly: true,
+    fallback: null, field: [CURRENT_BAND_FIELD, SPEED_FIELD], unit: 'kn', ownOnly: true,
   },
 };
 /** The status line past a model's own frames for a layer with `endNote` (gusts): "ICON gusts end at day 7.5; ensemble estimate
@@ -331,7 +336,9 @@ export async function landFill(field) {
 
 /** A decoded frame's one field as the renderer uploads it: Float32 values, MISSING for no data. */
 export function toField(parsed, fieldId) {
-  const src = parsed && parsed.fields && parsed.fields[fieldId];
+  const ids = Array.isArray(fieldId) ? fieldId : [fieldId];   // preference order (a band field first, then its two-byte form)
+  const fid = ids.find((id) => parsed && parsed.fields && parsed.fields[id]);
+  const src = fid !== undefined ? parsed.fields[fid] : null;
   if (!src || src.length !== parsed.cols * parsed.rows) return null;
   const values = new Float32Array(src.length);
   let min = Infinity; let max = -Infinity;

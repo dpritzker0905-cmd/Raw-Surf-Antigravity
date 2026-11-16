@@ -26,7 +26,7 @@ CYCLE = datetime(2026, 11, 15, tzinfo=timezone.utc)
 
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
-    for k in ("FRAME_RASTER_CURRENTS", "FRAME_RASTER_BUDGET_S", "FRAME_MIN_COVERAGE"):
+    for k in ("FRAME_RASTER_CURRENTS", "FRAME_RASTER_BUDGET_S", "FRAME_MIN_COVERAGE", "FRAME_RASTER_ONE_BYTE"):
         monkeypatch.delenv(k, raising=False)
 
 
@@ -53,6 +53,7 @@ def test_the_pilots_workflow_has_one_dark_currents_step_with_its_own_timeout_and
     step = steps[0]
     assert "vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_CURRENTS == '1'" in step
     assert "continue-on-error: true" in step and "timeout-minutes: 15" in step and 'FRAME_RASTER_BUDGET_S: "600"' in step
+    assert "FRAME_RASTER_ONE_BYTE: ${{ vars.FRAME_RASTER_ONE_BYTE }}" in step
 
 
 def test_encode_planes_is_encode_plane_for_one_field():
@@ -172,7 +173,10 @@ def test_no_cycle_when_the_bulletin_is_short():
     assert src.complete_cycle(CYCLE) is None
 
 
-def test_a_published_currents_frame_carries_both_fields(tmp_path):
+@pytest.mark.parametrize("one_byte", ["1", "0"])
+def test_a_published_currents_frame(tmp_path, monkeypatch, one_byte):
+    """Lever A: by default the band speed alone (0.02 kn); the kill (FRAME_RASTER_ONE_BYTE=0) the old speed + direction."""
+    monkeypatch.setenv("FRAME_RASTER_ONE_BYTE", one_byte)
     sp = dict(fsr.SPECS["currents"], hours=(0, 6))
     http = _store()
     sink = pub.LocalSink(tmp_path)
@@ -183,5 +187,9 @@ def test_a_published_currents_frame_carries_both_fields(tmp_path):
     index = json.loads((tmp_path / rec["index"]).read_text())
     raw = (tmp_path / index["frames"][1]["path"]).read_bytes()
     _h, f = fb.decode_plane(raw)
-    assert set(f) == {fb.SPEED, fb.DIRECTION}
-    assert np.nanmax(f[fb.SPEED]) == pytest.approx(0.5 * cur.KN_PER_MS, abs=0.006)
+    if one_byte == "1":
+        assert set(f) == {fb.CURRENT_KN_BAND}
+        assert np.nanmax(f[fb.CURRENT_KN_BAND]) == pytest.approx(0.5 * cur.KN_PER_MS, abs=0.01)
+    else:
+        assert set(f) == {fb.SPEED, fb.DIRECTION}
+        assert np.nanmax(f[fb.SPEED]) == pytest.approx(0.5 * cur.KN_PER_MS, abs=0.006)

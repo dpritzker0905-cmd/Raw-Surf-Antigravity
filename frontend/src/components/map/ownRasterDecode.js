@@ -28,6 +28,12 @@ export function decodeFieldCore(buf, fieldId, missingValue) {
   const bounds = { west: dv.getFloat64(24, true), south: dv.getFloat64(32, true), east: dv.getFloat64(40, true), north: dv.getFloat64(48, true) };
   const validEpoch = dv.getFloat64(56, true); const runEpoch = dv.getFloat64(64, true);
   const n = cols * rows;
+  // `fieldId`: one id or a preference list (a one-byte band field first, then its two-byte form: both decode during a rollout)
+  const wanted = Array.isArray(fieldId) ? fieldId : [fieldId];
+  const present = [];
+  for (let f = 0; f < fieldCount; f++) present.push(dv.getUint8(72 + f * 24));
+  const pick = wanted.find((id) => present.indexOf(id) >= 0);
+  if (pick === undefined) return null;
   let pos = headerBytes;
   for (let f = 0; f < fieldCount; f++) {
     const d = 72 + f * 24;
@@ -36,7 +42,7 @@ export function decodeFieldCore(buf, fieldId, missingValue) {
     if (dtype !== 1 && dtype !== 2 && dtype !== 4) throw new Error(`raster frame: unsupported dtype ${dtype}`);
     const size = n * dtype;
     if (pos + size > bytes.length) throw new Error(`raster frame: truncated field ${id}`);
-    if (id === fieldId) {
+    if (id === pick) {
       const values = new Float32Array(n);
       let min = Infinity; let max = -Infinity;
       const hasMissing = missing !== 0xFFFFFFFF;
@@ -53,7 +59,7 @@ export function decodeFieldCore(buf, fieldId, missingValue) {
         if (v < min) min = v;
         if (v > max) max = v;
       }
-      return { cols, rows, bounds, values, min, max, validMs: validEpoch * 1000, runMs: Number.isFinite(runEpoch) ? runEpoch * 1000 : null };
+      return { cols, rows, bounds, values, min, max, validMs: validEpoch * 1000, runMs: Number.isFinite(runEpoch) ? runEpoch * 1000 : null, fieldId: pick };
     }
     pos += size;
   }

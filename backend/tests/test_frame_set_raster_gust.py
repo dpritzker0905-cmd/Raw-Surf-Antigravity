@@ -27,7 +27,7 @@ LON25 = 0.25 * np.arange(1440)
 
 @pytest.fixture(autouse=True)
 def _env(monkeypatch):
-    for k in ("FRAME_RASTER_GUST", "FRAME_RASTER_BUDGET_S", "FRAME_MIN_COVERAGE"):
+    for k in ("FRAME_RASTER_GUST", "FRAME_RASTER_BUDGET_S", "FRAME_MIN_COVERAGE", "FRAME_RASTER_ONE_BYTE"):
         monkeypatch.delenv(k, raising=False)
 
 
@@ -54,6 +54,7 @@ def test_the_pilots_workflow_has_one_dark_gust_step_with_its_own_timeout_and_bud
     assert "vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_GUST == '1'" in step
     assert "FRAME_RASTER_GUST: ${{ vars.FRAME_RASTER_GUST }}" in step and "continue-on-error: true" in step
     assert "timeout-minutes: 15" in step and 'FRAME_RASTER_BUDGET_S: "540"' in step
+    assert "FRAME_RASTER_ONE_BYTE: ${{ vars.FRAME_RASTER_ONE_BYTE }}" in step   # lever A kill reaches the step
 
 
 def test_ms_to_knots_is_exact():
@@ -89,21 +90,26 @@ def _gust_kn(f):
     return fsr.SPECS["gust"]["convert"](ms)
 
 
-def test_gust_frames_carry_knots_in_field_4_on_the_quarter_degree_grid(tmp_path):
+@pytest.mark.parametrize("one_byte,fid,name", [("1", fb.GUST_KN_BAND, "gust_kn_band"), ("0", fb.SPEED, "speed")])
+def test_gust_frames_carry_knots_on_the_quarter_degree_grid(tmp_path, monkeypatch, one_byte, fid, name):
+    """Lever A (log section 12): the one-byte band field by default; FRAME_RASTER_ONE_BYTE=0 (the kill) publishes field 4."""
+    monkeypatch.setenv("FRAME_RASTER_ONE_BYTE", one_byte)
     sp = dict(fsr.SPECS["gust"], hours=(0, 1, 2))
     sink = pub.LocalSink(tmp_path)
     report = fsr.publish(_Grib(_gust_kn), sink, pub._uploader(sink), log=lambda *_: None, spec=sp)
-    assert report["status"] == "published" and report["built"] == 3
+    assert report["status"] == "published" and report["built"] == 3 and report["saturated_cells"] == 0
     rec = json.loads((tmp_path / fs.LATEST).read_text())["sets"]["GFS/weather/gust/global_0p25"]
     index = json.loads((tmp_path / rec["index"]).read_text())
     assert index["grid"]["cols"] == 1440 and index["grid"]["rows"] == 721
-    assert index["quantisation"] == {"speed": {"tolerance": fb.TOLERANCE[fb.SPEED]}}
+    assert index["quantisation"] == {name: {"tolerance": fb.TOLERANCE[fid]}}
+    assert ("band_encoding" in index) == (one_byte == "1")
     assert index["common_meta"]["value_unit"] == "kn" and index["common_meta"]["value_kind"] == "wind_gust_surface"
     _head, fields = fb.decode_plane((tmp_path / index["frames"][1]["path"]).read_bytes())
+    assert set(fields) == {fid}
     want = fsr.to_frame_plane(_gust_kn(1), sp["valid"], None, 1)
-    got = fields[fb.SPEED]
+    got = fields[fid]
     assert np.isnan(want).sum() == 2 and np.array_equal(np.isnan(got), np.isnan(want))
-    assert np.nanmax(np.abs(got - want)) <= fb.TOLERANCE[fb.SPEED]
+    assert np.nanmax(np.abs(got - want)) <= fb.TOLERANCE[fid]
 
 
 # ── per-model gusts (2026-11-15, the owner: each model's own gust from its own GRIB) ──────────────────────────────────────────
