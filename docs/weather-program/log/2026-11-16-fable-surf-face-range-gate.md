@@ -249,3 +249,20 @@ the live box, and it must be before any flip: the 1-CPU box serves production.
 - Precomputed frames would carry the two keys only after a lane runs with the flag on. No lane does.
 - No frontend change. No alert, glyph or hub reads the keys.
 - The period part of the target is not in this build.
+
+## 2026-11-16 15:58Z Owed BEFORE any flip (the advisor's review of the build at `e6a037b15`)
+
+The advisor ruled PASS WITH LIMITS, no open condition, to merge the build dark. These are not merge conditions. Each
+is owed before the flag is turned on anywhere, and a flip without them is not supported by this file.
+
+1. **An end-to-end flag-on test through precompute.** The two response fields are `exclude=True`, which drops them on
+   ANY serialization, including a `model_dump` into a cache or a JSON hop between the point service and precompute.
+   So with the flag on, the range may silently never reach a stored rating row. My rating-row test injects the range
+   on a fake resolver and does not cover this. Not built.
+2. **The cost of the second chain pass, measured offline,** per point and per precompute frame. Never on the live box.
+3. **The gate itself:** a physical breaker truth source with its own approved section, then the low-end test.
+4. **The detectable-bias statement** from amendment 3, before the first truth source is approved.
+
+Also done on this head: a comment at the `with` statement in `surf_face_range_at` saying no await, thread hand-off or
+cached call may be added inside it, and why. And a note for whoever edits `backend/routes/admin/surf_forecast.py`
+next: it is at exactly 800 lines and the size check fails on the next added line.
