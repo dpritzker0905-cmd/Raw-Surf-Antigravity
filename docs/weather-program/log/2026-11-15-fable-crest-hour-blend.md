@@ -968,3 +968,45 @@ At the director's word (18:40 EST: the Node-only test may run now; every browser
   at least doubles) holds in 20 of 20 in every set; N2 (a wrong blend) fails R1 in every set, as it must; P (identical
   neighbours) is exactly zero in every set. So the instrument can fail and can read zero on real frames.
 - **Owed:** a second fetch after the next GFS run is published, then R1-R3 for both runs together, as they come out.
+
+## 37. A THIRD ARM, ADVECTION, registered before any truth line has been read (19:50 EST)
+The director's brief (19:44 EST, from the senior research lead's log on PR #929): between forecast hours, move each model's OWN
+field along its own propagation instead of cross-fading it: waves along wave direction at group velocity, wind along the wind
+vector. Same model, cross-hour only, display only. Gate: the hidden-middle-frame test, three arms (advection, cross-fade, hard
+swap), N1 / N2 as registered, identical neighbours give zero. The owner's blinded look still applies before default-on.
+**Two things in the brief I record differently, so the record stays true:**
+- It says the cross-fade "failed coastal H8c (ghosting)". This log does not say that. What failed: the FIRST-VISIT truth line
+  (69.9% of a cut's error against a registered 60%; better than the cut in 8 of 9 views, section 31) and the colour reference
+  line by one picture (0.795 against 0.5). Ghosting was never measured to fail; the measure that could have shown it was not
+  able to (sections 12-14). So advection is tested as a possible improvement, not as the repair of a measured ghost.
+- It says "ship ON with a kill switch only if the gate passes". The owner's later word is that the hour blend stays OFF until
+  his blinded look. Whatever this gate says, the build stays opt-in until he has looked; the director is told.
+**State of knowledge when this is written:** for the real frames only the controls have been read (section 36). No R1-R3
+number for any arm has been seen by me. The advection arm is added to the same scorer before that changes.
+**The advection arm, fixed now (value space, the frame's own 2-degree grid):**
+- Frame h is carried FORWARD 3 h and frame h+6 BACKWARD 3 h, each along its own motion at every node, and the two are averaged
+  (so the arm is "advect, then mix"; with zero motion it IS the cross-fade). Semi-Lagrangian, first order: the value at a node
+  is read (bilinear, wrapping in longitude) from the point the motion came from; a read that touches a missing node falls back
+  to the node's own value.
+- Motion. Waves: toward (direction + 180 degrees) (the stored direction is where waves come FROM) at the deep-water group
+  velocity c_g = g T / (4 pi) = 0.78 T m/s, T the frame's own period at that node; nodes without period or direction do not
+  move. Wind: along the wind vector itself, at the stored speed (knots, 0.5144 m/s each), toward (direction + 180).
+  1 degree of latitude = 111.32 km; longitude scaled by cos(latitude), nodes poleward of 80 degrees do not move.
+- Stated before data: a 12 s swell moves about 100 km in 3 h, half a cell of this grid, so the arm can only make a modest
+  difference here; a wind SYSTEM moves with the steering flow, not with its own 10 m wind, so for wind and wind-sea this arm has
+  no physical reason to help and may hurt. Expected to help most, if at all: swell_1 and swell_2.
+**Lines, per set and pooled over the two runs (as R1: per-triple means, pooled; N1, N2, P as section 34):**
+- **A1 truth.** E(advect), E(blend), E(cut) as R1 defines them. Advection is called BETTER THAN THE CROSS-FADE only if pooled
+  E(advect) is at most **95%** of pooled E(blend) AND it is the smaller of the two in at least 70% of triples; it PASSES the
+  owner's line if pooled E(advect) <= pooled E(cut) and in at least 80% of triples. Between 95% and 105% of the cross-fade it
+  is NO DIFFERENCE (and the simpler cross-fade stands); above 105% it is WORSE.
+- **A2 ghost count.** A ghost node = a node where an arm's value is off the real middle by more than **0.3 m** (marine height)
+  or **3 kn** vector difference (wind). Counted per triple for all three arms and pooled. Advection must not have more ghost
+  nodes than the cross-fade, and neither may have more than the hard swap, to pass. Stated before data: the thresholds are
+  round numbers chosen blind; if fewer than 1% of nodes are ghosts for every arm the line has no signal and is VOID.
+- **A3 structure:** R2's gradient error for the advection arm, same line as R2.
+- **Controls:** N1 and N2 are computed for the advection arm too and must hold for it; P: with identical neighbours AND the
+  motion set to zero every error is exactly 0. With identical neighbours and real motion the arm is NOT zero (it moves a
+  field that did not move): that number is printed as the arm's cost on a still field, and is not a control.
+- Not covered: shallow water (group velocity falls near the coast), regional grids, what a shader would actually draw (no
+  advection shader exists; this is the arithmetic only, to decide whether one is worth building).
