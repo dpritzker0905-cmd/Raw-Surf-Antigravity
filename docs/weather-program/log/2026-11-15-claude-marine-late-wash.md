@@ -80,3 +80,18 @@ Fix arm against its own kill, same build (`scn_hour_jump_wash.js`, ARMS=fix,kill
   stand-in (7 x 6 before the fine grid), which is Move 3's 1.5 s coarse-to-fine delay, not the wash.
 - Scope not measured: swell_1 (the synthetic store has no swell layers), light and beach themes, phone.
 - The Surf Rating band draws the same wash under its masked open-ocean cells (the RATING-MODE WASH), so it shares this path and the fix.
+
+## 4. PRE-REGISTRATION 2: step time (written 2026-11-15 ~20:05 EST, before any timing run; the advisor's condition for ON)
+
+The advisor (red-team 2026-11-16 00:50Z): the 1 s quiet rule (2026-10-23) kept a ~140 ms texture upload off the next scrub key;
+at 150 ms, ordinary stepping (one key every 200-800 ms) may take that upload on every step at a coastal zoom.
+
+- **Instrument** (offline, run AFTER the 22:00-00:30 EST quiet window): a coastal regional view (Florida z7.5, waves, dark), 40
+  ArrowRight steps on the timeline wheel at cadences of 200, 400 and 800 ms, desktop and phone (390 x 844, CPU throttled 4x via
+  CDP `Emulation.setCPUThrottlingRate`). Per step: the time from the keydown to the first rendered frame showing the new hour
+  (step time), and long tasks (PerformanceObserver `longtask`) in the 1 s after the keydown. Arms: fix vs kill
+  (`__RAW_DISABLE_URGENT_WASH_SEED__`), same build, interleaved run order, 2 runs per cell.
+- **PASS line** (Move 3's line): in every cell (cadence x device), the fix arm is not worse than the kill arm by more than **5 ms
+  at p50** and **15 ms at p95** of step time, and long-task total per step is not worse by more than 15 ms at p95.
+- **If it fails**: the urgent path gets a 400 ms no-key guard (the advisor's option) and the same instrument is re-run with the
+  same line; nothing ships ON until a cell-complete pass.
