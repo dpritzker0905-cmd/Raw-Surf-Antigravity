@@ -953,3 +953,18 @@ The recorder is a browser job and has NOT been run; only syntax and the unblindi
   page plays each frame at its recorded time).
 - Correction, append-only: the time in this section's heading was written from memory. The clock (`date`) read 18:26 EST when
   the section was committed; it was written in the minutes before that, not at 18:32.
+
+## 36. The real-frame test: first fetch, the controls only; R1-R3 NOT read (18:55 EST)
+At the director's word (18:40 EST: the Node-only test may run now; every browser job is held until 00:30 EST).
+- **Fetch** 18:40-18:47 EST: 581 requests to the public frame CDN at one per 600 ms, 31.1 MB, static files only. The four
+  marine sets and `wind`, 57 frames each (3-hourly to f168) from each of the two indexes the CDN lists.
+- **Found before scoring:** the two indexes are two PUBLISHES of the same model run (GFS 2026-11-15 12Z; index `run_time`
+  18:39Z and 21:33Z), not two runs. The first frame's bytes differ between the two publishes for `waves` and are identical
+  for the three swell sets. So ONE run is in hand. Section 34 says the result is not reported until two runs are in; I go
+  further and do not read it: the scorer has a `--controls-only` mode that withholds R1-R3, and that is all that was run. The
+  scorer now counts one model run once (the current index; the second publish is listed as skipped). Without that fix the
+  same 20 triples would have been counted twice and called two runs' worth.
+- **Controls, per set (waves, swell_1, swell_2, wind_waves), 20 triples each, one run:** N1 (a wrong truth: the blend's error
+  at least doubles) holds in 20 of 20 in every set; N2 (a wrong blend) fails R1 in every set, as it must; P (identical
+  neighbours) is exactly zero in every set. So the instrument can fail and can read zero on real frames.
+- **Owed:** a second fetch after the next GFS run is published, then R1-R3 for both runs together, as they come out.
