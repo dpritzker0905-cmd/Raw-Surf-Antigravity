@@ -1428,3 +1428,18 @@ The review reference the runner requires is given only after R1-R6 are verified.
 
 - Clock correction (18:30 -0500): the heading above says 18:40 EST, but the section was committed at 18:28 EST (3b3cd51e4). The
   heading time was ahead of the clock (L-P10); 18:28 governs.
+
+## 2026-11-16 18:47 -0500 #992 reviewed at aa0505456 (research lead): R1-R6 verified in the diff
+
+This is the review reference for `run.py --review-ref`.
+- R1: item 1 per class, each with its governing CI.
+- R2: strict independence (an unknown device fails).
+- R3: the session-collapse sensitivity is in the record.
+- R4: only independent reports go into the baseline and the update.
+- R5: 8ft+ is dropped; Flat is log-uniform [0.125, 0.5] ft.
+- R6: the leak check covers every held-out-spot row.
+- M1 and M2 are recorded, and a physical row refuses the run.
+Amendment 3 is on #989 (23:27Z, before any data).
+
+**Condition, standing before the FIRST real run:** M3 (a synthetic world of realistic size at 4x1000 reaching R-hat < 1.01 and ESS > 400)
+is appended to the fit log and passes. A review of code at any other head needs a new review.
