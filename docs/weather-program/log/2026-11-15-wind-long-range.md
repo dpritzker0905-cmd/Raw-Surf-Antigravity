@@ -283,3 +283,23 @@ at 00:45Z stands.
   frames use (the same bilinear, de-bias factor and gust clip as `build_points`, plus a `clipped` mask). A test pins
   it equal to `build_points` at an archived step and checks the longitude wrap.
 - Run 43779656382 had not started collection (stations job queued); it is cancelled and superseded by this push.
+
+## 2026-11-16 00:35Z OWNER DECISION: the ICON GFS stand-in is withdrawn
+
+David 19:27 EST (relayed by the director): "I dont want icon wind past 7.5 days switched to gfs, we need a scientific
+estimation." This supersedes item 6 (interim) of the 16:14 plan.
+- #935 is a DRAFT titled WITHDRAWN, with a comment quoting the decision. Never merged; nothing served.
+- #939 no longer carries the stand-in:
+  - the files are back to dev: `euro_wind_extension.py`, the dynamic path (`viewport_service.py`,
+    `grid_resolver.py`) and `scheduler/forecast.py`;
+  - the `ICON_WIND_GFS_STANDIN` flag is gone (GUARDED, `_RATING_FLAGS`, guardrail coverage) and so is its test file.
+- ICON past ~180 h = the ENS member mean when a fresh reduced field covers the whole tail. With NO such field, today's
+  legacy tail serves unchanged, so production is unchanged until #939 passes its gate. ICON NEVER falls to GFS. EURO
+  past 240 h without ENS keeps today's GFS clones (also unchanged).
+- Client: `drawnFrameReadout` gains `ens_mean_extension` -> "Days 8-14: ECMWF ensemble mean (estimate)".
+- **Open for the director:** when the ENS field is missing or stale (> 36 h), ICON's tail falls to the legacy loop,
+  which the owner called unacceptable. The alternatives are to serve no ICON tail at all, or to serve an older ENS run
+  with a stale-run label. Neither is chosen here; today's behaviour is kept until the director or the owner rules.
+- The interim's 22:40Z SCOREBOARD row is superseded by the withdrawal row below it (append-only).
+- The hindcast is unaffected: its arms still include `gfs_standin` as a COMPARATOR. P2 (beat the GFS stand-in) stands
+  as pre-registered.

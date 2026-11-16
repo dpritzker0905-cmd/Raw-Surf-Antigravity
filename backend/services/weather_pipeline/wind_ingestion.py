@@ -590,15 +590,14 @@ async def ingest_icon_wind_global_impl(scheduler) -> bool:
                 if times:
                     native_max = _parse_om_time(times[-1])
                     break
-            # 2026-11-15 (owner 16:14 EST): the tail is the stored GFS wind at the same valid time (labelled
-            # gfs_wind_standin), not ICON's own days looped. Kill ICON_WIND_GFS_STANDIN=0 -> the old loop below.
-            # 2026-11-15 later: ENS member mean first (ens_wind_extension.py, kill ENS_WIND_EXTENSION=0), else GFS.
+            # 2026-11-15: the ECMWF ENS member mean first (ens_wind_extension.py, kill ENS_WIND_EXTENSION=0); with no
+            # fresh ENS field the legacy loop below serves. Never GFS for ICON (owner 2026-11-15 19:27 EST).
             from services.weather_pipeline.ens_wind_extension import extend_wind_tail
             tail = await extend_wind_tail(scheduler, "ICON", run_time, native_max, global_region, resolution, env["is_test_env"])
             standin = tail is not None
             if standin:
                 ext_count = tail
-                logger.info(f"[Pipeline Scheduler] Ingested {ext_count} ICON wind tail files (ENS/GFS, beyond {native_max}).")
+                logger.info(f"[Pipeline Scheduler] Ingested {ext_count} ICON wind tail files (ENS member mean, beyond {native_max}).")
             else:
                 from services.weather_pipeline.viewport_helper import extend_icon_wind_to_14d
                 extend_icon_wind_to_14d(results)  # mutates: day-looped hourly arrays out to 336h

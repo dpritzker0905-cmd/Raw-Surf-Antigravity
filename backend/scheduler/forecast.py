@@ -95,9 +95,8 @@ def ingest_marine_forecast_task():
                 # failed → 500/clear. These are COARSE (300 vec, 10°), the same weight as the ICON wind
                 # job already here and far lighter than the marine jobs below, so the 1-CPU/memory cost
                 # is minimal; each runs after a 30s stagger + gc.collect() like the rest.
-                # GFS first (2026-11-15): ICON's tail past ~180 h clones THIS cycle's stored GFS wind (gfs_wind_standin).
-                ("GFS Wind Global", weather_scheduler.ingest_gfs_wind_global),
                 ("Icon Wind Global", weather_scheduler.ingest_icon_wind_global),
+                ("GFS Wind Global", weather_scheduler.ingest_gfs_wind_global),
                 # The HRRR wind lane (D-017): one NOAA HRRR cycle (f00-f48, 0.25-deg area mean) to L2 for the
                 # serve box's wind_lane.apply_wind_lane. GitHub Actions only (wind_lane_ingest.should_run).
                 ("GFS Wind HRRR Lane", lambda: _ingest_hrrr_wind_lane(store)),

@@ -517,21 +517,18 @@ async def resolve_grid(
                 # fallback), so EURO wind always shows real wind data; provider is labelled honestly.
                 _is_euro_marine = model.upper() == "EURO" and domain.lower() == "marine" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
                 _is_euro_wind = model.upper() == "EURO" and domain.lower() == "wind" and layer.lower() == "wind"
-                _icon_standin = model.upper() == "ICON" and "ICON_BEYOND_NATIVE" in str(dynamic_err)  # 2026-11-15, no loop
-                if _is_euro_marine or _is_euro_wind or _icon_standin:
+                if _is_euro_marine or _is_euro_wind:
                     logger.info(f"[Grid Route] EURO {domain} upstream failed. Attempting GFS {domain} fallback...")
                     try:
                         product = await viewport_service.fetch_viewport_grid_upstream(
                             model="GFS", domain=domain, layer=layer, valid_time_str=valid_time, target_dt=target_dt, bbox_str=bbox
                         )
                         if product:
-                            product.model = "ICON" if _icon_standin else "EURO"
-                            if _is_euro_wind or _icon_standin:
+                            product.model = "EURO"
+                            if _is_euro_wind:
                                 product.provider = "gfs_fallback"
                                 product.is_estimated = True
                                 product.is_forecast_authoritative = False
-                                if _icon_standin:
-                                    product.estimate_basis = {"type": "gfs_wind_standin", "method": "gfs_relabel_dynamic", "source_model": "gfs_seamless"}
                             else:
                                 # GFS data relabeled EURO is an ESTIMATE in every environment
                                 # (2026-07-04): the old prod branch stamped it provider="copernicus"/

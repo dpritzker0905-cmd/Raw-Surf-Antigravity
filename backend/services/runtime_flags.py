@@ -81,10 +81,7 @@ GUARDED = {
                                         # world-span map 924 cells (0.77%) <= 0.4 mm, same direction/period. Owner said
                                         # yes (11-13 20:28 EST); flipped ON through the manifest after merge; kill '0'
     "ENS_WIND_EXTENSION": "1",          # ICON 180-336 h / EURO 240-336 h wind = ECMWF ENS member mean (hard hand-off);
-                                        # gate: log 2026-11-15-wind-long-range.md; kill '0' -> the GFS stand-in
-    "ICON_WIND_GFS_STANDIN": "1",       # ICON wind past ~180 h = stored GFS at the same valid time (was the day-loop,
-                                        # no skill). Owner yes 2026-11-15 16:14 EST; hindcast gate in log
-                                        # 2026-11-15-wind-long-range.md; kill '0' restores the loop tail
+                                        # gate: log 2026-11-15-wind-long-range.md; kill '0' -> today's tail
     "SAMPLER_UNRESOLVED_STATIONS": "1",  # NDBC 46267 BY NAME (Strait of Juan de Fuca): "no data" at the station, not
                                          # the open-Pacific cell 0.96 deg away (+1.5 m). Nothing else moves; kill '0'.
                                          # GUARDRAIL BLIND: no surf spot is within 0.6 deg, so the replay reads NO_CHANGE.

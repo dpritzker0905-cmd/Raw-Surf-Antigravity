@@ -78,35 +78,31 @@ def _sched():
 
 
 @pytest.mark.asyncio
-async def test_fallback_order(monkeypatch):
+async def test_fallback_order_never_gfs_for_icon(monkeypatch):
+    """Owner 2026-11-15 19:27 EST: no GFS for ICON past 7.5 days. ENS first; without it ICON returns None (the caller
+    keeps today's legacy tail) and EURO keeps its GFS clones."""
     monkeypatch.delenv("ENS_WIND_EXTENSION", raising=False)
-    monkeypatch.delenv("ICON_WIND_GFS_STANDIN", raising=False)
     bbox = {"west": -180.0, "south": -80.0, "east": 180.0, "north": 85.0}
     meta, arrays = _packed()
     saver = AsyncMock(return_value=51)
     with patch.object(ex, "load_latest", return_value=(meta, arrays)), \
-         patch("services.weather_pipeline.scheduler_helpers.normalize_and_save_loop", new=saver), \
-         patch("services.weather_pipeline.euro_wind_extension.extend_icon_wind_from_gfs", new=AsyncMock(return_value=7)) as gfs:
+         patch("services.weather_pipeline.scheduler_helpers.normalize_and_save_loop", new=saver):
         n = await ex.extend_wind_tail(_sched(), "ICON", RUN, RUN + timedelta(hours=180), bbox, 10.0, False)
-        assert n == 51 and gfs.await_count == 0
+        assert n == 51
         kw = saver.await_args.kwargs
         assert kw["estimate_basis"]["type"] == "ens_mean_extension" and kw["estimated_after_index"] == 0
         assert kw["model"] == "ICON" and kw["region_id"] == "global_coarse"
-    # ENS file absent -> the GFS stand-in
+    gfs = AsyncMock(return_value=33)
     with patch.object(ex, "load_latest", return_value=None), \
-         patch("services.weather_pipeline.euro_wind_extension.extend_icon_wind_from_gfs", new=AsyncMock(return_value=7)):
-        assert await ex.extend_wind_tail(_sched(), "ICON", RUN, RUN + timedelta(hours=180), bbox, 10.0, False) == 7
-    # ENS killed -> the GFS stand-in without reading the file
+         patch("services.weather_pipeline.euro_wind_extension.extend_euro_wind_from_gfs", new=gfs):
+        assert await ex.extend_wind_tail(_sched(), "ICON", RUN, RUN + timedelta(hours=180), bbox, 10.0, False) is None
+        assert gfs.await_count == 0
+        assert await ex.extend_wind_tail(_sched(), "EURO", RUN, RUN + timedelta(hours=240), bbox, 10.0, False) == 33
     monkeypatch.setenv("ENS_WIND_EXTENSION", "0")
     loader = MagicMock()
-    with patch.object(ex, "load_latest", new=loader), \
-         patch("services.weather_pipeline.euro_wind_extension.extend_euro_wind_from_gfs", new=AsyncMock(return_value=33)):
-        assert await ex.extend_wind_tail(_sched(), "EURO", RUN, RUN + timedelta(hours=240), bbox, 10.0, False) == 33
+    with patch.object(ex, "load_latest", new=loader):
+        assert await ex.extend_wind_tail(_sched(), "ICON", RUN, RUN + timedelta(hours=180), bbox, 10.0, False) is None
     loader.assert_not_called()
-    # both ICON switches killed -> None (the caller's legacy loop)
-    monkeypatch.setenv("ICON_WIND_GFS_STANDIN", "0")
-    assert await ex.extend_wind_tail(_sched(), "ICON", RUN, RUN + timedelta(hours=180), bbox, 10.0, False) is None
-
 
 def test_sample_step_matches_build_points_at_a_native_step():
     meta, arrays = _packed(lambda s: s / 10.0)

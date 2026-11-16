@@ -3,8 +3,9 @@
 Owner 2026-11-15 15:19 EST "Looping is unacceptable. We need real science."; 16:14 EST "Yes to all, hard hand-off".
 Gate (pre-registered): docs/weather-program/log/2026-11-15-wind-long-range.md. Label: "Days 8-14: ECMWF ensemble mean
 (estimate)", basis `ens_mean_extension`. No taper, no per-cell offset at the seam (the owner ruled; the gate measures
-the jump). It replaces the EURO GFS clones and the ICON GFS stand-in whenever a fresh reduced ENS field covers the
-whole tail; otherwise the caller keeps the GFS stand-in (never the loop while ICON_WIND_GFS_STANDIN is on).
+the jump). It replaces the EURO GFS clones and the ICON loop whenever a fresh reduced ENS field covers the whole
+tail; otherwise today's tail serves unchanged (EURO: GFS clones; ICON: the legacy loop). Owner 2026-11-15 19:27 EST:
+"I dont want icon wind past 7.5 days switched to gfs, we need a scientific estimation" - so ICON never falls to GFS.
 
 Producer: scripts/ens_wind_extension_ci.py in its OWN workflow (wind-ens-extension.yml; not the pilots job) reads the
 51 members on a GitHub runner and writes ONE reduced file to the bucket: `ens_wind/latest.npz` (+ `.json`). This
@@ -190,8 +191,8 @@ def estimate_basis(meta: dict, native_h: Optional[int]) -> dict:
 
 async def extend_wind_tail(scheduler, model: str, run_time: datetime, native_max: datetime, bbox: dict,
                            resolution: float, is_test_env: bool) -> Optional[int]:
-    """ENS first, else the GFS stand-in (ICON) / GFS fallback (EURO). Returns products saved, or None when neither
-    is enabled (the ICON caller then keeps its legacy loop; EURO saves nothing)."""
+    """ENS first, else today's tail: EURO's GFS clones; for ICON, None (the caller keeps its legacy loop). Never GFS
+    for ICON (owner 2026-11-15 19:27 EST)."""
     from services.weather_pipeline import euro_wind_extension as gx
     if ens_extension_on() and native_max and run_time:
         try:
@@ -216,8 +217,8 @@ async def extend_wind_tail(scheduler, model: str, run_time: datetime, native_max
                     if n:
                         logger.info(f"[ENS wind] {model}: {n} tail products from ENS run {meta.get('run')}")
                         return n
-        except Exception as e:  # noqa: BLE001 - the GFS stand-in below still serves
-            logger.error(f"[ENS wind] {model} ENS tail failed, falling back to GFS: {e}")
+        except Exception as e:  # noqa: BLE001 - today's tail below still serves
+            logger.error(f"[ENS wind] {model} ENS tail failed, keeping today's tail: {e}")
     if model == "ICON":
-        return await gx.extend_icon_wind_from_gfs(scheduler, run_time, native_max) if gx.icon_gfs_standin_on() else None
+        return None          # the caller keeps ICON's legacy tail; never GFS (owner 2026-11-15 19:27 EST)
     return await gx.extend_euro_wind_from_gfs(scheduler, run_time, native_max)

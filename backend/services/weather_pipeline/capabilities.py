@@ -357,7 +357,7 @@ WEATHER_CAPABILITIES: List[Dict[str, Any]] = [
         "backend_owned": True,
         "frontend_visual_tile_only": False,
         "unsupported_reason": None,
-        "source_docs_note": "DWD ICON global weather model. Native wind to ~180h (DWD-direct); beyond it serves the stored GFS wind at the same valid time, labelled gfs_wind_standin / estimated (2026-11-15; the day-loop is retired, kill ICON_WIND_GFS_STANDIN=0).",
+        "source_docs_note": "DWD ICON global weather model. Native wind to ~180h (DWD-direct); beyond it serves the ECMWF ENS 51-member mean (basis ens_mean_extension, labelled 'Days 8-14: ECMWF ensemble mean (estimate)', hard hand-off) when a fresh reduced ENS field covers the whole tail, else the legacy loop-extrapolated estimate (kill ENS_WIND_EXTENSION=0).",
         "fallback_sources": []
     },
     # EURO Wind
