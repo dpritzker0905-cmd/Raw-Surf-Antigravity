@@ -149,10 +149,16 @@ def cell_key(row: dict) -> Optional[tuple]:
 
 
 def independent(a: dict, b: dict) -> bool:
-    """#989 floor (edit 6): different account AND different device. Session ids do not exist in the export yet, so
-    the same-session clustering is a SENSITIVITY (collapse_sessions), not a rule here."""
-    return a["observer_key"] != b["observer_key"] and (a.get("device_key") is None or b.get("device_key") is None
-                                                       or a["device_key"] != b["device_key"])
+    """#989 floor (edit 6) in amendment 3.4's STRICT reading: different account AND both device keys KNOWN and
+    different (an unknown device cannot satisfy "different device"). Session ids do not exist in the export yet, so
+    same-session clustering is a reported SENSITIVITY (collapse_sessions), not a rule here."""
+    return (a["observer_key"] != b["observer_key"] and a.get("device_key") is not None
+            and b.get("device_key") is not None and a["device_key"] != b["device_key"])
+
+
+def is_physical_reference(row: dict) -> bool:
+    """Amendment 3.1 guard: a physical-reference row (none exist yet; their kinds are amendment 2 L's to register)."""
+    return bool(row.get("physical_reference")) or row.get("entry_screen") == "physical_reference"
 
 
 def collapse_sessions(rows: list[dict]) -> list[dict]:
@@ -194,6 +200,9 @@ def prepare(rows: list[dict], spot_class: dict) -> Prepared:
     `spot_class` maps spot_id -> B2 class; it must come from the REGISTERED B2 scheme, else NOT RUNNABLE."""
     if not spot_class:
         raise NotRunnable("no B2 spot-class scheme registered (#989: the gate is per class)")
+    if any(is_physical_reference(r) for r in rows):
+        raise NotRunnable("physical-reference rows present: refused until a model that samples P is registered "
+                          "(amendment 3.1)")
     excluded: dict = defaultdict(int)
     kept = []
     for r in rows:

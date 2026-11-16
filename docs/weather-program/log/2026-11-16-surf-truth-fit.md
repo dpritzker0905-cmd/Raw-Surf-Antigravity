@@ -27,3 +27,16 @@ Evidence (fit environment, Python 3.12, numpyro 0.15.3, jax 0.4.30, numpy 2.0.2)
 numpy-only rule tests; the 3 model tests skip there (no JAX) and are run by this lane before any review or run:
 anchor-relative biases recovered with the anchor-mean constraint exact; the registered positive control (40 reports,
 +30%, log-noise 0.15) passes; predictive coverage of reports on a held-out synthetic spot is within [0.65, 0.95].
+
+## 2026-11-16 23:34Z (from `date -u`) Research lead review of dd10ee260: R1-R6 and M1-M2 done; amendment 3 registered first
+
+The research lead requested changes (R1-R6) and accepted the four choices on condition they are registered:
+amendment 3 on #989 (1e1e09595, 23:27:20Z) registers them and the review's readings BEFORE any data. Code now:
+R1 gate item 1 per spot class (improvement >= 10% and the governing CI's lower bound > 0, per class; pooled reported).
+R2 strict independence (an unknown device is not independent). R3 the 30-minute session-collapse sensitivity runs
+and is recorded. R4 the baseline and the model's update use only reports independent of the target. R5 "8ft+" is
+dropped from the scoring update; Flat carries a log-uniform [0.125, 0.5] ft variance. R6 the leak check covers every
+row of held-out spots plus held-out anchor targets. M1 tau shrink and M2 diagnostics of the shuffled and synthetic
+fits are recorded. Guard (amendment 3.1): any physical-reference row refuses the run.
+Tests: 30 pass in the fit environment (27 numpy rule tests, also in CI; 3 model tests). M3 (4 x 1000 on a realistic
+synthetic world) is running and is owed BEFORE the first real run; its result is appended here when it lands.

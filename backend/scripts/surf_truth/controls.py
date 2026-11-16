@@ -63,7 +63,14 @@ def positive_ok(fit_with_syn) -> dict:
 
 
 def leak_check(fit_rows: list[dict], holdout_cells: list) -> dict:
+    """#989: NO row of a held-out SPOT, and no anchor target of a held-out anchor cell, may be in the fit input."""
+    from .prep import spot_held_out
     fit_keys = {r["row_key"] for r in fit_rows}
-    targets = {r["row_key"] for c in holdout_cells for r in c.rows if r.get("anchor_status_at_obs") == "active"}
-    leaked = fit_keys & targets
-    return {"fit_rows": len(fit_keys), "holdout_targets": len(targets), "leaked": len(leaked), "ok": not leaked}
+    forbidden = set()
+    for c in holdout_cells:
+        if spot_held_out(c.spot_id):
+            forbidden.update(r["row_key"] for r in c.rows)
+        else:
+            forbidden.update(r["row_key"] for r in c.rows if r.get("anchor_status_at_obs") == "active")
+    leaked = fit_keys & forbidden
+    return {"fit_rows": len(fit_keys), "forbidden_rows": len(forbidden), "leaked": len(leaked), "ok": not leaked}

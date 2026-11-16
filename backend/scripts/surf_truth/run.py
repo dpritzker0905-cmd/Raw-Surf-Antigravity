@@ -17,6 +17,8 @@ import os
 import sys
 from datetime import datetime, timezone
 
+import numpy as np
+
 from . import controls, gate, prep
 
 
@@ -45,7 +47,7 @@ def _score(fit, prepared, spot_class, model):
     predictive, others = {}, {}
     for cell in prepared.holdout_cells:
         for t in prep.scoreable_targets(cell):
-            rest = [r for r in cell.rows if r is not t]
+            rest = [r for r in cell.rows if r is not t and prep.independent(t, r)]   # amendment 3.5
             predictive[t["row_key"]] = model.predict_target(fit, t, rest)
             others[t["row_key"]] = rest
     targets = [t for c in prepared.holdout_cells for t in prep.scoreable_targets(c)]
@@ -73,18 +75,36 @@ def run(args) -> dict:
     fit = model.fit(prepared.fit_rows, chains=args.chains, warmup=args.warmup, samples=args.samples)
     real = _score(fit, prepared, spot_class, model)
     shuffled_rows = controls.shuffle_within_role(prepared.fit_rows)
-    shuffled = _score(model.fit(shuffled_rows, chains=args.chains, warmup=args.warmup, samples=args.samples),
-                      prepared, spot_class, model)
+    shuffled_fit = model.fit(shuffled_rows, chains=args.chains, warmup=args.warmup, samples=args.samples)
+    shuffled = _score(shuffled_fit, prepared, spot_class, model)
     syn_fit = model.fit(controls.add_synthetic_observer(prepared.fit_rows, fit), chains=args.chains,
                         warmup=args.warmup, samples=args.samples)
     positive = controls.positive_ok(syn_fit)
+    sensitivity = _session_sensitivity(rows, spot_class, model, args)
     negative_ok = real.get("n", 0) > 0 and shuffled.get("n", 0) > 0 and \
         real["improvement"] >= shuffled["improvement"]
     ctrl = {"leak": leak["ok"], "negative": negative_ok, "positive": positive["ok"]}
     return {**record, "diagnostics": fit.diagnostics, "gate": real, "leak": leak,
             "negative_control": {"real_improvement": real.get("improvement"),
-                                 "shuffled_improvement": shuffled.get("improvement")},
-            "positive_control": positive, "verdict": gate.final_verdict(real, ctrl, fit.diagnostics)}
+                                 "shuffled_improvement": shuffled.get("improvement"),
+                                 "tau_median_real": float(np.median(fit.samples["tau"])),
+                                 "tau_median_shuffled": float(np.median(shuffled_fit.samples["tau"])),
+                                 "diagnostics": shuffled_fit.diagnostics},          # reported, not gated (M1, M2)
+            "positive_control": {**positive, "diagnostics": syn_fit.diagnostics},
+            "sensitivity_sessions_collapsed": sensitivity,                         # reported, not gated (3.7)
+            "verdict": gate.final_verdict(real, ctrl, fit.diagnostics)}
+
+
+def _session_sensitivity(rows, spot_class, model, args) -> dict:
+    """Edit 6 / amendment 3.7: the gate re-run with same-spot reports within 30 minutes collapsed to one."""
+    try:
+        collapsed = prep.prepare(prep.collapse_sessions(rows), spot_class)
+    except prep.NotRunnable as exc:
+        return {"verdict": "NOT RUNNABLE", "reason": str(exc)}
+    if not collapsed.floor["runnable"]:
+        return {"verdict": "NOT RUNNABLE", "reason": "floor not met after collapsing", "floor": collapsed.floor}
+    cfit = model.fit(collapsed.fit_rows, chains=args.chains, warmup=args.warmup, samples=args.samples)
+    return {"gate": _score(cfit, collapsed, spot_class, model), "diagnostics": cfit.diagnostics}
 
 
 def main(argv=None) -> int:

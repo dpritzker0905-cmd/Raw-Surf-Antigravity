@@ -74,8 +74,9 @@ def score(targets: list[dict], predictive: dict, others_by_target: dict, spot_cl
     rng = np.random.default_rng(SEED)
     recs = []
     for t in targets:
+        # amendment 3.5: ONLY reports independent of the target, for the baseline as for the model's update
         others = [o for o in others_by_target[t["row_key"]] if independent(t, o)]
-        base = naive_baseline_report(t, others_by_target[t["row_key"]])
+        base = naive_baseline_report(t, others)
         if not others or base is None:
             continue                                   # not scoreable (amendment 2 A)
         draws = np.asarray(predictive[t["row_key"]], dtype=float)
@@ -87,15 +88,24 @@ def score(targets: list[dict], predictive: dict, others_by_target: dict, spot_cl
     return summarize(recs)
 
 
+def improvement_with_ci(recs: list[dict]) -> dict:
+    """Improvement over the naive baseline with the day-block and anchor bootstrap CIs; the WIDER governs (J)."""
+    em = np.array([r["err_model"] for r in recs])
+    eb = np.array([r["err_base"] for r in recs])
+    ci_day = bootstrap_ratio_ci(em, eb, [r["day"] for r in recs])
+    ci_anchor = bootstrap_ratio_ci(em, eb, [r["anchor"] for r in recs])
+    wider = ci_day if (ci_day[1] - ci_day[0]) >= (ci_anchor[1] - ci_anchor[0]) else ci_anchor
+    imp = 1.0 - em.mean() / max(eb.mean(), 1e-12)
+    return {"improvement": imp, "ci_day_block": ci_day, "ci_anchor": ci_anchor, "ci_governing": wider,
+            "ok": bool(imp >= 0.10 and wider[0] > 0.0)}
+
+
 def summarize(recs: list[dict]) -> dict:
     if not recs:
         return {"n": 0, "verdict": "NOT RUNNABLE", "reason": "no scoreable targets"}
-    em = np.array([r["err_model"] for r in recs])
-    eb = np.array([r["err_base"] for r in recs])
-    improvement = 1.0 - em.mean() / max(eb.mean(), 1e-12)
-    ci_day = bootstrap_ratio_ci(em, eb, [r["day"] for r in recs])
-    ci_anchor = bootstrap_ratio_ci(em, eb, [r["anchor"] for r in recs])
-    wider = ci_day if (ci_day[1] - ci_day[0]) >= (ci_anchor[1] - ci_anchor[0]) else ci_anchor   # J: wider governs
+    pooled = improvement_with_ci(recs)
+    improvement, ci_day, ci_anchor, wider = (pooled["improvement"], pooled["ci_day_block"], pooled["ci_anchor"],
+                                             pooled["ci_governing"])
     pooled_cov = float(np.mean([r["covered"] for r in recs]))
     per_class = defaultdict(list)
     for r in recs:
@@ -104,10 +114,10 @@ def summarize(recs: list[dict]) -> dict:
     for c, rs in per_class.items():
         k, n = sum(r["covered"] for r in rs), len(rs)
         lo, hi = wilson(k, n)
-        e_m = np.mean([r["err_model"] for r in rs])
-        e_b = np.mean([r["err_base"] for r in rs])
+        acc = improvement_with_ci(rs)                    # gate item 1 is registered PER CLASS (amendment 3.6)
         classes[c] = {"n": n, "coverage": k / n, "wilson95": [lo, hi], "wilson_ok": lo <= 0.80 <= hi,
-                      "improvement": 1.0 - e_m / max(e_b, 1e-12)}
+                      "improvement": acc["improvement"], "ci_governing": acc["ci_governing"],
+                      "accuracy_ok": acc["ok"]}
     per_anchor = {}
     for a in sorted({r["anchor"] for r in recs}):
         rs = [r for r in recs if r["anchor"] == a]
@@ -115,11 +125,11 @@ def summarize(recs: list[dict]) -> dict:
                          "improvement": 1.0 - np.mean([r["err_model"] for r in rs]) /
                          max(np.mean([r["err_base"] for r in rs]), 1e-12)}
     n_days, n_anchors = len({r["day"] for r in recs}), len(per_anchor)
-    item1 = improvement >= 0.10 and wider[0] > 0.0
+    item1 = all(c["accuracy_ok"] for c in classes.values())   # per class; the pooled figure is reported
     item2 = 0.75 <= pooled_cov <= 0.85 and all(c["wilson_ok"] for c in classes.values())
     passed = item1 and item2
     return {
-        "n": len(recs), "improvement": improvement, "ci_day_block": ci_day, "ci_anchor": ci_anchor,
+        "n": len(recs), "improvement_pooled": improvement, "improvement": improvement, "ci_day_block": ci_day, "ci_anchor": ci_anchor,
         "ci_governing": wider, "pooled_coverage": pooled_cov, "per_class": classes, "per_anchor": per_anchor,
         "day_blocks": n_days, "anchors": n_anchors, "item1_accuracy": item1, "item2_calibration": item2,
         "verdict": "PASS" if passed else "FAIL",

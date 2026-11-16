@@ -216,8 +216,26 @@ def _obs_params(f: Fit, r: dict, i: int, rng) -> tuple[float, float]:
     return float(b), sig
 
 
+FLAT_LOG_VARIANCE = math.log(4.0) ** 2 / 12.0      # log-uniform on [0.125, 0.5] ft (amendment 3.5)
+
+
+def _range_variance(o: dict):
+    """Extra log-variance of a range entering the scoring update: None = drop it (right-censored "8ft+");
+    Flat = a log-uniform on [0.125, 0.5] ft; a bounded range = (log-width)^2 / 12; a typed value = 0."""
+    if not o.get("height_bucket"):
+        return 0.0
+    if o["height_bucket"] == "Flat":
+        return FLAT_LOG_VARIANCE
+    lo, hi = entry_interval_m(o)
+    if hi is None:
+        return None
+    return (math.log(hi) - math.log(lo)) ** 2 / 12.0
+
+
 def predict_target(f: Fit, target: dict, others: list[dict], *, n_draws: int = 400, seed: int = 20261116) -> np.ndarray:
-    """Posterior-predictive draws of the target's report (metres, the target's declared scale)."""
+    """Posterior-predictive draws of the target's report (metres, the target's declared scale). `others` must be
+    the cell's reports INDEPENDENT of the target (amendment 3.5); the cell's u is updated from them alone, with no
+    borrowing from neighbouring cells through the random walk (conservative)."""
     rng = np.random.default_rng(seed)
     total = f.samples["tau"].shape[0]
     picks = rng.choice(total, size=min(n_draws, total), replace=False)
@@ -226,14 +244,13 @@ def predict_target(f: Fit, target: dict, others: list[dict], *, n_draws: int = 4
     for i in picks:
         prec, num = 1.0, math.log(0.6)                    # prior N(log 0.6, 1) on u = log(T x P)
         for o in others:
+            extra = _range_variance(o)
+            if extra is None:                            # "8ft+": dropped from the update (amendment 3.5)
+                continue
             b, sig = _obs_params(f, o, i, rng)
             g = FLAG_CLASSES.index(flag_class(o))
             s_o = sig * (1.0 if g == 0 else 1.0 + m_all[i, g - 1])
-            var = s_o ** 2
-            if o.get("height_bucket"):
-                lo, hi = entry_interval_m(o)
-                if lo > 0 and hi:
-                    var += (math.log(hi) - math.log(lo)) ** 2 / 12.0
+            var = s_o ** 2 + extra
             est = math.log(max(entry_point_m(o), 1e-3)) - _row_offset(o, f.samples, i) - b
             prec += 1.0 / var
             num += est / var

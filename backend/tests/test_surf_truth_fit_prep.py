@@ -124,3 +124,58 @@ def test_cli_refusals_and_not_runnable_without_jax(tmp_path, monkeypatch):
     monkeypatch.setitem(sys.modules, "scripts.surf_truth.model", None)   # importing the model would raise
     assert run.main(common + ["--review-ref", "research lead review link"]) == 0
     assert json.loads(out.read_text())["verdict"] == "NOT RUNNABLE"
+
+
+# ── amendment 3 / research lead review R1-R6 ──────────────────────────────────────────────────────────────────────
+
+def test_strict_independence_unknown_device_is_not_independent():
+    a = _row(observer_key="A", device_key="dA")
+    assert prep.independent(a, _row(observer_key="B", device_key="dB"))
+    assert not prep.independent(a, _row(observer_key="B", device_key=None))
+    assert not prep.independent(a, _row(observer_key="A", device_key="dX"))
+
+
+def test_physical_reference_rows_are_refused():
+    with pytest.raises(prep.NotRunnable, match="physical"):
+        prep.prepare([_row(physical_reference=True)], {"s": "beach"})
+
+
+def _rec(cls, err_m, err_b, day, anchor, covered=True):
+    return {"class": cls, "anchor": anchor, "day": day, "err_model": err_m, "err_base": err_b, "covered": covered}
+
+
+def test_accuracy_is_gated_per_class_not_pooled():
+    good = [_rec("beach", 0.05, 0.20, f"d{i}", f"a{i % 5}") for i in range(40)]
+    bad = [_rec("reef", 0.20, 0.20, f"d{i}", f"a{i % 5}") for i in range(10)]
+    s = gate.summarize(good + bad)
+    assert s["improvement_pooled"] > 0.10                  # pooled alone would pass
+    assert s["per_class"]["reef"]["accuracy_ok"] is False and s["item1_accuracy"] is False
+
+
+def test_baseline_and_scoring_use_only_independent_reports():
+    t = _row(row_key="t", observer_key="A", device_key="dA", anchor_status_at_obs="active", height_value=4.0)
+    dup = _row(row_key="dup", observer_key="A", device_key="dA", height_value=4.0)      # the target's own repeat
+    other = _row(row_key="o", observer_key="B", device_key="dB", height_value=8.0)
+    draws = {"t": np.full(200, 4.0 * FT)}
+    s = gate.score([t], draws, {"t": [dup, other]}, {"s": "beach"})
+    # the baseline is the independent report alone (8 ft): |log 4 - log 8|, not the median with the duplicate
+    assert s["n"] == 1
+    rec_err = abs(math.log(8.0) - math.log(4.0))
+    assert s["per_anchor"]["A"]["improvement"] == pytest.approx(1.0 - 0.0 / rec_err)
+
+
+def test_range_variance_in_the_scoring_update():
+    from scripts.surf_truth import model
+    assert model._range_variance(_row(height_value=None, height_bucket="8ft+")) is None
+    assert model._range_variance(_row(height_value=None, height_bucket="Flat")) == pytest.approx(math.log(4) ** 2 / 12)
+    assert model._range_variance(_row(height_value=None, height_bucket="2-3ft")) == pytest.approx(
+        math.log(1.5) ** 2 / 12)
+    assert model._range_variance(_row()) == 0.0
+
+
+def test_leak_check_covers_every_row_of_held_out_spots():
+    spot = next(f"s{i}" for i in range(200) if prep.spot_held_out(f"s{i}"))
+    row = _row(row_key="h1", spot_id=spot)                 # an ordinary (non-anchor) report at a held-out spot
+    cell = prep.Cell(spot, "x", "d", rows=[row])
+    assert controls.leak_check([row], [cell])["ok"] is False
+    assert controls.leak_check([], [cell])["ok"] is True
