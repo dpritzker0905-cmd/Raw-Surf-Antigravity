@@ -773,3 +773,21 @@ Every step that moves a served number gets a kill switch and a SCOREBOARD row.
 - #923 (Tides overlay): display only, reads the same payload, so it inherits the new source. Keep it.
 - Spot panel: log each value's source, and during the migration add a column comparing Open-Meteo with the native
   value.
+
+## 01:38Z Tide-model licences (the helper's ASK 7; not legal advice)
+
+- **EOT20:** CC BY 4.0, commercial use allowed with attribution (opened on SEANOE). 1/8 deg, 17 constituents,
+  66S-66N. Use the corrected open-access file.
+  -> **M1's global model.**
+- **FES2022 elevations:** "available for all uses" per AVISO (opened); FES2022 currents are science-only. Needs an
+  AVISO+ account and a read of the licence text.
+  -> an optional upgrade arm, if David creates the account (accounts are his).
+- **TPXO10:** non-commercial without an OSU licence (opened).
+  -> **excluded.**
+- **GOT4.10:** licence unconfirmed.
+  -> excluded until its README is read.
+- **pyTMD:** MIT code (snippet). The model files it reads keep their own licences.
+- **NOAA CO-OPS:** "we provide our data to customers who want to use it in their own applications" (opened). No
+  explicit public-domain line was found. Treated as permitted, with the confirmation email optional.
+
+Attribution: EOT20 (DGFI-TUM, CC BY 4.0) and NOAA CO-OPS go into `LayerDataCredit.js` when M1 ships.
