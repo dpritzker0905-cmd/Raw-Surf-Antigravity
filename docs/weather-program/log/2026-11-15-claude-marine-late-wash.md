@@ -128,3 +128,36 @@ What this does and does not show:
 - By the letter of section 4, **neither run passes; nothing ships ON.** Proposed (needs the advisor's word, since it changes the line
   after seeing data): an A/A null (kill against kill, same build, same instrument) to measure this instrument's own spread, then either
   REPS 6 so p95 is not one step, or a line stated against the A/A spread. Not run yet.
+
+## 6. PRE-REGISTRATION 3: a new step-time test on new data (2026-11-16 ~06:10 EST, before the instrument below is written or run)
+
+Section 5 stands as it fell: FAIL as written, in both runs. Reading (not a pass): this instrument's spread is larger than the
+5 / 15 ms line. In run 2, a 68 ms p50 gap at 200 ms, where both arms run the same code mid-burst, says the instrument cannot test a
+5 ms line. That is a finding about the instrument. What follows is a NEW registration on new data, not an amendment of section 4
+(method advice: the advisor, 2026-11-16 ~06:00 EST). Whether the fix ships ON stays the director's and David's call.
+
+- **Variant under test:** the 400 ms no-key guard build only (`ba4348d17`). Run 1's 150 ms variant is retired.
+- **Instrument:** `scn_scrub_step_time_v2.js`. One browser session per (device, cadence): desktop 1280 x 800, and phone 390 x 844
+  with CPU throttled 4x; cadences 200 / 400 / 800 ms; Florida z7.5, waves, dark. The arm is switched INSIDE the session by the
+  runtime lever `window.__RAW_DISABLE_URGENT_WASH_SEED__`, which `seedConsumeAllowed` reads on every frame. Blocks run in ABBA order,
+  each block a full pass of ArrowRight keys from Home over the 48 h horizon. The Home jump and the 6 s settle after it are not
+  measured.
+- **Only frame-changing steps count:** the data are 3-hourly, so 1 key in 3 changes the frame; the others are dropped before any
+  statistic. Enough blocks so every arm-cell has **>= 100 frame-changing steps**: 8 ABBA groups = 16 blocks per arm, about 16 x
+  16 = 256.
+- **Pairing:** step k of an A block is paired with step k of the adjacent B block in the same ABBA group (same hour, same position).
+  The statistic is the paired difference (A minus B, ms). Report the median and a 95 % bootstrap interval, resampling ABBA groups
+  (2,000 resamples, seed 20261116). p95 of each arm is secondary.
+- **Outliers:** kept. Every result is reported both with and without steps over 1,000 ms; the verdict uses WITH.
+- **Long tasks:** summed over [keydown, keydown + cadence), the same window for both arms.
+- **A/A first:** kill against kill, same build, same instrument, same session layout. Its 95 % interval half-width on the paired
+  median, and on p95, is this instrument's resolution R (per cell). Run before any A/B, and reported whatever it shows.
+- **Line:** in each cell, the fix is "not worse" when the upper end of the paired-median interval is <= 5 ms AND the arm p95
+  difference is <= 15 ms AND the long-task p95 difference is <= 15 ms. This applies only where the A/A shows the instrument
+  resolves it (R <= 5 ms on the median, <= 15 ms on p95). Where it does not, the cell reads "not shown worse at the instrument's
+  resolution of R ms", labelled as that, never as a pass.
+- **Machine:** this Windows desktop, no other lab of mine running. Other sessions share the machine and cannot be stopped from here.
+  So each run records the CPU load before and after, and a run that overlaps a known heavy job (a build or a test lane) is
+  discarded and repeated, not kept.
+- **Also owed (advisor):** the ~2 s steps in the KILL arm of section 5 (1878, 2043, 2371 ms) are not #937's; a 2 s scrub step with
+  the fix off is a defect of its own. Sent to Move 3 with the view and cadence (below).
