@@ -1,0 +1,298 @@
+"""Arm A1, the cross-shore breaking transect (scripts/surf_transect.py). Offline, model only.
+
+These pin the equations as read from the SWAN technical documentation (2.65, 2.66, H_max = gamma d), the energy-flux
+march derived from them, the guardrails the gate set for every arm (monotone in the offshore height, no wind input,
+outside the serving import path), and the bed profile's coverage rules."""
+import inspect
+import math
+import os
+import sys
+
+import pytest
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "scripts"))
+import surf_transect as st  # noqa: E402
+
+BACKEND = os.path.join(os.path.dirname(__file__), "..")
+
+
+def planar(slope, out_m=3000, step=20):
+    return [(x, x * slope) for x in range(step, out_m + 1, step)]
+
+
+def test_linear_theory_matches_its_deep_and_shallow_limits():
+    c, cg = st.celerities(10.0, 5000.0)
+    assert c == pytest.approx(st.G * 10.0 / (2 * math.pi), rel=1e-6) and cg == pytest.approx(c / 2, rel=1e-6)
+    c, cg = st.celerities(20.0, 1.0)
+    assert c == pytest.approx(math.sqrt(st.G * 1.0), rel=0.01) and cg == pytest.approx(c, rel=0.02)
+    k = st.wavenumber(8.0, 12.0)
+    assert (2 * math.pi / 8.0) ** 2 == pytest.approx(st.G * k * math.tanh(k * 12.0), rel=1e-9)
+
+
+def test_the_breaking_fraction_solves_equation_2_66():
+    for beta in (0.3, 0.5, 0.7, 0.9, 0.99):
+        q = st.breaking_fraction(beta * beta / 8.0, 1.0)                     # H_rms = beta, H_max = 1
+        assert 0.0 < q < 1.0 and (1.0 - q) / math.log(q) == pytest.approx(-8.0 * (beta * beta / 8.0) / 1.0, rel=1e-6)
+    qs = [st.breaking_fraction(b * b / 8.0, 1.0) for b in (0.1, 0.3, 0.5, 0.7, 0.9, 1.0, 1.5)]
+    assert qs == sorted(qs) and qs[0] < 1e-40 and qs[-2:] == [1.0, 1.0]     # rises with H_rms / H_max, saturates at 1
+    assert st.breaking_fraction(0.09 ** 2 / 8.0, 1.0) == 0.0                # below a tenth of the limit: exactly none
+    assert st.breaking_fraction(0.005 ** 2 / 8.0, 1.0) == 0.0               # far below the limit: exactly none
+    assert st.breaking_fraction(0.0, 1.0) == 0.0 and st.breaking_fraction(1.0, 0.0) == 1.0
+
+
+def test_the_dissipation_is_equation_2_65_with_alpha_one_and_gamma_times_depth():
+    e, d, t, gamma = 0.05, 2.0, 8.0, 0.73
+    h_max = gamma * d
+    q = st.breaking_fraction(e, h_max)
+    assert st.dissipation(e, d, t, gamma) == pytest.approx(-1.0 * q * (2 * math.pi / t) * h_max ** 2 / (8 * math.pi))
+    assert st.dissipation(1e-6, 50.0, t) == 0.0                              # far from breaking: nothing is removed
+    assert st.dissipation(e, d, t, gamma, alpha=0.0) == 0.0
+    assert st.GAMMA_BS == 0.73 and st.ALPHA_BJ == 1.0 and st.H110_OVER_HS == 1.27
+
+
+def test_without_breaking_the_march_is_linear_shoaling_and_conserves_flux():
+    # a tiny wave over a bed that stops in 8 m of water never breaks: its height must follow c_g alone
+    bed = [(x, 8.0 + x * 0.004) for x in range(100, 3001, 100)]
+    r = st.march(0.1, 10.0, 0.0, 20.0, bed)
+    assert r["broke"] is False and r["wet_samples"] == 30
+    x_end, d_end, hs_end = r["profile"][-1]
+    _c0, cg0 = st.celerities(10.0, 20.0)
+    _c1, cg1 = st.celerities(10.0, d_end)
+    assert hs_end == pytest.approx(0.1 * math.sqrt(cg0 / cg1), rel=3e-3)        # the profile is printed to 4 decimals
+    assert r["surf_m"] == pytest.approx(1.27 * max(h for _x, _d, h in r["profile"]), rel=2e-3)
+
+
+def test_breaking_takes_height_off_and_the_inner_surf_zone_is_depth_limited():
+    with_b, without = st.march(1.5, 12.0, 0.0, 20.0, planar(0.01)), st.march(1.5, 12.0, 0.0, 20.0, planar(0.01), alpha=0.0)
+    assert with_b["broke"] and with_b["surf_m"] < without["surf_m"]          # dissipation lowers the breaker height
+    inner = [(d, h) for _x, d, h in with_b["profile"] if d < 1.0]
+    assert inner and all(h / math.sqrt(2) <= 0.73 * d + 0.01 for d, h in inner)     # H_rms <= gamma d: saturated
+    # the control the advisor asked for, in model form: with alpha = 0 the only limit left is saturation
+    assert max(h / math.sqrt(2) / d for _x, d, h in without["profile"]) <= 0.73 + 0.01   # depth printed to 2 decimals
+    assert with_b["surf_depth_m"] > 1.0 and 0 < with_b["surf_at_m"] < 3000
+
+
+def test_the_surf_never_drops_as_the_offshore_height_rises():
+    # a gentle beach, a steep one, and a barred one (the bar is where a non-monotone answer would hide)
+    for bed in (planar(0.005), planar(0.1), [(x, 0.5 + 3.0 * math.sin(x / 300.0) ** 2 + x * 0.006) for x in range(20, 3001, 20)]):
+        for tp in (5.0, 7.28, 14.0):
+            prev = prev_t = 0.0
+            for i in range(1, 31):
+                r = st.march(0.2 * i, tp, 0.0, 20.0, bed)
+                assert r["surf_m"] >= prev - 1e-9, (tp, 0.2 * i, prev, r["surf_m"])
+                assert r["surf_truncated_m"] >= prev_t - 1e-9, (tp, 0.2 * i, prev_t, r["surf_truncated_m"])   # both numbers
+                prev, prev_t = r["surf_m"], r["surf_truncated_m"]
+
+
+def test_oblique_waves_refract_and_arrive_smaller():
+    head_on = st.march(1.5, 12.0, 0.0, 20.0, planar(0.02))["surf_m"]
+    oblique = st.march(1.5, 12.0, 60.0, 20.0, planar(0.02))["surf_m"]
+    assert oblique < head_on and st.march(1.5, 12.0, -60.0, 20.0, planar(0.02))["surf_m"] == pytest.approx(oblique)
+
+
+def test_unusable_inputs_and_a_thin_bed_give_no_number():
+    assert st.march(1.0, 8.0, 0.0, 20.0, planar(0.02)[:4])["surf_m"] is None          # under MIN_WET_SAMPLES
+    for hs, tp in ((None, 8.0), (1.0, None), (0.0, 8.0), (1.0, 0.0), (-1.0, 8.0)):
+        assert st.march(hs, tp, 0.0, 20.0, planar(0.02))["surf_m"] is None
+    assert st.march(1.0, 8.0, 0.0, 20.0, [])["surf_m"] is None and st.MIN_WET_SAMPLES == 5
+
+
+def test_the_bed_profile_finds_the_shoreline_and_reports_its_coverage():
+    # a coast running east-west at lat 30.0: land (positive up) to the south, a 1:50 bed to the north
+    def elev(lat, lng):
+        north_m = (lat - 30.0) * 111_195.0
+        return 2.0 if north_m <= 0 else -north_m / 50.0
+    out = st.bed_from_grid(29.999, -81.0, 0.0, elev)                         # the spot is 111 m inland
+    # 1:50 reaches the 20 m limit 1,000 m out, so about ten 100 m samples are wet
+    assert 9 <= out["wet"] <= 11 and out["slope"] == pytest.approx(1 / 50.0, rel=0.02) and out["reached_max_depth"] is True
+    assert out["bed"][0][0] <= 100.0 and out["bed"][0][1] > 0 and out["deepest_m"] >= 20.0
+    assert [x for x, _d in out["bed"]] == sorted(x for x, _d in out["bed"])
+    surf = st.march(1.12, 7.28, 0.0, 21.0, out["bed"])
+    assert surf["surf_m"] is not None and surf["wet_samples"] == out["wet"]
+    no_data = st.bed_from_grid(29.999, -81.0, 0.0, lambda lat, lng: None)
+    assert no_data["bed"] == [] and no_data["known"] == 0 and no_data["slope"] is None
+    all_land = st.bed_from_grid(29.999, -81.0, 0.0, lambda lat, lng: 5.0)
+    assert all_land["bed"] == [] and all_land["wet"] == 0
+    all_water = st.bed_from_grid(30.01, -81.0, 0.0, elev)
+    assert all_water["wet"] >= 5 and all_water["bed"][0][0] > 0
+
+
+def test_the_arm_takes_no_wind_and_is_outside_the_serving_import_path():
+    assert "wind" not in inspect.signature(st.march).parameters and "wind" not in " ".join(inspect.signature(st.dissipation).parameters)
+    src = open(st.__file__, encoding="utf-8").read()
+    assert "import os" not in src and "environ" not in src and "requests" not in src       # pure: no flags, no network
+    assert [line for line in src.splitlines() if line.startswith(("import ", "from "))] == ["import math"]
+    hits = []
+    for root in ("services", "routes"):
+        for folder, _dirs, files in os.walk(os.path.join(BACKEND, root)):
+            for name in files:
+                if name.endswith(".py"):
+                    with open(os.path.join(folder, name), encoding="utf-8", errors="replace") as f:
+                        if "surf_transect" in f.read():
+                            hits.append(os.path.join(folder, name))
+    assert hits == [], "the offline transect arm must not be imported by the serving path"
+    assert "surf_transect" not in open(os.path.join(BACKEND, "server.py"), encoding="utf-8", errors="replace").read()
+
+
+# ── the advisor's review (2026-11-16): H1/10 from the model's own truncated distribution, and diagnostics ──
+def test_the_truncated_highest_tenth_never_exceeds_the_models_largest_wave():
+    # far from breaking it is the open-sea Rayleigh value, 1.800 H_rms = 1.273 Hs: the served chain's 1.27
+    assert st.h110_truncated(1.0 / 8.0, 1e9) == pytest.approx(1.800, abs=1e-3)
+    assert st.h110_truncated(1.0 / 8.0, 1e9) / math.sqrt(2) == pytest.approx(1.27, abs=0.005)
+    prev = 0.0
+    for i in range(1, 200):
+        beta = i / 100.0                                                    # H_rms / H_max from 0.01 to 1.99
+        e = beta * beta / 8.0
+        h = st.h110_truncated(e, 1.0)
+        assert h <= 1.0 + 1e-12 and h >= prev - 1e-9                        # capped at H_max; never falls as the sea grows
+        assert h <= 1.8001 * beta + 1e-9                                    # and never above the untruncated value
+        if st.breaking_fraction(e, 1.0) >= 0.1:
+            assert h == 1.0                                                 # the whole highest tenth is breaking
+        prev = h
+    # the open-sea factor would have reported 1.26 x H_max at H_rms / H_max = 0.7: more wave than the water holds
+    assert 1.8 * 0.7 > 1.0 and st.h110_truncated(0.7 * 0.7 / 8.0, 1.0) == 1.0
+    assert st.h110_truncated(0.0, 1.0) == 0.0 and st.h110_truncated(1.0, 0.0) == 0.0
+
+
+def test_the_march_reports_both_numbers_and_the_truncated_one_respects_the_depth():
+    for slope in (0.004, 0.02, 0.1):
+        for hs, tp in ((1.12, 7.28), (2.0, 16.0)):
+            r = st.march(hs, tp, 0.0, 20.0, planar(slope))
+            assert r["surf_truncated_m"] <= st.GAMMA_BS * r["surf_truncated_depth_m"] + 0.01   # never above gamma d there
+            assert r["surf_truncated_m"] <= r["surf_m"] * 1.003                                 # 1.273 against 1.27
+            assert r["steps"] > 0 and 0 <= r["clipped_steps"] <= r["steps"]
+    # a wave that never breaks: the two agree to the 1.273 / 1.27 difference
+    calm = st.march(0.1, 10.0, 0.0, 20.0, [(x, 8.0 + x * 0.004) for x in range(100, 3001, 100)])
+    assert calm["surf_truncated_m"] == pytest.approx(calm["surf_m"] * 1.2727 / 1.27, rel=2e-3) and calm["clipped_steps"] == 0
+
+
+def test_the_dissipation_term_does_the_physics_not_the_clip_or_the_step():
+    for slope in (0.004, 0.02, 0.1):
+        full = st.march(1.12, 7.28, 0.0, 20.0, planar(slope))
+        fine = st.march(1.12, 7.28, 0.0, 20.0, planar(slope), step_m=2.5)
+        assert full["clipped_steps"] == 0                                    # the saturation limit never had to act
+        assert fine["surf_truncated_m"] == pytest.approx(full["surf_truncated_m"], rel=0.005)   # a quarter step: same answer
+
+
+def test_a_shorter_mean_period_only_changes_the_dissipation_and_only_downward():
+    base = st.march(1.5, 12.0, 0.0, 20.0, planar(0.01))
+    mean = st.march(1.5, 12.0, 0.0, 20.0, planar(0.01), mean_period_s=0.8 * 12.0)
+    assert mean["surf_truncated_m"] <= base["surf_truncated_m"] + 1e-9       # a higher mean frequency dissipates more
+    assert mean["hs_at_start_m"] == base["hs_at_start_m"]                    # the wave still shoals on the peak period
+    assert st.march(1.5, 12.0, 0.0, 20.0, planar(0.01), mean_period_s=0)["surf_truncated_m"] == base["surf_truncated_m"]
+
+
+def test_water_behind_the_chosen_shore_is_counted():
+    # a sandbar: water, then a dry bar 300 m out, then the sea. The bar becomes the shore and the lagoon is dropped.
+    def elev(lat, lng):
+        north_m = (lat - 30.0) * 111_195.0
+        if north_m <= 0:
+            return 2.0
+        if 250 <= north_m <= 350:
+            return 0.5
+        return -1.0 - max(0.0, north_m - 350) / 50.0
+    out = st.bed_from_grid(30.0, -81.0, 0.0, elev)
+    assert out["water_landward_of_shore"] >= 1 and out["shore_at_m"] >= 250
+    plain = st.bed_from_grid(29.999, -81.0, 0.0, lambda lat, lng: 2.0 if lat <= 30.0 else -(lat - 30.0) * 111_195.0 / 50.0)
+    assert plain["water_landward_of_shore"] == 0
+
+
+# ── the spread arm (2026-11-16; Goda 2008 eq. 5 and s_max = 10 / 25 / 75; a derivation from linear superposition) ──
+def test_the_spreading_function_is_normalised_and_drops_only_what_heads_offshore():
+    assert (st.SPREAD_WIND_SEA, st.SPREAD_SWELL_SHORT, st.SPREAD_SWELL_LONG) == (10.0, 25.0, 75.0)
+    head_on = st.spread_components(0.0, 10.0)
+    assert sum(w for _t, w in head_on) == pytest.approx(1.0, abs=2e-3)       # nearly all of a head-on sea heads shoreward
+    assert all(abs(math.degrees(t)) < 89.0 for t, _w in head_on)
+    weights = {round(math.degrees(t), 1): w for t, w in head_on}
+    assert all(weights[a] == pytest.approx(weights[-a], rel=1e-9) for a in (1.0, 21.0, 45.0))   # symmetric about the mean
+    assert weights[1.0] > weights[21.0] > weights[45.0]                       # and peaked on it
+    oblique = sum(w for _t, w in st.spread_components(60.0, 10.0))
+    assert 0.80 < oblique < 0.95                                              # a broad sea at 60 degrees loses its far side
+    assert sum(w for _t, w in st.spread_components(60.0, 75.0)) > 0.99        # a narrow swell does not
+    assert st.spread_components(170.0, 10.0) == [] or sum(w for _t, w in st.spread_components(170.0, 10.0)) < 0.01
+
+
+def test_a_single_direction_is_the_limit_of_a_very_narrow_spread():
+    for ang in (0.0, 30.0):
+        one = st.march(1.5, 12.0, ang, 20.0, planar(0.01))
+        narrow = st.march(1.5, 12.0, ang, 20.0, planar(0.01), spread_s=20000.0)
+        assert narrow["surf_truncated_m"] == pytest.approx(one["surf_truncated_m"], rel=0.005)
+        assert narrow["shoreward_share"] == pytest.approx(1.0, abs=1e-6) and one["shoreward_share"] == 1.0
+
+
+def test_a_broader_sea_arrives_smaller_and_the_effect_is_small():
+    base = st.march(1.12, 7.28, 0.0, 20.0, planar(0.004))["surf_truncated_m"]
+    ratios = [st.march(1.12, 7.28, 0.0, 20.0, planar(0.004), spread_s=s)["surf_truncated_m"] / base for s in (5.0, 10.0, 25.0, 75.0)]
+    assert ratios == sorted(ratios) and all(r < 1.0 for r in ratios)          # broader (smaller s) is lower; never higher
+    assert 0.95 < ratios[1] < 0.98                                            # wind sea, s = 10: about three percent
+    assert ratios[3] > 0.99                                                   # long-travelled swell: under one percent
+    steep_angle = st.march(1.0, 5.0, 60.0, 20.0, planar(0.004))["surf_truncated_m"]
+    spread = st.march(1.0, 5.0, 60.0, 20.0, planar(0.004), spread_s=10.0)
+    assert 0.88 < spread["surf_truncated_m"] / steep_angle < 0.95 and spread["shoreward_share"] < 0.9
+
+
+def test_the_spread_arm_takes_no_wind_and_stays_monotone():
+    assert "wind" not in " ".join(inspect.signature(st.march).parameters) and "wind" not in " ".join(inspect.signature(st.spread_components).parameters)
+    prev = 0.0
+    for i in range(1, 21):
+        surf = st.march(0.3 * i, 7.28, 30.0, 20.0, planar(0.01), spread_s=10.0)["surf_truncated_m"]
+        assert surf >= prev - 1e-9
+        prev = surf
+
+
+# ── the slope arm (2026-11-16): Weggel's breaker depth index, CEM EM 1110-2-1100 Part II Ch. 4, eq. II-4-5 to II-4-7 ──
+def test_the_breaker_index_coefficients_match_the_manuals_limits_and_the_values_predicted_before_the_run():
+    a, b = st.weggel_coefficients(0.0)
+    assert a == 0.0 and b == pytest.approx(0.78)                             # "bounded by the theoretical value of 0.78"
+    a, b = st.weggel_coefficients(50.0)
+    assert a == pytest.approx(43.8) and b == pytest.approx(1.56)             # "1.56, as the beach slope approaches infinity"
+    assert st.weggel_coefficients(-0.01) == st.weggel_coefficients(0.0)
+    # the research lead's predictions, written before the arm was built: the stop condition was 0.79 +/- 0.03
+    a, b = st.weggel_coefficients(1 / 250)
+    assert a == pytest.approx(3.2, abs=0.05) and b == pytest.approx(0.81, abs=0.005)
+    assert b - a * 1.1 / (st.G * 4.8 ** 2) == pytest.approx(0.79, abs=0.03)
+    a, b = st.weggel_coefficients(0.05)
+    assert b - a * 2.0 / (st.G * 10.0 ** 2) == pytest.approx(1.08, abs=0.01)
+
+
+def test_the_closed_form_limit_satisfies_equation_ii_4_5_and_the_slope_is_capped():
+    for d, tp, m in ((3.0, 7.28, 0.004), (2.0, 5.0, 0.02), (6.0, 16.0, 0.08)):
+        h = st.weggel_h_max(d, tp, m)
+        a, b = st.weggel_coefficients(m)
+        assert h / d == pytest.approx(b - a * h / (st.G * tp * tp), rel=1e-12)   # gamma_b = H_b / d_b = b - a H_b / (g T^2)
+    assert st.weggel_h_max(3.0, 8.0, 0.5) == st.weggel_h_max(3.0, 8.0, st.WEGGEL_MAX_SLOPE)   # outside validity: capped
+    assert st.weggel_h_max(3.0, 8.0, 0.05) > st.weggel_h_max(3.0, 8.0, 0.005)   # a steeper bed holds a taller wave
+    assert st.weggel_h_max(0.0, 8.0, 0.02) == 0.0 and st.weggel_h_max(3.0, 0.0, 0.02) == 0.0
+    assert st.WEGGEL_MAX_SLOPE == 0.1 and st.WEGGEL_MAX_STEEPNESS == 0.06
+
+
+def test_on_a_flat_bed_the_slope_arm_is_the_constant_limit_of_0_78():
+    # slope 0 gives a = 0 and b = 0.78, so H_max = 0.78 d exactly: the arm must equal the constant-gamma march at 0.78
+    bed = planar(0.01)
+    const = st.march(1.5, 12.0, 0.0, 20.0, bed, gamma=0.78)
+    flat = st.march(1.5, 12.0, 0.0, 20.0, bed, weggel_slope=0.0)
+    assert flat["surf_truncated_m"] == pytest.approx(const["surf_truncated_m"], rel=1e-9)
+    assert flat["weggel_slope_capped"] is False and flat["weggel_steepness_outside"] is False
+    assert "weggel_slope_capped" not in st.march(1.5, 12.0, 0.0, 20.0, bed)   # the constant arm is untouched
+
+
+def test_a_steeper_bed_gives_a_taller_breaker_and_validity_is_flagged():
+    gentle = st.march(2.0, 16.0, 0.0, 20.0, planar(0.004), weggel_slope=0.004)
+    steep = st.march(2.0, 16.0, 0.0, 20.0, planar(0.05), weggel_slope=0.05)
+    const = st.march(2.0, 16.0, 0.0, 20.0, planar(0.05))
+    assert steep["surf_truncated_m"] > const["surf_truncated_m"] * 1.03       # the slope raises the breaker on a steep bed
+    assert gentle["surf_truncated_m"] < st.march(2.0, 16.0, 0.0, 20.0, planar(0.004))["surf_truncated_m"] * 1.03   # and barely on a gentle one
+    assert st.march(1.0, 8.0, 0.0, 20.0, planar(0.05), weggel_slope=0.3)["weggel_slope_capped"] is True
+    assert st.march(3.0, 5.0, 0.0, 20.0, planar(0.02), weggel_slope=0.02)["weggel_steepness_outside"] is True    # 3 m at 5 s
+    assert st.march(1.0, 8.0, 0.0, 20.0, planar(0.02), weggel_slope=0.02)["weggel_steepness_outside"] is False
+
+
+def test_the_slope_arm_stays_monotone_and_takes_no_wind():
+    assert "wind" not in " ".join(inspect.signature(st.weggel_h_max).parameters)
+    for m in (0.004, 0.05):
+        prev = 0.0
+        for i in range(1, 21):
+            surf = st.march(0.3 * i, 10.0, 0.0, 20.0, planar(m), weggel_slope=m)["surf_truncated_m"]
+            assert surf >= prev - 1e-9, (m, 0.3 * i, prev, surf)
+            prev = surf
+

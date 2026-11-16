@@ -428,6 +428,8 @@ export const DutyStationDrawer = ({ isOpen, onClose }) => {
         onConfirm={handleConditionsConfirm}
         spotName={selectedSpot?.name}
         isLoading={loading}
+        collectObservation
+        spot={selectedSpot}
       />
     </Sheet>
   );
