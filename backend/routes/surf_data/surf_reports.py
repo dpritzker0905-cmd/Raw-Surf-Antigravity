@@ -27,8 +27,12 @@ class SurfReportCreate(BaseModel):
     photo_url: Optional[str] = None
 
 @router.post("/surf-reports")
-async def create_surf_report(user_id: str, data: SurfReportCreate, db: AsyncSession = Depends(get_db),
+async def create_surf_report(data: SurfReportCreate, user_id: Optional[str] = None, db: AsyncSession = Depends(get_db),
                              current_user_id: str = Depends(get_current_user_id)):
+    # As /check-in: the client posts no `user_id` query param, so requiring one made every report a 422 (none written
+    # since 2026-03-19). Identity is the JWT's; a `user_id` that is sent must still match it.
+    if user_id is None:
+        user_id = current_user_id
     if user_id != current_user_id:
         raise HTTPException(status_code=403, detail="Cannot submit observations for another user")
     user_result = await db.execute(select(Profile).where(Profile.id == user_id))
