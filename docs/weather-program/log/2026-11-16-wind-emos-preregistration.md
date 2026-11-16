@@ -69,3 +69,24 @@ Operational multi-model blends (for example NOAA's NBM) rest on the same princip
 
 Serving: a PASS goes to the director and David with the numbers. Display: the confidence band is step 5 and uses the
 raw spread until a calibrated one passes.
+
+## 2026-11-16 03:05Z AMENDMENT 1 (advisor red-team of #950; before any fit)
+
+1. **Climatology reference.** G1 compares EMOS with the raw members, which are under-dispersive, so EMOS almost
+   surely wins. Added **G5**: CRPS of EMOS minus CRPS of the station's seasonal climatology as a distribution (day of
+   year +-15 d, UTC hour, 2016-2025, the empirical distribution of observed speeds), reported per bin with its CI.
+   Also reported per cell: the fitted slope `b`.
+   **How it is read:** where `b`'s CI contains 0, or G5's CI does not exclude 0, the calibration has converged to
+   climatology. Those cells are labelled "climatology-equivalent". Serving them would be climatology under a
+   forecast label, so they are NOT served as a calibrated forecast: the raw ENS mean keeps serving there with its
+   "estimate" label, and the fact is shown in the report and to the director.
+2. **Training window on RUN dates.** For a forecast run issued at T, the training pairs come from runs issued in
+   [T - 59 d, T - 14 d]. Every training verification (lead <= 336 h = 14 d) is therefore at or before T.
+   (Replaces "a rolling 45-day window ending 14 days before each forecast run".)
+3. **C3 is a plumbing check, not a power test.** Leak = fit on the test pairs themselves. It requires a POINT-estimate
+   CRPS improvement over the clean fit (no CI). A failure means the scoring code does not see the fit; it still voids.
+4. **Scope.** The truth is US stations in four regions (US East+Gulf, US West, Hawaii, Alaska). A PASS licenses those
+   regions only. Over water (surf spots), the NDBC/C-MAN network's parameters apply, never the coastal-airport
+   (ASOS) ones. Outside the four regions nothing calibrated is served.
+5. **Forward collection** is a new scheduled job reading every 00Z run's members. It needs the owner's word for the
+   schedule and runs off the Actions queue's busiest hours. Not started until David says so.
