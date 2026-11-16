@@ -14,20 +14,21 @@ from datetime import datetime, timedelta, timezone
 import numpy as np
 
 try:
-    from scripts.tide_fes.metrics import NOAA_TERMS, noaa_terms
+    from scripts.tide_fes.metrics import NOAA_TERMS, noaa_terms, sun_mean_longitude_deg
 except ImportError:                                           # run by path from the workflow
-    from metrics import NOAA_TERMS, noaa_terms
+    from metrics import NOAA_TERMS, noaa_terms, sun_mean_longitude_deg
 
 
 def to_np(times):
     return np.array([np.datetime64(t.astimezone(timezone.utc).replace(tzinfo=None), "us") for t in times])
 
 
-def fes_eval(sid_dir, lat, lng, dates):
-    """Arm A. None where FES has no value at this point."""
+def fes_eval(sid_dir, lat, lng, dates, exclude=()):
+    """Arm A. None where FES has no value at this point. `exclude`: constituent file stems left out (the reported
+    seasonal-constants line isolates Sa / Ssa as full minus without)."""
     import pyfes                                              # GPL - offline job only
-    paths = {p.stem: str(p) for p in sorted(sid_dir.glob("*.nc"))}
-    cfg = sid_dir / "fes.yaml"
+    paths = {p.stem: str(p) for p in sorted(sid_dir.glob("*.nc")) if p.stem not in exclude}
+    cfg = sid_dir / ("fes" + "".join("-" + e for e in exclude) + ".yaml")
     body = ["engine: darwin", "tide:", "  cartesian:", "    latitude: lat", "    longitude: lon",
             "    amplitude: amplitude", "    phase: phase", "    paths:"]
     body += [f"      {k}: {v}" for k, v in paths.items()]
@@ -44,20 +45,29 @@ def fes_eval(sid_dir, lat, lng, dates):
     return out
 
 
-def eot20_eval(root, lat, lng, dates):
-    """Arm B. None where EOT20 has no value within 10 km."""
+def eot20_eval(root, lat, lng, dates, constituents=None):
+    """Arm B. None where EOT20 has no value within 10 km. `constituents`: a subset, minors not inferred."""
     import pyTMD.compute
+    kw = {"constituents": constituents, "infer_minor": False} if constituents else {}
     out = np.empty(len(dates))
     for i in range(0, len(dates), 200_000):
         d = dates[i:i + 200_000].astype("datetime64[ns]")
         v = pyTMD.compute.tide_elevations(np.array([lng]), np.array([lat]), d, directory=str(root), model="EOT20",
                                           type="time series", standard="datetime", crop=True, buffer=1.0,
-                                          extrapolate=True, cutoff=10.0)
+                                          extrapolate=True, cutoff=10.0, **kw)
         v = np.asarray(v, dtype=float).reshape(-1)
         if i == 0 and not np.isfinite(v[0]):
             return None
         out[i:i + len(d)] = v
     return out
+
+
+def fit_seasonal(times, vals, k):
+    """Fit A cos(k*h - G) + c (h = the sun's mean longitude, NOAA's SA / SSA argument). Returns [A m, G deg]."""
+    h = np.radians([k * sun_mean_longitude_deg(t) for t in times])
+    X = np.column_stack([np.cos(h), np.sin(h), np.ones_like(h)])
+    c, *_ = np.linalg.lstsq(X, np.asarray(vals, dtype=float), rcond=None)
+    return [round(float(np.hypot(c[0], c[1])), 4), round(float(np.degrees(np.arctan2(c[1], c[0])) % 360), 1)]
 
 
 def harcon_eval(harcon, dates):

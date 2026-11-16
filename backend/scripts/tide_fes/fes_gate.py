@@ -32,6 +32,7 @@ FES_CONSTITUENTS = ["M2", "S2", "N2", "K2", "K1", "O1", "P1", "Q1", "2N2", "M4",
 REGISTRATION = "G2"
 START = datetime(2026, 9, 29, 0, tzinfo=timezone.utc)
 END = datetime(2026, 10, 12, 23, tzinfo=timezone.utc)          # inclusive
+YEAR_START = datetime(2025, 1, 1, tzinfo=timezone.utc)        # the seasonal-constants refit year (not a test window)
 NTDE = (np.datetime64("1983-01-01T00:00", "us"), np.datetime64("2002-01-01T00:00", "us"))
 NTDE_STEP_MIN = 10
 FINE_STEP_MIN = 6
@@ -158,6 +159,7 @@ def main():
             log(f"{sid} positive control: {e}")
             p = None
         row["P"] = score_arm(list(p), truth, hours) if p is not None else {"error": "no harmonic constants"}
+        row["seasonal_constants"] = seasonal_constants(boxes / sid, eot_root, lat, lng, hc)
         keep[sid] = {"truth": truth, "events": events, "series": series}
         log(json.dumps({k: row[k] for k in row if k in ("id", "A", "B", "C", "P")}, default=str)[:600])
 
@@ -167,6 +169,34 @@ def main():
     if args.summary:
         with open(args.summary, "a", encoding="utf-8") as fh:
             fh.write(markdown(rows, report))
+
+
+def seasonal_constants(sid_dir, eot_root, lat, lng, hc):
+    """REPORTED, NOT GATING (advisor 13:00Z): each arm's own SA and SSA at the gauge, isolated over a year and refit as
+    A cos(k h - G) in NOAA's convention, beside NOAA's published constants. A 14-day window cannot show a seasonal phase
+    error; the constants can (~77 deg off would mean the evaluator's convention, not the atlas)."""
+    times = [YEAR_START + timedelta(hours=k) for k in range(365 * 24)]
+    d = arms.to_np(times)
+    noaa = {n: [a, g] for _, n, a, g, *_ in (hc or []) if n in ("SA", "SSA")}
+    out = {"NOAA": noaa}
+    try:
+        if sid_dir.is_dir():
+            full = arms.fes_eval(sid_dir, lat, lng, d)
+            if full is not None:
+                out["A"] = {"SA": arms.fit_seasonal(times, full - arms.fes_eval(sid_dir, lat, lng, d, exclude=("Sa",)), 1),
+                            "SSA": arms.fit_seasonal(times, full - arms.fes_eval(sid_dir, lat, lng, d, exclude=("Ssa",)), 2)}
+    except Exception as e:                                    # noqa: BLE001 - reported, never silent
+        out["A_error"] = str(e)[:200]
+    try:
+        sa, ssa = arms.eot20_eval(eot_root, lat, lng, d, ["sa"]), arms.eot20_eval(eot_root, lat, lng, d, ["ssa"])
+        if sa is not None and ssa is not None:
+            out["B"] = {"SA": arms.fit_seasonal(times, sa, 1), "SSA": arms.fit_seasonal(times, ssa, 2)}
+    except Exception as e:                                    # noqa: BLE001
+        out["B_error"] = str(e)[:200]
+    for arm in ("A", "B"):
+        if arm in out and "SA" in noaa:
+            out[f"{arm}_SA_phase_minus_NOAA_deg"] = round((out[arm]["SA"][1] - noaa["SA"][1] + 180) % 360 - 180, 1)
+    return out
 
 
 def arm_table(rows, arm):
@@ -212,6 +242,8 @@ def decide(rows, keep, hours, fine):
             "controls": {"items": controls, "positive_median_rmse_m": positive, "swap_median_rmse_m": swap,
                          "shift6h_median_hilo_min": shifted},
             "median_rmse_D_m": M.median_or_none([(r.get("D") or {}).get("rmse") for r in rows]),
+            "median_sa_phase_minus_noaa_deg": {a: M.median_or_none([(r.get("seasonal_constants") or {}).get(f"{a}_SA_phase_minus_NOAA_deg")
+                                                                  for r in rows]) for a in ("A", "B")},
             "median_rmse_tidal_band_reported": {a: M.median_or_none([(r.get(a) or {}).get("rmse_tidal_band") for r in rows])
                                                 for a in ("A", "B")},
             "median_rmse_obs": {a: M.median_or_none([(r.get(a) or {}).get("rmse_obs") for r in rows])
@@ -234,6 +266,7 @@ def markdown(rows, rep):
     lines += ["", f"Controls: positive {fmt(c['positive_median_rmse_m'], 4)} m, label swap {fmt(c['swap_median_rmse_m'])} m, "
               f"+6 h shift {fmt(c['shift6h_median_hilo_min'], 1)} min -> {c['items']}. Arm D median {fmt(rep['median_rmse_D_m'])} m. "
               f"Tidal band (truth minus NOAA's SA/SSA; reported, NOT gating): {rep['median_rmse_tidal_band_reported']}. "
+              f"SA phase minus NOAA's, median deg (reported, NOT gating): {rep['median_sa_phase_minus_noaa_deg']}. "
               f"Observed water (informative): {rep['median_rmse_obs']}. Strata: {rep['strata_median_rmse_m']}", "",
               "| station | stratum | A | B | C | D | P | A hilo | A MLLW err |", "|---|---|---|---|---|---|---|---|---|"]
     for r in rows:

@@ -122,3 +122,20 @@ def test_reported_tidal_band_score_and_noaa_terms():
     v = M.noaa_terms(hc, [datetime(2025, 1, 1, tzinfo=timezone.utc)])[0]
     f, arg = yt["M1"]
     assert abs(v - f * 0.02 * math.cos(math.radians(arg - 10.0))) < 1e-12           # M2 is pyTMD's, not here
+
+
+def test_the_credentialed_gate_starts_only_from_its_one_shot_tag():
+    """Advisor 13:00Z: a branch push must never start the credentialed gate (a later fix would re-run it on the same
+    window). Only the named tag, or a manual dispatch."""
+    text = (BACKEND.parent / ".github" / "workflows" / "tide-fes-gate.yml").read_text(encoding="utf-8")
+    block = re.search(r"(?ms)^on:\n(.*?)^\S", text).group(1)                     # the trigger block, up to the next key
+    lines = [ln.strip() for ln in block.splitlines() if ln.strip() and not ln.strip().startswith("#")]
+    assert lines == ["workflow_dispatch:", "push:", "tags: [tide-gate-G2]"], lines   # no branches, paths, schedule
+
+
+def test_seasonal_refit_recovers_a_known_constant():
+    from scripts.tide_fes import arms, metrics as M
+    times = [datetime(2025, 1, 1, tzinfo=timezone.utc) + timedelta(hours=k) for k in range(365 * 24)]
+    vals = [0.05 * math.cos(math.radians(M.sun_mean_longitude_deg(t) - 150.0)) + 0.01 for t in times]
+    a, g = arms.fit_seasonal(times, vals, 1)
+    assert abs(a - 0.05) < 1e-3 and abs(g - 150.0) < 0.5
