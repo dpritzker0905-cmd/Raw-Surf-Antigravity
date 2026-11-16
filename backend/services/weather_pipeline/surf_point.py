@@ -276,9 +276,10 @@ def surf_face_range_at(lat: float, lng: float, Hs_m, Tp_s, served_height_m, serv
     if not high > 0.0:                      # also rejects NaN
         return None
     from services.weather_pipeline import surf_height_convention as _conv
-    # NEVER add an `await`, a thread hand-off or a cached call inside this block. It holds ONE synchronous call, so no
-    # other task can run while the statistic is switched. An await here would let another request compute its SERVED
-    # height as a significant height; a cache keyed without the convention would store one and serve it later.
+    # Keep this block to ONE synchronous call. The ContextVar is per task, so the switch does not reach another
+    # request on its own. The hazards are: a cache keyed without the convention (it would store a significant height
+    # and serve it later), work handed to a thread or task that inherits this context and whose result is then served,
+    # and a callee that reads the convention once and keeps it. None exists in the chain today (checked 2026-11-16).
     with _conv.significant_statistic():
         low, _regime = estimate_surf_at(lat, lng, Hs_m, Tp_s, **chain_kwargs)
     if low is None or not float(low) > 0.0:
