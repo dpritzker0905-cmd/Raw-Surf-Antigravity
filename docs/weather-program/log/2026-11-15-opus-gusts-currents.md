@@ -255,3 +255,19 @@ at the own / stand-in seam the note covers the whole 3 h pick window. Kill `__RA
 to 240 h), so the last hours have no frame and say so. Phone decode worker: 177 / 177 loads off the main thread; phone step
 p50 after it: GFS 228, EURO 324, ICON 192, currents 182 ms (unchanged within the measured +-40 % phone noise; the per-hour
 app re-render is the cost).
+
+### 8. Agreed interface: ENS gusts past ICON 180 h / EURO 240 h (stage 2; NOT built; waits for #939's gate and the director)
+
+With the wind long-range lane (local_162f460b, PR #939 held; stage 1 #935 = gfs_wind_standin, which this PR's `gfs_standin`
+BEYOND strategy already matches):
+- Source: `ens_wind/latest.npz` (+ `latest.json`: run, steps, grid), 1-degree grid, rows S->N, lon 0..359, ENS steps 144..360
+  every 6 h; arrays `{u,v,speed,gust,gust_p90,spread}_{step}` in m/s. Gust = member MEDIAN of 10fg (max gust in the 6 h to
+  the step), clipped >= speed; p90 likewise.
+- Sampler: `ens_wind_extension.sample_step(meta, arrays, step, lats, lons)` (vectorised; plain bilinear, lon wrap, pole clamp;
+  the gate's de-bias factor if recorded; returns u, v, speed, direction, gust, gust_p90, spread and a `clipped` mask). Pinned
+  equal to `build_points` (the wind product's composition) by #939's test: one composition per hour for wind and gust.
+- This side: a raster set per model tail at NATIVE 6-hourly ENS steps only (no interpolation of window maxima), sampled at
+  every 0.25-degree node, knots, field 4 = median, a new field = p90; refuse a frame if > 1 % of cells were clipped; a BEYOND
+  strategy `ens_mean_extension` for ICON / EURO; label "Days 8-14: ECMWF ensemble mean (estimate) · max gust in the 6 h to
+  this time", accessible label adds "extremes are under-read". The p90 risk cue's UI: with the director.
+- Fallback when ENS is absent: the GFS stand-in (as now). max(wind x GF, wind) only for a source without gusts.
