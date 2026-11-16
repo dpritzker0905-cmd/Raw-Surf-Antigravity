@@ -329,3 +329,21 @@ both contain "/index/" and the later one overwrote the earlier. Those numbers co
 from independent evidence: in run 43803432374 the rated step built 0 of the waves bundles and skipped them all by its budget (its
 own log), so they were not current. The cause and the fix (#975) stand; the exact lag at 15:30Z is not known. Also: tier 0 is 19
 bundles, not 20. The offline ask table in section 11 is unaffected (lab CDN, its own lag).
+GATE AMENDMENT (2026-11-16 18:35 EST by the clock, 23:35Z; written AFTER run 1 and BEFORE run 2). The advisor (23:24Z) restated the
+gate's wording: what it protects is that no rated waves bundle is BEHIND its plain sibling (the client refuses only an older
+bundle, max(0, plain - rated)). So the counted quantity for runs 2-4 is "none of the 19 behind". Because this clarification
+came after a first result, BOTH readings are reported for all four runs: as worded, "lag 0" (run 1: 5 of 19); as amended,
+"none behind" (run 1: 19 of 19). The gate passes on the amended reading in at least 3 of 4 runs. The director (18:34 EST)
+accepted the amended reading only if written here before run 2, and it is.
+FLAG 1 (advisor): the PLAIN bundles are now the ones behind. In run 43950205417 the plain step's own 960 s budget skipped 14 of
+the 19 plain GFS regional waves bundles: azores, brazil_east, canaries_madeira_morocco, caribbean_pr_dr, centralamerica_caribbean,
+east_australia, france_biscay, indonesia, mexico_centralamerica_pac, south_africa, srilanka_maldives, us_northeast,
+us_pacific_northwest, us_southeast_midatlantic. In those boxes the band is drawn from a run one cycle NEWER than the wave layer
+under it. What the user is told:
+- The stale-layer chip covers the rated band and wind only; it does NOT cover the plain wave layer.
+- The status line's held-frame reason (drawnFrameReadout.holdReason) names "the older <run> run" when the manifest lists a newer
+  verified cycle than the drawn frame. Whether it fires for this case has NOT been checked in a browser.
+It is the same starvation, moved one step up: the plain frames budget belongs to the frame-carry lane's budget plan (below).
+FLAG 2 (advisor; the director 18:34 EST): tier 2 has 22 of 64 sets more than one cycle behind, so those layers' rated asks go to
+/grid. FRAME_RATING_BUDGET_S is NOT raised. The director sends the rated tier-2 numbers to the frame-carry lane, which is measuring
+the whole pilots / frames budget (77-143 regional sets skipped per run), to fold into one pre-registered, advisor-read budget plan.
