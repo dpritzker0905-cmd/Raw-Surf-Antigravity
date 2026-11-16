@@ -123,3 +123,13 @@ XP for blind observations rewards quality, never agreement (`services/observatio
   only its sha256.
 Evidence: 15 reward tests + P1's 40 + the XP single-path guard = 64 pass. Mutations: a gate that reads the height
 fails the value-blind test; corroboration that requires agreement fails the corroboration test. Frontend 10 pass.
+
+## 10:30Z Anchors A built locally (stacked on P2): table + append-only log
+
+David's yes (09:16 EST, research lead's session) to anchor observers, with an admin area to control and monitor
+them; the director split it into small PRs. A = `surf_truth_anchors` (active / probation / suspended) and
+`surf_truth_anchor_events` (append-only: a Postgres trigger refuses UPDATE/DELETE), both RLS-locked. One service,
+`services/surf_truth_anchors.set_status`, writes the row and the log line together with the acting admin and a
+required reason. `observer_role` now reads the table: 'anchor' only while ACTIVE, 'anchor_probation' while on
+probation, the ordinary role when suspended. The `SURF_TRUTH_ANCHOR_IDS` env var is gone (it was never set, so no
+row was ever recorded as an anchor). 9 tests; P1 + P2 suites updated; 63 pass. Next: API, admin UI, model.
