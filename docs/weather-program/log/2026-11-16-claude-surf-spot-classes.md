@@ -83,3 +83,31 @@ POSITIVE comparator: the catalogue tag alone (tier 2 only), scored the same way 
 - The beach-subtype slope step can reuse `surf_transect.bed_from_grid`. On the six no-break-depth spots it found a usable ETOPO bed at
   five (slopes about 1:170 to 1:250); Rodanthe Pier had no fittable slope. A 463 m grid gives large-scale slopes: a tier below CUDEM,
   and recorded as such when the subtype step runs. Nothing in section 0b changes.
+
+## 1. RESULT of the registered classifier (2026-11-16 17:53 EST by the clock): FAIL by the letter
+Inputs: the 109 blind labels (a9008c6c4). OSM evidence for all 109 spots (complete, 0 failed tiles), fetched offline from public
+Overpass. The full-catalogue pass is still running, slowed by a day-long Overpass overload. The catalogue snapshot is from Actions run
+43871986467. Rules exactly as section 0b; nothing changed after seeing labels or evidence. Scored by score_spot_class.py.
+Labelled 109, label known 87; classifier unknown share 8.3 % (limit 30 %).
+| class | precision (Wilson 95 %) | recall | gate >= 0.75 | null (shuffled within country) |
+|---|---|---|---|---|
+| beach group | 0.906 (0.758-0.968), 29/32 | 0.63, 29/46 | pass | 0.675: FAILS the < 0.5 null |
+| inlet_jetty | 0.333 (0.192-0.512), 10/30 | 0.91, 10/11 | FAIL | 0.175 |
+| point_headland | 0.600 (0.231-0.882), 3/5 | 0.50, 3/6 | FAIL (n = 5) | 0.409 |
+| reef | 1.000 (0.701-1.000), 9/9 | 0.45, 9/20 | pass | 0.579: FAILS the null |
+| river_mouth (reported) | 0.500 (0.188-0.812), 3/6 | 0.75, 3/4 | - | - |
+Comparator, the catalogue tag alone: beach 0.833, inlet_jetty 1.0 (3/3), point_headland 0.429, reef 1.0 (12/12); unknown share 36.7 %
+(FAILS the 30 % limit). Confusion (label -> prediction): beach -> inlet_jetty 12, reef -> inlet_jetty 6, point -> inlet_jetty 2.
+VERDICT: FAIL. B2 is NOT used by B3 or by any class factor.
+What the numbers say (reading, not a re-test):
+1. The structure tier over-fires. "Any breakwater / groyne / jetty / pier within 1,000 m" sends 18 non-inlet spots to inlet_jetty, so
+   its precision is 0.33. This is the pier question noted in 0b before the rules ran (the labeller called most pier spots beaches),
+   and the rule was left as registered on purpose.
+2. The null as registered cannot pass for a class that is a large share of a country's spots. Shuffling within country keeps each
+   country's class mix, so precision under the null is about that class's share: beach is 46 of 87 known labels. This is a design flaw
+   in the null, found after seeing results. It does not change the verdict, and it is fixed only in a NEW registration.
+3. point_headland has 5 predictions and 6 labels: too few to judge either way.
+NEXT (needs a new registration and NEW labels; nothing here is re-scored on these 109):
+(a) structure tier: breakwater / groyne / jetty only (no pier), within 300 m, and only with a coastline or inlet signal;
+(b) a null that compares against each class's base rate (precision minus the class share);
+(c) a fresh seeded sample of >= 120 spots, labelled blind, with >= 25 per gated class (oversampling point and reef).
