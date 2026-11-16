@@ -154,3 +154,7 @@ and marked), `.../anchors/{profile_id}/events`, `/api/admin/surf-truth/actions`.
 New `surf_truth_admin_actions`, locked like the anchor log (RLS, SELECT/INSERT grant, UPDATE/DELETE/TRUNCATE
 triggers). P2's audit verdicts now also write it. No admin body can carry a reported number (extra='forbid', no
 height field; tested). 14 tests; all surf-truth suites 80 pass; route-identity check: none new.
+
+## 21:40Z Decision: no second-admin rule for anchor promotion
+
+David, 2026-11-16 16:34 EST (typed in the director's session): "I dont think its an issue for any admin to promote someone to an anchor. We can always change the admin rights levels later." Any admin may make anyone an active anchor; self-appointment stays logged with self:true.
