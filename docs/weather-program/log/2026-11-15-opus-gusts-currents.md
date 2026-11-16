@@ -288,3 +288,20 @@ unchanged from §7d.
 Accepted as "no worse than the live raster lanes in the same harness" (phone step p50 182-324 ms vs fog / EURO air temp
 269-281 ms). OWED: re-run the pre-registered 150 ms phone step target after Move 3's app-wide re-render fix lands, record
 it here and in SCOREBOARD (ledger commitment, this PR's fragment).
+
+### 10. PRE-REGISTERED: the advisor's condition 3, bytes on a real link (written 2026-11-15 21:52 EST, before any throttled run)
+
+Harness of §7b (real frames, production build, synthetic backend, phone profile 390 x 844 at 4x CPU), the SAME 5 cold toggles
+and 10 frame-changing single-key steps per row, gusts GFS / EURO / ICON and currents, with the link throttled by CDP
+`Network.emulateNetworkConditions` (the local CDN's +150 ms stays off for these rows; the throttle carries the latency):
+- **Fast 4G**: 9 Mbit/s down, 1.5 up, 170 ms RTT. PASS line: phone step p50 within 1.5x the unthrottled figure of §7b/§7d
+  (GFS 228, EURO 324, ICON 192, currents 182 ms) AND no step where the label leads the field without the status note
+  (status "Loading ... still showing ..." or "the nearest stored forecast" whenever drawn != asked).
+- **Slow 4G**: 1.6 Mbit/s down, 0.75 up, 150 ms RTT. Reported, no pass line.
+- Reported per row: bytes transferred per step (CDN bytes / frame-changing steps, from the local CDN's byte counter), with the
+  2-ahead prefetch ON and with the metered-link rule engaged (navigator.connection effectiveType '3g' emulated).
+- If Fast 4G misses the line: the lever is a 0.5-degree tier at world zoom (frames ~1/4 the bytes); raised with the director
+  before building. Quantisation alone measured only 3-25 % smaller (§4).
+Also (the advisor's condition-1 follow-up, written the same minute): a remembered gusts / currents layer whose sets are not
+published falls back to wind / currents -> waves once the availability answer is known (ownLayerAvailability.fallbackFor),
+never an empty map. Built 21:50, tested after the 22:00-00:30 quiet window.
