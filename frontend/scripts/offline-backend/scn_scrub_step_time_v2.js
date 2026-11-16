@@ -99,6 +99,10 @@ async function session(device, cadence) {
       localStorage.setItem('raw-surf-theme', 'dark'); window.__RAW_STATIC_FRAMES_BASE__ = base; window.__RAW_DISABLE_CREST_HOUR_BLEND__ = true;
     }, { base: `http://127.0.0.1:${CDN_PORT}/` });
     await L.openMap(page);
+    // 6e: the GL renderer, so a software-GL (hosted runner) result is labelled from its own output
+    const gl = await page.evaluate(() => { try { const c = document.createElement('canvas').getContext('webgl'); const x = c && c.getExtension('WEBGL_debug_renderer_info');
+      return c ? String(c.getParameter(x ? x.UNMASKED_RENDERER_WEBGL : c.RENDERER)) : 'no webgl'; } catch (e) { return 'error'; } });
+    const browserVersion = page.context().browser().version();
     if (phone) { const cdp = await page.context().newCDPSession(page); await cdp.send('Emulation.setCPUThrottlingRate', { rate: 4 }); }
     await L.jump(page, VIEW[0], VIEW[1], VIEW[2]);
     await sleep(1500);
@@ -126,7 +130,7 @@ async function session(device, cadence) {
       return { ...blocks[s.block], k: s.k, target: s.target, changing: s.k > 0 && s.target !== null && s.target !== prev /* k 0 (after Home) has no previous key */,
         stepMs: s.stepMs, inputMs: s.inputMs, superseded: s.superseded, censored: s.censored, cutByHome: !!s.cutByHome, endMs: s.endMs, source: s.source, longMs };
     });
-    return { device, cadence, mode: MODE, rows, noLongTask: !!p.noLongTask, asks: log.requests.length, errors: log.errors.slice(0, 2) };
+    return { device, cadence, mode: MODE, gl, browserVersion, rows, noLongTask: !!p.noLongTask, asks: log.requests.length, errors: log.errors.slice(0, 2) };
   } finally { await browser.close(); }
 }
 
@@ -138,7 +142,7 @@ async function session(device, cadence) {
     try { res.push(await session(device, cadence)); } catch (e) { res.push({ device, cadence, mode: MODE, error: String(e && e.stack || e).slice(0, 400) }); }
     const r = res[res.length - 1];
     const ch = (r.rows || []).filter((x) => x.changing);
-    console.log(`${MODE} ${device} ${cadence}ms | ${Math.round((Date.now() - t0) / 1000)} s | keys ${(r.rows || []).length} | no-change keys ${(r.rows || []).length - ch.length} | frame-changing ${ch.length} | censored ${ch.filter((x) => x.censored).length} | superseded ${ch.filter((x) => x.superseded).length}${r.error ? ' | ERROR ' + r.error.slice(0, 120) : ''}`);
+    console.log(`${MODE} ${device} ${cadence}ms | gl ${r.gl || '?'} | chrome ${r.browserVersion || '?'} | ${Math.round((Date.now() - t0) / 1000)} s | keys ${(r.rows || []).length} | no-change keys ${(r.rows || []).length - ch.length} | frame-changing ${ch.length} | censored ${ch.filter((x) => x.censored).length} | superseded ${ch.filter((x) => x.superseded).length}${r.error ? ' | ERROR ' + r.error.slice(0, 120) : ''}`);
     if (process.env.OUT) fs.writeFileSync(process.env.OUT, JSON.stringify(res));
   }
   cdn.close();

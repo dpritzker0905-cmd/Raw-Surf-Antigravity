@@ -235,3 +235,7 @@ A/B ALSO run on a GitHub-hosted runner. Everything in sections 6, 6a and 6b appl
    director's word.
 6. **The local run stays owed** for the GPU half: the same v2 instrument, in quiet hours on this machine, under the same blind
    discard rule. Until it exists, every verdict reads "on software GL".
+6e, the workflow (written, NOT started): `.github/workflows/steptime-937.yml`. It starts only on a pushed tag `steptime-937-*`; the
+director (11:10 EST) treats that as a dispatch needing David's word, so no tag is pushed until he gives it. It holds no secret, and
+builds the lab store and CDN on the runner (the CDN step checked locally: exit 0, 45 objects). It records the runner image, cores,
+memory, Chrome and the GL renderer per session. It prints the A/A summary only; the A/B rows go to the artifact, not the log.
