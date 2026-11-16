@@ -104,3 +104,69 @@ Options for the director:
   field). That is about 16x the 0.5-degree set's bytes; measure before deciding.
 - (b) 0.25 degree as a middle step: about 4x the bytes, half of .om's resolution.
 - (c) Keep .om for ICON air temperature until (a).
+
+## 06:14Z: G2, ICON precipitation at 0.125 degree built (`precipitation_icon_0p125`, dark) and gated: PASS on all five hours
+
+**Found while building.** DWD publishes its own remap weights from ICON's grid to a 0.125-degree world grid
+(`opendata.dwd.de/weather/lib/cdo/ICON_GLOBAL2WORLD_0125_EASY.tar.bz2`, CDO SCRIP file, 2017, read 2026-11-16). They are
+`map_method = "Nearest neighbor"`, one link per target point, on 2879 x 1441 points (it stops at 179.75E). So DWD's own regular
+ICON products, and Open-Meteo's `dwd_icon` (G1: 93 % of nodes exactly equal), are nearest-cell samples, not area means.
+
+**Built.**
+- `services/frame_set_raster_icon125.py`: the k x k sub-point area mean (k = 3). A sub-point's nearest cell is searched among
+  every cell whose centre lies in the 3 x 3 boxes around it, plus those nodes' nearest cells from DWD's map, which is the only
+  candidate near the poles, where boxes are smaller than cells. This needs no KD-tree and no new dependency.
+- DWD's map is refused unless it is nearest-neighbour, on 2879 x 1441, every target once and in order. It is also refused unless
+  its cells are this run's GRIB cells in the same order. The GRIB's CLAT / CLON are packed: every cell is within 0.00195 deg of
+  latitude and 0.0039 of longitude of DWD's map and of the grid-0026 file, so the tolerance is 0.01 deg, against a cell spacing
+  of ~0.12.
+- The 2880th column (179.875E), which DWD's map lacks, takes the nearer of its neighbours' cells, so the frame wraps.
+- `IconPrecip0p125Source`: the same rates as `IconPrecipSource` (now split out as `rate`), with the pick map built once per
+  publish.
+- `GRIDS["0p125"]` is 2880 x 1441. A pilots step is gated on `FRAME_RASTER_PRECIP_ICON_0P125 == '1'`. The 0.25-degree set is
+  unchanged.
+- First design flaw caught by a test: candidates from the nodes' nearest cells alone skip a cell that is no node's nearest
+  (cells are denser than nodes near the equator). The box cells were added for that.
+
+**Gate (pre-registered 03:55Z), run 2026-11-16 00Z.** Instrument: `g2_gate.py` (scratch). Exact cell areas come from DWD's grid
+file 0026 (`cell_area`; the smallest cell is 0.647 of the largest, cv 4.1 %, so equal areas would not do). Mass is area-weighted
+against spherical box areas. The 0.125 numbers are read from the ENCODED-then-DECODED frame, as a client reads it.
+
+| hour | mass error 0.125 / 0.25 | peaks 0.125: median / p10 / global max | peaks 0.25: median / p10 / global max | gz bytes 0.125 / 0.25 (ratio) | gate |
+|---|---|---|---|---|---|
+| f006 | -0.09 % / -0.02 % | 0.928 / 0.735 / 0.940 | 0.779 / 0.449 / 0.664 | 1,166,271 / 336,705 (3.46) | PASS |
+| f024 | +0.00 % / +0.02 % | 0.946 / 0.835 / 0.915 | 0.821 / 0.596 / 0.775 | 1,178,807 / 339,457 (3.47) | PASS |
+| f048 | +0.08 % / +0.05 % | 0.946 / 0.845 / 0.941 | 0.821 / 0.599 / 0.906 | 1,198,952 / 346,339 (3.46) | PASS |
+| f078 | -0.09 % / +0.03 % | 0.914 / 0.763 / 0.902 | 0.747 / 0.520 / 0.692 | 1,178,704 / 336,870 (3.50) | PASS |
+| f120 | -0.05 % / +0.01 % | 0.958 / 0.854 / 0.898 | 0.902 / 0.678 / 0.855 | 1,179,460 / 341,345 (3.46) | PASS |
+
+Peaks are the 100 highest native cells at least 1 degree apart; each ratio is the highest lattice value within one lattice step
+of the cell. Null control: a uniform field gives mass error 0.0 at both resolutions.
+**Positive control, partly met, said plainly.** The 0.25-degree arm reproduces the logged peak loss: the median peak keeps 0.75
+to 0.90 and the global maximum 0.66 to 0.91, against "19-26 % lower" in the 2026-11-13 log. It does NOT reproduce that log's +1
+% mass: with exact cell areas the 0.25-degree mass error is within 0.05 %, and the logged +1 % came from comparing an unweighted
+native mean with a cos-latitude lattice mean. The registered "within 2 points" therefore fails on mass, because the old
+number was an artefact of how it was measured, not because the harness differs. The advisor may judge this.
+
+**Cost.**
+- Storage: 3.46-3.50 x the 0.25-degree set (gate at most 4.5 x): about 1.18 MB a frame, about 132 MB a run for 112 frames,
+  against about 38 MB.
+- Time: the pick map is built once, in 26 s, plus about 50 MB from DWD. Each hour costs 0.5 s for the area mean and 1.4 s to
+  encode and check parity, against about 0.4 s at 0.25. Estimated at about +170 s of CPU per run across 112 hours, about +30-60
+  s wall time on the step's 6 workers. Not measured as a full publish: gate item 3's time half is OPEN until the first live
+  publish. The set runs in its own pilots step (timeout 30 min), not inside the frames step's 960 s budget.
+
+**Tests:** `tests/test_frame_set_raster_icon125.py`, 15 (estate, +15 floor fragment):
+- a box filled by one cell keeps its value;
+- a box over k x k cells is their mean;
+- no box is empty when cells are sparser than boxes;
+- the last column takes the nearer neighbour (both directions);
+- NaN handling;
+- the cell-order check, including the packing tolerance;
+- DWD's map is read zero-based and anything but it is refused;
+- lattice and encoder agree;
+- the set's key, dark switch and one gated step;
+- the map is refused when its cells are not this run's;
+- a frame is the area mean of the rate.
+
+Mutants: 7 of 8 red. The survivor (the pad fill) is equivalent: a pad can only ever stand for a cell that a real candidate beats.

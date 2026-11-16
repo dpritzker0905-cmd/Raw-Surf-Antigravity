@@ -58,6 +58,8 @@ BOUNDS = (-180.0, -90.0, 179.5, 90.0)          # west, south, east, north: the o
 GRIDS = {
     "0p5": {"cols": 720, "rows": 361, "bounds": BOUNDS, "stride": 2},
     "0p25": {"cols": 1440, "rows": 721, "bounds": (-180.0, -90.0, 179.75, 90.0), "stride": 1},
+    # 0.125 deg (G2, 2026-11-16): ICON's own resolution (frame_set_raster_icon125); only sets whose source builds the plane.
+    "0p125": {"cols": 2880, "rows": 1441, "bounds": (-180.0, -90.0, 179.875, 90.0), "stride": 1},
 }
 
 
@@ -184,6 +186,23 @@ SPECS = {
         "hours": tuple(range(1, 79)) + tuple(range(81, 181, 3)), "source": "icon_precip", "upstream_provider": "dwd",
         "credit": "Source: Deutscher Wetterdienst (DWD), ICON global; modified (totals differenced to a rate, "
                   "box-averaged to 0.25 deg, quantised to 0.01 mm/h)",
+        "license": "DWD open data, free use with source attribution (GeoNutzV)",
+        "source_url": "https://opendata.dwd.de/weather/nwp/icon/grib/",
+    },
+    # ICON PRECIPITATION AT 0.125 DEG (G2, 2026-11-16; the owner, 22:13 EST 11-15, "answered by researching the SOTA path
+    # forward"): the same rates as `precipitation_icon`, onto ICON's own resolution by a supersampled AREA MEAN
+    # (frame_set_raster_sources.IconPrecip0p125Source): coarse regridding distorts high quantiles most (Rajulapati et
+    # al. 2021), and the 0.25-degree box mean drew cell peaks 19-26 % low. The 0.25-degree set stays publishable.
+    "precipitation_icon_0p125": {
+        "target": {"model": "ICON", "domain": "weather", "layer": "precipitation", "region_id": "global_0p125"},
+        "field": fb.PRECIP_MM_H, "idx": ("tot_prec", ("TOT_PREC",)), "convert": lambda a: a, "grid": "0p125",
+        "valid": VALID_MM_H, "clip": None, "env": "FRAME_RASTER_PRECIP_ICON_0P125", "default_on": False, "frame_plane": True,
+        "value_kind": "precipitation_rate", "value_unit": "mm/h",
+        "source_dataset": "DWD ICON global (icosahedral R3B7) TOT_PREC, totals differenced to the preceding step, "
+                          "area mean onto 0.125 deg (3 x 3 sub-points per box, nearest cell each)",
+        "hours": tuple(range(1, 79)) + tuple(range(81, 181, 3)), "source": "icon_precip_0p125", "upstream_provider": "dwd",
+        "credit": "Source: Deutscher Wetterdienst (DWD), ICON global; modified (totals differenced to a rate, "
+                  "area-averaged to 0.125 deg, quantised to 0.01 mm/h)",
         "license": "DWD open data, free use with source attribution (GeoNutzV)",
         "source_url": "https://opendata.dwd.de/weather/nwp/icon/grib/",
     },
