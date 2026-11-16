@@ -20,13 +20,21 @@ OVERPASS = ("https://overpass-api.de/api/interpreter", "https://overpass.kumi.sy
             "https://overpass.private.coffee/api/interpreter")
 TILE_DEG = 0.5
 PAD_DEG = 0.012
-QUERY = """[out:json][timeout:90];
-(
-  nwr["man_made"~"^(breakwater|groyne|pier|jetty)$"]({b});
+# One small box per spot (the evidence radius, ~1.3 km, widened in longitude by 1/cos(lat)), unioned in one request per tile. The
+# first version asked for the whole tile's bbox (up to 0.5 deg), which pulled entire river networks with full geometry: one tile took
+# ~6 min and timed out on every mirror (2026-11-16). Same evidence, a fraction of the data.
+PART = """  nwr["man_made"~"^(breakwater|groyne|pier|jetty)$"]({b});
   way["waterway"="river"]({b});
-  nwr["natural"~"^(cape|peninsula|reef)$"]({b});
-);
-out geom;"""
+  nwr["natural"~"^(cape|peninsula|reef)$"]({b});"""
+
+
+def build_query(members):
+    parts = []
+    for s in members:
+        dlng = PAD_DEG / max(0.2, math.cos(math.radians(s["lat"])))
+        b = ",".join(f"{v:.5f}" for v in (s["lat"] - PAD_DEG, s["lng"] - dlng, s["lat"] + PAD_DEG, s["lng"] + dlng))
+        parts.append(PART.format(b=b))
+    return "[out:json][timeout:90];\n(\n" + "\n".join(parts) + "\n);\nout tags geom;"
 KINDS = ("structure", "pier", "river_mouth", "cape", "reef")
 
 
@@ -84,8 +92,7 @@ def features(elements):
     return out
 
 
-def overpass(bbox, tries=6):
-    q = QUERY.format(b=",".join(f"{v:.5f}" for v in bbox))
+def overpass(q, tries=6):
     data = urllib.parse.urlencode({"data": q}).encode()
     for i in range(tries):
         url = OVERPASS[i % len(OVERPASS)]   # rotate mirrors
@@ -137,10 +144,8 @@ def main():
         if a.budget_s and time.time() - t0 > a.budget_s:
             stopped = True
             break
-        bbox = (min(s["lat"] for s in members) - PAD_DEG, min(s["lng"] for s in members) - PAD_DEG,
-                max(s["lat"] for s in members) + PAD_DEG, max(s["lng"] for s in members) + PAD_DEG)
         try:
-            feats = features(overpass(bbox))
+            feats = features(overpass(build_query(members)))
         except RuntimeError:
             failed += len(members)
             continue
