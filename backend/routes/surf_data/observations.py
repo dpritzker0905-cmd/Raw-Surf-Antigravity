@@ -53,6 +53,8 @@ FLOW = "blind_v1"
 # Anchor observers (the owner and named trusted photographers) calibrate everyone else in the aggregator. The list is
 # profile ids in this environment variable, comma-separated; ids are configuration, kept out of this public repo.
 ANCHOR_ENV = "SURF_TRUTH_ANCHOR_IDS"
+# The same set POST /condition-reports admits as photographers: a grom parent shoots their grom's sessions and can
+# go live, so their reports come through the photographer flow and are grouped with it.
 _PHOTOGRAPHER_ROLES = {RoleEnum.GROM_PARENT, RoleEnum.HOBBYIST, RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO}
 
 
@@ -77,6 +79,7 @@ class ObservationIn(BaseModel):
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
     observed_at_device: Optional[datetime] = None
+    client_build: Optional[str] = Field(None, max_length=40, pattern=r"^[A-Za-z0-9._-]+$")
 
 
 def _distance_m(lat1, lon1, lat2, lon2) -> float:
@@ -213,7 +216,7 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
 
     obs = SurfObservation(
         user_id=user_id, observer_role=observer_role(user_id, role), flow=FLOW, spot_id=spot_id, surface=surface,
-        entry_screen=data.entry_screen, ref_id=data.ref_id,
+        entry_screen=data.entry_screen, ref_id=data.ref_id, client_build=data.client_build,
         height_value=data.height_value, height_unit=data.height_unit if data.height_value is not None else None,
         height_bucket=data.height_bucket, height_scale=data.height_scale, set_or_avg=data.set_or_avg,
         scale_default=scale_default, scale_overridden=overridden, normalization_version=SCALE_VERSION,

@@ -64,6 +64,10 @@ def region_default_scale(latitude: Optional[float], longitude: Optional[float],
 
 @dataclass(frozen=True)
 class FaceHeight:
+    """norm_v1. face_m_low / face_m_high hold ONLY the entry's own range: the bucket's edges, or the point value twice
+    for a typed number. No prior, no scale uncertainty and no typical->H1/10 factor is ever folded in; the aggregator
+    fits from the raw columns (value or bucket, scale, set_or_avg), so nothing is applied twice. "8ft+" is
+    right-censored: high is None, never a number."""
     face_m: float                 # the point value scored (bucket: geometric centre of the range; open end: its floor)
     face_m_low: float
     face_m_high: Optional[float]  # None for an open-ended bucket ("8ft+")

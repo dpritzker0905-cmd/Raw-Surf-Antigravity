@@ -348,3 +348,11 @@ async def test_parentless_checkin_observation_is_flagged(world):
     first, second = await world.rows()
     assert "no_parent" not in first.flags.split(",")
     assert "no_parent" in second.flags.split(",") and second.ref_id is None
+
+
+async def test_client_build_is_stored_and_shape_checked(world):
+    assert (await world.client.post(URL, json=_checkin(client_build="a1b2c3d"), headers=_token("surfer"))).status_code == 200
+    assert (await world.rows())[0].client_build == "a1b2c3d"
+    bad = await world.client.post(URL, json=_checkin(ref_id=None, spot_id="nsb", client_build="x; drop"),
+                                  headers=_token("surfer"))
+    assert bad.status_code == 422

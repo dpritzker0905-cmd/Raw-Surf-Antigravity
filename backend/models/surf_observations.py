@@ -36,6 +36,7 @@ class SurfObservation(Base):
     flow = Column(String(24), nullable=False, default='blind_v1')
     surface = Column(String(32), nullable=False)
     entry_screen = Column(String(48), nullable=False)
+    client_build = Column(String(40), nullable=True)  # the app build that captured it (a claim), to split UI changes
     ref_id = Column(String(36), nullable=True, index=True)
 
     # What the observer entered, exactly.

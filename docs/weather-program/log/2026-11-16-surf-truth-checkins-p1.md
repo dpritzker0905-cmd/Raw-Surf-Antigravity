@@ -96,3 +96,13 @@ Limits the advisor asked to state (not conditions):
 - The daily cap is a count then an insert, so two concurrent posts can pass 20. Harmless at this volume.
 - For David (not blocking): the private rows store each user's device position and the photo's EXIF position, and
   go-live photos still sit in the public `conditions` bucket with EXIF until P3.
+
+## 01:05Z Research lead confirmed the three choices; two adds
+
+Confirmed: face_m in the declared scale and sense (display column; P4 fits from the raw columns); no 'unknown' in
+blind_v1 (legacy goes in later as flow='legacy_*', never truth); forecast snapshot joined offline to the run CURRENT at
+received_at. Added `client_build` (the deploy's git short hash from `src/buildVersion.js`, a claim, shape-checked) and a
+norm_v1 docstring: face_m_low/high are only the entry's own range; "8ft+" is right-censored (high null).
+`entry_screen` was already stored (checkin_modal | golive_conditions_modal | spot_report_modal). Advisor note answered:
+grom parents count as photographers because /condition-reports admits the same role set. `SURF_TRUTH_ANCHOR_IDS` is
+unset until David sets it on the service, so every row is non-anchor until then. Tests 39 -> 40.
