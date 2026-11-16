@@ -1355,3 +1355,12 @@ abstracts only (full texts not opened):
 - **For David and the truth model:** shown as "surfers typically call waves about half to two-thirds of their measured
   height (one UK study group, highly variable)". In the P4 model the perception term is a per-observer random effect
   with a wide prior centred in 0.5-0.7, to be estimated from physical anchor audits. It is never a fixed 0.70.
+
+## 2026-11-16 15:35Z Advisor review of #972: PASS WITH LIMITS (15:29Z), and how to quote this log
+
+- **Quote 15:20Z, not 14:23Z.** The 14:23Z heading ("SETTLED by research ... gap explained") stays under append-only,
+  but it is superseded. "Settled" means the research lead RECOMMENDS a physical H1/3-H1/10 face range. David asked for
+  that research and has not yet confirmed the choice.
+- **Abstracts only.** Before "surfers typically call about half to two-thirds of measured height" reaches David, either
+  open the full texts or say in that sentence that it rests on two abstracts from one UK study group.
+- Lesson recorded as L-S28 (a model's agreement is not a check of the arithmetic).
