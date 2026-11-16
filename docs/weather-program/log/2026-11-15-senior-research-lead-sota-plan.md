@@ -589,3 +589,48 @@ exists to copy.
 6. **Watch list**: open operational ML wave feeds, which would become a consensus member and a gate arm.
 
 **Dropped:** WebGPU.
+
+## 00:51Z Surf-spot science, deeper pass (David 19:47 EST: "research more on the surf spot science, then give the director information")
+
+**Evidence added.**
+- **Beach STATE is dynamic.** A slope / wave-steepness similarity parameter separates saturated from unsaturated surf
+  ([Power 2013](https://consensus.app/papers/details/w:341907a8-fe19-4742-8a4e-a03c52d17118/?utm_source=claude_code)).
+  A breaker index that depends on offshore steepness and kh cuts height error by 19%
+  ([Zhang 2021](https://consensus.app/papers/details/w:1c05faf3-5792-4c44-ac84-ba94be97ca83/?utm_source=claude_code)).
+  The Iribarren number alone is not sufficient
+  ([Diaz-Carrasco 2020](https://consensus.app/papers/details/w:0de2ad99-8ed7-4af5-b084-f0185d215122/?utm_source=claude_code)).
+- **Inlets (the owner's New Smyrna/Ponce "x factor") are tide-modulated.**
+  - Ebb currents raise wave height at the mouth by up to 20%
+    ([Dodet 2013](https://consensus.app/papers/details/w:a876f7d3-cdb7-4356-b42b-9cbe2c87f888/?utm_source=claude_code)).
+  - Flood currents focus energy on the adjacent coast, +20-30%
+    ([Mengual 2022](https://consensus.app/papers/details/w:a8d8369f-8654-4272-bac5-5f60c60630de/?utm_source=claude_code)).
+  - Tidal depth change over the ebb shoal dominates
+    ([Chen 2015](https://consensus.app/papers/details/w:87b7ea31-7a5e-4429-b3f0-0c9f931575f0/?utm_source=claude_code)).
+- **Global nearshore bathymetry.**
+  - S2Shores: open global 1 km coastal bathymetry from Sentinel-2 wave inversion, RMSE 2-5 m at 10-40 m
+    ([Almar 2025](https://consensus.app/papers/details/w:7849915b-9cef-4f49-be69-2cf82919ff92/?utm_source=claude_code)).
+  - Optical satellite-derived bathymetry at 10 m: RMSE 1.2-1.9 m in clear water
+    ([Li 2021](https://consensus.app/papers/details/w:4e0bf99c-7074-41b4-a818-b14b75f3a837/?utm_source=claude_code)),
+    limited by turbidity
+    ([Caballero 2023](https://consensus.app/papers/details/w:49b640a5-99b3-4fde-8a9e-26e609edf80b/?utm_source=claude_code)).
+- **Wind** changes breaker type and position more than breaker height
+  ([King 1996](https://consensus.app/papers/details/w:5048a40e-cb06-48ee-aa78-6c1ad9b61f30/?utm_source=claude_code);
+  [Sous 2020](https://consensus.app/papers/details/w:42e00aff-1769-4bfd-b5fb-52ebc3b28d37/?utm_source=claude_code)).
+
+**Additions to briefs B1-B4** (SubQ 0.997-0.999 on each; overall 2.83 of 3).
+- (A) Beach state per spot PER HOUR (bed slope + current steepness). The breaker index depends on steepness and kh,
+  not one Komar formula for all.
+- (B) An inlet term: tide-phase modulation at inlet-class spots from the tide and currents layers, with a literature
+  prior of 10-30%, fitted only to truth.
+- (C) Bathymetry stack: national high-res, then Sentinel-2 10 m SDB in clear water (reefs, Hawaii, Caribbean), then
+  S2Shores 1 km, then ETOPO. Each spot records its source.
+- (D) Wind stays in the quality rating; no wind height multiplier.
+- (E) Every truth record carries its height-scale convention (face vs Hawaiian). The helper's ASK 5 covers this.
+
+**Reflection's guardrails, adopted.**
+- Each addition is its own ablation arm.
+- Monotonicity: a bigger offshore input never gives a smaller surf height (the MC-01 lesson).
+- Uncertainty is propagated to the served range.
+- Bathymetry-seam checks.
+- Hierarchical fitting with spot-level holdout, so no spot error leaks into the class factors.
+- Validation by region, season and extremes.
