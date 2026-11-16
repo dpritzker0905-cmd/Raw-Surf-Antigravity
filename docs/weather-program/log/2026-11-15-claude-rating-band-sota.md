@@ -301,3 +301,31 @@ Florida pilot view: load, zoom out, zoom in, three pans; ONE run per arm; lab, n
 Lab server times are not live times (each live `/grid?surf=1` is 4-22 s of box CPU), so the ratio, not the seconds, is the reading:
 with the bundles three cycles behind, this view sends the box ~1.8x the surf `/grid` asks and ~3x their server time, and loses
 most of the band. Raw rows: shared notes `rating-band-sota-2026-11-15/asks-cdn*.json`.
+
+## 13. #975 after its merge: the first pilots run, reported in full (2026-11-16 18:16 EST by the clock, 23:14Z)
+Run 43950205417 (20:28Z -> 23:11Z, dev 2adc374a1, the first pilots run with #975). From its rated step's own report (full log):
+| tier | sets | built | skipped by the budget | seconds |
+|---|---|---|---|---|
+| 0: GFS regional waves bundles | 19 | 19 | 0 | 290.4 |
+| 1: GFS world waves | 1 | 1 | 0 | 96.3 |
+| 2: every other rated set | 64 | 5 | 59 | 202.0 |
+Public index (1/latest.json, read 23:14Z, each record's own un field, rated against its plain sibling):
+| tier | rated equal to plain | rated NEWER than plain | rated BEHIND plain |
+|---|---|---|---|
+| 0 | 5 / 19 | 14 / 19 (by 6 h) | 0 / 19 |
+| 1 | 1 / 1 | 0 | 0 |
+| 2 | 8 / 64 | 0 | 56 / 64 (6 h: 34, 12 h: 13, 18 h: 9) |
+Reading:
+- The band is current. Every rated waves bundle the band paints from is on its plain sibling's run or one run NEWER. The 14 "newer"
+  are boxes whose PLAIN bundle the plain step's own budget skipped this run. The client takes max(0, plain - rated), so none is refused.
+- The gate as worded asks for "lag 0", and only 5 of 19 are exactly equal. What it is FOR (no rated waves bundle behind its plain
+  sibling, so no band ask refused to /grid) holds for 19 of 19. Both readings are reported here; this is 1 of the 4 runs the gate needs.
+- Tier 2 starved, as the limit predicted: 5 of 64 sets built, 56 behind. They are read only when a user picks swell / wind-wave
+  layers with Surf Rating on, or at zoom-out. Under #933's bound, those more than one cycle behind send their asks to /grid. Not gated;
+  for the director: raising FRAME_RATING_BUDGET_S (the step allows ~780 s) would give tier 2 about 180 s more per run.
+CORRECTION to section 11 (my error, found while writing this). The lag numbers there ("all 84 rated sets behind; the 20 waves
+bundles 18 h behind", read 15:30Z) came from a script that took each record's previous_index, not its current index, because
+both contain "/index/" and the later one overwrote the earlier. Those numbers compared PREVIOUS runs and are withdrawn. What stands
+from independent evidence: in run 43803432374 the rated step built 0 of the waves bundles and skipped them all by its budget (its
+own log), so they were not current. The cause and the fix (#975) stand; the exact lag at 15:30Z is not known. Also: tier 0 is 19
+bundles, not 20. The offline ask table in section 11 is unaffected (lab CDN, its own lag).
