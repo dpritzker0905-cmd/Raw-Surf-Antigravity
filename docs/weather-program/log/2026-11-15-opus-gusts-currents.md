@@ -431,3 +431,13 @@ at 0.02 kn (the currents LUT step) and drop the direction field. The 2-byte fiel
   content-key fingerprint); that one run's static-frames step can take up to its own budget (600 / 960 s with tails), and
   nothing more after it.
 - SLOW 4G (19-26 s first paint, currents never painted in 5 tries) goes to David in plain words as a product question.
+
+### 12b. Corrections to §12 (appended 2026-11-16 22:19Z; §12 is not edited)
+- TIME: §12's header says "written 2026-11-16 22:20Z". That was ahead of the clock: the commit that holds it, e8e430eab, is
+  timestamped 2026-11-16 22:11Z, which is when §12 was written (still before any build or measurement). (LESSONS L-P10.)
+- THE CODE, exactly: for 0 <= v < 254 x step, k = floor(v / step) + 1 (so v = 0 -> k = 1); decode = (k - 1) x step + step / 2;
+  k = 255 for v >= 254 x step (saturated); k = 0 = no data. The parity test asserts it at v = 0, at the last unsaturated value
+  (just below 254 x step) and at the first saturated value.
+- THE BAND CLAIM is about CELL VALUES: 0 cells whose decoded value falls in a different LUT band from the source value. The
+  shader still interpolates between cells and between frames (the value blend), so a rendered pixel near a band edge can differ
+  from today's by up to half a step: harmless, and not what the check claims.
