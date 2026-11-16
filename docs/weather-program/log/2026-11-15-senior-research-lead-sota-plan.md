@@ -1222,3 +1222,22 @@ Written in this PR (docs only, no served change):
 
 Sources: `gh pr list` (merged since 2026-11-15, open >= #900) read at about 04:45Z; the director board to 20:35Z; and
 this log.
+
+## 10:53Z The NE-Florida over-read: the physics arms are now exhausted at the owner's point (repair lead, #969, model-only)
+
+Measured at the owner's point (offshore 1.12 m; the owner expects < 0.6 m face):
+- Arm A1, Battjes-Janssen with a constant gamma: unchanged (the breaker height is set where breaking begins).
+- The truncated-distribution H1/10 agrees with x1.27 within 0.01.
+- Period (buoy mean 4.8 s vs model peak 7.28 s): x0.85.
+- No H1/10 on a breaking wind sea: x0.79.
+- Directional spread (Goda 2008, wind sea s = 10): x0.97. Across 20 beds, wind sea 0.92-0.99 and swell 0.98-1.00.
+- Combined: about 0.95 of offshore, 1.06 m (3.5 ft). The owner's < 0.6 m leaves a factor of about 1.8 unexplained.
+- The offshore input is NOT the suspect: buoy 41117 read 1.4 m against the model's 1.11 m, so the gap is larger.
+
+**Reading.** What remains is either the observation convention (what "surf height" names: the outer breaker vs the
+inside; how face height is judged on a short-period wind sea) or a process none of the arms model.
+- This cannot be settled by more model arms or by fitting to one hour.
+- It needs breaking truth (T1 blind check-in reports with the in-frame scale reference, T2 Sentinel-2) and the owner's
+  answer on which height the product names.
+- The Weggel slope arm is held for the owner's word on USACE-published formulas. Its prediction at this point
+  (gamma ≈ 0.79) means it would not close the gap either.
