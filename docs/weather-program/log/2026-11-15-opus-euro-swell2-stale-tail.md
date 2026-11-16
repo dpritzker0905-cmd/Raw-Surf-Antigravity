@@ -103,3 +103,13 @@ without this change as with it. They are this machine's missing packages (fastap
 authority.
 
 Gate items 2 (3 consecutive exposed runs) and 3 (cost) are live, after merge: ledger commitment `opus--euro-swell2-stale-tail.jsonl:1`.
+
+## 2026-11-16 01:12Z: the advisor's review (PASS WITH LIMITS), and two additions
+
+- **The parse's cost is now reported.** `is_stale` parses each on-disk tail product in full, on top of publish_set's own parse, in
+  a step that skipped 124 sets for budget on 2026-11-15. Each set now reports `stale_check_s`. Read it in the first live run. If
+  it shows, read the two run fields with a scan instead of `json.loads`.
+- **`product_bytes` now reads ANY downloaded file before the disk copy, not only a stale one.** It is harmless today: a file is
+  downloaded only when it was missing from disk or stale. A future caller that downloads a product the disk already holds, current,
+  would get the download. The two are the same stored product, so that changes nothing served.
+- The ICON waves attribution stays as written: 16 of 19 explained by the timing, 3 not traced.

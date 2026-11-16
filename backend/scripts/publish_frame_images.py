@@ -138,7 +138,7 @@ class TailDownloads:
 
     def __init__(self, local, fetch, cap=320, log=print):
         self.local, self.fetch, self.cap, self.log = local, fetch, int(cap), log
-        self._got, self.last_stale = {}, 0
+        self._got, self.last_stale, self.last_check_s = {}, 0, 0.0
         self.stats = {"downloaded": 0, "download_failed": 0, "download_capped": 0, "wire_bytes": 0, "bytes": 0, "stale_refetched": 0}
 
     def manifest(self):
@@ -147,6 +147,13 @@ class TailDownloads:
     def product_bytes(self, filename):
         got = self._got.get(filename)   # a download first: it replaces a disk copy of another run (frame_set_tail_stale)
         return got if got is not None else self.local.product_bytes(filename)
+
+    def _stale(self, raw, entry):
+        t0 = time.perf_counter()   # the full parse costs time in a budgeted step: reported per set as stale_check_s
+        try:
+            return fts.is_stale(raw, entry)
+        finally:
+            self.last_check_s += time.perf_counter() - t0
 
     def fetch_dependency(self, filename):
         """SRV-2 (frame_set_bight): ONE stored product a frame's composition reads (the EURO frame the Bight mean averages
@@ -179,7 +186,7 @@ class TailDownloads:
     def prefetch(self, target, previous_index=None):
         """Download, TAIL_WORKERS at a time, the tail entries of `target` that are neither on disk nor carried from
         `previous_index` (same source identity). Returns the number downloaded for this set."""
-        self.last_stale = 0
+        self.last_stale, self.last_check_s = 0, 0.0
         if not self.wants(target):
             return 0
         carried = {(f.get("valid_time"), bool(f.get("is_estimated"))): f.get("source")
@@ -199,7 +206,7 @@ class TailDownloads:
             if carried.get((vt, True)) == ident or e["filename"] in self._got:
                 continue
             disk = self.local.product_bytes(e["filename"])
-            if disk is not None and not (refetch and fts.is_stale(disk, e)):
+            if disk is not None and not (refetch and self._stale(disk, e)):
                 continue
             if disk is not None:
                 stale.add(e["filename"])   # another run than the manifest names: download the current one (FRAME_TAIL_REFETCH_STALE)
@@ -589,6 +596,7 @@ def publish_frame_sets(source, sink, sets=None, log=print, budget_s=None, clock=
                                           rating_inputs=rating_inputs, plain_index=_plain_index(target, this_run, latest, sink))
             if isinstance(source, TailDownloads):
                 stats["tail_downloaded"], stats["stale_refetched"] = fetched, source.last_stale
+                stats["stale_check_s"] = round(source.last_check_s, 2)
         if index is not None:
             this_run[key] = index
             sink.write(index["path"], fs.index_bytes(index), fs.JSON_TYPE, IMMUTABLE)

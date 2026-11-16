@@ -82,6 +82,7 @@ def test_a_disk_copy_of_an_older_run_is_downloaded_again_and_built(tmp_path):
     stats, src = _run(disk, bucket, tmp_path / "out")
     assert (stats["built"], stats["stale_local"], stats["coverage"]) == (7, 0, 1.0)
     assert (stats["tail_downloaded"], stats["stale_refetched"], src.stats["stale_refetched"]) == (3, 3, 3)
+    assert isinstance(stats["stale_check_s"], float) and stats["stale_check_s"] >= 0.0   # the parse's cost, reported per set
     latest = json.loads((tmp_path / "out" / fs.LATEST).read_text())["sets"][fs.set_key(EURO)]
     index = json.loads((tmp_path / "out" / latest["index"]).read_text())
     meta = lambda f: {**(index.get("common_meta") or {}), **(f.get("meta") or {})}   # noqa: E731
