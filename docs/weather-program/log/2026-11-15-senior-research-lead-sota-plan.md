@@ -682,3 +682,31 @@ scoring 0.999; rating on the physical height 0.999; overall 2.84 of 3):
 
 **Pending.** ASK 6 (the regional convention table; how Surfline, Magicseaweed and Windy handle scales). Reflection
 was not asked; SubQ only.
+
+## 01:08Z The helper's ASK 6: regional scale table (mostly unconfirmed)
+
+**Confirmed from opened sources.**
+- Hawaii uses the Hawaiian scale. Caldwell / UHSLC: peak face = 2x the Hawaiian scale over 0-40 ft, about 15%
+  uncertainty, growing with size.
+- The US East/Gulf uses face height (NWS defines surf height as breaking height).
+
+**Snippet only.**
+- US West Coast: face (Surfline's default).
+- South Africa: Hawaiian scale.
+- Peru/Chile: metres, undefined.
+- Brazil: contested.
+- Germany's page: face.
+- Surfline: face by default, with a Hawaiian setting.
+- The "two-thirds" convention would give a factor of 1.5, not 2.
+
+**Unconfirmed:** the Caribbean, Mexico/Central America, NZ, Morocco, Japan, Tahiti/Fiji, Spain/Portugal, Indonesia,
+and Australia's local practice.
+
+**Proposed defaults** (an owner decision, sent to the director):
+- face height everywhere;
+- Hawaiian in Hawaii;
+- South Africa Hawaiian only once confirmed;
+- a user switch everywhere, and the label always names the scale;
+- unconfirmed regions stay on face until local knowledge (the owner or labelled observations) confirms otherwise.
+
+Conversion: x2 (Hawaii, measured), with the 1.5 variant noted as the uncertainty.
