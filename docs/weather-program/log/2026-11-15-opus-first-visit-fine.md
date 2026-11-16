@@ -179,3 +179,14 @@ zero-box-load routes for those is sent to the director and the frame-carry lane 
    still fetches `/grid` afterwards, B removes the wait but none of the box load. Storage and egress per run x layers x three models are
    owed before the director decides.
 Owed before the claim is general: a second pilot area, ICON (and EURO where bundled), an edge view, and phone at 4x.
+
+## 2026-11-16 06:50Z: the frame-carry lane's budget figures for options A and B (theirs, quoted; sent to the director)
+
+- GFS-Wave global 0.25 is already fetched (one pass over 129 hours, about 19 min), so a 0.5-deg tier is a stride-2 sample of it:
+  no new download.
+- 0.5-deg frame about 0.88 MB (scaled from today's 55 KB 2-deg frame); about 113 MB per run per layer (129 frames).
+- Egress is the catch: whole-globe frames cost about 113 MB per full single-layer scrub, so B needs 30-deg tiles (about 3-6 MB per view).
+- Today's encoder at 0.5 deg is about 33 min per run for 4 layers: B needs a vectorized encoder.
+- A (more pilot boxes) adds about 40 min to GFS Marine Pilot alone: it does not fit the budget.
+So B is viable only as 30-deg tiles with a vectorized encoder; A is out on budget. The director decides; the advisor's open questions
+(replace vs fetch-after; David's word and a parity line; storage and egress x 3 models) still apply.
