@@ -113,3 +113,17 @@ def test_decompose_and_summarize_group_by_class_and_sea_state():
     class NoNormal(G):
         shore_normal_deg = None
     assert len(ab.decompose(panel[:1], resolve=lambda lat, lng: NoNormal(), chain=fake_chain)) == len(ab.SEA_STATES)
+
+
+def test_partitions_take_the_partitioned_path_of_the_same_chain():
+    g = surf_point.resolve_surf_geometry(*OWNER)
+    parts = [{"h": 0.59, "tp": 4.6, "dir": 60.0, "kind": "windsea"}, {"h": 0.34, "tp": 8.8, "dir": 80.0, "kind": "swell"}]
+    a = ab.ablate(OWNER[0], OWNER[1], 0.68, 8.8, 80.0, geometry=g, partitions=parts)
+    direct, regime = surf_point.estimate_surf_at(OWNER[0], OWNER[1], 0.68, 8.8, 80.0, geometry=g, partitions=parts)
+    bulk = ab.ablate(OWNER[0], OWNER[1], 0.68, 8.8, 80.0, geometry=g)
+    assert a["served_m"] == direct and a["regime"] == regime and a["served_m"] != bulk["served_m"]
+    # the wind sea is carried on its own short period, so the partitioned read is lower than the bulk one here
+    assert a["served_m"] < bulk["served_m"]
+    # H1/10 and the constant refraction factor apply to every train, wind sea included
+    assert a["contribution"]["h110"] == pytest.approx(1.27, abs=0.01) and a["contribution"]["refraction"] == pytest.approx(0.873, abs=0.001)
+    assert a["contribution"]["komar"] > 1.1 and a["all_off_m"] < a["served_m"]

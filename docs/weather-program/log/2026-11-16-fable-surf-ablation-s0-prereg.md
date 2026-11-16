@@ -186,3 +186,53 @@ Either the validation compares a height before the breaking factors (then Komar 
 at the buoy are two separate errors with opposite signs, stacked). Which it is decides what "LOW" means for this
 ablation. It is the first thing to read when the window opens: the validation's own definition of the chain value it
 scores, per station.
+
+## 2026-11-16 01:10Z Part 1b. The PARTITIONED path on real partitions (measured, model only, one hour)
+
+The director asked for this before B3 is designed (2026-11-15 20:05 EST). `estimate_surf_partitioned` is the path
+`estimate_surf_at` takes when partitions are supplied: each train through the same `estimate_surf`, recombined in
+quadrature, then capped.
+
+**Instrument.** One public NOAA GFS-Wave analysis field, 2026-11-15 18Z (f000, 0.25 degree): total height, peak period
+and direction, the wind-sea partition and up to three swell partitions. Sampled at each panel spot's nearest water
+cell within 1 degree. No backend call, nothing private. `surf_ablation.ablate(..., partitions=...)`, same switches.
+Raw table, per-spot JSON and the two scratch scripts are in the shared notes folder, `fable-surf-ablation-2026-11-16/`.
+
+**Bulk against partitioned, 30 spots, same hour, same geometry:**
+
+| | geometric mean | 95% over spots | min | max |
+|---|---|---|---|---|
+| partitioned / bulk | 1.01 | [0.96, 1.07] | 0.78 | 1.36 |
+| bulk surf / offshore | 1.42 | [1.26, 1.58] | 0.74 | 2.17 |
+| partitioned surf / offshore | 1.44 | [1.31, 1.57] | 0.86 | 2.17 |
+| all six off, partitioned / offshore | 0.97 | [0.96, 0.99] | | |
+
+- **On average the partitioned path reads the same as the bulk path.** It does not lower the surf. It redistributes:
+  it LOWERS spots where a long peak period sat on little energy (Rincon 0.78, Pipeline 0.80, Huntington 0.81,
+  Wrightsville 0.83) and RAISES spots where the peak period was short but a swell train was present (Daytona 1.36,
+  Manasquan 1.33, Folly 1.32).
+- **The owner's point that hour** (0.68 m at 8.8 s, 75% of the energy wind sea): bulk 1.18 m (1.74 times offshore),
+  partitioned 1.09 m (1.60). The partitioned path takes 8% off and leaves a 1.6 times amplification of a mostly
+  wind-sea state.
+- **The factors are the same through this path.** Komar 1.54 [1.47, 1.62] (bulk 1.49), H1/10 1.27 on every spot,
+  refraction 0.873 on every spot, exposure 0.85, magnet 1.03, cap 1.00 (it bound nowhere this hour). H1/10 and the
+  constant refraction factor are applied to each train, the wind sea included.
+- **By class, partitioned over offshore:** inlet_jetty 1.62 [1.33, 1.94], open_beach 1.47 [1.30, 1.64], pier 1.33
+  [1.10, 1.59], point_reef 1.29 [1.00, 1.63]. The intervals overlap everywhere; the differences are the sea state each
+  spot happened to have (period and angle) and the three magnets, not the class.
+- The partitions reconcile with the total: their quadrature sum over the total height is 1.00 [0.99, 1.02],
+  range 0.91 to 1.19.
+
+**How this squares with "27 of 30 read the same" in Part 1.** That was the same sea state fed to every spot. Here
+each spot has its own real sea state, so the ratio ranges 0.74 to 2.17, and nearly all of that range is the INPUT
+(period, and the angle to the shore normal). The spot's own geometry still contributes only a magnet at three spots.
+
+**For B3.** A per-spot spectral transfer cannot be had by routing more traffic through this path: it honours each
+train's period and direction, and then applies the same Komar, the same 0.873 and the same 1.27 to every train at
+every spot. What it lacks is exactly what Part 1 found the bulk path lacks.
+
+**Limits.** One hour, one field, so the intervals are over spots in one weather pattern, not over time. NOAA's native
+field at the nearest water cell, not our stored tile through our sampler. The live point lane reconciles partitions
+before the chain (`point_surf_augment`); raw partitions were used here, so a live reading can differ. Several spots
+share a model cell (four St. Augustine spots have the same input). No truth was read: this says what the path does,
+not whether it is right.
