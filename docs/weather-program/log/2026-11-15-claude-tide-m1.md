@@ -784,3 +784,20 @@ advisor first. Its checklist:
 - versions are pinned;
 - the S1 preflight runs before any truth fetch;
 - every lead L at valid hour t is built only from cycles issued at or before t - L.
+
+## 17:03 EST 2026-11-16 (`date`) - advisor accepts the G3 addendum (21:58Z); storms, not gauge-events; what was seen
+1. **Events are grouped into storms (registered now; no new data, counted from the file already fetched).** Gauge-events
+   in the same region that overlap in time, or start within 48 h of each other (single-linkage), are ONE storm.
+   Item 3 and its +24 h shift control resample BY STORM. **Storm count: 3 storms in 2 regions:**
+   - Atlantic 2026-08-28T13 -> 08-29T10: one gauge (8658163), one gauge-event.
+   - Atlantic 2026-09-02T02 -> 09-08T00: 6 gauges (8534720 8651370 8658163 8665530 8722670 8723214), 8 gauge-events.
+   - Pacific 2026-09-02T04 -> 09-06T23: 2 gauges (9435380 9443090), 2 gauge-events.
+
+   That meets the >= 3 storms in >= 2 regions minimum exactly, so item 3 is RUNNABLE. With 3 storm units its interval
+   will be wide, which is honest. The window, the 48 h rule and the thresholds do NOT move after this count. Had it
+   come out short, item 3 would have been NOT RUNNABLE, and items 1, 2, 4 and 5 still report.
+2. **What was seen (this line is carried into the result):** the window's OBSERVED water and CO-OPS predictions were
+   read for a truth-only count (no arm scored). Item 3's surge-hour definition was changed after that look (to the
+   pre-window-demeaned residual), and the window was kept because the counts met the minimums. That truth was fetched
+   BEFORE the S1 preflight; the P1 / P1' choice stays mechanical, by S1 availability only. **No further truth-only
+   looks at this window before the run.**
