@@ -157,3 +157,36 @@ Run 43836918731 at bd8aa9a55: all 16 FES2022b files downloaded (parallel SFTP), 
 - This is what the positive control exists to catch, so VOID stands. The rules are NOT changed after seeing numbers,
   and this window is now SEEN: any re-run needs a new pre-registration on an unseen window. That proposal is for the
   director / research lead; nothing proposed here is adopted yet.
+
+## 06:26 EST 2026-11-16 (`date`) - G2 PRE-REGISTRATION (written before any G2 code or number)
+Director 06:25 EST: "yes to G2 as proposed", under David's overnight authorization and the earlier FES approval.
+**M1 is recorded as VOID** (the positive control failed: 0.083 m against a rule of <= 0.01). Its numbers are above,
+and the SEEN window 2026-10-15 .. 10-28 gets no tuning.
+
+G2 differs from the reconciled M1 rules (22:25 EST and 22:41 EST) in EXACTLY two things:
+1. **Window:** a new frozen, already-observed window, **2026-10-29 00Z .. 2026-11-11 23Z**, hourly. No arm has been
+   computed on it.
+2. **Per-station mean-level offset:** for each station, OFFSET = the mean of CO-OPS hourly predictions (MSL datum)
+   over the 365 days before the window, **2025-10-29 00Z .. 2026-10-28 23Z**. It is ADDED to every value of arms A
+   (FES2022b), B (EOT20) and P (positive control) before any metric. Truth (T1, T2) is unchanged. Arms C and D are
+   unchanged, since they carry their own de-means.
+   - It does not touch item 3 (timing) or item 4 (MSL - MLLW is mean-free).
+   - It is part of what the positive control now tests: P (published constants + OFFSET) must still match NOAA's
+     predictions within 0.01 m median RMSE.
+   - A station whose 365-day prediction mean cannot be computed (under 330 days of hours) gets no offset; that is
+     recorded, and its A/B/P rows are scored raw.
+
+Everything else stands exactly as registered:
+- stations: the 26
+- truths: T1 gates, T2 informative
+- items 1-4: RMSE <= 0.08 m AND below C; no station worse than C by > 0.05 m; High/Low <= 20 min; |MLLW err| <= 0.05 m
+- the computation choices of 22:41 EST
+- the arm-choice rule
+- the three controls, and VOID if any misbehaves
+- EOT20's harness fix (nested `ocean_tides.zip`, commit on `claude/tide-m1-eot20-fix`) changes how the files are
+  READ, not any rule
+
+Sequence (director): this registration is committed and pushed ALONE. The advisor and the research lead review it,
+and the advisor's OK comes before any G2 code is pushed or dispatched.
+Product consequence, noted for after G2: near US stations, the served tide carries the station offset to agree with
+NOAA's MSL / MLLW.
