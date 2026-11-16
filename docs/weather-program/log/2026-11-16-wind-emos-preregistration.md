@@ -128,3 +128,18 @@ replace the lines they name.
    The fit and the test verdict follow, once, as one dated read.
 
 **03:40Z correction to amendment 2 item 7:** the daily job runs at **10:07 UTC**, not 09:17. A job already runs at 09:20 (cron `20 3,9,15,21`). Nothing else is scheduled between 08:15 and 12:15 except :20 and :40 minutes; 00Z ENS is complete by about 07:40 UTC.
+
+## 2026-11-16 04:10Z AMENDMENT 3: limits stated before any data (advisor review of #950 at 66d520bfe)
+
+(a) **IFS cycle changes.** ECMWF may change the IFS cycle inside 2025-06..2026-10, which shifts ensemble bias and
+    spread. The rolling window adapts within about 45 days; the fixed-split line does not. An UNSTABLE label may
+    therefore be a cycle change, not a method failure. The report lists every IFS cycle implementation date in the
+    period beside the fixed-split line, read from ECMWF's published change log.
+(b) **September 2026 has no NDBC truth** (monthly file unpublished), so the water network is missing for one test
+    month. The report counts the NDBC cells (bin x region) whose training window fell under the 300-pair floor because
+    of it, and the TEST rows lost.
+(c) **Cost and throttling.** The backfill reads about 670 GB by byte range from the public mirror. It runs in monthly
+    slices, 4 shards at most per slice, off-peak, with the backoff and per-shard retry counts learned in the
+    long-range hindcast (S3 503 SlowDown).
+(d) The collector and fitter run with NO credential. The bucket is touched only by a standard-library storage step
+    (`emos_bucket_io.py`, `python3 -I -S`), create-only (advisor condition on #951).
