@@ -29,6 +29,7 @@ TEST = (datetime(2026, 1, 1, tzinfo=timezone.utc), datetime(2026, 10, 31, tzinfo
 FIXED_FIT = (datetime(2025, 6, 1, tzinfo=timezone.utc), datetime(2025, 12, 17, tzinfo=timezone.utc))
 TRAIN_FROM_D, TRAIN_TO_D = 59, 14          # amendment 1: runs issued in [T - 59 d, T - 14 d]
 MIN_ROWS = 300
+IFS_CYCLE_DATES: list = []          # set from ECMWF's change log before the one read (amendment 3 a); empty = not yet
 REGIONS = ("us_east_gulf", "us_west", "hawaii", "alaska")
 
 
@@ -226,7 +227,7 @@ def rolling_predict(R, feat=("m", "s2"), target="y"):
     run_ts = np.array([_run_dt(r).timestamp() for r in R["run"]])
     cells, pooled = _cell_index(R, bins, run_ts)
     finite = np.isfinite(R[target])
-    b_by_cell, fallbacks = {}, 0
+    b_by_cell, fallbacks, fallback_by_cell = {}, 0, {}
     test_ts = sorted({t for t in run_ts if TEST[0].timestamp() <= t <= TEST[1].timestamp()})
     day = 86400.0
     for T in test_ts:
@@ -240,12 +241,14 @@ def rolling_predict(R, feat=("m", "s2"), target="y"):
                 tr = _window(pooled[key[:2]], T - TRAIN_FROM_D * day, T - TRAIN_TO_D * day)
                 tr = tr[finite[tr]]
                 fallbacks += 1
+                fallback_by_cell["|".join(key)] = fallback_by_cell.get("|".join(key), 0) + 1
             if tr.size < MIN_ROWS:
                 continue
             theta, _ = E.fit_emos(R[feat[0]][tr], R[feat[1]][tr], R[target][tr])
             m_, s_ = E.params_to_mu_sigma(theta, R[feat[0]][rows], R[feat[1]][rows])
             mu[rows], sig[rows] = m_, s_
             b_by_cell.setdefault("|".join(key), []).append(float(theta[1]))
+    rolling_predict.last_fallbacks = fallback_by_cell     # reported per cell (amendment 3 b)
     return mu, sig, b_by_cell, fallbacks
 
 
@@ -300,7 +303,11 @@ def score(R) -> dict:
     mu, sig, b_by_cell, fallbacks = rolling_predict(R)
     emos_crps = E.crps_tn0(mu, sig, R["y"])
     med = E.median_tn0(mu, sig)
-    out = {"lines": {}, "fallback_cells": fallbacks}
+    out = {"lines": {}, "fallback_cells": fallbacks,
+           "fallback_runs_by_cell": dict(getattr(rolling_predict, "last_fallbacks", {})),
+           # amendment 3 (a): ECMWF IFS cycle implementation dates inside the period, filled from ECMWF's published
+           # change log at read time and shown beside the fixed-split line (an UNSTABLE label may be a cycle change)
+           "ifs_cycle_dates": IFS_CYCLE_DATES}
     ok_all = True
     for b in BINS:
         m = test & (bins == b) & np.isfinite(emos_crps)
