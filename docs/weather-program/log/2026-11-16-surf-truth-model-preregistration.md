@@ -132,3 +132,55 @@ row per observation. The export (T1 P4, `services/surf_truth_export.py`) is ROW-
 are HMAC-SHA256 keys under a key held only in the environment, and no name, profile id, device or photo position,
 photo URL or converted height leaves. It lives in PRIVATE storage only. "Aggregate-only" applies to anything shown
 outside private storage (the admin views are counts only). Nothing else in this registration changes.
+
+## 2026-11-16 23:55Z AMENDMENT 2: the advisor's red-team items A-M (BEFORE any data or fit)
+
+Advisor note `redteam-989-surf-truth-model-prereg-2026-11-16.md` (shared notes), items A-M, registered here before any
+blind observation exists. Where this amendment and the text above differ, this amendment governs.
+
+- A. Target excluded, scoreable cells. The held-out target report is excluded from the inputs of BOTH the model and the
+  baseline. A cell is SCOREABLE for gate items 1-2 only if it has the target anchor report plus >= 1 other INDEPENDENT
+  report (independence as defined above). The runnable floor counts SCOREABLE cells, not cells.
+- B. Inputs at scoring. All model parameters (P, b, sigma, mu, tau, the scale and set factors, any kept candidate term)
+  come from the FIT only. At scoring, the held-out cell's OTHER (non-target) reports are inputs: the model conditions on
+  them to infer that cell's T and then predicts the target report. An observer seen only in the holdout gets the role
+  prior for b and sigma.
+- C. Naive baseline, one definition. Baseline face height = the median of the cell's other raw entries, each converted
+  to face metres by its DECLARED scale only (face x 1, Hawaiian x 2; a range at its geometric centre, "8ft+" at 8 ft).
+  Its predicted report = that face height converted back to the TARGET's declared scale. No model parameter (no P, no
+  b, no set factor) enters the baseline.
+- D. The gated fit is the BAYESIAN fit (NumPyro, NUTS, 4 chains, R-hat < 1.01 and bulk ESS > 400 on P, mu and tau,
+  and no more than 0.1% divergent transitions after warmup, or the run is VOID). Its posterior predictive integrates parameter uncertainty and sigma_j. EM is used only to
+  initialise and to diagnose; an EM interval is never gated.
+- E. One look per version. One scored run per model version. A model version committed after ANY scored result is
+  scored only on holdout rows RECEIVED AFTER that version's commit time. The data cut for the first scored run is the
+  first daily cut at which the floor is met (not chosen); it is recorded with its counts.
+- F. Calibration. Gate item 2 is POOLED coverage in [0.75, 0.85]. Per class: the Wilson 95% interval of coverage must
+  include 0.80. Coverage of an interval entry (a range, or a typed number read as an interval at the rounding width of
+  its precision AS TYPED: an integer +-0.5 of its unit; a half value x.5 +-0.25; any other one-decimal value +-0.05)
+  uses a RANDOMIZED PIT (seed 20261116): draw u uniformly between the predictive CDF at the
+  entry's low and high edges; the entry is covered iff 0.1 <= u <= 0.9. Right-censored "8ft+": draw u in [CDF(8 ft), 1].
+- G. Minimum anchors. The floor additionally requires >= 3 ACTIVE anchors, each contributing held-out scoreable
+  reports. Items 1-2 are also reported PER ANCHOR (not gated per anchor).
+- H. Flags as a term. The noise of observation i is sigma_j x m_{g(i)}, with flag class g in {clean, unverified
+  location (gps_missing, or media_unverified without exif ok), range_only}; m_clean = 1; the others have half-normal
+  priors on (m - 1) >= 0, so flagged rows are down-weighted, never up-weighted. Rows with an exclusion flag (Data
+  section) still do not enter.
+- I. Controls. Negative: the fit with observer ids shuffled within role must NOT score better than the real fit on the
+  holdout MAE (VOID if it does); the tau shrink is REPORTED, not gated (real observers may already be nearly unbiased).
+  Positive: one synthetic observer with exactly 40 reports on real fit cells, multiplicative +30%, log-noise sd 0.15:
+  its b's 95% interval must EXCLUDE 0 and contain log(1.3), and P's posterior must stay within its CI (as above).
+- J. Intervals. Bootstrap CIs (seed 20261116) resample by day blocks AND, separately, by anchor; both are reported and the WIDER governs.
+  The number of blocks is printed; with fewer than 20 day blocks or fewer than 5 anchors, any passing line is labelled
+  FRAGILE.
+- K. What a PASS does not certify (added): ENTRY is blind, SAMPLING is not. People report on days they chose to go,
+  partly from the forecast, so cells are a forecast-selected sample (over-forecast days observed, under-forecast flat
+  days missed). Any forecast-versus-truth number from this stream carries that label.
+- L. Physical references. No physical-reference row enters any fit until an amendment registers, for each kind, its
+  definition and its mapping to H1/10 (a single photographed wave is not H1/10; a buoy is offshore and needs its own
+  transform). Until then P stays at its prior and every output is "anchor-scale face height".
+- M. Clock correction. The header's "17:45 EST" is the time written in the research lead's sign-off message, not a
+  clock reading. The sign-off message preceded the first commit (99c423124, 17:37:13 EST by git); git's time is
+  authoritative.
+
+Research lead signed off amendment 2, 2026-11-16 17:52:05 -0500 (local clock at commit), with edits a-b: (a) D also VOID on more than 0.1% divergent transitions after warmup; (b) F rounding width from the precision as typed, and fixed seeds (20261116) for the PIT and the bootstraps.
