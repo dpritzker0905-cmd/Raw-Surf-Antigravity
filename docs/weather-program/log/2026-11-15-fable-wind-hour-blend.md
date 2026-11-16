@@ -231,3 +231,25 @@ At the director's word (18:40 EST: the Node-only test may run now; every browser
 - **Controls, wind, 20 triples, one run:** N1 (a wrong truth) holds in 20 of 20; N2 (a wrong blend) fails the pass line, as
   it must; P (identical neighbours) is exactly zero. So the instrument can fail and can read zero on this data.
 - **Owed:** a second fetch after the next GFS run is published, then the truth line for both runs together.
+
+## 9. W13 RESULT: wind on real frames, two runs (21:22 EST). Read once, as it came out.
+Second fetch 21:14-21:18 EST: GFS 2026-11-15 18Z. With 12Z: two runs, 20 triples each, 40 triples, set `GFS/wind/wind/global_mid`
+(181 x 83, knots). Scorer at `68719d80b` (the same file on this branch). A third arm, advection, was registered for this test
+before any truth line was read: the marine log, section 37, which covers wind (the field carried along its own vector).
+- **W13 PASSES.** Mean vector error against the real h+3: the half-way u/v mix of h and h+6 **1.913 kn**; the hard swap
+  3.059 kn (h alone 3.080, h+6 alone 3.075). The mix is **62.5%** of the swap, and not worse in 40 of 40 triples (line: at
+  most 100%, in at least 80%).
+- **Controls held:** N1 (a wrong truth) 40 of 40; N2 (a wrong blend) fails the line as it must (5.950 kn against 3.080);
+  P exactly zero.
+- **Smear, reported without a line as registered:** speed kept through the (h, h+6) mix 0.971 of the mean of the two hours';
+  nodes where the mix loses more than half that speed: 11,378 of 600,920 (1.9%). A hard swap loses none. Whether that shows is
+  for the owner's blinded look. Note this is the 6-hour pair; the app blends 3-hour neighbours, where less is lost (W8a, on
+  the synthetic field, is still to be run).
+- **Ghost nodes (more than 3 kn off the real middle):** the mix 93,583, the hard swap 205,081, of 600,920.
+- **ADVECTION IS WORSE THAN THE MIX:** 2.177 kn, 113.8% of the mix's error, smaller than it in 0 of 40 triples; 119,703 ghost
+  nodes. It beats the hard swap (71.2%). Its controls held. As written beforehand, a wind system has no physical reason to
+  travel along its own 10 m wind. Exploratory, not registered, to rule out a sign error of mine: reversed 137.2%, half speed
+  102.6%, quarter speed 99.5%: the error is smallest with no motion.
+- **Limits:** value space on the world grid only; the shaders drawing this mix is W5/W6, NOT yet measured for wind (no wind
+  gate line has run in a browser); two runs 6 hours apart on one day are not independent samples; nothing here covers the
+  particles, the HRRR lane, regional grids or a phone. The blend stays off.
