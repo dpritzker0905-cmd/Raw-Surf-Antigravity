@@ -1338,3 +1338,20 @@ factor: 1.08 m, 0.96 of the offshore height, 3.5 ft". That figure already has th
   perception term in the truth model, and no perceived number by default. None of these depended on explaining one hour.
 - **Lesson (L-S27 family):** when chaining another lane's figure, read what its multipliers already include before
   applying one again.
+
+## 2026-11-16 15:25Z What the 0.70 is and is not (advisor's request, 15:15Z)
+
+The advisor verified the 15:20Z correction independently and asked how much weight 0.70 can carry. Read from the
+abstracts only (full texts not opened):
+
+- **Stokes et al. 2014 (JCR SI 70):** 354 participants, Cornwall. 0.70 is the MEAN observed/measured ratio over all of
+  them (0.5-3.5 m, 3-15 s). The abstract says perceptions were "highly varied" and gives no SD or interval. Experts and
+  surfers under-called most, on small or short-period waves.
+- **Stokes 2015 PhD thesis** (same programme, 403 water users, buoy at 14 m): mean under-estimate **48%**, i.e. a ratio of
+  about 0.52, not 0.70. The two figures from one group bracket the likely mean at roughly 0.5-0.7.
+- **Therefore:** 0.70 is a population mean, not a correction for one observer or one report. Its spread is unknown to us
+  and visibly large. At 0.52 the owner's hour would read 0.56-0.71 m (1.8-2.3 ft), so a lower perception ratio could
+  close the gap. On n = 1 that is not evidence either way.
+- **For David and the truth model:** shown as "surfers typically call waves about half to two-thirds of their measured
+  height (one UK study group, highly variable)". In the P4 model the perception term is a per-observer random effect
+  with a wide prior centred in 0.5-0.7, to be estimated from physical anchor audits. It is never a fixed 0.70.
