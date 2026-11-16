@@ -726,3 +726,39 @@ Sequence:
 4. The owner's word for the run, through the same one-shot tag mechanism under a new tag `tide-gate-G3`.
 
 #926 and #931 stay held.
+
+## 16:54 EST 2026-11-16 (`date`) - G3 ADDENDUM: the research lead's read; a truth-only surge count (before any arm)
+The research lead read the 15:59 draft (its points 1-2 of (b) and the bootstrap were already in the FINAL). Added now,
+BEFORE any arm is computed:
+
+- **STOFS-3D-Atlantic, a REPORTED regional arm (Atlantic/Gulf strata only).** SCHISM, with rivers and estuaries; the
+  free model most likely to help the estuary gauges. Confirmed kept as issued: `noaa-nos-stofs3d-pds`,
+  `STOFS-3D-Atl/stofs_3d_atl.YYYYMMDD/`, a daily 12Z cycle with `fcast.station.profile.nc` and conus.east `cwl` GRIB2
+  (2026-08-25 listed). Not chosen; US-only.
+- **N2 non-tidal, both forms:** P1 uses `swl` (as registered). `cwl - htp` (which includes STOFS's anomaly term) is
+  reported as N2'.
+- **S1 at the nearest valid OFFSHORE cell** (altimetry degrades in the last ~10 km): the nearest cell >= 10 km from
+  the coast with a complete daily record over the 2016-2025 base.
+- **Every score also split into mean bias and standard deviation** (reported), so a datum offset cannot pass for
+  surge skill.
+- **D is not in-sample:** D's datum is the Open-Meteo mean over the 365 days before each window, and #926's held-out
+  weeks (from 2025-12-15, 2026-03-15, 06-15, 09-15) do not touch 2026-08-25 .. 09-07.
+- **+24 h shift control:** read on the surge-hour subset (as item 3), not pooled.
+
+**Item 3: surge hours are defined on the de-meaned residual.** Truth-only check (research lead), recorded before any
+arm. Observed minus CO-OPS predictions, 25 h low-pass, at the 26 gauges over the window (notes
+`g3-truth-surge-count-*.json`, script `g3_surge_count.py`):
+- **As drafted** (|residual| > 0.15 m): 2242 surge hours at 15 gauges. But La Jolla and Los Angeles counted 329 and
+  336 of 336 hours. That is a PERSISTENT MEAN OFFSET of observed over the 1983-2001-epoch predictions, not surge: the
+  residual's mean over the 30 days before the window is **+0.05 .. +0.20 m** at nearly every gauge (largest on the
+  Atlantic). As drafted, item 3 would test mean level, not surge.
+- **Registered now (before any arm):** a surge hour is |residual - its own mean over the 30 days BEFORE the window
+  (2026-07-26 .. 08-24)| > 0.15 m. Event = >= 12 consecutive surge hours.
+- **Counts under that definition:** **439 surge hours at 9 gauges; 11 events of >= 12 h in 2 regions (Atlantic 9,
+  Pacific 2); 5 gauges with >= 48 h.**
+- **Minimums (both required, else item 3 is NOT RUNNABLE and G3 is INCONCLUSIVE):** the advisor's (>= 3 events in >= 2
+  regions) AND the research lead's (>= 48 surge hours on >= 5 gauges). **The window meets both, so it is kept.**
+- The pre-window mean offset itself is the datum term the registration already requires S1 to carry (the present
+  mean level against the 1993-2012 altimetry reference); the bias/SD split will show whether it does.
+
+Also: the G2 result is recorded on dev in its own docs-only PR #987 (director).
