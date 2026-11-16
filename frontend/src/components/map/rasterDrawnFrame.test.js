@@ -124,3 +124,12 @@ test("a GFS stand-in past the picked model's range is said as an estimate, in th
   expect(describeRasterFrame({ layer: 'pressure', shown: shown, want: euro }, 'pressure', Date.UTC(2026, 9, 24, 3)).text)
     .toBe('Loading EURO Pressure… still showing GFS Pressure');
 });
+
+// TEXTURE FIT (2026-11-16): a frame drawn downsampled for the device's texture limit says so; a full-size one says nothing.
+test('a downsampled raster frame is named in words; factor 1 is silent', () => {
+  const e = { url: 'u', dataMs: 3600000, model: 'ICON', drawnFactor: 2 };
+  expect(describeRasterFrame({ layer: 'rain', shown: e, want: e }, 'rain', e.dataMs)).toEqual(
+    expect.objectContaining({ state: 'reduced', text: expect.stringMatching(/1\/2 detail/) }));
+  const f = { ...e, drawnFactor: 1 };
+  expect(describeRasterFrame({ layer: 'rain', shown: f, want: f }, 'rain', f.dataMs)).toBeNull();
+});
