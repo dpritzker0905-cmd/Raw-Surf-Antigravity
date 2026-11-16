@@ -99,4 +99,18 @@ describe('the hold (advisor, #978): no flicker when the reader clears for a mome
     act(() => { jest.advanceTimersByTime(600); });
     expect(container.querySelector('[data-stale-chip]')).toBe(null);     // the kill: at once, no hold
   });
+
+  test('a new layer, model or wind choice drops the hold at once; a new hour (the scrub) keeps it', () => {
+    const { act } = require('@testing-library/react');
+    paint({ lagH: 6, runTime: RUN });
+    const { container, rerender } = render(<StaleLayerChip stale={STALE} onOpen={() => {}} />);
+    expect(container.querySelector('[data-stale-chip]')).not.toBe(null);
+    window.__RAW_GPU__.ratingBand.active = false;                                   // nothing stale on the next selection
+    rerender(<StaleLayerChip stale={{ ...STALE, hour: 3 }} onOpen={() => {}} />);   // a scrub step: the hold keeps the words
+    act(() => { jest.advanceTimersByTime(600); });
+    expect(container.querySelector('[data-stale-chip]')).not.toBe(null);
+    rerender(<StaleLayerChip stale={{ ...STALE, hour: 3, layer: 'swell_1' }} onOpen={() => {}} />);   // another layer
+    act(() => { jest.advanceTimersByTime(0); });
+    expect(container.querySelector('[data-stale-chip]')).toBe(null);               // the old words never sit on a layer they do not describe
+  });
 });

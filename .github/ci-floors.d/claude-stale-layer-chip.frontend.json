@@ -1,6 +1,6 @@
 {
   "lane": "frontend",
-  "tests": 7,
+  "tests": 8,
   "files": 2,
   "branch": "claude/stale-layer-chip",
   "date": "2026-11-16",

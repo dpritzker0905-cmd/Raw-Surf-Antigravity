@@ -32,12 +32,14 @@ export const HOLD_MS = 1500;
 
 export default function StaleLayerChip({ stale, onOpen, textClass = '' }) {
   const { model, layer, hour, windOn } = stale || {};
-  const last = useRef({ state: null, at: 0 });
+  const last = useRef({ state: null, at: 0, key: null });
+  const key = `${model}|${layer}|${windOn}`;   // a new model / layer / wind choice is a new subject: no hold carries over
   const read = () => {
     const now = Date.now();
+    if (last.current.key !== key) last.current = { state: null, at: 0, key };   // the hour alone (a scrub) keeps the hold
     const s = stale ? readStaleChip({ model, layer, hour, windOn }) : null;
-    if (s) { last.current = { state: s, at: now }; return s; }
-    if (staleChipKilled() || !last.current.state || now - last.current.at > HOLD_MS) { last.current = { state: null, at: 0 }; return null; }
+    if (s) { last.current = { state: s, at: now, key }; return s; }
+    if (staleChipKilled() || !last.current.state || now - last.current.at > HOLD_MS) { last.current = { state: null, at: 0, key }; return null; }
     return last.current.state;   // inside the hold: keep the last words
   };
   const [state, setState] = useState(read);
