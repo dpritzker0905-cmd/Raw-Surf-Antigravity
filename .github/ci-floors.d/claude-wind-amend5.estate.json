@@ -1,7 +1,0 @@
-{
-  "lane": "estate",
-  "tests": 1,
-  "branch": "claude/wind-amend5",
-  "date": "2026-11-16",
-  "note": "floor-staleness raise: dev's estate floor sat 3 below CI's last reading (3791 vs 3794, run 43911937997); not tests of this PR"
-}
