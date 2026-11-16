@@ -104,6 +104,19 @@ def l1_cached_products_stay_unchanged(request, monkeypatch):
 
 
 @pytest.fixture(autouse=True)
+def no_live_noaa_bulletins(monkeypatch):
+    """The skill ledger's NOAA station-bulletin lane (skill_noaa_bulletin, 2026-11-16) would fetch ~60 real files from
+    S3 inside any test that runs `run_skill_ledger`. Tests feed it text through `get=`; the live fetch is refused."""
+    def refuse(url, timeout=20):
+        raise RuntimeError("tests never fetch live NOAA bulletins: pass get= to fetch_bulletin_rows")
+    try:
+        from services.weather_pipeline import skill_noaa_bulletin
+        monkeypatch.setattr(skill_noaa_bulletin, "_http_get", refuse)
+    except Exception:
+        pass
+
+
+@pytest.fixture(autouse=True)
 def clean_viewport_service_registries():
     """Clears ViewportService's static/class-level registries to prevent cross-test loop leakage."""
     try:
