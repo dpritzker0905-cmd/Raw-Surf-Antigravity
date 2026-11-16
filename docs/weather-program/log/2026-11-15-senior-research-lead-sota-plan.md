@@ -448,3 +448,16 @@ found in Florida (the helper's ASK 2).
 - a fixed live-dev spot panel;
 - owner observations as a labelled truth stream;
 - a hypothesis test H1-H4 per coast type.
+
+## 00:21Z Wind long-range lane: amendment 2 committed (5ed6858e2), hindcast relaunched
+
+The lane applied the window, the block split, the drop/VOID rule and the seasonal climatology (day of year +-15 d by
+UTC hour, 2016-2025), all before any result. It also added AIFS-ENS as a reported arm: AIFS-ENS has 10u/10v for 51
+members but no 10fg, so its gust arm is wind x GF.
+
+Known limits:
+- NDBC September 2026 stdmet is unpublished and realtime2 starts 10-02, so the September FIT half has no NDBC.
+- I asked the lane to report the de-bias arm (non-primary) per network.
+- AWS 503 SlowDown is intermittent. The lane uses backoff, caps at 12 shards and logs 503s per shard.
+
+Run: `wind-lr-hindcast.yml` on `claude/wind-ens-extension` (d31e8f964).
