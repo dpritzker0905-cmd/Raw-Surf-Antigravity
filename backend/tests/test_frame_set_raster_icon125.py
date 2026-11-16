@@ -192,3 +192,30 @@ def test_a_frame_is_the_area_mean_of_the_steps_rate_and_the_map_is_built_once(mo
         np.array([[[0, 0, 1, 1], [2, 2, 2, 3]]], dtype=np.int32), 4))
     plane = src.fetch("run", 6)
     assert plane.tolist() == [[2.0, 2.0]] and built == ["run"]
+
+
+def test_a_box_over_the_cap_is_refused_never_silently_truncated():
+    lat = np.zeros(13)
+    lon = np.zeros(13)                                              # 13 cells round to one node
+    with pytest.raises(RuntimeError, match="more than the cap"):
+        i125.box_cells(lat, lon, rows=ROWS, cols=COLS, step=STEP, cap=12)
+    assert i125.box_cells(lat[:12], lon[:12], rows=ROWS, cols=COLS, step=STEP, cap=12).shape[2] == 12
+
+
+def test_a_single_cell_spike_is_found_in_its_own_box_and_its_mass_is_kept():
+    """The registered null control, as the advisor asked: a field that is zero but for ONE cell. A misplaced pick map moves the
+    spike; a mis-weighted one loses or gains its mass. Here cells are the nodes' own centres plus one off-centre spike cell."""
+    lat, lon = _nodes()
+    base = _cells_at(lat, lon)
+    spike_lat, spike_lon = 22.5 + 3.0, -45.0 + 4.0                  # inside node (r=5, c=6)'s box, off its centre
+    xyz = np.concatenate([base, _cells_at(np.array([spike_lat]), np.array([spike_lon]))])
+    cl = np.concatenate([lat.ravel(), [spike_lat]])
+    co = np.concatenate([lon.ravel(), [spike_lon]])
+    nn = np.arange(ROWS * COLS, dtype=np.int32).reshape(ROWS, COLS)
+    pick = i125.subpoint_pick(nn, xyz, cl, co, k=9, rows=ROWS, cols=COLS, step=STEP, reach_deg=STEP)
+    vals = np.zeros(cl.size)
+    vals[-1] = 90.0
+    plane = i125.area_mean(vals, pick)
+    r, c = np.unravel_index(np.argmax(plane), plane.shape)
+    assert (int(r), int(c)) == (5, 6)                               # the spike stays in its own box
+    assert np.count_nonzero(plane) >= 1 and plane.max() < 90.0      # shared with the centre cell: an area mean

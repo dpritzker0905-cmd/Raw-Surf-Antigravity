@@ -102,36 +102,64 @@ def box_cells(cell_lat, cell_lon, rows=ROWS, cols=COLS, step=STEP, cap=12):
     sorted_node = node[order]
     start = np.searchsorted(sorted_node, sorted_node, side="left")
     rank = np.arange(node.size) - start                                                      # position within its box
-    m = int(min(cap, max(1, rank.max() + 1)))
+    fullest = int(rank.max() + 1) if rank.size else 0
+    if fullest > cap:      # never drop a cell silently (the advisor, 2026-11-16): ICON R3B7 at 0.125 holds at most 3, measured
+        raise RuntimeError(f"a box holds {fullest} cells, more than the cap {cap}")
+    m = max(1, fullest)
     table = np.full((rows * cols, m), -1, dtype=np.int32)
     keep = rank < m
     table[sorted_node[keep], rank[keep]] = order[keep]
     return table.reshape(rows, cols, m)
 
 
-def subpoint_pick(nn_full, cell_xyz, cell_lat, cell_lon, k=K, rows=ROWS, cols=COLS, step=STEP, chunk=48):
-    """(rows, cols, k*k) int32: for each sub-point of each box, the nearest cell among the candidates of the 3 x 3 nodes around
-    it: every cell whose centre lies in one of those boxes, plus each node's nearest cell (DWD's map; it is the only candidate
-    where boxes are smaller than cells, near the poles). A cell that is no node's nearest still competes for its sub-points."""
+# REACH_DEG: the arc around a node whose boxes' cells are candidates: one row each side and, as the boxes narrow with latitude,
+# ceil(1 / cos(lat)) columns each side. Measured 2026-11-16 against a brute force over all 2,949,120 cells (3,000 random
+# sub-points, every latitude band): 100 % the true nearest cell, in float64; 0.22 deg gave the same at twice the build time
+# (142 s vs 66 s).
+REACH_DEG = 0.125
+MAX_HALF_COLS = 64  # near the poles a box is far narrower than a cell: DWD's nearest cells are the candidates there
+
+
+def subpoint_pick(nn_full, cell_xyz, cell_lat, cell_lon, k=K, rows=ROWS, cols=COLS, step=STEP, reach_deg=REACH_DEG,
+                  budget=6_000_000):
+    """(rows, cols, k*k) int32: for each sub-point of each box, the nearest cell among the candidates of the nodes within
+    `reach_deg` of arc around it: every cell whose centre lies in one of those boxes, plus each node's nearest cell (DWD's map).
+    The column window widens with latitude (a 0.125-degree box narrows as cos(lat)), so a cell that is no node's nearest, or
+    whose box is two or more columns away, still competes for its sub-points (the ICON-cloud gate of 2026-11-16 caught the
+    fixed 3 x 3 window missing such cells poleward of ~45 degrees)."""
     import numpy as np
     off = (np.arange(k) - (k - 1) / 2.0) * (step / k)
     pick = np.empty((rows, cols, k * k), dtype=np.int32)
-    col_idx = (np.arange(cols)[:, None] + np.array([-1, 0, 1])[None, :]) % cols            # (cols, 3), wraps the date line
     lon = -180.0 + step * np.arange(cols)
     per_node = np.concatenate([nn_full[:, :, None], box_cells(cell_lat, cell_lon, rows, cols, step)], 2)   # (rows, cols, 1+m)
     m1 = per_node.shape[2]
-    for r0 in range(0, rows, chunk):
-        r = np.arange(r0, min(rows, r0 + chunk))
-        row_idx = np.clip(r[:, None] + np.array([-1, 0, 1])[None, :], 0, rows - 1)          # (nr, 3)
-        cands = per_node[row_idx[:, :, None, None], col_idx[None, None, :, :]]             # (nr, 3, cols, 3, 1+m)
-        cands = cands.transpose(0, 2, 1, 3, 4).reshape(r.size, cols, 9 * m1)               # (nr, cols, 9(1+m)); -1 = none
-        cands = np.where(cands < 0, cands[:, :, :1], cands)                                 # a pad repeats the first (a nearest)
-        slat = np.clip((-90.0 + step * r)[:, None] + off[None, :], -90.0, 90.0)            # (nr, k)
-        slon = lon[:, None] + off[None, :]                                                   # (cols, k)
-        sxyz = _unit(slat[:, None, :, None], slon[None, :, None, :])                         # (nr, cols, k, k, 3)
-        sxyz = sxyz.reshape(r.size, cols, k * k, 3).astype(np.float32)
-        dots = np.einsum("rcsx,rcnx->rcsn", sxyz, cell_xyz[cands])                           # (nr, cols, k*k, 9(1+m))
-        pick[r] = np.take_along_axis(cands, np.argmax(dots, 3), 2)                         # (nr, cols, k*k)
+    hr = int(np.ceil(reach_deg / step))                                                      # rows each side
+    r0 = 0
+    while r0 < rows:
+        lat_far = min(89.9, max(abs(-90.0 + step * max(0, r0 - hr)), abs(-90.0 + step * min(rows - 1, r0 + hr))))
+        hc = int(min(MAX_HALF_COLS, np.ceil(reach_deg / (step * np.cos(np.radians(lat_far))))))
+        ncand = (2 * hr + 1) * (2 * hc + 1) * m1
+        n = max(1, int(budget // (cols * ncand)))
+        r = np.arange(r0, min(rows, r0 + n))
+        # the window at the row nearest the pole in this chunk is the widest it needs (cos shrinks poleward)
+        lat_far = min(89.9, max(abs(-90.0 + step * max(0, r[0] - hr)), abs(-90.0 + step * min(rows - 1, r[-1] + hr))))
+        hc = int(min(MAX_HALF_COLS, np.ceil(reach_deg / (step * np.cos(np.radians(lat_far))))))
+        ncand = (2 * hr + 1) * (2 * hc + 1) * m1
+        row_idx = np.clip(r[:, None] + np.arange(-hr, hr + 1)[None, :], 0, rows - 1)          # (nr, 2hr+1)
+        col_idx = (np.arange(cols)[:, None] + np.arange(-hc, hc + 1)[None, :]) % cols         # (cols, 2hc+1), wraps the date line
+        cands = per_node[row_idx[:, :, None, None], col_idx[None, None, :, :]]               # (nr, 2hr+1, cols, 2hc+1, 1+m)
+        cands = cands.transpose(0, 2, 1, 3, 4).reshape(r.size, cols, ncand)                   # -1 = none
+        first = per_node[r[:, None], np.arange(cols)[None, :], 0][:, :, None]                  # the node's own nearest cell
+        cands = np.where(cands < 0, first, cands)                                             # a pad repeats a real candidate
+        slat = np.clip((-90.0 + step * r)[:, None] + off[None, :], -90.0, 90.0)              # (nr, k)
+        slon = lon[:, None] + off[None, :]                                                     # (cols, k)
+        sxyz = _unit(slat[:, None, :, None], slon[None, :, None, :])                           # (nr, cols, k, k, 3)
+        sxyz = sxyz.reshape(r.size, cols, k * k, 3)
+        # float64: two cells ~0.005 deg apart in distance are a tie in float32 (1 - cos of 0.05 deg is ~4e-7); measured
+        # 2026-11-16, float32 picked a not-nearest cell for ~3 % of sub-points
+        dots = np.einsum("rcsx,rcnx->rcsn", sxyz, np.asarray(cell_xyz, dtype=np.float64)[cands])   # (nr, cols, k*k, ncand)
+        pick[r] = np.take_along_axis(cands, np.argmax(dots, 3), 2)                           # (nr, cols, k*k)
+        r0 = r[-1] + 1
     return pick
 
 

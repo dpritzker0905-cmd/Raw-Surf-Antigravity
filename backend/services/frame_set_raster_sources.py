@@ -431,7 +431,7 @@ class IconPrecip0p125Source(IconPrecipSource):
                 nn, slat, slon = i125.fetch_dwd_nn(self.http)
                 if not i125.same_grid(slat, slon, clat, clon):
                     raise RuntimeError("DWD's 0.125-degree map is not this run's ICON grid (cells or their order differ)")
-                xyz = i125._unit(clat, clon).astype(np.float32)
+                xyz = i125._unit(clat, clon)   # float64: float32 cell positions flip near-ties (2026-11-16, 80.25N)
                 self._grid["pick"] = (i125.subpoint_pick(i125.extend_nn(nn, xyz), xyz, clat, clon), clat.size)
             return self._grid["pick"]
 

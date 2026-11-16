@@ -170,3 +170,63 @@ number was an artefact of how it was measured, not because the harness differs. 
 - a frame is the area mean of the rate.
 
 Mutants: 7 of 8 red. The survivor (the pad fill) is equivalent: a pad can only ever stand for a cell that a real candidate beats.
+
+## 06:59Z: G2 corrections after the advisor's review (#956, PASS WITH LIMITS), a pick-map defect found and fixed, re-measured
+
+**Corrections to the G2 section above** (the log is append-only, so they are written here):
+- The heading "PASS on all five hours" overstated it. As registered: item 1 (mass) and item 2 (peaks) pass, and the storage half of
+  item 3 passes. **The time half of item 3 is OPEN** until the first publish, so the gate is not passed yet. Fallback (b) still
+  applies if time fails.
+- The positive control is **NOT MET as written**: the mass half holds within 2 points, but the peak half does not at f120 (0.902
+  kept, about 10 % low, against the logged 19-26 %). The old +1 % mass came from an unweighted native mean; that explains a number
+  and does not make the control pass. Nothing leans on it.
+- The registered null control ("constant per native cell, every peak ratio 1.0") was run as a UNIFORM field without saying so,
+  and a uniform field cannot see a misplaced map. The control run now is the advisor's seeded single-cell spike (below).
+
+**A defect in the pick map, found by the ICON cloud gate's brute-force check and fixed.** Two causes, both measured:
+1. Float32. The publisher passed cell positions as float32, and float32 cannot separate two cells ~0.001 deg apart in distance (1 -
+   cos of 0.05 deg is ~4e-7). Example: ICON cloud f072, node 80.25N 82.0E, sub-point 0. Our pick was cell 10167, but brute force
+   gives 10166, which is 0.00098 deg nearer and was in the node's own box; float32 flips the comparison. Positions and dot products
+   are now float64.
+2. A fixed 3 x 3 window. Boxes narrow with latitude, so the candidate window now widens to ceil(1 / cos(lat)) columns each side
+   (`REACH_DEG`, measured to be enough).
+
+Pick accuracy of the publisher's own map against a brute force over all 2,949,120 cells, 800 random sub-points per band (both
+hemispheres): 0, 45, 60, 75 and 85 degrees, each 800/800 exact. The fullest box holds 3 cells, and a box over the cap (12) now
+raises instead of dropping cells silently. Map build: 72 s (was 26 s with the defect).
+
+**G2 re-measured with the fixed map** (same harness, 2026-11-16 00Z):
+
+| hour | mass error | peaks: median / p10 / global max | gz bytes (ratio to 0.25) |
+|---|---|---|---|
+| f006 | -0.095 % | 0.923 / 0.735 / 0.940 | 1,160,929 (3.45) |
+| f024 | +0.008 % | 0.944 / 0.828 / 0.915 | 1,173,288 (3.46) |
+| f048 | +0.075 % | 0.947 / 0.845 / 0.941 | 1,191,704 (3.44) |
+| f078 | -0.085 % | 0.920 / 0.755 / 0.902 | 1,176,038 (3.49) |
+| f120 | -0.056 % | 0.959 / 0.851 / 0.883 | 1,176,991 (3.45) |
+
+Items 1 and 2 and the storage half of item 3 pass; time is still open.
+
+**Null control: a seeded single-cell spike on the real grid** (60 cells, seed 7, |lat| < 85; one cell = 1, all else 0):
+- Placement: the peak lands within one node of the cell in 60 of 60. With the pick map rolled 8 columns (a misplaced map), 0 of
+  20: the control sees a misplaced map.
+- No cell is lost: every one of the 2,949,120 cells is taken by at least one sub-point.
+- Single-cell mass: the advisor's 0.1 % is **NOT MET**. |error| median 5.8 %, p90 17 %, max 34 %. Nine sub-points per box estimate
+  each cell's share of a box, so one cell's area is sampled with that noise. Over a field the errors average out, which is why
+  global mass holds to 0.1 %. So the set is an area mean with sampled areas, not an exact conservative remap. It must not be
+  called "conservative" in a legend or a SCOREBOARD row. Exact per-cell conservation would need the cells' polygons (the grid
+  file has them) intersected with each box: a larger change, the director's call.
+
+**Client decoder test (registered, now added):** `frontend/src/components/map/ownRasterGrid0p125.test.js`. A real backend-encoded
+2880 x 1441 frame (fixture, 8 KB gzipped) goes through parseFrame, toField and wrapsLongitude: the grid, the bounds and values at
+south-west / equator / the filled 179.875E column / no-data all land, and the shader wraps it. 3 tests (frontend lane, +3 tests
++1 suite fragment).
+**Risks for the CLIENT flip, not in this PR (ownRasterLayer, Move 3's lane):**
+- A 2880 x 1441 R32F texture is 16.6 MB, and up to 6 stay resident (RESIDENT_MAX), so about 100 MB of GPU memory.
+- The main field upload does not check MAX_TEXTURE_SIZE. WebGL2 guarantees only 2048, below 2880.
+Both need handling before a 0.125 set is drawn.
+
+**When DWD's weights file is unreachable:** `fetch_dwd_nn` raises, every hour of the set fails, nothing uploads, the published
+index stays as it was, and the pilots step (continue-on-error) shows the error in its log. The same happens if a later cycle
+packs CLAT / CLON beyond the 0.01-degree check. Neither is alerted today. Caching the 50 MB file (or the derived 37 M-entry pick
+map) between runs is a follow-up.
