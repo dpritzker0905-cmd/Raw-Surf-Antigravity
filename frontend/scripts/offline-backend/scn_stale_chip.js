@@ -75,6 +75,30 @@ async function session(theme, width, view) {
     await page.locator('button').filter({ hasText: /^\s*Waves\s*$/ }).filter({ visible: true }).first().evaluate((el) => el.click());
     if (phone) { await sleep(500); await page.locator('[aria-label="Weather layers"]').first().evaluate((el) => el.click()).catch(() => {}); }
     await sleep(SETTLE);
+    if (view === 'scrub') {   // the advisor's #978 check: the chip must not flicker or move the header while scrubbing (gate 5 in motion)
+      const scrub = await page.evaluate(async ({ steps, cadence }) => {
+        const out = { mounts: 0, unmounts: 0, heights: [], chipAtStart: !!document.querySelector('[data-stale-chip]'), stepsDone: 0, laggedFrames: 0, frames: 0 };
+        const panel = document.querySelector('[data-weather-timeline="mobile"] > div');
+        const mo = new MutationObserver((ms) => { for (const m of ms) {
+          for (const n of m.addedNodes) if (n.nodeType === 1 && (n.matches('[data-stale-chip], .weather-stale-chip-row') || n.querySelector('[data-stale-chip]'))) out.mounts += 1;
+          for (const n of m.removedNodes) if (n.nodeType === 1 && (n.matches('[data-stale-chip], .weather-stale-chip-row') || n.querySelector('[data-stale-chip]'))) out.unmounts += 1; } });
+        mo.observe(document.body, { childList: true, subtree: true });
+        let lastH = panel ? Math.round(panel.getBoundingClientRect().height) : null;
+        const ro = panel ? new ResizeObserver(() => { const h = Math.round(panel.getBoundingClientRect().height); if (h !== lastH) { out.heights.push([lastH, h]); lastH = h; } }) : null;
+        if (ro) ro.observe(panel);
+        const wheel = [...document.querySelectorAll('[role="slider"]')].find((x) => /timeline wheel/i.test(x.getAttribute('aria-label') || ''));
+        const sample = () => { const e = window.__MARINE_ENGINE__; const g = e && e._waveData && e._waveData.waveGrid; out.frames += 1; if (g && g.ratedRun && g.ratedRun.lagH > 0) out.laggedFrames += 1; };
+        for (let i = 0; i < steps; i++) {
+          if (wheel) { wheel.focus(); for (let k = 0; k < 3; k++) wheel.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true })); out.stepsDone += 1; }
+          await new Promise((r) => setTimeout(r, cadence)); sample();
+        }
+        await new Promise((r) => setTimeout(r, 2500));
+        mo.disconnect(); if (ro) ro.disconnect();
+        out.wheelFound = !!wheel; out.chipAtEnd = !!document.querySelector('[data-stale-chip]');
+        return out;
+      }, { steps: +(process.env.SCRUB_STEPS || 20), cadence: +(process.env.SCRUB_MS || 400) });
+      return { view, theme, width, scrub };
+    }
     if (view === 'drawer_open') {
       await page.locator('.weather-compact-timeline-header button.weather-drawer-time').filter({ visible: true }).first().click({ timeout: 3000 }).catch(() => {});
       await sleep(1500);
@@ -103,9 +127,11 @@ async function session(theme, width, view) {
     runs.push([theme, 390, 'drawer_open']);
     if (process.env.DESKTOP !== '0') runs.push([theme, 1280, 'desktop']);
   }
+  if (process.env.SCRUB === '1') { runs.length = 0; for (const theme of THEMES) for (const w of WIDTHS) runs.push([theme, w, 'scrub']); }
   for (const [theme, w, view] of runs) {
     try { res.push(await session(theme, w, view)); } catch (e) { res.push({ view, theme, width: w, error: String(e && e.stack || e).slice(0, 300) }); }
     const x = res[res.length - 1];
+    if (x.scrub) { console.log(`scrub ${theme} ${x.width} | ${JSON.stringify(x.scrub)}`); continue; }
     console.log(`${view} ${theme} ${x.width} | band ${x.band} held ${x.heldBy} run ${JSON.stringify(x.ratedRun)} | all ${JSON.stringify(x.allChips)} headers ${x.headers} collapsed ${x.collapsedAttr} | should ${x.shouldShow} chip ${x.chip} CONSISTENT ${x.consistent} ${x.text || ''} | clipped ${x.clipped} | overlaps ${JSON.stringify(x.overlaps || [])} | ${x.color || ''}${x.error ? ' | ERROR ' + x.error.slice(0, 120) : ''}`);
   }
   cdn.close();

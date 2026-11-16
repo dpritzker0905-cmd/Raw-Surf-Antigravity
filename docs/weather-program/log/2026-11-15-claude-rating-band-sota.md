@@ -295,3 +295,15 @@ behind; the chip build against the #933 build as "before"; screenshots and JSON 
 Lab note, not a chip defect: the first pass missed one chip (beach 390). Re-probing showed a probe race (the grid committed less than
 the chip's 500 ms poll before the read) and lab runs served from /grid (no lag, so no chip due). The probe now waits 1.2 s and checks
 the rule above.
+ADVISOR ROUND 1 on #978 (16:38Z), two conditions, both fixed:
+1. Label in name (WCAG 2.5.3): aria-label = "<visible words>. <the status line's sentence>" ("Ratings 6 h old. Surf ratings from
+   the ... run, ..."). The tests assert the name STARTS WITH the visible text and CONTAINS the line's sentence.
+2. Flicker while scrubbing. A cleared state is held HOLD_MS = 1500 ms before the chip goes. The FIRST appearance is not delayed: a
+   non-null read shows at once. The kill switch removes it at once, and opening the drawer unmounts it with the header. A
+   fake-timer test covers a brief clear (kept), a long clear (gone), the return, and the kill (gone at once).
+   In the page (`scn_stale_chip.js SCRUB=1`: collapsed drawer at 390 px, light / dark / beach, a lag present at the start, 20 steps
+   of +3 h at 400 ms, a MutationObserver on the chip and a ResizeObserver on the collapsed panel), the same result with and without
+   the hold, in all three themes: 0 mounts, 1 unmount, 1 height change (103 -> 77 px). The one change is the honest one: on the
+   first step the painted grid moves from the lagging rated bundle to the scrub's series frames, which carry the CURRENT run
+   (lag 0 in 20 of 20 samples), so the chip leaves once and never comes back. Not exercised in the page: a lag that stays present
+   while scrubbing (this lab's series frames never lag), which is where the hold matters. That case is the unit test only.

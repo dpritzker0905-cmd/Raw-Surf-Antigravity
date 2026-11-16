@@ -21,7 +21,8 @@ describe('the chip: shown only while the painted band lags', () => {
     paint({ lagH: 6, runTime: RUN });
     const open = jest.fn();
     render(<StaleLayerChip stale={STALE} onOpen={open} textClass="text-gray-400" />);
-    const chip = screen.getByRole('button', { name: /^Surf ratings from the .* run, 6 h older than the wave heights/ });
+    // WCAG 2.5.3 label in name (advisor, #978): the name STARTS WITH the visible words, then the status line's sentence
+    const chip = screen.getByRole('button', { name: /^Ratings 6 h old\. Surf ratings from the .* run, 6 h older than the wave heights/ });
     expect(chip.tagName).toBe('BUTTON');
     expect(chip).toHaveTextContent('Ratings 6 h old');
     expect(chip).toHaveAttribute('aria-controls', 'weather-mobile-timeline-body');
@@ -51,7 +52,9 @@ describe('the chip: shown only while the painted band lags', () => {
     render(<ForecastTimeStatus model="ICON" layer="waves" hour={0} theme="dark" />);
     const line = document.querySelector('[data-rated-run-label]');
     render(<StaleLayerChip stale={STALE} onOpen={() => {}} />);
-    expect(screen.getByRole('button', { name: /Surf ratings/ })).toHaveAccessibleName(line.textContent);
+    const chip = screen.getByRole('button', { name: /Surf ratings/ });
+    expect(chip.getAttribute('aria-label').startsWith(chip.textContent)).toBe(true);   // label in name
+    expect(chip.getAttribute('aria-label')).toContain(line.textContent);              // one source with the line
   });
 });
 
@@ -68,5 +71,32 @@ describe('the collapsed header carries it; the open drawer does not (gate 6)', (
     expect(screen.getAllByRole('button')).toHaveLength(3);                       // the header's own three buttons, unchanged
     rerender(<TimelineDrawerHeader expanded={false} onToggle={toggle} timeLabel="Now" />);
     expect(container.querySelector('[data-stale-chip]')).toBe(null);
+  });
+});
+
+describe('the hold (advisor, #978): no flicker when the reader clears for a moment between scrub steps', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+  test('a brief clear keeps the chip; a clear longer than HOLD_MS removes it; the kill removes it at once', () => {
+    const { act } = require('@testing-library/react');
+    const { HOLD_MS } = require('./StaleLayerChip');
+    paint({ lagH: 6, runTime: RUN });
+    const { container } = render(<StaleLayerChip stale={STALE} onOpen={() => {}} />);
+    expect(container.querySelector('[data-stale-chip]')).not.toBe(null);
+    window.__RAW_GPU__.ratingBand.active = false;                       // the band held between two hours of a scrub
+    act(() => { jest.advanceTimersByTime(1000); });
+    expect(container.querySelector('[data-stale-chip]')).not.toBe(null); // inside the hold: still there, the header does not move
+    window.__RAW_GPU__.ratingBand.active = true;
+    act(() => { jest.advanceTimersByTime(600); });
+    expect(container.querySelector('[data-stale-chip]')).not.toBe(null);
+    window.__RAW_GPU__.ratingBand.active = false;
+    act(() => { jest.advanceTimersByTime(HOLD_MS + 600); });
+    expect(container.querySelector('[data-stale-chip]')).toBe(null);     // a real clear: gone after the hold
+    window.__RAW_GPU__.ratingBand.active = true;
+    act(() => { jest.advanceTimersByTime(600); });
+    expect(container.querySelector('[data-stale-chip]')).not.toBe(null);
+    window.__RAW_DISABLE_STALE_CHIP__ = true;
+    act(() => { jest.advanceTimersByTime(600); });
+    expect(container.querySelector('[data-stale-chip]')).toBe(null);     // the kill: at once, no hold
   });
 });

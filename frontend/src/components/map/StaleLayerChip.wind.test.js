@@ -13,7 +13,7 @@ afterEach(() => { mockRated.mockReset(); mockRated.mockReturnValue(null); mockWi
 test('wind on and showing its nearest stored forecast: the wind chip, named with the wind line', () => {
   mockWind.mockReturnValue(NEAREST);
   render(<StaleLayerChip stale={{ model: 'GFS', layer: 'waves', hour: 4, windOn: true }} onOpen={() => {}} />);
-  const chip = screen.getByRole('button', { name: NEAREST.text });
+  const chip = screen.getByRole('button', { name: `${NEAREST.short}. ${NEAREST.text}` });   // label in name: visible words first
   expect(chip).toHaveTextContent('Wind: nearest stored time');
   expect(chip).toHaveAttribute('data-stale-chip', 'wind');
   expect(mockWind).toHaveBeenCalledWith({ model: 'GFS', hour: 4 });

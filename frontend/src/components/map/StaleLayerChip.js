@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Clock } from 'lucide-react';
 import { readRatedRunState, readWindStaleState } from './staleLayerState';
 
@@ -25,9 +25,21 @@ export function readStaleChip({ model, hour, windOn } = {}) {
   return null;
 }
 
+/** HOLD (advisor, #978): during a scrub the band is briefly held between hours, so the reader clears for a moment; without a hold the
+ * chip (its own row) would unmount and remount and the collapsed header would change height. A cleared state is kept HOLD_MS before
+ * the chip goes; the kill switch still removes it at once, and the drawer opening unmounts it with the header. */
+export const HOLD_MS = 1500;
+
 export default function StaleLayerChip({ stale, onOpen, textClass = '' }) {
   const { model, layer, hour, windOn } = stale || {};
-  const read = () => (stale ? readStaleChip({ model, layer, hour, windOn }) : null);
+  const last = useRef({ state: null, at: 0 });
+  const read = () => {
+    const now = Date.now();
+    const s = stale ? readStaleChip({ model, layer, hour, windOn }) : null;
+    if (s) { last.current = { state: s, at: now }; return s; }
+    if (staleChipKilled() || !last.current.state || now - last.current.at > HOLD_MS) { last.current = { state: null, at: 0 }; return null; }
+    return last.current.state;   // inside the hold: keep the last words
+  };
   const [state, setState] = useState(read);
   useEffect(() => {
     setState(read());
@@ -37,7 +49,7 @@ export default function StaleLayerChip({ stale, onOpen, textClass = '' }) {
   if (!state) return null;
   return (
     <div className="weather-stale-chip-row flex justify-center pb-1">
-      <button type="button" data-stale-chip={state.kind} aria-label={state.text} title={state.text}
+      <button type="button" data-stale-chip={state.kind} aria-label={`${state.short}. ${state.text}`} title={state.text}
         aria-expanded={false} aria-controls="weather-mobile-timeline-body" onClick={onOpen}
         className={`weather-stale-chip inline-flex items-center gap-1 max-w-full truncate text-[11px] leading-4 px-2 py-0.5 rounded-full border border-current focus:outline-none focus-visible:ring-2 focus-visible:ring-current ${textClass}`}>
         <Clock className="w-3 h-3 shrink-0" aria-hidden="true" focusable="false" />
