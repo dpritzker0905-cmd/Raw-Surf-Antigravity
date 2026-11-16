@@ -46,3 +46,6 @@ since #852. Everything else is as v1 rule 2: n >= 30, delta > B2, win < 50%, wit
 **Not in this design.** The reference without Open-Meteo, NOAA's own GFS-Wave station bulletins on AWS
 (`noaa-gfs-bdp-pds/.../wave/station/bulls.tHHz/gfswave.<buoy>.bull`), needs a new fetcher and a new ledger lane, scored
 from the day it starts. It is a separate build; v2 keeps `open_meteo:ncep_gfswave025` as rule 1's reference.
+
+**Correction, 2026-11-16 02:27Z.** Section 1's header says "written 2026-11-16 02:30Z". That is an estimate, not a clock
+reading: section 1 was committed at 02:23:13Z (`3c2d6ce1b`), so it was written no later than that. Nothing else changes.
