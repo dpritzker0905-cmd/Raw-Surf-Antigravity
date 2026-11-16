@@ -738,7 +738,7 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
             if os.environ.get("FORECAST_SKILL_OCF", "1") != "0":
                 try:
                     from services.weather_pipeline.skill_ocf import ocf_block
-                    ocf = ocf_block(history, now)
+                    ocf = ocf_block(history, now, locals().get("coords"))
                 except Exception as e:
                     logger.warning("[forecast-skill] OCF block skipped (%s)", e)
             # S7/S8: period and direction on the same history (skill_direction_period); its own guard.

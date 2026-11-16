@@ -1,0 +1,7 @@
+{
+  "lane": "estate",
+  "tests": 7,
+  "branch": "claude/euro-scalar-shadow-read",
+  "date": "2026-11-15",
+  "note": "EURO scalar shadow read (pre-registered 2026-11-15): +7 test_euro_scalar_shadow_read"
+}
