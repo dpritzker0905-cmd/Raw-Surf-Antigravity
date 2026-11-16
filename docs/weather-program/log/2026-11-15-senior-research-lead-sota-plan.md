@@ -1279,3 +1279,38 @@ permanently, we need any area in the admin to control and monitor this, right?"
   consent/privacy. Admin auth; 3 themes, mobile, ARIA; no editing of reported numbers.
 - Sources: Daniel 2018 (crowdsourcing QC); Donmez 2010 (time-varying annotator accuracy). SubQ: admin 0.957, mean
   constraint 0.982, time-varying 0.962.
+
+## 14:23Z Surf-height definition SETTLED by research, and the NE-Florida gap explained (owner's 09:16 EST request)
+
+**The standard (opened and verified):**
+- NOAA NWS Honolulu + NESDIS collaborative surf table (quoted on uhslc.soest.hawaii.edu/outreach/vary/why_surf_varies.html):
+  "Surf height refers to peak face."
+- Heights are given as a range from H1/3 to H1/10, in zones of high refraction.
+- The empirical output was "designed to match the observing scheme, so visual reports can be used as validation."
+
+**Observer perception (opened abstracts):**
+- [Stokes et al. 2014](https://consensus.app/papers/details/w:b70ac080-f77b-4687-9b3b-8cdb72f3249e/?utm_source=claude_code),
+  354 participants: visual height averages about 0.70 x measured breaker height (0.5-3.5 m, 3-15 s). Expert users and
+  surfers under-predict the most, "especially for small and/or short period waves".
+- [Pitman & Lee 2019](https://consensus.app/papers/details/w:06500eae-7556-4722-b279-7b61ee8064d3/?utm_source=claude_code),
+  1,566 lifeguard observations: a consistent under-call, mean −0.48 m.
+
+**NE-Florida gap:**
+- Corrected outer-break H1/10 ≈ 1.06 m, so H1/3 ≈ 0.84 m.
+- x 0.70 ≈ 0.59 m ≈ 1.9 ft, matching the owner's "under 2 ft".
+- The residual factor of about 1.8 is mostly observer perception plus the statistic.
+- SubQ: explains the gap 0.961.
+
+**Recommendation** (SubQ: physical range 0.998; calibrate reports to physical references 0.999; no perceived number by
+default 0.997):
+1. The product shows PHYSICAL peak face as the range H1/3-H1/10 (the NWS Honolulu convention).
+2. The crowd-truth model keeps observer under-perception as an explicit bias term, calibrated by the anchor audits
+   against physical references. This is the common-mode anchor bias Reflection warned about, now quantified at about
+   0.7.
+3. No perception-adjusted "local feel" number by default; the owner may opt in later.
+
+**Consequence for the surf-transform work:**
+- The served chain's served number should be the H1/3-H1/10 face range, computed with the corrected period and the
+  breaking-sea statistic.
+- That is one served change, gated on truth with the perception term modelled. It never fits the forecast down to
+  perceived heights.
