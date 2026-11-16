@@ -132,3 +132,57 @@ Scoring: no earlier than 2026-12-07, recorded by 2026-12-09T12:00Z (ledger commi
 - For B3: the partitioned path was not ablated. It should be, on real partitions, before a spectral transfer is
   designed against it.
 - `surf_ablation.ablate` and `period_variants` are importable and take a pre-resolved geometry.
+
+## 2026-11-16 01:01Z Addendum (before the window opens): the nearshore stations, a null arm, and the sign by coast
+
+The director relayed an advisor finding from #933's science section (2026-11-15 19:53 EST): the nearshore validation
+reads the chain LOW at 9 of 11 stations in all 13 runs, pooled bias -0.15 to -0.51 m, the latest run the worst, and
+its decisive comparison was void because it had no null arm. The ask: include those stations and a proper null arm,
+and report the sign of each factor's effect by coast type. I have not read #933's numbers myself.
+
+**Added to the gate, nothing removed.**
+- **Stations.** The forcing-truth set explicitly includes the nearshore validation stations on file
+  (`backend/data/nearshore_validation_pairs.json`, 20 pairs today, and `nearshore_ndbc_pairs.json`, 2), frozen and
+  printed on the day the first row is pulled.
+- **A null arm for every comparison, not only the class one.** For each factor-off configuration, the paired
+  difference from `served` is also computed with the configuration label shuffled within each station and day
+  (seed 20261207, 200 shuffles). A difference inside the 2.5 to 97.5 percentile band of the shuffles is NOT SHOWN
+  whatever its interval says. A comparison without this arm is not reported.
+- **Sign by coast.** Every factor's verdict table carries, per coast and per class, the SIGN of switching it off
+  (toward truth or away) beside the size, so a factor that helps on one coast and hurts on another is visible as that
+  and is never averaged into "no effect".
+
+**The sign of each factor in the served chain, by coast (measured, model only, head-on).** Geometric mean over the
+panel's spots of served over served-with-it-off. Above 1 raises the served number.
+
+| coast (spots) | sea state | surf / offshore | Komar | H1/10 | refraction | magnet | cap |
+|---|---|---|---|---|---|---|---|
+| florida_east (12) | wind sea | 1.40 | 1.17 | 1.27 | 0.87 | 1.08 | 1.00 |
+| florida_east (12) | report | 1.59 | 1.42 | 1.27 | 0.88 | 1.08 | 1.00 |
+| florida_east (12) | swell | 1.81 | 1.60 | 1.25 | 0.88 | 1.07 | 0.99 |
+| florida_east (12) | groundswell | 1.86 | 1.54 | 1.25 | 0.88 | 1.05 | 0.96 |
+| mid_atlantic (6) | wind sea | 1.29 | 1.18 | 1.27 | 0.87 | 1.00 | 1.00 |
+| mid_atlantic (6) | report | 1.47 | 1.41 | 1.27 | 0.87 | 1.00 | 1.00 |
+| mid_atlantic (6) | swell | 1.69 | 1.62 | 1.27 | 0.89 | 1.00 | 1.00 |
+| mid_atlantic (6) | groundswell | 1.68 | 1.49 | 1.21 | 0.91 | 1.00 | 0.94 |
+| california (6) | wind sea | 1.29 | 1.17 | 1.27 | 0.87 | 1.00 | 1.00 |
+| california (6) | report | 1.47 | 1.32 | 1.27 | 0.87 | 1.00 | 1.00 |
+| california (6) | swell | 1.69 | 1.54 | 1.27 | 0.87 | 1.00 | 1.00 |
+| california (6) | groundswell | 1.79 | 1.65 | 1.27 | 0.87 | 1.00 | 1.00 |
+| gulf (4) | report | 1.47 | 1.38 | 1.27 | 0.87 | 1.00 | 1.00 |
+| hawaii (2) | report | 1.47 | 1.32 | 1.27 | 0.87 | 1.00 | 1.00 |
+
+**Reading it.** The sign of every factor is the SAME on every coast: Komar and H1/10 raise, refraction lowers, the
+cap lowers only where it binds, the magnet raises only in east Florida (three hand-set spots). The chain has no
+factor whose sign depends on the coast. So if truth shows the chain high in east Florida wind sea and low at the
+California nearshore stations, no retuning of one global factor can fix both; that needs something the chain does not
+have. This is a statement about the code, not about truth.
+
+**A tension I cannot resolve from here, and must be resolved before any sign is interpreted.** The chain multiplies
+the offshore height by 1.29 to 1.86 at every panel spot. The nearshore validation reports the chain LOW at 9 of 11
+stations. Both cannot be about the same quantity unless the offshore input at those stations is far below the buoy.
+Either the validation compares a height before the breaking factors (then Komar and H1/10 are not in it and its
+"low" says nothing about them), or the input field is low there (then the over-read at the break and the under-read
+at the buoy are two separate errors with opposite signs, stacked). Which it is decides what "LOW" means for this
+ablation. It is the first thing to read when the window opens: the validation's own definition of the chain value it
+scores, per station.
