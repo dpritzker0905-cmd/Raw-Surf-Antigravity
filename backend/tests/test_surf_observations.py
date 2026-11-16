@@ -358,4 +358,6 @@ async def test_client_build_is_stored_and_shape_checked(world):
     assert (await world.rows())[0].client_build == "a1b2c3d"
     bad = await world.client.post(URL, json=_checkin(ref_id=None, spot_id="nsb", client_build="x; drop"),
                                   headers=_token("surfer"))
-    assert bad.status_code == 422
+    assert bad.status_code == 200  # a malformed stamp never costs the observation
+    second = (await world.rows())[1]
+    assert second.client_build is None and "bad_client_build" in second.flags

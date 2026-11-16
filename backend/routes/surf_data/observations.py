@@ -18,6 +18,7 @@ from __future__ import annotations
 import math
 from datetime import datetime, timedelta, timezone
 import os
+import re
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -51,6 +52,7 @@ EXIF_OK_M = 1_000.0                       # a photo of the break is often taken 
 EXIF_MAX_AGE = timedelta(hours=3)
 EXIF_MAX_FUTURE = timedelta(minutes=10)
 FLOW = "blind_v1"
+_BUILD_RE = re.compile(r"[A-Za-z0-9._-]{1,40}")
 # Anchor observers (the owner and named trusted photographers) calibrate everyone else in the aggregator. The list is
 # profile ids in this environment variable, comma-separated; ids are configuration, kept out of this public repo.
 ANCHOR_ENV = "SURF_TRUTH_ANCHOR_IDS"
@@ -80,7 +82,9 @@ class ObservationIn(BaseModel):
     latitude: Optional[float] = Field(None, ge=-90, le=90)
     longitude: Optional[float] = Field(None, ge=-180, le=180)
     observed_at_device: Optional[datetime] = None
-    client_build: Optional[str] = Field(None, max_length=40, pattern=r"^[A-Za-z0-9._-]+$")
+    # Kept as a claim. A malformed stamp must never cost the observation (the client swallows errors), so it is
+    # stored as null with a flag rather than refused (advisor note on #954).
+    client_build: Optional[str] = Field(None, max_length=200)
     device_id: Optional[str] = Field(None, pattern=r"^[0-9a-fA-F-]{32,36}$")  # random install id (a claim)
 
 
@@ -172,6 +176,9 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
         flags.add("no_parent")
     if not data.device_id:
         flags.add("no_device")
+    client_build = data.client_build if data.client_build and _BUILD_RE.fullmatch(data.client_build) else None
+    if data.client_build and client_build is None:
+        flags.add("bad_client_build")
 
     # GPS: the device position the client reports, against the spot. Recorded and flagged, never trusted alone.
     gps_distance = None
@@ -220,7 +227,7 @@ async def create_surf_observation(data: ObservationIn, db: AsyncSession = Depend
 
     obs = SurfObservation(
         user_id=user_id, observer_role=observer_role(user_id, role), flow=FLOW, spot_id=spot_id, surface=surface,
-        entry_screen=data.entry_screen, ref_id=data.ref_id, client_build=data.client_build,
+        entry_screen=data.entry_screen, ref_id=data.ref_id, client_build=client_build,
         height_value=data.height_value, height_unit=data.height_unit if data.height_value is not None else None,
         height_bucket=data.height_bucket, height_scale=data.height_scale, set_or_avg=data.set_or_avg,
         scale_default=scale_default, scale_overridden=overridden, normalization_version=SCALE_VERSION,
