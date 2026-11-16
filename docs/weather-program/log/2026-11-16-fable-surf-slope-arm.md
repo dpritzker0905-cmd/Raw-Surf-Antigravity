@@ -106,3 +106,34 @@ limit by substitution. The slope is a large-scale fit on a 463 m grid; the manua
 the break point to one wavelength offshore, which this grid cannot resolve. The operators in the equations were
 read from font-substituted glyphs in the page's text layer, as recorded above; the stop condition and the manual's
 stated limits (0.78 flat, 1.56 very steep) are what confirm the form.
+
+## 2026-11-16 14:13Z The advisor's extra row: most of the rise on gentle beds is the constant, not the slope
+
+The advisor (PASS WITH LIMITS at `72941d764`, no open condition) asked for one more row, reported only: the constant
+arm at gamma 0.78, so the effect of the slope is separated from the change of constant (0.73 to the formula's
+flat-bed 0.78). Same 20 beds, same sea states, same run otherwise. I had named this weakness myself before the row
+was computed and had not computed it.
+
+| sea state | constant 0.73 | constant 0.78 | slope arm | slope arm over constant 0.78, per spot |
+|---|---|---|---|---|
+| wind sea, 1.0 m at 5 s | 1.26 | 1.27 | 1.27 | 1.000 to 1.006 |
+| the report's state, 1.12 m at 7.28 s | 1.44 | 1.46 | 1.47 | 1.001 to 1.012 |
+| swell, 1.5 m at 12 s | 1.64 | 1.66 | 1.67 | 1.003 to 1.017 |
+| groundswell, 2.0 m at 16 s | 1.65 | 1.67 | 1.68 | 1.001 to 1.019 |
+
+At the owner's point, the report's state: 1.469 at 0.73, 1.486 at 0.78, 1.492 with the slope arm. Of the plus 1.6%
+reported above, plus 1.2% is the constant and plus 0.4% is the slope.
+
+Planar beds, slope arm over constant 0.78: at the report's state plus 0.3% at 1 in 250, plus 2% at 1 in 50, plus 5%
+at 1 in 20, plus 4% at 1 in 10; for groundswell plus 0.6%, plus 3%, plus 7%, plus 10%.
+
+- **This corrects the headline of the section above.** "Raises the breaker by 1 to 3%" was against 0.73. Against the
+  formula's own flat-bed constant the slope itself is worth under 2% at every panel spot and 0.4% at the owner's
+  point. On the panel's beds the slope term is close to inert.
+- **The planar figures above were also against 0.73** and are about 1 to 2 points smaller against 0.78; the growth
+  with slope stands. No conclusion changes.
+
+**The advisor's caution, recorded as a limit of the whole A1 line.** Three model arms now agree with today's chain at
+the owner's point (the transect, the spread, the slope). None has been compared with a measured breaker. Agreement
+between models is not evidence that the chain is right there. It narrows where the gap can be, toward which height
+the product is naming. And per the advisor: the panel result is about large-scale slopes and says nothing about reefs.
