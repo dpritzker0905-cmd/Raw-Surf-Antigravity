@@ -242,3 +242,9 @@ before the first build, or when the table cannot be read, every spot keeps today
 fill the owner's fallback rule applies as decided. Test: empty table -> raw; built table, uncovered cell -> window_72h;
 storage down -> raw. OWED after the fill: how many spots stay on the window fallback for good (cells without 330 days
 of archive) and where (the ingest's `spots_on_window_72h_fallback`).
+- **Refined (advisor, at d3ac967ff): "until the fill is COMPLETE", not "any cell".** The ingest now records every
+  attempted spot cell (a too-short archive is stored with `mean_m: null`: attempted, never served, retried monthly)
+  and sets `complete: true` (+ `completed_at`) once every spot cell is in the table; `table_ready` reads that marker.
+  So after the first 300-cell run, the cells built serve their fixed datum and every other spot stays raw - none drops
+  onto the 72 h fallback until the first full fill is done. Test: a partly filled table without the marker serves raw
+  for an uncovered cell and the fixed datum for a covered one.
