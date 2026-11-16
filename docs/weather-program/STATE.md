@@ -18,6 +18,48 @@ is a claim, not a measurement.
 
 ## Now
 
+- **2026-11-16 04:55Z: overnight consolidation of 2026-11-15 (senior research lead, on the director's brief; David
+  23:41 EST: "sort through all our work tonight, in all of our subs and learning, organizing and improving toward SOTA
+  while I sleep").**
+  - **The ranked plan is now `SOTA-ROADMAP.md`:** one list across every lane, each item with its owner, gate and
+    status. Evidence: `log/2026-11-15-senior-research-lead-sota-plan.md`.
+  - **Merged to dev 2026-11-15 .. 16, with read-back owed where noted:**
+    - #910 pilots timeout to 300 min.
+    - #914, #917 (D-059 live parity PASS 6/6), #919, #927, #936: docs.
+    - #915 bias line (measurement).
+    - #918 spot-series now runs.
+    - #920 and #924: XP server-authoritative.
+    - #921 series decode worker (ON, kill switches).
+    - #922 filled-frame patch (byte-identical).
+    - #925 EURO scalar read (it came back VOID by its own C1 control; #663 held).
+    - #932 excluded buoy pinned out of the bias fit.
+    - #934 D-072 three-rule replay instrument.
+    - #938 ocf_idw arm (measurement).
+    - #912 the researcher's benchmark (a record; superseded as the plan by the roadmap).
+  - **In flight, per lane (PR numbers):**
+    - Tide: #923, #926 and #931 are held (see below).
+    - Gusts/currents: #928 (phone scrub fails; decode to the worker).
+    - Blend: #930 (draft, OFF).
+    - Rating band: #933.
+    - Wind: #939 ENS hand-off (waits on the #946 hindcast), #950/#951 EMOS.
+    - Frames: #937 late wash, #940 stale tail refetch.
+    - Repair lead: #941/#943 surf spot panel, #942 S0 ablation, #947/#948 nearshore rows.
+    - Skill: #944 ML residual shadow.
+    - Verifier: #945 (D-072 v1 FAILS P2), #949 v2 (amend 1d), #952 NOAA bulletin lane.
+    - Posts: #953 conditions provenance (server-set `conditions_source`).
+    - Research lead: #929.
+  - **Held, and why:**
+    - #926 (1-year datum), #931 (harmonic) and #923 (Tides overlay): held by the director under David's Open-Meteo rule
+      (D-074; the tide moves to M1). The advisor has no open condition on any of the three. #923's phone gate re-run
+      passed (12 ABBA pairs).
+    - #930: OFF until David's blind look (D-076).
+    - #935: withdrawn by decision (no GFS stand-in for ICON; D-075). It is still an open draft, not closed.
+    - #663: the EURO scalar read was VOID.
+    - #944: needs David's dispatch.
+  - **Decided tonight:** D-074 .. D-079 (Open-Meteo test-only; long-range ECMWF ensemble with a hard hand-off; hour
+    blend cross-hour only; FRF dropped; height-scale defaults; merge authority).
+  - **Learned tonight:** LESSONS L-P44 .. L-P46, L-S26, L-S27, L-O9.
+
 - **2026-11-13 02:48Z: `RATING_REF_PRIOR` (JAC-2, the reference prior) is ON through the runtime manifest.** Owner, 2026-11-12
   (in session `claude/rating-truth-mop`): "merge #839 too once it's green", "merge #771 once #839 is in", "then flip RATING_REF_PRIOR
   on after #771 merges".
@@ -2427,6 +2469,9 @@ is a claim, not a measurement.
 **Ledger head: seq 2074, sha256 83a27bd6e36d4dadbaca9a67437f7171ce2d1059b1c2c844228725c9c1d58069**
 
 ## Next fixes, in order
+**2026-11-16 04:55Z: the ranked order across every lane is `SOTA-ROADMAP.md` (ranks 1-15 with owner, gate, status).
+Where the list below differs, the roadmap is newer.**
+
 **2026-11-14: DO NOT start a shadow run of the model mean, and do not flip `CONSENSUS_SERVE`, until the built product is
 fixed.** The built CONSENSUS shadow loses to the plain mean of its own members by 0.072 m (+48 h) and 0.071 m (+72 h) on all
 rows, and by 0.100 to 0.202 m where the EURO or ICON lane had no stored product at the point; it matches where both had one
