@@ -542,7 +542,7 @@ def publish_order(sets, latest):
 
     def key(target):
         written = (records.get(fs.set_key(target)) or {}).get("written_at") or ""
-        return (written, 1 if fsb.is_bundle(target) else 0)   # "" (never written) sorts before every ISO time
+        return (fsr.paint_tier(target), written, 1 if fsb.is_bundle(target) else 0)   # rated band first (fsr.paint_tier); "" sorts first
 
     return sorted(sets, key=key)
 
