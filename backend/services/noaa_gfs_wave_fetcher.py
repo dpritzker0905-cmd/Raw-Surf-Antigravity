@@ -154,6 +154,11 @@ except ImportError:
 # line whatever REGRID_NATIVE_CELL said; the real-GRIB parity job caught it before any ingest ran.
 # tests/test_fetcher_script_imports.py now refuses a `services.` import outside an `except ImportError`.
 try:
+    import _fetch_region_reduce as _reduce  # script-by-path: the vectorized reductions (the 0.5 world tier shares them)
+except ImportError:
+    from services import _fetch_region_reduce as _reduce  # package
+
+try:
     from _fetch_native_cell import (LAND_HALF, enabled as _native_enabled, is_native, multi_conf_at,  # script
                                     native_multi, native_reduce, views)
 except ImportError:
@@ -503,22 +508,11 @@ def fetch_global_coarse(payload):
                         # PLANTS the total-only and conf=None branches that random data never reaches
                         # (measured 0% of 3,000 blocks). Kill: FETCH_VECTOR_BLOCKMEAN=0.
                         if _vector_blockmean() and rmap:
-                            _sc = (lambda _r, _c, _h=half:
-                                   energy_mean_direction_block_multi_conf(
-                                       _partition_pairs, arr, _r, _c, _h, True, _total_h))
                             _rs = np.fromiter((p[0] for p in rmap), dtype=np.intp, count=len(rmap))
                             _cs = np.fromiter((p[1] for p in rmap), dtype=np.intp, count=len(rmap))
-                            if nat:          # the exact native cell; a LAND cell answers from its centred 3x3
-                                _bd, _bc, _bp = native_multi(
-                                    multi_dir_conf_batch, energy_mean_direction_block_multi_conf, _partition_pairs,
-                                    arr, _total_h, _rs, _cs, ~np.isfinite(_hs_native[_rs, _cs]),
-                                    ramp_lo=DIR_TOTAL_COHERENCE_RAMP_LO, ramp_hi=DIR_TOTAL_COHERENCE_RAMP_HI)
-                            else:
-                                _bd, _bc, _bp = multi_dir_conf_batch(
-                                    _partition_pairs, arr, _rs, _cs, half, True, _sc,
-                                    total_h_arr=_total_h,
-                                    ramp_lo=DIR_TOTAL_COHERENCE_RAMP_LO,
-                                    ramp_hi=DIR_TOTAL_COHERENCE_RAMP_HI)
+                            # moved unchanged to _fetch_region_reduce (2026-11-16): the 0.5 world tier calls it too
+                            _bd, _bc, _bp = _reduce.total_direction(arr, _partition_pairs, _total_h, _hs_native,
+                                                                    _rs, _cs, half, nat)
                             for pi in range(len(rmap)):
                                 _x = float(_bd[pi])
                                 series[pi][om].append(round(_x, 4) if _x == _x else None)
@@ -560,41 +554,19 @@ def fetch_global_coarse(payload):
                     # DELEGATES clamped edge rows to the scalar function handed to it.
                     # Kill: FETCH_VECTOR_BLOCKMEAN=0.
                     _reduces = h_arr is not None or is_height or p_h_arr is not None
-                    if nat and _reduces:   # this variable's own batch + scalar pair, for _fetch_native_cell
-                        _bt, _fn, _gr = ((partition_dir_conf_batch, energy_mean_direction_block_partition_conf,
-                                          (arr, h_arr)) if h_arr is not None and part_conf_key else
-                                         (direction_block_batch, energy_mean_direction_block, (arr, h_arr))
-                                         if h_arr is not None else
-                                         (height_block_batch, energy_mean_height_block, (arr,)) if is_height else
-                                         (scalar_block_batch, energy_mean_scalar_block, (arr, p_h_arr)))
+                    if nat and _reduces:   # this variable's scalar form, for the per-point fallback below
+                        _fn, _gr = ((energy_mean_direction_block_partition_conf, (arr, h_arr))
+                                    if h_arr is not None and part_conf_key else
+                                    (energy_mean_direction_block, (arr, h_arr)) if h_arr is not None else
+                                    (energy_mean_height_block, (arr,)) if is_height else
+                                    (energy_mean_scalar_block, (arr, p_h_arr)))
                     if _vector_blockmean() and rmap:
                         _rs = np.fromiter((p[0] for p in rmap), dtype=np.intp, count=len(rmap))
                         _cs = np.fromiter((p[1] for p in rmap), dtype=np.intp, count=len(rmap))
-                        _vals = _pconfs = None
-                        if nat and _reduces:  # the exact native cell; a LAND cell answers from its centred 3x3
-                            _out = native_reduce(_bt, _fn, _gr, _rs, _cs, ~np.isfinite(_hs_native[_rs, _cs]),
-                                                 "partition" if (h_arr is not None and part_conf_key) else "value")
-                            _vals, _pconfs = _out[0], (_out[1] if len(_out) > 1 else None)
-                        elif h_arr is not None and part_conf_key:
-                            _vals, _pconfs = partition_dir_conf_batch(
-                                arr, h_arr, _rs, _cs, half, True,
-                                lambda _r, _c, _h=half: energy_mean_direction_block_partition_conf(
-                                    arr, h_arr, _r, _c, _h, True))
-                        elif h_arr is not None:
-                            _vals = direction_block_batch(
-                                arr, h_arr, _rs, _cs, half, True,
-                                lambda _r, _c, _h=half: energy_mean_direction_block(
-                                    arr, h_arr, _r, _c, _h, True))
-                        elif is_height:
-                            _vals = height_block_batch(
-                                arr, _rs, _cs, half, True,
-                                lambda _r, _c, _h=half: energy_mean_height_block(
-                                    arr, _r, _c, _h, True))
-                        elif p_h_arr is not None:
-                            _vals = scalar_block_batch(
-                                arr, p_h_arr, _rs, _cs, half, True,
-                                lambda _r, _c, _h=half: energy_mean_scalar_block(
-                                    arr, p_h_arr, _r, _c, _h, True))
+                        # moved unchanged to _fetch_region_reduce (2026-11-16): the 0.5 world tier calls it too
+                        _got = _reduce.variable(arr, h_arr, is_height, p_h_arr, part_conf_key, _hs_native,
+                                                _rs, _cs, half, nat)
+                        _vals, _pconfs = _got if _got is not None else (None, None)
                         if _vals is not None:
                             for pi in range(len(rmap)):
                                 if _pconfs is not None:

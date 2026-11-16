@@ -259,6 +259,21 @@ def test_excluding_a_buoy_removes_every_pair_of_it_and_is_recorded():
     assert _lead(ex)["n_test"] * 2 == _lead(full)["n_test"]
 
 
+def test_an_excluded_buoy_is_out_of_the_fit_and_not_only_out_of_the_score():
+    # H has rows ONLY before the hold-out cutoff, +1.5 m on every member: it can reach a result only through the FIT.
+    bias = {X: {m: 0.0 for m in MEMBERS}, H: {m: 1.5 for m in MEMBERS}}
+    only_x = _rows(range(8, 30), 3, buoys=(X,), bias=bias) + _rows(range(0, 7), 3, buoys=(X,), bias=bias)
+    data = only_x + _rows(range(8, 30), 3, buoys=(H,), bias=bias)
+    full, ex, ref = (_lead(ocf_report(data, NOW)), _lead(ocf_report(data, NOW, exclude_buoys=(H,))),
+                     _lead(ocf_report(only_x, NOW)))
+    # control, so this test can fail: with H in, the same held-out pairs are scored and the fitted bias is poisoned
+    assert full["n_test"] == ex["n_test"] and full["n_train"] == 2 * ex["n_train"]
+    assert full["variants"]["ocf_pooled"]["mae_m"] > 0.5 and full["variants"]["ocf_region"]["mae_m"] > 0.5
+    # excluded: byte-identical to a ledger that never held the buoy, so nothing of it is in any fitted number
+    assert json.dumps(ex, sort_keys=True, default=str) == json.dumps(ref, sort_keys=True, default=str)
+    assert ex["variants"]["ocf_pooled"]["mae_m"] == 0.0 and ex["variants"]["ocf_region"]["mae_m"] == 0.0
+
+
 def test_a_gain_that_lives_in_one_hole_buoy_is_flagged_driven_and_a_real_gain_survives():
     # served (raw_surf) is +1.5 m off at the hole buoy only: the equal mean "gains" there and nowhere else.
     hs = hole_sensitivity(ocf_report(_hole_data(1.5), NOW), ocf_report(_hole_data(1.5), NOW, exclude_buoys=(H,)))

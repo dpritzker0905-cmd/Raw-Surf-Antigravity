@@ -1,0 +1,8 @@
+{
+  "lane": "chain",
+  "tests": 7,
+  "files": 2,
+  "branch": "claude/rating-band-sota-51340a",
+  "date": "2026-11-15",
+  "note": "rating band SOTA: one-chain conformance (G1) + coastal node mask parity"
+}

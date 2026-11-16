@@ -44,9 +44,9 @@ def test_iem_asos_gust_absent_counts_sustained():
     csv = "station,valid,sknt,drct,gust\nSFO,2025-10-15 00:56,10.00,270.00,M\nSFO,2025-10-15 01:56,20.00,280.00,30.00\n"
     o = O.parse_iem_csv(csv)
     v = datetime(2025, 10, 15, 2, tzinfo=timezone.utc)
-    assert O.gust_window(o, v, 2, gust_absent_is_wind=True) == pytest.approx(30 * O.KT)
+    assert O.gust_window(o, v, 2, gust_absent_is_wind=True) == pytest.approx(30 * O.SR.KT_TO_MS)
     t = datetime(2025, 10, 15, 0, 56, tzinfo=timezone.utc)
-    assert math.isnan(o[t][1]) and o[t][0] == pytest.approx(10 * O.KT)
+    assert math.isnan(o[t][1]) and o[t][0] == pytest.approx(10 * O.SR.KT_TO_MS)
 
 
 def test_seasonal_climatology_uses_day_of_year_window_and_needs_20_records():

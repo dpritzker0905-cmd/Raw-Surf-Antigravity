@@ -3,20 +3,10 @@ name: Long-range wind hindcast (offline evidence, serves nothing)
 # WHY: the pre-registered gate for ICON 180-336 h / EURO 240-336 h wind (docs/weather-program/log/
 # 2026-11-15-wind-long-range.md). Reads PUBLIC data only (ECMWF open data and NOAA GFS/GEFS on AWS, NDBC, IEM ASOS);
 # never calls the Raw Surf backend, never writes Storage, a manifest or a product; uses no secret. ~700 GB of
-# byte-range reads over 122 ECMWF runs, so it is sharded. Manual on dev; also runs on pushes to the PR branch that
-# builds it (the peak-period-validation precedent), because workflow_dispatch needs the file on the default branch.
+# byte-range reads over 122 ECMWF runs, so it is sharded. Dispatch-only from dev (amendment 4).
 
 on:
-  workflow_dispatch:
-  push:
-    branches: [claude/wind-ens-extension]
-    paths:
-      - backend/scripts/wind_lr_hindcast.py
-      - backend/scripts/wind_lr_obs.py
-      - backend/scripts/wind_lr_score.py
-      - backend/services/weather_pipeline/ens_wind_core.py
-      - backend/services/weather_pipeline/ens_wind_fetch.py
-      - .github/workflows/wind-lr-hindcast.yml
+  workflow_dispatch:   # dispatch-only (amendment 4): each push queued up to 24 shards and backed up the Actions queue
 
 permissions:
   contents: read

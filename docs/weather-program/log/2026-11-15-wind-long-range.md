@@ -343,3 +343,76 @@ record. Its own gate will be pre-registered before any fit.
   truncated at the run's own +360 h. With ENS on and no usable run, ICON writes NO tail and the dynamic path no longer
   loops; the loop survives only under `ENS_WIND_EXTENSION=0`. Tests pin the lagged truncation, the label, the
   over-48 h refusal and "no loop when ENS is on but absent". 86 passed locally.
+
+
+## 2026-11-16 02:15Z AMENDMENT 4 (advisor red-team of #946, `redteam-946-wind-long-range-instrument-2026-11-16.md`; BEFORE any result)
+
+No hindcast result exists. Runs 43773419409, 43776801544, 43779656382, 43780240793 and 43783764841 were all
+cancelled before scoring; the last never left the queue. No report was opened. These changes come from the advisor's
+verdict (PASS WITH LIMITS, one open condition: this amendment).
+
+**Why changing a VOID rule is legitimate now:** no result has been read. A void rule changed AFTER a result is seen
+would be a forking path. Changed before, it is a design correction, and it is recorded here with its reason.
+
+1. **Fit block shortened.** September runs verify up to mid-October, October runs from 9 October, so the two halves
+   share observations. The de-bias k and the GEFS/AIFS gust factors are now fitted on runs started **2026-09-01 ..
+   09-24** only. This touches non-primary arms only; the chosen primary (raw member mean) has no fit. The TEST block
+   stays October.
+2. **C1 demoted to REPORTED.** "+48 h shifted must lose to climatology" tests whether a near-climatological field
+   loses to climatology. At these leads that turns on station bias, not on the instrument. It can void a sound run or
+   pass a broken one (SubQ 0.12 sound; the advisor agrees). **New VOID controls:**
+   - **C3, stations shuffled:** within each (run, lead) the observations are permuted across stations (seeded). The
+     chosen arm's speed MAE against the shuffled observations minus against the true ones must have a day-block
+     CI **lower bound > 0 in every bin**. Otherwise VOID: the instrument cannot tell a station's own wind from
+     another's.
+   - **C4, time shift:** the chosen arm scored against observations at V+48 h minus the same arm scored at V, on
+     the rows where both exist, must **NOT** have a CI upper bound < 0 in any bin. Otherwise VOID: a forecast that
+     verifies better two days late signals a time-alignment bug.
+   - C2 (seeded +1 m/s) stays a VOID control; the noisy C2 stays reported.
+3. **Wider intervals reported.** Day-8-14 errors persist for days, and the TEST half has about 37 valid days.
+   Every PASS line is ALSO computed with **5-day blocks** (blocks of consecutive valid dates). The verdict uses the
+   pre-registered 1-day blocks. Any line that passes at 1-day blocks and fails at 5-day blocks is labelled
+   **FRAGILE** in the report, the SCOREBOARD row and the PR. A FRAGILE pass is still a pass, and it is said so.
+4. **One row set for P1 and P2.** Both lines are computed on the rows where the chosen arm, `loop` AND
+   `gfs_standin` all have a speed. n is printed on every line, and the scorer asserts that P1 and P2 share it.
+   (The 21:45Z text promised "the identical set"; `paired()` had dropped rows per comparison.)
+5. **What the PASS lines do not show.** P1/P2 are easy for any smooth field: a member mean beats one deterministic
+   run and a replayed wrong day on MAE almost by construction. **R1 (vs climatology) is the skill line**, and it is
+   reported first. Also reported per arm and bin: the ratio of the forecast speed's sd to the observed speed's sd,
+   and the signed bias on the TOP THIRD of observed speeds. A mean reads light on windy days, which is what a surf
+   rating cares about.
+6. **Truth caveat:** NDBC `realtime2` is not quality-controlled (the published monthly files are). The TEST half's
+   NDBC truth is realtime2 throughout; ASOS (IEM) is the archived METAR record.
+7. **Housekeeping:** the scorer header said odd/even (fixed). `wind-lr-hindcast.yml` becomes **dispatch-only** once
+   #946 merges, because each push queued up to 24 shards and the Actions queue was backed up. The hindcast is
+   dispatched once from `dev` after the merge.
+8. The loop rebuilt from HRES stays a declared proxy (advisor: fine).
+
+## 2026-11-16 02:40Z Amendment 4 implemented (on #946)
+
+- `wind_lr_score.py`: fit block 09-01..09-24; R1 reported first; P1/P2 on ONE row set (asserted, n on every line);
+  every PASS line with 1-day (deciding) and 5-day blocks, `fragile` flag and `verdict_label` "PASS (FRAGILE: ...)";
+  C1 -> `R_C1_*` reported; VOID controls C2, C3 (stations permuted within each (run, lead), seed 20261118, CI lower
+  > 0) and C4 (+48 h shifted minus unshifted, per row, must not have CI upper < 0); `sd_ratio` and
+  `bias_top_third_obs` per arm and bin. Header fixed (it said odd/even).
+- `wind-lr-hindcast.yml`: dispatch-only. The hindcast is dispatched once from dev after #946 merges.
+- Tests: 31 instrument tests (C3 pass/void, C4 pass/void, C1 reported, shared P1/P2 rows, FRAGILE under
+  persistent errors, sd ratio and top-third bias on a smoothed field).
+
+## 2026-11-16 02:55Z Amendment 4, director addendum (BEFORE any result)
+
+Director 21:22 EST asks for the top DECILE of observed wind as well. Added: `bias_top_decile_obs` (forecast minus
+observed speed on rows whose observed speed is in the top 10%, per arm and bin), reported beside the top-third
+bias and the sd ratio. Labelled in the report as how light each arm reads on windy days. Reported only; no PASS line.
+Items (1) and (2) of the same message were already in amendment 4 (C1 replaced by C3/C4; 5-day blocks + FRAGILE).
+
+## 2026-11-16 09:37Z Merge authority for #946, #951 and #950 (director request)
+
+All three were merged by this lane on David's words typed in THIS session (`local_0d0d332f`) at 2026-11-15 20:32 EST:
+"push and merge what logically can be". Each was merged under the standing rules the director relayed at 20:33 EST:
+own PR, non-draft, every check green, the advisor passed, not held, `--squash --match-head-commit`.
+- #946: squash 2db995629.
+- #951: squash e28cec79a.
+- #950: squash ae4fe47e1.
+Their pr_merge lines: #946 and #951 in `ledger.d/claude--wind-emos-prereg.jsonl` (landed with #950); #950 in
+`ledger.d/claude--wind-merge-ledger.jsonl` (this docs-only PR). #939 (served) stays HELD on its hindcast gate.

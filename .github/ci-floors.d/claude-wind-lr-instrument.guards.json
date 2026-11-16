@@ -1,8 +1,8 @@
 {
   "lane": "guards",
-  "tests": 17,
+  "tests": 22,
   "files": 3,
-  "branch": "claude/wind-ens-extension",
+  "branch": "claude/wind-lr-instrument",
   "date": "2026-11-16",
   "note": ""
 }

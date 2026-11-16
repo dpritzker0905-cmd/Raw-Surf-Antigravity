@@ -12,6 +12,7 @@ import json
 import math
 import os
 import re
+import sys
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Dict, List, Optional, Tuple
@@ -22,7 +23,12 @@ NDBC = "https://www.ndbc.noaa.gov"
 IEM = "https://mesonet.agron.iastate.edu"
 GFS_BASE = "https://noaa-gfs-bdp-pds.s3.amazonaws.com"
 Z0 = 2e-4
-KT = 0.514444
+# knots -> m/s: read surf_rating's constant as an ATTRIBUTE (tests/test_wind_unit_constant_parity.py), never a copy
+try:
+    from services.weather_pipeline import surf_rating as SR
+except ImportError:  # run by path from backend/scripts
+    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    from services.weather_pipeline import surf_rating as SR
 ASOS_CAP = 60
 # Amendment 2: coverage is measured where NDBC truth exists for the TEST half (realtime2 from 10-02; Sep unpublished)
 COVER = (datetime(2026, 10, 2, tzinfo=timezone.utc), datetime(2026, 11, 14, tzinfo=timezone.utc))
@@ -179,7 +185,7 @@ def parse_iem_csv(text: str) -> Dict[datetime, Tuple[float, float, float]]:
                 return float(rec.get(k, "M")) * scale
             except ValueError:
                 return float("nan")
-        out[t] = (f("sknt", KT), f("gust", KT), f("drct"))
+        out[t] = (f("sknt", SR.KT_TO_MS), f("gust", SR.KT_TO_MS), f("drct"))
     return out
 
 
@@ -304,7 +310,13 @@ def asos_candidates(s) -> List[dict]:
     return out
 
 
-def select_stations(s, cache, start: datetime, end: datetime, out_path: str) -> dict:
+def select_stations(s, cache, start: datetime, end: datetime, out_path: str, cover=None, ndbc_months=((2026, 9),),
+                    asos_cover=None) -> dict:
+    """Freeze the station list by rule. `cover` is the NDBC coverage window (default COVER), `ndbc_months` the NDBC
+    monthly files read for it, `asos_cover` the ASOS coverage window (default `cover`). The EMOS backfill passes its own
+    (log 2026-11-16-wind-emos-preregistration.md, amendment 2 item 6)."""
+    cover = cover or COVER
+    asos_cover = asos_cover or cover
     land, meta = gfs_land(s, cache)
     land_b = land > 0.5
     sea_b = ~land_b & np.isfinite(land)
@@ -313,8 +325,8 @@ def select_stations(s, cache, start: datetime, end: datetime, out_path: str) -> 
         dk = _distance_to(land_b, meta, c["lat"], c["lon"])
         if dk > 50.0:
             continue
-        obs = ndbc_window(s, cache, c["id"])
-        if hourly_coverage(obs, COVER[0], COVER[1], need_gust=True) < 0.70:
+        obs = ndbc_window(s, cache, c["id"], months=ndbc_months)
+        if hourly_coverage(obs, cover[0], cover[1], need_gust=True) < 0.70:
             continue
         z = anemometer_m(s, c["id"])
         if not z:
@@ -325,15 +337,16 @@ def select_stations(s, cache, start: datetime, end: datetime, out_path: str) -> 
         if dk > 10.0:
             continue
         obs = asos_range(s, cache, c["id"], start, end)
-        if hourly_coverage(obs, COVER[0], COVER[1], need_gust=False) < 0.70:
+        if hourly_coverage(obs, asos_cover[0], asos_cover[1], need_gust=False) < 0.70:
             continue
         asos.append({**c, "sea_km": round(dk, 1), "kind": "asos"})
     # Amendment 23:30Z: at most ASOS_CAP ASOS stations, nearest the sea first (ties by id): a deterministic rule that
     # bounds the IEM archive load; never chosen by skill.
     asos = sorted(asos, key=lambda x: (x["sea_km"], x["id"]))[:ASOS_CAP]
     doc = {"frozen_at": datetime.now(timezone.utc).isoformat(), "window": [start.isoformat(), end.isoformat()],
-           "rules": "NDBC/C-MAN met=y within 50 km of GFS land, >=70% hourly WSPD+GST over 2026-10-02..11-14, anemometer "
-                    "height known; ASOS (IEM, open) within 10 km of GFS sea, >=70% hourly sknt; <=60 ASOS nearest the sea",
+           "rules": f"NDBC/C-MAN met=y within 50 km of GFS land, >=70% hourly WSPD+GST over {cover[0]:%Y-%m-%d}.."
+                    f"{cover[1]:%Y-%m-%d}, anemometer height known; ASOS (IEM, open) within 10 km of GFS sea, >=70% hourly "
+                    f"sknt over {asos_cover[0]:%Y-%m-%d}..{asos_cover[1]:%Y-%m-%d}; <=60 ASOS nearest the sea",
            "ndbc": ndbc, "asos": asos}
     json.dump(doc, open(out_path, "w"), indent=1)
     return doc

@@ -154,6 +154,10 @@ def probe_stations(pairs: list, hours: float, workers: int = 8):
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", default="nearshore_report.json")
+    ap.add_argument("--private-rows-json", default="",
+                    help="write the FULL matched rows here for the private-store step; NEVER upload this file")
+    ap.add_argument("--rows-json", default="",
+                    help="also write the matched rows with their per-row transform factors here (S0 ablation gate)")
     ap.add_argument("--base", default=os.environ.get("NEARSHORE_VAL_BASE", DEFAULT_BASE))
     ap.add_argument("--stations", default="", help="comma list to restrict (debug)")
     ap.add_argument("--hours", type=float, default=26.0)
@@ -350,6 +354,17 @@ def main() -> int:
     report["budget"] = {"wall_s": round(time.time() - t0, 1)}
     with open(args.json, "w", encoding="utf-8") as f:
         json.dump(report, f, indent=1)
+    if args.private_rows_json:        # full rows, for PRIVATE Storage only (scripts/store_nearshore_rows.py)
+        from services.weather_pipeline.nearshore_validation import private_rows
+        with open(args.private_rows_json, "w", encoding="utf-8") as f:
+            json.dump({"version": 1, "quantity": report.get("quantity"), "generated_at": report.get("generated_at"),
+                       "graded": bool(report.get("available")),       # False = the run refused to grade: do not mix
+                       "rows": private_rows(matched)}, f)
+    if args.rows_json:                # per-row factors: the report keeps only their median (see factor_rows)
+        from services.weather_pipeline.nearshore_validation import factor_rows
+        with open(args.rows_json, "w", encoding="utf-8") as f:
+            json.dump({"version": 1, "quantity": report.get("quantity"), "generated_at": report.get("generated_at"),
+                       "rows": factor_rows(matched)}, f)
 
     # Decision lines ABOVE any tail window (the census lane's tail -40 once cut the failing row).
     print(f"STATIONS live={len(live_obs)} dead404={len(dead_404)} infra={len(infra_stations)}")

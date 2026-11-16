@@ -1,8 +1,8 @@
 {
   "lane": "chain",
-  "tests": 17,
-  "files": 2,
+  "tests": 8,
+  "files": 1,
   "branch": "claude/wind-ens-extension",
   "date": "2026-11-16",
-  "note": ""
+  "note": "only #939's own test_ens_wind_extension.py; the instrument tests are counted in claude-wind-lr-instrument (#946)"
 }

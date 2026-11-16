@@ -98,5 +98,7 @@ export function describeRasterFrame(rec, layer, requestedMs) {
     const dh = Math.round((shown.dataMs - requestedMs) / 3600000);
     if (dh !== 0 && Math.abs(dh) <= (shown.nearestMaxHours || 0)) return { state: 'nearest', text: `Showing ${fmt(shown.dataMs)}: the nearest stored forecast` };
   }
+  // TEXTURE FIT (ownRasterLayer.fitFieldToLimit): drawn downsampled because the field exceeds this device's texture limit: say so.
+  if (shown.drawnFactor > 1) return { state: 'reduced', text: `${name} drawn at 1/${shown.drawnFactor} detail: this device's graphics limit` };
   return null;
 }
