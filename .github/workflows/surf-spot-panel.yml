@@ -1,0 +1,51 @@
+# Surf spot panel: 30 fixed surf spots read ONCE from the deployed backend's /api/weather/point.
+#
+# WHY (owner field report 2026-11-15, 29.77 N 81.25 W, "we need to test live dev as we work our science"): every
+# surf-science PR shows this panel before and after on deployed dev, so a change is seen where the owner sees it.
+# Rule and panel: docs/weather-program/log/2026-11-16-fable-surf-spot-panel-prereg.md.
+#
+# WHAT IT DOES: backend/scripts/surf_spot_panel.py reads /api/health, then NDBC's public latest-observations feed (one
+# request), then the 30 spots one at a time, 10 s apart, then /api/health again. It prints one table to the job log and
+# the step summary. About five minutes.
+#
+# WHAT IT CANNOT DO: GET only, and only to the backend's host and www.ndbc.noaa.gov (enforced in code). No key, no
+# secret, no write, no artifact. permissions: contents: read. It stops before reading a spot if the backend is not
+# healthy, and stops early if a read is slow or two fail in a row: ONE 1-CPU box serves production and dev, and this
+# must never become a load test.
+#
+# WHEN IT RUNS: workflow_dispatch ONLY. There is NO schedule here on purpose: a run every 6 h is the brief's intent,
+# and turning that on is the OWNER'S word, recorded as a ledger line, in a PR of its own. GitHub runs a
+# workflow_dispatch file only once it is on the default branch (dev), so merging this file is the first word and each
+# dispatch the second.
+name: Surf Spot Panel
+
+on:
+  workflow_dispatch:
+    inputs:
+      base:
+        description: 'Backend base URL to read (default: the deployed dev/production box).'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: surf-spot-panel
+  cancel-in-progress: false
+
+jobs:
+  panel:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Read the panel (GET only, spaced, health before and after)
+        env:
+          PANEL_BASE: ${{ inputs.base }}
+        run: python backend/scripts/surf_spot_panel.py
