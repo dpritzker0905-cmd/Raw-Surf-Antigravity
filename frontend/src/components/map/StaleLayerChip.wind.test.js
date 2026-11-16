@@ -5,7 +5,6 @@ import { render, screen } from '@testing-library/react';
 const mockRated = jest.fn(() => null);
 const mockWind = jest.fn(() => null);
 jest.mock('./staleLayerState', () => ({ readRatedRunState: () => mockRated(), readWindStaleState: (sel) => mockWind(sel) }));
-// eslint-disable-next-line import/first
 import StaleLayerChip, { readStaleChip } from './StaleLayerChip';
 
 const NEAREST = { state: 'nearest', short: 'Wind: nearest stored time', text: 'Showing Mon 4 AM: the nearest stored forecast' };
