@@ -1,6 +1,7 @@
 import React from 'react';
 import { act, render, screen } from '@testing-library/react';
 import ForecastTimeStatus from './ForecastTimeStatus';
+import { formatRunLocal } from './readoutDateFormat';
 
 beforeEach(() => {
   jest.useFakeTimers();
@@ -106,7 +107,7 @@ describe('the rated band run age (#933): a quiet polite status line while the ba
     painting({ lagH: 6, runTime: '2026-11-16T06:00:00Z' });
     render(<ForecastTimeStatus model="ICON" layer="waves" hour={0} theme={theme} />);
     const el = screen.getByRole('status');
-    expect(el).toHaveTextContent(/surf ratings from the mon 06z run, 6 h older than the wave heights/i);
+    expect(el).toHaveTextContent(`Surf ratings from the ${formatRunLocal(Date.parse('2026-11-16T06:00:00Z'))} run, 6 h older than the wave heights`);
     expect(el).toHaveAttribute('aria-live', 'polite');
     expect(el).toHaveAttribute('data-rated-run-label', 'on');
   });
