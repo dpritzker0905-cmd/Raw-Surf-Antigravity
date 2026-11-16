@@ -28,6 +28,7 @@ import { cropGridJson, cropVectors, gridBboxParam, midCropFor, midCropRulesPass,
 import { getAvailableTilesFromManifest } from './backendWeatherServiceClientCoverage';
 import { buildTruthTag } from './weatherTruthTracker';
 import { pickRegionalTile } from './staticRegional';
+import { coastMask, frameRunOf, mosaicBoxes, prefetchRatedNeighbours, ratedMosaicOn, ratedRunBehind, ratedRunLagH, tryRatedMosaic } from './staticRatedMosaic';
 
 export const RATED_TIER = 'global_mid_rated';
 // The publisher's frame_set_rating.RATED_LAYERS (the world sets the band can be asked of).
@@ -112,6 +113,8 @@ export function ratedCropEligible({ model, layer, bbox }, setEnabled) {
   const bboxStr = gridBboxParam(bbox);
   const tile = ratedRegionalTile({ model, layer, bboxStr });
   if (tile) return setEnabled(tile.key);                      // z7-9 in a pilot box: its rated bundle (or /grid), never the world set
+  // A view overhanging one or more pilot boxes: the rated mosaic (staticRatedMosaic.js) may answer it from their bundles.
+  if (serverTileFirstSurf() && ratedMosaicOn() && mosaicBoxes({ model, layer, bbox }).some((b) => setEnabled(b.key))) return true;
   if (!setEnabled(ratedSetKey(model, layer))) return false;
   return midCropRulesPass({ model, layer, bboxStr }) && !surfRegionalMayWin({ model, layer, bboxStr });
 }
@@ -131,8 +134,39 @@ export function askOffsetServed(index, frame, askMs) {
  */
 export async function tryStaticRatedGrid({ model, layer, validTimeStr, clampedBbox, signal }, d) {
   const tile = ratedRegionalTile({ model, layer, bboxStr: gridBboxParam(clampedBbox) });
-  if (tile) return tryRatedRegional(tile, validTimeStr, d);
   const key = ratedSetKey(model, layer);
+  // The rated MOSAIC first (staticRatedMosaic.js): the same bundle nodes the single-box seam serves, over the view PLUS a margin
+  // (overscan), so a pan within half a screen is already covered. The single-box seam is the fallback, then /grid.
+  // ...but only once WARM (the coast mask in memory): a cold first ask inside one box takes the single-box seam at once (measured: ON took
+  // 300 ms mosaic-first vs 139 ms on the seam while the mask and world frame loaded) and warms the mosaic for the next ask.
+  const mosaicFirst = serverTileFirstSurf() && ratedMosaicOn() && !!d.setEnabled && (!tile || coastMask() !== null);
+  if (tile && !mosaicFirst) {
+    const one = await tryRatedRegional(tile, validTimeStr, d);
+    if (d.setEnabled && ratedMosaicOn()) prefetchRatedNeighbours({ model, layer, validTimeStr, bbox: clampedBbox, worldKey: key }, { ...d, askOffsetServed, noteMiss });
+    if (one) return one;
+  }
+  if (mosaicFirst) {
+    const deps = { getPinnedIndex: d.getPinnedIndex, loadFrameVectors: d.loadFrameVectors, setEnabled: d.setEnabled,
+      askOffsetServed, worldKey: key, noteMiss, plainRunMs: d.plainRunMs };
+    try {
+      const m = await tryRatedMosaic({ model, layer, validTimeStr, clampedBbox, signal }, deps);
+      prefetchRatedNeighbours({ model, layer, validTimeStr, bbox: clampedBbox, worldKey: key }, deps);
+      if (m) {
+        stampOverlay(m, m.grid.vectors, `mosaic:${m.grid.diagnostics.mosaic.boxes.join('+')}`, { valid_time: m.valid_time || validTimeStr }, validTimeStr);
+        try { m.truthTag = buildTruthTag(m, 'staticFrame'); } catch (e) { m.truthTag = null; }
+        return m;
+      }
+    } catch (e) {
+      noteMiss('mosaic_error');
+    }
+    if (tile) {
+      const one = await tryRatedRegional(tile, validTimeStr, d);
+      if (one) return one;
+    }
+    // A view touching a pilot box: /grid, never the coarse world set (ratedCropEligible's world rules refuse it: surfRegionalMayWin).
+    if (mosaicBoxes({ model, layer, bbox: clampedBbox }).length) return null;
+  }
+  if (tile) return null;
   try {
     const index = await d.getPinnedIndex(key);
     if (!index) return noteMiss('no_index');
@@ -162,6 +196,7 @@ function stampOverlay(json, cropped, key, frame, validTimeStr) {
   const t = telemetry();
   t.hits += 1;
   t.last = { hit: key, valid_time: frame.valid_time, ask: validTimeStr, at: Date.now() };
+  t.lagH = json.rated_run_lag_h ?? null;   // the run-age label (staticRatedMosaic.ratedRunLagH): hours behind the server's run
 }
 
 /** A pilot-box surf ask from its rated bundle: the frame must be built and rated for this ask, then the regional seam crops it. */
@@ -174,7 +209,9 @@ async function tryRatedRegional(tile, validTimeStr, d) {
     if (!frame) return noteMiss('regional_no_frame_in_window');
     if (!frame.path) return noteMiss('regional_unbuilt_frame');
     if (!askOffsetServed(index, frame, askMs)) return noteMiss('regional_ask_offset');
+    if (ratedRunBehind(tile.key, index, frame, d.plainRunMs)) return noteMiss('regional_run_behind');   // more than one run behind
     const json = d.regionalGrid ? await d.regionalGrid(tile) : null;
+    if (json) { json.rated_run_lag_h = ratedRunLagH(tile.key, index, frame, d.plainRunMs); json.rated_run_time = frameRunOf(index, frame) || null; }   // the label
     if (!json) return noteMiss('regional_seam');                     // partial cover, window, bundle: the seam recorded why
     stampOverlay(json, json.grid.vectors, tile.key, frame, validTimeStr);
     return json;                                                       // the regional seam minted its truth tag
