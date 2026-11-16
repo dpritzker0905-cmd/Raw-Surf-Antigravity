@@ -139,3 +139,75 @@ before its section was approved.
   change in three themes with a text equivalent.
 - The flag is turned on only by the owner's typed words, with this gate's result. Not by Reflection or SubQ, because
   no gate has been met.
+
+## 2026-11-16 15:19Z Amendments after the advisor's review, before any code. These REPLACE the parts of the gate they name
+
+The advisor ruled PASS WITH LIMITS at `3d3882602` with three conditions, all on the text. No code exists yet. No
+truth value has been read. Where this section and the gate above disagree, this section is the rule.
+
+**Kept on the first screen, as asked:** the buoys say the pre-breaking chain is LOW, one observer says the breaking
+number is HIGH. No result of this gate may be read as resolving either side.
+
+### Amendment 1 (condition 1): the primary test is the LOW END against its matching measured statistic
+
+The first version's test A compared the range's midpoint with "the measured face". No source measures a midpoint,
+and since the high end is today's number, A was a test of today's chain and not of the range. It is demoted.
+
+- **Gating test.** Over units where the source reports a significant-type breaker face (H1/3, or Hs at breaking):
+  the bootstrap 95% interval of the median log ratio, low end over measured, lies wholly inside plus or minus 15%.
+- **Reported, not gating.** The same statistic for the high end against a measured highest-tenth face. This is a
+  score of today's served number and is labelled as that.
+- **Reported, not gating.** The old test A, as one line.
+- **The source's own error.** Each truth source's section states its measurement error before any value is read.
+  It is printed beside the 15%. A source whose stated error is larger than 15% cannot gate; it is reported only.
+- A source that reports only one statistic tests only that end; the other end is UNTESTED, never assumed.
+
+### Amendment 2 (condition 2): exactly what the flag changes in served output
+
+- **Additive only.** The existing height field keeps today's number, byte for byte, flag on or off.
+- **Two new fields** appear only with the flag on: `surf_face_high_m` and `surf_face_low_m`.
+  - High end: DEFINED as today's served number, everywhere, including where the depth cap binds.
+  - Low end: the same chain, same geometry, same cap, with the highest-tenth factor set to 1.0, and never above
+    the high end.
+- **The rating is named now: it is computed from the existing height field, which is the high end.** So the 0-100
+  rating is unchanged with the flag on, and a test pins that on the sweep point and the panel. If anyone later
+  wants the rating from the low end or anything else, that is a served-rating change with its own gate. It is not
+  in this flag.
+- Nothing in alerts, notifications, glyphs or the hub reads the new fields in the build PR.
+
+### Amendment 3 (condition 3): clusters, and the lists
+
+- **At least 12 spots,** and no spot more than 15% of the pairs. Still at least 60 pairs, with at least 15 each of
+  wind sea and swell. Fewer on any count: NOT RUNNABLE.
+- **Region** is the panel's list in `backend/scripts/surf_spot_panel.py`: florida_east, mid_atlantic, california,
+  gulf, hawaii. At least 3 of them.
+- **Break class** is the panel's list: open_beach, pier, inlet_jetty, point_reef. At least 2 of them.
+- A spot that fits no entry is reported as "other" and does not count toward a minimum.
+- These minimums are a first cut, not derived from a power calculation. Before the first truth source is approved I
+  will state, from that source's stated error and the spread between spots in the model, the smallest low-end bias
+  the design can detect at 95%. If that is larger than 15%, the gate cannot decide and I will say so before any
+  value is read.
+
+### The "21.3% low" in `surf_transform.py`: against which truth, and the prediction it gives
+
+Read at lines 71 to 76. The measurement there is Kr = 0.797 against CDIP instruments (385,651 swell hours, 10
+California sites): significant-height truth, before breaking. The "21.3% low" is NOT a measurement. It is
+arithmetic: a significant height is 1 / 1.27 of the H1/10 the published standard names.
+
+So the file does not predict that the low end fails against a significant-type truth. It says the opposite for
+California: with Kr applied and no 1.27, the chain was tuned to match significant height there. Two things have
+moved since: the served constant is 0.873, not 0.797 (9.5% higher), and nearshore validation run 43758031631 reads
+the pre-breaking chain low at 11 of 11 buoys (observed over model 1.59), which covers other coasts and more factors.
+
+**Written prediction for the low end, before any breaking truth is read:**
+- California open-coast swell: inside plus or minus 15%, on the high side if anything.
+- The coasts where the buoy score is low (Florida east, mid-Atlantic, Gulf): the low end reads LOW against a
+  significant-type breaker face, outside 15%, so the gating test FAILS there. I hold this loosely: the buoy score is
+  pre-breaking, and breaking can hide a low input where the depth cap sets the height.
+- If that prediction holds, the flag does not ship, and the finding is about the pre-breaking chain, not the range.
+
+### One small item registered separately (advisor's point 4)
+
+Measure the candidate model mean-type period against buoy mean period, at the nearshore validation stations, in an
+Actions job printing aggregates only: median ratio and spread, by station. Rule: the period part of the target is
+not built unless the median ratio is within 10% at three quarters of the stations. Not started. No look yet.
