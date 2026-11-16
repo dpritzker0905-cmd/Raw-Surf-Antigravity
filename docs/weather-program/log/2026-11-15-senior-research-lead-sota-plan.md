@@ -657,3 +657,28 @@ only. NWS defines surf height as breaking-wave height without a derivation. Surf
 - Worldwide BREAKING truth stays the bottleneck: FRF Duck, video estimators where a feed exists, and labelled owner
   and crowd observations.
 - That makes B4's spot-level holdout and uncertainty ranges essential, not optional.
+
+## 01:04Z Height-scale conventions are regional (David 20:01 EST: "in FL Face height. In a lot of places in the Pacific Ocean Hawaiian scale, or more ... Its both answers depending on location")
+
+**Evidence.**
+- Hawaii: trough-to-crest = 2x the Hawaiian-scale value within 10-20%, at H1/10, over the full range of breaker sizes
+  ([Caldwell 2007](https://consensus.app/papers/details/w:ba848d37-9261-419a-aa5e-33d37bd2994d/?utm_source=claude_code)).
+  That paper also gives an empirical offshore-to-surf method for narrow-shelf, steep, high-refraction coasts.
+- Oahu North Shore: 35 years (1968-2002) of daily lifeguard observations, digitized; uncertainty 10-15% of reported
+  height ([Caldwell 2005](https://consensus.app/papers/details/w:f67b82aa-81c6-46f9-9a65-5e4748c1cc86/?utm_source=claude_code)).
+  This is a BREAKING-height truth set for the reef/steep class, which we lacked.
+- The public is confused by the two scales on Oahu
+  ([Vasconcellos 2007](https://consensus.app/papers/details/w:9178f4c8-d778-4349-a16d-fcd6ed509cdb/?utm_source=claude_code)).
+
+**Design** (SubQ: one physical quantity 0.9996; regional default with user override 0.996; convert truth before
+scoring 0.999; rating on the physical height 0.999; overall 2.84 of 3):
+1. The chain computes ONE physical quantity: breaking face height H1/10 in metres.
+2. Display converts it per region (face in Florida, Hawaiian in Hawaii, and so on), with a user override. The label
+   always names the scale.
+3. Truth observations record the observer's scale and are converted to face before scoring.
+4. The rating and size labels use the physical height only.
+5. Conversion factors come from published measurements: Hawaii x2 within 10-20%. Other regions come from the helper's
+   ASK 6 table, refitted later from labelled observations.
+
+**Pending.** ASK 6 (the regional convention table; how Surfline, Magicseaweed and Windy handle scales). Reflection
+was not asked; SubQ only.
