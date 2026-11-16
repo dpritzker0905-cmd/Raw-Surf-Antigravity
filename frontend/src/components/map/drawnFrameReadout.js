@@ -10,7 +10,7 @@
  * Returns null when the drawn frame IS the selection and is not an estimate.
  */
 import { latticeByLayerOn, servedPick, servedPickHalfStep } from './storedLattice';
-import { formatReadoutDate } from './readoutDateFormat';
+import { formatReadoutDate, formatRunLocal, localRunTimeOn } from './readoutDateFormat';
 
 const LAYER_NAMES = { waves: 'Waves', swell_1: 'Swell', swell_2: 'Swell 2', wind_waves: 'Wind Waves', wind: 'Wind' };
 const MARINE_LAYERS = new Set(['waves', 'swell_1', 'swell_2', 'wind_waves']);
@@ -141,10 +141,12 @@ function holdReason(requested, drawn, m) {
   const anchorNow = Number.isFinite(requested.labelMs) && Number.isFinite(requested.hour) ? requested.labelMs - requested.hour * HOUR_MS : null;
   const rolledH = Number.isFinite(anchorNow) && Number.isFinite(drawn.anchorMs) ? Math.round((anchorNow - drawn.anchorMs) / HOUR_MS) : 0;
   const olderRun = Number.isFinite(drawn.runMs) && Number.isFinite(requested.latestRunMs) && requested.latestRunMs > drawn.runMs;
+  // The older run NAMED in the reader's time when known (readoutDateFormat.formatRunLocal): "from the older Saturday 8 PM EURO run".
+  const named = olderRun && localRunTimeOn() ? formatRunLocal(drawn.runMs) : '';
   if (rolledH >= 1) {
-    return { rolled: true, why: `drawn ${rolledH} h ago${olderRun ? ' from an older run' : ''}, and the selected time has moved on` };
+    return { rolled: true, why: `drawn ${rolledH} h ago${olderRun ? (named ? ` from the older ${named} run` : ' from an older run') : ''}, and the selected time has moved on` };
   }
-  return olderRun ? { rolled: false, why: `from an older ${m} run` } : null;
+  return olderRun ? { rolled: false, why: named ? `from the older ${named} ${m} run` : `from an older ${m} run` } : null;
 }
 
 /** Nothing of ours is on screen for this selection (the drawn record retired, marineDrawnFrame.NOTHING_DRAWN_REASONS): only the load. */

@@ -280,6 +280,8 @@ async def go_live(
         "message": "You are now live!",
         "photographer_id": photographer.id,
         "live_session_id": live_session.id,
+        # The go-live condition report: the parent row of the photographer's blind surf observation (T1).
+        "condition_report_id": condition_report.id,
         "location": photographer.location,
         "session_price": photographer.session_price,
         "started_at": photographer.shooting_started_at.isoformat(),

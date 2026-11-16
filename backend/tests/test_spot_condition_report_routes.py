@@ -11,6 +11,9 @@ import pytest
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
+import secrets
+
+from core import security
 from database import get_db
 from models import ConditionReport, Post, RoleEnum, Story
 from routes.condition_reports import router
@@ -146,15 +149,22 @@ async def test_detail_serializes_and_retains_view_count_policy(viewer, report):
     assert db.commit.await_count == (1 if viewer == 'other-viewer' else 0)
 
 
+def _bearer(monkeypatch, sub):
+    monkeypatch.setattr(security, 'SECRET_KEY', secrets.token_urlsafe(48))
+    return {'Authorization': 'Bearer ' + security.create_access_token({'sub': sub})}
+
+
 async def test_create_preserves_report_story_post_and_broadcast(monkeypatch):
     photographer = SimpleNamespace(role=RoleEnum.PHOTOGRAPHER, full_name='Test photographer', avatar_url=None)
     db = Database(photographer)
+    headers = _bearer(monkeypatch, 'photographer-1')  # the create route requires JWT identity (T1 P1, #954)
     broadcast = AsyncMock()
     # Patch only socket I/O. The real imported broadcast function must execute.
     monkeypatch.setattr(ws_manager, 'broadcast', broadcast)
     start = datetime.now(timezone.utc)
     response = await request(db, 'POST', '/condition-reports', params={'photographer_id': 'photographer-1'},
-                             json={'media_url': 'https://media.example.test/original.jpg', 'spot_name': 'Test spot'})
+                             json={'media_url': 'https://media.example.test/original.jpg', 'spot_name': 'Test spot'},
+                             headers=headers)
     end = datetime.now(timezone.utc)
     assert response.status_code == 200
     report_obj, story, post = db.added
@@ -168,6 +178,19 @@ async def test_create_preserves_report_story_post_and_broadcast(monkeypatch):
     broadcast.assert_awaited_once()
     assert broadcast.await_args.kwargs == {'room': 'conditions'}
     assert broadcast.await_args.args[0]['data']['id'] == report_obj.id
+
+
+@pytest.mark.parametrize('as_user,status', [(None, 401), ('someone-else', 403)])
+async def test_create_requires_the_photographers_own_token(monkeypatch, as_user, status):
+    # Before #954 this route had no authentication: anyone could post a report, story and feed post as anyone.
+    db = Database(SimpleNamespace(role=RoleEnum.PHOTOGRAPHER, full_name='x', avatar_url=None))
+    broadcast = AsyncMock()
+    monkeypatch.setattr(ws_manager, 'broadcast', broadcast)
+    headers = _bearer(monkeypatch, as_user) if as_user else {}
+    response = await request(db, 'POST', '/condition-reports', params={'photographer_id': 'photographer-1'},
+                             json={'media_url': 'https://media.example.test/original.jpg'}, headers=headers)
+    assert response.status_code == status
+    assert db.added == [] and db.commit.await_count == 0 and broadcast.await_count == 0
 
 
 async def test_media_update_returns_success_after_commit(report):

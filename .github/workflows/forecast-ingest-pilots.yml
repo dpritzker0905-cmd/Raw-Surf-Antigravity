@@ -279,6 +279,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FRAME_RATING_SETS: ${{ vars.FRAME_RATING_SETS || '1' }}
           FRAME_RATING_BUDGET_S: ${{ vars.FRAME_RATING_BUDGET_S || '600' }}
+          FRAME_RATING_PAINT_FIRST: ${{ vars.FRAME_RATING_PAINT_FIRST || '1' }}   # band first (frame_set_rating.paint_tier); KILL: repo variable '0'
           RATING_LOCAL_SIZE: '1'                 # = precompute.yml / forecast-ingest.yml / Render (ONE FORECAST COMPOSITION)
           RATING_OBS_GATE: '1'                   # = precompute.yml / Render
           SHORE_NORMAL_BEARING_RADIUS_KM: '3.0'  # = precompute.yml / forecast-ingest.yml / Render
@@ -394,6 +395,19 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FRAME_RASTER_PRECIP_ICON: ${{ vars.FRAME_RASTER_PRECIP_ICON }}
         run: python scripts/publish_raster_frames.py --set precipitation_icon
+
+      # ICON precipitation at 0.125 deg (G2, 2026-11-16): the same rates by a supersampled area mean onto ICON's own resolution
+      # (DWD's 0.125-degree nearest-neighbour map, about 50 MB, read once per publish). Off unless FRAME_RASTER_PRECIP_ICON_0P125=1.
+      - name: Publish raster static frames (ICON precipitation 0.125 deg; off unless FRAME_RASTER_PRECIP_ICON_0P125=1)
+        if: ${{ !cancelled() && vars.FRAME_IMAGES_PUBLISH == '1' && vars.FRAME_RASTER_PRECIP_ICON_0P125 == '1' }}
+        continue-on-error: true
+        timeout-minutes: 30
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          FRAME_RASTER_PRECIP_ICON_0P125: ${{ vars.FRAME_RASTER_PRECIP_ICON_0P125 }}
+        run: python scripts/publish_raster_frames.py --set precipitation_icon_0p125
 
       # PER-MODEL PRESSURE (2026-10-23; the owner, 20:13 EDT: "Yes start it", answering "start the per-model pressure route?"
       # after "We want each models pressure showing"). EURO = ECMWF IFS open data msl (CC BY 4.0, attribution required), the
