@@ -279,6 +279,7 @@ jobs:
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           FRAME_RATING_SETS: ${{ vars.FRAME_RATING_SETS || '1' }}
           FRAME_RATING_BUDGET_S: ${{ vars.FRAME_RATING_BUDGET_S || '600' }}
+          FRAME_RATING_PAINT_FIRST: ${{ vars.FRAME_RATING_PAINT_FIRST || '1' }}   # band first (frame_set_rating.paint_tier); KILL: repo variable '0'
           RATING_LOCAL_SIZE: '1'                 # = precompute.yml / forecast-ingest.yml / Render (ONE FORECAST COMPOSITION)
           RATING_OBS_GATE: '1'                   # = precompute.yml / Render
           SHORE_NORMAL_BEARING_RADIUS_KM: '3.0'  # = precompute.yml / forecast-ingest.yml / Render

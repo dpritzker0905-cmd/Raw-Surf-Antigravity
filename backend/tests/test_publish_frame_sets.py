@@ -512,3 +512,34 @@ def test_a_read_still_fails_after_the_last_retry_and_a_missing_object_never_retr
     with pytest.raises(RuntimeError, match="HTTP 403"):
         sink.read(fs.LATEST)                                          # not a retry status: fails at once
     assert len(calls) == 1 and waits == []
+
+
+def test_rated_paint_first_tiers():
+    """PAINT FIRST (2026-11-16): GFS regional rated waves bundles 0, the GFS rated world waves set 1, everything else 2."""
+    from services import frame_set_rating as fsr
+    rated = lambda m, lyr, region="global_mid": _t(m, lyr, region, variant="rated", bundle=region != "global_mid")
+    assert fsr.paint_tier(rated("GFS", "waves", "florida_east_coast")) == 0
+    assert fsr.paint_tier(rated("GFS", "waves")) == 1
+    assert fsr.paint_tier(rated("GFS", "swell_1", "florida_east_coast")) == 2
+    assert fsr.paint_tier(rated("ICON", "waves")) == 2
+    assert fsr.paint_tier(_t("GFS", "waves", "florida_east_coast", bundle=True)) == 2      # a plain bundle: not a rated set
+
+
+def test_rated_paint_first_beats_the_fair_order_and_leaves_plain_sets_alone(monkeypatch):
+    """The 2026-11-16 failure: never-written / long-unwritten rated sets went first and the waves bundles were cut by the budget.
+    Paint first puts the waves bundles ahead even of a never-written rated set; the rest keep the fair order; plain sets are unchanged;
+    FRAME_RATING_PAINT_FIRST=0 restores the plain fair order."""
+    rated = lambda m, lyr, region="global_mid": _t(m, lyr, region, variant="rated", bundle=region != "global_mid")
+    wv_fl, wv_hi, wv_world = rated("GFS", "waves", "florida_east_coast"), rated("GFS", "waves", "hawaii"), rated("GFS", "waves")
+    sw_old, never = rated("GFS", "swell_1", "hawaii"), rated("ICON", "swell_1")
+    latest = {"sets": {
+        fs.set_key(wv_fl): {"written_at": "2026-11-15T09:00:00Z"}, fs.set_key(wv_hi): {"written_at": "2026-11-15T08:00:00Z"},
+        fs.set_key(wv_world): {"written_at": "2026-11-16T08:00:00Z"}, fs.set_key(sw_old): {"written_at": "2026-11-14T00:00:00Z"}}}
+    order = [fs.set_key(t) for t in pub.publish_order([never, sw_old, wv_world, wv_fl, wv_hi], latest)]
+    assert order == [fs.set_key(t) for t in (wv_hi, wv_fl, wv_world, never, sw_old)]   # fair order inside each tier
+    plain_a, plain_b = _t("GFS", "waves"), _t("EURO", "swell_1")
+    plain = {"sets": {fs.set_key(plain_a): {"written_at": "2026-11-16T08:00:00Z"}, fs.set_key(plain_b): {"written_at": "2026-11-15T00:00:00Z"}}}
+    assert pub.publish_order([plain_a, plain_b], plain) == [plain_b, plain_a]            # plain sets: the fair order as before
+    monkeypatch.setenv("FRAME_RATING_PAINT_FIRST", "0")
+    order = [fs.set_key(t) for t in pub.publish_order([never, sw_old, wv_world, wv_fl, wv_hi], latest)]
+    assert order == [fs.set_key(t) for t in (never, sw_old, wv_hi, wv_fl, wv_world)]   # killed: the plain fair order

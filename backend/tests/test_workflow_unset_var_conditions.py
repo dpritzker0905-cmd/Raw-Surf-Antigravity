@@ -46,6 +46,15 @@ def test_the_rated_frames_step_defaults_on():
     assert "&& vars.FRAME_RATING_SETS != '0'" not in text
 
 
+def test_the_rated_step_passes_the_paint_first_kill_switch_defaulting_on():
+    """#975 (2026-11-16, the advisor's condition): FRAME_RATING_PAINT_FIRST must reach the scheduled rated step as a repository
+    variable defaulting to '1', so it can be turned off without a commit."""
+    text = (WORKFLOWS / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")
+    step = text[text.index("Publish rated static frames"):]
+    step = step[:step.index("run: python scripts/publish_frame_images.py --only rated")]
+    assert "FRAME_RATING_PAINT_FIRST: ${{ vars.FRAME_RATING_PAINT_FIRST || '1' }}" in step
+
+
 def test_the_pressure_frames_step_defaults_on():
     """The owner, 2026-11-12: "Yes, publish pressure"; the client draws pressure from these frames by default since #812."""
     text = (WORKFLOWS / "forecast-ingest-pilots.yml").read_text(encoding="utf-8")

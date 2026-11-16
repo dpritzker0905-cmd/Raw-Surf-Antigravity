@@ -72,6 +72,17 @@ class SurfObservation(Base):
     exif_age_s = Column(Float, nullable=True)
     exif_check = Column(String(16), nullable=False)
     duplicate_of = Column(String(36), nullable=True)
+    device_hash = Column(String(64), nullable=True, index=True)  # sha256 of the client's random install id (a claim)
+
+    # Rewards (P2, services/observation_rewards.py). None of these depends on the height.
+    quality_ok = Column(Boolean, nullable=True)
+    xp_status = Column(String(16), nullable=False, default='none')  # not_eligible|paused|capped|held_audit|granted|audit_failed
+    bonus_eligible = Column(String(64), nullable=True)  # first_of_day,quiet_spot: paid only on corroboration
+    corroborated = Column(Boolean, nullable=False, default=False)
+    audit_selected = Column(Boolean, nullable=False, default=False)
+    audit_verdict = Column(String(8), nullable=True)
+    audited_by = Column(String(36), nullable=True)
+    audited_at = Column(DateTime(timezone=True), nullable=True)
     flags = Column(Text, nullable=False, default='')  # comma-separated, sorted
 
     # One observation per parent report, enforced by the database too (the route's read-then-insert can race).

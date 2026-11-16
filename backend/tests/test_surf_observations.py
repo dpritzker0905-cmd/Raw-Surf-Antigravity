@@ -118,6 +118,7 @@ def test_inspect_media_without_exif_or_unreadable_is_hash_only():
 @pytest_asyncio.fixture
 async def world(monkeypatch):
     monkeypatch.setattr(security, "SECRET_KEY", secrets.token_urlsafe(48))
+    monkeypatch.setenv("RUNTIME_FLAGS_MANIFEST", "0")  # the XP kill switch reads runtime_flags: no network in tests
     engine = create_async_engine("sqlite+aiosqlite:///:memory:")
     async with engine.begin() as connection:
         for model in (Profile, SurfSpot, CheckIn, UserStreak, ConditionReport, SurfReport, SurfObservation,
@@ -210,7 +211,7 @@ async def test_spot_page_report_is_recorded_as_not_blind(world):
     assert r.status_code == 200, r.text
     (row,) = await world.rows()
     assert row.forecast_shown_before is True
-    assert set(row.flags.split(",")) == {"gps_missing", "range_only"}
+    assert set(row.flags.split(",")) == {"gps_missing", "no_device", "range_only"}
 
 
 async def test_hawaii_default_and_override(world):
@@ -221,7 +222,7 @@ async def test_hawaii_default_and_override(world):
     assert r.json()["scale_default"] == "hawaiian"
     (row,) = await world.rows()
     assert row.face_m == pytest.approx(12 * FT_TO_M, abs=1e-3) and row.scale_overridden is False
-    assert (row.exif_check, row.flags) == ("ok", "")
+    assert (row.exif_check, row.flags) == ("ok", "no_device")  # P2: a row without a device id earns no XP
     assert row.media_sha256 and abs(row.exif_age_s) < 120
 
     # Face in Hawaii is an override; with a verified photo it is not flagged as unsupported.
@@ -358,4 +359,6 @@ async def test_client_build_is_stored_and_shape_checked(world):
     assert (await world.rows())[0].client_build == "a1b2c3d"
     bad = await world.client.post(URL, json=_checkin(ref_id=None, spot_id="nsb", client_build="x; drop"),
                                   headers=_token("surfer"))
-    assert bad.status_code == 422
+    assert bad.status_code == 200  # a malformed stamp never costs the observation
+    second = (await world.rows())[1]
+    assert second.client_build is None and "bad_client_build" in second.flags
