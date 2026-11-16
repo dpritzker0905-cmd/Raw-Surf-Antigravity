@@ -1,0 +1,33 @@
+name: Tide EOT20 seasonal-convention check (calendar 2025, 4 gauges)
+# WHY (advisor 2026-11-16 11:46Z, item 3 before the tide M1 G2 dispatch): pyTMD evaluates EOT20's SA with Doodson's
+# h - p1 while NOAA's SA phases are for h (the 77-day error the positive control had). This measures arm B against NOAA
+# on calendar 2025 (NOT a G2 test window) at four gauges. Public data only, no secrets, no bucket write, no live backend.
+# Runs only on pushes to its own branch (never the gate's branch, so the G2 gate cannot start from here).
+on:
+  push:
+    branches: [claude/tide-m1-eot20-check]
+    paths:
+      - backend/scripts/tide_eot20_convention_check.py
+      - .github/workflows/tide-eot20-convention.yml
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install (offline-only)
+        run: pip install "pyTMD==3.1.0" netCDF4 numpy pandas
+      - name: Run the check
+        run: python backend/scripts/tide_eot20_convention_check.py > eot20_convention.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tide-eot20-convention
+          path: eot20_convention.json
+          if-no-files-found: ignore
+          retention-days: 30
