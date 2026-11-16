@@ -107,7 +107,7 @@ const BlindHeightInput = ({ value, onChange, idPrefix = 'obs', defaultScale = 'f
         <div className="space-y-1.5">
           <label htmlFor={inputId} className="text-sm text-muted-foreground block">Wave height</label>
           <div className="flex gap-2">
-            <input id={inputId} type="number" inputMode="decimal" min="0" step="0.5"
+            <input id={inputId} aria-label="Wave height" type="number" inputMode="decimal" min="0" step="0.5"
               max={obs.height_unit === 'm' ? 30 : 100}
               value={obs.height_value}
               onChange={(e) => set({ height_value: e.target.value })}

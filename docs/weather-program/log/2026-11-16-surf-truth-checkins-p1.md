@@ -106,3 +106,20 @@ norm_v1 docstring: face_m_low/high are only the entry's own range; "8ft+" is rig
 `entry_screen` was already stored (checkin_modal | golive_conditions_modal | spot_report_modal). Advisor note answered:
 grom parents count as photographers because /condition-reports admits the same role set. `SURF_TRUTH_ANCHOR_IDS` is
 unset until David sets it on the service, so every row is non-anchor until then. Tests 39 -> 40.
+
+## 01:40Z P2 built locally (stacked on P1; PR opens after P1 merges)
+
+XP for blind observations rewards quality, never agreement (`services/observation_rewards.py`, amounts in
+`services/xp.py` XP_RULES, granted only through `grant_xp`):
+- Base 5 XP only past the quality gate: a parent report, no duplicate photo, no far GPS / far or stale EXIF / clock
+  skew / unverified media, some location evidence (GPS within 10 km or EXIF within 1 km), and a device id.
+- Caps on paying observations: 3 per account per UTC day, 1 per account per spot-day, 3 per device per day across
+  accounts, 30 per spot-day. Capped rows are kept as truth and pay nothing.
+- Random audit: 1 in 10 gated rows is held until an admin passes it (`/api/admin/surf-observations/audits`,
+  `get_current_admin`; no self-audit; the queue shows no forecast).
+- Bonuses (corroborated +5, first-of-day +5, quiet-spot +10) pay only once another ACCOUNT on another DEVICE files a
+  gated observation at the same spot within 90 min. Corroboration is presence, not agreement: heights never compared.
+- The client sends a random install id (`deviceId.js`, localStorage; survives sign-out by design); the server keeps
+  only its sha256.
+Evidence: 15 reward tests + P1's 40 + the XP single-path guard = 64 pass. Mutations: a gate that reads the height
+fails the value-blind test; corroboration that requires agreement fails the corroboration test. Frontend 10 pass.
