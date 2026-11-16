@@ -791,3 +791,31 @@ Every step that moves a served number gets a kill switch and a SCOREBOARD row.
   explicit public-domain line was found. Treated as permitted, with the confirmation email optional.
 
 Attribution: EOT20 (DGFI-TUM, CC BY 4.0) and NOAA CO-OPS go into `LayerDataCredit.js` when M1 ships.
+
+## 01:52Z FES2022 confirmed usable (AVISO page read in the owner's logged-in browser; nothing downloaded)
+
+Source: aviso.altimetry.fr, "Global tide - FES" product page, read at about 01:52Z.
+- "FES2022 heights and loading tide are available for all uses, as indicated in the licence agreement." Currents are
+  not distributed.
+- Grid: 1/30 deg, 34 constituents. An EXTRAPOLATED version fills coastal regions (with a mask). The native
+  finite-element grid is also offered (3.68 GB).
+- Access is through the authenticated FTP/SFTP/TDS only. Elevation files are at most 170 MB each, load files at most
+  240 MB each, xz-compressed.
+- Prediction code: PyFES (>= v2025.2.0, GPL). AVISO guarantees FES2022b results only with PyFES.
+- Required citation: "The FES2022 Tide product was funded by CNES, produced by LEGOS, NOVELTIS and CLS and made freely
+  available by AVISO", plus the DOI 10.24400/527896/A01-2024.004.
+
+**Choice for M1.**
+- Primary: FES2022b, extrapolated, through PyFES in an offline Actions job (finer and more coastal than EOT20's 1/8
+  deg).
+- EOT20 is the gate arm and the fallback.
+- CO-OPS constituents are used near US stations.
+
+GPL note: PyFES runs only in the offline Actions job. Served values are its OUTPUT, which the GPL does not cover. Do
+not import PyFES into the served backend.
+
+Access: Actions needs the AVISO login as GitHub secrets, which the owner enters himself (names only, e.g.
+`AVISO_USERNAME` / `AVISO_PASSWORD`). No value goes in the repo or the logs.
+
+For the surf tide, only the main constituents are needed (about 8-17 of 34), which keeps the download to a few GB at
+most.
