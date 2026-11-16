@@ -124,3 +124,11 @@ A run that fails a control is VOID and can never be made active.
 
 The B2 spot-class scheme itself (the research lead's), the physical-reference ingestion (T2 Sentinel-2, buoy match),
 and anything served. Amendments go below, dated, BEFORE any result they could change.
+
+## 2026-11-16 23:25Z AMENDMENT 1: the export is row-level and pseudonymized (BEFORE any data or fit)
+
+The Data section said the fit reads "the private aggregate-only export". That wording was wrong: the model needs one
+row per observation. The export (T1 P4, `services/surf_truth_export.py`) is ROW-LEVEL and PSEUDONYMIZED: identities
+are HMAC-SHA256 keys under a key held only in the environment, and no name, profile id, device or photo position,
+photo URL or converted height leaves. It lives in PRIVATE storage only. "Aggregate-only" applies to anything shown
+outside private storage (the admin views are counts only). Nothing else in this registration changes.
