@@ -710,3 +710,66 @@ and Australia's local practice.
 - unconfirmed regions stay on face until local knowledge (the owner or labelled observations) confirms otherwise.
 
 Conversion: x2 (Hawaii, measured), with the 1.5 variant noted as the uncertainty.
+
+## 01:35Z Removing every Open-Meteo dependency (David 20:14 EST: "We shouldn't be having anything depending on open-meteo, all should be from GFS and EWMCF grib etc")
+
+**Inventory** (`git grep` of Open-Meteo hosts on origin/dev, runtime code only, tests and docs excluded; call
+volumes NOT measured, because measuring them needs live traffic):
+- **A1 Tide (served, every user).** `weather_pipeline/tide.py` serves `sea_level_height_msl` to the infobox,
+  `/point-tide`, the rating tide and the surf-cap water level (SURF_TIDE_DEPTH). `frontend/.../tideClient.js`
+  reads it in the browser as a fallback. `eval_replay.py` and `eval_provenance.py` replay it.
+- **A2 Spot surfaces outside the one chain.** `routes/explore_discover/explore.py`, `spot_details.py`,
+  `routes/surf_data/alerts.py` and `conditions.py`, `services/surf_conditions.py`, plus the legacy
+  `forecast_ingester.py` and `weather_worker.py`, all hold Open-Meteo marine/forecast URLs. Whether each call site
+  is live, or only a fallback, must be confirmed per file. Where it is live, it is also a ONE FORECAST COMPOSITION
+  violation.
+- **A3 Browser raster layers.** `openMeteoEndpoints.js`, `openMeteoProtocol.js` and `useOwnRasterFrames.js` read
+  `.om` files from Open-Meteo's S3 bucket (`openmeteo.s3.amazonaws.com/data_spatial`) for the EURO/ICON
+  temperature, precipitation and cloud layers. Own GRIB-built frame sets exist DARK (#888).
+- **A4 On-demand fallbacks.** `point_resolution.py`, `point_direct_fallbacks.py` and `grid_series_viewport.py`
+  fetch Open-Meteo when no stored product exists.
+- **A5 Ingest fallbacks and mocks.** `scheduler.py` and `euro_marine_coarse_ingestion.py` call it only when the
+  native NOAA/DWD/Copernicus fetch fails (`GFS_MARINE_NOAA_DIRECT=1`, `ICON_MARINE_DWD_DIRECT=1`). The
+  `provider='open-meteo'` labels on native data are a naming leftover. `open_meteo_provider.py` also defaults to
+  a Netlify `weather-proxy`.
+- **A6 Grading benchmark (not served).** `forecast_skill.py` (best_match and `gfs_wave` comparisons) and the
+  accuracy monitor's public reference.
+- **A7 Offline research scripts** (`backend/scripts/*`, 11 files) and the licence credit (`LayerDataCredit.js`).
+
+**Replacements, ranked by state of the art, cost, compute (Actions only) and licence.**
+- **Tide.**
+  - Harmonic prediction: NOAA CO-OPS constituents near stations (public domain), and a global tide model elsewhere
+    (EOT20 or FES2022, via pyTMD). Per-spot constituents are precomputed in Actions.
+  - The prediction is zero-mean about MSL by construction, so no datum-subtraction patch is needed. MLLW/LAT come
+    from the constituents.
+  - Per Reflection, it is ASTRONOMICAL only: storm surge and seasonal level need a residual term later (Copernicus
+    sea-level forecast, or CO-OPS observations near stations).
+  - Licences are being verified by the helper (ASK 7). TPXO is believed academic-only, so it is to be avoided until
+    checked.
+- **Raster.** Own frames from ECMWF open data (2t, tp, tcc) and DWD ICON GRIB. The sets are built; flip them after
+  parity.
+- **Spot surfaces.** Route through the stored products of the one surf chain (`spot_ratings_precompute`).
+- **Fallbacks.** Stored products only, or an explicit "unavailable".
+- **Ingest.** Hold the last good run, labelled stale; never another provider.
+- **Benchmark.** Keep it as an external comparison only, or drop it: an owner choice. Metrics are defined before the
+  choice.
+
+**Migration order** (SubQ: order sound 0.993; harmonic tide SOTA 0.997; datum patch moot 0.994; hold the
+Open-Meteo-datum PR 0.998; benchmark as owner choice 0.985; stale over fallback 0.997):
+- S1 tide: shadow-run harmonic beside today's values with a rollback, parity-gated vs CO-OPS predictions, then cut
+  over. S1b residual later.
+- S2 raster frames.
+- S3 spot surfaces.
+- S4 fallbacks.
+- S5 ingest fallbacks.
+- S6 remove proxy, credits and CSP entries in stages.
+- S7 benchmark: owner choice.
+
+Every step that moves a served number gets a kill switch and a SCOREBOARD row.
+
+**In-flight PRs.**
+- #926/#931 (tide datum built on Open-Meteo): hold, superseded by S1. Merge the fixed-datum version as an interim only
+  if S1 is more than about 2 weeks away.
+- #923 (Tides overlay): display only, reads the same payload, so it inherits the new source. Keep it.
+- Spot panel: log each value's source, and during the migration add a column comparing Open-Meteo with the native
+  value.
