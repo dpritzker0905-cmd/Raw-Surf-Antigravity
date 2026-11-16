@@ -416,3 +416,35 @@ own PR, non-draft, every check green, the advisor passed, not held, `--squash --
 - #950: squash ae4fe47e1.
 Their pr_merge lines: #946 and #951 in `ledger.d/claude--wind-emos-prereg.jsonl` (landed with #950); #950 in
 `ledger.d/claude--wind-merge-ledger.jsonl` (this docs-only PR). #939 (served) stays HELD on its hindcast gate.
+
+
+## 2026-11-16 18:17Z AMENDMENT 5: the ENS control member left the open-data `ef` files on 2026-05-13 (BEFORE any result)
+
+**What happened.** Hindcast run 43920372184 dropped every run. The fetcher required 51 members (`cf` + 50 `pf`), and
+the 2026 `ef` files carry only the 50 perturbed members. The run was cancelled; no report was opened, and the score had
+no rows. This is an instrument bug, not a data gap: my smoke test had used a 2025 file, which still carried the control.
+**Nothing from that run is read into #939** (director 2026-11-16).
+
+**Measured** on the AWS mirror, `-300h-enfo-ef.index`, 00Z runs, by bisection:
+- the control is present (`10u` type `cf` x 1, `pf` 1..50) through **2026-05-12 00Z** (8007-8211 records per file);
+- it is absent (`pf` 1..50 only, 8500 records per file) from **2026-05-13 00Z** on;
+- also checked: 2025-06-01, 2025-10-15, 2026-01-15, 2026-03-31 and 2026-05-08 have the control; 2026-05-14, 05-17,
+  05-27, 06-15, 08-01 and 09-01 do not;
+- the 2026-05-12 12Z run was not probed; it is treated by what its own index says.
+No `-enfo-cf` file exists beside the `ef` file after the switch (2026-09-13 +180 h: 404).
+
+**Rules (both the hindcast and the EMOS backfill):**
+1. **Member set = whatever the run's own index carries:** `pf` 1..50 are REQUIRED (any missing -> the run is dropped,
+   never filled); `cf` is included when present. Before 2026-05-13 that is 51 members, from 2026-05-13 on 50. The count
+   is recorded per run.
+2. **The scored arm is the mean over the run's members** (51 or 50). The hindcast window (runs 2026-09-01..10-31) is
+   entirely 50-member, so its primary arm, `ens_mean_raw`, is the 50-perturbed-member mean. A mean over 50 vs 51
+   exchangeable members differs by sampling only: the control is unperturbed, not a better member.
+3. **`ens_cf` (control only) is UNAVAILABLE after 2026-05-13.** In the hindcast it is reported as unavailable (no rows)
+   and drops out of every comparison. It was never a PASS line.
+4. **EMOS:** the predictors (member mean, member variance of speed, member gust quantiles) are computed over the run's
+   members (51 before the switch, 50 after). The training windows straddle the switch for TEST runs from 2026-05-13 to
+   about 2026-07-11. The fitted variance term absorbs the small change in sampling variance. The report adds one line
+   per bin: CRPS(EMOS) - CRPS(raw), for TEST runs before vs after 2026-05-13 (reported, not gating).
+5. The served extension (#939) uses the same rule (`pf` 1..50 required, `cf` if present). The label stays "ECMWF
+   ensemble mean (estimate)"; `members` in the basis carries 50 or 51.
