@@ -459,3 +459,22 @@ at 0.02 kn (the currents LUT step) and drop the direction field. The 2-byte fiel
   pilots steps (the old two-byte frames; currents speed + direction). Currents become speed only: legend "Ocean current speed".
 - READERS (the director's condition 2): no infobox, point readout or legend reads these frames (grep: only ownRasterFrames /
   useOwnRasterFrames / ownLayerAvailability read the sets; no backend route); the legend is built from the palette, not frames.
+
+### 12d. Lever A on real frames (appended 2026-11-16 ~23:15Z; instrument: scratch abcompare.py over both formats published from the SAME cycle)
+GFS / EURO / ICON gusts 2026-11-16 12Z, currents 2026-11-16 00Z, every frame, each set published twice (FRAME_RASTER_ONE_BYTE=0, =1).
+"LUT differs" = the client's palette entry (floor(v / step + 1e-3), the shader rule) differs between the two decoded frames.
+
+| set | frames | cells | LUT differs | explained by the old 0.01 kn rounding | MB old -> new | ratio | saturated | parity |
+|---|---|---|---|---|---|---|---|---|
+| gust (GFS) | 193 | 200.4 M | 1.52 % | 100 % | 173.5 -> 94.0 | 0.542 | 0 | 0.2505 kn |
+| gust_euro | 64 | 66.4 M | 0.88 % | 100 % | 69.7 -> 34.0 | 0.488 | 8 | 0.2505 kn |
+| gust_icon | 112 | 116.3 M | 0.90 % | 100 % | 142.2 -> 64.3 | 0.452 | 0 | 0.2505 kn |
+| currents | 41 | 28.4 M | 24.87 % | 100 % | 72.5 -> 17.4 | 0.241 | 0 | 0.01002 kn |
+
+- "Explained" means: the old frame drew the cell exactly ONE band up, from a value within 0.005 kn (+ the eps) above that band's
+  edge, i.e. a source value just under the edge that the 0.01 kn rounding pushed over it. No cell differs any other way, and the
+  no-data masks are identical. So the new frames draw each cell's SOURCE band; the old frames drew the rounded value's band.
+  Currents differ so often because their band (0.02 kn) is only two old rounding steps wide.
+- The 8 saturated EURO cells (>= 127 kn 10fg, one cycle) draw the top colour either way (the LUT clamps at 75 kn).
+- Parity: every built frame within the half-step + 0.001-step bound (0.2505 / 0.01002 kn), checked by the publisher's own reader.
+- Sizes are on top of §12's prediction (GFS 54 %, ICON 45 %, currents 24 %). The 4G re-run (§10 arms, first-frame-first on) follows.
