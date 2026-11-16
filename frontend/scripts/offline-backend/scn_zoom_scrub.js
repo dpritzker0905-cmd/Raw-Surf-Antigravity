@@ -160,8 +160,14 @@ const PROBE = () => {
 
 async function clickExact(page, text) {
   const loc = page.locator('button').filter({ hasText: new RegExp(`^\\s*${text}\\s*$`) }).filter({ visible: true }).first();
-  await loc.waitFor({ state: 'visible', timeout: 15000 });
-  await loc.evaluate((el) => el.click());
+  // PHONE (2026-11-16): the mobile layout keeps the layer chips in a collapsed sheet, so no visible "Waves" button exists. Fall back to
+  // the app's own layer toggle (what the chip calls), as scn_render_census / scn_series_decode do; recorded as page.__layerVia.
+  try { await loc.waitFor({ state: 'visible', timeout: 15000 }); await loc.evaluate((el) => el.click()); page.__layerVia = 'chip'; } catch (e) {
+    if (text !== 'Waves') throw e;
+    const ok = await page.evaluate(() => { if (typeof window.toggleLayer !== 'function') return false; window.toggleLayer('waves'); return true; });
+    if (!ok) throw e;
+    page.__layerVia = 'toggleLayer';
+  }
 }
 
 // REQLOG=1: what answered each weather request (the tier behind a resident: product, scope, lattice, dynamic or stored).

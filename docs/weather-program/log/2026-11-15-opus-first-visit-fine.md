@@ -159,3 +159,23 @@ published with `publish_frame_images.py --only frames` (the Florida bundle: 38 K
 So a next-hour CDN prefetch has nothing to add inside the boxes: the bundle already holds the whole run and each hour is a slice
 decode. **C is dropped; no code written.** The coarse-then-fine wait lives outside the boxes and on partial covers; sizing of the
 zero-box-load routes for those is sent to the director and the frame-carry lane (publisher budget).
+
+## 2026-11-16 06:40Z: limits of the 06:20Z result (the advisor's red-team), written beside it before it is quoted
+
+"First visits are already exact inside pilot areas" holds ONLY for what was measured:
+1. **Scope:** one view (florida_east_coast, z8, (-80.6, 28.1)), one layer (waves), one model (**GFS**), desktop, one session per arm,
+   offline lab. The 10 steps are the scenario's fixed list: hours 1, 2, 3, 4, 28, 52, a burst to 172, 148, 147, then Home (0): 9
+   first visits plus the return to 0, not ten one-hour steps (06:20Z said "one-hour steps"; corrected here). NOT measured: another
+   pilot area, EURO or ICON, a view straddling a pilot edge (partial covers still go to `/grid`, by the contract).
+2. **The bundles-off arm** runs against the mock backend; "9 of 10 never exact in the window" shows the bundle is what delivers the
+   frame, and says nothing about the size of the LIVE wait.
+3. **Phone:** still unmeasured. The scenario now falls back to the app's own layer toggle when the mobile layout hides the Waves chip
+   (committed), but on the phone profile at this view the engine received no wave grid within 60 s in the first try; unexplained, not
+   a result.
+4. **Freshness:** in the lab the bundle is always the current run. Live, a regional set skipped for budget keeps its old bundle, so
+   "exact" means exact to the bundle, possibly a cycle behind the glyphs; a live claim needs the bundle's run recorded per step.
+5. **Options A and B are estimates.** For B: if the 0.5-deg layer REPLACES the fine grid outside the pilot areas at close zoom, the
+   map's values change (coarser than the 0.25 `/grid` serves there today) and that needs David's word and a parity line; if the client
+   still fetches `/grid` afterwards, B removes the wait but none of the box load. Storage and egress per run x layers x three models are
+   owed before the director decides.
+Owed before the claim is general: a second pilot area, ICON (and EURO where bundled), an edge view, and phone at 4x.
