@@ -101,6 +101,8 @@ const KILL_SWITCHES_TESTED = new Set([
   '__RAW_DISABLE_RASTER_EDGE_NEAREST_NOTE__',
   // ownLayerAvailability.test.js ("its kill offers the layers unconditionally"; 2026-11-15, no empty layers)
   '__RAW_DISABLE_OWN_LAYER_AVAILABILITY__',
+  // gustsLayer.test.js ("first frame first ... its kill restores the whole window at once"; 2026-11-16)
+  '__RAW_DISABLE_OWN_FIRST_FRAME_FIRST__',
   '__RAW_DISABLE_RASTER_OWN_WATER_TEMP__',
   '__RAW_DISABLE_RASTER_OWN_HANDOVER__',
   '__RAW_DISABLE_RASTER_OWN_SAME_FRAME__',

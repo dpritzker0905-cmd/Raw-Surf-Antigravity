@@ -7,7 +7,7 @@ import { RASTER_SET_KEYS } from './staticRasterSets';
 import { buildStepLut, colorAtValue } from './ownRasterLayer';
 import { describeRasterFrame, RASTER_STATUS_LAYERS } from './rasterDrawnFrame';
 import { creditFor } from './LayerDataCredit';
-import { edgeNoteOn } from './useOwnRasterFrames';
+import { edgeNoteOn, firstFrameFirstOn } from './useOwnRasterFrames';
 
 const THEMES = ['light', 'dark', 'beach'];
 afterEach(() => { delete window.__RAW_DISABLE_RASTER_OWN_GUSTS__; });
@@ -110,4 +110,11 @@ describe("the nearest-stored-forecast note at a set's edge", () => {
     window.__RAW_DISABLE_RASTER_EDGE_NEAREST_NOTE__ = true;
     expect(edgeNoteOn()).toBe(false);
   });
+});
+
+test('first frame first (own-only layers on a cold toggle) is on by default; its kill restores the whole window at once', () => {
+  expect(firstFrameFirstOn()).toBe(true);
+  window.__RAW_DISABLE_OWN_FIRST_FRAME_FIRST__ = true;
+  expect(firstFrameFirstOn()).toBe(false);
+  delete window.__RAW_DISABLE_OWN_FIRST_FRAME_FIRST__;
 });

@@ -354,3 +354,47 @@ SMOC question).
   ~110 MB per full world scrub; comparable to today's water-temp set). Built behind the §11 gate; prototype after 00:30.
 - Queued after #928 and G4 (the director, from the research lead's brief): the HEIGHT-SCALE display (face H1/10 by default,
   Hawaiian default in Hawaii, a user toggle, the scale always labelled; ratings and size labels from the physical height).
+
+### 10b. RESULTS of §10 (2026-11-16, phone 390 x 844 at 4x CPU, real frames, production build at f2277b283 + the fallback commit;
+0 live-host leaks in every arm). Harness fixes made BEFORE these rows (each would have biased the result, none chosen from it):
+the link throttle starts after the app shell loads (with it from navigation the page itself timed out); the phone's EURO /
+ICON buttons sit in the weather sheet, so the harness now opens it and FAILS if the model button is missing (each row below
+records the set it actually pinned); the "label leads the field" check is timed from the step's want (the status line's own
+300 ms quiet time + 300 ms slack), not from the keypress.
+
+CORRECTION to §7b / §9 (appended, the rows above are not edited): the phone rows labelled EURO and ICON gusts there ran GFS
+frames (the model buttons were not reachable on the phone layout; the same 881 KB per step gave it away). The rows below are
+the first true phone EURO / ICON measurements. Desktop rows, GFS rows and currents rows of §7b / §7d are unaffected.
+
+| arm | row (pinned) | first paint | step p50 / p95 | KB per step | unlabelled | timeouts |
+|---|---|---|---|---|---|---|
+| unthrottled (CDN +150 ms) | gusts GFS | 1008 ms | 188 / 234 | 881 | 0 | 0 |
+| | gusts EURO | 1026 ms | 178 / 178 (n 3) | 1042 | 0 | 0 |
+| | gusts ICON | 987 ms | 179 / 221 | 1240 | 0 | 0 |
+| | currents | 1088 ms | 176 / 244 | 1728 | 0 | 0 |
+| Fast 4G | gusts GFS | 3817 ms | **328** / 813 (1.74x: FAIL) | 881 | 0 | 0 |
+| | gusts EURO | 4560 ms | 183 / 183 (1.03x) | 1042 | 0 | 0 |
+| | gusts ICON | 5113 ms | **873** / 1308 (4.9x: FAIL) | 1240 | 0 | 0 |
+| | currents | 5930 ms | 180 / 200 (1.02x) | 1728 | 0 | 0 |
+| Fast 4G + metered rule | gusts GFS | 3693 ms | 277 / 780 | 881 | 0 | 0 |
+| | gusts EURO | 4675 ms | 181 / 195 (n 4) | 1015 | 0 | 0 |
+| | gusts ICON | 5168 ms | 775 / 1344 | 1240 | 0 | 0 |
+| | currents | 6127 ms | 143 / 169 | 1728 | 0 | 0 |
+| Slow 4G (reported) | gusts GFS | 19.2 s | 2336 / 9116 | 881 | 0 | 1 |
+| | gusts EURO | 23.4 s | 186 / 202 (n 4) | 1015 | 0 | 0 |
+| | gusts ICON | 26.4 s | 8612 / 9502 | 1240 | 0 | 1 |
+| | currents | none of 5 | 2638 / 5508 | 1901 | 0 | 3 |
+
+Against the line: labels PASS everywhere (0 steps with the field behind the label unsaid). Fast 4G steps: EURO and currents
+PASS; GFS (1.74x) and ICON (4.9x) FAIL. Cause: the hourly sets (GFS to 120 h, ICON to 78 h) ask a new 0.9-1.2 MB frame every
+step, ~0.8-1.1 s on 9 Mbit/s, while the 3- / 6-hourly sets ask one every few steps. The metered rule (prefetch radius 1) does
+not rescue it. First paint on Fast 4G is 3.8-5.9 s (the first frame shares the link with the prefetched neighbours; a
+first-frame-first fix is built and tested, not yet measured).
+
+Levers measured offline on the real frames (5 frames each), BEFORE any build, per §10's rule to raise them first:
+| set | today | 1-byte field at the palette's own step | 0.5 deg tier (u16) |
+|---|---|---|---|
+| gusts GFS | 876 KB | 472 KB (54 %), 0.5 kn = the gust LUT step | 262 KB (30 %) |
+| gusts ICON | 1237 KB | 561 KB (45 %) | 329 KB (27 %) |
+| currents | 1728 KB | speed 0.02 kn = the currents LUT step: 406 KB (23 %) if the not-yet-drawn direction field is left out until particles (it is 1214 KB of the frame) | 136 KB (8 %) |
+(§4's "quantisation alone 3-25 %" measured rounding inside the u16 field; a real 1-byte field is the bigger lever.)

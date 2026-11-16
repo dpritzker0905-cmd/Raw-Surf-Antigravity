@@ -69,6 +69,8 @@ const ISO_INK = { dark: [1, 1, 1, 0.5], beach: [0.24, 0.18, 0.12, 0.5], light: [
 
 /** The edge note's kill (the half-gap rule everywhere, as before): window.__RAW_DISABLE_RASTER_EDGE_NEAREST_NOTE__ = true. */
 export const edgeNoteOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_EDGE_NEAREST_NOTE__ === true);
+/** First frame first's kill (see the step effect): window.__RAW_DISABLE_OWN_FIRST_FRAME_FIRST__ = true. */
+export const firstFrameFirstOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_OWN_FIRST_FRAME_FIRST__ === true);
 export const sameFrameOn = () => !(typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_OWN_SAME_FRAME__ === true);
 // SCOPE (2026-11-14, the advisor's red-team of #889): the handover and the same-frame step apply ONLY to the layers this lane
 // built (default-OFF pending the owner, reachable with the lever). Pressure and satellite are live defaults with no before/after
@@ -191,6 +193,7 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
           st.shownRec = { url: path, dataMs: field ? field.validMs : NaN, model: e ? e.model : M, estimated: e ? e.estimated : null,
             nearestMaxHours: st.nearestMaxHours || 1, drawnFactor: drawnFactor || 1 };
           emitOwnShown(layer, path);                     // synchronous: the isobars cut with the field, in the same frame
+          if (path && st.widen) Promise.resolve().then(() => { if (st.widen) st.widen(); });   // first frame on screen: prefetch now
           Promise.resolve().then(() => { publish(); setEngaged(layer, st.shownRec ? st.shownRec.model : sourceModel(layer, M)); if (path) setShown(true); });
         });
         const before = beforeId && mapInstance.getLayer(beforeId) ? beforeId : undefined;
@@ -291,7 +294,14 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     st.wantRec = { url: f.path, dataMs: Date.parse(f.valid_time), model: f.model, estimated: f.estimated, nearestMaxHours: st.nearestMaxHours };
     if (st.shownRec) st.shownRec = { ...st.shownRec, nearestMaxHours: st.shownRec.url === f.path ? st.nearestMaxHours : st.shownRec.nearestMaxHours };
     publish();
-    const win = planWindow(cur, frames.length, st.dir, ownWindowRadius(layer)).map((i) => frames[i]);
+    const full = planWindow(cur, frames.length, st.dir, ownWindowRadius(layer)).map((i) => frames[i]);
+    // FIRST FRAME FIRST (2026-11-16, the advisor's condition 3 on #928: on a throttled link the cold toggle's first frame shared
+    // the bandwidth with the prefetched neighbours, ~6 s to first paint on Fast 4G). Own-only layers fetch only the wanted
+    // frame until a frame of this engagement is on screen; onShown then widens to the full window. Kill:
+    // window.__RAW_DISABLE_OWN_FIRST_FRAME_FIRST__ = true (the whole window at once, as before).
+    const firstOnly = ownOnly && !st.shownRec && firstFrameFirstOn();
+    const win = firstOnly ? [f] : full;
+    st.widen = firstOnly ? () => { st.widen = null; setWanted(layer, full, st.onFieldCb); } : null;
     // Isobars (pressure): asked of the worker as a frame lands, never computed in this step (isobarStore caches per path).
     const iso = layer === 'pressure' ? requestIsobars : null;
     for (const w of win) { const got = getField(w.path); if (got) { L.offerField(w.path, got); if (iso) iso(w.path, got); } }
@@ -299,7 +309,8 @@ export function useOwnRasterFrames({ mapInstance, layer, model, active, timeOffs
     L.want(f.path);
     emitOwnWant(layer, f.path);
     tel().want = { validMs, path: f.path, frameMs: Date.parse(f.valid_time), model: f.model, estimated: f.estimated, at: Date.now() };
-    setWanted(layer, win, (path, field) => { const now = ref.current.layerObj; if (now) now.offerField(path, field); if (iso) iso(path, field); });
+    st.onFieldCb = (path, field) => { const now = ref.current.layerObj; if (now) now.offerField(path, field); if (iso) iso(path, field); };
+    setWanted(layer, win, st.onFieldCb);
   }, [engaged, index, fbIndex, timeOffsetHours, layer, M, gen]);
 
   if (!handoverLayer(layer) || (typeof window !== 'undefined' && window.__RAW_DISABLE_RASTER_OWN_HANDOVER__ === true)) return engaged;
