@@ -662,3 +662,11 @@ would rather the method not come from there either, say so and it is dropped too
 **The season limit returns.** Duck's ten months were what answered it. With Duck gone, the buoy window (2026-11-17
 to 12-07) and the winter window (2027-01-11 to 02-01) are the only ones, both cool-season, and "not tested in
 summer" stands on any served change that rests on them.
+
+## 2026-11-16 04:12Z One line so the two windows cannot drift apart (advisor)
+
+The 02:31Z amendment governs WINDOW 2 exactly as it governs window 1: which configurations are RUNNABLE from the
+saved rows and which are NOT RUNNABLE, the station-day median as the unit of analysis, and holding out by STATION.
+The 01:44Z section was written before that amendment and still says "same held-out spots"; where the two differ, the
+02:31Z amendment is the rule for both windows. When the first breaking-truth source gets its dated section, that
+section goes to the advisor before any of its values is read.
