@@ -161,3 +161,18 @@ Section 5 stands as it fell: FAIL as written, in both runs. Reading (not a pass)
   discarded and repeated, not kept.
 - **Also owed (advisor):** the ~2 s steps in the KILL arm of section 5 (1878, 2043, 2371 ms) are not #937's; a 2 s scrub step with
   the fix off is a defect of its own. Sent to Move 3 with the view and cadence (below).
+
+### 6a. Amendment (2026-11-16 ~06:25 EST, before any A/A data was read; the first A/A launch was stopped unread)
+The advisor, after reading Move 3's analysis of the section 5 rows: the v1 instrument CENSORED. Each step's timer ended at the next key,
+and a step whose drawn frame had not changed by then was dropped as "no step". Only the 40th key waited long enough (1.5 s) to catch
+a late change: 16 of the 21 steps over 1 s are key 40, in both arms. So p50 and p95 were computed only on steps that happened to be
+fast. That is a second reason, besides noise, why section 5 cannot test the line. The late exact frame itself (~1.5-2 s on 3-hourly
+data) is the known fine-grid delay, Move 3's, not #937's. Added to section 6:
+1. **One fixed window W = 3,000 ms for every step**, and no step dropped. A step whose asked frame is not drawn within W is recorded
+   as CENSORED at W and counted per arm. The statistics use W for it, so a censored step counts as slow, never as missing. Each
+   block's tail after its last key is >= W, so the last key gets exactly the same window as the others.
+2. **Per step:** the forecast time it ended on (the resident `valid_time`), and where that frame came from (series / static CDN /
+   `/grid`, from the resident grid's own tags).
+3. **Keys whose nearest stored frame is the one already drawn** ("no change" is the right answer there) are counted and reported
+   apart. They are not in the step-time statistics.
+4. A/A first, as before. A step overtaken by a later key's frame inside W is flagged `superseded` and reported apart.
