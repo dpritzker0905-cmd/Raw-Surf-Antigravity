@@ -220,6 +220,12 @@ def eot20_member_ok(member):
             and "load" not in member.lower())
 
 
+def eot20_outer_ok(member):
+    """PURE: the nested ocean-tide zip inside the SEANOE archive (never the load-tide one)."""
+    p = PurePosixPath(member)
+    return p.name == "ocean_tides.zip" and not p.is_absolute() and ".." not in p.parts and "\\" not in member
+
+
 def download_eot20(root):
     """Ensure root/EOT20/ocean_tides/<C>_ocean_eot20.nc (the layout pyTMD's database expects). Returns the root."""
     dest = root / "EOT20" / "ocean_tides"
@@ -231,11 +237,21 @@ def download_eot20(root):
     with urllib.request.urlopen(req, timeout=600) as r, open(zpath, "wb") as fh:
         shutil.copyfileobj(r, fh, 1 << 24)
     log(f"EOT20 archive {zpath.stat().st_size / 1e9:.2f} GB")
+    # The SEANOE archive nests the atlases: <...>/ocean_tides.zip and <...>/load_tides.zip (seen 2026-11-16 from the
+    # archive's central directory; run 43836918731 extracted nothing because it looked for the .nc files at the top).
+    inner = root / "ocean_tides.zip"
     with zipfile.ZipFile(zpath) as z:
+        outer = [m for m in z.namelist() if eot20_outer_ok(m)]
+        if not outer:
+            raise SystemExit(f"EOT20: no ocean_tides.zip in the archive: {z.namelist()[:20]}")
+        with z.open(outer[0]) as src, open(inner, "wb") as dst:
+            shutil.copyfileobj(src, dst, 1 << 24)
+    zpath.unlink()
+    with zipfile.ZipFile(inner) as z:
         for m in z.namelist():
             if eot20_member_ok(m):
-                with z.open(m) as src, open(dest / Path(m).name, "wb") as dst:   # flat: by file name only
+                with z.open(m) as src, open(dest / PurePosixPath(m).name, "wb") as dst:   # flat: by file name only
                     shutil.copyfileobj(src, dst, 1 << 24)
-    zpath.unlink()
+    inner.unlink()
     log(f"EOT20 ocean tides: {sorted(p.name for p in dest.glob('*.nc'))}")
     return root

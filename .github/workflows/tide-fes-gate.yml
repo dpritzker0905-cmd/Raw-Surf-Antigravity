@@ -57,7 +57,7 @@ jobs:
         if: always()
         run: |
           mkdir -p fes_cache eot20_cache
-          rm -f fes_cache/*.part eot20_cache/eot20.zip
+          rm -f fes_cache/*.part eot20_cache/eot20.zip eot20_cache/ocean_tides.zip
           ls -la fes_cache eot20_cache/EOT20/ocean_tides 2>/dev/null | tail -40 || true
       - name: Save FES2022b downloads
         if: always()

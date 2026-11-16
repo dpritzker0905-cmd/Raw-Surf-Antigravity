@@ -34,6 +34,9 @@ def test_aviso_credentials_go_only_to_a_pinned_host_and_names_stay_plain():
     assert S.eot20_member_ok("EOT20/ocean_tides/M2_ocean_eot20.nc") and S.eot20_member_ok("ocean_tides/2N2_ocean_eot20.nc")
     for bad in ("../ocean_tides/M2_ocean_eot20.nc", "/abs/M2_ocean_eot20.nc", "EOT20/load_tides/M2_load_eot20.nc"):
         assert not S.eot20_member_ok(bad), bad
+    assert S.eot20_outer_ok("ocean_tides.zip") and S.eot20_outer_ok("EOT20/ocean_tides.zip")
+    for bad in ("load_tides.zip", "../ocean_tides.zip", "x/ocean_tides.zip.bak", "/ocean_tides.zip"):
+        assert not S.eot20_outer_ok(bad), bad
     src = (BACKEND / "scripts" / "tide_fes" / "sources.py").read_text(encoding="utf-8")
     assert src.index("host_key_ok(key.get_name()") < src.index("t.auth_password(") and "t.connect(" not in src
 
