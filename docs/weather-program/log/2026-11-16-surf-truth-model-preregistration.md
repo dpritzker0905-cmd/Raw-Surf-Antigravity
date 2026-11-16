@@ -184,3 +184,14 @@ blind observation exists. Where this amendment and the text above differ, this a
   authoritative.
 
 Research lead signed off amendment 2, 2026-11-16 17:52:05 -0500 (local clock at commit), with edits a-b: (a) D also VOID on more than 0.1% divergent transitions after warmup; (b) F rounding width from the precision as typed, and fixed seeds (20261116) for the PIT and the bootstraps.
+
+## 2026-11-16 22:56Z CLOCK CORRECTION (header read from `date -u`)
+
+The times in this file's earlier headers were ESTIMATED, not read from a clock, and the advisor caught them running
+ahead (lesson L-P10). Corrected here, append-only:
+- "AMENDMENT 1 ... 23:25Z": committed f458a641e at 2026-11-16 22:46:55Z. The header ran 39 minutes ahead.
+- "AMENDMENT 2 ... 23:55Z": committed a91c1f6dc at 2026-11-16 22:52:09Z. The header ran about 63 minutes ahead.
+- The original "signed off 17:45 EST": see amendment 2 item M (the sign-off message preceded the 17:37:13 EST commit).
+The authoritative time of every section is its git commit time. Both amendments were still registered BEFORE any data
+or fit (no blind observation existed at either commit). From here on, every header time in this lane is read from
+`date -u` at the moment of writing.
