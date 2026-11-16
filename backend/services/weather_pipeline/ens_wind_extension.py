@@ -150,6 +150,24 @@ def build_points(meta: dict, arrays: dict, run_time: datetime, native_max: datet
     return points
 
 
+def sample_step(meta: dict, arrays: dict, step: int, lats, lons) -> dict:
+    """The served composition at ONE archived ENS step, vectorised (for raster frame sets: ~1 M nodes per call is
+    fine). Plain bilinear on the 1-degree grid (rows S->N, longitude wraps), the gate's de-bias factor on (u, v,
+    speed) when one is recorded, and gust / gust_p90 clipped >= speed. Returns m/s arrays: u, v, speed, direction,
+    gust, gust_p90, spread, plus `clipped` (bool, where a gust was raised to the wind). build_points uses the same
+    sampling and factor, so a frame built from this is the same composition as the stored product."""
+    lats = np.asarray(lats, dtype=float)
+    lons = np.asarray(lons, dtype=float)
+    f = {n: ec.bilinear(arrays[f"{n}_{int(step)}"], GRID_1DEG, lats, lons) for n in FIELDS}
+    k = _factor_for(int(step), meta.get("speed_factor_by_bin") or {})
+    if k != 1.0:
+        f = ec.apply_speed_factor(f, k)
+    s, d = ec.to_speed_dir(f["u"], f["v"])
+    clipped = f["gust"] < s
+    return {"u": f["u"], "v": f["v"], "speed": s, "direction": d, "gust": np.maximum(f["gust"], s),
+            "gust_p90": np.maximum(f["gust_p90"], s), "spread": f["spread"], "clipped": clipped}
+
+
 def _factor_for(lead_h: int, k_by_bin: dict) -> float:
     """k of the gate's lead bin. Bins are ENS leads (the hindcast fits by ENS lead); an ENS run up to 36 h older than
     the deterministic run serves leads past 336 h, which take the last bin's factor."""

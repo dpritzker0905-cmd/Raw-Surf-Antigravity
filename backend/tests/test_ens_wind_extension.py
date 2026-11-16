@@ -106,3 +106,16 @@ async def test_fallback_order(monkeypatch):
     # both ICON switches killed -> None (the caller's legacy loop)
     monkeypatch.setenv("ICON_WIND_GFS_STANDIN", "0")
     assert await ex.extend_wind_tail(_sched(), "ICON", RUN, RUN + timedelta(hours=180), bbox, 10.0, False) is None
+
+
+def test_sample_step_matches_build_points_at_a_native_step():
+    meta, arrays = _packed(lambda s: s / 10.0)
+    pts = ex.build_points(meta, arrays, RUN, RUN + timedelta(hours=180), [5.0], [7.0])
+    h = pts[0]["hourly"]
+    i = h["time"].index((ENS_RUN + timedelta(hours=198)).strftime("%Y-%m-%dT%H:%M"))   # ENS step 198 is archived
+    f = ex.sample_step(meta, arrays, 198, [5.0], [7.0])
+    assert f["speed"][0] == pytest.approx(h["wind_speed_10m"][i], abs=1e-3)
+    assert f["gust"][0] == pytest.approx(h["wind_gusts_10m"][i], abs=1e-3) and bool(f["clipped"][0])
+    assert f["gust_p90"][0] == pytest.approx(h["wind_gusts_p90_10m"][i], abs=1e-3)
+    wrap = ex.sample_step(meta, arrays, 198, [0.0, 0.0], [359.5, -0.5])
+    assert wrap["speed"][0] == pytest.approx(wrap["speed"][1])

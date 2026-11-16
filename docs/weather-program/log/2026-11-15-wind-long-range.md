@@ -268,3 +268,18 @@ at 00:45Z stands.
   `gust_label` "max gust in the 6 h to this time".
 - Tests: 26 instrument tests (P5 pass, fail and underpowered; CSI counts; seasonal climatology; end to end on the 2026
   layout with AIFS) + 15 served-side tests, all passing locally.
+
+## 2026-11-16 01:00Z Two reported-only additions (senior lead), before any result; hindcast relaunched again
+
+- **De-bias per network**: the September FIT has no NDBC truth (realtime2 starts 10-02, outside the fit window), so
+  the non-primary de-bias factor is fitted on ASOS (land and coastal airports) and tested on ASOS + NDBC (water). A
+  land-fitted factor can look worse on water for a reason unrelated to the method. The report now carries
+  `debias_by_network` (de-biased minus raw speed MAE, ASOS-only and NDBC-only, per bin). The primary member mean
+  needs no fit and is unaffected. Gate unchanged.
+- **Throttling trace**: every HTTP retry is counted by cause (503 / 429 / exception) and written per shard
+  (`shard_<i>_of_24.retries.json`, in the shard artifact), and the report carries `retries_by_shard`. A VOID from
+  dropped runs can then be traced to throttling, not to missing data.
+- Served side: `ens_wind_extension.sample_step` is the vectorised one-step sampler that the gusts lane's raster
+  frames use (the same bilinear, de-bias factor and gust clip as `build_points`, plus a `clipped` mask). A test pins
+  it equal to `build_points` at an archived step and checks the longitude wrap.
+- Run 43779656382 had not started collection (stations job queued); it is cancelled and superseded by this push.

@@ -210,6 +210,9 @@ def main(argv=None):
         for r in failed:
             json.dump({"run": r.isoformat(), "failed": "collect raised twice"},
                       open(os.path.join(out_dir, f"{r:%Y%m%d%H}.npz.failed.json"), "w"))
+        json.dump({"shard": a.shard, "runs": len(runs), "failed": [r.isoformat() for r in failed],
+                   "retries": dict(ef.RETRY_STATS)}, open(os.path.join(out_dir, f"shard_{i}_of_{n}.retries.json"), "w"))
+        print(f"shard {a.shard}: retries by cause {dict(ef.RETRY_STATS)}; failed runs {len(failed)}", flush=True)
         return 0
     import wind_lr_score as score
     return score.main_score(s, a.cache, stations, a.out or os.path.join(a.cache, "report"))

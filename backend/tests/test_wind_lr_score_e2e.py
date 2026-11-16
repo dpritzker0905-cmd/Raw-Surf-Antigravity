@@ -79,6 +79,7 @@ def test_main_score_runs_end_to_end(tmp_path):
     assert rep["metrics"]["pooled"]["B2_216_264"]["ens_mean_raw"]["n"] > 0
     assert rep["lines"]["P4_seam_euro"]["n_seam"] == 4                  # 2 test runs x 2 stations
     assert "P5_gust_peak" in rep["lines"] and "aifs_ens_mean" in rep["csi_ge15"]
+    assert set(rep["debias_by_network"]) == {f"{n}_{b}" for n in ("asos", "ndbc") for b in S.BINS}
     assert rep["metrics"]["pooled"]["B3_264_336"]["aifs_ens_mean"]["n"] > 0
     assert rep["metrics"]["pooled"]["B1_180_216"]["climatology"]["n"] > 0
     rows = open(os.path.join(out, "rows.csv")).read().splitlines()

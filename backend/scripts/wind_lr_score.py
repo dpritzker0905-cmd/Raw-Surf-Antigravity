@@ -196,6 +196,18 @@ def csi(fc_gust, ob_gust) -> dict:
             "false_alarms": fa}
 
 
+def _debias_by_network(E, meta, days, bins) -> dict:
+    """REPORTED ONLY (senior lead 2026-11-16): the de-bias factor is fitted on September, when only ASOS has truth
+    (NDBC realtime2 starts 10-02), so its October effect is shown per network: de-biased minus raw speed MAE."""
+    kinds = np.array(meta["kind"])
+    out = {}
+    for net in ("asos", "ndbc"):
+        for b in BINS:
+            m, lo, hi = paired(E["ens_mean_debias"], E["ens_mean_raw"], "ae", (kinds == net) & (bins == b), days)
+            out[f"{net}_{b}"] = {"diff_mae": m, "ci": [lo, hi]}
+    return out
+
+
 def main_score(session, cache, stations, out_dir) -> int:
     os.makedirs(out_dir, exist_ok=True)
     from wind_lr_hindcast import OBS_END, SCORED_LEADS, WINDOW
@@ -336,6 +348,9 @@ def main_score(session, cache, stations, out_dir) -> int:
     rep.update({"void_reasons": void, "k_by_bin": k_by_bin, "gefs_gust_factor": gf_gefs,
                 "debias_vs_raw": {"diff_mae": m, "ci": [lo, hi]}, "fit_runs": len(fit_runs), "test_runs": len(test_runs),
                 "dropped_runs": dropped, "aifs_gust_factor": gf_aifs, "n_gust_events": n_events,
+                "retries_by_shard": {f: json.load(open(os.path.join(run_dir, f))) for f in sorted(os.listdir(run_dir))
+                                     if f.endswith(".retries.json")},
+                "debias_by_network": _debias_by_network(E, meta, days, bins),
                 "csi_ge15": {a: csi(np.array(cols[a]["g"], dtype=float), og) for a in ARMS if a != "climatology"},
                 "test_days": len(test_days), "stations": {"ndbc": n_ndbc, "asos": n_asos}})
     strata = {"pooled": np.ones(len(days), bool), "ndbc": np.array(meta["kind"]) == "ndbc",

@@ -23,6 +23,9 @@ logger = logging.getLogger(__name__)
 AWS_BASE = "https://ecmwf-forecasts.s3.eu-central-1.amazonaws.com"
 ECMWF_BASE = "https://data.ecmwf.int/forecasts"
 PARAMS = ("10u", "10v", "10fg")
+# Retries seen by _get, by cause ("503", "429", "exc", ...): the hindcast records them per shard so a VOID from
+# dropped runs can be traced to throttling, not missing data (senior lead 2026-11-16).
+RETRY_STATS: Dict[str, int] = {}
 
 
 def ef_url(base: str, run: datetime, step: int, ext: str = "grib2", stream: str = "enfo", typ: str = "ef",
@@ -44,8 +47,10 @@ def _get(session, url: str, headers: Optional[dict] = None, tries: int = 8, time
             if r.status_code == 404:
                 return r
             last = RuntimeError(f"HTTP {r.status_code} {url}")
+            RETRY_STATS[str(r.status_code)] = RETRY_STATS.get(str(r.status_code), 0) + 1
         except Exception as e:  # noqa: BLE001 - network; retried
             last = e
+            RETRY_STATS["exc"] = RETRY_STATS.get("exc", 0) + 1
         time.sleep(min(60.0, 2.0 ** (k + 1)) + random.uniform(0.0, 2.0))
     raise last if last else RuntimeError(url)
 
