@@ -22,6 +22,32 @@
  * CPU-held fields.
  */
 export const RESIDENT_MAX = 6;
+// TEXTURE FIT + GPU BUDGET (2026-11-16, the 0.125-deg flip precondition; log 2026-11-16-opus-raster-0125-texture-gate.md). A 0.125-deg
+// global field is 2880 x 1441 (16.6 MB as R32F; ~100 MB at RESIDENT_MAX), and WebGL2 only guarantees a 2048 texture. A field larger
+// than the device's MAX_TEXTURE_SIZE is drawn DOWNSAMPLED by a whole factor (every k-th node; a wrapping grid keeps an exact wrap), and
+// the status line says so; residency is also capped by BYTES per layer. The readout and the blend's grid match keep the full field.
+// Kill: window.__RAW_DISABLE_RASTER_TEX_FIT__ = true (one full-size upload per frame, the count cap only, as before).
+export const RESIDENT_BYTES_MAX = 48 * 1024 * 1024;
+export const texFitOn = (w = (typeof window !== 'undefined' ? window : {})) => w.__RAW_DISABLE_RASTER_TEX_FIT__ !== true;
+/** The field to draw within a `maxTex` limit: itself (factor 1), or every k-th node with its bounds re-derived. */
+export function fitFieldToLimit(field, maxTex) {
+  const { cols, rows } = field;
+  if (!(maxTex > 1) || (cols <= maxTex && rows <= maxTex)) return { field, factor: 1 };
+  const wraps = wrapsLongitude(field);
+  const colsOf = (k) => (wraps ? cols / k : Math.floor((cols - 1) / k) + 1);
+  let k = Math.max(2, Math.ceil(Math.max(cols, rows) / maxTex));
+  while ((wraps && cols % k !== 0) || colsOf(k) > maxTex || Math.floor((rows - 1) / k) + 1 > maxTex) k += 1;
+  const c2 = colsOf(k); const r2 = Math.floor((rows - 1) / k) + 1;
+  const values = new Float32Array(c2 * r2);
+  for (let r = 0; r < r2; r += 1) { const src = r * k * cols; const dst = r * c2; for (let c = 0; c < c2; c += 1) values[dst + c] = field.values[src + c * k]; }
+  const b = field.bounds; const dLon = (b.east - b.west) / (cols - 1); const dLat = (b.north - b.south) / (rows - 1);
+  const bounds = { ...b, east: b.west + (c2 - 1) * k * dLon, north: b.south + (r2 - 1) * k * dLat };
+  return { field: { ...field, cols: c2, rows: r2, values, bounds }, factor: k };
+}
+function texTelemetry() {
+  if (typeof window === 'undefined') return {};
+  return (window.__RAW_OWN_RASTER_TEX__ = window.__RAW_OWN_RASTER_TEX__ || { maxTex: null, downsampled: 0, lastFactor: 1, residentBytes: 0, peakBytes: 0, budgetEvictions: 0 });
+}
 const UPLOADS_PER_FRAME = 1;
 
 // ── pure helpers (unit-tested) ───────────────────────────────────────────────────────────────────────────────────
@@ -249,7 +275,8 @@ export function createOwnRasterLayer({
   const st = {
     map: null, gl: null, canvas: null, lost: false, ready: false, failed: false,
     prog: null, vao: null, buf: null, loc: null, lutTex: null, lut: null, lutDirty: false, lutMap,
-    resident: new Map(),       // path -> { tex, field }
+    resident: new Map(),       // path -> { tex, field, draw, bytes, factor } (draw = the uploaded field: `field` or its downsample)
+    residentBytes: 0,          // bytes of the resident textures (TEXTURE FIT's budget)
     pending: new Map(),        // path -> field waiting for upload
     wantPath: null, shown: null, onShown: null,
     blend: null,               // { from: path, t0, ms } while a step's value blend runs (BLEND_MS), else null
@@ -261,7 +288,7 @@ export function createOwnRasterLayer({
   const dropGl = () => {
     st.ready = false; st.prog = null; st.vao = null; st.buf = null; st.loc = null; st.lutTex = null; st.lutDirty = !!st.lut;
     for (const [p, r] of st.resident) st.pending.set(p, r.field);   // re-upload from the CPU copy after a restore
-    st.resident.clear();
+    st.resident.clear(); st.residentBytes = 0;
     st.dzTex = []; st.dzNext = 0; st.dzReadyAt = null;   // the dz tiles re-upload from the CPU copy too
   };
   const onLost = (e) => { st.lost = true; dropGl(); if (e && e.preventDefault) e.preventDefault(); };
@@ -316,18 +343,37 @@ export function createOwnRasterLayer({
   }
 
   function uploadField(gl, path, field) {
+    const fit = texFitOn();
+    let draw = field; let factor = 1;
+    if (fit) {
+      if (st.maxTex === null) st.maxTex = gl.getParameter(gl.MAX_TEXTURE_SIZE) || 4096;
+      ({ field: draw, factor } = fitFieldToLimit(field, st.maxTex));
+    }
+    const bytes = draw.cols * draw.rows * 4;
     const reuse = st.resident.size >= RESIDENT_MAX ? evictOne() : null;
+    if (fit) {   // the byte budget: free the oldest until this one fits (never the shown, wanted or blend-from frame)
+      while (st.residentBytes + bytes > RESIDENT_BYTES_MAX) {
+        let t = evictOne();
+        // Only protected frames left: a running value blend gives way (a hard cut) so its source frame can go and the cap holds.
+        if (!t && st.blend) { st.blend = null; t = evictOne(); texTelemetry().blendDropped = (texTelemetry().blendDropped || 0) + 1; }
+        if (!t) break;
+        gl.deleteTexture(t); texTelemetry().budgetEvictions += 1;
+      }
+    }
     const tex = reuse || gl.createTexture();
     gl.bindTexture(gl.TEXTURE_2D, tex);
     gl.pixelStorei(gl.UNPACK_ALIGNMENT, 4);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
     gl.pixelStorei(gl.UNPACK_PREMULTIPLY_ALPHA_WEBGL, false);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, field.cols, field.rows, 0, gl.RED, gl.FLOAT, field.values);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.R32F, draw.cols, draw.rows, 0, gl.RED, gl.FLOAT, draw.values);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    st.resident.set(path, { tex, field });
+    st.resident.set(path, { tex, field, draw, bytes, factor });
+    st.residentBytes += bytes;
+    const t = texTelemetry(); t.maxTex = st.maxTex; t.residentBytes = st.residentBytes; t.peakBytes = Math.max(t.peakBytes || 0, st.residentBytes);
+    if (factor > 1) { t.downsampled += 1; t.lastFactor = factor; }
   }
 
   // One dz tile per call (each is up to 4096 x 2701 bytes): R8 with LINEAR filtering, so the GPU blends between codes.
@@ -364,6 +410,7 @@ export function createOwnRasterLayer({
     for (const [p, r] of st.resident) {
       if (p === st.shown || p === st.wantPath || (st.blend && p === st.blend.from)) continue;
       st.resident.delete(p);
+      st.residentBytes -= r.bytes || 0;
       return r.tex;
     }
     return null;
@@ -388,7 +435,7 @@ export function createOwnRasterLayer({
         if (st.vao) gl.deleteVertexArray(st.vao);
         if (st.prog) gl.deleteProgram(st.prog);
       }
-      st.resident.clear(); st.pending.clear(); st.ready = false; st.map = null; st.gl = null;
+      st.resident.clear(); st.residentBytes = 0; st.pending.clear(); st.ready = false; st.map = null; st.gl = null;
       layer.disposed = true;
     },
     prerender(gl) {
@@ -424,13 +471,13 @@ export function createOwnRasterLayer({
         const a = prev && st.resident.get(prev); const b = st.resident.get(st.wantPath);
         st.blend = ms > 0 && a && prev !== st.wantPath && sameGrid(a.field, b.field) ? { from: prev, t0: now(), ms } : null;
         st.shown = st.wantPath;
-        if (st.onShown) { try { st.onShown(st.shown, st.resident.get(st.shown).field); } catch (e) { /* telemetry only */ } }
+        if (st.onShown) { try { const sr = st.resident.get(st.shown); st.onShown(st.shown, sr.field, sr.factor || 1); } catch (e) { /* telemetry only */ } }
       }
       const r = st.shown && st.resident.get(st.shown);
       if (!r) return;
       const m = (args && args.defaultProjectionData && args.defaultProjectionData.mainMatrix) || (args && args.mainMatrix);
       if (!m) return;
-      const f = r.field;
+      const f = r.draw || r.field;   // TEXTURE FIT: the lattice of the UPLOADED texture (the downsample when one was needed)
       let from = null; let mixT = 0;
       if (st.blend) {
         const fr = st.resident.get(st.blend.from);

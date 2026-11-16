@@ -3,7 +3,7 @@ import path from 'path';
 import {
   colorAtValue, buildStepLut, opacityAtZoom, PRESSURE_OPACITY_STOPS, PRESSURE_LUT, wrapsLongitude, createOwnRasterLayer, RESIDENT_MAX,
   TEMPERATURE_LUT, TEMPERATURE_OPACITY_STOPS, NO_DATA_BELOW_GLSL, FS, downscaleAt, DZ_TILES_MAX, DZ_FADE_MS, CLOUD_LUT, SATELLITE_OPACITY_STOPS, scaleForTheme,
-  RAIN_LUT, RAIN_OPACITY_STOPS, BLEND_MS, blendMs, blendEase,
+  RAIN_LUT, RAIN_OPACITY_STOPS, BLEND_MS, blendMs, blendEase, fitFieldToLimit, RESIDENT_BYTES_MAX,
   FOG_LUT, FOG_OPACITY_STOPS, WATER_TEMP_LUT, WATER_TEMP_OPACITY_STOPS, WATER_TEMP_HIGHZOOM_FADE, waterTempOpacityStops,
 } from './ownRasterLayer';
 import { MISSING, NO_DATA_BELOW } from './ownRasterFrames';
@@ -117,7 +117,7 @@ describe('the GL layer', () => {
     L.offerField('a', field(1000)); L.want('a');
     frame(L, gl);
     const initReads = gl.__calls.filter((c) => /^get(Parameter|ProgramParameter|ShaderParameter|Error)$/.test(c)).length;
-    expect(initReads).toBe(1);
+    expect(initReads).toBe(2);   // the link status, and MAX_TEXTURE_SIZE once per layer (TEXTURE FIT, 2026-11-16)
     gl.__calls.length = 0;
     for (let i = 0; i < 5; i++) frame(L, gl);
     expect(gl.__calls.filter((c) => /^(get|is|read|finish|flush|checkFramebufferStatus)/.test(c))).toEqual([]);
@@ -610,5 +610,83 @@ describe('water temperature (2026-11-14): the library SST scale on the air tempe
     expect(waterTempOpacityStops({})).toEqual([...WATER_TEMP_OPACITY_STOPS, ...WATER_TEMP_HIGHZOOM_FADE]);
     expect(waterTempOpacityStops({ __RAW_WT_HIGHZOOM_FADE_DISABLED__: true })).toEqual(WATER_TEMP_OPACITY_STOPS);
     expect(opacityAtZoom(waterTempOpacityStops({}), 15)).toBeCloseTo(0.12, 5);
+  });
+});
+
+
+// TEXTURE FIT + GPU BUDGET (2026-11-16; gate T1/T2/T4, log 2026-11-16-opus-raster-0125-texture-gate.md).
+describe('texture fit and the GPU byte budget', () => {
+  // A 0.125-deg global field: 2880 x 1441, wraps, row 0 = south; each node's value encodes its own (row, col).
+  const big = () => {
+    const cols = 2880; const rows = 1441; const values = new Float32Array(cols * rows);
+    for (let r = 0; r < rows; r += 1) for (let c = 0; c < cols; c += 1) values[r * cols + c] = r * 10000 + c;
+    return { cols, rows, bounds: { west: -180, south: -90, east: 179.875, north: 90 }, values, validMs: 1 };
+  };
+  afterEach(() => { delete window.__RAW_DISABLE_RASTER_TEX_FIT__; delete window.__RAW_OWN_RASTER_TEX__; });
+
+  test('fitFieldToLimit: at 2048 a 2880-wide wrapping field halves; every kept node is the field at the same point; still wraps', () => {
+    const f = big();
+    const { field: d, factor } = fitFieldToLimit(f, 2048);
+    expect(factor).toBe(2);
+    expect([d.cols, d.rows]).toEqual([1440, 721]);
+    expect(wrapsLongitude(d)).toBe(true);
+    for (const [r, c] of [[0, 0], [0, 1439], [360, 720], [720, 0], [720, 1439], [123, 457]]) {
+      expect(d.values[r * d.cols + c]).toBe(f.values[(r * 2) * f.cols + c * 2]);   // the same node, byte for byte
+    }
+    expect(d.bounds.north).toBeCloseTo(90, 9); expect(d.bounds.west).toBe(-180);
+  });
+
+  test('fitFieldToLimit: fits as is at 4096 and 8192; a non-wrapping field keeps its west/south corner and step', () => {
+    expect(fitFieldToLimit(big(), 4096).factor).toBe(1);
+    expect(fitFieldToLimit(big(), 8192).factor).toBe(1);
+    const reg = { cols: 3001, rows: 101, bounds: { west: 0, south: 0, east: 30, north: 1 }, values: new Float32Array(3001 * 101) };
+    const { field: d, factor } = fitFieldToLimit(reg, 2048);
+    expect(factor).toBe(2); expect(d.cols).toBe(1501);
+    expect((d.bounds.east - d.bounds.west) / (d.cols - 1)).toBeCloseTo(0.02, 12);
+  });
+
+  function setup(maxTex) {
+    const gl = fakeGl(); gl.__ctl.maxTex = maxTex; const map = fakeMap();
+    const L = createOwnRasterLayer({ id: 'own-raster-rain' });
+    L.onAdd(map, gl); L.setLut(buildStepLut({ breakpoints: [0], colors: [[1, 2, 3, 1]] }));
+    return { gl, L };
+  }
+  const frame = (L, gl) => { L.prerender(gl, args); L.render(gl, args); };
+
+  test('T1: at MAX_TEXTURE_SIZE 2048 the upload is the downsample (1440 x 721), the uniforms are its lattice, the readout keeps the full field', () => {
+    const { gl, L } = setup(2048);
+    const shown = []; L.onShown((p, f, factor) => shown.push([p, f.cols, factor]));
+    L.offerField('a', big()); L.want('a'); frame(L, gl);
+    expect(gl.__tex.find((t) => t[0] === 'GL_R32F').slice(1)).toEqual([1440, 721]);
+    expect(gl.__u4.find((u) => u[0] === 'u_grid').slice(3)).toEqual([0.25, 0.25]);   // dLon, dLat of what was uploaded
+    expect(shown[0]).toEqual(['a', 2880, 2]);
+    expect(window.__RAW_OWN_RASTER_TEX__.downsampled).toBe(1);
+  });
+
+  test('T2: the resident bytes never exceed the budget over a 30-step scrub of 0.125-deg frames (limit 4096: full size, 16.6 MB each)', () => {
+    const { gl, L } = setup(4096);
+    let peak = 0;
+    for (let i = 0; i < 30; i += 1) {
+      L.offerField(`h${i}`, big()); L.want(`h${i}`); frame(L, gl); frame(L, gl);
+      peak = Math.max(peak, window.__RAW_OWN_RASTER_TEX__.residentBytes);
+      expect(window.__RAW_OWN_RASTER_TEX__.residentBytes).toBeLessThanOrEqual(RESIDENT_BYTES_MAX);
+    }
+    expect(peak).toBeGreaterThan(2880 * 1441 * 4);   // more than one frame was resident at some point
+    expect(L.shownPath()).toBe('h29');
+  });
+
+  test('T2: the 0.25-deg sets keep RESIDENT_MAX frames (1 MB each is far under the budget)', () => {
+    const { gl, L } = setup(4096);
+    for (let i = 0; i < RESIDENT_MAX + 2; i += 1) { L.offerField(`p${i}`, field(1000 + i)); frame(L, gl); }
+    expect(window.__RAW_OWN_RASTER_TEX__.budgetEvictions).toBe(0);
+    expect(window.__RAW_OWN_RASTER_TEX__.residentBytes).toBe(RESIDENT_MAX * 720 * 361 * 4);
+  });
+
+  test('OFF PATH: __RAW_DISABLE_RASTER_TEX_FIT__ uploads the full field and never reads the limit for it', () => {
+    window.__RAW_DISABLE_RASTER_TEX_FIT__ = true;
+    const { gl, L } = setup(2048);
+    L.offerField('a', big()); L.want('a'); frame(L, gl);
+    expect(gl.__tex.find((t) => t[0] === 'GL_R32F').slice(1)).toEqual([2880, 1441]);
+    expect(gl.__calls.filter((c) => c === 'getParameter').length).toBe(0);
   });
 });
